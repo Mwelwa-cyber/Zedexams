@@ -970,20 +970,20 @@
     },
     "generatePasskeyAuthenticationOptions": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "region": "\"us-central1\"",
         "timeoutSeconds": "30",
         "memory": "\"256MiB\"",
         "enforceAppCheck": "shouldEnforceAppCheck(\"generatePasskeyAuthenticationOptions\")"
       },
-      "optionsFrom": "index.js",
+      "optionsFrom": null,
       "optionsUnresolved": null,
       "target": null,
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
-      "batch": 1
+      "batch": null
     },
     "generatePasskeyAuthenticationOptionsAfrica": {
       "kind": "factory",
@@ -999,20 +999,20 @@
     },
     "generatePasskeyRegistrationOptions": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "region": "\"us-central1\"",
         "timeoutSeconds": "30",
         "memory": "\"256MiB\"",
         "enforceAppCheck": "shouldEnforceAppCheck(\"generatePasskeyRegistrationOptions\")"
       },
-      "optionsFrom": "index.js",
+      "optionsFrom": null,
       "optionsUnresolved": null,
       "target": null,
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
-      "batch": 1
+      "batch": null
     },
     "generatePasskeyRegistrationOptionsAfrica": {
       "kind": "factory",
@@ -1488,20 +1488,20 @@
     },
     "listUserPasskeys": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "region": "\"us-central1\"",
         "timeoutSeconds": "30",
         "memory": "\"256MiB\"",
         "enforceAppCheck": "shouldEnforceAppCheck(\"listUserPasskeys\")"
       },
-      "optionsFrom": "index.js",
+      "optionsFrom": null,
       "optionsUnresolved": null,
       "target": null,
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
-      "batch": 1
+      "batch": null
     },
     "logAdminMfaEvent": {
       "kind": "factory",
@@ -1980,37 +1980,37 @@
     },
     "removeUserPasskey": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "region": "\"us-central1\"",
         "timeoutSeconds": "30",
         "memory": "\"256MiB\"",
         "enforceAppCheck": "shouldEnforceAppCheck(\"removeUserPasskey\")"
       },
-      "optionsFrom": "index.js",
+      "optionsFrom": null,
       "optionsUnresolved": null,
       "target": null,
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
-      "batch": 1
+      "batch": null
     },
     "renameUserPasskey": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "region": "\"us-central1\"",
         "timeoutSeconds": "30",
         "memory": "\"256MiB\"",
         "enforceAppCheck": "shouldEnforceAppCheck(\"renameUserPasskey\")"
       },
-      "optionsFrom": "index.js",
+      "optionsFrom": null,
       "optionsUnresolved": null,
       "target": null,
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
-      "batch": 1
+      "batch": null
     },
     "requestAssessmentExport": {
       "kind": "delegated",
@@ -2561,20 +2561,20 @@
     },
     "verifyPasskeyAuthentication": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "region": "\"us-central1\"",
         "timeoutSeconds": "30",
         "memory": "\"256MiB\"",
         "enforceAppCheck": "shouldEnforceAppCheck(\"verifyPasskeyAuthentication\")"
       },
-      "optionsFrom": "index.js",
+      "optionsFrom": null,
       "optionsUnresolved": null,
       "target": null,
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
-      "batch": 1
+      "batch": null
     },
     "verifyPasskeyAuthenticationAfrica": {
       "kind": "factory",
@@ -2590,20 +2590,20 @@
     },
     "verifyPasskeyRegistration": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "region": "\"us-central1\"",
         "timeoutSeconds": "30",
         "memory": "\"256MiB\"",
         "enforceAppCheck": "shouldEnforceAppCheck(\"verifyPasskeyRegistration\")"
       },
-      "optionsFrom": "index.js",
+      "optionsFrom": null,
       "optionsUnresolved": null,
       "target": null,
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
-      "batch": 1
+      "batch": null
     },
     "verifyPasskeyRegistrationAfrica": {
       "kind": "factory",
