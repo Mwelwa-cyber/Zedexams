@@ -289,6 +289,39 @@ async function main() {
     await page.close()
   }
 
+  /* Pass 3 — the High-contrast toggle must STRENGTHEN the dark themes.
+   * It used to push near-black borders/muted ink onto the dark surfaces, so
+   * switching it on measurably reduced contrast. Render the same muted-text
+   * sample with and without body[data-a11y-contrast="high"] under Night and
+   * assert the ratio does not go down. */
+  {
+    const css = builtCss()
+    const sample = STUDIO(
+      '<div class="theme-card border theme-border rounded-xl p-4" data-s>'
+      + '<p class="theme-text-muted text-sm" id="hc-probe">Secondary copy</p></div>',
+    )
+    const ratios = {}
+    for (const on of [false, true]) {
+      const page = await browser.newPage()
+      await page.setContent(
+        `<!doctype html><html data-theme="night"><head><style>${css}</style></head>`
+        + `<body class="theme-oatmeal"${on ? ' data-a11y-contrast="high"' : ''}>${sample}</body></html>`,
+        { waitUntil: 'domcontentloaded' },
+      )
+      const r = await page.evaluate(MEASURE)
+      const probe = r.pairs.find((p) => p.text === 'Secondary copy')
+      ratios[on ? 'on' : 'off'] = probe ? probe.ratio : null
+      await page.close()
+    }
+    if (!ratios.on || !ratios.off) {
+      failures.push(`high-contrast check: probe not measured (off=${ratios.off}, on=${ratios.on})`)
+    } else if (ratios.on < ratios.off) {
+      failures.push(`high-contrast check: enabling the toggle REDUCED Night contrast (${ratios.off}:1 → ${ratios.on}:1)`)
+    } else {
+      console.log(`[route-contrast] high-contrast toggle strengthens Night: ${ratios.off}:1 → ${ratios.on}:1`)
+    }
+  }
+
   await browser.close()
 
   if (failures.length) {

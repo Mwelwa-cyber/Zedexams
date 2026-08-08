@@ -133,6 +133,11 @@ describe('ReadingThemePicker', () => {
     await u.click(screen.getByRole('button', { name: 'Reading theme' }))
     await u.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).toBeNull()
-    expect(localStorage.getItem(LS_KEY)).toBe('oatmeal')
+    // No choice was made, so the key stays UNSET — an absent key is what lets
+    // the prefers-color-scheme seeding keep following the OS. (Mounting used
+    // to write the default here, which turned the seed into a saved choice.)
+    expect(localStorage.getItem(LS_KEY)).toBeNull()
+    // …and a real page would still paint the default palette.
+    expect(paintedTheme()).toBe('theme-oatmeal')
   })
 })
