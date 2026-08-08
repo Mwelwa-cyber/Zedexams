@@ -238,7 +238,7 @@
       "target": "require('./accountDeletionRequests').apiRequestAccountDeletion",
       "rewritePath": "/api/account/delete-request",
       "rewriteRegion": "us-central1",
-      "classification": "mechanical",
+      "classification": "audit-surface",
       "batch": null
     },
     "apiTextToSpeech": {
@@ -258,7 +258,7 @@
       "target": "require('./visitorTracking').apiTrackVisit",
       "rewritePath": "/api/track/visit",
       "rewriteRegion": "us-central1",
-      "classification": "mechanical",
+      "classification": "audit-surface",
       "batch": null
     },
     "apiWhatsAppWebhook": {
