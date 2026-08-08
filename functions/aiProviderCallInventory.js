@@ -43,6 +43,7 @@ const LIMITED = [
   {name: "structureImportedQuiz", file: "index.js", check: 'action: "structureImportedQuiz"'},
   {name: "structureScannedQuiz", file: "index.js", check: 'action: "structureScannedQuiz"'},
   {name: "ocrNotePages", file: "index.js", check: 'action: "ocrNotePages"'},
+  {name: "autoLabelDiagram", file: "index.js", check: 'action: "autoLabelDiagram"'},
   {
     name: "extractClassListPages",
     file: "index.js",

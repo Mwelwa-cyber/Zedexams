@@ -369,6 +369,18 @@ export const INVENTORY = Object.freeze([
     incompleteResultSaveable: false,
     note: 'The only generator with no usage meter at all — see the scan.',
   }),
+  g('functions/teacherTools/autoLabelDiagram.js', {
+    tier: 5,
+    state: 'unmigrated',
+    entryPoint: 'autoLabelDiagram (callable)',
+    clientSurface: 'Visual Studio — "Auto-label this picture" (VisualCanvas.jsx)',
+    produces: 'Proposed diagram labels ({ word, anchor, confidence }) for teacher review',
+    incompleteResultSaveable: false,
+    note: 'Claude vision over one diagram image. NOTHING IS WRITTEN server-side '
+      + '— proposals return to the editor as pre-filled manual labels, so a '
+      + 'duplicated call costs a second reading of the same image and a daily-'
+      + 'allowance charge, never a duplicate document.',
+  }),
 
   // ── Tier 6 · revision and recommendation ──────────────────────────────
   g('functions/teacherTools/reviseQuestion.js', {

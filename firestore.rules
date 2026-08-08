@@ -1734,6 +1734,40 @@ service cloud.firestore {
       allow delete: if isVerified() && (resource.data.createdBy == request.auth.uid || isAdmin());
     }
 
+    // ── diagramAssets (Visual Studio v2 — curriculum Diagram Library) ─
+    // One asset stores the SOURCE art + normalized label data; the printable
+    // versions (teacher / learner / answer key / picture) are render-time
+    // projections, never separate docs. Owner model mirrors visualAssets:
+    // owners create/edit their own PRIVATE DRAFTS, admins moderate, and any
+    // signed-in user can read an asset an admin has approved for public scope.
+    match /diagramAssets/{assetId} {
+      allow read: if isAdmin()
+        || (isVerified() && resource.data.createdBy == request.auth.uid)
+        || (isVerified()
+            && resource.data.get('scope', 'private') == 'public'
+            && resource.data.get('status', 'draft') in ['approved', 'published']);
+      // Non-admins may only create PRIVATE DRAFTS; reaching a publicly
+      // readable state (scope:'public' + status:'approved'/'published') is
+      // the admin-only moderation gate, exactly as for visualAssets.
+      allow create: if isVerified()
+        && incoming().createdBy == request.auth.uid
+        && (isAdmin() || (
+              incoming().get('status', 'draft') == 'draft'
+              && incoming().get('scope', 'private') != 'public'))
+        && (!('art' in incoming()) || (
+              (!('url' in incoming().art) || (incoming().art.url is string && incoming().art.url.size() <= 2000))
+              && (!('storagePath' in incoming().art) || (incoming().art.storagePath is string && incoming().art.storagePath.size() <= 500))));
+      // Owners edit their own asset but cannot self-promote it to the
+      // published/public state; admins can change anything.
+      allow update: if isAdmin()
+        || (isVerified()
+            && resource.data.createdBy == request.auth.uid
+            && incoming().createdBy == resource.data.createdBy
+            && incoming().get('status', 'draft') == 'draft'
+            && incoming().get('scope', 'private') != 'public');
+      allow delete: if isVerified() && (resource.data.createdBy == request.auth.uid || isAdmin());
+    }
+
     // ── visualProjects (Visual Studio — editable canvas projects) ─
     // Owner-only working documents (the editable canvas state behind a saved
     // asset). Owner is ownerId; admins may moderate.

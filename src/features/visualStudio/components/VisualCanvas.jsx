@@ -19,6 +19,10 @@ import {
   buildAssessmentDiagramHandoff, defaultFollowUps, DEFAULT_DIAGRAM_INSTRUCTION,
 } from '../lib/visualVersions'
 import { uploadVisualImage, saveVisualAsset } from '../services/visualAssetService'
+import { requestAutoLabels } from '../services/autoLabelService'
+import {
+  proposalsToCanvasObjects, isLowConfidence, lowConfidenceCount, autoLabelResultMessage,
+} from '../lib/autoLabelClient'
 import { writeVisualHandoff } from '../../../utils/studioHandoff'
 import { runExportPreflight } from '../../../utils/exportPreflight'
 import { downloadHtmlAsPdf } from '../../../utils/htmlToPdf'
@@ -174,6 +178,20 @@ export default function VisualCanvas({ visual, onBack, onToast }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [objects, selectedId, commit, undo, redo])
 
+  /* ----- auto-label on open (spec 1C) ----- */
+  // A freshly generated picture must not arrive at "0 labels placed": when the
+  // handoff sets autoLabelOnOpen and the art has no labels yet, run ONE
+  // labelling pass automatically. Mount-only by design (the flag describes the
+  // moment of arrival, not the editing session), hence the empty deps.
+  const autoLabelRanRef = useRef(false)
+  useEffect(() => {
+    if (autoLabelRanRef.current) return
+    if (!visual?.autoLabelOnOpen || !imageUrl || objects.length > 0) return
+    autoLabelRanRef.current = true
+    autoLabelPicture()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: re-running on edits would re-label a reviewed diagram
+  }, [])
+
   function ratioFromEvent(e) {
     const rect = canvasRef.current?.getBoundingClientRect()
     if (!rect || !rect.width) return { x: 0.5, y: 0.5 }
@@ -261,11 +279,27 @@ export default function VisualCanvas({ visual, onBack, onToast }) {
         return Math.hypot((o.x2 - o.x), (o.y2 - o.y)) > 0.02
       }))
     }
+    // Dragging an AI-proposed label IS the teacher reviewing its position —
+    // clear the low-confidence flag rather than leaving a stale amber mark.
+    if (d.mode === 'point') {
+      setObjects((prev) => prev.map((o) => {
+        if (o.id !== d.id || o.confidence == null) return o
+        const { confidence, ...rest } = o
+        return rest
+      }))
+    }
   }
 
   function updateSelected(patch) {
     if (!selectedId) return
-    commit(objects.map((o) => (o.id === selectedId ? { ...o, ...patch } : o)))
+    commit(objects.map((o) => {
+      if (o.id !== selectedId) return o
+      const next = { ...o, ...patch }
+      // Renaming an AI-proposed label is the teacher reviewing it — the
+      // low-confidence flag goes with the review, not with time.
+      if (patch.text !== undefined && next.confidence != null) delete next.confidence
+      return next
+    }))
   }
   function deleteSelected() {
     if (!selectedId) return
@@ -302,6 +336,37 @@ export default function VisualCanvas({ visual, onBack, onToast }) {
   }
 
   /* ----- actions ----- */
+  // Spec 1C: AI proposals are just pre-filled manual labels — they land as
+  // ordinary label objects (drag / rename / delete), low-confidence ones
+  // flagged amber, and any failure drops the teacher into manual labelling
+  // rather than a dead end.
+  async function autoLabelPicture() {
+    if (!imageUrl || busy) return
+    setBusy('autolabel'); setError('')
+    try {
+      const res = await requestAutoLabels({
+        imageUrl,
+        subject: visual.subject || '',
+        grade: visual.grade || '',
+        topic: visual.topic || '',
+        subtopic: visual.subtopic || '',
+        existingWords: labelObjs.map((l) => l.text).filter(Boolean),
+      })
+      const proposed = proposalsToCanvasObjects(res.parts || [], { color })
+      if (proposed.length) commit([...objects, ...proposed])
+      onToast?.(autoLabelResultMessage({
+        added: proposed.length,
+        grounded: res.grounded !== false,
+        failed: Boolean(res.failed),
+        lowCount: lowConfidenceCount(proposed, res.lowConfidenceThreshold || undefined),
+      }))
+    } catch (e) {
+      setError(e?.message || 'Auto-label failed — add labels manually with the Label tool.')
+    } finally {
+      setBusy('')
+    }
+  }
+
   async function saveToMyVisuals() {
     if (!uid) { setError('Please sign in.'); return }
     setBusy('save'); setError('')
@@ -529,6 +594,17 @@ export default function VisualCanvas({ visual, onBack, onToast }) {
 
         {/* stage */}
         <div className="vs-stage">
+          {imageUrl && labelObjs.length === 0 && !locked && (
+            <button
+              type="button"
+              className="vs-autolabel-cta"
+              disabled={!!busy}
+              onClick={autoLabelPicture}
+            >
+              {busy === 'autolabel' ? <span className="vs-spinner" /> : <span aria-hidden="true">✦</span>}
+              {busy === 'autolabel' ? ' Finding the parts…' : ' Auto-label this picture'}
+            </button>
+          )}
           <div
             className="vs-canvas"
             ref={canvasRef}
@@ -582,7 +658,8 @@ export default function VisualCanvas({ visual, onBack, onToast }) {
               {/* labels + text */}
               {lettered.filter((o) => o.type === 'label').map((o) => (
                 <div key={o.id} data-ov-item
-                  className={`vs-label vs-ov-item ${selectedId === o.id ? 'selected' : ''}`}
+                  className={`vs-label vs-ov-item ${selectedId === o.id ? 'selected' : ''} ${isLowConfidence(o) ? 'low-conf' : ''}`}
+                  title={isLowConfidence(o) ? 'AI is unsure about this label — check the word and position' : undefined}
                   style={{ left: `${o.x * 100}%`, top: `${o.y * 100}%`, borderColor: o.color, color: o.color }}
                   onPointerDown={(e) => startItemDrag(e, o)}
                 >
@@ -616,6 +693,12 @@ export default function VisualCanvas({ visual, onBack, onToast }) {
                   {selected.type === 'label' && (
                     <p className="vs-sub" style={{ marginTop: 6 }}>
                       Learner / answer-key versions show the letter <b>{labelObjs.find((l) => l.id === selected.id)?.letter || '?'}</b> instead of the word.
+                    </p>
+                  )}
+                  {isLowConfidence(selected) && (
+                    <p className="vs-sub vs-note-warn" style={{ marginTop: 6 }}>
+                      ⚠ AI is unsure about this label — check the word and position.
+                      Renaming or dragging it clears the flag.
                     </p>
                   )}
                 </div>
@@ -676,7 +759,12 @@ export default function VisualCanvas({ visual, onBack, onToast }) {
                   </p>
                 )}
               </div>
-              <p className="vs-sub">{labelObjs.length} label{labelObjs.length === 1 ? '' : 's'} placed.</p>
+              <p className="vs-sub">
+                {labelObjs.length} label{labelObjs.length === 1 ? '' : 's'} placed.
+                {lowConfidenceCount(objects) > 0 && (
+                  <> <span className="vs-note-warn">{lowConfidenceCount(objects)} amber</span> — AI proposals to double-check.</>
+                )}
+              </p>
             </>
           )}
         </div>
