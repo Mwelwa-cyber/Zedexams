@@ -23,6 +23,15 @@
  */
 
 import { normalizeSubject, PAPER_SUBJECTS } from '../config/curriculum.js'
+import {
+  PAPER_META_VERSION,
+  isOfficialSource,
+  normalizePaperNumberToken,
+  normalizeSourceConfidence,
+  normalizeSourceId,
+  paperNumberLabel,
+  paperSourceLabel,
+} from '../config/paperSources.js'
 import { normalizeQuizStatus } from './pastPaperQuizStatus.js'
 
 // ── Grade ─────────────────────────────────────────────────────────────────
@@ -147,12 +156,16 @@ export function normalizeYear(value) {
 }
 
 // ── Paper number ──────────────────────────────────────────────────────────
-/** Integer 1–5, or null. */
+/**
+ * Canonical paper number: 1 | 2 | 'special' | 'mock' | a legacy int 3–5 | null.
+ *
+ * Delegates to the registry in src/config/paperSources.js rather than parsing
+ * here — the archive gained the word-numbered papers ('special', 'mock') when
+ * identity moved out of the free-text title, and a second parser is how one
+ * surface ends up storing 'Special' while another stores 'special'.
+ */
 export function normalizePaperNumber(value) {
-  if (value == null || value === '') return null
-  const n = Number(value)
-  if (!Number.isInteger(n) || n < 1 || n > 5) return null
-  return n
+  return normalizePaperNumberToken(value)
 }
 
 // ── Slug ──────────────────────────────────────────────────────────────────
@@ -183,6 +196,48 @@ export function paperSlug(fields = {}) {
   return slugify(parts.join('-'))
 }
 
+// ── Paper key ─────────────────────────────────────────────────────────────
+/**
+ * The paper's DEDUPE identity — deterministic, unique, and derived from the
+ * five structured facts that make one paper a different paper from another:
+ *
+ *   g{grade}-{year}-{subjectSlug}-{source}-{paperNumber ?? 'na'}
+ *   g7-2025-integrated-science-ecz-1
+ *   g7-2025-integrated-science-prisca-mock
+ *
+ * Distinct from `paperSlug`, which is the SEO/shareable URL alias and carries
+ * no source — two papers from different publishers share a slug quite legally,
+ * and folding the two roles into one string is how a mock would overwrite the
+ * ECZ paper's URL.
+ *
+ * A paper whose source is not yet known keys on the literal `'unknown'` rather
+ * than on nothing: the key stays deterministic, and two unlabelled papers
+ * colliding on it is precisely the signal a human needs to look at them.
+ */
+export function paperKey(fields = {}) {
+  const g = normalizeGrade(fields.grade)
+  const year = normalizeYear(fields.year)
+  const subject = normalizeSubjectId(fields.subject)
+  const source = normalizeSourceId(fields.source) || 'unknown'
+  const pn = normalizePaperNumber(fields.paperNumber)
+  return slugify([
+    g ? `g${g}` : 'gna',
+    year || 'na',
+    subject || 'na',
+    source,
+    pn == null ? 'na' : String(pn),
+  ].join('-'))
+}
+
+/** True when every input `paperKey` reads is present, so the key means something. */
+export function canDerivePaperKey(fields = {}) {
+  return Boolean(
+    normalizeGrade(fields.grade)
+    && normalizeSubjectId(fields.subject)
+    && normalizeYear(fields.year),
+  )
+}
+
 // ── The pipeline ──────────────────────────────────────────────────────────
 /**
  * Normalize the fields of a past-paper write. Only touches keys that are
@@ -207,6 +262,55 @@ export function normalizePaperFields(fields = {}) {
     if (status) out.quizStatus = status
     else delete out.quizStatus
   }
+  // ── Source identity ─────────────────────────────────────────────────────
+  // `source` is what a human (or the migration) established; `isOfficial` is
+  // DERIVED from it and written alongside so "official only" is one equality
+  // query instead of an OR across every mock publisher we will ever add.
+  // Deriving it here rather than at each call site is the point: the two can
+  // never disagree, because there is only one place that writes the second.
+  if ('source' in out) {
+    const source = normalizeSourceId(out.source)
+    out.source = source
+    out.isOfficial = isOfficialSource(source)
+  }
+  if ('sourceConfidence' in out) {
+    out.sourceConfidence = normalizeSourceConfidence(out.sourceConfidence)
+  }
   if (out.grade && out.subject && out.year) out.slug = paperSlug(out)
+  // The key is re-derived on any write that carries all of its inputs, so an
+  // edit that moves a paper's year or source moves its dedupe identity with it
+  // rather than leaving a key describing the paper it used to be.
+  if (canDerivePaperKey(out) && 'source' in out) {
+    out.paperKey = paperKey(out)
+    out.paperMetaVersion = PAPER_META_VERSION
+  }
   return out
+}
+
+// ── Derived display title ─────────────────────────────────────────────────
+/**
+ * The `title` a paper is STORED with, composed from the structured fields.
+ *
+ * `title` is display-only and derived — admins no longer type it, nothing
+ * reads it to decide anything, and it is regenerated on every save. It stays
+ * on the document purely so surfaces not yet migrated to <PaperTitle/> (search
+ * haystacks, exports, the paperAttempts snapshot) keep rendering a sensible
+ * name.
+ *
+ * Lives here rather than in the display module because the write path must not
+ * import a React component's neighbourhood to save a document; the on-screen
+ * composer in `paperTitleCore.js` builds the same string from the same facts
+ * and a test holds the two to it.
+ */
+export function derivedPaperTitle(fields = {}) {
+  const grade = normalizeGrade(fields.grade)
+  const subjectId = normalizeSubjectId(fields.subject)
+  const subject = PAPER_SUBJECTS.find((s) => s.id === subjectId)?.label || subjectId || ''
+  const year = normalizeYear(fields.year)
+  const sourceLabel = paperSourceLabel(normalizeSourceId(fields.source))
+  const numberLabel = paperNumberLabel(fields.paperNumber)
+  const head = [grade ? `Grade ${grade}` : '', subject].filter(Boolean).join(' ')
+  const tail = [numberLabel, sourceLabel, year].filter(Boolean).join(' · ')
+  const composed = [head, tail].filter(Boolean).join(' — ')
+  return composed || String(fields.title ?? '').trim() || 'Untitled past paper'
 }

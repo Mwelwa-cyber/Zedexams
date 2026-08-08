@@ -89,6 +89,7 @@ function teacherTierFields(planId, expiryDate) {
 // still lazy-loads the Tiptap write pipeline, so the editor stays out of the
 // eager entry chunk (see the module's docstring).
 import { normalizeQuestionPayload } from '../utils/questionWritePayload.js'
+import { isMockPaperRecord } from '../utils/paperProvenance.js'
 
 // One-shot, process-cached read of the quiz-library cutover flag. getQuizzes
 // reads the lightweight `quizSummaries` mirror (quiz docs minus the heavy
@@ -542,6 +543,11 @@ export function useFirestore() {
       const results = await getUserResults(userId, 50)
       const map = {}
       results.forEach(r => {
+        // Same rule as extractWeakTopics: a result that states it came from a
+        // mock paper is not evidence about the real examination, so it is not
+        // pooled into topic weighting. A result with no paper behind it (the
+        // ordinary CBC practice quiz) is unaffected.
+        if (isMockPaperRecord(r)) return
         if (!r.topicScores) return
         Object.entries(r.topicScores).forEach(([topic, data]) => {
           map[topic] ??= { correct: 0, total: 0, subject: r.subject }
@@ -1135,4 +1141,4 @@ export function useFirestore() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [])
 }
-
+

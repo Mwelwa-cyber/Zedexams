@@ -58,9 +58,21 @@ import PastPaperViewer from './PastPaperViewer'
 function publishedPaper(overrides = {}) {
   return {
     id: 'paper-1', title: 'Grade 7 Maths 2019', subject: 'Mathematics',
-    grade: 7, year: 2019, examBoard: 'ECZ', status: 'published', ...overrides,
+    grade: 7, year: 2019, examBoard: 'ECZ', status: 'published',
+    // A published paper carries its source: the Firestore rules refuse a
+    // learner read of one that does not, so a fixture without it is a paper
+    // this component would never be handed.
+    source: 'ecz', isOfficial: true, sourceConfidence: 'explicit',
+    ...overrides,
   }
 }
+
+// "The paper's header rendered". Probed on the h1 rather than on a phrase in
+// the subtitle: it used to be /Past Paper/, from the line the source badge
+// replaced, and a probe tied to prose breaks every time the prose is edited.
+const HEADER = { level: 1, name: /Grade 7/ }
+const findHeader = () => screen.findByRole('heading', HEADER)
+const queryHeader = () => screen.queryByRole('heading', HEADER)
 
 function renderViewer() {
   return render(<MemoryRouter><PastPaperViewer /></MemoryRouter>)
@@ -76,7 +88,7 @@ describe('PastPaperViewer — load states', () => {
     mockGetPaper.mockReturnValue(new Promise(() => {}))
     renderViewer()
     expect(screen.queryByText('Paper not found')).not.toBeInTheDocument()
-    expect(screen.queryByText(/Past Paper/)).not.toBeInTheDocument()
+    expect(queryHeader()).not.toBeInTheDocument()
   })
 
   it('shows "Paper not found" when the paper is missing', async () => {
@@ -92,21 +104,21 @@ describe('PastPaperViewer — publish/visibility gate', () => {
     renderViewer()
     expect(await screen.findByText('Paper not found')).toBeInTheDocument()
     // None of the paper's metadata renders on the gate screen.
-    expect(screen.queryByText(/Past Paper/)).not.toBeInTheDocument()
+    expect(queryHeader()).not.toBeInTheDocument()
   })
 
   it('lets an admin preview an unpublished paper', async () => {
     mockAuth = { currentUser: { uid: 'admin-1' }, isAdmin: true }
     mockGetPaper.mockResolvedValue(publishedPaper({ status: 'draft' }))
     renderViewer()
-    expect(await screen.findByText(/Past Paper/)).toBeInTheDocument()
+    expect(await findHeader()).toBeInTheDocument()
     expect(screen.queryByText('Paper not found')).not.toBeInTheDocument()
   })
 
   it('renders a published paper for a normal learner', async () => {
     mockGetPaper.mockResolvedValue(publishedPaper())
     renderViewer()
-    expect(await screen.findByText(/Past Paper/)).toBeInTheDocument()
+    expect(await findHeader()).toBeInTheDocument()
     expect(screen.queryByText('Paper not found')).not.toBeInTheDocument()
   })
 })
@@ -123,7 +135,7 @@ describe('PastPaperViewer — optional quiz (quizStatus)', () => {
   it('offers the quiz when one is attached', async () => {
     mockGetPaper.mockResolvedValue(publishedPaper({ quizId: 'q1', quizStatus: 'attached' }))
     renderViewer()
-    expect(await screen.findByText(/Past Paper/)).toBeInTheDocument()
+    expect(await findHeader()).toBeInTheDocument()
     expect(screen.getAllByText('Quiz Available').length).toBeGreaterThan(0)
     expect(quizLinks().length).toBeGreaterThan(0)
   })
@@ -132,7 +144,7 @@ describe('PastPaperViewer — optional quiz (quizStatus)', () => {
     mockGetPaper.mockResolvedValue(publishedPaper({ quizStatus: 'pending', quizId: null }))
     renderViewer()
     // The paper is live and readable — only the quiz launcher is withheld.
-    expect(await screen.findByText(/Past Paper/)).toBeInTheDocument()
+    expect(await findHeader()).toBeInTheDocument()
     expect(screen.getAllByText(/Quiz coming soon/i).length).toBeGreaterThan(0)
     expect(screen.queryByText('Quiz Available')).not.toBeInTheDocument()
     expect(quizLinks()).toHaveLength(0)
@@ -145,7 +157,7 @@ describe('PastPaperViewer — optional quiz (quizStatus)', () => {
       quizStatus: 'pending', quizId: 'draft-q', pendingQuizId: 'draft-q',
     }))
     renderViewer()
-    expect(await screen.findByText(/Past Paper/)).toBeInTheDocument()
+    expect(await findHeader()).toBeInTheDocument()
     expect(screen.getAllByText(/Quiz coming soon/i).length).toBeGreaterThan(0)
     expect(quizLinks()).toHaveLength(0)
   })
@@ -153,7 +165,7 @@ describe('PastPaperViewer — optional quiz (quizStatus)', () => {
   it('still offers the quiz on a paper published before quizStatus existed', async () => {
     mockGetPaper.mockResolvedValue(publishedPaper({ quizId: 'legacy-q' }))
     renderViewer()
-    expect(await screen.findByText(/Past Paper/)).toBeInTheDocument()
+    expect(await findHeader()).toBeInTheDocument()
     expect(screen.getAllByText('Quiz Available').length).toBeGreaterThan(0)
     expect(quizLinks().length).toBeGreaterThan(0)
   })
@@ -161,7 +173,7 @@ describe('PastPaperViewer — optional quiz (quizStatus)', () => {
   it('shows "Quiz coming soon" on an old paper that never had a quiz', async () => {
     mockGetPaper.mockResolvedValue(publishedPaper())
     renderViewer()
-    expect(await screen.findByText(/Past Paper/)).toBeInTheDocument()
+    expect(await findHeader()).toBeInTheDocument()
     expect(screen.getAllByText(/Quiz coming soon/i).length).toBeGreaterThan(0)
     expect(quizLinks()).toHaveLength(0)
   })

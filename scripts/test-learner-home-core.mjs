@@ -287,4 +287,42 @@ test('topicsForTerm filters tagged topics, keeps unsignalled ones', () => {
   assert.deepEqual(topicsForTerm(['A', 'B', 'C'], map, 2), ['B', 'C'])
 })
 
+// ── Mock papers are not pooled with ECZ papers (spec §7) ────────────────
+//
+// A PRISCA or school mock is written to a different standard from the ECZ
+// examination it imitates, so answers on one are not evidence about the other.
+// The rule itself lives in src/utils/paperProvenance.js and is tested there;
+// these three assert that this aggregation actually applies it — and, just as
+// important, that the ordinary practice quiz (which carries no provenance at
+// all) is untouched.
+
+const weakOnMock = {
+  subject: 'science', grade: '7', paperSource: 'prisca', paperIsOfficial: false,
+  topicScores: { Electricity: { correct: 0, total: 10 } },
+}
+const strongOnEcz = {
+  subject: 'science', grade: '7', paperSource: 'ecz', paperIsOfficial: true,
+  topicScores: { Electricity: { correct: 9, total: 10 } },
+}
+
+test('a topic a learner only fails on a MOCK is not reported as a weakness', () => {
+  assert.deepEqual(extractWeakTopics([weakOnMock, strongOnEcz]), [])
+})
+
+test('the mock filter is load-bearing — the same data reports it when disabled', () => {
+  // Without this, the assertion above would keep passing if the filter ever
+  // became a no-op that dropped everything.
+  const weak = extractWeakTopics([weakOnMock, strongOnEcz], { excludeMocks: false })
+  assert.equal(weak.length, 1)
+  assert.equal(weak[0].topic, 'Electricity')
+})
+
+test('a plain practice-quiz result (no provenance at all) still counts', () => {
+  const weak = extractWeakTopics([{
+    subject: 'science', grade: '7', topicScores: { Forces: { correct: 1, total: 8 } },
+  }])
+  assert.equal(weak.length, 1)
+  assert.equal(weak[0].topic, 'Forces')
+})
+
 console.log(`\nlearner-home-core: ${passed} tests passed`)

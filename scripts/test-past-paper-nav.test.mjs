@@ -18,6 +18,7 @@ import {
   viewPath,
   isSpecimen,
   filterPapers,
+  filterLabelledPapers,
 } from '../src/components/papers/paperNav.js'
 
 let passed = 0
@@ -115,5 +116,54 @@ const sortedAz = filterPapers(PAPERS, { grade: '7', sort: 'az' })
 assert(sortedAz[0].title.localeCompare(sortedAz[1].title) <= 0, 'az sort is alphabetical')
 const sortedOld = filterPapers(PAPERS, { grade: '7', sort: 'oldest' }).filter((p) => p.year)
 assert(sortedOld[0].year <= sortedOld[sortedOld.length - 1].year, 'oldest sort ascending by year')
+
+// ── Source labelling ─────────────────────────────────────────────────────
+
+const ECZ_2025 = {
+  id: 'ecz', grade: '7', subject: 'science', year: 2025, title: 'Grade 7 Integrated Science — ECZ',
+  source: 'ecz', isOfficial: true, sourceConfidence: 'explicit', paperNumber: null,
+}
+const MOCK_2025 = {
+  id: 'mock', grade: '7', subject: 'science', year: 2025, title: 'Grade 7 Integrated Science — PRISCA',
+  source: 'prisca', isOfficial: false, sourceConfidence: 'explicit', paperNumber: 1,
+}
+
+// The Grade 7 / 2025 / Integrated Science card: two papers, one subject.
+const sci = subjectsForYear([MOCK_2025, ECZ_2025], '7', 2025)
+eq(sci.length, 1, 'both papers group under one subject card')
+eq(sci[0].papers.length, 2, 'the card lists both papers')
+eq(
+  sci[0].papers[0].id,
+  'ecz',
+  'THE OFFICIAL PAPER SORTS FIRST — even though the mock is the one with a paper number',
+)
+
+// "Official only" — the acceptance criterion.
+eq(
+  filterPapers([ECZ_2025, MOCK_2025], { officialOnly: true }).map((p) => p.id).join(),
+  'ecz',
+  'officialOnly returns exactly the ECZ paper',
+)
+eq(
+  filterPapers([ECZ_2025, { ...MOCK_2025, isOfficial: true }], { officialOnly: true })
+    .map((p) => p.id).join(),
+  'ecz',
+  'officialOnly re-derives from the SOURCE — a stored boolean cannot smuggle a mock through',
+)
+eq(filterPapers([ECZ_2025, MOCK_2025], {}).length, 2, 'without the filter both papers list')
+
+// The source is searchable, because it is now a thing a learner can type.
+eq(filterPapers([ECZ_2025, MOCK_2025], { query: 'prisca' }).map((p) => p.id).join(), 'mock',
+  'searching a publisher finds its paper')
+
+// Unlabelled papers never reach a learner surface, even from a stale cache.
+const UNLABELLED = { id: 'x', grade: '7', subject: 'science', year: 2024, sourceConfidence: 'unknown' }
+const LEGACY = { id: 'y', grade: '7', subject: 'science', year: 2023 }
+eq(
+  filterLabelledPapers([ECZ_2025, UNLABELLED, LEGACY]).map((p) => p.id).join(),
+  'ecz',
+  'filterLabelledPapers drops both the unknown-confidence and the pre-source papers',
+)
+eq(filterLabelledPapers(null).length, 0, 'filterLabelledPapers survives a null list')
 
 console.log(`\n✓ past-paper-nav: ${passed} assertions passed`)

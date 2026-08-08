@@ -9,6 +9,12 @@
  */
 
 import { paperQuizIsAttached } from '../../utils/pastPaperQuizStatus.js'
+import {
+  comparePapersBySource,
+  isOfficialSource,
+  paperSourceIsLearnerVisible,
+  paperSourceLabel,
+} from '../../config/paperSources.js'
 
 // Sentinel used by the hub for "no filter selected".
 export const ANY = 'any'
@@ -51,13 +57,25 @@ export function subjectsForYear(papers, grade, year) {
   return [...bySubject.entries()]
     .map(([subject, group]) => ({
       subject,
-      papers: [...group].sort(
-        (a, b) =>
-          (a.paperNumber || 0) - (b.paperNumber || 0) ||
-          (a.title || '').localeCompare(b.title || ''),
-      ),
+      // Official first, then by paper number, then the mocks — the order a
+      // learner looking for "the real 2025 paper" scans in. The old sort was
+      // `paperNumber || 0` then title, which put a mock ahead of the ECZ paper
+      // whenever the mock happened to carry a number and the exam did not.
+      papers: [...group].sort(comparePapersBySource),
     }))
     .sort((a, b) => a.subject.localeCompare(b.subject))
+}
+
+/**
+ * Drop any paper whose provenance is not established.
+ *
+ * The Firestore rules and the published-list index are what actually enforce
+ * this — a learner is never SENT an unlabelled paper. This is the third layer,
+ * for the two paths that can hold a paper the query did not fetch: the hub's
+ * per-tab cache (written before this rule existed) and the sample fallback.
+ */
+export function filterLabelledPapers(papers) {
+  return (Array.isArray(papers) ? papers : []).filter(paperSourceIsLearnerVisible)
 }
 
 /**
@@ -91,19 +109,32 @@ export function isSpecimen(paper) {
  * optional resolver so the search haystack can include the friendly
  * subject label; when omitted the raw subject id is used.
  */
-export function filterPapers(papers, { grade, subject, year, query, quizOnly, sort, labelOf } = {}) {
+export function filterPapers(papers, {
+  grade, subject, year, query, quizOnly, officialOnly, sort, labelOf,
+} = {}) {
   const q = (query || '').trim().toLowerCase()
   const rows = (Array.isArray(papers) ? papers : []).filter((p) => {
     if (grade && grade !== ANY && String(p.grade) !== String(grade)) return false
     if (subject && subject !== ANY && p.subject !== subject) return false
     if (year && year !== ANY && Number(p.year) !== Number(year)) return false
+    // The derived `isOfficial` boolean is what the Firestore query filters on;
+    // here the SOURCE is re-derived rather than the stored boolean trusted, so
+    // a document whose two fields disagree can never show a mock under an
+    // "Official only" filter.
+    if (officialOnly && !isOfficialSource(p.source)) return false
     // "Has a quiz" is the derived status, not the raw id — a paper published
     // with the Studio's Quiz step skipped can carry the id of a quiz that has
     // no questions in it yet, and this filter is a promise to the learner.
     if (quizOnly && !paperQuizIsAttached(p)) return false
     if (q) {
       const label = labelOf ? labelOf(p.subject) : p.subject
-      const hay = `${p.title || ''} ${label || ''} ${p.year || ''} grade ${p.grade || ''}`.toLowerCase()
+      // The source is part of the haystack because "prisca" and "ecz" are now
+      // things a learner can reasonably type — they are how the archive names
+      // two papers that are otherwise the same paper.
+      const hay = [
+        p.title, label, p.year, `grade ${p.grade || ''}`,
+        p.source, paperSourceLabel(p.source), p.session,
+      ].filter(Boolean).join(' ').toLowerCase()
       if (!hay.includes(q)) return false
     }
     return true

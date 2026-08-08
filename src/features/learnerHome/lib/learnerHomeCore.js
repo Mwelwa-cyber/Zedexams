@@ -9,6 +9,8 @@
  * comes from (Firestore / localStorage / config).
  */
 
+import { isMockPaperRecord } from '../../../utils/paperProvenance.js'
+
 // ── Greeting ────────────────────────────────────────────────────────
 
 export function getGreeting(hour) {
@@ -224,10 +226,28 @@ export function buildRecommendations({ weakTopics = [], resumeCandidates = [], n
 // results docs carry topicScores: { [topic]: { correct, total } }.
 // Aggregate across recent results per subject+topic; a topic qualifies
 // as weak when it has ≥ minAttempted answered questions and < 60%.
+//
+// MOCK PAPERS ARE EXCLUDED. A past-paper quiz built from a PRISCA or school
+// mock is written to a different standard from the real ECZ examination, so
+// pooling both under one subject+topic average produces advice about a paper
+// the learner will never sit. `paperIsOfficial` is stamped by the past-paper
+// quiz converter (src/utils/paperToQuizConverter.js) and by the Past Paper
+// Studio when it links a quiz.
+//
+// Absence is treated as ELIGIBLE, deliberately. The overwhelming majority of
+// results come from ordinary CBC practice quizzes that have no paper behind
+// them at all and never will; reading "no flag" as "a mock" would silently
+// empty every learner's recommendations. Only a result that positively states
+// it came from a non-official paper is dropped.
 
-export function extractWeakTopics(results, { minAttempted = 4 } = {}) {
+// The rule itself lives in src/utils/paperProvenance.js — `useFirestore`'s
+// getWeaknessAnalysis applies the same one, and a feature-internal copy is how
+// two aggregations of the same data end up disagreeing about what counts.
+
+export function extractWeakTopics(results, { minAttempted = 4, excludeMocks = true } = {}) {
   const agg = new Map()
   for (const r of Array.isArray(results) ? results : []) {
+    if (excludeMocks && isMockPaperRecord(r)) continue
     const scores = r && r.topicScores
     if (!scores || typeof scores !== 'object') continue
     for (const [topic, s] of Object.entries(scores)) {

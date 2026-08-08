@@ -20,7 +20,48 @@ const LIGHT_FIELDS = [
   "examBoard",
   "paperNumber",
   "slug",
+  // Source identity. These belong in the signature as well as the entry:
+  // labelling a paper is exactly the kind of write that MUST rebuild the
+  // index, because it is what makes the paper visible at all.
+  "source",
+  "isOfficial",
+  "sourceConfidence",
+  "session",
 ];
+
+/** The confidences that make a paper publishable. Mirror of LEARNER_VISIBLE_CONFIDENCE. */
+const PUBLISHABLE_CONFIDENCE = ["explicit", "inferred"];
+/**
+ * Mirror of PAPER_SOURCES (src/config/paperSources.js) — the id set, and the
+ * subset that is official.
+ *
+ * Duplicated rather than imported for the same reason `deriveQuizStatus` below
+ * is: that module is ESM under src/ and this one is CommonJS shipped inside
+ * functions/. `pastPapersIndex.test.js` asserts both lists against the real
+ * registry, so a source added there and forgotten here fails the build rather
+ * than quietly dropping every paper of that source out of the public index.
+ */
+const KNOWN_SOURCES = ["ecz", "prisca", "school_mock", "other"];
+const OFFICIAL_SOURCES = ["ecz"];
+
+/**
+ * May this paper appear in the public index?
+ *
+ * The index doc is world-readable in one piece, so the per-document read rule
+ * cannot protect it — whatever is written here IS published. This function is
+ * therefore the same gate as `_paperSourceEstablished()` in firestore.rules,
+ * applied at build time: a paper whose provenance is unknown is left out
+ * entirely rather than written and filtered client-side.
+ */
+function isPublishablePaper(data) {
+  if (!data || data.status !== "published") return false;
+  const source = typeof data.source === "string" ? data.source.trim().toLowerCase() : "";
+  if (!KNOWN_SOURCES.includes(source)) return false;
+  const confidence = typeof data.sourceConfidence === "string"
+    ? data.sourceConfidence.trim().toLowerCase()
+    : "unknown";
+  return PUBLISHABLE_CONFIDENCE.includes(confidence);
+}
 
 /**
  * Mirror of `derivePaperQuizStatus` in src/utils/pastPaperQuizStatus.js.
@@ -63,6 +104,14 @@ function lightEntry(id, data) {
     quizStatus,
     specimen: Boolean(data.specimen),
     examBoard: data.examBoard || "ECZ",
+    // The hub badges, sorts and filters on these three, so they travel with
+    // the lightweight entry. `isOfficial` is re-derived from the source rather
+    // than copied: a document whose stored boolean disagrees with its own
+    // source must not be able to publish a mock as an official exam.
+    source: data.source || null,
+    isOfficial: OFFICIAL_SOURCES.includes(data.source),
+    sourceConfidence: data.sourceConfidence || null,
+    session: data.session || null,
   };
   // paperNumber is optional — omit when absent rather than writing null
   // noise (the hub treats missing the same as null).
@@ -83,4 +132,13 @@ function lightSignature(data) {
   return LIGHT_FIELDS.map((k) => JSON.stringify(data[k] ?? null)).join("|");
 }
 
-module.exports = {LIGHT_FIELDS, deriveQuizStatus, lightEntry, lightSignature};
+module.exports = {
+  LIGHT_FIELDS,
+  KNOWN_SOURCES,
+  OFFICIAL_SOURCES,
+  PUBLISHABLE_CONFIDENCE,
+  deriveQuizStatus,
+  isPublishablePaper,
+  lightEntry,
+  lightSignature,
+};
