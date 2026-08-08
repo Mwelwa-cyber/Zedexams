@@ -32,7 +32,9 @@ const BATCH_FOR = { mechanical: 1, 'secrets-bound': 2, 'payment-webhook': 3, 'au
 
 const manifest = {}
 for (const e of entries.sort((a, b) => a.name.localeCompare(b.name))) {
-  const rewritePath = Object.entries(rewrites).find(([, fn]) => fn === e.name)?.[0] ?? null
+  const rewriteEntry = Object.entries(rewrites).find(([, r]) => r.functionId === e.name)
+  const rewritePath = rewriteEntry?.[0] ?? null
+  const rewriteRegion = rewriteEntry?.[1].region ?? null
   const prev = previous[e.name] ?? {}
   const classification = prev.classification ?? classify(e, rewrites)
   manifest[e.name] = {
@@ -41,8 +43,12 @@ for (const e of entries.sort((a, b) => a.name.localeCompare(b.name))) {
     options: e.options,
     target: e.target,
     rewritePath,
+    rewriteRegion,
     classification,
-    batch: prev.batch ?? (e.inline ? BATCH_FOR[classification] : null),
+    // An extracted handler leaves the batch plan: regeneration must emit a
+    // manifest the validator accepts, not one every extraction PR hand-edits
+    // (Codex P2 on #2194).
+    batch: e.inline ? (prev.batch ?? BATCH_FOR[classification]) : null,
   }
 }
 

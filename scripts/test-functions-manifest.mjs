@@ -20,7 +20,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { extractExports, extractRewrites } from './lib/functionsManifest.mjs'
+import { extractExports, extractRewrites, classify, RISK_RANK } from './lib/functionsManifest.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -86,12 +86,18 @@ test('no frozen field has moved without the manifest moving with it', () => {
 
 test('every Hosting rewrite resolves to a manifested function, and paths match', () => {
   const drifts = []
-  for (const [pathSpec, fn] of Object.entries(rewrites)) {
+  for (const [pathSpec, r] of Object.entries(rewrites)) {
+    const fn = r.functionId
     if (!manifest[fn]) { drifts.push(`rewrite ${pathSpec} → ${fn}: no manifest entry`); continue }
     if (manifest[fn].rewritePath !== pathSpec) drifts.push(`${fn}: rewritePath ${manifest[fn].rewritePath} → ${pathSpec}`)
+    // The rewrite's region is routing-critical (Codex P1 on #2194): Hosting
+    // routing to a different regional function is a frozen-surface change.
+    if ((manifest[fn].rewriteRegion ?? null) !== (r.region ?? null)) {
+      drifts.push(`${fn}: rewriteRegion ${manifest[fn].rewriteRegion} → ${r.region}`)
+    }
   }
   for (const [name, m] of Object.entries(manifest)) {
-    if (m.rewritePath && rewrites[m.rewritePath] !== name) {
+    if (m.rewritePath && rewrites[m.rewritePath]?.functionId !== name) {
       drifts.push(`${name}: manifest claims rewrite ${m.rewritePath} but firebase.json disagrees`)
     }
   }
@@ -121,6 +127,34 @@ test('the payment surface is where the plan says it is', () => {
     assert.equal(manifest[name]?.classification, 'payment-webhook', `${name} must stay payment-webhook`)
     if (manifest[name]?.inline) assert.equal(manifest[name].batch, 3, `${name} must stay in the last batch`)
   }
+})
+
+test('a hand classification may raise risk, never lower it below the rule seed', () => {
+  // Codex P2 on #2194: trusting the hand-owned field outright meant a stray
+  // reclassification of aiChat to "mechanical" passed with its openaiApiKey
+  // binding intact. The rule seed is the FLOOR; escalation (getUpgradeQuote
+  // mechanical → payment-webhook) is legitimate, de-escalation is drift.
+  const problems = []
+  for (const e of live) {
+    const m = manifest[e.name]
+    if (!m) continue
+    const seed = classify(e, rewrites)
+    if (RISK_RANK[m.classification] < RISK_RANK[seed]) {
+      problems.push(`${e.name}: classified ${m.classification} below its rule seed ${seed}`)
+    }
+  }
+  assert.deepEqual(problems, [], `de-escalated classifications:\n    ${problems.join('\n    ')}`)
+})
+
+test('extraction keeps builders in index.js — the delegated set may only shrink', () => {
+  // Codex P1 on #2194: a delegated/factory entry has empty options here, so
+  // converting an inline builder to a bare re-export would move its region,
+  // secrets and runtime options OUT of this guard's sight. The batch-1a shape
+  // (body moves, builder stays) is therefore a RULE: the count of
+  // guard-blind kinds is a ceiling fixed at PR-zero's 157 and may only fall.
+  const blind = live.filter((e) => e.kind === 'delegated' || e.kind === 'factory').length
+  assert.ok(blind <= 157,
+    `${blind} delegated/factory exports (ceiling 157) — an extraction converted a builder to a re-export; move the BODY and keep the builder in index.js`)
 })
 
 console.log(`\nfunctions manifest: ${passed} passed`)

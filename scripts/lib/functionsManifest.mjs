@@ -143,7 +143,11 @@ export function extractExports(indexSource) {
     }
 
     if (v1Auth) {
-      out.push({ name, kind: 'authTrigger', options: {}, inline: true, target: null })
+      // onCreate vs onDelete is the whole meaning of a v1 auth trigger —
+      // collapsing them let setUserRole silently become a deletion hook
+      // (Codex P1 on #2194). The full builder chain is the frozen kind.
+      const chain = normalise((rest.match(/^functions\.auth\.[A-Za-z().]*\.on[A-Za-z]+/) ?? ['functions.auth'])[0])
+      out.push({ name, kind: 'authTrigger', options: { event: chain }, inline: true, target: null })
       continue
     }
 
@@ -178,18 +182,25 @@ export function extractRewrites(firebaseJsonSource) {
   const rewrites = JSON.parse(firebaseJsonSource).hosting?.rewrites ?? []
   const map = {}
   for (const r of rewrites) {
-    if (typeof r.function === 'string') map[r.source] = r.function
-    else if (r.function?.functionId) map[r.source] = r.function.functionId
+    // The rewrite's REGION is routing-critical: /api/ai/chat moving to
+    // africa-south1 routes Hosting to a different regional function, so it is
+    // part of the frozen surface, not an implementation detail (Codex P1 on
+    // #2194).
+    if (typeof r.function === 'string') map[r.source] = { functionId: r.function, region: null }
+    else if (r.function?.functionId) map[r.source] = { functionId: r.function.functionId, region: r.function.region ?? null }
   }
   return map
 }
+
+/** Risk order: a hand classification may move UP this list, never down. */
+export const RISK_RANK = Object.freeze({ mechanical: 0, 'secrets-bound': 1, 'audit-surface': 2, 'payment-webhook': 3 })
 
 /** Risk classification seed — reviewed by hand in the manifest, seeded by rule. */
 export function classify(entry, rewritePaths) {
   if (/lenco|payment|subscription|invoice|premium|play|billing|purchase|adminPayments/i.test(entry.name)
     || /adminPayments\./.test(entry.target ?? '')) return 'payment-webhook'
   if (entry.kind === 'onRequest' || /webhook/i.test(entry.name)
-    || Object.values(rewritePaths).includes(entry.name)) return 'audit-surface'
+    || Object.values(rewritePaths).some((r) => (r.functionId ?? r) === entry.name)) return 'audit-surface'
   if (/secrets\s*:/.test(JSON.stringify(entry.options)) || 'secrets' in entry.options) return 'secrets-bound'
   return 'mechanical'
 }
