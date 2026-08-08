@@ -104,6 +104,7 @@
     "test:shared-assessment-validation": "node functions/shared/assessment/assessmentValidationCore.test.js",
     "test:shim-guard": "node functions/shared/assessment/shimGuard.test.js",
     "test:studio-availability": "node scripts/test-studio-availability.mjs",
+    "test:studio-artwork": "node scripts/test-studio-artwork.mjs",
     "test:paper-integrity": "node functions/shared/assessment/paperIntegrityCore.test.js",
     "test:answer-choice-count": "node functions/teacherTools/assessmentChoiceCount.test.js",
     "test:answer-choices": "node functions/shared/assessment/answerChoicesCore.test.js",

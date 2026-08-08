@@ -118,22 +118,19 @@
   gap: 10px;
 }
 .tws-card-icon {
+  position: relative;
   display: grid;
   place-items: center;
-  width: 52px;
-  height: 52px;
+  width: 54px;
+  height: 54px;
   border-radius: 13px;
   flex-shrink: 0;
 }
-.tws-card-icon.is-img { background: transparent; }
-.tws-card-icon.is-img img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: block;
-  filter: drop-shadow(0 3px 5px rgba(16, 36, 62, 0.15));
-  -webkit-user-drag: none;
-}
+
+/* Artwork mount is `glass-artwork` in glassSurface.css — the same one the
+   phone's tool cards and Recently Used strip use. Nothing is declared here;
+   `.is-img` only exists so the tinted-chip fallback below can be told apart
+   from a studio that has artwork. */
 .tws-card-icon.tint-teal   { background: #e4f1ef; color: #0f766e; }
 .tws-card-icon.tint-orange { background: var(--copper-tint); color: var(--copper); }
 .tws-card-icon.tint-green  { background: #e7f6ee; color: #1a8f52; }
@@ -152,6 +149,33 @@
   font-size: 13px;
   line-height: 1.5;
   color: var(--ink-2);
+}
+
+/* ── Compact variant — the phone's "All Teacher Tools" grid ───────────
+   Sizing ONLY. Every other property of the card (surface, hover, press,
+   sheen, badge shimmer, the icon's glow) is shared with the desktop card,
+   which is the point of there being one component. */
+.tws-card.is-compact {
+  gap: 0;
+  min-height: 0;
+  padding: 14px 13px 13px;
+  border-radius: 19px;
+}
+.tws-card.is-compact .tws-card-top { margin-bottom: 8px; }
+.tws-card.is-compact .tws-card-title {
+  font-size: 15px;
+  margin-bottom: 3px;
+}
+.tws-card.is-compact .tws-card-desc {
+  font-size: 11.5px;
+  line-height: 1.4;
+  /* Two lines, so a long description cannot make one card in a row taller
+     than its neighbour and leave a ragged grid. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
 }
 .tws-card-arrow {
   position: absolute;
@@ -180,8 +204,18 @@
   letter-spacing: 0.04em;
   white-space: nowrap;
 }
-.tws-pill.kind-saved { background: var(--navy); color: var(--on-sidebar); }
-.tws-pill.kind-new { background: var(--copper-hover); color: var(--zt-on-accent); }
+/* "N SAVED" is a green pill on every surface that shows one — this card and
+   the Recently Used strip (.tdv2m-tool-saved) — because it always means the
+   same thing: you already have work here. It was navy on the desktop card
+   and green on mobile, which made one fact look like two. */
+.tws-pill.kind-saved {
+  background: color-mix(in srgb, var(--green) 14%, var(--surface));
+  color: #14683c;
+}
+.tws-pill.kind-new {
+  background: linear-gradient(120deg, var(--copper-hover), var(--copper-bright, #f08c3f));
+  color: var(--zt-on-accent);
+}
 .tws-pill.is-skeleton {
   width: 58px;
   background: var(--border);
@@ -221,7 +255,10 @@
 }
 
 /* ── Dark theme (Night) ──────────────────────────────────────────────── */
-.tdv2.is-dark .tws-pill.kind-saved { background: color-mix(in srgb, var(--navy) 70%, #ffffff); }
+.tdv2.is-dark .tws-pill.kind-saved {
+  background: rgba(31, 161, 91, 0.2);
+  color: #4fd48d;
+}
 
 /* ── Reduced motion ──────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {

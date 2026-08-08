@@ -12,7 +12,7 @@ import {
 import { STUDIO_CATEGORIES, TEACHER_STUDIOS } from './launcher/teacherStudios'
 import { resolveBadge } from './launcher/teacherLauncherCore'
 import useStudioAvailability from '../../../hooks/useStudioAvailability'
-import useGlassTile from '../../../hooks/useGlassTile'
+import StudioCard from './StudioCard'
 import './glassSurface.css'
 import './teacherWorkspaceSection.css'
 
@@ -72,46 +72,6 @@ function featuredLayout(studios) {
     picked.forEach((id) => taken.add(id))
   }
   return { featured, more: studios.filter((s) => !taken.has(s.id)) }
-}
-
-function StudioCard({ studio, badge, pending }) {
-  const Icon = studio.icon
-  const badgeLabel = badge ? `, ${badge.label}` : ''
-  const tileRef = useGlassTile()
-  return (
-    <Link
-      ref={tileRef}
-      to={studio.route}
-      className="tws-card glass-tile"
-      aria-label={`${studio.title}${badgeLabel}. Open studio`}
-    >
-      <span className="glass-sheen" aria-hidden="true" />
-      <span className="tws-card-top">
-        <span
-          className={`tws-card-icon ${studio.image ? 'is-img' : `tint-${studio.tint || 'teal'}`}`}
-          aria-hidden="true"
-        >
-          {studio.image ? (
-            <img src={studio.image} alt="" loading="lazy" draggable="false" />
-          ) : (
-            <Icon size={22} strokeWidth={1.9} />
-          )}
-        </span>
-        {pending ? (
-          <span className="tws-pill is-skeleton" aria-hidden="true" />
-        ) : badge?.type === 'saved' ? (
-          <span className="tws-pill kind-saved" aria-hidden="true">{badge.count} SAVED</span>
-        ) : badge?.type === 'new' ? (
-          <span className="tws-pill kind-new glass-badge-shimmer" aria-hidden="true">NEW</span>
-        ) : badge?.type === 'warning' ? (
-          <span className="tws-dot" aria-hidden="true" />
-        ) : null}
-      </span>
-      <span className="tws-card-title">{studio.title}</span>
-      <span className="tws-card-desc">{studio.description}</span>
-      <ArrowRight size={16} strokeWidth={2} className="tws-card-arrow" aria-hidden="true" />
-    </Link>
-  )
 }
 
 export default function TeacherWorkspaceSection({

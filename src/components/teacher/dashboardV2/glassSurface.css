@@ -40,6 +40,13 @@
   /* quiet list-row accent (Recent Documents) — neutral navy */
   --ws-accent-row: 30, 50, 80;
 
+  /* Studio artwork sits on the glass with no container behind it; these are
+     what lift it off — a radial glow under the icon and a drop-shadow, both
+     in the surrounding accent. Dimmer in Night, where the same alpha over a
+     dark panel reads as a white patch rather than as light. */
+  --ws-icon-glow: 0.3;
+  --ws-icon-shadow: 0.28;
+
   /* section panel tints */
   --ws-panel-planning: linear-gradient(150deg, rgba(255, 213, 180, 0.55), rgba(255, 236, 220, 0.35));
   --ws-panel-materials: linear-gradient(150deg, rgba(186, 232, 214, 0.5), rgba(224, 245, 236, 0.32));
@@ -100,6 +107,9 @@
   --ws-accent-tone-green: 84, 168, 120;
   --ws-accent-tone-blue: 110, 140, 224;
   --ws-accent-row: 148, 163, 184;
+
+  --ws-icon-glow: 0.18;
+  --ws-icon-shadow: 0.2;
 
   --ws-panel-planning: linear-gradient(150deg, rgba(224, 138, 92, 0.1), rgba(224, 138, 92, 0.04));
   --ws-panel-materials: linear-gradient(150deg, rgba(92, 178, 148, 0.1), rgba(92, 178, 148, 0.04));
@@ -274,6 +284,13 @@
 }
 
 /* ── NEW-badge shimmer — the ONE looping animation glass allows ─────── */
+/* The sweep is an ::after inside the badge, so the badge must be a
+   positioning context. `relative` is the right default — the desktop card's
+   pill sits in normal flow — but a badge that OVERLAYS its tile needs
+   `absolute`, and this rule outranks a single-class one. Such a badge must
+   therefore re-declare its position at `.tdv2`-scoped specificity or better
+   (see .tdv2m-tool-new); absolute is equally a containing block, so the
+   sweep is unaffected either way. */
 .tdv2 .glass-badge-shimmer {
   position: relative;
   overflow: hidden;
@@ -338,6 +355,56 @@
   background: var(--ws-dark-glass-press);
   transition: transform 0.09s ease, background 0.09s ease;
 }
+
+/* ── glass-artwork: how a studio icon sits on glass ───────────────────
+   The ONE mount for the 3D studio artwork, shared by the desktop workspace
+   card, the phone's All Teacher Tools card and the Recently Used strip.
+
+   There is NOTHING behind the icon — no plate, no fill, no rounded box. The
+   artwork is a transparent cut-out and a box behind it puts a second,
+   harder-edged tile inside the glass one, which is the exact thing the glass
+   treatment and the re-cut icons set out to remove. What lifts it instead is
+   light: a radial glow under it and a drop-shadow, both in the surrounding
+   accent, both static. Neither is ever animated. */
+.tdv2 .glass-artwork {
+  position: relative;
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
+
+.tdv2 .glass-artwork::before {
+  content: "";
+  position: absolute;
+  inset: -22%;
+  z-index: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    closest-side,
+    rgba(var(--ws-accent), var(--ws-icon-glow)),
+    transparent 72%
+  );
+}
+
+.tdv2 .glass-artwork img {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 5px 9px rgba(var(--ws-accent), var(--ws-icon-shadow)));
+  -webkit-user-drag: none;
+}
+
+/* The one file that still carries its own rounded background (`boxedArtwork`
+   in teacherStudios.js): clipped to that box's radius, and given no glow —
+   a glow around an opaque square only draws attention to the square. */
+.tdv2 .glass-artwork img.is-boxed {
+  border-radius: 13px;
+  filter: drop-shadow(0 3px 6px rgba(16, 36, 62, 0.22));
+}
+.tdv2 .glass-artwork:has(img.is-boxed)::before { background: none; }
 
 /* ── Reduced motion ──────────────────────────────────────────────────
    Motion goes, feedback stays: tint changes on hover/press still apply
