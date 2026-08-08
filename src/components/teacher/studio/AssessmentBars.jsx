@@ -108,7 +108,7 @@ export function TopBar({
  * for the primary "Add block" action. Doesn't cover content the way the
  * old chunky tab bar did.
  * ================================================================== */
-export function BottomBar({ view, warnings = [], onHome, onBuilder, onAdd, onPreview, onMarkingKey, onAi }) {
+export function BottomBar({ view, warnings = [], onHome, onBuilder, onAdd, onPreview, onMarkingKey, onBank, onAi }) {
   const errorCount = warnings.filter(w => w.severity === 'error').length
   return (
     <>
@@ -117,6 +117,9 @@ export function BottomBar({ view, warnings = [], onHome, onBuilder, onAdd, onPre
         <DockBtn icon="builder" label="Build" onClick={onBuilder} active={view === 'builder'} />
         <DockBtn icon="preview" label="Preview" onClick={onPreview} active={view === 'preview'} />
         <DockBtn icon="key" label="Key" onClick={onMarkingKey} active={view === 'marking-key'} />
+        {/* The Question Bank is a view of this studio, not a page elsewhere —
+            the standalone /teacher/question-bank route redirects into it. */}
+        {onBank && <DockBtn icon="bank" label="Bank" onClick={onBank} active={view === 'bank'} />}
         <DockBtn icon="ai" label="AI" onClick={onAi} />
       </nav>
       {view !== 'home' && (

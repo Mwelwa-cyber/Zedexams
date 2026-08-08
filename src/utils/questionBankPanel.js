@@ -16,7 +16,7 @@
  *                          type filters, layered on top of the auto-scope.
  */
 
-import { bankRowMatches } from './questionBankCore.js'
+import { bankRowMatches, byNewest } from './questionBankCore.js'
 
 /** Normalise a grade label so "Grade 4", "G4", "grade  4" and "4" all match. */
 export function normalizeGrade(value) {
@@ -127,6 +127,65 @@ export function applyPanelFilters(rows, { term = '', difficulty = '', marks = ''
   const t = String(term ?? '').trim()
   if (t) out = out.filter(r => bankRowMatches(r, t))
   return out
+}
+
+/**
+ * The full browser filter set, layered on one cached unfiltered fetch.
+ *
+ * The bank is browsed from two places now — the studio's Question Bank view
+ * and the builder's insert drawer — and both narrow the SAME cached snapshot
+ * rather than re-querying Firestore per filter change. So the whole filter set
+ * lives here as one pure function instead of half of it in a Firestore helper
+ * and half in a component.
+ *
+ * Grade and subject use the lenient matchers above rather than string equality:
+ * a row stored as "Grade 5" and a picker offering "5" are the same grade, and a
+ * row a teacher saved without a grade is theirs to find. Exact comparison would
+ * hide questions behind a formatting difference the teacher cannot see.
+ *
+ * `scope` is resolved against `uid` — 'mine' is ownership, not the absence of a
+ * Master flag, because a teacher's own question that Qix approved is both.
+ *
+ * @param {Array}  rows    unfiltered bank rows
+ * @param {object} filters `{ scope, grade, subject, topic, subtopic, type,
+ *                            difficulty, marks, source, withDiagram, term }`
+ * @param {string} uid     the signed-in teacher, for the 'mine' scope
+ */
+export function applyBankBrowserFilters(rows, filters = {}, uid = '') {
+  let out = Array.isArray(rows) ? rows : []
+  const {
+    scope = 'all', grade = '', subject = '', topic = '', subtopic = '',
+    source = '', withDiagram = '', favouritesOnly = false, favouriteIds = null,
+  } = filters
+
+  if (scope === 'mine') out = out.filter(r => r?.ownerId === uid)
+  else if (scope === 'master') out = out.filter(r => r?.masterEligible === true)
+
+  if (grade) out = out.filter(r => gradeMatches(r, grade))
+  if (subject) out = out.filter(r => subjectMatches(r, subject))
+  if (topic) out = out.filter(r => topicMatches(r, topic))
+  if (subtopic) {
+    const want = String(subtopic).toLowerCase().trim()
+    out = out.filter(r => String(r?.subtopic ?? '').toLowerCase().includes(want))
+  }
+  if (source) out = out.filter(r => r?.source === source)
+  if (withDiagram === 'yes' || withDiagram === true) out = out.filter(r => Boolean(r?.hasDiagram))
+  else if (withDiagram === 'no' || withDiagram === false) out = out.filter(r => !r?.hasDiagram)
+  if (favouritesOnly && favouriteIds) out = out.filter(r => favouriteIds.has(r?.id))
+
+  // term / difficulty / marks / type — the same predicates the insert drawer
+  // has always used, so the two surfaces cannot answer "does this match?"
+  // differently.
+  return applyPanelFilters(out, filters)
+}
+
+/** Order rows for display. Unknown sort keys fall back to newest-first. */
+export function sortBankRows(rows, sort = 'newest') {
+  const out = [...(Array.isArray(rows) ? rows : [])]
+  if (sort === 'mostUsed') {
+    return out.sort((a, b) => (Number(b?.usageCount) || 0) - (Number(a?.usageCount) || 0))
+  }
+  return out.sort(byNewest)
 }
 
 /** Distinct difficulty / marks values present in a row set, for filter dropdowns. */

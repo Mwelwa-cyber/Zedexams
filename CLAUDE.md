@@ -262,6 +262,50 @@ Two data-integrity rules the Assessment Paper Studio now holds to.
   `isGeneratedAssessmentTitle` recognises (including one stamped with the wrong term)
   and never one a human chose.
 
+### The Question Bank is a view of the Assessment Paper Studio, not a page
+
+There is no `/teacher/question-bank` page any more (2026-08). A bank you could
+search but not insert from made teachers copy questions out of it by hand, so it
+moved to where papers are built: a **view inside the studio** (`?view=bank`, the
+"Bank" entry on the studio dock) and a **drawer/bottom sheet** over the builder.
+The old route is a redirect that carries its whole query string across, and
+`bankFiltersFromParams`/`bankFiltersToParams` (`questionBankDeepLink.js`,
+`test:question-bank-deep-link`) make "the filters were preserved" checkable
+rather than claimed. The dashboard tile, sidebar entry, workspace tile and
+all-tools card are gone.
+
+- **One bank UI, two frames.** `QuestionBankBrowser.jsx` renders both — same
+  search, same filters, same cards, same actions. `QuestionBankPanel` is the
+  drawer shell (context-seeded from the paper's grade/subject/topic);
+  `QuestionBankView` is the full-page frame. Before this there were two
+  components, one with the full filter set and no way to insert and one that
+  could insert but offered four filters. Filtering is entirely client-side over
+  ONE cached fetch (`applyBankBrowserFilters` in `questionBankPanel.js`), so a
+  keystroke costs no Firestore read and both surfaces share the cache entry.
+- **Use never inserts silently (§2).** `questionBankPlacement.buildPlacementPlan`
+  derives each section's type FROM ITS QUESTIONS (empty and mixed accept
+  anything; True/False is its own family and is never folded into MCQ) and
+  returns every insertion point numbered by the number the question would take —
+  **including the incompatible ones**, disabled and carrying their reason, so a
+  teacher looking for Q8 learns why rather than wondering where it went. No
+  compatible section at all → the picker says so and offers to add one, which
+  creates the Part and inserts in one action (an empty Part is not yet a
+  position). Nothing is ever converted to fit. `test:question-bank-placement`.
+- **Copy-on-insert (§3).** `buildInsertedQuestion` deep-clones and stamps
+  `sourceQuestionId` / `sourceBank` / `insertedAt` / `sourceVersion` (plus the
+  legacy `sourceBankId`), strips in-paper identity so a stale `localId` cannot
+  collide in the number map, and arrives unlocked/unedited. Use creates ZERO
+  bank documents; the only bank write is the atomic `usageCount` increment.
+  Provenance enables a future "update from bank" and implies nothing automatic —
+  nothing reads it back. **Editing a Master-Bank question forks it** into the
+  teacher's own bank first; the shared record is never written to.
+- **The insert is a subcollection add, not an array rewrite.** Questions live in
+  `assessments/{id}/questions/{qid}`, one doc each. `test:bank-insert-writes`
+  scans for the shape — `arrayUnion`, a written `questions:` field, or any
+  Firestore call inside `insertBankCopyAt` — because a behaviour test cannot
+  tell "inserted one question" from "overwrote the other twenty-nine with one",
+  which is the historical zero-question wipe. The guard proves it can fail.
+
 ### The words a paper is allowed to use (§4.1)
 
 `src/config/paperTerminology.js` is the single declaration of the Zambian

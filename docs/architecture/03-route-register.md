@@ -244,7 +244,7 @@ The SBA tracker/planner moved under `/teacher/generate/*` since the previous sna
 | `/teacher/templates`, `/teacher/templates/:id` | `TemplateBank`, `TemplateBankDetail` | `page` |
 | `/teacher/library`, `/teacher/library/:id` | `TeacherLibrary`, `LibraryItemDetail` | `page` |
 | `/teacher/drafts` | `RecoveryCentre` (`features/drafts`) | `page` |
-| `/teacher/question-bank` | `CentralQuestionBank` | `page` |
+| `/teacher/question-bank` | — | `redirect` → `/teacher/assessment-papers/new?view=bank` (query preserved). The Question Bank is a view INSIDE the Assessment Paper Studio; there is no standalone page. |
 | `/teacher/syllabi` | `SyllabiLibrary` | `page` |
 | `/teacher/calendar` | `SchoolCalendar` | `page` |
 | `/teacher/curriculum` (+ `/ece`, `/primary`, `/secondary`, `/2013`, `/2013/ece`, `/2013/primary`, `/2013/secondary`) | `CurriculumHome` + variants | `page` |

@@ -11,7 +11,7 @@ import { ArrowRight, Clock, FolderOpen, Star } from 'lucide-react'
  * secondary actions.
  *
  * "View saved work" renders only when the studio has a savedWorkTo
- * destination — for hub studios (Question Bank, Curriculum, …) the studio
+ * destination — for hub studios (Curriculum, School Calendar, …) the studio
  * route IS the list, so the button would duplicate Open Studio.
  *
  * Everything here is available elsewhere (tap opens the studio, the badge

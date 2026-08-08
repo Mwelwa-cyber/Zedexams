@@ -77,7 +77,7 @@ const QUICK_CREATE = [
 ].map((tile) => ({ ...tile, label: canonicalToolLabel(tile.to) }))
 
 /** Default "recently used" row until this device has real visits. */
-const DEFAULT_RECENT_IDS = ['assessment-papers', 'lesson-plans', 'question-bank', 'weekly-focus']
+const DEFAULT_RECENT_IDS = ['assessment-papers', 'lesson-plans', 'worksheet', 'weekly-focus']
 
 const ACCOUNT_ITEMS = [
   { id: 'view-profile', label: 'View profile', icon: UserRound, to: '/settings/profile' },

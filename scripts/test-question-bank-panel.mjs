@@ -8,6 +8,7 @@
 import {
   normalizeGrade, gradeMatches, subjectMatches, topicMatches,
   deriveContext, countTopicMatches, applyPanelFilters, facetOptions,
+  applyBankBrowserFilters, sortBankRows,
 } from '../src/utils/questionBankPanel.js'
 
 let passed = 0
@@ -105,9 +106,52 @@ assert(JSON.stringify(facets.difficulties) === JSON.stringify(['easy', 'medium']
 assert(JSON.stringify(facets.marks) === JSON.stringify([1, 2, 3]), 'distinct marks sorted numerically')
 assert(facets.types.includes('mcq') && facets.types.includes('short_answer'), 'distinct types')
 
+/* ── applyBankBrowserFilters — the full set both surfaces share ── */
+// Ownership + Master flags only matter to the browser filters, so the fixture
+// rows are decorated here rather than in the shared set above.
+const owned = rows.map(r => ({ ...r, ownerId: r.id === 'e' ? 'other' : 'u1', masterEligible: r.id === 'e' }))
+
+eq(applyBankBrowserFilters(owned, {}, 'u1').length, 5, 'no filters is a no-op')
+eq(applyBankBrowserFilters(owned, { scope: 'mine' }, 'u1').length, 4, 'scope mine is OWNERSHIP')
+eq(applyBankBrowserFilters(owned, { scope: 'master' }, 'u1').length, 1, 'scope master is the Master flag')
+eq(applyBankBrowserFilters(owned, { grade: 'Grade 4' }, 'u1').length, 4, 'grade matching survives a format difference')
+eq(applyBankBrowserFilters(owned, { subject: 'Mathematics' }, 'u1').length, 4, 'subject filter')
+eq(applyBankBrowserFilters(owned, { topic: 'Fractions' }, 'u1').length, 3, 'topic filter matches either direction')
+eq(applyBankBrowserFilters(owned, { grade: '4', subject: 'Mathematics', topic: 'Fractions' }, 'u1').length, 2,
+  'grade + subject + topic stack, which is how the drawer opens')
+eq(applyBankBrowserFilters(owned, { type: 'short_answer' }, 'u1').length, 1, 'type filter still applies')
+eq(applyBankBrowserFilters(owned, { term: 'shape' }, 'u1').length, 1, 'free-text search still applies')
+
+// hasDiagram / source / subtopic / starred are denormalised fields the old
+// standalone page filtered on; the browser must not have lost any of them.
+const decorated = [
+  { ...owned[0], hasDiagram: true, source: 'ai', subtopic: 'Adding' },
+  { ...owned[1], hasDiagram: false, source: 'manual', subtopic: 'Simplifying' },
+]
+eq(applyBankBrowserFilters(decorated, { withDiagram: 'yes' }, 'u1').length, 1, 'with-diagram filter')
+eq(applyBankBrowserFilters(decorated, { withDiagram: 'no' }, 'u1').length, 1, 'without-diagram filter')
+eq(applyBankBrowserFilters(decorated, { withDiagram: '' }, 'u1').length, 2, 'diagram: any is a no-op')
+eq(applyBankBrowserFilters(decorated, { source: 'ai' }, 'u1').length, 1, 'source filter')
+eq(applyBankBrowserFilters(decorated, { subtopic: 'adding' }, 'u1').length, 1, 'subtopic filter is case-insensitive')
+eq(applyBankBrowserFilters(decorated, { favouritesOnly: true, favouriteIds: new Set(['b']) }, 'u1').length, 1,
+  'starred-only filter')
+eq(applyBankBrowserFilters(decorated, { favouritesOnly: true, favouriteIds: null }, 'u1').length, 2,
+  'starred-only with no favourites loaded yet hides nothing')
+
+/* ── sortBankRows ──────────────────────────────────────────────── */
+eq(sortBankRows(rows, 'mostUsed')[0].id, 'a', 'most-used puts the most-reused question first')
+eq(sortBankRows(rows, 'nonsense').length, rows.length, 'an unknown sort key still returns every row')
+eq(sortBankRows(null, 'newest').length, 0, 'null rows sort to empty')
+// Sorting must not mutate the caller's array — both surfaces sort the SAME
+// cached snapshot, and reordering it in place reorders it for the other one.
+const before = rows.map(r => r.id).join(',')
+sortBankRows(rows, 'mostUsed')
+eq(rows.map(r => r.id).join(','), before, 'sorting leaves the shared snapshot untouched')
+
 /* ── defensive: non-array inputs ───────────────────────────────── */
 eq(deriveContext(null, {}).rows.length, 0, 'null rows → empty')
 eq(applyPanelFilters(undefined, {}).length, 0, 'undefined rows → empty')
 eq(countTopicMatches(null, { topic: 'x' }), 0, 'null rows → 0 count')
+eq(applyBankBrowserFilters(null, {}, 'u1').length, 0, 'null rows → empty browser result')
 
 console.log(`\n✅ question-bank-panel: ${passed} assertions passed`)

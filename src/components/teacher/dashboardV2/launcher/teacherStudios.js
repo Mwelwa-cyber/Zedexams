@@ -29,7 +29,6 @@ import {
   Image,
   Layers,
   LayoutTemplate,
-  ListChecks,
   NotebookPen,
   Users,
 } from 'lucide-react'
@@ -50,7 +49,6 @@ import imgCurriculum from '../../../../assets/teacher/studio-icons/curriculum.we
 import imgClassTimetable from '../../../../assets/teacher/studio-icons/class-timetable.webp'
 import imgSchemes from '../../../../assets/teacher/studio-icons/schemes.webp'
 import imgAssessmentPapers from '../../../../assets/teacher/studio-icons/assessment-papers.webp'
-import imgQuestionBank from '../../../../assets/teacher/studio-icons/question-bank.webp'
 import imgMarkSchedule from '../../../../assets/teacher/studio-icons/mark-schedule.webp'
 import imgSba from '../../../../assets/teacher/studio-icons/sba.webp'
 import imgSyllabus from '../../../../assets/teacher/studio-icons/syllabus.webp'
@@ -264,21 +262,6 @@ export const TEACHER_STUDIOS = [
     badge: 'new',
     permission: 'teacher',
     keywords: ['assessment', 'test', 'exam', 'paper', 'mock', 'examination'],
-  },
-  {
-    id: 'question-bank',
-    title: 'Question Bank',
-    description: 'Browse and reuse reviewed questions from the central bank.',
-    route: '/teacher/question-bank',
-    savedWorkTo: null,
-    category: 'assessment',
-    icon: ListChecks,
-    image: imgQuestionBank,
-    tint: 'teal',
-    countKey: null,
-    badge: 'new',
-    permission: 'teacher',
-    keywords: ['question', 'bank', 'items'],
   },
   {
     id: 'mark-schedule',

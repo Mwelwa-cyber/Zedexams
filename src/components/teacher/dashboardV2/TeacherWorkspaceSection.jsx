@@ -33,7 +33,7 @@ import './teacherWorkspaceSection.css'
 const FEATURED = {
   planning: ['schemes', 'weekly-focus', 'lesson-plans', 'record-of-work'],
   materials: ['worksheets', 'notes', 'homework', 'visual-studio'],
-  assessment: ['assessment-papers', 'question-bank', 'mark-schedule', 'sba'],
+  assessment: ['assessment-papers', 'mark-schedule', 'sba'],
 }
 
 /** How many cards a category shows before the expander. */

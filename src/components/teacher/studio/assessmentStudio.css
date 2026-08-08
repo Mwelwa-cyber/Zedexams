@@ -3700,6 +3700,24 @@
   outline-offset: 2px;
 }
 
+/* A question just inserted from the Question Bank. It lands wherever the
+   teacher put it — possibly mid-paper, off-screen — so the card is scrolled to
+   and flashed: "inserted as Q3" is a claim, and this is the evidence. Removed
+   after ~1.8s by revealQuestion; prefers-reduced-motion keeps the outline and
+   drops the pulse, because the outline is the information. */
+.studio-v2 .sv-block.is-just-inserted {
+  outline: 2px solid var(--sv-primary);
+  outline-offset: 2px;
+  animation: sv-just-inserted 1.8s ease-out;
+}
+@keyframes sv-just-inserted {
+  0%   { background-color: color-mix(in srgb, var(--sv-primary) 16%, transparent); }
+  100% { background-color: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .studio-v2 .sv-block.is-just-inserted { animation: none; }
+}
+
 /* ── Collapsed paper header ─────────────────────────────────────────── */
 .studio-v2 .sv-block.sv-header-summary { padding: var(--sv-s3) var(--sv-s4); }
 .studio-v2 .sv-header-summary-row {
