@@ -95,11 +95,11 @@ function isDone(lessonDetails) {
 }
 
 /**
- * "2026-08-04" → "Tue, 4 Aug 2026" — the friendly confirmation line under the
- * Date input. Built from formatToParts so the shape is locale-stable (en-GB
- * puts no comma after the short weekday on some ICU builds). Empty string for
- * no/invalid date. Parsed as LOCAL midnight so the weekday never shifts a day
- * on either side of UTC.
+ * "2026-08-04" → "Tue, 4 Aug 2026" — what the Date CONTROL displays. Built
+ * from formatToParts so the shape is locale-stable (en-GB puts no comma after
+ * the short weekday on some ICU builds). Empty string for no/invalid date.
+ * Parsed as LOCAL midnight so the weekday never shifts a day on either side
+ * of UTC.
  */
 export function formatFriendlyDate(iso) {
   if (!iso) return ''
@@ -341,6 +341,15 @@ export function LessonDetailsForm({ lessonDetails, curriculumMode, onChange, dis
               </div>
             </div>
 
+            {/* Date. The control itself reads "Fri, 7 Aug 2026" — a native
+                date input prints 07/08/2026, which is a different day
+                depending on where the teacher learned to read a date, and a
+                confirmation line UNDER the field asks them to reconcile two
+                renderings of one value instead of just showing the one that
+                cannot be misread. The real <input type="date"> is still the
+                control (same id, same value, same picker, same keyboard); only
+                its own text is made transparent so the readable form can be
+                painted over it. See `.ldf-date-*` in lessonStudio.css. */}
             <div>
               <label htmlFor="ldf-date" className={LABEL_CLS}>Date</label>
               <div className="relative">
@@ -350,10 +359,16 @@ export function LessonDetailsForm({ lessonDetails, curriculumMode, onChange, dis
                   type="date"
                   value={lessonDetails.date}
                   onChange={(e) => onChange('date', e.target.value)}
-                  className={INPUT_CLS}
+                  className={`${INPUT_CLS} ldf-date-input`}
                   disabled={disabled}
                   aria-describedby={dateWarning ? 'ldf-date-warning' : (dateHint ? 'ldf-date-hint' : undefined)}
                 />
+                <span
+                  className={`ldf-date-display${friendlyDate ? '' : ' ldf-date-display--empty'}`}
+                  aria-hidden="true"
+                >
+                  {friendlyDate || 'Select a date'}
+                </span>
               </div>
               {dateWarning ? (
                 <p id="ldf-date-warning" className="mt-1 text-[11.5px] leading-snug" style={{ color: '#b45309' }} role="alert">
@@ -364,9 +379,6 @@ export function LessonDetailsForm({ lessonDetails, curriculumMode, onChange, dis
                   {dateHint}
                 </p>
               ) : null}
-              {friendlyDate && (
-                <p id="ldf-date-friendly" className="mt-1 text-[11px] text-[#a39d8e]">{friendlyDate}</p>
-              )}
             </div>
 
             <div>

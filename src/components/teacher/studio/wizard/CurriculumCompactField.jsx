@@ -1,4 +1,4 @@
-import { BookMarked, Check } from 'lucide-react'
+import { BookMarked } from 'lucide-react'
 
 const LABELS = {
   cbc: 'CBC — Competency-Based Curriculum',
@@ -7,8 +7,15 @@ const LABELS = {
 
 /**
  * CurriculumCompactField — once a curriculum has been chosen, the two large
- * selection cards collapse into this single editable row so they don't take
- * over every later view. "Change" re-opens the full picker.
+ * selection cards collapse into this single line so they don't take over every
+ * later view. "Change" re-opens the full picker.
+ *
+ * Deliberately NOT a card: no border, no eyebrow, no confirmation tick. It sat
+ * between the "Set up for you" context card and the form as a full-width panel
+ * repeating a chip and a Change action that card already carried, which is why
+ * the wizard now renders it only when that card is absent. Repeating the same
+ * fact in two shapes is what made the step look busier than it is — a settled
+ * choice states itself in one line.
  *
  * Props:
  *   curriculumMode : 'cbc' | 'previous'
@@ -17,30 +24,19 @@ const LABELS = {
 export function CurriculumCompactField({ curriculumMode, onChange }) {
   if (!curriculumMode) return null
   return (
-    <div className="rounded-2xl border-2 border-card-border bg-card p-3.5 shadow-[0_2px_0_var(--zt-card-border)]">
-      <span className="lps-eyebrow mb-1.5">Curriculum</span>
-      <div className="flex items-center gap-3">
-        <span className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-xl border-2 border-card-border bg-accent-tint text-accent-text" aria-hidden="true">
-          <BookMarked size={18} />
-        </span>
-        <p className="min-w-0 flex-1 text-[13px] font-bold leading-snug text-ink">
-          {LABELS[curriculumMode] ?? curriculumMode}
-        </p>
-        <span
-          className="grid h-5 w-5 flex-shrink-0 place-items-center rounded-full border border-card-border bg-[#16a34a] text-white"
-          aria-hidden="true"
-        >
-          <Check size={12} strokeWidth={3} />
-        </span>
-        <button
-          type="button"
-          onClick={onChange}
-          className="lps-btn-ghost flex-shrink-0 px-3 py-1.5 text-[12px]"
-          aria-label="Change curriculum"
-        >
-          Change
-        </button>
-      </div>
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-1 text-[12.5px] leading-snug">
+      <BookMarked size={15} aria-hidden="true" className="flex-none text-ink-muted" />
+      <span className="font-semibold text-ink-muted">Curriculum:</span>
+      <span className="min-w-0 font-bold text-ink">{LABELS[curriculumMode] ?? curriculumMode}</span>
+      <span aria-hidden="true" className="text-ink-muted">·</span>
+      <button
+        type="button"
+        onClick={onChange}
+        className="font-bold text-accent-text underline underline-offset-2 hover:no-underline"
+        aria-label="Change curriculum"
+      >
+        Change
+      </button>
     </div>
   )
 }

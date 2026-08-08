@@ -132,3 +132,41 @@ describe('ImageCropModal — expand / nudge / undo', () => {
     expect(onCancel).toHaveBeenCalled()
   })
 })
+
+describe('ImageCropModal — source-paper page navigation', () => {
+  it('renders no page-nav buttons unless handlers are supplied (existing flows untouched)', () => {
+    render(
+      <ImageCropModal imageUrl="blob:test" onCropped={() => {}} onCancel={() => {}} pageNumber={6} questionNumber={23} />,
+    )
+    expect(screen.queryByRole('button', { name: 'Previous page' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Next page' })).toBeNull()
+  })
+
+  it('renders ‹ › page-nav buttons and fires the handlers when supplied', async () => {
+    const user = userEvent.setup()
+    const onPrevPage = vi.fn()
+    const onNextPage = vi.fn()
+    render(
+      <ImageCropModal
+        imageUrl="blob:test"
+        onCropped={() => {}}
+        onCancel={() => {}}
+        pageNumber={3}
+        onPrevPage={onPrevPage}
+        onNextPage={onNextPage}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Previous page' }))
+    await user.click(screen.getByRole('button', { name: 'Next page' }))
+    expect(onPrevPage).toHaveBeenCalledTimes(1)
+    expect(onNextPage).toHaveBeenCalledTimes(1)
+  })
+
+  it('can render only the available direction (first page has no ‹)', () => {
+    render(
+      <ImageCropModal imageUrl="blob:test" onCropped={() => {}} onCancel={() => {}} pageNumber={1} onNextPage={() => {}} />,
+    )
+    expect(screen.queryByRole('button', { name: 'Previous page' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Next page' })).toBeInTheDocument()
+  })
+})

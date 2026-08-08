@@ -52,6 +52,9 @@ import {
   subjectsForYear,
   viewPath,
 } from './paperNav'
+import { isOfficialSource, paperSourceLabel } from '../../config/paperSources'
+import { fullPaperTitle } from '../../utils/paperTitleCore'
+import PaperTitle, { PaperSourceBadge } from './PaperTitle'
 import { subjectMeta } from './paperVisuals'
 import SeoHelmet from '../seo/SeoHelmet'
 import Logo from '../ui/Logo'
@@ -77,15 +80,24 @@ import {
 } from '../ui/icons'
 
 // ── Sample fallback (only shown when Firestore is empty / errors) ────
+// Every sample carries a source and an explicit confidence, because these rows
+// render through exactly the same components as real papers — a sample without
+// a source would be the one paper in the archive with no badge, which is the
+// defect this feature exists to remove rather than a harmless placeholder.
+//
+// `special-paper-1` is a genuine ECZ Grade 7 PSLE subject (verbal reasoning),
+// not a paper variant of another subject — see SPECIAL_PAPER_SUBJECTS in
+// src/config/curriculum.js. It keeps its own subject tile.
 const SAMPLE_PAPERS = [
-  { id: 's-tech-2025',    title: 'Grade 7 Technology Studies Past Paper 2025 (Specimen)', grade: '7',  subject: 'creative-technology-studies', year: 2025, quizId: 'sample', specimen: true },
-  { id: 's-math12-2025',  title: 'Grade 12 Mathematics Past Paper 2025',                  grade: '12', subject: 'mathematics',                 year: 2025 },
-  { id: 's-soc-2024',     title: 'Grade 7 Social Studies Past Paper 2024',                grade: '7',  subject: 'social-studies',              year: 2024, quizId: 'sample' },
-  { id: 's-eng-2024',     title: 'Grade 7 English Past Paper 2024',                       grade: '7',  subject: 'english',                     year: 2024, quizId: 'sample' },
-  { id: 's-math-2023',    title: 'Grade 7 Mathematics Past Paper 2023',                   grade: '7',  subject: 'mathematics',                 year: 2023, quizId: 'sample' },
-  { id: 's-homeec-2023',  title: 'Grade 7 Home Economics Past Paper 2023',               grade: '7',  subject: 'home-economics',              year: 2023 },
-  { id: 's-special-2022', title: 'Grade 7 Special Paper 1 Past Paper 2022',              grade: '7',  subject: 'special-paper-1',             year: 2022, quizId: 'sample' },
-  { id: 's-eng12-2022',   title: 'Grade 12 English Past Paper 2022',                     grade: '12', subject: 'english',                     year: 2022, quizId: 'sample' },
+  { id: 's-tech-2025',    title: 'Grade 7 Creative and Technology Studies — ECZ · 2025', grade: '7',  subject: 'creative-technology-studies', year: 2025, quizId: 'sample', specimen: true, source: 'ecz',    isOfficial: true,  paperNumber: 1, sourceConfidence: 'explicit' },
+  { id: 's-math12-2025',  title: 'Grade 12 Mathematics — ECZ · 2025',                    grade: '12', subject: 'mathematics',                 year: 2025,                                    source: 'ecz',    isOfficial: true,  paperNumber: 1, sourceConfidence: 'explicit' },
+  { id: 's-sci-2025',     title: 'Grade 7 Integrated Science — PRISCA mock · 2025',      grade: '7',  subject: 'science',                     year: 2025, quizId: 'sample',                  source: 'prisca', isOfficial: false, paperNumber: 'mock', sourceConfidence: 'explicit' },
+  { id: 's-soc-2024',     title: 'Grade 7 Social Studies — ECZ · 2024',                  grade: '7',  subject: 'social-studies',              year: 2024, quizId: 'sample',                  source: 'ecz',    isOfficial: true,  paperNumber: 1, sourceConfidence: 'explicit' },
+  { id: 's-eng-2024',     title: 'Grade 7 English — ECZ · 2024',                         grade: '7',  subject: 'english',                     year: 2024, quizId: 'sample',                  source: 'ecz',    isOfficial: true,  paperNumber: 1, sourceConfidence: 'explicit' },
+  { id: 's-math-2023',    title: 'Grade 7 Mathematics — ECZ · 2023',                     grade: '7',  subject: 'mathematics',                 year: 2023, quizId: 'sample',                  source: 'ecz',    isOfficial: true,  paperNumber: 1, sourceConfidence: 'explicit' },
+  { id: 's-homeec-2023',  title: 'Grade 7 Home Economics — ECZ · 2023',                  grade: '7',  subject: 'home-economics',              year: 2023,                                    source: 'ecz',    isOfficial: true,  paperNumber: 1, sourceConfidence: 'explicit' },
+  { id: 's-special-2022', title: 'Grade 7 Special Paper 1 — ECZ · 2022',                 grade: '7',  subject: 'special-paper-1',             year: 2022, quizId: 'sample',                  source: 'ecz',    isOfficial: true,  paperNumber: 'special', sourceConfidence: 'explicit' },
+  { id: 's-eng12-2022',   title: 'Grade 12 English — ECZ · 2022',                        grade: '12', subject: 'english',                     year: 2022, quizId: 'sample',                  source: 'ecz',    isOfficial: true,  paperNumber: 1, sourceConfidence: 'explicit' },
 ]
 
 const SORTS = [
@@ -95,8 +107,13 @@ const SORTS = [
 ]
 
 // Quick filters — a flat browse override on top of the guided flow.
+// "Official only" sits with the others rather than in the sort sheet: it is
+// the question a learner revising for the real exam asks first, and it filters
+// on the derived `isOfficial` boolean — one equality, never an OR across every
+// mock publisher.
 const QUICK_FILTERS = [
   { id: 'all',        label: 'All Papers' },
+  { id: 'official',   label: 'Official only' },
   { id: 'quiz',       label: 'Quiz Available' },
   { id: 'recent',     label: 'Recently Added' },
   { id: 'bookmarked', label: 'Bookmarked' },
@@ -250,6 +267,18 @@ function SubjectCard({ subject, papers, saved, onToggleSave, onOpen }) {
   // tells the learner is still coming.
   const anyQuiz = papers.some((p) => paperQuizIsAttached(p))
   const first = papers[0]
+  // Distinct sources, in the order the papers are already sorted (official
+  // first) so the ECZ chip leads. De-duplicated: three ECZ papers are one
+  // "ECZ" badge, not three.
+  const sourceBadges = useMemo(() => {
+    const seen = new Map()
+    for (const p of papers) {
+      const label = paperSourceLabel(p.source)
+      if (!label || seen.has(p.source)) continue
+      seen.set(p.source, { source: p.source, label, isOfficial: isOfficialSource(p.source) })
+    }
+    return [...seen.values()]
+  }, [papers])
 
   const CardInner = (
     <div className="flex items-start gap-3.5">
@@ -259,7 +288,14 @@ function SubjectCard({ subject, papers, saved, onToggleSave, onOpen }) {
       <div className="flex-1 min-w-0">
         <h3 className="theme-text font-black text-base leading-snug">{fullLabel}</h3>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <AvailableBadge />
+          {/* One badge per distinct source, so a subject holding both an ECZ
+              paper and a mock says so on the collapsed card — the learner
+              should not have to expand it to find out whether the official
+              paper is in there. */}
+          {sourceBadges.map((b) => (
+            <PaperSourceBadge key={b.source} label={b.label} isOfficial={b.isOfficial} size="sm" />
+          ))}
+          {!sourceBadges.length && <AvailableBadge />}
           {anyQuiz && <QuizBadge available />}
           {papers.length > 1 && (
             <span className="text-[11px] font-bold theme-text-muted">{papers.length} papers</span>
@@ -305,6 +341,7 @@ function SubjectCard({ subject, papers, saved, onToggleSave, onOpen }) {
               saved={saved.has(p.id)}
               onToggleSave={() => onToggleSave(p.id)}
               onOpen={onOpen}
+              variant="row"
             />
           ))}
         </div>
@@ -313,14 +350,33 @@ function SubjectCard({ subject, papers, saved, onToggleSave, onOpen }) {
   )
 }
 
-// ── Compact list-style paper row (search results + subject expansion) ─
-function PaperRow({ paper, saved, onToggleSave, onOpen }) {
-  const { Icon, tile, label } = subjectMeta(paper.subject)
+// ── Paper row ────────────────────────────────────────────────────────
+//
+// Two shapes, one component. Inside an expanded subject card the row is a
+// BORDERED ROW (`variant="row"`): the card is already a card, and nesting a
+// second rounded, shadowed card inside it made the two papers of one subject
+// read as two unrelated things. In the flat results list it keeps its own card
+// surface, because there is no parent card to sit inside.
+//
+// The name is composed by <PaperTitle/> from the structured fields — nothing
+// here reads `paper.title`, and nothing is ellipsised: at 360px the source
+// badge and the paper number are both still on screen because whole facts are
+// dropped in priority order instead of characters being cut.
+function PaperRow({ paper, saved, onToggleSave, onOpen, variant = 'card' }) {
+  const { Icon, tile } = subjectMeta(paper.subject)
   const hasQuiz = paperQuizIsAttached(paper)
   const specimen = isSpecimen(paper)
+  // The accessible name for the icon-only buttons. Composed, not `paper.title`
+  // — a button announced as "Save In" (a real title in the archive begins with
+  // the word "In") tells a screen-reader user nothing.
+  const name = fullPaperTitle(paper)
+
+  const shell = variant === 'row'
+    ? 'border theme-border rounded-radius-md hover:theme-bg-subtle transition-colors'
+    : 'theme-card rounded-radius-md shadow-elev-sm ring-1 ring-black/5 hover:shadow-elev-md transition-shadow'
 
   return (
-    <div className="group min-w-0 theme-card rounded-radius-md shadow-elev-sm ring-1 ring-black/5 hover:shadow-elev-md transition-shadow flex items-center gap-3 p-2.5 pr-3">
+    <div className={`group min-w-0 flex items-center gap-3 p-2.5 pr-3 ${shell}`}>
       <Link
         to={viewPath(paper)}
         onClick={() => onOpen(paper.id)}
@@ -330,13 +386,8 @@ function PaperRow({ paper, saved, onToggleSave, onOpen }) {
           <Icon size={20} strokeWidth={2.2} />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="theme-text font-bold text-sm leading-snug truncate">{paper.title}</h3>
-          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-1">
-            <span className="text-[11px] font-bold theme-text-muted whitespace-nowrap">Grade {paper.grade}</span>
-            <span className="text-[11px] theme-text-muted" aria-hidden="true">·</span>
-            <span className="text-[11px] font-bold theme-text-muted">{paper.year}</span>
-            <span className="text-[11px] theme-text-muted" aria-hidden="true">·</span>
-            <span className="text-[11px] font-bold theme-text-muted">{label}</span>
+          <PaperTitle paper={paper} variant="row" />
+          <div className="flex flex-wrap items-center gap-1 mt-1">
             {specimen && <StarIcon size={12} strokeWidth={2.6} className="theme-accent-text" />}
             <QuizBadge available={hasQuiz} compact />
           </div>
@@ -348,7 +399,7 @@ function PaperRow({ paper, saved, onToggleSave, onOpen }) {
           <Link
             to={`/papers/${paper.id}/quiz`}
             onClick={() => onOpen(paper.id)}
-            aria-label={`Take quiz for ${paper.title}`}
+            aria-label={`Take quiz for ${name}`}
             className="grid place-items-center w-9 h-9 rounded-full theme-accent-fill theme-on-accent active:scale-90 transition"
           >
             <PencilLine size={16} strokeWidth={2.4} />
@@ -358,9 +409,9 @@ function PaperRow({ paper, saved, onToggleSave, onOpen }) {
           type="button"
           onClick={onToggleSave}
           aria-pressed={saved}
-          aria-label={saved ? `Remove ${paper.title} from saved` : `Save ${paper.title}`}
+          aria-label={saved ? `Remove ${name} from saved` : `Save ${name}`}
           className={`grid place-items-center w-9 h-9 rounded-full transition active:scale-90 ${
-            saved ? 'theme-accent-text bg-orange-50' : 'theme-text-muted hover:theme-bg-subtle'
+            saved ? 'theme-accent-text theme-bg-subtle' : 'theme-text-muted hover:theme-bg-subtle'
           }`}
         >
           <BookmarkSquareIcon size={17} strokeWidth={saved ? 2.6 : 2} />
@@ -582,6 +633,7 @@ export default function PastPapersHub() {
     return filterPapers(gradePapers, {
       query: debouncedQuery,
       quizOnly: quickFilter === 'quiz',
+      officialOnly: quickFilter === 'official',
       sort: quickFilter === 'recent' ? 'newest' : sort,
       labelOf: (id) => subjectMeta(id).label,
     }).filter((p) => (quickFilter === 'bookmarked' ? savedIds.has(p.id) : true))

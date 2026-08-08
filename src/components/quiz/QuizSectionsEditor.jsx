@@ -439,6 +439,12 @@ function ImageUpload({
   onFileSelect,
   onRemove,
   onCrop,
+  // "Crop from the source paper's page" — renders a third empty-state action
+  // (and a "From page" button on an existing image) that opens the crop modal
+  // on the page of the uploaded paper this question/passage is printed on.
+  // Optional; only wired for quizzes linked to an uploaded past paper.
+  onCropFromPage,
+  cropFromPageNumber,
   onPickDiagram,
   onRemoveDiagram,
   theme,
@@ -526,6 +532,16 @@ function ImageUpload({
               Crop
             </button>
           )}
+          {onCropFromPage && (
+            <button
+              type="button"
+              onClick={onCropFromPage}
+              title={cropFromPageNumber ? `Re-crop from page ${cropFromPageNumber} of the source paper` : 'Re-crop from the source paper'}
+              className="theme-card theme-border theme-text hover:theme-card-hover min-h-0 rounded-lg border px-3 py-1.5 text-xs font-bold shadow"
+            >
+              From page
+            </button>
+          )}
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
@@ -567,6 +583,18 @@ function ImageUpload({
         <p className="theme-text text-sm font-bold">{label}</p>
         <p className="theme-text-muted mt-0.5 text-xs">{hint}</p>
       </button>
+      {onCropFromPage && (
+        <button
+          type="button"
+          onClick={onCropFromPage}
+          className={joinClasses(
+            'w-full min-h-0 rounded-xl border-2 border-dashed px-4 py-2.5 text-sm font-bold transition-all bg-transparent shadow-none',
+            theme.uploadBorder,
+          )}
+        >
+          ✂️ Crop from paper{cropFromPageNumber ? ` — page ${cropFromPageNumber}` : ''}
+        </button>
+      )}
       {onPickDiagram && (
         <button
           type="button"
@@ -757,6 +785,7 @@ const StandaloneQuestionCard = memo(function StandaloneQuestionCard({
   onImageUpload,
   onImageRemove,
   onImageCrop,
+  onCropFromPage,
   onOptionImageUpload,
   onOptionImageRemove,
   onAssignToPart,
@@ -1001,6 +1030,14 @@ const StandaloneQuestionCard = memo(function StandaloneQuestionCard({
         }}
         onRemove={() => onImageRemove(sectionIndex)}
         onCrop={onImageCrop && question.imageUrl ? () => onImageCrop(sectionIndex, question.imageUrl, question) : undefined}
+        onCropFromPage={(() => {
+          if (!onCropFromPage) return undefined
+          const page = Number(question.figureMeta?.sourcePage ?? question.sourcePage)
+          return Number.isInteger(page) && page >= 1
+            ? () => onCropFromPage(sectionIndex, question)
+            : undefined
+        })()}
+        cropFromPageNumber={Number(question.figureMeta?.sourcePage ?? question.sourcePage) || null}
         onPickDiagram={() => setDiagramTarget({ kind: 'question' })}
         onRemoveDiagram={() => set('imageDiagram', null)}
         theme={theme}
@@ -1828,6 +1865,7 @@ const PassageSectionCard = memo(function PassageSectionCard({
   onPassageImageUpload,
   onPassageImageRemove,
   onPassageImageCrop,
+  onPassageCropFromPage,
   onPassageQuestionChange,
   onPassageQuestionRemove,
   onPassageQuestionMove,
@@ -2010,6 +2048,14 @@ const PassageSectionCard = memo(function PassageSectionCard({
                 onFileSelect={file => onPassageImageUpload(sectionIndex, file)}
                 onRemove={() => onPassageImageRemove(sectionIndex)}
                 onCrop={onPassageImageCrop && passage.imageUrl ? () => onPassageImageCrop(sectionIndex, passage.imageUrl, passage) : undefined}
+                onCropFromPage={(() => {
+                  if (!onPassageCropFromPage) return undefined
+                  const page = Number(passage.figureMeta?.sourcePage)
+                  return Number.isInteger(page) && page >= 1
+                    ? () => onPassageCropFromPage(sectionIndex, passage)
+                    : undefined
+                })()}
+                cropFromPageNumber={Number(passage.figureMeta?.sourcePage) || null}
                 theme={theme}
               />
             </div>
@@ -2424,6 +2470,10 @@ export default function QuizSectionsEditor({
   onStandaloneImageUpload,
   onStandaloneImageRemove,
   onStandaloneImageCrop,
+  // "Crop from page N of the source paper" — called with (sectionIndex,
+  // question). Optional; only wired when the quiz is linked to an uploaded
+  // past paper, so the button never renders for hand-authored quizzes.
+  onStandaloneCropFromPage,
   onStandaloneOptionImageUpload,
   onStandaloneOptionImageRemove,
   onPassageChange,
@@ -2433,6 +2483,8 @@ export default function QuizSectionsEditor({
   onPassageImageUpload,
   onPassageImageRemove,
   onPassageImageCrop,
+  // Passage twin of onStandaloneCropFromPage — (sectionIndex, passage).
+  onPassageCropFromPage,
   onPassageQuestionChange,
   onPassageQuestionRemove,
   onPassageQuestionMove,
@@ -2572,6 +2624,7 @@ export default function QuizSectionsEditor({
           onPassageImageUpload={onPassageImageUpload}
           onPassageImageRemove={onPassageImageRemove}
           onPassageImageCrop={onPassageImageCrop}
+          onPassageCropFromPage={onPassageCropFromPage}
           onPassageQuestionChange={onPassageQuestionChange}
           onPassageQuestionRemove={onPassageQuestionRemove}
           onPassageQuestionMove={onPassageQuestionMove}
@@ -2605,6 +2658,7 @@ export default function QuizSectionsEditor({
         onImageUpload={onStandaloneImageUpload}
         onImageRemove={onStandaloneImageRemove}
         onImageCrop={onStandaloneImageCrop}
+        onCropFromPage={onStandaloneCropFromPage}
         onOptionImageUpload={onStandaloneOptionImageUpload}
         onOptionImageRemove={onStandaloneOptionImageRemove}
         onAssignToPart={onAssignSectionToPart}

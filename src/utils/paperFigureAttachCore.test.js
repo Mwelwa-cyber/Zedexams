@@ -11,6 +11,7 @@ import {
   planFigureAttachments,
   mergeFigureUrlsIntoPassages,
   padAndClampBox,
+  pickPaperPageSource,
 } from './paperFigureAttachCore.js'
 
 let passed = 0
@@ -133,6 +134,49 @@ test('padAndClampBox rejects a degenerate/garbage box', () => {
   assert.equal(padAndClampBox(null), null)
   assert.equal(padAndClampBox({ x: 0.1, y: 0.1, w: 0, h: 0.2 }), null)
   assert.equal(padAndClampBox({ x: 'a', y: 0.1, w: 0.2, h: 0.2 }), null)
+})
+
+test('a question-own figure plans with targetKind question (no passageId needed)', () => {
+  const qfig = { questionId: 'q006', sourceQuestionNumber: 6, sourcePage: 3, box: { x: 0.1, y: 0.4, w: 0.5, h: 0.3 } }
+  const { plan, skipped } = planFigureAttachments([qfig], [pdfAsset])
+  assert.equal(plan.length, 1)
+  assert.equal(skipped.length, 0)
+  assert.equal(plan[0].targetKind, 'question')
+  assert.equal(plan[0].questionId, 'q006')
+  assert.equal(plan[0].passageId, undefined)
+  assert.equal(plan[0].page, 3)
+})
+
+test('passage figures keep their original shape (targetKind passage, passageId set)', () => {
+  const { plan } = planFigureAttachments([fig()], [pdfAsset])
+  assert.equal(plan[0].targetKind, 'passage')
+  assert.equal(plan[0].passageId, 'p001')
+})
+
+test('a question figure with no page (or no id at all) is skipped honestly', () => {
+  const { plan, skipped } = planFigureAttachments(
+    [{ questionId: 'q001', sourcePage: null }, { sourcePage: 2 }],
+    [pdfAsset],
+  )
+  assert.equal(plan.length, 0)
+  assert.equal(skipped.length, 2)
+})
+
+test('pickPaperPageSource: PDF paper → the first paper-role PDF for any page', () => {
+  const src = pickPaperPageSource([img(1), pdfAsset], 5)
+  assert.equal(src.kind, 'pdf')
+  assert.equal(src.asset, pdfAsset)
+})
+
+test('pickPaperPageSource: photo paper → the Nth paper-role image, mark schemes excluded', () => {
+  const ms = { ...pdfAsset, role: 'mark-scheme' }
+  const assets = [ms, img(1), img(2)]
+  const src = pickPaperPageSource(assets, 2)
+  assert.equal(src.kind, 'image')
+  assert.equal(src.asset, assets[2])
+  assert.equal(pickPaperPageSource(assets, 9), null, 'page beyond the photo count')
+  assert.equal(pickPaperPageSource(assets, 0), null)
+  assert.equal(pickPaperPageSource(null, 1), null)
 })
 
 console.log(`\npaperFigureAttachCore: ${passed} passed`)

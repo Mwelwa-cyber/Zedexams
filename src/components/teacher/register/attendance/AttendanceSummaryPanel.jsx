@@ -9,7 +9,7 @@ import { useMemo, useState } from 'react'
 import { computeClassSummary, formatPercent } from '../../../../utils/attendanceCalculator'
 import { calendarMetaForTerm, markableDays } from '../../../../utils/attendanceCalendarResolver'
 import { saveAttendanceTermSettings } from '../../../../utils/attendanceService'
-import { DEFAULT_ATTENDANCE_POLICY } from '../../../../utils/attendanceConstants'
+import { ATTENDANCE_STATUSES, DEFAULT_ATTENDANCE_POLICY } from '../../../../utils/attendanceConstants'
 import { useToast } from '../../../ui/Toast'
 import Button from '../../../ui/Button'
 import ConfirmDialog from '../../../ui/ConfirmDialog'
@@ -21,11 +21,14 @@ const BREAK_MODES = [
   { id: 'custom', label: 'Custom break dates' },
 ]
 
-function Stat({ label, value, tone = 'theme-text' }) {
+function Stat({ label, value, tone = 'theme-text', toneColor = null }) {
+  // toneColor takes a CSS colour (the --att-*-fg status tokens); tone remains
+  // for the theme utility classes. Fixed Tailwind *-700 tones measured
+  // 2.3–2.5:1 on the Night surface.
   return (
     <div className="theme-card border theme-border rounded-radius-md px-3 py-2">
       <p className="theme-text-muted text-[11px] font-black uppercase tracking-wider">{label}</p>
-      <p className={`${tone} font-black text-lg`}>{value}</p>
+      <p className={`${toneColor ? '' : tone} font-black text-lg`} style={toneColor ? { color: toneColor } : undefined}>{value}</p>
     </div>
   )
 }
@@ -146,12 +149,12 @@ export default function AttendanceSummaryPanel({ registerHook, policy, uid, canE
       <div>
         <h3 className="theme-text font-black text-sm mb-2">Today</h3>
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-          <Stat label="Present" value={t.present} tone="text-green-700" />
-          <Stat label="Absent" value={t.absent} tone="text-red-700" />
-          <Stat label="Sick" value={t.sick} tone="text-blue-700" />
-          <Stat label="Late" value={t.late} tone="text-amber-700" />
-          <Stat label="Excused" value={t.excused} tone="text-purple-700" />
-          <Stat label="Unmarked" value={t.unmarked} tone={t.unmarked > 0 ? 'text-amber-600' : 'theme-text'} />
+          <Stat label="Present" value={t.present} toneColor={ATTENDANCE_STATUSES.present.screenColor} />
+          <Stat label="Absent" value={t.absent} toneColor={ATTENDANCE_STATUSES.absent.screenColor} />
+          <Stat label="Sick" value={t.sick} toneColor={ATTENDANCE_STATUSES.sick.screenColor} />
+          <Stat label="Late" value={t.late} toneColor={ATTENDANCE_STATUSES.late.screenColor} />
+          <Stat label="Excused" value={t.excused} toneColor={ATTENDANCE_STATUSES.excused.screenColor} />
+          <Stat label="Unmarked" value={t.unmarked} toneColor={t.unmarked > 0 ? ATTENDANCE_STATUSES.late.screenColor : null} />
         </div>
       </div>
 
@@ -193,7 +196,7 @@ export default function AttendanceSummaryPanel({ registerHook, policy, uid, canE
                 .map((w) => (
                   <li key={w.learnerId} className="flex justify-between text-sm">
                     <span className="theme-text font-bold truncate">{nameOf(w.learnerId)}</span>
-                    <span className="text-red-600 font-black">{formatPercent(w.percentage)}</span>
+                    <span className="font-black" style={{ color: ATTENDANCE_STATUSES.absent.screenColor }}>{formatPercent(w.percentage)}</span>
                   </li>
                 ))}
             </ul>

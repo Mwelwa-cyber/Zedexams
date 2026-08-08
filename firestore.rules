@@ -1734,6 +1734,40 @@ service cloud.firestore {
       allow delete: if isVerified() && (resource.data.createdBy == request.auth.uid || isAdmin());
     }
 
+    // ── diagramAssets (Visual Studio v2 — curriculum Diagram Library) ─
+    // One asset stores the SOURCE art + normalized label data; the printable
+    // versions (teacher / learner / answer key / picture) are render-time
+    // projections, never separate docs. Owner model mirrors visualAssets:
+    // owners create/edit their own PRIVATE DRAFTS, admins moderate, and any
+    // signed-in user can read an asset an admin has approved for public scope.
+    match /diagramAssets/{assetId} {
+      allow read: if isAdmin()
+        || (isVerified() && resource.data.createdBy == request.auth.uid)
+        || (isVerified()
+            && resource.data.get('scope', 'private') == 'public'
+            && resource.data.get('status', 'draft') in ['approved', 'published']);
+      // Non-admins may only create PRIVATE DRAFTS; reaching a publicly
+      // readable state (scope:'public' + status:'approved'/'published') is
+      // the admin-only moderation gate, exactly as for visualAssets.
+      allow create: if isVerified()
+        && incoming().createdBy == request.auth.uid
+        && (isAdmin() || (
+              incoming().get('status', 'draft') == 'draft'
+              && incoming().get('scope', 'private') != 'public'))
+        && (!('art' in incoming()) || (
+              (!('url' in incoming().art) || (incoming().art.url is string && incoming().art.url.size() <= 2000))
+              && (!('storagePath' in incoming().art) || (incoming().art.storagePath is string && incoming().art.storagePath.size() <= 500))));
+      // Owners edit their own asset but cannot self-promote it to the
+      // published/public state; admins can change anything.
+      allow update: if isAdmin()
+        || (isVerified()
+            && resource.data.createdBy == request.auth.uid
+            && incoming().createdBy == resource.data.createdBy
+            && incoming().get('status', 'draft') == 'draft'
+            && incoming().get('scope', 'private') != 'public');
+      allow delete: if isVerified() && (resource.data.createdBy == request.auth.uid || isAdmin());
+    }
+
     // ── visualProjects (Visual Studio — editable canvas projects) ─
     // Owner-only working documents (the editable canvas state behind a saved
     // asset). Owner is ownerId; admins may moderate.
@@ -2806,12 +2840,32 @@ service cloud.firestore {
     function _validPaperGrade(value) { return value is string && value in ['7', '9', '12']; }
     function _validPaperStatus(value) { return value is string && value in ['draft', 'published', 'archived']; }
     function _validPaperQuizStatus(value) { return value is string && value in ['pending', 'attached']; }
+    // Source identity (src/config/paperSources.js). `source` names the
+    // publisher, `isOfficial` is DERIVED from it, and `sourceConfidence`
+    // records whether a human chose it, the migration inferred it, or nothing
+    // is known. Keep this enum in step with PAPER_SOURCES — an id the rules
+    // reject is a paper the studio cannot save.
+    function _validPaperSource(value) { return value is string && value in ['ecz', 'prisca', 'school_mock', 'other']; }
+    function _validSourceConfidence(value) { return value is string && value in ['explicit', 'inferred', 'unknown']; }
+    // 1 | 2 | 'special' | 'mock', plus the legacy ints 3-5 the old free-number
+    // input accepted and that live papers still carry.
+    function _validPaperNumber(value) {
+      return (value is int && value >= 1 && value <= 5)
+        || (value is string && value in ['special', 'mock']);
+    }
     function validPastPaperFields() {
       return (!('title' in incoming()) || (incoming().title is string && incoming().title.size() >= 1 && incoming().title.size() <= 200))
         && (!('grade' in incoming()) || _validPaperGrade(incoming().grade))
         && (!('subject' in incoming()) || _validSubject(incoming().subject))
         && (!('year' in incoming()) || (incoming().year is int && incoming().year >= 1990 && incoming().year <= 2100))
-        && (!('paperNumber' in incoming()) || incoming().paperNumber == null || (incoming().paperNumber is int && incoming().paperNumber >= 1 && incoming().paperNumber <= 5))
+        && (!('paperNumber' in incoming()) || incoming().paperNumber == null || _validPaperNumber(incoming().paperNumber))
+        && (!('source' in incoming()) || incoming().source == null || _validPaperSource(incoming().source))
+        && (!('isOfficial' in incoming()) || incoming().isOfficial is bool)
+        && (!('sourceConfidence' in incoming()) || _validSourceConfidence(incoming().sourceConfidence))
+        && (!('session' in incoming()) || incoming().session == null || (incoming().session is string && incoming().session.size() <= 40))
+        && (!('paperKey' in incoming()) || (incoming().paperKey is string && incoming().paperKey.size() >= 1 && incoming().paperKey.size() <= 160))
+        && (!('paperMetaVersion' in incoming()) || (incoming().paperMetaVersion is int && incoming().paperMetaVersion >= 1))
+        && (!('legacyTitle' in incoming()) || incoming().legacyTitle == null || (incoming().legacyTitle is string && incoming().legacyTitle.size() <= 200))
         && (!('examBoard' in incoming()) || (incoming().examBoard is string && incoming().examBoard.size() <= 20))
         && (!('pdfPath' in incoming()) || (incoming().pdfPath is string && incoming().pdfPath.size() <= 500))
         && (!('pdfFilename' in incoming()) || (incoming().pdfFilename is string && incoming().pdfFilename.size() <= 200))
@@ -2840,8 +2894,47 @@ service cloud.firestore {
         && (!('quizStatus' in incoming()) || _validPaperQuizStatus(incoming().quizStatus))
         // Where a pending paper parks the draft quiz the Studio was authoring,
         // so re-entering the wizard resumes that quiz instead of orphaning it.
-        && (!('pendingQuizId' in incoming()) || incoming().pendingQuizId == null || (incoming().pendingQuizId is string && incoming().pendingQuizId.size() <= 100));
+        && (!('pendingQuizId' in incoming()) || incoming().pendingQuizId == null || (incoming().pendingQuizId is string && incoming().pendingQuizId.size() <= 100))
+        // THE INVARIANT THE READ RULE DEPENDS ON: an established confidence
+        // implies a recognised source. `incoming()` is the full merged
+        // document, so this holds for a partial update too.
+        //
+        // Enforced on WRITE rather than assumed, because a list query is
+        // refused WHOLESALE if any single document it returns fails the read
+        // rule. The archive's public query filters on status + confidence, so
+        // one document claiming 'explicit' with no source would not be quietly
+        // hidden — it would blank /papers for every visitor. Making that
+        // document unwritable is what makes the query safe by construction
+        // instead of by convention.
+        && (!(incoming().get('sourceConfidence', 'unknown') in ['explicit', 'inferred'])
+            || _validPaperSource(incoming().get('source', '')));
     }
+    // A published paper is readable by anyone. Full stop.
+    //
+    // THIS DELIBERATELY DOES NOT GATE ON THE PAPER'S SOURCE. #2191 added such
+    // a gate — a published paper was withheld until its `sourceConfidence` was
+    // 'explicit' or 'inferred' — so that a learner could never be handed a
+    // paper we could not say was a real ECZ exam or a commercial mock. The
+    // intent was right; the mechanism was not, and it was reverted here after
+    // it took the archive offline in production.
+    //
+    // Why it was wrong: the gate fails closed on ABSENCE, and absence is the
+    // state every paper in the archive was already in. It therefore depended
+    // on a data migration having been run first — a manual step, in a
+    // different system, that the deploy could not wait for and CI could not
+    // check. The moment the rules shipped, every past paper in the archive
+    // stopped being readable, and the only visible symptom was an empty
+    // /papers page. A missing badge on an old paper is a cosmetic gap; an
+    // archive nobody can open is an outage. The first must never be able to
+    // cause the second.
+    //
+    // The labelling itself is unaffected and still enforced where it belongs:
+    // `validPastPaperFields` below still refuses a write whose confidence and
+    // source disagree, the Past Paper Studio still requires a source before a
+    // NEW paper can be published, and an unlabelled paper renders with an
+    // "Unlabelled" badge rather than being hidden. Once the archive is fully
+    // migrated a gate could be reintroduced — but only fail-OPEN on absence,
+    // so a paper predating the field is shown rather than withheld.
     match /pastPapers/{paperId} {
       // Anonymous-readable index: published papers list freely so
       // search engines can index them and signed-out visitors can

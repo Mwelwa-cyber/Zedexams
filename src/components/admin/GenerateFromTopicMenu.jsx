@@ -2,9 +2,9 @@
  * GenerateFromTopicMenu — inline action that turns a KB topic into a
  * queued agent brief. Mounted on each row of the CBC KB admin so an
  * admin can one-click ask Aria/Cala/Reva to draft a lesson plan,
- * worksheet, flashcards, rubric, scheme of work, or notes against the
- * topic's verified grade/subject/topic/subtopic fields — without
- * leaving the KB page or retyping anything.
+ * worksheet, flashcards, scheme of work, or notes against the topic's
+ * verified grade/subject/topic/subtopic fields — without leaving the KB
+ * page or retyping anything.
  *
  * The created agentJobs doc lands in the same pipeline the dashboard
  * tracks at /admin/agents. After Aria → Cala → Reva run the doc lands
@@ -17,18 +17,23 @@ import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../../firebase/config'
 import { useAuth } from '../../contexts/AuthContext'
+import useStudioAvailability from '../../hooks/useStudioAvailability'
 
 // Tools the Aria → Cala → Reva pipeline supports (see
 // functions/agents/runners/aria.js RUNNERS map). Quiz is intentionally
 // not in this list — it's a synchronous studio (no agent pipeline) and
 // gets its own button at the bottom of the popover that opens the
 // admin quiz editor with the topic pre-filled via URL params.
+//
+// Rubric left this list when the studio was retired (2026-08): queueing a
+// brief for a document type nothing creates any more would only produce
+// content with no surface to reach it from. Worksheet is filtered at render
+// while its studio is withdrawn, for the same reason — see `tools` below.
 const TOOLS = [
   { key: 'lesson_plan',    label: 'Lesson Plan',    icon: '🦊', hint: 'Single-period CBC lesson plan' },
   { key: 'worksheet',      label: 'Worksheet',      icon: '🐢', hint: 'Pupil practice activities' },
   { key: 'flashcards',     label: 'Flashcards',     icon: '🎴', hint: 'Revision cards for the topic' },
   { key: 'notes',          label: 'Teacher Notes',  icon: '🦉', hint: 'Delivery notes from the plan' },
-  { key: 'rubric',         label: 'Rubric',         icon: '📋', hint: 'Marking guide with levels' },
   { key: 'scheme_of_work', label: 'Scheme of Work', icon: '🦁', hint: 'Term pacing (whole subject)' },
 ]
 
@@ -42,6 +47,8 @@ function firstSubtopicName(subtopics) {
 
 export default function GenerateFromTopicMenu({ topic }) {
   const { currentUser } = useAuth()
+  const { isAvailable } = useStudioAvailability()
+  const tools = TOOLS.filter((t) => isAvailable(t.key))
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -113,7 +120,7 @@ export default function GenerateFromTopicMenu({ topic }) {
             Draft via agents (Aria → Cala → Reva)
           </p>
           <ul className="space-y-0.5">
-            {TOOLS.map((t) => (
+            {tools.map((t) => (
               <li key={t.key}>
                 <button
                   type="button"

@@ -21,12 +21,16 @@ import ActionMenu from '../../../ui/ActionMenu'
 import DraftStatusIndicator from '../../../draft/DraftStatusIndicator'
 import WorkspaceDrawer from './WorkspaceDrawer'
 import { BLOCK_TYPES, blockAt, canJoin } from '../../../../utils/timetableBlocks'
-import { cellState } from '../../../../utils/timetableGridModel'
+import { resolveDayCell, displayLabelFor } from '../../../../utils/timetableGridModel'
 
 export default function TimetableWorkspace({
   classLabel,
   filled = 0,
   allocated = 0,
+  coverage = null,
+  sessionIsShift = false,
+  shiftNote = null,
+  onDismissShiftNote,
   conflictsCount = 0,
   knockOffDelta = null,
   paletteSubjects = [],
@@ -34,7 +38,7 @@ export default function TimetableWorkspace({
   gridModel,
   blocks = [],
   segments = [],
-  subjectLabels = [],
+  subjectOptions = [],
   days = [],
   visibleDays = [],
   mobileDay = 'all',
@@ -74,7 +78,11 @@ export default function TimetableWorkspace({
 
   const nothingPlaced = filled === 0
   const exportDisabledReason = 'Place at least one lesson first.'
-  const complete = allocated > 0 && filled >= allocated
+  // A shift session's target IS its own capacity, so "not complete yet" is
+  // the only unfinished state there ever is — never a deficit against a
+  // 28-hour week the session cannot physically hold.
+  const complete = coverage ? coverage.complete : (allocated > 0 && filled >= allocated)
+  const coverageText = coverage ? coverage.text : `${filled}/${allocated} placed`
 
   function handlePaletteCellTap(day, slot, block) {
     if (!paletteSelection) return
@@ -85,7 +93,7 @@ export default function TimetableWorkspace({
   /* ── editable grid cell (plain render helper — not a component, so the
    * selects keep their identity/focus across re-renders) ── */
   function renderEditableCell(day, row) {
-    const cell = cellState(gridModel, day, row.slot)
+    const cell = resolveDayCell(gridModel, day, row)
     if (cell.state === 'covered') return null
     if (cell.state === 'off') {
       return (
@@ -95,9 +103,20 @@ export default function TimetableWorkspace({
         </td>
       )
     }
+    // This day holds a band where the others hold a lesson — the assembly
+    // that occupies Period 1 on Monday only.
+    if (cell.state === 'band') {
+      return (
+        <td key={day} className="px-1 py-1 text-center text-[10px] font-black uppercase tracking-widest"
+          style={{ background: '#efe9da', color: '#7a6f57' }}>
+          {cell.bandLabel}
+        </td>
+      )
+    }
+    const slot = cell.row?.slot ?? row.slot
     const block = cell.block
     const isDouble = block && block.length > 1
-    const below = block ? blockAt(blocks, day, row.slot + block.length) : null
+    const below = block ? blockAt(blocks, day, slot + block.length) : null
     const joinable = block && below && !isDouble && below.length === 1
       && canJoin(block, below, segments).ok
     // Conflict highlight: colour + a visible ring + icon (never colour alone).
@@ -112,27 +131,29 @@ export default function TimetableWorkspace({
         {paletteSelection ? (
           <button
             type="button"
-            aria-label={`${row.label} ${day}${block?.label ? ` — ${block.label}` : ' — empty'}`}
-            onClick={() => handlePaletteCellTap(day, row.slot, block)}
+            aria-label={`${row.label} ${day}${block?.label ? ` — ${displayLabelFor(gridModel, block.label)}` : ' — empty'}`}
+            onClick={() => handlePaletteCellTap(day, slot, block)}
             className="theme-border w-full rounded-lg border bg-white/80 px-1.5 py-1.5 text-left text-xs font-bold hover:theme-text"
             style={{ minHeight: 34 }}
           >
-            {block?.label || <span style={{ color: 'var(--zt-text-muted)' }}>—</span>}
+            {block?.label ? displayLabelFor(gridModel, block.label) : <span style={{ color: 'var(--zt-text-muted)' }}>—</span>}
           </button>
         ) : (
           <select
             value={block?.label || ''}
             aria-label={`${row.label} ${day}`}
             disabled={block?.locked}
-            onChange={(e) => onSetCell(day, row.slot, e.target.value)}
+            onChange={(e) => onSetCell(day, slot, e.target.value)}
             className="studio-input w-full !py-1.5 !px-1.5 text-xs"
           >
             <option value="">—</option>
-            {subjectLabels.map((label) => (
-              <option key={label} value={label}>{label}</option>
+            {/* The VALUE is the canonical subject label (block identity); the
+                text is what the school calls it. */}
+            {subjectOptions.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
             ))}
             {/* Keep a stale value selectable if its subject was renamed/removed. */}
-            {block?.label && !subjectLabels.includes(block.label) && (
+            {block?.label && !subjectOptions.some((o) => o.value === block.label) && (
               <option value={block.label}>{block.label}</option>
             )}
           </select>
@@ -156,7 +177,7 @@ export default function TimetableWorkspace({
               {block.locked ? <Lock size={12} aria-hidden="true" /> : <Unlock size={12} aria-hidden="true" />}
             </button>
             {joinable && (
-              <button type="button" onClick={() => onJoinDown(day, row.slot)}
+              <button type="button" onClick={() => onJoinDown(day, slot)}
                 title="Join with the next period into a double period"
                 className="theme-border inline-flex items-center gap-0.5 rounded border bg-white px-1 text-[10px] font-black leading-none hover:theme-text">
                 <Plus size={10} aria-hidden="true" /> Join
@@ -202,8 +223,11 @@ export default function TimetableWorkspace({
           <div className="truncate text-sm font-black">{classLabel}</div>
         </div>
 
-        <Chip variant={complete ? 'green' : 'amber'} title={complete ? 'Every allocated period is placed' : 'Not every allocated period is placed yet'}>
-          {filled}/{allocated} placed
+        <Chip variant={complete ? 'green' : 'amber'}
+          title={sessionIsShift
+            ? 'Coverage for a shift session is measured against the session\u2019s own capacity — filling it well IS the goal.'
+            : (complete ? 'Every allocated period is placed' : 'Not every allocated period is placed yet')}>
+          {coverageText}
         </Chip>
 
         <button type="button" onClick={() => setDrawer('conflicts')}
@@ -290,7 +314,7 @@ export default function TimetableWorkspace({
                   borderColor: on ? '#0e2a32' : 'transparent',
                   color: '#33474d',
                 }}>
-                {s.label} {s.placed}/{s.target}{done ? ' ✓' : ''}
+                {s.displayLabel || s.label} {s.placed}/{s.target}{done ? ' ✓' : ''}
               </button>
             )
           })}
@@ -314,6 +338,18 @@ export default function TimetableWorkspace({
         </div>
       </div>
 
+      {/* One quiet, dismissible line — never a deficit warning. A shift
+          session's shortfall against the 28-hour week is a system
+          constraint the teacher cannot act on. */}
+      {shiftNote && (
+        <div className="theme-border flex items-start gap-2 rounded-xl border px-3 py-2 text-[11px]"
+          style={{ background: 'var(--zt-surface)', color: 'var(--zt-text-muted)' }}>
+          <span className="flex-1">{shiftNote}</span>
+          <button type="button" onClick={onDismissShiftNote}
+            className="font-black" aria-label="Dismiss this note">Got it</button>
+        </div>
+      )}
+
       {/* ── The week grid ── */}
       <section className="studio-card p-3">
         {/* Mobile: full week or one day at a time (presentation only) */}
@@ -335,7 +371,10 @@ export default function TimetableWorkspace({
             Pick at least one teaching day — open "Edit setup" from the ⋯ menu.
           </div>
         ) : !gridModel ? null : (
-          <div className="overflow-auto" style={{ maxHeight: 'calc(100dvh - 230px)' }}>
+          // The grid scrolls INSIDE itself so the workspace never gains a
+          // page scroll. The shift note is one extra row above it, so its
+          // height has to come out of the grid rather than the page.
+          <div className="overflow-auto" style={{ maxHeight: shiftNote ? 'calc(100dvh - 286px)' : 'calc(100dvh - 230px)' }}>
             <table className="w-full border-collapse text-sm" style={{ minWidth: Math.max(360, 140 + visibleDays.length * 130) }}>
               <thead>
                 <tr className="text-[11px] font-black uppercase tracking-wide" style={{ color: 'var(--zt-text-muted)' }}>

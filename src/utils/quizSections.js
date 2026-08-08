@@ -58,6 +58,12 @@ export function emptyQuestion(overrides = {}) {
     // Printed source-paper question number (importer-set; null when
     // hand-authored). Distinct from sourcePage — see the question schema.
     sourceQuestionNumber: null,
+    // Where this question's OWN printed figure sits on the uploaded source
+    // paper: { sourcePage, box } with box an {x,y,w,h} fractional crop, both
+    // nullable. Importer-set; feeds the editor's "Crop from page" (page to
+    // open + the AI-detected initial crop box). null for hand-authored
+    // questions and imports without a located figure.
+    figureMeta: null,
     // "This one is finished." A locked question is never rewritten by a
     // single-question regeneration, and no validation pass or migration may
     // overwrite it — see src/utils/questionRegeneration.js.
@@ -746,6 +752,10 @@ export function serializeQuizSections(sections = [], parts = []) {
           : null,
         passageKind: normalizePassageKind(passage.passageKind),
         manualMarks: normalizeManualMarks(passage.manualMarks),
+        // Importer-written source-paper figure location ({ sourcePage, box }).
+        // Persisted so a failed figure attach can be retried and the manual
+        // cropper keeps its page + auto-box after a save → reload.
+        ...(passage.figureMeta ? { figureMeta: passage.figureMeta } : {}),
         order: startOrder,
         partId: passagePartId,
       })
@@ -868,6 +878,27 @@ function hydrateOptionMedia(rawMedia) {
   })
 }
 
+// Where a question's/passage's printed figure sits on the uploaded source
+// paper ({ sourcePage, box }) — importer-written, read back on hydrate so
+// "Crop from page" still opens on the right page with the AI-detected box
+// after a save → reload. Returns null unless at least one half is usable.
+function hydrateFigureMeta(raw) {
+  if (!raw || typeof raw !== 'object') return null
+  const page = Number(raw.sourcePage)
+  const sourcePage = Number.isInteger(page) && page >= 1 && page <= 9999 ? page : null
+  let box = null
+  const b = raw.box
+  if (b && typeof b === 'object') {
+    const x = Number(b.x)
+    const y = Number(b.y)
+    const w = Number(b.w)
+    const h = Number(b.h)
+    if ([x, y, w, h].every(Number.isFinite) && w > 0 && h > 0) box = { x, y, w, h }
+  }
+  if (sourcePage == null && !box) return null
+  return { sourcePage, box }
+}
+
 // CBC tagging + import provenance — shared between the standalone and passage
 // hydrate paths so a saved question's tags survive a reload on both card kinds.
 // (hydrate uses explicit field lists, so anything not read here is dropped.)
@@ -946,6 +977,7 @@ function hydrateStandaloneQuestion(question = {}) {
     reviewNotes: question.reviewNotes ?? [],
     importWarnings: question.importWarnings ?? [],
     sourcePage: question.sourcePage ?? null,
+    figureMeta: hydrateFigureMeta(question.figureMeta),
     passageId: question.passageId ?? null,
     imageUploading: false,
     imageUploadStep: '',
@@ -1058,6 +1090,7 @@ function hydratePassageQuestion(question = {}, passageId, partId = null) {
     reviewNotes: question.reviewNotes ?? [],
     importWarnings: question.importWarnings ?? [],
     sourcePage: question.sourcePage ?? null,
+    figureMeta: hydrateFigureMeta(question.figureMeta),
     passageId,
     imageUploading: false,
     imageUploadStep: '',
@@ -1136,6 +1169,7 @@ export function hydrateQuizSections(questions = [], passages = [], parts = [], p
         : null,
       passageKind: passage.passageKind,
       manualMarks: passage.manualMarks,
+      figureMeta: hydrateFigureMeta(passage.figureMeta),
       questions: [],
     })
     section.partId = passage.partId ?? null

@@ -131,7 +131,7 @@ src/
     papers/                     — Past papers viewer + practice + history
     parent/                     — Parent portal pages
     classes/                    — Class management UI (rosters, invites, assignments, analytics)
-  features/lessons, features/notes, features/visualStudio — feature-folder pattern (pages/, components/, services/, lib/) for newer surfaces; visualStudio drives admin image authoring
+  features/lessons, features/notes, features/visualStudio — feature-folder pattern (pages/, components/, services/, lib/) for newer surfaces; visualStudio drives admin image authoring AND the teacher Picture & Diagram Studio at /teacher/visual-studio. **Visual Studio v2 foundation (2026-08)**: the `diagramAssets` collection is the curriculum Diagram Library — ONE asset stores source art + labels `{ word, anchor, box }` (normalized 0–1) and the four printable versions (teacher words / learner P,Q,R / answer key / picture only) are RENDER-TIME projections (`lib/diagramProjections.js`; letters are NEVER stored — derived from reading order, sort anchor.y then anchor.x, so add/delete can't skip a letter; the learner word bank is lowercase-alphabetical because anchor order leaks answers). `lib/labelBoxLayout.js` owns auto box placement (nearer margin, greedy push-down) + the 2F "Perfect layout" + leader-crossing detection; `schemas/diagramAsset.js` is the Zod pair; `services/diagramAssetService.js` bumps `version` on every label edit (consumers reference assetId + version). AI auto-label: the `autoLabelDiagram` callable (`functions/teacherTools/autoLabelDiagram.js`, pure decisions in `autoLabelCore.js`) runs Claude vision + `resolveCbcContext` grounding and returns proposals the editor treats as pre-filled manual labels — confidence < 0.7 flags amber, an ungrounded run says so, two malformed replies fall back to manual mode, and NOTHING is written server-side. Legacy pictureBank/visualAssets docs migrate via `npm run migrate:diagram-assets:dry` (idempotent, deterministic `mig-*` doc ids)
   editor/                       — TipTap-based rich-content editor shared between quiz/notes/lessons
   hooks/                        — useFirestore, useSubscription, useTeacherUsage, useQuizPersistence, …
   utils/                        — Firestore services + AI clients + DOCX/PDF exporters + Lenco payments + permissions + paywall + analytics (~325 non-test modules; the catch-all bucket). Several files here are now RE-EXPORT SHIMS onto functions/shared/assessment — see "One copy of the export rules" below before adding logic to one
@@ -261,6 +261,50 @@ Two data-integrity rules the Assessment Paper Studio now holds to.
   `npm run backfill:assessment-titles:dry` — it rewrites only a title
   `isGeneratedAssessmentTitle` recognises (including one stamped with the wrong term)
   and never one a human chose.
+
+### The Question Bank is a view of the Assessment Paper Studio, not a page
+
+There is no `/teacher/question-bank` page any more (2026-08). A bank you could
+search but not insert from made teachers copy questions out of it by hand, so it
+moved to where papers are built: a **view inside the studio** (`?view=bank`, the
+"Bank" entry on the studio dock) and a **drawer/bottom sheet** over the builder.
+The old route is a redirect that carries its whole query string across, and
+`bankFiltersFromParams`/`bankFiltersToParams` (`questionBankDeepLink.js`,
+`test:question-bank-deep-link`) make "the filters were preserved" checkable
+rather than claimed. The dashboard tile, sidebar entry, workspace tile and
+all-tools card are gone.
+
+- **One bank UI, two frames.** `QuestionBankBrowser.jsx` renders both — same
+  search, same filters, same cards, same actions. `QuestionBankPanel` is the
+  drawer shell (context-seeded from the paper's grade/subject/topic);
+  `QuestionBankView` is the full-page frame. Before this there were two
+  components, one with the full filter set and no way to insert and one that
+  could insert but offered four filters. Filtering is entirely client-side over
+  ONE cached fetch (`applyBankBrowserFilters` in `questionBankPanel.js`), so a
+  keystroke costs no Firestore read and both surfaces share the cache entry.
+- **Use never inserts silently (§2).** `questionBankPlacement.buildPlacementPlan`
+  derives each section's type FROM ITS QUESTIONS (empty and mixed accept
+  anything; True/False is its own family and is never folded into MCQ) and
+  returns every insertion point numbered by the number the question would take —
+  **including the incompatible ones**, disabled and carrying their reason, so a
+  teacher looking for Q8 learns why rather than wondering where it went. No
+  compatible section at all → the picker says so and offers to add one, which
+  creates the Part and inserts in one action (an empty Part is not yet a
+  position). Nothing is ever converted to fit. `test:question-bank-placement`.
+- **Copy-on-insert (§3).** `buildInsertedQuestion` deep-clones and stamps
+  `sourceQuestionId` / `sourceBank` / `insertedAt` / `sourceVersion` (plus the
+  legacy `sourceBankId`), strips in-paper identity so a stale `localId` cannot
+  collide in the number map, and arrives unlocked/unedited. Use creates ZERO
+  bank documents; the only bank write is the atomic `usageCount` increment.
+  Provenance enables a future "update from bank" and implies nothing automatic —
+  nothing reads it back. **Editing a Master-Bank question forks it** into the
+  teacher's own bank first; the shared record is never written to.
+- **The insert is a subcollection add, not an array rewrite.** Questions live in
+  `assessments/{id}/questions/{qid}`, one doc each. `test:bank-insert-writes`
+  scans for the shape — `arrayUnion`, a written `questions:` field, or any
+  Firestore call inside `insertBankCopyAt` — because a behaviour test cannot
+  tell "inserted one question" from "overwrote the other twenty-nine with one",
+  which is the historical zero-question wipe. The guard proves it can fail.
 
 ### The words a paper is allowed to use (§4.1)
 
@@ -739,7 +783,7 @@ Quiz/attempt/result Zod schemas live in `src/schemas/`. There's also a parallel 
 - **Two test suites, split by filename.** (1) The original suite: every `*.test.js` / `test-*.mjs` file is a plain ES-module script invoked with `node` directly — throw on assertion failure, and add a `test:*` npm script whose command starts with `node`. **Do not edit `test:all` by hand** — it's `node scripts/run-all-tests.mjs`, which auto-discovers and runs every `test:*` script that is a `node` command (Vitest + emulator scripts are skipped because they aren't `node`). Adding the `test:*` key is enough; the runner picks it up. (This replaced the old single-line `&&`-chain that every test-adding PR appended to, which made any two such PRs collide on that one line.) This is still the right tool for pure logic, schemas, parsers, and Cloud Functions helpers. (2) Vitest (added for frontend coverage): files named `*.spec.{js,jsx}` run under `npm run test:unit` in jsdom — use these for React component/hook/behaviour tests via `@testing-library/react`. `npm run test:coverage` reports v8 line coverage of `src/` into `./coverage`. The two never collide: Vitest only collects `*.spec.*`, the node scripts are all `*.test.*`. Config is `vitest.config.js`; shared setup (jest-dom matchers + auto-cleanup) is `src/test/setup.js`.
 - **Router is fully lazy.** Adding a new route in `App.jsx` means `lazy(() => import('...'))` + a `<Suspense fallback={<PageLoader />}>` if it's a new top-level branch. Don't import page components eagerly.
 - **`<NavLink>` / `Navigate` use `getRoleLandingPath`** (`src/utils/navigation.js`) to send each role to the right landing page after auth.
-- **Public theme paths** are pinned to the brand default theme in `App.jsx` (`PUBLIC_THEME_PATHS` + `isPublicThemePath`). Adding a new always-public route may need an entry here so it doesn't inherit a saved learner theme.
+- **The saved reading theme applies on every route, public pages included** (the old `PUBLIC_THEME_PATHS` pin was removed 2026-08 — it reset Midnight readers to the light brand default on /login, /papers, /pricing, …). Only the two internal review previews stay pinned (`isBrandPinnedPath` in `App.jsx`). Public/marketing surfaces must therefore stay Midnight-capable; `npm run contrast:routes` gates the key routes at WCAG AA in both dark themes.
 - **CBC topic + grade lists are in `src/config/curriculum.js`** for the client. The server-side authoritative KB is `functions/teacherTools/cbcKnowledge.js` / `cbcTopics.js`. They have to stay in sync.
 - **Two curricula, and a picker must not mix them.** CBC and the 2013 ("previous"/OBC) syllabus are both live. Topic options are scoped strictly by curriculum AND grade (`src/components/teacher/syllabusTopicOptions.js` + `src/utils/syllabus2013Topics.js`, #1974) — a leak shows a teacher topics from a syllabus they aren't teaching. The two frameworks also *name their levels differently*, so grade labels come from `src/components/teacher/frameworkLevelLabels.js` (#1976) rather than being formatted at each call site. `normalizeCurriculum` accepts every spelling already in the repo (`cbc`/`obc`/`previous`/`2023`/`2013`) so no caller needs to know which its neighbour uses.
 - **Don't accrete one-off report docs.** Audit reports, debug runbooks, feasibility writeups, and launch/polish plans rot fast — by 2026-05 most root `*.md` reports were ~90% stale (cleaned up in #702). So: (1) don't commit a standalone report/plan `*.md` to the repo root unless asked — put findings in the conversation or the PR description; (2) any status/plan/audit doc that *is* committed gets a `> Snapshot as of YYYY-MM-DD — verify before acting` header from the start; (3) `BUG_REPORT.md` is the single curated "what's broken now" doc — prune resolved items there rather than spawning new snapshots; (4) when a branch merges, remove its worktree (`git worktree remove`) — merged worktrees linger and pile up.

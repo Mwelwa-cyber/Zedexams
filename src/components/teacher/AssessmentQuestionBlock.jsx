@@ -544,6 +544,11 @@ export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, q
 
   return (
     <div
+      // Scroll/flash anchor. A question inserted into the middle of a long
+      // paper is only visibly THERE if something can find its card — see
+      // AssessmentStudio's revealQuestion, and the identical anchor on the quiz
+      // editor's cards (EditQuizV2 scrollToQuestion).
+      data-question-id={question.localId}
       className={`sv-block b-question nested${blockers.length ? ' is-incomplete' : ''}${isOver ? ' is-drop-target' : ''}`}
       {...dropProps}
     >

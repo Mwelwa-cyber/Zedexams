@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuth, hasAuthSessionHint } from './contexts/AuthContext'
 import { useTheme, applyThemeToBody, DEFAULT_THEME } from './contexts/ThemeContext'
+import { getTeacherTheme } from './contexts/teacherThemeCore'
 import TeacherThemeSync from './contexts/TeacherThemeSync'
 import { PlatformSettingsProvider } from './contexts/PlatformSettingsContext'
 import MaintenanceBanner from './components/banners/MaintenanceBanner'
@@ -9,7 +10,7 @@ import { AnnouncementBanner } from './features/announcements'
 import AndroidUpdateBanner from './components/banners/AndroidUpdateBanner'
 import SubscriptionStatusBanner from './components/subscription/SubscriptionStatusBanner'
 import ProtectedRoute from './components/layout/ProtectedRoute'
-import { TEACHER_ROUTES } from './components/teacher/teacherRoutes'
+import { TEACHER_ROUTES, FlaggedStudioRoute } from './components/teacher/teacherRoutes'
 import AdminMfaGate from './components/layout/AdminMfaGate'
 import LearnerOnlyRoute from './components/auth/LearnerOnlyRoute'
 import MissingProfileRecovery from './components/auth/MissingProfileRecovery'
@@ -29,48 +30,44 @@ import ScrollToTop from './components/ui/ScrollToTop'
 import VisitorTracker from './components/ui/VisitorTracker'
 import { ActiveAssignmentSync } from './hooks/useActiveAssignmentSync'
 
-// Auth/legal routes always render in the brand-default theme so a
-// visitor's previously-saved preference (e.g. Midnight's dark page)
-// can't bleed onto the light-only login/register/legal screens. The
-// saved theme applies again as soon as they land on an authenticated
-// route.
+// The saved reading theme applies EVERYWHERE, public routes included. The
+// old PUBLIC_THEME_PATHS pin reset /login, /papers, /pricing, … to the brand
+// default on navigation, which meant a learner who chose Midnight watched
+// the site flash back to a light palette on every public page (and, worse,
+// mixed states: boot.js paints the saved theme pre-paint, then the pin
+// yanked it away after hydration). Public surfaces are Midnight-capable
+// now, so the pin's original job is gone.
 //
-// The marketing landing page ('/') is intentionally NOT pinned here: it
-// follows the active/saved theme so it matches the in-app look for
-// returning users. New visitors have no saved preference, so it still
-// resolves to the brand default via resolveInitialTheme().
-const PUBLIC_THEME_PATHS = new Set([
-  '/login', '/register', '/auth/action', '/verify-email',
-  '/pricing', '/teachers', '/privacy', '/terms', '/preferences', '/status',
-  '/delete-account', '/child-safety',
-  '/papers', '/company',
-  // Dashboard V2 preview ships its own scoped design system; pin it to the
-  // brand default so a saved learner theme can't bleed into the review.
-  '/teacher/dashboard-preview',
-])
-function isPublicThemePath(pathname) {
-  if (PUBLIC_THEME_PATHS.has(pathname)) return true
-  // Same reasoning as the dashboard preview above: a review of the Class List
-  // and Register redesign has to be looked at in the brand's own colours, not
-  // whichever theme the reviewing account happens to have saved.
-  if (pathname.startsWith('/teacher/register-preview')) return true
-  if (pathname.startsWith('/share/')) return true
-  if (pathname.startsWith('/papers/')) return true
-  if (pathname.startsWith('/grade-')) return true
-  if (pathname.startsWith('/parent/')) return true
-  if (pathname === '/blog' || pathname.startsWith('/blog/')) return true
-  // /my-papers is auth-only but visually shares the past-paper
-  // theme so we keep it on the brand default.
-  if (pathname === '/my-papers') return true
-  return false
+// The two REVIEW previews stay pinned: a redesign has to be looked at in
+// the brand's own colours, not whichever theme the reviewing account
+// happens to have saved.
+function isBrandPinnedPath(pathname) {
+  return pathname === '/teacher/dashboard-preview'
+    || pathname.startsWith('/teacher/register-preview')
+}
+
+// The teacher workspace paints its own surface (--zt-surface via the
+// data-theme tokens), so while it is showing, the browser-chrome colour must
+// come from the TEACHER theme, not the learner palette — otherwise a Night
+// workspace sits under a pale-blue status bar on mobile/PWA.
+function isTeacherWorkspacePath(pathname) {
+  return pathname.startsWith('/teacher') && !isBrandPinnedPath(pathname)
 }
 
 function ThemeApplicator() {
-  const { theme } = useTheme()
+  const { theme, teacherTheme } = useTheme()
   const { pathname } = useLocation()
   useEffect(() => {
-    applyThemeToBody(isPublicThemePath(pathname) ? DEFAULT_THEME : theme)
-  }, [pathname, theme])
+    applyThemeToBody(isBrandPinnedPath(pathname) ? DEFAULT_THEME : theme)
+    // applyThemeToBody just set <meta name="theme-color"> from the learner
+    // palette; override it with the workspace surface where that is what is
+    // actually on screen.
+    if (isTeacherWorkspacePath(pathname)) {
+      const meta = document.querySelector('meta[name="theme-color"]')
+      const surface = getTeacherTheme(teacherTheme)?.tokens?.surface
+      if (meta && surface) meta.setAttribute('content', surface)
+    }
+  }, [pathname, theme, teacherTheme])
   return null
 }
 
@@ -231,7 +228,8 @@ const WorksheetGenerator = lazy(() => import('./features/worksheet/pages/Workshe
 const FlashcardGenerator = lazy(() => import('./features/flashcards/pages/FlashcardGenerator'))
 const SchemeOfWorkGenerator = lazy(() => import('./components/teacher/generate/SchemeOfWorkGenerator'))
 const ClassTimetableStudio = lazy(() => import('./components/teacher/generate/ClassTimetableStudio'))
-const RubricGenerator = lazy(() => import('./features/rubric/pages/RubricGenerator'))
+// Rubric Studio is retired (2026-08); no admin route mounts it either. Saved
+// rubrics still render in My Library via features/rubric's RubricView.
 const NotesStudio = lazy(() => import('./features/teacherNotes/pages/NotesStudio'))
 // Teacher — Visual Studio (ZedExams Picture & Diagram Studio). Self-contained
 // feature module under src/features/visualStudio/.
@@ -684,11 +682,17 @@ export default function App() {
           <Route path="/admin/results"                  element={<AdminRoute><AdminResults /></AdminRoute>} />
           <Route path="/admin/payments"                 element={<AdminRoute><PaymentsPanel /></AdminRoute>} />
           <Route path="/admin/demo-trials"              element={<AdminRoute><BulkGrantTrialsPanel /></AdminRoute>} />
-          <Route path="/admin/generate/worksheet"       element={<AdminRoute><WorksheetGenerator /></AdminRoute>} />
+          {/* Worksheet Studio rides the same feature flag as the teacher route
+              — the admin copy of a withdrawn studio is still the withdrawn
+              studio, and leaving it open would be a second door into output
+              we have said is not fit to print. */}
+          <Route path="/admin/generate/worksheet"       element={<AdminRoute><FlaggedStudioRoute tool="worksheet"><WorksheetGenerator /></FlaggedStudioRoute></AdminRoute>} />
           <Route path="/admin/generate/flashcards"      element={<AdminRoute><FlashcardGenerator /></AdminRoute>} />
           <Route path="/admin/generate/scheme-of-work"  element={<AdminRoute><SchemeOfWorkGenerator /></AdminRoute>} />
           <Route path="/admin/generate/class-timetable" element={<AdminRoute><ClassTimetableStudio /></AdminRoute>} />
-          <Route path="/admin/generate/rubric"          element={<AdminRoute><RubricGenerator /></AdminRoute>} />
+          {/* /admin/generate/rubric is gone with the studio — an admin path is
+              internal, so there is no bookmark to preserve and no teacher-facing
+              notice to route an admin through. */}
           <Route path="/admin/generate/notes"           element={<AdminRoute><NotesStudio /></AdminRoute>} />
           <Route path="/admin/company"                  element={<AdminRoute><CompanyHQ /></AdminRoute>} />
           <Route path="/admin/agents"                   element={<AdminRoute><AgentsHome /></AdminRoute>} />

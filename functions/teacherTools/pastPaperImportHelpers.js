@@ -566,8 +566,47 @@ function summariseSeenStems(questions, limit = 60, perStem = 90) {
  * options off a re-save, and a numeric without a finite answer. We never write
  * a record the editor can't re-save.
  */
+/**
+ * Pull a bracketed prose picture-description out of a question prompt —
+ * "[Picture shows a person running]" / "(image of a maize plant)" — whether it
+ * sits on its own line or inline at the end of a sentence. Older imports (and
+ * a model that ignores the hasFigure contract) describe a question's picture
+ * in prose because the schema gave it nowhere structured to put it; the
+ * description is useful CONTEXT for the admin attaching the real image, but it
+ * must never sit in the learner-visible question text. Returns
+ * { prompt, figureDescription } — prompt unchanged and description '' when no
+ * bracketed description is found. Conservative: the bracket content must
+ * contain a picture keyword, so "[UNCLEAR]" or a legit bracketed part like
+ * "(a)" is never touched.
+ */
+// The bracket must OPEN with a picture keyword and carry a real description
+// after it (8+ chars) — so a terse printed cross-reference like "(figure 2)"
+// or an "[UNCLEAR]" marker is never stripped from the stem.
+const FIGURE_DESCRIPTION_RE = new RegExp(
+  "[\\[(]\\s*(?:the\\s+)?(?:picture|image|photo(?:graph)?|diagram|figure|graph|chart|illustration|drawing)\\b[^\\])]{8,}[\\])]",
+  "gi",
+);
+function extractFigureDescription(prompt) {
+  const source = str(prompt);
+  const matches = source.match(FIGURE_DESCRIPTION_RE);
+  if (!matches || !matches.length) return {prompt: source.trim(), figureDescription: ""};
+  const stripped = source.replace(FIGURE_DESCRIPTION_RE, " ").replace(/\s{2,}/g, " ").trim();
+  const description = matches
+    .map((m) => m.slice(1, -1).trim())
+    .filter(Boolean)
+    .join(" · ");
+  // Never let the extraction erase the whole question: a prompt that IS only
+  // the description keeps its original text (the admin still sees something).
+  if (!stripped) return {prompt: source.trim(), figureDescription: description};
+  return {prompt: stripped, figureDescription: description};
+}
+
 function normaliseImportedQuestion(raw, idx) {
-  const promptRaw = str(raw && raw.prompt).trim();
+  const promptFull = str(raw && raw.prompt).trim();
+  // Split a prose picture-description out of the stem (kept as diagramText on
+  // the question doc — see toQuestionDoc). Finding one is also a figure signal.
+  const {prompt: promptStripped, figureDescription} = extractFigureDescription(promptFull);
+  const promptRaw = promptStripped;
 
   const optionsRaw = Array.isArray(raw && raw.options) ? raw.options : [];
   let options = optionsRaw
@@ -661,6 +700,14 @@ function normaliseImportedQuestion(raw, idx) {
   // (the printed question NUMBER). Never conflate the two (see toQuestionDoc).
   const sourcePageNumber = parseSourceNumber(raw && raw.sourcePageNumber);
 
+  // The question's OWN printed picture (distinct from a shared passage/map
+  // figure): the model reports hasFigure + a fractional figureBox; a prose
+  // description found in the stem is an equally strong signal on papers
+  // imported before the structured contract existed.
+  const figureBox = sanitiseFigureBox(raw && raw.figureBox);
+  const hasFigure = Boolean(raw && raw.hasFigure) || Boolean(figureBox) ||
+    Boolean(figureDescription);
+
   return {
     type,
     prompt,
@@ -673,6 +720,9 @@ function normaliseImportedQuestion(raw, idx) {
     answerKnown,
     order: Number.isInteger(idx) ? idx : 0,
     requiresReview: true,
+    ...(hasFigure ? {hasFigure: true} : {}),
+    ...(figureBox ? {figureBox} : {}),
+    ...(figureDescription ? {figureDescription} : {}),
     ...(passage ? {passage} : {}),
     ...(table ? {table} : {}),
   };
@@ -1061,6 +1111,7 @@ module.exports = {
   extractionProgress,
   summariseSeenStems,
   normaliseImportedQuestion,
+  extractFigureDescription,
   parseSourceNumber,
   findSourceNumberGaps,
   mergeAndRenumber,

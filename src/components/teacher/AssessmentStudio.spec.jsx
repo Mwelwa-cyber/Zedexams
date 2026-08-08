@@ -111,6 +111,13 @@ vi.mock('../../utils/questionBankService', () => ({
   captureQuestionsToBank: vi.fn(),
   bumpQuestionUsage: vi.fn(),
   searchQuestionBank: vi.fn().mockResolvedValue({ rows: [] }),
+  parseBankQuestion: (row) => { try { return JSON.parse(row?.data || 'null') } catch { return null } },
+  duplicateBankQuestion: vi.fn(),
+  editMyBankQuestion: vi.fn(),
+  toggleFavouriteQuestion: vi.fn(),
+  listFavouriteIds: vi.fn().mockResolvedValue(new Set()),
+  deleteBankQuestion: vi.fn(),
+  getBankQuestion: vi.fn().mockResolvedValue(null),
 }))
 vi.mock('./studio/AssessmentBars', () => ({ TopBar: () => null, BottomBar: () => null }))
 vi.mock('./QuestionBankPanel', () => ({ default: () => null }))

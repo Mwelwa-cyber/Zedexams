@@ -2,14 +2,23 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import './lessonStudio.css'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Sparkles } from '../../ui/icons'
+import { useNavigate, useParams } from 'react-router-dom'
+import {
+  BookOpen,
+  ChartNoAxesColumnIncreasing,
+  FileCheck,
+  FileText,
+  House,
+  Layers,
+  Sparkles,
+} from 'lucide-react'
 import app, { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
 import { CurriculumContext } from './CurriculumContext'
 import { useStudioState } from './hooks/useStudioState'
 import { useLessonSeries } from './hooks/useLessonSeries'
 import { StudioShell } from './StudioShell'
+import StudioHeader from '../StudioHeader.jsx'
 import { LessonPlanWizard } from './wizard/LessonPlanWizard.jsx'
 import { StudioCanvas } from './StudioCanvas'
 import { renderPlanHtml } from './utils/renderPlanHtml'
@@ -70,6 +79,7 @@ import { useAiOperationLock } from '../../../hooks/useAiOperationLock'
 import { stableFingerprint } from '../../../hooks/aiOperationLockCore'
 import { applyLessonPlanRestore } from '../../../hooks/draft/restoreLessonPlan'
 import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
+import useStudioAvailability from '../../../hooks/useStudioAvailability'
 import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
 import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
 
@@ -77,12 +87,17 @@ const functions = getFunctions(app, 'us-central1')
 const generateCallable = httpsCallable(functions, 'studioGenerateLessonPlan', { timeout: 120_000 })
 
 // Teaching Kit tools surfaced once a plan exists. `id` drives openKitTool().
+// Lucide components, not emoji — the teacher surfaces draw every icon at the
+// row's own size and colour rather than the platform's.
+// `to` is what the availability filter reads; openKitTool() still resolves
+// the real destination (it saves the plan first for some tools), so the two
+// must name the same route.
 const KIT_TOOLS = [
-  { id: 'worksheet',  label: 'Worksheet',  icon: '📝' },
-  { id: 'homework',   label: 'Homework',   icon: '🏡' },
-  { id: 'notes',      label: 'Notes',      icon: '📚' },
-  { id: 'flashcards', label: 'Flashcards', icon: '🎴' },
-  { id: 'test',       label: 'Test Paper', icon: '📄' },
+  { id: 'worksheet',  label: 'Worksheet',  Icon: FileText,  to: '/teacher/generate/worksheet' },
+  { id: 'homework',   label: 'Homework',   Icon: House,     to: '/teacher/generate/homework' },
+  { id: 'notes',      label: 'Notes',      Icon: BookOpen,  to: '/teacher/generate/notes' },
+  { id: 'flashcards', label: 'Flashcards', Icon: Layers,    to: '/teacher/generate/flashcards' },
+  { id: 'test',       label: 'Test Paper', Icon: FileCheck, to: '/teacher/assessment-papers/new' },
 ]
 
 // Map a studioGenerateLessonPlan quota rejection to the matching upgrade
@@ -414,6 +429,13 @@ export default function LessonPlanStudio() {
   // is kept, so the teacher can hop between the two freely).
   const [studioView, setStudioView] = useState('form')
 
+  // "My lessons" (the saved-lessons + coverage overlay) is opened from the
+  // header's utility row and rendered by the wizard, which owns the coverage
+  // and lesson-memory props it needs. The state lives here so the page has ONE
+  // navigation cluster — the trigger used to float beside the step heading and
+  // compete with the stepper.
+  const [progressOpen, setProgressOpen] = useState(false)
+
   // Save-to-library state. `savedSignature` is a content fingerprint of the
   // last plan saved, so the button knows when the (possibly edited) plan has
   // unsaved changes vs. is already in the library.
@@ -719,6 +741,9 @@ export default function LessonPlanStudio() {
     studioState.wizardStep,
   ])
   const { featureFlags } = usePlatformSettings().settings
+  // Teaching Kit hands off into other studios; a withdrawn one must not be
+  // offered a doorway from here either.
+  const { filterEntries } = useStudioAvailability()
   const draft = useDraftManager({
     studioId: 'lesson_plan',
     uid,
@@ -1656,34 +1681,44 @@ export default function LessonPlanStudio() {
         view={studioView}
         onBackToForm={() => setStudioView('form')}
         header={
-          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <span
-                className="lps-tile h-11 w-11 flex-shrink-0 rounded-[12px] text-white lps-brand-gradient"
-                aria-hidden="true"
-              >
-                <Sparkles size={20} />
-              </span>
-              <div className="min-w-0">
-                <span className="lps-eyebrow">Teacher Studio</span>
-                <h1 className="font-display text-[19px] font-extrabold leading-tight tracking-tight text-[#0F1B2D]">
-                  Lesson Plan Studio
-                </h1>
-                <p className="text-[12px] font-semibold leading-tight text-[#4A5A6E]">
-                  Create smart lesson plans in minutes — one step at a time, preview live.
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-none items-center gap-2.5">
+          <StudioHeader
+            eyebrow="Planning"
+            title="Lesson Plan Studio"
+            description="Create smart lesson plans in minutes — one step at a time, preview live."
+            icon={Sparkles}
+            backTo="/teacher/lesson-plans"
+            backLabel="Back to Lesson Plans"
+            status={
               <DraftStatusIndicator status={draft.status} savedAt={draft.savedAt} online={draft.online} />
-              <Link
-                to="/teacher/lesson-plans"
-                className="lps-btn-ghost inline-flex min-h-[44px] items-center gap-1.5 px-3 text-[12.5px]"
-              >
-                <span aria-hidden="true">←</span> Back to Lesson Plans
-              </Link>
-            </div>
-          </div>
+            }
+            // The wizard's secondary navigation joins the back link in the one
+            // utility row rather than floating beside the step heading. Only in
+            // the form view — the canvas has its own "Back to form" bar and
+            // neither target exists there.
+            actions={studioView === 'form' ? (
+              <>
+                {(studioState.generatedPlan || studioState.generationStatus !== 'idle') && (
+                  <button
+                    type="button"
+                    onClick={() => setStudioView('canvas')}
+                    className="lps-btn-ghost min-h-[36px] px-3 py-1.5 text-[12px]"
+                  >
+                    {studioState.generationStatus === 'loading'
+                      ? 'View generation progress'
+                      : 'View generated plan'}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setProgressOpen(true)}
+                  className="lps-btn-ghost min-h-[36px] px-3 py-1.5 text-[12px]"
+                >
+                  <ChartNoAxesColumnIncreasing size={15} aria-hidden="true" />
+                  My lessons
+                </button>
+              </>
+            ) : null}
+          />
         }
         sidebar={
           <LessonPlanWizard
@@ -1721,6 +1756,9 @@ export default function LessonPlanStudio() {
             // after "Back to form" — not only once a plan exists.
             hasPlan={Boolean(studioState.generatedPlan) || studioState.generationStatus !== 'idle'}
             onViewPlan={() => setStudioView('canvas')}
+            // "My lessons" is controlled from the header's utility row.
+            progressOpen={progressOpen}
+            onCloseProgress={() => setProgressOpen(false)}
             lessonMemory={{
               subtopicName: stripCode(memSubtopic || ''),
               subtopicCode: extractCode(memSubtopic || ''),
@@ -1802,12 +1840,12 @@ export default function LessonPlanStudio() {
           <div className="mx-auto flex max-w-5xl items-center gap-3">
             <div className="hidden shrink-0 sm:block">
               <p className="flex items-center gap-1.5 text-[12px] font-extrabold text-[#0F1B2D]">
-                <span aria-hidden="true">✨</span> Teaching Kit
+                <Sparkles size={14} aria-hidden="true" /> Teaching Kit
               </p>
               <p className="text-[11px] font-semibold text-[#4A5A6E]">Aligned to this lesson</p>
             </div>
             <div className="flex flex-1 gap-2 overflow-x-auto">
-              {KIT_TOOLS.map(({ id, label, icon }) => {
+              {filterEntries(KIT_TOOLS).map(({ id, label, Icon }) => {
                 const busy = id === 'notes' && kitBusy
                 return (
                   <button
@@ -1817,7 +1855,7 @@ export default function LessonPlanStudio() {
                     disabled={busy}
                     className="lps-btn-ghost shrink-0 px-3 py-2 text-[12px]"
                   >
-                    <span aria-hidden="true">{icon}</span>
+                    <Icon size={15} aria-hidden="true" />
                     {busy ? 'Saving…' : label}
                   </button>
                 )

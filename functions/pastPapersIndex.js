@@ -54,6 +54,12 @@ async function rebuildPastPapersIndex(db) {
     .limit(MAX_PAPERS)
     .get();
 
+  // Every published paper goes into the index.
+  //
+  // #2191 filtered this on established provenance, matching a rules gate that
+  // has since been reverted — together they emptied the public archive because
+  // no paper carried the field yet. An unlabelled paper belongs in the index
+  // and renders with an "Unlabelled" badge; it is not withheld.
   const papers = snap.docs.map((d) => lightEntry(d.id, d.data()));
   await db.doc(INDEX_DOC).set({
     papers,

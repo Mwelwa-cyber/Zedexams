@@ -558,7 +558,7 @@ export default function SchemeOfWorkGenerator() {
 
         <div className="space-y-6">
           {resolveTeacherPlan(userProfile) === 'free' && (
-            <div className="studio-form rounded-xl border theme-border px-4 py-3 text-sm" style={{ background: '#fff8e8', color: '#7a5a1e', fontWeight: 600 }}>
+            <div className="studio-form rounded-xl border px-4 py-3 text-sm" style={{ background: 'var(--zt-banner-bg)', borderColor: 'var(--zt-banner-border)', color: 'var(--zt-banner-text)', fontWeight: 600 }}>
               Free plan: you’ll get a preview of the first {FREE_PREVIEW_LIMITS.schemePreviewWeeks} weeks
               — set up your whole term, see the quality, then upgrade for the complete scheme.
             </div>

@@ -1,0 +1,75 @@
+/**
+ * The chrome AROUND the sheets — never the sheets themselves.
+ *
+ * Everything inside a `.ln-page` is styled by `learnerNotesCss()`, the
+ * stylesheet the printer is handed. This file styles the desk the sheets sit
+ * on: the grey gutter between them, the drop shadow that makes them read as
+ * paper, and the page indicator underneath. A rule here that reached inside a
+ * sheet would be a rule the printed copy does not have, which is the one thing
+ * a paged preview must never do.
+ */
+
+.ln-preview {
+  /* The desk, not the paper. In Night mode the desk goes dark and the SHEET
+     stays white — a preview whose paper turns grey at night is a preview of a
+     document nobody prints. */
+  --ln-desk: #f1f0ec;
+  background: var(--ln-desk);
+  border-radius: 14px;
+  padding: 14px;
+  overflow-x: auto;
+}
+
+.ln-preview-bar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.ln-preview-label {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--zt-text-muted, #566f76);
+}
+
+.ln-preview-status {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--zt-text-muted, #566f76);
+}
+
+.ln-sheet-wrap { margin: 0 auto 18px; width: fit-content; }
+
+.ln-sheet {
+  box-shadow: 0 2px 10px rgba(14, 42, 50, 0.16);
+  border-radius: 2px;
+  /* The sheet is measured in mm and must not be squeezed by a flex parent —
+     a preview at the wrong width is a preview of a different pagination. */
+  flex: none;
+}
+
+.ln-sheet-answer { outline: 2px dashed #888888; outline-offset: 4px; }
+
+.ln-page-indicator {
+  margin-top: 6px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--zt-text-muted, #566f76);
+}
+
+/* Below the width of a sheet the desk scrolls sideways rather than shrinking
+   the paper: a scaled-down A4 tells a teacher nothing about where page 2
+   starts. */
+@media (max-width: 820px) {
+  .ln-preview { padding: 10px; }
+}
+
+[data-theme='night'] .ln-preview,
+[data-theme='dark'] .ln-preview {
+  --ln-desk: #1b2327;
+}

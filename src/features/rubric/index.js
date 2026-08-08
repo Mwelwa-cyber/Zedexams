@@ -1,6 +1,16 @@
 /**
- * Public surface of the Rubric studio — the marking-rubric generator at
- * `/teacher/rubrics` (and `/admin/generate/rubric`) and its renderer.
+ * Public surface of the Rubric studio — now its RENDERER only.
+ *
+ * **The studio is RETIRED** (2026-08). Four-level descriptor rubrics are not
+ * part of the Zambian curriculum or the school teaching file, so no route
+ * mounts `pages/RubricGenerator.jsx` any more — `/teacher/generate/rubric`
+ * redirects and the admin route is gone. The page is kept, unrouted, rather
+ * than deleted: it is the record of what the tool was, and deleting it buys
+ * nothing (nothing imports it, so nothing ships it).
+ *
+ * `RubricView` is why this module still matters. Teachers have saved rubrics,
+ * those documents are untouched, and My Library and the public share page
+ * still render and export them. See `src/config/studioAvailability.js`.
  *
  * Migrated under docs/architecture.md Phase 4, following
  * docs/MIGRATION_TEMPLATE.md. A move: same components, same routes, same
@@ -10,9 +20,8 @@
  * have nothing to do with the studio: the teacher library's detail view, the
  * public share page, and the locked-studio sample all render a saved rubric.
  *
- * THE PAGE IS DELIBERATELY NOT EXPORTED. `pages/RubricGenerator.jsx` is
- * reached only by `lazy(() => import('…/pages/RubricGenerator'))` in the two
- * route tables, under the route-mount exception Phase 1 recorded. It pulls in
+ * THE PAGE IS DELIBERATELY NOT EXPORTED — and since the studio was retired,
+ * nothing lazy-imports it either. When it was routed it pulled in
  * the studio shell, the live generation canvas, the curriculum selector and
  * the AI operation lock — behind the front door, all of that would land in the
  * chunk of a library page that wanted one 130-line view.

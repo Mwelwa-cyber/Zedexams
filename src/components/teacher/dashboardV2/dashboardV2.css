@@ -522,9 +522,12 @@
   width: 254px;
   padding: 8px;
   border-radius: 16px;
-  background: rgba(9, 27, 48, 0.94);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  /* OPAQUE, and derived from the sidebar token. The old rgba(9,27,48,0.94)
+     fill let 6% of the nav labels underneath show through the menu text —
+     visible on Night, where menu ink and bleed-through ink are both light.
+     This mix reproduces the exact colour the old fill composited to over the
+     sidebar (94% navy + 6% of the sidebar token), with nothing behind it. */
+  background: color-mix(in srgb, var(--zt-sidebar-bg) 6%, rgb(9, 27, 48));
   border: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45), 0 4px 16px rgba(0, 0, 0, 0.3);
   z-index: 60;
@@ -664,7 +667,9 @@
   transform: translateY(-50%);
   padding: 6px 10px;
   border-radius: 9px;
-  background: rgba(9, 27, 48, 0.96);
+  /* Opaque for the same reason as .tdv2-menu above — this floats over page
+     content that may be light or dark, so any alpha muddies the label. */
+  background: color-mix(in srgb, var(--zt-sidebar-bg) 4%, rgb(9, 27, 48));
   border: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3);
   color: var(--on-sidebar);
@@ -2814,10 +2819,54 @@ a.tdv2-check-row:hover {
   margin: 0 0 2px;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 28px;
-  line-height: 34px;
+  /* Between 351px and 400px the greeting has the book's 104px clearance to
+     work around and only ~184px left, which broke "Good morning, Mahenga 👋"
+     across FOUR lines and made the hero the tallest thing on the phone. It
+     is two lines at 320px (no book) and two at 412px (enough width); this
+     band was the one that lost. Scaling with the viewport keeps it at two
+     everywhere without a second breakpoint to maintain. */
+  font-size: clamp(21px, 5.9vw, 28px);
+  line-height: 1.18;
   color: var(--on-sidebar);
   overflow-wrap: anywhere;
+}
+
+/* Dark-glass inset holding the school name and the term/holiday rows. The
+   hero itself keeps its deep-green gradient; this is the one panel laid on
+   it. The surface recipe (`glass-dark-inset`) is theme-invariant, because
+   the hero is dark in every theme.
+
+   The panel stops at the book rather than running under it: the illustration
+   is an opaque rectangle, so a real overlap is a hard edge either way round
+   — over the panel if the book wins the z-order, over the book if the panel
+   does. It reaches ~8px into the illustration's left margin, which is plain
+   background matched to the hero gradient (verified: that band averages
+   rgb(7,39,48) with almost no variance), so nothing drawn is covered.
+
+   The clearance moves from the rows to the panel around them. Kept tight,
+   because it is not a straight swap: the rows carried 104px each and the
+   "N teaching days left" line carried none at all, so a generous panel would
+   truncate a line that used to fit. At 390px and 430px nothing clips; at
+   360px the school name and term line clip exactly as they did before. */
+.tdv2m-hero-inset {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 4px;
+  /* Ends just clear of the book. Kept tight — the rows inside used to have
+     104px of clearance each and one of them ("N teaching days left") had
+     none at all, so the panel has to buy back what wrapping it cost. */
+  margin-right: 86px;
+  padding: 10px 11px;
+  border-radius: 15px;
+  min-width: 0;
+}
+
+/* Clearance now belongs to the inset. The greeting sits outside it and keeps
+   its own. */
+.tdv2m-hero-inset .tdv2m-hero-school,
+.tdv2m-hero-inset .tdv2m-hero-term {
+  padding-right: 0;
 }
 
 .tdv2m-hero-row {
@@ -2874,7 +2923,11 @@ a.tdv2-check-row:hover {
   color: rgba(255, 255, 255, 0.72);
 }
 
-/* Book illustration column */
+/* Book illustration column. Stays BELOW .tdv2m-hero-main (z-index 1): the
+   illustration is an opaque rectangle whose background is painted to match
+   the hero gradient, so raising it above the text column would punch that
+   rectangle through the dark-glass inset. The inset stops short of it
+   instead — see .tdv2m-hero-inset. */
 .tdv2m-hero-side {
   position: absolute;
   top: 0;
@@ -2980,6 +3033,35 @@ a.tdv2-check-row:hover {
   border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
 }
 
+/* Sub-rows inside the glass card: a neutral fill and a gentler scale than a
+   tile's, applied only to rows that actually lead somewhere (see
+   CheckRowLink). No border or shadow — they are divided by the rule above,
+   not by being separate surfaces. */
+.tdv2m-check-row.is-pressable {
+  border-radius: 11px;
+  padding-left: 8px;
+  padding-right: 8px;
+  transform: translateZ(0);
+  transition: transform 0.15s ease, background 0.2s ease;
+}
+
+.tdv2m-check-row.is-pressable.is-pressed {
+  transform: scale(0.985);
+  background: rgba(var(--ws-accent-row), 0.09);
+  transition: transform 0.09s ease, background 0.09s ease;
+}
+
+@media (hover: hover) {
+  .tdv2m-check-row.is-pressable:hover {
+    background: rgba(var(--ws-accent-row), 0.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tdv2m-check-row.is-pressable { transition: none; }
+  .tdv2m-check-row.is-pressable.is-pressed { transform: none; }
+}
+
 .tdv2m-check-circle {
   color: var(--mobile-orange-bright);
   flex-shrink: 0;
@@ -3015,8 +3097,11 @@ a.tdv2-check-row:hover {
   min-height: 46px;
   margin-top: 8px;
   border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface);
+  /* Quiet glass, matching the list-row intensity — a solid button inside a
+     glass card reads as a patch cut out of it. */
+  border: 1px solid var(--ws-row-border);
+  background: var(--ws-row-bg);
+  box-shadow: var(--ws-row-shadow);
   font-size: 14.5px;
   font-weight: 650;
   color: var(--ink);
@@ -3230,6 +3315,21 @@ a.tdv2-check-row:hover {
   min-height: 44px;
   text-align: center;
   -webkit-tap-highlight-color: transparent;
+  transform: translateZ(0);
+  transition: transform 0.15s ease;
+}
+
+/* Press lands on the whole cell. The artwork floats with no tile behind it,
+   so there is no inner surface left to press — and pressing the cell is the
+   truer target anyway, since the name under the icon is part of the link. */
+.tdv2m-recent-tool.is-pressed {
+  transform: scale(0.965);
+  transition: transform 0.09s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tdv2m-recent-tool { transition: none; }
+  .tdv2m-recent-tool.is-pressed { transform: none; }
 }
 
 /* Sizing only — the tile surface, press, sheen and NEW-badge shimmer all
@@ -3248,14 +3348,16 @@ a.tdv2-check-row:hover {
   place-items: center;
 }
 
-.tdv2m-glass-tile img {
-  position: relative;
-  z-index: 1;
-  width: 82%;
-  height: 82%;
-  object-fit: contain;
-  border-radius: 14px;
-  -webkit-user-drag: none;
+/* Artwork mount — including the glow, the drop-shadow and the boxed-file
+   exception — is `glass-artwork` in glassSurface.css, shared with the
+   workspace and All Teacher Tools cards. A studio WITH artwork renders bare
+   (no tile surface behind it); the size below is the artwork's own, and it
+   stays at or under 64px because a floating icon has no box to fill. */
+.tdv2m-glass-tile.is-bare {
+  width: 54px;
+  height: 54px;
+  max-width: 54px;
+  overflow: visible;
 }
 
 /* Icon-only studios keep their tinted identity chip, matching the desktop
@@ -3290,17 +3392,22 @@ a.tdv2-check-row:hover {
   overflow-wrap: break-word;
 }
 
-/* Inside a glass tile the badge must sit within the tile's bounds — the
-   glass surface clips at its edge (overflow: hidden for the sheen), so the
-   old overhanging offsets would cut it off. */
-.tdv2m-glass-tile .tdv2m-tool-new {
+/* Inside a glass TILE the badge must sit within the tile's bounds — that
+   surface clips at its edge (overflow: hidden, for the sheen), so an
+   overhanging offset would be cut off. A bare artwork tile does not clip,
+   so there the badge keeps its overhang and stays clear of the small icon. */
+.tdv2m-glass-tile:not(.is-bare) .tdv2m-tool-new {
   top: 4px;
   right: 4px;
   z-index: 3;
 }
+.tdv2m-glass-tile.is-bare .tdv2m-tool-new { z-index: 3; }
 
-/* Small NEW badge — upper-right of the tile, clear of the artwork */
-.tdv2m-tool-new {
+/* Small NEW badge — overlays the artwork's upper-right corner.
+   `.tdv2`-scoped because it also carries `glass-badge-shimmer`, whose own
+   `position: relative` would otherwise win and drop the badge back into
+   flow — where it lands on the tool name underneath. */
+.tdv2 .tdv2m-tool-new {
   position: absolute;
   top: -5px;
   right: -3px;
@@ -3464,9 +3571,19 @@ a.tdv2-check-row:hover {
   gap: 22px;
 }
 
+/* Group heading takes its section's accent, so the tint of the panel and
+   the colour of its title are the same decision. `currentColor` on the icon
+   keeps the chip in step without a second declaration. */
 .tdv2m-tools-group {
   margin: 0 0 12px;
+  padding: 0 6px;
 }
+.tdv2m-tools-group.tone-planning { color: #b95c1f; }
+.tdv2m-tools-group.tone-materials { color: #1f7d5c; }
+.tdv2m-tools-group.tone-assessment { color: #bb3a52; }
+.tdv2.is-dark .tdv2m-tools-group.tone-planning { color: #e0a074; }
+.tdv2.is-dark .tdv2m-tools-group.tone-materials { color: #7cc8ab; }
+.tdv2.is-dark .tdv2m-tools-group.tone-assessment { color: #d98a99; }
 
 /* Tinted glass panel behind each category group — the tint itself comes
    from the glass-panel--* class (glassSurface.css). */
@@ -3484,41 +3601,14 @@ a.tdv2-check-row:hover {
 }
 
 /* Four icons per row — 72–76px tiles, two-line 13px labels */
+/* TWO columns of StudioCards, not four columns of icons. The card itself is
+   the desktop workspace card in its compact variant (.tws-card.is-compact),
+   so nothing about the surface is declared here. */
 .tdv2m-tool-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 20px 16px;
-}
-
-.tdv2m-tool {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  min-height: 44px;
-  text-align: center;
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* Sizing only — surface and behaviours come from GlassToolTile. */
-.tdv2m-tool-tile {
-  width: 100%;
-  max-width: 74px;
-  aspect-ratio: 1;
-}
-
-.tdv2m-tool-name {
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.25;
-  color: var(--ink);
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
-  overflow-wrap: break-word;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 11px;
+  align-items: stretch;
 }
 
 /* ── Floating dock navigation + Quick Create button ─────────────────── */
@@ -3880,6 +3970,10 @@ a.tdv2-check-row:hover {
   .tdv2m-hero-term {
     padding-right: 0;
   }
+  /* No book to clear, so the inset takes the full width like the rows do */
+  .tdv2m-hero-inset {
+    margin-right: 0;
+  }
   .tdv2m-hero {
     min-height: 0;
     /* Without the book, give the plan pill its own strip so it never
@@ -3899,9 +3993,15 @@ a.tdv2-check-row:hover {
     width: 56px;
     height: 56px;
   }
-  .tdv2m-recent-grid,
-  .tdv2m-tool-grid {
+  .tdv2m-recent-grid {
     gap: 12px 8px;
+  }
+  /* Two card columns still fit at ≤350px; only the gutter tightens */
+  .tdv2m-tool-grid {
+    gap: 8px;
+  }
+  .tdv2m-tools-panel {
+    padding: 12px 8px 14px;
   }
 }
 

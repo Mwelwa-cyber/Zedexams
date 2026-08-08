@@ -369,6 +369,18 @@ export const INVENTORY = Object.freeze([
     incompleteResultSaveable: false,
     note: 'The only generator with no usage meter at all — see the scan.',
   }),
+  g('functions/teacherTools/autoLabelDiagram.js', {
+    tier: 5,
+    state: 'unmigrated',
+    entryPoint: 'autoLabelDiagram (callable)',
+    clientSurface: 'Visual Studio — "Auto-label this picture" (VisualCanvas.jsx)',
+    produces: 'Proposed diagram labels ({ word, anchor, confidence }) for teacher review',
+    incompleteResultSaveable: false,
+    note: 'Claude vision over one diagram image. NOTHING IS WRITTEN server-side '
+      + '— proposals return to the editor as pre-filled manual labels, so a '
+      + 'duplicated call costs a second reading of the same image and a daily-'
+      + 'allowance charge, never a duplicate document.',
+  }),
 
   // ── Tier 6 · revision and recommendation ──────────────────────────────
   g('functions/teacherTools/reviseQuestion.js', {
@@ -449,6 +461,13 @@ export const INVENTORY = Object.freeze([
 
   // ── Helpers: run inside another operation ─────────────────────────────
   ...[
+    ['functions/teacherTools/generateLearnerNotes.js',
+      'The learner-notes pipeline INSIDE generateNotes — retrieve, write, then '
+      + 'lint the voice and check the grade ceiling, regenerating a failing '
+      + 'section. Its model calls happen under generateNotes\'s single '
+      + 'reservation and its single usage charge, which is what makes the '
+      + 'repair pass free to the teacher: a document that needed one section '
+      + 'rewritten costs the same as one that did not.'],
     ['functions/visualSafety.js', 'Safety gate applied to a generated image'],
     ['functions/pictureNaming.js', 'Auto-names a picture-bank asset after it is generated'],
     ['functions/teacherTools/gradeReclassifier.js', 'Re-derives a grade band for an imported question'],

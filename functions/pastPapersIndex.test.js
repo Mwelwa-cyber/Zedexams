@@ -10,6 +10,8 @@
 
 const assert = require("node:assert");
 const {
+  KNOWN_SOURCES,
+  OFFICIAL_SOURCES,
   deriveQuizStatus,
   lightEntry,
   lightSignature,
@@ -147,4 +149,41 @@ ok("absent doc signature is stable",
 ok("absent doc differs from a real doc",
   lightSignature(null) !== lightSignature(published));
 
-console.log(`\n${passed} passed`);
+// ── Source labelling ─────────────────────────────────────────────────────
+//
+// The index doc is world-readable in ONE piece, so whatever lands in it is
+// published regardless of the per-document read rule. These assertions are
+// therefore the same acceptance criterion as the rules test, applied to the
+// build step.
+
+const labelled = {
+  status: "published", source: "ecz", sourceConfidence: "explicit",
+  grade: "7", subject: "mathematics", year: 2023,
+};
+
+ok("lightEntry carries the source, the derived official flag and the session",
+  lightEntry("p9", {...labelled, session: "october"}).source === "ecz" &&
+  lightEntry("p9", {...labelled, session: "october"}).isOfficial === true &&
+  lightEntry("p9", {...labelled, session: "october"}).session === "october");
+ok("lightEntry re-derives isOfficial rather than copying a stored boolean",
+  // A document whose two fields disagree must not publish a mock as official.
+  lightEntry("p9", {...labelled, source: "prisca", isOfficial: true}).isOfficial === false);
+ok("labelling a paper changes the signature, so the trigger rebuilds",
+  lightSignature({...labelled, source: null, sourceConfidence: "unknown"}) !==
+    lightSignature(labelled));
+
+// ── Mirror check against the real registry ───────────────────────────────
+// KNOWN_SOURCES / OFFICIAL_SOURCES are hand-copies of src/config/paperSources.js
+// (ESM under src/, CommonJS here). A source added there and forgotten here
+// would silently drop every paper of that source out of the public index, so
+// the copies are asserted against the original rather than trusted.
+(async () => {
+  const registry = await import("../src/config/paperSources.js");
+  const ids = Object.keys(registry.PAPER_SOURCES).sort();
+  ok("KNOWN_SOURCES mirrors PAPER_SOURCES",
+    JSON.stringify([...KNOWN_SOURCES].sort()) === JSON.stringify(ids));
+  ok("OFFICIAL_SOURCES mirrors the registry's isOfficial flags",
+    JSON.stringify([...OFFICIAL_SOURCES].sort()) === JSON.stringify(
+      ids.filter((id) => registry.PAPER_SOURCES[id].isOfficial).sort()));
+  console.log(`\n${passed} passed`);
+})();

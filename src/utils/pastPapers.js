@@ -30,7 +30,8 @@ import { getDownloadURL, ref as storageRef } from 'firebase/storage'
 import { deleteObject, uploadBytes } from '../firebase/attestedStorage'
 import { db, storage } from '../firebase/config'
 import { capture } from './analytics'
-import { normalizePaperFields } from './pastPaperNormalize.js'
+import { isOfficialSource } from '../config/paperSources.js'
+import { derivedPaperTitle, normalizePaperFields } from './pastPaperNormalize.js'
 import {
   attachQuizFields,
   paperQuizIsAttached,
@@ -94,12 +95,26 @@ const COLLECTION = 'pastPapers'
  * most recent papers land on top of the list. Limit defaults to 200
  * (the full ECZ archive at 7 years × 7 subjects × 3 grades is well
  * under that cap).
+ *
+ * `officialOnly` is ONE equality on the derived `isOfficial` boolean. That is
+ * what the field is for: an OR across every mock publisher we ever add is not
+ * a Firestore query.
+ *
+ * NOTE — there is deliberately NO filter on `sourceConfidence` here. #2191
+ * constrained every learner read to papers whose provenance was established,
+ * which combined with the matching rules gate to hide the ENTIRE archive until
+ * a manual migration had run. Reverted: an unlabelled paper is listed and
+ * renders with an "Unlabelled" badge, which is honest and visible, rather than
+ * vanishing.
  */
-export async function listPublishedPapers({ grade, subject, year, limit = 200 } = {}) {
+export async function listPublishedPapers({
+  grade, subject, year, officialOnly = false, limit = 200,
+} = {}) {
   const filters = [where('status', '==', PAPER_STATUSES.PUBLISHED)]
   if (grade)   filters.push(where('grade',   '==', String(grade)))
   if (subject) filters.push(where('subject', '==', String(subject)))
   if (year)    filters.push(where('year',    '==', Number(year)))
+  if (officialOnly) filters.push(where('isOfficial', '==', true))
   const q = query(
     collection(db, COLLECTION),
     ...filters,
@@ -108,6 +123,30 @@ export async function listPublishedPapers({ grade, subject, year, limit = 200 } 
   )
   const snap = await getDocs(q)
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+}
+
+/**
+ * The paper already occupying a `paperKey`, or null.
+ *
+ * `excludeId` is what makes this usable while EDITING: a paper re-deriving its
+ * own unchanged key must not be told it is a duplicate of itself.
+ *
+ * This is a check, not a lock. Two admins publishing the same paper in the
+ * same second can still both pass it — Firestore has no unique index, and the
+ * alternative (a transaction against a key-registry collection) is a heavier
+ * mechanism than a two-person admin team needs. What it does prevent is the
+ * case that actually happens: the same archive being uploaded twice, weeks
+ * apart, because nothing said it was already there.
+ */
+export async function findPaperByKey(key, { excludeId = null } = {}) {
+  if (!key) return null
+  const snap = await getDocs(query(
+    collection(db, COLLECTION),
+    where('paperKey', '==', String(key)),
+    fsLimit(2),
+  ))
+  const hit = snap.docs.find((d) => d.id !== excludeId)
+  return hit ? { id: hit.id, ...hit.data() } : null
 }
 
 // ── Published-list cache (stale-while-revalidate) ───────────────────
@@ -406,10 +445,11 @@ export async function deletePaperPdf(path) {
 
 export async function createPaper({ uid, fields }) {
   const now = serverTimestamp()
-  // Single normalization pipeline (grade / subject / title casing / examBoard /
-  // year / paperNumber + derived slug) so every paper lands with consistent,
-  // query-matchable metadata regardless of what the admin typed.
-  const norm = normalizePaperFields(fields)
+  // Single normalization pipeline (grade / subject / examBoard / year /
+  // paperNumber / source + derived isOfficial, slug and paperKey) so every
+  // paper lands with consistent, query-matchable metadata regardless of what
+  // the admin typed.
+  const norm = withDerivedTitle(normalizePaperFields(fields))
   const docRef = await addDoc(collection(db, COLLECTION), {
     ...norm,
     examBoard: norm.examBoard || 'ECZ',
@@ -426,11 +466,34 @@ export async function createPaper({ uid, fields }) {
 export async function updatePaper(paperId, fields) {
   // Run edits through the same pipeline. normalizePaperFields only touches keys
   // that are present, so a status-only update never clobbers title/grade/etc.,
-  // and the slug is re-derived whenever grade + subject + year are all in play.
+  // and the slug + paperKey are re-derived whenever their inputs are in play.
   await updateDoc(doc(db, COLLECTION, paperId), {
-    ...normalizePaperFields(fields),
+    ...withDerivedTitle(normalizePaperFields(fields)),
     updatedAt: serverTimestamp(),
   })
+}
+
+/**
+ * Regenerate `title` from the structured fields whenever this write carries
+ * enough of them to compose one.
+ *
+ * `title` is display-only now: admins do not type it, nothing branches on it,
+ * and <PaperTitle/> composes what a learner reads from the fields directly. It
+ * stays on the document so the surfaces that legitimately want one string —
+ * the search haystack, the paperAttempts snapshot, exports — keep having one,
+ * and regenerating it here is what stops that string from describing the paper
+ * as it was three edits ago.
+ *
+ * The whole identity must be present, not merely some of it. A write carrying
+ * only `{ year }` would compose "— 2025" and file it as the paper's name; a
+ * status flip or a quiz attach carries none of the inputs at all. Both are
+ * left alone. The Details step sends grade, subject, year and source together,
+ * which is the write this exists for.
+ */
+function withDerivedTitle(norm) {
+  const complete = ['grade', 'subject', 'year'].every((k) => norm[k])
+  if (!complete) return norm
+  return { ...norm, title: derivedPaperTitle(norm) }
 }
 
 /**
@@ -521,6 +584,14 @@ export async function startPaperAttempt({ uid, paper, durationMinutes }) {
     paperGrade: paper.grade ?? null,
     paperSubject: paper.subject ?? null,
     paperYear: paper.year ?? null,
+    // Snapshotted with the rest of the paper's metadata so an attempt stays
+    // attributable after the paper is edited or unpublished — and so a
+    // practice run against a PRISCA mock is never counted as evidence about
+    // how a learner does on the real exam. `paperIsOfficial` is derived from
+    // the source here, never read from the document, so an attempt cannot
+    // inherit a stale boolean that disagrees with its own source.
+    paperSource: paper.source ?? null,
+    paperIsOfficial: isOfficialSource(paper.source),
     durationMinutes: Number(durationMinutes) || null,
     elapsedSeconds: 0,
     status: 'in_progress',

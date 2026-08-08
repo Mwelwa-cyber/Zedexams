@@ -18,6 +18,7 @@
  * runtime is required on the host (the emulator is a JVM process).
  */
 
+import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
@@ -326,9 +327,35 @@ async function main() {
 
     // Past papers — a published paper (anonymous-readable index) and a draft
     // (admin-only). Powers the public-access allowlist tests below.
+    //
+    // The published fixture carries a SOURCE and an established confidence,
+    // because a published paper without them is no longer publicly readable —
+    // see paper_unlabelled / paper_legacy below, which are the two shapes that
+    // must stay admin-only.
     await setDoc(doc(db, 'pastPapers', 'paper_published'), {
       title: 'ECZ Grade 7 Maths 2023',
       grade: '7', subject: 'Mathematics', year: 2023,
+      source: 'ecz', isOfficial: true, sourceConfidence: 'explicit',
+      paperKey: 'g7-2023-mathematics-ecz-1', paperMetaVersion: 1,
+      status: 'published', uploadedBy: ADMIN,
+    })
+    await setDoc(doc(db, 'pastPapers', 'paper_mock_published'), {
+      title: 'Grade 7 Mathematics — PRISCA mock · 2023',
+      grade: '7', subject: 'Mathematics', year: 2023,
+      source: 'prisca', isOfficial: false, sourceConfidence: 'inferred',
+      paperKey: 'g7-2023-mathematics-prisca-mock', paperMetaVersion: 1,
+      status: 'published', uploadedBy: ADMIN,
+    })
+    // Published, but the migration could not establish a source. Withheld.
+    await setDoc(doc(db, 'pastPapers', 'paper_unlabelled'), {
+      title: 'In 2022 Maths', grade: '7', subject: 'Mathematics', year: 2022,
+      source: null, sourceConfidence: 'unknown', paperMetaVersion: 1,
+      status: 'published', uploadedBy: ADMIN,
+    })
+    // Published before the source fields existed at all — no `source` key, no
+    // `sourceConfidence` key. Absence must fail closed, not fall through.
+    await setDoc(doc(db, 'pastPapers', 'paper_legacy'), {
+      title: 'Grade 7 Maths 2021', grade: '7', subject: 'Mathematics', year: 2021,
       status: 'published', uploadedBy: ADMIN,
     })
     await setDoc(doc(db, 'pastPapers', 'paper_draft'), {
@@ -1854,6 +1881,61 @@ async function main() {
 
   await test('anonymous CANNOT read a DRAFT past paper', async () => {
     await assertFails(getDoc(doc(guest, 'pastPapers', 'paper_draft')))
+  })
+
+  // ── Source labelling does NOT gate visibility ────────────────────────────
+  //
+  // #2191 withheld a published paper until its `sourceConfidence` was
+  // established. That gate failed closed on ABSENCE — the state every paper in
+  // the archive was already in — so shipping it emptied /papers in production
+  // until a manual migration ran. It was reverted, and these assertions are the
+  // regression net: a published paper is readable whatever its labelling says.
+
+  await test('anonymous CAN read a published MOCK paper', async () => {
+    await assertSucceeds(getDoc(doc(guest, 'pastPapers', 'paper_mock_published')))
+  })
+
+  await test('anonymous CAN read a published paper with sourceConfidence "unknown"', async () => {
+    // Unlabelled is a cosmetic gap (it renders with an "Unlabelled" badge),
+    // never a reason to withhold the paper.
+    await assertSucceeds(getDoc(doc(guest, 'pastPapers', 'paper_unlabelled')))
+  })
+
+  await test('anonymous CAN read a published paper with NO source field at all', async () => {
+    // The un-migrated legacy shape — i.e. the whole archive. This is the exact
+    // read that #2191 broke.
+    await assertSucceeds(getDoc(doc(guest, 'pastPapers', 'paper_legacy')))
+  })
+
+  await test('THE PUBLIC LIST QUERY RETURNS THE WHOLE PUBLISHED ARCHIVE', async () => {
+    // The assertion that /papers renders at all. A list is refused wholesale if
+    // any document it returns fails the read rule, so this covers both the
+    // labelled and the un-migrated papers in one go.
+    const snap = await assertSucceeds(getDocs(query(
+      collection(guest, 'pastPapers'),
+      where('status', '==', 'published'),
+    )))
+    const ids = snap.docs.map((d) => d.id).sort()
+    assert.deepEqual(ids, ['paper_legacy', 'paper_mock_published', 'paper_published', 'paper_unlabelled'])
+  })
+
+  await test('an admin CAN still write "unknown" confidence with no source', async () => {
+    // What the migration writes when it refuses to guess. Still legal, still
+    // visible — it just means the badge reads "Unlabelled".
+    await assertSucceeds(setDoc(doc(admin, 'pastPapers', 'paper_ok_unknown'), {
+      title: 'Not yet labelled', grade: '7', subject: 'Mathematics', year: 2020,
+      status: 'published', uploadedBy: ADMIN,
+      source: null, sourceConfidence: 'unknown',
+    }))
+  })
+
+  await test('an admin CANNOT write a source outside the registry', async () => {
+    // The write-side validation is untouched by the revert.
+    await assertFails(setDoc(doc(admin, 'pastPapers', 'paper_bad_source'), {
+      title: 'Longman', grade: '7', subject: 'Mathematics', year: 2020,
+      status: 'published', uploadedBy: ADMIN,
+      source: 'longman', sourceConfidence: 'explicit',
+    }))
   })
 
   await test('anonymous CAN read the denormalised published-papers index', async () => {

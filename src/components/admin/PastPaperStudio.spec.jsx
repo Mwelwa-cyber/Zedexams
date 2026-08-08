@@ -44,6 +44,8 @@ vi.mock('firebase/firestore', () => ({
 const mockUpdatePaper = vi.fn(async () => {})
 const mockGetPaper = vi.fn()
 const mockUploadAsset = vi.fn()
+// The duplicate probe: null means "no other paper holds this key".
+const mockFindPaperByKey = vi.fn(async () => null)
 vi.mock('../../utils/pastPapers', async (importOriginal) => {
   const actual = await importOriginal()
   return {
@@ -55,6 +57,7 @@ vi.mock('../../utils/pastPapers', async (importOriginal) => {
     deletePaperPdf: vi.fn(),
     resolvePaperUrl: vi.fn(async () => ''),
     uploadPaperAsset: (...a) => mockUploadAsset(...a),
+    findPaperByKey: (...a) => mockFindPaperByKey(...a),
   }
 })
 
@@ -85,6 +88,11 @@ function savedPaper(overrides = {}) {
     year: 2024,
     examBoard: 'ECZ',
     status: 'draft',
+    // A paper cannot publish without a source (the rules refuse a learner read
+    // of one that has none), so every fixture that reaches Publish carries it.
+    source: 'ecz',
+    isOfficial: true,
+    sourceConfidence: 'explicit',
     assets: [{
       path: 'papers/admin-1/paper-1/assets/0-p.pdf',
       filename: 'p.pdf',
@@ -114,6 +122,8 @@ beforeEach(() => {
   quizQuestionCount = 0
   quizExists = true
   searchQuery = 'step=publish'
+  mockFindPaperByKey.mockReset()
+  mockFindPaperByKey.mockResolvedValue(null)
 })
 
 describe('PastPaperStudio — publishing without a quiz', () => {
@@ -431,5 +441,34 @@ describe('PastPaperStudio — the Add quiz deep link', () => {
     renderStudio()
 
     expect(await screen.findByText(/Drag & drop files here/)).toBeInTheDocument()
+  })
+})
+
+describe('PastPaperStudio — a paper cannot publish without a source', () => {
+  it('refuses to publish a paper with no source, and writes nothing', async () => {
+    // Acceptance criterion 1. This is not a nicety: firestore.rules refuses a
+    // learner read of a published paper with no established source, so
+    // publishing one would produce a paper that is "live" and unopenable.
+    const user = userEvent.setup()
+    mockGetPaper.mockResolvedValue(savedPaper({ source: null, sourceConfidence: 'unknown' }))
+    renderStudio()
+
+    await user.click(await screen.findByRole('button', { name: /Publish paper/ }))
+
+    expect(await screen.findByText(/Choose a source/i)).toBeInTheDocument()
+    expect(mockUpdatePaper.mock.calls.filter(([, f]) => 'status' in f)).toHaveLength(0)
+  })
+
+  it('refuses to publish onto a paperKey another paper already holds', async () => {
+    // Acceptance criterion 4 — re-uploading an identical paper is blocked.
+    const user = userEvent.setup()
+    mockFindPaperByKey.mockResolvedValue({ id: 'other-paper', title: 'Grade 7 Mathematics — ECZ · 2024' })
+    mockGetPaper.mockResolvedValue(savedPaper())
+    renderStudio()
+
+    await user.click(await screen.findByRole('button', { name: /Publish paper/ }))
+
+    expect(await screen.findByText(/already exists/i)).toBeInTheDocument()
+    expect(mockUpdatePaper.mock.calls.filter(([, f]) => 'status' in f)).toHaveLength(0)
   })
 })

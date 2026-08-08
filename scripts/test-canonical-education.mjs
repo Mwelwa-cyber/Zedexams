@@ -270,9 +270,12 @@ test('the learner catalogue carries an FK into the canonical model', () => {
     assert.ok(s.canonicalId, `learner subject ${s.id} has no canonicalId`)
     assert.ok(getSubject(s.canonicalId), `${s.id} points at an unknown subject`)
   }
-  // The one deliberate exception, declared as null rather than left undefined.
-  const special = PAPER_SUBJECTS.find((s) => s.id === 'special-paper-1')
-  assert.equal(special.canonicalId, null, 'Special Paper 1 is an exam category, not a subject')
+  // The deliberate exceptions, declared as null rather than left undefined.
+  for (const id of ['special-paper-1', 'special-paper-2']) {
+    const special = PAPER_SUBJECTS.find((s) => s.id === id)
+    assert.ok(special, `${id} missing from PAPER_SUBJECTS`)
+    assert.equal(special.canonicalId, null, `${id} is an exam category, not a subject`)
+  }
 })
 
 /* ═══ 5. The failures the task named, end to end ══════════════════════════ */
@@ -417,9 +420,10 @@ test('leaves a value alone when its scheme cannot represent it', () => {
   const plan = planField('Biology', { kind: 'subject', scheme: 'learner-label' })
   assert.equal(plan.status, 'unmapped')
   assert.ok(plan.reason.includes('learner-catalogue'))
-  // Special Paper 1 is an ECZ exam category rather than a subject, and is
-  // already correct — it must not be reported as a problem.
+  // The special papers are ECZ exam categories rather than subjects, and are
+  // already correct — they must not be reported as a problem.
   assert.equal(planField('Special Paper 1', { kind: 'subject', scheme: 'learner-label' }).status, 'noop')
+  assert.equal(planField('Special Paper 2', { kind: 'subject', scheme: 'learner-label' }).status, 'noop')
 })
 
 /* ═══ 7. Reading un-migrated records ══════════════════════════════════════ */

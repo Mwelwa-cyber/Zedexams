@@ -719,6 +719,49 @@ export default function EditQuizV2() {
     if (!imageUrl) return
     setCropTarget({ kind: 'passage', sectionIndex, imageUrl, source })
   }, [])
+
+  // "Crop from page": opens the crop modal on a rendered page of the SOURCE
+  // PAPER, so a question whose picture the importer couldn't attach (it only
+  // reported "there is a picture here") — or any question at all — gets its
+  // image by cropping it straight out of the uploaded paper, instead of the
+  // admin re-photographing it. Works for quizzes created by the Past Paper
+  // Studio (linkedPaperId) and by the legacy converter (sourcePastPaperId),
+  // including papers imported before this feature existed.
+  const sourcePaperId = form.sourcePastPaperId || form.linkedPaperId || null
+  const paperPageProviderRef = useRef(null)
+  const [pageCropLoading, setPageCropLoading] = useState(false)
+  useEffect(() => () => { paperPageProviderRef.current?.dispose?.() }, [])
+  const openSourcePageCrop = useCallback(async function openSourcePageCrop(kind, sectionIndex, source, pageOverride) {
+    if (!sourcePaperId || pageCropLoading) return
+    const page = Number.parseInt(
+      pageOverride ?? source?.figureMeta?.sourcePage ?? source?.sourcePage,
+      10,
+    )
+    if (!Number.isInteger(page) || page < 1) return
+    setPageCropLoading(true)
+    try {
+      if (!paperPageProviderRef.current) {
+        const { createPaperPageProvider } = await import('../../utils/paperPageProvider.js')
+        paperPageProviderRef.current = createPaperPageProvider(sourcePaperId)
+      }
+      const provider = paperPageProviderRef.current
+      const [imageUrl, pageCount] = await Promise.all([
+        provider.getPageImage(page),
+        provider.getPageCount().catch(() => null),
+      ])
+      setCropTarget({ kind, sectionIndex, imageUrl, source, fromPaper: true, page, pageCount })
+    } catch (error) {
+      show(`Could not open page ${page} of the source paper — ${error?.message || 'try re-uploading the paper.'}`, true)
+    } finally {
+      setPageCropLoading(false)
+    }
+  }, [sourcePaperId, pageCropLoading, show])
+  const requestStandaloneCropFromPage = useCallback(function requestStandaloneCropFromPage(sectionIndex, question) {
+    openSourcePageCrop('standalone', sectionIndex, question)
+  }, [openSourcePageCrop])
+  const requestPassageCropFromPage = useCallback(function requestPassageCropFromPage(sectionIndex, passage) {
+    openSourcePageCrop('passage', sectionIndex, passage)
+  }, [openSourcePageCrop])
   async function handleCroppedImage(blob) {
     const target = cropTarget
     setCropTarget(null)
@@ -2358,6 +2401,7 @@ export default function EditQuizV2() {
             onStandaloneImageUpload={uploadStandaloneQuestionImage}
             onStandaloneImageRemove={removeStandaloneQuestionImage}
             onStandaloneImageCrop={requestStandaloneImageCrop}
+            onStandaloneCropFromPage={sourcePaperId ? requestStandaloneCropFromPage : undefined}
             onStandaloneOptionImageUpload={uploadStandaloneOptionImage}
             onStandaloneOptionImageRemove={removeStandaloneOptionImage}
             onPassageChange={updatePassage}
@@ -2367,6 +2411,7 @@ export default function EditQuizV2() {
             onPassageImageUpload={uploadPassageImage}
             onPassageImageRemove={removePassageImage}
             onPassageImageCrop={requestPassageImageCrop}
+            onPassageCropFromPage={sourcePaperId ? requestPassageCropFromPage : undefined}
             onPassageQuestionChange={updatePassageQuestion}
             onPassageQuestionRemove={removePassageQuestion}
             onPassageQuestionMove={movePassageQuestion}
@@ -2494,15 +2539,37 @@ export default function EditQuizV2() {
 
       {cropTarget && (
         <ImageCropModal
+          // Remount on page navigation so the fresh page image loads with a
+          // clean crop state (a stale loadFailed/rect never leaks across pages).
+          key={cropTarget.imageUrl}
           imageUrl={cropTarget.imageUrl}
           onCropped={handleCroppedImage}
           onCancel={() => setCropTarget(null)}
-          initialBox={cropTarget.source?.figureMeta?.box || null}
+          initialBox={
+            // The AI-detected box only means anything on the page it was
+            // reported for — never pre-select it on a different page.
+            cropTarget.page == null ||
+            cropTarget.page === (cropTarget.source?.figureMeta?.sourcePage ??
+              (Number.isFinite(Number(cropTarget.source?.sourcePage)) ? Number(cropTarget.source.sourcePage) : null))
+              ? cropTarget.source?.figureMeta?.box || null
+              : null
+          }
           pageNumber={
+            cropTarget.page ??
             cropTarget.source?.figureMeta?.sourcePage ??
             (Number.isFinite(Number(cropTarget.source?.sourcePage)) ? Number(cropTarget.source.sourcePage) : null)
           }
           questionNumber={Number.isFinite(cropTarget.source?.sourceQuestionNumber) ? cropTarget.source.sourceQuestionNumber : null}
+          onPrevPage={
+            cropTarget.fromPaper && cropTarget.page > 1
+              ? () => openSourcePageCrop(cropTarget.kind, cropTarget.sectionIndex, cropTarget.source, cropTarget.page - 1)
+              : undefined
+          }
+          onNextPage={
+            cropTarget.fromPaper && (cropTarget.pageCount == null || cropTarget.page < cropTarget.pageCount)
+              ? () => openSourcePageCrop(cropTarget.kind, cropTarget.sectionIndex, cropTarget.source, cropTarget.page + 1)
+              : undefined
+          }
         />
       )}
 

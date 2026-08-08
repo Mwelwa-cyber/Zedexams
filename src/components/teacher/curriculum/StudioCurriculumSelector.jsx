@@ -314,7 +314,7 @@ export default function StudioCurriculumSelector({
         />
       )}
       {showCurriculumPicker && curriculumPickerVariant !== 'segmented' && (
-        <div className="overflow-hidden rounded-2xl border border-[#e5ddd0]">
+        <div className="overflow-hidden rounded-2xl border" style={{ borderColor: 'var(--zt-line)' }}>
           <CurriculumPicker
             curriculumMode={curriculumMode}
             onSelect={disabled ? () => {} : chooseCurriculum}

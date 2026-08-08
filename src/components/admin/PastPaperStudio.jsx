@@ -46,6 +46,7 @@ import {
   createPaper,
   deletePaper,
   deletePaperPdf,
+  findPaperByKey,
   getAssetRole,
   getPaper,
   resolvePaperUrl,
@@ -53,6 +54,21 @@ import {
   updatePaper,
   uploadPaperAsset,
 } from '../../utils/pastPapers'
+import {
+  SOURCE_CONFIDENCE,
+  getPaperSource,
+  isOfficialSource,
+  listPaperNumbers,
+  listPaperSources,
+  normalizePaperNumberToken,
+  paperNumberLabel,
+} from '../../config/paperSources'
+import { PaperSourceBadge } from '../papers/PaperTitle'
+import {
+  canDerivePaperKey,
+  derivedPaperTitle,
+  paperKey as buildPaperKey,
+} from '../../utils/pastPaperNormalize'
 import {
   QUIZ_PENDING_COPY,
   attachQuizFields,
@@ -275,7 +291,12 @@ export default function PastPaperStudio() {
   const [info, setInfo] = useState('')
 
   const [details, setDetails] = useState({
-    title: '',
+    // No `title` — it is derived from the fields below and regenerated on save.
+    // `source` starts EMPTY rather than defaulting to 'ecz': a default is a
+    // guess, and the one claim this feature exists to stop being guessed is
+    // "this is an official ECZ exam".
+    source: '',
+    session: '',
     grade: '7',
     subject: PAPER_SUBJECTS[0].id,
     year: CURRENT_YEAR - 1,
@@ -285,6 +306,11 @@ export default function PastPaperStudio() {
     durationMinutes: '',
     totalMarks: '',
   })
+  // The paper already occupying this paper's key, if any. Looked up as the
+  // identity fields change so the warning is visible while the admin is still
+  // in the step, not sprung on them at Publish.
+  const [duplicate, setDuplicate] = useState(null)
+  const [checkingDuplicate, setCheckingDuplicate] = useState(false)
   const [assets, setAssets] = useState([])
   // In-memory File for each just-uploaded asset, keyed by Storage path.
   // Lets the preview render from local bytes instead of round-tripping
@@ -355,11 +381,14 @@ export default function PastPaperStudio() {
           if (cancelled) return
           setPaperId(routePaperId)
           setDetails({
-            title: row.title || '',
+            source: row.source || '',
+            session: row.session || '',
             grade: row.grade || '7',
             subject: row.subject || PAPER_SUBJECTS[0].id,
             year: row.year || CURRENT_YEAR - 1,
-            paperNumber: row.paperNumber ? String(row.paperNumber) : '',
+            // `paperNumber` can be a number (1, 2) or a word ('special',
+            // 'mock'), so it is carried as a string and re-tokenised on save.
+            paperNumber: row.paperNumber == null ? '' : String(row.paperNumber),
             examBoard: row.examBoard || 'ECZ',
             description: row.description || '',
             durationMinutes: row.durationMinutes ? String(row.durationMinutes) : '',
@@ -531,19 +560,57 @@ export default function PastPaperStudio() {
   // ── Step 2: details ───────────────────────────────────────────────
   function setDetail(key, value) { setDetails((d) => ({ ...d, [key]: value })) }
 
+  /**
+   * The identity fields, normalised into the shape `updatePaper` expects.
+   * One builder so the duplicate probe and the save agree on what the paper
+   * IS — a probe that keys on a different object from the one written is a
+   * duplicate check that can pass and then write a duplicate.
+   */
+  const identityFields = useMemo(() => ({
+    grade: details.grade,
+    subject: details.subject,
+    year: Number(details.year),
+    source: details.source || null,
+    paperNumber: normalizePaperNumberToken(details.paperNumber),
+  }), [details.grade, details.subject, details.year, details.source, details.paperNumber])
+
+  // Probe for an existing paper with the same key while the admin is still in
+  // the step. Debounced only by React's own batching — this is one indexed
+  // equality read on a field change, not a keystroke handler.
+  useEffect(() => {
+    let cancelled = false
+    if (!identityFields.source || !canDerivePaperKey(identityFields)) {
+      setDuplicate(null)
+      return () => { cancelled = true }
+    }
+    setCheckingDuplicate(true)
+    findPaperByKey(buildPaperKey(identityFields), { excludeId: paperId })
+      .then((hit) => { if (!cancelled) setDuplicate(hit) })
+      .catch((err) => {
+        console.warn('[PastPaperStudio] duplicate probe failed', err)
+        // A failed probe is not a clean bill of health, but it is also not a
+        // reason to block an admin. The warning simply doesn't appear; the
+        // key is still written and the migration's collision report catches
+        // anything that slips through.
+        if (!cancelled) setDuplicate(null)
+      })
+      .finally(() => { if (!cancelled) setCheckingDuplicate(false) })
+    return () => { cancelled = true }
+  }, [identityFields, paperId])
+
   async function saveDetails() {
     if (!paperId) return
-    if (!details.title.trim()) { setError('Title is required.'); return false }
+    if (!details.source) { setError('Source is required — choose where this paper came from.'); return false }
     if (!details.year) { setError('Year is required.'); return false }
     setError('')
     setSaving(true)
     try {
       await updatePaper(paperId, {
-        title: details.title.trim(),
-        grade: details.grade,
-        subject: details.subject,
-        year: Number(details.year),
-        paperNumber: details.paperNumber ? Number(details.paperNumber) : null,
+        ...identityFields,
+        // A human chose this source in this wizard. Nothing else in the app
+        // may write 'explicit' — the migration writes 'inferred' at best.
+        sourceConfidence: SOURCE_CONFIDENCE.EXPLICIT,
+        session: details.session.trim().toLowerCase() || null,
         examBoard: details.examBoard.trim() || 'ECZ',
         description: details.description.trim() || null,
         durationMinutes: details.durationMinutes ? Number(details.durationMinutes) : null,
@@ -586,14 +653,31 @@ export default function PastPaperStudio() {
     setLinkingQuiz(true)
     try {
       const quizId = doc(collection(db, 'quizzes')).id
+      // Source-paper reference fields: what PastPaperReferenceBanner and the
+      // Quiz Editor's "Crop from page" use to reach the uploaded paper from
+      // inside the editor. The legacy converter (paperToQuizConverter) always
+      // set these; Studio-created quizzes were missing them, which is why the
+      // banner never rendered for them.
+      const paperPdfAsset = assets.find(
+        a => a.role !== ASSET_ROLES.MARK_SCHEME && String(a.contentType || '').toLowerCase() === 'application/pdf',
+      ) || null
+      const markSchemeAsset = assets.find(a => a.role === ASSET_ROLES.MARK_SCHEME) || null
       const fields = {
-        title: `${details.title.trim() || 'Untitled past paper'} — Quiz`,
+        title: `${derivedPaperTitle(identityFields)} — Quiz`,
         subject: details.subject,
         topic: 'past-paper',
         isPublished: false,
         publicAccess: false,
         quizType: 'past_paper',
         linkedPaperId: paperId,
+        // Provenance travels with the quiz so a learner's answers on a mock
+        // paper's quiz are never pooled with their answers on the real exam
+        // when weak topics are computed.
+        paperSource: details.source || null,
+        paperIsOfficial: isOfficialSource(details.source),
+        sourcePastPaperId: paperId,
+        sourcePastPaperPdfPath: paperPdfAsset?.path || null,
+        sourceMarkSchemePath: markSchemeAsset?.path || null,
         createdBy: currentUser.uid,
         questionCount: 0,
         createdAt: serverTimestamp(),
@@ -738,9 +822,20 @@ export default function PastPaperStudio() {
     if (!paperId || !currentUser?.uid) return
     setError('')
     if (!assets.length) { setError('Upload at least one asset before publishing.'); return }
-    if (!details.title.trim()) { setError('Title is required.'); return }
+    // A source is what makes a published paper readable at all: the Firestore
+    // rules refuse a learner read of a paper that does not state one, so
+    // publishing without it would produce a "live" paper nobody can open.
+    if (!details.source) { setError('Choose a source in step 2 before publishing.'); return }
+    // The duplicate warning is advisory in the Details step and BLOCKING here.
+    // Publishing is the moment a second copy of a paper becomes a second row
+    // in a learner's subject card.
+    if (duplicate) {
+      setError('A paper with these details already exists. Change the source, paper number or year, or edit the existing paper.')
+      return
+    }
 
     const attachingQuiz = Boolean(existingQuizId) && quizCount > 0
+    const paperTitle = derivedPaperTitle(identityFields)
 
     setPublishing(true)
     try {
@@ -752,10 +847,12 @@ export default function PastPaperStudio() {
         await setDoc(doc(db, 'quizzes', existingQuizId), {
           isPublished: true,
           publicAccess: true,
-          title: `${details.title.trim()} — Quiz`,
+          title: `${paperTitle} — Quiz`,
           subject: details.subject,
           linkedPaperId: paperId,
           quizType: 'past_paper',
+          paperSource: details.source || null,
+          paperIsOfficial: isOfficialSource(details.source),
           updatedAt: serverTimestamp(),
         }, { merge: true })
       }
@@ -944,7 +1041,14 @@ export default function PastPaperStudio() {
           onSetRole={setAssetRole}
         />
       )}
-      {step === 2 && <DetailsStep details={details} setDetail={setDetail} />}
+      {step === 2 && (
+        <DetailsStep
+          details={details}
+          setDetail={setDetail}
+          duplicate={duplicate}
+          checkingDuplicate={checkingDuplicate}
+        />
+      )}
       {step === 3 && (
         <>
           <QuizStep
@@ -1314,19 +1418,42 @@ function FieldRow({ label, hint, children }) {
   )
 }
 
-function DetailsStep({ details, setDetail }) {
+/**
+ * Step 2 — the paper's IDENTITY, as structured fields.
+ *
+ * The free-text title input is gone. A hand-typed name was the only thing
+ * distinguishing an ECZ paper from a PRISCA mock of the same grade, year and
+ * subject: inconsistent (one live title begins with the word "In"), unsortable,
+ * unfilterable, and no barrier at all to uploading the same paper twice. What
+ * replaces it is a required `source`, an optional `paperNumber` and `session`,
+ * and a READ-ONLY preview of the title those fields compose — so an admin can
+ * still see the name they are creating, without being able to author a name
+ * that disagrees with the fields under it.
+ */
+function DetailsStep({ details, setDetail, duplicate, checkingDuplicate }) {
+  const previewTitle = derivedPaperTitle({
+    grade: details.grade,
+    subject: details.subject,
+    year: details.year,
+    source: details.source,
+    paperNumber: details.paperNumber,
+  })
+  const sourceRecord = getPaperSource(details.source)
+
   return (
     <section className="space-y-4">
-      <FieldRow label="Title" hint="e.g. Mathematics Paper 1 (2023)">
-        <input
-          type="text"
-          value={details.title}
-          onChange={(e) => setDetail('title', e.target.value)}
-          className={inputCls()}
-          required
-          placeholder="Mathematics Paper 1"
-        />
-      </FieldRow>
+      {/* The derived title, shown rather than typed. */}
+      <div className="theme-card border theme-border rounded-radius-md p-4">
+        <p className="text-[11px] font-black theme-text-muted uppercase tracking-widest">
+          Title (derived)
+        </p>
+        <p className="theme-text font-black text-base mt-1.5 break-words">{previewTitle}</p>
+        <p className="theme-text-muted text-xs mt-1.5">
+          Composed from the fields below and regenerated on every save. Learners
+          see the source badge and the paper number, not this string.
+        </p>
+      </div>
+
       <div className="grid sm:grid-cols-3 gap-4">
         <FieldRow label="Grade">
           <select value={details.grade} onChange={(e) => setDetail('grade', e.target.value)} className={inputCls()}>
@@ -1344,20 +1471,90 @@ function DetailsStep({ details, setDetail }) {
           </select>
         </FieldRow>
       </div>
+
       <div className="grid sm:grid-cols-3 gap-4">
-        <FieldRow label="Paper number" hint="optional">
-          <input type="number" min="1" max="5" value={details.paperNumber} onChange={(e) => setDetail('paperNumber', e.target.value)} className={inputCls()} placeholder="1" />
+        <FieldRow label="Source" hint="required">
+          <select
+            value={details.source}
+            onChange={(e) => setDetail('source', e.target.value)}
+            className={inputCls()}
+            required
+          >
+            {/* No blank option once a source is set, but a new paper starts
+                without one so the admin has to CHOOSE rather than accept
+                whichever entry happened to be first in the registry. */}
+            {!details.source && <option value="">Choose a source…</option>}
+            {listPaperSources().map((s) => (
+              <option key={s.id} value={s.id}>{s.label}</option>
+            ))}
+          </select>
         </FieldRow>
+        <FieldRow label="Paper number" hint="not applicable is fine">
+          <select
+            value={details.paperNumber === null || details.paperNumber === undefined ? '' : String(details.paperNumber)}
+            onChange={(e) => setDetail('paperNumber', e.target.value)}
+            className={inputCls()}
+          >
+            <option value="">Not applicable</option>
+            {listPaperNumbers().map((n) => (
+              <option key={n.value} value={String(n.value)}>{n.label}</option>
+            ))}
+          </select>
+        </FieldRow>
+        <FieldRow label="Session" hint="optional — e.g. October, trial">
+          <input
+            type="text"
+            value={details.session}
+            onChange={(e) => setDetail('session', e.target.value)}
+            className={inputCls()}
+            placeholder="October"
+          />
+        </FieldRow>
+      </div>
+
+      {sourceRecord && (
+        <p className="theme-text-muted text-xs">
+          <span className="font-black theme-text">{sourceRecord.fullName}</span>
+          {' — '}
+          {sourceRecord.descriptor}
+        </p>
+      )}
+
+      {/* Duplicate detection, inline: the same grade + year + subject + source
+          + paper number IS the same paper, and re-uploading it is the failure
+          the free-text title could never catch. */}
+      {checkingDuplicate && (
+        <p className="theme-text-muted text-xs font-bold">Checking for an existing paper…</p>
+      )}
+      {duplicate && (
+        <div className="rounded-radius-md border-2 border-amber-400 bg-amber-50 p-4">
+          <p className="font-black text-amber-900 text-sm">
+            A paper with these details already exists
+          </p>
+          <p className="text-amber-900 text-xs mt-1">
+            {duplicate.title || 'Untitled past paper'} — publishing this one would
+            put two copies of the same paper in the archive.
+          </p>
+          <a
+            href={`/admin/papers/${duplicate.id}/edit`}
+            className="inline-block mt-2 text-xs font-black text-amber-900 underline"
+          >
+            Open the existing paper →
+          </a>
+        </div>
+      )}
+
+      <div className="grid sm:grid-cols-3 gap-4">
         <FieldRow label="Duration (min)" hint="optional">
           <input type="number" min="5" max="480" value={details.durationMinutes} onChange={(e) => setDetail('durationMinutes', e.target.value)} className={inputCls()} placeholder="120" />
         </FieldRow>
         <FieldRow label="Total marks" hint="optional">
           <input type="number" min="0" max="1000" value={details.totalMarks} onChange={(e) => setDetail('totalMarks', e.target.value)} className={inputCls()} placeholder="100" />
         </FieldRow>
+        <FieldRow label="Exam board" hint="default ECZ">
+          <input type="text" value={details.examBoard} onChange={(e) => setDetail('examBoard', e.target.value)} className={inputCls()} placeholder="ECZ" />
+        </FieldRow>
       </div>
-      <FieldRow label="Exam board" hint="default ECZ">
-        <input type="text" value={details.examBoard} onChange={(e) => setDetail('examBoard', e.target.value)} className={inputCls()} placeholder="ECZ" />
-      </FieldRow>
       <FieldRow label="Description" hint="shown to learners on the paper page">
         <textarea rows={3} value={details.description} onChange={(e) => setDetail('description', e.target.value)} className={inputCls()} placeholder="Algebra, geometry, and statistics. Closed-book. Calculator allowed." />
       </FieldRow>
@@ -1473,13 +1670,29 @@ function PublishStep({ paperId, details, assets, quizId, quizCount, onGoToQuizSt
     <section className="space-y-4">
       <div className="theme-card border theme-border rounded-radius-md p-5">
         <p className="theme-accent-text font-black text-xs uppercase tracking-widest mb-2">Paper</p>
-        <h3 className="font-display font-black text-2xl theme-text">{details.title || 'Untitled'}</h3>
+        <h3 className="font-display font-black text-2xl theme-text">
+          {derivedPaperTitle(details)}
+        </h3>
         <p className="theme-text-muted text-sm mt-1">
           {subjectMeta?.label || details.subject} · Grade {details.grade} · {details.year}
-          {details.paperNumber ? ` · Paper ${details.paperNumber}` : ''}
+          {paperNumberLabel(details.paperNumber) ? ` · ${paperNumberLabel(details.paperNumber)}` : ''}
         </p>
+        <div className="mt-3">
+          {/* The source is reviewed as the learner will SEE it — a badge, not
+              a row in a table — because "did I mark this as an ECZ paper?" is
+              the one question this step exists to answer. */}
+          {details.source
+            ? (
+              <PaperSourceBadge
+                label={getPaperSource(details.source)?.label || details.source}
+                isOfficial={isOfficialSource(details.source)}
+              />
+            )
+            : <span className="text-xs font-black text-amber-700">No source chosen — go back to Details</span>}
+        </div>
         <div className="mt-4 grid sm:grid-cols-3 gap-3 text-xs theme-text-muted">
           <div><span className="font-black theme-text">Exam board:</span> {details.examBoard || 'ECZ'}</div>
+          {details.session && <div><span className="font-black theme-text">Session:</span> {details.session}</div>}
           {details.durationMinutes && <div><span className="font-black theme-text">Duration:</span> {details.durationMinutes} min</div>}
           {details.totalMarks && <div><span className="font-black theme-text">Total marks:</span> {details.totalMarks}</div>}
         </div>

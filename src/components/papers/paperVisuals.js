@@ -14,6 +14,7 @@ import {
   ComputerDesktop,
   Sparkles,
   FileText,
+  PuzzlePieceIcon,
 } from '../ui/icons'
 import { PAPER_SUBJECTS } from '../../config/curriculum'
 
@@ -24,6 +25,7 @@ export const SUBJECT_VISUALS = {
   'creative-technology-studies': { Icon: ComputerDesktop, tile: 'bg-violet-100 text-violet-700' },
   'home-economics':              { Icon: Sparkles,        tile: 'bg-rose-100 text-rose-700' },
   'special-paper-1':             { Icon: FileText,        tile: 'bg-indigo-100 text-indigo-700' },
+  'special-paper-2':             { Icon: PuzzlePieceIcon, tile: 'bg-purple-100 text-purple-700' },
 }
 
 // Short, learner-friendly labels for the filter chips. Real papers
@@ -35,6 +37,7 @@ export const SUBJECT_FILTERS = [
   { id: 'creative-technology-studies', label: 'Technology' },
   { id: 'home-economics',              label: 'Home Ec.' },
   { id: 'special-paper-1',             label: 'Special Paper 1' },
+  { id: 'special-paper-2',             label: 'Special Paper 2' },
 ]
 
 const SUBJECT_LABEL = Object.fromEntries(SUBJECT_FILTERS.map((s) => [s.id, s.label]))

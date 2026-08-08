@@ -178,7 +178,7 @@
       "target": "assessmentExports.apiAssessmentDownload",
       "rewritePath": "/downloads/**",
       "rewriteRegion": "us-central1",
-      "classification": "mechanical",
+      "classification": "audit-surface",
       "batch": null
     },
     "apiGenerateLessonPlan": {
@@ -208,7 +208,7 @@
       "target": "require('./guardianConsent').apiGuardianConsent",
       "rewritePath": "/consent",
       "rewriteRegion": "us-central1",
-      "classification": "mechanical",
+      "classification": "audit-surface",
       "batch": null
     },
     "apiImageProxy": {
@@ -218,7 +218,7 @@
       "target": "imageProxy.apiImageProxy",
       "rewritePath": "/api/image-proxy",
       "rewriteRegion": "us-central1",
-      "classification": "mechanical",
+      "classification": "audit-surface",
       "batch": null
     },
     "apiLibraryDownload": {
@@ -228,7 +228,7 @@
       "target": "libraryDownload.apiLibraryDownload",
       "rewritePath": "/api/teacher/download",
       "rewriteRegion": "us-central1",
-      "classification": "mechanical",
+      "classification": "audit-surface",
       "batch": null
     },
     "apiRequestAccountDeletion": {
@@ -323,6 +323,22 @@
       "classification": "mechanical",
       "batch": 1
     },
+    "autoLabelDiagram": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "secrets": "[anthropicApiKey]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "120",
+        "memory": "\"1GiB\"",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"autoLabelDiagram\")"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": 2
+    },
     "autoPickDailyExams": {
       "kind": "delegated",
       "inline": false,
@@ -387,8 +403,8 @@
       "target": null,
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": 1
+      "classification": "payment-webhook",
+      "batch": 3
     },
     "checkShortAnswer": {
       "kind": "onCall",
@@ -1041,8 +1057,8 @@
       "target": null,
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": 1
+      "classification": "payment-webhook",
+      "batch": 3
     },
     "hourlyAgentSupervisor": {
       "kind": "delegated",

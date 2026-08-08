@@ -27,8 +27,8 @@ const TEACHER_STEPS = [
   },
   {
     id: 'generate',
-    title: 'AI lesson plans + worksheets',
-    body: 'Open any generator from the sidebar — lesson plan, worksheet, scheme of work, rubric, flashcards, notes. Each one exports to DOCX or PDF, ready to print.',
+    title: 'AI lesson plans + teaching materials',
+    body: 'Open any generator from the sidebar — lesson plan, scheme of work, homework, flashcards, notes. Each one exports to DOCX or PDF, ready to print.',
     icon: '✨',
   },
   {

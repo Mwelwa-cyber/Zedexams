@@ -12,6 +12,7 @@ import {
   TOOL_META,
 } from '../../utils/adminGenerationsService'
 import { TOOL_META as TOOL_ROUTES } from '../../utils/teacherLibraryService'
+import useStudioAvailability from '../../hooks/useStudioAvailability'
 import { buildGeneratorQueryString } from '../../utils/useFormDefaultsFromUrl'
 import {
   TEACHER_GRADES,
@@ -27,6 +28,7 @@ import { useToast } from '../ui/Toast'
  */
 export default function GenerationsAdmin() {
   const toast = useToast()
+  const { isAvailable } = useStudioAvailability()
   const navigate = useNavigate()
   const [rows, setRows] = useState([])
   const [status, setStatus] = useState('loading')
@@ -116,8 +118,10 @@ export default function GenerationsAdmin() {
 
   // Retry a failed run by reopening the matching generator with the original
   // inputs prefilled (same mechanism as the library's "Generate similar").
+  // A studio that is retired or withdrawn has no retry: the route it names
+  // would just redirect. The message already says the right thing.
   function onRetry(row) {
-    const route = TOOL_ROUTES[row.tool]?.route
+    const route = isAvailable(row.tool) ? TOOL_ROUTES[row.tool]?.route : null
     if (!route) {
       toast.error('This tool can no longer be regenerated.')
       return
@@ -311,7 +315,7 @@ export default function GenerationsAdmin() {
                         </Link>
                         {isFailed && (
                           <>
-                            {TOOL_ROUTES[row.tool]?.route && (
+                            {isAvailable(row.tool) && TOOL_ROUTES[row.tool]?.route && (
                               <button
                                 onClick={() => onRetry(row)}
                                 className="text-xs text-sky-700 hover:underline mr-2"

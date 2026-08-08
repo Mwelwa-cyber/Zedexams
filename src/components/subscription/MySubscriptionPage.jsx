@@ -27,7 +27,7 @@ function formatDate(value) {
 // What Max adds on top of teacher Pro — drives the "Upgrade to Max" upsell card.
 // Kept in sync with the max_monthly features in utils/subscriptionConfig.js.
 const MAX_UPGRADE_PERKS = [
-  'Unlimited lesson plans, notes & worksheets',
+  'Unlimited lesson plans, notes & homework',
   'Unlimited assessments & schemes of work',
   '30 generations a day (up from 10)',
   'Bulk export — a whole term in one click',

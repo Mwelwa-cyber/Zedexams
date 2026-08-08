@@ -525,16 +525,37 @@ describe('LessonDetailsForm — compact grid layout', () => {
   })
 })
 
-// ── Formatted date hint ───────────────────────────────────────────────────────
+// ── The Date control reads the date, it does not repeat it ───────────────────
+// The control itself now displays "Tue, 4 Aug 2026" instead of the native
+// 07/08/2026 rendering, and the confirmation line that used to sit underneath
+// it (#ldf-date-friendly) is gone: two renderings of one value asked the
+// teacher to reconcile them, and the ambiguous one was in the field.
 
-describe('LessonDetailsForm — friendly date hint', () => {
-  it('shows the formatted weekday hint once a date is picked', () => {
-    renderForm({ lessonDetails: { ...DEFAULT_DETAILS, date: '2026-08-04' } })
-    expect(screen.getByText('Tue, 4 Aug 2026')).toBeInTheDocument()
+describe('LessonDetailsForm — the Date control', () => {
+  it('displays the unambiguous readable form inside the control', () => {
+    const { container } = renderForm({ lessonDetails: { ...DEFAULT_DETAILS, date: '2026-08-04' } })
+    const display = container.querySelector('.ldf-date-display')
+    expect(display).toBeTruthy()
+    expect(display.textContent).toBe('Tue, 4 Aug 2026')
+    // Same wrapper as the input, so it paints over the control rather than
+    // adding a line below it.
+    expect(display.parentElement.contains(document.getElementById('ldf-date'))).toBe(true)
   })
 
-  it('shows no formatted hint without a date', () => {
+  it('keeps the raw ISO value on the input itself', () => {
+    renderForm({ lessonDetails: { ...DEFAULT_DETAILS, date: '2026-08-04' } })
+    expect(document.getElementById('ldf-date')).toHaveValue('2026-08-04')
+  })
+
+  it('prompts rather than showing a date when none is set', () => {
     const { container } = renderForm()
+    const display = container.querySelector('.ldf-date-display')
+    expect(display.textContent).toBe('Select a date')
+    expect(display.className).toContain('ldf-date-display--empty')
+  })
+
+  it('no longer renders the separate confirmation line', () => {
+    const { container } = renderForm({ lessonDetails: { ...DEFAULT_DETAILS, date: '2026-08-04' } })
     expect(container.querySelector('#ldf-date-friendly')).toBeNull()
   })
 })

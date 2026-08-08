@@ -126,7 +126,7 @@ const MAX_GAP_NUMBERS_PER_ASK = 40;
 // (the silent firebase-tools "exit 0 but stale" deploy failure that made
 // importer fixes look broken in production while passing every test). Bump on
 // any change to the extraction/dedup/recovery logic in this pipeline.
-const PAST_PAPER_ENGINE_VERSION = "2026.07.18-exact-count";
+const PAST_PAPER_ENGINE_VERSION = "2026.08.08-question-figures";
 
 const DOCX_MIME =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -284,6 +284,28 @@ const QUESTIONS_TOOL_SCHEMA = {
             },
           },
           table: TABLE_SCHEMA,
+          hasFigure: {
+            type: "boolean",
+            description:
+              "true when THIS question has its OWN printed picture, " +
+              "photograph, diagram, graph or figure beside it (not a shared " +
+              "passage/map figure — those use the passage object). NEVER " +
+              "describe such a picture in prose; report its location here.",
+          },
+          figureBox: {
+            type: ["object", "null"],
+            description:
+              "When hasFigure is true: a TIGHT bounding box around JUST this " +
+              "question's printed picture/diagram on sourcePageNumber, as " +
+              "fractions 0-1 of the page ({x,y,w,h}). Exclude the question " +
+              "text and options. Null if you cannot locate it precisely.",
+            properties: {
+              x: {type: "number"},
+              y: {type: "number"},
+              w: {type: "number"},
+              h: {type: "number"},
+            },
+          },
           explanation: {type: "string"},
           confidence: {
             type: "number",
@@ -312,6 +334,8 @@ WORKED EXAMPLES ARE NEVER QUESTIONS. A Part often shows a worked "Example" (with
 REPORT WHICH PAGE EACH QUESTION IS ON. Set sourcePageNumber on every question to the page it is printed on (the PDF's own 1-based page count, or the "--- Uploaded page N ---" marker for photographed pages) — this is DIFFERENT from sourceNumber (the printed question number); never put the question number in sourcePageNumber or vice versa.
 
 READING PASSAGES & SHARED FIGURES — DO NOT MISS THESE. Many papers include a comprehension passage (a story, letter, poem, advert, dialogue, notice or report) or a shared map/figure/table/graph that a GROUP of questions is based on. Whenever the paper prints such a passage/figure, OR any question refers to "the passage", "the story", "the advert", "the poem", "the figure/map/table above", a named character, or says "according to the passage" / "read the following", there IS a shared passage. You MUST then: (1) transcribe the FULL passage/extract text VERBATIM into passage.text — never summarise, shorten or skip it; (2) attach the passage (same identical passage.ref, e.g. "P1") to EVERY question that reads from it; (3) put the full text on at least the first such question. Returning a comprehension question WITHOUT its passage text is an error — find the passage and include it.
+
+A QUESTION'S OWN PICTURE — REPORT ITS LOCATION, NEVER DESCRIBE IT. When ONE question has its own printed picture, photograph, diagram, graph or figure (e.g. "Which activity is shown in the picture below?" with a photo under it), set that question's hasFigure=true AND report figureBox (a tight {x,y,w,h} bounding box around JUST the picture, as fractions 0-1 of the page it is printed on — the same page you report in sourcePageNumber). NEVER write a prose description of the picture into the prompt — no "[Picture shows a person running]", no "(see diagram)", no "[image of ...]". Transcribe ONLY the printed words of the question; the actual picture is cropped out of the uploaded paper automatically from your location report, and a prose description permanently loses the picture. If several questions share one figure, use the passage object (kind:"map") instead. When answer OPTIONS are pictures (A-D each a small image), still set hasFigure=true with a box around the whole option strip and transcribe any printed option letters/captions.
 
 SHARED MAPS & PRINTED FIGURES — REPORT WHERE THEY ARE. For a shared map, diagram, picture or figure (kind:"map"), ALSO report passage.sourcePage and passage.figureBox (a tight {x,y,w,h} bounding box around JUST the figure, as fractions 0-1 of that page, excluding the questions and options). sourcePage is: for a PDF, the 1-based page of the PDF counting the cover; for photographed pages, the number printed in the "--- Uploaded page N ---" marker directly above the image the figure appears in — always use the marker number, never your own count. The figure image is attached automatically from your location report — without it the map is lost. Never skip a map-based question because the map is a picture; transcribe the question and report the figure's location.
 
@@ -911,6 +935,24 @@ function toQuestionDoc(q, order) {
   if (q.confidence != null && Number.isFinite(Number(q.confidence))) {
     base.aiConfidence = Math.max(0, Math.min(1, Number(q.confidence)));
   }
+  // The question's OWN printed picture. figureMeta mirrors the passage-level
+  // field: sourcePage + an optional fractional crop box. Persisted so the
+  // studio's figure-attach pass can crop the real image out of the uploaded
+  // paper, and so the Quiz Editor's "Crop from page" opens on the right page
+  // with the AI-detected box pre-selected. The image itself is attached by
+  // the studio (the server has no rasteriser).
+  if (q.hasFigure || q.figureBox) {
+    base.figureMeta = {
+      sourcePage: base.sourcePage || null,
+      box: q.figureBox || null,
+    };
+  }
+  // A prose picture-description stripped from the stem lands in diagramText —
+  // the editor's caption/"what the picture shows" field — never in the
+  // learner-visible question text.
+  if (q.figureDescription) {
+    base.diagramText = String(q.figureDescription).slice(0, 2000);
+  }
 
   if (q.type === "mcq" || q.type === "tf") {
     return {
@@ -941,7 +983,7 @@ function toQuestionDoc(q, order) {
  * Deterministic ids q001, q002, … so a re-run rewrites cleanly. Chunked at 400
  * to stay under Firestore's 500-op writeBatch limit — supports any count.
  */
-async function writeQuestionsToQuiz(quizId, questions) {
+async function writeQuestionsToQuiz(quizId, questions, provenance = {}) {
   if (!questions.length) return 0;
   for (let i = 0; i < questions.length; i += 400) {
     const chunk = questions.slice(i, i + 400);
@@ -949,11 +991,33 @@ async function writeQuestionsToQuiz(quizId, questions) {
     chunk.forEach((q, offset) => {
       const id = `q${String(i + offset + 1).padStart(3, "0")}`;
       const ref = admin.firestore().doc(`quizzes/${quizId}/questions/${id}`);
-      batch.set(ref, toQuestionDoc(q, i + offset), {merge: false});
+      batch.set(ref, {...toQuestionDoc(q, i + offset), ...provenance}, {merge: false});
     });
     await batch.commit();
   }
   return questions.length;
+}
+
+/**
+ * The provenance stamp every imported question carries: which paper it came
+ * out of, and whether that paper is a real ECZ examination.
+ *
+ * Weak-topic advice aggregates a learner's answers per topic, and a question
+ * from a commercial mock is not evidence about the national exam — the two are
+ * written to different standards. `paperIsOfficial` is DERIVED from the source
+ * here rather than copied off the document, so a paper whose two fields
+ * disagree cannot stamp a mock's questions as official. (The id list mirrors
+ * PAPER_SOURCES in src/config/paperSources.js — see pastPapersIndexHelpers.js
+ * for why the mirror exists and what keeps it honest.)
+ */
+function paperProvenanceFields(paper) {
+  const source = typeof paper?.source === "string"
+    ? paper.source.trim().toLowerCase()
+    : null;
+  return {
+    paperSource: source || null,
+    paperIsOfficial: source === "ecz",
+  };
 }
 
 /**
@@ -1100,6 +1164,19 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
       sourcePage: p.figureMeta.sourcePage,
       box: p.figureMeta.box,
     }));
+  // Question-OWN figures ("Which activity is shown in the picture below?").
+  // questionId mirrors writeQuestionsToQuiz's deterministic q001, q002, … ids
+  // (assigned by list position), so the client attach pass can write the
+  // cropped image straight onto the right question doc.
+  const questionFiguresDetected = questions
+    .map((q, i) => ((q.hasFigure || q.figureBox) && q.sourcePageNumber ? {
+      questionId: `q${String(i + 1).padStart(3, "0")}`,
+      sourceQuestionNumber: q.sourceNumber != null ? q.sourceNumber : null,
+      sourcePage: q.sourcePageNumber,
+      box: q.figureBox || null,
+    } : null))
+    .filter(Boolean);
+  const allFiguresDetected = [...figuresDetected, ...questionFiguresDetected];
   const tablesCaptured =
     questions.filter((q) => q.table).length +
     passages.filter((p) => p.table).length;
@@ -1125,10 +1202,13 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
   let written = 0;
   if (quizId && questions.length && gate.ok) {
     cleared = await clearQuizQuestions(quizId);
-    written = await writeQuestionsToQuiz(quizId, questions);
+    written = await writeQuestionsToQuiz(quizId, questions, paperProvenanceFields(paper));
     try {
       await admin.firestore().doc(`quizzes/${quizId}`).set({
         questionCount: written,
+        // The quiz inherits the paper's provenance too, so a surface holding
+        // only the quiz can tell an ECZ practice run from a mock one.
+        ...paperProvenanceFields(paper),
         // Always write the array (empty when the paper has no passages) so a
         // re-run clears any stale passages from a previous import.
         passages: passagesForQuiz,
@@ -1171,7 +1251,7 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
       tablesCaptured,
       questions,
       extraNotes: [extraNote],
-      figures: figuresDetected,
+      figures: allFiguresDetected,
       engineVersion: PAST_PAPER_ENGINE_VERSION,
     }),
     // Engine gate result — the studio surfaces blockers ("Missing questions:
@@ -1193,9 +1273,9 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
     // Diagram counts: the server only LOCATES figures (no rasteriser); the
     // studio's client-side figure-attach pass fills attached/needingReview
     // after cropping runs (see PastPaperStudio's ImportReportCard merge).
-    diagramsDetected: figuresDetected.length,
+    diagramsDetected: allFiguresDetected.length,
     diagramsAttached: 0,
-    diagramsNeedingReview: figuresDetected.length,
+    diagramsNeedingReview: allFiguresDetected.length,
     gatePassed: gate.ok,
     reconcileWarnings: reconciled.warnings,
   };

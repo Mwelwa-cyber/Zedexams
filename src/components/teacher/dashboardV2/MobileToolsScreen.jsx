@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { ArrowLeft, Search, SearchX } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { STUDIO_CATEGORIES, TEACHER_STUDIOS } from './launcher/teacherStudios'
@@ -8,7 +7,8 @@ import {
   resolveBadge,
   searchStudios,
 } from './launcher/teacherLauncherCore'
-import GlassToolTile from './GlassToolTile'
+import useStudioAvailability from '../../../hooks/useStudioAvailability'
+import StudioCard from './StudioCard'
 import './glassSurface.css'
 
 /* Category groups get the same tinted glass panels as the desktop
@@ -21,14 +21,20 @@ const PANEL_CLASS = {
 }
 
 /**
- * "All Teacher Tools" — the dedicated full-screen mobile launcher opened
- * from the dashboard's shortcut card. A presentation layer over the
- * canonical studio registry (teacherStudios.js): every route, permission
- * and saved count is the existing one; nothing is re-declared here.
+ * "All Teacher Tools" — the dedicated full-screen mobile screen opened from
+ * the dashboard's shortcut card. A presentation layer over the canonical
+ * studio registry (teacherStudios.js): every route, permission and saved
+ * count is the existing one; nothing is re-declared here.
  *
- * Four icons per row, grouped by category, with search and category
- * filter chips. Closes via the back button, Escape, or by navigating to
- * any tool (route change unmounts the dashboard).
+ * TWO COLUMNS OF CARDS, grouped by category, with search and filter chips.
+ * It was a four-column icon launcher — bare artwork with the name and a
+ * saved pill stacked underneath — which is the pre-glass layout wearing the
+ * new colours. A tool here is the same `StudioCard` the desktop Teacher
+ * Workspace renders (icon, badge, name, description), only compact; the two
+ * surfaces cannot drift because there is one component.
+ *
+ * Closes via the back button, Escape, or by navigating to any tool (route
+ * change unmounts the dashboard).
  */
 export default function MobileToolsScreen({ onClose, savedCounts = null, warnings = [] }) {
   // The live dashboard sits behind ProtectedRoute(requiredRole="teacher");
@@ -36,6 +42,7 @@ export default function MobileToolsScreen({ onClose, savedCounts = null, warning
   // still show the full registry. Signed-in non-teachers keep the filter.
   const auth = useAuth() || {}
   const isTeacher = auth.currentUser ? auth.isTeacher : true
+  const { filterEntries } = useStudioAvailability()
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('all')
   const backRef = useRef(null)
@@ -54,9 +61,12 @@ export default function MobileToolsScreen({ onClose, savedCounts = null, warning
   }, [onClose])
 
   const warningSet = useMemo(() => new Set(warnings), [warnings])
+  // Permission ("may this teacher open it") and availability ("is it offered
+  // at all") are separate questions; both narrow the same list so search can
+  // never surface a withdrawn studio the grid has hidden.
   const permitted = useMemo(
-    () => filterStudiosByPermission(TEACHER_STUDIOS, { isTeacher }),
-    [isTeacher],
+    () => filterEntries(filterStudiosByPermission(TEACHER_STUDIOS, { isTeacher }), 'route'),
+    [isTeacher, filterEntries],
   )
 
   const searching = query.trim().length > 0
@@ -143,27 +153,16 @@ export default function MobileToolsScreen({ onClose, savedCounts = null, warning
               aria-label={group.label}
               className={`tdv2m-tools-panel ${PANEL_CLASS[group.id] || 'glass-panel'}`}
             >
-              <h2 className="tdv2-eyebrow tdv2m-tools-group">{group.label}</h2>
+              <h2 className={`tdv2-eyebrow tdv2m-tools-group tone-${group.id}`}>{group.label}</h2>
               <div className="tdv2m-tool-grid">
-                {group.studios.map((studio) => {
-                  const badge = resolveBadge(studio, savedCounts, { warnings: warningSet })
-                  return (
-                    <Link
-                      key={studio.id}
-                      to={studio.route}
-                      className="tdv2m-tool"
-                      aria-label={`${studio.title}${badge ? `, ${badge.label}` : ''}`}
-                    >
-                      <GlassToolTile studio={studio} badge={badge} sizeClass="tdv2m-tool-tile" />
-                      <span className="tdv2m-tool-name">{studio.title}</span>
-                      {badge?.type === 'saved' ? (
-                        <span className="tdv2m-tool-saved" aria-hidden="true">
-                          {badge.count} saved
-                        </span>
-                      ) : null}
-                    </Link>
-                  )
-                })}
+                {group.studios.map((studio) => (
+                  <StudioCard
+                    key={studio.id}
+                    studio={studio}
+                    badge={resolveBadge(studio, savedCounts, { warnings: warningSet })}
+                    compact
+                  />
+                ))}
               </div>
             </section>
           ))

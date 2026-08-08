@@ -12,6 +12,12 @@
  * Old drafts: when the draft is older than ~7 days and the caller provides
  * `onPreview`, the strip leads with the age and offers Preview before
  * Continue/Discard — a teacher shouldn't blind-resume a two-week-old draft.
+ *
+ * Colours come from the --zt-banner-* / --zt-accent tokens. The Tailwind
+ * amber classes this replaces relied on `dark:` variants that never fire in
+ * the teacher workspace (the `dark` class tracks the LEARNER reading theme,
+ * not `data-theme='night'`), so every studio showed a light cream bar on the
+ * Night theme.
  */
 
 import { PenLine } from 'lucide-react'
@@ -54,10 +60,11 @@ export default function DraftRecoveryPrompt({
       role="alertdialog"
       aria-label="Unfinished draft found"
       data-print="hide"
-      className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm shadow-sm dark:border-amber-700/60 dark:bg-amber-900/20"
+      className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border px-3 py-2.5 text-sm shadow-sm"
+      style={{ background: 'var(--zt-banner-bg)', borderColor: 'var(--zt-banner-border)', color: 'var(--zt-banner-text)' }}
     >
-      <PenLine size={16} aria-hidden="true" className="shrink-0 text-amber-700 dark:text-amber-300" />
-      <p className="min-w-[180px] flex-1 text-amber-900 dark:text-amber-200">
+      <PenLine size={16} aria-hidden="true" className="shrink-0" />
+      <p className="min-w-[180px] flex-1">
         <span className="font-semibold">We found an unfinished {label}</span>
         {' — '}
         {showPreview
@@ -71,7 +78,8 @@ export default function DraftRecoveryPrompt({
           <button
             type="button"
             onClick={onPreview}
-            className="rounded-lg border border-amber-300 bg-white/70 px-3 py-1.5 font-semibold text-amber-900 transition hover:bg-white dark:border-amber-700/60 dark:bg-transparent dark:text-amber-200 dark:hover:bg-amber-900/30"
+            className="rounded-lg border px-3 py-1.5 font-semibold transition hover:opacity-80"
+            style={{ borderColor: 'var(--zt-banner-border)', background: 'var(--zt-card)', color: 'var(--zt-text)' }}
           >
             Preview
           </button>
@@ -79,14 +87,17 @@ export default function DraftRecoveryPrompt({
         <button
           type="button"
           onClick={acceptRecovery}
-          className="rounded-lg bg-amber-600 px-3 py-1.5 font-semibold text-white shadow-sm transition hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          className="rounded-lg px-3 py-1.5 font-semibold shadow-sm transition focus:outline-none focus:ring-2 focus:ring-amber-500"
+          style={{ background: 'var(--zt-accent)', color: 'var(--zt-on-accent)' }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--zt-accent-deep)' }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--zt-accent)' }}
         >
           Continue editing
         </button>
         <button
           type="button"
           onClick={discardRecovery}
-          className="rounded-lg px-3 py-1.5 font-medium text-amber-900 transition hover:bg-amber-100 dark:text-amber-200 dark:hover:bg-amber-900/30"
+          className="rounded-lg px-3 py-1.5 font-medium transition hover:opacity-75"
         >
           Discard
         </button>

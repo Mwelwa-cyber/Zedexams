@@ -21,6 +21,7 @@ import {
   resolvePopoverPlacement,
   searchStudios,
 } from './teacherLauncherCore'
+import useStudioAvailability from '../../../../hooks/useStudioAvailability'
 import useStudioFavourites from './useStudioFavourites'
 import useRecentStudios from './useRecentStudios'
 import StudioAppIcon from './StudioAppIcon'
@@ -85,6 +86,7 @@ export default function TeacherAppLauncher({ savedCounts = null, loading = false
   // non-teachers keep the permission filter.
   const auth = useAuth() || {}
   const isTeacher = auth.currentUser ? auth.isTeacher : true
+  const { filterEntries } = useStudioAvailability()
   const { columns, recentLimit } = useLauncherBreakpoint()
 
   const { favourites, favouriteSet, toggle: toggleFavourite } = useStudioFavourites()
@@ -138,10 +140,15 @@ export default function TeacherAppLauncher({ savedCounts = null, loading = false
     try { localStorage.setItem(HINT_KEY, '1') } catch { /* non-fatal */ }
   }, [])
 
-  // Studios this teacher may see (permission-filtered) — memoised.
+  // Studios this teacher may see — memoised. Two filters, and they answer
+  // different questions: `filterStudiosByPermission` asks whether THIS teacher
+  // may open the studio, `filterEntries` whether the studio is offered at all
+  // (Worksheet Studio is withdrawn behind a flag). Both feed `permitted`, so
+  // search, the chips, recents and favourites all narrow from the same list —
+  // a studio that is not offered must not reappear because it is pinned.
   const permitted = useMemo(
-    () => filterStudiosByPermission(TEACHER_STUDIOS, { isTeacher }),
-    [isTeacher],
+    () => filterEntries(filterStudiosByPermission(TEACHER_STUDIOS, { isTeacher }), 'route'),
+    [isTeacher, filterEntries],
   )
 
   // Search + chip + category filter, composed. Search wins (a query ignores

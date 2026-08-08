@@ -69,19 +69,44 @@ export function planFigureAttachments(figures = [], assets = []) {
   const skipped = []
   for (const fig of list) {
     const page = Number.parseInt(fig?.sourcePage, 10)
-    if (!fig?.passageId || !Number.isInteger(page) || page < 1) {
+    // A figure targets either a passage block (shared map/figure — the
+    // original contract) or a single question's own picture (questionId,
+    // added for the crop-from-page pipeline). Exactly one id is expected.
+    const passageId = fig?.passageId || null
+    const questionId = !passageId ? (fig?.questionId || null) : null
+    if ((!passageId && !questionId) || !Number.isInteger(page) || page < 1) {
       skipped.push(fig)
       continue
     }
+    const target = passageId
+      ? { targetKind: 'passage', passageId }
+      : { targetKind: 'question', questionId }
     if (pdf) {
-      plan.push({ passageId: fig.passageId, title: fig.title || '', page, box: fig.box || null, source: { kind: 'pdf', asset: pdf } })
+      plan.push({ ...target, title: fig.title || '', page, box: fig.box || null, source: { kind: 'pdf', asset: pdf } })
     } else if (images[page - 1]) {
-      plan.push({ passageId: fig.passageId, title: fig.title || '', page, box: fig.box || null, source: { kind: 'image', asset: images[page - 1] } })
+      plan.push({ ...target, title: fig.title || '', page, box: fig.box || null, source: { kind: 'image', asset: images[page - 1] } })
     } else {
       skipped.push(fig)
     }
   }
   return { plan, skipped }
+}
+
+/**
+ * Pick the uploaded asset (and kind) that holds page N of the question paper —
+ * the same source rules planFigureAttachments applies per figure, exposed for
+ * the Quiz Editor's on-demand "Crop from page" (which needs a page image with
+ * no figure report at all). Returns {kind:'pdf'|'image', asset} or null when
+ * the paper has no usable source for that page. Pure.
+ */
+export function pickPaperPageSource(assets = [], pageNumber) {
+  const page = Number.parseInt(pageNumber, 10)
+  if (!Number.isInteger(page) || page < 1) return null
+  const paperAssets = (Array.isArray(assets) ? assets : []).filter(isPaperRoleAsset)
+  const pdf = paperAssets.find(isPdfAsset) || null
+  if (pdf) return { kind: 'pdf', asset: pdf }
+  const images = paperAssets.filter(isImageAsset)
+  return images[page - 1] ? { kind: 'image', asset: images[page - 1] } : null
 }
 
 /**

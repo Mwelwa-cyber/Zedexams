@@ -39,7 +39,7 @@ Every route in the SPA is declared in `src/App.jsx` or the teacher route table. 
 `bare(path, element, shellExemptReason)` opts out of the shell and **must** state why;
 `redirect(path, element)` is a `bare()` whose reason is "renders no page".
 
-Theme pinning: `PUBLIC_THEME_PATHS` + `isPublicThemePath()` (`App.jsx`) force brand-default theme on public/auth/legal routes.
+Theme pinning: removed 2026-08 — the saved reading theme applies on public/auth/legal routes too. Only the two internal review previews are pinned to the brand default (`isBrandPinnedPath()` in `App.jsx`).
 
 ## Public / marketing / auth routes (no auth)
 
@@ -158,7 +158,7 @@ learners and admins get the standalone page), `/subscription` → `/my-subscript
 | `/admin/results` | `AdminResults` |
 | `/admin/payments` | `PaymentsPanel` |
 | `/admin/demo-trials` | `BulkGrantTrialsPanel` |
-| `/admin/generate/{worksheet,flashcards,scheme-of-work,class-timetable,rubric,notes}` | Admin-side reuse of teacher generator studios |
+| `/admin/generate/{worksheet,flashcards,scheme-of-work,class-timetable,notes}` | Admin-side reuse of teacher generator studios (worksheet rides the same feature flag as the teacher route; the rubric route was removed with the studio, 2026-08) |
 | `/admin/company` | `CompanyHQ` (Marshal fleet-health HQ) |
 | `/admin/agents` (+ `/jobs`, `/jobs/:jobId`, `/:agentId`) | `AgentsHome`, `AgentsAllJobs`, `AgentJobDetail`, `AgentProfile` |
 
@@ -219,14 +219,14 @@ own `assessmentType` (`paperTaxonomy.js`).
 | Path | Component | `tool` |
 |---|---|---|
 | `/teacher/generate/homework` | `HomeworkStudio` | `homework` |
-| `/teacher/generate/worksheet` | `WorksheetGenerator` | `worksheet` |
+| `/teacher/generate/worksheet` | `WorksheetGenerator` | `worksheet` — **withdrawn**: gated on `featureFlags.worksheetStudioEnabled` (default off); redirects to `/teacher` with a notice while off |
 | `/teacher/generate/flashcards` | `FlashcardGenerator` | `flashcards` |
 | `/teacher/generate/scheme-of-work` | `SchemeOfWorkGenerator` | `scheme_of_work` |
 | `/teacher/generate/mark-schedule` | `MarkScheduleStudio` | `mark_schedule` |
 | `/teacher/generate/weekly-forecast` | `WeeklyForecastStudio` | `weekly_forecast` |
 | `/teacher/generate/record-of-work` | `RecordOfWorkStudio` | `record_of_work` |
 | `/teacher/generate/class-timetable` | `ClassTimetableStudio` | `class_timetable` |
-| `/teacher/generate/rubric` | `RubricGenerator` | `rubric` |
+| `/teacher/generate/rubric` | *(redirect)* | **retired** 2026-08 — no page; redirects to `/teacher` with a notice |
 | `/teacher/generate/notes` | `NotesStudio` | `notes` |
 | `/teacher/generate/sba` | `SbaTaskStudio` | `sba_task` |
 | `/teacher/generate/sba-tracker` | `SbaMarkTracker` | `sba_tracker` |
@@ -244,7 +244,7 @@ The SBA tracker/planner moved under `/teacher/generate/*` since the previous sna
 | `/teacher/templates`, `/teacher/templates/:id` | `TemplateBank`, `TemplateBankDetail` | `page` |
 | `/teacher/library`, `/teacher/library/:id` | `TeacherLibrary`, `LibraryItemDetail` | `page` |
 | `/teacher/drafts` | `RecoveryCentre` (`features/drafts`) | `page` |
-| `/teacher/question-bank` | `CentralQuestionBank` | `page` |
+| `/teacher/question-bank` | — | `redirect` → `/teacher/assessment-papers/new?view=bank` (query preserved). The Question Bank is a view INSIDE the Assessment Paper Studio; there is no standalone page. |
 | `/teacher/syllabi` | `SyllabiLibrary` | `page` |
 | `/teacher/calendar` | `SchoolCalendar` | `page` |
 | `/teacher/curriculum` (+ `/ece`, `/primary`, `/secondary`, `/2013`, `/2013/ece`, `/2013/primary`, `/2013/secondary`) | `CurriculumHome` + variants | `page` |
@@ -267,7 +267,7 @@ Fallback: `path="*"` → `NotFound`.
   (via `MySubscriptionRoute`) and `/teacher/subscription` (`inShell`).
   `LibraryItemDetail` mounted at both `/admin/generations/:id` and `/teacher/library/:id`.
 - **Admin ↔ teacher studio reuse:** `WorksheetGenerator`, `FlashcardGenerator`,
-  `SchemeOfWorkGenerator`, `ClassTimetableStudio`, `RubricGenerator`, `NotesStudio` are
+  `SchemeOfWorkGenerator`, `ClassTimetableStudio`, `NotesStudio` are
   mounted under both `/admin/generate/*` and `/teacher/generate/*` — same components,
   different chrome/gating. The admin mounts carry no `StudioGate`. Confirm both entry
   points stay in sync when changing a studio.

@@ -39,6 +39,8 @@ eq('label "Mathematics" → id', normalizeSubjectId('Mathematics'), 'mathematics
 eq('mixed case "MATHS"/"Maths" resolves via curriculum', normalizeSubjectId('Maths'), 'mathematics')
 eq('underscore variant → hyphen id', normalizeSubjectId('social_studies'), 'social-studies')
 eq('space variant → hyphen id', normalizeSubjectId('Social Studies'), 'social-studies')
+eq('special-paper category label → id', normalizeSubjectId('Special Paper 2'), 'special-paper-2')
+eq('special-paper underscore variant → id', normalizeSubjectId('special_paper_2'), 'special-paper-2')
 eq('unknown subject → stable slug (not a wrong id)', normalizeSubjectId('Underwater Basket Weaving'), 'underwater-basket-weaving')
 
 console.log('\ntitle casing')

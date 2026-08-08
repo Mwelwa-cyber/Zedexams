@@ -36,6 +36,8 @@ import {
   slotsToBlocks,
   validateBlockLayout,
 } from './timetableBlocks.js'
+import { DEFAULT_PRINT_LAYOUT, DEFAULT_PRINT_TEMPLATE } from './timetablePrintTemplates.js'
+import { DEFAULT_SESSION_ID, sessionDefaults } from './timetableSessions.js'
 
 export const SCHEMA_VERSION_1 = 'class-timetable-1.0'
 export const SCHEMA_VERSION = 'class-timetable-2.0'
@@ -54,8 +56,17 @@ export const PERIOD_LABEL_MODES = [
 ]
 
 export const DEFAULT_DISPLAY_PREFERENCES = {
+  // On screen (the studio preview + the library view).
   timetableLayout: 'days-as-columns',
   periodLabelMode: 'period-time',
+  // Print / export. Deliberately a SEPARATE orientation: both reference
+  // documents put days down the left on paper, while the on-screen editor
+  // keeps days across the top. See timetablePrintTemplates.js.
+  printLayout: DEFAULT_PRINT_LAYOUT,
+  printTemplate: DEFAULT_PRINT_TEMPLATE,
+  cellText: 'auto',          // 'auto' | 'full' | 'abbrev'
+  showMinistryHeader: true,  // only rendered by the government template
+  showLegend: true,          // the abbreviation key under the grid
 }
 
 /** The teaching days a school can run, in week order. Mon–Fri are the
@@ -88,28 +99,77 @@ export function minutesToTime(total) {
 /* ── Period (time row) construction ───────────────────────────── */
 
 export const DEFAULT_TIMING = {
+  // Which SESSION of the school day this class runs (timetableSessions.js).
+  // 'full' keeps the original single-session behaviour; the shift sessions
+  // drive both the seeded times and the coverage target.
+  session: DEFAULT_SESSION_ID,
   startTime: '07:30',     // when the school reports
   endTime: '13:10',       // when the school knocks off (used in fit mode)
-  // Two ways to time the day:
-  //   fitToEndTime=false → fixed period length; the studio works out when the
-  //     day ends. Breaks are anchored "after period N".
-  //   fitToEndTime=true  → the day is shared evenly between the report and
-  //     knock-off times; period length is derived. Mid-day breaks are anchored
-  //     to the clock time the teacher sets, so they land exactly then.
+  // Three ways to time the day (`timingMode`; absent → derived from the
+  // original `fitToEndTime` flag so every saved timetable keeps its shape):
+  //   'fixed'  → fixed period length; the studio works out when the day ends.
+  //              Breaks are anchored "after period N".
+  //   'fit'    → the day is shared evenly between the report and knock-off
+  //              times; period length is derived. Mid-day breaks are anchored
+  //              to the clock time the teacher sets, so they land exactly then.
+  //   'custom' → the teacher types the exact start–end of every row
+  //              (`customRows`). Nothing is derived; the grid, the counts and
+  //              the print render precisely what was typed. This is what a
+  //              school running 60-minute lessons, a 30-minute break and a
+  //              90-minute lunch needs — none of it fits a single "period
+  //              length" number.
+  timingMode: 'fixed',
   fitToEndTime: false,
   periodMinutes: 40,
   lessonPeriods: 8,
+  customRows: [],
   breaks: [
     // Day bookends: assembly sits before Period 1 (afterPeriod 0), closing
     // after the last lesson (afterPeriod 'end'). Break and lunch fall mid-day —
     // positioned by afterPeriod in fixed mode, by `time` (clock) in fit mode.
     // Many Zambian government schools run a break but no lunch: a teacher just
     // unticks LUNCH (enabled:false) to drop it.
-    { afterPeriod: 0,     time: '07:30', minutes: 15, name: 'ASSEMBLY', event: 'assembly' },
+    //
+    // `days` scopes a row to particular teaching days (null/absent = every
+    // day, which is what every previously saved timetable means). `placement`
+    // on the assembly row chooses between the two real patterns:
+    //   'before'  — assembly is extra time before Period 1 (the default)
+    //   'period1' — assembly OCCUPIES the first period slot, so that day
+    //               fits one fewer lesson and still knocks off on time. This
+    //               is the government pattern the reference document uses.
+    // The DEFAULT stays unscoped (every day) on purpose: scoping assembly to
+    // one day shifts that day's lesson times away from the rest of the week,
+    // which is right when a school really does that and noise when it does
+    // not. The government/private templates below scope it where the
+    // reference documents do.
+    { afterPeriod: 0,     time: '07:30', minutes: 15, name: 'ASSEMBLY', event: 'assembly', days: null, placement: 'before' },
     { afterPeriod: 2,     time: '09:30', minutes: 20, name: 'BREAK',    event: 'break' },
     { afterPeriod: 5,     time: '11:30', minutes: 40, name: 'LUNCH',    event: 'lunch' },
     { afterPeriod: 'end', time: '',      minutes: 10, name: 'CLOSING',  event: 'closing' },
   ],
+}
+
+/** The timing mode a config asks for, tolerating every saved shape: an
+ * explicit `timingMode`, else the original `fitToEndTime` boolean. */
+export function resolveTimingMode(config = {}) {
+  const mode = String(config.timingMode || '').trim()
+  if (mode === 'fixed' || mode === 'fit' || mode === 'custom') return mode
+  return config.fitToEndTime ? 'fit' : 'fixed'
+}
+
+/**
+ * Does a `days`-scoped row apply to this day?
+ *
+ * An unscoped row (null / [] / absent — every saved timetable) applies
+ * everywhere. A scoped row applies only on its own days, and is left OUT of
+ * the day-less REFERENCE list entirely: the reference is the shape every day
+ * shares, so a Monday-only assembly must not appear in it.
+ */
+export function dayScopeMatches(days, day) {
+  const scoped = Array.isArray(days) && days.length > 0
+  if (!scoped) return true
+  if (!day) return false
+  return days.includes(day)
 }
 
 /** Normalise one break's anchor. 'end' pins it after the final lesson; a
@@ -133,12 +193,124 @@ function breakAnchor(afterPeriod, count) {
  *
  * @returns {{id,kind,event?,label,start,end}[]}
  */
-export function buildPeriods(config = {}) {
-  if (config.fitToEndTime) {
-    const fitted = buildPeriodsFitted(config)
-    if (fitted) return fitted // fall through to fixed when the window is degenerate
+export function buildPeriods(config = {}, { day = null } = {}) {
+  const mode = resolveTimingMode(config)
+  const allBreaks = Array.isArray(config.breaks) ? config.breaks : []
+  const assembly = allBreaks.find((b) => b?.event === 'assembly' && b?.enabled !== false)
+  const assemblyHere = Boolean(assembly) && dayScopeMatches(assembly.days, day)
+  // The government pattern: assembly takes the Period 1 slot instead of
+  // adding time before it, so the day fits one fewer lesson and still knocks
+  // off at the same clock time.
+  const occupiesPeriodOne = Boolean(assemblyHere && assembly.placement === 'period1')
+  // A day-SCOPED assembly is extra time on those days only, so it is
+  // backdated: it ends when the lessons start rather than pushing them
+  // later. Otherwise a "Monday and Friday" assembly would run every Monday
+  // lesson 20 minutes out of line with the rest of the week — which is not
+  // what the school does; it reports earlier on those two days.
+  const backdated = Boolean(
+    assemblyHere && !occupiesPeriodOne
+    && Array.isArray(assembly.days) && assembly.days.length > 0,
+  )
+
+  const scoped = {
+    ...config,
+    breaks: allBreaks
+      .filter((b) => dayScopeMatches(b?.days, day))
+      // The assembly is emitted by the helpers below in these two shapes.
+      .filter((b) => !((occupiesPeriodOne || backdated) && b?.event === 'assembly')),
   }
-  return buildPeriodsFixed(config)
+
+  let rows = null
+  if (mode === 'custom') rows = buildPeriodsCustom(scoped, day)
+  if (!rows && mode === 'fit') rows = buildPeriodsFitted(scoped) // null when the window is degenerate
+  if (!rows) rows = buildPeriodsFixed(scoped)
+  if (occupiesPeriodOne) rows = applyPeriodOneAssembly(rows, assembly)
+  else if (backdated) rows = prependBackdatedAssembly(rows, assembly)
+  return rows
+}
+
+/** An assembly that runs BEFORE the shared start time, on its own days. */
+function prependBackdatedAssembly(rows, assembly) {
+  if (!rows.length) return rows
+  const minutes = Math.max(0, Math.round(Number(assembly?.minutes) || 0))
+  if (!minutes) return rows
+  const end = timeToMinutes(rows[0].start)
+  return [{
+    id: 'brk-asm-pre',
+    kind: 'break',
+    event: 'assembly',
+    label: String(assembly?.name || 'ASSEMBLY').toUpperCase(),
+    start: minutesToTime(end - minutes),
+    end: rows[0].start,
+  }, ...rows]
+}
+
+const HHMM = /^\d{1,2}:\d{2}$/
+
+/**
+ * Custom period times: the teacher types the exact start–end of every row.
+ * Nothing is derived — the grid, the placed counts and the print render
+ * precisely what was typed, which is the only way to reproduce a school day
+ * of 60-minute lessons, a 30-minute break and a 90-minute lunch.
+ *
+ * Rows that are disabled, malformed or zero-length are skipped rather than
+ * silently "corrected"; a row list that yields no rows at all returns null so
+ * the caller falls back to the fixed builder instead of rendering an empty
+ * day.
+ */
+function buildPeriodsCustom(config = {}, day = null) {
+  const list = Array.isArray(config.customRows) ? config.customRows : []
+  const rows = []
+  let slot = 0
+  for (const r of list) {
+    if (!r || r.enabled === false) continue
+    if (!dayScopeMatches(r.days, day)) continue
+    if (!HHMM.test(String(r.start || '')) || !HHMM.test(String(r.end || ''))) continue
+    if (timeToMinutes(r.end) <= timeToMinutes(r.start)) continue
+    if (r.kind === 'break') {
+      rows.push({
+        id: `brk-c${rows.length}`,
+        kind: 'break',
+        event: r.event || 'break',
+        label: String(r.name || 'BREAK').toUpperCase(),
+        start: r.start,
+        end: r.end,
+      })
+    } else {
+      slot += 1
+      rows.push({ id: `p${slot}`, kind: 'lesson', label: `Period ${slot}`, start: r.start, end: r.end })
+    }
+  }
+  return slot > 0 ? rows : null
+}
+
+/**
+ * Turn the first lesson row into the ASSEMBLY band, keeping its clock times.
+ *
+ * The day therefore holds one fewer lesson and still ends when it always
+ * did — Monday's 12:40 slot reads ASSEMBLY while Tuesday's holds a lesson,
+ * exactly as the reference government timetable does. Remaining lessons are
+ * renumbered so slot 1 is still the first teachable slot.
+ */
+function applyPeriodOneAssembly(rows, assembly) {
+  const idx = rows.findIndex((r) => r.kind === 'lesson')
+  if (idx < 0) return rows
+  const first = rows[idx]
+  const out = rows.slice()
+  out[idx] = {
+    id: `brk-asm-${idx}`,
+    kind: 'break',
+    event: 'assembly',
+    label: String(assembly?.name || 'ASSEMBLY').toUpperCase(),
+    start: first.start,
+    end: first.end,
+  }
+  let slot = 0
+  return out.map((r) => {
+    if (r.kind !== 'lesson') return r
+    slot += 1
+    return { ...r, id: `p${slot}`, label: `Period ${slot}` }
+  })
 }
 
 /* Fixed-length day: forward from the start time, one period length per row,
@@ -417,6 +589,75 @@ export const SCHOOL_DAY_TEMPLATES = [
     },
   },
   {
+    // The reference government primary school's morning session.
+    id: 'government-morning-session',
+    label: 'Government — morning session',
+    description: 'The morning session of a shift school: reports 07:00, 40-minute periods, one short break, knocks off 12:40 so the afternoon session can start.',
+    dayType: 'full',
+    timing: {
+      session: 'morning', timingMode: 'fixed',
+      startTime: '07:00', endTime: '12:40', fitToEndTime: false, periodMinutes: 40, lessonPeriods: 8,
+      breaks: [
+        { afterPeriod: 0, time: '07:00', minutes: 15, name: 'ASSEMBLY', event: 'assembly', enabled: true, days: ['Monday'], placement: 'period1' },
+        { afterPeriod: 3, time: '09:00', minutes: 20, name: 'BREAK', event: 'break', enabled: true },
+        { afterPeriod: 5, time: '11:00', minutes: 40, name: 'LUNCH', event: 'lunch', enabled: false },
+        { afterPeriod: 'end', time: '', minutes: 5, name: 'CLOSING', event: 'closing', enabled: false },
+      ],
+    },
+  },
+  {
+    // The reference Grade 4A timetable: reports 12:40, ends 16:50, assembly
+    // occupying the first period slot on Monday only.
+    id: 'government-afternoon-session',
+    label: 'Government — afternoon session (12:40)',
+    description: 'The afternoon session of a shift school: reports 12:40, 40-minute periods, a 10-minute break mid-afternoon, knocks off 16:50. Assembly takes the first period slot on Monday.',
+    dayType: 'full',
+    timing: {
+      session: 'afternoon', timingMode: 'fixed',
+      startTime: '12:40', endTime: '16:50', fitToEndTime: false, periodMinutes: 40, lessonPeriods: 6,
+      breaks: [
+        { afterPeriod: 0, time: '12:40', minutes: 40, name: 'ASSEMBLY', event: 'assembly', enabled: true, days: ['Monday'], placement: 'period1' },
+        { afterPeriod: 3, time: '14:40', minutes: 10, name: 'BREAK', event: 'break', enabled: true },
+        { afterPeriod: 5, time: '15:30', minutes: 40, name: 'LUNCH', event: 'lunch', enabled: false },
+        { afterPeriod: 'end', time: '', minutes: 5, name: 'CLOSING', event: 'closing', enabled: false },
+      ],
+    },
+  },
+  {
+    // The reference private school: 60-minute lessons, a 30-minute break and
+    // a 90-minute lunch — none of which fits one "period length" number.
+    id: 'private-full-day',
+    label: 'Private — full day (break + lunch)',
+    description: 'A private-school full day: 60-minute lessons, a 30-minute morning break, a 90-minute lunch, and assembly on Monday and Friday.',
+    dayType: 'full',
+    timing: {
+      session: 'full', timingMode: 'fixed',
+      startTime: '08:00', endTime: '16:00', fitToEndTime: false, periodMinutes: 60, lessonPeriods: 6,
+      breaks: [
+        { afterPeriod: 0, time: '07:40', minutes: 20, name: 'ASSEMBLY', event: 'assembly', enabled: true, days: ['Monday', 'Friday'], placement: 'before' },
+        { afterPeriod: 2, time: '10:00', minutes: 30, name: 'BREAK', event: 'break', enabled: true },
+        { afterPeriod: 4, time: '12:30', minutes: 90, name: 'LUNCH', event: 'lunch', enabled: true },
+        { afterPeriod: 'end', time: '', minutes: 5, name: 'CLOSING', event: 'closing', enabled: false },
+      ],
+    },
+  },
+  {
+    id: 'half-day-friday',
+    label: 'Half-day Friday',
+    description: 'The common weekly Friday: normal reporting time, one break, knocks off at 12:30. Apply it to Friday from the day-specific structure below.',
+    dayType: 'half',
+    timing: {
+      session: 'full', timingMode: 'fit',
+      startTime: '07:30', endTime: '12:30', fitToEndTime: true, periodMinutes: 40, lessonPeriods: 6,
+      breaks: [
+        { afterPeriod: 0, time: '07:30', minutes: 15, name: 'ASSEMBLY', event: 'assembly', enabled: true },
+        { afterPeriod: 2, time: '09:50', minutes: 20, name: 'BREAK', event: 'break', enabled: true },
+        { afterPeriod: 5, time: '11:30', minutes: 40, name: 'LUNCH', event: 'lunch', enabled: false },
+        { afterPeriod: 'end', time: '', minutes: 5, name: 'CLOSING', event: 'closing', enabled: false },
+      ],
+    },
+  },
+  {
     id: 'half-day',
     label: 'Half day',
     description: 'A shortened teaching day that knocks off around midday — the common weekly half-day pattern (e.g. Friday 12:30). The knock-off time is fixed and the periods share whatever teaching time is left.',
@@ -497,6 +738,15 @@ function makeSubject(label, extra = {}) {
     id: extra.subjectId || `s${subjectSeq}`,
     subjectId: extra.subjectId || null,
     label,
+    // The name printed on the grid when it differs from the canonical
+    // learning area — a school teaching Chinyanja prints "Chinyanja" while
+    // the week is still accounted for as Zambian Language.
+    displayLabel: extra.displayLabel || null,
+    // The cell code (ENG, MATHS, ZIL …). Null until derived/edited.
+    abbreviation: extra.abbreviation || null,
+    // A subject the SCHOOL adds beyond the curriculum (Literacy, Swimming).
+    // Placeable and printable, never part of curriculum coverage totals.
+    schoolSubject: extra.schoolSubject ?? false,
     shortName: extra.shortName || null,
     periodsPerWeek: extra.periodsPerWeek ?? defaultPeriodsPerWeek(label),
     load: extra.load || subjectLoad(label),
@@ -549,9 +799,53 @@ export function curriculumSubjectsForGrade(grade, curriculumId = DEFAULT_CURRICU
   return labels.map((l) => makeSubject(l))
 }
 
-/** Build a fresh custom subject row the studio can append. */
-export function newSubject(label = 'New subject') {
-  return makeSubject(label)
+/**
+ * Build a fresh subject row the studio can append.
+ *
+ * Anything a teacher adds by hand is a SCHOOL subject by default: it is not
+ * in the curriculum's official table, so it must not count toward curriculum
+ * coverage. A teacher who is really restoring an official area resets the
+ * subjects from the curriculum instead.
+ */
+export function newSubject(label = 'New subject', extra = {}) {
+  return makeSubject(label, { schoolSubject: true, ...extra })
+}
+
+/* ── The Zambian Language display name ────────────────────────────
+ * A school teaches an actual language — Chinyanja, Bemba, Tonga, Lozi — and
+ * writes that on the wall, while the curriculum still accounts for it as
+ * "Zambian Language". The same mechanism relabels the ECE / adapted language
+ * provision (English Language / Sign Language / Braille).
+ */
+
+export const ZAMBIAN_LANGUAGE_SUGGESTIONS = [
+  'Chinyanja', 'IciBemba', 'Chitonga', 'Silozi', 'Kiikaonde', 'Lunda', 'Luvale',
+]
+
+/** Does this subject row carry the language provision the display name
+ * applies to? Matched on the canonical subject id (never a loose name), with
+ * a name fallback for hand-built lists that have no ids. */
+export function isZambianLanguageSubject(subject) {
+  const id = String(subject?.subjectId || '')
+  if (/zambian-language/.test(id)) return true
+  if (/literacy-language-zambian/.test(id)) return true
+  return !subject?.subjectId && /zambian\s*lang/i.test(String(subject?.label || ''))
+}
+
+/** Apply (or clear) the language display name across a subject list.
+ * Rows that already carry the right name are returned UNCHANGED (same
+ * object), so a caller can tell a real edit from a no-op. */
+export function withLanguageName(subjects, languageName) {
+  const name = String(languageName || '').trim() || null
+  return (Array.isArray(subjects) ? subjects : []).map((s) => {
+    if (!isZambianLanguageSubject(s)) return s
+    return (s.displayLabel || null) === name ? s : { ...s, displayLabel: name }
+  })
+}
+
+/** The name a subject is PRINTED under. */
+export function subjectDisplayLabel(subject) {
+  return String(subject?.displayLabel || '').trim() || subject?.label || ''
 }
 
 /**
@@ -693,36 +987,51 @@ export function withDaySchedule(dayStructure, day, schedule) {
   return { ...(dayStructure || {}), daySchedules }
 }
 
-/** The built period rows (lessons + breaks) that actually apply to one
- * specific teaching day — that day's own override when set, otherwise the
- * timetable's base periods. */
-export function periodsForDay(day, basePeriods, dayStructure) {
+/**
+ * The built period rows (lessons + breaks) that actually apply to one
+ * specific teaching day.
+ *
+ * Priority: that day's own school-day override, then the timetable's base
+ * `timing` rebuilt FOR THIS DAY (which is what makes a Monday-only assembly
+ * or a day-scoped break real), then the pre-built base rows.
+ *
+ * `timing` is optional throughout: a saved timetable written before this
+ * pass carries none, so it resolves to `basePeriods` and behaves exactly as
+ * it always did.
+ */
+export function periodsForDay(day, basePeriods, dayStructure, timing = null) {
   const override = dayScheduleOverride(day, dayStructure)
-  if (override?.timing) return buildPeriods(override.timing)
+  if (override?.timing) return buildPeriods(override.timing, { day })
+  if (timing) return buildPeriods(timing, { day })
   return Array.isArray(basePeriods) ? basePeriods : []
 }
 
 /** The clock time a specific day reports at (assembly/opening), from that
  * day's own resolved periods. '' when there are no rows. */
-export function reportingTimeForDay(day, basePeriods, dayStructure) {
-  const rows = periodsForDay(day, basePeriods, dayStructure)
+export function reportingTimeForDay(day, basePeriods, dayStructure, timing = null) {
+  const rows = periodsForDay(day, basePeriods, dayStructure, timing)
   return rows.length ? rows[0].start : ''
 }
 
 /** The clock time a specific day's last lesson ends (the real knock-off),
  * from that day's own resolved periods. */
-export function knockOffTimeForDay(day, basePeriods, dayStructure) {
-  return lastLessonEndTime(periodsForDay(day, basePeriods, dayStructure))
+export function knockOffTimeForDay(day, basePeriods, dayStructure, timing = null) {
+  return lastLessonEndTime(periodsForDay(day, basePeriods, dayStructure, timing))
 }
 
 /** Lesson slots available on a day: a day-specific override's own lesson
  * count when set, otherwise the grid's shared lesson rows, optionally
  * shortened by dayStructure.periodsPerDay (Mode A, legacy count-only
  * override). */
-export function slotCountForDay(day, periods, dayStructure) {
+export function slotCountForDay(day, periods, dayStructure, timing = null) {
   const override = dayScheduleOverride(day, dayStructure)
-  if (override?.timing) return lessonPeriods(buildPeriods(override.timing)).length
-  const rows = lessonPeriods(periods).length
+  if (override?.timing) return lessonPeriods(buildPeriods(override.timing, { day })).length
+  // A day-scoped assembly/break changes this day's own lesson count (the
+  // government pattern gives Monday one fewer lesson), so the day's real
+  // rows decide — never the shared reference list.
+  const rows = timing
+    ? lessonPeriods(buildPeriods(timing, { day })).length
+    : lessonPeriods(periods).length
   const countOverride = dayStructure?.periodsPerDay?.[day]
   if (countOverride == null) return rows
   const n = Math.round(Number(countOverride))
@@ -732,9 +1041,71 @@ export function slotCountForDay(day, periods, dayStructure) {
 
 /** Total fillable lesson cells across the week, honouring per-day counts
  * and per-day school-day overrides. */
-export function weeklyCapacity(periods, days, dayStructure) {
+export function weeklyCapacity(periods, days, dayStructure, timing = null) {
   return (Array.isArray(days) ? days : [])
-    .reduce((sum, d) => sum + slotCountForDay(d, periods, dayStructure), 0)
+    .reduce((sum, d) => sum + slotCountForDay(d, periods, dayStructure, timing), 0)
+}
+
+/**
+ * The teaching MINUTES the week actually holds — every lesson row on every
+ * teaching day, measured from its own clock times.
+ *
+ * This is the number a shift session's coverage target is built from, and
+ * the number that makes "24h 40m of 28h placed" possible. It cannot be
+ * derived from a period count once a school runs 60-minute lessons or types
+ * its own period times, which is exactly why it is measured.
+ */
+export function weeklyLessonMinutes({ periods, days, dayStructure, timing } = {}) {
+  let total = 0
+  for (const day of Array.isArray(days) ? days : []) {
+    const rows = lessonPeriods(periodsForDay(day, periods, dayStructure, timing))
+    const cap = slotCountForDay(day, periods, dayStructure, timing)
+    rows.slice(0, cap).forEach((r) => { total += timeToMinutes(r.end) - timeToMinutes(r.start) })
+  }
+  return total
+}
+
+/**
+ * How long a lesson is at this school, and whether every lesson really is
+ * that long.
+ *
+ * `uniform` is what decides whether coverage may be spoken in PERIODS at
+ * all: once a day mixes lesson lengths (custom period times, a fitted
+ * half-day), "38/42" is not a true statement about anything and the studio
+ * must switch to hours.
+ *
+ * @returns {{ minutes:number, uniform:boolean, lessons:number }}
+ */
+export function lessonLengthProfile({ periods, days, dayStructure, timing } = {}) {
+  const lengths = []
+  for (const day of Array.isArray(days) ? days : []) {
+    const rows = lessonPeriods(periodsForDay(day, periods, dayStructure, timing))
+    const cap = slotCountForDay(day, periods, dayStructure, timing)
+    rows.slice(0, cap).forEach((r) => lengths.push(timeToMinutes(r.end) - timeToMinutes(r.start)))
+  }
+  if (!lengths.length) {
+    const fallback = Math.round(Number(timing?.periodMinutes) || DEFAULT_TIMING.periodMinutes)
+    return { minutes: fallback, uniform: true, lessons: 0 }
+  }
+  // The modal length — a single odd row (a fitted segment absorbing
+  // rounding) must not redefine what a lesson is at this school.
+  const counts = new Map()
+  for (const n of lengths) counts.set(n, (counts.get(n) || 0) + 1)
+  let minutes = lengths[0]
+  let best = 0
+  for (const [n, c] of counts) if (c > best || (c === best && n > minutes)) { minutes = n; best = c }
+  return { minutes, uniform: counts.size === 1, lessons: lengths.length }
+}
+
+/**
+ * Apply a session's seeded report/knock-off times to a timing config.
+ * Full day and Custom seed nothing — the teacher's own times are kept.
+ */
+export function applySessionToTiming(timing, sessionId) {
+  const defaults = sessionDefaults(sessionId)
+  const next = { ...(timing || {}), session: sessionId }
+  if (!defaults) return next
+  return { ...next, startTime: defaults.startTime, endTime: defaults.endTime }
 }
 
 /**
@@ -746,13 +1117,13 @@ export function weeklyCapacity(periods, days, dayStructure) {
  * @returns {{fits:boolean, required:number, capacity:number, shortfall:number,
  *   perDay:Object<string,number>}}
  */
-export function resolveCapacityFit({ subjects, days, periods, dayStructure }) {
+export function resolveCapacityFit({ subjects, days, periods, dayStructure, timing = null }) {
   const dayList = Array.isArray(days) ? days : []
   const required = totalAllocated(subjects)
   const perDay = {}
   let capacity = 0
   for (const day of dayList) {
-    const n = slotCountForDay(day, periods, dayStructure)
+    const n = slotCountForDay(day, periods, dayStructure, timing)
     perDay[day] = n
     capacity += n
   }
@@ -965,7 +1336,7 @@ export function autoFillTimetable({ subjects, days, periods }) {
  *
  * @returns {{ blocks:Array, unplaced:Array<{label,missing,reason}>, notes:string[] }}
  */
-export function autoFillBlocks({ subjects, days, periods, dayStructure, lockedBlocks = [], activities = [] }) {
+export function autoFillBlocks({ subjects, days, periods, dayStructure, timing = null, lockedBlocks = [], activities = [] }) {
   const dayList = Array.isArray(days) ? days : []
   const subjList = (Array.isArray(subjects) ? subjects : []).filter((s) => (Number(s.periodsPerWeek) || 0) > 0)
   // Each day resolves its OWN periods/segments — a day-specific override
@@ -973,8 +1344,8 @@ export function autoFillBlocks({ subjects, days, periods, dayStructure, lockedBl
   // another day, so a double period or a placement can never cross into
   // another day's structure, and nothing is ever placed past a day's own
   // last lesson row.
-  const segmentsByDay = new Map(dayList.map((d) => [d, segmentsOf(periodsForDay(d, periods, dayStructure))]))
-  const capacityOf = (day) => slotCountForDay(day, periods, dayStructure)
+  const segmentsByDay = new Map(dayList.map((d) => [d, segmentsOf(periodsForDay(d, periods, dayStructure, timing))]))
+  const capacityOf = (day) => slotCountForDay(day, periods, dayStructure, timing)
   const lastRowOf = (day) => Math.max(0, capacityOf(day) - 1)
   const notes = []
   const unplaced = []
@@ -1251,14 +1622,17 @@ export function validateTimetable({ slots, subjects, periods, days }) {
  *            unexplainedGaps,emptySlots}
  * }}
  */
-export function validateTimetableBlocks({ blocks, subjects, periods, days, dayStructure, curriculum }) {
+export function validateTimetableBlocks({
+  blocks, subjects, periods, days, dayStructure, timing = null, curriculum,
+  allocationScaled = false, lessonMinutes = null,
+}) {
   const dayList = Array.isArray(days) ? days : []
   const subjList = Array.isArray(subjects) ? subjects : []
   const blockList = Array.isArray(blocks) ? blocks : []
   // Each day's own resolved periods/segments — see periodsForDay.
-  const rowsByDay = new Map(dayList.map((d) => [d, lessonPeriods(periodsForDay(d, periods, dayStructure))]))
-  const segmentsByDay = new Map(dayList.map((d) => [d, segmentsOf(periodsForDay(d, periods, dayStructure))]))
-  const capacityOf = (day) => slotCountForDay(day, periods, dayStructure)
+  const rowsByDay = new Map(dayList.map((d) => [d, lessonPeriods(periodsForDay(d, periods, dayStructure, timing))]))
+  const segmentsByDay = new Map(dayList.map((d) => [d, segmentsOf(periodsForDay(d, periods, dayStructure, timing))]))
+  const capacityOf = (day) => slotCountForDay(day, periods, dayStructure, timing)
 
   const errors = []
   const warnings = []
@@ -1272,10 +1646,21 @@ export function validateTimetableBlocks({ blocks, subjects, periods, days, daySt
   })
   errors.push(...structural)
 
-  /* Per-subject placement counts (a double counts as 2). */
+  /* Per-subject placement counts (a double counts as 2).
+   *
+   * A SCHOOL subject (Literacy at a private school, say — real teaching, but
+   * not one of the official learning areas) is placed and printed like any
+   * other, and is deliberately kept OUT of curriculum contact time and the
+   * curriculum period total. Counting it there would report a week as
+   * meeting the curriculum on the strength of a subject the curriculum does
+   * not contain. */
+  const schoolSubjectLabels = new Set(
+    subjList.filter((s) => s?.schoolSubject).map((s) => s.label).filter(Boolean),
+  )
   const placed = new Map()
   let curriculumPeriods = 0
   let activityPeriods = 0
+  let schoolSubjectPeriods = 0
   let contactMinutes = 0
   let validDoubles = 0
   let brokenDoubles = 0
@@ -1283,11 +1668,15 @@ export function validateTimetableBlocks({ blocks, subjects, periods, days, daySt
     if (!dayList.includes(b.day)) continue
     if (b.type === BLOCK_TYPES.ACTIVITY) { activityPeriods += b.length; continue }
     placed.set(b.label, (placed.get(b.label) || 0) + b.length)
-    curriculumPeriods += b.length
-    const dayRows = rowsByDay.get(b.day) || []
-    for (const s of blockSlots(b)) {
-      const row = dayRows[s - 1]
-      if (row) contactMinutes += timeToMinutes(row.end) - timeToMinutes(row.start)
+    if (schoolSubjectLabels.has(b.label)) {
+      schoolSubjectPeriods += b.length
+    } else {
+      curriculumPeriods += b.length
+      const dayRows = rowsByDay.get(b.day) || []
+      for (const s of blockSlots(b)) {
+        const row = dayRows[s - 1]
+        if (row) contactMinutes += timeToMinutes(row.end) - timeToMinutes(row.start)
+      }
     }
     if (b.length >= 2) {
       if (fitsInOneSegment(segmentsByDay.get(b.day) || [], b.startSlot, b.length)) validDoubles += 1
@@ -1304,6 +1693,7 @@ export function validateTimetableBlocks({ blocks, subjects, periods, days, daySt
     else if (got > target) status = 'over'
     return {
       label: s.label,
+      displayLabel: s.displayLabel || s.label,
       shortName: s.shortName || null,
       target,
       placed: got,
@@ -1313,6 +1703,7 @@ export function validateTimetableBlocks({ blocks, subjects, periods, days, daySt
       compulsory: s.compulsory ?? null,
       optionGroupId: s.optionGroupId || s.choiceGroup || null,
       selected: s.selected !== false,
+      schoolSubject: Boolean(s.schoolSubject),
     }
   })
 
@@ -1392,22 +1783,43 @@ export function validateTimetableBlocks({ blocks, subjects, periods, days, daySt
     }
   }
 
-  /* Curriculum totals + customisation. */
+  /* Curriculum totals + customisation. School subjects are excluded from
+   * both — they are extra teaching, not a variation of the official week. */
+  const curriculumSubjectRows = subjList.filter((s) => !s?.schoolSubject)
   const requiredPeriods = curriculum?.requiredWeeklyPeriods
-    ?? subjList.reduce((sum, s) => sum + Math.max(0, Math.round(Number(s.periodsPerWeek) || 0)), 0)
+    ?? curriculumSubjectRows.reduce((sum, s) => sum + Math.max(0, Math.round(Number(s.periodsPerWeek) || 0)), 0)
   const requiredContactMinutes = curriculum?.weeklyContactMinutes ?? null
   let customised = false
-  if (curriculum?.subjects?.length) {
-    const official = new Map(curriculum.subjects.map((s) => [s.label, s.weeklyPeriods ?? s.periodsPerWeek]))
-    for (const s of subjList) {
-      if (!official.has(s.label)) { customised = true; break }
-      const off = Math.round(Number(official.get(s.label)) || 0)
-      if (off !== Math.max(0, Math.round(Number(s.periodsPerWeek) || 0))) { customised = true; break }
+  // A shift session's targets are SCALED by the studio on purpose (a session
+  // that cannot hold 28 hours is a system constraint, not a teacher's
+  // edit) — flagging that as "customised from the baseline" would read as an
+  // accusation.
+  //
+  // The comparison is in MINUTES, not periods, for the same reason the whole
+  // coverage model is: a school running 60-minute lessons owes English 4h00,
+  // which is 4 lessons. Comparing that against the 40-minute table's "6
+  // periods" would call every such school customised. The tolerance is half a
+  // lesson — that is rounding, not a decision.
+  if (curriculum?.subjects?.length && !allocationScaled) {
+    const periodMinutes = Number(curriculum.periodMinutes ?? curriculum.periodLengthMinutes) || 0
+    const officialMinutes = new Map(curriculum.subjects.map((s) => {
+      const periods = Math.max(0, Math.round(Number(s.weeklyPeriods ?? s.periodsPerWeek) || 0))
+      // An unselected option contributes nothing, whatever its own table says.
+      const minutes = s.selected === false ? 0 : (s.weeklyMinutes ?? periods * periodMinutes)
+      return [s.label, periods === 0 ? 0 : minutes]
+    }))
+    const len = Math.max(1, Math.round(Number(lessonMinutes) || periodMinutes || 0))
+    const tolerance = len / 2
+    for (const s of curriculumSubjectRows) {
+      if (!officialMinutes.has(s.label)) { customised = true; break }
+      const want = Number(officialMinutes.get(s.label)) || 0
+      const got = Math.max(0, Math.round(Number(s.periodsPerWeek) || 0)) * len
+      if (Math.abs(got - want) > tolerance) { customised = true; break }
     }
   }
 
-  const totalSlots = weeklyCapacity(periods, dayList, dayStructure)
-  const emptySlots = Math.max(0, totalSlots - curriculumPeriods - activityPeriods)
+  const totalSlots = weeklyCapacity(periods, dayList, dayStructure, timing)
+  const emptySlots = Math.max(0, totalSlots - curriculumPeriods - schoolSubjectPeriods - activityPeriods)
   if (brokenDoubles > 0) {
     // Already covered by structural errors, but keep the count visible.
     notes.push(`${brokenDoubles} double period${plural(brokenDoubles)} cross a break and must be split.`)
@@ -1426,6 +1838,10 @@ export function validateTimetableBlocks({ blocks, subjects, periods, days, daySt
       requiredPeriods,
       curriculumPeriods,
       activityPeriods,
+      schoolSubjectPeriods,
+      schoolSubjects: bySubject
+        .filter((r) => r.schoolSubject && (r.placed > 0 || r.target > 0))
+        .map((r) => ({ label: r.displayLabel || r.label, placed: r.placed, target: r.target })),
       totalSlots,
       contactMinutes,
       requiredContactMinutes,
@@ -1474,6 +1890,7 @@ export function buildTimetableArtifact({
   dayStructure = null, displayPreferences = null,
   curriculumId = null, selectedOptions = null, subjectAllocations = null,
   calendarOverrides = null,
+  timing = null, languageName = null, allocationStrategy = null,
 }) {
   const dayList = Array.isArray(days) ? days : []
   const periodList = Array.isArray(periods) ? periods : []
@@ -1486,6 +1903,14 @@ export function buildTimetableArtifact({
     days: dayList,
     periods: periodList,
     blocks: blockList,
+    // The timing CONFIG, saved alongside the built rows. It is what lets a
+    // reader rebuild a day's own rows — a Monday-only assembly, a day-scoped
+    // break — rather than assuming every day shares the reference list. A
+    // timetable saved without it (everything before this pass) simply falls
+    // back to `periods`, exactly as it always has.
+    timing: timing || null,
+    languageName: String(languageName || '').trim() || null,
+    allocationStrategy: allocationStrategy || null,
     // Derived, kept for legacy readers (old library views + exporters).
     slots: blocksToSlots(blockList, periodList, dayList),
     dayStructure: dayStructure || null,
@@ -1499,8 +1924,12 @@ export function buildTimetableArtifact({
       ? subjectAllocations.map((s) => ({
           subjectId: s.subjectId || s.id || null,
           label: s.label,
+          displayLabel: s.displayLabel || null,
+          abbreviation: s.abbreviation || null,
+          schoolSubject: Boolean(s.schoolSubject),
           shortName: s.shortName || null,
           periodsPerWeek: Math.max(0, Math.round(Number(s.periodsPerWeek) || 0)),
+          weeklyMinutes: s.weeklyMinutes ?? null,
           optionGroupId: s.optionGroupId || s.choiceGroup || null,
           selected: s.selected !== false,
         }))
@@ -1542,5 +1971,12 @@ export function normalizeTimetableArtifact(timetable) {
     },
     curriculumId: timetable.curriculumId || null,
     selectedOptions: timetable.selectedOptions || null,
+    // Absent on everything saved before the school-sessions pass — a null
+    // timing means "every day shares the built `periods`", which is exactly
+    // what those timetables meant.
+    timing: timetable.timing || null,
+    languageName: timetable.languageName || null,
+    allocationStrategy: timetable.allocationStrategy || null,
+    subjectAllocations: Array.isArray(timetable.subjectAllocations) ? timetable.subjectAllocations : null,
   }
 }

@@ -33,6 +33,7 @@ import {
 import { useAuth } from '../../../contexts/AuthContext'
 import { useNotifications } from '../../../contexts/NotificationContext'
 import useHideOnScroll from '../../../hooks/useHideOnScroll'
+import { usePressFeedback } from '../../../hooks/useGlassTile'
 import NotificationCenter from '../../notifications/NotificationCenter'
 import BottomSheet from './BottomSheet'
 import GlassToolTile from './GlassToolTile'
@@ -41,6 +42,7 @@ import { TEACHER_NAV_GROUPS, canonicalToolLabel } from './dashboardV2Config'
 import { buildActiveMatcher } from './teacherNavActive'
 import { confirmShellNavigation } from '../register/shellNavGuardCore'
 import { STUDIO_BY_ID } from './launcher/teacherStudios'
+import useStudioAvailability from '../../../hooks/useStudioAvailability'
 import { resolveBadge } from './launcher/teacherLauncherCore'
 import useRecentStudios from './launcher/useRecentStudios'
 import { progressFraction } from './dashboardV2Core'
@@ -61,16 +63,22 @@ const BOTTOM_NAV = [
 
 /** Quick Create — the four fastest studios; routes are the canonical ones.
     Labels come from CANONICAL_TOOL_LABELS so this sheet cannot call a tool
-    something the sidebar doesn't (it used to say "Test Paper"). */
+    something the sidebar doesn't (it used to say "Test Paper").
+
+    Five are declared and four are shown, for the same reason as the desktop
+    tiles: Worksheets is withdrawn behind a flag and Homework — the practice
+    surface in the meantime — takes the freed slot rather than leaving one. */
+const QUICK_CREATE_COUNT = 4
 const QUICK_CREATE = [
   { id: 'lesson-plans', to: '/teacher/lesson-plans/new' },
   { id: 'worksheets', to: '/teacher/generate/worksheet' },
   { id: 'assessment-papers', to: '/teacher/assessment-papers/new' },
   { id: 'weekly-focus', to: '/teacher/generate/weekly-forecast' },
+  { id: 'homework', to: '/teacher/generate/homework' },
 ].map((tile) => ({ ...tile, label: canonicalToolLabel(tile.to) }))
 
 /** Default "recently used" row until this device has real visits. */
-const DEFAULT_RECENT_IDS = ['assessment-papers', 'lesson-plans', 'question-bank', 'weekly-focus']
+const DEFAULT_RECENT_IDS = ['assessment-papers', 'lesson-plans', 'worksheet', 'weekly-focus']
 
 const ACCOUNT_ITEMS = [
   { id: 'view-profile', label: 'View profile', icon: UserRound, to: '/settings/profile' },
@@ -349,10 +357,11 @@ export function MobileHeader({ drawerOpen, onOpenMenu }) {
 
 /** Quick Create bottom sheet — the four fastest creation flows. */
 function QuickCreateSheet({ open, onClose }) {
+  const { filterEntries } = useStudioAvailability()
   return (
     <BottomSheet open={open} onClose={onClose} title="Quick Create">
       <div className="tdv2m-qcsheet-grid">
-        {QUICK_CREATE.map(({ id, label, to }) => {
+        {filterEntries(QUICK_CREATE).slice(0, QUICK_CREATE_COUNT).map(({ id, label, to }) => {
           const studio = STUDIO_BY_ID[id]
           if (!studio) return null
           return (
@@ -434,6 +443,7 @@ function MobileHeroCard({ greeting, hero }) {
   const plan = hero?.plan
   const weekKnown = Number.isFinite(term?.weekNumber) && Number.isFinite(term?.totalWeeks)
   const fraction = weekKnown ? progressFraction(term.weekNumber, term.totalWeeks) : 0
+  const hasInset = Boolean(hero?.schoolName || term || hero?.nextTermOpens)
   return (
     <section className="tdv2m-hero" aria-label="Greeting" data-tour="hero">
       <div className="tdv2m-hero-main">
@@ -441,45 +451,57 @@ function MobileHeroCard({ greeting, hero }) {
           {greeting.label}, {greeting.name}{' '}
           <span aria-hidden="true">👋</span>
         </h1>
-        {hero?.schoolName ? (
-          <p className="tdv2m-hero-row tdv2m-hero-school">
-            <School size={17} strokeWidth={1.9} aria-hidden="true" />
-            <span>{hero.schoolName}</span>
-          </p>
-        ) : null}
-        {term ? (
-          <>
-            <p className="tdv2m-hero-row tdv2m-hero-term">
-              <CalendarCheck size={17} strokeWidth={1.9} aria-hidden="true" />
-              <span>
-                Term {term.termNumber}
-                {weekKnown ? <> · Week {term.weekNumber} of {term.totalWeeks}</> : null}
-              </span>
-            </p>
-            {weekKnown ? (
-              <div
-                className="tdv2m-hero-bar"
-                role="progressbar"
-                aria-valuemin={0}
-                aria-valuemax={term.totalWeeks}
-                aria-valuenow={term.weekNumber}
-                aria-label={`Week ${term.weekNumber} of ${term.totalWeeks}`}
-              >
-                <span style={{ width: `${Math.round(fraction * 100)}%` }} />
-              </div>
-            ) : null}
-            {Number.isFinite(term.daysLeft) ? (
-              <p className="tdv2m-hero-row tdv2m-hero-days">
-                <CalendarDays size={14} strokeWidth={1.9} aria-hidden="true" />
-                <span>{term.daysLeft} teaching day{term.daysLeft === 1 ? '' : 's'} left</span>
+        {/* School name and the term/holiday rows sit in a dark-glass inset:
+            the hero keeps its own deep-green identity and gradient, and the
+            factual rows read as one panel laid on it rather than as loose
+            text. The recipe is theme-invariant like the hero itself, so it
+            carries no Night override.
+
+            Rendered only when there is something to put in it — an empty
+            inset is a visible empty panel, not an invisible no-op. */}
+        {hasInset ? (
+          <div className="tdv2m-hero-inset glass-dark-inset">
+            {hero?.schoolName ? (
+              <p className="tdv2m-hero-row tdv2m-hero-school">
+                <School size={17} strokeWidth={1.9} aria-hidden="true" />
+                <span>{hero.schoolName}</span>
               </p>
             ) : null}
-          </>
-        ) : hero?.nextTermOpens ? (
-          <p className="tdv2m-hero-row tdv2m-hero-term">
-            <CalendarCheck size={17} strokeWidth={1.9} aria-hidden="true" />
-            <span>School holiday · next term opens {hero.nextTermOpens}</span>
-          </p>
+            {term ? (
+              <>
+                <p className="tdv2m-hero-row tdv2m-hero-term">
+                  <CalendarCheck size={17} strokeWidth={1.9} aria-hidden="true" />
+                  <span>
+                    Term {term.termNumber}
+                    {weekKnown ? <> · Week {term.weekNumber} of {term.totalWeeks}</> : null}
+                  </span>
+                </p>
+                {weekKnown ? (
+                  <div
+                    className="tdv2m-hero-bar"
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={term.totalWeeks}
+                    aria-valuenow={term.weekNumber}
+                    aria-label={`Week ${term.weekNumber} of ${term.totalWeeks}`}
+                  >
+                    <span style={{ width: `${Math.round(fraction * 100)}%` }} />
+                  </div>
+                ) : null}
+                {Number.isFinite(term.daysLeft) ? (
+                  <p className="tdv2m-hero-row tdv2m-hero-days">
+                    <CalendarDays size={14} strokeWidth={1.9} aria-hidden="true" />
+                    <span>{term.daysLeft} teaching day{term.daysLeft === 1 ? '' : 's'} left</span>
+                  </p>
+                ) : null}
+              </>
+            ) : hero?.nextTermOpens ? (
+              <p className="tdv2m-hero-row tdv2m-hero-term">
+                <CalendarCheck size={17} strokeWidth={1.9} aria-hidden="true" />
+                <span>School holiday · next term opens {hero.nextTermOpens}</span>
+              </p>
+            ) : null}
+          </div>
         ) : null}
       </div>
       <div className="tdv2m-hero-side" aria-hidden="true">
@@ -496,6 +518,36 @@ function MobileHeroCard({ greeting, hero }) {
 }
 
 /**
+ * A Link that presses. Feedback comes from the shared glass hook, so its
+ * timing matches every other pressable surface on the dashboard, and it
+ * lands on the LINK rather than on something inside it — the studio artwork
+ * now floats with no tile behind it, so there is no inner surface left to
+ * press.
+ */
+function PressLink({ to, className, children, onClick, ...rest }) {
+  const ref = useRef(null)
+  usePressFeedback(ref)
+  return (
+    <Link ref={ref} to={to} className={className} onClick={onClick} {...rest}>
+      {children}
+    </Link>
+  )
+}
+
+/**
+ * A checklist row that leads somewhere. Only rows with a destination get
+ * the press response — a row that goes nowhere would be promising a tap it
+ * cannot honour.
+ */
+function CheckRowLink({ to, children, onNavigate }) {
+  return (
+    <PressLink to={to} className="tdv2m-check-row is-pressable" onClick={onNavigate}>
+      {children}
+    </PressLink>
+  )
+}
+
+/**
  * Compact weekly checklist: overall count, a segmented progress indicator,
  * only the first two incomplete items, and a full-checklist bottom sheet.
  */
@@ -504,7 +556,12 @@ function WeeklyChecklistCard({ items = [], loading = false }) {
   const complete = items.filter((i) => (i.done || 0) >= i.total).length
   const incomplete = items.filter((i) => (i.done || 0) < i.total).slice(0, 2)
   return (
-    <section className="tdv2-card tdv2m-check" aria-labelledby="tdv2m-check-h">
+    /* The sheet is a SIBLING of the card, not a child: `glass-surface`
+       isolates a stacking context, and the sheet is `position: fixed` with
+       a z-index meant to beat the page's floating dock. Nested inside, that
+       z-index would only rank it within the card. */
+    <>
+    <section className="tdv2-card tdv2m-check glass-surface" aria-labelledby="tdv2m-check-h">
       <div className="tdv2m-check-head">
         <h2 className="tdv2-eyebrow" id="tdv2m-check-h">
           <ListChecks size={16} strokeWidth={2} aria-hidden="true" />
@@ -547,7 +604,7 @@ function WeeklyChecklistCard({ items = [], loading = false }) {
                 </>
               )
               return item.to ? (
-                <Link key={item.id} to={item.to} className="tdv2m-check-row">{inner}</Link>
+                <CheckRowLink key={item.id} to={item.to}>{inner}</CheckRowLink>
               ) : (
                 <div key={item.id} className="tdv2m-check-row">{inner}</div>
               )
@@ -560,39 +617,35 @@ function WeeklyChecklistCard({ items = [], loading = false }) {
           </button>
         </>
       )}
-
-      <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)} title="This Week’s Checklist">
-        <p className="tdv2m-sheet-sub">{complete} of {items.length} complete</p>
-        <div className="tdv2m-sheet-list">
-          {items.map((item) => {
-            const done = (item.done || 0) >= item.total
-            const inner = (
-              <>
-                {done ? (
-                  <CheckCircle2 size={20} strokeWidth={2} className="tdv2m-check-done" aria-hidden="true" />
-                ) : (
-                  <Circle size={20} strokeWidth={2} className="tdv2m-check-circle" aria-hidden="true" />
-                )}
-                <span className="tdv2m-check-label">{item.label}</span>
-                <span className="tdv2m-check-meta">{item.done || 0}/{item.total}</span>
-              </>
-            )
-            return item.to ? (
-              <Link
-                key={item.id}
-                to={item.to}
-                className="tdv2m-check-row"
-                onClick={() => setSheetOpen(false)}
-              >
-                {inner}
-              </Link>
-            ) : (
-              <div key={item.id} className="tdv2m-check-row">{inner}</div>
-            )
-          })}
-        </div>
-      </BottomSheet>
     </section>
+
+    <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)} title="This Week’s Checklist">
+      <p className="tdv2m-sheet-sub">{complete} of {items.length} complete</p>
+      <div className="tdv2m-sheet-list">
+        {items.map((item) => {
+          const done = (item.done || 0) >= item.total
+          const inner = (
+            <>
+              {done ? (
+                <CheckCircle2 size={20} strokeWidth={2} className="tdv2m-check-done" aria-hidden="true" />
+              ) : (
+                <Circle size={20} strokeWidth={2} className="tdv2m-check-circle" aria-hidden="true" />
+              )}
+              <span className="tdv2m-check-label">{item.label}</span>
+              <span className="tdv2m-check-meta">{item.done || 0}/{item.total}</span>
+            </>
+          )
+          return item.to ? (
+            <CheckRowLink key={item.id} to={item.to} onNavigate={() => setSheetOpen(false)}>
+              {inner}
+            </CheckRowLink>
+          ) : (
+            <div key={item.id} className="tdv2m-check-row">{inner}</div>
+          )
+        })}
+      </div>
+    </BottomSheet>
+    </>
   )
 }
 
@@ -664,7 +717,7 @@ function MobileAiRecommendation({ recommendations = [] }) {
 
   if (!rec) {
     return (
-      <section className="tdv2-card tdv2m-ai" aria-labelledby="tdv2m-ai-h" data-tour="ai-recs">
+      <section className="tdv2-card tdv2m-ai glass-panel glass-panel--ai" aria-labelledby="tdv2m-ai-h" data-tour="ai-recs">
         <div className="tdv2m-ai-top">
           <h2 className="tdv2-eyebrow tdv2m-ai-eyebrow" id="tdv2m-ai-h">
             <Sparkles size={16} strokeWidth={2} aria-hidden="true" />
@@ -681,7 +734,7 @@ function MobileAiRecommendation({ recommendations = [] }) {
 
   return (
     <>
-      <section className="tdv2-card tdv2m-ai" aria-labelledby="tdv2m-ai-h" data-tour="ai-recs">
+      <section className="tdv2-card tdv2m-ai glass-panel glass-panel--ai" aria-labelledby="tdv2m-ai-h" data-tour="ai-recs">
         <button
           type="button"
           className="tdv2m-ai-open"
@@ -783,6 +836,7 @@ function MobileAiRecommendation({ recommendations = [] }) {
 /** Up to four recently used tools as large app-style icons. */
 function RecentlyUsedTools({ savedCounts, warnings = [], onViewAll }) {
   const { recents } = useRecentStudios()
+  const { filterEntries } = useStudioAvailability()
   const warningSet = useMemo(() => new Set(warnings), [warnings])
   const studios = useMemo(() => {
     // Real recents are the activity signal. Only fall back to the curated
@@ -790,8 +844,11 @@ function RecentlyUsedTools({ savedCounts, warnings = [], onViewAll }) {
     // one or two genuine visits would see unopened studios padded in under
     // "Recently Used", which misreports what they've actually used.
     const ids = recents.length ? recents : DEFAULT_RECENT_IDS
-    return ids.map((id) => STUDIO_BY_ID[id]).filter(Boolean).slice(0, 4)
-  }, [recents])
+    // A stored visit to a studio that has since been withdrawn is the one way
+    // a hidden tool can walk back onto the dashboard — the id is on the
+    // device, not in the registry.
+    return filterEntries(ids.map((id) => STUDIO_BY_ID[id]).filter(Boolean), 'route').slice(0, 4)
+  }, [recents, filterEntries])
 
   return (
     <section aria-labelledby="tdv2m-recent-h">
@@ -806,7 +863,7 @@ function RecentlyUsedTools({ savedCounts, warnings = [], onViewAll }) {
         {studios.map((studio) => {
           const badge = resolveBadge(studio, savedCounts, { warnings: warningSet })
           return (
-            <Link
+            <PressLink
               key={studio.id}
               to={studio.route}
               className="tdv2m-recent-tool"
@@ -822,7 +879,7 @@ function RecentlyUsedTools({ savedCounts, warnings = [], onViewAll }) {
               {badge?.type === 'saved' ? (
                 <span className="tdv2m-tool-saved" aria-hidden="true">{badge.count} saved</span>
               ) : null}
-            </Link>
+            </PressLink>
           )
         })}
       </div>

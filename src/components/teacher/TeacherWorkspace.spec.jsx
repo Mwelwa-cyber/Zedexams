@@ -4,6 +4,13 @@ import { MemoryRouter } from 'react-router-dom'
 import TeacherWorkspace, { PRIMARY_GROUPS, MORE_GROUPS } from './TeacherWorkspace'
 import { capture } from '../../utils/analytics'
 
+// Every teacher navigation surface now asks studioAvailability which studios
+// are on offer, and that reads settings/global. Stubbed to the LAUNCH state
+// (no flags set → Worksheet Studio withdrawn, Rubric Studio retired).
+vi.mock('../../contexts/PlatformSettingsContext', () => ({
+  usePlatformSettings: () => ({ settings: { featureFlags: {} }, loaded: true, live: true }),
+}))
+
 vi.mock('../../utils/analytics', () => ({ capture: vi.fn() }))
 
 function renderWs(props = {}) {
@@ -25,18 +32,22 @@ describe('TeacherWorkspace', () => {
     expect(PRIMARY_GROUPS[0].items).toHaveLength(4)
     expect(PRIMARY_GROUPS[1].items).toHaveLength(4)
     // Assessment merged its Test Papers + Exam Studio tiles into one
-    // Assessment Paper Studio tile — 3 items, not 4 (no duplicate builder).
-    expect(PRIMARY_GROUPS[2].items).toHaveLength(3)
+    // Assessment Paper Studio tile, and the Question Bank stopped being a
+    // destination of its own (it is a view inside that studio) — 2 items.
+    expect(PRIMARY_GROUPS[2].items).toHaveLength(2)
     expect(PRIMARY_GROUPS[0].items.map((i) => i.title))
       .toEqual(['Schemes of Work', 'Weekly Focus', 'Lesson Plans', 'Record of Work'])
     expect(PRIMARY_GROUPS[2].items.map((i) => i.title))
-      .toEqual(['Assessment Paper Studio', 'Question Bank', 'Mark Schedule'])
+      .toEqual(['Assessment Paper Studio', 'Mark Schedule'])
   })
 
   it('shows only primary tools by default; the rest appear after expanding', () => {
     renderWs()
     expect(screen.getByText('Schemes of Work')).toBeInTheDocument()
-    expect(screen.getByText('Worksheets')).toBeInTheDocument()
+    expect(screen.getByText('Notes Studio')).toBeInTheDocument()
+    // Worksheet Studio is withdrawn behind a feature flag; its tile is
+    // filtered out of the group rather than removed from the catalogue.
+    expect(screen.queryByText('Worksheets')).not.toBeInTheDocument()
     // Secondary tools are hidden until expansion — nothing is deleted.
     expect(screen.queryByText('Flashcards')).not.toBeInTheDocument()
     expect(screen.queryByText('SBA Studio')).not.toBeInTheDocument()
@@ -74,8 +85,8 @@ describe('TeacherWorkspace', () => {
 
   it('tracks tool selections with their area and collapse events', () => {
     renderWs()
-    fireEvent.click(screen.getByText('Worksheets').closest('a'))
-    expect(capture).toHaveBeenCalledWith('workspace_tool_selected', { tool: 'Worksheets', area: 'primary' })
+    fireEvent.click(screen.getByText('Notes Studio').closest('a'))
+    expect(capture).toHaveBeenCalledWith('workspace_tool_selected', { tool: 'Notes Studio', area: 'primary' })
     fireEvent.click(screen.getByRole('button', { name: /view all teacher tools/i }))
     fireEvent.click(screen.getByText('Flashcards').closest('a'))
     expect(capture).toHaveBeenCalledWith('workspace_tool_selected', { tool: 'Flashcards', area: 'expanded' })
@@ -98,14 +109,17 @@ describe('TeacherWorkspace', () => {
       '/teacher/lesson-plans/new', '/teacher/generate/record-of-work',
       '/teacher/generate/worksheet', '/teacher/generate/notes', '/teacher/generate/homework',
       '/teacher/visual-studio', '/teacher/assessment-papers',
-      '/teacher/question-bank', '/teacher/generate/mark-schedule',
+      '/teacher/generate/mark-schedule',
       '/teacher/syllabi', '/teacher/curriculum', '/teacher/calendar', '/teacher/templates',
       '/teacher/register', '/teacher/generate/class-timetable',
-      '/teacher/generate/flashcards', '/teacher/generate/rubric',
+      '/teacher/generate/flashcards',
       '/teacher/generate/sba', '/teacher/generate/sba-tracker', '/teacher/generate/sba-planner',
       '/teacher/library', '/teacher/drafts',
     ]) {
       expect(all).toContain(route)
     }
+    // Rubric Studio is retired: its tile is gone from the catalogue, not
+    // merely hidden, so nothing can route a teacher back into it.
+    expect(all).not.toContain('/teacher/generate/rubric')
   })
 })

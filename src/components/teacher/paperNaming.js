@@ -39,6 +39,7 @@
 // (scripts/test-doc-title-model.mjs).
 
 import { paperGradeLabel, normalizeAssessmentType } from './paperTaxonomy.js'
+import { joinDash, joinDot } from '../../utils/responsiveTitle.js'
 import {
   assessmentTypePhrase, readPaperTerm, readPaperYear, teacherAuthoredTitle,
 } from './assessmentTitle.js'
@@ -254,13 +255,6 @@ export function composeDocTitle(paper = {}, { width = DOC_TITLE_WIDE, status = '
   return { mode: 'narrow', line1, line2: joinDot(line2Parts), facts: f }
 }
 
-function joinDash(left, right) {
-  const a = String(left ?? '').trim()
-  const b = String(right ?? '').trim()
-  if (a && b) return `${a} — ${b}`
-  return a || b
-}
-
-function joinDot(parts) {
-  return parts.map((p) => String(p ?? '').trim()).filter(Boolean).join(' · ')
-}
+// joinDash / joinDot moved to src/utils/responsiveTitle.js when the past-paper
+// archive needed the same drop-a-whole-fact composition. The separators are
+// the shared part; the PRIORITY ORDER above is not, and stays here.

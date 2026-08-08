@@ -15,7 +15,7 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { extractExports, extractRewrites, classify } from './lib/functionsManifest.mjs'
+import { extractExports, extractRewrites, classify, RISK_RANK } from './lib/functionsManifest.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const OUT = path.join(ROOT, 'scripts', 'functions-manifest.json')
@@ -36,7 +36,10 @@ for (const e of entries.sort((a, b) => a.name.localeCompare(b.name))) {
   const rewritePath = rewriteEntry?.[0] ?? null
   const rewriteRegion = rewriteEntry?.[1].region ?? null
   const prev = previous[e.name] ?? {}
-  const classification = prev.classification ?? classify(e, rewrites)
+  const seed = classify(e, rewrites)
+  // Regeneration may ESCALATE a stale hand classification to the rule seed
+  // (the floor), never lower one below it.
+  const classification = RISK_RANK[prev.classification] >= RISK_RANK[seed] ? prev.classification : seed
   manifest[e.name] = {
     kind: e.kind,
     inline: e.inline,

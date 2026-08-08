@@ -24,7 +24,7 @@
  * Quick actions keep the two most-used links (Practice Quiz / Past Paper)
  * visible and fold the rest behind "More". Links render only when the paper
  * maps to a real ZedExams resource (subjectId → /practise, paperSubjectId →
- * /papers); Special Paper 2 and most Zambian languages simply show fewer
+ * /papers); the special papers and most Zambian languages simply show fewer
  * buttons. Unavailable actions are never shown.
  */
 
@@ -151,8 +151,8 @@ function QuickActions({ session, paper, grade, completed }) {
         { label: 'Study Plan', to: '/study-plan' },
       ]
 
-  // Papers with no mapped resources (Special Paper 2): surface Revision
-  // Notes inline rather than an empty row next to a lone "More" button.
+  // Papers with no mapped resources at all: surface Revision Notes inline
+  // rather than an empty row next to a lone "More" button.
   if (primary.length === 0 && more.length > 0) primary.push(more.shift())
 
   return (

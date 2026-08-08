@@ -15,6 +15,12 @@ import {
 const ZAMBIA_GREEN = '#1a7a4a'
 const ZAMBIA_GOLD = '#d4a017'
 const ZAMBIA_RED = '#c0392b'
+// Ink for anything painted ON the gold fill. White measured 2.39:1 on
+// #d4a017 in every theme; a near-black keeps the flag gold and clears 7:1.
+const INK_ON_GOLD = '#1C1705'
+// The flag green used AS text. As a fixed hex it measured 2.59:1 on the
+// Night card; the semantic token keeps the hue family and flips per theme.
+const GREEN_INK = 'var(--success-fg)'
 
 const LEVELS = [
   {
@@ -106,8 +112,8 @@ export default function CurriculumHome() {
         className="mb-4 flex items-center gap-3 rounded-2xl border theme-border theme-card p-4 shadow-elev-md no-underline transition hover:theme-card-hover"
       >
         <span
-          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-white"
-          style={{ background: ZAMBIA_GOLD }}
+          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl"
+          style={{ background: ZAMBIA_GOLD, color: INK_ON_GOLD }}
           aria-hidden
         >
           <Icon as={BookOpen} size="sm" strokeWidth={2.1} />
@@ -169,7 +175,7 @@ export default function CurriculumHome() {
       {/* ── The rest of the education system (Tertiary · YALE) ── */}
       <section className="mt-8">
         <header className="mb-3">
-          <div className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.14em]" style={{ color: ZAMBIA_GREEN }}>
+          <div className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.14em]" style={{ color: GREEN_INK }}>
             <Icon as={Layers} size="xs" strokeWidth={2.2} />
             The whole system
           </div>
@@ -212,7 +218,7 @@ export default function CurriculumHome() {
       {/* ── Framework Foundations (apply across every grade & subject) ── */}
       <section className="mt-8">
         <header className="mb-3">
-          <div className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.14em]" style={{ color: ZAMBIA_GREEN }}>
+          <div className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.14em]" style={{ color: GREEN_INK }}>
             <Icon as={Sparkles} size="xs" strokeWidth={2.2} />
             Foundations
           </div>
@@ -272,7 +278,7 @@ export default function CurriculumHome() {
 
           <article className="rounded-3xl border theme-border theme-card p-5 shadow-elev-md">
             <div className="flex items-center gap-2">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl text-white" style={{ background: ZAMBIA_GOLD }} aria-hidden>
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: ZAMBIA_GOLD, color: INK_ON_GOLD }} aria-hidden>
                 <Icon as={ShieldCheck} size="sm" strokeWidth={2.1} />
               </span>
               <div>
@@ -289,8 +295,8 @@ export default function CurriculumHome() {
                 <li key={v} className="flex items-start gap-2">
                   <span
                     aria-hidden
-                    className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-black text-white"
-                    style={{ background: ZAMBIA_GOLD }}
+                    className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-black"
+                    style={{ background: ZAMBIA_GOLD, color: INK_ON_GOLD }}
                   >
                     {i + 1}
                   </span>
@@ -332,7 +338,7 @@ export default function CurriculumHome() {
             <ul className="mt-3 space-y-2.5">
               {GUIDING_PRINCIPLES.map(([name, def]) => (
                 <li key={name} className="text-sm theme-text">
-                  <span className="font-black" style={{ color: ZAMBIA_GREEN }}>{name}.</span>{' '}
+                  <span className="font-black" style={{ color: GREEN_INK }}>{name}.</span>{' '}
                   <span className="theme-text-muted">{def}</span>
                 </li>
               ))}

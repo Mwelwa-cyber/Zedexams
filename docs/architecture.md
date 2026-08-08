@@ -1181,7 +1181,8 @@ src/
 │   │    badges, results, study-plan, classes, search, offline-library)
 │   ├── (teacher: assessment-studio, lesson-plan-studio, generators…, sba,
 │   │    class-register, class-list, syllabi, calendar, teacher-library,
-│   │    templates, question-bank, scan-import, my-classes)
+│   │    templates, scan-import, my-classes; the question bank is a VIEW of
+│   │    assessment-studio, not a surface of its own)
 │   ├── (admin: dashboard, users, content, curriculum-admin, past-paper-studio,
 │   │    ai-admin, payments-admin, agents-console, settings)
 │   ├── (parent: family, child-progress, shares)

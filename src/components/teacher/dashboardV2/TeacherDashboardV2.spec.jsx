@@ -7,6 +7,13 @@ import TeacherLayout from '../TeacherLayout'
 import TeacherDashboardV2 from './TeacherDashboardV2'
 import { TOUR_STORAGE_KEY } from './onboardingTourCore'
 
+// Every teacher navigation surface now asks studioAvailability which studios
+// are on offer, and that reads settings/global. Stubbed to the LAUNCH state
+// (no flags set → Worksheet Studio withdrawn, Rubric Studio retired).
+vi.mock('../../../contexts/PlatformSettingsContext', () => ({
+  usePlatformSettings: () => ({ settings: { featureFlags: {} }, loaded: true, live: true }),
+}))
+
 // These specs exercise the dashboard chrome — suppress the first-run tour
 // (its own behaviour is covered in OnboardingTour.spec.jsx).
 beforeEach(() => {
@@ -166,7 +173,7 @@ describe('TeacherDashboardV2', () => {
     const u = user()
     renderDashboard()
     // Featured cards render up-front; the rest sit behind the expander.
-    expect(screen.getByLabelText(/^Question Bank.*Open studio$/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^School-Based Assessment.*Open studio$/)).toBeInTheDocument()
     expect(screen.queryByLabelText(/^Class Timetable.*Open studio$/)).not.toBeInTheDocument()
 
     const toggle = screen.getByRole('button', { name: /View all teacher tools \(\d+ more\)/ })

@@ -16,6 +16,9 @@
  *   - 'covered'  a continuation slot of a block → render nothing (merged)
  *   - 'empty'    a fillable lesson slot with nothing placed
  *   - 'off'      beyond this day's configured lesson count (day ends early)
+ *   - 'band'     this DAY has a non-teaching row in that time column while
+ *                other days have a lesson — the assembly that occupies
+ *                Period 1 on Monday only. Rendered as a tinted band cell.
  *
  * Pure and DOM-free so `node` can unit test it.
  */
@@ -26,6 +29,7 @@ import {
   periodsForDay,
 } from './classTimetable.js'
 import { BLOCK_TYPES } from './timetableBlocks.js'
+import { resolveSubjectAbbreviation } from './subjectAbbreviations.js'
 
 /** "Period 3", "08:15–08:55" or "Period 3 · 08:15–08:55" per the label mode. */
 export function formatPeriodLabel(row, slot, mode = 'period-time') {
@@ -34,6 +38,8 @@ export function formatPeriodLabel(row, slot, mode = 'period-time') {
   if (mode === 'period') return `Period ${slot}`
   return `Period ${slot} · ${time}`
 }
+
+const timeKey = (row) => `${row.start}|${row.end}`
 
 /**
  * Build the render model from any saved timetable artifact (v1 or v2).
@@ -46,13 +52,23 @@ export function formatPeriodLabel(row, slot, mode = 'period-time') {
  * header/gutter rendering and the exporters keep working unchanged when
  * every day shares one structure (the original, still-most-common case).
  *
+ * Two ways a day can differ from that reference, resolved differently on
+ * purpose (see resolveDayCell):
+ *   - it keeps the same clock boundaries but swaps a lesson for a band (the
+ *     assembly that occupies Period 1 on Monday). The day is TIME-ALIGNED,
+ *     so cells resolve by time and the band renders where it belongs.
+ *   - its times genuinely differ (a half-day Friday). Cells resolve by slot,
+ *     as they always have, and each carries its own time caption.
+ *
  * @returns {{
  *   header, days:string[], layout:string, labelMode:string,
  *   rows:Array<{kind:'lesson'|'break', event?, slot?, id, label, start, end}>,
  *   rowsByDay:Object<string, Array<...>>,
+ *   aligned:Object<string, boolean>,
  *   maxSlot:number, slotCount:Object<string,number>,
  *   cells:Object<string, Object<number, {state:'start'|'covered', block}>>,
- *   subjects:string[] (distinct curriculum labels in first-appearance order)
+ *   subjects:string[] (distinct curriculum labels in first-appearance order),
+ *   displayLabels:Object<string,string>, abbreviations:Object<string,string>
  * }}
  */
 export function buildTimetableGridModel(timetableRaw, overrides = {}) {
@@ -60,15 +76,17 @@ export function buildTimetableGridModel(timetableRaw, overrides = {}) {
   if (!t) return null
   const days = t.days
   const periods = t.periods
-  const layout = overrides.layout || t.displayPreferences?.timetableLayout || 'days-as-columns'
-  const labelMode = overrides.labelMode || t.displayPreferences?.periodLabelMode || 'period-time'
+  const timing = t.timing || null
+  const prefs = t.displayPreferences || {}
+  const layout = overrides.layout || prefs.timetableLayout || 'days-as-columns'
+  const labelMode = overrides.labelMode || prefs.periodLabelMode || 'period-time'
 
   // Each day's own period rows, annotated with their 1-based lesson slot.
   const rowsByDay = {}
   let maxSlot = 0
   let referenceDay = null
   for (const day of days) {
-    const dayPeriods = periodsForDay(day, periods, t.dayStructure)
+    const dayPeriods = periodsForDay(day, periods, t.dayStructure, timing)
     let slot = 0
     rowsByDay[day] = dayPeriods.map((p) => {
       if (p.kind !== 'lesson') return { ...p }
@@ -80,8 +98,20 @@ export function buildTimetableGridModel(timetableRaw, overrides = {}) {
   if (!referenceDay) referenceDay = days[0] || null
   const rows = referenceDay ? rowsByDay[referenceDay] : []
 
+  // Which days share the reference's exact clock boundaries. Only those can
+  // be resolved by TIME; the rest keep the original slot-based resolution so
+  // a half-day Friday renders exactly as it did before.
+  const rowIndexByDay = {}
+  const aligned = {}
+  for (const day of days) {
+    const map = new Map()
+    for (const r of rowsByDay[day]) map.set(timeKey(r), r)
+    rowIndexByDay[day] = map
+    aligned[day] = rows.every((r) => map.has(timeKey(r)))
+  }
+
   const slotCount = {}
-  for (const day of days) slotCount[day] = slotCountForDay(day, periods, t.dayStructure)
+  for (const day of days) slotCount[day] = slotCountForDay(day, periods, t.dayStructure, timing)
 
   // Occupancy: day → slot → { state, block }.
   const cells = {}
@@ -105,6 +135,20 @@ export function buildTimetableGridModel(timetableRaw, overrides = {}) {
     }
   }
 
+  // Printed names + cell codes, resolved from the saved subject list so
+  // every renderer shows the same words. Blocks keep their CANONICAL label
+  // as identity — a relabelled language never breaks curriculum accounting.
+  const displayLabels = {}
+  const abbreviations = {}
+  for (const s of Array.isArray(t.subjectAllocations) ? t.subjectAllocations : []) {
+    if (!s?.label) continue
+    if (s.displayLabel && s.displayLabel !== s.label) displayLabels[s.label] = s.displayLabel
+    abbreviations[s.label] = resolveSubjectAbbreviation(s)
+  }
+  for (const label of subjects) {
+    if (!abbreviations[label]) abbreviations[label] = resolveSubjectAbbreviation({ label })
+  }
+
   return {
     header: t.header,
     days,
@@ -112,11 +156,18 @@ export function buildTimetableGridModel(timetableRaw, overrides = {}) {
     labelMode,
     rows,
     rowsByDay,
+    rowIndexByDay,
+    aligned,
     maxSlot,
     slotCount,
     cells,
     subjects,
+    displayLabels,
+    abbreviations,
+    subjectAllocations: Array.isArray(t.subjectAllocations) ? t.subjectAllocations : [],
+    languageName: t.languageName || null,
     dayStructure: t.dayStructure || null,
+    timing,
     displayPreferences: t.displayPreferences,
   }
 }
@@ -136,6 +187,46 @@ export function cellState(model, day, slot) {
   if (cell) return cell
   if (slot > (model.slotCount?.[day] ?? model.maxSlot)) return { state: 'off', block: null }
   return { state: 'empty', block: null }
+}
+
+/**
+ * What one day holds in the time column a REFERENCE lesson row occupies.
+ *
+ * This is the call every renderer should make when walking `model.rows`,
+ * because it is the only one that can answer "Monday has ASSEMBLY where
+ * Tuesday has a lesson". A time-aligned day is looked up by its clock
+ * times; anything else falls back to the slot lookup renderers have always
+ * used, so no existing timetable changes.
+ *
+ * @returns {{state:'start'|'covered'|'empty'|'off'|'band', block, row, bandLabel}}
+ */
+export function resolveDayCell(model, day, refRow) {
+  if (!refRow || refRow.kind !== 'lesson') return { state: 'off', block: null, row: null }
+  if (model.aligned?.[day]) {
+    const own = model.rowIndexByDay?.[day]?.get(timeKey(refRow))
+    if (!own) return { state: 'off', block: null, row: null }
+    if (own.kind === 'break') {
+      return { state: 'band', block: null, row: own, bandLabel: own.label, event: own.event }
+    }
+    return { ...cellState(model, day, own.slot), row: own }
+  }
+  return { ...cellState(model, day, refRow.slot), row: dayRowForSlot(model, day, refRow.slot) }
+}
+
+/** The name printed in a cell: the subject's display name (a relabelled
+ * language) or its canonical label. */
+export function displayLabelFor(model, label) {
+  return model?.displayLabels?.[label] || label
+}
+
+/** The short code printed in a narrow cell. */
+export function abbreviationFor(model, label) {
+  return model?.abbreviations?.[label] || resolveSubjectAbbreviation({ label })
+}
+
+/** The text a cell prints, per the resolved cell-text mode. */
+export function cellTextFor(model, label, mode) {
+  return mode === 'abbrev' ? abbreviationFor(model, label) : displayLabelFor(model, label)
 }
 
 /** Soft, print-safe tints cycled across the distinct subjects in the grid. */

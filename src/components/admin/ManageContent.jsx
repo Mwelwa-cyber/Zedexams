@@ -684,6 +684,13 @@ export default function ManageContent() {
   }
 
   // ── Past paper actions ──────────────────────────────────────────────────
+  //
+  // NOTE — publishing is NOT gated on the paper having a source. #2193 added
+  // such a guard, because at the time an unlabelled paper was invisible to
+  // learners and "publish" was therefore a silent no-op. That visibility gate
+  // has since been reverted (it emptied the archive), so an unlabelled paper
+  // publishes and shows normally, carrying an "Unlabelled" badge. Keeping the
+  // guard would now block publishing for a reason that no longer exists.
   async function togglePaperPublish(paper) {
     const next = paper.status === 'published' ? PAPER_STATUSES.DRAFT : PAPER_STATUSES.PUBLISHED
     await updatePaper(paper.id, { status: next })
