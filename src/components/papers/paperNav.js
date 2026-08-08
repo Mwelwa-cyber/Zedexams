@@ -12,7 +12,6 @@ import { paperQuizIsAttached } from '../../utils/pastPaperQuizStatus.js'
 import {
   comparePapersBySource,
   isOfficialSource,
-  paperSourceIsLearnerVisible,
   paperSourceLabel,
 } from '../../config/paperSources.js'
 
@@ -66,17 +65,6 @@ export function subjectsForYear(papers, grade, year) {
     .sort((a, b) => a.subject.localeCompare(b.subject))
 }
 
-/**
- * Drop any paper whose provenance is not established.
- *
- * The Firestore rules and the published-list index are what actually enforce
- * this — a learner is never SENT an unlabelled paper. This is the third layer,
- * for the two paths that can hold a paper the query did not fetch: the hub's
- * per-tab cache (written before this rule existed) and the sample fallback.
- */
-export function filterLabelledPapers(papers) {
-  return (Array.isArray(papers) ? papers : []).filter(paperSourceIsLearnerVisible)
-}
 
 /**
  * Ordered list of sibling papers for the same grade+year (one per

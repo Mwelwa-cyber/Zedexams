@@ -98,20 +98,17 @@ export const LEGACY_PAPER_NUMBERS = [3, 4, 5]
  *
  *   explicit  a human chose it (the admin wizard, or the labelling queue)
  *   inferred  the migration matched a pattern against the old free text
- *   unknown   nothing matched — the source is NOT guessed, and the paper is
- *             withheld from learners until a human labels it
+ *   unknown   nothing matched — the source is NOT guessed. The paper is still
+ *             SHOWN; it simply carries an "Unlabelled" badge until a human
+ *             says where it came from. (#2191 withheld these from learners and
+ *             emptied the archive, because absence was the state every paper
+ *             was already in. Labelling is a quality signal, never a gate.)
  */
 export const SOURCE_CONFIDENCE = {
   EXPLICIT: 'explicit',
   INFERRED: 'inferred',
   UNKNOWN: 'unknown',
 }
-
-/** The confidences a learner-visible paper may carry. */
-export const LEARNER_VISIBLE_CONFIDENCE = [
-  SOURCE_CONFIDENCE.EXPLICIT,
-  SOURCE_CONFIDENCE.INFERRED,
-]
 
 /** The schema version stamped on any paper carrying these fields. */
 export const PAPER_META_VERSION = 1
@@ -235,24 +232,6 @@ export function normalizeSourceConfidence(value) {
   if (typeof value !== 'string') return SOURCE_CONFIDENCE.UNKNOWN
   const raw = value.trim().toLowerCase()
   return Object.values(SOURCE_CONFIDENCE).includes(raw) ? raw : SOURCE_CONFIDENCE.UNKNOWN
-}
-
-/**
- * May a learner be shown this paper?
- *
- * Two things must BOTH hold: the paper names a source we recognise, and that
- * source was established rather than left unknown. Fail-closed — a paper whose
- * provenance we cannot state is not shown, because showing it is exactly the
- * "is this the real exam?" question we would be answering with a shrug.
- *
- * This is the client-side half of the rule. The Firestore rules enforce the
- * same thing, and the published-list index is built with the same filter, so
- * this function is a UX courtesy rather than the guarantee.
- */
-export function paperSourceIsLearnerVisible(paper) {
-  if (!paper || typeof paper !== 'object') return false
-  if (!getPaperSource(paper.source)) return false
-  return LEARNER_VISIBLE_CONFIDENCE.includes(normalizeSourceConfidence(paper.sourceConfidence))
 }
 
 /**

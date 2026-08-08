@@ -30,7 +30,7 @@ import { getDownloadURL, ref as storageRef } from 'firebase/storage'
 import { deleteObject, uploadBytes } from '../firebase/attestedStorage'
 import { db, storage } from '../firebase/config'
 import { capture } from './analytics'
-import { LEARNER_VISIBLE_CONFIDENCE, isOfficialSource } from '../config/paperSources.js'
+import { isOfficialSource } from '../config/paperSources.js'
 import { derivedPaperTitle, normalizePaperFields } from './pastPaperNormalize.js'
 import {
   attachQuizFields,
@@ -96,27 +96,21 @@ const COLLECTION = 'pastPapers'
  * (the full ECZ archive at 7 years × 7 subjects × 3 grades is well
  * under that cap).
  *
- * TWO source rules are enforced HERE, in the query, not in a client-side
- * `.filter()` afterwards:
+ * `officialOnly` is ONE equality on the derived `isOfficial` boolean. That is
+ * what the field is for: an OR across every mock publisher we ever add is not
+ * a Firestore query.
  *
- *   - Every learner read is constrained to papers whose provenance is
- *     established (`sourceConfidence in ['explicit','inferred']`). An `in`
- *     rather than `!= 'unknown'` on purpose: a `!=` matches nothing for a
- *     document that has no such field at all, and the un-migrated legacy
- *     papers — the exact ones whose source we cannot state — are precisely
- *     the documents missing it. The security rules refuse those reads too;
- *     this keeps the client from asking for what it will not be given.
- *   - `officialOnly` is ONE equality on the derived `isOfficial` boolean.
- *     That is what the field is for: an OR across every mock publisher we
- *     ever add is not a Firestore query.
+ * NOTE — there is deliberately NO filter on `sourceConfidence` here. #2191
+ * constrained every learner read to papers whose provenance was established,
+ * which combined with the matching rules gate to hide the ENTIRE archive until
+ * a manual migration had run. Reverted: an unlabelled paper is listed and
+ * renders with an "Unlabelled" badge, which is honest and visible, rather than
+ * vanishing.
  */
 export async function listPublishedPapers({
   grade, subject, year, officialOnly = false, limit = 200,
 } = {}) {
-  const filters = [
-    where('status', '==', PAPER_STATUSES.PUBLISHED),
-    where('sourceConfidence', 'in', LEARNER_VISIBLE_CONFIDENCE),
-  ]
+  const filters = [where('status', '==', PAPER_STATUSES.PUBLISHED)]
   if (grade)   filters.push(where('grade',   '==', String(grade)))
   if (subject) filters.push(where('subject', '==', String(subject)))
   if (year)    filters.push(where('year',    '==', Number(year)))

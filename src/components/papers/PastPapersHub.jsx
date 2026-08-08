@@ -47,7 +47,6 @@ import {
 import { paperQuizIsAttached } from '../../utils/pastPaperQuizStatus'
 import {
   deriveYears,
-  filterLabelledPapers,
   filterPapers,
   isSpecimen,
   subjectsForYear,
@@ -506,13 +505,8 @@ export default function PastPapersHub() {
   const searchRef = useRef(null)
 
   const cachedOnMount = getCachedPublishedPapers()
-  // The cache can predate the source fields (it survives across sessions), so
-  // it is put through the same labelling guard as a live read. A paper whose
-  // provenance we cannot state is not rendered from a stale cache either.
   const [loaded, setLoaded] = useState(() =>
-    cachedOnMount
-      ? filterLabelledPapers(cachedOnMount).filter((p) => PAPER_GRADES.includes(String(p.grade)))
-      : [],
+    cachedOnMount ? cachedOnMount.filter((p) => PAPER_GRADES.includes(String(p.grade))) : [],
   )
   const [loading, setLoading] = useState(() => !cachedOnMount)
   const [usingSample, setUsingSample] = useState(false)
@@ -564,8 +558,7 @@ export default function PastPapersHub() {
     loadPublishedPapers()
       .then((rows) => {
         if (cancelled) return
-        const visible = filterLabelledPapers(rows)
-          .filter((p) => PAPER_GRADES.includes(String(p.grade)))
+        const visible = rows.filter((p) => PAPER_GRADES.includes(String(p.grade)))
         if (visible.length) {
           setLoaded(visible)
           setUsingSample(false)

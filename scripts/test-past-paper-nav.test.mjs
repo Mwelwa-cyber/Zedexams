@@ -18,7 +18,6 @@ import {
   viewPath,
   isSpecimen,
   filterPapers,
-  filterLabelledPapers,
 } from '../src/components/papers/paperNav.js'
 
 let passed = 0
@@ -156,14 +155,19 @@ eq(filterPapers([ECZ_2025, MOCK_2025], {}).length, 2, 'without the filter both p
 eq(filterPapers([ECZ_2025, MOCK_2025], { query: 'prisca' }).map((p) => p.id).join(), 'mock',
   'searching a publisher finds its paper')
 
-// Unlabelled papers never reach a learner surface, even from a stale cache.
+// An UNLABELLED paper is listed, not hidden. #2191 dropped these from every
+// learner surface, which combined with the rules gate to empty the archive.
 const UNLABELLED = { id: 'x', grade: '7', subject: 'science', year: 2024, sourceConfidence: 'unknown' }
 const LEGACY = { id: 'y', grade: '7', subject: 'science', year: 2023 }
 eq(
-  filterLabelledPapers([ECZ_2025, UNLABELLED, LEGACY]).map((p) => p.id).join(),
-  'ecz',
-  'filterLabelledPapers drops both the unknown-confidence and the pre-source papers',
+  filterPapers([ECZ_2025, UNLABELLED, LEGACY], { grade: '7' }).length,
+  3,
+  'unlabelled and pre-source papers are still listed',
 )
-eq(filterLabelledPapers(null).length, 0, 'filterLabelledPapers survives a null list')
+eq(
+  filterPapers([ECZ_2025, UNLABELLED, LEGACY], { grade: '7', officialOnly: true }).map((p) => p.id).join(),
+  'ecz',
+  '"Official only" still narrows to ECZ — that filter is a CHOICE, not a gate',
+)
 
 console.log(`\n✓ past-paper-nav: ${passed} assertions passed`)
