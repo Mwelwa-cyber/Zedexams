@@ -653,6 +653,15 @@ export default function PastPaperStudio() {
     setLinkingQuiz(true)
     try {
       const quizId = doc(collection(db, 'quizzes')).id
+      // Source-paper reference fields: what PastPaperReferenceBanner and the
+      // Quiz Editor's "Crop from page" use to reach the uploaded paper from
+      // inside the editor. The legacy converter (paperToQuizConverter) always
+      // set these; Studio-created quizzes were missing them, which is why the
+      // banner never rendered for them.
+      const paperPdfAsset = assets.find(
+        a => a.role !== ASSET_ROLES.MARK_SCHEME && String(a.contentType || '').toLowerCase() === 'application/pdf',
+      ) || null
+      const markSchemeAsset = assets.find(a => a.role === ASSET_ROLES.MARK_SCHEME) || null
       const fields = {
         title: `${derivedPaperTitle(identityFields)} — Quiz`,
         subject: details.subject,
@@ -666,6 +675,9 @@ export default function PastPaperStudio() {
         // when weak topics are computed.
         paperSource: details.source || null,
         paperIsOfficial: isOfficialSource(details.source),
+        sourcePastPaperId: paperId,
+        sourcePastPaperPdfPath: paperPdfAsset?.path || null,
+        sourceMarkSchemePath: markSchemeAsset?.path || null,
         createdBy: currentUser.uid,
         questionCount: 0,
         createdAt: serverTimestamp(),

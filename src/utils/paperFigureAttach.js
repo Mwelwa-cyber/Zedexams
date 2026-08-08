@@ -20,7 +20,7 @@
  * import or the other figures. The caller reports attached/failed counts.
  */
 
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, getDoc, setDoc, serverTimestamp, writeBatch, arrayUnion } from 'firebase/firestore'
 import { getDownloadURL, ref as storageRef } from 'firebase/storage'
 import { uploadBytes } from '../firebase/attestedStorage'
 import { db, storage } from '../firebase/config'
@@ -128,26 +128,34 @@ export async function attachPaperFigures({ uid, paperId, quizId, figures, assets
   if (!plan.length) return { attached: 0, failed: 0, skipped: skipped.length }
 
   const pdfCache = {}
-  const attachedById = {}
+  const attachedById = {}          // passage-targeted crops → passages[] merge
+  const attachedByQuestionId = {}  // question-targeted crops → question docs
   let failed = 0
   for (const item of plan) {
+    const targetId = item.passageId || item.questionId
     try {
       const blob = await renderFigureCrop(item, localFiles || {}, pdfCache)
-      const path = `papers/${uid}/${paperId}/figures/${item.passageId}-${Date.now().toString(36)}.jpg`
+      const path = `papers/${uid}/${paperId}/figures/${targetId}-${Date.now().toString(36)}.jpg`
       await uploadBytes(storageRef(storage, path), blob, { contentType: 'image/jpeg' })
       const url = await getDownloadURL(storageRef(storage, path))
-      attachedById[item.passageId] = {
+      const hit = {
         url,
         alt: item.title || `Figure from page ${item.page} of the paper`,
+        // A boxless figure means the WHOLE page was attached — flag it so the
+        // question card tells the admin to crop it down.
+        wholePage: !item.box,
+        page: item.page,
       }
+      if (item.passageId) attachedById[item.passageId] = hit
+      else attachedByQuestionId[item.questionId] = hit
     } catch (err) {
-      console.warn('[paperFigureAttach] figure attach failed', item.passageId, err?.message)
+      console.warn('[paperFigureAttach] figure attach failed', targetId, err?.message)
       failed += 1
     }
   }
 
-  const attached = Object.keys(attachedById).length
-  if (attached) {
+  const attachedPassages = Object.keys(attachedById).length
+  if (attachedPassages) {
     // Rewrite the quiz doc's passages array with the fresh figure URLs.
     const quizRef = doc(db, 'quizzes', quizId)
     const snap = await getDoc(quizRef)
@@ -157,5 +165,36 @@ export async function attachPaperFigures({ uid, paperId, quizId, figures, assets
       updatedAt: serverTimestamp(),
     }, { merge: true })
   }
-  return { attached, failed, skipped: skipped.length }
+
+  // Question-own figures write straight onto their question docs (the import
+  // stores questions in the quizzes/{id}/questions subcollection with
+  // deterministic ids the report's figures[] entries carry). Best-effort:
+  // a failed batch marks every question hit as failed, never throws.
+  const questionIds = Object.keys(attachedByQuestionId)
+  let attachedQuestions = 0
+  if (questionIds.length) {
+    try {
+      const batch = writeBatch(db)
+      for (const qid of questionIds) {
+        const hit = attachedByQuestionId[qid]
+        batch.set(doc(db, 'quizzes', quizId, 'questions', qid), {
+          imageUrl: hit.url,
+          imageAlt: hit.alt,
+          // A whole-page attach still needs a human trim — note it on the
+          // card's review list (arrayUnion so the server-written diagramText
+          // description and any existing notes survive untouched).
+          ...(hit.wholePage ? {
+            reviewNotes: arrayUnion(`Whole page ${hit.page} attached — use Crop to trim it down to just this question's picture.`),
+          } : {}),
+        }, { merge: true })
+      }
+      await batch.commit()
+      attachedQuestions = questionIds.length
+    } catch (err) {
+      console.warn('[paperFigureAttach] question figure write failed', err?.message)
+      failed += questionIds.length
+    }
+  }
+
+  return { attached: attachedPassages + attachedQuestions, failed, skipped: skipped.length }
 }
