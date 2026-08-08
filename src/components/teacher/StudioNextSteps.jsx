@@ -16,9 +16,15 @@ import { Link } from 'react-router-dom'
 import Icon from '../ui/Icon'
 import { ArrowRight } from '../ui/icons'
 import { capture } from '../../utils/analytics'
+import useStudioAvailability from '../../hooks/useStudioAvailability'
 
 export default function StudioNextSteps({ context, actions = [], facts = [] }) {
-  if (!actions.length && !facts.length) return null
+  // A next step into a studio that is no longer offered is a dead end dressed
+  // as a workflow — filtered here, once, rather than in each studio that
+  // offers one.
+  const { filterEntries } = useStudioAvailability()
+  const visible = filterEntries(actions)
+  if (!visible.length && !facts.length) return null
   return (
     <div className="studio-next-steps" role="note" aria-label="What would you like to do next?">
       <p className="studio-next-steps__title">What would you like to do next?</p>
@@ -32,7 +38,7 @@ export default function StudioNextSteps({ context, actions = [], facts = [] }) {
         </ul>
       )}
       <div className="studio-next-steps__actions">
-        {actions.map((a, i) => (
+        {visible.map((a, i) => (
           <Link
             key={a.label}
             to={a.to}

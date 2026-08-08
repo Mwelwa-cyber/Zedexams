@@ -55,12 +55,12 @@ sequenceDiagram
 | Studio | Route | CF | Curriculum source | Draft | Notes |
 |---|---|---|---|---|---|
 | **Lesson Plan** | `/teacher/generate/lesson-plan` (ungated) | `studioGenerateLessonPlan` (+ SSE `apiGenerateLessonPlan`) | `useActiveAssignmentContext` (async) + Weekly-Forecast context | `useDraftManager` (input slices only; AI output not restored) | Bespoke `StudioCanvas`/`LiveLessonPlanPreview`, not LiveGenerationCanvas |
-| **Worksheet** | `/teacher/generate/worksheet` | `generateWorksheet` (+ SSE) | `StudioCurriculumSelector` seed | `useStudioInputDraft` | |
+| **Worksheet** | `/teacher/generate/worksheet` | `generateWorksheet` (+ SSE) | `StudioCurriculumSelector` seed | `useStudioInputDraft` | **Withdrawn 2026-08** behind `featureFlags.worksheetStudioEnabled` (default off) — the module still builds; saved worksheets stay readable and exportable |
 | **Notes** | `/teacher/generate/notes` | `generateNotes` | selector seed | input draft | |
 | **Homework** | `/teacher/generate/homework` | `generateHomework` | selector seed | input draft | |
 | **Flashcards** | `/teacher/generate/flashcards` | `generateFlashcards` | selector seed | input draft | |
 | **Scheme of Work** | `/teacher/generate/scheme-of-work` | `generateSchemeOfWork` | selector seed | input draft | |
-| **Rubric** | `/teacher/generate/rubric` | `generateRubric` | selector seed | input draft | |
+| ~~**Rubric**~~ | ~~`/teacher/generate/rubric`~~ | `generateRubric` (still deployed, unreachable) | — | — | **Retired 2026-08** — no route mounts the page; `RubricView` still renders saved rubrics in My Library |
 | **Weekly Forecast** | `/teacher/generate/weekly-forecast` | (assembled) | selector seed | `useDraftManager` handBuilt | |
 | **Mark Schedule** | `/teacher/generate/mark-schedule` | client-assembled | `DEFAULT_SUBJECTS` (hard-coded) | handBuilt | XLSX with live formulas |
 | **Record of Work** | `/teacher/generate/record-of-work` | client-assembled | own `TEACHER_GRADES/SUBJECTS` (reads seed) | handBuilt | |

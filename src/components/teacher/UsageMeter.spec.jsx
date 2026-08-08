@@ -3,6 +3,13 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import UsageMeter from './UsageMeter.jsx'
 import { recoverMyPendingPayments } from '../../utils/lenco'
 
+// Every teacher navigation surface now asks studioAvailability which studios
+// are on offer, and that reads settings/global. Stubbed to the LAUNCH state
+// (no flags set → Worksheet Studio withdrawn, Rubric Studio retired).
+vi.mock('../../contexts/PlatformSettingsContext', () => ({
+  usePlatformSettings: () => ({ settings: { featureFlags: {} }, loaded: true, live: true }),
+}))
+
 // The dashboard usage widget reads usage + the purchased K25 top-up balance.
 // We mock the hook so each test drives an exact state without Firebase.
 const usageState = { loading: false, data: null }

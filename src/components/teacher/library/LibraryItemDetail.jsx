@@ -103,6 +103,7 @@ import { readActiveAssignmentSeed } from '../../../utils/activeAssignmentSeed'
 import { resolveGeneration } from '../../../utils/adminGenerationsService'
 import { publishShare, revokeShare, listSharesForGeneration } from '../../../utils/shareService'
 import { useAuth } from '../../../contexts/AuthContext'
+import useStudioAvailability from '../../../hooks/useStudioAvailability'
 import { useToast } from '../../ui/Toast'
 import ConfirmDialog from '../../ui/ConfirmDialog'
 
@@ -122,6 +123,12 @@ export default function LibraryItemDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { currentUser, userProfile, isAdmin } = useAuth()
+  // A document whose studio is retired or withdrawn is still fully READABLE
+  // and EXPORTABLE — nothing about it changes. What it loses is every route
+  // back into the studio: "Generate similar", the lesson-plan hand-off, and
+  // editing its saved inputs. `retiredLabel` names the reason on the page so
+  // a teacher is not left wondering where the buttons went.
+  const { isAvailable, retiredLabel } = useStudioAvailability()
   const toast = useToast()
   const [item, setItem] = useState(null)
   const [status, setStatus] = useState('loading')
@@ -623,7 +630,7 @@ export default function LibraryItemDetail() {
   function onRegenerate() {
     if (!item) return
     const meta = TOOL_META[item.tool]
-    if (!meta?.route) return
+    if (!meta?.route || !isAvailable(item.tool)) return
     // Build a query string from the original inputs so the target generator
     // pre-fills its form via useFormDefaultsFromUrl().
     const qs = buildGeneratorQueryString(item.inputs || {})
@@ -639,13 +646,14 @@ export default function LibraryItemDetail() {
   const [dupPrompt, setDupPrompt] = useState(null) // { tool, url, title, when, status }
 
   function goToKitStudio(tool) {
+    if (!isAvailable(tool)) return
     const seed = inheritFromLessonPlan(item, readActiveAssignmentSeed(currentUser?.uid))
     const qs = buildGeneratorQueryString(seed?.coords || { sourceLessonPlanId: item.id })
     navigate(`${KIT_ROUTES[tool]}${qs}`)
   }
 
   async function onCreateFromPlan(tool) {
-    if (!item || !KIT_ROUTES[tool] || creatingKit) return
+    if (!item || !KIT_ROUTES[tool] || !isAvailable(tool) || creatingKit) return
     setCreatingKit(true)
     try {
       // Detect an existing worksheet/homework already linked to this plan. This
@@ -697,9 +705,12 @@ export default function LibraryItemDetail() {
     setSavingEdit(false)
   }
 
-  // Edit-details is currently supported for tools with an editable `output.header`.
-  const canEditDetails = item && ['lesson_plan', 'scheme_of_work', 'worksheet', 'sba_task']
-    .includes(item.tool)
+  // Edit-details is currently supported for tools with an editable `output.header`
+  // — and only while the tool is still on offer, since a retired document is
+  // read-only (render + export).
+  const canEditDetails = item
+    && ['lesson_plan', 'scheme_of_work', 'worksheet', 'sba_task'].includes(item.tool)
+    && isAvailable(item.tool)
 
   // Full-document (row-level) editing — the teacher is never locked into the
   // AI draft. Reopens the saved scheme/forecast in the same editable table the
@@ -786,6 +797,9 @@ export default function LibraryItemDetail() {
   }
 
   const meta = TOOL_META[item.tool] || { label: item.tool, icon: '📄' }
+  // Non-null only for a tool that is no longer offered — "Rubric (retired
+  // tool)" / "Worksheet (tool returning soon)".
+  const retiredNote = retiredLabel(item.tool)
 
   return (
     <div className="studio-page">
@@ -807,6 +821,14 @@ export default function LibraryItemDetail() {
               {item.status === 'flagged' && (
                 <span className="text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full" style={{ background: '#fff5e6', color: '#a5523a' }}>
                   Review recommended
+                </span>
+              )}
+              {retiredNote && (
+                <span
+                  className="text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full"
+                  style={{ background: 'var(--zt-card)', color: 'var(--zt-text-muted)' }}
+                >
+                  {retiredNote}
                 </span>
               )}
             </div>
@@ -973,7 +995,7 @@ export default function LibraryItemDetail() {
                 {duplicating ? '⧉ Duplicating…' : '⧉ Duplicate'}
               </button>
             )}
-            {meta.route && (
+            {meta.route && isAvailable(item.tool) && (
               <button onClick={onRegenerate} className="studio-btn-ghost">
                 🔁 Generate similar
               </button>
@@ -989,14 +1011,16 @@ export default function LibraryItemDetail() {
             )}
             {item.tool === 'lesson_plan' && (item.output || item.data) && (
               <>
-                <button
-                  onClick={() => onCreateFromPlan('worksheet')}
-                  disabled={creatingKit}
-                  className="studio-btn-ghost disabled:opacity-50"
-                  title="Turn this lesson plan into learner practice"
-                >
-                  📝 Create Worksheet
-                </button>
+                {isAvailable('worksheet') && (
+                  <button
+                    onClick={() => onCreateFromPlan('worksheet')}
+                    disabled={creatingKit}
+                    className="studio-btn-ghost disabled:opacity-50"
+                    title="Turn this lesson plan into learner practice"
+                  >
+                    📝 Create Worksheet
+                  </button>
+                )}
                 <button
                   onClick={() => onCreateFromPlan('homework')}
                   disabled={creatingKit}

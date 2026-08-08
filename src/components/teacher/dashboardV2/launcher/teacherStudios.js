@@ -30,7 +30,6 @@ import {
   Layers,
   LayoutTemplate,
   NotebookPen,
-  SlidersHorizontal,
   Users,
 } from 'lucide-react'
 
@@ -51,7 +50,6 @@ import imgClassTimetable from '../../../../assets/teacher/studio-icons/class-tim
 import imgSchemes from '../../../../assets/teacher/studio-icons/schemes.webp'
 import imgAssessmentPapers from '../../../../assets/teacher/studio-icons/assessment-papers.webp'
 import imgMarkSchedule from '../../../../assets/teacher/studio-icons/mark-schedule.webp'
-import imgRubrics from '../../../../assets/teacher/studio-icons/rubrics.webp'
 import imgSba from '../../../../assets/teacher/studio-icons/sba.webp'
 import imgSyllabus from '../../../../assets/teacher/studio-icons/syllabus.webp'
 import imgSchoolCalendar from '../../../../assets/teacher/studio-icons/school-calendar.webp'
@@ -280,21 +278,10 @@ export const TEACHER_STUDIOS = [
     permission: 'teacher',
     keywords: ['mark', 'schedule', 'marking scheme'],
   },
-  {
-    id: 'rubrics',
-    title: 'Rubrics',
-    description: 'Create criteria-based rubrics for projects and assessment.',
-    route: '/teacher/generate/rubric',
-    savedWorkTo: '/teacher/library',
-    category: 'assessment',
-    icon: SlidersHorizontal,
-    image: imgRubrics,
-    tint: 'blue',
-    countKey: 'rubric',
-    badge: null,
-    permission: 'teacher',
-    keywords: ['rubric', 'criteria', 'grading'],
-  },
+  // Rubrics was here. The studio is retired (2026-08) — 4-level descriptor
+  // rubrics are not part of the Zambian curriculum or the school teaching
+  // file. Its saved documents are still in My Library; nothing creates a new
+  // one, so the registry no longer declares it.
   {
     id: 'sba',
     title: 'School-Based Assessment',

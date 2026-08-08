@@ -5,6 +5,7 @@ import { resolveTeacherPlan, PLAN_LABELS } from '../../../utils/teacherPlans'
 import { capture } from '../../../utils/analytics'
 import SeoHelmet from '../../seo/SeoHelmet'
 import UsageReminderBanner from '../../subscription/UsageReminderBanner'
+import StudioUnavailableNotice from '../StudioUnavailableNotice'
 import { resolveGreeting } from './dashboardV2Core'
 import useTeacherDashboardData from './useTeacherDashboardData'
 import DashboardView from './DashboardView'
@@ -59,7 +60,13 @@ export default function TeacherDashboardLive() {
         lastOpened={data.lastOpened}
         onContinue={handleContinue}
         recommendations={data.recommendations}
-        banner={<UsageReminderBanner />}
+        banner={(
+          <>
+            {/* Why a studio the teacher just tried to open sent them here. */}
+            <StudioUnavailableNotice />
+            <UsageReminderBanner />
+          </>
+        )}
         documents={data.documents}
         savedCounts={data.savedCounts}
         launcherWarnings={data.launcherWarnings}

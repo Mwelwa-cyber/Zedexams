@@ -230,7 +230,13 @@ Module._load = function (request, ...rest) {
 
 const {runNotes, createGenerateNotes} = require("./generateNotes");
 
-const INPUTS = {grade: "G5", subject: "mathematics", topic: "Fractions"};
+// `audience: "teaching"` is explicit, and has to be: since 2026-08 the studio's
+// default audience is `learner`, which routes to a different pipeline entirely
+// (generateLearnerNotes.test.js covers that one). These cases are about the
+// idempotency, refund and metering wiring the TEACHING path has always had —
+// leaving the audience off would silently move them onto the other pipeline and
+// they would keep passing while proving nothing about this one.
+const INPUTS = {grade: "G5", subject: "mathematics", topic: "Fractions", audience: "teaching"};
 const IDK = "11111111-1111-4111-8111-111111111111";
 
 function reset() {

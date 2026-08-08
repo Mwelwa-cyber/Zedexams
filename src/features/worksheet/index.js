@@ -1,6 +1,17 @@
 /**
  * Public surface of the Worksheet studio — the worksheet generator at
- * `/teacher/worksheets` (and `/admin/generate/worksheet`) and its renderer.
+ * `/teacher/generate/worksheet` (and `/admin/generate/worksheet`) and its
+ * renderer.
+ *
+ * **The studio is WITHDRAWN, not deleted** (2026-08). Its picture-dependent
+ * output — tracing sheets, labelled diagrams, story-with-picture — is
+ * mislabelled often enough to be unusable in children's materials, so both
+ * routes are gated on `settings/global.featureFlags.worksheetStudioEnabled`
+ * (default off) until worksheets are rebuilt on a curated, human-verified
+ * Diagram Library. Everything in this module still builds and still works;
+ * flipping the flag restores the studio and every entry point to it. Saved
+ * worksheets stay readable and exportable either way, which is what
+ * `WorksheetView` below is for. See `src/config/studioAvailability.js`.
  *
  * Migrated under docs/architecture.md Phase 4, following
  * docs/MIGRATION_TEMPLATE.md. A move: same components, same routes, same

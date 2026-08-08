@@ -6,6 +6,13 @@ import { HelmetProvider } from 'react-helmet-async'
 import TeacherLayout from '../TeacherLayout'
 import { SIDEBAR_COLLAPSE_KEY } from './sidebarCollapseCore'
 
+// Every teacher navigation surface now asks studioAvailability which studios
+// are on offer, and that reads settings/global. Stubbed to the LAUNCH state
+// (no flags set → Worksheet Studio withdrawn, Rubric Studio retired).
+vi.mock('../../../contexts/PlatformSettingsContext', () => ({
+  usePlatformSettings: () => ({ settings: { featureFlags: {} }, loaded: true, live: true }),
+}))
+
 vi.mock('../TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
 vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({

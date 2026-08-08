@@ -104,7 +104,7 @@ export default function LiveGenerationCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result, status])
 
-  const timeline = buildTimeline(sections)
+  const timeline = buildTimeline(sections, config)
   const { phase, prepIndex, revealedCount, complete } = useLiveReveal({
     status,
     sectionCount: sections.length,

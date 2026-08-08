@@ -2,6 +2,13 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+// Every teacher navigation surface now asks studioAvailability which studios
+// are on offer, and that reads settings/global. Stubbed to the LAUNCH state
+// (no flags set → Worksheet Studio withdrawn, Rubric Studio retired).
+vi.mock('../../contexts/PlatformSettingsContext', () => ({
+  usePlatformSettings: () => ({ settings: { featureFlags: {} }, loaded: true, live: true }),
+}))
+
 const navigate = vi.fn()
 
 vi.mock('react-router-dom', () => ({
@@ -46,14 +53,38 @@ describe('RecoveryCentre', () => {
 
   it('lists a draft with its studio label and summary, and resumes it', async () => {
     listDraftsRemote.mockResolvedValue([
-      { draftId: 'worksheet-current', studioId: 'worksheet', savedAt: 1000, payload: { curr: { grade: 'G5', subjectLabel: 'Mathematics', topic: 'Fractions' } } },
+      { draftId: 'notes-current', studioId: 'notes', savedAt: 1000, payload: { curr: { grade: 'G5', subjectLabel: 'Mathematics', topic: 'Fractions' } } },
     ])
     render(<RecoveryCentre />)
-    await waitFor(() => expect(screen.getByText('Worksheet')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Teacher Notes')).toBeInTheDocument())
     expect(screen.getByText(/Grade 5 · Mathematics · Fractions/)).toBeInTheDocument()
 
     await userEvent.click(screen.getByText('Continue editing'))
-    expect(navigate).toHaveBeenCalledWith('/teacher/generate/worksheet')
+    expect(navigate).toHaveBeenCalledWith('/teacher/generate/notes')
+  })
+
+  /* A draft for a studio that is no longer offered is still the teacher's:
+     it is listed and it can still be discarded. Only "Continue editing" goes,
+     because it would bounce straight off the studio's redirect. */
+  it('lists a withdrawn studio\'s draft but does not offer to resume it', async () => {
+    listDraftsRemote.mockResolvedValue([
+      { draftId: 'worksheet-current', studioId: 'worksheet', savedAt: 1000, payload: { curr: { topic: 'Fractions' } } },
+    ])
+    render(<RecoveryCentre />)
+    await waitFor(() => expect(screen.getByText('Worksheet')).toBeInTheDocument())
+    expect(screen.getByText('Worksheet (tool returning soon)')).toBeInTheDocument()
+    expect(screen.queryByText('Continue editing')).toBeNull()
+    expect(screen.getByText('Discard')).toBeInTheDocument()
+  })
+
+  it('lists a retired studio\'s draft but does not offer to resume it', async () => {
+    listDraftsRemote.mockResolvedValue([
+      { draftId: 'rubric-current', studioId: 'rubric', savedAt: 1000, payload: { curr: { topic: 'Project' } } },
+    ])
+    render(<RecoveryCentre />)
+    await waitFor(() => expect(screen.getByText('Rubric (retired tool)')).toBeInTheDocument())
+    expect(screen.queryByText('Continue editing')).toBeNull()
+    expect(screen.getByText('Discard')).toBeInTheDocument()
   })
 
   it('deep-links an SBA draft to its subject/grade combo', async () => {

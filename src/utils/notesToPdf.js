@@ -1,11 +1,24 @@
 /**
- * Export teacher delivery notes as a real .pdf — portrait, school-printed
- * handout style mirroring notesToDocx.js / NotesView: school heading, ruled
- * "<SUBJECT> TEACHING NOTES" title, borderless metadata strip, then the
- * teaching sections (opener, key concepts, worked examples, Q&A,
- * misconceptions, prompts, quick checks, glossary, references).
+ * Notes as a real .pdf — one entry point, two documents behind it.
+ *
+ * A LEARNER note prints through `learnerNotesPrintable`, the same builder the
+ * paged preview renders and the page measurement measures, so the PDF is the
+ * preview and the preview is the PDF. A TEACHING note prints through the
+ * builder below, unchanged since before the audience split: portrait,
+ * school-printed handout style mirroring notesToDocx.js / NotesView — school
+ * heading, ruled "<SUBJECT> TEACHING NOTES" title, borderless metadata strip,
+ * then the teaching sections.
+ *
+ * The audience is read from the DOCUMENT, never from a caller's argument. A
+ * saved note carries what it is; asking the call site to remember is how a
+ * learner handout ends up printed with a teacher's section headings.
  */
 import { makePdfExporter, escapeHtml as safe } from './htmlPdfExport.js'
+import { readAudience } from './notesOptions.js'
+import {
+  buildAnswerPageHtml,
+  buildLearnerNotesHtml,
+} from './learnerNotesPrintable.js'
 
 const INK = '#0e2a32' // brand ink, matches the DOCX title rules
 
@@ -144,7 +157,23 @@ export function buildNotesPrintableHtml(notes) {
 </html>`
 }
 
-const exporter = makePdfExporter(buildNotesPrintableHtml, { emptyMessage: 'No notes to export.' })
+/**
+ * The printable HTML for whichever kind of notes this is.
+ *
+ * Exported for the plain-node tests — pure string building, no DOM.
+ */
+export function buildAnyNotesPrintableHtml(notes) {
+  return readAudience(notes) === 'learner'
+    ? buildLearnerNotesHtml(notes)
+    : buildNotesPrintableHtml(notes)
+}
+
+const exporter = makePdfExporter(buildAnyNotesPrintableHtml, { emptyMessage: 'No notes to export.' })
+
+// The answer page is its own exporter because it is its own FILE. Routing it
+// through the exporter above with a flag would put one keystroke between a
+// teacher and forty photocopies of the answers.
+const answerExporter = makePdfExporter(buildAnswerPageHtml, { emptyMessage: 'No answer page to export.' })
 
 /**
  * Download the teaching notes as a real .pdf file. Falls back to the browser
@@ -156,4 +185,9 @@ export async function downloadNotesPdf(notes, filename = 'teacher-notes.pdf', { 
 
 export function printNotesPdf(notes, { attribution = false } = {}) {
   return exporter.print(notes, { attribution })
+}
+
+/** The teacher's answer page as its own .pdf — never appended to the learner's. */
+export async function downloadAnswerPagePdf(notes, filename = 'answers.pdf', { attribution = false } = {}) {
+  return answerExporter.download(notes, filename, { attribution })
 }

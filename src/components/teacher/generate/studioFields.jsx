@@ -187,11 +187,17 @@ export function GenerateButton({ generating, disabled = false, generatingLabel =
 // Shared output-panel empty state — replaces the near-identical local
 // EmptyState() functions that were copy-pasted into every studio. `tone` is
 // the pastel disc colour behind the emoji (each studio keeps its own).
-export function StudioEmptyState({ emoji, tone = '#f0eee8', title, children, action }) {
+/**
+ * `icon` (a component) is the converted form; `emoji` remains for the studios
+ * that have not moved yet. Same migration StudioPageHeader made and for the
+ * same reason — mascots and emoji are learner-side, and a teacher's studio is
+ * a place of work.
+ */
+export function StudioEmptyState({ emoji, icon: EmptyIcon = null, tone = '#f0eee8', title, children, action }) {
   return (
     <div className="studio-empty">
       <div className="studio-empty__badge" style={{ background: tone }} aria-hidden="true">
-        {emoji}
+        {EmptyIcon ? <EmptyIcon size={30} strokeWidth={1.6} /> : emoji}
       </div>
       <h3 className="studio-display studio-empty__title">{title}</h3>
       <p className="studio-empty__text">{children}</p>
@@ -203,6 +209,15 @@ export function StudioEmptyState({ emoji, tone = '#f0eee8', title, children, act
 // Options may be a flat list of { value, label } or carry { group } markers to
 // split into <optgroup>s — an option object with a `group` key starts a new
 // labelled group; subsequent plain options belong to it.
+/**
+ * `aria-label` rather than a `for`/`id` pair, deliberately.
+ *
+ * `FieldLabel` is used both as a real form label and as a heading over a group
+ * of controls (the segmented ones), so giving it an `htmlFor` would attach some
+ * of them to whatever happened to follow. Naming the select directly is
+ * unambiguous, gives a screen reader the same name a sighted teacher reads, and
+ * lets a test find the control by the label the teacher sees.
+ */
 export function FieldSelect({ label, value, options, onChange }) {
   const groups = []
   let cur = null
@@ -220,7 +235,12 @@ export function FieldSelect({ label, value, options, onChange }) {
   return (
     <div>
       <FieldLabel>{label}</FieldLabel>
-      <select value={value} onChange={(e) => onChange(e.target.value)} className="studio-input">
+      <select
+        aria-label={label}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="studio-input"
+      >
         {flat
           ? groups[0].items.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>

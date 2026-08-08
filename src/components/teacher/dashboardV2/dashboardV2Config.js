@@ -128,7 +128,6 @@ export const CANONICAL_TOOL_LABELS = {
   '/teacher/generate/homework': 'Homework',
   '/teacher/generate/notes': 'Teacher Notes',
   '/teacher/generate/flashcards': 'Flashcards',
-  '/teacher/generate/rubric': 'Rubrics',
   '/teacher/generate/mark-schedule': 'Mark Schedule',
   '/teacher/generate/class-timetable': 'Class Timetable',
   '/teacher/templates': 'Paper Templates',
@@ -140,6 +139,19 @@ export function canonicalToolLabel(to) {
   if (!to) return null
   return CANONICAL_TOOL_LABELS[to.split('?')[0]] || null
 }
+
+/**
+ * Quick Create shows FOUR tiles; five are declared.
+ *
+ * Worksheets is withdrawn behind a feature flag, and a curated row of four
+ * that silently becomes three is a worse answer than a substitute — Homework
+ * Studio is the practice-generation surface while worksheets are away. So the
+ * consumer filters by availability and takes the first four: with the flag off
+ * Homework fills the slot, with it on the row is exactly what it was before
+ * the studio was withdrawn. Order is therefore load-bearing — Homework is last
+ * because it is the one that yields.
+ */
+export const QUICK_CREATE_TILE_COUNT = 4
 
 export const QUICK_CREATE_TILES = [
   {
@@ -173,6 +185,14 @@ export const QUICK_CREATE_TILES = [
     icon: FileText,
     to: '/teacher/assessment-papers/new',
     tone: 'blue',
+  },
+  {
+    id: 'homework',
+    title: 'Homework',
+    description: 'Set homework with model answers and marking guidance.',
+    icon: BookOpenCheck,
+    to: '/teacher/generate/homework',
+    tone: 'copper',
   },
 ]
 
@@ -230,7 +250,6 @@ export const WORKSPACE_EXPANDABLE = [
     icon: ClipboardCheck,
     items: [
       { id: 'assessment-papers', label: 'Assessments', to: '/teacher/assessment-papers' },
-      { id: 'rubrics', label: 'Rubrics', to: '/teacher/generate/rubric' },
       { id: 'sba', label: 'SBA Tasks', to: '/teacher/generate/sba' },
       { id: 'mark-schedule', label: 'Mark Schedule', to: '/teacher/generate/mark-schedule' },
     ],
@@ -253,7 +272,6 @@ export const ALL_TOOLS = [
   { id: 'notes', label: 'Teacher Notes', icon: BookOpen, to: '/teacher/generate/notes' },
   { id: 'flashcards', label: 'Flashcards', icon: Files, to: '/teacher/generate/flashcards' },
   { id: 'assessment-papers', label: 'Assessments', icon: FileText, to: '/teacher/assessment-papers' },
-  { id: 'rubric', label: 'Rubrics', icon: ClipboardCheck, to: '/teacher/generate/rubric' },
   { id: 'mark-schedule', label: 'Mark Schedule', icon: ListChecks, to: '/teacher/generate/mark-schedule' },
   { id: 'sba', label: 'SBA Tasks', icon: ClipboardCheck, to: '/teacher/generate/sba' },
   { id: 'sba-planner', label: 'SBA Year Plan', icon: CalendarRange, to: '/teacher/generate/sba-planner' },

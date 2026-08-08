@@ -100,7 +100,7 @@ export const SAVED_COUNTS = {
 export const CHECKLIST_ITEMS = [
   { id: 'weekly-focus', label: 'Weekly Focus: 2 of 5 days', done: 2, total: 5, to: '/teacher/generate/weekly-forecast' },
   { id: 'lesson-plans', label: 'Lesson Plans', done: 1, total: 6, to: '/teacher/lesson-plans/new' },
-  { id: 'worksheets', label: 'Worksheets', done: 0, total: 6, to: '/teacher/generate/worksheet' },
+  { id: 'homework', label: 'Homework', done: 0, total: 6, to: '/teacher/generate/homework' },
   { id: 'record-of-work', label: 'Record of Work', done: 0, total: 1, to: '/teacher/generate/record-of-work' },
 ]
 

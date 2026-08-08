@@ -30,7 +30,7 @@ function Section({ children, className = '' }) {
 
 // How every lesson + quiz is actually made. This chain is the trust story.
 const PIPELINE = [
-  { icon: PencilLine, name: 'Aria', step: 'Drafts it', body: 'Writes the lesson, worksheet or quiz from the Zambian CBC syllabus.' },
+  { icon: PencilLine, name: 'Aria', step: 'Drafts it', body: 'Writes the lesson, notes or quiz from the Zambian CBC syllabus.' },
   { icon: BookOpen, name: 'Cala', step: 'Aligns to CBC', body: 'Checks every draft against the official curriculum and flags anything off-syllabus.' },
   { icon: ShieldCheck, name: 'Reva', step: 'Reviews it', body: 'Reads for teaching quality, tone and the right level for the grade.' },
   { icon: CheckCircleIcon, name: 'A human', step: 'Approves it', body: 'Nothing reaches a learner until a person signs off. No exceptions.' },
@@ -42,7 +42,7 @@ const TEAM = [
     label: 'The content studio',
     icon: Sparkles,
     members: [
-      { name: 'Aria', role: 'Content author', body: 'Drafts lessons, worksheets, notes and quizzes from the CBC syllabus.' },
+      { name: 'Aria', role: 'Content author', body: 'Drafts lessons, notes, homework and quizzes from the CBC syllabus.' },
       { name: 'Cala', role: 'Curriculum checker', body: 'Checks every draft against the official Zambian CBC curriculum.' },
       { name: 'Reva', role: 'Reviewer', body: 'Reads for teaching quality, tone and the right level for each grade.' },
       { name: 'Pubo', role: 'Publisher', body: 'Publishes only what a human has approved — never anything automatic.' },

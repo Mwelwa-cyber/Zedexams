@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { STUDIO_CATEGORIES, TEACHER_STUDIOS } from './launcher/teacherStudios'
 import { resolveBadge } from './launcher/teacherLauncherCore'
+import useStudioAvailability from '../../../hooks/useStudioAvailability'
 import useGlassTile from '../../../hooks/useGlassTile'
 import './glassSurface.css'
 import './teacherWorkspaceSection.css'
@@ -32,8 +33,11 @@ import './teacherWorkspaceSection.css'
 const FEATURED = {
   planning: ['schemes', 'weekly-focus', 'lesson-plans', 'record-of-work'],
   materials: ['worksheets', 'notes', 'homework', 'visual-studio'],
-  assessment: ['assessment-papers', 'mark-schedule', 'rubrics', 'sba'],
+  assessment: ['assessment-papers', 'mark-schedule', 'sba'],
 }
+
+/** How many cards a category shows before the expander. */
+const FEATURED_SIZE = 4
 
 const SECTION_META = {
   planning: { icon: ClipboardList, viewAllTo: '/teacher/library' },
@@ -42,8 +46,33 @@ const SECTION_META = {
 }
 
 const BY_ID = Object.fromEntries(TEACHER_STUDIOS.map((s) => [s.id, s]))
-const FEATURED_IDS = new Set(Object.values(FEATURED).flat())
-const MORE_TOOLS = TEACHER_STUDIOS.filter((s) => !FEATURED_IDS.has(s.id))
+
+/**
+ * The cards each category shows, resolved against the studios actually on
+ * offer.
+ *
+ * A withdrawn studio must not simply leave a gap: `materials` features
+ * Worksheets, so with the flag off the row would show three cards while a
+ * fourth materials studio sat behind the expander. The declared ids come
+ * first, then the row is topped back up to four from the same category in
+ * registry order — so the layout is the same whichever way the flag is set,
+ * and flipping it on restores the declared order exactly.
+ */
+function featuredLayout(studios) {
+  const available = new Set(studios.map((s) => s.id))
+  const featured = {}
+  const taken = new Set()
+  for (const [category, ids] of Object.entries(FEATURED)) {
+    const picked = ids.filter((id) => available.has(id))
+    for (const studio of studios) {
+      if (picked.length >= FEATURED_SIZE) break
+      if (studio.category === category && !picked.includes(studio.id)) picked.push(studio.id)
+    }
+    featured[category] = picked
+    picked.forEach((id) => taken.add(id))
+  }
+  return { featured, more: studios.filter((s) => !taken.has(s.id)) }
+}
 
 function StudioCard({ studio, badge, pending }) {
   const Icon = studio.icon
@@ -93,6 +122,11 @@ export default function TeacherWorkspaceSection({
   onToggleAllTools,
 }) {
   const warningSet = useMemo(() => new Set(warnings), [warnings])
+  const { filterEntries } = useStudioAvailability()
+  const { featured, more: moreTools } = useMemo(
+    () => featuredLayout(filterEntries(TEACHER_STUDIOS, 'route')),
+    [filterEntries],
+  )
   const badgeFor = (studio) => resolveBadge(studio, savedCounts, { warnings: warningSet })
   const pendingFor = (studio) => loading && Boolean(studio.countKey) && savedCounts == null
 
@@ -108,7 +142,7 @@ export default function TeacherWorkspaceSection({
         </div>
       </header>
 
-      {STUDIO_CATEGORIES.filter((c) => FEATURED[c.id]).map((c) => {
+      {STUDIO_CATEGORIES.filter((c) => featured[c.id]?.length).map((c) => {
         const SecIcon = SECTION_META[c.id].icon
         return (
           <div key={c.id} className={`tws-sec glass-panel glass-panel--${c.id}`}>
@@ -123,7 +157,7 @@ export default function TeacherWorkspaceSection({
               </Link>
             </div>
             <div className="tws-grid">
-              {FEATURED[c.id].map((id) => {
+              {featured[c.id].map((id) => {
                 const studio = BY_ID[id]
                 if (!studio) return null
                 return (
@@ -149,7 +183,7 @@ export default function TeacherWorkspaceSection({
             <h3 className="tws-sec-title">More tools</h3>
           </div>
           <div className="tws-grid">
-            {MORE_TOOLS.map((studio) => (
+            {moreTools.map((studio) => (
               <StudioCard
                 key={studio.id}
                 studio={studio}
@@ -168,7 +202,7 @@ export default function TeacherWorkspaceSection({
         aria-controls="tws-all-tools"
         onClick={() => onToggleAllTools?.(!allToolsOpen)}
       >
-        {allToolsOpen ? 'Hide extra tools' : `View all teacher tools (${MORE_TOOLS.length} more)`}
+        {allToolsOpen ? 'Hide extra tools' : `View all teacher tools (${moreTools.length} more)`}
         {allToolsOpen ? (
           <ChevronUp size={16} strokeWidth={2} aria-hidden="true" />
         ) : (

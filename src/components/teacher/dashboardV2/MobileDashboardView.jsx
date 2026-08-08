@@ -41,6 +41,7 @@ import { TEACHER_NAV_GROUPS, canonicalToolLabel } from './dashboardV2Config'
 import { buildActiveMatcher } from './teacherNavActive'
 import { confirmShellNavigation } from '../register/shellNavGuardCore'
 import { STUDIO_BY_ID } from './launcher/teacherStudios'
+import useStudioAvailability from '../../../hooks/useStudioAvailability'
 import { resolveBadge } from './launcher/teacherLauncherCore'
 import useRecentStudios from './launcher/useRecentStudios'
 import { progressFraction } from './dashboardV2Core'
@@ -61,12 +62,18 @@ const BOTTOM_NAV = [
 
 /** Quick Create — the four fastest studios; routes are the canonical ones.
     Labels come from CANONICAL_TOOL_LABELS so this sheet cannot call a tool
-    something the sidebar doesn't (it used to say "Test Paper"). */
+    something the sidebar doesn't (it used to say "Test Paper").
+
+    Five are declared and four are shown, for the same reason as the desktop
+    tiles: Worksheets is withdrawn behind a flag and Homework — the practice
+    surface in the meantime — takes the freed slot rather than leaving one. */
+const QUICK_CREATE_COUNT = 4
 const QUICK_CREATE = [
   { id: 'lesson-plans', to: '/teacher/lesson-plans/new' },
   { id: 'worksheets', to: '/teacher/generate/worksheet' },
   { id: 'assessment-papers', to: '/teacher/assessment-papers/new' },
   { id: 'weekly-focus', to: '/teacher/generate/weekly-forecast' },
+  { id: 'homework', to: '/teacher/generate/homework' },
 ].map((tile) => ({ ...tile, label: canonicalToolLabel(tile.to) }))
 
 /** Default "recently used" row until this device has real visits. */
@@ -349,10 +356,11 @@ export function MobileHeader({ drawerOpen, onOpenMenu }) {
 
 /** Quick Create bottom sheet — the four fastest creation flows. */
 function QuickCreateSheet({ open, onClose }) {
+  const { filterEntries } = useStudioAvailability()
   return (
     <BottomSheet open={open} onClose={onClose} title="Quick Create">
       <div className="tdv2m-qcsheet-grid">
-        {QUICK_CREATE.map(({ id, label, to }) => {
+        {filterEntries(QUICK_CREATE).slice(0, QUICK_CREATE_COUNT).map(({ id, label, to }) => {
           const studio = STUDIO_BY_ID[id]
           if (!studio) return null
           return (
@@ -783,6 +791,7 @@ function MobileAiRecommendation({ recommendations = [] }) {
 /** Up to four recently used tools as large app-style icons. */
 function RecentlyUsedTools({ savedCounts, warnings = [], onViewAll }) {
   const { recents } = useRecentStudios()
+  const { filterEntries } = useStudioAvailability()
   const warningSet = useMemo(() => new Set(warnings), [warnings])
   const studios = useMemo(() => {
     // Real recents are the activity signal. Only fall back to the curated
@@ -790,8 +799,11 @@ function RecentlyUsedTools({ savedCounts, warnings = [], onViewAll }) {
     // one or two genuine visits would see unopened studios padded in under
     // "Recently Used", which misreports what they've actually used.
     const ids = recents.length ? recents : DEFAULT_RECENT_IDS
-    return ids.map((id) => STUDIO_BY_ID[id]).filter(Boolean).slice(0, 4)
-  }, [recents])
+    // A stored visit to a studio that has since been withdrawn is the one way
+    // a hidden tool can walk back onto the dashboard — the id is on the
+    // device, not in the registry.
+    return filterEntries(ids.map((id) => STUDIO_BY_ID[id]).filter(Boolean), 'route').slice(0, 4)
+  }, [recents, filterEntries])
 
   return (
     <section aria-labelledby="tdv2m-recent-h">
