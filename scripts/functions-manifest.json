@@ -188,7 +188,7 @@
       "target": "makeStreamingEndpoint({ tool: \"GenerateLessonPlan\", runCore: runLessonPlan, })",
       "rewritePath": "/api/teacher/lesson-plan/stream",
       "rewriteRegion": "us-central1",
-      "classification": "mechanical",
+      "classification": "audit-surface",
       "batch": null
     },
     "apiGenerateWorksheet": {
@@ -198,7 +198,7 @@
       "target": "makeStreamingEndpoint({ tool: \"GenerateWorksheet\", runCore: runWorksheet, })",
       "rewritePath": "/api/teacher/worksheet/stream",
       "rewriteRegion": "us-central1",
-      "classification": "mechanical",
+      "classification": "audit-surface",
       "batch": null
     },
     "apiGuardianConsent": {
@@ -248,7 +248,7 @@
       "target": "require('./tts').apiTextToSpeech",
       "rewritePath": "/api/tts",
       "rewriteRegion": "us-central1",
-      "classification": "mechanical",
+      "classification": "audit-surface",
       "batch": null
     },
     "apiTrackVisit": {
