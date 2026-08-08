@@ -1323,6 +1323,18 @@ The order was settled 2026-08-07 as **smallest and lowest-risk first**, ranked o
 
 **§14.2 during a move: the migration PR is a pure move.** Where Firebase access is already a single cohesive module (`templateBankService`, `adminUsersService`, `visualAssetService`) it travels into `services/` as part of the move. Where it is inline in components (`agentsConsole` has Firestore in six), it travels **as it stands**, and `services/` extraction is a separate PR — a Firestore-call refactor is where behaviour changes hide, and §1 of the template exists to keep a migration diff readable as a move. Naming follows the eight existing feature folders (camelCase), not §12's kebab-case sketch.
 
+**Review debt — the eight Wave 1/2 pull requests merged UNREVIEWED, and the order to sweep them in.** Codex reported "usage limits reached" on every one of #2169, #2170, #2172, #2173, #2176, #2177, #2178 and #2179, so each merged on CI plus the author's own checks and nothing else. That is recorded here rather than in a PR comment because a PR nobody is looking at is exactly where this fact would stop being visible.
+
+When quota returns, sweep them in **blast-radius order, not merge order** — the question is how much OTHER work each change silently governs:
+
+1. **#2176** — `check:bundle-edges` and `scripts/lib/bundleGraph.mjs`. A required-job gate every future PR passes through, written by an author who had just got the same question wrong by hand. A wrong gate is worse than no gate: it reports green.
+2. **#2179** — `test:mock-paths`, plus eight repaired `vi.mock` paths in `LibraryItemDetail.spec.jsx` / `PublicShareView.spec.jsx` and an edit to this repo's own migration recipe.
+3. **#2177** — the flashcards exporters moved and BOTH shared exporter harnesses (`studioPdfExporters.test.js`, `docxExporters.test.js`) edited, plus a deliberate bundle change on three public pages.
+4. **#2170**, then **#2169** — new Firestore rules assertions (`lessonPlanTemplates`, `announcements`). Rules tests that assert the wrong thing are indistinguishable from coverage.
+5. **#2172**, **#2173**, **#2178** — the plain feature moves, lowest risk: each is a `git mv` plus re-pointed imports, and the build and both suites cover them.
+
+**This debt stays open until the sweep actually runs.** Landing later work on top does not discharge it, and neither does this paragraph.
+
 **Migrated so far:**
 
 - **`announcements`** (#2169) — the admin editor (`/admin/announcements`) and the shell banner, which were split across `components/admin/` and `components/banners/` while being the only two places that know the collection's audience and severity vocabularies. No `src/utils` slice, no `index.css` slice (it is Tailwind + the global `theme-*` utilities), one exported name because one is consumed. `announcements` gained the emulator coverage §14.12 asks for: 7 cases, suite 284 → 291, including the signed-out read the landing-page banner depends on and an admin control case, without which every denial would still pass with the rule replaced by a blanket deny.
