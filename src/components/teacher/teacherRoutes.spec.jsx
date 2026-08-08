@@ -85,6 +85,35 @@ const exemptRoutes = TEACHER_ROUTES.filter((r) => !r.shell)
    phone. */
 const shellRoot = () => document.querySelector('[data-teacher-shell]')
 
+/**
+ * How long the shell is given to LOAD, which is not the same question as
+ * whether it renders.
+ *
+ * The first route in this file pays a one-time cost the other 75 do not: it is
+ * the render that pulls TeacherLayout's whole lazy graph through Vite's
+ * transform. Measured:
+ *
+ *   • **936 ms** on an idle machine, against Testing Library's 1000 ms
+ *     default — a 6% margin.
+ *   • **1036 ms and 1057 ms** under full-suite CPU contention, where it
+ *     crossed the line and failed.
+ *
+ * The next slowest route is 175 ms and the median is 33 ms, so this is module
+ * loading, not a slow component — and a 6% margin does not survive a loaded CI
+ * runner. When it goes, it reds a REQUIRED check on a pull request that
+ * changed nothing near it, which teaches whoever is watching to re-run rather
+ * than read.
+ *
+ * 1500 ms covers the measured worst case with headroom and stops there. It is
+ * raised HERE, at the one call site that needs it, rather than as a global
+ * `testTimeout` or a `retry` — both of which would also cover the specs where
+ * a timeout means something real. A shell that genuinely never mounts still
+ * fails this test (verified: pointing the query at a testid that does not
+ * exist fails 51 of the 76 cases), and a regression that pushes the load past
+ * 1.5 s stays visible as a genuine failure rather than being absorbed.
+ */
+const SHELL_LOAD_TIMEOUT_MS = 1500
+
 describe('every teacher route renders inside TeacherLayout', () => {
   beforeEach(() => {
     auth.isAdmin = false
@@ -98,7 +127,7 @@ describe('every teacher route renders inside TeacherLayout', () => {
     renderRoute(route)
     // TeacherLayout is itself lazy (it must not land in the entry chunk), so
     // wait for it rather than asserting on the first frame.
-    await screen.findByTestId('teacher-shell')
+    await screen.findByTestId('teacher-shell', {}, { timeout: SHELL_LOAD_TIMEOUT_MS })
     expect(shellRoot()).not.toBeNull()
     cleanup()
   })
