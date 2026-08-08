@@ -4826,25 +4826,25 @@ const {
   runRemoveUserPasskey,
 } = require("./passkeys/passkeyService");
 
+// Phase 5 batch 1a: the seven passkey callable BODIES live in
+// passkeys/passkeyCallableHandlers.js; the builders and their frozen options
+// stay here, where the manifest guard reads them (docs/phase5-plan.md).
+const passkeyCallableHandlers = require("./passkeys/passkeyCallableHandlers")
+    .buildPasskeyCallableHandlers({recordAppCheckCallable});
+
 exports.generatePasskeyRegistrationOptions = onCall({
   region: "us-central1",
   timeoutSeconds: 30,
   memory: "256MiB",
   enforceAppCheck: shouldEnforceAppCheck("generatePasskeyRegistrationOptions"),
-}, async (request) => {
-  await recordAppCheckCallable(request, "generatePasskeyRegistrationOptions");
-  return runGeneratePasskeyRegistrationOptions(request);
-});
+}, passkeyCallableHandlers.generatePasskeyRegistrationOptions);
 
 exports.verifyPasskeyRegistration = onCall({
   region: "us-central1",
   timeoutSeconds: 30,
   memory: "256MiB",
   enforceAppCheck: shouldEnforceAppCheck("verifyPasskeyRegistration"),
-}, async (request) => {
-  await recordAppCheckCallable(request, "verifyPasskeyRegistration");
-  return runVerifyPasskeyRegistration(request);
-});
+}, passkeyCallableHandlers.verifyPasskeyRegistration);
 
 // Pre-auth (no Firebase session yet): App Check observed/enforced per the
 // graduated APPCHECK_ENFORCE rollout + per-IP burst rate limiting inside.
@@ -4853,50 +4853,35 @@ exports.generatePasskeyAuthenticationOptions = onCall({
   timeoutSeconds: 30,
   memory: "256MiB",
   enforceAppCheck: shouldEnforceAppCheck("generatePasskeyAuthenticationOptions"),
-}, async (request) => {
-  await recordAppCheckCallable(request, "generatePasskeyAuthenticationOptions");
-  return runGeneratePasskeyAuthenticationOptions(request, {region: "us-central1"});
-});
+}, passkeyCallableHandlers.generatePasskeyAuthenticationOptions);
 
 exports.verifyPasskeyAuthentication = onCall({
   region: "us-central1",
   timeoutSeconds: 30,
   memory: "256MiB",
   enforceAppCheck: shouldEnforceAppCheck("verifyPasskeyAuthentication"),
-}, async (request) => {
-  await recordAppCheckCallable(request, "verifyPasskeyAuthentication");
-  return runVerifyPasskeyAuthentication(request, {region: "us-central1"});
-});
+}, passkeyCallableHandlers.verifyPasskeyAuthentication);
 
 exports.listUserPasskeys = onCall({
   region: "us-central1",
   timeoutSeconds: 30,
   memory: "256MiB",
   enforceAppCheck: shouldEnforceAppCheck("listUserPasskeys"),
-}, async (request) => {
-  await recordAppCheckCallable(request, "listUserPasskeys");
-  return runListUserPasskeys(request);
-});
+}, passkeyCallableHandlers.listUserPasskeys);
 
 exports.renameUserPasskey = onCall({
   region: "us-central1",
   timeoutSeconds: 30,
   memory: "256MiB",
   enforceAppCheck: shouldEnforceAppCheck("renameUserPasskey"),
-}, async (request) => {
-  await recordAppCheckCallable(request, "renameUserPasskey");
-  return runRenameUserPasskey(request);
-});
+}, passkeyCallableHandlers.renameUserPasskey);
 
 exports.removeUserPasskey = onCall({
   region: "us-central1",
   timeoutSeconds: 30,
   memory: "256MiB",
   enforceAppCheck: shouldEnforceAppCheck("removeUserPasskey"),
-}, async (request) => {
-  await recordAppCheckCallable(request, "removeUserPasskey");
-  return runRemoveUserPasskey(request);
-});
+}, passkeyCallableHandlers.removeUserPasskey);
 
 // ── Passkey regional twins (staged us-central1 → africa-south1 migration) ─
 // The (default) Firestore database lives in africa-south1, so the sequential

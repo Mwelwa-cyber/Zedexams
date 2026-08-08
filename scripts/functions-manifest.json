@@ -188,7 +188,7 @@
       "target": "makeStreamingEndpoint({ tool: \"GenerateLessonPlan\", runCore: runLessonPlan, })",
       "rewritePath": "/api/teacher/lesson-plan/stream",
       "rewriteRegion": "us-central1",
-      "classification": "audit-surface",
+      "classification": "mechanical",
       "batch": null
     },
     "apiGenerateWorksheet": {
@@ -198,7 +198,7 @@
       "target": "makeStreamingEndpoint({ tool: \"GenerateWorksheet\", runCore: runWorksheet, })",
       "rewritePath": "/api/teacher/worksheet/stream",
       "rewriteRegion": "us-central1",
-      "classification": "audit-surface",
+      "classification": "mechanical",
       "batch": null
     },
     "apiGuardianConsent": {
@@ -248,7 +248,7 @@
       "target": "require('./tts').apiTextToSpeech",
       "rewritePath": "/api/tts",
       "rewriteRegion": "us-central1",
-      "classification": "audit-surface",
+      "classification": "mechanical",
       "batch": null
     },
     "apiTrackVisit": {
@@ -798,7 +798,7 @@
     },
     "generatePasskeyAuthenticationOptions": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "region": "\"us-central1\"",
         "timeoutSeconds": "30",
@@ -809,7 +809,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
-      "batch": 1
+      "batch": null
     },
     "generatePasskeyAuthenticationOptionsAfrica": {
       "kind": "factory",
@@ -823,7 +823,7 @@
     },
     "generatePasskeyRegistrationOptions": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "region": "\"us-central1\"",
         "timeoutSeconds": "30",
@@ -834,7 +834,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
-      "batch": 1
+      "batch": null
     },
     "generatePasskeyRegistrationOptionsAfrica": {
       "kind": "factory",
@@ -1232,7 +1232,7 @@
     },
     "listUserPasskeys": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "region": "\"us-central1\"",
         "timeoutSeconds": "30",
@@ -1243,7 +1243,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
-      "batch": 1
+      "batch": null
     },
     "logAdminMfaEvent": {
       "kind": "factory",
@@ -1633,7 +1633,7 @@
     },
     "removeUserPasskey": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "region": "\"us-central1\"",
         "timeoutSeconds": "30",
@@ -1644,11 +1644,11 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
-      "batch": 1
+      "batch": null
     },
     "renameUserPasskey": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "region": "\"us-central1\"",
         "timeoutSeconds": "30",
@@ -1659,7 +1659,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
-      "batch": 1
+      "batch": null
     },
     "requestAssessmentExport": {
       "kind": "delegated",
@@ -2126,7 +2126,7 @@
     },
     "verifyPasskeyAuthentication": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "region": "\"us-central1\"",
         "timeoutSeconds": "30",
@@ -2137,7 +2137,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
-      "batch": 1
+      "batch": null
     },
     "verifyPasskeyAuthenticationAfrica": {
       "kind": "factory",
@@ -2151,7 +2151,7 @@
     },
     "verifyPasskeyRegistration": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "region": "\"us-central1\"",
         "timeoutSeconds": "30",
@@ -2162,7 +2162,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
-      "batch": 1
+      "batch": null
     },
     "verifyPasskeyRegistrationAfrica": {
       "kind": "factory",

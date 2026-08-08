@@ -10,6 +10,16 @@
 > changes yet. Migration batches risk-ascending. Payment/webhook and audit
 > behaviour changes deferred pending external review coverage.
 > Backup/restore drill required on exit.
+>
+> **2026-08-08 — batch 1a extracted** (the seven passkey callables →
+> `passkeys/passkeyCallableHandlers.js`, dependency-injected App Check
+> observer; options stay in `index.js` where the guard reads them).
+> **Reclassified by hand:** `getUpgradeQuote` and `bulkGrantDemoTrials`
+> mechanical → payment-webhook batch 3 — their names dodge the seeding
+> regex, their writes do not. Batch 1 is 12 (7 done, 5 in batch 1b).
+> **Review debt:** Codex quota exhausted since #2168; batch 1a ships on
+> self-verification (guard + suite + discovery-load) and carries the debt
+> explicitly until quota returns.
 
 ## What this phase does
 
