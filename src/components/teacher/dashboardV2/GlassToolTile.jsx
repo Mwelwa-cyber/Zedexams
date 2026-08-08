@@ -17,6 +17,12 @@ import './glassSurface.css'
  * `sheen` is on for scrollable tool grids and OFF for tiles inside the
  * Quick Create bottom sheet — the sheet remounts on every open, and a
  * sweep replaying on each open would break "once per tile per page load".
+ *
+ * The artwork floats ON the glass — it is a cut-out with a real alpha
+ * channel, so it takes a drop-shadow and no clip. `studio.boxedArtwork`
+ * marks the one file that still has its rounded box baked in and clips it
+ * to that box's radius; without the clip its hard corners would print over
+ * the glass. See the registry note in teacherStudios.js.
  */
 export default function GlassToolTile({
   studio,
@@ -37,7 +43,13 @@ export default function GlassToolTile({
     >
       {sheen ? <span className="glass-sheen" /> : null}
       {studio.image ? (
-        <img src={studio.image} alt="" loading="lazy" draggable="false" />
+        <img
+          className={studio.boxedArtwork ? 'is-boxed' : undefined}
+          src={studio.image}
+          alt=""
+          loading="lazy"
+          draggable="false"
+        />
       ) : StudioIcon ? (
         <span className={`tdv2m-glass-chip tint-${studio.tint || 'teal'}`}>
           <StudioIcon size={iconSize} strokeWidth={1.9} />

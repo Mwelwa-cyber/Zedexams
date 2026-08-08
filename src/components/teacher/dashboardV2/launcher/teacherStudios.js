@@ -34,10 +34,16 @@ import {
   Users,
 } from 'lucide-react'
 
-// Bespoke 3D app-icon artwork (rounded, self-tinted). Where a studio has an
-// `image`, the launcher renders it in place of the Lucide glyph + tint tile;
-// studios without one fall back to their Lucide icon on a tinted tile. Drop a
-// new webp in ../../../assets/teacher/studio-icons and add its `image` here.
+// Bespoke 3D app-icon artwork. Where a studio has an `image`, the launcher
+// renders it in place of the Lucide glyph + tint tile; studios without one
+// fall back to their Lucide icon on a tinted tile. Drop a new webp in
+// ../../../assets/teacher/studio-icons and add its `image` here.
+//
+// These are CUT-OUTS with a real alpha channel: the artwork floats directly
+// on the glass tile, lit by a drop-shadow, with no rounded box of its own —
+// a baked-in box reads as a second, harder-edged tile sitting on the glass
+// one. A studio whose file still carries its background sets
+// `boxedArtwork: true` so the mount clips it to the tile's radius instead.
 import imgLessonPlans from '../../../../assets/teacher/studio-icons/lesson-plans.webp'
 import imgNotes from '../../../../assets/teacher/studio-icons/notes.webp'
 import imgWeeklyFocus from '../../../../assets/teacher/studio-icons/weekly-focus.webp'
@@ -326,6 +332,13 @@ export const TEACHER_STUDIOS = [
     category: 'setup',
     icon: FolderOpen,
     image: imgSyllabus,
+    // The ONE studio whose artwork still has its rounded-square background
+    // baked into the file — no transparent source exists for it yet. Every
+    // other icon is a cut-out that floats on the glass, so this one opts
+    // back into the rounded clip rather than printing its box's hard edge
+    // over the tile. Remove this flag the moment syllabus.webp is replaced;
+    // `npm run test:studio-artwork` fails if the flag and the file disagree.
+    boxedArtwork: true,
     tint: 'teal',
     countKey: null,
     badge: null,

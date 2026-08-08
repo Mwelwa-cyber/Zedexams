@@ -2820,6 +2820,44 @@ a.tdv2-check-row:hover {
   overflow-wrap: anywhere;
 }
 
+/* Dark-glass inset holding the school name and the term/holiday rows. The
+   hero itself keeps its deep-green gradient; this is the one panel laid on
+   it. The surface recipe (`glass-dark-inset`) is theme-invariant, because
+   the hero is dark in every theme.
+
+   The panel stops at the book rather than running under it: the illustration
+   is an opaque rectangle, so a real overlap is a hard edge either way round
+   — over the panel if the book wins the z-order, over the book if the panel
+   does. It reaches ~8px into the illustration's left margin, which is plain
+   background matched to the hero gradient (verified: that band averages
+   rgb(7,39,48) with almost no variance), so nothing drawn is covered.
+
+   The clearance moves from the rows to the panel around them. Kept tight,
+   because it is not a straight swap: the rows carried 104px each and the
+   "N teaching days left" line carried none at all, so a generous panel would
+   truncate a line that used to fit. At 390px and 430px nothing clips; at
+   360px the school name and term line clip exactly as they did before. */
+.tdv2m-hero-inset {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 4px;
+  /* Ends just clear of the book. Kept tight — the rows inside used to have
+     104px of clearance each and one of them ("N teaching days left") had
+     none at all, so the panel has to buy back what wrapping it cost. */
+  margin-right: 86px;
+  padding: 10px 11px;
+  border-radius: 15px;
+  min-width: 0;
+}
+
+/* Clearance now belongs to the inset. The greeting sits outside it and keeps
+   its own. */
+.tdv2m-hero-inset .tdv2m-hero-school,
+.tdv2m-hero-inset .tdv2m-hero-term {
+  padding-right: 0;
+}
+
 .tdv2m-hero-row {
   display: flex;
   align-items: center;
@@ -2874,7 +2912,11 @@ a.tdv2-check-row:hover {
   color: rgba(255, 255, 255, 0.72);
 }
 
-/* Book illustration column */
+/* Book illustration column. Stays BELOW .tdv2m-hero-main (z-index 1): the
+   illustration is an opaque rectangle whose background is painted to match
+   the hero gradient, so raising it above the text column would punch that
+   rectangle through the dark-glass inset. The inset stops short of it
+   instead — see .tdv2m-hero-inset. */
 .tdv2m-hero-side {
   position: absolute;
   top: 0;
@@ -2980,6 +3022,35 @@ a.tdv2-check-row:hover {
   border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
 }
 
+/* Sub-rows inside the glass card: a neutral fill and a gentler scale than a
+   tile's, applied only to rows that actually lead somewhere (see
+   CheckRowLink). No border or shadow — they are divided by the rule above,
+   not by being separate surfaces. */
+.tdv2m-check-row.is-pressable {
+  border-radius: 11px;
+  padding-left: 8px;
+  padding-right: 8px;
+  transform: translateZ(0);
+  transition: transform 0.15s ease, background 0.2s ease;
+}
+
+.tdv2m-check-row.is-pressable.is-pressed {
+  transform: scale(0.985);
+  background: rgba(var(--ws-accent-row), 0.09);
+  transition: transform 0.09s ease, background 0.09s ease;
+}
+
+@media (hover: hover) {
+  .tdv2m-check-row.is-pressable:hover {
+    background: rgba(var(--ws-accent-row), 0.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tdv2m-check-row.is-pressable { transition: none; }
+  .tdv2m-check-row.is-pressable.is-pressed { transform: none; }
+}
+
 .tdv2m-check-circle {
   color: var(--mobile-orange-bright);
   flex-shrink: 0;
@@ -3015,8 +3086,11 @@ a.tdv2-check-row:hover {
   min-height: 46px;
   margin-top: 8px;
   border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface);
+  /* Quiet glass, matching the list-row intensity — a solid button inside a
+     glass card reads as a patch cut out of it. */
+  border: 1px solid var(--ws-row-border);
+  background: var(--ws-row-bg);
+  box-shadow: var(--ws-row-shadow);
   font-size: 14.5px;
   font-weight: 650;
   color: var(--ink);
@@ -3248,14 +3322,37 @@ a.tdv2-check-row:hover {
   place-items: center;
 }
 
+/* The artwork is a cut-out with a real alpha channel, so it FLOATS on the
+   glass: no clip, lit by an ambient drop-shadow plus a faint glow in the
+   tile's own accent so a Planning tool sits in peach light and an
+   Assessment tool in rose. Two stacked drop-shadows rather than a box-
+   shadow — a box-shadow would trace the image's square, not its shape. */
 .tdv2m-glass-tile img {
   position: relative;
   z-index: 1;
   width: 82%;
   height: 82%;
   object-fit: contain;
-  border-radius: 14px;
+  filter: drop-shadow(0 4px 7px rgba(16, 36, 62, 0.18))
+    drop-shadow(0 1px 10px rgba(var(--ws-accent), 0.28));
   -webkit-user-drag: none;
+}
+
+/* Night: the ambient shadow does the lifting (a light one would read as a
+   white halo on dark glass) and the accent glow warms slightly. */
+.tdv2.is-dark .tdv2m-glass-tile img {
+  filter: drop-shadow(0 4px 9px rgba(0, 0, 0, 0.5))
+    drop-shadow(0 1px 12px rgba(var(--ws-accent), 0.32));
+}
+
+/* The one studio whose artwork still has its rounded box baked into the
+   file (see `boxedArtwork` in teacherStudios.js). Clipped to that box's
+   radius so its corners don't print over the glass, and given no glow —
+   a glow around an opaque square just draws attention to the square. */
+.tdv2m-glass-tile img.is-boxed,
+.tdv2.is-dark .tdv2m-glass-tile img.is-boxed {
+  border-radius: 14px;
+  filter: drop-shadow(0 3px 6px rgba(16, 36, 62, 0.22));
 }
 
 /* Icon-only studios keep their tinted identity chip, matching the desktop
@@ -3879,6 +3976,10 @@ a.tdv2-check-row:hover {
   .tdv2m-hero-school,
   .tdv2m-hero-term {
     padding-right: 0;
+  }
+  /* No book to clear, so the inset takes the full width like the rows do */
+  .tdv2m-hero-inset {
+    margin-right: 0;
   }
   .tdv2m-hero {
     min-height: 0;
