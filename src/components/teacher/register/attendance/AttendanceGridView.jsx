@@ -49,18 +49,21 @@ const GridRow = memo(function GridRow({
               className={`w-9 h-8 text-xs font-black focus:outline-none focus:ring-2 focus:ring-blue-400
                 ${cfg ? '' : 'theme-text-muted'} ${editable ? 'hover:bg-black/5' : 'cursor-default'}
                 ${day.isToday ? 'bg-amber-50' : ''}`}
-              style={cfg ? { color: cfg.printColor } : undefined}
+              style={cfg ? { color: cfg.screenColor } : undefined}
             >
               {cfg ? cfg.symbol : eligible ? (day.markable ? '·' : '') : '–'}
             </button>
           </td>
         )
       }))}
-      <td className="px-2 py-1 text-xs font-black text-center text-green-700 border-l theme-border">{totals.presentDays}</td>
-      <td className="px-2 py-1 text-xs font-black text-center text-red-700">{totals.absentDays}</td>
-      <td className="px-2 py-1 text-xs font-black text-center text-blue-700">{totals.sickDays}</td>
-      <td className="px-2 py-1 text-xs font-black text-center text-amber-700">{totals.lateDays}</td>
-      <td className="px-2 py-1 text-xs font-black text-center text-purple-700">{totals.excusedDays}</td>
+      {/* Status inks via the --att-*-fg tokens (attendanceConstants
+          screenColor) — the fixed *-700 classes measured 2.3–2.5:1 on the
+          Night surface, worst on a lone zero. */}
+      <td className="px-2 py-1 text-xs font-black text-center border-l theme-border" style={{ color: ATTENDANCE_STATUSES.present.screenColor }}>{totals.presentDays}</td>
+      <td className="px-2 py-1 text-xs font-black text-center" style={{ color: ATTENDANCE_STATUSES.absent.screenColor }}>{totals.absentDays}</td>
+      <td className="px-2 py-1 text-xs font-black text-center" style={{ color: ATTENDANCE_STATUSES.sick.screenColor }}>{totals.sickDays}</td>
+      <td className="px-2 py-1 text-xs font-black text-center" style={{ color: ATTENDANCE_STATUSES.late.screenColor }}>{totals.lateDays}</td>
+      <td className="px-2 py-1 text-xs font-black text-center" style={{ color: ATTENDANCE_STATUSES.excused.screenColor }}>{totals.excusedDays}</td>
       <td className="px-2 py-1 text-xs font-black text-center theme-text-muted">{totals.eligibleDays}</td>
       {/* No marks yet → the formula has nothing to say. formatPercent already
           renders '—' for null; this gate is belt-and-braces for a draft term. */}

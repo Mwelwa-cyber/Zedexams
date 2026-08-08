@@ -378,7 +378,7 @@ function LessonPlanPreview() {
       </div>
 
       {/* A real printed A4 sheet — white page, ruled red margin, print serif type */}
-      <div className="relative overflow-hidden rounded-sm bg-white text-slate-800 shadow-[0_1px_2px_rgba(0,0,0,0.08),0_8px_24px_-6px_rgba(0,0,0,0.25)] ring-1 ring-slate-200">
+      <div className="mk-sheet relative overflow-hidden rounded-sm bg-white text-slate-800 shadow-[0_1px_2px_rgba(0,0,0,0.08),0_8px_24px_-6px_rgba(0,0,0,0.25)] ring-1 ring-slate-200">
         {/* punched binder holes down the left edge */}
         <div className="pointer-events-none absolute left-2 top-0 hidden h-full flex-col justify-center gap-8 sm:flex">
           <span className="h-2.5 w-2.5 rounded-full bg-slate-200 ring-1 ring-inset ring-slate-300" />

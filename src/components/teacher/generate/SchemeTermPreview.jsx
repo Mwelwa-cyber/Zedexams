@@ -43,15 +43,21 @@ function withIds(items) {
 }
 
 function SourceBadge({ source }) {
+  // Semantic status tokens (light wash + dark ink in the light themes,
+  // translucent wash + light ink on Night) rather than hard-coded pastels,
+  // which stayed light-on-light under the Night theme.
   const map = {
-    syllabi_studio: { label: 'Syllabus', bg: '#eef6f2', fg: '#0e6b52' },
-    uploaded_module: { label: 'Module', bg: '#eff6ff', fg: '#1e40af' },
-    ai_inferred: { label: 'General CBC', bg: '#fef3c7', fg: '#92400e' },
-    teacher: { label: 'You added', bg: '#f3e8ff', fg: '#6b21a8' },
+    syllabi_studio: { label: 'Syllabus', bg: 'var(--success-bg)', fg: 'var(--success-fg)' },
+    uploaded_module: { label: 'Module', bg: 'var(--info-bg)', fg: 'var(--info-fg)' },
+    ai_inferred: { label: 'General CBC', bg: 'var(--warning-bg)', fg: 'var(--warning-fg)' },
+    teacher: { label: 'You added', bg: null, fg: null, chip: 'zx-chip--purple' },
   }
   const m = map[source] || map.syllabi_studio
   return (
-    <span className="text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-md" style={{ background: m.bg, color: m.fg }}>
+    <span
+      className={`text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-md ${m.chip || ''}`.trim()}
+      style={m.bg ? { background: m.bg, color: m.fg } : undefined}
+    >
       {m.label}
     </span>
   )
@@ -65,10 +71,10 @@ function Advisories({ list }) {
         const err = a.level === 'error'
         const warn = a.level === 'warning'
         const style = err
-          ? { background: '#fef2f2', borderColor: '#fecaca', color: '#991b1b' }
+          ? { background: 'var(--danger-bg)', borderColor: 'var(--danger)', color: 'var(--danger-fg)' }
           : warn
-            ? { background: '#fffbeb', borderColor: '#fcd34d', color: '#92400e' }
-            : { background: '#eff6ff', borderColor: '#bfdbfe', color: '#1e40af' }
+            ? { background: 'var(--warning-bg)', borderColor: 'var(--warning)', color: 'var(--warning-fg)' }
+            : { background: 'var(--info-bg)', borderColor: 'var(--info)', color: 'var(--info-fg)' }
         return (
           <div key={`${a.code}-${i}`} className="rounded-xl border px-3 py-2 text-sm flex items-start gap-2" style={style}>
             <span>{err ? '⛔' : warn ? '⚠️' : 'ℹ️'}</span>
@@ -86,7 +92,7 @@ function TopicCard({ item, index, count, onRemove, onMove, onWeeks }) {
   return (
     <div className="rounded-xl border theme-border p-3.5" style={{ background: 'var(--zt-card)' }}>
       <div className="flex items-start gap-3">
-        <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg font-black text-white shrink-0 mt-0.5" style={{ background: item.isRevision ? '#6b21a8' : '#0e2a32' }}>
+        <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg font-black text-white shrink-0 mt-0.5" style={{ background: item.isRevision ? '#6b21a8' : 'var(--zt-sidebar-bg)' }}>
           {index + 1}
         </span>
         <div className="min-w-0 flex-1">
@@ -113,9 +119,9 @@ function TopicCard({ item, index, count, onRemove, onMove, onWeeks }) {
           </div>
         </div>
         <div className="flex flex-col items-center gap-1 shrink-0">
-          <button type="button" aria-label="Move up" disabled={index === 0} onClick={() => onMove(-1)} className="px-2 py-0.5 rounded-md text-xs disabled:opacity-30" style={{ border: '1px solid #e5ddd0' }}>▲</button>
-          <button type="button" aria-label="Move down" disabled={index === count - 1} onClick={() => onMove(1)} className="px-2 py-0.5 rounded-md text-xs disabled:opacity-30" style={{ border: '1px solid #e5ddd0' }}>▼</button>
-          <button type="button" aria-label="Remove topic" onClick={onRemove} className="px-2 py-0.5 rounded-md text-xs font-bold" style={{ color: '#b91c1c', border: '1px solid #fecaca' }}>✕</button>
+          <button type="button" aria-label="Move up" disabled={index === 0} onClick={() => onMove(-1)} className="px-2 py-0.5 rounded-md text-xs disabled:opacity-30" style={{ color: 'var(--zt-text)', border: '1px solid var(--zt-line)' }}>▲</button>
+          <button type="button" aria-label="Move down" disabled={index === count - 1} onClick={() => onMove(1)} className="px-2 py-0.5 rounded-md text-xs disabled:opacity-30" style={{ color: 'var(--zt-text)', border: '1px solid var(--zt-line)' }}>▼</button>
+          <button type="button" aria-label="Remove topic" onClick={onRemove} className="px-2 py-0.5 rounded-md text-xs font-bold" style={{ color: 'var(--danger-fg)', border: '1px solid var(--danger)' }}>✕</button>
         </div>
       </div>
     </div>
@@ -194,7 +200,7 @@ function TermPanel({
   )
 
   return (
-    <div className={`rounded-2xl border p-4 sm:p-5 ${focused ? '' : 'opacity-95'}`} style={{ background: '#fdfbf4', borderColor: '#e6dcc0' }}>
+    <div className={`rounded-2xl border p-4 sm:p-5 ${focused ? '' : 'opacity-95'}`} style={{ background: 'var(--zt-card)', borderColor: 'var(--zt-line)' }}>
       <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
         <h3 className="studio-display" style={{ fontSize: 18, margin: 0 }}>Term {term}</h3>
         <span className="text-xs font-bold" style={{ color: 'var(--zt-text-muted)' }}>
@@ -281,7 +287,7 @@ function TermPanel({
           <p className="text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: 'var(--zt-text-muted)' }}>Removed — tap to restore</p>
           <div className="flex flex-wrap gap-1.5">
             {removed.map((r) => (
-              <button key={r.id} type="button" onClick={() => restore(r.id)} className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: '#f3f4f6', color: 'var(--zt-text-muted)', border: '1px dashed #cbd5e1' }}>
+              <button key={r.id} type="button" onClick={() => restore(r.id)} className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: 'color-mix(in srgb, var(--zt-text) 7%, var(--zt-card))', color: 'var(--zt-text-muted)', border: '1px dashed var(--zt-line)' }}>
                 ↩ {r.topic}
               </button>
             ))}
@@ -391,7 +397,7 @@ export default function SchemeTermPreview({
               onClick={() => onScopeChange?.(opt.v)}
               className="px-4 py-2 text-sm font-bold"
               style={scope === opt.v
-                ? { background: '#0e2a32', color: '#fff' }
+                ? { background: 'var(--zt-sidebar-bg)', color: 'var(--zt-on-dark, #ffffff)' }
                 : { background: 'var(--zt-card)', color: 'var(--zt-text-muted)' }}
             >
               {opt.label}

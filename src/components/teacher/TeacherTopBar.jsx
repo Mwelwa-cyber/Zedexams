@@ -76,7 +76,7 @@ export default function TeacherTopBar() {
           {unreadCount > 0 && (
             <span
               className="absolute -top-1.5 -right-1.5 flex items-center justify-center rounded-full text-[10px] font-black"
-              style={{ background: '#d97757', color: '#fff', minWidth: 18, height: 18, padding: '0 5px', border: '2px solid var(--zt-card)' }}
+              style={{ background: 'var(--zt-accent)', color: 'var(--zt-on-accent)', minWidth: 18, height: 18, padding: '0 5px', border: '2px solid var(--zt-card)' }}
             >
               {unreadCount}
             </span>
@@ -99,9 +99,9 @@ export default function TeacherTopBar() {
           aria-label="Quick create"
           aria-expanded={createOpen}
           className="flex items-center gap-1.5 rounded-xl font-bold transition-colors"
-          style={{ background: '#d97757', color: '#fff', padding: '0 14px', height: 40, fontSize: 13.5 }}
-          onMouseEnter={e => { e.currentTarget.style.background = '#c5613f' }}
-          onMouseLeave={e => { e.currentTarget.style.background = '#d97757' }}
+          style={{ background: 'var(--zt-accent)', color: 'var(--zt-on-accent)', padding: '0 14px', height: 40, fontSize: 13.5 }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'var(--zt-accent-deep)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'var(--zt-accent)' }}
         >
           <Icon as={createOpen ? X : Plus} size="sm" />
           <span className="hidden sm:inline">Create</span>

@@ -148,7 +148,7 @@ function PlanCard({ plan, billing, popular = false, onCta, native }) {
       className={`relative flex flex-col ${popular ? '' : 'theme-text'}`}
     >
       {popular && (
-        <span className="absolute -top-3 left-1/2 -translate-x-1/2 z-10 rounded-full bg-white px-3 py-1 text-[11px] font-black uppercase tracking-wider text-[color:var(--accent-fg)] shadow-elev-sm ring-1 ring-black/5">
+        <span className="absolute -top-3 left-1/2 -translate-x-1/2 z-10 rounded-full bg-[color:var(--hero-cta-bg)] px-3 py-1 text-[11px] font-black uppercase tracking-wider text-[color:var(--hero-cta-text)] shadow-elev-sm ring-1 ring-black/5">
           Most popular
         </span>
       )}
@@ -167,7 +167,7 @@ function PlanCard({ plan, billing, popular = false, onCta, native }) {
         size="lg"
         fullWidth
         onClick={onCta}
-        className={popular ? '!bg-white !text-[color:var(--accent-fg)] hover:!bg-white' : ''}
+        className={popular ? '!bg-[color:var(--hero-cta-bg)] !text-[color:var(--hero-cta-text)] hover:!bg-[color:var(--hero-cta-bg)]' : ''}
       >
         {plan.cta}
       </Button>
@@ -471,7 +471,7 @@ export default function Plans() {
               variant="primary"
               size="lg"
               onClick={handleFreeCta}
-              className="!bg-white !text-[color:var(--accent-fg)] hover:!bg-white"
+              className="!bg-[color:var(--hero-cta-bg)] !text-[color:var(--hero-cta-text)] hover:!bg-[color:var(--hero-cta-bg)]"
             >
               ▶ Start with Free
             </Button>

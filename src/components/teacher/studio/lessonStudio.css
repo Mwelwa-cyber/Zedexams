@@ -120,7 +120,12 @@
 
 /* ── Sticker vocabulary (new helpers) ─────────────────────────────────────── */
 
-/* Uppercase eyebrow with the orange dash — mirrors .zx-eyebrow. */
+/* Uppercase eyebrow with the accent dash — mirrors .zx-eyebrow. Reads the
+ * theme ink token rather than a literal: this class is also mounted OUTSIDE
+ * .lps-game (StudioCurriculumSelector on the generator studios), where the
+ * old #053541 literal — and the Night remap that flipped it near-white —
+ * landed on whatever surface the host drew and went invisible in one theme
+ * or the other. The token tracks the surface in all four themes. */
 .lps-eyebrow {
   display: inline-flex;
   align-items: center;
@@ -129,24 +134,71 @@
   font-weight: 800;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: #053541;
+  color: var(--zt-text);
 }
 .lps-eyebrow::before {
   content: '';
   width: 20px;
   height: 3px;
   border-radius: 2px;
-  background: #d97757;
+  background: var(--zt-accent);
 }
 
-/* Orange sticker pill button (primary). */
+/* ── Curriculum picker (shared control) ───────────────────────────────────
+ * Mounted in three hosts: the lesson wizard (.lps-game), the generator
+ * studios' StudioCurriculumSelector (.studio-theme pages, NO .lps-game
+ * wrapper) and the assessment slide-over. Only the second host used to fall
+ * through every remap, leaving cream cards and dark ink on the Night theme.
+ * Token-driven throughout, so it needs no [data-theme] twin: the sticker
+ * geometry (2px border, hard offset shadow) is kept and the inks follow the
+ * active workspace theme. */
+.lps-curriculum-banner {
+  border-color: var(--zt-line);
+  background: color-mix(in srgb, var(--zt-surface) 95%, transparent);
+}
+.lps-curriculum-card {
+  border: 2px solid var(--zt-card-border);
+  background: var(--zt-card);
+  box-shadow: 0 2px 0 var(--zt-card-border);
+}
+.lps-curriculum-card:hover {
+  background: color-mix(in srgb, var(--zt-text) 4%, var(--zt-card));
+}
+.lps-curriculum-card.is-selected {
+  background: color-mix(in srgb, var(--zt-accent) 12%, var(--zt-card));
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--zt-accent) 28%, transparent),
+    0 2px 0 var(--zt-card-border);
+}
+.lps-curriculum-card__tile {
+  background: color-mix(in srgb, var(--zt-text) 6%, var(--zt-surface));
+}
+.lps-curriculum-card.is-selected .lps-curriculum-card__tile {
+  background: color-mix(in srgb, var(--zt-accent) 18%, var(--zt-card));
+}
+.lps-curriculum-card__title { color: var(--zt-text); }
+.lps-curriculum-card.is-selected .lps-curriculum-card__title { color: var(--zt-accent-text); }
+.lps-curriculum-card__desc { color: var(--zt-text-muted); }
+.lps-curriculum-card__badge {
+  border: 1px solid var(--zt-card-border);
+  background: var(--zt-accent);
+  color: var(--zt-on-accent);
+}
+.lps-curriculum-card__check {
+  background: var(--zt-accent);
+  color: var(--zt-on-accent);
+}
+
+/* Accent sticker pill button (primary). Token-driven: the old literal pair
+ * (#d97757 with white ink) measured 3.12:1 in every theme — the accent
+ * tokens carry a per-theme ink tuned to clear AA on the fill. */
 .lps-btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: #d97757;
-  color: #ffffff;
+  background: var(--zt-accent);
+  color: var(--zt-on-accent);
   border: 2px solid #0f1b2d;
   border-radius: 14px;
   font-weight: 800;
@@ -160,7 +212,7 @@
 .lps-btn-primary:hover:not(:disabled) {
   transform: translateY(1px);
   box-shadow: 0 2px 0 #0f1b2d;
-  background: #c8663a;
+  background: var(--zt-accent-deep);
 }
 .lps-btn-primary:active:not(:disabled) {
   transform: translateY(3px);
@@ -289,6 +341,30 @@
 /* Focus rings (any ring-blue-* variant) glow orange. */
 .lps-game [class*='ring-blue'] {
   --tw-ring-color: rgba(217, 119, 87, 0.4);
+}
+
+/* Warm-brown INK utilities → the theme ink tokens. These arbitrary-value
+ * classes (field labels, "(optional)" hints, panel copy, the prefill
+ * disclosure) are the studio's text vocabulary, and as literals they stayed
+ * dark-on-dark under the Night theme — #a39d8e measured 1.1:1 on the night
+ * card. Remapped rather than renamed, same reasoning as the blue accents
+ * above; the tokens resolve within a step of the original values on the
+ * light themes and to legible ink on Night. */
+.lps-game .text-\[\#3d3529\],
+.lps-game .hover\:text-\[\#3d3529\]:hover {
+  color: var(--zt-text);
+}
+.lps-game .text-\[\#7a6d5d\],
+.lps-game .text-\[\#8a7d6b\],
+.lps-game .text-\[\#8b8271\],
+.lps-game .text-\[\#a39d8e\] {
+  color: var(--zt-text-muted);
+}
+/* The half-transparent white wash on the prefill disclosure — a light bar on
+ * the Night card. A wash of the CARD token keeps the recessed look on every
+ * theme. */
+.lps-game .bg-white\/50 {
+  background-color: color-mix(in srgb, var(--zt-card) 50%, transparent);
 }
 
 /* Warm-beige card/button borders → the navy sticker border. The parchment
@@ -742,7 +818,7 @@
 [data-theme='night'] .lps-game .border-\[\#e0d7c8\],
 [data-theme='night'] .lps-game .border-\[\#d9cfc3\] { border-color: #3B4757; }
 [data-theme='night'] .lps-game .border-\[\#0F1B2D\] { border-color: #6B7A8D; }
-[data-theme='night'] .lps-eyebrow { color: #CFE3EE; }
+/* .lps-eyebrow reads var(--zt-text) in its base rule now — no remap needed. */
 [data-theme='night'] .lps-btn-ghost {
   background: #232D3B;
   color: #EDE7DC;

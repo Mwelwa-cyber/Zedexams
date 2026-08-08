@@ -13,7 +13,15 @@ const GOLD       = "#C9A84C";
 const GOLD_LIGHT = "#E8C96A";
 const RED        = "#C0392B";
 const INK_DARK   = "#0F1B2D"; // text painted on top of a GOLD chip — never flips
-const termColors = ["#1A6B5A", "#1A4B8E", "#7B2D8B"];
+// Term hues as INK (the eyebrow + selected border) go through --moe-term-ink-*
+// rather than staying literal: the deep light-theme hues measured 1.7–2.3:1 on
+// the dark surfaces, so the dark block lifts them while light themes keep the
+// original values.
+const termColors = [
+  "var(--moe-term-ink-1)",
+  "var(--moe-term-ink-2)",
+  "var(--moe-term-ink-3)",
+];
 
 // Theme-aware surfaces / ink — backed by .moe-calendar CSS vars in index.css
 // (defaults to Navy/Gold/Cream; overridden inside body.theme-midnight).
@@ -158,7 +166,7 @@ function TermCard({ term, index, isSelected, onClick }) {
         background: isSelected ? bg : SURFACE,
         padding: "16px 18px",
         transition: "all 0.2s ease",
-        boxShadow: isSelected ? `0 4px 16px ${color}22` : "0 1px 4px rgba(0,0,0,0.05)",
+        boxShadow: isSelected ? `0 4px 16px color-mix(in srgb, ${color} 13%, transparent)` : "0 1px 4px rgba(0,0,0,0.05)",
         transform: isSelected ? "translateY(-2px)" : "none",
       }}
     >

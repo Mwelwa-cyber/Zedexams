@@ -9,9 +9,9 @@ export default function GoogleSignInButton({ onClick, loading, disabled, label =
       aria-busy={loading || undefined}
       className={
         'w-full min-h-[56px] flex items-center justify-center gap-3 ' +
-        'rounded-[14px] border border-[#D1D5DB] bg-white text-[#111827] ' +
+        'rounded-[14px] border border-[color:var(--input-border)] bg-white text-[color:var(--text)] ' +
         'text-[16px] font-semibold font-body ' +
-        'transition-all hover:bg-[#FAFAFA] hover:border-[#B9BEC7] ' +
+        'transition-all hover:bg-[color:var(--card-hover)] hover:border-[color:var(--text-muted)] ' +
         'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--accent)]/30 focus-visible:border-[var(--accent)] ' +
         'active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed ' +
         'motion-reduce:transition-none'

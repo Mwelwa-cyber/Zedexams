@@ -984,6 +984,12 @@ function SearchResults({ rows }) {
 /* ── Folder card ───────────────────────────────────────────────── */
 // Windows-style folder: a small tab pokes above the top-left corner of
 // a soft gradient body. The whole thing lifts slightly on hover.
+//
+// The palette hexes are handed to CSS as `--folder-tint-*` custom properties
+// and everything paints from the derived `--folder-*` set (see the
+// `.zx-folder-card` rules in index.css): light themes pass the tints through
+// unchanged, Night derives a dark-appropriate wash of the same hue and swaps
+// the on-pastel ink for theme ink. The JSX carries no theme knowledge.
 
 function FolderCard({ icon, palette, title, subtitle, onClick }) {
   const IconComponent = icon
@@ -991,8 +997,17 @@ function FolderCard({ icon, palette, title, subtitle, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="relative block w-full text-left cursor-pointer transition-transform hover:-translate-y-0.5"
-      style={{ background: 'transparent', border: 'none', padding: '10px 0 0', margin: 0 }}
+      className="zx-folder-card relative block w-full text-left cursor-pointer transition-transform hover:-translate-y-0.5"
+      style={{
+        '--folder-tint-from': palette.from,
+        '--folder-tint-to': palette.to,
+        '--folder-tint-border': palette.border,
+        '--folder-tint-tab': palette.tab,
+        background: 'transparent',
+        border: 'none',
+        padding: '10px 0 0',
+        margin: 0,
+      }}
     >
       {/* Folder tab */}
       <span
@@ -1004,8 +1019,8 @@ function FolderCard({ icon, palette, title, subtitle, onClick }) {
           width: 64,
           height: 24,
           borderRadius: '10px 10px 0 0',
-          background: palette.tab,
-          border: `1px solid ${palette.border}`,
+          background: 'var(--folder-tab)',
+          border: '1px solid var(--folder-border)',
           borderBottom: 'none',
         }}
       />
@@ -1013,8 +1028,8 @@ function FolderCard({ icon, palette, title, subtitle, onClick }) {
       <span
         className="relative flex items-start justify-between gap-2"
         style={{
-          background: `linear-gradient(140deg, ${palette.from} 0%, ${palette.to} 100%)`,
-          border: `1px solid ${palette.border}`,
+          background: 'linear-gradient(140deg, var(--folder-from) 0%, var(--folder-to) 100%)',
+          border: '1px solid var(--folder-border)',
           borderRadius: 16,
           boxShadow: '0 5px 14px rgba(14,42,50,.06)',
           padding: '16px 14px 12px',
@@ -1024,16 +1039,16 @@ function FolderCard({ icon, palette, title, subtitle, onClick }) {
         <span className="flex flex-col min-w-0 flex-1 self-stretch">
           <span
             className="line-clamp-2"
-            style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 'clamp(15px, 2.2vw, 17px)', color: COLORS.onPastel, lineHeight: 1.2 }}
+            style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 'clamp(15px, 2.2vw, 17px)', color: 'var(--folder-ink)', lineHeight: 1.2 }}
           >
             {title}
           </span>
-          <span style={{ fontSize: 12, color: COLORS.onPastelSoft, fontWeight: 600, marginTop: 4 }}>
+          <span style={{ fontSize: 12, color: 'var(--folder-ink-soft)', fontWeight: 600, marginTop: 4 }}>
             {subtitle}
           </span>
           <span
             className="inline-flex items-center gap-1"
-            style={{ fontSize: 11.5, color: COLORS.onPastelFaint, fontWeight: 700, marginTop: 'auto', paddingTop: 10 }}
+            style={{ fontSize: 11.5, color: 'var(--folder-ink-faint)', fontWeight: 700, marginTop: 'auto', paddingTop: 10 }}
           >
             Open <Icon as={ArrowRight} size={12} />
           </span>
@@ -1043,9 +1058,9 @@ function FolderCard({ icon, palette, title, subtitle, onClick }) {
           style={{
             width: 38,
             height: 38,
-            background: 'rgba(255,255,255,.8)',
-            border: `1px solid ${palette.border}`,
-            color: COLORS.onPastel,
+            background: 'var(--folder-chip)',
+            border: '1px solid var(--folder-border)',
+            color: 'var(--folder-ink)',
           }}
         >
           <Icon as={IconComponent} size="sm" />

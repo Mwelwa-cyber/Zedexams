@@ -106,17 +106,32 @@ export function applyThemeToBody(id) {
 }
 
 /**
+ * Whether the visitor's OS asks for a dark palette. Read through one helper
+ * so every seeding site (here, and mirrored in boot.js's pre-paint guards —
+ * kept in step by the mirror tests) agrees on the query.
+ */
+export function prefersDarkColorScheme() {
+  try {
+    return typeof window !== 'undefined'
+      && Boolean(window.matchMedia?.('(prefers-color-scheme: dark)')?.matches)
+  } catch {
+    return false
+  }
+}
+
+/**
  * Resolve the initial theme for a brand-new visitor.
  * - If they've saved a choice → use that.
+ * - No saved choice + the OS asks for dark → Midnight.
  * - Otherwise → Warm Oatmeal (the brand default — a light, warm palette).
  *
- * We intentionally do NOT read `prefers-color-scheme` here. The site's
- * content (including the quiz editor, rich-text areas, tables, and native
- * form controls) is designed for a light palette, and honouring the OS
- * dark preference would auto-flip visitors into Midnight — which many
- * users flagged as "a bit too dark" because not every surface is fully
- * dark-theme-ready yet. Users who want Midnight can still pick it from
- * the theme switcher and the choice persists via localStorage.
+ * The `prefers-color-scheme` seed is deliberately NOT written to
+ * localStorage: an absent key means "not answered", and keeping it absent is
+ * what lets the site keep following the OS setting until the visitor picks a
+ * theme themselves (setTheme is the only writer). Historically the OS
+ * preference was ignored because not every surface was dark-ready; the
+ * public/marketing/auth surfaces are Midnight-capable now, and boot.js seeds
+ * the same way pre-paint so there is no light flash before React mounts.
  */
 function resolveInitialTheme() {
   try {
@@ -134,7 +149,7 @@ function resolveInitialTheme() {
       return next
     }
   } catch { /* localStorage unavailable — fall through */ }
-  return DEFAULT_THEME
+  return prefersDarkColorScheme() ? 'midnight' : DEFAULT_THEME
 }
 
 /* ── Teacher workspace theme ───────────────────────────────────────────
@@ -216,13 +231,10 @@ export function ThemeProvider({ children }) {
     applyTeacherThemeAttribute(teacherTheme)
   }, [teacherTheme])
 
-  // The body class is applied by <ThemeApplicator /> inside the Router so it
-  // can pin the brand default on auth/legal routes regardless of the saved
-  // preference. Persist the saved theme here so localStorage stays the source
-  // of truth across reloads.
-  useEffect(() => {
-    try { localStorage.setItem(LS_KEY, theme) } catch { }
-  }, [theme])
+  // The body class is applied by <ThemeApplicator /> inside the Router.
+  // Persistence happens ONLY in setTheme: an initial value seeded from
+  // prefers-color-scheme must stay unwritten, or the seed would turn into a
+  // saved "choice" on first load and stop following the OS setting.
 
   return (
     <ThemeContext.Provider value={{

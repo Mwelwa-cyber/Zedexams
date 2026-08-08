@@ -522,9 +522,12 @@
   width: 254px;
   padding: 8px;
   border-radius: 16px;
-  background: rgba(9, 27, 48, 0.94);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  /* OPAQUE, and derived from the sidebar token. The old rgba(9,27,48,0.94)
+     fill let 6% of the nav labels underneath show through the menu text —
+     visible on Night, where menu ink and bleed-through ink are both light.
+     This mix reproduces the exact colour the old fill composited to over the
+     sidebar (94% navy + 6% of the sidebar token), with nothing behind it. */
+  background: color-mix(in srgb, var(--zt-sidebar-bg) 6%, rgb(9, 27, 48));
   border: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45), 0 4px 16px rgba(0, 0, 0, 0.3);
   z-index: 60;
@@ -664,7 +667,9 @@
   transform: translateY(-50%);
   padding: 6px 10px;
   border-radius: 9px;
-  background: rgba(9, 27, 48, 0.96);
+  /* Opaque for the same reason as .tdv2-menu above — this floats over page
+     content that may be light or dark, so any alpha muddies the label. */
+  background: color-mix(in srgb, var(--zt-sidebar-bg) 4%, rgb(9, 27, 48));
   border: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3);
   color: var(--on-sidebar);

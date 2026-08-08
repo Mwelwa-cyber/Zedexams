@@ -18,8 +18,8 @@ export default function SecurityReassurance() {
           <li key={title} className="flex flex-col max-[380px]:flex-row items-center max-[380px]:items-start gap-1.5 max-[380px]:gap-2.5 text-center max-[380px]:text-left">
             <IconComponent size={20} color={color} strokeWidth={1.9} aria-hidden="true" className="shrink-0 mt-px" />
             <div>
-              <p className="text-[13px] font-semibold text-[#26344D] leading-tight">{title}</p>
-              <p className="text-[12px] text-[#6E7280] leading-snug mt-0.5">{text}</p>
+              <p className="text-[13px] font-semibold text-[color:var(--text)] leading-tight">{title}</p>
+              <p className="text-[12px] text-[color:var(--text-muted)] leading-snug mt-0.5">{text}</p>
             </div>
           </li>
         ))}

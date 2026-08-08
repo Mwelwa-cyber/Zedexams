@@ -58,12 +58,12 @@ async function diagnosePasswordFailure(email) {
 }
 
 const INPUT_CLASS =
-  'w-full h-14 rounded-[14px] border border-[#D1D5DB] bg-white ' +
-  'text-[#111827] text-[16px] font-body px-4 outline-none transition-colors ' +
-  'placeholder:text-[#9CA3AF] focus:border-[var(--accent)] ' +
+  'w-full h-14 rounded-[14px] border border-[color:var(--input-border)] bg-[color:var(--input-bg)] ' +
+  'text-[color:var(--text)] text-[16px] font-body px-4 outline-none transition-colors ' +
+  'placeholder:text-[color:var(--text-muted)] focus:border-[var(--accent)] ' +
   'focus:ring-[3px] focus:ring-[var(--accent)]/20'
 
-const LABEL_CLASS = 'block text-[15px] font-medium text-[#111827] mb-1.5'
+const LABEL_CLASS = 'block text-[15px] font-medium text-[color:var(--text)] mb-1.5'
 
 export default function Login() {
   const {
@@ -295,14 +295,7 @@ export default function Login() {
 
   return (
     <div
-      className="min-h-screen flex items-start sm:items-center justify-center px-4 py-6 sm:p-8 overflow-y-auto"
-      style={{
-        backgroundColor: '#FFF8F1',
-        '--accent': '#B44F2D',
-        '--accent-text': '#FFFFFF',
-        '--accent-bg': '#FFF3EA',
-        '--accent-fg': '#83372C',
-      }}
+      className="auth-page min-h-screen flex items-start sm:items-center justify-center px-4 py-6 sm:p-8 overflow-y-auto"
     >
       <SeoHelmet
         title="Sign in"
@@ -332,8 +325,8 @@ export default function Login() {
             </Button>
 
             <div className="text-center mb-6">
-              <h2 className="text-[24px] font-bold text-[#111827]">Reset password</h2>
-              <p className="text-[15px] text-[#6E7280] mt-1">Enter your email and we'll send you a reset link.</p>
+              <h2 className="text-[24px] font-bold text-[color:var(--text)]">Reset password</h2>
+              <p className="text-[15px] text-[color:var(--text-muted)] mt-1">Enter your email and we'll send you a reset link.</p>
             </div>
 
             {resetSuccess ? (
@@ -371,7 +364,7 @@ export default function Login() {
                       autoCapitalize="none"
                       className={`${INPUT_CLASS} pr-12`}
                     />
-                    <Mail size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#9CA3AF] pointer-events-none" aria-hidden="true" />
+                    <Mail size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-[color:var(--text-muted)] pointer-events-none" aria-hidden="true" />
                   </div>
                 </div>
                 {resetError && (
@@ -396,8 +389,8 @@ export default function Login() {
           /* ── Login Form ── */
           <>
             <div className="text-center mt-3 mb-6">
-              <h1 className="text-[30px] sm:text-[32px] font-bold text-[#111827] tracking-tight">Welcome back</h1>
-              <p className="text-[17px] sm:text-[18px] text-[#6E7280] mt-1">Sign in to your account</p>
+              <h1 className="text-[30px] sm:text-[32px] font-bold text-[color:var(--text)] tracking-tight">Welcome back</h1>
+              <p className="text-[17px] sm:text-[18px] text-[color:var(--text-muted)] mt-1">Sign in to your account</p>
             </div>
 
             {sessionExpired && (
@@ -418,12 +411,12 @@ export default function Login() {
                 />
               )}
               {passkeysEnabled && !passkeySupported && (
-                <p className="text-[13px] text-[#6E7280] text-center">
+                <p className="text-[13px] text-[color:var(--text-muted)] text-center">
                   Passkeys are not supported on this browser. Use Google or your password to sign in.
                 </p>
               )}
               {notice && (
-                <p aria-live="polite" className="text-[14px] text-center rounded-xl px-4 py-2.5 bg-[#F7F7FA] text-[#4B5563] border border-[#E5E7EB]">
+                <p aria-live="polite" className="text-[14px] text-center rounded-xl px-4 py-2.5 bg-[color:var(--bg-subtle)] text-[color:var(--text-muted)] border border-[color:var(--border)]">
                   {notice}
                 </p>
               )}
@@ -454,7 +447,7 @@ export default function Login() {
                     autoCapitalize="none"
                     className={`${INPUT_CLASS} pr-12`}
                   />
-                  <Mail size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#9CA3AF] pointer-events-none" aria-hidden="true" />
+                  <Mail size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-[color:var(--text-muted)] pointer-events-none" aria-hidden="true" />
                 </div>
               </div>
 
@@ -485,7 +478,7 @@ export default function Login() {
                     type="button"
                     onClick={() => setShowPw(v => !v)}
                     onMouseDown={e => e.preventDefault()}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center w-11 h-11 rounded-xl text-[#6E7280] hover:text-[#111827] transition-colors bg-transparent shadow-none p-0 min-h-0"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center w-11 h-11 rounded-xl text-[color:var(--text-muted)] hover:text-[color:var(--text)] transition-colors bg-transparent shadow-none p-0 min-h-0"
                     aria-label={showPw ? 'Hide password' : 'Show password'}
                     aria-pressed={showPw}
                   >
@@ -522,7 +515,7 @@ export default function Login() {
           </>
         )}
 
-        <p className="text-center text-[15px] text-[#6E7280] mt-6">
+        <p className="text-center text-[15px] text-[color:var(--text-muted)] mt-6">
           New to ZedExams?{' '}
           <Link
             to="/register"

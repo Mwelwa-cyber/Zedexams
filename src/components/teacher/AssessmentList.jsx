@@ -532,9 +532,9 @@ export default function AssessmentList() {
                 disabled={!needsReviewOnly && needsReviewCount === 0 && fullyLoaded}
                 className="rounded-full border-2 px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
-                  borderColor: '#d97706',
-                  background: needsReviewOnly ? '#fef3c7' : 'var(--zt-card)',
-                  color: needsReviewOnly ? '#92400e' : '#b45309',
+                  borderColor: 'var(--warning)',
+                  background: needsReviewOnly ? 'var(--warning-bg)' : 'var(--zt-card)',
+                  color: 'var(--warning-fg)',
                 }}
                 title={needsReviewOnly
                   ? `Click to show all ${cfg.nounPlural}`

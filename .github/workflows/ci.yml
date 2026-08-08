@@ -187,6 +187,12 @@ jobs:
         run: npm run smoke:mobile
       - name: Dashboard responsive navigation (viewport matrix)
         run: npm run smoke:dashboard
+      # WCAG AA in the two dark themes: live-walks the public routes under a
+      # saved Midnight theme (also proving navigation keeps the saved theme)
+      # and renders each gated teacher/settings route's risk surfaces against
+      # the built CSS under Night. Fails on any text pair below AA.
+      - name: Route contrast (Night + Midnight, WCAG AA)
+        run: npm run contrast:routes
 
   rules-emulator:
     # Behavioural Firestore-rules tests. Kept as a separate job because

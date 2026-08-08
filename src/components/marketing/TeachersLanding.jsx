@@ -427,7 +427,7 @@ export default function TeachersLanding() {
             </p>
             <div className="mt-7 flex flex-wrap items-center gap-3">
               <Button as={Link} to="/register?role=teacher" variant="primary" size="lg"
-                className="!bg-white !text-[color:var(--accent-fg)] hover:!bg-white">
+                className="!bg-[color:var(--hero-cta-bg)] !text-[color:var(--hero-cta-text)] hover:!bg-[color:var(--hero-cta-bg)]">
                 Start free
               </Button>
               <Button as="a" href="#samples" variant="ghost" size="lg" className="!text-white hover:!bg-white/10">
@@ -518,7 +518,7 @@ export default function TeachersLanding() {
             </p>
             <div className="mt-7 flex justify-center">
               <Button as={Link} to="/register?role=teacher" variant="primary" size="lg"
-                className="!bg-white !text-[color:var(--accent-fg)] hover:!bg-white">
+                className="!bg-[color:var(--hero-cta-bg)] !text-[color:var(--hero-cta-text)] hover:!bg-[color:var(--hero-cta-bg)]">
                 Create your first document
               </Button>
             </div>

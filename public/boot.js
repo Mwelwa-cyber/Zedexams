@@ -26,15 +26,29 @@
   //    palette at all. ThemeContext rewrites the stored key once React
   //    mounts; this only has to survive the first frame, so it maps and does
   //    not write.
+  //    No saved choice → seed from the OS colour scheme (prefers-color-scheme),
+  //    midnight when dark, the brand default otherwise. The seed is never
+  //    WRITTEN — an absent key means "not answered", so the site keeps
+  //    following the OS until the visitor picks a theme. ThemeContext's
+  //    resolveInitialTheme mirrors this exactly; test:reading-theme-mirror
+  //    fails if the two drift. Midnight also gets the `dark` class on <html>
+  //    pre-paint, so native controls (color-scheme) match from the first frame.
   try {
+    var prefersDark = false;
+    try {
+      prefersDark = !!(window.matchMedia
+        && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    } catch (e) {}
     var legacy = { light: 'sky', warm: 'oatmeal', dark: 'midnight' };
     var retired = { lavender: 'sky', vivid: 'solar' };
     var ids = ['oatmeal', 'sky', 'solar', 'midnight'];
     var saved = localStorage.getItem('examprep:theme');
     saved = legacy[saved] || retired[saved] || saved;
-    document.body.classList.add(
-      'theme-' + (ids.indexOf(saved) !== -1 ? saved : 'oatmeal')
-    );
+    var resolved = ids.indexOf(saved) !== -1
+      ? saved
+      : (prefersDark ? 'midnight' : 'oatmeal');
+    document.body.classList.add('theme-' + resolved);
+    if (resolved === 'midnight') document.documentElement.classList.add('dark');
   } catch (e) {
     document.body.classList.add('theme-oatmeal');
   }
@@ -51,13 +65,25 @@
   //     comment. boot.js is render-blocking at the top of <body> and is
   //     preloaded in <head>, so it still runs before first paint and there is
   //     no flash of the default theme.
+  //     No saved choice → the same prefers-color-scheme seeding as the learner
+  //     guard above (night when the OS is dark, the default otherwise), never
+  //     written. Mirrors teacherThemeStore.readInitial.
   try {
+    var teacherPrefersDark = false;
+    try {
+      teacherPrefersDark = !!(window.matchMedia
+        && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    } catch (e) {}
     var teacherIds = ['terracotta', 'miombo', 'copperbelt', 'night'];
     var savedTeacher = localStorage.getItem('zedexams-theme');
-    document.documentElement.setAttribute(
-      'data-theme',
-      teacherIds.indexOf(savedTeacher) !== -1 ? savedTeacher : 'terracotta'
-    );
+    if (teacherIds.indexOf(savedTeacher) === -1) {
+      // Same migration as teacherThemeStore: the retired per-device dashboard
+      // toggle counts as a saved dark choice.
+      savedTeacher = localStorage.getItem('zedexams:tdv2-theme') === 'dark'
+        ? 'night'
+        : (teacherPrefersDark ? 'night' : 'terracotta');
+    }
+    document.documentElement.setAttribute('data-theme', savedTeacher);
   } catch (e) {
     document.documentElement.setAttribute('data-theme', 'terracotta');
   }
@@ -147,10 +173,10 @@
           '<h1 style="font-size:1.5rem;font-weight:800;margin:0 0 0.5rem;">We could not finish loading ZedExams</h1>' +
           '<p style="margin:0 0 1.25rem;line-height:1.5;color:#4B6280;">This is usually a temporary loading or cached-version problem. Reloading the page fixes it most of the time.</p>' +
           '<div style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap;margin-bottom:1.25rem;">' +
-            '<button type="button" id="zed-fallback-reload" style="cursor:pointer;border:0;border-radius:0.625rem;padding:0.7rem 1.25rem;font-weight:700;font-size:0.95rem;color:#fff;background:#C5613F;">Reload</button>' +
+            '<button type="button" id="zed-fallback-reload" style="cursor:pointer;border:0;border-radius:0.625rem;padding:0.7rem 1.25rem;font-weight:700;font-size:0.95rem;color:#fff;background:#B95C3A;">Reload</button>' +
             '<button type="button" id="zed-fallback-clear" style="cursor:pointer;border:1px solid #CBD5E1;border-radius:0.625rem;padding:0.7rem 1.25rem;font-weight:700;font-size:0.95rem;color:#1A1F2E;background:#fff;">Clear cache &amp; reload</button>' +
           '</div>' +
-          '<p style="margin:0;font-size:0.875rem;color:#4B6280;">Still stuck? Email <a href="mailto:support@zedexams.com" style="color:#C5613F;font-weight:700;">support@zedexams.com</a> or WhatsApp <a href="https://wa.me/260977740465" style="color:#C5613F;font-weight:700;">+260 977 740 465</a>.</p>' +
+          '<p style="margin:0;font-size:0.875rem;color:#4B6280;">Still stuck? Email <a href="mailto:support@zedexams.com" style="color:#AA5435;font-weight:700;">support@zedexams.com</a> or WhatsApp <a href="https://wa.me/260977740465" style="color:#AA5435;font-weight:700;">+260 977 740 465</a>.</p>' +
         '</div>' +
       '</div>';
     // Wire the recovery buttons via addEventListener (the inline onclick
