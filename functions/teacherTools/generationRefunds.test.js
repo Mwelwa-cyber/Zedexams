@@ -129,6 +129,32 @@ Module._load = function (request, ...rest) {
   if (request === "./teacherPlanContext") {
     return {resolveTeacherPlanContext: async () => ""};
   }
+  if (request === "./generateLearnerNotes") {
+    // The learner pipeline itself is proved in generateLearnerNotes.test.js.
+    // Here it is a stub, because what this suite asks is narrower and sharper:
+    // when the document generation fails, does the teacher get their quota
+    // back. Driving the real pipeline would mean the assertion could fail for a
+    // reason that has nothing to do with refunds.
+    return {
+      generateLearnerNotesDocument: async () => {
+        calls.claude.push({learner: true});
+        const result = await claudeImpl("test-key", {});
+        return {
+          notes: {audience: "learner", ...result.parsed},
+          validation: {ok: true, errors: [], value: {}},
+          options: {format: "handout", detail: "detailed", length: "one",
+            englishLevel: "standard", paperSize: "a4"},
+          grounding: {grounded: true, count: 1, message: ""},
+          checks: {voiceClean: true, scopeClean: true, scopeChecked: true,
+            voiceMessage: "", scopeMessage: "", uncoveredOutcomes: [], rewrittenSections: []},
+          raw: result.text,
+          modelUsed: result.model,
+          usageInfo: result.usage,
+          promptVersion: "learner-notes.v1",
+        };
+      },
+    };
+  }
   if (request === "./notesSchema") {
     return {validateNotes: (parsed) => ({ok: true, value: parsed || {}, errors: []})};
   }
@@ -198,11 +224,23 @@ const GENERATORS = [
     }),
   },
   {
-    name: "generateNotes",
+    // `audience: "teaching"` is explicit because the studio's default is
+    // `learner`, which is a different pipeline. Both are covered — the learner
+    // one is the entry below — and neither is covered by accident.
+    name: "generateNotes (teaching)",
     tool: "notes",
     run: () => runNotes({
       uid: "u1",
-      rawInputs: {grade: "G4", subject: "mathematics", topic: "Fractions"},
+      rawInputs: {grade: "G4", subject: "mathematics", topic: "Fractions", audience: "teaching"},
+      apiKey: "test-key",
+    }),
+  },
+  {
+    name: "generateNotes (learner)",
+    tool: "notes",
+    run: () => runNotes({
+      uid: "u1",
+      rawInputs: {grade: "G4", subject: "mathematics", topic: "Fractions", audience: "learner"},
       apiKey: "test-key",
     }),
   },

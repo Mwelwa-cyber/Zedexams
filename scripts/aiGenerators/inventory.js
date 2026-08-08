@@ -449,6 +449,13 @@ export const INVENTORY = Object.freeze([
 
   // ── Helpers: run inside another operation ─────────────────────────────
   ...[
+    ['functions/teacherTools/generateLearnerNotes.js',
+      'The learner-notes pipeline INSIDE generateNotes — retrieve, write, then '
+      + 'lint the voice and check the grade ceiling, regenerating a failing '
+      + 'section. Its model calls happen under generateNotes\'s single '
+      + 'reservation and its single usage charge, which is what makes the '
+      + 'repair pass free to the teacher: a document that needed one section '
+      + 'rewritten costs the same as one that did not.'],
     ['functions/visualSafety.js', 'Safety gate applied to a generated image'],
     ['functions/pictureNaming.js', 'Auto-names a picture-bank asset after it is generated'],
     ['functions/teacherTools/gradeReclassifier.js', 'Re-derives a grade band for an imported question'],

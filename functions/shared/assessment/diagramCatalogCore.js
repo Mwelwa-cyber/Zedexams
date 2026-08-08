@@ -33,6 +33,12 @@
  * accessible placeholder; the data is preserved so a later restore works.
  */
 
+import {
+  CURRICULUM_DIAGRAMS,
+  diagramLabelAnchors,
+  renderCurriculumDiagram,
+} from './curriculumDiagramsCore.js'
+
 // Tiny SVG-text escaper — every render function below uses it on user-entered
 // param values so unbalanced angle brackets in labels can't break the SVG.
 function esc(value) {
@@ -1079,6 +1085,53 @@ function obliqueBox(l, w, h, { W, H }) {
 function edge(a, b, col, hidden, kind = 'edge') {
   return `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${col}"`
     + ` stroke-width="${hidden ? 1.3 : 2.1}"${hidden ? ' stroke-dasharray="5 4"' : ''} data-${kind}="${hidden ? 'hidden' : 'visible'}"/>`
+}
+
+/**
+ * The curriculum figures (§4b), as catalogue entries.
+ *
+ * They are authored in `curriculumDiagramsCore.js` because they carry a
+ * contract the geometric shapes do not — label anchors, a word bank and an
+ * answer key — but they are merged in HERE so there is still exactly one
+ * catalogue and one `getDiagram()`. A consumer never has to know which file an
+ * entry came from.
+ *
+ * `labels` is the parameter that switches variant: `on` for the study diagram,
+ * `off` for the label-it exercise, `answer` for the teacher's marking copy.
+ *
+ * `col` is deliberately ignored. Every other entry tints to the studio's brand
+ * ink; these print on a school photocopier, where a brand tint is a grey that
+ * loses the thinnest leader lines. They render in the catalogue's own print ink
+ * at all times — the figure a learner writes on is not a place for house style.
+ */
+function curriculumCatalogEntries() {
+  const out = {}
+  for (const [key, source] of Object.entries(CURRICULUM_DIAGRAMS)) {
+    out[key] = {
+      cat: source.cat,
+      name: source.name,
+      curriculum: true,
+      topics: source.topics,
+      subjects: source.subjects,
+      viewBox: source.viewBox,
+      labelAnchors: diagramLabelAnchors(source),
+      defaults: { labels: 'on', board: 'no', cap: source.name },
+      fields: [['labels', 'Labels (on / off / answer)'], ['board', 'Board version (yes/no)'], ['cap', 'Caption']],
+      render: (p) => renderCurriculumDiagram(source, {
+        mode: diagramLabelMode(p.labels),
+        board: isYes(p.board),
+      }),
+    }
+  }
+  return out
+}
+
+/** `labels` → the variant to draw. Anything unrecognised draws the study copy. */
+function diagramLabelMode(value) {
+  const v = String(value ?? '').trim().toLowerCase()
+  if (v === 'off' || v === 'no' || v === 'blank' || v === 'label-it') return 'label-it'
+  if (v === 'answer' || v === 'key') return 'answer'
+  return 'study'
 }
 
 export const DIAGRAM_CATALOG = {
@@ -2375,6 +2428,9 @@ export const DIAGRAM_CATALOG = {
       }).join('')
       return `<svg viewBox="0 0 380 ${h}" xmlns="http://www.w3.org/2000/svg" width="380"><ellipse cx="${lx}" cy="${h / 2 + 4}" rx="74" ry="${h / 2 - 6}" fill="none" stroke="${col}" stroke-width="1.2" stroke-dasharray="5 4"/><ellipse cx="${rx}" cy="${h / 2 + 4}" rx="74" ry="${h / 2 - 6}" fill="none" stroke="${col}" stroke-width="1.2" stroke-dasharray="5 4"/>${arrows}${ovals(left, lx, left.length)}${ovals(right, rx, right.length)}</svg>`
     } },
+
+  // ============ CURRICULUM (§4b) ============
+  ...curriculumCatalogEntries(),
 }
 
 const DEFAULT_COLOR = '#7c2d12'

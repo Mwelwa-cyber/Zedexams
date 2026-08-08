@@ -169,6 +169,19 @@ export const PREP_STEPS = [
   { id: 'check-topic',     label: 'Checking grade, subject & topic',     icon: '🔎' },
 ]
 
+/**
+ * The prep steps a LEARNER-notes generation opens with.
+ *
+ * Same three plus one, and the extra one is not decoration: "Writing to your
+ * learners" is the studio telling the teacher which document it is producing,
+ * on the surface where they are waiting to find out. The learner/teaching split
+ * is the whole point of the studio, so it says so while it works.
+ */
+export const LEARNER_PREP_STEPS = [
+  ...PREP_STEPS,
+  { id: 'learner-voice', label: 'Writing to your learners', icon: '✍🏽' },
+]
+
 /** The closing step shown once every section has been revealed. */
 export const FINALISE_STEP = { id: 'finalise', label: 'Formatting your document', icon: '🎁' }
 
@@ -181,11 +194,13 @@ export const FINALISE_STEP = { id: 'finalise', label: 'Formatting your document'
  * @param {object} [config]
  * @param {string} [config.firstSectionVerb='Writing'] — verb for the very first
  *   content step (e.g. "Creating the title & introduction").
+ * @param {Array} [config.prepSteps=PREP_STEPS] — the opening steps, so a tool
+ *   whose generation does something extra can say so (learner notes).
  * @returns {Array<{id,label,icon,sectionId?:string}>}
  */
 export function buildTimeline(sections = [], config = {}) {
   const verb = config.sectionVerb || 'Adding'
-  const steps = [...PREP_STEPS.map((s) => ({ ...s }))]
+  const steps = [...(config.prepSteps || PREP_STEPS).map((s) => ({ ...s }))]
   sections.forEach((s, i) => {
     steps.push({
       id: `section-${s.id}`,
@@ -263,6 +278,10 @@ export function computeTimelineStatus({
  * humanized label) so a schema addition never silently disappears.
  */
 export const TOOL_SECTION_CONFIG = {
+  // Teaching notes — the delivery document. Keyed `notes` because that is the
+  // tool id; the learner document is a different SHAPE with different section
+  // names, so it gets its own config below rather than a shared order list
+  // padded with keys one of them never has.
   notes: {
     order: [
       'introduction', 'keyConcepts', 'workedExamples', 'studentQuestions',
@@ -275,6 +294,26 @@ export const TOOL_SECTION_CONFIG = {
       studentQuestions: 'Common Student Questions',
       misconceptions: 'Misconceptions to Watch For',
       quickChecks: 'Quick Checks',
+    },
+  },
+  // Learner notes. `answerKey` stays skipped (ALWAYS_SKIP) — the reveal is the
+  // learner's document, and the answers are a separate file.
+  learnerNotes: {
+    prepSteps: LEARNER_PREP_STEPS,
+    order: [
+      'learningOutcomes', 'sections', 'workedExamples', 'dontMixThese',
+      'learnerQuestions', 'rememberBox', 'exercise',
+    ],
+    skip: ['grounding', 'checks', 'diagrams', 'audience', 'format', 'detail',
+      'length', 'englishLevel', 'paperSize', 'coveredContent'],
+    labels: {
+      learningOutcomes: 'What you will learn',
+      sections: 'Your notes',
+      workedExamples: "Let's work one out together",
+      dontMixThese: "Don't mix these up!",
+      learnerQuestions: 'Questions learners ask',
+      rememberBox: 'Remember!',
+      exercise: 'Exercise',
     },
   },
   worksheet: {
