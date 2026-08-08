@@ -17,30 +17,17 @@
 // back button, status chip and Save take room the viewport width says nothing
 // about. Tests pass `width` directly rather than faking layout.
 
-import { useEffect, useRef, useState } from 'react'
+import { useRef } from 'react'
 import { composeDocTitle, DOC_TITLE_MEDIUM } from '../paperNaming'
 import { ASSESSMENT_TYPE_LABELS, TERMS } from '../assessmentStudioMeta'
 import { assessmentCategory } from '../paperTaxonomy'
+import { useElementWidth } from '../../../hooks/useElementWidth'
 import Icon from './studioIcons'
 
-/** Live width of `ref`'s element, or null before the first measurement. */
-export function useElementWidth(ref) {
-  const [width, setWidth] = useState(null)
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return undefined
-    const read = () => setWidth(el.getBoundingClientRect().width || el.offsetWidth || 0)
-    read()
-    if (typeof ResizeObserver !== 'undefined') {
-      const observer = new ResizeObserver(read)
-      observer.observe(el)
-      return () => observer.disconnect()
-    }
-    window.addEventListener('resize', read)
-    return () => window.removeEventListener('resize', read)
-  }, [ref])
-  return width
-}
+// The measurement hook now lives in src/hooks — the past-paper archive needs
+// the same container-width reading for the same reason. Re-exported here so
+// every existing importer (and its spec) keeps working.
+export { useElementWidth }
 
 /**
  * @param {object}   paper     the studio's live `form` (grade / subject /

@@ -2840,12 +2840,32 @@ service cloud.firestore {
     function _validPaperGrade(value) { return value is string && value in ['7', '9', '12']; }
     function _validPaperStatus(value) { return value is string && value in ['draft', 'published', 'archived']; }
     function _validPaperQuizStatus(value) { return value is string && value in ['pending', 'attached']; }
+    // Source identity (src/config/paperSources.js). `source` names the
+    // publisher, `isOfficial` is DERIVED from it, and `sourceConfidence`
+    // records whether a human chose it, the migration inferred it, or nothing
+    // is known. Keep this enum in step with PAPER_SOURCES — an id the rules
+    // reject is a paper the studio cannot save.
+    function _validPaperSource(value) { return value is string && value in ['ecz', 'prisca', 'school_mock', 'other']; }
+    function _validSourceConfidence(value) { return value is string && value in ['explicit', 'inferred', 'unknown']; }
+    // 1 | 2 | 'special' | 'mock', plus the legacy ints 3-5 the old free-number
+    // input accepted and that live papers still carry.
+    function _validPaperNumber(value) {
+      return (value is int && value >= 1 && value <= 5)
+        || (value is string && value in ['special', 'mock']);
+    }
     function validPastPaperFields() {
       return (!('title' in incoming()) || (incoming().title is string && incoming().title.size() >= 1 && incoming().title.size() <= 200))
         && (!('grade' in incoming()) || _validPaperGrade(incoming().grade))
         && (!('subject' in incoming()) || _validSubject(incoming().subject))
         && (!('year' in incoming()) || (incoming().year is int && incoming().year >= 1990 && incoming().year <= 2100))
-        && (!('paperNumber' in incoming()) || incoming().paperNumber == null || (incoming().paperNumber is int && incoming().paperNumber >= 1 && incoming().paperNumber <= 5))
+        && (!('paperNumber' in incoming()) || incoming().paperNumber == null || _validPaperNumber(incoming().paperNumber))
+        && (!('source' in incoming()) || incoming().source == null || _validPaperSource(incoming().source))
+        && (!('isOfficial' in incoming()) || incoming().isOfficial is bool)
+        && (!('sourceConfidence' in incoming()) || _validSourceConfidence(incoming().sourceConfidence))
+        && (!('session' in incoming()) || incoming().session == null || (incoming().session is string && incoming().session.size() <= 40))
+        && (!('paperKey' in incoming()) || (incoming().paperKey is string && incoming().paperKey.size() >= 1 && incoming().paperKey.size() <= 160))
+        && (!('paperMetaVersion' in incoming()) || (incoming().paperMetaVersion is int && incoming().paperMetaVersion >= 1))
+        && (!('legacyTitle' in incoming()) || incoming().legacyTitle == null || (incoming().legacyTitle is string && incoming().legacyTitle.size() <= 200))
         && (!('examBoard' in incoming()) || (incoming().examBoard is string && incoming().examBoard.size() <= 20))
         && (!('pdfPath' in incoming()) || (incoming().pdfPath is string && incoming().pdfPath.size() <= 500))
         && (!('pdfFilename' in incoming()) || (incoming().pdfFilename is string && incoming().pdfFilename.size() <= 200))
@@ -2874,13 +2894,54 @@ service cloud.firestore {
         && (!('quizStatus' in incoming()) || _validPaperQuizStatus(incoming().quizStatus))
         // Where a pending paper parks the draft quiz the Studio was authoring,
         // so re-entering the wizard resumes that quiz instead of orphaning it.
-        && (!('pendingQuizId' in incoming()) || incoming().pendingQuizId == null || (incoming().pendingQuizId is string && incoming().pendingQuizId.size() <= 100));
+        && (!('pendingQuizId' in incoming()) || incoming().pendingQuizId == null || (incoming().pendingQuizId is string && incoming().pendingQuizId.size() <= 100))
+        // THE INVARIANT THE READ RULE DEPENDS ON: an established confidence
+        // implies a recognised source. `incoming()` is the full merged
+        // document, so this holds for a partial update too.
+        //
+        // Enforced on WRITE rather than assumed, because a list query is
+        // refused WHOLESALE if any single document it returns fails the read
+        // rule. The archive's public query filters on status + confidence, so
+        // one document claiming 'explicit' with no source would not be quietly
+        // hidden — it would blank /papers for every visitor. Making that
+        // document unwritable is what makes the query safe by construction
+        // instead of by convention.
+        && (!(incoming().get('sourceConfidence', 'unknown') in ['explicit', 'inferred'])
+            || _validPaperSource(incoming().get('source', '')));
+    }
+    // A published paper is readable by anyone ONLY once its provenance is
+    // established. A paper whose `sourceConfidence` is 'unknown' — or absent,
+    // which is every paper written before these fields existed — is one we
+    // cannot say is an official ECZ exam OR a commercial mock, and the whole
+    // point of the source fields is that a learner is never left to guess
+    // which they are revising from.
+    //
+    // Fail-closed on absence, deliberately. That is why the migration
+    // (scripts/migratePaperSources.js) must run BEFORE these rules deploy:
+    // until it has, every un-migrated paper is admin-only.
+    //
+    // THIS CHECKS THE CONFIDENCE AND NOT THE SOURCE ITSELF, on purpose.
+    // Rules are not filters: a `list` is refused unless the query's own
+    // constraints statically imply the read rule, and a client cannot
+    // constrain `source` (it is the thing being discovered — an "official
+    // only" browse constrains it, an ordinary browse does not). A rule term
+    // no query can satisfy would refuse the archive's main list outright.
+    //
+    // So the two halves are split across read and write: `validPastPaperFields`
+    // refuses any write where an established confidence has no recognised
+    // source, which makes "confidence is established" IMPLY "a source is
+    // present". The read rule can then key on the one field a query can carry.
+    // The client query in listPublishedPapers applies the same constraint, and
+    // the published-list index is built with the same filter.
+    function _paperSourceEstablished() {
+      return resource.data.get('sourceConfidence', 'unknown') in ['explicit', 'inferred'];
     }
     match /pastPapers/{paperId} {
-      // Anonymous-readable index: published papers list freely so
+      // Anonymous-readable index: published, labelled papers list freely so
       // search engines can index them and signed-out visitors can
-      // browse before sign-up. Drafts + archived are admin-only.
-      allow read: if resource.data.get('status', 'draft') == 'published' || isAdmin();
+      // browse before sign-up. Drafts, archived and unlabelled are admin-only.
+      allow read: if (resource.data.get('status', 'draft') == 'published' && _paperSourceEstablished())
+        || isAdmin();
       allow create: if isAdmin()
         && validPastPaperFields()
         && incoming().uploadedBy == request.auth.uid;

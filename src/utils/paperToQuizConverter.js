@@ -28,6 +28,7 @@ import { getDownloadURL, ref as storageRef } from 'firebase/storage'
 import { storage } from '../firebase/config'
 import { importQuizDocument, revokeImportedQuizAssets } from '../components/quiz/documentQuizImporter'
 import { serializeQuizSections } from './quizSections'
+import { isOfficialSource } from '../config/paperSources.js'
 import { SUBJECTS } from '../config/curriculum'
 
 // Map the past-paper subject id ('mathematics', 'english') to the
@@ -90,7 +91,19 @@ export async function convertPaperToQuizDraft({
   }
 
   const serialized = serializeQuizSections(imported.sections, imported.parts)
-  const questions = serialized.questions
+  // Every question carries the provenance of the paper it came out of.
+  //
+  // Weak-topic advice is computed by aggregating a learner's answers per
+  // topic, and a question from a commercial mock is not evidence about how
+  // they will do on the real examination — the two papers are written to
+  // different standards. Stamping the source on the QUESTION (not only on the
+  // quiz) is what lets an aggregation filter without a second read, and keeps
+  // the attribution correct if a question is ever copied into another quiz.
+  const questionSource = {
+    paperSource: paper.source ?? null,
+    paperIsOfficial: isOfficialSource(paper.source),
+  }
+  const questions = serialized.questions.map((q) => ({ ...q, ...questionSource }))
   const passages = serialized.passages
   if (questions.length === 0) {
     revokeImportedQuizAssets(imported.imageAssets)
@@ -139,6 +152,7 @@ export async function convertPaperToQuizDraft({
     // "View original PDF" / "View mark scheme" link so the admin
     // can fill in correctAnswer fields without leaving the page.
     sourcePastPaperId: paper.id,
+    ...questionSource,
     sourcePastPaperPdfPath: paper.pdfPath || null,
     sourceMarkSchemePath: paper.markSchemePath || null,
   })

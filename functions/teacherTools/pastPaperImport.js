@@ -941,7 +941,7 @@ function toQuestionDoc(q, order) {
  * Deterministic ids q001, q002, … so a re-run rewrites cleanly. Chunked at 400
  * to stay under Firestore's 500-op writeBatch limit — supports any count.
  */
-async function writeQuestionsToQuiz(quizId, questions) {
+async function writeQuestionsToQuiz(quizId, questions, provenance = {}) {
   if (!questions.length) return 0;
   for (let i = 0; i < questions.length; i += 400) {
     const chunk = questions.slice(i, i + 400);
@@ -949,11 +949,33 @@ async function writeQuestionsToQuiz(quizId, questions) {
     chunk.forEach((q, offset) => {
       const id = `q${String(i + offset + 1).padStart(3, "0")}`;
       const ref = admin.firestore().doc(`quizzes/${quizId}/questions/${id}`);
-      batch.set(ref, toQuestionDoc(q, i + offset), {merge: false});
+      batch.set(ref, {...toQuestionDoc(q, i + offset), ...provenance}, {merge: false});
     });
     await batch.commit();
   }
   return questions.length;
+}
+
+/**
+ * The provenance stamp every imported question carries: which paper it came
+ * out of, and whether that paper is a real ECZ examination.
+ *
+ * Weak-topic advice aggregates a learner's answers per topic, and a question
+ * from a commercial mock is not evidence about the national exam — the two are
+ * written to different standards. `paperIsOfficial` is DERIVED from the source
+ * here rather than copied off the document, so a paper whose two fields
+ * disagree cannot stamp a mock's questions as official. (The id list mirrors
+ * PAPER_SOURCES in src/config/paperSources.js — see pastPapersIndexHelpers.js
+ * for why the mirror exists and what keeps it honest.)
+ */
+function paperProvenanceFields(paper) {
+  const source = typeof paper?.source === "string"
+    ? paper.source.trim().toLowerCase()
+    : null;
+  return {
+    paperSource: source || null,
+    paperIsOfficial: source === "ecz",
+  };
 }
 
 /**
@@ -1125,10 +1147,13 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
   let written = 0;
   if (quizId && questions.length && gate.ok) {
     cleared = await clearQuizQuestions(quizId);
-    written = await writeQuestionsToQuiz(quizId, questions);
+    written = await writeQuestionsToQuiz(quizId, questions, paperProvenanceFields(paper));
     try {
       await admin.firestore().doc(`quizzes/${quizId}`).set({
         questionCount: written,
+        // The quiz inherits the paper's provenance too, so a surface holding
+        // only the quiz can tell an ECZ practice run from a mock one.
+        ...paperProvenanceFields(paper),
         // Always write the array (empty when the paper has no passages) so a
         // re-run clears any stale passages from a previous import.
         passages: passagesForQuiz,

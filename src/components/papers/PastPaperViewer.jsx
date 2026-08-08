@@ -27,6 +27,8 @@ import { saveBlob } from '../../utils/saveBlob'
 import usePaperResumeSync from '../../features/learnerHome/lib/paperResumeSync'
 import { buildDownloadName } from '../../utils/downloadFilename'
 import { siblingPapers, viewPath } from './paperNav'
+import { isOfficialSource, paperNumberLabel, paperSourceLabel } from '../../config/paperSources'
+import { PaperSourceBadge } from './PaperTitle'
 import { subjectMeta } from './paperVisuals'
 import SeoHelmet from '../seo/SeoHelmet'
 import Skeleton from '../ui/Skeleton'
@@ -676,10 +678,22 @@ export default function PastPaperViewer() {
               <h1 className="theme-text font-display font-black text-2xl sm:text-3xl leading-tight">
                 Grade {paper.grade} {subjectLabel}
               </h1>
-              <p className="theme-text-muted text-sm mt-1 font-bold">
-                {paper.year} {paper.examBoard || 'ECZ'} Past Paper
-                {paper.paperNumber ? ` · Paper ${paper.paperNumber}` : ''}
-              </p>
+              {/* The source badge sits with the title, not in a details panel
+                  further down: "is this the real exam or a mock?" is the first
+                  thing a learner needs from this page, and the answer must not
+                  be something they have to scroll for. */}
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {paperSourceLabel(paper.source) && (
+                  <PaperSourceBadge
+                    label={paperSourceLabel(paper.source)}
+                    isOfficial={isOfficialSource(paper.source)}
+                  />
+                )}
+                <p className="theme-text-muted text-sm font-bold">
+                  {[paper.session, paper.year, paperNumberLabel(paper.paperNumber)]
+                    .filter(Boolean).join(' · ')}
+                </p>
+              </div>
               {paper.description && (
                 <p className="theme-text text-sm mt-3 leading-relaxed max-w-3xl">{paper.description}</p>
               )}
