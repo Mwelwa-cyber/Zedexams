@@ -51,9 +51,10 @@ const SUBJECT_PRESENTATION = {
   technology:      { slug: 'technology',      tile: 'bg-cyan-100',   bar: 'bg-cyan-500',    mascot: '🤖', mascotName: 'Tech Robot' },
   cinyanja:        { slug: 'cinyanja',        tile: 'bg-pink-100',   bar: 'bg-pink-500',    mascot: '🦜', mascotName: 'Nyanja Parrot' },
   'home-economics':{ slug: 'home',            tile: 'bg-rose-100',   bar: 'bg-rose-500',    mascot: '🐝', mascotName: 'Home Bee' },
-  // The PSLE special-paper category — an ECZ exam category rather than a
-  // subject, which is why it has no canonical subject behind it.
+  // The PSLE special-paper categories — ECZ exam categories rather than
+  // subjects, which is why they have no canonical subject behind them.
   'special-paper-1':{ slug: 'special-paper-1', tile: 'bg-purple-100', bar: 'bg-purple-600', mascot: '📝', mascotName: 'Exam Scholar' },
+  'special-paper-2':{ slug: 'special-paper-2', tile: 'bg-violet-100', bar: 'bg-violet-600', mascot: '🧩', mascotName: 'Puzzle Scholar' },
 }
 
 const SUBJECTS = PAPER_SUBJECTS
