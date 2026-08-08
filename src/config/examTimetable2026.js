@@ -20,7 +20,8 @@
  *     and drives the Practice Quiz deep link + subject colour coding.
  *   - `paperSubjectId` is an id valid in PAPER_SUBJECTS and drives the
  *     past-papers deep link. Either id may be null → that quick action is
- *     simply not rendered (e.g. Special Paper 2 has no curriculum subject).
+ *     simply not rendered (e.g. the special papers have no curriculum
+ *     subject, so they offer a past paper but no practice quiz).
  *   - Sessions where candidates sit ONE of several papers (Friday) carry
  *     `alternatives: true` + a `sessionNote`; the briefing day carries
  *     `briefing: true` with an empty `papers` array.
@@ -146,7 +147,7 @@ export const PSLE_2026 = {
               code: '7/1',
               durationMinutes: 60,
               subjectId: null,
-              paperSubjectId: null,
+              paperSubjectId: 'special-paper-2',
             },
           ],
         },

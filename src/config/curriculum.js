@@ -206,11 +206,12 @@ export const SUBJECTS = [
  * Past-paper-only subject categories.
  *
  * The ECZ archive carries a few exam categories that aren't CBC learning
- * areas — most notably the Grade 7 PSLE "Special Paper 1" (a composite
- * paper). These must be selectable when an admin uploads a past paper and
- * must render with a friendly label/icon in the learner-facing archive, but
- * they are deliberately kept OUT of {@link SUBJECTS} so they never leak into
- * quiz/lesson/dashboard subject dropdowns or CBC topic lookups.
+ * areas — most notably the Grade 7 PSLE "Special Paper 1" (verbal reasoning)
+ * and "Special Paper 2" (non-verbal reasoning). These must be selectable when
+ * an admin uploads a past paper and must render with a friendly label/icon in
+ * the learner-facing archive, but they are deliberately kept OUT of
+ * {@link SUBJECTS} so they never leak into quiz/lesson/dashboard subject
+ * dropdowns or CBC topic lookups.
  *
  * Use {@link PAPER_SUBJECTS} (CBC subjects + these) anywhere the past-paper
  * surfaces need the full set of selectable/displayable subjects.
@@ -230,6 +231,22 @@ export const SPECIAL_PAPER_SUBJECTS = [
       light:  'bg-indigo-50',
       text:   'text-indigo-700',
       border: 'border-indigo-200',
+    },
+  },
+  {
+    id: 'special-paper-2',
+    canonicalId: null,
+    label: 'Special Paper 2',
+    shortLabel: 'Special Paper 2',
+    icon: '🧩',
+    iconKey: 'PuzzlePiece',
+    pastel: '#ede9fe',
+    color: 'violet',
+    tailwind: {
+      bg:     'bg-violet-600',
+      light:  'bg-violet-50',
+      text:   'text-violet-700',
+      border: 'border-violet-200',
     },
   },
   {
