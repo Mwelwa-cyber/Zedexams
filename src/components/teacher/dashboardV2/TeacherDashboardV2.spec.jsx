@@ -166,7 +166,7 @@ describe('TeacherDashboardV2', () => {
     const u = user()
     renderDashboard()
     // Featured cards render up-front; the rest sit behind the expander.
-    expect(screen.getByLabelText(/^Question Bank.*Open studio$/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^School-Based Assessment.*Open studio$/)).toBeInTheDocument()
     expect(screen.queryByLabelText(/^Class Timetable.*Open studio$/)).not.toBeInTheDocument()
 
     const toggle = screen.getByRole('button', { name: /View all teacher tools \(\d+ more\)/ })

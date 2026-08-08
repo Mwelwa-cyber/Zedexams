@@ -153,14 +153,6 @@ export const PRIMARY_GROUPS = [
         to: '/teacher/assessment-papers',
       },
       {
-        img: iconLibrary,
-        tone: 'indigo',
-        badge: 'NEW',
-        title: 'Question Bank',
-        tagline: 'Search your saved questions and the platform Master Bank. Reuse, duplicate, favourite.',
-        to: '/teacher/question-bank',
-      },
-      {
         img: iconMarkSchedule,
         tone: 'green',
         badge: null,

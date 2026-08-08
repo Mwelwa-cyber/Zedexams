@@ -25,12 +25,13 @@ describe('TeacherWorkspace', () => {
     expect(PRIMARY_GROUPS[0].items).toHaveLength(4)
     expect(PRIMARY_GROUPS[1].items).toHaveLength(4)
     // Assessment merged its Test Papers + Exam Studio tiles into one
-    // Assessment Paper Studio tile — 3 items, not 4 (no duplicate builder).
-    expect(PRIMARY_GROUPS[2].items).toHaveLength(3)
+    // Assessment Paper Studio tile, and the Question Bank stopped being a
+    // destination of its own (it is a view inside that studio) — 2 items.
+    expect(PRIMARY_GROUPS[2].items).toHaveLength(2)
     expect(PRIMARY_GROUPS[0].items.map((i) => i.title))
       .toEqual(['Schemes of Work', 'Weekly Focus', 'Lesson Plans', 'Record of Work'])
     expect(PRIMARY_GROUPS[2].items.map((i) => i.title))
-      .toEqual(['Assessment Paper Studio', 'Question Bank', 'Mark Schedule'])
+      .toEqual(['Assessment Paper Studio', 'Mark Schedule'])
   })
 
   it('shows only primary tools by default; the rest appear after expanding', () => {
@@ -98,7 +99,7 @@ describe('TeacherWorkspace', () => {
       '/teacher/lesson-plans/new', '/teacher/generate/record-of-work',
       '/teacher/generate/worksheet', '/teacher/generate/notes', '/teacher/generate/homework',
       '/teacher/visual-studio', '/teacher/assessment-papers',
-      '/teacher/question-bank', '/teacher/generate/mark-schedule',
+      '/teacher/generate/mark-schedule',
       '/teacher/syllabi', '/teacher/curriculum', '/teacher/calendar', '/teacher/templates',
       '/teacher/register', '/teacher/generate/class-timetable',
       '/teacher/generate/flashcards', '/teacher/generate/rubric',

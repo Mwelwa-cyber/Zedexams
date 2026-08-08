@@ -41,10 +41,10 @@ afterEach(() => { vi.useRealTimers() })
 const lessonIcon = () => screen.getByLabelText(/^Lesson Plans.*Open studio$/)
 
 describe('registry integrity', () => {
-  it('has 21 unique studios across the four categories with real /teacher routes', () => {
-    expect(TEACHER_STUDIOS).toHaveLength(21)
+  it('has 20 unique studios across the four categories with real /teacher routes', () => {
+    expect(TEACHER_STUDIOS).toHaveLength(20)
     const ids = new Set(TEACHER_STUDIOS.map((s) => s.id))
-    expect(ids.size).toBe(21)
+    expect(ids.size).toBe(20)
     const cats = new Set(STUDIO_CATEGORIES.map((c) => c.id))
     for (const s of TEACHER_STUDIOS) {
       expect(s.route.startsWith('/teacher')).toBe(true)
@@ -78,9 +78,9 @@ describe('TeacherAppLauncher', () => {
 
   it('shows a live saved-count badge and a static New badge', () => {
     renderLauncher({ savedCounts: { lesson_plan: 4, assessment: 2 } })
-    // 4 saved on Lesson Plans (dynamic), New on Question Bank (static)
+    // 4 saved on Lesson Plans (dynamic), New on Visual Studio (static)
     expect(screen.getByText('4 saved')).toBeInTheDocument()
-    expect(within(screen.getByLabelText(/^Question Bank/)).getByText('New')).toBeInTheDocument()
+    expect(within(screen.getByLabelText(/^Visual Studio/)).getByText('New')).toBeInTheDocument()
     // a live count overrides the static New on Assessment Paper Studio
     expect(screen.getByLabelText(/^Assessment Paper Studio, 2 saved/)).toBeInTheDocument()
   })
@@ -241,8 +241,8 @@ describe('TeacherAppLauncher', () => {
 
   it('hub studios (route IS the list) hide View saved work', async () => {
     renderLauncher()
-    fireEvent.focus(screen.getByLabelText(/^Question Bank.*Open studio$/))
-    const pop = await screen.findByRole('dialog', { name: /Question Bank — details/ })
+    fireEvent.focus(screen.getByLabelText(/^Curriculum.*Open studio$/))
+    const pop = await screen.findByRole('dialog', { name: /Curriculum — details/ })
     expect(within(pop).queryByRole('button', { name: /View saved work/ })).not.toBeInTheDocument()
     expect(within(pop).getByRole('button', { name: /Add to favourites/ })).toBeInTheDocument()
   })

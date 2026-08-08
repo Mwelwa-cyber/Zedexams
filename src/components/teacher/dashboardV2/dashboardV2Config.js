@@ -131,7 +131,6 @@ export const CANONICAL_TOOL_LABELS = {
   '/teacher/generate/rubric': 'Rubrics',
   '/teacher/generate/mark-schedule': 'Mark Schedule',
   '/teacher/generate/class-timetable': 'Class Timetable',
-  '/teacher/question-bank': 'Question Bank',
   '/teacher/templates': 'Paper Templates',
   '/teacher/drafts': 'Drafts',
 }
@@ -260,7 +259,6 @@ export const ALL_TOOLS = [
   { id: 'sba-planner', label: 'SBA Year Plan', icon: CalendarRange, to: '/teacher/generate/sba-planner' },
   { id: 'sba-tracker', label: 'SBA Mark Tracker', icon: ChartNoAxesColumnIncreasing, to: '/teacher/generate/sba-tracker' },
   { id: 'class-timetable', label: 'Class Timetable', icon: CalendarRange, to: '/teacher/generate/class-timetable' },
-  { id: 'question-bank', label: 'Question Bank', icon: ListChecks, to: '/teacher/question-bank' },
   { id: 'register', label: 'Class List', icon: Users, to: '/teacher/register' },
   { id: 'attendance', label: 'Class Register', icon: ClipboardCheck, to: '/teacher/attendance' },
   { id: 'calendar', label: 'School Calendar', icon: CalendarRange, to: '/teacher/calendar' },
