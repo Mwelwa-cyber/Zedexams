@@ -2,27 +2,29 @@ import useGlassTile from '../../../hooks/useGlassTile'
 import './glassSurface.css'
 
 /**
- * The ONE mobile tool-tile visual — the square glass tile with the studio's
- * 3D artwork (or its Lucide icon on a tinted chip) and the optional NEW
- * badge. Used by Recently Used, the All Teacher Tools screen and the Quick
- * Create sheet, so the glass recipe exists in exactly one place; each
- * surface supplies only its own sizing class (`tdv2m-recent-tile`, …).
+ * The ONE compact tool visual — the studio's 3D artwork (or its Lucide icon
+ * on a tinted chip) plus the optional NEW badge. Used by Recently Used and
+ * the Quick Create sheet, where a tool is an icon with its name beneath it.
+ * The full card — icon, badge, name, description — is `StudioCard`, which
+ * both the desktop workspace and All Teacher Tools render.
  *
- * The whole tile is decorative (`aria-hidden`) — the accessible name lives
- * on the Link that wraps it, exactly as before. The accent the press tint
- * and hover ring use comes from the studio's category via a
- * glass-accent-- class, so a Planning tool presses peach here and in the
- * desktop workspace alike.
+ * The artwork has NO container behind it. It is a transparent cut-out, and a
+ * rounded box behind a cut-out is a second, harder-edged tile inside the
+ * glass one — the tile the icons were re-cut to stop drawing. It floats on
+ * the surface under a radial glow in the studio's own section accent, via
+ * the shared `glass-artwork` mount. `studio.boxedArtwork` marks the one file
+ * that still has its background baked in; that mount clips it instead.
  *
- * `sheen` is on for scrollable tool grids and OFF for tiles inside the
- * Quick Create bottom sheet — the sheet remounts on every open, and a
- * sweep replaying on each open would break "once per tile per page load".
+ * A studio with no artwork keeps its tinted Lucide chip — a glyph needs a
+ * ground to read against in a way a rendered illustration does not — and
+ * that chip keeps the glass tile behind it.
  *
- * The artwork floats ON the glass — it is a cut-out with a real alpha
- * channel, so it takes a drop-shadow and no clip. `studio.boxedArtwork`
- * marks the one file that still has its rounded box baked in and clips it
- * to that box's radius; without the clip its hard corners would print over
- * the glass. See the registry note in teacherStudios.js.
+ * The whole thing is decorative (`aria-hidden`); the accessible name lives
+ * on the Link that wraps it.
+ *
+ * `sheen` is on for scrollable grids and OFF inside the Quick Create bottom
+ * sheet — the sheet remounts on every open, and a sweep replaying each time
+ * would break "once per tile per page load".
  */
 export default function GlassToolTile({
   studio,
@@ -32,16 +34,23 @@ export default function GlassToolTile({
   sheen = true,
   press = true,
 }) {
-  const tileRef = useGlassTile({ sheen, press })
   const StudioIcon = studio.icon
   const category = studio.category || 'more'
+  // Artwork floats bare, so it has no surface to sweep or press; the sheen
+  // and press feedback belong to the tinted chip that does have one.
+  const bare = Boolean(studio.image)
+  const tileRef = useGlassTile({ sheen: sheen && !bare, press: press && !bare })
   return (
     <span
       ref={tileRef}
-      className={`glass-tile glass-accent--${category} tdv2m-glass-tile ${sizeClass || ''}`}
+      className={
+        bare
+          ? `glass-artwork glass-accent--${category} tdv2m-glass-tile is-bare ${sizeClass || ''}`
+          : `glass-tile glass-accent--${category} tdv2m-glass-tile ${sizeClass || ''}`
+      }
       aria-hidden="true"
     >
-      {sheen ? <span className="glass-sheen" /> : null}
+      {sheen && !bare ? <span className="glass-sheen" /> : null}
       {studio.image ? (
         <img
           className={studio.boxedArtwork ? 'is-boxed' : undefined}

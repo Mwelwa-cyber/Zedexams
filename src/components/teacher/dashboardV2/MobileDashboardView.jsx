@@ -518,18 +518,32 @@ function MobileHeroCard({ greeting, hero }) {
 }
 
 /**
- * A checklist row that leads somewhere. Only rows with a destination get
- * the press response — a row that goes nowhere would be promising a tap it
- * cannot honour. The feedback comes from the shared glass hook, so its
- * timing matches every other pressable surface on the dashboard.
+ * A Link that presses. Feedback comes from the shared glass hook, so its
+ * timing matches every other pressable surface on the dashboard, and it
+ * lands on the LINK rather than on something inside it — the studio artwork
+ * now floats with no tile behind it, so there is no inner surface left to
+ * press.
  */
-function CheckRowLink({ to, children, onNavigate }) {
+function PressLink({ to, className, children, onClick, ...rest }) {
   const ref = useRef(null)
   usePressFeedback(ref)
   return (
-    <Link ref={ref} to={to} className="tdv2m-check-row is-pressable" onClick={onNavigate}>
+    <Link ref={ref} to={to} className={className} onClick={onClick} {...rest}>
       {children}
     </Link>
+  )
+}
+
+/**
+ * A checklist row that leads somewhere. Only rows with a destination get
+ * the press response — a row that goes nowhere would be promising a tap it
+ * cannot honour.
+ */
+function CheckRowLink({ to, children, onNavigate }) {
+  return (
+    <PressLink to={to} className="tdv2m-check-row is-pressable" onClick={onNavigate}>
+      {children}
+    </PressLink>
   )
 }
 
@@ -849,7 +863,7 @@ function RecentlyUsedTools({ savedCounts, warnings = [], onViewAll }) {
         {studios.map((studio) => {
           const badge = resolveBadge(studio, savedCounts, { warnings: warningSet })
           return (
-            <Link
+            <PressLink
               key={studio.id}
               to={studio.route}
               className="tdv2m-recent-tool"
@@ -865,7 +879,7 @@ function RecentlyUsedTools({ savedCounts, warnings = [], onViewAll }) {
               {badge?.type === 'saved' ? (
                 <span className="tdv2m-tool-saved" aria-hidden="true">{badge.count} saved</span>
               ) : null}
-            </Link>
+            </PressLink>
           )
         })}
       </div>
