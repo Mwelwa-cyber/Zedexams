@@ -130,6 +130,7 @@ const RETAINED = new Map([
   ["newsletterSubscribers", "REVIEW: subscriber list keyed by email — needs unsubscribe-by-email on deletion"],
   ["scores", "REVIEW: game-play history (userId) feeding public leaderboards — deletion affects leaderboard integrity"],
   ["visualAssets", "REVIEW: teacher diagrams (createdBy); some are approved into the shared bank / referenced by published content"],
+  ["diagramAssets", "REVIEW: Diagram Library assets (createdBy) — same situation as visualAssets: approved public assets are consumed by ID from papers/notes, so a blind uid purge breaks published content"],
   ["pictureBank", "REVIEW: shared diagram bank; teacher `staged` submissions carry createdBy but the bank persists"],
   ["aiOperations", "REVIEW: idempotency/request-lock metadata (userId); operational, no content body"],
   ["quizSummaries", "REVIEW: server mirror of quizzes (createdBy) — parent quizzes are purged; confirm the onQuizWritten trigger cascades the summary"],

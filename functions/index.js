@@ -246,6 +246,8 @@ const {runNoteInsights} = require("./noteInsights");
 const {runGenerateNoteSmart} = require("./noteSmart");
 // Notes document import — AI structuring (text → study blocks) and OCR (scanned pages → text).
 const {runNoteImport, runNoteOcr} = require("./noteImport");
+// Visual Studio v2 — AI auto-labelling of diagram art (vision → proposed labels).
+const {runAutoLabelDiagram} = require("./teacherTools/autoLabelDiagram");
 const {
   runClassListExtraction,
   MAX_PAGES_PER_CALL: MAX_CLASS_LIST_PAGES,
@@ -2440,6 +2442,45 @@ exports.ocrNotePages = onCall(
     await assertDailyLimit(request.auth.uid, role, "importNote");
     return runNoteOcr({
       pages,
+      apiKey: getAnthropicApiKey(anthropicApiKey),
+      uid: request.auth.uid,
+    });
+  },
+);
+
+// Visual Studio v2 auto-labelling — one diagram image in, proposed labels
+// out ({ word, anchor, confidence }). NOTHING IS WRITTEN: proposals go back
+// to the editor as pre-filled manual labels the teacher reviews, drags,
+// renames or deletes; low-confidence ones are flagged amber client-side.
+exports.autoLabelDiagram = onCall(
+  {
+    secrets: [anthropicApiKey],
+    region: "us-central1",
+    timeoutSeconds: 120,
+    memory: "1GiB",
+    enforceAppCheck: shouldEnforceAppCheck("autoLabelDiagram"),
+  },
+  async (request) => {
+    await assertVerifiedAuth(request);
+    await assertCallableRateLimit(request, {action: "autoLabelDiagram", userPerMin: 8});
+    recordAppCheckCallable(request, "autoLabelDiagram");
+    const role = await getUserRole(request.auth.uid);
+    if (!isStaffRole(role)) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only teachers and admins can auto-label diagrams.",
+      );
+    }
+    await assertDailyLimit(request.auth.uid, role, "autoLabelDiagram");
+    return runAutoLabelDiagram({
+      dataUrl: String(request.data?.dataUrl || ""),
+      subject: String(request.data?.subject || "").slice(0, 100),
+      grade: String(request.data?.grade ?? "").slice(0, 20),
+      topic: String(request.data?.topic || "").slice(0, 200),
+      subtopic: String(request.data?.subtopic || "").slice(0, 200),
+      framework: String(request.data?.framework || "").slice(0, 20),
+      existingWords: Array.isArray(request.data?.existingWords) ?
+        request.data.existingWords : [],
       apiKey: getAnthropicApiKey(anthropicApiKey),
       uid: request.auth.uid,
     });

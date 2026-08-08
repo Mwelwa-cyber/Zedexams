@@ -88,6 +88,9 @@ export default function GeneratePanel({ onEdit, onToast, assessmentMode = false,
       sourceType: 'ai',
       aiModel: result.provider || '',
       aiPrompt: result.prompt || promptText,
+      // Spec 1C: a freshly generated picture must not arrive at "0 labels
+      // placed" — the editor auto-runs one labelling pass on open.
+      autoLabelOnOpen: true,
       ...safetyFieldsFor(result.url),
     }
   }
