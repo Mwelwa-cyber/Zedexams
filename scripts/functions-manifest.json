@@ -1,0 +1,2243 @@
+{
+  "_comment": "Phase 5 frozen-surface manifest. Regenerate with scripts/generate-functions-manifest.mjs; classification and batch are hand-owned and survive regeneration. Guarded by test:functions-manifest.",
+  "generatedFrom": "functions/index.js + firebase.json",
+  "exports": {
+    "activateSyllabusVersion": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "activateSyllabusVersion",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "adminConfirmPayment": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "adminPayments.adminConfirmPayment",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "payment-webhook",
+      "batch": null
+    },
+    "adminGrantPremium": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "adminPayments.adminGrantPremium",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "payment-webhook",
+      "batch": null
+    },
+    "adminRejectPayment": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "adminPayments.adminRejectPayment",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "payment-webhook",
+      "batch": null
+    },
+    "adminRevokePremium": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "adminPayments.adminRevokePremium",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "payment-webhook",
+      "batch": null
+    },
+    "adminSetUserRole": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "require(\"./adminUsers\").adminSetUserRole",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "adminSetUserStatus": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "require(\"./adminUsers\").adminSetUserStatus",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "agentJobsOnApproved": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createAgentJobsOnApproved( opsAlertSecrets([emailSmtpUser, emailSmtpPassword]))",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "agentJobsOnCreate": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createAgentJobsOnCreate( anthropicApiKey, opsAlertSecrets([emailSmtpUser, emailSmtpPassword]))",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "aggregateVisitorStats": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "require('./visitorTracking').aggregateVisitorStats",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "aiChat": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "secrets": "[openaiApiKey]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"aiChat\")"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": 2
+    },
+    "aiCostDailySummary": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "aiCostDailySummary",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "aiLessonCount": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createAiLessonCount(anthropicApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "analyzeExamPaper": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createAnalyzeExamPaper(anthropicApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "analyzePaperLayout": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createAnalyzePaperLayout(anthropicApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "apiAiChat": {
+      "kind": "onRequest",
+      "inline": true,
+      "options": {
+        "secrets": "[openaiApiKey]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60"
+      },
+      "target": null,
+      "rewritePath": "/api/ai/chat",
+      "rewriteRegion": "us-central1",
+      "classification": "audit-surface",
+      "batch": 3
+    },
+    "apiAssessmentDownload": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "assessmentExports.apiAssessmentDownload",
+      "rewritePath": "/downloads/**",
+      "rewriteRegion": "us-central1",
+      "classification": "audit-surface",
+      "batch": null
+    },
+    "apiGenerateLessonPlan": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "makeStreamingEndpoint({ tool: \"GenerateLessonPlan\", runCore: runLessonPlan, })",
+      "rewritePath": "/api/teacher/lesson-plan/stream",
+      "rewriteRegion": "us-central1",
+      "classification": "audit-surface",
+      "batch": null
+    },
+    "apiGenerateWorksheet": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "makeStreamingEndpoint({ tool: \"GenerateWorksheet\", runCore: runWorksheet, })",
+      "rewritePath": "/api/teacher/worksheet/stream",
+      "rewriteRegion": "us-central1",
+      "classification": "audit-surface",
+      "batch": null
+    },
+    "apiGuardianConsent": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "require('./guardianConsent').apiGuardianConsent",
+      "rewritePath": "/consent",
+      "rewriteRegion": "us-central1",
+      "classification": "audit-surface",
+      "batch": null
+    },
+    "apiImageProxy": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "imageProxy.apiImageProxy",
+      "rewritePath": "/api/image-proxy",
+      "rewriteRegion": "us-central1",
+      "classification": "audit-surface",
+      "batch": null
+    },
+    "apiLibraryDownload": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "libraryDownload.apiLibraryDownload",
+      "rewritePath": "/api/teacher/download",
+      "rewriteRegion": "us-central1",
+      "classification": "audit-surface",
+      "batch": null
+    },
+    "apiRequestAccountDeletion": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "require('./accountDeletionRequests').apiRequestAccountDeletion",
+      "rewritePath": "/api/account/delete-request",
+      "rewriteRegion": "us-central1",
+      "classification": "audit-surface",
+      "batch": null
+    },
+    "apiTextToSpeech": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "require('./tts').apiTextToSpeech",
+      "rewritePath": "/api/tts",
+      "rewriteRegion": "us-central1",
+      "classification": "audit-surface",
+      "batch": null
+    },
+    "apiTrackVisit": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "require('./visitorTracking').apiTrackVisit",
+      "rewritePath": "/api/track/visit",
+      "rewriteRegion": "us-central1",
+      "classification": "audit-surface",
+      "batch": null
+    },
+    "apiWhatsAppWebhook": {
+      "kind": "onRequest",
+      "inline": true,
+      "options": {
+        "secrets": "[...require(\"./metaWhatsApp\").WHATSAPP_WEBHOOK_SECRETS, anthropicApiKey]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\""
+      },
+      "target": null,
+      "rewritePath": "/api/whatsapp/webhook",
+      "rewriteRegion": "us-central1",
+      "classification": "audit-surface",
+      "batch": 3
+    },
+    "appCheckPing": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "10",
+        "enforceAppCheck": "false"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": 1
+    },
+    "approveLearner": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "approveLearner",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "archiveOldNotifications": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "archiveOldNotifications",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "assessRecaptcha": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "20"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": 1
+    },
+    "autoLabelDiagram": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "secrets": "[anthropicApiKey]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "120",
+        "memory": "\"1GiB\"",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"autoLabelDiagram\")"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": 2
+    },
+    "autoPickDailyExams": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "autoPickDailyExams",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "backfillKbSourceRefs": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "backfillKbSourceRefs",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "backfillReferralCodes": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "backfillReferralCodes",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "backupCompletionCheck": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "require(\"./firestoreBackup\").backupCompletionCheck",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "bootstrapUserProfile": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "20"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": 1
+    },
+    "bulkGrantDemoTrials": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "120",
+        "memory": "\"256MiB\""
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "payment-webhook",
+      "batch": 3
+    },
+    "checkShortAnswer": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "secrets": "[anthropicApiKey, openaiApiKey]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"checkShortAnswer\")"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": 2
+    },
+    "checkVisualSafety": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createCheckVisualSafety(anthropicApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "classifyQuestionGrades": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "secrets": "[anthropicApiKey]",
+        "timeoutSeconds": "120",
+        "memory": "\"256MiB\""
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": 2
+    },
+    "cleanupArchivedSyllabusData": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "cleanupArchivedSyllabusData",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "contentAutoPublish": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "contentAutoPublishCron",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "createClassAssignment": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "createClassAssignment",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "createFamilyInviteCode": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "createFamilyInviteCode",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "createLibraryDownloadTicket": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "libraryDownload.createLibraryDownloadTicket",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "createProgressShare": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "createProgressShare",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "dailyFirestoreBackup": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "require(\"./firestoreBackup\").dailyFirestoreBackup",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "dailyFxRefresh": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "dailyFxRefreshCron",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "dailyPracticeReminders": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "dailyPracticeReminders",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "dailyStreakReminders": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "dailyStreakRemindersCron",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "declineLearner": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "declineLearner",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "deleteCurriculumUpload": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createDeleteCurriculumUpload()",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "deleteMyAccount": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "300"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": 1
+    },
+    "deleteSyllabusRow": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "deleteSyllabusRow",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "deliverDawnBriefings": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "deliverDawnBriefingsCron",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "editQuizQuestion": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "secrets": "[anthropicApiKey]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "45",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"editQuizQuestion\")"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": 2
+    },
+    "expandKbLessons": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "expandKbLessons",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "explainAnswer": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "secrets": "[anthropicApiKey]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"explainAnswer\")"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": 2
+    },
+    "extractAssessmentFormat": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createExtractAssessmentFormat(anthropicApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "extractClassListPages": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "secrets": "[anthropicApiKey]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "240",
+        "memory": "\"1GiB\"",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"extractClassListPages\")"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": 2
+    },
+    "extractTopicsFromPdf": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createExtractTopicsFromPdf(anthropicApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "generateAssessment": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createGenerateAssessment(anthropicApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "generateClassInvite": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "generateClassInvite",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "generateDiagram": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createGenerateDiagram(openaiApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "generateFlashcards": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createGenerateFlashcards(anthropicApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "generateHomework": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createGenerateHomework(anthropicApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "generateLessonActivities": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createGenerateLessonActivities(anthropicApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "generateLessonPlan": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createGenerateLessonPlan(anthropicApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "generateNoteInsights": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "secrets": "[anthropicApiKey]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "45",
+        "memory": "\"256MiB\"",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"generateNoteInsights\")"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": 2
+    },
+    "generateNotePictures": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createGenerateNotePictures(geminiApiKey, openaiApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "generateNotes": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createGenerateNotes(anthropicApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "generateNoteSmart": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "secrets": "[anthropicApiKey]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "90",
+        "memory": "\"256MiB\"",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"generateNoteSmart\")"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": 2
+    },
+    "generatePasskeyAuthenticationOptions": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\"",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"generatePasskeyAuthenticationOptions\")"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": 1
+    },
+    "generatePasskeyAuthenticationOptionsAfrica": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "passkeyRegionalCallable( \"generatePasskeyAuthenticationOptions\", runGeneratePasskeyAuthenticationOptions)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "generatePasskeyRegistrationOptions": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\"",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"generatePasskeyRegistrationOptions\")"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": 1
+    },
+    "generatePasskeyRegistrationOptionsAfrica": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "passkeyRegionalCallable( \"generatePasskeyRegistrationOptions\", runGeneratePasskeyRegistrationOptions)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "generateQuiz": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createGenerateQuiz(anthropicApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "generateQuizQuestions": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "secrets": "[anthropicApiKey]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "45",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"generateQuizQuestions\")"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": 2
+    },
+    "generateRubric": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createGenerateRubric(anthropicApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "generateSbaTask": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createGenerateSbaTask(anthropicApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "generateSchemeOfWork": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createGenerateSchemeOfWork(anthropicApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "generateStudyPlan": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createGenerateStudyPlan(anthropicApiKey, { enforceAppCheck: shouldEnforceAppCheck(\"generateStudyPlan\"), recordAppCheckCallable, })",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "generateVisualNotes": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createGenerateSlideNotes(anthropicApiKey, openaiApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "generateWorksheet": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createGenerateWorksheet(anthropicApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "getAiBudgetEnforcement": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "getAiBudgetEnforcement",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "getAssessmentExportStatus": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "assessmentExports.getAssessmentExportStatus",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "getAssignmentCompletion": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "getAssignmentCompletion",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "getChildProgress": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "getChildProgress",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "getClassPerformanceSeries": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "getClassPerformanceSeries",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "getClassStats": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "getClassStats",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "getExamQuestions": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "getExamQuestionsFn",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "getLencoPaymentStatus": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "secrets": "[lencoApiKey, emailSmtpUser, emailSmtpPassword]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\""
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "payment-webhook",
+      "batch": 3
+    },
+    "getPlatformHealth": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createGetPlatformHealth(anthropicApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "getProgressShare": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "getProgressShare",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "getTermModuleOutline": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "getTermModuleOutline",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "getUpgradeQuote": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\""
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "payment-webhook",
+      "batch": 3
+    },
+    "hourlyAgentSupervisor": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "hourlyAgentSupervisorCron",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "hourlyMonitor": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "hourlyMonitorCron",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "hourlyRevenueReconcile": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "hourlyRevenueReconcileCron",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "importBuiltInAssessmentFormats": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "importBuiltInAssessmentFormats",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "importBuiltInCbcTopics": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "importBuiltInCbcTopics",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "importCurriculumModules": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "importCurriculumModules",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "importPastPaperQuestions": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createImportPastPaperQuestions(anthropicApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "inactiveLearnerReminder": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "inactiveLearnerReminder",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "initializeAgentPipeline": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createInitializeAgentPipeline()",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "initiateLencoPayment": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "secrets": "[lencoApiKey, emailSmtpUser, emailSmtpPassword]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\""
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "payment-webhook",
+      "batch": 3
+    },
+    "invalidateKbCache": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "invalidateKbCacheCallable",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "joinClassByCode": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "joinClassByCode",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "learnerAgeOnUserCreated": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "require('./guardianConsent/onUserCreated').learnerAgeOnUserCreated",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "leaveClass": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "leaveClass",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "lencoWebhook": {
+      "kind": "onRequest",
+      "inline": true,
+      "options": {
+        "secrets": "opsAlertSecrets([lencoApiKey, emailSmtpUser, emailSmtpPassword])",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\""
+      },
+      "target": null,
+      "rewritePath": "/api/payments/lenco/webhook",
+      "rewriteRegion": "us-central1",
+      "classification": "payment-webhook",
+      "batch": 3
+    },
+    "lessonPlanTemplateOnWrite": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createLessonPlanTemplateOnWrite(anthropicApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "listUserPasskeys": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\"",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"listUserPasskeys\")"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": 1
+    },
+    "logAdminMfaEvent": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "require(\"./security/logAdminMfaEvent\").logAdminMfaEvent",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "nameBankPictures": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "secrets": "[anthropicApiKey]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "300",
+        "memory": "\"1GiB\""
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": 2
+    },
+    "nightlyQaSmoke": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "nightlyQaSmokeCron",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "ocrNotePages": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "secrets": "[anthropicApiKey]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "240",
+        "memory": "\"1GiB\"",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"ocrNotePages\")"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": 2
+    },
+    "onAnnouncementWritten": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "onAnnouncementWritten",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "onAssessmentQuestionDeleted": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "storageCleanup.onAssessmentQuestionDeleted",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "onAssessmentQuestionUpdated": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "storageCleanup.onAssessmentQuestionUpdated",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "onFeedbackCreatedNotifyAdmins": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "onFeedbackCreatedNotifyAdmins",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "onLearnerStatsWritten": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "onLearnerStatsWritten",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "onLessonDeleted": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "storageCleanup.onLessonDeleted",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "onLessonUpdated": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "storageCleanup.onLessonUpdated",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "onQuizQuestionDeleted": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "storageCleanup.onQuizQuestionDeleted",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "onQuizQuestionUpdated": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "storageCleanup.onQuizQuestionUpdated",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "onQuizWritten": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "quizSummary.onQuizWritten",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "onUserCreatedNotifyAdmins": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "onUserCreatedNotifyAdmins",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "onUserDeleted": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "storageCleanup.onUserDeleted",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "opsHeartbeatCheck": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "require(\"./opsHeartbeat\").opsHeartbeatCheck",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "orphanStorageReaper": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "storageCleanup.orphanStorageReaper",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "parseSyllabusUpload": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "parseSyllabusUpload",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "pastPapersIndexOnWrite": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "pastPapersIndex.pastPapersIndexOnWrite",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "planAssessment": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createPlanAssessment()",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "prewarmAssessmentExports": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "assessmentExports.prewarmAssessmentExports",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "questionReviewOnWrite": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createQuestionReviewOnWrite(anthropicApiKey, openaiApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "rateLimitHealthCheck": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "require(\"./rateLimitHealth\").rateLimitHealthCheck",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "reapAssessmentExportsOnDelete": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "assessmentExports.reapAssessmentExportsOnDelete",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "reapDownloadTickets": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "libraryDownload.reapDownloadTickets",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "rebuildPastPapersIndexCron": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "pastPapersIndex.rebuildPastPapersIndexCron",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "rebuildTableFromImage": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createRebuildTableFromImage(anthropicApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "reclaimAiBudgetReservations": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "reclaimAiBudgetReservations",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "recordAgeGateAttempt": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "require('./guardianConsent').recordAgeGateAttempt",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "recordTemplateInteraction": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createRecordTemplateInteraction()",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "recoverMyPendingPayments": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "secrets": "[lencoApiKey, emailSmtpUser, emailSmtpPassword]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\""
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "payment-webhook",
+      "batch": 3
+    },
+    "redeemFamilyInviteCode": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "redeemFamilyInviteCode",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "redrawTestPaperDiagram": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createRedrawTestPaperDiagram(openaiApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "regenerateAssessmentQuestion": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createRegenerateAssessmentQuestion(anthropicApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "removeClassAssignment": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "removeClassAssignment",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "removeLearnerFromClass": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "removeLearnerFromClass",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "removeUserPasskey": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\"",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"removeUserPasskey\")"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": 1
+    },
+    "renameUserPasskey": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\"",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"renameUserPasskey\")"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": 1
+    },
+    "requestAssessmentExport": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "assessmentExports.requestAssessmentExport",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "resendInvoiceEmail": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "secrets": "[emailSmtpUser, emailSmtpPassword]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "payment-webhook",
+      "batch": 3
+    },
+    "resetAdminMfa": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "require(\"./security/resetAdminMfa\").resetAdminMfa",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "restoreSyllabusRow": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "restoreSyllabusRow",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "retryAgentJob": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "secrets": "[anthropicApiKey]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "300",
+        "memory": "\"512MiB\"",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"retryAgentJob\")"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": 2
+    },
+    "reviseLessonSection": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createReviseLessonSection(anthropicApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "reviseQuestion": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createReviseQuestion(anthropicApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "revokeFamilyInviteCode": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "revokeFamilyInviteCode",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "revokeProgressShare": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "revokeProgressShare",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "rollbackSyllabusVersion": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "rollbackSyllabusVersion",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "runDawnBriefing": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\"",
+        "secrets": "[anthropicApiKey]"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": 2
+    },
+    "runSampleAgentJob": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createRunSampleAgentJob()",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "saveClassAttendance": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "saveClassAttendance",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "sendActivationConfirmation": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\"",
+        "secrets": "[...require(\"./metaWhatsApp\").WHATSAPP_SECRETS]"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": 2
+    },
+    "sendExpiryReminders": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "120",
+        "memory": "\"256MiB\"",
+        "secrets": "[...require(\"./metaWhatsApp\").WHATSAPP_SECRETS]"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": 2
+    },
+    "sendGuardianConsent": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "require('./guardianConsent').sendGuardianConsent",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "sendPasswordResetEmail": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "secrets": "[emailSmtpUser, emailSmtpPassword]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": 2
+    },
+    "sendTestOpsAlert": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "require(\"./opsAlertTest\").createSendTestOpsAlert( lencoEmailSecrets, opsAlertSecrets([emailSmtpUser, emailSmtpPassword]))",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "setSubscriptionCancellation": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "require(\"./subscriptionLifecycle\").setSubscriptionCancellation",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "payment-webhook",
+      "batch": null
+    },
+    "setUserRole": {
+      "kind": "authTrigger",
+      "inline": true,
+      "options": {
+        "event": "functions.auth.user().onCreate"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": 1
+    },
+    "storageBackupCheck": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "require(\"./storageBackup\").storageBackupCheck",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "storageBackupHeartbeat": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "require(\"./storageBackup\").storageBackupHeartbeat",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "structureImportedNote": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "secrets": "[anthropicApiKey]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "120",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"structureImportedNote\")"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": 2
+    },
+    "structureImportedQuiz": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "secrets": "[anthropicApiKey, geminiApiKey]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "360",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"structureImportedQuiz\")"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": 2
+    },
+    "structureScannedQuiz": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "secrets": "[anthropicApiKey, geminiApiKey, openaiApiKey]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "300",
+        "memory": "\"1GiB\"",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"structureScannedQuiz\")"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": 2
+    },
+    "studioGenerateLessonPlan": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createStudioGenerateLessonPlan(anthropicApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "submitDailyExam": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "submitDailyExamFn",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "submitLencoOtp": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "secrets": "[lencoApiKey, emailSmtpUser, emailSmtpPassword]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\""
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "payment-webhook",
+      "batch": 3
+    },
+    "subscribeToNewsletter": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "subscribeToNewsletter",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "subscriptionExpiryReminders": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "subscriptionExpiryReminders",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "payment-webhook",
+      "batch": null
+    },
+    "suggestAnswer": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createSuggestAnswer(anthropicApiKey, geminiApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "suggestQuizAnswers": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "secrets": "[anthropicApiKey]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "120",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"suggestQuizAnswers\")"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": 2
+    },
+    "supportTriage": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "supportTriageCron",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "synthesizeAssessmentFormat": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createSynthesizeAssessmentFormat(anthropicApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "tmpDownloadReaper": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "storageCleanup.tmpDownloadReaper",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "triggerWeeklyParentDigest": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "triggerWeeklyParentDigest",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "updatePublicStats": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "updatePublicStatsCron",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "uploadCurriculumModule": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "createUploadCurriculumModule(openaiApiKey)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "upsertSyllabusRow": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "upsertSyllabusRow",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "verifyGooglePlayPurchase": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "secrets": "opsAlertSecrets([googlePlaySaJson, emailSmtpUser, emailSmtpPassword])",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\"",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"verifyGooglePlayPurchase\")"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "payment-webhook",
+      "batch": 3
+    },
+    "verifyPasskeyAuthentication": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\"",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"verifyPasskeyAuthentication\")"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": 1
+    },
+    "verifyPasskeyAuthenticationAfrica": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "passkeyRegionalCallable( \"verifyPasskeyAuthentication\", runVerifyPasskeyAuthentication)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "verifyPasskeyRegistration": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\"",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"verifyPasskeyRegistration\")"
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": 1
+    },
+    "verifyPasskeyRegistrationAfrica": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "target": "passkeyRegionalCallable( \"verifyPasskeyRegistration\", runVerifyPasskeyRegistration)",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "verifyQuiz": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "secrets": "[anthropicApiKey]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"512MiB\""
+      },
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": 2
+    },
+    "weeklyCbcAlignmentAudit": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "weeklyCbcAlignmentAuditCron",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "weeklyParentDigest": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "weeklyParentDigest",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "weeklyProductSignal": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "weeklyProductSignalCron",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "weeklyRetentionScan": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "weeklyRetentionScanCron",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "weeklyRevisionReminder": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "target": "weeklyRevisionReminder",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    }
+  }
+}
