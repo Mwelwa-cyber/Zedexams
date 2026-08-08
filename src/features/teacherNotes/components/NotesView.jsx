@@ -1,11 +1,24 @@
 import { Link } from 'react-router-dom'
+import { readAudience, NOTE_AUDIENCES } from '../../../utils/notesOptions'
+import LearnerNotesView from './LearnerNotesView'
 
 /**
- * Read-only rendering of a validated teacher-notes JSON object.
- * Shared by the Notes Studio and the Library detail view.
+ * Read-only rendering of a saved notes document.
+ *
+ * ONE entry point for two documents, and the branch reads the DOCUMENT rather
+ * than taking a prop. Every consumer — the library detail view, the public
+ * share page, the locked-studio sample — renders whichever kind it was handed
+ * without having to know there are two, and a note written before the
+ * `audience` field existed renders exactly as it always did, because
+ * `readAudience` treats an absent field as `teaching` (which is what it is).
+ *
+ * Below this branch is the teaching-notes renderer, unchanged.
  */
 export default function NotesView({ notes }) {
   if (!notes) return null
+  if (readAudience(notes) === NOTE_AUDIENCES.LEARNER) {
+    return <LearnerNotesView notes={notes} />
+  }
 
   return (
     <article className="space-y-6 print:space-y-4">
