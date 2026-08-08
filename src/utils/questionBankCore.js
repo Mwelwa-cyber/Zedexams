@@ -85,6 +85,7 @@ export function byNewest(a, b) {
  *
  * A captured question travels through these statuses:
  *   pending_review → approved | needs_admin | duplicate | rejected
+ *   duplicate → merged (an admin confirmed it against the original) | approved
  * plus the terminal/manual states private_saved & archived. The Master
  * Bank is simply the set of rows with masterEligible === true (only ever
  * true when reviewStatus === 'approved').
@@ -96,6 +97,10 @@ export const REVIEW_STATUS = Object.freeze({
   APPROVED: 'approved',
   NEEDS_ADMIN: 'needs_admin',
   DUPLICATE: 'duplicate',
+  // Terminal: an admin confirmed the row really is a copy and linked it to the
+  // original via duplicateOf. Distinct from DUPLICATE, which only means "Qix
+  // suspects this is a copy" and still sits in the admin review queue.
+  MERGED: 'merged',
   REJECTED: 'rejected',
   ARCHIVED: 'archived',
 })
