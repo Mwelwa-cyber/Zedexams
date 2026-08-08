@@ -2814,8 +2814,14 @@ a.tdv2-check-row:hover {
   margin: 0 0 2px;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 28px;
-  line-height: 34px;
+  /* Between 351px and 400px the greeting has the book's 104px clearance to
+     work around and only ~184px left, which broke "Good morning, Mahenga 👋"
+     across FOUR lines and made the hero the tallest thing on the phone. It
+     is two lines at 320px (no book) and two at 412px (enough width); this
+     band was the one that lost. Scaling with the viewport keeps it at two
+     everywhere without a second breakpoint to maintain. */
+  font-size: clamp(21px, 5.9vw, 28px);
+  line-height: 1.18;
   color: var(--on-sidebar);
   overflow-wrap: anywhere;
 }
