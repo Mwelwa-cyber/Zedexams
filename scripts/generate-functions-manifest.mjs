@@ -15,12 +15,22 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { extractExports, extractRewrites, classify, RISK_RANK } from './lib/functionsManifest.mjs'
+import { extractExports, extractRewrites, classify, RISK_RANK, followDelegation } from './lib/functionsManifest.mjs'
+
+/** Resolve a functions-relative require specifier to its source, or null. */
+function readFunctionsModule(rel) {
+  const base = path.join(ROOT, 'functions', rel.replace(/^\.\//, ''))
+  for (const candidate of [base, `${base}.js`, path.join(base, 'index.js')]) {
+    try { return readFileSync(candidate, 'utf8') } catch { /* next */ }
+  }
+  return null
+}
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const OUT = path.join(ROOT, 'scripts', 'functions-manifest.json')
 
-const entries = extractExports(readFileSync(path.join(ROOT, 'functions', 'index.js'), 'utf8'))
+const indexSource = readFileSync(path.join(ROOT, 'functions', 'index.js'), 'utf8')
+const entries = extractExports(indexSource)
 const rewrites = extractRewrites(readFileSync(path.join(ROOT, 'firebase.json'), 'utf8'))
 const previous = existsSync(OUT) ? JSON.parse(readFileSync(OUT, 'utf8')).exports : {}
 
@@ -40,10 +50,25 @@ for (const e of entries.sort((a, b) => a.name.localeCompare(b.name))) {
   // Regeneration may ESCALATE a stale hand classification to the rule seed
   // (the floor), never lower one below it.
   const classification = RISK_RANK[prev.classification] >= RISK_RANK[seed] ? prev.classification : seed
+  // A delegated export's real wrapper lives in its module — follow it, so
+  // the guard freezes 201 surfaces rather than the 44 declared in index.js
+  // (Codex P1 on #2194). Unfollowable ones say so; they never read as empty.
+  let options = e.options
+  let optionsFrom = e.inline ? 'index.js' : null
+  let optionsUnresolved = null
+  if (e.kind === 'delegated' && e.target) {
+    const followed = followDelegation(e.target, indexSource, readFunctionsModule)
+    if (followed.unresolved) optionsUnresolved = followed.unresolved
+    else { options = followed.options; optionsFrom = followed.from }
+  } else if (e.kind === 'factory') {
+    optionsUnresolved = 'factory-built: options are arguments, guarded by the factory\'s own tests'
+  }
   manifest[e.name] = {
     kind: e.kind,
     inline: e.inline,
-    options: e.options,
+    options,
+    optionsFrom,
+    optionsUnresolved,
     target: e.target,
     rewritePath,
     rewriteRegion,

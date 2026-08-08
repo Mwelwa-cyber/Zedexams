@@ -20,7 +20,15 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { extractExports, extractRewrites, classify, RISK_RANK } from './lib/functionsManifest.mjs'
+import { extractExports, extractRewrites, classify, RISK_RANK, followDelegation } from './lib/functionsManifest.mjs'
+
+function readFunctionsModule(rel) {
+  const base = path.join(ROOT, 'functions', rel.replace(/^\.\//, ''))
+  for (const candidate of [base, `${base}.js`, path.join(base, 'index.js')]) {
+    try { return readFileSync(candidate, 'utf8') } catch { /* next */ }
+  }
+  return null
+}
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -37,7 +45,8 @@ function test(name, fn) {
 }
 
 const manifest = JSON.parse(readFileSync(path.join(ROOT, 'scripts', 'functions-manifest.json'), 'utf8')).exports
-const live = extractExports(readFileSync(path.join(ROOT, 'functions', 'index.js'), 'utf8'))
+const indexSource = readFileSync(path.join(ROOT, 'functions', 'index.js'), 'utf8')
+const live = extractExports(indexSource)
 const rewrites = extractRewrites(readFileSync(path.join(ROOT, 'firebase.json'), 'utf8'))
 
 const CLASSES = ['mechanical', 'secrets-bound', 'payment-webhook', 'audit-surface']
@@ -73,6 +82,10 @@ test('no frozen field has moved without the manifest moving with it', () => {
     if (m.kind !== e.kind) drifts.push(`${e.name}: kind ${m.kind} → ${e.kind}`)
     if (m.inline !== e.inline) drifts.push(`${e.name}: inline ${m.inline} → ${e.inline}`)
     if ((m.target ?? null) !== (e.target ?? null)) drifts.push(`${e.name}: target changed`)
+    // Options here are index.js's, so this compares them only where index.js
+    // DECLARES them. A delegated export's options live in its module and are
+    // compared by the followed-delegation test below, against the module.
+    if (!e.inline) continue
     const keys = new Set([...Object.keys(m.options), ...Object.keys(e.options)])
     for (const k of keys) {
       if ((m.options[k] ?? null) !== (e.options[k] ?? null)) {
@@ -155,6 +168,38 @@ test('extraction keeps builders in index.js — the delegated set may only shrin
   const blind = live.filter((e) => e.kind === 'delegated' || e.kind === 'factory').length
   assert.ok(blind <= 157,
     `${blind} delegated/factory exports (ceiling 157) — an extraction converted a builder to a re-export; move the BODY and keep the builder in index.js`)
+})
+
+test('a DELEGATED export\'s options are frozen where they actually live', () => {
+  // Codex P1 on #2194: the guard read index.js only, so apiImageProxy's
+  // region/timeout/memory/cors — declared in imageProxy.js — could change
+  // freely. Following the delegation extends the frozen surface from the 44
+  // handlers declared here to every one it can reach.
+  const drifts = []
+  for (const e of live) {
+    if (e.kind !== 'delegated' || !e.target) continue
+    const m = manifest[e.name]
+    if (!m || m.optionsUnresolved) continue
+    const followed = followDelegation(e.target, indexSource, readFunctionsModule)
+    if (followed.unresolved) { drifts.push(`${e.name}: was followable, now ${followed.unresolved}`); continue }
+    const keys = new Set([...Object.keys(m.options), ...Object.keys(followed.options)])
+    for (const k of keys) {
+      if ((m.options[k] ?? null) !== (followed.options[k] ?? null)) {
+        drifts.push(`${e.name} (${m.optionsFrom}): option ${k}: ${JSON.stringify(m.options[k] ?? null)} → ${JSON.stringify(followed.options[k] ?? null)}`)
+      }
+    }
+  }
+  assert.deepEqual(drifts, [],
+    `a delegated export's wrapper drifted in its own module:\n    ${drifts.join('\n    ')}`)
+})
+
+test('the guard\'s blind spot is measured and may only shrink', () => {
+  // What the follower cannot reach is stated, counted, and ratcheted — a
+  // blind spot that is written down is a work item; one that reads as "no
+  // options" is a false green.
+  const unresolved = Object.entries(manifest).filter(([, m]) => m.optionsUnresolved)
+  assert.ok(unresolved.length <= 141,
+    `${unresolved.length} exports have unguarded options (ceiling 141) — a new one appeared:\n    ${unresolved.map(([n, m]) => `${n}: ${m.optionsUnresolved}`).join('\n    ')}`)
 })
 
 console.log(`\nfunctions manifest: ${passed} passed`)

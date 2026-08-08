@@ -173,6 +173,46 @@ export function extractExports(indexSource) {
 }
 
 /**
+ * Follow a delegated export INTO the module that builds it, and read the
+ * builder options there.
+ *
+ * Codex P1 on #2194: an export like `exports.apiImageProxy =
+ * imageProxy.apiImageProxy` records an empty options map, so the onRequest
+ * kind, region, timeout, memory and cors that actually live in
+ * `imageProxy.js:46` were outside the guard entirely — 157 of 201 exports
+ * were frozen in name only.
+ *
+ * Two-step: map `const alias = require("./mod")` in index.js, then find the
+ * builder that produces the named binding in that module. Whatever cannot be
+ * followed is reported as UNRESOLVED rather than as empty — a guard that
+ * cannot see something must say so, not imply there is nothing to see.
+ */
+export function followDelegation(target, indexSource, readModule) {
+  const [alias, member] = String(target).split('.')
+  const binding = member ?? alias
+  const requireRe = new RegExp(`(?:const|let|var)\\s+${alias}\\s*=\\s*require\\(\\s*['"]([^'"]+)['"]`)
+  const hit = indexSource.match(requireRe)
+  if (!hit) return { unresolved: `no require() for "${alias}" in index.js` }
+  const modulePath = hit[1]
+  const source = readModule(modulePath)
+  if (source == null) return { unresolved: `cannot read module ${modulePath}` }
+
+  const defRe = new RegExp(
+    `(?:(?:const|let|var)\\s+${binding}\\s*=|exports\\.${binding}\\s*=)\\s*` +
+    `(${BUILDERS.join('|')})\\s*\\(`)
+  const def = source.match(defRe)
+  if (!def) return { unresolved: `no builder for "${binding}" in ${modulePath}` }
+
+  const callStart = def.index + def[0].length - 1
+  const afterParen = source.slice(callStart + 1)
+  const trimmed = afterParen.replace(/^\s+/, '')
+  if (!trimmed.startsWith('{')) return { options: {}, kind: def[1], from: modulePath }
+  const objStart = callStart + 1 + (afterParen.length - trimmed.length)
+  const objText = sliceBalanced(source, objStart)
+  return { options: objText ? parseOptions(objText) : {}, kind: def[1], from: modulePath }
+}
+
+/**
  * The `firebase.json` rewrites that point at functions, as path → name.
  * `function` comes in two spellings — a bare name, or the v2 object form
  * `{ functionId, region, … }` — and both are live in this file; reading only
