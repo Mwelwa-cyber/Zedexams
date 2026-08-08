@@ -748,7 +748,8 @@
     "test:bootstrap-collect": "node scripts/visual/collectBootstrapRecordings.test.js",
     "test:render-environment": "node scripts/visual/renderEnvironment.test.js",
     "test:pr-sweep": "node scripts/test-pr-review-sweep.mjs",
-    "test:paper-quiz-zero-write": "node scripts/test-paper-quiz-zero-write.mjs"
+    "test:paper-quiz-zero-write": "node scripts/test-paper-quiz-zero-write.mjs",
+    "test:functions-manifest": "node scripts/test-functions-manifest.mjs"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",
