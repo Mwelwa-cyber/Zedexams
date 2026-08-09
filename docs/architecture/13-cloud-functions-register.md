@@ -147,7 +147,7 @@ require('./functions/index.js'); console.log(mb(),'MiB');
 | `agentJobsOnApproved` | onDocumentUpdated (agentJobs) | africa-south1 | Pubo | dispatcher.js:361 |
 | `questionReviewOnWrite` | onDocumentWritten (questionBank) | africa-south1 | **Qix** | questionReview.js:463 |
 | `retryAgentJob`, `classifyQuestionGrades`, `getPlatformHealth`, `initializeAgentPipeline`, `runSampleAgentJob`, `runDawnBriefing` | onCall | us-central1 | — / Dawn | index.js / platformHealth.js |
-| `nightlyQaSmoke` (Quill), `weeklyCbcAlignmentAudit` (Cala), `hourlyMonitor` (Vigil), `hourlyRevenueReconcile` (Till), `supportTriage` (Echo), `contentAutoPublish` (Gate), `weeklyProductSignal` (Compass), `weeklyRetentionScan` (Anchor), `deliverDawnBriefings` (Dawn), `hourlyAgentSupervisor` (Marshal) | onSchedule | us-central1 | ops/growth | agents/cron.js |
+| `nightlyQaSmoke` (Quill), `weeklyCbcAlignmentAudit` (Cala), `hourlyMonitor` (Vigil), `hourlyRevenueReconcile` (Till), `supportTriage` (Echo), `contentAutoPublish` (Gate), `weeklyProductSignal` (Compass), `weeklyRetentionScan` (Anchor), `deliverDawnBriefings` (Dawn), `hourlyAgentSupervisor` (Marshal), `hourlyServerErrorWatch` (Sift) | onSchedule | us-central1 | ops/growth | agents/cron.js |
 
 ## Account / auth / security
 

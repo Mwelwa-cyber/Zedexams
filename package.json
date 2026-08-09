@@ -577,6 +577,8 @@
     "test:reva": "node functions/agents/runners/reva.test.js",
     "test:pubo": "node functions/agents/runners/pubo.test.js",
     "test:monitor": "node functions/agents/runners/monitor.test.js",
+    "test:sift-core": "node functions/agents/runners/siftCore.test.js",
+    "test:sift": "node functions/agents/runners/sift.test.js",
     "test:vex": "node functions/agents/runners/vex.test.js",
     "test:option-dedupe-key": "node scripts/test-option-dedupe-key.mjs",
     "test:till": "node functions/agents/runners/till.test.js",

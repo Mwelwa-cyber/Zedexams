@@ -1255,6 +1255,18 @@
       "classification": "mechanical",
       "batch": null
     },
+    "hourlyServerErrorWatch": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {},
+      "optionsFrom": null,
+      "optionsUnresolved": "no require() for \"hourlyServerErrorWatchCron\" in index.js",
+      "target": "hourlyServerErrorWatchCron",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
     "importBuiltInAssessmentFormats": {
       "kind": "delegated",
       "inline": false,
