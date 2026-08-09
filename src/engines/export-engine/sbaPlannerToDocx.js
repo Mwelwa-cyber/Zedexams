@@ -5,8 +5,8 @@
  * HOD signs off when checking SBA coverage.
  */
 
-import { saveBlob } from './saveBlob.js'
-import { sanitizeXmlText } from './xmlText.js'
+import { saveBlob } from '../../utils/saveBlob.js'
+import { sanitizeXmlText } from '../../utils/xmlText.js'
 import {
   AlignmentType,
   BorderStyle,
@@ -20,8 +20,8 @@ import {
   TextRun,
   WidthType,
 } from 'docx'
-import { attributionSection } from './docxAttribution.js'
-import { SBA_TASK_STATUSES } from './sbaPlanner.js'
+import { attributionSection } from '../../utils/docxAttribution.js'
+import { SBA_TASK_STATUSES } from '../../utils/sbaPlanner.js'
 
 const STATUS_LABEL = Object.fromEntries(SBA_TASK_STATUSES.map((s) => [s.value, s.label]))
 const STATUS_FILL = { not_started: 'FFFFFF', planned: 'FEF3C7', administered: 'E0F2FE', marked: 'DCFCE7' }

@@ -1,5 +1,5 @@
 /**
- * Unit tests for src/utils/sbaTrackerToXlsx.js — the live-formula SBA mark
+ * Unit tests for src/engines/export-engine/sbaTrackerToXlsx.js — the live-formula SBA mark
  * workbook. Checks the workbook parts and that TOTAL/SBA cells carry the right
  * formulas (so editing a mark in Excel recomputes the ECZ-converted mark).
  *
@@ -7,7 +7,7 @@
  */
 
 import assert from 'node:assert'
-import { buildSbaTrackerWorkbookFiles, colLetter } from '../src/utils/sbaTrackerToXlsx.js'
+import { buildSbaTrackerWorkbookFiles, colLetter } from '../src/engines/export-engine/sbaTrackerToXlsx.js'
 import { getSbaBlueprint } from '../src/config/sba.js'
 
 let passed = 0

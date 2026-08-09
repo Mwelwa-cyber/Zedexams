@@ -9,8 +9,8 @@
  * rubric/criteria table) beneath the paper — the learner-facing view hides it.
  */
 
-import { PaperDocument } from './PaperBlocks'
-import { buildSbaPaperBlocks } from '../../../utils/sbaTaskToPaper'
+import { PaperDocument } from '../../../components/teacher/views/PaperBlocks'
+import { buildSbaPaperBlocks } from '../../../shared/utils/sbaTaskToPaper'
 
 const STYLE_LABELS = {
   answer_key: 'Answer key',

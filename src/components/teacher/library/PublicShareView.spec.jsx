@@ -63,16 +63,14 @@ vi.mock('../views/LessonActivitiesView', () => ({
 
 // SbaTaskView: renders secret marking content ONLY when showAnswers is true.
 // This lets us assert the secret string is absent when showAnswers={false}.
-vi.mock('../views/SbaTaskView', () => ({
-  default: ({ task, showAnswers }) => (
+vi.mock('../../../features/sba', () => ({
+  SbaTaskView: ({ task, showAnswers }) => (
     <div data-testid="sba-task-view" data-show-answers={String(showAnswers)}>
       {showAnswers && <span>{task?.markingScheme?.secretContent}</span>}
     </div>
   ),
-}))
-
-vi.mock('../views/SbaPlanView', () => ({
-  default: () => <div data-testid="sba-plan-view" />,
+  SbaPlanView: () => <div data-testid="sba-plan-view" />,
+  SbaTrackerView: () => null,
 }))
 
 vi.mock('../views/MarkScheduleView', () => ({

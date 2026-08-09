@@ -140,13 +140,20 @@ const ACKNOWLEDGED = new Map([
   // They are recorded rather than deleted from the list so the weight stays
   // countable and so the two pages that do NOT carry it — the entry chunk and
   // the /teachers marketing page — still fail if they ever join.
+  //
+  // Both entries name `sba` AND `SbaTaskView`, which is not redundancy: since
+  // the SBA migration the pages import the view THROUGH the feature's front
+  // door, and Rollup emits both a front-door chunk and a chunk for the view
+  // itself, giving the page an edge to each. The weight behind them is one
+  // component either way. Naming both is what keeps the record a statement
+  // about the page's actual reach rather than about one spelling of it.
   ['PublicShareView → buildExtensions', {
-    why: 'the two saved-document renderers it mounts reach the editor schema to draw saved rich text',
-    via: ['AssessmentPaperView', 'SbaTaskView'],
+    why: 'the saved-document renderers it mounts reach the editor schema to draw saved rich text; `sba` is that feature\'s front door, which is how SbaTaskView is reached since the SBA migration',
+    via: ['AssessmentPaperView', 'sba', 'SbaTaskView'],
   }],
   ['LockedStudio → buildExtensions', {
-    why: 'the specimen SBA task it renders reaches the same schema, for the same reason',
-    via: ['SbaTaskView'],
+    why: 'the specimen SBA task it renders reaches the same schema, for the same reason, through the sba front door',
+    via: ['sba', 'SbaTaskView'],
   }],
 ]);
 

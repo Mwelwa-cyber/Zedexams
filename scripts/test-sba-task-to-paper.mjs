@@ -1,5 +1,5 @@
 /**
- * Unit tests for src/utils/sbaTaskToPaper.js — the adapter that turns a
+ * Unit tests for src/shared/utils/sbaTaskToPaper.js — the adapter that turns a
  * generated SBA task into printable-paper layout blocks.
  *
  * Plain `node` assertions (no test framework), in the repo's *.mjs style.
@@ -7,7 +7,7 @@
  */
 
 import assert from 'node:assert/strict'
-import { buildSbaPaperBlocks } from '../src/utils/sbaTaskToPaper.js'
+import { buildSbaPaperBlocks } from '../src/shared/utils/sbaTaskToPaper.js'
 
 let passed = 0
 function test(name, fn) {

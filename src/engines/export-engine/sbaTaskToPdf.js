@@ -13,9 +13,9 @@
  * per-step mark allocation, and the rubric/criteria table — mirroring
  * sbaTaskToDocx.js / SbaTaskView.
  */
-import { makePdfExporter, escapeHtml as safe } from './htmlPdfExport.js'
-import { buildSbaPaperBlocks } from './sbaTaskToPaper.js'
-import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
+import { makePdfExporter, escapeHtml as safe } from '../../utils/htmlPdfExport.js'
+import { buildSbaPaperBlocks } from '../../shared/utils/sbaTaskToPaper.js'
+import { renderDiagramSvg } from '../../components/diagrams/diagramCatalog.js'
 
 const STYLE_LABELS = {
   answer_key: 'Answer key',

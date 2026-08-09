@@ -66,10 +66,10 @@ const ClassTimetableStudio = lazy(() => import('./generate/ClassTimetableStudio'
 // `src/features/rubric` stays for `RubricView`, which My Library still needs
 // to render the rubrics teachers already saved.
 const NotesStudio = lazy(() => import('../../features/teacherNotes/pages/NotesStudio'))
-const SbaTaskStudio = lazy(() => import('./generate/SbaTaskStudio'))
-const SbaMarkTracker = lazy(() => import('./generate/SbaMarkTracker'))
-const SbaYearPlanner = lazy(() => import('./generate/SbaYearPlanner'))
-const SbaHub = lazy(() => import('./SbaHub'))
+const SbaTaskStudio = lazy(() => import('../../features/sba/pages/SbaTaskStudio'))
+const SbaMarkTracker = lazy(() => import('../../features/sba/pages/SbaMarkTracker'))
+const SbaYearPlanner = lazy(() => import('../../features/sba/pages/SbaYearPlanner'))
+const SbaHub = lazy(() => import('../../features/sba/pages/SbaHub'))
 const VisualStudioPage = lazy(() =>
   import('../../features/visualStudio').then((m) => ({ default: m.VisualStudioPage })))
 

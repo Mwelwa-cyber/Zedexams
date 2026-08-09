@@ -24,20 +24,20 @@ import {
   SBA_MAX_FINAL_MARK,
 } from '../../../config/sba'
 import { clampInt } from '../../../utils/inputs.js'
-import { downloadSbaTrackerDocx } from '../../../utils/sbaTrackerToDocx'
-import { downloadSbaTrackerXlsx } from '../../../utils/sbaTrackerToXlsx'
+import { downloadSbaTrackerDocx } from '../../../engines/export-engine/sbaTrackerToDocx'
+import { downloadSbaTrackerXlsx } from '../../../engines/export-engine/sbaTrackerToXlsx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { isFreePlanTeacher, saveSbaMarkSheetGeneration } from '../../../utils/teacherLibraryService'
 import { useLibraryAutoSave } from '../../../hooks/useLibraryAutoSave'
-import StudioPageHeader from '../StudioPageHeader'
-import SeoHelmet from '../../seo/SeoHelmet'
-import ConfirmDialog from '../../ui/ConfirmDialog'
-import SbaWorkflowNote from '../SbaWorkflowNote'
-import { useToast } from '../../ui/Toast'
+import StudioPageHeader from '../../../components/teacher/StudioPageHeader'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import ConfirmDialog from '../../../components/ui/ConfirmDialog'
+import SbaWorkflowNote from '../components/SbaWorkflowNote'
+import { useToast } from '../../../components/ui/Toast'
 import { useDraftManager } from '../../../hooks/draft/useDraftManager'
 import { sbaTrackerDescriptor } from '../../../hooks/draft/descriptors/handBuilt'
 import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
-import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
+import DraftStatusIndicator from '../../../components/draft/DraftStatusIndicator'
 
 let rowSeq = 0
 const newPupil = () => ({ id: `p${Date.now()}-${rowSeq += 1}`, name: '', marks: {} })

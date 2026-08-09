@@ -49,24 +49,24 @@ vi.mock('../../../hooks/draft/useDraftManager', () => ({
     clear: vi.fn(() => Promise.resolve()),
   }),
 }))
-vi.mock('../../draft/DraftStatusIndicator', () => ({ default: () => null }))
-vi.mock('../../draft/DraftRecoveryPrompt', () => ({ default: () => null }))
+vi.mock('../../../components/draft/DraftStatusIndicator', () => ({ default: () => null }))
+vi.mock('../../../components/draft/DraftRecoveryPrompt', () => ({ default: () => null }))
 
 // Helmet needs a provider we don't want to stand up here.
-vi.mock('../../seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
 
 // Presentational bits with no bearing on the generate path.
-vi.mock('../../ui/LiveGenerationCanvas', () => ({ default: () => null }))
-vi.mock('../views/SbaTaskView', () => ({ default: () => null }))
-vi.mock('../SbaWorkflowNote', () => ({ default: () => null }))
-vi.mock('./TopicSubtopicPicker', () => ({ default: () => null }))
-vi.mock('../StudioPageHeader', () => ({ default: () => null }))
-vi.mock('../StudioOutputBoundary', () => ({ default: ({ children }) => children }))
-vi.mock('../../ui/Toast', () => ({ useToast: () => ({ error: vi.fn() }) }))
+vi.mock('../../../components/ui/LiveGenerationCanvas', () => ({ default: () => null }))
+vi.mock('../components/SbaTaskView', () => ({ default: () => null }))
+vi.mock('../components/SbaWorkflowNote', () => ({ default: () => null }))
+vi.mock('../../../components/teacher/generate/TopicSubtopicPicker', () => ({ default: () => null }))
+vi.mock('../../../components/teacher/StudioPageHeader', () => ({ default: () => null }))
+vi.mock('../../../components/teacher/StudioOutputBoundary', () => ({ default: ({ children }) => children }))
+vi.mock('../../../components/ui/Toast', () => ({ useToast: () => ({ error: vi.fn() }) }))
 
 // Export paths pull in docx/pdf builders — irrelevant to generation.
-vi.mock('../../../utils/sbaTaskToDocx', () => ({ downloadSbaTaskDocx: vi.fn() }))
-vi.mock('../../../utils/sbaTaskToPdf', () => ({ downloadSbaTaskPdf: vi.fn() }))
+vi.mock('../../../engines/export-engine/sbaTaskToDocx', () => ({ downloadSbaTaskDocx: vi.fn() }))
+vi.mock('../../../engines/export-engine/sbaTaskToPdf', () => ({ downloadSbaTaskPdf: vi.fn() }))
 
 function renderStudio() {
   return render(

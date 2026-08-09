@@ -12,7 +12,7 @@
  * teacher-only metadata (task type, Bloom levels, syllabus outcomes).
  */
 
-import { saveBlob } from './saveBlob.js'
+import { saveBlob } from '../../utils/saveBlob.js'
 import {
   AlignmentType,
   BorderStyle,
@@ -26,9 +26,9 @@ import {
   TextRun,
   WidthType,
 } from 'docx'
-import { buildSbaPaperBlocks } from './sbaTaskToPaper.js'
-import { renderPaperBlocksToDocx, paperSectionShell, sanitizeXmlText } from './assessmentToDocx.js'
-import { seedBandForLevel } from './assessmentBandService.js'
+import { buildSbaPaperBlocks } from '../../shared/utils/sbaTaskToPaper.js'
+import { renderPaperBlocksToDocx, paperSectionShell, sanitizeXmlText } from '../../utils/assessmentToDocx.js'
+import { seedBandForLevel } from '../../utils/assessmentBandService.js'
 
 const STYLE_LABELS = {
   answer_key: 'Answer key',

@@ -12,9 +12,9 @@
  */
 
 import { Link } from 'react-router-dom'
-import StudioPageHeader from './StudioPageHeader'
-import SeoHelmet from '../seo/SeoHelmet'
-import { SBA_WORKFLOW_STEPS } from './SbaWorkflowNote'
+import StudioPageHeader from '../../../components/teacher/StudioPageHeader'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import { SBA_WORKFLOW_STEPS } from '../components/SbaWorkflowNote'
 
 export default function SbaHub() {
   return (

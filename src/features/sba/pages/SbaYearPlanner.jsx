@@ -19,18 +19,18 @@ import {
   nextSbaStatus,
   normalizeSbaStatus,
 } from '../../../utils/sbaPlanner'
-import { downloadSbaPlannerDocx } from '../../../utils/sbaPlannerToDocx'
+import { downloadSbaPlannerDocx } from '../../../engines/export-engine/sbaPlannerToDocx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { isFreePlanTeacher, saveSbaPlanGeneration } from '../../../utils/teacherLibraryService'
 import { useLibraryAutoSave } from '../../../hooks/useLibraryAutoSave'
-import StudioPageHeader from '../StudioPageHeader'
-import SeoHelmet from '../../seo/SeoHelmet'
-import SbaWorkflowNote from '../SbaWorkflowNote'
-import { useToast } from '../../ui/Toast'
+import StudioPageHeader from '../../../components/teacher/StudioPageHeader'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import SbaWorkflowNote from '../components/SbaWorkflowNote'
+import { useToast } from '../../../components/ui/Toast'
 import { useDraftManager } from '../../../hooks/draft/useDraftManager'
 import { sbaPlannerDescriptor } from '../../../hooks/draft/descriptors/handBuilt'
 import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
-import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
+import DraftStatusIndicator from '../../../components/draft/DraftStatusIndicator'
 
 const TONE_CLASSES = {
   slate: 'bg-slate-100 text-slate-600 border-slate-300',
