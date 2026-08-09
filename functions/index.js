@@ -3420,8 +3420,20 @@ exports.sendTestOpsAlert = require("./opsAlertTest").createSendTestOpsAlert(
 // records the inline `require('./x').y` form as factory-built and therefore
 // unguarded. That blind spot is what hid apiTrackVisit's 128MiB, so a function
 // added BECAUSE of that incident should not join it.
-const functionErrorWatchModule = require("./monitoring/functionErrorWatch");
-exports.functionErrorWatch = functionErrorWatchModule.functionErrorWatch;
+// The builder lives HERE, not in the module: the module carries decisions and
+// is unit-tested under the root install, which has firebase-admin but not
+// firebase-functions. It is also where Phase 5 wants every builder, so the
+// frozen-surface guard reads these options directly from index.js.
+const {runFunctionErrorWatch} = require("./monitoring/functionErrorWatch");
+exports.functionErrorWatch = onSchedule({
+  schedule: "every 5 minutes",
+  region: "us-central1",
+  timeoutSeconds: 120,
+  memory: "256MiB",
+  secrets: opsAlertSecrets([emailSmtpUser, emailSmtpPassword]),
+}, async () => {
+  await runFunctionErrorWatch();
+});
 
 // Admin-only drill: injects a synthetic memory kill and runs the REAL watch,
 // so what is proven is the whole path (classifier → thresholds → channel →

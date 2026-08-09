@@ -33,19 +33,24 @@
  * API is called with `fetch`; `@google-cloud/logging` would add a large client
  * for one `entries:list` call.
  */
+// NO `firebase-functions`, and no `google-auth-library` at module load.
+//
+// The repo convention (see accountDeletionFlow.js) is that a module carrying
+// decisions is unit-tested under the ROOT install, which has firebase-admin but
+// not firebase-functions — so a top-level require of it makes the module
+// untestable in the `Tests (Functions coverage)` job, which runs `npm ci` at the
+// root only. The `onSchedule` builder therefore lives in index.js, which is also
+// where Phase 5 wants every builder so the frozen-surface guard can read its
+// options.
+//
+// `google-auth-library` is deferred for a second reason: it is only needed to
+// actually query Cloud Logging, so requiring it at load would put it on the cold
+// start of every instance — and cold-start cost is precisely what this incident
+// was about.
 const admin = require("firebase-admin");
-const {onSchedule} = require("firebase-functions/v2/scheduler");
-const {defineSecret} = require("firebase-functions/params");
-const {GoogleAuth} = require("google-auth-library");
 
 const {sendOpsAlert} = require("../opsAlert");
-const {opsAlertSecrets} = require("../opsAlertSecrets");
 const {decideAlerts, buildAlertMessage} = require("./functionErrorWatchCore");
-
-// Declared here, as every other alerting module does — the secrets are bound
-// per function, not shared through a module.
-const emailSmtpUser = defineSecret("EMAIL_SMTP_USER");
-const emailSmtpPassword = defineSecret("EMAIL_SMTP_PASSWORD");
 
 /** Where the between-runs state lives. Server-only in firestore.rules. */
 const STATE_DOC = "opsMonitorState/functionErrors";
@@ -95,6 +100,8 @@ function messageOf(entry) {
  * turns that into an alert rather than a silent zero.
  */
 async function fetchErrorEntries({projectId, sinceIso, auth, fetchImpl = fetch, pageSize = 500}) {
+  // Deferred require: see the module header.
+  const {GoogleAuth} = require("google-auth-library");
   const client = auth ?? new GoogleAuth({scopes: [SCOPE]});
   const token = await client.getAccessToken();
   const accessToken = typeof token === "string" ? token : token?.token;
@@ -209,23 +216,7 @@ async function runFunctionErrorWatch(deps = {}) {
   return {ok: true, alerted: Boolean(message), alerts, summary};
 }
 
-/**
- * Every 5 minutes. The cadence is the detection latency for a memory kill, and
- * five minutes is the point where a real outage is caught quickly without the
- * watch itself becoming a meaningful cost line.
- */
-const functionErrorWatch = onSchedule({
-  schedule: "every 5 minutes",
-  region: "us-central1",
-  timeoutSeconds: 120,
-  memory: "256MiB",
-  secrets: opsAlertSecrets([emailSmtpUser, emailSmtpPassword]),
-}, async () => {
-  await runFunctionErrorWatch();
-});
-
 module.exports = {
-  functionErrorWatch,
   runFunctionErrorWatch,
   fetchErrorEntries,
   buildFilter,

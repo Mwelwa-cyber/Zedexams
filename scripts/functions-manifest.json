@@ -808,8 +808,8 @@
       "batch": null
     },
     "functionErrorWatch": {
-      "kind": "delegated",
-      "inline": false,
+      "kind": "onSchedule",
+      "inline": true,
       "options": {
         "schedule": "\"every 5 minutes\"",
         "region": "\"us-central1\"",
@@ -817,13 +817,13 @@
         "memory": "\"256MiB\"",
         "secrets": "opsAlertSecrets([emailSmtpUser, emailSmtpPassword])"
       },
-      "optionsFrom": "./monitoring/functionErrorWatch",
+      "optionsFrom": "index.js",
       "optionsUnresolved": null,
-      "target": "functionErrorWatchModule.functionErrorWatch",
+      "target": null,
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
+      "classification": "secrets-bound",
+      "batch": 2
     },
     "generateAssessment": {
       "kind": "factory",
