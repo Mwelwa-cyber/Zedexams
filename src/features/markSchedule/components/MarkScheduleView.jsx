@@ -23,7 +23,7 @@
  * documents.
  */
 
-import { scheduleClassLabel } from '../../../utils/markSchedule.js'
+import { scheduleClassLabel } from '../../../shared/utils/markSchedule.js'
 
 const DOC_FONT = { fontFamily: "Georgia, 'Times New Roman', serif" }
 const TD = 'border border-black p-1.5 align-top'

@@ -73,7 +73,7 @@ const recordOfWorkMod = await loadModule('./recordOfWorkToDocx.js')
 const weeklyForecastMod = await loadModule('../engines/export-engine/weeklyForecastToDocx.js')
 const classTimetableMod = await loadModule('../engines/export-engine/classTimetableToDocx.js')
 const reportCardsMod = await loadModule('./reportCardsToDocx.js')
-const markScheduleMod = await loadModule('./markScheduleToDocx.js')
+const markScheduleMod = await loadModule('../engines/export-engine/markScheduleToDocx.js')
 const activityMod = await loadModule('./activityToDocx.js')
 
 let failures = 0

@@ -11,7 +11,7 @@
  * record types export their raw mark columns as-is.
  */
 
-import { buildSchedule } from './markSchedule.js'
+import { buildSchedule } from '../shared/utils/markSchedule.js'
 import { computeRecordRows, maxTotalOf } from './classRecordMath.js'
 import { convertSbaMark } from '../config/sba.js'
 import { classGradeShortLabel, formatClassGrade } from '../schemas/classRegister.js'

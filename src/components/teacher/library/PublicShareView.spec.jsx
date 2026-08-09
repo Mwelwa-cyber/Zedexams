@@ -73,8 +73,8 @@ vi.mock('../../../features/sba', () => ({
   SbaTrackerView: () => null,
 }))
 
-vi.mock('../views/MarkScheduleView', () => ({
-  default: () => <div data-testid="mark-schedule-view" />,
+vi.mock('../../../features/markSchedule', () => ({
+  MarkScheduleView: () => <div data-testid="mark-schedule-view" />,
 }))
 
 vi.mock('../../../features/classTimetable', () => ({

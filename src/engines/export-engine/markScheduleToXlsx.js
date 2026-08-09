@@ -21,8 +21,8 @@
  * pure and DOM-free so plain node can unit-test the XML.
  */
 
-import { saveBlob } from './saveBlob.js'
-import { scheduleClassLabel } from './markSchedule.js'
+import { saveBlob } from '../../utils/saveBlob.js'
+import { scheduleClassLabel } from '../../shared/utils/markSchedule.js'
 
 const XML_HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
 

@@ -4,8 +4,8 @@
  * Sheet — mirroring src/components/teacher/views/MarkScheduleView.jsx.
  */
 
-import { saveBlob } from './saveBlob.js'
-import { sanitizeXmlText } from './xmlText.js'
+import { saveBlob } from '../../utils/saveBlob.js'
+import { sanitizeXmlText } from '../../utils/xmlText.js'
 import {
   AlignmentType,
   BorderStyle,
@@ -19,8 +19,8 @@ import {
   TextRun,
   WidthType,
 } from 'docx'
-import { attributionSection } from './docxAttribution.js'
-import { percentFor, averagePercent, scheduleClassLabel } from './markSchedule.js'
+import { attributionSection } from '../../utils/docxAttribution.js'
+import { percentFor, averagePercent, scheduleClassLabel } from '../../shared/utils/markSchedule.js'
 
 // Solid black grid — the schedule is a formal school record.
 const CELL_BORDER = {

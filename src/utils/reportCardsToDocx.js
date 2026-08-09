@@ -25,7 +25,7 @@ import {
   WidthType,
 } from 'docx'
 import { attributionSection } from './docxAttribution.js'
-import { buildReportCards, scheduleClassLabel } from './markSchedule.js'
+import { buildReportCards, scheduleClassLabel } from '../shared/utils/markSchedule.js'
 
 const CELL_BORDER = {
   top:    { style: BorderStyle.SINGLE, size: 4, color: '000000' },

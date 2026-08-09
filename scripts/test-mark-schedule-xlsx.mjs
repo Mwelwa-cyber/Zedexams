@@ -2,7 +2,7 @@
 /* global console, process */
 /**
  * Unit tests for the Mark Schedule .xlsx exporter
- * (src/utils/markScheduleToXlsx.js): workbook part inventory, live
+ * (src/engines/export-engine/markScheduleToXlsx.js): workbook part inventory, live
  * formula construction (SUM totals, dense-rank SUMPRODUCT positions,
  * percentage + cross-sheet references), XML escaping, and a jszip
  * round-trip so the produced bytes really are a readable zip.
@@ -14,7 +14,7 @@ import {
   colLetter,
   buildMarkScheduleWorkbookFiles,
   buildMarkScheduleXlsxBytes,
-} from '../src/utils/markScheduleToXlsx.js'
+} from '../src/engines/export-engine/markScheduleToXlsx.js'
 
 let pass = 0
 let fail = 0
