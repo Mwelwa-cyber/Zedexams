@@ -12,6 +12,56 @@
 - **App Check:** graduated / **observe-only** default via `enforceAppCheck: shouldEnforceAppCheck("<label>")` (env-gated); `softVerifyAppCheckHttp` on HTTP. `consumeAppCheckToken` was removed (2026-07). The two webhooks (`lencoWebhook`, `apiWhatsAppWebhook`) authenticate by **HMAC**, not App Check/CORS.
 - **Secrets** (`defineSecret`, names only): `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `LENCO_API_KEY`, `GOOGLE_PLAY_SA_JSON`, `EMAIL_SMTP_USER`/`EMAIL_SMTP_PASSWORD`, WhatsApp groups (`WHATSAPP_SECRETS`/`WHATSAPP_WEBHOOK_SECRETS`). Dead-provider secrets `RECRAFT_API_KEY`/`KIE_API_KEY` are deliberately **not** declared (would hard-fail deploy) — all image styles run on `gpt-image-1`.
 
+## Shared-module startup cost (measured 2026-08-09)
+
+Every Cloud Functions instance loads the **whole** of `functions/index.js`,
+because all ~202 exports deploy from one source directory. A function that
+touches three modules still pays for the Anthropic client, the OpenAI client,
+`docx`, Gemini, every teacherTool and every agent — on **every cold start**, not
+just the heavy functions.
+
+Measured on Node 22, in this repo:
+
+| stage | RSS |
+|---|---|
+| bare `node` | 43 MiB |
+| `+ require('firebase-admin')` | 64 MiB |
+| `+ admin.initializeApp()` | 64 MiB |
+| `+ require('./visitorTracking')` | 72 MiB |
+| `+ admin.firestore()` | 76 MiB |
+| **`+ require('./index.js')` — the deployed reality** | **148 MiB**, 2.7 s to load |
+
+Reproduce:
+
+```bash
+node -e "
+process.env.GCLOUD_PROJECT='examsprepzambia';
+process.env.FIREBASE_CONFIG=JSON.stringify({projectId:'examsprepzambia',storageBucket:'examsprepzambia.firebasestorage.app'});
+const mb=()=>Math.round(process.memoryUsage().rss/1024/1024);
+require('./functions/index.js'); console.log(mb(),'MiB');
+"
+```
+
+### Consequences
+
+- **A function provisioned below ~148 MiB cannot start.** `apiTrackVisit`
+  declared `memory: "128MiB"` — the only declaration in the codebase below
+  256MiB — and produced 80 ERRORs in a 2h window ("Memory limit of 128 MiB
+  exceeded", POST 500s and a 503) while no other function contributed one. It
+  was not leaking: this is a fixed module-load cost, identical on every cold
+  start and independent of traffic. Fixed by raising it to 256MiB, the Cloud
+  Functions default and what all ~141 other declarations already use (#2231).
+- **`test:function-memory-floor` enforces the floor.** It scans every
+  declaration under `functions/` in both SDK vocabularies (v2 `MiB`/`GiB`, v1
+  `MB`/`GB`), covers direct and delegated declaration shapes, self-checks that
+  it still understands each shape before trusting its own scan, and fails on a
+  value it cannot resolve rather than skipping it. Update `FLOOR_MIB` only with
+  a fresh measurement from the command above.
+- **This is the measured case for Phase 5.** The 148 MiB and 2.7 s are paid by
+  every function's cold start, so "reduce `index.js` to exports"
+  (`docs/phase5-plan.md`) is a latency-and-cost argument, not a tidiness one.
+  Re-run the measurement at Phase 5 exit — the delta is the result.
+
 ## Trigger-type breakdown
 
 | Trigger | Count | Region |
