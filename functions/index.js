@@ -785,22 +785,10 @@ function toDate(value) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-exports.setUserRole = functions.auth.user().onCreate(async (user) => {
-  // emailVerified is true here for federated sign-in (Google has already
-  // proven the address) and false for a fresh email/password signup, which has
-  // proven nothing. Passing it is what stops an ADMIN_EMAILS entry with no
-  // account behind it from being claimed by whoever registers it first.
-  const role = resolveInitialUserRole(user.email || "", {
-    emailVerified: user.emailVerified === true,
-  });
+const userRoleTrigger = require("./account/userRoleTrigger")
+    .buildUserRoleTrigger({resolveInitialUserRole});
 
-  // Mint the role claim AND the boolean admin/superAdmin claims the MFA guard
-  // reads (buildRoleClaims sets admin:true only for admin/superAdmin roles).
-  const {buildRoleClaims} = require("./security/adminClaims");
-  await admin.auth().setCustomUserClaims(user.uid, buildRoleClaims({}, role));
-
-  return null;
-});
+exports.setUserRole = functions.auth.user().onCreate(userRoleTrigger);
 
 exports.bootstrapUserProfile = onCall(
   {region: "us-central1", timeoutSeconds: 20},
