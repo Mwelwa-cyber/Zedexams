@@ -192,6 +192,7 @@ const COVERED = [
   'classRegisters', 'curriculum', 'downloadTickets', 'exam_attempts',
   'familyInviteCodes', 'flashcardProgress', 'generatedContent', 'invoices',
   'lessonPlanTemplates', 'newsletterSignupRateLimit', 'noteProgress', 'parentDigestEvents', 'parentLinks',
+  'opsMonitorState',
   'passkeyAuditLog', 'passkeyCredentials', 'passkeyUserHandles', 'pastPapers',
   'pastPapersIndex', 'payments', 'progressShares', 'publicStats', 'questionBank',
   'quizzes', 'rateLimits', 'referralCodes', 'results', 'schoolLicences', 'schools',

@@ -59,6 +59,12 @@ function parseTopLevelCollections(src) {
 const RETAINED = new Map([
   // Server-only ops / agent / audit / telemetry / rate-limit / dedup — no
   // end-user PII home (or only an incidental actor/uid reference).
+  ["opsMonitorState",
+    "Cloud Functions error-watch state: per-function error streaks, alert " +
+    "cooldowns and the drill throttle. Ops telemetry about FUNCTIONS, not " +
+    "about people — the only uid it holds is the admin who last pressed the " +
+    "alarm-drill button, an operator action rather than user data. Purging it " +
+    "on a deletion would reset every alert cooldown to zero"],
   ["adminAuditLogs", "append-only admin-action ledger; compliance record"],
   ["agentControl", "per-agent circuit-breaker flags; ops config"],
   ["aiAgentControls", "learner-AI agent toggles; ops config"],

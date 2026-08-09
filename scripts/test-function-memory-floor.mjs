@@ -5,7 +5,7 @@
  * ## The failure this exists to prevent
  *
  * Cloud Functions v2 loads the whole shared `functions/index.js` into every
- * instance — all 202 exports deploy from one source, so a beacon that touches
+ * instance — every export in the codebase deploys from one source, so a beacon that touches
  * three modules still pays for the Anthropic client, the OpenAI client, docx,
  * Gemini, every teacherTool and every agent. Measured on Node 22:
  *
