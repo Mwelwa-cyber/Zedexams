@@ -16,7 +16,7 @@
  */
 
 import { useState } from 'react'
-import { sendTestOpsAlert } from '../../utils/opsAlerts'
+import { sendTestOpsAlert, sendTestFunctionErrorAlert } from '../../utils/opsAlerts'
 import Button from '../ui/Button'
 
 const VERDICTS = {
@@ -67,6 +67,26 @@ export default function OpsAlertTester() {
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
+  const [fnBusy, setFnBusy] = useState(false)
+  const [fnResult, setFnResult] = useState(null)
+
+  // The backend drill. Separate state from the channel test above because the
+  // two answer different questions and one passing says nothing about the
+  // other: this one can fail by DECLINING to fire (broken classifier) rather
+  // than by failing to deliver.
+  async function handleBackendDrill() {
+    setError(null)
+    setFnResult(null)
+    setFnBusy(true)
+    try {
+      setFnResult(await sendTestFunctionErrorAlert())
+    } catch (err) {
+      console.error('[OpsAlertTester] backend drill failed', err)
+      setError(err?.message || 'Could not run the backend alert drill. See console.')
+    } finally {
+      setFnBusy(false)
+    }
+  }
 
   async function handleSend() {
     setError(null)
@@ -126,6 +146,44 @@ export default function OpsAlertTester() {
           </div>
         </div>
       )}
+
+      <div className="mt-5 pt-4 border-t border-slate-200">
+        <h3 className="text-slate-900 font-bold text-sm">Backend alarm drill</h3>
+        <p className="text-slate-600 text-body-sm mt-0.5">
+          Injects a synthetic <em>memory limit exceeded</em> into the live Cloud Functions error
+          watch and lets it run the whole way through &mdash; classifier, thresholds, message,
+          channel. The test above proves the channel delivers; this proves a real backend failure
+          would reach it at all. Sentry cannot see Cloud Functions, so nothing else does.
+          One drill every 5 minutes.
+        </p>
+        <div className="mt-3">
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={handleBackendDrill}
+            loading={fnBusy}
+            disabled={fnBusy}
+          >
+            {fnBusy ? 'Running drill…' : 'Run backend alarm drill'}
+          </Button>
+        </div>
+        {fnResult && (
+          <div
+            className={`mt-3 rounded-radius-md border px-4 py-3 ${
+              fnResult.firedThroughRealPath
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                : 'bg-rose-50 border-rose-200 text-rose-900'
+            }`}
+          >
+            <p className="font-bold text-sm">
+              {fnResult.firedThroughRealPath
+                ? 'The watch fired a critical alert through the live path.'
+                : 'The watch did NOT fire on a synthetic memory kill.'}
+            </p>
+            <p className="text-xs mt-0.5">{fnResult.note}</p>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

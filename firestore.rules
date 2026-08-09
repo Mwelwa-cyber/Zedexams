@@ -2410,6 +2410,17 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Cloud Functions error-watch state ("functionErrors", the drill scratch
+    // doc, and per-admin drill throttles). Holds the streak counters and alert
+    // cooldowns that decide whether the next memory kill pages anyone, so a
+    // client able to write here could suppress alerting entirely — or, by
+    // clearing a cooldown, turn the ops address into a mail bomb. Written and
+    // read exclusively by functions/monitoring/. Server-only in both
+    // directions.
+    match /opsMonitorState/{docId} {
+      allow read, write: if false;
+    }
+
     // ── aiAutomationSettings (admin-managed learner-AI policy) ────────
     //
     // The /global doc carries the master enabled switch, daily caps,

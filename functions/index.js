@@ -3410,6 +3410,39 @@ exports.triggerWeeklyParentDigest = triggerWeeklyParentDigest;
 exports.sendTestOpsAlert = require("./opsAlertTest").createSendTestOpsAlert(
     lencoEmailSecrets, opsAlertSecrets([emailSmtpUser, emailSmtpPassword]));
 
+// Cloud Functions error monitoring (docs/architecture/13-cloud-functions-register.md).
+// Sentry is frontend-only — it cannot see a Cloud Function fail, which is how
+// 80 errors from apiTrackVisit went unnoticed on 2026-08-09. This reads Cloud
+// Logging every 5 minutes and routes anything worth saying through the same
+// sendOpsAlert channel as every other alarm.
+// Declared through an alias rather than `require(...).x` on purpose: the
+// frozen-surface follower resolves `const m = require("./mod")` + `m.name`, but
+// records the inline `require('./x').y` form as factory-built and therefore
+// unguarded. That blind spot is what hid apiTrackVisit's 128MiB, so a function
+// added BECAUSE of that incident should not join it.
+// The builder lives HERE, not in the module: the module carries decisions and
+// is unit-tested under the root install, which has firebase-admin but not
+// firebase-functions. It is also where Phase 5 wants every builder, so the
+// frozen-surface guard reads these options directly from index.js.
+const {runFunctionErrorWatch} = require("./monitoring/functionErrorWatch");
+exports.functionErrorWatch = onSchedule({
+  schedule: "every 5 minutes",
+  region: "us-central1",
+  timeoutSeconds: 120,
+  memory: "256MiB",
+  secrets: opsAlertSecrets([emailSmtpUser, emailSmtpPassword]),
+}, async () => {
+  await runFunctionErrorWatch();
+});
+
+// Admin-only drill: injects a synthetic memory kill and runs the REAL watch,
+// so what is proven is the whole path (classifier → thresholds → channel →
+// secret bindings), not just that the mailer works. Same binding wrapper as
+// every other alerting function.
+exports.sendTestFunctionErrorAlert =
+    require("./monitoring/functionErrorWatchTest").createSendTestFunctionErrorAlert(
+        opsAlertSecrets([emailSmtpUser, emailSmtpPassword]));
+
 // C6 — public newsletter signup. Validated + deduped + rate-limited
 // + honeypot-protected. Public (no auth) so the marketing-page form
 // can call it; abuse vectors mitigated server-side.

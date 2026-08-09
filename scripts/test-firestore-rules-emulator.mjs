@@ -2463,6 +2463,21 @@ async function main() {
     }))
   })
 
+  // ── opsMonitorState — the alerting's own memory ──
+  section('opsMonitorState — server-only in both directions')
+
+  await test('a user cannot read the error-watch state', async () => {
+    await assertFails(getDoc(doc(learnerA, 'opsMonitorState', 'functionErrors')))
+  })
+
+  await test('not even an admin can write alert cooldowns from the client', async () => {
+    // Clearing a cooldown from a client would turn the ops address into a mail
+    // bomb; setting one would suppress the next memory-kill page entirely.
+    await assertFails(getDoc(doc(admin, 'opsMonitorState', 'functionErrors')))
+    await assertFails(setDoc(doc(admin, 'opsMonitorState', 'functionErrors'), { functions: {} }))
+    await assertFails(deleteDoc(doc(admin, 'opsMonitorState', 'functionErrors')))
+  })
+
   await test('nobody can read or write webauthnChallenges (replay protection)', async () => {
     await assertFails(getDoc(doc(learnerA, 'webauthnChallenges', 'chal_1')))
     await assertFails(getDoc(doc(admin, 'webauthnChallenges', 'chal_1')))

@@ -807,6 +807,24 @@
       "classification": "mechanical",
       "batch": null
     },
+    "functionErrorWatch": {
+      "kind": "onSchedule",
+      "inline": true,
+      "options": {
+        "schedule": "\"every 5 minutes\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "120",
+        "memory": "\"256MiB\"",
+        "secrets": "opsAlertSecrets([emailSmtpUser, emailSmtpPassword])"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": 2
+    },
     "generateAssessment": {
       "kind": "factory",
       "inline": false,
@@ -2135,6 +2153,18 @@
       "rewriteRegion": null,
       "classification": "secrets-bound",
       "batch": 2
+    },
+    "sendTestFunctionErrorAlert": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "optionsFrom": null,
+      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "target": "require(\"./monitoring/functionErrorWatchTest\").createSendTestFunctionErrorAlert( opsAlertSecrets([emailSmtpUser, emailSmtpPassword]))",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
     },
     "sendTestOpsAlert": {
       "kind": "factory",

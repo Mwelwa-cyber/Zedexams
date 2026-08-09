@@ -331,7 +331,7 @@ async function handleVisit(req, res, deps = {}) {
 // 256MiB, not 128MiB — and NOT because this handler is heavy.
 //
 // Cloud Functions v2 loads the WHOLE shared `functions/index.js` into every
-// instance, because all 202 exports deploy from one source. Measured on Node
+// instance, because every export in the codebase deploys from one source. Measured on Node
 // 22: requiring index.js costs **148 MiB RSS before a single request arrives**
 // (2.7s to load). This function was the only one in the codebase declaring
 // 128MiB — every other declaration is 256MiB or above — so it was the only one
