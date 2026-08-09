@@ -21,6 +21,27 @@
 > **Review debt CLOSED:** Codex quota returned and reviewed #2194 (5
 > findings, all fixed); Rex approved.
 
+> **2026-08-09 — batch 1 reconciled, and 1b prepared.** The plan's
+> **14 mechanical** = 1a's 7 + 1b's 5 + **2 reclassified**:
+> **`getUpgradeQuote`** (subscription upgrade pricing) and
+> **`bulkGrantDemoTrials`** (writes subscription state) moved to
+> payment-webhook **batch 3** before any code was extracted — their names
+> dodge the seeding regex, their writes do not. Nothing was omitted; batch 1
+> is 12 handlers and batch 3 is now 11.
+> **Batch 1a deployed** (run #709, success, 06:19:58Z). Sentry: 0 errors in
+> the 24h covering it, 0 passkey/webauthn/credential errors ever;
+> pipeline confirmed alive (15 errors/30d), so the zero is evidence rather
+> than silence. **A live functional passkey sign-in could NOT be run from
+> the build sandbox** — outbound to `cloudfunctions.net` is blocked by the
+> agent proxy — so that half of the spot-check was owner-side.
+> **CLOSED 2026-08-09 11:30Z:** the owner enabled the passkey flag in
+> production and signed in successfully. Batch 1a's seven extracted passkey
+> callables are confirmed working against real traffic, which is the check
+> the sandbox could not make. Sentry over the same window: 0 errors of any
+> kind — worth reading as "nothing broke loudly" rather than as strong
+> independent confirmation, since at ~0.5 errors/day a one-day zero is also
+> what an untouched path looks like.
+
 ## What this phase does
 
 Move the inline handlers out of `functions/index.js` into domain modules;

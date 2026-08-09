@@ -356,7 +356,7 @@
     },
     "appCheckPing": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "region": "\"us-central1\"",
         "timeoutSeconds": "10",
@@ -368,7 +368,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
-      "batch": 1
+      "batch": null
     },
     "approveLearner": {
       "kind": "delegated",
@@ -396,7 +396,7 @@
     },
     "assessRecaptcha": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "region": "\"us-central1\"",
         "timeoutSeconds": "20"
@@ -407,7 +407,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
-      "batch": 1
+      "batch": null
     },
     "autoLabelDiagram": {
       "kind": "onCall",
@@ -477,7 +477,7 @@
     },
     "bootstrapUserProfile": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "region": "\"us-central1\"",
         "timeoutSeconds": "20"
@@ -488,7 +488,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
-      "batch": 1
+      "batch": null
     },
     "bulkGrantDemoTrials": {
       "kind": "onCall",
@@ -699,7 +699,7 @@
     },
     "deleteMyAccount": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "region": "\"us-central1\"",
         "timeoutSeconds": "300"
@@ -710,7 +710,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
-      "batch": 1
+      "batch": null
     },
     "deleteSyllabusRow": {
       "kind": "delegated",
