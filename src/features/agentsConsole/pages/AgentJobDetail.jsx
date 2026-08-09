@@ -5,11 +5,11 @@ import { getFunctions, httpsCallable } from 'firebase/functions'
 import app, { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
 import { AGENTS_BY_ID } from '../../../config/agents'
-import SeoHelmet from '../../seo/SeoHelmet'
-import Skeleton from '../../ui/Skeleton'
-import Button from '../../ui/Button'
-import { isAuditSummary } from './CbcAlignmentCard'
-import AgentOutput, { ReadablePanel } from './AgentOutputCards'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Skeleton from '../../../components/ui/Skeleton'
+import Button from '../../../components/ui/Button'
+import { isAuditSummary } from '../components/CbcAlignmentCard'
+import AgentOutput, { ReadablePanel } from '../components/AgentOutputCards'
 
 const STATUS_STYLES = {
   queued:             { cls: 'bg-gray-100 text-gray-600',     label: 'Queued'             },

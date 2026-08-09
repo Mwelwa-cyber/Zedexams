@@ -17,7 +17,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import { AGENTS, AGENTS_BY_ID } from '../../../config/agents'
-import SeoHelmet from '../../seo/SeoHelmet'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
 import PlatformHealthPanel from './PlatformHealthPanel'
 import DawnBriefingPanel from './DawnBriefingPanel'
 

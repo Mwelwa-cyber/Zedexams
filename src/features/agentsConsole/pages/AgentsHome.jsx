@@ -6,12 +6,12 @@ import {
 } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
-import SeoHelmet from '../../seo/SeoHelmet'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
 import { AGENTS_BY_ID, DEPARTMENTS } from '../../../config/agents'
-import AgentJobsQueue from './AgentJobsQueue'
-import AgentRunHistory from './AgentRunHistory'
-import AgentsDashboard from './AgentsDashboard'
-import BulkAcknowledgeBar from './BulkAcknowledgeBar'
+import AgentJobsQueue from '../components/AgentJobsQueue'
+import AgentRunHistory from '../components/AgentRunHistory'
+import AgentsDashboard from '../components/AgentsDashboard'
+import BulkAcknowledgeBar from '../components/BulkAcknowledgeBar'
 
 function AgentCostMeter({ agentId }) {
   // Aggregate over the most recent 50 jobs for this agent. For agents that

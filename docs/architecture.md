@@ -1339,6 +1339,14 @@ Its `index.js` exports nothing, for the same reason `templateBank`'s does: the p
 
 **No util travelled**, and the contrast with `companyHQ` is the rule rather than an inconsistency. A util travels when the feature is its ONLY consumer and stays when it is not: `companyOrg` and `treasury` had one importer each, while `adminUsersService` is also `PaymentsPanel`'s and `requestControl` / `requestDeduplication` have 14 and 10 importers across teacher, learner and admin surfaces — those belong in `src/shared/` when that layer is populated. Pulling a shared module into a feature to tidy one page's import paths inverts the dependency for everyone else.
 
+**Wave 3 — `agentsConsole`, completing the wave.** Fifteen files: the fleet dashboard, the `agentJobs` queue and approval flow, per-agent profiles, Cala's alignment verdicts, Vigil's health panel, Dawn's briefings. Empty front door — thirty-odd places in the repo mention `/admin/agents` and **every one is a route STRING, not an import**; the only module-level consumers are App.jsx's four lazy mounts.
+
+**No `src/utils/` slice and no `index.css` slice** — the only Phase 4 feature with neither. It is Tailwind plus the global `theme-*` utilities throughout, so the migration is the files and the mounts, with nothing else to decide.
+
+**Six components read Firestore directly** and two call callables. §14.2 wants that behind `services/`, and this is the migration the pure-move policy exists for: extracting six components' worth of Firestore calls is not a move but a redesign of how the console loads and refreshes — in the surface that approves agent output before it reaches learners. Its own PR, on a tree where the file move has already landed and cannot be confused with it. `agentJobs` and `agentControl` are already emulator-covered, so §14.12 asks nothing of the move.
+
+`test:mock-paths` (from #2179) caught a dead `vi.mock` in this migration BEFORE merge — the first time that guard fired on the mistake it was written for rather than four pull requests after it.
+
 **Review debt — the eight Wave 1/2 pull requests merged UNREVIEWED, and the order to sweep them in.** Codex reported "usage limits reached" on every one of #2169, #2170, #2172, #2173, #2176, #2177, #2178 and #2179, so each merged on CI plus the author's own checks and nothing else. That is recorded here rather than in a PR comment because a PR nobody is looking at is exactly where this fact would stop being visible.
 
 When quota returns, sweep them in **blast-radius order, not merge order** — the question is how much OTHER work each change silently governs:
