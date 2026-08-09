@@ -286,6 +286,7 @@
     "test:bundle-graph": "node scripts/test-bundle-graph.mjs",
     "test:mock-paths": "node scripts/test-mock-paths.mjs",
     "test:exporter-home": "node scripts/test-exporter-home.mjs",
+    "test:route-mounts": "node scripts/test-route-mounts.mjs",
     "test:curriculum-canon": "node scripts/test-curriculum-canon.mjs",
     "test:curriculum-diagnostics": "node scripts/test-curriculum-diagnostics.mjs",
     "test:client-errors": "node scripts/test-client-error-reporting.mjs",
