@@ -29,7 +29,7 @@ import {
   periodsForDay,
 } from './classTimetable.js'
 import { BLOCK_TYPES } from './timetableBlocks.js'
-import { resolveSubjectAbbreviation } from './subjectAbbreviations.js'
+import { resolveSubjectAbbreviation } from '../../utils/subjectAbbreviations.js'
 
 /** "Period 3", "08:15–08:55" or "Period 3 · 08:15–08:55" per the label mode. */
 export function formatPeriodLabel(row, slot, mode = 'period-time') {

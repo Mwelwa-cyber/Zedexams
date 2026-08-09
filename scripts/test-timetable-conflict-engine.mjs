@@ -2,7 +2,7 @@
 /* global console, process */
 /**
  * Unit tests for the cross-timetable conflict engine
- * (src/utils/timetableConflictEngine.js): sibling scope, exact-time
+ * (src/features/classTimetable/lib/timetableConflictEngine.js): sibling scope, exact-time
  * normalisation, the interval-overlap rule, teacher / room / class
  * conflicts, double periods, legacy-data coverage, deterministic ids and
  * stale-sibling detection. Pure objects only — no Firestore.
@@ -22,9 +22,9 @@ import {
   summariseConflicts,
   blockingConflicts,
   changedSiblingsSince,
-} from '../src/utils/timetableConflictEngine.js'
-import { buildPeriods, buildTimetableArtifact, DEFAULT_DAYS } from '../src/utils/classTimetable.js'
-import { makeBlock, setBlockDetails } from '../src/utils/timetableBlocks.js'
+} from '../src/features/classTimetable/lib/timetableConflictEngine.js'
+import { buildPeriods, buildTimetableArtifact, DEFAULT_DAYS } from '../src/shared/utils/classTimetable.js'
+import { makeBlock, setBlockDetails } from '../src/shared/utils/timetableBlocks.js'
 
 let pass = 0
 let fail = 0

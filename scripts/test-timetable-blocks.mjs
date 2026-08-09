@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* global console, process */
 /**
- * Unit tests for the timetable block engine (src/utils/timetableBlocks.js):
+ * Unit tests for the timetable block engine (src/shared/utils/timetableBlocks.js):
  * segments, the double-period invariants (join/split/move/lock), legacy
  * cell ↔ block conversion, structural validation and whole-school conflict
  * detection.
@@ -29,8 +29,8 @@ import {
   validateBlockLayout,
   findTimetableConflicts,
   blockTimeRange,
-} from '../src/utils/timetableBlocks.js'
-import { buildPeriods, DEFAULT_DAYS } from '../src/utils/classTimetable.js'
+} from '../src/shared/utils/timetableBlocks.js'
+import { buildPeriods, DEFAULT_DAYS } from '../src/shared/utils/classTimetable.js'
 
 let pass = 0
 let fail = 0

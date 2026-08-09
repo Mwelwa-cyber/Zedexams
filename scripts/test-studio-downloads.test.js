@@ -57,7 +57,7 @@ const pdfUtils = {
     download: /export async function downloadLessonPlanPdf/,
     print: /export function printLessonPlanAsPdf/,
   },
-  'src/utils/classTimetableToPdf.js': {
+  'src/engines/export-engine/classTimetableToPdf.js': {
     download: /export async function downloadClassTimetablePdf/,
     print: /export function printClassTimetableAsPdf/,
   },
@@ -72,7 +72,7 @@ for (const [rel, { download, print }] of Object.entries(pdfUtils)) {
 // 4. PDF buttons in the remaining PDF surfaces call the async download wrapper,
 //    not the bare print function (which only opened a dialog).
 const componentNoBarePrint = {
-  'src/components/teacher/generate/ClassTimetableStudio.jsx': /downloadClassTimetablePdf/,
+  'src/features/classTimetable/pages/ClassTimetableStudio.jsx': /downloadClassTimetablePdf/,
   'src/components/teacher/library/LibraryItemDetail.jsx': /downloadClassTimetablePdf/,
 }
 for (const [rel, re] of Object.entries(componentNoBarePrint)) {

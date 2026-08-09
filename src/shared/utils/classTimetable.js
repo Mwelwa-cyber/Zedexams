@@ -17,15 +17,15 @@
  * test it — see scripts/test-class-timetable.mjs.
  */
 
-import { getSubjectsForGradeForm } from '../config/library.js'
-import { resolveGradeForm } from './libraryClassification.js'
+import { getSubjectsForGradeForm } from '../../config/library.js'
+import { resolveGradeForm } from '../../utils/libraryClassification.js'
 import {
   resolveTimetableCurriculum,
   DEFAULT_CURRICULUM_ID,
   subjectLoad,
   subjectLoadWeight,
   LOAD_WEIGHT,
-} from './curriculumFramework.js'
+} from '../../utils/curriculumFramework.js'
 import {
   BLOCK_TYPES,
   segmentsOf,

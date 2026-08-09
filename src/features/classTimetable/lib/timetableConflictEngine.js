@@ -37,7 +37,7 @@
  * tested under plain node (scripts/test-timetable-conflict-engine.mjs).
  */
 
-import { periodsForDay } from './classTimetable.js'
+import { periodsForDay } from '../../../shared/utils/classTimetable.js'
 
 /* ── Canonical shared facilities ──────────────────────────────────
  * ZedExams has no school room model yet, so this catalog is the safe

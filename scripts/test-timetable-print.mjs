@@ -3,7 +3,7 @@
 /**
  * Unit tests for the printed timetable's identity: subject abbreviations +
  * legend (src/utils/subjectAbbreviations.js) and the print templates
- * (src/utils/timetablePrintTemplates.js) — the official title, the
+ * (src/shared/utils/timetablePrintTemplates.js) — the official title, the
  * monochrome Ministry format, vertically spelled BREAK/LUNCH columns, and
  * the one resolution the preview, PDF, Word and Excel all share.
  *
@@ -30,7 +30,7 @@ import {
   shouldSpellBand,
   resolvePrintSettings,
   MINISTRY_HEADER_TEXT,
-} from '../src/utils/timetablePrintTemplates.js'
+} from '../src/shared/utils/timetablePrintTemplates.js'
 
 let pass = 0
 let fail = 0

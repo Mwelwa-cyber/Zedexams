@@ -6,11 +6,11 @@
  * Renders the official document look — a black-grid grid on white, serif
  * type — so it reads as the printed timetable pinned on the classroom wall.
  * Both presentation layouts are supported from the SAME saved schedule
- * (see src/utils/timetableGridModel.js):
+ * (see src/shared/utils/timetableGridModel.js):
  *   - Days across the top — doubles merge vertically
  *   - Days down the left (the print default) — doubles merge horizontally
  *
- * The PRINT TEMPLATE (src/utils/timetablePrintTemplates.js) is resolved by
+ * The PRINT TEMPLATE (src/shared/utils/timetablePrintTemplates.js) is resolved by
  * the same function the PDF, Word and Excel exports use, so this preview is
  * the document that downloads — Ministry header, official title, monochrome
  * cells, vertically spelled BREAK/LUNCH, abbreviation key and signature
@@ -27,13 +27,13 @@ import {
   dayRowForSlot,
   resolveDayCell,
   cellTextFor,
-} from '../../../utils/timetableGridModel'
+} from '../../../shared/utils/timetableGridModel'
 import {
   resolvePrintSettings,
   verticalBandLetters,
   officialTimetableTitle,
   MINISTRY_HEADER_TEXT,
-} from '../../../utils/timetablePrintTemplates'
+} from '../../../shared/utils/timetablePrintTemplates'
 import { buildAbbreviationLegend, legendLine } from '../../../utils/subjectAbbreviations'
 
 const DOC_FONT = { fontFamily: "Georgia, 'Times New Roman', serif" }

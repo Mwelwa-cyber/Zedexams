@@ -4,7 +4,7 @@
  * Integration tests for how duration changes drive the timetable — the schedule
  * recalculation, knock-off overflow detection, per-day independence, template
  * defaults and legacy-value loading — proving the duration dropdowns feed the
- * deterministic core (src/utils/classTimetable.js) correctly.
+ * deterministic core (src/shared/utils/classTimetable.js) correctly.
  *
  * Plain `node` script that throws on failure, per repo convention.
  * Run: npm run test:duration-timetable   (also via npm run test:all)
@@ -18,7 +18,7 @@ import {
   slotCountForDay,
   SCHOOL_DAY_TEMPLATES,
   templatesForDayType,
-} from '../src/utils/classTimetable.js'
+} from '../src/shared/utils/classTimetable.js'
 import {
   normalizeTimingBreaks,
   normalizeDaySchedulesBreaks,

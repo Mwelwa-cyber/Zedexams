@@ -2,11 +2,11 @@
  * Class timetable → PDF (A4 landscape).
  *
  * Renders from the SAME shared grid model as the on-screen preview
- * (src/utils/timetableGridModel.js) so the download always matches what the
+ * (src/shared/utils/timetableGridModel.js) so the download always matches what the
  * teacher sees: both layouts, merged double periods, school-activity
  * styling, full time values and every teaching day — nothing clipped.
  *
- * Two templates (src/utils/timetablePrintTemplates.js), and the difference
+ * Two templates (src/shared/utils/timetablePrintTemplates.js), and the difference
  * is not decoration:
  *   government  the Ministry format a head of school signs — days down the
  *               left, no colour anywhere (schools print monochrome and
@@ -21,8 +21,8 @@
  * count grows. Falls back to the browser print dialog if client-side
  * rendering fails.
  */
-import { downloadHtmlAsPdf } from './htmlToPdf.js'
-import { injectHtmlWatermark, WATERMARK_TEXT } from './exportWatermark.js'
+import { downloadHtmlAsPdf } from '../../utils/htmlToPdf.js'
+import { injectHtmlWatermark, WATERMARK_TEXT } from '../../utils/exportWatermark.js'
 import {
   buildTimetableGridModel,
   cellState,
@@ -30,14 +30,14 @@ import {
   dayRowForSlot,
   resolveDayCell,
   cellTextFor,
-} from './timetableGridModel.js'
+} from '../../shared/utils/timetableGridModel.js'
 import {
   resolvePrintSettings,
   verticalBandLetters,
   officialTimetableTitle,
   MINISTRY_HEADER_TEXT,
-} from './timetablePrintTemplates.js'
-import { buildAbbreviationLegend, legendLine } from './subjectAbbreviations.js'
+} from '../../shared/utils/timetablePrintTemplates.js'
+import { buildAbbreviationLegend, legendLine } from '../../utils/subjectAbbreviations.js'
 
 const ATTRIBUTION_TEXT =
   'Made with ZedExams — free CBC teacher tools at zedexams.com/teachers'

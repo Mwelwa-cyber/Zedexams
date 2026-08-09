@@ -16,7 +16,7 @@
 
 import { useMemo, useState } from 'react'
 import { AlertTriangle, Check, Eye, Users, Settings, LayoutGrid, Grid3x3 } from 'lucide-react'
-import { summariseConflicts } from '../../../utils/timetableConflictEngine'
+import { summariseConflicts } from '../lib/timetableConflictEngine'
 
 const SEVERITY_META = {
   error: { label: 'Error', color: 'var(--danger-fg)' },

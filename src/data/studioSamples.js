@@ -26,7 +26,7 @@
 
 import { TEACHER_SAMPLES } from './teacherSamples'
 import { getSbaBlueprint } from '../config/sba'
-import { buildPeriods } from '../utils/classTimetable'
+import { buildPeriods } from '../shared/utils/classTimetable'
 
 // Index the curated marketing samples by tool so we can reuse their artifacts.
 const byTool = Object.fromEntries(TEACHER_SAMPLES.map((s) => [s.tool, s]))

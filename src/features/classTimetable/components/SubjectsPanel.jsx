@@ -11,17 +11,17 @@
  */
 
 import { AlertTriangle } from 'lucide-react'
-import { FRAMEWORK_SOURCE } from '../../../../utils/curriculumFramework'
-import { SCHOOL_ACTIVITIES } from '../../../../utils/timetableBlocks'
-import { ZAMBIAN_LANGUAGE_SUGGESTIONS, isZambianLanguageSubject } from '../../../../utils/classTimetable'
+import { FRAMEWORK_SOURCE } from '../../../utils/curriculumFramework'
+import { SCHOOL_ACTIVITIES } from '../../../shared/utils/timetableBlocks'
+import { ZAMBIAN_LANGUAGE_SUGGESTIONS, isZambianLanguageSubject } from '../../../shared/utils/classTimetable'
 import {
   ALLOCATION_STRATEGIES,
   formatDuration,
   formatAllocation,
   describeConversion,
-} from '../../../../utils/timetableCoverage'
-import { resolveSubjectAbbreviation } from '../../../../utils/subjectAbbreviations'
-import { clampInt } from '../../../../utils/inputs.js'
+} from '../lib/timetableCoverage'
+import { resolveSubjectAbbreviation } from '../../../utils/subjectAbbreviations'
+import { clampInt } from '../../../utils/inputs.js'
 
 export default function SubjectsPanel({
   curriculum,

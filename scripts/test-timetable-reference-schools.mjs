@@ -45,18 +45,18 @@ import {
   getSchoolDayTemplate,
   DEFAULT_DAYS,
   DEFAULT_DISPLAY_PREFERENCES,
-} from '../src/utils/classTimetable.js'
+} from '../src/shared/utils/classTimetable.js'
 import { resolveTimetableCurriculum } from '../src/utils/curriculumFramework.js'
-import { buildTimetableGridModel, resolveDayCell } from '../src/utils/timetableGridModel.js'
-import { buildPrintableHtml } from '../src/utils/classTimetableToPdf.js'
-import { buildClassTimetableWorkbookFiles } from '../src/utils/classTimetableToXlsx.js'
+import { buildTimetableGridModel, resolveDayCell } from '../src/shared/utils/timetableGridModel.js'
+import { buildPrintableHtml } from '../src/engines/export-engine/classTimetableToPdf.js'
+import { buildClassTimetableWorkbookFiles } from '../src/engines/export-engine/classTimetableToXlsx.js'
 import {
   resolveSubjectTargets,
   resolveCoverageUnit,
   formatCoverage,
   formatDuration,
-} from '../src/utils/timetableCoverage.js'
-import { isShiftSession } from '../src/utils/timetableSessions.js'
+} from '../src/features/classTimetable/lib/timetableCoverage.js'
+import { isShiftSession } from '../src/shared/utils/timetableSessions.js'
 
 let pass = 0
 let fail = 0

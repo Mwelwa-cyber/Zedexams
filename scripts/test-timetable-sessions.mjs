@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /* global console, process */
 /**
- * Unit tests for school SESSIONS (src/utils/timetableSessions.js) and the
- * period-building they drive in src/utils/classTimetable.js: shift windows,
+ * Unit tests for school SESSIONS (src/shared/utils/timetableSessions.js) and the
+ * period-building they drive in src/shared/utils/classTimetable.js: shift windows,
  * session-aware knock-off checking, day-scoped assembly, the assembly that
  * OCCUPIES period 1, and custom period times.
  *
@@ -17,7 +17,7 @@ import {
   sessionLabel,
   sessionDefaults,
   knockOffStatus,
-} from '../src/utils/timetableSessions.js'
+} from '../src/shared/utils/timetableSessions.js'
 import {
   buildPeriods,
   lessonPeriods,
@@ -33,7 +33,7 @@ import {
   DEFAULT_TIMING,
   DEFAULT_DAYS,
   getSchoolDayTemplate,
-} from '../src/utils/classTimetable.js'
+} from '../src/shared/utils/classTimetable.js'
 
 let pass = 0
 let fail = 0

@@ -27,7 +27,7 @@ import MarkScheduleView from './views/MarkScheduleView'
 import { NotesView } from '../../features/teacherNotes'
 import { RubricView } from '../../features/rubric'
 import { SbaTaskView, SbaTrackerView, SbaPlanView } from '../../features/sba'
-import ClassTimetableView from './views/ClassTimetableView'
+import { ClassTimetableView } from '../../features/classTimetable'
 import TestPaperOfficial from '../marketing/TestPaperOfficial'
 
 /** Render the sample artifact with the studio's own read-only view. */

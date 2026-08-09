@@ -12,7 +12,7 @@
  */
 
 /** Recommended weekly periods for a subject, mirroring the Class Timetable
- * Studio's defaultPeriodsPerWeek() (src/utils/classTimetable.js). Keyed on
+ * Studio's defaultPeriodsPerWeek() (src/shared/utils/classTimetable.js). Keyed on
  * either the canonical subject slug or a human label so either side resolves
  * to the same number. Core subjects carry the heaviest load. */
 function recommendedPeriodsPerWeek(subject, label = "") {
