@@ -131,6 +131,16 @@ describe('LessonPlayer — resume progress', () => {
   it('persists the current slide as the learner advances', async () => {
     render(<MemoryRouter><LessonPlayer /></MemoryRouter>)
     await screen.findByText(/^1 \/ \d+$/)
+    // The counter reaching the DOM does NOT mean the ArrowRight listener is
+    // attached: it is registered in a passive effect, which React flushes
+    // after the commit that findByText observes. Firing the key into that gap
+    // dropped it outright — no listener, no navigation, index stays 0 — which
+    // is the "expected +0 to be 1" this test failed with on ~25% of runs.
+    // The first progress write is the proof we can actually observe: it
+    // happens in the commit AFTER the one that attaches the listener (the
+    // write is gated on `hydrated`, set by an earlier effect), so a saved key
+    // means that earlier commit's effects have run and the listener is live.
+    await waitFor(() => expect(localStorage.getItem(KEY)).not.toBeNull())
     fireEvent.keyDown(window, { key: 'ArrowRight' })
     await waitFor(() => {
       const saved = JSON.parse(localStorage.getItem(KEY) || '{}')
