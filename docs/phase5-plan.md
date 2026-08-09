@@ -7,8 +7,10 @@
 ## Ledger
 
 > **Phase 5: BATCH 2 PAUSED (2026-08-09, owner decision).** Batches 1a and 1b
-> are merged and deployed. **No further Functions migrations start until the
-> `apiTrackVisit` work and Cloud Functions error monitoring are done** (#2230).
+> are merged and deployed. **No further Functions migrations start until BOTH
+> gates clear: (a) Cloud Functions error monitoring (#2230), and (b) the
+> manifest's `optionsUnresolved` blind spot — see "Guard gap" below.** Clearing
+> only the `apiTrackVisit` work does not resume the phase.
 > The reason is not that the extractions were unsafe — 1b's post-deploy check
 > found no fault in it — but that the verification only worked because someone
 > read Cloud Logging by hand. Sentry is frontend-only and reported zero while
@@ -106,7 +108,7 @@ expression), while their options are guarded where they are defined.
 | batch | class | count | gate |
 |---|---|---|---|
 | 1 | mechanical (no secrets) | 14 | standard CI |
-| 2 | secrets-bound | 21 | **PAUSED 2026-08-09** — blocked on TWO gates: (a) #2230, Cloud Functions error monitoring; (b) the `optionsUnresolved` blind spot below. Standard CI + secrets bindings pinned by the guard when it resumes |
+| 2 | secrets-bound | derive from the manifest (23 on 2026-08-09; was 21 at PR-zero) | **PAUSED 2026-08-09** — blocked on TWO gates: (a) #2230, Cloud Functions error monitoring; (b) the `optionsUnresolved` blind spot below. Standard CI + secrets bindings pinned by the guard when it resumes |
 | 3 | payment/webhook + audit-surface | 11 | **deferred until external review coverage is restored**; payment-lifecycle emulator + webhook-signature suites mandatory |
 
 Every batch, regardless of apparent relevance, runs the payment-lifecycle
@@ -137,61 +139,87 @@ and is hold-safe by construction.
 
 ## Guard gap — BLOCKS Batch 2 (recorded 2026-08-09, owner instruction)
 
-**`optionsUnresolved` is not a footnote; it is 141 of 202 exports.** Memory is
-now separately protected (`test:function-memory-floor`, #2231/#2233), but that
-is one option. Every other frozen option — region, timeout, secrets, App Check
-enforcement, concurrency, min-instances — remains invisible on those 141, and
-Batch 2 must not start while that is true.
+**`optionsUnresolved` is 141 of 192 exports** (2026-08-09). Memory is now separately
+protected (`test:function-memory-floor`, #2231/#2233), but that is one option.
+Every other frozen option on those 141 — region, timeout, secrets, App Check
+enforcement, concurrency, min-instances — is recorded as unreadable, and the
+owner's instruction is that they must not stay that way while more Functions
+are migrated.
 
-Measured breakdown of the 141:
+Measured breakdown of the 141, by the shape that defeats the follower:
 
-| reason the follower gives up | count |
-|---|---|
-| `factory-built: options are arguments` | 67 |
-| `no require() for "<alias>" in index.js` | 65 |
-| `no builder for "<binding>" in <module>` | 9 |
+| shape | count | tractable? |
+|---|---|---|
+| destructured binding — `const {x} = require("./mod")` then `exports.x = x` | 65 | yes: map destructured bindings before following |
+| `require("./x").y` inline in the export | 19 | yes: it is a delegation, not a factory call |
+| genuine factory call — options are arguments | 48 | harder: needs the factory's own signature understood |
+| `no builder for "<binding>" in <module>` | 9 | needs case-by-case reading |
 
-### Why it is worse than "141 unguarded options"
+### What this gap is NOT
 
-**The risk classification that DEFINES Batch 2 is derived from options the guard
-cannot read.** `classify()` marks an export `secrets-bound` when `secrets:`
-appears in its options — so an export whose options are unresolved reports an
-empty options map and can never be classified `secrets-bound`. The blind spot
-launders itself: **0 of the 141 carry that classification**, not because none
-bind secrets, but because the evidence is unreadable.
+**It does not make Batch 2's membership wrong, and an earlier revision of this
+section claimed it did.** That was incorrect, and the correction matters
+because it changes what "closing the gate" has to achieve:
 
-Checking the modules directly rather than the manifest: **9 of the 141 delegate
-to a module that does declare `secrets:`**, and **8 of those are classified
-`mechanical`** —
+- `optionsUnresolved` is only ever set on delegated or factory entries;
+  `extractExports()` marks both `inline: false`; the generator assigns every
+  non-inline entry `batch: null`. **0 of the 141 carry a batch at all.**
+- Every Batch 2 entry is an inline builder whose options are read directly from
+  `index.js`: **22 of 22 are `inline: true` with `optionsUnresolved: null`.**
 
-`backupCompletionCheck`, `dailyFirestoreBackup` (`firestoreBackup.js`),
-`storageBackupCheck`, `storageBackupHeartbeat` (`storageBackup.js`),
-`opsHeartbeatCheck`, `rateLimitHealthCheck`, `recordAgeGateAttempt`,
-`sendGuardianConsent` (`guardianConsent/`), plus `apiGuardianConsent`
-(classified `audit-surface`).
+So the extraction boundary IS verifiable from the manifest today. What is not
+verifiable is the frozen surface of the 141 modular exports — which is a real
+problem, and the owner's stated reason for the gate, but a different one from
+"the batch list is wrong".
 
-**No harm has been done and none of these was mis-migrated**: all nine are
-`inline: false`, so their `batch` is `null` and none was ever part of Batch 1's
-extraction work. The defect is in the *classification*, not in anything that
-shipped. But Batch 2 is exactly "the 21 exports classified secrets-bound", and
-that list is drawn from the readable subset — so the batch boundary itself is
-currently unverified.
+**A hand-owned classification is also still available.** `classification`
+survives regeneration whenever its risk rank is at least the generated seed, so
+an unresolved export CAN be marked `secrets-bound` by audit. Only the automatic
+*seed* is unable to infer it from an empty options map. An earlier revision said
+such entries "can never earn that classification"; they can, by hand.
+
+That distinction is what makes the nine modular exports whose modules declare
+`secrets:` — `backupCompletionCheck`, `dailyFirestoreBackup`,
+`storageBackupCheck`, `storageBackupHeartbeat`, `opsHeartbeatCheck`,
+`rateLimitHealthCheck`, `recordAgeGateAttempt`, `sendGuardianConsent` (all
+seeded `mechanical`) and `apiGuardianConsent` (`audit-surface`) — a manual
+audit item rather than a blocked migration. **None of them is inline, so none
+was ever in any batch, and nothing has been mis-migrated.**
+
+### Batch 2's real baseline is DERIVED, not written down
+
+The table above this section says 21, inherited from PR-zero's estimate. The
+manifest said 22 when this gap was first recorded and says **23** a few merges
+later (#2228 added `accountPurgeSweep`, a secrets-bound scheduled function).
+
+That drift is the point: **do not trust a number typed into this file.** Derive
+it, every time:
+
+    node -e "const m=require('./scripts/functions-manifest.json').exports; \
+      console.log(Object.values(m).filter(e => e.batch === 2).length)"
+
+Reconciliation that starts from a stale figure omits a handler. Every one of
+the 23 is `inline: true`, `optionsUnresolved: null` and `secrets-bound` —
+checked, not assumed.
 
 ### What closing this gate requires
 
-1. **Follow `require('./x').y`.** The extractor treats it as factory-built
-   because it matches the `name(` call shape; it is a plain delegation with a
-   readable target. This is the single largest tractable win and is what hid
+1. **Map destructured `require()` bindings** (65 entries) — the commonest shape
+   and the one the follower does not model at all.
+2. **Treat `require("./x").y` as a delegation** (19) — it matches the `name(`
+   call shape, so it is misfiled as factory-built. This is what hid
    `apiTrackVisit`'s `128MiB`.
-2. **Resolve the 65 "no require() in index.js" cases** — these re-export through
-   a second hop, which the follower does not chase.
-3. **Re-derive `classification` after following**, and diff it against the
-   hand-owned values. Any export whose classification MOVES is a batch-boundary
-   correction, and the `secrets-bound` count is expected to rise from 21.
-4. **Keep the ratchet shrink-only.** 141 may only go down.
-
-Only when the secrets-bound set is derived from options the guard can actually
-read is "Batch 2 is these 21 exports" a statement with evidence behind it.
+3. **The remaining 57** (48 genuine factory calls + 9 unfound builders) do not
+   yield to either fix, and pretending otherwise is how a gate gets declared
+   closed while a third of it is open. Each factory needs its own reader, or an
+   explicit written exemption naming the factory and the test that guards its
+   options instead. **Closure criterion: every one of the 141 is either
+   resolved, or exempted by name with the guarding test named.** A count that
+   merely shrinks is not closure.
+4. **Re-derive `classification` after following, and diff it** against the
+   hand-owned values. Any export whose classification moves is a correction to
+   record; the modular `secrets-bound` set is expected to grow.
+5. **Keep the ratchet shrink-only.** 141 may only go down.
 
 ## Recorded debt (not blocking any batch)
 
