@@ -237,7 +237,7 @@ export const INVENTORY = Object.freeze([
     incompleteResultSaveable: true,
   }),
   g('functions/teacherTools/generateSchemeOfWork.js', {
-    clientModule: 'src/components/teacher/generate/SchemeOfWorkGenerator.jsx',
+    clientModule: 'src/features/schemeOfWork/pages/SchemeOfWorkGenerator.jsx',
     clientLockKey: 'scheme-studio:generate',
     tier: 2,
     state: 'migrated',

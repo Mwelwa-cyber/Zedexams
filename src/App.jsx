@@ -226,7 +226,7 @@ const TeacherLayout = lazy(() => import('./components/teacher/TeacherLayout'))
 // Teacher — AI Generators
 const WorksheetGenerator = lazy(() => import('./features/worksheet/pages/WorksheetGenerator'))
 const FlashcardGenerator = lazy(() => import('./features/flashcards/pages/FlashcardGenerator'))
-const SchemeOfWorkGenerator = lazy(() => import('./components/teacher/generate/SchemeOfWorkGenerator'))
+const SchemeOfWorkGenerator = lazy(() => import('./features/schemeOfWork/pages/SchemeOfWorkGenerator'))
 const ClassTimetableStudio = lazy(() => import('./components/teacher/generate/ClassTimetableStudio'))
 // Rubric Studio is retired (2026-08); no admin route mounts it either. Saved
 // rubrics still render in My Library via features/rubric's RubricView.

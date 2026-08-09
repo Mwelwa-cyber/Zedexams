@@ -3,7 +3,9 @@
  * Does every document exporter live where it is supposed to?
  *
  * `src/engines/export-engine/` is the home §12's target map gives document
- * exporters. Ten are there. The rest are still in `src/utils/`, waiting for
+ * exporters. The two lists below are the count — read them rather than a
+ * number in this sentence, which is one edit away from being wrong every time
+ * a feature migrates. The rest are still in `src/utils/`, waiting for
  * their features to migrate — and the risk this guards is not that they are
  * still there, but that the count goes UP: a new exporter written next to the
  * old ones because that is where its neighbours are, and a relocated one
@@ -83,6 +85,8 @@ const RELOCATED = [
   'worksheetToDocx.js', 'worksheetToPdf.js',
   'notesToDocx.js', 'notesToPdf.js',
   'flashcardsToDocx.js', 'flashcardsToPdf.js',
+  // Wave 4, with the scheme-of-work studio (#2215).
+  'schemeOfWorkToDocx.js', 'schemeOfWorkToPdf.js',
 ];
 
 /**
@@ -95,8 +99,6 @@ const STILL_IN_UTILS = new Map([
   ['quizToDocx.js', 'quizzes — frozen, same reason'],
   ['lessonPlanToDocx.js', 'lesson-plan studio — Wave 4'],
   ['lessonPlanToPdf.js', 'lesson-plan studio — Wave 4'],
-  ['schemeOfWorkToDocx.js', 'scheme of work — Wave 4, paired with weekly forecast'],
-  ['schemeOfWorkToPdf.js', 'scheme of work — Wave 4'],
   ['weeklyForecastToDocx.js', 'weekly forecast — Wave 4'],
   ['sbaTaskToDocx.js', 'SBA family — Wave 4'],
   ['sbaTaskToPdf.js', 'SBA family — Wave 4'],

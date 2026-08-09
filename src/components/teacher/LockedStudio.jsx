@@ -20,7 +20,7 @@ import { getStudioSample } from '../../data/studioSamples'
 
 import { WorksheetView } from '../../features/worksheet'
 import { FlashcardsView } from '../../features/flashcards'
-import SchemeOfWorkView from './views/SchemeOfWorkView'
+import { SchemeOfWorkView } from '../../features/schemeOfWork'
 import WeeklyForecastView from './views/WeeklyForecastView'
 import RecordOfWorkView from './views/RecordOfWorkView'
 import MarkScheduleView from './views/MarkScheduleView'

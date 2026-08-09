@@ -15,7 +15,7 @@
  * Pure + dependency-free so `node src/utils/schemeReadiness.test.js` runs it.
  */
 
-import { curriculumLabel } from './schemeFormat.js'
+import { curriculumLabel } from '../../../utils/schemeFormat.js'
 
 /** The exact copy the brief specifies when a subject has no time allocation. */
 export const MISSING_TIME_ALLOCATION_MESSAGE =

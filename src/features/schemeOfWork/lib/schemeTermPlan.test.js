@@ -12,7 +12,7 @@ import {
   toWeekPlanPayload,
   roleLabel,
 } from './schemeTermPlan.js'
-import { getTotalTeachingWeeks, getTermByNumber } from './moeCalendar.js'
+import { getTotalTeachingWeeks, getTermByNumber } from '../../../utils/moeCalendar.js'
 
 let failures = 0
 function assert(cond, msg) {
