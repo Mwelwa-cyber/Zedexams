@@ -21,16 +21,16 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ACCEPTED_CAPTURE_TYPES, preparePageImage, pdfToPageImages,
   extractClassListPages, nextPageId,
-} from '../../../utils/classListCapture'
+} from '../services/classListCapture'
 import {
   buildCaptureSession, captureSessionReadiness, removePage, reorderPages,
 } from '../../../utils/captureSessionCore'
-import { useToast } from '../../ui/Toast'
-import Button from '../../ui/Button'
+import { useToast } from '../../../components/ui/Toast'
+import Button from '../../../components/ui/Button'
 import {
   AlertTriangle, Camera, Check, ChevronLeft, ChevronRight, Info,
   Loader2, RotateCw, ScanLine, Trash2, Upload, X,
-} from './classListIcons'
+} from '../../../shared/icons/classListIcons'
 
 /** A page in the strip, before it has been read. */
 function newPage(position, image, file) {

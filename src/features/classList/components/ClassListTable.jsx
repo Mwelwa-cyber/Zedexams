@@ -25,7 +25,7 @@
 import { memo, useCallback, useRef, useState } from 'react'
 import { windowRange } from '../../../utils/classListCore'
 import { learnerBadge, reviewReasonText } from '../../../utils/learnerStatus'
-import { AlertTriangle, Link2, MoreVertical, Pencil } from './classListIcons'
+import { AlertTriangle, Link2, MoreVertical, Pencil } from '../../../shared/icons/classListIcons'
 
 const ROW_HEIGHT = 52
 const VIEWPORT = 640

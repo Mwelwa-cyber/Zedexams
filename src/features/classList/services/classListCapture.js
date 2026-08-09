@@ -25,7 +25,7 @@
  */
 
 import { getFunctions, httpsCallable } from 'firebase/functions'
-import app from '../firebase/config'
+import app from '../../../firebase/config'
 
 // us-central1, where every HTTP/callable function in this project lives (the
 // africa-south1 region is for Firestore-TRIGGERED functions only).
@@ -164,7 +164,7 @@ function applyContrast(ctx, canvas) {
  * never pays for it.
  */
 export async function pdfToPageImages(file, { maxPages = 20 } = {}) {
-  const { loadPdfjs } = await import('./pdfjsLoader.js')
+  const { loadPdfjs } = await import('../../../utils/pdfjsLoader.js')
   const pdfjs = await loadPdfjs()
 
   const doc = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise

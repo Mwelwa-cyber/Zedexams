@@ -18,7 +18,7 @@ import { markableDays } from '../../../../utils/attendanceCalendarResolver'
 import Button from '../../../ui/Button'
 import {
   AlertTriangle, CheckCircle2, Info,
-} from '../../classList/classListIcons'
+} from '../../../../shared/icons/classListIcons'
 
 const SEVERITY_META = {
   error: {

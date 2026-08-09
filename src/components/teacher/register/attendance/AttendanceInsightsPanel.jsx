@@ -20,7 +20,7 @@ import Button from '../../../ui/Button'
 import ResponsiveModal from '../../../ui/ResponsiveModal'
 import {
   AlertTriangle, CheckCircle2, Clock, Info,
-} from '../../classList/classListIcons'
+} from '../../../../shared/icons/classListIcons'
 
 const KIND_META = {
   consecutive_absence: { Icon: AlertTriangle, tone: 'border-red-300 bg-red-50 text-red-900' },

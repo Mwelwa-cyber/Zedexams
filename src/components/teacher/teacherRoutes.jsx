@@ -41,11 +41,11 @@ const TeacherHelpSupport = lazy(() => import('./dashboardV2/HelpSupportPage'))
 const WelcomeToPro = lazy(() => import('./WelcomeToPro'))
 const MySubscriptionPage = lazy(() => import('../subscription/MySubscriptionPage'))
 
-const ClassListRegisterPreview = lazy(() => import('./classList/preview/ClassListRegisterPreview'))
+const ClassListRegisterPreview = lazy(() => import('../../features/classList/pages/ClassListRegisterPreview'))
 const ImportReviewPreview = lazy(() =>
-  import('./classList/preview/ClassListRegisterPreview')
+  import('../../features/classList/pages/ClassListRegisterPreview')
     .then((m) => ({ default: m.ImportReviewPreview })))
-const CapturePreview = lazy(() => import('./classList/preview/CapturePreview'))
+const CapturePreview = lazy(() => import('../../features/classList/pages/CapturePreview'))
 
 const AssessmentStudio = lazy(() => import('./AssessmentStudio'))
 const AssessmentList = lazy(() => import('./AssessmentList'))
