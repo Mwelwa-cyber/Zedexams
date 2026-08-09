@@ -22,7 +22,7 @@ import {
   getTermByNumber,
   getTermWeeks,
   getTotalTeachingWeeks,
-} from './moeCalendar.js'
+} from '../../../utils/moeCalendar.js'
 
 export const WEEK_ROLES = ['teaching', 'revision', 'exam']
 

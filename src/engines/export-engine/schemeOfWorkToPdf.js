@@ -9,9 +9,9 @@
  * classTimetableToPdf precedent); the real-PDF path renders the same tables
  * compactly on its A4 canvas.
  */
-import { makePdfExporter, escapeHtml as safe } from './htmlPdfExport.js'
-import { isOfficialScheme } from './weeklyForecast.js'
-import { schemeColumns, schemeCurriculum, cleanCellText, cleanCellList } from './schemeFormat.js'
+import { makePdfExporter, escapeHtml as safe } from '../../utils/htmlPdfExport.js'
+import { isOfficialScheme } from '../../utils/weeklyForecast.js'
+import { schemeColumns, schemeCurriculum, cleanCellText, cleanCellList } from '../../utils/schemeFormat.js'
 
 const cellBullets = (items) => {
   const list = cleanCellList(items)

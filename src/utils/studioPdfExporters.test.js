@@ -24,7 +24,7 @@ import { buildFlashcardsPrintableHtml } from '../engines/export-engine/flashcard
 import { buildNotesPrintableHtml } from '../engines/export-engine/notesToPdf.js'
 import { buildHomeworkPrintableHtml } from '../engines/export-engine/homeworkToPdf.js'
 import { buildFullLessonPrintableHtml } from './fullLessonToPdf.js'
-import { buildSchemeOfWorkPrintableHtml } from './schemeOfWorkToPdf.js'
+import { buildSchemeOfWorkPrintableHtml } from '../engines/export-engine/schemeOfWorkToPdf.js'
 import { buildSbaTaskPrintableHtml } from './sbaTaskToPdf.js'
 import { makePrintableHtmlChecks, XSS } from './printableHtmlChecks.js'
 

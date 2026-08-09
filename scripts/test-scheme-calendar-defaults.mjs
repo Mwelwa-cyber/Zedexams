@@ -3,7 +3,7 @@
  * Tests for Scheme of Work calendar-derived term/year defaults (pure).
  * Run: npm run test:scheme-calendar-defaults
  */
-import { resolveSchemeTermYear, isOffCurrentTerm } from '../src/utils/schemeCalendarDefaults.js'
+import { resolveSchemeTermYear, isOffCurrentTerm } from '../src/features/schemeOfWork/lib/schemeCalendarDefaults.js'
 
 let pass = 0
 let fail = 0

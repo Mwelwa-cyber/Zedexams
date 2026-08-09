@@ -21,8 +21,8 @@ import {
   splitRow,
   mergeRows,
   moveTopicToWeek,
-} from '../../../utils/schemeEditing'
-import ListTextarea from '../../ui/ListTextarea'
+} from '../lib/schemeEditing'
+import ListTextarea from '../../../components/ui/ListTextarea'
 
 const LIST_KEYS = new Set(['specificCompetences', 'learningActivities', 'methods', 'tlAids'])
 

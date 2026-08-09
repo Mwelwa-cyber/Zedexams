@@ -43,7 +43,7 @@ vi.mock('../../../features/worksheet',     () => ({ WorksheetView: () => <div da
 // useFlashcardProgress, which pulls AuthContext and firebase/config in at import
 // time — a presentational stub should not need Firebase configured.
 vi.mock('../../../features/flashcards', () => ({ FlashcardsView: () => <div data-testid="flashcards-view" /> }))
-vi.mock('../views/SchemeOfWorkView',  () => ({ default: () => <div data-testid="scheme-of-work-view" /> }))
+vi.mock('../../../features/schemeOfWork', () => ({ SchemeOfWorkView: () => <div data-testid="scheme-of-work-view" />, SchemeEditableTable: () => null }))
 vi.mock('../views/WeeklyForecastView',() => ({ default: () => <div data-testid="weekly-forecast-view" /> }))
 vi.mock('../views/RecordOfWorkView',  () => ({ default: () => <div data-testid="record-of-work-view" /> }))
 vi.mock('../../../features/rubric',        () => ({ RubricView: () => <div data-testid="rubric-view" /> }))

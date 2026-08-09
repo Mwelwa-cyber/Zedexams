@@ -7,15 +7,15 @@ import {
   TEACHER_LANGUAGES,
   SCHEME_TERMS,
 } from '../../../utils/teacherTools'
-import { downloadSchemeOfWorkDocx } from '../../../utils/schemeOfWorkToDocx'
-import { downloadSchemeOfWorkPdf } from '../../../utils/schemeOfWorkToPdf'
+import { downloadSchemeOfWorkDocx } from '../../../engines/export-engine/schemeOfWorkToDocx'
+import { downloadSchemeOfWorkPdf } from '../../../engines/export-engine/schemeOfWorkToPdf'
 import { buildDownloadName } from '../../../utils/downloadFilename'
-import SchemeOfWorkView from '../views/SchemeOfWorkView'
-import SchemeEditableTable from './SchemeEditableTable'
-import SchemePreviewCard from './SchemePreviewCard'
+import SchemeOfWorkView from '../components/SchemeOfWorkView'
+import SchemeEditableTable from '../components/SchemeEditableTable'
+import SchemePreviewCard from '../components/SchemePreviewCard'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
-import StudioPageHeader from '../StudioPageHeader'
-import SeoHelmet from '../../seo/SeoHelmet'
+import StudioPageHeader from '../../../components/teacher/StudioPageHeader'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
 import {
   attachLibraryToGeneration,
   isFreePlanTeacher,
@@ -24,17 +24,17 @@ import {
   updateGenerationOutput,
 } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
-import LiveGenerationCanvas from '../../ui/LiveGenerationCanvas'
-import FreePreviewUpsell from '../FreePreviewUpsell'
-import StudioNextSteps from '../StudioNextSteps'
+import LiveGenerationCanvas from '../../../components/ui/LiveGenerationCanvas'
+import FreePreviewUpsell from '../../../components/teacher/FreePreviewUpsell'
+import StudioNextSteps from '../../../components/teacher/StudioNextSteps'
 import { capture } from '../../../utils/analytics'
 import { resolveTeacherPlan, FREE_PREVIEW_LIMITS } from '../../../utils/teacherPlans'
-import { useToast } from '../../ui/Toast'
-import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
+import { useToast } from '../../../components/ui/Toast'
+import StudioCurriculumSelector from '../../../components/teacher/curriculum/StudioCurriculumSelector'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
 import { readActiveAssignmentSeed, resolveStudioSeed } from '../../../utils/activeAssignmentSeed'
-import StudioAssignmentChangeNotice from './StudioAssignmentChangeNotice'
-import { SOURCE_META } from '../views/SchemeOfWorkView'
+import StudioAssignmentChangeNotice from '../../../components/teacher/generate/StudioAssignmentChangeNotice'
+import { SOURCE_META } from '../components/SchemeOfWorkView'
 import {
   FieldText,
   FieldTextarea,
@@ -42,15 +42,15 @@ import {
   AdvancedOptions,
   GenerateButton,
   StudioEmptyState,
-} from './studioFields'
-import StudioOutputBoundary from '../StudioOutputBoundary'
+} from '../../../components/teacher/generate/studioFields'
+import StudioOutputBoundary from '../../../components/teacher/StudioOutputBoundary'
 import { useStudioInputDraft } from '../../../hooks/draft/useStudioInputDraft'
 import { schemeInputDescriptor } from '../../../hooks/draft/descriptors'
-import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
-import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
+import DraftStatusIndicator from '../../../components/draft/DraftStatusIndicator'
+import DraftRecoveryPrompt from '../../../components/draft/DraftRecoveryPrompt'
 import { getCalendarYears, getCurrentForecastWeek } from '../../../utils/moeCalendar'
-import { resolveSchemeTermYear, isOffCurrentTerm } from '../../../utils/schemeCalendarDefaults'
-import ConfirmDialog from '../../ui/ConfirmDialog'
+import { resolveSchemeTermYear, isOffCurrentTerm } from '../lib/schemeCalendarDefaults'
+import ConfirmDialog from '../../../components/ui/ConfirmDialog'
 import {
   buildTermPlan,
   reserveWeeks,
@@ -58,14 +58,14 @@ import {
   reservedWeekCount,
   deliveryWeekCount,
   defaultRevisionWeeks,
-} from '../../../utils/schemeTermPlan'
+} from '../lib/schemeTermPlan'
 import { matchFrameworkSubject, periodsPerWeekLabel } from '../../../utils/frameworkSubjectMatch'
-import { evaluate as evaluateReadiness } from '../../../utils/schemeReadiness'
+import { evaluate as evaluateReadiness } from '../lib/schemeReadiness'
 import { normalizeCurriculum, curriculumLabel } from '../../../utils/schemeFormat'
 import { stampEditHistory } from '../../../utils/schemeEditHistory'
-import { useSubjectTopics } from '../studio/hooks/useSubjectTopics'
-import SchemeTermPreview from './SchemeTermPreview'
-import { toTopicSelectionPayload } from '../../../utils/schemeTermDivision'
+import { useSubjectTopics } from '../../../components/teacher/studio/hooks/useSubjectTopics'
+import SchemeTermPreview from '../components/SchemeTermPreview'
+import { toTopicSelectionPayload } from '../lib/schemeTermDivision'
 import { useAiOperationLock } from '../../../hooks/useAiOperationLock'
 import { stableFingerprint } from '../../../hooks/aiOperationLockCore'
 

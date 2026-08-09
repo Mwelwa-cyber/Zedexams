@@ -27,7 +27,7 @@ import {
   validateTermSelection,
   crossTermDuplicates,
   weeksNeeded,
-} from '../../../utils/schemeTermDivision'
+} from '../lib/schemeTermDivision'
 
 const TERMS = [1, 2, 3]
 
