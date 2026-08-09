@@ -10,7 +10,7 @@
  * report cards.
  *
  * The marks table shows LIVE Total / % / Position columns (computed via
- * utils/markSchedule's rankPupils — the same maths the exports use), and
+ * shared/utils/markSchedule's rankPupils — the same maths the exports use), and
  * pupils can be imported straight from a Class Register class list
  * (ImportFromClassListModal): active learners fill the rows in register
  * order, rows the teacher already named are never wiped.
@@ -25,10 +25,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { SUBJECTS } from '../../../config/curriculum'
-import { buildSchedule, suggestComment, rankPupils } from '../../../utils/markSchedule'
-import { downloadMarkScheduleDocx } from '../../../utils/markScheduleToDocx'
+import { buildSchedule, suggestComment, rankPupils } from '../../../shared/utils/markSchedule'
+import { downloadMarkScheduleDocx } from '../../../engines/export-engine/markScheduleToDocx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
-import { downloadMarkScheduleXlsx } from '../../../utils/markScheduleToXlsx'
+import { downloadMarkScheduleXlsx } from '../../../engines/export-engine/markScheduleToXlsx'
 import { downloadReportCardsDocx } from '../../../utils/reportCardsToDocx'
 import { saveMarkScheduleGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { listTeacherRegisters } from '../../../utils/classRegister'
@@ -37,19 +37,19 @@ import { useLibraryAutoSave } from '../../../hooks/useLibraryAutoSave'
 import { clampInt } from '../../../utils/inputs.js'
 import { Link } from 'react-router-dom'
 import { Calculator, Users, Download, Plus } from 'lucide-react'
-import MarkScheduleView from '../views/MarkScheduleView'
-import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
-import StudioPageHeader from '../StudioPageHeader'
-import ImportFromClassListModal from './ImportFromClassListModal'
-import SeoHelmet from '../../seo/SeoHelmet'
-import ConfirmDialog from '../../ui/ConfirmDialog'
-import ActionMenu from '../../ui/ActionMenu'
-import { useToast } from '../../ui/Toast'
+import MarkScheduleView from '../components/MarkScheduleView'
+import StudioCurriculumSelector from '../../../components/teacher/curriculum/StudioCurriculumSelector'
+import StudioPageHeader from '../../../components/teacher/StudioPageHeader'
+import ImportFromClassListModal from'../../../components/teacher/generate/ImportFromClassListModal'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import ConfirmDialog from '../../../components/ui/ConfirmDialog'
+import ActionMenu from '../../../components/ui/ActionMenu'
+import { useToast } from '../../../components/ui/Toast'
 import { useDraftManager } from '../../../hooks/draft/useDraftManager'
 import { markScheduleDescriptor } from '../../../hooks/draft/descriptors/handBuilt'
 import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
-import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
-import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
+import DraftRecoveryPrompt from '../../../components/draft/DraftRecoveryPrompt'
+import DraftStatusIndicator from '../../../components/draft/DraftStatusIndicator'
 
 const DEFAULT_SUBJECTS = [
   { key: 's1', label: 'MATHS', max: 25 },

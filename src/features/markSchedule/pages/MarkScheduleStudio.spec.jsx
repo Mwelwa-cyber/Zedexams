@@ -31,10 +31,10 @@ vi.mock('../../../hooks/draft/useDraftManager', () => ({
     clear: vi.fn(() => Promise.resolve()),
   }),
 }))
-vi.mock('../../draft/DraftRecoveryPrompt', () => ({ default: () => null }))
-vi.mock('../../draft/DraftStatusIndicator', () => ({ default: () => null }))
-vi.mock('../../seo/SeoHelmet', () => ({ default: () => null }))
-vi.mock('../../ui/Toast', () => ({
+vi.mock('../../../components/draft/DraftRecoveryPrompt', () => ({ default: () => null }))
+vi.mock('../../../components/draft/DraftStatusIndicator', () => ({ default: () => null }))
+vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../components/ui/Toast', () => ({
   useToast: () => ({ info: vi.fn(), success: vi.fn(), error: vi.fn() }),
 }))
 
@@ -44,11 +44,11 @@ vi.mock('../../../utils/teacherLibraryService', () => ({
   isFreePlanTeacher: () => false,
 }))
 vi.mock('../../../hooks/useLibraryAutoSave', () => ({ useLibraryAutoSave: () => {} }))
-vi.mock('../../../utils/markScheduleToDocx', () => ({ downloadMarkScheduleDocx: vi.fn() }))
-vi.mock('../../../utils/markScheduleToXlsx', () => ({ downloadMarkScheduleXlsx: vi.fn() }))
+vi.mock('../../../engines/export-engine/markScheduleToDocx', () => ({ downloadMarkScheduleDocx: vi.fn() }))
+vi.mock('../../../engines/export-engine/markScheduleToXlsx', () => ({ downloadMarkScheduleXlsx: vi.fn() }))
 vi.mock('../../../utils/reportCardsToDocx', () => ({ downloadReportCardsDocx: vi.fn() }))
 vi.mock('../../../utils/downloadFilename', () => ({ buildDownloadName: vi.fn(() => 'file') }))
-vi.mock('../views/MarkScheduleView', () => ({
+vi.mock('../components/MarkScheduleView', () => ({
   default: () => <div data-testid="schedule-view" />,
 }))
 
@@ -60,16 +60,16 @@ vi.mock('../../../utils/classRoster', () => ({ listRoster: vi.fn() }))
 // The REAL StudioCurriculumSelector renders; only its syllabus-backed data
 // hooks (firebase-fed) are stubbed. available: null = "availability unknown,
 // offer the full grade list" — the selector's documented fallback.
-vi.mock('../studio/hooks/useAvailableGrades.js', () => ({
+vi.mock('../../../components/teacher/studio/hooks/useAvailableGrades.js', () => ({
   useAvailableGrades: () => ({ available: null, loading: false }),
 }))
-vi.mock('../studio/hooks/useSubjectsForGrade.js', () => ({
+vi.mock('../../../components/teacher/studio/hooks/useSubjectsForGrade.js', () => ({
   useSubjectsForGrade: () => ({ subjects: [], loading: false }),
 }))
-vi.mock('../studio/hooks/useSubjectTopics.js', () => ({
+vi.mock('../../../components/teacher/studio/hooks/useSubjectTopics.js', () => ({
   useSubjectTopics: () => ({ topics: [], loading: false, error: null }),
 }))
-vi.mock('../studio/hooks/useSubtopicDetail.js', () => ({
+vi.mock('../../../components/teacher/studio/hooks/useSubtopicDetail.js', () => ({
   useSubtopicDetail: () => ({ subtopicRow: null }),
 }))
 

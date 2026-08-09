@@ -2,7 +2,7 @@
 /* global console, process */
 /**
  * Unit tests for the Mark Schedule studio's deterministic core
- * (src/utils/markSchedule.js): totals, dense-ranked positions with ties,
+ * (src/shared/utils/markSchedule.js): totals, dense-ranked positions with ties,
  * percentage conversion/averaging, comment banding and determinism.
  *
  * Plain `node` script that throws on failure, per repo convention.
@@ -19,7 +19,7 @@ import {
   buildSchedule,
   buildReportCards,
   scheduleClassLabel,
-} from '../src/utils/markSchedule.js'
+} from '../src/shared/utils/markSchedule.js'
 
 let pass = 0
 let fail = 0

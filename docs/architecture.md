@@ -1321,6 +1321,19 @@ The order was settled 2026-08-07 as **smallest and lowest-risk first**, ranked o
 - **Wave 3, small admin surfaces:** `companyHQ`, `adminUsers`, `agentsConsole`.
 - **Wave 4, the larger teacher areas:** `scan`, `classList`, `schemeOfWork` + `weeklyForecast` (paired, because `schemeFormat.js` is shared between them and moves to `src/shared/utils/` on the second), `sba`, `classTimetable`, `markSchedule`/`recordOfWork`, `teacherClasses`, `curriculumBrowsers`, `teacherLibrary` (blocked on the `engines/export-engine` decision — 40 of its imports are exporters), `register`, `dashboardV2`, then the remaining admin areas.
 
+**Wave 4 ownership — two sessions are working this list, and one collision has already happened.** `classTimetable` was migrated twice: #2220 landed it, and #2221 arrived from a base that predated #2220 and was closed as redundant. The second author had not checked whether the next recorded item was already taken. A duplicate migration is not a merge accident; it is a whole surface of work discarded, and it is avoidable with one lookup.
+
+| session A | session B |
+|---|---|
+| `markSchedule` / `recordOfWork` | `teacherClasses` |
+| `curriculumBrowsers` | `teacherLibrary` |
+| `register` | `dashboardV2` |
+| the remaining admin areas | — |
+
+`scan` is unowned and stays blocked by the Assessment Studio freeze.
+
+Both sessions may PREPARE their next assigned surface in parallel; **merges follow the recorded order above.** Before beginning an item: update from `origin/main`, list open pull requests, confirm `src/features/<name>` does not already exist, and write the claim into this table. An existing explicit claim wins — reassign rather than duplicate.
+
 **§14.2 during a move: the migration PR is a pure move.** Where Firebase access is already a single cohesive module (`templateBankService`, `adminUsersService`, `visualAssetService`) it travels into `services/` as part of the move. Where it is inline in components (`agentsConsole` has Firestore in six), it travels **as it stands**, and `services/` extraction is a separate PR — a Firestore-call refactor is where behaviour changes hide, and §1 of the template exists to keep a migration diff readable as a move. Naming follows the eight existing feature folders (camelCase), not §12's kebab-case sketch.
 
 **`src/engines/export-engine/` exists, and ten exporters live in it.** Four Phase 4 migrations parked their exporters in `src/utils/` rather than inside a feature, because a docx exporter behind a feature index makes Rollup hand every consumer a 382 kB `docx-vendor` edge (#2172, #2177). §12 always put document exporters in an engine; this is them arriving.
@@ -1386,6 +1399,12 @@ Its `index.js` exports nothing, for the same reason `templateBank`'s does: the p
 **`check:bundle-edges` fired again, and the diagnosis is the opposite of the SBA one.** Both share pages reached `buildExtensions` through a path naming `classTimetable`, and on `PublicShareView` the recorded `sba` edge had *vanished* — Rollup had grouped the SBA front door into the chunk it names after this feature. Nothing got heavier: 576 chunks before and after, the same heavy vendors reachable from each of the four light pages, and +52 bytes on the two share pages, which is the length of the new import path strings. The `via` records were updated to name what the pages actually reach. Worth stating plainly because the guard cannot tell the two cases apart and should not try: it reports a changed dependency, and whether that is a regression is measured, not inferred.
 
 **This is a DEPLOYING pull request, for one comment.** `functions/teacherTools/schemeTimetable.js` documents its `defaultPeriodsPerWeek()` parity against the studio's module and named it by path; the path moved. `deploy-firebase.yml` fires on `functions/**` regardless of what changed there, so the Cloud Functions deploy is real — the same trade `weeklyForecast` recorded, taken the same way, because a comment pointing at a file that does not exist is worse than a deploy.
+
+**Wave 4 — `markSchedule`** (session A). The studio, its spec, the renderer, and two exporters into the engine — 23 relocated, 14 still in `src/utils/`. One exported name, `MarkScheduleView`, and an unusually wide consumer set: the library detail page, the public share page, `LockedStudio` **and** the `/teachers` marketing page, three of which are declared light pages. That is exactly why the exporters are reached in the engine directly rather than listed on the front door.
+
+`markSchedule.js` went to `src/shared/utils/` on the rule #2220 recorded: six modules read it across three layers — this feature, both exporters in the engine, `reportCardsToDocx` and `classRecordExport` in the legacy residue, and the marketing page — and a module more than one layer above depends on belongs below all of them. It imports nothing, touches no DOM/React/Firebase, and `scripts/test-mark-schedule.mjs` loads it under plain `node`.
+
+`teacher/register/MarkSchedulesTab.jsx` stayed: it is the class register's tab, not this feature's, and migrates with `register` — the same call `sbaCrossYear` got.
 
 **Three guards caught what review would not have.** `test:mock-paths` found five dead `vi.mock` paths in the two CONSUMER specs (`LibraryItemDetail`, `PublicShareView`) — the miss this repo made eight times across four merged PRs before the guard existed, and it fired on the first Wave 4 migration to have consumers. `test:all` caught `docxExporters.test.js` loading the exporter through a variable (`loadModule('./schemeOfWorkToDocx.js')`), which no grep for an import statement sees. And resolving every relative import caught nothing this time only because the mock guard had already found the movable parts. The machine-readable `scripts/aiGenerators/inventory.js` records this page by path and was updated in the same commit, as the template's step-0 table requires.
 
