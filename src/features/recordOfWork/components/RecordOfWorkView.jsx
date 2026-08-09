@@ -11,7 +11,7 @@
  * it reads as the printed/exported page, mirroring WeeklyForecastView.
  */
 
-import { printedRemark } from '../../../utils/recordOfWork'
+import { printedRemark } from '../../../shared/utils/recordOfWork'
 
 const DOC_FONT = { fontFamily: "Georgia, 'Times New Roman', serif" }
 const TD = 'border border-black p-1.5 align-top text-left'

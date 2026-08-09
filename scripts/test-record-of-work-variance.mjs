@@ -4,8 +4,8 @@
  * Run: npm run test:record-of-work-variance
  */
 import assert from 'node:assert/strict'
-import { normalizeVariance, weekHasVariance, weekWithVarianceField } from '../src/utils/recordOfWorkVariance.js'
-import { restoreRecordFromGeneration } from '../src/utils/recordOfWorkPlanning.js'
+import { normalizeVariance, weekHasVariance, weekWithVarianceField } from '../src/features/recordOfWork/lib/recordOfWorkVariance.js'
+import { restoreRecordFromGeneration } from '../src/features/recordOfWork/lib/recordOfWorkPlanning.js'
 
 let pass = 0
 function test(name, fn) { fn(); pass++; console.log(`  ok  ${name}`) }

@@ -13,7 +13,7 @@
  * with plain node, per repo convention.
  */
 
-import { schemeWeeks, weekNumberOf, normalizeSchemeWeek } from '../shared/utils/weeklyForecast.js'
+import { schemeWeeks, weekNumberOf, normalizeSchemeWeek } from './weeklyForecast.js'
 
 /** Coverage states a teacher can mark a week with (blank = not yet logged). */
 export const COVERAGE_OPTIONS = [

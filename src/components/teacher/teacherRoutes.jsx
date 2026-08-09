@@ -60,7 +60,7 @@ const FlashcardGenerator = lazy(() => import('../../features/flashcards/pages/Fl
 const SchemeOfWorkGenerator = lazy(() => import('../../features/schemeOfWork/pages/SchemeOfWorkGenerator'))
 const MarkScheduleStudio = lazy(() => import('../../features/markSchedule/pages/MarkScheduleStudio'))
 const WeeklyForecastStudio = lazy(() => import('../../features/weeklyForecast/pages/WeeklyForecastStudio'))
-const RecordOfWorkStudio = lazy(() => import('./generate/RecordOfWorkStudio'))
+const RecordOfWorkStudio = lazy(() => import('../../features/recordOfWork/pages/RecordOfWorkStudio'))
 const ClassTimetableStudio = lazy(() => import('../../features/classTimetable/pages/ClassTimetableStudio'))
 // Rubric Studio is retired (2026-08) — no page is mounted for it any more.
 // `src/features/rubric` stays for `RubricView`, which My Library still needs

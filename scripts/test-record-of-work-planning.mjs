@@ -9,7 +9,7 @@ import {
   buildRecordOfWorkFromPlan,
   recordWeekHasContent,
   restoreRecordFromGeneration,
-} from '../src/utils/recordOfWorkPlanning.js'
+} from '../src/features/recordOfWork/lib/recordOfWorkPlanning.js'
 
 let pass = 0
 let fail = 0

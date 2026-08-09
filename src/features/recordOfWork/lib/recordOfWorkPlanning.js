@@ -12,7 +12,7 @@
 //
 // Run tests: npm run test:record-of-work-planning
 
-import { normSubject, normGrade, termNumberOf } from './prepareThisWeek.js'
+import { normSubject, normGrade, termNumberOf } from '../../../utils/prepareThisWeek.js'
 
 function toMs(t) {
   if (!t) return 0

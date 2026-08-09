@@ -6,8 +6,8 @@
  * src/components/teacher/views/RecordOfWorkView.jsx.
  */
 
-import { saveBlob } from './saveBlob.js'
-import { sanitizeXmlText } from './xmlText.js'
+import { saveBlob } from '../../utils/saveBlob.js'
+import { sanitizeXmlText } from '../../utils/xmlText.js'
 import {
   AlignmentType,
   BorderStyle,
@@ -23,8 +23,8 @@ import {
   TextRun,
   WidthType,
 } from 'docx'
-import { printedRemark } from './recordOfWork.js'
-import { attributionSection, attributionFooterParagraph } from './docxAttribution.js'
+import { printedRemark } from '../../shared/utils/recordOfWork.js'
+import { attributionSection, attributionFooterParagraph } from '../../utils/docxAttribution.js'
 
 const CELL_BORDER = {
   top:    { style: BorderStyle.SINGLE, size: 4, color: '000000' },
