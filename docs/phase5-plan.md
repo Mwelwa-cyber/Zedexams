@@ -6,10 +6,40 @@
 
 ## Ledger
 
+> **Phase 5: BATCH 2 PAUSED (2026-08-09, owner decision).** Batches 1a and 1b
+> are merged and deployed. **No further Functions migrations start until the
+> `apiTrackVisit` work and Cloud Functions error monitoring are done** (#2230).
+> The reason is not that the extractions were unsafe — 1b's post-deploy check
+> found no fault in it — but that the verification only worked because someone
+> read Cloud Logging by hand. Sentry is frontend-only and reported zero while
+> Cloud Logging held 80 errors, so the next batch would deploy into the same
+> blind spot. Migrating more Functions before we can SEE Functions fail is
+> ordering the work backwards. #2202 is not reverted.
+>
 > **Phase 5: STARTED — contract/inventory stage.** No backend behaviour
 > changes yet. Migration batches risk-ascending. Payment/webhook and audit
 > behaviour changes deferred pending external review coverage.
 > Backup/restore drill required on exit.
+>
+> **2026-08-09 — what batch 1b's deploy actually taught us.** Two findings, and
+> neither is an argument against the restructure:
+>
+> - **`functions/index.js` costs 148 MiB RSS and 2.7s to LOAD** (measured, Node
+>   22, bare node is 43 MiB). Every v2 instance pays it, because all 202 exports
+>   deploy from one source — so it is on the cold start of every function in the
+>   project, not just the big ones. `apiTrackVisit` declared 128MiB and was
+>   therefore provisioned below the cost of starting up (#2231). This is the
+>   strongest measured argument for Phase 5 so far, and a better one than
+>   tidiness: the exit criterion "index.js reduced to exports" has a number
+>   attached to it now.
+> - **The frozen-surface manifest could not see the setting that broke.**
+>   `apiTrackVisit` is a `require('./x').y` delegation, which the extractor
+>   classifies as factory-built and records in `optionsUnresolved`. The one
+>   function in the codebase with a fatal option sat inside the guard's declared
+>   141-entry blind spot. The blind spot being written down is what made this
+>   legible rather than surprising — but it is now a shrink target with a
+>   demonstrated cost, not a theoretical one. Following `require('...').member`
+>   is a tractable extractor improvement.
 
 > **2026-08-09 — the guard follows delegations** (#2194's last open P1). A
 > delegated export's wrapper is read in the module that builds it, so the
@@ -76,8 +106,8 @@ expression), while their options are guarded where they are defined.
 | batch | class | count | gate |
 |---|---|---|---|
 | 1 | mechanical (no secrets) | 14 | standard CI |
-| 2 | secrets-bound | 21 | standard CI + secrets bindings pinned by the guard |
-| 3 | payment/webhook + audit-surface | 9 | **deferred until external review coverage is restored**; payment-lifecycle emulator + webhook-signature suites mandatory |
+| 2 | secrets-bound | 21 | **PAUSED 2026-08-09** — blocked on #2230 (Cloud Functions error monitoring). Standard CI + secrets bindings pinned by the guard when it resumes |
+| 3 | payment/webhook + audit-surface | 11 | **deferred until external review coverage is restored**; payment-lifecycle emulator + webhook-signature suites mandatory |
 
 Every batch, regardless of apparent relevance, runs the payment-lifecycle
 emulator suite and the webhook-signature tests before merge.
