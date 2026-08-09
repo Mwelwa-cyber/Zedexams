@@ -8,8 +8,8 @@
  * `onChange(nextForecast)`. Used by the library "Edit forecast" flow.
  */
 
-import { forecastColumns, forecastCurriculum, curriculumLabel } from '../../../utils/schemeFormat'
-import ListTextarea from '../../ui/ListTextarea'
+import { forecastColumns, forecastCurriculum, curriculumLabel } from '../../../shared/utils/schemeFormat'
+import ListTextarea from '../../../components/ui/ListTextarea'
 
 const LIST_KEYS = new Set(['learningActivities', 'resources'])
 

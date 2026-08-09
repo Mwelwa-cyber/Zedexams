@@ -6,8 +6,8 @@
  * mirroring src/components/teacher/views/WeeklyForecastView.jsx.
  */
 
-import { saveBlob } from './saveBlob.js'
-import { sanitizeXmlText } from './xmlText.js'
+import { saveBlob } from '../../utils/saveBlob.js'
+import { sanitizeXmlText } from '../../utils/xmlText.js'
 import {
   AlignmentType,
   BorderStyle,
@@ -22,8 +22,8 @@ import {
   VerticalMergeType,
   WidthType,
 } from 'docx'
-import { attributionSection } from './docxAttribution.js'
-import { forecastColumns, forecastCurriculum } from './schemeFormat.js'
+import { attributionSection } from '../../utils/docxAttribution.js'
+import { forecastColumns, forecastCurriculum } from '../../shared/utils/schemeFormat.js'
 
 const CELL_BORDER = {
   top:    { style: BorderStyle.SINGLE, size: 4, color: '000000' },

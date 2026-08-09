@@ -59,7 +59,7 @@ const WorksheetGenerator = lazy(() => import('../../features/worksheet/pages/Wor
 const FlashcardGenerator = lazy(() => import('../../features/flashcards/pages/FlashcardGenerator'))
 const SchemeOfWorkGenerator = lazy(() => import('../../features/schemeOfWork/pages/SchemeOfWorkGenerator'))
 const MarkScheduleStudio = lazy(() => import('./generate/MarkScheduleStudio'))
-const WeeklyForecastStudio = lazy(() => import('./generate/WeeklyForecastStudio'))
+const WeeklyForecastStudio = lazy(() => import('../../features/weeklyForecast/pages/WeeklyForecastStudio'))
 const RecordOfWorkStudio = lazy(() => import('./generate/RecordOfWorkStudio'))
 const ClassTimetableStudio = lazy(() => import('./generate/ClassTimetableStudio'))
 // Rubric Studio is retired (2026-08) — no page is mounted for it any more.

@@ -10,8 +10,8 @@
  * compactly on its A4 canvas.
  */
 import { makePdfExporter, escapeHtml as safe } from '../../utils/htmlPdfExport.js'
-import { isOfficialScheme } from '../../utils/weeklyForecast.js'
-import { schemeColumns, schemeCurriculum, cleanCellText, cleanCellList } from '../../utils/schemeFormat.js'
+import { isOfficialScheme } from '../../shared/utils/weeklyForecast.js'
+import { schemeColumns, schemeCurriculum, cleanCellText, cleanCellList } from '../../shared/utils/schemeFormat.js'
 
 const cellBullets = (items) => {
   const list = cleanCellList(items)

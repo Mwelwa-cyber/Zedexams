@@ -17,7 +17,7 @@ function isPositiveNumber(v) { return typeof v === "number" && Number.isFinite(v
 function cleanString(v) { return isNonEmptyString(v) ? v.trim() : ""; }
 
 // Curriculum drives CBC (9-column) vs OBC (7-column) rendering. Kept in step
-// with normalizeCurriculum() in src/utils/schemeFormat.js — 'previous'/'2013'
+// with normalizeCurriculum() in src/shared/utils/schemeFormat.js — 'previous'/'2013'
 // mean OBC; everything else (incl. absent) is CBC, the historical default.
 function normalizeCurriculum(v) {
   const s = String(v == null ? "" : v).trim().toLowerCase();

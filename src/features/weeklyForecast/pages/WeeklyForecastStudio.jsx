@@ -31,7 +31,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
 import { readActiveAssignmentSeed, resolveStudioSeed } from '../../../utils/activeAssignmentSeed'
-import StudioAssignmentChangeNotice from './StudioAssignmentChangeNotice'
+import StudioAssignmentChangeNotice from '../../../components/teacher/generate/StudioAssignmentChangeNotice'
 import {
   TEACHER_SUBJECTS,
   getTermModuleOutline,
@@ -40,14 +40,14 @@ import {
   getTopicsForTeacherSubject, getSubtopicsForTeacherSubject,
   getCompetencies, TEACHER_SUBJECT_TO_CURRICULUM,
 } from '../../../config/curriculum'
-import { toKbSubjectKey, subjectLabel as subjectLabelForSlug } from '../paperTaxonomy'
-import { kbGradeToStudioLabel, studioLabelToKbGrade } from '../curriculum/curriculumSelectorConstants'
+import { toKbSubjectKey, subjectLabel as subjectLabelForSlug } from '../../../components/teacher/paperTaxonomy'
+import { kbGradeToStudioLabel, studioLabelToKbGrade } from '../../../components/teacher/curriculum/curriculumSelectorConstants'
 import {
   getCalendarYears, getTermWeeks, getCurrentForecastWeek,
 } from '../../../utils/moeCalendar'
-import { schemeWeeks, weekNumberOf, normalizeSchemeWeek, buildForecastDays } from '../../../utils/weeklyForecast'
+import { schemeWeeks, weekNumberOf, normalizeSchemeWeek, buildForecastDays } from '../../../shared/utils/weeklyForecast'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
-import StudioNextSteps from '../StudioNextSteps'
+import StudioNextSteps from '../../../components/teacher/StudioNextSteps'
 import { weekTeachingAvailability, excludeHolidayWeekdays, holidaySummary, openMoveTargets } from '../../../utils/weeklyFocusHolidays'
 import {
   WEEKDAYS, buildTopicCatalog, subtopicsForTopic, dayFieldsFromTopic,
@@ -55,25 +55,25 @@ import {
 } from '../../../utils/weeklyFocusPlanner'
 import { listAllSyllabusTopics } from '../../../utils/syllabusKbService'
 import { suggestForecastResources } from '../../../utils/forecastResourceSuggest'
-import { downloadWeeklyForecastDocx } from '../../../utils/weeklyForecastToDocx'
+import { downloadWeeklyForecastDocx } from '../../../engines/export-engine/weeklyForecastToDocx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import {
   listMyGenerations, titleForGeneration, saveWeeklyForecastGeneration, isFreePlanTeacher,
 } from '../../../utils/teacherLibraryService'
 import { useLibraryAutoSave } from '../../../hooks/useLibraryAutoSave'
-import WeeklyForecastView from '../views/WeeklyForecastView'
-import { normalizeCurriculum, schemeCurriculum, curriculumLabel } from '../../../utils/schemeFormat'
-import StudioPageHeader from '../StudioPageHeader'
-import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
-import SeoHelmet from '../../seo/SeoHelmet'
-import ConfirmDialog from '../../ui/ConfirmDialog'
-import { useToast } from '../../ui/Toast'
+import WeeklyForecastView from '../components/WeeklyForecastView'
+import { normalizeCurriculum, schemeCurriculum, curriculumLabel } from '../../../shared/utils/schemeFormat'
+import StudioPageHeader from '../../../components/teacher/StudioPageHeader'
+import StudioCurriculumSelector from '../../../components/teacher/curriculum/StudioCurriculumSelector'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import ConfirmDialog from '../../../components/ui/ConfirmDialog'
+import { useToast } from '../../../components/ui/Toast'
 import { useDraftManager } from '../../../hooks/draft/useDraftManager'
 import { weeklyForecastDescriptor } from '../../../hooks/draft/descriptors/handBuilt'
 import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
-import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
-import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
-import ListTextarea from '../../ui/ListTextarea'
+import DraftRecoveryPrompt from '../../../components/draft/DraftRecoveryPrompt'
+import DraftStatusIndicator from '../../../components/draft/DraftStatusIndicator'
+import ListTextarea from '../../../components/ui/ListTextarea'
 
 // The standardized curriculum selector's payload already carries the
 // canonical KB subject slug (`curr.subject`, e.g. 'mathematics'), which is the

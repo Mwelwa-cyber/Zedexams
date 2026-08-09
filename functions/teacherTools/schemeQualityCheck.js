@@ -16,7 +16,7 @@
  */
 
 // Filler a model leaks when it can't source a value. Kept in step with the
-// FILLER_CELL regex in src/utils/schemeFormat.js (which blanks cells at
+// FILLER_CELL regex in src/shared/utils/schemeFormat.js (which blanks cells at
 // render time); this one only needs to FLAG, so a substring match is enough.
 const FILLER_RE =
   /\b(n\s*\/\s*a|not\s+applicable|tbd|to\s+be\s+(decided|determined|confirmed)|unknown|i\s+(do\s+not|don'?t)\s+know|lorem\s+ipsum)\b/i;

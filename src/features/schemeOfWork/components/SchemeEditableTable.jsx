@@ -13,7 +13,7 @@
  * hand-off and the library "Edit Scheme" flow.
  */
 
-import { schemeColumns, schemeCurriculum, curriculumLabel } from '../../../utils/schemeFormat'
+import { schemeColumns, schemeCurriculum, curriculumLabel } from '../../../shared/utils/schemeFormat'
 import {
   updateCell,
   addRow,

@@ -14,14 +14,14 @@
  */
 
 import { renderText } from '../../../utils/mathRender'
-import { isOfficialScheme } from '../../../utils/weeklyForecast'
+import { isOfficialScheme } from '../../../shared/utils/weeklyForecast'
 import {
   schemeColumns,
   schemeCurriculum,
   curriculumLabel,
   cleanCellText,
   cleanCellList,
-} from '../../../utils/schemeFormat'
+} from '../../../shared/utils/schemeFormat'
 
 export default function SchemeOfWorkView({ scheme }) {
   if (!scheme) return null

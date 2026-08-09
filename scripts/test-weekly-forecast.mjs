@@ -2,7 +2,7 @@
 /* global console, process */
 /**
  * Unit tests for the Weekly Forecast studio's scheme→forecast mapper
- * (src/utils/weeklyForecast.js): both saved-scheme shapes (the app
+ * (src/shared/utils/weeklyForecast.js): both saved-scheme shapes (the app
  * generator's schema and the new official 9-column shape), day
  * splitting, and clamping.
  *
@@ -16,7 +16,7 @@ import {
   isOfficialScheme,
   normalizeSchemeWeek,
   buildForecastDays,
-} from '../src/utils/weeklyForecast.js'
+} from '../src/shared/utils/weeklyForecast.js'
 
 let pass = 0
 let fail = 0

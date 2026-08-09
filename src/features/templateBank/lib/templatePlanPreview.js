@@ -28,7 +28,7 @@
  * the document they get.
  */
 
-import { normalizeCurriculum } from '../../../utils/schemeFormat.js'
+import { normalizeCurriculum } from '../../../shared/utils/schemeFormat.js'
 
 /** The printed rule a template leaves for the teacher to complete. */
 export const TEMPLATE_BLANK = '______'

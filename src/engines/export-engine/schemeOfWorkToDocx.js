@@ -25,8 +25,8 @@ import {
   WidthType,
 } from 'docx'
 import { attributionSection } from '../../utils/docxAttribution.js'
-import { isOfficialScheme } from '../../utils/weeklyForecast'
-import { schemeColumns, schemeCurriculum, cleanCellText, cleanCellList } from '../../utils/schemeFormat.js'
+import { isOfficialScheme } from '../../shared/utils/weeklyForecast'
+import { schemeColumns, schemeCurriculum, cleanCellText, cleanCellList } from '../../shared/utils/schemeFormat.js'
 
 const CELL_BORDER = {
   top:    { style: BorderStyle.SINGLE, size: 4, color: '888888' },

@@ -8,7 +8,7 @@
  * schemeReadiness.evaluate() and passes them in.
  */
 
-import { curriculumLabel, templateLabel } from '../../../utils/schemeFormat'
+import { curriculumLabel, templateLabel } from '../../../shared/utils/schemeFormat'
 
 function Row({ label, value, missing }) {
   return (

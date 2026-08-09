@@ -21,7 +21,7 @@
  */
 
 import { getFrameworkForGrade, obcSeniorSecondaryAllocation } from './curriculumFramework.js'
-import { normalizeCurriculum } from './schemeFormat.js'
+import { normalizeCurriculum } from '../shared/utils/schemeFormat.js'
 import { resolveStoredSubject } from '../config/canonicalEducation.js'
 
 // Normalised curriculum ('cbc'|'obc') → the framework id its allocations live
