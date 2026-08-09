@@ -73,9 +73,10 @@ async function refused(fn) {
         "index.js must pin the aiChat capability string");
     assert.strictEqual(CAPABILITY.AI_CHAT, "aiChat");
     assert.strictEqual(CAPABILITY.SOCIAL, "social");
-    // classManagement.js passes the literal directly.
-    const classSrc = require("node:fs").readFileSync(require.resolve("./classManagement.js"), "utf8");
-    assert.match(classSrc, /assertLearnerCapability\(uid, "social"\)/);
+    // No callable consumes SOCIAL any more — its only caller was the
+    // learner/teacher class-join flow, removed with that feature. The
+    // capability stays in the consent taxonomy so a stored consent record
+    // keeps its meaning; assert the string so a future consumer inherits it.
   });
 
   // ── Refusals ───────────────────────────────────────────────────────────
@@ -88,7 +89,7 @@ async function refused(fn) {
     assert.strictEqual(err.details.reason, "consent-pending");
   });
 
-  await test("a pending learner is refused class join", async () => {
+  await test("a pending learner is refused the social capability", async () => {
     __resetFlagCache();
     const err = await refused(() => assertLearnerCapability(
         "u1", "social", {db: fakeDb({user: learner({consentStatus: "pending"})})}));

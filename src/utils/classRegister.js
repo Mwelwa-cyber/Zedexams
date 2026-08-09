@@ -2,11 +2,11 @@
  * classRegister — Firestore data access for the teacher Class Register
  * (classRegisters/{classId}).
  *
- * A NEW collection, separate from the invite-code `classes` feature
- * (src/utils/classes.js). A register is one official class with a roster
- * subcollection of learners (classRoster.js) and, in later phases, marking
- * records. All writes are direct and gated by Firestore rules on
- * teacherUid == request.auth.uid.
+ * A register is one official class, wholly owned by the teacher: a roster
+ * subcollection of learners (classRoster.js) plus marking records. Roster
+ * entries are names the teacher typed, pasted or uploaded — no learner
+ * account is involved, and none can be linked to one. All writes are direct
+ * and gated by Firestore rules on teacherUid == request.auth.uid.
  *
  * Validation goes through src/schemas/classRegister.js so a bad payload is
  * caught client-side with a named error rather than an opaque rule rejection.

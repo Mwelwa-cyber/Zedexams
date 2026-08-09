@@ -134,12 +134,6 @@ function makeFakeDb(seed) {
     },
     quizzes: {q1: {createdBy: "u1"}, q2: {createdBy: "u2"}},
     payments: {p1: {userId: "u1", phone: "0977"}},
-    // Class owned by another teacher; u1 is a member and a pending member.
-    classes: {
-      c1: {teacherUid: "u2", learners: ["u1", "u3"], pendingLearners: ["u1"]},
-      c2: {teacherUid: "u1", learners: ["u3"]},
-    },
-    assignments: {a1: {teacherUid: "u2", learnerUids: ["u1", "u3"]}},
     // LEGAL-004 newly-covered user-owned collections.
     teacherProfiles: {u1: {schoolLevel: "primary"}, u2: {schoolLevel: "secondary"}},
     drafts: {u1: {}, u2: {}},
@@ -149,7 +143,6 @@ function makeFakeDb(seed) {
       pl3: {parentUid: "u4", learnerUid: "u5"}, // unrelated
     },
     familyInviteCodes: {fc1: {learnerUid: "u1", createdBy: "u1"}, fc2: {learnerUid: "u2"}},
-    classInvites: {ci1: {createdBy: "u1"}, ci2: {createdBy: "u2"}},
     assessmentExports: {ae1: {ownerUid: "u1"}, ae2: {ownerUid: "u2"}},
     teacherLibraryItems: {tl1: {ownerUid: "u1"}, tl2: {ownerUid: "u2"}},
     visualProjects: {vp1: {ownerId: "u1"}, vp2: {ownerId: "u2"}},
@@ -176,13 +169,6 @@ function makeFakeDb(seed) {
   // recursive collection (quizzes) went through recursiveDelete
   assert.ok(db.recursiveDeleted.includes("quizzes/q1"), "quizzes/q1 cascaded");
 
-  // class owned by u1 deleted; class owned by u2 keeps its doc but drops u1
-  assert.strictEqual(db.store.classes.c2, undefined, "u1-owned class not deleted");
-  assert.ok(db.store.classes.c1, "other teacher's class wrongly deleted");
-  assert.deepStrictEqual(db.store.classes.c1.learners, ["u3"], "u1 not removed from learners");
-  assert.deepStrictEqual(db.store.classes.c1.pendingLearners, [], "u1 not removed from pendingLearners");
-  assert.deepStrictEqual(db.store.assignments.a1.learnerUids, ["u3"], "u1 not removed from learnerUids");
-
   // LEGAL-004 newly-covered collections: user's rows gone, others kept.
   assert.strictEqual(db.store.teacherProfiles.u1, undefined, "teacherProfiles/u1 not deleted");
   assert.ok(db.store.teacherProfiles.u2, "other teacherProfile wrongly deleted");
@@ -195,8 +181,6 @@ function makeFakeDb(seed) {
   assert.ok(db.store.parentLinks.pl3, "unrelated parentLink wrongly deleted");
   assert.strictEqual(db.store.familyInviteCodes.fc1, undefined, "u1 invite code not deleted");
   assert.ok(db.store.familyInviteCodes.fc2, "other invite code wrongly deleted");
-  assert.strictEqual(db.store.classInvites.ci1, undefined, "u1 class invite not deleted");
-  assert.ok(db.store.classInvites.ci2);
   assert.strictEqual(db.store.assessmentExports.ae1, undefined, "u1 export cache not deleted");
   assert.ok(db.store.assessmentExports.ae2);
   assert.strictEqual(db.store.teacherLibraryItems.tl1, undefined, "u1 teacher library item not deleted");
@@ -209,7 +193,10 @@ function makeFakeDb(seed) {
 
   assert.ok(summary.uidDocs >= 3);
   assert.ok(summary.fieldDocs >= 4);
-  assert.ok(summary.arrayMemberships >= 3);
+  // schoolLicences is the only remaining ARRAY_MEMBERSHIP_COLLECTIONS entry —
+  // classes.learners / classes.pendingLearners / assignments.learnerUids went
+  // with the learner/teacher class feature.
+  assert.ok(summary.arrayMemberships >= 1);
   assert.deepStrictEqual(summary.errors, [], `unexpected errors: ${summary.errors}`);
   assert.ok(other === "u2");
   console.log("✓ purgeUserData removes all user data and only that user's data");

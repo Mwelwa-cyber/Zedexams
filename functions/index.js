@@ -294,24 +294,11 @@ const {aiCostDailySummary} = require("./aiCostDailySummary");
 const {reclaimAiBudgetReservations} = require("./aiBudgetReclaim");
 // Admin read model for the /admin/ai-costs budget-enforcement panel.
 const {getAiBudgetEnforcement} = require("./aiBudgetEnforcement");
-// Audit A10 — teacher classroom roster (invite codes + join + remove + leave + assignments).
-const {
-  generateClassInvite,
-  joinClassByCode,
-  approveLearner,
-  declineLearner,
-  removeLearnerFromClass,
-  leaveClass,
-  createClassAssignment,
-  removeClassAssignment,
-} = require("./classManagement");
 // Class Register Studio — the single authoritative attendance mutation
 // (term-from-date + lock + roster eligibility + per-record validation +
 // server-recomputed counts). Direct client writes to attendance days are
 // denied by rules; everything goes through this callable.
 const {saveClassAttendance} = require("./attendance/saveClassAttendance");
-// Audit A10 PR 4 + PR 5 — per-class analytics + per-assignment drill-down.
-const {getClassStats, getClassPerformanceSeries, getAssignmentCompletion} = require("./classAnalytics");
 // Audit A3 PR 1 — parent portal share-link infrastructure.
 const {
   createProgressShare,
@@ -3339,32 +3326,10 @@ exports.archiveOldNotifications = archiveOldNotifications;
 // admin SDK; rules expose the resulting doc as public-read.
 exports.updatePublicStats = updatePublicStatsCron;
 
-// Audit A10 — teacher classroom roster.
-// generateClassInvite mints + rotates an 8-char join code (admin SDK).
-// joinClassByCode adds the calling learner to classes/{classId}.pendingLearners
-// after validating the code; teacher then promotes via approveLearner /
-// rejects via declineLearner. Bypasses the teacher-owner-only update rule.
-// removeLearnerFromClass is the teacher-side counterpart for kicking.
-exports.generateClassInvite = generateClassInvite;
-exports.joinClassByCode = joinClassByCode;
-exports.approveLearner = approveLearner;
-exports.declineLearner = declineLearner;
-exports.removeLearnerFromClass = removeLearnerFromClass;
-exports.leaveClass = leaveClass;
 // Class Register Studio — server-validated attendance writes (see
 // functions/attendance/). Rules deny direct client writes to the
 // attendance subcollection, so this is the only write path.
 exports.saveClassAttendance = saveClassAttendance;
-// A10 PR 3 — assignments. Validate caller owns the class, denormalise
-// resource title / subject onto the assignment doc so the learner-side
-// "From your teacher" card renders without a second read per row.
-exports.createClassAssignment = createClassAssignment;
-exports.removeClassAssignment = removeClassAssignment;
-// A10 PR 4 — per-class stats for the teacher dashboard. Bounded reads
-// (30-day window, first 200 learners, 25 most-recent assignments) with
-// graceful index-fallback so the first deploy still renders something.
-exports.getClassStats = getClassStats;
-exports.getClassPerformanceSeries = getClassPerformanceSeries;
 
 // B4 follow-up — daily AI cost summary. Runs 02:00 Africa/Lusaka,
 // summarises yesterday's spend, and emails ADMIN_EMAILS when
@@ -3381,13 +3346,6 @@ exports.reclaimAiBudgetReservations = reclaimAiBudgetReservations;
 // reservation breakdown) for /admin/ai-costs. The reservation buckets are
 // server-only, so the dashboard reads them through this callable.
 exports.getAiBudgetEnforcement = getAiBudgetEnforcement;
-
-// A10 PR 5 — per-assignment drill-down. Returns a roster with each
-// learner's completion status + best score for one specific
-// assignment. Owner-gated; admin SDK bypasses results-read + user-doc
-// rules so a teacher can see who hasn't started a published quiz
-// they didn't author.
-exports.getAssignmentCompletion = getAssignmentCompletion;
 
 // A3 PR 1 — parent portal. Learner self-issues a share link that
 // renders a 30-day progress summary at /parent/:token (no parent

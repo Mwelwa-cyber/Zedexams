@@ -90,9 +90,6 @@ const ECE2013Curriculum = lazy(() => import('../../features/curriculumBrowsers/p
 const Primary2013Curriculum = lazy(() => import('../../features/curriculumBrowsers/pages/Primary2013Curriculum'))
 const Secondary2013Curriculum = lazy(() => import('../../features/curriculumBrowsers/pages/Secondary2013Curriculum'))
 
-const TeacherClassesList = lazy(() => import('./classes/TeacherClassesList'))
-const TeacherClassEditor = lazy(() => import('./classes/TeacherClassEditor'))
-const TeacherClassDetail = lazy(() => import('./classes/TeacherClassDetail'))
 const ClassRegisterList = lazy(() => import('./register/ClassRegisterList'))
 const ClassRegisterStudio = lazy(() => import('./register/attendance/ClassRegisterStudio'))
 const ClassRegisterEditor = lazy(() => import('./register/ClassRegisterEditor'))
@@ -319,14 +316,9 @@ export const TEACHER_ROUTES = [
   page('/teacher/curriculum/2013/primary', <Primary2013Curriculum />),
   page('/teacher/curriculum/2013/secondary', <Secondary2013Curriculum />),
 
-  // ── Classes ───────────────────────────────────────────────────────
-  page('/teacher/classes', <TeacherClassesList />),
-  page('/teacher/classes/new', <TeacherClassEditor />),
-  page('/teacher/classes/:classId', <TeacherClassDetail />),
-
   // ── Class Register — official class lists that feed SBA, mark
   //    schedules, results, reports and progress (one roster, no retyping).
-  //    Separate from the invite-code classes above. The Class Register
+  //    The Class Register
   //    Studio adds daily attendance + official A4 register printing; it is
   //    ungated like the rest of the register (organisational tool, not a
   //    generator). ─────────────────────────────────────────────────

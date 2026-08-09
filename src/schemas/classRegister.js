@@ -5,10 +5,8 @@
  *
  * A class register is the teacher-owned official class — its roster lives in
  * the classRegisters/{classId}/roster subcollection, and marking records in
- * classRegisters/{classId}/records (added in a later phase). This is a NEW
- * collection, deliberately separate from the invite-code `classes` feature
- * (src/utils/classes.js): a register holds non-account learners (manual / CSV
- * / Excel) plus optional links to learner accounts.
+ * classRegisters/{classId}/records. A register holds non-account learners
+ * only — names entered manually or imported from CSV / Excel.
  *
  * Write-strict / read-permissive, per src/schemas/quiz.js.
  */

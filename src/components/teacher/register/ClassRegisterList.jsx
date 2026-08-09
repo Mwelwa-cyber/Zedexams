@@ -3,7 +3,6 @@
  *
  * Each register is one official class (e.g. "Grade 4 Blue") whose roster
  * drives SBA, Assessment Studio, mark schedules, reports, and progress.
- * Separate from the invite-code `classes` feature (/teacher/classes).
  */
 
 import { useEffect, useState } from 'react'

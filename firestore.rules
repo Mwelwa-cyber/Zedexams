@@ -2493,135 +2493,23 @@ service cloud.firestore {
       );
     }
 
-    // ── assignments (audit A10 PR 3 — teacher assigns work to a class) ──
+    // ── assignments + classes + classInvites — REMOVED ──────────────
     //
-    // Each doc points one resource (quiz or daily exam) at one class.
-    // Schema:
-    //   classId, teacherUid (denormalised owner uid),
-    //   resourceType ('quiz'|'exam'), resourceId,
-    //   resourceTitle, subject, grade (denormalised display fields),
-    //   dueAt? (timestamp), assignedAt, active
+    // The learner/teacher class feature (invite codes, join/approve,
+    // assigned work, class analytics) was removed. These three
+    // collections deliberately have NO match block, which in Firestore
+    // means every client read and write is denied — the default when no
+    // rule matches. Do not re-add a block here to "read the old data":
+    // scripts/cleanup-classes.mjs deletes it with the admin SDK, which
+    // bypasses these rules entirely.
     //
-    // Read access intentionally wide-open to signed-in users — the
-    // payload is just a pointer at content already gated by its own
-    // collection's rules. Writes are routed through Cloud Functions
-    // (createClassAssignment / deleteClassAssignment) so a tampered
-    // client can't mint an assignment for a class they don't own.
-    function _validResourceType(value) { return value is string && value in ['quiz', 'exam']; }
-    function _validAssignmentMode(value) { return value is string && value in ['automatic', 'manual']; }
-    function _validAssignmentStatus(value) { return value is string && value in ['active', 'scheduled', 'completed', 'archived']; }
-    function validAssignmentFields() {
-      return (!('classId' in incoming()) || (incoming().classId is string && incoming().classId.size() <= 100))
-        && (!('teacherUid' in incoming()) || (incoming().teacherUid is string && incoming().teacherUid.size() <= 100))
-        && (!('resourceType' in incoming()) || _validResourceType(incoming().resourceType))
-        && (!('resourceId' in incoming()) || (incoming().resourceId is string && incoming().resourceId.size() <= 100))
-        && (!('resourceTitle' in incoming()) || (incoming().resourceTitle is string && incoming().resourceTitle.size() <= 200))
-        && (!('subject' in incoming()) || incoming().subject == null || _validSubject(incoming().subject))
-        && (!('grade' in incoming()) || incoming().grade == null || (incoming().grade is string && incoming().grade.size() <= 5))
-        && (!('dueAt' in incoming()) || incoming().dueAt == null || incoming().dueAt is timestamp)
-        && (!('openAt' in incoming()) || incoming().openAt == null || incoming().openAt is timestamp)
-        && (!('status' in incoming()) || _validAssignmentStatus(incoming().status))
-        && (!('assignmentMode' in incoming()) || _validAssignmentMode(incoming().assignmentMode))
-        && (!('template' in incoming()) || incoming().template == null || (incoming().template is string && incoming().template.size() <= 40))
-        && (!('settings' in incoming()) || incoming().settings == null || incoming().settings is map)
-        && (!('learnerUids' in incoming()) || incoming().learnerUids == null || (incoming().learnerUids is list && incoming().learnerUids.size() <= 200))
-        && (!('active' in incoming()) || incoming().active is bool);
-    }
-    match /assignments/{assignmentId} {
-      allow read: if isVerified();
-      // CF-only. The header comment always claimed writes were routed
-      // through Cloud Functions, but the old client rule still allowed a
-      // direct create as long as teacherUid == auth.uid — it never checked
-      // the caller owned incoming().classId, so a tampered client could
-      // mint an assignment for ANY teacher's class (cross-class injection,
-      // surfaced to that class's learners since read is open). All real
-      // writes go through createClassAssignment / removeClassAssignment
-      // (admin SDK, which bypasses these rules and enforces ownership via
-      // loadClassOrThrow). No legitimate direct client write exists, so
-      // deny them outright.
-      allow create, update, delete: if false;
-    }
-
-    // ── classes + classInvites (audit A10 — teacher classroom roster) ──
-    //
-    // A class is a teacher-owned roster of learners. Schema:
-    //   name, description (optional), grade ('4'|'5'|'6'|'7'),
-    //   subject (optional slug — class can span subjects),
-    //   teacherUid (owner), school (optional),
-    //   inviteCode (denormalised — the live code, also keyed in
-    //                classInvites/{code} for fast lookup),
-    //   learners: array<uid> (max 200 per class — approved roster),
-    //   pendingLearners: array<uid> (awaiting teacher approval, max 200),
-    //   active: bool, createdAt, updatedAt
-    //
-    // Read access widens to any class member (approved or pending) so a
-    // learner can see the roster + class info for classes they belong
-    // to, and a pending learner can see the "awaiting approval" state.
-    // Other learners see nothing — privacy-first; classmate emails /
-    // uids must not leak across schools.
-    //
-    // Write access is the teacher owner OR a Cloud Function (admin
-    // SDK bypasses these rules). The "join-by-code" + approve / decline
-    // flows go through callables (joinClassByCode / approveLearner /
-    // declineLearner) so a learner can never directly mutate someone
-    // else's class doc — that's the security promise.
-    function _validClassGrade(value) { return value is string && value in ['4', '5', '6', '7']; }
-    function validClassFields() {
-      return (!('name' in incoming()) || (incoming().name is string && incoming().name.size() >= 1 && incoming().name.size() <= 200))
-        && (!('description' in incoming()) || incoming().description == null || (incoming().description is string && incoming().description.size() <= 1000))
-        && (!('grade' in incoming()) || _validClassGrade(incoming().grade))
-        && (!('subject' in incoming()) || incoming().subject == null || _validSubject(incoming().subject))
-        && (!('school' in incoming()) || incoming().school == null || (incoming().school is string && incoming().school.size() <= 200))
-        && (!('inviteCode' in incoming()) || (incoming().inviteCode is string && incoming().inviteCode.size() >= 6 && incoming().inviteCode.size() <= 16))
-        && (!('learners' in incoming()) || (incoming().learners is list && incoming().learners.size() <= 200))
-        && (!('pendingLearners' in incoming()) || (incoming().pendingLearners is list && incoming().pendingLearners.size() <= 200))
-        && (!('active' in incoming()) || incoming().active is bool);
-    }
-    match /classes/{classId} {
-      allow read: if isVerified() && (
-        resource.data.teacherUid == request.auth.uid
-        || (resource.data.learners is list && request.auth.uid in resource.data.learners)
-        || (resource.data.pendingLearners is list && request.auth.uid in resource.data.pendingLearners)
-        || isAdmin()
-      );
-      allow create: if isTeacherOrAbove()
-        && validClassFields()
-        && incoming().teacherUid == request.auth.uid
-        && incoming().get('learners', []) is list
-        && incoming().get('learners', []).size() == 0
-        && incoming().get('pendingLearners', []) is list
-        && incoming().get('pendingLearners', []).size() == 0;
-      allow update: if isVerified()
-        && resource.data.teacherUid == request.auth.uid
-        && validClassFields()
-        && incoming().teacherUid == resource.data.teacherUid;
-      allow delete: if isVerified() && (
-        resource.data.teacherUid == request.auth.uid || isAdmin()
-      );
-    }
-
-    // Invite codes — keyed by the code string itself for O(1) lookup
-    // when a learner joins. Public-readable so an anonymous-but-
-    // signed-in learner can resolve a code → classId before the
-    // joinClassByCode Cloud Function authenticates them in.
-    match /classInvites/{inviteCode} {
-      // Read stays open: a signed-in learner resolves code → classId
-      // before the joinClassByCode Cloud Function authenticates them in.
-      allow read: if isVerified();
-      // CF-only. The old rule only checked createdBy == auth.uid and never
-      // verified the caller owned incoming().classId, so a tampered client
-      // could mint an invite code pointing at ANOTHER teacher's class and
-      // hijack/poison their join flow. Invite codes are created/deleted
-      // exclusively by generateClassInvite (admin SDK, bypasses these
-      // rules, owner-gated via loadClassOrThrow). No legitimate direct
-      // client write exists.
-      allow create, update, delete: if false;
-    }
+    // classRegisters below is a DIFFERENT, teacher-only collection and
+    // is unaffected by this removal.
 
     // ── classRegisters (Class Register — official class lists) ───────
     //
-    // A NEW teacher-owned collection, separate from `classes` above. A
-    // register is one official class whose roster (subcollection) is the
+    // A teacher-owned collection. A register is one official class whose
+    // roster (subcollection) is the
     // single source of learner names for SBA, mark schedules, results,
     // reports and progress. Schema:
     //   classRegisters/{classId} {

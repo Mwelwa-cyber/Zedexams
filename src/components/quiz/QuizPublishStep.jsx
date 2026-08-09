@@ -5,7 +5,7 @@
  */
 
 import { useState } from 'react'
-import ConfirmDialog from '../../ui/ConfirmDialog'
+import ConfirmDialog from '../ui/ConfirmDialog'
 import QuizStatusBadge from './QuizStatusBadge'
 
 export default function QuizPublishStep({
@@ -20,10 +20,9 @@ export default function QuizPublishStep({
   onSubmitForReview,
   onPublish,
   onUnpublish,
-  activeAssignmentCount = 0,
 }) {
   const [confirm, setConfirm] = useState(null)
-  const isPublished = status === 'published' || status === 'active'
+  const isPublished = status === 'published'
 
   const canPublish = isAdmin && !dirty && !saving && !uploading && questionCount > 0
   const canSubmit = !isAdmin && !dirty && !saving && !uploading && questionCount > 0
@@ -97,7 +96,6 @@ export default function QuizPublishStep({
           <Row label="Status" value={<QuizStatusBadge status={status} />} />
           <Row label="Questions" value={questionCount} />
           <Row label="Total marks" value={totalMarks} />
-          <Row label="Active assignments" value={activeAssignmentCount} />
         </div>
 
         {dirty && (

@@ -66,10 +66,9 @@ import ReimportDiffModal from './ReimportDiffModal'
 import { diffImportedSections, mergeImportedSections } from '../../utils/quizReimportDiff.js'
 import { isSaveableGrade, GRADE_REQUIRED_MESSAGE } from '../../schemas/quiz.js'
 import QuizWizardSteps from './QuizWizardSteps'
-import QuizStatusBadge from './assignment/QuizStatusBadge'
-import QuizAssignStep from './assignment/QuizAssignStep'
-import QuizPublishStep from './assignment/QuizPublishStep'
-import { deriveQuizStatus, listAssignmentsForResource } from '../../utils/quizAssignments'
+import QuizStatusBadge from './QuizStatusBadge'
+import QuizPublishStep from './QuizPublishStep'
+import { deriveQuizStatus } from '../../utils/quizStatus'
 import { normalizeSubject } from '../../config/curriculum.js'
 import SeoHelmet from '../seo/SeoHelmet'
 import { PAPER_SUBJECTS } from '../../config/curriculum'
@@ -354,11 +353,10 @@ export default function EditQuizV2() {
   // this ref every render keeps the timer reading the latest snapshot
   // without recreating the interval on every keystroke.
   const performAutoSaveRef = useRef(null)
-  // Four-step wizard: create → preview → assign → publish. The current
-  // step lives in component state so navigating back via the stepper
+  // Three-step wizard: create → preview → publish. The current step
+  // lives in component state so navigating back via the stepper
   // doesn't lose the editor's in-memory state.
   const [wizardStep, setWizardStep] = useState('create')
-  const [activeAssignmentCount, setActiveAssignmentCount] = useState(0)
   // Word/PDF import state. documentQuizImporter returns extracted
   // questions plus an in-memory map of image blobs keyed by assetId;
   // we hold the blobs here and upload them when the editor saves.
@@ -421,10 +419,10 @@ export default function EditQuizV2() {
   const newCount = serializedPreview.questions.filter(question => !question._id).length
   const imagesCount = countImages(sections)
   const anyUploading = hasUploadingAssets(sections)
-  const derivedStatus = deriveQuizStatus(
-    { status: quizStatus, isPublished: quizStatus === 'published' },
-    { activeAssignments: activeAssignmentCount },
-  )
+  const derivedStatus = deriveQuizStatus({
+    status: quizStatus,
+    isPublished: quizStatus === 'published',
+  })
   // Admin-only flow: teacher quiz creation was replaced by the Assessment
   // Studio. Non-admins shouldn't reach this route, but we still gate access
   // below; the back link is the admin content list. Quizzes opened from
@@ -597,22 +595,6 @@ export default function EditQuizV2() {
       cancelled = true
     }
   }, [quizId, getQuizById, getQuestions, currentUser?.uid, isAdmin])
-
-  // Track how many active assignments point at this quiz so the status
-  // badge can flip from "Published" → "Active" once at least one class
-  // is on the hook. Reloaded lazily after the AssignmentWizard fires.
-  const refreshAssignmentCount = useCallback(() => {
-    if (!quizId) return
-    listAssignmentsForResource(quizId)
-      .then((rows) => setActiveAssignmentCount(rows.length))
-      .catch((err) => {
-        console.warn('[EditQuizV2] active assignment count load failed', err)
-      })
-  }, [quizId])
-
-  useEffect(() => {
-    refreshAssignmentCount()
-  }, [refreshAssignmentCount])
 
   // Release the blob: object URLs created by documentQuizImporter when
   // this editor unmounts — otherwise an imported quiz that wasn't saved
@@ -2192,7 +2174,6 @@ export default function EditQuizV2() {
         completedSteps={[
           ...(questionCount > 0 ? ['create'] : []),
           ...(questionCount > 0 ? ['preview'] : []),
-          ...(activeAssignmentCount > 0 ? ['assign'] : []),
           ...(quizStatus === 'published' ? ['publish'] : []),
         ]}
         onStepChange={setWizardStep}
@@ -2457,21 +2438,6 @@ export default function EditQuizV2() {
         </>
       )}
 
-      {wizardStep === 'assign' && (
-        <QuizAssignStep
-          quiz={{
-            id: quizId,
-            title: form.title,
-            subject: form.subject,
-            grade: form.grade,
-            isPublished: quizStatus === 'published',
-            status: quizStatus,
-          }}
-          dirty={dirty}
-          onAssignmentsChanged={refreshAssignmentCount}
-        />
-      )}
-
       {wizardStep === 'publish' && (
         <QuizPublishStep
           status={derivedStatus}
@@ -2488,7 +2454,6 @@ export default function EditQuizV2() {
             setVerifyOpen(true)
           }}
           onUnpublish={handleTogglePublish}
-          activeAssignmentCount={activeAssignmentCount}
         />
       )}
 
@@ -2512,7 +2477,7 @@ export default function EditQuizV2() {
             <button
               type="button"
               onClick={() => {
-                const order = ['create', 'preview', 'assign', 'publish']
+                const order = ['create', 'preview', 'publish']
                 const i = order.indexOf(wizardStep)
                 if (i > 0) setWizardStep(order[i - 1])
               }}
@@ -2525,7 +2490,7 @@ export default function EditQuizV2() {
             <button
               type="button"
               onClick={() => {
-                const order = ['create', 'preview', 'assign', 'publish']
+                const order = ['create', 'preview', 'publish']
                 const i = order.indexOf(wizardStep)
                 if (i < order.length - 1) setWizardStep(order[i + 1])
               }}

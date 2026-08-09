@@ -245,25 +245,30 @@ test('curriculum + rag_chunks are still closed to clients', () => {
   assert(/allow read, write:\s*if false/.test(ragBlock[1]), '/rag_chunks is no longer closed')
 })
 
-test('assignments + classInvites writes are Cloud-Function-only', () => {
-  // These collections are written exclusively by admin-SDK Cloud
-  // Functions (createClassAssignment / generateClassInvite) which enforce
-  // class ownership. The old client rules allowed a direct create without
-  // verifying the caller owned incoming().classId — cross-class injection.
-  // If a client write rule ever reappears here, that vector is back.
-  const assignBlock = rules.match(/match \/assignments\/\{[^}]+\}\s*\{([\s\S]*?)\n {4}\}/)
-  assert(assignBlock, 'assignments match block not found')
-  assert(
-    /allow create, update, delete:\s*if false/.test(assignBlock[1]),
-    'assignments client writes no longer denied — cross-class injection vector reopened',
-  )
-
-  const inviteBlock = rules.match(/match \/classInvites\/\{[^}]+\}\s*\{([\s\S]*?)\n {4}\}/)
-  assert(inviteBlock, 'classInvites match block not found')
-  assert(
-    /allow create, update, delete:\s*if false/.test(inviteBlock[1]),
-    'classInvites client writes no longer denied — invite-hijack vector reopened',
-  )
+test('the learner/teacher class collections have no rule at all', () => {
+  // classes / classInvites / assignments were the learner↔teacher bridge:
+  // a teacher minted an invite code, a learner joined by it, and the
+  // teacher assigned work to the resulting roster. The feature was removed
+  // and the data deleted (scripts/cleanup-classes.mjs).
+  //
+  // The assertion is deliberately "no match block exists" rather than
+  // "writes are denied". Firestore denies every read and write to a path no
+  // rule matches, so absence IS the closure — and it is the only form of it
+  // that cannot be weakened one `allow` at a time. A block that merely
+  // denied writes would still have to get reads right, and re-opening the
+  // bridge would start by re-adding exactly such a block.
+  //
+  // classRegisters (the teacher-only class list) is a DIFFERENT collection
+  // and keeps its rules; the negative lookahead below is what keeps this
+  // test from matching it.
+  for (const collection of ['classes', 'classInvites', 'assignments']) {
+    const block = new RegExp(`match /${collection}/\\{`).test(rules)
+    assert(
+      !block,
+      `a match block for /${collection} is back — that collection is the ` +
+      'removed learner/teacher class feature and must stay unreachable',
+    )
+  }
 })
 
 test('gamification collections enforce field validators', () => {

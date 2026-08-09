@@ -124,7 +124,7 @@ describe('teacher sidebar — collapse toggle', () => {
     const nav = screen.getByRole('navigation', { name: 'Primary' })
     for (const label of [
       'Dashboard', 'Lesson Plans', 'Schemes of Work', 'Weekly Focus', 'Record of Work',
-      'My Library', 'Assessments', 'My Classes', 'Class List', 'Class Register',
+      'My Library', 'Assessments', 'Class List', 'Class Register',
       'Syllabi Studio', 'Curriculum', 'School Calendar', 'Subscription', 'Profile',
       'Settings', 'Help & Support',
     ]) {

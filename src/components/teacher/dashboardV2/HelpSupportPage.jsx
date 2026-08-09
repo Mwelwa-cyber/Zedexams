@@ -67,7 +67,7 @@ const FAQS = [
   {
     id: 'register',
     q: 'How do I mark attendance or manage my class register?',
-    a: 'The Class Register lives under My Classes; daily attendance marking, the term grid and official A4 register printing are in its Attendance tab.',
+    a: 'The Class Register lives under Manage; daily attendance marking, the term grid and official A4 register printing are in its Attendance tab.',
   },
 ]
 

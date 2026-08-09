@@ -94,7 +94,7 @@ assert.equal(resolveActiveNavTarget('/teacher', []), null, 'an empty menu has no
 const PATHS = [
   '/teacher', '/teacher/dashboard-preview', '/teacher/library', '/teacher/library/x',
   '/teacher/lesson-plans/new', '/teacher/lesson-plans/x/edit', '/teacher/assessment-papers',
-  '/teacher/assessment-papers/x/edit', '/teacher/classes', '/teacher/classes/x',
+  '/teacher/assessment-papers/x/edit',
   '/teacher/register', '/teacher/register/x/edit', '/teacher/attendance', '/teacher/syllabi',
   '/teacher/curriculum', '/teacher/curriculum/2013/primary', '/teacher/calendar',
   '/teacher/subscription', '/teacher/help', '/settings', '/settings/profile',

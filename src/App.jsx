@@ -203,11 +203,6 @@ const CompanyHQ       = lazy(() => import('./features/companyHQ/pages/CompanyHQ'
 const UiAuditPage     = lazy(() => import('./components/dev/uiAudit/UiAuditPage'))
 
 
-// Audit A10 — teacher classroom roster (foundation PR; quiz assignment + class analytics stack later).
-// Audit A10 PR 2 — learner-side join + view classes.
-const LearnerClassesList = lazy(() => import('./components/classes/LearnerClassesList'))
-const LearnerClassJoin = lazy(() => import('./components/classes/LearnerClassJoin'))
-const LearnerClassDetail = lazy(() => import('./components/classes/LearnerClassDetail'))
 // Audit A3 PR 1 — parent portal (public read-only progress view).
 const ParentProgressView = lazy(() => import('./components/parent/ParentProgressView'))
 
@@ -597,10 +592,6 @@ export default function App() {
           <Route path="/lessons/:lessonId"      element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerGate><LessonPlayer /></LearnerGate></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/my-results"        element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><MyResults /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/my-badges"         element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><BadgesPage /></LearnerOnlyRoute></ProtectedRoute>} />
-          {/* Audit A10 PR 2 — learner-side classroom views. */}
-          <Route path="/classes"           element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerClassesList /></LearnerOnlyRoute></ProtectedRoute>} />
-          <Route path="/classes/join"      element={<ProtectedRoute><LearnerOnlyRoute><LearnerClassJoin /></LearnerOnlyRoute></ProtectedRoute>} />
-          <Route path="/classes/:classId"  element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerClassDetail /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/profile"           element={<ProtectedRoute><Navbar /><ProfilePage /></ProtectedRoute>} />
           {/* Offline Library + Storage settings (offline-first). Downloaded
               content, device-storage breakdown, and cache/sync controls. */}

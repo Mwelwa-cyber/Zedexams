@@ -1,9 +1,8 @@
 // src/features/notes/lib/quizzes.js
 //
 // Reads published quizzes so a study note's quiz block can link to a real
-// ZedExams quiz. Mirrors the proven query in
-// src/components/teacher/classes/ClassAssignmentPicker.jsx (isPublished + grade,
-// indexed by `isPublished + grade + updatedAt`, with a no-index fallback) — but
+// ZedExams quiz. Queries isPublished + grade (indexed by
+// `isPublished + grade + updatedAt`, with a no-index fallback) — but
 // drops the subject filter from the query and matches subject client-side via
 // normalizeSubject, because notes store the subject *label* while quizzes may
 // store the *slug*, and normalizeSubject canonicalises both to the label.
