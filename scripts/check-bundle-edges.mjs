@@ -69,13 +69,28 @@ const LIGHT_PAGES = {
 };
 
 /**
- * Vendors worth protecting those pages from, with the size that makes them
+ * Chunks worth protecting those pages from, with the size that makes each one
  * worth naming. Sizes are indicative — the check is on the EDGE, not the byte
- * count, because a vendor does not stop mattering when it gets smaller.
+ * count, because a chunk does not stop mattering when it gets smaller.
+ *
+ * `pdf-vendor` and `buildExtensions` were added by the Phase 4 review sweep,
+ * and the reason is the whole argument for keeping this list honest: the two
+ * heaviest things the light pages could reach were the two this check did not
+ * name. It reported "4 light pages checked" while every visitor — the marketing
+ * page included — statically downloaded 578 kB of jsPDF/html2canvas. A guard
+ * that protects against the third- and fourth-largest chunks and not the first
+ * two is green for the wrong reason.
+ *
+ * `buildExtensions` is an app chunk rather than a vendor bucket (Rollup names
+ * it after `src/editor/extensions/buildExtensions.js`, where the TipTap and
+ * ProseMirror packages land). It is listed anyway: what matters to a page is
+ * the weight it downloads, not which directory the weight came from.
  */
 const HEAVY_VENDORS = {
   'docx-vendor': '~382 kB — the Word exporter runtime',
   pdfjs: 'the PDF viewer runtime, lazily loaded for past papers by design',
+  'pdf-vendor': '~578 kB — jsPDF + html2canvas, reached by dynamic import() from htmlToPdf.js by design',
+  buildExtensions: '~705 kB — the TipTap/ProseMirror editor runtime',
 };
 
 /**
@@ -87,10 +102,24 @@ const HEAVY_VENDORS = {
  * Keyed `<page> → <vendor>`.
  */
 const ACKNOWLEDGED = new Map([
-  // Empty, and kept rather than deleted: the mechanism is the point. #2176 added
-  // this check and recorded the two flashcards paths here; #2177 cleared them by
-  // moving the exporters back to src/utils/, which is what deleting a row looks
-  // like. The next violation gets recorded here with its reason, or fixed.
+  // #2176 added this check and recorded the two flashcards paths here; #2177
+  // cleared them by moving the exporters back to src/utils/, which is what
+  // deleting a row looks like.
+  //
+  // The two below are the read-only rich-text renderer, and unlike the
+  // flashcards paths they are not a mistake to undo. `src/editor/utils/
+  // safeRender.js` statically imports `renderExtensions`, because rendering
+  // stored ProseMirror JSON needs the schema that produced it — a page that
+  // DISPLAYS saved rich text genuinely depends on the editor's node
+  // definitions. Making a share page light would mean a second, render-only
+  // schema, which is a project rather than an import to move, and it is not
+  // being done inside a review sweep.
+  //
+  // They are recorded rather than deleted from the list so the weight stays
+  // countable and so the two pages that do NOT carry it — the entry chunk and
+  // the /teachers marketing page — still fail if they ever join.
+  ['PublicShareView → buildExtensions', 'PublicShareView → AssessmentPaperView → figureLabelLayout → buildExtensions: the shared paper renderer needs the editor schema to draw saved rich text'],
+  ['LockedStudio → buildExtensions', 'LockedStudio → SbaTaskView → PaperBlocks → figureLabelLayout → buildExtensions: same renderer, same reason'],
 ]);
 
 let failures = 0;
@@ -112,6 +141,23 @@ if (sources.size === 0) fail('dist/assets holds no .js chunks — the build prod
 const graph = buildGraph(sources);
 const seen = new Set();
 
+/**
+ * A declared heavy chunk that names no chunk was SKIPPED silently until the
+ * Phase 4 review sweep — the exact failure the LIGHT_PAGES loop below already
+ * refused to allow, left open on the other side of the same comparison. A
+ * renamed vendor bucket would have taken every page's protection from it with
+ * no output at all, and the check would still have printed "ok".
+ */
+const vendorsPresent = new Set();
+for (const [vendor, cost] of Object.entries(HEAVY_VENDORS)) {
+  if (chunksNamed(graph, vendor).length > 0) { vendorsPresent.add(vendor); continue; }
+  fail(
+    `no chunk is named "${vendor}", so no page is being checked against it. ` +
+    'Either the chunk was renamed — update HEAVY_VENDORS — or the dependency is gone and the line ' +
+    `should go with it. (${cost})`,
+  );
+}
+
 for (const [page, why] of Object.entries(LIGHT_PAGES)) {
   const matches = chunksNamed(graph, page);
   if (matches.length === 0) {
@@ -130,7 +176,7 @@ for (const [page, why] of Object.entries(LIGHT_PAGES)) {
   }
 
   for (const [vendor, cost] of Object.entries(HEAVY_VENDORS)) {
-    if (chunksNamed(graph, vendor).length === 0) continue;   // vendor not in this build
+    if (!vendorsPresent.has(vendor)) continue;   // already reported once, below
     const path = findPath(graph, matches[0], vendor);
     const key = `${page} → ${vendor}`;
     if (path) {

@@ -58,8 +58,14 @@ function* specFiles(dir) {
 }
 
 /**
- * `vi.mock('<path>' …)` with everything up to the closing paren of the CALL,
- * so the `{ virtual: true }` options object is visible.
+ * `vi.mock('<path>' …)` — and `vi.doMock`, which the Phase 4 review sweep
+ * added: it is the same call with the same silent-no-op failure, written
+ * inside a test body instead of hoisted, and `QuickCreate.spec.jsx` uses it.
+ * Checking one spelling and not the other leaves the hole in the place a
+ * reader is least likely to look for it.
+ *
+ * Matched with everything up to the end of the line, so the
+ * `{ virtual: true }` options object is visible.
  *
  * Matching the whole call is not possible with a regex (the factory contains
  * arbitrary JS, including parens), so this captures the specifier plus the
@@ -68,7 +74,7 @@ function* specFiles(dir) {
  * placed on a later line would be a false positive; the message says what to
  * do, and no such instance exists today.
  */
-const MOCK_CALL = /vi\.mock\(\s*['"](\.[^'"]+)['"](.*)$/gm;
+const MOCK_CALL = /vi\.(?:mock|doMock)\(\s*['"](\.[^'"]+)['"](.*)$/gm;
 
 let failures = 0;
 let checked = 0;

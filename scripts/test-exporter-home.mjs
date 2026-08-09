@@ -52,7 +52,31 @@ const ENGINE = join(ROOT, 'src', 'engines', 'export-engine');
 const EXPORTER = /To(Docx|Pdf|Xlsx)\.js$/;
 const isExporter = (file) => EXPORTER.test(file) && !/\.(test|spec)\.js$/.test(file);
 
-/** Moved into the engine by #2199 (Phase 4 enabling work). */
+/**
+ * Every exporter under `dir`, as a path RELATIVE to it — `foo/barToDocx.js`
+ * rather than `barToDocx.js`.
+ *
+ * The walk is recursive, and the relative path is what the lists below are
+ * matched against, because both halves of "is this file where it should be"
+ * were answerable with a flat `readdirSync` only while both directories
+ * happened to be flat. `src/utils/` already has subdirectories (`cache/`,
+ * `pagination/`), so a new exporter one level down was invisible to the check
+ * that exists to stop new exporters appearing there — and a relocated one
+ * pushed into an engine subfolder would have read as missing OR, matched by
+ * basename, as still correctly placed. Comparing full relative paths makes
+ * both cases say something.
+ */
+function exportersUnder(dir, prefix = '') {
+  const found = new Set();
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) for (const nested of exportersUnder(join(dir, entry.name), rel)) found.add(nested);
+    else if (isExporter(entry.name)) found.add(rel);
+  }
+  return found;
+}
+
+/** Moved into the engine by #2200 (Phase 4 enabling work). */
 const RELOCATED = [
   'rubricToDocx.js', 'rubricToPdf.js',
   'homeworkToDocx.js', 'homeworkToPdf.js',
@@ -100,8 +124,8 @@ const fail = (message) => { failures += 1; console.error(`FAIL: ${message}`); };
 
 if (!existsSync(ENGINE)) fail('src/engines/export-engine/ does not exist.');
 
-const inUtils = new Set(readdirSync(UTILS).filter(isExporter));
-const inEngine = new Set(readdirSync(ENGINE).filter(isExporter));
+const inUtils = exportersUnder(UTILS);
+const inEngine = exportersUnder(ENGINE);
 
 // 1. Every relocated exporter is in the engine and NOT in utils.
 for (const file of RELOCATED) {

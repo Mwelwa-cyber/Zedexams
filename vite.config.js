@@ -396,6 +396,19 @@ export default defineConfig(async ({ mode }) => {
 
             const normalizedId = id.replace(/\\/g, '/')
 
+            // @babel/runtime's helpers (`_typeof`, `_createClass`, …) are ~2 kB
+            // shared by several babel-compiled deps. Left in the catch-all they
+            // were emitted INTO `pdf-vendor`, and the always-loaded `vendor`
+            // chunk then carried a real top-level
+            // `import{r as l}from"./pdf-vendor-*.js"` to reach one of them — so
+            // every visitor statically downloaded the ~578 kB jsPDF/html2canvas
+            // bundle that the rule below exists to keep lazy, for a helper
+            // smaller than this comment. Giving the helpers their own 2 kB
+            // chunk removes the edge; measured before/after with
+            // `npm run check:bundle-edges`, which now names `pdf-vendor` as a
+            // heavy vendor precisely so this cannot come back unnoticed.
+            if (normalizedId.includes('/node_modules/@babel/')) return 'babel-runtime'
+
             // Loaded lazily, only when learners view a past paper.
             if (normalizedId.includes('pdfjs-dist')) return 'pdfjs'
 
