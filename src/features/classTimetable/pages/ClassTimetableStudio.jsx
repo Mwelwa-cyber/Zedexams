@@ -72,7 +72,7 @@ import {
   formatCoverage,
   formatDuration,
   DEFAULT_ALLOCATION_STRATEGY,
-} from '../../../utils/timetableCoverage'
+} from '../lib/timetableCoverage'
 import { resolveSubjectAbbreviation } from '../../../utils/subjectAbbreviations'
 import {
   DEFAULT_CURRICULUM_ID,
@@ -101,42 +101,42 @@ import {
   findCrossTimetableConflicts,
   changedSiblingsSince,
   blockingConflicts,
-} from '../../../utils/timetableConflictEngine'
-import { loadSiblingTimetables } from '../../../utils/siblingTimetables'
-import TimetableConflictPanel from './TimetableConflictPanel'
-import BlockDetailsModal from './BlockDetailsModal'
-import { useTeachingProfile } from '../../../features/teacherSettings/lib/useTeachingProfile'
+} from '../lib/timetableConflictEngine'
+import { loadSiblingTimetables } from '../services/siblingTimetables'
+import TimetableConflictPanel from '../components/TimetableConflictPanel'
+import BlockDetailsModal from '../components/BlockDetailsModal'
+import { useTeachingProfile } from '../../teacherSettings'
 import { buildTimetableGridModel, subjectTintMap } from '../../../utils/timetableGridModel'
 import { saveClassTimetableGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { useLibraryAutoSave } from '../../../hooks/useLibraryAutoSave'
-import { downloadClassTimetableDocx } from '../../../utils/classTimetableToDocx'
-import { downloadClassTimetableXlsx } from '../../../utils/classTimetableToXlsx'
+import { downloadClassTimetableDocx } from '../../../engines/export-engine/classTimetableToDocx'
+import { downloadClassTimetableXlsx } from '../../../engines/export-engine/classTimetableToXlsx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
-import { downloadClassTimetablePdf } from '../../../utils/classTimetableToPdf'
+import { downloadClassTimetablePdf } from '../../../engines/export-engine/classTimetableToPdf'
 import {
   normalizeTimingBreaks,
   normalizeDaySchedulesBreaks,
 } from '../../../utils/durationOptions'
-import ClassTimetableView from '../views/ClassTimetableView'
-import StudioPageHeader from '../StudioPageHeader'
-import SeoHelmet from '../../seo/SeoHelmet'
-import ConfirmDialog from '../../ui/ConfirmDialog'
-import Chip from '../../ui/Chip'
-import { useToast } from '../../ui/Toast'
+import ClassTimetableView from '../components/ClassTimetableView'
+import StudioPageHeader from '../../../components/teacher/StudioPageHeader'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import ConfirmDialog from '../../../components/ui/ConfirmDialog'
+import Chip from '../../../components/ui/Chip'
+import { useToast } from '../../../components/ui/Toast'
 import { useDraftManager } from '../../../hooks/draft/useDraftManager'
 import { classTimetableDescriptor } from '../../../hooks/draft/descriptors/handBuilt'
 import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
-import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
+import DraftRecoveryPrompt from '../../../components/draft/DraftRecoveryPrompt'
 import { buildRequestKey, toDisplayMessage } from '../../../utils/requestControl.js'
 import { deduplicatedRequest } from '../../../utils/requestDeduplication.js'
 import { useAbortableRequest } from '../../../hooks/useAbortableRequest.js'
-import TimetableSetupWizard from './timetable/TimetableSetupWizard'
-import WizardStepClass from './timetable/WizardStepClass'
-import WizardStepSchoolDay from './timetable/WizardStepSchoolDay'
-import SubjectsPanel from './timetable/SubjectsPanel'
-import TimetableLayoutPanel from './timetable/TimetableLayoutPanel'
-import TimetableWorkspace from './timetable/TimetableWorkspace'
-import WorkspaceDrawer from './timetable/WorkspaceDrawer'
+import TimetableSetupWizard from '../components/timetable/TimetableSetupWizard'
+import WizardStepClass from '../components/timetable/WizardStepClass'
+import WizardStepSchoolDay from '../components/timetable/WizardStepSchoolDay'
+import SubjectsPanel from '../components/timetable/SubjectsPanel'
+import TimetableLayoutPanel from '../components/timetable/TimetableLayoutPanel'
+import TimetableWorkspace from '../components/timetable/TimetableWorkspace'
+import WorkspaceDrawer from '../components/timetable/WorkspaceDrawer'
 
 const DEFAULT_ACTIVITIES = ['Remedial work', 'Library', 'Clubs']
 const HISTORY_LIMIT = 60

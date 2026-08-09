@@ -61,7 +61,7 @@ const SchemeOfWorkGenerator = lazy(() => import('../../features/schemeOfWork/pag
 const MarkScheduleStudio = lazy(() => import('./generate/MarkScheduleStudio'))
 const WeeklyForecastStudio = lazy(() => import('../../features/weeklyForecast/pages/WeeklyForecastStudio'))
 const RecordOfWorkStudio = lazy(() => import('./generate/RecordOfWorkStudio'))
-const ClassTimetableStudio = lazy(() => import('./generate/ClassTimetableStudio'))
+const ClassTimetableStudio = lazy(() => import('../../features/classTimetable/pages/ClassTimetableStudio'))
 // Rubric Studio is retired (2026-08) — no page is mounted for it any more.
 // `src/features/rubric` stays for `RubricView`, which My Library still needs
 // to render the rubrics teachers already saved.

@@ -21,8 +21,8 @@
  * importable (and unit-testable) under plain `node`.
  */
 
-import { DAYS_OF_WEEK, buildPeriods } from './classTimetable.js'
-import { getFrameworkForGrade } from './curriculumFramework.js'
+import { DAYS_OF_WEEK, buildPeriods } from '../../../utils/classTimetable.js'
+import { getFrameworkForGrade } from '../../../utils/curriculumFramework.js'
 
 /** What the file picker accepts. Photos cover the "snap a paper timetable" path. */
 export const UPLOAD_ACCEPT = '.pdf,.docx,.xlsx,.png,.jpg,.jpeg,.webp,image/*'
@@ -337,7 +337,7 @@ export async function extractTimetableFromFile(file, opts = {}) {
     prompt = `${text}\n\nTIMETABLE CONTENT:\n${docText.slice(0, 12000)}`
   }
 
-  const { generateJSON } = await import('./aiLogic.js')
+  const { generateJSON } = await import('../../../utils/aiLogic.js')
   let raw
   try {
     raw = await generateJSON(prompt, { timeoutMs: EXTRACT_TIMEOUT_MS })

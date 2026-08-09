@@ -21,11 +21,11 @@
  */
 
 import { collection, getDocs, limit, orderBy, query, where } from 'firebase/firestore'
-import { db } from '../firebase/config'
+import { db } from '../../../firebase/config'
 import {
   isSiblingTimetableCandidate,
   normaliseTimetableForConflictCheck,
-} from './timetableConflictEngine.js'
+} from '../lib/timetableConflictEngine.js'
 
 export const SIBLING_QUERY_LIMIT = 80
 

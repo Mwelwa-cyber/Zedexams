@@ -101,6 +101,26 @@ console.log('\nchunksNamed — a declared name that matches nothing must be visi
   assert(chunksNamed(graph, 'Renamed').length === 0, 'a name matching nothing returns empty — the caller turns that into a failure');
 }
 
+{
+  // The shape the `cut` acknowledgement rests on: one page, two routes into the
+  // heavy chunk that mean the same thing, and a THIRD that does not. Cutting the
+  // two recorded edges must leave the third visible.
+  const graph = buildGraph({
+    'Page-11111111.js': 'import"./Renderer-22222222.js";import"./Editor-55555555.js"',
+    'Renderer-22222222.js': 'import"./heavy-44444444.js";import"./RichText-33333333.js"',
+    'RichText-33333333.js': 'import"./heavy-44444444.js"',
+    'Editor-55555555.js': 'import"./heavy-44444444.js"',
+    'heavy-44444444.js': 'export const c=1',
+  });
+  let g = withoutEdge(graph, 'Renderer', 'heavy');
+  g = withoutEdge(g, 'RichText', 'heavy');
+  const left = findPath(g, 'Page-11111111.js', 'heavy');
+  assert(left !== null && left.includes('Editor'),
+    'cutting the two acknowledged renderer edges leaves the unreviewed third route reachable, and names it');
+  assert(findPath(withoutEdge(g, 'Editor', 'heavy'), 'Page-11111111.js', 'heavy') === null,
+    'cutting all three leaves nothing — which is what a complete record looks like');
+}
+
 console.log('\nwithoutEdge + hasDirectEdge — scoping an acknowledged violation to what was reviewed');
 {
   // A page reaching a heavy chunk through TWO of its own dependencies. Recording

@@ -9,8 +9,8 @@
  */
 
 import { useRef, useState } from 'react'
-import { UPLOAD_ACCEPT, extractTimetableFromFile } from '../../../utils/timetableExtraction'
-import { useToast } from '../../ui/Toast'
+import { UPLOAD_ACCEPT, extractTimetableFromFile } from '../lib/timetableExtraction'
+import { useToast } from '../../../components/ui/Toast'
 
 const gradeDigits = (g) => String(g || '').match(/\d+/)?.[0] || ''
 

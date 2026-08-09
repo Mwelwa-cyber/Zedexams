@@ -19,7 +19,7 @@ import {
   formatDuration,
   formatAllocation,
   describeConversion,
-} from '../../../../utils/timetableCoverage'
+} from '../../lib/timetableCoverage'
 import { resolveSubjectAbbreviation } from '../../../../utils/subjectAbbreviations'
 import { clampInt } from '../../../../utils/inputs.js'
 

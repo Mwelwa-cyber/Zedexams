@@ -107,21 +107,28 @@ const HEAVY_VENDORS = {
  * dependency, never reviewed, and CI green because the pair was already on the
  * list.
  *
- * So each entry records `via` — **the page's OWN dependencies through which the
- * weight arrives**. Every one must really lead to the vendor, and cutting all of
- * them must leave the vendor unreachable. A new direct `import RichEditor` on
- * the page, or a second component that drags the editor in, survives the cut and
- * fails.
+ * So each entry records `cut` — **the EDGES the exception rests on**. Every one
+ * must really exist, and with all of them removed the vendor must be
+ * unreachable from that page. A new direct `import RichEditor` on the page, or
+ * a second component that drags the editor in by another route, survives the
+ * cut and fails.
  *
- * `via` is the page's own edges rather than the full chain because the full
- * chain is not stable enough to be a record. Enumerating chains here found
- * `figureLabelLayout → buildExtensions`, then
- * `figureLabelLayout → quizRichText → buildExtensions`, then a third through
- * `migration` — all the same fact (a page that DISPLAYS saved rich text needs
- * the schema that produced it), restated once per chunk in the renderer cluster.
+ * `cut` names the edge that IS the reason, not the page's first hop and not the
+ * full chain, and both alternatives were tried first:
+ *
+ *   • The full chain churns. Enumerating chains here produced
+ *     `figureLabelLayout → buildExtensions`, then
+ *     `… → quizRichText → …`, then a third through `migration` — the same fact
+ *     restated once per chunk in the renderer cluster.
+ *   • The page's first hop churns too, and faster. It was `SbaTaskView`, then
+ *     `sba` when that feature got a front door, then `classTimetable` when
+ *     Rollup merged the two front doors into one chunk — three rewrites in
+ *     three migrations, none of which changed what any page downloads. A record
+ *     that has to be edited by every unrelated migration stops being read.
+ *
  * These are CHUNK edges, not import statements: a chunk is named for one module
- * and carries many. What is worth pinning is the page's own reach, and the
- * enumeration is what proves the pin covers everything.
+ * and carries many. The edge into the vendor is the one thing that does not
+ * move when features are regrouped around it.
  */
 const ACKNOWLEDGED = new Map([
   // #2176 added this check and recorded the two flashcards paths here; #2177
@@ -140,20 +147,13 @@ const ACKNOWLEDGED = new Map([
   // They are recorded rather than deleted from the list so the weight stays
   // countable and so the two pages that do NOT carry it — the entry chunk and
   // the /teachers marketing page — still fail if they ever join.
-  //
-  // Both entries name `sba` AND `SbaTaskView`, which is not redundancy: since
-  // the SBA migration the pages import the view THROUGH the feature's front
-  // door, and Rollup emits both a front-door chunk and a chunk for the view
-  // itself, giving the page an edge to each. The weight behind them is one
-  // component either way. Naming both is what keeps the record a statement
-  // about the page's actual reach rather than about one spelling of it.
   ['PublicShareView → buildExtensions', {
-    why: 'the saved-document renderers it mounts reach the editor schema to draw saved rich text; `sba` is that feature\'s front door, which is how SbaTaskView is reached since the SBA migration',
-    via: ['AssessmentPaperView', 'sba', 'SbaTaskView'],
+    why: 'the saved-document renderers it mounts (assessment papers, SBA tasks) draw stored rich text, and the shared paper renderer needs the editor schema to do it',
+    cut: [['figureLabelLayout', 'buildExtensions'], ['quizRichText', 'buildExtensions'], ['migration', 'buildExtensions']],
   }],
   ['LockedStudio → buildExtensions', {
-    why: 'the specimen SBA task it renders reaches the same schema, for the same reason, through the sba front door',
-    via: ['sba', 'SbaTaskView'],
+    why: 'the specimen documents it renders reach the same renderer, for the same reason',
+    cut: [['figureLabelLayout', 'buildExtensions'], ['quizRichText', 'buildExtensions'], ['migration', 'buildExtensions']],
   }],
 ]);
 
@@ -219,24 +219,24 @@ for (const [page, why] of Object.entries(LIGHT_PAGES)) {
       const acknowledged = ACKNOWLEDGED.get(key);
       if (acknowledged) {
         let remaining = graph;
-        for (const via of acknowledged.via) {
-          if (!hasDirectEdge(graph, matches[0], via)) {
+        for (const [edgeFrom, edgeTo] of acknowledged.cut) {
+          if (!chunksNamed(remaining, edgeFrom).some((file) => hasDirectEdge(remaining, file, edgeTo))) {
             fail(
-              `${key} records "${via}" as how the weight arrives, but ${page} no longer imports it. ` +
-              `Delete that entry — the list only shrinks. (${acknowledged.why})`,
+              `${key} records the edge ${edgeFrom} → ${edgeTo} as its reason, but that edge no longer exists. ` +
+              `Delete it — the list only shrinks. (${acknowledged.why})`,
             );
             continue;
           }
-          remaining = withoutEdge(remaining, page, via);
+          remaining = withoutEdge(remaining, edgeFrom, edgeTo);
         }
         const beyond = findPath(remaining, matches[0], vendor);
         if (beyond) {
           fail(
             `${key} reaches the vendor through something the record does not name:\n` +
             `         ${beyond.join(' → ')}\n` +
-            `       recorded: ${acknowledged.via.join(', ')} (${acknowledged.why})\n` +
-            '       An acknowledgement covers the dependencies that were reviewed, not the page/vendor pair for ' +
-            'ever. Remove the new dependency, or add it to `via` with the reason it is acceptable.',
+            `       recorded: ${acknowledged.cut.map(([a, b]) => `${a} → ${b}`).join(', ')} (${acknowledged.why})\n` +
+            '       An acknowledgement covers the dependency that was reviewed, not the page/vendor pair for ever. ' +
+            'Remove the new dependency, or record the edge it arrives on with the reason it is acceptable.',
           );
         }
       } else {

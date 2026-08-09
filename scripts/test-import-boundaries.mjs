@@ -201,7 +201,6 @@ const KNOWN_LEGACY_FEATURE_IMPORTS = new Set([
   'src/components/teacher/TeacherDashboard.jsx → ../../features/teacherSettings/lib/useTeachingProfile',
   'src/components/teacher/TeacherTopBar.jsx → ../../features/teacherSettings/lib/useTeachingProfile',
   'src/components/teacher/dashboardV2/useTeacherDashboardData.js → ../../../features/teacherSettings/lib/useTeachingProfile',
-  'src/components/teacher/generate/ClassTimetableStudio.jsx → ../../../features/teacherSettings/lib/useTeachingProfile',
   'src/components/teacher/studio/hooks/useActiveAssignmentContext.js → ../../../../features/teacherSettings/lib/useTeachingProfile',
   'src/hooks/useLearnerSearch.js → ../features/notes/lib/firestore',
 ]);

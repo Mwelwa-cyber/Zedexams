@@ -15,16 +15,16 @@
  * unit-test the XML (see scripts/test-class-timetable.mjs).
  */
 
-import { saveBlob } from './saveBlob.js'
+import { saveBlob } from '../../utils/saveBlob.js'
 import {
   buildTimetableGridModel,
   dayRowForSlot,
   resolveDayCell,
   cellTextFor,
   displayLabelFor,
-} from './timetableGridModel.js'
-import { resolvePrintSettings } from './timetablePrintTemplates.js'
-import { buildAbbreviationLegend } from './subjectAbbreviations.js'
+} from '../../utils/timetableGridModel.js'
+import { resolvePrintSettings } from '../../utils/timetablePrintTemplates.js'
+import { buildAbbreviationLegend } from '../../utils/subjectAbbreviations.js'
 
 const XML_HEAD ='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
 

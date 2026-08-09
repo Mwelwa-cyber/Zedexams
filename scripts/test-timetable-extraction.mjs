@@ -2,7 +2,7 @@
 /* global console, process */
 /**
  * Unit tests for the Upload-Timetable extraction mapping
- * (src/utils/timetableExtraction.js): subject snapping and the
+ * (src/features/classTimetable/lib/timetableExtraction.js): subject snapping and the
  * Gemini-JSON → studio-grid normalisation. The network/Gemini call and the
  * browser-only file reading are not exercised here — only the pure helpers,
  * which is where the mapping logic lives.
@@ -14,7 +14,7 @@ import {
   snapSubjectLabel,
   normalizeExtracted,
   fileKind,
-} from '../src/utils/timetableExtraction.js'
+} from '../src/features/classTimetable/lib/timetableExtraction.js'
 
 let pass = 0
 let fail = 0

@@ -4,7 +4,7 @@
  * Unit tests for the Class Timetable studio's deterministic core
  * (src/utils/classTimetable.js): period/time construction, capacity,
  * round-robin token spreading, the balanced auto-fill, and the XLSX
- * workbook parts (src/utils/classTimetableToXlsx.js).
+ * workbook parts (src/engines/export-engine/classTimetableToXlsx.js).
  *
  * Plain `node` script that throws on failure, per repo convention.
  * Run: npm run test:class-timetable   (also via npm run test:all)
@@ -59,8 +59,8 @@ import {
 } from '../src/utils/curriculumFramework.js'
 import { BLOCK_TYPES, makeBlock, segmentsOf, fitsInOneSegment } from '../src/utils/timetableBlocks.js'
 import { buildTimetableGridModel, cellState, dayRowForSlot } from '../src/utils/timetableGridModel.js'
-import { buildClassTimetableWorkbookFiles } from '../src/utils/classTimetableToXlsx.js'
-import { buildPrintableHtml } from '../src/utils/classTimetableToPdf.js'
+import { buildClassTimetableWorkbookFiles } from '../src/engines/export-engine/classTimetableToXlsx.js'
+import { buildPrintableHtml } from '../src/engines/export-engine/classTimetableToPdf.js'
 
 let pass = 0
 let fail = 0

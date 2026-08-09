@@ -24,8 +24,8 @@ import {
 import { SCHOOL_SESSIONS, getSession } from '../../../../utils/timetableSessions'
 import { clampInt } from '../../../../utils/inputs.js'
 import { durationLabelForEvent } from '../../../../utils/durationOptions'
-import DurationSelect from '../../../ui/DurationSelect'
-import { FieldWrapper } from '../studioFields'
+import DurationSelect from '../../../../components/ui/DurationSelect'
+import { FieldWrapper } from '../../../../components/teacher/generate/studioFields'
 
 const TIMING_MODES = [
   { id: 'fixed', label: 'Fixed period length', hint: 'Set a fixed period length — the studio works out what time the day knocks off.' },

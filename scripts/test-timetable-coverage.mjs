@@ -2,7 +2,7 @@
 /* global console, process */
 /**
  * Unit tests for curriculum coverage in a school's own units
- * (src/utils/timetableCoverage.js): weekly TIME converted into this
+ * (src/features/classTimetable/lib/timetableCoverage.js): weekly TIME converted into this
  * school's lessons, the shift-session allocation strategies, and the
  * coverage chip.
  *
@@ -26,7 +26,7 @@ import {
   resolveSubjectTargets,
   resolveCoverageUnit,
   formatCoverage,
-} from '../src/utils/timetableCoverage.js'
+} from '../src/features/classTimetable/lib/timetableCoverage.js'
 import { curriculumSubjectsForGrade } from '../src/utils/classTimetable.js'
 import { resolveTimetableCurriculum } from '../src/utils/curriculumFramework.js'
 

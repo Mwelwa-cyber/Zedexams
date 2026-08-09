@@ -7,8 +7,8 @@
  * wrapped subject names inside the printable margins.
  */
 
-import { saveBlob } from './saveBlob.js'
-import { sanitizeXmlText } from './xmlText.js'
+import { saveBlob } from '../../utils/saveBlob.js'
+import { sanitizeXmlText } from '../../utils/xmlText.js'
 import {
   AlignmentType,
   BorderStyle,
@@ -23,21 +23,21 @@ import {
   VerticalMergeType,
   WidthType,
 } from 'docx'
-import { attributionSection } from './docxAttribution.js'
+import { attributionSection } from '../../utils/docxAttribution.js'
 import {
   buildTimetableGridModel,
   dayRowForSlot,
   resolveDayCell,
   cellTextFor,
   subjectTintMap,
-} from './timetableGridModel.js'
+} from '../../utils/timetableGridModel.js'
 import {
   resolvePrintSettings,
   verticalBandLetters,
   officialTimetableTitle,
   MINISTRY_HEADER_TEXT,
-} from './timetablePrintTemplates.js'
-import { buildAbbreviationLegend, legendLine } from './subjectAbbreviations.js'
+} from '../../utils/timetablePrintTemplates.js'
+import { buildAbbreviationLegend, legendLine } from '../../utils/subjectAbbreviations.js'
 
 const CELL_BORDER = {
   top:    { style: BorderStyle.SINGLE, size: 4, color: '000000' },
