@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
-import { BookOpen, GraduationCap, PuzzlePieceIcon, ArrowRight, Sparkles, Lightbulb, Globe, ShieldCheck, Layers } from '../../ui/icons'
-import Icon from '../../ui/Icon'
-import SeoHelmet from '../../seo/SeoHelmet'
+import { BookOpen, GraduationCap, PuzzlePieceIcon, ArrowRight, Sparkles, Lightbulb, Globe, ShieldCheck, Layers } from '../../../components/ui/icons'
+import Icon from '../../../components/ui/Icon'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
 import {
   GENERAL_COMPETENCES,
   LANGUAGE_OF_INSTRUCTION,
@@ -10,7 +10,7 @@ import {
   GUIDING_PRINCIPLES,
   KEY_INSTRUMENTS,
   OTHER_LEVELS,
-} from './frameworkData'
+} from '../lib/frameworkData'
 
 const ZAMBIA_GREEN = '#1a7a4a'
 const ZAMBIA_GOLD = '#d4a017'

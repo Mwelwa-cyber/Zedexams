@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom'
-import { ArrowLeft } from '../../ui/icons'
-import Icon from '../../ui/Icon'
-import SeoHelmet from '../../seo/SeoHelmet'
-import { LANGUAGE_OF_INSTRUCTION, NATIONAL_VALUES, CROSS_CUTTING_THEMES } from './frameworkData'
+import { ArrowLeft } from '../../../components/ui/icons'
+import Icon from '../../../components/ui/Icon'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import { LANGUAGE_OF_INSTRUCTION, NATIONAL_VALUES, CROSS_CUTTING_THEMES } from '../lib/frameworkData'
 
 const ZAMBIA_GREEN = '#1a7a4a'
 const ZAMBIA_GOLD = '#d4a017'
