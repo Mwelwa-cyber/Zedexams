@@ -72,6 +72,10 @@
  *     recreate. The backup write and the delete are in the same batch: if the
  *     backup cannot be written, the delete does not commit either.
  *   • Re-running is idempotent — a cleaned project finds nothing.
+ *   • No query depends on an index. Paging is `orderBy('__name__')` with no
+ *     filter, because this script cleans up after a change that DELETES
+ *     indexes — one it needed could be gone by the time it runs. Guarded by
+ *     `npm run test:cleanup-classes`.
  *
  * ── Usage ─────────────────────────────────────────────────────────────
  *
@@ -135,8 +139,19 @@ async function loadAdmin() {
   return admin.default
 }
 
-/** Page through a collection so a large one does not land in memory at once. */
-async function* pagesOf(db, collection) {
+/**
+ * Page through a collection so a large one does not land in memory at once.
+ *
+ * Ordered by `__name__` with no `where` — deliberately, because that uses the
+ * index every collection always has. This script must not depend on a
+ * composite index: it runs to clean up after a change that DELETES indexes,
+ * and an index it needs could be gone by the time it runs.
+ *
+ * `cap` is the caller's, not the global --limit: that flag caps documents
+ * DELETED per bridge collection, and reusing it for an incidental scan (the
+ * classRegisters walk) would silently under-report.
+ */
+async function* pagesOf(db, collection, cap = Infinity) {
   let cursor = null
   let seen = 0
   for (;;) {
@@ -144,10 +159,10 @@ async function* pagesOf(db, collection) {
     if (cursor) q = q.startAfter(cursor)
     const snap = await q.get()
     if (snap.empty) return
-    const docs = snap.docs.slice(0, Math.max(0, LIMIT - seen))
+    const docs = snap.docs.slice(0, Math.max(0, cap - seen))
     if (docs.length) yield docs
     seen += docs.length
-    if (seen >= LIMIT || snap.docs.length < PAGE_SIZE) return
+    if (seen >= cap || snap.docs.length < PAGE_SIZE) return
     cursor = snap.docs[snap.docs.length - 1]
   }
 }
@@ -156,7 +171,7 @@ async function countCollections(db, collections) {
   const counts = {}
   for (const collection of collections) {
     let n = 0
-    for await (const docs of pagesOf(db, collection)) n += docs.length
+    for await (const docs of pagesOf(db, collection, LIMIT)) n += docs.length
     counts[collection] = n
   }
   return counts
@@ -166,7 +181,7 @@ async function countCollections(db, collections) {
 async function purgeCollection(admin, db, collection) {
   const backupRoot = db.collection('backups').doc('removed_classes').collection('docs')
   let deleted = 0
-  for await (const docs of pagesOf(db, collection)) {
+  for await (const docs of pagesOf(db, collection, LIMIT)) {
     let batch = db.batch()
     let ops = 0
     for (const doc of docs) {
@@ -191,17 +206,45 @@ async function purgeCollection(admin, db, collection) {
 }
 
 /**
+ * Every Class Register roster entry carrying a non-null `linkedUid`.
+ *
+ * Walks classRegisters → each register's `roster` subcollection and filters in
+ * memory. The obvious query — `collectionGroup('roster').where('linkedUid',
+ * '!=', null)` — needs a COLLECTION_GROUP-scoped single-field index on
+ * roster.linkedUid, and Firestore only auto-creates single-field indexes at
+ * COLLECTION scope. That query therefore throws FAILED_PRECONDITION on a
+ * project that has not declared the override, including on the dry run, where
+ * a crash is the worst possible outcome. Shipping an index to support a
+ * one-off cleanup — and leaving it behind afterwards — is the wrong trade, so
+ * this reads instead. Registers are per-teacher and few; the cost is one read
+ * per register plus its roster.
+ */
+async function findLinkedRosterEntries(db) {
+  const found = []
+  for await (const registers of pagesOf(db, 'classRegisters')) {
+    for (const register of registers) {
+      const roster = await register.ref.collection('roster').get()
+      for (const entry of roster.docs) {
+        // A missing field and an explicit null are both "no link".
+        if (entry.data()?.linkedUid != null) found.push(entry)
+      }
+    }
+  }
+  return found
+}
+
+/**
  * Null out `linkedUid` on every Class Register roster entry that has one.
  * The entry itself, the learner's name and their marks are left alone.
  */
 async function clearLinkedUids(admin, db, { dryRun }) {
   const backupRoot = db.collection('backups').doc('removed_classes').collection('roster_links')
-  const snap = await db.collectionGroup('roster').where('linkedUid', '!=', null).get()
-  if (snap.empty || dryRun) return snap.size
+  const entries = await findLinkedRosterEntries(db)
+  if (entries.length === 0 || dryRun) return entries.length
 
   let batch = db.batch()
   let ops = 0
-  for (const doc of snap.docs) {
+  for (const doc of entries) {
     batch.set(backupRoot.doc(doc.ref.path.replace(/\//g, '__')), {
       path: doc.ref.path,
       linkedUid: doc.data().linkedUid,
@@ -216,7 +259,7 @@ async function clearLinkedUids(admin, db, { dryRun }) {
     }
   }
   if (ops > 0) await batch.commit()
-  return snap.size
+  return entries.length
 }
 
 async function runAgainstFirestore(admin) {

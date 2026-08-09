@@ -15,6 +15,7 @@
  */
 
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 
 const { BRIDGE_COLLECTIONS, backupDocId, resolveCollections } =
   await import('./cleanup-classes.mjs')
@@ -71,6 +72,44 @@ test('--collection with a name outside the bridge resolves to nothing', () => {
   assert.deepEqual(resolveCollections('classRegisters'), [])
   assert.deepEqual(resolveCollections('users'), [])
   assert.deepEqual(resolveCollections('CLASSES'), [])
+})
+
+test('the script depends on no index that could be missing', () => {
+  // This script exists to clean up after a change that DELETED indexes, so an
+  // index it relies on may already be gone when it runs — and the failure
+  // lands on live data, at the one moment there is no UI left to notice it.
+  //
+  // Two shapes are banned:
+  //   • collectionGroup() — a collection-group query needs a COLLECTION_GROUP
+  //     -scoped single-field index, and Firestore only auto-creates
+  //     single-field indexes at COLLECTION scope. `collectionGroup('roster')
+  //     .where('linkedUid','!=',null)` threw FAILED_PRECONDITION on every
+  //     project without an explicit fieldOverride — including on the DRY RUN.
+  //   • where() — any filter risks needing a composite index alongside the
+  //     orderBy. Paging on `__name__` alone always works.
+  // Comments are stripped first: the script DOCUMENTS the banned query in the
+  // comment explaining why it does not use it, and a scan that cannot tell
+  // prose from code would fail on that explanation — training the next person
+  // to delete the comment rather than keep the guard.
+  const src = readFileSync(new URL('./cleanup-classes.mjs', import.meta.url), 'utf8')
+  const code = src
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/(^|[^:])\/\/.*$/gm, '$1')
+
+  assert.ok(
+    !/\bcollectionGroup\s*\(/.test(code),
+    'cleanup-classes.mjs issues a collectionGroup query — that needs an index '
+    + 'nobody deployed. Walk the parent collection and filter in memory instead.',
+  )
+  assert.ok(
+    !/\.where\s*\(/.test(code),
+    'cleanup-classes.mjs issues a where() query — it may need a composite '
+    + 'index that this cleanup itself removes. Page on __name__ and filter in memory.',
+  )
+  assert.ok(
+    /orderBy\('__name__'\)/.test(code),
+    'paging must order by __name__, the one index that always exists',
+  )
 })
 
 test('a backup id cannot collide across collections', () => {
