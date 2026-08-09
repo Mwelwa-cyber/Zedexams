@@ -11,7 +11,7 @@
 import assert from 'node:assert/strict'
 import { Packer } from 'docx'
 import { unzipSync, strFromU8 } from 'fflate'
-import { buildRecordOfWorkDocument } from '../src/utils/recordOfWorkToDocx.js'
+import { buildRecordOfWorkDocument } from '../src/engines/export-engine/recordOfWorkToDocx.js'
 
 let passed = 0
 async function test(name, fn) {

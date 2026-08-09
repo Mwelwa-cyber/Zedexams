@@ -1325,7 +1325,7 @@ The order was settled 2026-08-07 as **smallest and lowest-risk first**, ranked o
 
 | session A | session B |
 |---|---|
-| `markSchedule` / `recordOfWork` | `teacherClasses` |
+| ~~`markSchedule`~~ · ~~`recordOfWork`~~ | `teacherClasses` |
 | `curriculumBrowsers` | `teacherLibrary` |
 | `register` | `dashboardV2` |
 | the remaining admin areas | — |
@@ -1405,6 +1405,12 @@ Its `index.js` exports nothing, for the same reason `templateBank`'s does: the p
 `markSchedule.js` went to `src/shared/utils/` on the rule #2220 recorded: six modules read it across three layers — this feature, both exporters in the engine, `reportCardsToDocx` and `classRecordExport` in the legacy residue, and the marketing page — and a module more than one layer above depends on belongs below all of them. It imports nothing, touches no DOM/React/Firebase, and `scripts/test-mark-schedule.mjs` loads it under plain `node`.
 
 `teacher/register/MarkSchedulesTab.jsx` stayed: it is the class register's tab, not this feature's, and migrates with `register` — the same call `sbaCrossYear` got.
+
+**Wave 4 — `recordOfWork`** (session A), closing the recorded pair. The studio, the renderer, `recordOfWorkToDocx` into the engine — 23 → 24 relocated, 14 → 13 still in `src/utils/`. One exported name, `RecordOfWorkView`, drawn by five surfaces including three declared light pages.
+
+`recordOfWork.js` went to `src/shared/utils/`: the engine exporter builds through it, the feature reads it twice, and `lib/recordOfWorkPlanning.js` imports it. It lands **beside `weeklyForecast.js`**, which it imports for `schemeWeeks`/`weekNumberOf`/`normalizeSchemeWeek` — that module moved to this layer two migrations ago for the same reason, so what was a reach across the tree is now a same-directory import. Verified loadable under plain `node` (7 exports), with no DOM, React or Firebase.
+
+`recordOfWorkPlanning.js` and `recordOfWorkVariance.js` travelled into `lib/` — this studio is their only consumer. **`recordOfWorkStatus.js` did not**: `TeacherDashboard` and `utils/teacherRecommendations.js` read it, both legacy, so it stays in `src/utils/` (below the feature) and travels when its remaining callers do.
 
 **Three guards caught what review would not have.** `test:mock-paths` found five dead `vi.mock` paths in the two CONSUMER specs (`LibraryItemDetail`, `PublicShareView`) — the miss this repo made eight times across four merged PRs before the guard existed, and it fired on the first Wave 4 migration to have consumers. `test:all` caught `docxExporters.test.js` loading the exporter through a variable (`loadModule('./schemeOfWorkToDocx.js')`), which no grep for an import statement sees. And resolving every relative import caught nothing this time only because the mock guard had already found the movable parts. The machine-readable `scripts/aiGenerators/inventory.js` records this page by path and was updated in the same commit, as the template's step-0 table requires.
 

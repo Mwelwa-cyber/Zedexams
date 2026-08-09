@@ -95,6 +95,8 @@ const RELOCATED = [
   'classTimetableToDocx.js', 'classTimetableToPdf.js', 'classTimetableToXlsx.js',
   // Wave 4, with the mark-schedule studio.
   'markScheduleToDocx.js', 'markScheduleToXlsx.js',
+  // Wave 4, with the record-of-work studio.
+  'recordOfWorkToDocx.js',
 ];
 
 /**
@@ -107,7 +109,6 @@ const STILL_IN_UTILS = new Map([
   ['quizToDocx.js', 'quizzes — frozen, same reason'],
   ['lessonPlanToDocx.js', 'lesson-plan studio — Wave 4'],
   ['lessonPlanToPdf.js', 'lesson-plan studio — Wave 4'],
-  ['recordOfWorkToDocx.js', 'record of work — Wave 4'],
   ['reportCardsToDocx.js', 'class register / reports — Wave 4'],
   ['attendanceToDocx.js', 'class register / attendance — Wave 4'],
   ['activityToDocx.js', 'lesson activities — renders documents saved before the Full Lesson studio was retired'],

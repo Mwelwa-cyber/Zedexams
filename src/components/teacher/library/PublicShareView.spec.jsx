@@ -45,7 +45,7 @@ vi.mock('../../../features/worksheet',     () => ({ WorksheetView: () => <div da
 vi.mock('../../../features/flashcards', () => ({ FlashcardsView: () => <div data-testid="flashcards-view" /> }))
 vi.mock('../../../features/schemeOfWork', () => ({ SchemeOfWorkView: () => <div data-testid="scheme-of-work-view" />, SchemeEditableTable: () => null }))
 vi.mock('../../../features/weeklyForecast', () => ({ WeeklyForecastView: () => <div data-testid="weekly-forecast-view" />, WeeklyForecastEditableTable: () => null }))
-vi.mock('../views/RecordOfWorkView',  () => ({ default: () => <div data-testid="record-of-work-view" /> }))
+vi.mock('../../../features/recordOfWork', () => ({ RecordOfWorkView: () => <div data-testid="record-of-work-view" /> }))
 vi.mock('../../../features/rubric',        () => ({ RubricView: () => <div data-testid="rubric-view" /> }))
 
 // ── NotesView: renders a testid so we can confirm the right component was used.

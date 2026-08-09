@@ -2,7 +2,7 @@
 /* global console, process */
 /**
  * Unit tests for the Record of Work studio's scheme→record mapper
- * (src/utils/recordOfWork.js): both saved-scheme shapes, the work-done
+ * (src/shared/utils/recordOfWork.js): both saved-scheme shapes, the work-done
  * prefill, coverage labels / printed remarks, and the coverage summary.
  *
  * Plain `node` script that throws on failure, per repo convention.
@@ -16,7 +16,7 @@ import {
   buildRecordWeeks,
   printedRemark,
   coverageSummary,
-} from '../src/utils/recordOfWork.js'
+} from '../src/shared/utils/recordOfWork.js'
 import { normalizeSchemeWeek } from '../src/shared/utils/weeklyForecast.js'
 
 let pass = 0
