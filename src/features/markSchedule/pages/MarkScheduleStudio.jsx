@@ -10,7 +10,7 @@
  * report cards.
  *
  * The marks table shows LIVE Total / % / Position columns (computed via
- * utils/markSchedule's rankPupils — the same maths the exports use), and
+ * shared/utils/markSchedule's rankPupils — the same maths the exports use), and
  * pupils can be imported straight from a Class Register class list
  * (ImportFromClassListModal): active learners fill the rows in register
  * order, rows the teacher already named are never wiped.
