@@ -1335,6 +1335,10 @@ The order was settled 2026-08-07 as **smallest and lowest-risk first**, ranked o
 
 Its `index.js` exports nothing, for the same reason `templateBank`'s does: the page is reached only through a route mount, and the two libs had no consumer outside it. The page reads Firestore directly, which §14.2 says should go through `services/`; that is left as-is under the standing Phase 4 policy that a migration is a pure move, and recorded on the front door rather than silently tolerated.
 
+**Wave 3 — `adminUsers`.** The roster at `/admin/users` (also `/admin/teachers` and `/admin/admins`, same page with a different `defaultRole`), the per-account profile, and the status badge those two share. Empty front door: both pages are route-mounted and the badge has no consumer outside them.
+
+**No util travelled**, and the contrast with `companyHQ` is the rule rather than an inconsistency. A util travels when the feature is its ONLY consumer and stays when it is not: `companyOrg` and `treasury` had one importer each, while `adminUsersService` is also `PaymentsPanel`'s and `requestControl` / `requestDeduplication` have 14 and 10 importers across teacher, learner and admin surfaces — those belong in `src/shared/` when that layer is populated. Pulling a shared module into a feature to tidy one page's import paths inverts the dependency for everyone else.
+
 **Review debt — the eight Wave 1/2 pull requests merged UNREVIEWED, and the order to sweep them in.** Codex reported "usage limits reached" on every one of #2169, #2170, #2172, #2173, #2176, #2177, #2178 and #2179, so each merged on CI plus the author's own checks and nothing else. That is recorded here rather than in a PR comment because a PR nobody is looking at is exactly where this fact would stop being visible.
 
 When quota returns, sweep them in **blast-radius order, not merge order** — the question is how much OTHER work each change silently governs:
