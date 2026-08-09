@@ -42,6 +42,8 @@ const {
   completePurgeJob,
   recordPurgeFailure,
   readPurgeJob,
+  cancelPurgeJob,
+  isPurgeComplete,
 } = require("./accountPurgeJobs");
 
 /**
@@ -113,6 +115,9 @@ async function runAccountDeletion({uid, email, db, auth, FieldValue, purge}) {
   } catch (error) {
     if (!isUserNotFound(error)) {
       console.error("deleteMyAccount token revocation failed:", error);
+      // Nothing irreversible has happened. Cancel the tombstone so the sweeper
+      // cannot later finish a deletion this caller was told had failed.
+      await cancelPurgeJob(db, uid, {FieldValue, reason: "revoke-failed"});
       throw new AccountFlowError(
         "internal",
         "We could not sign you out of your other sessions. Please try again, or contact support.",
@@ -128,6 +133,9 @@ async function runAccountDeletion({uid, email, db, auth, FieldValue, purge}) {
   } catch (error) {
     if (!isUserNotFound(error)) {
       console.error("deleteMyAccount auth deletion failed:", error);
+      // Still pre-destructive: the tokens are revoked but the account and its
+      // data are intact, and the user is being told to retry. Same reasoning.
+      await cancelPurgeJob(db, uid, {FieldValue, reason: "auth-delete-failed"});
       throw new AccountFlowError(
         "internal",
         "We could not delete your sign-in. Please try again, or contact support.",
@@ -156,20 +164,23 @@ async function runAccountDeletion({uid, email, db, auth, FieldValue, purge}) {
   // 5. Proof. `verified` is the purge's own re-read of users/{uid}; false means
   // the PII home survived, which is the exact failure this whole change is
   // about. Reporting success over it is how three orphans reached production.
-  if (!summary || summary.verified !== true) {
+  if (!isPurgeComplete(summary)) {
+    const unverified = !summary || summary.verified !== true;
     console.error(
-      `deleteMyAccount could not verify the purge uid=${uid} ` +
-      `summary=${JSON.stringify(summary)}`,
+      `deleteMyAccount could not ${unverified ? "verify" : "complete"} the purge ` +
+      `uid=${uid} summary=${JSON.stringify(summary)}`,
     );
     await recordPurgeFailure(db, uid, {
       FieldValue,
-      error: "users doc still present after purge",
+      error: unverified ?
+        "users doc still present after purge" :
+        `purge finished with errors: ${JSON.stringify(summary.errors)}`,
     });
     throw new AccountFlowError(
       "internal",
       "Your sign-in has been removed and the rest of your data is still being deleted. " +
       "You do not need to do anything else — contact support if you would like confirmation.",
-      {reason: "purge-unverified"},
+      {reason: unverified ? "purge-unverified" : "purge-incomplete"},
     );
   }
 
@@ -217,7 +228,11 @@ async function runProfileBootstrap({uid, tokenRole, db, auth, buildProfile}) {
       "We could not restore your profile right now. Please try again.",
     );
   }
-  if (purgeJob) {
+  // A CANCELLED job is not a deletion — it is one that never got past the
+  // pre-destructive steps and was abandoned. The account still exists, so
+  // refusing here would turn a transient revoke failure into an account that
+  // can never repair its own profile again.
+  if (purgeJob && purgeJob.status !== "cancelled") {
     console.warn(
       `bootstrapUserProfile refused: accountPurgeJobs/${uid} is ${purgeJob.status}`,
     );

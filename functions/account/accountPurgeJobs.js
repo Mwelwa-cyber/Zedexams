@@ -135,8 +135,27 @@ async function openPurgeJob(db, uid, {FieldValue, email} = {}) {
 }
 
 /**
- * Mark the purge finished. Only ever called with a VERIFIED summary — a purge
- * that could not prove `users/{uid}` is gone leaves the job pending on purpose.
+ * Is this summary complete enough to close the job?
+ *
+ * `verified` proves only that `users/{uid}` is absent. `purgeUserData` collects
+ * per-collection failures in `summary.errors` and keeps going, so a purge that
+ * lost the users doc but failed to delete payments or results would arrive here
+ * verified and NOT done (Codex P1 on #2228). Closing on that leaves the
+ * remaining personal data unreachable by the sweeper, which only queries
+ * pending jobs — the data would never be retried by anything.
+ *
+ * @param {object} [summary]
+ * @return {boolean}
+ */
+function isPurgeComplete(summary) {
+  if (!summary || summary.verified !== true) return false;
+  return Array.isArray(summary.errors) && summary.errors.length === 0;
+}
+
+/**
+ * Mark the purge finished. Only ever called with a COMPLETE summary — verified
+ * AND error-free (see isPurgeComplete). Anything less leaves the job pending on
+ * purpose, because pending is what the sweeper retries.
  *
  * @param {object} db
  * @param {string} uid
@@ -152,6 +171,42 @@ async function completePurgeJob(db, uid, {FieldValue, summary} = {}) {
     lastError: null,
     ...(summary ? {lastSummary: summary} : {}),
   }, {merge: true});
+}
+
+/**
+ * Terminally CANCEL a job that never got past the pre-destructive steps.
+ *
+ * The sweeper adopts every stale `pending` job and calls `deleteUser` on it.
+ * That is right for a job whose Auth user is already gone and whose data is
+ * half-purged; it is badly wrong for one that failed at token revocation or at
+ * the Auth delete itself, because nothing irreversible has happened yet and the
+ * user was TOLD the deletion failed. Left `pending`, the sweeper would finish a
+ * deletion the user had been invited to abandon (Codex P1 on #2228).
+ *
+ * `cancelled` is outside the sweeper's `status == "pending"` query, so a
+ * cancelled job is never adopted. `bootstrapUserProfile` also skips it — the
+ * account still exists, and a tombstone that blocked profile repair for ever
+ * would turn a transient revoke failure into a permanently broken account.
+ *
+ * Never throws: it runs on the error path of an already-failing deletion.
+ *
+ * @param {object} db
+ * @param {string} uid
+ * @param {object} deps
+ * @param {object} deps.FieldValue
+ * @param {string} [deps.reason]
+ * @return {Promise<void>}
+ */
+async function cancelPurgeJob(db, uid, {FieldValue, reason} = {}) {
+  try {
+    await db.collection(PURGE_JOBS_COLLECTION).doc(uid).set({
+      status: "cancelled",
+      cancelledAt: FieldValue.serverTimestamp(),
+      lastError: String(reason || "cancelled before deletion began").slice(0, 500),
+    }, {merge: true});
+  } catch (err) {
+    console.error(`accountPurgeJobs: could not cancel ${uid}:`, err);
+  }
 }
 
 /**
@@ -198,8 +253,10 @@ module.exports = {
   hashEmail,
   toMillis,
   isStalePurgeJob,
+  isPurgeComplete,
   openPurgeJob,
   completePurgeJob,
+  cancelPurgeJob,
   recordPurgeFailure,
   readPurgeJob,
 };

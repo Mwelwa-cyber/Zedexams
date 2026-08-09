@@ -109,6 +109,91 @@ function authError(code) {
 
 const verifiedSummary = {uidDocs: 16, fieldDocs: 4, arrayMemberships: 0, errors: [], resurrected: false, verified: true};
 
+// ── Codex P1 (#2228): a pre-destructive failure must not leave a job the
+// sweeper will adopt, and a purge with errors must not close the job ──────
+
+const purgeArgs = (summary) => ({
+  db: null, uid: "u1", FieldValue,
+  purge: async () => summary,
+  buildProfile: null,
+});
+
+test("a revoke failure CANCELS the job — the sweeper only adopts pending ones", async () => {
+  const calls = [];
+  const db = fakeDb(calls);
+  await assert.rejects(
+    runAccountDeletion({
+      db, auth: fakeAuth(calls, {onRevoke: () => { throw new Error("transient"); }}),
+      uid: "u1", FieldValue, purge: async () => verifiedSummary,
+    }),
+    (err) => err instanceof AccountFlowError && err.details.reason === "revoke-failed",
+  );
+  const job = db.store[PURGE_JOBS_COLLECTION].u1;
+  assert.equal(job.status, "cancelled",
+    "left pending, the daily sweeper would delete an account the user was told had NOT been deleted");
+  assert.ok(!calls.includes("deleteUser:u1"), "nothing destructive ran");
+});
+
+test("an auth-delete failure CANCELS the job too", async () => {
+  const calls = [];
+  const db = fakeDb(calls);
+  await assert.rejects(
+    runAccountDeletion({
+      db, auth: fakeAuth(calls, {onDelete: () => { throw authError("auth/internal-error"); }}),
+      uid: "u1", FieldValue, purge: async () => verifiedSummary,
+    }),
+    (err) => err instanceof AccountFlowError && err.details.reason === "auth-delete-failed",
+  );
+  assert.equal(db.store[PURGE_JOBS_COLLECTION].u1.status, "cancelled");
+});
+
+test("a CANCELLED tombstone does not block profile repair — the account still exists", async () => {
+  const calls = [];
+  const db = fakeDb(calls, {seed: {[PURGE_JOBS_COLLECTION]: {u1: {status: "cancelled"}}}});
+  const out = await runProfileBootstrap({
+    db, auth: fakeAuth(calls), uid: "u1", FieldValue, buildProfile,
+  });
+  assert.equal(out.created, true,
+    "a job cancelled before anything was deleted must not brick the account for ever");
+});
+
+test("a PENDING tombstone still blocks profile repair", async () => {
+  const calls = [];
+  const db = fakeDb(calls, {seed: {[PURGE_JOBS_COLLECTION]: {u1: {status: "pending"}}}});
+  await assert.rejects(
+    runProfileBootstrap({db, auth: fakeAuth(calls), uid: "u1", FieldValue, buildProfile}),
+    (err) => err.details && err.details.reason === "account-deleted",
+  );
+});
+
+test("a purge that VERIFIED but reported errors does not close the job", async () => {
+  const calls = [];
+  const db = fakeDb(calls);
+  const withErrors = {...verifiedSummary, errors: ["payments: permission-denied"]};
+  await assert.rejects(
+    runAccountDeletion({
+      db, auth: fakeAuth(calls), uid: "u1", FieldValue, purge: async () => withErrors,
+    }),
+    (err) => err instanceof AccountFlowError && err.details.reason === "purge-incomplete",
+  );
+  const job = db.store[PURGE_JOBS_COLLECTION].u1;
+  assert.equal(job.status, "pending",
+    "closed on a verified-but-failed purge, the leftover personal data is unreachable: " +
+    "the sweeper only queries pending jobs, so nothing would ever retry it");
+  assert.equal(job.attempts, 1, "the failure is counted so the alert threshold can see it");
+});
+
+test("a clean verified purge still closes the job", async () => {
+  const calls = [];
+  const db = fakeDb(calls);
+  const out = await runAccountDeletion({
+    db, auth: fakeAuth(calls), uid: "u1", FieldValue, purge: async () => verifiedSummary,
+  });
+  assert.equal(out.success, true);
+  assert.equal(db.store[PURGE_JOBS_COLLECTION].u1.status, "done",
+    "CONTROL: the happy path must still complete, or the two guards above are just breaking deletion");
+});
+
 // ── deleteMyAccount: order ───────────────────────────────────────────────
 
 test("session is destroyed before Firestore is touched", async () => {

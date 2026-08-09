@@ -1325,12 +1325,19 @@ The order was settled 2026-08-07 as **smallest and lowest-risk first**, ranked o
 
 | session A | session B |
 |---|---|
-| ~~`markSchedule`~~ · ~~`recordOfWork`~~ | `teacherClasses` |
+| ~~`markSchedule`~~ · ~~`recordOfWork`~~ | ~~`teacherClasses`~~ — see below |
 | ~~`curriculumBrowsers`~~ | `teacherLibrary` |
-| `register` | `dashboardV2` |
+| `register` — **re-inventory first** | `dashboardV2` |
 | the remaining admin areas | — |
 
 `scan` is unowned and stays blocked by the Assessment Studio freeze.
+
+**#2227 removed one item from the list and shrank another.** The learner/teacher class bridge was deleted in full (70 files, ~7,500 deletions), and two of its consequences land here:
+
+- **`teacherClasses` — eliminated, not migrated.** All six files of `teacher/classes/` were removed with the bridge; no migration remained. It is struck from session B's list rather than reassigned.
+- **`register` — re-inventory before migrating.** #2227 edited two files inside it (`ClassRegisterList.jsx`, `RosterImportModal.jsx`), removing the "import from existing learner accounts" tab. The surface is smaller than the 38 files this session mapped before the merge, so the map is stale and gets rebuilt rather than trusted.
+
+The impact review that preceded that decision is worth keeping in one line: `classRegisters` rules untouched, all eleven removed callables unreferenced, no dangling routes, removed indexes matching removed rules, and **no production data deleted by merging** — the cleanup script is `npm run`-only, dry-run by default, and absent from every workflow and lifecycle hook. Verified by running the suites on the branch, not by reading its description.
 
 Both sessions may PREPARE their next assigned surface in parallel; **merges follow the recorded order above.** Before beginning an item: update from `origin/main`, list open pull requests, confirm `src/features/<name>` does not already exist, and write the claim into this table. An existing explicit claim wins — reassign rather than duplicate.
 
