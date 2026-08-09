@@ -27,8 +27,8 @@
 > neither is an argument against the restructure:
 >
 > - **`functions/index.js` costs 148 MiB RSS and 2.7s to LOAD** (measured, Node
->   22, bare node is 43 MiB). Every v2 instance pays it, because all 202 exports
->   deploy from one source — so it is on the cold start of every function in the
+>   22, bare node is 43 MiB). Every v2 instance pays it, because every export
+>   deploys from one source — so it is on the cold start of every function in the
 >   project, not just the big ones. `apiTrackVisit` declared 128MiB and was
 >   therefore provisioned below the cost of starting up (#2231). This is the
 >   strongest measured argument for Phase 5 so far, and a better one than
