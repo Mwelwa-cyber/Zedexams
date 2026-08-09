@@ -785,7 +785,8 @@
     "test:learner-notes-schema": "node functions/teacherTools/learnerNotesSchema.test.js",
     "test:learner-notes-printable": "node src/utils/learnerNotesPrintable.test.js",
     "contrast:routes": "node scripts/test-route-contrast.mjs",
-    "test:functions-manifest": "node scripts/test-functions-manifest.mjs"
+    "test:functions-manifest": "node scripts/test-functions-manifest.mjs",
+    "test:function-memory-floor": "node scripts/test-function-memory-floor.mjs"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",

@@ -328,8 +328,28 @@ async function handleVisit(req, res, deps = {}) {
   }
 }
 
+// 256MiB, not 128MiB — and NOT because this handler is heavy.
+//
+// Cloud Functions v2 loads the WHOLE shared `functions/index.js` into every
+// instance, because all 202 exports deploy from one source. Measured on Node
+// 22: requiring index.js costs **148 MiB RSS before a single request arrives**
+// (2.7s to load). This function was the only one in the codebase declaring
+// 128MiB — every other declaration is 256MiB or above — so it was the only one
+// provisioned below the cost of merely starting up, and it produced 80 ERRORs
+// in a 2h window ("Memory limit of 128 MiB exceeded", POST 500s and a 503)
+// while no other function contributed one.
+//
+// This is a fixed startup cost, not a leak: it does not grow with traffic or
+// over time, so more memory does not hide anything here — it pays for a
+// baseline that is already known and measurable. The handler itself is
+// bounded by design (WRITE_BUDGET_MS / RATE_LIMIT_BUDGET_MS below) and its own
+// module graph is only ~33 MiB of that total.
+//
+// The real reduction is making index.js cheaper to load, which is Phase 5's
+// business (docs/phase5-plan.md), not this beacon's. `test:function-memory-floor`
+// stops anything being provisioned under the startup cost again.
 exports.apiTrackVisit = onRequest(
-    {region: "us-central1", timeoutSeconds: 15, memory: "128MiB"},
+    {region: "us-central1", timeoutSeconds: 15, memory: "256MiB"},
     (req, res) => handleVisit(req, res),
 );
 
