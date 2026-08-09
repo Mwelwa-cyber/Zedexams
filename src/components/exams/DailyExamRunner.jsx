@@ -433,43 +433,70 @@ function DailyExamRunnerInner() {
           </button>
         </div>
 
-        {/* Question image */}
-        {question.imageUrl && (
-          <div className="theme-border theme-bg-subtle overflow-hidden rounded-2xl border p-3">
-            <img
-              src={question.imageUrl}
-              alt="Question"
-              className="max-h-72 w-full rounded-xl object-contain"
-              loading="lazy"
-            />
-          </div>
-        )}
-        <ExtraQuestionImages question={question} zoomable={false} />
-
-
-        {/* Question text */}
-        <div>
-          {question.sharedInstruction && (
-            <div className="mb-3 rounded-2xl border-2 border-slate-900 bg-orange-50 px-3 py-2 leading-relaxed text-slate-900">
-              <RichContent value={question.sharedInstruction} className="text-sm leading-relaxed" />
+        {/* Question image + text, laid out per the saved imagePosition —
+            same class map as QuizRunnerV2's IMAGE_POSITION_CLASSES so a
+            question renders consistently across every learner surface.
+            null/'above'/'inline' keep the original stacked DOM exactly. */}
+        {(() => {
+          const pos = question.imagePosition
+          const imageBlock = question.imageUrl ? (
+            <div className="theme-border theme-bg-subtle overflow-hidden rounded-2xl border p-3">
+              <img
+                src={question.imageUrl}
+                alt="Question"
+                className="max-h-72 w-full rounded-xl object-contain"
+                loading="lazy"
+              />
             </div>
-          )}
-          <div className="flex items-start gap-2">
-            <RichContent value={question.text} className="question-text flex-1" />
-            <TextToSpeechButton
-              id={`q:${question.id}`}
-              label="question"
-              getText={() => questionToReadAloudText(question)}
-              tts={readAloud}
-              className="mt-0.5 shrink-0"
-            />
-          </div>
-          {question.diagramText && (
-            <p className="mt-2 rounded-xl bg-slate-100 px-3 py-2 text-xs leading-relaxed text-slate-700">
-              {question.diagramText}
-            </p>
-          )}
-        </div>
+          ) : null
+          const textBlock = (
+            <div className="min-w-0 flex-1">
+              {question.sharedInstruction && (
+                <div className="mb-3 rounded-2xl border-2 border-slate-900 bg-orange-50 px-3 py-2 leading-relaxed text-slate-900">
+                  <RichContent value={question.sharedInstruction} className="text-sm leading-relaxed" />
+                </div>
+              )}
+              <div className="flex items-start gap-2">
+                <RichContent value={question.text} className="question-text flex-1" />
+                <TextToSpeechButton
+                  id={`q:${question.id}`}
+                  label="question"
+                  getText={() => questionToReadAloudText(question)}
+                  tts={readAloud}
+                  className="mt-0.5 shrink-0"
+                />
+              </div>
+              {question.diagramText && (
+                <p className="mt-2 rounded-xl bg-slate-100 px-3 py-2 text-xs leading-relaxed text-slate-700">
+                  {question.diagramText}
+                </p>
+              )}
+            </div>
+          )
+          if (!imageBlock || !pos || pos === 'above' || pos === 'inline') {
+            return (
+              <>
+                {imageBlock}
+                <ExtraQuestionImages question={question} zoomable={false} />
+                {textBlock}
+              </>
+            )
+          }
+          const wrapClasses = pos === 'below'
+            ? 'flex flex-col-reverse gap-3'
+            : pos === 'left'
+              ? 'flex flex-col gap-3 sm:flex-row sm:items-start'
+              : 'flex flex-col gap-3 sm:flex-row-reverse sm:items-start'
+          return (
+            <>
+              <div className={wrapClasses} data-image-position={pos}>
+                {imageBlock}
+                {textBlock}
+              </div>
+              <ExtraQuestionImages question={question} zoomable={false} />
+            </>
+          )
+        })()}
 
         {/* Answer input */}
         {isHotspotType(question.type) ? (

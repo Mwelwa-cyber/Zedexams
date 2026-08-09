@@ -43,6 +43,10 @@ export function emptyQuestion(overrides = {}) {
     imageAlt: '',
     // Width preset for an inserted image ('small' | 'medium' | 'large' | 'full').
     imageWidth: 'full',
+    // Where the image sits relative to the question text ('below' | 'left' |
+    // 'right' | 'inline'); null = 'above', the pre-field default. Rendered by
+    // the learner runner and the editor preview.
+    imagePosition: null,
     imageUploading: false,
     imageUploadStep: '',
     imageAssetId: '',
@@ -878,6 +882,17 @@ function hydrateOptionMedia(rawMedia) {
   })
 }
 
+// The saved image-position choice ('below' | 'left' | 'right' | 'inline';
+// null = above). Hydrate uses explicit field lists, so before this helper
+// existed the choice was silently DROPPED on reopen — the dropdown reset to
+// "above" and the next save wrote null, un-setting what the admin picked.
+const IMAGE_POSITIONS = new Set(['above', 'below', 'left', 'right', 'inline'])
+function hydrateImagePosition(raw) {
+  // 'above' is stored as null (the editor writes null for the default).
+  if (raw == null || raw === 'above') return null
+  return IMAGE_POSITIONS.has(raw) ? raw : null
+}
+
 // Where a question's/passage's printed figure sits on the uploaded source
 // paper ({ sourcePage, box }) — importer-written, read back on hydrate so
 // "Crop from page" still opens on the right page with the AI-detected box
@@ -969,6 +984,7 @@ function hydrateStandaloneQuestion(question = {}) {
     imageAssetId: question.imageAssetId ?? '',
     imageAlt: question.imageAlt ? String(question.imageAlt).trim() : '',
     imageWidth: question.imageWidth ?? 'full',
+    imagePosition: hydrateImagePosition(question.imagePosition),
     diagramText: question.diagramText ?? '',
     imageDiagram: question.imageDiagram && question.imageDiagram.libraryKey
       ? { libraryKey: String(question.imageDiagram.libraryKey), params: question.imageDiagram.params || {} }
@@ -1101,6 +1117,7 @@ function hydratePassageQuestion(question = {}, passageId, partId = null) {
     imageUrl: question.imageUrl ?? '',
     imageAlt: question.imageAlt ? String(question.imageAlt).trim() : '',
     imageWidth: question.imageWidth ?? 'full',
+    imagePosition: hydrateImagePosition(question.imagePosition),
     imageDiagram: question.imageDiagram && question.imageDiagram.libraryKey
       ? { libraryKey: String(question.imageDiagram.libraryKey), params: question.imageDiagram.params || {} }
       : null,
