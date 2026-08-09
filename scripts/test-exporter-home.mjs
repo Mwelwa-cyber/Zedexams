@@ -87,6 +87,8 @@ const RELOCATED = [
   'flashcardsToDocx.js', 'flashcardsToPdf.js',
   // Wave 4, with the scheme-of-work studio (#2215).
   'schemeOfWorkToDocx.js', 'schemeOfWorkToPdf.js',
+  // Wave 4, with the weekly-forecast studio.
+  'weeklyForecastToDocx.js',
 ];
 
 /**
@@ -99,7 +101,6 @@ const STILL_IN_UTILS = new Map([
   ['quizToDocx.js', 'quizzes — frozen, same reason'],
   ['lessonPlanToDocx.js', 'lesson-plan studio — Wave 4'],
   ['lessonPlanToPdf.js', 'lesson-plan studio — Wave 4'],
-  ['weeklyForecastToDocx.js', 'weekly forecast — Wave 4'],
   ['sbaTaskToDocx.js', 'SBA family — Wave 4'],
   ['sbaTaskToPdf.js', 'SBA family — Wave 4'],
   ['sbaTrackerToDocx.js', 'SBA family — Wave 4'],

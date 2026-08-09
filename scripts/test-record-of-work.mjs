@@ -17,7 +17,7 @@ import {
   printedRemark,
   coverageSummary,
 } from '../src/utils/recordOfWork.js'
-import { normalizeSchemeWeek } from '../src/utils/weeklyForecast.js'
+import { normalizeSchemeWeek } from '../src/shared/utils/weeklyForecast.js'
 
 let pass = 0
 let fail = 0

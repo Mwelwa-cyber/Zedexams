@@ -13,7 +13,7 @@
  * mirroring LessonPlanOfficialTable / SchemeOfWorkOfficialTable.
  */
 
-import { forecastColumns, forecastCurriculum, curriculumLabel } from '../../../utils/schemeFormat'
+import { forecastColumns, forecastCurriculum, curriculumLabel } from '../../../shared/utils/schemeFormat'
 
 const DOC_FONT = { fontFamily: "Georgia, 'Times New Roman', serif" }
 const TD = 'border border-black p-1.5 align-top text-left'

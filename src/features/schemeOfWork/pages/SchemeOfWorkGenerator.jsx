@@ -61,7 +61,7 @@ import {
 } from '../lib/schemeTermPlan'
 import { matchFrameworkSubject, periodsPerWeekLabel } from '../../../utils/frameworkSubjectMatch'
 import { evaluate as evaluateReadiness } from '../lib/schemeReadiness'
-import { normalizeCurriculum, curriculumLabel } from '../../../utils/schemeFormat'
+import { normalizeCurriculum, curriculumLabel } from '../../../shared/utils/schemeFormat'
 import { stampEditHistory } from '../../../utils/schemeEditHistory'
 import { useSubjectTopics } from '../../../components/teacher/studio/hooks/useSubjectTopics'
 import SchemeTermPreview from '../components/SchemeTermPreview'
