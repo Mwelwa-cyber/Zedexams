@@ -61,24 +61,49 @@ const resolveModule = (base) =>
  */
 const MOUNT = /import\(\s*['"](\.[^'"]+)['"]\s*\)(?:\s*\.then\(\s*\(?\s*(\w+)\s*\)?\s*=>\s*\(\{\s*default:\s*\2\.(\w+)\s*\}\)\s*\))?/g;
 
-const hasDefaultExport = (code) =>
-  /export\s+default\b/.test(code) || /export\s*\{[^}]*\bdefault\b[^}]*\}/.test(code);
+/**
+ * The names an `export { … }` list actually EXPORTS.
+ *
+ * The exported name is the one after `as`, and reading the list any less
+ * carefully inverts the answer on the shape this repo uses most:
+ * `export { default as VisualStudioPage } from './pages/VisualStudioPage'`
+ * exports `VisualStudioPage` and NOT a default. A `\bdefault\b` anywhere
+ * inside the braces reports the opposite — so dropping the
+ * `.then(m => ({ default: m.VisualStudioPage }))` adapter from that route
+ * would have left this guard green while `React.lazy` threw on the page.
+ * (Codex, #2210.) The symmetric error is real too: `export { Foo as Bar }`
+ * does not export `Foo`.
+ */
+function exportedNames(code) {
+  const names = new Set();
+  for (const list of code.matchAll(/export\s*\{([^}]*)\}/g)) {
+    for (const specifier of list[1].split(',')) {
+      const parts = specifier.trim().split(/\s+as\s+/);
+      const exported = (parts.length > 1 ? parts[parts.length - 1] : parts[0]).trim();
+      if (exported) names.add(exported);
+    }
+  }
+  return names;
+}
+
+const hasDefaultExport = (code) => /export\s+default\b/.test(code) || exportedNames(code).has('default');
 
 /**
  * Is `name` exported by this module, directly or by re-export?
  *
- * One level of `export { Name } from '…'` / `export * from '…'` is followed,
- * because a feature's `pages/` module legitimately re-exports from a sibling.
- * Deeper chains are not followed: the point is to catch a rename, and a name
- * that survives two hops of re-export has not been renamed.
+ * One level of `export * from '…'` is followed, because a feature's `pages/`
+ * module legitimately re-exports from a sibling. Deeper chains are not
+ * followed: the point is to catch a rename, and a name that survives two hops
+ * of re-export has not been renamed. A named re-export (`export { X } from
+ * '…'`) needs no walk at all — it exports `X` whether or not the target
+ * resolves.
  */
 function hasNamedExport(file, name, depth = 0) {
   const code = readFileSync(file, 'utf8');
   if (new RegExp(`export\\s+(?:async\\s+)?(?:const|let|var|function|class)\\s+${name}\\b`).test(code)) return true;
-  if (new RegExp(`export\\s*\\{[^}]*\\b${name}\\b[^}]*\\}(?!\\s*from)`).test(code)) return true;
-  if (new RegExp(`export\\s*\\{[^}]*\\bas\\s+${name}\\b`).test(code)) return true;
+  if (exportedNames(code).has(name)) return true;
   if (depth > 0) return false;
-  for (const match of code.matchAll(/export\s*(?:\{[^}]*\}|\*)\s*from\s*['"](\.[^'"]+)['"]/g)) {
+  for (const match of code.matchAll(/export\s*\*\s*from\s*['"](\.[^'"]+)['"]/g)) {
     const target = resolveModule(resolve(dirname(file), match[1]));
     if (target && hasNamedExport(target, name, depth + 1)) return true;
   }
