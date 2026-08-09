@@ -90,10 +90,12 @@ test('no frozen field has moved without the manifest moving with it', () => {
     if (m.kind !== e.kind) drifts.push(`${e.name}: kind ${m.kind} → ${e.kind}`)
     if (m.inline !== e.inline) drifts.push(`${e.name}: inline ${m.inline} → ${e.inline}`)
     if ((m.target ?? null) !== (e.target ?? null)) drifts.push(`${e.name}: target changed`)
-    // Options here are index.js's, so this compares them only where index.js
-    // DECLARES them. A delegated export's options live in its module and are
-    // compared by the followed-delegation test below, against the module.
-    if (!e.inline) continue
+    // Options here are index.js's, so this compares them wherever index.js
+    // DECLARES them — every builder kind, inline body or not. (Keying this on
+    // `inline` unguarded every extracted handler's region the moment its body
+    // moved out; found by control on batch 1a.) A delegated/factory export's
+    // options live elsewhere and are compared by the tests below.
+    if (e.kind === 'delegated' || e.kind === 'factory') continue
     const keys = new Set([...Object.keys(m.options), ...Object.keys(e.options)])
     for (const k of keys) {
       if ((m.options[k] ?? null) !== (e.options[k] ?? null)) {
@@ -199,6 +201,24 @@ test('a DELEGATED export\'s options are frozen where they actually live', () => 
   }
   assert.deepEqual(drifts, [],
     `a delegated export's wrapper drifted in its own module:\n    ${drifts.join('\n    ')}`)
+})
+
+test('an EXTRACTED handler keeps its options guarded in index.js', () => {
+  // Batch 1a's shape — body moves to a module, builder and options stay here —
+  // only preserves the frozen surface if the guard still reads those options.
+  // A control caught it not doing so: the seven passkey callables went
+  // `inline: false` and dropped out of the comparison entirely. This pins the
+  // property directly: a non-inline BUILDER still declares options here, and
+  // the manifest must record where they came from.
+  const extracted = live.filter((e) => !e.inline && e.kind !== 'delegated' && e.kind !== 'factory')
+  for (const e of extracted) {
+    const m = manifest[e.name]
+    assert.ok(m, `${e.name} manifested`)
+    assert.equal(m.optionsFrom, 'index.js',
+      `${e.name} is a builder in index.js — its options must be recorded as coming from here, not ${m.optionsFrom}`)
+    assert.ok(Object.keys(m.options).length > 0 || Object.keys(e.options).length === 0,
+      `${e.name} declares options in index.js that the manifest did not record`)
+  }
 })
 
 test('the follower refuses a specifier that escapes functions/', () => {

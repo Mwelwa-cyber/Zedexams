@@ -977,7 +977,7 @@
         "memory": "\"256MiB\"",
         "enforceAppCheck": "shouldEnforceAppCheck(\"generatePasskeyAuthenticationOptions\")"
       },
-      "optionsFrom": null,
+      "optionsFrom": "index.js",
       "optionsUnresolved": null,
       "target": null,
       "rewritePath": null,
@@ -1006,7 +1006,7 @@
         "memory": "\"256MiB\"",
         "enforceAppCheck": "shouldEnforceAppCheck(\"generatePasskeyRegistrationOptions\")"
       },
-      "optionsFrom": null,
+      "optionsFrom": "index.js",
       "optionsUnresolved": null,
       "target": null,
       "rewritePath": null,
@@ -1495,7 +1495,7 @@
         "memory": "\"256MiB\"",
         "enforceAppCheck": "shouldEnforceAppCheck(\"listUserPasskeys\")"
       },
-      "optionsFrom": null,
+      "optionsFrom": "index.js",
       "optionsUnresolved": null,
       "target": null,
       "rewritePath": null,
@@ -1987,7 +1987,7 @@
         "memory": "\"256MiB\"",
         "enforceAppCheck": "shouldEnforceAppCheck(\"removeUserPasskey\")"
       },
-      "optionsFrom": null,
+      "optionsFrom": "index.js",
       "optionsUnresolved": null,
       "target": null,
       "rewritePath": null,
@@ -2004,7 +2004,7 @@
         "memory": "\"256MiB\"",
         "enforceAppCheck": "shouldEnforceAppCheck(\"renameUserPasskey\")"
       },
-      "optionsFrom": null,
+      "optionsFrom": "index.js",
       "optionsUnresolved": null,
       "target": null,
       "rewritePath": null,
@@ -2568,7 +2568,7 @@
         "memory": "\"256MiB\"",
         "enforceAppCheck": "shouldEnforceAppCheck(\"verifyPasskeyAuthentication\")"
       },
-      "optionsFrom": null,
+      "optionsFrom": "index.js",
       "optionsUnresolved": null,
       "target": null,
       "rewritePath": null,
@@ -2597,7 +2597,7 @@
         "memory": "\"256MiB\"",
         "enforceAppCheck": "shouldEnforceAppCheck(\"verifyPasskeyRegistration\")"
       },
-      "optionsFrom": null,
+      "optionsFrom": "index.js",
       "optionsUnresolved": null,
       "target": null,
       "rewritePath": null,

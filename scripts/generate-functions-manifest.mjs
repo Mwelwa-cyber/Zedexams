@@ -62,7 +62,13 @@ for (const e of entries.sort((a, b) => a.name.localeCompare(b.name))) {
   // the guard freezes 201 surfaces rather than the 44 declared in index.js
   // (Codex P1 on #2194). Unfollowable ones say so; they never read as empty.
   let options = e.options
-  let optionsFrom = e.inline ? 'index.js' : null
+  // A BUILDER (onCall/onRequest/onDocument*/onSchedule/authTrigger) declares
+  // its options in index.js whether or not its body is still inline — which
+  // is precisely the extraction shape batch 1a uses. Keying this on `inline`
+  // meant an extracted handler's region became unguarded the moment its body
+  // moved: the guard stopped watching exactly what the shape was designed to
+  // keep watchable.
+  let optionsFrom = e.kind === 'delegated' || e.kind === 'factory' ? null : 'index.js'
   let optionsUnresolved = null
   if (e.kind === 'delegated' && e.target) {
     const followed = followDelegation(e.target, indexSource, readFunctionsModule)
