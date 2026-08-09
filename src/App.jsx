@@ -197,7 +197,7 @@ const AgentsHome      = lazy(() => import('./components/admin/agents/AgentsHome'
 const AgentsAllJobs   = lazy(() => import('./components/admin/agents/AgentsHome').then(m => ({ default: m.AgentsAllJobs })))
 const AgentProfile    = lazy(() => import('./components/admin/agents/AgentsHome').then(m => ({ default: m.AgentProfile })))
 const AgentJobDetail  = lazy(() => import('./components/admin/agents/AgentJobDetail'))
-const CompanyHQ       = lazy(() => import('./components/admin/company/CompanyHQ').then(m => ({ default: m.CompanyHQ })))
+const CompanyHQ       = lazy(() => import('./features/companyHQ/pages/CompanyHQ').then(m => ({ default: m.CompanyHQ })))
 
 // Internal UI audit page at /dev/ui — see the route comment below.
 const UiAuditPage     = lazy(() => import('./components/dev/uiAudit/UiAuditPage'))

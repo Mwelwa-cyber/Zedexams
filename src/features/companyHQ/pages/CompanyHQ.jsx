@@ -15,7 +15,7 @@ import {
   fmtRunway,
   DEFAULT_ZMW_PER_USD,
   DEFAULT_REINVEST_RATIO,
-} from '../../../utils/treasury'
+} from '../lib/treasury'
 import {
   DEPARTMENTS,
   AGENTS,
@@ -24,7 +24,7 @@ import {
   agentsByDept,
   getAgent,
   seedAgentActivity,
-} from '../../../utils/companyOrg'
+} from '../lib/companyOrg'
 import {
   Bot,
   Sparkles,
@@ -38,7 +38,7 @@ import {
   AlertTriangle,
   CheckCircleIcon,
   Users,
-} from '../../ui/icons'
+} from '../../../components/ui/icons'
 
 // ── tone lookups ───────────────────────────────────────────────────────────
 const ACCENT = {

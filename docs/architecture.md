@@ -1331,6 +1331,10 @@ The order was settled 2026-08-07 as **smallest and lowest-risk first**, ranked o
 - **`npm run test:exporter-home` is the ratchet.** Relocated exporters must be in the engine and NOT in utils (a copy-back means two exporters for one document, and which teacher gets which output depends on what a caller imported). The 27 still in `src/utils/` are a shrink-only list, each naming the feature that will bring it across — so a NEW exporter written next to the old ones fails, and the remaining work is countable.
 - Rubric's studio is retired and Worksheet's is flag-withdrawn; their exporters moved anyway, because saved artifacts stay readable and exportable whether or not the tool that made them is still offered.
 
+**Wave 3 (admin) — `companyHQ`.** Marshal's fleet-health dashboard at `/admin/company`, plus the two `src/utils/` modules that were private to it: `companyOrg.js` (one importer) and `treasury.js` (one importer plus its own spec). `aiCosts.js` stayed put — it is shared with `/admin/ai-costs` and the settings control centre, so moving it would pull two other admin surfaces into this feature's internals to tidy one page's imports.
+
+Its `index.js` exports nothing, for the same reason `templateBank`'s does: the page is reached only through a route mount, and the two libs had no consumer outside it. The page reads Firestore directly, which §14.2 says should go through `services/`; that is left as-is under the standing Phase 4 policy that a migration is a pure move, and recorded on the front door rather than silently tolerated.
+
 **Review debt — the eight Wave 1/2 pull requests merged UNREVIEWED, and the order to sweep them in.** Codex reported "usage limits reached" on every one of #2169, #2170, #2172, #2173, #2176, #2177, #2178 and #2179, so each merged on CI plus the author's own checks and nothing else. That is recorded here rather than in a PR comment because a PR nobody is looking at is exactly where this fact would stop being visible.
 
 When quota returns, sweep them in **blast-radius order, not merge order** — the question is how much OTHER work each change silently governs:
