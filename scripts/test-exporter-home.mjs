@@ -91,6 +91,8 @@ const RELOCATED = [
   'weeklyForecastToDocx.js',
   // Wave 4, with the SBA studios.
   'sbaTaskToDocx.js', 'sbaTaskToPdf.js', 'sbaTrackerToDocx.js', 'sbaTrackerToXlsx.js', 'sbaPlannerToDocx.js',
+  // Wave 4, with the class-timetable studio.
+  'classTimetableToDocx.js', 'classTimetableToPdf.js', 'classTimetableToXlsx.js',
 ];
 
 /**
@@ -103,9 +105,6 @@ const STILL_IN_UTILS = new Map([
   ['quizToDocx.js', 'quizzes — frozen, same reason'],
   ['lessonPlanToDocx.js', 'lesson-plan studio — Wave 4'],
   ['lessonPlanToPdf.js', 'lesson-plan studio — Wave 4'],
-  ['classTimetableToDocx.js', 'class timetable — Wave 4'],
-  ['classTimetableToPdf.js', 'class timetable — Wave 4'],
-  ['classTimetableToXlsx.js', 'class timetable — Wave 4'],
   ['markScheduleToDocx.js', 'mark schedule — Wave 4'],
   ['markScheduleToXlsx.js', 'mark schedule — Wave 4'],
   ['recordOfWorkToDocx.js', 'record of work — Wave 4'],

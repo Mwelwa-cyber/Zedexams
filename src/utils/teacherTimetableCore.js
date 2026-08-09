@@ -3,7 +3,7 @@
 // The Settings timetable (/settings/timetable) is the logged-in teacher's
 // PERSONAL teaching schedule: what they teach, when, and how it covers their
 // Teaching Assignments. It is deliberately NOT a second Class Timetable Studio
-// — the studio (src/components/teacher/generate/ClassTimetableStudio.jsx)
+// — the studio (src/features/classTimetable/pages/ClassTimetableStudio.jsx)
 // remains authoritative for a class's full schedule; this model only mirrors
 // the blocks that belong to this teacher, plus manual personal periods.
 //

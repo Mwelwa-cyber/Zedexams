@@ -21,7 +21,7 @@ import {
   getSchoolDayTemplate,
   DEFAULT_DAYS,
   DEFAULT_DISPLAY_PREFERENCES,
-} from '../../../utils/classTimetable'
+} from '../../../shared/utils/classTimetable'
 
 const HEADER = {
   school: 'Dudzai Primary School',

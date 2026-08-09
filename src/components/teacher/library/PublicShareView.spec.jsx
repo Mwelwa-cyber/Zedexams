@@ -77,8 +77,8 @@ vi.mock('../views/MarkScheduleView', () => ({
   default: () => <div data-testid="mark-schedule-view" />,
 }))
 
-vi.mock('../views/ClassTimetableView', () => ({
-  default: () => <div data-testid="class-timetable-view" />,
+vi.mock('../../../features/classTimetable', () => ({
+  ClassTimetableView: () => <div data-testid="class-timetable-view" />,
 }))
 
 // AssessmentPaperView: renders secret answer content ONLY when showAnswers is true.

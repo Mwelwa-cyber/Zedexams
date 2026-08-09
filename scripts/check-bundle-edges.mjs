@@ -141,19 +141,34 @@ const ACKNOWLEDGED = new Map([
   // countable and so the two pages that do NOT carry it — the entry chunk and
   // the /teachers marketing page — still fail if they ever join.
   //
-  // Both entries name `sba` AND `SbaTaskView`, which is not redundancy: since
-  // the SBA migration the pages import the view THROUGH the feature's front
-  // door, and Rollup emits both a front-door chunk and a chunk for the view
-  // itself, giving the page an edge to each. The weight behind them is one
-  // component either way. Naming both is what keeps the record a statement
-  // about the page's actual reach rather than about one spelling of it.
+  // Both entries name several front doors AND `SbaTaskView`, which is not
+  // redundancy: since the SBA migration the pages import the view THROUGH a
+  // feature's front door, and Rollup emits both a front-door chunk and a chunk
+  // for the view itself, giving the page an edge to each. The weight behind
+  // them is one component either way. Naming each is what keeps the record a
+  // statement about the page's actual reach rather than about one spelling of
+  // it.
+  //
+  // `classTimetable` joined both entries with the class-timetable migration,
+  // and it is a good illustration of why `via` is a list rather than a chain.
+  // That feature's front door is tiny — one presentational view — but Rollup
+  // grouped it into the same chunk as the `sba` front door, which is how the
+  // SBA renderer is reached. So the page/vendor pair did not change, the WEIGHT
+  // did not change (measured: 576 chunks before and after, the same heavy
+  // vendors reachable from each of the four light pages, +52 bytes on these two
+  // — the length of the new import path strings), and yet the chunk carrying
+  // the acknowledged dependency was renamed. On PublicShareView the `sba` edge
+  // was absorbed entirely and had to be deleted; on LockedStudio it survived
+  // alongside. A chunk carries many modules, so an entry here names the
+  // dependencies of the page, and the emitted graph decides which chunk answers
+  // for them.
   ['PublicShareView → buildExtensions', {
-    why: 'the saved-document renderers it mounts reach the editor schema to draw saved rich text; `sba` is that feature\'s front door, which is how SbaTaskView is reached since the SBA migration',
-    via: ['AssessmentPaperView', 'sba', 'SbaTaskView'],
+    why: 'the saved-document renderers it mounts reach the editor schema to draw saved rich text; `classTimetable` is the front-door chunk that now carries the SBA front door, which is how SbaTaskView is reached since the SBA migration',
+    via: ['AssessmentPaperView', 'classTimetable', 'SbaTaskView'],
   }],
   ['LockedStudio → buildExtensions', {
-    why: 'the specimen SBA task it renders reaches the same schema, for the same reason, through the sba front door',
-    via: ['sba', 'SbaTaskView'],
+    why: 'the specimen SBA task it renders reaches the same schema, for the same reason, through the sba front door and the classTimetable chunk grouped with it',
+    via: ['sba', 'classTimetable', 'SbaTaskView'],
   }],
 ]);
 

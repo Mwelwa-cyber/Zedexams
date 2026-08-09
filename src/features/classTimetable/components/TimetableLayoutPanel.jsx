@@ -8,9 +8,9 @@
  * Ministry format a head of school signs — put days down the left on paper.
  */
 
-import { TIMETABLE_LAYOUTS, PERIOD_LABEL_MODES } from '../../../../utils/classTimetable'
-import { PRINT_TEMPLATES, CELL_TEXT_MODES } from '../../../../utils/timetablePrintTemplates'
-import { FieldWrapper } from '../studioFields'
+import { TIMETABLE_LAYOUTS, PERIOD_LABEL_MODES } from '../../../shared/utils/classTimetable'
+import { PRINT_TEMPLATES, CELL_TEXT_MODES } from '../../../shared/utils/timetablePrintTemplates'
+import { FieldWrapper } from '../../../components/teacher/generate/studioFields'
 
 function LayoutChoice({ id, label, on, onSelect }) {
   return (

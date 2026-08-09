@@ -16,12 +16,12 @@ import {
   Settings, LayoutGrid, Download, Check, Lock, Unlock,
   Scissors, Plus, AlertTriangle, Eye, Users,
 } from 'lucide-react'
-import Chip from '../../../ui/Chip'
-import ActionMenu from '../../../ui/ActionMenu'
-import DraftStatusIndicator from '../../../draft/DraftStatusIndicator'
+import Chip from '../../../components/ui/Chip'
+import ActionMenu from '../../../components/ui/ActionMenu'
+import DraftStatusIndicator from '../../../components/draft/DraftStatusIndicator'
 import WorkspaceDrawer from './WorkspaceDrawer'
-import { BLOCK_TYPES, blockAt, canJoin } from '../../../../utils/timetableBlocks'
-import { resolveDayCell, displayLabelFor } from '../../../../utils/timetableGridModel'
+import { BLOCK_TYPES, blockAt, canJoin } from '../../../shared/utils/timetableBlocks'
+import { resolveDayCell, displayLabelFor } from '../../../shared/utils/timetableGridModel'
 
 export default function TimetableWorkspace({
   classLabel,

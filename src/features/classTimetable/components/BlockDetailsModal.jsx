@@ -18,7 +18,7 @@
  */
 
 import { useEffect, useState } from 'react'
-import { SHARED_FACILITIES } from '../../../utils/timetableConflictEngine'
+import { SHARED_FACILITIES } from '../lib/timetableConflictEngine'
 import { assignmentLabel } from '../../../utils/teachingProfileCore'
 
 export default function BlockDetailsModal({

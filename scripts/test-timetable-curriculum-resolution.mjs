@@ -28,7 +28,7 @@ import {
 import {
   curriculumSubjectsForGrade,
   resolveAllocationReadiness,
-} from '../src/utils/classTimetable.js'
+} from '../src/shared/utils/classTimetable.js'
 import {
   gradeStructureFor,
   gradeOptionsForCurriculum,

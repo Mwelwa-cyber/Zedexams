@@ -5,12 +5,12 @@
  * Excel document, or a photo of one written on paper — instead of building
  * it from scratch. The file is read (Gemini via Firebase AI Logic) into the
  * studio's editable grid, where the teacher corrects it and the curriculum
- * check confirms it matches the grade. See src/utils/timetableExtraction.js.
+ * check confirms it matches the grade. See src/features/classTimetable/services/timetableExtraction.js.
  */
 
 import { useRef, useState } from 'react'
-import { UPLOAD_ACCEPT, extractTimetableFromFile } from '../../../utils/timetableExtraction'
-import { useToast } from '../../ui/Toast'
+import { UPLOAD_ACCEPT, extractTimetableFromFile } from '../services/timetableExtraction'
+import { useToast } from '../../../components/ui/Toast'
 
 const gradeDigits = (g) => String(g || '').match(/\d+/)?.[0] || ''
 
