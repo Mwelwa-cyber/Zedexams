@@ -28,11 +28,11 @@
  * only by `lazy(() => import('…/pages/NotesStudio'))` in the two route tables,
  * under the route-mount exception Phase 1 recorded.
  *
- * The exporters live in `src/engines/export-engine/` (#2200), and this front door does not re-export them (#2172, #2173, #2177, #2178): behind a
- * feature index a docx exporter makes Rollup group the view into its chunk, and
- * that chunk statically imports a 382 kB `docx-vendor` that two of the three
- * consumers above have no use for. That move happened in #2200 and this file did not
- * change when it did, which is the point of a front door. `npm run check:bundle-edges` enforces it.
+ * The exporters live in `src/engines/export-engine/` and this front door does
+ * not re-export them: behind a feature index a docx exporter makes Rollup group
+ * the view into its chunk, and that chunk statically imports a 382 kB
+ * `docx-vendor` that two of the three consumers above have no use for.
+ * `check:bundle-edges` and `test:exporter-home` enforce it.
  */
 
 export { default as NotesView } from './components/NotesView'

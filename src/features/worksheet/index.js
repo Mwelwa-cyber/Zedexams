@@ -26,12 +26,11 @@
  * reached only by `lazy(() => import('…/pages/WorksheetGenerator'))` in the two
  * route tables, under the route-mount exception Phase 1 recorded.
  *
- * The exporters live in `src/engines/export-engine/` (#2200), and this front door does not re-export them (#2172, #2173, #2177): behind a feature
- * index a docx exporter makes Rollup group the view into its chunk, and that
- * chunk statically imports a 382 kB `docx-vendor`. Three of the four consumers
- * above export nothing and would have downloaded a Word runtime to draw a
- * worksheet. That move happened in #2200, and this file did not change when it
- * did, which is the point of a front door.
+ * The exporters live in `src/engines/export-engine/` and this front door does
+ * not re-export them: behind a feature index a docx exporter makes Rollup group
+ * the view into its chunk, and that chunk statically imports a 382 kB
+ * `docx-vendor`. Three of the four consumers above export nothing and would
+ * have downloaded a Word runtime to draw a worksheet.
  *
  * This is no longer a rule anyone has to remember: `npm run check:bundle-edges`
  * runs in the required "Build + mobile smoke" job and fails if any declared

@@ -26,45 +26,33 @@
  * the AI operation lock — behind the front door, all of that would land in the
  * chunk of a library page that wanted one 130-line view.
  *
- * ── Why the exporters did NOT come with it ──────────────────────────────
+ * ── Why the exporters are not on this front door ───────────────────────
  *
- * `rubricToDocx.js` / `rubricToPdf.js` live in `src/engines/export-engine/`
- * (#2200), and this index does not re-export them. That departs from the flashcards precedent
- * (Phase 2 moved its exporters into `export/` and listed them here), so the
- * reason is recorded rather than left to be rediscovered:
+ * `rubricToDocx.js` / `rubricToPdf.js` live in `src/engines/export-engine/`,
+ * which is where §12's target map puts document exporters, and this index does
+ * not re-export them. That departs from the flashcards precedent — Phase 2
+ * moved its exporters into the feature and listed them here — so the reason is
+ * recorded rather than left to be rediscovered.
  *
- * Exporting them **measurably regressed the bundle**. All three names then
- * reach every consumer through one module, so Rollup grouped `RubricView` into
- * the same chunk as the exporters — and that chunk opens with a static
- * `import … from "./docx-vendor"`. The result: `PublicShareView` and
- * `LockedStudio`, which had **zero** docx edges and need only this 4 kB
- * presentational view, each gained a static edge to a **382 kB** vendor chunk.
- * One of them is the public, SEO-visible share page.
+ * Listing them measurably regressed the bundle. All three names then reach
+ * every consumer through one module, so Rollup grouped `RubricView` into the
+ * exporters' chunk, and that chunk opens with a static import of a 382 kB
+ * `docx-vendor`. `PublicShareView` and `LockedStudio` had ZERO docx edges and
+ * need only this 4 kB presentational view; each gained one. One of them is the
+ * public, SEO-visible share page.
  *
- * Nothing in lint or the test suites says a word about that; it was found by
- * the before/after build diff MIGRATION_TEMPLATE §4 prescribes, which is the
- * argument for doing that diff on every migration rather than when a change
- * "looks like it might move the bundle".
+ * Two things that cost a pull request each, worth keeping:
  *
- * §12's target map puts document exporters in `src/engines/export-engine/`
- * rather than inside a feature, so leaving them where they are is a pause on
- * the way to their real home, not a special case invented here. When the
- * export engine lands they move there, and this file does not change — which
- * is the point of a front door.
+ *   • Nothing in lint or either test suite says a word about this. It was found
+ *     by the before/after build diff MIGRATION_TEMPLATE §4 prescribes — the
+ *     argument for running that diff on every migration rather than when a
+ *     change "looks like it might move the bundle".
+ *   • Checking for a DIRECT edge is the wrong question. The flashcards front
+ *     door was declared clean that way and was not: the real path was three
+ *     hops, `PublicShareView → flashcards → flashcardsToPdf → docx-vendor`.
+ *     `npm run check:bundle-edges` walks the graph transitively for exactly
+ *     that reason, and `test:exporter-home` keeps the exporters where they are.
  *
- * A correction to what this comment said when it was written: the flashcards
- * front door, which has the same shape, was described here as NOT pulling docx
- * onto those pages. It does. The check that produced that claim looked for a
- * DIRECT edge, and the real path is three hops —
- * `PublicShareView → flashcards → flashcardsToPdf → docx-vendor`. The
- * measurement was in the pull request, a reviewer had it, and it was still
- * wrong, because the question asked ("does this chunk mention docx") was one
- * hop away from the question that matters ("does this page download docx").
- * That is why the rule is now a script — `npm run check:bundle-edges`, which
- * walks the graph transitively rather than looking for a direct edge. It found
- * a third page nobody had thought to check, `/teachers`, and #2177 then moved
- * the flashcards exporters back to `src/utils/` under this same rule, so its
- * recorded-violation list is empty and all four light pages are clean.
  */
 
 export { default as RubricView } from './components/RubricView'
