@@ -11,7 +11,7 @@
  * so plain node can unit-test the XML.
  */
 
-import { saveBlob } from './saveBlob.js'
+import { saveBlob } from '../../utils/saveBlob.js'
 
 const XML_HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
 

@@ -181,7 +181,7 @@ export const INVENTORY = Object.freeze([
     incompleteResultSaveable: true,
   }),
   g('functions/teacherTools/generateSbaTask.js', {
-    clientModule: 'src/components/teacher/generate/SbaTaskStudio.jsx',
+    clientModule: 'src/features/sba/pages/SbaTaskStudio.jsx',
     clientLockKey: 'sba-studio:generate',
     tier: 2,
     state: 'migrated',

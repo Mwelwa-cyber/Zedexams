@@ -25,7 +25,7 @@ import { buildNotesPrintableHtml } from '../engines/export-engine/notesToPdf.js'
 import { buildHomeworkPrintableHtml } from '../engines/export-engine/homeworkToPdf.js'
 import { buildFullLessonPrintableHtml } from './fullLessonToPdf.js'
 import { buildSchemeOfWorkPrintableHtml } from '../engines/export-engine/schemeOfWorkToPdf.js'
-import { buildSbaTaskPrintableHtml } from './sbaTaskToPdf.js'
+import { buildSbaTaskPrintableHtml } from '../engines/export-engine/sbaTaskToPdf.js'
 import { makePrintableHtmlChecks, XSS } from './printableHtmlChecks.js'
 
 // NOTE: the fixtures below are trimmed copies of the locked-studio sample

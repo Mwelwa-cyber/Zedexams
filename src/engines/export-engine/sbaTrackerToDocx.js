@@ -5,8 +5,8 @@
  * for verification and the figure entered on the ECZ OMES portal.
  */
 
-import { saveBlob } from './saveBlob.js'
-import { sanitizeXmlText } from './xmlText.js'
+import { saveBlob } from '../../utils/saveBlob.js'
+import { sanitizeXmlText } from '../../utils/xmlText.js'
 import {
   AlignmentType,
   BorderStyle,
@@ -21,8 +21,8 @@ import {
   TextRun,
   WidthType,
 } from 'docx'
-import { attributionSection } from './docxAttribution.js'
-import { convertSbaMark } from '../config/sba.js'
+import { attributionSection } from '../../utils/docxAttribution.js'
+import { convertSbaMark } from '../../config/sba.js'
 
 const BORDER = {
   top:    { style: BorderStyle.SINGLE, size: 4, color: '999999' },

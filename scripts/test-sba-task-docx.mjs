@@ -1,5 +1,5 @@
 /**
- * Unit tests for src/utils/sbaTaskToDocx.js — the SBA Word export now renders
+ * Unit tests for src/engines/export-engine/sbaTaskToDocx.js — the SBA Word export now renders
  * the task sheet through the shared paper-layout block renderer, with the
  * marking scheme appended only on the teacher copy.
  *
@@ -9,7 +9,7 @@
 
 import assert from 'node:assert/strict'
 import { Document } from 'docx'
-import { buildSbaTaskChildren, buildSbaTaskDocument } from '../src/utils/sbaTaskToDocx.js'
+import { buildSbaTaskChildren, buildSbaTaskDocument } from '../src/engines/export-engine/sbaTaskToDocx.js'
 
 let passed = 0
 async function test(name, fn) {

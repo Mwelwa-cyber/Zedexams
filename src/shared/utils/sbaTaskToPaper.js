@@ -14,7 +14,7 @@
  * Pure / side-effect free so it can be unit-tested with plain `node`.
  */
 
-import { SBA_GRADES, SBA_SUBJECTS } from '../config/sba.js'
+import { SBA_GRADES, SBA_SUBJECTS } from '../../config/sba.js'
 
 const GRADE_WORDS = {
   1: 'ONE', 2: 'TWO', 3: 'THREE', 4: 'FOUR', 5: 'FIVE', 6: 'SIX',
