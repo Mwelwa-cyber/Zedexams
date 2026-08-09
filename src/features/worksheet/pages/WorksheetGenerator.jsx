@@ -14,8 +14,8 @@ import {
   TOTAL_LESSONS_OPTIONS,
   LEARNING_ENVIRONMENT_OPTIONS,
 } from '../../../utils/teacherTools'
-import { downloadWorksheetDocx } from '../../../utils/worksheetToDocx'
-import { downloadWorksheetPdf } from '../../../utils/worksheetToPdf'
+import { downloadWorksheetDocx } from '../../../engines/export-engine/worksheetToDocx'
+import { downloadWorksheetPdf } from '../../../engines/export-engine/worksheetToPdf'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { checkDownload } from '../../../utils/downloadGuard'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'

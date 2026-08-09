@@ -3,8 +3,8 @@
  * matching the school-printed handout style head teachers expect.
  */
 
-import { saveBlob } from './saveBlob.js'
-import { sanitizeXmlText } from './xmlText.js'
+import { saveBlob } from '../../utils/saveBlob.js'
+import { sanitizeXmlText } from '../../utils/xmlText.js'
 import {
   AlignmentType,
   BorderStyle,
@@ -18,7 +18,7 @@ import {
   TextRun,
   WidthType,
 } from 'docx'
-import { attributionSection } from './docxAttribution.js'
+import { attributionSection } from '../../utils/docxAttribution.js'
 
 // Brand ink for the title rules + a fully-borderless cell, so the metadata
 // strip reads as plain "Label: value" lines (like a lesson plan header) rather

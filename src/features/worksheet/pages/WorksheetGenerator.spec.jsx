@@ -30,8 +30,8 @@ vi.mock('../../../utils/teacherTools', () => ({
 }))
 
 // Heavy exporters — never exercised here.
-vi.mock('../../../utils/worksheetToDocx', () => ({ downloadWorksheetDocx: vi.fn() }))
-vi.mock('../../../utils/worksheetToPdf', () => ({ downloadWorksheetPdf: vi.fn() }))
+vi.mock('../../../engines/export-engine/worksheetToDocx', () => ({ downloadWorksheetDocx: vi.fn() }))
+vi.mock('../../../engines/export-engine/worksheetToPdf', () => ({ downloadWorksheetPdf: vi.fn() }))
 
 // AuthContext + the generation gate stubbed to "allowed".
 vi.mock('../../../contexts/AuthContext', () => ({

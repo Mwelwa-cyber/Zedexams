@@ -60,11 +60,11 @@ async function loadModule(path) {
   }
 }
 
-const flashcardsMod = await loadModule('./flashcardsToDocx.js')
-const worksheetMod = await loadModule('./worksheetToDocx.js')
-const notesMod = await loadModule('./notesToDocx.js')
-const rubricMod = await loadModule('./rubricToDocx.js')
-const homeworkMod = await loadModule('./homeworkToDocx.js')
+const flashcardsMod = await loadModule('../engines/export-engine/flashcardsToDocx.js')
+const worksheetMod = await loadModule('../engines/export-engine/worksheetToDocx.js')
+const notesMod = await loadModule('../engines/export-engine/notesToDocx.js')
+const rubricMod = await loadModule('../engines/export-engine/rubricToDocx.js')
+const homeworkMod = await loadModule('../engines/export-engine/homeworkToDocx.js')
 const schemeMod = await loadModule('./schemeOfWorkToDocx.js')
 const sbaTaskMod = await loadModule('./sbaTaskToDocx.js')
 const sbaTrackerMod = await loadModule('./sbaTrackerToDocx.js')

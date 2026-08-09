@@ -6,8 +6,8 @@ import {
   RUBRIC_TOTAL_MARKS,
   RUBRIC_CRITERIA_COUNTS,
 } from '../../../utils/teacherTools'
-import { downloadRubricDocx } from '../../../utils/rubricToDocx'
-import { downloadRubricPdf } from '../../../utils/rubricToPdf'
+import { downloadRubricDocx } from '../../../engines/export-engine/rubricToDocx'
+import { downloadRubricPdf } from '../../../engines/export-engine/rubricToPdf'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import RubricView from '../components/RubricView'

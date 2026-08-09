@@ -16,10 +16,10 @@ import { unzipSync, strFromU8 } from 'fflate'
 import {
   hasToolMarkup, parseInlineMarkup, parseMarkupBlocks, markupToHtml,
 } from './toolNotationRender.js'
-import { buildWorksheetPrintableHtml } from './worksheetToPdf.js'
-import { buildWorksheetDocument } from './worksheetToDocx.js'
-import { buildHomeworkPrintableHtml } from './homeworkToPdf.js'
-import { buildHomeworkDocument } from './homeworkToDocx.js'
+import { buildWorksheetPrintableHtml } from '../engines/export-engine/worksheetToPdf.js'
+import { buildWorksheetDocument } from '../engines/export-engine/worksheetToDocx.js'
+import { buildHomeworkPrintableHtml } from '../engines/export-engine/homeworkToPdf.js'
+import { buildHomeworkDocument } from '../engines/export-engine/homeworkToDocx.js'
 
 let passed = 0
 function test(name, fn) {

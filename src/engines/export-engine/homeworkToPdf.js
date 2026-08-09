@@ -5,8 +5,8 @@
  * The pupil sheet (`includeAnswers: false`, the default) omits the answers so
  * a take-home copy doesn't ship the key.
  */
-import { makePdfExporter, escapeHtml as safe } from './htmlPdfExport.js'
-import { markupToHtml, TOOL_NOTATION_CSS } from './toolNotationRender.js'
+import { makePdfExporter, escapeHtml as safe } from '../../utils/htmlPdfExport.js'
+import { markupToHtml, TOOL_NOTATION_CSS } from '../../utils/toolNotationRender.js'
 
 const BRAND = '#059669'
 
