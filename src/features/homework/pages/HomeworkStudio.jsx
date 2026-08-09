@@ -7,8 +7,8 @@ import {
   LESSON_NUMBER_OPTIONS,
   LEARNING_ENVIRONMENT_OPTIONS,
 } from '../../../utils/teacherTools'
-import { downloadHomeworkDocx } from '../../../utils/homeworkToDocx'
-import { downloadHomeworkPdf } from '../../../utils/homeworkToPdf'
+import { downloadHomeworkDocx } from '../../../engines/export-engine/homeworkToDocx'
+import { downloadHomeworkPdf } from '../../../engines/export-engine/homeworkToPdf'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import { House } from 'lucide-react'

@@ -36,7 +36,7 @@ vi.mock('../../../utils/assessmentToDocx', () => ({
 // ── All other download utilities (not under test — stub as no-ops) ────────────
 vi.mock('../../../utils/lessonPlanToDocx',    () => ({ downloadLessonPlanDocx:    vi.fn(async () => {}) }))
 vi.mock('../../../utils/serverLibraryDownload',()=>({ downloadLibraryItemViaServer:vi.fn(async()=>false) }))
-vi.mock('../../../utils/worksheetToDocx',     () => ({ downloadWorksheetDocx:     vi.fn(async () => {}) }))
+vi.mock('../../../engines/export-engine/worksheetToDocx',     () => ({ downloadWorksheetDocx:     vi.fn(async () => {}) }))
 vi.mock('../../../utils/schemeOfWorkToDocx',  () => ({ downloadSchemeOfWorkDocx:  vi.fn(async () => {}) }))
 vi.mock('../../../utils/markScheduleToDocx',  () => ({ downloadMarkScheduleDocx:  vi.fn(async () => {}) }))
 vi.mock('../../../utils/markScheduleToXlsx',  () => ({ downloadMarkScheduleXlsx:  vi.fn(async () => {}) }))
@@ -48,15 +48,15 @@ vi.mock('../../../utils/classTimetableToDocx',() => ({ downloadClassTimetableDoc
 vi.mock('../../../utils/classTimetableToXlsx',() => ({ downloadClassTimetableXlsx:vi.fn(async () => {}) }))
 vi.mock('../../../utils/classTimetableToPdf', () => ({ downloadClassTimetablePdf: vi.fn(async () => {}) }))
 vi.mock('../../../utils/lessonPlanToPdf',     () => ({ downloadLessonPlanPdf:     vi.fn(async () => {}) }))
-vi.mock('../../../utils/rubricToPdf',         () => ({ downloadRubricPdf:         vi.fn(async () => {}) }))
-vi.mock('../../../utils/notesToPdf',          () => ({ downloadNotesPdf:          vi.fn(async () => {}) }))
-vi.mock('../../../utils/homeworkToPdf',       () => ({ downloadHomeworkPdf:       vi.fn(async () => {}) }))
+vi.mock('../../../engines/export-engine/rubricToPdf',         () => ({ downloadRubricPdf:         vi.fn(async () => {}) }))
+vi.mock('../../../engines/export-engine/notesToPdf',          () => ({ downloadNotesPdf:          vi.fn(async () => {}) }))
+vi.mock('../../../engines/export-engine/homeworkToPdf',       () => ({ downloadHomeworkPdf:       vi.fn(async () => {}) }))
 vi.mock('../../../utils/fullLessonToPdf',     () => ({ downloadFullLessonPdf:     vi.fn(async () => {}) }))
 vi.mock('../../../utils/schemeOfWorkToPdf',   () => ({ downloadSchemeOfWorkPdf:   vi.fn(async () => {}) }))
 vi.mock('../../../utils/sbaTaskToPdf',        () => ({ downloadSbaTaskPdf:        vi.fn(async () => {}) }))
-vi.mock('../../../utils/rubricToDocx',        () => ({ downloadRubricDocx:        vi.fn(async () => {}) }))
-vi.mock('../../../utils/notesToDocx',         () => ({ downloadNotesDocx:         vi.fn(async () => {}) }))
-vi.mock('../../../utils/homeworkToDocx',      () => ({ downloadHomeworkDocx:      vi.fn(async () => {}) }))
+vi.mock('../../../engines/export-engine/rubricToDocx',        () => ({ downloadRubricDocx:        vi.fn(async () => {}) }))
+vi.mock('../../../engines/export-engine/notesToDocx',         () => ({ downloadNotesDocx:         vi.fn(async () => {}) }))
+vi.mock('../../../engines/export-engine/homeworkToDocx',      () => ({ downloadHomeworkDocx:      vi.fn(async () => {}) }))
 vi.mock('../../../utils/sbaTaskToDocx',       () => ({ downloadSbaTaskDocx:       vi.fn(async () => {}) }))
 vi.mock('../../../utils/sbaTrackerToDocx',    () => ({ downloadSbaTrackerDocx:    vi.fn(async () => {}) }))
 vi.mock('../../../utils/sbaPlannerToDocx',    () => ({ downloadSbaPlannerDocx:    vi.fn(async () => {}) }))
@@ -146,8 +146,8 @@ vi.mock('../../../utils/teacherLibraryService', () => ({
 // the progress hook, and two view components). Vitest does not warn when a
 // vi.mock path matches no imported module, so a move that leaves the old paths
 // behind gives a spec that still passes while testing something else.
-vi.mock('../../../utils/flashcardsToDocx', () => ({ downloadFlashcardsDocx: vi.fn(async () => {}) }))
-vi.mock('../../../utils/flashcardsToPdf', () => ({ downloadFlashcardsPdf: vi.fn(async () => {}) }))
+vi.mock('../../../engines/export-engine/flashcardsToDocx', () => ({ downloadFlashcardsDocx: vi.fn(async () => {}) }))
+vi.mock('../../../engines/export-engine/flashcardsToPdf', () => ({ downloadFlashcardsPdf: vi.fn(async () => {}) }))
 vi.mock('../../../features/flashcards', () => ({
   FlashcardsView:         () => null,
   FlashcardStudyOverlay:  () => null,

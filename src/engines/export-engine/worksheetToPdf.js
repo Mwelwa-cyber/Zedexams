@@ -8,9 +8,9 @@
  * Uses htmlToPdf.js (lazy-loads html2canvas + jsPDF) so nothing extra hits
  * the main bundle. Falls back to window.print() if the real-PDF path fails.
  */
-import { downloadHtmlAsPdf } from './htmlToPdf.js'
-import { injectHtmlWatermark, WATERMARK_TEXT } from './exportWatermark.js'
-import { markupToHtml, TOOL_NOTATION_CSS } from './toolNotationRender.js'
+import { downloadHtmlAsPdf } from '../../utils/htmlToPdf.js'
+import { injectHtmlWatermark, WATERMARK_TEXT } from '../../utils/exportWatermark.js'
+import { markupToHtml, TOOL_NOTATION_CSS } from '../../utils/toolNotationRender.js'
 
 const BRAND = '#059669' // emerald-600
 

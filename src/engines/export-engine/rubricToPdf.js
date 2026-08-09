@@ -4,7 +4,7 @@
  * fallback uses A4 landscape (the classTimetableToPdf precedent); the real-PDF
  * path renders it as a compact full-width table on the A4 canvas.
  */
-import { makePdfExporter, escapeHtml as safe } from './htmlPdfExport.js'
+import { makePdfExporter, escapeHtml as safe } from '../../utils/htmlPdfExport.js'
 
 const BRAND = '#059669'
 

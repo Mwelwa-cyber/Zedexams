@@ -9,8 +9,8 @@
  * Uses the `docx` package. Same pattern as lessonPlanToDocx.js.
  */
 
-import { saveBlob } from './saveBlob.js'
-import { sanitizeXmlText } from './xmlText.js'
+import { saveBlob } from '../../utils/saveBlob.js'
+import { sanitizeXmlText } from '../../utils/xmlText.js'
 import {
   AlignmentType,
   BorderStyle,
@@ -24,8 +24,8 @@ import {
   TextRun,
   WidthType,
 } from 'docx'
-import { attributionSection } from './docxAttribution.js'
-import { markupFieldToDocx } from './toolNotationDocx.js'
+import { attributionSection } from '../../utils/docxAttribution.js'
+import { markupFieldToDocx } from '../../utils/toolNotationDocx.js'
 
 const CELL_BORDER = {
   top:    { style: BorderStyle.SINGLE, size: 4, color: '888888' },

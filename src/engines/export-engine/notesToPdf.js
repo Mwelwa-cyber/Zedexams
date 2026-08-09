@@ -13,12 +13,12 @@
  * saved note carries what it is; asking the call site to remember is how a
  * learner handout ends up printed with a teacher's section headings.
  */
-import { makePdfExporter, escapeHtml as safe } from './htmlPdfExport.js'
-import { readAudience } from './notesOptions.js'
+import { makePdfExporter, escapeHtml as safe } from '../../utils/htmlPdfExport.js'
+import { readAudience } from '../../utils/notesOptions.js'
 import {
   buildAnswerPageHtml,
   buildLearnerNotesHtml,
-} from './learnerNotesPrintable.js'
+} from '../../utils/learnerNotesPrintable.js'
 
 const INK = '#0e2a32' // brand ink, matches the DOCX title rules
 

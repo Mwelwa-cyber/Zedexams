@@ -5,7 +5,7 @@
  * scissors. Uses htmlToPdf.js (lazy html2canvas + jsPDF); falls back to the
  * browser print dialog if client-side rendering fails.
  */
-import { makePdfExporter, escapeHtml as safe } from './htmlPdfExport.js'
+import { makePdfExporter, escapeHtml as safe } from '../../utils/htmlPdfExport.js'
 
 const BRAND = '#059669' // emerald-600
 const FRONT_ACCENT = '#f59e0b' // amber-500, matches the DOCX front label

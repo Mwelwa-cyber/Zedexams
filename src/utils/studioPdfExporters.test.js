@@ -19,10 +19,10 @@
  * Run: node src/utils/studioPdfExporters.test.js
  */
 
-import { buildRubricPrintableHtml } from './rubricToPdf.js'
-import { buildFlashcardsPrintableHtml } from './flashcardsToPdf.js'
-import { buildNotesPrintableHtml } from './notesToPdf.js'
-import { buildHomeworkPrintableHtml } from './homeworkToPdf.js'
+import { buildRubricPrintableHtml } from '../engines/export-engine/rubricToPdf.js'
+import { buildFlashcardsPrintableHtml } from '../engines/export-engine/flashcardsToPdf.js'
+import { buildNotesPrintableHtml } from '../engines/export-engine/notesToPdf.js'
+import { buildHomeworkPrintableHtml } from '../engines/export-engine/homeworkToPdf.js'
 import { buildFullLessonPrintableHtml } from './fullLessonToPdf.js'
 import { buildSchemeOfWorkPrintableHtml } from './schemeOfWorkToPdf.js'
 import { buildSbaTaskPrintableHtml } from './sbaTaskToPdf.js'

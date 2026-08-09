@@ -5,8 +5,8 @@ import {
   WORKSHEET_DIFFICULTIES,
   FLASHCARD_COUNTS,
 } from '../../../utils/teacherTools'
-import { downloadFlashcardsDocx } from '../../../utils/flashcardsToDocx'
-import { downloadFlashcardsPdf } from '../../../utils/flashcardsToPdf'
+import { downloadFlashcardsDocx } from '../../../engines/export-engine/flashcardsToDocx'
+import { downloadFlashcardsPdf } from '../../../engines/export-engine/flashcardsToPdf'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../../../components/teacher/StudioPageHeader'

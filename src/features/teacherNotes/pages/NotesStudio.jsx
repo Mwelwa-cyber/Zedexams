@@ -8,8 +8,8 @@ import {
   TEACHER_LANGUAGES,
   DURATION_PRESETS,
 } from '../../../utils/teacherTools'
-import { downloadNotesDocx } from '../../../utils/notesToDocx'
-import { downloadNotesPdf, downloadAnswerPagePdf } from '../../../utils/notesToPdf'
+import { downloadNotesDocx } from '../../../engines/export-engine/notesToDocx'
+import { downloadNotesPdf, downloadAnswerPagePdf } from '../../../engines/export-engine/notesToPdf'
 import {
   downloadAnswerPageDocx,
   downloadLearnerNotesDocx,
