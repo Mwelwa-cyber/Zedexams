@@ -11,6 +11,16 @@
 > behaviour changes deferred pending external review coverage.
 > Backup/restore drill required on exit.
 
+> **2026-08-09 — the guard follows delegations** (#2194's last open P1). A
+> delegated export's wrapper is read in the module that builds it, so the
+> frozen surface covers what actually ships rather than what index.js
+> happens to declare. 16 exports newly guarded; the 141 it still cannot
+> reach (factory-built, or re-exported through a second hop) are named in
+> `optionsUnresolved` and ratcheted shrink-only — a blind spot written down
+> is a work item, one that reads as "no options" is a false green.
+> **Review debt CLOSED:** Codex quota returned and reviewed #2194 (5
+> findings, all fixed); Rex approved.
+
 ## What this phase does
 
 Move the inline handlers out of `functions/index.js` into domain modules;
