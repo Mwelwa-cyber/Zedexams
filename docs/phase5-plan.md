@@ -84,6 +84,25 @@ must have one candidate cause). Batches are prepared and PR'd at any time;
 they merge between holds. PR-zero itself touches nothing under `functions/`
 and is hold-safe by construction.
 
+## Recorded debt (not blocking any batch)
+
+- **v1 auth triggers are not runtime-testable in isolation.** Batch 1b's
+  `setUserRole` extraction was verified by byte-identity against `HEAD`, the
+  pinned `functions.auth.user().onCreate` chain, `security/adminClaims`'
+  own tests, export discovery and the full suite — but NOT by executing the
+  extracted handler, because `firebase-admin` exposes `auth` as a
+  non-writable getter, so the obvious mock does not take and the handler
+  cannot be driven without an initialised app. Recorded 2026-08-09 by owner
+  instruction, deliberately as its own item rather than folded into the
+  extraction PR: mixing a testability improvement into a mechanical move
+  destroys the property that makes the move reviewable.
+  The fix, when someone takes it: inject the auth client the way
+  `resolveInitialUserRole` is already injected, so the trigger's role
+  decisions (learner default, verified-admin, and the
+  **unverified-allowlisted-address must NOT become admin** case that AUTH-L6
+  turns on) can be asserted without Firebase. Worth doing before the Daily
+  Quiz rework adds more auth-adjacent triggers.
+
 ## Exit criteria
 
 1. `functions/index.js` reduced to exports; every inline handler in a domain
