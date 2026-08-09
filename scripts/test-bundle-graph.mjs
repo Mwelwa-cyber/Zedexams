@@ -17,7 +17,7 @@
  *
  * Run: node scripts/test-bundle-graph.mjs
  */
-import { buildGraph, chunkName, chunksNamed, findPath } from './lib/bundleGraph.mjs';
+import { buildGraph, chunkName, chunksNamed, findPath, hasDirectEdge, withoutEdge } from './lib/bundleGraph.mjs';
 
 let failures = 0;
 function assert(cond, msg) {
@@ -99,6 +99,46 @@ console.log('\nchunksNamed — a declared name that matches nothing must be visi
   assert(chunksNamed(graph, 'Other').length === 1, 'one match is one match');
   assert(chunksNamed(graph, 'Page').length === 2, 'two chunks sharing a name are BOTH returned, so the caller can refuse the ambiguity');
   assert(chunksNamed(graph, 'Renamed').length === 0, 'a name matching nothing returns empty — the caller turns that into a failure');
+}
+
+console.log('\nwithoutEdge + hasDirectEdge — scoping an acknowledged violation to what was reviewed');
+{
+  // A page reaching a heavy chunk through TWO of its own dependencies. Recording
+  // only one and calling the pair acknowledged is the hole this pair closes.
+  const graph = buildGraph({
+    'Page-11111111.js': 'import"./ViewA-22222222.js";import"./ViewB-33333333.js"',
+    'ViewA-22222222.js': 'import"./heavy-44444444.js"',
+    'ViewB-33333333.js': 'import"./heavy-44444444.js"',
+    'heavy-44444444.js': 'export const c=1',
+  });
+  assert(hasDirectEdge(graph, 'Page-11111111.js', 'ViewA'), 'a real page dependency is reported as one');
+  assert(!hasDirectEdge(graph, 'Page-11111111.js', 'heavy'), 'a chunk reached only transitively is NOT a direct edge');
+  assert(!hasDirectEdge(graph, 'Page-11111111.js', 'Missing'), 'a name matching no edge is not a direct edge');
+
+  const cutOne = withoutEdge(graph, 'Page', 'ViewA');
+  assert(findPath(cutOne, 'Page-11111111.js', 'heavy') !== null,
+    'cutting ONE of two dependencies leaves the heavy chunk reachable — which is the unreviewed second route surfacing');
+  const cutBoth = withoutEdge(cutOne, 'Page', 'ViewB');
+  assert(findPath(cutBoth, 'Page-11111111.js', 'heavy') === null,
+    'cutting every recorded dependency leaves it unreachable, which is what makes the record complete');
+  assert(findPath(graph, 'Page-11111111.js', 'heavy') !== null,
+    'the input graph is never mutated — the next page still needs it');
+}
+{
+  // Parallel edges: two chunks share a name, and cutting must remove BOTH or the
+  // leftover half reads as a second route that nobody added.
+  const graph = buildGraph({
+    'Page-11111111.js': 'import"./View-22222222.js";import"./View-33333333.js"',
+    'View-22222222.js': 'import"./heavy-44444444.js"',
+    'View-33333333.js': 'import"./heavy-44444444.js"',
+    'heavy-44444444.js': 'export const c=1',
+  });
+  assert(findPath(withoutEdge(graph, 'Page', 'View'), 'Page-11111111.js', 'heavy') === null,
+    'every parallel edge between the two names is cut, not just the first');
+}
+{
+  const graph = buildGraph({ 'A-11111111.js': 'import"./B-22222222.js"', 'B-22222222.js': '' });
+  assert(withoutEdge(graph, 'Nope', 'B').get('A-11111111.js').size === 1, 'cutting an edge that does not exist changes nothing');
 }
 
 if (failures) {

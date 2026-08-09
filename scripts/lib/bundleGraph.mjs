@@ -87,6 +87,37 @@ export function findPath(graph, fromFile, targetName) {
 }
 
 /**
+ * A COPY of the graph with the `from → to` edges removed, matched by chunk
+ * NAME on both ends.
+ *
+ * What it is for: an acknowledged violation should record the dependency that
+ * was reviewed, and the only way to prove a page has no OTHER route to the same
+ * chunk is to cut the reviewed one and ask again. Enumerating every path is
+ * exponential and, on a real bundle, useless — the renderer cluster alone
+ * yields chain after chain that all mean the same thing. Cutting the PAGE'S own
+ * edge and re-running the same BFS answers the question that matters, which is
+ * whether the page has grown a dependency nobody looked at.
+ *
+ * Every parallel edge between the two names is cut, so a duplicate chunk cannot
+ * leave half an edge behind and read as a second route. The input graph is
+ * never mutated: the caller still needs it for the next page.
+ */
+export function withoutEdge(graph, fromName, toName) {
+  const clone = new Map();
+  for (const [file, targets] of graph) clone.set(file, new Set(targets));
+  for (const [file, targets] of clone) {
+    if (chunkName(file) !== fromName) continue;
+    for (const target of [...targets]) if (chunkName(target) === toName) targets.delete(target);
+  }
+  return clone;
+}
+
+/** Does `fromFile` statically import a chunk named `toName`, directly? */
+export function hasDirectEdge(graph, fromFile, toName) {
+  return [...(graph.get(fromFile) || [])].some((target) => chunkName(target) === toName);
+}
+
+/**
  * Every file whose name matches `name`.
  *
  * Returned as a list rather than a single file so the caller can fail on BOTH

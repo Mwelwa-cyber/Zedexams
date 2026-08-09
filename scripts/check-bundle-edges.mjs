@@ -51,7 +51,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildGraph, chunksNamed, findPath } from './lib/bundleGraph.mjs';
+import { buildGraph, chunksNamed, findPath, hasDirectEdge, withoutEdge } from './lib/bundleGraph.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const ASSETS = join(ROOT, 'dist', 'assets');
@@ -99,7 +99,29 @@ const HEAVY_VENDORS = {
  * happens ALSO fails, with an instruction to delete the line — so clearing debt
  * means removing a row rather than leaving a note about work already done.
  *
- * Keyed `<page> → <vendor>`.
+ * Keyed `<page> → <vendor>`, and each entry records **what was acknowledged**,
+ * not merely that the pair is allowed. The distinction is the whole value of
+ * the record (Codex, #2210): keyed on the pair alone, accepting
+ * "the share page reaches the editor through the paper renderer" also accepts a
+ * direct `import RichEditor` added to that page next month — a different
+ * dependency, never reviewed, and CI green because the pair was already on the
+ * list.
+ *
+ * So each entry records `via` — **the page's OWN dependencies through which the
+ * weight arrives**. Every one must really lead to the vendor, and cutting all of
+ * them must leave the vendor unreachable. A new direct `import RichEditor` on
+ * the page, or a second component that drags the editor in, survives the cut and
+ * fails.
+ *
+ * `via` is the page's own edges rather than the full chain because the full
+ * chain is not stable enough to be a record. Enumerating chains here found
+ * `figureLabelLayout → buildExtensions`, then
+ * `figureLabelLayout → quizRichText → buildExtensions`, then a third through
+ * `migration` — all the same fact (a page that DISPLAYS saved rich text needs
+ * the schema that produced it), restated once per chunk in the renderer cluster.
+ * These are CHUNK edges, not import statements: a chunk is named for one module
+ * and carries many. What is worth pinning is the page's own reach, and the
+ * enumeration is what proves the pin covers everything.
  */
 const ACKNOWLEDGED = new Map([
   // #2176 added this check and recorded the two flashcards paths here; #2177
@@ -118,8 +140,14 @@ const ACKNOWLEDGED = new Map([
   // They are recorded rather than deleted from the list so the weight stays
   // countable and so the two pages that do NOT carry it — the entry chunk and
   // the /teachers marketing page — still fail if they ever join.
-  ['PublicShareView → buildExtensions', 'PublicShareView → AssessmentPaperView → figureLabelLayout → buildExtensions: the shared paper renderer needs the editor schema to draw saved rich text'],
-  ['LockedStudio → buildExtensions', 'LockedStudio → SbaTaskView → PaperBlocks → figureLabelLayout → buildExtensions: same renderer, same reason'],
+  ['PublicShareView → buildExtensions', {
+    why: 'the two saved-document renderers it mounts reach the editor schema to draw saved rich text',
+    via: ['AssessmentPaperView', 'SbaTaskView'],
+  }],
+  ['LockedStudio → buildExtensions', {
+    why: 'the specimen SBA task it renders reaches the same schema, for the same reason',
+    via: ['SbaTaskView'],
+  }],
 ]);
 
 let failures = 0;
@@ -181,7 +209,30 @@ for (const [page, why] of Object.entries(LIGHT_PAGES)) {
     const key = `${page} → ${vendor}`;
     if (path) {
       seen.add(key);
-      if (!ACKNOWLEDGED.has(key)) {
+      const acknowledged = ACKNOWLEDGED.get(key);
+      if (acknowledged) {
+        let remaining = graph;
+        for (const via of acknowledged.via) {
+          if (!hasDirectEdge(graph, matches[0], via)) {
+            fail(
+              `${key} records "${via}" as how the weight arrives, but ${page} no longer imports it. ` +
+              `Delete that entry — the list only shrinks. (${acknowledged.why})`,
+            );
+            continue;
+          }
+          remaining = withoutEdge(remaining, page, via);
+        }
+        const beyond = findPath(remaining, matches[0], vendor);
+        if (beyond) {
+          fail(
+            `${key} reaches the vendor through something the record does not name:\n` +
+            `         ${beyond.join(' → ')}\n` +
+            `       recorded: ${acknowledged.via.join(', ')} (${acknowledged.why})\n` +
+            '       An acknowledgement covers the dependencies that were reviewed, not the page/vendor pair for ' +
+            'ever. Remove the new dependency, or add it to `via` with the reason it is acceptable.',
+          );
+        }
+      } else {
         fail(
           `${page} statically reaches ${vendor} (${cost}):\n` +
           `         ${path.join(' → ')}\n` +
@@ -195,9 +246,9 @@ for (const [page, why] of Object.entries(LIGHT_PAGES)) {
   }
 }
 
-for (const [key, note] of ACKNOWLEDGED) {
+for (const [key, { why }] of ACKNOWLEDGED) {
   if (!seen.has(key)) {
-    fail(`"${key}" is recorded as a known violation but no longer happens. Delete its line — the list only shrinks. (${note})`);
+    fail(`"${key}" is recorded as a known violation but no longer happens. Delete its line — the list only shrinks. (${why})`);
   }
 }
 
