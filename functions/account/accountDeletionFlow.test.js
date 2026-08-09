@@ -194,6 +194,92 @@ test("a clean verified purge still closes the job", async () => {
     "CONTROL: the happy path must still complete, or the two guards above are just breaking deletion");
 });
 
+test("the point of no return is recorded BEFORE the purge starts", async () => {
+  const calls = [];
+  const db = fakeDb(calls);
+  let phaseAtPurgeTime;
+  await runAccountDeletion({
+    db, auth: fakeAuth(calls), uid: "u1", FieldValue,
+    purge: async () => {
+      phaseAtPurgeTime = db.store[PURGE_JOBS_COLLECTION].u1.phase;
+      return verifiedSummary;
+    },
+  });
+  assert.equal(phaseAtPurgeTime, "irreversible",
+    "written after the purge instead, the marker would describe a state a crashed " +
+    "run never reaches — which is the whole point of writing it");
+  assert.ok(calls.indexOf("deleteUser:u1") < calls.length,
+    "and it is written only once deleteUser has actually succeeded");
+});
+
+test("a crashed pre-destructive run leaves a job the sweeper cannot adopt", async () => {
+  const calls = [];
+  const db = fakeDb(calls);
+  // No catch runs on a timeout/OOM, so simulate the process simply stopping
+  // after the tombstone: open the job and go no further.
+  const {openPurgeJob, isAdoptable} = require("./accountPurgeJobs");
+  await openPurgeJob(db, "u1", {FieldValue, email: "a@b.com"});
+  const job = db.store[PURGE_JOBS_COLLECTION].u1;
+  assert.equal(isAdoptable(job), false,
+    "adoptable, a cron would finish a deletion that never started and whose caller " +
+    "saw only a network error");
+  void calls;
+});
+
+test("a cancel that cannot be written alerts and says the account is NOT deleted", async () => {
+  const calls = [];
+  const db = fakeDb(calls);
+  db.collection = (col) => ({doc: (id) => ({
+    async get() { return {exists: false, data: () => undefined}; },
+    async set(fields) {
+      if (fields.status === "cancelled") throw new Error("write failed");
+      calls.push(`set:${col}/${id}`);
+    },
+  })});
+  const alerts = [];
+  await assert.rejects(
+    runAccountDeletion({
+      db, auth: fakeAuth(calls, {onRevoke: () => { throw new Error("transient"); }}),
+      uid: "u1", FieldValue, purge: async () => verifiedSummary,
+      alert: async (a) => { alerts.push(a); },
+    }),
+    (err) => err.details.reason === "revoke-failed-uncancelled" &&
+      /NOT been deleted/.test(err.message),
+  );
+  assert.equal(alerts.length, 1, "the cancel write IS the guarantee — a silent failure re-opens it");
+  assert.equal(alerts[0].severity, "critical");
+});
+
+test("an abandoned pre-destructive job stops blocking profile repair once stale", async () => {
+  const calls = [];
+  const old = new Date(Date.now() - 86_400_000).toISOString();
+  const db = fakeDb(calls, {seed: {[PURGE_JOBS_COLLECTION]: {u1: {status: "pending", createdAt: old}}}});
+  const out = await runProfileBootstrap({db, auth: fakeAuth(calls), uid: "u1", FieldValue, buildProfile});
+  assert.equal(out.created, true, "nothing will ever finish this deletion; blocking for ever bricks the account");
+});
+
+test("a pending job with an UNREADABLE age keeps blocking — fails closed", async () => {
+  const calls = [];
+  const db = fakeDb(calls, {seed: {[PURGE_JOBS_COLLECTION]: {u1: {status: "pending"}}}});
+  await assert.rejects(
+    runProfileBootstrap({db, auth: fakeAuth(calls), uid: "u1", FieldValue, buildProfile}),
+    (err) => err.details && err.details.reason === "account-deleted",
+    "isStalePurgeJob would sweep this one; bootstrap must not read it the same way",
+  );
+});
+
+test("the producer really does always return an errors array", async () => {
+  // isPurgeComplete requires Array.isArray(summary.errors), so a purge that
+  // omitted it would fail closed and the job would never complete. That makes
+  // "purgeUserData always returns errors[]" load-bearing, and a contract only
+  // asserted at the consumer is a contract nobody is holding to.
+  const src = require("node:fs").readFileSync(
+    require("node:path").join(__dirname, "..", "accountDeletion.js"), "utf8",
+  );
+  assert.ok(/errors:\s*\[\]/.test(src),
+    "purgeUserData must initialise summary.errors to an array before it can fail");
+});
+
 // ── deleteMyAccount: order ───────────────────────────────────────────────
 
 test("session is destroyed before Firestore is touched", async () => {

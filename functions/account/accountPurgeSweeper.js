@@ -30,6 +30,7 @@ const {
   STALE_AFTER_MS,
   ALERT_AFTER_ATTEMPTS,
   isStalePurgeJob,
+  isAdoptable,
 } = require("./accountPurgeJobs");
 
 /** Most jobs handled per run. A backlog past this is an ops problem, not a cron one. */
@@ -48,6 +49,18 @@ const MAX_JOBS_PER_RUN = 50;
  */
 function selectStaleJobs(jobs, {now = Date.now(), staleAfterMs = STALE_AFTER_MS, limit = MAX_JOBS_PER_RUN} = {}) {
   return jobs
+    // The phase gate, and it is load-bearing rather than tidy. A job without it
+    // never passed `deleteUser`, so adopting it would delete an account whose
+    // deletion never started — including on the crash paths (timeout, OOM,
+    // eviction) where no `catch` ran to cancel anything. See PHASE_IRREVERSIBLE.
+    //
+    // Filtered here rather than added to the Firestore query on purpose: a
+    // second equality makes it a composite query needing an index deployed
+    // before the code that uses it, and the collection holds one document per
+    // deleted account. Revisit if the pending backlog ever approaches the
+    // over-fetch limit — at that point unadoptable jobs could crowd out real
+    // ones, and the index becomes worth its deploy ordering.
+    .filter((j) => isAdoptable({status: "pending", ...j.data}))
     .filter((j) => isStalePurgeJob(j.data, {now, staleAfterMs}))
     .slice(0, limit);
 }
@@ -78,6 +91,7 @@ async function runAccountPurgeSweep(deps = {}) {
   const {
     completePurgeJob,
     recordPurgeFailure,
+    isPurgeComplete,
   } = require("./accountPurgeJobs");
 
   const snap = await db
@@ -112,12 +126,15 @@ async function runAccountPurgeSweep(deps = {}) {
         if (error?.code !== "auth/user-not-found") throw error;
       }
       const summary = await purge(db, uid, {FieldValue});
-      if (summary && summary.verified === true) {
+      // isPurgeComplete, not `verified` alone: the recovery path closing a job
+      // whose purge reported collection-level errors strands that data exactly
+      // as the handler's version did, and there is no third actor to catch it.
+      if (isPurgeComplete(summary)) {
         await completePurgeJob(db, uid, {FieldValue, summary});
         result.completed += 1;
       } else {
         failure = new Error(
-          `purge unverified (summary=${JSON.stringify(summary)})`,
+          `purge incomplete (summary=${JSON.stringify(summary)})`,
         );
       }
     } catch (error) {
