@@ -107,21 +107,31 @@ const HEAVY_VENDORS = {
  * dependency, never reviewed, and CI green because the pair was already on the
  * list.
  *
- * So each entry records `via` — **the page's OWN dependencies through which the
- * weight arrives**. Every one must really lead to the vendor, and cutting all of
- * them must leave the vendor unreachable. A new direct `import RichEditor` on
- * the page, or a second component that drags the editor in, survives the cut and
- * fails.
+ * So each entry records `cut` — **the EDGES the exception rests on**. Every one
+ * must really exist, and with all of them removed the vendor must be
+ * unreachable from that page. A new direct `import RichEditor` on the page, or
+ * a second component that drags the editor in by another route, survives the
+ * cut and fails.
  *
- * `via` is the page's own edges rather than the full chain because the full
- * chain is not stable enough to be a record. Enumerating chains here found
- * `figureLabelLayout → buildExtensions`, then
- * `figureLabelLayout → quizRichText → buildExtensions`, then a third through
- * `migration` — all the same fact (a page that DISPLAYS saved rich text needs
- * the schema that produced it), restated once per chunk in the renderer cluster.
+ * `cut` names the edge that IS the reason. The two obvious alternatives were
+ * both tried here first and both churn:
+ *
+ *   • The full CHAIN. Enumerating chains produced
+ *     `figureLabelLayout → buildExtensions`, then `… → quizRichText → …`, then
+ *     a third through `migration` — the same fact restated once per chunk in
+ *     the renderer cluster.
+ *   • The page's own FIRST HOP, which is what this list held until now. It read
+ *     `SbaTaskView`, then gained `sba` when that feature got a front door, then
+ *     gained `classTimetable` when Rollup grouped the two front doors into one
+ *     chunk — and on `PublicShareView` the `sba` entry had to be DELETED in the
+ *     same edit because it was absorbed. Three rewrites in three consecutive
+ *     migrations, and the measurement each time said the weight was unchanged.
+ *     A record that every unrelated migration has to edit stops being read, and
+ *     a record nobody reads is not a control.
+ *
  * These are CHUNK edges, not import statements: a chunk is named for one module
- * and carries many. What is worth pinning is the page's own reach, and the
- * enumeration is what proves the pin covers everything.
+ * and carries many, which is exactly why the chunk a dependency lands in moves
+ * and the edge into the vendor does not.
  */
 const ACKNOWLEDGED = new Map([
   // #2176 added this check and recorded the two flashcards paths here; #2177
@@ -134,41 +144,23 @@ const ACKNOWLEDGED = new Map([
   // stored ProseMirror JSON needs the schema that produced it — a page that
   // DISPLAYS saved rich text genuinely depends on the editor's node
   // definitions. Making a share page light would mean a second, render-only
-  // schema, which is a project rather than an import to move, and it is not
-  // being done inside a review sweep.
+  // schema, which is a project rather than an import to move.
   //
   // They are recorded rather than deleted from the list so the weight stays
   // countable and so the two pages that do NOT carry it — the entry chunk and
   // the /teachers marketing page — still fail if they ever join.
   //
-  // Both entries name several front doors AND `SbaTaskView`, which is not
-  // redundancy: since the SBA migration the pages import the view THROUGH a
-  // feature's front door, and Rollup emits both a front-door chunk and a chunk
-  // for the view itself, giving the page an edge to each. The weight behind
-  // them is one component either way. Naming each is what keeps the record a
-  // statement about the page's actual reach rather than about one spelling of
-  // it.
-  //
-  // `classTimetable` joined both entries with the class-timetable migration,
-  // and it is a good illustration of why `via` is a list rather than a chain.
-  // That feature's front door is tiny — one presentational view — but Rollup
-  // grouped it into the same chunk as the `sba` front door, which is how the
-  // SBA renderer is reached. So the page/vendor pair did not change, the WEIGHT
-  // did not change (measured: 576 chunks before and after, the same heavy
-  // vendors reachable from each of the four light pages, +52 bytes on these two
-  // — the length of the new import path strings), and yet the chunk carrying
-  // the acknowledged dependency was renamed. On PublicShareView the `sba` edge
-  // was absorbed entirely and had to be deleted; on LockedStudio it survived
-  // alongside. A chunk carries many modules, so an entry here names the
-  // dependencies of the page, and the emitted graph decides which chunk answers
-  // for them.
+  // Three edges, because the renderer cluster reaches the editor schema three
+  // ways and all three mean the same thing. Cutting all three must leave
+  // `buildExtensions` unreachable from these pages; that is what makes the
+  // record complete rather than merely true.
   ['PublicShareView → buildExtensions', {
-    why: 'the saved-document renderers it mounts reach the editor schema to draw saved rich text; `classTimetable` is the front-door chunk that now carries the SBA front door, which is how SbaTaskView is reached since the SBA migration',
-    via: ['AssessmentPaperView', 'classTimetable', 'SbaTaskView'],
+    why: 'the saved-document renderers it mounts (assessment papers, SBA tasks) draw stored rich text, and the shared paper renderer needs the editor schema to do it',
+    cut: [['figureLabelLayout', 'buildExtensions'], ['quizRichText', 'buildExtensions'], ['migration', 'buildExtensions']],
   }],
   ['LockedStudio → buildExtensions', {
-    why: 'the specimen SBA task it renders reaches the same schema, for the same reason, through the sba front door and the classTimetable chunk grouped with it',
-    via: ['sba', 'classTimetable', 'SbaTaskView'],
+    why: 'the specimen documents it renders reach the same renderer, for the same reason',
+    cut: [['figureLabelLayout', 'buildExtensions'], ['quizRichText', 'buildExtensions'], ['migration', 'buildExtensions']],
   }],
 ]);
 
@@ -234,24 +226,24 @@ for (const [page, why] of Object.entries(LIGHT_PAGES)) {
       const acknowledged = ACKNOWLEDGED.get(key);
       if (acknowledged) {
         let remaining = graph;
-        for (const via of acknowledged.via) {
-          if (!hasDirectEdge(graph, matches[0], via)) {
+        for (const [edgeFrom, edgeTo] of acknowledged.cut) {
+          if (!chunksNamed(remaining, edgeFrom).some((file) => hasDirectEdge(remaining, file, edgeTo))) {
             fail(
-              `${key} records "${via}" as how the weight arrives, but ${page} no longer imports it. ` +
-              `Delete that entry — the list only shrinks. (${acknowledged.why})`,
+              `${key} records the edge ${edgeFrom} → ${edgeTo} as its reason, but that edge no longer exists. ` +
+              `Delete it — the list only shrinks. (${acknowledged.why})`,
             );
             continue;
           }
-          remaining = withoutEdge(remaining, page, via);
+          remaining = withoutEdge(remaining, edgeFrom, edgeTo);
         }
         const beyond = findPath(remaining, matches[0], vendor);
         if (beyond) {
           fail(
             `${key} reaches the vendor through something the record does not name:\n` +
             `         ${beyond.join(' → ')}\n` +
-            `       recorded: ${acknowledged.via.join(', ')} (${acknowledged.why})\n` +
-            '       An acknowledgement covers the dependencies that were reviewed, not the page/vendor pair for ' +
-            'ever. Remove the new dependency, or add it to `via` with the reason it is acceptable.',
+            `       recorded: ${acknowledged.cut.map(([a, b]) => `${a} → ${b}`).join(', ')} (${acknowledged.why})\n` +
+            '       An acknowledgement covers the dependency that was reviewed, not the page/vendor pair for ever. ' +
+            'Remove the new dependency, or record the edge it arrives on with the reason it is acceptable.',
           );
         }
       } else {
