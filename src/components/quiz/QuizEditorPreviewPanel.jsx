@@ -33,32 +33,65 @@ function PreviewQuestion({ question }) {
         </div>
       )}
 
-      {question.imageUrl && (
-        <div className="theme-border theme-bg-subtle overflow-hidden rounded-2xl border p-3">
-          <ZoomableImage
-            src={question.imageUrl}
-            alt="Question illustration"
-            fallbackText={question.diagramText}
-            className="mx-auto max-h-[80vh] w-full rounded-xl object-contain"
-          />
-        </div>
-      )}
-      <ExtraQuestionImages question={question} className="mt-3" />
-
-      {/* question-text = the Phase 1 learner typography (weight 500, strong at
-          800, visible u/mark/sup/sub) so this preview is an ACCURATE mirror of
-          what a learner sees — a teacher can verify their formatting here. */}
-      <RichContent value={question.text} className="question-text" />
-
-      {question.diagramText && (
-        // whitespace-pre-line preserves the newlines PR #653 routes into
-        // diagramText for flattened-table data — without it Q4's oranges
-        // table collapses every \n into a single space and becomes one
-        // unreadable run-on line.
-        <p className="theme-bg-subtle theme-text-muted whitespace-pre-line rounded-xl px-3 py-2 text-xs font-bold leading-relaxed">
-          {question.diagramText}
-        </p>
-      )}
+      {/* Image + text laid out per the saved imagePosition, mirroring the
+          learner runner's classes exactly (QuizRunnerV2's
+          IMAGE_POSITION_CLASSES) — the whole point of this preview is that a
+          teacher can trust it, so "Image below text" must actually render
+          below here too. null/'above'/'inline' keep the original stacked DOM. */}
+      {(() => {
+        const pos = question.imagePosition
+        const imageBlock = question.imageUrl ? (
+          <div className="theme-border theme-bg-subtle overflow-hidden rounded-2xl border p-3">
+            <ZoomableImage
+              src={question.imageUrl}
+              alt="Question illustration"
+              fallbackText={question.diagramText}
+              className="mx-auto max-h-[80vh] w-full rounded-xl object-contain"
+            />
+          </div>
+        ) : null
+        const textBlock = (
+          <div className="min-w-0 flex-1 space-y-3">
+            {/* question-text = the Phase 1 learner typography (weight 500,
+                strong at 800, visible u/mark/sup/sub) so this preview is an
+                ACCURATE mirror of what a learner sees — a teacher can verify
+                their formatting here. */}
+            <RichContent value={question.text} className="question-text" />
+            {question.diagramText && (
+              // whitespace-pre-line preserves the newlines PR #653 routes into
+              // diagramText for flattened-table data — without it Q4's oranges
+              // table collapses every \n into a single space and becomes one
+              // unreadable run-on line.
+              <p className="theme-bg-subtle theme-text-muted whitespace-pre-line rounded-xl px-3 py-2 text-xs font-bold leading-relaxed">
+                {question.diagramText}
+              </p>
+            )}
+          </div>
+        )
+        if (!imageBlock || !pos || pos === 'above' || pos === 'inline') {
+          return (
+            <>
+              {imageBlock}
+              <ExtraQuestionImages question={question} className="mt-3" />
+              {textBlock}
+            </>
+          )
+        }
+        const wrapClasses = pos === 'below'
+          ? 'flex flex-col-reverse gap-3'
+          : pos === 'left'
+            ? 'flex flex-col gap-3 sm:flex-row sm:items-start'
+            : 'flex flex-col gap-3 sm:flex-row-reverse sm:items-start'
+        return (
+          <>
+            <div className={wrapClasses} data-image-position={pos}>
+              {imageBlock}
+              {textBlock}
+            </div>
+            <ExtraQuestionImages question={question} className="mt-3" />
+          </>
+        )
+      })()}
 
       {(question.options || []).length > 0 ? (
         <div className="grid gap-3 sm:grid-cols-2">

@@ -558,3 +558,32 @@ function runFigureMetaRoundTripTest() {
 }
 
 runFigureMetaRoundTripTest()
+
+function runImagePositionRoundTripTest() {
+  // The image-position choice ('below' | 'left' | 'right' | 'inline'; null =
+  // above) must survive a save → reload. Hydrate uses explicit field lists,
+  // so before hydrateImagePosition existed the choice was silently dropped on
+  // reopen — the editor dropdown reset to "above" and the NEXT save wrote
+  // null, un-setting what the admin picked ("image positioning not working").
+  const { sections, parts } = hydrateQuizSections(
+    [
+      { id: 'q1', type: 'mcq', text: 'Which?', options: ['A', 'B'], correctAnswer: 0, imageUrl: 'https://x/i.jpg', imagePosition: 'below', order: 0 },
+      { id: 'q2', type: 'mcq', text: 'Garbage', options: ['A', 'B'], correctAnswer: 0, imagePosition: 'sideways', order: 1 },
+      { id: 'q3', type: 'mcq', text: 'Passage child', options: ['A', 'B'], correctAnswer: 0, passageId: 'p001', imagePosition: 'right', order: 2 },
+    ],
+    [{ id: 'p001', title: 'Story', passageText: 'Once…', imageUrl: '', passageKind: 'comprehension', order: 2 }],
+    [], [],
+  )
+  const standalone = sections.filter(s => s.kind !== 'passage' && s.kind !== 'pagebreak')
+  assert.equal(standalone[0].question.imagePosition, 'below', 'imagePosition survives hydrate')
+  assert.equal(standalone[1].question.imagePosition, null, 'garbage imagePosition hydrates to null (renders as above)')
+  const passageSection = sections.find(s => s.kind === 'passage')
+  assert.equal(passageSection.passage.questions[0].imagePosition, 'right', 'passage-child imagePosition survives hydrate')
+
+  const serialized = serializeQuizSections(sections, parts)
+  assert.equal(serialized.questions.find(q => q.text.includes('Which')).imagePosition, 'below', 'imagePosition survives the full round trip')
+
+  console.log('runImagePositionRoundTripTest passed (imagePosition serialize → hydrate)')
+}
+
+runImagePositionRoundTripTest()
