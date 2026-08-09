@@ -2463,6 +2463,26 @@ async function main() {
     }))
   })
 
+  // ── accountDeletions — the tombstone that stops account resurrection ──
+  section('accountDeletions — server-only in both directions')
+
+  await test('a user CANNOT read their own deletion tombstone', async () => {
+    await assertFails(getDoc(doc(learnerA, 'accountDeletions', LEARNER_A)))
+  })
+
+  await test('a user CANNOT delete their own tombstone — that would re-open the race', async () => {
+    // The whole guard rests on this: bootstrapUserProfile refuses to rebuild a
+    // profile while a tombstone exists, so a client able to remove its own
+    // tombstone mid-purge could resurrect the account it just deleted.
+    await assertFails(deleteDoc(doc(learnerA, 'accountDeletions', LEARNER_A)))
+  })
+
+  await test('nobody — not even an admin — can forge or clear a tombstone from the client', async () => {
+    await assertFails(getDoc(doc(admin, 'accountDeletions', LEARNER_A)))
+    await assertFails(setDoc(doc(admin, 'accountDeletions', LEARNER_A), { status: 'complete' }))
+    await assertFails(deleteDoc(doc(admin, 'accountDeletions', LEARNER_A)))
+  })
+
   await test('nobody can read or write webauthnChallenges (replay protection)', async () => {
     await assertFails(getDoc(doc(learnerA, 'webauthnChallenges', 'chal_1')))
     await assertFails(getDoc(doc(admin, 'webauthnChallenges', 'chal_1')))

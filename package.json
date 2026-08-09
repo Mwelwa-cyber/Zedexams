@@ -785,7 +785,10 @@
     "test:learner-notes-schema": "node functions/teacherTools/learnerNotesSchema.test.js",
     "test:learner-notes-printable": "node src/utils/learnerNotesPrintable.test.js",
     "contrast:routes": "node scripts/test-route-contrast.mjs",
-    "test:functions-manifest": "node scripts/test-functions-manifest.mjs"
+    "test:functions-manifest": "node scripts/test-functions-manifest.mjs",
+    "test:deletion-tombstone": "node functions/account/deletionTombstone.test.js",
+    "cleanup:resurrected-profiles": "node scripts/cleanup-resurrected-profiles.mjs",
+    "cleanup:resurrected-profiles:dry": "node scripts/cleanup-resurrected-profiles.mjs"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",

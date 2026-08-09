@@ -2396,6 +2396,17 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Account-deletion tombstones ("{uid}" docs recording that a deletion has
+    // begun or finished). Written and read exclusively by the account
+    // Cloud Functions; `bootstrapUserProfile` refuses to rebuild a profile
+    // when one exists, which is what stops a client's profile listener from
+    // resurrecting an account mid-deletion. A client that could delete or
+    // overwrite this doc could re-open that window deliberately, so no client
+    // read or write, ever — server-only in both directions.
+    match /accountDeletions/{uid} {
+      allow read, write: if false;
+    }
+
     // ── aiAutomationSettings (admin-managed learner-AI policy) ────────
     //
     // The /global doc carries the master enabled switch, daily caps,

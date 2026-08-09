@@ -32,6 +32,11 @@ const {
   resolveClientIp,
 } = require("../rateLimit");
 const {purgeUserData, evaluateDeletionAuth} = require("../accountDeletion");
+const {
+  markDeletionStarted,
+  markDeletionComplete,
+  isDeleting,
+} = require("./deletionTombstone");
 
 /**
  * @param {{cleanString: Function, buildBootstrappedUserProfile: Function}} deps
@@ -55,6 +60,24 @@ function buildAccountCallableHandlers({cleanString, buildBootstrappedUserProfile
     const existingSnap = await userRef.get();
     if (existingSnap.exists) {
       return {created: false, profile: {id: uid, ...existingSnap.data()}};
+    }
+
+    // A missing profile is normally damage to repair. During an account
+    // deletion it is the deletion WORKING, and rebuilding it resurrects the
+    // account the user just asked us to destroy.
+    //
+    // `admin.auth().getUser(uid)` below cannot tell these apart: deleteMyAccount
+    // purges Firestore before it deletes the Auth user, so for the 21-25s the
+    // purge takes, the Auth user still exists and this handler happily rebuilds
+    // the profile the purge has just removed. Reproduced 3/3 in production; the
+    // purge then completed over a document recreated seconds earlier and
+    // reported errors:[]. The tombstone is the only signal that distinguishes
+    // "profile lost" from "profile deliberately removed", and it fails closed.
+    if (await isDeleting(admin.firestore(), uid)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "This account is being deleted and cannot be restored.",
+      );
     }
 
     try {
@@ -99,6 +122,34 @@ function buildAccountCallableHandlers({cleanString, buildBootstrappedUserProfile
       );
     }
 
+    // Tombstone BEFORE the purge, so the guard exists before the first
+    // document disappears — written afterwards it would be written after the
+    // race it prevents. This is what stops the client's profile listener from
+    // rebuilding users/{uid} mid-purge (see deletionTombstone.js).
+    try {
+      await markDeletionStarted(admin.firestore(), uid, {
+        FieldValue: admin.firestore.FieldValue,
+      });
+    } catch (error) {
+      // Without the tombstone the deletion is not safe to run: the profile can
+      // come back and we would report success over it. Refuse instead.
+      console.error("deleteMyAccount tombstone write failed:", error);
+      throw new HttpsError(
+        "internal",
+        "We could not start the deletion right now. Please try again, or contact support.",
+      );
+    }
+
+    // Defence in depth, not the guard: revocation stops NEW ID tokens but does
+    // not invalidate the one the caller already holds, and callables do not
+    // verify revocation. Never fatal — a deletion must not fail because this
+    // did.
+    try {
+      await admin.auth().revokeRefreshTokens(uid);
+    } catch (error) {
+      console.error("deleteMyAccount token revocation failed:", error);
+    }
+
     let summary;
     try {
       summary = await purgeUserData(admin.firestore(), uid, {
@@ -127,10 +178,42 @@ function buildAccountCallableHandlers({cleanString, buildBootstrappedUserProfile
     }
 
     // ── Post-purge cleanup ────────────────────────────────────────────
-    // Both steps run AFTER the account is irreversibly gone, so neither may
+    // All steps run AFTER the account is irreversibly gone, so none may
     // throw: turning a completed deletion into an error the user sees would
     // invite them to retry something that has already happened. Each reports
     // its outcome into the summary instead.
+
+    // Close the tombstone (breadcrumb only — isDeleting refuses on any
+    // tombstone, so nothing depends on this having run).
+    try {
+      await markDeletionComplete(admin.firestore(), uid, {
+        FieldValue: admin.firestore.FieldValue,
+      });
+    } catch (error) {
+      console.error("deleteMyAccount tombstone completion failed:", error);
+    }
+
+    // Verify rather than assume. The purge previously returned errors:[] over a
+    // profile that had been recreated seconds earlier, because nothing looked
+    // again after deleting. A summary that cannot report this failure mode is
+    // indistinguishable from one where it never happened, so: look, remove what
+    // is there, and SAY so in the summary.
+    try {
+      const residual = await admin.firestore().doc(`users/${uid}`).get();
+      if (residual.exists) {
+        await admin.firestore().recursiveDelete(admin.firestore().doc(`users/${uid}`));
+        summary.resurrectedProfileRemoved = true;
+        console.error(
+          `deleteMyAccount uid=${uid} profile was recreated during the purge and has been removed`,
+        );
+      } else {
+        summary.resurrectedProfileRemoved = false;
+      }
+    } catch (error) {
+      // Never report a failed check as a clean result.
+      console.error("deleteMyAccount residual profile check failed:", error);
+      summary.resurrectedProfileRemoved = "unknown";
+    }
 
     // Close (and redact) any web deletion request for this address, so the
     // support queue drains itself when someone finishes the job in-app.

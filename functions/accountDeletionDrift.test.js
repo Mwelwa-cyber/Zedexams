@@ -59,6 +59,15 @@ function parseTopLevelCollections(src) {
 const RETAINED = new Map([
   // Server-only ops / agent / audit / telemetry / rate-limit / dedup — no
   // end-user PII home (or only an incidental actor/uid reference).
+  // Deliberately NOT purged, and this is the one entry where purging would be
+  // actively harmful: the tombstone is what stops bootstrapUserProfile from
+  // rebuilding users/{uid} while the purge is still running. Delete it as part
+  // of the purge and the race it closes re-opens — and a client waking later
+  // with a still-valid cached token could resurrect the account for good.
+  // Holds no PII: a uid, a status and two timestamps. Permanent by design;
+  // safe to keep because re-registration mints a NEW uid even for the same
+  // email, so a returning user is never blocked by their own tombstone.
+  ["accountDeletions", "account-deletion tombstones; must OUTLIVE the purge or the resurrection race re-opens"],
   ["adminAuditLogs", "append-only admin-action ledger; compliance record"],
   ["agentControl", "per-agent circuit-breaker flags; ops config"],
   ["aiAgentControls", "learner-AI agent toggles; ops config"],

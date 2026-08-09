@@ -187,6 +187,7 @@ function architectureClaims(archSrc) {
  * so it must not drift behind reality in either direction.
  */
 const COVERED = [
+  'accountDeletions',
   'adminAuditLogs', 'agentControl', 'agentJobs', 'aiDailyLimits', 'aiGenerations',
   'aiOperations', 'aiUsage', 'aiUsageDaily', 'announcements', 'assessmentExports', 'assessments',
   'classRegisters', 'curriculum', 'downloadTickets', 'exam_attempts',
