@@ -193,10 +193,10 @@ const AdminAnalytics = lazy(() => import('./components/admin/AdminAnalytics'))
 const AdminVisitors = lazy(() => import('./components/admin/AdminVisitors'))
 
 // Admin — Agents (operating-model dashboard)
-const AgentsHome      = lazy(() => import('./components/admin/agents/AgentsHome').then(m => ({ default: m.AgentsHome })))
-const AgentsAllJobs   = lazy(() => import('./components/admin/agents/AgentsHome').then(m => ({ default: m.AgentsAllJobs })))
-const AgentProfile    = lazy(() => import('./components/admin/agents/AgentsHome').then(m => ({ default: m.AgentProfile })))
-const AgentJobDetail  = lazy(() => import('./components/admin/agents/AgentJobDetail'))
+const AgentsHome      = lazy(() => import('./features/agentsConsole/pages/AgentsHome').then(m => ({ default: m.AgentsHome })))
+const AgentsAllJobs   = lazy(() => import('./features/agentsConsole/pages/AgentsHome').then(m => ({ default: m.AgentsAllJobs })))
+const AgentProfile    = lazy(() => import('./features/agentsConsole/pages/AgentsHome').then(m => ({ default: m.AgentProfile })))
+const AgentJobDetail  = lazy(() => import('./features/agentsConsole/pages/AgentJobDetail'))
 const CompanyHQ       = lazy(() => import('./features/companyHQ/pages/CompanyHQ').then(m => ({ default: m.CompanyHQ })))
 
 // Internal UI audit page at /dev/ui — see the route comment below.

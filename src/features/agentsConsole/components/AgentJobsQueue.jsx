@@ -5,7 +5,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import { AGENTS_BY_ID, JOB_STATUSES } from '../../../config/agents'
-import Skeleton from '../../ui/Skeleton'
+import Skeleton from '../../../components/ui/Skeleton'
 
 const STATUS_STYLES = {
   queued:             { cls: 'bg-gray-100 text-gray-600',     label: 'Queued'             },
