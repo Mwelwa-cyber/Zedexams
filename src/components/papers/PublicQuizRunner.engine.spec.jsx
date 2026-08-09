@@ -21,7 +21,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 
 const flagState = { engine: true, resolved: true, final: true, source: 'rollout-all', runner: 'pastPaperQuiz', live: true, latched: false }
 // Per-test knobs for the quiz mock, mutated in tests and reset in beforeEach.
-const quizState = { correctAnswer: 1, lockedOut: false }
+const quizState = { correctAnswer: 1, lockedOut: false, questionExtra: {} }
 
 vi.mock('../../hooks/useAssessmentEngineFlag', () => ({
   useAssessmentEngineFlag: () => flagState,
@@ -65,6 +65,10 @@ vi.mock('../../utils/pastPaperQuiz', async () => {
       quiz: { id: 'quiz-1', title: 'Mathematics P1 2024', subject: 'Mathematics', grade: '7' },
       questions: [{
         id: 'q1', type: 'mcq', text: 'What is 2 + 2?', marks: 1, topic: 'Addition',
+        // Per-test figure/position fields. Spread before options and the
+        // correctAnswer getter so a test can never accidentally displace the
+        // engine-canary contract those two encode.
+        ...quizState.questionExtra,
         // FIVE options on purpose: the D4 defect was `['A','B','C','D'][i]`
         // yielding undefined past D, and the §2 requirement is letters from a
         // rule that does not stop at four.
@@ -101,6 +105,59 @@ beforeEach(() => {
   flagState.latched = false
   quizState.correctAnswer = 1
   quizState.lockedOut = false
+  quizState.questionExtra = {}
+})
+
+/**
+ * Stem figure + image position.
+ *
+ * These live in this file because it owns the mount harness for this runner,
+ * and they are deliberately NOT part of the canary: the stem figure is
+ * rendered UPSTREAM of the engine/old card swap, so it is flag-independent —
+ * which is itself worth pinning, since a future refactor that moved the figure
+ * inside a card would make it flag-dependent without anything failing.
+ *
+ * This surface honoured neither `imagePosition` (#2204 fixed the other three
+ * runners and described the problem as having three surfaces — this was the
+ * fourth) nor, before that, a shared precedence rule for which figure wins.
+ */
+describe('the stem figure and its position', () => {
+  it('honours imagePosition — the gap #2204 left on this surface', async () => {
+    quizState.questionExtra = { imageUrl: 'https://storage.example/fig.jpg', imagePosition: 'below' }
+    const { container } = mountRunner()
+    await screen.findByText(/What is 2 \+ 2\?/)
+    const wrap = container.querySelector('[data-image-position="below"]')
+    expect(wrap).not.toBeNull()
+    expect(wrap.className).toContain('flex-col-reverse')
+    expect(wrap.querySelector('img')).not.toBeNull()
+  })
+
+  it('positions the figure the same way with the engine card OFF (it is upstream of the swap)', async () => {
+    flagState.engine = false
+    quizState.questionExtra = { imageUrl: 'https://storage.example/fig.jpg', imagePosition: 'right' }
+    const { container } = mountRunner()
+    await screen.findByText(/What is 2 \+ 2\?/)
+    expect(container.querySelector('[data-engine-runner]')).toBeNull()
+    expect(container.querySelector('[data-image-position="right"]').className).toContain('sm:flex-row-reverse')
+  })
+
+  it('renders a library diagram, and it beats a leftover imageUrl', async () => {
+    quizState.questionExtra = {
+      imageDiagram: { libraryKey: 'trapezium', params: {} },
+      imageUrl: 'https://storage.example/stale.jpg',
+    }
+    const { container } = mountRunner()
+    await screen.findByText(/What is 2 \+ 2\?/)
+    expect(container.querySelector('.zx-diagram-svg')).not.toBeNull()
+    expect(container.querySelector('img[src="https://storage.example/stale.jpg"]')).toBeNull()
+  })
+
+  it('emits no position wrapper for a question with no figure', async () => {
+    quizState.questionExtra = { imagePosition: 'below' }
+    const { container } = mountRunner()
+    await screen.findByText(/What is 2 \+ 2\?/)
+    expect(container.querySelector('[data-image-position]')).toBeNull()
+  })
 })
 
 describe('the past-paper canary card swap', () => {

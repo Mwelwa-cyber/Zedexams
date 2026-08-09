@@ -264,4 +264,57 @@ describe('DailyExamRunner — timer + restore', () => {
     renderRunner()
     expect(await screen.findByText(/Time Expired/i)).toBeInTheDocument()
   })
+
+  // ── Question figures (BUG_REPORT RENDER-001) ──────────────────────────────
+  // The runner read imageUrl only, so a question whose figure is a library
+  // diagram rendered with NO figure — a learner could not answer from what was
+  // on screen, in the highest-stakes flow there is.
+  describe('question figures', () => {
+    function withFigure(over) {
+      const q = { ...Q1, ...over }
+      mockGetExamWithQuestions.mockResolvedValue(examData({
+        questions: [q, Q2],
+        sections: [
+          { kind: 'standalone', id: 's1', question: q },
+          { kind: 'standalone', id: 's2', question: Q2 },
+        ],
+      }))
+    }
+
+    it('renders a library diagram as the question figure', async () => {
+      withFigure({ imageDiagram: { libraryKey: 'cylinder', params: {} } })
+      const { container } = renderRunner()
+      expect(await screen.findByText(/What is 2 \+ 2\?/)).toBeInTheDocument()
+      expect(container.querySelector('.zx-diagram-svg')).not.toBeNull()
+    })
+
+    it('positions a library diagram the same way it positions an uploaded image', async () => {
+      withFigure({ imageDiagram: { libraryKey: 'cylinder', params: {} }, imagePosition: 'below' })
+      const { container } = renderRunner()
+      await screen.findByText(/What is 2 \+ 2\?/)
+      const wrap = container.querySelector('[data-image-position="below"]')
+      expect(wrap).not.toBeNull()
+      expect(wrap.className).toContain('flex-col-reverse')
+      // Inside the wrapper, or the reversal moves nothing.
+      expect(wrap.querySelector('.zx-diagram-svg')).not.toBeNull()
+    })
+
+    it('a library diagram wins over a leftover imageUrl, and only one figure renders', async () => {
+      withFigure({
+        imageDiagram: { libraryKey: 'cylinder', params: {} },
+        imageUrl: 'https://storage.example/stale.jpg',
+      })
+      const { container } = renderRunner()
+      await screen.findByText(/What is 2 \+ 2\?/)
+      expect(container.querySelector('.zx-diagram-svg')).not.toBeNull()
+      expect(container.querySelector('img[src="https://storage.example/stale.jpg"]')).toBeNull()
+    })
+
+    it('emits no position wrapper for a question with no figure', async () => {
+      withFigure({ imagePosition: 'below' })
+      const { container } = renderRunner()
+      await screen.findByText(/What is 2 \+ 2\?/)
+      expect(container.querySelector('[data-image-position]')).toBeNull()
+    })
+  })
 })

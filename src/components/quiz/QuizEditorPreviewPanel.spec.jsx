@@ -65,3 +65,44 @@ describe('QuizEditorPreviewPanel — imagePosition', () => {
     expect(container.querySelector('[data-image-position]')).toBeNull()
   })
 })
+
+describe('QuizEditorPreviewPanel — library diagrams (RENDER-001)', () => {
+  // The preview read imageUrl only, so a question whose figure is a library
+  // diagram previewed with NO figure at all — the teacher could not see the
+  // shape they had just picked. DiagramSvg renders the catalog SVG inline
+  // under role="img".
+  it('renders a library diagram as the question figure', () => {
+    const { container } = renderPanel(
+      question({ imageUrl: '', imageDiagram: { libraryKey: 'cylinder', params: {} } }),
+    )
+    expect(container.querySelector('.zx-diagram-svg')).not.toBeNull()
+    expect(container.querySelector('svg')).not.toBeNull()
+  })
+
+  it('positions a library diagram exactly as it positions an uploaded image', () => {
+    const { container } = renderPanel(
+      question({ imageUrl: '', imageDiagram: { libraryKey: 'cylinder', params: {} }, imagePosition: 'below' }),
+    )
+    const wrap = container.querySelector('[data-image-position="below"]')
+    expect(wrap).not.toBeNull()
+    expect(wrap.className).toContain('flex-col-reverse')
+    // The diagram must live INSIDE the wrapper, or the reversal moves nothing
+    // — the same requirement the uploaded-image case has.
+    expect(wrap.querySelector('.zx-diagram-svg')).not.toBeNull()
+  })
+
+  it('a library diagram wins over a leftover imageUrl, and only one figure renders', () => {
+    const { container } = renderPanel(
+      question({ imageUrl: 'https://storage.example/stale.jpg', imageDiagram: { libraryKey: 'cylinder', params: {} } }),
+    )
+    expect(container.querySelector('.zx-diagram-svg')).not.toBeNull()
+    expect(screen.queryByAltText('Question illustration')).toBeNull()
+  })
+
+  it('an imageDiagram with no libraryKey falls back to the uploaded image', () => {
+    // The field is sometimes present as {} — that renders nothing, so it must
+    // not shadow a perfectly good photo.
+    renderPanel(question({ imageDiagram: {} }))
+    expect(screen.getByAltText('Question illustration')).toBeInTheDocument()
+  })
+})

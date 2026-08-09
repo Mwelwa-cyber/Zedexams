@@ -6,6 +6,7 @@ import RichContent from '../../editor/RichContent'
 import ZoomableImage from './ZoomableImage'
 import ExtraQuestionImages from './ExtraQuestionImages'
 import DiagramSvg from '../diagrams/DiagramSvg'
+import { imagePositionClasses, resolveQuestionFigure, usesFigurePositionWrapper } from '../../utils/questionFigure'
 
 function joinClasses(...parts) {
   return parts.filter(Boolean).join(' ')
@@ -40,10 +41,24 @@ function PreviewQuestion({ question }) {
           below here too. null/'above'/'inline' keep the original stacked DOM. */}
       {(() => {
         const pos = question.imagePosition
-        const imageBlock = question.imageUrl ? (
+        const figure = resolveQuestionFigure(question)
+        const imageBlock = figure.kind === 'diagram' ? (
+          // A library diagram is a figure like any other. Before this the
+          // preview read imageUrl only, so a diagram question previewed with
+          // NO figure at all — the teacher couldn't see the shape they'd
+          // just picked (BUG_REPORT RENDER-001).
+          <div className="theme-border theme-bg-subtle overflow-hidden rounded-2xl border p-3">
+            <DiagramSvg
+              libraryKey={figure.libraryKey}
+              params={figure.params}
+              alt="Question diagram"
+              className="mx-auto flex max-h-[80vh] w-full items-center justify-center"
+            />
+          </div>
+        ) : figure.kind === 'image' ? (
           <div className="theme-border theme-bg-subtle overflow-hidden rounded-2xl border p-3">
             <ZoomableImage
-              src={question.imageUrl}
+              src={figure.imageUrl}
               alt="Question illustration"
               fallbackText={question.diagramText}
               className="mx-auto max-h-[80vh] w-full rounded-xl object-contain"
@@ -68,7 +83,7 @@ function PreviewQuestion({ question }) {
             )}
           </div>
         )
-        if (!imageBlock || !pos || pos === 'above' || pos === 'inline') {
+        if (!usesFigurePositionWrapper(pos, Boolean(imageBlock))) {
           return (
             <>
               {imageBlock}
@@ -77,14 +92,9 @@ function PreviewQuestion({ question }) {
             </>
           )
         }
-        const wrapClasses = pos === 'below'
-          ? 'flex flex-col-reverse gap-3'
-          : pos === 'left'
-            ? 'flex flex-col gap-3 sm:flex-row sm:items-start'
-            : 'flex flex-col gap-3 sm:flex-row-reverse sm:items-start'
         return (
           <>
-            <div className={wrapClasses} data-image-position={pos}>
+            <div className={imagePositionClasses(pos)} data-image-position={pos}>
               {imageBlock}
               {textBlock}
             </div>

@@ -38,6 +38,7 @@ import {
   isSequenceType,
 } from '../../utils/quizScoring'
 import { buildQuizResultPayload } from '../../utils/quizResultPayload'
+import { imagePositionClasses, resolveQuestionFigure, usesFigurePositionWrapper } from '../../utils/questionFigure'
 import { fillBlanksLayout, gradeFillBlanks } from '../../utils/fillBlanks'
 import { diagramLabelLayout, gradeDiagramLabels } from '../../utils/diagramLabelGrading'
 import { gradeMatching } from '../../utils/matchingGrading'
@@ -158,19 +159,10 @@ function OptionButton({ label, selected, revealed, correct, wrong, onClick, imag
   )
 }
 
-// Layout class for the question image + text pair based on the saved
-// imagePosition. Null/absent → 'above' (the only layout that existed before
-// this field was added).
-const IMAGE_POSITION_CLASSES = {
-  above:  'flex flex-col gap-3',
-  below:  'flex flex-col-reverse gap-3',
-  left:   'flex flex-col gap-3 sm:flex-row sm:items-start',
-  right:  'flex flex-col gap-3 sm:flex-row-reverse sm:items-start',
-  inline: 'flex flex-col gap-3',
-}
-function imagePositionClasses(value) {
-  return IMAGE_POSITION_CLASSES[value] || IMAGE_POSITION_CLASSES.above
-}
+// The layout classes for the question image + text pair, and the rule for
+// which figure a question carries, now live in src/utils/questionFigure.js —
+// this file held the only copy, and the three other surfaces that render a
+// question each reimplemented part of it (see that module's header).
 
 function PreQuizCard({ quiz, canExam, onStart }) {
   const [mode, setMode] = useState('practice')
@@ -772,27 +764,28 @@ export default function QuizRunnerV2() {
             the parent's vertical rhythm. */}
         {(() => {
           const pos = question.imagePosition
-          // Library diagram takes precedence over uploaded image when both
-          // are set (which shouldn't happen — the editor enforces mutual
-          // exclusivity — but the renderer is defensive in case stale data
-          // arrives from Firestore).
           // Diagram-label questions render their image WITH numbered markers
-          // in the branch below, so suppress the plain image here to avoid
-          // showing the picture twice (once unmarked, once marked).
-          const imageBlock = isDiagramLabelType(question.type) ? null
-            : question.imageDiagram?.libraryKey ? (
+          // in the branch below, so suppress the plain figure here to avoid
+          // showing the picture twice (once unmarked, once marked). This stays
+          // a fact about THIS surface's answer input, not about the question,
+          // which is why it is not in resolveQuestionFigure — the surfaces
+          // with no diagram-label answer UI must still draw the figure.
+          const figure = isDiagramLabelType(question.type)
+            ? { kind: 'none' }
+            : resolveQuestionFigure(question)
+          const imageBlock = figure.kind === 'diagram' ? (
             <div className="overflow-hidden rounded-2xl border-2 border-slate-900 bg-slate-50 p-3">
               <DiagramSvg
-                libraryKey={question.imageDiagram.libraryKey}
-                params={question.imageDiagram.params}
+                libraryKey={figure.libraryKey}
+                params={figure.params}
                 alt="Question diagram"
                 className="mx-auto flex max-h-[80vh] w-full items-center justify-center"
               />
             </div>
-          ) : question.imageUrl ? (
+          ) : figure.kind === 'image' ? (
             <div className="overflow-hidden rounded-2xl border-2 border-slate-900 bg-slate-50 p-3">
               <ZoomableImage
-                src={question.imageUrl}
+                src={figure.imageUrl}
                 alt="Question illustration"
                 fallbackText={question.diagramText}
                 priority
@@ -829,7 +822,7 @@ export default function QuizRunnerV2() {
             </div>
           )
           const extraImages = <ExtraQuestionImages question={question} />
-          if (!pos || pos === 'above' || pos === 'inline') {
+          if (!usesFigurePositionWrapper(pos, Boolean(imageBlock))) {
             return (
               <>
                 {imageBlock}
@@ -840,7 +833,7 @@ export default function QuizRunnerV2() {
           }
           return (
             <>
-              <div className={imagePositionClasses(pos)}>
+              <div className={imagePositionClasses(pos)} data-image-position={pos}>
                 {imageBlock}
                 {textBlock}
               </div>
