@@ -13,13 +13,12 @@
  * only by `lazy(() => import('…/pages/HomeworkStudio'))` in the teacher route
  * table, under the route-mount exception Phase 1 recorded.
  *
- * The exporters stay in `src/utils/` for the reason recorded on the rubric
- * front door and in architecture.md §13: putting a docx exporter behind a
- * feature index makes Rollup group the view into the exporter's chunk, and
- * that chunk statically imports a 382 kB `docx-vendor` — which the two light
- * pages above would then load to render a table. They move to
- * `src/engines/export-engine/` when it exists, which is where §12 puts them,
- * and this file will not change when they do.
+ * The exporters live in `src/engines/export-engine/` (#2200) and this front
+ * door does not re-export them, which is the same decision it always was:
+ * putting a docx exporter behind a feature index makes Rollup group the view
+ * into the exporter's chunk, and that chunk statically imports a 382 kB
+ * `docx-vendor` the two light pages above would then load to render a table.
+ * `check:bundle-edges` and `test:exporter-home` both enforce it.
  */
 
 export { default as HomeworkView } from './components/HomeworkView'

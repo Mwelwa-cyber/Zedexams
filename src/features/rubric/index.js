@@ -28,8 +28,8 @@
  *
  * ── Why the exporters did NOT come with it ──────────────────────────────
  *
- * `rubricToDocx.js` / `rubricToPdf.js` stay in `src/utils/` for now, and this
- * index does not re-export them. That departs from the flashcards precedent
+ * `rubricToDocx.js` / `rubricToPdf.js` live in `src/engines/export-engine/`
+ * (#2200), and this index does not re-export them. That departs from the flashcards precedent
  * (Phase 2 moved its exporters into `export/` and listed them here), so the
  * reason is recorded rather than left to be rediscovered:
  *

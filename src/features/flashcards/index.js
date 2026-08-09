@@ -33,8 +33,8 @@
  * already warned about for a different reason — the `/teachers` marketing page.
  * They were downloading a Word-document runtime to draw a card.
  *
- * The exporters live in `src/utils/` until `src/engines/export-engine/` exists,
- * which is where §12's target map puts document exporters; `LibraryItemDetail`,
+ * The exporters live in `src/engines/export-engine/` (#2200), where §12's
+ * target map puts document exporters; `LibraryItemDetail`,
  * the one consumer that really does export, imports them from there directly.
  * `npm run check:bundle-edges` now fails if any of those pages regains the edge.
  */
