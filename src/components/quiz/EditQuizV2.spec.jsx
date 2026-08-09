@@ -46,10 +46,7 @@ vi.mock('../../contexts/AuthContext', () => ({ useAuth: () => mockAuth }))
 // Firebase-touching / heavy leaves used only inside handlers or deep panels.
 vi.mock('../../utils/questionBankService', () => ({ captureQuestionsToBank: vi.fn() }))
 vi.mock('../../utils/aiAssistant', () => ({ suggestQuizAnswers: vi.fn() }))
-vi.mock('../../utils/quizAssignments', () => ({
-  deriveQuizStatus: () => 'draft',
-  listAssignmentsForResource: vi.fn().mockResolvedValue([]),
-}))
+vi.mock('../../utils/quizStatus', () => ({ deriveQuizStatus: () => 'draft' }))
 vi.mock('../../editor/RichContent.jsx', () => ({ getRichPlainText: () => '' }))
 // documentQuizImporter → testPaperDiagram calls getFunctions() at import time.
 vi.mock('./documentQuizImporter', () => ({
@@ -73,9 +70,8 @@ vi.mock('./QuizEditorFloatingNav', () => ({ default: () => null }))
 vi.mock('./QuizValidationChecklist', () => ({ default: () => null }))
 vi.mock('./ReimportDiffModal', () => ({ default: () => null }))
 vi.mock('./QuizWizardSteps', () => ({ default: () => null }))
-vi.mock('./assignment/QuizStatusBadge', () => ({ default: () => null }))
-vi.mock('./assignment/QuizAssignStep', () => ({ default: () => null }))
-vi.mock('./assignment/QuizPublishStep', () => ({ default: () => null }))
+vi.mock('./QuizStatusBadge', () => ({ default: () => null }))
+vi.mock('./QuizPublishStep', () => ({ default: () => null }))
 vi.mock('../ui/ConfirmDialog', () => ({ default: () => null }))
 vi.mock('../seo/SeoHelmet', () => ({ default: () => null }))
 

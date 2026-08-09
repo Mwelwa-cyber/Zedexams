@@ -19,7 +19,7 @@
 //      recursiveDelete per match.
 //
 //   3. ARRAY_MEMBERSHIP_COLLECTIONS — the uid appears inside an array on a
-//      doc that belongs to someone else (a teacher's class / assignment).
+//      doc that belongs to someone else (e.g. a shared school licence).
 //      We arrayRemove the uid rather than deleting the whole doc.
 //
 // Design notes:
@@ -82,9 +82,7 @@ const FIELD_QUERY_COLLECTIONS = [
   {collection: "assessments", field: "createdBy", recursive: true}, // + questions
   {collection: "quizzes", field: "createdBy", recursive: true}, // + questions
   {collection: "lessons", field: "createdBy"},
-  {collection: "classes", field: "teacherUid"},
   {collection: "classRegisters", field: "teacherUid", recursive: true}, // + roster, records
-  {collection: "assignments", field: "teacherUid"},
   // Passkey (WebAuthn) sign-in: credentials stop authenticating the moment
   // their doc is gone, and the uid-bearing audit rows go with them.
   {collection: "passkeyCredentials", field: "uid"},
@@ -94,7 +92,6 @@ const FIELD_QUERY_COLLECTIONS = [
   // delete here is the only path that clears them.
   {collection: "visualProjects", field: "ownerId"}, // Visual Studio editable canvas projects
   {collection: "assessmentExports", field: "ownerUid"}, // export cache for the teacher's assessments (also purged)
-  {collection: "classInvites", field: "createdBy"}, // orphaned class invite codes minted by the teacher
   {collection: "familyInviteCodes", field: "learnerUid"}, // parent-invite codes minted by the learner
   // Guardian consent links. A row holds the learner's uid AND their guardian's
   // email or phone number, plus the IP/user-agent evidence of the approving
@@ -113,9 +110,6 @@ const FIELD_QUERY_COLLECTIONS = [
 
 // uid lives inside an array on a doc owned by another user.
 const ARRAY_MEMBERSHIP_COLLECTIONS = [
-  {collection: "classes", field: "learners"},
-  {collection: "classes", field: "pendingLearners"},
-  {collection: "assignments", field: "learnerUids"},
   // Shared school licence roster: remove the departing user's uid rather than
   // deleting the licence, which belongs to the school (LEGAL-004).
   {collection: "schoolLicences", field: "memberUids"},

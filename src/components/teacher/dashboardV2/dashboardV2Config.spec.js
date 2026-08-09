@@ -31,7 +31,7 @@ const CANONICAL_MENU = [
   ['root', null, ['Dashboard']],
   ['create', 'Create', ['Lesson Plans', 'Schemes of Work', 'Weekly Focus', 'Record of Work']],
   ['manage', 'Manage', [
-    'My Library', 'Assessments', 'My Classes', 'Class List', 'Class Register',
+    'My Library', 'Assessments', 'Class List', 'Class Register',
     'Syllabi Studio', 'Curriculum', 'School Calendar',
   ]],
   ['settings', 'Settings', ['Subscription', 'Profile', 'Settings', 'Help & Support']],

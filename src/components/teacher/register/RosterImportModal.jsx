@@ -1,28 +1,26 @@
 /**
  * RosterImportModal — bulk-add learners to a Class Register's roster.
  *
- * Four sources, so a teacher enters a class list once and never retypes it:
+ * Two sources, so a teacher enters a class list once and never retypes it:
  *   - Paste      — paste names (one per line) or tab/comma columns.
  *   - Upload     — a .csv or .xlsx file (Excel parsed via jszip, no new dep).
- *   - Accounts   — import existing learner accounts from the teacher's classes.
+ *
+ * There was a third — importing existing learner ACCOUNTS from the teacher's
+ * invite-code classes — removed with the learner/teacher class feature. A
+ * roster now holds names the teacher owns, never a link to a learner account.
  *
  * Pasted/uploaded rows are parsed + validated by src/utils/rosterImport.js and
  * previewed (ok / warning / error) before anything is written.
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import useFocusTrap from '../../../hooks/useFocusTrap'
 import {
   parseRosterText,
   buildRosterCsvTemplate,
   validRosterEntries,
 } from '../../../utils/rosterImport'
-import {
-  bulkAddRoster,
-  listImportableAccounts,
-  importExistingAccounts,
-  parseRosterFile,
-} from '../../../utils/classRoster'
+import { bulkAddRoster, parseRosterFile } from '../../../utils/classRoster'
 import { useToast } from '../../ui/Toast'
 import Button from '../../ui/Button'
 import { saveBlob } from '../../../utils/saveBlob.js'
@@ -30,7 +28,6 @@ import { saveBlob } from '../../../utils/saveBlob.js'
 const MODES = [
   { key: 'paste', label: 'Paste' },
   { key: 'upload', label: 'Upload CSV / Excel' },
-  { key: 'accounts', label: 'Existing accounts' },
 ]
 
 const STATUS_DOT = { ok: 'bg-emerald-500', warning: 'bg-amber-500', error: 'bg-red-500' }
@@ -77,25 +74,11 @@ export default function RosterImportModal({ classId, teacherUid, onClose, onImpo
   const [parsed, setParsed] = useState(null)
   const [busy, setBusy] = useState(false)
 
-  // Accounts mode
-  const [accounts, setAccounts] = useState(null) // null = not loaded yet
-  const [accountsError, setAccountsError] = useState(false)
-  const [selected, setSelected] = useState(() => new Set())
-
   const panelRef = useRef(null)
   // Escape closes, Tab stays inside, focus returns to the opener on close.
   // Hold Escape while an import is committing so a stray key can't drop the
   // modal mid-write.
   useFocusTrap(panelRef, { onEscape: () => { if (!busy) onClose?.() } })
-
-  useEffect(() => {
-    // Skip if: wrong tab, already loaded, or previous attempt errored (user
-    // must click Retry to reset accountsError before we try again).
-    if (mode !== 'accounts' || accounts !== null || accountsError) return
-    listImportableAccounts(teacherUid)
-      .then(setAccounts)
-      .catch((err) => { console.warn('[RosterImportModal] accounts load failed', err); setAccountsError(true) })
-  }, [mode, accounts, accountsError, teacherUid])
 
   function handleTextChange(value) {
     setText(value)
@@ -128,28 +111,6 @@ export default function RosterImportModal({ classId, teacherUid, onClose, onImpo
     setBusy(true)
     try {
       const result = await bulkAddRoster(classId, teacherUid, entries)
-      onImported(result)
-    } catch (err) {
-      toast.error(`Import failed: ${err.message || 'unexpected error'}`)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  function toggleAccount(uid) {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(uid)) next.delete(uid); else next.add(uid)
-      return next
-    })
-  }
-
-  async function handleCommitAccounts() {
-    const chosen = (accounts || []).filter((a) => selected.has(a.uid))
-    if (chosen.length === 0) { toast.error('Select at least one learner.'); return }
-    setBusy(true)
-    try {
-      const result = await importExistingAccounts(classId, teacherUid, chosen)
       onImported(result)
     } catch (err) {
       toast.error(`Import failed: ${err.message || 'unexpected error'}`)
@@ -220,53 +181,11 @@ export default function RosterImportModal({ classId, teacherUid, onClose, onImpo
           </div>
         )}
 
-        {mode === 'accounts' && (
-          <div>
-            <p className="theme-text-muted text-xs mb-2">
-              Import learners who already have accounts in your invite-code classes.
-            </p>
-            {accountsError ? (
-              <div role="alert" className="py-4 text-center">
-                <p className="theme-text-muted text-sm">Couldn&apos;t load accounts. Check your connection.</p>
-                <button
-                  type="button"
-                  onClick={() => setAccountsError(false)}
-                  className="mt-2 theme-accent-text text-sm font-black"
-                >
-                  Retry
-                </button>
-              </div>
-            ) : accounts === null ? (
-              <p className="theme-text-muted text-sm py-4 text-center">Loading accounts…</p>
-            ) : accounts.length === 0 ? (
-              <p className="theme-text-muted text-sm py-4 text-center">
-                No linkable accounts found. Learners join an invite-code class first.
-              </p>
-            ) : (
-              <div className="max-h-56 overflow-y-auto border theme-border rounded-radius-md divide-y divide-current/10">
-                {accounts.map((a) => (
-                  <label key={a.uid} className="flex items-center gap-3 px-3 py-2 text-sm cursor-pointer">
-                    <input type="checkbox" checked={selected.has(a.uid)} onChange={() => toggleAccount(a.uid)} />
-                    <span className="theme-text font-bold flex-1 truncate">{a.displayName}</span>
-                    <span className="theme-text-muted text-xs truncate">{a.email}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
         <div className="flex items-center justify-end gap-2 pt-1">
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          {mode === 'accounts' ? (
-            <Button onClick={handleCommitAccounts} loading={busy} disabled={!accounts || accounts.length === 0}>
-              Import {selected.size || ''} selected
-            </Button>
-          ) : (
-            <Button onClick={handleCommitParsed} loading={busy} disabled={!parsed || validRosterEntries(parsed).length === 0}>
-              Import {parsed ? validRosterEntries(parsed).length : 0} learners
-            </Button>
-          )}
+          <Button onClick={handleCommitParsed} loading={busy} disabled={!parsed || validRosterEntries(parsed).length === 0}>
+            Import {parsed ? validRosterEntries(parsed).length : 0} learners
+          </Button>
         </div>
       </div>
     </div>

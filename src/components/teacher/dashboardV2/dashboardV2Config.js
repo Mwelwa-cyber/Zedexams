@@ -67,7 +67,6 @@ export const TEACHER_NAV_GROUPS = [
     items: [
       { id: 'library', label: 'My Library', icon: FolderOpen, to: '/teacher/library' },
       { id: 'assessments', label: 'Assessments', icon: FileText, to: '/teacher/assessment-papers' },
-      { id: 'classes', label: 'My Classes', icon: Users, to: '/teacher/classes' },
       { id: 'register', label: 'Class List', icon: ListChecks, to: '/teacher/register' },
       { id: 'attendance', label: 'Class Register', icon: ClipboardCheck, to: '/teacher/attendance' },
       { id: 'syllabi', label: 'Syllabi Studio', icon: Files, to: '/teacher/syllabi' },
@@ -112,7 +111,6 @@ export const CANONICAL_TOOL_LABELS = {
   '/teacher/generate/record-of-work': 'Record of Work',
   '/teacher/library': 'My Library',
   '/teacher/assessment-papers': 'Assessments',
-  '/teacher/classes': 'My Classes',
   '/teacher/register': 'Class List',
   '/teacher/attendance': 'Class Register',
   '/teacher/syllabi': 'Syllabi Studio',
@@ -285,7 +283,6 @@ export const ALL_TOOLS = [
   { id: 'templates', label: 'Paper Templates', icon: Files, to: '/teacher/templates' },
   { id: 'drafts', label: 'Drafts', icon: FileText, to: '/teacher/drafts' },
   { id: 'library', label: 'My Library', icon: FolderOpen, to: '/teacher/library' },
-  { id: 'classes', label: 'My Classes', icon: Users, to: '/teacher/classes' },
 ]
 
 /* Document/activity row icon per tool id (defaults to FileText). */

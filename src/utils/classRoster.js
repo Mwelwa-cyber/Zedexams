@@ -8,7 +8,6 @@
  *   - typed manually,
  *   - bulk-pasted / CSV-uploaded (parsed by src/utils/rosterImport.js),
  *   - read from an .xlsx file (parsed here with jszip — already in the tree),
- *   - imported from existing learner accounts (linkedUid set).
  *
  * Roster mutations keep the parent register's learnerCount in sync via
  * recountRegister(). All reads/writes are gated by Firestore rules on
@@ -27,7 +26,6 @@ import {
   query,
   serverTimestamp,
   updateDoc,
-  where,
   writeBatch,
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
@@ -36,7 +34,6 @@ import {
   rosterEntryUpdateSchema,
   coerceRosterEntry,
 } from '../schemas/rosterEntry'
-import { listTeacherClasses } from './classes'
 import { parseRosterText, rowsToRoster, partitionNewRosterEntries } from './rosterImport'
 
 function rosterCol(classId) {
@@ -211,48 +208,6 @@ export async function bulkAddRoster(classId, teacherUid, entries) {
 
   await recountRegister(classId)
   return { added, skipped, duplicates }
-}
-
-// ── Import from existing learner accounts ────────────────────────
-
-/**
- * Learner accounts the teacher can import — sourced from the approved rosters
- * of their invite-code classes (src/utils/classes.js). Reads user summaries in
- * chunks of 10 (the Firestore `in` cap), degrading to a uid placeholder for any
- * the rules block. Returns [{ uid, displayName, email }].
- */
-export async function listImportableAccounts(teacherUid) {
-  const classes = await listTeacherClasses(teacherUid, { includeArchived: false, limit: 100 })
-  const uids = [...new Set(classes.flatMap((c) => (Array.isArray(c.learners) ? c.learners : [])))]
-  if (uids.length === 0) return []
-  const out = []
-  for (let i = 0; i < uids.length; i += 10) {
-    const chunk = uids.slice(i, i + 10)
-    try {
-      const snap = await getDocs(query(collection(db, 'users'), where('__name__', 'in', chunk)))
-      const got = new Map()
-      snap.docs.forEach((d) => {
-        const data = d.data() || {}
-        got.set(d.id, { uid: d.id, displayName: data.displayName || '', email: data.email || '' })
-      })
-      for (const uid of chunk) out.push(got.get(uid) || { uid, displayName: '', email: '' })
-    } catch (err) {
-      console.warn('[classRoster] account summary fetch failed', err)
-      for (const uid of chunk) out.push({ uid, displayName: '', email: '' })
-    }
-  }
-  // Only offer accounts that resolved to a usable name.
-  return out.filter((a) => a.displayName)
-}
-
-/** Create roster entries for chosen accounts, stamping linkedUid. */
-export async function importExistingAccounts(classId, teacherUid, accounts) {
-  const entries = accounts.map((a) => ({
-    fullName: a.displayName,
-    linkedUid: a.uid,
-    status: 'active',
-  }))
-  return bulkAddRoster(classId, teacherUid, entries)
 }
 
 // ── Excel (.xlsx) parsing — jszip + browser DOMParser, no new dep ─

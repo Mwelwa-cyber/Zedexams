@@ -52,7 +52,6 @@ import OnboardingOverlay        from '../ui/OnboardingOverlay'
 import PushPermissionPrompt     from '../ui/PushPermissionPrompt'
 import VerifyEmailBanner        from '../ui/VerifyEmailBanner'
 import SubscriptionReminderCard from '../subscription/SubscriptionReminderCard'
-import AssignmentsCard          from './AssignmentsCard'
 import StudyPlanCard            from './StudyPlanCard'
 import Icon                     from '../ui/Icon'
 import Button                   from '../ui/Button'
@@ -1312,10 +1311,6 @@ export default function GradeHub() {
         {/* Audit A8 — verify-email reminder. Self-hides for already-
             verified accounts (incl. Google sign-in) and dismissed sessions. */}
         <VerifyEmailBanner />
-        {/* Audit A10 PR 3 — "From your teacher" assigned-work card.
-            Self-hides when the learner has no classes or no active
-            assignments yet. */}
-        <AssignmentsCard />
         <StudyPlanCard
           results={recentResults}
           weakTopics={weakTopics}

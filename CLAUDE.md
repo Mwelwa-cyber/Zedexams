@@ -130,7 +130,6 @@ src/
     diagrams/                   — diagram rendering + the leader-line label layer for question/passage figures
     papers/                     — Past papers viewer + practice + history
     parent/                     — Parent portal pages
-    classes/                    — Class management UI (rosters, invites, assignments, analytics)
   features/lessons, features/notes, features/visualStudio — feature-folder pattern (pages/, components/, services/, lib/) for newer surfaces; visualStudio drives admin image authoring AND the teacher Picture & Diagram Studio at /teacher/visual-studio. **Visual Studio v2 foundation (2026-08)**: the `diagramAssets` collection is the curriculum Diagram Library — ONE asset stores source art + labels `{ word, anchor, box }` (normalized 0–1) and the four printable versions (teacher words / learner P,Q,R / answer key / picture only) are RENDER-TIME projections (`lib/diagramProjections.js`; letters are NEVER stored — derived from reading order, sort anchor.y then anchor.x, so add/delete can't skip a letter; the learner word bank is lowercase-alphabetical because anchor order leaks answers). `lib/labelBoxLayout.js` owns auto box placement (nearer margin, greedy push-down) + the 2F "Perfect layout" + leader-crossing detection; `schemas/diagramAsset.js` is the Zod pair; `services/diagramAssetService.js` bumps `version` on every label edit (consumers reference assetId + version). AI auto-label: the `autoLabelDiagram` callable (`functions/teacherTools/autoLabelDiagram.js`, pure decisions in `autoLabelCore.js`) runs Claude vision + `resolveCbcContext` grounding and returns proposals the editor treats as pre-filled manual labels — confidence < 0.7 flags amber, an ungrounded run says so, two malformed replies fall back to manual mode, and NOTHING is written server-side. Legacy pictureBank/visualAssets docs migrate via `npm run migrate:diagram-assets:dry` (idempotent, deterministic `mig-*` doc ids)
   editor/                       — TipTap-based rich-content editor shared between quiz/notes/lessons
   hooks/                        — useFirestore, useSubscription, useTeacherUsage, useQuizPersistence, …
@@ -139,7 +138,7 @@ src/
   config/curriculum.js          — SUBJECTS / GRADES; single source of truth for CBC dropdowns
 
 functions/                      — Cloud Functions v2, Node 22, codebase=default. Separate package.json.
-  index.js                      — every function export lives here (~193 exports): aiChat, generateQuiz, verifyQuiz, checkShortAnswer, apiAiChat SSE, apiGenerateLessonPlan / Worksheet SSE, the generate* teacher tools (Assessment/SbaTask/Homework/Notes/Flashcards/SchemeOfWork/Rubric/Diagram/NotePictures/VisualNotes/SlideNotes; the generateExamPaper callable was retired 2026-07 — every assessment type, test AND examination, now generates through the one generateAssessment (the merged Assessment Paper Studio; `assessmentType` is one of the 7 canonical values in `functions/teacherTools/assessmentFormats.js`'s `ASSESSMENT_TYPES`, reaching the backend exactly as the teacher picked it — `examination`/`final_exam` are real recognised types, never collapsed to `mock_exam`), and the library still renders legacy `tool:'exam_paper'` docs via `src/utils/aiPaperToSections.js`; `planAssessment` derives the same paper plan with NO model call so the teacher confirms it before generating, and `regenerateAssessmentQuestion` rewrites ONE question against its plan slot), scanned-quiz + note OCR (structureScannedQuiz, ocrNotePages), class management (createClassAssignment, joinClassByCode, getClassStats), parent portal + weeklyParentDigest, newsletter (subscribeToNewsletter), invoices, referrals, syllabus versioning (parseSyllabusUpload, activateSyllabusVersion, rollbackSyllabusVersion), Lenco (lencoWebhook + payment recovery) + Google Play Billing (verifyGooglePlayPurchase), Central Question Bank (questionReviewOnWrite=Qix, importPastPaperQuestions, classifyQuestionGrades, reviseQuestion), agentJobsOnCreate/Approved, storageCleanup triggers, and the scheduled crons (nightlyQaSmoke, hourlyMonitor, hourlyAgentSupervisor=Marshal, hourlyRevenueReconcile, supportTriage, contentAutoPublish, weeklyProductSignal, weeklyRetentionScan, deliverDawnBriefings, weeklyCbcAlignmentAudit, autoPickDailyExams, daily/weekly learner reminders, dailyFxRefresh, aiCostDailySummary, reclaimAiBudgetReservations, rebuildPastPapersIndexCron)
+  index.js                      — every function export lives here (~191 exports): aiChat, generateQuiz, verifyQuiz, checkShortAnswer, apiAiChat SSE, apiGenerateLessonPlan / Worksheet SSE, the generate* teacher tools (Assessment/SbaTask/Homework/Notes/Flashcards/SchemeOfWork/Rubric/Diagram/NotePictures/VisualNotes/SlideNotes; the generateExamPaper callable was retired 2026-07 — every assessment type, test AND examination, now generates through the one generateAssessment (the merged Assessment Paper Studio; `assessmentType` is one of the 7 canonical values in `functions/teacherTools/assessmentFormats.js`'s `ASSESSMENT_TYPES`, reaching the backend exactly as the teacher picked it — `examination`/`final_exam` are real recognised types, never collapsed to `mock_exam`), and the library still renders legacy `tool:'exam_paper'` docs via `src/utils/aiPaperToSections.js`; `planAssessment` derives the same paper plan with NO model call so the teacher confirms it before generating, and `regenerateAssessmentQuestion` rewrites ONE question against its plan slot), scanned-quiz + note OCR (structureScannedQuiz, ocrNotePages), parent portal + weeklyParentDigest, newsletter (subscribeToNewsletter), invoices, referrals, syllabus versioning (parseSyllabusUpload, activateSyllabusVersion, rollbackSyllabusVersion), Lenco (lencoWebhook + payment recovery) + Google Play Billing (verifyGooglePlayPurchase), Central Question Bank (questionReviewOnWrite=Qix, importPastPaperQuestions, classifyQuestionGrades, reviseQuestion), agentJobsOnCreate/Approved, storageCleanup triggers, and the scheduled crons (nightlyQaSmoke, hourlyMonitor, hourlyAgentSupervisor=Marshal, hourlyRevenueReconcile, supportTriage, contentAutoPublish, weeklyProductSignal, weeklyRetentionScan, deliverDawnBriefings, weeklyCbcAlignmentAudit, autoPickDailyExams, daily/weekly learner reminders, dailyFxRefresh, aiCostDailySummary, reclaimAiBudgetReservations, rebuildPastPapersIndexCron)
   aiService.js                  — Anthropic client (streaming + non-streaming + prompt-caching), assertDailyLimit, role helpers, parsers
   anthropicFetch.js             — low-level fetch around Anthropic API
   geminiClient.js + geminiImageClient.js — Gemini REST client (structureImportedQuiz) + Gemini image generation
@@ -148,7 +147,6 @@ functions/                      — Cloud Functions v2, Node 22, codebase=defaul
   teacherTools/                 — one folder per generator (prompt + schema + generate*/run* runner) + cbcKnowledge.js + cbcTopics.js (KB resolver), usageMeter.js (per-user + per-agent daily caps), privateCurriculum.js, assessment/exam-paper/SBA schemas + format seeds
   agents/                       — Internal agent pipeline. dispatcher.js drives Aria → Cala → Reva → awaiting_approval → Pubo via Firestore triggers on agentJobs/{id} (pinned to africa-south1). agents/runners/ holds the content agents (aria, cala, reva, pubo, vex) AND the ops/growth agents driven by agents/cron.js (monitor=Vigil, till, echo, compass, anchor, gate, dawn, quill). agentControl/{agentId}.paused is a circuit breaker; agentControl/content.autoPublish gates Gate. learnerAi/ holds the curriculum-ingester runner.
   grading/                      — daily-exam grading
-  classManagement.js / classAnalytics.js — teacher classes, rosters, invites, assignments, stats
   parentPortal.js / weeklyParentDigest.js — parent portal data + weekly digest email
   invoiceGenerator.js / lencoService.js / subscriptionActivation.js / subscriptionLifecycle.js / subscriptionUpgrade.js — Lenco payments (MTN/Airtel/Zamtel mobile money + cards, ZMW), idempotent activation, invoices, expiry/cancellation lifecycle, upgrades
   googlePlayBilling.js (+ googlePlayBillingCore.js) — Android in-app subscriptions via Google Play Billing; `verifyGooglePlayPurchase` validates a purchase token against the Play Developer API then activates through the shared idempotent path. `PLAY_PRODUCT_TO_PLAN` must stay the inverse of `src/utils/playBillingCatalog.js` (guarded by `test:play-catalog-mirror`)
@@ -172,6 +170,46 @@ capacitor.config.json           — appId com.zedexams.android; android/ holds t
 ```
 
 ## Architecture notes that span multiple files
+
+### There is no learner↔teacher link (removed 2026-08)
+
+Learners and teachers have **no connecting surface**. A teacher cannot reach a
+learner's account and a learner cannot attach themselves to a teacher. The
+invite-code class feature that did this — `classes` / `classInvites` /
+`assignments`, `/classes/*` + `/teacher/classes/*`, the eleven callables in
+`classManagement.js` + `classAnalytics.js`, the quiz Assign step and its
+wizard, and the "From your teacher" learner card — was deleted in full, and its
+production data with it (`npm run cleanup:classes:dry`, then `:live`).
+
+Three things keep it closed, and each fails loudly rather than quietly:
+
+- **The three collections have NO match block in `firestore.rules`.** That is
+  the closure, not an oversight: Firestore denies every client read and write
+  to a path no rule matches. Deny-by-absence cannot be weakened one `allow` at
+  a time the way a deny-block can, and `test:rules-text` fails if a block for
+  any of the three reappears.
+- **Quiz status has no `'active'`.** `deriveQuizStatus` (now
+  `src/utils/quizStatus.js`, moved out of the deleted `quizAssignments.js`)
+  took an `activeAssignments` count and returned `'active'` for a published
+  quiz that was assigned to a class. Nothing can assign, so the status is
+  unreachable and `QuizStatusBadge` no longer renders it. The editor is a
+  three-step wizard: create → preview → publish.
+- **A Class Register roster holds names, not accounts.** `classRegisters` is a
+  *different*, teacher-only collection and survives untouched — but its
+  "import from existing learner accounts" tab is gone, because it sourced its
+  list from the invite-code classes. Roster entries are typed, pasted or
+  uploaded. The `linkedUid` field remains on the schema for rosters that
+  already carry one (SBA cross-year matching reads it); nothing writes a
+  non-null value any more, and `cleanup-classes.mjs --clear-linked-uids`
+  clears the residue.
+
+Consequence worth knowing: the `social` guardian-consent capability now gates
+nothing, since learner class-join was its only consumer. It stays in the
+consent taxonomy (`functions/shared/consent/guardianConsentCore.js`) so stored
+consent records keep their meaning.
+
+If a future feature needs teachers and learners connected, it is a new design
+decision — do not restore this one.
 
 ### Three AI surfaces, each on a different model
 

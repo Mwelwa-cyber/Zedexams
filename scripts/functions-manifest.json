@@ -370,18 +370,6 @@
       "classification": "mechanical",
       "batch": null
     },
-    "approveLearner": {
-      "kind": "delegated",
-      "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"approveLearner\" in index.js",
-      "target": "approveLearner",
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
     "archiveOldNotifications": {
       "kind": "delegated",
       "inline": false,
@@ -575,18 +563,6 @@
       "classification": "mechanical",
       "batch": null
     },
-    "createClassAssignment": {
-      "kind": "delegated",
-      "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"createClassAssignment\" in index.js",
-      "target": "createClassAssignment",
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
     "createFamilyInviteCode": {
       "kind": "delegated",
       "inline": false,
@@ -668,18 +644,6 @@
       "optionsFrom": null,
       "optionsUnresolved": "no require() for \"dailyStreakRemindersCron\" in index.js",
       "target": "dailyStreakRemindersCron",
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
-    "declineLearner": {
-      "kind": "delegated",
-      "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"declineLearner\" in index.js",
-      "target": "declineLearner",
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
@@ -831,18 +795,6 @@
       "optionsFrom": null,
       "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
       "target": "createGenerateAssessment(anthropicApiKey)",
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
-    "generateClassInvite": {
-      "kind": "delegated",
-      "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"generateClassInvite\" in index.js",
-      "target": "generateClassInvite",
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
@@ -1155,18 +1107,6 @@
       "classification": "mechanical",
       "batch": null
     },
-    "getAssignmentCompletion": {
-      "kind": "delegated",
-      "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"getAssignmentCompletion\" in index.js",
-      "target": "getAssignmentCompletion",
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
     "getChildProgress": {
       "kind": "delegated",
       "inline": false,
@@ -1174,30 +1114,6 @@
       "optionsFrom": null,
       "optionsUnresolved": "no require() for \"getChildProgress\" in index.js",
       "target": "getChildProgress",
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
-    "getClassPerformanceSeries": {
-      "kind": "delegated",
-      "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"getClassPerformanceSeries\" in index.js",
-      "target": "getClassPerformanceSeries",
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
-    "getClassStats": {
-      "kind": "delegated",
-      "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"getClassStats\" in index.js",
-      "target": "getClassStats",
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
@@ -1421,18 +1337,6 @@
       "classification": "mechanical",
       "batch": null
     },
-    "joinClassByCode": {
-      "kind": "delegated",
-      "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"joinClassByCode\" in index.js",
-      "target": "joinClassByCode",
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
     "learnerAgeOnUserCreated": {
       "kind": "factory",
       "inline": false,
@@ -1440,18 +1344,6 @@
       "optionsFrom": null,
       "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
       "target": "require('./guardianConsent/onUserCreated').learnerAgeOnUserCreated",
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
-    "leaveClass": {
-      "kind": "delegated",
-      "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"leaveClass\" in index.js",
-      "target": "leaveClass",
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
@@ -1949,30 +1841,6 @@
       "optionsFrom": null,
       "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
       "target": "createRegenerateAssessmentQuestion(anthropicApiKey)",
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
-    "removeClassAssignment": {
-      "kind": "delegated",
-      "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"removeClassAssignment\" in index.js",
-      "target": "removeClassAssignment",
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
-    "removeLearnerFromClass": {
-      "kind": "delegated",
-      "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"removeLearnerFromClass\" in index.js",
-      "target": "removeLearnerFromClass",
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",

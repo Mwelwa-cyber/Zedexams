@@ -1,16 +1,18 @@
 /**
- * Status pill shared across the quiz editor, list, and assignment
- * wizard. One source of truth for the colour + label so a quiz that
- * shows "Active" in the editor reads the same in the class list.
+ * Status pill shared across the quiz editor and list. One source of
+ * truth for the colour + label so a quiz reads the same everywhere.
  *
- * Statuses (matches deriveQuizStatus() in utils/quizAssignments.js):
- *   - draft       — unpublished, never assigned
+ * Statuses (matches deriveQuizStatus() in utils/quizStatus.js):
+ *   - draft       — unpublished
  *   - pending     — submitted for admin review
  *   - scheduled   — published but openAt is in the future
- *   - active      — published AND assigned to at least one class
- *   - published   — published but not yet assigned
+ *   - published   — live in the library
  *   - completed   — closed/past due
  *   - archived    — soft-deleted
+ *
+ * There is deliberately no 'active' status. It used to mean "published
+ * AND assigned to at least one class"; the class/assignment feature is
+ * gone, so nothing can reach that state.
  */
 
 const STATUS_META = {
@@ -32,17 +34,11 @@ const STATUS_META = {
     pillClass: 'bg-indigo-100 text-indigo-800 border-indigo-200',
     description: 'Will release automatically at the open date.',
   },
-  active: {
-    label: 'Active',
-    dotClass: 'bg-emerald-500',
-    pillClass: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-    description: 'Assigned to one or more classes.',
-  },
   published: {
     label: 'Published',
     dotClass: 'bg-sky-500',
     pillClass: 'bg-sky-100 text-sky-800 border-sky-200',
-    description: 'Live in the library; not yet assigned.',
+    description: 'Live in the library.',
   },
   completed: {
     label: 'Completed',

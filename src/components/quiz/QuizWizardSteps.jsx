@@ -1,18 +1,17 @@
 /**
- * Four-step workflow indicator that sits above the quiz editor.
+ * Three-step workflow indicator that sits above the quiz editor.
  * Renders as horizontal pill steps on tablet/desktop and a compact
- * "Step 2 of 4" header with progress bar on phones.
+ * "Step 2 of 3" header with progress bar on phones.
  *
  * The component is purely presentational — the parent owns the
  * current step and decides when a step is reachable (e.g., the
- * Publish step is gated on having questions + assignments).
+ * Publish step is gated on having questions).
  */
 
 const STEPS = [
   { id: 'create',  label: 'Create',  short: '1', icon: '✏️', description: 'Build your questions.' },
   { id: 'preview', label: 'Preview', short: '2', icon: '👁️', description: 'See it as a learner will.' },
-  { id: 'assign',  label: 'Assign',  short: '3', icon: '🎯', description: 'Pick who gets the quiz.' },
-  { id: 'publish', label: 'Publish', short: '4', icon: '🚀', description: 'Release it to learners.' },
+  { id: 'publish', label: 'Publish', short: '3', icon: '🚀', description: 'Release it to learners.' },
 ]
 
 export default function QuizWizardSteps({ activeStep = 'create', completedSteps = [], onStepChange, disabledSteps = [] }) {
