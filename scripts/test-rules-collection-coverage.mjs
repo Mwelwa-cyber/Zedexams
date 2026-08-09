@@ -215,8 +215,8 @@ const ACKNOWLEDGED_UNCOVERED = [
   // 1 — carries a §10 discrepancy (see KNOWN_DISCREPANCIES)
   'games',
   // 2 — payment / consent / deletion / entitlement-adjacent
-  'ageGateAttempts', 'consentRequests', 'deletionRequests', 'processedEvents',
-  'referralRedemptions',
+  'accountPurgeJobs', 'ageGateAttempts', 'consentRequests', 'deletionRequests',
+  'processedEvents', 'referralRedemptions',
   // 3 — Phase 3 write targets, cleared by its cutovers (docs/phase3-plan.md §5.1)
   'badges', 'dailyStreaks', 'daily_exam_locks', 'learner_profiles', 'paperAttempts',
   // 4 — the rest

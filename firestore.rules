@@ -2359,6 +2359,20 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ── Account-purge tombstones — server-only ───────────────────────
+    // One doc per account being deleted, written by deleteMyAccount BEFORE
+    // the Firebase Auth user is removed and closed when the purge verifies
+    // that users/{uid} is gone (functions/account/accountPurgeJobs.js). It
+    // outlives the account, so it holds no PII — the address is a SHA-256.
+    // Client access is denied in BOTH directions on purpose: this doc is what
+    // makes bootstrapUserProfile refuse to rebuild a deleted account's
+    // profile, so a client that could delete or forge one could resurrect
+    // itself, and a readable one would let anyone probe whether a given uid
+    // had been deleted.
+    match /accountPurgeJobs/{uid} {
+      allow read, write: if false;
+    }
+
     // ── Passkey (WebAuthn) sign-in — server-only credential store ────
     // Public-key credentials written exclusively by the passkey Cloud
     // Functions (functions/passkeys/, admin SDK). The client NEVER touches

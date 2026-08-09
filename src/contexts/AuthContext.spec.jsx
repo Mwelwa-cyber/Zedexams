@@ -14,7 +14,7 @@
  * than a stub of it. We capture the onAuthStateChanged + onSnapshot
  * callbacks the provider registers and drive them to push a profile.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act } from '@testing-library/react'
 
 // Shared capture holders (vi.hoisted runs before the mock factories).
@@ -22,6 +22,9 @@ const h = vi.hoisted(() => ({
   onAuthCb: { current: null },
   snap: { next: null, error: null },
   signOut: vi.fn(() => Promise.resolve()),
+  // One shared callable stand-in: AuthContext binds `bootstrapUserProfile` at
+  // module scope, so the deletion tests below need a spy that survives that.
+  callable: vi.fn(() => Promise.resolve({ data: {} })),
 }))
 
 vi.mock('../firebase/config', () => ({
@@ -54,7 +57,7 @@ vi.mock('firebase/firestore', () => ({
 
 vi.mock('firebase/functions', () => ({
   getFunctions: () => ({}),
-  httpsCallable: () => vi.fn(() => Promise.resolve({ data: {} })),
+  httpsCallable: () => h.callable,
 }))
 
 // Side-effect utils — stubbed; their behaviour is not under test here.
@@ -73,6 +76,7 @@ vi.mock('../hooks/useAuthRecovery', () => ({ useAuthRecovery: () => {} }))
 // NOT mocked — the real role-resolution logic is what we're testing.
 
 import { AuthProvider, useAuth } from './AuthContext'
+import { beginAccountDeletion, endAccountDeletion } from '../utils/accountDeletionState'
 
 function Probe() {
   const a = useAuth()
@@ -451,5 +455,57 @@ describe('AuthProvider authSettled', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+/**
+ * Profile repair vs. account deletion.
+ *
+ * The profile listener treats a missing `users/{uid}` as damage and repairs it
+ * by calling `bootstrapUserProfile`. That is right for the case it was written
+ * for — a signup whose profile write did not land — and was the client half of
+ * the deletion bug: the purge deleted `users/{uid}` while the tab was still
+ * signed in, this listener fired, and the callable wrote a fresh `learner`
+ * profile back carrying the email we had been asked to erase.
+ *
+ * Both directions are pinned here, because the fix is only correct if it does
+ * nothing at all when a deletion is NOT in flight.
+ */
+describe('AuthProvider profile repair during account deletion', () => {
+  beforeEach(() => {
+    h.onAuthCb.current = null
+    h.snap.next = null
+    h.callable.mockClear()
+    endAccountDeletion()
+  })
+
+  afterEach(() => { endAccountDeletion() })
+
+  const vanish = async () => {
+    render(<AuthProvider><Probe /></AuthProvider>)
+    act(() => { h.onAuthCb.current({ uid: 'u1', getIdToken: vi.fn() }) })
+    // The profile is there, then it is not — the shape of a purge.
+    act(() => { h.snap.next({ exists: () => true, data: () => ({ role: 'learner' }) }) })
+    await act(async () => { h.snap.next({ exists: () => false }) })
+  }
+
+  it('does NOT rebuild a profile that is being deleted on purpose', async () => {
+    beginAccountDeletion()
+    await vanish()
+    expect(h.callable).not.toHaveBeenCalled()
+    const f = JSON.parse(screen.getByTestId('flags').textContent)
+    expect(f.hasProfile).toBe(false)
+  })
+
+  it('still repairs a genuinely missing profile when no deletion is in flight', async () => {
+    await vanish()
+    expect(h.callable).toHaveBeenCalledTimes(1)
+  })
+
+  it('resumes repairing once the deletion flag is cleared', async () => {
+    beginAccountDeletion()
+    endAccountDeletion()
+    await vanish()
+    expect(h.callable).toHaveBeenCalledTimes(1)
   })
 })

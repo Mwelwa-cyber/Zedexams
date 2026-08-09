@@ -90,6 +90,14 @@ const RETAINED = new Map([
     "any account exists. Carries NO uid — a uid-keyed purge structurally " +
     "cannot reach it, and there is nothing in a row that identifies a person. " +
     "Rows self-expire via the `expiresAt` TTL field after 24h"],
+  ["accountPurgeJobs",
+    "the deletion's own tombstone (functions/account/accountPurgeJobs.js). It " +
+    "must OUTLIVE the purge it tracks — it is the sweeper's work queue when a " +
+    "purge dies after the Auth user is gone, and the record " +
+    "bootstrapUserProfile checks before rebuilding a profile, so purging it " +
+    "would re-open the resurrection window it exists to close. It holds no " +
+    "PII: uid, status, attempts, and the address as a SHA-256 so support can " +
+    "answer 'did this finish?' from an address they already have"],
   ["deletionRequests",
     "public deletion-request queue (zedexams.com/delete-account). NOT purged " +
     "by uid — a request is keyed by a self-asserted email and may exist for " +

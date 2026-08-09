@@ -1,0 +1,205 @@
+"use strict";
+
+/**
+ * Account-purge tombstones — `accountPurgeJobs/{uid}`.
+ *
+ * `deleteMyAccount` now destroys the Firebase Auth user BEFORE it walks
+ * Firestore (see accountDeletionFlow.js for why). That inverts the failure
+ * mode: a purge that dies half-way used to leave an intact, retryable account,
+ * and now leaves ownerless data behind a sign-in that no longer exists. Nobody
+ * can retry it, because there is no longer anybody to retry it as.
+ *
+ * A tombstone is what makes that recoverable. It is written BEFORE the Auth
+ * user is deleted, so the record of "this uid is being purged" exists even if
+ * the process dies at the very next line, and it is the sweeper's work queue
+ * (accountPurgeSweeper.js). It also stops the profile-repair path from
+ * rebuilding a profile for a uid that is mid-deletion — an existing tombstone
+ * is a refusal in `bootstrapUserProfile`.
+ *
+ * Two rules about its contents:
+ *   • It outlives the account, so it holds NO PII. The address is stored as a
+ *     SHA-256 of the lowercased email — enough for support to answer "did this
+ *     person's deletion finish?" from an address they already have, and not a
+ *     copy of the address we were asked to delete.
+ *   • Server-only in firestore.rules (read+write denied to every client). A
+ *     client that could delete its own tombstone could resurrect its profile.
+ *
+ * No firebase-admin / firebase-functions imports: `db` and `FieldValue` are
+ * injected, so the whole module unit-tests under plain `node` with the root
+ * install only (repo convention — see accountDeletionRequests.test.js).
+ */
+
+const crypto = require("node:crypto");
+
+const PURGE_JOBS_COLLECTION = "accountPurgeJobs";
+
+/** How long a job may sit `pending` before the sweeper adopts it. */
+const STALE_AFTER_MS = 15 * 60 * 1000;
+
+/** Failed attempts after which the sweeper raises an ops alert. */
+const ALERT_AFTER_ATTEMPTS = 3;
+
+/**
+ * SHA-256 of the lowercased, trimmed address — never the address itself.
+ *
+ * @param {string} [email]
+ * @return {string|null} hex digest, or null when there is no address.
+ */
+function hashEmail(email) {
+  const normalized = String(email || "").trim().toLowerCase();
+  if (!normalized) return null;
+  return crypto.createHash("sha256").update(normalized).digest("hex");
+}
+
+/**
+ * Milliseconds for a Firestore Timestamp, a Date, an ISO string or a number.
+ * Unreadable values return null, and the staleness test below treats null as
+ * "old enough to sweep" — a job whose createdAt cannot be read is exactly the
+ * job that must not be left sitting forever.
+ *
+ * @param {*} value
+ * @return {number|null}
+ */
+function toMillis(value) {
+  if (value == null) return null;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value.toMillis === "function") {
+    try {
+      return value.toMillis();
+    } catch (_e) {
+      return null;
+    }
+  }
+  if (typeof value.toDate === "function") {
+    try {
+      return value.toDate().getTime();
+    } catch (_e) {
+      return null;
+    }
+  }
+  if (value instanceof Date) {
+    const t = value.getTime();
+    return Number.isNaN(t) ? null : t;
+  }
+  const parsed = new Date(value).getTime();
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+/**
+ * Is this job the sweeper's to pick up? Pure, so the window is testable
+ * without a clock or a Firestore.
+ *
+ * @param {object} job                    The tombstone's data.
+ * @param {object} [opts]
+ * @param {number} [opts.now]             Injected clock (ms).
+ * @param {number} [opts.staleAfterMs]    Override the window.
+ * @return {boolean}
+ */
+function isStalePurgeJob(job, {now = Date.now(), staleAfterMs = STALE_AFTER_MS} = {}) {
+  if (!job || job.status !== "pending") return false;
+  const createdAt = toMillis(job.createdAt);
+  // Unreadable / missing timestamp: sweep it. A job we cannot age is a job
+  // nothing else will ever finish.
+  if (createdAt == null) return true;
+  return now - createdAt >= staleAfterMs;
+}
+
+/**
+ * Open (or re-open) the tombstone for `uid`. Called BEFORE the Auth user is
+ * deleted; a failure here must therefore abort the deletion, which is safe
+ * because nothing destructive has happened yet.
+ *
+ * `merge: true` so a second deletion attempt for the same uid — or the
+ * sweeper's own bookkeeping — does not wipe `attempts`.
+ *
+ * @param {object} db                Admin Firestore.
+ * @param {string} uid
+ * @param {object} deps
+ * @param {object} deps.FieldValue   admin.firestore.FieldValue.
+ * @param {string} [deps.email]      Hashed, never stored raw.
+ * @return {Promise<void>}
+ */
+async function openPurgeJob(db, uid, {FieldValue, email} = {}) {
+  if (!uid) throw new Error("uid is required");
+  if (!FieldValue) throw new Error("FieldValue dependency is required");
+  await db.collection(PURGE_JOBS_COLLECTION).doc(uid).set({
+    uid,
+    status: "pending",
+    createdAt: FieldValue.serverTimestamp(),
+    emailHash: hashEmail(email),
+    // increment(0), not 0: initialises a new job at zero while leaving an
+    // existing failure count alone. Re-opening a job must not quietly reset
+    // the count the sweeper's alert threshold reads.
+    attempts: FieldValue.increment(0),
+  }, {merge: true});
+}
+
+/**
+ * Mark the purge finished. Only ever called with a VERIFIED summary — a purge
+ * that could not prove `users/{uid}` is gone leaves the job pending on purpose.
+ *
+ * @param {object} db
+ * @param {string} uid
+ * @param {object} deps
+ * @param {object} deps.FieldValue
+ * @param {object} [deps.summary]
+ * @return {Promise<void>}
+ */
+async function completePurgeJob(db, uid, {FieldValue, summary} = {}) {
+  await db.collection(PURGE_JOBS_COLLECTION).doc(uid).set({
+    status: "done",
+    completedAt: FieldValue.serverTimestamp(),
+    lastError: null,
+    ...(summary ? {lastSummary: summary} : {}),
+  }, {merge: true});
+}
+
+/**
+ * Record a failed attempt, leaving the job `pending` so the sweeper retries.
+ * Never throws — it runs on the error path of an already-failing deletion, and
+ * losing the original error to a bookkeeping failure helps nobody.
+ *
+ * @param {object} db
+ * @param {string} uid
+ * @param {object} deps
+ * @param {object} deps.FieldValue
+ * @param {Error|string} [deps.error]
+ * @return {Promise<void>}
+ */
+async function recordPurgeFailure(db, uid, {FieldValue, error} = {}) {
+  try {
+    await db.collection(PURGE_JOBS_COLLECTION).doc(uid).set({
+      status: "pending",
+      attempts: FieldValue.increment(1),
+      lastFailedAt: FieldValue.serverTimestamp(),
+      lastError: String((error && error.message) || error || "unknown").slice(0, 500),
+    }, {merge: true});
+  } catch (err) {
+    console.error(`accountPurgeJobs: could not record failure for ${uid}:`, err);
+  }
+}
+
+/**
+ * Read a tombstone. Returns null when there is none.
+ *
+ * @param {object} db
+ * @param {string} uid
+ * @return {Promise<object|null>}
+ */
+async function readPurgeJob(db, uid) {
+  const snap = await db.collection(PURGE_JOBS_COLLECTION).doc(uid).get();
+  return snap.exists ? {id: uid, ...snap.data()} : null;
+}
+
+module.exports = {
+  PURGE_JOBS_COLLECTION,
+  STALE_AFTER_MS,
+  ALERT_AFTER_ATTEMPTS,
+  hashEmail,
+  toMillis,
+  isStalePurgeJob,
+  openPurgeJob,
+  completePurgeJob,
+  recordPurgeFailure,
+  readPurgeJob,
+};

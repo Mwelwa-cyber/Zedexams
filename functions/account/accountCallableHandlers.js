@@ -5,7 +5,10 @@
  * Same shape as batch 1a: `index.js` keeps every `onCall({...options...},
  * handler)` builder, so region, timeout and App Check enforcement stay
  * declared where the manifest guard reads them, and only the BODY moves here.
- * Each body is byte-identical to the one it replaces.
+ * Each body was byte-identical to the one it replaced at extraction time;
+ * `deleteMyAccount` and `bootstrapUserProfile` have since changed on purpose
+ * (the deletion-order fix — see accountDeletionFlow.js), and both now delegate
+ * their ordering decisions there rather than holding them inline.
  *
  * Dependencies come two ways, deliberately. Anything already living in a
  * module is required directly (rate limiting, reCAPTCHA assessment, account
@@ -32,6 +35,26 @@ const {
   resolveClientIp,
 } = require("../rateLimit");
 const {purgeUserData, evaluateDeletionAuth} = require("../accountDeletion");
+const {
+  AccountFlowError,
+  runAccountDeletion,
+  runProfileBootstrap,
+} = require("./accountDeletionFlow");
+
+/**
+ * Re-throw an `AccountFlowError` as the callable error it describes. The flow
+ * module deliberately does not import `firebase-functions` (it is unit-tested
+ * under the root install), so the mapping happens here.
+ *
+ * @param {Error} error
+ * @return {never}
+ */
+function rethrowAsHttpsError(error) {
+  if (error instanceof AccountFlowError) {
+    throw new HttpsError(error.code, error.message, error.details);
+  }
+  throw error;
+}
 
 /**
  * @param {{cleanString: Function, buildBootstrappedUserProfile: Function}} deps
@@ -51,29 +74,19 @@ function buildAccountCallableHandlers({cleanString, buildBootstrappedUserProfile
     }
 
     const uid = request.auth.uid;
-    const userRef = admin.firestore().doc(`users/${uid}`);
-    const existingSnap = await userRef.get();
-    if (existingSnap.exists) {
-      return {created: false, profile: {id: uid, ...existingSnap.data()}};
-    }
 
+    // The decisions — including the two refusals that stop a repair
+    // resurrecting a deleted account — live in accountDeletionFlow.js.
     try {
-      const authUser = await admin.auth().getUser(uid);
-      const profile = buildBootstrappedUserProfile({
-        authUser,
+      return await runProfileBootstrap({
+        uid,
         tokenRole: cleanString(request.auth.token?.role || "", 30),
+        db: admin.firestore(),
+        auth: admin.auth(),
+        buildProfile: buildBootstrappedUserProfile,
       });
-
-      await userRef.set(profile);
-
-      const repairedSnap = await userRef.get();
-      return {created: true, profile: {id: uid, ...repairedSnap.data()}};
     } catch (error) {
-      console.error("bootstrapUserProfile:", error);
-      throw new HttpsError(
-        "internal",
-        "We could not restore your profile right now. Please try again.",
-      );
+      rethrowAsHttpsError(error);
     }
   },
 
@@ -99,31 +112,21 @@ function buildAccountCallableHandlers({cleanString, buildBootstrappedUserProfile
       );
     }
 
+    // Session first, then data, then proof — see accountDeletionFlow.js for
+    // why that order is load-bearing and what the tombstone it writes is for.
+    // Throws (never returns a half-success) when the purge cannot be verified.
     let summary;
     try {
-      summary = await purgeUserData(admin.firestore(), uid, {
+      ({summary} = await runAccountDeletion({
+        uid,
+        email: request.auth.token?.email,
+        db: admin.firestore(),
+        auth: admin.auth(),
         FieldValue: admin.firestore.FieldValue,
-      });
+        purge: purgeUserData,
+      }));
     } catch (error) {
-      console.error("deleteMyAccount purge failed:", error);
-      throw new HttpsError(
-        "internal",
-        "We could not delete your data right now. Please try again, or contact support.",
-      );
-    }
-
-    try {
-      await admin.auth().deleteUser(uid);
-    } catch (error) {
-      // Already gone is fine (idempotent). Anything else: the data is gone
-      // but the login isn't — surface it so support can finish the job.
-      if (error?.code !== "auth/user-not-found") {
-        console.error("deleteMyAccount auth deletion failed:", error);
-        throw new HttpsError(
-          "internal",
-          "Your data was removed but your sign-in could not be deleted. Please contact support.",
-        );
-      }
+      rethrowAsHttpsError(error);
     }
 
     // ── Post-purge cleanup ────────────────────────────────────────────

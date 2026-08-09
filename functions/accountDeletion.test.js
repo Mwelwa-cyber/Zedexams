@@ -26,6 +26,10 @@ function makeFakeDb(seed) {
     return {
       __col: col,
       __id: id,
+      async get() {
+        const data = store[col] && store[col][id];
+        return {exists: data !== undefined, data: () => data};
+      },
       async update(fields) {
         const cur = store[col] && store[col][id];
         if (!cur) return;
@@ -212,6 +216,10 @@ function makeFakeDb(seed) {
   assert.ok(summary.arrayMemberships >= 3);
   assert.deepStrictEqual(summary.errors, [], `unexpected errors: ${summary.errors}`);
   assert.ok(other === "u2");
+  // The purge PROVES users/{uid} is gone rather than assuming its own deletes
+  // stuck; nothing recreated the doc here, so nothing was resurrected.
+  assert.strictEqual(summary.verified, true, "a clean purge must verify");
+  assert.strictEqual(summary.resurrected, false, "nothing recreated the profile here");
   console.log("✓ purgeUserData removes all user data and only that user's data");
 })().catch((err) => {
   console.error(err);
@@ -237,6 +245,64 @@ function makeFakeDb(seed) {
     "the failing collection should be recorded in errors",
   );
   console.log("✓ purgeUserData is best-effort: one failure does not abort the purge");
+})().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
+
+// ── purgeUserData: the resurrection it exists to catch ──────────────────
+//
+// The production failure, reproduced: something writes users/{uid} back
+// AFTER the purge has deleted it and moved on to the field queries. Before
+// the verify step the purge never looked again — it returned errors: [] and
+// the handler reported success over a profile that had just been recreated
+// with the email we were asked to erase. Three such orphans exist.
+(async function catchesResurrection() {
+  const db = makeFakeDb({users: {u1: {email: "zedexams@gmail.com"}}, results: {r1: {userId: "u1"}}});
+
+  // Recreate the profile mid-purge, exactly once, the way the profile-repair
+  // callable did: after the uid-doc sweep, while the field queries run.
+  const realCollection = db.collection.bind(db);
+  let resurrections = 1;
+  db.collection = (col) => {
+    if (col === "results" && resurrections > 0) {
+      resurrections -= 1;
+      db.store.users.u1 = {email: "zedexams@gmail.com", role: "learner", emailVerified: true};
+    }
+    return realCollection(col);
+  };
+
+  const summary = await purgeUserData(db, "u1", {FieldValue: db.FieldValue});
+
+  assert.strictEqual(summary.resurrected, true, "a recreated profile must be REPORTED, not swallowed");
+  assert.strictEqual(summary.verified, true, "and then actually deleted, and proved gone");
+  assert.strictEqual(db.store.users.u1, undefined, "the resurrected profile survived the purge");
+  console.log("✓ purgeUserData catches a profile recreated mid-purge and re-deletes it");
+})().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
+
+// A verification that cannot READ users/{uid} reports verified:false. An
+// unverifiable purge is not a verified one — the handler refuses to report
+// success on it, which is the whole point of the flag.
+(async function unverifiableIsNotVerified() {
+  const db = makeFakeDb({users: {u1: {email: "a@b.com"}}});
+  const realCollection = db.collection.bind(db);
+  db.collection = (col) => {
+    if (col === "users") {
+      return {
+        doc: () => ({get: async () => { throw new Error("read failed"); }}),
+        where: () => realCollection(col).where("x", "==", "y"),
+      };
+    }
+    return realCollection(col);
+  };
+
+  const summary = await purgeUserData(db, "u1", {FieldValue: db.FieldValue});
+  assert.strictEqual(summary.verified, false, "an unreadable users doc must not read as verified");
+  assert.ok(summary.errors.some((e) => e.includes("verify users/u1")), "the failure is recorded");
+  console.log("✓ purgeUserData reports verified:false when it cannot prove the profile is gone");
 })().catch((err) => {
   console.error(err);
   process.exit(1);

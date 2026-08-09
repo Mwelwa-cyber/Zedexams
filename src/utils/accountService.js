@@ -8,6 +8,7 @@ import {
 } from 'firebase/auth'
 import app, { auth } from '../firebase/config'
 import { pickReauthMethod } from './accountReauth'
+import { beginAccountDeletion, endAccountDeletion } from './accountDeletionState'
 
 const functions = getFunctions(app, 'us-central1')
 
@@ -80,10 +81,16 @@ export async function reauthenticateForAccountDeletion({ password } = {}) {
  * Permanently delete the signed-in user's account and personal data.
  *
  * Re-authenticates first (so the server's recent-login gate passes), then calls
- * the `deleteMyAccount` Cloud Function (which purges Firestore and removes the
- * Firebase Auth user), then signs the now-orphaned session out locally so the
+ * the `deleteMyAccount` Cloud Function (which removes the Firebase Auth user
+ * and purges Firestore), then signs the now-orphaned session out locally so the
  * UI drops back to the signed-out state. Throws on failure so the caller can
  * surface an error and keep the user signed in.
+ *
+ * `beginAccountDeletion` is called BEFORE the callable, not after: it tears the
+ * profile listener down and flags the deletion, so the disappearance of
+ * `users/{uid}` is never read as a profile that needs repairing. Cleared in a
+ * `finally` — a flag left set would disable genuine repair for the rest of the
+ * session.
  *
  * @param {object} [opts]
  * @param {string} [opts.password]  Required for password accounts.
@@ -91,13 +98,18 @@ export async function reauthenticateForAccountDeletion({ password } = {}) {
  */
 export async function deleteMyAccount({ password } = {}) {
   await reauthenticateForAccountDeletion({ password })
-  const res = await deleteMyAccountCallable()
-  // Server already deleted the Auth user; this local sign-out just clears
-  // the stale in-memory session. Best-effort — never let it mask success.
+  beginAccountDeletion()
   try {
-    await signOut(auth)
-  } catch {
-    /* session is already invalid server-side */
+    const res = await deleteMyAccountCallable()
+    // Server already deleted the Auth user; this local sign-out just clears
+    // the stale in-memory session. Best-effort — never let it mask success.
+    try {
+      await signOut(auth)
+    } catch {
+      /* session is already invalid server-side */
+    }
+    return res?.data || { success: true }
+  } finally {
+    endAccountDeletion()
   }
-  return res?.data || { success: true }
 }
