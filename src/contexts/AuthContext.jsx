@@ -26,6 +26,7 @@ import { requiresGuardianConsent } from '../utils/guardianConsent'
 import { refreshTokenIfGranted, clearPushUser } from '../utils/fcm'
 import { mintAndPersistReferralCode, readPendingReferral, clearPendingReferral } from '../utils/referrals'
 import { clearAllSearchCaches } from '../utils/cache/searchCache.js'
+import { isAccountDeletionInFlight, onAccountDeletionStart } from '../utils/accountDeletionState'
 import { useAuthRecovery } from '../hooks/useAuthRecovery'
 import { shouldExpireSession, REFRESH_THROTTLE_MS } from '../hooks/authRecoveryPolicy'
 
@@ -484,6 +485,10 @@ export function AuthProvider({ children }) {
   const bootstrapMissingProfile = useCallback(async (user) => {
     const uid = user?.uid
     if (!uid) return null
+    // A profile missing because the user asked us to delete it is not damage.
+    // Guarded here rather than only at the snapshot call site so every caller
+    // (resume recovery, ensureUserProfile, refreshProfile) is covered.
+    if (isAccountDeletionInFlight()) return null
 
     const inFlight = bootstrapInFlightRef.current.get(uid)
     if (inFlight) return inFlight
@@ -684,6 +689,19 @@ export function AuthProvider({ children }) {
             return
           }
 
+          // The document is gone because the user is deleting their account.
+          // Repairing it here is what recreated three production profiles
+          // mid-purge — the listener saw the delete, called
+          // bootstrapUserProfile, and the server (whose Auth user was still
+          // alive at the time) wrote a fresh `learner` profile back over it.
+          // Drop to the signed-out shape and let the deletion finish.
+          if (isAccountDeletionInFlight()) {
+            setUserProfile(null)
+            setProfileIssue(null)
+            setLoading(false)
+            return
+          }
+
           void (async () => {
             const repairedProfile = await bootstrapMissingProfile(user)
             if (disposedRef.current) return
@@ -753,6 +771,17 @@ export function AuthProvider({ children }) {
     subscribeProfileRef.current = () => {
       if (auth.currentUser) subscribeProfile(auth.currentUser)
     }
+
+    // Deleting an account tears this listener down BEFORE the callable runs,
+    // so the delete of users/{uid} never reaches the snapshot handler at all.
+    // The in-flight flag above is the backstop for a listener re-attached by
+    // the resume path while the purge is still running.
+    const unsubDeletionStart = onAccountDeletionStart(() => {
+      if (unsubProfile) {
+        try { unsubProfile() } catch { /* listener already torn down */ }
+        unsubProfile = null
+      }
+    })
 
     const unsub = onAuthStateChanged(auth, (user) => {
       clearTimeout(timeout)
@@ -830,6 +859,7 @@ export function AuthProvider({ children }) {
       disposedRef.current = true
       clearTimeout(timeout)
       subscribeProfileRef.current = null
+      unsubDeletionStart()
       if (unsubProfile) {
         try { unsubProfile() } catch { /* already torn down */ }
       }

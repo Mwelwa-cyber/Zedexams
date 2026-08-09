@@ -805,6 +805,30 @@ exports.deleteMyAccount = onCall(
   accountCallableHandlers.deleteMyAccount,
 );
 
+// ── Account-purge sweeper (the recovery half of the deletion order) ──
+// deleteMyAccount destroys the session BEFORE it purges Firestore, which is
+// what stops a still-live session rebuilding the profile mid-purge — and which
+// means a purge that fails leaves data nobody can retry, because the account it
+// belonged to is gone. Every deletion therefore writes an accountPurgeJobs/{uid}
+// tombstone first; this cron adopts any that are still `pending` after 15
+// minutes, re-runs the purge, and alerts once one has failed three times.
+// Daily is enough: the handler's own purge is the fast path, this is the net.
+// us-central1 per the repo convention for scheduled functions (Cloud Scheduler
+// has no African region).
+exports.accountPurgeSweep = onSchedule(
+  {
+    schedule: "every 24 hours",
+    timeZone: "Etc/UTC",
+    region: "us-central1",
+    timeoutSeconds: 540,
+    memory: "512MiB",
+    secrets: opsAlertSecrets([emailSmtpUser, emailSmtpPassword]),
+  },
+  async () => {
+    await require("./account/accountPurgeSweeper").runAccountPurgeSweep();
+  },
+);
+
 // ── reCAPTCHA Enterprise assessment (bot scoring for sensitive actions) ──
 // The native Android app mints a per-action reCAPTCHA Enterprise token (login
 // / signup / …) via the device SDK and sends it here; we trade it with Google

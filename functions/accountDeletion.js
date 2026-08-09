@@ -199,13 +199,21 @@ async function deleteByQuery(db, baseQuery, {recursive = false, pageSize = 300} 
  * @param {string} uid                      The user being deleted.
  * @param {object} deps
  * @param {object} deps.FieldValue          admin.firestore.FieldValue.
- * @return {Promise<{uidDocs:number, fieldDocs:number, arrayMemberships:number, errors:string[]}>}
+ * @return {Promise<{uidDocs:number, fieldDocs:number, arrayMemberships:number,
+ *   errors:string[], resurrected:boolean, verified:boolean}>}
  */
 async function purgeUserData(db, uid, {FieldValue} = {}) {
   if (!uid) throw new Error("uid is required");
   if (!FieldValue) throw new Error("FieldValue dependency is required");
 
-  const summary = {uidDocs: 0, fieldDocs: 0, arrayMemberships: 0, errors: []};
+  const summary = {
+    uidDocs: 0,
+    fieldDocs: 0,
+    arrayMemberships: 0,
+    errors: [],
+    resurrected: false,
+    verified: false,
+  };
 
   // 1. Docs keyed by uid (+ their subcollections).
   for (const col of UID_DOC_COLLECTIONS) {
@@ -241,6 +249,38 @@ async function purgeUserData(db, uid, {FieldValue} = {}) {
     } catch (err) {
       summary.errors.push(`${collection}.${field}[]: ${err.message}`);
     }
+  }
+
+  // 4. Verify the one document that carries the PII, instead of assuming the
+  //    deletes above stuck.
+  //
+  //    They demonstrably did not, three times in production: for the 21–25 s
+  //    this purge takes, the caller's session was still live, its profile
+  //    listener saw users/{uid} vanish, read that as damage, and had
+  //    `bootstrapUserProfile` write a fresh profile back — while the purge was
+  //    still walking the field queries. The purge had already enumerated its
+  //    targets, so it never looked again, and returned `errors: []` over a
+  //    document that had been recreated seconds earlier.
+  //
+  //    The deletion order now closes that window (accountDeletionFlow.js
+  //    revokes and deletes the Auth user first), so `resurrected` should stay
+  //    false. It is recorded rather than assumed because a resurrection is
+  //    exactly the kind of failure that reports success. `verified` is a
+  //    SECOND read after the re-delete: it is the only claim the handler is
+  //    allowed to return success on, and a read that throws leaves it false —
+  //    an unverifiable purge is not a verified one.
+  try {
+    const userRef = db.collection("users").doc(uid);
+    const beforeSnap = await userRef.get();
+    if (beforeSnap.exists) {
+      summary.resurrected = true;
+      await db.recursiveDelete(userRef);
+    }
+    const afterSnap = await userRef.get();
+    summary.verified = !afterSnap.exists;
+  } catch (err) {
+    summary.errors.push(`verify users/${uid}: ${err.message}`);
+    summary.verified = false;
   }
 
   return summary;
