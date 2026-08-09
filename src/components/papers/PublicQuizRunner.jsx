@@ -56,6 +56,7 @@ import TextToSpeechButton from '../quiz/reading/TextToSpeechButton'
 import { optionsToReadAloudText } from '../../utils/readAloudText'
 import DiagramSvg from '../diagrams/DiagramSvg'
 import ZoomableImage from '../quiz/ZoomableImage'
+import { imagePositionClasses, resolveQuestionFigure, usesFigurePositionWrapper } from '../../utils/questionFigure'
 import ExtraQuestionImages from '../quiz/ExtraQuestionImages'
 
 function plainTextFromQuestion(q) {
@@ -637,59 +638,90 @@ export default function PublicQuizRunner() {
             <Progress value={currentIndex + (revealed ? 1 : 0)} max={total} />
           </div>
 
-          {/* Stem image / diagram — mirrors the editor preview. Library
-              diagrams (imageDiagram.libraryKey) win; uploaded photos
-              (imageUrl) are the fallback. Without this block the
-              trapezium/figure questions show only their text and the
-              learner can't actually answer them. */}
-          {question.imageDiagram?.libraryKey ? (
-            <div className="overflow-hidden rounded-radius-md border theme-border bg-white p-3">
-              <DiagramSvg
-                libraryKey={question.imageDiagram.libraryKey}
-                params={question.imageDiagram.params}
-                alt="Question diagram"
-                className="mx-auto flex max-h-[60vh] w-full items-center justify-center"
-              />
-            </div>
-          ) : question.imageUrl ? (
-            <div className="overflow-hidden rounded-radius-md border theme-border bg-white p-3">
-              <ZoomableImage
-                src={question.imageUrl}
-                alt="Question illustration"
-                fallbackText={question.diagramText}
-                className="mx-auto max-h-[60vh] w-full rounded-xl object-contain"
-              />
-            </div>
-          ) : null}
-          <ExtraQuestionImages question={question} />
-          {question.diagramText && !question.imageDiagram?.libraryKey && !question.imageUrl && (
-            <p className="whitespace-pre-line rounded-xl bg-slate-100 px-3 py-2 text-xs leading-relaxed text-slate-700">
-              {question.diagramText}
-            </p>
-          )}
-
-          {/* Question prompt — regular weight; only intentionally-marked words
-              (bold/underline/highlight) stand out. */}
-          <div className="flex items-start gap-2">
-            <div className="question-text flex-1">
-              {/* A legacy question has no textJSON, only an HTML `text` string
-                  — which RichContent renders (it is the same value the main
-                  quiz runner renders). The old plain branch handed that HTML
-                  to getRichPlainText, which returns non-JSON strings VERBATIM,
-                  so the learner read escaped raw markup as the question. */}
-              <RichContent
-                value={question.textJSON ?? question.text ?? ''}
-                fallback={<p>{plainTextFromQuestion(question)}</p>}
-              />
-            </div>
-            <TextToSpeechButton
-              id={`q:${currentIndex}`}
-              label="question"
-              getText={() => plainTextFromQuestion(question)}
-              tts={readAloud}
-              className="mt-0.5 shrink-0"
-            />
-          </div>
+          {/* Stem figure + prompt. Library diagrams win over uploaded photos
+              (resolveQuestionFigure); without a figure block at all the
+              trapezium questions show only their text and the learner can't
+              actually answer them. The saved imagePosition is honoured here
+              too — this surface ignored it until #2209's follow-up, so a
+              teacher who chose "Image below text" got it on the quiz runner
+              and the daily exam but not on the public papers runner. */}
+          {(() => {
+            const pos = question.imagePosition
+            const figure = resolveQuestionFigure(question)
+            const imageBlock = figure.kind === 'diagram' ? (
+              <div className="overflow-hidden rounded-radius-md border theme-border bg-white p-3">
+                <DiagramSvg
+                  libraryKey={figure.libraryKey}
+                  params={figure.params}
+                  alt="Question diagram"
+                  className="mx-auto flex max-h-[60vh] w-full items-center justify-center"
+                />
+              </div>
+            ) : figure.kind === 'image' ? (
+              <div className="overflow-hidden rounded-radius-md border theme-border bg-white p-3">
+                <ZoomableImage
+                  src={figure.imageUrl}
+                  alt="Question illustration"
+                  fallbackText={question.diagramText}
+                  className="mx-auto max-h-[60vh] w-full rounded-xl object-contain"
+                />
+              </div>
+            ) : null
+            const textBlock = (
+              <div className="min-w-0 flex-1">
+                {/* Question prompt — regular weight; only intentionally-marked
+                    words (bold/underline/highlight) stand out. */}
+                <div className="flex items-start gap-2">
+                  <div className="question-text flex-1">
+                    {/* A legacy question has no textJSON, only an HTML `text`
+                        string — which RichContent renders (it is the same value
+                        the main quiz runner renders). The old plain branch
+                        handed that HTML to getRichPlainText, which returns
+                        non-JSON strings VERBATIM, so the learner read escaped
+                        raw markup as the question. */}
+                    <RichContent
+                      value={question.textJSON ?? question.text ?? ''}
+                      fallback={<p>{plainTextFromQuestion(question)}</p>}
+                    />
+                  </div>
+                  <TextToSpeechButton
+                    id={`q:${currentIndex}`}
+                    label="question"
+                    getText={() => plainTextFromQuestion(question)}
+                    tts={readAloud}
+                    className="mt-0.5 shrink-0"
+                  />
+                </div>
+              </div>
+            )
+            // diagramText is the no-figure fallback (a described diagram we
+            // could not draw), so it is mutually exclusive with imageBlock and
+            // never needs a place inside the position wrapper.
+            const diagramTextFallback = figure.kind === 'none' && question.diagramText ? (
+              <p className="whitespace-pre-line rounded-xl bg-slate-100 px-3 py-2 text-xs leading-relaxed text-slate-700">
+                {question.diagramText}
+              </p>
+            ) : null
+            if (!usesFigurePositionWrapper(pos, Boolean(imageBlock))) {
+              return (
+                <>
+                  {imageBlock}
+                  <ExtraQuestionImages question={question} />
+                  {diagramTextFallback}
+                  {textBlock}
+                </>
+              )
+            }
+            return (
+              <>
+                <div className={imagePositionClasses(pos)} data-image-position={pos}>
+                  {imageBlock}
+                  {textBlock}
+                </div>
+                <ExtraQuestionImages question={question} />
+              </>
+            )
+          })()}
 
           {/* Options */}
           {readAloud.enabled && options.length > 0 && (

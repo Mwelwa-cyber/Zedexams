@@ -43,6 +43,8 @@ import PassageViewer from '../quiz/reading/PassageViewer'
 import QuizReviewScreen from '../quiz/review/QuizReviewScreen'
 import { optionsToReadAloudText, questionToReadAloudText } from '../../utils/readAloudText'
 import ExtraQuestionImages from '../quiz/ExtraQuestionImages'
+import DiagramSvg from '../diagrams/DiagramSvg'
+import { imagePositionClasses, resolveQuestionFigure, usesFigurePositionWrapper } from '../../utils/questionFigure'
 import SeoHelmet from '../seo/SeoHelmet'
 import ErrorBoundary from '../ui/ErrorBoundary'
 
@@ -439,10 +441,24 @@ function DailyExamRunnerInner() {
             null/'above'/'inline' keep the original stacked DOM exactly. */}
         {(() => {
           const pos = question.imagePosition
-          const imageBlock = question.imageUrl ? (
+          const figure = resolveQuestionFigure(question)
+          const imageBlock = figure.kind === 'diagram' ? (
+            // A library diagram is a figure like any other. Before this the
+            // daily exam read imageUrl only, so a diagram question rendered
+            // with NO figure and could not be answered from what was on
+            // screen (BUG_REPORT RENDER-001).
+            <div className="theme-border theme-bg-subtle overflow-hidden rounded-2xl border p-3">
+              <DiagramSvg
+                libraryKey={figure.libraryKey}
+                params={figure.params}
+                alt="Question diagram"
+                className="mx-auto flex max-h-72 w-full items-center justify-center"
+              />
+            </div>
+          ) : figure.kind === 'image' ? (
             <div className="theme-border theme-bg-subtle overflow-hidden rounded-2xl border p-3">
               <img
-                src={question.imageUrl}
+                src={figure.imageUrl}
                 alt="Question"
                 className="max-h-72 w-full rounded-xl object-contain"
                 loading="lazy"
@@ -473,7 +489,7 @@ function DailyExamRunnerInner() {
               )}
             </div>
           )
-          if (!imageBlock || !pos || pos === 'above' || pos === 'inline') {
+          if (!usesFigurePositionWrapper(pos, Boolean(imageBlock))) {
             return (
               <>
                 {imageBlock}
@@ -482,14 +498,9 @@ function DailyExamRunnerInner() {
               </>
             )
           }
-          const wrapClasses = pos === 'below'
-            ? 'flex flex-col-reverse gap-3'
-            : pos === 'left'
-              ? 'flex flex-col gap-3 sm:flex-row sm:items-start'
-              : 'flex flex-col gap-3 sm:flex-row-reverse sm:items-start'
           return (
             <>
-              <div className={wrapClasses} data-image-position={pos}>
+              <div className={imagePositionClasses(pos)} data-image-position={pos}>
                 {imageBlock}
                 {textBlock}
               </div>
