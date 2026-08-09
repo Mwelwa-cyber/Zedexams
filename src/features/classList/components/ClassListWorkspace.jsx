@@ -30,20 +30,20 @@ import {
 } from '../../../utils/classListCore'
 import { LEARNER_STATUSES, learnerStatusLabel } from '../../../utils/learnerStatus'
 import { classDisplayName } from '../../../schemas/classRegister'
-import { useToast } from '../../ui/Toast'
-import Button from '../../ui/Button'
-import ConfirmDialog from '../../ui/ConfirmDialog'
-import ResponsiveModal from '../../ui/ResponsiveModal'
-import Skeleton from '../../ui/Skeleton'
-import useIsMobile from '../dashboardV2/useIsMobile'
+import { useToast } from '../../../components/ui/Toast'
+import Button from '../../../components/ui/Button'
+import ConfirmDialog from '../../../components/ui/ConfirmDialog'
+import ResponsiveModal from '../../../components/ui/ResponsiveModal'
+import Skeleton from '../../../components/ui/Skeleton'
+import useIsMobile from '../../../components/teacher/dashboardV2/useIsMobile'
 import ClassListTable from './ClassListTable'
 import ClassListMobileList from './ClassListMobileList'
 import LearnerFormDialog from './LearnerFormDialog'
-import NewLearnerSyncModal from '../register/NewLearnerSyncModal'
+import NewLearnerSyncModal from '../../../components/teacher/register/NewLearnerSyncModal'
 import {
   AlertTriangle, Camera, CheckCircle2, ChevronLeft, ChevronRight, ClipboardPaste,
   Filter, Search, Upload, UserMinus, UserPlus, Users, X,
-} from './classListIcons'
+} from '../../../shared/icons/classListIcons'
 
 function relativeTime(date) {
   if (!date) return null

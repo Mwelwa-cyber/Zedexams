@@ -14,7 +14,7 @@
 import { memo, useCallback, useRef, useState } from 'react'
 import { windowRange } from '../../../utils/classListCore'
 import { StatusBadge } from './ClassListTable'
-import { Check, MoreVertical } from './classListIcons'
+import { Check, MoreVertical } from '../../../shared/icons/classListIcons'
 
 const CARD_HEIGHT = 76
 const VIEWPORT = 560

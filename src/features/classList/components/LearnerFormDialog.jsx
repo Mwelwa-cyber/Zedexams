@@ -16,11 +16,11 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import ResponsiveModal from '../../ui/ResponsiveModal'
-import Button from '../../ui/Button'
+import ResponsiveModal from '../../../components/ui/ResponsiveModal'
+import Button from '../../../components/ui/Button'
 import { GENDERS } from '../../../utils/rosterImport'
 import { selectableLearnerStatuses, learnerStatusMeta } from '../../../utils/learnerStatus'
-import { AlertTriangle } from './classListIcons'
+import { AlertTriangle } from '../../../shared/icons/classListIcons'
 
 const GENDER_LABEL = { M: 'Male', F: 'Female', other: 'Other' }
 

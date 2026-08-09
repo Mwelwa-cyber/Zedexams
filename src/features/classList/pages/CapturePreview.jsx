@@ -13,7 +13,7 @@
  * children's names and guardian phone numbers and has no business in a repo.
  */
 
-import CaptureClassListFlow from '../CaptureClassListFlow'
+import CaptureClassListFlow from '../components/CaptureClassListFlow'
 
 /** A ruled register page, drawn rather than photographed. */
 function registerPageSvg(pageNumber, firstRow) {

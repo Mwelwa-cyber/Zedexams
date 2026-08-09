@@ -1347,6 +1347,16 @@ Its `index.js` exports nothing, for the same reason `templateBank`'s does: the p
 
 `test:mock-paths` (from #2179) caught a dead `vi.mock` in this migration BEFORE merge — the first time that guard fired on the mistake it was written for rather than four pull requests after it.
 
+**Wave 4 — `scan` is BLOCKED, not skipped.** It is first in the order below, and its only consumers are `AssessmentStudio.jsx` and that file's three specs — frozen by owner instruction (see the freeze list above). Migrating it means editing a frozen file, so it waits for the Phase 3 rollout flags; the wave order is otherwise unchanged. Owner decision, 2026-08-09.
+
+**Wave 4 — `classList`.** Eleven files: the roster table and its mobile twin, the add/edit dialog, the camera capture flow that reads a printed class list, the import review that decides what lands in the roster, and the two internal preview routes (`/teacher/register-preview`, `/teacher/capture-preview`). One exported name, `ClassListPanel`, because `ClassRegisterDetail` is the entire outside demand; the two pages stay route-mounted and unexported.
+
+**The icons went to `src/shared/icons/`, not into the feature — the first real resident of the `shared` layer.** `classListIcons.js` is the Lucide vocabulary the Class List and the Class Register are *both* specified against (its own docblock said so before any of this), and three files in `teacher/register/attendance/` still import it. Into the feature it would have meant either exporting forty icon names through this front door — the register depending on the Class List's public API to draw a checkmark, and evaluating `ClassListPanel` to get one — or leaving a one-file directory behind. A module two features share belongs below both, which is the same rule `adminUsers` recorded from the other side. `classListCore.js` stays in `src/utils/` for that reason (`MarkAttendanceView` reads it, and `test:class-list-core` covers it); `classListCapture.js` had one importer and travelled, into `services/` where its callable belongs.
+
+**The one real break was a dynamic import, exactly where the template says to look.** `classListCapture.js` reaches the PDF loader with `await import('./pdfjsLoader.js')` — a sibling in `src/utils/`, a wrong path once the file moved, and invisible to ESLint, the build and both suites. It would have failed at runtime only for a teacher importing a roster from a PDF. Caught by resolving every relative import in `src/`, which is what `test:import-boundaries` does and why it does it.
+
+**No `index.css` slice.** The surface is Tailwind throughout. No spec or node test lived in the moved directory, so nothing needed re-registering; the discovered count is unchanged at 694.
+
 **Review debt — the eight Wave 1/2 pull requests merged UNREVIEWED, and the order to sweep them in.** Codex reported "usage limits reached" on every one of #2169, #2170, #2172, #2173, #2176, #2177, #2178 and #2179, so each merged on CI plus the author's own checks and nothing else. That is recorded here rather than in a PR comment because a PR nobody is looking at is exactly where this fact would stop being visible.
 
 When quota returns, sweep them in **blast-radius order, not merge order** — the question is how much OTHER work each change silently governs:

@@ -16,18 +16,18 @@
  */
 
 import { useMemo, useState } from 'react'
-import SeoHelmet from '../../../seo/SeoHelmet'
-import { resolveAttendancePolicy } from '../../../../utils/attendanceConstants'
-import { buildClassListView } from '../../../../utils/classListCore'
-import ClassListTable from '../ClassListTable'
-import ClassListMobileList from '../ClassListMobileList'
-import ImportReviewScreen from '../ImportReviewScreen'
-import MarkAttendanceView from '../../register/attendance/MarkAttendanceView'
-import AttendanceGridView from '../../register/attendance/AttendanceGridView'
-import AttendanceSummaryPanel from '../../register/attendance/AttendanceSummaryPanel'
-import AttendanceInsightsPanel from '../../register/attendance/AttendanceInsightsPanel'
-import RegisterValidationPanel from '../../register/attendance/RegisterValidationPanel'
-import RegisterPaperPreview from '../../register/attendance/RegisterPaperPreview'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import { resolveAttendancePolicy } from '../../../utils/attendanceConstants'
+import { buildClassListView } from '../../../utils/classListCore'
+import ClassListTable from '../components/ClassListTable'
+import ClassListMobileList from '../components/ClassListMobileList'
+import ImportReviewScreen from '../components/ImportReviewScreen'
+import MarkAttendanceView from '../../../components/teacher/register/attendance/MarkAttendanceView'
+import AttendanceGridView from '../../../components/teacher/register/attendance/AttendanceGridView'
+import AttendanceSummaryPanel from '../../../components/teacher/register/attendance/AttendanceSummaryPanel'
+import AttendanceInsightsPanel from '../../../components/teacher/register/attendance/AttendanceInsightsPanel'
+import RegisterValidationPanel from '../../../components/teacher/register/attendance/RegisterValidationPanel'
+import RegisterPaperPreview from '../../../components/teacher/register/attendance/RegisterPaperPreview'
 import {
   PREVIEW_LEARNERS, PREVIEW_REGISTER, PREVIEW_EXTRACTED_ROWS,
   PREVIEW_EXISTING_FOR_REVIEW, buildPreviewRegisterHook,

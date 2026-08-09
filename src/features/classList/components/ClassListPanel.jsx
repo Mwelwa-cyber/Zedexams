@@ -20,13 +20,13 @@ import {
 import { buildRosterCsvTemplate, parseRosterText } from '../../../utils/rosterImport'
 import { mergeLearners } from '../../../utils/learnerDuplicates'
 import { classDisplayName } from '../../../schemas/classRegister'
-import { useToast } from '../../ui/Toast'
-import Button from '../../ui/Button'
-import ResponsiveModal from '../../ui/ResponsiveModal'
+import { useToast } from '../../../components/ui/Toast'
+import Button from '../../../components/ui/Button'
+import ResponsiveModal from '../../../components/ui/ResponsiveModal'
 import ClassListWorkspace from './ClassListWorkspace'
 import CaptureClassListFlow from './CaptureClassListFlow'
 import ImportReviewScreen from './ImportReviewScreen'
-import { Download, FileSpreadsheet, Upload } from './classListIcons'
+import { Download, FileSpreadsheet, Upload } from '../../../shared/icons/classListIcons'
 
 const PASTE_PLACEHOLDER = `Alex Lobela
 Bright Kapaso

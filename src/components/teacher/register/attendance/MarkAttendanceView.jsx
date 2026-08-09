@@ -37,7 +37,7 @@ import useIsMobile from '../../dashboardV2/useIsMobile'
 import {
   AlertTriangle, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight,
   CloudOff, Keyboard, Search, Undo2,
-} from '../../classList/classListIcons'
+} from '../../../../shared/icons/classListIcons'
 
 const BLOCK_REASON_COPY = {
   future: 'This date is in the future — the register opens on the day.',

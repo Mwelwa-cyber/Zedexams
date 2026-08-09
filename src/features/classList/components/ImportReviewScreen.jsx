@@ -24,11 +24,11 @@ import {
 } from '../../../utils/importReviewCore'
 import { reviewReasonText } from '../../../utils/learnerStatus'
 import { GENDERS } from '../../../utils/rosterImport'
-import Button from '../../ui/Button'
-import ResponsiveModal from '../../ui/ResponsiveModal'
+import Button from '../../../components/ui/Button'
+import ResponsiveModal from '../../../components/ui/ResponsiveModal'
 import {
   AlertTriangle, Camera, CheckCircle2, Info, Trash2, X,
-} from './classListIcons'
+} from '../../../shared/icons/classListIcons'
 
 const GENDER_LABEL = { M: 'Male', F: 'Female', other: 'Other' }
 
