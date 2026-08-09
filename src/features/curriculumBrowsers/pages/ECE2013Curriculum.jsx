@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom'
-import { ArrowLeft } from '../../ui/icons'
-import Icon from '../../ui/Icon'
-import SeoHelmet from '../../seo/SeoHelmet'
-import { ZM_GREEN, ZM_GOLD, SOURCE_2013 } from './frameworkData2013'
+import { ArrowLeft } from '../../../components/ui/icons'
+import Icon from '../../../components/ui/Icon'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import { ZM_GREEN, ZM_GOLD, SOURCE_2013 } from '../lib/frameworkData2013'
 
 /**
  * Early Childhood Care, Development & Education (ECCDE) in the 2013 framework

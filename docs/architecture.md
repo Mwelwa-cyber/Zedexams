@@ -1326,7 +1326,7 @@ The order was settled 2026-08-07 as **smallest and lowest-risk first**, ranked o
 | session A | session B |
 |---|---|
 | ~~`markSchedule`~~ · ~~`recordOfWork`~~ | `teacherClasses` |
-| `curriculumBrowsers` | `teacherLibrary` |
+| ~~`curriculumBrowsers`~~ | `teacherLibrary` |
 | `register` | `dashboardV2` |
 | the remaining admin areas | — |
 
@@ -1411,6 +1411,14 @@ Its `index.js` exports nothing, for the same reason `templateBank`'s does: the p
 `recordOfWork.js` went to `src/shared/utils/`: the engine exporter builds through it, the feature reads it twice, and `lib/recordOfWorkPlanning.js` imports it. It lands **beside `weeklyForecast.js`**, which it imports for `schemeWeeks`/`weekNumberOf`/`normalizeSchemeWeek` — that module moved to this layer two migrations ago for the same reason, so what was a reach across the tree is now a same-directory import. Verified loadable under plain `node` (7 exports), with no DOM, React or Firebase.
 
 `recordOfWorkPlanning.js` and `recordOfWorkVariance.js` travelled into `lib/` — this studio is their only consumer. **`recordOfWorkStatus.js` did not**: `TeacherDashboard` and `utils/teacherRecommendations.js` read it, both legacy, so it stays in `src/utils/` (below the feature) and travels when its remaining callers do.
+
+**Wave 4 — `curriculumBrowsers`** (session A). The eight read-only framework pages under `/teacher/curriculum` and `/teacher/curriculum/2013`, plus the two `frameworkData` modules that only they read. Empty front door — all eight are route-mounted and nothing composes with them. No exporters, no Firebase, no `index.css` slice.
+
+**The directory it came out of was two things, and only one moved.** `src/components/teacher/curriculum/` also holds `StudioCurriculumSelector.jsx`, `curriculumSelectorConstants.js` and `CurriculumToggle.jsx` — studio infrastructure imported by NINE features and standing on a cluster inside `teacher/studio/` (four hooks, `CurriculumPicker`, a stylesheet). Pulling it in would make nine features import a tenth's internals to draw a grade dropdown: nine cross-feature errors, not a migration. Its real home is `src/shared/components/`, and getting it there means first deciding what happens to the studio hooks — a design question with its own diff. It stays; this feature is the browsers only.
+
+**A third path-classified ledger, and this one was losing coverage silently.** After `printAffectingPaths.js` (#2219) and `scripts/aiGenerators/inventory.js` (#2219), `test:curriculum-canon` scanned exactly `src/components/teacher` and allowlisted two of these pages by path. Migrating them out did not just break the paths — it removed them from the check's field of view entirely, and the same would have happened to every teacher surface Phase 4 moves. The scan now covers `src/components/teacher` AND `src/features`, verified to fail on a planted subject list in a migrated feature.
+
+Widening it surfaced **five pre-existing holders the check had never seen** (`notes` ×3, `learnerSettings`, `classTimetable`). They are recorded in a separate `UNSCANNED_UNTIL_NOW` set rather than folded into the frozen `ALLOWLIST`: that ledger only shrinks, and disguising five unexamined files as five reviewed exceptions is exactly what it exists to prevent. Both sets are checked for staleness. None was introduced by this migration, and none has been examined.
 
 **Three guards caught what review would not have.** `test:mock-paths` found five dead `vi.mock` paths in the two CONSUMER specs (`LibraryItemDetail`, `PublicShareView`) — the miss this repo made eight times across four merged PRs before the guard existed, and it fired on the first Wave 4 migration to have consumers. `test:all` caught `docxExporters.test.js` loading the exporter through a variable (`loadModule('./schemeOfWorkToDocx.js')`), which no grep for an import statement sees. And resolving every relative import caught nothing this time only because the mock guard had already found the movable parts. The machine-readable `scripts/aiGenerators/inventory.js` records this page by path and was updated in the same commit, as the template's step-0 table requires.
 

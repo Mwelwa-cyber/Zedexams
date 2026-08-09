@@ -23,7 +23,14 @@ import { fileURLToPath } from 'node:url'
 import { dirname } from 'node:path'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const SCAN_DIR = join(ROOT, 'src/components/teacher')
+// Two roots, because the teacher surfaces are LEAVING the first one. Phase 4
+// has moved eleven of them into `src/features/`, and a scan pinned to
+// `src/components/teacher` would have quietly stopped covering each as it
+// migrated — the ledger below would empty out and the check would report clean
+// on a codebase it had stopped looking at. `printAffectingPaths.js` records the
+// same failure in its own words: a pattern for a moved file protects nothing
+// and reads exactly like one that works.
+const SCAN_DIRS = [join(ROOT, 'src/components/teacher'), join(ROOT, 'src/features')]
 
 // Distinct subject sentinels — labels + canonical slugs. A file that references
 // ≥4 of these is almost certainly carrying its own subject list.
@@ -50,11 +57,30 @@ const ALLOWLIST = new Set([
   'src/components/teacher/AssessmentStudio.jsx',
   // Printed curriculum REFERENCE tables (not selection pickers) — the subject
   // names ARE the content of the page.
-  'src/components/teacher/curriculum/Primary2013Curriculum.jsx',
-  'src/components/teacher/curriculum/PrimaryCurriculum.jsx',
+  'src/features/curriculumBrowsers/pages/Primary2013Curriculum.jsx',
+  'src/features/curriculumBrowsers/pages/PrimaryCurriculum.jsx',
   // Library filter surfaces (display/grouping, not curriculum selection).
   'src/components/teacher/SyllabiLibrary.jsx',
   'src/components/teacher/library/TeacherLibrary.jsx',
+])
+
+/**
+ * PRE-EXISTING holders that this check had never looked at, surfaced the moment
+ * the scan widened to `src/features/` (see SCAN_DIRS above). None of them was
+ * introduced by the migration that widened it.
+ *
+ * Kept as its own set rather than added to ALLOWLIST, because that ledger is
+ * frozen and only shrinks — folding newly-visible debt into it would disguise
+ * five unexamined files as five reviewed exceptions. This list is the honest
+ * shape: countable, separately named, and each entry is a question nobody has
+ * answered yet. It shrinks the same way; it must never grow.
+ */
+const UNSCANNED_UNTIL_NOW = new Set([
+  'src/features/notes/pages/AdminVisualNotesGenerator.jsx',
+  'src/features/notes/pages/LearnerNoteRead.jsx',
+  'src/features/notes/components/NoteCard.jsx',
+  'src/features/learnerSettings/lib/learnerPrefs.js',
+  'src/features/classTimetable/lib/timetableCoverage.js',
 ])
 
 function walk(dir) {
@@ -74,7 +100,7 @@ const check = (name, fn) => { fn(); passed += 1; console.log(`  ✓ ${name}`) }
 console.log('curriculum canon guard — no NEW local subject lists in teacher studios')
 
 const offenders = []
-for (const file of walk(SCAN_DIR)) {
+for (const file of SCAN_DIRS.flatMap(walk)) {
   const text = readFileSync(file, 'utf8')
   const distinct = new Set(SUBJECT_SENTINELS.filter((s) => text.includes(s)))
   if (distinct.size >= THRESHOLD) {
@@ -84,7 +110,7 @@ for (const file of walk(SCAN_DIR)) {
 }
 
 check('every teacher file with a hard-coded subject list is on the frozen ledger', () => {
-  const unexpected = offenders.filter((f) => !ALLOWLIST.has(f))
+  const unexpected = offenders.filter((f) => !ALLOWLIST.has(f) && !UNSCANNED_UNTIL_NOW.has(f))
   assert.deepEqual(
     unexpected,
     [],
@@ -95,13 +121,13 @@ check('every teacher file with a hard-coded subject list is on the frozen ledger
   )
 })
 
-check('the allowlist has not gone stale (every entry still holds a subject list)', () => {
-  const stale = [...ALLOWLIST].filter((f) => !offenders.includes(f))
+check('neither ledger has gone stale (every entry still holds a subject list)', () => {
+  const stale = [...ALLOWLIST, ...UNSCANNED_UNTIL_NOW].filter((f) => !offenders.includes(f))
   assert.deepEqual(
     stale,
     [],
     `These files are on the local-subject-list ledger but no longer match — ` +
-      `remove them from ALLOWLIST in this test:\n  ${stale.join('\n  ')}`,
+      `remove them from ALLOWLIST or UNSCANNED_UNTIL_NOW in this test:\n  ${stale.join('\n  ')}`,
   )
 })
 

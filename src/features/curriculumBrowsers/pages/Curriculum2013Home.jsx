@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
-import { BookOpen, GraduationCap, PuzzlePieceIcon, ArrowRight, ArrowLeft, Sparkles, Lightbulb, Globe, ShieldCheck, Layers } from '../../ui/icons'
-import Icon from '../../ui/Icon'
-import SeoHelmet from '../../seo/SeoHelmet'
+import { BookOpen, GraduationCap, PuzzlePieceIcon, ArrowRight, ArrowLeft, Sparkles, Lightbulb, Globe, ShieldCheck, Layers } from '../../../components/ui/icons'
+import Icon from '../../../components/ui/Icon'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
 import {
   ZM_GREEN,
   ZM_GOLD,
@@ -14,7 +14,7 @@ import {
   NATIONAL_CONCERNS_2013,
   KEY_INSTRUMENTS_2013,
   OTHER_LEVELS_2013,
-} from './frameworkData2013'
+} from '../lib/frameworkData2013'
 
 const LEVELS = [
   {

@@ -10,7 +10,7 @@ import Secondary2013Curriculum from './Secondary2013Curriculum.jsx'
 // presentational (no Firebase), so mounting them in a Router with SeoHelmet
 // stubbed exercises the real component tree — catching runtime errors (bad
 // map, undefined prop, missing icon) that a build alone would not.
-vi.mock('../../seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
 
 function renderPage(ui, path) {
   return render(<MemoryRouter initialEntries={[path]}>{ui}</MemoryRouter>)
