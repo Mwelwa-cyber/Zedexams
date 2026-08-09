@@ -106,7 +106,7 @@ expression), while their options are guarded where they are defined.
 | batch | class | count | gate |
 |---|---|---|---|
 | 1 | mechanical (no secrets) | 14 | standard CI |
-| 2 | secrets-bound | 21 | **PAUSED 2026-08-09** — blocked on #2230 (Cloud Functions error monitoring). Standard CI + secrets bindings pinned by the guard when it resumes |
+| 2 | secrets-bound | 21 | **PAUSED 2026-08-09** — blocked on TWO gates: (a) #2230, Cloud Functions error monitoring; (b) the `optionsUnresolved` blind spot below. Standard CI + secrets bindings pinned by the guard when it resumes |
 | 3 | payment/webhook + audit-surface | 11 | **deferred until external review coverage is restored**; payment-lifecycle emulator + webhook-signature suites mandatory |
 
 Every batch, regardless of apparent relevance, runs the payment-lifecycle
@@ -134,6 +134,64 @@ hold window** (Phase 3 §7.3's attribution rule: an anomaly during a hold
 must have one candidate cause). Batches are prepared and PR'd at any time;
 they merge between holds. PR-zero itself touches nothing under `functions/`
 and is hold-safe by construction.
+
+## Guard gap — BLOCKS Batch 2 (recorded 2026-08-09, owner instruction)
+
+**`optionsUnresolved` is not a footnote; it is 141 of 202 exports.** Memory is
+now separately protected (`test:function-memory-floor`, #2231/#2233), but that
+is one option. Every other frozen option — region, timeout, secrets, App Check
+enforcement, concurrency, min-instances — remains invisible on those 141, and
+Batch 2 must not start while that is true.
+
+Measured breakdown of the 141:
+
+| reason the follower gives up | count |
+|---|---|
+| `factory-built: options are arguments` | 67 |
+| `no require() for "<alias>" in index.js` | 65 |
+| `no builder for "<binding>" in <module>` | 9 |
+
+### Why it is worse than "141 unguarded options"
+
+**The risk classification that DEFINES Batch 2 is derived from options the guard
+cannot read.** `classify()` marks an export `secrets-bound` when `secrets:`
+appears in its options — so an export whose options are unresolved reports an
+empty options map and can never be classified `secrets-bound`. The blind spot
+launders itself: **0 of the 141 carry that classification**, not because none
+bind secrets, but because the evidence is unreadable.
+
+Checking the modules directly rather than the manifest: **9 of the 141 delegate
+to a module that does declare `secrets:`**, and **8 of those are classified
+`mechanical`** —
+
+`backupCompletionCheck`, `dailyFirestoreBackup` (`firestoreBackup.js`),
+`storageBackupCheck`, `storageBackupHeartbeat` (`storageBackup.js`),
+`opsHeartbeatCheck`, `rateLimitHealthCheck`, `recordAgeGateAttempt`,
+`sendGuardianConsent` (`guardianConsent/`), plus `apiGuardianConsent`
+(classified `audit-surface`).
+
+**No harm has been done and none of these was mis-migrated**: all nine are
+`inline: false`, so their `batch` is `null` and none was ever part of Batch 1's
+extraction work. The defect is in the *classification*, not in anything that
+shipped. But Batch 2 is exactly "the 21 exports classified secrets-bound", and
+that list is drawn from the readable subset — so the batch boundary itself is
+currently unverified.
+
+### What closing this gate requires
+
+1. **Follow `require('./x').y`.** The extractor treats it as factory-built
+   because it matches the `name(` call shape; it is a plain delegation with a
+   readable target. This is the single largest tractable win and is what hid
+   `apiTrackVisit`'s `128MiB`.
+2. **Resolve the 65 "no require() in index.js" cases** — these re-export through
+   a second hop, which the follower does not chase.
+3. **Re-derive `classification` after following**, and diff it against the
+   hand-owned values. Any export whose classification MOVES is a batch-boundary
+   correction, and the `secrets-bound` count is expected to rise from 21.
+4. **Keep the ratchet shrink-only.** 141 may only go down.
+
+Only when the secrets-bound set is derived from options the guard can actually
+read is "Batch 2 is these 21 exports" a statement with evidence behind it.
 
 ## Recorded debt (not blocking any batch)
 
