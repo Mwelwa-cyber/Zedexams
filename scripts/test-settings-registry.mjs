@@ -1,11 +1,11 @@
 /**
  * Unit tests for the Platform Control Center registry + pure logic
- * (src/components/admin/settings/settingsRegistry.js + settingsCore.js).
+ * (src/features/adminSettings/lib/settingsRegistry.js + settingsCore.js).
  *
  * Plain-node assertion script — run with `node scripts/test-settings-registry.mjs`
  * or `npm run test:settings-registry`. Throws on the first failed assertion.
  */
-import { SETTINGS_CATEGORIES, SETTINGS_GROUPS } from '../src/components/admin/settings/settingsRegistry.js'
+import { SETTINGS_CATEGORIES, SETTINGS_GROUPS } from '../src/features/adminSettings/lib/settingsRegistry.js'
 import {
   allFields,
   buildDefaults,
@@ -18,7 +18,7 @@ import {
   normalizeSettings,
   setPath,
   validateImport,
-} from '../src/components/admin/settings/settingsCore.js'
+} from '../src/features/adminSettings/lib/settingsCore.js'
 
 let passed = 0
 function assert(cond, msg) {
