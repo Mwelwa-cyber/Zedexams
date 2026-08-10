@@ -2,9 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
-import TeacherLayout from '../TeacherLayout'
-import TeacherDashboardV2 from './TeacherDashboardV2'
-import { TOUR_STORAGE_KEY } from './onboardingTourCore'
+import TeacherLayout from '../../../components/teacher/TeacherLayout'
+import TeacherDashboardV2 from '../pages/TeacherDashboardV2'
+import { TOUR_STORAGE_KEY } from '../lib/onboardingTourCore'
 
 // Every teacher navigation surface now asks studioAvailability which studios
 // are on offer, and that reads settings/global. Stubbed to the LAUNCH state
@@ -22,7 +22,7 @@ beforeEach(() => {
 // The shell's studio top bar reads Firestore (useTeacherReminders); it is not
 // part of the navigation under test and never renders in the dashboard
 // variant anyway, so stub the module rather than boot Firebase.
-vi.mock('../TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
+vi.mock('../../../components/teacher/TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
 // The mobile header bell reads the app-wide NotificationProvider (main.jsx);
 // specs mount without it, so stub the hook.
 vi.mock('../../../contexts/AuthContext', () => ({

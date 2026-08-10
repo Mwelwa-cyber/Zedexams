@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import useGlassTile from '../../../hooks/useGlassTile'
-import './glassSurface.css'
+import '../../../components/teacher/dashboardV2/glassSurface.css'
 import './teacherWorkspaceSection.css'
 
 /**

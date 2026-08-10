@@ -9,11 +9,11 @@ import {
   ClipboardList,
   LayoutGrid,
 } from 'lucide-react'
-import { STUDIO_CATEGORIES, TEACHER_STUDIOS } from './launcher/teacherStudios'
-import { resolveBadge } from './launcher/teacherLauncherCore'
+import { STUDIO_CATEGORIES, TEACHER_STUDIOS } from '../../../components/teacher/dashboardV2/launcher/teacherStudios'
+import { resolveBadge } from '../../../components/teacher/dashboardV2/launcher/teacherLauncherCore'
 import useStudioAvailability from '../../../hooks/useStudioAvailability'
 import StudioCard from './StudioCard'
-import './glassSurface.css'
+import '../../../components/teacher/dashboardV2/glassSurface.css'
 import './teacherWorkspaceSection.css'
 
 /**

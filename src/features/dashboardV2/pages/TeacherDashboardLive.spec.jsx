@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
-import TeacherLayout from '../TeacherLayout'
+import TeacherLayout from '../../../components/teacher/TeacherLayout'
 import TeacherDashboardLive from './TeacherDashboardLive'
 
 // Every teacher navigation surface now asks studioAvailability which studios
@@ -18,7 +18,7 @@ vi.mock('../../../contexts/NotificationContext', () => ({
   useNotifications: () => ({ unreadCount: 2, open: false, setOpen: () => {} }),
 }))
 // Pulls useTeacherUsage → firebase; plan reminders have their own tests.
-vi.mock('../../subscription/UsageReminderBanner', () => ({ default: () => null }))
+vi.mock('../../../components/subscription/UsageReminderBanner', () => ({ default: () => null }))
 
 const logout = vi.fn().mockResolvedValue()
 // The mobile hero's plan badge is resolved from users.teacherPlan via the
@@ -33,7 +33,7 @@ vi.mock('../../../contexts/AuthContext', () => ({
   }),
 }))
 // Reads Firestore; not under test here.
-vi.mock('../TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
+vi.mock('../../../components/teacher/TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
 
 const hookData = {
   teacher: {
@@ -60,7 +60,7 @@ const hookData = {
   ],
   reload: vi.fn(),
 }
-vi.mock('./useTeacherDashboardData', () => ({
+vi.mock('../hooks/useTeacherDashboardData', () => ({
   default: () => hookData,
 }))
 

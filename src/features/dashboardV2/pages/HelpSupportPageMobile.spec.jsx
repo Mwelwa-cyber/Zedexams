@@ -3,15 +3,15 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
-import TeacherLayout from '../TeacherLayout'
+import TeacherLayout from '../../../components/teacher/TeacherLayout'
 import HelpSupportPage from './HelpSupportPage'
 
 // Force the mobile chrome regardless of jsdom viewport.
-vi.mock('./useIsMobile', () => ({ default: () => true }))
-vi.mock('../../marketing/ContactDialog', () => ({
+vi.mock('../../../shared/hooks/useIsMobile', () => ({ default: () => true }))
+vi.mock('../../../components/marketing/ContactDialog', () => ({
   default: ({ open, source }) => (open ? <div role="dialog" aria-label={`contact:${source}`} /> : null),
 }))
-vi.mock('../../feedback/FeedbackDialog', () => ({
+vi.mock('../../../components/feedback/FeedbackDialog', () => ({
   default: ({ open, source }) => (open ? <div role="dialog" aria-label={`feedback:${source}`} /> : null),
 }))
 vi.mock('../../../contexts/AuthContext', () => ({
@@ -28,7 +28,7 @@ vi.mock('../../../contexts/NotificationContext', () => ({
   useNotifications: () => ({ unreadCount: 0, open: false, setOpen: () => {} }),
 }))
 // Not part of the chrome under test, and it boots Firebase.
-vi.mock('../TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
+vi.mock('../../../components/teacher/TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
 
 function renderPage() {
   return render(

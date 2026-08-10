@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { CircleCheck, CircleX, Eye, SlidersHorizontal, X } from 'lucide-react'
-import { TOUR_REPLAY_EVENT, TOUR_STORAGE_KEY } from './onboardingTourCore'
+import { TOUR_REPLAY_EVENT, TOUR_STORAGE_KEY } from '../lib/onboardingTourCore'
 
 /**
  * Preview-only chrome: the "Preview Mode" banner and (outside production

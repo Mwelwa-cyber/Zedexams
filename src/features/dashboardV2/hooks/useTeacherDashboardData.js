@@ -6,10 +6,10 @@ import {
   summarizeGenerations,
   titleForGeneration,
 } from '../../../utils/teacherLibraryService'
-import { isExamPaperType, assessmentEditPath } from '../paperTaxonomy'
+import { isExamPaperType, assessmentEditPath } from '../../../components/teacher/paperTaxonomy'
 import { buildWeekPrep } from '../../../utils/prepareThisWeek'
 import { buildProfileRecommendations } from '../../../utils/teacherRecommendations'
-import { useTeachingProfile } from '../../../features/teacherSettings/lib/useTeachingProfile'
+import { useTeachingProfile } from '../../teacherSettings'
 import useStudioAvailability from '../../../hooks/useStudioAvailability'
 import { resolveActiveAssignmentId } from '../../../utils/teachingProfileCore'
 import {
@@ -34,7 +34,7 @@ import {
   teachingDaysLeft,
   termChipLabel,
   recommendationCardsFrom,
-} from './dashboardV2Data'
+} from '../../../components/teacher/dashboardV2/dashboardV2Data'
 
 function toMs(t) {
   if (!t) return 0

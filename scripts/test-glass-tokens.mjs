@@ -23,7 +23,11 @@ import { dirname, resolve } from 'node:path'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const root = resolve(here, '..')
+// The shell keeps the two token stylesheets next to TeacherLayout; the
+// dashboard PAGE moved to src/features/dashboardV2/ and took its own
+// section stylesheet with it (docs/architecture.md §13).
 const dashDir = resolve(root, 'src/components/teacher/dashboardV2')
+const featDir = resolve(root, 'src/features/dashboardV2/components')
 
 const glass = readFileSync(resolve(dashDir, 'glassSurface.css'), 'utf8')
 
@@ -86,7 +90,7 @@ for (const m of dash.matchAll(/([^{}]+)\{[^}]*backdrop-filter\s*:[^}]*\}/g)) {
   )
 }
 
-const tws = readFileSync(resolve(dashDir, 'teacherWorkspaceSection.css'), 'utf8')
+const tws = readFileSync(resolve(featDir, 'teacherWorkspaceSection.css'), 'utf8')
 assert.ok(!/backdrop-filter\s*:/.test(tws), 'teacherWorkspaceSection.css must not use backdrop-filter')
 
 /* ── 3. sweeps animate transform, never `left` ────────────────────────── */

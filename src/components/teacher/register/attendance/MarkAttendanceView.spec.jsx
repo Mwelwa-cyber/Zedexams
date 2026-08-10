@@ -21,7 +21,7 @@ vi.mock('../../../ui/Toast', () => ({
 }))
 
 // Desktop by default, so the keyboard path is exercised.
-vi.mock('../../dashboardV2/useIsMobile', () => ({ default: () => false }))
+vi.mock('../../../../shared/hooks/useIsMobile', () => ({ default: () => false }))
 
 const TERM = { startDate: '2026-05-11', endDate: '2026-08-07' }
 const TODAY = '2026-05-14'

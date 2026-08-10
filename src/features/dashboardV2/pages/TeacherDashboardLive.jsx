@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { resolveTeacherPlan, PLAN_LABELS } from '../../../utils/teacherPlans'
 import { capture } from '../../../utils/analytics'
-import SeoHelmet from '../../seo/SeoHelmet'
-import UsageReminderBanner from '../../subscription/UsageReminderBanner'
-import StudioUnavailableNotice from '../StudioUnavailableNotice'
-import { resolveGreeting } from './dashboardV2Core'
-import useTeacherDashboardData from './useTeacherDashboardData'
-import DashboardView from './DashboardView'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import UsageReminderBanner from '../../../components/subscription/UsageReminderBanner'
+import StudioUnavailableNotice from '../../../components/teacher/StudioUnavailableNotice'
+import { resolveGreeting } from '../lib/dashboardV2Core'
+import useTeacherDashboardData from '../hooks/useTeacherDashboardData'
+import DashboardView from '../components/DashboardView'
 
 /**
  * The LIVE /teacher dashboard — Dashboard V2 wired to real data. Renders

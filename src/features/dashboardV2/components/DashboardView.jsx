@@ -8,10 +8,10 @@ import TeacherWorkspaceSection from './TeacherWorkspaceSection'
 import { ChecklistCard, FeedStatusCard, RecentActivityCard } from './InsightCards'
 import OnboardingTour from './OnboardingTour'
 import { Toast } from './PreviewChrome'
-import useIsMobile from './useIsMobile'
+import useIsMobile from '../../../shared/hooks/useIsMobile'
 import MobileDashboardContent from './MobileDashboardView'
-import ensureDashboardFonts from './dashboardFonts'
-import './dashboardV2.css'
+import ensureDashboardFonts from '../lib/dashboardFonts'
+import '../../../components/teacher/dashboardV2/dashboardV2.css'
 
 ensureDashboardFonts()
 

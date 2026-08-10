@@ -3,19 +3,19 @@ import { render, screen, fireEvent, within, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import TeacherAppLauncher from './TeacherAppLauncher'
-import { STUDIO_CATEGORIES, TEACHER_STUDIOS } from './teacherStudios'
+import { STUDIO_CATEGORIES, TEACHER_STUDIOS } from '../../../components/teacher/dashboardV2/launcher/teacherStudios'
 
 // Every teacher navigation surface now asks studioAvailability which studios
 // are on offer, and that reads settings/global. Stubbed to the LAUNCH state
 // (no flags set → Worksheet Studio withdrawn, Rubric Studio retired).
-vi.mock('../../../../contexts/PlatformSettingsContext', () => ({
+vi.mock('../../../contexts/PlatformSettingsContext', () => ({
   usePlatformSettings: () => ({ settings: { featureFlags: {} }, loaded: true, live: true }),
 }))
 
 // ── Auth mock (favourites persistence hooks read this) ──────────────────
 const updateProfileFields = vi.fn().mockResolvedValue()
 let authValue
-vi.mock('../../../../contexts/AuthContext', () => ({
+vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => authValue,
 }))
 
