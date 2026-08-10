@@ -63,6 +63,7 @@ const {assertCallableRateLimit} = require("../rateLimit");
 const {getUserRole, isStaffRole} = require("../aiService");
 const {
   DEFAULT_TTL_SECONDS,
+  isValidPaperId,
   isCanonicalPaperAssetPath,
   classifyPaperAssetPath,
   resolveSignedUrlExpiry,
@@ -87,6 +88,12 @@ function createResolvePaperAssetUrl() {
     // Shape first, membership second. Checking the shape before touching
     // Firestore means a malformed path never reaches a lookup, and keeps the
     // traversal guard independent of whatever the paper doc happens to say.
+    // The id is guarded too: it is interpolated into a document path, so a
+    // `/` in it re-points the read at a different depth of the tree rather
+    // than at the paper the caller named.
+    if (!isValidPaperId(paperId)) {
+      throw new HttpsError("invalid-argument", "That is not a valid paper id.");
+    }
     if (!isCanonicalPaperAssetPath(path)) {
       throw new HttpsError("invalid-argument", "That is not a valid paper file path.");
     }

@@ -69,6 +69,32 @@ function isCanonicalPaperAssetPath(path) {
 }
 
 /**
+ * True when `paperId` is a single, well-formed Firestore document id.
+ *
+ * The id is interpolated into `pastPapers/${paperId}`, so a `/` in it is a
+ * path traversal in a DOCUMENT path — it re-points the read at a different
+ * depth of the tree (`pastPapers/{a}/{b}/{c}`) rather than at the paper the
+ * caller named. Nothing exploitable lives there today (that subtree is
+ * default-denied to clients and only an existence signal comes back), but the
+ * read should address exactly one document, and an odd segment count
+ * otherwise throws inside the SDK and surfaces as an opaque INTERNAL.
+ *
+ * Also rejects the ids Firestore itself refuses — `.`, `..`, and the
+ * reserved `__…__` form — so they fail as a clear invalid-argument here
+ * rather than as an SDK exception further in.
+ */
+function isValidPaperId(paperId) {
+  if (typeof paperId !== "string" || !paperId) return false;
+  // Firestore caps a document id at 1500 bytes.
+  if (Buffer.byteLength(paperId, "utf8") > 1500) return false;
+  if (paperId.includes("/")) return false;
+  if (paperId === "." || paperId === "..") return false;
+  if (/[\u0000-\u001f\u007f]/.test(paperId)) return false;
+  if (/^__.*__$/.test(paperId)) return false;
+  return true;
+}
+
+/**
  * Which field of the paper doc declares `path`, or null when none does.
  * Strict string equality — no prefix matching, no normalisation — because the
  * declared paths were written verbatim by the studio's own uploaders.
@@ -176,6 +202,7 @@ module.exports = {
   DEFAULT_TTL_SECONDS,
   FALLBACK_EVENT_KEYS,
   FALLBACK_EVENT_NAME,
+  isValidPaperId,
   isCanonicalPaperAssetPath,
   classifyPaperAssetPath,
   isDeclaredPaperAssetPath,

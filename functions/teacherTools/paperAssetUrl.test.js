@@ -16,6 +16,7 @@ const {
   DEFAULT_TTL_SECONDS,
   FALLBACK_EVENT_KEYS,
   FALLBACK_EVENT_NAME,
+  isValidPaperId,
   isCanonicalPaperAssetPath,
   classifyPaperAssetPath,
   isDeclaredPaperAssetPath,
@@ -122,6 +123,33 @@ test('the two guards are independent — declared does not imply canonical', () 
   const rogue = {pdfPath: 'papers/../users-backups/all.json'};
   assert.equal(isDeclaredPaperAssetPath(rogue, 'papers/../users-backups/all.json'), true);
   assert.equal(isCanonicalPaperAssetPath('papers/../users-backups/all.json'), false);
+});
+
+// ── the paper id addresses exactly one document ─────────────────────────────
+
+test('paper id guard accepts ordinary Firestore document ids', () => {
+  assert.equal(isValidPaperId('p1'), true);
+  assert.equal(isValidPaperId('ecz-2019-g9-maths-p2'), true);
+  assert.equal(isValidPaperId('aB3_-xY'), true);
+});
+
+test('paper id guard rejects a slash — traversal in a DOCUMENT path', () => {
+  // `pastPapers/${paperId}` with a slash addresses a different depth of the
+  // tree than the paper the caller named.
+  assert.equal(isValidPaperId('p1/sub/doc'), false);
+  assert.equal(isValidPaperId('../users/uidA'), false);
+  assert.equal(isValidPaperId('p1/'), false);
+  assert.equal(isValidPaperId('/p1'), false);
+});
+
+test('paper id guard rejects ids Firestore itself refuses', () => {
+  assert.equal(isValidPaperId('.'), false);
+  assert.equal(isValidPaperId('..'), false);
+  assert.equal(isValidPaperId('__name__'), false);
+  assert.equal(isValidPaperId(''), false);
+  assert.equal(isValidPaperId(null), false);
+  assert.equal(isValidPaperId('a'.repeat(1501)), false);
+  assert.equal(isValidPaperId('p1' + String.fromCharCode(1) + 'x'), false);
 });
 
 // ── the signed URL must actually expire ─────────────────────────────────────
