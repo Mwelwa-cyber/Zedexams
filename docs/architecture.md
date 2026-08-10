@@ -1327,8 +1327,8 @@ The order was settled 2026-08-07 as **smallest and lowest-risk first**, ranked o
 |---|---|---|
 | ~~`markSchedule`~~ · ~~`recordOfWork`~~ | ~~`teacherClasses`~~ — see below | ~~`classTimetable`~~ |
 | ~~`curriculumBrowsers`~~ | ~~`teacherLibrary`~~ → **reassigned to C** | ~~`teacherLibrary`~~ |
-| `register` — **re-inventory first** | ~~`dashboardV2`~~ → **reassigned to C** | ~~`dashboardV2`~~ — **not a pure move, see below** |
-| the remaining admin areas | — | — |
+| ~~`register` — re-inventory first~~ · **inventory DONE 2026-08-10**, migration split in two and unclaimed | ~~`dashboardV2`~~ → **reassigned to C** | ~~`dashboardV2`~~ — **not a pure move, see below** |
+| **the remaining admin areas** — claimed by A, 2026-08-10 | — | — |
 
 **`dashboardV2` was reassigned from B to C on 2026-08-10, on the same evidence and by the same rule as `teacherLibrary`**: no remote branch carried a change under `dashboardV2/`, no open pull request named it, and session B had started neither of its items in the nine hours since #2227 while session A stayed active on other work. B's column is now empty; if B returns, the unclaimed items are `register` (session A has not begun it) and the admin areas.
 
@@ -1369,6 +1369,28 @@ If B had begun it, the claim would have stood and this session would have taken 
 
 - **`teacherClasses` — eliminated, not migrated.** All six files of `teacher/classes/` were removed with the bridge; no migration remained. It is struck from session B's list rather than reassigned.
 - **`register` — re-inventory before migrating.** #2227 edited two files inside it (`ClassRegisterList.jsx`, `RosterImportModal.jsx`), removing the "import from existing learner accounts" tab. The surface is smaller than the 38 files this session mapped before the merge, so the map is stale and gets rebuilt rather than trusted.
+
+  **RE-INVENTORIED 2026-08-10 against `3cc2f566`, and the expectation above was WRONG.** #2227 deleted **no file** inside `teacher/register/` — it edited two (−101 lines from `RosterImportModal.jsx`, −1 from `ClassRegisterList.jsx`) and took 45 lines out of `src/utils/classRoster.js`. The count is **still 38 files, 6,180 lines**. About 147 lines went, not a single file. Recorded because the sentence above would otherwise have been carried forward as fact by whoever picks this up — which is exactly why the owner asked for the count to be rebuilt rather than trusted.
+
+  **The size is not the constraint; the SHARING is.** Of the ~29 `src/utils`, `src/hooks` and `src/schemas` modules the directory reaches for, only seven have no consumer outside it (`attendanceCalculator`, `attendanceInsights`, `classProgress`, `classRecordExport`, `classRecordMath`, `registerValidationCore`, `sbaCrossYear` — the last already recorded above as travelling with `register`). Both hooks are register-only and travel in (`useClassRegister`, `useRegisterExportModel`), and with them go the four attendance modules only those hooks read.
+
+  The rest are shared with features that have **already migrated**, and that is what makes this different from every Wave 4 item so far:
+
+  | module | outside consumers |
+  |---|---|
+  | `classListCore` | `features/classList` ×4 |
+  | `classRoster` | `classList`, `markSchedule`, `teacher/generate/` |
+  | `rosterImport` | `features/classList` ×3 |
+  | `classRecords`, `attendanceConstants` | `features/classList` |
+  | `classRegister` | `features/markSchedule`, `teacher/generate/` |
+  | `classTerms` | `features/teacherSettings` |
+  | `schemas/classRegister` | `classList`, `markSchedule`, `teacher/generate/` |
+
+  Today those are legal downward imports into `src/utils/`. The moment `register` becomes a feature they become **cross-feature imports**, which `test:import-boundaries` fails — the trap §13 already recorded when `useIsMobile` went to `src/shared/hooks/` rather than into `classList`. So `register` is not one bounded move: it is a `src/shared/utils/` promotion of the modules the Class List and the Mark Schedule already share, and then the feature. Two pull requests, on the #2200 precedent (enabling work first, features after) — and the first one touches no feature structure at all, which is what keeps both diffs readable as moves.
+
+  `reportCardsToDocx` and `attendanceToDocx` go to `src/engines/export-engine/` with the feature; `features/teacherLibrary` and `features/markSchedule` already reach `reportCardsToDocx` directly, so that inherits #2172's rule rather than reopening it. `moeCalendar` (11 outside consumers) and `schoolProfileService` (10) are broadly shared and are `src/shared/utils/` candidates on their own merits, not `register`'s — they should not be pulled in by it.
+
+  No dead bridge code survives inside the directory: the only `linkedUid` references left are the two in `classRoster.js` that §14 documents as deliberate (SBA cross-year matching reads it; nothing writes a non-null value).
 
 The impact review that preceded that decision is worth keeping in one line: `classRegisters` rules untouched, all eleven removed callables unreferenced, no dangling routes, removed indexes matching removed rules, and **no production data deleted by merging** — the cleanup script is `npm run`-only, dry-run by default, and absent from every workflow and lifecycle hook. Verified by running the suites on the branch, not by reading its description.
 
