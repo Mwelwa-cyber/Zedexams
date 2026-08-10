@@ -1327,8 +1327,21 @@ The order was settled 2026-08-07 as **smallest and lowest-risk first**, ranked o
 |---|---|---|
 | ~~`markSchedule`~~ · ~~`recordOfWork`~~ | ~~`teacherClasses`~~ — see below | ~~`classTimetable`~~ |
 | ~~`curriculumBrowsers`~~ | ~~`teacherLibrary`~~ → **reassigned to C** | ~~`teacherLibrary`~~ |
-| `register` — **re-inventory first** | `dashboardV2` | — |
+| `register` — **re-inventory first** | ~~`dashboardV2`~~ → **reassigned to C** | `dashboardV2` — **not a pure move, see below** |
 | the remaining admin areas | — | — |
+
+**`dashboardV2` was reassigned from B to C on 2026-08-10, on the same evidence and by the same rule as `teacherLibrary`**: no remote branch carried a change under `dashboardV2/`, no open pull request named it, and session B had started neither of its items in the nine hours since #2227 while session A stayed active on other work. B's column is now empty; if B returns, the unclaimed items are `register` (session A has not begun it) and the admin areas.
+
+**It is the first Wave 4 item that is NOT a pure move, and the owner decided that deliberately.** The directory fuses two layers, and the numbers are why the standing policy was set aside for it:
+
+- **~6,335 lines of app-shell navigation** — `Sidebar`, `LogoutDialog`, `TEACHER_NAV_GROUPS`, `teacherNavActive`, `useDashboardTheme`, `useSidebarCollapsed`, `sidebarCollapseCore`, `dashboardV2.css`, `glassSurface.css`. `TeacherLayout` imports nine of these, and it mounts on EVERY `/teacher/*` route.
+- **~9,032 lines of dashboard page content** — the view, the app launcher, the onboarding tour, Help & Support, the mock data.
+
+**`MobileDashboardView.jsx` is the proof the entanglement is structural rather than incidental.** One file exports `NavDrawer`, `MobileHeader` and `MobileBottomNav` — all three imported by `TeacherLayout`, all three shell chrome — *and* the dashboard page itself as its default export. No `git mv` separates that; the file has to be split, which is why this migration is not a move.
+
+Migrating the directory whole would have made `TeacherLayout` import the feature's front door for nine names, so **every teacher route would evaluate the whole dashboard feature at import time** — launcher, tour and Help & Support included. That is legal under the layering rules and nothing would have caught it: `check:bundle-edges` guards four declared light pages and not one of them is a teacher route. The template's own instruction covers this case — *if a feature's front door would drag something heavy or stateful into innocent consumers, that is a signal about the feature's shape; say so and raise it rather than quietly splitting the front door in a migration PR.* It was raised, and the answer was to split.
+
+**Correction to an earlier claim in this repo's own notes:** CLAUDE.md describes this area as drawing on `lucide-react + recharts`. The `recharts` half is **stale — nothing in `src/` imports recharts at all.** The only third-party dependency here is `lucide-react`. That mattered to the decision, because it is the difference between a heavy-vendor problem and a layering problem, and only the second one is real.
 
 **`teacherLibrary` was reassigned from B to C on 2026-08-10, by the reassign-rather-than-duplicate rule below rather than around it.** The lookup that the rule asks for is what produced the decision, and it is recorded because "it looked idle" is not a reason anyone can check later:
 
