@@ -1,9 +1,17 @@
 /**
  * Shared CSV export helpers.
  *
- * Used by AdminLearners, AdminLearnerProfile, and TeacherLibrary. Each caller
+ * Used by `features/adminLearners`' roster page and by
+ * `utils/attendanceExportService.js` (the class register). Each caller
  * provides a plain array of objects with uniform keys — the keys of the first
  * row become the column headers.
+ *
+ * The previous list here — "AdminLearners, AdminLearnerProfile, and
+ * TeacherLibrary" — was wrong on two of three: neither the learner profile nor
+ * the teacher library imports this. Corrected during the `adminLearners`
+ * migration, because a stale consumer list is exactly what a decision about
+ * whether a module travels gets made on, and this one nearly sent it into a
+ * feature the register still needs to reach.
  */
 
 import { saveBlob } from './saveBlob.js'

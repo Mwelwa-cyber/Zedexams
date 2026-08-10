@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
-import { ClipboardList } from '../ui/icons'
-import { useFirestore, ADMIN_QUERY_LIMIT } from '../../hooks/useFirestore'
-import { useDebouncedValue } from '../../hooks/useDebouncedValue'
-import PageHeader from '../ui/PageHeader'
-import EmptyState from '../ui/EmptyState'
-import Skeleton from '../ui/Skeleton'
-import SeoHelmet from '../seo/SeoHelmet'
-import { PAPER_SUBJECTS } from '../../config/curriculum'
-import { gradesForFeature, gradeNumberOf } from '../../config/canonicalEducation'
+import { ClipboardList } from '../../../components/ui/icons'
+import { useFirestore, ADMIN_QUERY_LIMIT } from '../../../hooks/useFirestore'
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
+import PageHeader from '../../../components/ui/PageHeader'
+import EmptyState from '../../../components/ui/EmptyState'
+import Skeleton from '../../../components/ui/Skeleton'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import { PAPER_SUBJECTS } from '../../../config/curriculum'
+import { gradesForFeature, gradeNumberOf } from '../../../config/canonicalEducation'
 
 // Both lists derive from the learner catalogue + the canonical ladder.
 const SUBJECTS = PAPER_SUBJECTS.map((s) => s.label)
