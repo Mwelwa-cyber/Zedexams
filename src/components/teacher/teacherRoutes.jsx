@@ -35,9 +35,9 @@ import StudioGate from './StudioGate'
 import { questionBankRedirectPath } from './questionBankDeepLink'
 
 const TeacherDashboard = lazy(() => import('./TeacherDashboard'))
-const TeacherDashboardLive = lazy(() => import('./dashboardV2/TeacherDashboardLive'))
-const TeacherDashboardV2 = lazy(() => import('./dashboardV2/TeacherDashboardV2'))
-const TeacherHelpSupport = lazy(() => import('./dashboardV2/HelpSupportPage'))
+const TeacherDashboardLive = lazy(() => import('../../features/dashboardV2/pages/TeacherDashboardLive'))
+const TeacherDashboardV2 = lazy(() => import('../../features/dashboardV2/pages/TeacherDashboardV2'))
+const TeacherHelpSupport = lazy(() => import('../../features/dashboardV2/pages/HelpSupportPage'))
 const WelcomeToPro = lazy(() => import('./WelcomeToPro'))
 const MySubscriptionPage = lazy(() => import('../subscription/MySubscriptionPage'))
 

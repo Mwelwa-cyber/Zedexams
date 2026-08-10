@@ -19,13 +19,13 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
-import ContactDialog from '../../marketing/ContactDialog'
-import FeedbackDialog from '../../feedback/FeedbackDialog'
-import SeoHelmet from '../../seo/SeoHelmet'
-import TopHeader from './TopHeader'
+import ContactDialog from '../../../components/marketing/ContactDialog'
+import FeedbackDialog from '../../../components/feedback/FeedbackDialog'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import TopHeader from '../components/TopHeader'
 import useIsMobile from '../../../shared/hooks/useIsMobile'
-import ensureDashboardFonts from './dashboardFonts'
-import './dashboardV2.css'
+import ensureDashboardFonts from '../lib/dashboardFonts'
+import '../../../components/teacher/dashboardV2/dashboardV2.css'
 
 ensureDashboardFonts()
 

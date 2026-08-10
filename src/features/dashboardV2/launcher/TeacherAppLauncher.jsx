@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Clock, Hand, LayoutGrid, ListFilter, SearchX, Star, X } from 'lucide-react'
-import { useAuth } from '../../../../contexts/AuthContext'
+import { useAuth } from '../../../contexts/AuthContext'
 import {
   LAUNCHER_CHIPS,
   STUDIO_BY_ID,
   STUDIO_CATEGORIES,
   TEACHER_STUDIOS,
-} from './teacherStudios'
+} from '../../../components/teacher/dashboardV2/launcher/teacherStudios'
 import {
   applyChip,
   badgeIsPending,
@@ -20,10 +20,10 @@ import {
   resolveBadge,
   resolvePopoverPlacement,
   searchStudios,
-} from './teacherLauncherCore'
-import useStudioAvailability from '../../../../hooks/useStudioAvailability'
+} from '../../../components/teacher/dashboardV2/launcher/teacherLauncherCore'
+import useStudioAvailability from '../../../hooks/useStudioAvailability'
 import useStudioFavourites from './useStudioFavourites'
-import useRecentStudios from './useRecentStudios'
+import useRecentStudios from '../../../components/teacher/dashboardV2/launcher/useRecentStudios'
 import StudioAppIcon from './StudioAppIcon'
 import StudioCategory from './StudioCategory'
 import RecentStudios from './RecentStudios'

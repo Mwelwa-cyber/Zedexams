@@ -1327,7 +1327,7 @@ The order was settled 2026-08-07 as **smallest and lowest-risk first**, ranked o
 |---|---|---|
 | ~~`markSchedule`~~ · ~~`recordOfWork`~~ | ~~`teacherClasses`~~ — see below | ~~`classTimetable`~~ |
 | ~~`curriculumBrowsers`~~ | ~~`teacherLibrary`~~ → **reassigned to C** | ~~`teacherLibrary`~~ |
-| `register` — **re-inventory first** | ~~`dashboardV2`~~ → **reassigned to C** | `dashboardV2` — **not a pure move, see below** |
+| `register` — **re-inventory first** | ~~`dashboardV2`~~ → **reassigned to C** | ~~`dashboardV2`~~ — **not a pure move, see below** |
 | the remaining admin areas | — | — |
 
 **`dashboardV2` was reassigned from B to C on 2026-08-10, on the same evidence and by the same rule as `teacherLibrary`**: no remote branch carried a change under `dashboardV2/`, no open pull request named it, and session B had started neither of its items in the nine hours since #2227 while session A stayed active on other work. B's column is now empty; if B returns, the unclaimed items are `register` (session A has not begun it) and the admin areas.
@@ -1342,6 +1342,18 @@ The order was settled 2026-08-07 as **smallest and lowest-risk first**, ranked o
 Migrating the directory whole would have made `TeacherLayout` import the feature's front door for nine names, so **every teacher route would evaluate the whole dashboard feature at import time** — launcher, tour and Help & Support included. That is legal under the layering rules and nothing would have caught it: `check:bundle-edges` guards four declared light pages and not one of them is a teacher route. The template's own instruction covers this case — *if a feature's front door would drag something heavy or stateful into innocent consumers, that is a signal about the feature's shape; say so and raise it rather than quietly splitting the front door in a migration PR.* It was raised, and the answer was to split.
 
 **Correction to an earlier claim in this repo's own notes:** CLAUDE.md describes this area as drawing on `lucide-react + recharts`. The `recharts` half is **stale — nothing in `src/` imports recharts at all.** The only third-party dependency here is `lucide-react`. That mattered to the decision, because it is the difference between a heavy-vendor problem and a layering problem, and only the second one is real.
+
+**Where the seam runs.** 25 files stay in `src/components/teacher/dashboardV2/` next to `TeacherLayout`; 41 moved to `src/features/dashboardV2/`. The rule that decided each one: **the shell stays in the legacy tree, so a feature may import DOWN into it, while the reverse would need a debt-list entry.** That is why `BottomSheet`, `GlassToolTile`, `teacherStudios`, `teacherLauncherCore` and `useRecentStudios` stayed despite the page using them too — moving them up would have made the shell reach into a feature. Eight specs stayed with the shell modules they test; the two integration specs that render `TeacherLayout` *and* `TeacherDashboardV2` went with the feature, for the same directional reason.
+
+**`useIsMobile` went to `src/shared/hooks/`** — the layer's first resident, earned the way `src/shared/icons/` was: three unrelated consumers (the shell, the class register's `MarkAttendanceView`, `features/classList`), React-only, no Firebase. It also clears a trap: had the whole directory become a feature, `features/classList` reading that hook would have turned from a legal downward import into a cross-feature **error** needing a line on a shrink-only list.
+
+**`useTeacherDashboardData` cleared the eighth legacy entry** by reaching `teacherSettings` through the front door #2220 created, the same way `ClassTimetableStudio` cleared the ninth. Legacy list 8 → 7; cross-feature unchanged at 3.
+
+**What the measurement actually showed, stated exactly.** `TeacherLayout`, `AssessmentStudio` and `ClassTimetableStudio` reach **none** of `TeacherAppLauncher` / `OnboardingTour` / `DashboardView` / `mockData` / `HelpSupportPage` — and **they did not before the split either.** Rollup's per-module splitting already kept the shell's graph clean, so this migration did not remove a cost that was being paid. Recording that plainly matters more than the nicer story: the claim in this section's earlier draft — that migrating whole would put the launcher and the tour into every teacher route — is about a POPULATED FRONT DOOR, which is a real hazard and the reason `index.js` here exports nothing, not about the status quo it replaced.
+
+So the value delivered is that the property became **structural rather than incidental**: an empty front door plus a layer boundary means no future import can pull the dashboard into a studio route, where before only Rollup's bookkeeping stood between them. Light pages measured byte-for-byte identical (`PublicShareView` and `LockedStudio` at 0 delta); every other surface moved by +49 or +128 bytes, which is import-path string length and one emitted chunk. 567 → 568 chunks.
+
+**`check:bundle-edges` could not have answered this question**, which is worth knowing before trusting it on a teacher-side change: it guards four declared light pages and not one of them is a `/teacher/*` route. The numbers above came from measuring the emitted graph directly, before and after.
 
 **`teacherLibrary` was reassigned from B to C on 2026-08-10, by the reassign-rather-than-duplicate rule below rather than around it.** The lookup that the rule asks for is what produced the decision, and it is recorded because "it looked idle" is not a reason anyone can check later:
 

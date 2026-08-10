@@ -15,7 +15,7 @@ import {
   spotlightRect,
   TOUR_REPLAY_EVENT,
   TOUR_STORAGE_KEY,
-} from './onboardingTourCore'
+} from '../lib/onboardingTourCore'
 
 /**
  * First-run tour for Dashboard V2 — the tdv2-native successor to the classic

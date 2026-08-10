@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useAuth } from '../../../../contexts/AuthContext'
-import { STUDIO_BY_ID } from './teacherStudios'
-import { sanitizeIds, toggleFavourite } from './teacherLauncherCore'
+import { useAuth } from '../../../contexts/AuthContext'
+import { STUDIO_BY_ID } from '../../../components/teacher/dashboardV2/launcher/teacherStudios'
+import { sanitizeIds, toggleFavourite } from '../../../components/teacher/dashboardV2/launcher/teacherLauncherCore'
 
 /**
  * Per-teacher favourite studios.

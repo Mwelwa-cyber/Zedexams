@@ -9,8 +9,8 @@ import {
   RotateCcw,
   TriangleAlert,
 } from 'lucide-react'
-import { iconForTool } from './dashboardV2Config'
-import { progressFraction } from './dashboardV2Core'
+import { iconForTool } from '../../../components/teacher/dashboardV2/dashboardV2Config'
+import { progressFraction } from '../lib/dashboardV2Core'
 
 function ProgressRing({ fraction }) {
   const r = 12

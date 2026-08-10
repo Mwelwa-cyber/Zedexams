@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import OnboardingTour from './OnboardingTour'
-import { TOUR_REPLAY_EVENT, TOUR_STORAGE_KEY } from './onboardingTourCore'
+import { TOUR_REPLAY_EVENT, TOUR_STORAGE_KEY } from '../lib/onboardingTourCore'
 
 function renderTour({ entries = ['/teacher'], isMobile = false, loading = false } = {}) {
   return render(

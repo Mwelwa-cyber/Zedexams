@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import SeoHelmet from '../../seo/SeoHelmet'
-import { resolveGreeting } from './dashboardV2Core'
-import DashboardView from './DashboardView'
-import { PreviewBanner, PreviewControlPanel } from './PreviewChrome'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import { resolveGreeting } from '../lib/dashboardV2Core'
+import DashboardView from '../components/DashboardView'
+import { PreviewBanner, PreviewControlPanel } from '../components/PreviewChrome'
 import useStudioAvailability from '../../../hooks/useStudioAvailability'
 import {
   ACTIVITY_ITEMS,
@@ -15,7 +15,7 @@ import {
   SAVED_COUNTS,
   TEACHER,
   TERM_CHIP,
-} from './mockData'
+} from '../lib/mockData'
 
 /**
  * Teacher Dashboard V2 PREVIEW — the mock-data surface at

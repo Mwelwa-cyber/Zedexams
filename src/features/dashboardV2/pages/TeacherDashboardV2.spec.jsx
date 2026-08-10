@@ -3,9 +3,9 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
-import TeacherLayout from '../TeacherLayout'
+import TeacherLayout from '../../../components/teacher/TeacherLayout'
 import TeacherDashboardV2 from './TeacherDashboardV2'
-import { TOUR_STORAGE_KEY } from './onboardingTourCore'
+import { TOUR_STORAGE_KEY } from '../lib/onboardingTourCore'
 
 // Every teacher navigation surface now asks studioAvailability which studios
 // are on offer, and that reads settings/global. Stubbed to the LAUNCH state
@@ -34,7 +34,7 @@ vi.mock('../../../contexts/AuthContext', () => ({
   }),
 }))
 // Reads Firestore and is not under test here.
-vi.mock('../TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
+vi.mock('../../../components/teacher/TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
 vi.mock('../../../contexts/NotificationContext', () => ({
   useNotifications: () => ({ unreadCount: 0, open: false, setOpen: () => {} }),
 }))
