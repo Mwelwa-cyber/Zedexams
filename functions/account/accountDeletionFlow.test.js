@@ -625,6 +625,73 @@ test("an unreadable tombstone fails CLOSED", async () => {
   assert.strictEqual(db.store.users, undefined, "not knowing is not a licence to write");
 });
 
+// ── PURGE-003: which failures leave the caller's session orphaned ─────────
+// The client signs itself out on `details.irreversible`, and on nothing else.
+// It reads the flag rather than keeping its own list of reason strings, so
+// these tests are what make the flag true — a post-destructive failure added
+// without it leaves the user sitting on the dashboard of a deleted account
+// until their ID token expires, up to an hour later.
+
+test("every failure PAST the point of no return says so", async () => {
+  const cases = [
+    ["purge-failed", async () => { throw new Error("firestore down"); }],
+    ["purge-unverified", async () => ({...verifiedSummary, verified: false})],
+    ["purge-incomplete", async () => ({...verifiedSummary, errors: ["payments: denied"]})],
+  ];
+  for (const [reason, purge] of cases) {
+    const calls = [];
+    await assert.rejects(
+      runAccountDeletion({db: fakeDb(calls), auth: fakeAuth(calls), uid: "u1", FieldValue, purge}),
+      (err) => {
+        assert.strictEqual(err.details.reason, reason);
+        assert.strictEqual(
+          err.details.irreversible, true,
+          `${reason} rejects after deleteUser, so the session is orphaned and the ` +
+          "client must drop it — without this flag it stays signed in",
+        );
+        return true;
+      },
+    );
+  }
+});
+
+test("every failure BEFORE it does not", async () => {
+  // The mirror, and the reason the flag is checked for an explicit `true`:
+  // these paths leave the account intact and tell the user to try again.
+  // Signing them out is the one thing that would stop them doing that.
+  const cases = [
+    ["tombstone-failed", {onOpenFail: true}],
+    ["revoke-failed", {onRevoke: () => { throw new Error("transient"); }}],
+    ["auth-delete-failed", {onDelete: () => { throw authError("auth/internal-error"); }}],
+  ];
+  for (const [reason, opts] of cases) {
+    const calls = [];
+    const db = fakeDb(calls);
+    if (opts.onOpenFail) {
+      const real = db.collection;
+      db.collection = (col) =>
+        col === PURGE_JOBS_COLLECTION ?
+          {doc: () => ({set: async () => { throw new Error("unavailable"); }})} :
+          real(col);
+    }
+    await assert.rejects(
+      runAccountDeletion({
+        db, auth: fakeAuth(calls, opts), uid: "u1", FieldValue,
+        purge: async () => verifiedSummary,
+      }),
+      (err) => {
+        assert.strictEqual(err.details.reason, reason);
+        assert.strictEqual(
+          err.details.irreversible, undefined,
+          `${reason} leaves the account intact — flagging it would sign the user ` +
+          "out of an account they were just told to retry deleting",
+        );
+        return true;
+      },
+    );
+  }
+});
+
 Promise.all(pending).then(() => {
   console.log(`\n  ${passed} passed`);
 });

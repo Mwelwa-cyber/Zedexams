@@ -219,7 +219,13 @@ async function runAccountDeletion({uid, email, db, auth, FieldValue, purge, aler
       "internal",
       "Your sign-in has been removed and the rest of your data is still being deleted. " +
       "You do not need to do anything else — contact support if you would like confirmation.",
-      {reason: "purge-failed"},
+      // The client reads this, not the reason string: past step 3b the Auth
+      // user is GONE, so the caller's session is orphaned and it must sign
+      // itself out. Stating the fact rather than publishing a list of reason
+      // strings for the client to keep in step — a fourth post-destructive
+      // failure added here would otherwise leave the client signed in and
+      // nothing would say so. See PURGE-003.
+      {reason: "purge-failed", irreversible: true},
     );
   }
 
@@ -242,7 +248,7 @@ async function runAccountDeletion({uid, email, db, auth, FieldValue, purge, aler
       "internal",
       "Your sign-in has been removed and the rest of your data is still being deleted. " +
       "You do not need to do anything else — contact support if you would like confirmation.",
-      {reason: unverified ? "purge-unverified" : "purge-incomplete"},
+      {reason: unverified ? "purge-unverified" : "purge-incomplete", irreversible: true},
     );
   }
 
