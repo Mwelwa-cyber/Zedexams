@@ -8,10 +8,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
 const mockGetBudgetEnforcement = vi.fn()
-vi.mock('../../utils/aiBudget', () => ({
+vi.mock('../lib/aiBudget', () => ({
   getBudgetEnforcement: (...a) => mockGetBudgetEnforcement(...a),
 }))
-vi.mock('../ui/Skeleton', () => ({ default: () => <div data-testid="skeleton" /> }))
+vi.mock('../../../components/ui/Skeleton', () => ({ default: () => <div data-testid="skeleton" /> }))
 
 import BudgetEnforcementPanel from './BudgetEnforcementPanel'
 

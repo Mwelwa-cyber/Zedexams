@@ -13,8 +13,8 @@
  */
 
 import { useEffect, useState } from 'react'
-import { getBudgetEnforcement } from '../../utils/aiBudget'
-import Skeleton from '../ui/Skeleton'
+import { getBudgetEnforcement } from '../lib/aiBudget'
+import Skeleton from '../../../components/ui/Skeleton'
 
 const usdFmt = new Intl.NumberFormat('en-US', {
   style: 'currency',

@@ -20,10 +20,10 @@ import {
   listToolsForDate,
   listTopUsersForDate,
   resolveUserLabels,
-} from '../../utils/aiCosts'
-import SeoHelmet from '../seo/SeoHelmet'
-import Skeleton from '../ui/Skeleton'
-import BudgetEnforcementPanel from './BudgetEnforcementPanel'
+} from '../../../utils/aiCosts'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Skeleton from '../../../components/ui/Skeleton'
+import BudgetEnforcementPanel from '../components/BudgetEnforcementPanel'
 
 const usdFmt = new Intl.NumberFormat('en-US', {
   style: 'currency',
