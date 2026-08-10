@@ -33,27 +33,47 @@
  *
  * The pre-fix orphans are only findable in Cloud Logging, because nothing in
  * Firestore distinguishes one from a live account. `deleteMyAccount` logs a
- * line per completed deletion, and this returns them with timestamps:
+ * line per completed deletion (`accountCallableHandlers.js`), and this returns
+ * them with timestamps:
  *
  *     gcloud logging read \
- *       'resource.type="cloud_run_revision"
+ *       'resource.type=("cloud_run_revision" OR "cloud_function")
  *        AND resource.labels.service_name="deletemyaccount"
- *        AND textPayload:"deleteMyAccount uid="
+ *        AND "deleteMyAccount uid="
  *        AND timestamp>="2026-08-01T00:00:00Z"' \
  *       --project=examsprepzambia --limit=200 \
- *       --format='table(timestamp, textPayload)'
+ *       --format='table(timestamp, textPayload, jsonPayload.message)'
  *
  * Or paste this into the Cloud Console Log Explorer, unchanged:
  *
- *     resource.type="cloud_run_revision"
+ *     resource.type=("cloud_run_revision" OR "cloud_function")
  *     resource.labels.service_name="deletemyaccount"
- *     textPayload:"deleteMyAccount uid="
+ *     "deleteMyAccount uid="
  *     timestamp>="2026-08-01T00:00:00Z"
+ *
+ * The match on the message is a BARE quoted string, not `textPayload:"…"`, and
+ * the resource type covers both generations. Both are for the same reason: the
+ * line is written with `console.log`, and where that lands depends on the
+ * runtime — stdout captured as `textPayload`, or structured as
+ * `jsonPayload.message` if the runtime patches console. A field-scoped query
+ * that guesses wrong returns ZERO ROWS, and zero rows here does not read as
+ * "the query was wrong", it reads as "there are no orphans" — the same
+ * failure mode `functionErrorWatch` exists to refuse. A bare string searches
+ * whatever field it landed in. `functionErrorWatch` uses the two-generation
+ * resource filter for the same reason.
  *
  * Each match reads `deleteMyAccount uid=<UID> summary={…}`. Those are uids a
  * deletion COMPLETED for, so any whose `users/{uid}` still exists was
  * resurrected. Widen the timestamp if the window is wrong; narrow it to the
  * incident if you know when it was.
+ *
+ * SANITY CHECK BEFORE TRUSTING AN EMPTY RESULT: drop the message clause and
+ * confirm the service logs anything at all in the window. No rows from
+ *
+ *     resource.labels.service_name="deletemyaccount"
+ *     timestamp>="2026-08-01T00:00:00Z"
+ *
+ * means the service name or the window is wrong, NOT that no deletions ran.
  *
  * The intended order is: query → dry run → review the printed targets → --live.
  *
