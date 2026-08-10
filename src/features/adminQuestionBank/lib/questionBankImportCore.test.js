@@ -7,7 +7,7 @@ import {
   toCurriculumSubject, topicKey, normalizeGrade,
   buildGradeIndexFromCurriculum, lookupGradeClient, planBankAction,
 } from './questionBankImportCore.js'
-import { TOPICS } from '../config/curriculum.js'
+import { TOPICS } from '../../../config/curriculum.js'
 
 let failures = 0
 function assert(cond, msg) {

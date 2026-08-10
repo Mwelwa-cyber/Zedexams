@@ -1,17 +1,17 @@
 import { useState, useEffect, useCallback } from 'react'
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore'
-import { db } from '../../firebase/config'
-import { useAuth } from '../../contexts/AuthContext'
-import Button from '../ui/Button'
-import StatusBadge from '../ui/StatusBadge'
-import Skeleton from '../ui/Skeleton'
-import SeoHelmet from '../seo/SeoHelmet'
-import { parseBankQuestion } from '../../utils/questionBankService'
-import { extractRichTextPlain } from '../../utils/quizRichText.js'
+import { db } from '../../../firebase/config'
+import { useAuth } from '../../../contexts/AuthContext'
+import Button from '../../../components/ui/Button'
+import StatusBadge from '../../../components/ui/StatusBadge'
+import Skeleton from '../../../components/ui/Skeleton'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import { parseBankQuestion } from '../../../utils/questionBankService'
+import { extractRichTextPlain } from '../../../utils/quizRichText.js'
 import {
   loadReviewQueue, approveQuestion, editAndApproveQuestion, rejectQuestion,
   archiveQuestion, keepPrivateQuestion, mergeWithExisting,
-} from '../../utils/adminQuestionBankService'
+} from '../lib/adminQuestionBankService'
 
 /**
  * Live toggle for agentControl/qix.autoApprove. When ON, Qix promotes any

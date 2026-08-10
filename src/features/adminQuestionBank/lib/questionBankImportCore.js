@@ -5,8 +5,8 @@
  * `node` (the Firestore I/O lives in questionBankImport.js).
  */
 
-import { TOPICS, SUBTOPICS, TEACHER_SUBJECT_TO_CURRICULUM } from '../config/curriculum.js'
-import { gradesForFeature, gradeNumberOf } from '../config/canonicalEducation.js'
+import { TOPICS, SUBTOPICS, TEACHER_SUBJECT_TO_CURRICULUM } from '../../../config/curriculum.js'
+import { gradesForFeature, gradeNumberOf } from '../../../config/canonicalEducation.js'
 
 // A filter on the canonical ladder — see FEATURE_GRADE_RESTRICTIONS.
 export const VALID_GRADES = new Set(

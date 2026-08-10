@@ -10,9 +10,9 @@ import {
   collection, query, where, limit, getDocs, doc, getDoc, updateDoc,
   serverTimestamp, increment, writeBatch,
 } from 'firebase/firestore'
-import { db } from '../firebase/config'
-import { parseBankQuestion, bumpQuestionUsage } from './questionBankService'
-import { bankPreview, REVIEW_STATUS } from './questionBankCore.js'
+import { db } from '../../../firebase/config'
+import { parseBankQuestion, bumpQuestionUsage } from '../../../utils/questionBankService'
+import { bankPreview, REVIEW_STATUS } from '../../../utils/questionBankCore.js'
 
 const QUEUE_LIMIT = 200
 
