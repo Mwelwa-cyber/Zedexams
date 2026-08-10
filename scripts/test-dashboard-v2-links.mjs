@@ -9,14 +9,15 @@
  * this is a text-level parse of App.jsx — cheap, deterministic, and enough
  * to catch a dead link before deploy.
  *
- * ## A scanner aimed at a missing directory reports "0 broken" for files it
- * ## never opened — so a missing DIRS entry is a failure, not zero files
+ * ## A missing DIRS entry fails; it does not silently scan less
  *
- * The surface is two directories (#2247 split it): the app shell beside
- * TeacherLayout, and the dashboard pages under `src/features/`. This scanner
- * named only the first, silently stopped checking `HelpSupportPage`, and went
- * from 37 targets to 32 — dropping `/status`, `/company`, `/privacy`, `/terms`
- * and the library-detail path — while still printing `0 broken`.
+ * A scanner aimed at a directory that is not there reports "0 broken" for
+ * files it never opened. The surface is two directories (#2247 split it): the
+ * app shell beside TeacherLayout, and the dashboard pages under
+ * `src/features/`. This scanner named only the first, silently stopped
+ * checking `HelpSupportPage`, and went from 37 targets to 32 — dropping
+ * `/status`, `/company`, `/privacy`, `/terms` and the library-detail path —
+ * while still printing `0 broken`.
  *
  * The floor below is a backstop, not the defence: at 10 against a true count of
  * 37 it could never have tripped, and a count cannot see a swap anyway (#2239,
