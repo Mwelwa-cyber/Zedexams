@@ -33,7 +33,7 @@ import {
 } from '../../../../utils/attendanceCalendarResolver'
 import { useToast } from '../../../ui/Toast'
 import Button from '../../../ui/Button'
-import useIsMobile from '../../dashboardV2/useIsMobile'
+import useIsMobile from '../../../../shared/hooks/useIsMobile'
 import {
   AlertTriangle, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight,
   CloudOff, Keyboard, Search, Undo2,

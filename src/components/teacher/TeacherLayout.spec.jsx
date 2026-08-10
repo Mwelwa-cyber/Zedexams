@@ -25,7 +25,7 @@ vi.mock('./TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> 
 // drive the hook directly. The swap itself is covered end-to-end, across real
 // breakpoints, in dashboardV2/responsiveNavigation.spec.jsx.
 let mobile = false
-vi.mock('./dashboardV2/useIsMobile', () => ({ default: () => mobile }))
+vi.mock('../../shared/hooks/useIsMobile', () => ({ default: () => mobile }))
 // MobileHeader's bell reads the app-wide NotificationProvider (main.jsx).
 vi.mock('../../contexts/NotificationContext', () => ({
   useNotifications: () => ({ unreadCount: 0, open: false, setOpen: () => {} }),

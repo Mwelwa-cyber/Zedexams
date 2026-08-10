@@ -7,7 +7,7 @@ import TeacherLayout from '../TeacherLayout'
 import HelpSupportPage from './HelpSupportPage'
 
 // Force the mobile chrome regardless of jsdom viewport.
-vi.mock('./useIsMobile', () => ({ default: () => true }))
+vi.mock('../../../shared/hooks/useIsMobile', () => ({ default: () => true }))
 vi.mock('../../marketing/ContactDialog', () => ({
   default: ({ open, source }) => (open ? <div role="dialog" aria-label={`contact:${source}`} /> : null),
 }))

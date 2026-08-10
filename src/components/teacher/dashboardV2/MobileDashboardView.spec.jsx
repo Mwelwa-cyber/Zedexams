@@ -27,7 +27,7 @@ beforeEach(() => {
 })
 
 // Force the mobile information architecture regardless of jsdom viewport.
-vi.mock('./useIsMobile', () => ({ default: () => true }))
+vi.mock('../../../shared/hooks/useIsMobile', () => ({ default: () => true }))
 // Not part of the mobile IA under test, and it boots Firebase.
 vi.mock('../TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
 // The drawer's profile card belongs to the shell, so it shows the SIGNED-IN

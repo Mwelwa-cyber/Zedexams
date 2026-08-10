@@ -23,7 +23,7 @@ import ContactDialog from '../../marketing/ContactDialog'
 import FeedbackDialog from '../../feedback/FeedbackDialog'
 import SeoHelmet from '../../seo/SeoHelmet'
 import TopHeader from './TopHeader'
-import useIsMobile from './useIsMobile'
+import useIsMobile from '../../../shared/hooks/useIsMobile'
 import ensureDashboardFonts from './dashboardFonts'
 import './dashboardV2.css'
 
