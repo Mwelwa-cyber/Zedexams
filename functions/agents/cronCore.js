@@ -247,6 +247,28 @@ function buildMarshalRollup({report, runMs}) {
   };
 }
 
+/**
+ * Sift's rollup — the second place a server-error finding surfaces, after the
+ * ops alert. It is deliberately `awaiting_approval` (an open card in
+ * /admin/agents) whenever the run is not ok, INCLUDING when the log read
+ * failed: "nothing is currently watching the backend" is exactly the condition
+ * that must not be quiet, since not knowing was the whole of #2230.
+ *
+ * writeAgentRollup coalesces open cards per agent+runType, so an unresolved
+ * problem holds ONE card that refreshes hourly rather than filing 24 a day.
+ */
+function buildSiftRollup({report, runMs}) {
+  return {
+    agentId: "sift",
+    department: "qaEng",
+    status: report.ok ? "done" : "awaiting_approval",
+    input: {runType: "hourly-server-errors"},
+    output: {sift: report},
+    createdBy: "system",
+    runMs,
+  };
+}
+
 // A dawnRuns doc with no readable startedAt is treated as started "now" so it
 // is never failed out on its first poll.
 function dawnRunStartMs(run, now) {
@@ -311,6 +333,7 @@ module.exports = {
   buildCompassRollup,
   buildAnchorRollup,
   buildMarshalRollup,
+  buildSiftRollup,
   dawnRunStartMs,
   isDawnRunStale,
   dawnRecipient,

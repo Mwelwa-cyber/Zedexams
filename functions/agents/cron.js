@@ -34,6 +34,12 @@
  *     and exam attempts into a ranked "what to build next" backlog (which
  *     grade/subject areas have demand but weak mastery). Deterministic, no
  *     LLM. Writes an agentJobs rollup the dashboard + Dawn surface.
+ *   - hourlyServerErrorWatch (Sift) — every hour. Reads the last 75 minutes of
+ *     ERROR-severity Cloud Logging entries for this project's Cloud Functions,
+ *     groups them by function, and raises an ops alert when one is failing
+ *     repeatedly (de-duplicated per function+failure-class per 24h, with an
+ *     escalation to critical always getting through). An unreadable log window
+ *     is reported as `unavailable` — never as a healthy one.
  *   - weeklyRetentionScan (Anchor) — Mondays 07:00. Finds learners who were
  *     engaged then went quiet 14–45 days ago and surfaces the highest-value
  *     ones to win back, with a drafted nudge. Read-only — does not message
@@ -57,6 +63,7 @@ const {runContentGate} = require("./runners/gate");
 const {runCompass} = require("./runners/compass");
 const {runAnchor} = require("./runners/anchor");
 const {runMarshal} = require("./runners/marshal");
+const {runSift} = require("./runners/sift");
 const {refreshFxRate} = require("../fxRate");
 const {writeAgentRollup} = require("./rollups");
 const {buildPublicStatus} = require("./publicStatusCore");
@@ -76,6 +83,7 @@ const {
   buildCompassRollup,
   buildAnchorRollup,
   buildMarshalRollup,
+  buildSiftRollup,
   dawnRunStartMs,
   isDawnRunStale,
   dawnRecipient,
@@ -117,6 +125,12 @@ const googlePlaySaJson = defineSecret("GOOGLE_PLAY_SA_JSON");
 // The precedence itself lives in functions/opsAlertRecipients.js, which also
 // explains why the recipient list is no longer the admin allowlist.
 const {resolveOpsAlertRecipients} = require("../opsAlertRecipients");
+// Sift raises its findings through the shared two-channel alert path (email +
+// the ops webhook). `opsAlertSecrets` binds OPS_ALERT_WEBHOOK_URL to the
+// function — the webhook channel only exists for a secret BOUND to it, and the
+// binding cannot be gated on a flag (see functions/opsAlertSecrets.js).
+const {opsAlertSecrets} = require("../opsAlertSecrets");
+const {sendOpsAlert} = require("../opsAlert");
 
 function getAdminEmails(fallbackSender) {
   return resolveOpsAlertRecipients({fallbackSender}).recipients;
@@ -699,6 +713,62 @@ const hourlyAgentSupervisor = onSchedule(SUPERVISOR_OPTS, async () => {
       buildMarshalRollup({report, runMs: Date.now() - start}));
 });
 
+// Sift — server-side error watch (every hour). Reads the last 75 minutes of
+// ERROR-severity Cloud Logging entries for this project's Cloud Functions,
+// groups them by function, and raises ONE ops alert when a function is failing
+// repeatedly. Answers the second half of #2230: apiTrackVisit burned 80 errors
+// in 2h — 100% of the server-side error volume — and nothing noticed, because
+// Sentry is frontend-only and an OOM kill is a platform action no in-process
+// reporter can observe.
+//
+// Deterministic, no LLM: a count of errors by function needs no model to
+// interpret, and this alert has to work on the days Anthropic is the outage.
+// SMTP + the ops webhook are the two delivery channels; the log read itself
+// uses the runtime service account's own ADC (no secret), which needs
+// roles/logging.viewer — a missing grant surfaces as an `unavailable` alert
+// rather than as a quiet green run.
+const SERVER_ERROR_WATCH_OPTS = {
+  schedule: "every 1 hours",
+  timeZone: "Africa/Lusaka",
+  region: "us-central1",
+  timeoutSeconds: 120,
+  memory: "256MiB",
+  secrets: opsAlertSecrets([emailSmtpUser, emailSmtpPassword]),
+};
+
+const hourlyServerErrorWatch = onSchedule(SERVER_ERROR_WATCH_OPTS, async () => {
+  const db = admin.firestore();
+  const start = Date.now();
+
+  let report;
+  try {
+    const smtpUser = String(emailSmtpUser.value() || "").trim();
+    report = await runSift({
+      db,
+      notify: (alert) => sendOpsAlert({
+        ...alert,
+        smtpUser,
+        smtpPassword: emailSmtpPassword.value(),
+        fallbackSender: smtpUser,
+      }),
+    });
+  } catch (err) {
+    console.error("Sift failed", err);
+    await db.collection("agentJobs").add(buildFailureJob({
+      agentId: "sift",
+      department: "qaEng",
+      runType: "hourly-server-errors",
+      err,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      runMs: Date.now() - start,
+    }));
+    return;
+  }
+
+  await writeAgentRollup(db, admin.firestore.FieldValue,
+      buildSiftRollup({report, runMs: Date.now() - start}));
+});
+
 // Daily FX refresh (treasury). Fetches the ZMW/USD rate once a day and writes
 // it to settings/fxRate so the budget governor + /admin/company read a fresh,
 // cached rate without ever making a live network call. Range-checked before
@@ -734,5 +804,6 @@ module.exports = {
   weeklyRetentionScan,
   deliverDawnBriefings,
   hourlyAgentSupervisor,
+  hourlyServerErrorWatch,
   dailyFxRefresh,
 };

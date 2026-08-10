@@ -282,6 +282,7 @@ const {
   weeklyRetentionScan: weeklyRetentionScanCron,
   deliverDawnBriefings: deliverDawnBriefingsCron,
   hourlyAgentSupervisor: hourlyAgentSupervisorCron,
+  hourlyServerErrorWatch: hourlyServerErrorWatchCron,
   dailyFxRefresh: dailyFxRefreshCron,
 } = require("./agents/cron");
 // Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
@@ -3268,6 +3269,16 @@ exports.deliverDawnBriefings = deliverDawnBriefingsCron;
 // failures into one company-health verdict. Deterministic; writes an agentJobs
 // rollup the /admin/company HQ surfaces.
 exports.hourlyAgentSupervisor = hourlyAgentSupervisorCron;
+
+// Sift — server-side error watch (every hour). Reads ERROR-severity Cloud
+// Logging entries for this project's Cloud Functions, groups them by function
+// and alerts ops when one is failing repeatedly. This is the watcher #2230
+// found missing: apiTrackVisit produced 80 errors in 2h — 100% of the
+// server-side error volume — while Sentry, which is frontend-only and cannot
+// observe a platform OOM kill, reported zero. Needs roles/logging.viewer on the
+// runtime service account; without it the run alerts as `unavailable` rather
+// than reporting a green backend it never actually looked at.
+exports.hourlyServerErrorWatch = hourlyServerErrorWatchCron;
 
 // Daily FX refresh (treasury). Fetches the ZMW/USD rate once a day and writes
 // settings/fxRate so the budget governor + /admin/company read a fresh, cached
