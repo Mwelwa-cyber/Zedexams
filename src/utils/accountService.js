@@ -83,8 +83,14 @@ export async function reauthenticateForAccountDeletion({ password } = {}) {
  * Re-authenticates first (so the server's recent-login gate passes), then calls
  * the `deleteMyAccount` Cloud Function (which removes the Firebase Auth user
  * and purges Firestore), then signs the now-orphaned session out locally so the
- * UI drops back to the signed-out state. Throws on failure so the caller can
- * surface an error and keep the user signed in.
+ * UI drops back to the signed-out state.
+ *
+ * Throws on failure — but whether the user stays signed in depends on WHICH
+ * failure. The server destroys the session before it touches Firestore, so a
+ * rejection from past that point is a rejection for an account that no longer
+ * exists; it carries `details.irreversible` and the session is dropped anyway.
+ * Everything earlier leaves the account intact and the user signed in, which
+ * is what lets them act on a message that says to try again.
  *
  * `beginAccountDeletion` is called BEFORE the callable, not after: it tears the
  * profile listener down and flags the deletion, so the disappearance of
@@ -103,13 +109,41 @@ export async function deleteMyAccount({ password } = {}) {
     const res = await deleteMyAccountCallable()
     // Server already deleted the Auth user; this local sign-out just clears
     // the stale in-memory session. Best-effort — never let it mask success.
-    try {
-      await signOut(auth)
-    } catch {
-      /* session is already invalid server-side */
-    }
+    await dropOrphanedSession()
     return res?.data || { success: true }
+  } catch (err) {
+    // A REJECTION can also mean the Auth user is gone. The server destroys the
+    // session before it touches Firestore, so `purge-failed` /
+    // `purge-unverified` / `purge-incomplete` all reject after the account has
+    // ceased to exist — and this branch used to skip the sign-out entirely,
+    // leaving the user on the dashboard of a deleted account until their ID
+    // token happened to expire, up to an hour later (PURGE-003).
+    //
+    // The condition is the server's own `irreversible` flag, not a list of
+    // reason strings kept in step over here: a fourth post-destructive failure
+    // added to the flow would otherwise leave this branch silently wrong.
+    //
+    // Explicit `true` only. The earlier failures — tombstone, revoke, auth
+    // delete — leave the account intact and tell the user to try again, and
+    // signing them out is the one thing that would stop them.
+    if (err?.details?.irreversible === true) await dropOrphanedSession()
+    throw err
   } finally {
     endAccountDeletion()
+  }
+}
+
+/**
+ * Clear the local session for an account the server has already deleted.
+ *
+ * Never throws: it runs on both the success and the irreversible-failure path,
+ * and on neither is a failed local sign-out a reason to change what the caller
+ * is told. The session is invalid server-side either way.
+ */
+async function dropOrphanedSession() {
+  try {
+    await signOut(auth)
+  } catch {
+    /* session is already invalid server-side */
   }
 }

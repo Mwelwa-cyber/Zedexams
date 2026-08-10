@@ -105,6 +105,39 @@ import {
   assert.strictEqual(deletionErrorMessage(undefined), fallback)
   // A caller can override the fallback copy.
   assert.strictEqual(deletionErrorMessage({ code: 'x' }, 'custom'), 'custom')
+
+  // ── PURGE-003: the account is already GONE ─────────────────────────────
+  // The default fallback tells the reader to try again. Past the point of no
+  // return there is nothing left to try and no account to try it with, so it
+  // is not merely unhelpful — it is false.
+  const gone = deletionErrorMessage({
+    code: 'functions/internal',
+    message: 'Your sign-in has been removed and the rest of your data is still being deleted.',
+    details: { reason: 'purge-failed', irreversible: true },
+  })
+  assert.match(gone, /sign-in has been removed/i, "the server's own sentence reaches the reader")
+  assert.doesNotMatch(gone, /try again/i, 'there is nothing left to try')
+
+  // A server that sent no message still must not produce the retry copy.
+  const noMessage = deletionErrorMessage({
+    code: 'functions/internal',
+    details: { reason: 'purge-unverified', irreversible: true },
+  })
+  assert.match(noMessage, /do not need to do anything else/i)
+  assert.doesNotMatch(noMessage, /try again/i)
+
+  // The flag is what decides, and it is checked strictly: `details` crosses a
+  // serialization boundary, and the string 'false' is truthy.
+  assert.match(
+    deletionErrorMessage({code: 'functions/internal', message: 'x', details: {irreversible: 'false'}}),
+    /could not delete your account/i,
+  )
+  // A pre-destructive failure keeps the retry copy — the account is intact and
+  // retrying is exactly what the user should do.
+  assert.match(
+    deletionErrorMessage({code: 'functions/internal', message: 'x', details: {reason: 'revoke-failed'}}),
+    /could not delete your account/i,
+  )
   console.log('✓ deletionErrorMessage')
 })()
 

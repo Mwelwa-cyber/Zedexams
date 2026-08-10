@@ -85,6 +85,15 @@ const REAUTH_BACKEND_REASONS = Object.freeze({
 const DELETION_FALLBACK =
   'We could not delete your account. Please try again or contact support.'
 
+// What to say when the account is already GONE — the server destroys the
+// session before it touches Firestore, so a rejection carrying
+// `details.irreversible` is a rejection for an account that no longer exists.
+// The default fallback is actively wrong there: it invites a retry, and there
+// is nothing left to retry with. Only reached if the server sent no message.
+const IRREVERSIBLE_FALLBACK =
+  'Your sign-in has been removed and the rest of your data is still being deleted. ' +
+  'You do not need to do anything else — contact support if you would like confirmation.'
+
 /**
  * Map any error thrown while re-authenticating or deleting to a friendly
  * sentence for a toast / inline message.
@@ -104,6 +113,16 @@ export function deletionErrorMessage(error, fallback = DELETION_FALLBACK) {
     (error && error.details && error.details.reason) ||
     (error && error.customData && error.customData.reason) ||
     ''
+
+  // The account is gone. Prefer the SERVER's own sentence: it is written for
+  // this reader, it explains what happened to their data, and taking it as-is
+  // is what keeps one wording from being maintained in two places. Checked
+  // first, because the generic fallback below would tell someone whose account
+  // has just been destroyed to try again.
+  if (error && error.details && error.details.irreversible === true) {
+    const fromServer = typeof error.message === 'string' ? error.message.trim() : ''
+    return fromServer || IRREVERSIBLE_FALLBACK
+  }
 
   // A recent-login rejection can arrive as our backend reason OR as the
   // Firebase client code — treat both the same.
