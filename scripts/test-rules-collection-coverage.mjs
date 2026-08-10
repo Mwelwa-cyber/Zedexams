@@ -187,7 +187,7 @@ function architectureClaims(archSrc) {
  * so it must not drift behind reality in either direction.
  */
 const COVERED = [
-  'adminAuditLogs', 'agentControl', 'agentJobs', 'aiDailyLimits', 'aiGenerations',
+  'accountPurgeJobs', 'adminAuditLogs', 'agentControl', 'agentJobs', 'aiDailyLimits', 'aiGenerations',
   'aiOperations', 'aiUsage', 'aiUsageDaily', 'announcements', 'assessmentExports', 'assessments',
   'classRegisters', 'curriculum', 'downloadTickets', 'exam_attempts',
   'familyInviteCodes', 'flashcardProgress', 'generatedContent', 'invoices',
@@ -216,7 +216,7 @@ const ACKNOWLEDGED_UNCOVERED = [
   // 1 — carries a §10 discrepancy (see KNOWN_DISCREPANCIES)
   'games',
   // 2 — payment / consent / deletion / entitlement-adjacent
-  'accountPurgeJobs', 'ageGateAttempts', 'consentRequests', 'deletionRequests',
+  'ageGateAttempts', 'consentRequests', 'deletionRequests',
   'processedEvents', 'referralRedemptions',
   // 3 — Phase 3 write targets, cleared by its cutovers (docs/phase3-plan.md §5.1)
   'badges', 'dailyStreaks', 'daily_exam_locks', 'learner_profiles', 'paperAttempts',
