@@ -262,3 +262,10 @@ public/syllabi/_backups/
 # the environment that drew it, so a locally recorded one is un-comparable in CI.
 tests/visual/output/
 preview-shots/
+
+# One-off account-cleanup backups (scripts/cleanup-resurrected-profiles.mjs).
+# These hold the PROFILE DATA of users who asked to be deleted — emails
+# included — so committing one would be a worse and more permanent disclosure
+# than the resurrection bug they exist to clean up. Written mode 0600; delete
+# them once the cleanup is confirmed.
+resurrected-profiles-backup-*.json
