@@ -16,6 +16,11 @@
  * died between the tombstone and the Auth deletion, in which case the sign-in
  * is still live and must go before the data does — same order, same reason.
  *
+ * A job it closes runs the SAME post-purge cleanup the callable runs
+ * (accountPostPurgeCleanup.js) — analytics profile, support queue. That used
+ * to live inline in the callable, which meant a deletion this cron recovered
+ * was quietly less complete than one the handler finished.
+ *
  * Alerting is on repetition, not on a single failure: a job that has failed
  * ALERT_AFTER_ATTEMPTS times is not a transient Firestore hiccup, it is data
  * we have promised to delete and have not.
@@ -73,10 +78,11 @@ function selectStaleJobs(jobs, {now = Date.now(), staleAfterMs = STALE_AFTER_MS,
  * @param {object} [deps.auth]          Admin Auth.
  * @param {object} [deps.FieldValue]    admin.firestore.FieldValue.
  * @param {Function} [deps.purge]       purgeUserData.
+ * @param {Function} [deps.cleanup]     runPostPurgeCleanup.
  * @param {Function} [deps.alert]       sendOpsAlert.
  * @param {number} [deps.now]
  * @param {number} [deps.staleAfterMs]
- * @return {Promise<{scanned:number, swept:number, completed:number, failed:number, alerted:number}>}
+ * @return {Promise<{scanned:number, swept:number, completed:number, failed:number, alerted:number, cleanupDegraded:number}>}
  */
 async function runAccountPurgeSweep(deps = {}) {
   const admin = deps.db && deps.auth && deps.FieldValue ? null : require("firebase-admin");
@@ -84,6 +90,8 @@ async function runAccountPurgeSweep(deps = {}) {
   const auth = deps.auth || admin.auth();
   const FieldValue = deps.FieldValue || admin.firestore.FieldValue;
   const purge = deps.purge || require("../accountDeletion").purgeUserData;
+  const cleanup = deps.cleanup ||
+    require("./accountPostPurgeCleanup").runPostPurgeCleanup;
   const alert = deps.alert || require("../opsAlert").sendOpsAlert;
   const now = deps.now || Date.now();
   const staleAfterMs = deps.staleAfterMs || STALE_AFTER_MS;
@@ -109,6 +117,11 @@ async function runAccountPurgeSweep(deps = {}) {
     completed: 0,
     failed: 0,
     alerted: 0,
+    // Cleanup runs after the purge has already verified, so it can never fail
+    // the job. Counted separately so a run where every deletion completed but
+    // no analytics profile could be reached is visible in the log line rather
+    // than indistinguishable from a clean sweep.
+    cleanupDegraded: 0,
   };
 
   for (const job of due) {
@@ -130,8 +143,36 @@ async function runAccountPurgeSweep(deps = {}) {
       // whose purge reported collection-level errors strands that data exactly
       // as the handler's version did, and there is no third actor to catch it.
       if (isPurgeComplete(summary)) {
+        // The same post-purge cleanup the handler runs. Before this, a
+        // deletion finished HERE left the PostHog person and its event
+        // history in place and left the support queue holding an open row —
+        // both steps lived inline in the callable and were unreachable from
+        // the recovery path, so the sweeper reported `completed` for a
+        // deletion that had not kept the Privacy Policy §7 promise.
+        //
+        // Its own try/catch rather than trust in the routine's promise not to
+        // throw. The purge has already VERIFIED at this point: the account's
+        // data is gone. Letting anything here mark the job failed would leave
+        // a finished deletion pending, to be re-swept every day for ever, and
+        // eventually to page someone about data that no longer exists. A
+        // cleanup that could not run is a degraded run, never a failed one.
+        //
+        // The address is gone by now — only the tombstone's hash remains.
+        try {
+          summary.cleanup = await cleanup({
+            uid,
+            db,
+            emailHash: job.data.emailHash,
+          });
+        } catch (cleanupErr) {
+          console.error(`accountPurgeSweep: cleanup threw uid=${uid}:`, cleanupErr);
+          summary.cleanup = {error: "threw"};
+        }
         await completePurgeJob(db, uid, {FieldValue, summary});
         result.completed += 1;
+        if (summary.cleanup?.error || summary.cleanup?.analytics?.ok === false) {
+          result.cleanupDegraded += 1;
+        }
       } else {
         failure = new Error(
           `purge incomplete (summary=${JSON.stringify(summary)})`,

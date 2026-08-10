@@ -271,6 +271,85 @@ test("an alert that fails does not lose the failure bookkeeping", async () => {
   assert.strictEqual(db.store[PURGE_JOBS_COLLECTION].u1.attempts, 6);
 });
 
+// ── Post-purge cleanup parity ────────────────────────────────────────────
+// A deletion the sweeper recovers must be as complete as one the callable
+// finished. Before this, the analytics purge and the support-queue close lived
+// inline in the handler, so a recovered deletion left the PostHog person and
+// its event history in place and reported `completed` regardless.
+
+test("a recovered deletion runs the same post-purge cleanup as the handler", async () => {
+  const db = fakeDb({u1: {
+    uid: "u1", status: "pending", phase: "irreversible", attempts: 0,
+    createdAt: staleAt(), emailHash: hashEmail("person@example.com"),
+  }});
+  const seen = [];
+  const out = await runAccountPurgeSweep({
+    db,
+    auth: noAuth,
+    FieldValue,
+    purge: async () => ({errors: [], verified: true}),
+    cleanup: async (args) => { seen.push(args); return {analytics: {ok: true}}; },
+    alert: async () => { throw new Error("must not alert on success"); },
+  });
+  assert.strictEqual(out.completed, 1);
+  assert.strictEqual(seen.length, 1, "cleanup must run on the recovery path");
+  assert.strictEqual(seen[0].uid, "u1");
+  // The hash, because there is no address left to pass: the Auth user was
+  // deleted before the purge began and the tombstone never stored one.
+  assert.strictEqual(seen[0].emailHash, hashEmail("person@example.com"));
+  assert.strictEqual(seen[0].email, undefined);
+  assert.strictEqual(out.cleanupDegraded, 0);
+});
+
+test("cleanup never runs for a purge that did not verify", async () => {
+  // Cleaning up after a purge that left data behind would drain the support
+  // queue for a deletion that has not happened.
+  const db = fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", attempts: 0, createdAt: staleAt()}});
+  let ran = 0;
+  await runAccountPurgeSweep({
+    db,
+    auth: noAuth,
+    FieldValue,
+    purge: async () => ({errors: [], verified: false}),
+    cleanup: async () => { ran += 1; return {}; },
+    alert: async () => {},
+  });
+  assert.strictEqual(ran, 0);
+});
+
+test("a cleanup that throws degrades the run, it does not fail the job", async () => {
+  // The purge has already verified — the data is gone. Marking the job failed
+  // here would leave a finished deletion pending, re-swept daily for ever, and
+  // eventually paging someone about data that no longer exists.
+  const db = fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", attempts: 0, createdAt: staleAt()}});
+  const out = await runAccountPurgeSweep({
+    db,
+    auth: noAuth,
+    FieldValue,
+    purge: async () => ({errors: [], verified: true}),
+    cleanup: async () => { throw new Error("posthog unreachable"); },
+    alert: async () => { throw new Error("must not alert: the deletion succeeded"); },
+  });
+  assert.strictEqual(out.completed, 1);
+  assert.strictEqual(out.failed, 0);
+  assert.strictEqual(out.cleanupDegraded, 1, "a silent degraded run reads as a clean one");
+  assert.strictEqual(db.store[PURGE_JOBS_COLLECTION].u1.status, "done");
+});
+
+test("an unreachable analytics profile is counted, not swallowed", async () => {
+  const db = fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", attempts: 0, createdAt: staleAt()}});
+  const out = await runAccountPurgeSweep({
+    db,
+    auth: noAuth,
+    FieldValue,
+    purge: async () => ({errors: [], verified: true}),
+    cleanup: async () => ({analytics: {ok: false, error: "threw"}}),
+    alert: async () => {},
+  });
+  assert.strictEqual(out.completed, 1);
+  assert.strictEqual(out.cleanupDegraded, 1);
+});
+
 Promise.all(pending).then(() => {
   console.log(`\n  ${passed} passed`);
 });

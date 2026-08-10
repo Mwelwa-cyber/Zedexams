@@ -15,6 +15,14 @@ A teacher-side audit on 2026-07-11 (157 raw findings, 24 adversarially verified)
 
 ### Still open
 
+- **PURGE-005 · A deletion the SWEEPER recovered was quietly less complete than one the callable finished — fixed, with one stated limit** — Codex P1 on #2228. `purgeUserData` was already shared, so the Firestore half matched. The two steps that are not Firestore — closing the web deletion request, and deleting the PostHog person and their events — lived inline in `accountCallableHandlers.js`, below `runAccountDeletion` and unreachable from the recovery path. So a deletion the cron finished left the analytics profile in place and reported `completed`, because from where it stood the purge had verified. The Privacy Policy §7 promise was kept on one path and not the other, invisibly.
+
+  Fixed by `functions/account/accountPostPurgeCleanup.js` — one routine, both callers — with a source-scan guard (`test:purge-cleanup-parity`) that fails if either caller does cleanup inline again, and its twin that fails if a caller stops calling it at all. Both mutation-verified: without the pair, deleting the call entirely satisfies "no inline cleanup".
+
+  **The stated limit.** `deletionRequests` rows are keyed by EMAIL and the sweeper has none — the Auth user is deleted before the purge starts and the tombstone deliberately stores only `hashEmail()`. Rows now carry that same hash so the sweeper can match them, but **a row written before that field existed cannot be matched and stays open for a human**. It is skipped rather than guessed at, and nothing reports it: the scan cannot tell "no open row for this person" from "a row that predates the field". Bounded and shrinking. PostHog has no such caveat — it is uid-keyed, so parity there is total.
+
+  **Still unexercised in production**, like the rest of the recovery path.
+
 - **PURGE-004 · Surviving-token inventory: what the deletion gate now covers, and what it does not** — recorded alongside the item-3 fix, because "we blocked the writes" is only true of the surfaces someone counted.
 
   **Covered.** `firestore.rules` and `storage.rules` both gained `notBeingDeleted()`, wired into the `isVerified()` chokepoint that ~167 Firestore rules and the Storage rules run through, and `functions/authGuard.js`'s `assertActiveAccount` now reads the tombstone alongside the status field. That closes client writes, uploads, and every callable or HTTP endpoint routed through the guard.

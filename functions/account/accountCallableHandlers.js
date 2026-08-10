@@ -40,6 +40,7 @@ const {
   runAccountDeletion,
   runProfileBootstrap,
 } = require("./accountDeletionFlow");
+const {runPostPurgeCleanup} = require("./accountPostPurgeCleanup");
 
 /**
  * Re-throw an `AccountFlowError` as the callable error it describes. The flow
@@ -133,35 +134,20 @@ function buildAccountCallableHandlers({cleanString, buildBootstrappedUserProfile
     }
 
     // ── Post-purge cleanup ────────────────────────────────────────────
-    // Both steps run AFTER the account is irreversibly gone, so neither may
-    // throw: turning a completed deletion into an error the user sees would
-    // invite them to retry something that has already happened. Each reports
-    // its outcome into the summary instead.
-
-    // Close (and redact) any web deletion request for this address, so the
-    // support queue drains itself when someone finishes the job in-app.
-    // request.auth.token.email is the verified address on the session — the
-    // deletionRequests rows are keyed by email, not uid.
-    try {
-      const {closeDeletionRequests} = require("../accountDeletionRequests");
-      summary.deletionRequestsClosed = await closeDeletionRequests(
-        admin.firestore(),
-        request.auth.token?.email,
-      );
-    } catch (error) {
-      console.error("deleteMyAccount deletionRequests close failed:", error);
-      summary.deletionRequestsClosed = "failed";
-    }
-
-    // Delete the PostHog person + events (Privacy Policy §7). A no-op unless
-    // POSTHOG_PERSONAL_API_KEY is configured; never throws.
-    try {
-      const {deleteAnalyticsProfile} = require("../analyticsPurge");
-      summary.analytics = await deleteAnalyticsProfile(uid);
-    } catch (error) {
-      console.error("deleteMyAccount analytics purge failed:", error);
-      summary.analytics = {ok: false, error: "threw"};
-    }
+    // ONE routine, shared with the sweeper (accountPostPurgeCleanup.js). It
+    // used to be two inline try/catch blocks right here, which is why a
+    // deletion the sweeper completed never deleted the PostHog profile and
+    // never drained the support queue — the steps were unreachable from the
+    // recovery path. Add a new cleanup target THERE, not here.
+    //
+    // request.auth.token.email is the verified address on the session, and the
+    // reason the handler closes deletion requests by address while the sweeper
+    // can only go by hash.
+    Object.assign(summary, await runPostPurgeCleanup({
+      uid,
+      db: admin.firestore(),
+      email: request.auth.token?.email,
+    }));
 
     console.log(
       `deleteMyAccount uid=${uid} summary=${JSON.stringify(summary)}`,
