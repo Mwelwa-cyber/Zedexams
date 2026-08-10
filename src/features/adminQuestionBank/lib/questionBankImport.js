@@ -18,9 +18,9 @@ import {
   collection, query, where, getDocs, limit, doc, writeBatch, serverTimestamp,
 } from 'firebase/firestore'
 import { getFunctions, httpsCallable } from 'firebase/functions'
-import app, { db } from '../firebase/config'
-import { questionFingerprint, examPaperQuestionToBank, MASTER_REVIEW_STATE } from './questionBankCore.js'
-import { captureQuestionsToBank, promoteQuestionsToMaster, parseBankQuestion } from './questionBankService'
+import app, { db } from '../../../firebase/config'
+import { questionFingerprint, examPaperQuestionToBank, MASTER_REVIEW_STATE } from '../../../utils/questionBankCore.js'
+import { captureQuestionsToBank, promoteQuestionsToMaster, parseBankQuestion } from '../../../utils/questionBankService'
 import {
   VALID_GRADES, buildGradeIndexFromCurriculum, lookupGradeClient, normalizeGrade, planBankAction,
 } from './questionBankImportCore.js'

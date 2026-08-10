@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { useAuth } from '../../contexts/AuthContext'
-import Button from '../ui/Button'
-import SeoHelmet from '../seo/SeoHelmet'
-import { previewImport, runImport, regradeExistingQuestions } from '../../utils/questionBankImport'
-import { bulkApproveOwnedPending } from '../../utils/adminQuestionBankService'
+import { useAuth } from '../../../contexts/AuthContext'
+import Button from '../../../components/ui/Button'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import { previewImport, runImport, regradeExistingQuestions } from '../lib/questionBankImport'
+import { bulkApproveOwnedPending } from '../lib/adminQuestionBankService'
 
 /**
  * Admin → Import questions. One-click backfill of the platform's existing

@@ -433,7 +433,7 @@
     "test:assessment-draft": "node src/hooks/assessmentDraftCore.test.js",
     "test:undo-redo": "node src/hooks/useUndoRedo.test.js",
     "test:question-bank": "node src/utils/questionBankCore.test.js",
-    "test:question-bank-import": "node src/utils/questionBankImportCore.test.js",
+    "test:question-bank-import": "node src/features/adminQuestionBank/lib/questionBankImportCore.test.js",
     "test:question-dedup": "node functions/agents/questionDedupCore.test.js",
     "test:question-embedding": "node functions/agents/questionEmbeddingCore.test.js",
     "test:master-bank-sourcing": "node functions/teacherTools/masterBankSourcingCore.test.js",
