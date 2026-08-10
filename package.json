@@ -656,7 +656,7 @@
     "test:ai-paper-maths-fields": "node src/utils/aiPaperMathsFields.test.js",
     "test:stimulus-question": "node src/utils/stimulusQuestion.test.js",
     "test:diagram-match": "node src/utils/diagramMatch.test.js",
-    "test:picture-starter-pack": "node src/utils/pictureBankStarterPack.test.js",
+    "test:picture-starter-pack": "node src/features/visualStudio/lib/pictureBankStarterPack.test.js",
     "test:picture-naming": "node functions/pictureNaming.test.js",
     "test:syllabus-2013-topics": "node src/utils/syllabus2013Topics.test.js",
     "test:ai-generation-stages": "node scripts/test-ai-generation-stages.mjs",

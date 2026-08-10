@@ -7,16 +7,16 @@
 //   3. AI generation via the existing generateDiagram callable.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import SeoHelmet from '../seo/SeoHelmet'
-import ConfirmDialog from '../ui/ConfirmDialog'
-import { useAuth } from '../../contexts/AuthContext'
-import { TEACHER_SUBJECTS } from '../../utils/teacherTools'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import ConfirmDialog from '../../../components/ui/ConfirmDialog'
+import { useAuth } from '../../../contexts/AuthContext'
+import { TEACHER_SUBJECTS } from '../../../utils/teacherTools'
 import {
   listBankPictures, activateBankPicture, deleteBankPicture,
   uploadBankPicture, generateBankPicture, resolvePictureUrl,
   bulkUploadStagedPictures, nameStagedPictures,
-} from '../../utils/pictureBankService'
-import { STARTER_PACK } from '../../utils/pictureBankStarterPack'
+} from '../../../utils/pictureBankService'
+import { STARTER_PACK } from '../lib/pictureBankStarterPack'
 
 const SUBJECT_OPTIONS = [
   { value: '_generic', label: 'All subjects (generic)' },

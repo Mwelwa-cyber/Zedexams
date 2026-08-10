@@ -5,12 +5,12 @@
    for teacher-owned visualAssets oversight + cost. */
 
 import { useCallback, useEffect, useState } from 'react'
-import PageHeader from '../ui/PageHeader'
-import SeoHelmet from '../seo/SeoHelmet'
+import PageHeader from '../../../components/ui/PageHeader'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
 import {
   listAllVisualAssets, moderateVisualAsset, deleteVisualAsset,
-} from '../../features/visualStudio/services/visualAssetService'
-import { fetchImageCostReport } from '../../utils/visualCostReport'
+} from '../services/visualAssetService'
+import { fetchImageCostReport } from '../lib/visualCostReport'
 
 const STATUS_PATCH = {
   approve: { status: 'approved', visibility: 'public' },

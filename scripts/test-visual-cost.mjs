@@ -2,7 +2,7 @@
  * Tests for the Visual Studio image-cost aggregator (pure).
  */
 import assert from 'node:assert'
-import { estimateCost, aggregateImageCosts } from '../src/utils/visualCostReportCore.js'
+import { estimateCost, aggregateImageCosts } from '../src/features/visualStudio/lib/visualCostReportCore.js'
 
 // estimateCost maps provider strings to a price; unknown → default.
 assert.equal(estimateCost('recraft-v3'), 0.04)
