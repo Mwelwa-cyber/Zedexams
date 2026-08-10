@@ -42,6 +42,10 @@ const {
   completePurgeJob,
   recordPurgeFailure,
   readPurgeJob,
+  cancelPurgeJob,
+  isPurgeComplete,
+  markPurgeIrreversible,
+  isAbandonedBeforeDeletion,
 } = require("./accountPurgeJobs");
 
 /**
@@ -88,7 +92,36 @@ function isUserNotFound(error) {
  * @param {Function} args.purge       purgeUserData(db, uid, {FieldValue}).
  * @return {Promise<{success: true, summary: object}>}
  */
-async function runAccountDeletion({uid, email, db, auth, FieldValue, purge}) {
+/**
+ * Page someone when a cancellation could not be recorded.
+ *
+ * Injected rather than required at module scope so this file keeps importing no
+ * firebase-functions and stays testable under plain `node`. Best-effort by
+ * design: the caller is already throwing, and losing the original failure to an
+ * alerting failure helps nobody.
+ *
+ * @param {Function} [alert]
+ * @param {string} uid
+ * @param {string} reason
+ * @return {Promise<void>}
+ */
+async function raiseCancelAlert(alert, uid, reason) {
+  if (typeof alert !== "function") return;
+  try {
+    await alert({
+      severity: "critical",
+      subject: "Account deletion could not be cancelled",
+      body:
+        `accountPurgeJobs/${uid} could not be marked cancelled after ${reason}. ` +
+        "The job may still be pending; confirm it is not adopted by the sweeper, " +
+        "because the account has NOT been deleted and the user was told to contact support.",
+    });
+  } catch (err) {
+    console.error("deleteMyAccount could not raise the cancel alert:", err);
+  }
+}
+
+async function runAccountDeletion({uid, email, db, auth, FieldValue, purge, alert}) {
   if (!uid) throw new AccountFlowError("internal", "uid is required");
 
   // 1. Tombstone. Nothing destructive has happened yet, so failing here is
@@ -113,6 +146,21 @@ async function runAccountDeletion({uid, email, db, auth, FieldValue, purge}) {
   } catch (error) {
     if (!isUserNotFound(error)) {
       console.error("deleteMyAccount token revocation failed:", error);
+      // Nothing irreversible has happened. Cancel the tombstone so the sweeper
+      // cannot later finish a deletion this caller was told had failed.
+      const cancelled = await cancelPurgeJob(db, uid, {FieldValue, reason: "revoke-failed"});
+      if (!cancelled) {
+        // The cancel write IS the guarantee on this path. Without it the job is
+        // still `pending`, and we cannot honestly tell the caller the deletion
+        // will not proceed — so say so, and page someone.
+        await raiseCancelAlert(alert, uid, "revoke-failed");
+        throw new AccountFlowError(
+          "internal",
+          "We could not complete or cleanly cancel the deletion. Your account has NOT been deleted yet, " +
+          "but please contact support before trying again.",
+          {reason: "revoke-failed-uncancelled"},
+        );
+      }
       throw new AccountFlowError(
         "internal",
         "We could not sign you out of your other sessions. Please try again, or contact support.",
@@ -128,6 +176,21 @@ async function runAccountDeletion({uid, email, db, auth, FieldValue, purge}) {
   } catch (error) {
     if (!isUserNotFound(error)) {
       console.error("deleteMyAccount auth deletion failed:", error);
+      // Still pre-destructive: the tokens are revoked but the account and its
+      // data are intact, and the user is being told to retry. Same reasoning.
+      const cancelled = await cancelPurgeJob(db, uid, {FieldValue, reason: "auth-delete-failed"});
+      if (!cancelled) {
+        // The cancel write IS the guarantee on this path. Without it the job is
+        // still `pending`, and we cannot honestly tell the caller the deletion
+        // will not proceed — so say so, and page someone.
+        await raiseCancelAlert(alert, uid, "auth-delete-failed");
+        throw new AccountFlowError(
+          "internal",
+          "We could not complete or cleanly cancel the deletion. Your account has NOT been deleted yet, " +
+          "but please contact support before trying again.",
+          {reason: "auth-delete-failed-uncancelled"},
+        );
+      }
       throw new AccountFlowError(
         "internal",
         "We could not delete your sign-in. Please try again, or contact support.",
@@ -135,6 +198,12 @@ async function runAccountDeletion({uid, email, db, auth, FieldValue, purge}) {
       );
     }
   }
+
+  // 3b. The point of no return, recorded BEFORE the purge starts. The sweeper
+  // adopts only jobs carrying this marker, so a run that dies anywhere above —
+  // timeout, OOM, eviction, no catch of any kind — leaves a job nothing will
+  // finish on the user's behalf.
+  await markPurgeIrreversible(db, uid, {FieldValue});
 
   // 4. The data. From here on the account cannot be restored, so every failure
   // path below leaves the tombstone `pending` for the sweeper and says nothing
@@ -156,20 +225,23 @@ async function runAccountDeletion({uid, email, db, auth, FieldValue, purge}) {
   // 5. Proof. `verified` is the purge's own re-read of users/{uid}; false means
   // the PII home survived, which is the exact failure this whole change is
   // about. Reporting success over it is how three orphans reached production.
-  if (!summary || summary.verified !== true) {
+  if (!isPurgeComplete(summary)) {
+    const unverified = !summary || summary.verified !== true;
     console.error(
-      `deleteMyAccount could not verify the purge uid=${uid} ` +
-      `summary=${JSON.stringify(summary)}`,
+      `deleteMyAccount could not ${unverified ? "verify" : "complete"} the purge ` +
+      `uid=${uid} summary=${JSON.stringify(summary)}`,
     );
     await recordPurgeFailure(db, uid, {
       FieldValue,
-      error: "users doc still present after purge",
+      error: unverified ?
+        "users doc still present after purge" :
+        `purge finished with errors: ${JSON.stringify(summary.errors)}`,
     });
     throw new AccountFlowError(
       "internal",
       "Your sign-in has been removed and the rest of your data is still being deleted. " +
       "You do not need to do anything else — contact support if you would like confirmation.",
-      {reason: "purge-unverified"},
+      {reason: unverified ? "purge-unverified" : "purge-incomplete"},
     );
   }
 
@@ -217,7 +289,19 @@ async function runProfileBootstrap({uid, tokenRole, db, auth, buildProfile}) {
       "We could not restore your profile right now. Please try again.",
     );
   }
-  if (purgeJob) {
+  // A CANCELLED job is not a deletion — it is one that never got past the
+  // pre-destructive steps and was abandoned. The account still exists, so
+  // refusing here would turn a transient revoke failure into an account that
+  // can never repair its own profile again.
+  // A pending job that never reached the point of no return, and is now stale,
+  // is a crashed pre-destructive run: the account was never deleted and the
+  // sweeper will never adopt it (no phase marker). Blocking profile repair on
+  // it for ever would brick an account nothing is going to finish deleting.
+  // Fails CLOSED on an unreadable age — see isAbandonedBeforeDeletion, which
+  // exists precisely because isStalePurgeJob fails OPEN for the sweeper.
+  const abandonedPreDestructive = isAbandonedBeforeDeletion(purgeJob);
+
+  if (purgeJob && purgeJob.status !== "cancelled" && !abandonedPreDestructive) {
     console.warn(
       `bootstrapUserProfile refused: accountPurgeJobs/${uid} is ${purgeJob.status}`,
     );

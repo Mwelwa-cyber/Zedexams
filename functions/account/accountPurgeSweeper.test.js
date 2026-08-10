@@ -61,7 +61,7 @@ test("toMillis reads Timestamps, Dates, ISO strings and numbers", () => {
 
 test("only pending jobs past the window are stale", () => {
   const now = 1_000_000_000;
-  const at = (ms) => ({status: "pending", createdAt: new Date(ms).toISOString()});
+  const at = (ms) => ({status: "pending", phase: "irreversible", createdAt: new Date(ms).toISOString()});
   assert.strictEqual(isStalePurgeJob(at(now - STALE_AFTER_MS - 1), {now}), true);
   assert.strictEqual(isStalePurgeJob(at(now - 60_000), {now}), false, "a purge still running is not stuck");
   assert.strictEqual(
@@ -78,9 +78,9 @@ test("selectStaleJobs caps the batch and drops the fresh ones", () => {
   const now = 1_000_000_000;
   const old = new Date(now - STALE_AFTER_MS - 1).toISOString();
   const jobs = [
-    {id: "fresh", data: {status: "pending", createdAt: new Date(now).toISOString()}},
-    {id: "a", data: {status: "pending", createdAt: old}},
-    {id: "b", data: {status: "pending", createdAt: old}},
+    {id: "fresh", data: {status: "pending", phase: "irreversible", createdAt: new Date(now).toISOString()}},
+    {id: "a", data: {status: "pending", phase: "irreversible", createdAt: old}},
+    {id: "b", data: {status: "pending", phase: "irreversible", createdAt: old}},
     {id: "done", data: {status: "done", createdAt: old}},
   ];
   assert.deepStrictEqual(selectStaleJobs(jobs, {now}).map((j) => j.id), ["a", "b"]);
@@ -129,7 +129,7 @@ const staleAt = () => new Date(Date.now() - STALE_AFTER_MS - 1000).toISOString()
 const noAuth = {deleteUser: async () => {}};
 
 test("a stale job is retried, verified and closed", async () => {
-  const db = fakeDb({u1: {uid: "u1", status: "pending", attempts: 1, createdAt: staleAt()}});
+  const db = fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", attempts: 1, createdAt: staleAt()}});
   const purged = [];
   const out = await runAccountPurgeSweep({
     db,
@@ -145,7 +145,7 @@ test("a stale job is retried, verified and closed", async () => {
 });
 
 test("a job younger than the window is left alone", async () => {
-  const db = fakeDb({u1: {uid: "u1", status: "pending", attempts: 0, createdAt: new Date().toISOString()}});
+  const db = fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", attempts: 0, createdAt: new Date().toISOString()}});
   const out = await runAccountPurgeSweep({
     db,
     auth: noAuth,
@@ -158,7 +158,7 @@ test("a job younger than the window is left alone", async () => {
 });
 
 test("an unverified purge is NOT closed, and counts as a failure", async () => {
-  const db = fakeDb({u1: {uid: "u1", status: "pending", attempts: 0, createdAt: staleAt()}});
+  const db = fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", attempts: 0, createdAt: staleAt()}});
   const out = await runAccountPurgeSweep({
     db,
     auth: noAuth,
@@ -175,7 +175,7 @@ test("an unverified purge is NOT closed, and counts as a failure", async () => {
 
 test("the sweeper deletes a surviving Auth user before the data, like the handler", async () => {
   const order = [];
-  const db = fakeDb({u1: {uid: "u1", status: "pending", attempts: 0, createdAt: staleAt()}});
+  const db = fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", attempts: 0, createdAt: staleAt()}});
   await runAccountPurgeSweep({
     db,
     auth: {deleteUser: async (uid) => { order.push(`deleteUser:${uid}`); }},
@@ -187,7 +187,7 @@ test("the sweeper deletes a surviving Auth user before the data, like the handle
 });
 
 test("an already-deleted Auth user does not stop the sweep", async () => {
-  const db = fakeDb({u1: {uid: "u1", status: "pending", attempts: 0, createdAt: staleAt()}});
+  const db = fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", attempts: 0, createdAt: staleAt()}});
   const err = new Error("gone");
   err.code = "auth/user-not-found";
   const out = await runAccountPurgeSweep({
@@ -200,11 +200,47 @@ test("an already-deleted Auth user does not stop the sweep", async () => {
   assert.strictEqual(out.completed, 1);
 });
 
+test("a job that never reached the point of no return is NOT adopted, however old", async () => {
+  const calls = [];
+  const db = fakeDb({
+    // Pending, ancient, and no phase marker: a run that died between opening
+    // the tombstone and deleting the Auth user. The account was never deleted.
+    u1: {uid: "u1", status: "pending", attempts: 0, createdAt: staleAt()},
+  });
+  const out = await runAccountPurgeSweep({
+    db,
+    auth: {async deleteUser(uid) { calls.push(`deleteUser:${uid}`); }},
+    FieldValue,
+    purge: async () => { calls.push("purge"); return {verified: true, errors: []}; },
+    alert: async () => {},
+  });
+  assert.strictEqual(out.swept, 0,
+    "adopted, the sweeper would delete an account whose deletion never started — " +
+    "and on a crash path no catch ran to cancel anything");
+  assert.deepEqual(calls, [], "nothing was deleted and nothing was purged");
+});
+
+test("a purge that VERIFIED but reported errors is not closed by the sweeper either", async () => {
+  const db = fakeDb({
+    u1: {uid: "u1", status: "pending", phase: "irreversible", attempts: 0, createdAt: staleAt()},
+  });
+  const out = await runAccountPurgeSweep({
+    db,
+    auth: noAuth,
+    FieldValue,
+    purge: async () => ({verified: true, errors: ["results: deadline-exceeded"]}),
+    alert: async () => {},
+  });
+  assert.strictEqual(out.completed, 0);
+  assert.strictEqual(db.store[PURGE_JOBS_COLLECTION].u1.status, "pending",
+    "the recovery path is the last actor — closing here strands the data for good");
+});
+
 test("alerts only once a job has failed ALERT_AFTER_ATTEMPTS times", async () => {
   const alerts = [];
   const alert = async (a) => { alerts.push(a); };
   const run = (attempts) => runAccountPurgeSweep({
-    db: fakeDb({u1: {uid: "u1", status: "pending", attempts, createdAt: staleAt()}}),
+    db: fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", attempts, createdAt: staleAt()}}),
     auth: noAuth,
     FieldValue,
     purge: async () => { throw new Error("still broken"); },
@@ -222,7 +258,7 @@ test("alerts only once a job has failed ALERT_AFTER_ATTEMPTS times", async () =>
 });
 
 test("an alert that fails does not lose the failure bookkeeping", async () => {
-  const db = fakeDb({u1: {uid: "u1", status: "pending", attempts: 5, createdAt: staleAt()}});
+  const db = fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", attempts: 5, createdAt: staleAt()}});
   const out = await runAccountPurgeSweep({
     db,
     auth: noAuth,

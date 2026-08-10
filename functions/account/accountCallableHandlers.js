@@ -124,6 +124,9 @@ function buildAccountCallableHandlers({cleanString, buildBootstrappedUserProfile
         auth: admin.auth(),
         FieldValue: admin.firestore.FieldValue,
         purge: purgeUserData,
+        // A cancellation that cannot be written is the one failure on this path
+        // that leaves the guarantee unmade — page someone rather than log it.
+        alert: require("../opsAlert").sendOpsAlert,
       }));
     } catch (error) {
       rethrowAsHttpsError(error);

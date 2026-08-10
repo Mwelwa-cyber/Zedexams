@@ -105,6 +105,35 @@ function isStalePurgeJob(job, {now = Date.now(), staleAfterMs = STALE_AFTER_MS} 
 }
 
 /**
+ * Has a pre-destructive job been abandoned long enough to stop blocking
+ * profile repair?
+ *
+ * Deliberately NOT `isStalePurgeJob`, though it answers a similar-sounding
+ * question. That helper fails OPEN — a job whose `createdAt` cannot be read is
+ * swept, because a job nothing can age is a job nothing else will ever finish.
+ * Correct for the sweeper; exactly backwards here, where the same input would
+ * license rebuilding the profile of an account that may be mid-deletion.
+ *
+ * So this one fails CLOSED: an unreadable or missing timestamp keeps blocking,
+ * the same rule the unreadable-tombstone path already follows. It returns true
+ * only for a job that is pending, never reached the point of no return, and has
+ * a readable age past the window.
+ *
+ * @param {object} [job]
+ * @param {object} [opts]
+ * @param {number} [opts.now]
+ * @param {number} [opts.staleAfterMs]
+ * @return {boolean}
+ */
+function isAbandonedBeforeDeletion(job, {now = Date.now(), staleAfterMs = STALE_AFTER_MS} = {}) {
+  if (!job || job.status !== "pending") return false;
+  if (job.phase === PHASE_IRREVERSIBLE) return false;
+  const createdAt = toMillis(job.createdAt);
+  if (createdAt == null) return false;
+  return now - createdAt >= staleAfterMs;
+}
+
+/**
  * Open (or re-open) the tombstone for `uid`. Called BEFORE the Auth user is
  * deleted; a failure here must therefore abort the deletion, which is safe
  * because nothing destructive has happened yet.
@@ -135,8 +164,27 @@ async function openPurgeJob(db, uid, {FieldValue, email} = {}) {
 }
 
 /**
- * Mark the purge finished. Only ever called with a VERIFIED summary — a purge
- * that could not prove `users/{uid}` is gone leaves the job pending on purpose.
+ * Is this summary complete enough to close the job?
+ *
+ * `verified` proves only that `users/{uid}` is absent. `purgeUserData` collects
+ * per-collection failures in `summary.errors` and keeps going, so a purge that
+ * lost the users doc but failed to delete payments or results would arrive here
+ * verified and NOT done (Codex P1 on #2228). Closing on that leaves the
+ * remaining personal data unreachable by the sweeper, which only queries
+ * pending jobs — the data would never be retried by anything.
+ *
+ * @param {object} [summary]
+ * @return {boolean}
+ */
+function isPurgeComplete(summary) {
+  if (!summary || summary.verified !== true) return false;
+  return Array.isArray(summary.errors) && summary.errors.length === 0;
+}
+
+/**
+ * Mark the purge finished. Only ever called with a COMPLETE summary — verified
+ * AND error-free (see isPurgeComplete). Anything less leaves the job pending on
+ * purpose, because pending is what the sweeper retries.
  *
  * @param {object} db
  * @param {string} uid
@@ -152,6 +200,98 @@ async function completePurgeJob(db, uid, {FieldValue, summary} = {}) {
     lastError: null,
     ...(summary ? {lastSummary: summary} : {}),
   }, {merge: true});
+}
+
+/**
+ * The phase written the moment the deletion becomes irreversible.
+ *
+ * `cancelled` (below) is a NEGATIVE marker: it records that a deletion failed
+ * before the point of no return. It is only ever written by a `catch`, so it
+ * cannot describe a run that had no catch — a 540 s timeout, an OOM kill, an
+ * instance eviction. Such a run leaves the job `pending` between `openPurgeJob`
+ * and `deleteUser`, and a sweeper that adopts bare `pending` would then delete
+ * an account whose deletion never started, for a caller who saw a network error
+ * rather than any message at all.
+ *
+ * So the load-bearing guard is this POSITIVE marker instead: written after
+ * `deleteUser` succeeds and before the purge, it is present only on jobs that
+ * genuinely cannot be abandoned. The sweeper requires it. Whatever way the
+ * process dies before that write, the job is not adoptable — and `cancelled`
+ * becomes an optimisation (a fast, explicit "don't bother") rather than the
+ * thing safety rests on.
+ */
+const PHASE_IRREVERSIBLE = "irreversible";
+
+/**
+ * Mark the point of no return. Must be awaited BEFORE the purge starts: written
+ * after, it would describe a state the process may never reach.
+ *
+ * @param {object} db
+ * @param {string} uid
+ * @param {object} deps
+ * @param {object} deps.FieldValue
+ * @return {Promise<void>}
+ */
+async function markPurgeIrreversible(db, uid, {FieldValue} = {}) {
+  await db.collection(PURGE_JOBS_COLLECTION).doc(uid).set({
+    phase: PHASE_IRREVERSIBLE,
+    irreversibleAt: FieldValue.serverTimestamp(),
+  }, {merge: true});
+}
+
+/**
+ * Is this job safe for the sweeper to adopt and finish?
+ *
+ * Pending is not enough — see PHASE_IRREVERSIBLE.
+ *
+ * @param {object} [job]
+ * @return {boolean}
+ */
+function isAdoptable(job) {
+  return Boolean(job) && job.status === "pending" && job.phase === PHASE_IRREVERSIBLE;
+}
+
+/**
+ * Terminally CANCEL a job that never got past the pre-destructive steps.
+ *
+ * The sweeper adopts every stale `pending` job and calls `deleteUser` on it.
+ * That is right for a job whose Auth user is already gone and whose data is
+ * half-purged; it is badly wrong for one that failed at token revocation or at
+ * the Auth delete itself, because nothing irreversible has happened yet and the
+ * user was TOLD the deletion failed. Left `pending`, the sweeper would finish a
+ * deletion the user had been invited to abandon (Codex P1 on #2228).
+ *
+ * `cancelled` is outside the sweeper's `status == "pending"` query, so a
+ * cancelled job is never adopted. `bootstrapUserProfile` also skips it — the
+ * account still exists, and a tombstone that blocked profile repair for ever
+ * would turn a transient revoke failure into a permanently broken account.
+ *
+ * Never throws — it runs on the error path of an already-failing deletion — but
+ * it REPORTS. The write is the whole safety property on this path, and a
+ * swallowed failure puts the job straight back to `pending`, which is the state
+ * this call exists to leave. The caller alerts on false and changes what it
+ * tells the user, because at that point it cannot promise the deletion will not
+ * proceed.
+ *
+ * @param {object} db
+ * @param {string} uid
+ * @param {object} deps
+ * @param {object} deps.FieldValue
+ * @param {string} [deps.reason]
+ * @return {Promise<boolean>} true when the cancellation is recorded.
+ */
+async function cancelPurgeJob(db, uid, {FieldValue, reason} = {}) {
+  try {
+    await db.collection(PURGE_JOBS_COLLECTION).doc(uid).set({
+      status: "cancelled",
+      cancelledAt: FieldValue.serverTimestamp(),
+      lastError: String(reason || "cancelled before deletion began").slice(0, 500),
+    }, {merge: true});
+    return true;
+  } catch (err) {
+    console.error(`accountPurgeJobs: could not cancel ${uid}:`, err);
+    return false;
+  }
 }
 
 /**
@@ -197,9 +337,15 @@ module.exports = {
   ALERT_AFTER_ATTEMPTS,
   hashEmail,
   toMillis,
+  PHASE_IRREVERSIBLE,
   isStalePurgeJob,
+  isPurgeComplete,
+  isAdoptable,
+  isAbandonedBeforeDeletion,
+  markPurgeIrreversible,
   openPurgeJob,
   completePurgeJob,
+  cancelPurgeJob,
   recordPurgeFailure,
   readPurgeJob,
 };
