@@ -15,6 +15,17 @@ A teacher-side audit on 2026-07-11 (157 raw findings, 24 adversarially verified)
 
 ### Still open
 
+- **PURGE-004 · Surviving-token inventory: what the deletion gate now covers, and what it does not** — recorded alongside the item-3 fix, because "we blocked the writes" is only true of the surfaces someone counted.
+
+  **Covered.** `firestore.rules` and `storage.rules` both gained `notBeingDeleted()`, wired into the `isVerified()` chokepoint that ~167 Firestore rules and the Storage rules run through, and `functions/authGuard.js`'s `assertActiveAccount` now reads the tombstone alongside the status field. That closes client writes, uploads, and every callable or HTTP endpoint routed through the guard.
+
+  **The reason it was open at all is worse than "unchecked", and worth keeping written down:** `notSuspended()` in the rules and `assertActiveAccount` in the guard BOTH fail open on a missing `users/{uid}` — deliberately, so legacy accounts predating the status field are not locked out. The purge DELETES `users/{uid}`. So the moment it did, both predicates started returning "fine" and the surviving token's access was effectively restored by the deletion itself.
+
+  **Counted, not covered.** `functions/index.js` alone has **42 `onCall` and 4 `onRequest`** against **29 `assertVerifiedAuth` + 3 `assertDecodedVerified`** call sites, and 93 files under `functions/` contain an `onCall`. The shortfall is not all unguarded — several callables are deliberately exempt (`bootstrapUserProfile` is, by design, and now carries its own transactional tombstone check), some are admin-only behind a different guard, and some are unauthenticated by intent. **But nobody has enumerated which is which**, and a per-export audit is the only thing that turns this paragraph into a claim. Until that exists, the honest statement is: the chokepoint is closed, the surfaces that bypass the chokepoint are unaudited.
+
+  **Also outside the gate:** three `getSignedUrl` call sites in `functions/`. A signed URL is a bearer credential that does not re-check rules or auth when redeemed, so one minted before a deletion stays usable for its lifetime regardless of the tombstone. Bounded by the URL's own expiry rather than by anything this fix does.
+
+
 - **PURGE-000 · Which deletion design is in production, recorded once so it stops being re-litigated** — `Deploy Firebase` **run 717** (2026-08-10, 04:43:43 → 04:51:10Z, success) deployed commit `f6ac4af7` = **#2236**, which sits on **#2228**. The live design is therefore `accountPurgeJobs/{uid}` plus the daily `accountPurgeSweep` cron, with a `phase: "irreversible"` marker gating adoption. **#2229's competing `accountDeletions/{uid}` design was never deployed and does not exist on `main`** — verified by grep across `functions/`, `src/` and `firestore.rules`. One tombstone system, not two. #2229 is closed; its `cleanup:resurrected-profiles` script was lifted out first (see below) because closing would otherwise have destroyed the only tool that finds the three known pre-fix orphans.
 
   **The lift was not verbatim, and could not be.** The script scanned `accountDeletions` — the collection #2229 would have created. Lifted unchanged it would have queried a collection that does not exist and reported a clean sweep, which is the worst outcome available to a cleanup tool. Re-pointed to `accountPurgeJobs`, and given the credential guard `cleanup-classes.mjs` already sets (explain and exit, never pretend to have scanned).

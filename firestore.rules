@@ -22,7 +22,28 @@ service cloud.firestore {
     function isVerified() {
       return isAuthed()
         && (tokenEmailVerified() || inVerificationGrace())
-        && notSuspended();
+        && notSuspended()
+        && notBeingDeleted();
+    }
+    // Deletion gate. revokeRefreshTokens stops new tokens being MINTED; an ID
+    // token already in another tab stays valid for up to an hour, and deleting
+    // the Auth user does not invalidate it either. So between the tombstone
+    // being written and that token expiring, a second session could keep
+    // writing results, badges and attempts into collections the purge had
+    // already enumerated (Codex P1 on #2228).
+    //
+    // Worse than "unchecked": notSuspended() above fails OPEN on a missing user
+    // doc, deliberately, so that legacy accounts predating the status field are
+    // not locked out. The purge DELETES users/{uid} — so the moment it does,
+    // that predicate starts returning true and the surviving token's access is
+    // effectively restored. The tombstone is the only signal that is written
+    // BEFORE the destruction and outlives it.
+    //
+    // Cost: one exists() on every isVerified() evaluation — a billed document
+    // access, on ~167 call sites. That is the price of the guarantee, and it is
+    // an exists() rather than a get() so it reads a key, not a document body.
+    function notBeingDeleted() {
+      return !exists(/databases/$(database)/documents/accountPurgeJobs/$(request.auth.uid));
     }
     function inVerificationGrace() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid))

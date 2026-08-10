@@ -2100,6 +2100,30 @@ async function main() {
   })
 
   // ── internal counters + rollups — server-only bookkeeping ────
+  section('a deletion in flight closes the client write surface')
+
+  await test('a learner with a deletion tombstone CANNOT write their own data', async () => {
+    // The surviving-token window: revokeRefreshTokens stops new tokens being
+    // minted, but one already in another tab is good for up to an hour, and
+    // deleting the Auth user does not invalidate it either. Without this the
+    // second session keeps writing into collections the purge already walked.
+    await assertFails(setDoc(doc(learnerA, 'noteProgress', `${LEARNER_A}_n1`), {
+      uid: LEARNER_A, noteId: 'n1', percent: 50,
+    }))
+  })
+
+  await test('and CANNOT write their own profile either', async () => {
+    await assertFails(setDoc(doc(learnerA, 'users', LEARNER_A), {role: 'learner'}, {merge: true}))
+  })
+
+  await test('a learner WITHOUT a tombstone is unaffected', async () => {
+    // The control. Without it the two denials above would also pass with the
+    // whole rules file replaced by `allow write: if false`.
+    await assertSucceeds(setDoc(doc(learnerB, 'noteProgress', `${LEARNER_B}_n1`), {
+      uid: LEARNER_B, noteId: 'n1', percent: 50,
+    }))
+  })
+
   section('accountPurgeJobs — the deletion tombstone, server-only in BOTH directions')
 
   await test('a learner CANNOT read their own deletion tombstone', async () => {
