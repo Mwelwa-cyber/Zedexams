@@ -2231,6 +2231,18 @@
       "classification": "mechanical",
       "batch": null
     },
+    "resolvePaperAssetUrl": {
+      "kind": "factory",
+      "inline": false,
+      "options": {},
+      "optionsFrom": null,
+      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "target": "createResolvePaperAssetUrl()",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
     "restoreSyllabusRow": {
       "kind": "delegated",
       "inline": false,

@@ -21,7 +21,7 @@
 
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
-import { resolvePaperUrl } from './pastPapers.js'
+import { resolvePaperUrlSmart } from './pastPapers.js'
 import { pickPaperPageSource } from './paperFigureAttachCore.js'
 
 // Match the figure-attach pass's OCR-friendly render width so a crop taken
@@ -48,7 +48,10 @@ export function createPaperPageProvider(paperId) {
   function loadPdf(asset) {
     if (!pdfPromise) {
       pdfPromise = (async () => {
-        const url = await resolvePaperUrl(asset.path)
+        // Smart resolution: direct Storage read first, staff-only server
+        // fallback when rules deny it (the production storage/unauthorized
+        // that killed "Crop from page" for an admin).
+        const url = await resolvePaperUrlSmart({ paperId, path: asset.path })
         const res = await fetch(url)
         if (!res.ok) throw new Error(`Could not download the paper PDF (${res.status}).`)
         const blob = await res.blob()
@@ -76,7 +79,7 @@ export function createPaperPageProvider(paperId) {
     // A photographed page — the Storage download URL displays directly (the
     // bucket's CORS config already allows canvas-readable loads; the crop
     // modal loads it via loadCorsImage).
-    const url = await resolvePaperUrl(source.asset.path)
+    const url = await resolvePaperUrlSmart({ paperId, path: source.asset.path })
     return { url, revoke: false }
   }
 
