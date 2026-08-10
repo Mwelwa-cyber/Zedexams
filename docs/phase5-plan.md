@@ -139,8 +139,9 @@ and is hold-safe by construction.
 
 ## Guard gap — BLOCKS Batch 2 (recorded 2026-08-09, owner instruction)
 
-**`optionsUnresolved` is 131 of 194 exports** (2026-08-10; it was 141 of 192 on
-2026-08-09 — **derive both numbers, never quote them**, see below). Memory is now separately
+**`optionsUnresolved` is 54 of 194 exports** (2026-08-10 after #2262; it was 131
+of 194 earlier that day and 141 of 192 on 2026-08-09 — **derive every one of
+these numbers, never quote them**, see below). Memory is now separately
 protected (`test:function-memory-floor`, #2231/#2233), but that is one option.
 Every other frozen option on those — region, timeout, secrets, App Check
 enforcement, concurrency, min-instances — is recorded as unreadable, and the
@@ -156,13 +157,13 @@ current total does not add up:
       console.log(Object.keys(b).length)"
 
 
-| shape | 2026-08-09 | 2026-08-10 | tractable? |
-|---|---|---|---|
-| destructured binding — `const {x} = require("./mod")` then `exports.x = x` | 65 | **54** | yes: map destructured bindings before following |
-| `require("./x").y` inline in the export | 19 | **19** | yes: it is a delegation, not a factory call |
-| genuine factory call — options are arguments | 48 | **49** | harder: needs the factory's own signature understood |
-| `no builder for "<binding>" in <module>` | 9 | **9** | needs case-by-case reading |
-| **total** | **141** | **131** | tractable 73 / harder 58 |
+| shape | 2026-08-09 | 2026-08-10 | after #2262 | tractable? |
+|---|---|---|---|---|
+| destructured binding — `const {x} = require("./mod")` then `exports.x = x` | 65 | 54 | **0** | done: destructured bindings are mapped before following |
+| `require("./x").y` inline in the export | 19 | 19 | **0** | done: it is a delegation, not a factory call |
+| genuine factory call — options are arguments | 48 | 49 | **49** | harder: needs the factory's own signature understood |
+| `no builder for "<binding>" in <module>` | 9 | 9 | **5** | 4 remain behind a module-local factory, 1 is a v1 chain |
+| **total** | **141** | **131** | **54** | all that is left is the factory shapes |
 
 The 2026-08-09 column is kept because the two were quoted together in a handoff
 and did not reconcile — 84 + 57 = 141 against a baseline of 131. Both figures
@@ -220,22 +221,49 @@ checked, not assumed.
 
 ### What closing this gate requires
 
-1. **Map destructured `require()` bindings** (65 entries) — the commonest shape
-   and the one the follower does not model at all.
-2. **Treat `require("./x").y` as a delegation** (19) — it matches the `name(`
-   call shape, so it is misfiled as factory-built. This is what hid
-   `apiTrackVisit`'s `128MiB`.
-3. **The remaining 57** (48 genuine factory calls + 9 unfound builders) do not
-   yield to either fix, and pretending otherwise is how a gate gets declared
-   closed while a third of it is open. Each factory needs its own reader, or an
-   explicit written exemption naming the factory and the test that guards its
-   options instead. **Closure criterion: every one of the 141 is either
-   resolved, or exempted by name with the guarding test named.** A count that
-   merely shrinks is not closure.
-4. **Re-derive `classification` after following, and diff it** against the
-   hand-owned values. Any export whose classification moves is a correction to
-   record; the modular `secrets-bound` set is expected to grow.
-5. **Keep the ratchet shrink-only.** 141 may only go down.
+1. ~~**Map destructured `require()` bindings**~~ — done in #2262.
+2. ~~**Treat `require("./x").y` as a delegation**~~ — done in #2262. This is what
+   hid `apiTrackVisit`'s `128MiB`.
+3. **The remaining 54** (49 genuine factory calls, 4 built by a module-local
+   factory, 1 v1 chained builder) do not yield to either fix, and pretending
+   otherwise is how a gate gets declared closed while a third of it is open.
+   Each factory needs its own reader, or an explicit written exemption naming
+   the factory and the test that guards its options instead. **Closure
+   criterion: every one is either resolved, or exempted by name with the
+   guarding test named.** A count that merely shrinks is not closure.
+4. ~~**Re-derive `classification` after following, and diff it**~~ — done in
+   #2262. Thirteen escalated `mechanical → secrets-bound`; the modular
+   `secrets-bound` set grew as predicted. The classifier now runs AFTER the
+   follow, and the guard's floor is computed the same way, so an escalation
+   cannot be hand-edited back down.
+5. **Keep the ratchet shrink-only.** 54 may only go down.
+
+### What #2262 also found: "resolved" was not the same as "read"
+
+Closing shapes 1 and 2 surfaced a defect in the follower that predates the gate
+and is worse than the gate itself, because it does not look like a gap.
+`optionsUnresolved: null` with `options: {}` reads as *followed successfully,
+this function declares no options* — and the guard then defends an empty set
+for ever. Two source shapes produced it:
+
+- **The options are an identifier.** `onSchedule(HOURLY_MONITOR_OPTS, …)`.
+  Eighteen exports, eleven of them in `agents/cron.js`, several binding eight
+  secrets apiece. The follower read only object literals.
+- **The options are spread in.** `{document: "quizzes/{quizId}", ...COMMON_OPTS}`.
+  A spread has no `:`, so the parser committed nothing for it and
+  `onQuizWritten` recorded its document path and *nothing else* — its
+  `africa-south1` pin, the one option CLAUDE.md calls routing-critical, was
+  outside the guard.
+
+Only three rows were visibly affected on `main` (`pastPapersIndexOnWrite`,
+`rebuildPastPapersIndexCron` empty; `onQuizWritten` partial) because the other
+fifteen were unreachable anyway — so the mechanical fix would have converted
+fifteen honest blind spots into false greens. Both shapes are now resolved
+(identifiers against their `const`, spreads expanded recursively), an
+identifier that cannot be resolved is reported unresolved rather than
+flattened, and two tests pin it: one scans the manifest for resolved-but-empty
+and unexpanded-spread rows, the other drives a synthetic module through the
+follower with a positive and a negative control.
 
 ## Recorded debt (not blocking any batch)
 

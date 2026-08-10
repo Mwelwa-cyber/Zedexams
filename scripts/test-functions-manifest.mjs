@@ -20,25 +20,10 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { extractExports, extractRewrites, classify, RISK_RANK, followDelegation } from './lib/functionsManifest.mjs'
-
-function readFunctionsModule(rel) {
-  // Containment: a require specifier is source text, and the follower reads
-  // whatever it names. `../../../.env.production` would resolve fine and hand
-  // this script a credentials file to parse (github-actions security review
-  // on #2197). Anything resolving outside functions/ is refused — the
-  // follower's job is reading OUR modules, and a specifier that leaves the
-  // tree is a finding in its own right, not a path to follow.
-  const functionsDir = path.join(ROOT, 'functions')
-  const base = path.resolve(functionsDir, rel.replace(/^\.\//, ''))
-  if (base !== functionsDir && !base.startsWith(functionsDir + path.sep)) return null
-  for (const candidate of [base, `${base}.js`, path.join(base, 'index.js')]) {
-    try { return readFileSync(candidate, 'utf8') } catch { /* next */ }
-  }
-  return null
-}
+import { extractExports, extractRewrites, seedClassification, RISK_RANK, resolveExport, createModuleReader, followDelegation } from './lib/functionsManifest.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const readFunctionsModule = createModuleReader(path.join(ROOT, 'functions'))
 
 let passed = 0
 function test(name, fn) {
@@ -157,11 +142,18 @@ test('a hand classification may raise risk, never lower it below the rule seed',
   // reclassification of aiChat to "mechanical" passed with its openaiApiKey
   // binding intact. The rule seed is the FLOOR; escalation (getUpgradeQuote
   // mechanical → payment-webhook) is legitimate, de-escalation is drift.
+  //
+  // The seed is computed from the RESOLVED export — the same call the manifest
+  // was written with. Seeding from the raw `exports.x = mod.y` line gave the
+  // rule an empty options map and the kind `delegated`, so a module binding
+  // `secrets` seeded `mechanical` and this floor would then have defended
+  // nothing: eight escalations (weeklyParentDigest, aiCostDailySummary,
+  // opsHeartbeatCheck, …) could have been hand-edited straight back down.
   const problems = []
   for (const e of live) {
     const m = manifest[e.name]
     if (!m) continue
-    const seed = classify(e, rewrites)
+    const seed = seedClassification(e, rewrites, resolveExport(e, indexSource, readFunctionsModule))
     if (RISK_RANK[m.classification] < RISK_RANK[seed]) {
       problems.push(`${e.name}: classified ${m.classification} below its rule seed ${seed}`)
     }
@@ -190,8 +182,13 @@ test('a DELEGATED export\'s options are frozen where they actually live', () => 
     if (e.kind !== 'delegated' || !e.target) continue
     const m = manifest[e.name]
     if (!m || m.optionsUnresolved) continue
-    const followed = followDelegation(e.target, indexSource, readFunctionsModule)
-    if (followed.unresolved) { drifts.push(`${e.name}: was followable, now ${followed.unresolved}`); continue }
+    const followed = resolveExport(e, indexSource, readFunctionsModule)
+    if (followed.optionsUnresolved) { drifts.push(`${e.name}: was followable, now ${followed.optionsUnresolved}`); continue }
+    if ((m.optionsFrom ?? null) !== (followed.optionsFrom ?? null)) {
+      // Where the options live is part of what is frozen: the same option
+      // values read out of a DIFFERENT module means the export was rebound.
+      drifts.push(`${e.name}: optionsFrom ${m.optionsFrom} → ${followed.optionsFrom}`)
+    }
     const keys = new Set([...Object.keys(m.options), ...Object.keys(followed.options)])
     for (const k of keys) {
       if ((m.options[k] ?? null) !== (followed.options[k] ?? null)) {
@@ -219,6 +216,70 @@ test('an EXTRACTED handler keeps its options guarded in index.js', () => {
     assert.ok(Object.keys(m.options).length > 0 || Object.keys(e.options).length === 0,
       `${e.name} declares options in index.js that the manifest did not record`)
   }
+})
+
+test('a RESOLVED export never records nothing — no false greens', () => {
+  // The failure this pins is worse than an unreadable export, because it does
+  // not look like one: `optionsUnresolved: null` with `options: {}` reads as
+  // "followed successfully, this function declares no options", and the guard
+  // then defends an empty set forever.
+  //
+  // Two source shapes produced it, both live on main before #2262:
+  //   • `onSchedule(HOURLY_MONITOR_OPTS, …)` — the options are an identifier.
+  //     18 exports, `agents/cron.js` alone accounting for eleven, several
+  //     binding eight secrets apiece. Recorded as {}.
+  //   • `{document: "quizzes/{quizId}", ...COMMON_OPTS}` — a spread has no
+  //     `:`, so the parser committed nothing for it and onQuizWritten's
+  //     `africa-south1` pin vanished, leaving only the document path.
+  //
+  // A Firestore trigger's region is the one option CLAUDE.md calls
+  // routing-critical: wrong, and every event takes a cross-region Eventarc hop.
+  const problems = []
+  for (const [name, m] of Object.entries(manifest)) {
+    if (m.optionsUnresolved) continue
+    if (Object.keys(m.options).length === 0 && m.kind !== 'authTrigger') {
+      // A builder that genuinely takes no options object is possible; one
+      // reached by FOLLOWING and recording nothing is the bug. index.js's own
+      // declarations are visible in review, a module's are not.
+      if (m.optionsFrom && m.optionsFrom !== 'index.js') {
+        problems.push(`${name}: followed into ${m.optionsFrom} and recorded NO options — resolved-but-empty is a false green, not a clean read`)
+      }
+      continue
+    }
+    for (const key of Object.keys(m.options)) {
+      if (key.startsWith('...')) {
+        problems.push(`${name}: options carry an unexpanded spread ${key} — whatever it holds is unguarded`)
+      }
+    }
+  }
+  assert.deepEqual(problems, [], `false greens in the manifest:\n    ${problems.join('\n    ')}`)
+})
+
+test('options the follower cannot read are reported UNRESOLVED, never as empty', () => {
+  // A direct control on the rule above, so it cannot pass by accident of the
+  // current tree: a module whose builder takes an identifier that is not a
+  // const object must come back unresolved, and the same module WITH that const
+  // must come back with its contents.
+  const withConst = `
+    const OPTS = {region: "africa-south1", memory: "256MiB"};
+    exports.thing = onSchedule(OPTS, async () => {});
+  `
+  const withoutConst = `
+    exports.thing = onSchedule(OPTS_FROM_SOMEWHERE_ELSE, async () => {});
+  `
+  const reader = (source) => () => ({ source, dir: '.' })
+  const index = 'const mod = require("./mod");\nexports.thing = mod.thing;\n'
+
+  const good = followDelegation('mod.thing', index, reader(withConst))
+  assert.equal(good.unresolved, undefined, 'a resolvable const options object must resolve')
+  assert.equal(good.options.region, '"africa-south1"')
+  assert.equal(good.options.memory, '"256MiB"')
+
+  const bad = followDelegation('mod.thing', index, reader(withoutConst))
+  assert.ok(bad.unresolved, 'an unresolvable identifier must be reported, not flattened to {}')
+  assert.match(bad.unresolved, /OPTS_FROM_SOMEWHERE_ELSE/,
+    'the report must name the identifier, so the baseline row is a work item')
+  assert.equal(bad.options, undefined, 'an unresolved read must not hand back an options map at all')
 })
 
 test('the follower refuses a specifier that escapes functions/', () => {

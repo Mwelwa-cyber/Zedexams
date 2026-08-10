@@ -24,9 +24,13 @@
     "activateSyllabusVersion": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"activateSyllabusVersion\" in index.js",
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "540",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "./teacherTools/activateSyllabusVersion",
+      "optionsUnresolved": null,
       "target": "activateSyllabusVersion",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -94,11 +98,14 @@
       "batch": null
     },
     "adminSetUserRole": {
-      "kind": "factory",
+      "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "./adminUsers",
+      "optionsUnresolved": null,
       "target": "require(\"./adminUsers\").adminSetUserRole",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -106,11 +113,14 @@
       "batch": null
     },
     "adminSetUserStatus": {
-      "kind": "factory",
+      "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "./adminUsers",
+      "optionsUnresolved": null,
       "target": "require(\"./adminUsers\").adminSetUserStatus",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -142,11 +152,17 @@
       "batch": null
     },
     "aggregateVisitorStats": {
-      "kind": "factory",
+      "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "schedule": "\"every 5 minutes\"",
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "120",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./visitorTracking",
+      "optionsUnresolved": null,
       "target": "require('./visitorTracking').aggregateVisitorStats",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -173,13 +189,20 @@
     "aiCostDailySummary": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"aiCostDailySummary\" in index.js",
+      "options": {
+        "schedule": "\"every day 02:00\"",
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "REGION",
+        "timeoutSeconds": "240",
+        "memory": "\"256MiB\"",
+        "secrets": "[emailSmtpUser, emailSmtpPassword]"
+      },
+      "optionsFrom": "./aiCostDailySummary",
+      "optionsUnresolved": null,
       "target": "aiCostDailySummary",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "aiLessonCount": {
@@ -276,11 +299,15 @@
       "batch": null
     },
     "apiGuardianConsent": {
-      "kind": "factory",
+      "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./guardianConsent",
+      "optionsUnresolved": null,
       "target": "require('./guardianConsent').apiGuardianConsent",
       "rewritePath": "/consent",
       "rewriteRegion": "us-central1",
@@ -321,11 +348,15 @@
       "batch": null
     },
     "apiRequestAccountDeletion": {
-      "kind": "factory",
+      "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./accountDeletionRequests",
+      "optionsUnresolved": null,
       "target": "require('./accountDeletionRequests').apiRequestAccountDeletion",
       "rewritePath": "/api/account/delete-request",
       "rewriteRegion": "us-central1",
@@ -333,11 +364,15 @@
       "batch": null
     },
     "apiTextToSpeech": {
-      "kind": "factory",
+      "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "region": "'us-central1'",
+        "memory": "'256MiB'",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "./tts",
+      "optionsUnresolved": null,
       "target": "require('./tts').apiTextToSpeech",
       "rewritePath": "/api/tts",
       "rewriteRegion": "us-central1",
@@ -345,11 +380,15 @@
       "batch": null
     },
     "apiTrackVisit": {
-      "kind": "factory",
+      "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "15",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./visitorTracking",
+      "optionsUnresolved": null,
       "target": "require('./visitorTracking').apiTrackVisit",
       "rewritePath": "/api/track/visit",
       "rewriteRegion": "us-central1",
@@ -392,9 +431,15 @@
     "archiveOldNotifications": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"archiveOldNotifications\" in index.js",
+      "options": {
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "\"us-central1\"",
+        "memory": "\"256MiB\"",
+        "schedule": "\"every day 03:30\"",
+        "timeoutSeconds": "540"
+      },
+      "optionsFrom": "./notifications/reminderCrons",
+      "optionsUnresolved": null,
       "target": "archiveOldNotifications",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -437,9 +482,14 @@
     "autoPickDailyExams": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"autoPickDailyExams\" in index.js",
+      "options": {
+        "schedule": "\"every day 05:00\"",
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "300"
+      },
+      "optionsFrom": "./dailyExamPicker",
+      "optionsUnresolved": null,
       "target": "autoPickDailyExams",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -449,9 +499,12 @@
     "backfillKbSourceRefs": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"backfillKbSourceRefs\" in index.js",
+      "options": {
+        "timeoutSeconds": "540",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "./teacherTools/backfillKbSourceRefs",
+      "optionsUnresolved": null,
       "target": "backfillKbSourceRefs",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -461,9 +514,13 @@
     "backfillReferralCodes": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"backfillReferralCodes\" in index.js",
+      "options": {
+        "region": "REGION",
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./referralBackfill",
+      "optionsUnresolved": null,
       "target": "backfillReferralCodes",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -471,15 +528,22 @@
       "batch": null
     },
     "backupCompletionCheck": {
-      "kind": "factory",
+      "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "schedule": "\"every day 03:30\"",
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "120",
+        "memory": "\"256MiB\"",
+        "secrets": "opsAlertSecrets([emailSmtpUser, emailSmtpPassword])"
+      },
+      "optionsFrom": "./firestoreBackup",
+      "optionsUnresolved": null,
       "target": "require(\"./firestoreBackup\").backupCompletionCheck",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "bootstrapUserProfile": {
@@ -561,9 +625,13 @@
     "cleanupArchivedSyllabusData": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"cleanupArchivedSyllabusData\" in index.js",
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "540",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "./teacherTools/cleanupArchivedSyllabusData",
+      "optionsUnresolved": null,
       "target": "cleanupArchivedSyllabusData",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -573,9 +641,15 @@
     "contentAutoPublish": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"contentAutoPublishCron\" in index.js",
+      "options": {
+        "schedule": "\"every 30 minutes\"",
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "120",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./agents/cron",
+      "optionsUnresolved": null,
       "target": "contentAutoPublishCron",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -585,9 +659,13 @@
     "createFamilyInviteCode": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"createFamilyInviteCode\" in index.js",
+      "options": {
+        "region": "REGION",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./familyPortal",
+      "optionsUnresolved": null,
       "target": "createFamilyInviteCode",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -611,9 +689,13 @@
     "createProgressShare": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"createProgressShare\" in index.js",
+      "options": {
+        "region": "REGION",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./parentPortal",
+      "optionsUnresolved": null,
       "target": "createProgressShare",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -621,23 +703,36 @@
       "batch": null
     },
     "dailyFirestoreBackup": {
-      "kind": "factory",
+      "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "schedule": "\"every day 01:30\"",
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "120",
+        "memory": "\"256MiB\"",
+        "secrets": "opsAlertSecrets([emailSmtpUser, emailSmtpPassword])"
+      },
+      "optionsFrom": "./firestoreBackup",
+      "optionsUnresolved": null,
       "target": "require(\"./firestoreBackup\").dailyFirestoreBackup",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "dailyFxRefresh": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"dailyFxRefreshCron\" in index.js",
+      "options": {
+        "schedule": "\"every day 05:00\"",
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./agents/cron",
+      "optionsUnresolved": null,
       "target": "dailyFxRefreshCron",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -647,9 +742,15 @@
     "dailyPracticeReminders": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"dailyPracticeReminders\" in index.js",
+      "options": {
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "\"us-central1\"",
+        "memory": "\"256MiB\"",
+        "schedule": "\"every day 16:30\"",
+        "timeoutSeconds": "540"
+      },
+      "optionsFrom": "./notifications/reminderCrons",
+      "optionsUnresolved": null,
       "target": "dailyPracticeReminders",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -659,9 +760,15 @@
     "dailyStreakReminders": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"dailyStreakRemindersCron\" in index.js",
+      "options": {
+        "schedule": "\"every day 16:00\"",
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "540",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "./dailyReminders",
+      "optionsUnresolved": null,
       "target": "dailyStreakRemindersCron",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -698,9 +805,12 @@
     "deleteSyllabusRow": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"deleteSyllabusRow\" in index.js",
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "./teacherTools/syllabusOverrides",
+      "optionsUnresolved": null,
       "target": "deleteSyllabusRow",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -710,13 +820,20 @@
     "deliverDawnBriefings": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"deliverDawnBriefingsCron\" in index.js",
+      "options": {
+        "schedule": "\"every 5 minutes\"",
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "120",
+        "memory": "\"256MiB\"",
+        "secrets": "[anthropicApiKey, emailSmtpUser, emailSmtpPassword]"
+      },
+      "optionsFrom": "./agents/cron",
+      "optionsUnresolved": null,
       "target": "deliverDawnBriefingsCron",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "editQuizQuestion": {
@@ -739,9 +856,12 @@
     "expandKbLessons": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"expandKbLessons\" in index.js",
+      "options": {
+        "timeoutSeconds": "540",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "./teacherTools/expandKbLessons",
+      "optionsUnresolved": null,
       "target": "expandKbLessons",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1119,9 +1239,12 @@
     "getAiBudgetEnforcement": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"getAiBudgetEnforcement\" in index.js",
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "./aiBudgetEnforcement",
+      "optionsUnresolved": null,
       "target": "getAiBudgetEnforcement",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1147,9 +1270,13 @@
     "getChildProgress": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"getChildProgress\" in index.js",
+      "options": {
+        "region": "REGION",
+        "timeoutSeconds": "60",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "./familyPortal",
+      "optionsUnresolved": null,
       "target": "getChildProgress",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1159,9 +1286,12 @@
     "getExamQuestions": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"getExamQuestionsFn\" in index.js",
+      "options": {
+        "region": "REGION",
+        "timeoutSeconds": "20"
+      },
+      "optionsFrom": "./dailyExamGradingFns",
+      "optionsUnresolved": null,
       "target": "getExamQuestionsFn",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1200,9 +1330,13 @@
     "getProgressShare": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"getProgressShare\" in index.js",
+      "options": {
+        "region": "REGION",
+        "timeoutSeconds": "60",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "./parentPortal",
+      "optionsUnresolved": null,
       "target": "getProgressShare",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1212,9 +1346,12 @@
     "getTermModuleOutline": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"getTermModuleOutline\" in index.js",
+      "options": {
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./teacherTools/getTermModuleOutline",
+      "optionsUnresolved": null,
       "target": "getTermModuleOutline",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1240,9 +1377,15 @@
     "hourlyAgentSupervisor": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"hourlyAgentSupervisorCron\" in index.js",
+      "options": {
+        "schedule": "\"every 1 hours\"",
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "120",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./agents/cron",
+      "optionsUnresolved": null,
       "target": "hourlyAgentSupervisorCron",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1252,33 +1395,50 @@
     "hourlyMonitor": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"hourlyMonitorCron\" in index.js",
+      "options": {
+        "schedule": "\"every 1 hours\"",
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "300",
+        "memory": "\"256MiB\"",
+        "secrets": "[ anthropicApiKey, emailSmtpUser, emailSmtpPassword, githubBotToken, githubAppId, githubAppPrivateKey, githubAppInstallationId, googlePlaySaJson, ]"
+      },
+      "optionsFrom": "./agents/cron",
+      "optionsUnresolved": null,
       "target": "hourlyMonitorCron",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "hourlyRevenueReconcile": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"hourlyRevenueReconcileCron\" in index.js",
+      "options": {
+        "schedule": "\"every 1 hours\"",
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "300",
+        "memory": "\"256MiB\"",
+        "secrets": "[lencoApiKey, emailSmtpUser, emailSmtpPassword]"
+      },
+      "optionsFrom": "./agents/cron",
+      "optionsUnresolved": null,
       "target": "hourlyRevenueReconcileCron",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "importBuiltInAssessmentFormats": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"importBuiltInAssessmentFormats\" in index.js",
+      "options": {
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./teacherTools/importBuiltInAssessmentFormats",
+      "optionsUnresolved": null,
       "target": "importBuiltInAssessmentFormats",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1288,9 +1448,12 @@
     "importBuiltInCbcTopics": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"importBuiltInCbcTopics\" in index.js",
+      "options": {
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./teacherTools/importBuiltInCbcTopics",
+      "optionsUnresolved": null,
       "target": "importBuiltInCbcTopics",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1300,9 +1463,12 @@
     "importCurriculumModules": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"importCurriculumModules\" in index.js",
+      "options": {
+        "timeoutSeconds": "120",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./teacherTools/importCurriculumModules",
+      "optionsUnresolved": null,
       "target": "importCurriculumModules",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1324,9 +1490,15 @@
     "inactiveLearnerReminder": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"inactiveLearnerReminder\" in index.js",
+      "options": {
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "\"us-central1\"",
+        "memory": "\"256MiB\"",
+        "schedule": "\"every day 10:00\"",
+        "timeoutSeconds": "540"
+      },
+      "optionsFrom": "./notifications/reminderCrons",
+      "optionsUnresolved": null,
       "target": "inactiveLearnerReminder",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1365,9 +1537,13 @@
     "invalidateKbCache": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"invalidateKbCacheCallable\" in index.js",
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./teacherTools/invalidateKbCache",
+      "optionsUnresolved": null,
       "target": "invalidateKbCacheCallable",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1375,11 +1551,15 @@
       "batch": null
     },
     "learnerAgeOnUserCreated": {
-      "kind": "factory",
+      "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "document": "\"users/{uid}\"",
+        "region": "\"africa-south1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "./guardianConsent/onUserCreated",
+      "optionsUnresolved": null,
       "target": "require('./guardianConsent/onUserCreated').learnerAgeOnUserCreated",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1433,11 +1613,14 @@
       "batch": null
     },
     "logAdminMfaEvent": {
-      "kind": "factory",
+      "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "15"
+      },
+      "optionsFrom": "./security/logAdminMfaEvent",
+      "optionsUnresolved": null,
       "target": "require(\"./security/logAdminMfaEvent\").logAdminMfaEvent",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1464,9 +1647,15 @@
     "nightlyQaSmoke": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"nightlyQaSmokeCron\" in index.js",
+      "options": {
+        "schedule": "\"every day 02:00\"",
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "300",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./agents/cron",
+      "optionsUnresolved": null,
       "target": "nightlyQaSmokeCron",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1494,9 +1683,14 @@
     "onAnnouncementWritten": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"onAnnouncementWritten\" in index.js",
+      "options": {
+        "document": "\"announcements/{annId}\"",
+        "region": "\"africa-south1\"",
+        "timeoutSeconds": "300",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "./notifications/onAnnouncementWritten",
+      "optionsUnresolved": null,
       "target": "onAnnouncementWritten",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1508,7 +1702,7 @@
       "inline": false,
       "options": {},
       "optionsFrom": null,
-      "optionsUnresolved": "no builder for \"onAssessmentQuestionDeleted\" in ./storageCleanup",
+      "optionsUnresolved": "built by the local factory makeDeletedTrigger(…) in storageCleanup/onQuestionChange",
       "target": "storageCleanup.onAssessmentQuestionDeleted",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1520,7 +1714,7 @@
       "inline": false,
       "options": {},
       "optionsFrom": null,
-      "optionsUnresolved": "no builder for \"onAssessmentQuestionUpdated\" in ./storageCleanup",
+      "optionsUnresolved": "built by the local factory makeUpdatedTrigger(…) in storageCleanup/onQuestionChange",
       "target": "storageCleanup.onAssessmentQuestionUpdated",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1530,9 +1724,14 @@
     "onFeedbackCreatedNotifyAdmins": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"onFeedbackCreatedNotifyAdmins\" in index.js",
+      "options": {
+        "document": "\"feedback/{feedbackId}\"",
+        "region": "\"africa-south1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./notifications/adminNotificationTriggers",
+      "optionsUnresolved": null,
       "target": "onFeedbackCreatedNotifyAdmins",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1542,9 +1741,14 @@
     "onLearnerStatsWritten": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"onLearnerStatsWritten\" in index.js",
+      "options": {
+        "document": "\"learnerStats/{uid}\"",
+        "region": "\"africa-south1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./notifications/onLearnerStatsWritten",
+      "optionsUnresolved": null,
       "target": "onLearnerStatsWritten",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1554,9 +1758,14 @@
     "onLessonDeleted": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no builder for \"onLessonDeleted\" in ./storageCleanup",
+      "options": {
+        "document": "\"lessons/{lessonId}\"",
+        "region": "\"africa-south1\"",
+        "timeoutSeconds": "120",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "storageCleanup/onLessonChange",
+      "optionsUnresolved": null,
       "target": "storageCleanup.onLessonDeleted",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1566,9 +1775,14 @@
     "onLessonUpdated": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no builder for \"onLessonUpdated\" in ./storageCleanup",
+      "options": {
+        "document": "\"lessons/{lessonId}\"",
+        "region": "\"africa-south1\"",
+        "timeoutSeconds": "120",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "storageCleanup/onLessonChange",
+      "optionsUnresolved": null,
       "target": "storageCleanup.onLessonUpdated",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1580,7 +1794,7 @@
       "inline": false,
       "options": {},
       "optionsFrom": null,
-      "optionsUnresolved": "no builder for \"onQuizQuestionDeleted\" in ./storageCleanup",
+      "optionsUnresolved": "built by the local factory makeDeletedTrigger(…) in storageCleanup/onQuestionChange",
       "target": "storageCleanup.onQuizQuestionDeleted",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1592,7 +1806,7 @@
       "inline": false,
       "options": {},
       "optionsFrom": null,
-      "optionsUnresolved": "no builder for \"onQuizQuestionUpdated\" in ./storageCleanup",
+      "optionsUnresolved": "built by the local factory makeUpdatedTrigger(…) in storageCleanup/onQuestionChange",
       "target": "storageCleanup.onQuizQuestionUpdated",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1603,7 +1817,10 @@
       "kind": "delegated",
       "inline": false,
       "options": {
-        "document": "\"quizzes/{quizId}\""
+        "document": "\"quizzes/{quizId}\"",
+        "region": "\"africa-south1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\""
       },
       "optionsFrom": "./quizSummary",
       "optionsUnresolved": null,
@@ -1616,9 +1833,14 @@
     "onUserCreatedNotifyAdmins": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"onUserCreatedNotifyAdmins\" in index.js",
+      "options": {
+        "document": "\"users/{uid}\"",
+        "region": "\"africa-south1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./notifications/adminNotificationTriggers",
+      "optionsUnresolved": null,
       "target": "onUserCreatedNotifyAdmins",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1630,7 +1852,7 @@
       "inline": false,
       "options": {},
       "optionsFrom": null,
-      "optionsUnresolved": "no builder for \"onUserDeleted\" in ./storageCleanup",
+      "optionsUnresolved": "v1 chained builder (functions.region().runWith()…) in storageCleanup/onUserDeleted",
       "target": "storageCleanup.onUserDeleted",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1638,23 +1860,35 @@
       "batch": null
     },
     "opsHeartbeatCheck": {
-      "kind": "factory",
+      "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "schedule": "\"every 6 hours\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "120",
+        "memory": "\"256MiB\"",
+        "secrets": "opsAlertSecrets([emailSmtpUser, emailSmtpPassword])"
+      },
+      "optionsFrom": "./opsHeartbeat",
+      "optionsUnresolved": null,
       "target": "require(\"./opsHeartbeat\").opsHeartbeatCheck",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "orphanStorageReaper": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no builder for \"orphanStorageReaper\" in ./storageCleanup",
+      "options": {
+        "schedule": "\"0 3 * * *\"",
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "540",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "storageCleanup/orphanReaper",
+      "optionsUnresolved": null,
       "target": "storageCleanup.orphanStorageReaper",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1664,9 +1898,13 @@
     "parseSyllabusUpload": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"parseSyllabusUpload\" in index.js",
+      "options": {
+        "region": "\"africa-south1\"",
+        "memory": "\"1GiB\"",
+        "timeoutSeconds": "540"
+      },
+      "optionsFrom": "./teacherTools/parseSyllabusUpload",
+      "optionsUnresolved": null,
       "target": "parseSyllabusUpload",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1676,7 +1914,12 @@
     "pastPapersIndexOnWrite": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
+      "options": {
+        "document": "`${COLLECTION}/{paperId}`",
+        "region": "\"africa-south1\"",
+        "timeoutSeconds": "120",
+        "memory": "\"256MiB\""
+      },
       "optionsFrom": "./pastPapersIndex",
       "optionsUnresolved": null,
       "target": "pastPapersIndex.pastPapersIndexOnWrite",
@@ -1726,15 +1969,21 @@
       "batch": null
     },
     "rateLimitHealthCheck": {
-      "kind": "factory",
+      "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "schedule": "\"every 60 minutes\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\"",
+        "secrets": "opsAlertSecrets([emailSmtpUser, emailSmtpPassword])"
+      },
+      "optionsFrom": "./rateLimitHealth",
+      "optionsUnresolved": null,
       "target": "require(\"./rateLimitHealth\").rateLimitHealthCheck",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "reapAssessmentExportsOnDelete": {
@@ -1773,7 +2022,12 @@
     "rebuildPastPapersIndexCron": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
+      "options": {
+        "schedule": "\"every 6 hours\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "120",
+        "memory": "\"256MiB\""
+      },
       "optionsFrom": "./pastPapersIndex",
       "optionsUnresolved": null,
       "target": "pastPapersIndex.rebuildPastPapersIndexCron",
@@ -1797,9 +2051,15 @@
     "reclaimAiBudgetReservations": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"reclaimAiBudgetReservations\" in index.js",
+      "options": {
+        "schedule": "\"every 60 minutes\"",
+        "timeZone": "\"Etc/UTC\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "120",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./aiBudgetReclaim",
+      "optionsUnresolved": null,
       "target": "reclaimAiBudgetReservations",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1807,11 +2067,14 @@
       "batch": null
     },
     "recordAgeGateAttempt": {
-      "kind": "factory",
+      "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "15"
+      },
+      "optionsFrom": "./guardianConsent",
+      "optionsUnresolved": null,
       "target": "require('./guardianConsent').recordAgeGateAttempt",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1850,9 +2113,13 @@
     "redeemFamilyInviteCode": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"redeemFamilyInviteCode\" in index.js",
+      "options": {
+        "region": "REGION",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./familyPortal",
+      "optionsUnresolved": null,
       "target": "redeemFamilyInviteCode",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1950,11 +2217,14 @@
       "batch": 3
     },
     "resetAdminMfa": {
-      "kind": "factory",
+      "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "./security/resetAdminMfa",
+      "optionsUnresolved": null,
       "target": "require(\"./security/resetAdminMfa\").resetAdminMfa",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1964,9 +2234,12 @@
     "restoreSyllabusRow": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"restoreSyllabusRow\" in index.js",
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "./teacherTools/syllabusOverrides",
+      "optionsUnresolved": null,
       "target": "restoreSyllabusRow",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -2018,9 +2291,13 @@
     "revokeFamilyInviteCode": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"revokeFamilyInviteCode\" in index.js",
+      "options": {
+        "region": "REGION",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./familyPortal",
+      "optionsUnresolved": null,
       "target": "revokeFamilyInviteCode",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -2030,9 +2307,13 @@
     "revokeProgressShare": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"revokeProgressShare\" in index.js",
+      "options": {
+        "region": "REGION",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./parentPortal",
+      "optionsUnresolved": null,
       "target": "revokeProgressShare",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -2042,9 +2323,13 @@
     "rollbackSyllabusVersion": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"rollbackSyllabusVersion\" in index.js",
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./teacherTools/rollbackSyllabusVersion",
+      "optionsUnresolved": null,
       "target": "rollbackSyllabusVersion",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -2083,9 +2368,13 @@
     "saveClassAttendance": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"saveClassAttendance\" in index.js",
+      "options": {
+        "region": "REGION",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./attendance/saveClassAttendance",
+      "optionsUnresolved": null,
       "target": "saveClassAttendance",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -2127,15 +2416,19 @@
       "batch": 2
     },
     "sendGuardianConsent": {
-      "kind": "factory",
+      "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[emailSmtpUser, emailSmtpPassword]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "./guardianConsent",
+      "optionsUnresolved": null,
       "target": "require('./guardianConsent').sendGuardianConsent",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "sendPasswordResetEmail": {
@@ -2179,11 +2472,15 @@
       "batch": null
     },
     "setSubscriptionCancellation": {
-      "kind": "factory",
+      "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./subscriptionLifecycle",
+      "optionsUnresolved": null,
       "target": "require(\"./subscriptionLifecycle\").setSubscriptionCancellation",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -2205,23 +2502,36 @@
       "batch": 1
     },
     "storageBackupCheck": {
-      "kind": "factory",
+      "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "schedule": "\"every day 04:00\"",
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "120",
+        "memory": "\"256MiB\"",
+        "secrets": "opsAlertSecrets([emailSmtpUser, emailSmtpPassword])"
+      },
+      "optionsFrom": "./storageBackup",
+      "optionsUnresolved": null,
       "target": "require(\"./storageBackup\").storageBackupCheck",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "storageBackupHeartbeat": {
-      "kind": "factory",
+      "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "schedule": "\"30 23 * * *\"",
+        "timeZone": "\"Etc/UTC\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./storageBackup",
+      "optionsUnresolved": null,
       "target": "require(\"./storageBackup\").storageBackupHeartbeat",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -2295,9 +2605,12 @@
     "submitDailyExam": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"submitDailyExamFn\" in index.js",
+      "options": {
+        "region": "REGION",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "./dailyExamGradingFns",
+      "optionsUnresolved": null,
       "target": "submitDailyExamFn",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -2324,9 +2637,13 @@
     "subscribeToNewsletter": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"subscribeToNewsletter\" in index.js",
+      "options": {
+        "region": "REGION",
+        "timeoutSeconds": "20",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./newsletter",
+      "optionsUnresolved": null,
       "target": "subscribeToNewsletter",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -2336,9 +2653,15 @@
     "subscriptionExpiryReminders": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"subscriptionExpiryReminders\" in index.js",
+      "options": {
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "\"us-central1\"",
+        "memory": "\"256MiB\"",
+        "schedule": "\"every day 08:00\"",
+        "timeoutSeconds": "540"
+      },
+      "optionsFrom": "./notifications/reminderCrons",
+      "optionsUnresolved": null,
       "target": "subscriptionExpiryReminders",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -2377,13 +2700,20 @@
     "supportTriage": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"supportTriageCron\" in index.js",
+      "options": {
+        "schedule": "\"every 2 hours\"",
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "300",
+        "memory": "\"256MiB\"",
+        "secrets": "[anthropicApiKey]"
+      },
+      "optionsFrom": "./agents/cron",
+      "optionsUnresolved": null,
       "target": "supportTriageCron",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "synthesizeAssessmentFormat": {
@@ -2401,9 +2731,15 @@
     "tmpDownloadReaper": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no builder for \"tmpDownloadReaper\" in ./storageCleanup",
+      "options": {
+        "schedule": "\"every 60 minutes\"",
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "300",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "storageCleanup/tmpDownloadReaper",
+      "optionsUnresolved": null,
       "target": "storageCleanup.tmpDownloadReaper",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -2413,21 +2749,31 @@
     "triggerWeeklyParentDigest": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"triggerWeeklyParentDigest\" in index.js",
+      "options": {
+        "region": "REGION",
+        "timeoutSeconds": "540",
+        "memory": "\"512MiB\"",
+        "secrets": "[emailSmtpUser, emailSmtpPassword, ...WHATSAPP_SECRETS]"
+      },
+      "optionsFrom": "./weeklyParentDigest",
+      "optionsUnresolved": null,
       "target": "triggerWeeklyParentDigest",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "updatePublicStats": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"updatePublicStatsCron\" in index.js",
+      "options": {
+        "schedule": "\"every 30 minutes\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "120",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./publicStats",
+      "optionsUnresolved": null,
       "target": "updatePublicStatsCron",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -2449,9 +2795,12 @@
     "upsertSyllabusRow": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"upsertSyllabusRow\" in index.js",
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "./teacherTools/syllabusOverrides",
+      "optionsUnresolved": null,
       "target": "upsertSyllabusRow",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -2554,9 +2903,15 @@
     "weeklyCbcAlignmentAudit": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"weeklyCbcAlignmentAuditCron\" in index.js",
+      "options": {
+        "schedule": "\"every sunday 03:00\"",
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "300",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./agents/cron",
+      "optionsUnresolved": null,
       "target": "weeklyCbcAlignmentAuditCron",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -2566,21 +2921,34 @@
     "weeklyParentDigest": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"weeklyParentDigest\" in index.js",
+      "options": {
+        "schedule": "\"every sunday 09:00\"",
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "REGION",
+        "timeoutSeconds": "540",
+        "memory": "\"512MiB\"",
+        "secrets": "[emailSmtpUser, emailSmtpPassword, ...WHATSAPP_SECRETS]"
+      },
+      "optionsFrom": "./weeklyParentDigest",
+      "optionsUnresolved": null,
       "target": "weeklyParentDigest",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "weeklyProductSignal": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"weeklyProductSignalCron\" in index.js",
+      "options": {
+        "schedule": "\"every monday 06:00\"",
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "300",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./agents/cron",
+      "optionsUnresolved": null,
       "target": "weeklyProductSignalCron",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -2590,9 +2958,15 @@
     "weeklyRetentionScan": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"weeklyRetentionScanCron\" in index.js",
+      "options": {
+        "schedule": "\"every monday 07:00\"",
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "300",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./agents/cron",
+      "optionsUnresolved": null,
       "target": "weeklyRetentionScanCron",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -2602,9 +2976,15 @@
     "weeklyRevisionReminder": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "no require() for \"weeklyRevisionReminder\" in index.js",
+      "options": {
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "\"us-central1\"",
+        "memory": "\"256MiB\"",
+        "schedule": "\"every sunday 17:00\"",
+        "timeoutSeconds": "540"
+      },
+      "optionsFrom": "./notifications/reminderCrons",
+      "optionsUnresolved": null,
       "target": "weeklyRevisionReminder",
       "rewritePath": null,
       "rewriteRegion": null,
