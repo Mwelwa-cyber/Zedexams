@@ -22,10 +22,10 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { doc, getDoc, increment, serverTimestamp, setDoc } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
-import Button from '../../ui/Button'
-import Icon from '../../ui/Icon'
-import Skeleton from '../../ui/Skeleton'
-import ConfirmDialog from '../../ui/ConfirmDialog'
+import Button from '../../../components/ui/Button'
+import Icon from '../../../components/ui/Icon'
+import Skeleton from '../../../components/ui/Skeleton'
+import ConfirmDialog from '../../../components/ui/ConfirmDialog'
 import {
   AlertCircle,
   AlertTriangle,
@@ -53,8 +53,8 @@ import {
   Upload,
   Users,
   X,
-} from '../../ui/icons'
-import { SETTINGS_GROUPS } from './settingsRegistry.js'
+} from '../../../components/ui/icons'
+import { SETTINGS_GROUPS } from '../lib/settingsRegistry.js'
 import {
   buildDefaults,
   denormalizeForSave,
@@ -66,9 +66,9 @@ import {
   normalizeSettings,
   setPath,
   validateImport,
-} from './settingsCore.js'
-import ControlCenterField from './ControlCenterField'
-import useControlCenterData from './useControlCenterData'
+} from '../lib/settingsCore.js'
+import ControlCenterField from '../components/ControlCenterField'
+import useControlCenterData from '../lib/useControlCenterData'
 
 // Registry stays JSX-free, so icon names resolve here.
 const CATEGORY_ICONS = {

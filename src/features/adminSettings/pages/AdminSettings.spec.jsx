@@ -23,7 +23,7 @@ vi.mock('../../../contexts/AuthContext', () => ({
 }))
 // Live vitals are a separate hook with its own Firestore reads — stub the
 // module so the spec exercises rendering, not the data layer.
-vi.mock('./useControlCenterData', () => ({
+vi.mock('../lib/useControlCenterData', () => ({
   default: () => ({
     data: {
       users: 120, learners: 100, teachers: 18, admins: 2,

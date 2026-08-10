@@ -30,10 +30,10 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join, relative } from 'node:path'
 import { ENGINE_FLAG_KEY, ENGINE_RUNNERS, normaliseRolloutUids } from '../src/engines/assessment-engine/flags.js'
-import { SETTINGS_CATEGORIES } from '../src/components/admin/settings/settingsRegistry.js'
+import { SETTINGS_CATEGORIES } from '../src/features/adminSettings/lib/settingsRegistry.js'
 import {
   allFields, exportConfig, getPath, normalizeSettings, validateImport,
-} from '../src/components/admin/settings/settingsCore.js'
+} from '../src/features/adminSettings/lib/settingsCore.js'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SRC = join(ROOT, 'src')
@@ -45,7 +45,7 @@ const SRC = join(ROOT, 'src')
 const NAMESPACE_READERS = new Map([
   ['src/engines/assessment-engine/flags.js', 'the resolver — it owns the key'],
   ['src/engines/assessment-engine/flags.test.js', 'pins the wire format so the spelling cannot drift'],
-  ['src/components/admin/settings/settingsRegistry.js', 'the admin control\'s dotted key strings'],
+  ['src/features/adminSettings/lib/settingsRegistry.js', 'the admin control\'s dotted key strings'],
 ])
 
 /** Files allowed to name the resolver. Consumers go through the hook. */
