@@ -195,7 +195,6 @@ const KNOWN_CROSS_FEATURE_IMPORTS = new Set([
 // useFlashcardProgress (and its spec) into src/features/flashcards/hooks/,
 // where reaching the progress repository is an intra-feature import.
 const KNOWN_LEGACY_FEATURE_IMPORTS = new Set([
-  'src/components/admin/VisualStudioAdmin.jsx → ../../features/visualStudio/services/visualAssetService',
   'src/components/lessons/LessonPlayer.jsx → ../../features/learnerHome/lib/lessonResume',
   'src/components/papers/PastPaperViewer.jsx → ../../features/learnerHome/lib/paperResumeSync',
   'src/components/teacher/TeacherDashboard.jsx → ../../features/teacherSettings/lib/useTeachingProfile',

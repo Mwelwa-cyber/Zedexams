@@ -11,7 +11,7 @@
  */
 
 import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore'
-import { db } from '../firebase/config'
+import { db } from '../../../firebase/config'
 import { aggregateImageCosts } from './visualCostReportCore'
 
 export { estimateCost, aggregateImageCosts } from './visualCostReportCore'
