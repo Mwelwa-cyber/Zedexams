@@ -233,13 +233,40 @@ test('the follower refuses a specifier that escapes functions/', () => {
   assert.ok(readFunctionsModule('./imageProxy'), './imageProxy must still resolve')
 })
 
-test('the guard\'s blind spot is measured and may only shrink', () => {
-  // What the follower cannot reach is stated, counted, and ratcheted — a
-  // blind spot that is written down is a work item; one that reads as "no
-  // options" is a false green.
-  const unresolved = Object.entries(manifest).filter(([, m]) => m.optionsUnresolved)
-  assert.ok(unresolved.length <= 141,
-    `${unresolved.length} exports have unguarded options (ceiling 141) — a new one appeared:\n    ${unresolved.map(([n, m]) => `${n}: ${m.optionsUnresolved}`).join('\n    ')}`)
+test('the guard\'s blind spot is ratcheted BY NAME, not by count', () => {
+  // What the follower cannot reach is stated, named, and ratcheted — a blind
+  // spot that is written down is a work item; one that reads as "no options"
+  // is a false green.
+  //
+  // This used to assert `unresolved.length <= 141`, which cannot see a SWAP:
+  // resolve ten entries, add ten new ones, and the count is still 141 while
+  // the set has completely changed. A count also drifts loose on its own — by
+  // the time this was replaced, main had fallen to 132, so the 141 ceiling was
+  // silently permitting NINE new blind exports before it would fail.
+  //
+  // The baseline is therefore the NAMES (scripts/functions-unresolved-baseline.json),
+  // and it is shrink-only in both directions, per the repo's other debt lists:
+  // a new name fails, and an entry that no longer applies must be deleted from
+  // the file in the same PR — so the list cannot quietly keep stale rows and
+  // read as bigger work than it is.
+  const baseline = JSON.parse(
+    readFileSync(path.join(ROOT, 'scripts', 'functions-unresolved-baseline.json'), 'utf8'),
+  ).unresolved
+  const live = Object.entries(manifest)
+    .filter(([, m]) => m.optionsUnresolved)
+    .map(([n]) => n)
+
+  const appeared = live.filter((n) => !(n in baseline))
+  assert.deepEqual(appeared, [],
+    `NEW unguarded export(s) — their frozen options (region, secrets, timeout, ` +
+    `App Check) are outside the guard entirely:\n    ${appeared.join('\n    ')}\n` +
+    `  Declare the export so the follower can read it (a named alias beats ` +
+    `require('./x').y), or add it to the baseline WITH the reason it cannot be read.`)
+
+  const resolvedButStillListed = Object.keys(baseline).filter((n) => !live.includes(n))
+  assert.deepEqual(resolvedButStillListed, [],
+    `baseline lists export(s) whose options ARE now readable — delete them from ` +
+    `scripts/functions-unresolved-baseline.json in this PR:\n    ${resolvedButStillListed.join('\n    ')}`)
 })
 
 console.log(`\nfunctions manifest: ${passed} passed`)
