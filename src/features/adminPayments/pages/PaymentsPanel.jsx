@@ -1,21 +1,21 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useAuth } from '../../contexts/AuthContext'
-import { useFirestore } from '../../hooks/useFirestore'
-import { PLANS, PAYMENT_DETAILS, hasPremiumAccess, daysUntilExpiry } from '../../utils/subscriptionConfig'
-import { resendInvoiceEmail } from '../../utils/invoices'
-import { sendActivationConfirmation, sendExpiryReminders } from '../../utils/whatsapp'
-import { adminSetUserRole } from '../../utils/adminUsersService'
+import { useAuth } from '../../../contexts/AuthContext'
+import { useFirestore } from '../../../hooks/useFirestore'
+import { PLANS, PAYMENT_DETAILS, hasPremiumAccess, daysUntilExpiry } from '../../../utils/subscriptionConfig'
+import { resendInvoiceEmail } from '../../../utils/invoices'
+import { sendActivationConfirmation, sendExpiryReminders } from '../lib/whatsapp'
+import { adminSetUserRole } from '../../../utils/adminUsersService'
 import {
   adminConfirmPayment,
   adminRejectPayment,
   adminGrantPremium,
   adminRevokePremium,
-} from '../../utils/adminPaymentsService'
-import Button from '../ui/Button'
-import Skeleton from '../ui/Skeleton'
-import ConfirmDialog from '../ui/ConfirmDialog'
-import SeoHelmet from '../seo/SeoHelmet'
-import RevenueTrendCard from './RevenueTrendCard'
+} from '../lib/adminPaymentsService'
+import Button from '../../../components/ui/Button'
+import Skeleton from '../../../components/ui/Skeleton'
+import ConfirmDialog from '../../../components/ui/ConfirmDialog'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import RevenueTrendCard from '../components/RevenueTrendCard'
 
 // Products surfaced in the admin grant dropdown. Ordered by what we
 // actually sell most. Each entry resolves to a plan id in PLANS.
