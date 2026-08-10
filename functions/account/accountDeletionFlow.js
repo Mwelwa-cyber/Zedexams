@@ -42,6 +42,7 @@ const {
   completePurgeJob,
   recordPurgeFailure,
   readPurgeJob,
+  PURGE_JOBS_COLLECTION,
   cancelPurgeJob,
   isPurgeComplete,
   markPurgeIrreversible,
@@ -331,17 +332,56 @@ async function runProfileBootstrap({uid, tokenRole, db, auth, buildProfile}) {
     );
   }
 
+  // The write, and the tombstone re-read, in ONE transaction.
+  //
+  // Every check above is a snapshot taken before `auth.getUser`, and that call
+  // is a network round trip. A bootstrap that started just before a deletion
+  // can therefore pass all of them and still be in flight while the deletion
+  // writes its tombstone, purges, verifies and reports success — and then
+  // commit, recreating users/{uid} after the account is gone. Tearing down the
+  // initiating client's listener does not cancel a callable already running,
+  // and says nothing at all about a second tab (Codex P1 on #2228).
+  //
+  // Firestore transactions are optimistic: the re-read below places the
+  // tombstone under the transaction's read set, so a concurrent write to it
+  // aborts this commit rather than racing it. The earlier checks stay — they
+  // fail fast and produce the specific messages — but the DECISION that matters
+  // is remade here, next to the write, where it cannot go stale.
+  const profile = buildProfile({authUser, tokenRole});
   try {
-    await userRef.set(buildProfile({authUser, tokenRole}));
-    const repairedSnap = await userRef.get();
-    return {created: true, profile: {id: uid, ...repairedSnap.data()}};
+    await db.runTransaction(async (tx) => {
+      const jobRef = db.doc(`${PURGE_JOBS_COLLECTION}/${uid}`);
+      const [jobSnap, freshSnap] = await Promise.all([tx.get(jobRef), tx.get(userRef)]);
+
+      // Someone else repaired it while we were asking Auth. Not our write to make.
+      if (freshSnap.exists) return;
+
+      const job = jobSnap.exists ? {id: uid, ...jobSnap.data()} : null;
+      if (job && job.status !== "cancelled" && !isAbandonedBeforeDeletion(job)) {
+        throw new AccountFlowError(
+          "failed-precondition",
+          "This account has been deleted.",
+          {reason: "account-deleted"},
+        );
+      }
+      tx.set(userRef, profile);
+    });
   } catch (error) {
+    if (error instanceof AccountFlowError) {
+      console.warn(
+        `bootstrapUserProfile refused at commit: accountPurgeJobs/${uid} appeared mid-repair`,
+      );
+      throw error;
+    }
     console.error("bootstrapUserProfile:", error);
     throw new AccountFlowError(
       "internal",
       "We could not restore your profile right now. Please try again.",
     );
   }
+
+  const repairedSnap = await userRef.get();
+  return {created: true, profile: {id: uid, ...repairedSnap.data()}};
 }
 
 module.exports = {

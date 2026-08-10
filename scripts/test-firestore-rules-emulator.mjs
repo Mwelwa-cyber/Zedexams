@@ -447,6 +447,18 @@ async function main() {
       learnerUid: LEARNER_A, parentEmail: 'parent@example.com', sentAt: new Date(),
     })
 
+    // accountPurgeJobs — the deletion tombstone. Seeded for LEARNER_A so the
+    // assertions below can try to read and clear their OWN, which is the case
+    // that matters: a client able to delete this document could resurrect the
+    // profile of an account it had just asked to erase.
+    await setDoc(doc(db, 'accountPurgeJobs', LEARNER_A), {
+      uid: LEARNER_A,
+      status: 'pending',
+      phase: 'irreversible',
+      emailHash: 'a'.repeat(64),
+      attempts: 0,
+    })
+
     // downloadTickets — bearer-credential ticket; fully server-only.
     await setDoc(doc(db, 'downloadTickets', 'ticket_1'), {
       ownerUid: TEACHER_A, path: 'library/x.docx', expiresAt: new Date(),
@@ -2088,6 +2100,33 @@ async function main() {
   })
 
   // ── internal counters + rollups — server-only bookkeeping ────
+  section('accountPurgeJobs — the deletion tombstone, server-only in BOTH directions')
+
+  await test('a learner CANNOT read their own deletion tombstone', async () => {
+    // Readable, it would let anyone probe whether a given uid had been deleted.
+    await assertFails(getDoc(doc(learnerA, 'accountPurgeJobs', LEARNER_A)))
+  })
+
+  await test('a learner CANNOT DELETE their own tombstone mid-purge', async () => {
+    // This is the resurrection, done deliberately: bootstrapUserProfile refuses
+    // while the tombstone exists, so a client that could clear it could rebuild
+    // the profile of the account it just asked to erase.
+    await assertFails(deleteDoc(doc(learnerA, 'accountPurgeJobs', LEARNER_A)))
+  })
+
+  await test('a learner CANNOT forge a tombstone for someone else', async () => {
+    // Forgeable, it is a denial of service: the victim's profile can never be
+    // repaired again, and their account reads as deleted.
+    await assertFails(setDoc(doc(learnerA, 'accountPurgeJobs', TEACHER_A), {
+      uid: TEACHER_A, status: 'pending',
+    }))
+  })
+
+  await test('not even an admin can read or clear a tombstone from the client', async () => {
+    await assertFails(getDoc(doc(admin, 'accountPurgeJobs', LEARNER_A)))
+    await assertFails(deleteDoc(doc(admin, 'accountPurgeJobs', LEARNER_A)))
+  })
+
   section('rateLimits / aiDailyLimits / downloadTickets / topicMisconceptions — fully server-only')
 
   await test('a learner CANNOT read their own rateLimits counter', async () => {

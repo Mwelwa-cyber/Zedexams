@@ -75,6 +75,20 @@ function fakeDb(calls, {seed = {}} = {}) {
 
   return {
     store,
+    // Enough of a transaction to test the ordering property: reads see the
+    // store as it is WHEN THE TRANSACTION RUNS, not when the caller started.
+    // `onBeforeCommit` lets a test mutate the store between the transaction's
+    // reads and its writes, which is the race being closed.
+    async runTransaction(fn, {onBeforeCommit} = {}) {
+      const writes = [];
+      const tx = {
+        async get(ref) { return ref.get(); },
+        set(ref, fields) { writes.push([ref, fields]); },
+      };
+      await fn(tx);
+      if (onBeforeCommit) await onBeforeCommit();
+      for (const [ref, fields] of writes) await ref.set(fields);
+    },
     collection: (col) => ({doc: (id) => docRef(col, id)}),
     doc: (path) => {
       const [col, id] = path.split("/");
@@ -278,6 +292,55 @@ test("the producer really does always return an errors array", async () => {
   );
   assert.ok(/errors:\s*\[\]/.test(src),
     "purgeUserData must initialise summary.errors to an array before it can fail");
+});
+
+test("a bootstrap in flight when the deletion starts refuses at COMMIT, not at entry", async () => {
+  const calls = [];
+  const db = fakeDb(calls);
+  const {openPurgeJob} = require("./accountPurgeJobs");
+
+  // The real race, reproduced: every ENTRY check passes — no tombstone, no
+  // profile — and the deletion opens its tombstone while `auth.getUser` is in
+  // flight. Only the transaction's own re-read can see it, so this test fails
+  // if that re-read is removed even while the transaction itself remains.
+  const auth = fakeAuth(calls, {
+    getUser: async (uid) => {
+      await openPurgeJob(db, uid, {FieldValue, email: "a@b.com"});
+      return {uid, email: "a@b.com", emailVerified: true};
+    },
+  });
+
+  await assert.rejects(
+    runProfileBootstrap({db, auth, uid: "u1", FieldValue, buildProfile}),
+    (err) => err.details && err.details.reason === "account-deleted",
+  );
+  assert.equal(db.store.users, undefined,
+    "the profile was written after the deletion had already begun — the resurrection, one window later");
+});
+
+test("the profile write and the tombstone read happen in ONE transaction", async () => {
+  const calls = [];
+  const db = fakeDb(calls);
+  let sawTransaction = false;
+  const real = db.runTransaction.bind(db);
+  db.runTransaction = (fn) => { sawTransaction = true; return real(fn); };
+  await runProfileBootstrap({db, auth: fakeAuth(calls), uid: "u1", FieldValue, buildProfile});
+  assert.ok(sawTransaction,
+    "outside a transaction the tombstone check is a stale snapshot taken before a network " +
+    "round trip to Auth, which is exactly the window the race lives in");
+  assert.ok(db.store.users.u1, "and it still repairs a genuinely missing profile");
+});
+
+test("a profile repaired by someone else mid-flight is not overwritten", async () => {
+  const calls = [];
+  const db = fakeDb(calls);
+  const real = db.runTransaction.bind(db);
+  db.runTransaction = (fn) => real(fn, {});
+  // Another repair wins the race: the doc exists by the time the transaction reads.
+  await db.doc("users/u1").set({role: "teacher", note: "written by another repair"});
+  const out = await runProfileBootstrap({db, auth: fakeAuth(calls), uid: "u1", FieldValue, buildProfile});
+  assert.equal(out.created, false);
+  assert.equal(db.store.users.u1.note, "written by another repair", "not clobbered");
 });
 
 // ── deleteMyAccount: order ───────────────────────────────────────────────
