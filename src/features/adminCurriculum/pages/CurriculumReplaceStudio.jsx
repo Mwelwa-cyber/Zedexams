@@ -2,8 +2,8 @@ import {
   useCallback, useEffect, useMemo, useRef, useState,
 } from 'react'
 
-import SeoHelmet from '../seo/SeoHelmet'
-import ConfirmDialog from '../ui/ConfirmDialog'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import ConfirmDialog from '../../../components/ui/ConfirmDialog'
 import {
   activateVersion,
   auditArchivedData,
@@ -18,8 +18,8 @@ import {
   subscribeUploadStatus,
   suggestNextVersionId,
   uploadSyllabusFile,
-} from '../../utils/syllabusReplaceService'
-import { expandKbLessons } from '../../utils/adminCbcKbService'
+} from '../lib/syllabusReplaceService'
+import { expandKbLessons } from '../../../utils/adminCbcKbService'
 
 const ACCEPT_XLSX = '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 

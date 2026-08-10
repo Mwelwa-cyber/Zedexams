@@ -23,10 +23,10 @@ import {
 } from 'firebase/firestore'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { getStorage, ref as storageRef } from 'firebase/storage'
-import { uploadBytesResumable } from '../firebase/attestedStorage'
+import { uploadBytesResumable } from '../../../firebase/attestedStorage'
 
-import app, { db } from '../firebase/config'
-import { getActiveKbVersion } from './adminCbcKbService'
+import app, { db } from '../../../firebase/config'
+import { getActiveKbVersion } from '../../../utils/adminCbcKbService'
 
 const functions = getFunctions(app, 'us-central1')
 const activateSyllabusVersionCallable = httpsCallable(

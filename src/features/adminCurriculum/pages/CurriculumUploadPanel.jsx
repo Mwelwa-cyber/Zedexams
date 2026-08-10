@@ -21,8 +21,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ref as storageRef } from 'firebase/storage'
-import { uploadBytes } from '../../firebase/attestedStorage'
-import { assertFileSignature } from '../../utils/fileSignature'
+import { uploadBytes } from '../../../firebase/attestedStorage'
+import { assertFileSignature } from '../../../utils/fileSignature'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import {
   collection,
@@ -31,11 +31,11 @@ import {
   query,
   limit as limitFn,
 } from 'firebase/firestore'
-import app, { storage, db } from '../../firebase/config'
-import { useAuth } from '../../contexts/AuthContext'
-import { TEACHER_GRADES, TEACHER_SUBJECTS } from '../../utils/teacherTools'
-import ConfirmDialog from '../ui/ConfirmDialog'
-import { useToast } from '../ui/Toast'
+import app, { storage, db } from '../../../firebase/config'
+import { useAuth } from '../../../contexts/AuthContext'
+import { TEACHER_GRADES, TEACHER_SUBJECTS } from '../../../utils/teacherTools'
+import ConfirmDialog from '../../../components/ui/ConfirmDialog'
+import { useToast } from '../../../components/ui/Toast'
 
 const functions = getFunctions(app, 'us-central1')
 const uploadCallable = httpsCallable(functions, 'uploadCurriculumModule', {
