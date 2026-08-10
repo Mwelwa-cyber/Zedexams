@@ -10,17 +10,17 @@ import {
   formatDate,
   STATUS_COLOURS,
   TOOL_META,
-} from '../../utils/adminGenerationsService'
-import { TOOL_META as TOOL_ROUTES } from '../../utils/teacherLibraryService'
-import useStudioAvailability from '../../hooks/useStudioAvailability'
-import { buildGeneratorQueryString } from '../../utils/useFormDefaultsFromUrl'
+} from '../../../utils/adminGenerationsService'
+import { TOOL_META as TOOL_ROUTES } from '../../../utils/teacherLibraryService'
+import useStudioAvailability from '../../../hooks/useStudioAvailability'
+import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
 import {
   TEACHER_GRADES,
   TEACHER_SUBJECTS,
-} from '../../utils/teacherTools'
-import SeoHelmet from '../seo/SeoHelmet'
-import ConfirmDialog from '../ui/ConfirmDialog'
-import { useToast } from '../ui/Toast'
+} from '../../../utils/teacherTools'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import ConfirmDialog from '../../../components/ui/ConfirmDialog'
+import { useToast } from '../../../components/ui/Toast'
 
 /**
  * Admin-only ops page at /admin/generations.
