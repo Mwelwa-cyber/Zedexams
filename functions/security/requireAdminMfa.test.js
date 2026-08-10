@@ -10,17 +10,27 @@ const Module = require("node:module");
 
 let userStore = {};
 
+let jobStore = {};
+const storeFor = (col) => (col === "accountPurgeJobs" ? jobStore : userStore);
+const snapFor = (col, uid) => {
+  const store = storeFor(col);
+  const has = Object.prototype.hasOwnProperty.call(store, uid);
+  const data = has ? store[uid] : undefined;
+  return { exists: data !== undefined && data !== null, data: () => data };
+};
+
 const db = {
   doc(path) {
-    const uid = String(path).split("/")[1];
+    const [col, uid] = String(path).split("/");
     return {
-      async get() {
-        const has = Object.prototype.hasOwnProperty.call(userStore, uid);
-        const data = has ? userStore[uid] : undefined;
-        return { exists: data !== undefined && data !== null, data: () => data };
-      },
+      _col: col,
+      _uid: uid,
+      async get() { return snapFor(col, uid); },
     };
   },
+  // authGuard.assertActiveAccount reads users/{uid} and accountPurgeJobs/{uid}
+  // in one round trip, so the stub models getAll.
+  async getAll(...refs) { return refs.map((r) => snapFor(r._col, r._uid)); },
 };
 const auditWrites = [];
 db.collection = () => ({ async add(doc) { auditWrites.push(doc); return { id: "x" }; } });

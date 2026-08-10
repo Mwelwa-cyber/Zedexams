@@ -22,7 +22,28 @@ service cloud.firestore {
     function isVerified() {
       return isAuthed()
         && (tokenEmailVerified() || inVerificationGrace())
-        && notSuspended();
+        && notSuspended()
+        && notBeingDeleted();
+    }
+    // Deletion gate. revokeRefreshTokens stops new tokens being MINTED; an ID
+    // token already in another tab stays valid for up to an hour, and deleting
+    // the Auth user does not invalidate it either. So between the tombstone
+    // being written and that token expiring, a second session could keep
+    // writing results, badges and attempts into collections the purge had
+    // already enumerated (Codex P1 on #2228).
+    //
+    // Worse than "unchecked": notSuspended() above fails OPEN on a missing user
+    // doc, deliberately, so that legacy accounts predating the status field are
+    // not locked out. The purge DELETES users/{uid} — so the moment it does,
+    // that predicate starts returning true and the surviving token's access is
+    // effectively restored. The tombstone is the only signal that is written
+    // BEFORE the destruction and outlives it.
+    //
+    // Cost: one exists() on every isVerified() evaluation — a billed document
+    // access, on ~167 call sites. That is the price of the guarantee, and it is
+    // an exists() rather than a get() so it reads a key, not a document body.
+    function notBeingDeleted() {
+      return !exists(/databases/$(database)/documents/accountPurgeJobs/$(request.auth.uid));
     }
     function inVerificationGrace() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid))
@@ -414,7 +435,22 @@ service cloud.firestore {
       // any teacher read any other user's profile, including subscription
       // phone numbers, payment IDs, and plan/billing fields.
       allow read: if isAuthed() && (isOwner(userId) || isAdmin());
-      allow create: if isAuthed() && isOwner(userId)
+      // notBeingDeleted() has to be spelled out on both self-write branches
+      // here, and it is the one place it matters most. Every other collection
+      // inherits the gate through isVerified(); this match block deliberately
+      // does NOT use isVerified(), because the profile write is what a signup
+      // does before the account is verified at all. So without these two
+      // clauses the ONE document the purge must not see come back — the user
+      // profile itself — was the only one a surviving token could still
+      // recreate. bootstrapUserProfile refuses to resurrect a tombstoned uid
+      // (#2244), but that is a callable; a raw client setDoc never reaches it.
+      //
+      // Read is deliberately NOT gated: the client still has to load its own
+      // profile to render the "account deleted" state and sign itself out,
+      // and a read resurrects nothing. Admin writes (the two isAdmin()
+      // branches below) are not gated either — an operator acting on a
+      // half-deleted account is the recovery path, not the attack.
+      allow create: if isAuthed() && isOwner(userId) && notBeingDeleted()
         // 'parent' belongs here: the signup page has offered a Parent role
         // since the parent portal shipped, and this list did not, so every
         // parent signup failed its very first write.
@@ -520,7 +556,7 @@ service cloud.firestore {
       // re-attributed to a different referrer. referralCount and
       // referralCredits are server-incremented by the future redemption
       // Cloud Function, so they're blocked from self-mutation too.
-      allow update: if isAuthed() && isOwner(userId)
+      allow update: if isAuthed() && isOwner(userId) && notBeingDeleted()
         && !changedKeys().hasAny([
           // Guardian consent + the age answer. `guardian` holds the approval
           // decision and its evidence, written only by confirmGuardianConsent

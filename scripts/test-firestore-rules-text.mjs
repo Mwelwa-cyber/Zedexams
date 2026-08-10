@@ -976,6 +976,41 @@ test('admin MFA status mirror fields are not client-writable', () => {
   }
 })
 
+// ── Deletion tombstone: the gate on the one block isVerified() misses ──
+test('users self-writes carry the deletion gate explicitly', () => {
+  // Every other collection inherits notBeingDeleted() through isVerified().
+  // users/{userId} deliberately does not use isVerified() — a signup writes
+  // its profile before it is verified at all — so the gate has to be spelled
+  // out on both self-write branches, and this is the assertion that says so.
+  // Dropping it re-opens the resurrection: a token still live in another tab
+  // recreates users/{uid} straight after the purge deleted it.
+  //
+  // Checked as text as well as behaviour because the emulator suite needs a
+  // Firestore emulator and this does not, so a local `npm run test:all`
+  // catches the regression at the point it is written.
+  assertContains(
+    'allow create: if isAuthed() && isOwner(userId) && notBeingDeleted()',
+    'users create must carry notBeingDeleted() — it does not route through isVerified()',
+  )
+  assertContains(
+    'allow update: if isAuthed() && isOwner(userId) && notBeingDeleted()',
+    'users self-update must carry notBeingDeleted() — same reason',
+  )
+})
+
+test('accountPurgeJobs is server-only in both directions', () => {
+  // The tombstone decides whether a uid may write anything at all. Readable,
+  // it would let anyone probe whether a given account had been deleted;
+  // deletable, a surviving token would simply remove its own gate.
+  const start = rules.indexOf('match /accountPurgeJobs/{')
+  assert(start >= 0, 'accountPurgeJobs match block not found')
+  const body = rules.slice(start, start + 400)
+  assert(
+    /allow read, write:\s*if false|allow read:\s*if false[\s\S]*allow write:\s*if false/.test(body),
+    'accountPurgeJobs must deny every client read and write',
+  )
+})
+
 // ── Report ──────────────────────────────────────────────────────
 
 console.log('')

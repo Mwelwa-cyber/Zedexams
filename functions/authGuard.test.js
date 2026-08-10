@@ -12,19 +12,35 @@ const assert = require("node:assert");
 const Module = require("node:module");
 
 let userStore = {};
+let jobStore = {};
 let getShouldThrow = false;
+
+const storeFor = (col) => (col === "accountPurgeJobs" ? jobStore : userStore);
+
+const snapFor = (col, uid) => {
+  const store = storeFor(col);
+  const has = Object.prototype.hasOwnProperty.call(store, uid);
+  const data = has ? store[uid] : undefined;
+  return { exists: data !== undefined && data !== null, data: () => data };
+};
 
 const db = {
   doc(path) {
-    const uid = String(path).split("/")[1];
+    const [col, uid] = String(path).split("/");
     return {
+      _col: col,
+      _uid: uid,
       async get() {
         if (getShouldThrow) throw new Error("firestore unavailable");
-        const has = Object.prototype.hasOwnProperty.call(userStore, uid);
-        const data = has ? userStore[uid] : undefined;
-        return { exists: data !== undefined && data !== null, data: () => data };
+        return snapFor(col, uid);
       },
     };
+  },
+  // assertActiveAccount reads the user doc and the deletion tombstone in ONE
+  // round trip, so the stub has to model getAll rather than doc().get().
+  async getAll(...refs) {
+    if (getShouldThrow) throw new Error("firestore unavailable");
+    return refs.map((r) => snapFor(r._col, r._uid));
   },
 };
 const firestoreFn = () => db;
@@ -91,6 +107,42 @@ async function main() {
   await test("verified caller with no user doc yet passes (bootstrap repair path)", async () => {
     userStore = {};
     assert.strictEqual(await assertVerifiedAuth(req("u_nodoc")), "u_nodoc");
+  });
+
+  // ── a deletion in flight closes the callable surface ───────────
+
+  await test("a caller whose deletion tombstone exists is rejected, even with a valid token", async () => {
+    // The window: revokeRefreshTokens stops new tokens being minted, but one
+    // already held in another tab stays valid for up to an hour.
+    userStore = { u_del: { status: "active" } };
+    jobStore = { u_del: { status: "pending", phase: "irreversible" } };
+    await assert.rejects(assertVerifiedAuth(req("u_del")), (e) => e.code === "failed-precondition");
+  });
+
+  await test("the tombstone is checked even after the purge deleted the user doc", async () => {
+    // This is the case the status field CANNOT cover: no users/{uid} at all, so
+    // the status read finds nothing and the old guard returned happily.
+    userStore = {};
+    jobStore = { u_gone: { status: "pending", phase: "irreversible" } };
+    await assert.rejects(assertVerifiedAuth(req("u_gone")), (e) => e.code === "failed-precondition");
+  });
+
+  await test("a CANCELLED tombstone does not lock the account out", async () => {
+    // The deletion aborted before anything was destroyed; the account lives.
+    userStore = { u_cancel: { status: "active" } };
+    jobStore = { u_cancel: { status: "cancelled" } };
+    assert.strictEqual(await assertVerifiedAuth(req("u_cancel")), "u_cancel");
+  });
+
+  await test("a Firestore blip still fails OPEN — availability beats the bounded window", async () => {
+    userStore = {};
+    jobStore = { u_blip: { status: "pending" } };
+    getShouldThrow = true;
+    try {
+      assert.strictEqual(await assertVerifiedAuth(req("u_blip")), "u_blip");
+    } finally {
+      getShouldThrow = false;
+    }
   });
 
   // ── suspended / deleted are rejected ──────────────────────────

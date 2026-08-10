@@ -23,7 +23,14 @@ service firebase.storage {
     }
     function isVerified() {
       return isAuthed()
-        && (tokenEmailVerified() || inVerificationGrace());
+        && (tokenEmailVerified() || inVerificationGrace())
+        && notBeingDeleted();
+    }
+    // The same deletion gate as firestore.rules. A surviving ID token can upload
+    // as readily as it can write a document, and an object written after the
+    // purge enumerated the bucket is data belonging to a deleted account.
+    function notBeingDeleted() {
+      return !firestore.exists(/databases/(default)/documents/accountPurgeJobs/$(request.auth.uid));
     }
     function inVerificationGrace() {
       return firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))

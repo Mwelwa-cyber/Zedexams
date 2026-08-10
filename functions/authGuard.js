@@ -69,15 +69,40 @@ function suspendedError() {
 // bound the exposure window and the next successful call re-checks.
 async function assertActiveAccount(uid) {
   try {
-    const snap = await admin.firestore().doc(`users/${uid}`).get();
-    const status = snap.exists ? snap.data()?.status : null;
+    const db = admin.firestore();
+    // Both in one round trip. The tombstone is checked because the status field
+    // cannot cover this case: the purge DELETES users/{uid}, so once it has,
+    // `snap.exists` is false, `status` is null, and this function returns
+    // happily — the deleted account's surviving ID token keeps calling.
+    // revokeRefreshTokens only stops NEW tokens being minted; one already in
+    // another tab is good for up to an hour (Codex P1 on #2228).
+    const [userSnap, jobSnap] = await db.getAll(
+      db.doc(`users/${uid}`),
+      db.doc(`accountPurgeJobs/${uid}`),
+    );
+    if (jobSnap.exists && jobSnap.data()?.status !== "cancelled") {
+      throw deletedError();
+    }
+    const status = userSnap.exists ? userSnap.data()?.status : null;
     if (status === "suspended" || status === "deleted") {
       throw suspendedError();
     }
   } catch (err) {
     if (err instanceof HttpsError) throw err;
+    // Still fails OPEN on a transient read error, and deliberately: a
+    // moderation-or-deletion check that locks the whole platform out during a
+    // Firestore blip is a worse outcome than the bounded window it closes.
+    // What is NOT fail-open is a successful read that finds a tombstone —
+    // that is deterministic, and it throws above.
     console.warn("[authGuard] status lookup failed:", err?.message || err);
   }
+}
+
+function deletedError() {
+  return new HttpsError(
+    "failed-precondition",
+    "This account has been deleted.",
+  );
 }
 
 // Callable entry guard. Replaces the bare `if (!request.auth) throw` line.

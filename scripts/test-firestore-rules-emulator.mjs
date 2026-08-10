@@ -58,6 +58,16 @@ const RULES_PATH = join(__dirname, '..', 'firestore.rules')
 const PROJECT_ID = 'examsprepzambia-test'
 const LEARNER_A = 'learner_a'
 const LEARNER_B = 'learner_b'
+// A learner mid-deletion. Its own uid, because a tombstone now denies EVERY
+// write through isVerified() — seeding it on LEARNER_A silently turned half
+// the suite's principal into a deleted account, which is what CI caught.
+const LEARNER_DELETING = 'learner_deleting'
+// The state AFTER the purge has walked: tombstone still there, users/{uid}
+// already gone. Deliberately a second uid rather than a phase of the first,
+// because the two ask different questions of the rules — LEARNER_DELETING
+// tests `update` on a profile that still exists, this one tests `create` of
+// one that does not. The create is the resurrection.
+const LEARNER_PURGED = 'learner_purged'
 const TEACHER_A = 'teacher_a'
 const TEACHER_B = 'teacher_b'
 const ADMIN = 'admin_user'
@@ -447,15 +457,24 @@ async function main() {
       learnerUid: LEARNER_A, parentEmail: 'parent@example.com', sentAt: new Date(),
     })
 
-    // accountPurgeJobs — the deletion tombstone. Seeded for LEARNER_A so the
-    // assertions below can try to read and clear their OWN, which is the case
-    // that matters: a client able to delete this document could resurrect the
-    // profile of an account it had just asked to erase.
-    await setDoc(doc(db, 'accountPurgeJobs', LEARNER_A), {
-      uid: LEARNER_A,
+    // accountPurgeJobs — the deletion tombstone, on a DEDICATED uid. It must
+    // not be LEARNER_A: the deletion gate in isVerified() denies every write
+    // for a tombstoned uid, so seeding it there turns the suite's main learner
+    // into a deleted account and breaks every unrelated test that uses it.
+    await setDoc(doc(db, 'users', LEARNER_DELETING), { role: 'learner', grade: '5' })
+    await setDoc(doc(db, 'accountPurgeJobs', LEARNER_DELETING), {
+      uid: LEARNER_DELETING,
       status: 'pending',
       phase: 'irreversible',
       emailHash: 'a'.repeat(64),
+      attempts: 0,
+    })
+    // No users doc for this one, on purpose — the purge deleted it.
+    await setDoc(doc(db, 'accountPurgeJobs', LEARNER_PURGED), {
+      uid: LEARNER_PURGED,
+      status: 'pending',
+      phase: 'irreversible',
+      emailHash: 'b'.repeat(64),
       attempts: 0,
     })
 
@@ -516,6 +535,8 @@ async function main() {
 
   const learnerA = testEnv.authenticatedContext(LEARNER_A, verifiedToken(LEARNER_A)).firestore()
   const learnerB = testEnv.authenticatedContext(LEARNER_B, verifiedToken(LEARNER_B)).firestore()
+  const learnerDeleting = testEnv.authenticatedContext(LEARNER_DELETING, verifiedToken(LEARNER_DELETING)).firestore()
+  const learnerPurged = testEnv.authenticatedContext(LEARNER_PURGED, verifiedToken(LEARNER_PURGED)).firestore()
   const teacherA = testEnv.authenticatedContext(TEACHER_A, verifiedToken(TEACHER_A)).firestore()
   const teacherB = testEnv.authenticatedContext(TEACHER_B, verifiedToken(TEACHER_B)).firestore()
   const admin = testEnv.authenticatedContext(ADMIN, verifiedToken(ADMIN)).firestore()
@@ -2100,31 +2121,78 @@ async function main() {
   })
 
   // ── internal counters + rollups — server-only bookkeeping ────
+  section('a deletion in flight closes the client write surface')
+
+  await test('a learner with a deletion tombstone CANNOT write their own data', async () => {
+    // The surviving-token window: revokeRefreshTokens stops new tokens being
+    // minted, but one already in another tab is good for up to an hour, and
+    // deleting the Auth user does not invalidate it either. Without this the
+    // second session keeps writing into collections the purge already walked.
+    await assertFails(setDoc(doc(learnerDeleting, 'noteProgress', `${LEARNER_DELETING}_n1`), {
+      uid: LEARNER_DELETING, noteId: 'n1', percent: 50,
+    }))
+  })
+
+  await test('and CANNOT update their own profile either', async () => {
+    // users/{uid} is the one match block that does NOT route through
+    // isVerified() — a signup has to write its profile before it is verified
+    // at all — so the gate is spelled out on its two self-write branches. CI
+    // caught this: with the gate only in isVerified(), every other collection
+    // was closed and the profile, the single document that matters most, was
+    // still writable. A displayName is used rather than a blocklisted field
+    // so the only thing that can deny it is the deletion gate.
+    await assertFails(updateDoc(doc(learnerDeleting, 'users', LEARNER_DELETING), {
+      displayName: 'Still here',
+    }))
+  })
+
+  await test('a purged learner CANNOT recreate their profile — the resurrection', async () => {
+    // The real shape of the bug: the purge has already deleted users/{uid},
+    // and a token still live in another tab writes it straight back. The
+    // payload is a VALID signup (SIGNUP_DEFAULTS + a dob), so the create rule
+    // has no other reason to refuse it — without notBeingDeleted() this
+    // succeeds and the account is back, minus everything the purge removed.
+    await assertFails(setDoc(doc(learnerPurged, 'users', LEARNER_PURGED), {
+      role: 'learner',
+      dob: '2015-06-03',
+      isMinor: true,
+      ...SIGNUP_DEFAULTS,
+    }))
+  })
+
+  await test('a learner WITHOUT a tombstone is unaffected', async () => {
+    // The control. Without it the two denials above would also pass with the
+    // whole rules file replaced by `allow write: if false`.
+    await assertSucceeds(setDoc(doc(learnerB, 'noteProgress', `${LEARNER_B}_n1`), {
+      uid: LEARNER_B, noteId: 'n1', percent: 50,
+    }))
+  })
+
   section('accountPurgeJobs — the deletion tombstone, server-only in BOTH directions')
 
   await test('a learner CANNOT read their own deletion tombstone', async () => {
     // Readable, it would let anyone probe whether a given uid had been deleted.
-    await assertFails(getDoc(doc(learnerA, 'accountPurgeJobs', LEARNER_A)))
+    await assertFails(getDoc(doc(learnerDeleting, 'accountPurgeJobs', LEARNER_DELETING)))
   })
 
   await test('a learner CANNOT DELETE their own tombstone mid-purge', async () => {
     // This is the resurrection, done deliberately: bootstrapUserProfile refuses
     // while the tombstone exists, so a client that could clear it could rebuild
     // the profile of the account it just asked to erase.
-    await assertFails(deleteDoc(doc(learnerA, 'accountPurgeJobs', LEARNER_A)))
+    await assertFails(deleteDoc(doc(learnerDeleting, 'accountPurgeJobs', LEARNER_DELETING)))
   })
 
   await test('a learner CANNOT forge a tombstone for someone else', async () => {
     // Forgeable, it is a denial of service: the victim's profile can never be
     // repaired again, and their account reads as deleted.
-    await assertFails(setDoc(doc(learnerA, 'accountPurgeJobs', TEACHER_A), {
+    await assertFails(setDoc(doc(learnerB, 'accountPurgeJobs', TEACHER_A), {
       uid: TEACHER_A, status: 'pending',
     }))
   })
 
   await test('not even an admin can read or clear a tombstone from the client', async () => {
-    await assertFails(getDoc(doc(admin, 'accountPurgeJobs', LEARNER_A)))
-    await assertFails(deleteDoc(doc(admin, 'accountPurgeJobs', LEARNER_A)))
+    await assertFails(getDoc(doc(admin, 'accountPurgeJobs', LEARNER_DELETING)))
+    await assertFails(deleteDoc(doc(admin, 'accountPurgeJobs', LEARNER_DELETING)))
   })
 
   section('rateLimits / aiDailyLimits / downloadTickets / topicMisconceptions — fully server-only')
