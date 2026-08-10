@@ -1,6 +1,6 @@
 import { getFunctions, httpsCallable } from 'firebase/functions'
-import app from '../firebase/config'
-import { reportClientError } from './clientErrorReporting.js'
+import app from '../../../firebase/config'
+import { reportClientError } from '../../../utils/clientErrorReporting.js'
 
 const functions = getFunctions(app, 'us-central1')
 const confirmPaymentCallable = httpsCallable(functions, 'adminConfirmPayment')

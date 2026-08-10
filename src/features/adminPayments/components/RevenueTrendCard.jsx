@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useFirestore } from '../../hooks/useFirestore'
-import Skeleton from '../ui/Skeleton'
+import { useFirestore } from '../../../hooks/useFirestore'
+import Skeleton from '../../../components/ui/Skeleton'
 
 const WEEKDAY_FMT = new Intl.DateTimeFormat('en-ZM', { weekday: 'short' })
 const DAY_FMT = new Intl.DateTimeFormat('en-ZM', { day: '2-digit' })
