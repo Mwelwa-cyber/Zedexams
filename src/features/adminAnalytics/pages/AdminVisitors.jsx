@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { collection, getCountFromServer, getDocs, limit, orderBy, query } from 'firebase/firestore'
-import { db } from '../../firebase/config'
-import PageHeader from '../ui/PageHeader'
-import Card from '../ui/Card'
-import Skeleton from '../ui/Skeleton'
+import { db } from '../../../firebase/config'
+import PageHeader from '../../../components/ui/PageHeader'
+import Card from '../../../components/ui/Card'
+import Skeleton from '../../../components/ui/Skeleton'
 
 // Keep these in sync with functions/visitorTrackingCore.js — the rollups
 // are bucketed by Lusaka day (UTC+02:00, no DST), so the dashboard has to

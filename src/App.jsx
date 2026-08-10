@@ -188,9 +188,9 @@ const AdminUsersList = lazy(() => import('./features/adminUsers/pages/AdminUsers
 const AdminUserProfile = lazy(() => import('./features/adminUsers/pages/AdminUserProfile'))
 const AdminSettings = lazy(() => import('./features/adminSettings/pages/AdminSettings'))
 const AnnouncementsAdmin = lazy(() => import('./features/announcements/pages/AnnouncementsAdmin'))
-const AdminActivityLog = lazy(() => import('./components/admin/AdminActivityLog'))
-const AdminAnalytics = lazy(() => import('./components/admin/AdminAnalytics'))
-const AdminVisitors = lazy(() => import('./components/admin/AdminVisitors'))
+const AdminActivityLog = lazy(() => import('./features/adminAnalytics/pages/AdminActivityLog'))
+const AdminAnalytics = lazy(() => import('./features/adminAnalytics/pages/AdminAnalytics'))
+const AdminVisitors = lazy(() => import('./features/adminAnalytics/pages/AdminVisitors'))
 
 // Admin — Agents (operating-model dashboard)
 const AgentsHome      = lazy(() => import('./features/agentsConsole/pages/AgentsHome').then(m => ({ default: m.AgentsHome })))
