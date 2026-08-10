@@ -263,10 +263,25 @@ test('the guard\'s blind spot is ratcheted BY NAME, not by count', () => {
     `  Declare the export so the follower can read it (a named alias beats ` +
     `require('./x').y), or add it to the baseline WITH the reason it cannot be read.`)
 
-  const resolvedButStillListed = Object.keys(baseline).filter((n) => !live.includes(n))
-  assert.deepEqual(resolvedButStillListed, [],
-    `baseline lists export(s) whose options ARE now readable — delete them from ` +
-    `scripts/functions-unresolved-baseline.json in this PR:\n    ${resolvedButStillListed.join('\n    ')}`)
+  // A baseline entry can stop applying two ways, and saying which one saves the
+  // next person the ten minutes it cost me. The first version reported both as
+  // "options ARE now readable", which is actively wrong for a DELETED export
+  // and sends the reader looking for a resolution that never happened. #2242
+  // retired Sift while #2239 was adding this list, and main went red saying an
+  // export that no longer existed had become readable.
+  const stillListed = Object.keys(baseline).filter((n) => !live.includes(n))
+  const nowResolved = stillListed.filter((n) => n in manifest)
+  const noLongerExported = stillListed.filter((n) => !(n in manifest))
+
+  assert.deepEqual(nowResolved, [],
+    `baseline lists export(s) whose options ARE now readable — good news, but ` +
+    `delete them from scripts/functions-unresolved-baseline.json in this PR so ` +
+    `the list stays a true work list:\n    ${nowResolved.join('\n    ')}`)
+
+  assert.deepEqual(noLongerExported, [],
+    `baseline lists export(s) that NO LONGER EXIST — an export was retired ` +
+    `without dropping its baseline row. Delete them from ` +
+    `scripts/functions-unresolved-baseline.json:\n    ${noLongerExported.join('\n    ')}`)
 })
 
 console.log(`\nfunctions manifest: ${passed} passed`)

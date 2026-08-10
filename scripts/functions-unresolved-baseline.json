@@ -1,5 +1,5 @@
 {
-  "_comment": "Phase 5 gate (b): every export whose frozen options the manifest follower CANNOT read. SHRINK-ONLY — a new name fails test:functions-manifest, and an entry that no longer applies must be DELETED from this file in the same PR. Generated once from the manifest; maintained by hand thereafter. See docs/phase5-plan.md.",
+  "_comment": "Phase 5 gate (b): every export whose frozen options the manifest follower CANNOT read. SHRINK-ONLY \u2014 a new name fails test:functions-manifest, and an entry that no longer applies must be DELETED from this file in the same PR. Generated once from the manifest; maintained by hand thereafter. See docs/phase5-plan.md.",
   "generatedFrom": "scripts/functions-manifest.json",
   "unresolved": {
     "activateSyllabusVersion": "no require() for \"activateSyllabusVersion\" in index.js",
@@ -64,7 +64,6 @@
     "hourlyAgentSupervisor": "no require() for \"hourlyAgentSupervisorCron\" in index.js",
     "hourlyMonitor": "no require() for \"hourlyMonitorCron\" in index.js",
     "hourlyRevenueReconcile": "no require() for \"hourlyRevenueReconcileCron\" in index.js",
-    "hourlyServerErrorWatch": "no require() for \"hourlyServerErrorWatchCron\" in index.js",
     "importBuiltInAssessmentFormats": "no require() for \"importBuiltInAssessmentFormats\" in index.js",
     "importBuiltInCbcTopics": "no require() for \"importBuiltInCbcTopics\" in index.js",
     "importCurriculumModules": "no require() for \"importCurriculumModules\" in index.js",
