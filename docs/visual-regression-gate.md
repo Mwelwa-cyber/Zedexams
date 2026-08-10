@@ -17,6 +17,31 @@ baseline recorded on a laptop is dead weight the gate will never match — the
 font digest alone is enough to make it unusable, and the `docx` family needs
 LibreOffice's Writer filters, which a developer machine often lacks entirely.
 
+### The renderer is pinned, because its version IS the baseline's identity
+
+The Chromium that draws the `browser-print` family comes from **puppeteer** —
+`renderEnvironment.js` resolves the binary through `puppeteer.executablePath()`
+and stamps the version into the identity as `browser-print/chromium-<version>`.
+So a puppeteer bump is not a dev-dependency bump; it silently rewrites what every
+browser-print baseline is comparable to.
+
+Two things hold that still, and both are needed:
+
+- **An exact pin in `package.json`** (`"puppeteer": "25.4.0"`, no caret). A caret
+  lets any lockfile regeneration move Chromium with no pull request to notice it
+  in — the same breakage, arriving unannounced.
+- **A Dependabot `ignore`** covering all three semver update types. Without it the
+  weekly run reopens the same bump indefinitely, and each one fails the REQUIRED
+  `Visual regression gate`. #2255 is what that looks like: nine fixtures reported
+  as infrastructure failures over `chromium: 151.0.7922.47 → 151.0.7922.71`, with
+  nothing wrong in the diff and nothing to fix in the code.
+
+Upgrading the renderer is therefore a **paired** act — bump puppeteer and
+re-record the baselines through `Visual baseline update` in the same change, so
+the gate compares like with like. Doing only the first half produces a red
+required check that no code change can clear, which is the state a permanently
+red gate gets routed around from.
+
 ### The OS is compared as a family, not as a kernel build
 
 `os` is **recorded** in full (`Linux 6.17.0-1021-azure`) and **compared** as its
