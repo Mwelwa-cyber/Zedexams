@@ -58,6 +58,10 @@ const RULES_PATH = join(__dirname, '..', 'firestore.rules')
 const PROJECT_ID = 'examsprepzambia-test'
 const LEARNER_A = 'learner_a'
 const LEARNER_B = 'learner_b'
+// A learner mid-deletion. Its own uid, because a tombstone now denies EVERY
+// write through isVerified() — seeding it on LEARNER_A silently turned half
+// the suite's principal into a deleted account, which is what CI caught.
+const LEARNER_DELETING = 'learner_deleting'
 const TEACHER_A = 'teacher_a'
 const TEACHER_B = 'teacher_b'
 const ADMIN = 'admin_user'
@@ -447,12 +451,13 @@ async function main() {
       learnerUid: LEARNER_A, parentEmail: 'parent@example.com', sentAt: new Date(),
     })
 
-    // accountPurgeJobs — the deletion tombstone. Seeded for LEARNER_A so the
-    // assertions below can try to read and clear their OWN, which is the case
-    // that matters: a client able to delete this document could resurrect the
-    // profile of an account it had just asked to erase.
-    await setDoc(doc(db, 'accountPurgeJobs', LEARNER_A), {
-      uid: LEARNER_A,
+    // accountPurgeJobs — the deletion tombstone, on a DEDICATED uid. It must
+    // not be LEARNER_A: the deletion gate in isVerified() denies every write
+    // for a tombstoned uid, so seeding it there turns the suite's main learner
+    // into a deleted account and breaks every unrelated test that uses it.
+    await setDoc(doc(db, 'users', LEARNER_DELETING), { role: 'learner', grade: '5' })
+    await setDoc(doc(db, 'accountPurgeJobs', LEARNER_DELETING), {
+      uid: LEARNER_DELETING,
       status: 'pending',
       phase: 'irreversible',
       emailHash: 'a'.repeat(64),
@@ -516,6 +521,7 @@ async function main() {
 
   const learnerA = testEnv.authenticatedContext(LEARNER_A, verifiedToken(LEARNER_A)).firestore()
   const learnerB = testEnv.authenticatedContext(LEARNER_B, verifiedToken(LEARNER_B)).firestore()
+  const learnerDeleting = testEnv.authenticatedContext(LEARNER_DELETING, verifiedToken(LEARNER_DELETING)).firestore()
   const teacherA = testEnv.authenticatedContext(TEACHER_A, verifiedToken(TEACHER_A)).firestore()
   const teacherB = testEnv.authenticatedContext(TEACHER_B, verifiedToken(TEACHER_B)).firestore()
   const admin = testEnv.authenticatedContext(ADMIN, verifiedToken(ADMIN)).firestore()
@@ -2107,13 +2113,13 @@ async function main() {
     // minted, but one already in another tab is good for up to an hour, and
     // deleting the Auth user does not invalidate it either. Without this the
     // second session keeps writing into collections the purge already walked.
-    await assertFails(setDoc(doc(learnerA, 'noteProgress', `${LEARNER_A}_n1`), {
-      uid: LEARNER_A, noteId: 'n1', percent: 50,
+    await assertFails(setDoc(doc(learnerDeleting, 'noteProgress', `${LEARNER_DELETING}_n1`), {
+      uid: LEARNER_DELETING, noteId: 'n1', percent: 50,
     }))
   })
 
   await test('and CANNOT write their own profile either', async () => {
-    await assertFails(setDoc(doc(learnerA, 'users', LEARNER_A), {role: 'learner'}, {merge: true}))
+    await assertFails(setDoc(doc(learnerDeleting, 'users', LEARNER_DELETING), {role: 'learner'}, {merge: true}))
   })
 
   await test('a learner WITHOUT a tombstone is unaffected', async () => {
@@ -2128,27 +2134,27 @@ async function main() {
 
   await test('a learner CANNOT read their own deletion tombstone', async () => {
     // Readable, it would let anyone probe whether a given uid had been deleted.
-    await assertFails(getDoc(doc(learnerA, 'accountPurgeJobs', LEARNER_A)))
+    await assertFails(getDoc(doc(learnerDeleting, 'accountPurgeJobs', LEARNER_DELETING)))
   })
 
   await test('a learner CANNOT DELETE their own tombstone mid-purge', async () => {
     // This is the resurrection, done deliberately: bootstrapUserProfile refuses
     // while the tombstone exists, so a client that could clear it could rebuild
     // the profile of the account it just asked to erase.
-    await assertFails(deleteDoc(doc(learnerA, 'accountPurgeJobs', LEARNER_A)))
+    await assertFails(deleteDoc(doc(learnerDeleting, 'accountPurgeJobs', LEARNER_DELETING)))
   })
 
   await test('a learner CANNOT forge a tombstone for someone else', async () => {
     // Forgeable, it is a denial of service: the victim's profile can never be
     // repaired again, and their account reads as deleted.
-    await assertFails(setDoc(doc(learnerA, 'accountPurgeJobs', TEACHER_A), {
+    await assertFails(setDoc(doc(learnerB, 'accountPurgeJobs', TEACHER_A), {
       uid: TEACHER_A, status: 'pending',
     }))
   })
 
   await test('not even an admin can read or clear a tombstone from the client', async () => {
-    await assertFails(getDoc(doc(admin, 'accountPurgeJobs', LEARNER_A)))
-    await assertFails(deleteDoc(doc(admin, 'accountPurgeJobs', LEARNER_A)))
+    await assertFails(getDoc(doc(admin, 'accountPurgeJobs', LEARNER_DELETING)))
+    await assertFails(deleteDoc(doc(admin, 'accountPurgeJobs', LEARNER_DELETING)))
   })
 
   section('rateLimits / aiDailyLimits / downloadTickets / topicMisconceptions — fully server-only')
