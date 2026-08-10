@@ -54,7 +54,7 @@ Worksheet/Notes/Homework/Flashcard/Scheme/Rubric/Weekly/MarkSchedule → `Studio
 `subscription/MySubscriptionPage.jsx`, `PaywallHost`, `UpgradeModal`, `PlayUpgradePanel` → `subscriptionConfig.js`/`teacherPlans.js`/`permissions.js` · `utils/lenco*`/`playBilling.js` · CF payment functions ([`14`](./14-payment-and-subscriptions.md)).
 
 ### Saved documents & exports
-`teacher/library/TeacherLibrary.jsx` + `LibraryItemDetail.jsx` → `teacherLibraryService.js` · `aiGenerations` · view components (`views/AssessmentPaperView`, `FullLessonView`) · exporters · `serverLibraryDownload.js` → CF `apiLibraryDownload` (lesson_plan only).
+`features/teacherLibrary/pages/TeacherLibrary.jsx` + `LibraryItemDetail.jsx` → `teacherLibraryService.js` · `aiGenerations` · view components (`views/AssessmentPaperView`, `FullLessonView`) · exporters · `serverLibraryDownload.js` → CF `apiLibraryDownload` (lesson_plan only).
 
 ## Coupling notes (highest-fan-in)
 

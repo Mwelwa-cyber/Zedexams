@@ -61,7 +61,7 @@ const ALLOWLIST = new Set([
   'src/features/curriculumBrowsers/pages/PrimaryCurriculum.jsx',
   // Library filter surfaces (display/grouping, not curriculum selection).
   'src/components/teacher/SyllabiLibrary.jsx',
-  'src/components/teacher/library/TeacherLibrary.jsx',
+  'src/features/teacherLibrary/pages/TeacherLibrary.jsx',
 ])
 
 /**

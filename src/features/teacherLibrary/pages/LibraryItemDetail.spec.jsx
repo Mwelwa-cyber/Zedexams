@@ -96,7 +96,7 @@ vi.mock('../../../contexts/AuthContext', () => ({
     isAdmin:      false,
   }),
 }))
-vi.mock('../../ui/Toast', () => ({
+vi.mock('../../../components/ui/Toast', () => ({
   useToast: () => mockToast,
 }))
 
@@ -148,7 +148,7 @@ vi.mock('../../../utils/teacherLibraryService', () => ({
 // behind gives a spec that still passes while testing something else.
 vi.mock('../../../engines/export-engine/flashcardsToDocx', () => ({ downloadFlashcardsDocx: vi.fn(async () => {}) }))
 vi.mock('../../../engines/export-engine/flashcardsToPdf', () => ({ downloadFlashcardsPdf: vi.fn(async () => {}) }))
-vi.mock('../../../features/flashcards', () => ({
+vi.mock('../../flashcards', () => ({
   FlashcardsView:         () => null,
   FlashcardStudyOverlay:  () => null,
   useFlashcardProgress: () => ({
@@ -159,22 +159,22 @@ vi.mock('../../../features/flashcards', () => ({
 }))
 
 // ── View component stubs — all rendered as null except lesson_activities ──────
-vi.mock('../views/LessonPlanView',        () => ({ default: () => null }))
-vi.mock('../../../features/worksheet',         () => ({ WorksheetView: () => null }))
-vi.mock('../../../features/markSchedule',      () => ({ MarkScheduleView: () => null }))
-vi.mock('../../../features/recordOfWork',      () => ({ RecordOfWorkView: () => null }))
-vi.mock('../../../features/classTimetable',    () => ({ ClassTimetableView: () => null }))
-vi.mock('../../../features/rubric',            () => ({ RubricView: () => null }))
-vi.mock('../../../features/teacherNotes',             () => ({ NotesView: () => null }))
-vi.mock('../../../features/sba',               () => ({ SbaTaskView: () => null, SbaTrackerView: () => null, SbaPlanView: () => null }))
-vi.mock('../views/LessonActivitiesView',  () => ({ default: () => <div data-testid="la-view" /> }))
-vi.mock('../../../features/homework',          () => ({ HomeworkView: () => null }))
-vi.mock('../views/AssessmentPaperView',   () => ({ default: () => null }))
-vi.mock('../views/FullLessonView',        () => ({ default: () => null }))
-vi.mock('../../../features/schemeOfWork',      () => ({ SchemeOfWorkView: () => null, SchemeEditableTable: () => null }))
-vi.mock('../../../features/weeklyForecast', () => ({ WeeklyForecastView: () => null, WeeklyForecastEditableTable: () => null }))
-vi.mock('../../ui/ConfirmDialog', () => ({ default: () => null }))
-vi.mock('../../seo/SeoHelmet',    () => ({ default: () => null }))
+vi.mock('../../../components/teacher/views/LessonPlanView',        () => ({ default: () => null }))
+vi.mock('../../worksheet',         () => ({ WorksheetView: () => null }))
+vi.mock('../../markSchedule',      () => ({ MarkScheduleView: () => null }))
+vi.mock('../../recordOfWork',      () => ({ RecordOfWorkView: () => null }))
+vi.mock('../../classTimetable',    () => ({ ClassTimetableView: () => null }))
+vi.mock('../../rubric',            () => ({ RubricView: () => null }))
+vi.mock('../../teacherNotes',             () => ({ NotesView: () => null }))
+vi.mock('../../sba',               () => ({ SbaTaskView: () => null, SbaTrackerView: () => null, SbaPlanView: () => null }))
+vi.mock('../../../components/teacher/views/LessonActivitiesView',  () => ({ default: () => <div data-testid="la-view" /> }))
+vi.mock('../../homework',          () => ({ HomeworkView: () => null }))
+vi.mock('../../../components/teacher/views/AssessmentPaperView',   () => ({ default: () => null }))
+vi.mock('../../../components/teacher/views/FullLessonView',        () => ({ default: () => null }))
+vi.mock('../../schemeOfWork',      () => ({ SchemeOfWorkView: () => null, SchemeEditableTable: () => null }))
+vi.mock('../../weeklyForecast', () => ({ WeeklyForecastView: () => null, WeeklyForecastEditableTable: () => null }))
+vi.mock('../../../components/ui/ConfirmDialog', () => ({ default: () => null }))
+vi.mock('../../../components/seo/SeoHelmet',    () => ({ default: () => null }))
 
 // ─────────────────────────────────────────────────────────────────────────────
 
