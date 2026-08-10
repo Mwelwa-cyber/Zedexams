@@ -31,10 +31,6 @@ const DAY = 24 * HOUR;
 // sync agents (Aria-Reva, Vex, Dawn) — they have no fixed cadence to check.
 const WATCHED = [
   {id: "vigil", label: "Site monitor", everyMs: HOUR, graceMs: 0.75 * HOUR},
-  // Sift writes a rollup EVERY run (quiet runs land as 'done'), so its absence
-  // is a real signal — and an error watcher that has silently stopped is worth
-  // catching, since its whole value is that silence means "checked and clean".
-  {id: "sift", label: "Server error watch", everyMs: HOUR, graceMs: 0.75 * HOUR},
   {id: "till", label: "Revenue reconciler", everyMs: HOUR, graceMs: 0.75 * HOUR},
   {id: "echo", label: "Support triage", everyMs: 2 * HOUR, graceMs: HOUR},
   {id: "quill", label: "QA smoke", everyMs: DAY, graceMs: 12 * HOUR},

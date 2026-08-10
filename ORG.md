@@ -53,7 +53,7 @@ HQ in `src/utils/companyOrg.js`):
 | Department | Agents | Trigger |
 |---|---|---|
 | **Content** | Aria, Cala, Reva, Pubo, Qix, Compass, Gate | agentJobs pipeline + cron + questionBank trigger |
-| **QA & Engineering** | Vex, Quill, Vigil, Marshal, Sift, Rex, Ledger, Mendi | sync / cron / CI |
+| **QA & Engineering** | Vex, Quill, Vigil, Marshal, Rex, Ledger, Mendi | sync / cron / CI |
 | **Revenue** | Till | hourly cron (Lenco reconcile) |
 | **Support** | Echo, Bonga | 2-hourly cron (feedback triage) + WhatsApp webhook |
 | **Growth** | Anchor, Dawn | weekly cron / on-demand managed agent |
@@ -209,47 +209,6 @@ budget governor (below) is the company's CFO.
   secrets, only indexed reads. `assessFleet` is pure + unit-tested
   (`marshal.test.js`). db injected.
 
-#### Sift — Server Error Watch
-- **Mission:** Read the last 75 minutes of ERROR-severity Cloud Logging entries
-  for the project's Cloud Functions, group them by function, and alert when one
-  is failing repeatedly.
-- **Why it exists:** `apiTrackVisit` produced 80 errors in a 2h window — 100% of
-  the server-side error volume, "Memory limit of 128 MiB exceeded", POST 500s
-  and a 503 — and nobody knew until someone opened Cloud Logging (#2230). Vigil
-  probes the site from OUTSIDE (does a page respond); Sift reads the platform's
-  own error stream from INSIDE. Neither substitutes for the other: an SPA route
-  can render perfectly while a beacon behind it OOMs on every request.
-- **Why not Sentry:** `Sentry.init` lives only in `src/utils/sentry.js` and
-  nothing under `functions/` references it — but wiring it in would not have
-  caught this. An OOM kill is a platform action, not a thrown error: the
-  container is terminated, so no `beforeSend` or `uncaughtException` handler
-  runs. Same for a hard timeout kill and a 503 from an instance that never
-  finished starting — between them, the whole incident. Only the platform's log
-  stream sees those. (Secondary: every v2 instance already loads all of
-  `functions/index.js` at ~148 MiB RSS; an always-on APM agent across 191
-  exports would raise the startup cost that caused this bug.)
-- **Schedule:** `every 1 hours` (`hourlyServerErrorWatch`, Africa/Lusaka). The
-  window is 75 min, deliberately wider than the schedule, so scheduling jitter
-  cannot open a gap between windows.
-- **The rule it is built around:** *a query failure is never reported as "no
-  errors."* An unreadable window is its own alertable state (`unavailable`),
-  because "Sentry is clean, therefore the backend is healthy" — a tool that
-  cannot see a failure reporting silence — was the actual finding of #2230.
-- **Thresholds:** 5 errors/window for one function warns, 25 criticals; a
-  platform-level class (OOM / startup failure / timeout) is critical on sight
-  regardless of count, since "the instance cannot run" is not more true at 25/h
-  than at 3. A high total spread across many functions also alerts.
-- **Dedupe:** once per function + failure-class per 24h, with an escalation from
-  warning to critical always getting through. Nothing is marked as notified
-  unless the alert actually reached a channel, so a failed send retries next
-  hour instead of starting a day of silence.
-- **Outputs:** an ops alert on both channels (email + webhook) and an
-  `agentJobs` rollup (`output.sift`, `awaiting_approval` when not ok).
-- **Wraps:** `functions/agents/runners/sift.js` + `siftCore.js` — deterministic,
-  no LLM (the alert has to work on the days Anthropic is the outage). Reads logs
-  with the runtime service account's own ADC; needs **`roles/logging.viewer`**.
-  Pure logic unit-tested (`siftCore.test.js`, `sift.test.js`).
-
 ## Handoff: Lesson-Plan Pipeline
 
 ```
@@ -307,7 +266,7 @@ teacher submits brief
 | `docs/CHANGELOG.md` | Ledger | Eng lead |
 | Bug fixes (draft PRs) | Mendi | Eng lead |
 | Site health (pages, Firebase, images, quizzes) | Vigil | Eng lead |
-| Cloud Functions error volume (Cloud Logging) | Sift | Eng lead |
+| Cloud Functions error volume (Cloud Logging) | `functionErrorWatch` (not an agent) | Eng lead |
 
 ## Cost Budget (per agent, per day)
 
@@ -322,7 +281,6 @@ teacher submits brief
 | Ledger | 50,000 / 20,000 tokens | One run per push to main |
 | Mendi | 500,000 / 100,000 tokens | One multi-turn fix per bug issue |
 | Vigil | 50,000 / 20,000 tokens | One small Haiku call only on failed hours |
-| Sift | 0 / 0 tokens | No LLM call; deterministic log aggregation |
 | Vex | 100,000 / 30,000 tokens | One Haiku call per Verify & publish |
 | Qix | 200,000 / 40,000 tokens | One Haiku review per new question; dedup hits skip the call |
 | Bonga | 200,000 / 60,000 tokens | One Haiku reply per inbound WhatsApp message |
@@ -443,18 +401,19 @@ agent pause/resume controls stay in `/admin/agents`.
   as the health strip on `/admin/company`. Deterministic, no LLM/secrets, only
   indexed reads; `assessFleet` is pure + unit-tested
   (`functions/agents/runners/marshal.test.js`, 23 assertions).
-- **2026-08-09** — Sift (Server Error Watch) added to QA / Eng, closing the
-  second half of #2230. Hourly `hourlyServerErrorWatch` reads ERROR-severity
-  Cloud Logging entries for the project's Cloud Functions, groups them by
-  function and alerts ops when one is failing repeatedly — the watcher that was
-  missing when `apiTrackVisit` burned 80 errors in 2h (100% of the server-side
-  error volume) behind a Sentry dashboard reporting zero. Sentry is frontend
-  telemetry and could not have seen it: an OOM kill terminates the container, so
-  no in-process handler runs. Deterministic, no LLM, no new dependency (ADC +
-  the Logging REST API); an unreadable log window alerts as `unavailable` rather
-  than reading as healthy. Marshal watches it in turn.
-  `functions/agents/runners/siftCore.test.js` (57 assertions) +
-  `sift.test.js` (26 assertions).
+- **2026-08-10** — Sift (Server Error Watch) added and then RETIRED the same
+  day, without ever being relied on. It was built for #2230's second half in
+  parallel with #2235, which had already shipped `functionErrorWatch` for the
+  same purpose; both reached `main` and production ran two Cloud Logging error
+  watchers alerting through the same two channels. `functionErrorWatch` is the
+  survivor — it landed first, runs every 5 minutes against a 7-minute window
+  (vs. Sift's hourly/75-minute), alerts on a SINGLE memory kill, and carries the
+  `sendTestFunctionErrorAlert` drill that proves the whole path end-to-end. It
+  is a monitoring function, not an agent, so it holds no roster entry; it is
+  registered in `docs/architecture/13-cloud-functions-register.md`. The reasoning
+  for watching Cloud Logging rather than adding Sentry to `functions/` survives
+  in CLAUDE.md, retargeted. Lesson worth keeping: check for an in-flight PR
+  against an issue before building, not only the issue and the branch.
 - **2026-06-21** — Daily FX auto-refresh for the treasury. A new
   `dailyFxRefresh` cron fetches the live ZMW/USD rate and writes
   `settings/fxRate`; the budget governor + `/admin/company` read that cached

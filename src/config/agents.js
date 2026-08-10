@@ -163,18 +163,6 @@ export const AGENTS = [
     invocation: 'Cron: every hour (hourlyAgentSupervisor). Surfaces to the /admin/company HQ and /admin/agents.',
   },
   {
-    id: 'sift',
-    name: 'Sift',
-    role: 'Server Error Watch',
-    department: 'qaEng',
-    mission: 'Reads the last 75 minutes of ERROR-severity Cloud Logging entries for the project\'s Cloud Functions, groups them by function, and alerts when one is failing repeatedly. Exists because apiTrackVisit burned 80 errors in 2h — 100% of the server-side error volume — and nothing noticed: Sentry is frontend-only, and an OOM kill is a platform action no in-process reporter can observe. An unreadable log window is reported as unavailable, never as a healthy one.',
-    inputs: 'cron (hourly) + Cloud Logging entries.list (ADC, roles/logging.viewer)',
-    outputs: 'ops alert (email + webhook), de-duplicated per function+failure-class per 24h, plus an agentJobs rollup (output.sift)',
-    wraps: 'functions/agents/runners/sift.js + siftCore.js (deterministic, no LLM)',
-    runtime: ['cloud-function'],
-    invocation: 'Cron: every hour (hourlyServerErrorWatch). Alerts OPS_ALERT_EMAILS + the ops webhook; reports to /admin/agents.',
-  },
-  {
     id: 'dawn',
     name: 'Dawn',
     role: 'Morning Briefing',
