@@ -252,36 +252,58 @@ test('the guard\'s blind spot is ratcheted BY NAME, not by count', () => {
   const baseline = JSON.parse(
     readFileSync(path.join(ROOT, 'scripts', 'functions-unresolved-baseline.json'), 'utf8'),
   ).unresolved
-  const live = Object.entries(manifest)
+  // NOT named `live` — that is the file-scope source-derived export list, and
+  // shadowing it is what made the first version answer "does this export still
+  // exist?" from manifest membership instead of from the source (Codex on
+  // #2246). The manifest is a record; index.js is the fact.
+  const unresolvedNames = Object.entries(manifest)
     .filter(([, m]) => m.optionsUnresolved)
     .map(([n]) => n)
+  const exportedNames = new Set(live.map((e) => e.name))
 
-  const appeared = live.filter((n) => !(n in baseline))
-  assert.deepEqual(appeared, [],
-    `NEW unguarded export(s) — their frozen options (region, secrets, timeout, ` +
-    `App Check) are outside the guard entirely:\n    ${appeared.join('\n    ')}\n` +
-    `  Declare the export so the follower can read it (a named alias beats ` +
-    `require('./x').y), or add it to the baseline WITH the reason it cannot be read.`)
+  // ONE assertion, with each row carrying its own reason.
+  //
+  // Splitting this into two assertions was worse than the single vague one it
+  // replaced: assert.deepEqual throws on the first, so a baseline holding both
+  // a resolved row and a retired row reported only the resolved one, and the
+  // maintainer fixed it, re-ran, and met the second (Codex on #2246). Accuracy
+  // of the message and completeness of the report are both required — a guard
+  // that makes you run it three times to learn three things is a guard people
+  // stop running.
+  const problems = []
 
-  // A baseline entry can stop applying two ways, and saying which one saves the
-  // next person the ten minutes it cost me. The first version reported both as
-  // "options ARE now readable", which is actively wrong for a DELETED export
-  // and sends the reader looking for a resolution that never happened. #2242
-  // retired Sift while #2239 was adding this list, and main went red saying an
-  // export that no longer existed had become readable.
-  const stillListed = Object.keys(baseline).filter((n) => !live.includes(n))
-  const nowResolved = stillListed.filter((n) => n in manifest)
-  const noLongerExported = stillListed.filter((n) => !(n in manifest))
+  for (const name of unresolvedNames) {
+    if (!(name in baseline)) {
+      problems.push(
+        `${name}: NEW unguarded export — its frozen options (region, secrets, ` +
+        `timeout, App Check) are outside the guard entirely. Declare it so the ` +
+        `follower can read it (a named alias beats require('./x').y), or add it ` +
+        `to the baseline WITH the reason it cannot be read.`)
+    }
+  }
 
-  assert.deepEqual(nowResolved, [],
-    `baseline lists export(s) whose options ARE now readable — good news, but ` +
-    `delete them from scripts/functions-unresolved-baseline.json in this PR so ` +
-    `the list stays a true work list:\n    ${nowResolved.join('\n    ')}`)
+  for (const name of Object.keys(baseline)) {
+    if (unresolvedNames.includes(name)) continue
+    if (!exportedNames.has(name)) {
+      problems.push(
+        `${name}: NO LONGER EXPORTED — retired without dropping its baseline ` +
+        `row. Delete the row.`)
+    } else if (name in manifest) {
+      problems.push(
+        `${name}: options ARE now readable — good news. Delete the row so the ` +
+        `list stays a true work list.`)
+    } else {
+      // Exported, but absent from the manifest: the manifest is stale, and
+      // deleting the baseline row would be exactly the wrong fix.
+      problems.push(
+        `${name}: still exported but MISSING FROM THE MANIFEST — regenerate ` +
+        `with \`node scripts/generate-functions-manifest.mjs\`. Do NOT delete ` +
+        `the baseline row.`)
+    }
+  }
 
-  assert.deepEqual(noLongerExported, [],
-    `baseline lists export(s) that NO LONGER EXIST — an export was retired ` +
-    `without dropping its baseline row. Delete them from ` +
-    `scripts/functions-unresolved-baseline.json:\n    ${noLongerExported.join('\n    ')}`)
+  assert.deepEqual(problems, [],
+    `blind-spot baseline is out of date:\n    ${problems.join('\n    ')}`)
 })
 
 console.log(`\nfunctions manifest: ${passed} passed`)
