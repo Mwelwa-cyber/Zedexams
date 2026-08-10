@@ -33,7 +33,6 @@
  */
 
 const {onRequest} = require("firebase-functions/v2/https");
-const crypto = require("crypto");
 const admin = require("firebase-admin");
 const {applyCors} = require("./cors");
 const {enforceRateLimit, standardBuckets, resolveClientIp} = require("./rateLimit");
@@ -42,19 +41,26 @@ const {
   normalizeDeletionRequest,
   acknowledgement,
 } = require("./accountDeletionRequestCore");
+// ONE hash function for the address, shared with the purge tombstone. The
+// sweeper matches a row to a tombstone by comparing these two values, so they
+// must be produced by the same code — two "SHA-256 of the email" helpers that
+// disagreed about trimming would fail silently, as a queue that never drains.
+const {hashEmail} = require("./account/accountPurgeJobs");
 
-const COLLECTION = "deletionRequests";
-
-// Statuses that mean "a human still owes this request an action". A repeat
-// submission while one of these is open is a no-op rather than a new row.
-const OPEN_STATUSES = ["pending", "verified"];
-
-// Stable, non-reversible key for the per-email rate-limit bucket. Same email
-// always lands in the same bucket; the address itself never reaches the
-// `rateLimits` collection.
-function emailBucketKey(email) {
-  return crypto.createHash("sha256").update(String(email)).digest("hex").slice(0, 32);
-}
+// The closing half of this collection lives in account/deletionRequestClosure.js
+// — it belongs to the deletion pipeline rather than to this intake endpoint,
+// and this file imports `firebase-functions`, which CI's node runners do not
+// install, so anything defined here can only be covered by tests that never
+// run. The shared shape (collection name, open statuses, redaction key) comes
+// back from there so there is exactly one definition of each.
+const {
+  COLLECTION,
+  OPEN_STATUSES,
+  OPEN_QUEUE_SCAN_LIMIT,
+  emailBucketKey,
+  closeDeletionRequests,
+  closeDeletionRequestsByEmailHash,
+} = require("./account/deletionRequestClosure");
 
 function log(level, event, fields = {}) {
   const line = JSON.stringify({event: `deletion_request_${event}`, ...fields});
@@ -146,6 +152,12 @@ async function handleDeletionRequest(req, res, deps = {}) {
 
     await db.collection(COLLECTION).add({
       ...request,
+      // The same SHA-256 the purge tombstone stores, from the same function,
+      // so a deletion finished by the SWEEPER can find this row: by then the
+      // Auth user is gone and the tombstone holds only the hash. Written
+      // alongside the address rather than instead of it — support still needs
+      // to read the queue, and the address is redacted when the row closes.
+      emailHash: hashEmail(request.email),
       ip: ip || null, // abuse investigation only; purged with the request
       userAgent: String(req.get("user-agent") || "").slice(0, 300),
       createdAt: serverTimestamp(),
@@ -189,61 +201,6 @@ async function handleDeletionRequest(req, res, deps = {}) {
   }
 }
 
-/**
- * Close out any open web deletion request for `email`, called from the
- * `deleteMyAccount` purge once the account is actually gone.
- *
- * Two things happen at once, and the second is the point:
- *
- *   • The row is marked `completed`, so support sees the queue drain by
- *     itself when someone finishes the job in-app instead of waiting for a
- *     reply. That is the audit trail: a request was made, and it was honoured.
- *
- *   • The requester's email, name and free-text notes are REDACTED. A record
- *     that we deleted someone's account is worth keeping; their email address
- *     is not, and keeping it would contradict the Privacy Policy's §7 promise
- *     in the one collection created by exercising that very promise. What
- *     remains — the timestamps, the role, the status — carries no identity.
- *
- * Best-effort by design: it is called after the purge has already succeeded,
- * so a failure here must not turn a completed deletion into an error the user
- * sees. Returns the number of rows closed (0 when there was no web request,
- * which is the common in-app case).
- *
- * @param {FirebaseFirestore.Firestore} db
- * @param {string} email                    The deleted account's address.
- * @param {object} [deps]
- * @return {Promise<number>}
- */
-async function closeDeletionRequests(db, email, deps = {}) {
-  const address = String(email || "").trim().toLowerCase();
-  if (!address) return 0;
-  const serverTimestamp = deps.serverTimestamp ||
-    (() => admin.firestore.FieldValue.serverTimestamp());
-
-  const snap = await db.collection(COLLECTION)
-    .where("email", "==", address)
-    .where("status", "in", OPEN_STATUSES)
-    .get();
-  if (snap.empty) return 0;
-
-  for (const doc of snap.docs) {
-    await doc.ref.update({
-      status: "completed",
-      completedAt: serverTimestamp(),
-      // Redaction, not deletion of the row. The hash keeps the queue
-      // de-duplicable without keeping the address.
-      email: `redacted:${emailBucketKey(address)}`,
-      name: "",
-      details: "",
-      ip: null,
-      userAgent: "",
-      redactedAt: serverTimestamp(),
-    });
-  }
-  return snap.size;
-}
-
 exports.apiRequestAccountDeletion = onRequest(
     {region: "us-central1", timeoutSeconds: 30, memory: "256MiB"},
     (req, res) => handleDeletionRequest(req, res),
@@ -253,6 +210,8 @@ exports.apiRequestAccountDeletion = onRequest(
 // surface is apiRequestAccountDeletion above.
 exports.handleDeletionRequest = handleDeletionRequest;
 exports.closeDeletionRequests = closeDeletionRequests;
+exports.closeDeletionRequestsByEmailHash = closeDeletionRequestsByEmailHash;
+exports.OPEN_QUEUE_SCAN_LIMIT = OPEN_QUEUE_SCAN_LIMIT;
 exports.emailBucketKey = emailBucketKey;
 exports.COLLECTION = COLLECTION;
 exports.OPEN_STATUSES = OPEN_STATUSES;
