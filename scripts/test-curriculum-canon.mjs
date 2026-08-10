@@ -71,9 +71,27 @@ const ALLOWLIST = new Set([
  *
  * Kept as its own set rather than added to ALLOWLIST, because that ledger is
  * frozen and only shrinks — folding newly-visible debt into it would disguise
- * five unexamined files as five reviewed exceptions. This list is the honest
- * shape: countable, separately named, and each entry is a question nobody has
- * answered yet. It shrinks the same way; it must never grow.
+ * unexamined files as reviewed exceptions. This list is the honest shape:
+ * countable, separately named, and each entry is a question nobody has
+ * answered yet.
+ *
+ * ## When it may grow, and how that stays checkable
+ *
+ * It said "it must never grow", which was right about the failure it guards
+ * against and wrong as an absolute — a Phase 4 migration MOVING a pre-existing
+ * holder into `src/features/` surfaces old debt through no fault of its own,
+ * which is the same event that created the first five entries. Refusing the
+ * entry would leave two bad options: fix the file inside a pure-move PR, or
+ * leave the module behind in `src/utils/` for the guard's convenience.
+ *
+ * So the rule is not a count, it is a claim that has to be true:
+ *
+ *   **an entry may be added only when the subject list already existed at the
+ *   file's previous path**, verifiable with `git show <before>:<old-path>`.
+ *
+ * A NEW local subject list — written in a feature, or added to a file that did
+ * not have one — is still a failure, and is what the check is for. It shrinks
+ * the ordinary way, when someone converts an entry to `useCurriculumSelection`.
  */
 const UNSCANNED_UNTIL_NOW = new Set([
   'src/features/notes/pages/AdminVisualNotesGenerator.jsx',
@@ -81,6 +99,10 @@ const UNSCANNED_UNTIL_NOW = new Set([
   'src/features/notes/components/NoteCard.jsx',
   'src/features/learnerSettings/lib/learnerPrefs.js',
   'src/features/classTimetable/lib/timetableCoverage.js',
+  // Arrived with the image-pipeline admin move. Its subject keys predate that
+  // migration — verified against the file at its `src/utils/` path, where the
+  // same six `subject:` values were already present.
+  'src/features/visualStudio/lib/pictureBankStarterPack.js',
 ])
 
 function walk(dir) {
