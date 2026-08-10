@@ -139,21 +139,37 @@ and is hold-safe by construction.
 
 ## Guard gap — BLOCKS Batch 2 (recorded 2026-08-09, owner instruction)
 
-**`optionsUnresolved` is 141 of 192 exports** (2026-08-09). Memory is now separately
+**`optionsUnresolved` is 131 of 194 exports** (2026-08-10; it was 141 of 192 on
+2026-08-09 — **derive both numbers, never quote them**, see below). Memory is now separately
 protected (`test:function-memory-floor`, #2231/#2233), but that is one option.
-Every other frozen option on those 141 — region, timeout, secrets, App Check
+Every other frozen option on those — region, timeout, secrets, App Check
 enforcement, concurrency, min-instances — is recorded as unreadable, and the
 owner's instruction is that they must not stay that way while more Functions
 are migrated.
 
-Measured breakdown of the 141, by the shape that defeats the follower:
+Measured breakdown, by the shape that defeats the follower. **Re-derive this
+before acting on it** — every row moved between 2026-08-09 and 2026-08-10 as
+#2228/#2235/#2239/#2242/#2244 landed, and a stale breakdown quoted next to a
+current total does not add up:
 
-| shape | count | tractable? |
-|---|---|---|
-| destructured binding — `const {x} = require("./mod")` then `exports.x = x` | 65 | yes: map destructured bindings before following |
-| `require("./x").y` inline in the export | 19 | yes: it is a delegation, not a factory call |
-| genuine factory call — options are arguments | 48 | harder: needs the factory's own signature understood |
-| `no builder for "<binding>" in <module>` | 9 | needs case-by-case reading |
+    node -e "const b=require('./scripts/functions-unresolved-baseline.json').unresolved; \
+      console.log(Object.keys(b).length)"
+
+
+| shape | 2026-08-09 | 2026-08-10 | tractable? |
+|---|---|---|---|
+| destructured binding — `const {x} = require("./mod")` then `exports.x = x` | 65 | **54** | yes: map destructured bindings before following |
+| `require("./x").y` inline in the export | 19 | **19** | yes: it is a delegation, not a factory call |
+| genuine factory call — options are arguments | 48 | **49** | harder: needs the factory's own signature understood |
+| `no builder for "<binding>" in <module>` | 9 | **9** | needs case-by-case reading |
+| **total** | **141** | **131** | tractable 73 / harder 58 |
+
+The 2026-08-09 column is kept because the two were quoted together in a handoff
+and did not reconcile — 84 + 57 = 141 against a baseline of 131. Both figures
+were right on the day they were measured and wrong beside each other, which is
+the same failure as the export count (202 → 192 → 194) and Batch 2's baseline
+(21 → 22 → 23). **The rule this file now applies everywhere: a number that moves
+with the tree is derived at the point of use, not written down.**
 
 ### What this gap is NOT
 
@@ -163,7 +179,7 @@ because it changes what "closing the gate" has to achieve:
 
 - `optionsUnresolved` is only ever set on delegated or factory entries;
   `extractExports()` marks both `inline: false`; the generator assigns every
-  non-inline entry `batch: null`. **0 of the 141 carry a batch at all.**
+  non-inline entry `batch: null`. **0 of them carry a batch at all.**
 - Every Batch 2 entry is an inline builder whose options are read directly from
   `index.js`: **22 of 22 are `inline: true` with `optionsUnresolved: null`.**
 
