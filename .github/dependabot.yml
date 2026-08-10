@@ -74,7 +74,6 @@ updates:
           - "@testing-library/*"
           - "jsdom"
           - "happy-dom"
-          - "puppeteer"
         update-types:
           - "minor"
           - "patch"
@@ -133,6 +132,29 @@ updates:
       # persistence, App Check, Firestore cache) — never take them automatically.
       - dependency-name: "firebase"
         update-types: ["version-update:semver-major"]
+      # puppeteer is NOT an ordinary dev dependency here: it supplies the
+      # Chromium that renders the visual-regression baselines. `renderEnvironment.js`
+      # resolves the binary through `puppeteer.executablePath()` and stamps the
+      # version into each baseline's identity (`browser-print/chromium-<version>`),
+      # so ANY puppeteer bump changes that identity and makes every browser-print
+      # baseline incomparable — `assertComparableEnvironment` then fails the
+      # REQUIRED `Visual regression gate` check. #2255 is what that looks like:
+      # nine fixtures reported as infrastructure failures over
+      # `chromium: 151.0.7922.47 → 151.0.7922.71`, with nothing wrong in the diff.
+      #
+      # Upgrading the renderer is therefore a deliberate, paired act, never an
+      # automatic weekly bump: bump puppeteer and re-record the baselines through
+      # `Visual baseline update` (workflow_dispatch, default branch only) in the
+      # same change, so the gate is comparing like with like.
+      #
+      # The matching half of this is the EXACT pin in package.json — a caret here
+      # lets any lockfile regeneration drift Chromium silently, which is the same
+      # failure without a pull request to notice it in.
+      - dependency-name: "puppeteer"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
 
   # Cloud Functions (functions/ has its own package.json + lockfile).
   - package-ecosystem: "npm"
