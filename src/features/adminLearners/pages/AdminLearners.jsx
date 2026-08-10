@@ -1,13 +1,13 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Users } from '../ui/icons'
-import { useFirestore, ADMIN_QUERY_LIMIT } from '../../hooks/useFirestore'
-import { useDebouncedValue } from '../../hooks/useDebouncedValue'
-import Icon from '../ui/Icon'
-import Skeleton from '../ui/Skeleton'
-import { downloadCSV } from '../../utils/csvExport'
-import SeoHelmet from '../seo/SeoHelmet'
-import { gradesForFeature, gradeNumberOf } from '../../config/canonicalEducation'
+import { Search, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Users } from '../../../components/ui/icons'
+import { useFirestore, ADMIN_QUERY_LIMIT } from '../../../hooks/useFirestore'
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
+import Icon from '../../../components/ui/Icon'
+import Skeleton from '../../../components/ui/Skeleton'
+import { downloadCSV } from '../../../utils/csvExport'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import { gradesForFeature, gradeNumberOf } from '../../../config/canonicalEducation'
 
 // The learner catalogue's grades, from the canonical model — a documented
 // FILTER on the one ladder (quizzes and lessons are authored for upper

@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Mail, School, Calendar, Download } from '../ui/icons'
+import { ArrowLeft, Mail, School, Calendar, Download } from '../../../components/ui/icons'
 import { doc, getDoc } from 'firebase/firestore'
-import { db } from '../../firebase/config'
-import { useFirestore } from '../../hooks/useFirestore'
-import Icon from '../ui/Icon'
-import Skeleton from '../ui/Skeleton'
-import SeoHelmet from '../seo/SeoHelmet'
+import { db } from '../../../firebase/config'
+import { useFirestore } from '../../../hooks/useFirestore'
+import Icon from '../../../components/ui/Icon'
+import Skeleton from '../../../components/ui/Skeleton'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
 
 function pctColor(p) {
   if (p >= 70) return 'text-green-600'
