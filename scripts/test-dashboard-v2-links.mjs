@@ -9,34 +9,18 @@
  * this is a text-level parse of App.jsx — cheap, deterministic, and enough
  * to catch a dead link before deploy.
  *
- * ## The surface is TWO directories, and forgetting the second one is how
- * ## this guard went quiet
+ * ## A scanner aimed at a missing directory reports "0 broken" for files it
+ * ## never opened — so a missing DIRS entry is a failure, not zero files
  *
- * #2247 split the area: the app shell stays in `src/components/teacher/
- * dashboardV2/` beside TeacherLayout, and the dashboard PAGE moved to
- * `src/features/dashboardV2/`. This scanner named only the first, so it
- * silently stopped checking `HelpSupportPage` and the pages that went with
- * it — 37 targets became 32, and `/status`, `/company`, `/privacy`, `/terms`
- * and the generated library-detail path stopped being validated at all.
+ * The surface is two directories (#2247 split it): the app shell beside
+ * TeacherLayout, and the dashboard pages under `src/features/`. This scanner
+ * named only the first, silently stopped checking `HelpSupportPage`, and went
+ * from 37 targets to 32 — dropping `/status`, `/company`, `/privacy`, `/terms`
+ * and the library-detail path — while still printing `0 broken`.
  *
- * It still printed `0 broken`, which is the failure mode worth naming: a
- * guard that reports green for a question it is no longer asking. Caught in
- * review by Codex, after the migration merged.
- *
- * Two changes came out of that:
- *
- *   • DIRS, not DIR — both halves are scanned, and a target is reported with
- *     the directory it came from so a message names a real file.
- *   • **A missing directory is a FAILURE, not zero files.** The whole reason
- *     the loss was silent is that a scanner pointed at a directory happily
- *     scans whatever is left. If either half is moved or renamed again, this
- *     now says so instead of quietly checking less.
- *
- * The floor below is a backstop and deliberately not the real defence: it was
- * set at 10 while the true count was 37, so losing five targets could never
- * have tripped it. A count cannot see a swap either (#2239 records the same
- * lesson on the functions manifest) — which is why the directory assertion,
- * not the number, is what protects this.
+ * The floor below is a backstop, not the defence: at 10 against a true count of
+ * 37 it could never have tripped, and a count cannot see a swap anyway (#2239,
+ * on the functions manifest). The existence check is what protects this.
  */
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import { join, relative } from 'node:path'
