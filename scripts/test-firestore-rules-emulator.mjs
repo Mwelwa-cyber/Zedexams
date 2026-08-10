@@ -62,6 +62,12 @@ const LEARNER_B = 'learner_b'
 // write through isVerified() — seeding it on LEARNER_A silently turned half
 // the suite's principal into a deleted account, which is what CI caught.
 const LEARNER_DELETING = 'learner_deleting'
+// The state AFTER the purge has walked: tombstone still there, users/{uid}
+// already gone. Deliberately a second uid rather than a phase of the first,
+// because the two ask different questions of the rules — LEARNER_DELETING
+// tests `update` on a profile that still exists, this one tests `create` of
+// one that does not. The create is the resurrection.
+const LEARNER_PURGED = 'learner_purged'
 const TEACHER_A = 'teacher_a'
 const TEACHER_B = 'teacher_b'
 const ADMIN = 'admin_user'
@@ -463,6 +469,14 @@ async function main() {
       emailHash: 'a'.repeat(64),
       attempts: 0,
     })
+    // No users doc for this one, on purpose — the purge deleted it.
+    await setDoc(doc(db, 'accountPurgeJobs', LEARNER_PURGED), {
+      uid: LEARNER_PURGED,
+      status: 'pending',
+      phase: 'irreversible',
+      emailHash: 'b'.repeat(64),
+      attempts: 0,
+    })
 
     // downloadTickets — bearer-credential ticket; fully server-only.
     await setDoc(doc(db, 'downloadTickets', 'ticket_1'), {
@@ -522,6 +536,7 @@ async function main() {
   const learnerA = testEnv.authenticatedContext(LEARNER_A, verifiedToken(LEARNER_A)).firestore()
   const learnerB = testEnv.authenticatedContext(LEARNER_B, verifiedToken(LEARNER_B)).firestore()
   const learnerDeleting = testEnv.authenticatedContext(LEARNER_DELETING, verifiedToken(LEARNER_DELETING)).firestore()
+  const learnerPurged = testEnv.authenticatedContext(LEARNER_PURGED, verifiedToken(LEARNER_PURGED)).firestore()
   const teacherA = testEnv.authenticatedContext(TEACHER_A, verifiedToken(TEACHER_A)).firestore()
   const teacherB = testEnv.authenticatedContext(TEACHER_B, verifiedToken(TEACHER_B)).firestore()
   const admin = testEnv.authenticatedContext(ADMIN, verifiedToken(ADMIN)).firestore()
@@ -2118,8 +2133,31 @@ async function main() {
     }))
   })
 
-  await test('and CANNOT write their own profile either', async () => {
-    await assertFails(setDoc(doc(learnerDeleting, 'users', LEARNER_DELETING), {role: 'learner'}, {merge: true}))
+  await test('and CANNOT update their own profile either', async () => {
+    // users/{uid} is the one match block that does NOT route through
+    // isVerified() — a signup has to write its profile before it is verified
+    // at all — so the gate is spelled out on its two self-write branches. CI
+    // caught this: with the gate only in isVerified(), every other collection
+    // was closed and the profile, the single document that matters most, was
+    // still writable. A displayName is used rather than a blocklisted field
+    // so the only thing that can deny it is the deletion gate.
+    await assertFails(updateDoc(doc(learnerDeleting, 'users', LEARNER_DELETING), {
+      displayName: 'Still here',
+    }))
+  })
+
+  await test('a purged learner CANNOT recreate their profile — the resurrection', async () => {
+    // The real shape of the bug: the purge has already deleted users/{uid},
+    // and a token still live in another tab writes it straight back. The
+    // payload is a VALID signup (SIGNUP_DEFAULTS + a dob), so the create rule
+    // has no other reason to refuse it — without notBeingDeleted() this
+    // succeeds and the account is back, minus everything the purge removed.
+    await assertFails(setDoc(doc(learnerPurged, 'users', LEARNER_PURGED), {
+      role: 'learner',
+      dob: '2015-06-03',
+      isMinor: true,
+      ...SIGNUP_DEFAULTS,
+    }))
   })
 
   await test('a learner WITHOUT a tombstone is unaffected', async () => {
