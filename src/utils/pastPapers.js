@@ -376,6 +376,14 @@ export async function resolvePaperUrl(path) {
  *
  * Any other error (offline, missing object, …) is rethrown untouched: the
  * fallback exists for permission denials, not as a second network path.
+ *
+ * LIFETIME DIFFERS BY PATH, and callers that hold the URL must care. The
+ * direct read returns a Firebase download URL that never expires; the
+ * fallback returns a V4 signed URL valid for ~10 minutes, deliberately, so a
+ * leaked link stops being a credential. Callers that fetch the bytes straight
+ * away (the page provider, figure attach) are unaffected. A caller that
+ * stashes the URL and uses it much later — an <a href> on a long-lived screen
+ * — should re-resolve at use time rather than at mount.
  */
 export async function resolvePaperUrlSmart({ paperId, path }) {
   if (!path) return null
