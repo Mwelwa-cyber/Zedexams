@@ -690,6 +690,8 @@
     "dedupe:assessment-questions:live": "node scripts/dedupe-assessment-questions.mjs --live",
     "cleanup:classes:dry": "node scripts/cleanup-classes.mjs",
     "cleanup:classes:live": "node scripts/cleanup-classes.mjs --live",
+    "cleanup:resurrected-profiles": "node scripts/cleanup-resurrected-profiles.mjs --live",
+    "cleanup:resurrected-profiles:dry": "node scripts/cleanup-resurrected-profiles.mjs",
     "cleanup:phantom-assessments:dry": "node scripts/cleanup-phantom-assessments.mjs",
     "cleanup:phantom-assessments:live": "node scripts/cleanup-phantom-assessments.mjs --live",
     "backfill:assessment-titles:dry": "node scripts/backfill-assessment-titles.mjs",
