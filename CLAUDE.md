@@ -138,7 +138,7 @@ src/
   config/curriculum.js          — SUBJECTS / GRADES; single source of truth for CBC dropdowns
 
 functions/                      — Cloud Functions v2, Node 22, codebase=default. Separate package.json.
-  index.js                      — every function export lives here (~191 exports): aiChat, generateQuiz, verifyQuiz, checkShortAnswer, apiAiChat SSE, apiGenerateLessonPlan / Worksheet SSE, the generate* teacher tools (Assessment/SbaTask/Homework/Notes/Flashcards/SchemeOfWork/Rubric/Diagram/NotePictures/VisualNotes/SlideNotes; the generateExamPaper callable was retired 2026-07 — every assessment type, test AND examination, now generates through the one generateAssessment (the merged Assessment Paper Studio; `assessmentType` is one of the 7 canonical values in `functions/teacherTools/assessmentFormats.js`'s `ASSESSMENT_TYPES`, reaching the backend exactly as the teacher picked it — `examination`/`final_exam` are real recognised types, never collapsed to `mock_exam`), and the library still renders legacy `tool:'exam_paper'` docs via `src/utils/aiPaperToSections.js`; `planAssessment` derives the same paper plan with NO model call so the teacher confirms it before generating, and `regenerateAssessmentQuestion` rewrites ONE question against its plan slot), scanned-quiz + note OCR (structureScannedQuiz, ocrNotePages), parent portal + weeklyParentDigest, newsletter (subscribeToNewsletter), invoices, referrals, syllabus versioning (parseSyllabusUpload, activateSyllabusVersion, rollbackSyllabusVersion), Lenco (lencoWebhook + payment recovery) + Google Play Billing (verifyGooglePlayPurchase), Central Question Bank (questionReviewOnWrite=Qix, importPastPaperQuestions, classifyQuestionGrades, reviseQuestion), agentJobsOnCreate/Approved, storageCleanup triggers, and the scheduled crons (nightlyQaSmoke, hourlyMonitor, hourlyAgentSupervisor=Marshal, hourlyServerErrorWatch=Sift, hourlyRevenueReconcile, supportTriage, contentAutoPublish, weeklyProductSignal, weeklyRetentionScan, deliverDawnBriefings, weeklyCbcAlignmentAudit, autoPickDailyExams, daily/weekly learner reminders, dailyFxRefresh, aiCostDailySummary, reclaimAiBudgetReservations, rebuildPastPapersIndexCron)
+  index.js                      — every function export lives here (~191 exports): aiChat, generateQuiz, verifyQuiz, checkShortAnswer, apiAiChat SSE, apiGenerateLessonPlan / Worksheet SSE, the generate* teacher tools (Assessment/SbaTask/Homework/Notes/Flashcards/SchemeOfWork/Rubric/Diagram/NotePictures/VisualNotes/SlideNotes; the generateExamPaper callable was retired 2026-07 — every assessment type, test AND examination, now generates through the one generateAssessment (the merged Assessment Paper Studio; `assessmentType` is one of the 7 canonical values in `functions/teacherTools/assessmentFormats.js`'s `ASSESSMENT_TYPES`, reaching the backend exactly as the teacher picked it — `examination`/`final_exam` are real recognised types, never collapsed to `mock_exam`), and the library still renders legacy `tool:'exam_paper'` docs via `src/utils/aiPaperToSections.js`; `planAssessment` derives the same paper plan with NO model call so the teacher confirms it before generating, and `regenerateAssessmentQuestion` rewrites ONE question against its plan slot), scanned-quiz + note OCR (structureScannedQuiz, ocrNotePages), parent portal + weeklyParentDigest, newsletter (subscribeToNewsletter), invoices, referrals, syllabus versioning (parseSyllabusUpload, activateSyllabusVersion, rollbackSyllabusVersion), Lenco (lencoWebhook + payment recovery) + Google Play Billing (verifyGooglePlayPurchase), Central Question Bank (questionReviewOnWrite=Qix, importPastPaperQuestions, classifyQuestionGrades, reviseQuestion), agentJobsOnCreate/Approved, storageCleanup triggers, and the scheduled crons (nightlyQaSmoke, hourlyMonitor, hourlyAgentSupervisor=Marshal, hourlyRevenueReconcile, supportTriage, contentAutoPublish, weeklyProductSignal, weeklyRetentionScan, deliverDawnBriefings, weeklyCbcAlignmentAudit, autoPickDailyExams, daily/weekly learner reminders, dailyFxRefresh, aiCostDailySummary, reclaimAiBudgetReservations, rebuildPastPapersIndexCron)
   aiService.js                  — Anthropic client (streaming + non-streaming + prompt-caching), assertDailyLimit, role helpers, parsers
   anthropicFetch.js             — low-level fetch around Anthropic API
   geminiClient.js + geminiImageClient.js — Gemini REST client (structureImportedQuiz) + Gemini image generation
@@ -707,7 +707,6 @@ Beyond the content line, a fleet of **ops/growth agents** runs on schedules in `
 | **Cala** (`weeklyCbcAlignmentAudit`) | Sun 03:00 | re-runs alignment on recent `aiGenerations`, catches drift |
 | **Vigil** (`hourlyMonitor`, runner `monitor.js`) | hourly | checks pages/Firebase/images/quizzes + today's daily-exam picks (self-heals a missed 05:00 auto-pick by re-running the idempotent picker); on failure asks Haiku for fixes, emails + files a GitHub bug issue → Mendi |
 | **Marshal** (`hourlyAgentSupervisor`, runner `marshal.js`) | hourly | the watchdog-of-watchdogs: confirms every scheduled agent that writes a predictable rollup actually ran in its window, surfaces stuck jobs / tripped breakers / recent failures into a single company-health verdict for the `/admin/company` HQ (files an `awaiting_approval` job when something's wrong). Deterministic, no LLM |
-| **Sift** (`hourlyServerErrorWatch`, runner `sift.js`) | hourly | reads the last 75 min of ERROR-severity Cloud Logging entries for this project's Cloud Functions, groups them by function, and raises an ops alert when one is failing repeatedly. Deterministic, no LLM, no new dependency (ADC + the Logging REST API — needs `roles/logging.viewer`). An unreadable log window alerts as `unavailable`, never as a healthy one |
 | **Till** (`hourlyRevenueReconcile`) | hourly | re-queries Lenco for stale "pending" payments; finishes what a dropped webhook missed via the idempotent activation path |
 | **Echo** (`supportTriage`) | every 2h | classifies + prioritises new feedback + public `contactMessages`, drafts replies (Haiku) — never sends |
 | **Gate** (`contentAutoPublish`) | every 30m | auto-approves content jobs passing a strict bar; OFF unless `agentControl/content.autoPublish === true` |
@@ -785,7 +784,13 @@ backend is healthy"* is an unsupported inference; Sentry is frontend telemetry
 and cannot see a Cloud Function failing.
 
 The decision is that server-side errors reach ops through **Cloud Logging, not
-Sentry**, watched hourly by **Sift** (`hourlyServerErrorWatch`, above). Wiring
+Sentry**, watched by **`functionErrorWatch`** (`functions/monitoring/`, every 5
+minutes over a 7-minute window, #2235). It is a monitoring function rather than
+one of the `agents/` fleet, so it has no roster entry — see
+`docs/architecture/13-cloud-functions-register.md`. Memory kills alert on a
+SINGLE occurrence (a function over its limit is dead, not degraded); everything
+else alerts on a sustained rate grouped by function, with a per-function
+cooldown and a one-shot RECOVERED notice. Wiring
 Sentry into `functions/` would not have caught this incident: an OOM kill is a
 platform action, not a thrown error — the container is terminated, so no
 `beforeSend` or `uncaughtException` handler ever runs. The same is true of a
@@ -795,12 +800,24 @@ sees those. (Secondary, and specific to this repo: every v2 instance already
 loads all of `functions/index.js` at ~148 MiB RSS before serving a request, and
 an always-on APM agent across 193 exports raises exactly the startup cost that
 caused the bug.) If a future change wants per-exception backend tracing on top
-of this, that is an addition to Sift, not a replacement for it.
+of this, that is an addition to `functionErrorWatch`, not a replacement for it.
 
-The rule Sift is built around, worth keeping if it is ever rewritten: **a query
-failure is never reported as "no errors."** An unreadable log window is its own
-alertable state, because a tool that cannot see a failure reporting silence is
-the bug, not the fix.
+The rule it is built around, worth keeping if it is ever rewritten: **a query
+failure is never reported as "no errors."** An unreadable log window alerts that
+monitoring is BLIND and reports health UNKNOWN, because a tool that cannot see a
+failure reporting silence is the bug, not the fix. A blind run also leaves the
+state document untouched, so a failed read cannot reset every streak and
+cooldown.
+
+**Proving it end-to-end:** `sendTestFunctionErrorAlert` (admin drill, wired into
+the `/admin` OpsAlertTester panel) injects a synthetic memory kill and runs the
+REAL watch, so a pass proves classifier → thresholds → channel → secret
+bindings, not merely that the mailer works. `firedThroughRealPath: true` is the
+field that says the whole path fired.
+
+A second watcher (Sift, `hourlyServerErrorWatch`) was built for the same issue in
+parallel and retired the day it landed — do not re-add one. Two watchers on the
+same log stream page twice for one incident.
 
 **Proving it rings:** `/admin` → Developer tools → **Test the ops alarm**
 (`sendTestOpsAlert` + `OpsAlertTester.jsx`) fires one real `info` alert down both
