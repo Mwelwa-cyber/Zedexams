@@ -19,7 +19,7 @@
  */
 
 import { getFunctions, httpsCallable } from 'firebase/functions'
-import app from '../firebase/config'
+import app from '../../../firebase/config'
 
 const fns = getFunctions(app, 'us-central1')
 const getAiBudgetEnforcementCallable = httpsCallable(fns, 'getAiBudgetEnforcement')
