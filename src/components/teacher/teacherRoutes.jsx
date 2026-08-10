@@ -73,8 +73,8 @@ const SbaHub = lazy(() => import('../../features/sba/pages/SbaHub'))
 const VisualStudioPage = lazy(() =>
   import('../../features/visualStudio').then((m) => ({ default: m.VisualStudioPage })))
 
-const TeacherLibrary = lazy(() => import('./library/TeacherLibrary'))
-const LibraryItemDetail = lazy(() => import('./library/LibraryItemDetail'))
+const TeacherLibrary = lazy(() => import('../../features/teacherLibrary/pages/TeacherLibrary'))
+const LibraryItemDetail = lazy(() => import('../../features/teacherLibrary/pages/LibraryItemDetail'))
 const RecoveryCentre = lazy(() => import('../../features/drafts/RecoveryCentre'))
 const TemplateBank = lazy(() => import('../../features/templateBank/pages/TemplateBank'))
 const TemplateBankDetail = lazy(() => import('../../features/templateBank/pages/TemplateBankDetail'))

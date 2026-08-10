@@ -24,10 +24,10 @@ import {
 // from ONE registry — label, icon, tint, route and hierarchy. Adding a studio
 // there surfaces its card here with no change to this file.
 import { STUDIOS, STUDIO_BY_ID, creatableStudios } from '../../../lib/library/studios'
-import { NEUTRAL_TINT, studioIcon, studioTint } from './studioPresentation'
+import { NEUTRAL_TINT, studioIcon, studioTint } from '../lib/studioPresentation'
 import { classifyForLibrary } from '../../../utils/libraryClassification'
-import SeoHelmet from '../../seo/SeoHelmet'
-import Icon from '../../ui/Icon'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Icon from '../../../components/ui/Icon'
 import {
   AlertTriangle,
   ArrowRight,
@@ -59,7 +59,7 @@ import {
   Sprout,
   Target,
   TrophyIcon,
-} from '../../ui/icons'
+} from '../../../components/ui/icons'
 
 /**
  * Hierarchical Library Browser.

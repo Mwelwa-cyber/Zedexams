@@ -17,8 +17,8 @@
  * paths in the MOVED spec — which is what the template says to do — while
  * leaving the mocks in the two CONSUMERS' specs pointing at the old location:
  *
- *     src/components/teacher/library/LibraryItemDetail.spec.jsx
- *     src/components/teacher/library/PublicShareView.spec.jsx
+ *     src/features/teacherLibrary/pages/LibraryItemDetail.spec.jsx
+ *     src/features/teacherLibrary/pages/PublicShareView.spec.jsx
  *
  * Eight dead mocks, four merged pull requests, every suite green. The template
  * says to sweep for this; sweeping by hand found the moved file's own mocks and

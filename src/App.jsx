@@ -230,8 +230,8 @@ const NotesStudio = lazy(() => import('./features/teacherNotes/pages/NotesStudio
 // feature module under src/features/visualStudio/.
 
 // Teacher — Library
-const LibraryItemDetail = lazy(() => import('./components/teacher/library/LibraryItemDetail'))
-const PublicShareView = lazy(() => import('./components/teacher/library/PublicShareView'))
+const LibraryItemDetail = lazy(() => import('./features/teacherLibrary/pages/LibraryItemDetail'))
+const PublicShareView = lazy(() => import('./features/teacherLibrary/pages/PublicShareView'))
 
 // Daily Exams (auth required)
 const DailyExamsHub      = lazy(() => import('./components/exams/DailyExamsHub'))

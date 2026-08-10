@@ -73,7 +73,7 @@ for (const [rel, { download, print }] of Object.entries(pdfUtils)) {
 //    not the bare print function (which only opened a dialog).
 const componentNoBarePrint = {
   'src/features/classTimetable/pages/ClassTimetableStudio.jsx': /downloadClassTimetablePdf/,
-  'src/components/teacher/library/LibraryItemDetail.jsx': /downloadClassTimetablePdf/,
+  'src/features/teacherLibrary/pages/LibraryItemDetail.jsx': /downloadClassTimetablePdf/,
 }
 for (const [rel, re] of Object.entries(componentNoBarePrint)) {
   check(re.test(read(rel)), `${rel} calls the async PDF download wrapper`)

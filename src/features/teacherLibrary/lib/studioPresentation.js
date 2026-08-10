@@ -27,7 +27,7 @@ import {
   Layers,
   ListChecks,
   PencilLine,
-} from '../../ui/icons'
+} from '../../../components/ui/icons'
 
 /** Icon components addressable by the registry's `icon` token. */
 export const STUDIO_ICONS = {

@@ -32,38 +32,38 @@ vi.mock('firebase/firestore', () => ({
 }))
 
 // ── Lightweight chrome stubs ──────────────────────────────────────────────────
-vi.mock('../../ui/Logo',       () => ({ default: () => null }))
-vi.mock('../../seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../components/ui/Logo',       () => ({ default: () => null }))
+vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
 
 // ── Already-handled view stubs (plain null — we don't need to inspect them) ──
-vi.mock('../views/LessonPlanView',    () => ({ default: () => <div data-testid="lesson-plan-view" /> }))
-vi.mock('../../../features/worksheet',     () => ({ WorksheetView: () => <div data-testid="worksheet-view" /> }))
+vi.mock('../../../components/teacher/views/LessonPlanView',    () => ({ default: () => <div data-testid="lesson-plan-view" /> }))
+vi.mock('../../worksheet',     () => ({ WorksheetView: () => <div data-testid="worksheet-view" /> }))
 // Mocked at the feature's front door, which is how the component imports it.
 // This also keeps the spec off the feature's module graph: the index re-exports
 // useFlashcardProgress, which pulls AuthContext and firebase/config in at import
 // time — a presentational stub should not need Firebase configured.
-vi.mock('../../../features/flashcards', () => ({ FlashcardsView: () => <div data-testid="flashcards-view" /> }))
-vi.mock('../../../features/schemeOfWork', () => ({ SchemeOfWorkView: () => <div data-testid="scheme-of-work-view" />, SchemeEditableTable: () => null }))
-vi.mock('../../../features/weeklyForecast', () => ({ WeeklyForecastView: () => <div data-testid="weekly-forecast-view" />, WeeklyForecastEditableTable: () => null }))
-vi.mock('../../../features/recordOfWork', () => ({ RecordOfWorkView: () => <div data-testid="record-of-work-view" /> }))
-vi.mock('../../../features/rubric',        () => ({ RubricView: () => <div data-testid="rubric-view" /> }))
+vi.mock('../../flashcards', () => ({ FlashcardsView: () => <div data-testid="flashcards-view" /> }))
+vi.mock('../../schemeOfWork', () => ({ SchemeOfWorkView: () => <div data-testid="scheme-of-work-view" />, SchemeEditableTable: () => null }))
+vi.mock('../../weeklyForecast', () => ({ WeeklyForecastView: () => <div data-testid="weekly-forecast-view" />, WeeklyForecastEditableTable: () => null }))
+vi.mock('../../recordOfWork', () => ({ RecordOfWorkView: () => <div data-testid="record-of-work-view" /> }))
+vi.mock('../../rubric',        () => ({ RubricView: () => <div data-testid="rubric-view" /> }))
 
 // ── NotesView: renders a testid so we can confirm the right component was used.
-vi.mock('../../../features/teacherNotes', () => ({
+vi.mock('../../teacherNotes', () => ({
   NotesView: ({ notes }) => <div data-testid="notes-view">{notes?.header?.title}</div>,
 }))
 
-vi.mock('../../../features/homework', () => ({
+vi.mock('../../homework', () => ({
   HomeworkView: ({ showAnswers }) => <div data-testid="homework-view" data-show-answers={String(showAnswers)} />,
 }))
 
-vi.mock('../views/LessonActivitiesView', () => ({
+vi.mock('../../../components/teacher/views/LessonActivitiesView', () => ({
   default: ({ showAnswers }) => <div data-testid="lesson-activities-view" data-show-answers={String(showAnswers)} />,
 }))
 
 // SbaTaskView: renders secret marking content ONLY when showAnswers is true.
 // This lets us assert the secret string is absent when showAnswers={false}.
-vi.mock('../../../features/sba', () => ({
+vi.mock('../../sba', () => ({
   SbaTaskView: ({ task, showAnswers }) => (
     <div data-testid="sba-task-view" data-show-answers={String(showAnswers)}>
       {showAnswers && <span>{task?.markingScheme?.secretContent}</span>}
@@ -73,16 +73,16 @@ vi.mock('../../../features/sba', () => ({
   SbaTrackerView: () => null,
 }))
 
-vi.mock('../../../features/markSchedule', () => ({
+vi.mock('../../markSchedule', () => ({
   MarkScheduleView: () => <div data-testid="mark-schedule-view" />,
 }))
 
-vi.mock('../../../features/classTimetable', () => ({
+vi.mock('../../classTimetable', () => ({
   ClassTimetableView: () => <div data-testid="class-timetable-view" />,
 }))
 
 // AssessmentPaperView: renders secret answer content ONLY when showAnswers is true.
-vi.mock('../views/AssessmentPaperView', () => ({
+vi.mock('../../../components/teacher/views/AssessmentPaperView', () => ({
   default: ({ assessment, tool, showAnswers }) => (
     <div data-testid="assessment-paper-view" data-tool={tool} data-show-answers={String(showAnswers)}>
       {showAnswers && <span>{assessment?.answerKey}</span>}

@@ -26,7 +26,7 @@ vi.mock('../../../utils/teacherLibraryService', async (importOriginal) => {
   const actual = await importOriginal()
   return { ...actual, listMyGenerations: async () => [] }
 })
-vi.mock('../../seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
 
 // The registry is mocked per test so a fake entry can be added without touching
 // the component — which is exactly the guarantee under test. The override lives

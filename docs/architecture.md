@@ -1323,12 +1323,20 @@ The order was settled 2026-08-07 as **smallest and lowest-risk first**, ranked o
 
 **Wave 4 ownership — two sessions are working this list, and one collision has already happened.** `classTimetable` was migrated twice: #2220 landed it, and #2221 arrived from a base that predated #2220 and was closed as redundant. The second author had not checked whether the next recorded item was already taken. A duplicate migration is not a merge accident; it is a whole surface of work discarded, and it is avoidable with one lookup.
 
-| session A | session B |
-|---|---|
-| ~~`markSchedule`~~ · ~~`recordOfWork`~~ | ~~`teacherClasses`~~ — see below |
-| ~~`curriculumBrowsers`~~ | `teacherLibrary` |
-| `register` — **re-inventory first** | `dashboardV2` |
-| the remaining admin areas | — |
+| session A | session B | session C |
+|---|---|---|
+| ~~`markSchedule`~~ · ~~`recordOfWork`~~ | ~~`teacherClasses`~~ — see below | ~~`classTimetable`~~ |
+| ~~`curriculumBrowsers`~~ | ~~`teacherLibrary`~~ → **reassigned to C** | ~~`teacherLibrary`~~ |
+| `register` — **re-inventory first** | `dashboardV2` | — |
+| the remaining admin areas | — | — |
+
+**`teacherLibrary` was reassigned from B to C on 2026-08-10, by the reassign-rather-than-duplicate rule below rather than around it.** The lookup that the rule asks for is what produced the decision, and it is recorded because "it looked idle" is not a reason anyone can check later:
+
+- No remote branch — of the fifteen that exist — carries a single change under `teacher/library/`, and no open pull request names it. The surface is untouched, not merely unmerged.
+- Session B's last action was #2227 at 20:53 on 2026-08-09; neither of its two items had been started in the eight hours since. Session A is demonstrably active over the same window (#2238), so its column was left alone.
+- `dashboardV2` stays with B. It is the larger of B's two items and the one further down the recorded order, so taking the smaller one leaves B's column workable rather than emptied.
+
+If B had begun it, the claim would have stood and this session would have taken the next unclaimed thing instead — an explicit claim wins, and idleness is evidence about a claim rather than a cancellation of it.
 
 `scan` is unowned and stays blocked by the Assessment Studio freeze.
 
@@ -1420,6 +1428,20 @@ Its `index.js` exports nothing, for the same reason `templateBank`'s does: the p
 `recordOfWorkPlanning.js` and `recordOfWorkVariance.js` travelled into `lib/` — this studio is their only consumer. **`recordOfWorkStatus.js` did not**: `TeacherDashboard` and `utils/teacherRecommendations.js` read it, both legacy, so it stays in `src/utils/` (below the feature) and travels when its remaining callers do.
 
 **Wave 4 — `curriculumBrowsers`** (session A). The eight read-only framework pages under `/teacher/curriculum` and `/teacher/curriculum/2013`, plus the two `frameworkData` modules that only they read. Empty front door — all eight are route-mounted and nothing composes with them. No exporters, no Firebase, no `index.css` slice.
+
+**Wave 4 — `teacherLibrary`** (session C, reassigned from B). Ten files, 3,805 lines: the library index at `/teacher/library`, `LibraryItemDetail` (1,514 lines — render, edit and export one saved document), the signed-out `/share/:token` page, and the two libs `planPayload` and `studioPresentation`, which had zero consumers outside the folder. **Empty front door**, on the `templateBank` / `agentsConsole` precedent and for the same reason: every reference to this area from elsewhere in `src/` is the route STRING `/teacher/library/:id` — nav configs, the dashboard's link builders, `prepareThisWeek`, `teacherReminders`, and a dozen studio "open the saved copy" links — and the only module-level consumers are three lazy route mounts.
+
+**The recorded block had already cleared, and checking that was the whole first step.** The wave order carried `teacherLibrary` as *"blocked on the `engines/export-engine` decision — 40 of its imports are exporters."* Measured on `main` before starting: of the 28 exporters `LibraryItemDetail` imports, **22 are already in the engine** and reached one by path, and the remaining six (`activityToDocx`, `fullLessonToDocx`/`ToPdf`, `lessonPlanToDocx`/`ToPdf`, `reportCardsToDocx`) are on `test:exporter-home`'s shrink-only list against the lesson-plan studio, the retired Full Lesson tool and the class register. So this migration inherits that decision rather than reopening it, and moves none of those six — they belong to the features that will claim them, not to the page that happens to call them.
+
+**`PublicShareView` travelled with `LibraryItemDetail` despite not being a library route.** The two share a renderer switch over `tool` and must agree on which view draws a saved artifact and whether answers are shown; that agreement should not cross a feature boundary. A migration is a move, so it went with the file it has to stay in step with.
+
+**The bundle question was the load-bearing one here and it came back flat.** `PublicShareView` is a declared light page in `check:bundle-edges`, and this feature is the export engine's largest consumer — 567 chunks before and after, `PublicShareView` and `LockedStudio` byte-for-byte identical, and the entry and marketing chunks two bytes SMALLER (the new import path is shorter than the old one). The empty front door is what makes that true: there is no index for Rollup to group anything through.
+
+**`test:mock-paths` fired on thirteen paths, and the reason is worth naming.** The moved files' `from '…'` specifiers were re-anchored by pattern; a `vi.mock('…')` is a string literal in a call, not an import, so every one of those rewrites stepped straight over it. Thirteen mocks in the three page specs silently became no-ops — the specs would have kept passing while exercising the real `Toast`, the real `AssessmentPaperView` and the real renderer stack. This is the guard catching precisely the failure it was written for, on a migration whose source edits were otherwise fully mechanical.
+
+Three path-keyed data records also moved in the same commit: `scripts/test-curriculum-canon.mjs`'s ledger, `scripts/test-studio-downloads.test.js`'s path→regex map, and a docblock in `test-mock-paths.mjs` that cites these two specs by name. None is reachable by grepping for an import.
+
+**Debt recorded on the front door rather than fixed here:** all three pages read Firestore directly instead of through `services/` (§14.2), which is where they already were. Extracting it is a redesign of how the library loads and refreshes — its own PR, same call `companyHQ` and `agentsConsole` made.
 
 **The directory it came out of was two things, and only one moved.** `src/components/teacher/curriculum/` also holds `StudioCurriculumSelector.jsx`, `curriculumSelectorConstants.js` and `CurriculumToggle.jsx` — studio infrastructure imported by NINE features and standing on a cluster inside `teacher/studio/` (four hooks, `CurriculumPicker`, a stylesheet). Pulling it in would make nine features import a tenth's internals to draw a grade dropdown: nine cross-feature errors, not a migration. Its real home is `src/shared/components/`, and getting it there means first deciding what happens to the studio hooks — a design question with its own diff. It stays; this feature is the browsers only.
 
