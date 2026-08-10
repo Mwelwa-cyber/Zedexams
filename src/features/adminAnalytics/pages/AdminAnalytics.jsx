@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { collection, doc, getCountFromServer, getDoc, getDocs, limit, orderBy, query, where, Timestamp } from 'firebase/firestore'
-import { db } from '../../firebase/config'
-import PageHeader from '../ui/PageHeader'
-import Card from '../ui/Card'
-import Skeleton from '../ui/Skeleton'
+import { db } from '../../../firebase/config'
+import PageHeader from '../../../components/ui/PageHeader'
+import Card from '../../../components/ui/Card'
+import Skeleton from '../../../components/ui/Skeleton'
 
 const RECENT_DAYS = 14
 
