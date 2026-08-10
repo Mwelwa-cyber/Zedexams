@@ -3,11 +3,11 @@ import {
   collection, query, orderBy, limit, onSnapshot,
   doc, updateDoc, serverTimestamp,
 } from 'firebase/firestore'
-import { db } from '../../firebase/config'
-import { useAuth } from '../../contexts/AuthContext'
-import Skeleton from '../ui/Skeleton'
-import SeoHelmet from '../seo/SeoHelmet'
-import { FEEDBACK_TYPES, FEEDBACK_STATUSES } from '../feedback/feedbackOptions'
+import { db } from '../../../firebase/config'
+import { useAuth } from '../../../contexts/AuthContext'
+import Skeleton from '../../../components/ui/Skeleton'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import { FEEDBACK_TYPES, FEEDBACK_STATUSES } from '../../../components/feedback/feedbackOptions'
 
 // Private inbox for the learner/teacher suggestion box. Admins read every
 // submission (per firestore.rules) and move each one through new → planned
