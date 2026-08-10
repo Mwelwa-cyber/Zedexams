@@ -261,6 +261,7 @@
     "test:game-progress": "node scripts/test-game-progress.mjs",
     "test:csv-import": "node scripts/test-csv-import.mjs",
     "test:paper-figure-attach": "node src/utils/paperFigureAttachCore.test.js",
+    "test:paper-asset-url": "node functions/teacherTools/paperAssetUrl.test.js",
     "test:roster-import": "node scripts/test-roster-import.mjs",
     "test:class-record": "node scripts/test-class-record.mjs",
     "test:attendance-calc": "node scripts/test-attendance-calculator.mjs",

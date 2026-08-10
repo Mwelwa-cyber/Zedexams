@@ -362,6 +362,52 @@ export async function resolvePaperUrl(path) {
 }
 
 /**
+ * Resolve a paper file's download URL with a server fallback.
+ *
+ * First tries the normal client-side read (getDownloadURL under
+ * storage.rules). If — and only if — that read is DENIED
+ * (storage/unauthorized / storage/unauthenticated), asks the staff-only
+ * `resolvePaperAssetUrl` callable instead: the server verifies the caller is
+ * teacher/admin and that `path` belongs to `pastPapers/{paperId}`, then
+ * returns the same tokened URL shape. This is what keeps the Quiz Editor's
+ * "Crop from page" (and the paper/mark-scheme reference links) working when
+ * the caller's token claims, users doc, and the DEPLOYED rules version don't
+ * line up — the exact production failure this fallback was added for.
+ *
+ * Any other error (offline, missing object, …) is rethrown untouched: the
+ * fallback exists for permission denials, not as a second network path.
+ *
+ * LIFETIME DIFFERS BY PATH, and callers that hold the URL must care. The
+ * direct read returns a Firebase download URL that never expires; the
+ * fallback returns a V4 signed URL valid for ~10 minutes, deliberately, so a
+ * leaked link stops being a credential. Callers that fetch the bytes straight
+ * away (the page provider, figure attach) are unaffected. A caller that
+ * stashes the URL and uses it much later — an <a href> on a long-lived screen
+ * — should re-resolve at use time rather than at mount.
+ */
+export async function resolvePaperUrlSmart({ paperId, path }) {
+  if (!path) return null
+  try {
+    return await resolvePaperUrl(path)
+  } catch (err) {
+    const code = String(err?.code || '')
+    const denied = code === 'storage/unauthorized' || code === 'storage/unauthenticated'
+    if (!denied || !paperId) throw err
+    const { getFunctions, httpsCallable } = await import('firebase/functions')
+    // Name the region explicitly, as every other callable in the app does —
+    // `app` is not exported from firebase/config, hence the `undefined` first
+    // argument (same shape as PastPaperStudio.jsx). Relying on the SDK's
+    // default region would leave this one call site silently depending on a
+    // default the repo never states anywhere else.
+    const callable = httpsCallable(getFunctions(undefined, 'us-central1'), 'resolvePaperAssetUrl')
+    const res = await callable({ paperId, path })
+    const url = res?.data?.url
+    if (!url) throw err
+    return url
+  }
+}
+
+/**
  * Upload a PDF for a past paper. Path convention:
  *   papers/{adminUid}/{paperId}/{kind}-{filename}
  * where kind is 'paper' or 'mark-scheme'. Returns the Storage path so

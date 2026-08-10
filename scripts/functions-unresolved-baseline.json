@@ -45,6 +45,7 @@
     "recordTemplateInteraction": "factory-built: options are arguments, guarded by the factory's own tests",
     "redrawTestPaperDiagram": "factory-built: options are arguments, guarded by the factory's own tests",
     "regenerateAssessmentQuestion": "factory-built: options are arguments, guarded by the factory's own tests",
+    "resolvePaperAssetUrl": "factory-built: options are arguments, guarded by the factory's own tests",
     "reviseLessonSection": "factory-built: options are arguments, guarded by the factory's own tests",
     "reviseQuestion": "factory-built: options are arguments, guarded by the factory's own tests",
     "runSampleAgentJob": "factory-built: options are arguments, guarded by the factory's own tests",

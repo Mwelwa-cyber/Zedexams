@@ -14,7 +14,7 @@
 
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { resolvePaperUrl } from '../../utils/pastPapers'
+import { resolvePaperUrlSmart } from '../../utils/pastPapers'
 
 export default function PastPaperReferenceBanner({ quiz }) {
   const [paperUrl, setPaperUrl] = useState(null)
@@ -29,7 +29,9 @@ export default function PastPaperReferenceBanner({ quiz }) {
     async function load() {
       if (paperPath) {
         try {
-          const url = await resolvePaperUrl(paperPath)
+          // Smart resolution: direct Storage read first, staff-only server
+          // fallback on a rules denial — same path "Crop from page" uses.
+          const url = await resolvePaperUrlSmart({ paperId: pastPaperId, path: paperPath })
           if (!cancelled) setPaperUrl(url)
         } catch {
           // Storage 404 or permission issue — banner just hides the link.
@@ -37,7 +39,7 @@ export default function PastPaperReferenceBanner({ quiz }) {
       }
       if (markSchemePath) {
         try {
-          const url = await resolvePaperUrl(markSchemePath)
+          const url = await resolvePaperUrlSmart({ paperId: pastPaperId, path: markSchemePath })
           if (!cancelled) setMarkSchemeUrl(url)
         } catch {
           // ignore — banner hides the link.
@@ -46,7 +48,7 @@ export default function PastPaperReferenceBanner({ quiz }) {
     }
     load()
     return () => { cancelled = true }
-  }, [paperPath, markSchemePath])
+  }, [paperPath, markSchemePath, pastPaperId])
 
   if (!pastPaperId) return null
 

@@ -103,6 +103,12 @@ const {
 const {
   createImportPastPaperQuestions,
 } = require("./teacherTools/pastPaperImport");
+// Past Paper Studio — staff-only tokened download URL for a paper's own
+// files (the Quiz Editor's "Crop from page" fallback when a direct
+// client-side Storage read is denied by rules).
+const {
+  createResolvePaperAssetUrl,
+} = require("./teacherTools/paperAssetUrl");
 // Teacher Tools — Scheme of Work Generator.
 const {
   createGenerateSchemeOfWork,
@@ -2687,6 +2693,10 @@ exports.generateFlashcards = createGenerateFlashcards(anthropicApiKey);
 // Past Paper Studio — AI MCQ importer (vision over scanned pages).
 exports.importPastPaperQuestions =
   createImportPastPaperQuestions(anthropicApiKey);
+
+// Past Paper Studio — staff-only paper-file URL resolver (crop-from-page
+// fallback; see functions/teacherTools/paperAssetUrl.js).
+exports.resolvePaperAssetUrl = createResolvePaperAssetUrl();
 
 // Teacher Tools — Zambian CBC Scheme of Work Generator.
 exports.generateSchemeOfWork = createGenerateSchemeOfWork(anthropicApiKey);

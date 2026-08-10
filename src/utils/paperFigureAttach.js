@@ -24,7 +24,7 @@ import { doc, getDoc, setDoc, serverTimestamp, writeBatch, arrayUnion } from 'fi
 import { getDownloadURL, ref as storageRef } from 'firebase/storage'
 import { uploadBytes } from '../firebase/attestedStorage'
 import { db, storage } from '../firebase/config'
-import { resolvePaperUrl } from './pastPapers.js'
+import { resolvePaperUrlSmart } from './pastPapers.js'
 import { loadPdfDocument } from '../components/quiz/documentQuizImporter.js'
 import { planFigureAttachments, mergeFigureUrlsIntoPassages, padAndClampBox } from './paperFigureAttachCore.js'
 
@@ -33,12 +33,14 @@ export { planFigureAttachments, mergeFigureUrlsIntoPassages, padAndClampBox }
 // OCR-friendly render width for a PDF page; crops stay legible at print size.
 const PAGE_TARGET_WIDTH = 1500
 
-async function fileForAsset(asset, localFiles) {
+async function fileForAsset(asset, localFiles, paperId) {
   // Prefer the in-memory File from this session's upload; otherwise download
   // the asset back from Storage (re-runs on an old paper have no local File).
+  // Smart resolution: direct read first, staff-only server fallback when
+  // rules deny it (same failure mode "Crop from page" hit in production).
   const local = localFiles && asset?.path ? localFiles[asset.path] : null
   if (local) return local
-  const url = await resolvePaperUrl(asset.path)
+  const url = await resolvePaperUrlSmart({ paperId, path: asset.path })
   const res = await fetch(url)
   if (!res.ok) throw new Error(`Could not download ${asset.path} (${res.status})`)
   const blob = await res.blob()
@@ -73,7 +75,7 @@ function canvasToJpegBlob(canvas, quality = 0.87) {
   })
 }
 
-async function renderFigureCrop(item, localFiles, pdfCache) {
+async function renderFigureCrop(item, localFiles, pdfCache, paperId) {
   const { source, page } = item
   // Automatic crop process (Phase 9): pad the AI-detected box outward a
   // little before cropping so an arrowhead, axis, or label sitting right at
@@ -86,7 +88,7 @@ async function renderFigureCrop(item, localFiles, pdfCache) {
     // never race a second decode of the same document.
     if (!pdfCache.promise) {
       pdfCache.promise = (async () => {
-        const file = await fileForAsset(source.asset, localFiles)
+        const file = await fileForAsset(source.asset, localFiles, paperId)
         const { pdf } = await loadPdfDocument(file)
         return pdf
       })()
@@ -105,7 +107,7 @@ async function renderFigureCrop(item, localFiles, pdfCache) {
     return canvasToJpegBlob(cropCanvas(canvas, canvas.width, canvas.height, box))
   }
   // A photographed page: crop the uploaded image directly.
-  const file = await fileForAsset(source.asset, localFiles)
+  const file = await fileForAsset(source.asset, localFiles, paperId)
   const url = URL.createObjectURL(file)
   try {
     const img = await loadImageEl(url)
@@ -134,7 +136,7 @@ export async function attachPaperFigures({ uid, paperId, quizId, figures, assets
   for (const item of plan) {
     const targetId = item.passageId || item.questionId
     try {
-      const blob = await renderFigureCrop(item, localFiles || {}, pdfCache)
+      const blob = await renderFigureCrop(item, localFiles || {}, pdfCache, paperId)
       const path = `papers/${uid}/${paperId}/figures/${targetId}-${Date.now().toString(36)}.jpg`
       await uploadBytes(storageRef(storage, path), blob, { contentType: 'image/jpeg' })
       const url = await getDownloadURL(storageRef(storage, path))
