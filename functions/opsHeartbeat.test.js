@@ -87,9 +87,19 @@ ok("recentUtcDateKeys returns N newest-first UTC dates",
   (() => { const k = recentUtcDateKeys(new Date("2030-03-02T01:00:00Z"), 3);
     return k.length === 3 && k[0] === "2030-03-02" && k[2] === "2030-02-28"; })());
 
-ok("HEARTBEATS registry covers the three ops subsystems",
-  HEARTBEATS.length === 3 && HEARTBEATS.map((h) => h.name).sort().join(",") ===
-    "firestore-backup,ratelimit-health,storage-backup");
+ok("HEARTBEATS registry covers the four ops subsystems",
+  HEARTBEATS.length === 4 && HEARTBEATS.map((h) => h.name).sort().join(",") ===
+    "firestore-backup,function-error-watch,ratelimit-health,storage-backup");
+
+// The error watch is the one entry guarding a MONITOR rather than a job, and it
+// is here because that monitor's healthy output is silence — "no alerts" and
+// "no runs" are the same observation until something checks the heartbeat.
+ok("the error-watch heartbeat is tighter than the backup ones, matching its cadence",
+  (() => {
+    const hb = HEARTBEATS.find((h) => h.name === "function-error-watch");
+    return hb.kind === "doc" && hb.collection === "opsMonitorState" &&
+      hb.doc === "functionErrorsHeartbeat" && hb.maxAgeHours === 1;
+  })());
 
 (async () => {
   console.log("\nopsHeartbeat (runOpsHeartbeatCheck)");
@@ -99,7 +109,10 @@ ok("HEARTBEATS registry covers the three ops subsystems",
     const age = agesByName[hb.name];
     return age == null ? null : NOW.getTime() - age * HOUR_MS;
   };
-  const allFresh = {"firestore-backup": 5, "storage-backup": 3, "ratelimit-health": 1};
+  // Ages in HOURS. The error watch runs every 5 minutes with a 1h maxAge, so a
+  // fresh value for it is well under an hour — 0.1 is six minutes.
+  const allFresh = {"firestore-backup": 5, "storage-backup": 3, "ratelimit-health": 1,
+    "function-error-watch": 0.1};
 
   // ── all heartbeats fresh → healthy, no alert ─────────────────────────────
   {
@@ -108,7 +121,8 @@ ok("HEARTBEATS registry covers the three ops subsystems",
     const res = await runOpsHeartbeatCheck({db, readTimestamp: mkRead(allFresh), now: NOW, alert: async (a) => alerts.push(a)});
     ok("all fresh → healthy, no alert", res.verdict === "healthy" && res.alerted === false && alerts.length === 0);
     ok("records the fleet verdict + per-heartbeat detail",
-      db.writes[0].data.verdict === "healthy" && Array.isArray(db.writes[0].data.heartbeats) && db.writes[0].data.heartbeats.length === 3);
+      db.writes[0].data.verdict === "healthy" && Array.isArray(db.writes[0].data.heartbeats) &&
+      db.writes[0].data.heartbeats.length === HEARTBEATS.length);
   }
 
   // ── a stopped hourly limiter cron (stale) → onset alert ──────────────────
@@ -161,7 +175,8 @@ ok("HEARTBEATS registry covers the three ops subsystems",
       db, now: NOW, alert: async (a) => alerts.push(a),
       readTimestamp: async () => { throw new Error("firestore read failed"); },
     });
-    ok("all reads throwing → all missing → unhealthy, never throws", res.verdict === "unhealthy" && res.unhealthy.length === 3);
+    ok("all reads throwing → all missing → unhealthy, never throws",
+      res.verdict === "unhealthy" && res.unhealthy.length === HEARTBEATS.length);
   }
 
   console.log(`\n─── ${passed} assertions · all passed ───`);

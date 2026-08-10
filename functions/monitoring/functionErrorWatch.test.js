@@ -18,16 +18,24 @@ const {
   messageOf,
   runFunctionErrorWatch,
   STATE_DOC,
+  HEARTBEAT_DOC,
+  GAP_ALERT_MS,
 } = require("./functionErrorWatch");
 
 const T0 = 1_754_700_000_000;
 
 /** Firestore double: one document, with optional read failure. */
-function fakeDb({initial = null, failRead = false} = {}) {
-  const store = {doc: initial};
+function fakeDb({initial = null, failRead = false, heartbeat = null} = {}) {
+  const store = {doc: initial, heartbeat};
   return {
     _store: store,
     doc(path) {
+      if (path === HEARTBEAT_DOC) {
+        return {
+          async get() { return {exists: store.heartbeat != null, data: () => store.heartbeat}; },
+          async set(data) { store.heartbeat = {...(store.heartbeat ?? {}), ...data}; },
+        };
+      }
       assert.strictEqual(path, STATE_DOC);
       return {
         async get() {
@@ -152,6 +160,66 @@ test("the alert carries the ops recipients and webhook, not just a title", async
   assert.strictEqual(sent[0].webhookUrl, "https://hooks.example.com/x");
   delete process.env.OPS_ALERT_EMAILS;
   delete process.env.OPS_ALERT_WEBHOOK_URL;
+});
+
+// ── The heartbeat: telling "no errors" apart from "no runs" ─────────────────
+
+test('every completed run stamps the heartbeat — that is what makes silence readable', async () => {
+  const db = fakeDb();
+  const {fn} = collectAlerts();
+  await runFunctionErrorWatch({db, now: T0, sendOpsAlert: fn, injectedEntries: []});
+  assert.ok(db._store.heartbeat?.checkedAt, 'a clean run must still record that it ran');
+  assert.strictEqual(db._store.heartbeat.outcome, 'clean');
+});
+
+test('a BLIND run stamps the heartbeat too', async () => {
+  // The run happened; it just could not see. Without this, a permanently blind
+  // watch would look identical to a stopped one to the dead-man's switch — and
+  // the blind alert already covers the first case.
+  const db = fakeDb();
+  const {fn} = collectAlerts();
+  await runFunctionErrorWatch({
+    db, now: T0, sendOpsAlert: fn,
+    fetchErrorEntries: async () => { throw new Error('403'); },
+  });
+  assert.strictEqual(db._store.heartbeat?.outcome, 'blind');
+});
+
+test('a gap between runs is reported, naming the unwatched window', async () => {
+  const db = fakeDb({heartbeat: {checkedAt: new Date(T0).toISOString()}});
+  const {sent, fn} = collectAlerts();
+  const late = T0 + GAP_ALERT_MS + 60_000;
+  await runFunctionErrorWatch({db, now: late, sendOpsAlert: fn, injectedEntries: []});
+  const gap = sent.filter((m) => m.title.includes('COVERAGE GAP'));
+  assert.strictEqual(gap.length, 1, 'a resumed watch must say what it missed');
+  assert.ok(gap[0].lines.join('\n').includes(new Date(T0).toISOString()));
+});
+
+test('a normal 5-minute cadence reports NO gap', async () => {
+  const db = fakeDb({heartbeat: {checkedAt: new Date(T0).toISOString()}});
+  const {sent, fn} = collectAlerts();
+  await runFunctionErrorWatch({db, now: T0 + 5 * 60_000, sendOpsAlert: fn, injectedEntries: []});
+  assert.strictEqual(sent.length, 0, 'the schedule itself must not page anyone');
+});
+
+test('the first ever run reports no gap', async () => {
+  const db = fakeDb();
+  const {sent, fn} = collectAlerts();
+  await runFunctionErrorWatch({db, now: T0, sendOpsAlert: fn, injectedEntries: []});
+  assert.strictEqual(sent.length, 0, 'no previous run is not a gap');
+});
+
+test('the heartbeat doc is SEPARATE from the streak state', async () => {
+  // A blind run must record that it ran without touching cooldowns it has no
+  // fresh information about.
+  const db = fakeDb({initial: {functions: {f: {consecutiveElevatedWindows: 1}}}});
+  const {fn} = collectAlerts();
+  await runFunctionErrorWatch({
+    db, now: T0, sendOpsAlert: fn,
+    fetchErrorEntries: async () => { throw new Error('nope'); },
+  });
+  assert.deepStrictEqual(db._store.doc, {functions: {f: {consecutiveElevatedWindows: 1}}});
+  assert.ok(db._store.heartbeat?.checkedAt, 'but the run was still recorded');
 });
 
 (async () => {
