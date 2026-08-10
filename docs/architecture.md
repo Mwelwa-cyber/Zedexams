@@ -1323,12 +1323,20 @@ The order was settled 2026-08-07 as **smallest and lowest-risk first**, ranked o
 
 **Wave 4 ownership — two sessions are working this list, and one collision has already happened.** `classTimetable` was migrated twice: #2220 landed it, and #2221 arrived from a base that predated #2220 and was closed as redundant. The second author had not checked whether the next recorded item was already taken. A duplicate migration is not a merge accident; it is a whole surface of work discarded, and it is avoidable with one lookup.
 
-| session A | session B |
-|---|---|
-| ~~`markSchedule`~~ · ~~`recordOfWork`~~ | ~~`teacherClasses`~~ — see below |
-| ~~`curriculumBrowsers`~~ | `teacherLibrary` |
-| `register` — **re-inventory first** | `dashboardV2` |
-| the remaining admin areas | — |
+| session A | session B | session C |
+|---|---|---|
+| ~~`markSchedule`~~ · ~~`recordOfWork`~~ | ~~`teacherClasses`~~ — see below | ~~`classTimetable`~~ |
+| ~~`curriculumBrowsers`~~ | ~~`teacherLibrary`~~ → **reassigned to C** | `teacherLibrary` |
+| `register` — **re-inventory first** | `dashboardV2` | — |
+| the remaining admin areas | — | — |
+
+**`teacherLibrary` was reassigned from B to C on 2026-08-10, by the reassign-rather-than-duplicate rule below rather than around it.** The lookup that the rule asks for is what produced the decision, and it is recorded because "it looked idle" is not a reason anyone can check later:
+
+- No remote branch — of the fifteen that exist — carries a single change under `teacher/library/`, and no open pull request names it. The surface is untouched, not merely unmerged.
+- Session B's last action was #2227 at 20:53 on 2026-08-09; neither of its two items had been started in the eight hours since. Session A is demonstrably active over the same window (#2238), so its column was left alone.
+- `dashboardV2` stays with B. It is the larger of B's two items and the one further down the recorded order, so taking the smaller one leaves B's column workable rather than emptied.
+
+If B had begun it, the claim would have stood and this session would have taken the next unclaimed thing instead — an explicit claim wins, and idleness is evidence about a claim rather than a cancellation of it.
 
 `scan` is unowned and stays blocked by the Assessment Studio freeze.
 
