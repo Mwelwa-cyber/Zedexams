@@ -35,6 +35,18 @@ const HEARTBEATS = Object.freeze([
     cron: "storageBackupCheck (04:00 Lusaka)"},
   {name: "ratelimit-health", collection: "opsRateLimitHealth", doc: "status", kind: "doc", maxAgeHours: 4,
     cron: "rateLimitHealthCheck (hourly)"},
+  // The error watch is the one heartbeat that guards a MONITOR, and it exists
+  // because that monitor's healthy output is silence. functionErrorWatch speaks
+  // only when it finds errors, so a run that never happens is indistinguishable
+  // from a quiet window — the query was built fail-closed and the invocation
+  // was left fail-open. This closes that: the watch stamps a heartbeat on every
+  // completion, INCLUDING a blind one, so "no alerts" can be told apart from
+  // "no runs".
+  // 1h against a 5-minute cadence is deliberately generous — twelve missed runs
+  // before it counts as stopped, so a single cold start or a Scheduler blip
+  // never pages anyone.
+  {name: "function-error-watch", collection: "opsMonitorState", doc: "functionErrorsHeartbeat",
+    kind: "doc", maxAgeHours: 1, cron: "functionErrorWatch (every 5 minutes)"},
 ]);
 
 /**

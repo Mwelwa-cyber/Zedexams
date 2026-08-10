@@ -55,6 +55,30 @@ const {decideAlerts, buildAlertMessage} = require("./functionErrorWatchCore");
 /** Where the between-runs state lives. Server-only in firestore.rules. */
 const STATE_DOC = "opsMonitorState/functionErrors";
 
+/**
+ * Proof that a run HAPPENED, separate from what it found.
+ *
+ * This watch's healthy output is silence, so a scheduled invocation that never
+ * completes looks exactly like a quiet window — the query was built fail-closed
+ * and the invocation was left fail-open. The heartbeat is what tells those
+ * apart: stamped on every completion including a blind one, and watched by
+ * `opsHeartbeatCheck`'s dead-man's switch (opsHeartbeatCore.js HEARTBEATS).
+ *
+ * A separate document from STATE_DOC on purpose — a blind run must record that
+ * it ran without touching the streak counters and cooldowns, which it has no
+ * fresh information about.
+ */
+const HEARTBEAT_DOC = "opsMonitorState/functionErrorsHeartbeat";
+
+/**
+ * How large a gap between runs is worth reporting. The schedule is 5 minutes;
+ * past this the watch was NOT running, and whatever happened in the gap went
+ * unobserved. Reported retroactively on the next successful run — the
+ * dead-man's switch catches a watch that never comes back, this catches one
+ * that does and names the window nobody was looking at.
+ */
+const GAP_ALERT_MS = 20 * 60_000;
+
 /** How far back each run looks. Slightly wider than the schedule, so a late
  * log entry is not lost in the seam between two windows; the per-function
  * cooldown absorbs the resulting double-count. */
@@ -153,6 +177,27 @@ async function runFunctionErrorWatch(deps = {}) {
   const alertFn = deps.sendOpsAlert ?? sendOpsAlert;
   const projectId = deps.projectId ?? process.env.GCLOUD_PROJECT ?? "";
   const stateRef = db.doc(deps.stateDoc ?? STATE_DOC);
+  const heartbeatRef = db.doc(deps.heartbeatDoc ?? HEARTBEAT_DOC);
+
+  // Read BEFORE the run so a gap is measured against the previous completion.
+  let previousRunAt = null;
+  try {
+    const hb = await heartbeatRef.get();
+    const prev = hb.exists ? Date.parse(hb.data()?.checkedAt ?? "") : NaN;
+    if (Number.isFinite(prev)) previousRunAt = prev;
+  } catch { /* no heartbeat yet, or unreadable — treated as "no previous run" */ }
+
+  /** Stamp the run. `checkedAt` is one of opsHeartbeatCore's TS_FIELDS. */
+  const stampHeartbeat = async (outcome) => {
+    try {
+      await heartbeatRef.set({
+        checkedAt: new Date(now).toISOString(),
+        outcome,
+      }, {merge: true});
+    } catch (err) {
+      console.error("[functionErrorWatch] heartbeat write failed:", err?.message || err);
+    }
+  };
 
   const sinceIso = new Date(now - WINDOW_MINUTES * 60_000).toISOString();
 
@@ -190,6 +235,7 @@ async function runFunctionErrorWatch(deps = {}) {
       adminEmails: process.env.ADMIN_EMAILS,
       webhookUrl: process.env.OPS_ALERT_WEBHOOK_URL,
     });
+    await stampHeartbeat("blind");
     return {ok: false, blind: true, reason: queryFailed};
   }
 
@@ -212,12 +258,42 @@ async function runFunctionErrorWatch(deps = {}) {
 
   await stateRef.set(nextState, {merge: false});
 
-  console.log(`[functionErrorWatch] ${JSON.stringify({...summary, alerts: alerts.length})}`);
-  return {ok: true, alerted: Boolean(message), alerts, summary};
+  // A gap means this watch was NOT running, and nothing observed the functions
+  // during it. Reported on the run that comes back, naming the window, because
+  // "the alerts were quiet" and "nobody was listening" are the same silence
+  // until someone says which it was.
+  const gapMs = previousRunAt == null ? null : now - previousRunAt;
+  if (gapMs != null && gapMs > GAP_ALERT_MS) {
+    await alertFn({
+      title: "Cloud Functions monitoring had a COVERAGE GAP",
+      severity: "warning",
+      lines: [
+        `The error watch did not run between ${new Date(previousRunAt).toISOString()} ` +
+        `and ${new Date(now).toISOString()} (${Math.round(gapMs / 60000)} minutes).`,
+        "It is running again now, and this window was not checked — any function",
+        "that failed during it produced no alert.",
+        "Cloud Logging still holds those entries; the gap is in the watching, not the data.",
+      ],
+      smtpUser: process.env.EMAIL_SMTP_USER,
+      smtpPassword: process.env.EMAIL_SMTP_PASSWORD,
+      opsAlertEmails: process.env.OPS_ALERT_EMAILS,
+      adminEmails: process.env.ADMIN_EMAILS,
+      webhookUrl: process.env.OPS_ALERT_WEBHOOK_URL,
+    });
+  }
+
+  await stampHeartbeat(message ? "alerted" : "clean");
+
+  console.log(`[functionErrorWatch] ${JSON.stringify({
+    ...summary, alerts: alerts.length, gapMinutes: gapMs == null ? null : Math.round(gapMs / 60000),
+  })}`);
+  return {ok: true, alerted: Boolean(message), alerts, summary, gapMs};
 }
 
 module.exports = {
   runFunctionErrorWatch,
+  HEARTBEAT_DOC,
+  GAP_ALERT_MS,
   fetchErrorEntries,
   buildFilter,
   functionNameOf,
