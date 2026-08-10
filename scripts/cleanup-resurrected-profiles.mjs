@@ -29,6 +29,34 @@
  *
  *   npm run cleanup:resurrected-profiles -- --uids uidA,uidB,uidC --live
  *
+ * ## Where those uids come from — run this FIRST
+ *
+ * The pre-fix orphans are only findable in Cloud Logging, because nothing in
+ * Firestore distinguishes one from a live account. `deleteMyAccount` logs a
+ * line per completed deletion, and this returns them with timestamps:
+ *
+ *     gcloud logging read \
+ *       'resource.type="cloud_run_revision"
+ *        AND resource.labels.service_name="deletemyaccount"
+ *        AND textPayload:"deleteMyAccount uid="
+ *        AND timestamp>="2026-08-01T00:00:00Z"' \
+ *       --project=examsprepzambia --limit=200 \
+ *       --format='table(timestamp, textPayload)'
+ *
+ * Or paste this into the Cloud Console Log Explorer, unchanged:
+ *
+ *     resource.type="cloud_run_revision"
+ *     resource.labels.service_name="deletemyaccount"
+ *     textPayload:"deleteMyAccount uid="
+ *     timestamp>="2026-08-01T00:00:00Z"
+ *
+ * Each match reads `deleteMyAccount uid=<UID> summary={…}`. Those are uids a
+ * deletion COMPLETED for, so any whose `users/{uid}` still exists was
+ * resurrected. Widen the timestamp if the window is wrong; narrow it to the
+ * incident if you know when it was.
+ *
+ * The intended order is: query → dry run → review the printed targets → --live.
+ *
  * That is deliberate. There is no query that distinguishes a pre-tombstone
  * orphan from a real account, so the only safe source of those uids is the
  * Cloud Logging trail of the deletions that produced them.
@@ -42,7 +70,7 @@
  * - It is a one-off remediation, never a scheduled sweep.
  */
 import { createRequire } from 'node:module'
-import { writeFileSync } from 'node:fs'
+import { writeFileSync, chmodSync } from 'node:fs'
 import { createInterface } from 'node:readline/promises'
 import path from 'node:path'
 
@@ -136,10 +164,28 @@ if (!LIVE) {
 
 // Back up before touching anything: a deletion you cannot undo is one you
 // should not run from a script.
+//
+// Two protections on the file itself, both because of WHAT is in it — the
+// profile data, emails included, of people who asked to be erased.
+//
+//   mode 0o600. Default permissions are umask-dependent and typically leave it
+//   world-readable, which on a shared machine hands every local account exactly
+//   the data we were told to delete. The chmod is NOT redundant with the mode
+//   option: writeFileSync's `mode` applies only when it CREATES the file and is
+//   ignored outright when one already exists, so a leftover 0644 file at this
+//   path would be rewritten and stay 0644. Measured: fresh file 600,
+//   pre-existing file 644 without the chmod.
+//
+//   Git-ignored (.gitignore). It is written to the REPO ROOT, so one
+//   `git add -A` would commit deleted users' addresses into a public
+//   repository — a worse disclosure than the bug this script cleans up, and a
+//   permanent one.
 const stamp = new Date().toISOString().replace(/[:.]/g, '-')
 const backup = path.resolve(`resurrected-profiles-backup-${stamp}.json`)
-writeFileSync(backup, JSON.stringify(unique, null, 2) + '\n')
-console.log(`\nbackup written: ${backup}`)
+writeFileSync(backup, JSON.stringify(unique, null, 2) + '\n', { mode: 0o600 })
+chmodSync(backup, 0o600)
+console.log(`\nbackup written: ${backup} (mode 0600, git-ignored)`)
+console.log('  It holds deleted users\' profile data — delete it once the cleanup is confirmed.')
 
 const rl = createInterface({ input: process.stdin, output: process.stdout })
 const answer = await rl.question(`\nType DELETE to remove ${unique.length} profile document(s): `)
