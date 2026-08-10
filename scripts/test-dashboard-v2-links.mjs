@@ -1,17 +1,30 @@
 #!/usr/bin/env node
 /**
- * Dashboard V2 link integrity — every hard-coded navigation target in
- * src/components/teacher/dashboardV2/ must resolve to a route declared in
- * App.jsx.
+ * Dashboard V2 link integrity — every hard-coded navigation target in the
+ * dashboard surface must resolve to a route declared in App.jsx.
  *
  * Why: the V2 dashboard shipped with links to /teacher/settings, a route
  * that does not exist (teacher settings live under /settings/*), so half
  * the Settings surface 404'd in production. Like test-public-routes.mjs,
  * this is a text-level parse of App.jsx — cheap, deterministic, and enough
  * to catch a dead link before deploy.
+ *
+ * ## A missing DIRS entry fails; it does not silently scan less
+ *
+ * A scanner aimed at a directory that is not there reports "0 broken" for
+ * files it never opened. The surface is two directories (#2247 split it): the
+ * app shell beside TeacherLayout, and the dashboard pages under
+ * `src/features/`. This scanner named only the first, silently stopped
+ * checking `HelpSupportPage`, and went from 37 targets to 32 — dropping
+ * `/status`, `/company`, `/privacy`, `/terms` and the library-detail path —
+ * while still printing `0 broken`.
+ *
+ * The floor below is a backstop, not the defence: at 10 against a true count of
+ * 37 it could never have tripped, and a count cannot see a swap anyway (#2239,
+ * on the functions manifest). The existence check is what protects this.
  */
-import { readFileSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { readFileSync, readdirSync, existsSync } from 'node:fs'
+import { join, relative } from 'node:path'
 import { makeRouteMatcher } from './lib/declaredRoutes.mjs'
 
 const ROOT = new URL('..', import.meta.url).pathname
@@ -22,7 +35,21 @@ const ROOT = new URL('..', import.meta.url).pathname
 const routeExists = makeRouteMatcher()
 
 // ── Link targets used by the dashboard ──────────────────────────────
-const DIR = join(ROOT, 'src/components/teacher/dashboardV2')
+// Both halves of the surface (#2247). Each MUST exist — see the note above.
+const DIRS = [
+  'src/components/teacher/dashboardV2', // the app shell: sidebar, mobile chrome, nav config
+  'src/features/dashboardV2',           // the dashboard pages, launcher, Help & Support
+]
+
+for (const d of DIRS) {
+  if (!existsSync(join(ROOT, d))) {
+    throw new Error(
+      `test:dashboard-v2-links scans "${d}", which does not exist.\n` +
+      'If that half of the dashboard moved, point this list at its new home in the SAME commit — ' +
+      'a scanner aimed at a missing directory reports "0 broken" for files it never opened.',
+    )
+  }
+}
 
 // Collect .js/.jsx recursively (the launcher/ subfolder holds the studio
 // registry), skipping tests.
@@ -37,12 +64,14 @@ function collect(dir) {
   }
   return out
 }
-const files = collect(DIR)
+const files = DIRS.flatMap((d) => collect(join(ROOT, d)))
 
 const links = new Map() // path -> Set of files
 for (const file of files) {
   const src = readFileSync(file, 'utf8')
-  const rel = file.slice(DIR.length + 1)
+  // Relative to the repo root, so a message names a file that can be opened —
+  // two directories are scanned and a bare basename would be ambiguous.
+  const rel = relative(ROOT, file)
   // to: '/x' | to="/x" | to={'/x'} | href="/x" | route: '/x' |
   // savedWorkTo: '/x' | navigate('/x'
   const patterns = [
