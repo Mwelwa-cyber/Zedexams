@@ -139,10 +139,9 @@ and is hold-safe by construction.
 
 ## Guard gap — BLOCKS Batch 2 (recorded 2026-08-09, owner instruction)
 
-**`optionsUnresolved` is 5 of 194 exports** (2026-08-10 after #2290; it was 54
-after #2263, 131
-of 194 earlier that day and 141 of 192 on 2026-08-09 — **derive every one of
-these numbers, never quote them**, see below). Memory is now separately
+**`optionsUnresolved` is 5 of 195 exports** (2026-08-11, after #2290; it was 54
+of 194 after #2263, 131 of 194 before that, and 141 of 192 on 2026-08-09 —
+**derive every one of these numbers, never quote them**, see below). Memory is now separately
 protected (`test:function-memory-floor`, #2231/#2233), but that is one option.
 Every other frozen option on those — region, timeout, secrets, App Check
 enforcement, concurrency, min-instances — is recorded as unreadable, and the
@@ -234,7 +233,8 @@ checked, not assumed.
    criterion, unchanged: every one is either resolved, or exempted by name with
    the guarding test named.** A count that merely shrinks is not closure.
 4. ~~**Re-derive `classification` after following, and diff it**~~ — done in
-   #2263 (13 escalations) and again in #2290 (38 more). All 51 are
+   #2263 (13 escalations) and again in #2290 (38 more, measured against `main`
+   at the time of writing — re-derive it, do not quote it). All are
    `mechanical → secrets-bound`, and every one is a modular export that binds a
    secret the seed could not previously see. The classifier runs AFTER the
    follow, and the guard's floor is computed through the same call, so an
