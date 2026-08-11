@@ -5,7 +5,7 @@
  * Run: npm run test:class-progress  (also via npm run test:all)
  */
 
-const { buildClassProgress, overallGrade } = await import('../src/utils/classProgress.js')
+const { buildClassProgress, overallGrade } = await import('../src/features/register/lib/classProgress.js')
 
 let pass = 0
 let fail = 0

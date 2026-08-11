@@ -46,7 +46,7 @@ vi.mock('../../../utils/teacherLibraryService', () => ({
 vi.mock('../../../hooks/useLibraryAutoSave', () => ({ useLibraryAutoSave: () => {} }))
 vi.mock('../../../engines/export-engine/markScheduleToDocx', () => ({ downloadMarkScheduleDocx: vi.fn() }))
 vi.mock('../../../engines/export-engine/markScheduleToXlsx', () => ({ downloadMarkScheduleXlsx: vi.fn() }))
-vi.mock('../../../utils/reportCardsToDocx', () => ({ downloadReportCardsDocx: vi.fn() }))
+vi.mock('../../../engines/export-engine/reportCardsToDocx', () => ({ downloadReportCardsDocx: vi.fn() }))
 vi.mock('../../../utils/downloadFilename', () => ({ buildDownloadName: vi.fn(() => 'file') }))
 vi.mock('../components/MarkScheduleView', () => ({
   default: () => <div data-testid="schedule-view" />,

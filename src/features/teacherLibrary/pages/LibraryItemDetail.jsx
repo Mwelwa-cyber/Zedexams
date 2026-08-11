@@ -44,7 +44,7 @@ import { downloadWorksheetDocx } from '../../../engines/export-engine/worksheetT
 import { downloadSchemeOfWorkDocx } from '../../../engines/export-engine/schemeOfWorkToDocx'
 import { downloadMarkScheduleDocx } from '../../../engines/export-engine/markScheduleToDocx'
 import { downloadMarkScheduleXlsx } from '../../../engines/export-engine/markScheduleToXlsx'
-import { downloadReportCardsDocx } from '../../../utils/reportCardsToDocx'
+import { downloadReportCardsDocx } from '../../../engines/export-engine/reportCardsToDocx'
 import { downloadFullLessonDocx } from '../../../utils/fullLessonToDocx'
 import FullLessonView from '../../../components/teacher/views/FullLessonView'
 import { downloadWeeklyForecastDocx } from '../../../engines/export-engine/weeklyForecastToDocx'

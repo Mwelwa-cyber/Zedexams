@@ -12,7 +12,7 @@ import {
   paperGeometry,
   registerMatrixRows,
   termSummaryRows,
-} from '../src/utils/attendanceExportService.js';
+} from '../src/features/register/lib/attendanceExportService.js';
 import { computeLearnerTotals, formatPercent } from '../src/utils/attendanceCalculator.js';
 import { resolveTermInfo, buildTermDays, markableDays } from '../src/utils/attendanceCalendarResolver.js';
 import { computeDailyCounts } from '../src/utils/attendanceCalculator.js';

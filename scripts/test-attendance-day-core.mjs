@@ -13,7 +13,7 @@ import {
   mergeDayRecords,
   plainRecords,
   ATTENDANCE_NOTE_MAX,
-} from '../src/utils/attendanceDayCore.js';
+} from '../src/features/register/lib/attendanceDayCore.js';
 
 const TERM = { startDate: '2026-05-11', endDate: '2026-08-07' };
 const day = (date, extra = {}) => ({ date, markable: true, isFuture: false, classification: 'teaching_day', ...extra });

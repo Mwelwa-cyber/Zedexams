@@ -40,7 +40,7 @@ vi.mock('../../../engines/export-engine/worksheetToDocx',     () => ({ downloadW
 vi.mock('../../../engines/export-engine/schemeOfWorkToDocx', () => ({ downloadSchemeOfWorkDocx:  vi.fn(async () => {}) }))
 vi.mock('../../../engines/export-engine/markScheduleToDocx',  () => ({ downloadMarkScheduleDocx:  vi.fn(async () => {}) }))
 vi.mock('../../../engines/export-engine/markScheduleToXlsx',  () => ({ downloadMarkScheduleXlsx:  vi.fn(async () => {}) }))
-vi.mock('../../../utils/reportCardsToDocx',   () => ({ downloadReportCardsDocx:   vi.fn(async () => {}) }))
+vi.mock('../../../engines/export-engine/reportCardsToDocx',   () => ({ downloadReportCardsDocx:   vi.fn(async () => {}) }))
 vi.mock('../../../utils/fullLessonToDocx',    () => ({ downloadFullLessonDocx:    vi.fn(async () => {}) }))
 vi.mock('../../../engines/export-engine/weeklyForecastToDocx', () => ({ downloadWeeklyForecastDocx:vi.fn(async () => {}) }))
 vi.mock('../../../engines/export-engine/recordOfWorkToDocx',  () => ({ downloadRecordOfWorkDocx:  vi.fn(async () => {}) }))

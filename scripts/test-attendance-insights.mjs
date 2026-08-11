@@ -11,7 +11,7 @@ const {
   weekdayPattern,
   attendanceDrop,
   buildAttendanceInsights,
-} = await import('../src/utils/attendanceInsights.js')
+} = await import('../src/features/register/lib/attendanceInsights.js')
 const { resolveAttendancePolicy } = await import('../src/utils/attendanceConstants.js')
 
 let pass = 0

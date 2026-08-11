@@ -6,7 +6,7 @@
  * Run: npm run test:class-record-export  (also via npm run test:all)
  */
 
-const { recordToSchedule } = await import('../src/utils/classRecordExport.js')
+const { recordToSchedule } = await import('../src/features/register/lib/classRecordExport.js')
 
 let pass = 0
 let fail = 0
