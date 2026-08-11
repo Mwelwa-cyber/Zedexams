@@ -697,6 +697,7 @@
     "backfill:assessment-titles:dry": "node scripts/backfill-assessment-titles.mjs",
     "backfill:assessment-titles:live": "node scripts/backfill-assessment-titles.mjs --live",
     "check:integrity": "node scripts/check-file-integrity.mjs",
+    "test:integrity-scan": "node scripts/test-file-integrity-scan.mjs",
     "check:bundle-edges": "node scripts/check-bundle-edges.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

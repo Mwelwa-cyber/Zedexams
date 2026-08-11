@@ -23,6 +23,19 @@
  *          (handles JSX, modern syntax, everything Vite would accept).
  *        - .json → JSON.parse.
  *
+ * ⚠️ THE ESBUILD PARSE PATH IS CURRENTLY DEAD, ON EVERY MACHINE. `esbuild` was
+ * never a declared dependency here — it arrived transitively through Vite, and
+ * Vite 8 dropped it (rolldown/oxc instead). `loadEsbuild()` therefore resolves
+ * to null and EVERY source file falls through to `heuristicSourceCheck`, which
+ * this file's own comments describe as a fallback. Nothing announced the
+ * change; the guard just quietly became the weaker half of itself.
+ *
+ * The fix is to declare `esbuild` as a devDependency so the check owns its
+ * parser instead of borrowing one — that is a dependency decision and is left
+ * to the repo owner, not made here. Until then the fallback is the whole
+ * guard, which is why it now does the job properly (see below) rather than
+ * counting brackets in raw text.
+ *
  * Exit codes:
  *   0 — every file passed.
  *   1 — at least one file failed. Each failure is printed to stderr with
@@ -39,7 +52,8 @@
  */
 
 import { readFile } from 'node:fs/promises'
-import { basename } from 'node:path'
+import { basename, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { execFileSync } from 'node:child_process'
 
 const SRC_EXT = new Set(['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx'])
@@ -158,23 +172,212 @@ function heuristicSourceCheck(path, text) {
     })
     return
   }
-  // Basic brace balance — matches open { count against close } count.
-  // Real code constantly contains braces/parens inside string literals
-  // (template literals, JSX prop strings, regex), so a small imbalance
-  // is normal. We only trip on a LARGE imbalance — the scale of "file
-  // cut in half" rather than "one missing brace". At 20+ you're looking
-  // at real corruption, not a ternary inside a template string. Below
-  // that: let esbuild do the talking.
-  const opens = (text.match(/[{(]/g) || []).length
-  const closes = (text.match(/[})]/g) || []).length
-  const diff = Math.abs(opens - closes)
+  // Brace balance, counted over CODE ONLY — string literals, template
+  // literals, regexes and comments are skipped.
+  //
+  // Counting raw text made this fire on the files least able to avoid it:
+  // parsers. A module whose job is matching brackets is full of `'{[('`,
+  // `/^\(/`, and prose like `const NAME = (…) => {`, none of which is
+  // structure. Three files in this repo sit above the old threshold and all
+  // three parse; two of them were already over it and passed only because
+  // nobody had staged them since. A guard that a valid file cannot satisfy
+  // gets bypassed with --no-verify, which is worse than not having it.
+  //
+  // The threshold stays generous — this looks for "file cut in half", not
+  // "one missing brace"; a real parser is the tool for the latter.
+  // JSX is past what a character scanner can lex. `</div>` puts a `/` right
+  // after a `<`, JSX text carries apostrophes and `/*` sequences that are not
+  // comments, and attributes mix quoting rules — every one of which walks the
+  // scanner into the wrong state. Measured across all 969 .jsx/.tsx files in
+  // this repo, the RAW count's worst case is 9, less than half the threshold,
+  // so the crude rule is both safe and sufficient there. Non-JSX sources —
+  // where the parsers live, and where the raw count reaches 30 — get the
+  // code-only scan. The real answer for JSX is a parser; see the note on the
+  // dead esbuild path above.
+  const ext = extOf(path)
+  if (ext === '.jsx' || ext === '.tsx') {
+    const rawDiff = Math.abs(
+      (text.match(/[{(]/g) || []).length - (text.match(/[})]/g) || []).length)
+    if (rawDiff >= 20) {
+      failures.push({
+        path,
+        kind: 'unbalanced-braces',
+        detail: `open vs close bracket counts differ by ${rawDiff} — likely truncation.`,
+      })
+    }
+    return
+  }
+
+  const scan = scanCode(text)
+  if (scan.unterminated) {
+    // Falling out of the file inside a literal is a truncation signature in
+    // its own right, and a stronger one than any count: it means the file
+    // ends mid-string, mid-template or mid-comment. It must be reported
+    // rather than swallowed — skipping to end-of-file would otherwise hide
+    // every bracket after the cut and report a tidy balance.
+    failures.push({
+      path,
+      kind: 'unterminated-literal',
+      detail: `File ends inside an unterminated ${scan.unterminated} that opens at offset ${scan.unterminatedAt}. Likely a truncated write.`,
+    })
+    return
+  }
+  const diff = Math.abs(scan.opens - scan.closes)
   if (diff >= 20) {
     failures.push({
       path,
       kind: 'unbalanced-braces',
-      detail: `open vs close bracket counts differ by ${diff} — likely truncation.`,
+      detail: `open vs close bracket counts differ by ${diff} in code (strings and comments excluded) — likely truncation.`,
     })
   }
+}
+
+/**
+ * Walk source text and count `{`/`(` against `}`/`)` outside strings,
+ * template literals, regex literals and comments.
+ *
+ * Deliberately a scanner, not a parser: it has no dependency and cannot
+ * fail on syntax it does not understand. The one judgement call is telling
+ * a regex `/` from a division `/`, decided the usual way — by what the last
+ * meaningful character was. Getting that wrong costs a miscount in a file
+ * that divides a lot, not a crash, and the threshold absorbs it.
+ *
+ * @returns {{opens: number, closes: number, unterminated: string|null,
+ *            unterminatedAt: number}}
+ */
+export function scanCode(text) {
+  let opens = 0
+  let closes = 0
+  let i = 0
+  let prev = ''
+
+  // Stack of nested template contexts. A `tmpl` frame means we are reading
+  // template TEXT; an `interp` frame means we are back in ordinary code
+  // inside a `${…}`, and its `depth` tracks braces so the closing `}` of the
+  // interpolation is told apart from an object literal's.
+  //
+  // The stack is the whole reason this is not a regex. Without it, the first
+  // NESTED backtick — `` `a ${x ? `y` : `z`} b` `` — closes the outer
+  // template early and every quote after it is misread. That is not a corner
+  // case: consentPages.js writes `${name}'s account`, and a scanner that had
+  // fallen out of the template reads that apostrophe as the start of an
+  // unterminated string and reports the file as truncated.
+  const stack = []
+  const top = () => stack[stack.length - 1]
+
+  // Telling a regex `/` from a division `/` is the one genuinely ambiguous
+  // decision here, and punctuation alone gets it wrong: `return /[",\n]/…`
+  // has an identifier character before the slash, so a punctuation-only rule
+  // reads a division, then reads the `"` inside the regex as a string, and
+  // reports 96 healthy files as truncated. The preceding WORD decides it.
+  const REGEX_KEYWORDS = new Set([
+    'return', 'typeof', 'instanceof', 'in', 'of', 'new', 'delete', 'void',
+    'throw', 'case', 'do', 'else', 'yield', 'await',
+  ])
+  const isRegexPosition = (at) => {
+    if (prev === '') return true
+    if ('=([{,;:!&|?+-*%~^<>'.includes(prev)) return true
+    if (!/[A-Za-z0-9_$]/.test(prev)) return false
+    let j = at - 1
+    while (j >= 0 && /\s/.test(text[j])) j -= 1
+    let end = j + 1
+    while (j >= 0 && /[A-Za-z0-9_$]/.test(text[j])) j -= 1
+    return REGEX_KEYWORDS.has(text.slice(j + 1, end))
+  }
+
+  while (i < text.length) {
+    const frame = top()
+
+    // --- Inside template TEXT ------------------------------------------
+    if (frame?.type === 'tmpl') {
+      const ch = text[i]
+      if (ch === '\\') { i += 2; continue }
+      if (ch === '`') { stack.pop(); prev = '`'; i += 1; continue }
+      if (ch === '$' && text[i + 1] === '{') { stack.push({ type: 'interp', depth: 0 }); i += 2; continue }
+      i += 1
+      continue
+    }
+
+    // --- Ordinary code (top level, or inside a ${…}) --------------------
+    const ch = text[i]
+
+    if (ch === '/' && text[i + 1] === '/') {
+      const nl = text.indexOf('\n', i)
+      i = nl === -1 ? text.length : nl
+      continue
+    }
+    if (ch === '/' && text[i + 1] === '*') {
+      const close = text.indexOf('*/', i + 2)
+      if (close === -1) return { opens, closes, unterminated: 'block comment', unterminatedAt: i }
+      i = close + 2
+      continue
+    }
+    if (ch === '`') { stack.push({ type: 'tmpl' }); i += 1; continue }
+    if (ch === '"' || ch === "'") {
+      const openedAt = i
+      const quote = ch
+      i += 1
+      let closed = false
+      let hitNewline = false
+      while (i < text.length) {
+        if (text[i] === '\\') { i += 2; continue }
+        if (text[i] === quote) { closed = true; i += 1; break }
+        if (text[i] === '\n') { hitNewline = true; break }
+        i += 1
+      }
+      // A quote that runs to a NEWLINE is not reported as truncation. In real
+      // source it almost always means this scanner misread something upstream
+      // — an apostrophe in prose, a quote inside a regex it took for
+      // division — and a heuristic should degrade into miscounting, not into
+      // accusing a healthy file. Running to END OF FILE is different: that is
+      // the truncation signature, and it is still reported.
+      if (!closed && hitNewline) { i = openedAt + 1; prev = quote; continue }
+      if (!closed) return { opens, closes, unterminated: 'string', unterminatedAt: openedAt }
+      prev = quote
+      continue
+    }
+    if (ch === '/' && isRegexPosition(i)) {
+      const openedAt = i
+      i += 1
+      let closed = false
+      let inClass = false
+      while (i < text.length) {
+        if (text[i] === '\\') { i += 2; continue }
+        if (text[i] === '[') inClass = true
+        else if (text[i] === ']') inClass = false
+        else if (text[i] === '/' && !inClass) { closed = true; i += 1; break }
+        else if (text[i] === '\n') break
+        i += 1
+      }
+      // An unclosed `/` is far likelier a division this scanner misread than
+      // a truncated regex, so it is NOT reported as corruption — resume from
+      // just after it and count what follows as ordinary code.
+      if (!closed) i = openedAt + 1
+      prev = '/'
+      continue
+    }
+
+    if (ch === '{') {
+      if (frame?.type === 'interp') frame.depth += 1
+      opens += 1
+    } else if (ch === '}') {
+      if (frame?.type === 'interp') {
+        if (frame.depth === 0) { stack.pop(); i += 1; prev = '}'; continue }
+        frame.depth -= 1
+      }
+      closes += 1
+    } else if (ch === '(') opens += 1
+    else if (ch === ')') closes += 1
+
+    if (!/\s/.test(ch)) prev = ch
+    i += 1
+  }
+
+  if (stack.length) {
+    const kind = stack.some((f) => f.type === 'tmpl') ? 'template literal' : 'interpolation'
+    return { opens, closes, unterminated: kind, unterminatedAt: -1 }
+  }
+  return { opens, closes, unterminated: null, unterminatedAt: -1 }
 }
 
 // Only text formats: binary files legitimately contain NULs, so applying
@@ -281,7 +484,12 @@ async function main() {
   process.exit(1)
 }
 
-main().catch((err) => {
-  console.error('check-file-integrity.mjs crashed:', err)
-  process.exit(2)
-})
+// Only run when INVOKED, not when imported. `scanCode` has its own test
+// (scripts/test-file-integrity-scan.mjs), and importing this module used to
+// audit the entire tree as a side effect of asking it a question.
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((err) => {
+    console.error('check-file-integrity.mjs crashed:', err)
+    process.exit(2)
+  })
+}
