@@ -171,7 +171,7 @@ const AdminResults = lazy(() => import('./features/adminLearners/pages/AdminResu
 const ContentApprovals = lazy(() => import('./features/adminContent/pages/ContentApprovals'))
 const QuestionReviewQueue = lazy(() => import('./features/adminQuestionBank/pages/QuestionReviewQueue'))
 const ImportQuestionBankPanel = lazy(() => import('./features/adminQuestionBank/pages/ImportQuestionBankPanel'))
-const FeedbackInbox = lazy(() => import('./components/admin/FeedbackInbox'))
+const FeedbackInbox = lazy(() => import('./features/adminFeedback/pages/FeedbackInbox'))
 const PaymentsPanel = lazy(() => import('./features/adminPayments/pages/PaymentsPanel'))
 const BulkGrantTrialsPanel = lazy(() => import('./components/admin/BulkGrantTrialsPanel'))
 const AdminLearners = lazy(() => import('./features/adminLearners/pages/AdminLearners'))
