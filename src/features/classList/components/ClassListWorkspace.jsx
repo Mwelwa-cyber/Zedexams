@@ -39,7 +39,7 @@ import useIsMobile from '../../../shared/hooks/useIsMobile'
 import ClassListTable from './ClassListTable'
 import ClassListMobileList from './ClassListMobileList'
 import LearnerFormDialog from './LearnerFormDialog'
-import NewLearnerSyncModal from '../../../components/teacher/register/NewLearnerSyncModal'
+import { NewLearnerSyncModal } from '../../register'
 import {
   AlertTriangle, Camera, CheckCircle2, ChevronLeft, ChevronRight, ClipboardPaste,
   Filter, Search, Upload, UserMinus, UserPlus, Users, X,

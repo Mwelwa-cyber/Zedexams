@@ -72,7 +72,7 @@ const sbaPlannerMod = await loadModule('../engines/export-engine/sbaPlannerToDoc
 const recordOfWorkMod = await loadModule('../engines/export-engine/recordOfWorkToDocx.js')
 const weeklyForecastMod = await loadModule('../engines/export-engine/weeklyForecastToDocx.js')
 const classTimetableMod = await loadModule('../engines/export-engine/classTimetableToDocx.js')
-const reportCardsMod = await loadModule('./reportCardsToDocx.js')
+const reportCardsMod = await loadModule('../engines/export-engine/reportCardsToDocx.js')
 const markScheduleMod = await loadModule('../engines/export-engine/markScheduleToDocx.js')
 const activityMod = await loadModule('./activityToDocx.js')
 

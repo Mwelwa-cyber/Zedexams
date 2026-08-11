@@ -97,6 +97,10 @@ const RELOCATED = [
   'markScheduleToDocx.js', 'markScheduleToXlsx.js',
   // Wave 4, with the record-of-work studio.
   'recordOfWorkToDocx.js',
+  // Wave 4, with the class register. `reportCardsToDocx` is reached in the
+  // engine DIRECTLY by features/teacherLibrary and features/markSchedule, on
+  // #2172's rule — it is not on the register's front door.
+  'reportCardsToDocx.js', 'attendanceToDocx.js',
 ];
 
 /**
@@ -109,8 +113,6 @@ const STILL_IN_UTILS = new Map([
   ['quizToDocx.js', 'quizzes — frozen, same reason'],
   ['lessonPlanToDocx.js', 'lesson-plan studio — Wave 4'],
   ['lessonPlanToPdf.js', 'lesson-plan studio — Wave 4'],
-  ['reportCardsToDocx.js', 'class register / reports — Wave 4'],
-  ['attendanceToDocx.js', 'class register / attendance — Wave 4'],
   ['activityToDocx.js', 'lesson activities — renders documents saved before the Full Lesson studio was retired'],
   ['fullLessonToDocx.js', 'retired Full Lesson studio; saved lessons still export'],
   ['fullLessonToPdf.js', 'retired Full Lesson studio; saved lessons still export'],

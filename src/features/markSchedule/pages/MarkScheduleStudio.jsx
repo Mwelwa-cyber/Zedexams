@@ -29,7 +29,7 @@ import { buildSchedule, suggestComment, rankPupils } from '../../../shared/utils
 import { downloadMarkScheduleDocx } from '../../../engines/export-engine/markScheduleToDocx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { downloadMarkScheduleXlsx } from '../../../engines/export-engine/markScheduleToXlsx'
-import { downloadReportCardsDocx } from '../../../utils/reportCardsToDocx'
+import { downloadReportCardsDocx } from '../../../engines/export-engine/reportCardsToDocx'
 import { saveMarkScheduleGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { listTeacherRegisters } from '../../../utils/classRegister'
 import { formatClassGrade } from '../../../schemas/classRegister'

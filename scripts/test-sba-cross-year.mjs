@@ -7,7 +7,7 @@
  */
 
 const { buildCrossYearIndex, matchLearnerMarks, gatherCrossYearSbaMarks } =
-  await import('../src/utils/sbaCrossYear.js')
+  await import('../src/features/register/lib/sbaCrossYear.js')
 
 let pass = 0
 let fail = 0

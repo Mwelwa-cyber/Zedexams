@@ -22,12 +22,14 @@ import { buildClassListView } from '../../../utils/classListCore'
 import ClassListTable from '../components/ClassListTable'
 import ClassListMobileList from '../components/ClassListMobileList'
 import ImportReviewScreen from '../components/ImportReviewScreen'
-import MarkAttendanceView from '../../../components/teacher/register/attendance/MarkAttendanceView'
-import AttendanceGridView from '../../../components/teacher/register/attendance/AttendanceGridView'
-import AttendanceSummaryPanel from '../../../components/teacher/register/attendance/AttendanceSummaryPanel'
-import AttendanceInsightsPanel from '../../../components/teacher/register/attendance/AttendanceInsightsPanel'
-import RegisterValidationPanel from '../../../components/teacher/register/attendance/RegisterValidationPanel'
-import RegisterPaperPreview from '../../../components/teacher/register/attendance/RegisterPaperPreview'
+import {
+  MarkAttendanceView,
+  AttendanceGridView,
+  AttendanceSummaryPanel,
+  AttendanceInsightsPanel,
+  RegisterValidationPanel,
+  RegisterPaperPreview,
+} from '../../register'
 import {
   PREVIEW_LEARNERS, PREVIEW_REGISTER, PREVIEW_EXTRACTED_ROWS,
   PREVIEW_EXISTING_FOR_REVIEW, buildPreviewRegisterHook,

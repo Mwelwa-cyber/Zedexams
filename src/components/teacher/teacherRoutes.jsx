@@ -90,10 +90,10 @@ const ECE2013Curriculum = lazy(() => import('../../features/curriculumBrowsers/p
 const Primary2013Curriculum = lazy(() => import('../../features/curriculumBrowsers/pages/Primary2013Curriculum'))
 const Secondary2013Curriculum = lazy(() => import('../../features/curriculumBrowsers/pages/Secondary2013Curriculum'))
 
-const ClassRegisterList = lazy(() => import('./register/ClassRegisterList'))
-const ClassRegisterStudio = lazy(() => import('./register/attendance/ClassRegisterStudio'))
-const ClassRegisterEditor = lazy(() => import('./register/ClassRegisterEditor'))
-const ClassRegisterDetail = lazy(() => import('./register/ClassRegisterDetail'))
+const ClassRegisterList = lazy(() => import('../../features/register/pages/ClassRegisterList'))
+const ClassRegisterStudio = lazy(() => import('../../features/register/pages/ClassRegisterStudio'))
+const ClassRegisterEditor = lazy(() => import('../../features/register/pages/ClassRegisterEditor'))
+const ClassRegisterDetail = lazy(() => import('../../features/register/pages/ClassRegisterDetail'))
 
 /**
  * Auth + shell for a teacher page. `variant` selects the content container

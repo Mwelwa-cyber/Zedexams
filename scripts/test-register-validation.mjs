@@ -10,7 +10,7 @@ const {
   validateTermRegister,
   registerPermissions,
   REGISTER_STAGES,
-} = await import('../src/utils/registerValidationCore.js')
+} = await import('../src/features/register/lib/registerValidationCore.js')
 
 let pass = 0
 let fail = 0
