@@ -139,9 +139,9 @@ and is hold-safe by construction.
 
 ## Guard gap — BLOCKS Batch 2 (recorded 2026-08-09, owner instruction)
 
-**`optionsUnresolved` is 54 of 194 exports** (2026-08-10 after #2262; it was 131
-of 194 earlier that day and 141 of 192 on 2026-08-09 — **derive every one of
-these numbers, never quote them**, see below). Memory is now separately
+**`optionsUnresolved` is 5 of 195 exports** (2026-08-11, after #2290; it was 54
+of 194 after #2263, 131 of 194 before that, and 141 of 192 on 2026-08-09 —
+**derive every one of these numbers, never quote them**, see below). Memory is now separately
 protected (`test:function-memory-floor`, #2231/#2233), but that is one option.
 Every other frozen option on those — region, timeout, secrets, App Check
 enforcement, concurrency, min-instances — is recorded as unreadable, and the
@@ -157,13 +157,13 @@ current total does not add up:
       console.log(Object.keys(b).length)"
 
 
-| shape | 2026-08-09 | 2026-08-10 | after #2262 | tractable? |
-|---|---|---|---|---|
-| destructured binding — `const {x} = require("./mod")` then `exports.x = x` | 65 | 54 | **0** | done: destructured bindings are mapped before following |
-| `require("./x").y` inline in the export | 19 | 19 | **0** | done: it is a delegation, not a factory call |
-| genuine factory call — options are arguments | 48 | 49 | **49** | harder: needs the factory's own signature understood |
-| `no builder for "<binding>" in <module>` | 9 | 9 | **5** | 4 remain behind a module-local factory, 1 is a v1 chain |
-| **total** | **141** | **131** | **54** | all that is left is the factory shapes |
+| shape | 08-09 | 08-10 | #2263 | #2290 | state |
+|---|---|---|---|---|---|
+| destructured binding — `const {x} = require("./mod")` then `exports.x = x` | 65 | 54 | 0 | **0** | read |
+| `require("./x").y` inline in the export | 19 | 19 | 0 | **0** | read |
+| factory call — `exports.x = createX(secret)` | 48 | 49 | 49 | **0** | read: the factory's one builder |
+| `no builder for "<binding>" in <module>` | 9 | 9 | 5 | **5** | 4 module-local factories, 1 v1 chain |
+| **total** | **141** | **131** | **54** | **5** | |
 
 The 2026-08-09 column is kept because the two were quoted together in a handoff
 and did not reconcile — 84 + 57 = 141 against a baseline of 131. Both figures
@@ -221,24 +221,47 @@ checked, not assumed.
 
 ### What closing this gate requires
 
-1. ~~**Map destructured `require()` bindings**~~ — done in #2262.
-2. ~~**Treat `require("./x").y` as a delegation**~~ — done in #2262. This is what
+1. ~~**Map destructured `require()` bindings**~~ — done in #2263.
+2. ~~**Treat `require("./x").y` as a delegation**~~ — done in #2263. This is what
    hid `apiTrackVisit`'s `128MiB`.
-3. **The remaining 54** (49 genuine factory calls, 4 built by a module-local
-   factory, 1 v1 chained builder) do not yield to either fix, and pretending
-   otherwise is how a gate gets declared closed while a third of it is open.
-   Each factory needs its own reader, or an explicit written exemption naming
-   the factory and the test that guards its options instead. **Closure
-   criterion: every one is either resolved, or exempted by name with the
-   guarding test named.** A count that merely shrinks is not closure.
+3. ~~**The remaining 54**~~ — 49 read in #2290 by following the factory into its
+   own body. **5 remain**, all in `storageCleanup/`: four built by a
+   module-local factory (`makeDeletedTrigger`/`makeUpdatedTrigger` in
+   `onQuestionChange.js`, whose `document` path is an argument at the
+   `module.exports` site and is frozen nowhere) and one v1 chained builder
+   (`functions.region().runWith().auth.user().onDelete()`). **Closure
+   criterion, unchanged: every one is either resolved, or exempted by name with
+   the guarding test named.** A count that merely shrinks is not closure.
 4. ~~**Re-derive `classification` after following, and diff it**~~ — done in
-   #2262. Thirteen escalated `mechanical → secrets-bound`; the modular
-   `secrets-bound` set grew as predicted. The classifier now runs AFTER the
-   follow, and the guard's floor is computed the same way, so an escalation
-   cannot be hand-edited back down.
-5. **Keep the ratchet shrink-only.** 54 may only go down.
+   #2263 (13 escalations) and again in #2290 (38 more, measured against `main`
+   at the time of writing — re-derive it, do not quote it). All are
+   `mechanical → secrets-bound`, and every one is a modular export that binds a
+   secret the seed could not previously see. The classifier runs AFTER the
+   follow, and the guard's floor is computed through the same call, so an
+   escalation cannot be hand-edited back down. Batch membership is unaffected:
+   all 51 are `inline: false`, so all carry `batch: null`.
+5. **Keep the ratchet shrink-only.** 5 may only go down.
 
-### What #2262 also found: "resolved" was not the same as "read"
+### The two limitations that remain, stated rather than left to be discovered
+
+Both are consistent with the extractor's founding decision — *"deliberately NOT
+a JS evaluator"* — and both are now the next work rather than a surprise:
+
+- **An option whose VALUE is a bare identifier is frozen as that identifier.**
+  16 exports record `region: REGION`, and the four regional passkey callables
+  record `region: PASSKEY_REGIONAL_REGION`. Swapping which const is used is
+  caught; changing what the const holds is not. Regions are top of the frozen
+  list, so this is a real gap and not a stylistic one — 16 exports would move
+  region behind a green guard. Same machinery as `readConstObject`, one level
+  down from an object to a literal. **Next PR.**
+- **A secrets array built in a local is frozen by its name, not its contents.**
+  `createGenerateSlideNotes` does `const secrets = [a]; if (b) secrets.push(b)`
+  and passes it shorthand, so `generateVisualNotes` records `secrets: secrets`.
+  The call site's arguments are frozen in `target`, so changing WHICH secrets
+  are handed in is caught; changing how the factory assembles them is not. One
+  export today.
+
+### What #2263 also found: "resolved" was not the same as "read"
 
 Closing shapes 1 and 2 surfaced a defect in the follower that predates the gate
 and is worse than the gate itself, because it does not look like a gap.
@@ -254,6 +277,13 @@ for ever. Two source shapes produced it:
   `onQuizWritten` recorded its document path and *nothing else* — its
   `africa-south1` pin, the one option CLAUDE.md calls routing-critical, was
   outside the guard.
+
+A third shape joined them in #2290 — a **shorthand property** (`{secrets,
+timeoutSeconds: 300}`) also has no `:`, so `generateVisualNotes` recorded a
+timeout and a memory limit and NO secrets binding: populated enough to look
+like a clean read. A fourth was a comment sitting between `onCall(` and its
+options object, which left the reader looking at `//`. Both were caught by the
+test written for the first two, which is the point of writing it.
 
 Only three rows were visibly affected on `main` (`pastPapersIndexOnWrite`,
 `rebuildPastPapersIndexCron` empty; `onQuizWritten` partial) because the other

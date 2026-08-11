@@ -58,6 +58,12 @@ for (const e of entries.sort((a, b) => a.name.localeCompare(b.name))) {
     options: resolved.options,
     optionsFrom: resolved.optionsFrom,
     optionsUnresolved: resolved.optionsUnresolved,
+    // Written only when TRUE, and only for an export whose options were read
+    // outside index.js: it is the positive statement "this builder declares no
+    // options object", which is a different fact from "nothing was recorded".
+    // `resolvePaperAssetUrl` is the whole reason it exists — `onCall(handler)`
+    // with no options at all, indistinguishable from a failed read without it.
+    ...(resolved.noOptionsDeclared ? { noOptionsDeclared: true } : {}),
     target: e.target,
     rewritePath,
     rewriteRegion,

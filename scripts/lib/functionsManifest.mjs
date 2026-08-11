@@ -125,13 +125,19 @@ function sliceBalanced(source, start, open = '{', close = '}') {
 /**
  * Top-level `key: value` pairs of an object literal, values normalised.
  *
- * A SPREAD (`...COMMON_OPTS`) is recorded under its own token as a key rather
- * than dropped. It has no `:`, so the original loop committed nothing for it
- * and an options object whose entire content arrived by spread parsed as `{}` —
- * "resolved, nothing to freeze", which is the exact false green this whole
- * follower exists to prevent. Callers that can see the surrounding module
- * expand these (`expandSpreads`); the ones that cannot at least record that a
- * spread is there, so replacing it with a different one is visible drift.
+ * Two entry forms have no `:` and were therefore committed as nothing at all,
+ * which is the exact false green this whole follower exists to prevent —
+ * "resolved, nothing to freeze":
+ *
+ * - A SPREAD (`...COMMON_OPTS`) is recorded under its own token as a key.
+ *   Callers that can see the surrounding module expand these
+ *   (`expandSpreads`); the ones that cannot at least record that a spread is
+ *   there, so replacing it with a different one is visible drift.
+ * - A SHORTHAND property (`{secrets, timeoutSeconds: 300}`) is recorded as
+ *   `secrets: secrets`, which is what it means. `createGenerateSlideNotes`
+ *   builds its secrets array in a local and passes it shorthand, so
+ *   `generateVisualNotes` recorded a timeout and a memory limit and NO secrets
+ *   binding — populated enough to look like a clean read.
  */
 export function parseOptions(objectText) {
   const inner = stripComments(objectText).slice(1, -1)
@@ -140,8 +146,10 @@ export function parseOptions(objectText) {
   let key = null
   let buf = ''
   const commit = () => {
-    if (key === null && buf.trim().startsWith('...')) pairs[normalise(buf)] = normalise(buf)
-    else if (key !== null && buf.trim()) pairs[key.trim()] = normalise(buf)
+    const text = buf.trim()
+    if (key === null && text.startsWith('...')) pairs[normalise(buf)] = normalise(buf)
+    else if (key === null && /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(text)) pairs[text] = text
+    else if (key !== null && text) pairs[key.trim()] = normalise(buf)
     key = null
     buf = ''
   }
@@ -355,21 +363,215 @@ function followIntoModule(modulePath, binding, readModule, seen = new Set()) {
   }
 
   const callStart = def.index + def[0].length - 1
-  const args = readOptionsArgument(source, callStart, modulePath)
+  const args = readOptionsArgument(source, callStart, modulePath, { readModule, dir })
   if (args.unresolved) return args
-  return { options: args.options, kind: def[1], from: modulePath }
+  return { options: args.options, noOptions: !!args.noOptions, kind: def[1], from: modulePath }
 }
 
-/** The `const NAME = { … }` object literal declared in `source`, or null. */
-function readConstObject(source, name) {
-  const decl = source.match(new RegExp(`(?:const|let|var)\\s+${name}\\s*=\\s*\\{`))
-  if (!decl) return null
-  const objText = sliceBalanced(source, decl.index + decl[0].length - 1)
-  return objText ? parseOptions(objText) : null
+/**
+ * Comments blanked to spaces rather than removed, so every offset in the
+ * returned string still indexes the SAME character of the original.
+ *
+ * `stripComments` shortens the text, which is fine for parsing a slice you
+ * already located but wrong for LOCATING one: the factory reader searches for
+ * a builder call and then hands the offset back to functions that read the raw
+ * source. Searching stripped text and slicing raw text reads from the wrong
+ * place — silently, and further off with every comment above it.
+ */
+const MASK_CACHE = new Map()
+
+/** `maskComments`, memoised — the same module source is masked many times. */
+function masked(source) {
+  let hit = MASK_CACHE.get(source)
+  if (hit === undefined) {
+    hit = maskComments(source)
+    MASK_CACHE.set(source, hit)
+  }
+  return hit
+}
+
+function maskComments(text) {
+  const stripped = stripComments(text)
+  if (stripped.length === text.length) return text
+  let out = ''
+  let inString = null
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i]
+    if (inString) {
+      out += ch
+      if (ch === '\\') { out += text[i + 1] ?? ''; i += 1; continue }
+      if (ch === inString) inString = null
+      continue
+    }
+    if (ch === '"' || ch === "'" || ch === '`') { inString = ch; out += ch; continue }
+    if (ch === '/' && text[i + 1] === '/') {
+      const nl = text.indexOf('\n', i)
+      const end = nl === -1 ? text.length : nl
+      out += ' '.repeat(end - i)
+      i = end - 1
+      continue
+    }
+    if (ch === '/' && text[i + 1] === '*') {
+      const close = text.indexOf('*/', i + 2)
+      const end = close === -1 ? text.length : close + 2
+      // Newlines are preserved so line numbers in any future error message
+      // still line up; everything else becomes a space.
+      out += text.slice(i, end).replace(/[^\n]/g, ' ')
+      i = end - 1
+      continue
+    }
+    out += ch
+  }
+  return out
+}
+
+/**
+ * Follow a FACTORY-built export — `exports.generateQuiz =
+ * createGenerateQuiz(anthropicApiKey)` — into the function that builds it, and
+ * read the builder options declared in that function's body.
+ *
+ * 49 of the 54 exports the guard could not read are this one shape, and the
+ * previous message for them — *"factory-built: options are arguments, guarded
+ * by the factory's own tests"* — was half true and wholly misleading. The
+ * ARGUMENTS are at the call site; the OPTIONS are an object literal inside the
+ * factory, and no test in this repo asserts on them. `createGenerateQuiz` binds
+ * `anthropicApiKey`, sets a 120s timeout and 512MiB, and every one of those was
+ * outside the frozen surface.
+ *
+ * ## What is frozen where, and why both halves are needed
+ *
+ * - **The options object in the factory body** — read here. It may name the
+ *   factory's own PARAMETERS (`secrets: [anthropicApiKeySecret]`), and that is
+ *   recorded as written, because the parameter is what the factory declares.
+ * - **The argument expression at the call site** — already frozen, verbatim, in
+ *   the manifest's `target` (`createGenerateQuiz(anthropicApiKey)`).
+ *
+ * Together those catch all three ways this surface moves: swapping the secret
+ * passed in (target drifts), changing the timeout inside the factory (options
+ * drift), and rebinding which parameter feeds `secrets` (options drift). Either
+ * half alone leaves one of the three invisible.
+ *
+ * A factory whose body contains no builder, or more than one, is reported
+ * unresolved. Picking the first of several would be a guess, and a guess that
+ * reads as a clean answer is the failure this whole follower is built against.
+ */
+export function followFactory(target, indexSource, readModule) {
+  const raw = String(target).trim()
+
+  // `require("./mod").createX(…)` — module and name are both inline.
+  const inlineReq = /^require\(\s*['"]([^'"]+)['"]\s*\)\.([A-Za-z0-9_]+)\s*\(/.exec(raw)
+  if (inlineReq) {
+    const read = readModule(inlineReq[1])
+    if (!read) return { unresolved: `cannot read module ${inlineReq[1]}` }
+    return readFactoryBody(read.source, inlineReq[2], inlineReq[1], { readModule, dir: read.dir })
+  }
+
+  const call = /^([A-Za-z_$][A-Za-z0-9_$]*)\s*\(/.exec(raw)
+  if (!call) return { unresolved: `not a simple factory call: ${raw}` }
+  const head = call[1]
+
+  // index.js defines some of its own factories (`makeStreamingEndpoint`,
+  // `passkeyRegionalCallable`). Look here BEFORE chasing a require: a local
+  // definition is the one that runs.
+  if (findFunctionDeclaration(indexSource, head)) {
+    return readFactoryBody(indexSource, head, 'index.js', { readModule, dir: '.' })
+  }
+
+  const destructured = findDestructuredRequire(indexSource, head)
+  if (destructured) {
+    const read = readModule(destructured.modulePath)
+    if (!read) return { unresolved: `cannot read module ${destructured.modulePath}` }
+    return readFactoryBody(read.source, destructured.binding, destructured.modulePath, { readModule, dir: read.dir })
+  }
+  return { unresolved: `no definition or require() for factory "${head}" in index.js` }
+}
+
+/**
+ * `function NAME(…) {` / `const NAME = (…) => {` / `const NAME = function(…) {`
+ * — returns the offset of the `(` opening its parameter list, or null.
+ */
+function findFunctionDeclaration(source, name) {
+  const masked = maskComments(source)
+  const patterns = [
+    new RegExp(`function\\s+${name}\\s*\\(`),
+    new RegExp(`(?:const|let|var)\\s+${name}\\s*=\\s*(?:async\\s+)?function\\s*\\w*\\s*\\(`),
+    new RegExp(`(?:const|let|var)\\s+${name}\\s*=\\s*(?:async\\s+)?\\(`),
+  ]
+  for (const re of patterns) {
+    const m = masked.match(re)
+    if (m) return m.index + m[0].length - 1
+  }
+  return null
+}
+
+/** The single builder call inside a factory's body, with its options. */
+function readFactoryBody(source, name, from, ctx) {
+  const parenAt = findFunctionDeclaration(source, name)
+  if (parenAt == null) return { unresolved: `no factory function "${name}" in ${from}` }
+
+  const masked = maskComments(source)
+  const params = sliceBalanced(masked, parenAt, '(', ')')
+  if (!params) return { unresolved: `unbalanced parameter list for "${name}" in ${from}` }
+  const bodyStart = masked.indexOf('{', parenAt + params.length)
+  if (bodyStart === -1) return { unresolved: `no body for factory "${name}" in ${from}` }
+  const body = sliceBalanced(masked, bodyStart)
+  if (!body) return { unresolved: `unbalanced body for factory "${name}" in ${from}` }
+
+  const builderRe = new RegExp(`\\b(${BUILDERS.join('|')})\\s*\\(`, 'g')
+  const hits = [...body.matchAll(builderRe)]
+  if (hits.length === 0) return { unresolved: `factory "${name}" in ${from} builds no recognised function` }
+  if (hits.length > 1) {
+    const kinds = hits.map((h) => h[1]).join(', ')
+    return { unresolved: `factory "${name}" in ${from} contains ${hits.length} builder calls (${kinds}) — which one is the export is a guess` }
+  }
+
+  // Absolute offset in the ORIGINAL source, so the const/spread lookups below
+  // still see the whole module rather than the sliced body.
+  const callStart = bodyStart + hits[0].index + hits[0][0].length - 1
+  const args = readOptionsArgument(source, callStart, from, ctx)
+  if (args.unresolved) return args
+  return {
+    options: args.options,
+    noOptions: !!args.noOptions,
+    kind: hits[0][1],
+    from: `${from} (factory ${name})`,
+  }
+}
+
+/**
+ * The `const NAME = { … }` object literal declared in `source`, or null.
+ *
+ * `Object.freeze({ … })` counts — `passkeys/passkeyRegions.js` declares its
+ * shared runtime options that way, and a wrapper that changes nothing about
+ * the literal should not decide whether the guard can read it.
+ *
+ * With a `ctx`, a name this source does not declare is chased into the module
+ * it is imported from. That is not a nicety: `PASSKEY_CALLABLE_RUNTIME` is
+ * spread into the four regional passkey callables from another file, and
+ * without the hop their timeout and memory would be recorded as the literal
+ * token `...PASSKEY_CALLABLE_RUNTIME` — visible if SWAPPED for a different
+ * const, invisible if its contents change.
+ */
+function readConstObject(source, name, ctx) {
+  const text = masked(source)
+  const decl = text.match(new RegExp(`(?:const|let|var)\\s+${name}\\s*=\\s*(?:Object\\.freeze\\(\\s*)?\\{`))
+  if (decl) {
+    const objText = sliceBalanced(text, decl.index + decl[0].length - 1)
+    return objText ? parseOptions(objText) : null
+  }
+  if (!ctx?.readModule) return null
+  const imported = findDestructuredRequire(text, name)
+  if (!imported || !imported.modulePath.startsWith('.')) return null
+  const spec = ctx.dir && ctx.dir !== '.' ? path.posix.join(ctx.dir, imported.modulePath) : imported.modulePath
+  const read = ctx.readModule(spec)
+  if (!read) return null
+  // No ctx on the recursive call: one import hop is enough for every shape in
+  // this tree, and an unbounded chase needs cycle tracking to be safe.
+  return readConstObject(read.source, imported.binding)
 }
 
 /** Replace every `...NAME` entry with the pairs of that const, recursively. */
-function expandSpreads(pairs, source, modulePath, seen = new Set()) {
+function expandSpreads(pairs, source, modulePath, ctx, seen = new Set()) {
   const out = {}
   for (const [key, value] of Object.entries(pairs)) {
     if (!key.startsWith('...')) { out[key] = value; continue }
@@ -380,10 +582,10 @@ function expandSpreads(pairs, source, modulePath, seen = new Set()) {
       out[key] = value
       continue
     }
-    const inner = readConstObject(source, name)
+    const inner = readConstObject(source, name, ctx)
     if (!inner) { out[key] = value; continue }
     seen.add(name)
-    Object.assign(out, expandSpreads(inner, source, modulePath, seen))
+    Object.assign(out, expandSpreads(inner, source, modulePath, ctx, seen))
   }
   return out
 }
@@ -400,16 +602,23 @@ function expandSpreads(pairs, source, modulePath, seen = new Set()) {
  * frozen surface of NO options for functions that bind eight secrets. An
  * identifier this cannot resolve is reported unresolved; it is never flattened
  * to empty.
+ *
+ * It reads the COMMENT-MASKED source, not the raw text. `createGenerateSlideNotes`
+ * writes its rationale between `onCall(` and the options object, so trimming
+ * whitespace alone left this looking at `//` — not `{`, not a quote, not an
+ * identifier — and it returned `{}`: a third false green, of the same family as
+ * the two above, found by the test written for them.
  */
-function readOptionsArgument(source, callStart, modulePath) {
-  const afterParen = source.slice(callStart + 1)
+function readOptionsArgument(source, callStart, modulePath, ctx) {
+  const text = masked(source)
+  const afterParen = text.slice(callStart + 1)
   const trimmed = afterParen.replace(/^\s+/, '')
 
   if (trimmed.startsWith('{')) {
     const objStart = callStart + 1 + (afterParen.length - trimmed.length)
-    const objText = sliceBalanced(source, objStart)
+    const objText = sliceBalanced(text, objStart)
     if (!objText) return { unresolved: `unbalanced options object in ${modulePath}` }
-    return { options: expandSpreads(parseOptions(objText), source, modulePath) }
+    return { options: expandSpreads(parseOptions(objText), text, modulePath, ctx) }
   }
 
   // v1-style `onSchedule("every day 05:00", …)`: the cron IS the options.
@@ -417,11 +626,15 @@ function readOptionsArgument(source, callStart, modulePath) {
     return { options: { schedule: normalise(trimmed.slice(0, trimmed.indexOf(trimmed[0], 1) + 1)) } }
   }
 
+  // No options ARGUMENT at all — `onCall(async (request) => {…})`. That is a
+  // real answer, not a failed read, and the difference matters: an empty
+  // options map otherwise reads identically to "we followed and recorded
+  // nothing", which is the false green the guard is built against. Say which.
   const ident = /^([A-Za-z_$][A-Za-z0-9_$]*)\s*,/.exec(trimmed)
-  if (!ident) return { options: {} }
-  const resolved = readConstObject(source, ident[1])
+  if (!ident) return { options: {}, noOptions: true }
+  const resolved = readConstObject(text, ident[1], ctx)
   if (!resolved) return { unresolved: `options are the identifier ${ident[1]}, not a const object literal in ${modulePath}` }
-  return { options: expandSpreads(resolved, source, modulePath) }
+  return { options: expandSpreads(resolved, text, modulePath, ctx) }
 }
 
 /**
@@ -460,11 +673,21 @@ export function extractRewrites(firebaseJsonSource) {
  */
 export function resolveExport(entry, indexSource, readModule) {
   if (entry.kind === 'factory') {
+    // The old blanket message here — "factory-built: options are arguments,
+    // guarded by the factory's own tests" — was half true and wholly
+    // misleading. The arguments are at the call site (frozen in `target`); the
+    // OPTIONS are an object literal inside the factory, and no test asserts on
+    // them. See followFactory.
+    const built = followFactory(entry.target, indexSource, readModule)
+    if (built.unresolved) {
+      return { options: {}, optionsFrom: null, optionsUnresolved: built.unresolved, kind: entry.kind }
+    }
     return {
-      options: {},
-      optionsFrom: null,
-      optionsUnresolved: 'factory-built: options are arguments, guarded by the factory\'s own tests',
-      kind: entry.kind,
+      options: built.options,
+      optionsFrom: built.from,
+      optionsUnresolved: null,
+      noOptionsDeclared: !!built.noOptions,
+      kind: built.kind,
     }
   }
   if (entry.kind === 'delegated') {
@@ -477,7 +700,13 @@ export function resolveExport(entry, indexSource, readModule) {
     }
     // The FOLLOWED kind, not `delegated`: an export that reaches an onRequest
     // in its own module is an HTTP surface wherever the builder is written.
-    return { options: followed.options, optionsFrom: followed.from, optionsUnresolved: null, kind: followed.kind }
+    return {
+      options: followed.options,
+      optionsFrom: followed.from,
+      optionsUnresolved: null,
+      noOptionsDeclared: !!followed.noOptions,
+      kind: followed.kind,
+    }
   }
   // A BUILDER declares its options in index.js whether or not its body is
   // still inline — which is precisely the extraction shape batch 1a uses.

@@ -130,25 +130,37 @@
     "agentJobsOnApproved": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "document": "\"agentJobs/{jobId}\"",
+        "region": "\"africa-south1\"",
+        "timeoutSeconds": "300",
+        "memory": "\"512MiB\"",
+        "secrets": "opsAlertSecrets"
+      },
+      "optionsFrom": "./agents/dispatcher (factory createAgentJobsOnApproved)",
+      "optionsUnresolved": null,
       "target": "createAgentJobsOnApproved( opsAlertSecrets([emailSmtpUser, emailSmtpPassword]))",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "agentJobsOnCreate": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "document": "\"agentJobs/{jobId}\"",
+        "region": "\"africa-south1\"",
+        "timeoutSeconds": "300",
+        "memory": "\"512MiB\"",
+        "secrets": "[anthropicApiKeySecret, ...opsAlertSecrets]"
+      },
+      "optionsFrom": "./agents/dispatcher (factory createAgentJobsOnCreate)",
+      "optionsUnresolved": null,
       "target": "createAgentJobsOnCreate( anthropicApiKey, opsAlertSecrets([emailSmtpUser, emailSmtpPassword]))",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "aggregateVisitorStats": {
@@ -208,37 +220,49 @@
     "aiLessonCount": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[anthropicApiKeySecret]",
+        "timeoutSeconds": "45",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./teacherTools/lessonCount (factory createAiLessonCount)",
+      "optionsUnresolved": null,
       "target": "createAiLessonCount(anthropicApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "analyzeExamPaper": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[anthropicApiKeySecret]",
+        "timeoutSeconds": "300",
+        "memory": "\"1GiB\""
+      },
+      "optionsFrom": "./teacherTools/examPaperLibrary (factory createAnalyzeExamPaper)",
+      "optionsUnresolved": null,
       "target": "createAnalyzeExamPaper(anthropicApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "analyzePaperLayout": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[anthropicApiKeySecret]",
+        "timeoutSeconds": "60",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "./teacherTools/testPaperImport/layoutPass (factory createAnalyzePaperLayout)",
+      "optionsUnresolved": null,
       "target": "createAnalyzePaperLayout(anthropicApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "apiAiChat": {
@@ -277,9 +301,13 @@
     "apiGenerateLessonPlan": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[anthropicApiKey]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "120"
+      },
+      "optionsFrom": "index.js (factory makeStreamingEndpoint)",
+      "optionsUnresolved": null,
       "target": "makeStreamingEndpoint({ tool: \"GenerateLessonPlan\", runCore: runLessonPlan, })",
       "rewritePath": "/api/teacher/lesson-plan/stream",
       "rewriteRegion": "us-central1",
@@ -289,9 +317,13 @@
     "apiGenerateWorksheet": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[anthropicApiKey]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "120"
+      },
+      "optionsFrom": "index.js (factory makeStreamingEndpoint)",
+      "optionsUnresolved": null,
       "target": "makeStreamingEndpoint({ tool: \"GenerateWorksheet\", runCore: runWorksheet, })",
       "rewritePath": "/api/teacher/worksheet/stream",
       "rewriteRegion": "us-central1",
@@ -597,13 +629,18 @@
     "checkVisualSafety": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[anthropicApiKeySecret]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "./visualSafety (factory createCheckVisualSafety)",
+      "optionsUnresolved": null,
       "target": "createCheckVisualSafety(anthropicApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "classifyQuestionGrades": {
@@ -778,9 +815,14 @@
     "deleteCurriculumUpload": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "120",
+        "memory": "\"512MiB\"",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"deleteCurriculumUpload\")"
+      },
+      "optionsFrom": "./teacherTools/uploadCurriculumModule (factory createDeleteCurriculumUpload)",
+      "optionsUnresolved": null,
       "target": "createDeleteCurriculumUpload()",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -888,13 +930,17 @@
     "extractAssessmentFormat": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[anthropicApiKeySecret]",
+        "timeoutSeconds": "300",
+        "memory": "\"1GiB\""
+      },
+      "optionsFrom": "./teacherTools/extractAssessmentFormat (factory createExtractAssessmentFormat)",
+      "optionsUnresolved": null,
       "target": "createExtractAssessmentFormat(anthropicApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "extractClassListPages": {
@@ -918,13 +964,19 @@
     "extractTopicsFromPdf": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[anthropicApiKeySecret]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "540",
+        "memory": "\"1GiB\"",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"extractTopicsFromPdf\")"
+      },
+      "optionsFrom": "./teacherTools/extractTopicsFromPdf (factory createExtractTopicsFromPdf)",
+      "optionsUnresolved": null,
       "target": "createExtractTopicsFromPdf(anthropicApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "functionErrorWatch": {
@@ -948,73 +1000,97 @@
     "generateAssessment": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[anthropicApiKeySecret]",
+        "timeoutSeconds": "240",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "./teacherTools/generateAssessment (factory createGenerateAssessment)",
+      "optionsUnresolved": null,
       "target": "createGenerateAssessment(anthropicApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "generateDiagram": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "secrets",
+        "timeoutSeconds": "120",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "./teacherTools/generateDiagram (factory createGenerateDiagram)",
+      "optionsUnresolved": null,
       "target": "createGenerateDiagram(openaiApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "generateFlashcards": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[anthropicApiKeySecret]",
+        "timeoutSeconds": "90",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "./teacherTools/generateFlashcards (factory createGenerateFlashcards)",
+      "optionsUnresolved": null,
       "target": "createGenerateFlashcards(anthropicApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "generateHomework": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[anthropicApiKeySecret]",
+        "timeoutSeconds": "120",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "./teacherTools/generateHomework (factory createGenerateHomework)",
+      "optionsUnresolved": null,
       "target": "createGenerateHomework(anthropicApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "generateLessonActivities": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[anthropicApiKeySecret]",
+        "timeoutSeconds": "180",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "./teacherTools/generateLessonActivities (factory createGenerateLessonActivities)",
+      "optionsUnresolved": null,
       "target": "createGenerateLessonActivities(anthropicApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "generateLessonPlan": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[anthropicApiKeySecret]",
+        "timeoutSeconds": "120",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "./teacherTools/generateLessonPlan (factory createGenerateLessonPlan)",
+      "optionsUnresolved": null,
       "target": "createGenerateLessonPlan(anthropicApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "generateNoteInsights": {
@@ -1038,25 +1114,34 @@
     "generateNotePictures": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "secrets",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "540",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "./teacherTools/generateNotePictures (factory createGenerateNotePictures)",
+      "optionsUnresolved": null,
       "target": "createGenerateNotePictures(geminiApiKey, openaiApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "generateNotes": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[anthropicApiKeySecret]",
+        "timeoutSeconds": "120",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "./teacherTools/generateNotes (factory createGenerateNotes)",
+      "optionsUnresolved": null,
       "target": "createGenerateNotes(anthropicApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "generateNoteSmart": {
@@ -1097,9 +1182,14 @@
     "generatePasskeyAuthenticationOptionsAfrica": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "region": "PASSKEY_REGIONAL_REGION",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\"",
+        "enforceAppCheck": "shouldEnforceAppCheck(baseName)"
+      },
+      "optionsFrom": "index.js (factory passkeyRegionalCallable)",
+      "optionsUnresolved": null,
       "target": "passkeyRegionalCallable( \"generatePasskeyAuthenticationOptions\", runGeneratePasskeyAuthenticationOptions)",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1126,9 +1216,14 @@
     "generatePasskeyRegistrationOptionsAfrica": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "region": "PASSKEY_REGIONAL_REGION",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\"",
+        "enforceAppCheck": "shouldEnforceAppCheck(baseName)"
+      },
+      "optionsFrom": "index.js (factory passkeyRegionalCallable)",
+      "optionsUnresolved": null,
       "target": "passkeyRegionalCallable( \"generatePasskeyRegistrationOptions\", runGeneratePasskeyRegistrationOptions)",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1138,13 +1233,17 @@
     "generateQuiz": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[anthropicApiKeySecret]",
+        "timeoutSeconds": "120",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "./teacherTools/generateQuiz (factory createGenerateQuiz)",
+      "optionsUnresolved": null,
       "target": "createGenerateQuiz(anthropicApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "generateQuizQuestions": {
@@ -1167,73 +1266,99 @@
     "generateRubric": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[anthropicApiKeySecret]",
+        "timeoutSeconds": "90",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "./teacherTools/generateRubric (factory createGenerateRubric)",
+      "optionsUnresolved": null,
       "target": "createGenerateRubric(anthropicApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "generateSbaTask": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[anthropicApiKeySecret]",
+        "timeoutSeconds": "120",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "./teacherTools/generateSbaTask (factory createGenerateSbaTask)",
+      "optionsUnresolved": null,
       "target": "createGenerateSbaTask(anthropicApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "generateSchemeOfWork": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[anthropicApiKeySecret]",
+        "timeoutSeconds": "180",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "./teacherTools/generateSchemeOfWork (factory createGenerateSchemeOfWork)",
+      "optionsUnresolved": null,
       "target": "createGenerateSchemeOfWork(anthropicApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "generateStudyPlan": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[anthropicApiKeySecret]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "45",
+        "memory": "\"512MiB\"",
+        "enforceAppCheck": "enforceAppCheck"
+      },
+      "optionsFrom": "./studentAgents (factory createGenerateStudyPlan)",
+      "optionsUnresolved": null,
       "target": "createGenerateStudyPlan(anthropicApiKey, { enforceAppCheck: shouldEnforceAppCheck(\"generateStudyPlan\"), recordAppCheckCallable, })",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "generateVisualNotes": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "secrets",
+        "timeoutSeconds": "300",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "./teacherTools/generateSlideNotes (factory createGenerateSlideNotes)",
+      "optionsUnresolved": null,
       "target": "createGenerateSlideNotes(anthropicApiKey, openaiApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "generateWorksheet": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[anthropicApiKeySecret]",
+        "timeoutSeconds": "120",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "./teacherTools/generateWorksheet (factory createGenerateWorksheet)",
+      "optionsUnresolved": null,
       "target": "createGenerateWorksheet(anthropicApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "getAiBudgetEnforcement": {
@@ -1318,13 +1443,19 @@
     "getPlatformHealth": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[anthropicApiKeySecret]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\"",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"getPlatformHealth\")"
+      },
+      "optionsFrom": "./agents/platformHealth (factory createGetPlatformHealth)",
+      "optionsUnresolved": null,
       "target": "createGetPlatformHealth(anthropicApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "getProgressShare": {
@@ -1478,13 +1609,17 @@
     "importPastPaperQuestions": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[anthropicApiKeySecret]",
+        "timeoutSeconds": "540",
+        "memory": "\"2GiB\""
+      },
+      "optionsFrom": "./teacherTools/pastPaperImport (factory createImportPastPaperQuestions)",
+      "optionsUnresolved": null,
       "target": "createImportPastPaperQuestions(anthropicApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "inactiveLearnerReminder": {
@@ -1508,9 +1643,14 @@
     "initializeAgentPipeline": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\"",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"initializeAgentPipeline\")"
+      },
+      "optionsFrom": "./agents/platformHealth (factory createInitializeAgentPipeline)",
+      "optionsUnresolved": null,
       "target": "createInitializeAgentPipeline()",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1586,13 +1726,19 @@
     "lessonPlanTemplateOnWrite": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "document": "\"aiGenerations/{genId}\"",
+        "region": "\"africa-south1\"",
+        "timeoutSeconds": "120",
+        "memory": "\"512MiB\"",
+        "secrets": "[anthropicApiKeySecret]"
+      },
+      "optionsFrom": "./teacherTools/templateBankFunctions (factory createLessonPlanTemplateOnWrite)",
+      "optionsUnresolved": null,
       "target": "createLessonPlanTemplateOnWrite(anthropicApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "listUserPasskeys": {
@@ -1931,9 +2077,12 @@
     "planAssessment": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./teacherTools/planAssessment (factory createPlanAssessment)",
+      "optionsUnresolved": null,
       "target": "createPlanAssessment()",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1959,13 +2108,19 @@
     "questionReviewOnWrite": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "document": "\"questionBank/{questionId}\"",
+        "region": "\"africa-south1\"",
+        "timeoutSeconds": "120",
+        "memory": "\"512MiB\"",
+        "secrets": "secrets"
+      },
+      "optionsFrom": "./agents/questionReview (factory createQuestionReviewOnWrite)",
+      "optionsUnresolved": null,
       "target": "createQuestionReviewOnWrite(anthropicApiKey, openaiApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "rateLimitHealthCheck": {
@@ -2039,13 +2194,17 @@
     "rebuildTableFromImage": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[anthropicApiKeySecret]",
+        "timeoutSeconds": "120",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "./teacherTools/testPaperImport/rebuildTable (factory createRebuildTableFromImage)",
+      "optionsUnresolved": null,
       "target": "createRebuildTableFromImage(anthropicApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "reclaimAiBudgetReservations": {
@@ -2084,9 +2243,12 @@
     "recordTemplateInteraction": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./teacherTools/templateBankFunctions (factory createRecordTemplateInteraction)",
+      "optionsUnresolved": null,
       "target": "createRecordTemplateInteraction()",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -2129,25 +2291,33 @@
     "redrawTestPaperDiagram": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "secrets",
+        "timeoutSeconds": "300",
+        "memory": "\"1GiB\""
+      },
+      "optionsFrom": "./teacherTools/testPaperImport/redrawTestPaperDiagram (factory createRedrawTestPaperDiagram)",
+      "optionsUnresolved": null,
       "target": "createRedrawTestPaperDiagram(openaiApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "regenerateAssessmentQuestion": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[anthropicApiKeySecret]",
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./teacherTools/regenerateAssessmentQuestion (factory createRegenerateAssessmentQuestion)",
+      "optionsUnresolved": null,
       "target": "createRegenerateAssessmentQuestion(anthropicApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "removeUserPasskey": {
@@ -2235,8 +2405,9 @@
       "kind": "factory",
       "inline": false,
       "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "optionsFrom": "./teacherTools/paperAssetUrl (factory createResolvePaperAssetUrl)",
+      "optionsUnresolved": null,
+      "noOptionsDeclared": true,
       "target": "createResolvePaperAssetUrl()",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -2279,25 +2450,33 @@
     "reviseLessonSection": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[anthropicApiKeySecret]",
+        "timeoutSeconds": "45",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./teacherTools/reviseLessonSection (factory createReviseLessonSection)",
+      "optionsUnresolved": null,
       "target": "createReviseLessonSection(anthropicApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "reviseQuestion": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[anthropicApiKeySecret]",
+        "timeoutSeconds": "45",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./teacherTools/reviseQuestion (factory createReviseQuestion)",
+      "optionsUnresolved": null,
       "target": "createReviseQuestion(anthropicApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "revokeFamilyInviteCode": {
@@ -2368,9 +2547,14 @@
     "runSampleAgentJob": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\"",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"runSampleAgentJob\")"
+      },
+      "optionsFrom": "./agents/platformHealth (factory createRunSampleAgentJob)",
+      "optionsUnresolved": null,
       "target": "createRunSampleAgentJob()",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -2462,25 +2646,35 @@
     "sendTestFunctionErrorAlert": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "secrets",
+        "region": "REGION",
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./monitoring/functionErrorWatchTest (factory createSendTestFunctionErrorAlert)",
+      "optionsUnresolved": null,
       "target": "require(\"./monitoring/functionErrorWatchTest\").createSendTestFunctionErrorAlert( opsAlertSecrets([emailSmtpUser, emailSmtpPassword]))",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "sendTestOpsAlert": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "secrets",
+        "region": "REGION",
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./opsAlertTest (factory createSendTestOpsAlert)",
+      "optionsUnresolved": null,
       "target": "require(\"./opsAlertTest\").createSendTestOpsAlert( lencoEmailSecrets, opsAlertSecrets([emailSmtpUser, emailSmtpPassword]))",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "setSubscriptionCancellation": {
@@ -2605,13 +2799,17 @@
     "studioGenerateLessonPlan": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[anthropicApiKeySecret]",
+        "timeoutSeconds": "120",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "./teacherTools/studioLessonPlan (factory createStudioGenerateLessonPlan)",
+      "optionsUnresolved": null,
       "target": "createStudioGenerateLessonPlan(anthropicApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "submitDailyExam": {
@@ -2683,13 +2881,17 @@
     "suggestAnswer": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "secrets",
+        "timeoutSeconds": "45",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./teacherTools/suggestAnswer (factory createSuggestAnswer)",
+      "optionsUnresolved": null,
       "target": "createSuggestAnswer(anthropicApiKey, geminiApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "suggestQuizAnswers": {
@@ -2731,13 +2933,17 @@
     "synthesizeAssessmentFormat": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[anthropicApiKeySecret]",
+        "timeoutSeconds": "300",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "./teacherTools/examPaperLibrary (factory createSynthesizeAssessmentFormat)",
+      "optionsUnresolved": null,
       "target": "createSynthesizeAssessmentFormat(anthropicApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "tmpDownloadReaper": {
@@ -2795,13 +3001,19 @@
     "uploadCurriculumModule": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "secrets": "[openaiApiKeySecret]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "540",
+        "memory": "\"1GiB\"",
+        "enforceAppCheck": "shouldEnforceAppCheck(\"uploadCurriculumModule\")"
+      },
+      "optionsFrom": "./teacherTools/uploadCurriculumModule (factory createUploadCurriculumModule)",
+      "optionsUnresolved": null,
       "target": "createUploadCurriculumModule(openaiApiKey)",
       "rewritePath": null,
       "rewriteRegion": null,
-      "classification": "mechanical",
+      "classification": "secrets-bound",
       "batch": null
     },
     "upsertSyllabusRow": {
@@ -2857,9 +3069,14 @@
     "verifyPasskeyAuthenticationAfrica": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "region": "PASSKEY_REGIONAL_REGION",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\"",
+        "enforceAppCheck": "shouldEnforceAppCheck(baseName)"
+      },
+      "optionsFrom": "index.js (factory passkeyRegionalCallable)",
+      "optionsUnresolved": null,
       "target": "passkeyRegionalCallable( \"verifyPasskeyAuthentication\", runVerifyPasskeyAuthentication)",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -2886,9 +3103,14 @@
     "verifyPasskeyRegistrationAfrica": {
       "kind": "factory",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "factory-built: options are arguments, guarded by the factory's own tests",
+      "options": {
+        "region": "PASSKEY_REGIONAL_REGION",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\"",
+        "enforceAppCheck": "shouldEnforceAppCheck(baseName)"
+      },
+      "optionsFrom": "index.js (factory passkeyRegionalCallable)",
+      "optionsUnresolved": null,
       "target": "passkeyRegionalCallable( \"verifyPasskeyRegistration\", runVerifyPasskeyRegistration)",
       "rewritePath": null,
       "rewriteRegion": null,

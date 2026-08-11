@@ -20,7 +20,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { extractExports, extractRewrites, seedClassification, RISK_RANK, resolveExport, createModuleReader, followDelegation } from './lib/functionsManifest.mjs'
+import { extractExports, extractRewrites, seedClassification, RISK_RANK, resolveExport, createModuleReader, followDelegation, followFactory } from './lib/functionsManifest.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const readFunctionsModule = createModuleReader(path.join(ROOT, 'functions'))
@@ -172,14 +172,23 @@ test('extraction keeps builders in index.js — the delegated set may only shrin
     `${blind} delegated/factory exports (ceiling 157) — an extraction converted a builder to a re-export; move the BODY and keep the builder in index.js`)
 })
 
-test('a DELEGATED export\'s options are frozen where they actually live', () => {
+test('a DELEGATED or FACTORY export\'s options are frozen where they actually live', () => {
   // Codex P1 on #2194: the guard read index.js only, so apiImageProxy's
   // region/timeout/memory/cors — declared in imageProxy.js — could change
   // freely. Following the delegation extends the frozen surface from the 44
   // handlers declared here to every one it can reach.
+  //
+  // FACTORY entries are compared here too, and that word is the whole reason
+  // this test is worth re-reading. When the factory reader landed, 49 exports
+  // gained a full options record in the manifest that NOTHING compared —
+  // `delegated` here and `delegated || factory` skipped in the index.js
+  // comparison meant every one of them could drift freely behind a populated,
+  // confident-looking row. Caught by mutation (createGenerateQuiz's timeout
+  // 120 -> 60, suite still green), which is the only way to catch it: reading
+  // the manifest tells you the data is there, not that anyone checks it.
   const drifts = []
   for (const e of live) {
-    if (e.kind !== 'delegated' || !e.target) continue
+    if ((e.kind !== 'delegated' && e.kind !== 'factory') || !e.target) continue
     const m = manifest[e.name]
     if (!m || m.optionsUnresolved) continue
     const followed = resolveExport(e, indexSource, readFunctionsModule)
@@ -197,7 +206,7 @@ test('a DELEGATED export\'s options are frozen where they actually live', () => 
     }
   }
   assert.deepEqual(drifts, [],
-    `a delegated export's wrapper drifted in its own module:\n    ${drifts.join('\n    ')}`)
+    `a delegated/factory export's wrapper drifted where it is defined:\n    ${drifts.join('\n    ')}`)
 })
 
 test('an EXTRACTED handler keeps its options guarded in index.js', () => {
@@ -241,8 +250,8 @@ test('a RESOLVED export never records nothing — no false greens', () => {
       // A builder that genuinely takes no options object is possible; one
       // reached by FOLLOWING and recording nothing is the bug. index.js's own
       // declarations are visible in review, a module's are not.
-      if (m.optionsFrom && m.optionsFrom !== 'index.js') {
-        problems.push(`${name}: followed into ${m.optionsFrom} and recorded NO options — resolved-but-empty is a false green, not a clean read`)
+      if (m.optionsFrom && m.optionsFrom !== 'index.js' && !m.noOptionsDeclared) {
+        problems.push(`${name}: followed into ${m.optionsFrom} and recorded NO options — resolved-but-empty is a false green, not a clean read. If the builder genuinely takes no options object, the reader must SAY so (noOptionsDeclared), not leave it to be inferred from an empty map.`)
       }
       continue
     }
@@ -253,6 +262,27 @@ test('a RESOLVED export never records nothing — no false greens', () => {
     }
   }
   assert.deepEqual(problems, [], `false greens in the manifest:\n    ${problems.join('\n    ')}`)
+})
+
+test('"declares no options" and "recorded nothing" are different answers', () => {
+  // resolvePaperAssetUrl is `onCall(async (request) => {…})` — no options
+  // object at all. That is a real answer, and without a way to say it, an
+  // empty options map is indistinguishable from a failed read. The rule above
+  // would then have to permit every empty map, which is the false green it
+  // exists to forbid.
+  const reader = (source) => () => ({ source, dir: '.' })
+  const index = 'const {createThing} = require("./mod");\nexports.thing = createThing();\n'
+
+  const bare = followFactory('createThing()', index, reader(
+    'function createThing() {\n  return onCall(async (r) => r)\n}\n'))
+  assert.equal(bare.unresolved, undefined)
+  assert.deepEqual(bare.options, {})
+  assert.equal(bare.noOptions, true, 'a builder with no options argument must say so positively')
+
+  const withOpts = followFactory('createThing()', index, reader(
+    'function createThing() {\n  return onCall({timeoutSeconds: 30}, async (r) => r)\n}\n'))
+  assert.equal(withOpts.noOptions, false, 'a builder that DOES declare options must not claim it declares none')
+  assert.equal(withOpts.options.timeoutSeconds, '30')
 })
 
 test('options the follower cannot read are reported UNRESOLVED, never as empty', () => {
@@ -280,6 +310,54 @@ test('options the follower cannot read are reported UNRESOLVED, never as empty',
   assert.match(bad.unresolved, /OPTS_FROM_SOMEWHERE_ELSE/,
     'the report must name the identifier, so the baseline row is a work item')
   assert.equal(bad.options, undefined, 'an unresolved read must not hand back an options map at all')
+})
+
+test('a factory is read from its ONE builder, and ambiguity is refused', () => {
+  // Direct control, independent of the current tree. The refusal half matters
+  // most: picking the first of several builder calls would produce a populated,
+  // plausible options row for the wrong function — and a wrong answer that
+  // looks like a right one is worse than the blind spot it replaced.
+  const oneBuilder = `
+    function createThing(secret) {
+      return onCall({secrets: [secret], timeoutSeconds: 90, memory: "512MiB"}, async () => {});
+    }
+    module.exports = {createThing};
+  `
+  const twoBuilders = `
+    function createThing(secret) {
+      const other = onCall({region: "europe-west1"}, async () => {});
+      return onCall({secrets: [secret]}, async () => {});
+    }
+  `
+  const reader = (source) => () => ({ source, dir: '.' })
+  const index = 'const {createThing} = require("./mod");\nexports.thing = createThing(someSecret);\n'
+
+  const good = followFactory('createThing(someSecret)', index, reader(oneBuilder))
+  assert.equal(good.unresolved, undefined, 'a factory with one builder must resolve')
+  assert.equal(good.kind, 'onCall', 'the builder kind comes from the factory body, not the export line')
+  assert.equal(good.options.timeoutSeconds, '90')
+  assert.equal(good.options.secrets, '[secret]',
+    'the factory PARAMETER is what the factory declares — the argument is frozen separately, in `target`')
+
+  const ambiguous = followFactory('createThing(someSecret)', index, reader(twoBuilders))
+  assert.ok(ambiguous.unresolved, 'two builders in one factory must not be guessed between')
+  assert.match(ambiguous.unresolved, /2 builder calls/)
+  assert.equal(ambiguous.options, undefined, 'a refused read must not hand back an options map')
+
+  // A comment between the builder and its options must not hide them —
+  // createGenerateSlideNotes writes one there, and trimming whitespace alone
+  // left the reader looking at "//" and returning {}.
+  const commented = `
+    function createThing(secret) {
+      return onCall(
+        // why this is 300
+        {secrets: [secret], timeoutSeconds: 300},
+        async () => {});
+    }
+  `
+  const past = followFactory('createThing(someSecret)', index, reader(commented))
+  assert.equal(past.unresolved, undefined, 'a comment before the options object must be stepped over')
+  assert.equal(past.options.timeoutSeconds, '300')
 })
 
 test('the follower refuses a specifier that escapes functions/', () => {
