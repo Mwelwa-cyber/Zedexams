@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Icon from '../ui/Icon'
-import { Search, ChevronRight, X } from '../ui/icons'
+import Icon from '../../../components/ui/Icon'
+import { Search, ChevronRight, X } from '../../../components/ui/icons'
 
 // Flatten the grouped nav into a single searchable command list.
 function buildCommands(sections) {

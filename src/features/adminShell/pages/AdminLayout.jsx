@@ -27,14 +27,14 @@ import {
   Lightbulb,
   LayoutGrid,
   Globe,
-} from '../ui/icons'
-import { useAuth } from '../../contexts/AuthContext'
-import Icon from '../ui/Icon'
-import ErrorBoundary from '../ui/ErrorBoundary'
-import ThemeSelector from '../ui/ThemeSelector'
+} from '../../../components/ui/icons'
+import { useAuth } from '../../../contexts/AuthContext'
+import Icon from '../../../components/ui/Icon'
+import ErrorBoundary from '../../../components/ui/ErrorBoundary'
+import ThemeSelector from '../../../components/ui/ThemeSelector'
 import { collection, getCountFromServer, query, where } from 'firebase/firestore'
-import { db } from '../../firebase/config'
-import CommandPalette from './CommandPalette'
+import { db } from '../../../firebase/config'
+import CommandPalette from '../components/CommandPalette'
 
 function AdminBrand({ compact = false }) {
   return (

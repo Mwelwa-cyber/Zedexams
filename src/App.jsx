@@ -159,7 +159,7 @@ const BlogIndex = lazy(() => import('./components/blog/BlogIndex'))
 const BlogPost = lazy(() => import('./components/blog/BlogPost'))
 
 // Admin section
-const AdminLayout = lazy(() => import('./components/admin/AdminLayout'))
+const AdminLayout = lazy(() => import('./features/adminShell/pages/AdminLayout'))
 const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'))
 // Mandatory MFA enrolment page — admin-only, rendered full-screen (no admin
 // chrome) so a not-yet-enrolled admin gets one focused task.
