@@ -710,9 +710,13 @@ export default function EditQuizV2() {
   // Studio (linkedPaperId) and by the legacy converter (sourcePastPaperId),
   // including papers imported before this feature existed.
   const sourcePaperId = form.sourcePastPaperId || form.linkedPaperId || null
+  // Holds a Promise<provider>, not the provider, so the ref can be claimed
+  // SYNCHRONOUSLY before the dynamic import's await — see openSourcePageCrop.
   const paperPageProviderRef = useRef(null)
   const [pageCropLoading, setPageCropLoading] = useState(false)
-  useEffect(() => () => { paperPageProviderRef.current?.dispose?.() }, [])
+  useEffect(() => () => {
+    paperPageProviderRef.current?.then((provider) => provider.dispose?.()).catch(() => {})
+  }, [])
   const openSourcePageCrop = useCallback(async function openSourcePageCrop(kind, sectionIndex, source, pageOverride) {
     if (!sourcePaperId || pageCropLoading) return
     const page = Number.parseInt(
@@ -723,10 +727,22 @@ export default function EditQuizV2() {
     setPageCropLoading(true)
     try {
       if (!paperPageProviderRef.current) {
-        const { createPaperPageProvider } = await import('../../utils/paperPageProvider.js')
-        paperPageProviderRef.current = createPaperPageProvider(sourcePaperId)
+        // Claimed before any await. `pageCropLoading` is React state, so a
+        // second click in the same tick still reads it false and gets past the
+        // guard above; a check-then-assign either side of the import's await
+        // would then build a SECOND provider and orphan the first, whose object
+        // URLs only its own dispose() revokes — and the unmount cleanup can
+        // only reach the one still in the ref.
+        const pending = import('../../utils/paperPageProvider.js')
+          .then(({ createPaperPageProvider }) => createPaperPageProvider(sourcePaperId))
+        // A failed import must not poison the ref — released so a retry rebuilds,
+        // the same rule renderPage() already applies to its own page cache.
+        pending.catch(() => {
+          if (paperPageProviderRef.current === pending) paperPageProviderRef.current = null
+        })
+        paperPageProviderRef.current = pending
       }
-      const provider = paperPageProviderRef.current
+      const provider = await paperPageProviderRef.current
       const [imageUrl, pageCount] = await Promise.all([
         provider.getPageImage(page),
         provider.getPageCount().catch(() => null),

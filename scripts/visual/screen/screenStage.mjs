@@ -154,7 +154,8 @@ export async function renderScreenFixtures({ fixtures = SCREEN_FIXTURES, viewpor
     for (const fixture of fixtures) {
       const html = buildScreenHtml({ fixtureId: fixture.id, appCss, bundleCss, bundleJs })
       for (const viewport of viewports) {
-        // eslint-disable-next-line no-await-in-loop
+        // Serial on purpose: one browser, and a parallel page per viewport
+        // competes for the same renderer while a capture is being measured.
         results.push(await captureOne({ browser, fixture, viewport, html }))
       }
     }
@@ -201,7 +202,6 @@ async function captureOne({ browser, fixture, viewport, html }) {
         failures.push(`unknown page check "${name}" — declared by ${fixture.id} and not implemented`)
         continue
       }
-      // eslint-disable-next-line no-await-in-loop
       const problem = await page.evaluate(check.run)
       if (problem) failures.push(`${name}: ${problem}`)
     }

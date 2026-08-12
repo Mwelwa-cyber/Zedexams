@@ -71,7 +71,6 @@ function emailBucketKey(email) {
 }
 
 function defaultServerTimestamp() {
-  // eslint-disable-next-line global-require
   return require("firebase-admin").firestore.FieldValue.serverTimestamp();
 }
 

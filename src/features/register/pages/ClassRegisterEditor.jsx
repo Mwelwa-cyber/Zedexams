@@ -112,6 +112,10 @@ export default function ClassRegisterEditor() {
             classTeacherName: f.classTeacherName || userProfile?.displayName || '',
           }))
         })
+        // The .catch above covers the lookup — this one terminates the chain so
+        // a throw from the seeding callback surfaces as a missing seed (which
+        // the teacher can simply type over) rather than an unhandled rejection.
+        .catch(() => {})
       return () => { cancelled = true }
     }
     setLoading(true)
