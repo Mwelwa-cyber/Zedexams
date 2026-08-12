@@ -360,6 +360,82 @@ test('a factory is read from its ONE builder, and ambiguity is refused', () => {
   assert.equal(past.options.timeoutSeconds, '300')
 })
 
+test('an option VALUE that is an identifier resolves — unless resolving would be a guess', () => {
+  // The region hole. 17 exports recorded `region: REGION` and 4 recorded
+  // `region: PASSKEY_REGIONAL_REGION`: swapping which const an option read was
+  // caught, changing what the const HELD was not. One edit to one string could
+  // have moved 17 functions out of their region with the guard silent, and a
+  // Firestore trigger in the wrong region takes a cross-region Eventarc hop on
+  // every event.
+  //
+  // The refusals matter as much as the resolutions. A confidently wrong value
+  // is worse than a vague one, so anything the reader cannot be sure of keeps
+  // the bare token.
+  const reader = (source) => () => ({ source, dir: '.' })
+  const index = 'const {createThing} = require("./mod");\nexports.thing = createThing();\n'
+  const optionsOf = (body) => followFactory('createThing()', index, reader(body)).options
+
+  assert.equal(
+    optionsOf('const REGION = "us-central1"\nfunction createThing() { return onCall({region: REGION}, h) }\n').region,
+    '"us-central1"', 'a const string must resolve to its value')
+
+  assert.equal(
+    optionsOf('const A = "x"\nfunction f() { const A = "y" }\nfunction createThing() { return onCall({region: A}, h) }\n').region,
+    'A', 'two declarations of one name are scopes this cannot tell apart — refuse')
+
+  assert.equal(
+    optionsOf('let R = "a"\nfunction createThing() { return onCall({region: R}, h) }\n').region,
+    'R', 'only const is safe to read')
+
+  assert.equal(
+    optionsOf('const s = [a]\ns.push(b)\nfunction createThing() { return onCall({secrets: s}, h) }\n').secrets,
+    's', 'a mutated binding must not be reported as its initializer — that is a confidently wrong answer')
+
+  assert.equal(
+    optionsOf('function createThing(secrets = []) { return onCall({secrets}, h) }\n').secrets,
+    'secrets', 'a factory PARAMETER is not a declaration; its value is frozen at the call site in `target`')
+
+  // Cross-module, one hop — and keyed on module+name, because a binding
+  // imported under its own name is not a cycle. Keying on the name alone made
+  // this return the bare token, which is indistinguishable from never trying.
+  const importer = 'const {R} = require("./regions");\nfunction createThing() { return onCall({region: R}, h) }\n'
+  const readTwo = (spec) => spec.includes('regions')
+    ? { source: 'const R = "africa-south1"\nmodule.exports = {R}\n', dir: '.' }
+    : { source: importer, dir: '.' }
+  const crossed = followFactory('createThing()', importer, readTwo)
+  assert.equal(crossed.options.region, '"africa-south1"', 'an imported const must resolve across the hop')
+})
+
+// A region passed to a factory as a PARAMETER is frozen at the call site in
+// `target`, not in the options map, so it legitimately stays a token. There
+// are none today; the list exists so the rule below is satisfiable without
+// being weakened, and each entry has to say which export and why.
+const REGION_BY_PARAMETER = {}
+
+test('no export\'s region is left as the NAME of a const', () => {
+  // Region is the first thing architecture.md § Phase 5 freezes, and the one
+  // CLAUDE.md calls routing-critical: a Firestore trigger outside
+  // africa-south1 takes a cross-region Eventarc hop on every event. 21 rows
+  // recorded `region: REGION` / `region: PASSKEY_REGIONAL_REGION`, so a single
+  // edit to a single string could have moved 17 functions with the guard
+  // silent — it was watching which const was read, not what it held.
+  //
+  // Kept as a standing rule rather than a one-off cleanup: the next factory
+  // that reaches for a const is caught on the PR that adds it.
+  const problems = []
+  for (const [name, m] of Object.entries(manifest)) {
+    const region = m.options?.region
+    if (!region || !/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(region)) continue
+    if (name in REGION_BY_PARAMETER) continue
+    problems.push(
+      `${name}: region is the identifier ${region}, not a value. Declare it as ` +
+      `a module-level const the reader can follow, or — if it is a factory ` +
+      `PARAMETER, frozen at the call site in \`target\` — add ${name} to ` +
+      `REGION_BY_PARAMETER with the reason.`)
+  }
+  assert.deepEqual(problems, [], `unresolved regions:\n    ${problems.join('\n    ')}`)
+})
+
 test('the follower refuses a specifier that escapes functions/', () => {
   // github-actions security review on #2197: the follower reads what a
   // require() specifier names, so a traversal like ../../../.env.production

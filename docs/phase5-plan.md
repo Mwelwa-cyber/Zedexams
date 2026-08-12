@@ -141,7 +141,9 @@ and is hold-safe by construction.
 
 **`optionsUnresolved` is 5 of 195 exports** (2026-08-11, after #2290; it was 54
 of 194 after #2263, 131 of 194 before that, and 141 of 192 on 2026-08-09 —
-**derive every one of these numbers, never quote them**, see below). Memory is now separately
+**derive every one of these numbers, never quote them**, see below). The
+REGION half of the gap is separately closed: every `region:` option in the
+manifest now holds a value rather than the name of a const. Memory is now separately
 protected (`test:function-memory-floor`, #2231/#2233), but that is one option.
 Every other frozen option on those — region, timeout, secrets, App Check
 enforcement, concurrency, min-instances — is recorded as unreadable, and the
@@ -242,24 +244,25 @@ checked, not assumed.
    all 51 are `inline: false`, so all carry `batch: null`.
 5. **Keep the ratchet shrink-only.** 5 may only go down.
 
-### The two limitations that remain, stated rather than left to be discovered
+### Where the reader stops, and why
 
-Both are consistent with the extractor's founding decision — *"deliberately NOT
-a JS evaluator"* — and both are now the next work rather than a surprise:
+Consistent with the extractor's founding decision — *"deliberately NOT a JS
+evaluator"* — but no longer a surprise waiting to be found:
 
-- **An option whose VALUE is a bare identifier is frozen as that identifier.**
-  16 exports record `region: REGION`, and the four regional passkey callables
-  record `region: PASSKEY_REGIONAL_REGION`. Swapping which const is used is
-  caught; changing what the const holds is not. Regions are top of the frozen
-  list, so this is a real gap and not a stylistic one — 16 exports would move
-  region behind a green guard. Same machinery as `readConstObject`, one level
-  down from an object to a literal. **Next PR.**
-- **A secrets array built in a local is frozen by its name, not its contents.**
-  `createGenerateSlideNotes` does `const secrets = [a]; if (b) secrets.push(b)`
-  and passes it shorthand, so `generateVisualNotes` records `secrets: secrets`.
-  The call site's arguments are frozen in `target`, so changing WHICH secrets
-  are handed in is caught; changing how the factory assembles them is not. One
-  export today.
+- ~~**An option whose VALUE is a bare identifier is frozen as that
+  identifier.**~~ **CLOSED.** All 21 `region: <identifier>` rows now hold real
+  values — 17 `REGION` and, across an import hop, 4
+  `PASSKEY_REGIONAL_REGION`. Both halves are mutation-verified.
+- **A bare-identifier value that is a factory PARAMETER stays a token, on
+  purpose.** Ten rows remain: nine `secrets`/`enforceAppCheck` shorthands and
+  one `opsAlertSecrets`, every one of them a parameter of the factory rather
+  than a declaration. The reader declines to invent a value for them, and it
+  does not need to — the ARGUMENT is frozen verbatim in `target`, so changing
+  which secrets are handed in is caught. The one thing still invisible is a
+  factory rewriting how it assembles a local (`const secrets = [a]; if (b)
+  secrets.push(b)`), which the resolver refuses to read precisely because
+  reporting the initializer would assert `[a]` when the value may be `[a, b]`.
+  A confidently wrong answer is worse than a vague one.
 
 ### What #2263 also found: "resolved" was not the same as "read"
 

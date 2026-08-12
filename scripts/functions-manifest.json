@@ -204,7 +204,7 @@
       "options": {
         "schedule": "\"every day 02:00\"",
         "timeZone": "\"Africa/Lusaka\"",
-        "region": "REGION",
+        "region": "\"us-central1\"",
         "timeoutSeconds": "240",
         "memory": "\"256MiB\"",
         "secrets": "[emailSmtpUser, emailSmtpPassword]"
@@ -547,7 +547,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
-        "region": "REGION",
+        "region": "\"us-central1\"",
         "timeoutSeconds": "60",
         "memory": "\"256MiB\""
       },
@@ -697,7 +697,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
-        "region": "REGION",
+        "region": "\"us-central1\"",
         "timeoutSeconds": "30",
         "memory": "\"256MiB\""
       },
@@ -727,7 +727,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
-        "region": "REGION",
+        "region": "\"us-central1\"",
         "timeoutSeconds": "30",
         "memory": "\"256MiB\""
       },
@@ -1183,7 +1183,7 @@
       "kind": "factory",
       "inline": false,
       "options": {
-        "region": "PASSKEY_REGIONAL_REGION",
+        "region": "\"africa-south1\"",
         "timeoutSeconds": "30",
         "memory": "\"256MiB\"",
         "enforceAppCheck": "shouldEnforceAppCheck(baseName)"
@@ -1217,7 +1217,7 @@
       "kind": "factory",
       "inline": false,
       "options": {
-        "region": "PASSKEY_REGIONAL_REGION",
+        "region": "\"africa-south1\"",
         "timeoutSeconds": "30",
         "memory": "\"256MiB\"",
         "enforceAppCheck": "shouldEnforceAppCheck(baseName)"
@@ -1396,7 +1396,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
-        "region": "REGION",
+        "region": "\"us-central1\"",
         "timeoutSeconds": "60",
         "memory": "\"512MiB\""
       },
@@ -1412,7 +1412,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
-        "region": "REGION",
+        "region": "\"us-central1\"",
         "timeoutSeconds": "20"
       },
       "optionsFrom": "./dailyExamGradingFns",
@@ -1462,7 +1462,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
-        "region": "REGION",
+        "region": "\"us-central1\"",
         "timeoutSeconds": "60",
         "memory": "\"512MiB\""
       },
@@ -2276,7 +2276,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
-        "region": "REGION",
+        "region": "\"us-central1\"",
         "timeoutSeconds": "30",
         "memory": "\"256MiB\""
       },
@@ -2483,7 +2483,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
-        "region": "REGION",
+        "region": "\"us-central1\"",
         "timeoutSeconds": "30",
         "memory": "\"256MiB\""
       },
@@ -2499,7 +2499,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
-        "region": "REGION",
+        "region": "\"us-central1\"",
         "timeoutSeconds": "30",
         "memory": "\"256MiB\""
       },
@@ -2565,7 +2565,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
-        "region": "REGION",
+        "region": "\"us-central1\"",
         "timeoutSeconds": "30",
         "memory": "\"256MiB\""
       },
@@ -2648,7 +2648,7 @@
       "inline": false,
       "options": {
         "secrets": "secrets",
-        "region": "REGION",
+        "region": "\"us-central1\"",
         "timeoutSeconds": "60",
         "memory": "\"256MiB\""
       },
@@ -2665,7 +2665,7 @@
       "inline": false,
       "options": {
         "secrets": "secrets",
-        "region": "REGION",
+        "region": "\"us-central1\"",
         "timeoutSeconds": "60",
         "memory": "\"256MiB\""
       },
@@ -2816,7 +2816,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
-        "region": "REGION",
+        "region": "\"us-central1\"",
         "timeoutSeconds": "30"
       },
       "optionsFrom": "./dailyExamGradingFns",
@@ -2848,7 +2848,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
-        "region": "REGION",
+        "region": "\"us-central1\"",
         "timeoutSeconds": "20",
         "memory": "\"256MiB\""
       },
@@ -2968,7 +2968,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
-        "region": "REGION",
+        "region": "\"us-central1\"",
         "timeoutSeconds": "540",
         "memory": "\"512MiB\"",
         "secrets": "[emailSmtpUser, emailSmtpPassword, ...WHATSAPP_SECRETS]"
@@ -3070,7 +3070,7 @@
       "kind": "factory",
       "inline": false,
       "options": {
-        "region": "PASSKEY_REGIONAL_REGION",
+        "region": "\"africa-south1\"",
         "timeoutSeconds": "30",
         "memory": "\"256MiB\"",
         "enforceAppCheck": "shouldEnforceAppCheck(baseName)"
@@ -3104,7 +3104,7 @@
       "kind": "factory",
       "inline": false,
       "options": {
-        "region": "PASSKEY_REGIONAL_REGION",
+        "region": "\"africa-south1\"",
         "timeoutSeconds": "30",
         "memory": "\"256MiB\"",
         "enforceAppCheck": "shouldEnforceAppCheck(baseName)"
@@ -3158,7 +3158,7 @@
       "options": {
         "schedule": "\"every sunday 09:00\"",
         "timeZone": "\"Africa/Lusaka\"",
-        "region": "REGION",
+        "region": "\"us-central1\"",
         "timeoutSeconds": "540",
         "memory": "\"512MiB\"",
         "secrets": "[emailSmtpUser, emailSmtpPassword, ...WHATSAPP_SECRETS]"

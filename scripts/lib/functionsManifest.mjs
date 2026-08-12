@@ -570,6 +570,105 @@ function readConstObject(source, name, ctx) {
   return readConstObject(read.source, imported.binding)
 }
 
+/**
+ * An option whose VALUE is a bare identifier, resolved to what that identifier
+ * actually holds — `region: REGION` becomes `region: "us-central1"`.
+ *
+ * Why this is not cosmetic: 17 exports recorded `region: REGION` and 4 recorded
+ * `region: PASSKEY_REGIONAL_REGION`. Swapping which const an option reads was
+ * caught; changing what the const HOLDS was not. Region is the first thing
+ * architecture.md § Phase 5 freezes, and a Firestore trigger moving out of
+ * `africa-south1` takes a cross-region Eventarc hop on every event — so one
+ * edit to one string could have moved 17 functions with the guard silent.
+ *
+ * Three rules keep this from becoming a confidently-wrong answer, which would
+ * be worse than the vague one it replaces:
+ *
+ * - **`const` only, declared EXACTLY ONCE in the module.** Two declarations of
+ *   the same name means scopes this scanner cannot tell apart, and a factory
+ *   PARAMETER is not a declaration at all — so `secrets: [anthropicApiKeySecret]`
+ *   keeps naming the parameter, which is what the factory declares.
+ * - **Not mutated afterwards.** `const secrets = [a]; if (b) secrets.push(b)`
+ *   has the initializer `[a]`, and recording that would assert the binding is
+ *   `[a]` when it may be `[a, b]`. Any later `NAME =`, `NAME.method(` or
+ *   `NAME[` leaves the token alone. This is why the eight `secrets: secrets`
+ *   rows stay as they are.
+ * - **Whatever the initializer is, verbatim.** A string literal gives the
+ *   region; a call gives its argument list. Both are strictly more than the
+ *   name, and both drift when the initializer changes.
+ */
+function resolveValueIdentifier(source, name, ctx, origin = 'index.js', seen = new Set()) {
+  // Keyed on MODULE + name, not name alone. Keying on the name made the import
+  // hop eat itself: `PASSKEY_REGIONAL_REGION` imported under its own name
+  // looked like a cycle the moment it was followed, so the four regional
+  // passkey callables kept the bare token and the second half of the region
+  // hole stayed open — silently, because a refused resolution is indis-
+  // tinguishable from one that was never attempted.
+  const key = `${origin}::${name}`
+  if (seen.has(key)) return null
+  seen.add(key)
+  const text = masked(source)
+  const decls = [...text.matchAll(new RegExp(`(?:const|let|var)\\s+${name}\\s*=`, 'g'))]
+  if (decls.length !== 1) {
+    // Not declared here — it may be imported. One hop, same as readConstObject.
+    if (decls.length === 0 && ctx?.readModule) {
+      const imported = findDestructuredRequire(text, name)
+      if (imported && imported.modulePath.startsWith('.')) {
+        const spec = ctx.dir && ctx.dir !== '.'
+          ? path.posix.join(ctx.dir, imported.modulePath)
+          : imported.modulePath
+        const read = ctx.readModule(spec)
+        if (read) return resolveValueIdentifier(read.source, imported.binding, null, spec, seen)
+      }
+    }
+    return null
+  }
+  if (!/\bconst\b/.test(decls[0][0])) return null
+  if (new RegExp(`\\b${name}\\s*(?:\\.[A-Za-z_$][A-Za-z0-9_$]*\\s*\\(|\\[[^\\]]*\\]\\s*=)`).test(text)) return null
+  const after = text.slice(decls[0].index + decls[0][0].length)
+  const reassigned = new RegExp(`\\b${name}\\s*=[^=]`).test(after)
+  if (reassigned) return null
+
+  const value = readInitializer(after)
+  return value ? normalise(value) : null
+}
+
+/** The initializer text following `=`, up to the statement's end. */
+function readInitializer(text) {
+  let depth = 0
+  let inString = null
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i]
+    if (inString) {
+      if (ch === '\\') { i += 1; continue }
+      if (ch === inString) inString = null
+      continue
+    }
+    if (ch === '"' || ch === "'" || ch === '`') { inString = ch; continue }
+    if ('([{'.includes(ch)) depth += 1
+    else if (')]}'.includes(ch)) depth -= 1
+    else if (depth === 0 && (ch === ';' || ch === '\n')) {
+      const slice = text.slice(0, i).trim()
+      return slice || null
+    }
+  }
+  return null
+}
+
+/** Resolve every bare-identifier VALUE in an options map. */
+function resolveValueIdentifiers(pairs, source, ctx, origin) {
+  const LITERAL_KEYWORDS = new Set(['true', 'false', 'null', 'undefined'])
+  const out = {}
+  for (const [key, value] of Object.entries(pairs)) {
+    if (!/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(value) || LITERAL_KEYWORDS.has(value)) {
+      out[key] = value
+      continue
+    }
+    out[key] = resolveValueIdentifier(source, value, ctx, origin) ?? value
+  }
+  return out
+}
+
 /** Replace every `...NAME` entry with the pairs of that const, recursively. */
 function expandSpreads(pairs, source, modulePath, ctx, seen = new Set()) {
   const out = {}
@@ -618,7 +717,7 @@ function readOptionsArgument(source, callStart, modulePath, ctx) {
     const objStart = callStart + 1 + (afterParen.length - trimmed.length)
     const objText = sliceBalanced(text, objStart)
     if (!objText) return { unresolved: `unbalanced options object in ${modulePath}` }
-    return { options: expandSpreads(parseOptions(objText), text, modulePath, ctx) }
+    return { options: resolveValueIdentifiers(expandSpreads(parseOptions(objText), text, modulePath, ctx), text, ctx, modulePath) }
   }
 
   // v1-style `onSchedule("every day 05:00", …)`: the cron IS the options.
@@ -634,7 +733,7 @@ function readOptionsArgument(source, callStart, modulePath, ctx) {
   if (!ident) return { options: {}, noOptions: true }
   const resolved = readConstObject(text, ident[1], ctx)
   if (!resolved) return { unresolved: `options are the identifier ${ident[1]}, not a const object literal in ${modulePath}` }
-  return { options: expandSpreads(resolved, text, modulePath, ctx) }
+  return { options: resolveValueIdentifiers(expandSpreads(resolved, text, modulePath, ctx), text, ctx, modulePath) }
 }
 
 /**
