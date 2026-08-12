@@ -199,13 +199,20 @@ ok("renders no model-shaped placeholder when there is nothing but deps", () => {
 // The premise behind the whole fix. If this repo ever adopts real merge
 // commits, --first-parent still works, but the bug it replaced would no longer
 // have been a bug — so record the shape rather than assume it.
+//
+// Scoped to the 14-day floor buildGitLogArgs falls back to, not all of
+// history. main still carries pre-squash-policy merges: 53a65f45, the
+// merge of PR 583, is the newest, so asserting over every commit fails
+// forever. It also only failed in one place: ci.yml checks out shallow,
+// so the query saw nothing, while deploy-hosting.yml sets fetch-depth 0
+// and the assertion tripped on every push to main.
 
-ok("this repo's main carries no merge commits", () => {
+ok("the recent trunk carries no merge commits", () => {
   let merges;
   try {
     merges = execFileSync(
       "git",
-      ["log", "--merges", "--first-parent", "-n", "1", "--pretty=format:%h", "HEAD"],
+      ["log", "--merges", "--first-parent", "--since=14.days", "-n", "1", "--pretty=format:%h", "HEAD"],
       {encoding: "utf8"},
     ).trim();
   } catch {
@@ -215,8 +222,8 @@ ok("this repo's main carries no merge commits", () => {
   assert.strictEqual(
     merges,
     "",
-    "a merge commit appeared on the trunk — re-check whether --first-parent " +
-    "is still the right selector",
+    "a merge commit landed on the trunk in the last 14 days — re-check " +
+    "whether --first-parent is still the right selector",
   );
 });
 
