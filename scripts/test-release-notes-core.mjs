@@ -266,7 +266,8 @@ ok("an unfetched base branch skips loudly rather than falling back", () => {
 // Pointed at the RESOLVED trunk, not HEAD. With ci.yml on fetch-depth: 0 this
 // finally runs on pull requests too — against origin/$GITHUB_BASE_REF — where
 // before it either saw nothing (shallow checkout) or tripped over GitHub's
-// synthetic merge HEAD.
+// synthetic merge HEAD. If the trunk cannot be resolved the guard FAILS rather
+// than skipping, so a green check means it really ran.
 
 ok("the recent trunk carries no merge commits", () => {
   const git = (args) =>
@@ -281,10 +282,17 @@ ok("the recent trunk carries no merge commits", () => {
   };
 
   const {ref, source, reason} = resolveTrunkRef(process.env, refExists);
-  if (ref === null) {
-    console.log(`      (skipped: ${reason})`);
-    return;
-  }
+
+  // A named base branch that is missing from the checkout used to be a silent
+  // skip, and that is the hole the original bug hid in: ci.yml checked out
+  // shallow, the query could see nothing, and the guard reported "ok" while
+  // testing nothing at all. run-all-tests.mjs only surfaces a script's output
+  // when it FAILS, so a skip message would never have been read. With
+  // fetch-depth: 0 the base branch is always fetchable on a pull_request, so if
+  // it has gone missing the checkout config regressed — fail and name it.
+  // (GITHUB_BASE_REF is only ever set by ci.yml's pull_request trigger; the
+  // deploy workflows run on push, where this resolves to HEAD.)
+  assert.ok(ref !== null, reason);
 
   let merges;
   try {
