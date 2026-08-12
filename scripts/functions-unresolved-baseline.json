@@ -1,11 +1,5 @@
 {
-  "_comment": "Phase 5 gate (b): every export whose frozen options the manifest follower CANNOT read. SHRINK-ONLY — a new name fails test:functions-manifest, and an entry that no longer applies must be DELETED from this file in the same PR. Generated once from the manifest; maintained by hand thereafter. See docs/phase5-plan.md.",
+  "_comment": "Phase 5 gate (b): every export whose frozen options the manifest follower CANNOT read. IT IS NOW EMPTY, and that is the closed state of gate (b) — every one of the 195 exports has its options read from wherever they are declared. The file stays because it is the RATCHET, not a to-do list: a new blind export fails test:functions-manifest and has to be added here WITH the reason it cannot be read, which is a decision someone makes on the record rather than a row that quietly appears. Empty is the target state; keep it empty. See docs/phase5-plan.md.",
   "generatedFrom": "scripts/functions-manifest.json",
-  "unresolved": {
-    "onAssessmentQuestionDeleted": "built by the local factory makeDeletedTrigger(…) in storageCleanup/onQuestionChange",
-    "onAssessmentQuestionUpdated": "built by the local factory makeUpdatedTrigger(…) in storageCleanup/onQuestionChange",
-    "onQuizQuestionDeleted": "built by the local factory makeDeletedTrigger(…) in storageCleanup/onQuestionChange",
-    "onQuizQuestionUpdated": "built by the local factory makeUpdatedTrigger(…) in storageCleanup/onQuestionChange",
-    "onUserDeleted": "v1 chained builder (functions.region().runWith()…) in storageCleanup/onUserDeleted"
-  }
+  "unresolved": {}
 }

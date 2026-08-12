@@ -1846,9 +1846,14 @@
     "onAssessmentQuestionDeleted": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "built by the local factory makeDeletedTrigger(…) in storageCleanup/onQuestionChange",
+      "options": {
+        "document": "\"assessments/{assessmentId}/questions/{questionId}\"",
+        "region": "\"africa-south1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "storageCleanup/onQuestionChange (factory makeDeletedTrigger)",
+      "optionsUnresolved": null,
       "target": "storageCleanup.onAssessmentQuestionDeleted",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1858,9 +1863,14 @@
     "onAssessmentQuestionUpdated": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "built by the local factory makeUpdatedTrigger(…) in storageCleanup/onQuestionChange",
+      "options": {
+        "document": "\"assessments/{assessmentId}/questions/{questionId}\"",
+        "region": "\"africa-south1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "storageCleanup/onQuestionChange (factory makeUpdatedTrigger)",
+      "optionsUnresolved": null,
       "target": "storageCleanup.onAssessmentQuestionUpdated",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1938,9 +1948,14 @@
     "onQuizQuestionDeleted": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "built by the local factory makeDeletedTrigger(…) in storageCleanup/onQuestionChange",
+      "options": {
+        "document": "\"quizzes/{quizId}/questions/{questionId}\"",
+        "region": "\"africa-south1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "storageCleanup/onQuestionChange (factory makeDeletedTrigger)",
+      "optionsUnresolved": null,
       "target": "storageCleanup.onQuizQuestionDeleted",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1950,9 +1965,14 @@
     "onQuizQuestionUpdated": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "built by the local factory makeUpdatedTrigger(…) in storageCleanup/onQuestionChange",
+      "options": {
+        "document": "\"quizzes/{quizId}/questions/{questionId}\"",
+        "region": "\"africa-south1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "storageCleanup/onQuestionChange (factory makeUpdatedTrigger)",
+      "optionsUnresolved": null,
       "target": "storageCleanup.onQuizQuestionUpdated",
       "rewritePath": null,
       "rewriteRegion": null,
@@ -1996,9 +2016,14 @@
     "onUserDeleted": {
       "kind": "delegated",
       "inline": false,
-      "options": {},
-      "optionsFrom": null,
-      "optionsUnresolved": "v1 chained builder (functions.region().runWith()…) in storageCleanup/onUserDeleted",
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "300",
+        "memory": "\"256MB\"",
+        "event": "functions.auth.user().onDelete"
+      },
+      "optionsFrom": "storageCleanup/onUserDeleted",
+      "optionsUnresolved": null,
       "target": "storageCleanup.onUserDeleted",
       "rewritePath": null,
       "rewriteRegion": null,

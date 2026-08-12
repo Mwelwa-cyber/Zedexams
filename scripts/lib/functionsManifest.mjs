@@ -349,16 +349,37 @@ function followIntoModule(modulePath, binding, readModule, seen = new Set()) {
       const nested = dir === '.' ? hop.modulePath : path.posix.join(dir, hop.modulePath)
       return followIntoModule(nested, hop.binding, readModule, seen)
     }
+    // MODULE-LOCAL FACTORY — `onQuizQuestionDeleted: makeDeletedTrigger("…")`
+    // in this module's own `module.exports`. Unlike an index.js factory, the
+    // call site is INSIDE the module, so nothing freezes its arguments: the
+    // manifest's `target` records `storageCleanup.onQuizQuestionDeleted` and
+    // stops there. That is why the argument is bound to the parameter below
+    // rather than left as the parameter's name — otherwise the `document` path
+    // deciding WHICH collection the trigger fires on would be frozen nowhere
+    // at all.
+    const clean = masked(source)
+    const viaFactory = new RegExp(`\\b${binding}\\s*:\\s*([A-Za-z0-9_$]+)\\s*\\(`).exec(clean)
+    if (viaFactory) {
+      const built = readFactoryBody(source, viaFactory[1], modulePath, { readModule, dir })
+      if (built.unresolved) return built
+      const callStart = viaFactory.index + viaFactory[0].length - 1
+      const args = sliceBalanced(clean, callStart, '(', ')')
+      return {
+        options: bindFactoryArguments(built.options, source, viaFactory[1], args),
+        noOptions: built.noOptions,
+        kind: built.kind,
+        from: built.from,
+      }
+    }
+
+    // v1 CHAINED BUILDER — `functions.region(…).runWith({…}).auth.user().onDelete(…)`.
+    const chained = readV1Chain(source, binding, modulePath)
+    if (chained) return chained
+
     // Say WHICH kind of unreadable. The baseline these messages land in is a
     // work list, and "no builder" reads as "the follower is broken" when the
     // truth is that the module builds it in a shape this reader does not model
     // — a different, and differently sized, piece of work.
-    const clean = stripComments(source)
-    const viaFactory = new RegExp(`\\b${binding}\\s*:\\s*([A-Za-z0-9_]+)\\s*\\(`).exec(clean)
-    if (viaFactory) return { unresolved: `built by the local factory ${viaFactory[1]}(…) in ${modulePath}` }
-    if (new RegExp(`(?:const|let|var)\\s+${binding}\\s*=\\s*functions\\s*\\n?\\s*\\.`).test(clean)) {
-      return { unresolved: `v1 chained builder (functions.region().runWith()…) in ${modulePath}` }
-    }
     return { unresolved: `no builder for "${binding}" in ${modulePath}` }
   }
 
@@ -502,6 +523,114 @@ function findFunctionDeclaration(source, name) {
     if (m) return m.index + m[0].length - 1
   }
   return null
+}
+
+/**
+ * Substitute a factory's PARAMETERS with the ARGUMENTS it was called with.
+ *
+ * Only for a module-local factory binding, and the distinction is the point.
+ * An index.js factory's arguments are frozen verbatim in the manifest's
+ * `target` (`createGenerateQuiz(anthropicApiKey)`), so its options keep naming
+ * the parameter — that is what the factory declares, and the argument is
+ * guarded next door. A module-local factory has no such record: `target` is
+ * `storageCleanup.onQuizQuestionDeleted` and the call site is inside the
+ * module. Leave `document: documentPath` there and the collection path a
+ * Firestore trigger fires on — quizzes vs assessments — is frozen NOWHERE.
+ *
+ * Positional only, and a parameter with no matching argument is left as its
+ * name rather than guessed at.
+ */
+function bindFactoryArguments(options, source, factoryName, argsText) {
+  const parenAt = findFunctionDeclaration(masked(source), factoryName)
+  if (parenAt == null || !argsText) return options
+  const params = sliceBalanced(masked(source), parenAt, '(', ')')
+  if (!params) return options
+  const names = params.slice(1, -1).split(',').map((p) => p.trim().split('=')[0].trim()).filter(Boolean)
+  const args = splitTopLevel(argsText.slice(1, -1))
+  const bound = {}
+  for (const [key, value] of Object.entries(options)) {
+    const at = names.indexOf(value)
+    bound[key] = at !== -1 && args[at] !== undefined ? normalise(args[at]) : value
+  }
+  return bound
+}
+
+/** Split an argument list on top-level commas. */
+function splitTopLevel(text) {
+  const out = []
+  let depth = 0
+  let inString = null
+  let buf = ''
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i]
+    if (inString) {
+      buf += ch
+      if (ch === '\\') { buf += text[i + 1] ?? ''; i += 1; continue }
+      if (ch === inString) inString = null
+      continue
+    }
+    if (ch === '"' || ch === "'" || ch === '`') { inString = ch; buf += ch; continue }
+    if ('([{'.includes(ch)) depth += 1
+    else if (')]}'.includes(ch)) depth -= 1
+    if (depth === 0 && ch === ',') { out.push(buf.trim()); buf = ''; continue }
+    buf += ch
+  }
+  if (buf.trim()) out.push(buf.trim())
+  return out
+}
+
+/**
+ * A v1 chained builder — `functions.region("us-central1")
+ * .runWith({timeoutSeconds: 300, memory: "256MB"}).auth.user().onDelete(…)`.
+ *
+ * `onUserDeleted` is the last of these in the tree and the only export the
+ * follower could not read at all. Its frozen surface is spread across the
+ * chain rather than gathered in one options object: the region is an argument
+ * to `.region()`, the runtime options are the `.runWith({…})` literal, and the
+ * EVENT — `auth.user().onDelete` — is the whole meaning of the trigger. All
+ * three are recorded, the event under the same `event` key `extractExports`
+ * already uses for index.js's v1 auth triggers, so the two spellings of the
+ * same thing compare alike.
+ *
+ * Returns null when `binding` is not a v1 chain, so callers fall through to
+ * their own reporting.
+ */
+function readV1Chain(source, binding, modulePath) {
+  const text = masked(source)
+  const decl = text.match(new RegExp(`(?:const|let|var)\\s+${binding}\\s*=\\s*functions\\s*\\.`))
+  if (!decl) return null
+
+  // From the declaration itself, not from a computed offset into it: the
+  // matched text is `functions\n  .`, so subtracting the length of the string
+  // "functions." landed three characters late and cut the word in half.
+  const chain = text.slice(decl.index, decl.index + 4000)
+
+  const options = {}
+  const region = /\.region\(\s*([^)]*?)\s*\)/.exec(chain)
+  if (region) options.region = normalise(region[1])
+  const runWith = /\.runWith\s*\(/.exec(chain)
+  if (runWith) {
+    const objAt = chain.indexOf('{', runWith.index)
+    const objText = objAt === -1 ? null : sliceBalanced(chain, objAt)
+    if (objText) Object.assign(options, parseOptions(objText))
+  }
+  // onCreate vs onDelete is the whole meaning of a v1 auth trigger; collapsing
+  // them let setUserRole silently become a deletion hook (Codex P1 on #2194).
+  //
+  // Matched from the NAMESPACE rather than from `functions.`, because the
+  // chain reaches the event through `.region("us-central1")` and a
+  // `.runWith({…})` object — quotes, hyphens and braces that a path-shaped
+  // pattern anchored at `functions.` cannot cross. The result is canonicalised
+  // to the spelling `extractExports` produces for index.js's v1 triggers
+  // (`functions.auth.user().onDelete`), so the same trigger written either way
+  // compares alike.
+  // `\s*` between every segment: the chain is written one call per line, so a
+  // pattern that allows no whitespace matches nothing on the only file it has
+  // to read.
+  const event = /\.(auth|firestore|database|pubsub|storage|https|analytics|remoteConfig|testLab)\s*((?:\.\s*[A-Za-z]+\s*(?:\([^)]*\))?\s*)*?)\.\s*on([A-Za-z]+)\s*\(/.exec(chain)
+  if (!event) return { unresolved: `v1 chain for "${binding}" in ${modulePath} names no event` }
+  options.event = normalise(`functions.${event[1]}${event[2]}.on${event[3]}`).replace(/\s+/g, '')
+  return { options, kind: 'authTrigger', from: modulePath }
 }
 
 /** The single builder call inside a factory's body, with its options. */

@@ -6,17 +6,32 @@
 
 ## Ledger
 
-> **Phase 5: BATCH 2 PAUSED (2026-08-09, owner decision).** Batches 1a and 1b
-> are merged and deployed. **No further Functions migrations start until BOTH
-> gates clear: (a) Cloud Functions error monitoring (#2230), and (b) the
-> manifest's `optionsUnresolved` blind spot — see "Guard gap" below.** Clearing
-> only the `apiTrackVisit` work does not resume the phase.
-> The reason is not that the extractions were unsafe — 1b's post-deploy check
-> found no fault in it — but that the verification only worked because someone
-> read Cloud Logging by hand. Sentry is frontend-only and reported zero while
-> Cloud Logging held 80 errors, so the next batch would deploy into the same
-> blind spot. Migrating more Functions before we can SEE Functions fail is
-> ordering the work backwards. #2202 is not reverted.
+> **Phase 5: BOTH GATES CLEAR (2026-08-12).** Batch 2 was paused on 2026-08-09
+> pending (a) Cloud Functions error monitoring and (b) the manifest's
+> `optionsUnresolved` blind spot. Both are now closed:
+>
+> - **Gate (a) — CLOSED 2026-08-12.** The owner ran the drill from /admin →
+>   Developer tools. `sendTestFunctionErrorAlert` injected a synthetic memory
+>   kill, the REAL `runFunctionErrorWatch` fired, and a CRITICAL email arrived
+>   at 22:10:22+02 — *"Cloud Functions: 1 function(s) killed for memory"*,
+>   naming `zedexams-alarm-drill`, marked SYNTHETIC ALARM DRILL. That proves
+>   the whole path (classifier → thresholds → channel → secret bindings), which
+>   is what the drill exists for: a mailer test would have proved only the last
+>   link.
+> - **Gate (b) — CLOSED 2026-08-12.** `optionsUnresolved` is 0 across all 195
+>   exports (#2263, #2290, #2309 and the storageCleanup PR). See "Guard gap"
+>   below. No named exemptions were needed.
+>
+> The stated blocker is therefore satisfied. **Scheduling the next batch is a
+> separate decision** — it deploys Functions, so it wants a hold window and the
+> deployment boundary below, not an automatic start.
+>
+> The reason for the pause was never that the extractions were unsafe — 1b's
+> post-deploy check found no fault in it — but that the verification only
+> worked because someone read Cloud Logging by hand. Sentry is frontend-only
+> and reported zero while Cloud Logging held 80 errors, so the next batch would
+> have deployed into the same blind spot. Migrating more Functions before we
+> can SEE Functions fail is ordering the work backwards. #2202 is not reverted.
 >
 > **Phase 5: STARTED — contract/inventory stage.** No backend behaviour
 > changes yet. Migration batches risk-ascending. Payment/webhook and audit
@@ -108,7 +123,7 @@ expression), while their options are guarded where they are defined.
 | batch | class | count | gate |
 |---|---|---|---|
 | 1 | mechanical (no secrets) | 14 | standard CI |
-| 2 | secrets-bound | derive from the manifest (23 on 2026-08-09; was 21 at PR-zero) | **PAUSED 2026-08-09** — blocked on TWO gates: (a) #2230, Cloud Functions error monitoring; (b) the `optionsUnresolved` blind spot below. Standard CI + secrets bindings pinned by the guard when it resumes |
+| 2 | secrets-bound | derive from the manifest (23 on 2026-08-09; was 21 at PR-zero) | **UNBLOCKED 2026-08-12** — both gates closed (see the ledger). Standard CI + secrets bindings pinned by the guard, which now reads every export's options. Scheduling is a separate decision: this batch deploys Functions |
 | 3 | payment/webhook + audit-surface | 11 | **deferred until external review coverage is restored**; payment-lifecycle emulator + webhook-signature suites mandatory |
 
 Every batch, regardless of apparent relevance, runs the payment-lifecycle
@@ -137,40 +152,59 @@ must have one candidate cause). Batches are prepared and PR'd at any time;
 they merge between holds. PR-zero itself touches nothing under `functions/`
 and is hold-safe by construction.
 
-## Guard gap — BLOCKS Batch 2 (recorded 2026-08-09, owner instruction)
+## Guard gap — CLOSED 2026-08-12 (recorded 2026-08-09, owner instruction)
 
-**`optionsUnresolved` is 5 of 195 exports** (2026-08-11, after #2290; it was 54
-of 194 after #2263, 131 of 194 before that, and 141 of 192 on 2026-08-09 —
-**derive every one of these numbers, never quote them**, see below). Memory is now separately
-protected (`test:function-memory-floor`, #2231/#2233), but that is one option.
-Every other frozen option on those — region, timeout, secrets, App Check
-enforcement, concurrency, min-instances — is recorded as unreadable, and the
-owner's instruction is that they must not stay that way while more Functions
-are migrated.
+**`optionsUnresolved` is 0.** Every one of the 195 exports has its frozen
+options read from wherever they are actually declared. Derive it, do not trust
+this line:
 
-Measured breakdown, by the shape that defeats the follower. **Re-derive this
-before acting on it** — every row moved between 2026-08-09 and 2026-08-10 as
-#2228/#2235/#2239/#2242/#2244 landed, and a stale breakdown quoted next to a
-current total does not add up:
+    node -e "const m=require('./scripts/functions-manifest.json').exports; \
+      console.log(Object.values(m).filter(e => e.optionsUnresolved).length)"
 
-    node -e "const b=require('./scripts/functions-unresolved-baseline.json').unresolved; \
-      console.log(Object.keys(b).length)"
+It was 141 of 192 on 2026-08-09, 131 then 54 of 194 on 2026-08-10, 5 of 195
+after #2290, and 0 after #2309 (regions) and this PR (storageCleanup). Memory
+had been separately protected since #2231/#2233, but that was one option; the
+rest — region, timeout, secrets, App Check enforcement, concurrency,
+min-instances — were recorded as unreadable, which is what the owner's
+instruction was about.
 
+`scripts/functions-unresolved-baseline.json` stays, empty. It is the RATCHET,
+not a to-do list: a new blind export fails `test:functions-manifest` and has to
+be added there WITH the reason it cannot be read — a decision made on the
+record rather than a row that quietly appears. Control-verified by adding a
+second builder to a factory and watching two exports fail as NEW unguarded.
 
-| shape | 08-09 | 08-10 | #2263 | #2290 | state |
+The shapes that defeated the follower, and where each was closed. **Re-derive
+the current number before acting on any of this** — the history is here because
+the numbers were quoted against each other and did not reconcile, which is the
+failure this file now warns about everywhere:
+
+| shape | 08-09 | 08-10 | #2290 | #2309 | now |
 |---|---|---|---|---|---|
-| destructured binding — `const {x} = require("./mod")` then `exports.x = x` | 65 | 54 | 0 | **0** | read |
-| `require("./x").y` inline in the export | 19 | 19 | 0 | **0** | read |
-| factory call — `exports.x = createX(secret)` | 48 | 49 | 49 | **0** | read: the factory's one builder |
-| `no builder for "<binding>" in <module>` | 9 | 9 | 5 | **5** | 4 module-local factories, 1 v1 chain |
-| **total** | **141** | **131** | **54** | **5** | |
+| destructured binding — `const {x} = require("./mod")` | 65 | 0 | 0 | 0 | **0** |
+| `require("./x").y` inline in the export | 19 | 0 | 0 | 0 | **0** |
+| factory call — `exports.x = createX(secret)` | 48 | 49 | 0 | 0 | **0** |
+| module-local factory — `x: makeTrigger("path")` | — | 4 | 4 | 4 | **0** |
+| v1 chained builder — `functions.region().runWith()…` | — | 1 | 1 | 1 | **0** |
+| option VALUE is a const's NAME (`region: REGION`) | — | — | 21 | 0 | **0** |
+| **total unresolved** | **141** | **131 → 54** | **5** | **5** | **0** |
 
-The 2026-08-09 column is kept because the two were quoted together in a handoff
-and did not reconcile — 84 + 57 = 141 against a baseline of 131. Both figures
-were right on the day they were measured and wrong beside each other, which is
-the same failure as the export count (202 → 192 → 194) and Batch 2's baseline
-(21 → 22 → 23). **The rule this file now applies everywhere: a number that moves
-with the tree is derived at the point of use, not written down.**
+The last two shapes are the ones worth remembering, because both were invisible
+rather than merely unread:
+
+- **A module-local factory's ARGUMENTS are frozen nowhere.** An index.js
+  factory's call site is recorded verbatim in `target`; a factory called inside
+  its own module has no such record. So `document: documentPath` had to become
+  `document: "quizzes/{quizId}/questions/{questionId}"` — otherwise the
+  collection a Firestore trigger fires on was guarded by nothing at all. This
+  is why arguments are substituted for module-local factories and deliberately
+  NOT for index.js ones.
+- **A v1 chain spreads its surface across the chain.** Region is an argument to
+  `.region()`, runtime options are the `.runWith({…})` literal, and the EVENT —
+  `auth.user().onDelete` — is the trigger's whole meaning. All three are read,
+  and the event is canonicalised to the spelling `extractExports` already
+  produces for index.js's v1 triggers so the same trigger written either way
+  compares alike.
 
 ### What this gap is NOT
 
@@ -219,28 +253,22 @@ Reconciliation that starts from a stale figure omits a handler. Every one of
 the 23 is `inline: true`, `optionsUnresolved: null` and `secrets-bound` —
 checked, not assumed.
 
-### What closing this gate requires
+### What closing this gate required — done
 
-1. ~~**Map destructured `require()` bindings**~~ — done in #2263.
-2. ~~**Treat `require("./x").y` as a delegation**~~ — done in #2263. This is what
-   hid `apiTrackVisit`'s `128MiB`.
-3. ~~**The remaining 54**~~ — 49 read in #2290 by following the factory into its
-   own body. **5 remain**, all in `storageCleanup/`: four built by a
-   module-local factory (`makeDeletedTrigger`/`makeUpdatedTrigger` in
-   `onQuestionChange.js`, whose `document` path is an argument at the
-   `module.exports` site and is frozen nowhere) and one v1 chained builder
-   (`functions.region().runWith().auth.user().onDelete()`). **Closure
-   criterion, unchanged: every one is either resolved, or exempted by name with
-   the guarding test named.** A count that merely shrinks is not closure.
-4. ~~**Re-derive `classification` after following, and diff it**~~ — done in
-   #2263 (13 escalations) and again in #2290 (38 more, measured against `main`
-   at the time of writing — re-derive it, do not quote it). All are
-   `mechanical → secrets-bound`, and every one is a modular export that binds a
-   secret the seed could not previously see. The classifier runs AFTER the
-   follow, and the guard's floor is computed through the same call, so an
-   escalation cannot be hand-edited back down. Batch membership is unaffected:
-   all 51 are `inline: false`, so all carry `batch: null`.
-5. **Keep the ratchet shrink-only.** 5 may only go down.
+1. ~~Map destructured `require()` bindings~~ — #2263.
+2. ~~Treat `require("./x").y` as a delegation~~ — #2263. This is what hid
+   `apiTrackVisit`'s `128MiB`.
+3. ~~Read the factory~~ — #2290 (index.js and module factories), this PR
+   (module-local factories with argument binding, and the v1 chain).
+4. ~~Re-derive `classification` after following~~ — #2263 and #2290, 51
+   escalations, all `mechanical → secrets-bound` on `inline: false` exports, so
+   batch membership never moved.
+5. **Keep the ratchet at 0.** It may not go up without a named reason written
+   into `scripts/functions-unresolved-baseline.json`.
+
+**Closure criterion, as stated on 2026-08-09: every export either resolved, or
+exempted by name with the guarding test named. There are no exemptions —
+everything is resolved.**
 
 ### The two limitations that remain, stated rather than left to be discovered
 
