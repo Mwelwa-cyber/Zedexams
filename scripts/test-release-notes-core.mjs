@@ -20,6 +20,7 @@ import {
   parseCommit,
   selectCommits,
 } from "./agents/releaseNotesCore.mjs";
+import {resolveTrunkRef} from "./gitTrunkRef.mjs";
 
 let passed = 0;
 function ok(name, fn) {
@@ -194,6 +195,64 @@ ok("renders no model-shaped placeholder when there is nothing but deps", () => {
   assert.ok(!/### /.test(section), "no empty headings when every commit was a bump");
 });
 
+// --- resolveTrunkRef -------------------------------------------------------
+//
+// Where the guard below points. On a pull_request build actions/checkout
+// resolves the event to refs/pull/N/merge — GitHub's ephemeral merge of the PR
+// into its base — so HEAD there has two parents and IS a merge commit.
+// `git log --merges HEAD` on a pull request therefore always finds one: #2303
+// failed with 'f222bc31' !== '' on a PR whose only change was a workflow file.
+// The guard has to name the trunk rather than trust HEAD.
+
+ok("a push build inspects HEAD", () => {
+  const {ref, source} = resolveTrunkRef({}, () => true);
+  assert.strictEqual(ref, "HEAD");
+  assert.strictEqual(source, "head", "off a pull_request, HEAD really is the trunk");
+});
+
+ok("a blank GITHUB_BASE_REF counts as absent", () => {
+  assert.strictEqual(resolveTrunkRef({GITHUB_BASE_REF: "   "}, () => true).ref, "HEAD");
+});
+
+ok("a pull_request build inspects the base branch, never HEAD", () => {
+  const probed = [];
+  const {ref, source} = resolveTrunkRef({GITHUB_BASE_REF: "main"}, (candidate) => {
+    probed.push(candidate);
+    return candidate === "origin/main";
+  });
+  assert.strictEqual(ref, "origin/main", "the trunk is the base branch GitHub fetched");
+  assert.strictEqual(source, "base-ref");
+  assert.ok(
+    !probed.includes("HEAD"),
+    "HEAD is refs/pull/N/merge on a PR — a merge commit by construction, so " +
+    "inspecting it can only ever fail",
+  );
+});
+
+ok("a base branch with a slash still resolves", () => {
+  const {ref} = resolveTrunkRef(
+    {GITHUB_BASE_REF: "release/2026-08"},
+    (candidate) => candidate === "origin/release/2026-08",
+  );
+  assert.strictEqual(ref, "origin/release/2026-08");
+});
+
+ok("falls back to a local branch with no remote-tracking ref", () => {
+  const {ref, source} = resolveTrunkRef({GITHUB_BASE_REF: "main"}, (c) => c === "main");
+  assert.strictEqual(ref, "main");
+  assert.strictEqual(source, "base-ref");
+});
+
+ok("an unfetched base branch skips loudly rather than falling back", () => {
+  const {ref, source, reason} = resolveTrunkRef({GITHUB_BASE_REF: "main"}, () => false);
+  assert.strictEqual(ref, null, "falling back to HEAD would resurrect the false failure");
+  assert.strictEqual(source, "unavailable");
+  assert.ok(
+    /shallow/.test(reason),
+    "the skip must say why: a guard that never runs reads exactly like one that passes",
+  );
+});
+
 // --- the trunk really is squash-merged -------------------------------------
 //
 // The premise behind the whole fix. If this repo ever adopts real merge
@@ -201,20 +260,44 @@ ok("renders no model-shaped placeholder when there is nothing but deps", () => {
 // have been a bug — so record the shape rather than assume it.
 //
 // Scoped to the 14-day floor buildGitLogArgs falls back to, not all of
-// history. main still carries pre-squash-policy merges: 53a65f45, the
-// merge of PR 583, is the newest, so asserting over every commit fails
-// forever. It also only failed in one place: ci.yml checks out shallow,
-// so the query saw nothing, while deploy-hosting.yml sets fetch-depth 0
-// and the assertion tripped on every push to main.
+// history: main still carries pre-squash-policy merges (53a65f45, the merge of
+// PR 583, is the newest), so asserting over every commit fails forever.
+//
+// Pointed at the RESOLVED trunk, not HEAD. With ci.yml on fetch-depth: 0 this
+// finally runs on pull requests too — against origin/$GITHUB_BASE_REF — where
+// before it either saw nothing (shallow checkout) or tripped over GitHub's
+// synthetic merge HEAD.
 
 ok("the recent trunk carries no merge commits", () => {
+  const git = (args) =>
+    execFileSync("git", args, {encoding: "utf8", stdio: ["ignore", "pipe", "ignore"]}).trim();
+  const refExists = (candidate) => {
+    try {
+      git(["rev-parse", "--verify", "--quiet", `${candidate}^{commit}`]);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const {ref, source, reason} = resolveTrunkRef(process.env, refExists);
+  if (ref === null) {
+    console.log(`      (skipped: ${reason})`);
+    return;
+  }
+
   let merges;
   try {
-    merges = execFileSync(
-      "git",
-      ["log", "--merges", "--first-parent", "--since=14.days", "-n", "1", "--pretty=format:%h", "HEAD"],
-      {encoding: "utf8"},
-    ).trim();
+    merges = git([
+      "log",
+      "--merges",
+      "--first-parent",
+      "--since=14.days",
+      "-n",
+      "1",
+      "--pretty=format:%h",
+      ref,
+    ]);
   } catch {
     console.log("      (skipped: no git history available here)");
     return;
@@ -222,8 +305,8 @@ ok("the recent trunk carries no merge commits", () => {
   assert.strictEqual(
     merges,
     "",
-    "a merge commit landed on the trunk in the last 14 days — re-check " +
-    "whether --first-parent is still the right selector",
+    `a merge commit landed on the trunk (${ref}, via ${source}) in the last 14 ` +
+    "days — re-check whether --first-parent is still the right selector",
   );
 });
 
