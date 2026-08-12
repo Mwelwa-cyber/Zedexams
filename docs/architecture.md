@@ -1330,6 +1330,23 @@ The order was settled 2026-08-07 as **smallest and lowest-risk first**, ranked o
 | ~~`register` — re-inventory first~~ · ~~inventory DONE 2026-08-10, migration split in two and unclaimed~~ · ~~CLAIMED 2026-08-11 by session D~~ · **MERGED #2291** — ONE pull request, not two; the split was withdrawn (see the correction below) | ~~`dashboardV2`~~ → **reassigned to C** | ~~`dashboardV2`~~ — **not a pure move, see below** |
 | **the remaining admin areas** — claimed by A, 2026-08-10 | — | — |
 
+**Not a migration, recorded here because the same claim rule applies: `test:release-notes`' trunk assertion — CLAIMED 2026-08-12 by session A**, branch `claude/release-notes-trunk-assertion`. It is **production-blocking**, so it is claimed and fixed on its own branch rather than folded into anything: `Deploy Hosting` runs `test:all` before deploying, `test:release-notes` fails, and production has been frozen since 2026-08-12 06:18 UTC. **It must not block, and must not be rebased onto, #2300 (role routing).** Register remains session D's throughout.
+
+**What is actually wrong, measured rather than inferred.** `scripts/test-release-notes-core.mjs` asserts *"this repo's main carries no merge commits"* by running `git log --merges --first-parent -n 1 HEAD` — **unbounded to `HEAD`, i.e. over all history**. That premise is false: `main`'s first-parent chain carries **35 merge commits**, dated 2026-04-22 to 2026-05-24, from before the repo adopted squash-merge. They are permanent history and cannot be made to go away.
+
+**Why it passed review and then broke the deploy.** The two workflows check out differently, and neither is wrong:
+
+| workflow | checkout | sees the 35? | result |
+|---|---|---|---|
+| `ci.yml` Tests | `actions/checkout@v7`, default depth 1 | no | passes |
+| `deploy-hosting.yml` | full history — deliberate, the Firebase-dependency step diffs against `github.event.before` | yes | **fails** |
+
+So the test never held the property it asserts; it passed only where the clone was too shallow to contain the counterexample. **Neither checkout changes** — the depth in `ci.yml` and the full history in `deploy-hosting.yml` are both intentional. The assertion is what moves.
+
+**The fix is to bound the assertion to the range release notes actually walk.** `buildGitLogArgs` already bounds it — an explicit `<sha>..HEAD` range, else `--since=<date>`, else `--since=14.days` — and never walks all of history. Only the assertion did. Reusing that same function to build the check means the two cannot drift apart later.
+
+**A trap worth recording for anyone re-checking this from a container.** Cloud-session clones here are shallow (176 commits at the time of writing). `git merge-base --is-ancestor` and `git rev-list --merges --count HEAD` both answered "no merge commits" against that clone — the same false negative CI's shallow checkout gives. `git fetch --unshallow` was required before any of the numbers above could be trusted, and the first read of this bug was wrong because of it.
+
 **`dashboardV2` was reassigned from B to C on 2026-08-10, on the same evidence and by the same rule as `teacherLibrary`**: no remote branch carried a change under `dashboardV2/`, no open pull request named it, and session B had started neither of its items in the nine hours since #2227 while session A stayed active on other work. B's column is now empty; if B returns, the unclaimed items are ~~`register` (session A has not begun it) and~~ the admin areas. **`register` is no longer among them:** session D claimed it on 2026-08-11 and it merged as #2291 (the migration) and #2292 (the record) — the struck clause is kept because it is what the reassignment decision was made against, not because it is still true.
 
 **`register` was claimed on 2026-08-11 by a fresh session (session D), on branch `claude/phase-4-feature-migration-rlqnw2`**, under exactly the rule the collision above wrote down: the item was recorded unclaimed, no remote branch carried a change under `teacher/register/`, and no open pull request named it. The claim is recorded here **before any file moved**, because a table that is only updated at the end of the work is not a lookup anyone can use — it is a record of what already happened. The admin areas remain A's.
