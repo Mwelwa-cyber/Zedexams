@@ -48,6 +48,17 @@ jobs:
       - name: Install Octokit
         run: npm install --no-save --no-audit --no-fund @octokit/rest@22
 
+      - name: Trunk hygiene — enforced, because Ledger is what reads the trunk
+        # Advisory inside npm run test:all: a merge commit on the trunk is a
+        # history-hygiene finding, not a reason to refuse to ship, and treating
+        # it as one took Deploy Hosting #2000-#2004 down. Here it is
+        # load-bearing. Ledger walks --first-parent to pick commits, so a real
+        # merge commit would quietly truncate the changelog — fail the digest
+        # instead of the deploy. Full history is already fetched above.
+        env:
+          RELEASE_NOTES_TRUNK_GUARD: enforce
+        run: node scripts/test-release-notes-core.mjs
+
       - name: Run Ledger
         # No ANTHROPIC key: Ledger assembles the changelog from commit subjects
         # deterministically and calls no model. Do not re-add one without

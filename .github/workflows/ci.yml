@@ -62,6 +62,13 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Full history. scripts/test-release-notes-core.mjs asks git whether
+          # the trunk still squash-merges, and a depth-1 clone answers no
+          # merges no matter what — so the guard passed here while
+          # deploy-hosting.yml, which already checks out with fetch-depth 0,
+          # failed on every push. Same checkout depth, same answer.
+          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
@@ -112,6 +119,14 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Same reason as the tests job above, and the reason that guard now
+          # FAILS instead of skipping: this job runs the plain-node suite too
+          # (scripts/run-src-node-tests.mjs under c8), which includes the
+          # merge-commit guard in scripts/test-release-notes-core.mjs. The guard
+          # inspects origin/$GITHUB_BASE_REF, and a depth-1 clone does not
+          # fetch it — so every job that runs the suite needs the same history.
+          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version: "22"

@@ -10,6 +10,7 @@
 
 import assert from "node:assert";
 import {execFileSync} from "node:child_process";
+import {appendFileSync} from "node:fs";
 import {
   LEDGER_COMMIT_RE,
   buildChangelogSection,
@@ -20,6 +21,13 @@ import {
   parseCommit,
   selectCommits,
 } from "./agents/releaseNotesCore.mjs";
+import {resolveTrunkRef} from "./gitTrunkRef.mjs";
+import {
+  GUARD_MODE_ENV,
+  formatTrunkFinding,
+  reportAdvisory,
+  resolveGuardMode,
+} from "./trunkGuardPolicy.mjs";
 
 let passed = 0;
 function ok(name, fn) {
@@ -194,6 +202,117 @@ ok("renders no model-shaped placeholder when there is nothing but deps", () => {
   assert.ok(!/### /.test(section), "no empty headings when every commit was a bump");
 });
 
+// --- resolveTrunkRef -------------------------------------------------------
+//
+// Where the guard below points. On a pull_request build actions/checkout
+// resolves the event to refs/pull/N/merge — GitHub's ephemeral merge of the PR
+// into its base — so HEAD there has two parents and IS a merge commit.
+// `git log --merges HEAD` on a pull request therefore always finds one: #2303
+// failed with 'f222bc31' !== '' on a PR whose only change was a workflow file.
+// The guard has to name the trunk rather than trust HEAD.
+
+ok("a push build inspects HEAD", () => {
+  const {ref, source} = resolveTrunkRef({}, () => true);
+  assert.strictEqual(ref, "HEAD");
+  assert.strictEqual(source, "head", "off a pull_request, HEAD really is the trunk");
+});
+
+ok("a blank GITHUB_BASE_REF counts as absent", () => {
+  assert.strictEqual(resolveTrunkRef({GITHUB_BASE_REF: "   "}, () => true).ref, "HEAD");
+});
+
+ok("a pull_request build inspects the base branch, never HEAD", () => {
+  const probed = [];
+  const {ref, source} = resolveTrunkRef({GITHUB_BASE_REF: "main"}, (candidate) => {
+    probed.push(candidate);
+    return candidate === "origin/main";
+  });
+  assert.strictEqual(ref, "origin/main", "the trunk is the base branch GitHub fetched");
+  assert.strictEqual(source, "base-ref");
+  assert.ok(
+    !probed.includes("HEAD"),
+    "HEAD is refs/pull/N/merge on a PR — a merge commit by construction, so " +
+    "inspecting it can only ever fail",
+  );
+});
+
+ok("a base branch with a slash still resolves", () => {
+  const {ref} = resolveTrunkRef(
+    {GITHUB_BASE_REF: "release/2026-08"},
+    (candidate) => candidate === "origin/release/2026-08",
+  );
+  assert.strictEqual(ref, "origin/release/2026-08");
+});
+
+ok("falls back to a local branch with no remote-tracking ref", () => {
+  const {ref, source} = resolveTrunkRef({GITHUB_BASE_REF: "main"}, (c) => c === "main");
+  assert.strictEqual(ref, "main");
+  assert.strictEqual(source, "base-ref");
+});
+
+ok("an unfetched base branch skips loudly rather than falling back", () => {
+  const {ref, source, reason} = resolveTrunkRef({GITHUB_BASE_REF: "main"}, () => false);
+  assert.strictEqual(ref, null, "falling back to HEAD would resurrect the false failure");
+  assert.strictEqual(source, "unavailable");
+  assert.ok(
+    /shallow/.test(reason),
+    "the skip must say why: a guard that never runs reads exactly like one that passes",
+  );
+});
+
+// --- trunk guard severity --------------------------------------------------
+//
+// The guard below reports on repository history. It used to be able to stop a
+// deploy, which is how one merge commit from PR 583 took five Deploy Hosting
+// runs down with it. Severity is chosen now, not inherited from where the
+// check happens to run.
+
+ok("enforcing is opt-in by name", () => {
+  assert.strictEqual(resolveGuardMode({[GUARD_MODE_ENV]: "enforce"}), "enforce");
+});
+
+ok("every other context advises, including a deploy push", () => {
+  assert.strictEqual(resolveGuardMode({}), "advise");
+  assert.strictEqual(resolveGuardMode({[GUARD_MODE_ENV]: "1"}), "advise");
+  assert.strictEqual(resolveGuardMode({[GUARD_MODE_ENV]: "ENFORCE"}), "advise");
+  assert.strictEqual(resolveGuardMode(undefined), "advise");
+});
+
+ok("the finding names the commit, the ref, and how the ref was resolved", () => {
+  const text = formatTrunkFinding({sha: "53a65f4", ref: "origin/main", source: "base-ref"});
+  assert.ok(text.includes("53a65f4"), "the offending commit is the first thing to look at");
+  assert.ok(text.includes("origin/main"));
+  assert.ok(text.includes("base-ref"), "HEAD and origin/main fail for different reasons");
+});
+
+ok("an advisory is written to the step summary, not just stdout", () => {
+  const writes = [];
+  const written = reportAdvisory(
+    "a merge commit landed",
+    {GITHUB_STEP_SUMMARY: "/tmp/summary"},
+    (path, body) => writes.push([path, body]),
+  );
+  assert.strictEqual(writes.length, 1);
+  assert.strictEqual(writes[0][0], "/tmp/summary");
+  assert.ok(writes[0][1].includes("a merge commit landed"));
+  assert.ok(
+    writes[0][1].includes("[!WARNING]"),
+    "run-all-tests.mjs hides a passing script stdout, so this has to be a summary block",
+  );
+  assert.ok(written !== null);
+});
+
+ok("nowhere to write is not a failure", () => {
+  assert.strictEqual(reportAdvisory("finding", {}, () => {}), null);
+  assert.strictEqual(
+    reportAdvisory("finding", {GITHUB_STEP_SUMMARY: "/tmp/summary"}, () => {
+      throw new Error("read-only file system");
+    }),
+    null,
+    "a failed write must not turn an advisory back into the failure it replaced",
+  );
+});
+
 // --- the trunk really is squash-merged, within the window we walk ---------
 //
 // The premise behind the whole fix. If this repo ever adopts real merge
@@ -214,6 +333,16 @@ ok("renders no model-shaped placeholder when there is nothing but deps", () => {
 // agree only in the fallback case — on any other run the guard was inspecting
 // a different range than the one a merge commit could actually corrupt, too
 // wide after a same-day release and too narrow after a quiet fortnight.
+//
+// Pointed at the RESOLVED trunk, not HEAD. On a pull_request actions/checkout
+// resolves refs/pull/N/merge — a two-parent commit GitHub builds for the run —
+// so HEAD is a merge commit by construction and the query found it every time.
+// #2303 failed on exactly that: a PR whose only change was a workflow file.
+//
+// ADVISORY here, ENFORCED by .github/workflows/agent-release-notes.yml. Ledger
+// is what walks --first-parent, so Ledger output is what a merge commit would
+// corrupt; a deploy is not, and treating it as one cost five of them.
+// scripts/trunkGuardPolicy.mjs carries that reasoning.
 
 /**
  * The revision selector buildGitLogArgs chose — the last element, either a
@@ -224,25 +353,90 @@ function walkedRevisionSelector(args) {
   return args[args.length - 1];
 }
 
+/**
+ * Re-point the walked range at the trunk. buildGitLogArgs() ends in either a
+ * `<sha>..HEAD` range or a `--since=<date>` floor, and HEAD is the wrong end
+ * of that range on a pull_request. The range form carries the ref inside it;
+ * the --since form does not, so the ref has to be appended or git walks HEAD.
+ */
+function trunkWalkArgs(selector, ref) {
+  if (selector.startsWith("--since=")) return [selector, ref];
+  return [selector.replace(/HEAD$/, ref)];
+}
+
+const git = (args) =>
+  execFileSync("git", args, {encoding: "utf8", stdio: ["ignore", "pipe", "ignore"]}).trim();
+
+const trunkRefExists = (candidate) => {
+  try {
+    git(["rev-parse", "--verify", "--quiet", `${candidate}^{commit}`]);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/** Enforced only where Ledger runs; everywhere else this reports and passes. */
+const raiseTrunkFinding = (finding) => {
+  if (resolveGuardMode(process.env) === "enforce") assert.fail(finding);
+  reportAdvisory(finding, process.env, appendFileSync);
+  console.log(`      (advisory: ${finding})`);
+};
+
+ok("the walked range is re-pointed at the trunk, not HEAD", () => {
+  assert.deepStrictEqual(
+    trunkWalkArgs("abc1234..HEAD", "origin/main"),
+    ["abc1234..origin/main"],
+    "the range form carries the ref inside it",
+  );
+  assert.deepStrictEqual(
+    trunkWalkArgs("--since=2026-08-01", "origin/main"),
+    ["--since=2026-08-01", "origin/main"],
+    "the --since form names no ref, so one has to be appended",
+  );
+  assert.deepStrictEqual(
+    trunkWalkArgs("abc1234..HEAD", "HEAD"),
+    ["abc1234..HEAD"],
+    "off a pull request the trunk resolves to HEAD and nothing moves",
+  );
+});
+
 ok("the recent trunk carries no merge commits", () => {
+  const {ref, source, reason} = resolveTrunkRef(process.env, trunkRefExists);
+
+  // A named base branch missing from the checkout is a config regression, not a
+  // clean bill of health: ci.yml fetches full history on a pull_request, so
+  // origin/$GITHUB_BASE_REF is always there. Say so rather than reporting ok
+  // while testing nothing at all — the hole the original bug hid in.
+  if (ref === null) {
+    raiseTrunkFinding(reason);
+    return;
+  }
+
   const selector = walkedRevisionSelector(buildGitLogArgs());
   let merges;
   try {
-    merges = execFileSync(
-      "git",
-      ["log", "--merges", "--first-parent", "-n", "1", "--pretty=format:%h", selector],
-      {encoding: "utf8"},
-    ).trim();
+    merges = git([
+      "log",
+      "--merges",
+      "--first-parent",
+      "-n",
+      "1",
+      "--pretty=format:%h",
+      ...trunkWalkArgs(selector, ref),
+    ]);
   } catch {
-    console.log("      (skipped: no git history available here)");
+    raiseTrunkFinding(
+      `the window release notes walk (${selector}) could not be read against ` +
+      `the trunk (${ref}, via ${source})`,
+    );
     return;
   }
-  assert.strictEqual(
-    merges,
-    "",
-    `a merge commit landed on the trunk within the window release notes walk ` +
-    `(${selector}) — re-check whether --first-parent is still the right selector`,
-  );
+  if (merges !== "") {
+    raiseTrunkFinding(
+      formatTrunkFinding({sha: merges, ref: `${selector} on ${ref}`, source}),
+    );
+  }
 });
 
 // --- the regression: the bound must not be able to disappear ---------------
@@ -279,9 +473,15 @@ ok("the unbounded form fails on full history — a shallow clone must not hide i
     return;
   }
 
+  const {ref: trunk} = resolveTrunkRef(process.env, trunkRefExists);
+  if (trunk === null) {
+    console.log("      (skipped: the trunk ref is not in this checkout)");
+    return;
+  }
+
   const unbounded = execFileSync(
     "git",
-    ["log", "--merges", "--first-parent", "-n", "1", "--pretty=format:%h", "HEAD"],
+    ["log", "--merges", "--first-parent", "-n", "1", "--pretty=format:%h", trunk],
     {encoding: "utf8"},
   ).trim();
   assert.notStrictEqual(
@@ -296,7 +496,7 @@ ok("the unbounded form fails on full history — a shallow clone must not hide i
     "git",
     [
       "log", "--merges", "--first-parent", "-n", "1", "--pretty=format:%h",
-      walkedRevisionSelector(buildGitLogArgs()),
+      ...trunkWalkArgs(walkedRevisionSelector(buildGitLogArgs()), trunk),
     ],
     {encoding: "utf8"},
   ).trim();
