@@ -28,12 +28,15 @@
  *
  * ── Still in `components/admin/`, and NOT frozen ────────────────────────
  *
- * `AdminAppCheck`, `BulkGrantTrialsPanel` and `security/MfaSetupPage` are
- * route-mounted, unrelated to the shell, and unrelated to each other. They
- * were left rather than swept in here: proximity in a flat directory is not
- * cohesion (the rule `RevenueTrendCard` established), and a feature called
- * `adminShell` containing a trial-granting panel would be a worse home than
- * the one they have.
+ * `AdminAppCheck` and `security/MfaSetupPage` are route-mounted, unrelated to
+ * the shell, and unrelated to each other. They were left rather than swept in
+ * here: proximity in a flat directory is not cohesion (the rule
+ * `RevenueTrendCard` established), and a feature called `adminShell`
+ * containing an App Check debugger would be a worse home than the one it has.
+ *
+ * `BulkGrantTrialsPanel` was on that list and has since left it — it is
+ * `src/features/adminTrials/` as of Wave 4 slice 1, for the same reason it was
+ * never swept in here.
  */
 
 export {}

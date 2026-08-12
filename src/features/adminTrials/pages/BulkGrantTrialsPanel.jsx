@@ -1,71 +1,20 @@
 import { useState } from 'react'
-import { getFunctions, httpsCallable } from 'firebase/functions'
-import app from '../../firebase/config'
-import Button from '../ui/Button'
-import ConfirmDialog from '../ui/ConfirmDialog'
-import SeoHelmet from '../seo/SeoHelmet'
-
-// One callable per page mount — created lazily so SSR / first paint
-// don't pay the Functions client init cost.
-const fns = getFunctions(app, 'us-central1')
-const bulkGrantDemoTrialsCallable = httpsCallable(fns, 'bulkGrantDemoTrials')
-
-// Mirror src/utils/subscriptionConfig.js plan list — no need to import
-// it here, the names are stable.
-const PLAN_OPTIONS = [
-  { id: 'weekly',  label: 'Weekly (7 days)' },
-  { id: 'monthly', label: 'Monthly (30 days)' },
-]
-
-// Slugify mirrors functions/index.js#bulkGrantDemoTrials so the email
-// preview the operator sees matches what the server will actually use.
-function slugify(name) {
-  return String(name || '')
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9\s.-]/g, '')
-    .trim()
-    .replace(/\s+/g, '.')
-    .replace(/\.+/g, '.')
-    .replace(/^\.+|\.+$/g, '')
-}
-
-function parseNamesBlob(blob) {
-  // Accept "Name" or "Name, email@domain" per line. Comments (#…) and
-  // blank lines are ignored.
-  return blob
-    .split(/\r?\n/)
-    .map(s => s.trim())
-    .filter(s => s && !s.startsWith('#'))
-    .map(line => {
-      const [namePart, emailPart] = line.split(',').map(s => (s || '').trim())
-      return { name: namePart, email: emailPart || '' }
-    })
-}
-
-function csvEscape(v) {
-  const s = String(v ?? '')
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
-}
-
-function downloadCsv(rows) {
-  const header = ['name', 'email', 'password', 'uid', 'status', 'error']
-  const lines = [header.join(',')]
-  for (const r of rows) {
-    lines.push(header.map(k => csvEscape(r[k])).join(','))
-  }
-  const blob = new Blob([lines.join('\n') + '\n'], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  const stamp = new Date().toISOString().slice(0, 10)
-  a.download = `demo-trial-credentials-${stamp}.csv`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
-}
+import Button from '../../../components/ui/Button'
+import ConfirmDialog from '../../../components/ui/ConfirmDialog'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import { grantDemoTrials } from '../services/demoTrialsService'
+import { downloadCredentialsCsv } from '../export/downloadCredentialsCsv'
+import {
+  DEFAULT_DAYS,
+  DEFAULT_SCHOOL,
+  MAX_DAYS,
+  MIN_DAYS,
+  PLAN_OPTIONS,
+  buildGrantPayload,
+  buildPreviewRows,
+  summariseResults,
+  validateBatch,
+} from '../lib/demoTrialsCore'
 
 const STATUS_BADGE = {
   created: 'bg-green-100 text-green-800',
@@ -78,9 +27,9 @@ export default function BulkGrantTrialsPanel() {
   const [namesBlob, setNamesBlob] = useState('')
   const [password, setPassword] = useState('')
   const [plan, setPlan] = useState('monthly')
-  const [days, setDays] = useState(30)
+  const [days, setDays] = useState(DEFAULT_DAYS)
   const [grade, setGrade] = useState(7)
-  const [school, setSchool] = useState('Demo School')
+  const [school, setSchool] = useState(DEFAULT_SCHOOL)
   const [running, setRunning] = useState(false)
   const [results, setResults] = useState(null)
   const [summary, setSummary] = useState(null)
@@ -90,29 +39,15 @@ export default function BulkGrantTrialsPanel() {
 
   function show(msg) { setToast(msg); setTimeout(() => setToast(null), 4500) }
 
-  const previewRows = parseNamesBlob(namesBlob).map(({ name, email }) => ({
-    name,
-    email: email || (slugify(name) ? `${slugify(name)}@zedexams.com` : '(invalid name)'),
-  }))
+  const previewRows = buildPreviewRows(namesBlob)
 
   function handleGrant(e) {
     e.preventDefault()
-    const entries = parseNamesBlob(namesBlob)
-    if (entries.length === 0) {
-      show('❌ Add at least one name (one per line).')
+    const { error, entries, daysNum } = validateBatch({ namesBlob, password, days })
+    if (error) {
+      show(error)
       return
     }
-    if (entries.length > 50) {
-      show('❌ Max 50 accounts per batch — split the list.')
-      return
-    }
-    if (password && password.length < 6) {
-      show('❌ Shared password must be at least 6 characters.')
-      return
-    }
-    // Number inputs hand back strings; an emptied field would send 0 days,
-    // which would land as a same-instant-expiring trial.
-    const daysNum = Math.max(1, Math.min(365, Number(days) || 30))
     setPendingGrant({ entries, daysNum })
   }
 
@@ -121,22 +56,14 @@ export default function BulkGrantTrialsPanel() {
     setResults(null)
     setSummary(null)
     try {
-      const payload = {
-        entries: entries.map(e => ({ name: e.name, email: e.email || undefined })),
-        grade: Number(grade),
-        days:  daysNum,
-        plan,
-        school: school.trim() || 'Demo School',
-      }
-      if (password) payload.password = password
-      const res = await bulkGrantDemoTrialsCallable(payload)
-      const out = res.data || {}
+      const out = await grantDemoTrials(
+        buildGrantPayload({ entries, daysNum, grade, plan, school, password }),
+      )
       const rows = Array.isArray(out.results) ? out.results : []
       setResults(rows)
-      const okCount  = rows.filter(r => r.status === 'created' || r.status === 'reused').length
-      const errCount = rows.filter(r => r.status === 'error').length
-      setSummary({ ok: okCount, err: errCount, total: rows.length, expiresAt: out.expiresAt })
-      show(`${okCount}/${rows.length} accounts ready${errCount ? ` — ${errCount} failed` : ''}.`)
+      const counts = summariseResults(rows)
+      setSummary({ ...counts, expiresAt: out.expiresAt })
+      show(`${counts.ok}/${counts.total} accounts ready${counts.err ? ` — ${counts.err} failed` : ''}.`)
     } catch (err) {
       show('❌ ' + (err?.message || 'Bulk grant failed.'))
     }
@@ -205,8 +132,8 @@ export default function BulkGrantTrialsPanel() {
             <span className="block text-xs font-black text-gray-700 mb-1">Trial days</span>
             <input
               type="number"
-              min={1}
-              max={365}
+              min={MIN_DAYS}
+              max={MAX_DAYS}
               value={days}
               onChange={e => setDays(e.target.value)}
               className="w-full border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:border-green-500 focus:outline-none"
@@ -266,7 +193,7 @@ export default function BulkGrantTrialsPanel() {
                 {summary?.expiresAt && ` · expires ${new Date(summary.expiresAt).toLocaleDateString('en-ZM', { day: '2-digit', month: 'short', year: 'numeric' })}`}
               </p>
             </div>
-            <Button variant="secondary" size="sm" onClick={() => downloadCsv(results)}>
+            <Button variant="secondary" size="sm" onClick={() => downloadCredentialsCsv(results)}>
               ⬇️ Download CSV
             </Button>
           </div>
