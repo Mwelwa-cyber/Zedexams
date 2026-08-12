@@ -1330,9 +1330,21 @@ The order was settled 2026-08-07 as **smallest and lowest-risk first**, ranked o
 | ~~`register` — re-inventory first~~ · ~~inventory DONE 2026-08-10, migration split in two and unclaimed~~ · ~~CLAIMED 2026-08-11 by session D~~ · **MERGED #2291** — ONE pull request, not two; the split was withdrawn (see the correction below) | ~~`dashboardV2`~~ → **reassigned to C** | ~~`dashboardV2`~~ — **not a pure move, see below** |
 | **the remaining admin areas** — claimed by A, 2026-08-10 | — | — |
 
-**Not a migration, recorded here because the same claim rule applies: `test:release-notes`' trunk assertion — CLAIMED 2026-08-12 by session A**, branch `claude/release-notes-trunk-assertion`. It is **production-blocking**, so it is claimed and fixed on its own branch rather than folded into anything: `Deploy Hosting` runs `test:all` before deploying, `test:release-notes` fails, and production has been frozen since 2026-08-12 06:18 UTC. **It must not block, and must not be rebased onto, #2300 (role routing).** Register remains session D's throughout.
+**Not a migration, recorded here because the same claim rule applies: `test:release-notes`' trunk assertion — CLAIMED 2026-08-12 by session A**, branch `claude/release-notes-trunk-assertion`. Claimed while production was frozen: `Deploy Hosting` runs `test:all` before deploying, `test:release-notes` failed, and nothing merged after 2026-08-12 06:18 UTC was live. **It must not block, and must not be rebased onto, #2300 (role routing).** Register remains session D's throughout.
 
-**What is actually wrong, measured rather than inferred.** `scripts/test-release-notes-core.mjs` asserts *"this repo's main carries no merge commits"* by running `git log --merges --first-parent -n 1 HEAD` — **unbounded to `HEAD`, i.e. over all history**. That premise is false: `main`'s first-parent chain carries **35 merge commits**, dated 2026-04-22 to 2026-05-24, from before the repo adopted squash-merge. They are permanent history and cannot be made to go away.
+**#2302 landed first and unblocked production — this supersedes only its hardcoded window.** `764a5c7a` renamed the check to *"the recent trunk carries no merge commits"* and scoped it with a literal `--since=14.days`. That was the right call under an outage and is **not reopened here**: the name, the scoping decision and `--first-parent` all stand. What this replaces is the **literal 14 days**, because that number is only `buildGitLogArgs`' last-resort fallback — given a changelog commit the tool walks `<sha>..HEAD`, and given a dated heading it walks `--since=<that date>`. A hardcoded floor and the tool's real walk therefore coincide **only** in the fallback case; on any other run the guard inspects a different range than the one a merge commit could actually corrupt — too wide after a same-day release, too narrow after a quiet fortnight. Deriving the selector from `buildGitLogArgs()` means the guard follows the walk instead of approximating it.
+
+**Three axes, three changes, deliberately not merged into one.** Worth recording because the overlap is easy to misread:
+
+| axis | who | state |
+|---|---|---|
+| how far back the guard looks | #2302, then this | merged, then refined here |
+| **which ref** the guard inspects (`HEAD` vs `origin/$GITHUB_BASE_REF` on a PR) | #2303 | open draft |
+| whether CI can see enough history to run it at all | #2303 | open draft |
+
+This PR touches **only** the first. It changes no workflow and does not resolve which ref is inspected, so it neither blocks nor depends on #2303; if #2303 lands first, the selector derived here is simply applied to the ref that PR resolves.
+
+**What was wrong, measured rather than inferred.** The assertion ran `git log --merges --first-parent -n 1 HEAD` — **unbounded to `HEAD`, i.e. over all history**. That premise is false: `main`'s first-parent chain carries **35 merge commits**, dated 2026-04-22 to 2026-05-24, from before the repo adopted squash-merge. They are permanent history and cannot be made to go away.
 
 **Why it passed review and then broke the deploy.** The two workflows check out differently, and neither is wrong:
 
@@ -1343,7 +1355,7 @@ The order was settled 2026-08-07 as **smallest and lowest-risk first**, ranked o
 
 So the test never held the property it asserts; it passed only where the clone was too shallow to contain the counterexample. **Neither checkout changes** — the depth in `ci.yml` and the full history in `deploy-hosting.yml` are both intentional. The assertion is what moves.
 
-**The fix is to bound the assertion to the range release notes actually walk.** `buildGitLogArgs` already bounds it — an explicit `<sha>..HEAD` range, else `--since=<date>`, else `--since=14.days` — and never walks all of history. Only the assertion did. Reusing that same function to build the check means the two cannot drift apart later.
+**The regression test is about the SHAPE of the bug, not its symptom.** The symptom is 35 immovable commits; the bug was an unbounded assertion a shallow clone silently satisfied. So it requires the unbounded form to FAIL on full history — the bound cannot be widened back to `HEAD` without something going red — and separately requires the bounded form to be clean, because "unbounded fails" alone would still pass if the bounded form were failing too. On a shallow clone it SKIPS with instructions rather than passing, since the counterexample is not in the clone and nothing has been shown. **Note the tension with #2303**, which argues a silent skip is itself the original bug's shape and makes an unresolvable trunk a hard failure; that reasoning applies to the guard, whereas this skip is on the meta-test that proves the guard's bound. If #2303's hard-fail posture is adopted generally, this skip is the next thing to revisit — as its own change, not folded in here.
 
 **A trap worth recording for anyone re-checking this from a container.** Cloud-session clones here are shallow (176 commits at the time of writing). `git merge-base --is-ancestor` and `git rev-list --merges --count HEAD` both answered "no merge commits" against that clone — the same false negative CI's shallow checkout gives. `git fetch --unshallow` was required before any of the numbers above could be trusted, and the first read of this bug was wrong because of it.
 
