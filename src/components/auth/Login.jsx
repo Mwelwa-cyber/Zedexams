@@ -5,7 +5,7 @@ import { Mail, Eye, EyeOff } from 'lucide-react'
 import { ArrowLeft } from '../ui/icons'
 import { useAuth, SESSION_EXPIRED_KEY, hasAuthSessionHint } from '../../contexts/AuthContext'
 import { auth } from '../../firebase/config'
-import { getRoleLandingPath } from '../../utils/navigation'
+import { resolvePostAuthPath } from '../../utils/navigation'
 import { isWithinVerificationGrace, needsEmailVerification as userNeedsVerification } from '../../utils/verification'
 import { friendlyAuthMessage } from '../../utils/friendlyErrors'
 import { assessAction, shouldBlock } from '../../utils/recaptcha'
@@ -77,11 +77,15 @@ export default function Login() {
   // here stashes the page they were trying to open in location.state.from —
   // honour it so a refresh of /teacher/quiz-studio lands back on
   // /teacher/quiz-studio, not the generic dashboard. Falls back to the
-  // role landing page when they came to /login directly.
+  // role landing page when they came to /login directly, and ALSO when the
+  // stashed page belongs to a portal this account can't open: the stash
+  // records what the browser asked for, so a teacher following a learner's
+  // /notes/:id link would otherwise be signed in and dropped on a learner
+  // route. resolvePostAuthPath discards those.
   const fromPath = location.state?.from
     ? `${location.state.from.pathname || ''}${location.state.from.search || ''}` || null
     : null
-  const postLoginPath = (profile) => fromPath || getRoleLandingPath(profile, '/')
+  const postLoginPath = (profile) => resolvePostAuthPath(profile, fromPath, '/')
 
   // A user who is ALREADY signed in has no business on the login form —
   // this is what makes the "bounced to /login while Firebase was still
@@ -102,7 +106,7 @@ export default function Login() {
       navigate('/', { replace: true })
       return
     }
-    if (userProfile) navigate(fromPath || getRoleLandingPath(userProfile, '/'), { replace: true })
+    if (userProfile) navigate(resolvePostAuthPath(userProfile, fromPath, '/'), { replace: true })
   }, [authLoading, currentUser, userProfile, profileIssue, fromPath, navigate, needsEmailVerification, location.state])
 
   const [email, setEmail]         = useState('')
