@@ -299,3 +299,44 @@ jobs:
           fi
 
           echo "Firebase deploy clean — all targets deployed."
+
+      # ---- Read back what production is actually enforcing (#2276) --------
+      # Deploying storage.rules proves we sent it. It does not prove the live
+      # ruleset still matches this repository: a rules edit made in the
+      # Firebase console never reaches git, so there is no push, no deploy and
+      # no signal at all, until an admin is denied a read that storage.rules
+      # allows. That is #2276 -- and nothing anywhere compared the two.
+      #
+      # GET only. The only write to production in this workflow is still the
+      # deploy above; this step reads the live ruleset back and compares it.
+      # Authentication is that deploy's own service account, so there is no
+      # second credential to provision or leak.
+      #
+      # A proven difference fails the job. "Could not check" does NOT:
+      # deploy-hosting.yml waits on this workflow, so reporting an unanswered
+      # question as drift would strand the frontend exactly the way the
+      # grep-based deploy verdict did on 2026-07-29. Exit 2 is that third
+      # state and it is a warning, not a failure.
+      #
+      # The comparison itself is scripts/deploy/storageRulesDrift.js, already
+      # proven by the Tests step above (test:storage-rules-drift, picked up by
+      # run-all-tests.mjs) before this step is trusted -- same reason the
+      # deploy-log classifier is tested before the deploy relies on it.
+      - name: Verify the deployed Storage rules match the repository
+        if: contains(steps.target.outputs.only, 'storage')
+        run: |
+          set -uo pipefail
+
+          code=0
+          node scripts/check-storage-rules-drift.mjs || code=$?
+
+          case "${code}" in
+            0)
+              ;;
+            2)
+              echo "::warning::Could not verify the deployed Storage rules - see the step summary. This is NOT a drift finding: the rules may well be correct, we were unable to read them back."
+              ;;
+            *)
+              exit 1
+              ;;
+          esac
