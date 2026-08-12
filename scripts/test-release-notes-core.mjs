@@ -313,70 +313,199 @@ ok("nowhere to write is not a failure", () => {
   );
 });
 
-// --- the trunk really is squash-merged -------------------------------------
+// --- the trunk really is squash-merged, within the window we walk ---------
 //
 // The premise behind the whole fix. If this repo ever adopts real merge
 // commits, --first-parent still works, but the bug it replaced would no longer
 // have been a bug — so record the shape rather than assume it.
 //
-// Scoped to the 14-day floor buildGitLogArgs falls back to, not all of
-// history: main still carries pre-squash-policy merges (53a65f45, the merge of
-// PR 583, is the newest), so asserting over every commit fails forever.
+// Scoped to the window buildGitLogArgs actually walks, not all of history.
+// main still carries pre-squash-policy merges: 53a65f45, the merge of PR 583,
+// is the newest, so asserting over every commit fails forever. It also only
+// failed in one place: ci.yml checks out shallow, so the query saw nothing,
+// while deploy-hosting.yml sets fetch-depth 0 and the assertion tripped on
+// every push to main.
+//
+// The window is DERIVED from buildGitLogArgs() rather than restated, because
+// 14 days is only that function's last-resort fallback: given a changelog
+// commit it walks `<sha>..HEAD`, and given a dated heading it walks
+// `--since=<that date>`. A hardcoded floor and the tool's real walk therefore
+// agree only in the fallback case — on any other run the guard was inspecting
+// a different range than the one a merge commit could actually corrupt, too
+// wide after a same-day release and too narrow after a quiet fortnight.
 //
 // Pointed at the RESOLVED trunk, not HEAD. On a pull_request actions/checkout
 // resolves refs/pull/N/merge — a two-parent commit GitHub builds for the run —
-// so HEAD is a merge commit by construction and the old query found it every
-// time. #2303 proved it: a PR whose only change was a workflow file failed.
+// so HEAD is a merge commit by construction and the query found it every time.
+// #2303 failed on exactly that: a PR whose only change was a workflow file.
 //
 // ADVISORY here, ENFORCED by .github/workflows/agent-release-notes.yml. Ledger
 // is what walks --first-parent, so Ledger output is what a merge commit would
-// corrupt; a deploy is not. scripts/trunkGuardPolicy.mjs carries the reasoning.
+// corrupt; a deploy is not, and treating it as one cost five of them.
+// scripts/trunkGuardPolicy.mjs carries that reasoning.
+
+/**
+ * The revision selector buildGitLogArgs chose — the last element, either a
+ * `<sha>..HEAD` range or a `--since=…` floor. Everything before it is
+ * formatting flags.
+ */
+function walkedRevisionSelector(args) {
+  return args[args.length - 1];
+}
+
+/**
+ * Re-point the walked range at the trunk. buildGitLogArgs() ends in either a
+ * `<sha>..HEAD` range or a `--since=<date>` floor, and HEAD is the wrong end
+ * of that range on a pull_request. The range form carries the ref inside it;
+ * the --since form does not, so the ref has to be appended or git walks HEAD.
+ */
+function trunkWalkArgs(selector, ref) {
+  if (selector.startsWith("--since=")) return [selector, ref];
+  return [selector.replace(/HEAD$/, ref)];
+}
+
+const git = (args) =>
+  execFileSync("git", args, {encoding: "utf8", stdio: ["ignore", "pipe", "ignore"]}).trim();
+
+const trunkRefExists = (candidate) => {
+  try {
+    git(["rev-parse", "--verify", "--quiet", `${candidate}^{commit}`]);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/** Enforced only where Ledger runs; everywhere else this reports and passes. */
+const raiseTrunkFinding = (finding) => {
+  if (resolveGuardMode(process.env) === "enforce") assert.fail(finding);
+  reportAdvisory(finding, process.env, appendFileSync);
+  console.log(`      (advisory: ${finding})`);
+};
+
+ok("the walked range is re-pointed at the trunk, not HEAD", () => {
+  assert.deepStrictEqual(
+    trunkWalkArgs("abc1234..HEAD", "origin/main"),
+    ["abc1234..origin/main"],
+    "the range form carries the ref inside it",
+  );
+  assert.deepStrictEqual(
+    trunkWalkArgs("--since=2026-08-01", "origin/main"),
+    ["--since=2026-08-01", "origin/main"],
+    "the --since form names no ref, so one has to be appended",
+  );
+  assert.deepStrictEqual(
+    trunkWalkArgs("abc1234..HEAD", "HEAD"),
+    ["abc1234..HEAD"],
+    "off a pull request the trunk resolves to HEAD and nothing moves",
+  );
+});
 
 ok("the recent trunk carries no merge commits", () => {
-  const git = (args) =>
-    execFileSync("git", args, {encoding: "utf8", stdio: ["ignore", "pipe", "ignore"]}).trim();
-  const refExists = (candidate) => {
-    try {
-      git(["rev-parse", "--verify", "--quiet", `${candidate}^{commit}`]);
-      return true;
-    } catch {
-      return false;
-    }
-  };
+  const {ref, source, reason} = resolveTrunkRef(process.env, trunkRefExists);
 
-  const {ref, source, reason} = resolveTrunkRef(process.env, refExists);
-  const raise = (finding) => {
-    if (resolveGuardMode(process.env) === "enforce") assert.fail(finding);
-    reportAdvisory(finding, process.env, appendFileSync);
-    console.log(`      (advisory: ${finding})`);
-  };
-
-  // A named base branch missing from the checkout is a config regression, not
-  // a clean bill of health: ci.yml fetches full history on a pull_request, so
+  // A named base branch missing from the checkout is a config regression, not a
+  // clean bill of health: ci.yml fetches full history on a pull_request, so
   // origin/$GITHUB_BASE_REF is always there. Say so rather than reporting ok
   // while testing nothing at all — the hole the original bug hid in.
   if (ref === null) {
-    raise(reason);
+    raiseTrunkFinding(reason);
     return;
   }
 
+  const selector = walkedRevisionSelector(buildGitLogArgs());
   let merges;
   try {
     merges = git([
       "log",
       "--merges",
       "--first-parent",
-      "--since=14.days",
       "-n",
       "1",
       "--pretty=format:%h",
-      ref,
+      ...trunkWalkArgs(selector, ref),
     ]);
   } catch {
-    raise(`the trunk ref ${ref} (via ${source}) could not be walked here`);
+    raiseTrunkFinding(
+      `the window release notes walk (${selector}) could not be read against ` +
+      `the trunk (${ref}, via ${source})`,
+    );
     return;
   }
-  if (merges !== "") raise(formatTrunkFinding({sha: merges, ref, source}));
+  if (merges !== "") {
+    raiseTrunkFinding(
+      formatTrunkFinding({sha: merges, ref: `${selector} on ${ref}`, source}),
+    );
+  }
+});
+
+// --- the regression: the bound must not be able to disappear ---------------
+//
+// The bug was never the merge commits; it was an UNBOUNDED assertion that a
+// shallow clone silently satisfied. This reproduces that exact shape and
+// requires it to fail, so the bound above cannot be widened back to `HEAD`
+// without something going red.
+//
+// It asserts BOTH directions on purpose. "Unbounded fails" alone would still
+// pass if the bounded form were also failing; pinning that the bounded form is
+// clean is what proves the bound is the thing making the guard pass.
+//
+// On a shallow clone it SKIPS rather than passes: the counterexample is not in
+// the clone, so nothing has been demonstrated, and recording that as a pass is
+// the original bug in miniature. It runs for real in deploy-hosting, which
+// checks out full history.
+
+ok("the unbounded form fails on full history — a shallow clone must not hide it", () => {
+  let shallow;
+  try {
+    shallow = execFileSync("git", ["rev-parse", "--is-shallow-repository"], {
+      encoding: "utf8",
+    }).trim();
+  } catch {
+    console.log("      (skipped: no git history available here)");
+    return;
+  }
+  if (shallow !== "false") {
+    console.log(
+      "      (skipped: shallow clone — the counterexample is not present; " +
+      "run `git fetch --unshallow` to exercise this)",
+    );
+    return;
+  }
+
+  const {ref: trunk} = resolveTrunkRef(process.env, trunkRefExists);
+  if (trunk === null) {
+    console.log("      (skipped: the trunk ref is not in this checkout)");
+    return;
+  }
+
+  const unbounded = execFileSync(
+    "git",
+    ["log", "--merges", "--first-parent", "-n", "1", "--pretty=format:%h", trunk],
+    {encoding: "utf8"},
+  ).trim();
+  assert.notStrictEqual(
+    unbounded,
+    "",
+    "the unbounded assertion now passes, which means main's pre-squash-merge " +
+    "history is no longer reachable. If history was rewritten this test is " +
+    "obsolete; if the clone is not actually full, this check was vacuous.",
+  );
+
+  const bounded = execFileSync(
+    "git",
+    [
+      "log", "--merges", "--first-parent", "-n", "1", "--pretty=format:%h",
+      ...trunkWalkArgs(walkedRevisionSelector(buildGitLogArgs()), trunk),
+    ],
+    {encoding: "utf8"},
+  ).trim();
+  assert.strictEqual(
+    bounded,
+    "",
+    "the bounded window also contains a merge commit, so bounding it is not " +
+    "what makes the guard pass — re-diagnose before trusting it.",
+  );
 });
 
 console.log(`\n${passed} release-notes core checks passed.`);
