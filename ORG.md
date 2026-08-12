@@ -145,11 +145,24 @@ budget governor (below) is the company's CFO.
   what got cut. Rex himself still exists — he is just called when wanted.
 
 #### Ledger — Release Notes
-- **Mission:** On push to `main`, summarize merged PRs into a CHANGELOG PR.
-- **Trigger:** GitHub Action on `push: branches: [main]`.
+- **Mission:** Once a day, summarize the PRs that landed on `main` into a
+  CHANGELOG PR.
+- **Trigger:** GitHub Action on `schedule: 0 20 * * *` (22:00 Africa/Lusaka),
+  plus `workflow_dispatch`. **Not** per-push: the branch, PR title and section
+  heading are all keyed to the date, so a second run the same day only
+  rewrites the same document — on a 24-merge day that was 24 model calls
+  drafting one digest.
 - **Outputs:** PR titled `chore: changelog for <date>` updating
   `docs/CHANGELOG.md`.
 - **Wraps:** `@octokit/rest` (already a `functions/` dep).
+- **Was silently a no-op until 2026-08.** It collected work with
+  `git log --merges`, but this repo squash-merges, so `main` carries no merge
+  commits — the query returned empty every run and it exited before its API
+  call. Zero changelog PRs merged in the 21 days before the fix. It now walks
+  `--first-parent` over an exact range (the commit that last touched the
+  changelog `..HEAD`, so an entry is never restated) and drops its own
+  changelog commits. Selection rules are pure and tested:
+  `scripts/agents/releaseNotesCore.mjs`, `npm run test:release-notes`.
 
 #### Mendi — Bug Fixer
 - **Mission:** Turn a reported breakage into a permanent fix plus the
@@ -289,7 +302,7 @@ teacher submits brief
 | Pubo | 0 / 0 tokens | No LLM call; deterministic write |
 | Quill | 50,000 / 10,000 tokens | Mostly script orchestration |
 | Rex | n/a — no API spend | Subagent only; runs on the caller's session, not the agents key |
-| Ledger | 50,000 / 20,000 tokens | One run per push to main |
+| Ledger | 50,000 / 20,000 tokens | One run per day (was per push to main) |
 | Mendi | 500,000 / 100,000 tokens | One multi-turn fix per bug issue |
 | Vigil | 50,000 / 20,000 tokens | One small Haiku call only on failed hours |
 | Vex | 100,000 / 30,000 tokens | One Haiku call per Verify & publish |

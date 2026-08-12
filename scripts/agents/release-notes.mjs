@@ -2,9 +2,13 @@
 /**
  * Ledger — Release Notes & Changelog.
  *
- * Lists merge commits since the last `## YYYY-MM-DD` heading in
- * docs/CHANGELOG.md, asks Claude to bucket them into Added / Changed /
- * Fixed / Security / Removed, and opens a draft PR with the result.
+ * Lists the PRs that landed on `main` since the changelog was last written,
+ * asks Claude to bucket them into Added / Changed / Fixed / Security /
+ * Removed, and opens a draft PR with the result.
+ *
+ * Selection rules (which commits, over what range, minus Ledger's own) live in
+ * ./releaseNotesCore.mjs so they are testable — see the note there about the
+ * `--merges` bug that made this agent a no-op on a squash-merged trunk.
  *
  * Required environment:
  *   ANTHROPIC_API_KEY — repo secret
@@ -19,6 +23,12 @@
 import {execSync} from "node:child_process";
 import {readFileSync, writeFileSync} from "node:fs";
 import {Octokit} from "@octokit/rest";
+import {
+  buildGitLogArgs,
+  findLastDatedHeading,
+  insertSection,
+  selectCommits,
+} from "./releaseNotesCore.mjs";
 
 const CHANGELOG_PATH = "docs/CHANGELOG.md";
 
@@ -55,23 +65,36 @@ function envOrDie(name) {
   return v;
 }
 
-function findLastDatedHeading(content) {
-  const m = content.match(/^## (\d{4}-\d{2}-\d{2})/m);
-  return m ? m[1] : null;
+function git(args) {
+  // execFileSync-style argv via execSync would need quoting; keep execSync but
+  // pass argv already shaped by the core so there is nothing to interpolate.
+  return execSync(`git ${args.map((a) => JSON.stringify(a)).join(" ")}`, {
+    encoding: "utf8",
+  });
 }
 
-function gitLogSince(date) {
-  // Merge commits only; skip plain commits to keep noise down.
-  // Falls back to all commits in the last 14 days if no date is found.
-  const range = date ?
-    `--since="${date}"` :
-    "--since=14.days";
-  const cmd = `git log --merges ${range} --pretty=format:"%h|%s|%b" --no-color`;
+/**
+ * The commit that last touched the changelog — the exact boundary for
+ * "what has landed since we last wrote one". Empty when the file has no
+ * history yet, in which case the caller falls back to the date heading.
+ */
+function lastChangelogCommit() {
   try {
-    return execSync(cmd, {encoding: "utf8"});
+    return git(["log", "-1", "--format=%H", "--", CHANGELOG_PATH]).trim();
   } catch (err) {
-    console.error("git log failed:", err.message);
+    console.warn(`Could not resolve the changelog's last commit: ${err.message}`);
     return "";
+  }
+}
+
+function gitLog({sinceSha, sinceDate}) {
+  try {
+    return git(buildGitLogArgs({sinceSha, sinceDate}));
+  } catch (err) {
+    // A failed range read is NOT "nothing landed" — say so rather than
+    // letting an empty string exit quietly as if the trunk were idle.
+    console.error("git log failed:", err.message);
+    process.exit(1);
   }
 }
 
@@ -115,19 +138,24 @@ async function main() {
 
   const existing = readFileSync(CHANGELOG_PATH, "utf8");
   const lastDate = findLastDatedHeading(existing);
-  const log = gitLogSince(lastDate);
+  const sinceSha = lastChangelogCommit();
+  const commits = selectCommits(gitLog({sinceSha, sinceDate: lastDate}));
 
-  if (!log.trim()) {
-    console.log("No new merge commits since last changelog entry. Exiting.");
+  if (commits.length === 0) {
+    console.log("Nothing landed on main since the last changelog entry. Exiting.");
     return;
   }
+  console.log(
+    `Summarising ${commits.length} commit(s) since ` +
+    `${sinceSha ? sinceSha.slice(0, 8) : lastDate || "the last 14 days"}.`,
+  );
 
   const userPrompt = [
     `Last dated changelog entry: ${lastDate || "(none — first run)"}.`,
     "",
-    "Merge commits to summarise (one per line: short-sha|subject|body):",
+    "Pull requests that landed, one per line as short-sha|subject:",
     "```",
-    log.slice(0, 20000),
+    commits.join("\n").slice(0, 20000),
     "```",
     "",
     `Today's date is ${new Date().toISOString().slice(0, 10)}. Use it as`,
@@ -143,18 +171,7 @@ async function main() {
 
   // Insert the new section right after the "## Unreleased" line.
   // If "## Unreleased" isn't there, prepend after the file title.
-  let updated;
-  if (existing.includes("## Unreleased")) {
-    updated = existing.replace(
-      "## Unreleased",
-      `## Unreleased\n\n${newSection.trim()}`,
-    );
-  } else {
-    updated = existing.replace(
-      /^# .*\n/m,
-      (m) => `${m}\n## Unreleased\n\n${newSection.trim()}\n\n`,
-    );
-  }
+  const updated = insertSection(existing, newSection);
 
   if (dryRun) {
     console.log("--- proposed changelog patch ---");
