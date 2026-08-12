@@ -3,20 +3,27 @@
  * Ledger — Release Notes & Changelog.
  *
  * Lists the PRs that landed on `main` since the changelog was last written,
- * asks Claude to bucket them into Added / Changed / Fixed / Security /
- * Removed, and opens a draft PR with the result.
+ * groups them, and opens a draft PR with the result.
  *
- * Selection rules (which commits, over what range, minus Ledger's own) live in
- * ./releaseNotesCore.mjs so they are testable — see the note there about the
+ * NO MODEL CALL. This used to ask Claude to bucket the commits into
+ * Added/Changed/Fixed and rewrite each into a sentence. It was measured and
+ * dropped: only 39% of this repo's commits carry a conventional prefix, and 15
+ * of those 21 are Dependabot, so ~15% of human commits are machine-classifiable
+ * — but the unprefixed 61% are ALREADY well-formed sentences ("Move the admin
+ * shell into src/features/adminShell"), so the model was mostly paraphrasing
+ * good prose into different good prose. Printing the subjects verbatim under
+ * light grouping loses almost nothing and costs nothing. Rules + rendering live
+ * in ./releaseNotesCore.mjs so they are testable; see the note there about the
  * `--merges` bug that made this agent a no-op on a squash-merged trunk.
  *
+ * When a release genuinely needs polished prose, invoke the `release-notes`
+ * subagent on the drafted entry — that runs on a session, not on an API key.
+ *
  * Required environment:
- *   ANTHROPIC_API_KEY — repo secret
  *   GITHUB_TOKEN      — provided by Actions
  *   GITHUB_REPOSITORY — e.g. "mwelwa-cyber/Zedexams"
  *
  * Optional:
- *   ANTHROPIC_MODEL   — override default model
  *   DRY_RUN           — when "true", print the patch instead of opening a PR
  */
 
@@ -24,6 +31,7 @@ import {execSync} from "node:child_process";
 import {readFileSync, writeFileSync} from "node:fs";
 import {Octokit} from "@octokit/rest";
 import {
+  buildChangelogSection,
   buildGitLogArgs,
   findLastDatedHeading,
   insertSection,
@@ -32,29 +40,6 @@ import {
 
 const CHANGELOG_PATH = "docs/CHANGELOG.md";
 
-const SYSTEM_PROMPT = [
-  "You are Ledger, ZedExams' Release Notes agent. You write short,",
-  "scannable, user-visible release notes. No commit hashes. PR numbers",
-  "(#123) are fine. Group changes under: Added, Changed, Fixed, Security,",
-  "Removed. Drop pure chore/refactor unless they affect users.",
-  "",
-  "Output exactly the new section to insert under '## Unreleased' in",
-  "docs/CHANGELOG.md. Use this shape:",
-  "",
-  "## YYYY-MM-DD",
-  "",
-  "### Added",
-  "- Sentence about a user-visible thing. (#123)",
-  "",
-  "### Fixed",
-  "- Sentence about a fix. (#456)",
-  "",
-  "Constraints:",
-  "- Each line is one sentence.",
-  "- Skip empty groups.",
-  "- No invented features. If a commit is unclear, omit it.",
-  "- No prose outside the changelog block.",
-].join("\n");
 
 function envOrDie(name) {
   const v = process.env[name];
@@ -98,39 +83,10 @@ function gitLog({sinceSha, sinceDate}) {
   }
 }
 
-async function callAnthropic({apiKey, systemPrompt, userPrompt, model}) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 1500,
-      temperature: 0.3,
-      system: systemPrompt,
-      messages: [{role: "user", content: userPrompt}],
-    }),
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`Anthropic ${res.status}: ${body.slice(0, 500)}`);
-  }
-  const data = await res.json();
-  return (data.content || [])
-    .filter((b) => b.type === "text")
-    .map((b) => b.text)
-    .join("\n")
-    .trim();
-}
 
 async function main() {
-  const anthropicKey = envOrDie("ANTHROPIC_API_KEY");
   const ghToken = envOrDie("GITHUB_TOKEN");
   const repoEnv = envOrDie("GITHUB_REPOSITORY");
-  const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5";
   const dryRun = String(process.env.DRY_RUN || "").toLowerCase() === "true";
 
   const [owner, repo] = repoEnv.split("/");
@@ -150,24 +106,12 @@ async function main() {
     `${sinceSha ? sinceSha.slice(0, 8) : lastDate || "the last 14 days"}.`,
   );
 
-  const userPrompt = [
-    `Last dated changelog entry: ${lastDate || "(none — first run)"}.`,
-    "",
-    "Pull requests that landed, one per line as short-sha|subject:",
-    "```",
-    commits.join("\n").slice(0, 20000),
-    "```",
-    "",
-    `Today's date is ${new Date().toISOString().slice(0, 10)}. Use it as`,
-    "the section heading.",
-  ].join("\n");
-
-  const newSection = await callAnthropic({
-    apiKey: anthropicKey,
-    systemPrompt: SYSTEM_PROMPT,
-    userPrompt,
-    model,
-  });
+  const today = new Date().toISOString().slice(0, 10);
+  const {section: newSection, stats} = buildChangelogSection(commits, {date: today});
+  console.log(
+    `${stats.classified} classified by conventional prefix, ${stats.listed} listed ` +
+    `verbatim, ${stats.dependencies} dependency bump(s) collapsed.`,
+  );
 
   // Insert the new section right after the "## Unreleased" line.
   // If "## Unreleased" isn't there, prepend after the file title.
@@ -180,7 +124,7 @@ async function main() {
   }
 
   // Open a branch + PR with the changelog update.
-  const branch = `agent/ledger/changelog-${new Date().toISOString().slice(0, 10)}`;
+  const branch = `agent/ledger/changelog-${today}`;
 
   // Use the GitHub REST API to create a branch and commit the file.
   const {data: mainRef} = await octokit.git.getRef({
@@ -221,7 +165,7 @@ async function main() {
     repo,
     path: CHANGELOG_PATH,
     branch,
-    message: `chore(changelog): Ledger draft for ${new Date().toISOString().slice(0, 10)}`,
+    message: `chore(changelog): Ledger draft for ${today}`,
     content: Buffer.from(updated, "utf8").toString("base64"),
     sha: fileSnap.sha,
   });
@@ -239,11 +183,20 @@ async function main() {
       repo,
       head: branch,
       base: "main",
-      title: `chore: changelog for ${new Date().toISOString().slice(0, 10)}`,
+      title: `chore: changelog for ${today}`,
       body: [
-        "Drafted by Ledger (release-notes agent).",
+        "Drafted by Ledger. **No model was called** — this is assembled",
+        "deterministically from the commit subjects, so it costs nothing.",
         "",
-        "Review the bucketed changes below; merge when happy.",
+        `- **${stats.classified}** entries were bucketed from a conventional-commit prefix.`,
+        `- **${stats.listed}** had no prefix and are listed VERBATIM under \`Changed\`.`,
+        `- **${stats.dependencies}** automated dependency bump(s) collapsed to one line.`,
+        "",
+        "The verbatim entries are the ones to read: nothing classified them, so",
+        "some may belong under a different heading. Edit this PR before merging",
+        "— or, for a release that wants polished prose, invoke the",
+        "`release-notes` subagent on the section (it runs on a session, not on",
+        "an API key).",
         "",
         "<sub>See [docs/AGENTS.md](../blob/main/docs/AGENTS.md).</sub>",
       ].join("\n"),

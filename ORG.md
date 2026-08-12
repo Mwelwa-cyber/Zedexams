@@ -150,11 +150,22 @@ budget governor (below) is the company's CFO.
 - **Trigger:** GitHub Action on `schedule: 0 20 * * *` (22:00 Africa/Lusaka),
   plus `workflow_dispatch`. **Not** per-push: the branch, PR title and section
   heading are all keyed to the date, so a second run the same day only
-  rewrites the same document — on a 24-merge day that was 24 model calls
-  drafting one digest.
+  rewrites the same document.
 - **Outputs:** PR titled `chore: changelog for <date>` updating
   `docs/CHANGELOG.md`.
-- **Wraps:** `@octokit/rest` (already a `functions/` dep).
+- **Wraps:** `@octokit/rest` + `scripts/agents/releaseNotesCore.mjs`.
+  **No model, no secret** — the workflow holds no Anthropic key.
+- **Why deterministic (2026-08).** It was measured before the model was
+  dropped: only 39% of this repo's commits carry a conventional prefix, and 15
+  of those 21 were Dependabot, so ~15% of human commits are machine-
+  classifiable. But the unprefixed 61% are already well-formed sentences
+  ("Move the admin shell into src/features/adminShell") — the model was mostly
+  paraphrasing good prose into different good prose. Ledger now buckets what
+  carries a prefix, prints the rest VERBATIM under `Changed`, and collapses
+  Dependabot to one line. The draft PR states how many entries were classified
+  versus merely listed, so a human knows where to look. For a release that
+  genuinely wants polished prose, invoke the `release-notes` subagent on the
+  drafted section — that runs on a session, not on an API key.
 - **Was silently a no-op until 2026-08.** It collected work with
   `git log --merges`, but this repo squash-merges, so `main` carries no merge
   commits — the query returned empty every run and it exited before its API
@@ -302,7 +313,7 @@ teacher submits brief
 | Pubo | 0 / 0 tokens | No LLM call; deterministic write |
 | Quill | 50,000 / 10,000 tokens | Mostly script orchestration |
 | Rex | n/a — no API spend | Subagent only; runs on the caller's session, not the agents key |
-| Ledger | 50,000 / 20,000 tokens | One run per day (was per push to main) |
+| Ledger | 0 / 0 tokens | No LLM call; deterministic assembly from commit subjects |
 | Mendi | 500,000 / 100,000 tokens | One multi-turn fix per bug issue |
 | Vigil | 50,000 / 20,000 tokens | One small Haiku call only on failed hours |
 | Vex | 100,000 / 30,000 tokens | One Haiku call per Verify & publish |

@@ -12,9 +12,12 @@ import assert from "node:assert";
 import {execFileSync} from "node:child_process";
 import {
   LEDGER_COMMIT_RE,
+  buildChangelogSection,
   buildGitLogArgs,
+  bucketOf,
   findLastDatedHeading,
   insertSection,
+  parseCommit,
   selectCommits,
 } from "./agents/releaseNotesCore.mjs";
 
@@ -113,6 +116,82 @@ ok("inserts under Unreleased, or seeds it after the title", () => {
 ok("an empty section is never written", () => {
   const before = "# C\n\n## Unreleased\n";
   assert.strictEqual(insertSection(before, "   "), before);
+});
+
+// --- parsing + rendering (the deterministic changelog) ---------------------
+
+ok("lifts the PR number out of a squash subject", () => {
+  const p = parseCommit("abc1234|fix(auth): stop the redirect loop (#2211)");
+  assert.strictEqual(p.sha, "abc1234");
+  assert.strictEqual(p.pr, 2211);
+  assert.strictEqual(p.type, "fix");
+  assert.strictEqual(p.scope, "auth");
+  assert.strictEqual(p.text, "stop the redirect loop", "the prefix and the PR ref both come off");
+});
+
+ok("an unprefixed subject survives WORD FOR WORD", () => {
+  // The whole premise of dropping the model: these are already good sentences.
+  const subject = "Move the admin shell into src/features/adminShell";
+  const p = parseCommit(`abc1234|${subject} (#2286)`);
+  assert.strictEqual(p.type, null);
+  assert.strictEqual(p.text, subject, "an unclassified subject must not be rewritten");
+});
+
+ok("buckets by prefix, and defaults the rest to Changed", () => {
+  assert.strictEqual(bucketOf(parseCommit("a|feat: add a thing")), "Added");
+  assert.strictEqual(bucketOf(parseCommit("a|fix: fix a thing")), "Fixed");
+  assert.strictEqual(bucketOf(parseCommit("a|docs: write a thing")), "Documentation");
+  assert.strictEqual(bucketOf(parseCommit("a|ci: wire a thing")), "Internal");
+  assert.strictEqual(bucketOf(parseCommit("a|Move the admin shell")), "Changed");
+});
+
+ok("surfaces breaking changes and security scopes first", () => {
+  assert.strictEqual(bucketOf(parseCommit("a|feat!: drop the v1 endpoint")), "Breaking");
+  assert.strictEqual(bucketOf(parseCommit("a|fix(security): close an IDOR")), "Security");
+});
+
+ok("collapses Dependabot instead of printing 15 bullets", () => {
+  const {section, stats} = buildChangelogSection([
+    "a1|feat: add a thing (#1)",
+    "b2|Build(deps-dev): bump tar from 7.5.16 to 7.5.22 (#2)",
+    "c3|build(deps): bump undici (#3)",
+  ], {date: "2026-08-12"});
+  assert.strictEqual(stats.dependencies, 2);
+  assert.ok(/_Dependencies: 2 automated bumps \(#2, #3\)\._/.test(section));
+  assert.ok(!section.includes("bump tar"), "individual bumps stay out of the body");
+});
+
+ok("skips empty groups and orders headings", () => {
+  const {section} = buildChangelogSection([
+    "a1|Move a thing (#1)",
+    "b2|feat: add a thing (#2)",
+  ], {date: "2026-08-12"});
+  assert.ok(!section.includes("### Fixed"), "an empty group is not printed");
+  assert.ok(
+    section.indexOf("### Added") < section.indexOf("### Changed"),
+    "Added precedes Changed",
+  );
+  assert.ok(section.startsWith("## 2026-08-12"));
+});
+
+ok("reports what it classified versus merely listed", () => {
+  // The PR body tells a human where to look; that number must be real.
+  const {stats} = buildChangelogSection([
+    "a1|feat: add a thing (#1)",
+    "b2|Move a thing (#2)",
+    "c3|Move another thing (#3)",
+    "d4|build(deps): bump x (#4)",
+  ], {date: "2026-08-12"});
+  assert.deepStrictEqual(stats, {total: 4, dependencies: 1, classified: 1, listed: 2});
+});
+
+ok("renders no model-shaped placeholder when there is nothing but deps", () => {
+  const {section} = buildChangelogSection(
+    ["a1|build(deps): bump x (#4)"],
+    {date: "2026-08-12"},
+  );
+  assert.ok(section.includes("_Dependencies: 1 automated bump (#4)._"));
+  assert.ok(!/### /.test(section), "no empty headings when every commit was a bump");
 });
 
 // --- the trunk really is squash-merged -------------------------------------
