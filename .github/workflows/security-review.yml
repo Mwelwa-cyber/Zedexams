@@ -3,12 +3,14 @@ name: Security Review
 # Anthropic's official AI security reviewer (anthropics/claude-code-security-review).
 # Runs Claude over the PR diff and comments any security findings inline. It is
 # diff-aware (only changed files), language-agnostic, and applies false-positive
-# filtering. Complements agent-pr-review.yml (general review) — this one is
-# security-specialised.
+# filtering. This is the ONLY automatic per-PR review left: Rex's general
+# review (agent-pr-review.yml) was deleted in 2026-08 because required CI
+# already covers his checks deterministically, whereas nothing else in the
+# repo looks for security findings.
 #
 # Uses the dedicated ANTHROPIC_AGENTS_KEY Actions secret shared by the
-# GitHub-agent workflows (agent-bug-fixer.yml / agent-pr-review.yml /
-# agent-release-notes.yml), so Console spend separates agent/Opus from the app
+# GitHub-agent workflows (agent-bug-fixer.yml / agent-release-notes.yml),
+# so Console spend separates agent/Opus from the app
 # runtime. Falls back to ANTHROPIC_API_KEY when unset, so this is safe to run
 # before the dedicated key is provisioned. The key must be enabled for both the
 # Claude API and Claude Code usage.
@@ -22,6 +24,13 @@ name: Security Review
 on:
   pull_request:
     branches: [main]
+    # NOT the default [opened, synchronize, reopened]. `synchronize` fires on
+    # every push to a PR branch, so each CI-failure fixup commit bought another
+    # full agentic re-scan of the whole diff — on a 24-merge day that is where
+    # the Anthropic bill went, not in the app runtime. Scanning once, when the
+    # PR is actually ready, reviews the same final diff for a fraction of the
+    # spend. Re-run a specific PR by hand with workflow_dispatch.
+    types: [opened, reopened, ready_for_review]
   workflow_dispatch:
 
 permissions:
@@ -39,7 +48,15 @@ jobs:
     # and the reviewer action fails on every dependency bump. Skipping renders
     # the check "skipped" (non-failing) instead of a spurious red X. Dependency
     # bumps carry no application diff for a security scan to reason about.
-    if: github.actor != 'dependabot[bot]'
+    #
+    # Skip drafts: PRs here are opened as drafts and iterated on, so scanning at
+    # `opened` would scan a diff that is not finished yet and then scan again at
+    # `ready_for_review`. Gating on draft==false leaves exactly one scan per PR,
+    # of the diff that is actually up for merge. A dispatch run has no
+    # pull_request payload, so `draft` is null and the check still passes.
+    if: >-
+      github.actor != 'dependabot[bot]' &&
+      github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
