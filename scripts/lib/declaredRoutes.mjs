@@ -84,6 +84,23 @@ export function teacherRouteEntries(src = readSource(TEACHER_ROUTES_PATH)) {
 }
 
 /**
+ * Paths App.jsx wraps in <LearnerOnlyRoute> — the routes a teacher account
+ * cannot open. Read from the route declaration rather than kept as a list,
+ * so adding a learner route can't quietly leave a guard behind.
+ *
+ * Each <Route> is declared on one line, so the element is matched on that
+ * line; a route split across lines would be missed, which is why the caller
+ * asserts a floor on the count.
+ */
+export function learnerOnlyRoutePaths(appSrc = readSource(APP_PATH)) {
+  return appSrc
+    .split('\n')
+    .filter((line) => line.includes('<LearnerOnlyRoute>'))
+    .map((line) => line.match(/<Route\s+path="([^"]+)"/)?.[1])
+    .filter(Boolean)
+}
+
+/**
  * Every route path the router declares, from both files.
  *
  * Throws rather than returning a short list if either parser comes back

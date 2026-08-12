@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { getRoleLandingPath } from '../../utils/navigation'
+import { resolvePostAuthPath } from '../../utils/navigation'
 import { friendlyVerificationError } from '../../utils/verification'
 import Logo from '../ui/Logo'
 import Button from '../ui/Button'
@@ -66,9 +66,12 @@ export default function VerifyEmail() {
   }
   if (!currentUser) return <Navigate to="/login" replace />
   if (emailVerified) {
+    // Same rule as Login: the stashed page is honoured only when this account
+    // can actually open it, so verifying never lands a teacher on a learner
+    // route they were bounced from.
     const from = location.state?.from
-    const target = from ? `${from.pathname || ''}${from.search || ''}` || '/' : getRoleLandingPath(userProfile, '/')
-    return <Navigate to={target} replace />
+    const fromPath = from ? `${from.pathname || ''}${from.search || ''}` || null : null
+    return <Navigate to={resolvePostAuthPath(userProfile, fromPath, '/')} replace />
   }
 
   async function handleConfirmVerified() {

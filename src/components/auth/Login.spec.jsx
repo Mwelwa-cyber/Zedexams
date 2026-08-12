@@ -358,6 +358,51 @@ describe('Login — refresh/session-restoration behaviour', () => {
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/teacher/quiz-studio', { replace: true }))
   })
 
+  it('does not return a teacher to a learner-only page they were bounced from', async () => {
+    // The stash records what the BROWSER asked for. A teacher who opened a
+    // /notes/:id link (bookmark, shared link, restored tab) was bounced to
+    // /login, signed in, and was sent straight back — landing on the learner
+    // route's "Teacher accounts stay in the teacher portal" card. The
+    // destination is now checked against the role first.
+    setAuth({
+      loading: false,
+      currentUser: { uid: 'uid-1' },
+      userProfile: { id: 'uid-1', role: 'teacher' },
+    })
+
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: '/login', state: { from: { pathname: '/notes/FEBUorwhAV471eyS9WdB', search: '' } } }]}
+      >
+        <Login />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/teacher', { replace: true }))
+    expect(mockNavigate).not.toHaveBeenCalledWith('/notes/FEBUorwhAV471eyS9WdB', { replace: true })
+  })
+
+  it('does not send a teacher to a learner page after signing in with the form either', async () => {
+    mockLogin.mockResolvedValue({ user: { uid: 'uid-t' } })
+    mockEnsureUserProfile.mockResolvedValue({ id: 'uid-t', role: 'teacher' })
+    setAuth()
+
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: '/login', state: { from: { pathname: '/notes/abc', search: '' } } }]}
+      >
+        <Login />
+      </MemoryRouter>,
+    )
+
+    fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 't@school.com' } })
+    fireEvent.change(screen.getByLabelText(/^password$/i),     { target: { value: 'pass123' } })
+    fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/teacher', { replace: true }))
+    expect(mockNavigate).not.toHaveBeenCalledWith('/notes/abc', { replace: true })
+  })
+
   it('signing in from a bounced guard returns to the requested page, not the dashboard', async () => {
     mockLogin.mockResolvedValue({ user: { uid: 'uid-9' } })
     mockEnsureUserProfile.mockResolvedValue({ id: 'uid-9', role: 'learner' })
