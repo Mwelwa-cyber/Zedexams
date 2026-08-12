@@ -11,8 +11,15 @@ name: Agent — Ledger release notes
 #     before the dedicated key is provisioned.
 
 on:
-  push:
-    branches: [main]
+  # Daily, NOT per-push. While Ledger was a no-op (see releaseNotesCore.mjs) a
+  # push trigger cost nothing, so 24 merges in a day meant 24 free runs. Now
+  # that it actually calls the model, that same day would be 24 Sonnet calls
+  # producing 24 drafts of one daily digest — and the branch, PR title and
+  # section heading are all keyed to the DATE, so every run after the first
+  # just rewrites the same document. One run per day is the unit of work.
+  # 20:00 UTC = 22:00 Africa/Lusaka, so the digest covers a full working day.
+  schedule:
+    - cron: "0 20 * * *"
   workflow_dispatch:
     inputs:
       dry_run:
