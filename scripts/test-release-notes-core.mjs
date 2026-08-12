@@ -10,6 +10,7 @@
 
 import assert from "node:assert";
 import {execFileSync} from "node:child_process";
+import {appendFileSync} from "node:fs";
 import {
   LEDGER_COMMIT_RE,
   buildChangelogSection,
@@ -21,6 +22,12 @@ import {
   selectCommits,
 } from "./agents/releaseNotesCore.mjs";
 import {resolveTrunkRef} from "./gitTrunkRef.mjs";
+import {
+  GUARD_MODE_ENV,
+  formatTrunkFinding,
+  reportAdvisory,
+  resolveGuardMode,
+} from "./trunkGuardPolicy.mjs";
 
 let passed = 0;
 function ok(name, fn) {
@@ -253,6 +260,59 @@ ok("an unfetched base branch skips loudly rather than falling back", () => {
   );
 });
 
+// --- trunk guard severity --------------------------------------------------
+//
+// The guard below reports on repository history. It used to be able to stop a
+// deploy, which is how one merge commit from PR 583 took five Deploy Hosting
+// runs down with it. Severity is chosen now, not inherited from where the
+// check happens to run.
+
+ok("enforcing is opt-in by name", () => {
+  assert.strictEqual(resolveGuardMode({[GUARD_MODE_ENV]: "enforce"}), "enforce");
+});
+
+ok("every other context advises, including a deploy push", () => {
+  assert.strictEqual(resolveGuardMode({}), "advise");
+  assert.strictEqual(resolveGuardMode({[GUARD_MODE_ENV]: "1"}), "advise");
+  assert.strictEqual(resolveGuardMode({[GUARD_MODE_ENV]: "ENFORCE"}), "advise");
+  assert.strictEqual(resolveGuardMode(undefined), "advise");
+});
+
+ok("the finding names the commit, the ref, and how the ref was resolved", () => {
+  const text = formatTrunkFinding({sha: "53a65f4", ref: "origin/main", source: "base-ref"});
+  assert.ok(text.includes("53a65f4"), "the offending commit is the first thing to look at");
+  assert.ok(text.includes("origin/main"));
+  assert.ok(text.includes("base-ref"), "HEAD and origin/main fail for different reasons");
+});
+
+ok("an advisory is written to the step summary, not just stdout", () => {
+  const writes = [];
+  const written = reportAdvisory(
+    "a merge commit landed",
+    {GITHUB_STEP_SUMMARY: "/tmp/summary"},
+    (path, body) => writes.push([path, body]),
+  );
+  assert.strictEqual(writes.length, 1);
+  assert.strictEqual(writes[0][0], "/tmp/summary");
+  assert.ok(writes[0][1].includes("a merge commit landed"));
+  assert.ok(
+    writes[0][1].includes("[!WARNING]"),
+    "run-all-tests.mjs hides a passing script stdout, so this has to be a summary block",
+  );
+  assert.ok(written !== null);
+});
+
+ok("nowhere to write is not a failure", () => {
+  assert.strictEqual(reportAdvisory("finding", {}, () => {}), null);
+  assert.strictEqual(
+    reportAdvisory("finding", {GITHUB_STEP_SUMMARY: "/tmp/summary"}, () => {
+      throw new Error("read-only file system");
+    }),
+    null,
+    "a failed write must not turn an advisory back into the failure it replaced",
+  );
+});
+
 // --- the trunk really is squash-merged -------------------------------------
 //
 // The premise behind the whole fix. If this repo ever adopts real merge
@@ -263,11 +323,14 @@ ok("an unfetched base branch skips loudly rather than falling back", () => {
 // history: main still carries pre-squash-policy merges (53a65f45, the merge of
 // PR 583, is the newest), so asserting over every commit fails forever.
 //
-// Pointed at the RESOLVED trunk, not HEAD. With ci.yml on fetch-depth: 0 this
-// finally runs on pull requests too — against origin/$GITHUB_BASE_REF — where
-// before it either saw nothing (shallow checkout) or tripped over GitHub's
-// synthetic merge HEAD. If the trunk cannot be resolved the guard FAILS rather
-// than skipping, so a green check means it really ran.
+// Pointed at the RESOLVED trunk, not HEAD. On a pull_request actions/checkout
+// resolves refs/pull/N/merge — a two-parent commit GitHub builds for the run —
+// so HEAD is a merge commit by construction and the old query found it every
+// time. #2303 proved it: a PR whose only change was a workflow file failed.
+//
+// ADVISORY here, ENFORCED by .github/workflows/agent-release-notes.yml. Ledger
+// is what walks --first-parent, so Ledger output is what a merge commit would
+// corrupt; a deploy is not. scripts/trunkGuardPolicy.mjs carries the reasoning.
 
 ok("the recent trunk carries no merge commits", () => {
   const git = (args) =>
@@ -282,17 +345,20 @@ ok("the recent trunk carries no merge commits", () => {
   };
 
   const {ref, source, reason} = resolveTrunkRef(process.env, refExists);
+  const raise = (finding) => {
+    if (resolveGuardMode(process.env) === "enforce") assert.fail(finding);
+    reportAdvisory(finding, process.env, appendFileSync);
+    console.log(`      (advisory: ${finding})`);
+  };
 
-  // A named base branch that is missing from the checkout used to be a silent
-  // skip, and that is the hole the original bug hid in: ci.yml checked out
-  // shallow, the query could see nothing, and the guard reported "ok" while
-  // testing nothing at all. run-all-tests.mjs only surfaces a script's output
-  // when it FAILS, so a skip message would never have been read. With
-  // fetch-depth: 0 the base branch is always fetchable on a pull_request, so if
-  // it has gone missing the checkout config regressed — fail and name it.
-  // (GITHUB_BASE_REF is only ever set by ci.yml's pull_request trigger; the
-  // deploy workflows run on push, where this resolves to HEAD.)
-  assert.ok(ref !== null, reason);
+  // A named base branch missing from the checkout is a config regression, not
+  // a clean bill of health: ci.yml fetches full history on a pull_request, so
+  // origin/$GITHUB_BASE_REF is always there. Say so rather than reporting ok
+  // while testing nothing at all — the hole the original bug hid in.
+  if (ref === null) {
+    raise(reason);
+    return;
+  }
 
   let merges;
   try {
@@ -307,15 +373,10 @@ ok("the recent trunk carries no merge commits", () => {
       ref,
     ]);
   } catch {
-    console.log("      (skipped: no git history available here)");
+    raise(`the trunk ref ${ref} (via ${source}) could not be walked here`);
     return;
   }
-  assert.strictEqual(
-    merges,
-    "",
-    `a merge commit landed on the trunk (${ref}, via ${source}) in the last 14 ` +
-    "days — re-check whether --first-parent is still the right selector",
-  );
+  if (merges !== "") raise(formatTrunkFinding({sha: merges, ref, source}));
 });
 
 console.log(`\n${passed} release-notes core checks passed.`);
