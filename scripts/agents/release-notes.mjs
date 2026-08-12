@@ -31,14 +31,14 @@ import {execSync} from "node:child_process";
 import {readFileSync, writeFileSync} from "node:fs";
 import {Octokit} from "@octokit/rest";
 import {
+  CHANGELOG_PATH,
   buildChangelogSection,
   buildGitLogArgs,
-  findLastDatedHeading,
+  changelogBoundaryGitArgs,
   insertSection,
+  resolveChangelogBoundary,
   selectCommits,
 } from "./releaseNotesCore.mjs";
-
-const CHANGELOG_PATH = "docs/CHANGELOG.md";
 
 
 function envOrDie(name) {
@@ -62,10 +62,13 @@ function git(args) {
  * The commit that last touched the changelog — the exact boundary for
  * "what has landed since we last wrote one". Empty when the file has no
  * history yet, in which case the caller falls back to the date heading.
+ *
+ * The query itself is declared in the core, because the trunk guard has to ask
+ * for the same boundary and a second spelling of it here is the drift.
  */
 function lastChangelogCommit() {
   try {
-    return git(["log", "-1", "--format=%H", "--", CHANGELOG_PATH]).trim();
+    return git(changelogBoundaryGitArgs()).trim();
   } catch (err) {
     console.warn(`Could not resolve the changelog's last commit: ${err.message}`);
     return "";
@@ -93,9 +96,11 @@ async function main() {
   const octokit = new Octokit({auth: ghToken});
 
   const existing = readFileSync(CHANGELOG_PATH, "utf8");
-  const lastDate = findLastDatedHeading(existing);
-  const sinceSha = lastChangelogCommit();
-  const commits = selectCommits(gitLog({sinceSha, sinceDate: lastDate}));
+  const {sinceSha, sinceDate} = resolveChangelogBoundary({
+    changelogSha: lastChangelogCommit(),
+    changelogContent: existing,
+  });
+  const commits = selectCommits(gitLog({sinceSha, sinceDate}));
 
   if (commits.length === 0) {
     console.log("Nothing landed on main since the last changelog entry. Exiting.");
@@ -103,7 +108,7 @@ async function main() {
   }
   console.log(
     `Summarising ${commits.length} commit(s) since ` +
-    `${sinceSha ? sinceSha.slice(0, 8) : lastDate || "the last 14 days"}.`,
+    `${sinceSha ? sinceSha.slice(0, 8) : sinceDate || "the last 14 days"}.`,
   );
 
   const today = new Date().toISOString().slice(0, 10);
