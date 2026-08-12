@@ -798,7 +798,8 @@
     "test:function-memory-floor": "node scripts/test-function-memory-floor.mjs",
     "test:function-error-watch-core": "node functions/monitoring/functionErrorWatchCore.test.js",
     "test:function-error-watch": "node functions/monitoring/functionErrorWatch.test.js",
-    "test:release-notes": "node scripts/test-release-notes-core.mjs"
+    "test:release-notes": "node scripts/test-release-notes-core.mjs",
+    "test:security-review-trigger": "node scripts/test-security-review-trigger.mjs"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",

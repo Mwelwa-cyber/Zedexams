@@ -3,10 +3,19 @@ name: Security Review
 # Anthropic's official AI security reviewer (anthropics/claude-code-security-review).
 # Runs Claude over the PR diff and comments any security findings inline. It is
 # diff-aware (only changed files), language-agnostic, and applies false-positive
-# filtering. This is the ONLY automatic per-PR review left: Rex's general
-# review (agent-pr-review.yml) was deleted in 2026-08 because required CI
-# already covers his checks deterministically, whereas nothing else in the
-# repo looks for security findings.
+# filtering.
+#
+# OPT-IN, NOT AUTOMATIC (2026-08). Apply the `security-review` label to a PR to
+# run it; `workflow_dispatch` re-runs one by hand. Nothing else starts it, so a
+# PR nobody labels costs nothing. To re-scan after pushing a fix, remove the
+# label and re-apply it — `labeled` fires on each application.
+#
+# THE TRADE, STATED PLAINLY: this is the only thing in the repo that looks for
+# security findings — required CI covers secrets hygiene and rules text, not
+# vulnerabilities in application logic. Opt-in means it runs when someone
+# remembers, which on most PRs will be never. That is a deliberate cost choice,
+# not an oversight; label anything touching auth, rules, payments, user input,
+# or a new external surface.
 #
 # Uses the dedicated ANTHROPIC_AGENTS_KEY Actions secret shared by the
 # GitHub-agent workflows (agent-bug-fixer.yml / agent-release-notes.yml),
@@ -24,13 +33,13 @@ name: Security Review
 on:
   pull_request:
     branches: [main]
-    # NOT the default [opened, synchronize, reopened]. `synchronize` fires on
-    # every push to a PR branch, so each CI-failure fixup commit bought another
-    # full agentic re-scan of the whole diff — on a 24-merge day that is where
-    # the Anthropic bill went, not in the app runtime. Scanning once, when the
-    # PR is actually ready, reviews the same final diff for a fraction of the
-    # spend. Re-run a specific PR by hand with workflow_dispatch.
-    types: [opened, reopened, ready_for_review]
+    # `labeled` ONLY — not [opened, synchronize, reopened]. `synchronize` fires
+    # on every push to a PR branch, so each CI-failure fixup commit bought
+    # another full agentic re-scan of the whole diff; on a 24-merge day that is
+    # where the Anthropic bill went, not in the app runtime. Scanning at
+    # `opened` was cheaper but still paid for every PR whether or not the diff
+    # could carry a vulnerability.
+    types: [labeled]
   workflow_dispatch:
 
 permissions:
@@ -43,20 +52,22 @@ concurrency:
 
 jobs:
   security:
-    # Skip Dependabot PRs: GitHub withholds repo/Actions secrets from
-    # dependabot-authored pull_request runs, so claude-api-key resolves empty
-    # and the reviewer action fails on every dependency bump. Skipping renders
-    # the check "skipped" (non-failing) instead of a spurious red X. Dependency
-    # bumps carry no application diff for a security scan to reason about.
+    # A `labeled` run fires for EVERY label, so the job must check which one it
+    # was; without this, adding any unrelated label would start an agentic scan.
+    # `workflow_dispatch` carries no label payload, hence the explicit branch.
     #
-    # Skip drafts: PRs here are opened as drafts and iterated on, so scanning at
-    # `opened` would scan a diff that is not finished yet and then scan again at
-    # `ready_for_review`. Gating on draft==false leaves exactly one scan per PR,
-    # of the diff that is actually up for merge. A dispatch run has no
-    # pull_request payload, so `draft` is null and the check still passes.
+    # There is deliberately no draft gate. Labelling is an explicit request, so
+    # a labelled draft is someone asking for exactly this scan on exactly this
+    # diff — the earlier draft==false rule existed to stop the automatic
+    # `opened` run from scanning an unfinished PR, and nothing is automatic now.
+    #
+    # The old Dependabot skip is gone with the same reasoning: it existed
+    # because every dependency bump auto-started a run that then failed on a
+    # withheld secret. Dependabot does not apply labels, so it can no longer
+    # start this workflow at all.
     if: >-
-      github.actor != 'dependabot[bot]' &&
-      github.event.pull_request.draft == false
+      github.event_name == 'workflow_dispatch' ||
+      github.event.label.name == 'security-review'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
