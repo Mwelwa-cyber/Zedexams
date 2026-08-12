@@ -360,6 +360,73 @@ test('a factory is read from its ONE builder, and ambiguity is refused', () => {
   assert.equal(past.options.timeoutSeconds, '300')
 })
 
+test('a MODULE-LOCAL factory binds its arguments, because nothing else freezes them', () => {
+  // `onQuizQuestionDeleted: makeDeletedTrigger("quizzes/{quizId}/questions/{questionId}")`
+  // in storageCleanup/onQuestionChange.js. The difference from an index.js
+  // factory is the whole reason arguments are substituted here and not there:
+  // index.js's call site is frozen verbatim in `target`, this one is inside
+  // the module and `target` records only `storageCleanup.onQuizQuestionDeleted`.
+  // Leave `document: documentPath` as the parameter name and the collection a
+  // Firestore trigger fires on is frozen NOWHERE.
+  const mod = `
+    const COMMON = {region: "africa-south1", timeoutSeconds: 60}
+    function makeDeletedTrigger(documentPath) {
+      return onDocumentDeleted({document: documentPath, ...COMMON}, async (e) => {})
+    }
+    module.exports = {
+      onThingDeleted: makeDeletedTrigger("quizzes/{quizId}/questions/{questionId}"),
+    }
+  `
+  const index = 'const storage = require("./mod");\nexports.onThingDeleted = storage.onThingDeleted;\n'
+  const got = followDelegation('storage.onThingDeleted', index, () => ({ source: mod, dir: '.' }))
+  assert.equal(got.unresolved, undefined)
+  assert.equal(got.options.document, '"quizzes/{quizId}/questions/{questionId}"',
+    'the ARGUMENT must reach the manifest — the parameter name freezes nothing')
+  assert.equal(got.options.region, '"africa-south1"', 'the shared options const must still expand')
+
+  // A parameter with no matching argument is left as its name, never guessed at.
+  const short = `
+    function make(a, b) { return onDocumentDeleted({document: a, extra: b}, h) }
+    module.exports = {onThingDeleted: make("only/one")}
+  `
+  const partial = followDelegation('storage.onThingDeleted', index, () => ({ source: short, dir: '.' }))
+  assert.equal(partial.options.document, '"only/one"')
+  assert.equal(partial.options.extra, 'b', 'an unmatched parameter keeps its name')
+})
+
+test('a v1 CHAINED builder is read across the chain, event included', () => {
+  // `functions.region("us-central1").runWith({…}).auth.user().onDelete(…)` —
+  // onUserDeleted, the last export the follower could not read at all. Its
+  // surface is spread across the chain rather than gathered in one object, and
+  // the EVENT is the whole meaning of the trigger: onCreate vs onDelete is the
+  // difference between a cleanup hook and a provisioning hook.
+  const mod = `
+    const onUserDeleted = functions
+      .region("us-central1")
+      .runWith({timeoutSeconds: 300, memory: "256MB"})
+      .auth.user()
+      .onDelete(async (user) => {})
+    module.exports = {onUserDeleted}
+  `
+  const index = 'const storage = require("./mod");\nexports.onUserDeleted = storage.onUserDeleted;\n'
+  const got = followDelegation('storage.onUserDeleted', index, () => ({ source: mod, dir: '.' }))
+  assert.equal(got.unresolved, undefined)
+  assert.equal(got.options.region, '"us-central1"')
+  assert.equal(got.options.timeoutSeconds, '300')
+  assert.equal(got.options.memory, '"256MB"')
+  assert.equal(got.options.event, 'functions.auth.user().onDelete',
+    'canonicalised to the spelling extractExports produces for index.js v1 triggers, so the same trigger written either way compares alike')
+  assert.equal(got.kind, 'authTrigger')
+
+  // The chain is written one call per line in the real file. A pattern that
+  // allows no whitespace between segments matches nothing on the only file it
+  // has to read — which is how this first came back "names no event".
+  const oneLine = 'const x = functions.region("us-central1").auth.user().onCreate(h)\nmodule.exports = {x}\n'
+  const flat = followDelegation('storage.x', 'const storage = require("./mod");\nexports.x = storage.x;\n',
+    () => ({ source: oneLine, dir: '.' }))
+  assert.equal(flat.options.event, 'functions.auth.user().onCreate')
+})
+
 test('the follower refuses a specifier that escapes functions/', () => {
   // github-actions security review on #2197: the follower reads what a
   // require() specifier names, so a traversal like ../../../.env.production
