@@ -62,11 +62,13 @@ export const STORAGE_RELEASE_PREFIX = 'firebase.storage'
 export const EXIT = {ok: 0, drift: 1, unknown: 2}
 
 /**
- * Line endings, BOM, trailing spaces and trailing blank lines settled.
+ * Line endings, BOM, trailing spaces and every trailing newline settled.
  *
  * None of those can change an authorization decision, and all of them differ
  * routinely between a file in git and the same text round-tripped through an
- * API, so comparing raw strings would fail on the first deploy.
+ * API -- a trailing newline in particular is present on one side and absent
+ * on the other depending on how the rules were uploaded -- so comparing raw
+ * strings would fail on the very first deploy.
  *
  * @param {unknown} text
  * @returns {string}
@@ -79,7 +81,7 @@ export function canonicalSource(text) {
     .split('\n')
     .map((line) => line.replace(/[ \t]+$/, ''))
     .join('\n')
-    .replace(/\n+$/, '\n')
+    .replace(/\n+$/, '')
 }
 
 /**
