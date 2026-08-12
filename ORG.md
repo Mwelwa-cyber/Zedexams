@@ -53,7 +53,7 @@ HQ in `src/utils/companyOrg.js`):
 | Department | Agents | Trigger |
 |---|---|---|
 | **Content** | Aria, Cala, Reva, Pubo, Qix, Compass, Gate | agentJobs pipeline + cron + questionBank trigger |
-| **QA & Engineering** | Vex, Quill, Vigil, Marshal, Rex, Ledger, Mendi | sync / cron / CI |
+| **QA & Engineering** | Vex, Quill, Vigil, Marshal, Rex, Ledger, Mendi | sync / cron / CI / on-demand (Rex) |
 | **Revenue** | Till | hourly cron (Lenco reconcile) |
 | **Support** | Echo, Bonga | 2-hourly cron (feedback triage) + WhatsApp webhook |
 | **Growth** | Anchor, Dawn | weekly cron / on-demand managed agent |
@@ -126,12 +126,23 @@ budget governor (below) is the company's CFO.
   `scripts/test-question-schema.mjs`, `npm run smoke`.
 
 #### Rex — Code Reviewer
-- **Mission:** Review every PR diff for repo conventions, schema/rule
-  changes, secrets, and Anthropic cost regressions.
-- **Trigger:** GitHub Action on `pull_request: [opened, synchronize]`.
-- **Outputs:** PR review comment via `gh pr review`.
-- **Wraps:** Anthropic API directly (Sonnet 4.5) with `ANTHROPIC_API_KEY`
-  GitHub repo secret.
+- **Mission:** Review a PR diff for repo conventions, schema/rule changes,
+  secrets, and Anthropic cost regressions.
+- **Trigger:** On demand only — invoke the `code-reviewer` subagent with a
+  diff. There is no automatic per-PR run.
+- **Outputs:** Review notes back to whoever invoked him.
+- **Wraps:** `.claude/agents/code-reviewer.md`.
+- **Why there is no GitHub Action (2026-08):** there was one, on
+  `pull_request: [opened, synchronize]` — so it billed the Anthropic API on
+  *every push to a PR branch*, not once per PR. It was never a required
+  check, so it could not block a bad merge, and four of its five checks are
+  already enforced deterministically by required CI: secrets by
+  `test:secret-hygiene`, rules/indexes by `test:rules-text`, the
+  `callAnthropic`-without-`usageMeter` cost regression by
+  `test:ai-provider-inventory` (which auto-discovers new provider-backed
+  endpoints, so it is *stronger* than reading a diff), and conventions by
+  `test:ai-dev-guide`. Paying per push for a weaker copy of free checks is
+  what got cut. Rex himself still exists — he is just called when wanted.
 
 #### Ledger — Release Notes
 - **Mission:** On push to `main`, summarize merged PRs into a CHANGELOG PR.
@@ -151,7 +162,7 @@ budget governor (below) is the company's CFO.
 - **Wraps:** `anthropics/claude-code-action` (Sonnet) driven by the
   `.claude/agents/bug-fixer.md` contract, with `ANTHROPIC_API_KEY` GitHub
   repo secret.
-- **Notable exception:** like Rex and Ledger, Mendi runs in CI rather than
+- **Notable exception:** like Ledger, Mendi runs in CI rather than
   through the `agentJobs` queue — it needs real file/Bash tools to reproduce,
   edit, and verify, which a queued runner can't provide. Every change still
   lands behind human review as a draft PR.
@@ -238,7 +249,7 @@ teacher submits brief
 |---|---|
 | Claude Code (dev workstation) | `Use the content-author subagent to draft a Grade 6 Maths lesson on fractions.` |
 | App (teacher-facing brief form) | Posts to `agentJobs` collection; dispatcher does the rest. |
-| GitHub PR (Rex) | Opens automatically on PR open / sync. |
+| PR review (Rex) | On demand: `Use the code-reviewer subagent on this diff.` No automatic per-PR run. |
 | GitHub issue (Mendi) | Add the `bug` label, or comment `/mendi`. Opens a draft fix PR. |
 | Cron (Quill nightly, weekly Cala audit, Vigil hourly) | Scheduled Firebase Function. |
 
@@ -277,7 +288,7 @@ teacher submits brief
 | Reva | 300,000 / 100,000 tokens | Editorial review |
 | Pubo | 0 / 0 tokens | No LLM call; deterministic write |
 | Quill | 50,000 / 10,000 tokens | Mostly script orchestration |
-| Rex | 200,000 / 50,000 tokens | One review per PR |
+| Rex | n/a — no API spend | Subagent only; runs on the caller's session, not the agents key |
 | Ledger | 50,000 / 20,000 tokens | One run per push to main |
 | Mendi | 500,000 / 100,000 tokens | One multi-turn fix per bug issue |
 | Vigil | 50,000 / 20,000 tokens | One small Haiku call only on failed hours |

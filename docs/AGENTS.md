@@ -10,7 +10,7 @@ How to operate the ZedExams agent stack day-to-day. For the *why*
 | Claude Code subagents | `.claude/agents/*.md` | Manual, dev-time invocation from your terminal |
 | Cloud Functions runners | `functions/agents/runners/*.js` *(Phase 2)* | Auto-run when a job lands in `agentJobs` |
 | Cron Functions | `functions/agents/cron.js` *(Phase 2/3)* | `nightlyQaSmoke`, `weeklyCbcAlignmentAudit`, `hourlyMonitor` (Vigil) |
-| GitHub Actions | `.github/workflows/agent-*.yml` *(Phase 3)* | PR review (Rex), changelog (Ledger), bug fixes (Mendi), CBC audit |
+| GitHub Actions | `.github/workflows/agent-*.yml` *(Phase 3)* | changelog (Ledger), bug fixes (Mendi), CBC audit. Rex's per-PR action was removed in 2026-08 — see ORG.md |
 | Admin dashboard | `src/components/admin/agents/` | Approve/reject jobs, pause agents, view runs |
 
 ## Day-to-day: as the human owner
@@ -59,8 +59,9 @@ subagent to verify it.
 
 ## Phase 3 verification (QA/Eng + Actions)
 
-1. Open a draft PR touching `firestore.rules`. Within ~60s, Rex posts a
-   review comment.
+1. Invoke the `code-reviewer` subagent (Rex) on a diff touching
+   `firestore.rules` and confirm he flags the rule change. He no longer runs
+   automatically per PR — the action was removed in 2026-08 on cost grounds.
 2. Trigger `nightlyQaSmoke` manually:
    ```
    gcloud scheduler jobs run firebase-schedule-nightlyQaSmoke
@@ -86,7 +87,7 @@ subagent to verify it.
 | Name | Where | Used by |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | Firebase secret (`defineSecret`) | Aria, Cala (resolve), Reva, Vigil (fix suggestions) |
-| `ANTHROPIC_API_KEY` | GitHub repo secret | Rex (PR review), Ledger, Mendi (bug fixer) |
+| `ANTHROPIC_AGENTS_KEY` | GitHub repo secret | Ledger, Mendi (bug fixer), Security Review. Falls back to `ANTHROPIC_API_KEY` when unset. Rex is NOT on this key — he is a subagent and bills nothing |
 | `EMAIL_SMTP_USER` / `EMAIL_SMTP_PASSWORD` | Firebase secret | AI-cost summary, Vigil alert email |
 | `OPS_ALERT_EMAILS` | Functions env var | Recipients for Vigil + cost alerts. NOT `ADMIN_EMAILS` — that is an admin-bootstrap allowlist (#1993) |
 | `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY` / `GITHUB_APP_INSTALLATION_ID` | Firebase secret *(preferred)* | Vigil files `bug` issues → Mendi via a GitHub App installation token (no expiry to babysit). |

@@ -83,7 +83,7 @@ export const AGENTS = [
     model: 'Haiku 4.5', runsVia: 'cron', cadence: 'Hourly', spend: 'low',
     mission: 'Sweeps pages, Firebase, images and quizzes; on failure suggests a fix and escalates to Mendi.' },
   { id: 'rex', name: 'Rex', title: 'Code Reviewer', dept: 'qaEng',
-    model: 'Sonnet 4.5', runsVia: 'ci', cadence: 'On every PR', spend: 'low',
+    model: 'Sonnet 4.5', runsVia: 'managed', cadence: 'On demand', spend: 'none',
     mission: 'Reviews PR diffs for conventions, schema/rule changes, secrets and cost regressions.' },
   { id: 'ledger', name: 'Ledger', title: 'Release Notes', dept: 'qaEng',
     model: 'Sonnet 4.5', runsVia: 'ci', cadence: 'On push to main', spend: 'low',

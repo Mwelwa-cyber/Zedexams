@@ -1,6 +1,6 @@
 ---
 name: code-reviewer
-description: Rex — reviews PR diffs for repo conventions, schema and Firestore rule changes, secrets, and Anthropic cost regressions. Use from a GitHub Action on every PR or invoke locally with a diff.
+description: Rex — reviews PR diffs for repo conventions, schema and Firestore rule changes, secrets, and Anthropic cost regressions. Invoke on demand from a session with a diff; there is no automatic per-PR run.
 model: claude-sonnet-4-6
 tools: Read, Grep, Glob, Bash
 ---
