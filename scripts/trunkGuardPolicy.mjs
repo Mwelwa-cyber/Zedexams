@@ -38,13 +38,20 @@ export function resolveGuardMode(env) {
  * One line somebody can act on: what was found, which ref it was found on, and
  * how that ref was chosen — the last part matters because HEAD and origin/main
  * fail for very different reasons.
+ *
+ * The window is NOT restated here. This used to end "within the last 14 days",
+ * which was true only while the caller was pinned to buildGitLogArgs' last
+ * resort; once the caller resolves the changelog boundary the walk is usually a
+ * day or two wide, and stating a window the guard did not use sends the reader
+ * looking through a fortnight of history for a commit that is not in it. The
+ * `ref` the caller passes already carries the selector.
  */
 export function formatTrunkFinding(finding) {
   const {sha, ref, source} = finding;
   return (
     "a merge commit (" + sha + ") is on the first-parent chain of the trunk (" +
-    ref + ", resolved via " + source + ") within the last 14 days — re-check " +
-    "whether --first-parent is still the right selector for " +
+    ref + ", resolved via " + source + ") inside the window release notes " +
+    "walk — re-check whether --first-parent is still the right selector for " +
     "scripts/agents/release-notes.mjs"
   );
 }

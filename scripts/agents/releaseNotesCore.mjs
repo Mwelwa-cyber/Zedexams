@@ -30,6 +30,44 @@ export function findLastDatedHeading(content) {
   return m ? m[1] : null;
 }
 
+/** The file whose last commit is the boundary of "what has landed since". */
+export const CHANGELOG_PATH = "docs/CHANGELOG.md";
+
+/**
+ * argv resolving the commit that last touched the changelog.
+ *
+ * Returned as data rather than run here so this module stays free of git: the
+ * two callers have different runners (execSync in Ledger, execFileSync in the
+ * guard) and different notions of cwd, but must ask the identical question.
+ */
+export function changelogBoundaryGitArgs(path = CHANGELOG_PATH) {
+  return ["log", "-1", "--format=%H", "--", path];
+}
+
+/**
+ * The window release notes will walk, from the two facts that decide it.
+ *
+ * Split out because it had exactly one caller and therefore looked like part
+ * of Ledger, while the trunk guard in scripts/test-release-notes-core.mjs
+ * needs the SAME answer: it exists to report merge commits that would corrupt
+ * the changelog, and a merge commit outside the walked range cannot. That
+ * guard derived the bound's SHAPE from buildGitLogArgs (#2301) and then called
+ * it with no arguments, so it always took the `--since=14.days` fallback — the
+ * one branch that is reached only when neither input is available. Passing the
+ * inputs is what makes the two windows the same window.
+ *
+ * Both fields are optional and buildGitLogArgs prefers the range, so an
+ * unreadable changelog degrades to the date heading and then to the fallback
+ * rather than throwing: a boundary we cannot resolve must not become a
+ * boundary of zero.
+ */
+export function resolveChangelogBoundary({changelogSha, changelogContent} = {}) {
+  return {
+    sinceSha: String(changelogSha || "").trim() || undefined,
+    sinceDate: findLastDatedHeading(changelogContent) || undefined,
+  };
+}
+
 /**
  * Build the `git log` argv.
  *

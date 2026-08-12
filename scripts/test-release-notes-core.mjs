@@ -10,17 +10,28 @@
 
 import assert from "node:assert";
 import {execFileSync} from "node:child_process";
-import {appendFileSync, mkdtempSync, rmSync} from "node:fs";
-import {tmpdir} from "node:os";
-import {join} from "node:path";
 import {
+  appendFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import {tmpdir} from "node:os";
+import {dirname, join} from "node:path";
+import {fileURLToPath} from "node:url";
+import {
+  CHANGELOG_PATH,
   LEDGER_COMMIT_RE,
   buildChangelogSection,
   buildGitLogArgs,
   bucketOf,
+  changelogBoundaryGitArgs,
   findLastDatedHeading,
   insertSection,
   parseCommit,
+  resolveChangelogBoundary,
   selectCommits,
 } from "./agents/releaseNotesCore.mjs";
 import {resolveTrunkRef} from "./gitTrunkRef.mjs";
@@ -61,6 +72,52 @@ ok("prefers an exact commit range over the date floor", () => {
 ok("falls back to the date, then to 14 days", () => {
   assert.ok(buildGitLogArgs({sinceDate: "2026-08-01"}).includes("--since=2026-08-01"));
   assert.ok(buildGitLogArgs({}).includes("--since=14.days"));
+});
+
+// --- the changelog boundary ------------------------------------------------
+//
+// One declaration, two callers: release-notes.mjs walks this window, and the
+// trunk guard below reports merge commits that would corrupt it. They were
+// allowed to disagree — the guard called buildGitLogArgs() with nothing.
+
+ok("the boundary prefers the changelog commit, then its dated heading", () => {
+  assert.deepStrictEqual(
+    resolveChangelogBoundary({changelogSha: "abc1234\n", changelogContent: "## 2026-08-01\n"}),
+    {sinceSha: "abc1234", sinceDate: "2026-08-01"},
+    "both are reported; buildGitLogArgs is what prefers the range",
+  );
+  assert.strictEqual(
+    buildGitLogArgs(
+      resolveChangelogBoundary({changelogSha: "abc1234", changelogContent: "## 2026-08-01"}),
+    ).at(-1),
+    "abc1234..HEAD",
+  );
+});
+
+ok("an unresolvable boundary degrades, never narrows to nothing", () => {
+  assert.deepStrictEqual(
+    resolveChangelogBoundary({changelogSha: "  \n", changelogContent: ""}),
+    {sinceSha: undefined, sinceDate: undefined},
+    "an empty lookup must not become an empty commit range",
+  );
+  assert.strictEqual(buildGitLogArgs(resolveChangelogBoundary()).at(-1), "--since=14.days");
+  assert.strictEqual(
+    buildGitLogArgs(resolveChangelogBoundary({changelogContent: "## 2026-08-01"})).at(-1),
+    "--since=2026-08-01",
+    "no commit for the file yet still leaves the date heading",
+  );
+});
+
+ok("both callers ask git the same question about the changelog", () => {
+  assert.deepStrictEqual(
+    changelogBoundaryGitArgs(),
+    ["log", "-1", "--format=%H", "--", CHANGELOG_PATH],
+  );
+  assert.deepStrictEqual(
+    changelogBoundaryGitArgs("/tmp/fixture/docs/CHANGELOG.md").at(-1),
+    "/tmp/fixture/docs/CHANGELOG.md",
+    "the path is a parameter so the guard can ask it of a checkout it owns",
+  );
 });
 
 ok("asks for no commit body", () => {
@@ -336,6 +393,13 @@ ok("nowhere to write is not a failure", () => {
 // a different range than the one a merge commit could actually corrupt, too
 // wide after a same-day release and too narrow after a quiet fortnight.
 //
+// …and it is derived by VALUE, not only by shape. #2301 took the selector from
+// buildGitLogArgs and then called it with no arguments, which is the one input
+// that always yields the fallback — so the guard was pinned to the very floor
+// that reasoning rejected, in the only context where it can fail a job. The
+// inputs come from the changelog now, through the same resolveChangelogBoundary
+// that release-notes.mjs uses, so the two windows are one window.
+//
 // Pointed at the RESOLVED trunk, not HEAD. On a pull_request actions/checkout
 // resolves refs/pull/N/merge — a two-parent commit GitHub builds for the run —
 // so HEAD is a merge commit by construction and the query found it every time.
@@ -353,6 +417,47 @@ ok("nowhere to write is not a failure", () => {
  */
 function walkedRevisionSelector(args) {
   return args[args.length - 1];
+}
+
+/** This checkout, addressed from this file rather than from the caller's cwd. */
+const REPO_ROOT = fileURLToPath(new URL("..", import.meta.url));
+
+/**
+ * The window release notes will ACTUALLY walk in the repository at `root`.
+ *
+ * Deriving the selector's shape from buildGitLogArgs and then calling it with
+ * no arguments (#2301) pinned the guard to `--since=14.days` — the branch that
+ * is reached only when neither input is available, and so never the branch
+ * Ledger takes on a repository whose changelog has any history at all. Since
+ * Ledger runs daily the real window is usually a day or two wide, which makes
+ * the fallback far too WIDE: the guard reports merge commits Ledger will never
+ * read, and does it in the one context that fails a job. After a quiet
+ * fortnight the same mismatch runs the other way and it reports nothing.
+ *
+ * Neither lookup may throw. A missing file or an unreadable log is not a
+ * boundary of zero — it degrades to the next branch of buildGitLogArgs, which
+ * is the fallback, i.e. exactly the behaviour this replaces.
+ *
+ * `root` is a parameter so the fixtures below can put the guard's own window
+ * resolution under test on a repository they own, rather than restating it.
+ */
+function walkedWindow(root) {
+  const changelog = join(root, CHANGELOG_PATH);
+  let changelogSha = "";
+  try {
+    changelogSha = git(["-C", root, ...changelogBoundaryGitArgs(changelog)]);
+  } catch {
+    changelogSha = "";
+  }
+  let changelogContent = "";
+  try {
+    changelogContent = readFileSync(changelog, "utf8");
+  } catch {
+    changelogContent = "";
+  }
+  return walkedRevisionSelector(
+    buildGitLogArgs(resolveChangelogBoundary({changelogSha, changelogContent})),
+  );
 }
 
 /**
@@ -415,7 +520,7 @@ ok("the recent trunk carries no merge commits", () => {
     return;
   }
 
-  const selector = walkedRevisionSelector(buildGitLogArgs());
+  const selector = walkedWindow(REPO_ROOT);
   let merges;
   try {
     merges = git([
@@ -519,7 +624,7 @@ ok("a merge OUTSIDE the window is found unbounded and missed bounded", () => {
 
     // …and the bound, taken from the same function the guard uses, excludes it.
     const bounded = findMerge(
-      trunkWalkArgs(walkedRevisionSelector(buildGitLogArgs()), "HEAD"),
+      trunkWalkArgs(walkedWindow(dir), "HEAD"),
     );
     assert.strictEqual(
       bounded,
@@ -550,13 +655,115 @@ ok("a merge INSIDE the window is found by the bounded form too", () => {
 
     const bounded = fixtureGit(dir, [
       "log", "--merges", "--first-parent", "-n", "1", "--pretty=format:%h",
-      ...trunkWalkArgs(walkedRevisionSelector(buildGitLogArgs()), "HEAD"),
+      ...trunkWalkArgs(walkedWindow(dir), "HEAD"),
     ]);
     assert.notStrictEqual(
       bounded,
       "",
       "a merge commit two days old was not found inside a fourteen-day " +
       "window — the guard has stopped being able to fire at all",
+    );
+  } finally {
+    rmSync(dir, {recursive: true, force: true});
+  }
+});
+
+// --- the window is the CHANGELOG's, not a fortnight ------------------------
+//
+// Both fixtures above have no changelog, so walkedWindow degrades to
+// `--since=14.days` and they measure the fallback. These two give the fixture
+// a changelog and measure the branch Ledger actually takes, in both of the
+// directions the fallback got wrong.
+//
+// The changelogs written here carry NO dated heading on purpose. If the commit
+// lookup ever stops resolving, resolveChangelogBoundary would quietly hand back
+// the date instead and these tests could still pass on the wrong branch; with
+// no heading, a broken lookup falls all the way to `--since=14.days` and both
+// assertions fail loudly.
+
+/** Commit a changelog at a fixed age — the boundary these tests turn on. */
+function commitChangelogAt(cwd, daysAgo) {
+  const file = join(cwd, CHANGELOG_PATH);
+  mkdirSync(dirname(file), {recursive: true});
+  writeFileSync(file, "# Changelog\n\n## Unreleased\n");
+  fixtureGit(cwd, ["add", CHANGELOG_PATH]);
+  return commitAt(cwd, "chore(changelog): Ledger draft", daysAgo);
+}
+
+const findMergeIn = (dir, args) => fixtureGit(dir, [
+  "log", "--merges", "--first-parent", "-n", "1", "--pretty=format:%h", ...args,
+]);
+
+ok("a merge before the changelog boundary is not the guard's business", () => {
+  // The ENFORCED direction, and a false positive: Ledger runs daily, so its
+  // window is a day or two wide. A merge commit older than the boundary is
+  // outside the walk and cannot truncate the entry — but it is inside a
+  // fortnight, so the fallback reported it and failed the digest over history
+  // that digest will never read.
+  const dir = mkdtempSync(join(tmpdir(), "trunk-guard-boundary-"));
+  try {
+    fixtureGit(dir, ["init", "-q", "-b", "main"]);
+    commitAt(dir, "chore: root", 40);
+    fixtureGit(dir, ["checkout", "-q", "-b", "side"]);
+    commitAt(dir, "feat: side work", 7);
+    fixtureGit(dir, ["checkout", "-q", "main"]);
+    fixtureGit(dir, ["merge", "--no-ff", "-q", "-m", "Merge pull request #4 from side", "side"],
+      {GIT_AUTHOR_DATE: new Date(Date.now() - 5 * 86400000).toISOString(),
+        GIT_COMMITTER_DATE: new Date(Date.now() - 5 * 86400000).toISOString()});
+
+    // …then Ledger writes a changelog, and one PR squashes in after it.
+    commitChangelogAt(dir, 1);
+    commitAt(dir, "feat: landed today (#5)", 0);
+
+    const selector = walkedWindow(dir);
+    assert.ok(
+      selector.endsWith("..HEAD") && !selector.startsWith("--since="),
+      `the window should be the changelog commit range, got "${selector}" — ` +
+      "a --since floor here means the boundary lookup silently failed",
+    );
+    assert.strictEqual(
+      findMergeIn(dir, trunkWalkArgs(selector, "HEAD")),
+      "",
+      "a merge commit older than the changelog boundary is outside the walk " +
+      "and must not be reported",
+    );
+    assert.notStrictEqual(
+      findMergeIn(dir, trunkWalkArgs("--since=14.days", "HEAD")),
+      "",
+      "the fixture is only meaningful if the old fallback DID report it",
+    );
+  } finally {
+    rmSync(dir, {recursive: true, force: true});
+  }
+});
+
+ok("a merge after a stale changelog is reported even past a fortnight", () => {
+  // The inverse, and the one a narrower window could have hidden: after a
+  // quiet stretch the boundary is older than 14 days, so a merge commit that
+  // WILL truncate the next entry sat outside the fallback and went unreported.
+  const dir = mkdtempSync(join(tmpdir(), "trunk-guard-boundary-"));
+  try {
+    fixtureGit(dir, ["init", "-q", "-b", "main"]);
+    commitAt(dir, "chore: root", 60);
+    commitChangelogAt(dir, 30);
+    fixtureGit(dir, ["checkout", "-q", "-b", "side"]);
+    commitAt(dir, "feat: side work", 25);
+    fixtureGit(dir, ["checkout", "-q", "main"]);
+    fixtureGit(dir, ["merge", "--no-ff", "-q", "-m", "Merge pull request #6 from side", "side"],
+      {GIT_AUTHOR_DATE: new Date(Date.now() - 20 * 86400000).toISOString(),
+        GIT_COMMITTER_DATE: new Date(Date.now() - 20 * 86400000).toISOString()});
+    commitAt(dir, "fix: recent (#7)", 2);
+
+    assert.notStrictEqual(
+      findMergeIn(dir, trunkWalkArgs(walkedWindow(dir), "HEAD")),
+      "",
+      "a merge commit inside the changelog's range was missed — the guard is " +
+      "still measuring a fortnight instead of the walk",
+    );
+    assert.strictEqual(
+      findMergeIn(dir, trunkWalkArgs("--since=14.days", "HEAD")),
+      "",
+      "the fixture is only meaningful if the old fallback DID miss it",
     );
   } finally {
     rmSync(dir, {recursive: true, force: true});
