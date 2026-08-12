@@ -157,6 +157,7 @@
     "test:visual-screen-scope": "node scripts/visual/screen/screenScope.test.js",
     "test:visual-screen-purity": "node scripts/visual/screen/screenPurity.test.js",
     "test:deploy-log": "node scripts/deploy/functionsDeployLog.test.js",
+    "test:storage-rules-drift": "node scripts/deploy/storageRulesDrift.test.js",
     "test:visual-baseline-scope": "node scripts/visual/baselinePrScope.test.js",
     "test:visual-anchors": "node scripts/visual/anchors.test.js",
     "test:svg-rasterizer": "node src/utils/svgRasterizer.test.js",
