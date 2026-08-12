@@ -119,7 +119,7 @@ export const AGENTS = [
     name: 'Ledger',
     role: 'Release Notes',
     department: 'qaEng',
-    mission: 'Once a day, summarises the PRs that landed on main into a CHANGELOG PR.',
+    mission: 'Once a day, assembles a CHANGELOG PR from the PRs that landed on main. Deterministic — no model call.',
     inputs: 'git log --first-parent since the changelog was last written',
     outputs: 'Draft CHANGELOG PR',
     wraps: '@octokit/rest + scripts/agents/releaseNotesCore.mjs',

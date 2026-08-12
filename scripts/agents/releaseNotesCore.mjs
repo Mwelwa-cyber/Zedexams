@@ -74,6 +74,131 @@ export function selectCommits(raw) {
     });
 }
 
+/** Automated dependency bumps — collapsed to one line rather than 15 bullets. */
+export const DEPENDABOT_RE = /^build\(deps(-dev)?\)/i;
+
+const CONVENTIONAL_RE =
+  /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(?:\(([^)]*)\))?(!)?:\s*(.+)$/i;
+
+/** `sha|subject` → the parts a changelog line is built from. */
+export function parseCommit(record) {
+  const sep = String(record).indexOf("|");
+  const sha = sep === -1 ? "" : record.slice(0, sep).trim();
+  const subject = (sep === -1 ? record : record.slice(sep + 1)).trim();
+
+  // The squash-merge subject ends with the PR number; lift it out so it can be
+  // rendered as its own reference instead of sitting mid-sentence.
+  const prMatch = subject.match(/\s*\(#(\d+)\)\s*$/);
+  const pr = prMatch ? Number(prMatch[1]) : null;
+  const withoutPr = prMatch ? subject.slice(0, prMatch.index).trim() : subject;
+
+  const conv = withoutPr.match(CONVENTIONAL_RE);
+  return {
+    sha,
+    subject,
+    pr,
+    type: conv ? conv[1].toLowerCase() : null,
+    scope: conv && conv[2] ? conv[2].toLowerCase() : null,
+    breaking: Boolean(conv && conv[3]),
+    text: conv ? conv[4].trim() : withoutPr,
+  };
+}
+
+/**
+ * Which heading a commit lands under.
+ *
+ * Only 39% of this repo's commits carry a conventional prefix, and 15 of those
+ * 21 are Dependabot — about 15% of human commits are machine-classifiable. So
+ * the unprefixed majority goes to `Changed`, VERBATIM, rather than being sorted
+ * into buckets nothing measured. Keep-a-Changelog defines Changed as "changes
+ * in existing functionality", which is the honest claim to make about a commit
+ * we have not classified; inventing Added/Fixed for it would not be.
+ *
+ * That is also why the subjects are printed as written: they are already
+ * well-formed sentences ("Move the admin shell into src/features/adminShell"),
+ * so there is nothing a rewrite would add that is worth an API call.
+ */
+export function bucketOf(parsed) {
+  if (parsed.breaking) return "Breaking";
+  if (parsed.scope === "security" || parsed.type === "revert") {
+    return parsed.type === "revert" ? "Changed" : "Security";
+  }
+  switch (parsed.type) {
+    case "feat": return "Added";
+    case "fix": return "Fixed";
+    case "perf": return "Changed";
+    case "docs": return "Documentation";
+    case "ci": case "build": case "chore": case "style": case "test": case "refactor":
+      return "Internal";
+    default: return "Changed";
+  }
+}
+
+/** Heading order. Anything a reader must not miss comes first. */
+export const BUCKET_ORDER = [
+  "Breaking",
+  "Security",
+  "Added",
+  "Fixed",
+  "Changed",
+  "Documentation",
+  "Internal",
+];
+
+function line(parsed) {
+  // GitHub auto-links a bare #123 inside a repository markdown file.
+  const sentence = parsed.text.replace(/\s+$/, "");
+  const capped = sentence.charAt(0).toUpperCase() + sentence.slice(1);
+  return parsed.pr ? `- ${capped} (#${parsed.pr})` : `- ${capped}`;
+}
+
+/**
+ * Render the changelog section from commit records — no model, no network.
+ *
+ * Returns the markdown plus the counts the PR body needs to say honestly how
+ * much of it was classified rather than merely listed.
+ */
+export function buildChangelogSection(records, {date} = {}) {
+  const parsed = records.map(parseCommit);
+  const deps = parsed.filter((p) => DEPENDABOT_RE.test(p.subject));
+  const rest = parsed.filter((p) => !DEPENDABOT_RE.test(p.subject));
+
+  const groups = new Map();
+  for (const p of rest) {
+    const bucket = bucketOf(p);
+    if (!groups.has(bucket)) groups.set(bucket, []);
+    groups.get(bucket).push(p);
+  }
+
+  const out = [`## ${date}`, ""];
+  for (const bucket of BUCKET_ORDER) {
+    const items = groups.get(bucket);
+    if (!items || items.length === 0) continue;   // skip empty groups
+    out.push(`### ${bucket}`, "");
+    for (const p of items) out.push(line(p));
+    out.push("");
+  }
+
+  if (deps.length > 0) {
+    const refs = deps.filter((d) => d.pr).map((d) => `#${d.pr}`).join(", ");
+    out.push(
+      `_Dependencies: ${deps.length} automated ${deps.length === 1 ? "bump" : "bumps"}` +
+      `${refs ? ` (${refs})` : ""}._`,
+      "",
+    );
+  }
+
+  return {
+    section: out.join("\n").trimEnd(),
+    stats: {
+      total: parsed.length,
+      dependencies: deps.length,
+      classified: rest.filter((p) => p.type).length,
+      listed: rest.filter((p) => !p.type).length,
+    },
+  };
+}
+
 /**
  * Insert a rendered section under `## Unreleased`, or seed that heading right
  * after the file title when it is missing.

@@ -1,22 +1,19 @@
 name: Agent — Ledger release notes
 
-# Ledger drafts a CHANGELOG entry for any merge commits since the last
-# dated section in docs/CHANGELOG.md, then opens a draft PR with the
-# patch. Runs on every push to main, and supports manual dispatch.
+# Ledger drafts a CHANGELOG entry from the PRs that landed on main since the
+# changelog was last written, then opens a draft PR with the patch.
 #
-# Required repository secret:
-#   ANTHROPIC_AGENTS_KEY — dedicated Anthropic key for the GitHub-agent
-#     workflows, so Console spend separates agent/Opus from the app runtime.
-#     Falls back to ANTHROPIC_API_KEY when unset, so this is safe to run
-#     before the dedicated key is provisioned.
+# NO SECRETS. Ledger calls no model — it assembles the entry from commit
+# subjects, so it needs only the GITHUB_TOKEN Actions provides. It used to
+# hold ANTHROPIC_AGENTS_KEY; the measurement behind dropping that is in
+# scripts/agents/release-notes.mjs.
 
 on:
-  # Daily, NOT per-push. While Ledger was a no-op (see releaseNotesCore.mjs) a
-  # push trigger cost nothing, so 24 merges in a day meant 24 free runs. Now
-  # that it actually calls the model, that same day would be 24 Sonnet calls
-  # producing 24 drafts of one daily digest — and the branch, PR title and
-  # section heading are all keyed to the DATE, so every run after the first
-  # just rewrites the same document. One run per day is the unit of work.
+  # Daily, NOT per-push. Ledger is free now, so this is no longer about spend:
+  # the branch, PR title and section heading are all keyed to the DATE, so
+  # every run after the first on a given day just rewrites the same document.
+  # A day is the unit of work. Per-push would also put a job on the merge
+  # commit, which is what ci.yml documents as making the deploys queue.
   # 20:00 UTC = 22:00 Africa/Lusaka, so the digest covers a full working day.
   schedule:
     - cron: "0 20 * * *"
@@ -52,8 +49,10 @@ jobs:
         run: npm install --no-save --no-audit --no-fund @octokit/rest@22
 
       - name: Run Ledger
+        # No ANTHROPIC key: Ledger assembles the changelog from commit subjects
+        # deterministically and calls no model. Do not re-add one without
+        # reading the measurement in scripts/agents/release-notes.mjs.
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_AGENTS_KEY || secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ github.token }}
           DRY_RUN: ${{ inputs.dry_run || 'false' }}
         run: node scripts/agents/release-notes.mjs

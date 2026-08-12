@@ -1,0 +1,22 @@
+name: "ZedExams CodeQL config"
+
+# `security-extended` rather than the default `security` suite: this scanner
+# REPLACED a per-PR AI security reviewer (#2295 made that opt-in), so the point
+# is coverage, and its findings land in the Security tab rather than blocking a
+# PR — a false positive costs a dismissal, a false negative costs a
+# vulnerability. `security-and-quality` is deliberately NOT used: it folds in
+# maintainability queries that have nothing to do with security and would bury
+# the findings this exists to surface.
+queries:
+  - uses: security-extended
+
+# Generated or build output only. Everything hand-written is scanned, including
+# public/*.js (boot.js, sw-reload-clients.js and the messaging SW are real
+# source, not vendored libraries) and scripts/ (they run in CI with repo
+# credentials, so they are worth scanning, not less so).
+paths-ignore:
+  - android
+  - dist
+  - coverage
+  - coverage-src
+  - coverage-functions
