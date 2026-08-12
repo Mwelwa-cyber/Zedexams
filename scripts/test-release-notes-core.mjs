@@ -10,7 +10,9 @@
 
 import assert from "node:assert";
 import {execFileSync} from "node:child_process";
-import {appendFileSync} from "node:fs";
+import {appendFileSync, mkdtempSync, rmSync} from "node:fs";
+import {tmpdir} from "node:os";
+import {join} from "node:path";
 import {
   LEDGER_COMMIT_RE,
   buildChangelogSection,
@@ -441,71 +443,124 @@ ok("the recent trunk carries no merge commits", () => {
 
 // --- the regression: the bound must not be able to disappear ---------------
 //
-// The bug was never the merge commits; it was an UNBOUNDED assertion that a
-// shallow clone silently satisfied. This reproduces that exact shape and
-// requires it to fail, so the bound above cannot be widened back to `HEAD`
-// without something going red.
+// Proven on a repository this test BUILDS, never on ours.
 //
-// It asserts BOTH directions on purpose. "Unbounded fails" alone would still
-// pass if the bounded form were also failing; pinning that the bounded form is
-// clean is what proves the bound is the thing making the guard pass.
+// The previous version asserted against live history, and that put it straight
+// back in the blocking path #2303 had just cleared. The live guard above is
+// advisory (raiseTrunkFinding), but this assertion was a bare
+// assert.strictEqual against `main` — and run-all-tests.mjs discovers every
+// `test:*`, while test:all gates deploy-hosting.yml. So the next genuine merge
+// commit inside the bounded window would have failed it and frozen deploys
+// again: Deploy Hosting 2000-2004, a second time, from the test written to
+// prevent it.
 //
-// On a shallow clone it SKIPS rather than passes: the counterexample is not in
-// the clone, so nothing has been demonstrated, and recording that as a pass is
-// the original bug in miniature. It runs for real in deploy-hosting, which
-// checks out full history.
+// It also depended on main's pre-squash-merge history staying reachable
+// FOREVER (`assert.notStrictEqual(unbounded, "")`). That is a standing bet on
+// 2026-04/05 commits nobody controls — a history rewrite, a graft, a filtered
+// clone or any full-but-truncated checkout flips it, and the message would
+// have blamed the guard rather than the clone.
+//
+// A fixture removes both problems at once: the property under test is about
+// how `--since` interacts with `--first-parent`, which is a property of git,
+// not of our history. Owning the data is the only way to assert it without
+// betting a deploy on what somebody merges next.
+//
+// Deliberately NOT routed through trunkGuardPolicy. Making this advisory too
+// would prove nothing — what it guards is precisely that the bound still
+// works, and an advisory that nobody must act on is not a guard.
 
-ok("the unbounded form fails on full history — a shallow clone must not hide it", () => {
-  let shallow;
+/** Run git in `cwd` with an identity, so the fixture needs no global config. */
+function fixtureGit(cwd, args, extraEnv = {}) {
+  return execFileSync(
+    "git",
+    ["-c", "user.email=fixture@example.invalid", "-c", "user.name=Fixture",
+      "-c", "commit.gpgsign=false", ...args],
+    {cwd, encoding: "utf8", env: {...process.env, ...extraEnv}},
+  ).trim();
+}
+
+/** A commit at a fixed age, so the 14-day window is a controlled variable. */
+function commitAt(cwd, message, daysAgo) {
+  const when = new Date(Date.now() - daysAgo * 86400000).toISOString();
+  return fixtureGit(cwd, ["commit", "--allow-empty", "-q", "-m", message],
+    {GIT_AUTHOR_DATE: when, GIT_COMMITTER_DATE: when});
+}
+
+ok("a merge OUTSIDE the window is found unbounded and missed bounded", () => {
+  const dir = mkdtempSync(join(tmpdir(), "trunk-guard-"));
   try {
-    shallow = execFileSync("git", ["rev-parse", "--is-shallow-repository"], {
-      encoding: "utf8",
-    }).trim();
-  } catch {
-    console.log("      (skipped: no git history available here)");
-    return;
-  }
-  if (shallow !== "false") {
-    console.log(
-      "      (skipped: shallow clone — the counterexample is not present; " +
-      "run `git fetch --unshallow` to exercise this)",
+    fixtureGit(dir, ["init", "-q", "-b", "main"]);
+
+    // Old linear history, then a REAL merge commit, all well outside 14 days.
+    commitAt(dir, "chore: root", 90);
+    fixtureGit(dir, ["checkout", "-q", "-b", "side"]);
+    commitAt(dir, "feat: side work", 75);
+    fixtureGit(dir, ["checkout", "-q", "main"]);
+    commitAt(dir, "fix: trunk work", 70);
+    fixtureGit(dir, ["merge", "--no-ff", "-q", "-m", "Merge pull request #1 from side", "side"],
+      {GIT_AUTHOR_DATE: new Date(Date.now() - 60 * 86400000).toISOString(),
+        GIT_COMMITTER_DATE: new Date(Date.now() - 60 * 86400000).toISOString()});
+
+    // Recent history is squash-style: linear, no merges, inside the window.
+    commitAt(dir, "feat: recent one (#2)", 5);
+    commitAt(dir, "fix: recent two (#3)", 1);
+
+    const findMerge = (args) => fixtureGit(dir, [
+      "log", "--merges", "--first-parent", "-n", "1", "--pretty=format:%h", ...args,
+    ]);
+
+    // The fixture is only meaningful if it really contains a merge commit.
+    const unbounded = findMerge(["HEAD"]);
+    assert.notStrictEqual(
+      unbounded,
+      "",
+      "the fixture built no merge commit — the rest of this test would be vacuous",
     );
-    return;
+
+    // …and the bound, taken from the same function the guard uses, excludes it.
+    const bounded = findMerge(
+      trunkWalkArgs(walkedRevisionSelector(buildGitLogArgs()), "HEAD"),
+    );
+    assert.strictEqual(
+      bounded,
+      "",
+      "the bounded window found the merge commit the fixture placed 60 days " +
+      "back — the bound is not excluding what it is supposed to exclude",
+    );
+  } finally {
+    rmSync(dir, {recursive: true, force: true});
   }
+});
 
-  const {ref: trunk} = resolveTrunkRef(process.env, trunkRefExists);
-  if (trunk === null) {
-    console.log("      (skipped: the trunk ref is not in this checkout)");
-    return;
-  }
+ok("a merge INSIDE the window is found by the bounded form too", () => {
+  // The other direction, and the one that proves the guard still has teeth:
+  // bounding it must not mean it can never fire. Without this, replacing the
+  // selector with something that matches nothing would pass the test above.
+  const dir = mkdtempSync(join(tmpdir(), "trunk-guard-"));
+  try {
+    fixtureGit(dir, ["init", "-q", "-b", "main"]);
+    commitAt(dir, "chore: root", 30);
+    fixtureGit(dir, ["checkout", "-q", "-b", "side"]);
+    commitAt(dir, "feat: side work", 4);
+    fixtureGit(dir, ["checkout", "-q", "main"]);
+    commitAt(dir, "fix: trunk work", 3);
+    fixtureGit(dir, ["merge", "--no-ff", "-q", "-m", "Merge pull request #9 from side", "side"],
+      {GIT_AUTHOR_DATE: new Date(Date.now() - 2 * 86400000).toISOString(),
+        GIT_COMMITTER_DATE: new Date(Date.now() - 2 * 86400000).toISOString()});
 
-  const unbounded = execFileSync(
-    "git",
-    ["log", "--merges", "--first-parent", "-n", "1", "--pretty=format:%h", trunk],
-    {encoding: "utf8"},
-  ).trim();
-  assert.notStrictEqual(
-    unbounded,
-    "",
-    "the unbounded assertion now passes, which means main's pre-squash-merge " +
-    "history is no longer reachable. If history was rewritten this test is " +
-    "obsolete; if the clone is not actually full, this check was vacuous.",
-  );
-
-  const bounded = execFileSync(
-    "git",
-    [
+    const bounded = fixtureGit(dir, [
       "log", "--merges", "--first-parent", "-n", "1", "--pretty=format:%h",
-      ...trunkWalkArgs(walkedRevisionSelector(buildGitLogArgs()), trunk),
-    ],
-    {encoding: "utf8"},
-  ).trim();
-  assert.strictEqual(
-    bounded,
-    "",
-    "the bounded window also contains a merge commit, so bounding it is not " +
-    "what makes the guard pass — re-diagnose before trusting it.",
-  );
+      ...trunkWalkArgs(walkedRevisionSelector(buildGitLogArgs()), "HEAD"),
+    ]);
+    assert.notStrictEqual(
+      bounded,
+      "",
+      "a merge commit two days old was not found inside a fourteen-day " +
+      "window — the guard has stopped being able to fire at all",
+    );
+  } finally {
+    rmSync(dir, {recursive: true, force: true});
+  }
 });
 
 console.log(`\n${passed} release-notes core checks passed.`);
