@@ -194,25 +194,43 @@ ok("renders no model-shaped placeholder when there is nothing but deps", () => {
   assert.ok(!/### /.test(section), "no empty headings when every commit was a bump");
 });
 
-// --- the trunk really is squash-merged -------------------------------------
+// --- the trunk really is squash-merged, within the window we walk ---------
 //
 // The premise behind the whole fix. If this repo ever adopts real merge
 // commits, --first-parent still works, but the bug it replaced would no longer
 // have been a bug — so record the shape rather than assume it.
 //
-// Scoped to the 14-day floor buildGitLogArgs falls back to, not all of
-// history. main still carries pre-squash-policy merges: 53a65f45, the
-// merge of PR 583, is the newest, so asserting over every commit fails
-// forever. It also only failed in one place: ci.yml checks out shallow,
-// so the query saw nothing, while deploy-hosting.yml sets fetch-depth 0
-// and the assertion tripped on every push to main.
+// Scoped to the window buildGitLogArgs actually walks, not all of history.
+// main still carries pre-squash-policy merges: 53a65f45, the merge of PR 583,
+// is the newest, so asserting over every commit fails forever. It also only
+// failed in one place: ci.yml checks out shallow, so the query saw nothing,
+// while deploy-hosting.yml sets fetch-depth 0 and the assertion tripped on
+// every push to main.
+//
+// The window is DERIVED from buildGitLogArgs() rather than restated, because
+// 14 days is only that function's last-resort fallback: given a changelog
+// commit it walks `<sha>..HEAD`, and given a dated heading it walks
+// `--since=<that date>`. A hardcoded floor and the tool's real walk therefore
+// agree only in the fallback case — on any other run the guard was inspecting
+// a different range than the one a merge commit could actually corrupt, too
+// wide after a same-day release and too narrow after a quiet fortnight.
+
+/**
+ * The revision selector buildGitLogArgs chose — the last element, either a
+ * `<sha>..HEAD` range or a `--since=…` floor. Everything before it is
+ * formatting flags.
+ */
+function walkedRevisionSelector(args) {
+  return args[args.length - 1];
+}
 
 ok("the recent trunk carries no merge commits", () => {
+  const selector = walkedRevisionSelector(buildGitLogArgs());
   let merges;
   try {
     merges = execFileSync(
       "git",
-      ["log", "--merges", "--first-parent", "--since=14.days", "-n", "1", "--pretty=format:%h", "HEAD"],
+      ["log", "--merges", "--first-parent", "-n", "1", "--pretty=format:%h", selector],
       {encoding: "utf8"},
     ).trim();
   } catch {
@@ -222,8 +240,71 @@ ok("the recent trunk carries no merge commits", () => {
   assert.strictEqual(
     merges,
     "",
-    "a merge commit landed on the trunk in the last 14 days — re-check " +
-    "whether --first-parent is still the right selector",
+    `a merge commit landed on the trunk within the window release notes walk ` +
+    `(${selector}) — re-check whether --first-parent is still the right selector`,
+  );
+});
+
+// --- the regression: the bound must not be able to disappear ---------------
+//
+// The bug was never the merge commits; it was an UNBOUNDED assertion that a
+// shallow clone silently satisfied. This reproduces that exact shape and
+// requires it to fail, so the bound above cannot be widened back to `HEAD`
+// without something going red.
+//
+// It asserts BOTH directions on purpose. "Unbounded fails" alone would still
+// pass if the bounded form were also failing; pinning that the bounded form is
+// clean is what proves the bound is the thing making the guard pass.
+//
+// On a shallow clone it SKIPS rather than passes: the counterexample is not in
+// the clone, so nothing has been demonstrated, and recording that as a pass is
+// the original bug in miniature. It runs for real in deploy-hosting, which
+// checks out full history.
+
+ok("the unbounded form fails on full history — a shallow clone must not hide it", () => {
+  let shallow;
+  try {
+    shallow = execFileSync("git", ["rev-parse", "--is-shallow-repository"], {
+      encoding: "utf8",
+    }).trim();
+  } catch {
+    console.log("      (skipped: no git history available here)");
+    return;
+  }
+  if (shallow !== "false") {
+    console.log(
+      "      (skipped: shallow clone — the counterexample is not present; " +
+      "run `git fetch --unshallow` to exercise this)",
+    );
+    return;
+  }
+
+  const unbounded = execFileSync(
+    "git",
+    ["log", "--merges", "--first-parent", "-n", "1", "--pretty=format:%h", "HEAD"],
+    {encoding: "utf8"},
+  ).trim();
+  assert.notStrictEqual(
+    unbounded,
+    "",
+    "the unbounded assertion now passes, which means main's pre-squash-merge " +
+    "history is no longer reachable. If history was rewritten this test is " +
+    "obsolete; if the clone is not actually full, this check was vacuous.",
+  );
+
+  const bounded = execFileSync(
+    "git",
+    [
+      "log", "--merges", "--first-parent", "-n", "1", "--pretty=format:%h",
+      walkedRevisionSelector(buildGitLogArgs()),
+    ],
+    {encoding: "utf8"},
+  ).trim();
+  assert.strictEqual(
+    bounded,
+    "",
+    "the bounded window also contains a merge commit, so bounding it is not " +
+    "what makes the guard pass — re-diagnose before trusting it.",
   );
 });
 
