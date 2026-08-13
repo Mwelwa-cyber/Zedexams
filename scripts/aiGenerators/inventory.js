@@ -126,7 +126,7 @@ export const INVENTORY = Object.freeze([
     incompleteResultSaveable: true,
   }),
   g('functions/teacherTools/studioLessonPlan.js', {
-    clientModule: 'src/components/teacher/studio/LessonPlanStudio.jsx',
+    clientModule: 'src/features/lessonPlanStudio/pages/LessonPlanStudio.jsx',
     clientLockKey: 'lesson-plan-studio:generate',
     tier: 1,
     state: 'migrated',
@@ -141,7 +141,7 @@ export const INVENTORY = Object.freeze([
       + 'now carries its own minted key (the reservation refuses a keyless call).',
   }),
   g('functions/teacherTools/reviseLessonSection.js', {
-    clientModule: 'src/components/teacher/studio/LessonPlanEditor.jsx',
+    clientModule: 'src/features/lessonPlanStudio/components/LessonPlanEditor.jsx',
     clientLockKey: 'lesson-section:revise',
     operationClass: 'transformation',
     tier: 1,

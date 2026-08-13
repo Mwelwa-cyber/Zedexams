@@ -1,5 +1,5 @@
 /**
- * Server-side (Cloud Functions, CJS) port of src/utils/lessonPlanToDocx.js.
+ * Server-side (Cloud Functions, CJS) port of src/engines/export-engine/lessonPlanToDocx.js.
  *
  * Builds a Word (.docx) lesson plan from a validated lesson-plan JSON object,
  * matching the browser version's document structure byte-for-byte in behaviour

@@ -39,7 +39,7 @@ async function bundlePaginator() {
     build: {
       write: false,
       lib: {
-        entry: new URL('../../src/components/teacher/studio/utils/paginatePlan.js', import.meta.url).pathname,
+        entry: new URL('../../src/features/lessonPlanStudio/lib/paginatePlan.js', import.meta.url).pathname,
         formats: ['iife'],
         name: 'LP',
         fileName: () => 'paginate.js',

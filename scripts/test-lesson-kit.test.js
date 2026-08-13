@@ -46,7 +46,7 @@ for (const key of ['grade:', 'subject:', 'topic:', 'subtopic:', 'term:']) {
 
 // 2. The React studio imports the serialiser and renders the Teaching Kit.
 // The new studio is a pure-React component — no window bridge needed.
-const studio = read('src/components/teacher/studio/LessonPlanStudio.jsx')
+const studio = read('src/features/lessonPlanStudio/pages/LessonPlanStudio.jsx')
 check(/import \{ buildGeneratorQueryString \} from/.test(studio), 'LessonPlanStudio imports buildGeneratorQueryString (the generators\' deserialiser)')
 check(/Teaching Kit/.test(studio), 'LessonPlanStudio renders the Teaching Kit panel')
 check(/buildGeneratorQueryString\(/.test(studio), 'LessonPlanStudio serialises the kit with buildGeneratorQueryString')

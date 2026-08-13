@@ -34,7 +34,7 @@ vi.mock('../../../utils/assessmentToDocx', () => ({
 }))
 
 // ── All other download utilities (not under test — stub as no-ops) ────────────
-vi.mock('../../../utils/lessonPlanToDocx',    () => ({ downloadLessonPlanDocx:    vi.fn(async () => {}) }))
+vi.mock('../../../engines/export-engine/lessonPlanToDocx',    () => ({ downloadLessonPlanDocx:    vi.fn(async () => {}) }))
 vi.mock('../../../utils/serverLibraryDownload',()=>({ downloadLibraryItemViaServer:vi.fn(async()=>false) }))
 vi.mock('../../../engines/export-engine/worksheetToDocx',     () => ({ downloadWorksheetDocx:     vi.fn(async () => {}) }))
 vi.mock('../../../engines/export-engine/schemeOfWorkToDocx', () => ({ downloadSchemeOfWorkDocx:  vi.fn(async () => {}) }))
@@ -47,7 +47,7 @@ vi.mock('../../../engines/export-engine/recordOfWorkToDocx',  () => ({ downloadR
 vi.mock('../../../engines/export-engine/classTimetableToDocx',() => ({ downloadClassTimetableDocx:vi.fn(async () => {}) }))
 vi.mock('../../../engines/export-engine/classTimetableToXlsx',() => ({ downloadClassTimetableXlsx:vi.fn(async () => {}) }))
 vi.mock('../../../engines/export-engine/classTimetableToPdf', () => ({ downloadClassTimetablePdf: vi.fn(async () => {}) }))
-vi.mock('../../../utils/lessonPlanToPdf',     () => ({ downloadLessonPlanPdf:     vi.fn(async () => {}) }))
+vi.mock('../../../engines/export-engine/lessonPlanToPdf',     () => ({ downloadLessonPlanPdf:     vi.fn(async () => {}) }))
 vi.mock('../../../engines/export-engine/rubricToPdf',         () => ({ downloadRubricPdf:         vi.fn(async () => {}) }))
 vi.mock('../../../engines/export-engine/notesToPdf',          () => ({ downloadNotesPdf:          vi.fn(async () => {}) }))
 vi.mock('../../../engines/export-engine/homeworkToPdf',       () => ({ downloadHomeworkPdf:       vi.fn(async () => {}) }))
@@ -159,7 +159,7 @@ vi.mock('../../flashcards', () => ({
 }))
 
 // ── View component stubs — all rendered as null except lesson_activities ──────
-vi.mock('../../../components/teacher/views/LessonPlanView',        () => ({ default: () => null }))
+vi.mock('../../lessonPlanStudio/components/LessonPlanView',        () => ({ default: () => null }))
 vi.mock('../../worksheet',         () => ({ WorksheetView: () => null }))
 vi.mock('../../markSchedule',      () => ({ MarkScheduleView: () => null }))
 vi.mock('../../recordOfWork',      () => ({ RecordOfWorkView: () => null }))

@@ -14,7 +14,7 @@ import {
   getItemPermissions,
   LIBRARY_ACCESS,
 } from '../../../utils/teacherLibraryService'
-import LessonPlanView from '../../../components/teacher/views/LessonPlanView'
+import { LessonPlanView } from '../../lessonPlanStudio'
 import { WorksheetView } from '../../worksheet'
 import {
   FlashcardsView,
@@ -38,7 +38,7 @@ import { aiPaperToStudioDoc } from '../../../utils/aiPaperToSections'
 import { buildAssessmentExportReadiness } from '../../../utils/assessmentExportReadiness'
 import { renderDiagramSvg } from '../../../components/diagrams/diagramCatalog'
 import SeoHelmet from '../../../components/seo/SeoHelmet'
-import { downloadLessonPlanDocx } from '../../../utils/lessonPlanToDocx'
+import { downloadLessonPlanDocx } from '../../../engines/export-engine/lessonPlanToDocx'
 import { downloadLibraryItemViaServer } from '../../../utils/serverLibraryDownload'
 import { downloadWorksheetDocx } from '../../../engines/export-engine/worksheetToDocx'
 import { downloadSchemeOfWorkDocx } from '../../../engines/export-engine/schemeOfWorkToDocx'
@@ -52,7 +52,7 @@ import { downloadRecordOfWorkDocx } from '../../../engines/export-engine/recordO
 import { downloadClassTimetableDocx } from '../../../engines/export-engine/classTimetableToDocx'
 import { downloadClassTimetableXlsx } from '../../../engines/export-engine/classTimetableToXlsx'
 import { downloadClassTimetablePdf } from '../../../engines/export-engine/classTimetableToPdf'
-import { downloadLessonPlanPdf } from '../../../utils/lessonPlanToPdf'
+import { downloadLessonPlanPdf } from '../../../engines/export-engine/lessonPlanToPdf'
 import { downloadRubricPdf } from '../../../engines/export-engine/rubricToPdf'
 import { downloadNotesPdf } from '../../../engines/export-engine/notesToPdf'
 import { downloadHomeworkPdf } from '../../../engines/export-engine/homeworkToPdf'

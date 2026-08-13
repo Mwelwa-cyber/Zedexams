@@ -34,7 +34,7 @@ const css = readFileSync(
   'utf8',
 )
 const wizard = readFileSync(
-  join(ROOT, 'src/components/teacher/studio/wizard/LessonPlanWizard.jsx'),
+  join(ROOT, 'src/features/lessonPlanStudio/components/wizard/LessonPlanWizard.jsx'),
   'utf8',
 )
 

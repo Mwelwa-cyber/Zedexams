@@ -53,7 +53,7 @@ check(/file-saver/.test(saveBlob) && /a\.download/.test(saveBlob), 'saveBlob use
 //    from the Assessment Studio + list (html2canvas mangled the paper), leaving
 //    Word (.docx) as the only download. See section 9 for the Word-only guard.
 const pdfUtils = {
-  'src/utils/lessonPlanToPdf.js': {
+  'src/engines/export-engine/lessonPlanToPdf.js': {
     download: /export async function downloadLessonPlanPdf/,
     print: /export function printLessonPlanAsPdf/,
   },
@@ -104,8 +104,8 @@ check(
 // 7. React studio is Word-only: no PDF bridge, and only the Word export button
 //    survives in the export menu. The new studio is pure React — no window
 //    bridges needed; it uses downloadLessonPlanDocx directly.
-const studioJsx  = read('src/components/teacher/studio/LessonPlanStudio.jsx')
-const canvasJsx  = read('src/components/teacher/studio/StudioCanvas.jsx')
+const studioJsx  = read('src/features/lessonPlanStudio/pages/LessonPlanStudio.jsx')
+const canvasJsx  = read('src/features/lessonPlanStudio/components/StudioCanvas.jsx')
 check(!/__zxDownloadPdf/.test(studioJsx), 'LessonPlanStudio no longer registers the PDF bridge')
 check(!/downloadHtmlAsPdf/.test(studioJsx), 'LessonPlanStudio no longer imports the real-PDF helper')
 check(/downloadLessonPlanDocx/.test(studioJsx), 'LessonPlanStudio uses downloadLessonPlanDocx for Word export')

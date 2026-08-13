@@ -36,7 +36,7 @@ vi.mock('../../../components/ui/Logo',       () => ({ default: () => null }))
 vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
 
 // ── Already-handled view stubs (plain null — we don't need to inspect them) ──
-vi.mock('../../../components/teacher/views/LessonPlanView',    () => ({ default: () => <div data-testid="lesson-plan-view" /> }))
+vi.mock('../../lessonPlanStudio/components/LessonPlanView',    () => ({ default: () => <div data-testid="lesson-plan-view" /> }))
 vi.mock('../../worksheet',     () => ({ WorksheetView: () => <div data-testid="worksheet-view" /> }))
 // Mocked at the feature's front door, which is how the component imports it.
 // This also keeps the spec off the feature's module graph: the index re-exports

@@ -5,7 +5,7 @@ import SeoHelmet from '../../../components/seo/SeoHelmet'
 import {
   getTemplate, rateTemplate, createLessonPlanFromTemplate,
 } from '../services/templateBankService'
-import LessonPlanDocumentPreview from '../../../components/teacher/studio/LessonPlanDocumentPreview'
+import { LessonPlanDocumentPreview } from '../../lessonPlanStudio'
 import { templateCurriculumMode, templatePreviewMeta } from '../lib/templatePlanPreview'
 import { formatDate } from '../../../utils/teacherLibraryService'
 
