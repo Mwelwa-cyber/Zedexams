@@ -9,11 +9,11 @@ import {
   ClipboardList,
   LayoutGrid,
 } from 'lucide-react'
-import { STUDIO_CATEGORIES, TEACHER_STUDIOS } from '../../../components/teacher/dashboardV2/launcher/teacherStudios'
-import { resolveBadge } from '../../../components/teacher/dashboardV2/launcher/teacherLauncherCore'
+import { STUDIO_CATEGORIES, TEACHER_STUDIOS } from '../../../shared/constants/teacherStudios'
+import { resolveBadge } from '../../../shared/utils/teacherLauncherCore'
 import useStudioAvailability from '../../../hooks/useStudioAvailability'
 import StudioCard from './StudioCard'
-import '../../../components/teacher/dashboardV2/glassSurface.css'
+import '../../../shared/components/glassSurface.css'
 import './teacherWorkspaceSection.css'
 
 /**
@@ -24,7 +24,7 @@ import './teacherWorkspaceSection.css'
  * in the desktop DashboardView.
  *
  * Content comes from the SAME canonical registry as the launcher
- * (launcher/teacherStudios.js) — titles, routes, descriptions, icons and
+ * (src/shared/constants/teacherStudios.js) — titles, routes, descriptions, icons and
  * badge sources are never re-declared here.
  */
 

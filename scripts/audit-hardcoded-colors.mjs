@@ -90,7 +90,11 @@ const sum = (rows) => rows.reduce((s, r) => s + r.total, 0)
 // Which themed container each file renders inside decides how it is fixed.
 const SURFACE = [
   [/^src\/components\/games\/|^src\/components\/quiz\/QuizList/, 'learner: Games/Quizzes (.force-light-theme — remapped in #2027)'],
-  [/^src\/components\/teacher\/dashboardV2\//, 'teacher: dashboardV2 (.tdv2 — tokenised, has is-dark)'],
+  // `.tdv2` is one themed container whose files now sit in two places: the
+  // shell chrome here, and the stylesheet + tiles that both it and
+  // `features/dashboardV2` use, which moved to the bottom layer in PR A of
+  // the teacherShell migration. Same surface, same fix — one label.
+  [/^src\/components\/teacher\/dashboardV2\/|^src\/shared\/styles\/dashboardV2\.css|^src\/shared\/components\/(glassSurface\.css|GlassToolTile|BottomSheet)/, 'teacher: dashboardV2 (.tdv2 — tokenised, has is-dark)'],
   [/^src\/components\/teacher\/|^src\/features\/teacherSettings\//, 'teacher: .studio-theme'],
   [/^src\/components\/admin\//, 'admin'],
   [/^src\/components\/(dashboard|exams|lessons|papers|parent|classes|quiz)\/|^src\/features\/(lessons|notes|learnerHome|learnerSettings)\//, 'learner: reading themes (body.theme-*)'],

@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Search, SearchX } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
-import { STUDIO_CATEGORIES, TEACHER_STUDIOS } from '../../../components/teacher/dashboardV2/launcher/teacherStudios'
+import { STUDIO_CATEGORIES, TEACHER_STUDIOS } from '../../../shared/constants/teacherStudios'
 import {
   filterStudiosByPermission,
   resolveBadge,
   searchStudios,
-} from '../../../components/teacher/dashboardV2/launcher/teacherLauncherCore'
+} from '../../../shared/utils/teacherLauncherCore'
 import useStudioAvailability from '../../../hooks/useStudioAvailability'
 import StudioCard from './StudioCard'
-import '../../../components/teacher/dashboardV2/glassSurface.css'
+import '../../../shared/components/glassSurface.css'
 
 /* Category groups get the same tinted glass panels as the desktop
    workspace sections; search results and Planning & Setup take the

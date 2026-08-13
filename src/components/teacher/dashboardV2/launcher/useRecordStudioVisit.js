@@ -1,8 +1,8 @@
 import { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import useRecentStudios from './useRecentStudios'
-import { studioIdForPath } from './teacherLauncherCore'
-import { TEACHER_STUDIOS } from './teacherStudios'
+import useRecentStudios from '../../../../hooks/useRecentStudios'
+import { studioIdForPath } from '../../../../shared/utils/teacherLauncherCore'
+import { TEACHER_STUDIOS } from '../../../../shared/constants/teacherStudios'
 
 /**
  * Records the current route as a studio visit for "Recently used".

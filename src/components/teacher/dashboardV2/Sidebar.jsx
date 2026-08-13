@@ -14,7 +14,7 @@ import {
   UserRound,
   UsersRound,
 } from 'lucide-react'
-import { TEACHER_NAV_GROUPS } from './dashboardV2Config'
+import { TEACHER_NAV_GROUPS } from '../../../shared/constants/dashboardV2Config'
 import { buildActiveMatcher } from './teacherNavActive'
 import { confirmShellNavigation } from '../../../shared/utils/shellNavGuardCore'
 

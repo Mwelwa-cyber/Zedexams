@@ -10,13 +10,13 @@ import { isImmersiveStudioPath } from './immersiveStudioRoutes'
 import Sidebar from './dashboardV2/Sidebar'
 import LogoutDialog from './dashboardV2/LogoutDialog'
 import { MobileHeader, MobileBottomNav, NavDrawer } from './dashboardV2/MobileChrome'
-import { TEACHER_NAV_GROUPS } from './dashboardV2/dashboardV2Config'
-import { teacherFromAuth } from './dashboardV2/dashboardV2Data'
+import { TEACHER_NAV_GROUPS } from '../../shared/constants/dashboardV2Config'
+import { teacherFromAuth } from '../../shared/utils/dashboardV2Data'
 import useDashboardTheme from './dashboardV2/useDashboardTheme'
 import useIsMobile from '../../shared/hooks/useIsMobile'
 import useSidebarCollapsed from './dashboardV2/useSidebarCollapsed'
 import useRecordStudioVisit from './dashboardV2/launcher/useRecordStudioVisit'
-import './dashboardV2/dashboardV2.css'
+import '../../shared/styles/dashboardV2.css'
 
 /**
  * Suspense boundary INSIDE the shell, so a page chunk still downloading

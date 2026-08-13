@@ -7,9 +7,9 @@ import {
   FolderOpen,
   MoreVertical,
 } from 'lucide-react'
-import { iconForTool } from '../../../components/teacher/dashboardV2/dashboardV2Config'
+import { iconForTool } from '../../../shared/constants/dashboardV2Config'
 import useGlassTile from '../../../hooks/useGlassTile'
-import '../../../components/teacher/dashboardV2/glassSurface.css'
+import '../../../shared/components/glassSurface.css'
 
 export function RowMenu({ doc, onClose }) {
   const ref = useRef(null)
