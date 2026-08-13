@@ -35,7 +35,7 @@ vi.mock('../services/templateBankService', () => service)
 // The shared studio renderer, stubbed so the test can assert on WHAT it was
 // handed. Its own output is covered by templatePlanPreview.test.js.
 const preview = vi.hoisted(() => ({ calls: [] }))
-vi.mock('../../../components/teacher/studio/LessonPlanDocumentPreview', () => ({
+vi.mock('../../lessonPlanStudio/components/LessonPlanDocumentPreview', () => ({
   default: (props) => {
     preview.calls.push(props)
     return <div data-testid="studio-document-preview" />

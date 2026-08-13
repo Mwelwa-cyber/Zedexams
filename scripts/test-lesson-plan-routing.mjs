@@ -111,7 +111,7 @@ ok(
 // ── The studio shell must not bring standalone full-page chrome ──────────────
 
 const shell = readFileSync(
-  join(ROOT, 'src/components/teacher/studio/StudioShell.jsx'),
+  join(ROOT, 'src/features/lessonPlanStudio/components/StudioShell.jsx'),
   'utf8',
 )
 ok(

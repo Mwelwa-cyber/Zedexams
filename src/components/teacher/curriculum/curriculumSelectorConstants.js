@@ -24,7 +24,7 @@ import { mapLegacyTopicValue } from '../../../utils/curriculumTopicCell.js'
 
 /**
  * Grade lists per curriculum mode. Copied verbatim from
- * src/components/teacher/studio/sections/LessonDetailsForm.jsx.
+ * src/features/lessonPlanStudio/components/sections/LessonDetailsForm.jsx.
  *
  * Each entry: { value: string, label: string, group: string }
  */

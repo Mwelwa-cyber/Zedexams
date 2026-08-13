@@ -16,8 +16,8 @@
 
 import assert from 'node:assert/strict'
 import { buildLessonDiagramPrompt } from '../src/utils/lessonDiagramPrompt.js'
-import { buildPrintableHtml } from '../src/utils/lessonPlanToPdf.js'
-import { buildLessonPlanDocument } from '../src/utils/lessonPlanToDocx.js'
+import { buildPrintableHtml } from '../src/engines/export-engine/lessonPlanToPdf.js'
+import { buildLessonPlanDocument } from '../src/engines/export-engine/lessonPlanToDocx.js'
 
 let pass = 0
 let fail = 0

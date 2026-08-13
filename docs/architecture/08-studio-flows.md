@@ -71,7 +71,7 @@ sequenceDiagram
 
 ## Key files per flow (representative)
 
-- **Lesson Plan:** `src/components/teacher/studio/LessonPlanStudio.jsx`, `studio/StudioCanvas.jsx`, `studio/hooks/useActiveAssignmentContext.js`, `src/utils/teacherTools.js` (`studioGenerateLessonPlan`), `functions/teacherTools/studioLessonPlan.js`, `src/utils/restoreLessonPlan.js`, exporters `lessonPlanToDocx.js`/`lessonPlanToPdf.js`.
+- **Lesson Plan:** `src/features/lessonPlanStudio/pages/LessonPlanStudio.jsx`, `studio/StudioCanvas.jsx`, `studio/hooks/useActiveAssignmentContext.js`, `src/utils/teacherTools.js` (`studioGenerateLessonPlan`), `functions/teacherTools/studioLessonPlan.js`, `src/utils/restoreLessonPlan.js`, exporters `lessonPlanToDocx.js`/`lessonPlanToPdf.js`.
 - **Assessment (Test/Exam):** `src/components/teacher/AssessmentStudio.jsx`, `assessmentStudioMeta.js`, `CreatePaperModal.jsx`, `AssessmentSlideOvers.jsx`, `functions/teacherTools/generateAssessment.js`, `src/utils/assessmentToDocx.js`/`assessmentToPdf.js`, draft `useAssessmentDraft.js`.
 - **Shared:** `StudioGate.jsx`, `StudioCurriculumSelector`, `useTeacherUsage.js`, `useGenerationGate.js`, `LiveGenerationCanvas.jsx`, `liveGenerationSections.js`, `useLiveReveal.js`.
 
