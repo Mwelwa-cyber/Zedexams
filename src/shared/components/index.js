@@ -8,11 +8,13 @@
  *
  * ## Residents
  *
- * `studioFields.jsx` — the first, and it arrived because eight migrated
- * features plus the dev UI-audit page were all reaching into
- * `src/components/teacher/generate/` to draw the same form controls
- * (`classTimetable` ×3, `flashcards`, `homework`, `rubric`, `schemeOfWork`,
- * `teacherNotes`, `worksheet`). A component that many features share belongs
+ * `studioFields.jsx` — the first, and it arrived because SEVEN migrated
+ * features, across NINE import sites, plus the dev UI-audit page were all
+ * reaching into `src/components/teacher/generate/` to draw the same form
+ * controls (`classTimetable` ×3, `flashcards`, `homework`, `rubric`,
+ * `schemeOfWork`, `teacherNotes`, `worksheet`). Seven and nine differ because
+ * `classTimetable` imports it from three files; the earlier note said "eight
+ * features", which was neither count. A component that many features share belongs
  * below all of them — the rule that put `useIsMobile` in `src/shared/hooks/`
  * and `classListIcons.js` in `src/shared/icons/`, now reaching components.
  *
