@@ -3,12 +3,12 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Link, MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import TeacherLayout from './TeacherLayout'
-import { setActiveShellNavGuard, __resetShellNavGuard } from '../../shared/utils/shellNavGuardCore'
+import { setActiveShellNavGuard, __resetShellNavGuard } from '../../../shared/utils/shellNavGuardCore'
 
 // Every teacher navigation surface now asks studioAvailability which studios
 // are on offer, and that reads settings/global. Stubbed to the LAUNCH state
 // (no flags set → Worksheet Studio withdrawn, Rubric Studio retired).
-vi.mock('../../contexts/PlatformSettingsContext', () => ({
+vi.mock('../../../contexts/PlatformSettingsContext', () => ({
   usePlatformSettings: () => ({ settings: { featureFlags: {} }, loaded: true, live: true }),
 }))
 
@@ -19,15 +19,15 @@ function LocationSink() {
 
 // The shell's page-level chrome is exercised elsewhere; stub it so the spec
 // focuses on the navigation.
-vi.mock('./TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
+vi.mock('../components/TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
 // Exactly one navigation system is MOUNTED at a time (not CSS-hidden), so a
 // spec has to say which viewport it is testing. jsdom reports no viewport, so
 // drive the hook directly. The swap itself is covered end-to-end, across real
 // breakpoints, in dashboardV2/responsiveNavigation.spec.jsx.
 let mobile = false
-vi.mock('../../shared/hooks/useIsMobile', () => ({ default: () => mobile }))
+vi.mock('../../../shared/hooks/useIsMobile', () => ({ default: () => mobile }))
 // MobileHeader's bell reads the app-wide NotificationProvider (main.jsx).
-vi.mock('../../contexts/NotificationContext', () => ({
+vi.mock('../../../contexts/NotificationContext', () => ({
   useNotifications: () => ({ unreadCount: 0, open: false, setOpen: () => {} }),
 }))
 
@@ -38,7 +38,7 @@ const auth = {
   userProfile: { displayName: 'Bwalya Chanda', email: 'bwalya@example.com' },
   isAdmin: false,
 }
-vi.mock('../../contexts/AuthContext', () => ({
+vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => auth,
 }))
 

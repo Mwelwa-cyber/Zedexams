@@ -4,7 +4,7 @@ import {
   readStoredCollapsed,
   resolveInitialCollapsed,
   writeStoredCollapsed,
-} from './sidebarCollapseCore'
+} from '../lib/sidebarCollapseCore'
 
 function safeStorage() {
   try {

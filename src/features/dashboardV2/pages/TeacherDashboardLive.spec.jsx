@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
-import TeacherLayout from '../../../components/teacher/TeacherLayout'
+import { TeacherLayout } from '../../teacherShell'
 import TeacherDashboardLive from './TeacherDashboardLive'
 
 // Every teacher navigation surface now asks studioAvailability which studios
@@ -33,7 +33,7 @@ vi.mock('../../../contexts/AuthContext', () => ({
   }),
 }))
 // Reads Firestore; not under test here.
-vi.mock('../../../components/teacher/TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
+vi.mock('../../teacherShell/components/TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
 
 const hookData = {
   teacher: {

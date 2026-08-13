@@ -27,7 +27,7 @@ import useStudioAvailability from '../../hooks/useStudioAvailability'
 // the route table), so a static import here would pull the shell — and the
 // whole dashboard design system behind it — into the entry chunk for every
 // learner who never sees a teacher page.
-const TeacherLayout = lazy(() => import('./TeacherLayout'))
+const TeacherLayout = lazy(() => import('../../features/teacherShell/pages/TeacherLayout'))
 // Route-level gate: Free teachers can only open the Lesson Plan studio; every
 // other studio renders a read-only sample behind a paywall. Imported eagerly
 // (it must decide synchronously from the already-loaded plan).
