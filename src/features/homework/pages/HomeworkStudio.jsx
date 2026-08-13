@@ -27,7 +27,7 @@ import {
   FieldGrid,
   AdvancedOptions,
   GenerateButton,
-} from '../../../components/teacher/generate/studioFields'
+} from '../../../shared/components/studioFields'
 import Icon from '../../../components/ui/Icon'
 import { Download, Key } from '../../../components/ui/icons'
 import StudioCurriculumSelector from '../../../components/teacher/curriculum/StudioCurriculumSelector'

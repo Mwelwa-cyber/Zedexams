@@ -27,7 +27,7 @@ import {
   FieldGrid,
   GenerateButton,
   StudioEmptyState,
-} from '../../../components/teacher/generate/studioFields'
+} from '../../../shared/components/studioFields'
 import Icon from '../../../components/ui/Icon'
 import { Download, Play } from '../../../components/ui/icons'
 import StudioOutputBoundary from '../../../components/teacher/StudioOutputBoundary'
