@@ -96,7 +96,7 @@ ok(
 // ── Sidebar config points at the canonical route with wide active state ──────
 
 const config = readFileSync(
-  join(ROOT, 'src/components/teacher/dashboardV2/dashboardV2Config.js'),
+  join(ROOT, 'src/shared/constants/dashboardV2Config.js'),
   'utf8',
 )
 ok(

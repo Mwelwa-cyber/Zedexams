@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
-import TeacherLayout from '../../../components/teacher/TeacherLayout'
+import { TeacherLayout } from '../../teacherShell'
 import TeacherDashboardV2 from './TeacherDashboardV2'
 import { TOUR_STORAGE_KEY } from '../lib/onboardingTourCore'
 
@@ -34,7 +34,7 @@ vi.mock('../../../contexts/AuthContext', () => ({
   }),
 }))
 // Reads Firestore and is not under test here.
-vi.mock('../../../components/teacher/TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
+vi.mock('../../teacherShell/components/TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
 vi.mock('../../../contexts/NotificationContext', () => ({
   useNotifications: () => ({ unreadCount: 0, open: false, setOpen: () => {} }),
 }))

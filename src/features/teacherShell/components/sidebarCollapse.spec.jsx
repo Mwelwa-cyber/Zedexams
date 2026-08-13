@@ -3,8 +3,8 @@ import { render, screen, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
-import TeacherLayout from '../TeacherLayout'
-import { SIDEBAR_COLLAPSE_KEY } from './sidebarCollapseCore'
+import TeacherLayout from '../pages/TeacherLayout'
+import { SIDEBAR_COLLAPSE_KEY } from '../lib/sidebarCollapseCore'
 
 // Every teacher navigation surface now asks studioAvailability which studios
 // are on offer, and that reads settings/global. Stubbed to the LAUNCH state
@@ -13,7 +13,7 @@ vi.mock('../../../contexts/PlatformSettingsContext', () => ({
   usePlatformSettings: () => ({ settings: { featureFlags: {} }, loaded: true, live: true }),
 }))
 
-vi.mock('../TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
+vi.mock('./TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
 vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({
     isTeacher: true,

@@ -157,7 +157,7 @@ test('uiAudit.css repeats index.css\'s focus-visible box-shadow exactly', () => 
 })
 
 test('uiAudit.css repeats .tdv2-nav-item:hover exactly', () => {
-  const dashCss = read('src/components/teacher/dashboardV2/dashboardV2.css')
+  const dashCss = read('src/shared/styles/dashboardV2.css')
   const auditCss = read('src/components/dev/uiAudit/uiAudit.css')
 
   const real = dashCss.match(/\.tdv2-nav-item:hover\s*\{([^}]*)\}/)

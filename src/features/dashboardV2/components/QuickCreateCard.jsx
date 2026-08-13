@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, ClipboardList } from 'lucide-react'
-import { QUICK_CREATE_TILES, QUICK_CREATE_TILE_COUNT } from '../../../components/teacher/dashboardV2/dashboardV2Config'
+import { QUICK_CREATE_TILES, QUICK_CREATE_TILE_COUNT } from '../../../shared/constants/dashboardV2Config'
 import useStudioAvailability from '../../../hooks/useStudioAvailability'
 import useGlassTile from '../../../hooks/useGlassTile'
-import '../../../components/teacher/dashboardV2/glassSurface.css'
+import '../../../shared/components/glassSurface.css'
 
 /* Full glass tile, accented by the tile's existing tone family so nothing
    shifts hue (coral, teal, green, blue). */

@@ -13,17 +13,16 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { getFunctions, httpsCallable } from 'firebase/functions'
-import app, { getAppCheckClientState, getAppCheckToken } from '../../firebase/config'
-import { APPCHECK_PLACEHOLDER_TOKEN } from '../../firebase/appCheckResilient'
+import { getAppCheckClientState, getAppCheckToken } from '../../../firebase/config'
+import { APPCHECK_PLACEHOLDER_TOKEN } from '../../../firebase/appCheckResilient'
+import { listAppCheckHealth, pingAppCheck } from '../services/appCheckHealthService'
 import {
-  listAppCheckHealth,
   summarise,
   enforcementReadiness,
   classifyDeviceAttestation,
-} from '../../utils/appCheckHealth'
-import SeoHelmet from '../seo/SeoHelmet'
-import Skeleton from '../ui/Skeleton'
+} from '../lib/appCheckHealthCore'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Skeleton from '../../../components/ui/Skeleton'
 
 const numFmt = new Intl.NumberFormat('en-ZM')
 
@@ -125,8 +124,7 @@ function DeviceSelfTest() {
     let attested = null
     let pingError = null
     try {
-      const ping = httpsCallable(getFunctions(app, 'us-central1'), 'appCheckPing')
-      const res = await ping({})
+      const res = await pingAppCheck()
       attested = Boolean(res?.data?.attested)
     } catch (err) {
       console.warn('[AdminAppCheck] appCheckPing failed', err)
