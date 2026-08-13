@@ -22,6 +22,13 @@ import {
 import { regroupComprehensionSections, moveQuestionToPassage } from '../../utils/comprehensionGrouping.js'
 import { richTextHasContent } from '../../utils/quizRichText.js'
 import { assertFileSignature } from '../../utils/fileSignature'
+import {
+  MAX_ENCODE_ATTEMPTS,
+  QUIZ_IMAGE_TARGET_BYTES,
+  oversizeImageError,
+  planNextEncode,
+  uploadErrorMessage,
+} from '../../utils/quizImageUpload.js'
 import { clampInt } from '../../utils/inputs.js'
 import { getErrorMessage } from '../../utils/errors.js'
 import { classifyOnPublish } from '../../utils/quizClassification.js'
@@ -107,92 +114,99 @@ function withCurrentOption(options, currentValue) {
   return [...options, normalized]
 }
 
-// Prepare an upload blob without degrading the picture. PNG sources (diagrams,
-// scanned line-art, cropped figures) stay lossless PNG; everything else is
-// encoded as high-quality JPEG. The width cap is generous so fine detail and
-// text in figures survive. Returns a Blob whose `.type` tells the caller which
-// format/extension to store.
-function compressImage(file, { maxWidth = 1600, quality = 0.92, maxBytes = 9 * 1024 * 1024 } = {}) {
+function loadImageFromFile(file) {
   return new Promise((resolve, reject) => {
     const image = new Image()
     const objectUrl = URL.createObjectURL(file)
-
     image.onload = () => {
       URL.revokeObjectURL(objectUrl)
-      let { width, height } = image
-      if (width > maxWidth) {
-        height = Math.round((height * maxWidth) / width)
-        width = maxWidth
-      }
-
-      const lossless = file.type === 'image/png'
-      const canvas = document.createElement('canvas')
-      canvas.width = width
-      canvas.height = height
-      const ctx = canvas.getContext('2d', { alpha: lossless })
-      ctx.imageSmoothingEnabled = true
-      ctx.imageSmoothingQuality = 'high'
-      ctx.drawImage(image, 0, 0, width, height)
-
-      const fail = () => reject(new Error('Canvas compression failed'))
-      const encodeJpeg = (q) => canvas.toBlob(
-        blob => (blob ? resolve(blob) : fail()), 'image/jpeg', q,
-      )
-      // JPEG has no alpha channel, so re-encoding a transparent canvas to JPEG
-      // composites transparent pixels onto BLACK. Paint white BEHIND the drawn
-      // image first (destination-over only fills the currently-transparent
-      // areas, never touching the figure) so a flattened PNG lands on white,
-      // not a black background that hides dark strokes/labels.
-      const flattenOntoWhite = () => {
-        ctx.globalCompositeOperation = 'destination-over'
-        ctx.fillStyle = '#ffffff'
-        ctx.fillRect(0, 0, canvas.width, canvas.height)
-        ctx.globalCompositeOperation = 'source-over'
-      }
-
-      if (!lossless) {
-        encodeJpeg(quality)
-        return
-      }
-      // PNG source: keep it lossless when it's a sane size (crisp line-art /
-      // text survives), but a dense photographic PNG can encode past the
-      // Storage size cap and get rejected with an opaque error. Fall back to
-      // JPEG only when the lossless blob is too big — so the upload never fails
-      // on size, while normal figures stay lossless.
-      canvas.toBlob(
-        blob => {
-          if (!blob) { fail(); return }
-          if (blob.size > maxBytes) { flattenOntoWhite(); encodeJpeg(0.9); return }
-          resolve(blob)
-        },
-        'image/png',
-      )
+      resolve(image)
     }
-
     image.onerror = () => {
       URL.revokeObjectURL(objectUrl)
       reject(new Error('Could not load image'))
     }
-
     image.src = objectUrl
   })
 }
 
-// Turn a raw Storage/upload error into teacher-friendly copy. The most common
-// real failure is a write rejected by the validQuizImageUpload size cap, which
-// Firebase surfaces as `storage/unauthorized` — otherwise shown as an opaque
-// "Upload failed: Firebase Storage: User does not have permission to access…".
-function uploadErrorMessage(error) {
-  const code = error?.code || ''
-  const msg = String(error?.message || '')
-  if (code === 'storage/unauthorized' || (/storage/i.test(code) && /unauthorized|permission/i.test(msg))) {
-    return 'Upload failed — the image may be too large (10 MB max after compression). Try a smaller crop or a JPEG.'
+// Draw `image` at no more than `maxWidth` px wide (never upscaled) and encode
+// it once. `sourceHasAlpha` is about the SOURCE, not the output: the canvas
+// needs its alpha channel to receive a transparent picture at all, and only
+// then can the white flatten below do its job.
+function encodeImageOnce(image, { maxWidth, format, quality, sourceHasAlpha }) {
+  const naturalWidth = image.naturalWidth || image.width
+  const naturalHeight = image.naturalHeight || image.height
+  const scale = Math.min(1, maxWidth / naturalWidth)
+
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.round(naturalWidth * scale))
+  canvas.height = Math.max(1, Math.round(naturalHeight * scale))
+  const ctx = canvas.getContext('2d', { alpha: sourceHasAlpha })
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
+
+  // JPEG has no alpha channel, so encoding a transparent canvas to JPEG
+  // composites transparent pixels onto BLACK. Paint white BEHIND the drawn
+  // image first (destination-over only fills the currently-transparent areas,
+  // never touching the figure) so a flattened picture lands on white, not a
+  // black background that hides dark strokes and labels.
+  if (sourceHasAlpha && format !== 'image/png') {
+    ctx.globalCompositeOperation = 'destination-over'
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.globalCompositeOperation = 'source-over'
   }
-  if (code === 'storage/canceled') return 'Upload canceled.'
-  if (code === 'storage/retry-limit-exceeded' || /network|timeout|offline/i.test(msg)) {
-    return 'Upload failed — check your connection and try again.'
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      blob => (blob ? resolve(blob) : reject(new Error('Canvas compression failed'))),
+      format,
+      quality,
+    )
+  })
+}
+
+// Prepare an upload blob without needlessly degrading the picture. PNG sources
+// (diagrams, scanned line-art, cropped figures) stay lossless PNG; everything
+// else is encoded as high-quality JPEG. The width cap is generous so fine
+// detail and text in figures survive. Returns a Blob whose `.type` tells the
+// caller which format/extension to store.
+//
+// It RE-ENCODES until the result fits (planNextEncode's ladder) rather than
+// encoding once and letting Storage decide. The old version encoded a JPEG
+// with no size check at all, and gave a PNG exactly one fallback attempt —
+// so an oversize blob reached the bucket and came back as a bare
+// `storage/unauthorized`, which the editor then reported as a size problem
+// whether or not it was one. Anything this resolves is under the cap, which
+// is what lets uploadErrorMessage say a refusal is NOT about size.
+async function compressImage(file, {
+  maxWidth = 1600,
+  quality = 0.92,
+  maxBytes = QUIZ_IMAGE_TARGET_BYTES,
+} = {}) {
+  const image = await loadImageFromFile(file)
+  // WebP carries alpha too — treating it as opaque flattened transparent
+  // WebP crops onto black on their way to JPEG.
+  const sourceHasAlpha = file.type === 'image/png' || file.type === 'image/webp'
+
+  let format = file.type === 'image/png' ? 'image/png' : 'image/jpeg'
+  let width = maxWidth
+  let currentQuality = quality
+  let blob = await encodeImageOnce(image, { maxWidth: width, format, quality: currentQuality, sourceHasAlpha })
+
+  for (let attempt = 0; attempt < MAX_ENCODE_ATTEMPTS; attempt += 1) {
+    const step = planNextEncode({ bytes: blob.size, format, quality: currentQuality, width, maxBytes })
+    if (step.action === 'accept') return blob
+    if (step.action === 'fail') throw oversizeImageError(blob.size)
+    format = step.format
+    currentQuality = step.quality
+    width = step.maxWidth
+    blob = await encodeImageOnce(image, { maxWidth: width, format, quality: currentQuality, sourceHasAlpha })
   }
-  return `Upload failed: ${msg || 'please try again.'}`
+  if (blob.size > maxBytes) throw oversizeImageError(blob.size)
+  return blob
 }
 
 // Derive the storage extension + contentType from a processed upload blob so
