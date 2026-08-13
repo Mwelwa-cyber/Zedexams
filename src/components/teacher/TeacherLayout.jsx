@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { confirmShellNavigation, isPlainInAppLinkClick } from './register/shellNavGuardCore'
+import { confirmShellNavigation, isPlainInAppLinkClick } from '../../shared/utils/shellNavGuardCore'
 import { ShieldCheck } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import TeacherTopBar from './TeacherTopBar'

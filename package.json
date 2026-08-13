@@ -219,7 +219,7 @@
     "test:diagram-label": "node scripts/test-diagram-label-grading.mjs",
     "test:question-parts": "node src/utils/questionParts.test.js",
     "test:paper-health": "node src/utils/paperHealth.test.js",
-    "test:shell-nav-guard": "node src/components/teacher/register/shellNavGuardCore.test.js",
+    "test:shell-nav-guard": "node src/shared/utils/shellNavGuardCore.test.js",
     "test:file-signature": "node src/utils/fileSignature.test.js",
     "test:logger": "node functions/logger.test.js",
     "test:request-id": "node src/utils/requestId.test.js",

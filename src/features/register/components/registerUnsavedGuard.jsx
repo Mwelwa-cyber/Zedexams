@@ -18,7 +18,7 @@
  */
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react'
-import { setActiveShellNavGuard } from '../../../components/teacher/register/shellNavGuardCore'
+import { setActiveShellNavGuard } from '../../../shared/utils/shellNavGuardCore'
 
 export const UNSAVED_MARKS_MESSAGE = 'You have unsaved marks. Leave without saving?'
 

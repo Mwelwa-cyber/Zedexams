@@ -22,14 +22,16 @@
  *
  * NOT here, on purpose:
  *
- *   • `shellNavGuardCore` stayed in `src/components/teacher/register/`. Its
- *     consumers are the app shell — `TeacherLayout`, `Sidebar`, `MobileChrome`,
- *     `NotificationCenter` — and `TeacherLayout` mounts on EVERY `/teacher/*`
- *     route. Exporting it here would make every teacher route evaluate the whole
- *     class register at import time (the trap §13 records against `dashboardV2`),
- *     and importing it deeply would add four legacy→feature debt entries. It is
- *     shell infrastructure that the register registers INTO, not register
- *     internals. See the PR description — this is raised for review, not settled.
+ *   • `shellNavGuardCore` is NOT here and never was — it now lives at
+ *     `src/shared/utils/shellNavGuardCore.js`. Its consumers are the app shell
+ *     — `TeacherLayout`, `Sidebar`, `MobileChrome`, `NotificationCenter` — and
+ *     `TeacherLayout` mounts on EVERY `/teacher/*` route. Exporting it here
+ *     would have made every teacher route evaluate the whole class register at
+ *     import time (the trap §13 records against `dashboardV2`), and importing
+ *     it deeply would have added four legacy→feature debt entries. It is shell
+ *     infrastructure that the register registers INTO, not register internals,
+ *     so it belongs below both. The register reaches it downward like any other
+ *     shared module; the shell does the same.
  */
 
 export { default as NewLearnerSyncModal } from './components/NewLearnerSyncModal'
