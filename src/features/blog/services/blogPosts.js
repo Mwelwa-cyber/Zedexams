@@ -37,7 +37,7 @@ marked.setOptions({
   breaks: false,
 })
 
-const RAW_POSTS = import.meta.glob('../../content/blog/*.md', {
+const RAW_POSTS = import.meta.glob('../../../../content/blog/*.md', {
   query: '?raw',
   import: 'default',
   eager: true,
