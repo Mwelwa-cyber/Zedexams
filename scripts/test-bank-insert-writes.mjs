@@ -39,8 +39,8 @@ function check(label, fn) {
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 
 const firestore = read('src/hooks/useFirestore.js')
-const studio = read('src/components/teacher/AssessmentStudio.jsx')
-const placement = read('src/utils/questionBankPlacement.js')
+const studio = read('src/features/assessmentStudio/pages/AssessmentStudio.jsx')
+const placement = read('src/features/assessmentStudio/lib/questionBankPlacement.js')
 
 console.log('\nbank-insert-writes')
 

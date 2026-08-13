@@ -163,7 +163,7 @@ const AdminLayout = lazy(() => import('./features/adminShell/pages/AdminLayout')
 const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'))
 // Mandatory MFA enrolment page — admin-only, rendered full-screen (no admin
 // chrome) so a not-yet-enrolled admin gets one focused task.
-const MfaSetupPage = lazy(() => import('./components/admin/security/MfaSetupPage'))
+const MfaSetupPage = lazy(() => import('./features/adminMfa/pages/MfaSetupPage'))
 const CreateQuiz = lazy(() => import('./components/admin/CreateQuizV2'))
 const AdminCsvImport = lazy(() => import('./components/admin/AdminCsvImport'))
 const ManageContent = lazy(() => import('./components/admin/ManageContent'))

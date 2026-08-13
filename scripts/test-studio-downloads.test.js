@@ -123,8 +123,8 @@ check(
 //    window.open + window.print(), NOT html2canvas/jsPDF. Guard against the
 //    old html2canvas path silently coming back.
 const wordOnlySurfaces = [
-  'src/components/teacher/AssessmentStudio.jsx',
-  'src/components/teacher/AssessmentList.jsx',
+  'src/features/assessmentStudio/pages/AssessmentStudio.jsx',
+  'src/features/assessmentStudio/pages/AssessmentList.jsx',
 ]
 for (const rel of wordOnlySurfaces) {
   const src = read(rel)

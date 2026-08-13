@@ -50,7 +50,7 @@ test('export client downloads via the server-provided branded path + ticket', ()
 })
 
 test('Studio export handler prefers the branded download for the 3 export types', () => {
-  const studio = read('src/components/teacher/AssessmentStudio.jsx')
+  const studio = read('src/features/assessmentStudio/pages/AssessmentStudio.jsx')
   assert.ok(/startBrandedDownload/.test(studio), 'Studio calls startBrandedDownload')
   assert.ok(/paper-docx/.test(studio) && /scheme-docx/.test(studio) && /paper-pdf/.test(studio),
     'all three server export types are wired')

@@ -188,7 +188,7 @@ function architectureClaims(archSrc) {
  */
 const COVERED = [
   'accountPurgeJobs', 'adminAuditLogs', 'agentControl', 'agentJobs', 'aiDailyLimits', 'aiGenerations',
-  'aiOperations', 'aiUsage', 'aiUsageDaily', 'announcements', 'assessmentExports', 'assessments',
+  'aiOperations', 'aiUsage', 'aiUsageDaily', 'announcements', 'assessmentDrafts', 'assessmentExports', 'assessments',
   'classRegisters', 'curriculum', 'downloadTickets', 'exam_attempts',
   'familyInviteCodes', 'flashcardProgress', 'generatedContent', 'invoices',
   'lessonPlanTemplates', 'newsletterSignupRateLimit', 'noteProgress', 'parentDigestEvents', 'parentLinks',
@@ -225,7 +225,7 @@ const ACKNOWLEDGED_UNCOVERED = [
   'aiContentReports', 'aiGeneratedContent', 'aiGeneratedContentVersions',
   'aiGenerationLog', 'aiLiveAgentStates', 'aiSupervisorLogs', 'aiTaskSteps',
   'appCheckHealth', 'approvedSyllabi', 'assessmentBands',
-  'assessmentDrafts', 'assessmentStandards', 'cbcKnowledgeBase',
+  'assessmentStandards', 'cbcKnowledgeBase',
   'contactMessages', 'curriculumUpdateReports',
   'curriculumUploads', 'daily_challenges', 'dawnConfig', 'dawnRuns',
   'diagramAssets', 'drafts',

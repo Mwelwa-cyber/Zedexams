@@ -33,8 +33,9 @@
  * `RevenueTrendCard` established), so the neighbours stayed: `AdminAppCheck`
  * and `security/MfaSetupPage` are route-mounted, unrelated to trials and
  * unrelated to each other, and a feature called `adminTrials` holding an App
- * Check debugger would be a worse home than the one they have. (`AdminAppCheck`
- * has since become `adminAppCheck` — its own feature, not a lodger here.)
+ * Check debugger would be a worse home than the one they have. Both have since
+ * become their own features — `adminAppCheck` and `adminMfa` — rather than
+ * lodgers here, which is the same rule reaching the same answer.
  */
 
 export {}

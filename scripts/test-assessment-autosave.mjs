@@ -1,5 +1,5 @@
 // Regression tests for the Assessment Paper Studio's library-save gating
-// (src/components/teacher/assessmentAutosave.js) — every assessment type, test
+// (src/features/assessmentStudio/lib/assessmentAutosave.js) — every assessment type, test
 // and examination alike, is authored through the one studio.
 //
 // Two bugs are pinned here.
@@ -23,7 +23,7 @@ import {
   shouldAutosaveOnDownload,
   paperSignature,
   isUntouchedPaper,
-} from '../src/components/teacher/assessmentAutosave.js'
+} from '../src/features/assessmentStudio/lib/assessmentAutosave.js'
 import {
   countAuthoredQuestions,
   createStandaloneSection,

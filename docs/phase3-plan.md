@@ -933,3 +933,70 @@ happened.
    and a flipped switch that changes nothing is the cheapest possible way to
    discover the switch does not reach production.
 8. Cutovers: past-paper → quizzes → games, each gated on §5.1.
+   ✅ past-paper, the canary (#2149–#2159). ✅ **quizzes**, the first cutover
+   that WRITES — the flag selects the choice card, the verdict and the result
+   document in `QuizRunnerV2`; everything else on the screen is the same code on
+   both paths. Games remains.
+
+   Four things about the quiz cutover worth carrying into games:
+
+   - **`persist/` did NOT go to the front door, and that reverses what §2.4 and
+     `test:paper-quiz-zero-write` both anticipated.** The plan expected the
+     first writing route to export it there. `QuizRunnerV2` imports
+     `assessment-engine/persist` as an AREA instead, exactly as it imports
+     `assessment-engine/render` for the card. The canary imports the front
+     door, so exporting persist there would have converted its zero-write
+     property from *the write is unreachable* into *nobody imports a particular
+     name from a door the route already opens*. §7.3 calls one write from that
+     route a P1, so the structural version is the one worth keeping. The guard's
+     rule 2 is now permanent rather than provisional; its header records why.
+   - **The refusal rules are the cutover, more than the render is.** The old
+     runner draws eleven question types and the engine draws two, so the engine
+     serves only quizzes that are entirely `mcq`/`tf` — one short-answer,
+     fill-blanks or matching question anywhere and the old runner serves the
+     whole attempt. A per-question mix would show one learner two card designs
+     in one attempt and make a render bug unattributable. `latched` is on the
+     telemetry event so the REFUSAL rate can be read separately from the
+     watchdog hold: at this runner that number is how much of the corpus the
+     engine can actually serve, and it is the input to whether the ramp is worth
+     raising.
+   - **One refusal exists only because this route writes.** The result document
+     takes its `quizId` from the canonical assessment's id, so a canonical id
+     that did not carry the route's quiz id would file a learner's result
+     against the wrong quiz — or against `''`. Nothing on screen would show it;
+     the attempt renders and submits normally and only the results page, the
+     teacher's analytics and the learner's history are wrong. It is refused and
+     reported rather than trusted.
+
+   - **A refusal the TYPE check could not make, and an open question it raises
+     about the canary.** `mcq` is a supported type, but the canonical model has
+     no field for per-option media and `ChoiceQuestion` draws only text — so a
+     question whose options ARE pictures (routine in maths and science) renders
+     on the engine as four blank-looking rows and cannot be answered. It is
+     `render/supportedTypes.js`'s own stated failure — *"not a crash, not a red
+     test, just a learner losing marks for something nobody drew"* — arriving
+     through the data rather than through the type, which is why
+     `unrenderableTypes` cannot see it. Quizzes now refuse it, with a control
+     case proving an empty `optionMedia` array does NOT refuse.
+
+     **The past-paper canary looks to have the same gap and it is already
+     live.** `PublicQuizRunner`'s old card reads `imageUrl`/`diagram` off the
+     option object itself, and its engine branch has no equivalent refusal; a
+     past paper whose options carry either would drop them on the engine path.
+     It was not touched here — that is a change to a rolled-out route and
+     belongs in its own diff with its own decision — but it should be checked
+     before the past-paper ramp is raised further, and it is the reason games
+     should be inventoried for per-option media before its flag is built.
+
+   §5.1's checkable criteria at the flip: lint/build/`test:all` (712 discovered,
+   unchanged)/`test:unit` (3819)/`test:import-boundaries` green; the §3
+   comparison already covers this runner's write on every fixture and catches a
+   changed score, a dropped field and an extra write; `results` gained the
+   emulator case that the engine's `timeSpent: null` is actually ACCEPTED —
+   `validResultFields()` ignores the field, which was an inference from reading
+   the rule until now, with a measured-`timeSpent` control beside it, and both
+   were verified to fail/pass correctly against a rule that validates the field.
+   The screen visual gate needed no new fixture: the cutover reuses
+   `ChoiceQuestion` unchanged, and that gate's fixtures are of the renderer
+   rather than of a runner. Criterion 7 (rehearsing the rollback on the live
+   toggle) is an operator step and is not dischargeable from a pull request.

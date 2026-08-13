@@ -14,7 +14,7 @@
  * dashboard's Recent Documents feed about two seconds later, every visit.
  *
  * The trigger condition is fixed in code (isUntouchedPaper +
- * countAuthoredQuestions, src/components/teacher/assessmentAutosave.js), so no
+ * countAuthoredQuestions, src/features/assessmentStudio/lib/assessmentAutosave.js), so no
  * new phantoms are being created. This removes the ones already filed. It is
  * NOT a scheduled sweep and must never become one: deleting papers on a timer
  * is how a teacher's real work disappears.
