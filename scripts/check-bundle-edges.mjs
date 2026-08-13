@@ -154,13 +154,30 @@ const ACKNOWLEDGED = new Map([
   // ways and all three mean the same thing. Cutting all three must leave
   // `buildExtensions` unreachable from these pages; that is what makes the
   // record complete rather than merely true.
+  // `figureLabelLayout → buildExtensions` became `assessmentPaperLayout →
+  // buildExtensions` in the Assessment Paper Studio migration (Wave 4), which
+  // moved several paper modules out of `src/utils/` and so changed which module
+  // Rollup names that chunk after. The DEPENDENCY is unchanged — same pages,
+  // same vendor, same reason, and no new page/vendor pair — which is the case
+  // the note above predicted: "the chunk a dependency lands in moves and the
+  // edge into the vendor does not."
+  //
+  // Worth one line, because it is the fourth rewrite this record has taken from
+  // an unrelated migration and it argues against the current key rather than
+  // for it: `figureLabelLayout.js` imports NOTHING, so it could never really
+  // have been the module the editor schema arrives through. It was only ever a
+  // chunk label. `assessmentPaperLayout` genuinely does import
+  // `editor/schema/question.js` and `editor/utils/safeRender.js`, so today's
+  // record happens to be true at the import level as well as the chunk level —
+  // by luck, not by construction. If this churns a fifth time, the fix is to
+  // key `cut` on the importing MODULE rather than on the chunk name.
   ['PublicShareView → buildExtensions', {
     why: 'the saved-document renderers it mounts (assessment papers, SBA tasks) draw stored rich text, and the shared paper renderer needs the editor schema to do it',
-    cut: [['figureLabelLayout', 'buildExtensions'], ['quizRichText', 'buildExtensions'], ['migration', 'buildExtensions']],
+    cut: [['assessmentPaperLayout', 'buildExtensions'], ['quizRichText', 'buildExtensions'], ['migration', 'buildExtensions']],
   }],
   ['LockedStudio → buildExtensions', {
     why: 'the specimen documents it renders reach the same renderer, for the same reason',
-    cut: [['figureLabelLayout', 'buildExtensions'], ['quizRichText', 'buildExtensions'], ['migration', 'buildExtensions']],
+    cut: [['assessmentPaperLayout', 'buildExtensions'], ['quizRichText', 'buildExtensions'], ['migration', 'buildExtensions']],
   }],
 ]);
 
