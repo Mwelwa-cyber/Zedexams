@@ -130,21 +130,21 @@ const QuizLimitPopup = lazy(() => import('./components/subscription/QuizLimitPop
 const SubscriptionReminderPopup = lazy(() => import('./components/subscription/SubscriptionReminderPopup'))
 const MySubscriptionRoute = lazy(() => import('./components/subscription/MySubscriptionRoute'))
 const NotFound = lazy(() => import('./components/ui/NotFound'))
-const Marketing = lazy(() => import('./components/marketing/Marketing'))
-const Plans = lazy(() => import('./components/marketing/Plans'))
-const TeachersLanding = lazy(() => import('./components/marketing/TeachersLanding'))
-const AiTeam = lazy(() => import('./components/marketing/AiTeam'))
-const GradePackLanding = lazy(() => import('./components/marketing/GradePackLanding'))
-const PrivacyPolicy = lazy(() => import('./components/marketing/PrivacyPolicy'))
-const Terms = lazy(() => import('./components/marketing/Terms'))
+const Marketing = lazy(() => import('./features/marketing/pages/Marketing'))
+const Plans = lazy(() => import('./features/marketing/pages/Plans'))
+const TeachersLanding = lazy(() => import('./features/marketing/pages/TeachersLanding'))
+const AiTeam = lazy(() => import('./features/marketing/pages/AiTeam'))
+const GradePackLanding = lazy(() => import('./features/marketing/pages/GradePackLanding'))
+const PrivacyPolicy = lazy(() => import('./features/marketing/pages/PrivacyPolicy'))
+const Terms = lazy(() => import('./features/marketing/pages/Terms'))
 // Public consent/preferences page — no auth, so the cookie banner can link
 // signed-out visitors somewhere they can actually change their decision.
-const CookiePreferences = lazy(() => import('./components/marketing/CookiePreferences'))
+const CookiePreferences = lazy(() => import('./features/marketing/pages/CookiePreferences'))
 // Public account-deletion request page — the no-login deletion route Google
 // Play's Data safety form links to. Must stay reachable signed out.
-const DeleteAccountRequest = lazy(() => import('./components/marketing/DeleteAccountRequest'))
+const DeleteAccountRequest = lazy(() => import('./features/marketing/pages/DeleteAccountRequest'))
 // Child safety standards — the page Play's CSAE declaration links to.
-const ChildSafety = lazy(() => import('./components/marketing/ChildSafety'))
+const ChildSafety = lazy(() => import('./features/marketing/pages/ChildSafety'))
 const PastPapersHub = lazy(() => import('./features/papers/pages/PastPapersHub'))
 const PastPaperViewer = lazy(() => import('./features/papers/pages/PastPaperViewer'))
 const PastPaperPractice = lazy(() => import('./features/papers/pages/PastPaperPractice'))
@@ -153,7 +153,7 @@ const MyPapersHistory = lazy(() => import('./features/papers/pages/MyPapersHisto
 const AdminPastPapers = lazy(() => import('./components/admin/AdminPastPapers'))
 const PastPaperStudio = lazy(() => import('./components/admin/PastPaperStudio'))
 const ZedChatPage = lazy(() => import('./features/zedChat/pages/ZedChatPage'))
-const StatusPage = lazy(() => import('./components/marketing/StatusPage'))
+const StatusPage = lazy(() => import('./features/marketing/pages/StatusPage'))
 // Audit C5 — SEO blog. Markdown-driven, posts ship in the bundle.
 const BlogIndex = lazy(() => import('./components/blog/BlogIndex'))
 const BlogPost = lazy(() => import('./components/blog/BlogPost'))

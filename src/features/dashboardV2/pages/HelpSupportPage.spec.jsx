@@ -7,8 +7,8 @@ import HelpSupportPage from './HelpSupportPage'
 
 // The real dialogs import firebase; stub them and assert on open/source.
 const contactCalls = []
-vi.mock('../../../components/marketing/ContactDialog', () => ({
-  default: ({ open, source }) => {
+vi.mock('../../marketing', () => ({
+  ContactDialog: ({ open, source }) => {
     if (open) contactCalls.push(source)
     return open ? <div role="dialog" aria-label={`contact:${source}`} /> : null
   },

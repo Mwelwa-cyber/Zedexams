@@ -24,8 +24,8 @@
  */
 
 import { useState } from 'react'
-import { subscribeToNewsletter } from '../../utils/newsletter'
-import { friendlyMessage } from '../../utils/friendlyErrors'
+import { subscribeToNewsletter } from '../../../utils/newsletter'
+import { friendlyMessage } from '../../../utils/friendlyErrors'
 
 const HONEYPOT_STYLE = {
   position: 'absolute',

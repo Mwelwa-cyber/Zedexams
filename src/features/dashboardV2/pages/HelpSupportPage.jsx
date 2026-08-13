@@ -19,7 +19,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
-import ContactDialog from '../../../components/marketing/ContactDialog'
+import { ContactDialog } from '../../marketing'
 import FeedbackDialog from '../../../components/feedback/FeedbackDialog'
 import SeoHelmet from '../../../components/seo/SeoHelmet'
 import TopHeader from '../components/TopHeader'

@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom'
-import Logo from '../ui/Logo'
-import Button from '../ui/Button'
-import Icon from '../ui/Icon'
-import { ArrowLeft } from '../ui/icons'
+import Logo from '../../../components/ui/Logo'
+import Button from '../../../components/ui/Button'
+import Icon from '../../../components/ui/Icon'
+import { ArrowLeft } from '../../../components/ui/icons'
 
 /**
  * Lightweight chrome shared by /privacy and /terms.

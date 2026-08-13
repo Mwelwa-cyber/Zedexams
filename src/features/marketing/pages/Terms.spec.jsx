@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
-import Terms from './Terms.jsx'
+import Terms from './Terms'
 
 // Terms is a static legal document. These tests lock in the corrected
 // Section 7 ("Intellectual Property") so the page can never regress to

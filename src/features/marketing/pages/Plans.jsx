@@ -1,16 +1,16 @@
 import { lazy, Suspense, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
-import Logo from '../ui/Logo'
-import Button from '../ui/Button'
-import Card from '../ui/Card'
-import SeoHelmet from '../seo/SeoHelmet'
+import { useAuth } from '../../../contexts/AuthContext'
+import Logo from '../../../components/ui/Logo'
+import Button from '../../../components/ui/Button'
+import Card from '../../../components/ui/Card'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
 // Prices live in src/config/teacherPlanPricing.js so /pricing and the
 // /teachers landing can never drift apart on the numbers.
-import { PLAN_PRICES } from '../../config/teacherPlanPricing'
-import { isNativePlatform } from '../../utils/runtime'
+import { PLAN_PRICES } from '../../../config/teacherPlanPricing'
+import { isNativePlatform } from '../../../utils/runtime'
 
-const UpgradeModal = lazy(() => import('../subscription/UpgradeModal'))
+const UpgradeModal = lazy(() => import('../../../components/subscription/UpgradeModal'))
 
 const FAQ = [
   {

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
-import LegalLayout from './LegalLayout'
-import SeoHelmet from '../seo/SeoHelmet'
-import AnalyticsConsentToggle from '../ui/AnalyticsConsentToggle'
+import LegalLayout from '../components/LegalLayout'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import AnalyticsConsentToggle from '../../../components/ui/AnalyticsConsentToggle'
 
 /**
  * Public preferences page (audit D2 follow-up).

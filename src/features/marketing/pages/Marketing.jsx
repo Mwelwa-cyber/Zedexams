@@ -1,20 +1,20 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import Logo from '../ui/Logo'
-import SeoHelmet from '../seo/SeoHelmet'
-import Button from '../ui/Button'
-import Card from '../ui/Card'
-import Icon from '../ui/Icon'
-import ContactDialog from './ContactDialog'
-import LiveStats from './LiveStats'
-import NewsletterSignup from './NewsletterSignup'
-import { listFeaturedPapersWithQuiz } from '../../utils/pastPapers'
-import { isNativePlatform } from '../../utils/runtime'
-import { SUBJECTS } from '../../config/curriculum'
+import Logo from '../../../components/ui/Logo'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Button from '../../../components/ui/Button'
+import Card from '../../../components/ui/Card'
+import Icon from '../../../components/ui/Icon'
+import ContactDialog from '../components/ContactDialog'
+import LiveStats from '../components/LiveStats'
+import NewsletterSignup from '../components/NewsletterSignup'
+import { listFeaturedPapersWithQuiz } from '../../../utils/pastPapers'
+import { isNativePlatform } from '../../../utils/runtime'
+import { SUBJECTS } from '../../../config/curriculum'
 // Prices come from the same source-of-truth configs the /pricing page uses,
 // so the homepage can never drift from the real numbers.
-import { PLAN_PRICES } from '../../config/teacherPlanPricing'
-import { PLANS } from '../../utils/subscriptionConfig'
+import { PLAN_PRICES } from '../../../config/teacherPlanPricing'
+import { PLANS } from '../../../utils/subscriptionConfig'
 import {
   AcademicCapIcon,
   Sparkles,
@@ -35,7 +35,7 @@ import {
   Send,
   Mail,
   ChevronRight,
-} from '../ui/icons'
+} from '../../../components/ui/icons'
 
 // Public contact channels surfaced in the footer. WhatsApp opens the chat
 // directly; the contact form opens an in-app modal that writes to the

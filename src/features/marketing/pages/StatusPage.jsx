@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { doc, getDoc } from 'firebase/firestore'
-import { db } from '../../firebase/config'
-import SeoHelmet from '../seo/SeoHelmet'
+import { db } from '../../../firebase/config'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
 import {
   STATUS,
   computeStatusView,
   overallHeadline,
   statusLabel,
   statusTone,
-} from '../../utils/systemStatus'
+} from '../../../utils/systemStatus'
 
 /**
  * Public status page (/status).
