@@ -54,7 +54,7 @@ const ALLOWLIST = new Set([
   //     through the canonical model.
   // Studio shell that re-exports the meta lists (STUDIO_SUBJECTS) — tracked for
   // migration onto the catalogue.
-  'src/components/teacher/AssessmentStudio.jsx',
+  'src/features/assessmentStudio/pages/AssessmentStudio.jsx',
   // Printed curriculum REFERENCE tables (not selection pickers) — the subject
   // names ARE the content of the page.
   'src/features/curriculumBrowsers/pages/Primary2013Curriculum.jsx',

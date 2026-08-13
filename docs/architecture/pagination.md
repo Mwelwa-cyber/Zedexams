@@ -21,12 +21,12 @@ full-collection download; no offset-based pagination.
 | Module | Responsibility |
 |--------|----------------|
 | `src/utils/pagination/cursors.js` | page-size clamping, over-fetch (`pageSize+1`) end-of-results detection, id de-dup / merge, cursor fingerprints & per-page lock keys |
-| `src/utils/pagination/queryKeys.js` | `createPaginationKey({ scope, tenant, curriculum facets, filters, search, sort, pageSize })` — a session identity where every result-affecting field is encoded |
+| `src/features/assessmentStudio/lib/queryKeys.js` | `createPaginationKey({ scope, tenant, curriculum facets, filters, search, sort, pageSize })` — a session identity where every result-affecting field is encoded |
 | `src/utils/pagination/pageCache.js` | short-TTL cache of completed pages keyed `queryKey::cursorId`, built on the existing `MemoryCache` (TTL + LRU + in-flight dedup + never-cache-a-rejection) |
 
 ### Firestore binding
 
-`src/utils/pagination/firestorePage.js` — `createFirestorePageFetcher(spec)`
+`src/features/assessmentStudio/services/firestorePage.js` — `createFirestorePageFetcher(spec)`
 turns a declarative spec (`db`, `path`, `where` constraints, `orderByFields`)
 into the `fetchPage({ pageSize, cursor })` the hook drives. It always appends a
 `documentId()` tiebreaker (matching the primary sort direction, so it reuses the
@@ -95,7 +95,7 @@ resets the session automatically.
 
 ## Reference integration
 
-`src/components/teacher/AssessmentList.jsx` — the teacher assessment library. Was
+`src/features/assessmentStudio/pages/AssessmentList.jsx` — the teacher assessment library. Was
 a single `getMyAssessments(uid)` capped at 300 docs (silent truncation for
 prolific authors); now a 30-row first page + Load-More, cursor-based, with the
 Test/Examination and Needs-review filters applied as client-side view narrowing

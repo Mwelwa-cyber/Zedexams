@@ -1,6 +1,6 @@
 /**
  * Unit tests for the Exam Studio Question Bank side-panel pure logic
- * (src/utils/questionBankPanel.js).
+ * (src/features/assessmentStudio/lib/questionBankPanel.js).
  *
  * Plain-node assertion script — run with `node scripts/test-question-bank-panel.mjs`
  * or `npm run test:question-bank-panel`. Throws on the first failed assertion.
@@ -9,7 +9,7 @@ import {
   normalizeGrade, gradeMatches, subjectMatches, topicMatches,
   deriveContext, countTopicMatches, applyPanelFilters, facetOptions,
   applyBankBrowserFilters, sortBankRows,
-} from '../src/utils/questionBankPanel.js'
+} from '../src/features/assessmentStudio/lib/questionBankPanel.js'
 
 let passed = 0
 function assert(cond, msg) {
