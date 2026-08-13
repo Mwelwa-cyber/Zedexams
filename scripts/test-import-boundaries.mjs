@@ -194,9 +194,16 @@ const KNOWN_CROSS_FEATURE_IMPORTS = new Set([
 // Was eleven at the end of Phase 1. Phase 2 cleared two by moving
 // useFlashcardProgress (and its spec) into src/features/flashcards/hooks/,
 // where reaching the progress repository is an intra-feature import.
+//
+// The papers migration cleared a third, and not by moving the caller alone —
+// that would only have converted a legacy→feature import into a cross-feature
+// one, and KNOWN_CROSS_FEATURE_IMPORTS below only shrinks. `paperResumeSync`
+// moved INTO src/features/papers/lib/ (it is about papers; it merely lived
+// next to its reader), and the storage keys the two features share went to
+// src/shared/utils/paperResumeStorage.js. `lessonResume` on the line below is
+// the same shape and clears the same way when the lessons player migrates.
 const KNOWN_LEGACY_FEATURE_IMPORTS = new Set([
   'src/components/lessons/LessonPlayer.jsx → ../../features/learnerHome/lib/lessonResume',
-  'src/components/papers/PastPaperViewer.jsx → ../../features/learnerHome/lib/paperResumeSync',
   'src/components/teacher/TeacherDashboard.jsx → ../../features/teacherSettings/lib/useTeachingProfile',
   'src/hooks/useLearnerSearch.js → ../features/notes/lib/firestore',
   // FORCED, and recorded rather than avoided — `teacherShell` PR B. Every other

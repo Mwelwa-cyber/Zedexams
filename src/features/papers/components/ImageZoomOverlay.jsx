@@ -35,7 +35,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import useFocusTrap from '../../hooks/useFocusTrap'
+import useFocusTrap from '../../../hooks/useFocusTrap'
 
 const MIN_SCALE = 1
 const MAX_SCALE = 6

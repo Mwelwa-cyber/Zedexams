@@ -103,6 +103,14 @@ const UNSCANNED_UNTIL_NOW = new Set([
   // migration — verified against the file at its `src/utils/` path, where the
   // same six `subject:` values were already present.
   'src/features/visualStudio/lib/pictureBankStarterPack.js',
+  // Arrived with the past-papers move. The subjects are in the CURATED SAMPLE
+  // SET the hub falls back to when Firestore returns nothing, so the archive
+  // is never blank — they are fixture data, not a picker's option list, which
+  // is why converting this one to `useCurriculumSelection` is not the fix it
+  // is for the entries above. They predate the migration: diffing the moved
+  // file against `src/components/papers/PastPapersHub.jsx` at its old path
+  // shows only import lines changed.
+  'src/features/papers/pages/PastPapersHub.jsx',
 ])
 
 function walk(dir) {

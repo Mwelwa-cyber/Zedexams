@@ -22,13 +22,13 @@
  */
 
 import { useRef } from 'react'
-import { useElementWidth } from '../../hooks/useElementWidth'
+import { useElementWidth } from '../../../hooks/useElementWidth'
 import {
   composePaperRow,
   composePaperTitle,
   fullPaperTitle,
-} from '../../utils/paperTitleCore'
-import { ShieldCheck, FileText } from '../ui/icons'
+} from '../../../utils/paperTitleCore'
+import { ShieldCheck, FileText } from '../../../components/ui/icons'
 
 /**
  * The source chip.

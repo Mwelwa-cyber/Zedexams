@@ -25,19 +25,19 @@
 
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
+import { useAuth } from '../../../contexts/AuthContext'
 import {
   abandonPaperAttempt,
   getPaper,
   resolvePaperUrl,
   startPaperAttempt,
   submitPaperAttempt,
-} from '../../utils/pastPapers'
-import SeoHelmet from '../seo/SeoHelmet'
-import Logo from '../ui/Logo'
-import Skeleton from '../ui/Skeleton'
+} from '../../../utils/pastPapers'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Logo from '../../../components/ui/Logo'
+import Skeleton from '../../../components/ui/Skeleton'
 
-const PdfJsViewer = lazy(() => import('./PdfJsViewer'))
+const PdfJsViewer = lazy(() => import('../../../shared/components/PdfJsViewer'))
 
 const FALLBACK_DURATION_MINUTES = 60
 

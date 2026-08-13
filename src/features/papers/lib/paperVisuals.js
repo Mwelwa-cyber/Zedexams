@@ -15,8 +15,8 @@ import {
   Sparkles,
   FileText,
   PuzzlePieceIcon,
-} from '../ui/icons'
-import { PAPER_SUBJECTS } from '../../config/curriculum'
+} from '../../../components/ui/icons'
+import { PAPER_SUBJECTS } from '../../../config/curriculum'
 
 export const SUBJECT_VISUALS = {
   english:                       { Icon: BookOpen,        tile: 'bg-amber-100 text-amber-700' },

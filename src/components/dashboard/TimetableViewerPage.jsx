@@ -25,7 +25,7 @@
 
 import { Link } from 'react-router-dom'
 import SeoHelmet from '../seo/SeoHelmet'
-import PdfScrollViewer from '../papers/PdfScrollViewer'
+import PdfScrollViewer from '../../shared/components/PdfScrollViewer'
 
 const TIMETABLE_PDF_URL = '/timetables/grade-7-2026-exam-timetable.pdf'
 

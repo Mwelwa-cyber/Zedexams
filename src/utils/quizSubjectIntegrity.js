@@ -22,7 +22,7 @@
  * silently substitute a quiz from another subject.
  *
  * This module is pure (no Firebase, no DOM) so it is shared by:
- *   • the public runner render gate (src/components/papers/PublicQuizRunner.jsx)
+ *   • the public runner render gate (src/features/papers/pages/PublicQuizRunner.jsx)
  *   • the featured-list filter (src/utils/pastPapers.js)
  *   • the repair/migration script (scripts/repair-quiz-subject-integrity.mjs)
  *   • its own node test (scripts/test-quiz-subject-integrity.mjs)

@@ -1,6 +1,6 @@
 /**
  * Unit tests for the guided past-paper navigation helpers
- * (src/components/papers/paperNav.js).
+ * (src/features/papers/lib/paperNav.js).
  *
  * Plain-node assertion script — run with
  * `node scripts/test-past-paper-nav.test.mjs` or `npm run test:papers-nav`.
@@ -18,7 +18,7 @@ import {
   viewPath,
   isSpecimen,
   filterPapers,
-} from '../src/components/papers/paperNav.js'
+} from '../src/features/papers/lib/paperNav.js'
 
 let passed = 0
 function assert(cond, msg) {

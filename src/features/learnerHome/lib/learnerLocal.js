@@ -1,43 +1,34 @@
 /**
  * learnerLocal — safe localStorage access for learner-home resume state.
  * Everything degrades to null/[] in private mode or when storage is
- * unavailable. These keys complement (never replace) the existing paper
- * keys written by the papers surfaces:
+ * unavailable.
+ *
+ * The paper keys this file used to define live in
+ * `src/shared/utils/paperResumeStorage.js` now, because `src/features/papers/`
+ * is what WRITES them and this feature only reads them — see that module's
+ * header. They are re-exported here so learner-home's own callers keep one
+ * import, and so the read side stays described in one place.
+ *
+ * Keys read here that the papers surfaces write:
  *   zx_recent_papers          — array of recently opened paper ids
  *   paper-progress:{paperId}  — last visible page number (string)
  */
 
-export function readJson(key, fallback = null) {
-  try {
-    const raw = window.localStorage.getItem(key)
-    return raw ? JSON.parse(raw) : fallback
-  } catch {
-    return fallback
-  }
-}
+export {
+  readJson,
+  writeJson,
+  readPaperPage,
+  PAPER_RESUME_KEY,
+} from '../../../shared/utils/paperResumeStorage'
 
-export function writeJson(key, value) {
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value))
-  } catch { /* quota / private mode — ignore */ }
-}
+import { readJson } from '../../../shared/utils/paperResumeStorage'
 
-export const PAPER_RESUME_KEY = 'lhx:paper-resume'
 export const preferredTermKey = (uid) => `lhx:preferred-term:${uid || 'anon'}`
 
 /** Most recently opened paper id from the papers hub history. */
 export function readRecentPaperIds() {
   const list = readJson('zx_recent_papers', [])
   return Array.isArray(list) ? list : []
-}
-
-export function readPaperPage(paperId) {
-  try {
-    const n = Number(window.localStorage.getItem(`paper-progress:${paperId}`))
-    return Number.isFinite(n) && n > 0 ? n : null
-  } catch {
-    return null
-  }
 }
 
 /**

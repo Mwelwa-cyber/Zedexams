@@ -8,12 +8,12 @@
  * paperVisuals.js; data access lives in src/utils/pastPapers.js.
  */
 
-import { paperQuizIsAttached } from '../../utils/pastPaperQuizStatus.js'
+import { paperQuizIsAttached } from '../../../utils/pastPaperQuizStatus.js'
 import {
   comparePapersBySource,
   isOfficialSource,
   paperSourceLabel,
-} from '../../config/paperSources.js'
+} from '../../../config/paperSources.js'
 
 // Sentinel used by the hub for "no filter selected".
 export const ANY = 'any'

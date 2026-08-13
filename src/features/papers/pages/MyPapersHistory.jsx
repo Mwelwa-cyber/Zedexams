@@ -15,11 +15,11 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
-import { listMyPaperAttempts } from '../../utils/pastPapers'
-import { PAPER_SUBJECTS } from '../../config/curriculum'
-import SeoHelmet from '../seo/SeoHelmet'
-import Skeleton from '../ui/Skeleton'
+import { useAuth } from '../../../contexts/AuthContext'
+import { listMyPaperAttempts } from '../../../utils/pastPapers'
+import { PAPER_SUBJECTS } from '../../../config/curriculum'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Skeleton from '../../../components/ui/Skeleton'
 
 function fmtDuration(seconds) {
   if (!Number.isFinite(seconds) || seconds <= 0) return '—'

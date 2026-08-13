@@ -24,8 +24,8 @@
  */
 
 import { useEffect, useRef } from 'react'
-import { Download, X } from '../ui/icons'
-import useFocusTrap from '../../hooks/useFocusTrap'
+import { Download, X } from '../../../components/ui/icons'
+import useFocusTrap from '../../../hooks/useFocusTrap'
 
 export default function PaperReaderOverlay({
   title,

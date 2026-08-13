@@ -50,7 +50,7 @@ import {
   RotateCw,
   ZoomIn,
   ZoomOut,
-} from '../ui/icons'
+} from '../../components/ui/icons'
 
 const ZOOM_LEVELS = [0.6, 0.75, 0.9, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
 const DEFAULT_ZOOM_INDEX = 3 // 1.0 = fit the container width

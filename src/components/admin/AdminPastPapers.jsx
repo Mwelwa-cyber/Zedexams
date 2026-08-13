@@ -29,7 +29,7 @@ import {
   paperNumberLabel,
   paperSourceLabel,
 } from '../../config/paperSources'
-import { PaperSourceBadge } from '../papers/PaperTitle'
+import { PaperSourceBadge } from '../../features/papers'
 import { convertPaperToQuizDraft } from '../../utils/paperToQuizConverter'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'

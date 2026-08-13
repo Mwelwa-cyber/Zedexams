@@ -18,13 +18,13 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
-import { hasPremiumAccess } from '../../utils/subscriptionConfig'
-import { getPaperById } from '../../utils/pastPaperLookup'
+import { useAuth } from '../../../contexts/AuthContext'
+import { hasPremiumAccess } from '../../../utils/subscriptionConfig'
+import { getPaperById } from '../../../utils/pastPaperLookup'
 import {
   LEARNER_QUIZ_PENDING_TEXT,
   paperQuizIsAttached,
-} from '../../utils/pastPaperQuizStatus'
+} from '../../../utils/pastPaperQuizStatus'
 import {
   FREE_QUESTION_LIMIT,
   QUIZ_LOAD,
@@ -34,30 +34,30 @@ import {
   loadPublicQuiz,
   recordAnsweredQuestion,
   resetCounter,
-} from '../../utils/pastPaperQuiz'
-import { reportClientError } from '../../utils/clientErrorReporting'
-import { useAssessmentEngineFlag } from '../../hooks/useAssessmentEngineFlag'
-import { fromQuiz, markAttempt, unrenderableTypes } from '../../engines/assessment-engine'
-import { ChoiceQuestion } from '../../engines/assessment-engine/render'
-import { capture } from '../../utils/analytics'
-import { BUILD_ID } from '../../utils/buildId'
-import { paywall } from '../../utils/paywall'
-import { validateQuizSubjectIntegrity } from '../../utils/quizSubjectIntegrity'
-import { PAPER_SUBJECTS } from '../../config/curriculum'
-import SeoHelmet from '../seo/SeoHelmet'
-import Logo from '../ui/Logo'
-import Skeleton from '../ui/Skeleton'
-import RichContent, { getRichPlainText } from '../../editor/RichContent'
-import { useQuizDisplayPrefs } from '../../hooks/useQuizDisplayPrefs'
-import { useQuizReadAloud } from '../../hooks/useQuizReadAloud'
-import ReadingSettingsButton from '../quiz/reading/ReadingSettingsButton'
-import ReadingSettingsSheet from '../quiz/reading/ReadingSettingsSheet'
-import TextToSpeechButton from '../quiz/reading/TextToSpeechButton'
-import { optionsToReadAloudText } from '../../utils/readAloudText'
-import DiagramSvg from '../diagrams/DiagramSvg'
-import ZoomableImage from '../quiz/ZoomableImage'
-import { imagePositionClasses, resolveQuestionFigure, usesFigurePositionWrapper } from '../../utils/questionFigure'
-import ExtraQuestionImages from '../quiz/ExtraQuestionImages'
+} from '../../../utils/pastPaperQuiz'
+import { reportClientError } from '../../../utils/clientErrorReporting'
+import { useAssessmentEngineFlag } from '../../../hooks/useAssessmentEngineFlag'
+import { fromQuiz, markAttempt, unrenderableTypes } from '../../../engines/assessment-engine'
+import { ChoiceQuestion } from '../../../engines/assessment-engine/render'
+import { capture } from '../../../utils/analytics'
+import { BUILD_ID } from '../../../utils/buildId'
+import { paywall } from '../../../utils/paywall'
+import { validateQuizSubjectIntegrity } from '../../../utils/quizSubjectIntegrity'
+import { PAPER_SUBJECTS } from '../../../config/curriculum'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Logo from '../../../components/ui/Logo'
+import Skeleton from '../../../components/ui/Skeleton'
+import RichContent, { getRichPlainText } from '../../../editor/RichContent'
+import { useQuizDisplayPrefs } from '../../../hooks/useQuizDisplayPrefs'
+import { useQuizReadAloud } from '../../../hooks/useQuizReadAloud'
+import ReadingSettingsButton from '../../../components/quiz/reading/ReadingSettingsButton'
+import ReadingSettingsSheet from '../../../components/quiz/reading/ReadingSettingsSheet'
+import TextToSpeechButton from '../../../components/quiz/reading/TextToSpeechButton'
+import { optionsToReadAloudText } from '../../../utils/readAloudText'
+import DiagramSvg from '../../../components/diagrams/DiagramSvg'
+import ZoomableImage from '../../../components/quiz/ZoomableImage'
+import { imagePositionClasses, resolveQuestionFigure, usesFigurePositionWrapper } from '../../../utils/questionFigure'
+import ExtraQuestionImages from '../../../components/quiz/ExtraQuestionImages'
 
 function plainTextFromQuestion(q) {
   // Prefer Tiptap JSON, fall back to legacy HTML/plain text.
