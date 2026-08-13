@@ -11,7 +11,7 @@
  * forced to open in a new tab with `rel="noopener"`.
  *
  * Uses its OWN `Marked` instance so it can't clash with the global
- * `marked.setOptions` the blog renderer sets (src/utils/blogPosts.js).
+ * `marked.setOptions` the blog renderer sets (src/features/blog/services/blogPosts.js).
  */
 
 import { Marked } from 'marked'

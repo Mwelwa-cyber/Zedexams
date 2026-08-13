@@ -155,8 +155,8 @@ const PastPaperStudio = lazy(() => import('./components/admin/PastPaperStudio'))
 const ZedChatPage = lazy(() => import('./features/zedChat/pages/ZedChatPage'))
 const StatusPage = lazy(() => import('./features/marketing/pages/StatusPage'))
 // Audit C5 — SEO blog. Markdown-driven, posts ship in the bundle.
-const BlogIndex = lazy(() => import('./components/blog/BlogIndex'))
-const BlogPost = lazy(() => import('./components/blog/BlogPost'))
+const BlogIndex = lazy(() => import('./features/blog/pages/BlogIndex'))
+const BlogPost = lazy(() => import('./features/blog/pages/BlogPost'))
 
 // Admin section
 const AdminLayout = lazy(() => import('./features/adminShell/pages/AdminLayout'))
