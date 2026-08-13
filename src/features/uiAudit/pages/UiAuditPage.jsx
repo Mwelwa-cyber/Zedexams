@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useTheme } from '../../../contexts/ThemeContext'
 import { TEACHER_THEMES } from '../../../contexts/teacherThemeCore'
-import { AUDIT_SECTIONS } from './auditSections.js'
-import { AllThemesGrid, ThemeScope } from './auditKit.jsx'
-import './uiAudit.css'
+import { AUDIT_SECTIONS } from '../lib/auditSections.js'
+import { AllThemesGrid, ThemeScope } from '../components/auditKit.jsx'
+import '../styles/uiAudit.css'
 
 /**
  * /dev/ui — the internal UI audit page ("kitchen sink").

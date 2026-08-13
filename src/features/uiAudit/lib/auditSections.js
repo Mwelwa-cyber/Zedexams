@@ -1,13 +1,13 @@
-import ButtonsSection from './sections/ButtonsSection.jsx'
-import CardsSection from './sections/CardsSection.jsx'
-import ContentSection from './sections/ContentSection.jsx'
-import DataDisplaySection from './sections/DataDisplaySection.jsx'
-import FeedbackSection from './sections/FeedbackSection.jsx'
-import FormControlsSection from './sections/FormControlsSection.jsx'
-import GapsSection from './sections/GapsSection.jsx'
-import IconsSection from './sections/IconsSection.jsx'
-import NavigationSection from './sections/NavigationSection.jsx'
-import TokensSection from './sections/TokensSection.jsx'
+import ButtonsSection from '../components/sections/ButtonsSection.jsx'
+import CardsSection from '../components/sections/CardsSection.jsx'
+import ContentSection from '../components/sections/ContentSection.jsx'
+import DataDisplaySection from '../components/sections/DataDisplaySection.jsx'
+import FeedbackSection from '../components/sections/FeedbackSection.jsx'
+import FormControlsSection from '../components/sections/FormControlsSection.jsx'
+import GapsSection from '../components/sections/GapsSection.jsx'
+import IconsSection from '../components/sections/IconsSection.jsx'
+import NavigationSection from '../components/sections/NavigationSection.jsx'
+import TokensSection from '../components/sections/TokensSection.jsx'
 
 /**
  * The audit page's table of contents, and the only place it is declared.

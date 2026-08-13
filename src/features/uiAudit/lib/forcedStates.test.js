@@ -132,7 +132,7 @@ console.log('\nthe pinned focus ring still matches the global one')
 
 test('uiAudit.css repeats index.css\'s focus-visible box-shadow exactly', () => {
   const appCss = read('src/index.css')
-  const auditCss = read('src/components/dev/uiAudit/uiAudit.css')
+  const auditCss = read('src/features/uiAudit/styles/uiAudit.css')
 
   const globalRule = appCss.match(/\*:focus-visible\s*\{([^}]*)\}/)
   assert.ok(globalRule, 'no `*:focus-visible` rule in src/index.css — the audit page mirrors it, so it must exist')
@@ -158,7 +158,7 @@ test('uiAudit.css repeats index.css\'s focus-visible box-shadow exactly', () => 
 
 test('uiAudit.css repeats .tdv2-nav-item:hover exactly', () => {
   const dashCss = read('src/shared/styles/dashboardV2.css')
-  const auditCss = read('src/components/dev/uiAudit/uiAudit.css')
+  const auditCss = read('src/features/uiAudit/styles/uiAudit.css')
 
   const real = dashCss.match(/\.tdv2-nav-item:hover\s*\{([^}]*)\}/)
   assert.ok(real, 'no `.tdv2-nav-item:hover` rule in dashboardV2.css — the audit page mirrors it')
@@ -182,7 +182,7 @@ test('uiAudit.css repeats .tdv2-nav-item:hover exactly', () => {
 })
 
 test('the pinned ring resolves its colours from tokens, not literals', () => {
-  const auditCss = read('src/components/dev/uiAudit/uiAudit.css')
+  const auditCss = read('src/features/uiAudit/styles/uiAudit.css')
   const rule = auditCss.match(/\.ui-audit-force-focus\s*>\s*\*\s*\{([^}]*)\}/)[1]
   assert.ok(
     !/#[0-9a-fA-F]{3,8}\b|rgba?\(/.test(rule),

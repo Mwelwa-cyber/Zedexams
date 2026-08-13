@@ -1,8 +1,8 @@
-import Breadcrumbs from '../../../ui/Breadcrumbs'
-import PageHeader from '../../../ui/PageHeader'
-import PaginationFooter from '../../../ui/PaginationFooter'
-import Button from '../../../ui/Button'
-import Icon from '../../../ui/Icon'
+import Breadcrumbs from '../../../../components/ui/Breadcrumbs'
+import PageHeader from '../../../../components/ui/PageHeader'
+import PaginationFooter from '../../../../components/ui/PaginationFooter'
+import Button from '../../../../components/ui/Button'
+import Icon from '../../../../components/ui/Icon'
 import {
   BookOpen,
   ChevronDown,
@@ -10,7 +10,7 @@ import {
   LayoutDashboard,
   Search,
   Settings,
-} from '../../../ui/icons'
+} from '../../../../components/ui/icons'
 import {
   Block,
   isDarkTheme,

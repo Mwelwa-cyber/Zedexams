@@ -15,7 +15,7 @@ import {
   readTokens,
   sortTokenNames,
   TOKEN_GROUPS,
-} from '../tokenReader.js'
+} from '../../lib/tokenReader.js'
 
 /**
  * Section 1 — design tokens.

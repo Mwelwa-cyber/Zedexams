@@ -200,7 +200,7 @@ const AgentJobDetail  = lazy(() => import('./features/agentsConsole/pages/AgentJ
 const CompanyHQ       = lazy(() => import('./features/companyHQ/pages/CompanyHQ').then(m => ({ default: m.CompanyHQ })))
 
 // Internal UI audit page at /dev/ui — see the route comment below.
-const UiAuditPage     = lazy(() => import('./components/dev/uiAudit/UiAuditPage'))
+const UiAuditPage     = lazy(() => import('./features/uiAudit/pages/UiAuditPage'))
 
 
 // Audit A3 PR 1 — parent portal (public read-only progress view).

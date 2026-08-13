@@ -1,7 +1,7 @@
-import Icon from '../../../ui/Icon'
-import StatusBadge from '../../../ui/StatusBadge'
-import { HeaderIconButton } from '../../../ui/HeaderIconButton'
-import { Download, FileText, Trash2 } from '../../../ui/icons'
+import Icon from '../../../../components/ui/Icon'
+import StatusBadge from '../../../../components/ui/StatusBadge'
+import { HeaderIconButton } from '../../../../components/ui/HeaderIconButton'
+import { Download, FileText, Trash2 } from '../../../../components/ui/icons'
 import { Block, Section } from '../auditKit.jsx'
 
 /**

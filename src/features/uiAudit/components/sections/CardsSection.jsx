@@ -1,7 +1,7 @@
-import Card from '../../../ui/Card'
-import Icon from '../../../ui/Icon'
-import Button from '../../../ui/Button'
-import { BookOpen, FileText, TrendingUp } from '../../../ui/icons'
+import Card from '../../../../components/ui/Card'
+import Icon from '../../../../components/ui/Icon'
+import Button from '../../../../components/ui/Button'
+import { BookOpen, FileText, TrendingUp } from '../../../../components/ui/icons'
 import { Block, Section, Specimen } from '../auditKit.jsx'
 import { ForceHover } from '../forcedStates.jsx'
 

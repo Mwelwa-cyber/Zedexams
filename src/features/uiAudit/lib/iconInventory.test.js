@@ -97,7 +97,7 @@ test('the inventory matches the source tree exactly', () => {
   assert.deepEqual(
     { missing, stale },
     { missing: [], stale: [] },
-    'src/components/dev/uiAudit/iconInventory.js has drifted from the codebase.\n' +
+    'src/features/uiAudit/lib/iconInventory.js has drifted from the codebase.\n' +
       (missing.length ? `  imported but NOT on the audit page: ${missing.join(', ')}\n` : '') +
       (stale.length ? `  on the audit page but no longer imported: ${stale.join(', ')}\n` : '') +
       '  Add or remove them in BOTH the import block and the LUCIDE_ICONS map.',
