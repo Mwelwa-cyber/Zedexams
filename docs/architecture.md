@@ -1330,6 +1330,57 @@ The order was settled 2026-08-07 as **smallest and lowest-risk first**, ranked o
 | ~~`register` — re-inventory first~~ · ~~inventory DONE 2026-08-10, migration split in two and unclaimed~~ · ~~CLAIMED 2026-08-11 by session D~~ · **MERGED #2291** — ONE pull request, not two; the split was withdrawn (see the correction below) | ~~`dashboardV2`~~ → **reassigned to C** | ~~`dashboardV2`~~ — **not a pure move, see below** |
 | **the remaining admin areas** — claimed by A, 2026-08-10 | — | — |
 | **the lesson-plan studio** — CLAIMED 2026-08-13 by session D, branch `claude/phase-4-lesson-plan-studio-rlqnw2`; unblocked by owner ruling, see the freeze note below | — | — |
+| **`teacherShell`** — CLAIMED 2026-08-13 by session E, branch `claude/phase-4-teacher-shell-scx8tx`; **two pull requests**, see below | — | — |
+
+**`teacherShell` is a NEW Wave 4 item — it was not on the list, and it is claimed
+here before a file moves.** The list named `dashboardV2`, and #2247 migrated the
+dashboard out of `src/components/teacher/dashboardV2/` while deliberately leaving the
+app shell behind. What is left in that directory is not a remainder: it is
+`TeacherLayout` and the chrome every `/teacher/*` route mounts. Adding the row rather
+than folding the work into a struck one is the `classTimetable` rule (#2220/#2221) —
+an item nobody wrote down is an item two sessions can start.
+
+**Checked before claiming, per the rule that collision wrote down:** `teacherShell`
+appears nowhere in this document, `src/features/teacherShell/` does not exist, no open
+pull request names it, and neither of session A's live branches carries a change under
+`teacher/TeacherLayout|TeacherTopBar|dashboardV2|teacherNav|immersiveStudioRoutes`.
+Session A's row is `src/components/admin/`, which does not reach the shell.
+
+**Two pull requests, and the split is structural rather than stylistic.** Fourteen of
+the 25 files in `src/components/teacher/dashboardV2/` serve BOTH the shell and
+`features/dashboardV2` — `dashboardV2.css` (3 consumers), `glassSurface.css` (8),
+`teacherStudios.js` (6), `teacherLauncherCore.js` (5), `dashboardV2Config.js` (4),
+`dashboardV2Data.js` (2), `useRecentStudios.js` (2), `BottomSheet` and `GlassToolTile`,
+plus five colocated tests. Those cannot go into the feature: a `features/dashboardV2`
+file importing `features/teacherShell/components/BottomSheet` is a cross-feature
+violation, and `KNOWN_CROSS_FEATURE_IMPORTS` only shrinks. **PR A** moves them to
+`src/shared/` and re-points both sides, creating no feature; **PR B** is then the
+mechanical move of the 16 remaining shell files (2,269 lines) into
+`src/features/teacherShell/`. Combined, a boundary, mock-path, routing or bundle
+regression could not be attributed to one or the other.
+
+**The seam #2247 drew was right, and this reverses its direction rather than
+contradicting it.** `src/features/dashboardV2/index.js` records why the shell kept its
+own copies: reaching through the dashboard's front door would have put the app
+launcher, the onboarding tour, Help & Support and the mock data on the import graph of
+every teacher route, to draw a sidebar. That reason survives — the coupling it refused
+(shell → dashboard) is still refused. The coupling this creates is the opposite one
+(dashboard → shell), and it costs nothing new, because the dashboard already renders
+*inside* `TeacherLayout` at every route it mounts on. **A deliberate seam is a decision
+with a shelf life, not a permanent boundary:** #2247's was correct when it was made and
+stopped being correct the moment the shell became a candidate to be a feature. This is
+a different failure mode from the four times this section has recorded the freeze list
+reaching further than the paths it names, and from the once it recorded it reaching too
+broad.
+
+**Dead code found by the inventory, recorded as its own finding.**
+`TeacherGlassHeader.jsx` (132 lines) and `TeacherBottomNav.jsx` (43) have **zero
+importers** — every remaining mention across `src/`, `scripts/` and `docs/` is a prose
+comment. They are the superseded V1 pair; the mobile chrome that actually renders is
+`MobileChrome.jsx`'s `MobileBottomNav`. They survived a full Wave 4 sweep because every
+check in this phase asks *where does this go?* and none asks *does anything still call
+this?* Deleting `TeacherBottomNav` is also what leaves `teacherNav.js` with a single
+consumer, which is what lets it travel in PR B.
 
 **The admin-areas row is worked ONE SLICE AT A TIME, one pull request each — the row is not restruck until the last slice lands.** The 2026-08-12 inventory classified all 26 files in `src/components/admin/` plus `security/`: frozen by the owner freeze (`PastPaperStudio`, `CreateQuizV2`, `AdminPastPapers`, `ExamPaperLibraryPanel`, `pastPaperReport`, `quizPaperLink`, `BulkPublishQuizzesButton`, `GamesSeedAdmin`, and `AdminDashboard` via `seedData`'s quiz writes), superseded, or genuinely remaining. Slicing rather than one sweep is deliberate: a flat directory is not a feature, and the freeze reaches 21 of those files by dependency rather than the 5 named by path, so each slice has to argue its own case.
 
