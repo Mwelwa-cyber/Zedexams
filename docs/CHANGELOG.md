@@ -5,6 +5,59 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-08-13
+
+### Security
+
+- Keep id fallbacks unique when there is no Web Crypto (#2319)
+- Resolve all 61 open CodeQL code-scanning alerts (#2318)
+
+### Added
+
+- Cut learner quizzes over to the Assessment Engine (Phase 3, flip 2) (#2329)
+
+### Fixed
+
+- Let a rollback reach an attempt already on the engine (#2340)
+- Close three post-merge P2s on the quiz cutover (#2336)
+- Stop reporting every refused image upload as "too large" (#2317)
+- Clear all five Dependabot alerts, and say how to report the sixth (#2313)
+- Clear all five Dependabot alerts, and say how to report the sixth (#2312)
+
+### Changed
+
+- Put the nav registries back under the dashboard link scan (#2343)
+- Move the marketing site into src/features/marketing (#2342)
+- Claude/papers migration v0u62a (#2341)
+- Move the official exam timetable into src/features/examTimetable (#2337)
+- Move Zed chat into src/features/zedChat (#2334)
+- Move the parent portal into src/features/parentPortal (#2333)
+- Move admin TOTP enrolment into src/features/adminMfa (#2327)
+- Move the teacher app shell into src/features/teacherShell (Wave 4, PR B) (#2331)
+- Move the App Check dashboard into src/features/adminAppCheck (#2326)
+- TeacherShell PR A: move the both-ways modules to the bottom layer (#2325)
+- Claim `teacherShell` in §13 before a file moves (#2324)
+- Close the region hole, and give the integrity guard a parser it owns (#2314)
+- Move the demo-trials panel into src/features/adminTrials (#2311)
+- Gate (b) to zero: the module-local factory's arguments, and the v1 chain (#2310)
+- Enforce the trunk guard over the window Ledger actually walks (#2308)
+
+### Documentation
+
+- Correct the generate/ consumer counts Codex flagged on #2321 (#2323)
+- Record that `teacher/generate/` is not a Wave 4 feature (#2321)
+- Record that `teacher/views/` is not a Wave 4 item (#2316)
+
+### Internal
+
+- Move StudioHeader to src/shared/components (owner ruling) (#2339)
+- Promote the shared studio chrome out of components/teacher (Wave 4) (#2335)
+- Migrate the past-paper archive into src/features/ (Wave 4) (#2330)
+- Migrate the Assessment Paper Studio into src/features/ (Wave 4) (#2328)
+- Promote studioFields to src/shared/components/ (#2322)
+- Migrate the Lesson Plan Studio into src/features/ (Wave 4) (#2320)
+- Move shellNavGuardCore to src/shared/utils/ (#2315)
+
 ## 2026-08-12
 
 ### Security
