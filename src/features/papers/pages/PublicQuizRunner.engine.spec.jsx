@@ -23,37 +23,37 @@ const flagState = { engine: true, resolved: true, final: true, source: 'rollout-
 // Per-test knobs for the quiz mock, mutated in tests and reset in beforeEach.
 const quizState = { correctAnswer: 1, lockedOut: false, questionExtra: {} }
 
-vi.mock('../../hooks/useAssessmentEngineFlag', () => ({
+vi.mock('../../../hooks/useAssessmentEngineFlag', () => ({
   useAssessmentEngineFlag: () => flagState,
 }))
-vi.mock('../../contexts/AuthContext', () => ({
+vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({ currentUser: null, userProfile: null }),
 }))
-vi.mock('../../utils/pastPaperLookup', () => ({
+vi.mock('../../../utils/pastPaperLookup', () => ({
   getPaperById: vi.fn(async () => ({
     id: 'p1', title: 'Mathematics P1 2024', subject: 'mathematics',
     grade: '7', year: 2024, quizId: 'quiz-1', quizStatus: 'attached',
   })),
 }))
-vi.mock('../../utils/quizSubjectIntegrity', () => ({
+vi.mock('../../../utils/quizSubjectIntegrity', () => ({
   validateQuizSubjectIntegrity: () => ({ ok: true }),
 }))
-vi.mock('../../utils/analytics', () => ({ capture: vi.fn() }))
-vi.mock('../seo/SeoHelmet', () => ({ default: () => null }))
-vi.mock('../../hooks/useQuizDisplayPrefs', () => ({
+vi.mock('../../../utils/analytics', () => ({ capture: vi.fn() }))
+vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../hooks/useQuizDisplayPrefs', () => ({
   useQuizDisplayPrefs: () => ({
     prefs: { readAloud: false }, setPref: vi.fn(), resetPrefs: vi.fn(),
     displayVars: {}, saving: false,
   }),
 }))
-vi.mock('../../hooks/useQuizReadAloud', () => ({
+vi.mock('../../../hooks/useQuizReadAloud', () => ({
   useQuizReadAloud: () => ({ enabled: false, stop: vi.fn() }),
 }))
 // NOT importOriginal: the real module imports the Firebase client, which
 // refuses to initialise in jsdom without a config. The constants live in the
 // pure `pastPaperQuizLoad`, which is safe to load anywhere.
-vi.mock('../../utils/pastPaperQuiz', async () => {
-  const pure = await import('../../utils/pastPaperQuizLoad')
+vi.mock('../../../utils/pastPaperQuiz', async () => {
+  const pure = await import('../../../utils/pastPaperQuizLoad')
   return {
     QUIZ_LOAD: pure.QUIZ_LOAD,
     QUIZ_LOAD_TEXT: pure.QUIZ_LOAD_TEXT,
@@ -84,7 +84,7 @@ vi.mock('../../utils/pastPaperQuiz', async () => {
 })
 
 import PublicQuizRunner from './PublicQuizRunner'
-import { capture } from '../../utils/analytics'
+import { capture } from '../../../utils/analytics'
 
 function mountRunner() {
   return render(

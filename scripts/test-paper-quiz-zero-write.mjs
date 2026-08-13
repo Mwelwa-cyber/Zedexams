@@ -25,7 +25,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const RUNNER = 'src/components/papers/PublicQuizRunner.jsx'
+const RUNNER = 'src/features/papers/pages/PublicQuizRunner.jsx'
 const FRONT_DOOR = 'src/engines/assessment-engine/index.js'
 
 let passed = 0

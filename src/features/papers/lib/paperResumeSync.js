@@ -2,6 +2,14 @@
  * usePaperResumeSync — records "last opened paper + page" for the
  * dashboard hero's Continue Reading block.
  *
+ * It lives in `papers` rather than `learnerHome` because papers is what
+ * CALLS it and what owns the page number it reads; learner-home is the
+ * reader on the other side of the storage contract in
+ * `src/shared/utils/paperResumeStorage.js`. Writing the learner's profile
+ * from here is the same direction the viewer already writes localStorage in
+ * — it is one feature publishing its own progress, not reaching into
+ * another's internals.
+ *
  * Write strategy (spec §6/§24 — no per-scroll writes):
  *   • localStorage mirror updates on mount and again when the learner
  *     leaves (unmount / tab hidden / pagehide), reading the page number
@@ -14,7 +22,7 @@
 import { useEffect } from 'react'
 import { doc, setDoc } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
-import { PAPER_RESUME_KEY, writeJson, readPaperPage } from './learnerLocal'
+import { PAPER_RESUME_KEY, writeJson, readPaperPage } from '../../../shared/utils/paperResumeStorage'
 
 export default function usePaperResumeSync({ paperId, paper, uid }) {
   useEffect(() => {

@@ -17,7 +17,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { resolvePaperUrl } from '../../utils/pastPapers'
+import { resolvePaperUrl } from '../../../utils/pastPapers'
 
 // jsdom ships neither observer; the image page list wires an
 // IntersectionObserver (visible-page tracking) on mount.
@@ -30,10 +30,10 @@ if (!globalThis.IntersectionObserver) {
   }
 }
 
-vi.mock('../../firebase/config', () => ({ default: {}, auth: {}, db: {}, storage: {} }))
+vi.mock('../../../firebase/config', () => ({ default: {}, auth: {}, db: {}, storage: {} }))
 
 const mockGetPaper = vi.fn()
-vi.mock('../../utils/pastPapers', () => ({
+vi.mock('../../../utils/pastPapers', () => ({
   getPaper: (...a) => mockGetPaper(...a),
   getLinkedQuizMeta: vi.fn().mockResolvedValue(null),
   listMyPaperAttempts: vi.fn().mockResolvedValue([]),
@@ -43,9 +43,9 @@ vi.mock('../../utils/pastPapers', () => ({
 }))
 
 let mockAuth = { currentUser: { uid: 'learner-1' }, isAdmin: false }
-vi.mock('../../contexts/AuthContext', () => ({ useAuth: () => mockAuth }))
-vi.mock('../../contexts/DataSaverContext', () => ({ useDataSaver: () => ({ dataSaver: false }) }))
-vi.mock('../seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../contexts/AuthContext', () => ({ useAuth: () => mockAuth }))
+vi.mock('../../../contexts/DataSaverContext', () => ({ useDataSaver: () => ({ dataSaver: false }) }))
+vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
 
 const mockNavigate = vi.fn()
 vi.mock('react-router-dom', async (importOriginal) => {

@@ -63,7 +63,7 @@ import {
   normalizePaperNumberToken,
   paperNumberLabel,
 } from '../../config/paperSources'
-import { PaperSourceBadge } from '../papers/PaperTitle'
+import { PaperSourceBadge } from '../../features/papers'
 import {
   canDerivePaperKey,
   derivedPaperTitle,
@@ -91,7 +91,7 @@ import {
 
 // PDF.js viewer is ~400 kB gzipped — only load it once the admin
 // actually reaches step 1 with a PDF asset on screen.
-const PdfJsViewer = lazy(() => import('../papers/PdfJsViewer'))
+const PdfJsViewer = lazy(() => import('../../shared/components/PdfJsViewer'))
 
 const fns = getFunctions(undefined, 'us-central1')
 // A long paper runs several vision/extraction calls in sequence (one per page

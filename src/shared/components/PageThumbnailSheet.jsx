@@ -21,7 +21,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { X } from '../ui/icons'
+import { X } from '../../components/ui/icons'
 import useFocusTrap from '../../hooks/useFocusTrap'
 
 function ThumbnailCell({ pageNumber, selected, getThumbnail, onSelect }) {

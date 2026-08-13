@@ -42,7 +42,7 @@ them (the corrections this produced are now in §4 itself):
 Three consequences run through the rest of this plan:
 
 1. **`PastPaperPractice` is not a runner and must leave Phase 3's scope.** It is
-   a PDF reader with a stopwatch (`src/components/papers/PastPaperPractice.jsx`,
+   a PDF reader with a stopwatch (`src/features/papers/pages/PastPaperPractice.jsx`,
    482 lines) that writes an attempt carrying `elapsedSeconds` and a free-text
    `reflection` and *no answers*
    (`src/utils/pastPapers.js:518,539`). It has no questions to render, no marks
@@ -162,7 +162,7 @@ most divergent of the four.
 
 ### 1.3 PublicQuizRunner — `/papers/:paperId/quiz`
 
-`src/components/papers/PublicQuizRunner.jsx`, 712 lines. Route at
+`src/features/papers/pages/PublicQuizRunner.jsx`, 712 lines. Route at
 `src/App.jsx:515` — **public, anonymous allowed**.
 
 - Loads the paper, then the linked quiz + questions through

@@ -61,8 +61,8 @@ check(
 //    that is the fragile inline-loader pattern this bug came from. Worker
 //    setup must flow through the shared loader.
 const consumers = [
-  'src/components/papers/PdfScrollViewer.jsx',
-  'src/components/papers/PdfJsViewer.jsx',
+  'src/shared/components/PdfScrollViewer.jsx',
+  'src/shared/components/PdfJsViewer.jsx',
   'src/components/quiz/documentQuizImporter.js',
 ]
 for (const file of consumers) {

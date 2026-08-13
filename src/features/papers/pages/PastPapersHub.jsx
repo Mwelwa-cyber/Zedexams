@@ -37,28 +37,28 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
-import { useDebouncedValue } from '../../hooks/useDebouncedValue'
+import { useAuth } from '../../../contexts/AuthContext'
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
 import {
   PAPER_GRADES,
   getCachedPublishedPapers,
   loadPublishedPapers,
-} from '../../utils/pastPapers'
-import { paperQuizIsAttached } from '../../utils/pastPaperQuizStatus'
+} from '../../../utils/pastPapers'
+import { paperQuizIsAttached } from '../../../utils/pastPaperQuizStatus'
 import {
   deriveYears,
   filterPapers,
   isSpecimen,
   subjectsForYear,
   viewPath,
-} from './paperNav'
-import { isOfficialSource, paperSourceLabel } from '../../config/paperSources'
-import { fullPaperTitle } from '../../utils/paperTitleCore'
-import PaperTitle, { PaperSourceBadge } from './PaperTitle'
-import { subjectMeta } from './paperVisuals'
-import SeoHelmet from '../seo/SeoHelmet'
-import Logo from '../ui/Logo'
-import Skeleton from '../ui/Skeleton'
+} from '../lib/paperNav'
+import { isOfficialSource, paperSourceLabel } from '../../../config/paperSources'
+import { fullPaperTitle } from '../../../utils/paperTitleCore'
+import PaperTitle, { PaperSourceBadge } from '../components/PaperTitle'
+import { subjectMeta } from '../lib/paperVisuals'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Logo from '../../../components/ui/Logo'
+import Skeleton from '../../../components/ui/Skeleton'
 import {
   ArrowRight,
   BookmarkSquareIcon,
@@ -77,7 +77,7 @@ import {
   Sparkles,
   StarIcon,
   X,
-} from '../ui/icons'
+} from '../../../components/ui/icons'
 
 // ── Sample fallback (only shown when Firestore is empty / errors) ────
 // Every sample carries a source and an explicit confidence, because these rows

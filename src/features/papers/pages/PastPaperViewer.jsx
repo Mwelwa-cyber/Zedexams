@@ -11,9 +11,9 @@
 
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
-import { useDataSaver } from '../../contexts/DataSaverContext'
-import useHideOnScroll from '../../hooks/useHideOnScroll'
+import { useAuth } from '../../../contexts/AuthContext'
+import { useDataSaver } from '../../../contexts/DataSaverContext'
+import useHideOnScroll from '../../../hooks/useHideOnScroll'
 import {
   getPaper,
   getLinkedQuizMeta,
@@ -21,17 +21,17 @@ import {
   listPublishedPapers,
   recordPaperEvent,
   resolvePaperUrl,
-} from '../../utils/pastPapers'
-import { QUIZ_PENDING_COPY, paperQuizIsAttached } from '../../utils/pastPaperQuizStatus'
-import { saveBlob } from '../../utils/saveBlob'
-import usePaperResumeSync from '../../features/learnerHome/lib/paperResumeSync'
-import { buildDownloadName } from '../../utils/downloadFilename'
-import { siblingPapers, viewPath } from './paperNav'
-import { isOfficialSource, paperNumberLabel, paperSourceLabel } from '../../config/paperSources'
-import { PaperSourceBadge } from './PaperTitle'
-import { subjectMeta } from './paperVisuals'
-import SeoHelmet from '../seo/SeoHelmet'
-import Skeleton from '../ui/Skeleton'
+} from '../../../utils/pastPapers'
+import { QUIZ_PENDING_COPY, paperQuizIsAttached } from '../../../utils/pastPaperQuizStatus'
+import { saveBlob } from '../../../utils/saveBlob'
+import usePaperResumeSync from '../lib/paperResumeSync'
+import { buildDownloadName } from '../../../utils/downloadFilename'
+import { siblingPapers, viewPath } from '../lib/paperNav'
+import { isOfficialSource, paperNumberLabel, paperSourceLabel } from '../../../config/paperSources'
+import { PaperSourceBadge } from '../components/PaperTitle'
+import { subjectMeta } from '../lib/paperVisuals'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Skeleton from '../../../components/ui/Skeleton'
 import {
   ArrowLeft,
   BookmarkSquareIcon,
@@ -46,11 +46,11 @@ import {
   PencilLine,
   TrophyIcon,
   Upload,
-} from '../ui/icons'
+} from '../../../components/ui/icons'
 
-const PdfJsViewer = lazy(() => import('./PdfJsViewer'))
-const ImageZoomOverlay = lazy(() => import('./ImageZoomOverlay'))
-const PaperReaderOverlay = lazy(() => import('./PaperReaderOverlay'))
+const PdfJsViewer = lazy(() => import('../../../shared/components/PdfJsViewer'))
+const ImageZoomOverlay = lazy(() => import('../components/ImageZoomOverlay'))
+const PaperReaderOverlay = lazy(() => import('../components/PaperReaderOverlay'))
 
 /** Best-effort file extension from a Storage path (drops any query string). */
 function extFromPath(path) {
