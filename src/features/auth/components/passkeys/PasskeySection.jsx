@@ -9,11 +9,11 @@
 // manager. All credential data comes from the listUserPasskeys callable —
 // nothing passkey-related is read from Firestore or localStorage.
 import { useCallback, useEffect, useState } from 'react'
-import { useAuth } from '../../../contexts/AuthContext'
-import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
-import Button from '../../ui/Button'
-import Icon from '../../ui/Icon'
-import { Fingerprint, Plus } from '../../ui/icons'
+import { useAuth } from '../../../../contexts/AuthContext'
+import { usePlatformSettings } from '../../../../contexts/PlatformSettingsContext'
+import Button from '../../../../components/ui/Button'
+import Icon from '../../../../components/ui/Icon'
+import { Fingerprint, Plus } from '../../../../components/ui/icons'
 import PasskeyList from './PasskeyList'
 import PasskeySecurityExplanation from './PasskeySecurityExplanation'
 import PasskeyUnsupportedNotice from './PasskeyUnsupportedNotice'
@@ -26,7 +26,7 @@ import {
   mapPasskeyError,
   canRegisterPasskeys,
   MAX_PASSKEYS_PER_USER,
-} from '../../../services/passkeyService'
+} from '../../../../services/passkeyService'
 
 export default function PasskeySection() {
   const { currentUser, userProfile } = useAuth()

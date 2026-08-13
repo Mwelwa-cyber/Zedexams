@@ -12,7 +12,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
  */
 
 const mockSend = vi.fn()
-vi.mock('../../utils/ageGateService', () => ({
+vi.mock('../../../utils/ageGateService', () => ({
   sendGuardianConsentRequest: (...a) => mockSend(...a),
   recordAgeGateAttempt: vi.fn(),
   getDeviceId: () => 'device-test',

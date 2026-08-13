@@ -1,8 +1,8 @@
 // Shared security copy for every passkey surface — the explanation and the
 // shared-device warning are a product requirement (teachers + learners often
 // share school tablets), so they render together and prominently.
-import { ShieldCheck, AlertTriangle } from '../../ui/icons'
-import Icon from '../../ui/Icon'
+import { ShieldCheck, AlertTriangle } from '../../../../components/ui/icons'
+import Icon from '../../../../components/ui/Icon'
 
 export default function PasskeySecurityExplanation() {
   return (

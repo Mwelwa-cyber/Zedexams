@@ -12,8 +12,8 @@ import SubscriptionStatusBanner from './components/subscription/SubscriptionStat
 import ProtectedRoute from './components/layout/ProtectedRoute'
 import { TEACHER_ROUTES, FlaggedStudioRoute } from './components/teacher/teacherRoutes'
 import AdminMfaGate from './components/layout/AdminMfaGate'
-import LearnerOnlyRoute from './components/auth/LearnerOnlyRoute'
-import MissingProfileRecovery from './components/auth/MissingProfileRecovery'
+import LearnerOnlyRoute from './components/layout/LearnerOnlyRoute'
+import MissingProfileRecovery from './components/layout/MissingProfileRecovery'
 import Navbar from './components/layout/Navbar'
 import { getRoleLandingPath } from './utils/navigation'
 import { isWithinVerificationGrace } from './utils/verification'
@@ -71,10 +71,10 @@ function ThemeApplicator() {
   return null
 }
 
-const Login = lazy(() => import('./components/auth/Login'))
-const Register = lazy(() => import('./components/auth/Register'))
-const AuthAction = lazy(() => import('./components/auth/AuthAction'))
-const VerifyEmail = lazy(() => import('./components/auth/VerifyEmail'))
+const Login = lazy(() => import('./features/auth/pages/Login'))
+const Register = lazy(() => import('./features/auth/pages/Register'))
+const AuthAction = lazy(() => import('./features/auth/pages/AuthAction'))
+const VerifyEmail = lazy(() => import('./features/auth/pages/VerifyEmail'))
 const StudentDashboard = lazy(() => import('./features/learnerDashboard/pages/StudentDashboard'))
 const GradeHub = lazy(() => import('./features/learnerDashboard/pages/GradeHub'))
 // New learner home experience (2026-07 rebuild): mobile-first dashboard +

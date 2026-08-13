@@ -3,8 +3,8 @@ import { useAuth } from '../../contexts/AuthContext'
 import { getRoleLandingPath } from '../../utils/navigation'
 import { isWithinVerificationGrace } from '../../utils/verification'
 import FullScreenLoader from '../ui/FullScreenLoader'
-import SessionRestorationLoader from '../auth/SessionRestorationLoader'
-import MissingProfileRecovery from '../auth/MissingProfileRecovery'
+import SessionRestorationLoader from './SessionRestorationLoader'
+import MissingProfileRecovery from './MissingProfileRecovery'
 import VerifyEmailBanner from '../ui/VerifyEmailBanner'
 
 const ROLE_LEVEL = { superAdmin: 4, admin: 3, teacher: 2, learner: 1, student: 1 }

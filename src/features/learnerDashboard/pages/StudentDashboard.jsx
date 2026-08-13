@@ -31,7 +31,7 @@ import { FeedbackButton } from '../../feedback'
 import { buildRequestKey } from '../../../utils/requestControl.js'
 import { deduplicatedRequest } from '../../../utils/requestDeduplication.js'
 import { useAbortableRequest } from '../../../hooks/useAbortableRequest.js'
-import GuardianConsentBanner from '../../../components/auth/GuardianConsentBanner'
+import { GuardianConsentBanner } from '../../auth'
 
 const subjectBadge = {
   English:               'bg-violet-100 text-violet-700',

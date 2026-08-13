@@ -11,7 +11,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { useSettingsSave } from '../components/SaveContext'
 import { Panel, Section, Field, TextInput, Toggle, Btn, Note } from '../components/ui'
 import { normalizeSecurityPrefs, computeSecurityStrength } from '../lib/learnerPrefs'
-import PasskeySection from '../../../components/auth/passkeys/PasskeySection'
+import { PasskeySection } from '../../auth'
 
 function fmtDateTime(value) {
   if (!value) return '—'

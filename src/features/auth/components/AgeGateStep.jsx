@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ageInYears } from '../../utils/guardianConsent'
-import { recordAgeGateAttempt } from '../../utils/ageGateService'
-import { checkAgeAnswer } from '../../utils/signupFlowCore'
+import { ageInYears } from '../../../utils/guardianConsent'
+import { recordAgeGateAttempt } from '../../../utils/ageGateService'
+import { checkAgeAnswer } from '../../../utils/signupFlowCore'
 
 /**
  * The neutral age screen (Play Families policy).

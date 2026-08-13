@@ -7,7 +7,7 @@ import {
 import { useAuth } from '../../../contexts/AuthContext'
 import { deleteMyAccount, pickReauthMethod } from '../../../utils/accountService'
 import { canSubmitDeletion, deletionErrorMessage } from '../../../utils/accountReauth'
-import PasskeySection from '../../../components/auth/passkeys/PasskeySection'
+import { PasskeySection } from '../../auth'
 import SettingsDetailShell from '../components/SettingsDetailShell'
 import FieldRow from '../components/fields/FieldRow'
 import Icon from '../../../components/ui/Icon'

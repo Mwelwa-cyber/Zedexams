@@ -1,35 +1,35 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
-import { getRoleLandingPath } from '../../utils/navigation'
-import { captureReferralFromUrl } from '../../utils/referrals'
-import { friendlyAuthMessage } from '../../utils/friendlyErrors'
-import { assessAction, shouldBlock } from '../../utils/recaptcha'
-import { validateFields, hasErrors, focusFirstError } from '../../utils/formValidation'
-import { requiresGuardianConsent } from '../../utils/guardianConsent'
-import Logo from '../ui/Logo'
-import Button from '../ui/Button'
-import GoogleSignInButton from './GoogleSignInButton'
-import SeoHelmet from '../seo/SeoHelmet'
-import { ZAMBIAN_PROVINCES } from '../../config/zambia'
-import AgeGateStep from './AgeGateStep'
-import GuardianConsentStep from './GuardianConsentStep'
-import GuardianConsentSent from './GuardianConsentSent'
+import { useAuth } from '../../../contexts/AuthContext'
+import { getRoleLandingPath } from '../../../utils/navigation'
+import { captureReferralFromUrl } from '../../../utils/referrals'
+import { friendlyAuthMessage } from '../../../utils/friendlyErrors'
+import { assessAction, shouldBlock } from '../../../utils/recaptcha'
+import { validateFields, hasErrors, focusFirstError } from '../../../utils/formValidation'
+import { requiresGuardianConsent } from '../../../utils/guardianConsent'
+import Logo from '../../../components/ui/Logo'
+import Button from '../../../components/ui/Button'
+import GoogleSignInButton from '../components/GoogleSignInButton'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import { ZAMBIAN_PROVINCES } from '../../../config/zambia'
+import AgeGateStep from '../components/AgeGateStep'
+import GuardianConsentStep from '../components/GuardianConsentStep'
+import GuardianConsentSent from '../components/GuardianConsentSent'
 import {
   STEP,
   SIGNUP_ROLES,
   needsAdultConfirmation,
   needsAgeAnswer,
   resolveStep,
-} from '../../utils/signupFlowCore'
+} from '../../../utils/signupFlowCore'
 import {
   clearSignupFlow,
   lockAgeAnswer,
   readLockedAgeAnswer,
   readSignupFlow,
   writeSignupFlow,
-} from '../../utils/signupOnboarding'
-import { CANONICAL_SUBJECTS, subjectName } from '../../config/canonicalEducation'
+} from '../../../utils/signupOnboarding'
+import { CANONICAL_SUBJECTS, subjectName } from '../../../config/canonicalEducation'
 
 // Auth-error copy is centralised in src/utils/friendlyErrors.js
 // (friendlyAuthMessage with flow: 'signup') so Login + Register share one

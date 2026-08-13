@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
-import { resolvePostAuthPath } from '../../utils/navigation'
-import { friendlyVerificationError } from '../../utils/verification'
-import Logo from '../ui/Logo'
-import Button from '../ui/Button'
-import SeoHelmet from '../seo/SeoHelmet'
-import FullScreenLoader from '../ui/FullScreenLoader'
+import { useAuth } from '../../../contexts/AuthContext'
+import { resolvePostAuthPath } from '../../../utils/navigation'
+import { friendlyVerificationError } from '../../../utils/verification'
+import Logo from '../../../components/ui/Logo'
+import Button from '../../../components/ui/Button'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import FullScreenLoader from '../../../components/ui/FullScreenLoader'
 
 // Silent focus/visibility re-checks are throttled so switching tabs
 // repeatedly doesn't hammer the Auth server.

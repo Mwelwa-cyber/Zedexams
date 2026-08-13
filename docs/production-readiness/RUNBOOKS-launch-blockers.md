@@ -91,7 +91,7 @@ verification → escalation owner.
   failure so the user retries without retyping; the token-mint timeout is
   fail-open.
 - **Rollback:** n/a (tests only).
-- **Verification:** `src/components/auth/Login.spec.jsx` duplicate-submit +
+- **Verification:** `src/features/auth/pages/Login.spec.jsx` duplicate-submit +
   retry tests.
 - **Owner:** Web / auth.
 
