@@ -49,6 +49,7 @@ export const NO_STORAGE_VISITOR_ID = 'anon-no-storage'
  * one is shared with other tabs and survives reloads, so it wins.
  */
 let mintedId = null
+let noCryptoSeq = 0
 
 function safeStorage() {
   try {
@@ -69,11 +70,21 @@ export function getOrCreateAnonId() {
     // getRandomValues rather than Math.random: the id only has to be stable,
     // but a crypto draw costs the same and keeps it out of the predictable-
     // randomness bucket. Hex encoding — one byte is two digits, no bias.
-    const bytes = typeof crypto !== 'undefined' && crypto.getRandomValues
-      ? crypto.getRandomValues(new Uint8Array(4))
-      : new Uint8Array(4)
-    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
-    mintedId = `anon-${hex}-${Date.now().toString(36)}`
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      const bytes = crypto.getRandomValues(new Uint8Array(4))
+      const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+      mintedId = `anon-${hex}-${Date.now().toString(36)}`
+    } else {
+      // No Web Crypto at all. An un-filled Uint8Array is zeroes, so this used
+      // to read `anon-00000000-<ms>` — a constant dressed up as a draw. Be
+      // straight about it instead: with no entropy source, time is all there
+      // is, so the marker says the id is unseeded. The counter removes the
+      // same-process duplicate; it CANNOT make two devices unique, because
+      // every process starts its counter at zero. That is a real limit of
+      // having no crypto, not something a suffix can paper over.
+      noCryptoSeq += 1
+      mintedId = `anon-noseed${noCryptoSeq.toString(36)}-${Date.now().toString(36)}`
+    }
   }
   // Retried on every call, not only the first: quota is a state a browser can
   // leave, and the moment a write succeeds the id becomes shared with the other

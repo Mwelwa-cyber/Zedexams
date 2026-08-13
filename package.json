@@ -785,6 +785,7 @@
     "test:engine-flag-resolution": "node src/engines/assessment-engine/flags.test.js",
     "test:engine-flag-single-reader": "node scripts/test-engine-flag-single-reader.mjs",
     "test:visitor-id": "node src/utils/visitorId.test.js",
+    "test:crypto-id-fallbacks": "node scripts/test-crypto-id-fallbacks.mjs",
     "test:baseline-summary": "node scripts/visual/baselineSummary.test.js",
     "test:bootstrap-collect": "node scripts/visual/collectBootstrapRecordings.test.js",
     "test:render-environment": "node scripts/visual/renderEnvironment.test.js",

@@ -13,13 +13,23 @@
 // A short unique id for blocks. Uses crypto.randomUUID when available (matches
 // the asset-batch id pattern in AdminNoteEditor), with a timestamp +
 // getRandomValues fallback so ids never come from Math.random.
+let noCryptoSeq = 0
+
 function uid() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID().slice(0, 12)
-  const bytes = typeof crypto !== 'undefined' && crypto.getRandomValues
-    ? crypto.getRandomValues(new Uint8Array(3))
-    : new Uint8Array(3)
-  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
-  return Date.now().toString(36) + hex
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const bytes = crypto.getRandomValues(new Uint8Array(3))
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+    return Date.now().toString(36) + hex
+  }
+  // No Web Crypto at all. An un-filled `new Uint8Array(3)` is zeroes, so this
+  // used to append a constant `000000` — and `blankStudyBlocks()` calls uid()
+  // ten times in one tick, so all ten default blocks came back with the SAME
+  // id. These ids are React keys and the keys for per-block highlights and
+  // summaries, so duplicates make edits reconcile against the wrong block.
+  // A process-local counter stays unique without Math.random.
+  noCryptoSeq += 1
+  return Date.now().toString(36) + noCryptoSeq.toString(36).padStart(6, '0')
 }
 
 // Ordered list of block types the author can add, with their menu labels.
