@@ -4,7 +4,7 @@
   "exports": {
     "accountPurgeSweep": {
       "kind": "onSchedule",
-      "inline": true,
+      "inline": false,
       "options": {
         "schedule": "\"every 24 hours\"",
         "timeZone": "\"Etc/UTC\"",
@@ -19,7 +19,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
-      "batch": 2
+      "batch": null
     },
     "activateSyllabusVersion": {
       "kind": "delegated",
@@ -183,7 +183,7 @@
     },
     "aiChat": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "secrets": "[openaiApiKey]",
         "region": "\"us-central1\"",
@@ -196,7 +196,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
-      "batch": 2
+      "batch": null
     },
     "aiCostDailySummary": {
       "kind": "delegated",
@@ -495,7 +495,7 @@
     },
     "autoLabelDiagram": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "secrets": "[anthropicApiKey]",
         "region": "\"us-central1\"",
@@ -509,7 +509,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
-      "batch": 2
+      "batch": null
     },
     "autoPickDailyExams": {
       "kind": "delegated",
@@ -611,7 +611,7 @@
     },
     "checkShortAnswer": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "secrets": "[anthropicApiKey, openaiApiKey]",
         "region": "\"us-central1\"",
@@ -624,7 +624,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
-      "batch": 2
+      "batch": null
     },
     "checkVisualSafety": {
       "kind": "factory",
@@ -645,7 +645,7 @@
     },
     "classifyQuestionGrades": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "secrets": "[anthropicApiKey]",
         "timeoutSeconds": "120",
@@ -657,7 +657,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
-      "batch": 2
+      "batch": null
     },
     "cleanupArchivedSyllabusData": {
       "kind": "delegated",
@@ -880,7 +880,7 @@
     },
     "editQuizQuestion": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "secrets": "[anthropicApiKey]",
         "region": "\"us-central1\"",
@@ -893,7 +893,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
-      "batch": 2
+      "batch": null
     },
     "expandKbLessons": {
       "kind": "delegated",
@@ -912,7 +912,7 @@
     },
     "explainAnswer": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "secrets": "[anthropicApiKey]",
         "region": "\"us-central1\"",
@@ -925,7 +925,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
-      "batch": 2
+      "batch": null
     },
     "extractAssessmentFormat": {
       "kind": "factory",
@@ -945,7 +945,7 @@
     },
     "extractClassListPages": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "secrets": "[anthropicApiKey]",
         "region": "\"us-central1\"",
@@ -959,7 +959,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
-      "batch": 2
+      "batch": null
     },
     "extractTopicsFromPdf": {
       "kind": "factory",
@@ -981,7 +981,7 @@
     },
     "functionErrorWatch": {
       "kind": "onSchedule",
-      "inline": true,
+      "inline": false,
       "options": {
         "schedule": "\"every 5 minutes\"",
         "region": "\"us-central1\"",
@@ -995,7 +995,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
-      "batch": 2
+      "batch": null
     },
     "generateAssessment": {
       "kind": "factory",
@@ -1095,7 +1095,7 @@
     },
     "generateNoteInsights": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "secrets": "[anthropicApiKey]",
         "region": "\"us-central1\"",
@@ -1109,7 +1109,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
-      "batch": 2
+      "batch": null
     },
     "generateNotePictures": {
       "kind": "factory",
@@ -1146,7 +1146,7 @@
     },
     "generateNoteSmart": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "secrets": "[anthropicApiKey]",
         "region": "\"us-central1\"",
@@ -1160,7 +1160,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
-      "batch": 2
+      "batch": null
     },
     "generatePasskeyAuthenticationOptions": {
       "kind": "onCall",
@@ -1248,7 +1248,7 @@
     },
     "generateQuizQuestions": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "secrets": "[anthropicApiKey]",
         "region": "\"us-central1\"",
@@ -1261,7 +1261,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
-      "batch": 2
+      "batch": null
     },
     "generateRubric": {
       "kind": "factory",
@@ -1775,7 +1775,7 @@
     },
     "nameBankPictures": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "secrets": "[anthropicApiKey]",
         "region": "\"us-central1\"",
@@ -1788,7 +1788,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
-      "batch": 2
+      "batch": null
     },
     "nightlyQaSmoke": {
       "kind": "delegated",
@@ -1810,7 +1810,7 @@
     },
     "ocrNotePages": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "secrets": "[anthropicApiKey]",
         "region": "\"us-central1\"",
@@ -1824,7 +1824,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
-      "batch": 2
+      "batch": null
     },
     "onAnnouncementWritten": {
       "kind": "delegated",
@@ -2456,7 +2456,7 @@
     },
     "retryAgentJob": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "secrets": "[anthropicApiKey]",
         "region": "\"us-central1\"",
@@ -2470,7 +2470,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
-      "batch": 2
+      "batch": null
     },
     "reviseLessonSection": {
       "kind": "factory",
@@ -2554,7 +2554,7 @@
     },
     "runDawnBriefing": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "region": "\"us-central1\"",
         "timeoutSeconds": "60",
@@ -2567,7 +2567,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
-      "batch": 2
+      "batch": null
     },
     "runSampleAgentJob": {
       "kind": "factory",
@@ -2604,7 +2604,7 @@
     },
     "sendActivationConfirmation": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "region": "\"us-central1\"",
         "timeoutSeconds": "30",
@@ -2617,11 +2617,11 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
-      "batch": 2
+      "batch": null
     },
     "sendExpiryReminders": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "region": "\"us-central1\"",
         "timeoutSeconds": "120",
@@ -2634,7 +2634,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
-      "batch": 2
+      "batch": null
     },
     "sendGuardianConsent": {
       "kind": "delegated",
@@ -2654,7 +2654,7 @@
     },
     "sendPasswordResetEmail": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "secrets": "[emailSmtpUser, emailSmtpPassword]",
         "region": "\"us-central1\"",
@@ -2666,7 +2666,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
-      "batch": 2
+      "batch": null
     },
     "sendTestFunctionErrorAlert": {
       "kind": "factory",
@@ -2771,7 +2771,7 @@
     },
     "structureImportedNote": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "secrets": "[anthropicApiKey]",
         "region": "\"us-central1\"",
@@ -2784,11 +2784,11 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
-      "batch": 2
+      "batch": null
     },
     "structureImportedQuiz": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "secrets": "[anthropicApiKey, geminiApiKey]",
         "region": "\"us-central1\"",
@@ -2801,11 +2801,11 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
-      "batch": 2
+      "batch": null
     },
     "structureScannedQuiz": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "secrets": "[anthropicApiKey, geminiApiKey, openaiApiKey]",
         "region": "\"us-central1\"",
@@ -2819,7 +2819,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
-      "batch": 2
+      "batch": null
     },
     "studioGenerateLessonPlan": {
       "kind": "factory",
@@ -2921,7 +2921,7 @@
     },
     "suggestQuizAnswers": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "secrets": "[anthropicApiKey]",
         "region": "\"us-central1\"",
@@ -2934,7 +2934,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
-      "batch": 2
+      "batch": null
     },
     "supportTriage": {
       "kind": "delegated",
@@ -3144,7 +3144,7 @@
     },
     "verifyQuiz": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "secrets": "[anthropicApiKey]",
         "region": "\"us-central1\"",
@@ -3157,7 +3157,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
-      "batch": 2
+      "batch": null
     },
     "weeklyCbcAlignmentAudit": {
       "kind": "delegated",
