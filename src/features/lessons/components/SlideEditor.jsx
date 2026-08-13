@@ -1,4 +1,4 @@
-import { createBlankSlide, normalizeStringList, SLIDE_TYPES, SLIDE_TYPE_MAP } from './lessonConstants'
+import { createBlankSlide, normalizeStringList, SLIDE_TYPES, SLIDE_TYPE_MAP } from '../lib/lessonConstants'
 
 const FIELD = 'w-full rounded-xl border-2 border-gray-200 bg-white px-3 py-2.5 text-sm font-bold text-gray-800 outline-none transition-colors focus:border-emerald-500'
 const LABEL = 'mb-1.5 block text-xs font-black uppercase tracking-wide text-gray-500'

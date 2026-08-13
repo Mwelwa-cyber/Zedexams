@@ -12,7 +12,7 @@
 // given, with images shown only when an imageUrl has been filled in by the
 // backend enrichment pass (so a text-only fallback still looks intentional).
 
-import { LESSON_THEME_MAP } from '../../../components/lessons/lessonConstants'
+import { LESSON_THEME_MAP } from '../../lessons'
 
 function theme(themeId) {
   return LESSON_THEME_MAP[themeId] || LESSON_THEME_MAP.fresh

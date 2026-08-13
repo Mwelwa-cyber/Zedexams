@@ -12,9 +12,9 @@
 import {
   GRADE4_CONTRACTIONS_LESSON,
   GRADE4_CONTRACTIONS_QUICK_NOTES,
-} from '../src/components/lessons/grade4ContractionsLesson.js'
-import { LESSON_SCHEMA_VERSION, SLIDE_TYPE_MAP } from '../src/components/lessons/lessonConstants.js'
-import { LESSON_GRADES, LESSON_SUBJECTS, LESSON_TERMS } from '../src/components/lessons/lessonConstants.js'
+} from '../src/features/lessons/lib/grade4ContractionsLesson.js'
+import { LESSON_SCHEMA_VERSION, SLIDE_TYPE_MAP } from '../src/features/lessons/lib/lessonConstants.js'
+import { LESSON_GRADES, LESSON_SUBJECTS, LESSON_TERMS } from '../src/features/lessons/lib/lessonConstants.js'
 
 let pass = 0
 let fail = 0

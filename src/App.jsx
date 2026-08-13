@@ -102,7 +102,7 @@ const QuizResults = lazy(() => import('./components/quiz/QuizResultsV2'))
 // facing list (LearnerLessonsList) and /lessons/:lessonId opens the
 // existing slide player. The teacher panel uses LessonEditor under
 // /teacher/lessons for authoring.
-const LessonPlayer    = lazy(() => import('./components/lessons/LessonPlayer'))
+const LessonPlayer    = lazy(() => import('./features/lessons/pages/LessonPlayer'))
 const LearnerLessonsList = lazy(() => import('./features/lessons/pages/LearnerLessonsList').then(m => ({ default: m.LearnerLessonsList })))
 
 // Notes Studio admin — replaces the old slide-builder at /admin/lessons

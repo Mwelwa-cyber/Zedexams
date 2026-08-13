@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
-import { useFirestore } from '../../hooks/useFirestore'
-import { LESSON_GRADES, LESSON_SUBJECTS } from './lessonConstants'
-import Button from '../ui/Button'
-import Skeleton from '../ui/Skeleton'
-import ConfirmDialog from '../ui/ConfirmDialog'
-import SeoHelmet from '../seo/SeoHelmet'
+import { useAuth } from '../../../contexts/AuthContext'
+import { useFirestore } from '../../../hooks/useFirestore'
+import { LESSON_GRADES, LESSON_SUBJECTS } from '../lib/lessonConstants'
+import Button from '../../../components/ui/Button'
+import Skeleton from '../../../components/ui/Skeleton'
+import ConfirmDialog from '../../../components/ui/ConfirmDialog'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
 
 const STATUS = {
   published: 'bg-emerald-100 text-emerald-700',

@@ -1,20 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { getDownloadURL, ref as storageRef } from 'firebase/storage'
-import { uploadBytes } from '../../firebase/attestedStorage'
-import { useAuth } from '../../contexts/AuthContext'
-import { storage } from '../../firebase/config'
-import { useFirestore } from '../../hooks/useFirestore'
-import SlideEditor from './SlideEditor'
-import SlideRenderer from './SlideRenderer'
-import { convertQuickLessonToSlides } from './quickLessonConverter'
-import { importPowerPointLesson } from './pptxImporter'
-import { renderPowerPointToImages } from './pptxPresentationRenderer'
-import { assertFileSignature } from '../../utils/fileSignature'
-import { SAMPLE_QUICK_NOTES, SAMPLE_RESPIRATORY_LESSON } from './sampleLesson'
-import { GRADE4_CONTRACTIONS_LESSON, GRADE4_CONTRACTIONS_QUICK_NOTES } from './grade4ContractionsLesson'
-import SeoHelmet from '../seo/SeoHelmet'
-import Skeleton from '../ui/Skeleton'
+import { uploadBytes } from '../../../firebase/attestedStorage'
+import { useAuth } from '../../../contexts/AuthContext'
+import { storage } from '../../../firebase/config'
+import { useFirestore } from '../../../hooks/useFirestore'
+import SlideEditor from '../components/SlideEditor'
+import SlideRenderer from '../components/SlideRenderer'
+import { convertQuickLessonToSlides } from '../lib/quickLessonConverter'
+import { importPowerPointLesson } from '../lib/pptxImporter'
+import { renderPowerPointToImages } from '../lib/pptxPresentationRenderer'
+import { assertFileSignature } from '../../../utils/fileSignature'
+import { SAMPLE_QUICK_NOTES, SAMPLE_RESPIRATORY_LESSON } from '../lib/sampleLesson'
+import { GRADE4_CONTRACTIONS_LESSON, GRADE4_CONTRACTIONS_QUICK_NOTES } from '../lib/grade4ContractionsLesson'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Skeleton from '../../../components/ui/Skeleton'
 import {
   CREATION_MODES,
   LESSON_GRADES,
@@ -31,7 +31,7 @@ import {
   makeLessonId,
   normalizeSlideForSave,
   slidesToPlainText,
-} from './lessonConstants'
+} from '../lib/lessonConstants'
 
 const PPTX_MIME = 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
 const INPUT = 'w-full rounded-xl border-2 border-gray-200 bg-white px-3 py-2.5 text-sm font-bold text-gray-800 outline-none transition-colors focus:border-emerald-500'

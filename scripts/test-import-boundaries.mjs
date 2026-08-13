@@ -200,10 +200,18 @@ const KNOWN_CROSS_FEATURE_IMPORTS = new Set([
 // one, and KNOWN_CROSS_FEATURE_IMPORTS below only shrinks. `paperResumeSync`
 // moved INTO src/features/papers/lib/ (it is about papers; it merely lived
 // next to its reader), and the storage keys the two features share went to
-// src/shared/utils/paperResumeStorage.js. `lessonResume` on the line below is
-// the same shape and clears the same way when the lessons player migrates.
+// src/shared/utils/paperResumeStorage.js.
+//
+// The lessons migration cleared a fourth the same way, as that entry
+// predicted it would: `lessonResume` moved from features/learnerHome/lib/
+// into features/lessons/lib/ alongside LessonPlayer, its only importer.
+// It needed no shared module, and the difference from the papers case is
+// worth keeping — `paperResumeSync` and learner-home shared a localStorage
+// contract, so something had to sit below both. `lessonResume` writes the
+// `noteProgress` collection directly and learner-home meets it THERE, at the
+// collection rather than at a module. Nothing to put below two features that
+// do not import each other.
 const KNOWN_LEGACY_FEATURE_IMPORTS = new Set([
-  'src/components/lessons/LessonPlayer.jsx → ../../features/learnerHome/lib/lessonResume',
   'src/components/teacher/TeacherDashboard.jsx → ../../features/teacherSettings/lib/useTeachingProfile',
   'src/hooks/useLearnerSearch.js → ../features/notes/lib/firestore',
   // FORCED, and recorded rather than avoided — `teacherShell` PR B. Every other
