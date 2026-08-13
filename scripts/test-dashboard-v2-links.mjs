@@ -35,20 +35,44 @@ const ROOT = new URL('..', import.meta.url).pathname
 const routeExists = makeRouteMatcher()
 
 // ── Link targets used by the dashboard ──────────────────────────────
-// Both halves of the surface (#2247). Each MUST exist — see the note above.
+// Every directory that DECLARES a navigation target. Each MUST exist — see the
+// note above.
 //
-// The shell half has moved twice since that split, and this list moved with it
-// both times, in the same commit as the move — which is the whole point of the
-// existence check below. The nav CONFIG left first (`teacherShell` PR A sent
-// `dashboardV2Config.js` to `src/shared/constants/`, where the link extractor
-// still reaches it through the components that import it), and then the shell
-// itself became a feature (PR B). A third entry for `src/shared/constants/` is
-// deliberately not added: this scanner reads link targets out of COMPONENTS, and
-// the config's own links are pinned by `test:lesson-plan-routing`, which
-// addresses that file directly.
+// This scanner reads link targets out of FILES on disk. It does not follow the
+// import graph, so a registry is covered only if it is named here, no matter how
+// many scanned components import it.
+//
+// #2247 split the surface in two; `teacherShell` PR A then moved the nav
+// registries to `src/shared/constants/` and PR B moved the shell itself. This
+// list moved with the shell both times — but not with the registries, so from
+// PR A until now `dashboardV2Config.js` and `teacherStudios.js` were scanned by
+// nothing while this file still printed "0 broken".
+//
+// The docblock that stood here from PR A until this commit gave a reason for
+// leaving them out, and both halves of it were false: the extractor does not reach a
+// file "through the components that import it", and `test:lesson-plan-routing`
+// does not pin the config's links — it makes two string assertions about the
+// lesson-plan entries and holds no route matcher at all. It is deleted rather
+// than softened. A guard that quietly checks less is the failure this file was
+// written about; one that quietly checks less while a comment says otherwise
+// sends the next reader away.
+//
+// Measured, so the number is auditable rather than asserted: 37 targets at
+// #2250, 25 on `main` after PR A and PR B, 39 here. The 39 is a SUPERSET of
+// that 37 — all thirty-seven are back, plus `/admin` and `/login`, which are
+// declarations added since. Reconstructed by running the scanner at 4dd09dae
+// and diffing the two sets, not by trusting the printed totals: two counts
+// matching says nothing about which targets are in them.
+//
+// Mutation control, because a bigger number is not the same as more coverage:
+// typing `/teacher/visual-studio` as `/teacher/visual-studioo` in
+// `teacherStudios.js` now exits 1 with
+// `FAIL /teacher/visual-studioo … (used in src/shared/constants/teacherStudios.js)`.
+// On `main` the same typo printed "0 broken".
 const DIRS = [
   'src/features/teacherShell',  // the app shell: sidebar, mobile chrome, theme
   'src/features/dashboardV2',   // the dashboard pages, launcher, Help & Support
+  'src/shared/constants',       // the nav registries both halves render from
 ]
 
 for (const d of DIRS) {
