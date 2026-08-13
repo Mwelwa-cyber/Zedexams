@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import QRCode from 'qrcode'
-import { ShieldCheck, Copy, Check, Key, LogOut, AlertTriangle } from '../../ui/icons'
-import Logo from '../../ui/Logo'
-import Button from '../../ui/Button'
-import Icon from '../../ui/Icon'
-import OtpInput from '../../auth/OtpInput'
-import GoogleSignInButton from '../../auth/GoogleSignInButton'
+import { ShieldCheck, Copy, Check, Key, LogOut, AlertTriangle } from '../../../components/ui/icons'
+import Logo from '../../../components/ui/Logo'
+import Button from '../../../components/ui/Button'
+import Icon from '../../../components/ui/Icon'
+import OtpInput from '../../../components/auth/OtpInput'
+import GoogleSignInButton from '../../../components/auth/GoogleSignInButton'
 import { useAuth } from '../../../contexts/AuthContext'
 import {
   beginTotpEnrollment,
