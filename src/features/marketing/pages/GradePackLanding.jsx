@@ -1,14 +1,14 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
-import { PLANS, PAYMENT_DETAILS } from '../../utils/subscriptionConfig'
-import { captureReferralFromUrl } from '../../utils/referrals'
-import { isNativePlatform } from '../../utils/runtime'
-import Logo from '../ui/Logo'
-import Button from '../ui/Button'
-import SeoHelmet from '../seo/SeoHelmet'
+import { useAuth } from '../../../contexts/AuthContext'
+import { PLANS, PAYMENT_DETAILS } from '../../../utils/subscriptionConfig'
+import { captureReferralFromUrl } from '../../../utils/referrals'
+import { isNativePlatform } from '../../../utils/runtime'
+import Logo from '../../../components/ui/Logo'
+import Button from '../../../components/ui/Button'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
 
-const UpgradeModal = lazy(() => import('../subscription/UpgradeModal'))
+const UpgradeModal = lazy(() => import('../../../components/subscription/UpgradeModal'))
 
 // One row per grade we have a product for. Keys match the URL slug
 // (/grade-7, /grade-12) and each gets an explicit <Route> in App.jsx.

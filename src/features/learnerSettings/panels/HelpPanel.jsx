@@ -6,7 +6,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
-import ContactDialog from '../../../components/marketing/ContactDialog'
+import { ContactDialog } from '../../marketing'
 import { Panel, Section, Note, LinkRow } from '../components/ui'
 import {
   Info, Mail, AlertTriangle, Lightbulb, Play, ShieldCheck, DocumentTextIcon, Sparkles,

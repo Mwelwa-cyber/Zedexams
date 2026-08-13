@@ -8,8 +8,8 @@ import HelpSupportPage from './HelpSupportPage'
 
 // Force the mobile chrome regardless of jsdom viewport.
 vi.mock('../../../shared/hooks/useIsMobile', () => ({ default: () => true }))
-vi.mock('../../../components/marketing/ContactDialog', () => ({
-  default: ({ open, source }) => (open ? <div role="dialog" aria-label={`contact:${source}`} /> : null),
+vi.mock('../../marketing', () => ({
+  ContactDialog: ({ open, source }) => (open ? <div role="dialog" aria-label={`contact:${source}`} /> : null),
 }))
 vi.mock('../../../components/feedback/FeedbackDialog', () => ({
   default: ({ open, source }) => (open ? <div role="dialog" aria-label={`feedback:${source}`} /> : null),

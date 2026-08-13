@@ -9,6 +9,13 @@ import LockedStudio from './LockedStudio.jsx'
 // sample view needs none of that, so stub the front door rather than configure
 // Firebase for a render test.
 vi.mock('../../features/flashcards', () => ({ FlashcardsView: () => null }))
+// The marketing front door also exports ContactDialog, which imports
+// firebase/config — so evaluating the index needs Firebase env vars this
+// suite does not set. Stubbing the ONE module LockedStudio imports is the
+// fix docs/MIGRATION_TEMPLATE.md prescribes for exactly this, and it is more
+// honest than a per-file mock: the component imports a front door, so the
+// spec mocks a front door.
+vi.mock('../../features/marketing', () => ({ TestPaperOfficial: () => null }))
 import { paywall } from '../../utils/paywall.js'
 import { SAMPLE_TOOL_KEYS, STUDIO_SAMPLES } from '../../data/studioSamples.js'
 
