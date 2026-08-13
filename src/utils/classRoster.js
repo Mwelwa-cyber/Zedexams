@@ -90,15 +90,27 @@ async function nextOrder(classId) {
  * test runner without one. The fallback also draws from the Web Crypto API
  * (getRandomValues) so the id is never minted from Math.random.
  */
+let noCryptoSeq = 0
+
 export function mintLearnerId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return `lrn_${crypto.randomUUID()}`
   }
-  const bytes = typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function'
-    ? crypto.getRandomValues(new Uint8Array(4))
-    : new Uint8Array(4)
-  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
-  return `lrn_${Date.now().toString(36)}-${hex}`
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const bytes = crypto.getRandomValues(new Uint8Array(4))
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+    return `lrn_${Date.now().toString(36)}-${hex}`
+  }
+  // No Web Crypto AT ALL — a bare script or a pre-19 Node test runner, not a
+  // browser, where getRandomValues is universal. Reading a zero-filled
+  // Uint8Array here (which is what an un-filled `new Uint8Array(4)` is) would
+  // append a constant `00000000`, so every id minted in the same millisecond
+  // would be identical while still LOOKING random. For a permanent identity
+  // that SBA reads to join a learner across years, that is silent corruption,
+  // which is a worse failure than the weak randomness this function exists to
+  // avoid. A process-local counter keeps them distinct without Math.random.
+  noCryptoSeq += 1
+  return `lrn_${Date.now().toString(36)}-${noCryptoSeq.toString(36).padStart(8, '0')}`
 }
 
 /**

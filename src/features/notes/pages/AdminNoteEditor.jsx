@@ -54,16 +54,23 @@ import '../styles/notes.css'
 
 const AUTOSAVE_DELAY_MS = 1500
 
+let noCryptoBatchSeq = 0
+
 const makeAssetBatchId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return `notes-${crypto.randomUUID().slice(0, 8)}`
   }
   // Non-secure contexts lack randomUUID but still have getRandomValues.
-  const bytes = typeof crypto !== 'undefined' && crypto.getRandomValues
-    ? crypto.getRandomValues(new Uint8Array(3))
-    : new Uint8Array(3)
-  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
-  return `notes-${Date.now()}-${hex}`
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const bytes = crypto.getRandomValues(new Uint8Array(3))
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+    return `notes-${Date.now()}-${hex}`
+  }
+  // No Web Crypto at all: an un-filled Uint8Array is zeroes, so this appended
+  // a constant `000000` and two batches started in the same millisecond shared
+  // a batch id. A process-local counter keeps them apart without Math.random.
+  noCryptoBatchSeq += 1
+  return `notes-${Date.now()}-${noCryptoBatchSeq.toString(36).padStart(6, '0')}`
 }
 
 export function AdminNoteEditor() {
