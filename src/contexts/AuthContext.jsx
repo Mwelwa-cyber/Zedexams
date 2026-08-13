@@ -10,6 +10,7 @@ import {
   onAuthStateChanged,
   updateProfile,
   multiFactor,
+  sendPasswordResetEmail as sendPasswordResetEmailViaFirebase,
 } from 'firebase/auth'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp, onSnapshot } from 'firebase/firestore'
@@ -29,6 +30,13 @@ import { clearAllSearchCaches } from '../utils/cache/searchCache.js'
 import { isAccountDeletionInFlight, onAccountDeletionStart } from '../utils/accountDeletionState'
 import { useAuthRecovery } from '../hooks/useAuthRecovery'
 import { shouldExpireSession, REFRESH_THROTTLE_MS } from '../hooks/authRecoveryPolicy'
+import {
+  shouldTryFallback,
+  isContinueUrlError,
+  fallbackOutcome,
+  resetContinueUrl,
+  uniformResetReply,
+} from '../utils/passwordResetFallback'
 
 const AuthContext = createContext(null)
 
@@ -420,11 +428,55 @@ export function AuthProvider({ children }) {
     return cred
   }
 
-  function resetPassword(email) {
-    return sendPasswordResetEmailCallable({
-      email,
-      continueUrl: typeof window !== 'undefined' ? window.location.origin : 'https://zedexams.com',
-    })
+  // Two delivery paths, tried in order, because one of them depends on
+  // things we do not control.
+  //
+  // The callable is preferred: it sends the branded email, enforces the
+  // daily per-email/per-IP caps, and answers identically whether or not the
+  // account exists. But it mints that email through our own SMTP host with
+  // our own credentials, and when either is unavailable EVERY attempt fails
+  // with the same opaque message — a locked-out user has no way through, on
+  // the one screen whose entire job is to give them one.
+  //
+  // So a delivery failure falls through to Firebase Auth's own mailer: a
+  // separate sender on separate infrastructure, needing no secret of ours.
+  // The email is plainer than the branded one; that is a straightforward
+  // trade against sending nothing at all.
+  //
+  // What the fallback must NOT do is answer a question the callable refuses
+  // to: `auth/user-not-found` and the throttling codes resolve as success
+  // (see passwordResetFallback.js), so the second path cannot be used to
+  // mine the user base behind the first path's back.
+  async function resetPassword(email) {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://zedexams.com'
+    try {
+      return await sendPasswordResetEmailCallable({ email, continueUrl: origin })
+    } catch (primaryError) {
+      if (!shouldTryFallback(primaryError)) throw primaryError
+
+      try {
+        try {
+          await sendPasswordResetEmailViaFirebase(auth, email, {
+            url: resetContinueUrl(origin),
+            handleCodeInApp: false,
+          })
+        } catch (err) {
+          // The landing page is a nicety; the reset is not. If the continue
+          // URL is what Firebase objected to, send without one rather than
+          // let the styling of the return trip block the password change.
+          if (!isContinueUrlError(err)) throw err
+          await sendPasswordResetEmailViaFirebase(auth, email)
+        }
+        return uniformResetReply('firebase-auth')
+      } catch (fallbackError) {
+        const outcome = fallbackOutcome(fallbackError)
+        if (outcome === 'ok') return uniformResetReply('suppressed')
+        if (outcome === 'bad-email') throw fallbackError
+        // Both paths are down. Surface the PRIMARY failure: it is the one
+        // carrying our own error code, and the one an operator can act on.
+        throw primaryError
+      }
+    }
   }
 
   async function logout() {
