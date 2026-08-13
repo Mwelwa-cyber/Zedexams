@@ -71,10 +71,10 @@ vi.mock('../components/NotesPagesPreview', () => ({
     <div data-testid="pages-preview" data-paper={paper} data-board={String(boardPreview)} />
   ),
 }))
-vi.mock('../../../components/teacher/StudioPageHeader', () => ({
+vi.mock('../../../shared/components/StudioPageHeader', () => ({
   default: ({ eyebrow, title }) => <div><span>{eyebrow}</span><h1>{title}</h1></div>,
 }))
-vi.mock('../../../components/teacher/StudioOutputBoundary', () => ({ default: ({ children }) => children }))
+vi.mock('../../../shared/components/StudioOutputBoundary', () => ({ default: ({ children }) => children }))
 vi.mock('../../../components/teacher/generate/StudioAssignmentChangeNotice', () => ({ default: () => null }))
 
 const VALID_CURR = {

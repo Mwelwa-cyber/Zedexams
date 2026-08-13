@@ -63,7 +63,7 @@ import {
 import { useLibraryAutoSave } from '../../../hooks/useLibraryAutoSave'
 import WeeklyForecastView from '../components/WeeklyForecastView'
 import { normalizeCurriculum, schemeCurriculum, curriculumLabel } from '../../../shared/utils/schemeFormat'
-import StudioPageHeader from '../../../components/teacher/StudioPageHeader'
+import StudioPageHeader from '../../../shared/components/StudioPageHeader'
 import StudioCurriculumSelector from '../../../components/teacher/curriculum/StudioCurriculumSelector'
 import SeoHelmet from '../../../components/seo/SeoHelmet'
 import ConfirmDialog from '../../../components/ui/ConfirmDialog'

@@ -32,7 +32,7 @@ import {
 } from '../../../shared/components/studioFields'
 import Icon from '../../../components/ui/Icon'
 import { Download, RefreshCw } from '../../../components/ui/icons'
-import StudioOutputBoundary from '../../../components/teacher/StudioOutputBoundary'
+import StudioOutputBoundary from '../../../shared/components/StudioOutputBoundary'
 import { useAiOperationLock } from '../../../hooks/useAiOperationLock'
 import { stableFingerprint } from '../../../hooks/aiOperationLockCore'
 import { useStudioInputDraft } from '../../../hooks/draft/useStudioInputDraft'

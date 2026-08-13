@@ -14,7 +14,7 @@
 
 import { useEffect } from 'react'
 import SeoHelmet from '../seo/SeoHelmet'
-import StudioPageHeader from './StudioPageHeader'
+import StudioPageHeader from '../../shared/components/StudioPageHeader'
 import { paywall } from '../../utils/paywall'
 import { getStudioSample } from '../../data/studioSamples'
 
