@@ -2,6 +2,12 @@
 
 > Snapshot as of 2026-07-17 — verify before acting. Audited commit `0cd4c49`.
 > **Nothing was deleted during this audit.** These are removal *candidates* with evidence. Verify each with a full `git log`/grep (some may be script-run ops tools or reserved for in-flight work) before removing.
+>
+> **Rows added after the audit date carry their own date and the migration that
+> found them.** A Wave 4 migration proves a file unreachable as a side effect of
+> asking where it goes — that evidence is worth recording when it is fresh, but
+> it does not license removal outside Phase 6 (§13, §14 rule 11). The register
+> is where the evidence waits for the phase that is allowed to act on it.
 
 ## R1 — Zero-import files (highest confidence)
 
@@ -24,6 +30,8 @@ Grep of the basename across `src`/`functions`/`scripts` + vite/vitest config ret
 | `src/utils/quizToDocx.js` | not imported (siblings `homeworkToDocx`/`fullLessonToDocx` are) |
 | `src/components/quiz/QuizRichText.jsx` | "legacy"-commented (in `editor/extensions/MathInline.js`), no import |
 | `src/editor/components/QuizPreview.jsx` | "legacy"-commented (in `main.jsx`), no import |
+| `src/components/teacher/TeacherGlassHeader.jsx` | **Added 2026-08-13** (`teacherShell` PR B, §13). Zero importers, measured by resolving every relative import in `src/` to a real path — including bare side-effect and dynamic `import()` forms. Superseded V1 chrome; the mobile header that renders is `MobileChrome.jsx`'s. Every remaining mention repo-wide is a prose comment (`ReminderPanel`, `TeacherTopBar`, `useClickAway`, `useTeacherReminders`, four `teacherSettings.css` comments) — swept for path-as-string references across `scripts/`, `package.json`, `.github/`, `docs/` and every JSON/YAML/config, which import analysis cannot see. |
+| `src/components/teacher/TeacherBottomNav.jsx` | **Added 2026-08-13** (`teacherShell` PR B, §13). Zero importers, same sweep. Superseded V1 pair with the above; the bottom nav that renders is `MobileChrome.jsx`'s `MobileBottomNav`, a different component. It is `teacherNav.js`'s only consumer besides `TeacherTopBar`, so removing it is what would let `teacherNav.js` travel — **deliberately not done here**: the owner upheld the Phase 6 rule rather than waive it, and `teacherNav.js` stays in `src/components/teacher/` until then, which costs nothing (a feature may import legacy outward). |
 
 ## R2 — Test-only imports (module imported solely by its own test)
 

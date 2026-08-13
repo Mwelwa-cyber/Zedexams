@@ -24,7 +24,7 @@ const { ThemeProvider, useTheme } = await import('./ThemeContext')
 const { resetTeacherThemeStore } = await import('./teacherThemeStore')
 const { TEACHER_THEME_STORAGE_KEY } = await import('./teacherThemeCore')
 const TeacherThemeSync = (await import('./TeacherThemeSync')).default
-const useDashboardTheme = (await import('../components/teacher/dashboardV2/useDashboardTheme')).default
+const useDashboardTheme = (await import('../features/teacherShell/hooks/useDashboardTheme')).default
 
 let ctx
 function Probe() {

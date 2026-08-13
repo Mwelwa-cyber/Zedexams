@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
-import TeacherLayout from '../../../components/teacher/TeacherLayout'
+import { TeacherLayout } from '../../teacherShell'
 import TeacherDashboardV2 from '../pages/TeacherDashboardV2'
 import { TOUR_STORAGE_KEY } from '../lib/onboardingTourCore'
 
@@ -29,7 +29,7 @@ beforeEach(() => {
 // Force the mobile information architecture regardless of jsdom viewport.
 vi.mock('../../../shared/hooks/useIsMobile', () => ({ default: () => true }))
 // Not part of the mobile IA under test, and it boots Firebase.
-vi.mock('../../../components/teacher/TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
+vi.mock('../../teacherShell/components/TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
 // The drawer's profile card belongs to the shell, so it shows the SIGNED-IN
 // teacher (auth) — not mockData's TEACHER, which only drives the page content.
 vi.mock('../../../contexts/AuthContext', () => ({

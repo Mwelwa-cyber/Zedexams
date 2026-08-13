@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
-import TeacherLayout from '../../../components/teacher/TeacherLayout'
+import { TeacherLayout } from '../../teacherShell'
 import TeacherDashboardV2 from '../pages/TeacherDashboardV2'
 import { TOUR_STORAGE_KEY } from '../lib/onboardingTourCore'
 
@@ -22,7 +22,7 @@ beforeEach(() => {
 // The shell's studio top bar reads Firestore (useTeacherReminders); it is not
 // part of the navigation under test and never renders in the dashboard
 // variant anyway, so stub the module rather than boot Firebase.
-vi.mock('../../../components/teacher/TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
+vi.mock('../../teacherShell/components/TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
 // The mobile header bell reads the app-wide NotificationProvider (main.jsx);
 // specs mount without it, so stub the hook.
 vi.mock('../../../contexts/AuthContext', () => ({

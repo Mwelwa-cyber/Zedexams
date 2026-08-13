@@ -19,6 +19,7 @@
  * That is the whole reason this migration was a SPLIT rather than a move
  * (§13). The shell keeps its own copies of what it needs, in
  * `src/components/teacher/dashboardV2/`, and nothing here is reachable from it.
+ * (That directory is gone: the shell is `src/features/teacherShell/` since PR B.)
  *
  * ## Where the seam runs
  *
