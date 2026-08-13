@@ -30,16 +30,16 @@
 
 import { memo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import Icon from '../ui/Icon'
-import { ChevronRight } from '../ui/icons'
+import Icon from '../../../components/ui/Icon'
+import { ChevronRight } from '../../../components/ui/icons'
 import {
   STATUS,
   getSessionStatus,
   formatSessionTime,
   formatDayHeading,
   sessionLabel,
-} from '../../utils/examTimetableLogic'
-import { sessionVisual, paperVisual } from './subjectVisuals'
+} from '../../../utils/examTimetableLogic'
+import { sessionVisual, paperVisual } from '../lib/subjectVisuals'
 
 // Status → badge class + text label. The label is always rendered (never
 // colour alone), so screen readers and colour-blind learners get the state.

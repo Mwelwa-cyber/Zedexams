@@ -1,19 +1,19 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
-import useExamTimetables from '../../hooks/useExamTimetables'
-import { PSLE_2026 } from '../../config/examTimetable2026'
+import { useAuth } from '../../../contexts/AuthContext'
+import useExamTimetables from '../../../hooks/useExamTimetables'
+import { PSLE_2026 } from '../../../config/examTimetable2026'
 import ExamTimetablePage from './ExamTimetablePage.jsx'
 
 // The page under test owns the season logic + rendering; everything with a
 // Firebase dependency is mocked. Times are pinned with fake timers so each
 // season phase (before / during / after) is reproducible.
-vi.mock('../../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
-vi.mock('../../hooks/useExamTimetables', () => ({ default: vi.fn() }))
-vi.mock('../layout/Navbar', () => ({ default: () => <nav data-testid="navbar" /> }))
-vi.mock('../seo/SeoHelmet', () => ({ default: () => null }))
-vi.mock('../../utils/runtime', () => ({ isNativePlatform: () => false }))
+vi.mock('../../../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
+vi.mock('../../../hooks/useExamTimetables', () => ({ default: vi.fn() }))
+vi.mock('../../../components/layout/Navbar', () => ({ default: () => <nav data-testid="navbar" /> }))
+vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../utils/runtime', () => ({ isNativePlatform: () => false }))
 
 const ARCHIVED_2025 = {
   ...PSLE_2026,

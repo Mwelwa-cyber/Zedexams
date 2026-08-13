@@ -90,7 +90,7 @@ const LearnerCalendar = lazy(() => import('./components/dashboard/LearnerCalenda
 // (Firestore-driven with a bundled fallback); /timetable/pdf keeps the inline
 // viewer for the official ECZ PDF because Android/Capacitor WebViews silently
 // drop external PDF links.
-const ExamTimetablePage = lazy(() => import('./components/timetable/ExamTimetablePage'))
+const ExamTimetablePage = lazy(() => import('./features/examTimetable/pages/ExamTimetablePage'))
 const TimetableViewerPage = lazy(() => import('./components/dashboard/TimetableViewerPage'))
 const SubjectDrillDown = lazy(() => import('./components/dashboard/SubjectDrillDown'))
 const QuizList = lazy(() => import('./components/quiz/QuizList'))
