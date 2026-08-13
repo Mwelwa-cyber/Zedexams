@@ -61,8 +61,8 @@ vi.mock('../../../hooks/draft/useDraftManager', () => ({
     flush: vi.fn(), clear: vi.fn(() => Promise.resolve()),
   }),
 }))
-vi.mock('../../../components/draft/DraftStatusIndicator', () => ({ default: () => null }))
-vi.mock('../../../components/draft/DraftRecoveryPrompt', () => ({ default: () => null }))
+vi.mock('../../../shared/components/DraftStatusIndicator', () => ({ default: () => null }))
+vi.mock('../../../shared/components/DraftRecoveryPrompt', () => ({ default: () => null }))
 vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
 vi.mock('../../../components/ui/LiveGenerationCanvas', () => ({ default: () => null }))
 vi.mock('../components/NotesView', () => ({ default: () => null }))

@@ -9,8 +9,8 @@ import { useSettingsSave } from '../lib/useSettingsSave'
 import { useTeachingProfile } from '../lib/useTeachingProfile'
 import { useDraftManager } from '../../../hooks/draft/useDraftManager'
 import { teacherTimetableDescriptor } from '../../../hooks/draft/descriptors/handBuilt'
-import DraftRecoveryPrompt from '../../../components/draft/DraftRecoveryPrompt'
-import DraftStatusIndicator from '../../../components/draft/DraftStatusIndicator'
+import DraftRecoveryPrompt from '../../../shared/components/DraftRecoveryPrompt'
+import DraftStatusIndicator from '../../../shared/components/DraftStatusIndicator'
 import { getGeneration } from '../../../utils/teacherLibraryService'
 import {
   TT_DAY_LABELS,

@@ -80,8 +80,8 @@ import { stableFingerprint } from '../../../hooks/aiOperationLockCore'
 import { applyLessonPlanRestore } from '../../../hooks/draft/restoreLessonPlan'
 import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
 import useStudioAvailability from '../../../hooks/useStudioAvailability'
-import DraftRecoveryPrompt from '../../../components/draft/DraftRecoveryPrompt'
-import DraftStatusIndicator from '../../../components/draft/DraftStatusIndicator'
+import DraftRecoveryPrompt from '../../../shared/components/DraftRecoveryPrompt'
+import DraftStatusIndicator from '../../../shared/components/DraftStatusIndicator'
 
 const functions = getFunctions(app, 'us-central1')
 const generateCallable = httpsCallable(functions, 'studioGenerateLessonPlan', { timeout: 120_000 })

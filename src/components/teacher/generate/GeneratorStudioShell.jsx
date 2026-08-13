@@ -31,8 +31,8 @@ import { useEffect, useRef, useState } from 'react'
 import StudioPageHeader from '../../../shared/components/StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import SetupForYouCard from '../../../shared/components/SetupForYouCard'
-import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
-import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
+import DraftStatusIndicator from '../../../shared/components/DraftStatusIndicator'
+import DraftRecoveryPrompt from '../../../shared/components/DraftRecoveryPrompt'
 import { useTeacherPlanContext } from '../studio/hooks/useTeacherPlanContext'
 
 export default function GeneratorStudioShell({

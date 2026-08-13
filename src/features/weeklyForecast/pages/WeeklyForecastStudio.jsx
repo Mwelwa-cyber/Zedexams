@@ -71,8 +71,8 @@ import { useToast } from '../../../components/ui/Toast'
 import { useDraftManager } from '../../../hooks/draft/useDraftManager'
 import { weeklyForecastDescriptor } from '../../../hooks/draft/descriptors/handBuilt'
 import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
-import DraftRecoveryPrompt from '../../../components/draft/DraftRecoveryPrompt'
-import DraftStatusIndicator from '../../../components/draft/DraftStatusIndicator'
+import DraftRecoveryPrompt from '../../../shared/components/DraftRecoveryPrompt'
+import DraftStatusIndicator from '../../../shared/components/DraftStatusIndicator'
 import ListTextarea from '../../../components/ui/ListTextarea'
 
 // The standardized curriculum selector's payload already carries the
