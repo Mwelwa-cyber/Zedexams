@@ -7,21 +7,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
-vi.mock('../../firebase/config', () => ({ default: {}, db: {} }))
+vi.mock('../../../firebase/config', () => ({ default: {}, db: {} }))
 
 const mockListMyChildren = vi.fn()
 const mockRedeem = vi.fn()
-vi.mock('../../utils/familyPortal', () => ({
+vi.mock('../services/familyPortal', () => ({
   listMyChildren: (...a) => mockListMyChildren(...a),
   redeemFamilyInviteCode: (...a) => mockRedeem(...a),
 }))
-vi.mock('../../utils/clientErrorReporting', () => ({ reportClientError: vi.fn() }))
-vi.mock('../seo/SeoHelmet', () => ({ default: () => null }))
-vi.mock('../ui/Skeleton', () => ({ default: () => <div data-testid="skeleton" /> }))
-vi.mock('../ui/Button', () => ({ default: ({ children, ...p }) => <button {...p}>{children}</button> }))
+vi.mock('../../../utils/clientErrorReporting', () => ({ reportClientError: vi.fn() }))
+vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../components/ui/Skeleton', () => ({ default: () => <div data-testid="skeleton" /> }))
+vi.mock('../../../components/ui/Button', () => ({ default: ({ children, ...p }) => <button {...p}>{children}</button> }))
 
 let mockAuth = { currentUser: { uid: 'parent-1' } }
-vi.mock('../../contexts/AuthContext', () => ({ useAuth: () => mockAuth }))
+vi.mock('../../../contexts/AuthContext', () => ({ useAuth: () => mockAuth }))
 
 import FamilyHome from './FamilyHome'
 

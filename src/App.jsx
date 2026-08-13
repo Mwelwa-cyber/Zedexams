@@ -204,12 +204,12 @@ const UiAuditPage     = lazy(() => import('./components/dev/uiAudit/UiAuditPage'
 
 
 // Audit A3 PR 1 — parent portal (public read-only progress view).
-const ParentProgressView = lazy(() => import('./components/parent/ParentProgressView'))
+const ParentProgressView = lazy(() => import('./features/parentPortal/pages/ParentProgressView'))
 
 // Family portal (authenticated parent accounts)
 const ParentLayout = lazy(() => import('./components/layout/ParentLayout'))
-const FamilyHome = lazy(() => import('./components/parent/FamilyHome'))
-const ChildProgressPage = lazy(() => import('./components/parent/ChildProgressPage'))
+const FamilyHome = lazy(() => import('./features/parentPortal/pages/FamilyHome'))
+const ChildProgressPage = lazy(() => import('./features/parentPortal/pages/ChildProgressPage'))
 
 // Teacher section. The /teacher/* routes themselves live in
 // components/teacher/teacherRoutes.jsx — declared as data so a spec can

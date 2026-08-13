@@ -6,7 +6,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
-vi.mock('../ui/SubjectIcon', () => ({ default: () => null }))
+vi.mock('../../../components/ui/SubjectIcon', () => ({ default: () => null }))
 
 import ChildProgressSections from './ChildProgressSections'
 

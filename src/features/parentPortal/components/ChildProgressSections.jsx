@@ -1,5 +1,5 @@
-import { SUBJECTS } from '../../config/curriculum'
-import SubjectIcon from '../ui/SubjectIcon'
+import { SUBJECTS } from '../../../config/curriculum'
+import SubjectIcon from '../../../components/ui/SubjectIcon'
 
 /**
  * ChildProgressSections — presentational render of the rendered child-progress

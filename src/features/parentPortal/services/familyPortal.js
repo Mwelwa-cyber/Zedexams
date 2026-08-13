@@ -20,8 +20,8 @@ import {
   where,
 } from 'firebase/firestore'
 import { getFunctions, httpsCallable } from 'firebase/functions'
-import app, { db } from '../firebase/config'
-import { capture } from './analytics'
+import app, { db } from '../../../firebase/config'
+import { capture } from '../../../utils/analytics'
 
 const fns = getFunctions(app, 'us-central1')
 const createFamilyInviteCodeCallable = httpsCallable(fns, 'createFamilyInviteCode')
