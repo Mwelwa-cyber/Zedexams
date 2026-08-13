@@ -439,6 +439,7 @@
     "test:question-bank": "node src/utils/questionBankCore.test.js",
     "test:question-bank-import": "node src/features/adminQuestionBank/lib/questionBankImportCore.test.js",
     "test:demo-trials": "node src/features/adminTrials/lib/demoTrialsCore.test.js",
+    "test:appcheck-readiness": "node src/features/adminAppCheck/lib/appCheckHealthCore.test.js",
     "test:question-dedup": "node functions/agents/questionDedupCore.test.js",
     "test:question-embedding": "node functions/agents/questionEmbeddingCore.test.js",
     "test:master-bank-sourcing": "node functions/teacherTools/masterBankSourcingCore.test.js",
