@@ -507,6 +507,8 @@
     "test:ai-operations": "node functions/aiOperationsCore.test.js && node functions/aiOperations.test.js",
     "test:ai-validation": "node functions/aiValidation/validationResult.test.js && node functions/aiValidation/responseParser.test.js && node functions/aiValidation/operationRegistry.test.js && node functions/aiValidation/curriculumGuard.test.js",
     "test:auth-guard": "node functions/authGuard.test.js",
+    "test:password-reset-fallback": "node scripts/test-password-reset-fallback.mjs",
+    "test:password-reset-rate-limit": "node functions/passwordResetRateLimit.test.js",
     "test:function-regions": "node scripts/test-function-regions.mjs",
     "test:passkeys": "node functions/passkeys/passkeyCore.test.js && node functions/passkeys/passkeyService.test.js && node functions/passkeys/passkeyRegions.test.js",
     "test:passkey-region-routing": "node scripts/test-passkey-region-routing.mjs",

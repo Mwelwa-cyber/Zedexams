@@ -29,7 +29,9 @@ exports.buildMessagingHandlers = (deps) => {
     emailSmtpUser,
     nodemailer,
     passwordResetDayKey,
+    passwordResetRateLimitKeys,
     passwordResetRateLimited,
+    refundPasswordResetAttempt,
     resolvePasswordResetContinueUrl,
   } = deps;
 
@@ -54,13 +56,22 @@ exports.buildMessagingHandlers = (deps) => {
       const db = admin.firestore();
       const ip = String(request.rawRequest?.ip || "unknown").slice(0, 64);
       const day = passwordResetDayKey();
+      // Both the charge below and the refund in the catch read their document
+      // ids from here, so "the refund gives back what the charge took" is one
+      // definition rather than two matching string literals.
+      const rateLimitKeys = passwordResetRateLimitKeys({email, ip, day});
       const limited = await passwordResetRateLimited(
         db,
-        `email_${email}_${day}`,
-        ip !== "unknown" ? `ip_${ip}_${day}` : null,
+        rateLimitKeys[0] || null,
+        rateLimitKeys[1] || null,
       );
       if (limited) return uniformOk;
 
+      // Which step failed, for the log line in the catch. The reply is
+      // deliberately uniform, so this variable is the only thing that can
+      // tell "the reset link could not be minted" from "the mail server
+      // refused it" — two different outages with two different fixes.
+      let stage = "lookup";
       try {
         try {
           await admin.auth().getUserByEmail(email);
@@ -72,12 +83,14 @@ exports.buildMessagingHandlers = (deps) => {
           throw lookupError;
         }
 
+        stage = "generate-link";
         const senderEmail = cleanString(emailSmtpUser.value(), 254);
         const senderDomain = senderEmail.split("@")[1] || "zedexams.com";
         const continueUrl = resolvePasswordResetContinueUrl(request.data?.continueUrl);
         const actionCodeSettings = {url: continueUrl};
         const resetLink = await admin.auth().generatePasswordResetLink(email, actionCodeSettings);
 
+        stage = "smtp";
         const transporter = nodemailer.createTransport({
           host: "mail.privateemail.com",
           port: 587,
@@ -113,7 +126,27 @@ exports.buildMessagingHandlers = (deps) => {
 
         return uniformOk;
       } catch (error) {
-        console.error("sendPasswordResetEmail error:", error);
+        // The attempt never reached an inbox, so it must not spend the
+        // user's five-a-day. Without this, an SMTP outage burns the whole
+        // allowance in five clicks and the sixth click reports the uniform
+        // SUCCESS message — the user is then told a mail is on its way that
+        // nothing even tried to send.
+        await refundPasswordResetAttempt(db, rateLimitKeys);
+
+        // Structured, because this line is the ONLY diagnosis this endpoint
+        // has: the reply is uniform by design, so a failure not described
+        // here is a failure nobody can explain. SMTP rejections carry the
+        // real reason on `.response` / `.responseCode` / `.command`, which
+        // logging the bare error object drops. No email address — the log is
+        // not a place to accumulate who asked for a reset.
+        console.error("sendPasswordResetEmail error:", {
+          stage,
+          code: error?.code || null,
+          command: error?.command || null,
+          responseCode: error?.responseCode || null,
+          response: cleanString(error?.response, 300) || null,
+          message: cleanString(error?.message, 300) || String(error),
+        });
         // Generic failure only — never branch the response on account
         // existence (that was the enumeration oracle). A real send/SMTP
         // failure happens regardless of whether the account exists, so

@@ -9,6 +9,7 @@ const nodemailer = require("nodemailer");
 admin.initializeApp();
 
 const {purgeUserData, evaluateDeletionAuth} = require("./accountDeletion");
+const {passwordResetRateLimitKeys} = require("./passwordResetRateLimitCore");
 const {createAssessment} = require("./recaptchaEnterprise");
 const {
   ANDROID_SITE_KEY,
@@ -653,8 +654,10 @@ const batch2HandlerDeps = {
   parseMarkerResponse,
   parseStructuredImport,
   passwordResetDayKey,
+  passwordResetRateLimitKeys,
   passwordResetRateLimited,
   recordAppCheckCallable,
+  refundPasswordResetAttempt,
   redactForLogs,
   resolveCbcContext,
   resolvePasswordResetContinueUrl,
@@ -994,6 +997,32 @@ async function passwordResetRateLimited(db, emailKey, ipKey) {
     });
   }
   return false;
+}
+
+// Give back what a FAILED attempt charged. The counters are incremented
+// up-front on purpose — that ordering is what stops a concurrent burst from
+// all reading the same pre-increment count — so the only correct place to
+// undo one is after the failure is known.
+//
+// A compensating decrement, not a delete: another attempt may have
+// incremented the same document in between, and deleting would wipe its
+// charge too. Every refund pairs with exactly one increment, so the counter
+// cannot be driven below zero by this path.
+//
+// Best-effort and awaited: the caller is already on its way to an error
+// reply, and a refund that silently didn't happen would spend a user's daily
+// allowance on our outage — the exact thing this exists to prevent.
+async function refundPasswordResetAttempt(db, keys) {
+  await Promise.all(
+    (keys || []).filter(Boolean).map((key) =>
+      db.collection(PWRESET_RL_COLLECTION).doc(key).set({
+        day: passwordResetDayKey(),
+        count: admin.firestore.FieldValue.increment(-1),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, {merge: true}).catch((err) => {
+        console.warn("[sendPasswordResetEmail] rate-limit refund failed", err);
+      })),
+  );
 }
 
 exports.sendPasswordResetEmail = onCall(
