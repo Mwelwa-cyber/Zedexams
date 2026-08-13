@@ -13,9 +13,20 @@
  *      a plan change, not a diff.
  *   2. The engine front door (`engines/assessment-engine/index.js`) may not
  *      re-export `persist/`, and nothing reachable from it may import
- *      firebase. The quiz cutover will export persist deliberately, for a
- *      route that writes; the canary imports the front door, so what the front
- *      door exports is what the canary can reach.
+ *      firebase. The canary imports the front door, so what the front door
+ *      exports is what the canary can reach.
+ *
+ *      This rule was written expecting the QUIZ cutover to lift it — persist
+ *      would reach the front door with the first route that writes. The
+ *      cutover landed and did the opposite, deliberately: `QuizRunnerV2`
+ *      imports `assessment-engine/persist` as an AREA, exactly as it imports
+ *      `assessment-engine/render` for the choice card and for the same stated
+ *      reason (an area index is not a barrel). Exporting persist from the
+ *      front door would have made the canary's zero-write property depend on
+ *      nobody importing a particular NAME from a door it already imports,
+ *      where today it depends on the write being unreachable at all. §7.3
+ *      calls one write from that route a P1, so the structural version is the
+ *      one worth keeping. The rule is therefore permanent, not provisional.
  *
  * Run: node scripts/test-paper-quiz-zero-write.mjs  (test:paper-quiz-zero-write)
  */
@@ -94,7 +105,8 @@ test('the engine front door does not export persist/', () => {
   const source = readFileSync(path.join(ROOT, FRONT_DOOR), 'utf8')
   const persistExports = importsOf(source).filter((s) => /\/persist\//.test(s))
   assert.deepEqual(persistExports, [],
-    'persist/ reaches the front door with the QUIZ cutover, which writes — not with the canary, which must not')
+    'persist/ is reached as an area by the routes that write (QuizRunnerV2), never through the front '
+    + 'door the zero-write canary imports — see this file\'s header for why that stayed true at the quiz cutover')
 })
 
 test('nothing reachable from the canary\'s engine imports touches firebase', () => {

@@ -1,6 +1,6 @@
 // Regression tests for the assessment deletion registry's pure core
 // (src/utils/assessmentDeletionCore.js) and the autosave deletion guard
-// (src/components/teacher/assessmentAutosave.js).
+// (src/features/assessmentStudio/lib/assessmentAutosave.js).
 //
 // The bug these guard: a paper deleted from the Assessment Studio library came
 // back after a refresh / re-entry, because nothing stopped the editor's
@@ -20,7 +20,7 @@ import {
   buildDeletionLogEntry,
   MAX_TOMBSTONES,
 } from '../src/utils/assessmentDeletionCore.js'
-import { shouldAutosaveToLibrary } from '../src/components/teacher/assessmentAutosave.js'
+import { shouldAutosaveToLibrary } from '../src/features/assessmentStudio/lib/assessmentAutosave.js'
 
 let passed = 0
 function test(name, fn) {

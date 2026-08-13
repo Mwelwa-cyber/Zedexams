@@ -161,7 +161,7 @@ export const INVENTORY = Object.freeze([
 
   // ── Tier 2 · papers, quizzes and question generation ──────────────────
   g('functions/teacherTools/generateAssessment.js', {
-    clientModule: 'src/components/teacher/CreatePaperModal.jsx',
+    clientModule: 'src/features/assessmentStudio/components/CreatePaperModal.jsx',
     clientLockKey: 'assessment-studio:create-paper:generate-full',
     tier: 2,
     state: 'migrated',
@@ -191,7 +191,7 @@ export const INVENTORY = Object.freeze([
     incompleteResultSaveable: true,
   }),
   g('functions/teacherTools/regenerateAssessmentQuestion.js', {
-    clientModule: 'src/components/teacher/AssessmentStudio.jsx',
+    clientModule: 'src/features/assessmentStudio/pages/AssessmentStudio.jsx',
     clientLockKey: 'assessment-studio:regenerate-question',
     tier: 2,
     state: 'migrated',
@@ -384,7 +384,7 @@ export const INVENTORY = Object.freeze([
 
   // ── Tier 6 · revision and recommendation ──────────────────────────────
   g('functions/teacherTools/reviseQuestion.js', {
-    clientModule: 'src/components/teacher/AssessmentQuestionBlock.jsx',
+    clientModule: 'src/features/assessmentStudio/components/AssessmentQuestionBlock.jsx',
     clientLockKey: 'assessment-question:revise',
     operationClass: 'transformation',
     tier: 6,
@@ -409,7 +409,7 @@ export const INVENTORY = Object.freeze([
     incompleteResultSaveable: false,
   }),
   g('functions/teacherTools/suggestAnswer.js', {
-    clientModule: 'src/components/teacher/AssessmentQuestionBlock.jsx',
+    clientModule: 'src/features/assessmentStudio/components/AssessmentQuestionBlock.jsx',
     clientLockKey: 'assessment-question:suggest-answer',
     operationClass: 'transformation',
     tier: 6,

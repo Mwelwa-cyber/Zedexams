@@ -1,4 +1,4 @@
-// src/components/teacher/paperNaming.js — the name a teacher READS.
+// src/features/assessmentStudio/lib/paperNaming.js — the name a teacher READS.
 //
 // What is actually at stake here, and therefore what these assert:
 //   • the type phrase it reads out is the FILED phrase differing only in case,
@@ -13,7 +13,7 @@ import assert from 'node:assert/strict'
 import {
   titleCasePhrase, paperTypePhrase, paperTypeAbbrev, readableSubject,
   paperDisplayFacts, paperCustomName, paperCardTitle, composeDocTitle,
-} from '../src/components/teacher/paperNaming.js'
+} from '../src/features/assessmentStudio/lib/paperNaming.js'
 import {
   assessmentTypePhrase, isTeacherAuthoredTitle,
 } from '../src/components/teacher/assessmentTitle.js'

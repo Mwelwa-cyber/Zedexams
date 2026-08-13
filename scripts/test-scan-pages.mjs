@@ -21,12 +21,12 @@ import {
   progressSteps,
   removePage,
   replacePage,
-} from '../src/components/teacher/scan/scanPages.js'
+} from '../src/features/assessmentStudio/lib/scanPages.js'
 import {
   BLUR_VARIANCE_THRESHOLD,
   isBlurry,
   laplacianVariance,
-} from '../src/components/teacher/scan/scanImageQuality.js'
+} from '../src/features/assessmentStudio/lib/scanImageQuality.js'
 
 function p(tag) {
   return makePage({ dataUrl: `data:image/jpeg;base64,${tag}` })

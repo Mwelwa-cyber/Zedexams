@@ -75,7 +75,7 @@ check(/\{kit && studioView === 'canvas' && \(/.test(studio), 'LessonPlanStudio o
 
 // 5. AssessmentStudio consumes the deep-link params (the others read them via
 //    useFormDefaultsFromUrl; AssessmentStudio uses the dedicated converter).
-const assessment = read('src/components/teacher/AssessmentStudio.jsx')
+const assessment = read('src/features/assessmentStudio/pages/AssessmentStudio.jsx')
 check(/assessmentDefaultsFromParams\(searchParams\)/.test(assessment),
   'AssessmentStudio seeds its form from the lesson-kit deep link')
 

@@ -1,4 +1,4 @@
-// Regression test for src/utils/assessmentLoadGuard.js
+// Regression test for src/features/assessmentStudio/lib/assessmentLoadGuard.js
 //
 // Root cause (data-loss): getAssessmentQuestions swallows read errors and
 // returns []. The AssessmentStudio edit loader used an inline guard
@@ -12,7 +12,7 @@
 // totalMarks: 0 over the real values, permanently losing the paper's metadata.
 
 import assert from 'node:assert/strict'
-import { shouldBlockHydration } from '../src/utils/assessmentLoadGuard.js'
+import { shouldBlockHydration } from '../src/features/assessmentStudio/lib/assessmentLoadGuard.js'
 
 let passed = 0
 function test(name, fn) {

@@ -1,4 +1,4 @@
-// src/components/teacher/assessmentHeaderSummary.js
+// src/features/assessmentStudio/lib/assessmentHeaderSummary.js
 //
 // The rule that decides whether the eighteen-field Paper Header form gets out
 // of the teacher's way, and the one line it collapses to.
@@ -12,7 +12,7 @@ import assert from 'node:assert/strict'
 import {
   missingHeaderFields, headerIsComplete, shouldCollapsePaperHeader,
   pageSetupLabel, mcqSummaryLabel, paperHeaderSummaryLine, paperHeaderSummarySegments,
-} from '../src/components/teacher/assessmentHeaderSummary.js'
+} from '../src/features/assessmentStudio/lib/assessmentHeaderSummary.js'
 
 let passed = 0
 function test(name, fn) {

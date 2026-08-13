@@ -993,6 +993,39 @@ async function main() {
     await assertFails(updateDoc(doc(learnerA, 'results', 'result_a'), { percentage: 100 }))
   })
 
+  // The assessment engine writes `timeSpent: null` when an attempt's start is
+  // unknown, rather than the old path's 0 — the one approved deviation between
+  // the two builders (`persist/resultDocument.js`). `validResultFields()` does
+  // not mention the field, so the rules accept it; that is an INFERENCE from
+  // reading the rule, and the quiz cutover's write depends on it being true.
+  // A rule change that started validating timeSpent would reject every engine
+  // attempt that could not measure its start, at submit, after the learner had
+  // answered everything.
+  await test('learner can create a result with an unmeasured timeSpent (engine write)', async () => {
+    await assertSucceeds(setDoc(doc(learnerB, 'results', 'result_b_unmeasured'), {
+      userId: LEARNER_B,
+      quizId: 'published_practice',
+      score: 8,
+      percentage: 80,
+      totalMarks: 10,
+      timeSpent: null,
+    }))
+  })
+
+  // The control case: the SAME document with only timeSpent changed to a
+  // measured number must also succeed. Without it the test above proves
+  // nothing about timeSpent — it would pass with the field deleted entirely.
+  await test('…and the same result with a measured timeSpent still succeeds', async () => {
+    await assertSucceeds(setDoc(doc(learnerB, 'results', 'result_b_measured'), {
+      userId: LEARNER_B,
+      quizId: 'published_practice',
+      score: 8,
+      percentage: 80,
+      totalMarks: 10,
+      timeSpent: 240,
+    }))
+  })
+
   // ── noteProgress — owner read incl. not-yet-created records ───
   section('noteProgress — first-open get of a missing owner doc must succeed')
 
@@ -2687,6 +2720,87 @@ async function main() {
   await test('a learner cannot delete their own progress; an admin can', async () => {
     await assertFails(deleteDoc(doc(learnerA, 'flashcardProgress', progressIdFor(LEARNER_A))))
     await assertSucceeds(deleteDoc(doc(admin, 'flashcardProgress', progressIdFor(LEARNER_A))))
+  })
+
+  // ── assessmentDrafts ─────────────────────────────────────────
+  // The Assessment Paper Studio's cross-device draft: ONE document per
+  // teacher, id == uid, holding the whole unsaved paper as a JSON string.
+  // The rules predate this suite; the Phase 4 migration that moved the code
+  // writing it into src/features/assessmentStudio/ is what put a test behind
+  // them (architecture.md §14.12, and the same reason flashcardProgress got
+  // one above — moving the writer is the moment to cover the collection).
+  //
+  // Two things make this worth more than a smoke test. The document is a
+  // teacher's unsaved work and is private even from admins, which is the
+  // opposite of nearly every other teacher collection here — so the read
+  // denial below is asserting a deliberate asymmetry, not a default. And the
+  // `data` cap exists because the client mirrors localStorage into a field
+  // that Firestore hard-limits at 1 MiB; without the rule a paper that grew
+  // past the limit would fail the write on the DEVICE, silently, with the
+  // teacher's work already gone from the tab that was replaced.
+  section('assessmentDrafts — owner-only even from admins, id is not authority, size-capped')
+
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'assessmentDrafts', TEACHER_A), {
+      data: JSON.stringify({ form: { title: 'Grade 4 end of term' }, sections: [] }),
+      savedAt: Date.now(),
+    })
+  })
+
+  await test('a teacher can read their own assessment draft', async () => {
+    await assertSucceeds(getDoc(doc(teacherA, 'assessmentDrafts', TEACHER_A)))
+  })
+
+  await test("a teacher cannot read another teacher's assessment draft", async () => {
+    await assertFails(getDoc(doc(teacherB, 'assessmentDrafts', TEACHER_A)))
+  })
+
+  await test('not even an admin can read a teacher assessment draft', async () => {
+    // Deliberate: a draft is private working content. If this ever starts
+    // succeeding, someone has folded assessmentDrafts into a generic
+    // admin-read allowance and changed what the collection means.
+    await assertFails(getDoc(doc(admin, 'assessmentDrafts', TEACHER_A)))
+  })
+
+  await test('a teacher cannot write a draft under another teacher id', async () => {
+    // The id IS the authority here — there is no uid field to compare — so
+    // the whole protection is the match on {uid}.
+    await assertFails(setDoc(doc(teacherB, 'assessmentDrafts', TEACHER_A), {
+      data: JSON.stringify({ form: { title: 'overwritten' } }), savedAt: Date.now(),
+    }))
+  })
+
+  await test('an unverified teacher cannot write their own draft', async () => {
+    await assertFails(setDoc(doc(unverifiedTeacher, 'assessmentDrafts', UNVERIFIED_TEACHER), {
+      data: '{}', savedAt: Date.now(),
+    }))
+  })
+
+  // Control for the size case below: the same write, by the same teacher,
+  // differing ONLY in the length of `data`. Without it the denial proves
+  // nothing — the write would also fail with the size validator deleted, and
+  // the test would stay green.
+  await test('the owner CAN save a draft just under the size cap', async () => {
+    await assertSucceeds(setDoc(doc(teacherA, 'assessmentDrafts', TEACHER_A), {
+      data: 'x'.repeat(999_999), savedAt: Date.now(),
+    }))
+  })
+
+  await test('a draft at or over the size cap is rejected', async () => {
+    await assertFails(setDoc(doc(teacherA, 'assessmentDrafts', TEACHER_A), {
+      data: 'x'.repeat(1_000_000), savedAt: Date.now(),
+    }))
+  })
+
+  await test('a non-string data field is rejected', async () => {
+    await assertFails(setDoc(doc(teacherA, 'assessmentDrafts', TEACHER_A), {
+      data: { form: { title: 'an object, not the JSON string the rule requires' } },
+      savedAt: Date.now(),
+    }))
+  })
+
+  await test('the owner can delete their own draft once the paper is saved', async () => {
+    await assertSucceeds(deleteDoc(doc(teacherA, 'assessmentDrafts', TEACHER_A)))
   })
 
   // ── announcements ────────────────────────────────────────────
