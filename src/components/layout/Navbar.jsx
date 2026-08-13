@@ -23,7 +23,7 @@ import { getRoleLandingPath } from '../../utils/navigation'
 import Logo from '../ui/Logo'
 import Icon from '../ui/Icon'
 import CharacterAvatar from '../profile/CharacterAvatar'
-import NotificationBell from '../notifications/NotificationBell'
+import { NotificationBell } from '../../features/notifications'
 import MobileBottomNav from './MobileBottomNav'
 import useHideOnScroll from '../../hooks/useHideOnScroll'
 

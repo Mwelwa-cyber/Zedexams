@@ -8,7 +8,7 @@ import {
   Search,
 } from 'lucide-react'
 import { useNotifications } from '../../../contexts/NotificationContext'
-import NotificationCenter from '../../../components/notifications/NotificationCenter'
+import { NotificationCenter } from '../../notifications'
 
 export default function TopHeader({ termChip }) {
   // Real notification feed (notifications/{uid}/feed) — same source as the

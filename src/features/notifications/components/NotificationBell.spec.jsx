@@ -3,11 +3,11 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 // Controlled context so we can drive open/unread state directly.
-vi.mock('../../contexts/NotificationContext', () => ({
+vi.mock('../../../contexts/NotificationContext', () => ({
   useNotifications: vi.fn(),
 }))
 
-import { useNotifications } from '../../contexts/NotificationContext'
+import { useNotifications } from '../../../contexts/NotificationContext'
 import NotificationBell from './NotificationBell'
 
 const setOpen = vi.fn()
