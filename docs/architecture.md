@@ -1516,6 +1516,29 @@ That is the fourth time in this phase the freeze has reached further than the pa
 
 So `views/` does not migrate; **its residents migrate when their owners do**, and three of those owners are the lesson studios that have not been reached yet. Two files also feed declared light pages (`PublicShareView`, `/teachers`) and `PaperBlocks` is read by `features/sba`, so whoever eventually moves one is buying a `check:bundle-edges` question and a cross-feature question with it — neither of which a "small directory" framing would have predicted.
 
+**The lesson-plan studio — inventoried 2026-08-13 (session D), nothing moved, and it turns the freeze question upside down.** It is the natural next Wave 4 item: `test:exporter-home` already carries `lessonPlanToDocx`/`ToPdf` as *"lesson-plan studio — Wave 4"*, and three of the four non-frozen renderers in `views/` above belong to it. It is also the largest unmigrated teacher surface left, and it cannot start until an owner answers one question.
+
+**The question: the freeze clause names `teacher/studio/` by path. Measured, that directory is 85% Lesson Plan Studio.** Reachability from each entry point, resolved rather than guessed from filenames (67 code files, 44 specs):
+
+| reachable from | files | lines |
+|---|---|---|
+| `LessonPlanStudio.jsx` ONLY | **57** | **11,675** |
+| `AssessmentStudio.jsx` ONLY | 8 | 2,491 |
+| BOTH | **1** | 103 |
+| neither | 1 | 63 |
+
+So the freeze list's `teacher/studio/` entry, read literally, freezes 11,675 lines of lesson-plan code that touches no past paper, no quiz, no game and nothing in the assessment-engine cutover — the four things the freeze is actually for. **This is the first time the freeze's path list has been found too BROAD.** The four earlier findings (`CbcKbAdmin`, `AdminCsvImport`, `ManageContent`, `AdminDashboard`, and `views/PaperPagesPreview` above) all ran the other way, where the named paths under-described the real boundary. The lesson here is the same one from the opposite side: **the boundary is what the code reaches, not what the list says**, and that cuts both ways.
+
+**The entanglement between the two studios is exactly one file.** `sections/CurriculumPicker.jsx` (103 lines) is reached by both, and by three other callers besides — `AssessmentSlideOvers`, `CreatePaperModal`, `curriculum/StudioCurriculumSelector` and the lesson wizard's `LessonSetupStep`. A module that many unrelated surfaces share is a `src/shared/` candidate on its own merits, decided separately from either studio — the `useIsMobile` call again.
+
+**What the surface is, if the freeze answer is "the lesson-plan studio is not frozen":** ~57 files in `teacher/studio/` (the studio at 1,880 lines, its 1,266-line spec, the editor, the live preview, the five-step wizard, and the `cards/ hooks/ modals/ sections/ utils/` beneath them), `views/LessonPlanView.jsx` (538), and eight `src/utils/` modules with four node test scripts. It is bigger than `register` was.
+
+**Three things that are already known to complicate it, recorded now so they are not re-derived:**
+
+- `lessonPlanFormat.js` (600 lines) has **24 importers**, including `utils/teacherSettingsCore.js` and the shared studio chrome. It is not the studio's private module and does not travel; the rule that kept `classRoster` in `src/utils/` covers it unchanged.
+- `lessonPlanToDocx`/`ToPdf` go to `src/engines/export-engine/`, and `features/teacherLibrary` reaches both DIRECTLY — #2172's rule again, inherited rather than reopened. `lessonPlanInheritance.js` is also read by `LibraryItemDetail`, so it stays too.
+- **Two already-migrated features reach into this area**: `features/templateBank` imports `studio/LessonPlanDocumentPreview.jsx`, and `features/teacherLibrary` imports three of the utils. Whoever migrates the studio inherits a cross-feature question for each, answerable only through a front door.
+
 **Wave 4 — `classList`.** Eleven files: the roster table and its mobile twin, the add/edit dialog, the camera capture flow that reads a printed class list, the import review that decides what lands in the roster, and the two internal preview routes (`/teacher/register-preview`, `/teacher/capture-preview`). One exported name, `ClassListPanel`, because `ClassRegisterDetail` is the entire outside demand; the two pages stay route-mounted and unexported.
 
 **The icons went to `src/shared/icons/`, not into the feature — the first real resident of the `shared` layer.** `classListIcons.js` is the Lucide vocabulary the Class List and the Class Register are *both* specified against (its own docblock said so before any of this), and three files in `teacher/register/attendance/` still import it. Into the feature it would have meant either exporting forty icon names through this front door — the register depending on the Class List's public API to draw a checkmark, and evaluating `ClassListPanel` to get one — or leaving a one-file directory behind. A module two features share belongs below both, which is the same rule `adminUsers` recorded from the other side. `classListCore.js` stays in `src/utils/` for that reason (`MarkAttendanceView` reads it, and `test:class-list-core` covers it); `classListCapture.js` had one importer and travelled, into `services/` where its callable belongs.
