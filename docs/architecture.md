@@ -1491,6 +1491,31 @@ Its `index.js` exports nothing, for the same reason `templateBank`'s does: the p
 
 **Wave 4 — `scan` is BLOCKED, not skipped.** It is first in the order below, and its only consumers are `AssessmentStudio.jsx` and that file's three specs — frozen by owner instruction (see the freeze list above). Migrating it means editing a frozen file, so it waits for the Phase 3 rollout flags; the wave order is otherwise unchanged. Owner decision, 2026-08-09.
 
+**`teacher/views/` is NOT a Wave 4 item and must not be attempted as one — inventoried 2026-08-13 (session D), nothing moved.** Ten files, 2,925 lines. It looks like the smallest remaining teacher directory and it is the wrong shape entirely: a flat folder of document renderers owned by *five different surfaces*, which is the same trap the admin row records one section down — a directory is not a feature.
+
+**Six of the ten are frozen or blocked by the freeze**, and only two of those are visible from the freeze list by path:
+
+| file | why it cannot move |
+|---|---|
+| `PaperBlocks.jsx` (933) | named in the freeze clause **by path**, and on `printAffectingPaths.js` — it also carries the ~30-minute render gate |
+| `AssessmentPaperView.jsx` (40) | same: named by path, and on the render gate |
+| `PaperBlocks.spec.jsx` (303) | the spec of a frozen module |
+| `PaperPagesPreview.jsx` (374) + its spec (328) | its ONLY consumer is `AssessmentSlideOvers.jsx`, whose own docblock says it was *"extracted from AssessmentStudio.jsx"* — the frozen surface wearing a different filename |
+| `TableOfSpecificationView.jsx` (50) | its ONLY consumer is `AssessmentStudio.jsx`; moving it means editing a frozen file, which is exactly why `scan` is blocked above |
+
+That is the fourth time in this phase the freeze has reached further than the paths it names — `CbcKbAdmin`, `AdminCsvImport`, `ManageContent` and `AdminDashboard` were each caught by a different signal, and here the signal is **a consumer that is a frozen file's extracted half**. A path list cannot see that; reading what the consumer *is* can.
+
+**The remaining four are not one owner either**, which is the second and more useful half of the finding — each belongs to a surface that is not `views`:
+
+| file | real owner | status |
+|---|---|---|
+| `LessonPlanView.jsx` (538) | the lesson-plan studio | that studio has NOT migrated; `lessonPlanToDocx`/`ToPdf` are still on `test:exporter-home`'s in-utils list against it |
+| `LessonActivitiesView.jsx` (139) | lesson activities | `activityToDocx`, same list |
+| `FullLessonView.jsx` (123) | the retired Full Lesson studio | `fullLessonToDocx`/`ToPdf`, same list — saved lessons still export |
+| `ReportCardView.jsx` (97) | report cards | **orphaned from `features/register`**: its only consumer is the `/teachers` marketing page, and the register does not import it. Moving it into the register would put a module in a feature that does not use it — the call `sbaCrossYear` already got, from the other side |
+
+So `views/` does not migrate; **its residents migrate when their owners do**, and three of those owners are the lesson studios that have not been reached yet. Two files also feed declared light pages (`PublicShareView`, `/teachers`) and `PaperBlocks` is read by `features/sba`, so whoever eventually moves one is buying a `check:bundle-edges` question and a cross-feature question with it — neither of which a "small directory" framing would have predicted.
+
 **Wave 4 — `classList`.** Eleven files: the roster table and its mobile twin, the add/edit dialog, the camera capture flow that reads a printed class list, the import review that decides what lands in the roster, and the two internal preview routes (`/teacher/register-preview`, `/teacher/capture-preview`). One exported name, `ClassListPanel`, because `ClassRegisterDetail` is the entire outside demand; the two pages stay route-mounted and unexported.
 
 **The icons went to `src/shared/icons/`, not into the feature — the first real resident of the `shared` layer.** `classListIcons.js` is the Lucide vocabulary the Class List and the Class Register are *both* specified against (its own docblock said so before any of this), and three files in `teacher/register/attendance/` still import it. Into the feature it would have meant either exporting forty icon names through this front door — the register depending on the Class List's public API to draw a checkmark, and evaluating `ClassListPanel` to get one — or leaving a one-file directory behind. A module two features share belongs below both, which is the same rule `adminUsers` recorded from the other side. `classListCore.js` stays in `src/utils/` for that reason (`MarkAttendanceView` reads it, and `test:class-list-core` covers it); `classListCapture.js` had one importer and travelled, into `services/` where its callable belongs.
