@@ -1,4 +1,4 @@
-import { LESSON_THEME_MAP } from './lessonConstants'
+import { LESSON_THEME_MAP } from '../lib/lessonConstants'
 
 function LessonIllustration({ slide }) {
   return (

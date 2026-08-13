@@ -1,6 +1,6 @@
 import { unzipSync, strFromU8 } from 'fflate'
 import { makeLessonId } from './lessonConstants'
-import { svgToPngBlob } from '../../utils/svgRasterizer'
+import { svgToPngBlob } from '../../../utils/svgRasterizer'
 
 const PPTX_MIME = {
   png: 'image/png',

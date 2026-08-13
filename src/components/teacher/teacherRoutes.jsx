@@ -50,8 +50,8 @@ const CapturePreview = lazy(() => import('../../features/classList/pages/Capture
 const AssessmentStudio = lazy(() => import('../../features/assessmentStudio/pages/AssessmentStudio'))
 const AssessmentList = lazy(() => import('../../features/assessmentStudio/pages/AssessmentList'))
 
-const LessonDashboard = lazy(() => import('../lessons/LessonDashboard'))
-const LessonEditor = lazy(() => import('../lessons/LessonEditor'))
+const LessonDashboard = lazy(() => import('../../features/lessons/pages/LessonDashboard'))
+const LessonEditor = lazy(() => import('../../features/lessons/pages/LessonEditor'))
 
 const LessonPlanStudio = lazy(() => import('../../features/lessonPlanStudio/pages/LessonPlanStudio'))
 const HomeworkStudio = lazy(() => import('../../features/homework/pages/HomeworkStudio'))

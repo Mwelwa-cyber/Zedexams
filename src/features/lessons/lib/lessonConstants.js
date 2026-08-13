@@ -1,4 +1,4 @@
-import { GRADES, SUBJECTS, NOTE_FORMAT, NOTE_STATUS } from '../../config/curriculum.js'
+import { GRADES, SUBJECTS, NOTE_FORMAT, NOTE_STATUS } from '../../../config/curriculum.js'
 
 export const LESSON_SCHEMA_VERSION = 1
 

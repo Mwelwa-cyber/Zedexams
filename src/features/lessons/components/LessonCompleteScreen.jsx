@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { LESSON_THEME_MAP } from './lessonConstants'
+import { LESSON_THEME_MAP } from '../lib/lessonConstants'
 
 export default function LessonCompleteScreen({ lesson, onReplay, onCheckAnswers }) {
   const navigate = useNavigate()

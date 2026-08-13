@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronRight, LayoutGrid, Presentation, Search } from '../ui/icons'
-import { useFirestore } from '../../hooks/useFirestore'
-import ComingSoon from '../ui/ComingSoon'
-import { LESSON_GRADES, LESSON_SUBJECTS } from './lessonConstants'
-import Button from '../ui/Button'
-import Icon from '../ui/Icon'
-import Skeleton from '../ui/Skeleton'
-import SeoHelmet from '../seo/SeoHelmet'
-import { LessonsHubTour } from '../ui/learnerTours'
+import { ChevronRight, LayoutGrid, Presentation, Search } from '../../../components/ui/icons'
+import { useFirestore } from '../../../hooks/useFirestore'
+import ComingSoon from '../../../components/ui/ComingSoon'
+import { LESSON_GRADES, LESSON_SUBJECTS } from '../lib/lessonConstants'
+import Button from '../../../components/ui/Button'
+import Icon from '../../../components/ui/Icon'
+import Skeleton from '../../../components/ui/Skeleton'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import { LessonsHubTour } from '../../../components/ui/learnerTours'
 
 function getReadTime(lesson) {
   const words = String(lesson.content || '').split(/\s+/).filter(Boolean).length

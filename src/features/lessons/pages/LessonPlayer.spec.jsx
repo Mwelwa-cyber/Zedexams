@@ -10,27 +10,27 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
-vi.mock('../../firebase/config', () => ({ default: {}, auth: {}, db: {} }))
+vi.mock('../../../firebase/config', () => ({ default: {}, auth: {}, db: {} }))
 
 const mockGetLessonById = vi.fn()
-vi.mock('../../hooks/useFirestore', () => ({
+vi.mock('../../../hooks/useFirestore', () => ({
   useFirestore: () => ({ getLessonById: mockGetLessonById }),
 }))
 
 // AuthContext initialises Firebase at import time; stub it. The player only
 // reads currentUser.uid to scope its saved-progress localStorage key.
-vi.mock('../../contexts/AuthContext', () => ({
+vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({ currentUser: { uid: 'learner-1' } }),
 }))
 
 const mockToastInfo = vi.fn()
-vi.mock('../ui/Toast', () => ({ useToast: () => ({ info: mockToastInfo, error: vi.fn(), success: vi.fn() }) }))
+vi.mock('../../../components/ui/Toast', () => ({ useToast: () => ({ info: mockToastInfo, error: vi.fn(), success: vi.fn() }) }))
 
 // Heavy / unrelated leaves.
-vi.mock('./SlideRenderer', () => ({ default: () => null }))
-vi.mock('./LessonCompleteScreen', () => ({ default: () => null }))
-vi.mock('./PowerPointViewerPlayer', () => ({ default: () => null }))
-vi.mock('../seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../components/SlideRenderer', () => ({ default: () => null }))
+vi.mock('../components/LessonCompleteScreen', () => ({ default: () => null }))
+vi.mock('../components/PowerPointViewerPlayer', () => ({ default: () => null }))
+vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
 
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal()
