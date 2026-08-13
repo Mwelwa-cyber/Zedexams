@@ -993,6 +993,39 @@ async function main() {
     await assertFails(updateDoc(doc(learnerA, 'results', 'result_a'), { percentage: 100 }))
   })
 
+  // The assessment engine writes `timeSpent: null` when an attempt's start is
+  // unknown, rather than the old path's 0 — the one approved deviation between
+  // the two builders (`persist/resultDocument.js`). `validResultFields()` does
+  // not mention the field, so the rules accept it; that is an INFERENCE from
+  // reading the rule, and the quiz cutover's write depends on it being true.
+  // A rule change that started validating timeSpent would reject every engine
+  // attempt that could not measure its start, at submit, after the learner had
+  // answered everything.
+  await test('learner can create a result with an unmeasured timeSpent (engine write)', async () => {
+    await assertSucceeds(setDoc(doc(learnerB, 'results', 'result_b_unmeasured'), {
+      userId: LEARNER_B,
+      quizId: 'published_practice',
+      score: 8,
+      percentage: 80,
+      totalMarks: 10,
+      timeSpent: null,
+    }))
+  })
+
+  // The control case: the SAME document with only timeSpent changed to a
+  // measured number must also succeed. Without it the test above proves
+  // nothing about timeSpent — it would pass with the field deleted entirely.
+  await test('…and the same result with a measured timeSpent still succeeds', async () => {
+    await assertSucceeds(setDoc(doc(learnerB, 'results', 'result_b_measured'), {
+      userId: LEARNER_B,
+      quizId: 'published_practice',
+      score: 8,
+      percentage: 80,
+      totalMarks: 10,
+      timeSpent: 240,
+    }))
+  })
+
   // ── noteProgress — owner read incl. not-yet-created records ───
   section('noteProgress — first-open get of a missing owner doc must succeed')
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useFirestore } from '../../hooks/useFirestore'
 import { optionLabel } from '../../utils/mcqChoices'
@@ -38,6 +38,16 @@ import {
   isSequenceType,
 } from '../../utils/quizScoring'
 import { buildQuizResultPayload } from '../../utils/quizResultPayload'
+import { useAssessmentEngineFlag } from '../../hooks/useAssessmentEngineFlag'
+import { fromQuiz, markAttempt, unrenderableTypes } from '../../engines/assessment-engine'
+import { ChoiceQuestion } from '../../engines/assessment-engine/render'
+// `persist/` is reached as an AREA, not through the front door — the past-paper
+// canary imports the front door and must remain structurally unable to write
+// (`test:paper-quiz-zero-write`). Same idiom as `render/` above.
+import { buildResultDocument } from '../../engines/assessment-engine/persist'
+import { reportClientError } from '../../utils/clientErrorReporting'
+import { capture } from '../../utils/analytics'
+import { BUILD_ID } from '../../utils/buildId'
 import { imagePositionClasses, resolveQuestionFigure, usesFigurePositionWrapper } from '../../utils/questionFigure'
 import { fillBlanksLayout, gradeFillBlanks } from '../../utils/fillBlanks'
 import { diagramLabelLayout, gradeDiagramLabels } from '../../utils/diagramLabelGrading'
@@ -509,12 +519,146 @@ export default function QuizRunnerV2() {
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [started, mode])
 
+  // ── The Phase 3 quiz cutover (docs/phase3-plan.md §5.0, second flip) ───────
+  //
+  // Past-paper was the canary because it persists nothing. This route is the
+  // first that WRITES, so the engine's `persist/` builder ships here — and it
+  // is the builder the replay harness has been diffing against the old path on
+  // every fixture since #2125 (`test:replay-engine-comparison`). The flag
+  // selects the CHOICE CARD, the VERDICT and the RESULT DOCUMENT; every other
+  // thing on the screen — stem, figures, sections, passages, timer, bookmark,
+  // review screen, navigation — is the same code on both paths, so a visible
+  // difference during the ramp means defect rather than "the new one is
+  // different".
+  const engineFlag = useAssessmentEngineFlag('quiz')
+
+  // The canonical assessment, or null when the engine path must not serve.
+  //
+  // Null on ANY doubt, because the fallback is the known-good old runner. The
+  // refusals below are what keep this cutover honest at a runner that renders
+  // eleven question types while the engine draws two: a quiz containing a
+  // single short-answer, fill-blanks or matching question is served ENTIRELY by
+  // the old runner. There is no per-question mix — a learner meets one card
+  // design per attempt, and a render bug stays attributable to one path.
+  const engineAssessment = useMemo(() => {
+    // `resolved` gates the decision (the hook's contract): acting on the
+    // provisional answer would swap the card out from under a learner who has
+    // already answered, and an answer held in one card's state is not carried
+    // into the other's.
+    if (!engineFlag.resolved || !engineFlag.engine || !quiz || questions.length === 0) return null
+    try {
+      const assessment = fromQuiz({
+        quiz,
+        questions,
+        source: 'quiz',
+        timed: mode === 'exam',
+      })
+      // `fromQuiz` validates rather than filters, but if the two lists ever
+      // disagreed on order or length then the answer map, the score and the
+      // review screen would each silently describe a DIFFERENT question per
+      // path. That class of bug does not throw, so it is refused structurally.
+      const aligned = assessment.questions.length === questions.length
+        && assessment.questions.every((q, i) => q.id === questions[i]?.id)
+      if (!aligned) {
+        reportClientError(new Error('canonical questions misaligned with source'), 'quiz-engine')
+        return null
+      }
+      // The written document takes its `quizId` from the assessment's id
+      // (persist/resultDocument.js), so an id that failed to carry across
+      // would file a learner's result against the wrong quiz — or against ''.
+      // Nothing on screen would reveal it: the attempt renders and submits
+      // normally, and only the results page, the teacher's analytics and the
+      // learner's history are wrong. Refused rather than trusted, because this
+      // is the first cutover that writes.
+      if (assessment.id !== quizId) {
+        reportClientError(new Error('canonical assessment id does not match the route quiz id'), 'quiz-engine')
+        return null
+      }
+      // "Can this learner be shown this whole quiz." One unsupported type
+      // anywhere and the old runner serves all of it.
+      if (unrenderableTypes(assessment).length > 0) return null
+      // Option MEDIA is a refusal the type check cannot make, because it is a
+      // property of the data rather than of the type. The old card draws a
+      // picture or a diagram per option (`question.optionMedia`); the canonical
+      // model has no field for one and `ChoiceQuestion` draws only text. So an
+      // engine-served question whose options ARE the pictures — routine in
+      // maths and science MCQs — would render four blank-looking rows and be
+      // unanswerable, which is the exact failure `render/supportedTypes.js`
+      // exists to refuse: "not a crash, not a red test, just a learner losing
+      // marks for something nobody drew." Removing this refusal means teaching
+      // the model and the renderer about media, not deleting the check.
+      const hasOptionMedia = questions.some((q) => Array.isArray(q?.optionMedia)
+        && q.optionMedia.some((m) => m?.imageUrl || m?.diagram))
+      if (hasOptionMedia) return null
+      // The canonical key is derived only from an integer `correctAnswer`
+      // today; every other stored shape normalises to a null correctIndex — a
+      // card that paints nothing green and marks every selection wrong. A quiz
+      // carrying one is the old runner's to serve until the normaliser learns
+      // that shape.
+      if (assessment.questions.some((q) => q.correctIndex == null)) return null
+      return assessment
+    } catch (err) {
+      reportClientError(err, 'quiz-engine')
+      return null
+    }
+  }, [engineFlag.resolved, engineFlag.engine, quiz, questions, mode, quizId])
+  const engineActive = engineAssessment != null
+  // Looked up by id rather than by index: this runner draws whole sections at
+  // a time, so there is no single "current" question to index into.
+  const engineQuestionsById = useMemo(() => {
+    if (!engineAssessment) return null
+    return new Map(engineAssessment.questions.map((q) => [q.id, q]))
+  }, [engineAssessment])
+
+  // §7.2: ONE PostHog event per runner entry, both paths, aggregate only.
+  // `engine` records which card actually SERVED — a flag that said engine while
+  // normalisation refused it reports false, because false is what the learner
+  // saw.
+  const pathReported = useRef(false)
+  useEffect(() => {
+    // Gated on `final`, not `resolved`: under a partial rollout the hook's
+    // answer is provisional during the auth watchdog window, and a once-only
+    // event recorded then is permanently wrong whenever settlement overturns it.
+    if (pathReported.current || !engineFlag.final || loading || !quiz || !started) return
+    pathReported.current = true
+    capture('assessment_engine_path', {
+      runner: 'quiz',
+      engine: engineActive,
+      flagSource: engineFlag.source,
+      // Separates the watchdog hold (engine:false, latched:true) from a
+      // normalisation refusal (engine:false, latched:false) — without it the
+      // two are one bucket and the refusal rate cannot be read, which at this
+      // runner is the number that says how much of the corpus the engine can
+      // actually serve.
+      latched: engineFlag.latched,
+      build: BUILD_ID,
+    })
+  }, [engineFlag.final, engineFlag.source, engineFlag.latched, engineActive, loading, quiz, started])
+
+  /**
+   * Is this choice correct? The verdict seam.
+   *
+   * On the engine path the session asks `markAttempt` and never scores inline;
+   * the card paints its ✓/✗ from the same canonical `correctIndex`, so the
+   * tally, the highlight and the written result cannot disagree. The old path
+   * keeps its own comparison, untouched.
+   */
+  function isChoiceCorrect(question, optionIndex) {
+    const engineQuestion = engineActive ? engineQuestionsById.get(question.id) : null
+    if (!engineQuestion) return question && optionIndex === question.correctAnswer
+    return markAttempt({
+      assessment: engineAssessment,
+      answers: { [engineQuestion.id]: optionIndex },
+      strategy: 'clientKey',
+    }).score > 0
+  }
+
   function pick(questionId, optionIndex) {
     setAnswers(current => ({ ...current, [questionId]: optionIndex }))
     if (mode === 'practice') {
       setRevealed(current => ({ ...current, [questionId]: true }))
       const currentQuestion = questions.find(question => question.id === questionId)
-      const isCorrect = currentQuestion && optionIndex === currentQuestion.correctAnswer
+      const isCorrect = currentQuestion && isChoiceCorrect(currentQuestion, optionIndex)
       setFeedbackType(isCorrect ? 'correct' : 'wrong')
       setTimeout(() => setFeedbackType(null), 1300)
       const tipText = getRichPlainText(currentQuestion?.explanation) || getPakoTip(currentQuestion?.topic, isCorrect)
@@ -603,16 +747,43 @@ export default function QuizRunnerV2() {
       // path writes can be produced without rendering the runner — see
       // src/utils/quizResultPayload.js. Scoring, provisional grading and the
       // field set all live there now; this call site owns only the I/O.
-      const resultId = await saveResult(buildQuizResultPayload({
-        quiz,
-        quizId,
-        questions,
-        answers,
-        mode,
-        userId: currentUser.uid,
-        startTime,
-        nowMs: Date.now(),
-      }))
+      //
+      // On the engine path the same document is built through the canonical
+      // model instead: normalise → mark → build, which is exactly the sequence
+      // `scripts/replay/replayEngineComparison.test.js` replays every recorded
+      // attempt through and diffs against this builder's output. The two agree
+      // field for field on every fixture, with one declared deviation —
+      // `timeSpent` is null rather than 0 when the attempt's start is unknown,
+      // because a duration that reads as measured but never was is worse than
+      // an honest absence (persist/resultDocument.js).
+      const nowMs = Date.now()
+      const payload = engineActive
+        ? buildResultDocument({
+          assessment: engineAssessment,
+          attempt: {
+            userId: currentUser.uid,
+            answers,
+            mode,
+            startedAtMs: startTime,
+          },
+          verdict: markAttempt({
+            assessment: engineAssessment,
+            answers,
+            strategy: 'clientKey',
+          }),
+          nowMs,
+        })
+        : buildQuizResultPayload({
+          quiz,
+          quizId,
+          questions,
+          answers,
+          mode,
+          userId: currentUser.uid,
+          startTime,
+          nowMs,
+        })
+      const resultId = await saveResult(payload)
       // Clear saved session now that results are safely in Firestore
       clearQuizSession(quizId, currentUser.uid)
       navigate(`/results/${resultId}`)
@@ -626,7 +797,11 @@ export default function QuizRunnerV2() {
       setSubmitting(false)
       setActionError('Failed to save your results. Please check your connection and try again.')
     }
-  }, [answers, questions, quiz, quizId, currentUser, mode, startTime, saveResult, navigate])
+  // `engineActive`/`engineAssessment` are dependencies, not incidentals: the
+  // auto-submit path fires this from a timer through `submitRef`, and a stale
+  // closure would pick the builder for a decision that no longer holds.
+  }, [answers, questions, quiz, quizId, currentUser, mode, startTime, saveResult, navigate,
+    engineActive, engineAssessment])
   submitRef.current = handleSubmit
 
   if (loading) {
@@ -721,6 +896,10 @@ export default function QuizRunnerV2() {
   function renderQuestion(question) {
     const isRevealed = mode === 'practice' && revealed[question.id]
     const userAnswer = answers[question.id]
+    // Null unless the engine is serving this whole attempt. The refusals in
+    // `engineAssessment` mean this is either set for every question or for
+    // none of them — a per-question mix is what the whole-quiz check prevents.
+    const engineQuestion = engineActive ? engineQuestionsById.get(question.id) ?? null : null
     const checking = aiChecking[question.id]
     const aiResult = aiResults[question.id]
     const checked = !!aiResult
@@ -1685,30 +1864,45 @@ export default function QuizRunnerV2() {
                 />
               </div>
             )}
-            <div className="opt-grid">
-              {question.options.map((option, optionIndex) => {
-                const media = Array.isArray(question.optionMedia) ? question.optionMedia[optionIndex] : null
-                return (
-                  <OptionButton
-                    key={`${question.id}-${optionIndex}`}
-                    label={optionLabel(optionIndex)}
-                    selected={!isRevealed && userAnswer === optionIndex}
-                    revealed={isRevealed}
-                    correct={isRevealed && optionIndex === question.correctAnswer}
-                    wrong={isRevealed && userAnswer === optionIndex && userAnswer !== question.correctAnswer}
-                    onClick={() => !isRevealed && pick(question.id, optionIndex)}
-                    imageUrl={media?.imageUrl}
-                    imageAlt={media?.alt}
-                    diagram={media?.diagram}
-                    optionValue={option}
-                  >
-                    {/* Fallback text content for assistive tech + legacy
-                        paths that don't read `optionValue` rich content. */}
-                    {typeof option === 'string' ? option : (getRichPlainText(option) || '')}
-                  </OptionButton>
-                )
-              })}
-            </div>
+            {/* The cutover's flag boundary (docs/phase3-plan.md §5.0): the
+                CHOICE CARD is the engine's or the old runner's, never a mix.
+                `data-engine-runner` is how a spec — and a bug report — tells
+                the two apart. */}
+            {engineQuestion ? (
+              <div data-engine-runner="quiz">
+                <ChoiceQuestion
+                  question={engineQuestion}
+                  answer={userAnswer ?? null}
+                  revealed={isRevealed}
+                  onAnswer={(optionIndex) => !isRevealed && pick(question.id, optionIndex)}
+                />
+              </div>
+            ) : (
+              <div className="opt-grid">
+                {question.options.map((option, optionIndex) => {
+                  const media = Array.isArray(question.optionMedia) ? question.optionMedia[optionIndex] : null
+                  return (
+                    <OptionButton
+                      key={`${question.id}-${optionIndex}`}
+                      label={optionLabel(optionIndex)}
+                      selected={!isRevealed && userAnswer === optionIndex}
+                      revealed={isRevealed}
+                      correct={isRevealed && optionIndex === question.correctAnswer}
+                      wrong={isRevealed && userAnswer === optionIndex && userAnswer !== question.correctAnswer}
+                      onClick={() => !isRevealed && pick(question.id, optionIndex)}
+                      imageUrl={media?.imageUrl}
+                      imageAlt={media?.alt}
+                      diagram={media?.diagram}
+                      optionValue={option}
+                    >
+                      {/* Fallback text content for assistive tech + legacy
+                          paths that don't read `optionValue` rich content. */}
+                      {typeof option === 'string' ? option : (getRichPlainText(option) || '')}
+                    </OptionButton>
+                  )
+                })}
+              </div>
+            )}
 
             {isRevealed && (
               <>
