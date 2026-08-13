@@ -18,7 +18,7 @@ import CharacterAvatar, {
 } from '../profile/CharacterAvatar';
 import SeoHelmet from '../seo/SeoHelmet';
 import LanguageToggle from '../ui/LanguageToggle';
-import ParentShareManager from '../parent/ParentShareManager';
+import { ParentShareManager } from '../../features/parentPortal';
 import { isPushSupported, pushPermission, requestPushPermission } from '../../utils/fcm';
 import {
   loadAccessibilityPrefs,

@@ -20,13 +20,13 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { useAuth } from '../../contexts/AuthContext'
+import { useAuth } from '../../../contexts/AuthContext'
 import {
   createProgressShare,
   listMyProgressShares,
   revokeProgressShare,
-} from '../../utils/parentShares'
-import { siteOrigin } from '../../utils/runtime.js'
+} from '../../../utils/parentShares'
+import { siteOrigin } from '../../../utils/runtime.js'
 
 // Canonical origin so a link created inside the native app resolves — the
 // WebView's window.location.origin is https://localhost, which is dead off-device.

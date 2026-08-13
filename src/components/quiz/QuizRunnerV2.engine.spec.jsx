@@ -81,7 +81,7 @@ vi.mock('../../utils/clientErrorReporting', () => ({
 }))
 
 // The flag decision itself is stubbed; see the header.
-let mockFlag = { engine: true, resolved: true, final: true, source: 'rollout-all', latched: false }
+let mockFlag = { engine: true, resolved: true, final: true, source: 'rollout-all', latched: false, live: true }
 vi.mock('../../hooks/useAssessmentEngineFlag', () => ({
   useAssessmentEngineFlag: () => mockFlag,
 }))
@@ -126,26 +126,35 @@ function quizDoc(overrides = {}) {
 }
 
 function renderRunner() {
-  return render(
-    <MemoryRouter>
-      <ThemeProvider>
-        <QuizRunnerV2 />
-      </ThemeProvider>
-    </MemoryRouter>,
-  )
+  return render(runnerTree())
 }
 
 /** Load the quiz, then press through the start card into a practice attempt. */
 async function startPractice({ quiz = quizDoc(), questions = [mcq()] } = {}) {
   mockGetQuizById.mockResolvedValue(quiz)
   mockGetQuestions.mockResolvedValue(questions)
-  renderRunner()
+  const result = renderRunner()
   const start = await screen.findByRole('button', { name: /Start Practice/i })
   fireEvent.click(start)
   await waitFor(() => expect(screen.queryByRole('button', { name: /Start Practice/i })).toBeNull())
+  return result
 }
 
 const engineCard = () => document.querySelector('[data-engine-runner="quiz"]')
+
+/**
+ * Re-render the ALREADY-MOUNTED runner so it re-reads the module-level flag
+ * stub. Must be RTL's `rerender`, not a second `render`: a second mount would
+ * put two runners in the document and `engineCard()` would find whichever came
+ * first, which is how a rollback test passes without a rollback happening.
+ */
+// A FRESH element every call. Reusing one object makes React bail out on
+// referential equality and skip the re-render entirely — which silently turns
+// "the rollback reached the learner" into "nothing happened", and a test that
+// asserts the card is absent then passes because it was never re-rendered.
+const runnerTree = () => (
+  <MemoryRouter><ThemeProvider><QuizRunnerV2 /></ThemeProvider></MemoryRouter>
+)
 
 /** Submit opens the review screen; the attempt is filed from its Finish button. */
 async function finishQuiz() {
@@ -155,7 +164,7 @@ async function finishQuiz() {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mockFlag = { engine: true, resolved: true, final: true, source: 'rollout-all', latched: false }
+  mockFlag = { engine: true, resolved: true, final: true, source: 'rollout-all', latched: false, live: true }
   mockSaveResult.mockResolvedValue('result-1')
 })
 
@@ -187,7 +196,7 @@ describe('the engine serves the choice card', () => {
     await startPractice()
     await waitFor(() => expect(mockCapture).toHaveBeenCalledWith(
       'assessment_engine_path',
-      expect.objectContaining({ runner: 'quiz', engine: true, flagSource: 'rollout-all' }),
+      expect.objectContaining({ runner: 'quiz', engine: true, flagSource: 'rollout-all', live: true }),
     ))
     expect(mockCapture.mock.calls.filter((c) => c[0] === 'assessment_engine_path')).toHaveLength(1)
   })
@@ -259,6 +268,31 @@ describe('what the engine refuses to serve', () => {
     expect(engineCard()).not.toBeNull()
   })
 
+  it('falls back when a topic would be KEYED differently by the two paths', async () => {
+    // Not a render refusal — a WRITE one. The engine trims topics and the old
+    // path does not, so ' Algebra ' would key `topicScores` differently on each
+    // path and split a learner's topic aggregates. timeSpent is the only
+    // deviation this cutover declared.
+    await startPractice({ questions: [mcq({ topic: ' Algebra ' })] })
+    expect(engineCard()).toBeNull()
+  })
+
+  it('falls back when a topic is whitespace only', async () => {
+    // The old path keys '   ' verbatim; the engine drops it and keys 'General'.
+    await startPractice({ questions: [mcq({ topic: '   ' })] })
+    expect(engineCard()).toBeNull()
+  })
+
+  it('still serves an already-trimmed topic, and a question with no topic', async () => {
+    // The control: the refusal above must not exclude the ordinary corpus, or
+    // the engine would quietly serve almost nothing and the refusal rate would
+    // be misread as "these questions cannot be drawn".
+    await startPractice({
+      questions: [mcq({ id: 'q1', topic: 'Algebra' }), mcq({ id: 'q2', topic: undefined })],
+    })
+    expect(engineCard()).not.toBeNull()
+  })
+
   it('refuses, and reports, when the canonical id does not match the route', async () => {
     // The written document takes its quizId from the canonical id, so this one
     // is a wrong-quiz result rather than a wrong render — nothing on screen
@@ -266,6 +300,65 @@ describe('what the engine refuses to serve', () => {
     await startPractice({ quiz: quizDoc({ id: 'a-different-quiz' }) })
     expect(engineCard()).toBeNull()
     expect(mockReportClientError).toHaveBeenCalled()
+  })
+})
+
+describe('the decision is latched for the duration of an attempt', () => {
+  it('keeps a learner who started on the old card there, even once the flag turns on', async () => {
+    // The quiz document can load before the flag settles. A learner may press
+    // Start and answer on the old card; if the decision then landed on engine,
+    // an unlatched memo would swap the card mid-attempt — the swap the latch
+    // exists to prevent.
+    mockFlag = { ...mockFlag, engine: false, resolved: false, final: false }
+    mockGetQuizById.mockResolvedValue(quizDoc())
+    mockGetQuestions.mockResolvedValue([mcq()])
+    const { rerender } = renderRunner()
+    fireEvent.click(await screen.findByRole('button', { name: /Start Practice/i }))
+    await waitFor(() => expect(screen.queryByRole('button', { name: /Start Practice/i })).toBeNull())
+    expect(engineCard()).toBeNull()
+
+    // The decision now settles on the engine, mid-attempt.
+    mockFlag = { engine: true, resolved: true, final: true, source: 'rollout-all', latched: false, live: true }
+    rerender(runnerTree())
+    expect(engineCard()).toBeNull()
+  })
+
+  it('reports that hold as its own dimension, not as a refusal', async () => {
+    // `engine:false, latched:false` is what a normalisation refusal looks like.
+    // A quiz the engine COULD serve, held only because the attempt started
+    // early, must not be counted there — the refusal rate is what the ramp
+    // decision is read from.
+    mockFlag = { ...mockFlag, engine: false, resolved: false, final: false }
+    mockGetQuizById.mockResolvedValue(quizDoc())
+    mockGetQuestions.mockResolvedValue([mcq()])
+    const { rerender } = renderRunner()
+    fireEvent.click(await screen.findByRole('button', { name: /Start Practice/i }))
+    await waitFor(() => expect(screen.queryByRole('button', { name: /Start Practice/i })).toBeNull())
+
+    mockFlag = { engine: true, resolved: true, final: true, source: 'rollout-all', latched: false, live: true }
+    rerender(runnerTree())
+    await waitFor(() => expect(mockCapture).toHaveBeenCalledWith(
+      'assessment_engine_path',
+      expect.objectContaining({ engine: false, heldByAttemptLatch: true }),
+    ))
+  })
+})
+
+describe('a rollback reaches an attempt already running on the engine', () => {
+  it('drops back to the old card when an operator disables the flag mid-attempt', async () => {
+    // The latch holds false→true so nobody is swapped ONTO the engine
+    // mid-question. It must NOT hold true→false: disabling the flag is an
+    // emergency rollback, and the learners on the engine are exactly the
+    // population it is for. Held both ways, an in-flight attempt kept the
+    // engine renderer, verdict and result writer after the switch was thrown.
+    const { rerender } = await startPractice()
+    expect(engineCard()).not.toBeNull()
+
+    mockFlag = { ...mockFlag, engine: false, source: 'runner-off' }
+    rerender(runnerTree())
+    expect(engineCard()).toBeNull()
+    // The learner keeps their question — the old card renders it.
+    expect(screen.getByText('What is 2 + 2?')).toBeInTheDocument()
   })
 })
 

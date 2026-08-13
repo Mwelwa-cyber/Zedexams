@@ -123,7 +123,7 @@ learners and admins get the standalone page), `/subscription` → `/my-subscript
 
 ## Family portal (authenticated parents — `ParentRoute`)
 
-`/family` → `FamilyHome`; `/family/child/:childUid` → `ChildProgressPage`. (`components/parent/*`, layout `components/layout/ParentLayout`.)
+`/family` → `FamilyHome`; `/family/child/:childUid` → `ChildProgressPage`. (`src/features/parentPortal/pages/*`, layout `components/layout/ParentLayout`.)
 
 ## Admin routes (`AdminRoute` = admin role + `AdminLayout`)
 

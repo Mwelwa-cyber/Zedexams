@@ -3,7 +3,7 @@
  *
  * Inline viewer for the OFFICIAL ECZ timetable PDF, reached from the
  * "View Official ECZ Timetable (PDF)" button on the interactive
- * /timetable page (components/timetable/ExamTimetablePage.jsx), which
+ * /timetable page (features/examTimetable/pages/ExamTimetablePage.jsx), which
  * replaced this as the default view — the A4 PDF forced pinch-zooming
  * on phones.
  *

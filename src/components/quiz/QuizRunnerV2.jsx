@@ -590,6 +590,33 @@ export default function QuizRunnerV2() {
       const hasOptionMedia = questions.some((q) => Array.isArray(q?.optionMedia)
         && q.optionMedia.some((m) => m?.imageUrl || m?.diagram))
       if (hasOptionMedia) return null
+      // A topic the two paths would KEY DIFFERENTLY, which is a divergence in
+      // the written document rather than on the screen (Codex P2 on #2329,
+      // r3777973394 — arriving nine minutes after that PR merged).
+      //
+      // `fromQuiz.topicIdsOf` trims, and drops a whitespace-only topic
+      // entirely; the old path hands `question.topic` to `computeQuizScore`
+      // untouched and only falls back to 'General' when it is falsy. So
+      // `' Algebra '` keys as `' Algebra '` on one path and `'Algebra'` on the
+      // other, and `'   '` keys as `'   '` versus `'General'`. `topicScores`
+      // feeds the results page and weakness analytics, so that silently splits
+      // or merges a learner's topic aggregates — and `timeSpent` is the ONLY
+      // deviation this cutover declared.
+      //
+      // The replay harness did not catch it because no fixture carries an
+      // untrimmed topic: the comparison is exact, so the gap was in the corpus
+      // rather than in the differ. Refusing keeps the write byte-compatible;
+      // the alternative — trimming on the old path too — changes documents the
+      // engine is not serving, which is a data decision and not a cutover one.
+      const topicKeysWouldDiverge = questions.some((q) => {
+        const topic = q?.topic
+        if (topic === undefined || topic === null || topic === '') return false
+        // A truthy NON-string keys itself on the old path and 'General' on the
+        // engine, because `topicIdsOf` only accepts strings.
+        if (typeof topic !== 'string') return Boolean(topic)
+        return topic !== topic.trim()
+      })
+      if (topicKeysWouldDiverge) return null
       // The canonical key is derived only from an integer `correctAnswer`
       // today; every other stored shape normalises to a null correctIndex — a
       // card that paints nothing green and marks every selection wrong. A quiz
@@ -602,13 +629,63 @@ export default function QuizRunnerV2() {
       return null
     }
   }, [engineFlag.resolved, engineFlag.engine, quiz, questions, mode, quizId])
-  const engineActive = engineAssessment != null
+  // The decision is LATCHED for the duration of an attempt (Codex P2 on #2329,
+  // r3777973386). `resolved` gates the decision but does not gate the mount:
+  // the quiz document can load before the flag settles, so a learner could
+  // press Start and answer on the old card, and the memo above would then turn
+  // non-null when the decision landed — swapping the card mid-attempt, which is
+  // the exact thing the hook's latch exists to prevent. The comment here used
+  // to claim `resolved` prevented that; it did not.
+  //
+  // Latching at Start rather than blocking Start is deliberate: gating the
+  // start card on a Firestore round trip costs every learner a wait to protect
+  // a rare race, and the conservative direction is free — an attempt that began
+  // before the decision landed simply finishes on the known-good old runner.
+  const attemptEngineRef = useRef(null)
+  const attemptLatchedRef = useRef(false)
+  if (started && !attemptLatchedRef.current) {
+    attemptLatchedRef.current = true
+    attemptEngineRef.current = engineAssessment
+  } else if (!started && attemptLatchedRef.current) {
+    // Re-arm for the next attempt: "Try again" returns to the start card, and
+    // a stale latch would pin a whole session to the first attempt's decision.
+    attemptLatchedRef.current = false
+    attemptEngineRef.current = null
+  }
+  // The latch holds in ONE direction only, which is the whole point of it
+  // (Codex P1 on #2336, r3778380753 — the first version held in both).
+  //
+  // false→true is held: an attempt that began before the decision landed
+  // finishes on the old runner, because swapping a learner onto the engine
+  // mid-question is the harm.
+  //
+  // true→false is NOT held: an operator disabling the flag is an emergency
+  // rollback, and it must reach the learners currently on the engine — who are
+  // precisely the population the rollback is for. Held in both directions, an
+  // in-flight attempt kept the engine renderer, verdict AND result writer after
+  // the switch was thrown, which is `flags.js`'s stated rule inverted: "a
+  // rollback that spares the people most likely to be staff is a rollback that
+  // leaves the failure running for exactly the group that would otherwise
+  // notice it stopped." The hook says the same in one line — a ramp-up never
+  // moves a learner mid-question, a rollback always does.
+  const attemptAssessment = started
+    ? (engineAssessment ? attemptEngineRef.current : null)
+    : engineAssessment
+  // The latch held this attempt on the old card even though the decision now
+  // says engine — a CONSUMER-level hold the hook's own `latched` cannot see
+  // (Codex P2 on #2336, r3778380755). Without its own dimension the event
+  // reports `engine:false, latched:false`, which is indistinguishable from a
+  // normalisation refusal — and the refusal rate is the number the ramp
+  // decision is made on, so a hold counted as a refusal argues against a ramp
+  // the engine is in fact ready for.
+  const heldByAttemptLatch = started && engineAssessment != null && attemptAssessment == null
+  const engineActive = attemptAssessment != null
   // Looked up by id rather than by index: this runner draws whole sections at
   // a time, so there is no single "current" question to index into.
   const engineQuestionsById = useMemo(() => {
-    if (!engineAssessment) return null
-    return new Map(engineAssessment.questions.map((q) => [q.id, q]))
-  }, [engineAssessment])
+    if (!attemptAssessment) return null
+    return new Map(attemptAssessment.questions.map((q) => [q.id, q]))
+  }, [attemptAssessment])
 
   // §7.2: ONE PostHog event per runner entry, both paths, aggregate only.
   // `engine` records which card actually SERVED — a flag that said engine while
@@ -631,9 +708,23 @@ export default function QuizRunnerV2() {
       // runner is the number that says how much of the corpus the engine can
       // actually serve.
       latched: engineFlag.latched,
+      // A dead `settings/global` subscription forces the decision closed, and
+      // the resolver then reports the SAME `runner-off` source as a flag an
+      // operator turned off — so without this, a client that lost its config
+      // feed is indistinguishable in PostHog from an intentional rollback, and
+      // the ramp's denominator quietly changes for a reason nobody can see.
+      // The hook's own docblock asks consumers to send it (Codex P2 on #2329,
+      // r3777973366).
+      live: engineFlag.live,
+      // The attempt-level hold, distinct from the hook's `latched`: this quiz
+      // was ELIGIBLE and the engine was on, but the attempt had already begun
+      // before the decision landed. Counting it as a refusal would understate
+      // how much of the corpus the engine can serve.
+      heldByAttemptLatch,
       build: BUILD_ID,
     })
-  }, [engineFlag.final, engineFlag.source, engineFlag.latched, engineActive, loading, quiz, started])
+  }, [engineFlag.final, engineFlag.source, engineFlag.latched, engineFlag.live, engineActive,
+    heldByAttemptLatch, loading, quiz, started])
 
   /**
    * Is this choice correct? The verdict seam.
@@ -647,7 +738,7 @@ export default function QuizRunnerV2() {
     const engineQuestion = engineActive ? engineQuestionsById.get(question.id) : null
     if (!engineQuestion) return question && optionIndex === question.correctAnswer
     return markAttempt({
-      assessment: engineAssessment,
+      assessment: attemptAssessment,
       answers: { [engineQuestion.id]: optionIndex },
       strategy: 'clientKey',
     }).score > 0
@@ -759,7 +850,7 @@ export default function QuizRunnerV2() {
       const nowMs = Date.now()
       const payload = engineActive
         ? buildResultDocument({
-          assessment: engineAssessment,
+          assessment: attemptAssessment,
           attempt: {
             userId: currentUser.uid,
             answers,
@@ -767,7 +858,7 @@ export default function QuizRunnerV2() {
             startedAtMs: startTime,
           },
           verdict: markAttempt({
-            assessment: engineAssessment,
+            assessment: attemptAssessment,
             answers,
             strategy: 'clientKey',
           }),
@@ -801,7 +892,7 @@ export default function QuizRunnerV2() {
   // auto-submit path fires this from a timer through `submitRef`, and a stale
   // closure would pick the builder for a decision that no longer holds.
   }, [answers, questions, quiz, quizId, currentUser, mode, startTime, saveResult, navigate,
-    engineActive, engineAssessment])
+    engineActive, attemptAssessment])
   submitRef.current = handleSubmit
 
   if (loading) {

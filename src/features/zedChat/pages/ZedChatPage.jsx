@@ -8,9 +8,9 @@
  */
 
 import { Navigate } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
-import SeoHelmet from '../seo/SeoHelmet'
-import ZedChat from './ZedChat'
+import { useAuth } from '../../../contexts/AuthContext'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import ZedChat from '../components/ZedChat'
 
 export default function ZedChatPage() {
   const { currentUser, loading } = useAuth()

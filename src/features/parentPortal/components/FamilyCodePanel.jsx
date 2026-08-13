@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useAuth } from '../../contexts/AuthContext'
+import { useAuth } from '../../../contexts/AuthContext'
 import {
   createFamilyInviteCode,
   revokeFamilyInviteCode,
   listMyFamilyCodes,
   listMyLinkedParents,
   unlinkParentLink,
-} from '../../utils/familyPortal'
-import { reportClientError } from '../../utils/clientErrorReporting'
-import Button from '../ui/Button'
+} from '../services/familyPortal'
+import { reportClientError } from '../../../utils/clientErrorReporting'
+import Button from '../../../components/ui/Button'
 
 /**
  * FamilyCodePanel — learner-side control (mounted in learner settings). Lets a

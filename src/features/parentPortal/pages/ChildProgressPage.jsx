@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { getChildProgress } from '../../utils/familyPortal'
-import { reportClientError } from '../../utils/clientErrorReporting'
-import ChildProgressSections from './ChildProgressSections'
-import Skeleton from '../ui/Skeleton'
-import SeoHelmet from '../seo/SeoHelmet'
+import { getChildProgress } from '../services/familyPortal'
+import { reportClientError } from '../../../utils/clientErrorReporting'
+import ChildProgressSections from '../components/ChildProgressSections'
+import Skeleton from '../../../components/ui/Skeleton'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
 
 /**
  * ChildProgressPage — /family/child/:childUid. Loads the authenticated

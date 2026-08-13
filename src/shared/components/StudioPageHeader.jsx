@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
-import Icon from '../ui/Icon'
-import { ChevronLeft, Sparkles } from '../ui/icons'
+import Icon from '../../components/ui/Icon'
+import { ChevronLeft, Sparkles } from '../../components/ui/icons'
 
 /**
  * StudioPageHeader — the ONE header band for every teacher studio page.

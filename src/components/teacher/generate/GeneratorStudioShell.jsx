@@ -28,9 +28,9 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import StudioPageHeader from '../StudioPageHeader'
+import StudioPageHeader from '../../../shared/components/StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
-import SetupForYouCard from '../SetupForYouCard'
+import SetupForYouCard from '../../../shared/components/SetupForYouCard'
 import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
 import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
 import { useTeacherPlanContext } from '../studio/hooks/useTeacherPlanContext'

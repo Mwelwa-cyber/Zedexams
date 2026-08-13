@@ -24,7 +24,7 @@ import OfflineBanner from './components/ui/OfflineBanner'
 import { OfflineIndicator } from './offline'
 import UpdatePrompt from './components/ui/UpdatePrompt'
 import CookieConsentBanner from './components/ui/CookieConsentBanner'
-import ZedChatLauncher from './components/ai/ZedChatLauncher'
+import { ZedChatLauncher } from './features/zedChat'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 import ScrollToTop from './components/ui/ScrollToTop'
 import VisitorTracker from './components/ui/VisitorTracker'
@@ -90,7 +90,7 @@ const LearnerCalendar = lazy(() => import('./components/dashboard/LearnerCalenda
 // (Firestore-driven with a bundled fallback); /timetable/pdf keeps the inline
 // viewer for the official ECZ PDF because Android/Capacitor WebViews silently
 // drop external PDF links.
-const ExamTimetablePage = lazy(() => import('./components/timetable/ExamTimetablePage'))
+const ExamTimetablePage = lazy(() => import('./features/examTimetable/pages/ExamTimetablePage'))
 const TimetableViewerPage = lazy(() => import('./components/dashboard/TimetableViewerPage'))
 const SubjectDrillDown = lazy(() => import('./components/dashboard/SubjectDrillDown'))
 const QuizList = lazy(() => import('./components/quiz/QuizList'))
@@ -152,7 +152,7 @@ const PublicQuizRunner = lazy(() => import('./features/papers/pages/PublicQuizRu
 const MyPapersHistory = lazy(() => import('./features/papers/pages/MyPapersHistory'))
 const AdminPastPapers = lazy(() => import('./components/admin/AdminPastPapers'))
 const PastPaperStudio = lazy(() => import('./components/admin/PastPaperStudio'))
-const ZedChatPage = lazy(() => import('./components/ai/ZedChatPage'))
+const ZedChatPage = lazy(() => import('./features/zedChat/pages/ZedChatPage'))
 const StatusPage = lazy(() => import('./components/marketing/StatusPage'))
 // Audit C5 — SEO blog. Markdown-driven, posts ship in the bundle.
 const BlogIndex = lazy(() => import('./components/blog/BlogIndex'))
@@ -204,12 +204,12 @@ const UiAuditPage     = lazy(() => import('./components/dev/uiAudit/UiAuditPage'
 
 
 // Audit A3 PR 1 — parent portal (public read-only progress view).
-const ParentProgressView = lazy(() => import('./components/parent/ParentProgressView'))
+const ParentProgressView = lazy(() => import('./features/parentPortal/pages/ParentProgressView'))
 
 // Family portal (authenticated parent accounts)
 const ParentLayout = lazy(() => import('./components/layout/ParentLayout'))
-const FamilyHome = lazy(() => import('./components/parent/FamilyHome'))
-const ChildProgressPage = lazy(() => import('./components/parent/ChildProgressPage'))
+const FamilyHome = lazy(() => import('./features/parentPortal/pages/FamilyHome'))
+const ChildProgressPage = lazy(() => import('./features/parentPortal/pages/ChildProgressPage'))
 
 // Teacher section. The /teacher/* routes themselves live in
 // components/teacher/teacherRoutes.jsx — declared as data so a spec can

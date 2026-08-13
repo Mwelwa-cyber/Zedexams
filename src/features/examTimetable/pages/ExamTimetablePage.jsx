@@ -37,14 +37,14 @@
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
-import useExamTimetables from '../../hooks/useExamTimetables'
-import { useDebouncedValue } from '../../hooks/useDebouncedValue'
-import { isNativePlatform } from '../../utils/runtime'
-import Navbar from '../layout/Navbar'
-import SeoHelmet from '../seo/SeoHelmet'
-import Skeleton from '../ui/Skeleton'
-import Icon from '../ui/Icon'
+import { useAuth } from '../../../contexts/AuthContext'
+import useExamTimetables from '../../../hooks/useExamTimetables'
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
+import { isNativePlatform } from '../../../utils/runtime'
+import Navbar from '../../../components/layout/Navbar'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Skeleton from '../../../components/ui/Skeleton'
+import Icon from '../../../components/ui/Icon'
 import {
   ArrowLeft,
   Bell,
@@ -53,9 +53,9 @@ import {
   DocumentTextIcon,
   Download,
   Search,
-} from '../ui/icons'
-import { ExamDayGroup } from './ExamSessionCard'
-import { sessionVisual } from './subjectVisuals'
+} from '../../../components/ui/icons'
+import { ExamDayGroup } from '../components/ExamSessionCard'
+import { sessionVisual } from '../lib/subjectVisuals'
 import {
   PHASE,
   STATUS,
@@ -79,7 +79,7 @@ import {
   remindersEnabled,
   reminderStorageKey,
   getDueReminders,
-} from '../../utils/examTimetableLogic'
+} from '../../../utils/examTimetableLogic'
 
 // localStorage guards, same idiom as PastPapersHub: never let a blocked or
 // full storage (Safari private mode) break the page.

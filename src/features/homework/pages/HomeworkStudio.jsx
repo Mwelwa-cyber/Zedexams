@@ -31,7 +31,7 @@ import {
 import Icon from '../../../components/ui/Icon'
 import { Download, Key } from '../../../components/ui/icons'
 import StudioCurriculumSelector from '../../../components/teacher/curriculum/StudioCurriculumSelector'
-import StudioOutputBoundary from '../../../components/teacher/StudioOutputBoundary'
+import StudioOutputBoundary from '../../../shared/components/StudioOutputBoundary'
 import HomeworkView from '../components/HomeworkView'
 import { useAiOperationLock } from '../../../hooks/useAiOperationLock'
 import { stableFingerprint } from '../../../hooks/aiOperationLockCore'

@@ -35,6 +35,59 @@
  * data access out of them. `studioFields`' whole closure is three modules —
  * `react`, `ui/Icon`, `ui/icons` — which is why it could come alone.
  *
+ * ## The studio chrome, promoted together
+ *
+ * Four more arrived from the top level of `src/components/teacher/`, where
+ * sixteen migrated features were still reaching for them. Same rule as
+ * `studioFields`, at the scale the directory actually had:
+ *
+ *   • `StudioPageHeader.jsx` — the one header band for every studio page.
+ *     Fourteen features, plus `LockedStudio` and `GeneratorStudioShell`.
+ *   • `StudioOutputBoundary.jsx` — the error boundary around a generated
+ *     result. Eight features.
+ *   • `StudioStepper.jsx` — the wizard stepper. `lessonPlanStudio` and
+ *     `classTimetable`.
+ *   • `SetupForYouCard.jsx` — `lessonPlanStudio` and `GeneratorStudioShell`.
+ *
+ * `StudioHeader.jsx` followed them, and it is the one resident here whose
+ * placement demand did NOT decide — **owner ruling, 2026-08-13**. It has one
+ * consumer (`lessonPlanStudio`), so the sole-consumer rule filed it inside that
+ * feature on the first pass. The ruling is that the band is *intended* as the
+ * shared studio identity band — its own docblock has said so since #2094's
+ * consistency pass — and the next studio to adopt it must not have to import a
+ * feature's internals or move the file a second time. Consumer count measures
+ * adoption so far; it cannot see intent, and intent is an owner's call.
+ *
+ * It travels as a trio — component, `studioHeader.css`, spec — because the
+ * stylesheet is the component's own and is imported by it directly. That is
+ * NOT a precedent for splitting `src/index.css`: this file was already separate
+ * before the move.
+ *
+ * `StudioPageHeader`'s styles stay in `src/index.css` under
+ * `.studio-page-header`. The monolith is split per-feature later in Phase 4
+ * (§2); moving one component's rules out ahead of that would fork the
+ * stylesheet, not migrate it.
+ *
+ * ## What the §14.6 test excluded on THIS pass
+ *
+ * Seven studio components stayed behind, and two of them are the ones worth
+ * remembering — because each has two feature consumers and would have passed a
+ * by-eye reading of its own imports:
+ *
+ *   • `StudioNextSteps` and `FreePreviewUpsell` both import `utils/analytics`,
+ *     which reaches `firebase/config` and five Firebase SDK entry points.
+ *     `shared` is in `NO_FIREBASE_LAYERS`, so this is a hard boundary failure
+ *     rather than a judgement call.
+ *   • `StudioGate`, `LockedStudio`, `UsageMeter`, `PlanUsageCard` and
+ *     `FreeAllowanceNotice` reach `utils/paywall`, `utils/lenco`,
+ *     `utils/topup` or `utils/teacherPlans` — payment logic, named in §14.6.
+ *
+ * Single-consumer chrome travels INTO its one consumer unless an owner rules
+ * otherwise: `StudioUnavailableNotice` (+ spec) went to
+ * `features/dashboardV2/components/`, and stays there. `StudioHeader` is the
+ * exception recorded above, not the rule — the default is still that a
+ * component one feature draws is that feature's.
+ *
  * A namespace marker, not a barrel — import the file, not this index.
  */
 
