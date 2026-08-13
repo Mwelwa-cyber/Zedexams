@@ -1517,6 +1517,44 @@ path-as-string guard without an existence assertion does not fail when its
 target moves, it silently audits less, which is exactly the class of defect
 `test:dashboard-v2-links`'s own docblock was written about.
 
+**And the re-point above was itself incomplete — a third failure mode, worse
+than either.** Codex left an unresolved **P2 on PR A** (#2325) that was not read
+until the §7a sweep after PR B had merged: PR A moved `dashboardV2Config.js` and
+`teacherStudios.js` to `src/shared/constants/` and did **not** add that directory
+to `DIRS`, so the two registries every navigation surface renders from were
+scanned by nothing. PR B then re-pointed `DIRS` at the shell's new address, took
+the count 23 → 25, printed *"0 broken"*, and added a docblock giving a reason for
+leaving the registries out. Both halves of that reason were **false**: this
+scanner reads files on disk and never follows the import graph, so a registry is
+not reached "through the components that import it"; and `test:lesson-plan-routing`
+does not pin the config's links — it makes two string assertions about the
+lesson-plan entries and holds no route matcher at all. Fifty-one route-shaped
+strings across the two files (29 + 24, two of them pinned) were unchecked while a
+comment on `main` said they were covered.
+
+**A guard that quietly checks less is the failure this section is about; one that
+quietly checks less while asserting otherwise sends the next reader away, and
+that is strictly worse.** The false docblock was deleted rather than softened —
+it was wrong, not imprecise. `src/shared/constants` is now a `DIRS` entry, and the
+count is stated as a measurement: **37** at #2250, **25** on `main`, **39** after.
+The 39 is a superset of the 37 — all thirty-seven recovered, plus `/admin` and
+`/login`, added since — established by running the scanner at `4dd09dae` and
+diffing the two sets rather than comparing printed totals. Two totals matching
+proves nothing about which targets are in them.
+
+**A caveat that lives only in a pull-request body does not exist.** The teacher
+shell's browser coverage has a real limit, and it was stated in the #2332 body,
+which was closed as a duplicate — so it survived nowhere a future session would
+look. Recorded here instead: **`/teacher/dashboard-preview` is the only shell
+route walkable without credentials** (deliberately unguarded, mock data only,
+§13). `scripts/test-dashboard-responsive.mjs` walks it across seven viewports and
+`test-mobile-smoke.mjs` covers five public routes, so `TeacherLayout`, `Sidebar`
+and `MobileChrome` ARE exercised — but `/teacher`, `/teacher/classic`,
+`/teacher/help` and every studio route sit behind `ProtectedRoute` and are walked
+by nothing. The shell is covered; the live-data pages behind it are not. This is a
+standing property of the smoke layer, not a consequence of any one migration, and
+no PR in Wave 4 changed it either way.
+
 **Dead code found by the inventory, recorded as its own finding.**
 `TeacherGlassHeader.jsx` (132 lines) and `TeacherBottomNav.jsx` (43) have **zero
 importers** — every remaining mention across `src/`, `scripts/` and `docs/` is a prose
