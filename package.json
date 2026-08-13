@@ -64,6 +64,7 @@
     "test:curriculum-structures": "node scripts/test-curriculum-structures.mjs",
     "audit:word-breaks": "node scripts/audit-syllabus-word-breaks.mjs",
     "test:sanitize": "node scripts/test-rich-text-sanitize.mjs",
+    "test:quiz-image-upload": "node src/utils/quizImageUpload.test.js",
     "test:math-notation-reach": "node src/editor/mathNotationReach.test.js",
     "test:quiz-result-payload": "node src/utils/quizResultPayload.test.js",
     "test:option-letters": "node scripts/test-option-letters.mjs",
