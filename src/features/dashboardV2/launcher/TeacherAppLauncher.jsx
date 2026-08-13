@@ -7,7 +7,7 @@ import {
   STUDIO_BY_ID,
   STUDIO_CATEGORIES,
   TEACHER_STUDIOS,
-} from '../../../components/teacher/dashboardV2/launcher/teacherStudios'
+} from '../../../shared/constants/teacherStudios'
 import {
   applyChip,
   badgeIsPending,
@@ -20,10 +20,10 @@ import {
   resolveBadge,
   resolvePopoverPlacement,
   searchStudios,
-} from '../../../components/teacher/dashboardV2/launcher/teacherLauncherCore'
+} from '../../../shared/utils/teacherLauncherCore'
 import useStudioAvailability from '../../../hooks/useStudioAvailability'
 import useStudioFavourites from './useStudioFavourites'
-import useRecentStudios from '../../../components/teacher/dashboardV2/launcher/useRecentStudios'
+import useRecentStudios from '../../../hooks/useRecentStudios'
 import StudioAppIcon from './StudioAppIcon'
 import StudioCategory from './StudioCategory'
 import RecentStudios from './RecentStudios'

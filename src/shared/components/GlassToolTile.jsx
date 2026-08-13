@@ -1,4 +1,4 @@
-import useGlassTile from '../../../hooks/useGlassTile'
+import useGlassTile from '../../hooks/useGlassTile'
 import './glassSurface.css'
 
 /**

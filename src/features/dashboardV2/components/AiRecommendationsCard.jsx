@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, BookOpen, CircleCheck, Sparkles } from 'lucide-react'
 import useGlassTile from '../../../hooks/useGlassTile'
-import '../../../components/teacher/dashboardV2/glassSurface.css'
+import '../../../shared/components/glassSurface.css'
 
 /* Compact recommendation row — a glass tile with hover/press but NO sheen:
    AI content changes between visits, and motion here would read as the

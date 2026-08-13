@@ -183,7 +183,7 @@ const VisualStudioAdmin = lazy(() => import('./features/visualStudio/pages/Visua
 const CurriculumReplaceStudio = lazy(() => import('./features/adminCurriculum/pages/CurriculumReplaceStudio'))
 const CurriculumUploadPanel = lazy(() => import('./features/adminCurriculum/pages/CurriculumUploadPanel'))
 const AdminAiCosts = lazy(() => import('./features/adminAiCosts/pages/AdminAiCosts'))
-const AdminAppCheck = lazy(() => import('./components/admin/AdminAppCheck'))
+const AdminAppCheck = lazy(() => import('./features/adminAppCheck/pages/AdminAppCheck'))
 const AdminUsersList = lazy(() => import('./features/adminUsers/pages/AdminUsersList'))
 const AdminUserProfile = lazy(() => import('./features/adminUsers/pages/AdminUserProfile'))
 const AdminSettings = lazy(() => import('./features/adminSettings/pages/AdminSettings'))
@@ -216,7 +216,7 @@ const ChildProgressPage = lazy(() => import('./components/parent/ChildProgressPa
 // render every one of them and fail if the shared shell is missing. Add a
 // teacher page there. TeacherLayout is still imported here for the
 // role-branched Settings page below, which is a /settings route.
-const TeacherLayout = lazy(() => import('./components/teacher/TeacherLayout'))
+const TeacherLayout = lazy(() => import('./features/teacherShell/pages/TeacherLayout'))
 // Class List + Register preview — mock data only, intentionally unguarded.
 // Teacher — AI Generators
 const WorksheetGenerator = lazy(() => import('./features/worksheet/pages/WorksheetGenerator'))

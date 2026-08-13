@@ -4,11 +4,14 @@
  * counters can't separate (they fold everything into "missing") to an
  * actionable next step, so the ordering and tones here are load-bearing.
  */
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 
-vi.mock('../firebase/config', () => ({ db: {} }))
-
-import { classifyDeviceAttestation, mergeDayCounters, summarise } from './appCheckHealth'
+// No Firebase stub any more. The Firestore reads left this module for
+// ../services/appCheckHealthService.js in the adminAppCheck migration, so the
+// firebase/config mock that used to sit here matched nothing — the dead-mock
+// case docs/MIGRATION_TEMPLATE.md warns about, which test:mock-paths now fails
+// on rather than passing silently.
+import { classifyDeviceAttestation, mergeDayCounters, summarise } from './appCheckHealthCore'
 
 const base = {
   native: false,

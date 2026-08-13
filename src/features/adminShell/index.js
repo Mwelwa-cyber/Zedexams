@@ -28,15 +28,15 @@
  *
  * ── Still in `components/admin/`, and NOT frozen ────────────────────────
  *
- * `AdminAppCheck` and `security/MfaSetupPage` are route-mounted, unrelated to
- * the shell, and unrelated to each other. They were left rather than swept in
- * here: proximity in a flat directory is not cohesion (the rule
- * `RevenueTrendCard` established), and a feature called `adminShell`
- * containing an App Check debugger would be a worse home than the one it has.
+ * `security/MfaSetupPage` is route-mounted and unrelated to the shell. It was
+ * left rather than swept in here: proximity in a flat directory is not
+ * cohesion (the rule `RevenueTrendCard` established), and a feature called
+ * `adminShell` containing an admin's TOTP enrolment page would be a worse home
+ * than the one it has.
  *
- * `BulkGrantTrialsPanel` was on that list and has since left it — it is
- * `src/features/adminTrials/` as of Wave 4 slice 1, for the same reason it was
- * never swept in here.
+ * Two files were on that list and have since left it, each into its own
+ * feature for exactly that reason: `BulkGrantTrialsPanel` → `adminTrials`
+ * (Wave 4 slice 1), `AdminAppCheck` → `adminAppCheck` (slice 2).
  */
 
 export {}

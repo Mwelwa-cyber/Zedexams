@@ -26,10 +26,15 @@ const root = resolve(here, '..')
 // The shell keeps the two token stylesheets next to TeacherLayout; the
 // dashboard PAGE moved to src/features/dashboardV2/ and took its own
 // section stylesheet with it (docs/architecture.md §13).
-const dashDir = resolve(root, 'src/components/teacher/dashboardV2')
+// The shell's two stylesheets left the shell: both serve `features/dashboardV2`
+// too, so PR A moved them to the bottom layer (docs/architecture.md §13,
+// teacherShell). `glassSurface.css` sits with the component it styles;
+// `dashboardV2.css` is cross-cutting and has its own area.
+const sharedComponents = resolve(root, 'src/shared/components')
+const sharedStyles = resolve(root, 'src/shared/styles')
 const featDir = resolve(root, 'src/features/dashboardV2/components')
 
-const glass = readFileSync(resolve(dashDir, 'glassSurface.css'), 'utf8')
+const glass = readFileSync(resolve(sharedComponents, 'glassSurface.css'), 'utf8')
 
 /* ── 1. every themed token has a Night override ───────────────────────── */
 
@@ -76,7 +81,7 @@ assert.ok(
   'glassSurface.css must never use backdrop-filter — that is the whole point of the faked-glass recipe',
 )
 
-const dash = readFileSync(resolve(dashDir, 'dashboardV2.css'), 'utf8')
+const dash = readFileSync(resolve(sharedStyles, 'dashboardV2.css'), 'utf8')
 // Content surfaces that must NEVER blur. Floating chrome (sticky header,
 // dock, menus, dialog scrims, the preview panel) may.
 const CONTENT_SURFACE =

@@ -36,9 +36,19 @@ const routeExists = makeRouteMatcher()
 
 // ── Link targets used by the dashboard ──────────────────────────────
 // Both halves of the surface (#2247). Each MUST exist — see the note above.
+//
+// The shell half has moved twice since that split, and this list moved with it
+// both times, in the same commit as the move — which is the whole point of the
+// existence check below. The nav CONFIG left first (`teacherShell` PR A sent
+// `dashboardV2Config.js` to `src/shared/constants/`, where the link extractor
+// still reaches it through the components that import it), and then the shell
+// itself became a feature (PR B). A third entry for `src/shared/constants/` is
+// deliberately not added: this scanner reads link targets out of COMPONENTS, and
+// the config's own links are pinned by `test:lesson-plan-routing`, which
+// addresses that file directly.
 const DIRS = [
-  'src/components/teacher/dashboardV2', // the app shell: sidebar, mobile chrome, nav config
-  'src/features/dashboardV2',           // the dashboard pages, launcher, Help & Support
+  'src/features/teacherShell',  // the app shell: sidebar, mobile chrome, theme
+  'src/features/dashboardV2',   // the dashboard pages, launcher, Help & Support
 ]
 
 for (const d of DIRS) {

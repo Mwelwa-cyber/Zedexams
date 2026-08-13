@@ -32,7 +32,7 @@ const root = resolve(here, '..')
 const iconDir = resolve(root, 'src/assets/teacher/studio-icons')
 const registryPath = resolve(
   root,
-  'src/components/teacher/dashboardV2/launcher/teacherStudios.js',
+  'src/shared/constants/teacherStudios.js',
 )
 
 /**

@@ -34,7 +34,7 @@ import {
   teachingDaysLeft,
   termChipLabel,
   recommendationCardsFrom,
-} from '../../../components/teacher/dashboardV2/dashboardV2Data'
+} from '../../../shared/utils/dashboardV2Data'
 
 function toMs(t) {
   if (!t) return 0

@@ -7,7 +7,7 @@
  * Run: node scripts/test-immersive-studio-routes.mjs   (npm run test:immersive-routes)
  */
 import assert from 'node:assert/strict'
-import { isImmersiveStudioPath } from '../src/components/teacher/immersiveStudioRoutes.js'
+import { isImmersiveStudioPath } from '../src/features/teacherShell/lib/immersiveStudioRoutes.js'
 
 let passed = 0
 function check(pathname, expected) {

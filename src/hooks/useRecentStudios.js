@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useAuth } from '../../../../contexts/AuthContext'
-import { STUDIO_BY_ID } from './teacherStudios'
-import { pushRecent, sanitizeIds } from './teacherLauncherCore'
+import { useAuth } from '../contexts/AuthContext'
+import { STUDIO_BY_ID } from '../shared/constants/teacherStudios'
+import { pushRecent, sanitizeIds } from '../shared/utils/teacherLauncherCore'
 
 const CAP = 12
 

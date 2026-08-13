@@ -205,8 +205,30 @@ const KNOWN_CROSS_FEATURE_IMPORTS = new Set([
 const KNOWN_LEGACY_FEATURE_IMPORTS = new Set([
   'src/components/lessons/LessonPlayer.jsx → ../../features/learnerHome/lib/lessonResume',
   'src/components/teacher/TeacherDashboard.jsx → ../../features/teacherSettings/lib/useTeachingProfile',
-  'src/components/teacher/TeacherTopBar.jsx → ../../features/teacherSettings/lib/useTeachingProfile',
   'src/hooks/useLearnerSearch.js → ../features/notes/lib/firestore',
+  // FORCED, and recorded rather than avoided — `teacherShell` PR B. Every other
+  // entry on this list clears when its caller migrates into a feature; this one
+  // has no such path, so its retirement condition is written down instead of
+  // left to be rediscovered.
+  //
+  // The spec probes the REAL hook on purpose. Its own comment: the hook "reads
+  // the module store directly and never touches ThemeProvider — which is the
+  // whole reason it was able to bypass persistence — so the probe for it has to
+  // be the real hook." A fake would gut the regression the spec exists to hold.
+  //
+  // The three ways out were all worse. Exporting `useDashboardTheme` from
+  // `teacherShell`'s front door puts a hook on the import graph of everything
+  // that opens the door — what #2247 refused, and a locked §9 decision.
+  // Relocating the hook because `teacherThemeStore` lives in `src/contexts/` is
+  // a seam redesign riding inside a path migration, which is the rule the
+  // 4,047-line stylesheet was held to. Refusing to record a real edge would
+  // only make this list lie.
+  //
+  // RETIRES when the `useDashboardTheme` / `teacherThemeStore` seam is
+  // revisited — the store is in `src/contexts/` and the hook is in the feature,
+  // and closing that split is the actual fix. Deferred deliberately, not
+  // forgotten.
+  'src/contexts/TeacherThemeSync.spec.jsx → ../features/teacherShell/hooks/useDashboardTheme',
 ]);
 
 const usedAllowances = new Set();

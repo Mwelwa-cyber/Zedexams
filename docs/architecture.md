@@ -1374,14 +1374,165 @@ a different failure mode from the four times this section has recorded the freez
 reaching further than the paths it names, and from the once it recorded it reaching too
 broad.
 
+**PR A — the seam, merged before any feature exists.** Fourteen files, 6,830
+lines, left `src/components/teacher/dashboardV2/` for the bottom layer, and the
+directory now holds **11 files, all shell**. Destinations: `dashboardV2.css` →
+`src/shared/styles/` (a new area, named in `src/shared/index.js` in the same
+commit — 4,047 lines of cross-cutting `.tdv2` selectors are not a component
+primitive); `glassSurface.css`, `BottomSheet`, `GlassToolTile` (+ two specs) →
+`src/shared/components/`; `dashboardV2Config` (+ spec), `teacherStudios` →
+`src/shared/constants/`; `dashboardV2Data`, `teacherLauncherCore` (+ two tests)
+→ `src/shared/utils/`. No feature was created and no boundary moved, which is
+what makes PR B a move rather than an argument.
+
+**`useRecentStudios` went to `src/hooks/`, not `src/shared/hooks/` — owner
+ruling, 2026-08-13, and a correction to the plan.** It imports
+`contexts/AuthContext`, which is legal from `shared/` today because `contexts/`
+is legacy. But §2 mandates `src/contexts/` → `src/app/providers/` in Phase 4,
+and `FORBIDDEN_TARGETS.shared` includes `app` with no front-door exemption — so
+promoting it would have planted an edge that a later, already-decided migration
+turns into a hard failure. `src/hooks/` is where `useGlassTile` (GlassToolTile's
+own dependency) already lives, both the shell and the feature may import legacy,
+and nothing breaks when `contexts/` moves. Raised by Codex on #2324.
+
+**One import reaches UP, deliberately, and is documented in the module rather
+than left to be found.** `src/shared/utils/dashboardV2Data.js` imports
+`../../components/teacher/paperTaxonomy.js`. Legal — `legacy` is not forbidden
+to `shared` — and ugly. Moving `paperTaxonomy.js` too was measured and refused:
+it is the one file in this neighbourhood that `scripts/visual/printAffectingPaths.js`
+matches, so taking it would convert a structural migration into a print-affecting
+change and fire the ~30-minute Chromium + LibreOffice render. Every one of the
+fourteen files PR A moved returns `not print-affecting`; `paperTaxonomy.js`
+returns `PRINT-AFFECTING`. Holding `dashboardV2Data.js` back instead would have
+left a non-shell file in a directory whose whole point is that it no longer has
+any.
+
+**Seven guards address these paths by string, and §6 of the plan named four of
+them.** Re-pointed in the same commit as the move: two `package.json` test paths
+(`test:dashboard-v2-data`, `test:launcher-core` — a `test:*` path that does not
+move stops being discovered by `run-all-tests.mjs`, and the suite shrinks without
+a red build), `test-studio-artwork.mjs`, `test-lesson-plan-routing.mjs`,
+`forcedStates.test.js` (reads `dashboardV2.css` as text and asserts a
+`.tdv2-nav-item:hover` rule), `test-glass-tokens.mjs` (reads both stylesheets),
+and `audit-hardcoded-colors.mjs`, whose `SURFACE` regex labelled the area by
+directory — one themed container now spanning two locations, so the label spans
+both rather than silently dropping the stylesheet it was written for.
+`test-dashboard-v2-links.mjs` needed no path change (both directories still
+exist) but its comment named a nav config that had left.
+
+**The stale destination in `src/app/layouts/index.js` is corrected here, not
+left for the next reader.** That file said *"Empty until Phase 4. `TeacherLayout`
+is the one shell for the whole teacher area… That test moves with the layout"* —
+and §2's diagram and §12's map both file layouts under `app/`. Codex read that
+and objected to `features/teacherShell` on #2324. The owner ruled for the
+feature, and the reason is mechanical rather than stylistic:
+`FORBIDDEN_TARGETS.features` includes `app`, that check runs BEFORE the
+front-door exemption and consults no allowance list, so a layout in
+`src/app/layouts/` cannot be imported from `src/features/` at all — and five
+`features/dashboardV2` specs render `TeacherLayout` to assert it. Through a
+feature's `index.js` those are legal (`isFrontDoor` → continue); from
+`src/app/` they are a hard failure with no legal route. `AdminLayout` reached
+`features/adminShell/` the same way without recording why. The comment now says
+all of this, because that file is where the next reader looks for the
+destination and it said the opposite for a week.
+
+**PR B — `src/features/teacherShell/`.** Fifteen files: `pages/` (`TeacherLayout`
++ spec), `components/` (`TeacherTopBar`, `Sidebar`, `MobileChrome`,
+`LogoutDialog`, `sidebarCollapse.spec`), `hooks/` (`useDashboardTheme`,
+`useSidebarCollapsed`, `useRecordStudioVisit`), `lib/` (`teacherNavActive` +
+test, `sidebarCollapseCore` + test, `immersiveStudioRoutes`).
+`src/components/teacher/dashboardV2/` no longer exists.
+
+**The front door exports `TeacherLayout` and nothing else, and unlike
+`adminShell`'s it is not empty.** `AdminLayout` is reached only by a `lazy()`
+mount; `TeacherLayout` has a second class of caller — five specs in
+`features/dashboardV2` render the shell to assert it, as static imports the
+route-mount exception does not reach. A front door is what makes those legal:
+`test-import-boundaries.mjs` lets a cross-feature import through when it
+resolves to the target's `index.js` and fails it otherwise. `App.jsx` and
+`teacherRoutes.jsx` keep their deep `lazy()` mounts — routing them through the
+barrel would put the whole shell on `App.jsx`'s eager graph for no gain.
+
+**Nothing was deleted, by owner ruling of 2026-08-13, and Codex's P2 on #2324
+was upheld rather than waived.** `TeacherGlassHeader.jsx` and
+`TeacherBottomNav.jsx` are registered in
+[`22-dead-code-register.md`](architecture/22-dead-code-register.md) §R1 with the
+zero-importer evidence; Phase 6 removes them, per §13 and §14 rule 11. So
+**`teacherNav.js` stays** in `src/components/teacher/`: `TeacherTopBar` imports
+it outward from inside the feature, which `FORBIDDEN_TARGETS.features` (`['app']`
+only) allows and which costs no debt line. Both reach Phase 6 without spending
+one.
+
+**The debt list went 5 → 4 → 5, and the two halves of that are not the same
+decision.** A reviewer reading them together will think they contradict, so:
+
+- `TeacherTopBar` retired its line by reaching `teacherSettings` through the
+  front door — deleted, not re-pointed (the `lessonPlanStudio` precedent,
+  #2320). **5 → 4.**
+- `src/contexts/TeacherThemeSync.spec.jsx` → `teacherShell/hooks/useDashboardTheme`
+  is a FORCED addition. **4 → 5.**
+
+`teacherNav.js` had a free alternative: leaving it behind cost nothing and
+reached Phase 6 anyway, so spending a line there would have bought nothing.
+Here there is no free option. The spec must reach the REAL hook — its own
+comment explains that the hook reads the module store directly and never
+touches `ThemeProvider`, which is the whole reason it could bypass persistence,
+so a fake would gut the regression — and the hook has to live somewhere. The
+other two ways out were worse: exporting it from the front door puts a hook on
+the import graph of everything that opens the door (what #2247 refused, and a
+locked §9 decision), and relocating it because `teacherThemeStore` lives in
+`src/contexts/` is a seam redesign riding inside a path migration, which is the
+rule the 4,047-line stylesheet was held to. **A forced debt line honestly
+recorded is the correct use of a list that only shrinks; refusing to record a
+real edge would make the list lie.** Its retirement condition sits next to the
+entry — it clears when the `useDashboardTheme` / `teacherThemeStore` seam is
+revisited, which is the actual fix, deferred deliberately rather than forgotten.
+
+**One correction to this migration's own brief, carried forward so the next
+reader is not misled.** The brief's guard table lists
+`src/contexts/TeacherThemeSync.spec.jsx` as a `vi.mock` path — the kind of
+reference `test:mock-paths` exists to catch. It is not: line 27 is a real
+`await import(…)`, a genuine legacy → feature edge rather than a mock string.
+That is why the edge appeared in `test:import-boundaries` and not in
+`test:mock-paths`, and why it could not be fixed by re-anchoring a mock.
+
+**Guards re-pointed in the same commit as the move:** `test:teacher-nav-active`
+and `test:sidebar-collapse` (both `package.json` paths — a `test:*` path that
+does not move stops being discovered by `run-all-tests.mjs`, and the suite
+shrinks without a red build) and `scripts/test-immersive-studio-routes.mjs`.
+`test:teacher-dark-surface` did **not** move: it lives in
+`src/components/teacher/` but reads `src/index.css`, `SyllabiLibrary.jsx` and
+`CbcKbAdmin.jsx` — nothing in the shell. Moving it because of its address would
+be the same mistake as moving a component because of its directory.
+
+**Two more guards named the old directory as a STRING, and they failed in
+opposite ways — which is the whole argument for the existence check.**
+`test:dashboard-v2-links` names its scan roots in a `DIRS` list and threw,
+loudly, because #2247 had already taught it to refuse a missing directory
+rather than report "0 broken" for files it never opened; re-pointed, its
+coverage went 23 → 25 targets. `audit-hardcoded-colors.mjs` has no such check:
+its SURFACE regex `^src/components/teacher/dashboardV2/` simply matched nothing
+and the audit stayed green over a surface it had stopped reading. Both are
+re-pointed in this commit. The second is the one to learn from — a
+path-as-string guard without an existence assertion does not fail when its
+target moves, it silently audits less, which is exactly the class of defect
+`test:dashboard-v2-links`'s own docblock was written about.
+
 **Dead code found by the inventory, recorded as its own finding.**
 `TeacherGlassHeader.jsx` (132 lines) and `TeacherBottomNav.jsx` (43) have **zero
 importers** — every remaining mention across `src/`, `scripts/` and `docs/` is a prose
 comment. They are the superseded V1 pair; the mobile chrome that actually renders is
 `MobileChrome.jsx`'s `MobileBottomNav`. They survived a full Wave 4 sweep because every
 check in this phase asks *where does this go?* and none asks *does anything still call
-this?* Deleting `TeacherBottomNav` is also what leaves `teacherNav.js` with a single
-consumer, which is what lets it travel in PR B.
+this?*
+
+This paragraph originally continued: *"Deleting `TeacherBottomNav` is also what leaves
+`teacherNav.js` with a single consumer, which is what lets it travel in PR B."* That is
+**superseded** — the owner ruled on 2026-08-13 to register and defer rather than delete,
+so neither file was removed and `teacherNav.js` keeps two consumers and stays in
+`src/components/teacher/`. The sentence is corrected here rather than deleted because a
+reader who saw the earlier claim needs to find out it was retired, not find it silently
+absent.
 
 **The admin-areas row is worked ONE SLICE AT A TIME, one pull request each — the row is not restruck until the last slice lands.** The 2026-08-12 inventory classified all 26 files in `src/components/admin/` plus `security/`: frozen by the owner freeze (`PastPaperStudio`, `CreateQuizV2`, `AdminPastPapers`, `ExamPaperLibraryPanel`, `pastPaperReport`, `quizPaperLink`, `BulkPublishQuizzesButton`, `GamesSeedAdmin`, and `AdminDashboard` via `seedData`'s quiz writes), superseded, or genuinely remaining. Slicing rather than one sweep is deliberate: a flat directory is not a feature, and the freeze reaches 21 of those files by dependency rather than the 5 named by path, so each slice has to argue its own case.
 
@@ -1389,7 +1540,15 @@ consumer, which is what lets it travel in PR B.
 
 **It is outside every freeze clause, and the reason is worth stating rather than assuming.** The freeze covers past papers, quizzes, games and the assessment-engine cutover. This panel creates Firebase Auth users and grants subscription trials; it reads and writes none of those collections, and nothing it imports does either. That is the same test that put `AdminDashboard` INSIDE the freeze despite not being named in it — `seedData.js` writes `collection(db, 'quizzes')` — so applying it here and getting the opposite answer is the check working, not a loophole.
 
-**A move, not a rewrite.** The panel splits along §3's layout — the callable into `services/`, the pure parsing/validation/CSV rules into `lib/`, the DOM download into `export/` — with the component's behaviour, strings and validation order unchanged. The extracted core gets the node test it never had; pinning pure logic as it is lifted is what stops a move becoming a regression. The front door stays empty: the page is route-mounted under the Phase 1 exception, and `adminShell`'s own index note listing this file as "still in `components/admin/`" is corrected in the same commit.
+**A move, not a rewrite.** The panel splits along §3's layout — the callable into `services/`, the pure parsing/validation/CSV rules into `lib/`, the DOM download into `export/` — with the component's behaviour, strings and validation order unchanged. The extracted core gets the node test it never had; pinning pure logic as it is lifted is what stops a move becoming a regression. The front door stays empty: the page is route-mounted under the Phase 1 exception, and `adminShell`'s own index note listing this file as "still in `components/admin/`" is corrected in the same commit. **MERGED #2311.**
+
+**Slice 2: `adminAppCheck` — CLAIMED 2026-08-13 by session A**, branch `claude/admin-appcheck`. `AdminAppCheck.jsx` (341 lines, `/admin/app-check`) **plus `src/utils/appCheckHealth.js` (299), which travels with it** — the page is its only consumer, which is the rule. Same freeze test as slice 1 and the same answer: it reads `appCheckHealth/{date}` and calls `appCheckPing`, and touches no past paper, quiz, game or assessment surface at any depth.
+
+**The util was doing two jobs, so it lands as two.** `lib/appCheckHealthCore.js` decides what the counters MEAN — `summarise`, `enforcementReadiness`, `classifyDeviceAttestation` — and is Firebase-free; `services/appCheckHealthService.js` is the only thing that reads Firestore (§14.2), and now also owns the `appCheckPing` callable the page was constructing inline. The day-window enumeration moves to the core as `healthWindowDates`, because deciding *which dates to read* is a rule and reading them is IO.
+
+**Name collision worth recording:** `functions/appCheckHealthCore.js` already exists and is the **writer**, with its own tests (`test:appcheck-health`). The new client-side core is the **reader**. They are separate modules with separate suites; the shared name reflects a shared subject, not shared code.
+
+**16 node cases on the reader, which had none.** This page answers one question — is `APPCHECK_ENFORCE=1` safe to flip — and enforcement hard-denies every call without a valid token, so a verdict wrong in the optimistic direction takes the API down for real users. The cases that matter are the ones where that happens quietly: a thin sample is never "ready"; one endpoint still unattested blocks the flip even at 99.8% valid overall; no traffic reports `null` rather than 0%; and the fail-open placeholder token is classified as unattested rather than as success.
 
 **Not a migration, recorded here because the same claim rule applies: the trunk guard's REGRESSION TEST is still deploy-blocking — CLAIMED 2026-08-12 by session A**, branch `claude/trunk-guard-hermetic-fixture`, **MERGED #2306**. #2303 made the LIVE guard advisory (`raiseTrunkFinding` → `GITHUB_STEP_SUMMARY`), and its title says the guard can no longer hold a deploy hostage. Through `scripts/test-release-notes-core.mjs` it still can: the final regression assertion is a bare `assert.strictEqual(bounded, "")` against **live history**. `run-all-tests.mjs` discovers `test:*` and `test:all` gates `deploy-hosting.yml`, so the next genuine merge commit inside the bounded window on `main` fails that assertion and freezes deploys again — which is precisely Deploy Hosting 2000–2004. Codex flagged it on `46c43b0`; that thread is left unresolved for the owner.
 

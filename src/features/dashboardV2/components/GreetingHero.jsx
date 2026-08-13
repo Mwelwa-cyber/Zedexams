@@ -1,7 +1,7 @@
 import { ChartNoAxesColumnIncreasing, Moon, Sun, Sunset } from 'lucide-react'
 import CopperButton from './CopperButton'
 import useGlassTile from '../../../hooks/useGlassTile'
-import '../../../components/teacher/dashboardV2/glassSurface.css'
+import '../../../shared/components/glassSurface.css'
 // Same 3D study-desk illustration the legacy hero used — brand teal, so it
 // blends straight into this hero's gradient.
 import heroDesk from '../../../assets/teacher/hero-desk.webp'

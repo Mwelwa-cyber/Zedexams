@@ -14,8 +14,8 @@ import {
   UserRound,
   UsersRound,
 } from 'lucide-react'
-import { TEACHER_NAV_GROUPS } from './dashboardV2Config'
-import { buildActiveMatcher } from './teacherNavActive'
+import { TEACHER_NAV_GROUPS } from '../../../shared/constants/dashboardV2Config'
+import { buildActiveMatcher } from '../lib/teacherNavActive'
 import { confirmShellNavigation } from '../../../shared/utils/shellNavGuardCore'
 
 const LOGO_WEBP = '/zedexams-logo.webp?v=2'

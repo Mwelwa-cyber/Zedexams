@@ -9,9 +9,26 @@
  * A "resource" is the dashboard's normalized artifact shape (same as the
  * legacy dashboard's): { id, tool, subject, grade, title, createdAt (ms),
  * modifiedAt (ms), to, status ('ready'|'draft'), questionCount }.
- */
+  *
+ * ── One import here reaches UP, and it is deliberate ────────────────────
+ *
+ * `../../components/teacher/paperTaxonomy.js` is a bottom-layer module reaching
+ * into `src/components/`. That is legal — `legacy` is not a forbidden target
+ * for `shared` — and it is ugly, so it is recorded rather than left to be
+ * discovered.
+ *
+ * The alternative was moving `paperTaxonomy.js` too, and that is not a free
+ * tidy-up: it is named by exact path on `scripts/visual/printAffectingPaths.js`,
+ * so moving it converts a structural migration into a print-affecting change
+ * and fires the full Chromium + LibreOffice render gate. Holding this file back
+ * in the shell instead would have left a non-shell file in a directory whose
+ * whole point, after PR A, is that it contains shell files only.
+ *
+ * So: the importer moved, `paperTaxonomy.js` did not, and the reach resolves
+ * when that file finds its own home (owner decision, 2026-08-13).
+*/
 
-import { paperGradeLabel } from '../paperTaxonomy.js'
+import { paperGradeLabel } from '../../components/teacher/paperTaxonomy.js'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 

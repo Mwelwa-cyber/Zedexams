@@ -1,6 +1,10 @@
 /**
- * appCheckHealth — admin-only Firestore reads for the App Check
- * readiness dashboard.
+ * appCheckHealthCore — how App Check readiness is JUDGED. Pure: no
+ * Firestore, no React, no DOM.
+ *
+ * The reads that feed it live in `../services/appCheckHealthService.js`
+ * (§14.2 — a feature touches Firebase in exactly one place). This file was
+ * `src/utils/appCheckHealth.js` and did both; the split is why it moved.
  *
  * Cloud Functions write per-day rollups to appCheckHealth/{YYYY-MM-DD}
  * in soft-verify mode (functions/index.js: softVerifyAppCheckHttp /
@@ -18,18 +22,25 @@
  * enforcement hard-denies every call that isn't `valid`, so it's only
  * safe once `missing`+`invalid` from real clients is ~0.
  *
- * All reads are gated to admin role by Firestore rules — calling these
- * from a non-admin context resolves to permission-denied.
+ * The reads are gated to admin role by Firestore rules, so a non-admin
+ * context resolves to permission-denied before any of this runs.
  */
 
-import { collection, doc, getDoc, getDocs } from 'firebase/firestore'
-import { db } from '../firebase/config'
-
-const COLLECTION = 'appCheckHealth'
-const ONE_DAY_MS = 24 * 60 * 60 * 1000
+export const COLLECTION = 'appCheckHealth'
+export const ONE_DAY_MS = 24 * 60 * 60 * 1000
 const COUNTERS = ['attempts', 'valid', 'missing', 'invalid']
 
-function isoDate(d) { return d.toISOString().slice(0, 10) }
+/** `2026-08-13` — the day-doc key the Cloud Functions writer uses. */
+export function isoDate(d) { return d.toISOString().slice(0, 10) }
+
+/** The `days` day-keys ending today, oldest first — the window to read. */
+export function healthWindowDates({days = 14, now = Date.now()} = {}) {
+  const dates = []
+  for (let i = days - 1; i >= 0; i -= 1) {
+    dates.push(isoDate(new Date(now - i * ONE_DAY_MS)))
+  }
+  return dates
+}
 
 /**
  * Merge a legacy day doc + its shard docs into one flat day row, summing
@@ -50,34 +61,6 @@ export function mergeDayCounters(date, docs) {
     }
   }
   return merged
-}
-
-/**
- * Last `days` day-rollups, oldest → newest. Each day is summed from its
- * legacy parent doc (if any) PLUS every doc in its `shards` subcollection
- * (the sharded + sampled writer, appCheckHealthCore.js). Date keys are
- * enumerated locally rather than via a collection query because the new
- * writer never touches the shared parent doc.
- */
-export async function listAppCheckHealth({ days = 14 } = {}) {
-  const today = Date.now()
-  const dates = []
-  for (let i = days - 1; i >= 0; i -= 1) {
-    dates.push(isoDate(new Date(today - i * ONE_DAY_MS)))
-  }
-  return Promise.all(dates.map((date) => readDayHealth(date)))
-}
-
-/** Read + merge one date's legacy doc and shard subcollection. */
-async function readDayHealth(date) {
-  const [legacySnap, shardsSnap] = await Promise.all([
-    getDoc(doc(db, COLLECTION, date)).catch(() => null),
-    getDocs(collection(db, COLLECTION, date, 'shards')).catch(() => null),
-  ])
-  const docs = []
-  if (legacySnap && legacySnap.exists()) docs.push(legacySnap.data())
-  if (shardsSnap) shardsSnap.forEach((s) => docs.push(s.data()))
-  return mergeDayCounters(date, docs)
 }
 
 /**
