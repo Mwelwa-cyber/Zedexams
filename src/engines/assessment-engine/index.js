@@ -51,9 +51,15 @@ export {
 // reaches the front door with the cutover that needs it — this is that cutover.
 //
 // Two deliberate absences:
-//   • `persist/` — the canary route persists nothing; the quiz cutover that
-//     writes will export it when it arrives (and `test:paper-quiz-zero-write`
-//     fails the build if it arrives early).
+//   • `persist/` — and it STAYS absent, which is not what this note used to
+//     say. The expectation was that the quiz cutover, being the first route
+//     that writes, would export it here. That cutover landed and imports
+//     `assessment-engine/persist` as an area instead, for the reason the
+//     canary makes concrete: `PublicQuizRunner` imports THIS file and must
+//     persist nothing, so anything exported here is something the zero-write
+//     route can reach. Keeping persist off the front door leaves that property
+//     structural — the write is unreachable — rather than making it depend on
+//     nobody importing one name. `test:paper-quiz-zero-write` enforces it.
 //   • the RENDER COMPONENTS — they are .jsx, and this front door must load
 //     under plain node, which is what lets the contract be tested at all. A
 //     consumer imports the render AREA (`…/assessment-engine/render`) directly,
