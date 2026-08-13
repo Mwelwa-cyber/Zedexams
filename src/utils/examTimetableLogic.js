@@ -2,7 +2,7 @@
  * examTimetableLogic — pure helpers behind the /timetable exam hub.
  *
  * No React, no Firebase: everything here runs under plain `node` in
- * scripts/test-exam-timetable.mjs. The page (components/timetable/) supplies
+ * scripts/test-exam-timetable.mjs. The page (features/examTimetable/) supplies
  * `nowMs` from a ticking clock and renders whatever these functions return.
  *
  * Timezone contract: timetable datetimes are ISO strings with an explicit

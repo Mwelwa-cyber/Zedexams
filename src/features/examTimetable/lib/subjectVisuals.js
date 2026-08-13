@@ -25,7 +25,7 @@ import {
   Language,
   FileText,
   ListChecks,
-} from '../ui/icons'
+} from '../../../components/ui/icons'
 
 const TINT = {
   blue: { bg: '#e3edfb', fg: '#1d4ed8' },
