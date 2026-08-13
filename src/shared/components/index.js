@@ -49,6 +49,20 @@
  *     `classTimetable`.
  *   • `SetupForYouCard.jsx` — `lessonPlanStudio` and `GeneratorStudioShell`.
  *
+ * `StudioHeader.jsx` followed them, and it is the one resident here whose
+ * placement demand did NOT decide — **owner ruling, 2026-08-13**. It has one
+ * consumer (`lessonPlanStudio`), so the sole-consumer rule filed it inside that
+ * feature on the first pass. The ruling is that the band is *intended* as the
+ * shared studio identity band — its own docblock has said so since #2094's
+ * consistency pass — and the next studio to adopt it must not have to import a
+ * feature's internals or move the file a second time. Consumer count measures
+ * adoption so far; it cannot see intent, and intent is an owner's call.
+ *
+ * It travels as a trio — component, `studioHeader.css`, spec — because the
+ * stylesheet is the component's own and is imported by it directly. That is
+ * NOT a precedent for splitting `src/index.css`: this file was already separate
+ * before the move.
+ *
  * `StudioPageHeader`'s styles stay in `src/index.css` under
  * `.studio-page-header`. The monolith is split per-feature later in Phase 4
  * (§2); moving one component's rules out ahead of that would fork the
@@ -68,11 +82,11 @@
  *     `FreeAllowanceNotice` reach `utils/paywall`, `utils/lenco`,
  *     `utils/topup` or `utils/teacherPlans` — payment logic, named in §14.6.
  *
- * Single-consumer chrome did not come here either: it travelled INTO its one
- * consumer. `StudioHeader` (+ its stylesheet and spec) went to
- * `features/lessonPlanStudio/components/`, `StudioUnavailableNotice` (+ spec)
- * to `features/dashboardV2/components/`. A component one feature draws is that
- * feature's, however shared its docblock says it is.
+ * Single-consumer chrome travels INTO its one consumer unless an owner rules
+ * otherwise: `StudioUnavailableNotice` (+ spec) went to
+ * `features/dashboardV2/components/`, and stays there. `StudioHeader` is the
+ * exception recorded above, not the rule — the default is still that a
+ * component one feature draws is that feature's.
  *
  * A namespace marker, not a barrel — import the file, not this index.
  */
