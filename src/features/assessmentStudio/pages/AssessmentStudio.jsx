@@ -145,7 +145,7 @@ import { normalizeSubject } from '../../../config/curriculum'
 import { shouldBlockHydration } from '../lib/assessmentLoadGuard'
 
 import '../../../components/teacher/studio/assessmentStudio.css'
-import StudioOutputBoundary from '../../../components/teacher/StudioOutputBoundary'
+import StudioOutputBoundary from '../../../shared/components/StudioOutputBoundary'
 
 /* ------------------------------------------------------------------
  * Constants — kept compatible with library taxonomy and save schema.

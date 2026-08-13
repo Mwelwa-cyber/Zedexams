@@ -165,7 +165,7 @@ vi.mock('../components/scan/ScanPaperModal', () => ({ default: () => null }))
 vi.mock('../components/scan/ImportReviewScreen', () => ({ default: () => null }))
 vi.mock('../components/PaperHealthModal', () => ({ default: () => null }))
 vi.mock('../components/PaperTemplatePicker', () => ({ default: () => null }))
-vi.mock('../../../components/teacher/StudioOutputBoundary', () => ({ default: ({ children }) => children }))
+vi.mock('../../../shared/components/StudioOutputBoundary', () => ({ default: ({ children }) => children }))
 vi.mock('../components/QuestionBankView', () => ({ default: () => <div data-testid="bank-view" /> }))
 
 let searchParams = new URLSearchParams('view=builder')

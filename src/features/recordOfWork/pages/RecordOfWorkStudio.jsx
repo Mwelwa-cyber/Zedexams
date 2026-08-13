@@ -33,7 +33,7 @@ import {
 } from '../../../utils/teacherLibraryService'
 import { useLibraryAutoSave } from '../../../hooks/useLibraryAutoSave'
 import RecordOfWorkView from '../components/RecordOfWorkView'
-import StudioPageHeader from '../../../components/teacher/StudioPageHeader'
+import StudioPageHeader from '../../../shared/components/StudioPageHeader'
 import SeoHelmet from '../../../components/seo/SeoHelmet'
 import ConfirmDialog from '../../../components/ui/ConfirmDialog'
 import { useToast } from '../../../components/ui/Toast'

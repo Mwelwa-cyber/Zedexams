@@ -11,7 +11,7 @@
  * blank) via `wizardPrimaryLabel`.
  */
 
-import StudioStepper from '../../../components/teacher/StudioStepper'
+import StudioStepper from '../../../shared/components/StudioStepper'
 
 export const WIZARD_STEPS = [
   { id: 'class', short: 'Class', title: 'Class' },

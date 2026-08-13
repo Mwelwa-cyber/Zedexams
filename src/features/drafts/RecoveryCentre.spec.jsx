@@ -28,7 +28,7 @@ vi.mock('../../hooks/draft/draftIdbStore', () => ({
 }))
 vi.mock('../../utils/teacherLibraryService', () => ({ TOOL_META: {} }))
 vi.mock('../../utils/gamificationService', () => ({ timeAgo: () => 'just now' }))
-vi.mock('../../components/teacher/StudioPageHeader', () => ({ default: () => null }))
+vi.mock('../../shared/components/StudioPageHeader', () => ({ default: () => null }))
 vi.mock('../../components/seo/SeoHelmet', () => ({ default: () => null }))
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => Object.assign(vi.fn(), { info: vi.fn(), error: vi.fn(), success: vi.fn() }) }))
 vi.mock('../../components/ui/ConfirmDialog', () => ({

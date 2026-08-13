@@ -23,7 +23,7 @@ import { downloadSbaPlannerDocx } from '../../../engines/export-engine/sbaPlanne
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { isFreePlanTeacher, saveSbaPlanGeneration } from '../../../utils/teacherLibraryService'
 import { useLibraryAutoSave } from '../../../hooks/useLibraryAutoSave'
-import StudioPageHeader from '../../../components/teacher/StudioPageHeader'
+import StudioPageHeader from '../../../shared/components/StudioPageHeader'
 import SeoHelmet from '../../../components/seo/SeoHelmet'
 import SbaWorkflowNote from '../components/SbaWorkflowNote'
 import { useToast } from '../../../components/ui/Toast'

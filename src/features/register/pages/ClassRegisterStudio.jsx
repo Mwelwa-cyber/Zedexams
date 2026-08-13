@@ -19,7 +19,7 @@ import { getSchoolProfile } from '../../../utils/schoolProfileService'
 import { TERMS } from '../../../utils/classTerms'
 import { getActiveTerm } from '../../../utils/moeCalendar'
 import SeoHelmet from '../../../components/seo/SeoHelmet'
-import StudioPageHeader from '../../../components/teacher/StudioPageHeader'
+import StudioPageHeader from '../../../shared/components/StudioPageHeader'
 import Skeleton from '../../../components/ui/Skeleton'
 import AttendanceWorkspace from '../components/attendance/AttendanceWorkspace'
 

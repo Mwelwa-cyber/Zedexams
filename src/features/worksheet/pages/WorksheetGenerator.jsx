@@ -42,7 +42,7 @@ import {
 import Icon from '../../../components/ui/Icon'
 import { Download, Key } from '../../../components/ui/icons'
 import WorksheetView from '../components/WorksheetView'
-import StudioOutputBoundary from '../../../components/teacher/StudioOutputBoundary'
+import StudioOutputBoundary from '../../../shared/components/StudioOutputBoundary'
 import { curriculumSeedFromProfile, preferredDifficulty, preferredTermYear } from '../../../utils/teacherDefaults'
 import { readActiveAssignmentSeed, resolveStudioSeed } from '../../../utils/activeAssignmentSeed'
 import CreatedFromLessonPlanNotice from '../../../components/teacher/generate/CreatedFromLessonPlanNotice'

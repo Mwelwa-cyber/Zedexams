@@ -124,7 +124,7 @@ vi.mock('../components/scan/ScanPaperModal', () => ({ default: () => null }))
 vi.mock('../components/scan/ImportReviewScreen', () => ({ default: () => null }))
 vi.mock('../components/PaperHealthModal', () => ({ default: () => null }))
 vi.mock('../components/PaperTemplatePicker', () => ({ default: () => null }))
-vi.mock('../../../components/teacher/StudioOutputBoundary', () => ({ default: ({ children }) => children }))
+vi.mock('../../../shared/components/StudioOutputBoundary', () => ({ default: ({ children }) => children }))
 
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal()
