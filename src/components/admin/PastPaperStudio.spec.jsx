@@ -22,7 +22,21 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 
-vi.mock('../../firebase/config', () => ({ default: {}, auth: {}, db: {}, storage: {} }))
+// getAppCheckClientState is what describeUploadError consults to tell an
+// attestation refusal from a rules denial (both arrive as
+// `storage/unauthorized`). Attested + initialised here, so these tests keep
+// exercising the permissions wording.
+vi.mock('../../firebase/config', () => ({
+  default: {},
+  auth: {},
+  db: {},
+  storage: {},
+  getAppCheckClientState: () => ({
+    native: false,
+    recaptchaKeyConfigured: true,
+    initialized: true,
+  }),
+}))
 vi.mock('firebase/functions', () => ({
   getFunctions: () => ({}),
   httpsCallable: () => vi.fn().mockResolvedValue({ data: {} }),

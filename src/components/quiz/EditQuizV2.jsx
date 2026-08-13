@@ -4,7 +4,17 @@ import { ref as storageRef, getDownloadURL } from 'firebase/storage'
 import { uploadBytes } from '../../firebase/attestedStorage'
 import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
-import { storage } from '../../firebase/config'
+import { storage, getAppCheckClientState } from '../../firebase/config'
+
+/**
+ * App Check state for the upload-error describer, which runs inside catch
+ * blocks — an exception here would turn a handled upload failure into a
+ * crash. Null simply means "can't tell", and uploadErrorMessage then keeps
+ * its permissions wording.
+ */
+function appCheckStateSafe() {
+  try { return getAppCheckClientState() } catch { return null }
+}
 import {
   collectSectionFirestoreIds,
   createPartGroup,
@@ -790,7 +800,7 @@ export default function EditQuizV2() {
         await uploadPassageImage(target.sectionIndex, file)
       }
     } catch (error) {
-      show(uploadErrorMessage(error), true)
+      show(uploadErrorMessage(error, appCheckStateSafe()), true)
     }
   }
 
@@ -1178,7 +1188,7 @@ export default function EditQuizV2() {
           imageUploadStep: '',
         },
       }))
-      show(uploadErrorMessage(error), true)
+      show(uploadErrorMessage(error, appCheckStateSafe()), true)
     }
   }, [show, updateSectionById, currentUser])
 
@@ -1260,7 +1270,7 @@ export default function EditQuizV2() {
           imageUploadStep: '',
         },
       }))
-      show(uploadErrorMessage(error), true)
+      show(uploadErrorMessage(error, appCheckStateSafe()), true)
     }
   }, [show, updateSectionById, currentUser])
 
@@ -1344,7 +1354,7 @@ export default function EditQuizV2() {
           optionImageUploadStep: '',
         },
       }))
-      show(uploadErrorMessage(error), true)
+      show(uploadErrorMessage(error, appCheckStateSafe()), true)
     }
   }, [show, updateSectionById, currentUser])
 
@@ -1424,7 +1434,7 @@ export default function EditQuizV2() {
         optionImageUploadingIndex: null,
         optionImageUploadStep: '',
       }))
-      show(uploadErrorMessage(error), true)
+      show(uploadErrorMessage(error, appCheckStateSafe()), true)
     }
   }, [show, updateSectionById, currentUser])
 

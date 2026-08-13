@@ -167,6 +167,32 @@ const MB = 1024 * 1024
 }
 
 {
+  // An enforced bucket refuses an unattested request with the SAME
+  // `storage/unauthorized` a rules denial uses. When the App Check state
+  // proves the build never attested, the role/verification advice is a dead
+  // end — an admin already has the role — so the message must name the real
+  // cause instead. Passing no state keeps the previous permissions wording.
+  const unattested = uploadErrorMessage(
+    { code: 'storage/unauthorized' },
+    { native: false, recaptchaKeyConfigured: false, initialized: false },
+  )
+  assert.match(unattested, /App Check/i)
+  assert.ok(
+    !/sign out and back in|needs the teacher or admin role/i.test(unattested),
+    'an unattested build must not be reported as a role problem',
+  )
+
+  const denied = uploadErrorMessage(
+    { code: 'storage/unauthorized' },
+    { native: false, recaptchaKeyConfigured: true, initialized: true },
+  )
+  assert.match(denied, /teacher or admin role/i)
+
+  // Back-compat: callers that cannot see the state keep the old message.
+  assert.match(uploadErrorMessage({ code: 'storage/unauthorized' }), /teacher or admin role/i)
+}
+
+{
   assert.match(uploadErrorMessage({ code: 'storage/canceled' }), /canceled/i)
   assert.match(uploadErrorMessage({ code: 'storage/retry-limit-exceeded' }), /connection/i)
   assert.match(uploadErrorMessage({ code: 'storage/unauthenticated' }), /sign in again/i)
