@@ -26,10 +26,10 @@ import { render, screen, within, act, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { ThemeProvider } from '../../../contexts/ThemeContext'
-import { ToastProvider } from '../../ui/Toast'
+import { ToastProvider } from '../../../components/ui/Toast'
 import { resetTeacherThemeStore } from '../../../contexts/teacherThemeStore'
 import { TEACHER_THEMES } from '../../../contexts/teacherThemeCore'
-import { AUDIT_SECTIONS } from './auditSections.js'
+import { AUDIT_SECTIONS } from '../lib/auditSections.js'
 import UiAuditPage from './UiAuditPage.jsx'
 
 /**

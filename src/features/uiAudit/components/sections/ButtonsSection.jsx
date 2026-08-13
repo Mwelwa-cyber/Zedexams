@@ -1,7 +1,7 @@
-import { ArrowRight, Download, Plus, Trash2 } from '../../../ui/icons'
-import Button from '../../../ui/Button'
-import Icon from '../../../ui/Icon'
-import { HeaderIconButton } from '../../../ui/HeaderIconButton'
+import { ArrowRight, Download, Plus, Trash2 } from '../../../../components/ui/icons'
+import Button from '../../../../components/ui/Button'
+import Icon from '../../../../components/ui/Icon'
+import { HeaderIconButton } from '../../../../components/ui/HeaderIconButton'
 import { Block, Matrix, Section, Specimen, SpecimenGrid } from '../auditKit.jsx'
 import { ForceFocus, ForceHover } from '../forcedStates.jsx'
 

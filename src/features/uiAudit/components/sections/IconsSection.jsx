@@ -1,6 +1,6 @@
-import * as AppIcons from '../../../ui/icons'
-import Icon from '../../../ui/Icon'
-import { LUCIDE_ICONS, LUCIDE_ICON_NAMES } from '../iconInventory.js'
+import * as AppIcons from '../../../../components/ui/icons'
+import Icon from '../../../../components/ui/Icon'
+import { LUCIDE_ICONS, LUCIDE_ICON_NAMES } from '../../lib/iconInventory.js'
 import { Block, Section } from '../auditKit.jsx'
 
 /**

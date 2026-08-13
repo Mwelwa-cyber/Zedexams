@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { hoverClassesFrom } from './forcedStates.js'
+import { hoverClassesFrom } from '../lib/forcedStates.js'
 
 /**
  * Showing an interactive state without interacting with it — the React half.

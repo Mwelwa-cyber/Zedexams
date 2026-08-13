@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import DiagramSvg from '../../../diagrams/DiagramSvg'
+import DiagramSvg from '../../../../components/diagrams/DiagramSvg'
 import { hydrateMathContent } from '../../../../editor/utils/safeRender'
 import { Block, Section, useResolved, useScopeTheme } from '../auditKit.jsx'
 
