@@ -6,16 +6,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
-vi.mock('../../firebase/config', () => ({ default: {}, db: {} }))
+vi.mock('../../../firebase/config', () => ({ default: {}, db: {} }))
 
 const mockGetChildProgress = vi.fn()
-vi.mock('../../utils/familyPortal', () => ({
+vi.mock('../services/familyPortal', () => ({
   getChildProgress: (...a) => mockGetChildProgress(...a),
 }))
-vi.mock('../../utils/clientErrorReporting', () => ({ reportClientError: vi.fn() }))
-vi.mock('../seo/SeoHelmet', () => ({ default: () => null }))
-vi.mock('../ui/Skeleton', () => ({ default: () => <div data-testid="skeleton" /> }))
-vi.mock('../ui/SubjectIcon', () => ({ default: () => null }))
+vi.mock('../../../utils/clientErrorReporting', () => ({ reportClientError: vi.fn() }))
+vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../components/ui/Skeleton', () => ({ default: () => <div data-testid="skeleton" /> }))
+vi.mock('../../../components/ui/SubjectIcon', () => ({ default: () => null }))
 
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal()

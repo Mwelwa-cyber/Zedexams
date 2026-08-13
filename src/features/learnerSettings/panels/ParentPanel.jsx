@@ -6,8 +6,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useSettingsSave } from '../components/SaveContext'
 import { Panel, Section, Field, TextInput, SelectField, Note } from '../components/ui'
-import ParentShareManager from '../../../components/parent/ParentShareManager'
-import FamilyCodePanel from '../../../components/parent/FamilyCodePanel'
+import { ParentShareManager, FamilyCodePanel } from '../../parentPortal'
 import { normalizeParentContact, RELATIONSHIP_OPTIONS } from '../lib/learnerPrefs'
 
 // Headerless body — composed by MyAccountPanel; default keeps the Panel wrapper.

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
-import { listMyChildren, redeemFamilyInviteCode } from '../../utils/familyPortal'
-import { reportClientError } from '../../utils/clientErrorReporting'
-import Button from '../ui/Button'
-import Skeleton from '../ui/Skeleton'
-import SeoHelmet from '../seo/SeoHelmet'
+import { useAuth } from '../../../contexts/AuthContext'
+import { listMyChildren, redeemFamilyInviteCode } from '../services/familyPortal'
+import { reportClientError } from '../../../utils/clientErrorReporting'
+import Button from '../../../components/ui/Button'
+import Skeleton from '../../../components/ui/Skeleton'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
 
 /**
  * FamilyHome — /family. Lists the parent's linked children and lets them add

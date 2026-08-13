@@ -18,12 +18,12 @@
 
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { getProgressShare } from '../../utils/parentShares'
-import { SUBJECTS } from '../../config/curriculum'
-import SeoHelmet from '../seo/SeoHelmet'
-import Logo from '../ui/Logo'
-import Skeleton from '../ui/Skeleton'
-import SubjectIcon from '../ui/SubjectIcon'
+import { getProgressShare } from '../../../utils/parentShares'
+import { SUBJECTS } from '../../../config/curriculum'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Logo from '../../../components/ui/Logo'
+import Skeleton from '../../../components/ui/Skeleton'
+import SubjectIcon from '../../../components/ui/SubjectIcon'
 
 function formatRelative(ms) {
   if (!ms) return ''
