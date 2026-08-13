@@ -652,7 +652,33 @@ export default function QuizRunnerV2() {
     attemptLatchedRef.current = false
     attemptEngineRef.current = null
   }
-  const attemptAssessment = started ? attemptEngineRef.current : engineAssessment
+  // The latch holds in ONE direction only, which is the whole point of it
+  // (Codex P1 on #2336, r3778380753 — the first version held in both).
+  //
+  // false→true is held: an attempt that began before the decision landed
+  // finishes on the old runner, because swapping a learner onto the engine
+  // mid-question is the harm.
+  //
+  // true→false is NOT held: an operator disabling the flag is an emergency
+  // rollback, and it must reach the learners currently on the engine — who are
+  // precisely the population the rollback is for. Held in both directions, an
+  // in-flight attempt kept the engine renderer, verdict AND result writer after
+  // the switch was thrown, which is `flags.js`'s stated rule inverted: "a
+  // rollback that spares the people most likely to be staff is a rollback that
+  // leaves the failure running for exactly the group that would otherwise
+  // notice it stopped." The hook says the same in one line — a ramp-up never
+  // moves a learner mid-question, a rollback always does.
+  const attemptAssessment = started
+    ? (engineAssessment ? attemptEngineRef.current : null)
+    : engineAssessment
+  // The latch held this attempt on the old card even though the decision now
+  // says engine — a CONSUMER-level hold the hook's own `latched` cannot see
+  // (Codex P2 on #2336, r3778380755). Without its own dimension the event
+  // reports `engine:false, latched:false`, which is indistinguishable from a
+  // normalisation refusal — and the refusal rate is the number the ramp
+  // decision is made on, so a hold counted as a refusal argues against a ramp
+  // the engine is in fact ready for.
+  const heldByAttemptLatch = started && engineAssessment != null && attemptAssessment == null
   const engineActive = attemptAssessment != null
   // Looked up by id rather than by index: this runner draws whole sections at
   // a time, so there is no single "current" question to index into.
@@ -690,9 +716,15 @@ export default function QuizRunnerV2() {
       // The hook's own docblock asks consumers to send it (Codex P2 on #2329,
       // r3777973366).
       live: engineFlag.live,
+      // The attempt-level hold, distinct from the hook's `latched`: this quiz
+      // was ELIGIBLE and the engine was on, but the attempt had already begun
+      // before the decision landed. Counting it as a refusal would understate
+      // how much of the corpus the engine can serve.
+      heldByAttemptLatch,
       build: BUILD_ID,
     })
-  }, [engineFlag.final, engineFlag.source, engineFlag.latched, engineFlag.live, engineActive, loading, quiz, started])
+  }, [engineFlag.final, engineFlag.source, engineFlag.latched, engineFlag.live, engineActive,
+    heldByAttemptLatch, loading, quiz, started])
 
   /**
    * Is this choice correct? The verdict seam.

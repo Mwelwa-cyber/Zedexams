@@ -1012,6 +1012,18 @@ happened.
        blocking Start: gating the start card on a Firestore round trip charges
        every learner a wait to protect a rare race, while finishing an
        already-started attempt on the old runner costs nothing.
+
+       **The first fix over-corrected, and the follow-up review caught it as a
+       P1.** That latch held in BOTH directions, so an operator disabling the
+       flag no longer reached a learner already on the engine — the attempt kept
+       the engine renderer, verdict AND result writer straight through an
+       emergency rollback. That is `flags.js`'s own rule inverted ("a rollback
+       that spares the people most likely to be staff … leaves the failure
+       running for exactly the group that would otherwise notice it stopped"),
+       and the hook states it in one line: a ramp-up never moves a learner
+       mid-question, a rollback always does. **A latch on a rollback path is
+       one-directional or it is not a latch** — worth carrying into games, whose
+       flag will want the same shape.
      - **`live` was missing from the telemetry**, which the hook's own docblock
        asks consumers to send: a dead `settings/global` subscription forces the
        decision closed and reports the same `runner-off` source as a deliberate
