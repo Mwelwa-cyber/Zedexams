@@ -38,8 +38,15 @@ export function storedRichTextEmpty(value) {
     } catch { /* not JSON — fall through to the HTML path */ }
   }
   // HTML (or plain text): strip tags and the entities an "empty" editor leaves.
-  const stripped = text
-    .replace(/<[^>]*>/g, '')
+  // Tags are stripped to a fixpoint so removals can't reassemble a tag
+  // (e.g. "<p<x>>" losing its inner tag would otherwise re-form "<p>").
+  let stripped = text
+  let prev
+  do {
+    prev = stripped
+    stripped = stripped.replace(/<[^>]*>/g, '')
+  } while (stripped !== prev)
+  stripped = stripped
     .replace(/&nbsp;/gi, ' ')
     .replace(/&amp;/gi, '&')
     .trim()

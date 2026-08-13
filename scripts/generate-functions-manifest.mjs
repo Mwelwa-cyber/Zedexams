@@ -12,7 +12,7 @@
  * rule when absent, so a new export arrives classified-by-rule and the guard
  * forces a human to confirm it.
  */
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { extractExports, extractRewrites, seedClassification, RISK_RANK, resolveExport, createModuleReader } from './lib/functionsManifest.mjs'
@@ -24,7 +24,16 @@ const OUT = path.join(ROOT, 'scripts', 'functions-manifest.json')
 const indexSource = readFileSync(path.join(ROOT, 'functions', 'index.js'), 'utf8')
 const entries = extractExports(indexSource)
 const rewrites = extractRewrites(readFileSync(path.join(ROOT, 'firebase.json'), 'utf8'))
-const previous = existsSync(OUT) ? JSON.parse(readFileSync(OUT, 'utf8')).exports : {}
+// Read directly and treat ENOENT as "first run": no existsSync gap between
+// the check and the read. A present-but-corrupt manifest still throws.
+const previous = (() => {
+  try {
+    return JSON.parse(readFileSync(OUT, 'utf8')).exports
+  } catch (err) {
+    if (err.code === 'ENOENT') return {}
+    throw err
+  }
+})()
 
 // Extraction batches, risk-ascending (docs/phase5-plan.md): 1 = mechanical
 // inline, 2 = secrets-bound inline, 3 = payment/webhook + audit-surface

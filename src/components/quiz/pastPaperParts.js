@@ -87,6 +87,20 @@ export function parseDeclaredRanges(texts = []) {
   return out
 }
 
+/**
+ * Strip HTML tags to a fixpoint, so removals can't reassemble a tag
+ * (e.g. "<scr<x>ipt>" losing its inner tag would otherwise re-form "<script>").
+ */
+function stripTags(value) {
+  let out = String(value ?? '')
+  let prev
+  do {
+    prev = out
+    out = out.replace(/<[^>]*>/g, '')
+  } while (out !== prev)
+  return out
+}
+
 function titleCaseLabel(s) {
   return String(s ?? '')
     .trim()
@@ -386,7 +400,7 @@ export function assignPartsFromRanges(sections = [], ranges = []) {
     usedRanges.add(r)
     const next = { ...q, sectionTitle: labelFor(r) }
     const instruction = resolveInstruction(r, sections, sorted, instructionByRange)
-    const hasStem = String(q?.text ?? '').replace(/<[^>]*>/g, '').trim().length > 0
+    const hasStem = stripTags(q?.text ?? '').trim().length > 0
     if (!hasStem && instruction) {
       next.text = instruction
       // The instruction is now the question itself — don't also show it as a

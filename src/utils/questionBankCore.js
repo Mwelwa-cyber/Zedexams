@@ -216,13 +216,16 @@ function plainify(value) {
   } catch {
     text = String(value ?? '')
   }
+  // Entities are decoded in one pass ("&amp;" handled together with the rest)
+  // so a double-encoded "&amp;lt;" can never decode all the way to "<".
+  const entities = { nbsp: ' ', amp: '&', lt: '<', gt: '>' }
   return text
     .replace(/<[^>]*>/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&#\d+;/g, ' ')
+    .replace(/&(nbsp|amp|lt|gt|#\d+);/gi, (m, name) => {
+      const key = name.toLowerCase()
+      // Numeric references (&#160; …) are noise for fingerprinting, as before.
+      return key.startsWith('#') ? ' ' : entities[key]
+    })
     .toLowerCase()
 }
 

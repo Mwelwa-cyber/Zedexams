@@ -808,10 +808,20 @@ await testAsync('runVisionImport reconciles against declared Part ranges: drops 
   assert.equal(out.sections.length, 3, 'phantom question removed via declared-range reconciliation')
   assert.ok(out.warnings.some(w => /Removed 1 extra question/i.test(w)), 'over-count removal is surfaced honestly')
 
-  // The stem-less spelling item now reads as a real question.
-  const spelling = out.sections.find(s => (s.question?.options || []).some(o => /tributary/.test(String(o).replace(/<[^>]*>/g, ''))))
+  // The stem-less spelling item now reads as a real question. Tags are
+  // stripped to a fixpoint so removals can't reassemble a tag ("<p<x>>").
+  const stripTags = (v) => {
+    let out = String(v)
+    let prev
+    do {
+      prev = out
+      out = out.replace(/<[^>]*>/g, '')
+    } while (out !== prev)
+    return out
+  }
+  const spelling = out.sections.find(s => (s.question?.options || []).some(o => /tributary/.test(stripTags(o))))
   assert.ok(spelling, 'spelling item survived')
-  const stem = String(spelling.question.text).replace(/<[^>]*>/g, '').trim()
+  const stem = stripTags(spelling.question.text).trim()
   assert.equal(stem, 'Choose the correctly spelled word.', 'the Part instruction became the question stem')
   assert.ok(out.warnings.some(w => /instruction was used as the question/i.test(w)), 'stem-fill surfaced to the teacher')
 

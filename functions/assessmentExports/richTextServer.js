@@ -34,15 +34,22 @@ function tiptapToText(node, out) {
 
 /** Strip HTML tags, decode a handful of common entities, collapse whitespace. */
 function htmlToText(html) {
-  return String(html)
-    .replace(/<(br|\/p|\/div|\/li|\/h[1-6])\s*\/?>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, "\"")
-    .replace(/&#39;/gi, "'");
+  let out = String(html)
+      .replace(/<(br|\/p|\/div|\/li|\/h[1-6])\s*\/?>/gi, "\n");
+  // Strip remaining tags to a fixpoint so removals can't reassemble a tag
+  // (e.g. "<scr<x>ipt>").
+  let prev;
+  do {
+    prev = out;
+    out = out.replace(/<[^>]+>/g, "");
+  } while (out !== prev);
+  // Decode entities in one pass ("&amp;" handled together with the rest) so a
+  // double-encoded "&amp;lt;" can never decode all the way to "<".
+  const entities = {
+    "nbsp": " ", "amp": "&", "lt": "<", "gt": ">", "quot": "\"", "#39": "'",
+  };
+  return out.replace(/&(nbsp|amp|lt|gt|quot|#39);/gi,
+      (m, name) => entities[name.toLowerCase()]);
 }
 
 /** Collapse runs of blank lines / trailing spaces into tidy paragraphs. */

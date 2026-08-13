@@ -73,7 +73,9 @@ await test('footer numbers every page (Page X of Y)', async () => {
 
 await test('clean (paid) export carries no attribution branding', async () => {
   assert.ok(!/Made with ZedExams/.test(clean.footers))
-  assert.ok(!/ZedExams\.com/.test(clean.headers))
+  // A literal substring check, not a regex: the intent is "this exact brand
+  // string appears nowhere", so no anchoring question arises.
+  assert.ok(!clean.headers.includes('ZedExams.com'))
 })
 
 await test('free-plan export keeps the attribution AND gains page numbers', async () => {

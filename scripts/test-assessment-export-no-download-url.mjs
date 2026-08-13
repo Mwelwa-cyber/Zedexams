@@ -38,7 +38,9 @@ test('export hook never calls getDownloadURL', () => {
 })
 
 test('export client never references a raw firebasestorage URL', () => {
-  assert.ok(!/firebasestorage\.googleapis\.com/.test(client))
+  // A literal substring check, not a regex: the intent is "this hostname
+  // appears nowhere in the source", so no anchoring question arises.
+  assert.ok(!client.includes('firebasestorage.googleapis.com'))
 })
 
 test('export client downloads via the server-provided branded path + ticket', () => {

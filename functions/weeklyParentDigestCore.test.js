@@ -95,7 +95,10 @@ const SHARE_URL = "https://zedexams.com/parent/ABC123";
   ok("recent row uses quiz title", text.includes("· Fractions: 75%"));
   ok("recent row falls back to subject label", text.includes("· English: —"));
   ok("recent row falls back to 'Quiz'", text.includes("· Quiz: 90%"));
-  ok("text carries the share URL", text.includes(SHARE_URL));
+  // Compare the whole share line exactly (not a URL substring check): the
+  // digest must carry this URL verbatim, nothing merely resembling it.
+  ok("text carries the share URL",
+      text.split("\n").some((line) => line === `Open the live progress page any time: ${SHARE_URL}`));
 }
 
 {

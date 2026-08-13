@@ -138,12 +138,23 @@ export async function rasterisePdf(pdfBytes, opts = {}) {
         return req.respond({ status: 200, contentType: 'application/pdf', body: Buffer.from(pdfBytes) })
       }
       const onDisk = path.join(PDFJS, url.pathname.replace(/^\/+/, ''))
-      if (onDisk.startsWith(PDFJS) && fs.existsSync(onDisk) && fs.statSync(onDisk).isFile()) {
-        return req.respond({
-          status: 200,
-          contentType: MIME[path.extname(onDisk)] || 'application/octet-stream',
-          body: fs.readFileSync(onDisk),
-        })
+      if (onDisk.startsWith(PDFJS)) {
+        // One read, no exists/stat pre-check: a missing or non-regular file
+        // throws (ENOENT/EISDIR/ENOTDIR) and falls through to the asset-failure
+        // path, exactly as the old existsSync+isFile gate did.
+        let body = null
+        try {
+          body = fs.readFileSync(onDisk)
+        } catch (err) {
+          if (!['ENOENT', 'EISDIR', 'ENOTDIR'].includes(err.code)) throw err
+        }
+        if (body !== null) {
+          return req.respond({
+            status: 200,
+            contentType: MIME[path.extname(onDisk)] || 'application/octet-stream',
+            body,
+          })
+        }
       }
       assetFailures.push(url.pathname)
       return req.abort()

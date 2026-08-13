@@ -108,9 +108,15 @@ if (mode === 'update') {
     // Bootstrap records only what is MISSING. Replacing an approved appearance
     // is a different act with a different workflow, and the refusal lives here
     // rather than in the YAML so it cannot be edited away in a dispatch.
-    if (existsSync(file)) { console.log(`kept   ${c.target} (already recorded)`); continue }
+    // The refusal is enforced by the write itself ('wx': create, never
+    // replace), not by a separate existence check a concurrent run could race.
     mkdirSync(path.dirname(file), { recursive: true })
-    writeFileSync(file, c.png)
+    try {
+      writeFileSync(file, c.png, { flag: 'wx' })
+    } catch (err) {
+      if (err.code === 'EEXIST') { console.log(`kept   ${c.target} (already recorded)`); continue }
+      throw err
+    }
     wrote += 1
     console.log(`record ${c.target}`)
     // The review sheet, appended per recording — the same obligation the paper

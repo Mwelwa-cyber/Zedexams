@@ -163,7 +163,16 @@ test('counts questions still missing an answer', () => {
 
 // ── collectAiAnswerTargets ───────────────────────────────────────────────────
 
-const plain = (v) => String(v ?? '').replace(/<[^>]+>/g, '')
+// Strip tags to a fixpoint so removals can't reassemble a tag ("<p<x>>").
+const plain = (v) => {
+  let out = String(v ?? '')
+  let prev
+  do {
+    prev = out
+    out = out.replace(/<[^>]+>/g, '')
+  } while (out !== prev)
+  return out
+}
 
 test('collectAiAnswerTargets returns id+text+options for unanswered MCQs only', () => {
   const sections = [

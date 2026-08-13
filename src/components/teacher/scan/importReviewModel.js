@@ -42,17 +42,24 @@ export function stripTags(value) {
  * Does NOT slice; suitable for seeding an editable textarea with the full text.
  */
 export function stripTagsPreservingBreaks(value) {
-  return String(value == null ? '' : value)
+  let out = String(value == null ? '' : value)
     .replace(/<\/p>/gi, '\n\n')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/div>/gi, '\n\n')
     .replace(/<\/h[1-6]>/gi, '\n\n')
     .replace(/<\/li>/gi, '\n')
-    .replace(/<[^>]*>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
+  // Strip tags to a fixpoint so removals can't reassemble a tag
+  // (e.g. "<scr<x>ipt>").
+  let prev
+  do {
+    prev = out
+    out = out.replace(/<[^>]*>/g, '')
+  } while (out !== prev)
+  // Decode entities in one pass ("&amp;" handled together with the rest) so a
+  // double-encoded "&amp;lt;" can never decode all the way to "<".
+  const entities = { nbsp: ' ', amp: '&', lt: '<', gt: '>' }
+  return out
+    .replace(/&(nbsp|amp|lt|gt);/g, (m, name) => entities[name])
     .replace(/[ \t]+/g, ' ')
     .split('\n')
     .map((line) => line.trim())

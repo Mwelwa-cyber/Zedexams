@@ -449,7 +449,12 @@ await (async () => {
     // baselines are already on disk and the run has already "succeeded".
     const src = readFileSync(new URL('./screen/runScreenGate.mjs', import.meta.url), 'utf8')
     const guard = src.indexOf('assertScreenEnvironmentIsClean(environment)')
-    const write = src.indexOf('writeFileSync(file, c.png)')
+    // Matched WITHOUT the closing paren: the baseline write carries options
+    // (`{ flag: 'wx' }`, so a record can never replace an approved appearance),
+    // and pinning the exact call text would fail this on a change that leaves
+    // the ordering — the thing actually guarded here — untouched. Still unique:
+    // the only other write in the file is `writeFileSync(out, ...)`.
+    const write = src.indexOf('writeFileSync(file, c.png')
     assert.ok(guard > 0, 'the screen recorder does not call the guard at all')
     assert.ok(write > 0, 'the screen recorder no longer writes baselines?')
     assert.ok(guard < write, 'the guard runs after the first baseline is written')

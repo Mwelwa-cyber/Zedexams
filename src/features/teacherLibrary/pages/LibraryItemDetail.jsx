@@ -1496,6 +1496,10 @@ function LegacyStudioFrame({ html }) {
 
   useEffect(() => {
     function onMessage(e) {
+      // The height reports come from our own srcDoc iframe, which (with
+      // sandbox="allow-same-origin") posts with this page's origin. Ignore
+      // messages from any other origin — anyone can postMessage a window.
+      if (e.origin !== window.location.origin) return
       const h = e?.data?.__legacyStudioFrameHeight
       if (typeof h === 'number' && h > 200) setHeight(h + 24)
     }

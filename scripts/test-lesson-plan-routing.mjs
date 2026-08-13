@@ -11,7 +11,7 @@
  * Run: node scripts/test-lesson-plan-routing.mjs   (npm run test:lesson-plan-routing)
  */
 import assert from 'node:assert/strict'
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { ROOT, readSource, TEACHER_ROUTES_PATH } from './lib/declaredRoutes.mjs'
 
@@ -73,11 +73,12 @@ ok(
 // ── No surface still links to the legacy path ────────────────────────────────
 
 function walk(dir, hits) {
-  for (const name of readdirSync(dir)) {
-    const p = join(dir, name)
-    const st = statSync(p)
-    if (st.isDirectory()) walk(p, hits)
-    else if (/\.(jsx?|mjs)$/.test(name) && !p.endsWith('teacherRoutes.jsx')) {
+  // withFileTypes: the listing itself says what each entry is, so there is no
+  // separate stat call between the listing and the read for a rename to race.
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, entry.name)
+    if (entry.isDirectory()) walk(p, hits)
+    else if (/\.(jsx?|mjs)$/.test(entry.name) && !p.endsWith('teacherRoutes.jsx')) {
       const text = readFileSync(p, 'utf8')
       if (text.includes('/teacher/generate/lesson-plan')) hits.push(p)
     }

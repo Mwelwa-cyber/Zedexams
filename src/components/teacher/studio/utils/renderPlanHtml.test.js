@@ -384,7 +384,10 @@ check('a legacy plan whose evaluation was off keeps it off', () => {
 })
 check('content is escaped', () => {
   const html = render({ ...CBC_PLAN, lessonGoal: '<script>alert(1)</script>' })
-  assert.doesNotMatch(html, /<script>/)
+  // No form of a script tag opening may survive (covers <script>, <script >,
+  // <script foo=…>), and the escaped text must be what actually renders.
+  assert.ok(!html.toLowerCase().includes('<script'), 'no raw script tag survives')
+  assert.ok(html.includes('&lt;script&gt;alert(1)&lt;/script&gt;'), 'goal was HTML-escaped')
 })
 
 console.log(`\n✅ renderPlanHtml — ${passed} checks passed\n`)

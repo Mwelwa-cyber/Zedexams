@@ -221,12 +221,20 @@ function fileToBase64(file) {
 }
 
 function stripXml(xml) {
-  return String(xml || '')
+  let out = String(xml || '')
     .replace(/<w:tab\b[^>]*\/>/g, '\t')
     .replace(/<\/w:p>/g, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+  // Strip tags to a fixpoint so removals can't reassemble a tag ("<w<x>:p>").
+  let prev
+  do {
+    prev = out
+    out = out.replace(/<[^>]+>/g, '')
+  } while (out !== prev)
+  // Decode entities in one pass ("&amp;" handled together with the rest) so a
+  // double-encoded "&amp;lt;" can never decode all the way to "<".
+  const entities = { amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'" }
+  return out
+    .replace(/&(amp|lt|gt|quot|#39);/g, (m, name) => entities[name])
     .replace(/[ \t]+\n/g, '\n').trim()
 }
 

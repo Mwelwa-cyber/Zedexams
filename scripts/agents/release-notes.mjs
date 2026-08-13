@@ -28,7 +28,9 @@
  */
 
 import {execSync} from "node:child_process";
-import {readFileSync, writeFileSync} from "node:fs";
+import {mkdtempSync, readFileSync, writeFileSync} from "node:fs";
+import {tmpdir} from "node:os";
+import {join} from "node:path";
 import {Octokit} from "@octokit/rest";
 import {
   CHANGELOG_PATH,
@@ -286,8 +288,13 @@ async function main() {
     );
   }
 
-  // Save the patch locally too in case the action wants to upload it.
-  writeFileSync("/tmp/ledger-patch.md", newSection);
+  // Save the patch locally too in case the action wants to upload it. Written
+  // inside a private mkdtemp directory, never at a fixed world-guessable /tmp
+  // path another local user could pre-create or symlink.
+  const patchDir = mkdtempSync(join(tmpdir(), "ledger-"));
+  const patchPath = join(patchDir, "ledger-patch.md");
+  writeFileSync(patchPath, newSection);
+  console.log(`Saved the changelog patch to ${patchPath}.`);
 }
 
 main().catch((err) => {

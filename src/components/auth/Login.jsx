@@ -47,7 +47,10 @@ async function diagnosePasswordFailure(email) {
     const methods = await fetchSignInMethodsForEmail(auth, trimmed)
     if (!methods || methods.length === 0) return null
     const hasPassword = methods.includes('password')
-    const hasGoogle = methods.includes('google.com')
+    // `methods` is Firebase's array of provider IDs; 'google.com' here is the
+    // GoogleAuthProvider.PROVIDER_ID constant, not a URL. Compare each entry
+    // with exact equality so this can never degrade into a substring match.
+    const hasGoogle = methods.some((method) => method === 'google.com')
     if (hasGoogle && !hasPassword) {
       return 'This email signs in with Google. Use "Continue with Google" above, or click "Forgot password?" to set up a password.'
     }

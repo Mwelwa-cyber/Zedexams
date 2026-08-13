@@ -877,8 +877,16 @@ function main() {
   let changedAny = false
   for (const rel of TARGET_FILES) {
     const file = path.join(ROOT, rel)
-    if (!fs.existsSync(file)) { console.warn(`! ${rel}: not found, skipping`); continue }
-    const data = JSON.parse(fs.readFileSync(file, 'utf8'))
+    // Read directly and treat ENOENT as "skip": no existsSync gap between the
+    // check and the read for another process to race.
+    let raw
+    try {
+      raw = fs.readFileSync(file, 'utf8')
+    } catch (err) {
+      if (err.code === 'ENOENT') { console.warn(`! ${rel}: not found, skipping`); continue }
+      throw err
+    }
+    const data = JSON.parse(raw)
     // Numeric-prefix repair only on the current CBC data; the 2013 parser is
     // code-spacing sensitive (see repairString).
     const numericPrefix = !rel.includes('2013')

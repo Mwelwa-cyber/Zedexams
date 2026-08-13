@@ -58,7 +58,12 @@ const makeAssetBatchId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return `notes-${crypto.randomUUID().slice(0, 8)}`
   }
-  return `notes-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  // Non-secure contexts lack randomUUID but still have getRandomValues.
+  const bytes = typeof crypto !== 'undefined' && crypto.getRandomValues
+    ? crypto.getRandomValues(new Uint8Array(3))
+    : new Uint8Array(3)
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+  return `notes-${Date.now()}-${hex}`
 }
 
 export function AdminNoteEditor() {

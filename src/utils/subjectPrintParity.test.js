@@ -62,8 +62,16 @@ async function renderAll(html, meta = SCIENCE) {
 }
 
 /** The words a reader sees in the Word document. */
-const docxText = (xml) =>
-  (xml.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g) || []).join(' ').replace(/<[^>]+>/g, '')
+const docxText = (xml) => {
+  // Strip tags to a fixpoint so removals can't reassemble a tag ("<w<x>:t>").
+  let out = (xml.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g) || []).join(' ')
+  let prev
+  do {
+    prev = out
+    out = out.replace(/<[^>]+>/g, '')
+  } while (out !== prev)
+  return out
+}
 
 /**
  * Assert a predicate holds at EVERY stage. A content type that survives three

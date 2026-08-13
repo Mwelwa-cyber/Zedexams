@@ -88,13 +88,15 @@ function discoverModuleLinks(html, baseUrl) {
   while ((match = re.exec(html)) !== null) {
     if (out.length >= MAX_LINKS_PER_PAGE) break;
     const rawHref = match[1].trim();
-    if (!rawHref || rawHref.startsWith("#") || rawHref.startsWith("javascript:")
-        || rawHref.startsWith("mailto:") || rawHref.startsWith("tel:")) {
-      continue;
-    }
+    if (!rawHref || rawHref.startsWith("#")) continue;
+    // Parse first, then allowlist the protocol. A denylist of schemes
+    // ("javascript:", "mailto:", …) misses variants like "JavaScript:",
+    // "vbscript:", "data:" or whitespace tricks; only http(s) is crawlable.
     let abs;
     try {
-      abs = new URL(rawHref, base).toString();
+      const parsed = new URL(rawHref, base);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") continue;
+      abs = parsed.toString();
     } catch {
       continue;
     }
@@ -163,15 +165,23 @@ function parseHtml(html) {
     const t = m[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
     if (t) headings.push(t);
   }
-  const text = html
-      .replace(/<script[\s\S]*?<\/script>/gi, " ")
-      .replace(/<style[\s\S]*?<\/style>/gi, " ")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/&nbsp;/gi, " ")
-      .replace(/&amp;/gi, "&")
-      .replace(/&lt;/gi, "<")
-      .replace(/&gt;/gi, ">")
-      .replace(/&quot;/gi, "\"")
+  // End tags may carry trailing junk ("</script foo>") — allow attributes in
+  // the close tag so a malformed end tag can't smuggle the element through.
+  let text = html
+      .replace(/<script\b[^>]*>[\s\S]*?<\/script\b[^>]*>/gi, " ")
+      .replace(/<style\b[^>]*>[\s\S]*?<\/style\b[^>]*>/gi, " ");
+  // Strip remaining tags to a fixpoint so removals can't reassemble a tag
+  // (e.g. "<scr<x>ipt>").
+  let prev;
+  do {
+    prev = text;
+    text = text.replace(/<[^>]+>/g, " ");
+  } while (text !== prev);
+  // Decode entities in one pass ("&amp;" handled together with the rest) so a
+  // double-encoded "&amp;lt;" can never decode all the way to "<".
+  const entities = {"nbsp": " ", "amp": "&", "lt": "<", "gt": ">", "quot": "\""};
+  text = text
+      .replace(/&(nbsp|amp|lt|gt|quot);/gi, (m, name) => entities[name.toLowerCase()])
       .replace(/\s+/g, " ")
       .trim();
   return {text, headings};

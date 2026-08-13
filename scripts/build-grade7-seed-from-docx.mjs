@@ -32,7 +32,7 @@
  * blocks captioned by the line that follows them.
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { execFileSync } from 'node:child_process'
@@ -54,9 +54,12 @@ function unzipBytes(docx, entry) {
   return execFileSync('unzip', ['-p', docx, entry], { maxBuffer: 64 * 1024 * 1024 })
 }
 
+// Single-pass entity decode: sequential .replace() calls with `&amp;` first
+// double-unescape (`&amp;lt;` became `<`); one pass cannot re-read its own
+// output. For well-formed XML text the result is identical.
+const XML_ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" }
 const decode = (s) => String(s ?? '')
-  .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-  .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+  .replace(/&(amp|lt|gt|quot|apos);/g, (_, name) => XML_ENTITIES[name])
 
 // Text of a paragraph/cell fragment: concatenate <w:t>, honour <w:br>/<w:tab>.
 function fragText(xml) {
@@ -355,7 +358,16 @@ const SUBJECTS = [
 ]
 
 const existingPath = join(REPO, 'src/features/notes/seed/grade7Seed.json')
-const prevBundle = existsSync(existingPath) ? JSON.parse(readFileSync(existingPath, 'utf8')) : { notes: [] }
+// Read directly and treat ENOENT as "no previous bundle": no existsSync gap
+// between the check and the read. A present-but-corrupt bundle still throws.
+const prevBundle = (() => {
+  try {
+    return JSON.parse(readFileSync(existingPath, 'utf8'))
+  } catch (err) {
+    if (err.code === 'ENOENT') return { notes: [] }
+    throw err
+  }
+})()
 
 const quizzes = {}
 const notes = []
