@@ -23,8 +23,7 @@ vi.mock('../../../contexts/AuthContext', () => ({
 vi.mock('../../../hooks/useSubscription', () => ({
   useSubscription: () => ({ tierLabel: 'Free', isPremium: false }),
 }))
-vi.mock('../../../components/dashboard/InvoicesCard', () => ({ default: () => <div /> }))
-vi.mock('../../../components/dashboard/PaymentHistoryCard', () => ({ default: () => <div /> }))
+vi.mock('../../learnerDashboard', () => ({ InvoicesCard: () => <div />, PaymentHistoryCard: () => <div /> }))
 
 function renderPanel() {
   const pushToast = vi.fn()

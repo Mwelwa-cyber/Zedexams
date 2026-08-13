@@ -10,17 +10,17 @@ import {
   PuzzlePieceIcon,
   TrophyIcon,
 } from '@heroicons/react/24/solid'
-import { useAuth }     from '../../contexts/AuthContext'
-import { useBadges }   from '../../hooks/useBadges'
-import { BADGES }      from '../../config/badges'
-import BadgeCard       from '../ui/BadgeCard'
-import Skeleton        from '../ui/Skeleton'
-import ProfessorPako   from '../ui/ProfessorPako'
-import { useDataSaver } from '../../contexts/DataSaverContext'
-import { GAME_BADGES } from '../../data/gameBadges'
-import { getMyGameBadges, formatAwardedAt } from '../../utils/gameBadgesService'
-import { GameBadgeCard as GamesBadgeCard } from '../games/gamesUi'
-import SeoHelmet from '../seo/SeoHelmet'
+import { useAuth }     from '../../../contexts/AuthContext'
+import { useBadges }   from '../../../hooks/useBadges'
+import { BADGES }      from '../../../config/badges'
+import BadgeCard       from '../../../components/ui/BadgeCard'
+import Skeleton        from '../../../components/ui/Skeleton'
+import ProfessorPako   from '../../../components/ui/ProfessorPako'
+import { useDataSaver } from '../../../contexts/DataSaverContext'
+import { GAME_BADGES } from '../../../data/gameBadges'
+import { getMyGameBadges, formatAwardedAt } from '../../../utils/gameBadgesService'
+import { GameBadgeCard as GamesBadgeCard } from '../../../components/games/gamesUi'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
 
 export default function BadgesPage() {
   const { currentUser }       = useAuth()

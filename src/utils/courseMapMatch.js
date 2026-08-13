@@ -1,7 +1,7 @@
 /**
  * courseMapMatch — fuzzy matching of author-entered quiz topics/titles to
  * canonical CBC topic / subtopic names for the practice Course Map
- * (src/components/dashboard/SubjectDrillDown.jsx).
+ * (src/features/learnerDashboard/pages/SubjectDrillDown.jsx).
  *
  * Why this exists
  * ---------------

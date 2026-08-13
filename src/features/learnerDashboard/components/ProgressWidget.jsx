@@ -3,7 +3,7 @@
  * Receives already-fetched results so it adds zero extra Firestore queries.
  */
 
-import Skeleton from '../ui/Skeleton'
+import Skeleton from '../../../components/ui/Skeleton'
 
 const WEEKLY_GOAL = 5
 const DAY_LABELS  = ['S', 'M', 'T', 'W', 'T', 'F', 'S']

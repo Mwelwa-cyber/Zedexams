@@ -7,8 +7,7 @@ import { PLAN_PRICES } from '../../../config/teacherPlanPricing'
 import { upgradePortal } from '../../../utils/subscriptionStatus'
 import { isNativePlatform } from '../../../utils/runtime'
 import UpgradeModal from '../../../components/subscription/UpgradeModal'
-import InvoicesCard from '../../../components/dashboard/InvoicesCard'
-import PaymentHistoryCard from '../../../components/dashboard/PaymentHistoryCard'
+import { InvoicesCard, PaymentHistoryCard } from '../../learnerDashboard'
 import SettingsDetailShell from '../components/SettingsDetailShell'
 
 function formatDate(value) {

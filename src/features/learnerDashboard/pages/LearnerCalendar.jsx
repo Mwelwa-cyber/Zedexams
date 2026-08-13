@@ -8,7 +8,7 @@ import {
   getCurrentWeekInTerm,
   getTotalWeeksInTerm,
   getUpcomingHolidays,
-} from "../../utils/moeCalendar";
+} from "../../../utils/moeCalendar";
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 // Brand-stable accents — look fine on either light or Midnight surfaces.

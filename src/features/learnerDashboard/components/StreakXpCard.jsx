@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
-import useLearnerStats from '../../hooks/useLearnerStats'
-import { streakBadge } from '../../utils/gamificationService'
+import { useAuth } from '../../../contexts/AuthContext'
+import useLearnerStats from '../../../hooks/useLearnerStats'
+import { streakBadge } from '../../../utils/gamificationService'
 
 /**
  * StreakXpCard — the headline gamification panel on the student dashboard.

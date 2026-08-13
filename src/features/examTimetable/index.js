@@ -7,8 +7,8 @@
  *
  * **This front door is deliberately empty.** `ExamTimetablePage` is reached by
  * the `lazy(() => import(…))` mount in App.jsx under the route-mount
- * exception, and nothing else imports it. (`components/dashboard/
- * TimetableViewerPage.jsx` names this page in a comment — it serves the
+ * exception, and nothing else imports it. (`learnerDashboard`'s
+ * TimetableViewerPage names this page in a comment — it serves the
  * official PDF at `/timetable/pdf`, because Android WebViews drop external PDF
  * links — but it does not import it.)
  *
