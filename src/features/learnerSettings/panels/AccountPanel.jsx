@@ -10,8 +10,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { useSubscription } from '../../../hooks/useSubscription'
 import { deleteMyAccount, pickReauthMethod } from '../../../utils/accountService'
 import { canSubmitDeletion, deletionErrorMessage } from '../../../utils/accountReauth'
-import InvoicesCard from '../../../components/dashboard/InvoicesCard'
-import PaymentHistoryCard from '../../../components/dashboard/PaymentHistoryCard'
+import { InvoicesCard, PaymentHistoryCard } from '../../learnerDashboard'
 import { Panel, Section, Btn, Note, Field, TextInput } from '../components/ui'
 
 function fmtDate(ts) {

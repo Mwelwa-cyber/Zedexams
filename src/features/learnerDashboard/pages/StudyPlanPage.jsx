@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
-import { useFirestore } from '../../hooks/useFirestore'
-import { generateAIStudyPlan } from '../../utils/aiAssistant'
-import Button from '../ui/Button'
-import Icon from '../ui/Icon'
-import SeoHelmet from '../seo/SeoHelmet'
+import { useAuth } from '../../../contexts/AuthContext'
+import { useFirestore } from '../../../hooks/useFirestore'
+import { generateAIStudyPlan } from '../../../utils/aiAssistant'
+import Button from '../../../components/ui/Button'
+import Icon from '../../../components/ui/Icon'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
 import {
   BarChart3,
   BookOpen,
@@ -16,7 +16,7 @@ import {
   RefreshCw,
   Sparkles,
   Target,
-} from '../ui/icons'
+} from '../../../components/ui/icons'
 
 function asArray(value) {
   return Array.isArray(value) ? value : []

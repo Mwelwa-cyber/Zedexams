@@ -1,19 +1,19 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
-import { usePlatformSettings } from '../../contexts/PlatformSettingsContext'
-import { useFirestore } from '../../hooks/useFirestore'
-import { useSubscription } from '../../hooks/useSubscription'
-import UpgradeModal from '../subscription/UpgradeModal'
-import { UpgradeBanner, AttemptCounter } from '../subscription/PremiumGate'
-import PremiumGate from '../subscription/PremiumGate'
-import RenewalBanner from '../subscription/RenewalBanner'
-import Mascot from '../ui/Mascot'
-import Button from '../ui/Button'
-import Skeleton from '../ui/Skeleton'
-import ContentLoadError from '../ui/ContentLoadError'
-import SeoHelmet from '../seo/SeoHelmet'
-import Icon from '../ui/Icon'
+import { useAuth } from '../../../contexts/AuthContext'
+import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
+import { useFirestore } from '../../../hooks/useFirestore'
+import { useSubscription } from '../../../hooks/useSubscription'
+import UpgradeModal from '../../../components/subscription/UpgradeModal'
+import { UpgradeBanner, AttemptCounter } from '../../../components/subscription/PremiumGate'
+import PremiumGate from '../../../components/subscription/PremiumGate'
+import RenewalBanner from '../../../components/subscription/RenewalBanner'
+import Mascot from '../../../components/ui/Mascot'
+import Button from '../../../components/ui/Button'
+import Skeleton from '../../../components/ui/Skeleton'
+import ContentLoadError from '../../../components/ui/ContentLoadError'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Icon from '../../../components/ui/Icon'
 import {
   BarChart3,
   BookOpen,
@@ -23,15 +23,15 @@ import {
   Sparkles,
   Target,
   TrophyIcon,
-} from '../ui/icons'
-import ProgressWidget from './ProgressWidget'
-import StreakXpCard from './StreakXpCard'
-import StudyPlanCard from './StudyPlanCard'
-import { FeedbackButton } from '../../features/feedback'
-import { buildRequestKey } from '../../utils/requestControl.js'
-import { deduplicatedRequest } from '../../utils/requestDeduplication.js'
-import { useAbortableRequest } from '../../hooks/useAbortableRequest.js'
-import GuardianConsentBanner from '../auth/GuardianConsentBanner'
+} from '../../../components/ui/icons'
+import ProgressWidget from '../components/ProgressWidget'
+import StreakXpCard from '../components/StreakXpCard'
+import StudyPlanCard from '../components/StudyPlanCard'
+import { FeedbackButton } from '../../feedback'
+import { buildRequestKey } from '../../../utils/requestControl.js'
+import { deduplicatedRequest } from '../../../utils/requestDeduplication.js'
+import { useAbortableRequest } from '../../../hooks/useAbortableRequest.js'
+import GuardianConsentBanner from '../../../components/auth/GuardianConsentBanner'
 
 const subjectBadge = {
   English:               'bg-violet-100 text-violet-700',

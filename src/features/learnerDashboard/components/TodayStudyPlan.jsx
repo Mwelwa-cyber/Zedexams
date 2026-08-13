@@ -12,12 +12,12 @@ import {
   Target,
   TrophyIcon,
   Users,
-} from '../ui/icons'
-import Icon from '../ui/Icon'
-import Skeleton from '../ui/Skeleton'
-import { SUBJECTS } from '../../config/curriculum'
-import { daysUntil, fmtDate, getActiveTerm, getNextTerm } from '../../utils/moeCalendar'
-import { useAuth } from '../../contexts/AuthContext'
+} from '../../../components/ui/icons'
+import Icon from '../../../components/ui/Icon'
+import Skeleton from '../../../components/ui/Skeleton'
+import { SUBJECTS } from '../../../config/curriculum'
+import { daysUntil, fmtDate, getActiveTerm, getNextTerm } from '../../../utils/moeCalendar'
+import { useAuth } from '../../../contexts/AuthContext'
 import {
   awardPlanStreak,
   getStudyPlanProgress,
@@ -26,7 +26,7 @@ import {
   saveStudyPlanProgress,
   toLocalDateKey,
   toWeekKey,
-} from '../../utils/studyPlanProgress'
+} from '../lib/studyPlanProgress'
 
 function toDate(ts) {
   if (!ts) return null

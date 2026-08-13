@@ -16,11 +16,11 @@
  */
 
 import { useState } from 'react'
-import { useAuth } from '../../contexts/AuthContext'
+import { useAuth } from '../../../contexts/AuthContext'
 import {
   buildReferralShareUrl,
   buildReferralWhatsAppUrl,
-} from '../../utils/referrals'
+} from '../../../utils/referrals'
 
 function WhatsAppIcon({ size = 16 }) {
   return (

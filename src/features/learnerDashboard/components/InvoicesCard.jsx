@@ -9,13 +9,13 @@
  */
 
 import { useEffect, useState } from 'react'
-import { useAuth } from '../../contexts/AuthContext'
+import { useAuth } from '../../../contexts/AuthContext'
 import {
   listInvoicesForUser,
   resendInvoiceEmail,
   resolveInvoicePdfUrl,
-} from '../../utils/invoices'
-import { friendlyMessage } from '../../utils/friendlyErrors'
+} from '../../../utils/invoices'
+import { friendlyMessage } from '../../../utils/friendlyErrors'
 
 function fmtDate(ts) {
   if (!ts) return '—'

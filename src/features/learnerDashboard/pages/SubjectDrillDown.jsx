@@ -23,18 +23,18 @@ import {
   Play,
   Sparkles,
   StarIcon,
-} from '../ui/icons'
-import { useFirestore }     from '../../hooks/useFirestore'
-import { useSubscription }  from '../../hooks/useSubscription'
-import { useAuth }          from '../../contexts/AuthContext'
-import { SUBJECT_MAP, getTopics, getSubtopics, getTopicLabel } from '../../config/curriculum'
-import { matchName }         from '../../utils/courseMapMatch'
-import Icon                 from '../ui/Icon'
-import Skeleton             from '../ui/Skeleton'
-import SeoHelmet            from '../seo/SeoHelmet'
-import GameStickerStyles    from '../games/GameStickerStyles'
-import MobileBottomNav      from '../layout/MobileBottomNav'
-import UpgradeModal         from '../subscription/UpgradeModal'
+} from '../../../components/ui/icons'
+import { useFirestore }     from '../../../hooks/useFirestore'
+import { useSubscription }  from '../../../hooks/useSubscription'
+import { useAuth }          from '../../../contexts/AuthContext'
+import { SUBJECT_MAP, getTopics, getSubtopics, getTopicLabel } from '../../../config/curriculum'
+import { matchName }         from '../../../utils/courseMapMatch'
+import Icon                 from '../../../components/ui/Icon'
+import Skeleton             from '../../../components/ui/Skeleton'
+import SeoHelmet            from '../../../components/seo/SeoHelmet'
+import GameStickerStyles    from '../../../components/games/GameStickerStyles'
+import MobileBottomNav      from '../../../components/layout/MobileBottomNav'
+import UpgradeModal         from '../../../components/subscription/UpgradeModal'
 
 // Subject palette — re-uses the dashboard's tone scheme so the drill-down
 // inherits the colour the learner picked on the SubjectCardRich.

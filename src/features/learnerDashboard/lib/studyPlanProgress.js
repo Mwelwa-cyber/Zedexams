@@ -1,5 +1,5 @@
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
-import { db } from '../firebase/config'
+import { db } from '../../../firebase/config'
 
 export const STUDY_PLAN_PROGRESS_COLLECTION = 'studyPlanProgress'
 export const MAX_COMPLETED_TASK_KEYS = 20

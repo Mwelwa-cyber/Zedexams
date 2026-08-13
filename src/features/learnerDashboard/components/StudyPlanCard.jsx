@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
-import { Calendar, CheckCircleIcon, ChevronRight } from '../ui/icons'
-import Icon from '../ui/Icon'
+import { Calendar, CheckCircleIcon, ChevronRight } from '../../../components/ui/icons'
+import Icon from '../../../components/ui/Icon'
 import { buildStudyPlan } from './TodayStudyPlan'
 
 /**

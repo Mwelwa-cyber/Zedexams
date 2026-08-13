@@ -10,9 +10,9 @@
  * There are no pages here: this feature is entirely surfaces other features
  * mount inside themselves, which makes the front door the whole API.
  *
- *   - `FeedbackButton`   — `components/dashboard/StudentDashboard`,
+ *   - `FeedbackButton`   — `learnerDashboard`'s StudentDashboard,
  *                          `components/teacher/TeacherDashboard`
- *   - `SuggestionNudge`  — `components/dashboard/GradeHub`, `TeacherDashboard`
+ *   - `SuggestionNudge`  — `learnerDashboard`'s GradeHub, `TeacherDashboard`
  *   - `FeedbackDialog`   — `dashboardV2`' Help & Support page,
  *                          `teacherSettings`' TipStrip and (lazily) its
  *                          Teaching Profile wizard

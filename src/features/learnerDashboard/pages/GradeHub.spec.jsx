@@ -17,7 +17,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
-vi.mock('../../firebase/config', () => ({ default: {}, auth: {}, db: {} }))
+vi.mock('../../../firebase/config', () => ({ default: {}, auth: {}, db: {} }))
 
 let mockAuth = {
   currentUser: { uid: 'learner-1', emailVerified: true },
@@ -26,20 +26,20 @@ let mockAuth = {
   isAdmin: false,
   isTeacher: false,
 }
-vi.mock('../../contexts/AuthContext', () => ({ useAuth: () => mockAuth }))
+vi.mock('../../../contexts/AuthContext', () => ({ useAuth: () => mockAuth }))
 
-vi.mock('../../contexts/PlatformSettingsContext', () => ({
+vi.mock('../../../contexts/PlatformSettingsContext', () => ({
   usePlatformSettings: () => ({ settings: {} }),
 }))
 
-vi.mock('../../contexts/DataSaverContext', () => ({
+vi.mock('../../../contexts/DataSaverContext', () => ({
   useDataSaver: () => ({ dataSaver: false }),
 }))
 
 const mockGetUserResults = vi.fn()
 const mockGetWeaknessAnalysis = vi.fn()
 const mockGetQuizzes = vi.fn()
-vi.mock('../../hooks/useFirestore', () => ({
+vi.mock('../../../hooks/useFirestore', () => ({
   useFirestore: () => ({
     getUserResults: mockGetUserResults,
     getWeaknessAnalysis: mockGetWeaknessAnalysis,
@@ -48,16 +48,16 @@ vi.mock('../../hooks/useFirestore', () => ({
 }))
 
 let mockBadges = { earned: [], loading: false }
-vi.mock('../../hooks/useBadges', () => ({ useBadges: () => mockBadges }))
+vi.mock('../../../hooks/useBadges', () => ({ useBadges: () => mockBadges }))
 
-vi.mock('../../hooks/useSubscription', () => ({
+vi.mock('../../../hooks/useSubscription', () => ({
   useSubscription: () => ({ accessBadge: null, isDemoOnly: false }),
 }))
 
-vi.mock('../../hooks/useHideOnScroll', () => ({ default: () => false }))
+vi.mock('../../../hooks/useHideOnScroll', () => ({ default: () => false }))
 
 // examService.js touches firebase functions at import time.
-vi.mock('../../utils/examService', () => ({
+vi.mock('../../../utils/examService', () => ({
   getTodaysExamsBySubject: vi.fn().mockResolvedValue([]),
   checkTodaysLocks: vi.fn().mockResolvedValue({}),
 }))
@@ -65,28 +65,28 @@ vi.mock('../../utils/examService', () => ({
 // Firebase-touching / heavy child components — render nothing so the test
 // exercises GradeHub's own JSX in isolation. (vi.mock is hoisted above any
 // local const, so each factory is inlined.)
-vi.mock('../ui/ProfessorPako', () => ({ default: () => null }))
-vi.mock('../ui/DataSaverToggle', () => ({ default: () => null }))
-vi.mock('../ui/BadgeCard', () => ({ default: () => null }))
-vi.mock('../ui/Logo', () => ({ default: () => null }))
-vi.mock('../ui/OnboardingOverlay', () => ({ default: () => null }))
-vi.mock('../ui/PushPermissionPrompt', () => ({ default: () => null }))
-vi.mock('../ui/VerifyEmailBanner', () => ({ default: () => null }))
-vi.mock('../subscription/SubscriptionReminderCard', () => ({ default: () => null }))
-vi.mock('./StudyPlanCard', () => ({ default: () => null }))
-vi.mock('../ui/ThemeSelector', () => ({ default: () => null }))
-vi.mock('../ui/LanguageToggle', () => ({ default: () => null }))
-vi.mock('../ui/AnalyticsConsentToggle', () => ({ default: () => null }))
-vi.mock('../ui/ReplayTourCard', () => ({ default: () => null }))
-vi.mock('../layout/MobileBottomNav', () => ({ default: () => null }))
-vi.mock('../../features/feedback', () => ({ SuggestionNudge: () => null }))
-vi.mock('../games/GameStickerStyles', () => ({ default: () => null }))
-vi.mock('../seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../components/ui/ProfessorPako', () => ({ default: () => null }))
+vi.mock('../../../components/ui/DataSaverToggle', () => ({ default: () => null }))
+vi.mock('../../../components/ui/BadgeCard', () => ({ default: () => null }))
+vi.mock('../../../components/ui/Logo', () => ({ default: () => null }))
+vi.mock('../../../components/ui/OnboardingOverlay', () => ({ default: () => null }))
+vi.mock('../../../components/ui/PushPermissionPrompt', () => ({ default: () => null }))
+vi.mock('../../../components/ui/VerifyEmailBanner', () => ({ default: () => null }))
+vi.mock('../../../components/subscription/SubscriptionReminderCard', () => ({ default: () => null }))
+vi.mock('../components/StudyPlanCard', () => ({ default: () => null }))
+vi.mock('../../../components/ui/ThemeSelector', () => ({ default: () => null }))
+vi.mock('../../../components/ui/LanguageToggle', () => ({ default: () => null }))
+vi.mock('../../../components/ui/AnalyticsConsentToggle', () => ({ default: () => null }))
+vi.mock('../../../components/ui/ReplayTourCard', () => ({ default: () => null }))
+vi.mock('../../../components/layout/MobileBottomNav', () => ({ default: () => null }))
+vi.mock('../../feedback', () => ({ SuggestionNudge: () => null }))
+vi.mock('../../../components/games/GameStickerStyles', () => ({ default: () => null }))
+vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
 // Light structural primitives — render enough to keep labels/children visible.
-vi.mock('../ui/Icon', () => ({ default: () => null }))
-vi.mock('../ui/Skeleton', () => ({ default: () => <div data-testid="skeleton" /> }))
-vi.mock('../ui/Button', () => ({ default: ({ children, ...p }) => <button {...p}>{children}</button> }))
-vi.mock('../ui/HeaderIconButton', () => ({
+vi.mock('../../../components/ui/Icon', () => ({ default: () => null }))
+vi.mock('../../../components/ui/Skeleton', () => ({ default: () => <div data-testid="skeleton" /> }))
+vi.mock('../../../components/ui/Button', () => ({ default: ({ children, ...p }) => <button {...p}>{children}</button> }))
+vi.mock('../../../components/ui/HeaderIconButton', () => ({
   HeaderIconLink: ({ children }) => <span>{children}</span>,
   HeaderIconButton: ({ children, ...p }) => <button {...p}>{children}</button>,
 }))

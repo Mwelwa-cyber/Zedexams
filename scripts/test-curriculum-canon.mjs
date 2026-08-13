@@ -111,6 +111,19 @@ const UNSCANNED_UNTIL_NOW = new Set([
   // file against `src/components/papers/PastPapersHub.jsx` at its old path
   // shows only import lines changed.
   'src/features/papers/pages/PastPapersHub.jsx',
+  // Arrived with the learner-dashboard move. Both are LEARNER surfaces, not
+  // teacher studios, and neither holds a picker's option list: the subject
+  // names appear in display mappings (icon and label lookups keyed by the
+  // subject a result already carries). Verified to predate the migration
+  // rather than assumed —
+  //   git show <base>:src/components/dashboard/MyResults.jsx
+  //     → 'Integrated Science', 'Social Studies'
+  //   git show <base>:src/components/dashboard/StudentDashboard.jsx
+  //     → 'English', 'Integrated Science', 'Science', 'Social Studies'
+  // The same values are present at the old path, so the move brought them
+  // into scan scope; it did not introduce them.
+  'src/features/learnerDashboard/pages/MyResults.jsx',
+  'src/features/learnerDashboard/pages/StudentDashboard.jsx',
 ])
 
 function walk(dir) {

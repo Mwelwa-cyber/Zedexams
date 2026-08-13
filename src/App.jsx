@@ -75,8 +75,8 @@ const Login = lazy(() => import('./components/auth/Login'))
 const Register = lazy(() => import('./components/auth/Register'))
 const AuthAction = lazy(() => import('./components/auth/AuthAction'))
 const VerifyEmail = lazy(() => import('./components/auth/VerifyEmail'))
-const StudentDashboard = lazy(() => import('./components/dashboard/StudentDashboard'))
-const GradeHub = lazy(() => import('./components/dashboard/GradeHub'))
+const StudentDashboard = lazy(() => import('./features/learnerDashboard/pages/StudentDashboard'))
+const GradeHub = lazy(() => import('./features/learnerDashboard/pages/GradeHub'))
 // New learner home experience (2026-07 rebuild): mobile-first dashboard +
 // Learn / Practice hubs + term-organised subject pages. GradeHub stays
 // reachable at /dashboard/classic as the transition fallback.
@@ -84,15 +84,15 @@ const LearnerHomePage = lazy(() => import('./features/learnerHome/pages/LearnerH
 const LearnPage = lazy(() => import('./features/learnerHome/pages/LearnPage'))
 const PracticePage = lazy(() => import('./features/learnerHome/pages/PracticePage'))
 const LearnerSubjectPage = lazy(() => import('./features/learnerHome/pages/LearnerSubjectPage'))
-const StudyPlanPage = lazy(() => import('./components/dashboard/StudyPlanPage'))
-const LearnerCalendar = lazy(() => import('./components/dashboard/LearnerCalendar'))
+const StudyPlanPage = lazy(() => import('./features/learnerDashboard/pages/StudyPlanPage'))
+const LearnerCalendar = lazy(() => import('./features/learnerDashboard/pages/LearnerCalendar'))
 // Exam timetable hub: /timetable is the interactive per-grade exam schedule
 // (Firestore-driven with a bundled fallback); /timetable/pdf keeps the inline
 // viewer for the official ECZ PDF because Android/Capacitor WebViews silently
 // drop external PDF links.
 const ExamTimetablePage = lazy(() => import('./features/examTimetable/pages/ExamTimetablePage'))
-const TimetableViewerPage = lazy(() => import('./components/dashboard/TimetableViewerPage'))
-const SubjectDrillDown = lazy(() => import('./components/dashboard/SubjectDrillDown'))
+const TimetableViewerPage = lazy(() => import('./features/learnerDashboard/pages/TimetableViewerPage'))
+const SubjectDrillDown = lazy(() => import('./features/learnerDashboard/pages/SubjectDrillDown'))
 const QuizList = lazy(() => import('./components/quiz/QuizList'))
 const LearnerSearch = lazy(() => import('./components/search/LearnerSearch'))
 
@@ -115,9 +115,9 @@ const AdminVisualNotesGenerator = lazy(() => import('./features/notes/pages/Admi
 const LearnerNotesList  = lazy(() => import('./features/notes/pages/LearnerNotesList').then(m => ({ default: m.LearnerNotesList })))
 const LearnerNoteRead   = lazy(() => import('./features/notes/pages/LearnerNoteRead').then(m => ({ default: m.LearnerNoteRead })))
 const LearnerGate       = lazy(() => import('./features/notes/components/LearnerGate').then(m => ({ default: m.LearnerGate })))
-const MyResults = lazy(() => import('./components/dashboard/MyResults'))
-const BadgesPage = lazy(() => import('./components/dashboard/BadgesPage'))
-const ProfilePage = lazy(() => import('./components/dashboard/ProfilePage'))
+const MyResults = lazy(() => import('./features/learnerDashboard/pages/MyResults'))
+const BadgesPage = lazy(() => import('./features/learnerDashboard/pages/BadgesPage'))
+const ProfilePage = lazy(() => import('./features/learnerDashboard/pages/ProfilePage'))
 const OfflineLibraryPage = lazy(() => import('./offline/OfflineLibraryPage.jsx'))
 const ZedExamsSettings = lazy(() => import('./components/settings/zedexams-settings'))
 const TeacherSettings = lazy(() => import('./features/teacherSettings/TeacherSettings'))
