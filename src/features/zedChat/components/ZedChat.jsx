@@ -4,7 +4,7 @@
  * Backend is already in place:
  *   - functions/index.js: `apiAiChat` (SSE) + `aiChat` (callable fallback)
  *   - src/utils/aiAssistant.js: `sendAIChatStream` handles transport
- *   - src/components/ai/useSpeech.js: STT (mic input) + TTS (read-aloud)
+ *   - src/hooks/useSpeech.js: STT (mic input) + TTS (read-aloud)
  *
  * The audit asked for "voice mode" — A6 — which collapses into three
  * things on the client side:
@@ -32,13 +32,13 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useAuth } from '../../contexts/AuthContext'
-import { sendAIChatStream } from '../../utils/aiAssistant'
-import { renderChatMarkdown } from './chatMarkdown'
-import { useSpeech } from './useSpeech'
-import ProfessorPako from '../ui/ProfessorPako'
-import Icon from '../ui/Icon'
-import { Mic, Send, Sparkles, Volume2, VolumeX, X } from '../ui/icons'
+import { useAuth } from '../../../contexts/AuthContext'
+import { sendAIChatStream } from '../../../utils/aiAssistant'
+import { renderChatMarkdown } from '../lib/chatMarkdown'
+import { useSpeech } from '../../../hooks/useSpeech'
+import ProfessorPako from '../../../components/ui/ProfessorPako'
+import Icon from '../../../components/ui/Icon'
+import { Mic, Send, Sparkles, Volume2, VolumeX, X } from '../../../components/ui/icons'
 import ReportAiResponse from './ReportAiResponse'
 
 const SESSION_HISTORY_KEY = 'zedexams:zed-chat-history:v1'
