@@ -45,6 +45,20 @@ function str(v) {
 }
 
 /**
+ * Strip HTML tags to a fixpoint, so removals can't reassemble a tag
+ * (e.g. "<scr<x>ipt>" losing its inner tag would otherwise re-form "<script>").
+ */
+function stripTags(v) {
+  let out = str(v);
+  let prev;
+  do {
+    prev = out;
+    out = out.replace(/<[^>]*>/g, "");
+  } while (out !== prev);
+  return out;
+}
+
+/**
  * Scan free text for an explicit "There are N questions in this paper" style
  * declaration. Returns the first sane (1-500) count found, or null. Used as a
  * fallback when the model didn't set the dedicated declaredQuestionCount field
@@ -341,7 +355,7 @@ function reconcilePastPaper(questions, parts, declaredCount) {
     if (!Number.isInteger(n)) return q;
     const range = rangeFor(n, q.sectionLabel);
     if (!range) return q;
-    const hasStem = str(q.prompt).replace(/<[^>]*>/g, "").trim().length > 0;
+    const hasStem = stripTags(q.prompt).trim().length > 0;
     if (hasStem) return q;
     const instruction = resolveInstruction(range);
     if (!instruction) return q;

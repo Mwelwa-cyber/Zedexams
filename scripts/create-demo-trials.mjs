@@ -199,8 +199,11 @@ async function main() {
   const header = `# create-demo-trials  grade=${grade}  days=${days}  plan=${plan}  domain=${domain}  count=${plan_rows.length}`
   console.log(header)
   console.log('-'.repeat(header.length))
+  // Passwords are MASKED here: stdout ends up in terminal scrollback and CI
+  // logs. The full credentials are delivered once, to the CSV, on --live.
+  const maskPassword = (pw) => `${String(pw).slice(0, 4)}…`
   plan_rows.forEach((r, i) => {
-    console.log(`${String(i + 1).padStart(2, '0')}. ${r.name.padEnd(28)} ${r.email.padEnd(38)} ${r.password}`)
+    console.log(`${String(i + 1).padStart(2, '0')}. ${r.name.padEnd(28)} ${r.email.padEnd(38)} ${maskPassword(r.password)}`)
   })
 
   if (!args.live) {

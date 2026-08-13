@@ -40,10 +40,11 @@ const STATS_WINDOW_DAYS = 30;
 const TOKEN_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 
 function randomToken() {
-  const bytes = require("node:crypto").randomBytes(TOKEN_LENGTH);
+  // crypto.randomInt draws uniformly over the alphabet (no modulo bias).
+  const {randomInt} = require("node:crypto");
   let token = "";
   for (let i = 0; i < TOKEN_LENGTH; i += 1) {
-    token += TOKEN_ALPHABET[bytes[i] % TOKEN_ALPHABET.length];
+    token += TOKEN_ALPHABET[randomInt(TOKEN_ALPHABET.length)];
   }
   return token;
 }

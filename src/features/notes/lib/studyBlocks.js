@@ -11,10 +11,15 @@
 // imported by both the reader and the editor.
 
 // A short unique id for blocks. Uses crypto.randomUUID when available (matches
-// the asset-batch id pattern in AdminNoteEditor), with a timestamp fallback.
+// the asset-batch id pattern in AdminNoteEditor), with a timestamp +
+// getRandomValues fallback so ids never come from Math.random.
 function uid() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID().slice(0, 12)
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7)
+  const bytes = typeof crypto !== 'undefined' && crypto.getRandomValues
+    ? crypto.getRandomValues(new Uint8Array(3))
+    : new Uint8Array(3)
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+  return Date.now().toString(36) + hex
 }
 
 // Ordered list of block types the author can add, with their menu labels.

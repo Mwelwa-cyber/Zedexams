@@ -31,7 +31,7 @@
  *
  * Run:  npm run test:secret-hygiene   (also via npm run test:all)
  */
-import { readFileSync, statSync } from 'node:fs'
+import { closeSync, fstatSync, openSync, readFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { dirname, join, basename, extname } from 'node:path'
@@ -185,16 +185,18 @@ test('no tracked text file embeds a PEM private key', () => {
     if (abs === SELF) continue
     if (BINARY_EXT.has(extname(f).toLowerCase())) continue
     if (basename(f) === '.gitignore') continue
-    let size = 0
-    try {
-      size = statSync(abs).size
-    } catch {
-      continue
-    }
-    if (size > MAX_SCAN_BYTES || size === 0) continue
+    // One descriptor for both the size check and the read: fstat + read on the
+    // same fd cannot race a rename/replace the way stat-then-read by path can.
     let text
     try {
-      text = readFileSync(abs, 'utf8')
+      const fd = openSync(abs, 'r')
+      try {
+        const size = fstatSync(fd).size
+        if (size > MAX_SCAN_BYTES || size === 0) continue
+        text = readFileSync(fd, 'utf8')
+      } finally {
+        closeSync(fd)
+      }
     } catch {
       continue
     }
@@ -218,14 +220,29 @@ console.log('\nno tracked dotenv file carries a credential-shaped value')
 // deliberately absent: a Firebase web API key, a PostHog project key, and a
 // Sentry DSN all ship to every browser that loads the app, so flagging them
 // would train people to weaken this gate to keep .env.example honest.
+
+// Webhook-URL detection with the hostname ANCHORED: the pattern is applied
+// from each `https://` occurrence in the scanned text, never as a floating
+// substring, so the host part of the regex can only ever match a real URL
+// start (js/regex/missing-regexp-anchor). Detection is unchanged — every
+// position the old unanchored regex could match at is still tried.
+const anchoredUrlMatcher = (anchoredRe) => ({
+  test(s) {
+    for (let i = s.indexOf('https://'); i !== -1; i = s.indexOf('https://', i + 1)) {
+      if (anchoredRe.test(s.slice(i))) return true
+    }
+    return false
+  },
+})
+
 const CREDENTIAL_FORMATS = [
   [/\bsk-ant-[A-Za-z0-9_-]{16,}/, 'Anthropic API key'],
   [/\bsk-(?:proj-)?[A-Za-z0-9_-]{24,}/, 'OpenAI-style API key'],
   [/\bgh[pousr]_[A-Za-z0-9]{30,}/, 'GitHub token'],
   [/\bgithub_pat_[A-Za-z0-9_]{30,}/, 'GitHub fine-grained token'],
   [/\bxox[abposre]-[A-Za-z0-9-]{16,}/, 'Slack token'],
-  [/https:\/\/hooks\.slack\.com\/services\/\S+/, 'Slack incoming webhook URL'],
-  [/https:\/\/(?:\w+\.)?discord(?:app)?\.com\/api\/webhooks\/\S+/, 'Discord webhook URL'],
+  [anchoredUrlMatcher(/^https:\/\/hooks\.slack\.com\/services\/\S+/), 'Slack incoming webhook URL'],
+  [anchoredUrlMatcher(/^https:\/\/(?:\w+\.)?discord(?:app)?\.com\/api\/webhooks\/\S+/), 'Discord webhook URL'],
   [/\bEAA[A-Za-z0-9]{40,}/, 'Meta Graph API token'],
   [/\b\d{8,10}:AA[A-Za-z0-9_-]{30,}/, 'Telegram bot token'],
   [/\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\./, 'JWT'],

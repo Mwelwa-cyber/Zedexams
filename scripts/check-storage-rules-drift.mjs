@@ -29,6 +29,7 @@
  * tested by storageRulesDrift.test.js; this file only does the I/O.
  */
 import {appendFileSync, readFileSync} from 'node:fs'
+import {isAbsolute, resolve} from 'node:path'
 
 import {
   EXIT,
@@ -42,7 +43,11 @@ import {
   unreadable,
 } from './deploy/storageRulesDrift.js'
 
-const API = 'https://firebaserules.googleapis.com/v1'
+// The ONLY origin this script talks to. Every request URL is re-parsed and
+// checked against it in getJson, so a value read back from the API (a page
+// token, a ruleset name) can never redirect the bearer token elsewhere.
+const API_ORIGIN = 'https://firebaserules.googleapis.com'
+const API = API_ORIGIN + '/v1'
 const RULES_FILE = new URL('../storage.rules', import.meta.url)
 const FIREBASERC = new URL('../.firebaserc', import.meta.url)
 
@@ -92,7 +97,14 @@ async function accessToken() {
  * request metadata, and this log is public.
  */
 async function getJson(url, token) {
-  const res = await fetch(url, {headers: {Authorization: 'Bearer ' + token}})
+  // Parse and pin the destination before attaching the credential: the token
+  // (minted from the service-account file) may only ever be sent to the fixed
+  // Rules API origin, whatever ends up interpolated into the path or query.
+  const target = new URL(url)
+  if (target.origin !== API_ORIGIN || target.protocol !== 'https:') {
+    throw new Error('refusing to call ' + target.origin + ' — only ' + API_ORIGIN + ' is allowed')
+  }
+  const res = await fetch(target, {headers: {Authorization: 'Bearer ' + token}})
   if (!res.ok) throw new Error('HTTP ' + res.status + ' from the Rules API')
   return res.json()
 }
@@ -132,17 +144,27 @@ function report(lines, verdicts) {
   console.log(heading)
   for (const line of lines) console.log('  ' + line)
 
+  // The step summary is the runner-provided file and nothing else: the path
+  // must be absolute (the runner always exports one), and what is appended is
+  // our own verdict lines — API-derived fragments inside them (bucket names,
+  // error messages) are stripped of control characters and the whole summary
+  // is size-capped, so remote content cannot smuggle terminal escapes or grow
+  // the file unboundedly.
   const summaryPath = process.env.GITHUB_STEP_SUMMARY
-  if (summaryPath) {
-    const md = ['### Storage rules drift (#2276)', '', heading, '']
-      .concat(lines.map((line) => '- ' + line))
+  if (summaryPath && isAbsolute(summaryPath)) {
+    const sanitize = (s) => String(s).replace(/[\u0000-\u0008\u000B-\u001F\u007F]/g, '')
+    const md = ['### Storage rules drift (#2276)', '', sanitize(heading), '']
+      .concat(lines.map((line) => '- ' + sanitize(line)))
       .concat([''])
       .join('\n')
+      .slice(0, 64 * 1024)
     try {
-      appendFileSync(summaryPath, md)
+      appendFileSync(resolve(summaryPath), md)
     } catch (err) {
       console.log('  (could not write the step summary: ' + err.message + ')')
     }
+  } else if (summaryPath) {
+    console.log('  (ignored GITHUB_STEP_SUMMARY: not an absolute path)')
   }
 
   if (code === EXIT.drift) {

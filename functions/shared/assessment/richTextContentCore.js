@@ -158,12 +158,19 @@ function tiptapHasContent(node) {
 
 /** Strip tags, leaving the text between them. */
 function textFromHtml(html) {
-  return String(html ?? '')
+  let out = String(html ?? '')
     // A block boundary is a space, or "one</p><p>two" measures as "onetwo" —
     // which does not change emptiness, but does change every caller that reads
     // this for a preview or an alt text.
     .replace(/<(br|\/p|\/div|\/li|\/h[1-6]|\/tr|\/td|\/th)\b[^>]*>/gi, ' ')
-    .replace(/<[^>]*>/g, '')
+  // Strip remaining tags to a fixpoint so removals can't reassemble a tag
+  // (e.g. "<scr<x>ipt>").
+  let prev
+  do {
+    prev = out
+    out = out.replace(/<[^>]*>/g, '')
+  } while (out !== prev)
+  return out
 }
 
 /**

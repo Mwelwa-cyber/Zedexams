@@ -24,16 +24,25 @@ const MAX_TEXT_LEN = 16000; // plenty for a single note; keeps token cost down
 // ─── text extraction ─────────────────────────────────────────────────
 
 function stripHtml(html) {
-  return String(html || "")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/\s+/g, " ")
-    .trim();
+  // End tags may carry trailing junk ("</style foo>") — allow attributes in
+  // the close tag so a malformed end tag can't smuggle the element through.
+  let out = String(html || "")
+      .replace(/<style\b[^>]*>[\s\S]*?<\/style\b[^>]*>/gi, " ")
+      .replace(/<script\b[^>]*>[\s\S]*?<\/script\b[^>]*>/gi, " ");
+  // Strip remaining tags to a fixpoint so removals can't reassemble a tag
+  // (e.g. "<scr<x>ipt>").
+  let prev;
+  do {
+    prev = out;
+    out = out.replace(/<[^>]+>/g, " ");
+  } while (out !== prev);
+  // Decode entities in one pass ("&amp;" handled together with the rest) so a
+  // double-encoded "&amp;lt;" can never decode all the way to "<".
+  const entities = {"nbsp": " ", "amp": "&", "lt": "<", "gt": ">"};
+  return out
+      .replace(/&(nbsp|amp|lt|gt);/g, (m, name) => entities[name])
+      .replace(/\s+/g, " ")
+      .trim();
 }
 
 // Flatten a study note's block array into readable prose. Mirrors the shapes in

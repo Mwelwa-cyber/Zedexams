@@ -73,8 +73,18 @@ function printedText(html) {
 
 /** The text Word will show: the contents of every <w:t> run, and nothing else. */
 function wordText(xml) {
+  // Strip tags to a fixpoint so removals can't reassemble a tag ("<w<x>:t>").
+  const stripTags = (run) => {
+    let out = run
+    let prev
+    do {
+      prev = out
+      out = out.replace(/<[^>]+>/g, '')
+    } while (out !== prev)
+    return out
+  }
   return (String(xml).match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g) || [])
-    .map((run) => run.replace(/<[^>]+>/g, ''))
+    .map(stripTags)
     .join(' ')
 }
 

@@ -120,7 +120,10 @@ async function main() {
   ok("line-art request → model gpt-image-1", out.model === "gpt-image-1");
   ok("line-art request → no Recraft HTTP call (disabled, key ignored)",
     calls.every((c) => c.provider !== "recraft" && c.provider !== "recraft-cdn"));
-  ok("returns a tokened storage URL", /firebasestorage\.googleapis\.com/.test(out.url));
+  // Anchored: the URL must BE a Firebase Storage URL, not merely mention the
+  // hostname somewhere inside another URL.
+  ok("returns a tokened storage URL",
+    /^https:\/\/firebasestorage\.googleapis\.com\/v0\/b\//.test(out.url));
 
   // ── 2. The OpenAI line-art path keeps the B&W guard + size mapping ─────────
   calls.length = 0;

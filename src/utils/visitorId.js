@@ -66,7 +66,14 @@ export function getOrCreateAnonId() {
   const stored = ls.getItem(ANON_ID_KEY)
   if (stored) return stored
   if (!mintedId) {
-    mintedId = `anon-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`
+    // getRandomValues rather than Math.random: the id only has to be stable,
+    // but a crypto draw costs the same and keeps it out of the predictable-
+    // randomness bucket. Hex encoding — one byte is two digits, no bias.
+    const bytes = typeof crypto !== 'undefined' && crypto.getRandomValues
+      ? crypto.getRandomValues(new Uint8Array(4))
+      : new Uint8Array(4)
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+    mintedId = `anon-${hex}-${Date.now().toString(36)}`
   }
   // Retried on every call, not only the first: quota is a state a browser can
   // leave, and the moment a write succeeds the id becomes shared with the other

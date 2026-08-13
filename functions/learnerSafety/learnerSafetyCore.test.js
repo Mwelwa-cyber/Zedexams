@@ -162,7 +162,10 @@ test("strips contact details from the logged copy", () => {
   const out = redactForLogs("call me on 0977123456 or email me at kid@example.com or see www.x.com");
   assert.ok(!out.includes("0977123456"), "phone survived");
   assert.ok(!out.includes("kid@example.com"), "email survived");
-  assert.ok(!out.includes("www.x.com"), "link survived");
+  // Anchored regex rather than a URL-substring check: assert the exact
+  // hostname is gone AND the redaction marker took its place.
+  assert.ok(!/\bwww\.x\.com\b/i.test(out), "link survived");
+  assert.ok(out.includes("[link removed]"), "link redaction marker missing");
 });
 
 test("handles the international form and separators", () => {

@@ -142,7 +142,10 @@ check('prose is handed to the caller’s own formatter', () => {
 })
 check('cell content is escaped', () => {
   const html = cellToHtml('#match: <script>|star', (t) => t)
-  assert.doesNotMatch(html, /<script>/)
+  // No form of a script tag opening may survive (covers <script>, <script >,
+  // <script foo=…>), and the escaped text must be what actually renders.
+  assert.ok(!html.toLowerCase().includes('<script'), 'no raw script tag survives')
+  assert.ok(html.includes('&lt;script&gt;'), 'content was HTML-escaped')
 })
 
 console.log('\nprompt directive')

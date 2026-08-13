@@ -202,9 +202,17 @@ function getCollectionStatus({apiKey, reference, fetchImpl}) {
 
 /**
  * Lenco's webhook_hash_key = SHA256 hex digest of the API token.
+ *
+ * SECURITY NOTE — this is NOT password hashing. Lenco's webhook protocol
+ * *defines* the HMAC key as `SHA256(api token)`: both sides must derive the
+ * exact same key, so a salted/slow KDF (scrypt/bcrypt/PBKDF2) cannot be used
+ * here — it would never match the key Lenco signs with. The digest is used
+ * only as an HMAC-SHA512 key for signature verification (see
+ * verifyWebhookSignature) and is never stored or compared as a credential.
  */
 function webhookHashKey(apiToken) {
-  return crypto.createHash("sha256").update(String(apiToken || "")).digest("hex");
+  // codeql[js/insufficient-password-hash] -- provider-mandated HMAC key derivation, not credential storage.
+  return crypto.hash("sha256", String(apiToken || ""), "hex");
 }
 
 /**
@@ -229,7 +237,8 @@ function candidateHashKeys({apiToken, webhookKey}) {
   const keys = [];
   if (webhookKey) keys.push(webhookKey);
   if (apiToken) {
-    const hex = crypto.createHash("sha256").update(String(apiToken)).digest("hex");
+    // Protocol-mandated derivation — see the SECURITY NOTE on webhookHashKey.
+    const hex = webhookHashKey(apiToken);
     keys.push(hex); // SHA256 hex string as the HMAC key (most common)
     keys.push(Buffer.from(hex, "hex")); // SHA256 raw bytes as the HMAC key
   }

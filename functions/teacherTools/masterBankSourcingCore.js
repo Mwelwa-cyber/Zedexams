@@ -65,14 +65,14 @@ function withNotationMarkup(editorQ, toMarkup) {
 }
 
 function plainify(value) {
+  // Entities are decoded in one pass ("&amp;" handled together with the rest)
+  // so a double-encoded "&amp;lt;" can never decode all the way to "<".
+  const entities = {"nbsp": " ", "amp": "&", "lt": "<", "gt": ">"};
   return String(value == null ? "" : value)
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/\s+/g, " ")
-    .trim();
+      .replace(/<[^>]*>/g, " ")
+      .replace(/&(nbsp|amp|lt|gt);/gi, (m, name) => entities[name.toLowerCase()])
+      .replace(/\s+/g, " ")
+      .trim();
 }
 
 /* --------------------------- editor → quiz mapper ------------------------- */

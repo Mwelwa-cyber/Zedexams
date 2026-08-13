@@ -45,8 +45,16 @@ function getNestedValue(obj, dottedKey) {
   }
   return cur;
 }
+// Segments that would walk or overwrite the prototype chain are refused
+// outright: this fake must never be able to pollute Object.prototype, and
+// Firestore field paths never legitimately contain these names.
+const FORBIDDEN_SEGMENT = new Set(["__proto__", "constructor", "prototype"]);
+
 function setNestedValue(obj, dottedKey, value) {
   const parts = dottedKey.split(".");
+  if (parts.some((p) => FORBIDDEN_SEGMENT.has(p))) {
+    throw new Error(`unsafe field path in test write: ${dottedKey}`);
+  }
   let cur = obj;
   for (let i = 0; i < parts.length - 1; i++) {
     if (cur[parts[i]] == null || typeof cur[parts[i]] !== "object") {

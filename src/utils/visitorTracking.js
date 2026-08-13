@@ -41,7 +41,19 @@ function randomId() {
   } catch {
     /* fall through */
   }
-  return `v${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`
+  // Non-secure contexts lack crypto.randomUUID but still have
+  // crypto.getRandomValues. Hex encoding — one byte is exactly two
+  // digits, so no modulo bias.
+  try {
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      const bytes = crypto.getRandomValues(new Uint8Array(5))
+      const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+      return `v${Date.now().toString(36)}${hex}`
+    }
+  } catch {
+    /* fall through */
+  }
+  return `v${Date.now().toString(36)}`
 }
 
 /**

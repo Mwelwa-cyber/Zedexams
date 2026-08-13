@@ -399,7 +399,14 @@ export function richTextToPlainText(value) {
     return input.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
   }
 
-  const doc = new DOMParser().parseFromString(`<body>${isRichTextHtml(input) ? input : plainTextToHtml(input)}</body>`, 'text/html')
+  // The rich-HTML branch may carry text that originally came from the DOM
+  // (editor content, pasted markup). Run it through the DOMPurify-backed
+  // quiz allow-list before re-parsing so nothing executable is ever
+  // re-interpreted as HTML; the plain-text branch is already escaped by
+  // plainTextToHtml. Text content is preserved either way, which is all
+  // this function extracts.
+  const htmlInput = isRichTextHtml(input) ? sanitizeQuizRichHTML(input) : plainTextToHtml(input)
+  const doc = new DOMParser().parseFromString(`<body>${htmlInput}</body>`, 'text/html')
   const pieces = []
 
   function walk(node) {

@@ -87,13 +87,18 @@ async function nextOrder(classId) {
  *
  * `crypto.randomUUID` is available in every browser this app supports and on
  * Node 19+; the fallback exists so the module can be imported by a script or a
- * test runner without one.
+ * test runner without one. The fallback also draws from the Web Crypto API
+ * (getRandomValues) so the id is never minted from Math.random.
  */
 export function mintLearnerId() {
-  const uuid = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
-  return `lrn_${uuid}`
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `lrn_${crypto.randomUUID()}`
+  }
+  const bytes = typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function'
+    ? crypto.getRandomValues(new Uint8Array(4))
+    : new Uint8Array(4)
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+  return `lrn_${Date.now().toString(36)}-${hex}`
 }
 
 /**

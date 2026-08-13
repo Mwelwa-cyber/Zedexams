@@ -43,10 +43,11 @@ const REFERRAL_CODE_LENGTH = 8;
 const MAX_MINT_ATTEMPTS = 6;
 
 function generateReferralCode() {
-  const bytes = require("node:crypto").randomBytes(REFERRAL_CODE_LENGTH);
+  // crypto.randomInt draws uniformly over the alphabet (no modulo bias).
+  const {randomInt} = require("node:crypto");
   let code = "";
   for (let i = 0; i < REFERRAL_CODE_LENGTH; i += 1) {
-    code += REFERRAL_ALPHABET[bytes[i] % REFERRAL_ALPHABET.length];
+    code += REFERRAL_ALPHABET[randomInt(REFERRAL_ALPHABET.length)];
   }
   return code;
 }

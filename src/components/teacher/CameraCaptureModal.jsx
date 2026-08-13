@@ -34,6 +34,13 @@ const GHOST_BTN = {
   cursor: 'pointer', borderRadius: 10, padding: '10px 16px', fontWeight: 700, fontSize: 14,
 }
 
+// Preview URLs are only ever minted by URL.createObjectURL, so enforce the
+// blob: scheme before the value reaches the <img src> sink — no string that
+// arrived any other way (e.g. derived from a picked file) can render.
+function blobUrlOnly(url) {
+  return typeof url === 'string' && url.startsWith('blob:') ? url : undefined
+}
+
 export default function CameraCaptureModal({ onConfirm, onClose }) {
   const videoRef = useRef(null)
   const streamRef = useRef(null)
@@ -277,7 +284,7 @@ export default function CameraCaptureModal({ onConfirm, onClose }) {
 
             <div style={{ background: 'var(--zt-surface)', borderRadius: 12, border: '1px solid #d9cfb8', padding: 8, textAlign: 'center' }}>
               <img
-                src={(showEnhanced && enhanced ? enhanced : original)?.url}
+                src={blobUrlOnly((showEnhanced && enhanced ? enhanced : original)?.url)}
                 alt="Captured preview"
                 style={{ maxWidth: '100%', maxHeight: '50vh', objectFit: 'contain', borderRadius: 8 }}
               />

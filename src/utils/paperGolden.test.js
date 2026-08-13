@@ -639,8 +639,12 @@ console.log('\nGOLDEN — the Word download is a real .docx (§4.4)')
   assert('word/document.xml' in zip, 'it contains word/document.xml')
   assert('[Content_Types].xml' in zip, 'it contains the OPC content types part')
   const xml = strFromU8(zip['word/document.xml'])
+  // Extract the declared xmlns:w namespace and compare it exactly — a bare
+  // substring check could be satisfied by an unrelated URL that merely
+  // contains the namespace string.
+  const wordNamespace = (xml.match(/xmlns:w="([^"]*)"/) || [])[1]
   assert(
-    xml.includes('http://schemas.openxmlformats.org/wordprocessingml/2006/main'),
+    wordNamespace === 'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
     'the document declares the WordprocessingML namespace',
   )
 }
