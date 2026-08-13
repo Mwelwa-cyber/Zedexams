@@ -16,7 +16,7 @@ import { listDraftsRemote, deleteDraftRemote } from '../../hooks/draft/draftClou
 import { idbListDrafts, idbDeleteDraft } from '../../hooks/draft/draftIdbStore'
 import { TOOL_META } from '../../utils/teacherLibraryService'
 import { timeAgo } from '../../utils/gamificationService'
-import StudioPageHeader from '../../components/teacher/StudioPageHeader'
+import StudioPageHeader from '../../shared/components/StudioPageHeader'
 import SeoHelmet from '../../components/seo/SeoHelmet'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useToast } from '../../components/ui/Toast'

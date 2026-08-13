@@ -14,7 +14,7 @@ import SchemeOfWorkView from '../components/SchemeOfWorkView'
 import SchemeEditableTable from '../components/SchemeEditableTable'
 import SchemePreviewCard from '../components/SchemePreviewCard'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
-import StudioPageHeader from '../../../components/teacher/StudioPageHeader'
+import StudioPageHeader from '../../../shared/components/StudioPageHeader'
 import SeoHelmet from '../../../components/seo/SeoHelmet'
 import {
   attachLibraryToGeneration,
@@ -43,7 +43,7 @@ import {
   GenerateButton,
   StudioEmptyState,
 } from '../../../shared/components/studioFields'
-import StudioOutputBoundary from '../../../components/teacher/StudioOutputBoundary'
+import StudioOutputBoundary from '../../../shared/components/StudioOutputBoundary'
 import { useStudioInputDraft } from '../../../hooks/draft/useStudioInputDraft'
 import { schemeInputDescriptor } from '../../../hooks/draft/descriptors'
 import DraftStatusIndicator from '../../../components/draft/DraftStatusIndicator'

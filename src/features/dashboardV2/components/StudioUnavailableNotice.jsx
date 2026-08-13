@@ -12,7 +12,7 @@
  * back-button return to the dashboard.
  */
 import { useSearchParams } from 'react-router-dom'
-import { RETIRED_NOTICE_PARAM, noticeForTool } from '../../config/studioAvailability'
+import { RETIRED_NOTICE_PARAM, noticeForTool } from '../../../config/studioAvailability'
 
 export default function StudioUnavailableNotice() {
   const [params, setParams] = useSearchParams()

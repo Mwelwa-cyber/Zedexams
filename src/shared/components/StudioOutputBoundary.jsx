@@ -1,4 +1,4 @@
-import ErrorBoundary from '../ui/ErrorBoundary'
+import ErrorBoundary from '../../components/ui/ErrorBoundary'
 
 export default function StudioOutputBoundary({ children, onRetry }) {
   return (

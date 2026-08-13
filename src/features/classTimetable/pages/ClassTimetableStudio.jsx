@@ -118,7 +118,7 @@ import {
   normalizeDaySchedulesBreaks,
 } from '../../../utils/durationOptions'
 import ClassTimetableView from '../components/ClassTimetableView'
-import StudioPageHeader from '../../../components/teacher/StudioPageHeader'
+import StudioPageHeader from '../../../shared/components/StudioPageHeader'
 import SeoHelmet from '../../../components/seo/SeoHelmet'
 import ConfirmDialog from '../../../components/ui/ConfirmDialog'
 import Chip from '../../../components/ui/Chip'

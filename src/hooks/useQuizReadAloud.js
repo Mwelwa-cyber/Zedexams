@@ -14,7 +14,7 @@
 // the learner explicitly asked to hear. Nothing plays automatically.
 
 import { useCallback, useEffect } from 'react'
-import { useSpeech } from '../components/ai/useSpeech'
+import { useSpeech } from './useSpeech'
 
 export function useQuizReadAloud(enabled) {
   const { supported, speaking, paused, activeId, speak, stop, pause, resume } = useSpeech()

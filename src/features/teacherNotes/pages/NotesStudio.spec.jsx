@@ -78,8 +78,8 @@ vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
 // Presentational bits with no bearing on the generate path.
 vi.mock('../../../components/ui/LiveGenerationCanvas', () => ({ default: () => null }))
 vi.mock('../components/NotesView', () => ({ default: () => null }))
-vi.mock('../../../components/teacher/StudioPageHeader', () => ({ default: () => null }))
-vi.mock('../../../components/teacher/StudioOutputBoundary', () => ({ default: ({ children }) => children }))
+vi.mock('../../../shared/components/StudioPageHeader', () => ({ default: () => null }))
+vi.mock('../../../shared/components/StudioOutputBoundary', () => ({ default: ({ children }) => children }))
 vi.mock('../../../components/teacher/generate/StudioAssignmentChangeNotice', () => ({ default: () => null }))
 
 // The curriculum selector is mocked to a single button that, when clicked,

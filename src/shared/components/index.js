@@ -35,6 +35,45 @@
  * data access out of them. `studioFields`' whole closure is three modules —
  * `react`, `ui/Icon`, `ui/icons` — which is why it could come alone.
  *
+ * ## The studio chrome, promoted together
+ *
+ * Four more arrived from the top level of `src/components/teacher/`, where
+ * sixteen migrated features were still reaching for them. Same rule as
+ * `studioFields`, at the scale the directory actually had:
+ *
+ *   • `StudioPageHeader.jsx` — the one header band for every studio page.
+ *     Fourteen features, plus `LockedStudio` and `GeneratorStudioShell`.
+ *   • `StudioOutputBoundary.jsx` — the error boundary around a generated
+ *     result. Eight features.
+ *   • `StudioStepper.jsx` — the wizard stepper. `lessonPlanStudio` and
+ *     `classTimetable`.
+ *   • `SetupForYouCard.jsx` — `lessonPlanStudio` and `GeneratorStudioShell`.
+ *
+ * `StudioPageHeader`'s styles stay in `src/index.css` under
+ * `.studio-page-header`. The monolith is split per-feature later in Phase 4
+ * (§2); moving one component's rules out ahead of that would fork the
+ * stylesheet, not migrate it.
+ *
+ * ## What the §14.6 test excluded on THIS pass
+ *
+ * Seven studio components stayed behind, and two of them are the ones worth
+ * remembering — because each has two feature consumers and would have passed a
+ * by-eye reading of its own imports:
+ *
+ *   • `StudioNextSteps` and `FreePreviewUpsell` both import `utils/analytics`,
+ *     which reaches `firebase/config` and five Firebase SDK entry points.
+ *     `shared` is in `NO_FIREBASE_LAYERS`, so this is a hard boundary failure
+ *     rather than a judgement call.
+ *   • `StudioGate`, `LockedStudio`, `UsageMeter`, `PlanUsageCard` and
+ *     `FreeAllowanceNotice` reach `utils/paywall`, `utils/lenco`,
+ *     `utils/topup` or `utils/teacherPlans` — payment logic, named in §14.6.
+ *
+ * Single-consumer chrome did not come here either: it travelled INTO its one
+ * consumer. `StudioHeader` (+ its stylesheet and spec) went to
+ * `features/lessonPlanStudio/components/`, `StudioUnavailableNotice` (+ spec)
+ * to `features/dashboardV2/components/`. A component one feature draws is that
+ * feature's, however shared its docblock says it is.
+ *
  * A namespace marker, not a barrel — import the file, not this index.
  */
 

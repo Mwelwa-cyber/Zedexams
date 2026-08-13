@@ -12,7 +12,7 @@
  */
 
 import { Link } from 'react-router-dom'
-import StudioPageHeader from '../../../components/teacher/StudioPageHeader'
+import StudioPageHeader from '../../../shared/components/StudioPageHeader'
 import SeoHelmet from '../../../components/seo/SeoHelmet'
 import { SBA_WORKFLOW_STEPS } from '../components/SbaWorkflowNote'
 

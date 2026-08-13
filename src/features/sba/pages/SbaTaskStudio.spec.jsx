@@ -60,8 +60,8 @@ vi.mock('../../../components/ui/LiveGenerationCanvas', () => ({ default: () => n
 vi.mock('../components/SbaTaskView', () => ({ default: () => null }))
 vi.mock('../components/SbaWorkflowNote', () => ({ default: () => null }))
 vi.mock('../../../components/teacher/generate/TopicSubtopicPicker', () => ({ default: () => null }))
-vi.mock('../../../components/teacher/StudioPageHeader', () => ({ default: () => null }))
-vi.mock('../../../components/teacher/StudioOutputBoundary', () => ({ default: ({ children }) => children }))
+vi.mock('../../../shared/components/StudioPageHeader', () => ({ default: () => null }))
+vi.mock('../../../shared/components/StudioOutputBoundary', () => ({ default: ({ children }) => children }))
 vi.mock('../../../components/ui/Toast', () => ({ useToast: () => ({ error: vi.fn() }) }))
 
 // Export paths pull in docx/pdf builders — irrelevant to generation.

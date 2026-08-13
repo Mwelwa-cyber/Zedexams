@@ -29,7 +29,7 @@ import { downloadSbaTrackerXlsx } from '../../../engines/export-engine/sbaTracke
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { isFreePlanTeacher, saveSbaMarkSheetGeneration } from '../../../utils/teacherLibraryService'
 import { useLibraryAutoSave } from '../../../hooks/useLibraryAutoSave'
-import StudioPageHeader from '../../../components/teacher/StudioPageHeader'
+import StudioPageHeader from '../../../shared/components/StudioPageHeader'
 import SeoHelmet from '../../../components/seo/SeoHelmet'
 import ConfirmDialog from '../../../components/ui/ConfirmDialog'
 import SbaWorkflowNote from '../components/SbaWorkflowNote'

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { apiUrl } from '../../utils/runtime'
+import { apiUrl } from '../utils/runtime'
 
 /**
  * useSpeech — Cloud-TTS-powered (Google Cloud Text-to-Speech via /api/tts)
