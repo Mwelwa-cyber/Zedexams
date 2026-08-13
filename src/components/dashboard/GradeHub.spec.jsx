@@ -79,7 +79,7 @@ vi.mock('../ui/LanguageToggle', () => ({ default: () => null }))
 vi.mock('../ui/AnalyticsConsentToggle', () => ({ default: () => null }))
 vi.mock('../ui/ReplayTourCard', () => ({ default: () => null }))
 vi.mock('../layout/MobileBottomNav', () => ({ default: () => null }))
-vi.mock('../feedback/SuggestionNudge', () => ({ default: () => null }))
+vi.mock('../../features/feedback', () => ({ SuggestionNudge: () => null }))
 vi.mock('../games/GameStickerStyles', () => ({ default: () => null }))
 vi.mock('../seo/SeoHelmet', () => ({ default: () => null }))
 // Light structural primitives — render enough to keep labels/children visible.

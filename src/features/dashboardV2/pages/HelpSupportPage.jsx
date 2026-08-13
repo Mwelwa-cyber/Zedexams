@@ -20,7 +20,7 @@ import {
 } from 'lucide-react'
 import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
 import { ContactDialog } from '../../marketing'
-import FeedbackDialog from '../../../components/feedback/FeedbackDialog'
+import { FeedbackDialog } from '../../feedback'
 import SeoHelmet from '../../../components/seo/SeoHelmet'
 import TopHeader from '../components/TopHeader'
 import useIsMobile from '../../../shared/hooks/useIsMobile'

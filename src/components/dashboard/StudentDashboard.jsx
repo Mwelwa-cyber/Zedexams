@@ -27,7 +27,7 @@ import {
 import ProgressWidget from './ProgressWidget'
 import StreakXpCard from './StreakXpCard'
 import StudyPlanCard from './StudyPlanCard'
-import FeedbackButton from '../feedback/FeedbackButton'
+import { FeedbackButton } from '../../features/feedback'
 import { buildRequestKey } from '../../utils/requestControl.js'
 import { deduplicatedRequest } from '../../utils/requestDeduplication.js'
 import { useAbortableRequest } from '../../hooks/useAbortableRequest.js'

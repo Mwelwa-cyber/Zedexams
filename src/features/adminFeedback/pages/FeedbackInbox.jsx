@@ -7,7 +7,7 @@ import { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
 import Skeleton from '../../../components/ui/Skeleton'
 import SeoHelmet from '../../../components/seo/SeoHelmet'
-import { FEEDBACK_TYPES, FEEDBACK_STATUSES } from '../../../components/feedback/feedbackOptions'
+import { FEEDBACK_TYPES, FEEDBACK_STATUSES } from '../../feedback'
 
 // Private inbox for the learner/teacher suggestion box. Admins read every
 // submission (per firestore.rules) and move each one through new → planned

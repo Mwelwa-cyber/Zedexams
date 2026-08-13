@@ -22,7 +22,7 @@
  *
  * ── What did not travel ─────────────────────────────────────────────────
  *
- * `components/feedback/feedbackOptions` — the type and status vocabulary,
+ * `features/feedback`'s `feedbackOptions` — the type and status vocabulary,
  * shared with the learner-facing FeedbackDialog. A util travels when the
  * feature is its only consumer.
  */

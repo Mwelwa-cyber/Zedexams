@@ -618,7 +618,7 @@
     "test:diagram-errors": "node src/utils/testPaperDiagramErrors.test.js",
     "test:import-review-summary": "node src/utils/importReviewSummary.test.js",
     "test:quiz-validation": "node src/utils/quizValidation.test.js",
-    "test:feedback": "node src/components/feedback/feedbackOptions.test.js",
+    "test:feedback": "node src/features/feedback/lib/feedbackOptions.test.js",
     "test:quiz-sections": "node src/utils/quizSections.test.js",
     "test:question-figure": "node src/utils/questionFigure.test.js",
     "test:quiz-document-import": "node src/utils/quizDocumentImport.test.js",

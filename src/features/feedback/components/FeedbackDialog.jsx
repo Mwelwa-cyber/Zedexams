@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
-import { db } from '../../firebase/config'
-import { useAuth } from '../../contexts/AuthContext'
-import Button from '../ui/Button'
-import Icon from '../ui/Icon'
-import { XMarkIcon, CheckCircleIcon, AlertTriangle } from '../ui/icons'
-import { FEEDBACK_TYPES, normalizeFeedbackRole } from './feedbackOptions'
+import { db } from '../../../firebase/config'
+import { useAuth } from '../../../contexts/AuthContext'
+import Button from '../../../components/ui/Button'
+import Icon from '../../../components/ui/Icon'
+import { XMarkIcon, CheckCircleIcon, AlertTriangle } from '../../../components/ui/icons'
+import { FEEDBACK_TYPES, normalizeFeedbackRole } from '../lib/feedbackOptions'
 
 // Suggestion & request box for signed-in learners and teachers. Submissions
 // land in the `feedback` collection and are read by admins at
