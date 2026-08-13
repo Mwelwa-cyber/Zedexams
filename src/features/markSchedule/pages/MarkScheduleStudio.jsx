@@ -48,8 +48,8 @@ import { useToast } from '../../../components/ui/Toast'
 import { useDraftManager } from '../../../hooks/draft/useDraftManager'
 import { markScheduleDescriptor } from '../../../hooks/draft/descriptors/handBuilt'
 import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
-import DraftRecoveryPrompt from '../../../components/draft/DraftRecoveryPrompt'
-import DraftStatusIndicator from '../../../components/draft/DraftStatusIndicator'
+import DraftRecoveryPrompt from '../../../shared/components/DraftRecoveryPrompt'
+import DraftStatusIndicator from '../../../shared/components/DraftStatusIndicator'
 
 const DEFAULT_SUBJECTS = [
   { key: 's1', label: 'MATHS', max: 25 },

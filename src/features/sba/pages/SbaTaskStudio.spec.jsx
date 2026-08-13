@@ -49,8 +49,8 @@ vi.mock('../../../hooks/draft/useDraftManager', () => ({
     clear: vi.fn(() => Promise.resolve()),
   }),
 }))
-vi.mock('../../../components/draft/DraftStatusIndicator', () => ({ default: () => null }))
-vi.mock('../../../components/draft/DraftRecoveryPrompt', () => ({ default: () => null }))
+vi.mock('../../../shared/components/DraftStatusIndicator', () => ({ default: () => null }))
+vi.mock('../../../shared/components/DraftRecoveryPrompt', () => ({ default: () => null }))
 
 // Helmet needs a provider we don't want to stand up here.
 vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))

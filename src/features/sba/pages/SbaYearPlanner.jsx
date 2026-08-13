@@ -30,7 +30,7 @@ import { useToast } from '../../../components/ui/Toast'
 import { useDraftManager } from '../../../hooks/draft/useDraftManager'
 import { sbaPlannerDescriptor } from '../../../hooks/draft/descriptors/handBuilt'
 import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
-import DraftStatusIndicator from '../../../components/draft/DraftStatusIndicator'
+import DraftStatusIndicator from '../../../shared/components/DraftStatusIndicator'
 
 const TONE_CLASSES = {
   slate: 'bg-slate-100 text-slate-600 border-slate-300',
