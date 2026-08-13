@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { useAuth } from '../../contexts/AuthContext'
-import Icon from '../ui/Icon'
-import { Lightbulb, XMarkIcon } from '../ui/icons'
+import { useAuth } from '../../../contexts/AuthContext'
+import Icon from '../../../components/ui/Icon'
+import { Lightbulb, XMarkIcon } from '../../../components/ui/icons'
 import FeedbackDialog from './FeedbackDialog'
 
 // How long to wait after a dismiss/interaction before nudging again, and how

@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, act, fireEvent } from '@testing-library/react'
-import { useAuth } from '../../contexts/AuthContext'
+import { useAuth } from '../../../contexts/AuthContext'
 import SuggestionNudge from './SuggestionNudge.jsx'
 
 // Mock auth so the nudge has a uid to key its cooldown on, and stub the dialog
 // (it pulls in firebase) — we only care about the nudge's show/dismiss logic.
-vi.mock('../../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
+vi.mock('../../../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
 vi.mock('./FeedbackDialog', () => ({
   default: ({ open }) => (open ? <div data-testid="feedback-dialog" /> : null),
 }))

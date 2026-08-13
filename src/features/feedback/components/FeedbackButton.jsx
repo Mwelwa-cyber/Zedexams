@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import Icon from '../ui/Icon'
-import { Lightbulb } from '../ui/icons'
+import Icon from '../../../components/ui/Icon'
+import { Lightbulb } from '../../../components/ui/icons'
 import FeedbackDialog from './FeedbackDialog'
 
 // Drop-in launcher for the suggestion & request box. Renders a friendly

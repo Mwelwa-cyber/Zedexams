@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import Icon from '../../../components/ui/Icon'
 import { Lightbulb } from '../../../components/ui/icons'
-import FeedbackDialog from '../../../components/feedback/FeedbackDialog'
+import { FeedbackDialog } from '../../feedback'
 
 // Calm closing strip: reminds the teacher their settings flow into every
 // studio, with a "Need help?" launcher that opens the shared feedback dialog.

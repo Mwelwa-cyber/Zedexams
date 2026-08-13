@@ -13,8 +13,8 @@ vi.mock('../../marketing', () => ({
     return open ? <div role="dialog" aria-label={`contact:${source}`} /> : null
   },
 }))
-vi.mock('../../../components/feedback/FeedbackDialog', () => ({
-  default: ({ open, source }) => (open ? <div role="dialog" aria-label={`feedback:${source}`} /> : null),
+vi.mock('../../feedback', () => ({
+  FeedbackDialog: ({ open, source }) => (open ? <div role="dialog" aria-label={`feedback:${source}`} /> : null),
 }))
 
 const logout = vi.fn().mockResolvedValue()

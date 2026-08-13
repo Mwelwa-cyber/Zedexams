@@ -24,7 +24,7 @@ import { NATIONAL_CALENDAR_NAME } from '../../../../utils/calendarResolver'
 
 // Lazy so the feedback surface (and its Firebase import) only loads if a
 // teacher actually opens "Report a problem" from step 3.
-const FeedbackDialog = lazy(() => import('../../../../components/feedback/FeedbackDialog'))
+const FeedbackDialog = lazy(() => import('../../../feedback').then(m => ({ default: m.FeedbackDialog })))
 
 const STEPS = ['Your School', 'Your Teaching', 'Current Term', 'Review & Save']
 
