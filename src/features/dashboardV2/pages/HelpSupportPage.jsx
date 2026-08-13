@@ -25,7 +25,7 @@ import SeoHelmet from '../../../components/seo/SeoHelmet'
 import TopHeader from '../components/TopHeader'
 import useIsMobile from '../../../shared/hooks/useIsMobile'
 import ensureDashboardFonts from '../lib/dashboardFonts'
-import '../../../components/teacher/dashboardV2/dashboardV2.css'
+import '../../../shared/styles/dashboardV2.css'
 
 ensureDashboardFonts()
 

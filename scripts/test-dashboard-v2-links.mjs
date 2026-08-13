@@ -37,7 +37,7 @@ const routeExists = makeRouteMatcher()
 // ── Link targets used by the dashboard ──────────────────────────────
 // Both halves of the surface (#2247). Each MUST exist — see the note above.
 const DIRS = [
-  'src/components/teacher/dashboardV2', // the app shell: sidebar, mobile chrome, nav config
+  'src/components/teacher/dashboardV2', // the app shell: sidebar, mobile chrome, theme
   'src/features/dashboardV2',           // the dashboard pages, launcher, Help & Support
 ]
 

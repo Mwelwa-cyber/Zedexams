@@ -24,15 +24,31 @@
  *
  * Shell (stays next to `TeacherLayout`, imported by it directly):
  *   `Sidebar` · `LogoutDialog` · `MobileChrome` (NavDrawer, MobileHeader,
- *   MobileBottomNav) · `dashboardV2Config` (TEACHER_NAV_GROUPS) ·
- *   `teacherNavActive` · `dashboardV2Data` (teacherFromAuth) ·
- *   `useDashboardTheme` · `useSidebarCollapsed` + `sidebarCollapseCore` ·
- *   `useRecordStudioVisit` · `dashboardV2.css` · `glassSurface.css`
+ *   MobileBottomNav) · `teacherNavActive` · `useDashboardTheme` ·
+ *   `useSidebarCollapsed` + `sidebarCollapseCore` · `useRecordStudioVisit`
  *
- * Shared BOTH ways, so deliberately left in the shell — a feature may import
- * DOWN into the legacy tree, while the reverse would need a debt-list entry:
- *   `BottomSheet` · `GlassToolTile` · `launcher/teacherStudios` ·
- *   `launcher/teacherLauncherCore` · `launcher/useRecentStudios`
+ * ── The both-ways modules LEFT, and the seam did not reverse ────────────
+ *
+ * This file used to record nine modules as "shared both ways, so deliberately
+ * left in the shell", on the rule that a feature may import DOWN into the
+ * legacy tree while the reverse would need a debt-list entry. They are now in
+ * `src/shared/` (and `useRecentStudios` in `src/hooks/`), moved by PR A of the
+ * `teacherShell` migration — `dashboardV2.css` · `glassSurface.css` ·
+ * `BottomSheet` · `GlassToolTile` · `teacherStudios` · `teacherLauncherCore` ·
+ * `dashboardV2Config` · `dashboardV2Data` · `useRecentStudios`.
+ *
+ * Read that as the rule being APPLIED, not abandoned. The shell is becoming
+ * `src/features/teacherShell/`, and a `features/dashboardV2` file importing
+ * `features/teacherShell/components/BottomSheet` is a cross-feature violation
+ * on a list that only shrinks. Sending the genuinely-shared nine to the bottom
+ * layer is what lets both sides keep importing them legally.
+ *
+ * The coupling this file's original note refused — shell reaching THROUGH the
+ * dashboard's front door, putting the launcher, the tour, Help & Support and
+ * the mock data on every teacher route's import graph — is still refused. What
+ * changes is the direction: the dashboard now reaches toward the shell, which
+ * costs nothing new, because the dashboard already renders INSIDE
+ * `TeacherLayout` at every route it mounts on.
  *
  * Here (the page):
  *   pages/     the three route-mounted screens

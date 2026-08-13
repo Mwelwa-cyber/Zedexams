@@ -11,7 +11,7 @@ import {
   flattenNavItems,
   buildActiveMatcher,
 } from './teacherNavActive.js'
-import { TEACHER_NAV_GROUPS } from './dashboardV2Config.js'
+import { TEACHER_NAV_GROUPS } from '../../../shared/constants/dashboardV2Config.js'
 
 const items = flattenNavItems(TEACHER_NAV_GROUPS)
 const activeAt = (pathname) => resolveActiveNavTarget(pathname, items)

@@ -1373,6 +1373,68 @@ a different failure mode from the four times this section has recorded the freez
 reaching further than the paths it names, and from the once it recorded it reaching too
 broad.
 
+**PR A — the seam, merged before any feature exists.** Fourteen files, 6,830
+lines, left `src/components/teacher/dashboardV2/` for the bottom layer, and the
+directory now holds **11 files, all shell**. Destinations: `dashboardV2.css` →
+`src/shared/styles/` (a new area, named in `src/shared/index.js` in the same
+commit — 4,047 lines of cross-cutting `.tdv2` selectors are not a component
+primitive); `glassSurface.css`, `BottomSheet`, `GlassToolTile` (+ two specs) →
+`src/shared/components/`; `dashboardV2Config` (+ spec), `teacherStudios` →
+`src/shared/constants/`; `dashboardV2Data`, `teacherLauncherCore` (+ two tests)
+→ `src/shared/utils/`. No feature was created and no boundary moved, which is
+what makes PR B a move rather than an argument.
+
+**`useRecentStudios` went to `src/hooks/`, not `src/shared/hooks/` — owner
+ruling, 2026-08-13, and a correction to the plan.** It imports
+`contexts/AuthContext`, which is legal from `shared/` today because `contexts/`
+is legacy. But §2 mandates `src/contexts/` → `src/app/providers/` in Phase 4,
+and `FORBIDDEN_TARGETS.shared` includes `app` with no front-door exemption — so
+promoting it would have planted an edge that a later, already-decided migration
+turns into a hard failure. `src/hooks/` is where `useGlassTile` (GlassToolTile's
+own dependency) already lives, both the shell and the feature may import legacy,
+and nothing breaks when `contexts/` moves. Raised by Codex on #2324.
+
+**One import reaches UP, deliberately, and is documented in the module rather
+than left to be found.** `src/shared/utils/dashboardV2Data.js` imports
+`../../components/teacher/paperTaxonomy.js`. Legal — `legacy` is not forbidden
+to `shared` — and ugly. Moving `paperTaxonomy.js` too was measured and refused:
+it is the one file in this neighbourhood that `scripts/visual/printAffectingPaths.js`
+matches, so taking it would convert a structural migration into a print-affecting
+change and fire the ~30-minute Chromium + LibreOffice render. Every one of the
+fourteen files PR A moved returns `not print-affecting`; `paperTaxonomy.js`
+returns `PRINT-AFFECTING`. Holding `dashboardV2Data.js` back instead would have
+left a non-shell file in a directory whose whole point is that it no longer has
+any.
+
+**Seven guards address these paths by string, and §6 of the plan named four of
+them.** Re-pointed in the same commit as the move: two `package.json` test paths
+(`test:dashboard-v2-data`, `test:launcher-core` — a `test:*` path that does not
+move stops being discovered by `run-all-tests.mjs`, and the suite shrinks without
+a red build), `test-studio-artwork.mjs`, `test-lesson-plan-routing.mjs`,
+`forcedStates.test.js` (reads `dashboardV2.css` as text and asserts a
+`.tdv2-nav-item:hover` rule), `test-glass-tokens.mjs` (reads both stylesheets),
+and `audit-hardcoded-colors.mjs`, whose `SURFACE` regex labelled the area by
+directory — one themed container now spanning two locations, so the label spans
+both rather than silently dropping the stylesheet it was written for.
+`test-dashboard-v2-links.mjs` needed no path change (both directories still
+exist) but its comment named a nav config that had left.
+
+**The stale destination in `src/app/layouts/index.js` is corrected here, not
+left for the next reader.** That file said *"Empty until Phase 4. `TeacherLayout`
+is the one shell for the whole teacher area… That test moves with the layout"* —
+and §2's diagram and §12's map both file layouts under `app/`. Codex read that
+and objected to `features/teacherShell` on #2324. The owner ruled for the
+feature, and the reason is mechanical rather than stylistic:
+`FORBIDDEN_TARGETS.features` includes `app`, that check runs BEFORE the
+front-door exemption and consults no allowance list, so a layout in
+`src/app/layouts/` cannot be imported from `src/features/` at all — and five
+`features/dashboardV2` specs render `TeacherLayout` to assert it. Through a
+feature's `index.js` those are legal (`isFrontDoor` → continue); from
+`src/app/` they are a hard failure with no legal route. `AdminLayout` reached
+`features/adminShell/` the same way without recording why. The comment now says
+all of this, because that file is where the next reader looks for the
+destination and it said the opposite for a week.
+
 **Dead code found by the inventory, recorded as its own finding.**
 `TeacherGlassHeader.jsx` (132 lines) and `TeacherBottomNav.jsx` (43) have **zero
 importers** — every remaining mention across `src/`, `scripts/` and `docs/` is a prose
