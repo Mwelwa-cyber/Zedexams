@@ -183,7 +183,7 @@ const VisualStudioAdmin = lazy(() => import('./features/visualStudio/pages/Visua
 const CurriculumReplaceStudio = lazy(() => import('./features/adminCurriculum/pages/CurriculumReplaceStudio'))
 const CurriculumUploadPanel = lazy(() => import('./features/adminCurriculum/pages/CurriculumUploadPanel'))
 const AdminAiCosts = lazy(() => import('./features/adminAiCosts/pages/AdminAiCosts'))
-const AdminAppCheck = lazy(() => import('./components/admin/AdminAppCheck'))
+const AdminAppCheck = lazy(() => import('./features/adminAppCheck/pages/AdminAppCheck'))
 const AdminUsersList = lazy(() => import('./features/adminUsers/pages/AdminUsersList'))
 const AdminUserProfile = lazy(() => import('./features/adminUsers/pages/AdminUserProfile'))
 const AdminSettings = lazy(() => import('./features/adminSettings/pages/AdminSettings'))
