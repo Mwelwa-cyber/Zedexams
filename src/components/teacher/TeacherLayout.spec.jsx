@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Link, MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import TeacherLayout from './TeacherLayout'
-import { setActiveShellNavGuard, __resetShellNavGuard } from './register/shellNavGuardCore'
+import { setActiveShellNavGuard, __resetShellNavGuard } from '../../shared/utils/shellNavGuardCore'
 
 // Every teacher navigation surface now asks studioAvailability which studios
 // are on offer, and that reads settings/global. Stubbed to the LAUNCH state

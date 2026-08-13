@@ -33,7 +33,7 @@ import BottomSheet from './BottomSheet'
 import GlassToolTile from './GlassToolTile'
 import { TEACHER_NAV_GROUPS, canonicalToolLabel } from './dashboardV2Config'
 import { buildActiveMatcher } from './teacherNavActive'
-import { confirmShellNavigation } from '../register/shellNavGuardCore'
+import { confirmShellNavigation } from '../../../shared/utils/shellNavGuardCore'
 import { STUDIO_BY_ID } from './launcher/teacherStudios'
 import useStudioAvailability from '../../../hooks/useStudioAvailability'
 

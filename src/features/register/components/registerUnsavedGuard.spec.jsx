@@ -13,7 +13,7 @@ import {
   RegisterUnsavedGuardProvider,
   useMarkUnsaved,
 } from './registerUnsavedGuard'
-import { confirmShellNavigation, __resetShellNavGuard } from '../../../components/teacher/register/shellNavGuardCore'
+import { confirmShellNavigation, __resetShellNavGuard } from '../../../shared/utils/shellNavGuardCore'
 
 function DirtyChild({ dirty }) {
   useMarkUnsaved(dirty)
