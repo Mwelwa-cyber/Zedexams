@@ -94,7 +94,7 @@ flowchart TB
 
 | Path / channel | Method | Auth | Main files | Payload |
 |---|---|---|---|---|
-| `/api/ai/chat` → `apiAiChat` | HTTPS SSE | Firebase ID token (+App Check) | `functions/index.js`, `src/components/ai/ZedChatPage.jsx` | Zed chat stream (OpenAI). |
+| `/api/ai/chat` → `apiAiChat` | HTTPS SSE | Firebase ID token (+App Check) | `functions/index.js`, `src/features/zedChat/pages/ZedChatPage.jsx` | Zed chat stream (OpenAI). |
 | `/api/teacher/lesson-plan/stream` → `apiGenerateLessonPlan` | HTTPS SSE | ID token + App Check | `functions/index.js`, `src/components/teacher/generate/LessonPlanStudio.jsx` | Lesson-plan stream (Anthropic). |
 | `/api/teacher/worksheet/stream` → `apiGenerateWorksheet` | HTTPS SSE | ID token + App Check | `functions/index.js`, `WorksheetGenerator` | Worksheet stream. |
 | `/api/tts` → `apiTextToSpeech` | HTTPS | ID token | `functions/tts.js` | Text-to-speech audio. |

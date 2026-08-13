@@ -5,7 +5,7 @@ const speak = vi.fn()
 const stop = vi.fn()
 let speechState
 
-vi.mock('../components/ai/useSpeech', () => ({
+vi.mock('./useSpeech', () => ({
   useSpeech: () => ({
     supported: true,
     speaking: speechState.speaking,

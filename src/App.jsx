@@ -24,7 +24,7 @@ import OfflineBanner from './components/ui/OfflineBanner'
 import { OfflineIndicator } from './offline'
 import UpdatePrompt from './components/ui/UpdatePrompt'
 import CookieConsentBanner from './components/ui/CookieConsentBanner'
-import ZedChatLauncher from './components/ai/ZedChatLauncher'
+import { ZedChatLauncher } from './features/zedChat'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 import ScrollToTop from './components/ui/ScrollToTop'
 import VisitorTracker from './components/ui/VisitorTracker'
@@ -152,7 +152,7 @@ const PublicQuizRunner = lazy(() => import('./components/papers/PublicQuizRunner
 const MyPapersHistory = lazy(() => import('./components/papers/MyPapersHistory'))
 const AdminPastPapers = lazy(() => import('./components/admin/AdminPastPapers'))
 const PastPaperStudio = lazy(() => import('./components/admin/PastPaperStudio'))
-const ZedChatPage = lazy(() => import('./components/ai/ZedChatPage'))
+const ZedChatPage = lazy(() => import('./features/zedChat/pages/ZedChatPage'))
 const StatusPage = lazy(() => import('./components/marketing/StatusPage'))
 // Audit C5 — SEO blog. Markdown-driven, posts ship in the bundle.
 const BlogIndex = lazy(() => import('./components/blog/BlogIndex'))
