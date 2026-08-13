@@ -199,11 +199,16 @@ async function main() {
   const header = `# create-demo-trials  grade=${grade}  days=${days}  plan=${plan}  domain=${domain}  count=${plan_rows.length}`
   console.log(header)
   console.log('-'.repeat(header.length))
-  // Passwords are MASKED here: stdout ends up in terminal scrollback and CI
-  // logs. The full credentials are delivered once, to the CSV, on --live.
-  const maskPassword = (pw) => `${String(pw).slice(0, 4)}…`
+  // No part of a password is logged, not even a prefix: stdout ends up in
+  // terminal scrollback and CI logs, and four leading characters of a
+  // generated password are still four characters an attacker does not have to
+  // guess. The column is a fixed literal deriving from nothing, so no
+  // password value reaches a log sink on any path — a masked value would keep
+  // the row honest but the taint alive. The full credentials are delivered
+  // once, to the CSV, on --live.
+  const PASSWORD_PLACEHOLDER = '(set — see CSV)'
   plan_rows.forEach((r, i) => {
-    console.log(`${String(i + 1).padStart(2, '0')}. ${r.name.padEnd(28)} ${r.email.padEnd(38)} ${maskPassword(r.password)}`)
+    console.log(`${String(i + 1).padStart(2, '0')}. ${r.name.padEnd(28)} ${r.email.padEnd(38)} ${PASSWORD_PLACEHOLDER}`)
   })
 
   if (!args.live) {
