@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { parsePastedQuestions } from '../src/utils/pasteQuestionParser.js'
+import { parsePastedQuestions } from '../src/features/assessmentStudio/lib/pasteQuestionParser.js'
 
 let passed = 0
 let failed = 0

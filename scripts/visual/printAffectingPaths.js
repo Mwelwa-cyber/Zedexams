@@ -68,7 +68,7 @@ export const PRINT_AFFECTING_PATHS = Object.freeze([
   // ── Page geometry and the measurement that reads it ───────────────────
   'src/config/paperPageGeometry.js',
   'src/utils/paperPaginationCore.js',
-  'src/utils/paperPaginationMeasure.js',
+  'src/features/assessmentStudio/lib/paperPaginationMeasure.js',
   // ── Terminology that changes printed wording ──────────────────────────
   'src/config/paperTerminology.js',
   // Lives under components/, not config/ — the `paths:` filter this replaced

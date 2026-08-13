@@ -47,8 +47,8 @@ const ImportReviewPreview = lazy(() =>
     .then((m) => ({ default: m.ImportReviewPreview })))
 const CapturePreview = lazy(() => import('../../features/classList/pages/CapturePreview'))
 
-const AssessmentStudio = lazy(() => import('./AssessmentStudio'))
-const AssessmentList = lazy(() => import('./AssessmentList'))
+const AssessmentStudio = lazy(() => import('../../features/assessmentStudio/pages/AssessmentStudio'))
+const AssessmentList = lazy(() => import('../../features/assessmentStudio/pages/AssessmentList'))
 
 const LessonDashboard = lazy(() => import('../lessons/LessonDashboard'))
 const LessonEditor = lazy(() => import('../lessons/LessonEditor'))

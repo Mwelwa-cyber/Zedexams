@@ -28,20 +28,40 @@ const here = dirname(fileURLToPath(import.meta.url))
 // Everything that renders a document the user downloads or prints.
 const EXPORT_FILE = /(toDocx|toPdf|printable|Export|htmlToPdf|paperPagination)/i
 
-const files = readdirSync(here)
-  .filter((f) => f.endsWith('.js') || f.endsWith('.jsx'))
-  .filter((f) => !f.includes('.test.') && !f.includes('.spec.'))
-  .filter((f) => EXPORT_FILE.test(f))
+/*
+ * The exporters no longer all live in one directory, so this guard scans every
+ * root that holds one. `src/utils/` still has the bulk; the Assessment Paper
+ * Studio migration took `printableModel.js` and `paperPaginationMeasure.js`
+ * into `src/features/assessmentStudio/lib/`.
+ *
+ * Each root carries its own floor rather than one total, because a total can
+ * be met while a whole root contributes nothing — which is precisely the
+ * failure a directory scan invites: a moved file stops being SEEN, the guard
+ * keeps passing, and the invariant quietly stops being checked on it.
+ */
+const ROOTS = [
+  { dir: here, label: 'src/utils', min: 10 },
+  { dir: resolve(here, '../features/assessmentStudio/lib'), label: 'features/assessmentStudio/lib', min: 2 },
+]
 
-assert.ok(
-  files.length >= 10,
-  `expected to find the exporter modules in src/utils; found ${files.length}. ` +
-  'If they moved, update this guard rather than deleting it.',
-)
+const files = []
+for (const root of ROOTS) {
+  const found = readdirSync(root.dir)
+    .filter((f) => f.endsWith('.js') || f.endsWith('.jsx'))
+    .filter((f) => !f.includes('.test.') && !f.includes('.spec.'))
+    .filter((f) => EXPORT_FILE.test(f))
+
+  assert.ok(
+    found.length >= root.min,
+    `expected at least ${root.min} exporter module(s) in ${root.label}; found ${found.length}. ` +
+    'If they moved, update this guard rather than deleting it.',
+  )
+  for (const f of found) files.push({ dir: root.dir, label: `${root.label}/${f}`, file: f })
+}
 
 const offenders = []
-for (const file of files) {
-  const src = readFileSync(join(here, file), 'utf8')
+for (const { dir, label, file } of files) {
+  const src = readFileSync(join(dir, file), 'utf8')
   // Both the custom property and the Tailwind classes bound to it. A class
   // like `bg-surface` in an exporter's HTML string is the same leak.
   const hits = [
@@ -50,7 +70,7 @@ for (const file of files) {
   ]
   for (const hit of hits) {
     const line = src.slice(0, hit.index).split('\n').length
-    offenders.push(`${file}:${line} — ${hit[0]}`)
+    offenders.push(`${label}:${line} — ${hit[0]}`)
   }
 }
 
@@ -68,7 +88,7 @@ assert.equal(
  * print as transparent-on-white — invisible text rather than an obvious
  * break. Assert it inlines a literal white page background.
  */
-const printable = readFileSync(resolve(here, 'printableModel.js'), 'utf8')
+const printable = readFileSync(resolve(here, '../features/assessmentStudio/lib/printableModel.js'), 'utf8')
 assert.ok(
   !printable.includes(TOKEN_PREFIX),
   'printableModel.js must not reference teacher theme tokens',

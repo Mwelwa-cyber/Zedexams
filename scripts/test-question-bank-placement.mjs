@@ -15,7 +15,7 @@ import assert from 'node:assert/strict'
 import {
   buildPlacementPlan, deriveSectionType, isTypeCompatible, normalizePlacementType,
   placementTypeLabel, optionCountConflict, buildInsertedQuestion, sectionQuestionCount,
-} from '../src/utils/questionBankPlacement.js'
+} from '../src/features/assessmentStudio/lib/questionBankPlacement.js'
 import { serializeQuizSections } from '../src/utils/quizSections.js'
 import { buildQuestionNumberMap, getQuestionKey } from '../functions/shared/assessment/questionNumberingCore.js'
 
