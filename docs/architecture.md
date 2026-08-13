@@ -1550,6 +1550,28 @@ So the freeze list's `teacher/studio/` entry, read literally, freezes 11,675 lin
 - `lessonPlanToDocx`/`ToPdf` go to `src/engines/export-engine/`, and `features/teacherLibrary` reaches both DIRECTLY — #2172's rule again, inherited rather than reopened. `lessonPlanInheritance.js` is also read by `LibraryItemDetail`, so it stays too.
 - **Two already-migrated features reach into this area**: `features/templateBank` imports `studio/LessonPlanDocumentPreview.jsx`, and `features/teacherLibrary` imports three of the utils. Whoever migrates the studio inherits a cross-feature question for each, answerable only through a front door.
 
+**`teacher/generate/` is NOT a Wave 4 feature either — inventoried 2026-08-13 (session D), nothing moved.** Fourteen files, 2,021 lines. The name is the trap: `/teacher/generate/*` is a ROUTE PREFIX, and every page it mounts already lives in a feature (`homework`, `worksheet`, `flashcards`, `schemeOfWork`, `markSchedule`, `weeklyForecast`, `recordOfWork`, `classTimetable`, `teacherNotes`, `sba`). **The directory itself mounts no route at all.** What is left in it is the chrome those studios are built from, and every substantial file is read by SEVERAL of them:
+
+| file | lines | consumers |
+|---|---|---|
+| `studioFields.jsx` | 261 | **8 features** — classTimetable ×3, flashcards, homework, rubric, schemeOfWork, teacherNotes, worksheet — plus the dev UI-audit page |
+| `StudioAssignmentChangeNotice.jsx` | 96 | **6 features** |
+| `GeneratorStudioShell.jsx` | 260 | homework, rubric, worksheet |
+| `TopicSubtopicPicker.jsx` | 384 | notes, sba |
+| `CreatedFromLessonPlanNotice.jsx` | 43 | homework, worksheet |
+| `ImportFromClassListModal.jsx` | 125 | markSchedule |
+| `TeachingAssignmentChangeNotice.jsx`, `teachingAssignmentChangeNoticeCore.js` | 160 | the notice above, `TeacherDashboard`, `src/hooks/` |
+
+Migrating any of it INTO a feature would hand every one of those features a cross-feature import. This is the third directory in a row whose name suggested a feature and whose consumer graph said "shared" — after `views/` and the twelve modules the lesson-plan studio had to leave behind. The pattern is now worth stating plainly: **in `src/components/teacher/`, what remains after twelve migrations is disproportionately the shared middle, because the features already left.** A directory this late in the phase should be assumed shared until its consumers prove otherwise.
+
+**Where it goes is a `src/shared/` question, and the layer's own §14.6 test splits it in two rather than admitting it whole.** `src/shared/components/` exists, is empty, and its docblock says "Empty until Phase 4" with exactly this rule: *a component that knows a curriculum rule, an AI prompt, a Firestore query or payment logic is not shared.* Measured against imports, not names:
+
+- **Qualifies** — `studioFields.jsx`, `CreatedFromLessonPlanNotice.jsx`, `ImportFromClassListModal.jsx`: presentation only, no curriculum or Firebase reach.
+- **Fails §14.6** — `TopicSubtopicPicker.jsx` reads `syllabusKbService`, `syllabusMapping`, `syllabus2013Topics` and `paperTaxonomy`; it *is* curriculum knowledge. `StudioAssignmentChangeNotice.jsx` and its core reach teaching-profile and subject-matching logic. These are not shared components under the rule as written.
+- **Neither, yet** — `GeneratorStudioShell.jsx` is honest chrome, but it composes `StudioPageHeader`, `SetupForYouCard` and the draft components, none of which have migrated. Promoting it alone would put `src/shared/` on top of four legacy files. That is a permitted downward import, but it is also the sign that this file moves *after* the chrome it is made of, not before.
+
+So `teacher/generate/` is not claimable as a feature and is not a single promotion either: three files are clean `src/shared/components/` candidates, two are disqualified by the layer's own test, and one is waiting on chrome that has not moved. Whoever takes it should take the three, and raise the other three as their own decisions.
+
 **Wave 4 — `classList`.** Eleven files: the roster table and its mobile twin, the add/edit dialog, the camera capture flow that reads a printed class list, the import review that decides what lands in the roster, and the two internal preview routes (`/teacher/register-preview`, `/teacher/capture-preview`). One exported name, `ClassListPanel`, because `ClassRegisterDetail` is the entire outside demand; the two pages stay route-mounted and unexported.
 
 **The icons went to `src/shared/icons/`, not into the feature — the first real resident of the `shared` layer.** `classListIcons.js` is the Lucide vocabulary the Class List and the Class Register are *both* specified against (its own docblock said so before any of this), and three files in `teacher/register/attendance/` still import it. Into the feature it would have meant either exporting forty icon names through this front door — the register depending on the Class List's public API to draw a checkmark, and evaluating `ClassListPanel` to get one — or leaving a one-file directory behind. A module two features share belongs below both, which is the same rule `adminUsers` recorded from the other side. `classListCore.js` stays in `src/utils/` for that reason (`MarkAttendanceView` reads it, and `test:class-list-core` covers it); `classListCapture.js` had one importer and travelled, into `services/` where its callable belongs.
