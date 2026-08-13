@@ -428,20 +428,54 @@ export const INVENTORY = Object.freeze([
   }),
 
   // ── Composite: many entry points behind one file ──────────────────────
+  // This record used to cover seven entry points and said so: "the scanner
+  // reports this file once because it cannot see the seven entry points inside
+  // it, and neither can a reviewer. Splitting them into modules is a
+  // prerequisite for migrating any of them." Phase 5 batch 2 performed that
+  // split, so the composite has shrunk to the surfaces still declared inline
+  // here, and the extracted bodies are recorded as their own files below.
   {
     file: 'functions/index.js',
     class: CLASSES.composite,
     tier: null,
     state: 'unmigrated',
-    entryPoint: 'generateQuizQuestions, structureImportedQuiz, ocrNotePages, '
-      + 'classifyQuestionGrades, aiChat, apiAiChat, checkShortAnswer',
+    entryPoint: 'apiAiChat',
     clientSurface: 'several',
     produces: 'several',
     incompleteResultSaveable: true,
-    note: 'The scanner reports this file once because it cannot see the seven '
-      + 'entry points inside it, and neither can a reviewer. Splitting them '
-      + 'into modules is a prerequisite for migrating any of them, and is the '
-      + 'reason no tier is assigned yet.',
+    note: 'What remains after Phase 5 batch 2: the SSE chat endpoint, whose '
+      + 'body is still inline here. It is an onRequest surface rather than a '
+      + 'callable, so it was in neither batch 1 nor batch 2; no tier is '
+      + 'assigned until it moves.',
+  },
+  {
+    file: 'functions/quizAiHandlers.js',
+    class: CLASSES.composite,
+    tier: null,
+    state: 'unmigrated',
+    entryPoint: 'editQuizQuestion, generateQuizQuestions, verifyQuiz, '
+      + 'suggestQuizAnswers, structureImportedQuiz, structureScannedQuiz, '
+      + 'checkShortAnswer, explainAnswer',
+    clientSurface: 'several',
+    produces: 'several',
+    incompleteResultSaveable: true,
+    note: 'Split out of functions/index.js by Phase 5 batch 2. The bodies moved '
+      + 'verbatim, so the migration state is unchanged by that move — what '
+      + 'changed is that these eight are now visible to a reviewer as their own '
+      + 'file, which the composite record above said was the prerequisite.',
+  },
+  {
+    file: 'functions/chatHandlers.js',
+    class: CLASSES.composite,
+    tier: null,
+    state: 'unmigrated',
+    entryPoint: 'aiChat',
+    clientSurface: 'Zed learner chat',
+    produces: 'chat reply',
+    incompleteResultSaveable: true,
+    note: 'Split out of functions/index.js by Phase 5 batch 2. The callable '
+      + 'half of Zed; the SSE half (apiAiChat) is still inline in index.js, '
+      + 'which is why both files appear in this inventory.',
   },
 
   // ── Agents: autonomous, no waiting user ───────────────────────────────
