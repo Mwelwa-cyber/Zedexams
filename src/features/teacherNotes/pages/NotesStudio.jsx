@@ -66,7 +66,7 @@ import {
   AdvancedOptions,
   GenerateButton,
   StudioEmptyState,
-} from '../../../components/teacher/generate/studioFields'
+} from '../../../shared/components/studioFields'
 import Icon from '../../../components/ui/Icon'
 import { Download, ImageIcon, RefreshCw } from '../../../components/ui/icons'
 import { NotebookText } from 'lucide-react'

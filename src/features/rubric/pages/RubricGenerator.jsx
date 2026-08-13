@@ -29,7 +29,7 @@ import {
   FieldNumberCombo,
   FieldGrid,
   GenerateButton,
-} from '../../../components/teacher/generate/studioFields'
+} from '../../../shared/components/studioFields'
 import Icon from '../../../components/ui/Icon'
 import { Download, RefreshCw } from '../../../components/ui/icons'
 import StudioOutputBoundary from '../../../components/teacher/StudioOutputBoundary'

@@ -10,7 +10,7 @@
 
 import { TIMETABLE_LAYOUTS, PERIOD_LABEL_MODES } from '../../../shared/utils/classTimetable'
 import { PRINT_TEMPLATES, CELL_TEXT_MODES } from '../../../shared/utils/timetablePrintTemplates'
-import { FieldWrapper } from '../../../components/teacher/generate/studioFields'
+import { FieldWrapper } from '../../../shared/components/studioFields'
 
 function LayoutChoice({ id, label, on, onSelect }) {
   return (

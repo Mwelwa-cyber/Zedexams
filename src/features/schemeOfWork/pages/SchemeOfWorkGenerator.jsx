@@ -42,7 +42,7 @@ import {
   AdvancedOptions,
   GenerateButton,
   StudioEmptyState,
-} from '../../../components/teacher/generate/studioFields'
+} from '../../../shared/components/studioFields'
 import StudioOutputBoundary from '../../../components/teacher/StudioOutputBoundary'
 import { useStudioInputDraft } from '../../../hooks/draft/useStudioInputDraft'
 import { schemeInputDescriptor } from '../../../hooks/draft/descriptors'

@@ -7,7 +7,7 @@
 import { Grid3x3, Download, Plus } from 'lucide-react'
 import { DAYS_OF_WEEK } from '../../../shared/utils/classTimetable'
 import { CURRICULA } from '../../../utils/curriculumFramework'
-import { FieldWrapper } from '../../../components/teacher/generate/studioFields'
+import { FieldWrapper } from '../../../shared/components/studioFields'
 import TimetableUploadPanel from './TimetableUploadPanel'
 
 const ENTRY_MODES = [

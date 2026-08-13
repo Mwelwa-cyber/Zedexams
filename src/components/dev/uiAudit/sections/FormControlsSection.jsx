@@ -10,7 +10,7 @@ import {
   FieldTextarea,
   FieldWrapper,
   GenerateButton,
-} from '../../../teacher/generate/studioFields'
+} from '../../../../shared/components/studioFields'
 import DurationSelect from '../../../ui/DurationSelect'
 import ListTextarea from '../../../ui/ListTextarea'
 import { Block, Section, Specimen } from '../auditKit.jsx'
