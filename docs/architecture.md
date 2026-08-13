@@ -1554,8 +1554,8 @@ So the freeze list's `teacher/studio/` entry, read literally, freezes 11,675 lin
 
 | file | lines | consumers |
 |---|---|---|
-| `studioFields.jsx` | 261 | **8 features** — classTimetable ×3, flashcards, homework, rubric, schemeOfWork, teacherNotes, worksheet — plus the dev UI-audit page |
-| `StudioAssignmentChangeNotice.jsx` | 96 | **6 features** |
+| `studioFields.jsx` | 261 | **7 features across 9 import sites** — classTimetable ×3, flashcards, homework, rubric, schemeOfWork, teacherNotes, worksheet — plus the dev UI-audit page |
+| `StudioAssignmentChangeNotice.jsx` | 96 | **7 features** — flashcards, homework, rubric, schemeOfWork, teacherNotes, weeklyForecast, worksheet |
 | `GeneratorStudioShell.jsx` | 260 | homework, rubric, worksheet |
 | `TopicSubtopicPicker.jsx` | 384 | notes, sba |
 | `CreatedFromLessonPlanNotice.jsx` | 43 | homework, worksheet |
