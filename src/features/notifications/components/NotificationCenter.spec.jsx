@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { setActiveShellNavGuard, __resetShellNavGuard } from '../../shared/utils/shellNavGuardCore'
+import { setActiveShellNavGuard, __resetShellNavGuard } from '../../../shared/utils/shellNavGuardCore'
 
 // Mock the context so we drive the center with a controlled notification set.
-vi.mock('../../contexts/NotificationContext', () => ({
+vi.mock('../../../contexts/NotificationContext', () => ({
   useNotifications: vi.fn(),
 }))
 
-import { useNotifications } from '../../contexts/NotificationContext'
+import { useNotifications } from '../../../contexts/NotificationContext'
 import NotificationCenter from './NotificationCenter'
 
 const markRead = vi.fn()

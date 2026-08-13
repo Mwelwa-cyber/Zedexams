@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { useNotifications } from '../../contexts/NotificationContext'
-import { confirmShellNavigation } from '../../shared/utils/shellNavGuardCore'
-import Icon from '../ui/Icon'
-import { Bell, Check, Search, Settings, Trash2, X } from '../ui/icons'
+import { useNotifications } from '../../../contexts/NotificationContext'
+import { confirmShellNavigation } from '../../../shared/utils/shellNavGuardCore'
+import Icon from '../../../components/ui/Icon'
+import { Bell, Check, Search, Settings, Trash2, X } from '../../../components/ui/icons'
 import {
   NOTIFICATION_CATEGORIES,
   categoryLabel,
   relativeTime,
   resolveNotificationIcon,
-} from './notificationIcons'
+} from '../lib/notificationIcons'
 
 const PRIORITY_DOT = {
   high: 'bg-danger',

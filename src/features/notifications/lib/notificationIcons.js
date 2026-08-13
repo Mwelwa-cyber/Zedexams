@@ -7,7 +7,7 @@ import {
   User,
   Settings,
   Sparkles,
-} from '../ui/icons'
+} from '../../../components/ui/icons'
 
 /**
  * Maps the string icon key stored on a notification doc (set server-side by
