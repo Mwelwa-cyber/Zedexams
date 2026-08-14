@@ -8,7 +8,7 @@ import Logo from '../../../components/ui/Logo'
 import Button from '../../../components/ui/Button'
 import SeoHelmet from '../../../components/seo/SeoHelmet'
 
-const UpgradeModal = lazy(() => import('../../../components/subscription/UpgradeModal'))
+const UpgradeModal = lazy(() => import('../../subscription').then(m => ({ default: m.UpgradeModal })))
 
 // One row per grade we have a product for. Keys match the URL slug
 // (/grade-7, /grade-12) and each gets an explicit <Route> in App.jsx.

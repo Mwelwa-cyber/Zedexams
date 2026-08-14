@@ -39,7 +39,7 @@ vi.mock('../../contexts/PlatformSettingsContext', () => ({
 // a route is inside the shell, and StudioGate — which pulls the second — sits
 // INSIDE TeacherRoute, so stubbing it cannot mask a missing shell.
 vi.mock('../../features/teacherShell/components/TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
-vi.mock('../subscription/UsageReminderBanner', () => ({ default: () => null }))
+vi.mock('../../features/subscription', () => ({ UsageReminderBanner: () => null }))
 vi.mock('../../contexts/NotificationContext', () => ({
   useNotifications: () => ({ unreadCount: 0, open: false, setOpen: () => {} }),
 }))

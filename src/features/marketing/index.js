@@ -32,8 +32,9 @@
  * not: it imports ten already-migrated features through their front doors,
  * `utils/paywall` and `data/studioSamples`, and nothing on the freeze list.
  *
- * `Plans` and `GradePackLanding` DYNAMICALLY import `components/subscription/
- * UpgradeModal`, which has not migrated. That import still points at
+ * `Plans` and `GradePackLanding` DYNAMICALLY import `UpgradeModal`. That was a
+ * reach into `components/subscription/` while this feature migrated first; it
+ * now goes through `features/subscription`'s front door, still lazily.
  * `components/`, and it is the reason this feature does not depend on the
  * `subscription` migration landing first.
  */
