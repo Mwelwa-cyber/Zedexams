@@ -816,7 +816,8 @@
     "test:codeql-scope": "node scripts/test-codeql-scope.mjs",
     "test:admin-home": "node src/features/adminHome/lib/adminHomeCore.test.js",
     "test:color-surface-map": "node scripts/test-color-surface-map.mjs",
-    "test:library-download": "node functions/libraryDownload.test.js"
+    "test:library-download": "node functions/libraryDownload.test.js",
+    "test:http-request-guard": "node functions/httpRequestGuard.test.js"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",

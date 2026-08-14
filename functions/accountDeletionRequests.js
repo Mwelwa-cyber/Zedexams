@@ -95,6 +95,12 @@ async function handleDeletionRequest(req, res, deps = {}) {
       return;
     }
 
+    // Declared Content-Type + body cap (SECURITY_ENDPOINT_AUDIT §4.5). The
+    // client (src/features/marketing/pages/DeleteAccountRequest.jsx) sends
+    // application/json. This is a public, unauthenticated endpoint, so the
+    // cheap checks go first.
+    if (require("./httpRequestGuard").enforceJsonRequest(req, res, {label: "apiRequestAccountDeletion"})) return;
+
     const parsed = normalizeDeletionRequest(req.body);
     if (!parsed.ok) {
       // A validation failure is the requester's own form being incomplete —

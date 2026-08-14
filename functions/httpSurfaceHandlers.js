@@ -77,6 +77,12 @@ exports.buildHttpSurfaceHandlers = (deps) => {
           return;
         }
 
+        // Declared Content-Type + body cap (SECURITY_ENDPOINT_AUDIT §4.5).
+        // Before auth, because it costs nothing and this endpoint's next step
+        // is an ID-token verification round-trip. The client
+        // (src/utils/aiAssistant.js) sends application/json.
+        if (require("./httpRequestGuard").enforceJsonRequest(req, res, {label: "apiAiChat"})) return;
+
         // ── Auth + validation (before any headers are sent) ─────────────
         let decoded;
         let systemPrompt;

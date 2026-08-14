@@ -60,7 +60,17 @@ function fakeReq(body, {method = "POST", headers = {}} = {}) {
     method,
     body,
     ip: "203.0.113.9",
-    get: (h) => headers[String(h).toLowerCase()] || "",
+    // Default to what the real client sends (DeleteAccountRequest.jsx posts
+    // application/json). The endpoint vets the declared Content-Type per
+    // SECURITY_ENDPOINT_AUDIT §4.5, so a fixture with no headers would be
+    // testing a request no browser makes — see the 415 case below, which
+    // overrides this on purpose.
+    get: (h) => {
+      const key = String(h).toLowerCase();
+      if (key in headers) return headers[key];
+      if (key === "content-type") return "application/json";
+      return "";
+    },
   };
 }
 
@@ -298,6 +308,21 @@ const goodBody = {
     const get = fakeRes();
     await handleDeletionRequest(fakeReq(null, {method: "GET"}), get, baseDeps({db: fakeDb()}));
     assert.strictEqual(get.statusCode, 405);
+  });
+
+  await test("a non-JSON body is refused before anything is written", async () => {
+    // SECURITY_ENDPOINT_AUDIT §4.5. This is a public, unauthenticated endpoint,
+    // so the cheap checks run first — and nothing may reach Firestore from a
+    // request we are refusing.
+    const db = fakeDb();
+    const res = fakeRes();
+    await handleDeletionRequest(
+        fakeReq({email: "a@b.com"}, {headers: {"content-type": "text/plain"}}),
+        res,
+        baseDeps({db}),
+    );
+    assert.strictEqual(res.statusCode, 415);
+    assert.strictEqual(db.added.length, 0);
   });
 
   console.log(`\naccountDeletionRequests: ${passed} passed`);
