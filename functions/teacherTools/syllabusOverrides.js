@@ -16,6 +16,7 @@
 
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
+const {getUserRole, isAdminRole} = require("../aiService");
 const admin = require("firebase-admin");
 const {invalidateKbCache, getActiveKbVersion} = require("./cbcKnowledge");
 
@@ -27,10 +28,23 @@ const ALLOWED_CELLS = new Set([
   "EXPECTED STANDARD",
 ]);
 
+// SECURITY_ENDPOINT_AUDIT §4.6 — read the role from users/{uid}, the way every
+// other admin callable does, instead of from the custom claim.
+//
+// The claim is DERIVED from that field (security/adminClaims.js writes it when a
+// role is assigned) and only reaches a session on token refresh, which can be up
+// to an hour later. So an admin promoted from the admin panel was locked out of
+// this one editor until their token happened to roll — failing closed, never an
+// escalation, but a confusing hour in which every other admin surface worked and
+// the syllabus editor did not.
+//
+// isAdminRole rather than role === "admin": superAdmin is a strict superset
+// everywhere in the app, and the helper exists because bare string comparisons
+// here have locked out the project owner before.
 async function requireAdmin(req) {
-  await assertVerifiedAuth(req, "Sign in required.");
-  const auth = req.auth;
-  if (auth.token.admin !== true && auth.token.role !== "admin") {
+  const uid = await assertVerifiedAuth(req, "Sign in required.");
+  const role = await getUserRole(uid);
+  if (!isAdminRole(role)) {
     throw new HttpsError("permission-denied", "Admins only.");
   }
 }
