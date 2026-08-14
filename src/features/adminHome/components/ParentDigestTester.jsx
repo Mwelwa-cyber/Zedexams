@@ -21,7 +21,7 @@
  */
 
 import { useState } from 'react'
-import { triggerWeeklyParentDigest } from '../../../utils/parentShares'
+import { triggerWeeklyParentDigest } from '../services/parentDigestService'
 import Button from '../../../components/ui/Button'
 import ConfirmDialog from '../../../components/ui/ConfirmDialog'
 

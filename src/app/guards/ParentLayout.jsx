@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import Logo from '../ui/Logo'
-import Button from '../ui/Button'
+import Logo from '../../components/ui/Logo'
+import Button from '../../components/ui/Button'
 
 /**
  * ParentLayout — chrome for the family portal (/family*). Deliberately minimal:

@@ -2338,3 +2338,67 @@ Two habits worth keeping from the first two, both from template §0: the moved V
 16. Do not add analytics or monitoring providers beyond PostHog and Sentry, or new external services, without flagging Play Data safety and CSP (`firebase.json` headers) impact.
 
 
+
+---
+
+### The last unclaimed legacy component directories — CLAIMED 2026-08-14 by session H
+
+**Branch `claude/admin-migration-status-v2c6f6`.** The seven directories left in
+`src/components/` that no row here claims and no freeze clause names:
+`ui/` (67 files), `layout/` (14), `diagrams/` (4), `theme/` (3), `banners/` (2),
+`seo/` (1), `native/` (1). **Checked before claiming**, per the `classTimetable`
+rule: the only open pull request is #2363 (`components/subscription/`, another
+session), whose 70 changed files touch none of these; no branch names any of
+them; no row in this section claims them.
+
+**They are not one job, and three of the seven are not features.** §14.6 was
+applied to the import CLOSURE of every file — never to its name — using the
+same probe the studio-chrome pass used. The census splits three ways:
+
+| Destination | Files | Why |
+|---|---|---|
+| `src/shared/components/` | `seo/SeoHelmet` + ~35 of `ui/` | closure passes §14.6; consumer counts are the highest in the repo — `icons.js` 35, `Icon` 29, `ConfirmDialog` 26, `Skeleton` 23, `Button` 22, `Toast` 18, **`SeoHelmet` 43** |
+| `src/app/guards/` | 7 of `layout/` | the destination `src/app/guards/index.js` has named since Phase 1 — `ProtectedRoute`, `LearnerOnlyRoute`, `AdminMfaGate`, `MissingProfileRecovery`, `ParentLayout`, `SessionRestorationLoader`, `SessionRestorationScreen`. Every one has **zero** feature consumers, which is what makes the move legal |
+| stays / becomes a feature | `native/`, `banners/`, `diagrams/`, `theme/ReadingThemePicker`, 8 of `ui/` | fails §14.6 on the closure |
+
+**`src/app/guards/` is only reachable because the count is zero, and that is the
+whole constraint.** `FORBIDDEN_TARGETS.features` includes `app`, and that check
+runs before the front-door exemption and consults no allowance list — so a guard
+under `src/app/` cannot be imported by anything under `src/features/` at all.
+This is the rule `src/app/layouts/index.js` already records the hard way, having
+had to send both its layouts back out to features. Measured here rather than
+assumed: **`Navbar` (1 feature consumer, `examTimetable`) and `MobileBottomNav`
+(2, `learnerDashboard`) therefore CANNOT go to `src/app/`** despite sitting in
+`layout/` beside the seven that can. `MobileBottomNav` passes §14.6 on its own
+closure and goes to `src/shared/components/` instead; `Navbar` fails it (76
+modules, reaching auth, payment and curriculum) and stays put.
+
+**The eight `ui/` files that fail are the interesting half**, and every one
+fails on the closure rather than on its own text — the correction `studioFields`
+had to make. `VisitorTracker`, `CookieConsentBanner` and `AnalyticsConsentToggle`
+each reach `utils/analytics` → `firebase/config`; `shared` is in
+`NO_FIREBASE_LAYERS`, so promoting any of them is a hard boundary failure, not a
+matter of taste. `NotFound`, `PushPermissionPrompt`, `ReplayTourCard` and
+`VerifyEmailBanner` reach `AuthContext` and payment logic (25–27 modules each).
+`SubjectIcon` is curriculum knowledge.
+
+**`ui/index.js` is a real barrel and is the reason this is one PR rather than
+thirty-five.** Unlike every other directory index in the repo, it re-exports 21
+modules and its own docblock invites `import { Button, Card } from '../ui'`.
+Promoting files one at a time would leave the barrel straddling two layers, so
+the split lands in a single commit with the barrel resolved.
+
+**`ui/SubjectScroller.jsx` has zero importers — dead code**, found by the same
+census, and **already on `docs/architecture/22-dead-code-register.md`** from the
+2026-07-17 audit. Two independent methods reaching the same file five weeks
+apart is the register working; nothing needs adding.
+
+It is not deleted here, on the rule `GenerateFromTopicMenu` demonstrated one
+section up — a removal is not a migration, so it goes in its own PR, which is
+exactly how that one was eventually handled (#2365). The census records the
+confirmation and leaves the deletion to the phase allowed to act on it.
+
+**Order, ascending by blast radius** — `layout/` → `src/app/guards/` (19 import
+sites) · `diagrams/`, `theme/`, `banners/`, `native/` (38 sites) · then the
+`ui/` + `seo/` promotion (926 sites), which is the bulk and goes last so the
+smaller moves are not held behind its review.

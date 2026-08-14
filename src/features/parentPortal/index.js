@@ -26,18 +26,30 @@
  * here would drag the whole portal into `learnerSettings`' chunk, which wanted
  * two panels.
  *
- * ── `parentShares` did NOT travel, and the freeze is why ────────────────
+ * ── `parentShares` did not travel with the feature, and now has ─────────
  *
  * `services/familyPortal.js` came with the feature: the parent portal was its
- * only consumer. `src/utils/parentShares.js` stayed, because it is also read
- * by `admin/ParentDigestTester.jsx` — which is frozen, as a sole-consumer
+ * only consumer. `src/utils/parentShares.js` stayed, because it was also read
+ * by `admin/ParentDigestTester.jsx` — frozen at the time as a sole-consumer
  * child of `AdminDashboard` (that page writes `collection(db, 'quizzes')`
- * through `seedData`).
+ * through `seedData`). A util this feature would otherwise own, pinned in
+ * `src/utils/` by a component in an unrelated part of the tree, for a reason
+ * with nothing to do with parents. It was recorded as clearing when the
+ * dashboard's freeze lifted.
  *
- * So a util this feature would otherwise own is pinned in `src/utils/` by a
- * component in a completely unrelated part of the tree, for a reason that has
- * nothing to do with parents. It clears when the dashboard's freeze lifts;
- * recorded here so the next person does not re-derive it.
+ * **It lifted (Wave 4 slice 4), and the util SPLIT rather than moving here.**
+ * The note above expected a straight move, and by then that would have been
+ * wrong: the file had readers in TWO features, so bringing it here whole would
+ * have made `adminHome` import `parentPortal` — a cross-feature entry on a
+ * list that only shrinks, which is exactly the trap `learnerSearch`'s entry
+ * names (converting one debt entry into another).
+ *
+ * The file was doing two jobs and its own docblock already said so:
+ * `triggerWeeklyParentDigest` was marked *"Admin-only"*. The share flow is
+ * `services/parentShareService.js` here; the digest trigger is
+ * `features/adminHome/services/parentDigestService.js`, beside its one
+ * consumer. **Neither feature reaches across, and the cross-feature count is
+ * unchanged.**
  */
 
 export { default as ParentShareManager } from './components/ParentShareManager'

@@ -2,10 +2,10 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { getRoleLandingPath } from '../../utils/navigation'
 import { isWithinVerificationGrace } from '../../utils/verification'
-import FullScreenLoader from '../ui/FullScreenLoader'
+import FullScreenLoader from '../../components/ui/FullScreenLoader'
 import SessionRestorationLoader from './SessionRestorationLoader'
 import MissingProfileRecovery from './MissingProfileRecovery'
-import VerifyEmailBanner from '../ui/VerifyEmailBanner'
+import VerifyEmailBanner from '../../components/ui/VerifyEmailBanner'
 
 const ROLE_LEVEL = { superAdmin: 4, admin: 3, teacher: 2, learner: 1, student: 1 }
 

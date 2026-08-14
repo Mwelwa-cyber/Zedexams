@@ -26,7 +26,7 @@ vi.mock('./MissingProfileRecovery', () => ({
 }))
 
 // The grace-window banner has its own spec; a marker keeps this one focused.
-vi.mock('../ui/VerifyEmailBanner', () => ({
+vi.mock('../../components/ui/VerifyEmailBanner', () => ({
   default: () => <div data-testid="verify-banner" />,
 }))
 

@@ -1,9 +1,9 @@
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import Button from '../ui/Button'
-import Icon from '../ui/Icon'
-import FullScreenLoader from '../ui/FullScreenLoader'
-import { Sparkles, ArrowLeft } from '../ui/icons'
+import Button from '../../components/ui/Button'
+import Icon from '../../components/ui/Icon'
+import FullScreenLoader from '../../components/ui/FullScreenLoader'
+import { Sparkles, ArrowLeft } from '../../components/ui/icons'
 
 export default function LearnerOnlyRoute({ children }) {
   const { userProfile, loading, isAdmin, isLearner, isTeacher, canAccessLearnerPortal } = useAuth()

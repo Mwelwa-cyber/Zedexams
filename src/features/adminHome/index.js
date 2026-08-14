@@ -37,15 +37,27 @@
  * one read the other way: `hooks/useFirestore` also calls it, so it is shared
  * infrastructure and stays in `src/utils/`.
  *
- * ── What `parentShares.js` unblocks ─────────────────────────────────────
+ * ── What `parentShares.js` unblocked, and why it split ──────────────────
  *
- * `features/parentPortal`'s index records `utils/parentShares.js` as pinned in
- * `src/utils/` by `ParentDigestTester` — "a util this feature would otherwise
- * own is pinned by a component in an unrelated part of the tree… It clears
- * when the dashboard's freeze lifts." The freeze has now lifted, so the pin is
- * released, but moving that util is `parentPortal`'s call to make in its own
- * PR rather than a change smuggled into this one. The note there stands as the
- * record of why it is still here.
+ * `features/parentPortal`'s index recorded `utils/parentShares.js` as pinned
+ * in `src/utils/` by `ParentDigestTester` — "a util this feature would
+ * otherwise own is pinned by a component in an unrelated part of the tree… It
+ * clears when the dashboard's freeze lifts." This slice lifted it.
+ *
+ * **The util split rather than moving to `parentPortal` whole**, which is what
+ * that note anticipated. By the time the pin cleared the file had readers in
+ * TWO features, so moving it there entire would have made THIS feature import
+ * `parentPortal` — a cross-feature entry on a shrink-only list, which is the
+ * trap `learnerSearch`'s entry names.
+ *
+ * It was doing two jobs and its own docblock said so: `triggerWeeklyParentDigest`
+ * was already marked *"Admin-only"*. It is `services/parentDigestService.js`
+ * here, beside `ParentDigestTester`, its one consumer; the share flow is
+ * `parentPortal`'s `services/parentShareService.js`. Neither feature reaches
+ * across and the cross-feature count is unchanged.
+ *
+ * The verb is what decided it: this asks the server to run a scheduled job
+ * now. It never reads or writes a parent share.
  */
 
 export {}
