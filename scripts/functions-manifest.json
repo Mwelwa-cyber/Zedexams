@@ -267,7 +267,7 @@
     },
     "apiAiChat": {
       "kind": "onRequest",
-      "inline": true,
+      "inline": false,
       "options": {
         "secrets": "[openaiApiKey]",
         "region": "\"us-central1\"",
@@ -279,7 +279,7 @@
       "rewritePath": "/api/ai/chat",
       "rewriteRegion": "us-central1",
       "classification": "audit-surface",
-      "batch": 3
+      "batch": null
     },
     "apiAssessmentDownload": {
       "kind": "delegated",
@@ -429,7 +429,7 @@
     },
     "apiWhatsAppWebhook": {
       "kind": "onRequest",
-      "inline": true,
+      "inline": false,
       "options": {
         "secrets": "[...require(\"./metaWhatsApp\").WHATSAPP_WEBHOOK_SECRETS, anthropicApiKey]",
         "region": "\"us-central1\"",
@@ -442,7 +442,7 @@
       "rewritePath": "/api/whatsapp/webhook",
       "rewriteRegion": "us-central1",
       "classification": "audit-surface",
-      "batch": 3
+      "batch": null
     },
     "appCheckPing": {
       "kind": "onCall",
@@ -595,7 +595,7 @@
     },
     "bulkGrantDemoTrials": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "region": "\"us-central1\"",
         "timeoutSeconds": "120",
@@ -607,7 +607,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "payment-webhook",
-      "batch": 3
+      "batch": null
     },
     "checkShortAnswer": {
       "kind": "onCall",
@@ -1425,7 +1425,7 @@
     },
     "getLencoPaymentStatus": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "secrets": "[lencoApiKey, emailSmtpUser, emailSmtpPassword]",
         "region": "\"us-central1\"",
@@ -1438,7 +1438,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "payment-webhook",
-      "batch": 3
+      "batch": null
     },
     "getPlatformHealth": {
       "kind": "factory",
@@ -1491,7 +1491,7 @@
     },
     "getUpgradeQuote": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "region": "\"us-central1\"",
         "timeoutSeconds": "30",
@@ -1503,7 +1503,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "payment-webhook",
-      "batch": 3
+      "batch": null
     },
     "hourlyAgentSupervisor": {
       "kind": "delegated",
@@ -1659,7 +1659,7 @@
     },
     "initiateLencoPayment": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "secrets": "[lencoApiKey, emailSmtpUser, emailSmtpPassword]",
         "region": "\"us-central1\"",
@@ -1672,7 +1672,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "payment-webhook",
-      "batch": 3
+      "batch": null
     },
     "invalidateKbCache": {
       "kind": "delegated",
@@ -1708,7 +1708,7 @@
     },
     "lencoWebhook": {
       "kind": "onRequest",
-      "inline": true,
+      "inline": false,
       "options": {
         "secrets": "opsAlertSecrets([lencoApiKey, emailSmtpUser, emailSmtpPassword])",
         "region": "\"us-central1\"",
@@ -1721,7 +1721,7 @@
       "rewritePath": "/api/payments/lenco/webhook",
       "rewriteRegion": "us-central1",
       "classification": "payment-webhook",
-      "batch": 3
+      "batch": null
     },
     "lessonPlanTemplateOnWrite": {
       "kind": "factory",
@@ -2282,7 +2282,7 @@
     },
     "recoverMyPendingPayments": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "secrets": "[lencoApiKey, emailSmtpUser, emailSmtpPassword]",
         "region": "\"us-central1\"",
@@ -2295,7 +2295,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "payment-webhook",
-      "batch": 3
+      "batch": null
     },
     "redeemFamilyInviteCode": {
       "kind": "delegated",
@@ -2397,7 +2397,7 @@
     },
     "resendInvoiceEmail": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "secrets": "[emailSmtpUser, emailSmtpPassword]",
         "region": "\"us-central1\"",
@@ -2409,7 +2409,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "payment-webhook",
-      "batch": 3
+      "batch": null
     },
     "resetAdminMfa": {
       "kind": "delegated",
@@ -2854,7 +2854,7 @@
     },
     "submitLencoOtp": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "secrets": "[lencoApiKey, emailSmtpUser, emailSmtpPassword]",
         "region": "\"us-central1\"",
@@ -2867,7 +2867,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "payment-webhook",
-      "batch": 3
+      "batch": null
     },
     "subscribeToNewsletter": {
       "kind": "delegated",
@@ -3058,7 +3058,7 @@
     },
     "verifyGooglePlayPurchase": {
       "kind": "onCall",
-      "inline": true,
+      "inline": false,
       "options": {
         "secrets": "opsAlertSecrets([googlePlaySaJson, emailSmtpUser, emailSmtpPassword])",
         "region": "\"us-central1\"",
@@ -3072,7 +3072,7 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "payment-webhook",
-      "batch": 3
+      "batch": null
     },
     "verifyPasskeyAuthentication": {
       "kind": "onCall",

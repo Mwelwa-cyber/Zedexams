@@ -79,7 +79,7 @@ const LIMITED = [
   {name: "getPlatformHealth", file: "agents/platformHealth.js", check: 'action: "getPlatformHealth"'},
 
   // ── HTTP endpoints (assert/guardHttpRateLimit) ───────────────────────────
-  {name: "apiAiChat", file: "index.js", check: 'action: "aiChat"'},
+  {name: "apiAiChat", file: "httpSurfaceHandlers.js", check: 'action: "aiChat"'},
   {name: "apiGenerateLessonPlan", file: "index.js", check: 'action: `stream_${tool}`'},
   {name: "apiGenerateWorksheet", file: "index.js", check: 'action: `stream_${tool}`'},
   {name: "apiTextToSpeech", file: "tts.js", check: "action: 'tts'"},
