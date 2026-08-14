@@ -1,6 +1,6 @@
 // Notification preferences — shared pure helpers (no Firebase).
 //
-// Extracted from components/settings/zedexams-settings.jsx so the learner
+// Extracted from features/accountSettings/pages/zedexams-settings.jsx so the learner
 // settings page and the Teacher Settings → Notifications panel share one
 // normalizer + category list. Order + labels mirror
 // functions/notifications/notificationPrefsCore.js (server) and

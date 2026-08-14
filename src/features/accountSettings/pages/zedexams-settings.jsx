@@ -1,33 +1,33 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { useTheme, THEMES } from '../../contexts/ThemeContext';
-import { useAuth } from '../../contexts/AuthContext';
+import { useTheme, THEMES } from '../../../contexts/ThemeContext';
+import { useAuth } from '../../../contexts/AuthContext';
 import {
   getSchoolProfile,
   saveSchoolProfile,
   getBrandingFromRecentPapers,
-} from '../../utils/schoolProfileService';
-import { isEmptySchoolProfile } from '../../utils/schoolProfile';
-import { deleteMyAccount, pickReauthMethod } from '../../utils/accountService';
-import { canSubmitDeletion, deletionErrorMessage } from '../../utils/accountReauth';
-import { PasskeySection } from '../../features/auth';
+} from '../../../utils/schoolProfileService';
+import { isEmptySchoolProfile } from '../../../utils/schoolProfile';
+import { deleteMyAccount, pickReauthMethod } from '../../../utils/accountService';
+import { canSubmitDeletion, deletionErrorMessage } from '../../../utils/accountReauth';
+import { PasskeySection } from '../../auth';
 import CharacterAvatar, {
   CHARACTERS,
   INTEREST_GROUPS,
   getCharacter,
-} from '../../shared/components/CharacterAvatar';
-import SeoHelmet from '../seo/SeoHelmet';
-import LanguageToggle from '../ui/LanguageToggle';
-import { ParentShareManager } from '../../features/parentPortal';
-import { isPushSupported, pushPermission, requestPushPermission } from '../../utils/fcm';
+} from '../../../shared/components/CharacterAvatar';
+import SeoHelmet from '../../../components/seo/SeoHelmet';
+import LanguageToggle from '../../../components/ui/LanguageToggle';
+import { ParentShareManager } from '../../parentPortal';
+import { isPushSupported, pushPermission, requestPushPermission } from '../../../utils/fcm';
 import {
   loadAccessibilityPrefs,
   saveAccessibilityPrefs,
-} from '../../utils/accessibility';
+} from '../../../utils/accessibility';
 import {
   NOTIFICATION_CATEGORY_META,
   normalizeNotificationPrefs,
-} from '../../utils/notificationPrefs';
+} from '../../../utils/notificationPrefs';
 
 /* ============================================================================
  * ZedExams — Settings module
