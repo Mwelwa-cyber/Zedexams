@@ -5,6 +5,52 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-08-14
+
+### Changed
+
+- Add the Assessment Engine ramp runbook (#2383)
+- Close the last three security-audit items (§4.4, §4.5, §4.6) (#2384)
+- Move the diagram library into src/curriculum/diagrams (#2382)
+- Revert "chore: add Context7 MCP server for up-to-date library docs" (#2385)
+- Promote the UI primitives to src/shared/components (step 3 of 3) (#2376)
+- Correct two claims the quizEditor migration made stale (#2380)
+- Ledger every processed webhook delivery, so a redelivery cannot be paid twice (#2378)
+- Migrate the quiz editor into src/features/quizEditor/ (#2379)
+- Close four Codex P2s on the surface-map guard (#2377)
+- Repoint the colour-audit surface map, and guard it against the next move (#2375)
+- Migrate the learner-facing quiz runtime into src/features/quiz/ (#2374)
+- App Check on apiTextToSpeech, the priciest per-call surface (#2373)
+- Decide the §10.0 `selected` divergence: retain it through reveal (#2372)
+- Phase 5 batch 3: the 11 payment/webhook + audit-surface bodies move (#2371)
+- Migrate the games surface into src/features/games/ (#2370)
+- Move the banners and the Play Billing sync into features (#2369)
+- Refuse an object-shaped option on the past-paper engine path (#2368)
+- Split parentShares along the seam its own docblock described (#2366)
+- Guard timed_quiz double selection with a synchronous ref, and pin the legacy path (#2367)
+- Delete GenerateFromTopicMenu, and correct what described it as live (#2365)
+- Phase 3: cut the timed_quiz game over to the Assessment Engine (#2364)
+- Move subscriptions into src/features/subscription (#2363)
+- Migrate the last three admin clusters (Wave 4 slices 4–6) (#2362)
+- Give features/notes a front door, and retire a boundary debt entry (#2360)
+- Move shared account settings into src/features/accountSettings (#2358)
+- Stop the App Check reCAPTCHA timeout paging as a production error (#2359)
+- Move learner search into src/features/learnerSearch (#2357)
+- Move authentication into src/features/auth (#2353)
+- Name App Check as the cause when Storage refuses an upload (#2352)
+- A password reset must not depend on one mail host (#2351)
+- Move the classic learner dashboard into src/features/learnerDashboard (#2349)
+- Move the UI audit into src/features/uiAudit (#2348)
+
+### Internal
+
+- Add Context7 MCP server for up-to-date library docs (#2381)
+- Migrate the teacher paywall surface into src/features (#2361)
+- Promote CharacterAvatar to src/shared/components (#2356)
+- Migrate the notification bell and centre into src/features (#2355)
+- Promote the draft chrome to src/shared/components (#2354)
+- Migrate the slide-lesson player, editor and library into src/features (#2350)
+
 ## 2026-08-13
 
 ### Security
