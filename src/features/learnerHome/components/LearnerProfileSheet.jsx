@@ -8,7 +8,7 @@ import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LogOut, User } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
-import CharacterAvatar from '../../../components/profile/CharacterAvatar'
+import CharacterAvatar from '../../../shared/components/CharacterAvatar'
 import LearnerIcon from './LearnerIcon'
 import { capture } from '../../../utils/analytics'
 

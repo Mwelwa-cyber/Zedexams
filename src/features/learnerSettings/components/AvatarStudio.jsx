@@ -6,7 +6,7 @@
 // shows a single source of truth.
 
 import { useRef, useState } from 'react'
-import CharacterAvatar, { CHARACTERS, getCharacter } from '../../../components/profile/CharacterAvatar'
+import CharacterAvatar, { CHARACTERS, getCharacter } from '../../../shared/components/CharacterAvatar'
 import { AVATAR_CATEGORIES } from '../lib/learnerPrefs'
 import { Section, Btn, Chips } from './ui'
 
