@@ -1,20 +1,20 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Sprout } from '../ui/icons'
-import { useFirestore } from '../../hooks/useFirestore'
-import { useAuth } from '../../contexts/AuthContext'
-import { clearSeedFirestore, seedFirestore } from '../../utils/seedData'
-import { getGenerationsSummary } from '../../utils/adminGenerationsService'
-import { db } from '../../firebase/config'
-import Button from '../ui/Button'
-import Icon from '../ui/Icon'
-import Skeleton from '../ui/Skeleton'
-import ConfirmDialog from '../ui/ConfirmDialog'
-import EmptyState from '../ui/EmptyState'
-import SeoHelmet from '../seo/SeoHelmet'
-import ParentDigestTester from './ParentDigestTester'
-import OpsAlertTester from './OpsAlertTester'
-import AdminSetupBanner from './AdminSetupBanner'
+import { Sprout } from '../../../components/ui/icons'
+import { useFirestore } from '../../../hooks/useFirestore'
+import { useAuth } from '../../../contexts/AuthContext'
+import { clearSeededQuizzes, seedSampleQuizzes } from '../services/seedDataService'
+import { getGenerationsSummary } from '../../../utils/adminGenerationsService'
+import Button from '../../../components/ui/Button'
+import Icon from '../../../components/ui/Icon'
+import Skeleton from '../../../components/ui/Skeleton'
+import ConfirmDialog from '../../../components/ui/ConfirmDialog'
+import EmptyState from '../../../components/ui/EmptyState'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import ParentDigestTester from '../components/ParentDigestTester'
+import OpsAlertTester from '../components/OpsAlertTester'
+import AdminSetupBanner from '../components/AdminSetupBanner'
+import { buildAttentionItems, countLowScores, formatResultDate, scoreBand } from '../lib/adminHomeCore.js'
 
 // Pastel mascot tones cycle through orange / blue / green / yellow / pink /
 // purple so the grid feels like the /games hub mascot row.
@@ -103,7 +103,7 @@ export default function AdminDashboard() {
   async function handleSeed() {
     setSeeding(true); setSeedMsg('')
     try {
-      await seedFirestore(db, currentUser.uid)
+      await seedSampleQuizzes(currentUser.uid)
       setSeedMsg('✅ Sample data seeded successfully!')
     } catch (e) {
       setSeedMsg('❌ ' + e.message)
@@ -113,7 +113,7 @@ export default function AdminDashboard() {
   async function handleClearSeed() {
     setClearingSeed(true); setSeedMsg('')
     try {
-      const result = await clearSeedFirestore(db, currentUser.uid)
+      const result = await clearSeededQuizzes(currentUser.uid)
       setSeedMsg(
         result.quizzesDeleted > 0
           ? `✅ Cleared ${result.quizzesDeleted} seeded sample quiz${result.quizzesDeleted === 1 ? '' : 'zes'}.`
@@ -135,7 +135,7 @@ export default function AdminDashboard() {
         ])
         const safeGens = gens && typeof gens === 'object' ? gens : {}
         const recentArr = Array.isArray(recentResults) ? recentResults : []
-        const lowScores = recentArr.filter(r => typeof r.percentage === 'number' && r.percentage < 40).length
+        const lowScores = countLowScores(recentArr)
         setStats({
           lessons:  counts.lessons,
           quizzes:  counts.quizzes,
@@ -162,76 +162,9 @@ export default function AdminDashboard() {
     load()
   }, [getDashboardCounts, getRecentResults, getPendingPayments])
 
-  function fmt(ts) {
-    if (!ts) return '—'
-    try {
-      const d = typeof ts?.toDate === 'function' ? ts.toDate() : new Date(ts)
-      if (!d || Number.isNaN(d.getTime?.())) return '—'
-      return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-    } catch {
-      return '—'
-    }
-  }
-
-  function pctColor(p) {
-    if (p >= 70) return 'green'
-    if (p >= 50) return 'amber'
-    return 'red'
-  }
-
   // Only surface things that actually need an admin's attention, sorted
   // high → medium. An empty list renders the "All clear" state below.
-  const attentionItems = []
-  if (stats.gensFlagged > 0) {
-    attentionItems.push({
-      to: '/admin/generations',
-      icon: '!',
-      title: `${stats.gensFlagged} AI generation${stats.gensFlagged === 1 ? '' : 's'} flagged`,
-      detail: 'Open the generation logs and inspect the flagged output.',
-      level: 'high',
-      action: 'Audit',
-    })
-  }
-  if (stats.gensFailed > 0) {
-    attentionItems.push({
-      to: '/admin/generations',
-      icon: '✕',
-      title: `${stats.gensFailed} AI generation${stats.gensFailed === 1 ? '' : 's'} failed`,
-      detail: 'A generator run errored out — check the logs for the cause.',
-      level: 'high',
-      action: 'Open logs',
-    })
-  }
-  if (stats.pending > 0) {
-    attentionItems.push({
-      to: '/admin/approvals',
-      icon: '!',
-      title: `${stats.pending} content item${stats.pending === 1 ? '' : 's'} awaiting approval`,
-      detail: 'Review learner-facing lessons and quizzes before they go live.',
-      level: 'medium',
-      action: 'Review',
-    })
-  }
-  if (stats.pendingPayments > 0) {
-    attentionItems.push({
-      to: '/admin/payments',
-      icon: '$',
-      title: `${stats.pendingPayments} payment${stats.pendingPayments === 1 ? '' : 's'} pending`,
-      detail: 'Confirm or reject MoMo requests to unblock premium access.',
-      level: 'medium',
-      action: 'Settle',
-    })
-  }
-  if (stats.lowScores > 0) {
-    attentionItems.push({
-      to: '/admin/results',
-      icon: '↓',
-      title: `${stats.lowScores} recent score${stats.lowScores === 1 ? '' : 's'} below 40%`,
-      detail: 'Several learners are struggling on recent quizzes — review results.',
-      level: 'medium',
-      action: 'Review',
-    })
-  }
+  const attentionItems = buildAttentionItems(stats)
 
   return (
     <div className="space-y-6">
@@ -506,12 +439,12 @@ export default function AdminDashboard() {
                   <div className="text-right">
                     <p
                       className="admin-game-display text-[18px] leading-none"
-                      style={{ color: pctColor(r.percentage) === 'green' ? '#047857' : pctColor(r.percentage) === 'amber' ? '#A3422E' : '#B91C1C' }}
+                      style={{ color: scoreBand(r.percentage) === 'green' ? '#047857' : scoreBand(r.percentage) === 'amber' ? '#A3422E' : '#B91C1C' }}
                     >
                       {r.percentage}%
                     </p>
                     <p className="mt-0.5 text-[10.5px] font-semibold" style={{ color: 'var(--zt-text-muted)' }}>
-                      {r.score}/{r.totalMarks} · {fmt(r.completedAt)}
+                      {r.score}/{r.totalMarks} · {formatResultDate(r.completedAt)}
                     </p>
                   </div>
                 </div>

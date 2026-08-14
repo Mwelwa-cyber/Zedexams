@@ -124,6 +124,27 @@ const UNSCANNED_UNTIL_NOW = new Set([
   // into scan scope; it did not introduce them.
   'src/features/learnerDashboard/pages/MyResults.jsx',
   'src/features/learnerDashboard/pages/StudentDashboard.jsx',
+  // Arrived with the admin migration (Wave 4 slices 5–6, 2026-08-14). All four
+  // are ADMIN surfaces, and `SCAN_DIRS` is `src/components/teacher` +
+  // `src/features` — `src/components/admin/` was never scanned, so the move
+  // brought them into scope rather than introducing anything.
+  //
+  // Measured against these exact sentinels at the pre-move commit (07b4b7f)
+  // rather than asserted, since "it predates the move" is the one claim an
+  // allowlist entry cannot be trusted to make about itself:
+  //   ManageContent.jsx              5 sentinels
+  //   AdminCsvImport.jsx             5 sentinels
+  //   CbcKbAdmin.jsx                 4 sentinels
+  //   BulkPublishQuizzesButton.jsx   5 sentinels
+  // Every one already crossed THRESHOLD at its old path.
+  //
+  // Unlike the fixture-data entries above, three of these ARE picker option
+  // lists and `useCurriculumSelection` is the fix — but that is a behaviour
+  // change to an admin filter, not part of a move.
+  'src/features/adminContent/pages/ManageContent.jsx',
+  'src/features/adminContent/pages/AdminCsvImport.jsx',
+  'src/features/adminCbcKb/pages/CbcKbAdmin.jsx',
+  'src/features/adminCbcKb/components/BulkPublishQuizzesButton.jsx',
 ])
 
 function walk(dir) {

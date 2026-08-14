@@ -164,7 +164,7 @@ assert.deepEqual(
 
 const SYLLABI_COPIES = [
   'src/components/teacher/SyllabiLibrary.jsx',
-  'src/components/admin/CbcKbAdmin.jsx',
+  'src/features/adminCbcKb/pages/CbcKbAdmin.jsx',
 ]
 
 // Every token the light `.ss-root` block declares must be restated for Night,

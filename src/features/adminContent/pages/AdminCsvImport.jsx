@@ -20,16 +20,16 @@
 
 import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
-import { useFirestore } from '../../hooks/useFirestore'
+import { useAuth } from '../../../contexts/AuthContext'
+import { useFirestore } from '../../../hooks/useFirestore'
 import {
   CSV_HEADERS,
   buildCsvTemplate,
   parseCsvImport,
   rowToQuestion,
-} from '../../utils/csvQuizImport'
-import { Download, Upload, Check, AlertTriangle, X as XMarkIcon } from '../ui/icons'
-import Icon from '../ui/Icon'
+} from '../../../utils/csvQuizImport'
+import { Download, Upload, Check, AlertTriangle, X as XMarkIcon } from '../../../components/ui/icons'
+import Icon from '../../../components/ui/Icon'
 
 const SUBJECTS = [
   'Mathematics', 'Integrated Science', 'Science', 'English',

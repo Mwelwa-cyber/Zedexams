@@ -18,13 +18,13 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 
-vi.mock('../../firebase/config', () => ({ default: {}, auth: {}, db: {}, storage: {} }))
+vi.mock('../../../firebase/config', () => ({ default: {}, auth: {}, db: {}, storage: {} }))
 
 const mockUpdateQuiz = vi.fn().mockResolvedValue(undefined)
 const mockGetAllQuizzes = vi.fn()
 const mockListPapers = vi.fn()
 
-vi.mock('../../hooks/useFirestore', () => ({
+vi.mock('../../../hooks/useFirestore', () => ({
   useFirestore: () => ({
     getAllLessons: mockGetAllLessons,
     updateLesson: vi.fn(),
@@ -38,18 +38,18 @@ vi.mock('../../hooks/useFirestore', () => ({
 }))
 const mockGetAllLessons = vi.fn()
 
-vi.mock('../../utils/pastPapers', async (importOriginal) => {
+vi.mock('../../../utils/pastPapers', async (importOriginal) => {
   const actual = await importOriginal()
   return { ...actual, listAllPapersForAdmin: (...a) => mockListPapers(...a) }
 })
 // Pulls the document importer → the AI assistant → a real getFunctions(app)
 // at module load; out of scope here (same reason as AdminPastPapers.spec).
-vi.mock('../../utils/paperToQuizConverter', () => ({ convertPaperToQuizDraft: vi.fn() }))
+vi.mock('../../../utils/paperToQuizConverter', () => ({ convertPaperToQuizDraft: vi.fn() }))
 // examService calls getFunctions(app) at module load for the daily-exam
 // callables. ManageContent only wants `todayString` from it.
-vi.mock('../../utils/examService', () => ({ todayString: () => '2026-07-31' }))
-vi.mock('../../contexts/AuthContext', () => ({ useAuth: () => ({ currentUser: { uid: 'admin-1' } }) }))
-vi.mock('../seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../utils/examService', () => ({ todayString: () => '2026-07-31' }))
+vi.mock('../../../contexts/AuthContext', () => ({ useAuth: () => ({ currentUser: { uid: 'admin-1' } }) }))
+vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal()
   return { ...actual, useNavigate: () => vi.fn() }

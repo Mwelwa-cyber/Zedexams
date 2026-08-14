@@ -6,27 +6,27 @@ import {
   Eye, PencilLine, Clock, AlertTriangle, Bot,
   EyeOff, Layers, Calendar, Trash2,
   CheckCircleIcon as CheckCircle, TrophyIcon as Trophy,
-} from '../ui/icons'
-import { useFirestore } from '../../hooks/useFirestore'
-import { useDebouncedValue } from '../../hooks/useDebouncedValue'
-import { useAuth } from '../../contexts/AuthContext'
-import Button from '../ui/Button'
-import Icon from '../ui/Icon'
-import Skeleton from '../ui/Skeleton'
-import ConfirmDialog from '../ui/ConfirmDialog'
-import { todayString } from '../../utils/examService'
-import { EXAM_ONLY_QUESTION_THRESHOLD, isExamOnly } from '../../utils/quizClassification.js'
-import { summarizeImportReview } from '../../utils/importReviewSummary.js'
-import { describeQuizPaperLink, unassignWarning } from './quizPaperLink.js'
-import { SUBJECTS as CURRICULUM_SUBJECTS } from '../../config/curriculum'
+} from '../../../components/ui/icons'
+import { useFirestore } from '../../../hooks/useFirestore'
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
+import { useAuth } from '../../../contexts/AuthContext'
+import Button from '../../../components/ui/Button'
+import Icon from '../../../components/ui/Icon'
+import Skeleton from '../../../components/ui/Skeleton'
+import ConfirmDialog from '../../../components/ui/ConfirmDialog'
+import { todayString } from '../../../utils/examService'
+import { EXAM_ONLY_QUESTION_THRESHOLD, isExamOnly } from '../../../utils/quizClassification.js'
+import { summarizeImportReview } from '../../../utils/importReviewSummary.js'
+import { describeQuizPaperLink, unassignWarning } from '../lib/quizPaperLink.js'
+import { SUBJECTS as CURRICULUM_SUBJECTS } from '../../../config/curriculum'
 import {
   PAPER_STATUSES, listAllPapersForAdmin, updatePaper, deletePaper, splitAssetsByRole,
-} from '../../utils/pastPapers'
-import { convertPaperToQuizDraft } from '../../utils/paperToQuizConverter'
-import ImportReviewBadge from '../quiz/ImportReviewBadge'
-import SeoHelmet from '../seo/SeoHelmet'
-import { PAPER_SUBJECTS } from '../../config/curriculum'
-import { gradesForFeature, gradeNumberOf } from '../../config/canonicalEducation'
+} from '../../../utils/pastPapers'
+import { convertPaperToQuizDraft } from '../../../utils/paperToQuizConverter'
+import ImportReviewBadge from '../../../components/quiz/ImportReviewBadge'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import { PAPER_SUBJECTS } from '../../../config/curriculum'
+import { gradesForFeature, gradeNumberOf } from '../../../config/canonicalEducation'
 
 // Three first-class content types share one admin home. Past papers are folded
 // in as their own tab (their admin "home") but stay out of the Daily-Exam

@@ -49,7 +49,7 @@ function inlineStyle(file) {
 }
 const extraCss = [
   'src/components/teacher/SyllabiLibrary.jsx',
-  'src/components/admin/CbcKbAdmin.jsx',
+  'src/features/adminCbcKb/pages/CbcKbAdmin.jsx',
 ].map(inlineStyle).join('\n')
 
 /* ── The surfaces, and what each is expected to be ─────────────────────── */

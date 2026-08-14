@@ -12,9 +12,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
-import { db } from '../../firebase/config'
-import { useAuth } from '../../contexts/AuthContext'
-import useStudioAvailability from '../../hooks/useStudioAvailability'
+import { db } from '../../../firebase/config'
+import { useAuth } from '../../../contexts/AuthContext'
+import useStudioAvailability from '../../../hooks/useStudioAvailability'
 
 const MAX_BATCH = 20
 

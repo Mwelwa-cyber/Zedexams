@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import SeoHelmet from '../seo/SeoHelmet'
-import ConfirmDialog from '../ui/ConfirmDialog'
-import SyllabusPdfUploadPanel from './SyllabusPdfUploadPanel'
-import BulkGenerateButton from './BulkGenerateButton'
-import BulkPublishQuizzesButton from './BulkPublishQuizzesButton'
-import ExamPaperLibraryPanel from './ExamPaperLibraryPanel'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import ConfirmDialog from '../../../components/ui/ConfirmDialog'
+import SyllabusPdfUploadPanel from '../components/SyllabusPdfUploadPanel'
+import BulkGenerateButton from '../components/BulkGenerateButton'
+import BulkPublishQuizzesButton from '../components/BulkPublishQuizzesButton'
+import ExamPaperLibraryPanel from '../components/ExamPaperLibraryPanel'
 import {
   getActiveKbVersion, KB_VERSION,
   listCbcTopics, saveCbcTopic, deleteCbcTopic,
@@ -17,21 +17,21 @@ import {
   approveAssessmentFormatDraft, listPastPapersForExtraction,
   analyzeExamPaper, listExamPaperSamples, deleteExamPaperSample,
   synthesizeAssessmentFormat,
-} from '../../utils/adminCbcKbService'
-import { useAuth } from '../../contexts/AuthContext'
-import { useDebouncedValue } from '../../hooks/useDebouncedValue'
+} from '../../../utils/adminCbcKbService'
+import { useAuth } from '../../../contexts/AuthContext'
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
 import {
   getMergedSyllabi, saveSyllabusRow, removeSyllabusRow, restoreSyllabusRow,
   invalidateSyllabiCache,
-} from '../../utils/syllabusKbService'
+} from '../../../utils/syllabusKbService'
 import {
   STUDIO_SUBJECT_TO_KB, sheetNameToGrade,
   syllabiToKbTopics,
-} from '../../utils/syllabusMapping'
+} from '../../../utils/syllabusMapping'
 import {
   TEACHER_GRADES, TEACHER_SUBJECTS,
-} from '../../utils/teacherTools'
-import { normalizeSubject } from '../../config/curriculum.js'
+} from '../../../utils/teacherTools'
+import { normalizeSubject } from '../../../config/curriculum.js'
 
 // ── Visual constants (mirrors src/components/teacher/SyllabiLibrary.jsx) ──
 // Subject metadata — long syllabi names get a short label, icon and the

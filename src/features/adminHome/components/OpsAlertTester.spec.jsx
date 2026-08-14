@@ -8,7 +8,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 const mockSendTestOpsAlert = vi.fn()
-vi.mock('../../utils/opsAlerts', () => ({
+vi.mock('../../../utils/opsAlerts', () => ({
   sendTestOpsAlert: (...a) => mockSendTestOpsAlert(...a),
 }))
 
