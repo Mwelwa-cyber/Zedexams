@@ -2569,3 +2569,44 @@ unrelated name collision.
 of the three directories is nine files, and each has a stated reason: eight
 §14.6 failures, one dead file, and `Navbar` (76 modules, reaching auth, payment
 and curriculum).
+
+**The last two directories of the claim, resolved 2026-08-14 — one moved, one
+stays, and neither for the reason recorded in #2369.**
+
+**`theme/` never needed the ruling it was waiting for.** #2369 recorded it as
+pinned by one frozen reader, `components/quiz/QuizRunnerV2`. #2374 migrated that
+runner into `features/quiz`, so all three consumers — `notes`, `quiz`,
+`learnerSettings` — are migrated features and nothing frozen touches it. The
+blockage cleared on its own, unobserved, which is the ordinary way a pin
+recorded against a moving target expires.
+
+**It is still blocked, by a different test, and stays.** `ReadingThemePicker`
+imports `utils/analytics`, which reaches `firebase/config`; `shared` is in
+`NO_FIREBASE_LAYERS`, so §14.6 excludes it. Two feature consumers exclude it
+from living inside either one. `ReadingThemeSwatches` passes §14.6 alone, and
+moving just that leaf while the picker that renders it stays behind buys a file
+and costs a reader the pair. The one thing that would unblock it — lifting the
+`capture` call to its callers — changes where a theme-change event is recorded,
+which is a behaviour change and belongs in its own PR, not in a move.
+
+**`diagrams/` → `src/curriculum/diagrams/`, on an owner ruling that covers two
+import lines and nothing else.** Of the six frozen readers #2369 recorded, four
+unfroze themselves via #2374 and #2379; only `DailyExamRunner` and
+`views/PaperBlocks` remained, and each changed by exactly one specifier. The
+freeze is otherwise untouched.
+
+**The destination extends what `src/curriculum/` holds, and the extension is the
+decision.** That layer is framed as resolution logic over the taxonomy root, so
+two React components are new in kind. It is nonetheless the only layer that
+works: `engines/export-engine` imports the catalogue and engines may not import
+features, so it cannot be a feature; six features draw it, so it cannot live in
+one; and it fails §14.6 on the closure (`diagramCatalogCore` →
+`curriculumDiagramsCore`), so it cannot be `shared`. A split was checked and
+fails on the layering — `shared` may not import `curriculum`, and the components
+import the catalogue, so renderer and data must share a layer.
+
+**`scripts/visual/printAffectingPaths.js` listed the old directory as a glob** —
+the ninth path-classified reference this migration has had to repoint, and the
+one with the worst failure mode: a glob for a directory that no longer exists
+parses fine, reads like a working rule, and silently stops triggering the visual
+render. Repointed with its test fixture.

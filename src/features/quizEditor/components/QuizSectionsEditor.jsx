@@ -4,9 +4,9 @@ import { countBlanks, statementLabel, BLANK_TOKEN } from '../../../utils/fillBla
 import { clampInt } from '../../../utils/inputs.js'
 import { questionValidationStatus } from '../../../utils/quizEngineAdapter.js'
 import { sanitizeBulkPatch } from '../lib/bulkQuestionOps.js'
-import DiagramSvg from '../../../components/diagrams/DiagramSvg.jsx'
-import DiagramPicker from '../../../components/diagrams/DiagramPicker.jsx'
-import { getDiagram } from '../../../components/diagrams/diagramCatalog.js'
+import DiagramSvg from '../../../curriculum/diagrams/DiagramSvg.jsx'
+import DiagramPicker from '../../../curriculum/diagrams/DiagramPicker.jsx'
+import { getDiagram } from '../../../curriculum/diagrams/diagramCatalog.js'
 
 // Live per-card verdict chip from the shared Document Understanding Engine.
 // Computed inside each memoised card (recomputes only when that card's

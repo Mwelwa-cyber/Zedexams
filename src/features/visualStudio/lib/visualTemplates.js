@@ -1,6 +1,6 @@
 /**
  * Editable templates (brief item 9) backed by the existing diagram catalog
- * (src/components/diagrams/diagramCatalog.js). A template renders a real
+ * (src/curriculum/diagrams/diagramCatalog.js). A template renders a real
  * structural diagram (shapes, number line, Venn, bar chart, plant/animal cell,
  * circuit, flow chart…) to a PNG and drops it onto the canvas, where the
  * teacher annotates it with labels and arrows — that annotation IS the
@@ -12,7 +12,7 @@
  * Browser-only (rasterises SVG via <canvas>).
  */
 
-import { renderDiagramSvg, getDiagram } from '../../../components/diagrams/diagramCatalog'
+import { renderDiagramSvg, getDiagram } from '../../../curriculum/diagrams/diagramCatalog'
 import { svgToPngBlob } from '../../../utils/svgRasterizer'
 
 // Curated, classroom-friendly subset of the catalog. `params` use the

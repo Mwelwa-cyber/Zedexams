@@ -6371,7 +6371,7 @@ body.data-saver [data-bg-gradient] {
 .rich-content ol li { list-style: decimal; }
 .rich-content img { max-width: 100%; height: auto; }
 
-/* Library diagrams rendered by <DiagramSvg> (src/components/diagrams).
+/* Library diagrams rendered by <DiagramSvg> (src/curriculum/diagrams).
  *
  * The catalog emits `<svg viewBox="…" width="320">` — a fixed pixel width
  * with no height, so the figure scales by aspect ratio but never shrinks

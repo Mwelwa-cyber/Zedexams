@@ -2,7 +2,7 @@
 /**
  * Guards that the SBA diagram allowlist (functions/teacherTools/sbaDiagrams.js —
  * the CommonJS mirror the SBA prompt + schema use) never drifts from the real
- * SVG catalog (src/components/diagrams/diagramCatalog.js). Every allowlisted key
+ * SVG catalog (src/curriculum/diagrams/diagramCatalog.js). Every allowlisted key
  * must exist in the catalog, every listed param must be a real field on that
  * catalog entry, and every key must render a valid SVG.
  * Run: node scripts/test-sba-diagrams.mjs
@@ -13,7 +13,7 @@ import assert from 'node:assert'
 
 const require = createRequire(import.meta.url)
 const { SBA_DIAGRAM_LIBRARY } = require('../functions/teacherTools/sbaDiagrams.js')
-const { DIAGRAM_CATALOG, renderDiagramSvg } = await import('../src/components/diagrams/diagramCatalog.js')
+const { DIAGRAM_CATALOG, renderDiagramSvg } = await import('../src/curriculum/diagrams/diagramCatalog.js')
 
 let passed = 0
 function ok(name, cond) {

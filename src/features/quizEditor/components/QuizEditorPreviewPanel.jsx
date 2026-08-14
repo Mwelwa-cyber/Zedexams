@@ -5,7 +5,7 @@ import { optionLabel } from '../../../utils/mcqChoices'
 import RichContent from '../../../editor/RichContent'
 import ZoomableImage from '../../../shared/components/ZoomableImage'
 import ExtraQuestionImages from '../../../shared/components/ExtraQuestionImages'
-import DiagramSvg from '../../../components/diagrams/DiagramSvg'
+import DiagramSvg from '../../../curriculum/diagrams/DiagramSvg'
 import { imagePositionClasses, resolveQuestionFigure, usesFigurePositionWrapper } from '../../../utils/questionFigure'
 
 function joinClasses(...parts) {

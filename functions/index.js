@@ -1375,6 +1375,12 @@ function makeStreamingEndpoint({tool, runCore}) {
         return;
       }
 
+      // Declared Content-Type + body cap (SECURITY_ENDPOINT_AUDIT §4.5), while
+      // an ordinary JSON error response is still possible — once the SSE
+      // headers go out the only way to report a rejection is an error event.
+      // The client (src/utils/teacherTools.js) sends application/json.
+      if (require("./httpRequestGuard").enforceJsonRequest(req, res, {label: `api${tool}`})) return;
+
       // Auth + role check before any SSE headers go out, so we can still
       // return a clean JSON error response.
       let uid;

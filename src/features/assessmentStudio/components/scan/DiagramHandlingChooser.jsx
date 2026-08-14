@@ -12,7 +12,7 @@ import {
   sourceToBlob,
 } from '../../../../utils/diagramClean.js'
 import { matchLibraryShape } from '../../lib/matchLibraryShape.js'
-import DiagramSvg from '../../../../components/diagrams/DiagramSvg.jsx'
+import DiagramSvg from '../../../../curriculum/diagrams/DiagramSvg.jsx'
 
 // A photographed TABLE / pictograph is never improved by the AI image
 // generator — redrawing it as line art just produces a wrong picture, and that

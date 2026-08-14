@@ -51,7 +51,7 @@ vi.mock('./AssessmentAnalysisActions', () => ({
 vi.mock('./AiReviewPanel', () => ({ default: () => null }))
 vi.mock('../../../components/teacher/studio/sections/CurriculumPicker', () => ({ CurriculumPicker: () => null }))
 vi.mock('../lib/pasteQuestionParser.js', () => ({ parsePastedQuestions: vi.fn() }))
-vi.mock('../../../components/diagrams/DiagramSvg', () => ({ default: () => null }))
+vi.mock('../../../curriculum/diagrams/DiagramSvg', () => ({ default: () => null }))
 vi.mock('./studioIcons', () => ({ default: () => null }))
 
 function pickFromTile(title) {
