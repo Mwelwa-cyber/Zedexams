@@ -76,6 +76,36 @@ test('index 0 is a real answer, not a falsy nothing', () => {
   assert.equal(buildChoiceRows({ question: question(), answer: 0 })[0].selected, true)
 })
 
+test('selection SURVIVES the reveal, and the ✗ depends on it', () => {
+  // The §10.0 `selected` divergence, decided 2026-08-14 (docs/phase3-plan.md):
+  // all three renderers keep the selection after reveal. `QuizRunnerV2`'s old
+  // card was the only one that cleared it, and has been conformed.
+  //
+  // Here it is not merely a style: `wrong` is DERIVED from `selected`, so a
+  // renderer that cleared it on reveal would silently stop marking wrong
+  // answers at all — the row would go quietly unmarked rather than showing a
+  // ✗. That is why the decision could only go this way for the shared
+  // renderer, and the second assertion is what makes it structural rather than
+  // stated.
+  const rows = buildChoiceRows({ question: question(), answer: 0, revealed: true })
+  assert.equal(rows[0].selected, true, 'the learner\'s row still says it was theirs')
+  assert.equal(rows[0].wrong, true)
+  assert.equal(rows[1].selected, false, 'and only that row — the key was not chosen')
+  assert.equal(rows[1].correct, true)
+})
+
+test('a correct pick is distinguishable from an unpicked key', () => {
+  // The reason the decision went this way rather than the other. A ✓ appears on
+  // the key whether or not the learner chose it, so without the retained
+  // selection these two situations render identically and a learner has to
+  // scan every other row for a ✗ to tell which happened.
+  const picked = buildChoiceRows({ question: question(), answer: 1, revealed: true })[1]
+  const notPicked = buildChoiceRows({ question: question(), answer: 0, revealed: true })[1]
+  assert.equal(picked.correct, true)
+  assert.equal(notPicked.correct, true, 'the key is marked either way — that is the problem')
+  assert.notEqual(picked.selected, notPicked.selected, 'and this is the only thing that differs')
+})
+
 // ── Verdicts, and when they may appear ───────────────────────────────────────
 
 test('nothing is marked correct or wrong until it is revealed', () => {

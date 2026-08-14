@@ -266,11 +266,14 @@ describe('QuizRunnerV2 — answering', () => {
   })
 
   it('marks the clicked option as selected in exam mode', async () => {
-    // Exam mode is the only mode where data-selected stays true after a tap:
-    // in practice, pick() reveals immediately so selected flips back to false
-    // and data-correct/data-wrong take over. We resume straight into an exam
-    // session (no endTime → the countdown effect early-returns, so nothing
-    // auto-submits) to land on the running question without the pre-quiz card.
+    // We resume straight into an exam session (no endTime → the countdown
+    // effect early-returns, so nothing auto-submits) to land on the running
+    // question without the pre-quiz card.
+    //
+    // This used to be the ONLY mode where data-selected stayed true after a
+    // tap — practice revealed immediately and the selection flipped back to
+    // false. That is no longer true, by the §10.0 decision; the practice case
+    // is the test directly below.
     mockGetQuizById.mockResolvedValue(quizDoc())
     mockGetQuestions.mockResolvedValue([mcq()])
     mockLoadQuizSession.mockReturnValue({
@@ -296,6 +299,50 @@ describe('QuizRunnerV2 — answering', () => {
     expect(opts[1]).toHaveAttribute('data-selected', 'false')
     expect(opts[0]).toHaveAttribute('data-correct', 'false')
     expect(opts[1]).toHaveAttribute('data-wrong', 'false')
+  })
+
+  it('keeps the picked row marked as selected THROUGH the reveal', async () => {
+    // The §10.0 `selected` divergence, decided 2026-08-14: all three renderers
+    // now keep the selection after reveal. This card was the only one that
+    // cleared it, and it could do so only because it takes `wrong` as a
+    // separate prop — `PublicQuizRunner`'s card and `buildChoiceRows` both
+    // DERIVE the ✗ from `selected`, so clearing it there deletes the marker.
+    //
+    // What it buys the learner: on a correct row the ✓ appears whether or not
+    // they chose it, so the retained selection is the only thing that says
+    // "and this was your answer" without scanning every other row for a ✗.
+    mockGetQuizById.mockResolvedValue(quizDoc())
+    mockGetQuestions.mockResolvedValue([mcq()]) // correctAnswer: 1
+    const { container } = renderRunner()
+
+    fireEvent.click(await screen.findByRole('button', { name: /Start Practice/i }))
+    await screen.findByText('What is 2 + 2?')
+
+    fireEvent.click(optionButtons(container)[1])
+    const revealed = optionButtons(container)
+    expect(revealed[1]).toHaveAttribute('data-selected', 'true')
+    expect(revealed[1]).toHaveAttribute('data-correct', 'true')
+    // Only the picked row — this is not "everything is selected now".
+    expect(revealed[0]).toHaveAttribute('data-selected', 'false')
+    expect(revealed[2]).toHaveAttribute('data-selected', 'false')
+  })
+
+  it('and keeps it on a WRONG pick, where it is the row the learner chose', async () => {
+    mockGetQuizById.mockResolvedValue(quizDoc())
+    mockGetQuestions.mockResolvedValue([mcq()]) // correctAnswer: 1
+    const { container } = renderRunner()
+
+    fireEvent.click(await screen.findByRole('button', { name: /Start Practice/i }))
+    await screen.findByText('What is 2 + 2?')
+
+    fireEvent.click(optionButtons(container)[0])
+    const revealed = optionButtons(container)
+    expect(revealed[0]).toHaveAttribute('data-selected', 'true')
+    expect(revealed[0]).toHaveAttribute('data-wrong', 'true')
+    // The key is highlighted but was NOT the learner's choice, and the two
+    // states are distinguishable — which is the whole point of the decision.
+    expect(revealed[1]).toHaveAttribute('data-correct', 'true')
+    expect(revealed[1]).toHaveAttribute('data-selected', 'false')
   })
 
   it('reveals the correct option when a learner picks it in practice mode', async () => {
