@@ -89,7 +89,16 @@ const sum = (rows) => rows.reduce((s, r) => s + r.total, 0)
 
 // Which themed container each file renders inside decides how it is fixed.
 const SURFACE = [
-  [/^src\/components\/games\/|^src\/components\/quiz\/QuizList/, 'learner: Games/Quizzes (.force-light-theme — remapped in #2027)'],
+  // `GameStickerStyles` is its own row because it is the one file here that is
+  // NOT exclusive to `.force-light-theme`: `GamesShell` and `QuizList` mount it
+  // inside that container, but `learnerDashboard`'s GradeHub and
+  // SubjectDrillDown mount it inside `.learner-game-theme`, and the stylesheet
+  // carries rules for both (`.learner-game-theme .zx-card` overrides the base
+  // `.zx-card`). Filing it under the force-light bucket alone would hand a
+  // remediation the wrong scope — the same failure this map's dead patterns
+  // cause, one file at a time instead of a whole surface.
+  [/^src\/shared\/components\/GameStickerStyles/, 'learner: Games/Quizzes — BOTH .force-light-theme and .learner-game-theme'],
+  [/^src\/features\/(games|quiz\/pages\/QuizList)|^src\/shared\/components\/Confetti/, 'learner: Games/Quizzes (.force-light-theme — remapped in #2027)'],
   // `.tdv2` is one themed container whose files now sit in two places: the
   // shell chrome here, and the stylesheet + tiles that both it and
   // `features/dashboardV2` use, which moved to the bottom layer in PR A of
@@ -100,7 +109,12 @@ const SURFACE = [
   [/^src\/features\/teacherShell\/|^src\/shared\/styles\/dashboardV2\.css|^src\/shared\/components\/(glassSurface\.css|GlassToolTile|BottomSheet)/, 'teacher: dashboardV2 (.tdv2 — tokenised, has is-dark)'],
   [/^src\/components\/teacher\/|^src\/features\/teacherSettings\//, 'teacher: .studio-theme'],
   [/^src\/components\/admin\//, 'admin'],
-  [/^src\/components\/(dashboard|exams|lessons|papers|parent|classes|quiz)\/|^src\/features\/(lessons|notes|learnerHome|learnerSettings)\//, 'learner: reading themes (body.theme-*)'],
+  // `src/features/quiz/` is the learner RUNTIME (runner + results); QuizList is
+  // on the `.force-light-theme` row above, as it was before the migration. The
+  // named `shared/components` files are the reading-assist cluster promoted out
+  // of `components/quiz/` — named individually rather than by directory,
+  // because that directory also holds teacher and admin chrome.
+  [/^src\/components\/(dashboard|exams|lessons|papers|parent|classes|quiz)\/|^src\/features\/(lessons|notes|learnerHome|learnerSettings|quiz)\/|^src\/shared\/components\/(PassageViewer|ReadingSettings|TextToSpeechButton|ThemePreview|QuizReviewScreen|ExtraQuestionImages|ZoomableImage)/, 'learner: reading themes (body.theme-*)'],
   [/^src\/components\/(marketing|seo)\//, 'marketing (public, pinned light)'],
   [/^src\/components\/(auth|subscription|ui|layout)\//, 'shared chrome'],
 ]
