@@ -947,6 +947,19 @@ test('passkeyUserHandles is fully closed to clients', () => {
   assert(/allow read, write:\s*if false/.test(block[1]), 'passkeyUserHandles is no longer closed to clients')
 })
 
+test('processedWebhookEvents is fully closed to clients', () => {
+  const block = rules.match(/match \/processedWebhookEvents\/\{[^}]+\}\s*\{([^}]+)\}/s)
+  assert(block, 'processedWebhookEvents match block not found')
+  // The WRITE side is the security-critical half: a client that could create a
+  // row here would pre-claim the key of a payment webhook that has not arrived,
+  // and the genuine delivery would then be discarded as a duplicate — a real
+  // activation suppressed by a forged row.
+  assert(
+    /allow read, write:\s*if false/.test(block[1]),
+    'processedWebhookEvents is no longer closed to clients — a client-writable replay ledger can suppress a real payment webhook',
+  )
+})
+
 test('passkeyAuditLog is admin-read, append-only via server', () => {
   const block = rules.match(/match \/passkeyAuditLog\/\{[^}]+\}\s*\{([\s\S]*?)\n {4}\}/)
   assert(block, 'passkeyAuditLog match block not found')

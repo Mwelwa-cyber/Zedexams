@@ -65,6 +65,16 @@ const RETAINED = new Map([
     "about people — the only uid it holds is the admin who last pressed the " +
     "alarm-drill button, an operator action rather than user data. Purging it " +
     "on a deletion would reset every alert cooldown to zero"],
+  ["processedWebhookEvents",
+    "Replay ledger for inbound webhook deliveries (Lenco, Meta WhatsApp). A " +
+    "row is a hashed delivery id plus the provider's own event fields — a " +
+    "Lenco reference (OUR payment doc id, not personal data) or a Meta wamid " +
+    "(an opaque message id; the phone number is deliberately not stored). " +
+    "RETAINED rather than purged because the rows are what stops a redelivery " +
+    "being processed twice: deleting a departing user's rows would REOPEN the " +
+    "replay window on their own payment webhooks, which is the failure the " +
+    "collection exists to prevent. Self-limiting anyway — every row carries a " +
+    "30-day expiresAt for a Firestore TTL policy"],
   ["adminAuditLogs", "append-only admin-action ledger; compliance record"],
   ["agentControl", "per-agent circuit-breaker flags; ops config"],
   ["aiAgentControls", "learner-AI agent toggles; ops config"],

@@ -2607,6 +2607,23 @@ async function main() {
     }))
   })
 
+  // ── processedWebhookEvents — the replay ledger ──
+  section('processedWebhookEvents — server-only in both directions')
+
+  await test('a learner CANNOT pre-claim a webhook event key', async () => {
+    // The attack this rule stops: create the row a real payment webhook would
+    // claim, and the genuine delivery is then discarded as a duplicate — a paid
+    // buyer silently never activated. The write side matters more than the read.
+    await assertFails(setDoc(doc(learnerA, 'processedWebhookEvents', 'lenco_deadbeef'), {
+      provider: 'lenco', reference: 'pay_1',
+    }))
+  })
+
+  await test('even an admin CANNOT read or write processedWebhookEvents from the client', async () => {
+    await assertFails(getDoc(doc(admin, 'processedWebhookEvents', 'lenco_deadbeef')))
+    await assertFails(setDoc(doc(admin, 'processedWebhookEvents', 'lenco_forged'), {provider: 'lenco'}))
+  })
+
   // ── opsMonitorState — the alerting's own memory ──
   section('opsMonitorState — server-only in both directions')
 

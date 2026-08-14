@@ -547,6 +547,37 @@ exports.buildPaymentHandlers = (deps) => {
         return;
       }
 
+      // Processed-event ledger (SECURITY_ENDPOINT_AUDIT §4.1) — after the
+      // signature check, so an unsigned payload can never write a ledger row
+      // and thereby suppress the genuine delivery it was forged to shadow.
+      //
+      // Identity is reference + type + status, NOT the collection id: Lenco
+      // sends pending and then successful for one payment, both carrying the
+      // same id, and dropping the second would leave a paid buyer without
+      // access. Fails open — activation is already idempotent, so processing a
+      // duplicate is safe, while refusing a real one is not.
+      {
+        const {claimWebhookEvent} = require("./webhookEventLedger");
+        const {lencoEventParts, PROVIDERS} = require("./webhookEventLedgerCore");
+        const body = req.body || {};
+        const claim = await claimWebhookEvent({
+          db: admin.firestore(),
+          provider: PROVIDERS.LENCO,
+          parts: lencoEventParts(body),
+          meta: {
+            reference: body?.data?.reference || body?.data?.id || null,
+            type: String(body?.event || body?.type || ""),
+            status: String(body?.data?.status || ""),
+          },
+        });
+        if (!claim.shouldProcess) {
+          // 200, not 4xx: Lenco should stop retrying something we have already
+          // handled. A non-2xx would keep the redeliveries coming.
+          res.status(200).send("duplicate");
+          return;
+        }
+      }
+
       try {
         const {processLencoWebhookEvent} = require("./lencoWebhookProcessor");
         const {

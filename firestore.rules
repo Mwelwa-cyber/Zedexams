@@ -2446,6 +2446,19 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Processed inbound webhook deliveries (Lenco payments, Meta WhatsApp) —
+    // the replay ledger. Claimed with a transactional create by
+    // functions/webhookEventLedger.js; the create failing IS the dedupe.
+    // Server-only in both directions, and the WRITE side is the security-
+    // critical half: a client able to create a row here could pre-claim the
+    // key of a payment webhook that has not arrived yet and have the genuine
+    // delivery discarded as a duplicate — suppressing a real activation. Read
+    // is closed too, since the ids would leak payment references.
+    // Rows carry `expiresAt` for a Firestore TTL policy to reap.
+    match /processedWebhookEvents/{eventKey} {
+      allow read, write: if false;
+    }
+
     // Cloud Functions error-watch state ("functionErrors", the drill scratch
     // doc, and per-admin drill throttles). Holds the streak counters and alert
     // cooldowns that decide whether the next memory kill pages anyone, so a

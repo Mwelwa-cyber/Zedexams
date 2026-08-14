@@ -340,6 +340,26 @@ exports.buildHttpSurfaceHandlers = (deps) => {
           // Dedupe Meta redeliveries of the same inbound message id.
           if (msg.messageId && conv.lastInboundId === msg.messageId) continue;
 
+          // Durable dedupe (SECURITY_ENDPOINT_AUDIT §4.1). The check above only
+          // remembers the LAST id per conversation, so Meta redelivering A after
+          // B has already arrived gets A processed a second time — and neither
+          // of the two things that follow is idempotent: an Anthropic call and
+          // an outbound WhatsApp send to a real person. The ledger remembers
+          // every id, and the claim happens BEFORE either cost is incurred.
+          // Fails open, so a Firestore blip degrades to the single-id check
+          // rather than dropping a learner's message.
+          {
+            const {claimWebhookEvent} = require("./webhookEventLedger");
+            const {whatsappEventParts, PROVIDERS} = require("./webhookEventLedgerCore");
+            const claim = await claimWebhookEvent({
+              db,
+              provider: PROVIDERS.WHATSAPP,
+              parts: whatsappEventParts(msg),
+              meta: {messageId: msg.messageId || null},
+            });
+            if (!claim.shouldProcess) continue;
+          }
+
           const history = Array.isArray(conv.history) ? conv.history : [];
           const {kind, reply, usedFallback} = await runBongaReply({
             inbound: msg,
