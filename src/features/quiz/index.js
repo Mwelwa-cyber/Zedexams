@@ -29,9 +29,15 @@
  * on their own consumer count, so promoting them cost nothing and removed the
  * only overlap.
  *
- * What stays in `src/components/quiz/` is therefore not a leftover; it is the
- * quiz AUTHORING surface, pinned there by a file the ruling did not cover. It
- * migrates as `features/quizEditor` when `CreateQuizV2` is released.
+ * What stayed in `src/components/quiz/` was therefore not a leftover; it was the
+ * quiz AUTHORING surface, pinned there by a file the ruling did not cover.
+ *
+ * **That happened the same day.** A fifth ruling released `CreateQuizV2`, and
+ * the editor is now `features/quizEditor` — including `CreateQuizV2` itself,
+ * which turned out to be a PAGE of that feature rather than a consumer of it.
+ * What remains at the old path is narrower again: the document-IMPORT body,
+ * held there by `utils/paperToQuizConverter.js` and the still-frozen
+ * `admin/AdminPastPapers`, plus the six `DailyExamRunner` shims below.
  *
  * ── The Phase 3 cutover moved with the runner, intact ───────────────────
  *
@@ -48,7 +54,7 @@
  * textually while silently dropping a side — here, a Phase 3 behaviour decision
  * and its two new regression cases.
  *
- * ── Six components went DOWN to `src/shared/components/` ────────────────
+ * ── Eight components went DOWN to `src/shared/components/` ─────────────
  *
  * The reading-assist cluster (`PassageViewer`, `ReadingSettingsButton`,
  * `ReadingSettingsSheet`, `TextToSpeechButton`, `ThemePreview`) and
