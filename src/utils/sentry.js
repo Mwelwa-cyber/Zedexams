@@ -178,6 +178,28 @@ export async function initSentry() {
         // it's third-party noise — the one-shot guard in firebase/config.js
         // prevents our own double-init; this filters the residual.
         /reCAPTCHA placeholder element must be empty/i,
+        // The invisible App Check widget's own expiry timer, rejecting a
+        // promise nobody owns. Google's recaptcha__en.js rejects with
+        // "reCAPTCHA Timeout (b)" from a background timer, so it reaches us
+        // through onunhandledrejection with handled=no and a two-frame stack
+        // that is entirely third-party — an error-level issue that names no
+        // user flow, on a page where nobody has done anything (the landing
+        // page, no sign-in, no upload).
+        //
+        // It is filtered rather than fixed because a reCAPTCHA timeout is a
+        // case we already handle by design, and BETTER instrumented from our
+        // own side than from Google's stack:
+        //   • Auth/Firestore fail open — resilientGetToken() races the mint
+        //     against 5s and resolves a placeholder, so nothing stalls
+        //     (firebase/appCheckResilient.js, the 2026-07-01 outage).
+        //   • A Storage WRITE is the one path with real consequence, and it
+        //     refuses through appCheckWriteGate with a reason the UI can state
+        //     honestly (WRITE_PLACEHOLDER) — that is the event worth counting.
+        //   • Standing attestation health is on /admin/app-check.
+        // So dropping this loses no signal; keeping it buries the ones above.
+        // Deliberately narrow: it must not swallow a DIFFERENT reCAPTCHA
+        // failure, which is why it matches the timeout wording and not /^reCAPTCHA/.
+        /reCAPTCHA Timeout/i,
       ],
     })
     sentryModule = Sentry

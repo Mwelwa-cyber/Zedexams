@@ -286,3 +286,44 @@ describe('sentry — role arriving before the SDK loads', () => {
     expect(Sentry.setUser).toHaveBeenCalledWith({ id: 'uid-learner' })
   })
 })
+
+/**
+ * The noise filter, pinned against the strings PRODUCTION actually sent.
+ *
+ * A filter list is the one kind of config that fails silently in both
+ * directions: too narrow and the issue keeps paging, too wide and it quietly
+ * eats a real regression, and neither shows up until someone reads the Sentry
+ * project weeks later. Each entry below is a message copied from a real issue,
+ * so the assertion is "this string would have been dropped" rather than "the
+ * regex looks about right".
+ */
+describe('sentry — third-party reCAPTCHA noise is filtered', () => {
+  const matches = (value) =>
+    Sentry.__opts.ignoreErrors.some((p) => (p instanceof RegExp ? p.test(value) : value.includes(p)))
+
+  it('drops the App Check widget timeout', async () => {
+    await loadSentry()
+    // Verbatim from the issue of 2026-08-14 06:07 UTC on https://zedexams.com/
+    // — handled=no, mechanism auto.browser.global_handlers.onunhandledrejection,
+    // both stack frames inside Google's recaptcha__en.js. The "(b)" is a
+    // minified discriminator and has been seen with other letters, so the
+    // pattern must not depend on it.
+    expect(matches('reCAPTCHA Timeout (b)')).toBe(true)
+    expect(matches('reCAPTCHA Timeout (c)')).toBe(true)
+    expect(matches('reCAPTCHA Timeout')).toBe(true)
+  })
+
+  it('drops the redundant-render throw', async () => {
+    await loadSentry()
+    expect(matches('reCAPTCHA placeholder element must be empty')).toBe(true)
+  })
+
+  it('keeps a reCAPTCHA failure that is not one of the two known ones', async () => {
+    await loadSentry()
+    // The reason the timeout pattern is worded, not /^reCAPTCHA/: a site-key
+    // or domain misconfiguration is OUR bug, it makes every client unattested,
+    // and a blanket prefix match would hide the only report of it.
+    expect(matches('Invalid site key or not loaded in api.js: reCAPTCHA')).toBe(false)
+    expect(matches('reCAPTCHA has already been rendered in this element')).toBe(false)
+  })
+})
