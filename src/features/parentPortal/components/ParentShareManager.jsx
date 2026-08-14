@@ -25,7 +25,7 @@ import {
   createProgressShare,
   listMyProgressShares,
   revokeProgressShare,
-} from '../../../utils/parentShares'
+} from '../services/parentShareService'
 import { siteOrigin } from '../../../utils/runtime.js'
 
 // Canonical origin so a link created inside the native app resolves — the

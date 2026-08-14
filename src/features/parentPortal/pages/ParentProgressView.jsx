@@ -18,7 +18,7 @@
 
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { getProgressShare } from '../../../utils/parentShares'
+import { getProgressShare } from '../services/parentShareService'
 import { SUBJECTS } from '../../../config/curriculum'
 import SeoHelmet from '../../../components/seo/SeoHelmet'
 import Logo from '../../../components/ui/Logo'
