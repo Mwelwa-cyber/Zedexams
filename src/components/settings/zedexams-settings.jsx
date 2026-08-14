@@ -10,7 +10,7 @@ import {
 import { isEmptySchoolProfile } from '../../utils/schoolProfile';
 import { deleteMyAccount, pickReauthMethod } from '../../utils/accountService';
 import { canSubmitDeletion, deletionErrorMessage } from '../../utils/accountReauth';
-import PasskeySection from '../auth/passkeys/PasskeySection';
+import { PasskeySection } from '../../features/auth';
 import CharacterAvatar, {
   CHARACTERS,
   INTEREST_GROUPS,

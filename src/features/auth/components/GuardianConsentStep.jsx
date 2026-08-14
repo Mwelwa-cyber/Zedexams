@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { sendGuardianConsentRequest } from '../../utils/ageGateService'
+import { sendGuardianConsentRequest } from '../../../utils/ageGateService'
 
 /**
  * The guardian hand-off, for a learner who declared an age under 18.

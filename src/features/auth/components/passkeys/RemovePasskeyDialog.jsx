@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import ConfirmDialog from '../../ui/ConfirmDialog'
-import { removePasskey, mapPasskeyError } from '../../../services/passkeyService'
+import ConfirmDialog from '../../../../components/ui/ConfirmDialog'
+import { removePasskey, mapPasskeyError } from '../../../../services/passkeyService'
 
 export default function RemovePasskeyDialog({ passkey, onClose, onRemoved, onError }) {
   const [busy, setBusy] = useState(false)

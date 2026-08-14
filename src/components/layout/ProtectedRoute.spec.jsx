@@ -21,7 +21,7 @@ vi.mock('../../contexts/AuthContext', () => ({
 
 // MissingProfileRecovery pulls more of AuthContext than the guard needs —
 // stub it to a marker so these tests stay focused on the guard's branching.
-vi.mock('../auth/MissingProfileRecovery', () => ({
+vi.mock('./MissingProfileRecovery', () => ({
   default: () => <div data-testid="profile-recovery" />,
 }))
 

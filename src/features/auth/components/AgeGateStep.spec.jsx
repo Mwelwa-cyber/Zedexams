@@ -15,7 +15,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
  */
 
 const recordAgeGateAttempt = vi.fn()
-vi.mock('../../utils/ageGateService', () => ({
+vi.mock('../../../utils/ageGateService', () => ({
   recordAgeGateAttempt: (...a) => recordAgeGateAttempt(...a),
   sendGuardianConsentRequest: vi.fn(),
   getDeviceId: () => 'device-test',

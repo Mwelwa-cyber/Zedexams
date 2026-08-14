@@ -1,7 +1,7 @@
 // Rendered in place of the passkey manager when the browser has no WebAuthn
 // support — the settings page keeps working, this is informational only.
-import { Info } from '../../ui/icons'
-import Icon from '../../ui/Icon'
+import { Info } from '../../../../components/ui/icons'
+import Icon from '../../../../components/ui/Icon'
 
 export default function PasskeyUnsupportedNotice() {
   return (

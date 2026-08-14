@@ -3,12 +3,12 @@
 // NEVER registered automatically after Google/password sign-in. Step 2 (after
 // the OS authenticator succeeded) lets the user name the new passkey.
 import { useRef, useState } from 'react'
-import ResponsiveModal from '../../ui/ResponsiveModal'
-import Button from '../../ui/Button'
-import Icon from '../../ui/Icon'
-import { Fingerprint, CheckCircleIcon as CheckCircle } from '../../ui/icons'
+import ResponsiveModal from '../../../../components/ui/ResponsiveModal'
+import Button from '../../../../components/ui/Button'
+import Icon from '../../../../components/ui/Icon'
+import { Fingerprint, CheckCircleIcon as CheckCircle } from '../../../../components/ui/icons'
 import PasskeySecurityExplanation from './PasskeySecurityExplanation'
-import { registerPasskey, renamePasskey, mapPasskeyError, PASSKEY_ERRORS } from '../../../services/passkeyService'
+import { registerPasskey, renamePasskey, mapPasskeyError, PASSKEY_ERRORS } from '../../../../services/passkeyService'
 
 export default function AddPasskeyDialog({ onClose, onAdded }) {
   // 'confirm' → 'registering' (OS prompt is up) → 'name' (registered)

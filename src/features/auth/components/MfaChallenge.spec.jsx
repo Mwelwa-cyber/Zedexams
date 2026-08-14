@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
-vi.mock('../../services/adminMfa', () => ({
+vi.mock('../../../services/adminMfa', () => ({
   findTotpHint: vi.fn(),
   completeTotpSignIn: vi.fn(),
 }))
 
-import { findTotpHint, completeTotpSignIn } from '../../services/adminMfa'
+import { findTotpHint, completeTotpSignIn } from '../../../services/adminMfa'
 import MfaChallenge from './MfaChallenge'
 
 const resolver = { hints: [{ factorId: 'totp', uid: 'h1' }], session: {} }

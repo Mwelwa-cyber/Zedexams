@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
-import { sendGuardianConsentRequest } from '../../utils/ageGateService'
-import Button from '../ui/Button'
+import { sendGuardianConsentRequest } from '../../../utils/ageGateService'
+import Button from '../../../components/ui/Button'
 
 /**
  * The minor's success screen.

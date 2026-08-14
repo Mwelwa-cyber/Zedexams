@@ -5,8 +5,7 @@ import { ShieldCheck, Copy, Check, Key, LogOut, AlertTriangle } from '../../../c
 import Logo from '../../../components/ui/Logo'
 import Button from '../../../components/ui/Button'
 import Icon from '../../../components/ui/Icon'
-import OtpInput from '../../../components/auth/OtpInput'
-import GoogleSignInButton from '../../../components/auth/GoogleSignInButton'
+import { OtpInput, GoogleSignInButton } from '../../auth'
 import { useAuth } from '../../../contexts/AuthContext'
 import {
   beginTotpEnrollment,

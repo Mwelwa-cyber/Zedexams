@@ -2,8 +2,8 @@
 // surface, same outlined style. The fingerprint glyph is illustrative only:
 // passkeys also cover face, PIN, screen lock, and hardware keys, which is
 // why the supporting copy never says just "fingerprint".
-import { Fingerprint } from '../ui/icons'
-import Icon from '../ui/Icon'
+import { Fingerprint } from '../../../components/ui/icons'
+import Icon from '../../../components/ui/Icon'
 
 export default function PasskeySignInButton({ onClick, loading, disabled }) {
   return (

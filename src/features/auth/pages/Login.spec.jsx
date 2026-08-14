@@ -17,7 +17,7 @@ import { MemoryRouter } from 'react-router-dom'
 // firebase/config.js (imported transitively) calls initializeApp + getAuth
 // at module load time, which throws without valid env vars. The mock below
 // short-circuits that entirely.
-vi.mock('../../firebase/config', () => ({
+vi.mock('../../../firebase/config', () => ({
   default: {},
   auth: {},
   db: {},
@@ -30,7 +30,7 @@ vi.mock('firebase/auth', () => ({
 
 // The MFA service loads firebase/functions at module init (getFunctions), which
 // needs a real app — stub it so Login's transitive import doesn't blow up.
-vi.mock('../../services/adminMfa', () => ({
+vi.mock('../../../services/adminMfa', () => ({
   getResolver: vi.fn(),
   findTotpHint: vi.fn(),
   completeTotpSignIn: vi.fn(),
@@ -38,7 +38,7 @@ vi.mock('../../services/adminMfa', () => ({
 }))
 
 // Mock AuthContext so we fully control what useAuth() returns.
-vi.mock('../../contexts/AuthContext', () => ({
+vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: vi.fn(),
   SESSION_EXPIRED_KEY: 'auth:sessionExpired',
   hasAuthSessionHint: vi.fn(() => false),
@@ -55,7 +55,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
 // can exercise every branch of the passkey section (hidden / shown /
 // unsupported fallback) without touching real platform settings or WebAuthn.
 const mockPasskeyFlag = { enabled: false }
-vi.mock('../../contexts/PlatformSettingsContext', () => ({
+vi.mock('../../../contexts/PlatformSettingsContext', () => ({
   usePlatformSettings: () => ({
     settings: { featureFlags: { passkeyAuthenticationEnabled: mockPasskeyFlag.enabled } },
     loaded: true,
@@ -64,7 +64,7 @@ vi.mock('../../contexts/PlatformSettingsContext', () => ({
 
 const mockPasskeySupport = { supported: false }
 const mockSignInWithPasskey = vi.fn()
-vi.mock('../../services/passkeyService', async (importOriginal) => {
+vi.mock('../../../services/passkeyService', async (importOriginal) => {
   const actual = await importOriginal()
   return {
     ...actual,
@@ -73,8 +73,8 @@ vi.mock('../../services/passkeyService', async (importOriginal) => {
   }
 })
 
-import { useAuth, hasAuthSessionHint } from '../../contexts/AuthContext'
-import { getResolver, findTotpHint } from '../../services/adminMfa'
+import { useAuth, hasAuthSessionHint } from '../../../contexts/AuthContext'
+import { getResolver, findTotpHint } from '../../../services/adminMfa'
 import Login from './Login'
 
 // Minimal auth mock helpers

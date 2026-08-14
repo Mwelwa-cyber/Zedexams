@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
-import ResponsiveModal from '../../ui/ResponsiveModal'
-import Button from '../../ui/Button'
-import { renamePasskey, mapPasskeyError } from '../../../services/passkeyService'
+import ResponsiveModal from '../../../../components/ui/ResponsiveModal'
+import Button from '../../../../components/ui/Button'
+import { renamePasskey, mapPasskeyError } from '../../../../services/passkeyService'
 
 export default function RenamePasskeyDialog({ passkey, onClose, onRenamed }) {
   const [name, setName] = useState(passkey?.name || '')

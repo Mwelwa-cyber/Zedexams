@@ -1,11 +1,11 @@
 import { useRef, useState } from 'react'
-import { ShieldCheck } from '../ui/icons'
-import Logo from '../ui/Logo'
-import Button from '../ui/Button'
-import Icon from '../ui/Icon'
+import { ShieldCheck } from '../../../components/ui/icons'
+import Logo from '../../../components/ui/Logo'
+import Button from '../../../components/ui/Button'
+import Icon from '../../../components/ui/Icon'
 import OtpInput from './OtpInput'
-import { findTotpHint, completeTotpSignIn } from '../../services/adminMfa'
-import { mfaErrorMessage } from '../../utils/mfaErrors'
+import { findTotpHint, completeTotpSignIn } from '../../../services/adminMfa'
+import { mfaErrorMessage } from '../../../utils/mfaErrors'
 
 /**
  * MfaChallenge — the second-factor step of sign-in.

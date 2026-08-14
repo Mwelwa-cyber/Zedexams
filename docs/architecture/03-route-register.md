@@ -24,7 +24,7 @@ Every route in the SPA is declared in `src/App.jsx` or the teacher route table. 
 | Wrapper | File | Effect |
 |---|---|---|
 | `ProtectedRoute` | `src/components/layout/ProtectedRoute.jsx` | Requires auth; `requiredRole` prop enforces a role *level* (learner=1, teacher=2, admin=3). |
-| `LearnerOnlyRoute` | `src/components/auth/LearnerOnlyRoute.jsx` | Restricts a route to learner-role users (bounces teacher/admin to their landing). |
+| `LearnerOnlyRoute` | `src/components/layout/LearnerOnlyRoute.jsx` | Restricts a route to learner-role users (bounces teacher/admin to their landing). |
 | `AdminRoute` (local) | `App.jsx` | `ProtectedRoute requiredRole="admin"` + `AdminLayout`. |
 | `AdminMfaGate` | `src/components/layout/AdminMfaGate.jsx` | 30-minute step-up TOTP gate; wraps `/dev/ui` and the admin destructive surfaces. |
 | `TeacherRoute` | expanded by `page()`/`studio()` in `teacherRoutes.jsx` | `ProtectedRoute requiredRole="teacher"` + `TeacherLayout`. |

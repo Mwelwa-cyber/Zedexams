@@ -36,7 +36,7 @@ client can't forge).
 | Native bridge | `android/.../RecaptchaPlugin.java` + `MainActivity.java` (`registerPlugin`) | exposes `execute({action})` → token to the WebView |
 | Permission | `AndroidManifest.xml` | `android.permission.INTERNET` (already present) |
 | JS helper | `src/utils/recaptcha.js` | `assessAction(action)` → mint token + call backend; `shouldBlock(result)` |
-| Wiring | `src/components/auth/Login.jsx`, `Register.jsx` | fail-open gate before the credential call |
+| Wiring | `src/features/auth/pages/Login.jsx`, `Register.jsx` | fail-open gate before the credential call |
 | Backend | `functions/recaptchaEnterprise.js` (I/O), `functions/recaptchaAssessmentCore.js` (pure logic), `assessRecaptcha` in `functions/index.js` | trades token for a score via the Assessment API |
 | Tests | `functions/recaptchaAssessment.test.js` (`npm run test:recaptcha`) | request-building + verdict logic |
 

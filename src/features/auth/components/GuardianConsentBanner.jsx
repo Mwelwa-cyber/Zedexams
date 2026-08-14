@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
-import { useAuth } from '../../contexts/AuthContext'
-import { resolveLearnerAccess, CONSENT_STATUS } from '../../utils/guardianConsent'
-import { sendGuardianConsentRequest } from '../../utils/ageGateService'
+import { useAuth } from '../../../contexts/AuthContext'
+import { resolveLearnerAccess, CONSENT_STATUS } from '../../../utils/guardianConsent'
+import { sendGuardianConsentRequest } from '../../../utils/ageGateService'
 
 /**
  * The learner-facing half of limited mode, and the migration prompt for

@@ -18,13 +18,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
-vi.mock('../../firebase/config', () => ({ default: {}, auth: {}, db: {}, googleProvider: {} }))
-vi.mock('../../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
-vi.mock('../../utils/referrals', () => ({ captureReferralFromUrl: () => null }))
+vi.mock('../../../firebase/config', () => ({ default: {}, auth: {}, db: {}, googleProvider: {} }))
+vi.mock('../../../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
+vi.mock('../../../utils/referrals', () => ({ captureReferralFromUrl: () => null }))
 // The age gate calls the retry-cooldown endpoint before routing, and the
 // guardian step calls the consent sender. Stub both; each has its own spec.
 const mockSendGuardianConsent = vi.fn()
-vi.mock('../../utils/ageGateService', () => ({
+vi.mock('../../../utils/ageGateService', () => ({
   recordAgeGateAttempt: vi.fn().mockResolvedValue({ blocked: false }),
   sendGuardianConsentRequest: (...a) => mockSendGuardianConsent(...a),
   getDeviceId: () => 'device-test',
@@ -36,7 +36,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
   return { ...actual, useNavigate: () => mockNavigate }
 })
 
-import { useAuth } from '../../contexts/AuthContext'
+import { useAuth } from '../../../contexts/AuthContext'
 import Register from './Register'
 
 const mockRegister = vi.fn()
