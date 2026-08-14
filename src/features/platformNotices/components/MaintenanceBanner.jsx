@@ -1,5 +1,5 @@
-import { usePlatformSettings } from '../../contexts/PlatformSettingsContext'
-import { useAuth } from '../../contexts/AuthContext'
+import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
+import { useAuth } from '../../../contexts/AuthContext'
 
 export default function MaintenanceBanner() {
   const { settings } = usePlatformSettings()

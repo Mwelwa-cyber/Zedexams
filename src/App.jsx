@@ -5,9 +5,8 @@ import { useTheme, applyThemeToBody, DEFAULT_THEME } from './contexts/ThemeConte
 import { getTeacherTheme } from './contexts/teacherThemeCore'
 import TeacherThemeSync from './contexts/TeacherThemeSync'
 import { PlatformSettingsProvider } from './contexts/PlatformSettingsContext'
-import MaintenanceBanner from './components/banners/MaintenanceBanner'
+import { MaintenanceBanner, AndroidUpdateBanner } from './features/platformNotices'
 import { AnnouncementBanner } from './features/announcements'
-import AndroidUpdateBanner from './components/banners/AndroidUpdateBanner'
 import { SubscriptionStatusBanner } from './features/subscription'
 import ProtectedRoute from './app/guards/ProtectedRoute'
 import { TEACHER_ROUTES, FlaggedStudioRoute } from './components/teacher/teacherRoutes'
@@ -124,7 +123,7 @@ const TeacherSettings = lazy(() => import('./features/teacherSettings/TeacherSet
 const LearnerSettings = lazy(() => import('./features/learnerSettings/LearnerSettings'))
 const PaywallHost = lazy(() => import('./features/subscription/components/PaywallHost'))
 const PostUpgradeContinuation = lazy(() => import('./features/subscription/components/PostUpgradeContinuation'))
-const NativePlayBillingSync = lazy(() => import('./components/native/NativePlayBillingSync'))
+const NativePlayBillingSync = lazy(() => import('./features/subscription/components/NativePlayBillingSync'))
 const LockedFeatureModal = lazy(() => import('./features/subscription/components/LockedFeatureModal'))
 const QuizLimitPopup = lazy(() => import('./features/subscription/components/QuizLimitPopup'))
 const SubscriptionReminderPopup = lazy(() => import('./features/subscription/components/SubscriptionReminderPopup'))

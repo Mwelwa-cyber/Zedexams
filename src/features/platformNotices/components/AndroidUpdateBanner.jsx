@@ -14,8 +14,8 @@
  */
 
 import { useEffect, useState } from 'react'
-import { isNativePlatform } from '../../utils/runtime'
-import { usePlatformSettings } from '../../contexts/PlatformSettingsContext'
+import { isNativePlatform } from '../../../utils/runtime'
+import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
 
 const DISMISS_KEY = 'examprep:androidUpdateDismissed'
 

@@ -2402,3 +2402,44 @@ confirmation and leaves the deletion to the phase allowed to act on it.
 sites) · `diagrams/`, `theme/`, `banners/`, `native/` (38 sites) · then the
 `ui/` + `seo/` promotion (926 sites), which is the bulk and goes last so the
 smaller moves are not held behind its review.
+
+**Step 2 of the seven-directory claim landed HALF the directories it named, and
+the other half is blocked by the freeze rather than deferred.** `banners/` and
+`native/` moved; `diagrams/` and `theme/` cannot, and the reason is the one
+`pastPapers.js` already recorded: **a module travels when its consumers can be
+edited, and these have consumers that cannot.**
+
+- **`diagrams/` is pinned by six frozen readers.** `DiagramSvg` and
+  `diagramCatalog` are imported by `components/quiz/QuizRunnerV2`,
+  `QuizResultsV2`, `QuizSectionsEditor`, `QuizEditorPreviewPanel`,
+  `components/exams/DailyExamRunner` and `components/teacher/views/PaperBlocks`
+  — `components/quiz/`, `DailyExamRunner` and `views/PaperBlocks` are all named
+  on the freeze list by path. Moving the directory means editing six frozen
+  files' import lines.
+- **`theme/` is pinned by one.** `ReadingThemePicker`'s consumers are
+  `features/notes` and `components/quiz/QuizRunnerV2`. One frozen reader is
+  enough. `ReadingThemeSwatches` could technically move alone — it passes §14.6
+  and its consumers are `ReadingThemePicker` and `features/learnerSettings` —
+  but splitting a three-file directory to relocate its leaf, leaving the
+  component that renders it behind, buys nothing and costs a reader the ability
+  to find the pair.
+
+**The shim precedent exists and was deliberately not used.** #2363 kept
+`components/subscription/UpgradeModal.jsx` as a one-line re-export so three
+frozen consumers stayed byte-identical, and the same trick would unblock both
+directories here. It was not applied, on the balance those two cases do not
+share: `UpgradeModal` is ONE module behind ONE shim serving three readers, and
+the shim carries its own retirement condition. `diagrams/` would need THREE
+shims for six readers, and `test:shim-guard` exists because a re-export shim is
+exactly where a rule quietly grows a second copy. Three permanent shims to
+relocate four files is a worse artefact than four files in the wrong directory,
+and the freeze that pins them is tracked and will lift.
+
+**Where they go when it does, measured now so the next session need not
+re-derive it.** `diagrams/` fails §14.6 on curriculum knowledge, so it is not
+`src/shared/`; its three feature consumers (`assessmentStudio`,
+`teacherLibrary`, `visualStudio`) plus `engines/export-engine` make it a
+`src/curriculum/` candidate rather than any one feature's property — no Firebase
+appears anywhere in its closure, which that layer also forbids. `theme/` is a
+learner reading-preference pair and belongs with `learnerSettings`, whose
+`PersonalisationPanel` already renders the swatches.
