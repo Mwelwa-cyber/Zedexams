@@ -251,7 +251,17 @@ const KNOWN_LEGACY_FEATURE_IMPORTS = new Set([
   //     components/quiz/ExtraQuestionImages.jsx, for components/exams/
   //     DailyExamRunner.jsx — on the freeze list in its own right, outside
   //     Phase 3, and not covered by the ruling that released components/quiz/.
-  //     They retire together with that runner.
+  //     RETIRED 2026-08-14, and NOT by the event they predicted: they said
+  //     "when the Daily Quiz rework replaces that runner — or sooner, if the
+  //     freeze lifts first", and the freeze lifted first. The sixth owner
+  //     ruling closed it, DailyExamRunner moved to features/dailyExams/, and
+  //     src/components/quiz/ is gone entirely — its document-import body went
+  //     DOWN to src/services/quizImport/ once AdminPastPapers was released.
+  //
+  // So all seven shims from those two migrations are now retired, and the
+  // finding above held for every one of them: because each pointed at
+  // src/shared/components/ rather than into a feature, not one ever appeared
+  // on this list, and retiring them changed neither count.
   'src/components/teacher/TeacherDashboard.jsx → ../../features/teacherSettings/lib/useTeachingProfile',
   // FORCED, and recorded rather than avoided — `teacherShell` PR B. Every other
   // entry on this list clears when its caller migrates into a feature; this one

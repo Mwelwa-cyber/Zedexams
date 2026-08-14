@@ -14,9 +14,16 @@
  * 2026-08-14 releasing games from that clause — the third such ruling, after
  * `components/papers/` and the Assessment Paper Studio, and like both of those
  * it is a decision about ONE surface rather than a re-reading of the clause.
- * **The freeze itself did not lift.** `components/quiz/`, `views/PaperBlocks`,
- * `views/AssessmentPaperView`, `admin/PastPaperStudio`, `admin/CreateQuizV2`
- * and `DailyExamRunner` are untouched by this PR and remain fully frozen.
+ * **The freeze itself did not lift** — as of THIS migration. `components/quiz/`,
+ * `views/PaperBlocks`, `views/AssessmentPaperView`, `admin/PastPaperStudio`,
+ * `admin/CreateQuizV2` and `DailyExamRunner` were untouched by this PR and
+ * remained frozen when it landed.
+ *
+ * **UPDATE, later the same day: the freeze is CLOSED.** A sixth owner ruling
+ * released the whole remaining list, and every surface named in the paragraph
+ * above has since migrated. The rollout flags are still at their fail-closed
+ * defaults — that ruling replaced the freeze's condition rather than meeting
+ * it — so nothing here should be read as the Phase 3 ramp having happened.
  *
  * What the freeze protects is preserved by construction: the Phase 3 cutover
  * lives INSIDE `components/TimedQuizGame.jsx`, which reads

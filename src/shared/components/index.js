@@ -127,7 +127,7 @@
  *     `QuizReviewScreen` — drawn by `features/quiz/QuizRunnerV2`,
  *     `features/papers/PublicQuizRunner`, and `features/dailyExams/DailyExamRunner`.
  *   • `ExtraQuestionImages` and `ZoomableImage` — the same three, plus the quiz
- *     EDITOR, which stays in `src/components/quiz/` behind the frozen
+ *     EDITOR, which at the time stayed in `src/components/quiz/` behind the frozen
  *     `admin/CreateQuizV2`. Those two were the ONLY modules the runner and the
  *     editor shared, so promoting them is what made the runner separable at all.
  *
@@ -136,11 +136,18 @@
  * `editor/RichContent` (19 modules of TipTap and KaTeX, no Firebase). None
  * touches a curriculum rule, an AI prompt, a Firestore query or payment logic.
  *
- * `DailyExamRunner` is on the freeze list in its own right — outside Phase 3
+ * `DailyExamRunner` was on the freeze list in its own right — outside Phase 3
  * entirely, retiring with the Daily Quiz rework — and was NOT covered by the
- * ruling that released `components/quiz/`. It reaches six of these through
- * one-line shims at the old paths, so it is byte-identical to `main` and no
- * debt entry was needed.
+ * ruling that released `components/quiz/`. It reached six of these through
+ * one-line shims at the old paths, so it stayed byte-identical to `main` and
+ * no debt entry was needed.
+ *
+ * **Those six shims are GONE (2026-08-14).** The sixth owner ruling closed the
+ * freeze; `DailyExamRunner` migrated to `features/dailyExams/pages/` and now
+ * imports these six directly. Nothing about the placement argument changes —
+ * the components are still shared by three areas and still belong below all of
+ * them — but the shim layer that proved it is no longer there to read, which
+ * is why it is recorded here.
  *
  * ## The UI primitives, promoted whole (2026-08-14)
  *

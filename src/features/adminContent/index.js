@@ -23,7 +23,7 @@
  *
  * **Both were released by owner ruling on 2026-08-14** and are here. The
  * reasoning above was not wrong and is kept: the Phase 3 rollout flags have
- * NOT reached 100%, `components/quiz/` is still frozen, and `ManageContent`
+ * NOT reached 100%. (`components/quiz/` was still frozen when this was written; the freeze closed on 2026-08-14 and that directory is gone — the import body it refers to is now `src/services/quizImport/`.) `ManageContent`
  * still imports `ImportReviewBadge` from it across the legacy boundary. What
  * changed is that the owner weighed these two surfaces specifically. Nothing
  * here licenses moving anything else the freeze names.
