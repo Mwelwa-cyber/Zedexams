@@ -432,21 +432,23 @@ export const INVENTORY = Object.freeze([
   // reports this file once because it cannot see the seven entry points inside
   // it, and neither can a reviewer. Splitting them into modules is a
   // prerequisite for migrating any of them." Phase 5 batch 2 performed that
-  // split, so the composite has shrunk to the surfaces still declared inline
-  // here, and the extracted bodies are recorded as their own files below.
+  // split and batch 3 finished it: NO provider-backed body is declared inline
+  // in functions/index.js any more, so that composite record is gone rather
+  // than shrunk, and every extracted body is recorded as its own file.
   {
-    file: 'functions/index.js',
+    file: 'functions/httpSurfaceHandlers.js',
     class: CLASSES.composite,
     tier: null,
     state: 'unmigrated',
     entryPoint: 'apiAiChat',
-    clientSurface: 'several',
-    produces: 'several',
+    clientSurface: 'Zed learner chat (SSE)',
+    produces: 'chat reply',
     incompleteResultSaveable: true,
-    note: 'What remains after Phase 5 batch 2: the SSE chat endpoint, whose '
-      + 'body is still inline here. It is an onRequest surface rather than a '
-      + 'callable, so it was in neither batch 1 nor batch 2; no tier is '
-      + 'assigned until it moves.',
+    note: 'Split out of functions/index.js by Phase 5 batch 3. The SSE half of '
+      + 'Zed; an onRequest surface rather than a callable, so it was in neither '
+      + 'batch 1 nor batch 2 and carries no tier. The body moved verbatim, so '
+      + 'its migration state is unchanged by the move — what changed is that it '
+      + 'is now visible to a reviewer as its own file.',
   },
   {
     file: 'functions/quizAiHandlers.js',
@@ -474,8 +476,8 @@ export const INVENTORY = Object.freeze([
     produces: 'chat reply',
     incompleteResultSaveable: true,
     note: 'Split out of functions/index.js by Phase 5 batch 2. The callable '
-      + 'half of Zed; the SSE half (apiAiChat) is still inline in index.js, '
-      + 'which is why both files appear in this inventory.',
+      + 'half of Zed; the SSE half (apiAiChat) moved to httpSurfaceHandlers.js '
+      + 'in batch 3, which is why both files appear in this inventory.',
   },
 
   // ── Agents: autonomous, no waiting user ───────────────────────────────

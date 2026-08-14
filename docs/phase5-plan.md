@@ -6,6 +6,58 @@
 
 ## Ledger
 
+> **2026-08-14 — batch 3 extracted; EXIT CRITERIA 1 AND 2 MET, 3 AND 4 OPEN.**
+> The 11 payment/webhook + audit-surface bodies moved to
+> `functions/paymentHandlers.js` (9) and `functions/httpSurfaceHandlers.js` (2).
+> `index.js` 3,601 → 2,517 lines. **No provider-backed or payment body is
+> declared inline in `index.js` any more.**
+>
+> Membership was DERIVED (`batch === 3`), not read from the table below.
+>
+> What the verification actually proves, in the order it was run:
+>
+> - **Frozen surface: 0 drift across all 195 exports.** Options, kind, rewrite
+>   path and classification compared field-by-field against `main`; the only
+>   manifest change is `inline: true → false` and `batch: 3 → null` on the 11.
+> - **Bodies are byte-identical.** Each moved body was de-indented and compared
+>   to the text that was in `index.js` on `main`: 11/11 exact. "No behaviour
+>   change" is therefore a property of the method, not a claim about care.
+> - **`index.js` LOADS.** 195 exports materialize, all 11 among them. This is
+>   the check a green deploy does not make — a TDZ fault throws at container
+>   start, after upload has already succeeded.
+> - **`no-undef` over both new modules + `index.js`, clean, with a control**
+>   proving the run can fail. `eslint.config.js` still does not enable it for
+>   `functions/`, so an un-injected dep would otherwise surface as a
+>   ReferenceError inside a payment handler.
+> - **Exit criterion 2 is met:** `test:payment-lifecycle-emulator` (35
+>   assertions, real Firestore emulator), `test:lenco-webhook`,
+>   `test:payment-contract`, `test:payment-initiation`, `test:admin-payments` all
+>   green on the final state; plus 713 node scripts, 3,827 Vitest tests, build.
+>
+> Two defects batch 2 recorded were hit again and fixed the way it fixed them,
+> which is the value of having written them down:
+>
+> 1. **TDZ.** `CHAT_HEARTBEAT_MS` is a `const` declared below the build point and
+>    `apiAiChat` closes over it. Hoisted beside `ZED_CHAT_MODEL`.
+> 2. **Span attribution.** The deps object names `anthropicApiKey`/`openaiApiKey`,
+>    and `aiEndpointDiscovery` attributes every line to the nearest preceding
+>    `exports.X` — so placed mid-file it made an unrelated export look
+>    provider-backed. It now sits ahead of every export, where it belongs to no
+>    span.
+> 3. **Path-keyed inventories went stale, loudly.** `aiProviderCallInventory`'s
+>    `apiAiChat` row re-pointed to `httpSurfaceHandlers.js`; the generator
+>    inventory's `functions/index.js` composite record is now GONE rather than
+>    shrunk, because nothing provider-backed remains inline there.
+>
+> **This does not close Phase 5.** Exit criteria 3 (audit burn-down — separate
+> PRs, by the rule above) and 4 (backup/restore drill, which needs production
+> access) are untouched by this batch and remain open. `setUserRole` still reads
+> `inline: true`: that is the one-line v1 builder chain
+> `functions.auth.user().onCreate(userRoleTrigger)`, whose handler already lives
+> in `account/userRoleTrigger`. Criterion 1's "every inline handler in a domain
+> module" is satisfied for it; the manifest's `inline` flag means "the builder is
+> written in index.js", which is not the same question.
+
 > **Phase 5: BOTH GATES CLEAR (2026-08-12).** Batch 2 was paused on 2026-08-09
 > pending (a) Cloud Functions error monitoring and (b) the manifest's
 > `optionsUnresolved` blind spot. Both are now closed:
@@ -125,7 +177,7 @@ expression), while their options are guarded where they are defined.
 |---|---|---|---|
 | 1 | mechanical (no secrets) | 14 | standard CI |
 | 2 | secrets-bound | derive from the manifest (23 on 2026-08-09; was 21 at PR-zero) | **UNBLOCKED 2026-08-12** — both gates closed (see the ledger). Standard CI + secrets bindings pinned by the guard, which now reads every export's options. Scheduling is a separate decision: this batch deploys Functions |
-| 3 | payment/webhook + audit-surface | 11 | **deferred until external review coverage is restored**; payment-lifecycle emulator + webhook-signature suites mandatory |
+| 3 | payment/webhook + audit-surface | 11 | **EXTRACTED 2026-08-14** on owner instruction, over the standing "deferred until external review coverage is restored" hold — that hold was the owner's to lift and they lifted it. The mandatory suites ran and are green (see the ledger); the audit burn-down on these same surfaces is still a SEPARATE PR and is still outstanding |
 
 Every batch, regardless of apparent relevance, runs the payment-lifecycle
 emulator suite and the webhook-signature tests before merge.
@@ -353,11 +405,25 @@ follower with a positive and a negative control.
 
 ## Exit criteria
 
-1. `functions/index.js` reduced to exports; every inline handler in a domain
-   module; drift guard green throughout.
-2. Payment-lifecycle emulator + webhook-signature suites green on the final
-   state.
-3. Audit burn-down complete (separate PRs, external review restored).
-4. **Backup/restore drill re-run** — architecture.md §1129 re-arms the
-   restore rehearsal after Phase 5, by original instruction. This is an exit
-   criterion, recorded now rather than discovered at completion.
+Status as of 2026-08-14. Re-derive rather than trusting these marks — the
+manifest is the authority for 1, and a test run is the authority for 2.
+
+1. ✅ **MET.** `functions/index.js` reduced to exports; every inline handler in a
+   domain module; drift guard green throughout. Derive:
+   `node -e "const m=require('./scripts/functions-manifest.json').exports;
+   console.log(Object.values(m).filter(e=>e.inline).length)"` → 1, which is
+   `setUserRole`'s v1 builder chain, whose handler is already modular
+   (see the 2026-08-14 ledger entry).
+2. ✅ **MET on the final state** (2026-08-14): payment-lifecycle emulator +
+   webhook-signature suites green, alongside the full node and Vitest suites and
+   a production build.
+3. ⬜ **OPEN.** Audit burn-down complete (separate PRs, external review
+   restored). Untouched by any extraction batch, by the rule that these never
+   ride along with a relocation.
+4. ⬜ **OPEN.** **Backup/restore drill re-run** — architecture.md §1129 re-arms
+   the restore rehearsal after Phase 5, by original instruction. This is an exit
+   criterion, recorded early rather than discovered at completion. It needs
+   production access, so it is owner-side.
+
+**Phase 5 is therefore NOT closed.** Two of four criteria remain, and neither is
+an extraction.
