@@ -878,6 +878,61 @@ as its own decision.
    Post-cutover, for both renderers, with the visual baselines re-recorded in
    the same change. (Owner decision, 2026-08-05.)
 
+2. **The `selected` state on reveal. DECIDED 2026-08-14: it is RETAINED, and
+   `QuizRunnerV2`'s old card is conformed to the other two.**
+
+   The divergence, from the quiz cutover: `QuizRunnerV2` passed
+   `selected={!isRevealed && …}`, clearing the learner's selection the moment
+   the answer was revealed; `PublicQuizRunner` passes `selected={selection ===
+   idx}` ungated, and the engine's `buildChoiceRows` computes `answer === index`
+   ungated. **The two legacy runners disagreed with each other**, which is why
+   this could not be settled inside a cutover — "conform to the old behaviour"
+   has no single referent when the old behaviours differ.
+
+   It was settled by looking at what `selected` DOES in each renderer rather
+   than by preference, and the answer is not symmetric:
+
+   - **In two of the three it is load-bearing after reveal.**
+     `buildChoiceRows` derives `wrong: revealed && selected && !isKey`, and
+     `PublicQuizRunner`'s card branches on `revealed && selected && !correct`
+     for its rose state and its ✗. Clearing the selection there does not
+     restyle anything — it **deletes the wrong-answer marker**, and the row a
+     learner got wrong goes quietly unmarked. So "clear on reveal" was never
+     implementable in the shared renderer without first decoupling the ✗ from
+     the selection, which is a larger change with nothing asking for it.
+   - **Only `QuizRunnerV2` could clear it**, because that card alone takes
+     `wrong` as a separate prop computed at the call site. That is a difference
+     in WIRING, not a decision anyone made — which is the finding that turned
+     this from a product choice into a one-line conform.
+
+   What retaining it buys the learner is why the direction is right on its own
+   merits rather than merely convenient: **a ✓ appears on the key whether or
+   not the learner chose it.** Without a retained selection, "I answered this
+   correctly" and "this was the answer I missed" render identically, and the
+   only way to tell them apart is to scan every other row for a ✗ — cheap by
+   eye, expensive with a screen reader, where it means traversing the whole
+   list to establish an absence. `aria-pressed` on the engine card carries the
+   same fact directly.
+
+   **The visible change is smaller than it sounds, and was measured rather than
+   estimated.** The verdict colours already win:
+   `[data-quiz-theme] .zx-opt[data-correct="true"]` and `[data-wrong="true"]`
+   have the same specificity as `[data-selected="true"]` and are declared AFTER
+   it, so the row's background is identical either way. What actually changes on
+   a revealed quiz card is the picked row's letter pill (white, via
+   `.zx-opt[data-selected="true"] .zx-opt-letter`) and, on the engine card,
+   `aria-pressed`.
+
+   **No visual baseline re-record**, checked rather than assumed: the screen
+   gate's entry renders `QuestionRenderer` / `ChoiceQuestion` / `QuestionPrompt`
+   only, and none of those changed. That is the one respect in which this item
+   differs from item 1 above, which does require one.
+
+   `DailyExamRunner` also has a `data-selected` option button and is
+   deliberately NOT touched — it is outside Phase 3 entirely (§6), and the Daily
+   Quiz rework decides its own card. Recorded so a later reader does not mistake
+   it for an inconsistency this decision missed.
+
 ### 10.1 Work order
 
 Steps 1–4 are done. Ticked here rather than deleted, because the order was a
@@ -1072,7 +1127,14 @@ happened.
        rollback, so without it a client that lost its config feed cannot be told
        apart from one the flag excluded.
 
-     The fourth is **not fixed and is a decision, not a defect**: on reveal the
+     The fourth is **not fixed and is a decision, not a defect** — taken on
+     2026-08-14 and recorded as §10.0 item 2, which supersedes the paragraph
+     below: the selection is RETAINED, and this card was conformed to the other
+     two. The reasoning it left open turned out to have a structural answer —
+     `selected` is what `buildChoiceRows` and `PublicQuizRunner` DERIVE the ✗
+     from, so clearing it in the shared renderer would have deleted the
+     wrong-answer marker rather than restyling it. The original note, kept
+     because it is what the cutover actually knew at the time: on reveal the
      old quiz card clears `selected` (`selected={!isRevealed && …}`) while the
      engine card keeps it, so the picked row keeps its letter-pill styling and
      `aria-pressed`. It cannot be fixed in `buildChoiceRows`, because

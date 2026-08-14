@@ -1976,7 +1976,17 @@ export default function QuizRunnerV2() {
                     <OptionButton
                       key={`${question.id}-${optionIndex}`}
                       label={optionLabel(optionIndex)}
-                      selected={!isRevealed && userAnswer === optionIndex}
+                      // UNGATED by `isRevealed`, as of the §10.0 decision on
+                      // the `selected` divergence (docs/phase3-plan.md). This
+                      // card used to clear the selection on reveal and was the
+                      // only one of the three that did — `PublicQuizRunner`'s
+                      // card and the engine's `buildChoiceRows` both keep it,
+                      // and both DERIVE the ✗ from it, so clearing it there
+                      // would delete the wrong-answer marker outright. This
+                      // card can clear it only because it takes `wrong` as a
+                      // separate prop, which is a difference in wiring rather
+                      // than a decision anyone made.
+                      selected={userAnswer === optionIndex}
                       revealed={isRevealed}
                       correct={isRevealed && optionIndex === question.correctAnswer}
                       wrong={isRevealed && userAnswer === optionIndex && userAnswer !== question.correctAnswer}
