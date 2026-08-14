@@ -24,8 +24,8 @@
  */
 
 import assert from 'node:assert/strict'
-import { processImportedQuestionBlocks } from '../src/components/quiz/documentQuizParserCore.js'
-import { reconcileSmartSectionOrder } from '../src/components/quiz/documentQuizReconcile.js'
+import { processImportedQuestionBlocks } from '../src/services/quizImport/documentQuizParserCore.js'
+import { reconcileSmartSectionOrder } from '../src/services/quizImport/documentQuizReconcile.js'
 
 // ─── helpers matching the parser test conventions ─────────────────────────
 

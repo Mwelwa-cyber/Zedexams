@@ -36,7 +36,17 @@
  *
  * ── What did NOT come, and why it is a constraint rather than a choice ──
  *
- * The document-IMPORT body stays in `src/components/quiz/`:
+ * **RESOLVED 2026-08-14 — the body moved to `src/services/quizImport/`.** The
+ * clearing condition this section names at the end ("It follows when
+ * `AdminPastPapers` is released") was met the same day, when the sixth owner
+ * ruling closed the freeze. It did NOT come here: with the editor, the studio
+ * and the admin surfaces all migrated, FOUR features import it, so it went
+ * DOWN to the services layer — the one bottom layer that permits the Firebase
+ * SDK its closure needs. See `src/services/quizImport/index.js`. Everything
+ * below is the reasoning as it stood, kept because it is what chose that
+ * destination.
+ *
+ * The document-IMPORT body stayed in `src/components/quiz/`:
  * `documentQuizImporter` (1,524 lines), `documentQuizParserCore`,
  * `documentQuizTableBlocks`, `documentQuizParagraphRuns`,
  * `documentQuizReconcile`, `scannedQuizImporter`, `importFormatChecks` and
@@ -55,7 +65,7 @@
  *
  * This feature reaches back into it, which is what the layering allows and what
  * §2 calls the honest interim state. It follows when `AdminPastPapers` is
- * released.
+ * released. *(It did — see the note above.)*
  *
  * ── `importRichText` + `importFormatTokens` went to `src/shared/utils/` ─
  *

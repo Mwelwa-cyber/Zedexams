@@ -55,7 +55,7 @@ const { doc, setDoc, updateDoc, writeBatch, serverTimestamp } = await import('fi
 
 // Real production modules — the same code the editor runs in the browser.
 const { mergeSectionBatches, visionSectionsToLocal, groupSectionsIntoParts } =
-  await import('../src/components/quiz/scannedQuizImporter.js')
+  await import('../src/services/quizImport/scannedQuizImporter.js')
 const { serializeQuizSections } = await import('../src/utils/quizSections.js')
 const { normalizeQuestionPayload } = await import('../src/utils/questionWritePayload.js')
 const { quizUpdateSchema } = await import('../src/schemas/quiz.js')

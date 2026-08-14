@@ -37,7 +37,7 @@ vi.mock('../../../hooks/useAssessmentEngineFlag', () => ({
 vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({ currentUser: { uid: 'learner-1', displayName: 'Chanda' } }),
 }))
-vi.mock('../../../utils/gamesService', () => ({
+vi.mock('../services/gamesService', () => ({
   // Identity shuffle: the deck is then the pool in order, so a test knows which
   // question is on screen. Every other games behaviour under test is downstream
   // of the verdict, which the deck order does not touch.

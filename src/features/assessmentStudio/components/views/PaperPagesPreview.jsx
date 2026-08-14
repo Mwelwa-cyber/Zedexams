@@ -48,7 +48,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { PaperBlock } from '../../../../components/teacher/views/PaperBlocks'
+import { PaperBlock } from '../../../../engines/paper-render/PaperBlocks'
 import { buildPagePlan, pageLabel } from '../../lib/paperPagePlan'
 import {
   ZOOM_PRESETS, DEFAULT_ZOOM, normalizeZoom, resolveZoomScale,

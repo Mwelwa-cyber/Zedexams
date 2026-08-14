@@ -43,7 +43,7 @@ import {
   QUIZ_DOCUMENT_ACCEPT,
   importQuizDocument,
   revokeImportedQuizAssets,
-} from '../../../components/quiz/documentQuizImporter'
+} from '../../../services/quizImport/documentQuizImporter'
 
 // Both lists derive from the learner catalogue + the canonical ladder.
 const SUBJECTS = PAPER_SUBJECTS.map((s) => s.label)

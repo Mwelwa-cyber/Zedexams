@@ -1,0 +1,499 @@
+/**
+ * /admin/papers — admin list of every past paper across statuses
+ * (draft / published / archived). Audit A2 foundation.
+ *
+ * Counterpart to /admin/quizzes; admin-only per Firestore rules.
+ * Provides a "New paper" CTA, a status filter, and a table-style
+ * row per paper with quick edit links.
+ */
+
+import { useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import {
+  PAPER_STATUSES,
+  listAllPapersForAdmin,
+  updatePaper,
+} from '../../../utils/pastPapers'
+import {
+  QUIZ_PENDING_COPY,
+  QUIZ_STATUSES,
+  countPendingQuizPapers,
+  derivePaperQuizStatus,
+} from '../../../utils/pastPaperQuizStatus'
+import { SUBJECTS } from '../../../config/curriculum'
+import {
+  SOURCE_CONFIDENCE,
+  isOfficialSource,
+  listPaperSources,
+  normalizeSourceConfidence,
+  paperNumberLabel,
+  paperSourceLabel,
+} from '../../../config/paperSources'
+import { PaperSourceBadge } from '../../../features/papers'
+import { convertPaperToQuizDraft } from '../../../utils/paperToQuizConverter'
+import { useAuth } from '../../../contexts/AuthContext'
+import { useFirestore } from '../../../hooks/useFirestore'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import Skeleton from '../../../shared/components/Skeleton'
+
+const STATUS_LABEL = {
+  [PAPER_STATUSES.DRAFT]:     { label: 'Draft',     cls: 'bg-amber-100 text-amber-800' },
+  [PAPER_STATUSES.PUBLISHED]: { label: 'Published', cls: 'bg-emerald-100 text-emerald-800' },
+  [PAPER_STATUSES.ARCHIVED]:  { label: 'Archived',  cls: 'bg-slate-200 text-slate-700' },
+}
+
+function formatDate(ts) {
+  if (!ts) return '—'
+  const d = ts?.toDate?.() ?? new Date(ts)
+  if (Number.isNaN(d?.getTime?.())) return '—'
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+// Quiz filter — the second axis of the list. Kept separate from the
+// publish-status chips rather than folded in as one more option: a paper has
+// BOTH a publish status and a quiz status, and merging them would make
+// "Published" and "Quiz pending" mutually exclusive when the whole point of
+// the optional-quiz flow is a paper that is both.
+const QUIZ_FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: QUIZ_STATUSES.PENDING, label: QUIZ_PENDING_COPY.adminBadge },
+  { id: QUIZ_STATUSES.ATTACHED, label: 'Quiz attached' },
+]
+
+// Source filter — the third axis, and the one with a deadline attached: a
+// paper in the "Needs labelling" state is invisible to learners until somebody
+// picks a source for it, so this list is a worklist rather than a view.
+const SOURCE_FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'unknown', label: 'Needs labelling' },
+  { id: 'official', label: 'Official (ECZ)' },
+  { id: 'mock', label: 'Mocks' },
+]
+
+/** True when this paper is one a human still has to label. */
+function needsLabelling(paper) {
+  return normalizeSourceConfidence(paper?.sourceConfidence) === SOURCE_CONFIDENCE.UNKNOWN
+    || !paperSourceLabel(paper?.source)
+}
+
+export default function AdminPastPapers() {
+  const [papers, setPapers] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [quizFilter, setQuizFilter] = useState('all')
+  const [sourceFilter, setSourceFilter] = useState('all')
+  // Per-row inline source selector — the labelling queue's whole workflow:
+  // choose a source on the row, save, move to the next. `labelling` holds the
+  // id of the row currently writing so only one spinner shows at a time.
+  const [labelling, setLabelling] = useState(null)
+  const [labelErr, setLabelErr] = useState(null)
+  // Per-row "Convert to quiz draft" state. converting holds the
+  // current paper id so only one row spins at a time; convertMsg /
+  // convertErr show a banner above the list with the result.
+  const [converting, setConverting] = useState(null)
+  const [bulkBusy, setBulkBusy] = useState(false)
+  const [convertMsg, setConvertMsg] = useState(null)
+  const [convertErr, setConvertErr] = useState(null)
+  const { currentUser } = useAuth()
+  const { createQuiz, saveQuestions } = useFirestore()
+  const navigate = useNavigate()
+
+  async function handleConvert(paper) {
+    if (converting) return
+    setConverting(paper.id)
+    setConvertMsg(null)
+    setConvertErr(null)
+    try {
+      const result = await convertPaperToQuizDraft({
+        paper,
+        uid: currentUser?.uid,
+        createQuiz,
+        saveQuestions,
+        onProgress: ({ step }) => setConvertMsg(step),
+      })
+      setConvertMsg(`✓ Converted to a draft quiz with ${result.questionCount} question${result.questionCount === 1 ? '' : 's'}. Opening editor…`)
+      setTimeout(() => navigate(`/admin/quizzes/${result.quizId}/edit`), 800)
+    } catch (err) {
+      setConvertErr(err?.message || 'Conversion failed.')
+      setConvertMsg(null)
+    } finally {
+      setConverting(null)
+    }
+  }
+
+  // Bulk variant — converts up to MAX_BULK papers from the current filter
+  // that have a PDF attached. Skips draft papers without pdfPath. Caps at
+  // 10 per click so a runaway press can't chew through the whole archive
+  // unintentionally (admin can re-click for the next batch).
+  const MAX_BULK = 10
+  async function handleBulkConvert() {
+    if (converting || bulkBusy) return
+    const eligible = filtered.filter((p) => p.pdfPath).slice(0, MAX_BULK)
+    if (eligible.length === 0) {
+      setConvertErr('No papers in the current filter have a PDF attached.')
+      return
+    }
+    setBulkBusy(true)
+    setConvertErr(null)
+    const failed = []
+    let saved = 0
+    for (let i = 0; i < eligible.length; i++) {
+      const p = eligible[i]
+      setConvertMsg(`Converting ${i + 1} / ${eligible.length} — ${p.title || 'untitled'}…`)
+      try {
+        await convertPaperToQuizDraft({
+          paper: p,
+          uid: currentUser?.uid,
+          createQuiz,
+          saveQuestions,
+          onProgress: () => { /* swallow per-paper progress in bulk mode */ },
+        })
+        saved += 1
+      } catch (err) {
+        failed.push({ title: p.title || p.id, error: err?.message || 'failed' })
+      }
+    }
+    setBulkBusy(false)
+    if (failed.length === 0) {
+      setConvertMsg(`✓ Converted ${saved} paper${saved === 1 ? '' : 's'} into draft quizzes. Opening filtered list…`)
+      setTimeout(() => navigate('/admin/content'), 1000)
+    } else {
+      setConvertMsg(`Done — ${saved} converted, ${failed.length} failed:`)
+      setConvertErr(
+        failed
+          .slice(0, 5)
+          .map((f) => `• ${f.title}: ${f.error}`)
+          .join('\n') +
+          (failed.length > 5 ? `\n…and ${failed.length - 5} more` : ''),
+      )
+    }
+  }
+
+  /**
+   * Label one paper from its row.
+   *
+   * Writes `sourceConfidence: 'explicit'` alongside the source, because a
+   * human chose it — that is the difference between this and what the
+   * migration could write, and it is what makes the paper readable by a
+   * learner. `updatePaper` re-derives `isOfficial`, `paperKey` and `title`, so
+   * this row hands over one field and the pipeline does the rest.
+   */
+  async function handleLabel(paper, source) {
+    if (!source || labelling) return
+    setLabelling(paper.id)
+    setLabelErr(null)
+    try {
+      await updatePaper(paper.id, {
+        grade: paper.grade,
+        subject: paper.subject,
+        year: paper.year,
+        paperNumber: paper.paperNumber ?? null,
+        source,
+        sourceConfidence: SOURCE_CONFIDENCE.EXPLICIT,
+      })
+      // Patch the row in place rather than refetching the whole list: the
+      // point of this queue is working straight down it, and a reload would
+      // move every row the operator is aiming at.
+      setPapers((rows) => rows.map((r) => (r.id === paper.id
+        ? { ...r, source, isOfficial: isOfficialSource(source), sourceConfidence: SOURCE_CONFIDENCE.EXPLICIT }
+        : r)))
+    } catch (err) {
+      console.error('[AdminPastPapers] labelling failed', err)
+      setLabelErr(err?.message || 'Could not save the source.')
+    } finally {
+      setLabelling(null)
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    listAllPapersForAdmin({ limit: 500 })
+      .then((rows) => { if (!cancelled) setPapers(rows) })
+      .catch((err) => console.warn('[AdminPastPapers] list failed', err))
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [])
+
+  const filtered = papers.filter((p) => {
+    if (statusFilter !== 'all' && (p.status || PAPER_STATUSES.DRAFT) !== statusFilter) return false
+    if (quizFilter !== 'all' && derivePaperQuizStatus(p) !== quizFilter) return false
+    if (sourceFilter === 'unknown' && !needsLabelling(p)) return false
+    if (sourceFilter === 'official' && !isOfficialSource(p.source)) return false
+    if (sourceFilter === 'mock' && (needsLabelling(p) || isOfficialSource(p.source))) return false
+    return true
+  })
+
+  // Counted across every paper, like the pending-quiz count above and for the
+  // same reason: it is the size of a backlog, and a number that changed when
+  // you clicked a chip would be a different fact wearing the same label.
+  const unlabelledCount = papers.filter(needsLabelling).length
+
+  // Header count, so a batch quiz-adding session has a target to work down.
+  // Counted across every paper, not the current filter — it is the size of the
+  // backlog, and a number that changed when you clicked a chip would be a
+  // different fact wearing the same label.
+  const pendingQuizCount = countPendingQuizPapers(papers)
+
+  return (
+    <div className="space-y-5">
+      <SeoHelmet title="Past papers" path="/admin/papers" noIndex />
+
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-xs font-black theme-text-muted uppercase tracking-widest">Content</p>
+          <h1 className="theme-text font-display font-black text-2xl sm:text-3xl">
+            Past papers
+            {pendingQuizCount > 0 && (
+              <span className="ml-2 align-middle text-sm font-bold text-amber-700">
+                ({pendingQuizCount} pending quiz{pendingQuizCount === 1 ? '' : 'zes'})
+              </span>
+            )}
+          </h1>
+          <p className="theme-text-muted text-sm mt-1">
+            ECZ archive uploads — Grade 7 and Grade 12 across every CBC subject.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {/* Bulk convert — only shows when there's at least one filtered
+              paper with a pdfPath to operate on. Caps internally at 10
+              per click. */}
+          {filtered.some((p) => p.pdfPath) && (
+            <button
+              type="button"
+              onClick={handleBulkConvert}
+              disabled={bulkBusy || converting !== null}
+              className="rounded-full bg-violet-600 px-3 py-2 text-xs font-black text-white hover:bg-violet-700 disabled:opacity-50"
+              title="Convert every visible paper that has a PDF into a draft quiz (capped at 10 per click)"
+            >
+              {bulkBusy
+                ? '… converting'
+                : `✨ Bulk convert (${Math.min(filtered.filter((p) => p.pdfPath).length, 10)})`}
+            </button>
+          )}
+          <Link
+            to="/admin/quizzes/new?mode=import"
+            className="rounded-full border-2 theme-border theme-text px-3 py-2 text-xs font-black hover:bg-amber-50"
+            title="Convert a past paper PDF into editable quiz questions"
+          >
+            🔄 Convert to quiz
+          </Link>
+          <Link
+            to="/admin/papers/new"
+            className="theme-accent-fill theme-on-accent rounded-full px-4 py-2 text-sm font-black hover:opacity-90"
+          >
+            + New paper
+          </Link>
+        </div>
+      </div>
+
+      {/* Status filter */}
+      <div className="flex flex-wrap items-center gap-2">
+        {[
+          { id: 'all', label: 'All' },
+          ...Object.entries(STATUS_LABEL).map(([id, meta]) => ({ id, label: meta.label })),
+        ].map((opt) => (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => setStatusFilter(opt.id)}
+            className={`rounded-full border-2 px-3 py-1 text-xs font-bold transition-colors ${
+              statusFilter === opt.id
+                ? 'theme-accent-fill theme-on-accent border-transparent'
+                : 'theme-border theme-text-muted hover:theme-text'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Needs-labelling banner. Placed above the filters, not inside them:
+          these papers are DOWN — the rules refuse a learner read of a paper
+          with no established source — so the count is an outage, not a tidy-up
+          task, and it should not need a chip click to be seen. */}
+      {unlabelledCount > 0 && (
+        <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p className="font-black">
+            {unlabelledCount} paper{unlabelledCount === 1 ? '' : 's'} need{unlabelledCount === 1 ? 's' : ''} labelling
+          </p>
+          <p className="mt-1 text-xs">
+            A paper with no source is hidden from learners — nobody can say whether
+            it is an official ECZ exam or a practice mock. Choose a source on each
+            row below to bring it back.
+          </p>
+          <button
+            type="button"
+            onClick={() => setSourceFilter('unknown')}
+            className="mt-2 rounded-full border-2 border-amber-400 px-3 py-1 text-xs font-black text-amber-900 hover:bg-amber-100"
+          >
+            Show only these
+          </button>
+        </div>
+      )}
+
+      {/* Source filter */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[11px] font-black theme-text-muted uppercase tracking-widest mr-1">Source</span>
+        {SOURCE_FILTERS.map((opt) => (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => setSourceFilter(opt.id)}
+            className={`rounded-full border-2 px-3 py-1 text-xs font-bold transition-colors ${
+              sourceFilter === opt.id
+                ? 'theme-accent-fill theme-on-accent border-transparent'
+                : 'theme-border theme-text-muted hover:theme-text'
+            }`}
+          >
+            {opt.label}
+            {opt.id === 'unknown' && unlabelledCount > 0 && ` (${unlabelledCount})`}
+          </button>
+        ))}
+      </div>
+
+      {labelErr && (
+        <div className="rounded-2xl border-2 border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-800">
+          <p className="font-black">Could not save the source</p>
+          <p className="mt-1">{labelErr}</p>
+        </div>
+      )}
+
+      {/* Quiz filter — "Quiz pending" is the batch-adding worklist: filter,
+          open the first paper, add its quiz, come back to the same list. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[11px] font-black theme-text-muted uppercase tracking-widest mr-1">Quiz</span>
+        {QUIZ_FILTERS.map((opt) => (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => setQuizFilter(opt.id)}
+            className={`rounded-full border-2 px-3 py-1 text-xs font-bold transition-colors ${
+              quizFilter === opt.id
+                ? 'theme-accent-fill theme-on-accent border-transparent'
+                : 'theme-border theme-text-muted hover:theme-text'
+            }`}
+          >
+            {opt.label}
+            {opt.id === QUIZ_STATUSES.PENDING && pendingQuizCount > 0 && ` (${pendingQuizCount})`}
+          </button>
+        ))}
+      </div>
+
+      {/* Convert-to-quiz feedback banner (shared across rows). */}
+      {convertMsg && (
+        <div className="rounded-2xl border-2 border-violet-200 bg-violet-50 px-4 py-3 text-xs font-bold text-violet-900">
+          {convertMsg}
+        </div>
+      )}
+      {convertErr && (
+        <div className="rounded-2xl border-2 border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-800">
+          <p className="font-black">Conversion failed</p>
+          <p className="mt-1">{convertErr}</p>
+        </div>
+      )}
+
+      {/* Body */}
+      {loading ? (
+        <div className="space-y-2">
+          {[0, 1, 2].map((i) => <Skeleton key={i} className="h-16 rounded-radius-md" />)}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="theme-card border theme-border rounded-radius-md p-8 text-center text-sm theme-text-muted">
+          No papers yet. Click <span className="theme-text font-bold">New paper</span> to upload the first one.
+        </div>
+      ) : (
+        <ul className="theme-card border theme-border rounded-radius-md divide-y divide-current/10 overflow-hidden">
+          {filtered.map((p) => {
+            const subjectMeta = SUBJECTS.find((s) => s.id === p.subject)
+            const status = STATUS_LABEL[p.status] || STATUS_LABEL.draft
+            // Derived, so papers uploaded before quizStatus existed read
+            // correctly instead of every one of them claiming to be pending.
+            const quizPending = derivePaperQuizStatus(p) === QUIZ_STATUSES.PENDING
+            const unlabelled = needsLabelling(p)
+            return (
+              <li key={p.id} className="p-4 flex flex-wrap sm:flex-nowrap items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="theme-text font-black text-sm truncate">{p.title}</p>
+                  <p className="theme-text-muted text-xs mt-1">
+                    Grade {p.grade} · {subjectMeta?.label || p.subject} · {p.year}
+                    {paperNumberLabel(p.paperNumber) ? ` · ${paperNumberLabel(p.paperNumber)}` : ''}
+                  </p>
+                  <div className="mt-1.5">
+                    {unlabelled ? (
+                      /* The queue's whole workflow, on the row: pick a source,
+                         it saves, the row goes live. No wizard round-trip —
+                         the migration can leave hundreds of these and a
+                         four-step wizard per paper is why a backlog never
+                         gets worked. */
+                      <label className="inline-flex items-center gap-2 text-xs">
+                        <span className="font-black text-amber-800">Needs labelling</span>
+                        <select
+                          defaultValue=""
+                          disabled={labelling === p.id}
+                          onChange={(e) => handleLabel(p, e.target.value)}
+                          className="rounded-full border-2 border-amber-300 bg-white px-2 py-1 text-xs font-bold text-amber-900 disabled:opacity-50"
+                          aria-label={`Set the source for ${p.title || 'this paper'}`}
+                        >
+                          <option value="">{labelling === p.id ? 'Saving…' : 'Choose a source…'}</option>
+                          {listPaperSources().map((s) => (
+                            <option key={s.id} value={s.id}>{s.label}</option>
+                          ))}
+                        </select>
+                      </label>
+                    ) : (
+                      <PaperSourceBadge
+                        label={paperSourceLabel(p.source)}
+                        isOfficial={isOfficialSource(p.source)}
+                        size="sm"
+                      />
+                    )}
+                  </div>
+                  <p className="theme-text-muted text-[11px] mt-1">
+                    {p.views || 0} views · {p.downloads || 0} downloads · updated {formatDate(p.updatedAt)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${status.cls}`}>
+                    {status.label}
+                  </span>
+                  {quizPending && (
+                    <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                      {QUIZ_PENDING_COPY.adminBadge}
+                    </span>
+                  )}
+                  {quizPending && (
+                    <Link
+                      to={`/admin/papers/${p.id}/edit?step=quiz`}
+                      className="text-xs font-bold rounded-full px-2.5 py-1 border-2 border-amber-300 text-amber-800 hover:bg-amber-50"
+                      title="Open this paper's wizard on the Quiz step — Upload and Details are already filled in"
+                    >
+                      {QUIZ_PENDING_COPY.adminAction}
+                    </Link>
+                  )}
+                  {p.pdfPath && (
+                    <button
+                      type="button"
+                      onClick={() => handleConvert(p)}
+                      disabled={converting !== null}
+                      className="text-xs font-bold rounded-full px-2.5 py-1 border-2 border-violet-300 text-violet-700 hover:bg-violet-50 disabled:opacity-50"
+                      title="Auto-convert this paper into a draft quiz (admin reviews before publishing)"
+                    >
+                      {converting === p.id ? '… working' : '✨ Convert to quiz'}
+                    </button>
+                  )}
+                  <Link
+                    to={`/admin/papers/${p.id}/edit`}
+                    className="text-xs font-bold theme-accent-text hover:underline"
+                  >
+                    Edit
+                  </Link>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+}

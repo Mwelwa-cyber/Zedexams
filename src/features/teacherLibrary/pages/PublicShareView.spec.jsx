@@ -82,7 +82,7 @@ vi.mock('../../classTimetable', () => ({
 }))
 
 // AssessmentPaperView: renders secret answer content ONLY when showAnswers is true.
-vi.mock('../../../components/teacher/views/AssessmentPaperView', () => ({
+vi.mock('../components/AssessmentPaperView', () => ({
   default: ({ assessment, tool, showAnswers }) => (
     <div data-testid="assessment-paper-view" data-tool={tool} data-show-answers={String(showAnswers)}>
       {showAnswers && <span>{assessment?.answerKey}</span>}

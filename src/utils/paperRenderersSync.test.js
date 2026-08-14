@@ -3,7 +3,7 @@
  *
  * Three renderers walk the SAME typed blocks from buildPaperLayout
  * (assessmentPaperLayout.js):
- *   - the studio preview  → src/components/teacher/views/PaperBlocks.jsx  (also the PDF, via window.print)
+ *   - the studio preview  → src/engines/paper-render/PaperBlocks.jsx  (also the PDF, via window.print)
  *   - the Word export     → src/utils/assessmentToDocx.js
  *   - the print-window PDF → src/utils/assessmentToPdf.js
  *
@@ -54,7 +54,7 @@ function caseLabelsIn(src, marker) {
   return set
 }
 
-const previewSrc = readFileSync(join(root, 'src/components/teacher/views/PaperBlocks.jsx'), 'utf8')
+const previewSrc = readFileSync(join(root, 'src/engines/paper-render/PaperBlocks.jsx'), 'utf8')
 const docxSrc = readFileSync(join(root, 'src/utils/assessmentToDocx.js'), 'utf8')
 const pdfSrc = readFileSync(join(root, 'src/utils/assessmentToPdf.js'), 'utf8')
 

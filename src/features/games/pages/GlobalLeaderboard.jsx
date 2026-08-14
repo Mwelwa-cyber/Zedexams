@@ -7,7 +7,7 @@ import {
   TrophyIcon,
 } from '@heroicons/react/24/solid'
 import { useAuth } from '../../../contexts/AuthContext'
-import { subscribeToGlobalLeaderboard, formatWhen } from '../../../utils/gamesService'
+import { subscribeToGlobalLeaderboard, formatWhen } from '../services/gamesService'
 import GamesShell from '../components/GamesShell'
 import { GamesSectionHeading, MetaPill, getSubjectMascot } from '../components/gamesUi'
 import SeoHelmet from '../../../shared/components/SeoHelmet'

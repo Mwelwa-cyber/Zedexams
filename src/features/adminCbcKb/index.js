@@ -24,7 +24,7 @@
  *
  * That was reported rather than interpreted, per §14 rule 3, and the owner
  * ruled on 2026-08-14: released. **The quiz freeze itself has not lifted** —
- * the Phase 3 rollout flags are not at 100%, `components/quiz/` and
+ * the Phase 3 rollout flags are not at 100%. (Still true of the flags; but the freeze itself was CLOSED by owner ruling on 2026-08-14 and every surface below has migrated.) `components/quiz/` and
  * `components/games/` are untouched, and `PastPaperStudio`, `CreateQuizV2`,
  * `AdminPastPapers` and `GamesSeedAdmin` all stay exactly where they are. A
  * reader arriving here should not read this move as the freeze having lapsed.

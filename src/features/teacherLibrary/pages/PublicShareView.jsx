@@ -15,7 +15,7 @@ import LessonActivitiesView from '../../../components/teacher/views/LessonActivi
 import { SbaTaskView, SbaPlanView } from '../../sba'
 import { MarkScheduleView } from '../../markSchedule'
 import { ClassTimetableView } from '../../classTimetable'
-import AssessmentPaperView from '../../../components/teacher/views/AssessmentPaperView'
+import AssessmentPaperView from '../components/AssessmentPaperView'
 import Logo from '../../../shared/components/Logo'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 

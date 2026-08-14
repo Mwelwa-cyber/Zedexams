@@ -46,8 +46,8 @@ const DISPLAY_SITES = [
   'src/features/quiz/pages/QuizRunnerV2.jsx',
   'src/features/quiz/pages/QuizResultsV2.jsx',
   'src/features/quizEditor/components/QuizEditorPreviewPanel.jsx',
-  'src/components/exams/DailyExamRunner.jsx',
-  'src/components/exams/ExamResultsPage.jsx',
+  'src/features/dailyExams/pages/DailyExamRunner.jsx',
+  'src/features/dailyExams/pages/ExamResultsPage.jsx',
 ]
 
 /** The one place an option letter is decided. */

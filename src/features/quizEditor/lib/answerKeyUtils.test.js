@@ -2,7 +2,7 @@
  * Tests for the bulk answer-key utilities. Plain `node` ES-module script —
  * throws on first failed assertion.
  *
- * Run: node src/components/quiz/answerKeyUtils.test.js
+ * Run: node src/features/quizEditor/lib/answerKeyUtils.test.js
  */
 
 import assert from 'node:assert'

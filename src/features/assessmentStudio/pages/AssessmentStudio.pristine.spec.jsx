@@ -74,7 +74,7 @@ vi.mock('../../../utils/schoolProfileService', () => ({
 const mockAuth = { currentUser: { uid: 'teacher-1' }, userProfile: { id: 'teacher-1' }, isAdmin: false }
 vi.mock('../../../contexts/AuthContext', () => ({ useAuth: () => mockAuth }))
 
-vi.mock('../../../components/quiz/documentQuizImporter', () => ({
+vi.mock('../../../services/quizImport/documentQuizImporter', () => ({
   importQuizDocument: vi.fn(), revokeImportedQuizAssets: vi.fn(), QUIZ_DOCUMENT_ACCEPT: '.pdf',
 }))
 vi.mock('../../../utils/aiAssistant', () => ({ generateAIQuizQuestions: vi.fn() }))

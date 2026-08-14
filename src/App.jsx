@@ -149,8 +149,8 @@ const PastPaperViewer = lazy(() => import('./features/papers/pages/PastPaperView
 const PastPaperPractice = lazy(() => import('./features/papers/pages/PastPaperPractice'))
 const PublicQuizRunner = lazy(() => import('./features/papers/pages/PublicQuizRunner'))
 const MyPapersHistory = lazy(() => import('./features/papers/pages/MyPapersHistory'))
-const AdminPastPapers = lazy(() => import('./components/admin/AdminPastPapers'))
-const PastPaperStudio = lazy(() => import('./components/admin/PastPaperStudio'))
+const AdminPastPapers = lazy(() => import('./features/adminPastPapers/pages/AdminPastPapers'))
+const PastPaperStudio = lazy(() => import('./features/adminPastPapers/pages/PastPaperStudio'))
 const ZedChatPage = lazy(() => import('./features/zedChat/pages/ZedChatPage'))
 const StatusPage = lazy(() => import('./features/marketing/pages/StatusPage'))
 // Audit C5 — SEO blog. Markdown-driven, posts ship in the bundle.
@@ -233,10 +233,10 @@ const LibraryItemDetail = lazy(() => import('./features/teacherLibrary/pages/Lib
 const PublicShareView = lazy(() => import('./features/teacherLibrary/pages/PublicShareView'))
 
 // Daily Exams (auth required)
-const DailyExamsHub      = lazy(() => import('./components/exams/DailyExamsHub'))
-const DailyExamRunner    = lazy(() => import('./components/exams/DailyExamRunner'))
-const ExamResultsPage    = lazy(() => import('./components/exams/ExamResultsPage'))
-const ExamLeaderboardPage = lazy(() => import('./components/exams/ExamLeaderboardPage'))
+const DailyExamsHub      = lazy(() => import('./features/dailyExams/pages/DailyExamsHub'))
+const DailyExamRunner    = lazy(() => import('./features/dailyExams/pages/DailyExamRunner'))
+const ExamResultsPage    = lazy(() => import('./features/dailyExams/pages/ExamResultsPage'))
+const ExamLeaderboardPage = lazy(() => import('./features/dailyExams/pages/ExamLeaderboardPage'))
 
 // Public games (no auth)
 const GamesHub = lazy(() => import('./features/games/pages/GamesHub'))
@@ -246,7 +246,7 @@ const PlayGame = lazy(() => import('./features/games/pages/PlayGame'))
 const GlobalLeaderboard = lazy(() => import('./features/games/pages/GlobalLeaderboard'))
 
 // Admin — games seed importer
-const GamesSeedAdmin = lazy(() => import('./components/admin/GamesSeedAdmin'))
+const GamesSeedAdmin = lazy(() => import('./features/games/pages/GamesSeedAdmin'))
 
 // Quiz editor (shared by admin + teacher)
 const EditQuiz = lazy(() => import('./features/quizEditor/pages/EditQuizV2'))

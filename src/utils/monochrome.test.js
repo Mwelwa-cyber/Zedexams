@@ -153,7 +153,7 @@ const INK = {
 const SOURCES = [
   'src/utils/assessmentToDocx.js',
   'src/utils/assessmentToPdf.js',
-  'src/components/teacher/views/PaperBlocks.jsx',
+  'src/engines/paper-render/PaperBlocks.jsx',
 ]
 
 /** Every 6-digit hex literal in a file, lowercased. */

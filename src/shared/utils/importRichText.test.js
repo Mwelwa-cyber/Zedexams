@@ -1,5 +1,5 @@
 /**
- * src/components/quiz/importRichText.test.js
+ * src/shared/utils/importRichText.test.js
  *
  * Unit tests for the import-markup → editor-node-HTML converter.
  *

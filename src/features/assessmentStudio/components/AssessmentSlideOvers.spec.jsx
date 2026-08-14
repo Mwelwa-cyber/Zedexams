@@ -36,7 +36,7 @@ vi.mock('../../../components/teacher/syllabusTopicOptions', () => ({
   useStudioSubjectChoices: () => ({ options: ['English', 'Mathematics'], loading: false }),
   normalizeStudioFramework: (v) => (String(v || '') === '2013' ? '2013' : '2023'),
 }))
-vi.mock('../../../components/teacher/views/PaperBlocks', () => ({ PaperBlock: () => null }))
+vi.mock('../../../engines/paper-render/PaperBlocks', () => ({ PaperBlock: () => null }))
 vi.mock('../lib/assessmentBloom', () => ({
   bloomLevel: () => '',
   BLOOM_LABELS: {},

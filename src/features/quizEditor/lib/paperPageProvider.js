@@ -57,7 +57,7 @@ export function createPaperPageProvider(paperId) {
         const blob = await res.blob()
         const file = new File([blob], asset.filename || 'paper.pdf', { type: 'application/pdf' })
         // Reuse the import pipeline's pdf.js loader (worker config included).
-        const { loadPdfDocument } = await import('../../../components/quiz/documentQuizImporter.js')
+        const { loadPdfDocument } = await import('../../../services/quizImport/documentQuizImporter.js')
         const { pdf } = await loadPdfDocument(file)
         return pdf
       })()

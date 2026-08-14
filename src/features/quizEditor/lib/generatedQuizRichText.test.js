@@ -1,6 +1,6 @@
 /**
  * The generated-quiz converter: markup in, rendered nodes in the editor,
- * marking fields untouched. Run: node src/components/quiz/generatedQuizRichText.test.js
+ * marking fields untouched. Run: node src/features/quizEditor/lib/generatedQuizRichText.test.js
  */
 
 import assert from 'node:assert/strict'

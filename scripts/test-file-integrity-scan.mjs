@@ -158,7 +158,7 @@ test('the repo\'s own parsers now balance in code', () => {
   // The three files the raw count fired on. They parse; the guard must agree.
   for (const rel of [
     'scripts/lib/functionsManifest.mjs',
-    'src/components/quiz/documentQuizParserCore.js',
+    'src/services/quizImport/documentQuizParserCore.js',
     'scripts/test-paste-question-parser.mjs',
   ]) {
     const s = scanCode(readFileSync(path.join(ROOT, rel), 'utf8'))

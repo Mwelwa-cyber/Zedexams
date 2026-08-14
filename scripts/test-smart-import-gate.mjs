@@ -21,11 +21,11 @@
  */
 
 import assert from 'node:assert/strict'
-import { processImportedQuestionBlocks } from '../src/components/quiz/documentQuizParserCore.js'
+import { processImportedQuestionBlocks } from '../src/services/quizImport/documentQuizParserCore.js'
 import {
   shouldRunSmartImport,
   documentHasRichStructure,
-} from '../src/components/quiz/documentQuizReconcile.js'
+} from '../src/services/quizImport/documentQuizReconcile.js'
 
 // ─── block helpers (match the other importer test fixtures) ────────────────
 

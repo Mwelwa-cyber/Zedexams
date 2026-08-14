@@ -29,7 +29,7 @@
  */
 
 import { richTextToPlainText } from '../../../utils/quizRichText.js'
-import { sectionSignature, matchScore } from '../../../components/quiz/documentQuizReconcile.js'
+import { sectionSignature, matchScore } from '../../../services/quizImport/documentQuizReconcile.js'
 
 /**
  * Normalise a value to a stable string we can compare across imports.

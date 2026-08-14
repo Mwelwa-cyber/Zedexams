@@ -8,7 +8,7 @@ import {
   getMyHistory,
   gradeByValue,
   listGames,
-} from '../../../utils/gamesService'
+} from '../services/gamesService'
 import GamesShell from '../components/GamesShell'
 import {
   GamesSectionHeading,

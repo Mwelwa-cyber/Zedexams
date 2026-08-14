@@ -18,7 +18,7 @@ const reportClientError = vi.fn()
 vi.mock('./useFirestore', () => ({ useFirestore: () => ({ getQuizzes: (...a) => getQuizzes(...a) }) }))
 vi.mock('../features/notes', () => ({ fetchLearnerNotes: (...a) => fetchLearnerNotes(...a) }))
 vi.mock('../utils/pastPapers', () => ({ loadPublishedPapers: (...a) => loadPublishedPapers(...a) }))
-vi.mock('../utils/gamesService', () => ({ listGames: (...a) => listGames(...a) }))
+vi.mock('../features/games', () => ({ listGames: (...a) => listGames(...a) }))
 vi.mock('../utils/clientErrorReporting', () => ({ reportClientError: (...a) => reportClientError(...a) }))
 vi.mock('../utils/learnerSearch', () => ({
   buildResultItems: ({ quizzes, notes, papers, games }) => [...quizzes, ...notes, ...papers, ...games],

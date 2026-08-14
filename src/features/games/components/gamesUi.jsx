@@ -25,7 +25,7 @@ import {
   UserCircleIcon,
 } from '@heroicons/react/24/solid'
 import { isDemoGame } from '../../../data/gamesSeed'
-import { gradeByValue } from '../../../utils/gamesService'
+import { gradeByValue } from '../services/gamesService'
 import { SUBJECT_MASCOTS, getSubjectMascot } from '../lib/subjectMascots'
 import MascotAvatar from './MascotAvatar'
 

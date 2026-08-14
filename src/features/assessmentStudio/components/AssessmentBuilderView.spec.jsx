@@ -24,7 +24,7 @@ vi.mock('./MathsRichField.jsx', () => ({
   default: () => null,
 }))
 vi.mock('./AssessmentQuestionEditors', () => ({ toEditableText: (v) => (typeof v === 'string' ? v : '') }))
-vi.mock('../../../components/quiz/documentQuizImporter', () => ({ QUIZ_DOCUMENT_ACCEPT: '.doc,.pdf' }))
+vi.mock('../../../services/quizImport/documentQuizImporter', () => ({ QUIZ_DOCUMENT_ACCEPT: '.doc,.pdf' }))
 vi.mock('./studioIcons', () => ({ default: () => null }))
 
 const form = { grade: '4', subject: 'Mathematics', ungroupedOrder: 0 }

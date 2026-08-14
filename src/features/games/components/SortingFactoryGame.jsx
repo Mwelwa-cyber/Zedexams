@@ -8,7 +8,7 @@ import {
   TrophyIcon,
   XCircleIcon,
 } from '@heroicons/react/24/solid'
-import { shuffle } from '../../../utils/gamesService'
+import { shuffle } from '../services/gamesService'
 import { playCorrect, playWrong, playWin, primeSounds } from '../lib/gameSounds'
 import { useGameFinish } from '../hooks/useGameFinish'
 import { SaveBanner, StreakBanner, DoneStat } from './DoneBanners'

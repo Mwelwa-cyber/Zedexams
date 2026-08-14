@@ -16,7 +16,7 @@ import assert from 'node:assert'
 import {
   visionSectionsToLocal,
   groupSectionsIntoParts,
-} from '../src/components/quiz/scannedQuizImporter.js'
+} from '../src/services/quizImport/scannedQuizImporter.js'
 
 let passed = 0
 function test(name, fn) {

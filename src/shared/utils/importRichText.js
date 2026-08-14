@@ -1,5 +1,5 @@
 /**
- * src/components/quiz/importRichText.js
+ * src/shared/utils/importRichText.js
  *
  * Turns the lightweight, LLM-friendly "import markup" that the smart-import
  * pipeline emits into the exact node-HTML shapes the ZedExams editor already

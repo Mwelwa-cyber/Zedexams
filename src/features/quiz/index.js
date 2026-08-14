@@ -60,7 +60,7 @@
  * `ReadingSettingsSheet`, `TextToSpeechButton`, `ThemePreview`) and
  * `QuizReviewScreen`, plus the two above. Each is drawn from three different
  * areas — this runner, `features/papers/PublicQuizRunner`, and the frozen
- * `components/exams/DailyExamRunner` — so a module three areas share belongs
+ * `features/dailyExams/DailyExamRunner` — so a module three areas share belongs
  * below all of them. All eight pass §14.6 on reach: six import nothing but
  * React, and `PassageViewer` reaches only `editor/RichContent`.
  *

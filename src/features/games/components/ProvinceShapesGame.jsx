@@ -7,7 +7,7 @@ import {
   MapPinIcon,
 } from '@heroicons/react/24/solid'
 import { useAuth } from '../../../contexts/AuthContext'
-import { saveScore, shuffle, readRoundBaseline, readRoundOutcome } from '../../../utils/gamesService'
+import { saveScore, shuffle, readRoundBaseline, readRoundOutcome } from '../services/gamesService'
 import { evaluateAndAwardGameBadges } from '../../../utils/gameBadgesService'
 import { getTodaysChallenge, recordDailyPlay } from '../../../utils/dailyChallengeService'
 import { playCorrect, playWrong, playWin, playStreak, primeSounds } from '../lib/gameSounds'
