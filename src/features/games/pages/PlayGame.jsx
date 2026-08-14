@@ -10,7 +10,7 @@ import { getFallbackGame, isDemoGame } from '../../../data/gamesSeed'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useSubscription } from '../../../hooks/useSubscription'
 import UpgradeModal from '../../../components/subscription/UpgradeModal'
-import Button from '../../../components/ui/Button'
+import Button from '../../../shared/components/Button'
 import GamesShell from '../components/GamesShell'
 import TimedQuizGame from '../components/TimedQuizGame'
 import MemoryMatchGame from '../components/MemoryMatchGame'
@@ -25,7 +25,7 @@ import {
   getGameTypeTheme,
   getSubjectMascot,
 } from '../components/gamesUi'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 
 const SUBJECT_TILE_BG = {
   mathematics: 'bg-orange-100',

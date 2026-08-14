@@ -1,5 +1,5 @@
-import Icon from '../../../../../components/ui/Icon'
-import { ShieldCheck } from '../../../../../components/ui/icons'
+import Icon from '../../../../../shared/components/Icon'
+import { ShieldCheck } from '../../../../../shared/components/icons'
 
 /**
  * Soft green information banner at the top of the detected-assignments card:

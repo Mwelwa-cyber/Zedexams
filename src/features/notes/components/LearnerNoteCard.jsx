@@ -12,7 +12,7 @@
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowRight, Clock, ImageIcon, Play, RotateCcw, PencilLine, CheckCircleIcon, Sparkles,
-} from '../../../components/ui/icons'
+} from '../../../shared/components/icons'
 import { NOTE_FORMAT } from '../../../config/curriculum'
 import { formatDate } from '../lib/format'
 import { resolveNoteCover } from '../lib/noteCovers'

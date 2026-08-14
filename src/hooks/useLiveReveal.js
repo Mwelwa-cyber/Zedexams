@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { PREP_STEPS } from '../components/ui/liveGenerationSections'
+import { PREP_STEPS } from '../shared/components/liveGenerationSections'
 
 /**
  * Drives the Live Generation Canvas reveal state machine.

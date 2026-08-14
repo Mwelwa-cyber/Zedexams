@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 import {
   STATUS,
   computeStatusView,

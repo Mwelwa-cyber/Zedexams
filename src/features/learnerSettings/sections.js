@@ -18,7 +18,7 @@ import {
   TrophyIcon,
   ShieldCheck,
   Info,
-} from '../../components/ui/icons'
+} from '../../shared/components/icons'
 
 export const LEARNER_SETTINGS_SECTIONS = [
   {

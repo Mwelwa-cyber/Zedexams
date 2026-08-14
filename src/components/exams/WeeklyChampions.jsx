@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getWeeklyChampions } from '../../utils/gamificationService'
-import Skeleton from '../ui/Skeleton'
+import Skeleton from '../../shared/components/Skeleton'
 
 /**
  * WeeklyChampions — aggregated top scorers across the past 7 daily

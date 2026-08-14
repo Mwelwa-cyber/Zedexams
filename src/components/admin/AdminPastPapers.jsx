@@ -33,8 +33,8 @@ import { PaperSourceBadge } from '../../features/papers'
 import { convertPaperToQuizDraft } from '../../utils/paperToQuizConverter'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
-import SeoHelmet from '../seo/SeoHelmet'
-import Skeleton from '../ui/Skeleton'
+import SeoHelmet from '../../shared/components/SeoHelmet'
+import Skeleton from '../../shared/components/Skeleton'
 
 const STATUS_LABEL = {
   [PAPER_STATUSES.DRAFT]:     { label: 'Draft',     cls: 'bg-amber-100 text-amber-800' },

@@ -6,7 +6,7 @@
 //   2. Already uploaded — show file metadata, Preview link, Replace button
 
 import { useRef, useState } from 'react'
-import { Upload, FileType, Eye, Loader2 } from '../../../components/ui/icons'
+import { Upload, FileType, Eye, Loader2 } from '../../../shared/components/icons'
 import { uploadNoteFile } from '../lib/storage'
 import { formatDate } from '../lib/format'
 import { friendlyMessage } from '../../../utils/friendlyErrors'

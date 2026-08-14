@@ -14,8 +14,8 @@ import { subscribeToDailyLeaderboard, fmtDuration, fmtDate } from '../../utils/e
 import { computeRivalry } from '../../utils/gamificationService'
 import { todayString } from '../../utils/examService'
 import Navbar from '../layout/Navbar'
-import SeoHelmet from '../seo/SeoHelmet'
-import Skeleton from '../ui/Skeleton'
+import SeoHelmet from '../../shared/components/SeoHelmet'
+import Skeleton from '../../shared/components/Skeleton'
 import LiveActivityFeed from './LiveActivityFeed'
 import WeeklyChampions from './WeeklyChampions'
 

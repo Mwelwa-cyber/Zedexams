@@ -16,8 +16,8 @@ import { SbaTaskView, SbaPlanView } from '../../sba'
 import { MarkScheduleView } from '../../markSchedule'
 import { ClassTimetableView } from '../../classTimetable'
 import AssessmentPaperView from '../../../components/teacher/views/AssessmentPaperView'
-import Logo from '../../../components/ui/Logo'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Logo from '../../../shared/components/Logo'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 
 const TOOL_LABEL = {
   lesson_plan:       'Lesson plan',

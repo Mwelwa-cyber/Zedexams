@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import LegalLayout from '../components/LegalLayout'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 
 const CONTACT_EMAIL = 'support@zedexams.com'
 const CONTACT_EMAIL_HREF = `mailto:${CONTACT_EMAIL}`

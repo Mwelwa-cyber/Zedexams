@@ -1,6 +1,6 @@
 /**
  * Unit tests for the Live Generation Canvas pure logic
- * (src/components/ui/liveGenerationSections.js).
+ * (src/shared/components/liveGenerationSections.js).
  *
  * Plain-node assertion script — run with `node scripts/test-live-generation-sections.mjs`
  * or `npm run test:live-canvas`. Throws on the first failed assertion.
@@ -14,7 +14,7 @@ import {
   PREP_STEPS,
   FINALISE_STEP,
   TOOL_SECTION_CONFIG,
-} from '../src/components/ui/liveGenerationSections.js'
+} from '../src/shared/components/liveGenerationSections.js'
 
 let passed = 0
 function assert(cond, msg) {

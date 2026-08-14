@@ -8,7 +8,7 @@
 // for notes with fewer than 2 sections. Pure presentational + local open state.
 
 import { useState } from 'react'
-import { List, X } from '../../../components/ui/icons'
+import { List, X } from '../../../shared/components/icons'
 
 function jumpTo(id, after) {
   const el = typeof document !== 'undefined' ? document.getElementById(id) : null

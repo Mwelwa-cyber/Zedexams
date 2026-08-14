@@ -1,10 +1,10 @@
 import { lazy, Suspense, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
-import Logo from '../../../components/ui/Logo'
-import Button from '../../../components/ui/Button'
-import Card from '../../../components/ui/Card'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Logo from '../../../shared/components/Logo'
+import Button from '../../../shared/components/Button'
+import Card from '../../../shared/components/Card'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 // Prices live in src/config/teacherPlanPricing.js so /pricing and the
 // /teachers landing can never drift apart on the numbers.
 import { PLAN_PRICES } from '../../../config/teacherPlanPricing'

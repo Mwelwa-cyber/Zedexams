@@ -2,8 +2,8 @@
 // rename/remove actions. Actions are visible buttons (not a hover-only
 // overflow menu) with ≥48px touch targets so they work on shared school
 // tablets and with keyboard/screen-reader navigation.
-import { Smartphone, Laptop, KeyRound, PencilLine, Trash2 } from '../../../../components/ui/icons'
-import Icon from '../../../../components/ui/Icon'
+import { Smartphone, Laptop, KeyRound, PencilLine, Trash2 } from '../../../../shared/components/icons'
+import Icon from '../../../../shared/components/Icon'
 
 function iconFor(passkey) {
   const transports = passkey.transports || []

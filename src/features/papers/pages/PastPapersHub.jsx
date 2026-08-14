@@ -56,9 +56,9 @@ import { isOfficialSource, paperSourceLabel } from '../../../config/paperSources
 import { fullPaperTitle } from '../../../utils/paperTitleCore'
 import PaperTitle, { PaperSourceBadge } from '../components/PaperTitle'
 import { subjectMeta } from '../lib/paperVisuals'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import Logo from '../../../components/ui/Logo'
-import Skeleton from '../../../components/ui/Skeleton'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import Logo from '../../../shared/components/Logo'
+import Skeleton from '../../../shared/components/Skeleton'
 import {
   ArrowRight,
   BookmarkSquareIcon,
@@ -77,7 +77,7 @@ import {
   Sparkles,
   StarIcon,
   X,
-} from '../../../components/ui/icons'
+} from '../../../shared/components/icons'
 
 // ── Sample fallback (only shown when Firestore is empty / errors) ────
 // Every sample carries a source and an explicit confidence, because these rows

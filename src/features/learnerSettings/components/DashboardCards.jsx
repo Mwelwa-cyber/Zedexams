@@ -11,10 +11,10 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { useSubscription } from '../../../hooks/useSubscription'
 import { useTheme, DEFAULT_THEME } from '../../../contexts/ThemeContext'
 import { useSettingsSave } from './SaveContext'
-import Icon from '../../../components/ui/Icon'
+import Icon from '../../../shared/components/Icon'
 import CharacterAvatar from '../../../shared/components/CharacterAvatar'
 import { UpgradeModal } from '../../subscription'
-import { SkeletonCard } from '../../../components/ui'
+import { SkeletonCard } from '../../../shared/components/Skeleton'
 import {
   SectionCard, StatTile, Segmented, LinkRow, Toggle, Select, Btn,
 } from './ui'
@@ -22,7 +22,7 @@ import {
   User, BookOpen, BarChart3, Bell, SwatchIcon, Eye, Sparkles, TrophyIcon,
   ShieldCheck, Info, Key, LogOut, Mail, AlertTriangle, Lightbulb, Play,
   FireIcon, CheckCircleIcon, Camera,
-} from '../../../components/ui/icons'
+} from '../../../shared/components/icons'
 import {
   normalizeLearningPrefs, DAILY_GOAL_OPTIONS, LANGUAGE_OPTIONS,
   normalizeReminderPrefs, normalizePersonalisation, ACCENT_OPTIONS,

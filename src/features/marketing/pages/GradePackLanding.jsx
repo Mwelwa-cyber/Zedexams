@@ -4,9 +4,9 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { PLANS, PAYMENT_DETAILS } from '../../../utils/subscriptionConfig'
 import { captureReferralFromUrl } from '../../../utils/referrals'
 import { isNativePlatform } from '../../../utils/runtime'
-import Logo from '../../../components/ui/Logo'
-import Button from '../../../components/ui/Button'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Logo from '../../../shared/components/Logo'
+import Button from '../../../shared/components/Button'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 
 const UpgradeModal = lazy(() => import('../../subscription').then(m => ({ default: m.UpgradeModal })))
 

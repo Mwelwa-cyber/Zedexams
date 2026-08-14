@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import LegalLayout from '../components/LegalLayout'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 import AnalyticsConsentToggle from '../../../components/ui/AnalyticsConsentToggle'
 
 /**

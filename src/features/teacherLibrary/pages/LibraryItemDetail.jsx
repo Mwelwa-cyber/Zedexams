@@ -37,7 +37,7 @@ import AssessmentPaperView from '../../../components/teacher/views/AssessmentPap
 import { aiPaperToStudioDoc } from '../../../utils/aiPaperToSections'
 import { buildAssessmentExportReadiness } from '../../../utils/assessmentExportReadiness'
 import { renderDiagramSvg } from '../../../components/diagrams/diagramCatalog'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 import { downloadLessonPlanDocx } from '../../../engines/export-engine/lessonPlanToDocx'
 import { downloadLibraryItemViaServer } from '../../../utils/serverLibraryDownload'
 import { downloadWorksheetDocx } from '../../../engines/export-engine/worksheetToDocx'
@@ -102,8 +102,8 @@ import { resolveGeneration } from '../../../utils/adminGenerationsService'
 import { publishShare, revokeShare, listSharesForGeneration } from '../../../utils/shareService'
 import { useAuth } from '../../../contexts/AuthContext'
 import useStudioAvailability from '../../../hooks/useStudioAvailability'
-import { useToast } from '../../../components/ui/Toast'
-import ConfirmDialog from '../../../components/ui/ConfirmDialog'
+import { useToast } from '../../../shared/components/Toast'
+import ConfirmDialog from '../../../shared/components/ConfirmDialog'
 
 // Tools whose library detail offers a direct HTML→PDF download (beyond the
 // lesson-plan / class-timetable specials handled separately in onExportPdf).

@@ -5,7 +5,7 @@
  */
 
 import { useState } from 'react'
-import ConfirmDialog from '../ui/ConfirmDialog'
+import ConfirmDialog from '../../shared/components/ConfirmDialog'
 import QuizStatusBadge from './QuizStatusBadge'
 
 export default function QuizPublishStep({

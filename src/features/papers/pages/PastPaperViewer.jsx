@@ -30,8 +30,8 @@ import { siblingPapers, viewPath } from '../lib/paperNav'
 import { isOfficialSource, paperNumberLabel, paperSourceLabel } from '../../../config/paperSources'
 import { PaperSourceBadge } from '../components/PaperTitle'
 import { subjectMeta } from '../lib/paperVisuals'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import Skeleton from '../../../components/ui/Skeleton'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import Skeleton from '../../../shared/components/Skeleton'
 import {
   ArrowLeft,
   BookmarkSquareIcon,
@@ -46,7 +46,7 @@ import {
   PencilLine,
   TrophyIcon,
   Upload,
-} from '../../../components/ui/icons'
+} from '../../../shared/components/icons'
 
 const PdfJsViewer = lazy(() => import('../../../shared/components/PdfJsViewer'))
 const ImageZoomOverlay = lazy(() => import('../components/ImageZoomOverlay'))

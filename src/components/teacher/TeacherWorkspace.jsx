@@ -15,7 +15,7 @@
 
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import Icon from '../ui/Icon'
+import Icon from '../../shared/components/Icon'
 import {
   ArrowRight,
   BookOpen,
@@ -27,7 +27,7 @@ import {
   GraduationCap,
   Layers,
   LayoutGrid,
-} from '../ui/icons'
+} from '../../shared/components/icons'
 import { capture } from '../../utils/analytics'
 import useStudioAvailability from '../../hooks/useStudioAvailability'
 // 3D studio tile icons (optimised WebP, ~2KB each), one per tile.

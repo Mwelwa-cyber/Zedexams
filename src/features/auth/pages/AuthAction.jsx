@@ -8,9 +8,9 @@ import {
 } from 'firebase/auth'
 import { doc, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { auth, db } from '../../../firebase/config'
-import Logo from '../../../components/ui/Logo'
-import Button from '../../../components/ui/Button'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Logo from '../../../shared/components/Logo'
+import Button from '../../../shared/components/Button'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 
 const INPUT_CLASS =
   'w-full h-[46px] rounded-[10px] border-[1.5px] border-[#2A2A3C] bg-white ' +

@@ -64,7 +64,7 @@ const MOBILE_UA =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 ' +
   '(KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
 
-// ErrorBoundary (src/components/ui/ErrorBoundary.jsx) renders one of these
+// ErrorBoundary (src/shared/components/ErrorBoundary.jsx) renders one of these
 // headings when a render throws. Seeing either means the route crashed.
 const CRASH_MARKERS = [
   'We hit a snag loading this page',

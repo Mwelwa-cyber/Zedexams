@@ -9,7 +9,7 @@ import { isMuted, toggleMute } from '../lib/gameSounds'
 import { useAuth } from '../../../contexts/AuthContext'
 import { NAV_ICON_MAP } from './gamesUi'
 import GameStickerStyles from '../../../shared/components/GameStickerStyles'
-import MobileBottomNav from '../../../components/layout/MobileBottomNav'
+import MobileBottomNav from '../../../shared/components/MobileBottomNav'
 
 /**
  * Shared chrome for every /games page. Keeps the Games experience cohesive

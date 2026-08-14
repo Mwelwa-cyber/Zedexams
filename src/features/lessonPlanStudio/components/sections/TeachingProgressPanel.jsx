@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChartBarIcon } from '../../../../components/ui/icons'
+import { ChartBarIcon } from '../../../../shared/components/icons'
 
 /**
  * TeachingProgressPanel — collapsible sidebar section showing CBC lesson series progress.

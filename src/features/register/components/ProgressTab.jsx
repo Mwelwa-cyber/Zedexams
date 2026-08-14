@@ -11,7 +11,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { listRecords } from '../../../utils/classRecords'
 import { buildClassProgress, overallGrade } from '../lib/classProgress'
 import { filterRecordsByPeriod } from '../../../utils/classTerms'
-import Skeleton from '../../../components/ui/Skeleton'
+import Skeleton from '../../../shared/components/Skeleton'
 import TermPeriodFilter from './TermPeriodFilter'
 
 function toneFor(pct) {

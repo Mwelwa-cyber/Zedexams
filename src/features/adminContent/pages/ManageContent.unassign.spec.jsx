@@ -49,7 +49,7 @@ vi.mock('../../../utils/paperToQuizConverter', () => ({ convertPaperToQuizDraft:
 // callables. ManageContent only wants `todayString` from it.
 vi.mock('../../../utils/examService', () => ({ todayString: () => '2026-07-31' }))
 vi.mock('../../../contexts/AuthContext', () => ({ useAuth: () => ({ currentUser: { uid: 'admin-1' } }) }))
-vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal()
   return { ...actual, useNavigate: () => vi.fn() }

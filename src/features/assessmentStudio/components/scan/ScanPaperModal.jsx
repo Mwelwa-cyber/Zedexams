@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import Button from '../../../../components/ui/Button'
+import Button from '../../../../shared/components/Button'
 import { compressImage } from '../../../../utils/imageCompression'
 import { measureBlurFromDataUrl } from '../../lib/scanImageQuality'
 import {

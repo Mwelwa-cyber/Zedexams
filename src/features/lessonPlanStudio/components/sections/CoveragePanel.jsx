@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChartBarIcon } from '../../../../components/ui/icons'
+import { ChartBarIcon } from '../../../../shared/components/icons'
 
 /**
  * CoveragePanel — collapsible sidebar card showing how much of the syllabus the

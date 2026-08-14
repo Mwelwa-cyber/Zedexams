@@ -4,17 +4,17 @@ import { useAuth } from '../../contexts/AuthContext'
 import useClickAway from '../../hooks/useClickAway'
 import useTeacherReminders from '../../hooks/useTeacherReminders'
 import ReminderPanel from './ReminderPanel'
-import Logo from '../ui/Logo'
-import Icon from '../ui/Icon'
+import Logo from '../../shared/components/Logo'
+import Icon from '../../shared/components/Icon'
 import useHideOnScroll from '../../hooks/useHideOnScroll'
-import { HeaderIconLink, HeaderIconButton } from '../ui/HeaderIconButton'
+import { HeaderIconLink, HeaderIconButton } from '../../shared/components/HeaderIconButton'
 import {
   BarChart3,
   Bell,
   User,
   Settings,
   LogOut,
-} from '../ui/icons'
+} from '../../shared/components/icons'
 
 export default function TeacherGlassHeader() {
   const { currentUser, userProfile, isAdmin, logout } = useAuth()

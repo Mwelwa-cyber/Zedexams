@@ -1,7 +1,7 @@
-import Card from '../../../../components/ui/Card'
-import Icon from '../../../../components/ui/Icon'
-import Button from '../../../../components/ui/Button'
-import { BookOpen, FileText, TrendingUp } from '../../../../components/ui/icons'
+import Card from '../../../../shared/components/Card'
+import Icon from '../../../../shared/components/Icon'
+import Button from '../../../../shared/components/Button'
+import { BookOpen, FileText, TrendingUp } from '../../../../shared/components/icons'
 import { Block, Section, Specimen } from '../auditKit.jsx'
 import { ForceHover } from '../forcedStates.jsx'
 
@@ -26,7 +26,7 @@ export default function CardsSection() {
       id="cards"
       title="4 · Cards"
       note={
-        'Card variants from src/components/ui/Card.jsx, then the two card shapes the app draws without the primitive (dashboard panel, document row) through their own classes. Every specimen carries title, body, secondary text, an icon and a badge — an invisible-text bug lives at the secondary level and cannot show up in a card that only has a title.'
+        'Card variants from src/shared/components/Card.jsx, then the two card shapes the app draws without the primitive (dashboard panel, document row) through their own classes. Every specimen carries title, body, secondary text, an icon and a badge — an invisible-text bug lives at the secondary level and cannot show up in a card that only has a title.'
       }
     >
       <Block title="Card variant × size">

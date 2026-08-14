@@ -4,7 +4,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
-import Button from '../../../components/ui/Button'
+import Button from '../../../shared/components/Button'
 
 // Firestore caps a WriteBatch at 500 ops; stay under it.
 const BATCH_SIZE = 400

@@ -30,7 +30,7 @@ vi.mock('../../../editor/components/RichEditor.jsx', () => ({
     />
   ),
 }))
-vi.mock('../../../components/ui/AiGenerationProgress', () => ({ default: () => null }))
+vi.mock('../../../shared/components/AiGenerationProgress', () => ({ default: () => null }))
 vi.mock('../../../components/teacher/syllabusTopicOptions', () => ({
   useSyllabusTopicOptions: () => ({ options: [], loading: false }),
   useStudioSubjectChoices: () => ({ options: ['English', 'Mathematics'], loading: false }),

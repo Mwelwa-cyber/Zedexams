@@ -7,7 +7,7 @@ import { SECTION_LETTERS } from '../../../components/teacher/assessmentStudioMet
 import { normalizeMarksMode, resolveQuestionMarks, marksLabel } from '../../../utils/paperMarksModel'
 import { CHOICE_COUNT_OPTIONS, normalizeChoiceCount } from '../../../utils/mcqChoices'
 import { MoreHorizontal } from 'lucide-react'
-import ActionMenu from '../../../components/ui/ActionMenu'
+import ActionMenu from '../../../shared/components/ActionMenu'
 import Icon from './studioIcons'
 import {
   HeaderBlock,

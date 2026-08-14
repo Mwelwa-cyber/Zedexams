@@ -61,10 +61,10 @@ vi.mock('../../../shared/components/DraftStatusIndicator', () => ({ default: () 
 vi.mock('../../../shared/components/DraftRecoveryPrompt', () => ({ default: () => null }))
 
 // Helmet needs a provider we don't want to stand up here.
-vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
 
 // LiveGenerationCanvas has no bearing on the generate path — render nothing.
-vi.mock('../../../components/ui/LiveGenerationCanvas', () => ({ default: () => null }))
+vi.mock('../../../shared/components/LiveGenerationCanvas', () => ({ default: () => null }))
 
 // The assignment-change notice pulls in the syllabus KB service (firebase) via
 // useSubjectsForGrade — irrelevant to the generate path, so stub it out.

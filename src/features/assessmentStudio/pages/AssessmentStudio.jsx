@@ -58,9 +58,9 @@ import {
   buildAssessmentDocumentTitle, buildAssessmentHeaderTitle, isGeneratedAssessmentTitle,
 } from '../../../components/teacher/assessmentTitle.js'
 import { isAssessmentDeleted, subscribeAssessmentDeletion } from '../../../utils/assessmentDeletion'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import Skeleton from '../../../components/ui/Skeleton'
-import ConfirmDialog from '../../../components/ui/ConfirmDialog'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import Skeleton from '../../../shared/components/Skeleton'
+import ConfirmDialog from '../../../shared/components/ConfirmDialog'
 import QuestionBankPanel from '../components/QuestionBankPanel'
 import QuestionBankView from '../components/QuestionBankView'
 import QuestionBankPlacementPicker from '../components/QuestionBankPlacementPicker'

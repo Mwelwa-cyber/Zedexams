@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Settings, AlignLeft, FileText, Layers } from '../../../../components/ui/icons'
+import { Settings, AlignLeft, FileText, Layers } from '../../../../shared/components/icons'
 import { FormatCard } from '../cards/FormatCard'
 import { FormatPreviewModal } from '../modals/FormatPreviewModal'
 import {

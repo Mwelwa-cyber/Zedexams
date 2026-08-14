@@ -5,10 +5,10 @@ import { useSubscriptionReminder } from '../../../hooks/useSubscriptionReminder'
 import { upgradePortal, SUB_STATUS } from '../../../utils/subscriptionStatus'
 import { isNativePlatform } from '../../../utils/runtime'
 import UpgradeModal from '../components/UpgradeModal'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import Button from '../../../components/ui/Button'
-import Icon from '../../../components/ui/Icon'
-import { ArrowLeft, CheckCircleIcon, Lock, Sparkles, ShieldCheck } from '../../../components/ui/icons'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import Button from '../../../shared/components/Button'
+import Icon from '../../../shared/components/Icon'
+import { ArrowLeft, CheckCircleIcon, Lock, Sparkles, ShieldCheck } from '../../../shared/components/icons'
 
 const STATUS_META = {
   [SUB_STATUS.PRO]:     { label: 'Pro',     tone: 'bg-green-100 text-green-700',  emoji: '⭐' },

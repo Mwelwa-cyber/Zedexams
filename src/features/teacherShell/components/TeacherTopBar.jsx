@@ -8,8 +8,8 @@ import { resolveActiveAssignment } from '../../../utils/plannedTeachingMeta.js'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
 import ReminderPanel from '../../../components/teacher/ReminderPanel'
 import { QUICK_CREATE } from '../../../components/teacher/teacherNav'
-import { Bell, Plus, X } from '../../../components/ui/icons'
-import Icon from '../../../components/ui/Icon'
+import { Bell, Plus, X } from '../../../shared/components/icons'
+import Icon from '../../../shared/components/Icon'
 
 export default function TeacherTopBar() {
   const { currentUser } = useAuth()

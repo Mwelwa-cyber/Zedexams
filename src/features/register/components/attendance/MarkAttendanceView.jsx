@@ -31,8 +31,8 @@ import { learnerMatchesQuery } from '../../../../utils/classListCore'
 import {
   formatDateLong, nearestMarkableDate,
 } from '../../../../utils/attendanceCalendarResolver'
-import { useToast } from '../../../../components/ui/Toast'
-import Button from '../../../../components/ui/Button'
+import { useToast } from '../../../../shared/components/Toast'
+import Button from '../../../../shared/components/Button'
 import useIsMobile from '../../../../shared/hooks/useIsMobile'
 import {
   AlertTriangle, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight,

@@ -16,9 +16,9 @@ vi.mock('../services/familyPortal', () => ({
   redeemFamilyInviteCode: (...a) => mockRedeem(...a),
 }))
 vi.mock('../../../utils/clientErrorReporting', () => ({ reportClientError: vi.fn() }))
-vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
-vi.mock('../../../components/ui/Skeleton', () => ({ default: () => <div data-testid="skeleton" /> }))
-vi.mock('../../../components/ui/Button', () => ({ default: ({ children, ...p }) => <button {...p}>{children}</button> }))
+vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../shared/components/Skeleton', () => ({ default: () => <div data-testid="skeleton" /> }))
+vi.mock('../../../shared/components/Button', () => ({ default: ({ children, ...p }) => <button {...p}>{children}</button> }))
 
 let mockAuth = { currentUser: { uid: 'parent-1' } }
 vi.mock('../../../contexts/AuthContext', () => ({ useAuth: () => mockAuth }))

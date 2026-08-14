@@ -50,9 +50,9 @@ import { useCachedQuery } from '../hooks/useCachedQuery.js'
 import { getSearchCache, CACHE_TTL } from '../../../utils/cache/searchCache.js'
 import { createSearchCacheKey } from '../../../utils/cache/cacheKeys.js'
 import DiagramSvg from '../../../components/diagrams/DiagramSvg'
-import ActionMenu from '../../../components/ui/ActionMenu'
-import ConfirmDialog from '../../../components/ui/ConfirmDialog'
-import Skeleton from '../../../components/ui/Skeleton'
+import ActionMenu from '../../../shared/components/ActionMenu'
+import ConfirmDialog from '../../../shared/components/ConfirmDialog'
+import Skeleton from '../../../shared/components/Skeleton'
 
 // Shared with the studio's bank view and the builder drawer — one cached fetch
 // and one invalidation serve both (CLAUDE.md #13.5/#13.7).

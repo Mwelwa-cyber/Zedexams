@@ -66,8 +66,8 @@ vi.mock('../../../hooks/draft/useStudioInputDraft', () => ({
 vi.mock('../../../shared/components/DraftStatusIndicator', () => ({ default: () => null }))
 vi.mock('../../../shared/components/DraftRecoveryPrompt', () => ({ default: () => null }))
 
-vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
-vi.mock('../../../components/ui/LiveGenerationCanvas', () => ({ default: () => null }))
+vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../shared/components/LiveGenerationCanvas', () => ({ default: () => null }))
 vi.mock('../components/WorksheetView', () => ({ default: () => null }))
 vi.mock('../../../components/teacher/generate/StudioAssignmentChangeNotice', () => ({ default: () => null }))
 vi.mock('../../../components/teacher/generate/CreatedFromLessonPlanNotice', () => ({ default: () => null }))

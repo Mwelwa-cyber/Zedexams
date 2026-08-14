@@ -41,7 +41,7 @@ vi.mock('../../hooks/useSoundEffects', () => ({
 
 // Heavy / unrelated leaves — stub to keep the render light.
 vi.mock('../../editor/RichContent', () => ({ default: () => null, getRichPlainText: () => '' }))
-vi.mock('../seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../shared/components/SeoHelmet', () => ({ default: () => null }))
 vi.mock('../diagrams/DiagramSvg', () => ({ default: () => null }))
 vi.mock('../../utils/aiAssistant', () => ({ explainQuizAnswer: vi.fn() }))
 

@@ -26,8 +26,8 @@ import {
 import { STUDIOS, STUDIO_BY_ID, creatableStudios } from '../../../lib/library/studios'
 import { NEUTRAL_TINT, studioIcon, studioTint } from '../lib/studioPresentation'
 import { classifyForLibrary } from '../../../utils/libraryClassification'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import Icon from '../../../components/ui/Icon'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import Icon from '../../../shared/components/Icon'
 import {
   AlertTriangle,
   ArrowRight,
@@ -59,7 +59,7 @@ import {
   Sprout,
   Target,
   TrophyIcon,
-} from '../../../components/ui/icons'
+} from '../../../shared/components/icons'
 
 /**
  * Hierarchical Library Browser.

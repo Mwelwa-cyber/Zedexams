@@ -21,8 +21,8 @@
  */
 
 import { useState } from 'react'
-import Icon from '../../../components/ui/Icon'
-import { AlertTriangle, Check, ChevronDown } from '../../../components/ui/icons'
+import Icon from '../../../shared/components/Icon'
+import { AlertTriangle, Check, ChevronDown } from '../../../shared/components/icons'
 
 export default function GroundingChip({ grounding, checks }) {
   const [open, setOpen] = useState(false)

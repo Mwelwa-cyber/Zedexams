@@ -1,5 +1,5 @@
 import { ActivityChip } from '../cards/ActivityChip.jsx'
-import { Sparkles } from '../../../../components/ui/icons'
+import { Sparkles } from '../../../../shared/components/icons'
 
 const SECTION_LABEL_CLS = 'block text-[10px] font-bold uppercase tracking-widest text-[#4A5A6E] mb-1'
 const SECTION_VALUE_CLS = 'text-[13px] text-[#3d3529] leading-snug'

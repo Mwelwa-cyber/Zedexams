@@ -37,8 +37,8 @@ vi.mock('../../contexts/AuthContext', () => ({
     updateProfileFields,
   }),
 }))
-vi.mock('../../components/seo/SeoHelmet', () => ({ default: () => null }))
-vi.mock('../../components/ui/PageLoader', () => ({ default: () => <div>loading</div> }))
+vi.mock('../../shared/components/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../shared/components/PageLoader', () => ({ default: () => <div>loading</div> }))
 vi.mock('./components/AiFab', () => ({ default: () => <div data-testid="ai-fab" /> }))
 
 // Stub the overview cards so the shell spec only exercises the shell. Each stub

@@ -24,8 +24,8 @@ import {
 } from '../../../utils/importReviewCore'
 import { reviewReasonText } from '../../../utils/learnerStatus'
 import { GENDERS } from '../../../utils/rosterImport'
-import Button from '../../../components/ui/Button'
-import ResponsiveModal from '../../../components/ui/ResponsiveModal'
+import Button from '../../../shared/components/Button'
+import ResponsiveModal from '../../../shared/components/ResponsiveModal'
 import {
   AlertTriangle, Camera, CheckCircle2, Info, Trash2, X,
 } from '../../../shared/icons/classListIcons'

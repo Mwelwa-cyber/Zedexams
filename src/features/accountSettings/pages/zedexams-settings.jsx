@@ -16,8 +16,8 @@ import CharacterAvatar, {
   INTEREST_GROUPS,
   getCharacter,
 } from '../../../shared/components/CharacterAvatar';
-import SeoHelmet from '../../../components/seo/SeoHelmet';
-import LanguageToggle from '../../../components/ui/LanguageToggle';
+import SeoHelmet from '../../../shared/components/SeoHelmet';
+import LanguageToggle from '../../../shared/components/LanguageToggle';
 import { ParentShareManager } from '../../parentPortal';
 import { isPushSupported, pushPermission, requestPushPermission } from '../../../utils/fcm';
 import {

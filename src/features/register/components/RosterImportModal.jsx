@@ -21,8 +21,8 @@ import {
   validRosterEntries,
 } from '../../../utils/rosterImport'
 import { bulkAddRoster, parseRosterFile } from '../../../utils/classRoster'
-import { useToast } from '../../../components/ui/Toast'
-import Button from '../../../components/ui/Button'
+import { useToast } from '../../../shared/components/Toast'
+import Button from '../../../shared/components/Button'
 import { saveBlob } from '../../../utils/saveBlob.js'
 
 const MODES = [

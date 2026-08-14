@@ -15,9 +15,9 @@ import { recordToSchedule } from '../lib/classRecordExport'
 import { downloadMarkScheduleXlsx } from '../../../engines/export-engine/markScheduleToXlsx'
 import { downloadMarkScheduleDocx } from '../../../engines/export-engine/markScheduleToDocx'
 import { downloadReportCardsDocx } from '../../../engines/export-engine/reportCardsToDocx'
-import { useToast } from '../../../components/ui/Toast'
-import Button from '../../../components/ui/Button'
-import Skeleton from '../../../components/ui/Skeleton'
+import { useToast } from '../../../shared/components/Toast'
+import Button from '../../../shared/components/Button'
+import Skeleton from '../../../shared/components/Skeleton'
 import TermPeriodFilter from './TermPeriodFilter'
 
 function safeName(s) {

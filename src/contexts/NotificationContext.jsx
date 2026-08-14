@@ -25,7 +25,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from './AuthContext'
-import { useToast } from '../components/ui/Toast'
+import { useToast } from '../shared/components/Toast'
 import { onForegroundMessage } from '../utils/fcm'
 
 /**

@@ -3,9 +3,9 @@ import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useFirestore } from '../../../hooks/useFirestore'
 import { generateAIStudyPlan } from '../../../utils/aiAssistant'
-import Button from '../../../components/ui/Button'
-import Icon from '../../../components/ui/Icon'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Button from '../../../shared/components/Button'
+import Icon from '../../../shared/components/Icon'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 import {
   BarChart3,
   BookOpen,
@@ -16,7 +16,7 @@ import {
   RefreshCw,
   Sparkles,
   Target,
-} from '../../../components/ui/icons'
+} from '../../../shared/components/icons'
 
 function asArray(value) {
   return Array.isArray(value) ? value : []

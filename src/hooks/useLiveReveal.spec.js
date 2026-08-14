@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useLiveReveal } from './useLiveReveal.js'
-import { PREP_STEPS } from '../components/ui/liveGenerationSections'
+import { PREP_STEPS } from '../shared/components/liveGenerationSections'
 
 // useLiveReveal is the timing state machine behind every teacher studio's
 // Live Generation Canvas: a prep-step walk while generating, then a paced

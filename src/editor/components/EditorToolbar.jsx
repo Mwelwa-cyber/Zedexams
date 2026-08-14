@@ -25,7 +25,7 @@ import {
   List, ListOrdered,
   AlignLeft, AlignCenter, AlignRight,
   TableIcon,
-} from '../../components/ui/icons'
+} from '../../shared/components/icons'
 
 import { mathsToolOrder } from '../../components/teacher/mathsSubjects.js'
 

@@ -28,8 +28,8 @@ import {
   parseCsvImport,
   rowToQuestion,
 } from '../../../utils/csvQuizImport'
-import { Download, Upload, Check, AlertTriangle, X as XMarkIcon } from '../../../components/ui/icons'
-import Icon from '../../../components/ui/Icon'
+import { Download, Upload, Check, AlertTriangle, X as XMarkIcon } from '../../../shared/components/icons'
+import Icon from '../../../shared/components/Icon'
 
 const SUBJECTS = [
   'Mathematics', 'Integrated Science', 'Science', 'English',

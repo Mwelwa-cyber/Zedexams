@@ -72,8 +72,8 @@ vi.mock('./ReimportDiffModal', () => ({ default: () => null }))
 vi.mock('./QuizWizardSteps', () => ({ default: () => null }))
 vi.mock('./QuizStatusBadge', () => ({ default: () => null }))
 vi.mock('./QuizPublishStep', () => ({ default: () => null }))
-vi.mock('../ui/ConfirmDialog', () => ({ default: () => null }))
-vi.mock('../seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../shared/components/ConfirmDialog', () => ({ default: () => null }))
+vi.mock('../../shared/components/SeoHelmet', () => ({ default: () => null }))
 
 const mockNavigate = vi.fn()
 vi.mock('react-router-dom', async (importOriginal) => {

@@ -11,7 +11,7 @@
 // so docs stay small — only the URL is stored.
 
 import { useRef, useState } from 'react'
-import { ImageIcon, Loader2, Trash2, ChevronUp, ChevronDown } from '../../../components/ui/icons'
+import { ImageIcon, Loader2, Trash2, ChevronUp, ChevronDown } from '../../../shared/components/icons'
 import { uploadInlineImage } from '../lib/storage'
 import {
   STUDY_BLOCK_LABELS, STUDY_BLOCK_TYPES, newStudyBlock, linesFrom,

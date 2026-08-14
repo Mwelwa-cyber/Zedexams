@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
-import Icon from '../../../../components/ui/Icon'
-import { ImageIcon } from '../../../../components/ui/icons'
+import Icon from '../../../../shared/components/Icon'
+import { ImageIcon } from '../../../../shared/components/icons'
 
 // Generic branding-asset upload tile (logo / signature / letterhead).
 // The OWNER of the Firestore field does the persistence: this component only

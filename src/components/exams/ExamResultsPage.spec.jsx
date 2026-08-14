@@ -50,12 +50,12 @@ vi.mock('../../hooks/useSoundEffects', () => ({
 }))
 
 vi.mock('../layout/Navbar', () => ({ default: () => null }))
-vi.mock('../seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../shared/components/SeoHelmet', () => ({ default: () => null }))
 vi.mock('./ExamCelebrations', () => ({ default: () => null }))
 vi.mock('../../editor/RichContent', () => ({
   default: ({ value }) => <span>{typeof value === 'string' ? value : ''}</span>,
 }))
-vi.mock('../ui/icons', () => ({ Volume2: () => null, VolumeX: () => null }))
+vi.mock('../../shared/components/icons', () => ({ Volume2: () => null, VolumeX: () => null }))
 
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal()

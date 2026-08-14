@@ -6,7 +6,7 @@
 // by showing the LearnerOnboarding screen.
 
 import { Navigate } from 'react-router-dom'
-import { Loader2 } from '../../../components/ui/icons'
+import { Loader2 } from '../../../shared/components/icons'
 import { useLearnerProfile } from '../hooks/useLearnerProfile'
 import { LearnerOnboarding } from './LearnerOnboarding'
 

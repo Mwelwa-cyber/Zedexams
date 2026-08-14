@@ -16,8 +16,8 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import ResponsiveModal from '../../../components/ui/ResponsiveModal'
-import Button from '../../../components/ui/Button'
+import ResponsiveModal from '../../../shared/components/ResponsiveModal'
+import Button from '../../../shared/components/Button'
 import { GENDERS } from '../../../utils/rosterImport'
 import { selectableLearnerStatuses, learnerStatusMeta } from '../../../utils/learnerStatus'
 import { AlertTriangle } from '../../../shared/icons/classListIcons'

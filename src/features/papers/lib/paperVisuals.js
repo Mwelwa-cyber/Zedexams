@@ -15,7 +15,7 @@ import {
   Sparkles,
   FileText,
   PuzzlePieceIcon,
-} from '../../../components/ui/icons'
+} from '../../../shared/components/icons'
 import { PAPER_SUBJECTS } from '../../../config/curriculum'
 
 export const SUBJECT_VISUALS = {

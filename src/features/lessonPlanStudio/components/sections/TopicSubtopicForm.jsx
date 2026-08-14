@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { BookOpen, Layers, ListChecks } from '../../../../components/ui/icons'
+import { BookOpen, Layers, ListChecks } from '../../../../shared/components/icons'
 import { useSubjectTopics } from '../../../../components/teacher/studio/hooks/useSubjectTopics.js'
 import { useSubtopicDetail } from '../../../../components/teacher/studio/hooks/useSubtopicDetail.js'
 

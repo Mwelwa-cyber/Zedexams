@@ -5,7 +5,7 @@
 import { useAuth } from '../../../contexts/AuthContext'
 import { useSettingsSave } from '../components/SaveContext'
 import { Panel, Section, SelectField, Toggle, Note } from '../components/ui'
-import LanguageToggle from '../../../components/ui/LanguageToggle'
+import LanguageToggle from '../../../shared/components/LanguageToggle'
 import {
   normalizeLearningPrefs,
   QUIZ_DIFFICULTY_OPTIONS,

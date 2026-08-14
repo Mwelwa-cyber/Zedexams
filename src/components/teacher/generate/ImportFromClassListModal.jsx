@@ -16,7 +16,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Users } from 'lucide-react'
-import ResponsiveModal from '../../ui/ResponsiveModal'
+import ResponsiveModal from '../../../shared/components/ResponsiveModal'
 import { listTeacherRegisters } from '../../../utils/classRegister'
 import { listRoster } from '../../../utils/classRoster'
 import { formatClassGrade } from '../../../schemas/classRegister'

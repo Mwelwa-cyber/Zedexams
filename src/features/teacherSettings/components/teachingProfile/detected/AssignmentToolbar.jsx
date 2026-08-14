@@ -1,5 +1,5 @@
-import Icon from '../../../../../components/ui/Icon'
-import { Search } from '../../../../../components/ui/icons'
+import Icon from '../../../../../shared/components/Icon'
+import { Search } from '../../../../../shared/components/icons'
 
 /**
  * Summary row above the assignment list — "Teaching assignments found (N)" on

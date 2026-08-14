@@ -5,12 +5,12 @@ import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
 import { useFirestore } from '../../../hooks/useFirestore'
 import { useSubscription } from '../../../hooks/useSubscription'
 import { PremiumGate, RenewalBanner, UpgradeBanner, AttemptCounter, UpgradeModal } from '../../subscription'
-import Mascot from '../../../components/ui/Mascot'
-import Button from '../../../components/ui/Button'
-import Skeleton from '../../../components/ui/Skeleton'
-import ContentLoadError from '../../../components/ui/ContentLoadError'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import Icon from '../../../components/ui/Icon'
+import Mascot from '../../../shared/components/Mascot'
+import Button from '../../../shared/components/Button'
+import Skeleton from '../../../shared/components/Skeleton'
+import ContentLoadError from '../../../shared/components/ContentLoadError'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import Icon from '../../../shared/components/Icon'
 import {
   BarChart3,
   BookOpen,
@@ -20,7 +20,7 @@ import {
   Sparkles,
   Target,
   TrophyIcon,
-} from '../../../components/ui/icons'
+} from '../../../shared/components/icons'
 import ProgressWidget from '../components/ProgressWidget'
 import StreakXpCard from '../components/StreakXpCard'
 import StudyPlanCard from '../components/StudyPlanCard'

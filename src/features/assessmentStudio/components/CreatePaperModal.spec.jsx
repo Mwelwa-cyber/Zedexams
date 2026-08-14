@@ -76,12 +76,12 @@ vi.mock('../../../utils/aiPaperToSections', () => ({
   aiAssessmentToStudioBlocks: vi.fn(),
 }))
 
-vi.mock('../../../components/ui/AiGenerationProgress', () => ({ default: () => null }))
+vi.mock('../../../shared/components/AiGenerationProgress', () => ({ default: () => null }))
 
 // Capture the onStop prop emitted by CreatePaperModal so stop-race tests can
 // invoke it without a real LiveGenerationCanvas in the DOM.
 const canvasCapture = vi.hoisted(() => ({ onStop: null }))
-vi.mock('../../../components/ui/LiveGenerationCanvas', () => ({
+vi.mock('../../../shared/components/LiveGenerationCanvas', () => ({
   default: ({ onStop }) => {
     canvasCapture.onStop = onStop
     return null

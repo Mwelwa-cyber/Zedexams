@@ -16,7 +16,7 @@ import userEvent from '@testing-library/user-event'
 
 import MarkAttendanceView from './MarkAttendanceView'
 
-vi.mock('../../../../components/ui/Toast', () => ({
+vi.mock('../../../../shared/components/Toast', () => ({
   useToast: () => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }),
 }))
 

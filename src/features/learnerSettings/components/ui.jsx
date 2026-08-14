@@ -6,8 +6,8 @@
 // learner's chosen ZedExams theme automatically).
 
 import { useEffect, useRef, useState } from 'react'
-import Icon from '../../../components/ui/Icon'
-import { ChevronRight as ChevronRightIcon } from '../../../components/ui/icons'
+import Icon from '../../../shared/components/Icon'
+import { ChevronRight as ChevronRightIcon } from '../../../shared/components/icons'
 
 /* True when the learner (or their OS) has asked to calm animation. Used to skip
    the count-up animation and land straight on the final value. */

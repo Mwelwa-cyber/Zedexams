@@ -23,7 +23,7 @@
  * every icon added and removed.
  *
  * NOTE the Heroicons set is NOT listed here. Those come through the app's own
- * barrel (src/components/ui/icons.js), which the audit page enumerates with
+ * barrel (src/shared/components/icons.js), which the audit page enumerates with
  * `import * as` — that barrel is a fixed module the app already loads whole,
  * so enumerating it costs nothing and cannot drift.
  */

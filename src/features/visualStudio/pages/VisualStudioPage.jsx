@@ -7,9 +7,9 @@
 
 import { useCallback, useRef, useState } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
-import PageHeader from '../../../components/ui/PageHeader'
-import Button from '../../../components/ui/Button'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import PageHeader from '../../../shared/components/PageHeader'
+import Button from '../../../shared/components/Button'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 import VisualStudioHome from '../components/VisualStudioHome'
 import GeneratePanel from '../components/GeneratePanel'
 import TemplatesPanel from '../components/TemplatesPanel'

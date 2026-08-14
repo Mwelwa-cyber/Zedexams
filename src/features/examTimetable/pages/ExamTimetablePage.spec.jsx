@@ -12,7 +12,7 @@ import ExamTimetablePage from './ExamTimetablePage.jsx'
 vi.mock('../../../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
 vi.mock('../../../hooks/useExamTimetables', () => ({ default: vi.fn() }))
 vi.mock('../../../components/layout/Navbar', () => ({ default: () => <nav data-testid="navbar" /> }))
-vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
 vi.mock('../../../utils/runtime', () => ({ isNativePlatform: () => false }))
 
 const ARCHIVED_2025 = {

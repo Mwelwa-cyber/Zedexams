@@ -34,15 +34,15 @@ import {
 import { useLibraryAutoSave } from '../../../hooks/useLibraryAutoSave'
 import RecordOfWorkView from '../components/RecordOfWorkView'
 import StudioPageHeader from '../../../shared/components/StudioPageHeader'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import ConfirmDialog from '../../../components/ui/ConfirmDialog'
-import { useToast } from '../../../components/ui/Toast'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import ConfirmDialog from '../../../shared/components/ConfirmDialog'
+import { useToast } from '../../../shared/components/Toast'
 import { useDraftManager } from '../../../hooks/draft/useDraftManager'
 import { recordOfWorkDescriptor } from '../../../hooks/draft/descriptors/handBuilt'
 import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
 import DraftRecoveryPrompt from '../../../shared/components/DraftRecoveryPrompt'
 import DraftStatusIndicator from '../../../shared/components/DraftStatusIndicator'
-import ListTextarea from '../../../components/ui/ListTextarea'
+import ListTextarea from '../../../shared/components/ListTextarea'
 
 const SUBJECT_LABEL = Object.fromEntries(
   TEACHER_SUBJECTS.filter((s) => s.value).map((s) => [s.value, s.label]),

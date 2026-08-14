@@ -24,7 +24,7 @@ import {
 import { SCHOOL_SESSIONS, getSession } from '../../../shared/utils/timetableSessions'
 import { clampInt } from '../../../utils/inputs.js'
 import { durationLabelForEvent } from '../../../utils/durationOptions'
-import DurationSelect from '../../../components/ui/DurationSelect'
+import DurationSelect from '../../../shared/components/DurationSelect'
 import { FieldWrapper } from '../../../shared/components/studioFields'
 
 const TIMING_MODES = [

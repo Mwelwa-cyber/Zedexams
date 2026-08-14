@@ -1,5 +1,5 @@
-import Icon from '../../../../../components/ui/Icon'
-import { ChevronDown } from '../../../../../components/ui/icons'
+import Icon from '../../../../../shared/components/Icon'
+import { ChevronDown } from '../../../../../shared/components/icons'
 import AssignmentSourceDetails from './AssignmentSourceDetails'
 
 /**

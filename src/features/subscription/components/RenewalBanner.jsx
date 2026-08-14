@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { daysUntilExpiry, PLANS } from '../../../utils/subscriptionConfig'
 import { isNativePlatform } from '../../../utils/runtime'
-import Button from '../../../components/ui/Button'
+import Button from '../../../shared/components/Button'
 
 // How early to start nudging. 7 days is enough lead time for a parent
 // to top up via Mobile Money without feeling spammed; under that and the

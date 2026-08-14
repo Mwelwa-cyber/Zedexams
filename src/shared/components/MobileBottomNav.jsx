@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Files, Gamepad2, GraduationCap, Home, PencilLine } from '../ui/icons'
-import Icon from '../ui/Icon'
+import { Files, Gamepad2, GraduationCap, Home, PencilLine } from './icons'
+import Icon from './Icon'
 import useHideOnScroll from '../../hooks/useHideOnScroll'
 
 // 5 items at 20% width each, matching the learner-home bottom nav IA

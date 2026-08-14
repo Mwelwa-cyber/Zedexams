@@ -38,7 +38,7 @@ import {
   AlertTriangle,
   CheckCircleIcon,
   Users,
-} from '../../../components/ui/icons'
+} from '../../../shared/components/icons'
 
 // ── tone lookups ───────────────────────────────────────────────────────────
 const ACCENT = {

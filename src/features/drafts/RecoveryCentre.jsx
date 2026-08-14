@@ -17,9 +17,9 @@ import { idbListDrafts, idbDeleteDraft } from '../../hooks/draft/draftIdbStore'
 import { TOOL_META } from '../../utils/teacherLibraryService'
 import { timeAgo } from '../../utils/gamificationService'
 import StudioPageHeader from '../../shared/components/StudioPageHeader'
-import SeoHelmet from '../../components/seo/SeoHelmet'
-import ConfirmDialog from '../../components/ui/ConfirmDialog'
-import { useToast } from '../../components/ui/Toast'
+import SeoHelmet from '../../shared/components/SeoHelmet'
+import ConfirmDialog from '../../shared/components/ConfirmDialog'
+import { useToast } from '../../shared/components/Toast'
 import {
   mergeDraftLists,
   studioLabel,

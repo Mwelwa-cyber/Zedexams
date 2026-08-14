@@ -4,10 +4,10 @@
 // since pulling a published note back to draft is a deliberate action.
 
 import { useState } from 'react'
-import { Sparkles, EyeOff } from '../../../components/ui/icons'
+import { Sparkles, EyeOff } from '../../../shared/components/icons'
 import { publishNote, unpublishNote } from '../lib/firestore'
 import { NOTE_STATUS } from '../../../config/curriculum'
-import { useToast } from '../../../components/ui/Toast'
+import { useToast } from '../../../shared/components/Toast'
 
 export function PublishToggle({ noteId, status, disabled, onChange }) {
   const toast = useToast()

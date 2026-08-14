@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
-import { BookOpen, GraduationCap, PuzzlePieceIcon, ArrowRight, ArrowLeft, Sparkles, Lightbulb, Globe, ShieldCheck, Layers } from '../../../components/ui/icons'
-import Icon from '../../../components/ui/Icon'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import { BookOpen, GraduationCap, PuzzlePieceIcon, ArrowRight, ArrowLeft, Sparkles, Lightbulb, Globe, ShieldCheck, Layers } from '../../../shared/components/icons'
+import Icon from '../../../shared/components/Icon'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 import {
   ZM_GREEN,
   ZM_GOLD,

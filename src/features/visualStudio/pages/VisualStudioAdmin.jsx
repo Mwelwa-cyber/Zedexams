@@ -5,8 +5,8 @@
    for teacher-owned visualAssets oversight + cost. */
 
 import { useCallback, useEffect, useState } from 'react'
-import PageHeader from '../../../components/ui/PageHeader'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import PageHeader from '../../../shared/components/PageHeader'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 import {
   listAllVisualAssets, moderateVisualAsset, deleteVisualAsset,
 } from '../services/visualAssetService'

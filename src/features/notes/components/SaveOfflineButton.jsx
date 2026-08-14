@@ -7,7 +7,7 @@
 // option at all and the label "Save offline" only ever did a file download.
 
 import { useEffect, useState } from 'react'
-import { Download, Check, Loader2, Trash2 } from '../../../components/ui/icons'
+import { Download, Check, Loader2, Trash2 } from '../../../shared/components/icons'
 import { downloadForOffline, unpin } from '../../../offline/contentCache.js'
 import { getContent } from '../../../offline/offlineStore.js'
 import { fetchNoteForCache } from '../hooks/useOfflineNote'

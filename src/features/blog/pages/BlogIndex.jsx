@@ -14,8 +14,8 @@
 
 import { Link } from 'react-router-dom'
 import { listAllPosts } from '../services/blogPosts'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import Logo from '../../../components/ui/Logo'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import Logo from '../../../shared/components/Logo'
 
 function fmtDate(iso) {
   if (!iso) return ''

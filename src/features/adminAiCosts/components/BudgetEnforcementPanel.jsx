@@ -14,7 +14,7 @@
 
 import { useEffect, useState } from 'react'
 import { getBudgetEnforcement } from '../lib/aiBudget'
-import Skeleton from '../../../components/ui/Skeleton'
+import Skeleton from '../../../shared/components/Skeleton'
 
 const usdFmt = new Intl.NumberFormat('en-US', {
   style: 'currency',

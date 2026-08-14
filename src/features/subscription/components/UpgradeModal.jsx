@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Check, Loader2, Lock, Sparkles, X } from '../../../components/ui/icons'
+import { ArrowLeft, ArrowRight, Check, Loader2, Lock, Sparkles, X } from '../../../shared/components/icons'
 import { isNativePlatform } from '../../../utils/runtime'
 import { markPremiumActionPaid } from '../lib/pendingPremiumAction'
 import { resolveInvoicePdfUrl } from '../../../utils/invoices'
@@ -20,8 +20,8 @@ import {
   submitLencoOtp,
 } from '../../../utils/lenco'
 import { formatZambianPhoneInput, zambianPhoneDigits } from '../../../utils/phoneFormat'
-import Button from '../../../components/ui/Button'
-import Icon from '../../../components/ui/Icon'
+import Button from '../../../shared/components/Button'
+import Icon from '../../../shared/components/Icon'
 import NetworkField from './NetworkField'
 import PaymentStatusTracker from './PaymentStatusTracker'
 

@@ -37,10 +37,10 @@ import {
   suggestClassName,
 } from '../../../schemas/classRegister'
 import { normalizeCurriculum } from '../../../config/paperTerminology'
-import { useToast } from '../../../components/ui/Toast'
-import Button from '../../../components/ui/Button'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import Skeleton from '../../../components/ui/Skeleton'
+import { useToast } from '../../../shared/components/Toast'
+import Button from '../../../shared/components/Button'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import Skeleton from '../../../shared/components/Skeleton'
 
 // The register's grade set is its OWN data model (the full school ladder,
 // Nursery through Form 4 — see CLASS_REGISTER_GRADE_OPTIONS): every grade the

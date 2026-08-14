@@ -10,9 +10,9 @@ import { computeClassSummary, formatPercent } from '../../../../utils/attendance
 import { calendarMetaForTerm, markableDays } from '../../../../utils/attendanceCalendarResolver'
 import { saveAttendanceTermSettings } from '../../services/attendanceService'
 import { ATTENDANCE_STATUSES, DEFAULT_ATTENDANCE_POLICY } from '../../../../utils/attendanceConstants'
-import { useToast } from '../../../../components/ui/Toast'
-import Button from '../../../../components/ui/Button'
-import ConfirmDialog from '../../../../components/ui/ConfirmDialog'
+import { useToast } from '../../../../shared/components/Toast'
+import Button from '../../../../shared/components/Button'
+import ConfirmDialog from '../../../../shared/components/ConfirmDialog'
 
 const BREAK_MODES = [
   { id: 'none', label: 'No mid-term break' },

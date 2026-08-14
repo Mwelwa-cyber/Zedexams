@@ -3,7 +3,7 @@
 // Single admin card in the notes list. Click handler is passed in —
 // typically navigates to the editor.
 
-import { FileText, FileType, Check, Clock, Layout } from '../../../components/ui/icons'
+import { FileText, FileType, Check, Clock, Layout } from '../../../shared/components/icons'
 import { NOTE_FORMAT, NOTE_STATUS } from '../../../config/curriculum'
 import { formatDate } from '../lib/format'
 

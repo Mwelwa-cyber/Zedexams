@@ -6,8 +6,8 @@ import { resolveTeacherPlan, PLAN_LABELS } from '../../../utils/teacherPlans'
 import { teachingCounts } from '../../../utils/teacherDefaults'
 import { normalizeTeacherProfile } from '../../../utils/teacherSettingsCore'
 import { useTeachingProfile } from '../lib/useTeachingProfile'
-import Icon from '../../../components/ui/Icon'
-import { Home, PencilLine } from '../../../components/ui/icons'
+import Icon from '../../../shared/components/Icon'
+import { Home, PencilLine } from '../../../shared/components/icons'
 import heroDesk from '../../../assets/teacher/hero-desk.webp'
 
 // "Member since" from the profile's Firestore Timestamp (or the auth

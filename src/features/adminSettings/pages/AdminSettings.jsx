@@ -22,10 +22,10 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { doc, getDoc, increment, serverTimestamp, setDoc } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
-import Button from '../../../components/ui/Button'
-import Icon from '../../../components/ui/Icon'
-import Skeleton from '../../../components/ui/Skeleton'
-import ConfirmDialog from '../../../components/ui/ConfirmDialog'
+import Button from '../../../shared/components/Button'
+import Icon from '../../../shared/components/Icon'
+import Skeleton from '../../../shared/components/Skeleton'
+import ConfirmDialog from '../../../shared/components/ConfirmDialog'
 import {
   AlertCircle,
   AlertTriangle,
@@ -53,7 +53,7 @@ import {
   Upload,
   Users,
   X,
-} from '../../../components/ui/icons'
+} from '../../../shared/components/icons'
 import { SETTINGS_GROUPS } from '../lib/settingsRegistry.js'
 import {
   buildDefaults,

@@ -1,5 +1,5 @@
-import Icon from './Icon'
-import { BookOpen } from './icons'
+import Icon from '../../shared/components/Icon'
+import { BookOpen } from '../../shared/components/icons'
 
 const VARIANTS = {
   indigo: {

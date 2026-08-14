@@ -31,7 +31,7 @@ vi.mock('../../contexts/AuthContext', () => ({ useAuth: () => ({ currentUser: { 
 vi.mock('../../hooks/useFirestore', () => ({
   useFirestore: () => ({ createQuiz: vi.fn(), saveQuestions: vi.fn() }),
 }))
-vi.mock('../seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../shared/components/SeoHelmet', () => ({ default: () => null }))
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal()
   return { ...actual, useNavigate: () => vi.fn() }

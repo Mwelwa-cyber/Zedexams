@@ -11,7 +11,7 @@
 
 import { useMemo, useState, useEffect } from 'react'
 import { useNavigate, useParams, Navigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Calendar, Download, FileType, Loader2 } from '../../../components/ui/icons'
+import { ArrowLeft, Calendar, Download, FileType, Loader2 } from '../../../shared/components/icons'
 
 import { useOfflineNote }     from '../hooks/useOfflineNote'
 import { useRecordNoteProgress } from '../hooks/useRecordNoteProgress'
@@ -31,7 +31,7 @@ import { useActiveSection }   from '../hooks/useActiveSection'
 import { NoteToc }            from '../components/NoteToc'
 import { BackToTop }          from '../components/BackToTop'
 import { SaveOfflineButton }  from '../components/SaveOfflineButton'
-import SeoHelmet              from '../../../components/seo/SeoHelmet'
+import SeoHelmet              from '../../../shared/components/SeoHelmet'
 import '../styles/notes.css'
 
 const SUBJECT_STYLES = {

@@ -10,7 +10,7 @@ import { downloadFlashcardsPdf } from '../../../engines/export-engine/flashcards
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../../../shared/components/StudioPageHeader'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useGenerationGate } from '../../../hooks/useGenerationGate'
@@ -20,7 +20,7 @@ import StudioCurriculumSelector from '../../../components/teacher/curriculum/Stu
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
 import { readActiveAssignmentSeed, resolveStudioSeed } from '../../../utils/activeAssignmentSeed'
 import StudioAssignmentChangeNotice from '../../../components/teacher/generate/StudioAssignmentChangeNotice'
-import LiveGenerationCanvas from '../../../components/ui/LiveGenerationCanvas'
+import LiveGenerationCanvas from '../../../shared/components/LiveGenerationCanvas'
 import {
   FieldTextarea,
   FieldSelect,
@@ -28,8 +28,8 @@ import {
   GenerateButton,
   StudioEmptyState,
 } from '../../../shared/components/studioFields'
-import Icon from '../../../components/ui/Icon'
-import { Download, Play } from '../../../components/ui/icons'
+import Icon from '../../../shared/components/Icon'
+import { Download, Play } from '../../../shared/components/icons'
 import StudioOutputBoundary from '../../../shared/components/StudioOutputBoundary'
 import { useFlashcardProgress } from '../hooks/useFlashcardProgress'
 import FlashcardStudyOverlay from '../components/FlashcardStudyOverlay'

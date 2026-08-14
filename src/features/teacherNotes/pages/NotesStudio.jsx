@@ -31,7 +31,7 @@ import {
 } from '../../../utils/notesOptions'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 import {
   listMyGenerations,
   titleForGeneration,
@@ -51,7 +51,7 @@ import NotesPagesPreview from '../components/NotesPagesPreview'
 import GroundingChip from '../components/GroundingChip'
 import { buildAnswerPageBlocks } from '../../../utils/learnerNotesPrintable'
 import StudioPageHeader from '../../../shared/components/StudioPageHeader'
-import LiveGenerationCanvas from '../../../components/ui/LiveGenerationCanvas'
+import LiveGenerationCanvas from '../../../shared/components/LiveGenerationCanvas'
 import StudioCurriculumSelector from '../../../components/teacher/curriculum/StudioCurriculumSelector'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
 import { readActiveAssignmentSeed, resolveStudioSeed } from '../../../utils/activeAssignmentSeed'
@@ -67,8 +67,8 @@ import {
   GenerateButton,
   StudioEmptyState,
 } from '../../../shared/components/studioFields'
-import Icon from '../../../components/ui/Icon'
-import { Download, ImageIcon, RefreshCw } from '../../../components/ui/icons'
+import Icon from '../../../shared/components/Icon'
+import { Download, ImageIcon, RefreshCw } from '../../../shared/components/icons'
 import { NotebookText } from 'lucide-react'
 import StudioOutputBoundary from '../../../shared/components/StudioOutputBoundary'
 import { useDraftManager } from '../../../hooks/draft/useDraftManager'

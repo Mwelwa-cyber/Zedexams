@@ -10,7 +10,7 @@ import { ContactDialog } from '../../marketing'
 import { Panel, Section, Note, LinkRow } from '../components/ui'
 import {
   Info, Mail, AlertTriangle, Lightbulb, Play, ShieldCheck, DocumentTextIcon, Sparkles,
-} from '../../../components/ui/icons'
+} from '../../../shared/components/icons'
 
 export default function HelpPanel({ section }) {
   const navigate = useNavigate()

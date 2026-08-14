@@ -9,8 +9,8 @@ import {
   upgradePortal,
 } from '../../../utils/subscriptionStatus'
 import { capture } from '../../../utils/analytics'
-import Icon from '../../../components/ui/Icon'
-import { ArrowRight, Lock, X } from '../../../components/ui/icons'
+import Icon from '../../../shared/components/Icon'
+import { ArrowRight, Lock, X } from '../../../shared/components/icons'
 import { BenefitChecklist, PlanPricingCards, TrustRow } from './PremiumUpgradeUI'
 
 const UpgradeModal = lazy(() => import('./UpgradeModal'))

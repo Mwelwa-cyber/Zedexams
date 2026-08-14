@@ -14,7 +14,7 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 const seoProps = []
-vi.mock('../seo/SeoHelmet', () => ({
+vi.mock('../../shared/components/SeoHelmet', () => ({
   default: (props) => {
     seoProps.push(props)
     return null

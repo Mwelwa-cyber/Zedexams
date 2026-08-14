@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { PLANS, getActivePlan } from '../../utils/subscriptionConfig'
 import { ensureProFonts } from '../../utils/proFonts'
-import SeoHelmet from '../seo/SeoHelmet'
+import SeoHelmet from '../../shared/components/SeoHelmet'
 
 const CONFETTI_COLORS = ['#CF6B51', '#F5E5DE', '#E3C0AD', '#FFFFFF', '#9DB1AE']
 

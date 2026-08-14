@@ -53,16 +53,16 @@ vi.mock('../../../shared/components/DraftStatusIndicator', () => ({ default: () 
 vi.mock('../../../shared/components/DraftRecoveryPrompt', () => ({ default: () => null }))
 
 // Helmet needs a provider we don't want to stand up here.
-vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
 
 // Presentational bits with no bearing on the generate path.
-vi.mock('../../../components/ui/LiveGenerationCanvas', () => ({ default: () => null }))
+vi.mock('../../../shared/components/LiveGenerationCanvas', () => ({ default: () => null }))
 vi.mock('../components/SbaTaskView', () => ({ default: () => null }))
 vi.mock('../components/SbaWorkflowNote', () => ({ default: () => null }))
 vi.mock('../../../components/teacher/generate/TopicSubtopicPicker', () => ({ default: () => null }))
 vi.mock('../../../shared/components/StudioPageHeader', () => ({ default: () => null }))
 vi.mock('../../../shared/components/StudioOutputBoundary', () => ({ default: ({ children }) => children }))
-vi.mock('../../../components/ui/Toast', () => ({ useToast: () => ({ error: vi.fn() }) }))
+vi.mock('../../../shared/components/Toast', () => ({ useToast: () => ({ error: vi.fn() }) }))
 
 // Export paths pull in docx/pdf builders — irrelevant to generation.
 vi.mock('../../../engines/export-engine/sbaTaskToDocx', () => ({ downloadSbaTaskDocx: vi.fn() }))

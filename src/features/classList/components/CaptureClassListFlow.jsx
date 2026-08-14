@@ -25,8 +25,8 @@ import {
 import {
   buildCaptureSession, captureSessionReadiness, removePage, reorderPages,
 } from '../../../utils/captureSessionCore'
-import { useToast } from '../../../components/ui/Toast'
-import Button from '../../../components/ui/Button'
+import { useToast } from '../../../shared/components/Toast'
+import Button from '../../../shared/components/Button'
 import {
   AlertTriangle, Camera, Check, ChevronLeft, ChevronRight, Info,
   Loader2, RotateCw, ScanLine, Trash2, Upload, X,

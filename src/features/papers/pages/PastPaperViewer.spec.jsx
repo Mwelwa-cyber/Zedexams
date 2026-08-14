@@ -45,7 +45,7 @@ vi.mock('../../../utils/pastPapers', () => ({
 let mockAuth = { currentUser: { uid: 'learner-1' }, isAdmin: false }
 vi.mock('../../../contexts/AuthContext', () => ({ useAuth: () => mockAuth }))
 vi.mock('../../../contexts/DataSaverContext', () => ({ useDataSaver: () => ({ dataSaver: false }) }))
-vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
 
 const mockNavigate = vi.fn()
 vi.mock('react-router-dom', async (importOriginal) => {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
-import { useToast } from './Toast'
+import { useToast } from '../../shared/components/Toast'
 import { isPushSupported, pushPermission, requestPushPermission } from '../../utils/fcm'
 
 // Per-variant "already asked here" flag so dismissing on one surface doesn't

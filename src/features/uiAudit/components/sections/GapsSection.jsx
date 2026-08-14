@@ -70,19 +70,19 @@ const MISSING = [
 const UNTOKENISED = [
   {
     what: 'StatusBadge',
-    file: 'src/components/ui/StatusBadge.jsx',
+    file: 'src/shared/components/StatusBadge.jsx',
     detail:
       'Every one of the four states is a fixed Tailwind pair — bg-gray-100/text-gray-600, bg-yellow-100/text-yellow-700, bg-green-100/text-green-700, bg-red-100/text-red-600. On Night these are light chips on a dark card: legible, but they are the only light objects on the surface, and they do not match the semantic tokens (bg-danger-subtle etc.) that the chips beside them in section 6 use. The right fix is the semantic tokens, which already exist and already have a dark treatment.',
   },
   {
     what: 'HeaderIconButton — active and important tones',
-    file: 'src/components/ui/HeaderIconButton.jsx',
+    file: 'src/shared/components/HeaderIconButton.jsx',
     detail:
       'The default tone is fully tokenised (theme-card / theme-border / hover:theme-accent-bg). `active` is border-blue-200 bg-blue-50 text-blue-700 and `important` is the amber equivalent — both fixed. The badge is bg-red-500 with ring-2 ring-white, so on a dark card the ring is a white halo. Section 2 renders all three tones together.',
   },
   {
     what: 'PaginationFooter error message',
-    file: 'src/components/ui/PaginationFooter.jsx',
+    file: 'src/shared/components/PaginationFooter.jsx',
     detail:
       "style={{ color: '#b91c1c' }} — a literal, where the file's own end-of-list message two branches below correctly uses var(--zt-text-muted). On Night that red sits at roughly 3:1 against the surface where the --danger-fg token is tuned to clear AA. Section 5 renders the error state.",
   },
@@ -94,7 +94,7 @@ const UNTOKENISED = [
   },
   {
     what: 'Toast escapes the theme scope',
-    file: 'src/components/ui/Toast.jsx',
+    file: 'src/shared/components/Toast.jsx',
     detail:
       'createPortal(…, document.body) puts the toast outside .studio-theme, so it resolves the reading tokens off <body> rather than the workspace ones. A teacher on Miombo or Copperbelt gets a toast in whatever LEARNER palette their profile holds. Night is the exception, because index.css carries a body-level bridge for it — which is why this is easy to miss: the theme people check dark mode in is the one theme where it looks right. Fire the toast buttons in section 6 in each theme.',
   },

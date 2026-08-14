@@ -13,7 +13,7 @@
  */
 
 import { useEffect } from 'react'
-import SeoHelmet from '../seo/SeoHelmet'
+import SeoHelmet from '../../shared/components/SeoHelmet'
 import StudioPageHeader from '../../shared/components/StudioPageHeader'
 import { paywall } from '../../utils/paywall'
 import { getStudioSample } from '../../data/studioSamples'

@@ -12,20 +12,20 @@ import {
   Sparkles,
   StarIcon,
   X,
-} from '../ui/icons'
+} from '../../shared/components/icons'
 import { useFirestore } from '../../hooks/useFirestore'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { useSubscription } from '../../hooks/useSubscription'
 import { useAuth } from '../../contexts/AuthContext'
 import UpgradeModal from '../subscription/UpgradeModal'
-import ComingSoon from '../ui/ComingSoon'
-import Button from '../ui/Button'
-import Icon from '../ui/Icon'
-import Skeleton from '../ui/Skeleton'
-import ContentLoadError from '../ui/ContentLoadError'
-import SeoHelmet from '../seo/SeoHelmet'
+import ComingSoon from '../../shared/components/ComingSoon'
+import Button from '../../shared/components/Button'
+import Icon from '../../shared/components/Icon'
+import Skeleton from '../../shared/components/Skeleton'
+import ContentLoadError from '../../shared/components/ContentLoadError'
+import SeoHelmet from '../../shared/components/SeoHelmet'
 import GameStickerStyles from '../games/GameStickerStyles'
-import { QuizzesHubTour } from '../ui/learnerTours'
+import { QuizzesHubTour } from '../../shared/components/learnerTours'
 import { gradesForFeature, gradeNumberOf } from '../../config/canonicalEducation'
 import { PAPER_SUBJECTS } from '../../config/curriculum'
 

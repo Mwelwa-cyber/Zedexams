@@ -6,7 +6,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 import { AGENTS_BY_ID, DEPARTMENTS } from '../../../config/agents'
 import AgentJobsQueue from '../components/AgentJobsQueue'
 import AgentRunHistory from '../components/AgentRunHistory'

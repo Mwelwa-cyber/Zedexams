@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import SettingsDetailShell from '../components/SettingsDetailShell'
-import Icon from '../../../components/ui/Icon'
+import Icon from '../../../shared/components/Icon'
 import {
   Settings,
   ChevronRight,
@@ -9,7 +9,7 @@ import {
   Signal,
   Zap,
   Download,
-} from '../../../components/ui/icons'
+} from '../../../shared/components/icons'
 
 // Power-user options. These are presented HONESTLY as coming soon: the
 // toggles that used to live here (autosave / offline mode / performance mode /

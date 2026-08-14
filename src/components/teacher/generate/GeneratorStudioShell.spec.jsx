@@ -10,7 +10,7 @@ import GeneratorStudioShell from './GeneratorStudioShell.jsx'
 // while idle (nothing on phones), swapping to the real output once generating.
 
 // Helmet needs a provider we don't want to stand up here.
-vi.mock('../../seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
 
 // The plan-context hook (used by useStudioSetupForYou, which this suite does
 // not exercise) reads Firestore — keep it inert.

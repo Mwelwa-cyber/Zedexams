@@ -6,8 +6,8 @@ import { TERMS } from '../../../utils/classTerms'
 import SettingsDetailShell from '../components/SettingsDetailShell'
 import FieldRow from '../components/fields/FieldRow'
 import SelectField from '../components/fields/SelectField'
-import Icon from '../../../components/ui/Icon'
-import { CalendarDays, ChevronRight } from '../../../components/ui/icons'
+import Icon from '../../../shared/components/Icon'
+import { CalendarDays, ChevronRight } from '../../../shared/components/icons'
 import { useSettingsSave } from '../lib/useSettingsSave'
 
 function editable(prefs) {

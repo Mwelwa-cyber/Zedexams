@@ -24,13 +24,13 @@ vi.mock('../../../contexts/AuthContext', () => ({
 }))
 
 const mockToastInfo = vi.fn()
-vi.mock('../../../components/ui/Toast', () => ({ useToast: () => ({ info: mockToastInfo, error: vi.fn(), success: vi.fn() }) }))
+vi.mock('../../../shared/components/Toast', () => ({ useToast: () => ({ info: mockToastInfo, error: vi.fn(), success: vi.fn() }) }))
 
 // Heavy / unrelated leaves.
 vi.mock('../components/SlideRenderer', () => ({ default: () => null }))
 vi.mock('../components/LessonCompleteScreen', () => ({ default: () => null }))
 vi.mock('../components/PowerPointViewerPlayer', () => ({ default: () => null }))
-vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
 
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal()

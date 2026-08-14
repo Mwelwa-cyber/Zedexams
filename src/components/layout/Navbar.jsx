@@ -16,15 +16,15 @@ import {
   LogOut,
   Sparkles,
   Search,
-} from '../ui/icons'
+} from '../../shared/components/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import { useSubscription } from '../../hooks/useSubscription'
 import { getRoleLandingPath } from '../../utils/navigation'
-import Logo from '../ui/Logo'
-import Icon from '../ui/Icon'
+import Logo from '../../shared/components/Logo'
+import Icon from '../../shared/components/Icon'
 import CharacterAvatar from '../../shared/components/CharacterAvatar'
 import { NotificationBell } from '../../features/notifications'
-import MobileBottomNav from './MobileBottomNav'
+import MobileBottomNav from '../../shared/components/MobileBottomNav'
 import useHideOnScroll from '../../hooks/useHideOnScroll'
 
 export default function Navbar() {

@@ -21,8 +21,8 @@ import {
   listTopUsersForDate,
   resolveUserLabels,
 } from '../../../utils/aiCosts'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import Skeleton from '../../../components/ui/Skeleton'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import Skeleton from '../../../shared/components/Skeleton'
 import BudgetEnforcementPanel from '../components/BudgetEnforcementPanel'
 
 const usdFmt = new Intl.NumberFormat('en-US', {

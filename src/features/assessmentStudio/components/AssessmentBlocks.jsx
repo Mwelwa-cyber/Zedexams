@@ -28,8 +28,8 @@ import { PAGE_SIZES, MARGIN_PRESETS } from '../../../config/paperLayoutTokens'
 import { GRADE_NUMBER_STYLES, LEARNER_NAME_LABELS } from '../../../utils/paperMetadata'
 import { paperHeaderSummarySegments } from '../lib/assessmentHeaderSummary'
 import { MoreHorizontal } from 'lucide-react'
-import ActionMenu from '../../../components/ui/ActionMenu'
-import ConfirmDialog from '../../../components/ui/ConfirmDialog'
+import ActionMenu from '../../../shared/components/ActionMenu'
+import ConfirmDialog from '../../../shared/components/ConfirmDialog'
 import { BlockDragHandle, useBlockDropTarget } from './BlockDragHandle'
 
 /**

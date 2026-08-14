@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-import Button from '../../../../components/ui/Button'
+import Button from '../../../../shared/components/Button'
 import {
   DIAGRAM_HANDLING_OPTIONS,
   redrawTestPaperDiagram,

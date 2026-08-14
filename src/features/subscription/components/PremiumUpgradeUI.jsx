@@ -10,8 +10,8 @@
 // stay legible whatever theme the learner has picked.
 
 import { PLANS } from '../../../utils/subscriptionConfig'
-import Icon from '../../../components/ui/Icon'
-import { Check, Lock, RefreshCw } from '../../../components/ui/icons'
+import Icon from '../../../shared/components/Icon'
+import { Check, Lock, RefreshCw } from '../../../shared/components/icons'
 
 // Colour-coded benefit pills. The spec calls these out as "much easier to read
 // on phones" than a plain icon row.

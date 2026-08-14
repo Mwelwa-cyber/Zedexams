@@ -20,7 +20,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions'
 import {
   ArrowLeft, Save, FileText, Upload, Trash2, Check, Clock, Loader2, Layout,
   Sparkles,
-} from '../../../components/ui/icons'
+} from '../../../shared/components/icons'
 import { useAuth } from '../../../contexts/AuthContext'
 import { NOTE_FORMAT, NOTE_STATUS } from '../../../config/curriculum'
 import app from '../../../firebase/config'
@@ -47,9 +47,9 @@ import { StudyNoteEditor } from '../components/StudyNoteEditor'
 import { NoteUploader }  from '../components/NoteUploader'
 import { PublishToggle } from '../components/PublishToggle'
 import { SlideNotesReader } from '../components/SlideNotesReader'
-import SeoHelmet         from '../../../components/seo/SeoHelmet'
-import ConfirmDialog     from '../../../components/ui/ConfirmDialog'
-import { useToast }      from '../../../components/ui/Toast'
+import SeoHelmet         from '../../../shared/components/SeoHelmet'
+import ConfirmDialog     from '../../../shared/components/ConfirmDialog'
+import { useToast }      from '../../../shared/components/Toast'
 import '../styles/notes.css'
 
 const AUTOSAVE_DELAY_MS = 1500

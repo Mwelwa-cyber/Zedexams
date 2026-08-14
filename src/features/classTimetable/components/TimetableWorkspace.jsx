@@ -16,8 +16,8 @@ import {
   Settings, LayoutGrid, Download, Check, Lock, Unlock,
   Scissors, Plus, AlertTriangle, Eye, Users,
 } from 'lucide-react'
-import Chip from '../../../components/ui/Chip'
-import ActionMenu from '../../../components/ui/ActionMenu'
+import Chip from '../../../shared/components/Chip'
+import ActionMenu from '../../../shared/components/ActionMenu'
 import DraftStatusIndicator from '../../../shared/components/DraftStatusIndicator'
 import WorkspaceDrawer from './WorkspaceDrawer'
 import { BLOCK_TYPES, blockAt, canJoin } from '../../../shared/utils/timetableBlocks'

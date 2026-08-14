@@ -5,7 +5,7 @@
 // While AuthContext is still loading the profile, shows a spinner.
 
 import { Navigate } from 'react-router-dom'
-import { Loader2 } from '../../../components/ui/icons'
+import { Loader2 } from '../../../shared/components/icons'
 import { useAuth } from '../../../contexts/AuthContext'
 
 export function AdminGuard({ children }) {

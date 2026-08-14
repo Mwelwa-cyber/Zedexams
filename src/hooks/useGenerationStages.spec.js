@@ -15,7 +15,7 @@ const computeStageStates = vi.fn((args) => {
   return { items: args.stages, activeIndex: 0, percent: 0 }
 })
 
-vi.mock('../components/ui/aiGenerationStages', () => ({
+vi.mock('../shared/components/aiGenerationStages', () => ({
   resolveStages: (...a) => resolveStages(...a),
   computeStageStates: (...a) => computeStageStates(...a),
 }))

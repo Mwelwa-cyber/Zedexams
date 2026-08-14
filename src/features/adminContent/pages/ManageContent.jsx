@@ -6,14 +6,14 @@ import {
   Eye, PencilLine, Clock, AlertTriangle, Bot,
   EyeOff, Layers, Calendar, Trash2,
   CheckCircleIcon as CheckCircle, TrophyIcon as Trophy,
-} from '../../../components/ui/icons'
+} from '../../../shared/components/icons'
 import { useFirestore } from '../../../hooks/useFirestore'
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
 import { useAuth } from '../../../contexts/AuthContext'
-import Button from '../../../components/ui/Button'
-import Icon from '../../../components/ui/Icon'
-import Skeleton from '../../../components/ui/Skeleton'
-import ConfirmDialog from '../../../components/ui/ConfirmDialog'
+import Button from '../../../shared/components/Button'
+import Icon from '../../../shared/components/Icon'
+import Skeleton from '../../../shared/components/Skeleton'
+import ConfirmDialog from '../../../shared/components/ConfirmDialog'
 import { todayString } from '../../../utils/examService'
 import { EXAM_ONLY_QUESTION_THRESHOLD, isExamOnly } from '../../../utils/quizClassification.js'
 import { summarizeImportReview } from '../../../utils/importReviewSummary.js'
@@ -24,7 +24,7 @@ import {
 } from '../../../utils/pastPapers'
 import { convertPaperToQuizDraft } from '../../../utils/paperToQuizConverter'
 import ImportReviewBadge from '../../../components/quiz/ImportReviewBadge'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 import { PAPER_SUBJECTS } from '../../../config/curriculum'
 import { gradesForFeature, gradeNumberOf } from '../../../config/canonicalEducation'
 

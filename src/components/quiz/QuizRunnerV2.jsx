@@ -53,8 +53,8 @@ import { fillBlanksLayout, gradeFillBlanks } from '../../utils/fillBlanks'
 import { diagramLabelLayout, gradeDiagramLabels } from '../../utils/diagramLabelGrading'
 import { gradeMatching } from '../../utils/matchingGrading'
 import { gradeSequence } from '../../utils/sequenceGrading'
-import SeoHelmet from '../seo/SeoHelmet'
-import ErrorState from '../ui/ErrorState'
+import SeoHelmet from '../../shared/components/SeoHelmet'
+import ErrorState from '../../shared/components/ErrorState'
 import { friendlyTemplate, toFriendlyError } from '../../utils/friendlyErrors'
 
 function fmt(seconds) {

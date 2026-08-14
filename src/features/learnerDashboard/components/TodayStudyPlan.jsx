@@ -12,9 +12,9 @@ import {
   Target,
   TrophyIcon,
   Users,
-} from '../../../components/ui/icons'
-import Icon from '../../../components/ui/Icon'
-import Skeleton from '../../../components/ui/Skeleton'
+} from '../../../shared/components/icons'
+import Icon from '../../../shared/components/Icon'
+import Skeleton from '../../../shared/components/Skeleton'
 import { SUBJECTS } from '../../../config/curriculum'
 import { daysUntil, fmtDate, getActiveTerm, getNextTerm } from '../../../utils/moeCalendar'
 import { useAuth } from '../../../contexts/AuthContext'

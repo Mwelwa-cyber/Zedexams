@@ -13,8 +13,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { computeRecord, maxTotalOf } from '../../../utils/classRecordMath'
 import { saveRecordMarks } from '../../../utils/classRecords'
 import { convertSbaMark } from '../../../config/sba'
-import { useToast } from '../../../components/ui/Toast'
-import Button from '../../../components/ui/Button'
+import { useToast } from '../../../shared/components/Toast'
+import Button from '../../../shared/components/Button'
 import { useMarkUnsaved } from './registerUnsavedGuard'
 
 const GRADE_TONE = {

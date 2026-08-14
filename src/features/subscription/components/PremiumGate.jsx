@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { Lock, Sparkles, X } from '../../../components/ui/icons'
+import { Lock, Sparkles, X } from '../../../shared/components/icons'
 import { useSubscription } from '../../../hooks/useSubscription'
 import { PLANS } from '../../../utils/subscriptionConfig'
 import { isNativePlatform } from '../../../utils/runtime'
 import { lockedFeature } from '../lib/lockedFeature'
-import Button from '../../../components/ui/Button'
-import Icon from '../../../components/ui/Icon'
+import Button from '../../../shared/components/Button'
+import Icon from '../../../shared/components/Icon'
 
 // Friendly names for the locked-feature modal so the heading reads
 // "Exam mode is part of ZedExams Pro" rather than "This feature is…".

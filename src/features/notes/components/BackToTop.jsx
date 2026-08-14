@@ -4,7 +4,7 @@
 // has scrolled past ~600px. Sits above the Contents pill on small screens.
 
 import { useEffect, useState } from 'react'
-import { ChevronUp } from '../../../components/ui/icons'
+import { ChevronUp } from '../../../shared/components/icons'
 
 export function BackToTop() {
   const [show, setShow] = useState(false)

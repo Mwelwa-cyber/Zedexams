@@ -3,10 +3,10 @@ import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useFirestore } from '../../../hooks/useFirestore'
 import { LESSON_GRADES, LESSON_SUBJECTS } from '../lib/lessonConstants'
-import Button from '../../../components/ui/Button'
-import Skeleton from '../../../components/ui/Skeleton'
-import ConfirmDialog from '../../../components/ui/ConfirmDialog'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Button from '../../../shared/components/Button'
+import Skeleton from '../../../shared/components/Skeleton'
+import ConfirmDialog from '../../../shared/components/ConfirmDialog'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 
 const STATUS = {
   published: 'bg-emerald-100 text-emerald-700',

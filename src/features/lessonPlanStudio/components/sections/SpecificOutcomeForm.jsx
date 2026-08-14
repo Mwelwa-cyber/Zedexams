@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Target } from '../../../../components/ui/icons'
+import { Target } from '../../../../shared/components/icons'
 
 /**
  * SpecificOutcomeForm — collapsible sidebar section for selecting specific

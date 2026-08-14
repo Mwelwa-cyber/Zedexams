@@ -15,7 +15,7 @@ import SchemeEditableTable from '../components/SchemeEditableTable'
 import SchemePreviewCard from '../components/SchemePreviewCard'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../../../shared/components/StudioPageHeader'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 import {
   attachLibraryToGeneration,
   isFreePlanTeacher,
@@ -24,12 +24,12 @@ import {
   updateGenerationOutput,
 } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
-import LiveGenerationCanvas from '../../../components/ui/LiveGenerationCanvas'
+import LiveGenerationCanvas from '../../../shared/components/LiveGenerationCanvas'
 import { FreePreviewUpsell } from '../../teacherPaywall'
 import { StudioNextSteps } from '../../teacherPaywall'
 import { capture } from '../../../utils/analytics'
 import { resolveTeacherPlan, FREE_PREVIEW_LIMITS } from '../../../utils/teacherPlans'
-import { useToast } from '../../../components/ui/Toast'
+import { useToast } from '../../../shared/components/Toast'
 import StudioCurriculumSelector from '../../../components/teacher/curriculum/StudioCurriculumSelector'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
 import { readActiveAssignmentSeed, resolveStudioSeed } from '../../../utils/activeAssignmentSeed'
@@ -50,7 +50,7 @@ import DraftStatusIndicator from '../../../shared/components/DraftStatusIndicato
 import DraftRecoveryPrompt from '../../../shared/components/DraftRecoveryPrompt'
 import { getCalendarYears, getCurrentForecastWeek } from '../../../utils/moeCalendar'
 import { resolveSchemeTermYear, isOffCurrentTerm } from '../lib/schemeCalendarDefaults'
-import ConfirmDialog from '../../../components/ui/ConfirmDialog'
+import ConfirmDialog from '../../../shared/components/ConfirmDialog'
 import {
   buildTermPlan,
   reserveWeeks,

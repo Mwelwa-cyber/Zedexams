@@ -10,10 +10,10 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useLearnerSearch } from '../../../hooks/useLearnerSearch'
 import { RESULT_TYPES, RESULT_TYPE_META } from '../../../utils/learnerSearch'
-import { Search } from '../../../components/ui/icons'
-import Icon from '../../../components/ui/Icon'
-import Skeleton from '../../../components/ui/Skeleton'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import { Search } from '../../../shared/components/icons'
+import Icon from '../../../shared/components/Icon'
+import Skeleton from '../../../shared/components/Skeleton'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 
 export default function LearnerSearch() {
   const { userProfile } = useAuth()

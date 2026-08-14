@@ -7,7 +7,7 @@ const reconcileNewLearner = vi.fn(async () => 2)
 vi.mock('../../../utils/classRecords', () => ({
   reconcileNewLearner: (...args) => reconcileNewLearner(...args),
 }))
-vi.mock('../../../components/ui/Toast', () => ({
+vi.mock('../../../shared/components/Toast', () => ({
   useToast: () => ({ success: vi.fn(), error: vi.fn() }),
 }))
 

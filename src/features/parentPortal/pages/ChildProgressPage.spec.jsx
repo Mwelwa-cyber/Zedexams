@@ -13,8 +13,8 @@ vi.mock('../services/familyPortal', () => ({
   getChildProgress: (...a) => mockGetChildProgress(...a),
 }))
 vi.mock('../../../utils/clientErrorReporting', () => ({ reportClientError: vi.fn() }))
-vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
-vi.mock('../../../components/ui/Skeleton', () => ({ default: () => <div data-testid="skeleton" /> }))
+vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../shared/components/Skeleton', () => ({ default: () => <div data-testid="skeleton" /> }))
 vi.mock('../../../components/ui/SubjectIcon', () => ({ default: () => null }))
 
 vi.mock('react-router-dom', async (importOriginal) => {

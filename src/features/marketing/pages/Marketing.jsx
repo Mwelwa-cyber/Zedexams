@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import Logo from '../../../components/ui/Logo'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import Button from '../../../components/ui/Button'
-import Card from '../../../components/ui/Card'
-import Icon from '../../../components/ui/Icon'
+import Logo from '../../../shared/components/Logo'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import Button from '../../../shared/components/Button'
+import Card from '../../../shared/components/Card'
+import Icon from '../../../shared/components/Icon'
 import ContactDialog from '../components/ContactDialog'
 import LiveStats from '../components/LiveStats'
 import NewsletterSignup from '../components/NewsletterSignup'
@@ -35,7 +35,7 @@ import {
   Send,
   Mail,
   ChevronRight,
-} from '../../../components/ui/icons'
+} from '../../../shared/components/icons'
 
 // Public contact channels surfaced in the footer. WhatsApp opens the chat
 // directly; the contact form opens an in-app modal that writes to the

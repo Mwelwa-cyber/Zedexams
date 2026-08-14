@@ -4,7 +4,7 @@
 // surfaces slide count + a "Watch / Play" affordance to make it clear
 // this opens an interactive slide deck rather than a reading page.
 
-import { ArrowRight, Sparkles, BookOpen } from '../../../components/ui/icons'
+import { ArrowRight, Sparkles, BookOpen } from '../../../shared/components/icons'
 import { formatDate } from '../../notes/lib/format'
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000

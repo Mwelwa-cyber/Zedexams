@@ -29,7 +29,7 @@ vi.mock('react-router-dom', () => ({
   useParams: () => ({ jobId: 'job1' }),
   Link: ({ children }) => children,
 }))
-vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
 
 const createdAt = { toDate: () => new Date('2026-06-21T03:00:00Z') }
 

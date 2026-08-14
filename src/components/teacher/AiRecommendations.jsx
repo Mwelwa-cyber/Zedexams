@@ -11,8 +11,8 @@
 
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import Icon from '../ui/Icon'
-import { ArrowRight, ChevronDown } from '../ui/icons'
+import Icon from '../../shared/components/Icon'
+import { ArrowRight, ChevronDown } from '../../shared/components/icons'
 import { capture } from '../../utils/analytics'
 
 const VISIBLE = 3

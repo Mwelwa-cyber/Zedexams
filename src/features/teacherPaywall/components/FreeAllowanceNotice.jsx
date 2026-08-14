@@ -8,8 +8,8 @@
  */
 
 import { useState } from 'react'
-import Icon from '../../../components/ui/Icon'
-import { ArrowRight, X } from '../../../components/ui/icons'
+import Icon from '../../../shared/components/Icon'
+import { ArrowRight, X } from '../../../shared/components/icons'
 import { capture } from '../../../utils/analytics'
 import { PLAN_CATALOG_VERSION } from '../../../utils/teacherPlans'
 

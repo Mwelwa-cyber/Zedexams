@@ -44,11 +44,11 @@ vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({ currentUser: { uid: 'teacher-1' }, userProfile: { displayName: 'Mahenga Mwelwa' } }),
 }))
 
-vi.mock('../../../components/ui/Toast', () => ({
+vi.mock('../../../shared/components/Toast', () => ({
   useToast: () => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }),
 }))
 
-vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
 
 const LOADED = {
   id: 'c-edit',

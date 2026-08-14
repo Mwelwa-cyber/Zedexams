@@ -15,8 +15,8 @@
 
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import Icon from '../../../components/ui/Icon'
-import { ArrowRight, ChevronDown, Sparkles } from '../../../components/ui/icons'
+import Icon from '../../../shared/components/Icon'
+import { ArrowRight, ChevronDown, Sparkles } from '../../../shared/components/icons'
 import { capture } from '../../../utils/analytics'
 import { formatResetClock, formatResetIn, msUntilDailyReset } from '../../../utils/usageReset'
 

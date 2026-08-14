@@ -51,7 +51,7 @@ function assert(cond, msg) {
   if (!cond) throw new Error(msg)
 }
 
-const COMPONENT_PATH = 'src/components/ui/ScrollToTop.jsx'
+const COMPONENT_PATH = 'src/shared/components/ScrollToTop.jsx'
 const componentExists = existsSync(join(root, COMPONENT_PATH))
 const componentSrc = componentExists ? read(COMPONENT_PATH) : ''
 const appSrc = read('src/App.jsx')
@@ -59,7 +59,7 @@ const appSrc = read('src/App.jsx')
 // ── 1. Component file exists ─────────────────────────────────────────
 console.log('\nScrollToTop component structure')
 
-test('ScrollToTop.jsx exists at src/components/ui/ScrollToTop.jsx', () => {
+test('ScrollToTop.jsx exists at src/shared/components/ScrollToTop.jsx', () => {
   assert(componentExists, `${COMPONENT_PATH} is missing — the scroll-to-top fix has been deleted`)
 })
 

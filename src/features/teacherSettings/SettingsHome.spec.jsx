@@ -41,7 +41,7 @@ vi.mock('../../utils/teacherLibraryService', () => ({
 vi.mock('../feedback', () => ({
   FeedbackDialog: () => null,
 }))
-vi.mock('../../components/seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../shared/components/SeoHelmet', () => ({ default: () => null }))
 // resolveTeacherPlan reads only the profile — real import is fine (pure).
 
 function renderHome() {

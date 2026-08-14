@@ -29,7 +29,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import StudioPageHeader from '../../../shared/components/StudioPageHeader'
-import SeoHelmet from '../../seo/SeoHelmet'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 import SetupForYouCard from '../../../shared/components/SetupForYouCard'
 import DraftStatusIndicator from '../../../shared/components/DraftStatusIndicator'
 import DraftRecoveryPrompt from '../../../shared/components/DraftRecoveryPrompt'

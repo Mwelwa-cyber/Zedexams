@@ -5,8 +5,8 @@ import {
 } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
-import Skeleton from '../../../components/ui/Skeleton'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Skeleton from '../../../shared/components/Skeleton'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 import { FEEDBACK_TYPES, FEEDBACK_STATUSES } from '../../feedback'
 
 // Private inbox for the learner/teacher suggestion box. Admins read every

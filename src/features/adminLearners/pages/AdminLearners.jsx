@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Users } from '../../../components/ui/icons'
+import { Search, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Users } from '../../../shared/components/icons'
 import { useFirestore, ADMIN_QUERY_LIMIT } from '../../../hooks/useFirestore'
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
-import Icon from '../../../components/ui/Icon'
-import Skeleton from '../../../components/ui/Skeleton'
+import Icon from '../../../shared/components/Icon'
+import Skeleton from '../../../shared/components/Skeleton'
 import { downloadCSV } from '../../../utils/csvExport'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 import { gradesForFeature, gradeNumberOf } from '../../../config/canonicalEducation'
 
 // The learner catalogue's grades, from the canonical model — a documented

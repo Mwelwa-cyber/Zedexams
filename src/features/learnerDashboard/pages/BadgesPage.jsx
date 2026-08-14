@@ -13,14 +13,14 @@ import {
 import { useAuth }     from '../../../contexts/AuthContext'
 import { useBadges }   from '../../../hooks/useBadges'
 import { BADGES }      from '../../../config/badges'
-import BadgeCard       from '../../../components/ui/BadgeCard'
-import Skeleton        from '../../../components/ui/Skeleton'
-import ProfessorPako   from '../../../components/ui/ProfessorPako'
+import BadgeCard       from '../../../shared/components/BadgeCard'
+import Skeleton        from '../../../shared/components/Skeleton'
+import ProfessorPako   from '../../../shared/components/ProfessorPako'
 import { useDataSaver } from '../../../contexts/DataSaverContext'
 import { GAME_BADGES } from '../../../data/gameBadges'
 import { getMyGameBadges, formatAwardedAt } from '../../../utils/gameBadgesService'
 import { GameBadgeCard as GamesBadgeCard } from '../../games'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 
 export default function BadgesPage() {
   const { currentUser }       = useAuth()

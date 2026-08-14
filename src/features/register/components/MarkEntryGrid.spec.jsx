@@ -7,7 +7,7 @@ const saveRecordMarks = vi.fn(async () => ({ count: 1, classAverage: 80, classAv
 vi.mock('../../../utils/classRecords', () => ({
   saveRecordMarks: (...args) => saveRecordMarks(...args),
 }))
-vi.mock('../../../components/ui/Toast', () => ({
+vi.mock('../../../shared/components/Toast', () => ({
   useToast: () => ({ success: vi.fn(), error: vi.fn() }),
 }))
 

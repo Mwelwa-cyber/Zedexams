@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom'
-import Logo from '../../../components/ui/Logo'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import Button from '../../../components/ui/Button'
-import Card from '../../../components/ui/Card'
-import Icon from '../../../components/ui/Icon'
+import Logo from '../../../shared/components/Logo'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import Button from '../../../shared/components/Button'
+import Card from '../../../shared/components/Card'
+import Icon from '../../../shared/components/Icon'
 import {
   Sparkles,
   ShieldCheck,
@@ -13,7 +13,7 @@ import {
   Target,
   Clock,
   PencilLine,
-} from '../../../components/ui/icons'
+} from '../../../shared/components/icons'
 
 // Public, finance-free presentation of the ZedExams AI company. Everything
 // here is hand-written marketing copy — it never reads the treasury, live

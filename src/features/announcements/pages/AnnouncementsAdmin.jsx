@@ -4,11 +4,11 @@ import {
 } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
-import PageHeader from '../../../components/ui/PageHeader'
-import Card from '../../../components/ui/Card'
-import Button from '../../../components/ui/Button'
-import ConfirmDialog from '../../../components/ui/ConfirmDialog'
-import { useToast } from '../../../components/ui/Toast'
+import PageHeader from '../../../shared/components/PageHeader'
+import Card from '../../../shared/components/Card'
+import Button from '../../../shared/components/Button'
+import ConfirmDialog from '../../../shared/components/ConfirmDialog'
+import { useToast } from '../../../shared/components/Toast'
 
 const SEVERITIES = ['info', 'warn', 'success']
 const AUDIENCES = ['all', 'learners', 'teachers', 'admins']

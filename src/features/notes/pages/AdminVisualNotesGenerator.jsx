@@ -19,14 +19,14 @@ import app from '../../../firebase/config'
 
 import {
   ArrowLeft, Sparkles, Loader2, Save, AlertTriangle,
-} from '../../../components/ui/icons'
+} from '../../../shared/components/icons'
 import { useAuth } from '../../../contexts/AuthContext'
 import { GRADES, SUBJECTS, NOTE_FORMAT } from '../../../config/curriculum'
 import { createNote } from '../lib/firestore'
 import TopicSubtopicPicker from '../../../components/teacher/generate/TopicSubtopicPicker'
 import { SlideNotesReader } from '../components/SlideNotesReader'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import AiGenerationProgress from '../../../components/ui/AiGenerationProgress'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import AiGenerationProgress from '../../../shared/components/AiGenerationProgress'
 import '../styles/notes.css'
 
 // Visual-notes generation runs Claude + up to ~10 sequential Recraft calls, so

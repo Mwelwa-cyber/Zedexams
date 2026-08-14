@@ -15,8 +15,8 @@
 import { Link, useParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { getPostBySlug } from '../services/blogPosts'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import Logo from '../../../components/ui/Logo'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import Logo from '../../../shared/components/Logo'
 
 function fmtDate(iso) {
   if (!iso) return ''

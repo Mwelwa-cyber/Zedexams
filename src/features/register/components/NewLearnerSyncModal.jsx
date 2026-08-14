@@ -9,8 +9,8 @@
 
 import { useState } from 'react'
 import { reconcileNewLearner } from '../../../utils/classRecords'
-import { useToast } from '../../../components/ui/Toast'
-import Button from '../../../components/ui/Button'
+import { useToast } from '../../../shared/components/Toast'
+import Button from '../../../shared/components/Button'
 
 export default function NewLearnerSyncModal({ register, learner, records, onClose, onDone }) {
   const toast = useToast()
