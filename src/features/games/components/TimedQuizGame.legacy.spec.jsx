@@ -26,7 +26,7 @@ vi.mock('../../../hooks/useAssessmentEngineFlag', () => ({
 vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({ currentUser: { uid: 'learner-1', displayName: 'Chanda' } }),
 }))
-vi.mock('../../../utils/gamesService', () => ({
+vi.mock('../services/gamesService', () => ({
   shuffle: (arr) => arr.slice(),
   saveScore: vi.fn(async () => ({ ok: true, id: 'score-1' })),
   readRoundBaseline: vi.fn(async () => ({})),
@@ -49,7 +49,7 @@ vi.mock('./Leaderboard', () => ({ default: () => null }))
 vi.mock('./SmartFeedback', () => ({ default: () => null }))
 
 import TimedQuizGame from './TimedQuizGame'
-import { saveScore } from '../../../utils/gamesService'
+import { saveScore } from '../services/gamesService'
 
 /**
  * Three questions, correct at index 1, 2 and 0. `points: 10`, so a correct

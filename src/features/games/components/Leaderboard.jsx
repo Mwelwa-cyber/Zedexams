@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { TrophyIcon, FireIcon, SparklesIcon } from '@heroicons/react/24/solid'
 import { useAuth } from '../../../contexts/AuthContext'
-import { formatWhen, getLeaderboard } from '../../../utils/gamesService'
+import { formatWhen, getLeaderboard } from '../services/gamesService'
 import { MetaPill, getSubjectMascot } from './gamesUi'
 import Skeleton from '../../../shared/components/Skeleton'
 

@@ -16,7 +16,7 @@ import {
   getMyHistory,
   listGames,
   subscribeToGlobalLeaderboard,
-} from '../../../utils/gamesService'
+} from '../services/gamesService'
 import DailyChallengeCard from '../components/DailyChallengeCard'
 import GamesShell from '../components/GamesShell'
 import MascotAvatar from '../components/MascotAvatar'

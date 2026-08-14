@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { saveScore, readRoundBaseline, readRoundOutcome } from '../../../utils/gamesService'
+import { saveScore, readRoundBaseline, readRoundOutcome } from '../services/gamesService'
 import { evaluateAndAwardGameBadges } from '../../../utils/gameBadgesService'
 import { getTodaysChallenge, recordDailyPlay } from '../../../utils/dailyChallengeService'
 

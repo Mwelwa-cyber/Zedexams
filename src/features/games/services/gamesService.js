@@ -23,10 +23,10 @@ import {
   collection, doc, getDoc, getDocs, query, where, orderBy, limit as fsLimit,
   addDoc, serverTimestamp, setDoc, Timestamp, onSnapshot,
 } from 'firebase/firestore'
-import { db, auth } from '../firebase/config'
-import { describeFirestoreReadError, withFirestoreReadTimeout } from './firestoreTimeout'
-import { levelUpInfo } from './gameProgress'
-import { buildGameScorePayload } from './gameScorePayload.js'
+import { db, auth } from '../../../firebase/config'
+import { describeFirestoreReadError, withFirestoreReadTimeout } from '../../../utils/firestoreTimeout'
+import { levelUpInfo } from '../../../utils/gameProgress'
+import { buildGameScorePayload } from '../../../utils/gameScorePayload.js'
 
 /* ─────────────────────────────────────────────────────────────────
  *  Taxonomy used by the Grade → Subject → Games list UI
@@ -148,7 +148,7 @@ export async function saveScore({ game, score, accuracy, timeSpent, correct, wro
     // errors. The score is already persisted; intelligence is additive.
     let intelligence = null
     try {
-      const { updateLearnerProfileAfterGame } = await import('./gamesIntelligence')
+      const { updateLearnerProfileAfterGame } = await import('../../../utils/gamesIntelligence')
       intelligence = await updateLearnerProfileAfterGame({
         game,
         result: { score, accuracy, correct, wrong, timeSpent, bestStreak },

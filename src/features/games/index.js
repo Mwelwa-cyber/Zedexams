@@ -50,7 +50,7 @@
  * result was the exact failure the flashcards front door documents: Rollup
  * groups a front door's re-exports into one chunk that statically imports all
  * of them, so a page that wanted the sticker stylesheet — 149 lines with NO
- * imports — gained an edge to `gamesUi` → `utils/gamesService` → the Firebase
+ * imports — gained an edge to `gamesUi` → `gamesService` → the Firebase
  * client. **+75 kB each on GradeHub, SubjectDrillDown and ExamResultsPage**,
  * three learner routes that render no game.
  *
@@ -107,9 +107,7 @@
  * by relative path, which the layering allows (a feature may import anything
  * below it):
  *
- *   • `gamesService.js`  — also read by `components/admin/GamesSeedAdmin.jsx`,
- *     which is named on the freeze list BY PATH, and by `hooks/useLearnerSearch`.
- *     Moving it means editing a frozen file, so it waits for the freeze.
+ *   • ~~`gamesService.js`~~ — MOVED 2026-08-14 into `services/`, see below.
  *   • `gamesIntelligence.js` — `gamesService.js` reaches it through a DYNAMIC
  *     `await import('./gamesIntelligence')`, which no lint rule inspects. It
  *     was moved into this feature and moved back for that reason: a util the
@@ -123,14 +121,59 @@
  * `gameSounds.js` DID travel, into `lib/`, because the eleven files that
  * import it were all games files.
  *
- * KNOWN DEBT — §14.2 ("services/ is the only place a feature touches
- * Firebase") is not satisfied, and the reason is the freeze rather than a
- * shortcut: the feature's Firestore access is `utils/gamesService.js`, which
- * cannot move while `GamesSeedAdmin` is frozen. There is no `services/`
- * directory here yet on purpose — an empty one would suggest the boundary
- * exists. It arrives with `gamesService.js`, when the freeze lifts.
+ * ── §14.2 IS NOW SATISFIED: `services/gamesService.js` ──────────────────
+ *
+ * The paragraph that stood here recorded §14.2 ("services/ is the only place a
+ * feature touches Firebase") as KNOWN DEBT, blocked on the freeze, and named
+ * its own clearing condition: *"It arrives with `gamesService.js`, when the
+ * freeze lifts."* The freeze lifted on 2026-08-14 — the owner ruling releasing
+ * the whole remaining freeze list — so the debt is paid rather than restated.
+ *
+ * `admin/GamesSeedAdmin.jsx` came with it, as `pages/GamesSeedAdmin.jsx`. It
+ * was never a *consumer* of this feature; it is the admin page that seeds the
+ * `games` collection this feature reads, which is the same argument the fifth
+ * ruling made for `CreateQuizV2` being a PAGE of the quiz editor rather than a
+ * consumer of it. Like the other five pages it is NOT exported here — it is
+ * route-mounted lazily at `/admin/games-seed`.
+ *
+ * ── `listGames` is exported, and the bundle cost was measured ───────────
+ *
+ * `hooks/useLearnerSearch` was the one consumer of `gamesService` outside this
+ * feature, and it does not disappear when the freeze does. It now reads
+ * `listGames` through this front door, which is the pattern that hook already
+ * used for its notes source — it pulls `fetchLearnerNotes` from the notes
+ * feature's front door the same way — so this is the established shape rather
+ * than a new one.
+ *
+ * The front-door cost rule above ("what does importing one name make the
+ * browser fetch") was re-measured for this export rather than assumed, because
+ * that rule is exactly what would make it a mistake. **Measured, not asserted**
+ * — two `vite build --mode smoke` runs across the move:
+ *
+ *   • Whole bundle: 25,374,073 → 25,374,026 bytes, **−47**.
+ *   • `LearnerSearch` chunk: 6,974 → 7,002, **+28 bytes**, and its static
+ *     import list is unchanged in kind — it reached the `gamesService` chunk
+ *     before this move and reaches that same chunk now. It did **not** gain
+ *     `gamesUi` (+18 kB), which is the regression this rule exists to catch.
+ *   • The 47,779-byte `gamesSeed` chunk was regrouped under the
+ *     `firestoreTimeout` chunk name (378 → 48,157). Identical bytes, different
+ *     grouping — moving `GamesSeedAdmin` reordered the module graph. Nothing
+ *     was added or dropped, which is what the −47 net confirms.
+ *
+ * **The mechanism is worth stating precisely, because the obvious guess is
+ * wrong.** The barrel is NOT tree-shaken per-consumer: the emitted front-door
+ * chunk is literally `import"./gamesService.js";import"./gamesUi.js";` — it
+ * eagerly pulls both, exactly as the `GameStickerStyles` measurement above
+ * predicted. What saves the search hook is that Rollup never routed it through
+ * that chunk: it resolved the re-export at build time and gave the consumer a
+ * **direct edge to the source chunk**, bypassing the barrel. So the safety here
+ * comes from the re-export being resolvable to one module, not from the barrel
+ * being cheap. A consumer that does land on the barrel chunk still pays for
+ * every name it re-exports — which is why the five pages stay unexported.
  */
 
 export { GameBadgeCard } from './components/gamesUi'
 
 export { getSubjectMascot } from './lib/subjectMascots'
+
+export { listGames } from './services/gamesService'

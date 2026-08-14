@@ -246,7 +246,7 @@ const PlayGame = lazy(() => import('./features/games/pages/PlayGame'))
 const GlobalLeaderboard = lazy(() => import('./features/games/pages/GlobalLeaderboard'))
 
 // Admin — games seed importer
-const GamesSeedAdmin = lazy(() => import('./components/admin/GamesSeedAdmin'))
+const GamesSeedAdmin = lazy(() => import('./features/games/pages/GamesSeedAdmin'))
 
 // Quiz editor (shared by admin + teacher)
 const EditQuiz = lazy(() => import('./features/quizEditor/pages/EditQuizV2'))

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { SparklesIcon } from '@heroicons/react/24/solid'
 import { getFallbackGames } from '../../../data/gamesSeed'
-import { gradeByValue, listGames, subjectBySlug } from '../../../utils/gamesService'
+import { gradeByValue, listGames, subjectBySlug } from '../services/gamesService'
 import GamesShell from '../components/GamesShell'
 import {
   GameDiscoveryCard,

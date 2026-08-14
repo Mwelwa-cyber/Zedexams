@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { collection, getDocs } from 'firebase/firestore'
-import { db } from '../../firebase/config'
-import { GAMES_SEED } from '../../data/gamesSeed'
-import { upsertGame } from '../../utils/gamesService'
-import SeoHelmet from '../../shared/components/SeoHelmet'
+import { db } from '../../../firebase/config'
+import { GAMES_SEED } from '../../../data/gamesSeed'
+import { upsertGame } from '../services/gamesService'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 
 /**
  * Admin → /admin/games-seed — selective import of the curated games seed

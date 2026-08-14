@@ -5,7 +5,7 @@ import {
   getGame,
   gradeByValue,
   subjectBySlug,
-} from '../../../utils/gamesService'
+} from '../services/gamesService'
 import { getFallbackGame, isDemoGame } from '../../../data/gamesSeed'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useSubscription } from '../../../hooks/useSubscription'
