@@ -88,6 +88,10 @@ export default function TimedQuizGame({ game }) {
   const [personalBest, setPersonalBest] = useState(null)
   const { pops, pushPop } = useScorePops()
   const startedAtRef = useRef(null)
+  // Mirrors `picked`, but synchronously — see the guard in `pick()`. It is the
+  // authority for "has this question been answered"; `picked` remains the
+  // authority for what the card DRAWS, which is a render concern.
+  const pickedRef = useRef(null)
 
   // ── Assessment Engine cutover (docs/phase3-plan.md §10.1 step 8) ───────────
   //
@@ -271,6 +275,7 @@ export default function TimedQuizGame({ game }) {
   }, [revealedAt])
 
   function advanceToNextQuestion() {
+    pickedRef.current = null
     setPicked(null)
     setQuestionNo((n) => n + 1)
     // Deck sequencing (reshuffle-on-exhaustion + no immediate repeat) lives
@@ -293,6 +298,7 @@ export default function TimedQuizGame({ game }) {
     setDeck(shuffle(pool, Date.now()))
     setPos(0)
     setQuestionNo(0)
+    pickedRef.current = null
     setPicked(null)
     setRound(EMPTY_ROUND)
     setTimeLeft(duration)
@@ -306,7 +312,23 @@ export default function TimedQuizGame({ game }) {
   }
 
   function pick(i) {
-    if (phase !== 'playing' || picked !== null) return
+    // The guard is the REF, not the state, and that is the whole point.
+    //
+    // `picked !== null` catches ordinary rapid clicking, because the browser
+    // dispatches each click as its own task and React commits between them. It
+    // does NOT catch two handlers running inside one React batch — both read
+    // the pre-commit `picked === null` and both proceed. That path scored one
+    // question twice before this extraction (`setScore(s => s + gained)` and
+    // `setCorrect(c => c + 1)` are functional updates, so both applied and a
+    // single question landed as `correct: 1` AND `wrong: 1`), and after it the
+    // second write silently replaced the first. Neither is protection.
+    //
+    // A ref claimed synchronously before any state update is — the same idiom
+    // `useAiOperationLock` uses for the same reason: "a synchronous `useRef`
+    // claims the lock BEFORE any await, so a second call in the same tick is
+    // refused; React `status` state alone updates too late to catch this."
+    if (phase !== 'playing' || pickedRef.current !== null) return
+    pickedRef.current = i
     // The verdict comes from the seam — `correctIndexFor` on the old path,
     // `markAttempt` against the canonical assessment on the engine's — and
     // everything after it is the same code either way.
