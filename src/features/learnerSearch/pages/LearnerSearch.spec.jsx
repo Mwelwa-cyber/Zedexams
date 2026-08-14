@@ -7,15 +7,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
-vi.mock('../../firebase/config', () => ({ default: {}, db: {} }))
-vi.mock('../../contexts/AuthContext', () => ({ useAuth: () => ({ userProfile: { grade: '5' } }) }))
-vi.mock('../seo/SeoHelmet', () => ({ default: () => null }))
-vi.mock('../ui/Skeleton', () => ({ default: () => <div data-testid="skeleton" /> }))
-vi.mock('../ui/Icon', () => ({ default: () => null }))
-vi.mock('../ui/icons', () => ({ Search: () => null }))
+vi.mock('../../../firebase/config', () => ({ default: {}, db: {} }))
+vi.mock('../../../contexts/AuthContext', () => ({ useAuth: () => ({ userProfile: { grade: '5' } }) }))
+vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../components/ui/Skeleton', () => ({ default: () => <div data-testid="skeleton" /> }))
+vi.mock('../../../components/ui/Icon', () => ({ default: () => null }))
+vi.mock('../../../components/ui/icons', () => ({ Search: () => null }))
 
 let mockSearch = { loading: false, groups: { quiz: [], note: [], paper: [], game: [] }, total: 0 }
-vi.mock('../../hooks/useLearnerSearch', () => ({ useLearnerSearch: () => mockSearch }))
+vi.mock('../../../hooks/useLearnerSearch', () => ({ useLearnerSearch: () => mockSearch }))
 
 import LearnerSearch from './LearnerSearch'
 

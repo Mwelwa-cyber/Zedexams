@@ -1,4 +1,4 @@
-// src/components/search/LearnerSearch.jsx
+// src/features/learnerSearch/pages/LearnerSearch.jsx
 //
 // /search — global learner search across quizzes, notes, past papers and games.
 // One search box, results grouped by type, each linking to its content. Search
@@ -7,13 +7,13 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
-import { useLearnerSearch } from '../../hooks/useLearnerSearch'
-import { RESULT_TYPES, RESULT_TYPE_META } from '../../utils/learnerSearch'
-import { Search } from '../ui/icons'
-import Icon from '../ui/Icon'
-import Skeleton from '../ui/Skeleton'
-import SeoHelmet from '../seo/SeoHelmet'
+import { useAuth } from '../../../contexts/AuthContext'
+import { useLearnerSearch } from '../../../hooks/useLearnerSearch'
+import { RESULT_TYPES, RESULT_TYPE_META } from '../../../utils/learnerSearch'
+import { Search } from '../../../components/ui/icons'
+import Icon from '../../../components/ui/Icon'
+import Skeleton from '../../../components/ui/Skeleton'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
 
 export default function LearnerSearch() {
   const { userProfile } = useAuth()
