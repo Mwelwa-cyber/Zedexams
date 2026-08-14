@@ -519,6 +519,7 @@
     "test:family-portal": "node functions/familyPortalCore.test.js",
     "test:trusted-image": "node functions/agents/trustedImageHost.test.js",
     "test:appcheck-enforce": "node functions/appCheckEnforcement.test.js",
+    "test:appcheck-http": "node functions/appCheckHttp.test.js",
     "test:appcheck-health": "node functions/appCheckHealthCore.test.js",
     "test:ai-budget-reservation": "node functions/aiBudgetReservation.test.js",
     "test:ai-budget-provider-gates": "node functions/aiBudgetProviderGates.test.js",
