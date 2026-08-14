@@ -138,6 +138,36 @@ test('a game answer key is the POSITION, because that is what the scorer grades'
     'the card paints from correctIndex and the score comes from this — they cannot disagree')
 })
 
+test('an OBJECT option normalises to the string "[object Object]"', () => {
+  // Not an aspiration — a record of what the normaliser does today, and the
+  // whole justification for `PublicQuizRunner` refusing such a paper rather
+  // than serving it on the engine.
+  //
+  // `toRichContent` reaches `getRichPlainText`, which has no branch for an
+  // option object, so `String(o)` wins. The past-paper card's shape is
+  // `{ text | textJSON, imageUrl?, diagram?, isCorrect? }`, and EVERY one of
+  // those — including an option carrying nothing but good text — comes out as
+  // the literal characters "[object Object]". A learner would meet four
+  // identical unreadable rows on a public, crawled route.
+  //
+  // The refusal is the fix rather than teaching the model this shape, because
+  // nothing writes it: `src/editor/schema/question.js` declares
+  // `options: z.array(z.string())`. If a writer ever appears, THIS is the test
+  // that says what has to change first.
+  const a = fromQuiz({
+    quiz: quizDoc(),
+    questions: [quizQuestion({
+      options: [{ text: 'A triangle', imageUrl: 'a.png' }, { text: 'A square' }],
+      correctAnswer: 0,
+    })],
+    source: 'pastPaperQuiz',
+  })
+  assert.equal(a.questions[0].options[0].plainTextFallback, '[object Object]')
+  assert.equal(a.questions[0].options[1].plainTextFallback, '[object Object]',
+    'the text-only option is no better off — the failure is the object, not the media')
+  assert.equal(a.questions[0].options[0].tiptapDoc, null)
+})
+
 test('a quiz index pointing past the options is refused', () => {
   const a = fromQuiz({
     quiz: quizDoc(),
