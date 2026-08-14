@@ -10,7 +10,7 @@ import SeoHelmet from '../../../components/seo/SeoHelmet'
 import { PLAN_PRICES } from '../../../config/teacherPlanPricing'
 import { isNativePlatform } from '../../../utils/runtime'
 
-const UpgradeModal = lazy(() => import('../../../components/subscription/UpgradeModal'))
+const UpgradeModal = lazy(() => import('../../subscription').then(m => ({ default: m.UpgradeModal })))
 
 const FAQ = [
   {
