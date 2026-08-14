@@ -194,6 +194,7 @@ const COVERED = [
   'lessonPlanTemplates', 'newsletterSignupRateLimit', 'noteProgress', 'parentDigestEvents', 'parentLinks',
   'opsMonitorState',
   'passkeyAuditLog', 'passkeyCredentials', 'passkeyUserHandles', 'pastPapers',
+  'processedWebhookEvents',
   'pastPapersIndex', 'payments', 'progressShares', 'publicStats', 'questionBank',
   'quizzes', 'rateLimits', 'referralCodes', 'results', 'schoolLicences', 'schools',
   'scores', 'securityAuditLogs', 'settings', 'shares', 'subscriptionEvents',
