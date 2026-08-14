@@ -19,6 +19,11 @@ import {
   WRITE_PLACEHOLDER,
   WRITE_ERROR,
   WRITE_BLOCKED_MESSAGE,
+  classifyStorageWriteRejection,
+  storageWriteRejectionMessage,
+  ATTESTATION_OK,
+  ATTESTATION_BUILD_KEY_MISSING,
+  ATTESTATION_INIT_FAILED,
 } from './appCheckWriteGate.js'
 
 const PLACEHOLDER = 'appcheck-recaptcha-unavailable'
@@ -124,6 +129,83 @@ async function run() {
     ok(
       'does not claim the user lacks permission',
       !/permission|not allowed|unauthori[sz]ed|forbidden/i.test(WRITE_BLOCKED_MESSAGE),
+    )
+  }
+
+  // ── classifying a refused write ────────────────────────────────────────
+  // The gate fails OPEN when App Check was never configured, so that build's
+  // uploads reach an ENFORCED bucket with no token and are refused as
+  // `storage/unauthorized` — the same code a rules denial uses. These lock
+  // the determination that tells the two apart, because getting it wrong is
+  // what sends an admin who already has the role round the sign-out loop.
+  console.log('\nappCheckWriteGate — an unattested build is not a permissions problem')
+  {
+    const appCheck = { native: false, recaptchaKeyConfigured: false, initialized: false }
+    ok(
+      'no build key + refused write reads as the missing key',
+      classifyStorageWriteRejection({ code: 'storage/unauthorized', appCheck })
+        === ATTESTATION_BUILD_KEY_MISSING,
+    )
+    const msg = storageWriteRejectionMessage({ code: 'storage/unauthorized', appCheck })
+    ok('names the key that has to be set', /VITE_FIREBASE_APPCHECK_RECAPTCHA_KEY/.test(msg))
+    ok('says the account is NOT the problem', /not your account/i.test(msg))
+    ok(
+      'never sends the user round the sign-out-and-back-in loop',
+      !/sign out|sign in again|verified email|needs the (admin|teacher)/i.test(msg),
+    )
+  }
+
+  console.log('\nappCheckWriteGate — a key that is present but never initialised')
+  {
+    const appCheck = { native: false, recaptchaKeyConfigured: true, initialized: false }
+    ok(
+      'reads as a failed init, not a missing key',
+      classifyStorageWriteRejection({ code: 'storage/unauthorized', appCheck })
+        === ATTESTATION_INIT_FAILED,
+    )
+    const msg = storageWriteRejectionMessage({ code: 'storage/unauthorized', appCheck })
+    ok('offers the action that actually helps', /reload/i.test(msg))
+    ok('does not blame a deploy secret the admin already set', !/VITE_FIREBASE/.test(msg))
+  }
+
+  console.log('\nappCheckWriteGate — native attestation is Play Integrity, not reCAPTCHA')
+  {
+    // recaptchaKeyConfigured is meaningless on the Android wrapper, so a
+    // missing web key must never be reported as the cause there.
+    const appCheck = { native: true, recaptchaKeyConfigured: false, initialized: false }
+    ok(
+      'a native build never blames the web reCAPTCHA key',
+      classifyStorageWriteRejection({ code: 'storage/unauthorized', appCheck })
+        === ATTESTATION_INIT_FAILED,
+    )
+  }
+
+  console.log('\nappCheckWriteGate — a genuine rules denial keeps its own wording')
+  {
+    ok(
+      'App Check up + refused write is a real permissions denial',
+      classifyStorageWriteRejection({
+        code: 'storage/unauthorized',
+        appCheck: { native: false, recaptchaKeyConfigured: true, initialized: true },
+      }) === ATTESTATION_OK,
+    )
+    ok(
+      'and yields no attestation message, so the caller keeps its own',
+      storageWriteRejectionMessage({
+        code: 'storage/unauthorized',
+        appCheck: { recaptchaKeyConfigured: true, initialized: true },
+      }) === null,
+    )
+    ok(
+      'an unknown App Check state is never guessed at',
+      classifyStorageWriteRejection({ code: 'storage/unauthorized' }) === ATTESTATION_OK,
+    )
+    ok(
+      'a non-permission code is never re-diagnosed as attestation',
+      classifyStorageWriteRejection({
+        code: 'storage/quota-exceeded',
+        appCheck: { initialized: false, recaptchaKeyConfigured: false },
+      }) === ATTESTATION_OK,
     )
   }
 

@@ -4,7 +4,9 @@
  * step and its "Crop from page").
  *
  * Pure: no DOM, no Firebase. The canvas work stays in the component; what
- * lives here is the part that was getting the diagnosis wrong.
+ * lives here is the part that was getting the diagnosis wrong. (The one
+ * import, appCheckWriteGate, is itself a pure firebase-free decision core —
+ * the App Check STATE is passed in by the caller, never read from the SDK.)
  *
  * ── Why this module exists ───────────────────────────────────────────────
  * Storage answers a refused write with `storage/unauthorized` for EVERY arm
@@ -28,7 +30,17 @@
  *   2. Because (1) holds, `uploadErrorMessage` can state plainly that a
  *      refusal is NOT about size, and list what is actually worth checking.
  * Weakening either one puts the misdiagnosis back.
+ *
+ * Third half, added when App Check enforcement reached Storage: the same
+ * `storage/unauthorized` is ALSO what an enforced bucket returns for a
+ * request that carried no attestation token, so `uploadErrorMessage` now
+ * takes the App Check client state and names that cause when it is the one
+ * that applies. See src/firebase/appCheckWriteGate.js.
  */
+// Extension is explicit: this module is exercised by a plain-node test
+// (npm run test:quiz-image-upload), and node's ESM loader does not resolve
+// extension-less relative specifiers. Vite is happy either way.
+import { storageWriteRejectionMessage } from '../firebase/appCheckWriteGate.js'
 
 /**
  * The server cap, mirroring `validQuizImageUpload()` in storage.rules:
@@ -142,7 +154,7 @@ export function oversizeImageError(bytes) {
  * verified) during the current session keeps being refused until it
  * refreshes.
  */
-export function uploadErrorMessage(error) {
+export function uploadErrorMessage(error, appCheck = null) {
   const code = String(error?.code || '')
   const msg = String(error?.message || '')
 
@@ -159,6 +171,14 @@ export function uploadErrorMessage(error) {
 
   if (code === 'storage/unauthorized'
     || (/storage/i.test(code) && /unauthorized|permission/i.test(msg))) {
+    // An enforced bucket returns this same code when the request carried no
+    // App Check token at all — which is what a build with no reCAPTCHA key
+    // does on every write, because the write gate fails open when App Check
+    // was never configured. When the state says that happened we KNOW it
+    // wasn't the rules, so say so instead of sending an admin who already
+    // has the role round the sign-out-and-back-in loop.
+    const attestation = storageWriteRejectionMessage({ code: 'storage/unauthorized', appCheck })
+    if (attestation) return attestation
     return 'Upload failed — Storage refused it. This is not the file size (the picture was '
       + 'already compressed to fit). Your account needs the teacher or admin role and a '
       + 'verified email address. If you have just been given that role, or just verified your '

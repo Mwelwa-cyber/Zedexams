@@ -77,7 +77,11 @@ import {
   resolveStudioQuizId,
 } from '../../utils/pastPaperQuizStatus'
 import { PAPER_SUBJECTS } from '../../config/curriculum'
-import { db } from '../../firebase/config'
+import { db, getAppCheckClientState } from '../../firebase/config'
+import {
+  storageWriteRejectionMessage,
+  WRITE_BLOCKED_MESSAGE,
+} from '../../firebase/appCheckWriteGate'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import {
   collection,
@@ -133,7 +137,22 @@ function inputCls() {
  */
 function describeUploadError(err) {
   const code = err?.code || ''
+  if (code === 'appcheck/unattested') {
+    return err?.message || WRITE_BLOCKED_MESSAGE
+  }
   if (code === 'storage/unauthorized') {
+    // App Check enforcement is on for Storage, and an enforced bucket answers
+    // a request carrying no token with this exact code. A build that shipped
+    // without its reCAPTCHA key does that on EVERY write (the write gate
+    // fails open when App Check was never configured), so check the state
+    // before blaming the role — an admin who already has it cannot act on
+    // that advice.
+    // Never let the describer throw: it runs inside a catch block, so an
+    // exception here would convert a handled upload failure into a crash.
+    let appCheck = null
+    try { appCheck = getAppCheckClientState() } catch { appCheck = null }
+    const attestation = storageWriteRejectionMessage({ code, appCheck })
+    if (attestation) return attestation
     return 'Storage refused this upload. Your account needs the admin (or teacher) '
       + 'role AND a verified email address, and the file must be a PDF, Word doc, '
       + 'JPG, PNG or WEBP under 50MB. If you are signed in as an admin, sign out '

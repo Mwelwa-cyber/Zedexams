@@ -91,6 +91,7 @@ jobs:
           VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_APPCHECK_RECAPTCHA_KEY: ${{ secrets.VITE_FIREBASE_APPCHECK_RECAPTCHA_KEY }}
         run: |
           missing=()
           # Deploy auth is satisfied by EITHER a service-account key
@@ -104,6 +105,16 @@ jobs:
           [ -z "$VITE_FIREBASE_STORAGE_BUCKET" ] && missing+=("VITE_FIREBASE_STORAGE_BUCKET")
           [ -z "$VITE_FIREBASE_MESSAGING_SENDER_ID" ] && missing+=("VITE_FIREBASE_MESSAGING_SENDER_ID")
           [ -z "$VITE_FIREBASE_APP_ID" ] && missing+=("VITE_FIREBASE_APP_ID")
+          # App Check enforcement is ON for Cloud Storage (2026-08). Without
+          # this key initAppCheck() returns early, the Storage write gate
+          # fails open (it can only fail closed when App Check is CONFIGURED),
+          # and every upload leaves carrying no attestation token — which an
+          # enforced bucket answers with 401 "Firebase App Check token is
+          # invalid", surfaced to the user as `storage/unauthorized`. That
+          # breaks every upload path in the app (past papers, quiz images,
+          # visual studio, branding, syllabus) while the deploy stays green,
+          # so this is as load-bearing as the API key, not an optional extra.
+          [ -z "$VITE_FIREBASE_APPCHECK_RECAPTCHA_KEY" ] && missing+=("VITE_FIREBASE_APPCHECK_RECAPTCHA_KEY")
           if [ ${#missing[@]} -gt 0 ]; then
             echo "::error::Missing repository secrets: ${missing[*]}"
             echo "::error::Add them at Settings > Secrets and variables > Actions."
