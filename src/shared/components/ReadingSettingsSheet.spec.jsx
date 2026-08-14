@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import ReadingSettingsSheet from './ReadingSettingsSheet'
-import { DEFAULT_QUIZ_DISPLAY } from '../../../utils/quizDisplayPrefs'
+import { DEFAULT_QUIZ_DISPLAY } from '../../utils/quizDisplayPrefs'
 
 function setup(overrides = {}) {
   const props = {

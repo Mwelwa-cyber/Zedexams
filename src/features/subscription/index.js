@@ -16,13 +16,14 @@
  * See that file for why going around was chosen over editing three one-line
  * imports.
  *
- * **The third of those was released and moved on 2026-08-14** — it is now
- * `features/games/pages/PlayGame.jsx`, and it still imports the shim. Not
- * because it must: because the chunk measurement that chose the shim's target
- * never depended on the freeze. Routing that page through this front door would
- * put the status banner, `PremiumGate` and `RenewalBanner` into the chunk of a
- * page that renders one upgrade modal. The two quiz files remain frozen, so the
- * shim's retirement condition is unchanged.
+ * **All three were released on 2026-08-14** — `PlayGame` to
+ * `features/games/pages/`, `QuizRunnerV2` and `QuizList` (and the three runner
+ * specs) to `features/quiz/pages/`. None of the shim's consumers is frozen any
+ * more, so what holds it is no longer the freeze: it is the chunk measurement,
+ * which never depended on one. Routing those six through this front door would
+ * put the status banner, `PremiumGate` and `RenewalBanner` into the chunks of
+ * the quiz runner, the quizzes hub and the play-game route. Its retirement is
+ * now a measurement rather than a date — see that file's docblock.
  *
  * ── What is exported, and the one that is not ───────────────────────────
  *

@@ -12,22 +12,22 @@ import {
   Sparkles,
   StarIcon,
   X,
-} from '../ui/icons'
-import { useFirestore } from '../../hooks/useFirestore'
-import { useDebouncedValue } from '../../hooks/useDebouncedValue'
-import { useSubscription } from '../../hooks/useSubscription'
-import { useAuth } from '../../contexts/AuthContext'
-import UpgradeModal from '../subscription/UpgradeModal'
-import ComingSoon from '../ui/ComingSoon'
-import Button from '../ui/Button'
-import Icon from '../ui/Icon'
-import Skeleton from '../ui/Skeleton'
-import ContentLoadError from '../ui/ContentLoadError'
-import SeoHelmet from '../seo/SeoHelmet'
-import GameStickerStyles from '../games/GameStickerStyles'
-import { QuizzesHubTour } from '../ui/learnerTours'
-import { gradesForFeature, gradeNumberOf } from '../../config/canonicalEducation'
-import { PAPER_SUBJECTS } from '../../config/curriculum'
+} from '../../../components/ui/icons'
+import { useFirestore } from '../../../hooks/useFirestore'
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
+import { useSubscription } from '../../../hooks/useSubscription'
+import { useAuth } from '../../../contexts/AuthContext'
+import UpgradeModal from '../../../components/subscription/UpgradeModal'
+import ComingSoon from '../../../components/ui/ComingSoon'
+import Button from '../../../components/ui/Button'
+import Icon from '../../../components/ui/Icon'
+import Skeleton from '../../../components/ui/Skeleton'
+import ContentLoadError from '../../../components/ui/ContentLoadError'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import GameStickerStyles from '../../../shared/components/GameStickerStyles'
+import { QuizzesHubTour } from '../../../components/ui/learnerTours'
+import { gradesForFeature, gradeNumberOf } from '../../../config/canonicalEducation'
+import { PAPER_SUBJECTS } from '../../../config/curriculum'
 
 // ── Config ────────────────────────────────────────────────────────────────
 // A filter on the canonical ladder — see FEATURE_GRADE_RESTRICTIONS.

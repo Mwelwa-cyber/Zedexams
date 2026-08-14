@@ -69,17 +69,21 @@
  * chunk", and a front door's cost is a different question — "what does
  * importing one name make the browser fetch".
  *
- * ── The one file left behind in `src/components/games/` ─────────────────
+ * ── The one file left behind in `src/components/games/` — RETIRED ───────
  *
- * `components/games/GameStickerStyles.jsx` survives as a one-line re-export
- * shim onto the shared component, and its own docblock carries the retirement
- * condition. Its single consumer is `components/quiz/QuizList.jsx`, which is
- * still frozen — so the migration goes AROUND that file rather than editing
- * one import line inside it, exactly as #2342 did for `UpgradeModal`.
- * `QuizList.jsx` is byte-identical to `main`, verified with `git diff --quiet`
- * rather than asserted. Because the shim points at `shared/` and not at a
- * feature, it costs no debt-list entry: the boundary scan has nothing to
- * record, since the legacy tree is allowed to read the shared layer.
+ * `components/games/GameStickerStyles.jsx` survived this migration as a
+ * one-line re-export shim onto the shared component, because its single
+ * consumer was `components/quiz/QuizList.jsx` and `components/quiz/` was still
+ * frozen. The migration went AROUND that file rather than editing one import
+ * line inside it, exactly as #2342 did for `UpgradeModal`.
+ *
+ * **It is gone.** The quiz migration, hours later the same day, moved
+ * `QuizList` into `features/quiz/pages/` — so it imports
+ * `shared/components/GameStickerStyles` directly, the shim lost its only
+ * consumer, and `src/components/games/` is empty and removed. The shim's own
+ * docblock named exactly that as its retirement condition; it was retired by
+ * the event it predicted rather than by the freeze lifting, which is the
+ * argument for writing retirement conditions down at all.
  *
  * `pages/PlayGame.jsx` keeps importing the `UpgradeModal` shim rather than
  * `features/subscription`, even though PlayGame is no longer frozen. The chunk
