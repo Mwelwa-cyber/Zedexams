@@ -2440,11 +2440,15 @@ async function main() {
   })
 
   // Create is ADMIN-ONLY (narrowed 2026-08-05). Both directions are asserted:
-  // the grant that was removed must stay closed, and the two admin surfaces
-  // that genuinely create jobs — BulkGenerateButton and GenerateFromTopicMenu —
-  // must keep working. Testing only the denial would let a later tightening
-  // break both without a single test going red.
-  await test('an ADMIN can create a valid queued job (BulkGenerateButton / GenerateFromTopicMenu)', async () => {
+  // the grant that was removed must stay closed, and the admin surface that
+  // genuinely creates jobs — BulkGenerateButton — must keep working. Testing
+  // only the denial would let a later tightening break it without a single
+  // test going red.
+  //
+  // It was TWO surfaces until 2026-08-14, when GenerateFromTopicMenu was
+  // deleted as dead code. If the last one ever goes the same way, this grant
+  // should narrow to server-only rather than outlive its reason.
+  await test('an ADMIN can create a valid queued job (BulkGenerateButton)', async () => {
     await assertSucceeds(setDoc(doc(admin, 'agentJobs', 'job_new_valid'), {
       agentId: 'aria', department: 'content', status: 'queued',
       createdBy: ADMIN, input: { topic: 'Decimals' },
