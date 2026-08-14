@@ -31,7 +31,7 @@ const SHIMS = [
   'src/utils/comprehensionGrouping.js',
   'src/utils/mcqChoices.js',
   'src/utils/paperMarksModel.js',
-  'src/components/diagrams/diagramCatalog.js',
+  'src/curriculum/diagrams/diagramCatalog.js',
 ]
 
 let passed = 0

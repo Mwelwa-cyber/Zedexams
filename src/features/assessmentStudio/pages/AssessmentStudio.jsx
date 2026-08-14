@@ -111,7 +111,7 @@ import { buildExportValidationReport } from '../lib/assessmentValidationReport'
 import { blockingIssuesByLocalId } from '../../../utils/assessmentExportGate'
 import { buildAssessmentExportReadiness } from '../../../utils/assessmentExportReadiness'
 import { buildPrintPdfReadiness, buildWordReadiness } from '../lib/printPdfReadiness'
-import { resolveFigureForExport } from '../../../components/diagrams/diagramCatalog'
+import { resolveFigureForExport } from '../../../curriculum/diagrams/diagramCatalog'
 import { compareToBlueprint } from '../lib/blueprintDrift'
 import {
   canRegenerateQuestion, slotForQuestionNumber, replaceQuestionInSections,

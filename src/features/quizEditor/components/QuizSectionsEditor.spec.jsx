@@ -28,8 +28,8 @@ vi.mock('./QuizRichField', () => ({
   ),
 }))
 vi.mock('./QuestionAiAssistant.jsx', () => ({ default: () => null }))
-vi.mock('../../../components/diagrams/DiagramSvg.jsx', () => ({ default: () => null }))
-vi.mock('../../../components/diagrams/DiagramPicker.jsx', () => ({ default: () => null }))
+vi.mock('../../../curriculum/diagrams/DiagramSvg.jsx', () => ({ default: () => null }))
+vi.mock('../../../curriculum/diagrams/DiagramPicker.jsx', () => ({ default: () => null }))
 vi.mock('../../../editor/RichContent', () => ({ default: () => null }))
 
 import QuizSectionsEditor from './QuizSectionsEditor'

@@ -54,7 +54,7 @@ import ReadingSettingsButton from '../../../shared/components/ReadingSettingsBut
 import ReadingSettingsSheet from '../../../shared/components/ReadingSettingsSheet'
 import TextToSpeechButton from '../../../shared/components/TextToSpeechButton'
 import { optionsToReadAloudText } from '../../../utils/readAloudText'
-import DiagramSvg from '../../../components/diagrams/DiagramSvg'
+import DiagramSvg from '../../../curriculum/diagrams/DiagramSvg'
 import ZoomableImage from '../../../shared/components/ZoomableImage'
 import { imagePositionClasses, resolveQuestionFigure, usesFigurePositionWrapper } from '../../../utils/questionFigure'
 import ExtraQuestionImages from '../../../shared/components/ExtraQuestionImages'

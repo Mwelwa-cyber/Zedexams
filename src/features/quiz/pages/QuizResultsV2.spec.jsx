@@ -42,7 +42,7 @@ vi.mock('../../../hooks/useSoundEffects', () => ({
 // Heavy / unrelated leaves — stub to keep the render light.
 vi.mock('../../../editor/RichContent', () => ({ default: () => null, getRichPlainText: () => '' }))
 vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
-vi.mock('../../../components/diagrams/DiagramSvg', () => ({ default: () => null }))
+vi.mock('../../../curriculum/diagrams/DiagramSvg', () => ({ default: () => null }))
 vi.mock('../../../utils/aiAssistant', () => ({ explainQuizAnswer: vi.fn() }))
 
 const mockNavigate = vi.fn()

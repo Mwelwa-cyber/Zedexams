@@ -15,7 +15,7 @@
  */
 import { makePdfExporter, escapeHtml as safe } from '../../utils/htmlPdfExport.js'
 import { buildSbaPaperBlocks } from '../../shared/utils/sbaTaskToPaper.js'
-import { renderDiagramSvg } from '../../components/diagrams/diagramCatalog.js'
+import { renderDiagramSvg } from '../../curriculum/diagrams/diagramCatalog.js'
 
 const STYLE_LABELS = {
   answer_key: 'Answer key',

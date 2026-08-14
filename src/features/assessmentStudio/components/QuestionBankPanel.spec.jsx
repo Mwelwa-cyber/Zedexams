@@ -48,7 +48,7 @@ vi.mock('../../../utils/questionBankService', () => ({
   saveQuestionToBank: vi.fn(async () => 'new-id'),
 }))
 
-vi.mock('../../../components/diagrams/DiagramSvg', () => ({ default: () => <div data-testid="diagram" /> }))
+vi.mock('../../../curriculum/diagrams/DiagramSvg', () => ({ default: () => <div data-testid="diagram" /> }))
 vi.mock('../../../utils/quizRichText', () => ({ extractRichTextPlain: (v) => (typeof v === 'string' ? v : '') }))
 
 describe('QuestionBankPanel', () => {

@@ -2,7 +2,7 @@
  * Tests for matchLibraryShape — mapping a detected figure to a Diagram Library
  * shape for the "Convert to editable SVG" option. Plain `node` script.
  *
- * Run: node src/components/diagrams/matchLibraryShape.test.js
+ * Run: node src/features/assessmentStudio/lib/matchLibraryShape.test.js
  */
 
 import assert from 'node:assert'
