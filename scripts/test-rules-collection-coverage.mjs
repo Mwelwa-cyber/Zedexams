@@ -197,6 +197,9 @@ const COVERED = [
   'pastPapersIndex', 'payments', 'progressShares', 'publicStats', 'questionBank',
   'quizzes', 'rateLimits', 'referralCodes', 'results', 'schoolLicences', 'schools',
   'scores', 'securityAuditLogs', 'settings', 'shares', 'subscriptionEvents',
+  // Cleared by the Phase 3 games cutover: a finished `timed_quiz` round writes
+  // four collections, and only `scores` had any coverage before it (§5.1(4)).
+  'badges', 'dailyStreaks', 'learner_profiles',
   'teacherProfiles', 'topicMisconceptions', 'usageMeters', 'users', 'webauthnChallenges',
 ]
 
@@ -219,7 +222,11 @@ const ACKNOWLEDGED_UNCOVERED = [
   'ageGateAttempts', 'consentRequests', 'deletionRequests',
   'processedEvents', 'referralRedemptions',
   // 3 — Phase 3 write targets, cleared by its cutovers (docs/phase3-plan.md §5.1)
-  'badges', 'dailyStreaks', 'daily_exam_locks', 'learner_profiles', 'paperAttempts',
+  // `badges`, `dailyStreaks` and `learner_profiles` moved to COVERED with the
+  // games cutover. `daily_exam_locks` belongs to DailyExamRunner, which §6
+  // deliberately leaves out of the phase; `paperAttempts` is PastPaperPractice,
+  // which §0 found is a PDF reader with a stopwatch and not a runner at all.
+  'daily_exam_locks', 'paperAttempts',
   // 4 — the rest
   'aiAgentControls', 'aiAgentLogs', 'aiAgentTasks', 'aiAutomationSettings',
   'aiContentReports', 'aiGeneratedContent', 'aiGeneratedContentVersions',

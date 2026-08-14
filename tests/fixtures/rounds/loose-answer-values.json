@@ -1,0 +1,61 @@
+{
+  "description": "Answers stored loosely, which is normal in game documents: a numeric `answer` against string options, a numeric option against a string answer, and a numeric prompt. Both verdicts compare as strings, so both must agree.",
+  "game": {
+    "id": "game-numbers-g2",
+    "title": "Number Snap",
+    "subject": "mathematics",
+    "grade": 2,
+    "type": "timed_quiz",
+    "timer": 30,
+    "points": 8,
+    "questions": [
+      {
+        "question": "3 + 4",
+        "options": [
+          "5",
+          "6",
+          "7",
+          "8"
+        ],
+        "answer": 7
+      },
+      {
+        "question": 10,
+        "options": [
+          8,
+          9,
+          10,
+          11
+        ],
+        "answer": "10"
+      },
+      {
+        "question": "2 + 2",
+        "options": [
+          3,
+          4,
+          5
+        ],
+        "answer": 4
+      }
+    ]
+  },
+  "picks": [
+    {
+      "poolIndex": 0,
+      "optionIndex": 2
+    },
+    {
+      "poolIndex": 1,
+      "optionIndex": 2
+    },
+    {
+      "poolIndex": 2,
+      "optionIndex": 1
+    }
+  ],
+  "userId": "learner-4",
+  "displayName": "Natasha",
+  "startedAtMs": 1700000000000,
+  "nowMs": 1700000029000
+}
