@@ -32,6 +32,79 @@ Current state at the time of writing: all three switches `false`,
 
 ---
 
+## 0a. The FAST PATH — owner decision, 2026-08-14
+
+**The owner elected to turn all three runners on without a staged ramp, and to
+fix problems forward rather than reverting.** The reason is legitimate and worth
+recording: this migration has taken a long time, and a multi-day ramp per runner
+adds weeks to it for a codebase whose byte-compatibility is already proven on
+every fixture.
+
+This section is that path. The staged ramp in §2–§4 remains below because it is
+what the plan committed to, and because a later reader needs to know which one
+was actually followed.
+
+**The one thing the fast path does not change**, because it is a fact about the
+system rather than a preference about pace:
+
+> A flag reverts CODE. It does not revert DOCUMENTS. A `results` row with a
+> wrong score is a learner's grade, already written. Turning the flag off does
+> not un-write it, and there is no cleanup script for it.
+
+So "fix forward" is fully available for a **render** problem and not available
+for a **write** problem, and which one you are exposed to depends on the runner:
+
+| runner | writes | what "fix later" actually costs |
+|---|---|---|
+| `pastPaperQuiz` | **nothing at all** | a bad render. Reverts in seconds, nothing to clean up |
+| `quiz` | `results` | a wrong grade on a learner's record |
+| `game` | `scores`, `badges`, `dailyStreaks`, `learner_profiles` | a leaderboard row no query finds |
+
+### The sequence
+
+1. **Do §1's rollback rehearsal anyway. It takes about two minutes and exposes
+   nobody**, because `rolloutPercent` stays at 0 and only your own uid is in
+   `rolloutUids`. It is not part of the ramp and skipping it saves no time — what
+   it buys is knowing the switch works *before* the day you need it in a hurry.
+   A switch nobody has ever thrown is not a rollback plan.
+2. **`pastPaperQuiz` → on, `rolloutPercent` → 100.** Do this first and without
+   hesitation: the route persists nothing, so the entire downside is a render
+   that reverts in seconds. This is "migrate it and fix later" working exactly
+   as intended.
+3. **`quiz` → on, then `game` → on.** Both already at 100% via the shared
+   percentage.
+4. **Check within the first hour, not the first week.** This is the part that
+   replaces the ramp and it is short: both irreversible failures show up within
+   *minutes* of real traffic, not days. See §5a.
+
+### §5a — the first hour, for the two runners that write
+
+Three checks. If all three are clean after an hour of real traffic, the fast
+path has worked and there is nothing further to watch that a normal week would
+not surface.
+
+- **Score distribution** against the pre-flip week (`results.percentage`).
+  **A marking regression does not throw** — it produces plausible numbers that
+  are wrong, so no error rate will show it and a shifted mean will. This is the
+  single most important number on the page, and it is the one that decides
+  whether documents are being written correctly.
+- **A leaderboard query returning rows.** The D5 identity-field regression
+  writes documents that look perfect and are found by no
+  `where('grade','==',4)` query. Open any game's leaderboard and confirm new
+  scores appear. No errors accompany this failure.
+- **The refusal rate** — `assessment_engine_path` with `engine:false,
+  latched:false`. Expected and correct at quizzes (the engine draws two of
+  eleven question types); what matters is that it is not ~100%, which would mean
+  the engine is serving nobody and the flip achieved nothing.
+
+**If the score distribution has moved, turn `quiz` off immediately** — not to
+"roll back the migration", but because every further minute writes more
+documents that will need correcting by hand. That is the one case where
+reverting is cheaper than fixing forward, and it is cheap precisely because it
+is a switch rather than a deploy.
+
+---
+
 ## 1. Rehearse the rollback FIRST (§5.1 criterion 7)
 
 Do this before any learner is exposed. It is the one criterion no diff can
@@ -54,7 +127,7 @@ a rollback that needs a deploy or a reload is not one.
 
 ---
 
-## 2. Past-paper first, on a ramp
+## 2. Past-paper first, on a ramp — the staged alternative to §0a
 
 The canary, and the only cutover that **persists nothing** — if the engine is
 wrong here there is no corrupted document and nothing to clean up. It is also
