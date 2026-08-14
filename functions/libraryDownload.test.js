@@ -24,7 +24,19 @@ function ok(label, cond) {
   passed++;
 }
 
-// firebase-admin is only needed for Timestamp in the module under test.
+// Every dependency that would otherwise resolve out of functions/node_modules
+// is stubbed, not just the ones this test exercises.
+//
+// That is not tidiness: the CI jobs that run this file (`test:all` and the
+// Functions-coverage job) install the ROOT dependencies only, so anything
+// reaching functions/node_modules is MODULE_NOT_FOUND there while passing on a
+// developer machine, where those packages exist. libraryDownload.js pulls in
+// firebase-functions/v2/https and /v2/scheduler at module scope, and its
+// ./authGuard pulls in /v2/https again — so all three names must be intercepted
+// before Node tries to resolve them.
+class FakeHttpsError extends Error {
+  constructor(code, message) { super(message); this.code = code; }
+}
 const origLoad = Module._load;
 Module._load = function (request, ...rest) {
   if (request === "firebase-admin") {
@@ -34,6 +46,12 @@ Module._load = function (request, ...rest) {
         FieldValue: {serverTimestamp: () => ({__ts: true})},
       }),
     };
+  }
+  if (request === "firebase-functions/v2/https") {
+    return {HttpsError: FakeHttpsError, onCall: () => ({}), onRequest: () => ({})};
+  }
+  if (request === "firebase-functions/v2/scheduler") {
+    return {onSchedule: () => ({})};
   }
   return origLoad.call(this, request, ...rest);
 };
