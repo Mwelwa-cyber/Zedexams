@@ -112,19 +112,23 @@ const apiLibraryDownload = onRequest(
 
     try {
       const db = admin.firestore();
-      const tSnap = await db.collection("downloadTickets").doc(ticketId).get();
-      if (!tSnap.exists) {
+      // Single-use (SECURITY_ENDPOINT_AUDIT §4.4). The ticket id is a bearer
+      // credential in a URL, so it can leak the ways URLs leak — a referrer, a
+      // shared link, a screenshot — and until now it stayed usable for the whole
+      // five-minute TTL.
+      const claim = await claimDownloadTicket({db, ticketId, now: Date.now()});
+      if (claim.reason === "missing") {
+        // Covers both never-existed and already-used: the ticket is gone either
+        // way, and telling a caller WHICH would confirm that a real download
+        // happened.
         res.status(404).send("This download link is no longer valid. Please try again.");
         return;
       }
-      const ticket = tSnap.data();
-      const expiresAt = ticket.expiresAt && ticket.expiresAt.toMillis
-        ? ticket.expiresAt.toMillis()
-        : 0;
-      if (!expiresAt || expiresAt < Date.now()) {
+      if (claim.reason === "expired") {
         res.status(410).send("This download link has expired. Please try again.");
         return;
       }
+      const ticket = claim.ticket;
 
       const gSnap = await db.collection("aiGenerations")
         .doc(ticket.generationId).get();
@@ -169,6 +173,45 @@ const apiLibraryDownload = onRequest(
   },
 );
 
+/**
+ * Claim a download ticket: validate and CONSUME it in one transaction, so a
+ * ticket is usable exactly once (SECURITY_ENDPOINT_AUDIT §4.4).
+ *
+ * The audit's wording was "delete the ticket on first successful stream". This
+ * consumes it BEFORE the render instead, deliberately, because deleting after a
+ * success does not actually make the ticket single-use: the .docx regeneration
+ * takes real time, and two requests arriving inside that window would both read
+ * a live ticket and both render. Claiming first closes that window — the delete
+ * is the claim, and Firestore serialises it.
+ *
+ * The cost of claiming first is that a render failure burns the ticket. That is
+ * the right trade here: minting is a cheap authenticated callable, the endpoint
+ * already tells the caller to fall back to the in-app download on error, and a
+ * spent ticket after a failed download is a retry, whereas a replayable one is
+ * the finding.
+ *
+ * An expired ticket is deleted too — it is spent either way, and leaving it for
+ * the daily reaper only widens the window in which a leaked id is worth trying.
+ *
+ * @returns {Promise<{ok: boolean, reason: ('claimed'|'missing'|'expired'), ticket: (object|null)}>}
+ */
+async function claimDownloadTicket({db, ticketId, now}) {
+  const ref = db.collection("downloadTickets").doc(ticketId);
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return {ok: false, reason: "missing", ticket: null};
+    const ticket = snap.data() || {};
+    const expiresAt = ticket.expiresAt && ticket.expiresAt.toMillis
+      ? ticket.expiresAt.toMillis()
+      : 0;
+    tx.delete(ref);
+    if (!expiresAt || expiresAt < now) {
+      return {ok: false, reason: "expired", ticket: null};
+    }
+    return {ok: true, reason: "claimed", ticket};
+  });
+}
+
 /** Delete expired download tickets so the collection stays small. */
 async function reapExpiredTickets(db, nowMs, limit = 500) {
   const snap = await db.collection("downloadTickets")
@@ -208,4 +251,7 @@ module.exports = {
   createLibraryDownloadTicket,
   apiLibraryDownload,
   reapDownloadTickets,
+  // Exported for tests only — not a Cloud Function. index.js binds the three
+  // above; adding a key here changes no deployed export.
+  claimDownloadTicket,
 };

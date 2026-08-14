@@ -6,6 +6,7 @@ const { assertDecodedVerified } = require('./authGuard');
 const { applyCors } = require('./cors');
 const { guardHttpRateLimit } = require('./rateLimit');
 const { softVerifyAppCheckHttp } = require('./appCheckHttp');
+const { enforceJsonRequest } = require('./httpRequestGuard');
 
 const client = new textToSpeech.TextToSpeechClient();
 
@@ -41,6 +42,11 @@ exports.apiTextToSpeech = onRequest(
     applyCors(req, res);
     if (req.method === 'OPTIONS') return res.status(204).send('');
     if (req.method !== 'POST')    return res.status(405).json({ error: 'POST only' });
+
+    // Declared Content-Type + body cap (SECURITY_ENDPOINT_AUDIT §4.5), before
+    // the ID-token verification round-trip. The client (src/hooks/useSpeech.js)
+    // sends application/json.
+    if (enforceJsonRequest(req, res, { label: 'apiTextToSpeech' })) return;
 
     // Gate synthesis behind a valid Firebase ID token. Studio voices cost
     // ~$160/1M chars; an unauthenticated endpoint is a financial-DoS surface.
