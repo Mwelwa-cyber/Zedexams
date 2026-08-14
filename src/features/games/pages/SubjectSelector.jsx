@@ -1,23 +1,23 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { SparklesIcon } from '@heroicons/react/24/solid'
-import { getFallbackGames } from '../../data/gamesSeed'
+import { getFallbackGames } from '../../../data/gamesSeed'
 import {
   GRADES,
   SUBJECTS,
   getMyHistory,
   gradeByValue,
   listGames,
-} from '../../utils/gamesService'
-import GamesShell from './GamesShell'
+} from '../../../utils/gamesService'
+import GamesShell from '../components/GamesShell'
 import {
   GamesSectionHeading,
   MetaPill,
   SubjectProgressCard,
   buildSubjectProgress,
-} from './gamesUi'
-import SeoHelmet from '../seo/SeoHelmet'
-import Skeleton from '../ui/Skeleton'
+} from '../components/gamesUi'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Skeleton from '../../../components/ui/Skeleton'
 
 /**
  * /games/g/:grade — choose a subject inside the selected grade.

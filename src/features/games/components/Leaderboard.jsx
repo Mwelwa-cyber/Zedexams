@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { TrophyIcon, FireIcon, SparklesIcon } from '@heroicons/react/24/solid'
-import { useAuth } from '../../contexts/AuthContext'
-import { formatWhen, getLeaderboard } from '../../utils/gamesService'
+import { useAuth } from '../../../contexts/AuthContext'
+import { formatWhen, getLeaderboard } from '../../../utils/gamesService'
 import { MetaPill, getSubjectMascot } from './gamesUi'
-import Skeleton from '../ui/Skeleton'
+import Skeleton from '../../../components/ui/Skeleton'
 
 const TILE_BG = {
   mathematics: 'bg-orange-100',

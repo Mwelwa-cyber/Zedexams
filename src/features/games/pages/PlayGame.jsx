@@ -5,27 +5,27 @@ import {
   getGame,
   gradeByValue,
   subjectBySlug,
-} from '../../utils/gamesService'
-import { getFallbackGame, isDemoGame } from '../../data/gamesSeed'
-import { useAuth } from '../../contexts/AuthContext'
-import { useSubscription } from '../../hooks/useSubscription'
-import UpgradeModal from '../subscription/UpgradeModal'
-import Button from '../ui/Button'
-import GamesShell from './GamesShell'
-import TimedQuizGame from './TimedQuizGame'
-import MemoryMatchGame from './MemoryMatchGame'
-import WordBuilderGame from './WordBuilderGame'
-import ProvinceShapesGame from './ProvinceShapesGame'
-import NumberTargetGame from './NumberTargetGame'
-import SortingFactoryGame from './SortingFactoryGame'
-import SentenceScrambleGame from './SentenceScrambleGame'
-import MarketChallengeGame from './MarketChallengeGame'
+} from '../../../utils/gamesService'
+import { getFallbackGame, isDemoGame } from '../../../data/gamesSeed'
+import { useAuth } from '../../../contexts/AuthContext'
+import { useSubscription } from '../../../hooks/useSubscription'
+import UpgradeModal from '../../../components/subscription/UpgradeModal'
+import Button from '../../../components/ui/Button'
+import GamesShell from '../components/GamesShell'
+import TimedQuizGame from '../components/TimedQuizGame'
+import MemoryMatchGame from '../components/MemoryMatchGame'
+import WordBuilderGame from '../components/WordBuilderGame'
+import ProvinceShapesGame from '../components/ProvinceShapesGame'
+import NumberTargetGame from '../components/NumberTargetGame'
+import SortingFactoryGame from '../components/SortingFactoryGame'
+import SentenceScrambleGame from '../components/SentenceScrambleGame'
+import MarketChallengeGame from '../components/MarketChallengeGame'
 import {
   getGameAccessMeta,
   getGameTypeTheme,
   getSubjectMascot,
-} from './gamesUi'
-import SeoHelmet from '../seo/SeoHelmet'
+} from '../components/gamesUi'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
 
 const SUBJECT_TILE_BG = {
   mathematics: 'bg-orange-100',

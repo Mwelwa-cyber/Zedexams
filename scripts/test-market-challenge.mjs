@@ -1,6 +1,6 @@
 /**
  * Tests for the Zed Market Challenge game core
- * (src/components/games/marketChallengeCore.js).
+ * (src/features/games/lib/marketChallengeCore.js).
  *
  * Run: node scripts/test-market-challenge.mjs
  * Plain node script, throws on assertion failure — repo test convention.
@@ -13,7 +13,7 @@ import {
   formatKwacha,
   generateCustomer,
   makeChange,
-} from '../src/components/games/marketChallengeCore.js'
+} from '../src/features/games/lib/marketChallengeCore.js'
 
 let passed = 0
 function assert(cond, msg) {

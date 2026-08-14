@@ -5,7 +5,7 @@ import {
   SparklesIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/solid'
-import { useAuth } from '../../contexts/AuthContext'
+import { useAuth } from '../../../contexts/AuthContext'
 
 /**
  * Shared banners shown on every game engine's "Done" screen.

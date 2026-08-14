@@ -1,5 +1,5 @@
 /**
- * Tests for the Timed Quiz game core (src/components/games/timedQuizCore.js).
+ * Tests for the Timed Quiz game core (src/features/games/lib/timedQuizCore.js).
  *
  * Run: node scripts/test-timed-quiz.mjs
  * Plain node script, throws on assertion failure — repo test convention.
@@ -22,7 +22,7 @@ import {
   timeSpentSeconds,
   timerPct,
   wrongPenalty,
-} from '../src/components/games/timedQuizCore.js'
+} from '../src/features/games/lib/timedQuizCore.js'
 
 let passed = 0
 function assert(cond, msg) {

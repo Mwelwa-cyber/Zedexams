@@ -1,5 +1,5 @@
 /**
- * Tests for the Memory Match game core (src/components/games/memoryMatchCore.js).
+ * Tests for the Memory Match game core (src/features/games/lib/memoryMatchCore.js).
  *
  * Run: node scripts/test-memory-match.mjs
  * Plain node script, throws on assertion failure — repo test convention.
@@ -16,7 +16,7 @@ import {
   pointsPerMatch,
   scoreWin,
   starsForEfficiency,
-} from '../src/components/games/memoryMatchCore.js'
+} from '../src/features/games/lib/memoryMatchCore.js'
 
 let passed = 0
 function assert(cond, msg) {

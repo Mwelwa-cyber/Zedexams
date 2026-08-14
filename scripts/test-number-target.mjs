@@ -1,5 +1,5 @@
 /**
- * Tests for the Number Target game core (src/components/games/numberTargetCore.js).
+ * Tests for the Number Target game core (src/features/games/lib/numberTargetCore.js).
  *
  * Run: node scripts/test-number-target.mjs
  * Plain node script, throws on assertion failure — repo test convention.
@@ -11,7 +11,7 @@ import {
   formatStep,
   generateRound,
   invalidMoveHint,
-} from '../src/components/games/numberTargetCore.js'
+} from '../src/features/games/lib/numberTargetCore.js'
 
 let passed = 0
 function assert(cond, msg) {

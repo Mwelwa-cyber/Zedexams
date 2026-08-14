@@ -5,13 +5,13 @@ import {
   PuzzlePieceIcon,
   TrophyIcon,
 } from '@heroicons/react/24/solid'
-import { useAuth } from '../../contexts/AuthContext'
-import { playCorrect, playWrong, playWin, playTick, primeSounds } from '../../utils/gameSounds'
-import { useGameFinish } from './useGameFinish'
+import { useAuth } from '../../../contexts/AuthContext'
+import { playCorrect, playWrong, playWin, playTick, primeSounds } from '../lib/gameSounds'
+import { useGameFinish } from '../hooks/useGameFinish'
 import { SaveBanner, StreakBanner, DoneStat } from './DoneBanners'
 import BadgeToast from './BadgeToast'
 import ShareButton from './ShareButton'
-import Confetti from './Confetti'
+import Confetti from '../../../shared/components/Confetti'
 import Leaderboard from './Leaderboard'
 import MascotCelebration from './MascotCelebration'
 import MascotGreeting from './MascotGreeting'
@@ -31,7 +31,7 @@ import {
   pointsPerMatch,
   scoreWin,
   starsForEfficiency,
-} from './memoryMatchCore'
+} from '../lib/memoryMatchCore'
 
 /**
  * Engine for any `type: "memory_match"` game document.

@@ -1,6 +1,6 @@
 /**
  * Tests for the Sentence Scramble game core
- * (src/components/games/sentenceScrambleCore.js) and the seed content.
+ * (src/features/games/lib/sentenceScrambleCore.js) and the seed content.
  *
  * Run: node scripts/test-sentence-scramble.mjs
  * Plain node script, throws on assertion failure — repo test convention.
@@ -11,7 +11,7 @@ import {
   scrambleTokens,
   tokenizeAnswer,
   validateScrambleContent,
-} from '../src/components/games/sentenceScrambleCore.js'
+} from '../src/features/games/lib/sentenceScrambleCore.js'
 import { GAMES_SEED } from '../src/data/gamesSeed.js'
 
 let passed = 0

@@ -88,6 +88,31 @@
  * exception recorded above, not the rule — the default is still that a
  * component one feature draws is that feature's.
  *
+ * ## Two learner-side residents, and the bundle argument that put them here
+ *
+ * `GameStickerStyles.jsx` and `Confetti.jsx` arrived from the games migration
+ * (2026-08-14). Both pass §14.6 outright — the first imports NOTHING, the
+ * second imports React — and both are drawn by surfaces outside games:
+ *
+ *   • `GameStickerStyles` — `components/quiz/QuizList` (via the freeze shim at
+ *     `components/games/GameStickerStyles.jsx`), `learnerDashboard/GradeHub`
+ *     and `learnerDashboard/SubjectDrillDown`, as well as `games/GamesShell`.
+ *   • `Confetti` — `components/exams/ExamCelebrations`, and seven game engines.
+ *
+ * Consumer count alone would have justified this. What made it necessary was
+ * measured: exporting them from `features/games/index.js` instead cost
+ * **+75 kB of static edges each on GradeHub, SubjectDrillDown and
+ * ExamResultsPage**, because Rollup groups a front door's re-exports into one
+ * chunk, and one of the other names on that door (`GameBadgeCard`) reaches
+ * `utils/gamesService` and the Firebase client. Three learner routes that
+ * render no game were being made to fetch the games service to draw a
+ * stylesheet. Below both callers, the whole migration costs +124 bytes of
+ * bundle and no route gains a chunk.
+ *
+ * It also removed a debt-list entry that the other shape required: a shim onto
+ * `shared/` is a legal import for the legacy tree, while a shim into a feature
+ * is recorded debt in `test:import-boundaries`.
+ *
  * A namespace marker, not a barrel — import the file, not this index.
  */
 

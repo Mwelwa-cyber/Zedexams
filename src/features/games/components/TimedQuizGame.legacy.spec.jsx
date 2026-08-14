@@ -17,39 +17,39 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
-vi.mock('../../hooks/useAssessmentEngineFlag', () => ({
+vi.mock('../../../hooks/useAssessmentEngineFlag', () => ({
   useAssessmentEngineFlag: () => ({
     engine: false, resolved: true, final: true, live: true, latched: false,
     runner: 'game', source: 'runner-off',
   }),
 }))
-vi.mock('../../contexts/AuthContext', () => ({
+vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({ currentUser: { uid: 'learner-1', displayName: 'Chanda' } }),
 }))
-vi.mock('../../utils/gamesService', () => ({
+vi.mock('../../../utils/gamesService', () => ({
   shuffle: (arr) => arr.slice(),
   saveScore: vi.fn(async () => ({ ok: true, id: 'score-1' })),
   readRoundBaseline: vi.fn(async () => ({})),
   readRoundOutcome: vi.fn(async () => ({ levelChange: null, personalBest: null })),
 }))
-vi.mock('../../utils/gameBadgesService', () => ({
+vi.mock('../../../utils/gameBadgesService', () => ({
   evaluateAndAwardGameBadges: vi.fn(async () => ({ newlyEarned: [] })),
 }))
-vi.mock('../../utils/dailyChallengeService', () => ({
+vi.mock('../../../utils/dailyChallengeService', () => ({
   getTodaysChallenge: vi.fn(async () => ({ game: null })),
   recordDailyPlay: vi.fn(async () => ({ isDaily: false })),
 }))
-vi.mock('../../utils/gameSounds', () => ({
+vi.mock('../lib/gameSounds', () => ({
   playCorrect: vi.fn(), playWrong: vi.fn(), playWin: vi.fn(),
   playStreak: vi.fn(), primeSounds: vi.fn(),
 }))
-vi.mock('../../utils/analytics', () => ({ capture: vi.fn() }))
-vi.mock('../../utils/clientErrorReporting', () => ({ reportClientError: vi.fn() }))
+vi.mock('../../../utils/analytics', () => ({ capture: vi.fn() }))
+vi.mock('../../../utils/clientErrorReporting', () => ({ reportClientError: vi.fn() }))
 vi.mock('./Leaderboard', () => ({ default: () => null }))
 vi.mock('./SmartFeedback', () => ({ default: () => null }))
 
 import TimedQuizGame from './TimedQuizGame'
-import { saveScore } from '../../utils/gamesService'
+import { saveScore } from '../../../utils/gamesService'
 
 /**
  * Three questions, correct at index 1, 2 and 0. `points: 10`, so a correct

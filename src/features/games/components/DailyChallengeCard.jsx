@@ -11,7 +11,7 @@ import {
   getSubjectMascot,
   getSubjectTheme,
 } from './gamesUi'
-import Skeleton from '../ui/Skeleton'
+import Skeleton from '../../../components/ui/Skeleton'
 
 /**
  * Featured hero for the Games hub. Mockup-faithful teal slab with an orange

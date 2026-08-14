@@ -5,33 +5,33 @@ import {
   LockClosedIcon,
   StarIcon,
 } from '@heroicons/react/24/solid'
-import { useAuth } from '../../contexts/AuthContext'
-import { GAME_BADGES } from '../../data/gameBadges'
-import { getFallbackGames } from '../../data/gamesSeed'
-import { getTodaysChallenge, getMyStreak } from '../../utils/dailyChallengeService'
-import { getMyGameBadges } from '../../utils/gameBadgesService'
+import { useAuth } from '../../../contexts/AuthContext'
+import { GAME_BADGES } from '../../../data/gameBadges'
+import { getFallbackGames } from '../../../data/gamesSeed'
+import { getTodaysChallenge, getMyStreak } from '../../../utils/dailyChallengeService'
+import { getMyGameBadges } from '../../../utils/gameBadgesService'
 import {
   GRADES,
   SUBJECTS,
   getMyHistory,
   listGames,
   subscribeToGlobalLeaderboard,
-} from '../../utils/gamesService'
-import DailyChallengeCard from './DailyChallengeCard'
-import GamesShell from './GamesShell'
-import MascotAvatar from './MascotAvatar'
-import { LevelMeter } from './Progress'
-import { levelInfo } from '../../utils/gameProgress'
+} from '../../../utils/gamesService'
+import DailyChallengeCard from '../components/DailyChallengeCard'
+import GamesShell from '../components/GamesShell'
+import MascotAvatar from '../components/MascotAvatar'
+import { LevelMeter } from '../components/Progress'
+import { levelInfo } from '../../../utils/gameProgress'
 import {
   buildSubjectProgress,
   getDurationLabel,
   getGameAccessMeta,
   getGameTypeTheme,
   getSubjectMascot,
-} from './gamesUi'
-import SeoHelmet from '../seo/SeoHelmet'
-import { GamesHubTour } from '../ui/learnerTours'
-import Skeleton from '../ui/Skeleton'
+} from '../components/gamesUi'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import { GamesHubTour } from '../../../components/ui/learnerTours'
+import Skeleton from '../../../components/ui/Skeleton'
 
 /**
  * /games — playful mobile-first hub. Mockup-faithful 440px column with a

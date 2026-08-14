@@ -1,5 +1,5 @@
 /**
- * Tests for the Province Shapes game core (src/components/games/provinceShapesCore.js).
+ * Tests for the Province Shapes game core (src/features/games/lib/provinceShapesCore.js).
  *
  * Run: node scripts/test-province-shapes.mjs
  * Plain node script, throws on assertion failure — repo test convention.
@@ -23,7 +23,7 @@ import {
   silhouetteMapSpec,
   timerPct,
   wrongAnswerPenalty,
-} from '../src/components/games/provinceShapesCore.js'
+} from '../src/features/games/lib/provinceShapesCore.js'
 
 let passed = 0
 function assert(cond, msg) {

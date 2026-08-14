@@ -8,6 +8,12 @@
  * `components/games/PlayGame.jsx` — and so are the three `QuizRunnerV2` specs
  * that `vi.mock('../subscription/UpgradeModal')`.
  *
+ * The third was released on 2026-08-14 and is now
+ * `features/games/pages/PlayGame.jsx`. It still imports this shim, for the
+ * chunk reason below rather than for the freeze — that half of the argument was
+ * never about which files may be edited. The two quiz files and the three specs
+ * are still frozen, so nothing here changes.
+ *
  * The freeze is not about those files' contents being delicate in the
  * abstract. Phase 3 is replacing the quiz runner behind rollout flags, and its
  * results and leaderboard writes are being measured for byte-compatibility

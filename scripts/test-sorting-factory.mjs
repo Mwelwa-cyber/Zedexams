@@ -1,6 +1,6 @@
 /**
  * Tests for the Sorting Factory game core
- * (src/components/games/sortingFactoryCore.js) and the seed content.
+ * (src/features/games/lib/sortingFactoryCore.js) and the seed content.
  *
  * Run: node scripts/test-sorting-factory.mjs
  * Plain node script, throws on assertion failure — repo test convention.
@@ -11,7 +11,7 @@ import {
   multiplierFor,
   normalizeItems,
   validateSortingContent,
-} from '../src/components/games/sortingFactoryCore.js'
+} from '../src/features/games/lib/sortingFactoryCore.js'
 import { GAMES_SEED } from '../src/data/gamesSeed.js'
 
 let passed = 0

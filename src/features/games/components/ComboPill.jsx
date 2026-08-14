@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { comboHeat } from './gameFeel'
+import { comboHeat } from '../lib/gameFeel'
 
 /**
  * Drop-in replacement for the static "Streak" stat pill. As the live streak

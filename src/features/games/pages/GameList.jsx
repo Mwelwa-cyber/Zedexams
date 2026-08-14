@@ -1,18 +1,18 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { SparklesIcon } from '@heroicons/react/24/solid'
-import { getFallbackGames } from '../../data/gamesSeed'
-import { gradeByValue, listGames, subjectBySlug } from '../../utils/gamesService'
-import GamesShell from './GamesShell'
+import { getFallbackGames } from '../../../data/gamesSeed'
+import { gradeByValue, listGames, subjectBySlug } from '../../../utils/gamesService'
+import GamesShell from '../components/GamesShell'
 import {
   GameDiscoveryCard,
   GamesSectionHeading,
   MetaPill,
   getGameStatusBadge,
   getSubjectMascot,
-} from './gamesUi'
-import SeoHelmet from '../seo/SeoHelmet'
-import Skeleton from '../ui/Skeleton'
+} from '../components/gamesUi'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Skeleton from '../../../components/ui/Skeleton'
 
 const SUBJECT_TILE_BG = {
   mathematics: 'bg-orange-100',

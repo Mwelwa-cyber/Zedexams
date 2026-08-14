@@ -240,11 +240,11 @@ const ExamResultsPage    = lazy(() => import('./components/exams/ExamResultsPage
 const ExamLeaderboardPage = lazy(() => import('./components/exams/ExamLeaderboardPage'))
 
 // Public games (no auth)
-const GamesHub = lazy(() => import('./components/games/GamesHub'))
-const SubjectSelector = lazy(() => import('./components/games/SubjectSelector'))
-const GameList = lazy(() => import('./components/games/GameList'))
-const PlayGame = lazy(() => import('./components/games/PlayGame'))
-const GlobalLeaderboard = lazy(() => import('./components/games/GlobalLeaderboard'))
+const GamesHub = lazy(() => import('./features/games/pages/GamesHub'))
+const SubjectSelector = lazy(() => import('./features/games/pages/SubjectSelector'))
+const GameList = lazy(() => import('./features/games/pages/GameList'))
+const PlayGame = lazy(() => import('./features/games/pages/PlayGame'))
+const GlobalLeaderboard = lazy(() => import('./features/games/pages/GlobalLeaderboard'))
 
 // Admin — games seed importer
 const GamesSeedAdmin = lazy(() => import('./components/admin/GamesSeedAdmin'))
