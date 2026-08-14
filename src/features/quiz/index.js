@@ -7,7 +7,7 @@
  * ── EMPTY ON PURPOSE ────────────────────────────────────────────────────
  *
  * All three screens are route-mounted lazily from `App.jsx` (`/quizzes`,
- * `/quiz/:quizId`, `/quiz/:quizId/results`) and nothing else in `src/` imports
+ * `/quiz/:quizId`, `/results/:resultId`) and nothing else in `src/` imports
  * them. `QuizTip` is drawn only by the runner. So there is nothing to export,
  * on the `blog` / `uiAudit` / `adminSettings` precedent — an empty front door
  * is the honest answer when every consumer is the router.
