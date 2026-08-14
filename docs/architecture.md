@@ -1659,6 +1659,16 @@ absent.
 
 **Follow-up, not folded in: `features/notes` needs an `index.js`.** It is the only migrated feature without one, which is why the `useLearnerSearch` debt entry is currently irretirable and why every consumer of notes reaches into its internals by construction.
 
+**`accountSettings` — CLAIMED 2026-08-14 by session A**, branch `claude/zedexams-settings`. One file, 1,572 lines: `components/settings/` in full, which the move removes. Empty front door — route-mounted lazily, no other consumer.
+
+**Not `adminSettings`, and the distinction is load-bearing.** `features/adminSettings` is the Platform Control Center at `/admin/settings` — runtime configuration and feature flags on `settings/global`. This is one person's account preferences at `/settings`: theme, avatar, notification permissions, accessibility, school profile, passkeys, parent sharing, account deletion. `App.jsx`'s settings router picks between three surfaces by role — `teacherSettings`, `learnerSettings`, and this one as the remaining case — so naming it `adminSettings` would have collided with a different feature serving a different route.
+
+**Nothing travelled, and all seven candidates were checked rather than sampled**: `schoolProfileService` (13 other consumers), `fcm` (7), `accountService` (3), `accessibility` (3), `schoolProfile` (2), `accountReauth` (2), `notificationPrefs` (1). On an account page that composes platform-wide concerns, none of them is feature-private.
+
+**The filename is unchanged.** `zedexams-settings.jsx` stays as it is: renaming in the same commit as the move makes a pure relocation read as a rewrite (`MIGRATION_TEMPLATE.md` step 1).
+
+**It is also where several of this wave's front doors meet.** The page now consumes `features/auth`'s `PasskeySection` and `features/parentPortal`'s `ParentShareManager` through their public surfaces — imports that were deep relative paths into `components/` before those areas migrated.
+
 **`parentPortal` — CLAIMED 2026-08-13 by session A**, branch `claude/admin-cbc-kb` (named before the block above was found; the branch carries the parent portal, not the KB). Nine files, ~1,060 lines: `components/parent/` in full plus `src/utils/familyPortal.js`. Outside every freeze clause — it reads `parentLinks` and `familyInviteCodes` and calls the family-portal callables, and touches no quiz, paper, game or assessment surface at any depth.
 
 **The first front door in this wave that is NOT empty.** The three admin slices each exported nothing, because their pages were route-mounted and nothing else imported them. Here `features/learnerSettings`' Parent panel genuinely renders `ParentShareManager` and `FamilyCodePanel` — the controls for who may see a learner's progress belong on the LEARNER's settings page — and two legacy-tree pages (`dashboard/ProfilePage`, `settings/zedexams-settings`) render `ParentShareManager` too. Those two, and only those two, are exported; the three pages stay unexported under the route-mount exception, so a consumer wanting two panels does not pull the whole portal into its chunk. Before the move, `learnerSettings` reaching into `components/parent/` was legal only because the target was not a feature; it is now a declared dependency the boundary guard can see.

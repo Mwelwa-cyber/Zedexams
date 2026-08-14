@@ -119,7 +119,7 @@ const MyResults = lazy(() => import('./features/learnerDashboard/pages/MyResults
 const BadgesPage = lazy(() => import('./features/learnerDashboard/pages/BadgesPage'))
 const ProfilePage = lazy(() => import('./features/learnerDashboard/pages/ProfilePage'))
 const OfflineLibraryPage = lazy(() => import('./offline/OfflineLibraryPage.jsx'))
-const ZedExamsSettings = lazy(() => import('./components/settings/zedexams-settings'))
+const ZedExamsSettings = lazy(() => import('./features/accountSettings/pages/zedexams-settings'))
 const TeacherSettings = lazy(() => import('./features/teacherSettings/TeacherSettings'))
 const LearnerSettings = lazy(() => import('./features/learnerSettings/LearnerSettings'))
 const PaywallHost = lazy(() => import('./components/subscription/PaywallHost'))
