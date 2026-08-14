@@ -1146,9 +1146,40 @@ happened.
    goes and the harness folds at the end, and both close the round through the
    same function.
 
+   **The extraction touched the LEGACY path, and that was checked separately.**
+   `timedQuizRound.js` replaced eight `useState`s that every learner's round
+   runs through today, flag or no flag — so unlike the rest of this cutover it
+   is not behind a switch, and "the engine comparison is green" says nothing
+   about it. `TimedQuizGame.legacy.spec.jsx` pins the five behaviours that
+   matter with the flag OFF: rapid/double selection, the clock expiring on the
+   final answer, unanswered questions not being penalised, the accuracy and
+   score rounding, and completion firing exactly once. Each was run against the
+   PRE-EXTRACTION component as well, which is how the one real divergence was
+   found rather than argued about.
+
+   That divergence is double selection inside ONE React batch — two handlers
+   running before React commits, so both read `picked === null` and both pass
+   the guard. Measured, both versions were wrong and neither was protection:
+   the old code's functional updates (`setScore(s => s + gained)`,
+   `setCorrect(c => c + 1)`) APPLIED BOTH, landing one question as `correct: 1`
+   **and** `wrong: 1` with a score of 8; the reducer reads the render's value,
+   so the second write REPLACED the first and the correct answer vanished, score
+   0. Ordinary rapid clicking was fine in both, because the browser dispatches
+   each click as its own task and React commits between them — which is why this
+   had never been noticed.
+
+   Fixed rather than pinned: `pick()` now claims a synchronous `useRef` before
+   touching state, so the second call in the same tick is refused outright and
+   the first answer wins. It is the idiom `useAiOperationLock` already uses in
+   this repo, for the identical reason — "React `status` state alone updates too
+   late to catch this." The ref is released on question advance and on round
+   start, and both releases have their own case, because a lock that is never
+   released turns the round into a one-question game.
+
    §5.1's checkable criteria at the flip: lint (0 errors)/build/`test:all` (717
    discovered, not lower)/`test:unit` (3844, up from 3819)/
-   `test:import-boundaries` green; the §3 comparison (`test:replay-game-round`,
+   `test:import-boundaries` green; `TimedQuizGame.legacy.spec.jsx` (16 cases)
+   covers the legacy path the extraction touched; the §3 comparison (`test:replay-game-round`,
    7 fixtures, 15 cases) covers this runner's write on every one and catches a
    changed score, a dropped field, an extra write, and a moved answer key —
    criterion 3 takes that last form here, because at a runner where the engine
