@@ -809,7 +809,8 @@
     "test:function-error-watch": "node functions/monitoring/functionErrorWatch.test.js",
     "test:release-notes": "node scripts/test-release-notes-core.mjs",
     "test:security-review-trigger": "node scripts/test-security-review-trigger.mjs",
-    "test:codeql-scope": "node scripts/test-codeql-scope.mjs"
+    "test:codeql-scope": "node scripts/test-codeql-scope.mjs",
+    "test:admin-home": "node src/features/adminHome/lib/adminHomeCore.test.js"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",

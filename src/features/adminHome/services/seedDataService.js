@@ -1,5 +1,6 @@
 import { collection, doc, getDocs, query, where, writeBatch, serverTimestamp } from 'firebase/firestore'
-import { deleteQuizWithQuestions } from './deleteQuizWithQuestions.js'
+import { db } from '../../../firebase/config'
+import { deleteQuizWithQuestions } from '../../../utils/deleteQuizWithQuestions.js'
 
 const SEED_BATCH_ID = 'admin-sample-quizzes-v1'
 
@@ -415,3 +416,20 @@ export async function clearSeedFirestore(db, uid) {
     quizzesDeleted: seededQuizzes.length,
   }
 }
+
+/**
+ * The two calls the dashboard actually makes, with the app's Firestore handle
+ * already bound.
+ *
+ * §14.2 says a feature touches Firebase in `services/` and nowhere else, and
+ * before the move `AdminDashboard` imported `db` from `firebase/config` purely
+ * to hand it straight back to the two functions above. The handle never varied,
+ * so passing it was ceremony that put a Firebase import in a page. The
+ * `db`-taking exports stay as they are — the seeding rules are the same
+ * whichever database they run against, and keeping them injectable is what
+ * makes them testable against an emulator.
+ *
+ * This is the same call `appCheckHealthService` made in slice 2.
+ */
+export const seedSampleQuizzes = uid => seedFirestore(db, uid)
+export const clearSeededQuizzes = uid => clearSeedFirestore(db, uid)

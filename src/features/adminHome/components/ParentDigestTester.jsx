@@ -21,9 +21,9 @@
  */
 
 import { useState } from 'react'
-import { triggerWeeklyParentDigest } from '../../utils/parentShares'
-import Button from '../ui/Button'
-import ConfirmDialog from '../ui/ConfirmDialog'
+import { triggerWeeklyParentDigest } from '../../../utils/parentShares'
+import Button from '../../../components/ui/Button'
+import ConfirmDialog from '../../../components/ui/ConfirmDialog'
 
 function fmtSummary(summary) {
   if (!summary) return null

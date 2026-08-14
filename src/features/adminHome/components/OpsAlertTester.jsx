@@ -16,8 +16,8 @@
  */
 
 import { useState } from 'react'
-import { sendTestOpsAlert, sendTestFunctionErrorAlert } from '../../utils/opsAlerts'
-import Button from '../ui/Button'
+import { sendTestOpsAlert, sendTestFunctionErrorAlert } from '../../../utils/opsAlerts'
+import Button from '../../../components/ui/Button'
 
 const VERDICTS = {
   both: {
