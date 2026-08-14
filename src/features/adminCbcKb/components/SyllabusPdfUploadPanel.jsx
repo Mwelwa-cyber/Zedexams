@@ -17,13 +17,13 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ref as storageRef } from 'firebase/storage'
-import { uploadBytes } from '../../firebase/attestedStorage'
-import { assertFileSignature } from '../../utils/fileSignature'
+import { uploadBytes } from '../../../firebase/attestedStorage'
+import { assertFileSignature } from '../../../utils/fileSignature'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { Link } from 'react-router-dom'
-import app, { storage } from '../../firebase/config'
-import { getActiveKbVersion, KB_VERSION } from '../../utils/adminCbcKbService'
-import { TEACHER_GRADES, TEACHER_SUBJECTS } from '../../utils/teacherTools'
+import app, { storage } from '../../../firebase/config'
+import { getActiveKbVersion, KB_VERSION } from '../../../utils/adminCbcKbService'
+import { TEACHER_GRADES, TEACHER_SUBJECTS } from '../../../utils/teacherTools'
 
 const functions = getFunctions(app, 'us-central1')
 const extractCallable = httpsCallable(functions, 'extractTopicsFromPdf', {

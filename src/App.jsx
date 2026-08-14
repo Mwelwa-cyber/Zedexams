@@ -177,7 +177,7 @@ const BulkGrantTrialsPanel = lazy(() => import('./features/adminTrials/pages/Bul
 const AdminLearners = lazy(() => import('./features/adminLearners/pages/AdminLearners'))
 const AdminLearnerProfile = lazy(() => import('./features/adminLearners/pages/AdminLearnerProfile'))
 const GenerationsAdmin = lazy(() => import('./features/adminContent/pages/GenerationsAdmin'))
-const CbcKbAdmin = lazy(() => import('./components/admin/CbcKbAdmin'))
+const CbcKbAdmin = lazy(() => import('./features/adminCbcKb/pages/CbcKbAdmin'))
 const PictureBankAdmin = lazy(() => import('./features/visualStudio/pages/PictureBankAdmin'))
 const VisualStudioAdmin = lazy(() => import('./features/visualStudio/pages/VisualStudioAdmin'))
 const CurriculumReplaceStudio = lazy(() => import('./features/adminCurriculum/pages/CurriculumReplaceStudio'))

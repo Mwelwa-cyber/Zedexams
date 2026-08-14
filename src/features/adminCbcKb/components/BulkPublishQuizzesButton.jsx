@@ -27,11 +27,11 @@
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
-import { useFirestore } from '../../hooks/useFirestore'
-import { generateAIQuizQuestions } from '../../utils/aiAssistant'
-import { normalizeSubject, SUBJECT_LABELS } from '../../config/curriculum.js'
-import { gradesForFeature, gradeNumberOf } from '../../config/canonicalEducation'
+import { useAuth } from '../../../contexts/AuthContext'
+import { useFirestore } from '../../../hooks/useFirestore'
+import { generateAIQuizQuestions } from '../../../utils/aiAssistant'
+import { normalizeSubject, SUBJECT_LABELS } from '../../../config/curriculum.js'
+import { gradesForFeature, gradeNumberOf } from '../../../config/canonicalEducation'
 
 const MAX_BATCH = 10
 const QUESTIONS_PER_QUIZ = 5

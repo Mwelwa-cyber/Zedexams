@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import {
   ASSESSMENT_FORMAT_TYPES, ASSESSMENT_FORMAT_BANDS, gradeToFormatBand,
-} from '../../utils/adminCbcKbService'
-import { TEACHER_GRADES, TEACHER_SUBJECTS } from '../../utils/teacherTools'
+} from '../../../utils/adminCbcKbService'
+import { TEACHER_GRADES, TEACHER_SUBJECTS } from '../../../utils/teacherTools'
 
 // ── Exam Paper Library panel ─────────────────────────────────────────────
 // Bulk-upload real Zambian assessment papers, analyse each one into a stored
