@@ -2,16 +2,16 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import StudioNextSteps from './StudioNextSteps'
-import { capture } from '../../utils/analytics'
+import { capture } from '../../../utils/analytics'
 
 // Every teacher navigation surface now asks studioAvailability which studios
 // are on offer, and that reads settings/global. Stubbed to the LAUNCH state
 // (no flags set → Worksheet Studio withdrawn, Rubric Studio retired).
-vi.mock('../../contexts/PlatformSettingsContext', () => ({
+vi.mock('../../../contexts/PlatformSettingsContext', () => ({
   usePlatformSettings: () => ({ settings: { featureFlags: {} }, loaded: true, live: true }),
 }))
 
-vi.mock('../../utils/analytics', () => ({ capture: vi.fn() }))
+vi.mock('../../../utils/analytics', () => ({ capture: vi.fn() }))
 
 function renderPanel(props) {
   return render(

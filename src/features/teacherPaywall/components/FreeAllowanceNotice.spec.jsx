@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import FreeAllowanceNotice from './FreeAllowanceNotice'
-import { PLAN_CATALOG_VERSION } from '../../utils/teacherPlans'
+import { PLAN_CATALOG_VERSION } from '../../../utils/teacherPlans'
 
-vi.mock('../../utils/analytics', () => ({ capture: vi.fn() }))
+vi.mock('../../../utils/analytics', () => ({ capture: vi.fn() }))
 
 const KEY = `zedexams:allowance-notice:${PLAN_CATALOG_VERSION}`
 

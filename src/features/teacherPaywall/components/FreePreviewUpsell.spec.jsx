@@ -2,9 +2,9 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import FreePreviewUpsell from './FreePreviewUpsell'
-import { capture } from '../../utils/analytics'
+import { capture } from '../../../utils/analytics'
 
-vi.mock('../../utils/analytics', () => ({ capture: vi.fn() }))
+vi.mock('../../../utils/analytics', () => ({ capture: vi.fn() }))
 
 function renderUpsell() {
   return render(
