@@ -11,7 +11,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { emptyQuestion } from '../../utils/quizSections.js'
+import { emptyQuestion } from '../../../utils/quizSections.js'
 
 // Heavy per-card leaves — stub so the editor mounts fast and self-contained.
 // Editable stub: a textarea keyed by placeholder so the card-editing tests
@@ -28,9 +28,9 @@ vi.mock('./QuizRichField', () => ({
   ),
 }))
 vi.mock('./QuestionAiAssistant.jsx', () => ({ default: () => null }))
-vi.mock('../diagrams/DiagramSvg.jsx', () => ({ default: () => null }))
-vi.mock('../diagrams/DiagramPicker.jsx', () => ({ default: () => null }))
-vi.mock('../../editor/RichContent', () => ({ default: () => null }))
+vi.mock('../../../components/diagrams/DiagramSvg.jsx', () => ({ default: () => null }))
+vi.mock('../../../components/diagrams/DiagramPicker.jsx', () => ({ default: () => null }))
+vi.mock('../../../editor/RichContent', () => ({ default: () => null }))
 
 import QuizSectionsEditor from './QuizSectionsEditor'
 

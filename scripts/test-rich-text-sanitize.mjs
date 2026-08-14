@@ -9,7 +9,7 @@
  *   - src/editor/utils/sanitize.js
  *   - src/editor/extensions/MathInline.js
  *   - src/editor/utils/safeRender.js
- *   - src/components/quiz/QuizRichText.jsx (runCommand / styleWithCSS)
+ *   - src/features/quizEditor/components/QuizRichText.jsx (runCommand / styleWithCSS)
  *
  * Run:   npm run test:sanitize
  */

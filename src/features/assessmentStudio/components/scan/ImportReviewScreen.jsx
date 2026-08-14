@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import Button from '../../../../shared/components/Button'
-import ImageCropModal from '../../../../components/quiz/ImageCropModal'
+import { ImageCropModal } from '../../../quizEditor'
 import DiagramHandlingChooser from './DiagramHandlingChooser'
 import {
   buildReviewModel,

@@ -30,7 +30,7 @@
  */
 
 import { useMemo } from 'react'
-import RichEditor from '../../editor/components/RichEditor.jsx'
+import RichEditor from '../../../editor/components/RichEditor.jsx'
 
 export default function QuizRichField({
   value,

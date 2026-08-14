@@ -10,14 +10,14 @@ import { buildDocxTableBlocks } from './documentQuizTableBlocks.js'
 import { reconcileSmartSectionOrder, shouldRunSmartImport } from './documentQuizReconcile.js'
 import { regroupComprehensionSections } from '../../utils/comprehensionGrouping.js'
 import { consolidateOptionImageRuns } from './documentQuizParagraphRuns.js'
-import { importMarkupToRichHtml, importMarkupToOptionHtml } from './importRichText.js'
+import { importMarkupToRichHtml, importMarkupToOptionHtml } from '../../shared/utils/importRichText.js'
 import {
   wrapFormattedPieces,
   fixLeadingStructuralTokens,
   formatTokensToHtml,
   formatTokensToInlineHtml,
   stripFormatTokens,
-} from './importFormatTokens.js'
+} from '../../shared/utils/importFormatTokens.js'
 import { buildImportFormatWarnings } from './importFormatChecks.js'
 import { subPartsFromText } from '../../utils/stimulusQuestion.js'
 import { richTextToPlainText } from '../../utils/quizRichText.js'

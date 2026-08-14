@@ -24,7 +24,7 @@
 import { createStandaloneSection, createPassageSection, createPartGroup } from '../../utils/quizSections.js'
 import { canonicalizeQuestionType } from '../../utils/questionType.js'
 import { defaultDiagramLabels } from '../../utils/aiPaperToSections.js'
-import { importMarkupToRichHtml, importMarkupToOptionHtml, hasImportMarkup } from './importRichText.js'
+import { importMarkupToRichHtml, importMarkupToOptionHtml, hasImportMarkup } from '../../shared/utils/importRichText.js'
 import { cleanDiagramSource, isDiagramCleanSupported } from '../../utils/diagramClean.js'
 import { enhanceCanvasInPlace } from '../../utils/imageEnhance.js'
 import { collectDeclaredRanges, reconcilePaperNumbering, assignPartsFromRanges } from './pastPaperParts.js'

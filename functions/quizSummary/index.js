@@ -2,7 +2,7 @@
  * Quiz summary mirror — the read-side optimisation for the learner quiz
  * library.
  *
- * The library (src/components/quiz/QuizList.jsx via useFirestore.getQuizzes)
+ * The library (src/features/quiz/pages/QuizList.jsx via useFirestore.getQuizzes)
  * lists quizzes by grade/subject/term and renders only metadata (title,
  * subject, duration, questionCount, …). But each `quizzes/{id}` doc also
  * carries its full embedded `passages[]` (comprehension text + image URLs),

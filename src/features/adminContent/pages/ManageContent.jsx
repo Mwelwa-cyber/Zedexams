@@ -23,7 +23,7 @@ import {
   PAPER_STATUSES, listAllPapersForAdmin, updatePaper, deletePaper, splitAssetsByRole,
 } from '../../../utils/pastPapers'
 import { convertPaperToQuizDraft } from '../../../utils/paperToQuizConverter'
-import ImportReviewBadge from '../../../components/quiz/ImportReviewBadge'
+import ImportReviewBadge from '../components/ImportReviewBadge'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 import { PAPER_SUBJECTS } from '../../../config/curriculum'
 import { gradesForFeature, gradeNumberOf } from '../../../config/canonicalEducation'

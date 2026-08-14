@@ -30,7 +30,7 @@ globalThis.HTMLElement = dom.window.HTMLElement
 globalThis.Element = dom.window.Element
 
 const { importMarkupToRichHtml, importMarkupToOptionHtml } = await import(
-  '../src/components/quiz/importRichText.js'
+  '../src/shared/utils/importRichText.js'
 )
 const { sanitizeHTML, sanitizeQuizRichHTML } = await import(
   '../src/editor/utils/sanitize.js'

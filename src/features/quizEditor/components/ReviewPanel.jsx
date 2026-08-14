@@ -9,7 +9,7 @@
  *   onJump(localId) — scroll the matching question card into view
  */
 
-import { summariseReviewIssues } from './reviewUtils'
+import { summariseReviewIssues } from '../lib/reviewUtils'
 
 const ISSUE_STYLES = {
   'No answer': 'bg-amber-100 text-amber-900',
