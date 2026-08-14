@@ -94,7 +94,7 @@ const ExamTimetablePage = lazy(() => import('./features/examTimetable/pages/Exam
 const TimetableViewerPage = lazy(() => import('./features/learnerDashboard/pages/TimetableViewerPage'))
 const SubjectDrillDown = lazy(() => import('./features/learnerDashboard/pages/SubjectDrillDown'))
 const QuizList = lazy(() => import('./components/quiz/QuizList'))
-const LearnerSearch = lazy(() => import('./components/search/LearnerSearch'))
+const LearnerSearch = lazy(() => import('./features/learnerSearch/pages/LearnerSearch'))
 
 const QuizRunner = lazy(() => import('./components/quiz/QuizRunnerV2'))
 const QuizResults = lazy(() => import('./components/quiz/QuizResultsV2'))
