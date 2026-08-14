@@ -1,29 +1,36 @@
 /**
- * Public surface of the admin content-operations area — the agent-output
- * approval queue at `/admin/approvals` and the generation log at
+ * Public surface of the admin content-operations area — the content manager at
+ * `/admin/content`, the CSV quiz importer at `/admin/import/csv`, the
+ * agent-output approval queue at `/admin/approvals` and the generation log at
  * `/admin/generations`.
  *
  * Migrated under docs/architecture.md Phase 4 (Wave 4, admin), following
  * docs/MIGRATION_TEMPLATE.md. A move: same pages, same reads, same routes.
  *
- * **This front door is deliberately empty.** Both are reached only by
+ * **This front door is deliberately empty.** All four are reached only by
  * `lazy(() => import(…))` in App.jsx and nothing composes with them.
  *
- * ── `/admin/content` is the third page here and did NOT come ────────────
+ * ── `/admin/content` was the page that could not come, and now has ──────
  *
- * `ManageContent.jsx` (1,304 lines) is the obvious centre of this cluster —
- * it is literally the content manager. It is **frozen**, and unlike the two
- * previous cases the evidence is an import rather than a write: it imports
- * `components/quiz/ImportReviewBadge`, and `components/quiz/` is named on the
- * freeze list by path. It also reads `utils/pastPapers`, converts papers into
- * quiz drafts through `paperToQuizConverter`, and links quizzes to papers via
- * `quizPaperLink.js`. Four separate reasons, any one sufficient.
+ * The note this replaces recorded `ManageContent.jsx` (1,304 lines) as the
+ * obvious centre of this cluster and **frozen** — on an import rather than a
+ * write: it renders `components/quiz/ImportReviewBadge`, and `components/quiz/`
+ * is named on the freeze list by path. It also reads `utils/pastPapers`,
+ * converts papers into quiz drafts through `paperToQuizConverter`, and links
+ * quizzes to papers via `quizPaperLink.js`. Four separate reasons, any one
+ * sufficient. `AdminCsvImport.jsx` was frozen on the same test one hop further
+ * out — its publish step reaches `createQuiz`.
  *
- * `quizPaperLink.js` + its node test live in `components/admin/` and are
- * private to that page, so they wait with it.
+ * **Both were released by owner ruling on 2026-08-14** and are here. The
+ * reasoning above was not wrong and is kept: the Phase 3 rollout flags have
+ * NOT reached 100%, `components/quiz/` is still frozen, and `ManageContent`
+ * still imports `ImportReviewBadge` from it across the legacy boundary. What
+ * changed is that the owner weighed these two surfaces specifically. Nothing
+ * here licenses moving anything else the freeze names.
  *
- * That is now three of seven admin clusters in which the file that looked
- * most central was the one that could not move.
+ * `quizPaperLink.js` + its node test came too — they are pure link-description
+ * rules private to `ManageContent`, so they land in `lib/`
+ * (`npm run test:quiz-paper-link` follows the file).
  *
  * ── What did not travel ─────────────────────────────────────────────────
  *

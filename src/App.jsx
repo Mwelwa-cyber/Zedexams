@@ -165,8 +165,8 @@ const AdminDashboard = lazy(() => import('./features/adminHome/pages/AdminDashbo
 // chrome) so a not-yet-enrolled admin gets one focused task.
 const MfaSetupPage = lazy(() => import('./features/adminMfa/pages/MfaSetupPage'))
 const CreateQuiz = lazy(() => import('./components/admin/CreateQuizV2'))
-const AdminCsvImport = lazy(() => import('./components/admin/AdminCsvImport'))
-const ManageContent = lazy(() => import('./components/admin/ManageContent'))
+const AdminCsvImport = lazy(() => import('./features/adminContent/pages/AdminCsvImport'))
+const ManageContent = lazy(() => import('./features/adminContent/pages/ManageContent'))
 const AdminResults = lazy(() => import('./features/adminLearners/pages/AdminResults'))
 const ContentApprovals = lazy(() => import('./features/adminContent/pages/ContentApprovals'))
 const QuestionReviewQueue = lazy(() => import('./features/adminQuestionBank/pages/QuestionReviewQueue'))

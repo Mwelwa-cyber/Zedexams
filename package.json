@@ -783,7 +783,7 @@
     "test:past-paper-quiz-access": "node scripts/test-past-paper-quiz-access.mjs",
     "audit:paper-quiz-access": "node scripts/audit-past-paper-quiz-access.mjs",
     "audit:paper-quiz-access:live": "node scripts/audit-past-paper-quiz-access.mjs --live",
-    "test:quiz-paper-link": "node src/components/admin/quizPaperLink.test.js",
+    "test:quiz-paper-link": "node src/features/adminContent/lib/quizPaperLink.test.js",
     "test:glass-tokens": "node scripts/test-glass-tokens.mjs",
     "test:engine-flag-resolution": "node src/engines/assessment-engine/flags.test.js",
     "test:engine-flag-single-reader": "node scripts/test-engine-flag-single-reader.mjs",
