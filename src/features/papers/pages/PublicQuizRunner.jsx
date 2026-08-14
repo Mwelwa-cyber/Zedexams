@@ -368,6 +368,36 @@ export default function PublicQuizRunner() {
       // anywhere and the old runner serves all of it. A per-question mix of
       // engine and old cards would make a render bug impossible to attribute.
       if (unrenderableTypes(assessment).length > 0) return null
+      // An OBJECT-shaped option. The refusal the type check cannot make,
+      // because it is a property of the data rather than of the type — the
+      // open question the quiz cutover left about this route (§10.1 step 8:
+      // "should be checked before the past-paper ramp is raised further").
+      //
+      // Checked, and the answer is worse than that note assumed. It is not
+      // that the engine DROPS per-option media: `fromQuiz` maps each option
+      // through `toRichContent(o)`, which for any object yields
+      // `plainTextFallback: '[object Object]'`. So the learner would meet four
+      // rows all reading "[object Object]" — including options that carry
+      // perfectly good `text`, and on a public, crawled route.
+      //
+      // The old card reads three things off such an option that the canonical
+      // model has nowhere to put, and this one check covers all three:
+      // `imageUrl` and `diagram` (drawn per option by `OptionButton`), and
+      // option-level `isCorrect`, which `isCorrectChoice` scores from and which
+      // the `correctIndex` refusal above does NOT catch when the question also
+      // carries an integer `correctAnswer`.
+      //
+      // No writer produces this shape today — `questionSchema` declares
+      // `options: z.array(z.string())`, and the past-paper importer keeps
+      // picture options as the question's own figure with the printed captions
+      // as string options. So this is a tripwire rather than a live refusal,
+      // and it is deliberately shaped as "not a string" rather than "has
+      // media": the failure is the object, and the next field someone adds to
+      // one would otherwise reopen the gap silently.
+      if (questions.some((q) => (Array.isArray(q?.options) ? q.options : [])
+        .some((o) => o !== null && typeof o === 'object'))) {
+        return null
+      }
       return assessment
     } catch (err) {
       reportClientError(err, 'paper-quiz-engine')

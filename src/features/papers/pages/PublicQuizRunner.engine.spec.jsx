@@ -21,7 +21,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 
 const flagState = { engine: true, resolved: true, final: true, source: 'rollout-all', runner: 'pastPaperQuiz', live: true, latched: false }
 // Per-test knobs for the quiz mock, mutated in tests and reset in beforeEach.
-const quizState = { correctAnswer: 1, lockedOut: false, questionExtra: {} }
+const quizState = { correctAnswer: 1, lockedOut: false, questionExtra: {}, options: null }
 
 vi.mock('../../../hooks/useAssessmentEngineFlag', () => ({
   useAssessmentEngineFlag: () => flagState,
@@ -72,7 +72,11 @@ vi.mock('../../../utils/pastPaperQuiz', async () => {
         // FIVE options on purpose: the D4 defect was `['A','B','C','D'][i]`
         // yielding undefined past D, and the §2 requirement is letters from a
         // rule that does not stop at four.
-        options: ['3', '4', '5', '6', '22'],
+        // `quizState.options` is a separate knob rather than part of
+        // `questionExtra`, so the "cannot displace the canary contract" rule
+        // above still holds: a test that wants a different option SHAPE has to
+        // say so explicitly.
+        options: quizState.options ?? ['3', '4', '5', '6', '22'],
         get correctAnswer() { return quizState.correctAnswer },
       }],
     })),
@@ -106,6 +110,7 @@ beforeEach(() => {
   quizState.correctAnswer = 1
   quizState.lockedOut = false
   quizState.questionExtra = {}
+  quizState.options = null
 })
 
 /**
@@ -296,6 +301,47 @@ describe('the past-paper canary card swap', () => {
     await screen.findByText('What is 2 + 2?')
     await waitFor(() => expect(capture).toHaveBeenCalledWith('assessment_engine_path', {
       runner: 'pastPaperQuiz', engine: false, flagSource: 'rollout-bucket', latched: true, build: 'dev',
+    }))
+  })
+
+  it('refuses an OBJECT-shaped option and serves the old card', async () => {
+    // The open question the quiz cutover left about this route, closed. The
+    // old card reads `imageUrl`, `diagram` and option-level `isCorrect` off an
+    // option object; the canonical model has nowhere to put any of them.
+    quizState.options = [
+      { text: 'A triangle', imageUrl: 'https://storage.example/a.png' },
+      { text: 'A square', imageUrl: 'https://storage.example/b.png' },
+    ]
+    const { container } = mountRunner()
+    await screen.findByText('What is 2 + 2?')
+    expect(container.querySelector('[data-engine-runner]')).toBeNull()
+  })
+
+  it('refuses a bare `{text}` option too — the failure is the object, not the media', async () => {
+    // Shaped as "not a string" rather than "has media" on purpose. An option
+    // carrying only text looks harmless and is not: see the control below.
+    quizState.options = [{ text: 'A triangle' }, { text: 'A square' }]
+    const { container } = mountRunner()
+    await screen.findByText('What is 2 + 2?')
+    expect(container.querySelector('[data-engine-runner]')).toBeNull()
+  })
+
+  it('and a STRING option is unaffected — the refusal is not just "always off"', async () => {
+    // The control. Without it the two refusals above would pass with the
+    // engine branch deleted entirely.
+    quizState.options = ['A triangle', 'A square']
+    const { container } = mountRunner()
+    await screen.findByText('What is 2 + 2?')
+    expect(container.querySelector('[data-engine-runner="pastPaperQuiz"]')).not.toBeNull()
+  })
+
+  it('the refusal is reported as engine:false, so the ramp counts it', async () => {
+    quizState.options = [{ text: 'A triangle', imageUrl: 'https://storage.example/a.png' }]
+    quizState.correctAnswer = 0
+    mountRunner()
+    await screen.findByText('What is 2 + 2?')
+    await waitFor(() => expect(capture).toHaveBeenCalledWith('assessment_engine_path', {
+      runner: 'pastPaperQuiz', engine: false, flagSource: 'rollout-all', latched: false, build: 'dev',
     }))
   })
 

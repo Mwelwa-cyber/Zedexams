@@ -997,6 +997,39 @@ happened.
      before the past-paper ramp is raised further, and it is the reason games
      should be inventoried for per-option media before its flag is built.
 
+     **CHECKED AND CLOSED, 2026-08-14 — and the gap was worse than this note
+     assumed.** It is not that the engine drops the media. `fromQuiz` maps
+     every option through `toRichContent(o)`, which has no branch for an option
+     object, so `String(o)` wins and each one normalises to the literal
+     characters **`[object Object]`**. A learner would meet four identical
+     unreadable rows, not four rows missing their pictures — on a public,
+     crawled route. And it is not confined to media: an option carrying nothing
+     but perfectly good `text` comes out the same way, so "has an image" was
+     never the right predicate.
+
+     The check also found a THIRD field this note did not name. The old card
+     reads option-level `isCorrect` in `isCorrectChoice`, and the
+     `correctIndex == null` refusal already in place does **not** catch it —
+     a question carrying an integer `correctAnswer` alongside `isCorrect`
+     options passes that refusal and then scores from a different key than the
+     old card would. One check covers all three.
+
+     Refused rather than taught, and shaped as **"not a string"** rather than
+     "has media", because the failure is the object: the next field someone
+     adds to one would otherwise reopen the gap silently. It is a tripwire, not
+     a live refusal — nothing writes the shape today
+     (`src/editor/schema/question.js` declares `options: z.array(z.string())`,
+     and the past-paper importer keeps picture options as the question's own
+     figure with the printed captions as string options, which is exactly what
+     its prompt instructs). The object branch in `PublicQuizRunner` that made
+     this look reachable is defensive code with **no test and no writer**.
+
+     `normalise.test.js` records the `[object Object]` behaviour so the
+     refusal's justification is checkable rather than asserted in a comment,
+     and it is the test that says what would have to change first if a writer
+     ever appears. The three cutover cases were verified to fail with the
+     refusal removed, with a string-option control that passes either way.
+
    - **Four P2s arrived NINE MINUTES AFTER the merge, and three were real.**
      Exactly the window `MIGRATION_TEMPLATE.md` §7a describes — review bots
      finish after CI, so the comments most worth reading land when nobody is
