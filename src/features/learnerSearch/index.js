@@ -11,17 +11,15 @@
  * ── `useLearnerSearch` stayed in `src/hooks/`, and the reason is a gap ──
  *
  * The hook's only consumer is this page, so by the usual rule it should have
- * travelled. It did not, because it imports
- * `features/notes/lib/firestore` — one of the four remaining entries on
- * `KNOWN_LEGACY_FEATURE_IMPORTS`. Inside a feature that same import becomes a
- * CROSS-feature one, and it cannot be routed through a front door because
- * **`features/notes` has no `index.js`**: it is a migrated feature with no
- * public surface at all.
+ * travelled. At the time of the migration it could not: it imports
+ * `fetchLearnerNotes` from `notes`, which was then a migrated feature with NO
+ * `index.js` at all — so inside a feature that import became a cross-feature
+ * one with no front door to route through, trading one debt entry for another.
  *
- * So moving the hook would have converted one debt entry into another and
- * pushed the cross-feature count from 3 to 4. Leaving it costs nothing — a
- * feature may import `src/hooks/` — and keeps the debt where it can still be
- * retired by giving `notes` a front door, which is its own change.
+ * `notes` has a front door now, and the hook's import goes through it: the
+ * legacy entry is retired rather than moved. The hook still lives in
+ * `src/hooks/`, which costs nothing — a feature may import `src/hooks/` — and
+ * moving it is now an ordinary follow-up rather than something blocked.
  *
  * `utils/learnerSearch` (the ranking and grouping rules) stays with the hook
  * for the same reason: the hook is its only consumer, and the hook is staying.

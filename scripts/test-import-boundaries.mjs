@@ -213,7 +213,6 @@ const KNOWN_CROSS_FEATURE_IMPORTS = new Set([
 // do not import each other.
 const KNOWN_LEGACY_FEATURE_IMPORTS = new Set([
   'src/components/teacher/TeacherDashboard.jsx → ../../features/teacherSettings/lib/useTeachingProfile',
-  'src/hooks/useLearnerSearch.js → ../features/notes/lib/firestore',
   // FORCED, and recorded rather than avoided — `teacherShell` PR B. Every other
   // entry on this list clears when its caller migrates into a feature; this one
   // has no such path, so its retirement condition is written down instead of

@@ -11,7 +11,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFirestore } from './useFirestore'
-import { fetchLearnerNotes } from '../features/notes/lib/firestore'
+import { fetchLearnerNotes } from '../features/notes'
 import { loadPublishedPapers } from '../utils/pastPapers'
 import { listGames } from '../utils/gamesService'
 import { buildResultItems, rankResults, groupByType } from '../utils/learnerSearch'
