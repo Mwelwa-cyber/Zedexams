@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useAuth } from '../../contexts/AuthContext'
+import { useAuth } from '../../../contexts/AuthContext'
 
 // Native-only, renders nothing. Kicks the Google Play restore-on-open sync
 // once a user is signed in — mounted from App.jsx behind isNativePlatform()
@@ -13,7 +13,7 @@ export default function NativePlayBillingSync() {
   useEffect(() => {
     if (!uid) return undefined
     const timer = setTimeout(() => {
-      import('../../utils/playBillingRestore')
+      import('../../../utils/playBillingRestore')
         .then((m) => m.maybeRestorePlayPurchases(uid))
         .catch(() => {})
     }, 3000)
