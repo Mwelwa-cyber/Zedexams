@@ -2974,6 +2974,261 @@ async function main() {
     await assertFails(setDoc(doc(admin, 'lessonPlanTemplates', 'tpl_fractions', 'ratings', TEACHER_A), { rating: 5 }))
   })
 
+  // ── the four collections one finished game round writes ──────
+  //
+  // architecture.md §14.12 and docs/phase3-plan.md §5.1(4): a cutover covers
+  // every collection its runner touches, in the same PR. A finished
+  // `timed_quiz` round writes FOUR — `scores`, `badges`, `dailyStreaks` and
+  // `learner_profiles` — and until now only `scores` had any coverage at all
+  // (two cases), while the other three had none. The Assessment Engine does
+  // not move any of these writes; covering them is what makes that claim
+  // checkable rather than asserted.
+  //
+  // All three of the new ones are owner-only client writes with NO server
+  // writer, and their validators are data-integrity backstops rather than
+  // authorization: they bound the shape and range of whichever fields are
+  // present, so a tampered client cannot write `streak: 1e18` or a 10 MB map.
+  // That makes the control cases load-bearing — a denial that would also fail
+  // with the validator deleted proves nothing, so every rejected write below
+  // has a sibling that succeeds differing in ONE field.
+
+  section('badges/{uid} — owner-only, decorative, shape-capped')
+
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'badges', LEARNER_A), {
+      gameBadges: { speedster: { earnedAt: new Date().toISOString() } },
+    })
+  })
+
+  await test('a learner can read their own badges', async () => {
+    await assertSucceeds(getDoc(doc(learnerA, 'badges', LEARNER_A)))
+  })
+
+  await test("a learner cannot read another learner's badges", async () => {
+    await assertFails(getDoc(doc(learnerB, 'badges', LEARNER_A)))
+  })
+
+  await test('an admin can read a learner’s badges (moderation)', async () => {
+    await assertSucceeds(getDoc(doc(admin, 'badges', LEARNER_A)))
+  })
+
+  await test('a learner can self-award their own game badges', async () => {
+    // Deliberate, and worth pinning: the client evaluates badges against the
+    // score it has just written to `scores`, so this is a self-write by design.
+    // Tampering is low-stakes because the leaderboard still reads real scores.
+    await assertSucceeds(setDoc(doc(learnerB, 'badges', LEARNER_B), {
+      gameBadges: { starter: { earnedAt: new Date().toISOString() } },
+    }))
+  })
+
+  await test('a learner cannot award a badge to someone else', async () => {
+    await assertFails(setDoc(doc(learnerB, 'badges', LEARNER_A), {
+      gameBadges: { forged: { earnedAt: new Date().toISOString() } },
+    }))
+  })
+
+  await test('an unverified learner cannot write badges at all', async () => {
+    await assertFails(setDoc(doc(unverified, 'badges', UNVERIFIED_LEARNER), { gameBadges: {} }))
+  })
+
+  await test('a badge map at the cap is accepted', async () => {
+    // The control for the rejection below: same writer, same field, differing
+    // only in size. Without it the 201-key denial would stay green with
+    // `validBadgesFields` deleted.
+    const atCap = {}
+    for (let i = 0; i < 200; i += 1) atCap[`badge_${i}`] = { earnedAt: 1 }
+    await assertSucceeds(setDoc(doc(learnerA, 'badges', LEARNER_A), { gameBadges: atCap }))
+  })
+
+  await test('a badge map over the cap is rejected', async () => {
+    const overCap = {}
+    for (let i = 0; i < 201; i += 1) overCap[`badge_${i}`] = { earnedAt: 1 }
+    await assertFails(setDoc(doc(learnerA, 'badges', LEARNER_A), { gameBadges: overCap }))
+  })
+
+  await test('a learner cannot delete their badges — only an admin can', async () => {
+    await assertFails(deleteDoc(doc(learnerA, 'badges', LEARNER_A)))
+    await assertSucceeds(deleteDoc(doc(admin, 'badges', LEARNER_A)))
+  })
+
+  section('dailyStreaks/{uid} — owner-only, resettable, range-checked')
+
+  await test('a learner can write their own streak', async () => {
+    await assertSucceeds(setDoc(doc(learnerA, 'dailyStreaks', LEARNER_A), {
+      streak: 3, longestStreak: 7, lastPlayedDate: '2026-08-14', lastGameId: 'game-1',
+    }))
+  })
+
+  await test('a streak legitimately RESETS to a lower value after a missed day', async () => {
+    // The rule is range-checked and never monotonic, on purpose — a learner who
+    // misses a day drops to 1. A future "streaks only go up" tightening would
+    // lock every learner out of their own counter after one missed day, so this
+    // case is here to fail loudly if one is ever added.
+    await assertSucceeds(setDoc(doc(learnerA, 'dailyStreaks', LEARNER_A), {
+      streak: 1, longestStreak: 7, lastPlayedDate: '2026-08-15', lastGameId: 'game-2',
+    }))
+  })
+
+  await test("a learner cannot write another learner's streak", async () => {
+    await assertFails(setDoc(doc(learnerB, 'dailyStreaks', LEARNER_A), { streak: 999 }))
+  })
+
+  await test("a learner cannot read another learner's streak", async () => {
+    await assertFails(getDoc(doc(learnerB, 'dailyStreaks', LEARNER_A)))
+  })
+
+  await test('a streak at the range ceiling is accepted', async () => {
+    await assertSucceeds(setDoc(doc(learnerA, 'dailyStreaks', LEARNER_A), { streak: 100000 }))
+  })
+
+  await test('an absurd streak is rejected, and so is a non-integer one', async () => {
+    // Two ways past a naive `is number` check: over the ceiling, and a float.
+    await assertFails(setDoc(doc(learnerA, 'dailyStreaks', LEARNER_A), { streak: 100001 }))
+    await assertFails(setDoc(doc(learnerA, 'dailyStreaks', LEARNER_A), { streak: 3.5 }))
+    await assertFails(setDoc(doc(learnerA, 'dailyStreaks', LEARNER_A), { streak: -1 }))
+  })
+
+  await test('an over-long lastPlayedDate is rejected — the field is a YYYY-MM-DD key', async () => {
+    await assertFails(setDoc(doc(learnerA, 'dailyStreaks', LEARNER_A), {
+      streak: 1, lastPlayedDate: 'x'.repeat(11),
+    }))
+  })
+
+  section('learner_profiles/{uid} — a private derived record, not leaderboard data')
+
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'learner_profiles', LEARNER_A), {
+      userId: LEARNER_A, grade: 5, totals: { games: 4 }, subjectStats: {}, topicStats: {},
+    })
+  })
+
+  await test('a learner can read their own profile', async () => {
+    await assertSucceeds(getDoc(doc(learnerA, 'learner_profiles', LEARNER_A)))
+  })
+
+  await test("a learner cannot read another learner's profile", async () => {
+    // The asymmetry that matters: `scores` is world-readable because it powers
+    // a leaderboard, and this collection is derived from the same rounds but
+    // holds weak topics and per-topic accuracy. Reading it is reading a
+    // learner's difficulties, which is why it is owner-only.
+    await assertFails(getDoc(doc(learnerB, 'learner_profiles', LEARNER_A)))
+    await assertFails(getDoc(doc(guest, 'learner_profiles', LEARNER_A)))
+  })
+
+  await test('a learner can write their own profile after a round', async () => {
+    await assertSucceeds(setDoc(doc(learnerA, 'learner_profiles', LEARNER_A), {
+      userId: LEARNER_A,
+      grade: 5,
+      totals: { games: 5, correct: 22 },
+      weakTopics: ['Fractions'],
+      recentGames: [{ gameId: 'game-1', score: 40 }],
+      lastSession: { at: 1, score: 40 },
+    }))
+  })
+
+  await test("a learner cannot write another learner's profile", async () => {
+    await assertFails(setDoc(doc(learnerB, 'learner_profiles', LEARNER_A), { totals: { games: 0 } }))
+  })
+
+  await test('grade may be an int, a short string, or null — all three shapes exist', async () => {
+    // `games` stores grade as a Number (the D5 divergence) while the rest of
+    // the app uses a string, and this collection is written from both sides.
+    // The rule accepts all three deliberately; pinned so a "tidy-up" that
+    // narrowed it to one would fail here rather than in production.
+    for (const grade of [5, '5', null]) {
+      await assertSucceeds(setDoc(doc(learnerA, 'learner_profiles', LEARNER_A), {
+        userId: LEARNER_A, grade,
+      }))
+    }
+  })
+
+  await test('a topicStats map at the cap is accepted', async () => {
+    const atCap = {}
+    for (let i = 0; i < 500; i += 1) atCap[`t${i}`] = { correct: 1, total: 1 }
+    await assertSucceeds(setDoc(doc(learnerA, 'learner_profiles', LEARNER_A), { topicStats: atCap }))
+  })
+
+  await test('an oversized topicStats map is rejected', async () => {
+    const overCap = {}
+    for (let i = 0; i < 501; i += 1) overCap[`t${i}`] = { correct: 1, total: 1 }
+    await assertFails(setDoc(doc(learnerA, 'learner_profiles', LEARNER_A), { topicStats: overCap }))
+  })
+
+  await test('an oversized recentGames list is rejected', async () => {
+    await assertFails(setDoc(doc(learnerA, 'learner_profiles', LEARNER_A), {
+      recentGames: Array.from({ length: 101 }, (_, i) => ({ gameId: `g${i}` })),
+    }))
+  })
+
+  await test('a learner cannot delete their profile — only an admin can', async () => {
+    await assertFails(deleteDoc(doc(learnerA, 'learner_profiles', LEARNER_A)))
+    await assertSucceeds(deleteDoc(doc(admin, 'learner_profiles', LEARNER_A)))
+  })
+
+  section('scores — the fields a round actually writes, and the ones it must not')
+
+  await test('a signed-in learner can save their own completed round', async () => {
+    // The control the two pre-existing `scores` cases lacked: without a write
+    // that SUCCEEDS, the spoof denial below would stay green with the whole
+    // create rule replaced by `false`.
+    await assertSucceeds(addDoc(collection(learnerA, 'scores'), {
+      userId: LEARNER_A,
+      gameId: 'game-1',
+      grade: 4,
+      subject: 'mathematics',
+      score: 40,
+      accuracy: 80,
+      timeSpent: 45,
+      correct: 4,
+      wrong: 1,
+      bestStreak: 3,
+      displayName: 'Chanda M',
+      playedAt: serverTimestamp(),
+    }))
+  })
+
+  await test('grade must be a NUMBER and the rule enforces it', async () => {
+    // D5, from the other side. The engine's canonical model carries grade as a
+    // string; a path that wrote the model's value instead of the game
+    // document's would be rejected here rather than silently producing rows no
+    // leaderboard query can find.
+    await assertFails(addDoc(collection(learnerA, 'scores'), {
+      userId: LEARNER_A, gameId: 'game-1', grade: '4', subject: 'mathematics',
+      score: 40, playedAt: serverTimestamp(),
+    }))
+  })
+
+  await test('a score with a client-chosen timestamp is rejected', async () => {
+    // `playedAt == request.time` is what stops a learner backdating a round
+    // into a finished leaderboard window.
+    await assertFails(addDoc(collection(learnerA, 'scores'), {
+      userId: LEARNER_A, gameId: 'game-1', grade: 4, subject: 'mathematics',
+      score: 40, playedAt: new Date('2020-01-01'),
+    }))
+  })
+
+  await test('an unverified learner cannot save a score', async () => {
+    await assertFails(addDoc(collection(unverified, 'scores'), {
+      userId: UNVERIFIED_LEARNER, gameId: 'game-1', grade: 4, subject: 'mathematics',
+      score: 40, playedAt: serverTimestamp(),
+    }))
+  })
+
+  await test('nobody but an admin can edit or delete a saved score', async () => {
+    let scoreId
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const ref = await addDoc(collection(ctx.firestore(), 'scores'), {
+        userId: LEARNER_A, gameId: 'game-1', grade: 4, subject: 'mathematics',
+        score: 10, playedAt: new Date(),
+      })
+      scoreId = ref.id
+    })
+    // Even the learner who owns it: a leaderboard row is immutable once filed.
+    await assertFails(setDoc(doc(learnerA, 'scores', scoreId), { score: 9999 }, { merge: true }))
+    await assertFails(deleteDoc(doc(learnerA, 'scores', scoreId)))
+    await assertSucceeds(deleteDoc(doc(admin, 'scores', scoreId)))
+  })
+
   await testEnv.cleanup()
 
   // ── summary ──────────────────────────────────────────────────

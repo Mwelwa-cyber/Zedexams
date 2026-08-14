@@ -24,6 +24,21 @@
  *     to subscript an array. Null says "unknown" in a way a renderer must
  *     handle deliberately.
  *
+ *   • **The answer key is the GRADER's shape, not the document's.** This
+ *     shipped carrying `{ answer: <the raw stored value> }`, on the reasoning
+ *     that a consumer might want to see what the document said. Nothing ever
+ *     did, and `answerKey` is not a place to keep source trivia: it is spread
+ *     into `projectForScoring` and handed to `computeQuizScore`, which grades
+ *     `mcq` by strict equality against `correctAnswer`. A key with no
+ *     `correctAnswer` in it does not throw — the scorer compares the learner's
+ *     index to `undefined`, every answer marks wrong, and (worse) an
+ *     UNANSWERED question also compares `undefined === undefined` and marks
+ *     RIGHT. So the engine scored a `timed_quiz` round as the exact inverse of
+ *     the truth, silently. Found by the games cutover's replay comparison
+ *     (`scripts/replay/replayGameRound.test.js`), which is what it is for; it
+ *     is the same defect class `answerKeyCoverage.test.js` was written for
+ *     after #2120 — "a grader reads a question field the normaliser drops."
+ *
  * Only `timed_quiz` is in scope: seven of the eight game engines are mechanics
  * (memory match, word builder, province shapes, …) with no question to ask.
  */
@@ -44,6 +59,7 @@ export function resolveGameCorrectIndex(question) {
 
 function normaliseQuestion(raw, index) {
   const options = Array.isArray(raw?.options) ? raw.options : []
+  const correctIndex = resolveGameCorrectIndex(raw)
   return {
     // Game questions carry no id — position IS their identity, and it is stable
     // for the life of the document. Prefixed so it can never collide with a
@@ -57,10 +73,16 @@ function normaliseQuestion(raw, index) {
     prompt: toRichContent(String(raw?.question ?? '')),
     marks: GAME_MARKS_PER_QUESTION,
     options: options.map((o) => toRichContent(String(o ?? ''))),
-    correctIndex: resolveGameCorrectIndex(raw),
-    // The raw value is preserved so a consumer can still see what the document
-    // said when the index could not be resolved.
-    answerKey: { answer: raw?.answer ?? null },
+    correctIndex,
+    // `correctAnswer` is the field `computeQuizScore` grades `mcq` on, and the
+    // resolved POSITION is what it must hold — the learner's response is an
+    // option index, so a key holding the stored value ('42') would never equal
+    // one. It is omitted entirely rather than set to null when the answer could
+    // not be resolved: `answer === null` would mark an unanswered question
+    // correct, and an absent key marks everything wrong, which is the honest
+    // reading of a document that does not say what the answer is. The engine
+    // refuses such a round at the cutover before a learner ever meets it.
+    answerKey: correctIndex === null ? {} : { correctAnswer: correctIndex },
     topicIds: typeof raw?.topic === 'string' && raw.topic.trim() ? [raw.topic.trim()] : [],
   }
 }

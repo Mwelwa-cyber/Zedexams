@@ -1,0 +1,26 @@
+{
+  "description": "Every answer wrong — the score floors at zero rather than going negative, and accuracy is 0.",
+  "game": {
+    "id": "game-science-g5",
+    "title": "Body Systems Blitz",
+    "subject": "integrated science",
+    "grade": 5,
+    "type": "timed_quiz",
+    "timer": 45,
+    "points": 12,
+    "questions": [
+      { "question": "Which organ pumps blood?", "options": ["Lungs", "Heart", "Liver", "Kidney"], "answer": "Heart" },
+      { "question": "Which organ filters blood?", "options": ["Heart", "Skin", "Kidney", "Brain"], "answer": "Kidney" },
+      { "question": "Where does digestion begin?", "options": ["Mouth", "Stomach", "Liver", "Colon"], "answer": "Mouth" }
+    ]
+  },
+  "picks": [
+    { "poolIndex": 0, "optionIndex": 0 },
+    { "poolIndex": 1, "optionIndex": 3 },
+    { "poolIndex": 2, "optionIndex": 2 }
+  ],
+  "userId": "learner-2",
+  "displayName": "Mwansa",
+  "startedAtMs": 1700000000000,
+  "nowMs": 1700000040000
+}

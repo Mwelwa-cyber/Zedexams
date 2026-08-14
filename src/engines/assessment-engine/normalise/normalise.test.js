@@ -115,7 +115,27 @@ test('an unresolvable game answer is null, never -1', () => {
     { question: 'x', options: ['a', 'b'], answer: 'zzz' },
   ] }) })
   assert.equal(a.questions[0].correctIndex, null, '-1 would read as an index and subscript an array')
-  assert.equal(a.questions[0].answerKey.answer, 'zzz', 'the raw value is kept so the failure is inspectable')
+  // The answer key is EMPTY rather than carrying the raw 'zzz'. It used to
+  // carry it "so the failure is inspectable", which was harmless only while
+  // nothing consumed the key — `answerKey` is spread straight into
+  // `computeQuizScore`, so a key holding `answer: null` for a resolvable-looking
+  // question marks an UNANSWERED question correct (`undefined === undefined`
+  // never fires, but `null` keys do the same job for a null response). Absent
+  // is the honest key for a document that does not say what the answer is:
+  // everything marks wrong, and the games cutover refuses the round outright.
+  assert.deepEqual(a.questions[0].answerKey, {}, 'no key at all, rather than one the scorer misreads')
+})
+
+test('a game answer key is the POSITION, because that is what the scorer grades', () => {
+  // The learner's response is an option index, so a key holding the stored
+  // VALUE ('7') could never equal one — every answer would mark wrong. Caught
+  // by the games replay comparison; see fromGame.js.
+  const a = fromGame({ game: gameDoc({ questions: [
+    { question: 'x', options: ['5', '7'], answer: 7 },
+  ] }) })
+  assert.equal(a.questions[0].answerKey.correctAnswer, 1)
+  assert.equal(a.questions[0].answerKey.correctAnswer, a.questions[0].correctIndex,
+    'the card paints from correctIndex and the score comes from this — they cannot disagree')
 })
 
 test('a quiz index pointing past the options is refused', () => {

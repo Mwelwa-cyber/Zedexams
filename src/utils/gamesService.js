@@ -26,6 +26,7 @@ import {
 import { db, auth } from '../firebase/config'
 import { describeFirestoreReadError, withFirestoreReadTimeout } from './firestoreTimeout'
 import { levelUpInfo } from './gameProgress'
+import { buildGameScorePayload } from './gameScorePayload.js'
 
 /* ─────────────────────────────────────────────────────────────────
  *  Taxonomy used by the Grade → Subject → Games list UI
@@ -126,25 +127,17 @@ export async function saveScore({ game, score, accuracy, timeSpent, correct, wro
   if (!user) return { ok: false, skipped: true, reason: 'not_signed_in' }
   if (!game || !game.id) return { ok: false, reason: 'no_game' }
 
+  // The document itself is built by a pure function so the byte-compatibility
+  // harness can produce one without Firebase (see gameScorePayload.js). The
+  // three things that are not functions of the round — the uid, the display
+  // name and the server timestamp — are supplied here, where they exist.
   const payload = {
-    userId: user.uid,
-    gameId: game.id,
-    // INTENTIONAL DIVERGENCE: game scores store grade as a Number and subject
-    // lowercased. This is self-consistent — every games read query writes and
-    // reads the same shape (and filters subject client-side). These fields are
-    // NOT the canonical quiz/lesson wire values (string grade + display-label
-    // subject via normalizeSubject). Do NOT cross-join scores with
-    // quizzes/lessons on `grade`/`subject`, and do NOT "normalize" them here —
-    // that would silently break the working leaderboard/score queries.
-    grade: Number(game.grade),
-    subject: String(game.subject || '').toLowerCase(),
-    score: Number(score) || 0,
-    accuracy: Number(accuracy) || 0,
-    timeSpent: Number(timeSpent) || 0,
-    correct: Number(correct) || 0,
-    wrong: Number(wrong) || 0,
-    bestStreak: Number(bestStreak) || 0,
-    displayName: String(displayName || user.displayName || 'Anonymous').slice(0, 40),
+    ...buildGameScorePayload({
+      game,
+      outcome: { score, accuracy, timeSpent, correct, wrong, bestStreak },
+      userId: user.uid,
+      displayName: displayName || user.displayName,
+    }),
     playedAt: serverTimestamp(),
   }
 
