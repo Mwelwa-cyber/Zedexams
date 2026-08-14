@@ -89,7 +89,16 @@ const sum = (rows) => rows.reduce((s, r) => s + r.total, 0)
 
 // Which themed container each file renders inside decides how it is fixed.
 const SURFACE = [
-  [/^src\/features\/(games|quiz\/pages\/QuizList)|^src\/shared\/components\/(GameStickerStyles|Confetti)/, 'learner: Games/Quizzes (.force-light-theme — remapped in #2027)'],
+  // `GameStickerStyles` is its own row because it is the one file here that is
+  // NOT exclusive to `.force-light-theme`: `GamesShell` and `QuizList` mount it
+  // inside that container, but `learnerDashboard`'s GradeHub and
+  // SubjectDrillDown mount it inside `.learner-game-theme`, and the stylesheet
+  // carries rules for both (`.learner-game-theme .zx-card` overrides the base
+  // `.zx-card`). Filing it under the force-light bucket alone would hand a
+  // remediation the wrong scope — the same failure this map's dead patterns
+  // cause, one file at a time instead of a whole surface.
+  [/^src\/shared\/components\/GameStickerStyles/, 'learner: Games/Quizzes — BOTH .force-light-theme and .learner-game-theme'],
+  [/^src\/features\/(games|quiz\/pages\/QuizList)|^src\/shared\/components\/Confetti/, 'learner: Games/Quizzes (.force-light-theme — remapped in #2027)'],
   // `.tdv2` is one themed container whose files now sit in two places: the
   // shell chrome here, and the stylesheet + tiles that both it and
   // `features/dashboardV2` use, which moved to the bottom layer in PR A of
