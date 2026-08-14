@@ -1,5 +1,5 @@
 /**
- * `src/components/games/timedQuizRound.js` — the round's scoring state machine.
+ * `src/features/games/lib/timedQuizRound.js` — the round's scoring state machine.
  *
  * The replay comparison (`test:replay-game-round`) proves the OLD and ENGINE
  * verdicts produce the same document. It cannot prove the arithmetic BETWEEN
@@ -17,7 +17,7 @@ import {
   applyPick,
   buildGameRoundOutcome,
   roundOutcome,
-} from '../src/components/games/timedQuizRound.js'
+} from '../src/features/games/lib/timedQuizRound.js'
 
 let passed = 0
 function test(name, fn) {

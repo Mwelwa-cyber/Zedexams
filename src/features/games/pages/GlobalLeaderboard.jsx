@@ -6,12 +6,12 @@ import {
   StarIcon,
   TrophyIcon,
 } from '@heroicons/react/24/solid'
-import { useAuth } from '../../contexts/AuthContext'
-import { subscribeToGlobalLeaderboard, formatWhen } from '../../utils/gamesService'
-import GamesShell from './GamesShell'
-import { GamesSectionHeading, MetaPill, getSubjectMascot } from './gamesUi'
-import SeoHelmet from '../seo/SeoHelmet'
-import Skeleton from '../ui/Skeleton'
+import { useAuth } from '../../../contexts/AuthContext'
+import { subscribeToGlobalLeaderboard, formatWhen } from '../../../utils/gamesService'
+import GamesShell from '../components/GamesShell'
+import { GamesSectionHeading, MetaPill, getSubjectMascot } from '../components/gamesUi'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Skeleton from '../../../components/ui/Skeleton'
 
 const TILE_BG = {
   mathematics: 'bg-orange-100',

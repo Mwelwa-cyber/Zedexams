@@ -35,7 +35,7 @@
  * Coverage of those is asserted by the rendered-page audit, not here.
  */
 import assert from 'node:assert/strict'
-import { readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve, join } from 'node:path'
 
@@ -44,20 +44,53 @@ const root = resolve(here, '../../..')
 
 /* ── 1. The files that render inside the pinned-palette container ─────── */
 
-const files = readdirSync(here)
-  .filter((f) => f.endsWith('.jsx') && !f.includes('.test.') && !f.includes('.spec.'))
-  .map((f) => join(here, f))
-  .concat([resolve(root, 'src/components/quiz/QuizList.jsx')])
+// Walked recursively rather than read flat: the games surface moved from the
+// flat src/components/games/ into src/features/games/{pages,components,lib},
+// and a flat read of the feature root would have found zero .jsx files — which
+// is a guard that passes by covering nothing. The >= 20 floor below is what
+// turns that into a failure, so keep the two together.
+function jsxFilesUnder(dir) {
+  const out = []
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name)
+    if (entry.isDirectory()) out.push(...jsxFilesUnder(full))
+    else if (entry.name.endsWith('.jsx') && !entry.name.includes('.test.') && !entry.name.includes('.spec.')) out.push(full)
+  }
+  return out
+}
+
+// Three files render inside the pinned container but live outside the feature,
+// so they are named by path. They are the reason this list is not just a walk:
+// the same migration that moved the walk also moved two components DOWN into
+// src/shared/components/, and a file that leaves the walked directory stops
+// being checked without anything going red. Neither carries a neutral literal
+// today — which is exactly the state in which the loss would go unnoticed.
+const OUTSIDE_THE_FEATURE = [
+  'src/components/quiz/QuizList.jsx',            // the quizzes hub, frozen
+  'src/shared/components/GameStickerStyles.jsx', // mounted by GamesShell + QuizList
+  'src/shared/components/Confetti.jsx',          // drawn by seven game engines
+]
+
+for (const p of OUTSIDE_THE_FEATURE) {
+  assert.ok(
+    existsSync(resolve(root, p)),
+    `${p} is named by this guard but is not on disk. It moved — repoint this ` +
+    'list rather than dropping the entry, or the surface stops being checked.',
+  )
+}
+
+const files = jsxFilesUnder(here)
+  .concat(OUTSIDE_THE_FEATURE.map((p) => resolve(root, p)))
 
 assert.ok(
   files.length >= 20,
-  `expected the games components in ${here}; found ${files.length}. ` +
+  `expected the games components under ${here}; found ${files.length}. ` +
   'If they moved, update this guard rather than deleting it.',
 )
 
 // Both shells must still carry the container this remap is scoped to — the
 // remap applies to nothing at all if the class is renamed away.
-for (const shell of ['GamesShell.jsx', '../quiz/QuizList.jsx']) {
+for (const shell of ['components/GamesShell.jsx', '../../components/quiz/QuizList.jsx']) {
   const src = readFileSync(resolve(here, shell), 'utf8')
   assert.match(
     src,

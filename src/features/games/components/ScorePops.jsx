@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
-import { scorePopLabel } from './gameFeel'
+import { scorePopLabel } from '../lib/gameFeel'
 
 /**
  * Floating "+N" / "−N" score deltas that pop off the score pill the instant an

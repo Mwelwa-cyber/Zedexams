@@ -7,13 +7,13 @@ import {
   TrophyIcon,
   XCircleIcon,
 } from '@heroicons/react/24/solid'
-import { shuffle } from '../../utils/gamesService'
-import { playCorrect, playWrong, playWin, playTick, primeSounds } from '../../utils/gameSounds'
-import { useGameFinish } from './useGameFinish'
+import { shuffle } from '../../../utils/gamesService'
+import { playCorrect, playWrong, playWin, playTick, primeSounds } from '../lib/gameSounds'
+import { useGameFinish } from '../hooks/useGameFinish'
 import { SaveBanner, StreakBanner, DoneStat } from './DoneBanners'
 import BadgeToast from './BadgeToast'
 import ShareButton from './ShareButton'
-import Confetti from './Confetti'
+import Confetti from '../../../shared/components/Confetti'
 import Leaderboard from './Leaderboard'
 import MascotCelebration from './MascotCelebration'
 import MascotGreeting from './MascotGreeting'
@@ -34,7 +34,7 @@ import {
   playableWords,
   pointsForGame,
   stripLeadingEmoji,
-} from './wordBuilderCore.js'
+} from '../lib/wordBuilderCore.js'
 
 /**
  * Engine for any `type: "word_builder"` game document.

@@ -16,6 +16,14 @@
  * See that file for why going around was chosen over editing three one-line
  * imports.
  *
+ * **The third of those was released and moved on 2026-08-14** — it is now
+ * `features/games/pages/PlayGame.jsx`, and it still imports the shim. Not
+ * because it must: because the chunk measurement that chose the shim's target
+ * never depended on the freeze. Routing that page through this front door would
+ * put the status banner, `PremiumGate` and `RenewalBanner` into the chunk of a
+ * page that renders one upgrade modal. The two quiz files remain frozen, so the
+ * shim's retirement condition is unchanged.
+ *
  * ── What is exported, and the one that is not ───────────────────────────
  *
  * `SubscriptionStatusBanner` (App.jsx, EAGER), `UsageReminderBanner`,

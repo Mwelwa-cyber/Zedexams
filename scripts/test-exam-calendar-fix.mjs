@@ -22,7 +22,7 @@
 import assert from 'node:assert/strict'
 import { SUBJECTS } from '../src/config/curriculum.js'
 // Import the pure-JS mascot module (no JSX/React), not gamesUi.jsx
-import { SUBJECT_MASCOTS, getSubjectMascot } from '../src/components/games/subjectMascots.js'
+import { SUBJECT_MASCOTS, getSubjectMascot } from '../src/features/games/lib/subjectMascots.js'
 
 let passed = 0
 

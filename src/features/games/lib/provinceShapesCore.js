@@ -14,9 +14,9 @@
  * builder against the real polygons.
  */
 
-import { getProvince } from '../../data/zambiaProvinces.js'
+import { getProvince } from '../../../data/zambiaProvinces.js'
 
-export { ZAMBIA_PROVINCES, PROVINCE_SLUGS, getProvince } from '../../data/zambiaProvinces.js'
+export { ZAMBIA_PROVINCES, PROVINCE_SLUGS, getProvince } from '../../../data/zambiaProvinces.js'
 
 export const DEFAULT_POINTS = 15
 export const DEFAULT_DURATION = 90

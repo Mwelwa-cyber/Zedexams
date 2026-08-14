@@ -19,7 +19,7 @@ import ProfessorPako   from '../../../components/ui/ProfessorPako'
 import { useDataSaver } from '../../../contexts/DataSaverContext'
 import { GAME_BADGES } from '../../../data/gameBadges'
 import { getMyGameBadges, formatAwardedAt } from '../../../utils/gameBadgesService'
-import { GameBadgeCard as GamesBadgeCard } from '../../../components/games/gamesUi'
+import { GameBadgeCard as GamesBadgeCard } from '../../games'
 import SeoHelmet from '../../../components/seo/SeoHelmet'
 
 export default function BadgesPage() {

@@ -1,7 +1,7 @@
 import {
   SparklesIcon, StarIcon, CheckBadgeIcon, ArrowRightIcon, RocketLaunchIcon,
 } from './gameIcons'
-import { buildSmartFeedback } from '../../utils/gamesIntelligence'
+import { buildSmartFeedback } from '../../../utils/gamesIntelligence'
 
 /**
  * Child-friendly post-game feedback. Renders nothing on first-play where we

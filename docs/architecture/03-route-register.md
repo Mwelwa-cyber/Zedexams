@@ -80,7 +80,7 @@ Theme pinning: removed 2026-08 — the saved reading theme applies on public/aut
 
 ## Public games (no auth)
 
-`/games` → `GamesHub`; `/games/leaderboard` → `GlobalLeaderboard`; `/games/g/:grade` → `SubjectSelector`; `/games/g/:grade/:subject` → `GameList`; `/games/play/:gameId` → `PlayGame`. (`components/games/*`)
+`/games` → `GamesHub`; `/games/leaderboard` → `GlobalLeaderboard`; `/games/g/:grade` → `SubjectSelector`; `/games/g/:grade/:subject` → `GameList`; `/games/play/:gameId` → `PlayGame`. (`features/games/pages/*` — migrated out of `components/games/` on 2026-08-14; the only file left at the old path is a re-export shim for the frozen `components/quiz/QuizList.jsx`)
 
 ## Learner routes (`ProtectedRoute` + `LearnerOnlyRoute`)
 

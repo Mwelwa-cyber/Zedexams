@@ -1,4 +1,4 @@
-import { getSubjectMascot } from './subjectMascots'
+import { getSubjectMascot } from '../lib/subjectMascots'
 
 /**
  * Subject mascots as inline-SVG characters — a consistent illustrated cast

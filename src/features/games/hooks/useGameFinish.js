@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { saveScore, readRoundBaseline, readRoundOutcome } from '../../utils/gamesService'
-import { evaluateAndAwardGameBadges } from '../../utils/gameBadgesService'
-import { getTodaysChallenge, recordDailyPlay } from '../../utils/dailyChallengeService'
+import { saveScore, readRoundBaseline, readRoundOutcome } from '../../../utils/gamesService'
+import { evaluateAndAwardGameBadges } from '../../../utils/gameBadgesService'
+import { getTodaysChallenge, recordDailyPlay } from '../../../utils/dailyChallengeService'
 
 /**
  * Shared "end of round" plumbing for any game engine.

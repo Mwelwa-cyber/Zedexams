@@ -10,13 +10,13 @@ import {
   TrophyIcon,
   XCircleIcon,
 } from '@heroicons/react/24/solid'
-import { playCorrect, playWrong, playWin, playTick, primeSounds } from '../../utils/gameSounds'
-import { useGameFinish } from './useGameFinish'
+import { playCorrect, playWrong, playWin, playTick, primeSounds } from '../lib/gameSounds'
+import { useGameFinish } from '../hooks/useGameFinish'
 import { SaveBanner, StreakBanner, DoneStat } from './DoneBanners'
 import { LevelUpBanner, XpProgressBar, PersonalBestBanner } from './Progress'
 import BadgeToast from './BadgeToast'
 import ShareButton from './ShareButton'
-import Confetti from './Confetti'
+import Confetti from '../../../shared/components/Confetti'
 import Leaderboard from './Leaderboard'
 import MascotCelebration from './MascotCelebration'
 import MascotGreeting from './MascotGreeting'
@@ -27,7 +27,7 @@ import {
   customerLine,
   formatKwacha,
   generateCustomer,
-} from './marketChallengeCore'
+} from '../lib/marketChallengeCore'
 
 const CUSTOMER_EMOJI = ['🧒🏾', '👧🏾', '👦🏾', '👩🏾', '👨🏾', '👵🏾', '👴🏾', '🧑🏾']
 const MAX_HEARTS = 3

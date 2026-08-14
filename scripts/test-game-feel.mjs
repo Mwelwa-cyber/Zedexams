@@ -6,7 +6,7 @@
  * Run: npm run test:game-feel
  */
 
-const { comboHeat, scorePopLabel } = await import('../src/components/games/gameFeel.js')
+const { comboHeat, scorePopLabel } = await import('../src/features/games/lib/gameFeel.js')
 
 let pass = 0
 let fail = 0

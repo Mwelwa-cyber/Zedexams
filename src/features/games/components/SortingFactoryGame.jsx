@@ -8,14 +8,14 @@ import {
   TrophyIcon,
   XCircleIcon,
 } from '@heroicons/react/24/solid'
-import { shuffle } from '../../utils/gamesService'
-import { playCorrect, playWrong, playWin, primeSounds } from '../../utils/gameSounds'
-import { useGameFinish } from './useGameFinish'
+import { shuffle } from '../../../utils/gamesService'
+import { playCorrect, playWrong, playWin, primeSounds } from '../lib/gameSounds'
+import { useGameFinish } from '../hooks/useGameFinish'
 import { SaveBanner, StreakBanner, DoneStat } from './DoneBanners'
 import { LevelUpBanner, XpProgressBar, PersonalBestBanner } from './Progress'
 import BadgeToast from './BadgeToast'
 import ShareButton from './ShareButton'
-import Confetti from './Confetti'
+import Confetti from '../../../shared/components/Confetti'
 import Leaderboard from './Leaderboard'
 import MascotCelebration from './MascotCelebration'
 import MascotGreeting from './MascotGreeting'
@@ -25,7 +25,7 @@ import {
   matchesBin,
   multiplierFor,
   validateSortingContent,
-} from './sortingFactoryCore'
+} from '../lib/sortingFactoryCore'
 
 const BIN_GRID = {
   2: 'grid-cols-2',

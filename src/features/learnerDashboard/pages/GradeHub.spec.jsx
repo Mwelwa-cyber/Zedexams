@@ -80,7 +80,7 @@ vi.mock('../../../components/ui/AnalyticsConsentToggle', () => ({ default: () =>
 vi.mock('../../../components/ui/ReplayTourCard', () => ({ default: () => null }))
 vi.mock('../../../components/layout/MobileBottomNav', () => ({ default: () => null }))
 vi.mock('../../feedback', () => ({ SuggestionNudge: () => null }))
-vi.mock('../../../components/games/GameStickerStyles', () => ({ default: () => null }))
+vi.mock('../../../shared/components/GameStickerStyles', () => ({ default: () => null }))
 vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
 // Light structural primitives — render enough to keep labels/children visible.
 vi.mock('../../../components/ui/Icon', () => ({ default: () => null }))

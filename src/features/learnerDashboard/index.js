@@ -32,6 +32,16 @@
  * import IT, so moving it would require editing three frozen files. Same
  * relationship, opposite direction, opposite answer.
  *
+ * **Both paragraphs are the state at this migration and both targets have since
+ * moved (2026-08-14).** `BadgesPage` now reaches `GameBadgeCard` through
+ * `features/games`' front door, and `GradeHub` / `SubjectDrillDown` draw
+ * `GameStickerStyles` from `src/shared/components/` — the games migration sent
+ * it down a layer rather than exporting it, because a front door that also
+ * exports `GameBadgeCard` would have made these two pages fetch
+ * `utils/gamesService` and the Firebase client to draw a stylesheet. The
+ * reasoning above is kept because the DIRECTION test is what made this feature
+ * migratable, and that has not changed.
+ *
  * ── One util travelled ──────────────────────────────────────────────────
  *
  * `utils/studyPlanProgress.js`, whose only consumer was `TodayStudyPlan`.

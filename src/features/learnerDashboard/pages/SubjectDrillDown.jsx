@@ -32,7 +32,7 @@ import { matchName }         from '../../../utils/courseMapMatch'
 import Icon                 from '../../../components/ui/Icon'
 import Skeleton             from '../../../components/ui/Skeleton'
 import SeoHelmet            from '../../../components/seo/SeoHelmet'
-import GameStickerStyles    from '../../../components/games/GameStickerStyles'
+import GameStickerStyles from '../../../shared/components/GameStickerStyles'
 import MobileBottomNav      from '../../../components/layout/MobileBottomNav'
 import { UpgradeModal } from '../../subscription'
 

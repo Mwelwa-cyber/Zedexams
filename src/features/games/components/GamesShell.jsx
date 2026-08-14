@@ -5,11 +5,11 @@ import {
   SpeakerWaveIcon,
   SpeakerXMarkIcon,
 } from '@heroicons/react/24/solid'
-import { isMuted, toggleMute } from '../../utils/gameSounds'
-import { useAuth } from '../../contexts/AuthContext'
+import { isMuted, toggleMute } from '../lib/gameSounds'
+import { useAuth } from '../../../contexts/AuthContext'
 import { NAV_ICON_MAP } from './gamesUi'
-import GameStickerStyles from './GameStickerStyles'
-import MobileBottomNav from '../layout/MobileBottomNav'
+import GameStickerStyles from '../../../shared/components/GameStickerStyles'
+import MobileBottomNav from '../../../components/layout/MobileBottomNav'
 
 /**
  * Shared chrome for every /games page. Keeps the Games experience cohesive

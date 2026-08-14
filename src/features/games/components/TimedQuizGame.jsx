@@ -5,28 +5,28 @@ import {
   ArrowPathIcon,
   TrophyIcon,
 } from '@heroicons/react/24/solid'
-import { useAuth } from '../../contexts/AuthContext'
-import { useAssessmentEngineFlag } from '../../hooks/useAssessmentEngineFlag'
-import { fromGame, markAttempt, unrenderableTypes } from '../../engines/assessment-engine'
-import { ChoiceQuestion } from '../../engines/assessment-engine/render'
-import { reportClientError } from '../../utils/clientErrorReporting'
-import { capture } from '../../utils/analytics'
-import { BUILD_ID } from '../../utils/buildId'
-import { saveScore, shuffle, readRoundBaseline, readRoundOutcome } from '../../utils/gamesService'
-import { evaluateAndAwardGameBadges } from '../../utils/gameBadgesService'
-import { getTodaysChallenge, recordDailyPlay } from '../../utils/dailyChallengeService'
-import { playCorrect, playWrong, playWin, playStreak, primeSounds } from '../../utils/gameSounds'
+import { useAuth } from '../../../contexts/AuthContext'
+import { useAssessmentEngineFlag } from '../../../hooks/useAssessmentEngineFlag'
+import { fromGame, markAttempt, unrenderableTypes } from '../../../engines/assessment-engine'
+import { ChoiceQuestion } from '../../../engines/assessment-engine/render'
+import { reportClientError } from '../../../utils/clientErrorReporting'
+import { capture } from '../../../utils/analytics'
+import { BUILD_ID } from '../../../utils/buildId'
+import { saveScore, shuffle, readRoundBaseline, readRoundOutcome } from '../../../utils/gamesService'
+import { evaluateAndAwardGameBadges } from '../../../utils/gameBadgesService'
+import { getTodaysChallenge, recordDailyPlay } from '../../../utils/dailyChallengeService'
+import { playCorrect, playWrong, playWin, playStreak, primeSounds } from '../lib/gameSounds'
 import Leaderboard from './Leaderboard'
 import BadgeToast from './BadgeToast'
 import ShareButton from './ShareButton'
-import Confetti from './Confetti'
+import Confetti from '../../../shared/components/Confetti'
 import MascotCelebration from './MascotCelebration'
 import MascotGreeting from './MascotGreeting'
 import SmartFeedback from './SmartFeedback'
 import ComboPill from './ComboPill'
 import ScorePops, { useScorePops } from './ScorePops'
 import { LevelUpBanner, XpProgressBar, PersonalBestBanner } from './Progress'
-import { comboHeat } from './gameFeel'
+import { comboHeat } from '../lib/gameFeel'
 import { DoneStat, SaveBanner, StreakBanner } from './DoneBanners'
 import { RatingStars } from './gamesUi'
 import {
@@ -40,8 +40,8 @@ import {
   resolveGameConfig,
   shouldCelebrate,
   timerPct,
-} from './timedQuizCore'
-import { EMPTY_ROUND, applyPick, roundOutcome } from './timedQuizRound'
+} from '../lib/timedQuizCore'
+import { EMPTY_ROUND, applyPick, roundOutcome } from '../lib/timedQuizRound'
 
 /**
  * Engine for any `type: "timed_quiz"` game document.

@@ -1,5 +1,5 @@
 /**
- * Tests for the Word Builder game core (src/components/games/wordBuilderCore.js).
+ * Tests for the Word Builder game core (src/features/games/lib/wordBuilderCore.js).
  *
  * Run: node scripts/test-word-builder.mjs
  * Plain node script, throws on assertion failure — repo test convention.
@@ -19,7 +19,7 @@ import {
   playableWords,
   pointsForGame,
   stripLeadingEmoji,
-} from '../src/components/games/wordBuilderCore.js'
+} from '../src/features/games/lib/wordBuilderCore.js'
 
 let passed = 0
 function assert(cond, msg) {

@@ -24,9 +24,9 @@ import {
   TrophyIcon,
   UserCircleIcon,
 } from '@heroicons/react/24/solid'
-import { isDemoGame } from '../../data/gamesSeed'
-import { gradeByValue } from '../../utils/gamesService'
-import { SUBJECT_MASCOTS, getSubjectMascot } from './subjectMascots'
+import { isDemoGame } from '../../../data/gamesSeed'
+import { gradeByValue } from '../../../utils/gamesService'
+import { SUBJECT_MASCOTS, getSubjectMascot } from '../lib/subjectMascots'
 import MascotAvatar from './MascotAvatar'
 
 export const NAV_ICON_MAP = {

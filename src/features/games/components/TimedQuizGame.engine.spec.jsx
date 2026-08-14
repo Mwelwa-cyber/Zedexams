@@ -31,13 +31,13 @@ const flagState = {
   runner: 'game', source: 'rollout-all',
 }
 
-vi.mock('../../hooks/useAssessmentEngineFlag', () => ({
+vi.mock('../../../hooks/useAssessmentEngineFlag', () => ({
   useAssessmentEngineFlag: () => flagState,
 }))
-vi.mock('../../contexts/AuthContext', () => ({
+vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({ currentUser: { uid: 'learner-1', displayName: 'Chanda' } }),
 }))
-vi.mock('../../utils/gamesService', () => ({
+vi.mock('../../../utils/gamesService', () => ({
   // Identity shuffle: the deck is then the pool in order, so a test knows which
   // question is on screen. Every other games behaviour under test is downstream
   // of the verdict, which the deck order does not touch.
@@ -46,19 +46,19 @@ vi.mock('../../utils/gamesService', () => ({
   readRoundBaseline: vi.fn(async () => ({})),
   readRoundOutcome: vi.fn(async () => ({ levelChange: null, personalBest: null })),
 }))
-vi.mock('../../utils/gameBadgesService', () => ({
+vi.mock('../../../utils/gameBadgesService', () => ({
   evaluateAndAwardGameBadges: vi.fn(async () => ({ newlyEarned: [] })),
 }))
-vi.mock('../../utils/dailyChallengeService', () => ({
+vi.mock('../../../utils/dailyChallengeService', () => ({
   getTodaysChallenge: vi.fn(async () => ({ game: null })),
   recordDailyPlay: vi.fn(async () => ({ isDaily: false })),
 }))
-vi.mock('../../utils/gameSounds', () => ({
+vi.mock('../lib/gameSounds', () => ({
   playCorrect: vi.fn(), playWrong: vi.fn(), playWin: vi.fn(),
   playStreak: vi.fn(), primeSounds: vi.fn(),
 }))
-vi.mock('../../utils/analytics', () => ({ capture: vi.fn() }))
-vi.mock('../../utils/clientErrorReporting', () => ({ reportClientError: vi.fn() }))
+vi.mock('../../../utils/analytics', () => ({ capture: vi.fn() }))
+vi.mock('../../../utils/clientErrorReporting', () => ({ reportClientError: vi.fn() }))
 vi.mock('./Leaderboard', () => ({ default: () => null }))
 // Reaches the Firebase client at import time (via `gamesIntelligence`), which
 // refuses to initialise in jsdom without a config. It draws the end-of-round
@@ -66,7 +66,7 @@ vi.mock('./Leaderboard', () => ({ default: () => null }))
 vi.mock('./SmartFeedback', () => ({ default: () => null }))
 
 import TimedQuizGame from './TimedQuizGame'
-import { capture } from '../../utils/analytics'
+import { capture } from '../../../utils/analytics'
 
 /**
  * FIVE options on purpose: the D4 defect was `['A','B','C','D'][i]` yielding

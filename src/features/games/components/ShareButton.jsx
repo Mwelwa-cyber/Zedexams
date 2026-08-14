@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { CheckIcon, ShareIcon } from '@heroicons/react/24/solid'
-import { siteOrigin } from '../../utils/runtime.js'
+import { siteOrigin } from '../../../utils/runtime.js'
 
 /**
  * One-tap share button for the game-finish screen.

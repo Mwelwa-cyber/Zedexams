@@ -214,9 +214,14 @@ const KNOWN_CROSS_FEATURE_IMPORTS = new Set([
 const KNOWN_LEGACY_FEATURE_IMPORTS = new Set([
   // FORCED by the freeze, and recorded rather than avoided — the `subscription`
   // migration. This is the re-export shim at the OLD path, kept alive so that
-  // components/quiz/QuizRunnerV2.jsx, components/quiz/QuizList.jsx,
-  // components/games/PlayGame.jsx and three QuizRunnerV2 specs stay
-  // byte-identical while Phase 3 replaces the quiz runner behind rollout flags.
+  // components/quiz/QuizRunnerV2.jsx, components/quiz/QuizList.jsx and three
+  // QuizRunnerV2 specs stay byte-identical while Phase 3 replaces the quiz
+  // runner behind rollout flags.
+  //
+  // Its sixth consumer, PlayGame.jsx, is no longer frozen — the games migration
+  // of 2026-08-14 moved it to features/games/pages/. It still imports the shim
+  // rather than features/subscription, for the chunk reason in the next
+  // paragraph, which does not depend on the freeze.
   //
   // It points at the component, NOT at the feature's index, on purpose. Routing
   // it through the front door would make the shim resolve cleanly and cost
@@ -230,6 +235,14 @@ const KNOWN_LEGACY_FEATURE_IMPORTS = new Set([
   // those six references at features/subscription, and remove this line — the
   // moment the Phase 3 rollout flags reach 100%.
   'src/components/subscription/UpgradeModal.jsx → ../../features/subscription/components/UpgradeModal',
+  // The `games` migration (2026-08-14) hit the same freeze and needed the same
+  // shim — components/quiz/QuizList.jsx renders the games sticker stylesheet and
+  // components/quiz/ was not part of the owner ruling that released games. It is
+  // deliberately NOT on this list: src/components/games/GameStickerStyles.jsx
+  // re-exports from src/shared/components/, not from a feature, so there is
+  // nothing here to record. A shim onto the shared layer is a legal import for
+  // the legacy tree; a shim into a feature is debt. Where the moved module can
+  // honestly live below both callers, that is the cheaper of the two shims.
   'src/components/teacher/TeacherDashboard.jsx → ../../features/teacherSettings/lib/useTeachingProfile',
   // FORCED, and recorded rather than avoided — `teacherShell` PR B. Every other
   // entry on this list clears when its caller migrates into a feature; this one
