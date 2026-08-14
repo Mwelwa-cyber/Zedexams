@@ -23,8 +23,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
-import { optionLabel } from '../../utils/mcqChoices'
+import { useAuth } from '../../../contexts/AuthContext'
+import { optionLabel } from '../../../utils/mcqChoices'
 import {
   getExamWithQuestions,
   checkDailyLock,
@@ -32,21 +32,21 @@ import {
   restoreExam,
   saveProgress,
   submitExam,
-} from '../../utils/examService'
-import RichContent from '../../editor/RichContent'
-import { useQuizDisplayPrefs } from '../../hooks/useQuizDisplayPrefs'
-import { useQuizReadAloud } from '../../hooks/useQuizReadAloud'
-import ReadingSettingsButton from '../quiz/reading/ReadingSettingsButton'
-import ReadingSettingsSheet from '../quiz/reading/ReadingSettingsSheet'
-import TextToSpeechButton from '../quiz/reading/TextToSpeechButton'
-import PassageViewer from '../quiz/reading/PassageViewer'
-import QuizReviewScreen from '../quiz/review/QuizReviewScreen'
-import { optionsToReadAloudText, questionToReadAloudText } from '../../utils/readAloudText'
-import ExtraQuestionImages from '../quiz/ExtraQuestionImages'
-import DiagramSvg from '../diagrams/DiagramSvg'
-import { imagePositionClasses, resolveQuestionFigure, usesFigurePositionWrapper } from '../../utils/questionFigure'
-import SeoHelmet from '../../shared/components/SeoHelmet'
-import ErrorBoundary from '../../shared/components/ErrorBoundary'
+} from '../../../utils/examService'
+import RichContent from '../../../editor/RichContent'
+import { useQuizDisplayPrefs } from '../../../hooks/useQuizDisplayPrefs'
+import { useQuizReadAloud } from '../../../hooks/useQuizReadAloud'
+import ReadingSettingsButton from '../../../shared/components/ReadingSettingsButton'
+import ReadingSettingsSheet from '../../../shared/components/ReadingSettingsSheet'
+import TextToSpeechButton from '../../../shared/components/TextToSpeechButton'
+import PassageViewer from '../../../shared/components/PassageViewer'
+import QuizReviewScreen from '../../../shared/components/QuizReviewScreen'
+import { optionsToReadAloudText, questionToReadAloudText } from '../../../utils/readAloudText'
+import ExtraQuestionImages from '../../../shared/components/ExtraQuestionImages'
+import DiagramSvg from '../../../components/diagrams/DiagramSvg'
+import { imagePositionClasses, resolveQuestionFigure, usesFigurePositionWrapper } from '../../../utils/questionFigure'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import ErrorBoundary from '../../../shared/components/ErrorBoundary'
 
 // ── Tiny utilities ─────────────────────────────────────────────────────────────
 

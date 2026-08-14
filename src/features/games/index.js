@@ -30,7 +30,7 @@
  * Two names, because two are what the rest of `src/` consumes today:
  *
  *   • `GameBadgeCard`    — `learnerDashboard/BadgesPage`
- *   • `getSubjectMascot` — `components/exams/DailyExamsHub`
+ *   • `getSubjectMascot` — `features/dailyExams/DailyExamsHub`
  *
  * Every name added here lands in the bundle of every consumer that imports
  * anything from this feature, so the list stays at what is actually consumed

@@ -21,7 +21,7 @@ import { MemoryRouter } from 'react-router-dom'
 
 // firebase/config.js runs initializeApp at import time — stub it so the tree
 // imports without a real Firebase project.
-vi.mock('../../firebase/config', () => ({ default: {}, auth: {}, db: {} }))
+vi.mock('../../../firebase/config', () => ({ default: {}, auth: {}, db: {} }))
 
 // examService is entirely Firestore/Callable-backed — stub every function the
 // runner calls. saveProgress is fire-and-forget; the rest drive the flow.
@@ -31,7 +31,7 @@ const mockStartExam = vi.fn()
 const mockRestoreExam = vi.fn()
 const mockSaveProgress = vi.fn()
 const mockSubmitExam = vi.fn()
-vi.mock('../../utils/examService', () => ({
+vi.mock('../../../utils/examService', () => ({
   getExamWithQuestions: (...a) => mockGetExamWithQuestions(...a),
   checkDailyLock: (...a) => mockCheckDailyLock(...a),
   startExam: (...a) => mockStartExam(...a),
@@ -42,17 +42,17 @@ vi.mock('../../utils/examService', () => ({
 
 let mockCurrentUser = { uid: 'learner-1', displayName: 'Test Learner' }
 let mockUserProfile = { displayName: 'Test Learner' }
-vi.mock('../../contexts/AuthContext', () => ({
+vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({ currentUser: mockCurrentUser, userProfile: mockUserProfile }),
 }))
 
 // Render rich-text values as their plain string so option/question text is
 // queryable; keep it a light leaf (no Tiptap, no firebase).
-vi.mock('../../editor/RichContent', () => ({
+vi.mock('../../../editor/RichContent', () => ({
   default: ({ value }) => <span>{typeof value === 'string' ? value : ''}</span>,
 }))
-vi.mock('../quiz/ExtraQuestionImages', () => ({ default: () => null }))
-vi.mock('../../shared/components/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../shared/components/ExtraQuestionImages', () => ({ default: () => null }))
+vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
 
 const mockNavigate = vi.fn()
 vi.mock('react-router-dom', async (importOriginal) => {

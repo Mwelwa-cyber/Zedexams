@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { subscribeToRecentActivity, timeAgo } from '../../utils/gamificationService'
-import Skeleton from '../../shared/components/Skeleton'
+import { subscribeToRecentActivity, timeAgo } from '../../../utils/gamificationService'
+import Skeleton from '../../../shared/components/Skeleton'
 
 /**
  * LiveActivityFeed — a "feel-alive" side panel that streams the latest

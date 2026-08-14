@@ -17,13 +17,13 @@
 
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
-import { SUBJECTS } from '../../config/curriculum'
-import { getTodaysExamsBySubject, checkTodaysLocks } from '../../utils/examService'
-import { getSubjectMascot } from '../../features/games'
-import Navbar from '../layout/Navbar'
-import SeoHelmet from '../../shared/components/SeoHelmet'
-import Skeleton from '../../shared/components/Skeleton'
+import { useAuth } from '../../../contexts/AuthContext'
+import { SUBJECTS } from '../../../config/curriculum'
+import { getTodaysExamsBySubject, checkTodaysLocks } from '../../../utils/examService'
+import { getSubjectMascot } from '../../../features/games'
+import Navbar from '../../../components/layout/Navbar'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import Skeleton from '../../../shared/components/Skeleton'
 
 // Subject id → game-mascot slug (gamesUi.getSubjectMascot uses slugs
 // like "social" / "arts" / "home", not the full curriculum IDs).

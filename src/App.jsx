@@ -233,10 +233,10 @@ const LibraryItemDetail = lazy(() => import('./features/teacherLibrary/pages/Lib
 const PublicShareView = lazy(() => import('./features/teacherLibrary/pages/PublicShareView'))
 
 // Daily Exams (auth required)
-const DailyExamsHub      = lazy(() => import('./components/exams/DailyExamsHub'))
-const DailyExamRunner    = lazy(() => import('./components/exams/DailyExamRunner'))
-const ExamResultsPage    = lazy(() => import('./components/exams/ExamResultsPage'))
-const ExamLeaderboardPage = lazy(() => import('./components/exams/ExamLeaderboardPage'))
+const DailyExamsHub      = lazy(() => import('./features/dailyExams/pages/DailyExamsHub'))
+const DailyExamRunner    = lazy(() => import('./features/dailyExams/pages/DailyExamRunner'))
+const ExamResultsPage    = lazy(() => import('./features/dailyExams/pages/ExamResultsPage'))
+const ExamLeaderboardPage = lazy(() => import('./features/dailyExams/pages/ExamLeaderboardPage'))
 
 // Public games (no auth)
 const GamesHub = lazy(() => import('./features/games/pages/GamesHub'))

@@ -99,7 +99,7 @@
  *     (QuizList reached it through a freeze shim at
  *     `components/games/GameStickerStyles.jsx` for a few hours; the quiz
  *     migration moved QuizList and the shim was deleted.)
- *   • `Confetti` — `components/exams/ExamCelebrations`, and seven game engines.
+ *   • `Confetti` — `features/dailyExams/ExamCelebrations`, and seven game engines.
  *
  * Consumer count alone would have justified this. What made it necessary was
  * measured: exporting them from `features/games/index.js` instead cost
@@ -125,7 +125,7 @@
  *   • `PassageViewer`, `ReadingSettingsButton`, `ReadingSettingsSheet`,
  *     `TextToSpeechButton`, `ThemePreview` (private to the sheet), and
  *     `QuizReviewScreen` — drawn by `features/quiz/QuizRunnerV2`,
- *     `features/papers/PublicQuizRunner`, and `components/exams/DailyExamRunner`.
+ *     `features/papers/PublicQuizRunner`, and `features/dailyExams/DailyExamRunner`.
  *   • `ExtraQuestionImages` and `ZoomableImage` — the same three, plus the quiz
  *     EDITOR, which stays in `src/components/quiz/` behind the frozen
  *     `admin/CreateQuizV2`. Those two were the ONLY modules the runner and the

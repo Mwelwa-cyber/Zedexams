@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import Confetti from '../../shared/components/Confetti'
+import Confetti from '../../../shared/components/Confetti'
 
 /**
  * ExamCelebrations — animated overlay shown on the ExamResultsPage to make

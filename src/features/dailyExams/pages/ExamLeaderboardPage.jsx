@@ -8,16 +8,16 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
-import { SUBJECTS, GRADES } from '../../config/curriculum'
-import { subscribeToDailyLeaderboard, fmtDuration, fmtDate } from '../../utils/examLeaderboardService'
-import { computeRivalry } from '../../utils/gamificationService'
-import { todayString } from '../../utils/examService'
-import Navbar from '../layout/Navbar'
-import SeoHelmet from '../../shared/components/SeoHelmet'
-import Skeleton from '../../shared/components/Skeleton'
-import LiveActivityFeed from './LiveActivityFeed'
-import WeeklyChampions from './WeeklyChampions'
+import { useAuth } from '../../../contexts/AuthContext'
+import { SUBJECTS, GRADES } from '../../../config/curriculum'
+import { subscribeToDailyLeaderboard, fmtDuration, fmtDate } from '../../../utils/examLeaderboardService'
+import { computeRivalry } from '../../../utils/gamificationService'
+import { todayString } from '../../../utils/examService'
+import Navbar from '../../../components/layout/Navbar'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import Skeleton from '../../../shared/components/Skeleton'
+import LiveActivityFeed from '../components/LiveActivityFeed'
+import WeeklyChampions from '../components/WeeklyChampions'
 
 // ── sub-components ────────────────────────────────────────────────────────────
 

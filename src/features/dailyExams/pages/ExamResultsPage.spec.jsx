@@ -14,18 +14,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
-vi.mock('../../firebase/config', () => ({ default: {}, auth: {}, db: {} }))
+vi.mock('../../../firebase/config', () => ({ default: {}, auth: {}, db: {} }))
 
 const mockGetExamAttempt = vi.fn()
 const mockGetExamWithQuestions = vi.fn()
-vi.mock('../../utils/examService', () => ({
+vi.mock('../../../utils/examService', () => ({
   getExamAttempt: (...a) => mockGetExamAttempt(...a),
   getExamWithQuestions: (...a) => mockGetExamWithQuestions(...a),
 }))
 
 const mockSubscribe = vi.fn()
 const mockGetDailyLeaderboard = vi.fn()
-vi.mock('../../utils/examLeaderboardService', () => ({
+vi.mock('../../../utils/examLeaderboardService', () => ({
   subscribeToDailyLeaderboard: (...a) => mockSubscribe(...a),
   getDailyLeaderboard: (...a) => mockGetDailyLeaderboard(...a),
   fmtDuration: (s) => `${s ?? 0}s`,
@@ -33,12 +33,12 @@ vi.mock('../../utils/examLeaderboardService', () => ({
 
 const mockRecordExamCompletion = vi.fn()
 const mockComputeRivalry = vi.fn()
-vi.mock('../../utils/gamificationService', () => ({
+vi.mock('../../../utils/gamificationService', () => ({
   recordExamCompletion: (...a) => mockRecordExamCompletion(...a),
   computeRivalry: (...a) => mockComputeRivalry(...a),
 }))
 
-vi.mock('../../hooks/useSoundEffects', () => ({
+vi.mock('../../../hooks/useSoundEffects', () => ({
   default: () => ({
     isMuted: false,
     toggleMute: vi.fn(),
@@ -49,13 +49,13 @@ vi.mock('../../hooks/useSoundEffects', () => ({
   }),
 }))
 
-vi.mock('../layout/Navbar', () => ({ default: () => null }))
-vi.mock('../../shared/components/SeoHelmet', () => ({ default: () => null }))
-vi.mock('./ExamCelebrations', () => ({ default: () => null }))
-vi.mock('../../editor/RichContent', () => ({
+vi.mock('../../../components/layout/Navbar', () => ({ default: () => null }))
+vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../components/ExamCelebrations', () => ({ default: () => null }))
+vi.mock('../../../editor/RichContent', () => ({
   default: ({ value }) => <span>{typeof value === 'string' ? value : ''}</span>,
 }))
-vi.mock('../../shared/components/icons', () => ({ Volume2: () => null, VolumeX: () => null }))
+vi.mock('../../../shared/components/icons', () => ({ Volume2: () => null, VolumeX: () => null }))
 
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal()
@@ -63,7 +63,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
 })
 
 let mockCurrentUser = { uid: 'learner-1' }
-vi.mock('../../contexts/AuthContext', () => ({
+vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({ currentUser: mockCurrentUser }),
 }))
 
