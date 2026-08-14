@@ -43,8 +43,8 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
  * addition to this list, which is the moment to notice it needs the helper.
  */
 const DISPLAY_SITES = [
-  'src/components/quiz/QuizRunnerV2.jsx',
-  'src/components/quiz/QuizResultsV2.jsx',
+  'src/features/quiz/pages/QuizRunnerV2.jsx',
+  'src/features/quiz/pages/QuizResultsV2.jsx',
   'src/components/quiz/QuizEditorPreviewPanel.jsx',
   'src/components/exams/DailyExamRunner.jsx',
   'src/components/exams/ExamResultsPage.jsx',

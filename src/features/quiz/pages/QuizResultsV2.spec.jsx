@@ -11,12 +11,12 @@ import { MemoryRouter } from 'react-router-dom'
 
 // firebase/config.js runs initializeApp at import time — stub it so the
 // component tree can import without a real Firebase project.
-vi.mock('../../firebase/config', () => ({ default: {}, auth: {}, db: {} }))
+vi.mock('../../../firebase/config', () => ({ default: {}, auth: {}, db: {} }))
 
 const mockGetResultById = vi.fn()
 const mockGetQuestions = vi.fn()
 const mockGetQuizById = vi.fn()
-vi.mock('../../hooks/useFirestore', () => ({
+vi.mock('../../../hooks/useFirestore', () => ({
   useFirestore: () => ({
     getResultById: mockGetResultById,
     getQuestions: mockGetQuestions,
@@ -24,11 +24,11 @@ vi.mock('../../hooks/useFirestore', () => ({
   }),
 }))
 
-vi.mock('../../contexts/AuthContext', () => ({
+vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({ userProfile: { role: 'learner' } }),
 }))
 
-vi.mock('../../hooks/useSoundEffects', () => ({
+vi.mock('../../../hooks/useSoundEffects', () => ({
   default: () => ({
     isMuted: false,
     toggleMute: vi.fn(),
@@ -40,10 +40,10 @@ vi.mock('../../hooks/useSoundEffects', () => ({
 }))
 
 // Heavy / unrelated leaves — stub to keep the render light.
-vi.mock('../../editor/RichContent', () => ({ default: () => null, getRichPlainText: () => '' }))
-vi.mock('../seo/SeoHelmet', () => ({ default: () => null }))
-vi.mock('../diagrams/DiagramSvg', () => ({ default: () => null }))
-vi.mock('../../utils/aiAssistant', () => ({ explainQuizAnswer: vi.fn() }))
+vi.mock('../../../editor/RichContent', () => ({ default: () => null, getRichPlainText: () => '' }))
+vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../components/diagrams/DiagramSvg', () => ({ default: () => null }))
+vi.mock('../../../utils/aiAssistant', () => ({ explainQuizAnswer: vi.fn() }))
 
 const mockNavigate = vi.fn()
 vi.mock('react-router-dom', async (importOriginal) => {

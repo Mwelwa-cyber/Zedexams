@@ -235,14 +235,23 @@ const KNOWN_LEGACY_FEATURE_IMPORTS = new Set([
   // those six references at features/subscription, and remove this line — the
   // moment the Phase 3 rollout flags reach 100%.
   'src/components/subscription/UpgradeModal.jsx → ../../features/subscription/components/UpgradeModal',
-  // The `games` migration (2026-08-14) hit the same freeze and needed the same
-  // shim — components/quiz/QuizList.jsx renders the games sticker stylesheet and
-  // components/quiz/ was not part of the owner ruling that released games. It is
-  // deliberately NOT on this list: src/components/games/GameStickerStyles.jsx
-  // re-exports from src/shared/components/, not from a feature, so there is
-  // nothing here to record. A shim onto the shared layer is a legal import for
-  // the legacy tree; a shim into a feature is debt. Where the moved module can
-  // honestly live below both callers, that is the cheaper of the two shims.
+  // Two migrations on 2026-08-14 hit the same freeze and added SEVEN shims
+  // between them, and not one of them is on this list. That is the finding, not
+  // an omission: every one points at src/shared/components/ rather than into a
+  // feature, and the legacy tree is allowed to read the shared layer. A shim
+  // onto shared costs nothing here; a shim into a feature is debt. So when a
+  // module a frozen file needs can honestly live BELOW both callers, promoting
+  // it is both the cheaper shim and the better placement.
+  //
+  //   • games:  components/games/GameStickerStyles.jsx, for the then-frozen
+  //     components/quiz/QuizList.jsx. Created and RETIRED the same day — the
+  //     quiz migration moved QuizList, which was its only consumer, so it now
+  //     imports the shared component directly and src/components/games/ is gone.
+  //   • quiz:   six shims under components/quiz/{reading,review}/ and
+  //     components/quiz/ExtraQuestionImages.jsx, for components/exams/
+  //     DailyExamRunner.jsx — on the freeze list in its own right, outside
+  //     Phase 3, and not covered by the ruling that released components/quiz/.
+  //     They retire together with that runner.
   'src/components/teacher/TeacherDashboard.jsx → ../../features/teacherSettings/lib/useTeachingProfile',
   // FORCED, and recorded rather than avoided — `teacherShell` PR B. Every other
   // entry on this list clears when its caller migrates into a feature; this one

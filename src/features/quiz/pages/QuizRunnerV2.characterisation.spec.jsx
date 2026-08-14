@@ -51,14 +51,14 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { MemoryRouter, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ThemeProvider } from '../../contexts/ThemeContext'
-import { useAuth } from '../../contexts/AuthContext'
-import { useDataSaver } from '../../contexts/DataSaverContext'
-import { useSubscription } from '../../hooks/useSubscription'
-import { useFirestore } from '../../hooks/useFirestore'
-import { describeSessionContract } from '../../engines/assessment-engine/session/characterisation/sessionContract.jsx'
+import { ThemeProvider } from '../../../contexts/ThemeContext'
+import { useAuth } from '../../../contexts/AuthContext'
+import { useDataSaver } from '../../../contexts/DataSaverContext'
+import { useSubscription } from '../../../hooks/useSubscription'
+import { useFirestore } from '../../../hooks/useFirestore'
+import { describeSessionContract } from '../../../engines/assessment-engine/session/characterisation/sessionContract.jsx'
 
-vi.mock('../../firebase/config', () => ({ default: {}, auth: {}, db: {} }))
+vi.mock('../../../firebase/config', () => ({ default: {}, auth: {}, db: {} }))
 
 // ── Every mocked hook returns ONE reference, for the life of the file ────────
 //
@@ -75,40 +75,40 @@ const mockFirestore = {
   getQuestions: (...a) => mockGetQuestions(...a),
   saveResult: (...a) => mockSaveResult(...a),
 }
-vi.mock('../../hooks/useFirestore', () => ({ useFirestore: () => mockFirestore }))
+vi.mock('../../../hooks/useFirestore', () => ({ useFirestore: () => mockFirestore }))
 
 const mockAuth = { currentUser: { uid: 'learner-1' } }
 const mockSubscription = { canUseExamMode: true, canAccessFullContent: true }
 const mockDataSaver = { dataSaver: false }
-vi.mock('../../contexts/AuthContext', () => ({ useAuth: () => mockAuth }))
-vi.mock('../../hooks/useSubscription', () => ({ useSubscription: () => mockSubscription }))
-vi.mock('../../contexts/DataSaverContext', () => ({ useDataSaver: () => mockDataSaver }))
+vi.mock('../../../contexts/AuthContext', () => ({ useAuth: () => mockAuth }))
+vi.mock('../../../hooks/useSubscription', () => ({ useSubscription: () => mockSubscription }))
+vi.mock('../../../contexts/DataSaverContext', () => ({ useDataSaver: () => mockDataSaver }))
 
 // The persistence boundary is the observable artifact — recorded, not stubbed
 // away, because "what exactly gets persisted" is a contract behaviour.
 const mockSaveQuizSession = vi.fn()
 const mockLoadQuizSession = vi.fn()
-vi.mock('../../hooks/useQuizPersistence', () => ({
+vi.mock('../../../hooks/useQuizPersistence', () => ({
   saveQuizSession: (...a) => mockSaveQuizSession(...a),
   loadQuizSession: (...a) => mockLoadQuizSession(...a),
   clearQuizSession: vi.fn(),
 }))
 
-vi.mock('../../utils/geminiChecker', () => ({ checkAnswerWithAI: vi.fn() }))
-vi.mock('../../utils/examService', () => ({
+vi.mock('../../../utils/geminiChecker', () => ({ checkAnswerWithAI: vi.fn() }))
+vi.mock('../../../utils/examService', () => ({
   numericMatches: () => false,
   hotspotMatches: () => false,
 }))
-vi.mock('../../editor/RichContent', () => ({
+vi.mock('../../../editor/RichContent', () => ({
   default: ({ value }) => <span>{typeof value === 'string' ? value : ''}</span>,
   getRichPlainText: (v) => (typeof v === 'string' ? v : ''),
 }))
-vi.mock('../seo/SeoHelmet', () => ({ default: () => null }))
-vi.mock('../diagrams/DiagramSvg', () => ({ default: () => null }))
-vi.mock('./ZoomableImage', () => ({ default: () => null }))
-vi.mock('./ExtraQuestionImages', () => ({ default: () => null }))
-vi.mock('./QuizTip', () => ({ default: () => null }))
-vi.mock('../subscription/UpgradeModal', () => ({ default: () => <div>Upgrade</div> }))
+vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../components/diagrams/DiagramSvg', () => ({ default: () => null }))
+vi.mock('../../../shared/components/ZoomableImage', () => ({ default: () => null }))
+vi.mock('../../../shared/components/ExtraQuestionImages', () => ({ default: () => null }))
+vi.mock('../components/QuizTip', () => ({ default: () => null }))
+vi.mock('../../../components/subscription/UpgradeModal', () => ({ default: () => <div>Upgrade</div> }))
 
 const mockNavigate = vi.fn()
 const mockParams = { quizId: 'quiz-1' }

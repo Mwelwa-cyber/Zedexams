@@ -17,16 +17,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { ThemeProvider } from '../../contexts/ThemeContext'
+import { ThemeProvider } from '../../../contexts/ThemeContext'
 
 // firebase/config.js runs initializeApp at import time — stub it so the tree
 // imports without a real Firebase project.
-vi.mock('../../firebase/config', () => ({ default: {}, auth: {}, db: {} }))
+vi.mock('../../../firebase/config', () => ({ default: {}, auth: {}, db: {} }))
 
 const mockGetQuizById = vi.fn()
 const mockGetQuestions = vi.fn()
 const mockSaveResult = vi.fn()
-vi.mock('../../hooks/useFirestore', () => ({
+vi.mock('../../../hooks/useFirestore', () => ({
   useFirestore: () => ({
     getQuizById: mockGetQuizById,
     getQuestions: mockGetQuestions,
@@ -35,21 +35,21 @@ vi.mock('../../hooks/useFirestore', () => ({
 }))
 
 let mockCurrentUser = { uid: 'learner-1' }
-vi.mock('../../contexts/AuthContext', () => ({
+vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({ currentUser: mockCurrentUser }),
 }))
 
 let mockSubscription = { canUseExamMode: true, canAccessFullContent: true }
-vi.mock('../../hooks/useSubscription', () => ({
+vi.mock('../../../hooks/useSubscription', () => ({
   useSubscription: () => mockSubscription,
 }))
 
-vi.mock('../../contexts/DataSaverContext', () => ({
+vi.mock('../../../contexts/DataSaverContext', () => ({
   useDataSaver: () => ({ dataSaver: false }),
 }))
 
 const mockLoadQuizSession = vi.fn()
-vi.mock('../../hooks/useQuizPersistence', () => ({
+vi.mock('../../../hooks/useQuizPersistence', () => ({
   saveQuizSession: vi.fn(),
   loadQuizSession: (...args) => mockLoadQuizSession(...args),
   clearQuizSession: vi.fn(),
@@ -58,27 +58,27 @@ vi.mock('../../hooks/useQuizPersistence', () => ({
 // Network / AI leaf — never call the real checker in a unit test. Kept behind a
 // handle so tests can make it resolve (online) or reject (offline).
 const mockCheckAnswerWithAI = vi.fn()
-vi.mock('../../utils/geminiChecker', () => ({ checkAnswerWithAI: (...a) => mockCheckAnswerWithAI(...a) }))
+vi.mock('../../../utils/geminiChecker', () => ({ checkAnswerWithAI: (...a) => mockCheckAnswerWithAI(...a) }))
 
 // examService.js calls getFunctions(app) at import time; QuizRunnerV2 only
 // pulls two pure grading helpers from it, so stub the module.
-vi.mock('../../utils/examService', () => ({
+vi.mock('../../../utils/examService', () => ({
   numericMatches: () => false,
   hotspotMatches: () => false,
 }))
 
 // Heavy or firebase-touching visual leaves — stub to null so the render is
 // light and self-contained. RichContent must keep its named export.
-vi.mock('../../editor/RichContent', () => ({
+vi.mock('../../../editor/RichContent', () => ({
   default: ({ value }) => <span>{typeof value === 'string' ? value : ''}</span>,
   getRichPlainText: (v) => (typeof v === 'string' ? v : ''),
 }))
-vi.mock('../seo/SeoHelmet', () => ({ default: () => null }))
-vi.mock('../diagrams/DiagramSvg', () => ({ default: () => null }))
-vi.mock('./ZoomableImage', () => ({ default: () => null }))
-vi.mock('./ExtraQuestionImages', () => ({ default: () => null }))
-vi.mock('./QuizTip', () => ({ default: () => null }))
-vi.mock('../subscription/UpgradeModal', () => ({ default: () => <div>Upgrade</div> }))
+vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../components/diagrams/DiagramSvg', () => ({ default: () => null }))
+vi.mock('../../../shared/components/ZoomableImage', () => ({ default: () => null }))
+vi.mock('../../../shared/components/ExtraQuestionImages', () => ({ default: () => null }))
+vi.mock('../components/QuizTip', () => ({ default: () => null }))
+vi.mock('../../../components/subscription/UpgradeModal', () => ({ default: () => <div>Upgrade</div> }))
 
 const mockNavigate = vi.fn()
 let searchParamsValue = ''

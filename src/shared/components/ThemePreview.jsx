@@ -1,4 +1,4 @@
-import { resolveQuizDisplayVars } from '../../../utils/quizDisplayPrefs'
+import { resolveQuizDisplayVars } from '../../utils/quizDisplayPrefs'
 
 /**
  * Live preview of the current reading preferences. Renders a miniature quiz

@@ -8,11 +8,21 @@
  * `components/games/PlayGame.jsx` — and so are the three `QuizRunnerV2` specs
  * that `vi.mock('../subscription/UpgradeModal')`.
  *
- * The third was released on 2026-08-14 and is now
- * `features/games/pages/PlayGame.jsx`. It still imports this shim, for the
- * chunk reason below rather than for the freeze — that half of the argument was
- * never about which files may be edited. The two quiz files and the three specs
- * are still frozen, so nothing here changes.
+ * **All six were released on 2026-08-14, and this file now has NO frozen
+ * consumer left.** `PlayGame` is `features/games/pages/PlayGame.jsx`;
+ * `QuizRunnerV2`, `QuizList` and the three runner specs are under
+ * `features/quiz/pages/`. The paragraph above is the history, kept because it
+ * is why this file exists — but it is no longer why it survives.
+ *
+ * What survives is the chunk argument below, which never depended on the
+ * freeze: routing these six at `features/subscription` would put the status
+ * banner, `PremiumGate` and `RenewalBanner` into the chunks of the quiz runner,
+ * the quizzes hub and the play-game route. So the RETIREMENT CONDITION has
+ * changed, and it is now a measurement rather than a date: build both ways,
+ * compare those three chunks, and repoint if the front door costs nothing. That
+ * is this shim's own work — it was deliberately not smuggled into either file
+ * move, because a bundle regression hidden inside a rename is exactly what the
+ * migrations of that day were measuring against.
  *
  * The freeze is not about those files' contents being delicate in the
  * abstract. Phase 3 is replacing the quiz runner behind rollout flags, and its

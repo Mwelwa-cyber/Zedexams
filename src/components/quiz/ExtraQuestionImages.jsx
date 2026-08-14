@@ -1,56 +1,26 @@
 /**
- * ExtraQuestionImages — render a question's ADDITIONAL figures (the `images[]`
- * array) stacked vertically below the primary `imageUrl`.
+ * RE-EXPORT SHIM — the real component is
+ * `src/shared/components/ExtraQuestionImages.jsx`.
  *
- * A question carries one primary image (`imageUrl`, rendered by each surface as
- * before) plus, for multi-figure scanned questions, zero or more extra figures
- * in `question.images = [{ url, alt, width }]`. This component renders just the
- * extras, so every runner/preview can drop it in right after its existing
- * primary-image block without touching that code. Renders nothing when there
- * are no extras, so single-image questions are completely unaffected.
+ * DO NOT ADD LOGIC HERE, and do not import it from anywhere new. One consumer
+ * keeps this path alive: `components/exams/DailyExamRunner.jsx` (and its spec),
+ * which is named on the architecture.md §14 freeze list in its own right. The
+ * 2026-08-14 ruling released `components/quiz/`; it did not release the daily
+ * exam runner, which is outside Phase 3 entirely and retires with the Daily
+ * Quiz rework.
+ *
+ * So the migration goes around that file rather than through it, and the runner
+ * is byte-identical to `main`. Unlike a shim into a feature, this one costs no
+ * entry on `test:import-boundaries`' debt list: it points at
+ * `src/shared/components/`, and the legacy tree is allowed to read the shared
+ * layer. `src/shared/components/index.js` records why the component landed
+ * there rather than in `features/quiz`.
+ *
+ * RETIREMENT CONDITION: delete this file and repoint `DailyExamRunner.jsx` at
+ * `../../shared/components/ExtraQuestionImages` when the Daily Quiz rework
+ * replaces that runner — or sooner, if the freeze lifts first. Five siblings
+ * retire with it, and that empties `src/components/quiz/reading/` and
+ * `src/components/quiz/review/`.
  */
 
-import ZoomableImage from './ZoomableImage'
-
-/** Normalised extra images for a question (drops empty/invalid entries). */
-export function getExtraQuestionImages(question) {
-  const list = Array.isArray(question?.images) ? question.images : []
-  return list
-    .filter((img) => img && typeof img.url === 'string' && img.url)
-    .map((img) => ({ url: img.url, alt: img.alt || '', width: img.width || 'full' }))
-}
-
-export default function ExtraQuestionImages({ question, zoomable = true, className = '' }) {
-  const extras = getExtraQuestionImages(question)
-  if (!extras.length) return null
-  return (
-    <div className={`flex flex-col gap-3 ${className}`}>
-      {extras.map((img, i) =>
-        zoomable ? (
-          <div
-            key={img.url || i}
-            className="overflow-hidden rounded-2xl border-2 border-slate-900 bg-slate-50 p-3"
-          >
-            <ZoomableImage
-              src={img.url}
-              alt={img.alt || 'Additional figure'}
-              className="mx-auto max-h-[80vh] w-full rounded-xl object-contain"
-            />
-          </div>
-        ) : (
-          <div
-            key={img.url || i}
-            className="theme-border theme-bg-subtle overflow-hidden rounded-2xl border p-3"
-          >
-            <img
-              src={img.url}
-              alt={img.alt || 'Additional figure'}
-              className="mx-auto max-h-72 w-full rounded-xl object-contain"
-              loading="lazy"
-            />
-          </div>
-        ),
-      )}
-    </div>
-  )
-}
+export { default } from '../../shared/components/ExtraQuestionImages'

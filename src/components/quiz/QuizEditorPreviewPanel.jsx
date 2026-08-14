@@ -3,8 +3,8 @@ import { buildQuizDisplaySections } from '../../utils/quizSections.js'
 import { optionLabel } from '../../utils/mcqChoices'
 // Format-aware renderer: handles both legacy HTML and Tiptap JSON quizzes.
 import RichContent from '../../editor/RichContent'
-import ZoomableImage from './ZoomableImage'
-import ExtraQuestionImages from './ExtraQuestionImages'
+import ZoomableImage from '../../shared/components/ZoomableImage'
+import ExtraQuestionImages from '../../shared/components/ExtraQuestionImages'
 import DiagramSvg from '../diagrams/DiagramSvg'
 import { imagePositionClasses, resolveQuestionFigure, usesFigurePositionWrapper } from '../../utils/questionFigure'
 

@@ -80,7 +80,7 @@ Theme pinning: removed 2026-08 — the saved reading theme applies on public/aut
 
 ## Public games (no auth)
 
-`/games` → `GamesHub`; `/games/leaderboard` → `GlobalLeaderboard`; `/games/g/:grade` → `SubjectSelector`; `/games/g/:grade/:subject` → `GameList`; `/games/play/:gameId` → `PlayGame`. (`features/games/pages/*` — migrated out of `components/games/` on 2026-08-14; the only file left at the old path is a re-export shim for the frozen `components/quiz/QuizList.jsx`)
+`/games` → `GamesHub`; `/games/leaderboard` → `GlobalLeaderboard`; `/games/g/:grade` → `SubjectSelector`; `/games/g/:grade/:subject` → `GameList`; `/games/play/:gameId` → `PlayGame`. (`features/games/pages/*` — migrated out of `components/games/` on 2026-08-14; that directory is now empty and removed, its one re-export shim having retired the same day when `QuizList` migrated)
 
 ## Learner routes (`ProtectedRoute` + `LearnerOnlyRoute`)
 
@@ -101,10 +101,10 @@ Theme pinning: removed 2026-08 — the saved reading theme applies on public/aut
 | `/exams/leaderboard` | `ExamLeaderboardPage` | |
 | `/exam/:examId` | `DailyExamRunner` | |
 | `/exam-results/:attemptId` | `ExamResultsPage` | |
-| `/quizzes` | `QuizList` | |
+| `/quizzes` | `QuizList` | `features/quiz/pages/` |
 | `/practise/:grade/:subjectId` | `SubjectDrillDown` | Course-map drill-down. |
-| `/quiz/:quizId` | `QuizRunnerV2` (imported as `QuizRunner`) | |
-| `/results/:resultId` | `QuizResultsV2` (imported as `QuizResults`) | |
+| `/quiz/:quizId` | `QuizRunnerV2` (imported as `QuizRunner`) | `features/quiz/pages/`; carries the Phase 3 `quiz` flag branch |
+| `/results/:resultId` | `QuizResultsV2` (imported as `QuizResults`) | `features/quiz/pages/` |
 | `/search` | `LearnerSearch` | |
 | `/notes`, `/notes/:id` | `LearnerNotesList`, `LearnerNoteRead` | Wrapped in `LearnerGate`. |
 | `/lessons`, `/lessons/:lessonId` | `LearnerLessonsList`, `LessonPlayer` | Slide lessons, `LearnerGate`. |
