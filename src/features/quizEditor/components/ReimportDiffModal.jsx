@@ -22,7 +22,7 @@
  */
 
 import { useRef } from 'react'
-import useFocusTrap from '../../hooks/useFocusTrap'
+import useFocusTrap from '../../../hooks/useFocusTrap'
 
 export default function ReimportDiffModal({
   open,

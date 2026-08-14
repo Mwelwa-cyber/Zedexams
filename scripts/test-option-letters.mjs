@@ -45,7 +45,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const DISPLAY_SITES = [
   'src/features/quiz/pages/QuizRunnerV2.jsx',
   'src/features/quiz/pages/QuizResultsV2.jsx',
-  'src/components/quiz/QuizEditorPreviewPanel.jsx',
+  'src/features/quizEditor/components/QuizEditorPreviewPanel.jsx',
   'src/components/exams/DailyExamRunner.jsx',
   'src/components/exams/ExamResultsPage.jsx',
 ]

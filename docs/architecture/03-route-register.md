@@ -131,7 +131,7 @@ learners and admins get the standalone page), `/subscription` → `/my-subscript
 |---|---|
 | `/admin` | `AdminDashboard` |
 | `/admin/lessons` (+ `/new`, `/import`, `/visual/new`, `/:id/edit`) | Notes Studio: `AdminNotesList`, `AdminNoteEditor`, `AdminNoteImport`, `AdminVisualNotesGenerator` |
-| `/admin/quizzes/new`, `/admin/quizzes/:quizId/edit` | `CreateQuizV2`, `EditQuizV2` |
+| `/admin/quizzes/new`, `/admin/quizzes/:quizId/edit` | `CreateQuizV2`, `EditQuizV2` — both `features/quizEditor/pages/` as of 2026-08-14 |
 | `/admin/import/csv` | `AdminCsvImport` |
 | `/admin/content` | `ManageContent` |
 | `/admin/approvals` | `ContentApprovals` (agent content-line approvals) |

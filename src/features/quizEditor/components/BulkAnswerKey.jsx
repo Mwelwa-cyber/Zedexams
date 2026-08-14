@@ -12,7 +12,7 @@
  */
 
 import { useState } from 'react'
-import { ANSWER_LETTERS, parseAnswerKey, countUnansweredQuestions } from './answerKeyUtils'
+import { ANSWER_LETTERS, parseAnswerKey, countUnansweredQuestions } from '../lib/answerKeyUtils'
 
 export default function BulkAnswerKey({ questions = [], onSetOne, onApplyMany, onSuggest, suggesting = false }) {
   const [pasteText, setPasteText] = useState('')

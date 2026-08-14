@@ -1,20 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ref as storageRef, getDownloadURL } from 'firebase/storage'
-import { uploadBytes } from '../../firebase/attestedStorage'
-import { useFirestore } from '../../hooks/useFirestore'
-import { useAuth } from '../../contexts/AuthContext'
-import { useRequestLock } from '../../hooks/useRequestLock'
+import { uploadBytes } from '../../../firebase/attestedStorage'
+import { useFirestore } from '../../../hooks/useFirestore'
+import { useAuth } from '../../../contexts/AuthContext'
+import { useRequestLock } from '../../../hooks/useRequestLock'
 import {
   clearCreateQuizDraft,
   loadCreateQuizDraft,
   saveCreateQuizDraft,
-} from '../../hooks/useCreateQuizDraft'
-import { storage } from '../../firebase/config'
-import { generateAIQuizQuestions } from '../../utils/aiAssistant'
-import { assertFileSignature } from '../../utils/fileSignature'
-import { richifyGeneratedQuestions } from '../quiz/generatedQuizRichText'
-import AiGenerationProgress from '../ui/AiGenerationProgress'
+} from '../../../hooks/useCreateQuizDraft'
+import { storage } from '../../../firebase/config'
+import { generateAIQuizQuestions } from '../../../utils/aiAssistant'
+import { assertFileSignature } from '../../../utils/fileSignature'
+import { richifyGeneratedQuestions } from '../lib/generatedQuizRichText'
+import AiGenerationProgress from '../../../components/ui/AiGenerationProgress'
 import {
   createPartGroup,
   createPassageSection,
@@ -24,26 +24,26 @@ import {
   hasOnlyEmptyStarterSection,
   serializeQuizSections,
   shuffleQuizSections,
-} from '../../utils/quizSections.js'
-import { regroupComprehensionSections, moveQuestionToPassage } from '../../utils/comprehensionGrouping.js'
-import { richTextHasContent } from '../../utils/quizRichText.js'
-import { clampInt } from '../../utils/inputs.js'
-import { getErrorMessage } from '../../utils/errors.js'
-import { validateStandaloneQuestion as sharedValidateStandaloneQuestion, collectQuizIssues } from '../../utils/quizValidation.js'
-import { isSaveableGrade, GRADE_REQUIRED_MESSAGE } from '../../schemas/quiz.js'
-import { assertNoBlobImageUrls } from '../../utils/importedQuizAssets.js'
-import QuizSectionsEditor from '../quiz/QuizSectionsEditor'
-import QuizEditorPreviewPanel from '../quiz/QuizEditorPreviewPanel'
-import QuizValidationChecklist from '../quiz/QuizValidationChecklist'
-import ConfirmDialog from '../ui/ConfirmDialog'
-import SeoHelmet from '../seo/SeoHelmet'
-import { PAPER_SUBJECTS } from '../../config/curriculum'
-import { gradesForFeature, gradeNumberOf } from '../../config/canonicalEducation'
+} from '../../../utils/quizSections.js'
+import { regroupComprehensionSections, moveQuestionToPassage } from '../../../utils/comprehensionGrouping.js'
+import { richTextHasContent } from '../../../utils/quizRichText.js'
+import { clampInt } from '../../../utils/inputs.js'
+import { getErrorMessage } from '../../../utils/errors.js'
+import { validateStandaloneQuestion as sharedValidateStandaloneQuestion, collectQuizIssues } from '../../../utils/quizValidation.js'
+import { isSaveableGrade, GRADE_REQUIRED_MESSAGE } from '../../../schemas/quiz.js'
+import { assertNoBlobImageUrls } from '../../../utils/importedQuizAssets.js'
+import QuizSectionsEditor from '../components/QuizSectionsEditor'
+import QuizEditorPreviewPanel from '../components/QuizEditorPreviewPanel'
+import QuizValidationChecklist from '../components/QuizValidationChecklist'
+import ConfirmDialog from '../../../components/ui/ConfirmDialog'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import { PAPER_SUBJECTS } from '../../../config/curriculum'
+import { gradesForFeature, gradeNumberOf } from '../../../config/canonicalEducation'
 import {
   QUIZ_DOCUMENT_ACCEPT,
   importQuizDocument,
   revokeImportedQuizAssets,
-} from '../quiz/documentQuizImporter'
+} from '../../../components/quiz/documentQuizImporter'
 
 // Both lists derive from the learner catalogue + the canonical ladder.
 const SUBJECTS = PAPER_SUBJECTS.map((s) => s.label)

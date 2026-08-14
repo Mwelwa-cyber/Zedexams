@@ -1,4 +1,4 @@
-import { summarizeImportReview } from '../../utils/importReviewSummary.js'
+import { summarizeImportReview } from '../../../utils/importReviewSummary.js'
 
 /**
  * Inline pill that surfaces a quiz/assessment's import-review state on

@@ -16,7 +16,7 @@
  * it.
  *
  * The markup is the SAME language assessmentPromptV10 asks for and
- * src/components/quiz/importRichText.js converts, so one converter serves
+ * src/shared/utils/importRichText.js converts, so one converter serves
  * every tool.
  */
 

@@ -9,7 +9,7 @@
  */
 
 import { useRef, useState } from 'react'
-import { QUIZ_DOCUMENT_ACCEPT } from './documentQuizImporter'
+import { QUIZ_DOCUMENT_ACCEPT } from '../../../components/quiz/documentQuizImporter'
 
 // Pull the underlying reason out of a "Smart import unavailable, used
 // standard parser. (REASON)" warning so we can render it in a distinct

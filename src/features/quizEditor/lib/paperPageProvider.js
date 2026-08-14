@@ -20,9 +20,9 @@
  */
 
 import { doc, getDoc } from 'firebase/firestore'
-import { db } from '../firebase/config'
-import { resolvePaperUrlSmart } from './pastPapers.js'
-import { pickPaperPageSource } from './paperFigureAttachCore.js'
+import { db } from '../../../firebase/config'
+import { resolvePaperUrlSmart } from '../../../utils/pastPapers.js'
+import { pickPaperPageSource } from '../../../utils/paperFigureAttachCore.js'
 
 // Match the figure-attach pass's OCR-friendly render width so a crop taken
 // here has the same quality as an automatically attached one.
@@ -57,7 +57,7 @@ export function createPaperPageProvider(paperId) {
         const blob = await res.blob()
         const file = new File([blob], asset.filename || 'paper.pdf', { type: 'application/pdf' })
         // Reuse the import pipeline's pdf.js loader (worker config included).
-        const { loadPdfDocument } = await import('../components/quiz/documentQuizImporter.js')
+        const { loadPdfDocument } = await import('../../../components/quiz/documentQuizImporter.js')
         const { pdf } = await loadPdfDocument(file)
         return pdf
       })()

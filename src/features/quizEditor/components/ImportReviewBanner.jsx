@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { summarizeImportReview } from '../../utils/importReviewSummary.js'
+import { summarizeImportReview } from '../../../utils/importReviewSummary.js'
 
 /**
  * In-editor banner that surfaces a record's import-review state when a

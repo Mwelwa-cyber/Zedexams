@@ -28,8 +28,8 @@
  * unmatched passage appends.
  */
 
-import { richTextToPlainText } from './quizRichText.js'
-import { sectionSignature, matchScore } from '../components/quiz/documentQuizReconcile.js'
+import { richTextToPlainText } from '../../../utils/quizRichText.js'
+import { sectionSignature, matchScore } from '../../../components/quiz/documentQuizReconcile.js'
 
 /**
  * Normalise a value to a stable string we can compare across imports.

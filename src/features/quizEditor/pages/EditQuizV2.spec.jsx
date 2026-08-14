@@ -17,7 +17,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
-vi.mock('../../firebase/config', () => ({ default: {}, auth: {}, db: {}, storage: {} }))
+vi.mock('../../../firebase/config', () => ({ default: {}, auth: {}, db: {}, storage: {} }))
 vi.mock('firebase/storage', () => ({
   ref: vi.fn(),
   uploadBytes: vi.fn(),
@@ -31,7 +31,7 @@ const mockGetQuestions = vi.fn()
 // to updateQuizWithQuestions with the quiz id.
 const mockUpdateQuiz = vi.fn()
 const mockUpdateQuizWithQuestions = vi.fn()
-vi.mock('../../hooks/useFirestore', () => ({
+vi.mock('../../../hooks/useFirestore', () => ({
   useFirestore: () => ({
     getQuizById: mockGetQuizById,
     getQuestions: mockGetQuestions,
@@ -41,39 +41,39 @@ vi.mock('../../hooks/useFirestore', () => ({
 }))
 
 let mockAuth = { currentUser: { uid: 'owner-1' }, isAdmin: false }
-vi.mock('../../contexts/AuthContext', () => ({ useAuth: () => mockAuth }))
+vi.mock('../../../contexts/AuthContext', () => ({ useAuth: () => mockAuth }))
 
 // Firebase-touching / heavy leaves used only inside handlers or deep panels.
-vi.mock('../../utils/questionBankService', () => ({ captureQuestionsToBank: vi.fn() }))
-vi.mock('../../utils/aiAssistant', () => ({ suggestQuizAnswers: vi.fn() }))
-vi.mock('../../utils/quizStatus', () => ({ deriveQuizStatus: () => 'draft' }))
-vi.mock('../../editor/RichContent.jsx', () => ({ getRichPlainText: () => '' }))
+vi.mock('../../../utils/questionBankService', () => ({ captureQuestionsToBank: vi.fn() }))
+vi.mock('../../../utils/aiAssistant', () => ({ suggestQuizAnswers: vi.fn() }))
+vi.mock('../../../utils/quizStatus', () => ({ deriveQuizStatus: () => 'draft' }))
+vi.mock('../../../editor/RichContent.jsx', () => ({ getRichPlainText: () => '' }))
 // documentQuizImporter → testPaperDiagram calls getFunctions() at import time.
-vi.mock('./documentQuizImporter', () => ({
+vi.mock('../../../components/quiz/documentQuizImporter', () => ({
   importQuizDocument: vi.fn(),
   revokeImportedQuizAssets: vi.fn(),
 }))
 
 // Heavy child panels — render nothing so the editor's own shell is exercised.
-vi.mock('./ImportQuizPanel', () => ({ default: () => null }))
-vi.mock('./QuizSectionsEditor', () => ({ default: () => null }))
-vi.mock('./QuizEditorPreviewPanel', () => ({ default: () => null }))
-vi.mock('./QuizVerifyModal', () => ({ default: () => null }))
-vi.mock('./BulkAnswerKey', () => ({ default: () => null }))
-vi.mock('./ReviewPanel', () => ({ default: () => null }))
-vi.mock('./StructuralValidationPanel', () => ({ default: () => null }))
-vi.mock('./ImageCropModal', () => ({ default: () => null }))
-vi.mock('./ImportReviewBanner', () => ({ default: () => null }))
-vi.mock('./PastPaperReferenceBanner', () => ({ default: () => null }))
-vi.mock('./QuizEditorActionBar', () => ({ default: () => null }))
-vi.mock('./QuizEditorFloatingNav', () => ({ default: () => null }))
-vi.mock('./QuizValidationChecklist', () => ({ default: () => null }))
-vi.mock('./ReimportDiffModal', () => ({ default: () => null }))
-vi.mock('./QuizWizardSteps', () => ({ default: () => null }))
-vi.mock('./QuizStatusBadge', () => ({ default: () => null }))
-vi.mock('./QuizPublishStep', () => ({ default: () => null }))
-vi.mock('../ui/ConfirmDialog', () => ({ default: () => null }))
-vi.mock('../seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../components/ImportQuizPanel', () => ({ default: () => null }))
+vi.mock('../components/QuizSectionsEditor', () => ({ default: () => null }))
+vi.mock('../components/QuizEditorPreviewPanel', () => ({ default: () => null }))
+vi.mock('../components/QuizVerifyModal', () => ({ default: () => null }))
+vi.mock('../components/BulkAnswerKey', () => ({ default: () => null }))
+vi.mock('../components/ReviewPanel', () => ({ default: () => null }))
+vi.mock('../components/StructuralValidationPanel', () => ({ default: () => null }))
+vi.mock('../components/ImageCropModal', () => ({ default: () => null }))
+vi.mock('../components/ImportReviewBanner', () => ({ default: () => null }))
+vi.mock('../components/PastPaperReferenceBanner', () => ({ default: () => null }))
+vi.mock('../components/QuizEditorActionBar', () => ({ default: () => null }))
+vi.mock('../components/QuizEditorFloatingNav', () => ({ default: () => null }))
+vi.mock('../components/QuizValidationChecklist', () => ({ default: () => null }))
+vi.mock('../components/ReimportDiffModal', () => ({ default: () => null }))
+vi.mock('../components/QuizWizardSteps', () => ({ default: () => null }))
+vi.mock('../components/QuizStatusBadge', () => ({ default: () => null }))
+vi.mock('../components/QuizPublishStep', () => ({ default: () => null }))
+vi.mock('../../../components/ui/ConfirmDialog', () => ({ default: () => null }))
+vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
 
 const mockNavigate = vi.fn()
 vi.mock('react-router-dom', async (importOriginal) => {

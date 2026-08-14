@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ref as storageRef, getDownloadURL } from 'firebase/storage'
-import { uploadBytes } from '../../firebase/attestedStorage'
-import { useFirestore } from '../../hooks/useFirestore'
-import { useAuth } from '../../contexts/AuthContext'
-import { storage, getAppCheckClientState } from '../../firebase/config'
+import { uploadBytes } from '../../../firebase/attestedStorage'
+import { useFirestore } from '../../../hooks/useFirestore'
+import { useAuth } from '../../../contexts/AuthContext'
+import { storage, getAppCheckClientState } from '../../../firebase/config'
 
 /**
  * App Check state for the upload-error describer, which runs inside catch
@@ -28,68 +28,68 @@ import {
   insertStandaloneSection,
   serializeQuizSections,
   shuffleQuizSections,
-} from '../../utils/quizSections.js'
-import { regroupComprehensionSections, moveQuestionToPassage } from '../../utils/comprehensionGrouping.js'
-import { richTextHasContent } from '../../utils/quizRichText.js'
-import { assertFileSignature } from '../../utils/fileSignature'
+} from '../../../utils/quizSections.js'
+import { regroupComprehensionSections, moveQuestionToPassage } from '../../../utils/comprehensionGrouping.js'
+import { richTextHasContent } from '../../../utils/quizRichText.js'
+import { assertFileSignature } from '../../../utils/fileSignature'
 import {
   MAX_ENCODE_ATTEMPTS,
   QUIZ_IMAGE_TARGET_BYTES,
   oversizeImageError,
   planNextEncode,
   uploadErrorMessage,
-} from '../../utils/quizImageUpload.js'
-import { clampInt } from '../../utils/inputs.js'
-import { getErrorMessage } from '../../utils/errors.js'
-import { classifyOnPublish } from '../../utils/quizClassification.js'
-import { captureQuestionsToBank } from '../../utils/questionBankService'
+} from '../../../utils/quizImageUpload.js'
+import { clampInt } from '../../../utils/inputs.js'
+import { getErrorMessage } from '../../../utils/errors.js'
+import { classifyOnPublish } from '../../../utils/quizClassification.js'
+import { captureQuestionsToBank } from '../../../utils/questionBankService'
 import {
   validateStandaloneQuestion as sharedValidateStandaloneQuestion,
   collectQuizIssues,
-} from '../../utils/quizValidation.js'
-import { assertNoBlobImageUrls, applyUploadedImageUrls } from '../../utils/importedQuizAssets.js'
+} from '../../../utils/quizValidation.js'
+import { assertNoBlobImageUrls, applyUploadedImageUrls } from '../../../utils/importedQuizAssets.js'
 import {
   assetsById,
   buildStandaloneSection,
   uploadImportedPassageImages,
   uploadImportedQuestionImages,
-} from '../../utils/quizDocumentImport.js'
+} from '../../../utils/quizDocumentImport.js'
 import {
   importQuizDocument,
   revokeImportedQuizAssets,
-} from './documentQuizImporter'
-import ImportQuizPanel from './ImportQuizPanel'
-import QuizSectionsEditor from './QuizSectionsEditor'
-import QuizEditorPreviewPanel from './QuizEditorPreviewPanel'
-import QuizVerifyModal from './QuizVerifyModal'
-import ConfirmDialog from '../ui/ConfirmDialog'
-import Skeleton from '../ui/Skeleton'
-import BulkAnswerKey from './BulkAnswerKey'
-import { collectAnswerableQuestions, applyAnswerKeyToSections, collectAiAnswerTargets } from './answerKeyUtils'
-import ReviewPanel from './ReviewPanel'
-import { collectReviewItems } from './reviewUtils'
-import StructuralValidationPanel from './StructuralValidationPanel'
-import { runQuizValidation } from '../../utils/quizEngineAdapter.js'
-import { mergeStandaloneSections } from './bulkQuestionOps.js'
-import ImageCropModal from './ImageCropModal'
-import { getRichPlainText } from '../../editor/RichContent.jsx'
-import { suggestQuizAnswers } from '../../utils/aiAssistant'
-import ImportReviewBanner from './ImportReviewBanner'
-import PastPaperReferenceBanner from './PastPaperReferenceBanner'
-import QuizEditorActionBar from './QuizEditorActionBar'
-import QuizEditorFloatingNav from './QuizEditorFloatingNav'
-import QuizValidationChecklist from './QuizValidationChecklist'
-import ReimportDiffModal from './ReimportDiffModal'
-import { diffImportedSections, mergeImportedSections } from '../../utils/quizReimportDiff.js'
-import { isSaveableGrade, GRADE_REQUIRED_MESSAGE } from '../../schemas/quiz.js'
-import QuizWizardSteps from './QuizWizardSteps'
-import QuizStatusBadge from './QuizStatusBadge'
-import QuizPublishStep from './QuizPublishStep'
-import { deriveQuizStatus } from '../../utils/quizStatus'
-import { normalizeSubject } from '../../config/curriculum.js'
-import SeoHelmet from '../seo/SeoHelmet'
-import { PAPER_SUBJECTS } from '../../config/curriculum'
-import { gradesForFeature, gradeNumberOf } from '../../config/canonicalEducation'
+} from '../../../components/quiz/documentQuizImporter'
+import ImportQuizPanel from '../components/ImportQuizPanel'
+import QuizSectionsEditor from '../components/QuizSectionsEditor'
+import QuizEditorPreviewPanel from '../components/QuizEditorPreviewPanel'
+import QuizVerifyModal from '../components/QuizVerifyModal'
+import ConfirmDialog from '../../../components/ui/ConfirmDialog'
+import Skeleton from '../../../components/ui/Skeleton'
+import BulkAnswerKey from '../components/BulkAnswerKey'
+import { collectAnswerableQuestions, applyAnswerKeyToSections, collectAiAnswerTargets } from '../lib/answerKeyUtils'
+import ReviewPanel from '../components/ReviewPanel'
+import { collectReviewItems } from '../lib/reviewUtils'
+import StructuralValidationPanel from '../components/StructuralValidationPanel'
+import { runQuizValidation } from '../../../utils/quizEngineAdapter.js'
+import { mergeStandaloneSections } from '../lib/bulkQuestionOps.js'
+import ImageCropModal from '../components/ImageCropModal'
+import { getRichPlainText } from '../../../editor/RichContent.jsx'
+import { suggestQuizAnswers } from '../../../utils/aiAssistant'
+import ImportReviewBanner from '../components/ImportReviewBanner'
+import PastPaperReferenceBanner from '../components/PastPaperReferenceBanner'
+import QuizEditorActionBar from '../components/QuizEditorActionBar'
+import QuizEditorFloatingNav from '../components/QuizEditorFloatingNav'
+import QuizValidationChecklist from '../components/QuizValidationChecklist'
+import ReimportDiffModal from '../components/ReimportDiffModal'
+import { diffImportedSections, mergeImportedSections } from '../lib/quizReimportDiff.js'
+import { isSaveableGrade, GRADE_REQUIRED_MESSAGE } from '../../../schemas/quiz.js'
+import QuizWizardSteps from '../components/QuizWizardSteps'
+import QuizStatusBadge from '../components/QuizStatusBadge'
+import QuizPublishStep from '../components/QuizPublishStep'
+import { deriveQuizStatus } from '../../../utils/quizStatus'
+import { normalizeSubject } from '../../../config/curriculum.js'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import { PAPER_SUBJECTS } from '../../../config/curriculum'
+import { gradesForFeature, gradeNumberOf } from '../../../config/canonicalEducation'
 
 // Both lists derive from the learner catalogue + the canonical ladder.
 const SUBJECTS = PAPER_SUBJECTS.map((s) => s.label)
@@ -757,7 +757,7 @@ export default function EditQuizV2() {
         // would then build a SECOND provider and orphan the first, whose object
         // URLs only its own dispose() revokes — and the unmount cleanup can
         // only reach the one still in the ref.
-        const pending = import('../../utils/paperPageProvider.js')
+        const pending = import('../lib/paperPageProvider.js')
           .then(({ createPaperPageProvider }) => createPaperPageProvider(sourcePaperId))
         // A failed import must not poison the ref — released so a retry rebuilds,
         // the same rule renderPage() already applies to its own page cache.

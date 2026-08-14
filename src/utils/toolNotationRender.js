@@ -27,7 +27,7 @@
  */
 
 import { latexToSegments } from './latexToUnicode.js'
-import { parseVmathToken } from '../components/quiz/importRichText.js'
+import { parseVmathToken } from '../shared/utils/importRichText.js'
 
 const VMATH_LINE_RE = /^\s*\[\[\s*vmath\b([^\]]*)\]\]\s*$/i
 const FRACTION_RE = /(\d+)?\\frac\{([^{}]*)\}\{([^{}]*)\}/

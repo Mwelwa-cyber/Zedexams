@@ -1,12 +1,12 @@
 import { memo, useCallback, useMemo, useRef, useState } from 'react'
-import { QUESTION_LETTERS } from '../../utils/quizSections.js'
-import { countBlanks, statementLabel, BLANK_TOKEN } from '../../utils/fillBlanks.js'
-import { clampInt } from '../../utils/inputs.js'
-import { questionValidationStatus } from '../../utils/quizEngineAdapter.js'
-import { sanitizeBulkPatch } from './bulkQuestionOps.js'
-import DiagramSvg from '../diagrams/DiagramSvg.jsx'
-import DiagramPicker from '../diagrams/DiagramPicker.jsx'
-import { getDiagram } from '../diagrams/diagramCatalog.js'
+import { QUESTION_LETTERS } from '../../../utils/quizSections.js'
+import { countBlanks, statementLabel, BLANK_TOKEN } from '../../../utils/fillBlanks.js'
+import { clampInt } from '../../../utils/inputs.js'
+import { questionValidationStatus } from '../../../utils/quizEngineAdapter.js'
+import { sanitizeBulkPatch } from '../lib/bulkQuestionOps.js'
+import DiagramSvg from '../../../components/diagrams/DiagramSvg.jsx'
+import DiagramPicker from '../../../components/diagrams/DiagramPicker.jsx'
+import { getDiagram } from '../../../components/diagrams/diagramCatalog.js'
 
 // Live per-card verdict chip from the shared Document Understanding Engine.
 // Computed inside each memoised card (recomputes only when that card's
@@ -370,8 +370,8 @@ import QuizRichField from './QuizRichField'
 import QuestionAiAssistant from './QuestionAiAssistant.jsx'
 // RichContent is format-aware — handles both legacy HTML and Tiptap JSON.
 // Used wherever we previously showed RichTextContent.
-import RichContent from '../../editor/RichContent'
-import ConfirmDialog from '../ui/ConfirmDialog'
+import RichContent from '../../../editor/RichContent'
+import ConfirmDialog from '../../../components/ui/ConfirmDialog'
 
 const THEMES = {
   create: {

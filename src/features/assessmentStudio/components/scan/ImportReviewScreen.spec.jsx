@@ -19,8 +19,14 @@ vi.mock('./DiagramHandlingChooser', () => ({
 }))
 
 // Stub the crop modal (canvas/DOM heavy). Expose a button that returns a blob.
-vi.mock('../../../../components/quiz/ImageCropModal', () => ({
-  default: ({ onCropped }) => (
+//
+// Mocks the FRONT DOOR, because that is what the component imports. Mocking
+// `quizEditor/components/ImageCropModal` still resolves to a real file, so
+// `test:mock-paths` would stay green — and the mock would be a silent no-op with
+// the spec exercising the real canvas-heavy modal. That is the failure mode
+// MIGRATION_TEMPLATE.md step 0 puts first in its table.
+vi.mock('../../../quizEditor', () => ({
+  ImageCropModal: ({ onCropped }) => (
     <button onClick={() => onCropped(new Blob(['x'], { type: 'image/png' }))}>stub-crop-done</button>
   ),
 }))
