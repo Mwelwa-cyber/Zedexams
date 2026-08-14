@@ -1,5 +1,5 @@
 // Import format tokens — plain `node` assertion tests (no DOM).
-// Run: node src/components/quiz/importFormatTokens.test.js
+// Run: node src/shared/utils/importFormatTokens.test.js
 // Wired into test:all via the `test:import-format-tokens` npm script.
 
 import assert from 'node:assert/strict'

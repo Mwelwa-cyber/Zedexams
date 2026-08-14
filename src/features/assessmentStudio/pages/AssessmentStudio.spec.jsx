@@ -42,7 +42,7 @@ let mockAuth = { currentUser: { uid: 'owner-1' }, userProfile: { id: 'owner-1' }
 vi.mock('../../../contexts/AuthContext', () => ({ useAuth: () => mockAuth }))
 
 const mockImportQuizDocument = vi.fn()
-vi.mock('../../../components/quiz/documentQuizImporter', () => ({
+vi.mock('../../../services/quizImport/documentQuizImporter', () => ({
   importQuizDocument: (...args) => mockImportQuizDocument(...args),
   revokeImportedQuizAssets: vi.fn(),
 }))

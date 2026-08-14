@@ -1,7 +1,7 @@
 /**
  * Tests for the crop geometry helpers. Plain `node` ES-module script.
  *
- * Run: node src/components/quiz/cropGeometry.test.js
+ * Run: node src/features/quizEditor/lib/cropGeometry.test.js
  */
 
 import assert from 'node:assert'

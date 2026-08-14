@@ -44,7 +44,7 @@ vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({ currentUser: { uid: 'u1' }, userProfile: { id: 'u1' }, isAdmin: false }),
 }))
 
-vi.mock('../../../components/quiz/documentQuizImporter', () => ({
+vi.mock('../../../services/quizImport/documentQuizImporter', () => ({
   importQuizDocument: vi.fn(), revokeImportedQuizAssets: vi.fn(),
 }))
 vi.mock('../../../utils/aiAssistant', () => ({ generateAIQuizQuestions: vi.fn() }))

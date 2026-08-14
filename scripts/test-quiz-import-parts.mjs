@@ -19,7 +19,7 @@
  */
 
 import assert from 'node:assert/strict'
-import { processImportedQuestionBlocks } from '../src/components/quiz/documentQuizParserCore.js'
+import { processImportedQuestionBlocks } from '../src/services/quizImport/documentQuizParserCore.js'
 
 function block(text, overrides = {}) {
   return { text, assets: [], source: 'docx', numberedList: false, ...overrides }

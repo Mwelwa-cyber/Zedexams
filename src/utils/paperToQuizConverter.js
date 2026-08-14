@@ -26,7 +26,7 @@
 
 import { getDownloadURL, ref as storageRef } from 'firebase/storage'
 import { storage } from '../firebase/config'
-import { importQuizDocument, revokeImportedQuizAssets } from '../components/quiz/documentQuizImporter'
+import { importQuizDocument, revokeImportedQuizAssets } from '../services/quizImport/documentQuizImporter'
 import { serializeQuizSections } from './quizSections'
 import { isOfficialSource } from '../config/paperSources.js'
 import { SUBJECTS } from '../config/curriculum'

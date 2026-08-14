@@ -63,7 +63,7 @@ check(
 const consumers = [
   'src/shared/components/PdfScrollViewer.jsx',
   'src/shared/components/PdfJsViewer.jsx',
-  'src/components/quiz/documentQuizImporter.js',
+  'src/services/quizImport/documentQuizImporter.js',
 ]
 for (const file of consumers) {
   const src = read(file)

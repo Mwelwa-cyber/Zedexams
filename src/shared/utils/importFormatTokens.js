@@ -1,5 +1,5 @@
 /**
- * src/components/quiz/importFormatTokens.js
+ * src/shared/utils/importFormatTokens.js
  *
  * Inline FORMATTING tokens for the quiz import pipeline. The DOCX extractor
  * reads Word run properties (w:rPr — bold / underline / italic / highlight /

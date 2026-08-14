@@ -93,7 +93,7 @@ import { STUDIO_SUBJECTS, STUDIO_GRADES, ASSESSMENT_TYPE_LABELS as ASSESSMENT_TY
 import {
   importQuizDocument,
   revokeImportedQuizAssets,
-} from '../../../components/quiz/documentQuizImporter'
+} from '../../../services/quizImport/documentQuizImporter'
 import { LIBRARY_TYPES } from '../../../config/library'
 import { classifyForLibrary } from '../../../utils/libraryClassification'
 // assessmentToDocx (and the heavy `docx` library behind it) is loaded on

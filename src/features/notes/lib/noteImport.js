@@ -8,7 +8,7 @@
 // Pure helpers (buildDocumentTextWithMarkers, resolveImageBlocks, IMAGE_MARKER_RE)
 // live in noteImportCore.js so they can be unit-tested under plain node.
 
-import { extractDocx, extractPdf, loadPdfDocument, renderPdfPageSnapshot } from '../../../components/quiz/documentQuizImporter.js'
+import { extractDocx, extractPdf, loadPdfDocument, renderPdfPageSnapshot } from '../../../services/quizImport/documentQuizImporter.js'
 import { uploadImportedAssets } from '../../../utils/quizDocumentImport.js'
 import { structureImportedNote, ocrNotePages } from '../../../utils/aiAssistant'
 import { coerceStudyBlocks } from './studySchema'

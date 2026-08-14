@@ -22,11 +22,11 @@
 
 import { doc, getDoc, setDoc, serverTimestamp, writeBatch, arrayUnion } from 'firebase/firestore'
 import { getDownloadURL, ref as storageRef } from 'firebase/storage'
-import { uploadBytes } from '../firebase/attestedStorage'
-import { db, storage } from '../firebase/config'
-import { resolvePaperUrlSmart } from './pastPapers.js'
-import { loadPdfDocument } from '../components/quiz/documentQuizImporter.js'
-import { planFigureAttachments, mergeFigureUrlsIntoPassages, padAndClampBox } from './paperFigureAttachCore.js'
+import { uploadBytes } from '../../../firebase/attestedStorage'
+import { db, storage } from '../../../firebase/config'
+import { resolvePaperUrlSmart } from '../../../utils/pastPapers.js'
+import { loadPdfDocument } from '../../../services/quizImport/documentQuizImporter.js'
+import { planFigureAttachments, mergeFigureUrlsIntoPassages, padAndClampBox } from '../../../utils/paperFigureAttachCore.js'
 
 export { planFigureAttachments, mergeFigureUrlsIntoPassages, padAndClampBox }
 

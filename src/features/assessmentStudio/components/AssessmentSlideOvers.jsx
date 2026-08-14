@@ -16,7 +16,7 @@ import {
   useSyllabusTopicOptions, useStudioSubjectChoices, useSyllabusLevelOptions,
   normalizeStudioFramework,
 } from '../../../components/teacher/syllabusTopicOptions'
-import { QUIZ_DOCUMENT_ACCEPT } from '../../../components/quiz/documentQuizImporter'
+import { QUIZ_DOCUMENT_ACCEPT } from '../../../services/quizImport/documentQuizImporter'
 import PaperPagesPreview from './views/PaperPagesPreview'
 import { isBodyBlock } from '../../../utils/assessmentDocument'
 import { DEFAULT_PAPER_LAYOUT } from '../../../config/paperLayoutTokens'

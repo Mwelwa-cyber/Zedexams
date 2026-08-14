@@ -2,7 +2,7 @@
  * Tests for the review-panel utilities. Plain `node` ES-module script —
  * throws on first failed assertion.
  *
- * Run: node src/components/quiz/reviewUtils.test.js
+ * Run: node src/features/quizEditor/lib/reviewUtils.test.js
  */
 
 import assert from 'node:assert'

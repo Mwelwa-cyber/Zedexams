@@ -1,5 +1,5 @@
 /**
- * src/components/quiz/importFormatChecks.js
+ * src/services/quizImport/importFormatChecks.js
  *
  * Post-import formatting sanity checks. Exam questions frequently refer to
  * their own typography — "what does the underlined word mean?", "study the

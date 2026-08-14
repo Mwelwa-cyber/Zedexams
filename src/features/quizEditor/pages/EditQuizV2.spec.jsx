@@ -49,7 +49,7 @@ vi.mock('../../../utils/aiAssistant', () => ({ suggestQuizAnswers: vi.fn() }))
 vi.mock('../../../utils/quizStatus', () => ({ deriveQuizStatus: () => 'draft' }))
 vi.mock('../../../editor/RichContent.jsx', () => ({ getRichPlainText: () => '' }))
 // documentQuizImporter → testPaperDiagram calls getFunctions() at import time.
-vi.mock('../../../components/quiz/documentQuizImporter', () => ({
+vi.mock('../../../services/quizImport/documentQuizImporter', () => ({
   importQuizDocument: vi.fn(),
   revokeImportedQuizAssets: vi.fn(),
 }))

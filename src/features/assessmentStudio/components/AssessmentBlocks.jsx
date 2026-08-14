@@ -10,7 +10,7 @@ import {
 } from './AssessmentQuestionEditors'
 import { STUDIO_QUESTION_TYPE_OPTIONS, typeSelectValue } from '../lib/assessmentQuestionTypes'
 import { QuestionBlock } from './AssessmentQuestionBlock'
-import { QUIZ_DOCUMENT_ACCEPT } from '../../../components/quiz/documentQuizImporter'
+import { QUIZ_DOCUMENT_ACCEPT } from '../../../services/quizImport/documentQuizImporter'
 import {
   ASSESSMENT_TYPE_LABELS,
   TERMS,

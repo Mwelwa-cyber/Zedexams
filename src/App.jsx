@@ -149,8 +149,8 @@ const PastPaperViewer = lazy(() => import('./features/papers/pages/PastPaperView
 const PastPaperPractice = lazy(() => import('./features/papers/pages/PastPaperPractice'))
 const PublicQuizRunner = lazy(() => import('./features/papers/pages/PublicQuizRunner'))
 const MyPapersHistory = lazy(() => import('./features/papers/pages/MyPapersHistory'))
-const AdminPastPapers = lazy(() => import('./components/admin/AdminPastPapers'))
-const PastPaperStudio = lazy(() => import('./components/admin/PastPaperStudio'))
+const AdminPastPapers = lazy(() => import('./features/adminPastPapers/pages/AdminPastPapers'))
+const PastPaperStudio = lazy(() => import('./features/adminPastPapers/pages/PastPaperStudio'))
 const ZedChatPage = lazy(() => import('./features/zedChat/pages/ZedChatPage'))
 const StatusPage = lazy(() => import('./features/marketing/pages/StatusPage'))
 // Audit C5 — SEO blog. Markdown-driven, posts ship in the bundle.

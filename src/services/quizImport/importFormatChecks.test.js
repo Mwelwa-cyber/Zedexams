@@ -1,5 +1,5 @@
 // Import formatting sanity checks — plain `node` assertion tests.
-// Run: node src/components/quiz/importFormatChecks.test.js
+// Run: node src/services/quizImport/importFormatChecks.test.js
 // Wired into test:all via the `test:import-format-checks` npm script.
 
 import assert from 'node:assert/strict'

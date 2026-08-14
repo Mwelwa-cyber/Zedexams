@@ -16,22 +16,22 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 
-vi.mock('../../firebase/config', () => ({ default: {}, auth: {}, db: {}, storage: {} }))
+vi.mock('../../../firebase/config', () => ({ default: {}, auth: {}, db: {}, storage: {} }))
 
 const mockListAll = vi.fn()
-vi.mock('../../utils/pastPapers', async (importOriginal) => {
+vi.mock('../../../utils/pastPapers', async (importOriginal) => {
   const actual = await importOriginal()
   return { ...actual, listAllPapersForAdmin: (...a) => mockListAll(...a) }
 })
 // The convert-to-quiz path pulls in the document importer → the AI assistant →
 // a real getFunctions(app) at module load. Out of scope here and unmockable
 // through the firebase config stub alone.
-vi.mock('../../utils/paperToQuizConverter', () => ({ convertPaperToQuizDraft: vi.fn() }))
-vi.mock('../../contexts/AuthContext', () => ({ useAuth: () => ({ currentUser: { uid: 'admin-1' } }) }))
-vi.mock('../../hooks/useFirestore', () => ({
+vi.mock('../../../utils/paperToQuizConverter', () => ({ convertPaperToQuizDraft: vi.fn() }))
+vi.mock('../../../contexts/AuthContext', () => ({ useAuth: () => ({ currentUser: { uid: 'admin-1' } }) }))
+vi.mock('../../../hooks/useFirestore', () => ({
   useFirestore: () => ({ createQuiz: vi.fn(), saveQuestions: vi.fn() }),
 }))
-vi.mock('../../shared/components/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal()
   return { ...actual, useNavigate: () => vi.fn() }

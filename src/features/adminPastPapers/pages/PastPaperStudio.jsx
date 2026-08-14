@@ -35,8 +35,8 @@
 
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
-import ConfirmDialog from '../../shared/components/ConfirmDialog'
+import { useAuth } from '../../../contexts/AuthContext'
+import ConfirmDialog from '../../../shared/components/ConfirmDialog'
 import {
   ALLOWED_PAPER_MIME,
   ASSET_ROLES,
@@ -53,7 +53,7 @@ import {
   splitAssetsByRole,
   updatePaper,
   uploadPaperAsset,
-} from '../../utils/pastPapers'
+} from '../../../utils/pastPapers'
 import {
   SOURCE_CONFIDENCE,
   getPaperSource,
@@ -62,26 +62,26 @@ import {
   listPaperSources,
   normalizePaperNumberToken,
   paperNumberLabel,
-} from '../../config/paperSources'
-import { PaperSourceBadge } from '../../features/papers'
+} from '../../../config/paperSources'
+import { PaperSourceBadge } from '../../../features/papers'
 import {
   canDerivePaperKey,
   derivedPaperTitle,
   paperKey as buildPaperKey,
-} from '../../utils/pastPaperNormalize'
+} from '../../../utils/pastPaperNormalize'
 import {
   QUIZ_PENDING_COPY,
   attachQuizFields,
   paperQuizIsAttached,
   pendingQuizFields,
   resolveStudioQuizId,
-} from '../../utils/pastPaperQuizStatus'
-import { PAPER_SUBJECTS } from '../../config/curriculum'
-import { db, getAppCheckClientState } from '../../firebase/config'
+} from '../../../utils/pastPaperQuizStatus'
+import { PAPER_SUBJECTS } from '../../../config/curriculum'
+import { db, getAppCheckClientState } from '../../../firebase/config'
 import {
   storageWriteRejectionMessage,
   WRITE_BLOCKED_MESSAGE,
-} from '../../firebase/appCheckWriteGate'
+} from '../../../firebase/appCheckWriteGate'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import {
   collection,
@@ -95,7 +95,7 @@ import {
 
 // PDF.js viewer is ~400 kB gzipped — only load it once the admin
 // actually reaches step 1 with a PDF asset on screen.
-const PdfJsViewer = lazy(() => import('../../shared/components/PdfJsViewer'))
+const PdfJsViewer = lazy(() => import('../../../shared/components/PdfJsViewer'))
 
 const fns = getFunctions(undefined, 'us-central1')
 // A long paper runs several vision/extraction calls in sequence (one per page
@@ -107,8 +107,8 @@ const importPastPaperQuestionsCallable = httpsCallable(
   'importPastPaperQuestions',
   { timeout: 540_000 },
 )
-import SeoHelmet from '../../shared/components/SeoHelmet'
-import { ImportReportCard } from './pastPaperReport'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import { ImportReportCard } from '../components/pastPaperReport'
 
 const CURRENT_YEAR = new Date().getFullYear()
 const YEARS = Array.from({ length: 25 }, (_, i) => CURRENT_YEAR - i)
@@ -788,7 +788,7 @@ export default function PastPaperStudio() {
       const figures = Array.isArray(res?.data?.report?.figures) ? res.data.report.figures : []
       if (figures.length) {
         try {
-          const { attachPaperFigures } = await import('../../utils/paperFigureAttach.js')
+          const { attachPaperFigures } = await import('../lib/paperFigureAttach.js')
           const fig = await attachPaperFigures({
             uid: currentUser.uid, paperId, quizId, figures, assets, localFiles,
           })

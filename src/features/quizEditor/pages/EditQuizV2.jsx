@@ -57,7 +57,7 @@ import {
 import {
   importQuizDocument,
   revokeImportedQuizAssets,
-} from '../../../components/quiz/documentQuizImporter'
+} from '../../../services/quizImport/documentQuizImporter'
 import ImportQuizPanel from '../components/ImportQuizPanel'
 import QuizSectionsEditor from '../components/QuizSectionsEditor'
 import QuizEditorPreviewPanel from '../components/QuizEditorPreviewPanel'

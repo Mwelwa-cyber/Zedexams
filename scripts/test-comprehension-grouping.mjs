@@ -18,7 +18,7 @@
  */
 
 import assert from 'node:assert/strict'
-import { processImportedQuestionBlocks } from '../src/components/quiz/documentQuizParserCore.js'
+import { processImportedQuestionBlocks } from '../src/services/quizImport/documentQuizParserCore.js'
 import {
   extractKeywords,
   assignByKeywords,

@@ -21,7 +21,7 @@
  *    when the stem is empty; flag them requiresReview so the teacher can type
  *    the wording.
  *
- * Run: node src/components/quiz/scannedQuizImporter.math.test.js
+ * Run: node src/services/quizImport/scannedQuizImporter.math.test.js
  */
 
 import assert from 'node:assert/strict'

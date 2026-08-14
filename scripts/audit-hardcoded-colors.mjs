@@ -108,13 +108,28 @@ const SURFACE = [
   // which is the failure §13 records for the other path-classified ledgers.
   [/^src\/features\/teacherShell\/|^src\/shared\/styles\/dashboardV2\.css|^src\/shared\/components\/(glassSurface\.css|GlassToolTile|BottomSheet)/, 'teacher: dashboardV2 (.tdv2 — tokenised, has is-dark)'],
   [/^src\/components\/teacher\/|^src\/features\/teacherSettings\//, 'teacher: .studio-theme'],
-  [/^src\/components\/admin\//, 'admin'],
+  // `src/components/admin/` is GONE — the past-paper trio was the last of its
+  // 26 files, and it became `features/adminPastPapers` on 2026-08-14 when the
+  // owner ruling closed the freeze. Every other admin surface had already
+  // become its own `features/admin*` feature, so this row is repointed at the
+  // union rather than at one successor: a regex naming a path that no longer
+  // exists matches nothing and drops the surface out of the audit silently.
+  // `features/games/pages/GamesSeedAdmin` is deliberately NOT here — it is
+  // matched by the games row above, which is the surface it actually renders on.
+  [/^src\/features\/admin[A-Z]/, 'admin'],
   // `src/features/quiz/` is the learner RUNTIME (runner + results); QuizList is
   // on the `.force-light-theme` row above, as it was before the migration. The
   // named `shared/components` files are the reading-assist cluster promoted out
   // of `components/quiz/` — named individually rather than by directory,
   // because that directory also holds teacher and admin chrome.
-  [/^src\/components\/(dashboard|exams|lessons|papers|parent|classes|quiz)\/|^src\/features\/(lessons|notes|learnerHome|learnerSettings|quiz)\/|^src\/shared\/components\/(PassageViewer|ReadingSettings|TextToSpeechButton|ThemePreview|QuizReviewScreen|ExtraQuestionImages|ZoomableImage)/, 'learner: reading themes (body.theme-*)'],
+  // `components/exams/` and `components/quiz/` are both GONE as of 2026-08-14:
+  // the daily-exam surface became `features/dailyExams` and the quiz
+  // document-import body went DOWN to `src/services/quizImport/`. The exam
+  // pages are repointed here because they render on the reading themes; the
+  // import body is deliberately NOT repointed anywhere — it is a parser with
+  // no rendered surface, and giving it a themed label would be a false claim
+  // about where its colours appear.
+  [/^src\/components\/(dashboard|lessons|papers|parent|classes)\/|^src\/features\/(lessons|notes|learnerHome|learnerSettings|quiz|dailyExams)\/|^src\/shared\/components\/(PassageViewer|ReadingSettings|TextToSpeechButton|ThemePreview|QuizReviewScreen|ExtraQuestionImages|ZoomableImage)/, 'learner: reading themes (body.theme-*)'],
   // Both halves of this row moved: `components/marketing/` became a feature,
   // and `components/seo/` is gone entirely — `SeoHelmet` was promoted to
   // `src/shared/components/`, so the directory no longer exists to match.

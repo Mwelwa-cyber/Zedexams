@@ -2,7 +2,7 @@
  * Unit tests for the scanned-PDF import orchestration's pure helpers.
  * Plain `node` ES-module script — throws on first failed assertion.
  *
- * Run: node src/components/quiz/scannedQuizImporter.test.js
+ * Run: node src/services/quizImport/scannedQuizImporter.test.js
  *
  * The DOM-backed bits (page rendering) are not exercised here; the logic that
  * decides scanned-vs-native, batches pages, merges batch sections (passages +

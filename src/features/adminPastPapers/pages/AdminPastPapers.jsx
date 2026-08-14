@@ -13,14 +13,14 @@ import {
   PAPER_STATUSES,
   listAllPapersForAdmin,
   updatePaper,
-} from '../../utils/pastPapers'
+} from '../../../utils/pastPapers'
 import {
   QUIZ_PENDING_COPY,
   QUIZ_STATUSES,
   countPendingQuizPapers,
   derivePaperQuizStatus,
-} from '../../utils/pastPaperQuizStatus'
-import { SUBJECTS } from '../../config/curriculum'
+} from '../../../utils/pastPaperQuizStatus'
+import { SUBJECTS } from '../../../config/curriculum'
 import {
   SOURCE_CONFIDENCE,
   isOfficialSource,
@@ -28,13 +28,13 @@ import {
   normalizeSourceConfidence,
   paperNumberLabel,
   paperSourceLabel,
-} from '../../config/paperSources'
-import { PaperSourceBadge } from '../../features/papers'
-import { convertPaperToQuizDraft } from '../../utils/paperToQuizConverter'
-import { useAuth } from '../../contexts/AuthContext'
-import { useFirestore } from '../../hooks/useFirestore'
-import SeoHelmet from '../../shared/components/SeoHelmet'
-import Skeleton from '../../shared/components/Skeleton'
+} from '../../../config/paperSources'
+import { PaperSourceBadge } from '../../../features/papers'
+import { convertPaperToQuizDraft } from '../../../utils/paperToQuizConverter'
+import { useAuth } from '../../../contexts/AuthContext'
+import { useFirestore } from '../../../hooks/useFirestore'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import Skeleton from '../../../shared/components/Skeleton'
 
 const STATUS_LABEL = {
   [PAPER_STATUSES.DRAFT]:     { label: 'Draft',     cls: 'bg-amber-100 text-amber-800' },

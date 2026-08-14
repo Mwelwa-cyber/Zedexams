@@ -36,7 +36,7 @@ vi.mock('../pages/AssessmentStudio', () => ({
   buildHeaderTitleFromForm: () => 'GRADE 4 TOPIC TEST - 2026',
 }))
 vi.mock('../../documentQuizImporter', () => ({ QUIZ_DOCUMENT_ACCEPT: '.doc,.pdf' }), { virtual: true })
-vi.mock('../../../components/quiz/documentQuizImporter', () => ({ QUIZ_DOCUMENT_ACCEPT: '.doc,.pdf' }))
+vi.mock('../../../services/quizImport/documentQuizImporter', () => ({ QUIZ_DOCUMENT_ACCEPT: '.doc,.pdf' }))
 vi.mock('./studioIcons', () => ({ default: () => null }))
 // AssessmentBlocks.jsx imports QuestionBlock from AssessmentQuestionBlock,
 // which transitively imports suggestAnswer → firebase/config. Stub it out so

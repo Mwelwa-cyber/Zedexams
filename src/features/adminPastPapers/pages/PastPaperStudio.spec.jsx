@@ -26,7 +26,7 @@ import { MemoryRouter } from 'react-router-dom'
 // attestation refusal from a rules denial (both arrive as
 // `storage/unauthorized`). Attested + initialised here, so these tests keep
 // exercising the permissions wording.
-vi.mock('../../firebase/config', () => ({
+vi.mock('../../../firebase/config', () => ({
   default: {},
   auth: {},
   db: {},
@@ -60,7 +60,7 @@ const mockGetPaper = vi.fn()
 const mockUploadAsset = vi.fn()
 // The duplicate probe: null means "no other paper holds this key".
 const mockFindPaperByKey = vi.fn(async () => null)
-vi.mock('../../utils/pastPapers', async (importOriginal) => {
+vi.mock('../../../utils/pastPapers', async (importOriginal) => {
   const actual = await importOriginal()
   return {
     ...actual,
@@ -75,8 +75,8 @@ vi.mock('../../utils/pastPapers', async (importOriginal) => {
   }
 })
 
-vi.mock('../../contexts/AuthContext', () => ({ useAuth: () => ({ currentUser: { uid: 'admin-1' } }) }))
-vi.mock('../../shared/components/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../contexts/AuthContext', () => ({ useAuth: () => ({ currentUser: { uid: 'admin-1' } }) }))
+vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
 
 const mockNavigate = vi.fn()
 let searchQuery = 'step=publish'
