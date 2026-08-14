@@ -10,6 +10,10 @@
         "PLAYWRIGHT_MCP_EXECUTABLE_PATH": "${PLAYWRIGHT_MCP_EXECUTABLE_PATH:-}",
         "PLAYWRIGHT_MCP_CONFIG": "${PLAYWRIGHT_MCP_CONFIG:-}"
       }
+    },
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp/oauth"
     }
   }
 }
