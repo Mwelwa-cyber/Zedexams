@@ -30,8 +30,8 @@
 
 import { memo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import Icon from '../../../components/ui/Icon'
-import { ChevronRight } from '../../../components/ui/icons'
+import Icon from '../../../shared/components/Icon'
+import { ChevronRight } from '../../../shared/components/icons'
 import {
   STATUS,
   getSessionStatus,

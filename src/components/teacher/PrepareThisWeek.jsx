@@ -12,7 +12,7 @@
 
 import { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import Icon from '../ui/Icon'
+import Icon from '../../shared/components/Icon'
 import {
   AlertCircle,
   ArrowRight,
@@ -24,7 +24,7 @@ import {
   ClipboardList,
   ListChecks,
   RefreshCw,
-} from '../ui/icons'
+} from '../../shared/components/icons'
 import { capture } from '../../utils/analytics'
 import { gradeLabel, subjectLabel } from '../../utils/teachingProfileCore'
 import useStudioAvailability from '../../hooks/useStudioAvailability'

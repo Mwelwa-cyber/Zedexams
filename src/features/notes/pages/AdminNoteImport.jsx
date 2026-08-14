@@ -10,7 +10,7 @@ import { ImportNotePanel } from '../components/ImportNotePanel'
 import { importNoteDocument } from '../lib/noteImport'
 import { createNote } from '../lib/firestore'
 import { buildStudyExcerpt } from '../lib/studyBlocks'
-import { ArrowLeft } from '../../../components/ui/icons'
+import { ArrowLeft } from '../../../shared/components/icons'
 
 export function AdminNoteImport() {
   const navigate = useNavigate()

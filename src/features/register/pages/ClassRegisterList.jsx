@@ -11,9 +11,9 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { listTeacherRegisters } from '../../../utils/classRegister'
 import { SUBJECTS } from '../../../config/curriculum'
 import { formatClassGrade } from '../../../schemas/classRegister'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import Skeleton from '../../../components/ui/Skeleton'
-import { Users } from '../../../components/ui/icons'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import Skeleton from '../../../shared/components/Skeleton'
+import { Users } from '../../../shared/components/icons'
 
 function RegisterRow({ klass }) {
   const subjectMeta = SUBJECTS.find((s) => s.id === klass.subject || s.label === klass.subject)

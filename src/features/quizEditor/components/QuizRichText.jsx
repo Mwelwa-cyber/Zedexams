@@ -8,7 +8,7 @@ import {
   Palette, Highlighter,
   Sigma, Table as TableIcon,
   X,
-} from '../../../components/ui/icons'
+} from '../../../shared/components/icons'
 import {
   createMathNodeHtml,
   createTableHtml,

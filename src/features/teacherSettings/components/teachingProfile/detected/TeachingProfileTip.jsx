@@ -1,5 +1,5 @@
-import Icon from '../../../../../components/ui/Icon'
-import { Info } from '../../../../../components/ui/icons'
+import Icon from '../../../../../shared/components/Icon'
+import { Info } from '../../../../../shared/components/icons'
 
 /** Small blue helper card shown BELOW the main detected-assignments card. */
 export default function TeachingProfileTip() {

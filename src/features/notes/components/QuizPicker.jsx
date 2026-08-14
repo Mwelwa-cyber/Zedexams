@@ -7,7 +7,7 @@
 // notes-studio (neutral) aesthetic.
 
 import { useEffect, useMemo, useState } from 'react'
-import { Loader2, Search } from '../../../components/ui/icons'
+import { Loader2, Search } from '../../../shared/components/icons'
 import { fetchPublishedQuizzes, quizMatchesSubject } from '../lib/quizzes'
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
 

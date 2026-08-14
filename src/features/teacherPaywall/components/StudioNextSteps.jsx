@@ -13,8 +13,8 @@
  */
 
 import { Link } from 'react-router-dom'
-import Icon from '../../../components/ui/Icon'
-import { ArrowRight } from '../../../components/ui/icons'
+import Icon from '../../../shared/components/Icon'
+import { ArrowRight } from '../../../shared/components/icons'
 import { capture } from '../../../utils/analytics'
 import useStudioAvailability from '../../../hooks/useStudioAvailability'
 

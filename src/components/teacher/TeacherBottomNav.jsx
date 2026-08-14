@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import Icon from '../ui/Icon'
+import Icon from '../../shared/components/Icon'
 import useHideOnScroll from '../../hooks/useHideOnScroll'
 import { BOTTOM_NAV } from './teacherNav'
 

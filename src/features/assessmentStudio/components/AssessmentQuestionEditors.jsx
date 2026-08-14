@@ -11,7 +11,7 @@ import { countBlanks, statementLabel, BLANK_TOKEN } from '../../../utils/fillBla
 import { subPartLabel, sumSubPartMarks, emptySubPart, normalizeSubParts } from '../../../utils/questionParts.js'
 import DiagramSvg from '../../../components/diagrams/DiagramSvg'
 import { SECTION_LETTERS } from '../../../components/teacher/assessmentStudioMeta'
-import ActionMenu from '../../../components/ui/ActionMenu'
+import ActionMenu from '../../../shared/components/ActionMenu'
 import Icon from './studioIcons'
 import { richTextToPlainText, richTextHasFormatting } from '../../../utils/quizRichText.js'
 import MathsRichField from './MathsRichField.jsx'

@@ -10,7 +10,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { getRoleLandingPath } from '../../utils/navigation'
 import { capture } from '../../utils/analytics'
-import SeoHelmet from '../seo/SeoHelmet'
+import SeoHelmet from '../../shared/components/SeoHelmet'
 
 export default function NotFound() {
   const { userProfile } = useAuth()

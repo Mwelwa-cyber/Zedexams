@@ -1,4 +1,4 @@
-import Icon from './Icon'
+import Icon from '../../shared/components/Icon'
 import {
   BookOpen,
   BeakerIcon,
@@ -8,7 +8,7 @@ import {
   ComputerDesktop,
   Language,
   Home,
-} from './icons'
+} from '../../shared/components/icons'
 import { SUBJECT_MAP } from '../../config/curriculum'
 
 const ICONS = {

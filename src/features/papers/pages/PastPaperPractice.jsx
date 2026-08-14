@@ -33,9 +33,9 @@ import {
   startPaperAttempt,
   submitPaperAttempt,
 } from '../../../utils/pastPapers'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import Logo from '../../../components/ui/Logo'
-import Skeleton from '../../../components/ui/Skeleton'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import Logo from '../../../shared/components/Logo'
+import Skeleton from '../../../shared/components/Skeleton'
 
 const PdfJsViewer = lazy(() => import('../../../shared/components/PdfJsViewer'))
 

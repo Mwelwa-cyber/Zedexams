@@ -29,9 +29,9 @@ vi.mock('../../hooks/draft/draftIdbStore', () => ({
 vi.mock('../../utils/teacherLibraryService', () => ({ TOOL_META: {} }))
 vi.mock('../../utils/gamificationService', () => ({ timeAgo: () => 'just now' }))
 vi.mock('../../shared/components/StudioPageHeader', () => ({ default: () => null }))
-vi.mock('../../components/seo/SeoHelmet', () => ({ default: () => null }))
-vi.mock('../../components/ui/Toast', () => ({ useToast: () => Object.assign(vi.fn(), { info: vi.fn(), error: vi.fn(), success: vi.fn() }) }))
-vi.mock('../../components/ui/ConfirmDialog', () => ({
+vi.mock('../../shared/components/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../shared/components/Toast', () => ({ useToast: () => Object.assign(vi.fn(), { info: vi.fn(), error: vi.fn(), success: vi.fn() }) }))
+vi.mock('../../shared/components/ConfirmDialog', () => ({
   default: ({ open, onConfirm }) => (open ? <button onClick={onConfirm}>__confirm__</button> : null),
 }))
 

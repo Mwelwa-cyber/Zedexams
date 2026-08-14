@@ -14,7 +14,7 @@ import { storage } from '../../../firebase/config'
 import { generateAIQuizQuestions } from '../../../utils/aiAssistant'
 import { assertFileSignature } from '../../../utils/fileSignature'
 import { richifyGeneratedQuestions } from '../lib/generatedQuizRichText'
-import AiGenerationProgress from '../../../components/ui/AiGenerationProgress'
+import AiGenerationProgress from '../../../shared/components/AiGenerationProgress'
 import {
   createPartGroup,
   createPassageSection,
@@ -35,8 +35,8 @@ import { assertNoBlobImageUrls } from '../../../utils/importedQuizAssets.js'
 import QuizSectionsEditor from '../components/QuizSectionsEditor'
 import QuizEditorPreviewPanel from '../components/QuizEditorPreviewPanel'
 import QuizValidationChecklist from '../components/QuizValidationChecklist'
-import ConfirmDialog from '../../../components/ui/ConfirmDialog'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import ConfirmDialog from '../../../shared/components/ConfirmDialog'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 import { PAPER_SUBJECTS } from '../../../config/curriculum'
 import { gradesForFeature, gradeNumberOf } from '../../../config/canonicalEducation'
 import {

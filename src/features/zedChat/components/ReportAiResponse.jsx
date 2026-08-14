@@ -2,8 +2,8 @@ import { useCallback, useState } from 'react'
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
-import Icon from '../../../components/ui/Icon'
-import { AlertTriangle } from '../../../components/ui/icons'
+import Icon from '../../../shared/components/Icon'
+import { AlertTriangle } from '../../../shared/components/icons'
 
 /**
  * Report an AI response.

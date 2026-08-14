@@ -18,7 +18,7 @@ const {
   connectionNoticeFor,
   CONNECTION_NOTICES,
   SLOW_CONNECTION_AFTER_MS,
-} = await import('../src/components/ui/aiGenerationStages.js')
+} = await import('../src/shared/components/aiGenerationStages.js')
 
 let pass = 0
 let fail = 0

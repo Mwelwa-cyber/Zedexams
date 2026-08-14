@@ -6,7 +6,7 @@
 // (used when a learner taps "AI Summary" on the library card).
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { Sparkles, ListChecks, Loader2, ChevronDown, AlertCircle } from '../../../components/ui/icons'
+import { Sparkles, ListChecks, Loader2, ChevronDown, AlertCircle } from '../../../shared/components/icons'
 import { fetchCachedInsights, generateInsights, insightsErrorMessage } from '../lib/insights'
 
 export function NoteInsights({ noteId, autoOpen = false }) {

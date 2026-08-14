@@ -63,8 +63,8 @@ vi.mock('../../../hooks/draft/useDraftManager', () => ({
 }))
 vi.mock('../../../shared/components/DraftStatusIndicator', () => ({ default: () => null }))
 vi.mock('../../../shared/components/DraftRecoveryPrompt', () => ({ default: () => null }))
-vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
-vi.mock('../../../components/ui/LiveGenerationCanvas', () => ({ default: () => null }))
+vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../shared/components/LiveGenerationCanvas', () => ({ default: () => null }))
 vi.mock('../components/NotesView', () => ({ default: () => null }))
 vi.mock('../components/NotesPagesPreview', () => ({
   default: ({ paper, boardPreview }) => (

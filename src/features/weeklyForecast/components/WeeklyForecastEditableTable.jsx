@@ -9,7 +9,7 @@
  */
 
 import { forecastColumns, forecastCurriculum, curriculumLabel } from '../../../shared/utils/schemeFormat'
-import ListTextarea from '../../../components/ui/ListTextarea'
+import ListTextarea from '../../../shared/components/ListTextarea'
 
 const LIST_KEYS = new Set(['learningActivities', 'resources'])
 

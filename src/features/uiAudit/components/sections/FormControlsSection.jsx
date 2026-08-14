@@ -11,8 +11,8 @@ import {
   FieldWrapper,
   GenerateButton,
 } from '../../../../shared/components/studioFields'
-import DurationSelect from '../../../../components/ui/DurationSelect'
-import ListTextarea from '../../../../components/ui/ListTextarea'
+import DurationSelect from '../../../../shared/components/DurationSelect'
+import ListTextarea from '../../../../shared/components/ListTextarea'
 import { Block, Section, Specimen } from '../auditKit.jsx'
 import { ForceFocus } from '../forcedStates.jsx'
 

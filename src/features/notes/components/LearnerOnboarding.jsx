@@ -8,7 +8,7 @@
 // Inactive grades (7-12) are visible but disabled — they signal the roadmap.
 
 import { useState } from 'react'
-import { GraduationCap, Lock, Loader2, BookOpen } from '../../../components/ui/icons'
+import { GraduationCap, Lock, Loader2, BookOpen } from '../../../shared/components/icons'
 import { useAuth } from '../../../contexts/AuthContext'
 import { ALL_GRADES, BAND_LABELS } from '../../../config/curriculum'
 import { friendlyMessage } from '../../../utils/friendlyErrors'

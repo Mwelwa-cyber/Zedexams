@@ -23,7 +23,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, LayoutGrid } from '../../components/ui/icons'
+import { ChevronLeft, ChevronRight, LayoutGrid } from './icons'
 
 const IDLE_DIM_MS = 3500
 

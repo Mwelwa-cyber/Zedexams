@@ -7,14 +7,14 @@
 
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Lock } from '../../../components/ui/icons'
+import { Search, Lock } from '../../../shared/components/icons'
 import { useLearnerProfile } from '../../notes/hooks/useLearnerProfile'
 import { useLearnerLessons } from '../hooks/useLearnerLessons'
 import { LearnerLessonCard } from '../components/LearnerLessonCard'
 import { getSubjectsForGrade } from '../../../config/curriculum'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import Skeleton from '../../../components/ui/Skeleton'
-import ContentLoadError from '../../../components/ui/ContentLoadError'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import Skeleton from '../../../shared/components/Skeleton'
+import ContentLoadError from '../../../shared/components/ContentLoadError'
 import '../../notes/styles/notes.css'
 
 export function LearnerLessonsList() {

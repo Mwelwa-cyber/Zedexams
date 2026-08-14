@@ -76,7 +76,7 @@ vi.mock('../../utils/pastPapers', async (importOriginal) => {
 })
 
 vi.mock('../../contexts/AuthContext', () => ({ useAuth: () => ({ currentUser: { uid: 'admin-1' } }) }))
-vi.mock('../seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../shared/components/SeoHelmet', () => ({ default: () => null }))
 
 const mockNavigate = vi.fn()
 let searchQuery = 'step=publish'

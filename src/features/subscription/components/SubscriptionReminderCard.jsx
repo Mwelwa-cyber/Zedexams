@@ -1,8 +1,8 @@
 import { useNavigate } from 'react-router-dom'
 import { useSubscriptionReminder } from '../../../hooks/useSubscriptionReminder'
 import { reminderCopy } from '../../../utils/subscriptionStatus'
-import Icon from '../../../components/ui/Icon'
-import { ArrowRight } from '../../../components/ui/icons'
+import Icon from '../../../shared/components/Icon'
+import { ArrowRight } from '../../../shared/components/icons'
 
 /**
  * Slim subscription card for Free and Expired learners — the compact

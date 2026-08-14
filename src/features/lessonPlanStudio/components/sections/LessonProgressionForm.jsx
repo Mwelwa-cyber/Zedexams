@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ListOrdered } from '../../../../components/ui/icons'
+import { ListOrdered } from '../../../../shared/components/icons'
 import { LessonBreakdownItem } from '../cards/LessonBreakdownItem.jsx'
 
 // ── Shared style constants ────────────────────────────────────────────────────

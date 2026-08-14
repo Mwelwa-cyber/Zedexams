@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import ConfirmDialog from '../../../components/ui/ConfirmDialog'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import ConfirmDialog from '../../../shared/components/ConfirmDialog'
 import SyllabusPdfUploadPanel from '../components/SyllabusPdfUploadPanel'
 import BulkGenerateButton from '../components/BulkGenerateButton'
 import BulkPublishQuizzesButton from '../components/BulkPublishQuizzesButton'

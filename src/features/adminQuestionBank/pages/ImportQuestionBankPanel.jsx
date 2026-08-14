@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
-import Button from '../../../components/ui/Button'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Button from '../../../shared/components/Button'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 import { previewImport, runImport, regradeExistingQuestions } from '../lib/questionBankImport'
 import { bulkApproveOwnedPending } from '../lib/adminQuestionBankService'
 

@@ -34,8 +34,8 @@ import {
 import app, { storage, db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
 import { TEACHER_GRADES, TEACHER_SUBJECTS } from '../../../utils/teacherTools'
-import ConfirmDialog from '../../../components/ui/ConfirmDialog'
-import { useToast } from '../../../components/ui/Toast'
+import ConfirmDialog from '../../../shared/components/ConfirmDialog'
+import { useToast } from '../../../shared/components/Toast'
 
 const functions = getFunctions(app, 'us-central1')
 const uploadCallable = httpsCallable(functions, 'uploadCurriculumModule', {

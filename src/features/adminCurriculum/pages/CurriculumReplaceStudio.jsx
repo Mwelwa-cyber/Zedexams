@@ -2,8 +2,8 @@ import {
   useCallback, useEffect, useMemo, useRef, useState,
 } from 'react'
 
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import ConfirmDialog from '../../../components/ui/ConfirmDialog'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import ConfirmDialog from '../../../shared/components/ConfirmDialog'
 import {
   activateVersion,
   auditArchivedData,

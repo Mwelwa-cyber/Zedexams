@@ -10,8 +10,8 @@
  */
 
 import { Link } from 'react-router-dom'
-import Icon from '../ui/Icon'
-import { ArrowRight } from '../ui/icons'
+import Icon from '../../shared/components/Icon'
+import { ArrowRight } from '../../shared/components/icons'
 import { capture } from '../../utils/analytics'
 import { buildGeneratorQueryString } from '../../utils/useFormDefaultsFromUrl'
 import iconLessonPlan from '../../assets/teacher-icons/lesson-plan.webp'

@@ -11,10 +11,10 @@ import {
   adminGrantPremium,
   adminRevokePremium,
 } from '../lib/adminPaymentsService'
-import Button from '../../../components/ui/Button'
-import Skeleton from '../../../components/ui/Skeleton'
-import ConfirmDialog from '../../../components/ui/ConfirmDialog'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Button from '../../../shared/components/Button'
+import Skeleton from '../../../shared/components/Skeleton'
+import ConfirmDialog from '../../../shared/components/ConfirmDialog'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 import RevenueTrendCard from '../components/RevenueTrendCard'
 
 // Products surfaced in the admin grant dropdown. Ordered by what we

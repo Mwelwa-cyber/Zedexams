@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import { Link } from 'react-router-dom'
 import LegalLayout from '../components/LegalLayout'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 
 /**
  * Public account-deletion request page (zedexams.com/delete-account).

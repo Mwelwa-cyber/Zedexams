@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
-import Button from '../../../components/ui/Button'
-import Icon from '../../../components/ui/Icon'
-import { XMarkIcon, CheckCircleIcon, AlertTriangle } from '../../../components/ui/icons'
+import Button from '../../../shared/components/Button'
+import Icon from '../../../shared/components/Icon'
+import { XMarkIcon, CheckCircleIcon, AlertTriangle } from '../../../shared/components/icons'
 
 const ROLES = [
   { value: 'parent',  label: 'Parent / guardian' },

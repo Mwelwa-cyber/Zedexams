@@ -3,8 +3,8 @@ import { paywall } from '../../../utils/paywall'
 import useFocusTrap from '../../../hooks/useFocusTrap'
 import { isNativePlatform } from '../../../utils/runtime'
 import { capture } from '../../../utils/analytics'
-import Icon from '../../../components/ui/Icon'
-import { ArrowRight, X } from '../../../components/ui/icons'
+import Icon from '../../../shared/components/Icon'
+import { ArrowRight, X } from '../../../shared/components/icons'
 import { BenefitChecklist, PlanPricingCards, TrustRow } from './PremiumUpgradeUI'
 
 const UpgradeModal = lazy(() => import('./UpgradeModal'))

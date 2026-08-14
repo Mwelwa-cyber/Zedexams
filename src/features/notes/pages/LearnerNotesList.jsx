@@ -11,7 +11,7 @@
 
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Lock, BookOpen } from '../../../components/ui/icons'
+import { Search, Lock, BookOpen } from '../../../shared/components/icons'
 import { useLearnerProfile }   from '../hooks/useLearnerProfile'
 import { useLearnerNotes }     from '../hooks/useLearnerNotes'
 import { useNoteProgressMap }  from '../hooks/useNoteProgressMap'
@@ -19,9 +19,9 @@ import { NOTE_PROGRESS_STATUS } from '../lib/progress'
 import { LearnerNoteCard }     from '../components/LearnerNoteCard'
 import { isStudyTipsNote }     from '../lib/noteMeta'
 import { getSubjectsForGrade } from '../../../config/curriculum'
-import SeoHelmet               from '../../../components/seo/SeoHelmet'
-import Skeleton                from '../../../components/ui/Skeleton'
-import ContentLoadError        from '../../../components/ui/ContentLoadError'
+import SeoHelmet               from '../../../shared/components/SeoHelmet'
+import Skeleton                from '../../../shared/components/Skeleton'
+import ContentLoadError        from '../../../shared/components/ContentLoadError'
 import '../styles/notes.css'
 
 export function LearnerNotesList() {

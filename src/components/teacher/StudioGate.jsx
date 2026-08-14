@@ -18,7 +18,7 @@
 import { lazy, Suspense } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { resolveTeacherPlan, PLAN_LIMITS } from '../../utils/teacherPlans'
-import PageLoader from '../ui/PageLoader'
+import PageLoader from '../../shared/components/PageLoader'
 import { UsageReminderBanner } from '../../features/subscription'
 
 const LockedStudio = lazy(() => import('./LockedStudio'))

@@ -96,7 +96,7 @@ vi.mock('../../../contexts/AuthContext', () => ({
     isAdmin:      false,
   }),
 }))
-vi.mock('../../../components/ui/Toast', () => ({
+vi.mock('../../../shared/components/Toast', () => ({
   useToast: () => mockToast,
 }))
 
@@ -173,8 +173,8 @@ vi.mock('../../../components/teacher/views/AssessmentPaperView',   () => ({ defa
 vi.mock('../../../components/teacher/views/FullLessonView',        () => ({ default: () => null }))
 vi.mock('../../schemeOfWork',      () => ({ SchemeOfWorkView: () => null, SchemeEditableTable: () => null }))
 vi.mock('../../weeklyForecast', () => ({ WeeklyForecastView: () => null, WeeklyForecastEditableTable: () => null }))
-vi.mock('../../../components/ui/ConfirmDialog', () => ({ default: () => null }))
-vi.mock('../../../components/seo/SeoHelmet',    () => ({ default: () => null }))
+vi.mock('../../../shared/components/ConfirmDialog', () => ({ default: () => null }))
+vi.mock('../../../shared/components/SeoHelmet',    () => ({ default: () => null }))
 
 // ─────────────────────────────────────────────────────────────────────────────
 

@@ -39,7 +39,7 @@ vi.mock('../../../utils/quizSubjectIntegrity', () => ({
   validateQuizSubjectIntegrity: () => ({ ok: true }),
 }))
 vi.mock('../../../utils/analytics', () => ({ capture: vi.fn() }))
-vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
 vi.mock('../../../hooks/useQuizDisplayPrefs', () => ({
   useQuizDisplayPrefs: () => ({
     prefs: { readAloud: false }, setPref: vi.fn(), resetPrefs: vi.fn(),

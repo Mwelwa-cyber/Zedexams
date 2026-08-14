@@ -1,7 +1,7 @@
-import { ArrowRight, Download, Plus, Trash2 } from '../../../../components/ui/icons'
-import Button from '../../../../components/ui/Button'
-import Icon from '../../../../components/ui/Icon'
-import { HeaderIconButton } from '../../../../components/ui/HeaderIconButton'
+import { ArrowRight, Download, Plus, Trash2 } from '../../../../shared/components/icons'
+import Button from '../../../../shared/components/Button'
+import Icon from '../../../../shared/components/Icon'
+import { HeaderIconButton } from '../../../../shared/components/HeaderIconButton'
 import { Block, Matrix, Section, Specimen, SpecimenGrid } from '../auditKit.jsx'
 import { ForceFocus, ForceHover } from '../forcedStates.jsx'
 
@@ -83,7 +83,7 @@ export default function ButtonsSection() {
       id="buttons"
       title="2 · Buttons"
       note={
-        'Rendered from src/components/ui/Button.jsx. The hover and focus columns are forced — they repeat the primitive\'s own hover/focus declarations so all four can be judged at once; if Button\'s hover rules change, those two columns are the first thing to re-check.'
+        'Rendered from src/shared/components/Button.jsx. The hover and focus columns are forced — they repeat the primitive\'s own hover/focus declarations so all four can be judged at once; if Button\'s hover rules change, those two columns are the first thing to re-check.'
       }
     >
       <Block title="Variant × state">

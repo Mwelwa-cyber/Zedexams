@@ -14,7 +14,7 @@
 
 import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
-import PageLoader from '../../components/ui/PageLoader'
+import PageLoader from '../../shared/components/PageLoader'
 import SettingsHome from './SettingsHome'
 import { LEGACY_TAB_TO_PATH } from './settingsSections'
 import './teacherSettings.css'

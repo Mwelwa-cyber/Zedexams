@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import Button from '../../../components/ui/Button'
-import ConfirmDialog from '../../../components/ui/ConfirmDialog'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Button from '../../../shared/components/Button'
+import ConfirmDialog from '../../../shared/components/ConfirmDialog'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 import { grantDemoTrials } from '../services/demoTrialsService'
 import { downloadCredentialsCsv } from '../export/downloadCredentialsCsv'
 import {

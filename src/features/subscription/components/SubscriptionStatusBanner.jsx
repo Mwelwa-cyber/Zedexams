@@ -4,8 +4,8 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { useSubscriptionReminder } from '../../../hooks/useSubscriptionReminder'
 import { SUB_STATUS } from '../../../utils/subscriptionStatus'
 import { isReminderSuppressedPath } from '../lib/reminderVisibility'
-import Icon from '../../../components/ui/Icon'
-import { X } from '../../../components/ui/icons'
+import Icon from '../../../shared/components/Icon'
+import { X } from '../../../shared/components/icons'
 
 const SESSION_DISMISS_KEY = 'zedexams.subStatusBanner.dismissed'
 

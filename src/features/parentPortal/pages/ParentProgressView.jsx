@@ -20,9 +20,9 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getProgressShare } from '../services/parentShareService'
 import { SUBJECTS } from '../../../config/curriculum'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import Logo from '../../../components/ui/Logo'
-import Skeleton from '../../../components/ui/Skeleton'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import Logo from '../../../shared/components/Logo'
+import Skeleton from '../../../shared/components/Skeleton'
 import SubjectIcon from '../../../components/ui/SubjectIcon'
 
 function formatRelative(ms) {

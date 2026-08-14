@@ -23,7 +23,7 @@ import {
   Calculator, ArrowLeftRight, Maximize2, Minimize2, PaintBrushIcon, Target, Lightbulb,
   Camera, Scale, Files, AlignLeft, Download, Printer, User, Users, Calendar,
   Info, Layout, Lock,
-} from '../../../components/ui/icons'
+} from '../../../shared/components/icons'
 
 // Semantic name → icon component. Names describe ROLE, not glyph, so the
 // underlying icon can change without touching call sites.

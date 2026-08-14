@@ -18,9 +18,9 @@ import {
   TEACHER_GRADES,
   TEACHER_SUBJECTS,
 } from '../../../utils/teacherTools'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import ConfirmDialog from '../../../components/ui/ConfirmDialog'
-import { useToast } from '../../../components/ui/Toast'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import ConfirmDialog from '../../../shared/components/ConfirmDialog'
+import { useToast } from '../../../shared/components/Toast'
 
 /**
  * Admin-only ops page at /admin/generations.

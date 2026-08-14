@@ -2,8 +2,8 @@
 // anywhere on the Settings dashboard. Navigates to the full assistant page.
 
 import { useNavigate } from 'react-router-dom'
-import Icon from '../../../components/ui/Icon'
-import { Sparkles } from '../../../components/ui/icons'
+import Icon from '../../../shared/components/Icon'
+import { Sparkles } from '../../../shared/components/icons'
 
 export default function AiFab() {
   const navigate = useNavigate()

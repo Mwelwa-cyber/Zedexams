@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ChevronDown, ChevronUp, RotateCcw, ListChecks, Sparkles, Check, Volume2, VolumeX } from '../../../components/ui/icons'
+import { ChevronDown, ChevronUp, RotateCcw, ListChecks, Sparkles, Check, Volume2, VolumeX } from '../../../shared/components/icons'
 import { useFirestore } from '../../../hooks/useFirestore'
 import { optionLabel } from '../../../utils/mcqChoices'
 import { useAuth } from '../../../contexts/AuthContext'
@@ -15,10 +15,10 @@ import RichContent, { getRichPlainText } from '../../../editor/RichContent'
 import { answerToText } from '../../../utils/answerText'
 import { isQuestionCorrect } from '../../../utils/quizScoring'
 import DiagramSvg from '../../../components/diagrams/DiagramSvg'
-import Button from '../../../components/ui/Button'
-import Icon from '../../../components/ui/Icon'
-import Skeleton from '../../../components/ui/Skeleton'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Button from '../../../shared/components/Button'
+import Icon from '../../../shared/components/Icon'
+import Skeleton from '../../../shared/components/Skeleton'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 
 // A learner "passes" at 50% — the same threshold that plays the success
 // chime — so the visual celebration and the audio stay in sync.

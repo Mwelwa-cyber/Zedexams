@@ -9,8 +9,8 @@
  */
 
 import { useEffect, useId, useState } from 'react'
-import Icon from '../../components/ui/Icon'
-import { ChevronDown, SlidersHorizontal, Sparkles } from '../../components/ui/icons'
+import Icon from './Icon'
+import { ChevronDown, SlidersHorizontal, Sparkles } from './icons'
 
 export function FieldLabel({ children }) {
   return <label className="studio-label">{children}</label>

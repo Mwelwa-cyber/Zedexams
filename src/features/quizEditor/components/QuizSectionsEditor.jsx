@@ -371,7 +371,7 @@ import QuestionAiAssistant from './QuestionAiAssistant.jsx'
 // RichContent is format-aware — handles both legacy HTML and Tiptap JSON.
 // Used wherever we previously showed RichTextContent.
 import RichContent from '../../../editor/RichContent'
-import ConfirmDialog from '../../../components/ui/ConfirmDialog'
+import ConfirmDialog from '../../../shared/components/ConfirmDialog'
 
 const THEMES = {
   create: {

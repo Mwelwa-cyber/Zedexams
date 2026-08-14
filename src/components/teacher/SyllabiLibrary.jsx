@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import SeoHelmet from '../seo/SeoHelmet'
+import SeoHelmet from '../../shared/components/SeoHelmet'
 import { getMergedSyllabi } from '../../utils/syllabusKbService'
 import {
   resolveColumnRoles, splitSpecificOutcomes, splitPoints,

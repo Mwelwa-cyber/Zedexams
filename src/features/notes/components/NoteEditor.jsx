@@ -25,7 +25,7 @@ import TableModal from '../../../editor/components/modals/TableModal'
 import { buildExtensions } from '../../../editor/extensions/buildExtensions'
 import { sanitizePastedHTML } from '../../../editor/utils/sanitize'
 import { uploadInlineImage } from '../lib/storage'
-import { ImageIcon, Loader2 } from '../../../components/ui/icons'
+import { ImageIcon, Loader2 } from '../../../shared/components/icons'
 import 'katex/dist/katex.min.css'
 import '../../../editor/editor.css'
 

@@ -16,8 +16,8 @@ import {
   SubjectProgressCard,
   buildSubjectProgress,
 } from '../components/gamesUi'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import Skeleton from '../../../components/ui/Skeleton'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import Skeleton from '../../../shared/components/Skeleton'
 
 /**
  * /games/g/:grade — choose a subject inside the selected grade.

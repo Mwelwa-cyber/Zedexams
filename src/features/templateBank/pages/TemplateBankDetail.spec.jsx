@@ -22,7 +22,7 @@ vi.mock('react-router-dom', async () => {
 vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({ currentUser: { uid: 'teacher-1' } }),
 }))
-vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
 vi.mock('../../../utils/teacherLibraryService', () => ({ formatDate: () => '1 Aug 2026' }))
 
 const service = vi.hoisted(() => ({

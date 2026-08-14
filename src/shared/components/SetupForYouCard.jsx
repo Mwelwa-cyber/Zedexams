@@ -25,7 +25,7 @@
  */
 
 import { CalendarDays, X } from 'lucide-react'
-import Chip from '../../components/ui/Chip'
+import Chip from './Chip'
 
 export default function SetupForYouCard({
   title = 'Set up for you — this week’s lesson',

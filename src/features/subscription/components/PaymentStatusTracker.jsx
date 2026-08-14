@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Check, Loader2, Lock } from '../../../components/ui/icons'
-import Icon from '../../../components/ui/Icon'
+import { Check, Loader2, Lock } from '../../../shared/components/icons'
+import Icon from '../../../shared/components/Icon'
 
 // PaymentStatusTracker — the pending-payment lifecycle inside the Lenco
 // checkout, shown from the moment a mobile-money prompt is sent until the

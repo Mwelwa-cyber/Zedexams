@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Check, Loader2, Sparkles, X } from '../../../components/ui/icons'
+import { Check, Loader2, Sparkles, X } from '../../../shared/components/icons'
 import { useAuth } from '../../../contexts/AuthContext'
 import { PLANS } from '../../../utils/subscriptionConfig'
 import { resolveSubscriptionStatus } from '../../../utils/subscriptionStatus'
@@ -13,8 +13,8 @@ import {
   verifyPlayPurchases,
 } from '../../../utils/playBilling'
 import { capture } from '../../../utils/analytics'
-import Button from '../../../components/ui/Button'
-import Icon from '../../../components/ui/Icon'
+import Button from '../../../shared/components/Button'
+import Icon from '../../../shared/components/Icon'
 
 // Android replacement for the Lenco checkout inside UpgradeModal. Google Play
 // policy: digital subscriptions in the app sell through Google Play Billing

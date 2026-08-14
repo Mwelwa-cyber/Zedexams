@@ -13,7 +13,7 @@
 
 import { Link } from 'react-router-dom'
 import StudioPageHeader from '../../../shared/components/StudioPageHeader'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 import { SBA_WORKFLOW_STEPS } from '../components/SbaWorkflowNote'
 
 export default function SbaHub() {

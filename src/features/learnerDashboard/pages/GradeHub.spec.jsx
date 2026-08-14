@@ -65,28 +65,28 @@ vi.mock('../../../utils/examService', () => ({
 // Firebase-touching / heavy child components — render nothing so the test
 // exercises GradeHub's own JSX in isolation. (vi.mock is hoisted above any
 // local const, so each factory is inlined.)
-vi.mock('../../../components/ui/ProfessorPako', () => ({ default: () => null }))
-vi.mock('../../../components/ui/DataSaverToggle', () => ({ default: () => null }))
-vi.mock('../../../components/ui/BadgeCard', () => ({ default: () => null }))
-vi.mock('../../../components/ui/Logo', () => ({ default: () => null }))
-vi.mock('../../../components/ui/OnboardingOverlay', () => ({ default: () => null }))
+vi.mock('../../../shared/components/ProfessorPako', () => ({ default: () => null }))
+vi.mock('../../../shared/components/DataSaverToggle', () => ({ default: () => null }))
+vi.mock('../../../shared/components/BadgeCard', () => ({ default: () => null }))
+vi.mock('../../../shared/components/Logo', () => ({ default: () => null }))
+vi.mock('../../../shared/components/OnboardingOverlay', () => ({ default: () => null }))
 vi.mock('../../../components/ui/PushPermissionPrompt', () => ({ default: () => null }))
 vi.mock('../../../components/ui/VerifyEmailBanner', () => ({ default: () => null }))
 vi.mock('../../subscription', () => ({ SubscriptionReminderCard: () => null }))
 vi.mock('../components/StudyPlanCard', () => ({ default: () => null }))
-vi.mock('../../../components/ui/ThemeSelector', () => ({ default: () => null }))
-vi.mock('../../../components/ui/LanguageToggle', () => ({ default: () => null }))
+vi.mock('../../../shared/components/ThemeSelector', () => ({ default: () => null }))
+vi.mock('../../../shared/components/LanguageToggle', () => ({ default: () => null }))
 vi.mock('../../../components/ui/AnalyticsConsentToggle', () => ({ default: () => null }))
 vi.mock('../../../components/ui/ReplayTourCard', () => ({ default: () => null }))
-vi.mock('../../../components/layout/MobileBottomNav', () => ({ default: () => null }))
+vi.mock('../../../shared/components/MobileBottomNav', () => ({ default: () => null }))
 vi.mock('../../feedback', () => ({ SuggestionNudge: () => null }))
 vi.mock('../../../shared/components/GameStickerStyles', () => ({ default: () => null }))
-vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
 // Light structural primitives — render enough to keep labels/children visible.
-vi.mock('../../../components/ui/Icon', () => ({ default: () => null }))
-vi.mock('../../../components/ui/Skeleton', () => ({ default: () => <div data-testid="skeleton" /> }))
-vi.mock('../../../components/ui/Button', () => ({ default: ({ children, ...p }) => <button {...p}>{children}</button> }))
-vi.mock('../../../components/ui/HeaderIconButton', () => ({
+vi.mock('../../../shared/components/Icon', () => ({ default: () => null }))
+vi.mock('../../../shared/components/Skeleton', () => ({ default: () => <div data-testid="skeleton" /> }))
+vi.mock('../../../shared/components/Button', () => ({ default: ({ children, ...p }) => <button {...p}>{children}</button> }))
+vi.mock('../../../shared/components/HeaderIconButton', () => ({
   HeaderIconLink: ({ children }) => <span>{children}</span>,
   HeaderIconButton: ({ children, ...p }) => <button {...p}>{children}</button>,
 }))

@@ -7,8 +7,8 @@
 //   3. AI generation via the existing generateDiagram callable.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import ConfirmDialog from '../../../components/ui/ConfirmDialog'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import ConfirmDialog from '../../../shared/components/ConfirmDialog'
 import { useAuth } from '../../../contexts/AuthContext'
 import { TEACHER_SUBJECTS } from '../../../utils/teacherTools'
 import {

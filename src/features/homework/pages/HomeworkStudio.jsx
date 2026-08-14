@@ -20,7 +20,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import { useIsMounted } from '../../../hooks/useIsMounted'
 import { LIBRARY_TYPES } from '../../../config/library'
-import LiveGenerationCanvas from '../../../components/ui/LiveGenerationCanvas'
+import LiveGenerationCanvas from '../../../shared/components/LiveGenerationCanvas'
 import {
   FieldTextarea,
   FieldSelect,
@@ -28,8 +28,8 @@ import {
   AdvancedOptions,
   GenerateButton,
 } from '../../../shared/components/studioFields'
-import Icon from '../../../components/ui/Icon'
-import { Download, Key } from '../../../components/ui/icons'
+import Icon from '../../../shared/components/Icon'
+import { Download, Key } from '../../../shared/components/icons'
 import StudioCurriculumSelector from '../../../components/teacher/curriculum/StudioCurriculumSelector'
 import StudioOutputBoundary from '../../../shared/components/StudioOutputBoundary'
 import HomeworkView from '../components/HomeworkView'

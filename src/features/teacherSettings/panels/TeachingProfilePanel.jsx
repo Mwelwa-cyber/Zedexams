@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import SettingsDetailShell from '../components/SettingsDetailShell'
-import ConfirmDialog from '../../../components/ui/ConfirmDialog'
-import Icon from '../../../components/ui/Icon'
+import ConfirmDialog from '../../../shared/components/ConfirmDialog'
+import Icon from '../../../shared/components/Icon'
 import {
   CalendarDays,
   GraduationCap,
@@ -15,7 +15,7 @@ import {
   BookOpen,
   RefreshCw,
   ChevronRight,
-} from '../../../components/ui/icons'
+} from '../../../shared/components/icons'
 import { useTeachingProfile } from '../lib/useTeachingProfile'
 import AssignmentFormModal from '../components/teachingProfile/AssignmentFormModal'
 import TeachingProfileWizard from '../components/teachingProfile/TeachingProfileWizard'

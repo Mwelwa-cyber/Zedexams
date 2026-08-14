@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { OPERATORS, detectOperator, looksLikeZambianPhone, resolveOperator } from '../../../utils/lenco'
-import { Check } from '../../../components/ui/icons'
-import Icon from '../../../components/ui/Icon'
+import { Check } from '../../../shared/components/icons'
+import Icon from '../../../shared/components/Icon'
 
 /**
  * Network picker for the mobile-money checkout. The payer should never have to

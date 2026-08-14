@@ -115,8 +115,20 @@ const SURFACE = [
   // of `components/quiz/` — named individually rather than by directory,
   // because that directory also holds teacher and admin chrome.
   [/^src\/components\/(dashboard|exams|lessons|papers|parent|classes|quiz)\/|^src\/features\/(lessons|notes|learnerHome|learnerSettings|quiz)\/|^src\/shared\/components\/(PassageViewer|ReadingSettings|TextToSpeechButton|ThemePreview|QuizReviewScreen|ExtraQuestionImages|ZoomableImage)/, 'learner: reading themes (body.theme-*)'],
-  [/^src\/components\/(marketing|seo)\//, 'marketing (public, pinned light)'],
-  [/^src\/components\/(auth|subscription|ui|layout)\//, 'shared chrome'],
+  // Both halves of this row moved: `components/marketing/` became a feature,
+  // and `components/seo/` is gone entirely — `SeoHelmet` was promoted to
+  // `src/shared/components/`, so the directory no longer exists to match.
+  [/^src\/features\/marketing\/|^src\/shared\/components\/SeoHelmet/, 'marketing (public, pinned light)'],
+  // `src/shared/components/` is swept LAST on purpose. The rows above name
+  // their own residents there individually — the dashboardV2 trio, the
+  // reading-assist cluster, `SeoHelmet` — and `SURFACE.find` takes the first
+  // match, so each keeps its surface. What this catch-all picks up is the 41
+  // UI primitives promoted out of `components/ui/`, which are shared chrome by
+  // definition and would otherwise report as `other` from here on: the exact
+  // silent drop this map's comment warns about, and the reason the row is
+  // widened rather than left alone just because it still matches the nine
+  // files remaining in `components/ui/`.
+  [/^src\/components\/(auth|subscription|ui|layout)\/|^src\/shared\/components\//, 'shared chrome'],
 ]
 const surfaceOf = (f) => SURFACE.find(([re]) => re.test(f))?.[1] || 'other'
 

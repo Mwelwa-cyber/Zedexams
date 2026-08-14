@@ -16,8 +16,8 @@
 import { useMemo, useState } from 'react'
 import { buildAttendanceInsights } from '../../lib/attendanceInsights'
 import { markableDays } from '../../../../utils/attendanceCalendarResolver'
-import Button from '../../../../components/ui/Button'
-import ResponsiveModal from '../../../../components/ui/ResponsiveModal'
+import Button from '../../../../shared/components/Button'
+import ResponsiveModal from '../../../../shared/components/ResponsiveModal'
 import {
   AlertTriangle, CheckCircle2, Clock, Info,
 } from '../../../../shared/icons/classListIcons'

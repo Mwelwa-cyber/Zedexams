@@ -70,11 +70,11 @@ vi.mock('../../../contexts/AuthContext', () => ({
 }))
 
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
-vi.mock('../../../components/ui/Toast', () => ({ useToast: () => toast }))
+vi.mock('../../../shared/components/Toast', () => ({ useToast: () => toast }))
 
 // Lightweight ConfirmDialog stub — renders the title + message and wires the
 // confirm/cancel buttons so we can drive the real confirmDelete handler.
-vi.mock('../../../components/ui/ConfirmDialog', () => ({
+vi.mock('../../../shared/components/ConfirmDialog', () => ({
   default: ({ open, title, message, confirmLabel, onConfirm, onCancel, loading }) =>
     open ? (
       <div role="alertdialog">
@@ -107,9 +107,9 @@ vi.mock('../../../utils/assessmentToPdf', () => ({
   openPrintWindow: vi.fn(() => printWindow),
 }))
 vi.mock('../../../utils/importReviewSummary.js', () => ({ summarizeImportReview: () => ({ needsReview: false }) }))
-vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
-vi.mock('../../../components/ui/Skeleton', () => ({ default: () => null }))
-vi.mock('../../../components/ui/PaginationFooter', () => ({ default: () => null }))
+vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../shared/components/Skeleton', () => ({ default: () => null }))
+vi.mock('../../../shared/components/PaginationFooter', () => ({ default: () => null }))
 
 import AssessmentList from './AssessmentList'
 import {

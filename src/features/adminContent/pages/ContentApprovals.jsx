@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useFirestore } from '../../../hooks/useFirestore'
 import { useAuth } from '../../../contexts/AuthContext'
-import StatusBadge from '../../../components/ui/StatusBadge'
-import Button from '../../../components/ui/Button'
-import Skeleton from '../../../components/ui/Skeleton'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import StatusBadge from '../../../shared/components/StatusBadge'
+import Button from '../../../shared/components/Button'
+import Skeleton from '../../../shared/components/Skeleton'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 
 const TYPE_ICONS = { quiz: '✏️', lesson: '📖' }
 

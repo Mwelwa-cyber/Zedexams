@@ -10,14 +10,14 @@ import { canSubmitDeletion, deletionErrorMessage } from '../../../utils/accountR
 import { PasskeySection } from '../../auth'
 import SettingsDetailShell from '../components/SettingsDetailShell'
 import FieldRow from '../components/fields/FieldRow'
-import Icon from '../../../components/ui/Icon'
+import Icon from '../../../shared/components/Icon'
 import {
   ShieldCheck,
   Clock,
   Users,
   Lock,
   Mail,
-} from '../../../components/ui/icons'
+} from '../../../shared/components/icons'
 
 // Real security features only; everything the platform can't honestly do yet
 // (2FA, device lists, remote sign-out, backup codes) sits in a muted

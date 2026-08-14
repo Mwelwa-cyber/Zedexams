@@ -13,8 +13,8 @@ import { renderPowerPointToImages } from '../lib/pptxPresentationRenderer'
 import { assertFileSignature } from '../../../utils/fileSignature'
 import { SAMPLE_QUICK_NOTES, SAMPLE_RESPIRATORY_LESSON } from '../lib/sampleLesson'
 import { GRADE4_CONTRACTIONS_LESSON, GRADE4_CONTRACTIONS_QUICK_NOTES } from '../lib/grade4ContractionsLesson'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import Skeleton from '../../../components/ui/Skeleton'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import Skeleton from '../../../shared/components/Skeleton'
 import {
   CREATION_MODES,
   LESSON_GRADES,

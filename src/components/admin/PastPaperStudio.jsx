@@ -36,7 +36,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import ConfirmDialog from '../ui/ConfirmDialog'
+import ConfirmDialog from '../../shared/components/ConfirmDialog'
 import {
   ALLOWED_PAPER_MIME,
   ASSET_ROLES,
@@ -107,7 +107,7 @@ const importPastPaperQuestionsCallable = httpsCallable(
   'importPastPaperQuestions',
   { timeout: 540_000 },
 )
-import SeoHelmet from '../seo/SeoHelmet'
+import SeoHelmet from '../../shared/components/SeoHelmet'
 import { ImportReportCard } from './pastPaperReport'
 
 const CURRENT_YEAR = new Date().getFullYear()

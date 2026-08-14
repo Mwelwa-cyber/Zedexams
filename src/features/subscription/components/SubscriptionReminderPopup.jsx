@@ -9,8 +9,8 @@ import { isNativePlatform } from '../../../utils/runtime'
 import { paywall } from '../../../utils/paywall'
 import { lockedFeature } from '../lib/lockedFeature'
 import { capture } from '../../../utils/analytics'
-import Icon from '../../../components/ui/Icon'
-import { ArrowRight, X } from '../../../components/ui/icons'
+import Icon from '../../../shared/components/Icon'
+import { ArrowRight, X } from '../../../shared/components/icons'
 import {
   BenefitPills,
   LEARNER_PILLS,

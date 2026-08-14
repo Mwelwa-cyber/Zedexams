@@ -73,7 +73,7 @@ vi.mock('../../../editor/RichContent', () => ({
   default: ({ value }) => <span>{typeof value === 'string' ? value : ''}</span>,
   getRichPlainText: (v) => (typeof v === 'string' ? v : ''),
 }))
-vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
 vi.mock('../../../components/diagrams/DiagramSvg', () => ({ default: () => null }))
 vi.mock('../../../shared/components/ZoomableImage', () => ({ default: () => null }))
 vi.mock('../../../shared/components/ExtraQuestionImages', () => ({ default: () => null }))

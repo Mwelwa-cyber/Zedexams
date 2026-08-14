@@ -32,8 +32,8 @@ vi.mock('firebase/firestore', () => ({
 }))
 
 // ── Lightweight chrome stubs ──────────────────────────────────────────────────
-vi.mock('../../../components/ui/Logo',       () => ({ default: () => null }))
-vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../shared/components/Logo',       () => ({ default: () => null }))
+vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
 
 // ── Already-handled view stubs (plain null — we don't need to inspect them) ──
 vi.mock('../../lessonPlanStudio/components/LessonPlanView',    () => ({ default: () => <div data-testid="lesson-plan-view" /> }))

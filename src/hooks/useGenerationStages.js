@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   resolveStages,
   computeStageStates,
-} from '../components/ui/aiGenerationStages'
+} from '../shared/components/aiGenerationStages'
 
 const TICK_MS = 250
 

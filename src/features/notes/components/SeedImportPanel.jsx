@@ -11,7 +11,7 @@ import { collection, getDocs, limit, query, where } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useFirestore } from '../../../hooks/useFirestore'
-import { Sparkles, Loader2, Check, X as XIcon } from '../../../components/ui/icons'
+import { Sparkles, Loader2, Check, X as XIcon } from '../../../shared/components/icons'
 import { createNote, updateNote, publishNote } from '../lib/firestore'
 
 const STATUS_META = {

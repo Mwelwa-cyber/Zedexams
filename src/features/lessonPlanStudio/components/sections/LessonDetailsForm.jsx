@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { GraduationCap, BookOpen, Clock, Calendar, User, School } from '../../../../components/ui/icons'
+import { GraduationCap, BookOpen, Clock, Calendar, User, School } from '../../../../shared/components/icons'
 import { useSubjectsForGrade } from '../../../../components/teacher/studio/hooks/useSubjectsForGrade.js'
 import { useAvailableGrades } from '../../../../components/teacher/studio/hooks/useAvailableGrades.js'
 import { cleanSubjectName } from '../../../../components/teacher/studio/utils/subjectName.js'

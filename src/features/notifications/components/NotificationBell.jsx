@@ -1,6 +1,6 @@
 import { useNotifications } from '../../../contexts/NotificationContext'
-import { Bell, BellRing } from '../../../components/ui/icons'
-import Icon from '../../../components/ui/Icon'
+import { Bell, BellRing } from '../../../shared/components/icons'
+import Icon from '../../../shared/components/Icon'
 import NotificationCenter from './NotificationCenter'
 
 /**

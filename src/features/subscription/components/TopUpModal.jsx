@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, Loader2, Sparkles, X } from '../../../components/ui/icons'
+import { Check, Loader2, Sparkles, X } from '../../../shared/components/icons'
 import { useAuth } from '../../../contexts/AuthContext'
 import { capture } from '../../../utils/analytics'
 import { friendlyMessage } from '../../../utils/friendlyErrors'
@@ -10,8 +10,8 @@ import {
   resolveOperator,
   submitLencoOtp,
 } from '../../../utils/lenco'
-import Button from '../../../components/ui/Button'
-import Icon from '../../../components/ui/Icon'
+import Button from '../../../shared/components/Button'
+import Icon from '../../../shared/components/Icon'
 import MobileMoneyBrands from './MobileMoneyBrands'
 import NetworkField from './NetworkField'
 

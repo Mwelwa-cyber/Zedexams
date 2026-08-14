@@ -142,6 +142,55 @@
  * one-line shims at the old paths, so it is byte-identical to `main` and no
  * debt entry was needed.
  *
+ * ## The UI primitives, promoted whole (2026-08-14)
+ *
+ * The largest arrival: **41 modules from `src/components/ui/`, `SeoHelmet`
+ * from `src/components/seo/`, and `MobileBottomNav` from
+ * `src/components/layout/`** — 56 files with their specs, and **923 import
+ * sites** rewritten. `components/seo/` is removed entirely; `components/layout/`
+ * is down to `Navbar`.
+ *
+ * These are the components with the highest consumer counts in the repo, and
+ * they had been sitting a layer above most of what draws them: `SeoHelmet` 45
+ * feature consumers, `icons.js` 36, `Icon` 30, `ConfirmDialog` 26, `Skeleton`
+ * 24, `Button` 24, `Toast` 18.
+ *
+ * **Eight stayed, and every one fails on the CLOSURE rather than its own text**
+ * — the correction `studioFields` had to make, biting again at scale:
+ *
+ *   • `VisitorTracker`, `CookieConsentBanner`, `AnalyticsConsentToggle` — each
+ *     reaches `utils/analytics` → `firebase/config`. `shared` is in
+ *     `NO_FIREBASE_LAYERS`, so promoting any is a hard boundary failure.
+ *   • `NotFound`, `PushPermissionPrompt`, `ReplayTourCard`, `VerifyEmailBanner`
+ *     — 25–27 modules each, reaching `AuthContext` and payment logic.
+ *   • `SubjectIcon` — curriculum knowledge.
+ *
+ * `SubjectScroller` stays with them for a different reason: zero importers,
+ * already on `docs/architecture/22-dead-code-register.md`. A removal is its own
+ * PR.
+ *
+ * ## `ui/index.js` was a real barrel, and it is deleted rather than moved
+ *
+ * Unlike every other directory index in this repo, it re-exported 21 modules
+ * and its docblock invited `import { Button, Card } from '../ui'`. Moving files
+ * out one at a time would have left it straddling two layers, which is why this
+ * promotion is one commit. It had **two** real consumers, both wanting
+ * `SkeletonCard`; both now import `shared/components/Skeleton` directly. (The
+ * `'../components/ui'` imports still visible in `features/learnerSettings/panels/`
+ * are that feature's OWN local ui module, not this barrel — a name collision
+ * worth knowing before grepping for stragglers.)
+ *
+ * ## Six path-classified references had to move with the files
+ *
+ * The fifth hiding place, and the one no import resolver can see because the
+ * path is a string in a script: `test:scroll-to-top` asserts a file EXISTS at
+ * its path, `test:android-splash` reads two z-indexes out of source,
+ * `test:ai-generation-stages` and `test:live-canvas` import moved modules, and
+ * two `package.json` script commands (`test:shared-primitive-theming`,
+ * `test:select-arrow`) named files that had moved. All six updated in the same
+ * commit; each would have failed `test:all` with an error naming the script
+ * rather than the migration.
+ *
  * A namespace marker, not a barrel — import the file, not this index.
  */
 

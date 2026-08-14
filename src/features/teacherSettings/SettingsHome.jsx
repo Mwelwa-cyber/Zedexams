@@ -1,4 +1,4 @@
-import SeoHelmet from '../../components/seo/SeoHelmet'
+import SeoHelmet from '../../shared/components/SeoHelmet'
 import SettingsHero from './components/SettingsHero'
 import SettingsGroup from './components/SettingsGroup'
 import TipStrip from './components/TipStrip'

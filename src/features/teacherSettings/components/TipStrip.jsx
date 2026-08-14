@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import Icon from '../../../components/ui/Icon'
-import { Lightbulb } from '../../../components/ui/icons'
+import Icon from '../../../shared/components/Icon'
+import { Lightbulb } from '../../../shared/components/icons'
 import { FeedbackDialog } from '../../feedback'
 
 // Calm closing strip: reminds the teacher their settings flow into every

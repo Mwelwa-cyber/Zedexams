@@ -3,8 +3,8 @@ import { Link, useParams } from 'react-router-dom'
 import { getChildProgress } from '../services/familyPortal'
 import { reportClientError } from '../../../utils/clientErrorReporting'
 import ChildProgressSections from '../components/ChildProgressSections'
-import Skeleton from '../../../components/ui/Skeleton'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Skeleton from '../../../shared/components/Skeleton'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 
 /**
  * ChildProgressPage — /family/child/:childUid. Loads the authenticated

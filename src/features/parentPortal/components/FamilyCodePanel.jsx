@@ -8,7 +8,7 @@ import {
   unlinkParentLink,
 } from '../services/familyPortal'
 import { reportClientError } from '../../../utils/clientErrorReporting'
-import Button from '../../../components/ui/Button'
+import Button from '../../../shared/components/Button'
 
 /**
  * FamilyCodePanel — learner-side control (mounted in learner settings). Lets a

@@ -11,7 +11,7 @@ const mockGetBudgetEnforcement = vi.fn()
 vi.mock('../lib/aiBudget', () => ({
   getBudgetEnforcement: (...a) => mockGetBudgetEnforcement(...a),
 }))
-vi.mock('../../../components/ui/Skeleton', () => ({ default: () => <div data-testid="skeleton" /> }))
+vi.mock('../../../shared/components/Skeleton', () => ({ default: () => <div data-testid="skeleton" /> }))
 
 import BudgetEnforcementPanel from './BudgetEnforcementPanel'
 

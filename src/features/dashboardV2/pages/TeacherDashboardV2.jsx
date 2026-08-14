@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 import { resolveGreeting } from '../lib/dashboardV2Core'
 import DashboardView from '../components/DashboardView'
 import { PreviewBanner, PreviewControlPanel } from '../components/PreviewChrome'

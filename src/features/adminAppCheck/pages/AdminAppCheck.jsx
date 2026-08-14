@@ -21,8 +21,8 @@ import {
   enforcementReadiness,
   classifyDeviceAttestation,
 } from '../lib/appCheckHealthCore'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import Skeleton from '../../../components/ui/Skeleton'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import Skeleton from '../../../shared/components/Skeleton'
 
 const numFmt = new Intl.NumberFormat('en-ZM')
 

@@ -21,7 +21,7 @@
 import { useEffect, useState } from 'react'
 import { doc, onSnapshot } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
-import Skeleton from '../../../components/ui/Skeleton'
+import Skeleton from '../../../shared/components/Skeleton'
 
 const STATS_REF_PATH = ['publicStats', 'global']
 const numberFmt = new Intl.NumberFormat('en-ZM')

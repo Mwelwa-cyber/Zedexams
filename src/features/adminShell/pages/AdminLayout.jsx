@@ -27,11 +27,11 @@ import {
   Lightbulb,
   LayoutGrid,
   Globe,
-} from '../../../components/ui/icons'
+} from '../../../shared/components/icons'
 import { useAuth } from '../../../contexts/AuthContext'
-import Icon from '../../../components/ui/Icon'
-import ErrorBoundary from '../../../components/ui/ErrorBoundary'
-import ThemeSelector from '../../../components/ui/ThemeSelector'
+import Icon from '../../../shared/components/Icon'
+import ErrorBoundary from '../../../shared/components/ErrorBoundary'
+import ThemeSelector from '../../../shared/components/ThemeSelector'
 import { collection, getCountFromServer, query, where } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import CommandPalette from '../components/CommandPalette'

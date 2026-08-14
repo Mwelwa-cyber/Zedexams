@@ -28,7 +28,7 @@ import {
   composePaperTitle,
   fullPaperTitle,
 } from '../../../utils/paperTitleCore'
-import { ShieldCheck, FileText } from '../../../components/ui/icons'
+import { ShieldCheck, FileText } from '../../../shared/components/icons'
 
 /**
  * The source chip.

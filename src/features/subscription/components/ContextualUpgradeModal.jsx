@@ -1,4 +1,4 @@
-import ResponsiveModal from '../../../components/ui/ResponsiveModal'
+import ResponsiveModal from '../../../shared/components/ResponsiveModal'
 
 // ContextualUpgradeModal — the compact upgrade pop-up shown when a teacher
 // hits a real restriction. Presentational only: PaywallHost resolves the

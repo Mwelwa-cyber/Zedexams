@@ -33,8 +33,8 @@ vi.mock('../../../hooks/draft/useDraftManager', () => ({
 }))
 vi.mock('../../../shared/components/DraftRecoveryPrompt', () => ({ default: () => null }))
 vi.mock('../../../shared/components/DraftStatusIndicator', () => ({ default: () => null }))
-vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
-vi.mock('../../../components/ui/Toast', () => ({
+vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../shared/components/Toast', () => ({
   useToast: () => ({ info: vi.fn(), success: vi.fn(), error: vi.fn() }),
 }))
 

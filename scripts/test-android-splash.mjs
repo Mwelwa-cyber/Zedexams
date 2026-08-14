@@ -65,8 +65,8 @@ check(
 // loader covered the splash mid-boot and it re-emerged after auth resolved.
 const splashZ = Number((splashStyleZ().match(/z-index:\s*(\d+)/) || [])[1])
 check('splash sits at max z-index (2147483647)', splashZ === 2147483647, `found ${splashZ}`)
-const loaderZ = Number((read('src/components/ui/FullScreenLoader.jsx').match(/zIndex:\s*(\d+)/) || [])[1])
-const pageLoaderZ = Number((read('src/components/ui/PageLoader.jsx').match(/zIndex:\s*(\d+)/) || [])[1])
+const loaderZ = Number((read('src/shared/components/FullScreenLoader.jsx').match(/zIndex:\s*(\d+)/) || [])[1])
+const pageLoaderZ = Number((read('src/shared/components/PageLoader.jsx').match(/zIndex:\s*(\d+)/) || [])[1])
 check(
   'splash z-index beats FullScreenLoader and PageLoader',
   Number.isFinite(loaderZ) && Number.isFinite(pageLoaderZ) && splashZ > loaderZ && splashZ > pageLoaderZ,

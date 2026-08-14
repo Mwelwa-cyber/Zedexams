@@ -11,7 +11,7 @@ import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { parsePastedQuestions } from '../lib/pasteQuestionParser.js'
 import RichEditor from '../../../editor/components/RichEditor.jsx'
 import { clampInt } from '../../../utils/inputs.js'
-import AiGenerationProgress from '../../../components/ui/AiGenerationProgress'
+import AiGenerationProgress from '../../../shared/components/AiGenerationProgress'
 import {
   useSyllabusTopicOptions, useStudioSubjectChoices, useSyllabusLevelOptions,
   normalizeStudioFramework,

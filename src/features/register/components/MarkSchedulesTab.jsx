@@ -7,8 +7,8 @@
 import { useState } from 'react'
 import { createRecordFromRoster } from '../../../utils/classRecords'
 import { useAuth } from '../../../contexts/AuthContext'
-import { useToast } from '../../../components/ui/Toast'
-import Button from '../../../components/ui/Button'
+import { useToast } from '../../../shared/components/Toast'
+import Button from '../../../shared/components/Button'
 import ClassRecordsPanel from './ClassRecordsPanel'
 import MarkColumnsEditor, { cleanColumns } from './MarkColumnsEditor'
 

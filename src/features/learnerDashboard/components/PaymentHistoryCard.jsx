@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useFirestore } from '../../../hooks/useFirestore'
 import { PLANS } from '../../../utils/subscriptionConfig'
-import Icon from '../../../components/ui/Icon'
-import { CreditCard } from '../../../components/ui/icons'
+import Icon from '../../../shared/components/Icon'
+import { CreditCard } from '../../../shared/components/icons'
 
 function fmtDate(ts) {
   if (!ts) return '—'

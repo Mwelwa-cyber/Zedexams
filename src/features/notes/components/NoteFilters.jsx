@@ -3,7 +3,7 @@
 // Filter bar for the admin list: search by title, plus subject / grade / status dropdowns.
 // Pure controlled component — pass the values, get the change events.
 
-import { Search, ChevronDown } from '../../../components/ui/icons'
+import { Search, ChevronDown } from '../../../shared/components/icons'
 import { SUBJECTS_BY_BAND, getActiveGrades, NOTE_STATUS } from '../../../config/curriculum'
 
 export function NoteFilters({

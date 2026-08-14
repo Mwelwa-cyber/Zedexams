@@ -11,8 +11,8 @@ import {
   downloadAttendancePdf,
 } from '../../lib/attendanceExportService'
 import { formatPercent } from '../../../../utils/attendanceCalculator'
-import { useToast } from '../../../../components/ui/Toast'
-import Button from '../../../../components/ui/Button'
+import { useToast } from '../../../../shared/components/Toast'
+import Button from '../../../../shared/components/Button'
 
 export default function LearnerAttendanceReport({ model, roster, baseName, onClose }) {
   const toast = useToast()

@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronRight, LayoutGrid, Presentation, Search } from '../../../components/ui/icons'
+import { ChevronRight, LayoutGrid, Presentation, Search } from '../../../shared/components/icons'
 import { useFirestore } from '../../../hooks/useFirestore'
-import ComingSoon from '../../../components/ui/ComingSoon'
+import ComingSoon from '../../../shared/components/ComingSoon'
 import { LESSON_GRADES, LESSON_SUBJECTS } from '../lib/lessonConstants'
-import Button from '../../../components/ui/Button'
-import Icon from '../../../components/ui/Icon'
-import Skeleton from '../../../components/ui/Skeleton'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import { LessonsHubTour } from '../../../components/ui/learnerTours'
+import Button from '../../../shared/components/Button'
+import Icon from '../../../shared/components/Icon'
+import Skeleton from '../../../shared/components/Skeleton'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import { LessonsHubTour } from '../../../shared/components/learnerTours'
 
 function getReadTime(lesson) {
   const words = String(lesson.content || '').split(/\s+/).filter(Boolean).length

@@ -3,8 +3,8 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { useNotifications } from '../../../contexts/NotificationContext'
 import { confirmShellNavigation } from '../../../shared/utils/shellNavGuardCore'
-import Icon from '../../../components/ui/Icon'
-import { Bell, Check, Search, Settings, Trash2, X } from '../../../components/ui/icons'
+import Icon from '../../../shared/components/Icon'
+import { Bell, Check, Search, Settings, Trash2, X } from '../../../shared/components/icons'
 import {
   NOTIFICATION_CATEGORIES,
   categoryLabel,

@@ -13,7 +13,7 @@ import {
   Sparkles,
   Target,
   Users,
-} from '../ui/icons'
+} from '../../shared/components/icons'
 
 /**
  * Single source of truth for the teacher navigation surfaces.

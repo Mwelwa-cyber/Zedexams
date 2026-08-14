@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
-import Icon from '../../../components/ui/Icon'
-import { ArrowLeft } from '../../../components/ui/icons'
+import Icon from '../../../shared/components/Icon'
+import { ArrowLeft } from '../../../shared/components/icons'
 import { ALL_SETTINGS_ROWS } from '../settingsSections'
 
 // Chrome shared by every detail panel: back link to the hub, the row's badge

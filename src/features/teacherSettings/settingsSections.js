@@ -24,7 +24,7 @@ import {
   Palette,
   CreditCard,
   Settings,
-} from '../../components/ui/icons'
+} from '../../shared/components/icons'
 
 export const SETTINGS_SECTIONS = [
   {

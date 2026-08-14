@@ -11,8 +11,8 @@ import {
   getGameStatusBadge,
   getSubjectMascot,
 } from '../components/gamesUi'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import Skeleton from '../../../components/ui/Skeleton'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import Skeleton from '../../../shared/components/Skeleton'
 
 const SUBJECT_TILE_BG = {
   mathematics: 'bg-orange-100',

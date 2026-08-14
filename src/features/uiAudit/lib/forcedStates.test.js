@@ -75,8 +75,8 @@ console.log('\nHOVER_SAFELIST covers every audited primitive')
 // The primitives the audit page pins a hover state on. Adding one here is how
 // a new forced-hover specimen gets covered.
 const AUDITED = [
-  'src/components/ui/Button.jsx',
-  'src/components/ui/Card.jsx',
+  'src/shared/components/Button.jsx',
+  'src/shared/components/Card.jsx',
 ]
 
 const safelisted = new Set(HOVER_SAFELIST.split(/\s+/).filter(Boolean))

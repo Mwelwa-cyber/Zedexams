@@ -22,8 +22,8 @@ import {
   printAttendanceHtml,
   PREVIEW_DOCUMENTS,
 } from '../../lib/attendanceExportService'
-import { useToast } from '../../../../components/ui/Toast'
-import Button from '../../../../components/ui/Button'
+import { useToast } from '../../../../shared/components/Toast'
+import Button from '../../../../shared/components/Button'
 
 const OPEN_KEY = 'zedexams:registerPaperPreview:open'
 const REBUILD_DELAY_MS = 400

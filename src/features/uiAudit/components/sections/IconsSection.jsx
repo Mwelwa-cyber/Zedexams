@@ -1,5 +1,5 @@
-import * as AppIcons from '../../../../components/ui/icons'
-import Icon from '../../../../components/ui/Icon'
+import * as AppIcons from '../../../../shared/components/icons'
+import Icon from '../../../../shared/components/Icon'
 import { LUCIDE_ICONS, LUCIDE_ICON_NAMES } from '../../lib/iconInventory.js'
 import { Block, Section } from '../auditKit.jsx'
 
@@ -8,7 +8,7 @@ import { Block, Section } from '../auditKit.jsx'
  *
  * TWO SETS, because the app has two and they are drawn differently.
  *
- * • `src/components/ui/icons.js` — a Heroicons barrel, rendered through the
+ * • `src/shared/components/icons.js` — a Heroicons barrel, rendered through the
  *   `<Icon>` primitive, which pins size and stroke weight for the whole app.
  *   Enumerated with `import * as` because it is one fixed module the app
  *   already loads whole: nothing to drift, nothing extra to ship.
@@ -79,7 +79,7 @@ export default function IconsSection() {
         </div>
       </Block>
 
-      <Block title={`App barrel — src/components/ui/icons.js (${APP_ICON_NAMES.length})`}>
+      <Block title={`App barrel — src/shared/components/icons.js (${APP_ICON_NAMES.length})`}>
         <IconGrid
           names={APP_ICON_NAMES}
           render={(name) => <Icon as={AppIcons[name]} size="md" />}

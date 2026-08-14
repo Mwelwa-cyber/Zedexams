@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
-import Icon from '../../../components/ui/Icon'
-import { ChevronRight } from '../../../components/ui/icons'
+import Icon from '../../../shared/components/Icon'
+import { ChevronRight } from '../../../shared/components/icons'
 
 // One settings list row: circular tone badge · title + description · chevron.
 // The whole row is the link (≥56px touch target on mobile).

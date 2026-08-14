@@ -1,7 +1,7 @@
-import Icon from '../../../../components/ui/Icon'
-import StatusBadge from '../../../../components/ui/StatusBadge'
-import { HeaderIconButton } from '../../../../components/ui/HeaderIconButton'
-import { Download, FileText, Trash2 } from '../../../../components/ui/icons'
+import Icon from '../../../../shared/components/Icon'
+import StatusBadge from '../../../../shared/components/StatusBadge'
+import { HeaderIconButton } from '../../../../shared/components/HeaderIconButton'
+import { Download, FileText, Trash2 } from '../../../../shared/components/icons'
 import { Block, Section } from '../auditKit.jsx'
 
 /**

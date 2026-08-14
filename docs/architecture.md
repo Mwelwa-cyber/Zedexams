@@ -2509,3 +2509,55 @@ re-derive it.** `diagrams/` fails §14.6 on curriculum knowledge, so it is not
 appears anywhere in its closure, which that layer also forbids. `theme/` is a
 learner reading-preference pair and belongs with `learnerSettings`, whose
 `PersonalisationPanel` already renders the swatches.
+
+**Step 3 closed the claim: the UI primitives are in `src/shared/components/`.**
+41 modules from `components/ui/`, `SeoHelmet` from `components/seo/` and
+`MobileBottomNav` from `components/layout/` — 56 files with specs, **923 import
+sites**. `components/seo/` is removed; `components/layout/` is down to `Navbar`.
+These carry the highest consumer counts in the repo (`SeoHelmet` 45 features,
+`icons.js` 36, `Icon` 30, `ConfirmDialog` 26, `Skeleton` 24, `Button` 24) and
+had been sitting a layer above nearly everything that draws them.
+
+**Eight stayed, every one failing on the closure rather than its own text.**
+`VisitorTracker`, `CookieConsentBanner` and `AnalyticsConsentToggle` reach
+`utils/analytics` → `firebase/config`; `NotFound`, `PushPermissionPrompt`,
+`ReplayTourCard` and `VerifyEmailBanner` reach `AuthContext` and payment logic
+(25–27 modules each); `SubjectIcon` is curriculum knowledge. `SubjectScroller`
+stays for a different reason — zero importers, already on the dead-code
+register.
+
+**The rewrite was done by RESOLUTION, not by matching path text**, and that was
+not a stylistic choice. A sibling-relative specifier (`'../ui/Button'`) contains
+no substring a text search can key on, and dynamic `import()` is invisible to
+ESLint — the two hiding places MIGRATION_TEMPLATE.md §0 names. Resolving each
+specifier to a file and comparing against the moved set catches both. Two
+follow-ups the method still needed a human eye for, both recorded because they
+generalise:
+
+- **A file that moves ACROSS directories has its own imports re-resolved from
+  the wrong end.** `MobileBottomNav` came from `layout/`, so its `../ui/icons`
+  resolved against its NEW home and matched nothing. Files moving WITHIN a
+  directory (the other 55) were unaffected, which is exactly what makes this
+  easy to miss. `test:import-boundaries` caught both specifiers.
+- **Seven path-classified references had to move by hand** — the fifth hiding
+  place, invisible to any resolver because the path is a string in a script.
+  `test:scroll-to-top` asserts a file EXISTS at its path; `test:android-splash`
+  reads two z-indexes out of source; `test:ai-generation-stages` and
+  `test:live-canvas` import moved modules; two `package.json` commands named
+  moved files; and `features/uiAudit/lib/forcedStates.test.js` reads `Button.jsx`
+  and `Card.jsx` by path. Each fails with an error naming the SCRIPT rather than
+  the migration, which is why the count matters more than the fix.
+
+**`ui/index.js` was a genuine barrel and is deleted, not moved.** It re-exported
+21 modules against a repo convention where a directory index is a namespace
+marker; promoting files one at a time would have left it straddling two layers.
+Its two real consumers both wanted `SkeletonCard` and now import
+`shared/components/Skeleton` directly. Worth knowing before grepping for
+stragglers: the `'../components/ui'` specifiers still in
+`features/learnerSettings/panels/` are that feature's OWN local ui module, an
+unrelated name collision.
+
+**`src/components/` now holds no shared-primitive layer at all.** What is left
+of the three directories is nine files, and each has a stated reason: eight
+§14.6 failures, one dead file, and `Navbar` (76 modules, reaching auth, payment
+and curriculum).

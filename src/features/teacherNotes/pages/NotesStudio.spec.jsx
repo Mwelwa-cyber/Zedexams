@@ -73,10 +73,10 @@ vi.mock('../../../shared/components/DraftStatusIndicator', () => ({ default: () 
 vi.mock('../../../shared/components/DraftRecoveryPrompt', () => ({ default: () => null }))
 
 // Helmet needs a provider we don't want to stand up here.
-vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
 
 // Presentational bits with no bearing on the generate path.
-vi.mock('../../../components/ui/LiveGenerationCanvas', () => ({ default: () => null }))
+vi.mock('../../../shared/components/LiveGenerationCanvas', () => ({ default: () => null }))
 vi.mock('../components/NotesView', () => ({ default: () => null }))
 vi.mock('../../../shared/components/StudioPageHeader', () => ({ default: () => null }))
 vi.mock('../../../shared/components/StudioOutputBoundary', () => ({ default: ({ children }) => children }))

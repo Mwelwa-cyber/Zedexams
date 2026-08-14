@@ -19,8 +19,8 @@ import {
   termSummaryRows,
 } from '../../lib/attendanceExportService'
 import { groupDaysByMonth } from '../../../../utils/attendanceCalendarResolver'
-import { useToast } from '../../../../components/ui/Toast'
-import Button from '../../../../components/ui/Button'
+import { useToast } from '../../../../shared/components/Toast'
+import Button from '../../../../shared/components/Button'
 import LearnerAttendanceReport from './LearnerAttendanceReport'
 
 export default function RegisterPrintView({ registerHook, register, uid, teacherName, policy }) {

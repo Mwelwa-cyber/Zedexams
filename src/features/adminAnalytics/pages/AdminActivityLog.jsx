@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { collection, getDocs, limit, orderBy, query, where } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
-import PageHeader from '../../../components/ui/PageHeader'
-import Card from '../../../components/ui/Card'
-import Button from '../../../components/ui/Button'
-import Icon from '../../../components/ui/Icon'
-import { Download, Search } from '../../../components/ui/icons'
+import PageHeader from '../../../shared/components/PageHeader'
+import Card from '../../../shared/components/Card'
+import Button from '../../../shared/components/Button'
+import Icon from '../../../shared/components/Icon'
+import { Download, Search } from '../../../shared/components/icons'
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
 
 const ACTION_TYPES = [

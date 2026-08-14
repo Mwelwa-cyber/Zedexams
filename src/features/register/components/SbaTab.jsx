@@ -22,8 +22,8 @@ import { useAuth } from '../../../contexts/AuthContext'
 import {
   SBA_SUBJECTS, SBA_GRADE_VALUES, getSbaBlueprint, getSbaGradeTotal, convertSbaMark, SBA_MAX_FINAL_MARK,
 } from '../../../config/sba'
-import { useToast } from '../../../components/ui/Toast'
-import Button from '../../../components/ui/Button'
+import { useToast } from '../../../shared/components/Toast'
+import Button from '../../../shared/components/Button'
 import ClassRecordsPanel from './ClassRecordsPanel'
 import MarkColumnsEditor, { cleanColumns } from './MarkColumnsEditor'
 

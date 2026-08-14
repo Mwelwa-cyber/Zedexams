@@ -2,8 +2,8 @@ import { useRef, useState } from 'react'
 import { useAuth } from '../../../../contexts/AuthContext'
 import { normalizeTeacherProfile } from '../../../../utils/teacherSettingsCore'
 import { uploadBrandingAsset, deleteBrandingAssetByPath } from '../../lib/uploadBrandingAsset'
-import Icon from '../../../../components/ui/Icon'
-import { Camera } from '../../../../components/ui/icons'
+import Icon from '../../../../shared/components/Icon'
+import { Camera } from '../../../../shared/components/icons'
 
 // Profile photo uploader. Saves immediately on pick (independent of the
 // panel's Save button): uploads a versioned object under user-branding/{uid}/

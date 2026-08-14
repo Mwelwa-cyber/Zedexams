@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 import {
   getTemplate, rateTemplate, createLessonPlanFromTemplate,
 } from '../services/templateBankService'

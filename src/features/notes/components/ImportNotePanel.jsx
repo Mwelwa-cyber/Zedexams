@@ -5,7 +5,7 @@
 // onImport({ kind, file, text }). The page owns the actual import + navigation.
 
 import { useRef, useState } from 'react'
-import { Upload, Loader2, FileType, AlertCircle } from '../../../components/ui/icons'
+import { Upload, Loader2, FileType, AlertCircle } from '../../../shared/components/icons'
 
 const ACCEPT = '.doc,.docx,.pdf'
 

@@ -18,7 +18,7 @@ vi.mock('../../../offline/offlineStore.js', () => ({
 }))
 vi.mock('../hooks/useOfflineNote', () => ({ fetchNoteForCache: vi.fn(async () => ({ id: 'n1' })) }))
 vi.mock('../../../utils/clientErrorReporting', () => ({ reportClientError: vi.fn() }))
-vi.mock('../../../components/ui/icons', () => ({
+vi.mock('../../../shared/components/icons', () => ({
   Download: () => null, Check: () => null, Loader2: () => null, Trash2: () => null,
 }))
 

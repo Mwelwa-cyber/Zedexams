@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import ConfirmDialog from '../../../../components/ui/ConfirmDialog'
+import ConfirmDialog from '../../../../shared/components/ConfirmDialog'
 import { removePasskey, mapPasskeyError } from '../../../../services/passkeyService'
 
 export default function RemovePasskeyDialog({ passkey, onClose, onRemoved, onError }) {

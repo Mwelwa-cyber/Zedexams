@@ -16,7 +16,7 @@
  * first dismissal.
  */
 
-import OnboardingOverlay from '../ui/OnboardingOverlay'
+import OnboardingOverlay from '../../shared/components/OnboardingOverlay'
 
 const TEACHER_STEPS = [
   {

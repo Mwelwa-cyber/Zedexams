@@ -45,8 +45,8 @@ import { optionsToReadAloudText, questionToReadAloudText } from '../../utils/rea
 import ExtraQuestionImages from '../quiz/ExtraQuestionImages'
 import DiagramSvg from '../diagrams/DiagramSvg'
 import { imagePositionClasses, resolveQuestionFigure, usesFigurePositionWrapper } from '../../utils/questionFigure'
-import SeoHelmet from '../seo/SeoHelmet'
-import ErrorBoundary from '../ui/ErrorBoundary'
+import SeoHelmet from '../../shared/components/SeoHelmet'
+import ErrorBoundary from '../../shared/components/ErrorBoundary'
 
 // ── Tiny utilities ─────────────────────────────────────────────────────────────
 

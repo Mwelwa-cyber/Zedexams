@@ -15,7 +15,7 @@
 import { useMemo } from 'react'
 import { validateTermRegister } from '../../lib/registerValidationCore'
 import { markableDays } from '../../../../utils/attendanceCalendarResolver'
-import Button from '../../../../components/ui/Button'
+import Button from '../../../../shared/components/Button'
 import {
   AlertTriangle, CheckCircle2, Info,
 } from '../../../../shared/icons/classListIcons'

@@ -13,7 +13,7 @@ import {
   TOOL_META as LIB_TOOL_META,
 } from '../../utils/teacherLibraryService'
 import { getDocumentActions } from '../../utils/documentActions'
-import { useToast } from '../ui/Toast'
+import { useToast } from '../../shared/components/Toast'
 import { resolveTeacherPlan } from '../../utils/teacherPlans'
 import { isExamPaperType, assessmentEditPath } from './paperTaxonomy'
 import {
@@ -35,7 +35,7 @@ import { seedLabel } from './generate/teachingAssignmentChangeNoticeCore'
 import { useTeachingProfile } from '../../features/teacherSettings/lib/useTeachingProfile'
 import { daysUntil, fmtDate, getActiveTerm, getCurrentForecastWeek, getNextTerm } from '../../utils/moeCalendar'
 import { capture } from '../../utils/analytics'
-import SeoHelmet from '../seo/SeoHelmet'
+import SeoHelmet from '../../shared/components/SeoHelmet'
 import { UsageReminderBanner } from '../../features/subscription'
 import AiRecommendations from './AiRecommendations'
 import { FreeAllowanceNotice, PlanUsageCard } from '../../features/teacherPaywall'
@@ -46,7 +46,7 @@ import TeacherOnboardingTour from './TeacherOnboardingTour'
 import TeacherWorkspace from './TeacherWorkspace'
 import { FeedbackButton, SuggestionNudge } from '../../features/feedback'
 import PushPermissionPrompt from '../ui/PushPermissionPrompt'
-import Icon from '../ui/Icon'
+import Icon from '../../shared/components/Icon'
 import {
   ArrowRight,
   BarChart3,
@@ -67,7 +67,7 @@ import {
   Search,
   Sparkles,
   Target,
-} from '../ui/icons'
+} from '../../shared/components/icons'
 // Premium hero illustration — 3D study-desk scene that matches the brand teal,
 // so it blends straight into the hero gradient. Compressed to ~20KB WebP.
 import heroDesk from '../../assets/teacher/hero-desk.webp'

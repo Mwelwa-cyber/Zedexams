@@ -19,7 +19,7 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import useHideOnScroll from '../../../hooks/useHideOnScroll'
-import ProfessorPako from '../../../components/ui/ProfessorPako'
+import ProfessorPako from '../../../shared/components/ProfessorPako'
 
 const ZedChat = lazy(() => import('./ZedChat'))
 

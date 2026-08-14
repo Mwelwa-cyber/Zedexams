@@ -16,7 +16,7 @@
  */
 
 import { useMemo, useState } from 'react'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 import { resolveAttendancePolicy } from '../../../utils/attendanceConstants'
 import { buildClassListView } from '../../../utils/classListCore'
 import ClassListTable from '../components/ClassListTable'

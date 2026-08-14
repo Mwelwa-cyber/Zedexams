@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Search, ChevronDown, ChevronUp } from '../../../components/ui/icons'
-import Icon from '../../../components/ui/Icon'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import { ArrowLeft, Search, ChevronDown, ChevronUp } from '../../../shared/components/icons'
+import Icon from '../../../shared/components/Icon'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 import { ZM_GREEN, ZM_GOLD, SOURCE_2013 } from '../lib/frameworkData2013'
 
 const TABS = [

@@ -3,9 +3,9 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { listMyChildren, redeemFamilyInviteCode } from '../services/familyPortal'
 import { reportClientError } from '../../../utils/clientErrorReporting'
-import Button from '../../../components/ui/Button'
-import Skeleton from '../../../components/ui/Skeleton'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
+import Button from '../../../shared/components/Button'
+import Skeleton from '../../../shared/components/Skeleton'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
 
 /**
  * FamilyHome — /family. Lists the parent's linked children and lets them add

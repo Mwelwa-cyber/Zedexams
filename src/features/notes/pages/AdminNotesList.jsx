@@ -5,13 +5,13 @@
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Sparkles, Upload } from '../../../components/ui/icons'
+import { Plus, Sparkles, Upload } from '../../../shared/components/icons'
 import { useAdminNotes } from '../hooks/useAdminNotes'
 import { NoteFilters } from '../components/NoteFilters'
 import { NoteCard } from '../components/NoteCard'
 import { SeedImportPanel } from '../components/SeedImportPanel'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import Skeleton from '../../../components/ui/Skeleton'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import Skeleton from '../../../shared/components/Skeleton'
 import '../styles/notes.css'
 
 export function AdminNotesList() {

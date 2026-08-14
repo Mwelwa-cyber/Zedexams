@@ -29,9 +29,9 @@ import {
   getGameTypeTheme,
   getSubjectMascot,
 } from '../components/gamesUi'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import { GamesHubTour } from '../../../components/ui/learnerTours'
-import Skeleton from '../../../components/ui/Skeleton'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import { GamesHubTour } from '../../../shared/components/learnerTours'
+import Skeleton from '../../../shared/components/Skeleton'
 
 /**
  * /games — playful mobile-first hub. Mockup-faithful 440px column with a

@@ -42,9 +42,9 @@ import useExamTimetables from '../../../hooks/useExamTimetables'
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
 import { isNativePlatform } from '../../../utils/runtime'
 import Navbar from '../../../components/layout/Navbar'
-import SeoHelmet from '../../../components/seo/SeoHelmet'
-import Skeleton from '../../../components/ui/Skeleton'
-import Icon from '../../../components/ui/Icon'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import Skeleton from '../../../shared/components/Skeleton'
+import Icon from '../../../shared/components/Icon'
 import {
   ArrowLeft,
   Bell,
@@ -53,7 +53,7 @@ import {
   DocumentTextIcon,
   Download,
   Search,
-} from '../../../components/ui/icons'
+} from '../../../shared/components/icons'
 import { ExamDayGroup } from '../components/ExamSessionCard'
 import { sessionVisual } from '../lib/subjectVisuals'
 import {
