@@ -27,7 +27,7 @@ import {
 } from '../../../components/teacher/paperTaxonomy'
 import { useAssessmentBand } from '../hooks/useAssessmentBand'
 import LiveGenerationCanvas from '../../../components/ui/LiveGenerationCanvas'
-import FreePreviewUpsell from '../../../components/teacher/FreePreviewUpsell'
+import { FreePreviewUpsell } from '../../teacherPaywall'
 import { capture } from '../../../utils/analytics'
 import { resolveTeacherPlan, FREE_PREVIEW_LIMITS } from '../../../utils/teacherPlans'
 import { QUESTION_ACTIVITIES, isLimitedSupport } from '../../../config/questionActivities'

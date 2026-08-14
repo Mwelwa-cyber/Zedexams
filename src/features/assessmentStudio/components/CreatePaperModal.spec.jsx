@@ -58,6 +58,13 @@ vi.mock('../../../utils/teacherTools', () => ({
 // so the modal's own behaviour is what's under test. Mocking it (and
 // AuthContext) also keeps firebase/config out of this jsdom run — the gate
 // would otherwise pull in the live Firebase app.
+// The modal reaches FreePreviewUpsell through `features/teacherPaywall`'s
+// front door, and a barrel evaluates every re-export — so `StudioNextSteps`
+// comes with it and pulls `useStudioAvailability` -> PlatformSettingsContext
+// -> firebase/config, which throws without VITE_FIREBASE_* under Vitest.
+// No production cost (this modal's chunk already loads firebase/config); this
+// is the same stub 60 other specs here use.
+vi.mock('../../../firebase/config', () => ({ default: {}, auth: {}, db: {} }))
 vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({ currentUser: { uid: 'test-uid' } }),
 }))

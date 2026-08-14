@@ -47,7 +47,7 @@ import {
 } from '../../../utils/moeCalendar'
 import { schemeWeeks, weekNumberOf, normalizeSchemeWeek, buildForecastDays } from '../../../shared/utils/weeklyForecast'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
-import StudioNextSteps from '../../../components/teacher/StudioNextSteps'
+import { StudioNextSteps } from '../../teacherPaywall'
 import { weekTeachingAvailability, excludeHolidayWeekdays, holidaySummary, openMoveTargets } from '../../../utils/weeklyFocusHolidays'
 import {
   WEEKDAYS, buildTopicCatalog, subtopicsForTopic, dayFieldsFromTopic,

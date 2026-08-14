@@ -2,9 +2,9 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import PlanUsageCard from './PlanUsageCard'
-import { capture } from '../../utils/analytics'
+import { capture } from '../../../utils/analytics'
 
-vi.mock('../../utils/analytics', () => ({ capture: vi.fn() }))
+vi.mock('../../../utils/analytics', () => ({ capture: vi.fn() }))
 // The lazy-loaded full breakdown pulls in Firebase hooks — stub it.
 vi.mock('./UsageMeter', () => ({ default: () => <div data-testid="usage-meter" /> }))
 

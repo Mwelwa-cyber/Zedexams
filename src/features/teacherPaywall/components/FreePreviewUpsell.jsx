@@ -8,9 +8,9 @@
 
 import { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import Icon from '../ui/Icon'
-import { ArrowRight } from '../ui/icons'
-import { capture } from '../../utils/analytics'
+import Icon from '../../../components/ui/Icon'
+import { ArrowRight } from '../../../components/ui/icons'
+import { capture } from '../../../utils/analytics'
 
 export default function FreePreviewUpsell({ context, title, text }) {
   const shownRef = useRef(false)

@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import UsageMeter from './UsageMeter.jsx'
-import { recoverMyPendingPayments } from '../../utils/lenco'
+import { recoverMyPendingPayments } from '../../../utils/lenco'
 
 // Every teacher navigation surface now asks studioAvailability which studios
 // are on offer, and that reads settings/global. Stubbed to the LAUNCH state
 // (no flags set → Worksheet Studio withdrawn, Rubric Studio retired).
-vi.mock('../../contexts/PlatformSettingsContext', () => ({
+vi.mock('../../../contexts/PlatformSettingsContext', () => ({
   usePlatformSettings: () => ({ settings: { featureFlags: {} }, loaded: true, live: true }),
 }))
 
@@ -17,7 +17,7 @@ const usageState = { loading: false, data: null }
 // Fully mock the hook (no importActual — that would pull in firebase/config,
 // which needs env the jsdom run doesn't have). The component also imports the
 // static TOOL_TO_FEATURE + FEATURE_LABELS maps from here, so re-export them.
-vi.mock('../../hooks/useTeacherUsage', () => ({
+vi.mock('../../../hooks/useTeacherUsage', () => ({
   useTeacherUsage: () => usageState,
   TOOL_TO_FEATURE: {
     lesson_plan: 'plans',
@@ -45,14 +45,14 @@ vi.mock('../../hooks/useTeacherUsage', () => ({
   },
 }))
 
-vi.mock('../../contexts/AuthContext', () => ({
+vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({ currentUser: { uid: 'test-uid' } }),
 }))
 
 vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }))
-vi.mock('../../utils/proFonts', () => ({ ensureProFonts: vi.fn() }))
+vi.mock('../../../utils/proFonts', () => ({ ensureProFonts: vi.fn() }))
 // utils/lenco pulls in firebase/config; stub the one function the widget uses.
-vi.mock('../../utils/lenco', () => ({ recoverMyPendingPayments: vi.fn() }))
+vi.mock('../../../utils/lenco', () => ({ recoverMyPendingPayments: vi.fn() }))
 
 // A teacher who has hit their exam-paper cap (1 of 1) on the Free plan.
 function cappedData(overrides = {}) {

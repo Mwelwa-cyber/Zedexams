@@ -15,10 +15,10 @@
 
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import Icon from '../ui/Icon'
-import { ArrowRight, ChevronDown, Sparkles } from '../ui/icons'
-import { capture } from '../../utils/analytics'
-import { formatResetClock, formatResetIn, msUntilDailyReset } from '../../utils/usageReset'
+import Icon from '../../../components/ui/Icon'
+import { ArrowRight, ChevronDown, Sparkles } from '../../../components/ui/icons'
+import { capture } from '../../../utils/analytics'
+import { formatResetClock, formatResetIn, msUntilDailyReset } from '../../../utils/usageReset'
 
 // Heavy (own data hook + big stylesheet); only mounted behind View details.
 const UsageMeter = lazy(() => import('./UsageMeter'))

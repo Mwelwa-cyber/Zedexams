@@ -13,10 +13,10 @@
  */
 
 import { Link } from 'react-router-dom'
-import Icon from '../ui/Icon'
-import { ArrowRight } from '../ui/icons'
-import { capture } from '../../utils/analytics'
-import useStudioAvailability from '../../hooks/useStudioAvailability'
+import Icon from '../../../components/ui/Icon'
+import { ArrowRight } from '../../../components/ui/icons'
+import { capture } from '../../../utils/analytics'
+import useStudioAvailability from '../../../hooks/useStudioAvailability'
 
 export default function StudioNextSteps({ context, actions = [], facts = [] }) {
   // A next step into a studio that is no longer offered is a dead end dressed

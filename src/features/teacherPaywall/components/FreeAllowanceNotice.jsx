@@ -8,10 +8,10 @@
  */
 
 import { useState } from 'react'
-import Icon from '../ui/Icon'
-import { ArrowRight, X } from '../ui/icons'
-import { capture } from '../../utils/analytics'
-import { PLAN_CATALOG_VERSION } from '../../utils/teacherPlans'
+import Icon from '../../../components/ui/Icon'
+import { ArrowRight, X } from '../../../components/ui/icons'
+import { capture } from '../../../utils/analytics'
+import { PLAN_CATALOG_VERSION } from '../../../utils/teacherPlans'
 
 const SEEN_KEY = `zedexams:allowance-notice:${PLAN_CATALOG_VERSION}`
 
