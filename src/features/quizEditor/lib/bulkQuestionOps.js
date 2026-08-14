@@ -18,8 +18,8 @@
  * a DOM, so text merging works in both environments.
  */
 
-import { ensureRichTextHtml, extractRichTextPlain } from '../../utils/quizRichText.js'
-import { normalizeMarks, MARKS_BOUNDS } from '../../utils/questionType.js'
+import { ensureRichTextHtml, extractRichTextPlain } from '../../../utils/quizRichText.js'
+import { normalizeMarks, MARKS_BOUNDS } from '../../../utils/questionType.js'
 
 // Fields the bulk-patch toolbar may set, with their sanitisers. Mirrors the
 // question schema's bounds (src/editor/schema/question.js) so an applied

@@ -13,7 +13,7 @@
  * so it runs in the browser importer and the plain `node` test runner alike.
  */
 
-import { stripFormatTokens } from './importFormatTokens.js'
+import { stripFormatTokens } from '../../shared/utils/importFormatTokens.js'
 
 const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 

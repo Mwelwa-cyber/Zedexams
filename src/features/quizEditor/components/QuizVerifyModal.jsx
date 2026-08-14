@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getFunctions, httpsCallable } from 'firebase/functions'
-import app from '../../firebase/config'
-import { serializeQuizSections } from '../../utils/quizSections.js'
-import { extractRichTextPlain } from '../../utils/quizRichText.js'
+import app from '../../../firebase/config'
+import { serializeQuizSections } from '../../../utils/quizSections.js'
+import { extractRichTextPlain } from '../../../utils/quizRichText.js'
 
 const functions = getFunctions(app, 'us-central1')
 const verifyQuizCallable = httpsCallable(functions, 'verifyQuiz', {

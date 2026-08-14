@@ -14,7 +14,7 @@ import {
 import {
   importMarkupToRichHtml,
   importMarkupToOptionHtml,
-} from '../components/quiz/importRichText.js'
+} from '../shared/utils/importRichText.js'
 import { stimulusDescriptorFromQuestion, splitSubQuestions } from './stimulusQuestion.js'
 import { normalizeFillStatements, normalizeWordBank } from './fillBlanks.js'
 

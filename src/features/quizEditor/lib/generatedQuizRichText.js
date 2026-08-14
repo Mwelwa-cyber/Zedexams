@@ -21,7 +21,7 @@ import {
   hasImportMarkup,
   importMarkupToRichHtml,
   importMarkupToOptionHtml,
-} from './importRichText.js'
+} from '../../../shared/utils/importRichText.js'
 
 /** Already-converted editor HTML — never feed it back through the converter. */
 function alreadyRich(value) {

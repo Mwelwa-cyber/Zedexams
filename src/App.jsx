@@ -163,7 +163,7 @@ const AdminDashboard = lazy(() => import('./features/adminHome/pages/AdminDashbo
 // Mandatory MFA enrolment page — admin-only, rendered full-screen (no admin
 // chrome) so a not-yet-enrolled admin gets one focused task.
 const MfaSetupPage = lazy(() => import('./features/adminMfa/pages/MfaSetupPage'))
-const CreateQuiz = lazy(() => import('./components/admin/CreateQuizV2'))
+const CreateQuiz = lazy(() => import('./features/quizEditor/pages/CreateQuizV2'))
 const AdminCsvImport = lazy(() => import('./features/adminContent/pages/AdminCsvImport'))
 const ManageContent = lazy(() => import('./features/adminContent/pages/ManageContent'))
 const AdminResults = lazy(() => import('./features/adminLearners/pages/AdminResults'))
@@ -249,7 +249,7 @@ const GlobalLeaderboard = lazy(() => import('./features/games/pages/GlobalLeader
 const GamesSeedAdmin = lazy(() => import('./components/admin/GamesSeedAdmin'))
 
 // Quiz editor (shared by admin + teacher)
-const EditQuiz = lazy(() => import('./components/quiz/EditQuizV2'))
+const EditQuiz = lazy(() => import('./features/quizEditor/pages/EditQuizV2'))
 
 // Lifts the Android in-app splash (index.html + /public/zx-splash.js) once
 // the app has DECIDED its first real screen — not on bare App mount. The

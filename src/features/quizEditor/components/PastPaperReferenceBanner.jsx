@@ -14,7 +14,7 @@
 
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { resolvePaperUrlSmart } from '../../utils/pastPapers'
+import { resolvePaperUrlSmart } from '../../../utils/pastPapers'
 
 export default function PastPaperReferenceBanner({ quiz }) {
   const [paperUrl, setPaperUrl] = useState(null)

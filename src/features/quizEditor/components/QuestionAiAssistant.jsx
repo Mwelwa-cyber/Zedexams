@@ -26,9 +26,9 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { getRichPlainText } from '../../editor/RichContent.jsx'
-import { importMarkupToRichHtml, importMarkupToOptionHtml } from './importRichText.js'
-import { aiEditQuizQuestion } from '../../utils/aiAssistant'
+import { getRichPlainText } from '../../../editor/RichContent.jsx'
+import { importMarkupToRichHtml, importMarkupToOptionHtml } from '../../../shared/utils/importRichText.js'
+import { aiEditQuizQuestion } from '../../../utils/aiAssistant'
 
 // action key → { label, hint, supports(type) }. `supports` hides actions that
 // can't apply to a question type (e.g. "Suggest answer" needs option choices).

@@ -160,7 +160,7 @@ vi.mock('../components/AssessmentBars', () => ({
 vi.mock('../components/CreatePaperModal', () => ({ default: () => null }))
 vi.mock('../components/DiagramFixupPanel', () => ({ default: () => null, countDiagramsNeeded: () => 0 }))
 vi.mock('../components/DiagramScanner', () => ({ default: () => null }))
-vi.mock('../../../components/quiz/QuizVerifyModal', () => ({ default: () => null }))
+vi.mock('../../quizEditor', () => ({ QuizVerifyModal: () => null }))
 vi.mock('../components/scan/ScanPaperModal', () => ({ default: () => null }))
 vi.mock('../components/scan/ImportReviewScreen', () => ({ default: () => null }))
 vi.mock('../components/PaperHealthModal', () => ({ default: () => null }))

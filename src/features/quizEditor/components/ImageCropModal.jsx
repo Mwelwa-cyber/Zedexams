@@ -34,10 +34,10 @@ import {
   resizeCropRect,
   pointerDistance,
   computeZoomFromPinch,
-} from './cropGeometry'
-import { loadCorsImage } from './cropImageLoad'
-import { padAndClampBox } from '../../utils/paperFigureAttachCore'
-import useFocusTrap from '../../hooks/useFocusTrap'
+} from '../lib/cropGeometry'
+import { loadCorsImage } from '../lib/cropImageLoad'
+import { padAndClampBox } from '../../../utils/paperFigureAttachCore'
+import useFocusTrap from '../../../hooks/useFocusTrap'
 
 const MIN_ZOOM = 1
 const MAX_ZOOM = 4
