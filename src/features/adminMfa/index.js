@@ -22,7 +22,8 @@
  *   - `src/utils/mfaErrors.js` — also `Login`, `MfaChallenge` and
  *     `accountReauth`.
  *
- * `AdminMfaGate` (`components/layout/`) and its private `utils/adminMfaAccess`
+ * `AdminMfaGate` (`src/app/guards/` since 2026-08-14; `components/layout/`
+ * when this was written) and its private `utils/adminMfaAccess`
  * stay too. The gate is route infrastructure that decides whether ANY admin
  * route renders — it sits beside `ProtectedRoute` and `LearnerOnlyRoute`,
  * wraps this page's siblings rather than this page, and is deliberately not

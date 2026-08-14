@@ -18,7 +18,7 @@
  */
 import { lazy } from 'react'
 import { Navigate, useLocation, useParams } from 'react-router-dom'
-import ProtectedRoute from '../layout/ProtectedRoute'
+import ProtectedRoute from '../../app/guards/ProtectedRoute'
 import PageLoader from '../ui/PageLoader'
 import { usePlatformSettings } from '../../contexts/PlatformSettingsContext'
 import { redirectTargetForTool } from '../../config/studioAvailability'

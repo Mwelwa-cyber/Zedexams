@@ -9,11 +9,11 @@ import MaintenanceBanner from './components/banners/MaintenanceBanner'
 import { AnnouncementBanner } from './features/announcements'
 import AndroidUpdateBanner from './components/banners/AndroidUpdateBanner'
 import SubscriptionStatusBanner from './components/subscription/SubscriptionStatusBanner'
-import ProtectedRoute from './components/layout/ProtectedRoute'
+import ProtectedRoute from './app/guards/ProtectedRoute'
 import { TEACHER_ROUTES, FlaggedStudioRoute } from './components/teacher/teacherRoutes'
-import AdminMfaGate from './components/layout/AdminMfaGate'
-import LearnerOnlyRoute from './components/layout/LearnerOnlyRoute'
-import MissingProfileRecovery from './components/layout/MissingProfileRecovery'
+import AdminMfaGate from './app/guards/AdminMfaGate'
+import LearnerOnlyRoute from './app/guards/LearnerOnlyRoute'
+import MissingProfileRecovery from './app/guards/MissingProfileRecovery'
 import Navbar from './components/layout/Navbar'
 import { getRoleLandingPath } from './utils/navigation'
 import { isWithinVerificationGrace } from './utils/verification'
@@ -207,7 +207,7 @@ const UiAuditPage     = lazy(() => import('./features/uiAudit/pages/UiAuditPage'
 const ParentProgressView = lazy(() => import('./features/parentPortal/pages/ParentProgressView'))
 
 // Family portal (authenticated parent accounts)
-const ParentLayout = lazy(() => import('./components/layout/ParentLayout'))
+const ParentLayout = lazy(() => import('./app/guards/ParentLayout'))
 const FamilyHome = lazy(() => import('./features/parentPortal/pages/FamilyHome'))
 const ChildProgressPage = lazy(() => import('./features/parentPortal/pages/ChildProgressPage'))
 

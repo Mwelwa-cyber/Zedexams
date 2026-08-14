@@ -14,6 +14,11 @@
  * route leads to. That is the same call `adminMfa` made about `AdminMfaGate`,
  * applied consistently.
  *
+ * **All six have since moved on to `src/app/guards/`** (2026-08-14), which is
+ * the destination that scaffold named from Phase 1. The reasoning above is
+ * what routed them out of this feature and it still holds — `components/layout/`
+ * was the waypoint, not the address.
+ *
  * The Loader and the Screen went together on purpose, even though the Screen
  * is purely presentational and looks like feature code. Splitting them would
  * make `ProtectedRoute` — which `App.jsx` imports EAGERLY — import this front
