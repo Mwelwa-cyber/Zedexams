@@ -46,6 +46,15 @@
  * they are, byte-identical apart from one specifier each, and no other frozen
  * surface moved.
  *
+ * **UPDATE 2026-08-14: the freeze is CLOSED and both of those readers have
+ * moved.** A sixth owner ruling released the whole remaining list;
+ * `DailyExamRunner` is now `features/dailyExams/pages/` and `PaperBlocks` is
+ * `src/engines/paper-render/`. Neither changes the argument above — this
+ * catalogue is still shared too widely to live in any one feature, and an
+ * engine importing `curriculum` is the allowed direction. Recorded because
+ * this paragraph was the thing that caught `PaperBlocks` still being in the
+ * legacy tree when the freeze-closure PR had claimed otherwise.
+ *
  * ── The visual gate knows this path by string ───────────────────────────
  *
  * `scripts/visual/printAffectingPaths.js` listed `src/components/diagrams/**`

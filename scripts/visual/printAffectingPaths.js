@@ -44,8 +44,8 @@ export const PRINT_AFFECTING_PATHS = Object.freeze([
   'src/engines/export-engine/sbaTaskToDocx.js',
   'src/engines/export-engine/sbaTaskToPdf.js',
   'src/utils/htmlToPdf.js',
-  'src/components/teacher/views/PaperBlocks.jsx',
-  'src/components/teacher/views/AssessmentPaperView.jsx',
+  'src/engines/paper-render/PaperBlocks.jsx',
+  'src/features/teacherLibrary/components/AssessmentPaperView.jsx',
   // ── Paper content, maths typesetting and print styling ────────────────
   'src/utils/paperContentModel.js',
   'src/utils/latexToUnicode.js',
@@ -54,7 +54,7 @@ export const PRINT_AFFECTING_PATHS = Object.freeze([
   'src/editor/extensions/MathFraction.js',
   'src/editor/extensions/NumberBase.js',
   'src/editor/extensions/VerticalArithmetic.js',
-  'src/components/teacher/studio/assessmentStudio.css',
+  'src/shared/styles/assessmentStudio.css',
   'src/**/*print*.css',
   // ── Diagrams, figures and the ink they use ────────────────────────────
   'src/curriculum/diagrams/**',

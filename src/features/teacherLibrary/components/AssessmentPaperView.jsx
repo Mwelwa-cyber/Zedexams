@@ -13,7 +13,7 @@
 import { useMemo } from 'react'
 import { aiPaperToStudioDoc } from '../../../utils/aiPaperToSections'
 import { buildPaperLayout } from '../../../utils/assessmentPaperLayout'
-import { PaperDocument } from './PaperBlocks'
+import { PaperDocument } from '../../../engines/paper-render/PaperBlocks'
 
 export default function AssessmentPaperView({ assessment, tool = 'assessment', showAnswers = false }) {
   const { blocks, questionCount } = useMemo(() => {

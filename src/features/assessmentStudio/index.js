@@ -30,8 +30,14 @@
  *   It is drawn by `curriculum/StudioCurriculumSelector.jsx` **and by
  *   `features/lessonPlanStudio`**, so pulling it in here would have created a
  *   cross-feature import, and `KNOWN_CROSS_FEATURE_IMPORTS` only shrinks.
- * - `studio/assessmentStudio.css` stays: `views/PaperBlocks.jsx` imports it,
- *   and PaperBlocks is shared with the export/preview pipeline. `paperPages.css`
+ * - ~~`studio/assessmentStudio.css` stays~~ — it MOVED on 2026-08-14, to
+ *   `src/shared/styles/assessmentStudio.css`. The reason recorded here was
+ *   "`views/PaperBlocks.jsx` imports it, and PaperBlocks is shared with the
+ *   export/preview pipeline", which was a statement about the freeze rather
+ *   than about the stylesheet: PaperBlocks could not move, so neither could
+ *   its CSS. With the freeze closed, PaperBlocks is `src/engines/paper-render/`
+ *   and the stylesheet's two consumers are that engine and this feature — so
+ *   it belongs below both, beside `dashboardV2.css`. `paperPages.css`
  *   did travel — `PaperPagesPreview` is its only consumer.
  * - `studio/lessonStudio.css` stays, unchanged: it is the lesson studio's, and
  *   `CreatePaperModal` / `AssessmentSlideOvers` have always reached back for it.

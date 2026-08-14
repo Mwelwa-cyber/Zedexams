@@ -144,7 +144,7 @@ import { estimatePaperMinutes } from '../../../utils/assessmentTiming'
 import { normalizeSubject } from '../../../config/curriculum'
 import { shouldBlockHydration } from '../lib/assessmentLoadGuard'
 
-import '../../../components/teacher/studio/assessmentStudio.css'
+import '../../../shared/styles/assessmentStudio.css'
 import StudioOutputBoundary from '../../../shared/components/StudioOutputBoundary'
 
 /* ------------------------------------------------------------------

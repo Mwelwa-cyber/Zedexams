@@ -14,13 +14,13 @@
  */
 
 import { useMemo } from 'react'
-import DiagramSvg from '../../../curriculum/diagrams/DiagramSvg'
-import { resolveImageWidthPercent } from '../../../utils/imageWidth'
-import { resolveFigureLabels, resolveAnswerKeyLabels } from '../../../utils/figureLabelLayout'
-import { splitStatementSegments, statementLabel } from '../../../utils/fillBlanks'
-import { subPartLabel, splitPartBlanks, countPartBlanks } from '../../../utils/questionParts'
-import { DEFAULT_ANSWER_LINES } from '../../../utils/assessmentPaperLayout'
-import '../studio/assessmentStudio.css'
+import DiagramSvg from '../../curriculum/diagrams/DiagramSvg'
+import { resolveImageWidthPercent } from '../../utils/imageWidth'
+import { resolveFigureLabels, resolveAnswerKeyLabels } from '../../utils/figureLabelLayout'
+import { splitStatementSegments, statementLabel } from '../../utils/fillBlanks'
+import { subPartLabel, splitPartBlanks, countPartBlanks } from '../../utils/questionParts'
+import { DEFAULT_ANSWER_LINES } from '../../utils/assessmentPaperLayout'
+import '../../shared/styles/assessmentStudio.css'
 
 const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 

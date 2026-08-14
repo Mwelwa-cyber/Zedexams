@@ -1,8 +1,8 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
 import { PaperBlock } from './PaperBlocks.jsx'
-import { buildAssessmentDocument } from '../../../utils/assessmentDocument.js'
-import { buildPrintableHtml } from '../../../utils/assessmentToPdf.js'
+import { buildAssessmentDocument } from '../../utils/assessmentDocument.js'
+import { buildPrintableHtml } from '../../utils/assessmentToPdf.js'
 
 // Regression guard for the "test paper studio images too big" bug.
 //
