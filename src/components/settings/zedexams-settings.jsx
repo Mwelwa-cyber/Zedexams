@@ -15,7 +15,7 @@ import CharacterAvatar, {
   CHARACTERS,
   INTEREST_GROUPS,
   getCharacter,
-} from '../profile/CharacterAvatar';
+} from '../../shared/components/CharacterAvatar';
 import SeoHelmet from '../seo/SeoHelmet';
 import LanguageToggle from '../ui/LanguageToggle';
 import { ParentShareManager } from '../../features/parentPortal';

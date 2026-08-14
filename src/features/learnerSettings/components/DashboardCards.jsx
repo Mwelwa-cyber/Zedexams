@@ -12,7 +12,7 @@ import { useSubscription } from '../../../hooks/useSubscription'
 import { useTheme, DEFAULT_THEME } from '../../../contexts/ThemeContext'
 import { useSettingsSave } from './SaveContext'
 import Icon from '../../../components/ui/Icon'
-import CharacterAvatar from '../../../components/profile/CharacterAvatar'
+import CharacterAvatar from '../../../shared/components/CharacterAvatar'
 import UpgradeModal from '../../../components/subscription/UpgradeModal'
 import { SkeletonCard } from '../../../components/ui'
 import {
