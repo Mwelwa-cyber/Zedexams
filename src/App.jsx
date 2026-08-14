@@ -8,7 +8,7 @@ import { PlatformSettingsProvider } from './contexts/PlatformSettingsContext'
 import MaintenanceBanner from './components/banners/MaintenanceBanner'
 import { AnnouncementBanner } from './features/announcements'
 import AndroidUpdateBanner from './components/banners/AndroidUpdateBanner'
-import SubscriptionStatusBanner from './components/subscription/SubscriptionStatusBanner'
+import { SubscriptionStatusBanner } from './features/subscription'
 import ProtectedRoute from './app/guards/ProtectedRoute'
 import { TEACHER_ROUTES, FlaggedStudioRoute } from './components/teacher/teacherRoutes'
 import AdminMfaGate from './app/guards/AdminMfaGate'
@@ -122,13 +122,13 @@ const OfflineLibraryPage = lazy(() => import('./offline/OfflineLibraryPage.jsx')
 const ZedExamsSettings = lazy(() => import('./features/accountSettings/pages/zedexams-settings'))
 const TeacherSettings = lazy(() => import('./features/teacherSettings/TeacherSettings'))
 const LearnerSettings = lazy(() => import('./features/learnerSettings/LearnerSettings'))
-const PaywallHost = lazy(() => import('./components/subscription/PaywallHost'))
-const PostUpgradeContinuation = lazy(() => import('./components/subscription/PostUpgradeContinuation'))
+const PaywallHost = lazy(() => import('./features/subscription/components/PaywallHost'))
+const PostUpgradeContinuation = lazy(() => import('./features/subscription/components/PostUpgradeContinuation'))
 const NativePlayBillingSync = lazy(() => import('./components/native/NativePlayBillingSync'))
-const LockedFeatureModal = lazy(() => import('./components/subscription/LockedFeatureModal'))
-const QuizLimitPopup = lazy(() => import('./components/subscription/QuizLimitPopup'))
-const SubscriptionReminderPopup = lazy(() => import('./components/subscription/SubscriptionReminderPopup'))
-const MySubscriptionRoute = lazy(() => import('./components/subscription/MySubscriptionRoute'))
+const LockedFeatureModal = lazy(() => import('./features/subscription/components/LockedFeatureModal'))
+const QuizLimitPopup = lazy(() => import('./features/subscription/components/QuizLimitPopup'))
+const SubscriptionReminderPopup = lazy(() => import('./features/subscription/components/SubscriptionReminderPopup'))
+const MySubscriptionRoute = lazy(() => import('./features/subscription/pages/MySubscriptionRoute'))
 const NotFound = lazy(() => import('./components/ui/NotFound'))
 const Marketing = lazy(() => import('./features/marketing/pages/Marketing'))
 const Plans = lazy(() => import('./features/marketing/pages/Plans'))

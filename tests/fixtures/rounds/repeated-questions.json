@@ -1,0 +1,29 @@
+{
+  "description": "The deck ran out and reshuffled, so questions repeat inside one round — answered correctly once and wrongly once. A streak is broken and rebuilt.",
+  "game": {
+    "id": "game-english-g3",
+    "title": "Word Power",
+    "subject": "english",
+    "grade": 3,
+    "type": "timed_quiz",
+    "timer": 60,
+    "points": 10,
+    "questions": [
+      { "question": "Which word is a noun?", "options": ["quickly", "table", "run", "blue"], "answer": "table" },
+      { "question": "Which word is a verb?", "options": ["happy", "river", "jump", "soft"], "answer": "jump" }
+    ]
+  },
+  "picks": [
+    { "poolIndex": 0, "optionIndex": 1 },
+    { "poolIndex": 1, "optionIndex": 2 },
+    { "poolIndex": 0, "optionIndex": 0 },
+    { "poolIndex": 1, "optionIndex": 2 },
+    { "poolIndex": 0, "optionIndex": 1 },
+    { "poolIndex": 1, "optionIndex": 2 },
+    { "poolIndex": 0, "optionIndex": 1 }
+  ],
+  "userId": "learner-3",
+  "displayName": "Bwalya",
+  "startedAtMs": 1700000000000,
+  "nowMs": 1700000060000
+}

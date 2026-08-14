@@ -1,0 +1,20 @@
+{
+  "description": "The clock ran out before the learner answered anything. Accuracy is 0 with nothing attempted — the denominator case that divides by zero if `accuracyPct` is ever rewritten.",
+  "game": {
+    "id": "game-maths-g7",
+    "title": "Fractions Rush",
+    "subject": "mathematics",
+    "grade": 7,
+    "type": "timed_quiz",
+    "timer": 60,
+    "points": 15,
+    "questions": [
+      { "question": "Simplify 4/8", "options": ["1/2", "2/3", "3/4", "1/4"], "answer": "1/2" }
+    ]
+  },
+  "picks": [],
+  "userId": "learner-7",
+  "displayName": "Joseph",
+  "startedAtMs": 1700000000000,
+  "nowMs": 1700000060000
+}

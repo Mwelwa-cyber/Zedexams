@@ -36,7 +36,7 @@ import { useTeachingProfile } from '../../features/teacherSettings/lib/useTeachi
 import { daysUntil, fmtDate, getActiveTerm, getCurrentForecastWeek, getNextTerm } from '../../utils/moeCalendar'
 import { capture } from '../../utils/analytics'
 import SeoHelmet from '../seo/SeoHelmet'
-import UsageReminderBanner from '../subscription/UsageReminderBanner'
+import { UsageReminderBanner } from '../../features/subscription'
 import AiRecommendations from './AiRecommendations'
 import { FreeAllowanceNotice, PlanUsageCard } from '../../features/teacherPaywall'
 import PrepareThisWeek from './PrepareThisWeek'

@@ -34,7 +34,7 @@ import Skeleton             from '../../../components/ui/Skeleton'
 import SeoHelmet            from '../../../components/seo/SeoHelmet'
 import GameStickerStyles    from '../../../components/games/GameStickerStyles'
 import MobileBottomNav      from '../../../components/layout/MobileBottomNav'
-import UpgradeModal         from '../../../components/subscription/UpgradeModal'
+import { UpgradeModal } from '../../subscription'
 
 // Subject palette — re-uses the dashboard's tone scheme so the drill-down
 // inherits the colour the learner picked on the SubjectCardRich.

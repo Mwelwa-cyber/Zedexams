@@ -1,0 +1,24 @@
+{
+  "description": "A round with no recorded start — `timeSpent` falls back to the full duration on BOTH paths. Unlike the quiz comparison, games declares no deviation here: this fixture is what proves the fallback is shared rather than approved.",
+  "game": {
+    "id": "game-spelling-g1",
+    "title": "First Words",
+    "subject": "english",
+    "grade": 1,
+    "type": "timed_quiz",
+    "timer": 40,
+    "points": 5,
+    "questions": [
+      { "question": "Which is spelled correctly?", "options": ["skool", "school", "scool"], "answer": "school" },
+      { "question": "Which is spelled correctly?", "options": ["freind", "frend", "friend"], "answer": "friend" }
+    ]
+  },
+  "picks": [
+    { "poolIndex": 0, "optionIndex": 1 },
+    { "poolIndex": 1, "optionIndex": 0 }
+  ],
+  "userId": "learner-6",
+  "displayName": "Temwani",
+  "startedAtMs": null,
+  "nowMs": 1700000030000
+}

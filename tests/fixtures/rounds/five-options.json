@@ -1,0 +1,32 @@
+{
+  "description": "A five-option question, answered at index 4 — the letter past D. `String.fromCharCode(65 + i)` and the shared `optionLabel` must both reach E, which is D4 in the divergence list.",
+  "game": {
+    "id": "game-socials-g6",
+    "title": "Provinces Quickfire",
+    "subject": "social studies",
+    "grade": 6,
+    "type": "timed_quiz",
+    "timer": 60,
+    "points": 10,
+    "questions": [
+      {
+        "question": "Which of these is a province of Zambia?",
+        "options": ["Kigoma", "Tete", "Caprivi", "Katanga", "Muchinga"],
+        "answer": "Muchinga"
+      },
+      {
+        "question": "Which town is on the Copperbelt?",
+        "options": ["Mongu", "Kasama", "Chingola", "Livingstone", "Chipata"],
+        "answer": "Chingola"
+      }
+    ]
+  },
+  "picks": [
+    { "poolIndex": 0, "optionIndex": 4 },
+    { "poolIndex": 1, "optionIndex": 2 }
+  ],
+  "userId": "learner-5",
+  "displayName": "Kabaso",
+  "startedAtMs": 1700000000000,
+  "nowMs": 1700000012000
+}

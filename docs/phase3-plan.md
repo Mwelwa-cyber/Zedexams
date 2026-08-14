@@ -1,11 +1,19 @@
 # Phase 3 — Assessment Engine implementation plan
 
-> Snapshot as of 2026-08-05 — verify before acting.
+> Snapshot as of 2026-08-14 — verify before acting.
 >
 > **All eight decisions in §10 are settled** (2026-08-05). The scope and order
 > below reflect them, and the binding changes they implied are in
 > [`architecture.md`](architecture.md) §4, §4.1, §10, §13 and §14.5. §10 of this
 > document now records what was decided and why, not what is open.
+>
+> **§10.1's work order is complete as of 2026-08-14** — past-paper, quizzes and
+> games all have their cutover. **No flag has been flipped.** Every
+> `featureFlags.assessmentEngine.*` switch is at its fail-closed default and
+> `rolloutPercent` is 0, so no learner has met the engine. What is left is the
+> ramp (§5.1 criterion 7, §7.2, §7.3), which is operated rather than merged.
+> Do not read a complete work order as a completed rollout: the Phase 4 freeze
+> in `architecture.md` §13 is keyed to the ramp, not to this list.
 
 The plan for [`docs/architecture.md`](architecture.md) §4 and its Phase 3 entry in
 §13: extract one Assessment Engine and retire the parallel runners. Written after
@@ -936,7 +944,8 @@ happened.
    ✅ past-paper, the canary (#2149–#2159). ✅ **quizzes**, the first cutover
    that WRITES — the flag selects the choice card, the verdict and the result
    document in `QuizRunnerV2`; everything else on the screen is the same code on
-   both paths. Games remains.
+   both paths. ✅ **games**, the last one — all three flags now exist in code as
+   well as in the admin panel, and every one of them is still at `off`.
 
    Four things about the quiz cutover worth carrying into games:
 
@@ -1054,3 +1063,141 @@ happened.
    `ChoiceQuestion` unchanged, and that gate's fixtures are of the renderer
    rather than of a runner. Criterion 7 (rehearsing the rollback on the live
    toggle) is an operator step and is not dischargeable from a pull request.
+
+   ### The games cutover
+
+   The last of the three, and the one §5.0 sequenced last for being the
+   write-heaviest with the smallest unification payoff. Four things about it are
+   worth carrying forward.
+
+   - **The engine supplies the VERDICT here, not the writer — and that is a
+     narrower cutover than either of the first two.** `persist/` is not
+     involved at all. `scores` stores grade as a Number and subject lowercased
+     (D5, §1.5's "single most load-bearing sentence in the games path"), and the
+     canonical model carries both as strings, so a score document built from the
+     assessment would be written successfully and then found by no leaderboard
+     query — a silent read-side failure with the writes still landing.
+     `buildGameScorePayload` therefore reads the `games` document directly on
+     BOTH paths, and the emulator now enforces it from the other side too: the
+     create rule requires `grade is number`, so the string form is rejected
+     rather than filed. What the flag selects is the choice card and
+     `markAttempt`; everything downstream is one code path.
+
+   - **The comparison found a real defect, and it was the inverse of a score.**
+     `fromGame` shipped with `answerKey: { answer: <the raw stored value> }`.
+     Nothing consumed the canonical answer key when it was written, but
+     `markWithClientKey` spreads it straight into `computeQuizScore`, which
+     grades `mcq` by strict equality against **`correctAnswer`** — a field that
+     key does not have. The learner's response is an option INDEX, so every
+     answered question marked wrong; worse, every UNANSWERED question compared
+     `undefined === undefined` and marked RIGHT. The first fixture run showed a
+     round of three wrong answers scoring 37 points at 100% accuracy. This is
+     the defect class `answerKeyCoverage.test.js` was written for after #2120
+     ("a grader reads a question field the normaliser drops"), arriving through
+     the source the normaliser is *for* rather than through the field list —
+     that guard reads `fromQuiz`'s `ANSWER_KEY_FIELDS` and has nothing to say
+     about `fromGame`. The key is now the resolved POSITION, and an unresolvable
+     answer yields an EMPTY key rather than `{ answer: null }`, because a null
+     key marks an unanswered question correct in exactly the same way.
+
+   - **`correctIndex` and `answerKey.correctAnswer` are two spellings of one
+     fact, read by different code.** `buildChoiceRows` paints the green ✓ from
+     the first; `markWithClientKey` scores from the second. They cannot be
+     collapsed — `fromQuiz` deliberately carries a RAW `correctAnswer` (a stored
+     true/false key is a boolean, not a position) and derives `correctIndex`
+     only when the stored key is a usable index. Games is the source where the
+     two coincide, so the replay test asserts they are equal per question rather
+     than assuming it. The failure it guards is the unattributable one: the card
+     shows one option as the answer and the score credits another.
+
+   - **The refusals, and one that is a tripwire rather than a rescue.** A round
+     is refused whole — never per question — when the canonical list and the
+     pool disagree in length (position IS identity for a game question, so a
+     mismatch marks answers against the wrong question silently), when any
+     `answer` resolves to no option, or when any option is a non-string. The
+     last one is asserted honestly: a game with object options crashes the OLD
+     card too (React refuses an object child), which is why no `timed_quiz`
+     document has one. So refusing does not rescue that data — what it buys is
+     that when the games schema does grow picture options, the engine fails in
+     the same visible place instead of drawing `[object Object]` across five
+     rows that look answerable. That is the games answer to the open question
+     the quiz cutover left about per-option media (§10.1 step 8): the canary's
+     gap is real and still unaddressed, but games does not share it, because a
+     `timed_quiz` option has nowhere to put an image.
+
+   Two things this cutover changes that the other two did not. The engine card
+   is a **visible layout change on this runner**: the game's own card is
+   `grid-cols-1 sm:grid-cols-2`, and the engine draws §4's single vertical
+   column — D3, resolved to vertical, arriving here rather than at
+   `DailyExamRunner` where §1.6 first named it. And the latch is keyed on the
+   **round** rather than on the ready card, because "Play again" goes from
+   `done` straight back to `playing`: a latch re-armed on the ready card would
+   pin a whole sitting to the first round's decision. The asymmetry is the
+   quiz's, unchanged — a ramp-up never moves a learner mid-question, a rollback
+   always does.
+
+   One extraction was needed first, and it is the games equivalent of step 1's
+   `buildQuizResultPayload`. The round's scoring lived in eight `useState`s
+   mutated inside `pick()`, so the only way to observe what a round produced was
+   to drive the component under jsdom with a fake clock. `timedQuizRound.js`
+   holds the transition as a pure reducer; the component calls it and the
+   harness folds it, so the comparison measures the shipped arithmetic rather
+   than a copy. `roundOutcome()` is the join: the component accumulates as it
+   goes and the harness folds at the end, and both close the round through the
+   same function.
+
+   **The extraction touched the LEGACY path, and that was checked separately.**
+   `timedQuizRound.js` replaced eight `useState`s that every learner's round
+   runs through today, flag or no flag — so unlike the rest of this cutover it
+   is not behind a switch, and "the engine comparison is green" says nothing
+   about it. `TimedQuizGame.legacy.spec.jsx` pins the five behaviours that
+   matter with the flag OFF: rapid/double selection, the clock expiring on the
+   final answer, unanswered questions not being penalised, the accuracy and
+   score rounding, and completion firing exactly once. Each was run against the
+   PRE-EXTRACTION component as well, which is how the one real divergence was
+   found rather than argued about.
+
+   That divergence is double selection inside ONE React batch — two handlers
+   running before React commits, so both read `picked === null` and both pass
+   the guard. Measured, both versions were wrong and neither was protection:
+   the old code's functional updates (`setScore(s => s + gained)`,
+   `setCorrect(c => c + 1)`) APPLIED BOTH, landing one question as `correct: 1`
+   **and** `wrong: 1` with a score of 8; the reducer reads the render's value,
+   so the second write REPLACED the first and the correct answer vanished, score
+   0. Ordinary rapid clicking was fine in both, because the browser dispatches
+   each click as its own task and React commits between them — which is why this
+   had never been noticed.
+
+   Fixed rather than pinned: `pick()` now claims a synchronous `useRef` before
+   touching state, so the second call in the same tick is refused outright and
+   the first answer wins. It is the idiom `useAiOperationLock` already uses in
+   this repo, for the identical reason — "React `status` state alone updates too
+   late to catch this." The ref is released on question advance and on round
+   start, and both releases have their own case, because a lock that is never
+   released turns the round into a one-question game.
+
+   §5.1's checkable criteria at the flip: lint (0 errors)/build/`test:all` (717
+   discovered, not lower)/`test:unit` (3844, up from 3819)/
+   `test:import-boundaries` green; `TimedQuizGame.legacy.spec.jsx` (16 cases)
+   covers the legacy path the extraction touched; the §3 comparison (`test:replay-game-round`,
+   7 fixtures, 15 cases) covers this runner's write on every one and catches a
+   changed score, a dropped field, an extra write, and a moved answer key —
+   criterion 3 takes that last form here, because at a runner where the engine
+   supplies no writer, the key IS its contribution. Criterion 4 is discharged in
+   full: `badges`, `dailyStreaks` and `learner_profiles` had **no emulator
+   coverage at all** and now have 25 cases between them, `scores` went from 2 to
+   7, and all three moved off the shrink-only uncovered list (suite 329 → 359).
+   Criterion 6 is `TimedQuizGame.engine.spec.jsx`, 14 cases, which asserts the
+   §2 layout on the engine card AND that a wrong answer takes the penalty —
+   the second one is the control, since a card swapped without its verdict
+   passes every layout assertion. The two Phase 3 write targets remaining on the
+   uncovered list are `daily_exam_locks` and `paperAttempts`, which belong to
+   the two surfaces §6 and §0 put outside the phase. The screen visual gate
+   needed no new fixture, for the same reason as the quiz cutover:
+   `ChoiceQuestion` is reused unchanged. Criterion 7 remains an operator step.
+
+   **What is now true of the phase as a whole:** every runner in scope has its
+   cutover, and every flag is still off. §10.1 has no unticked step. The
+   remaining work is the ramp in §5.1(7) and §7.2–7.3, which is operated rather
+   than merged — and the freeze in `architecture.md` §13 is keyed to the ramp
+   reaching 100%, not to this list being complete.

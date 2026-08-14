@@ -212,6 +212,24 @@ const KNOWN_CROSS_FEATURE_IMPORTS = new Set([
 // collection rather than at a module. Nothing to put below two features that
 // do not import each other.
 const KNOWN_LEGACY_FEATURE_IMPORTS = new Set([
+  // FORCED by the freeze, and recorded rather than avoided — the `subscription`
+  // migration. This is the re-export shim at the OLD path, kept alive so that
+  // components/quiz/QuizRunnerV2.jsx, components/quiz/QuizList.jsx,
+  // components/games/PlayGame.jsx and three QuizRunnerV2 specs stay
+  // byte-identical while Phase 3 replaces the quiz runner behind rollout flags.
+  //
+  // It points at the component, NOT at the feature's index, on purpose. Routing
+  // it through the front door would make the shim resolve cleanly and cost
+  // nothing here — but it would then evaluate every module that index
+  // re-exports, putting the status banner, PremiumGate and RenewalBanner into
+  // the chunk of the highest-traffic learner route, mid-cutover. Trading one
+  // recorded debt entry for unmeasured weight on that route is the wrong way
+  // round.
+  //
+  // RETIREMENT: delete src/components/subscription/UpgradeModal.jsx, repoint
+  // those six references at features/subscription, and remove this line — the
+  // moment the Phase 3 rollout flags reach 100%.
+  'src/components/subscription/UpgradeModal.jsx → ../../features/subscription/components/UpgradeModal',
   'src/components/teacher/TeacherDashboard.jsx → ../../features/teacherSettings/lib/useTeachingProfile',
   // FORCED, and recorded rather than avoided — `teacherShell` PR B. Every other
   // entry on this list clears when its caller migrates into a feature; this one

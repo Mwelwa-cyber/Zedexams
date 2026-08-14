@@ -1,0 +1,32 @@
+{
+  "description": "Six correct answers in a row — the streak bonus is reached (+1 from the third) and the round is measured.",
+  "game": {
+    "id": "game-times-tables-g4",
+    "title": "Times Tables Sprint",
+    "subject": "mathematics",
+    "grade": 4,
+    "type": "timed_quiz",
+    "timer": 60,
+    "points": 10,
+    "questions": [
+      { "question": "6 x 7", "options": ["36", "42", "48", "54"], "answer": "42", "topic": "Multiplication" },
+      { "question": "8 x 4", "options": ["24", "28", "32", "36"], "answer": "32", "topic": "Multiplication" },
+      { "question": "9 x 3", "options": ["21", "24", "27", "30"], "answer": "27", "topic": "Multiplication" },
+      { "question": "5 x 8", "options": ["30", "35", "40", "45"], "answer": "40", "topic": "Multiplication" },
+      { "question": "7 x 7", "options": ["42", "49", "56", "63"], "answer": "49", "topic": "Multiplication" },
+      { "question": "12 x 3", "options": ["30", "33", "36", "39"], "answer": "36", "topic": "Multiplication" }
+    ]
+  },
+  "picks": [
+    { "poolIndex": 0, "optionIndex": 1 },
+    { "poolIndex": 1, "optionIndex": 2 },
+    { "poolIndex": 2, "optionIndex": 2 },
+    { "poolIndex": 3, "optionIndex": 2 },
+    { "poolIndex": 4, "optionIndex": 1 },
+    { "poolIndex": 5, "optionIndex": 2 }
+  ],
+  "userId": "learner-1",
+  "displayName": "Chanda M",
+  "startedAtMs": 1700000000000,
+  "nowMs": 1700000045000
+}

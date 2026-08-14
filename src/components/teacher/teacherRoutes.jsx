@@ -39,7 +39,7 @@ const TeacherDashboardLive = lazy(() => import('../../features/dashboardV2/pages
 const TeacherDashboardV2 = lazy(() => import('../../features/dashboardV2/pages/TeacherDashboardV2'))
 const TeacherHelpSupport = lazy(() => import('../../features/dashboardV2/pages/HelpSupportPage'))
 const WelcomeToPro = lazy(() => import('./WelcomeToPro'))
-const MySubscriptionPage = lazy(() => import('../subscription/MySubscriptionPage'))
+const MySubscriptionPage = lazy(() => import('../../features/subscription/pages/MySubscriptionPage'))
 
 const ClassListRegisterPreview = lazy(() => import('../../features/classList/pages/ClassListRegisterPreview'))
 const ImportReviewPreview = lazy(() =>

@@ -16,7 +16,6 @@ Grep of the basename across `src`/`functions`/`scripts` + vite/vitest config ret
 | File | Evidence |
 |---|---|
 | `src/components/admin/agents/AgentDirectory.jsx` | no importer |
-| `src/components/admin/GenerateFromTopicMenu.jsx` | no importer |
 | `src/components/dashboard/ClassesQuickCard.jsx` | no importer |
 | `src/components/lessons/LessonLibrary.jsx` | no importer |
 | `src/components/teacher/classes/AssignmentDrilldown.jsx` | no importer |
