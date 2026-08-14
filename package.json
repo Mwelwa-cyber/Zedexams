@@ -541,7 +541,7 @@
     "test:visual-safety": "node functions/visualSafety.test.js",
     "test:lenco": "node functions/lencoService.test.js",
     "test:webhook-ledger": "node functions/webhookEventLedger.test.js",
-    "test:lenco-webhook":"node functions/lencoWebhookProcessor.test.js",
+    "test:lenco-webhook": "node functions/lencoWebhookProcessor.test.js",
     "test:subscription-activation": "node functions/subscriptionActivation.test.js",
     "test:activation-provider": "node functions/subscriptionActivationProvider.test.js",
     "test:google-play-core": "node functions/googlePlayBillingCore.test.js",
@@ -815,7 +815,8 @@
     "test:security-review-trigger": "node scripts/test-security-review-trigger.mjs",
     "test:codeql-scope": "node scripts/test-codeql-scope.mjs",
     "test:admin-home": "node src/features/adminHome/lib/adminHomeCore.test.js",
-    "test:color-surface-map": "node scripts/test-color-surface-map.mjs"
+    "test:color-surface-map": "node scripts/test-color-surface-map.mjs",
+    "test:library-download": "node functions/libraryDownload.test.js"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",
