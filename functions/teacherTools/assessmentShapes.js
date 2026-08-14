@@ -1,6 +1,6 @@
 /**
  * assessmentShapes — the maths/graph subset of the deterministic SVG diagram
- * catalog (src/components/diagrams/diagramCatalog.js) that the assessment AI is
+ * catalog (src/curriculum/diagrams/diagramCatalog.js) that the assessment AI is
  * allowed to request as an EXACT figure (kind "shape" / "shape_options").
  *
  * Why a separate allowlist instead of importing the catalog?

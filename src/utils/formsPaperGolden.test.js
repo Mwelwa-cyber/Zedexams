@@ -39,7 +39,7 @@ const { buildDocxDocument } = await import('./assessmentToDocx.js')
 const { buildPrintableHtml } = await import('./assessmentToPdf.js')
 const { setSvgRasterizer, resetSvgRasterizer } = await import('./svgRasterizer.js')
 const { buildSavedAssessmentExportReadiness } = await import('./assessmentExportReadiness.js')
-const { resolveFigureForExport } = await import('../components/diagrams/diagramCatalog.js')
+const { resolveFigureForExport } = await import('../curriculum/diagrams/diagramCatalog.js')
 const { findForbiddenTerms } = await import('../config/paperTerminology.js')
 
 /** Minimal valid PNG (1×1 transparent) — the raster fallback inside each SVG run. */

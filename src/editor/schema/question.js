@@ -93,7 +93,7 @@ export const tiptapDoc = z
 
 /**
  * A reference to a parametrised diagram in the catalog
- * (src/components/diagrams/diagramCatalog.js). The renderer looks up the
+ * (src/curriculum/diagrams/diagramCatalog.js). The renderer looks up the
  * entry by `libraryKey` and merges these `params` on top of the entry's
  * defaults. Stored as pure data so the teacher can re-open the picker
  * later and tweak labels.

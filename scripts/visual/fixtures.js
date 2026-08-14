@@ -33,7 +33,7 @@
  * key on the ID, so a fixture can be retitled without orphaning its baselines.
  */
 
-import { getDiagram, renderDiagramSvg } from '../../src/components/diagrams/diagramCatalog.js'
+import { getDiagram, renderDiagramSvg } from '../../src/curriculum/diagrams/diagramCatalog.js'
 import { anchorContractProblems } from './anchors.js'
 
 /** Every rendering target a fixture can declare. */

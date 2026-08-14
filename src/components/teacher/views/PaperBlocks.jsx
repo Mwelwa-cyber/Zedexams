@@ -14,7 +14,7 @@
  */
 
 import { useMemo } from 'react'
-import DiagramSvg from '../../diagrams/DiagramSvg'
+import DiagramSvg from '../../../curriculum/diagrams/DiagramSvg'
 import { resolveImageWidthPercent } from '../../../utils/imageWidth'
 import { resolveFigureLabels, resolveAnswerKeyLabels } from '../../../utils/figureLabelLayout'
 import { splitStatementSegments, statementLabel } from '../../../utils/fillBlanks'

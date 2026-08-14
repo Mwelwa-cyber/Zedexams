@@ -53,7 +53,7 @@ import {
   unresolvedFigure, unresolvedFigureMessage, UnresolvedFigureError,
 } from './unresolvedFigures.js'
 import { seedBandForLevel } from './assessmentBandService.js'
-import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
+import { renderDiagramSvg } from '../curriculum/diagrams/diagramCatalog.js'
 import { svgToPngBytes, decodeImageBytes } from './svgRasterizer.js'
 import { hydrateTableData } from './tableData.js'
 import {

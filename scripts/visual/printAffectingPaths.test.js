@@ -59,7 +59,7 @@ test('the renderers, the geometry and the diagram catalogue are all covered', ()
     'src/utils/assessmentPaperLayout.js',
     'src/config/paperPageGeometry.js',
     'src/utils/paperPaginationCore.js',
-    'src/components/diagrams/anything.js',
+    'src/curriculum/diagrams/anything.js',
     'functions/shared/assessment/diagramCatalogCore.js',
     'public/fonts/serif.woff2',
     'src/theme/print.css',

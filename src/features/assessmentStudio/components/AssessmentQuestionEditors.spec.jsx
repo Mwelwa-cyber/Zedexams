@@ -16,7 +16,7 @@ import { McqOptions, CardQuestionText, toEditableText } from './AssessmentQuesti
 import { richTextToPaperHtml } from '../../../editor/utils/safeRender.js'
 
 // DiagramSvg renders an <svg> that needs real DOM measurements — stub it.
-vi.mock('../../../components/diagrams/DiagramSvg', () => ({ default: () => null }))
+vi.mock('../../../curriculum/diagrams/DiagramSvg', () => ({ default: () => null }))
 // studioIcons renders inline SVG paths; keep it out of jsdom.
 vi.mock('./studioIcons', () => ({ default: () => null }))
 

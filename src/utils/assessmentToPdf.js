@@ -12,7 +12,7 @@
  */
 
 import { DEFAULT_ANSWER_LINES } from './assessmentPaperLayout.js'
-import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
+import { renderDiagramSvg } from '../curriculum/diagrams/diagramCatalog.js'
 import { splitStatementSegments, statementLabel } from './fillBlanks.js'
 import { subPartLabel, splitPartBlanks } from './questionParts.js'
 import { hydrateTableData } from './tableData.js'

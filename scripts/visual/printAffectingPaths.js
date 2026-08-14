@@ -57,7 +57,7 @@ export const PRINT_AFFECTING_PATHS = Object.freeze([
   'src/components/teacher/studio/assessmentStudio.css',
   'src/**/*print*.css',
   // ── Diagrams, figures and the ink they use ────────────────────────────
-  'src/components/diagrams/**',
+  'src/curriculum/diagrams/**',
   'functions/shared/assessment/diagramCatalogCore.js',
   'src/utils/figureSizing.js',
   'src/utils/figureLabelLayout.js',

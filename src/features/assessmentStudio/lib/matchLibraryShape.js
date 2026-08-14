@@ -14,7 +14,7 @@
  * under plain `node`.
  */
 
-import { DIAGRAM_CATALOG } from '../../../components/diagrams/diagramCatalog.js'
+import { DIAGRAM_CATALOG } from '../../../curriculum/diagrams/diagramCatalog.js'
 
 // Keyword → libraryKey. Ordered longest/most-specific first at match time.
 // Only keys present in DIAGRAM_CATALOG are used (guarded below).

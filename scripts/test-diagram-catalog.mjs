@@ -10,7 +10,7 @@ import {
   DIAGRAM_CATALOG,
   renderDiagramSvg,
   getDiagram,
-} from '../src/components/diagrams/diagramCatalog.js'
+} from '../src/curriculum/diagrams/diagramCatalog.js'
 
 let passed = 0
 function test(name, fn) {

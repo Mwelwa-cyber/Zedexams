@@ -1,5 +1,5 @@
 /**
- * src/components/diagrams/diagramCatalog.js
+ * src/curriculum/diagrams/diagramCatalog.js
  *
  * ESM mirror of the diagram catalog in /public/studio/11-diagrams.js.
  *

@@ -197,7 +197,10 @@ test('the path list covers every rendering dependency the owner listed', () => {
     'PDF and print exporters': /assessmentToPdf|htmlToPdf/,
     'paper templates': /PaperBlocks|AssessmentPaperView/,
     'mathematical typesetting': /latexToUnicode|MathFraction|VerticalArithmetic/,
-    'diagram code': /components\/diagrams/,
+    // Repointed 2026-08-14 with the directory itself: the diagram library moved
+    // to `src/curriculum/diagrams/`. Both the renderer and the catalogue core it
+    // re-exports are named, so this stays true if either is listed alone.
+    'diagram code': /curriculum\/diagrams|diagramCatalogCore/,
     'print CSS': /print.*css|assessmentStudio\.css/,
     'fonts and print assets': /fonts|assets\/print/,
     'terminology that changes printed output': /paperTerminology/,

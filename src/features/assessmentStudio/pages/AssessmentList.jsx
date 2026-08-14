@@ -34,7 +34,7 @@ import { assessmentCategory } from '../../../components/teacher/paperTaxonomy'
 import { readPaperTerm } from '../../../components/teacher/assessmentTitle'
 import { paperCardTitle } from '../lib/paperNaming'
 import { buildSavedAssessmentExportReadiness } from '../../../utils/assessmentExportReadiness'
-import { renderDiagramSvg } from '../../../components/diagrams/diagramCatalog'
+import { renderDiagramSvg } from '../../../curriculum/diagrams/diagramCatalog'
 
 function formatDate(ts) {
   if (!ts) return '—'
