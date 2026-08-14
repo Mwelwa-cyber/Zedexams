@@ -12,22 +12,22 @@ import {
   Sparkles,
   StarIcon,
   X,
-} from '../../shared/components/icons'
-import { useFirestore } from '../../hooks/useFirestore'
-import { useDebouncedValue } from '../../hooks/useDebouncedValue'
-import { useSubscription } from '../../hooks/useSubscription'
-import { useAuth } from '../../contexts/AuthContext'
-import UpgradeModal from '../subscription/UpgradeModal'
-import ComingSoon from '../../shared/components/ComingSoon'
-import Button from '../../shared/components/Button'
-import Icon from '../../shared/components/Icon'
-import Skeleton from '../../shared/components/Skeleton'
-import ContentLoadError from '../../shared/components/ContentLoadError'
-import SeoHelmet from '../../shared/components/SeoHelmet'
-import GameStickerStyles from '../games/GameStickerStyles'
-import { QuizzesHubTour } from '../../shared/components/learnerTours'
-import { gradesForFeature, gradeNumberOf } from '../../config/canonicalEducation'
-import { PAPER_SUBJECTS } from '../../config/curriculum'
+} from '../../../shared/components/icons'
+import { useFirestore } from '../../../hooks/useFirestore'
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
+import { useSubscription } from '../../../hooks/useSubscription'
+import { useAuth } from '../../../contexts/AuthContext'
+import UpgradeModal from '../../../components/subscription/UpgradeModal'
+import ComingSoon from '../../../shared/components/ComingSoon'
+import Button from '../../../shared/components/Button'
+import Icon from '../../../shared/components/Icon'
+import Skeleton from '../../../shared/components/Skeleton'
+import ContentLoadError from '../../../shared/components/ContentLoadError'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import GameStickerStyles from '../../../shared/components/GameStickerStyles'
+import { QuizzesHubTour } from '../../../shared/components/learnerTours'
+import { gradesForFeature, gradeNumberOf } from '../../../config/canonicalEducation'
+import { PAPER_SUBJECTS } from '../../../config/curriculum'
 
 // ── Config ────────────────────────────────────────────────────────────────
 // A filter on the canonical ladder — see FEATURE_GRADE_RESTRICTIONS.

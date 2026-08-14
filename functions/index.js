@@ -68,16 +68,10 @@ const {runScannedQuizImport} = require("./scannedQuizImport");
 // so the editor can fill blank answer keys in a single pass.
 const {runSuggestQuizAnswers} = require("./suggestQuizAnswers");
 const {applyCors} = require("./cors");
-const {resolveAppCheckEnforcement} = require("./appCheckEnforcement");
-const {
-  resolveShardCount: resolveAppCheckShardCount,
-  resolveSampleRate: resolveAppCheckSampleRate,
-  weightForSampleRate: appCheckWeightForSampleRate,
-  shouldSample: shouldSampleAppCheck,
-  pickShardId: pickAppCheckShardId,
-  classifyOutcome: classifyAppCheckOutcome,
-  buildHealthShardUpdate: buildAppCheckShardUpdate,
-} = require("./appCheckHealthCore");
+// The App Check enforcement resolver and the appCheckHealthCore helpers are no
+// longer required HERE: their only consumers in this file were
+// softVerifyAppCheckHttp and recordAppCheckHealth, which moved to
+// functions/appCheckHttp.js and require them there.
 const {
   assertHttpRateLimit,
   assertCallableRateLimit,
@@ -445,41 +439,8 @@ async function requireHttpAuth(req) {
   return assertDecodedVerified(decoded);
 }
 
-// Audit B3 — soft App Check verification for HTTP endpoints.
-//
-// In rollout mode (the default while clients are propagating the
-// App Check SDK init), missing or invalid tokens are logged to a
-// per-day counter doc but the call is NOT rejected. The
-// /admin/ai-costs surface (or a future App Check dashboard) reads
-// these counters to gauge readiness for hard enforcement.
-//
-// To flip to hard enforcement: set process.env.APPCHECK_ENFORCE=1
-// on the Cloud Functions deploy. The function then 401s any HTTP
-// request without a verified App Check token. No code change
-// needed.
-async function softVerifyAppCheckHttp(req, label) {
-  const token = req.get("X-Firebase-AppCheck") || "";
-  let verified = null;
-  if (token) {
-    try {
-      verified = await admin.appCheck().verifyToken(token);
-    } catch (err) {
-      console.warn(`[appCheck:${label}] verifyToken failed`, err?.message || err);
-    }
-  }
-  // Best-effort observability — sharded + sampled so it never becomes a
-  // per-request hotspot on one daily doc (see appCheckHealthCore.js).
-  await recordAppCheckHealth({
-    label,
-    tokenPresent: Boolean(token),
-    verified: Boolean(verified),
-    canDistinguishInvalid: true, // HTTP path: token-but-unverified == invalid
-  });
-  if (shouldEnforceAppCheck(label) && !verified) {
-    throw new HttpsError("permission-denied", "App Check verification failed.");
-  }
-  return verified;
-}
+// softVerifyAppCheckHttp moved to functions/appCheckHttp.js (imported below)
+// so functions/tts.js can use it too — see the note at the import.
 
 // Audit B3 follow-up — App Check coverage on AI callables.
 //
@@ -508,10 +469,17 @@ async function softVerifyAppCheckHttp(req, label) {
 // "missing" on /admin/app-check even for perfectly-attesting clients.
 // Reintroduce replay protection together with client-side limited-use
 // support when flipping to broad enforcement.
-const APPCHECK_ENFORCEMENT = resolveAppCheckEnforcement(process.env);
-function shouldEnforceAppCheck(label) {
-  return APPCHECK_ENFORCEMENT.enforces(label);
-}
+// The enforcement resolver, the HTTP soft-verify gate and the health-telemetry
+// writer now live in functions/appCheckHttp.js so a handler in ANOTHER module
+// can use them: apiTextToSpeech (functions/tts.js) could not previously join
+// the graduated-enforcement set at all, because all three were local to this
+// file. Copying them there would have meant a second sampling decision and a
+// second shard-picking rule for the same counters, so they moved instead.
+const {
+  shouldEnforceAppCheck,
+  recordAppCheckHealth,
+  softVerifyAppCheckHttp,
+} = require("./appCheckHttp");
 
 /**
  * Mirror of softVerifyAppCheckHttp for v2 onCall handlers — bumps
@@ -540,33 +508,10 @@ async function recordAppCheckCallable(request, label) {
   });
 }
 
-// Shared writer for the App Check health telemetry. Sampled (only a
-// fraction of requests write) and sharded (writes fan out across N docs)
-// so it can never serialise the request path on one hot daily document.
-// ALWAYS best-effort: sampling-out and any Firestore error are swallowed
-// so a metrics failure can never fail or delay App Check verification.
-async function recordAppCheckHealth({label, tokenPresent, verified, canDistinguishInvalid}) {
-  try {
-    const sampleRate = resolveAppCheckSampleRate();
-    if (!shouldSampleAppCheck(sampleRate)) return; // not selected → no write
-    const date = new Date().toISOString().slice(0, 10);
-    const shardCount = resolveAppCheckShardCount();
-    const shardId = pickAppCheckShardId(shardCount);
-    const outcome = classifyAppCheckOutcome({tokenPresent, verified, canDistinguishInvalid});
-    const inc = (n) => admin.firestore.FieldValue.increment(n);
-    const update = buildAppCheckShardUpdate({
-      label, outcome, weight: appCheckWeightForSampleRate(sampleRate), inc,
-    });
-    update.date = date;
-    update.updatedAt = admin.firestore.FieldValue.serverTimestamp();
-    await admin.firestore()
-        .collection("appCheckHealth").doc(date)
-        .collection("shards").doc(String(shardId))
-        .set(update, {merge: true});
-  } catch (err) {
-    console.warn(`[appCheck:${label}] health write failed`, err?.message || err);
-  }
-}
+// recordAppCheckHealth moved to functions/appCheckHttp.js (imported below),
+// alongside the soft-verify gate that is its only HTTP caller. It stays ONE
+// writer because it is sampled and sharded — a copy would be a second sampling
+// decision and a second shard-picking rule for the same counters.
 
 // Diagnostic ping for the /admin/app-check "this device" self-test. Returns
 // whether THIS request carried a valid App Check token — request.app is only

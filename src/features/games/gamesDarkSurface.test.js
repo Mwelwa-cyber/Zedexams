@@ -66,7 +66,7 @@ function jsxFilesUnder(dir) {
 // being checked without anything going red. Neither carries a neutral literal
 // today — which is exactly the state in which the loss would go unnoticed.
 const OUTSIDE_THE_FEATURE = [
-  'src/components/quiz/QuizList.jsx',            // the quizzes hub, frozen
+  'src/features/quiz/pages/QuizList.jsx',        // the quizzes hub
   'src/shared/components/GameStickerStyles.jsx', // mounted by GamesShell + QuizList
   'src/shared/components/Confetti.jsx',          // drawn by seven game engines
 ]
@@ -90,7 +90,7 @@ assert.ok(
 
 // Both shells must still carry the container this remap is scoped to — the
 // remap applies to nothing at all if the class is renamed away.
-for (const shell of ['components/GamesShell.jsx', '../../components/quiz/QuizList.jsx']) {
+for (const shell of ['components/GamesShell.jsx', '../../features/quiz/pages/QuizList.jsx']) {
   const src = readFileSync(resolve(here, shell), 'utf8')
   assert.match(
     src,

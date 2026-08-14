@@ -1,85 +1,26 @@
 /**
- * TextToSpeechButton — a compact read-aloud control for a single quiz item
- * (question, passage, or answer option). Renders nothing unless read-aloud is
- * enabled (the `readAloud` reading preference), so audio never plays without
- * the learner opting in.
+ * RE-EXPORT SHIM — the real component is
+ * `src/shared/components/TextToSpeechButton.jsx`.
  *
- * Idle:    a speaker button that starts reading this item.
- * Playing: a pause button + a stop button.
- * Paused:  a resume (play) button + a stop button.
+ * DO NOT ADD LOGIC HERE, and do not import it from anywhere new. One consumer
+ * keeps this path alive: `components/exams/DailyExamRunner.jsx` (and its spec),
+ * which is named on the architecture.md §14 freeze list in its own right. The
+ * 2026-08-14 ruling released `components/quiz/`; it did not release the daily
+ * exam runner, which is outside Phase 3 entirely and retires with the Daily
+ * Quiz rework.
  *
- * All three are real <button>s with aria-labels so the control is fully
- * keyboard- and screen-reader-accessible and never signals state by icon alone.
+ * So the migration goes around that file rather than through it, and the runner
+ * is byte-identical to `main`. Unlike a shim into a feature, this one costs no
+ * entry on `test:import-boundaries`' debt list: it points at
+ * `src/shared/components/`, and the legacy tree is allowed to read the shared
+ * layer. `src/shared/components/index.js` records why the component landed
+ * there rather than in `features/quiz`.
+ *
+ * RETIREMENT CONDITION: delete this file and repoint `DailyExamRunner.jsx` at
+ * `../../shared/components/TextToSpeechButton` when the Daily Quiz rework
+ * replaces that runner — or sooner, if the freeze lifts first. Five siblings
+ * retire with it, and that empties `src/components/quiz/reading/` and
+ * `src/components/quiz/review/`.
  */
 
-function SpeakerIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M11 5 6 9H3v6h3l5 4V5z" />
-      <path d="M15.5 8.5a5 5 0 0 1 0 7" />
-      <path d="M18.5 5.5a9 9 0 0 1 0 13" />
-    </svg>
-  )
-}
-function PauseIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
-      <rect x="6" y="5" width="4" height="14" rx="1" />
-      <rect x="14" y="5" width="4" height="14" rx="1" />
-    </svg>
-  )
-}
-function PlayIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
-      <path d="M8 5v14l11-7z" />
-    </svg>
-  )
-}
-function StopIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
-      <rect x="6" y="6" width="12" height="12" rx="2" />
-    </svg>
-  )
-}
-
-const BASE =
-  'inline-flex h-8 min-w-[32px] items-center justify-center gap-1 rounded-full border-2 border-slate-900/70 bg-white/90 px-2 text-slate-800 shadow-[0_1px_0_#0F1B2D] transition-transform active:translate-y-0.5'
-
-export default function TextToSpeechButton({ id, getText, tts, label = 'text', className = '' }) {
-  if (!tts?.enabled) return null
-
-  const active = tts.isActive(id)
-
-  if (!active) {
-    return (
-      <button
-        type="button"
-        onClick={() => tts.toggle(id, getText)}
-        aria-label={`Read ${label} aloud`}
-        title={`Read ${label} aloud`}
-        className={`${BASE} ${className}`}
-      >
-        <SpeakerIcon />
-      </button>
-    )
-  }
-
-  return (
-    <span className={`inline-flex items-center gap-1 ${className}`} role="group" aria-label={`Reading ${label} aloud`}>
-      {tts.paused ? (
-        <button type="button" onClick={tts.resume} aria-label="Resume reading" title="Resume" className={BASE}>
-          <PlayIcon />
-        </button>
-      ) : (
-        <button type="button" onClick={tts.pause} aria-label="Pause reading" title="Pause" className={BASE}>
-          <PauseIcon />
-        </button>
-      )}
-      <button type="button" onClick={tts.stop} aria-label="Stop reading" title="Stop" className={`${BASE} text-rose-600`}>
-        <StopIcon />
-      </button>
-    </span>
-  )
-}
+export { default } from '../../../shared/components/TextToSpeechButton'

@@ -92,11 +92,11 @@ const LearnerCalendar = lazy(() => import('./features/learnerDashboard/pages/Lea
 const ExamTimetablePage = lazy(() => import('./features/examTimetable/pages/ExamTimetablePage'))
 const TimetableViewerPage = lazy(() => import('./features/learnerDashboard/pages/TimetableViewerPage'))
 const SubjectDrillDown = lazy(() => import('./features/learnerDashboard/pages/SubjectDrillDown'))
-const QuizList = lazy(() => import('./components/quiz/QuizList'))
+const QuizList = lazy(() => import('./features/quiz/pages/QuizList'))
 const LearnerSearch = lazy(() => import('./features/learnerSearch/pages/LearnerSearch'))
 
-const QuizRunner = lazy(() => import('./components/quiz/QuizRunnerV2'))
-const QuizResults = lazy(() => import('./components/quiz/QuizResultsV2'))
+const QuizRunner = lazy(() => import('./features/quiz/pages/QuizRunnerV2'))
+const QuizResults = lazy(() => import('./features/quiz/pages/QuizResultsV2'))
 // Slide-based interactive lessons. /lessons is the canonical learner-
 // facing list (LearnerLessonsList) and /lessons/:lessonId opens the
 // existing slide player. The teacher panel uses LessonEditor under

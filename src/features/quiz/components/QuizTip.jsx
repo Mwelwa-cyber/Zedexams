@@ -11,7 +11,7 @@
  *   visible     — boolean
  */
 import { useEffect, useState } from 'react'
-import { useDataSaver } from '../../contexts/DataSaverContext'
+import { useDataSaver } from '../../../contexts/DataSaverContext'
 
 const MOOD_CONFIG = {
   correct: {

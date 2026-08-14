@@ -5,6 +5,7 @@ const { getUserRole, assertDailyLimit } = require('./aiService');
 const { assertDecodedVerified } = require('./authGuard');
 const { applyCors } = require('./cors');
 const { guardHttpRateLimit } = require('./rateLimit');
+const { softVerifyAppCheckHttp } = require('./appCheckHttp');
 
 const client = new textToSpeech.TextToSpeechClient();
 
@@ -49,6 +50,25 @@ exports.apiTextToSpeech = onRequest(
     // (grace-window holders pass — assertDecodedVerified checks it).
     try { await assertDecodedVerified(decoded); } catch {
       return res.status(403).json({ error: 'Please verify your email address to continue.' });
+    }
+
+    // App Check observability + opt-in enforcement gate (SECURITY_ENDPOINT_AUDIT
+    // §4.2). Studio voices are the priciest per-call surface in the project, so
+    // this is the endpoint that most wants attestation — but it is also the one
+    // that can least afford a botched flip, hence the same graduated rollout
+    // every other surface uses: observe-only by default, enforced per-label via
+    // APPCHECK_ENFORCE_LABELS, globally via APPCHECK_ENFORCE=1.
+    //
+    // Sits AFTER auth so an unauthenticated caller still gets 401 rather than a
+    // 403 that misreports why it was refused, and BEFORE the rate limiter and
+    // the daily meter so an unattested client is turned away before it can
+    // consume either budget. The siblings let this HttpsError propagate to a
+    // shared mapper; this endpoint answers in its own JSON shape, so it is
+    // translated here rather than leaking a callable-shaped error to the wire.
+    try {
+      await softVerifyAppCheckHttp(req, 'apiTextToSpeech');
+    } catch {
+      return res.status(403).json({ error: 'App Check verification failed.' });
     }
 
     const { text, voice = 'en-GB-Neural2-A', rate = 1.0, pitch = 0 } = req.body || {};

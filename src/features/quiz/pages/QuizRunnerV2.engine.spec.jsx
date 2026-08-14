@@ -18,14 +18,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { ThemeProvider } from '../../contexts/ThemeContext'
+import { ThemeProvider } from '../../../contexts/ThemeContext'
 
-vi.mock('../../firebase/config', () => ({ default: {}, auth: {}, db: {} }))
+vi.mock('../../../firebase/config', () => ({ default: {}, auth: {}, db: {} }))
 
 const mockGetQuizById = vi.fn()
 const mockGetQuestions = vi.fn()
 const mockSaveResult = vi.fn()
-vi.mock('../../hooks/useFirestore', () => ({
+vi.mock('../../../hooks/useFirestore', () => ({
   useFirestore: () => ({
     getQuizById: mockGetQuizById,
     getQuestions: mockGetQuestions,
@@ -33,27 +33,27 @@ vi.mock('../../hooks/useFirestore', () => ({
   }),
 }))
 
-vi.mock('../../contexts/AuthContext', () => ({
+vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({ currentUser: { uid: 'learner-1' } }),
 }))
 
-vi.mock('../../hooks/useSubscription', () => ({
+vi.mock('../../../hooks/useSubscription', () => ({
   useSubscription: () => ({ canUseExamMode: true, canAccessFullContent: true }),
 }))
 
-vi.mock('../../contexts/DataSaverContext', () => ({
+vi.mock('../../../contexts/DataSaverContext', () => ({
   useDataSaver: () => ({ dataSaver: false }),
 }))
 
-vi.mock('../../hooks/useQuizPersistence', () => ({
+vi.mock('../../../hooks/useQuizPersistence', () => ({
   saveQuizSession: vi.fn(),
   loadQuizSession: () => null,
   clearQuizSession: vi.fn(),
 }))
 
-vi.mock('../../utils/geminiChecker', () => ({ checkAnswerWithAI: vi.fn() }))
+vi.mock('../../../utils/geminiChecker', () => ({ checkAnswerWithAI: vi.fn() }))
 
-vi.mock('../../utils/examService', () => ({
+vi.mock('../../../utils/examService', () => ({
   numericMatches: () => false,
   hotspotMatches: () => false,
 }))
@@ -61,28 +61,28 @@ vi.mock('../../utils/examService', () => ({
 // The engine's ChoiceQuestion renders option content through RichContent, so
 // this stub has to draw the value it is handed — a stub returning null would
 // make every letter-badge assertion below pass against an empty card.
-vi.mock('../../editor/RichContent', () => ({
+vi.mock('../../../editor/RichContent', () => ({
   default: ({ value }) => <span>{typeof value === 'string' ? value : ''}</span>,
   getRichPlainText: (v) => (typeof v === 'string' ? v : ''),
 }))
-vi.mock('../../shared/components/SeoHelmet', () => ({ default: () => null }))
-vi.mock('../diagrams/DiagramSvg', () => ({ default: () => null }))
-vi.mock('./ZoomableImage', () => ({ default: () => null }))
-vi.mock('./ExtraQuestionImages', () => ({ default: () => null }))
-vi.mock('./QuizTip', () => ({ default: () => null }))
-vi.mock('../subscription/UpgradeModal', () => ({ default: () => <div>Upgrade</div> }))
+vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../components/diagrams/DiagramSvg', () => ({ default: () => null }))
+vi.mock('../../../shared/components/ZoomableImage', () => ({ default: () => null }))
+vi.mock('../../../shared/components/ExtraQuestionImages', () => ({ default: () => null }))
+vi.mock('../components/QuizTip', () => ({ default: () => null }))
+vi.mock('../../../components/subscription/UpgradeModal', () => ({ default: () => <div>Upgrade</div> }))
 
 const mockCapture = vi.fn()
-vi.mock('../../utils/analytics', () => ({ capture: (...a) => mockCapture(...a) }))
+vi.mock('../../../utils/analytics', () => ({ capture: (...a) => mockCapture(...a) }))
 
 const mockReportClientError = vi.fn()
-vi.mock('../../utils/clientErrorReporting', () => ({
+vi.mock('../../../utils/clientErrorReporting', () => ({
   reportClientError: (...a) => mockReportClientError(...a),
 }))
 
 // The flag decision itself is stubbed; see the header.
 let mockFlag = { engine: true, resolved: true, final: true, source: 'rollout-all', latched: false, live: true }
-vi.mock('../../hooks/useAssessmentEngineFlag', () => ({
+vi.mock('../../../hooks/useAssessmentEngineFlag', () => ({
   useAssessmentEngineFlag: () => mockFlag,
 }))
 
