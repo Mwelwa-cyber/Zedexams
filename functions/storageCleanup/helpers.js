@@ -215,6 +215,35 @@ async function deleteByPrefix(bucket, prefix) {
 }
 
 /**
+ * `deleteByPrefix`, but it says how many objects it found.
+ *
+ * The difference matters in exactly one caller. The post-purge re-sweep
+ * (account/accountPurgeResweeper.js) exists on a HYPOTHESIS — that an ID token
+ * surviving its account's deletion is used to upload before it expires. With
+ * `deleteByPrefix` alone, a re-sweep that cleaned up a real leak and a
+ * re-sweep that found an empty bucket are the same log line, so nobody ever
+ * learns whether the window is used in practice or how often. The count is the
+ * only evidence this mechanism produces about its own premise.
+ *
+ * Unlike `deleteByPrefix` this THROWS on failure. Its caller has to leave the
+ * job un-closed and retry rather than record a re-sweep it did not manage to
+ * perform, and a swallowed error would be indistinguishable from "nothing was
+ * there" — the same conflation the count exists to remove.
+ *
+ * @param {object} bucket   GCS bucket.
+ * @param {string} prefix   Full prefix, e.g. `papers/uid123/`.
+ * @return {Promise<number>} Objects deleted.
+ */
+async function deleteByPrefixCounted(bucket, prefix) {
+  if (!bucket || !prefix) return 0;
+  const [files] = await bucket.getFiles({prefix});
+  const found = (files && files.length) || 0;
+  if (!found) return 0;
+  await bucket.deleteFiles({prefix});
+  return found;
+}
+
+/**
  * Top-level storage prefixes keyed by a user uid. When a user is deleted
  * we sweep each of these, and the orphan reaper iterates them looking
  * for blobs whose owning uid no longer exists in `users/`.
@@ -225,6 +254,12 @@ async function deleteByPrefix(bucket, prefix) {
  *
  * `syllabi/` is intentionally excluded — it's admin-owned static content
  * not bound to a single uid.
+ *
+ * THIS IS THE ONE LIST. Three sweeps read it and none keeps its own copy:
+ * the auth-delete cascade (onUserDeleted.js), the orphan reaper
+ * (orphanReaper.js), and the post-token-window re-sweep
+ * (account/accountPurgeResweeper.js). A prefix added here is covered by all
+ * three; a second list somewhere would be covered by one of them, silently.
  */
 const USER_KEYED_PREFIXES = Object.freeze([
   "lesson-files/",
@@ -247,6 +282,24 @@ const USER_KEYED_PREFIXES = Object.freeze([
   // tokened download URLs) outlived the user because no sweep listed them.
   "note-pictures/",
   "slide-notes-images/",
+  // ── Added with the post-purge re-sweep (#2258/#2399 follow-up) ──
+  // Every one of these is `{prefix}/{ownerUid}/…` in storage.rules and none
+  // of them was swept by anything, so the objects outlived the account.
+  //
+  // Export staging. tmpDownloadReaper.js already clears this on a 1 h age
+  // rule, which is a different guarantee: age-based cleanup eventually
+  // catches a deleted user's staged file, deletion-based cleanup catches it
+  // now. Both, because "eventually" is not what an erasure request asks for.
+  "tmp-downloads/",
+  // Teacher-uploaded curriculum source documents (uploadCurriculumModule).
+  "curriculum-uploads/",
+  // Teacher-uploaded sample papers used to extract a paper format.
+  "assessment-format-samples/",
+  // Cached .docx/.pdf renders of the teacher's own assessments
+  // (assessmentExports/exportsCore.js). Client read AND write are denied in
+  // storage.rules — these are admin-SDK-written derivatives of the paper the
+  // teacher authored, so they die with it.
+  "assessment-exports/",
 ]);
 
 /**
@@ -316,5 +369,6 @@ module.exports = {
   listChildDirs,
   safeDelete,
   deleteByPrefix,
+  deleteByPrefixCounted,
   USER_KEYED_PREFIXES,
 };

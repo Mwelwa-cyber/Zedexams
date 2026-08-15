@@ -15,6 +15,7 @@ const {
   collectLessonPrefixes,
   collectPaperPaths,
   collectUserPrefixes,
+  deleteByPrefixCounted,
   USER_KEYED_PREFIXES,
 } = require("./helpers");
 
@@ -271,7 +272,10 @@ console.log("\ncollectUserPrefixes");
 eq("emits one prefix per user-keyed top folder",
   collectUserPrefixes("alice").sort(),
   [
+    "assessment-exports/alice/",
+    "assessment-format-samples/alice/",
     "assessment-images/alice/",
+    "curriculum-uploads/alice/",
     "invoices/alice/",
     "lesson-files/alice/",
     "lesson-images/alice/",
@@ -280,6 +284,7 @@ eq("emits one prefix per user-keyed top folder",
     "papers/alice/",
     "quiz-images/alice/",
     "slide-notes-images/alice/",
+    "tmp-downloads/alice/",
     "user-branding/alice/",
     "visual-studio/alice/",
   ]);
@@ -289,7 +294,7 @@ eq("collectUserPrefixes returns empty for a missing uid",
 
 ok("USER_KEYED_PREFIXES is the source of truth, frozen",
   Object.isFrozen(USER_KEYED_PREFIXES) &&
-  USER_KEYED_PREFIXES.length === 11);
+  USER_KEYED_PREFIXES.length === 15);
 
 ok("user-branding/ (Teacher Settings assets) is swept on account deletion",
   USER_KEYED_PREFIXES.includes("user-branding/"));
@@ -304,4 +309,58 @@ ok("note-pictures/ + slide-notes-images/ (server-gen AI images) are swept",
 ok("syllabi/ is NOT user-keyed (admin-owned global content)",
   !USER_KEYED_PREFIXES.includes("syllabi/"));
 
-console.log(`\n${passed} assertions passed`);
+// Added with the post-deletion Storage re-sweep. Each of these is
+// `{prefix}/{ownerUid}/…` in storage.rules and was swept by nothing, so the
+// objects outlived the account they belonged to.
+ok("tmp-downloads/ (export staging) is swept on account deletion",
+  USER_KEYED_PREFIXES.includes("tmp-downloads/"));
+
+ok("curriculum-uploads/ + assessment-format-samples/ (teacher uploads) are swept",
+  USER_KEYED_PREFIXES.includes("curriculum-uploads/") &&
+  USER_KEYED_PREFIXES.includes("assessment-format-samples/"));
+
+ok("assessment-exports/ (cached paper renders) is swept",
+  USER_KEYED_PREFIXES.includes("assessment-exports/"));
+
+console.log("\ndeleteByPrefixCounted");
+
+// The re-sweep exists on a hypothesis — that an ID token outliving its account
+// is used to upload before it expires. Without the count, a run that cleared a
+// real leak and a run that found an empty bucket are the same log line, so the
+// mechanism would never produce evidence about its own premise.
+// CommonJS module: no top-level await, so the async block runs last and owns
+// the final tally.
+async function testDeleteByPrefixCounted() {
+  const listed = [];
+  const deleted = [];
+  const bucket = {
+    async getFiles({prefix}) {
+      listed.push(prefix);
+      return [prefix === "papers/u1/" ? [{}, {}, {}] : []];
+    },
+    async deleteFiles({prefix}) { deleted.push(prefix); },
+  };
+  eq("counts what it removed", await deleteByPrefixCounted(bucket, "papers/u1/"), 3);
+  eq("an empty prefix reports zero", await deleteByPrefixCounted(bucket, "papers/u2/"), 0);
+  eq("and issues no delete for an empty prefix", deleted, ["papers/u1/"]);
+  eq("both prefixes were still enumerated", listed, ["papers/u1/", "papers/u2/"]);
+  eq("a missing bucket or prefix is zero, not a throw",
+    await deleteByPrefixCounted(null, "papers/u1/"), 0);
+
+  // THROWS rather than warning, unlike deleteByPrefix. Its caller has to leave
+  // the job open and retry; a swallowed error would be indistinguishable from
+  // "nothing was there", which is the exact conflation the count removes.
+  let threw = false;
+  try {
+    await deleteByPrefixCounted({
+      async getFiles() { throw new Error("listing failed"); },
+    }, "papers/u3/");
+  } catch (_err) {
+    threw = true;
+  }
+  ok("a listing failure propagates rather than reading as an empty prefix", threw);
+}
+
+testDeleteByPrefixCounted().then(() => {
+  console.log(`\n${passed} assertions passed`);
+});

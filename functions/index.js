@@ -947,6 +947,38 @@ exports.accountPurgeSweep = onSchedule(
   scheduledOpsHandlers.accountPurgeSweep,
 );;
 
+// ── Account-purge Storage RE-SWEEP (the surviving-token window) ──────
+// Different job from the sweeper above, on a different query and cadence.
+// `revokeRefreshTokens` + `deleteUser` stop the session being RENEWED; neither
+// invalidates an ID token already minted, and those live 60 minutes. So for up
+// to an hour after an account is destroyed, a tab still holding one can upload
+// — after the auth-delete cascade (onUserDeleted) already enumerated the
+// bucket. This re-enumerates that uid's Storage prefixes once the window has
+// closed (75 min = 60 min token + 15 min slack) and deletes anything present.
+//
+// It replaces the storage.rules gate that #2258 added and #2399 removed. A
+// rules predicate could only refuse a NEW write, so it never addressed the
+// objects already written; and asking the question from the Storage rules
+// engine required a cross-service firestore.exists() on every evaluation,
+// which took uploads down for five days. Cleanup off the request path costs
+// nothing per request and covers the window from both ends.
+//
+// Every 15 minutes so a job waits at most that long past its due time; the
+// work is one Firestore query plus, for the handful of jobs actually due, a
+// prefix listing each. us-central1 per the repo convention for scheduled
+// functions (Cloud Scheduler has no African region).
+exports.accountPurgeResweep = onSchedule(
+  {
+    schedule: "every 15 minutes",
+    timeZone: "Etc/UTC",
+    region: "us-central1",
+    timeoutSeconds: 540,
+    memory: "512MiB",
+    secrets: opsAlertSecrets([emailSmtpUser, emailSmtpPassword]),
+  },
+  scheduledOpsHandlers.accountPurgeResweep,
+);
+
 // ── reCAPTCHA Enterprise assessment (bot scoring for sensitive actions) ──
 // The native Android app mints a per-action reCAPTCHA Enterprise token (login
 // / signup / …) via the device SDK and sends it here; we trade it with Google
