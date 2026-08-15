@@ -2417,6 +2417,47 @@ Two habits worth keeping from the first two, both from template §0: the moved V
 
 ---
 
+### `components/teacher/` — INVENTORIED 2026-08-14 by session A, unclaimed and ready to start
+
+The last large legacy directory: 52 source files, 12,623 lines, 42 entries.
+**Checked before recording**, per the `classTimetable` rule: no branch touches
+`src/components/teacher/`, and no row in this section claims it.
+
+**It is not one feature, and starting it as one is the trap.** The census was
+taken by CONSUMER, not by name. Ten modules are read from outside the
+directory, several heavily — `studio/utils/renderPlanHtml` (14 external
+consumers), `paperTaxonomy` (13), `curriculum/StudioCurriculumSelector` (13),
+`generate/StudioAssignmentChangeNotice` (11), `syllabusTopicOptions` (9),
+`studio/hooks/useSubjectTopics` (7), `assessmentStudioMeta` (7). Those readers
+are the teacher studio features that have ALREADY migrated. Moving this
+directory into a feature would make a dozen sibling features import through its
+front door — cross-feature debt on a shrink-only list, times twelve.
+
+**Three destinations, and the order is load-bearing:**
+
+| what | where | why |
+|---|---|---|
+| `studio/` (13 files, 2,728 lines), `curriculum/` (4, 962), `generate/` (7, 1,068), `views/` (3, 359), plus `paperTaxonomy`, `syllabusTopicOptions`, `assessmentStudioMeta`, `assessmentTitle`, `frameworkLevelLabels`, `mathsSubjects` | **`src/shared/`** | studio chrome, hooks and taxonomy that every teacher feature reads. Below features, not inside one. |
+| `TeacherDashboard`, `TeacherWorkspace`, `QuickCreate`, `PrepareThisWeek`, `RecentDocuments`, `ReminderPanel`, `SchoolCalendar`, `TeacherGlassHeader`, `TeacherBottomNav`, `TeacherOnboardingTour`, `WelcomeToPro`, `AiRecommendations`, `SyllabiLibrary`, `StudioGate`, `LockedStudio` | a feature | the teacher home surface — a cohesive product, not a directory |
+| `teacherRoutes.jsx` (6 consumers) | **`src/app/`** | the route table, beside the guards that moved there 2026-08-14 |
+
+**The shared layer goes FIRST.** Take the feature slice first and it drags the
+shared layer with it, because those components import `studio/` and
+`curriculum/` throughout. That is not a prediction: it is what happened to the
+abandoned `quizEditor` attempt the same day, where `documentQuizImporter`
+turned out to import eight sibling libs and leaving it behind would have
+stranded the entire import pipeline.
+
+**Two rules that attempt paid for, recorded so they are not paid for twice.**
+(1) A "lib" with readers in `src/utils/`, `scripts/` and three features is
+SHARED INFRASTRUCTURE, whatever directory it sits in — decide by import
+closure, never by neighbourhood. (2) A front door that re-exports React
+components **cannot be imported by a plain-node consumer**: `node` cannot parse
+JSX, so any module reachable from a `test:*` script must reach the lib directly,
+which means that lib must not live inside a feature. Both point the same way —
+put the shared teacher layer in `src/shared/`, then the feature slice is a move
+rather than a fight.
+
 ### The last unclaimed legacy component directories — CLAIMED 2026-08-14 by session H
 
 **Branch `claude/admin-migration-status-v2c6f6`.** The seven directories left in
