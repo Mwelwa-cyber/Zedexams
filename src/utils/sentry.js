@@ -28,12 +28,18 @@
  */
 
 import { resolveAnalyticsPolicy } from './analyticsPolicy'
+import { buildReleaseName } from './releaseName'
 
-const RELEASE =
-  // Vite injects MODE; APP_VERSION is bumped manually in package.json (1.1.0
-  // at time of writing). Pair them so a regression report tells you which
-  // build it came from without needing a separate release tag.
-  `zedexams@${import.meta.env.VITE_APP_VERSION ?? 'dev'}-${import.meta.env.MODE}`
+// Assembled by utils/releaseName so this string and the one vite.config.js
+// stamps on the uploaded source maps come from the same function rather than
+// from two hand-synchronised template literals. Includes the build sha, so a
+// deploy is distinguishable from the one before it — see that module for why
+// that turned out to matter.
+const RELEASE = buildReleaseName({
+  version: import.meta.env.VITE_APP_VERSION,
+  sha: import.meta.env.VITE_BUILD_SHA,
+  mode: import.meta.env.MODE,
+})
 
 // Module reference, captured once Sentry has finished its async load.
 // Stays null when VITE_SENTRY_DSN isn't set, in which case all the

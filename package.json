@@ -1,7 +1,7 @@
 {
   "name": "examprep-zambia",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.7",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -819,7 +819,8 @@
     "test:color-surface-map": "node scripts/test-color-surface-map.mjs",
     "test:library-download": "node functions/libraryDownload.test.js",
     "test:http-request-guard": "node functions/httpRequestGuard.test.js",
-    "test:auth-init-recovery": "node scripts/test-auth-init-recovery.mjs"
+    "test:auth-init-recovery": "node scripts/test-auth-init-recovery.mjs",
+    "test:release-name": "node scripts/test-release-name.mjs"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",
