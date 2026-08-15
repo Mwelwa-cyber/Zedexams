@@ -1,10 +1,10 @@
 import { useMemo, useRef, useState } from 'react'
 import useFocusTrap from '../../../../hooks/useFocusTrap'
-import StudioCurriculumSelector from '../../../../components/teacher/curriculum/StudioCurriculumSelector'
+import StudioCurriculumSelector from '../../../../shared/components/StudioCurriculumSelector'
 import {
   foldFormCodeToGrade,
   assignmentGradeToStudioLabel,
-} from '../../../../components/teacher/curriculum/curriculumSelectorConstants'
+} from '../../../../shared/utils/curriculumSelectorConstants'
 import { matchFrameworkSubject } from '../../../../utils/frameworkSubjectMatch'
 import {
   normalizeAssignment,

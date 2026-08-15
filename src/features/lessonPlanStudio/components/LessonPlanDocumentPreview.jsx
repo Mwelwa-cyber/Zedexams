@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import PaginatedPlanPreview from './PaginatedPlanPreview'
-import { renderPlanHtml } from '../../../components/teacher/studio/utils/renderPlanHtml'
+import { renderPlanHtml } from '../../../shared/utils/renderPlanHtml'
 import { useStudioLessonCss } from '../hooks/useStudioLessonCss'
 import { resolveLessonFormat } from '../../../utils/lessonPlanFormat'
 

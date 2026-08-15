@@ -23,10 +23,10 @@ import {
   isMathsScienceName, mathsScienceLabelForGrade, canonicalMathsScienceLabel,
   isEarlyChildhoodLevel,
 } from '../src/config/mathsScienceArea.js'
-import { subjectLabel, toKbSubjectKey } from '../src/components/teacher/paperTaxonomy.js'
+import { subjectLabel, toKbSubjectKey } from '../src/shared/utils/paperTaxonomy.js'
 import { getSubjectsForGrade } from '../src/config/teacherTaxonomy.js'
 import { normalizeSubjectId } from '../src/config/curriculumCatalog.js'
-import { cleanSubjectName } from '../src/components/teacher/studio/utils/subjectName.js'
+import { cleanSubjectName } from '../src/shared/utils/subjectName.js'
 
 const require = createRequire(import.meta.url)
 const { subjectNameForGrade } = require('../functions/teacherTools/subjectNaming.js')

@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { GRADES, SUBJECTS, SUBJECT_MAP } from '../../../config/curriculum'
-import { useSyllabusTopicOptions } from '../../../components/teacher/syllabusTopicOptions'
+import { useSyllabusTopicOptions } from '../../../shared/utils/syllabusTopicOptions'
 import { generateDiagram } from '../../../utils/generateDiagram'
 import { checkVisualSafety } from '../../../utils/visualSafety'
 import {

@@ -9,7 +9,7 @@
 // with no studio equivalent (secondary-only subjects) still fall back to the
 // form default. This module owns that mapping so it stays unit-testable.
 
-import { normalizePaperGrade, isPaperGrade } from '../../../components/teacher/paperTaxonomy'
+import { normalizePaperGrade, isPaperGrade } from '../../../shared/utils/paperTaxonomy'
 import { resolveStoredSubject, subjectName } from '../../../config/canonicalEducation'
 
 /**

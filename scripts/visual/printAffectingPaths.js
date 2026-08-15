@@ -76,7 +76,7 @@ export const PRINT_AFFECTING_PATHS = Object.freeze([
   // assessment-type taxonomy has never been on the list. Found by the test that
   // checks every non-glob entry resolves: a pattern for a moved file protects
   // nothing and reads exactly like one that works.
-  'src/components/teacher/paperTaxonomy.js',
+  'src/shared/utils/paperTaxonomy.js',
   'src/config/assessmentBands.js',
   'src/config/educationLevels.js',
   // ── Fonts and print assets ───────────────────────────────────────────

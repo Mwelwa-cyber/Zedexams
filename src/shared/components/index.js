@@ -18,22 +18,30 @@
  * below all of them — the rule that put `useIsMobile` in `src/shared/hooks/`
  * and `classListIcons.js` in `src/shared/icons/`, now reaching components.
  *
- * ## What the §14.6 test excluded, and how it was measured
+ * ## What the §14.6 test excluded — SUPERSEDED 2026-08-15 by owner ruling
  *
- * Two of `generate/`'s other components looked clean and are not: the test is
- * a module's REACH, not the imports written in its own file.
+ * Two of `generate/`'s components were held out of this layer because the test
+ * is a module's REACH, not the imports written in its own file:
+ * `ImportFromClassListModal` calls `listTeacherRegisters()`/`listRoster()`
+ * (`firebase/firestore` queries one hop down) and `CreatedFromLessonPlanNotice`
+ * reaches `firebase/config` through `lessonPlanInheritance`. The note said
+ * both stay "until something splits the data access out of them".
  *
- *   • `ImportFromClassListModal` calls `listTeacherRegisters()` and
- *     `listRoster()`, which are `firebase/firestore` queries one hop down. It
- *     is exactly "a component that knows a Firestore query".
- *   • `CreatedFromLessonPlanNotice` imports a single label helper from
- *     `lessonPlanInheritance`, which reaches `utils/teacherTools.js` →
- *     `firebase/functions` and `firebase/config`. It does not query, but
- *     promoting it would put `firebase/config` in this layer's module graph.
+ * The §13 inventory of `components/teacher/` (2026-08-14) and the owner's
+ * migrate-everything-remaining ruling (2026-08-15) decided the other way, and
+ * the reasoning is recorded in that inventory's completion note: every DIRECT
+ * edge these files make is legal for this layer (their Firebase reach is
+ * transitive through legacy `src/utils/`, which the layer contract permits and
+ * which subdivides later per §2), the strict alternative was a thirteenth
+ * feature that sixteen sibling features must open a front door on, and the
+ * boundary the lint + resolver actually enforce — no direct `firebase/`, no
+ * features, no curriculum — holds for all of them. So the studio chrome lives
+ * here with its legacy-utils reach stated rather than hidden. When those utils
+ * split into `src/services/` per §2, these components' reach cleans up with
+ * them, with no further move.
  *
- * Both stay in `src/components/teacher/generate/` until something splits the
- * data access out of them. `studioFields`' whole closure is three modules —
- * `react`, `ui/Icon`, `ui/icons` — which is why it could come alone.
+ * `studioFields`' whole closure is three modules — `react`, `ui/Icon`,
+ * `ui/icons` — which is why it could come alone, a year of rulings earlier.
  *
  * ## The studio chrome, promoted together
  *

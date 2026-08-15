@@ -7,7 +7,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { useSettingsSave } from '../components/SaveContext'
 import { useTheme, DEFAULT_THEME } from '../../../contexts/ThemeContext'
 import { Panel, Section, Toggle, OptionCards, Note } from '../components/ui'
-import ReadingThemeSwatches from '../../../components/theme/ReadingThemeSwatches'
+import ReadingThemeSwatches from '../components/ReadingThemeSwatches'
 import {
   normalizePersonalisation,
   ACCENT_OPTIONS,

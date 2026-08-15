@@ -5,7 +5,7 @@ import assert from 'node:assert'
 import {
   applyFrameworkLevelLabel,
   levelLabelForFramework,
-} from '../src/components/teacher/frameworkLevelLabels.js'
+} from '../src/shared/utils/frameworkLevelLabels.js'
 
 let passed = 0
 const eq = (actual, expected, message) => {

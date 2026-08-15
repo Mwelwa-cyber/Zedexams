@@ -48,7 +48,7 @@ function inlineStyle(file) {
   return m ? m[1] : ''
 }
 const extraCss = [
-  'src/components/teacher/SyllabiLibrary.jsx',
+  'src/features/teacherHome/pages/SyllabiLibrary.jsx',
   'src/features/adminCbcKb/pages/CbcKbAdmin.jsx',
 ].map(inlineStyle).join('\n')
 

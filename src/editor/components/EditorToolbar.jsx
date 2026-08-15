@@ -27,7 +27,7 @@ import {
   TableIcon,
 } from '../../shared/components/icons'
 
-import { mathsToolOrder } from '../../components/teacher/mathsSubjects.js'
+import { mathsToolOrder } from '../../shared/utils/mathsSubjects.js'
 
 // Default highlight for the compact (answer-option) variant's single-toggle
 // highlighter — matches the first swatch of the full variant's picker.

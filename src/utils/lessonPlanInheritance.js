@@ -18,7 +18,7 @@
 //
 // Run tests: npm run test:lesson-plan-inheritance
 
-import { buildAlignmentInstructions } from '../components/teacher/studio/utils/teacherPlanContext.js'
+import { buildAlignmentInstructions } from '../shared/utils/teacherPlanContext.js'
 import { gradeLabel, subjectLabel, normalizeCurriculumType } from './teachingProfileCore.js'
 
 /** The plan's structured body: studio-saved plans use `data`, server plans `output`. */

@@ -8,7 +8,7 @@
  * renderPlanHtml(), so we know each snapshot renders a valid, growing document.
  */
 import { buildMetaRevealSteps, buildBodyRevealSteps } from './lessonRevealSteps.js'
-import { renderPlanHtml } from '../../../components/teacher/studio/utils/renderPlanHtml.js'
+import { renderPlanHtml } from '../../../shared/utils/renderPlanHtml.js'
 
 let passed = 0
 function assert(cond, msg) {

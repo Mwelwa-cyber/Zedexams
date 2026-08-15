@@ -8,7 +8,7 @@ import {
   seedsDiffer,
   seedLabel,
   compatibilityNotice,
-} from '../src/components/teacher/generate/teachingAssignmentChangeNoticeCore.js'
+} from '../src/shared/utils/teachingAssignmentChangeNoticeCore.js'
 
 let pass = 0
 let fail = 0

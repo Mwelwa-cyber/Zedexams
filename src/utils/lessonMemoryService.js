@@ -27,7 +27,7 @@ import { db } from '../firebase/config'
 import {
   buildSubtopicKey, buildGradeSubjectKey, lessonPlanDocId, lessonProgressDocId,
   curriculumIdFor, isTeachingStatus,
-} from '../components/teacher/studio/utils/lessonMemory'
+} from '../shared/utils/lessonMemory'
 
 /**
  * Create or update the memory record for one lesson slot. Idempotent: the same

@@ -5,7 +5,7 @@ import {
   coveredSubtopicKeySet,
   computeCoverageByKey,
 } from '../coverageAnalysis.js'
-import { buildSubtopicKey, buildGradeSubjectKey } from '../../../../components/teacher/studio/utils/lessonMemory.js'
+import { buildSubtopicKey, buildGradeSubjectKey } from '../../../../shared/utils/lessonMemory.js'
 
 const TOPICS = [
   { label: 'Fractions', subtopics: ['Proper Fractions', 'Improper Fractions'] },

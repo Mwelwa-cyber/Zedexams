@@ -6,10 +6,10 @@ import AssignmentFormModal from './AssignmentFormModal'
 // the cascade is deterministic in jsdom (no firebase/fetch). The mock catalog
 // deliberately differs per curriculum + grade — that difference IS what's
 // under test.
-vi.mock('../../../../components/teacher/studio/hooks/useAvailableGrades.js', () => ({
+vi.mock('../../../../shared/hooks/useAvailableGrades.js', () => ({
   useAvailableGrades: (candidates) => ({ available: candidates, loading: false }),
 }))
-vi.mock('../../../../components/teacher/studio/hooks/useSubjectsForGrade.js', () => ({
+vi.mock('../../../../shared/hooks/useSubjectsForGrade.js', () => ({
   useSubjectsForGrade: (grade, mode) => {
     const catalog = {
       'cbc|Grade 4': ['Mathematics Syllabus (Grades 4-6)', 'Home Economics Syllabus (Grades 4-6)'],
@@ -29,10 +29,10 @@ vi.mock('../../../../components/teacher/studio/hooks/useSubjectsForGrade.js', ()
     return { subjects: catalog[`${mode}|${grade}`] || [], loading: false, error: null }
   },
 }))
-vi.mock('../../../../components/teacher/studio/hooks/useSubjectTopics.js', () => ({
+vi.mock('../../../../shared/hooks/useSubjectTopics.js', () => ({
   useSubjectTopics: () => ({ topics: [], loading: false, error: null }),
 }))
-vi.mock('../../../../components/teacher/studio/hooks/useSubtopicDetail.js', () => ({
+vi.mock('../../../../shared/hooks/useSubtopicDetail.js', () => ({
   useSubtopicDetail: () => ({ subtopicRow: null, loading: false, error: null }),
 }))
 

@@ -31,7 +31,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
 import { readActiveAssignmentSeed, resolveStudioSeed } from '../../../utils/activeAssignmentSeed'
-import StudioAssignmentChangeNotice from '../../../components/teacher/generate/StudioAssignmentChangeNotice'
+import StudioAssignmentChangeNotice from '../../../shared/components/StudioAssignmentChangeNotice'
 import {
   TEACHER_SUBJECTS,
   getTermModuleOutline,
@@ -40,8 +40,8 @@ import {
   getTopicsForTeacherSubject, getSubtopicsForTeacherSubject,
   getCompetencies, TEACHER_SUBJECT_TO_CURRICULUM,
 } from '../../../config/curriculum'
-import { toKbSubjectKey, subjectLabel as subjectLabelForSlug } from '../../../components/teacher/paperTaxonomy'
-import { kbGradeToStudioLabel, studioLabelToKbGrade } from '../../../components/teacher/curriculum/curriculumSelectorConstants'
+import { toKbSubjectKey, subjectLabel as subjectLabelForSlug } from '../../../shared/utils/paperTaxonomy'
+import { kbGradeToStudioLabel, studioLabelToKbGrade } from '../../../shared/utils/curriculumSelectorConstants'
 import {
   getCalendarYears, getTermWeeks, getCurrentForecastWeek,
 } from '../../../utils/moeCalendar'
@@ -64,7 +64,7 @@ import { useLibraryAutoSave } from '../../../hooks/useLibraryAutoSave'
 import WeeklyForecastView from '../components/WeeklyForecastView'
 import { normalizeCurriculum, schemeCurriculum, curriculumLabel } from '../../../shared/utils/schemeFormat'
 import StudioPageHeader from '../../../shared/components/StudioPageHeader'
-import StudioCurriculumSelector from '../../../components/teacher/curriculum/StudioCurriculumSelector'
+import StudioCurriculumSelector from '../../../shared/components/StudioCurriculumSelector'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 import ConfirmDialog from '../../../shared/components/ConfirmDialog'
 import { useToast } from '../../../shared/components/Toast'

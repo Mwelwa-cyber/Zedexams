@@ -6,7 +6,7 @@ import {
   summarizeGenerations,
   titleForGeneration,
 } from '../../../utils/teacherLibraryService'
-import { isExamPaperType, assessmentEditPath } from '../../../components/teacher/paperTaxonomy'
+import { isExamPaperType, assessmentEditPath } from '../../../shared/utils/paperTaxonomy'
 import { buildWeekPrep } from '../../../utils/prepareThisWeek'
 import { buildProfileRecommendations } from '../../../utils/teacherRecommendations'
 import { useTeachingProfile } from '../../teacherSettings'

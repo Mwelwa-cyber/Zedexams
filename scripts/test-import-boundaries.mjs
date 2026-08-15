@@ -262,7 +262,6 @@ const KNOWN_LEGACY_FEATURE_IMPORTS = new Set([
   // finding above held for every one of them: because each pointed at
   // src/shared/components/ rather than into a feature, not one ever appeared
   // on this list, and retiring them changed neither count.
-  'src/components/teacher/TeacherDashboard.jsx → ../../features/teacherSettings/lib/useTeachingProfile',
   // FORCED, and recorded rather than avoided — `teacherShell` PR B. Every other
   // entry on this list clears when its caller migrates into a feature; this one
   // has no such path, so its retirement condition is written down instead of

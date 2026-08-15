@@ -1,4 +1,4 @@
-import { CurriculumPicker } from '../../../../../components/teacher/studio/sections/CurriculumPicker.jsx'
+import { CurriculumPicker } from '../../../../../shared/components/CurriculumPicker.jsx'
 import { LessonDetailsForm } from '../../sections/LessonDetailsForm.jsx'
 import { CurriculumCompactField } from '../CurriculumCompactField.jsx'
 

@@ -159,9 +159,11 @@ export default [
   //     without a red build. The test ratchets it.
   //
   // One imprecision to know about: the patterns match a path SEGMENT, so
-  // `**/curriculum/**` also matches the unrelated `src/components/teacher/
-  // curriculum/`. Nothing hits it today (only the new, empty layers carry that
-  // rule) and such an import would be refused on its own merits anyway — but
+  // `**/curriculum/**` matches any directory named `curriculum`, wherever it
+  // sits. (`src/components/teacher/curriculum/` used to be the live example;
+  // it migrated into src/shared/ on 2026-08-15 — flat, deliberately not as a
+  // `curriculum/` subdirectory, because of exactly this.) Nothing hits it
+  // today, and such an import would be refused on its own merits anyway — but
   // the message it prints would name the wrong reason.
   //
   // Rules are ordered general → specific: flat config replaces (not merges) a

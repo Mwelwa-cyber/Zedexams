@@ -23,7 +23,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions'
 import app, { db } from '../../../firebase/config'
 import { saveLessonPlanGeneration } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
-import { renderPlanHtml } from '../../../components/teacher/studio/utils/renderPlanHtml'
+import { renderPlanHtml } from '../../../shared/utils/renderPlanHtml'
 import {
   templateCurriculumMode, templatePreviewMeta, templateSyllabusHint,
 } from '../lib/templatePlanPreview'

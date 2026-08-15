@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { SIZE_OPTIONS, FONT_OPTIONS, PAGE_OPTIONS } from '../hooks/useReaderPrefs'
-import ReadingThemePicker from '../../../components/theme/ReadingThemePicker'
+import { ReadingThemePicker } from '../../learnerSettings'
 
 function GroupLabel({ children }) {
   return <div className="text-[11px] font-bold uppercase tracking-wide text-[#4A5A6E] mb-1.5">{children}</div>

@@ -25,7 +25,7 @@ import DiagramSvg from '../../../curriculum/diagrams/DiagramSvg'
 import DiagramPicker from '../../../curriculum/diagrams/DiagramPicker'
 import PictureBankPicker from './PictureBankPicker'
 import CameraCaptureModal from './CameraCaptureModal'
-import ImageEditorModal from '../../../components/teacher/ImageEditorModal'
+import ImageEditorModal from '../../../shared/components/ImageEditorModal'
 import { DifficultySelect } from './AssessmentAnalysisActions'
 import {
   CardQuestionText,
@@ -42,7 +42,7 @@ import {
   DiagramLabelEditor,
 } from './AssessmentQuestionEditors'
 import { STUDIO_QUESTION_TYPE_OPTIONS, typeSelectValue, patchForTypeChange } from '../lib/assessmentQuestionTypes'
-import { isMathsSubject } from '../../../components/teacher/mathsSubjects.js'
+import { isMathsSubject } from '../../../shared/utils/mathsSubjects.js'
 import { normalizeMathsInQuestion } from '../lib/mathsTextNormalizer.js'
 
 // Question fields whose edits invalidate any prior AI answer suggestion.

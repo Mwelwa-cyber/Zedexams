@@ -27,7 +27,7 @@ import {
   resolveExpectedCount,
   isTeachingStatus,
   teachingStatusLabel,
-} from '../src/components/teacher/studio/utils/lessonMemory.js'
+} from '../src/shared/utils/lessonMemory.js'
 
 let pass = 0
 let fail = 0

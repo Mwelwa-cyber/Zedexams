@@ -31,7 +31,7 @@ vi.mock('../../../editor/components/RichEditor.jsx', () => ({
   ),
 }))
 vi.mock('../../../shared/components/AiGenerationProgress', () => ({ default: () => null }))
-vi.mock('../../../components/teacher/syllabusTopicOptions', () => ({
+vi.mock('../../../shared/utils/syllabusTopicOptions', () => ({
   useSyllabusTopicOptions: () => ({ options: [], loading: false }),
   useStudioSubjectChoices: () => ({ options: ['English', 'Mathematics'], loading: false }),
   normalizeStudioFramework: (v) => (String(v || '') === '2013' ? '2013' : '2023'),
@@ -49,7 +49,7 @@ vi.mock('./AssessmentAnalysisActions', () => ({
   DetectDuplicatesAction: () => null,
 }))
 vi.mock('./AiReviewPanel', () => ({ default: () => null }))
-vi.mock('../../../components/teacher/studio/sections/CurriculumPicker', () => ({ CurriculumPicker: () => null }))
+vi.mock('../../../shared/components/CurriculumPicker', () => ({ CurriculumPicker: () => null }))
 vi.mock('../lib/pasteQuestionParser.js', () => ({ parsePastedQuestions: vi.fn() }))
 vi.mock('../../../curriculum/diagrams/DiagramSvg', () => ({ default: () => null }))
 vi.mock('./studioIcons', () => ({ default: () => null }))

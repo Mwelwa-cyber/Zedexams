@@ -24,7 +24,7 @@ import {
   assessmentRouteBase, assessmentEditPath,
   paperLevel, paperGradeLabel, paperLevelOptions, getAvailableLevels,
   orderLevels, isLegacySecondaryGrade, LEVEL_STAGE_LABELS,
-} from '../src/components/teacher/paperTaxonomy.js'
+} from '../src/shared/utils/paperTaxonomy.js'
 
 let passed = 0
 const ok = (cond, msg) => { assert.ok(cond, msg); passed++ }

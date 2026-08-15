@@ -35,7 +35,7 @@ import { EDUCATION_LEVELS } from '../src/config/educationLevels.js'
 import {
   ASSESSMENT_TYPE_VALUES,
   paperGradeLabel,
-} from '../src/components/teacher/paperTaxonomy.js'
+} from '../src/shared/utils/paperTaxonomy.js'
 import { classifyForLibrary } from '../src/utils/libraryClassification.js'
 import { LIBRARY_TYPES } from '../src/config/library.js'
 import {

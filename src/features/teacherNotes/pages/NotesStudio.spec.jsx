@@ -80,7 +80,7 @@ vi.mock('../../../shared/components/LiveGenerationCanvas', () => ({ default: () 
 vi.mock('../components/NotesView', () => ({ default: () => null }))
 vi.mock('../../../shared/components/StudioPageHeader', () => ({ default: () => null }))
 vi.mock('../../../shared/components/StudioOutputBoundary', () => ({ default: ({ children }) => children }))
-vi.mock('../../../components/teacher/generate/StudioAssignmentChangeNotice', () => ({ default: () => null }))
+vi.mock('../../../shared/components/StudioAssignmentChangeNotice', () => ({ default: () => null }))
 
 // The curriculum selector is mocked to a single button that, when clicked,
 // hands the studio a fully-satisfied curriculum payload via its onChange — so
@@ -95,7 +95,7 @@ const VALID_CURR = {
   curriculum: 'cbc',
   framework: '2023',
 }
-vi.mock('../../../components/teacher/curriculum/StudioCurriculumSelector', () => ({
+vi.mock('../../../shared/components/StudioCurriculumSelector', () => ({
   default: ({ onChange }) => (
     <button type="button" onClick={() => onChange(VALID_CURR)}>
       seed-curriculum

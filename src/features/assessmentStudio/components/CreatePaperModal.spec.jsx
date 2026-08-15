@@ -19,7 +19,7 @@ const syllabusMock = vi.hoisted(() => ({
   subjects: [{ key: 'mathematics', label: 'Mathematics' }],
 }))
 
-vi.mock('../../../components/teacher/syllabusTopicOptions', () => ({
+vi.mock('../../../shared/utils/syllabusTopicOptions', () => ({
   CURRICULUM_FRAMEWORKS: [
     { value: '2023', label: '2023 CBC' },
     { value: '2013', label: '2013' },

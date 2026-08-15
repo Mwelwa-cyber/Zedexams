@@ -12,14 +12,14 @@ import { LessonPlanWizard } from './LessonPlanWizard'
 // SAME references — the real hooks keep results in useState, and fresh objects
 // per render would re-fire consumer effects forever.
 const GRADES = { available: ['Grade 3', 'Grade 4'], loading: false }
-vi.mock('../../../../components/teacher/studio/hooks/useAvailableGrades.js', () => ({
+vi.mock('../../../../shared/hooks/useAvailableGrades.js', () => ({
   useAvailableGrades: vi.fn(() => GRADES),
 }))
 
 const SUBJECTS_G3 = { subjects: ['Grade3 Math'], loading: false }
 const SUBJECTS_G4 = { subjects: ['Grade4 Math'], loading: false }
 const SUBJECTS_NONE = { subjects: [], loading: false }
-vi.mock('../../../../components/teacher/studio/hooks/useSubjectsForGrade.js', () => ({
+vi.mock('../../../../shared/hooks/useSubjectsForGrade.js', () => ({
   useSubjectsForGrade: vi.fn((grade) =>
     grade === 'Grade 3' ? SUBJECTS_G3 : grade === 'Grade 4' ? SUBJECTS_G4 : SUBJECTS_NONE),
 }))
@@ -35,7 +35,7 @@ const TOPICS_G3 = {
   error: null,
 }
 const TOPICS_NONE = { topics: [], loading: false, error: null }
-vi.mock('../../../../components/teacher/studio/hooks/useSubjectTopics.js', () => ({
+vi.mock('../../../../shared/hooks/useSubjectTopics.js', () => ({
   useSubjectTopics: vi.fn((subject) =>
     subject === 'Grade4 Math' ? TOPICS_G4 : subject === 'Grade3 Math' ? TOPICS_G3 : TOPICS_NONE),
 }))
@@ -48,7 +48,7 @@ const STABLE_ROW = {
   learningActivities: ['Counting games', 'Number lines'],
   expectedStandard: 'Counts accurately to 1000',
 }
-vi.mock('../../../../components/teacher/studio/hooks/useSubtopicDetail.js', () => ({
+vi.mock('../../../../shared/hooks/useSubtopicDetail.js', () => ({
   useSubtopicDetail: vi.fn((subject, grade, topic, subtopic) => ({
     subtopicRow: topic && subtopic ? STABLE_ROW : null,
   })),
