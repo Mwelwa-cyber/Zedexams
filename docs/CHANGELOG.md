@@ -5,6 +5,26 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-08-15
+
+### Changed
+
+- Restore Storage uploads: take the deletion gate off isVerified() (#2258) (#2399)
+- Make each deploy a distinct Sentry release (#2397)
+- Resolve the Storage role check from the ID token, not a cross-service read (#2398)
+- Phase 6 — cleanup: delete the dead legacy files and clear the hygiene list (#2396)
+- Detect the wedged auth session when it happens, and report it (#2395)
+- Recover the session when Firebase Auth never initialises (#2394)
+- Migrate the remaining legacy surfaces: teacher/, theme/ (§13 inventory) (#2393)
+- Move the three residual assessment modules into the feature (#2392)
+- Guard the code side of Firestore TTL, and fix the ledger it found unreaped (#2391)
+- Repoint three dead EXEMPT rows in the colour audit (#2390)
+
+### Documentation
+
+- Strike `scan` from the Wave 4 order — it was resolved 2026-08-13 (#2389)
+- Inventory components/teacher/ before anyone starts it (#2388)
+
 ## 2026-08-14
 
 ### Changed
