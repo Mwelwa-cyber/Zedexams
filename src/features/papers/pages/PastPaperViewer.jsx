@@ -48,7 +48,10 @@ import {
   Upload,
 } from '../../../shared/components/icons'
 
-const PdfJsViewer = lazy(() => import('../../../shared/components/PdfJsViewer'))
+// PDF papers now read the way scanned (image) papers always have: one
+// continuous vertical stack you scroll. See PdfPageStream for why it
+// virtualises that stack instead of rasterising every page up front.
+const PdfPageStream = lazy(() => import('../../../shared/components/PdfPageStream'))
 const ImageZoomOverlay = lazy(() => import('../components/ImageZoomOverlay'))
 const PaperReaderOverlay = lazy(() => import('../components/PaperReaderOverlay'))
 
@@ -555,8 +558,9 @@ export default function PastPaperViewer() {
     || (previewSource?.kind === 'images' && (previewSource.assets?.length || 0) > 0)
 
   // Whether the floating glass page-navigation dock is on screen — true
-  // whenever the visible tab is showing a page-by-page PDF viewer. Image
-  // papers scroll vertically and never get the dock (or PDF arrows).
+  // whenever the visible tab is showing a PDF. Both formats now scroll
+  // vertically; the dock survives on PDFs because it is the only way to
+  // jump to a page (image papers have no thumbnail sheet).
   const dockActive = Boolean(currentUser) && (
     (activeTab === 'questionPaper' && previewSource?.kind === 'pdf')
     || (activeTab === 'answers' && markSchemeSource?.kind === 'pdf')
@@ -835,7 +839,12 @@ export default function PastPaperViewer() {
                             Loading paper…
                           </div>
                         }>
-                          <PdfJsViewer url={paperUrl} title={paper.title} storageKey={`paper-pdf-page:${paperId}`} dock />
+                          <PdfPageStream
+                            url={paperUrl}
+                            title={paper.title}
+                            storageKey={`paper-pdf-page:${paperId}`}
+                            syncHash
+                          />
                         </Suspense>
                       </FullBleed>
                     </div>
@@ -944,8 +953,15 @@ export default function PastPaperViewer() {
           >
             {previewSource.kind === 'pdf' && (
               paperUrl ? (
-                <div className="h-full p-2 sm:p-3">
-                  <PdfJsViewer url={paperUrl} title={paper.title} fill storageKey={`paper-pdf-page:${paperId}`} dock />
+                // Same flow container the image stack uses below: the
+                // reader overlay owns the scrolling, the stream just flows.
+                <div className="mx-auto max-w-[1100px] w-full px-1 sm:px-3 py-4">
+                  <PdfPageStream
+                    url={paperUrl}
+                    title={paper.title}
+                    storageKey={`paper-pdf-page:${paperId}`}
+                    overlay
+                  />
                 </div>
               ) : (
                 <p className="theme-text-muted text-sm py-12 text-center">Loading paper…</p>
@@ -1671,7 +1687,7 @@ function AnswersPanel({ source, paperTitle, onDownload, downloading = false }) {
               Loading viewer…
             </div>
           }>
-            <PdfJsViewer url={url} title={`${paperTitle} — answers`} dock />
+            <PdfPageStream url={url} title={`${paperTitle} — answers`} />
           </Suspense>
         </FullBleed>
       </div>
