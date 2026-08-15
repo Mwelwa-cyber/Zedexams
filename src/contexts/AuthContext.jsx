@@ -19,7 +19,7 @@ import { isNativePlatform } from '../utils/runtime'
 import { retryOnNetworkError } from '../utils/authRetry'
 import { ROLES, hasPremiumAccess, hasLearnerPortalAccess } from '../utils/subscriptionConfig'
 import { isSuperAdmin as isSuperAdminRole, resolvePermissionFlags } from '../utils/permissions'
-import { setSentryUser, clearSentryUser } from '../utils/sentry'
+import { setSentryUser, clearSentryUser, setAuthStateTag, reportAuthInitFailure } from '../utils/sentry'
 import { capture, identifyUser, resetAnalytics } from '../utils/analytics'
 import { requiresGuardianConsent } from '../utils/guardianConsent'
 // (The guardian consent request is sent from the sign-up flow's guardian
@@ -35,6 +35,7 @@ import {
   readRecoveryAttempted,
   markRecoveryAttempted,
   clearRecoveryAttempted,
+  shouldFastRecover,
   RELOAD,
   DEFER,
 } from '../hooks/authInitRecoveryPolicy'
@@ -699,6 +700,17 @@ export function AuthProvider({ children }) {
     // So a hinted device reloads once instead, which is the only way to re-drive
     // Firebase's initialisation.
     let recoveryVisibilityListener = null
+    // Did the page hide while initialisation was still in flight? That is the
+    // one precondition for the wedge, and it is what lets an unhandled
+    // rejection be read as evidence without matching Firebase's wording.
+    let hidDuringInit = false
+    // Auth is unresolved until `onAuthStateChanged` fires. Tagged onto every
+    // Sentry event so an error raised in this window is not silently filed
+    // against nobody (PYTHON-K read as "Users impacted: 0" for eight days
+    // precisely because the user tag is set from the callback that never ran).
+    setAuthStateTag('unresolved')
+    // Reported at most once, however many paths reach the same conclusion.
+    let failureReported = false
     const revealAsSignedOut = () => {
       if (disposedRef.current) return
       setLoading(false)
@@ -708,14 +720,22 @@ export function AuthProvider({ children }) {
       console.warn('[auth] auth never initialised — reloading once to recover the session')
       window.location.reload()
     }
-    const runWatchdogDecision = () => {
+    const runWatchdogDecision = ({ viaFastPath = false } = {}) => {
       if (disposedRef.current) return
       const storage = typeof window !== 'undefined' ? window.sessionStorage : null
-      const action = decideAuthInitRecovery({
-        hasHint: hasAuthSessionHint(),
-        recoveryAttempted: readRecoveryAttempted(storage),
-        documentHidden: typeof document !== 'undefined' && document.visibilityState === 'hidden',
-      })
+      const hasHint = hasAuthSessionHint()
+      const recoveryAttempted = readRecoveryAttempted(storage)
+      const documentHidden = typeof document !== 'undefined' && document.visibilityState === 'hidden'
+      const action = decideAuthInitRecovery({ hasHint, recoveryAttempted, documentHidden })
+      // Only a HINTED device is a failure worth reporting — a slow cold start
+      // on a signed-out visitor is ordinary and must not page anyone.
+      if (hasHint && !failureReported) {
+        failureReported = true
+        setAuthStateTag('wedged')
+        reportAuthInitFailure({
+          action, viaFastPath, documentHidden, hidDuringInit, recoveryAttempted,
+        })
+      }
       if (action === DEFER) {
         // Hold the loader and re-decide when the user comes back to the tab.
         if (recoveryVisibilityListener) return
@@ -723,7 +743,7 @@ export function AuthProvider({ children }) {
           if (document.visibilityState !== 'visible') return
           document.removeEventListener('visibilitychange', recoveryVisibilityListener)
           recoveryVisibilityListener = null
-          runWatchdogDecision()
+          runWatchdogDecision({ viaFastPath })
         }
         document.addEventListener('visibilitychange', recoveryVisibilityListener)
         return
@@ -744,6 +764,38 @@ export function AuthProvider({ children }) {
       console.warn(`[auth] restoration watchdog fired after ${watchdogMs}ms without an auth event`)
       runWatchdogDecision()
     }, watchdogMs)
+
+    // ── The fast path ────────────────────────────────────────────────────────
+    // Both listeners are armed only while auth is unresolved, and are torn down
+    // by the first auth event. Together they turn "wait 30 s and infer" into
+    // "notice the failure when it happens".
+    const noteHide = () => {
+      if (document.visibilityState === 'hidden') hidDuringInit = true
+    }
+    // A rejection is only meaningful once the preconditions hold — see
+    // shouldFastRecover. The rejection fires while the tab is still hidden, so
+    // this normally resolves to DEFER and the reload lands the instant the user
+    // comes back, instead of at the 30 s timeout.
+    const onUnhandledRejection = () => {
+      if (disposedRef.current) return
+      if (!shouldFastRecover({
+        hasHint: hasAuthSessionHint(),
+        authUnresolved: true, // torn down on the first auth event, so still true here
+        hidDuringInit,
+      })) return
+      clearTimeout(timeout)
+      console.warn('[auth] auth init failed while the tab was hidden — recovering early')
+      runWatchdogDecision({ viaFastPath: true })
+    }
+    document.addEventListener('visibilitychange', noteHide)
+    window.addEventListener('unhandledrejection', onUnhandledRejection)
+    // The page may already be hidden on arrival (a background tab restore), in
+    // which case no visibilitychange will ever fire to tell us.
+    noteHide()
+    const disarmFastPath = () => {
+      document.removeEventListener('visibilitychange', noteHide)
+      window.removeEventListener('unhandledrejection', onUnhandledRejection)
+    }
     if (import.meta.env.DEV) console.info('[auth] waiting for Firebase to restore the session…')
 
     // (Re-)attach the profile snapshot for `user`. Factored out of the
@@ -901,6 +953,8 @@ export function AuthProvider({ children }) {
         document.removeEventListener('visibilitychange', recoveryVisibilityListener)
         recoveryVisibilityListener = null
       }
+      disarmFastPath()
+      setAuthStateTag('resolved')
       clearRecoveryAttempted(typeof window !== 'undefined' ? window.sessionStorage : null)
       // Firebase has actually spoken. Set HERE and nowhere else — in particular
       // NOT by the watchdog above, which drops `loading` without knowing who
@@ -979,6 +1033,7 @@ export function AuthProvider({ children }) {
         document.removeEventListener('visibilitychange', recoveryVisibilityListener)
         recoveryVisibilityListener = null
       }
+      disarmFastPath()
       subscribeProfileRef.current = null
       unsubDeletionStart()
       if (unsubProfile) {

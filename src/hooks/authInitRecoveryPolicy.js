@@ -134,3 +134,35 @@ export function clearRecoveryAttempted(storage) {
     /* nothing to clean up if storage is unavailable */
   }
 }
+
+/**
+ * Is an unhandled promise rejection, right now, evidence of THIS failure?
+ *
+ * The watchdog is a backstop, not a detector: it waits 30 s on a hinted device
+ * before concluding anything, so a user who switched tabs during a cold start
+ * sat on a loader for half a minute before the recovery reload fired. The
+ * rejection itself is available immediately — Firebase's wedged init surfaces
+ * as an unhandled rejection the moment the persistence write throws.
+ *
+ * What makes it usable is that the MESSAGE is not the evidence. Matching
+ * `Database is closing/hidden` would bind us to one SDK version's wording, and
+ * would go quietly dead the day Firebase rephrased it — the worst failure mode
+ * available to a detector. The preconditions carry the meaning instead:
+ *
+ *   • hasHint        — this device had a live session, so there is a session to lose
+ *   • authUnresolved — `onAuthStateChanged` has still not fired
+ *   • hidDuringInit  — the page hid while initialisation was in flight, which
+ *                      is the one and only way this failure is reached
+ *
+ * All three together are specific enough that ANY unhandled rejection in that
+ * window is better explained by this bug than by anything else, and the cost of
+ * being wrong is one reload — already bounded by the once-only guard, and taken
+ * on a device that is sitting on a loading screen regardless.
+ *
+ * This does not replace the watchdog. A failure that produces no observable
+ * rejection still needs the timeout, so both paths run and converge on the same
+ * `decideAuthInitRecovery` call.
+ */
+export function shouldFastRecover({ hasHint, authUnresolved, hidDuringInit }) {
+  return !!(hasHint && authUnresolved && hidDuringInit)
+}

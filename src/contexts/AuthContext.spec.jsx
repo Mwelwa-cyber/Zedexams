@@ -25,6 +25,8 @@ const h = vi.hoisted(() => ({
   // One shared callable stand-in: AuthContext binds `bootstrapUserProfile` at
   // module scope, so the deletion tests below need a spy that survives that.
   callable: vi.fn(() => Promise.resolve({ data: {} })),
+  setAuthStateTag: vi.fn(),
+  reportAuthInitFailure: vi.fn(),
 }))
 
 vi.mock('../firebase/config', () => ({
@@ -62,7 +64,12 @@ vi.mock('firebase/functions', () => ({
 
 // Side-effect utils — stubbed; their behaviour is not under test here.
 vi.mock('../utils/runtime', () => ({ isNativePlatform: () => false }))
-vi.mock('../utils/sentry', () => ({ setSentryUser: vi.fn(), clearSentryUser: vi.fn() }))
+vi.mock('../utils/sentry', () => ({
+  setSentryUser: vi.fn(),
+  clearSentryUser: vi.fn(),
+  setAuthStateTag: h.setAuthStateTag,
+  reportAuthInitFailure: h.reportAuthInitFailure,
+}))
 vi.mock('../utils/analytics', () => ({ capture: vi.fn(), identifyUser: vi.fn(), resetAnalytics: vi.fn() }))
 vi.mock('../utils/fcm', () => ({ refreshTokenIfGranted: () => Promise.resolve(), clearPushUser: () => {} }))
 vi.mock('../utils/referrals', () => ({
@@ -612,5 +619,159 @@ describe('AuthProvider restoration watchdog — hinted device recovery', () => {
     render(<AuthProvider><SettleProbe /></AuthProvider>)
     act(() => { h.onAuthCb.current({ uid: 'u1', getIdToken: vi.fn() }) })
     expect(window.sessionStorage.getItem('auth:initRecoveryAttempted')).toBe(null)
+  })
+})
+
+/* ── the fast path, and the telemetry that made this bug hard to triage ──────
+   Two follow-ups to the PYTHON-K fix.
+
+   1. LATENCY. The watchdog is a backstop, not a detector: a hinted device
+      waited 30 s before recovering. Firebase's wedged init surfaces as an
+      unhandled rejection immediately, so the rejection is the trigger and the
+      preconditions (hint + unresolved + hid-during-init) are the evidence —
+      deliberately NOT the error message, which would bind us to one SDK
+      version's wording and go quietly dead when it changed.
+
+   2. TRIAGE. `setSentryUser` is only called from the auth callback this bug
+      prevents, so the issue reported "Users impacted: 0" for eight days while
+      it was logging people out. The failure now reports itself. */
+
+describe('AuthProvider auth-init fast path + telemetry', () => {
+  let reload
+  let realLocation
+  let visibility
+
+  beforeEach(() => {
+    h.onAuthCb.current = null
+    h.setAuthStateTag.mockClear()
+    h.reportAuthInitFailure.mockClear()
+    window.localStorage.clear()
+    window.sessionStorage.clear()
+    visibility = 'visible'
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true, get: () => visibility,
+    })
+    reload = vi.fn()
+    realLocation = window.location
+    Object.defineProperty(window, 'location', {
+      configurable: true, writable: true, value: { ...realLocation, reload },
+    })
+  })
+
+  afterEach(() => {
+    Object.defineProperty(window, 'location', {
+      configurable: true, writable: true, value: realLocation,
+    })
+    delete document.visibilityState
+    window.localStorage.clear()
+    window.sessionStorage.clear()
+  })
+
+  const hide = () => {
+    visibility = 'hidden'
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+  }
+  const show = () => {
+    visibility = 'visible'
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+  }
+  // A bare Event is enough precisely because nothing inspects the reason.
+  const reject = () => act(() => { window.dispatchEvent(new Event('unhandledrejection')) })
+
+  it('recovers on the rejection instead of waiting out the 30s watchdog', () => {
+    window.localStorage.setItem('auth:hasSession', '1')
+    render(<AuthProvider><SettleProbe /></AuthProvider>)
+    hide()
+    reject()
+    // Still hidden, so it defers rather than reloading a background tab.
+    expect(reload).not.toHaveBeenCalled()
+    expect(readSettle().loading).toBe(true)
+    // The user comes back — and it recovers immediately, no timers advanced.
+    show()
+    expect(reload).toHaveBeenCalledTimes(1)
+  })
+
+  it('recovers immediately when the page is already visible again', () => {
+    window.localStorage.setItem('auth:hasSession', '1')
+    render(<AuthProvider><SettleProbe /></AuthProvider>)
+    hide()
+    show()
+    reject()
+    expect(reload).toHaveBeenCalledTimes(1)
+  })
+
+  it('ignores a rejection when the page never hid — not this failure', () => {
+    window.localStorage.setItem('auth:hasSession', '1')
+    render(<AuthProvider><SettleProbe /></AuthProvider>)
+    reject()
+    expect(reload).not.toHaveBeenCalled()
+    expect(h.reportAuthInitFailure).not.toHaveBeenCalled()
+  })
+
+  it('ignores a rejection on a device with no session', () => {
+    render(<AuthProvider><SettleProbe /></AuthProvider>)
+    hide()
+    reject()
+    show()
+    expect(reload).not.toHaveBeenCalled()
+    expect(h.reportAuthInitFailure).not.toHaveBeenCalled()
+  })
+
+  it('stops listening once auth speaks, so a later rejection is inert', () => {
+    window.localStorage.setItem('auth:hasSession', '1')
+    render(<AuthProvider><SettleProbe /></AuthProvider>)
+    hide()
+    act(() => { h.onAuthCb.current({ uid: 'u1', getIdToken: vi.fn() }) })
+    reject()
+    show()
+    expect(reload).not.toHaveBeenCalled()
+  })
+
+  it('tags auth as unresolved on mount and resolved once Firebase speaks', () => {
+    render(<AuthProvider><SettleProbe /></AuthProvider>)
+    expect(h.setAuthStateTag).toHaveBeenCalledWith('unresolved')
+    act(() => { h.onAuthCb.current(null) })
+    expect(h.setAuthStateTag).toHaveBeenCalledWith('resolved')
+  })
+
+  it('reports the failure to Sentry with the context triage needed', () => {
+    window.localStorage.setItem('auth:hasSession', '1')
+    render(<AuthProvider><SettleProbe /></AuthProvider>)
+    hide()
+    reject()
+    expect(h.setAuthStateTag).toHaveBeenCalledWith('wedged')
+    expect(h.reportAuthInitFailure).toHaveBeenCalledTimes(1)
+    expect(h.reportAuthInitFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'defer', viaFastPath: true, documentHidden: true, hidDuringInit: true,
+      }),
+    )
+  })
+
+  it('reports once per episode, not once per path that reaches the same verdict', () => {
+    window.localStorage.setItem('auth:hasSession', '1')
+    vi.useFakeTimers()
+    try {
+      render(<AuthProvider><SettleProbe /></AuthProvider>)
+      hide()
+      reject()
+      reject()
+      act(() => { vi.advanceTimersByTime(31_000) })
+      expect(h.reportAuthInitFailure).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does NOT report a slow signed-out cold start — that is ordinary', () => {
+    vi.useFakeTimers()
+    try {
+      render(<AuthProvider><SettleProbe /></AuthProvider>)
+      act(() => { vi.advanceTimersByTime(31_000) })
+      expect(readSettle().loading).toBe(false)
+      expect(h.reportAuthInitFailure).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

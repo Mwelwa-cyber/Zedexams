@@ -48,6 +48,10 @@ let pendingUserId
 // Same for the role: it decides whether error-replay may be enabled, and it
 // can arrive before Sentry has finished loading.
 let pendingRole
+// Whether Firebase Auth has resolved yet, mirrored onto every event as a tag.
+// Set from the very first render — long before Sentry has finished loading —
+// so it needs the same stash-and-apply treatment as the user id.
+let pendingAuthState
 // The replay integration, created and registered lazily — and at most ONCE
 // per page load, because Sentry's Replay class is a singleton: constructing a
 // second instance throws "Multiple Sentry Session Replay instances are not
@@ -203,6 +207,10 @@ export async function initSentry() {
       ],
     })
     sentryModule = Sentry
+    if (pendingAuthState !== undefined) {
+      Sentry.setTag('auth.state', pendingAuthState)
+      pendingAuthState = undefined
+    }
     // Apply any user state that arrived before Sentry finished loading.
     if (pendingUserId !== undefined) {
       Sentry.setUser(pendingUserId === null ? null : { id: pendingUserId })
@@ -283,5 +291,67 @@ export function clearSentryUser() {
     sentryModule.setUser(null)
   } else {
     pendingUserId = null
+  }
+}
+
+/**
+ * Record where Firebase Auth has got to, as a tag on every subsequent event.
+ *
+ * `'unresolved'` → `'resolved'` on the first `onAuthStateChanged`, or
+ * `'wedged'` when the restoration watchdog concludes initialisation failed.
+ *
+ * This exists because of how PYTHON-K read in triage. `setSentryUser` is only
+ * called from the auth callback, so an error that PREVENTS that callback can
+ * never carry a user — and the issue therefore reported "Users impacted: 0"
+ * for eight days while it was logging people out. Zero was an artefact of the
+ * failure, not a measure of it. A tag that is present on the event regardless
+ * of whether a user could be attached is the honest version of that signal.
+ */
+export function setAuthStateTag(state) {
+  if (sentryModule) sentryModule.setTag('auth.state', state)
+  else pendingAuthState = state
+}
+
+/**
+ * Report that Firebase Auth never initialised, as a first-party named event.
+ *
+ * Without this the only trace is Firebase's own rejected floating promise,
+ * which arrives as an unhandled rejection with a stack that is entirely
+ * third-party and names no user flow — so triage sees a vendor error rather
+ * than "a signed-in session could not be restored".
+ *
+ * `hadSessionHint` is a TAG rather than a detail because it is the closest
+ * honest stand-in for user impact: we cannot know the uid (resolving it is the
+ * very thing that failed), but we do know this device had a live session, so
+ * a real person was affected even though the event carries no user.
+ *
+ * Only called for hinted devices. A slow cold start on a signed-out visitor is
+ * ordinary and must not page anyone.
+ */
+export function reportAuthInitFailure({ action, viaFastPath, documentHidden, hidDuringInit, recoveryAttempted }) {
+  // No Sentry loaded means no DSN configured, so there is nothing to be blind
+  // about — dropping the report is correct rather than a lost signal.
+  if (!sentryModule) return
+  try {
+    sentryModule.captureMessage('Auth initialisation never completed', {
+      level: 'error',
+      tags: {
+        'auth.init_failure': true,
+        'auth.had_session_hint': true,
+        'auth.recovery_action': action,
+        'auth.detected_via': viaFastPath ? 'rejection' : 'watchdog',
+      },
+      contexts: {
+        authInit: {
+          action,
+          detectedVia: viaFastPath ? 'unhandled-rejection' : 'watchdog-timeout',
+          documentHidden,
+          hidDuringInit,
+          recoveryAttempted,
+        },
+      },
+    })
+  } catch (err) {
+    console.warn('[sentry] auth-init failure report failed:', err)
   }
 }
