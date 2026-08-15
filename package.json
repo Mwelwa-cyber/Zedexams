@@ -818,7 +818,8 @@
     "test:admin-home": "node src/features/adminHome/lib/adminHomeCore.test.js",
     "test:color-surface-map": "node scripts/test-color-surface-map.mjs",
     "test:library-download": "node functions/libraryDownload.test.js",
-    "test:http-request-guard": "node functions/httpRequestGuard.test.js"
+    "test:http-request-guard": "node functions/httpRequestGuard.test.js",
+    "test:auth-init-recovery": "node scripts/test-auth-init-recovery.mjs"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",

@@ -31,6 +31,14 @@ import { isAccountDeletionInFlight, onAccountDeletionStart } from '../utils/acco
 import { useAuthRecovery } from '../hooks/useAuthRecovery'
 import { shouldExpireSession, REFRESH_THROTTLE_MS } from '../hooks/authRecoveryPolicy'
 import {
+  decideAuthInitRecovery,
+  readRecoveryAttempted,
+  markRecoveryAttempted,
+  clearRecoveryAttempted,
+  RELOAD,
+  DEFER,
+} from '../hooks/authInitRecoveryPolicy'
+import {
   shouldTryFallback,
   isContinueUrlError,
   fallbackOutcome,
@@ -683,10 +691,58 @@ export function AuthProvider({ children }) {
     // through to the public pages after 5 s (for those visitors auth resolves
     // near-instantly anyway — this is just a belt-and-braces ceiling).
     const watchdogMs = hasAuthSessionHint() ? 30_000 : 5000
+    // When the watchdog fires on a HINTED device, Firebase did not resolve this
+    // session to "signed out" — it failed to initialise at all, and is wedged
+    // for the life of the page (see authInitRecoveryPolicy for the mechanism).
+    // Dropping the gate here would leave `loading === false && currentUser ===
+    // null`, which ProtectedRoute reads as signed-out and bounces to /login.
+    // So a hinted device reloads once instead, which is the only way to re-drive
+    // Firebase's initialisation.
+    let recoveryVisibilityListener = null
+    const revealAsSignedOut = () => {
+      if (disposedRef.current) return
+      setLoading(false)
+    }
+    const reloadToRecover = () => {
+      if (disposedRef.current) return
+      console.warn('[auth] auth never initialised — reloading once to recover the session')
+      window.location.reload()
+    }
+    const runWatchdogDecision = () => {
+      if (disposedRef.current) return
+      const storage = typeof window !== 'undefined' ? window.sessionStorage : null
+      const action = decideAuthInitRecovery({
+        hasHint: hasAuthSessionHint(),
+        recoveryAttempted: readRecoveryAttempted(storage),
+        documentHidden: typeof document !== 'undefined' && document.visibilityState === 'hidden',
+      })
+      if (action === DEFER) {
+        // Hold the loader and re-decide when the user comes back to the tab.
+        if (recoveryVisibilityListener) return
+        recoveryVisibilityListener = () => {
+          if (document.visibilityState !== 'visible') return
+          document.removeEventListener('visibilitychange', recoveryVisibilityListener)
+          recoveryVisibilityListener = null
+          runWatchdogDecision()
+        }
+        document.addEventListener('visibilitychange', recoveryVisibilityListener)
+        return
+      }
+      if (action === RELOAD) {
+        // Record the attempt BEFORE reloading. If it cannot be stored we have no
+        // way to stop a second identical failure reloading again, so we reveal
+        // instead — /login is a bad outcome, a reload loop is a worse one.
+        if (markRecoveryAttempted(storage)) {
+          reloadToRecover()
+          return
+        }
+      }
+      revealAsSignedOut()
+    }
     const timeout = setTimeout(() => {
       if (disposedRef.current) return
       console.warn(`[auth] restoration watchdog fired after ${watchdogMs}ms without an auth event`)
-      setLoading(false)
+      runWatchdogDecision()
     }, watchdogMs)
     if (import.meta.env.DEV) console.info('[auth] waiting for Firebase to restore the session…')
 
@@ -837,6 +893,15 @@ export function AuthProvider({ children }) {
 
     const unsub = onAuthStateChanged(auth, (user) => {
       clearTimeout(timeout)
+      // Firebase initialised, so this failure episode is over. Give the tab its
+      // recovery reload back — a session that hits the hide-during-init race
+      // again later deserves the same rescue, and cannot loop because every
+      // cycle requires a successful initialisation in between.
+      if (recoveryVisibilityListener) {
+        document.removeEventListener('visibilitychange', recoveryVisibilityListener)
+        recoveryVisibilityListener = null
+      }
+      clearRecoveryAttempted(typeof window !== 'undefined' ? window.sessionStorage : null)
       // Firebase has actually spoken. Set HERE and nowhere else — in particular
       // NOT by the watchdog above, which drops `loading` without knowing who
       // the user is. `loading === false` therefore means "stop waiting", which
@@ -910,6 +975,10 @@ export function AuthProvider({ children }) {
     return () => {
       disposedRef.current = true
       clearTimeout(timeout)
+      if (recoveryVisibilityListener) {
+        document.removeEventListener('visibilitychange', recoveryVisibilityListener)
+        recoveryVisibilityListener = null
+      }
       subscribeProfileRef.current = null
       unsubDeletionStart()
       if (unsubProfile) {
