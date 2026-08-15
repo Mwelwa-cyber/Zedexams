@@ -21,29 +21,35 @@ service firebase.storage {
       return 'email_verified' in request.auth.token
         && request.auth.token.email_verified == true;
     }
+    // THE SHAPE OF THIS FUNCTION IS LOAD-BEARING, and pinned as text by
+    // scripts/test-storage-rules-text.mjs. Every path in this file runs through
+    // it, so a term added here executes on 100% of Storage rule evaluations.
+    //
+    // #2258 added one: a `notBeingDeleted()` deletion gate that asked Firestore,
+    // from the Storage rules engine, whether an accountPurgeJobs tombstone
+    // existed. That is a CROSS-SERVICE read, a different and more fragile
+    // mechanism than the in-service `exists()` firestore.rules uses for the same
+    // question, and it fails closed. It stopped resolving; every arm collapsed;
+    // production recorded zero rule allows from 10 Aug 2026 — including on paths
+    // requiring no role at all (picture-bank, quiz-images, lesson-images,
+    // lesson-files) — and uploads were down across the product for five days.
+    // #2399 took it off isVerified(); this removed the function outright.
+    //
+    // Note what the `||` buys and why it must not become an `&&` chain:
+    // `inVerificationGrace()` DOES make a cross-service read, but only when the
+    // token claim is false, so a verified user never reaches it. That
+    // short-circuit is the reason this predicate is normally free.
+    //
+    // The deletion gate is NOT coming back here. It was the wrong tool twice
+    // over — besides the cross-service read, a rules predicate can only refuse a
+    // NEW write, so it never addressed the objects already written between the
+    // purge enumerating the bucket and the gate taking effect. Its replacement
+    // is cleanup off the request path: functions/account/accountPurgeResweeper.js
+    // re-enumerates a deleted uid's Storage prefixes once the 60-minute ID-token
+    // window has closed and deletes whatever landed in it.
     function isVerified() {
       return isAuthed()
         && (tokenEmailVerified() || inVerificationGrace());
-    }
-    // The same deletion gate as firestore.rules. A surviving ID token can upload
-    // as readily as it can write a document, and an object written after the
-    // purge enumerated the bucket is data belonging to a deleted account.
-    //
-    // DISABLED pending incident follow-up — deliberately defined but UNUSED.
-    // #2258 wired this into isVerified(), which every path in this file runs
-    // through, so it put an unconditional CROSS-SERVICE firestore.exists() on
-    // 100% of Storage rule evaluations. Before that, isVerified() made no
-    // cross-service call at all for a verified user, because the
-    // `tokenEmailVerified() || inVerificationGrace()` short-circuit skipped the
-    // only one. Production recorded zero rule allows from 10 Aug 2026 — the day
-    // #2258 deployed — including on paths that require no role at all
-    // (picture-bank, quiz-images, lesson-images, lesson-files), which is why
-    // this and not the role arms is the cause.
-    //
-    // Do NOT re-attach this to isVerified(). Restoring the gate on the Storage
-    // side needs a replacement that is not a cross-service read.
-    function notBeingDeleted() {
-      return !firestore.exists(/databases/(default)/documents/accountPurgeJobs/$(request.auth.uid));
     }
     function inVerificationGrace() {
       return firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))

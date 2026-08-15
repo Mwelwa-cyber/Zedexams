@@ -40,6 +40,29 @@ const STALE_AFTER_MS = 15 * 60 * 1000;
 const ALERT_AFTER_ATTEMPTS = 3;
 
 /**
+ * How long after the deletion starts the Storage re-sweep becomes due.
+ *
+ * A Firebase ID token lives 60 minutes and is not invalidated by
+ * `revokeRefreshTokens` or by `deleteUser` — both stop the session being
+ * RENEWED, neither reaches a token already minted. So for up to an hour after
+ * an account is destroyed, a tab still holding one can write to Storage, and
+ * anything it writes lands after the auth-delete cascade
+ * (storageCleanup/onUserDeleted.js) already enumerated the bucket.
+ *
+ * 60 minutes for the token, plus 15 minutes of slack for clock skew between
+ * the token's issuer and this server. Then the prefixes are enumerated again.
+ *
+ * This replaces the rules gate that #2258 tried and #2399 removed. Two reasons
+ * it is the right shape and the gate was not: a rules predicate can only
+ * refuse a NEW write, so it does nothing about the objects that already landed
+ * between the purge starting and the gate taking effect — and on the Storage
+ * side it could only ask the question with a cross-service `firestore.exists`,
+ * which is what took uploads down for five days. Cleanup off the request path
+ * costs nothing per request and covers the whole window, both ends.
+ */
+const RESWEEP_DELAY_MS = 75 * 60 * 1000;
+
+/**
  * SHA-256 of the lowercased, trimmed address — never the address itself.
  *
  * @param {string} [email]
@@ -146,9 +169,10 @@ function isAbandonedBeforeDeletion(job, {now = Date.now(), staleAfterMs = STALE_
  * @param {object} deps
  * @param {object} deps.FieldValue   admin.firestore.FieldValue.
  * @param {string} [deps.email]      Hashed, never stored raw.
+ * @param {number} [deps.now]        Injected clock (ms), for the re-sweep due time.
  * @return {Promise<void>}
  */
-async function openPurgeJob(db, uid, {FieldValue, email} = {}) {
+async function openPurgeJob(db, uid, {FieldValue, email, now = Date.now()} = {}) {
   if (!uid) throw new Error("uid is required");
   if (!FieldValue) throw new Error("FieldValue dependency is required");
   await db.collection(PURGE_JOBS_COLLECTION).doc(uid).set({
@@ -160,6 +184,16 @@ async function openPurgeJob(db, uid, {FieldValue, email} = {}) {
     // existing failure count alone. Re-opening a job must not quietly reset
     // the count the sweeper's alert threshold reads.
     attempts: FieldValue.increment(0),
+    // When the surviving ID token can no longer have been used (see
+    // RESWEEP_DELAY_MS). A plain epoch-millis number rather than a Timestamp:
+    // this module deliberately injects only `FieldValue` so it unit-tests
+    // under the root install alone, and `toMillis()` already reads numbers.
+    //
+    // Both fields are RESET on a re-open, unlike `attempts`. They are not
+    // bookkeeping about past runs — they describe the token window of the
+    // attempt now starting, and a second attempt mints its own.
+    resweepAfter: now + RESWEEP_DELAY_MS,
+    resweepDone: false,
   }, {merge: true});
 }
 
@@ -252,6 +286,106 @@ function isAdoptable(job) {
 }
 
 /**
+ * Is this job's Storage re-sweep due?
+ *
+ * Deliberately NOT `isAdoptable`, though it shares that function's phase
+ * check, and the two differ on `status` in OPPOSITE directions:
+ *
+ *   • `isAdoptable` wants `pending` — an unfinished purge is what the daily
+ *     sweeper retries, and a `done` job has nothing left to do.
+ *   • This wants `done` as the NORMAL case. The purge takes ~25 s and the
+ *     token window runs 75 minutes, so by the time a re-sweep is due almost
+ *     every job is closed. Requiring `pending` here would re-sweep only the
+ *     deletions that had already failed — precisely backwards.
+ *
+ * What it DOES share, and the reason it is a hard requirement rather than a
+ * tidy filter: `phase === PHASE_IRREVERSIBLE`. A tombstone can carry
+ * `resweepDone: false` and describe an account that was never deleted at all —
+ * `runAccountDeletion` cancels the job when `revokeRefreshTokens` or
+ * `deleteUser` fails, and a crash between `openPurgeJob` and
+ * `markPurgeIrreversible` leaves it `pending` with no phase marker and a live
+ * account behind it. Re-sweeping either would delete a SIGNED-IN user's
+ * papers, images and invoices, for a deletion they were told had failed. The
+ * phase marker is written only after the Auth user is actually gone, so
+ * requiring it is what makes that impossible.
+ *
+ * `cancelled` is refused by the phase check on its own — a cancelled job never
+ * reached the marker — but it is also named explicitly, because the whole
+ * point of this guard is that it should not depend on noticing that.
+ *
+ * An unreadable or missing `resweepAfter` fails CLOSED (not due). This runs
+ * every 15 minutes against jobs the equality query already narrowed to
+ * `resweepDone === false`, so a job whose due time cannot be read is retried
+ * on the next tick rather than swept early — and "early" here means during the
+ * window the delay exists to wait out.
+ *
+ * @param {object} [job]
+ * @param {object} [opts]
+ * @param {number} [opts.now]
+ * @return {boolean}
+ */
+function isResweepDue(job, {now = Date.now()} = {}) {
+  if (!job) return false;
+  if (job.phase !== PHASE_IRREVERSIBLE) return false;
+  if (job.status === "cancelled") return false;
+  if (job.resweepDone === true) return false;
+  const due = toMillis(job.resweepAfter);
+  if (due == null) return false;
+  return now >= due;
+}
+
+/**
+ * Close the re-sweep for `uid`.
+ *
+ * `deleted` is recorded even when it is zero, because zero is the interesting
+ * number: it is the evidence that the surviving-token window was NOT used, and
+ * a summary that omitted it could not tell "swept, found nothing" from "swept,
+ * never counted".
+ *
+ * @param {object} db
+ * @param {string} uid
+ * @param {object} deps
+ * @param {object} deps.FieldValue
+ * @param {number} [deps.deleted]   Objects the re-sweep removed.
+ * @return {Promise<void>}
+ */
+async function markResweepDone(db, uid, {FieldValue, deleted = 0} = {}) {
+  await db.collection(PURGE_JOBS_COLLECTION).doc(uid).set({
+    resweepDone: true,
+    resweepAt: FieldValue.serverTimestamp(),
+    resweepDeleted: deleted,
+    resweepError: null,
+  }, {merge: true});
+}
+
+/**
+ * Record a failed re-sweep, leaving `resweepDone` false so the next run
+ * retries. Never throws — same reasoning as `recordPurgeFailure`: this is the
+ * error path of something that has already failed, and losing the original
+ * error to a bookkeeping failure helps nobody. A lost write here costs a
+ * duplicate retry, which is harmless because the re-sweep is idempotent.
+ *
+ * @param {object} db
+ * @param {string} uid
+ * @param {object} deps
+ * @param {object} deps.FieldValue
+ * @param {Error|string} [deps.error]
+ * @return {Promise<void>}
+ */
+async function recordResweepFailure(db, uid, {FieldValue, error} = {}) {
+  try {
+    await db.collection(PURGE_JOBS_COLLECTION).doc(uid).set({
+      resweepDone: false,
+      resweepAttempts: FieldValue.increment(1),
+      resweepFailedAt: FieldValue.serverTimestamp(),
+      resweepError: String((error && error.message) || error || "unknown").slice(0, 500),
+    }, {merge: true});
+  } catch (err) {
+    console.error(`accountPurgeJobs: could not record re-sweep failure for ${uid}:`, err);
+  }
+}
+
+/**
  * Terminally CANCEL a job that never got past the pre-destructive steps.
  *
  * The sweeper adopts every stale `pending` job and calls `deleteUser` on it.
@@ -335,6 +469,7 @@ module.exports = {
   PURGE_JOBS_COLLECTION,
   STALE_AFTER_MS,
   ALERT_AFTER_ATTEMPTS,
+  RESWEEP_DELAY_MS,
   hashEmail,
   toMillis,
   PHASE_IRREVERSIBLE,
@@ -342,10 +477,13 @@ module.exports = {
   isPurgeComplete,
   isAdoptable,
   isAbandonedBeforeDeletion,
+  isResweepDue,
   markPurgeIrreversible,
   openPurgeJob,
   completePurgeJob,
   cancelPurgeJob,
   recordPurgeFailure,
+  markResweepDone,
+  recordResweepFailure,
   readPurgeJob,
 };

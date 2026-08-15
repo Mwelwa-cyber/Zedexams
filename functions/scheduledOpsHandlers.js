@@ -26,6 +26,10 @@ exports.buildScheduledOpsHandlers = (deps) => {
       await require("./account/accountPurgeSweeper").runAccountPurgeSweep();
     },
 
+    accountPurgeResweep: async () => {
+      await require("./account/accountPurgeResweeper").runAccountPurgeResweep();
+    },
+
     functionErrorWatch: async () => {
     await runFunctionErrorWatch();
   },

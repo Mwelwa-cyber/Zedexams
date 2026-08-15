@@ -390,6 +390,64 @@ test('the paper size cap matches the client so no file passes one and fails the 
   )
 })
 
+// ── the #2258 outage guard ──────────────────────────────────────
+//
+// #2258 added a cross-service `firestore.exists()` deletion gate to
+// isVerified(), which EVERY path in this file runs through. It stopped
+// resolving, every arm collapsed, and uploads were down across the product for
+// five days until #2399 removed it.
+//
+// The emulator cannot catch this class of bug — it runs Firestore locally in
+// the same process, so a cross-service read always resolves there. That is why
+// these are text assertions and why they are worth having: they are the only
+// thing in CI that can fail on it.
+
+console.log('\ncross-service reads in the verification chokepoint (#2258)')
+
+test('isVerified() keeps its exact short-circuiting shape', () => {
+  // Pinned literally rather than by a "contains no firestore.get" scan,
+  // because inVerificationGrace() legitimately makes a cross-service read —
+  // the point is that the `||` means a verified user never reaches it. A term
+  // appended with `&&` would execute unconditionally on every evaluation,
+  // which is precisely what #2258 did.
+  const body = rules.match(/function isVerified\(\)\s*\{([\s\S]*?)\n\s*\}/)
+  assert(body, 'isVerified() not found in storage.rules')
+  const normalised = body[1].replace(/\s+/g, ' ').trim()
+  assert(
+    normalised === 'return isAuthed() && (tokenEmailVerified() || inVerificationGrace());',
+    `isVerified() changed shape — every term here runs on 100% of Storage rule ` +
+    `evaluations and an unconditional cross-service read takes uploads down ` +
+    `(#2258). Got: ${normalised}`,
+  )
+})
+
+test('the deletion gate is gone from the CODE, not merely unused', () => {
+  // Checked against the rules with comments stripped. The removal is explained
+  // at length in a comment right where the function used to be — naming what
+  // was removed and why it must not come back is the whole point of that
+  // comment, and a scan over raw text would fail on the explanation itself.
+  // What must not exist is executable.
+  //
+  // Its replacement is cleanup off the request path:
+  // functions/account/accountPurgeResweeper.js. A gate left defined-but-unused
+  // is one edit away from being re-attached by someone who reads it as
+  // available, which is why it is deleted rather than commented out.
+  const code = rules
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^[ \t]*\/\/.*$/gm, '')
+  assert(
+    !/notBeingDeleted/.test(code),
+    'the deletion gate is back in storage.rules — a purge tombstone lookup here ' +
+    'is a cross-service read on the request path, and it is handled by the ' +
+    'post-purge Storage re-sweep instead',
+  )
+  assert(
+    !/accountPurgeJobs/.test(code),
+    'storage.rules reads the purge-tombstone collection — that is the ' +
+    'cross-service read that caused the #2258 outage',
+  )
+})
+
 test('no path match grants read on bare isAuthed()', () => {
   // Every shared-read path (papers, quiz-images, …) moved to isVerified().
   // isAuthed() may only appear inside the helper definitions at the top.

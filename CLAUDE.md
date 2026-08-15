@@ -840,6 +840,77 @@ silent. Three verdicts — `both` / `one` (delivered, but the redundancy is gone
 first press. Tests: `test:ops-alert`, `test:ops-alert-secrets`,
 `test:ops-alert-test`, `OpsAlertTester.spec.jsx`.
 
+### A cross-service read in a rules predicate cannot be validated by the emulator
+
+**Any rules change that adds a `firestore.get` / `firestore.exists` to a SHARED
+predicate cannot be proved safe by the emulator, and needs a post-deploy
+production check.** The emulator runs Firestore locally, in-process, so a
+cross-service read always resolves there. A green `Tests (Storage rules
+emulator)` job says the rule is *logically* correct and says nothing at all
+about whether the lookup resolves in production — which is the only way this
+class of change fails.
+
+That is not hypothetical. #2258 wired a `notBeingDeleted()` account-deletion
+gate into `storage.rules`' `isVerified()`, which every path in that file runs
+through, putting an unconditional cross-service `firestore.exists()` on 100% of
+Storage rule evaluations. It stopped resolving, every arm collapsed closed, and
+**uploads were down across the entire product for five days** — including on
+paths that require no role at all. Both rules emulator jobs were green
+throughout. #2399 took it off `isVerified()`; the follow-up removed the function
+outright and replaced the guarantee with cleanup off the request path
+(`functions/account/accountPurgeResweeper.js` — see below).
+
+Three things now catch it:
+
+- **A Cloud Monitoring alert, "Storage security rules erroring (Zedexams)"**,
+  which fires within the hour. This is the backstop that would have turned five
+  days into one, and it is the reason a post-deploy check is a check rather than
+  a vigil.
+- **`test:storage-rules-text`** pins `isVerified()`'s exact shape — `isAuthed()
+  && (tokenEmailVerified() || inVerificationGrace())` — and fails on the
+  tombstone lookup returning in any form. Text, not behaviour, precisely because
+  the emulator cannot see this.
+- **The short-circuit is the pattern to copy.** `inVerificationGrace()` DOES make
+  a cross-service read and is fine, because it sits behind a `||` that a verified
+  user never reaches. A term appended with `&&` executes on every request. If a
+  new predicate genuinely needs cross-service state, put it behind a
+  short-circuit that the common path skips — or move it off the request path
+  entirely, which is usually the better answer.
+
+**And a rules gate is often the wrong tool regardless of cost.** It can only
+refuse a NEW write. The deletion gate above did nothing about objects already
+written between the purge enumerating the bucket and the gate taking effect,
+which was most of the leak it was written to stop. Cleanup after the fact covers
+both ends of the window and cannot take the product down.
+
+### Deleting an account: the Storage re-sweep
+
+`revokeRefreshTokens` + `deleteUser` stop a session being RENEWED; neither
+invalidates an ID token already minted, and those live **60 minutes**. So for up
+to an hour after an account is destroyed, a tab still holding one can upload —
+landing after the auth-delete cascade (`storageCleanup/onUserDeleted.js`) already
+walked the bucket.
+
+`openPurgeJob` therefore stamps every tombstone with `resweepAfter = now + 75
+minutes` (60 min token + 15 min slack) and `resweepDone: false`, and the
+`accountPurgeResweep` cron (every 15 min) re-enumerates that uid's Storage
+prefixes and deletes whatever landed. Three things worth knowing:
+
+- **`USER_KEYED_PREFIXES` (`functions/storageCleanup/helpers.js`) is the ONE
+  list.** Three sweeps read it — the auth-delete cascade, the orphan reaper, and
+  this re-sweep. Add a prefix there and all three cover it; a second list
+  somewhere would leave one of them silently behind.
+- **The re-sweep requires `phase === "irreversible"`**, and that guard is
+  load-bearing rather than tidy. A tombstone can carry `resweepDone: false` and
+  describe an account that was never deleted — a cancelled deletion, or one that
+  crashed before the point of no return — both of which leave the user **signed
+  in**. Without the marker the re-sweep would delete a live teacher's papers,
+  images and invoices.
+- **It is a separate function from `accountPurgeSweep`**, which retries failed
+  *Firestore* purges daily on a `status == "pending"` query. This one queries
+  `resweepDone == false` every 15 minutes and the jobs it wants are almost all
+  `done`. Merging them would mean running the heavy purge retry 96× a day.
+
 ### Hosting + Functions wiring
 
 `firebase.json` rewrites `/api/*` straight to specific `onRequest` Cloud Functions in `us-central1`. This is how SSE endpoints (Zed chat, lesson plan stream, worksheet stream) avoid CORS — the browser hits same-origin `/api/...`, Hosting proxies to the function. New API endpoints need both the function export in `functions/index.js` AND a rewrite entry here.

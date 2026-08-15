@@ -2,6 +2,25 @@
   "_comment": "Phase 5 frozen-surface manifest. Regenerate with scripts/generate-functions-manifest.mjs; classification and batch are hand-owned and survive regeneration. Guarded by test:functions-manifest.",
   "generatedFrom": "functions/index.js + firebase.json",
   "exports": {
+    "accountPurgeResweep": {
+      "kind": "onSchedule",
+      "inline": false,
+      "options": {
+        "schedule": "\"every 15 minutes\"",
+        "timeZone": "\"Etc/UTC\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "540",
+        "memory": "\"512MiB\"",
+        "secrets": "opsAlertSecrets([emailSmtpUser, emailSmtpPassword])"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": null
+    },
     "accountPurgeSweep": {
       "kind": "onSchedule",
       "inline": false,
