@@ -19,6 +19,7 @@ import {
   readRecoveryAttempted,
   markRecoveryAttempted,
   clearRecoveryAttempted,
+  shouldFastRecover,
   AUTH_INIT_RECOVERY_KEY,
   REVEAL,
   RELOAD,
@@ -152,6 +153,37 @@ test('a recovered session gets its reload back for a later episode', () => {
     }),
     RELOAD,
   )
+})
+
+console.log('\nauth init recovery — the fast path')
+
+test('all three preconditions together make a rejection actionable', () => {
+  assert.equal(
+    shouldFastRecover({ hasHint: true, authUnresolved: true, hidDuringInit: true }),
+    true,
+  )
+})
+
+test('a rejection is ignored unless every precondition holds', () => {
+  // No session to lose.
+  assert.equal(shouldFastRecover({ hasHint: false, authUnresolved: true, hidDuringInit: true }), false)
+  // Auth already spoke, so whatever rejected is a different problem.
+  assert.equal(shouldFastRecover({ hasHint: true, authUnresolved: false, hidDuringInit: true }), false)
+  // The page never hid, so this failure cannot be the hide-during-init race.
+  assert.equal(shouldFastRecover({ hasHint: true, authUnresolved: true, hidDuringInit: false }), false)
+})
+
+test('it is a pure precondition test — no message matching', () => {
+  // The guard against binding to one SDK version's wording: the decision must
+  // not consult an error at all, so a reworded Firebase message cannot silently
+  // switch the detector off.
+  assert.equal(shouldFastRecover.length, 1, 'takes only the precondition object')
+  const src = shouldFastRecover.toString()
+  assert.ok(!/Database|closing|hidden'/.test(src), 'must not match on the error text')
+})
+
+test('a missing precondition object never throws', () => {
+  assert.equal(shouldFastRecover({}), false)
 })
 
 console.log(`\n✓ auth init recovery: ${passed} tests passed\n`)
