@@ -23,12 +23,25 @@ service firebase.storage {
     }
     function isVerified() {
       return isAuthed()
-        && (tokenEmailVerified() || inVerificationGrace())
-        && notBeingDeleted();
+        && (tokenEmailVerified() || inVerificationGrace());
     }
     // The same deletion gate as firestore.rules. A surviving ID token can upload
     // as readily as it can write a document, and an object written after the
     // purge enumerated the bucket is data belonging to a deleted account.
+    //
+    // DISABLED pending incident follow-up — deliberately defined but UNUSED.
+    // #2258 wired this into isVerified(), which every path in this file runs
+    // through, so it put an unconditional CROSS-SERVICE firestore.exists() on
+    // 100% of Storage rule evaluations. Before that, isVerified() made no
+    // cross-service call at all for a verified user, because the
+    // `tokenEmailVerified() || inVerificationGrace()` short-circuit skipped the
+    // only one. Production recorded zero rule allows from 10 Aug 2026 — the day
+    // #2258 deployed — including on paths that require no role at all
+    // (picture-bank, quiz-images, lesson-images, lesson-files), which is why
+    // this and not the role arms is the cause.
+    //
+    // Do NOT re-attach this to isVerified(). Restoring the gate on the Storage
+    // side needs a replacement that is not a cross-service read.
     function notBeingDeleted() {
       return !firestore.exists(/databases/(default)/documents/accountPurgeJobs/$(request.auth.uid));
     }
@@ -76,11 +89,7 @@ service firebase.storage {
     // is false, both role arms collapse, and EVERY teacher/admin upload in the
     // product is refused as `storage/unauthorized` — past papers, quiz images,
     // lesson files, branding — while Firestore itself keeps working, because
-    // firestore.rules never leaves its own service. The two services are also
-    // no longer colocated: the (default) database was moved to africa-south1
-    // for latency while the bucket was not, so every upload was paying a
-    // cross-region round trip for a fact the caller's own ID token already
-    // carried.
+    // firestore.rules never leaves its own service.
     //
     // So the claim is the fast path and the Firestore read is the FALLBACK,
     // kept so an account whose claims are stale or were never minted keeps
