@@ -54,7 +54,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const root = resolve(here, '../../..')
+const root = resolve(here, '..')
 
 /* ── A minimal CSS reader ─────────────────────────────────────────────── */
 // Enough to walk rules and read flat declarations. Comments are stripped

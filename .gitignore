@@ -235,9 +235,23 @@ generated/
 # contain live WhatsApp (Baileys) session material — creds.json plus the
 # *-key-*.json / app-state-sync-*.json files — which must NEVER be committed.
 # Quarantine the migration export trees and any credentials/session folder no
-# matter where a tool drops it. The tracked output/playwright/* test snapshots
-# don't match these patterns, so they stay versioned.
+# matter where a tool drops it.
 output/*-migration-*/
+
+# Scratch trees + one-off report dumps (Phase 6 repo hygiene, 2026-08-15).
+# `tmp/` and `output/` are session scratch space — debug uploads, ad-hoc
+# browser snapshots — and are never consumed by code or CI. The QA/report
+# dumps are write-only run outputs (nothing reads them back as a baseline),
+# so they live untracked where a run drops them. The narrower migration
+# quarantine above stays on its own line so that credential concern survives
+# even if these blanket ignores are ever narrowed.
+tmp/
+output/
+.auth-qa-report.json
+.authoring-qa-report.json
+.payments-check.json
+# Stray zero-byte artifact a shell redirect once left at the repo root.
+/firebase
 **/credentials/
 creds.json
 **/creds.json

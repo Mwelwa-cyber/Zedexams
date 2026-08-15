@@ -55,11 +55,13 @@ JVM and run in CI — not verified in this snapshot.
   queries depend on them.
 
 ### Hygiene
-- [ ] **Decide on the committed QA-report baselines** `.auth-qa-report.json`
-  (~100 KB) + `.authoring-qa-report.json` — they're Quill's declared outputs
-  (referenced in `src/config/agents.js` + `ORG.md`) and were regenerated
-  2026-07-04, so they're not stale, but they bloat the tree. Either `.gitignore`
-  them (and update the two references) or keep them as intentional baselines.
+- [x] **Decide on the committed QA-report baselines — resolved (Phase 6,
+  2026-08-15).** `.auth-qa-report.json` + `.authoring-qa-report.json` are
+  write-only run outputs — nothing reads them back as a baseline (the smoke
+  harness doesn't consume them, and no script or CI job does) — so they were
+  removed from tracking and `.gitignore`d, and the two references
+  (`src/config/agents.js`, `ORG.md`) now say the reports live untracked where
+  a run drops them. Quill still writes them locally on every run.
 - [x] **Cloud Functions dependency advisories — resolved (2026-07-07).** All 13
   traced to two transitive leaves: `uuid <11.1.1` (vulnerable only via
   `v3/v5/v6` with a buffer — unused here; everything uses `v4`) and

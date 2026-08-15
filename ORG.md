@@ -120,7 +120,8 @@ budget governor (below) is the company's CFO.
 
 #### Quill — QA Smoke Runner
 - **Mission:** Refresh `.auth-qa-report.json` and `.authoring-qa-report.json`
-  every night; surface regressions as queued `agentJobs`.
+  (local run outputs — untracked/gitignored since Phase 6, 2026-08-15) every
+  night; surface regressions as queued `agentJobs`.
 - **Schedule:** `every day 02:00` (Africa/Lusaka).
 - **Wraps:** `scripts/check-file-integrity.mjs`,
   `scripts/test-question-schema.mjs`, `npm run smoke`.

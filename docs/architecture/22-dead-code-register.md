@@ -9,6 +9,51 @@
 > it does not license removal outside Phase 6 (§13, §14 rule 11). The register
 > is where the evidence waits for the phase that is allowed to act on it.
 
+## Phase 6 disposition — 2026-08-15
+
+Phase 6 acted on this register. Every row below was re-verified against the
+tree of that day (basename grep across `src`/`functions`/`scripts`/configs/
+`.github`/`package.json`, then `lint` + `build` + both test suites as the
+resolution-level proof) before anything was touched. Outcomes:
+
+- **R1 — deleted (11):** `SubjectScroller.jsx`, `AnswerOptions.jsx`,
+  `QuizPreview.jsx`, `notes/components/AdminGuard.jsx`,
+  `notes/routes/adminRoutes.jsx`, `ChipMultiSelect.jsx`, `useStudyPlanData.js`,
+  `grade4ModuleSeed.js`, `quizToDocx.js` (its shrink-only line in
+  `scripts/test-exporter-home.mjs` deleted with it), `TeacherGlassHeader.jsx`,
+  `TeacherBottomNav.jsx`. The other four R1 rows were already gone — their
+  directories (`components/admin`, `components/dashboard`, `components/lessons`,
+  `components/quiz`, `teacher/classes`) were deleted by the Phase 4 migrations.
+- **R1 consequence:** with `TeacherBottomNav` gone, `teacherNav.js` travelled to
+  `src/features/teacherShell/lib/` exactly as row R1's note predicted — trimmed
+  to the live `QUICK_CREATE` export (`SIDEBAR_NAV`/`BOTTOM_NAV` had zero
+  importers; the live nav config is `TEACHER_NAV_GROUPS`). The
+  `teacherDarkSurface.test.js` guard moved to
+  `scripts/test-teacher-dark-surface.mjs` (path-classified: the npm script was
+  re-pointed in the same commit), and **`src/components/teacher/` no longer
+  exists.**
+- **R2 — deleted (2 of 3):** `activityBankCore.js` + its node test (the
+  `test:lesson-activities` script now runs only the schema test) and `roles.js`
+  + `roles.spec.js` — both re-verified as imported by nothing but their own
+  tests. **`studioHtmlToDocx.js` was kept** per this register's own note: it is
+  the D7 candidate for the shared export helper and `test-exporter-home.mjs`
+  records it as a shared primitive.
+- **R3/R4/R5 — kept**, unchanged, per the register (legacy-render back-compat /
+  live selectors).
+- **R6 — kept in place, decided rather than deferred:** the named backfill /
+  migration / cleanup / grant scripts are re-runnable ops tools — the caveat
+  this section itself raises. Many are documented npm entry points
+  (`cleanup:classes:*`, `backfill:assessment-titles:*`,
+  `migrate:diagram-assets:*`, `grant-superadmin`, …), so an archive sweep would
+  break documented commands for zero behaviour gain. No `scripts/archive/` was
+  created.
+- **R7 — deliberately NOT acted on.** Rules/index entries for orphaned
+  collections are a **frozen surface** (§14 rule 3: Firestore collection
+  changes are separate, explicitly-approved tasks — and per rule 12 the same PR
+  must carry rules + emulator-test + index changes). Dropping the stale
+  `papers` indexes and the dead agent/`generatedContent` blocks stays a
+  recorded cleanup backlog awaiting its own owner-approved task.
+
 ## R1 — Zero-import files (highest confidence)
 
 Grep of the basename across `src`/`functions`/`scripts` + vite/vitest config returned no real importers:

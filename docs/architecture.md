@@ -1233,7 +1233,7 @@ scripts/                          ← node test/audit/backfill utilities (keep; 
 tests/visual/baselines/           ← CI-recorded only, never hand-edited
 ```
 
-Repo hygiene (Phase 6 cleanup targets): stale `README.md` claims (Netlify, "MTN MoMo" direct — reality is Lenco + Play Billing, Firebase Hosting, Vite 8 + React 19); the zero-byte `firebase` file at repo root; `tmp/` and `output/` scratch artifacts; committed QA report dumps (`.auth-qa-report.json` etc.) if no longer consumed.
+Repo hygiene (Phase 6 cleanup targets): stale `README.md` claims (Netlify, "MTN MoMo" direct — reality is Lenco + Play Billing, Firebase Hosting, Vite 8 + React 19); the zero-byte `firebase` file at repo root; `tmp/` and `output/` scratch artifacts; committed QA report dumps (`.auth-qa-report.json` etc.) if no longer consumed. **DONE 2026-08-15 (Phase 6):** README rewritten against the tree of that day; the stray `firebase` file, both scratch trees and all three report dumps (`.payments-check.json` included) removed from tracking and `.gitignore`d — the reports verified write-only first (nothing reads them back; the smoke harness does not produce them), with Quill's two references updated to say the reports live untracked.
 
 ---
 
@@ -2383,7 +2383,15 @@ Two habits worth keeping from the first two, both from template §0: the moved V
 
 **Phase 5 — Functions restructure.** Move the ~45 inline handlers out of `index.js` into domain modules; reduce `index.js` to exports. Export names, regions (africa-south1 triggers / us-central1 callables), secrets bindings, and Hosting rewrite paths are frozen. Deploy in small batches; the payment-lifecycle emulator suite and webhook signature tests must pass on every batch. Burn down the audit's open items (unauthenticated HTTP surface, uncapped AI callables) here.
 
-**Phase 6 — Cleanup.** Only now remove genuinely dead legacy files — checked against the route register and `docs/architecture/22-dead-code-register.md`. **Warning: most `V2` names are the live canonical code** (`QuizRunnerV2`, `EditQuizV2`, `dashboardV2/` power current routes) — renaming them to drop the suffix is allowed here; deleting them is not. Also do the repo hygiene list from section 12, including the stale README.
+**Phase 6 — Cleanup. CLOSED 2026-08-15**, by owner direction, while Phase 5's remaining batches continue — the sequencing call is the owner's (branch `claude/phase-6-completion-*`), and it is safe because the two phases touch disjoint trees: this phase changed no `functions/` runtime file, and Phase 5 was green at every batch boundary, so no phase was started red. Only now remove genuinely dead legacy files — checked against the route register and `docs/architecture/22-dead-code-register.md`. **Warning: most `V2` names are the live canonical code** (`QuizRunnerV2`, `EditQuizV2`, `dashboardV2/` power current routes) — renaming them to drop the suffix is allowed here; deleting them is not. Also do the repo hygiene list from section 12, including the stale README.
+
+What CLOSED means here, exactly — the register's own "Phase 6 disposition" section is the row-by-row record:
+
+- **Eleven §R1 zero-import files deleted** (each re-verified against the tree of that day, then proven by lint + build + both suites), and two §R2 test-only modules with their tests (`activityBankCore`, `roles`); `studioHtmlToDocx` kept per its own D7 note. The four other §R1 rows were already gone with their Phase 4 directories.
+- **`src/components/teacher/` no longer exists.** Deleting `TeacherBottomNav` let `teacherNav.js` travel to `features/teacherShell/lib/` (trimmed to the live `QUICK_CREATE`; the dead `SIDEBAR_NAV`/`BOTTOM_NAV` lists did not travel), and the `teacherDarkSurface` guard moved to `scripts/test-teacher-dark-surface.mjs` with its npm script re-pointed in the same commit.
+- **The section-12 hygiene list is done** — see the DONE annotation on that list.
+- **The `V2` renames were NOT taken.** They are allowed here, not required; a suffix sweep renames files that carry three characterisation specs, recorded mock paths and doc references, and it deserves its own PR if the owner wants it at all. `V2` names remain canonical live code.
+- **§R7 (orphaned collections' rules + indexes) was deliberately left.** Collections are a frozen surface (§14 rules 3 + 12); that cleanup is a separate, explicitly-approved task, still recorded as backlog in the register. §R6 one-off scripts stay in place — they are re-runnable ops tools behind documented npm entry points, the exact caveat the register raises.
 
 ---
 
@@ -2504,14 +2512,17 @@ this section had already recorded:
   `teacherShell`'s top bar, mounted on every `/teacher/*` route, and its
   closure is two modules with no teacher knowledge.
 
-**What `src/components/teacher/` still holds, and why each file:**
-`TeacherGlassHeader.jsx` + `TeacherBottomNav.jsx` (dead, §R1 of the dead-code
-register, deletion is Phase 6's per the 2026-08-13 ruling — their imports were
-re-pointed so the tree still resolves), `teacherNav.js` (recorded above:
-`TeacherTopBar` imports it outward, costs no debt line), and
+**What `src/components/teacher/` still held after the migration, and why each
+file:** `TeacherGlassHeader.jsx` + `TeacherBottomNav.jsx` (dead, §R1 of the
+dead-code register, deletion is Phase 6's per the 2026-08-13 ruling — their
+imports were re-pointed so the tree still resolved), `teacherNav.js` (recorded
+above: `TeacherTopBar` imports it outward, costs no debt line), and
 `teacherDarkSurface.test.js` (a path-classified guard whose surface list was
 re-pointed at `features/teacherHome/pages/SyllabiLibrary.jsx` in the same
-commit).
+commit). **Phase 6 (2026-08-15) emptied and removed the directory** exactly as
+each file's record said it would: the two dead headers deleted, `teacherNav.js`
+travelled to `features/teacherShell/lib/` (trimmed to `QUICK_CREATE`, its one
+live export), and the guard became `scripts/test-teacher-dark-surface.mjs`.
 
 **Path-classified references re-pointed in the same commit** (the fifth hiding
 place, per the ui-promotion record below): `declaredRoutes.mjs`,

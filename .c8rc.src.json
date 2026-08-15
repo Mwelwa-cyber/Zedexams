@@ -12,9 +12,9 @@
   "reports-dir": "coverage-src",
   "clean": true,
   "check-coverage": true,
-  "//baseline": "Measured baseline 2026-07-28: lines/statements 57.05%, branches 77.02%, functions 79.5% (334 src-suite scripts). Ratchet: thresholds sit a small buffer under the measured totals so the number can only go up — bump them when coverage rises. Like .c8rc.json, line % here counts physical lines (c8/V8), so it is NOT comparable to Vitest's executable-line percentage; compare each gate only to its own history.",
-  "lines": 56,
-  "statements": 56,
-  "functions": 78,
-  "branches": 76
+  "//baseline": "Re-measured 2026-08-15 (Phase 6): lines/statements 60.74%, branches 78.83%, functions 80.51% (492 src-suite scripts), up from the 2026-07-28 baseline of 57.05 / 77.02 / 79.5 (334 scripts). Part of that rise is scripts added since; part is Phase 6 deleting uncovered dead modules (grade4ModuleSeed, quizToDocx, useStudyPlanData) — a smaller denominator, not new tests. Ratchet: thresholds sit a small buffer under the measured totals so the number can only go up — bump them when coverage rises. Like .c8rc.json, line % here counts physical lines (c8/V8), so it is NOT comparable to Vitest's executable-line percentage; compare each gate only to its own history.",
+  "lines": 60,
+  "statements": 60,
+  "functions": 79,
+  "branches": 78
 }

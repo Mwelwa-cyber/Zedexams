@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom'
 
 /**
- * The reminders dropdown card shared by both teacher bells (desktop
- * TeacherTopBar + mobile TeacherGlassHeader). The caller positions it via
+ * The reminders dropdown card for the teacher bell (TeacherTopBar; it was
+ * shared with the mobile TeacherGlassHeader until Phase 6 deleted that dead
+ * V1 header — MobileChrome owns the mobile shell). The caller positions it via
  * `className` (absolute/right/width); this renders the card, header, and
  * list. `onNavigate` fires when a reminder is tapped so the caller can close
  * its dropdown.
