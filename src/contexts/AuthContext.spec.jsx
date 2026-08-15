@@ -509,3 +509,108 @@ describe('AuthProvider profile repair during account deletion', () => {
     expect(h.callable).toHaveBeenCalledTimes(1)
   })
 })
+
+/* ── the session-restoration watchdog on a device that HAS a session ─────────
+   Sentry PYTHON-K. Firebase Auth's IndexedDB persistence closes its database on
+   `visibilitychange → hidden` and refuses to retry, so a tab hidden while auth
+   is initialising leaves `_initializationPromise` rejected and `_isInitialized`
+   false permanently. `registerStateListener` attaches its callback with a bare
+   `.then()` — no rejection path — so `onAuthStateChanged` NEVER fires, and
+   `notifyAuthListeners` is gated behind `_isInitialized` so no later sign-in
+   can revive it either.
+
+   The watchdog is the only thing that runs in that state. Dropping the loading
+   gate there leaves `loading === false && currentUser === null`, which
+   ProtectedRoute reads as "genuinely signed out" and redirects to /login —
+   logging out a user whose session was fine. On a hinted device it must
+   RELOAD instead, which is the only way to re-drive Firebase's init. */
+
+describe('AuthProvider restoration watchdog — hinted device recovery', () => {
+  let reload
+  let realLocation
+  let visibility
+
+  beforeEach(() => {
+    h.onAuthCb.current = null
+    window.localStorage.clear()
+    window.sessionStorage.clear()
+    visibility = 'visible'
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => visibility,
+    })
+    reload = vi.fn()
+    realLocation = window.location
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      writable: true,
+      value: { ...realLocation, reload },
+    })
+  })
+
+  afterEach(() => {
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      writable: true,
+      value: realLocation,
+    })
+    delete document.visibilityState
+    window.localStorage.clear()
+    window.sessionStorage.clear()
+  })
+
+  const runWatchdog = () => {
+    vi.useFakeTimers()
+    try {
+      render(<AuthProvider><SettleProbe /></AuthProvider>)
+      act(() => { vi.advanceTimersByTime(31_000) })
+    } finally {
+      vi.useRealTimers()
+    }
+  }
+
+  it('reloads instead of presenting the user as signed out', () => {
+    window.localStorage.setItem('auth:hasSession', '1')
+    runWatchdog()
+    expect(reload).toHaveBeenCalledTimes(1)
+    // Critically it must NOT have revealed: loading:false + uid:null is exactly
+    // what ProtectedRoute turns into a redirect to /login.
+    expect(readSettle().loading).toBe(true)
+    expect(readSettle().authSettled).toBe(false)
+  })
+
+  it('spends the reload only once — a second failure reveals instead of looping', () => {
+    window.localStorage.setItem('auth:hasSession', '1')
+    window.sessionStorage.setItem('auth:initRecoveryAttempted', '1')
+    runWatchdog()
+    expect(reload).not.toHaveBeenCalled()
+    expect(readSettle().loading).toBe(false)
+  })
+
+  it('defers the reload while the tab is hidden, then recovers on return', () => {
+    window.localStorage.setItem('auth:hasSession', '1')
+    visibility = 'hidden'
+    runWatchdog()
+    // Reloading a hidden tab re-runs init in the very conditions that break it.
+    expect(reload).not.toHaveBeenCalled()
+    expect(readSettle().loading).toBe(true)
+
+    visibility = 'visible'
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+    expect(reload).toHaveBeenCalledTimes(1)
+  })
+
+  it('never reloads a device with no session — nothing to rescue', () => {
+    runWatchdog()
+    expect(reload).not.toHaveBeenCalled()
+    expect(readSettle().loading).toBe(false)
+  })
+
+  it('a real auth event returns the reload to the tab for a later episode', () => {
+    window.localStorage.setItem('auth:hasSession', '1')
+    window.sessionStorage.setItem('auth:initRecoveryAttempted', '1')
+    render(<AuthProvider><SettleProbe /></AuthProvider>)
+    act(() => { h.onAuthCb.current({ uid: 'u1', getIdToken: vi.fn() }) })
+    expect(window.sessionStorage.getItem('auth:initRecoveryAttempted')).toBe(null)
+  })
+})
