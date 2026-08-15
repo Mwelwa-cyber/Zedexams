@@ -1,5 +1,5 @@
 // Tests for the phantom-paper detector
-// (src/components/teacher/phantomAssessment.js) that
+// (src/features/assessmentStudio/lib/phantomAssessment.js) that
 // scripts/cleanup-phantom-assessments.mjs deletes on.
 //
 // A phantom is a paper the studio filed on its own: one blank question, the
@@ -18,7 +18,7 @@ import {
   storedQuestionIsBlank,
   inspectAssessmentForPhantom,
   planPhantomCleanup,
-} from '../src/components/teacher/phantomAssessment.js'
+} from '../src/features/assessmentStudio/lib/phantomAssessment.js'
 import { createStandaloneSection, serializeQuizSections } from '../src/utils/quizSections.js'
 
 let passed = 0

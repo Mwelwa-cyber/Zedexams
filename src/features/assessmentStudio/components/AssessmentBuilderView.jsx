@@ -3,7 +3,7 @@ import { hasOnlyEmptyStarterSection, orderPaperGroups } from '../../../utils/qui
 import { toEditableText } from './AssessmentQuestionEditors'
 import { MathsEditingProvider } from './MathsRichField.jsx'
 import { QUIZ_DOCUMENT_ACCEPT } from '../../../services/quizImport/documentQuizImporter'
-import { SECTION_LETTERS } from '../../../components/teacher/assessmentStudioMeta'
+import { SECTION_LETTERS } from '../lib/assessmentStudioMeta'
 import { normalizeMarksMode, resolveQuestionMarks, marksLabel } from '../../../utils/paperMarksModel'
 import { CHOICE_COUNT_OPTIONS, normalizeChoiceCount } from '../../../utils/mcqChoices'
 import { MoreHorizontal } from 'lucide-react'

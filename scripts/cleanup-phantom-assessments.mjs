@@ -37,7 +37,7 @@
  * seeds all of them from the saved School Profile, which is what made them
  * useless as a signal and caused the bug.
  *
- * The rules live in src/components/teacher/phantomAssessment.js and are tested
+ * The rules live in src/features/assessmentStudio/lib/phantomAssessment.js and are tested
  * by `npm run test:phantom-assessments`.
  *
  * ── Two modes ─────────────────────────────────────────────────────────
@@ -73,7 +73,7 @@
  * them against a fixture, so the logic can be reviewed with no project access.
  */
 
-import { planPhantomCleanup } from '../src/components/teacher/phantomAssessment.js'
+import { planPhantomCleanup } from '../src/features/assessmentStudio/lib/phantomAssessment.js'
 import { createStandaloneSection, serializeQuizSections } from '../src/utils/quizSections.js'
 import { confirmByTyping } from './lib/confirmPrompt.mjs'
 

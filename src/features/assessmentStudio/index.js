@@ -50,6 +50,40 @@
  *   imported unchanged by both this studio and the Cloud Functions export
  *   callable, and that single copy is the point (see `functions/shared/README.md`).
  *
+ * ## What travelled afterwards, on the same fixpoint
+ *
+ * Three pure modules were left in `src/components/teacher/` by the migration and
+ * moved into `lib/` on 2026-08-15. They are recorded here because the reason they
+ * COULD move is the same rule that decided the original travelling set, re-run
+ * once the studio was already out: **a file moves only if every importer of it
+ * also moves.**
+ *
+ * - `assessmentStudioMeta.js` — every importer is inside this feature, plus
+ *   `assessmentTitle.js` below.
+ * - `assessmentTitle.js` — the two-titles module (document title vs printed
+ *   header title). Its importers are this feature and `phantomAssessment.js`.
+ * - `phantomAssessment.js` — had NO `src/` importer at all: its only consumers
+ *   are `scripts/cleanup-phantom-assessments.mjs` and its test. A script
+ *   reaching into a feature's `lib/` is the established pattern here (44 scripts
+ *   do it, four of them already into this feature), so it costs no debt.
+ *
+ * The third one is why the set is all-or-nothing rather than a free choice.
+ * Moving `assessmentTitle.js` while leaving `phantomAssessment.js` behind would
+ * have turned a legacy→legacy import into the legacy tree reaching into a
+ * feature's internals — a new `KNOWN_LEGACY_FEATURE_IMPORTS` entry, and that
+ * list only shrinks. Moving all three keeps it at three.
+ *
+ * What stayed, and why the same rule keeps them out:
+ *
+ * - `paperTaxonomy.js` — read by `TeacherDashboard`, `TopicSubtopicPicker`,
+ *   `syllabusTopicOptions.js`, `features/dashboardV2` and
+ *   `features/weeklyForecast`. It is also named by exact path on
+ *   `scripts/visual/printAffectingPaths.js`, which carries its own note about
+ *   the earlier `src/config/paperTaxonomy.js` entry that pointed at nothing.
+ * - `questionBankDeepLink.js` — `teacherRoutes.jsx` reads it to carry the query
+ *   string across the retired `/teacher/question-bank` redirect.
+ * - `mathsSubjects.js` — `src/editor/components/EditorToolbar.jsx` reads it.
+ *
  * ## Layout note, recorded rather than silently tolerated
  *
  * Per §14.2 a feature touches Firebase only through `services/`. Three modules

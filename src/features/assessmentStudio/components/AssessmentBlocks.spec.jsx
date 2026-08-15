@@ -68,7 +68,7 @@ vi.mock('../../../components/teacher/syllabusTopicOptions', () => ({
     { value: '2013', label: 'Previous syllabus (2013)' },
   ],
 }))
-vi.mock('../../../components/teacher/assessmentStudioMeta', () => ({
+vi.mock('../lib/assessmentStudioMeta', () => ({
   ASSESSMENT_TYPE_LABELS: {
     topic: 'Topic Test', weekly: 'Weekly Test',
     mid_term: 'Mid-Term Test', end_of_term: 'End-of-Term Test',
