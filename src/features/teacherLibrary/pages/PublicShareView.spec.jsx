@@ -57,7 +57,7 @@ vi.mock('../../homework', () => ({
   HomeworkView: ({ showAnswers }) => <div data-testid="homework-view" data-show-answers={String(showAnswers)} />,
 }))
 
-vi.mock('../../../components/teacher/views/LessonActivitiesView', () => ({
+vi.mock('../../../shared/components/LessonActivitiesView', () => ({
   default: ({ showAnswers }) => <div data-testid="lesson-activities-view" data-show-answers={String(showAnswers)} />,
 }))
 

@@ -163,7 +163,7 @@ assert.deepEqual(
 /* ── 2. Both copies of the Syllabi Studio declare the Night palette ───── */
 
 const SYLLABI_COPIES = [
-  'src/components/teacher/SyllabiLibrary.jsx',
+  'src/features/teacherHome/pages/SyllabiLibrary.jsx',
   'src/features/adminCbcKb/pages/CbcKbAdmin.jsx',
 ]
 

@@ -16,15 +16,15 @@ import { stableFingerprint } from '../../../hooks/aiOperationLockCore'
 import { aiAssessmentToStudioBlocks } from '../../../utils/aiPaperToSections'
 import {
   useSyllabusTopicOptions, useSyllabusSubjectOptions, useSyllabusLevelOptions,
-} from '../../../components/teacher/syllabusTopicOptions'
-import { CurriculumPicker } from '../../../components/teacher/studio/sections/CurriculumPicker'
-import '../../../components/teacher/studio/lessonStudio.css'
+} from '../../../shared/utils/syllabusTopicOptions'
+import { CurriculumPicker } from '../../../shared/components/CurriculumPicker'
+import '../../../shared/styles/lessonStudio.css'
 import {
   ASSESSMENT_TYPES, TEST_ASSESSMENT_TYPES, EXAMINATION_ASSESSMENT_TYPES,
   isExaminationType, normalizeAssessmentType,
   paperGradeOptions, normalizePaperGrade, maxTopicsFor,
   isCumulativeType, toKbSubjectKey, studioGradeToKbGrade,
-} from '../../../components/teacher/paperTaxonomy'
+} from '../../../shared/utils/paperTaxonomy'
 import { useAssessmentBand } from '../hooks/useAssessmentBand'
 import LiveGenerationCanvas from '../../../shared/components/LiveGenerationCanvas'
 import { FreePreviewUpsell } from '../../teacherPaywall'

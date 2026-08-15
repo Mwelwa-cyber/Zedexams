@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getTopicsForSubject } from '../../../components/teacher/studio/utils/curriculumDataService.js'
+import { getTopicsForSubject } from '../../../shared/utils/curriculumDataService.js'
 import { coveredSubtopicKeySet, computeCoverageByKey } from '../lib/coverageAnalysis.js'
-import { buildGradeSubjectKey, curriculumTypeLabel } from '../../../components/teacher/studio/utils/lessonMemory.js'
+import { buildGradeSubjectKey, curriculumTypeLabel } from '../../../shared/utils/lessonMemory.js'
 
 /**
  * useCoverageAnalysis — for the selected grade+subject, work out how much of the

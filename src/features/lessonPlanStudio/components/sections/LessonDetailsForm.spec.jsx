@@ -1,12 +1,12 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { LessonDetailsForm } from './LessonDetailsForm'
-import { useAvailableGrades } from '../../../../components/teacher/studio/hooks/useAvailableGrades.js'
+import { useAvailableGrades } from '../../../../shared/hooks/useAvailableGrades.js'
 
 // Subjects now come from the syllabi data via this hook (so the picked value
 // is a real syllabi key). Mock it so the form's subject dropdown is
 // deterministic and we avoid the firebase/fetch chain in jsdom.
-vi.mock('../../../../components/teacher/studio/hooks/useSubjectsForGrade.js', () => ({
+vi.mock('../../../../shared/hooks/useSubjectsForGrade.js', () => ({
   useSubjectsForGrade: vi.fn((grade) => ({
     subjects: grade
       ? ['Mathematics Syllabus (Grades 4-6)', 'Science Syllabus (Grades 4-6)']
@@ -21,7 +21,7 @@ vi.mock('../../../../components/teacher/studio/hooks/useSubjectsForGrade.js', ()
 // resolved", which makes the form fall back to the full static candidate list,
 // so the existing grade-list assertions below are unaffected. Individual tests
 // override it to exercise the data-driven filtering.
-vi.mock('../../../../components/teacher/studio/hooks/useAvailableGrades.js', () => ({
+vi.mock('../../../../shared/hooks/useAvailableGrades.js', () => ({
   useAvailableGrades: vi.fn(() => ({ available: null, loading: false })),
 }))
 

@@ -14,8 +14,8 @@ import assert from 'node:assert/strict'
 import {
   isMathsSubject, MATHS_SUBJECT_KEYS, MATHS_TOOLS,
   mathsGradeBand, mathsToolOrder, mathsToolLabel, MATHS_GRADE_BANDS,
-} from '../src/components/teacher/mathsSubjects.js'
-import { toKbSubjectKey } from '../src/components/teacher/paperTaxonomy.js'
+} from '../src/shared/utils/mathsSubjects.js'
+import { toKbSubjectKey } from '../src/shared/utils/paperTaxonomy.js'
 
 let passed = 0
 function check(name, fn) {

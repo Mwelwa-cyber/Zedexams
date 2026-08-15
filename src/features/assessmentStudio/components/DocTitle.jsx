@@ -20,7 +20,7 @@
 import { useRef } from 'react'
 import { composeDocTitle, DOC_TITLE_MEDIUM } from '../lib/paperNaming'
 import { ASSESSMENT_TYPE_LABELS, TERMS } from '../lib/assessmentStudioMeta'
-import { assessmentCategory } from '../../../components/teacher/paperTaxonomy'
+import { assessmentCategory } from '../../../shared/utils/paperTaxonomy'
 import { useElementWidth } from '../../../hooks/useElementWidth'
 import Icon from './studioIcons'
 

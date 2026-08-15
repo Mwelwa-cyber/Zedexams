@@ -38,7 +38,7 @@
 // Pure module: no React, no DOM, no Firebase. Tested under plain `node`
 // (scripts/test-doc-title-model.mjs).
 
-import { paperGradeLabel, normalizeAssessmentType } from '../../../components/teacher/paperTaxonomy.js'
+import { paperGradeLabel, normalizeAssessmentType } from '../../../shared/utils/paperTaxonomy.js'
 import { joinDash, joinDot } from '../../../utils/responsiveTitle.js'
 import {
   assessmentTypePhrase, readPaperTerm, readPaperYear, teacherAuthoredTitle,

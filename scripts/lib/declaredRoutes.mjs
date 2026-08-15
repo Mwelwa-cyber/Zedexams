@@ -3,8 +3,9 @@
  *
  * They all used to read `<Route path="...">` out of src/App.jsx, which was
  * the whole story until the /teacher/* routes moved into
- * components/teacher/teacherRoutes.jsx (declared as data so a spec can render
- * every one and assert the shared shell). Nothing announced that move to the
+ * teacherRoutes.jsx (declared as data so a spec can render every one and
+ * assert the shared shell; since 2026-08-15 it lives in src/app/routes/,
+ * beside the guards). Nothing announced the original move to the
  * parsers: they simply saw fewer routes, and a guard that silently stops
  * covering a third of the app is worse than one that fails.
  *
@@ -18,7 +19,7 @@ import { fileURLToPath } from 'node:url'
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 export const APP_PATH = 'src/App.jsx'
-export const TEACHER_ROUTES_PATH = 'src/components/teacher/teacherRoutes.jsx'
+export const TEACHER_ROUTES_PATH = 'src/app/routes/teacherRoutes.jsx'
 
 export const readSource = (rel) => readFileSync(join(ROOT, rel), 'utf8')
 

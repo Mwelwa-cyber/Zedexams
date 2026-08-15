@@ -33,7 +33,7 @@ import { extract2013TopicLookup } from '../src/utils/syllabus2013Topics.js'
 import { normalizeTopicLookup } from '../src/utils/syllabusTopicTree.js'
 import { EDUCATION_LEVELS, levelsForFramework } from '../src/config/educationLevels.js'
 import { ASSESSMENT_BAND_SEED, BAND_IDS } from '../src/config/assessmentBands.js'
-import { subjectLabel } from '../src/components/teacher/paperTaxonomy.js'
+import { subjectLabel } from '../src/shared/utils/paperTaxonomy.js'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const args = process.argv.slice(2)

@@ -68,11 +68,11 @@ vi.mock('../../../shared/components/LiveGenerationCanvas', () => ({ default: () 
 
 // The assignment-change notice pulls in the syllabus KB service (firebase) via
 // useSubjectsForGrade — irrelevant to the generate path, so stub it out.
-vi.mock('../../../components/teacher/generate/StudioAssignmentChangeNotice', () => ({ default: () => null }))
+vi.mock('../../../shared/components/StudioAssignmentChangeNotice', () => ({ default: () => null }))
 
 // The shell's "Set up for you" prefill reads the teacher's Weekly Forecast
 // (Firestore via teacherLibraryService) — no suggestion in these tests.
-vi.mock('../../../components/teacher/studio/hooks/useTeacherPlanContext', () => ({
+vi.mock('../../../shared/hooks/useTeacherPlanContext', () => ({
   useTeacherPlanContext: () => ({ loading: false, suggestion: null }),
 }))
 
@@ -90,7 +90,7 @@ const VALID_CURR = {
   curriculum: 'cbc',
   framework: '2023',
 }
-vi.mock('../../../components/teacher/curriculum/StudioCurriculumSelector', () => ({
+vi.mock('../../../shared/components/StudioCurriculumSelector', () => ({
   default: ({ onChange }) => (
     <button type="button" onClick={() => onChange(VALID_CURR)}>
       seed-curriculum

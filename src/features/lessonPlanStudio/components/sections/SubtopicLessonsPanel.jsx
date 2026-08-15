@@ -5,7 +5,7 @@ import {
   recommendationFor,
   findLessonByNumber,
   TEACHING_STATUSES,
-} from '../../../../components/teacher/studio/utils/lessonMemory.js'
+} from '../../../../shared/utils/lessonMemory.js'
 
 /**
  * SubtopicLessonsPanel — the Lesson Plan Studio's persistent-memory section.

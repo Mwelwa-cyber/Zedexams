@@ -12,7 +12,7 @@ import { registerTopicProvider } from './curriculumCatalog.js'
 import {
   resolveSyllabusTopics,
   resolveSyllabusSubtopics,
-} from '../components/teacher/syllabusTopicOptions.js'
+} from '../shared/utils/syllabusTopicOptions.js'
 import { initCurriculumDiagnostics } from '../utils/curriculumDiagnostics.js'
 
 // Canonical curriculum id → the syllabi framework token.

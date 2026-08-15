@@ -30,7 +30,7 @@ import {
 import {
   foldFormCodeToGrade,
   assignmentGradeToStudioLabel,
-} from '../src/components/teacher/curriculum/curriculumSelectorConstants.js'
+} from '../src/shared/utils/curriculumSelectorConstants.js'
 
 let passed = 0
 const check = (name, fn) => {

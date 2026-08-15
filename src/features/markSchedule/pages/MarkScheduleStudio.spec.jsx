@@ -60,16 +60,16 @@ vi.mock('../../../utils/classRoster', () => ({ listRoster: vi.fn() }))
 // The REAL StudioCurriculumSelector renders; only its syllabus-backed data
 // hooks (firebase-fed) are stubbed. available: null = "availability unknown,
 // offer the full grade list" — the selector's documented fallback.
-vi.mock('../../../components/teacher/studio/hooks/useAvailableGrades.js', () => ({
+vi.mock('../../../shared/hooks/useAvailableGrades.js', () => ({
   useAvailableGrades: () => ({ available: null, loading: false }),
 }))
-vi.mock('../../../components/teacher/studio/hooks/useSubjectsForGrade.js', () => ({
+vi.mock('../../../shared/hooks/useSubjectsForGrade.js', () => ({
   useSubjectsForGrade: () => ({ subjects: [], loading: false }),
 }))
-vi.mock('../../../components/teacher/studio/hooks/useSubjectTopics.js', () => ({
+vi.mock('../../../shared/hooks/useSubjectTopics.js', () => ({
   useSubjectTopics: () => ({ topics: [], loading: false, error: null }),
 }))
-vi.mock('../../../components/teacher/studio/hooks/useSubtopicDetail.js', () => ({
+vi.mock('../../../shared/hooks/useSubtopicDetail.js', () => ({
   useSubtopicDetail: () => ({ subtopicRow: null }),
 }))
 

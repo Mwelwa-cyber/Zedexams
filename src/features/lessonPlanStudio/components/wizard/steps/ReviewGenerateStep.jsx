@@ -1,5 +1,5 @@
 import { Pencil, Eye } from 'lucide-react'
-import { cleanSubjectName } from '../../../../../components/teacher/studio/utils/subjectName.js'
+import { cleanSubjectName } from '../../../../../shared/utils/subjectName.js'
 import { SCHOOL_RESOURCE_LEVELS } from '../../../../../config/schoolResources.js'
 import {
   OPTIONAL_SECTION_LABELS,

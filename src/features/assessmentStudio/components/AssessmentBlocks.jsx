@@ -21,8 +21,8 @@ import {
 import {
   useStudioSubjectChoices, useSyllabusLevelOptions, useSyllabusSubjectOptions,
   normalizeStudioFramework, CURRICULUM_FRAMEWORKS,
-} from '../../../components/teacher/syllabusTopicOptions'
-import { LEVEL_STAGE_LABELS, assessmentCategory } from '../../../components/teacher/paperTaxonomy'
+} from '../../../shared/utils/syllabusTopicOptions'
+import { LEVEL_STAGE_LABELS, assessmentCategory } from '../../../shared/utils/paperTaxonomy'
 import { CHOICE_COUNT_OPTIONS, recommendedChoiceCount, resolveChoiceCount } from '../../../utils/mcqChoices'
 import { PAGE_SIZES, MARGIN_PRESETS } from '../../../config/paperLayoutTokens'
 import { GRADE_NUMBER_STYLES, LEARNER_NAME_LABELS } from '../../../utils/paperMetadata'

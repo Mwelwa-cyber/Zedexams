@@ -22,7 +22,7 @@
 // phantom-paper cleanup all import it, and it is tested under plain `node`
 // (scripts/test-assessment-title.mjs).
 
-import { paperGradeLabel, normalizeAssessmentType } from '../../../components/teacher/paperTaxonomy.js'
+import { paperGradeLabel, normalizeAssessmentType } from '../../../shared/utils/paperTaxonomy.js'
 import { ASSESSMENT_TYPE_LABELS } from './assessmentStudioMeta.js'
 
 // The separator between a title's segments. A hyphen, not an en dash: it is

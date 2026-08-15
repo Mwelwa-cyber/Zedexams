@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { StrictMode, useState } from 'react'
 import LessonPlanStudio from './LessonPlanStudio'
 import { LIBRARY_TYPES } from '../../../config/library'
-import { useTeacherPlanContext } from '../../../components/teacher/studio/hooks/useTeacherPlanContext'
+import { useTeacherPlanContext } from '../../../shared/hooks/useTeacherPlanContext'
 
 // ── Firebase mocks ────────────────────────────────────────────────────────────
 // vi.hoisted() runs before vi.mock() hoisting so innerCallable is defined
@@ -50,7 +50,7 @@ vi.mock('../hooks/useLessonSeries', () => ({
 // "This week's lesson" weekly-forecast suggestion. Defaults to none (matching
 // the real hook's fail-closed behaviour in tests); the applied-context tests
 // below override it per test.
-vi.mock('../../../components/teacher/studio/hooks/useTeacherPlanContext', () => ({
+vi.mock('../../../shared/hooks/useTeacherPlanContext', () => ({
   useTeacherPlanContext: vi.fn(() => ({ loading: false, suggestion: null })),
 }))
 
@@ -165,7 +165,7 @@ vi.mock('../hooks/useStudioState', () => ({
   useStudioState: () => mockUseStudioState(),
 }))
 
-vi.mock('../../../components/teacher/studio/utils/renderPlanHtml', () => ({
+vi.mock('../../../shared/utils/renderPlanHtml', () => ({
   renderPlanHtml: vi.fn(() => '<p>rendered plan</p>'),
 }))
 
@@ -472,7 +472,7 @@ describe('LessonPlanStudio — generate flow (success path)', () => {
   })
 
   it('sets generationStatus to "done" and passes rendered HTML to canvas', async () => {
-    const { renderPlanHtml } = await import('../../../components/teacher/studio/utils/renderPlanHtml')
+    const { renderPlanHtml } = await import('../../../shared/utils/renderPlanHtml')
 
     innerCallable.mockResolvedValue({
       data: { text: '{"topic":"Test","stages":[]}' },
@@ -489,7 +489,7 @@ describe('LessonPlanStudio — generate flow (success path)', () => {
   })
 
   it('auto-saves the generated plan to the library (no manual Save needed)', async () => {
-    const { renderPlanHtml } = await import('../../../components/teacher/studio/utils/renderPlanHtml')
+    const { renderPlanHtml } = await import('../../../shared/utils/renderPlanHtml')
     mockSaveLessonPlanGeneration.mockClear()
     innerCallable.mockResolvedValue({
       data: { text: '{"topic":"Test","stages":[]}' },
@@ -829,7 +829,7 @@ describe('LessonPlanStudio — Firestore series writes', () => {
   })
 
   it('writes series root doc and lesson doc to Firestore after successful series generation', async () => {
-    const { renderPlanHtml } = await import('../../../components/teacher/studio/utils/renderPlanHtml')
+    const { renderPlanHtml } = await import('../../../shared/utils/renderPlanHtml')
     const { useAuth } = await import('../../../contexts/AuthContext')
     useAuth.mockReturnValue({ currentUser: { uid: 'uid-writer' } })
 
@@ -861,7 +861,7 @@ describe('LessonPlanStudio — Firestore series writes', () => {
   })
 
   it('keeps the generated plan (status "done") when the series progress write is denied', async () => {
-    const { renderPlanHtml } = await import('../../../components/teacher/studio/utils/renderPlanHtml')
+    const { renderPlanHtml } = await import('../../../shared/utils/renderPlanHtml')
     const { useAuth } = await import('../../../contexts/AuthContext')
     useAuth.mockReturnValue({ currentUser: { uid: 'uid-writer' } })
 
@@ -892,7 +892,7 @@ describe('LessonPlanStudio — Firestore series writes', () => {
   })
 
   it('does NOT write to Firestore when planningMode is "single"', async () => {
-    const { renderPlanHtml } = await import('../../../components/teacher/studio/utils/renderPlanHtml')
+    const { renderPlanHtml } = await import('../../../shared/utils/renderPlanHtml')
     renderPlanHtml.mockReturnValue('<p>plan</p>')
     innerCallable.mockResolvedValue({
       data: { text: '{"topic":"Test","stages":[]}' },

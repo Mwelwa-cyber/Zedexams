@@ -88,7 +88,7 @@ check("the server list matches Phase 1's studio list exactly", async () => {
   // A paper the studio gives mathematics TOOLS to is a paper the server owes
   // mathematics NOTATION. If these drift, a Grade 2 teacher gets the fraction
   // button and unenforced "3/5" from the generator.
-  const studio = await import("../../src/components/teacher/mathsSubjects.js");
+  const studio = await import("../../src/shared/utils/mathsSubjects.js");
   assert.deepEqual(
       [...MATHS_SUBJECT_KEYS].sort(),
       [...studio.MATHS_SUBJECT_KEYS].sort(),

@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { renderPlanHtml } from '../../../../components/teacher/studio/utils/renderPlanHtml'
+import { renderPlanHtml } from '../../../../shared/utils/renderPlanHtml'
 import { resolveLessonFormat } from '../../../../utils/lessonPlanFormat'
 import { lessonPlanPrintCss } from '../../../../utils/lessonPlanPrintCss'
 import {

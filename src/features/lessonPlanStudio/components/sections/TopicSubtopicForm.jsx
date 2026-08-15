@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { BookOpen, Layers, ListChecks } from '../../../../shared/components/icons'
-import { useSubjectTopics } from '../../../../components/teacher/studio/hooks/useSubjectTopics.js'
-import { useSubtopicDetail } from '../../../../components/teacher/studio/hooks/useSubtopicDetail.js'
+import { useSubjectTopics } from '../../../../shared/hooks/useSubjectTopics.js'
+import { useSubtopicDetail } from '../../../../shared/hooks/useSubtopicDetail.js'
 
 // Shared Tailwind classes — mirror LessonDetailsForm
 const INPUT_CLS =

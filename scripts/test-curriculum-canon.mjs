@@ -30,7 +30,15 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 // on a codebase it had stopped looking at. `printAffectingPaths.js` records the
 // same failure in its own words: a pattern for a moved file protects nothing
 // and reads exactly like one that works.
-const SCAN_DIRS = [join(ROOT, 'src/components/teacher'), join(ROOT, 'src/features')]
+// `src/shared` joined the scan on 2026-08-15, when the teacher studio layer
+// (paperTaxonomy, subjectName, the curriculum selector) migrated into it —
+// without this, every one of those files would have left the check's field of
+// view the day it moved, which is the exact silent loss the note above records.
+const SCAN_DIRS = [
+  join(ROOT, 'src/components/teacher'),
+  join(ROOT, 'src/features'),
+  join(ROOT, 'src/shared'),
+]
 
 // Distinct subject sentinels — labels + canonical slugs. A file that references
 // ≥4 of these is almost certainly carrying its own subject list.
@@ -46,7 +54,7 @@ const THRESHOLD = 4
 // Adding an entry is a red flag reviewers must justify.
 const ALLOWLIST = new Set([
   // Label/key plumbing + static taxonomy the catalogue itself builds on.
-  'src/components/teacher/paperTaxonomy.js',
+  'src/shared/utils/paperTaxonomy.js',
   // MIGRATED, entries deleted (see git history for this file):
   //   assessmentStudioMeta.js  — STUDIO_SUBJECTS / STUDIO_GRADES now derive
   //     from src/config/canonicalEducation.js.
@@ -60,7 +68,7 @@ const ALLOWLIST = new Set([
   'src/features/curriculumBrowsers/pages/Primary2013Curriculum.jsx',
   'src/features/curriculumBrowsers/pages/PrimaryCurriculum.jsx',
   // Library filter surfaces (display/grouping, not curriculum selection).
-  'src/components/teacher/SyllabiLibrary.jsx',
+  'src/features/teacherHome/pages/SyllabiLibrary.jsx',
   'src/features/teacherLibrary/pages/TeacherLibrary.jsx',
 ])
 

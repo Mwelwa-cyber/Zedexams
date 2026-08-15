@@ -69,12 +69,12 @@ vi.mock('../../../shared/components/DraftRecoveryPrompt', () => ({ default: () =
 vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
 vi.mock('../../../shared/components/LiveGenerationCanvas', () => ({ default: () => null }))
 vi.mock('../components/WorksheetView', () => ({ default: () => null }))
-vi.mock('../../../components/teacher/generate/StudioAssignmentChangeNotice', () => ({ default: () => null }))
-vi.mock('../../../components/teacher/generate/CreatedFromLessonPlanNotice', () => ({ default: () => null }))
+vi.mock('../../../shared/components/StudioAssignmentChangeNotice', () => ({ default: () => null }))
+vi.mock('../../../shared/components/CreatedFromLessonPlanNotice', () => ({ default: () => null }))
 
 // The Weekly-Forecast suggestion the shell's useStudioSetupForYou consumes —
 // present, so the card shows on an empty-seeded studio.
-vi.mock('../../../components/teacher/studio/hooks/useTeacherPlanContext', () => ({
+vi.mock('../../../shared/hooks/useTeacherPlanContext', () => ({
   useTeacherPlanContext: () => ({
     loading: false,
     suggestion: {
@@ -107,7 +107,7 @@ function payload(subjectKey, subjectLabel) {
     subject: subjectKey,
   }
 }
-vi.mock('../../../components/teacher/curriculum/StudioCurriculumSelector', () => ({
+vi.mock('../../../shared/components/StudioCurriculumSelector', () => ({
   default: ({ onChange }) => (
     <div>
       <button type="button" onClick={() => onChange(payload('mathematics', 'Mathematics'))}>

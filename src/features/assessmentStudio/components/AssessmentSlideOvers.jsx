@@ -15,14 +15,14 @@ import AiGenerationProgress from '../../../shared/components/AiGenerationProgres
 import {
   useSyllabusTopicOptions, useStudioSubjectChoices, useSyllabusLevelOptions,
   normalizeStudioFramework,
-} from '../../../components/teacher/syllabusTopicOptions'
+} from '../../../shared/utils/syllabusTopicOptions'
 import { QUIZ_DOCUMENT_ACCEPT } from '../../../services/quizImport/documentQuizImporter'
 import PaperPagesPreview from './views/PaperPagesPreview'
 import { isBodyBlock } from '../../../utils/assessmentDocument'
 import { DEFAULT_PAPER_LAYOUT } from '../../../config/paperLayoutTokens'
 import Icon from './studioIcons'
 import { bloomLevel, BLOOM_LABELS, BLOOM_LEVELS } from '../lib/assessmentBloom'
-import { paperGradeLabel } from '../../../components/teacher/paperTaxonomy'
+import { paperGradeLabel } from '../../../shared/utils/paperTaxonomy'
 import {
   BalanceDifficultyAction,
   BloomBalanceAction,
@@ -39,8 +39,8 @@ import {
 } from './AssessmentQuestionEditors'
 import { STUDIO_QUESTION_TYPE_OPTIONS, typeSelectValue, patchForTypeChange } from '../lib/assessmentQuestionTypes'
 import AiReviewPanel from './AiReviewPanel'
-import { CurriculumPicker } from '../../../components/teacher/studio/sections/CurriculumPicker'
-import '../../../components/teacher/studio/lessonStudio.css'
+import { CurriculumPicker } from '../../../shared/components/CurriculumPicker'
+import '../../../shared/styles/lessonStudio.css'
 
 /* ==================================================================
  * PAPER RENDER VIEW (preview + marking key)

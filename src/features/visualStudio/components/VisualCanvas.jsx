@@ -29,7 +29,7 @@ import { downloadHtmlAsPdf } from '../../../utils/htmlToPdf'
 import { submitPictureToBank } from '../../../utils/pictureBankService'
 import { deriveKeywords } from '../lib/visualPrompt'
 import { outputTypeToVersion } from '../lib/visualStudioMeta'
-import ImageEditorModal from '../../../components/teacher/ImageEditorModal'
+import ImageEditorModal from '../../../shared/components/ImageEditorModal'
 import ExportPreflightModal from './ExportPreflightModal'
 import {
   IconCursor, IconTag, IconText, IconArrow, IconBox, IconUndo, IconRedo,

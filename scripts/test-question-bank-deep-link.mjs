@@ -12,7 +12,7 @@
 import assert from 'node:assert/strict'
 import {
   bankFiltersFromParams, bankFiltersToParams, questionBankRedirectPath,
-} from '../src/components/teacher/questionBankDeepLink.js'
+} from '../src/shared/utils/questionBankDeepLink.js'
 
 let passed = 0
 function check(label, fn) {

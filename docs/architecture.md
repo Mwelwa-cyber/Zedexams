@@ -2417,7 +2417,7 @@ Two habits worth keeping from the first two, both from template §0: the moved V
 
 ---
 
-### `components/teacher/` — INVENTORIED 2026-08-14 by session A, unclaimed and ready to start
+### `components/teacher/` — INVENTORIED 2026-08-14 by session A · **CLAIMED 2026-08-15, branch `claude/unfreeze-migrate-remaining-qomfv4`, and MIGRATED — see the completion record after the inventory**
 
 The last large legacy directory: 52 source files, 12,623 lines, 42 entries.
 **Checked before recording**, per the `classTimetable` rule: no branch touches
@@ -2457,6 +2457,75 @@ JSX, so any module reachable from a `test:*` script must reach the lib directly,
 which means that lib must not live inside a feature. Both point the same way —
 put the shared teacher layer in `src/shared/`, then the feature slice is a move
 rather than a fight.
+
+**MIGRATED 2026-08-15, on the owner instruction to migrate everything
+remaining.** 80 files moved in the inventory's order — shared layer first, then
+the feature slice, then the route table — with 325 specifiers re-pointed by
+resolution across 134 files. The three destinations landed as the table
+predicts, with three deliberate deviations from its coarse rows, each on a rule
+this section had already recorded:
+
+- **`src/shared/`** took the studio layer: `studio/hooks/` → `shared/hooks/`
+  (5 hooks + 2 specs), `studio/utils/` + `curriculum/curriculumSelectorConstants`
+  + the six top-level taxonomy modules (`paperTaxonomy`, `syllabusTopicOptions`,
+  `frameworkLevelLabels`, `mathsSubjects`, `questionBankDeepLink`,
+  `teachingAssignmentChangeNoticeCore`) → `shared/utils/`, the studio/generate/
+  curriculum/views components (13 of them, plus `ImageEditorModal` and
+  `ReminderPanel`) → `shared/components/`, and `lessonStudio.css` →
+  `shared/styles/`. **The §14.6 note in `shared/components/index.js` that had
+  excluded `ImportFromClassListModal` and `CreatedFromLessonPlanNotice` is
+  superseded by this ruling and updated in place**: every direct edge is legal
+  (their Firebase reach is transitive through legacy `src/utils/`, which the
+  layer contract permits and which subdivides later per §2), and the
+  alternative — a thirteenth feature that sixteen siblings must import — is the
+  cross-feature web this inventory refused. No `curriculum/` directory was
+  created under `shared/` (the `**/curriculum/**` lint pattern matches path
+  segments); everything is flat.
+- **`src/features/teacherHome/`** took the home surface: four route-mounted
+  pages (`TeacherDashboard`, `WelcomeToPro`, `SchoolCalendar`,
+  `SyllabiLibrary`), six dashboard components, and
+  `dashboardAssignmentAdoption` in `lib/`. **Empty front door** — every
+  consumer is the router. Migrating `TeacherDashboard` re-pointed its
+  `useTeachingProfile` import through `teacherSettings`' front door, which
+  cleared the last `components/teacher` entry on `KNOWN_LEGACY_FEATURE_IMPORTS`
+  (2 remain, neither in this directory).
+- **`src/app/`** took the route table — `teacherRoutes.jsx` + spec →
+  `app/routes/` (`declaredRoutes.mjs`' `TEACHER_ROUTES_PATH` re-pointed in the
+  same commit, which carries the route-mount licence with it) — **and, against
+  the inventory's feature-slice row, `StudioGate` + `LockedStudio` →
+  `app/guards/`.** The row listed them as feature contents; the 2026-08-13
+  ruling had already decided otherwise on the `AdminMfaGate` precedent (the
+  gate is route infrastructure the table imports eagerly, and a feature front
+  door here puts the paywall graph on the eager route table — the exact bite
+  the `LockedStudio` barrel measurement recorded). Placement in `src/app/`
+  depends on one constraint — zero feature consumers — and that was
+  re-measured before the move: none. `ReminderPanel` likewise left the
+  feature-slice row for `shared/components/`, because its live consumer is
+  `teacherShell`'s top bar, mounted on every `/teacher/*` route, and its
+  closure is two modules with no teacher knowledge.
+
+**What `src/components/teacher/` still holds, and why each file:**
+`TeacherGlassHeader.jsx` + `TeacherBottomNav.jsx` (dead, §R1 of the dead-code
+register, deletion is Phase 6's per the 2026-08-13 ruling — their imports were
+re-pointed so the tree still resolves), `teacherNav.js` (recorded above:
+`TeacherTopBar` imports it outward, costs no debt line), and
+`teacherDarkSurface.test.js` (a path-classified guard whose surface list was
+re-pointed at `features/teacherHome/pages/SyllabiLibrary.jsx` in the same
+commit).
+
+**Path-classified references re-pointed in the same commit** (the fifth hiding
+place, per the ui-promotion record below): `declaredRoutes.mjs`,
+`audit-route-themes.mjs` (file + REBASE map), `audit-dark-surfaces.mjs`,
+`test-curriculum-canon.mjs` (which also **adds `src/shared` to `SCAN_DIRS`** —
+without that, `paperTaxonomy` and the subject-label plumbing would have left
+the check's field of view the day they moved), `printAffectingPaths.js`
+(`paperTaxonomy`, so this PR runs the full visual render), two `package.json`
+script paths, `test-lesson-plan-wizard-nav.mjs` (`lessonStudio.css`),
+`functions/teacherTools/notationEnforcement.test.js` (reads `mathsSubjects`
+across the tree), and `curriculumCoverage.realdata.spec.js`, whose repo-root
+climb was written for a six-deep directory and read `public/syllabi` off the
+filesystem root once the file sat four deep — found by the full Vitest run,
+not by any grep.
 
 ### The last unclaimed legacy component directories — CLAIMED 2026-08-14 by session H
 
@@ -2631,6 +2700,22 @@ moving just that leaf while the picker that renders it stays behind buys a file
 and costs a reader the pair. The one thing that would unblock it — lifting the
 `capture` call to its callers — changes where a theme-change event is recorded,
 which is a behaviour change and belongs in its own PR, not in a move.
+
+**MIGRATED 2026-08-15 — to `features/learnerSettings`, which the verdict above
+never weighed.** That "stays" was the answer to a `src/shared/` promotion, and
+it stands: the §14.6 exclusion is real and nothing about it changed. But the
+step-2 census one section up had already measured a third destination — *"a
+learner reading-preference pair [that] belongs with `learnerSettings`, whose
+`PersonalisationPanel` already renders the swatches"* — and a feature may hold
+a Firebase-reaching closure; that is what features are for. The pair moved
+into `features/learnerSettings/components/` under the owner's 2026-08-15
+migrate-everything-remaining instruction, the feature gained the front door it
+did not yet have (one export, `ReadingThemePicker`), and `quiz` + `notes` read
+it through that door — the `notifications` precedent exactly. No new weight:
+both consumers already evaluated the picker's whole closure through the old
+deep import, and the door adds nothing else. `ReadingThemeSwatches` is
+deliberately not exported; its only outside reader is the feature's own panel.
+`src/components/theme/` is gone.
 
 **`diagrams/` → `src/curriculum/diagrams/`, on an owner ruling that covers two
 import lines and nothing else.** Of the six frozen readers #2369 recorded, four

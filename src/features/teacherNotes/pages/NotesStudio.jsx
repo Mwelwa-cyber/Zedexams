@@ -52,10 +52,10 @@ import GroundingChip from '../components/GroundingChip'
 import { buildAnswerPageBlocks } from '../../../utils/learnerNotesPrintable'
 import StudioPageHeader from '../../../shared/components/StudioPageHeader'
 import LiveGenerationCanvas from '../../../shared/components/LiveGenerationCanvas'
-import StudioCurriculumSelector from '../../../components/teacher/curriculum/StudioCurriculumSelector'
+import StudioCurriculumSelector from '../../../shared/components/StudioCurriculumSelector'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
 import { readActiveAssignmentSeed, resolveStudioSeed } from '../../../utils/activeAssignmentSeed'
-import StudioAssignmentChangeNotice from '../../../components/teacher/generate/StudioAssignmentChangeNotice'
+import StudioAssignmentChangeNotice from '../../../shared/components/StudioAssignmentChangeNotice'
 import {
   FieldLabel,
   FieldText,

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { renderPlanHtml } from '../../../components/teacher/studio/utils/renderPlanHtml'
+import { renderPlanHtml } from '../../../shared/utils/renderPlanHtml'
 import { buildMetaRevealSteps, buildBodyRevealSteps } from '../lib/lessonRevealSteps'
 
 /**

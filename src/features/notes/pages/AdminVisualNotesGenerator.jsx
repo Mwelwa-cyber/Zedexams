@@ -23,7 +23,7 @@ import {
 import { useAuth } from '../../../contexts/AuthContext'
 import { GRADES, SUBJECTS, NOTE_FORMAT } from '../../../config/curriculum'
 import { createNote } from '../lib/firestore'
-import TopicSubtopicPicker from '../../../components/teacher/generate/TopicSubtopicPicker'
+import TopicSubtopicPicker from '../../../shared/components/TopicSubtopicPicker'
 import { SlideNotesReader } from '../components/SlideNotesReader'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 import AiGenerationProgress from '../../../shared/components/AiGenerationProgress'

@@ -21,7 +21,7 @@
 
 import { downloadHtmlAsPdf } from '../../utils/htmlToPdf.js'
 import { injectHtmlWatermark, WATERMARK_TEXT } from '../../utils/exportWatermark.js'
-import { renderPlanHtml } from '../../components/teacher/studio/utils/renderPlanHtml.js'
+import { renderPlanHtml } from '../../shared/utils/renderPlanHtml.js'
 import { lessonPlanPrintCss } from '../../utils/lessonPlanPrintCss.js'
 import { resolveLessonFormat } from '../../utils/lessonPlanFormat.js'
 

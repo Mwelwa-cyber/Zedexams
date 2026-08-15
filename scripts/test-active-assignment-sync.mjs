@@ -5,7 +5,7 @@ import {
   planRemoteAdoption,
   REMOTE_ACTIVE_ASSIGNMENT_EVENT,
 } from '../src/utils/activeAssignmentSyncCore.js'
-import { dashboardAdoptionPlan } from '../src/components/teacher/dashboardAssignmentAdoption.js'
+import { dashboardAdoptionPlan } from '../src/features/teacherHome/lib/dashboardAssignmentAdoption.js'
 
 let passed = 0
 function test(name, fn) {

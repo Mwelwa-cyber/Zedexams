@@ -30,7 +30,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { ALL_GRADES, getActiveGrades } from '../src/config/curriculum.js'
 import { EDUCATION_LEVELS } from '../src/config/educationLevels.js'
-import { ASSESSMENT_TYPE_VALUES } from '../src/components/teacher/paperTaxonomy.js'
+import { ASSESSMENT_TYPE_VALUES } from '../src/shared/utils/paperTaxonomy.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const RULES_PATH = join(__dirname, '..', 'firestore.rules')

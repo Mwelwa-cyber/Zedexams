@@ -8,9 +8,9 @@ import {
 } from '../../../utils/plannedTeachingMeta.js'
 import { subjectLabel, gradeLabel } from '../../../utils/teachingProfileCore.js'
 import { isEceGrade } from '../../../config/teacherTaxonomy.js'
-import { getSubjectsForGrade } from '../../../components/teacher/studio/utils/curriculumDataService.js'
-import { cleanSubjectName } from '../../../components/teacher/studio/utils/subjectName.js'
-import { matchSubjectKey } from '../../../components/teacher/studio/utils/teacherPlanContext.js'
+import { getSubjectsForGrade } from '../../../shared/utils/curriculumDataService.js'
+import { cleanSubjectName } from '../../../shared/utils/subjectName.js'
+import { matchSubjectKey } from '../../../shared/utils/teacherPlanContext.js'
 
 function todayLocalISO() {
   const d = new Date()

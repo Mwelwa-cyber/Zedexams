@@ -46,7 +46,7 @@ import LiveGenerationCanvas from '../../../shared/components/LiveGenerationCanva
 import { useToast } from '../../../shared/components/Toast'
 import SbaTaskView from '../components/SbaTaskView'
 import SbaWorkflowNote from '../components/SbaWorkflowNote'
-import TopicSubtopicPicker from '../../../components/teacher/generate/TopicSubtopicPicker'
+import TopicSubtopicPicker from '../../../shared/components/TopicSubtopicPicker'
 
 const TERMS = [
   { value: '', label: '— Term (optional) —' },

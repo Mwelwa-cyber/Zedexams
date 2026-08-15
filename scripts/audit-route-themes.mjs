@@ -36,7 +36,7 @@ const app = readFileSync(join(ROOT, 'src/App.jsx'), 'utf8')
  * because a route it cannot see is not a route it flags. Silently auditing
  * two thirds of the router is worse than not auditing it, so a shrinking
  * count is now a failure. */
-const TEACHER_ROUTES_FILE = join(ROOT, 'src/components/teacher/teacherRoutes.jsx')
+const TEACHER_ROUTES_FILE = join(ROOT, 'src/app/routes/teacherRoutes.jsx')
 const teacherSrc = existsSync(TEACHER_ROUTES_FILE) ? readFileSync(TEACHER_ROUTES_FILE, 'utf8') : ''
 
 const routes = []
@@ -59,7 +59,7 @@ const lazyMap = new Map()
 // teacherRoutes.jsx's specifiers are relative to ITS directory, so they are
 // rebased onto src/ before being stored — otherwise every teacher page
 // resolves to nothing and reports as unmeasured.
-const REBASE = { 'App.jsx': '', 'teacherRoutes.jsx': 'components/teacher/' }
+const REBASE = { 'App.jsx': '', 'teacherRoutes.jsx': 'app/routes/' }
 for (const [src, text] of [['App.jsx', app], ['teacherRoutes.jsx', teacherSrc]]) {
   const rebase = (spec) => spec.startsWith('./')
     ? './' + REBASE[src] + spec.slice(2)

@@ -3,15 +3,15 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { TopicSubtopicForm } from './TopicSubtopicForm'
 
 // Mock hooks so tests don't touch real async data fetching or Firebase
-vi.mock('../../../../components/teacher/studio/hooks/useSubjectTopics.js', () => ({
+vi.mock('../../../../shared/hooks/useSubjectTopics.js', () => ({
   useSubjectTopics: vi.fn(),
 }))
 
-vi.mock('../../../../components/teacher/studio/hooks/useSubtopicDetail.js', () => ({
+vi.mock('../../../../shared/hooks/useSubtopicDetail.js', () => ({
   useSubtopicDetail: vi.fn(() => ({ subtopicRow: null, loading: false, error: null })),
 }))
 
-import { useSubjectTopics } from '../../../../components/teacher/studio/hooks/useSubjectTopics.js'
+import { useSubjectTopics } from '../../../../shared/hooks/useSubjectTopics.js'
 
 const TOPICS = [
   { label: 'Nutrition', subtopics: ['Macronutrients', 'Micronutrients'] },

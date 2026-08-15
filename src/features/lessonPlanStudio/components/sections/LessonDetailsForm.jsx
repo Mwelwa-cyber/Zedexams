@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { GraduationCap, BookOpen, Clock, Calendar, User, School } from '../../../../shared/components/icons'
-import { useSubjectsForGrade } from '../../../../components/teacher/studio/hooks/useSubjectsForGrade.js'
-import { useAvailableGrades } from '../../../../components/teacher/studio/hooks/useAvailableGrades.js'
-import { cleanSubjectName } from '../../../../components/teacher/studio/utils/subjectName.js'
+import { useSubjectsForGrade } from '../../../../shared/hooks/useSubjectsForGrade.js'
+import { useAvailableGrades } from '../../../../shared/hooks/useAvailableGrades.js'
+import { cleanSubjectName } from '../../../../shared/utils/subjectName.js'
 import { SCHOOL_RESOURCE_LEVELS, DEFAULT_SCHOOL_RESOURCES } from '../../../../config/schoolResources.js'
 
 /**

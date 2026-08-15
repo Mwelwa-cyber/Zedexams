@@ -9,7 +9,7 @@ import { MaintenanceBanner, AndroidUpdateBanner } from './features/platformNotic
 import { AnnouncementBanner } from './features/announcements'
 import { SubscriptionStatusBanner } from './features/subscription'
 import ProtectedRoute from './app/guards/ProtectedRoute'
-import { TEACHER_ROUTES, FlaggedStudioRoute } from './components/teacher/teacherRoutes'
+import { TEACHER_ROUTES, FlaggedStudioRoute } from './app/routes/teacherRoutes'
 import AdminMfaGate from './app/guards/AdminMfaGate'
 import LearnerOnlyRoute from './app/guards/LearnerOnlyRoute'
 import MissingProfileRecovery from './app/guards/MissingProfileRecovery'
@@ -211,7 +211,7 @@ const FamilyHome = lazy(() => import('./features/parentPortal/pages/FamilyHome')
 const ChildProgressPage = lazy(() => import('./features/parentPortal/pages/ChildProgressPage'))
 
 // Teacher section. The /teacher/* routes themselves live in
-// components/teacher/teacherRoutes.jsx — declared as data so a spec can
+// app/routes/teacherRoutes.jsx — declared as data so a spec can
 // render every one of them and fail if the shared shell is missing. Add a
 // teacher page there. TeacherLayout is still imported here for the
 // role-branched Settings page below, which is a /settings route.
@@ -708,7 +708,7 @@ export default function App() {
 
 
           {/* ── Teacher routes ──────────────────────────────────
-              Declared as data in components/teacher/teacherRoutes.jsx so the
+              Declared as data in app/routes/teacherRoutes.jsx so the
               shell can be asserted for every one of them (teacherRoutes.spec
               renders each route and fails if TeacherLayout is missing). Add a
               teacher page THERE, not here. */}

@@ -12,7 +12,7 @@ import { downloadHomeworkPdf } from '../../../engines/export-engine/homeworkToPd
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import { House } from 'lucide-react'
-import GeneratorStudioShell, { useStudioSetupForYou } from '../../../components/teacher/generate/GeneratorStudioShell'
+import GeneratorStudioShell, { useStudioSetupForYou } from '../../../shared/components/GeneratorStudioShell'
 import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { captureQuestionsToBank } from '../../../utils/questionBankService'
 import { homeworkQuestionToBank } from '../../../utils/questionBankCore'
@@ -30,7 +30,7 @@ import {
 } from '../../../shared/components/studioFields'
 import Icon from '../../../shared/components/Icon'
 import { Download, Key } from '../../../shared/components/icons'
-import StudioCurriculumSelector from '../../../components/teacher/curriculum/StudioCurriculumSelector'
+import StudioCurriculumSelector from '../../../shared/components/StudioCurriculumSelector'
 import StudioOutputBoundary from '../../../shared/components/StudioOutputBoundary'
 import HomeworkView from '../components/HomeworkView'
 import { useAiOperationLock } from '../../../hooks/useAiOperationLock'
@@ -39,8 +39,8 @@ import { useStudioInputDraft } from '../../../hooks/draft/useStudioInputDraft'
 import { homeworkInputDescriptor } from '../../../hooks/draft/descriptors'
 import { curriculumSeedFromProfile, preferredDifficulty, preferredTermYear } from '../../../utils/teacherDefaults'
 import { readActiveAssignmentSeed, resolveStudioSeed } from '../../../utils/activeAssignmentSeed'
-import CreatedFromLessonPlanNotice from '../../../components/teacher/generate/CreatedFromLessonPlanNotice'
-import StudioAssignmentChangeNotice from '../../../components/teacher/generate/StudioAssignmentChangeNotice'
+import CreatedFromLessonPlanNotice from '../../../shared/components/CreatedFromLessonPlanNotice'
+import StudioAssignmentChangeNotice from '../../../shared/components/StudioAssignmentChangeNotice'
 
 /**
  * Homework Studio — short take-home practice grounded on the stored

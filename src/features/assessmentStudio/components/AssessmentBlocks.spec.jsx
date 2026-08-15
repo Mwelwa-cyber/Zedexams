@@ -45,7 +45,7 @@ vi.mock('./AssessmentQuestionBlock', () => ({ QuestionBlock: () => null }))
 // HeaderBlock's syllabus-driven subject choices pull the merged-syllabi
 // services (→ firebase) transitively; stub the hook module so the spec stays
 // firebase-free and deterministic.
-vi.mock('../../../components/teacher/syllabusTopicOptions', () => ({
+vi.mock('../../../shared/utils/syllabusTopicOptions', () => ({
   useStudioSubjectChoices: () => ({ options: ['English', 'Mathematics'], loading: false }),
   useSyllabusSubjectOptions: () => ({
     subjects: [

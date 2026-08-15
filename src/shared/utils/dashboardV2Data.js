@@ -28,7 +28,7 @@
  * when that file finds its own home (owner decision, 2026-08-13).
 */
 
-import { paperGradeLabel } from '../../components/teacher/paperTaxonomy.js'
+import { paperGradeLabel } from './paperTaxonomy.js'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 

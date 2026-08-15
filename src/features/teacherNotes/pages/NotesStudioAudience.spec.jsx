@@ -75,7 +75,7 @@ vi.mock('../../../shared/components/StudioPageHeader', () => ({
   default: ({ eyebrow, title }) => <div><span>{eyebrow}</span><h1>{title}</h1></div>,
 }))
 vi.mock('../../../shared/components/StudioOutputBoundary', () => ({ default: ({ children }) => children }))
-vi.mock('../../../components/teacher/generate/StudioAssignmentChangeNotice', () => ({ default: () => null }))
+vi.mock('../../../shared/components/StudioAssignmentChangeNotice', () => ({ default: () => null }))
 
 const VALID_CURR = {
   curriculumMode: 'cbc',
@@ -87,7 +87,7 @@ const VALID_CURR = {
   curriculum: 'cbc',
   framework: '2023',
 }
-vi.mock('../../../components/teacher/curriculum/StudioCurriculumSelector', () => ({
+vi.mock('../../../shared/components/StudioCurriculumSelector', () => ({
   default: ({ onChange }) => (
     <button type="button" onClick={() => onChange(VALID_CURR)}>seed-curriculum</button>
   ),

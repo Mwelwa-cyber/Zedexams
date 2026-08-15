@@ -30,7 +30,7 @@ function ok(cond, msg) {
 }
 
 const css = readFileSync(
-  join(ROOT, 'src/components/teacher/studio/lessonStudio.css'),
+  join(ROOT, 'src/shared/styles/lessonStudio.css'),
   'utf8',
 )
 const wizard = readFileSync(

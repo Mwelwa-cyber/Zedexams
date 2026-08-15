@@ -18,7 +18,7 @@
  *     Lessons panel are driven by the SAME source and never disagree.
  */
 
-import { buildSubtopicKey } from '../../../components/teacher/studio/utils/lessonMemory.js'
+import { buildSubtopicKey } from '../../../shared/utils/lessonMemory.js'
 
 /** Lowercase + strip non-alphanumerics for tolerant comparison. */
 function normName(s) {

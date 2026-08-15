@@ -19,7 +19,7 @@
 // permanent listeners scattered across form components.
 
 import { useState, useEffect, useRef } from 'react'
-import { parseStoredSeed, seedsDiffer } from '../components/teacher/generate/teachingAssignmentChangeNoticeCore.js'
+import { parseStoredSeed, seedsDiffer } from '../shared/utils/teachingAssignmentChangeNoticeCore.js'
 import { REMOTE_ACTIVE_ASSIGNMENT_EVENT } from '../utils/activeAssignmentSyncCore.js'
 
 const seedKey = (uid) => `zedexams:active-seed:${uid}`

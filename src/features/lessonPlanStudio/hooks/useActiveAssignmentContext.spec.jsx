@@ -41,7 +41,7 @@ vi.mock('../../teacherSettings/lib/useTeachingProfile', () => ({
   })),
 }))
 
-vi.mock('../../../components/teacher/studio/utils/curriculumDataService.js', () => ({
+vi.mock('../../../shared/utils/curriculumDataService.js', () => ({
   getSubjectsForGrade: vi.fn(() => Promise.resolve(['science'])),
 }))
 
