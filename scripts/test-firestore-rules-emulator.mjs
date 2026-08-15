@@ -1992,15 +1992,76 @@ async function main() {
       title: 'Not yet labelled', grade: '7', subject: 'Mathematics', year: 2020,
       status: 'published', uploadedBy: ADMIN,
       source: null, sourceConfidence: 'unknown',
+      // Carries a file because a published paper must: this case is about the
+      // source being unknown, and it would otherwise be denied for a reason it
+      // is not testing.
+      assets: [{ path: 'papers/admin/p/assets/0-p.pdf', contentType: 'application/pdf' }],
     }))
   })
 
   await test('an admin CANNOT write a source outside the registry', async () => {
-    // The write-side validation is untouched by the revert.
+    // The write-side validation is untouched by the revert. `assets` is present
+    // so the ONLY thing that can deny this write is the source registry.
     await assertFails(setDoc(doc(admin, 'pastPapers', 'paper_bad_source'), {
       title: 'Longman', grade: '7', subject: 'Mathematics', year: 2020,
       status: 'published', uploadedBy: ADMIN,
       source: 'longman', sourceConfidence: 'explicit',
+      assets: [{ path: 'papers/admin/p/assets/0-p.pdf', contentType: 'application/pdf' }],
+    }))
+  })
+
+  // ── a published paper must carry a file (mirrors the Studio guard) ──
+  // handleRemoveAsset() refuses to take the last file off a live paper. These
+  // prove the same invariant holds against a client that does not run that
+  // code — a tampered client, a stale tab, or the bulk publish in
+  // /admin/content, none of which consult the Studio.
+  await test('an admin CANNOT publish a paper with no files', async () => {
+    await assertFails(setDoc(doc(admin, 'pastPapers', 'paper_no_assets'), {
+      title: 'Empty', grade: '7', subject: 'Mathematics', year: 2020,
+      status: 'published', uploadedBy: ADMIN,
+      source: 'ecz', isOfficial: true, sourceConfidence: 'explicit',
+      assets: [],
+    }))
+  })
+
+  await test('an admin CANNOT strip the last file off an already-live paper', async () => {
+    // The reported bug, at the rules layer: the paper is legally published,
+    // and the update that empties it is what must be refused.
+    await assertSucceeds(setDoc(doc(admin, 'pastPapers', 'paper_strip'), {
+      title: 'Live', grade: '7', subject: 'Mathematics', year: 2020,
+      status: 'published', uploadedBy: ADMIN,
+      source: 'ecz', isOfficial: true, sourceConfidence: 'explicit',
+      assets: [{ path: 'papers/admin/strip/assets/0-p.pdf', contentType: 'application/pdf' }],
+    }))
+    await assertFails(updateDoc(doc(admin, 'pastPapers', 'paper_strip'), { assets: [] }))
+  })
+
+  await test('the repair path stays open: unpublishing an empty paper is allowed', async () => {
+    // This is the write the repair script and an admin both need. If the rule
+    // blocked it, the papers already in this state would be unfixable from the
+    // product — the trap #2191 fell into, in write form.
+    await assertSucceeds(updateDoc(doc(admin, 'pastPapers', 'paper_strip'), {
+      status: 'draft', assets: [],
+    }))
+  })
+
+  await test('a legacy pdfPath paper may be published with no assets array', async () => {
+    // pdfPath IS the file on the older archive, and both readers prefer it over
+    // `assets`. Requiring the array would refuse every edit to those papers.
+    await assertSucceeds(setDoc(doc(admin, 'pastPapers', 'paper_legacy_pdf'), {
+      title: 'Legacy', grade: '7', subject: 'Mathematics', year: 2019,
+      status: 'published', uploadedBy: ADMIN,
+      source: 'ecz', isOfficial: true, sourceConfidence: 'explicit',
+      pdfPath: 'papers/admin/legacy/paper.pdf',
+    }))
+  })
+
+  await test('a DRAFT with no files is still writable', async () => {
+    // Emptying a draft is how a wrong upload is replaced; only `published` is
+    // constrained.
+    await assertSucceeds(setDoc(doc(admin, 'pastPapers', 'paper_draft_empty'), {
+      title: 'Draft', grade: '7', subject: 'Mathematics', year: 2020,
+      status: 'draft', uploadedBy: ADMIN, assets: [],
     }))
   })
 

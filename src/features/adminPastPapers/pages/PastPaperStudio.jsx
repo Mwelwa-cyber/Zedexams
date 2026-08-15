@@ -109,6 +109,7 @@ const importPastPaperQuestionsCallable = httpsCallable(
 )
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 import { ImportReportCard } from '../components/pastPaperReport'
+import { canRemovePaperAsset } from '../lib/publishedPaperAssets'
 
 const CURRENT_YEAR = new Date().getFullYear()
 const YEARS = Array.from({ length: 25 }, (_, i) => CURRENT_YEAR - i)
@@ -366,6 +367,9 @@ export default function PastPaperStudio() {
   const [paperStatus, setPaperStatus] = useState(PAPER_STATUSES.DRAFT)
   const [unpublishing, setUnpublishing] = useState(false)
   const [confirmUnpublish, setConfirmUnpublish] = useState(false)
+  // Legacy single-PDF source. Read-only here — the Studio uploads into
+  // `assets` — but the removal guard has to know it exists.
+  const [pdfPath, setPdfPath] = useState('')
   const [uploading, setUploading] = useState(false)
   const [importing, setImporting] = useState(false)
   const [linkingQuiz, setLinkingQuiz] = useState(false)
@@ -425,6 +429,11 @@ export default function PastPaperStudio() {
             totalMarks: row.totalMarks ? String(row.totalMarks) : '',
           })
           setAssets(Array.isArray(row.assets) ? row.assets : [])
+          // Legacy single-PDF papers carry their source here instead of in
+          // `assets`, and both readers prefer it over the array. The removal
+          // guard needs it or it would refuse to remove an asset from a paper
+          // that renders perfectly well without it.
+          setPdfPath(row.pdfPath || '')
           setOriginalStatus(row.status || PAPER_STATUSES.DRAFT)
           setPaperStatus(row.status || PAPER_STATUSES.DRAFT)
           // A paper published with the Quiz step skipped reopens in the
@@ -544,6 +553,13 @@ export default function PastPaperStudio() {
     const removed = assets[idx]
     if (!removed) return
     setError('')
+    // publish() refuses to go live with no files; nothing guarded the other
+    // direction until now, so removing the last one left the paper listed in
+    // the archive and blank when a learner opened it. `paperStatus` is the
+    // status NOW, not the one this session loaded — unpublishing in-session
+    // is what clears this and is the route the message points at.
+    const verdict = canRemovePaperAsset({ status: paperStatus, assets, pdfPath }, idx)
+    if (!verdict.allowed) { setError(verdict.message); return }
     const next = assets.filter((_, i) => i !== idx)
     try {
       await deletePaperPdf(removed.path).catch(() => {})
