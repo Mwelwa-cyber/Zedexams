@@ -16,7 +16,7 @@ import {
 } from '../src/features/assessmentStudio/lib/paperNaming.js'
 import {
   assessmentTypePhrase, isTeacherAuthoredTitle,
-} from '../src/components/teacher/assessmentTitle.js'
+} from '../src/features/assessmentStudio/lib/assessmentTitle.js'
 import { planTitleBackfill } from './backfill-assessment-titles.mjs'
 
 let passed = 0

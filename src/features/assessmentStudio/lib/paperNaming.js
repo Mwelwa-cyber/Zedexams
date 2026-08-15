@@ -42,7 +42,7 @@ import { paperGradeLabel, normalizeAssessmentType } from '../../../components/te
 import { joinDash, joinDot } from '../../../utils/responsiveTitle.js'
 import {
   assessmentTypePhrase, readPaperTerm, readPaperYear, teacherAuthoredTitle,
-} from '../../../components/teacher/assessmentTitle.js'
+} from './assessmentTitle.js'
 
 // Words that stay lowercase inside a title — never as the first word. Without
 // this "END OF TERM 2 TEST" title-cases to "End Of Term 2 Test", which is not

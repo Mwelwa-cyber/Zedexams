@@ -4,8 +4,8 @@
 // the studio's display values ('4', 'English') — map to KB keys with
 // studioGradeToKbGrade / studioSubjectToKey when calling generators.
 
-import { ASSESSMENT_TYPES } from './paperTaxonomy.js'
-import { CANONICAL_SUBJECTS, CANONICAL_GRADES, subjectName } from '../../config/canonicalEducation.js'
+import { ASSESSMENT_TYPES } from '../../../components/teacher/paperTaxonomy.js'
+import { CANONICAL_SUBJECTS, CANONICAL_GRADES, subjectName } from '../../../config/canonicalEducation.js'
 
 // Display labels for every selectable assessment type PLUS every legacy/
 // route-scoped value a saved paper might still carry. The canonical 7 types

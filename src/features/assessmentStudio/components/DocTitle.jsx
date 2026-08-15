@@ -19,7 +19,7 @@
 
 import { useRef } from 'react'
 import { composeDocTitle, DOC_TITLE_MEDIUM } from '../lib/paperNaming'
-import { ASSESSMENT_TYPE_LABELS, TERMS } from '../../../components/teacher/assessmentStudioMeta'
+import { ASSESSMENT_TYPE_LABELS, TERMS } from '../lib/assessmentStudioMeta'
 import { assessmentCategory } from '../../../components/teacher/paperTaxonomy'
 import { useElementWidth } from '../../../hooks/useElementWidth'
 import Icon from './studioIcons'

@@ -10,7 +10,7 @@
  * Science, Technology Studies and Home Economics papers across two terms all
  * appeared in their library under one identical name. New papers are named
  * "GRADE 4 INTEGRATED SCIENCE - END OF TERM 2 TEST - 2026"
- * (src/components/teacher/assessmentTitle.js); this brings the existing ones over.
+ * (src/features/assessmentStudio/lib/assessmentTitle.js); this brings the existing ones over.
  *
  * ── What it will and will not rewrite ─────────────────────────────────
  *
@@ -76,7 +76,7 @@ import {
   buildAssessmentDocumentTitle,
   isTeacherAuthoredTitle,
   normalizeTitleForCompare,
-} from '../src/components/teacher/assessmentTitle.js'
+} from '../src/features/assessmentStudio/lib/assessmentTitle.js'
 import { confirmByTyping } from './lib/confirmPrompt.mjs'
 
 const LIVE = process.argv.includes('--live')

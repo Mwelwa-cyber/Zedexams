@@ -56,7 +56,7 @@ import {
 } from '../lib/assessmentAutosave.js'
 import {
   buildAssessmentDocumentTitle, buildAssessmentHeaderTitle, isGeneratedAssessmentTitle,
-} from '../../../components/teacher/assessmentTitle.js'
+} from '../lib/assessmentTitle.js'
 import { isAssessmentDeleted, subscribeAssessmentDeletion } from '../../../utils/assessmentDeletion'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 import Skeleton from '../../../shared/components/Skeleton'
@@ -89,7 +89,7 @@ import {
   subjectLabel as kbSubjectLabel, paperGradeLabel, paperLevel,
   ASSESSMENT_TYPE_VALUES,
 } from '../../../components/teacher/paperTaxonomy'
-import { STUDIO_SUBJECTS, STUDIO_GRADES, ASSESSMENT_TYPE_LABELS as ASSESSMENT_TYPE_LABELS_META } from '../../../components/teacher/assessmentStudioMeta'
+import { STUDIO_SUBJECTS, STUDIO_GRADES, ASSESSMENT_TYPE_LABELS as ASSESSMENT_TYPE_LABELS_META } from '../lib/assessmentStudioMeta'
 import {
   importQuizDocument,
   revokeImportedQuizAssets,
@@ -194,7 +194,7 @@ export const SUBJECTS = STUDIO_SUBJECTS
 export const GRADES = STUDIO_GRADES
 // Re-exported from assessmentStudioMeta.js — see the note there on why the
 // small shared studio pieces read it from the neutral module instead.
-export { TERMS } from '../../../components/teacher/assessmentStudioMeta'
+export { TERMS } from '../lib/assessmentStudioMeta'
 
 // Re-exported from assessmentStudioMeta.js — the canonical single source of
 // truth for assessment type labels shared by both AssessmentStudio and

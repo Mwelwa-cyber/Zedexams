@@ -1,5 +1,5 @@
 // Regression tests for how an assessment paper is NAMED
-// (src/components/teacher/assessmentTitle.js).
+// (src/features/assessmentStudio/lib/assessmentTitle.js).
 //
 // The bug: the generated title was level + type + year — "GRADE 4 END OF TERM 1
 // TEST - 2026" — with no subject, and with a term that came from the studio's
@@ -20,7 +20,7 @@ import {
   isGeneratedAssessmentTitle,
   generatedAssessmentTitleVariants,
   normalizeTitleForCompare,
-} from '../src/components/teacher/assessmentTitle.js'
+} from '../src/features/assessmentStudio/lib/assessmentTitle.js'
 import { findSharedTitles } from './backfill-assessment-titles.mjs'
 
 let passed = 0
