@@ -4,8 +4,9 @@ import { listMyGenerations } from '../utils/teacherLibraryService'
 import { buildReminders, SEEN_REMINDERS_KEY } from '../utils/teacherReminders'
 
 /**
- * Shared brain for the teacher reminder bells (desktop TeacherTopBar +
- * mobile TeacherGlassHeader). Loads the teacher's generations + quizzes,
+ * The brain behind the teacher reminder bell (TeacherTopBar; it also served
+ * the mobile TeacherGlassHeader until Phase 6 deleted that dead V1 header).
+ * Loads the teacher's generations + quizzes,
  * builds the personalised reminders, and tracks which have been seen
  * (localStorage, per uid). While `open` is true every visible reminder is
  * marked seen — opening the tray clears the badge, the behaviour both bells

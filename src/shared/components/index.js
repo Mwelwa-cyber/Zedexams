@@ -180,9 +180,9 @@
  *     — 25–27 modules each, reaching `AuthContext` and payment logic.
  *   • `SubjectIcon` — curriculum knowledge.
  *
- * `SubjectScroller` stays with them for a different reason: zero importers,
- * already on `docs/architecture/22-dead-code-register.md`. A removal is its own
- * PR.
+ * `SubjectScroller` sat with them for a different reason: zero importers,
+ * recorded on `docs/architecture/22-dead-code-register.md` — and Phase 6
+ * (2026-08-15) deleted it, as the register's §R1 row licensed.
  *
  * ## `ui/index.js` was a real barrel, and it is deleted rather than moved
  *

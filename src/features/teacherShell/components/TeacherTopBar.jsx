@@ -7,7 +7,7 @@ import { useTeachingProfile } from '../../teacherSettings'
 import { resolveActiveAssignment } from '../../../utils/plannedTeachingMeta.js'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
 import ReminderPanel from '../../../shared/components/ReminderPanel'
-import { QUICK_CREATE } from '../../../components/teacher/teacherNav'
+import { QUICK_CREATE } from '../lib/teacherNav'
 import { Bell, Plus, X } from '../../../shared/components/icons'
 import Icon from '../../../shared/components/Icon'
 
@@ -62,7 +62,7 @@ export default function TeacherTopBar() {
         borderBottom: '1px solid var(--zt-line)',
       }}
     >
-      {/* Notifications — desktop only (mobile/tablet use Alerts in TeacherGlassHeader) */}
+      {/* Notifications — desktop only (below lg the shell's MobileChrome carries the mobile chrome) */}
       <div ref={bellRef} className="relative flex-shrink-0 hidden lg:block">
         <button
           type="button"

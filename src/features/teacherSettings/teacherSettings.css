@@ -665,8 +665,9 @@
 .studio-theme .tset-btn--danger:hover:not(:disabled) { background: #fef2f2; border-color: #e8a8a8; }
 .studio-theme .tset-btn--sm { min-height: 34px; padding: 7px 14px; font-size: 12.5px; border-radius: 10px; }
 
-/* Sticky save bar — clears TeacherBottomNav on mobile (layout already pads
-   main with pb-24; the bar floats above it inside the panel). */
+/* Sticky save bar — clears the mobile bottom dock (MobileChrome's
+   MobileBottomNav) on mobile (layout already pads main with pb-24; the bar
+   floats above it inside the panel). */
 .studio-theme .tset-savebar {
   position: sticky;
   bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
@@ -703,7 +704,7 @@
 [data-theme='night'] .studio-theme .tset-savebar__status--saved { color: #5FD09A; }
 [data-theme='night'] .studio-theme .tset-savebar__status--error { color: #F1A08C; }
 
-/* TeacherBottomNav is fixed to the bottom below Tailwind lg (1024px); lift
+/* The mobile bottom dock is fixed to the bottom on small screens; lift
    the sticky save bar above it so Save is never hidden under the nav. */
 @media (max-width: 1023.98px) {
   .studio-theme .tset-savebar {
@@ -1366,7 +1367,7 @@
   .studio-theme .tset-dta-row__expand { grid-column: 5; }
 }
 
-/* Mobile: sticky footer above TeacherBottomNav (fixed below Tailwind lg),
+/* Mobile: sticky footer above the fixed mobile bottom dock,
    stacked full-width buttons, comfortable tap targets. */
 @media (max-width: 1023.98px) {
   .studio-theme .tset-dta-actions {
@@ -1380,7 +1381,7 @@
     box-shadow: 0 -8px 20px rgba(14, 42, 50, .06);
   }
   /* The stuck footer floats up to 5.25rem above its natural slot (clearing the
-     fixed TeacherBottomNav); this padding keeps the FINAL assignment row above
+     fixed mobile bottom dock); this padding keeps the FINAL assignment row above
      that covered zone so it is never hidden behind the action area. */
   .studio-theme .tset-dta-list { padding-bottom: 6rem; }
 }

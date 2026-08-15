@@ -114,7 +114,6 @@ const RELOCATED = [
 const STILL_IN_UTILS = new Map([
   ['assessmentToDocx.js', 'assessment studio — frozen until the Phase 3 rollout flags reach 100%'],
   ['assessmentToPdf.js', 'assessment studio — same freeze'],
-  ['quizToDocx.js', 'quizzes — frozen, same reason'],
   ['activityToDocx.js', 'lesson activities — renders documents saved before the Full Lesson studio was retired'],
   ['fullLessonToDocx.js', 'retired Full Lesson studio; saved lessons still export'],
   ['fullLessonToPdf.js', 'retired Full Lesson studio; saved lessons still export'],

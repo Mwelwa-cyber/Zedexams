@@ -23,19 +23,21 @@ import { fileURLToPath } from 'node:url'
 import { dirname } from 'node:path'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-// Two roots, because the teacher surfaces are LEAVING the first one. Phase 4
-// has moved eleven of them into `src/features/`, and a scan pinned to
-// `src/components/teacher` would have quietly stopped covering each as it
-// migrated — the ledger below would empty out and the check would report clean
-// on a codebase it had stopped looking at. `printAffectingPaths.js` records the
-// same failure in its own words: a pattern for a moved file protects nothing
-// and reads exactly like one that works.
+// The scan followed the teacher surfaces as they moved. It began pinned to
+// `src/components/teacher`; Phase 4 moved the studios into `src/features/`,
+// and a scan pinned to the old root would have quietly stopped covering each
+// as it migrated — the ledger below would empty out and the check would report
+// clean on a codebase it had stopped looking at. `printAffectingPaths.js`
+// records the same failure in its own words: a pattern for a moved file
+// protects nothing and reads exactly like one that works.
 // `src/shared` joined the scan on 2026-08-15, when the teacher studio layer
 // (paperTaxonomy, subjectName, the curriculum selector) migrated into it —
 // without this, every one of those files would have left the check's field of
 // view the day it moved, which is the exact silent loss the note above records.
+// `src/components/teacher` left the list the same day, when Phase 6 emptied
+// and deleted the directory — walk() throws on a missing root, so the dead
+// entry could not simply stay.
 const SCAN_DIRS = [
-  join(ROOT, 'src/components/teacher'),
   join(ROOT, 'src/features'),
   join(ROOT, 'src/shared'),
 ]
@@ -133,7 +135,7 @@ const UNSCANNED_UNTIL_NOW = new Set([
   'src/features/learnerDashboard/pages/MyResults.jsx',
   'src/features/learnerDashboard/pages/StudentDashboard.jsx',
   // Arrived with the admin migration (Wave 4 slices 5–6, 2026-08-14). All four
-  // are ADMIN surfaces, and `SCAN_DIRS` is `src/components/teacher` +
+  // are ADMIN surfaces, and `SCAN_DIRS` was then `src/components/teacher` +
   // `src/features` — `src/components/admin/` was never scanned, so the move
   // brought them into scope rather than introducing anything.
   //
