@@ -67,11 +67,21 @@ const GRACE_LEARNER = 'grace_learner'
 const PREMIUM_LEARNER = 'premium_learner'
 const SUSPENDED_LEARNER = 'suspended_learner'
 const SUSPENDED_TEACHER = 'suspended_teacher'
+// Role-CLAIM fixtures. These three deliberately have NO users/{uid} document:
+// their whole point is to prove the role decision can be made from the ID
+// token alone, with the cross-service Firestore lookup contributing nothing.
+// See the "role claim" section below for why that matters.
+const CLAIM_TEACHER = 'claim_teacher'
+const CLAIM_ADMIN = 'claim_admin'
+const CLAIM_LEARNER = 'claim_learner'
 
 // storage.rules now requires the email_verified token claim everywhere
 // (isVerified()), so authed contexts must mint it — a claimless token reads
 // as unverified and would fail every test.
 const verifiedToken = (uid) => ({ email: `${uid}@test.zedexams.com`, email_verified: true })
+// A verified token carrying the `role` custom claim that buildRoleClaims()
+// (functions/security/adminClaims.js) mints alongside users/{uid}.role.
+const roleClaimToken = (uid, role) => ({ ...verifiedToken(uid), role })
 const unverifiedToken = (uid) => ({ email: `${uid}@test.zedexams.com`, email_verified: false })
 
 const PDF_BYTES = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34])
@@ -191,6 +201,9 @@ async function main() {
   const premiumLearnerStorage = testEnv.authenticatedContext(PREMIUM_LEARNER, verifiedToken(PREMIUM_LEARNER)).storage()
   const suspendedLearnerStorage = testEnv.authenticatedContext(SUSPENDED_LEARNER, verifiedToken(SUSPENDED_LEARNER)).storage()
   const suspendedTeacherStorage = testEnv.authenticatedContext(SUSPENDED_TEACHER, verifiedToken(SUSPENDED_TEACHER)).storage()
+  const claimTeacherStorage = testEnv.authenticatedContext(CLAIM_TEACHER, roleClaimToken(CLAIM_TEACHER, 'teacher')).storage()
+  const claimAdminStorage = testEnv.authenticatedContext(CLAIM_ADMIN, roleClaimToken(CLAIM_ADMIN, 'admin')).storage()
+  const claimLearnerStorage = testEnv.authenticatedContext(CLAIM_LEARNER, roleClaimToken(CLAIM_LEARNER, 'learner')).storage()
 
   // Pre-seed a few read fixtures via security-rules-disabled storage so
   // the read tests have something to fetch. The library exposes a
@@ -395,6 +408,101 @@ async function main() {
       ref(superAdminStorage, `papers/${TEACHER_B}/spoof.pdf`),
       PDF_BYTES,
       { contentType: 'application/pdf' },
+    ))
+  })
+
+  // ── role custom claim — the decision without a cross-service read ──
+  //
+  // Every role check in storage.rules used to require a CROSS-SERVICE lookup:
+  // the Storage rules engine reaching into Firestore for users/{uid}. That is
+  // a different, more fragile mechanism than the in-service get() that
+  // firestore.rules uses for the identical decision, and it fails CLOSED —
+  // when it does not resolve, firestore.exists(users/…) reads false, both role
+  // arms collapse, and every teacher/admin upload in the product is refused as
+  // `storage/unauthorized` while Firestore itself keeps working normally. The
+  // symptom is a Past Paper Studio telling an admin they need the admin role.
+  //
+  // These fixtures carry the `role` claim and NO users document at all, so a
+  // pass here can only have come from the token. That is the property the
+  // Firestore fallback cannot demonstrate, and the reason these are separate
+  // tests rather than extra assertions on the existing role fixtures.
+  section('role claim — role resolved from the ID token, no users/{uid} doc')
+
+  await test('claim-only teacher can upload under own /papers/ path', async () => {
+    await assertSucceeds(uploadBytes(
+      ref(claimTeacherStorage, `papers/${CLAIM_TEACHER}/paper-1/assets/0-exam.pdf`),
+      PDF_BYTES,
+      { contentType: 'application/pdf' },
+    ))
+  })
+
+  await test('claim-only teacher can upload a quiz image (isTeacherOrAdmin path)', async () => {
+    await assertSucceeds(uploadBytes(
+      ref(claimTeacherStorage, `quiz-images/${CLAIM_TEACHER}/figure.png`),
+      PNG_BYTES,
+      { contentType: 'image/png' },
+    ))
+  })
+
+  await test('claim-only admin can upload to the picture bank (isAdmin path)', async () => {
+    await assertSucceeds(uploadBytes(
+      ref(claimAdminStorage, 'picture-bank/figures/claim-admin.png'),
+      PNG_BYTES,
+      { contentType: 'image/png' },
+    ))
+  })
+
+  await test('claim-only admin can upload an xlsx syllabus (isAdmin path)', async () => {
+    await assertSucceeds(uploadBytes(
+      ref(claimAdminStorage, 'syllabus-uploads/v3/claim-admin.xlsx'),
+      XLSX_BYTES,
+      {
+        contentType:
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      },
+    ))
+  })
+
+  await test('a learner role claim grants NOTHING (the claim is not a bypass)', async () => {
+    await assertFails(uploadBytes(
+      ref(claimLearnerStorage, `papers/${CLAIM_LEARNER}/sneaky.pdf`),
+      PDF_BYTES,
+      { contentType: 'application/pdf' },
+    ))
+  })
+
+  await test('claim-only admin CANNOT upload an SVG to the picture bank', async () => {
+    // The claim changes what a caller IS, never what they may upload — every
+    // write still passes its valid*Upload() content-type and size check.
+    await assertFails(uploadBytes(
+      ref(claimAdminStorage, 'picture-bank/figures/claim-admin.svg'),
+      SVG_BYTES,
+      { contentType: 'image/svg+xml' },
+    ))
+  })
+
+  await test('claim-only teacher CANNOT upload under another user’s /papers/ path', async () => {
+    // ownsPath() still applies — a role claim is not a licence to write into
+    // someone else's folder.
+    await assertFails(uploadBytes(
+      ref(claimTeacherStorage, `papers/${TEACHER_B}/spoof.pdf`),
+      PDF_BYTES,
+      { contentType: 'application/pdf' },
+    ))
+  })
+
+  await test('an UNVERIFIED admin role claim is still refused (isVerified gates every arm)', async () => {
+    const unverifiedClaimAdmin = testEnv
+      .authenticatedContext('unverified_claim_admin', {
+        email: 'unverified_claim_admin@test.zedexams.com',
+        email_verified: false,
+        role: 'admin',
+      })
+      .storage()
+    await assertFails(uploadBytes(
+      ref(unverifiedClaimAdmin, 'picture-bank/figures/unverified.png'),
+      PNG_BYTES,
+      { contentType: 'image/png' },
     ))
   })
 

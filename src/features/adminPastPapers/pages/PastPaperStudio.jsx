@@ -153,11 +153,22 @@ function describeUploadError(err) {
     try { appCheck = getAppCheckClientState() } catch { appCheck = null }
     const attestation = storageWriteRejectionMessage({ code, appCheck })
     if (attestation) return attestation
-    return 'Storage refused this upload. Your account needs the admin (or teacher) '
-      + 'role AND a verified email address, and the file must be a PDF, Word doc, '
-      + 'JPG, PNG or WEBP under 50MB. If you are signed in as an admin, sign out '
-      + 'and back in once — a recently-changed role only reaches Storage after the '
-      + 'sign-in token refreshes.'
+    // Sign-out/in is named FIRST, and as the specific remedy rather than a
+    // closing afterthought, because it is the one that actually fixes the
+    // common case. storage.rules now reads the role from the ID TOKEN's `role`
+    // claim (minted by buildRoleClaims alongside users/{uid}.role), falling
+    // back to a cross-service Firestore lookup only when the token carries no
+    // claim. A session whose token predates the role — or predates the claim
+    // being minted at all, which is every account whose role was edited
+    // straight into Firestore rather than through adminSetUserRole — is on
+    // that fallback, and the fallback is what was failing. Refreshing the
+    // token is what moves the account onto the claim.
+    return 'Storage refused this upload. First try signing out and back in once: '
+      + 'your role travels in the sign-in token, so a session that predates a role '
+      + 'change is refused even though the account is correct. If that does not '
+      + 'help, check that the account has the admin (or teacher) role and a '
+      + 'verified email address, and that the file is a PDF, Word doc, JPG, PNG or '
+      + 'WEBP under 50MB.'
   }
   if (code === 'storage/retry-limit-exceeded' || code === 'storage/canceled') {
     return 'The upload timed out before it finished. Check the connection and try '

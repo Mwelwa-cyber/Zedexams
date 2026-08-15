@@ -179,10 +179,17 @@ export function uploadErrorMessage(error, appCheck = null) {
     // has the role round the sign-out-and-back-in loop.
     const attestation = storageWriteRejectionMessage({ code: 'storage/unauthorized', appCheck })
     if (attestation) return attestation
+    // The token refresh leads, for the same reason it does in the Past Paper
+    // Studio: storage.rules resolves the role from the ID token's `role` claim
+    // and only falls back to a cross-service Firestore lookup when the token
+    // carries none. A session that predates the role change — or predates the
+    // claim being minted at all — is on that fallback, so refreshing the token
+    // is the remedy, not the footnote.
     return 'Upload failed — Storage refused it. This is not the file size (the picture was '
-      + 'already compressed to fit). Your account needs the teacher or admin role and a '
-      + 'verified email address. If you have just been given that role, or just verified your '
-      + 'email, sign out and back in once — Storage only sees the change after the token refreshes.'
+      + 'already compressed to fit). Sign out and back in once first: your role travels in '
+      + 'the sign-in token, so a session that predates a role change is refused even though '
+      + 'the account is correct. If that does not help, check that the account has the '
+      + 'teacher or admin role and a verified email address.'
   }
 
   if (code === 'storage/unauthenticated') {
