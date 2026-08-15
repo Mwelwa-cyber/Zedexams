@@ -39,9 +39,20 @@ const EXEMPT = [
   [/^src\/utils\/(assessmentToDocx|assessmentToPdf|htmlToPdf|fullLessonToPdf|fullLessonToDocx|lessonPlanToPdf|lessonPlanToDocx|.*ToDocx|.*ToPdf|safeRender|paperGolden|monochrome|figureContrast|paperPagination)/i, 'export / print target'],
   [/^src\/utils\/(printable|paperContentModel|figure|diagramCatalog)/i, 'export / print target'],
   [/^src\/components\/teacher\/views\/PaperBlocks/, 'export / print target'],
-  [/^src\/components\/diagrams\//, 'export / print target'],
+  // Repointed 2026-08-15. These rows went dead as their files migrated, and
+  // unlike SURFACE nothing guards EXEMPT — so the effect was silent and
+  // INVERTED. A dead SURFACE row drops a surface OUT of the audit; a dead
+  // EXEMPT row does the opposite, letting artwork and print targets count as
+  // live themed-screen debt. `diagrams/` moved to `src/curriculum/` (#2382);
+  // `ProfessorPako`, `Mascot`, `Icon` and `icons.js` were promoted to
+  // `src/shared/components/` (#2376), while `SubjectIcon` stayed behind, which
+  // is why both roots are listed. Measured: exempt totals move 434 -> 516
+  // across 24 -> 28 files.
+  [/^src\/curriculum\/diagrams\//, 'export / print target'],
   [/^src\/components\/ui\/(ProfessorPako|Mascot|Illustration|.*Icon)/i, 'artwork'],
-  [/^src\/components\/ui\/icons/, 'artwork'],
+  // Anchored on the dot so `Icon.jsx` matches and `HeaderIconButton.jsx` — a
+  // button, not artwork — does not.
+  [/^src\/shared\/components\/(ProfessorPako|Mascot|Illustration|Icon|icons)\./, 'artwork'],
   [/^src\/features\/visualStudio\//, 'image authoring'],
 ]
 const exemptReason = (f) => EXEMPT.find(([re]) => re.test(f))?.[1] || null
