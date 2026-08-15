@@ -19,6 +19,19 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
+
+// The Upload step renders the asset previews, and the PDF preview constructs a
+// ResizeObserver, which jsdom does not implement. Without this the removal
+// tests below take the whole FILE red on an unhandled exception even when
+// every assertion passes.
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+}
+
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 
@@ -68,7 +81,12 @@ vi.mock('../../../utils/pastPapers', async (importOriginal) => {
     getPaper: (...a) => mockGetPaper(...a),
     updatePaper: (...a) => mockUpdatePaper(...a),
     deletePaper: vi.fn(),
-    deletePaperPdf: vi.fn(),
+    // Must resolve: handleRemoveAsset calls `deletePaperPdf(path).catch(…)`,
+    // so a bare vi.fn() returning undefined throws on `.catch` and the removal
+    // reports failure without ever reaching updatePaper. No test exercised the
+    // remove path until the published-paper guard below, which is why this
+    // went unnoticed.
+    deletePaperPdf: vi.fn(async () => {}),
     resolvePaperUrl: vi.fn(async () => ''),
     uploadPaperAsset: (...a) => mockUploadAsset(...a),
     findPaperByKey: (...a) => mockFindPaperByKey(...a),
@@ -465,6 +483,50 @@ describe('PastPaperStudio — the Add quiz deep link', () => {
     renderStudio()
 
     expect(await screen.findByText(/Drag & drop files here/)).toBeInTheDocument()
+  })
+})
+
+describe('PastPaperStudio — a published paper cannot lose its last file', () => {
+  // publish() has always refused to go live with no files. handleRemoveAsset()
+  // had no matching check, so the same invariant could be broken from the other
+  // end: the paper stayed listed in the archive and opened blank.
+  beforeEach(() => { searchQuery = 'step=upload' })
+
+  async function removeFirstFile() {
+    const user = userEvent.setup()
+    const remove = await screen.findAllByRole('button', { name: /remove/i })
+    await user.click(remove[0])
+  }
+
+  it('refuses the removal and writes nothing', async () => {
+    mockGetPaper.mockResolvedValue(savedPaper({ status: 'published' }))
+    renderStudio()
+    await removeFirstFile()
+
+    expect(await screen.findByText(/must have at least one file/i)).toBeInTheDocument()
+    // The write is the thing that matters: a message with the asset removed
+    // anyway would be the bug with a label on it.
+    expect(mockUpdatePaper).not.toHaveBeenCalled()
+  })
+
+  it('offers the way out rather than silently unpublishing', async () => {
+    // A silent auto-unpublish would take the paper off the shelf without the
+    // admin asking or seeing — a worse outcome than a blocked button.
+    mockGetPaper.mockResolvedValue(savedPaper({ status: 'published' }))
+    renderStudio()
+    await removeFirstFile()
+
+    expect(await screen.findByText(/unpublish it first, or replace this file/i)).toBeInTheDocument()
+    expect(mockUpdatePaper).not.toHaveBeenCalled()
+  })
+
+  it('allows the removal on a draft, which is how a wrong upload is replaced', async () => {
+    mockGetPaper.mockResolvedValue(savedPaper({ status: 'draft' }))
+    renderStudio()
+    await removeFirstFile()
+
+    await vi.waitFor(() => expect(mockUpdatePaper).toHaveBeenCalled())
+    expect(mockUpdatePaper.mock.calls[0][1].assets).toEqual([])
   })
 })
 

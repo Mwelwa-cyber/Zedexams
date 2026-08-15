@@ -2869,7 +2869,36 @@ service cloud.firestore {
         // document unwritable is what makes the query safe by construction
         // instead of by convention.
         && (!(incoming().get('sourceConfidence', 'unknown') in ['explicit', 'inferred'])
-            || _validPaperSource(incoming().get('source', '')));
+            || _validPaperSource(incoming().get('source', '')))
+        // A PUBLISHED paper must carry a file. `publish()` in the Past Paper
+        // Studio has always refused to go live with none; nothing guarded the
+        // other direction, so removing the last file from a live paper left it
+        // listed in the archive and blank when a learner opened it. The Studio
+        // now refuses that removal (publishedPaperAssets.canRemovePaperAsset),
+        // and this is the same invariant where a tampered client, a second
+        // tab, or the BULK publish in /admin/content cannot route around it.
+        //
+        // `pdfPath` satisfies it as readily as `assets`: it is the legacy
+        // single-PDF field and both readers PREFER it over the array, so a
+        // paper carrying one is readable with `assets` empty. Requiring the
+        // array specifically would refuse every edit to the older archive.
+        //
+        // Coarser than the client guard, deliberately. The readers build the
+        // paper preview from assets with role != 'mark-scheme', so a paper
+        // holding only a mark scheme is also blank — but rules cannot inspect
+        // the elements of a list, so that half is enforced client-side and by
+        // the repair script. This rule is the floor: SOMETHING is attached.
+        //
+        // Safe on absence, which is the trap #2191 fell into above. That was a
+        // READ rule, so failing closed on un-migrated data blanked the archive
+        // for everyone. This is a WRITE rule: the papers already in this state
+        // stay readable, and the write that FIXES one is explicitly still
+        // allowed, because unpublishing makes the merged status 'draft' and
+        // this clause no longer applies. Attaching a file passes it too. The
+        // only refused write is one that leaves a live paper still empty.
+        && (incoming().get('status', 'draft') != 'published'
+            || (incoming().get('assets', []) is list && incoming().get('assets', []).size() > 0)
+            || (incoming().get('pdfPath', '') is string && incoming().get('pdfPath', '').size() > 0));
     }
     // A published paper is readable by anyone. Full stop.
     //
