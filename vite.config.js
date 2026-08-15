@@ -5,15 +5,39 @@ import { readFileSync, writeFileSync, readdirSync, rmSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { NAVIGATE_FALLBACK_DENYLIST } from './scripts/lib/swNavigateFallback.mjs'
 
+import { buildReleaseName } from './src/utils/releaseName.js'
+
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
+
 /**
- * The Sentry release string. Must be byte-for-byte identical to the one the
- * runtime stamps on every event in src/utils/sentry.js
- * (`zedexams@${VITE_APP_VERSION ?? 'dev'}-${MODE}`), or uploaded source maps
- * won't bind to incoming events and stack traces stay minified.
+ * The app version stamped into the bundle.
+ *
+ * Read from package.json rather than the `VITE_APP_VERSION` secret, because a
+ * version that lives only in CI settings has no reviewer and goes stale
+ * silently — this one sat at 1.1.0 through every deploy while the repo's tags
+ * moved to v1.2.7, so every production build shipped under the same Sentry
+ * release id. In the repo it moves through a PR like anything else.
+ *
+ * Assigned into process.env so Vite picks it up as `import.meta.env.
+ * VITE_APP_VERSION` through its normal env plumbing, which means the runtime
+ * needs no new variable and the CI secret can simply be deleted. Set
+ * unconditionally: an unset secret and a stale one are the same failure, and
+ * letting either win is what caused this.
+ */
+process.env.VITE_APP_VERSION = pkg.version
+
+/**
+ * The Sentry release string for the uploaded source maps. Shares
+ * buildReleaseName() with the runtime (src/utils/sentry.js) so the two cannot
+ * drift — if they ever did, maps would stop binding to events and every
+ * production stack trace would go silently minified.
  */
 function sentryRelease(mode, env) {
-  const version = process.env.VITE_APP_VERSION || env.VITE_APP_VERSION || 'dev'
-  return `zedexams@${version}-${mode}`
+  return buildReleaseName({
+    version: pkg.version,
+    sha: process.env.VITE_BUILD_SHA || env.VITE_BUILD_SHA,
+    mode,
+  })
 }
 
 /**
