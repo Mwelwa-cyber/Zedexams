@@ -314,6 +314,38 @@ test('the role helpers accept superAdmin, like firestore.rules does', () => {
   )
 })
 
+test('the role custom claim is honoured, and is checked BEFORE the Firestore read', () => {
+  // Without this, every role decision needs a cross-service firestore.get from
+  // the Storage rules engine — a mechanism firestore.rules does not use for the
+  // same decision, and one that fails CLOSED: when it stops resolving, every
+  // teacher/admin upload in the product is refused as storage/unauthorized
+  // while Firestore keeps working. The claim is minted by buildRoleClaims()
+  // (functions/security/adminClaims.js) in the same admin-SDK write that sets
+  // users/{uid}.role, so it is the same authority, not a weaker one.
+  assert(
+    /function hasRoleClaim\(role\)/.test(rules),
+    'hasRoleClaim(role) helper missing — the role decision would again require a cross-service Firestore read',
+  )
+  assert(
+    rules.includes("'role' in request.auth.token")
+    && rules.includes('request.auth.token.role == role'),
+    'the role claim must be checked as present AND equal, so a token without it denies closed',
+  )
+  for (const fn of ['function isAdmin()', 'function isTeacherOrAdmin()']) {
+    const body = rules.slice(rules.indexOf(fn), rules.indexOf(fn) + 900)
+    const claimAt = body.indexOf('hasRoleClaim(')
+    const firestoreAt = body.indexOf('firestore.exists(')
+    assert(
+      claimAt !== -1,
+      `${fn} must accept the role claim, not only the Firestore role string`,
+    )
+    assert(
+      firestoreAt !== -1 && claimAt < firestoreAt,
+      `${fn} must check the role claim BEFORE the cross-service Firestore read, so the read is a fallback rather than a hard dependency`,
+    )
+  }
+})
+
 test('the platform-admin break-glass claim is honoured, and denies closed', () => {
   assert(
     /function isPlatformAdmin\(\)/.test(rules),

@@ -403,8 +403,18 @@ describe('PastPaperStudio — upload failures', () => {
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent(/admin \(or teacher\) role/)
     expect(alert).toHaveTextContent(/verified email/)
-    expect(alert).toHaveTextContent(/sign out and back in once/i)
     expect(alert).not.toHaveTextContent('papers/u/p/assets')
+    // The token refresh is the remedy that actually fixes the common case —
+    // storage.rules reads the role from the ID token's `role` claim and only
+    // falls back to a cross-service Firestore lookup when the token has none,
+    // so a session predating the role change is refused on a correct account.
+    // It must be OFFERED FIRST, not left as a closing afterthought: an admin
+    // who reads "check your role" and stops has been sent somewhere there is
+    // nothing to find.
+    expect(alert).toHaveTextContent(/sign(ing)? out and back in once/i)
+    const text = alert.textContent
+    expect(text.search(/sign(ing)? out and back in/i))
+      .toBeLessThan(text.search(/admin \(or teacher\) role/))
   })
 
   it('keeps the files that uploaded before the one that failed', async () => {

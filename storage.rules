@@ -59,6 +59,41 @@ service firebase.storage {
         && request.auth.token.superAdmin == true;
     }
 
+    // The `role` custom claim minted by buildRoleClaims()
+    // (functions/security/adminClaims.js) — the SAME admin-SDK write that sets
+    // users/{uid}.role, so the claim and the document agree by construction.
+    // Trusting it is trusting the authority that wrote the document, not a
+    // second weaker signal: custom claims are settable only by the Admin SDK,
+    // which is exactly why isPlatformAdmin()/hasSuperAdminClaim() above are
+    // already trusted here and in firestore.rules.
+    //
+    // WHY IT IS CHECKED BEFORE THE FIRESTORE ARM (#2394 follow-up). Every role
+    // decision in this file otherwise costs a CROSS-SERVICE lookup —
+    // firestore.exists() + firestore.get() reaching from the Storage rules
+    // engine into Firestore. That is a different, more fragile mechanism than
+    // the in-service get() firestore.rules uses for the identical decision, and
+    // it fails CLOSED: when it does not resolve, `firestore.exists(users/…)`
+    // is false, both role arms collapse, and EVERY teacher/admin upload in the
+    // product is refused as `storage/unauthorized` — past papers, quiz images,
+    // lesson files, branding — while Firestore itself keeps working, because
+    // firestore.rules never leaves its own service. The two services are also
+    // no longer colocated: the (default) database was moved to africa-south1
+    // for latency while the bucket was not, so every upload was paying a
+    // cross-region round trip for a fact the caller's own ID token already
+    // carried.
+    //
+    // So the claim is the fast path and the Firestore read is the FALLBACK,
+    // kept so an account whose claims are stale or were never minted keeps
+    // working exactly as before. Nothing that was allowed becomes denied.
+    //
+    // "Claim present AND equals" mirrors tokenEmailVerified(), so a token
+    // without the claim denies closed rather than erroring.
+    function hasRoleClaim(role) {
+      return isAuthed()
+        && 'role' in request.auth.token
+        && request.auth.token.role == role;
+    }
+
     // ── role helpers — MUST stay in step with firestore.rules ────────────
     // firestore.rules: "Admin and superAdmin are equivalent — both get full
     // read/write access", and its isTeacherOrAbove() accepts
@@ -87,6 +122,8 @@ service firebase.storage {
         && (
           isPlatformAdmin()
           || hasSuperAdminClaim()
+          || hasRoleClaim('admin')
+          || hasRoleClaim('superAdmin')
           || (
             firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
             && (userDoc().data.role == 'admin' || userDoc().data.role == 'superAdmin')
@@ -99,6 +136,9 @@ service firebase.storage {
         && (
           isPlatformAdmin()
           || hasSuperAdminClaim()
+          || hasRoleClaim('teacher')
+          || hasRoleClaim('admin')
+          || hasRoleClaim('superAdmin')
           || (
             firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
             && (
