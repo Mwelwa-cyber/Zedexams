@@ -99,7 +99,14 @@ async function claimEventOnce(db, {scope, eventId, now = Date.now(), ttlMs = 7 *
       scope: String(scope || "event"),
       eventId: String(eventId || ""),
       at: now,
-      expiresAt: now + ttlMs,
+      // A Date, NOT `now + ttlMs`. Firestore TTL reaps only TIMESTAMP fields;
+      // a numeric expiry is silently ignored, so the policy would report as
+      // enabled while processedEvents grew for ever with nothing erroring.
+      // The admin SDK serialises a JS Date to a Timestamp on write, which gets
+      // the right stored type without importing firebase-admin here — this
+      // module is deliberately dependency-free so it tests against a fake db.
+      // Guarded by scripts/check-ttl-policies.mjs (ttl-field-is-timestamp).
+      expiresAt: new Date(now + ttlMs),
     });
     return {claimed: true};
   } catch (err) {

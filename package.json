@@ -332,6 +332,7 @@
     "test:critical-work": "node scripts/test-critical-work.mjs",
     "test:scroll-to-top": "node scripts/test-scroll-to-top.mjs",
     "test:rules-collection-coverage": "node scripts/test-rules-collection-coverage.mjs",
+    "test:ttl-policies": "node scripts/check-ttl-policies.mjs",
     "test:learner-only-routes": "node scripts/test-learner-only-routes.mjs",
     "test:rules-text": "node scripts/test-firestore-rules-text.mjs",
     "test:pdfjs-loader": "node scripts/test-pdfjs-loader.mjs",
