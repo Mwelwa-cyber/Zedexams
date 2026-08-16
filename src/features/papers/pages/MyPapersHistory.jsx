@@ -14,6 +14,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
+import '../papersTheme.css'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { listMyPaperAttempts } from '../../../utils/pastPapers'
@@ -140,7 +141,7 @@ export default function MyPapersHistory() {
   }, [attempts])
 
   return (
-    <div className="min-h-screen theme-bg pb-16">
+    <div className="papers-proto min-h-screen theme-bg pb-16">
       <SeoHelmet
         title="My past-paper practice"
         description="Your timed practice runs across the ECZ past-paper archive."
