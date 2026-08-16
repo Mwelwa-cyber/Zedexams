@@ -11,8 +11,26 @@
  *   - Firebase Auth user exists for the email/uid.
  *   - The Firestore users/{uid} doc exists and its id == the Auth UID.
  *
- * Prereqs:
+ * Credentials — EITHER of these works, no service-account key required:
+ *
+ *   # (a) your own Google account, via Application Default Credentials.
+ *   #     Preferred: nothing long-lived lands on disk.
+ *   gcloud auth application-default login
+ *   gcloud auth application-default set-quota-project examsprepzambia
+ *
+ *   # (b) a service-account key, if you have one already.
  *   export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+ *
+ * With (a) your user needs roles/firebase.admin on the project (Owner
+ * subsumes it) — getUserByEmail, setCustomUserClaims, revokeRefreshTokens and
+ * the users/{uid} read+write all sit under it. The default ADC login grants
+ * the cloud-platform scope, which covers both Identity Toolkit and Firestore;
+ * if a call fails on scope, re-login with an explicit --scopes.
+ *
+ * NOT every Admin SDK call works on ADC user credentials: createCustomToken
+ * has to SIGN a JWT and needs either a service account or an explicit
+ * serviceAccountId plus IAM SignBlob. This script never signs anything, but
+ * the passkey flow does — don't generalise from this script to that one.
  *
  * Usage:
  *   # dry-run (default) — audits + prints the diff, writes nothing
@@ -26,8 +44,13 @@
  *   --uid <id>     Firebase Auth UID of the admin (or use --email).
  *   --email <addr> Look the user up by email instead of UID.
  *   --role <r>     'superAdmin' (default) or 'admin'.
+ *   --project <id> Firebase project id. Defaults to .firebaserc's projects.default.
  *   --live         Actually write. Default is dry-run.
  */
+
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 function parseArgs(argv) {
   const args = { live: false, role: 'superAdmin' }
@@ -37,9 +60,59 @@ function parseArgs(argv) {
     else if (a === '--uid') args.uid = argv[++i]
     else if (a === '--email') args.email = argv[++i]
     else if (a === '--role') args.role = argv[++i]
+    else if (a === '--project') args.project = argv[++i]
     else if (a === '--help' || a === '-h') args.help = true
   }
   return args
+}
+
+/**
+ * Which credential the SDK is about to pick up, named before we use it.
+ *
+ * A script that silently adopts whatever ADC happens to be logged in as, and
+ * then writes to production, should say whose credential it took — the whole
+ * point of dropping the hard GOOGLE_APPLICATION_CREDENTIALS guard is that the
+ * credential is now implicit.
+ */
+export function resolveCredentialSource(env = process.env, adcPathExists = null) {
+  if (env.GOOGLE_APPLICATION_CREDENTIALS) {
+    return { kind: 'service-account-key', detail: env.GOOGLE_APPLICATION_CREDENTIALS }
+  }
+  const home = env.HOME || env.USERPROFILE
+  const adcPath = env.CLOUDSDK_CONFIG
+    ? resolve(env.CLOUDSDK_CONFIG, 'application_default_credentials.json')
+    : home
+      ? resolve(home, '.config/gcloud/application_default_credentials.json')
+      : null
+  const exists = adcPathExists ?? (adcPath ? fileExists(adcPath) : false)
+  if (exists) return { kind: 'adc-user', detail: adcPath }
+  return { kind: 'none', detail: null }
+}
+
+function fileExists(p) {
+  try { readFileSync(p); return true } catch { return false }
+}
+
+/**
+ * A service-account JSON carries its own project_id; `gcloud auth
+ * application-default login` credentials do NOT, and firebase-admin then
+ * throws "Unable to detect a Project Id". So resolve it ourselves, most
+ * explicit first, and fall back to the project the repo already declares.
+ */
+export function resolveProjectId({ flag, env = process.env, firebaserc = null } = {}) {
+  if (flag) return { projectId: flag, from: '--project' }
+  if (env.GOOGLE_CLOUD_PROJECT) return { projectId: env.GOOGLE_CLOUD_PROJECT, from: 'GOOGLE_CLOUD_PROJECT' }
+  if (env.GCLOUD_PROJECT) return { projectId: env.GCLOUD_PROJECT, from: 'GCLOUD_PROJECT' }
+  const fromRc = (firebaserc ?? readFirebaserc())?.projects?.default
+  if (fromRc) return { projectId: fromRc, from: '.firebaserc' }
+  return { projectId: null, from: null }
+}
+
+function readFirebaserc() {
+  try {
+    const here = dirname(fileURLToPath(import.meta.url))
+    return JSON.parse(readFileSync(resolve(here, '..', '.firebaserc'), 'utf8'))
+  } catch { return null }
 }
 
 async function main() {
@@ -55,8 +128,21 @@ async function main() {
     process.exit(1)
   }
 
-  if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    console.error('ERROR: set GOOGLE_APPLICATION_CREDENTIALS to your service-account JSON path.')
+  // Either credential is fine; neither is not. initializeApp() throws
+  // opaquely when nothing resolves, so preflight and name both options.
+  const credential = resolveCredentialSource()
+  if (credential.kind === 'none') {
+    console.error('ERROR: no credentials. Use EITHER of:')
+    console.error('  gcloud auth application-default login')
+    console.error(`  gcloud auth application-default set-quota-project ${resolveProjectId().projectId || '<project-id>'}`)
+    console.error('or:')
+    console.error('  export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json')
+    process.exit(1)
+  }
+
+  const { projectId, from: projectFrom } = resolveProjectId({ flag: args.project })
+  if (!projectId) {
+    console.error('ERROR: could not resolve a project id. Pass --project <id>, or set GOOGLE_CLOUD_PROJECT.')
     process.exit(1)
   }
 
@@ -68,7 +154,11 @@ async function main() {
     process.exit(1)
   }
 
-  admin.initializeApp()
+  // projectId is passed explicitly because ADC user credentials carry none.
+  admin.initializeApp({ projectId })
+  console.log(`# credential:    ${credential.kind}${credential.detail ? ` (${credential.detail})` : ''}`)
+  console.log(`# project:       ${projectId} (from ${projectFrom})`)
+  console.log(`# mode:          ${args.live ? 'LIVE — will write' : 'dry-run — writes nothing'}`)
   const auth = admin.auth()
   const db = admin.firestore()
   const { FieldValue, Timestamp } = admin.firestore
@@ -174,7 +264,23 @@ async function main() {
   console.log(`✓ custom claim role=${args.role} set; refresh tokens revoked (user must re-login once).`)
 }
 
-main().catch((err) => {
+// Only run the CLI when invoked directly — the resolvers above are imported
+// by scripts/test-grant-superadmin-config.mjs, and importing this file must
+// not start writing to production.
+const invokedDirectly = !!process.argv[1]
+  && resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+
+if (invokedDirectly) main().catch((err) => {
+  // ADC user credentials commonly fail Firestore / Identity Toolkit with
+  // USER_PROJECT_DENIED until a quota project is set. The raw error does not
+  // say that, so name the remedy rather than leaving it to be googled.
+  const text = `${err?.code || ''} ${err?.message || ''}`
+  if (/USER_PROJECT_DENIED|quota project|serviceusage/i.test(text)) {
+    const { projectId } = resolveProjectId()
+    console.error('ERROR: the credential has no quota project set for this API.')
+    console.error(`  gcloud auth application-default set-quota-project ${projectId || '<project-id>'}`)
+    console.error('')
+  }
   console.error(err)
   process.exit(1)
 })

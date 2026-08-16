@@ -16,17 +16,29 @@
 
 const {HttpsError} = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
-const {
-  generateRegistrationOptions,
-  verifyRegistrationResponse,
-  generateAuthenticationOptions,
-  verifyAuthenticationResponse,
-} = require("@simplewebauthn/server");
 const {assertVerifiedAuth, assertActiveAccount} = require("../authGuard");
 const {assertCallableRateLimit} = require("../rateLimit");
 const core = require("./passkeyCore");
 
 const {PASSKEY_ERROR_CODES: CODES, PASSKEY_AUDIT_EVENTS: EVENTS} = core;
+
+/**
+ * @simplewebauthn/server is loaded on the first passkey call, not at module
+ * load.
+ *
+ * functions/index.js requires this module, so its 17.7 MiB of RSS and ~114 ms
+ * of load were charged to all 196 exports for a library only the four passkey
+ * flow callables use — and passkeys are behind a feature flag that defaults to
+ * OFF, so on current production traffic nothing reaches it at all.
+ *
+ * This does NOT weaken the "no custom cryptography" rule stated at the top of
+ * this file: the same library performs the same verification, it is simply
+ * resolved when a passkey request arrives. Node caches the module, so only the
+ * first passkey call on an instance pays for it.
+ */
+function webauthn() {
+  return require("@simplewebauthn/server");
+}
 
 // ── Relying-party configuration ──────────────────────────────────────────
 // Environment-managed (functions env / .env.local for emulator), never
@@ -280,7 +292,7 @@ async function runGeneratePasskeyRegistrationOptions(request) {
 
   const userHandle = await getOrCreateUserHandle(uid);
   const email = request.auth.token?.email || profileSnap.data()?.email || "ZedExams user";
-  const options = await generateRegistrationOptions({
+  const options = await webauthn().generateRegistrationOptions({
     rpName: RP_NAME,
     rpID: rpId(),
     userID: Buffer.from(userHandle, "base64url"),
@@ -322,7 +334,7 @@ async function runVerifyPasskeyRegistration(request) {
 
   let verification;
   try {
-    verification = await verifyRegistrationResponse({
+    verification = await webauthn().verifyRegistrationResponse({
       response,
       expectedChallenge: (clientChallenge) =>
         core.sha256Hex(clientChallenge) === challengeHash,
@@ -420,7 +432,7 @@ async function runGeneratePasskeyAuthenticationOptions(request, meta = {}) {
   if (!flags.enabled) throw disabledError();
   timer.mark("preChecks");
 
-  const options = await generateAuthenticationOptions({
+  const options = await webauthn().generateAuthenticationOptions({
     rpID: rpId(),
     userVerification: "required",
     allowCredentials: [], // discoverable credentials — the authenticator picks
@@ -486,7 +498,7 @@ async function runVerifyPasskeyAuthentication(request, meta = {}) {
 
   let verification;
   try {
-    verification = await verifyAuthenticationResponse({
+    verification = await webauthn().verifyAuthenticationResponse({
       response,
       expectedChallenge: (clientChallenge) =>
         core.sha256Hex(clientChallenge) === challengeHash,

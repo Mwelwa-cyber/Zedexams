@@ -43,7 +43,7 @@ const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("./authGuard");
 const {isAdminRole} = require("./aiService");
 const {defineSecret} = require("firebase-functions/params");
-const nodemailer = require("nodemailer");
+// nodemailer is required lazily at its use site — see invoiceGenerator.js.
 
 const {aggregateProgress} = require("./parentPortalShared");
 const {
@@ -86,6 +86,8 @@ function getTransporter() {
   if (cachedTransporter) return cachedTransporter;
   const senderEmail = String(emailSmtpUser.value() || "").trim();
   if (!senderEmail) return null;
+  // Lazy require, matching opsAlert.js — see the note in invoiceGenerator.js.
+  const nodemailer = require("nodemailer");
   cachedTransporter = nodemailer.createTransport({
     host: "mail.privateemail.com",
     port: 587,

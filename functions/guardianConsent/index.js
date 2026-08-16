@@ -33,7 +33,7 @@ const {onCall, onRequest, HttpsError} = require("firebase-functions/v2/https");
 const {defineSecret} = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const crypto = require("crypto");
-const nodemailer = require("nodemailer");
+// nodemailer is required lazily at its use site — see invoiceGenerator.js.
 
 const {applyCors} = require("../cors");
 const {enforceRateLimit, standardBuckets, resolveClientIp} = require("../rateLimit");
@@ -97,6 +97,8 @@ function validateGuardianContact(data) {
 async function sendEmailMessage({to, subject, text}) {
   const senderEmail = String(emailSmtpUser.value() || "").trim();
   const senderDomain = senderEmail.split("@")[1] || "zedexams.com";
+  // Lazy require, matching opsAlert.js — see the note in invoiceGenerator.js.
+  const nodemailer = require("nodemailer");
   const transporter = nodemailer.createTransport({
     host: "mail.privateemail.com",
     port: 587,

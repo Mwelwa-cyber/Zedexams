@@ -20,7 +20,7 @@
 
 const admin = require("firebase-admin");
 const PDFDocument = require("pdfkit");
-const nodemailer = require("nodemailer");
+// nodemailer is required lazily in getTransporter() — see the note there.
 const crypto = require("node:crypto");
 
 const {
@@ -186,6 +186,11 @@ let cachedTransporter = null;
 function getTransporter(senderEmail, senderPassword) {
   if (cachedTransporter) return cachedTransporter;
   if (!senderEmail || !senderPassword) return null;
+  // Lazy require, matching opsAlert.js: nodemailer costs 17.8 MiB of RSS and
+  // ~47 ms, charged to all 196 exports through functions/index.js. It is
+  // required only once SMTP is confirmed configured, so an instance that never
+  // sends an invoice never loads it.
+  const nodemailer = require("nodemailer");
   cachedTransporter = nodemailer.createTransport({
     host: "mail.privateemail.com",
     port: 587,
