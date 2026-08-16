@@ -5,6 +5,27 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-08-16
+
+### Changed
+
+- Learner redesign step 4a: games hub reskin + the Number Path engine (#2419)
+- Fill the Phase 1 scaffold, and record the three areas the layering blocks (#2415)
+- Pre-launch hardening: settings allowlist, role-claim fast path, DAU/retention rollup (#2417)
+- Learner redesign step 3: the note reader engine (#2418)
+- Put every loading state on one tempo, one easing, one accent (#2413)
+- Replace the launch paywall with a tiered gating system (#2411)
+- Admin shell: one nav registry, a link guard, and a real command palette (#2408)
+- Learner redesign step 2b: Papers reskin (hub + viewer) to the prototype palette (#2416)
+- Papers: PDF papers scroll like image papers (#2410)
+- Memoise the AuthContext actions and value (#2407)
+- Learner redesign step 2: exam timetable + Home chip + Papers-tab row (#2414)
+- Refuse a self-targeted role or status change on the server (#2406)
+- Learner redesign step 1: prototype-v3 tokens + shell (#2409)
+- Give early-childhood work a folder, and let teachers re-file (#2405)
+- Cut Cloud Functions cold start by 69% and trim the eager frontend payload (#2404)
+- Close the self-role-change hole in the payments panel; let grant-superadmin run on ADC (#2403)
+
 ## 2026-08-15
 
 ### Changed
