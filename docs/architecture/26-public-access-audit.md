@@ -52,7 +52,7 @@ Every entry below is read-only for clients; writes are Admin-SDK / admin-only.
 
 | Path | Public read scope | Business reason | Write path |
 |---|---|---|---|
-| `settings/{id}` | `if true` (all docs) | Site config the SPA needs pre-auth (`global`, `fxRate`, `quizLibrary`) | admin only |
+| `settings/{id}` | `if true` for `global` + `quizLibrary` ONLY; every other id is admin-read | Site config the SPA needs pre-auth: `global` (site name, maintenance flag, registration toggle — read by `passkeyService.js` before sign-in) and `quizLibrary` (quiz summary index behind the public runner). `fxRate` is consumed only by `/admin/company` + the server-side budget governor, so it moved behind admin read | admin only |
 | `examTimetables/{id}` | `if true` | Published ECZ exam schedules; `/timetable` renders pre-auth | admin (seed script) |
 | `announcements/{id}` | `if true` | Non-secret platform banners | admin |
 | `pastPapers/{id}` | `status == 'published'` (drafts/archived admin-only) | SEO/marketing archive index | admin only, schema-validated |
@@ -179,12 +179,14 @@ the previous ruleset behaves identically for all currently-matched paths.
 
 ## Residual risks (tracked, not introduced here)
 
-- **`settings/{settingId}` is `read: if true` across the wildcard.** Only
-  non-sensitive config docs are stored there today (`global`, `fxRate`,
-  `quizLibrary`). If any sensitive doc is ever written under `settings/`, it
-  leaks. Recommend pinning reads to a known public id (e.g. `settings/global`,
-  `settings/public`) or splitting a `publicSettings/` collection before storing
-  anything operational there.
+- ~~**`settings/{settingId}` is `read: if true` across the wildcard.**~~
+  **CLOSED.** Public read is now pinned to an explicit allowlist —
+  `isPublicSettingsDoc(settingId)` permits `global` and `quizLibrary`; every
+  other id (including `fxRate` and the internal `curriculumUpdateSourceState`
+  scraper state) falls through to `isAdmin()`. A sensitive doc written under
+  `settings/` in future is admin-read by default rather than public by default,
+  which is the property this entry asked for. Adding a new PUBLIC settings doc
+  is now a deliberate one-line edit to the allowlist.
 - **SEC-M4 — `agentControl` readable by any verified user.** Circuit-breaker /
   `autoPublish` state is low-harm but should tighten to admin read.
 - **SEC-M2 — App Check observe-only.** Public reads (e.g. `pastPapers`,

@@ -27,6 +27,7 @@ import { db, auth } from '../../../firebase/config'
 import { describeFirestoreReadError, withFirestoreReadTimeout } from '../../../utils/firestoreTimeout'
 import { levelUpInfo } from '../../../utils/gameProgress'
 import { buildGameScorePayload } from '../../../utils/gameScorePayload.js'
+import { capture as captureAnalytics } from '../../../utils/analytics'
 
 /* ─────────────────────────────────────────────────────────────────
  *  Taxonomy used by the Grade → Subject → Games list UI
@@ -156,6 +157,22 @@ export async function saveScore({ game, score, accuracy, timeSpent, correct, wro
     } catch (err) {
       console.warn('learner intelligence update skipped', err?.code || err?.message)
     }
+    // Completion counterpart to `game_started` (HomeSections.jsx). Without it
+    // there is no game abandonment rate — starts were measured and finishes
+    // were not, so a game that learners quit halfway looked identical to one
+    // they loved. Aggregate fields only: no answers, no question content.
+    // Fires here rather than in each game component because every game — the
+    // dashboard challenge card, the games list, direct /games/play/:id, and
+    // "play again" — funnels its finished round through saveScore().
+    captureAnalytics('game_completed', {
+      gameId: game?.id ?? null,
+      subject: game?.subject ?? null,
+      grade: typeof game?.grade === 'number' ? game.grade : null,
+      score: typeof score === 'number' ? score : null,
+      accuracy: typeof accuracy === 'number' ? accuracy : null,
+      timeSpent: typeof timeSpent === 'number' ? timeSpent : null,
+      bestStreak: typeof bestStreak === 'number' ? bestStreak : null,
+    })
     return { ok: true, id: ref.id, intelligence }
   } catch (err) {
     console.error('saveScore failed', err)

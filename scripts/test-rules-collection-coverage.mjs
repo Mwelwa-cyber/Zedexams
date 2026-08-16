@@ -195,7 +195,7 @@ const COVERED = [
   'opsMonitorState',
   'passkeyAuditLog', 'passkeyCredentials', 'passkeyUserHandles', 'pastPapers',
   'processedWebhookEvents',
-  'pastPapersIndex', 'payments', 'progressShares', 'publicStats', 'questionBank',
+  'pastPapersIndex', 'payments', 'platformStats', 'progressShares', 'publicStats', 'questionBank',
   'quizzes', 'rateLimits', 'referralCodes', 'results', 'schoolLicences', 'schools',
   'scores', 'securityAuditLogs', 'settings', 'shares', 'subscriptionEvents',
   // Cleared by the Phase 3 games cutover: a finished `timed_quiz` round writes
@@ -276,7 +276,7 @@ const PARSER_SELF_CHECK = [
   ['deletionRequests', 'server-only', 'no-client-read'], // allow read, write: if false
   ['publicStats', 'server-only', 'public-read'],         // read: true; create,delete,update: false
   ['results', 'client-write', 'conditional-read'],
-  ['settings', 'admin-only', 'public-read'],
+  ['settings', 'admin-only', 'conditional-read'], // read: isPublicSettingsDoc(id) || isAdmin()
 ]
 
 // ── Run ──────────────────────────────────────────────────────────────────────
