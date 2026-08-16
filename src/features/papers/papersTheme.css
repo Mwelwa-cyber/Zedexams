@@ -20,7 +20,13 @@
   --text-muted: #8a8fb5;
   --border: #e4e7fb;
 
-  --accent: #ff5c39;
+  /* The prototype's coral (#ff5c39) reads 3.07:1 under white small text,
+     so the FLAT accent fill is deepened until the on-accent ink clears
+     WCAG AA (4.86:1) — the same shift admin-game-theme made to its
+     terracotta, and `contrast:routes` gates /papers on it. The bright
+     coral survives on the GRADIENT surfaces (timetable row, reader's
+     Start Quiz), which carry large bold labels. */
+  --accent: #c94418;
   --accent-bg: #fff0e8;
   --accent-fg: #e8622f;
   --accent-text: #ffffff;
