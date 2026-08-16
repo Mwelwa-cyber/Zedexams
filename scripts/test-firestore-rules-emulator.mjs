@@ -1927,6 +1927,35 @@ async function main() {
     await assertSucceeds(getDoc(doc(unverified, 'settings', 'global')))
   })
 
+  // The settings read is an explicit ALLOWLIST, not a collection-wide `if true`.
+  // The test above passes under BOTH the old wildcard and the new allowlist, so
+  // on its own it proves nothing about the closure. These pin the other three
+  // corners: the second allowlisted id still opens, a non-allowlisted id is shut
+  // to a signed-in non-admin, and an admin can still reach it. Without the
+  // negative case, widening the allowlist back to a wildcard stays green.
+  await test('anonymous CAN read the allowlisted quizLibrary settings doc', async () => {
+    // The public quiz runner fetches this before any sign-in state exists, so a
+    // regression here breaks /quizzes for logged-out visitors.
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'settings', 'quizLibrary'), { quizzes: [] })
+    })
+    await assertSucceeds(getDoc(doc(guest, 'settings', 'quizLibrary')))
+  })
+
+  await test('a NON-allowlisted settings doc is closed to anonymous and to a learner', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'settings', 'fxRate'), { usdToZmw: 27.5 })
+    })
+    await assertFails(getDoc(doc(guest, 'settings', 'fxRate')))
+    await assertFails(getDoc(doc(learnerA, 'settings', 'fxRate')))
+  })
+
+  await test('an admin CAN still read a non-allowlisted settings doc', async () => {
+    // fxRate's only reader is /admin/company (CompanyHQ.jsx, behind AdminRoute)
+    // plus the server-side budget governor, which uses the admin SDK.
+    await assertSucceeds(getDoc(doc(admin, 'settings', 'fxRate')))
+  })
+
   // ── default-deny fallback ────────────────────────────────────
   section('default-deny — unlisted collections are denied for every identity')
 
