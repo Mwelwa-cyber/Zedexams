@@ -96,6 +96,29 @@ All fixes are **fail-open** with respect to limiter/infra errors (a Firestore bl
 > note after each says what was actually built and where it differs from what
 > was recommended. Two of them differ deliberately (4 and 5) and say why.
 >
+> **Re-verified 2026-08-16** by running the suites each entry names, not by
+> re-reading the entries — `test:webhook-ledger`, `test:appcheck-http`,
+> `test:ai-provider-inventory`, `test:library-download`,
+> `test:http-request-guard`, all green, and item 6's `getUserRole` /
+> `isAdminRole` pattern confirmed in `functions/teacherTools/syllabusOverrides.js`.
+> Worth doing because the Phase 5 batch-3 commit, written hours before these
+> landed, still says the burn-down is outstanding — and a commit message never
+> learns.
+>
+> **A SEVENTH item existed outside this list and outlasted it**: the two
+> fail-open defaults recorded in `docs/architecture.md` §7 — moderation on
+> provider error, rate limiting on Firestore error. Rate limiting was already
+> covered (`rate_limit_degraded` + the `rateLimitHealth.js` canary). Moderation
+> was not: it failed open with a bare `console.warn` that named the provider
+> error but never the OUTCOME, so learner text passing UNSCREENED left no record
+> distinguishable from a clean screen — and `functionErrorWatch`, the only thing
+> watching server logs since #2230, filters `severity>=ERROR`, so a WARNING was
+> invisible to it rather than merely quiet. **Closed 2026-08-16**: a structured
+> `moderation_degraded` record, ERROR when it failed open and WARN when it
+> failed closed, with the fail-open default itself deliberately unchanged
+> (`MODERATION_FAIL_CLOSED` already flips it; knowing was the missing part).
+> `test:moderation-core`, `test:moderation`.
+>
 > **Re-derive before trusting any of this** — it is a 2026-07-18 audit with
 > later annotations, not a live source of truth.
 

@@ -8,6 +8,7 @@ const {
   DEFAULT_BLOCKED_CATEGORIES,
   evaluateModeration,
   decideContentOutcome,
+  describeModerationDegradation,
 } = require("./contentModerationCore");
 
 let passed = 0;
@@ -76,6 +77,49 @@ function result({flagged = false, categories = {}}) {
   // Missing apiResult without explicit errored flag is treated as a service error too.
   const missing = decideContentOutcome({apiResult: null});
   ok("missing result → service_error (fail-open default)", missing.allowed && missing.reason === "service_error");
+}
+
+// ── describeModerationDegradation ─────────────────────────────────────────
+//
+// The property under test is not "it logs" — it is that a fail-OPEN is
+// distinguishable from a fail-CLOSED, and reaches ERROR. functionErrorWatch
+// filters severity>=ERROR and is the only thing watching server logs, so a
+// WARNING here is the same as silence.
+{
+  const failOpen = decideContentOutcome({apiResult: null, errored: true, failClosed: false});
+  const open = describeModerationDegradation({outcome: failOpen, label: "aiChat:input", error: "moderation HTTP 503"});
+  ok("fail-open is reported", open !== null);
+  ok("fail-open is ERROR severity (a WARNING never reaches functionErrorWatch)", open.severity === "error");
+  ok("fail-open records that the text was UNSCREENED", open.unscreened === true);
+  ok("event name is greppable and stable", open.event === "moderation_degraded");
+  ok("call-site label is carried", open.label === "aiChat:input");
+  ok("provider error is carried", open.error === "moderation HTTP 503");
+
+  const failClosed = decideContentOutcome({apiResult: null, errored: true, failClosed: true});
+  const closed = describeModerationDegradation({outcome: failClosed, label: "aiChat:input"});
+  ok("fail-closed is reported too", closed !== null);
+  ok("fail-closed is WARN, not ERROR — safety held, only availability suffered", closed.severity === "warn");
+  ok("fail-closed records that nothing passed unscreened", closed.unscreened === false);
+
+  // CONTROL: the two cases must not collapse into one. A describe() that
+  // returned a constant severity would pass every assertion above except this.
+  ok("the two failure modes differ in severity", open.severity !== closed.severity);
+
+  // A screen that actually RAN is not a degradation, in either direction.
+  const clean = decideContentOutcome({apiResult: result({flagged: false, categories: {}})});
+  ok("a clean screen reports nothing", describeModerationDegradation({outcome: clean}) === null);
+  const blocked = decideContentOutcome({apiResult: result({flagged: true, categories: {"self-harm": true}})});
+  ok("a BLOCKED verdict is not a degradation — the screen worked", describeModerationDegradation({outcome: blocked}) === null);
+
+  // Defensive: never throw on a missing/!odd outcome, since the caller is on
+  // the child-facing request path.
+  ok("no outcome → null, not a throw", describeModerationDegradation({}) === null);
+  ok("no args at all → null, not a throw", describeModerationDegradation() === null);
+
+  // The error string is bounded — it lands in a log line, and a provider can
+  // return an arbitrarily long body.
+  const long = describeModerationDegradation({outcome: failOpen, error: "x".repeat(500)});
+  ok("provider error is truncated to 200 chars", long.error.length === 200);
 }
 
 console.log(`All contentModerationCore tests passed (${passed} assertions).`);
