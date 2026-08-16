@@ -7,7 +7,7 @@
 import { useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
-import LearnerShell from '../components/LearnerShell'
+import LearnerHeader from '../components/LearnerHeader'
 import LearnerIcon, { subjectIconName } from '../components/LearnerIcon'
 import { ProgressBar, ErrorState, SectionSkeleton, EmptyState } from '../components/LearnerPrimitives'
 import useLearnerDashboard from '../hooks/useLearnerDashboard'
@@ -32,7 +32,8 @@ export default function LearnPage() {
   const subjects = data?.subjects || []
 
   return (
-    <LearnerShell activeTerm={activeTerm} greeting={false}>
+    <>
+      <LearnerHeader showGreeting={false} />
       <div>
         <h1 className="lhx-page-title">Learn</h1>
         <p className="lhx-page-sub">Lessons, notes and topics for your grade{activeTerm ? ` · Term ${activeTerm}` : ''}</p>
@@ -90,6 +91,6 @@ export default function LearnPage() {
           </div>
         )}
       </section>
-    </LearnerShell>
+    </>
   )
 }
