@@ -32,6 +32,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { useGameFinish } from '../hooks/useGameFinish'
 import { reportGameStart } from '../services/gamesService'
 import { playCorrect, playWrong, playWin, primeSounds } from '../lib/gameSounds'
+import { BadgePop, GameTopBar, WinScreen, buildSaveNote } from './protoGameChrome'
 import {
   NODE_POS,
   PATH_VIEW_HEIGHT,
@@ -54,7 +55,6 @@ import {
 } from '../lib/numberPathCore'
 
 const ZED_ART = '/images/characters/zed-zara-reading.webp'
-const CONFETTI_BITS = ['🎉', '⭐', '✨', '🎊', '🧡', '💜']
 
 const progressKey = (gameId) => `zx:number-path:${gameId || 'default'}`
 
@@ -251,13 +251,7 @@ function PlayScreen({ level, best, onExit, onEnd }) {
   return (
     <>
       <div className="lhx-nt-head">
-        <div className="lhx-nt-top">
-          <button type="button" className="lhx-nt-x" aria-label="Leave the round" onClick={onExit}>✕</button>
-          <div className="lhx-nt-timebar" role="timer" aria-label={`${time} seconds left`}>
-            <i style={{ width: `${Math.max(0, (time / timeMax) * 100)}%` }} />
-          </div>
-          <div className="lhx-nt-score">⭐ {score}</div>
-        </div>
+        <GameTopBar onExit={onExit} time={time} timeMax={timeMax} score={score} />
         <div className="lhx-nt-goal">
           <div className="lhx-nt-goal-lab">MAKE THIS NUMBER</div>
           <div className="lhx-nt-goal-num">{target}</div>
@@ -281,95 +275,6 @@ function PlayScreen({ level, best, onExit, onEnd }) {
       </div>
       <div className={`lhx-nt-combo ${combo.show ? 'is-show' : ''}`} aria-hidden="true">{combo.text}</div>
     </>
-  )
-}
-
-/* ── Win screen ────────────────────────────────────────────────── */
-
-function WinScreen({ level, score, saveResult, streakResult, signedIn, onContinue }) {
-  const stars = starsForScore(score)
-  const confetti = useMemo(
-    () =>
-      Array.from({ length: 20 }, (_, i) => ({
-        bit: CONFETTI_BITS[i % CONFETTI_BITS.length],
-        left: `${(i * 17 + 5) % 95}%`,
-        duration: `${2.5 + ((i * 7) % 20) / 10}s`,
-        delay: `${((i * 13) % 12) / 10}s`,
-      })),
-    [],
-  )
-
-  const saveNote = !signedIn
-    ? 'Sign in to save your score, earn badges and climb the leaderboard.'
-    : saveResult && !saveResult.ok
-      ? 'Score not saved — check your connection and play again.'
-      : streakResult?.isDaily
-        ? `🔥 Daily challenge done — ${streakResult.streak}-day streak!`
-        : null
-
-  return (
-    <div className="lhx-win">
-      {confetti.map((c, i) => (
-        <span
-          key={i}
-          className="lhx-confetti"
-          style={{ left: c.left, animationDuration: c.duration, animationDelay: c.delay }}
-          aria-hidden="true"
-        >
-          {c.bit}
-        </span>
-      ))}
-      <div className="lhx-win-middle">
-        <div className="lhx-win-stars" aria-label={`${stars} of 3 stars`}>
-          {'⭐'.repeat(stars)}{'☆'.repeat(3 - stars)}
-        </div>
-        <h2 className="lhx-win-title">Level {level} complete!</h2>
-        <p className="lhx-win-sub">
-          {level < TOTAL_LEVELS ? `You've unlocked Level ${level + 1}. Keep going!` : 'You finished the whole path! 🎉'}
-        </p>
-        <div className="lhx-win-cards">
-          <div className="lhx-win-stat ws-xp">
-            <div className="lhx-win-stat-label">XP EARNED</div>
-            <div className="lhx-win-stat-body">+{score}</div>
-          </div>
-          <div className="lhx-win-stat ws-score">
-            <div className="lhx-win-stat-label">SCORE</div>
-            <div className="lhx-win-stat-body">{score}</div>
-          </div>
-        </div>
-        {saveNote && <p className="lhx-win-note">{saveNote}</p>}
-      </div>
-      <button type="button" className="lhx-btn lhx-btn-primary lhx-btn-block" onClick={onContinue}>
-        CONTINUE ▸
-      </button>
-    </div>
-  )
-}
-
-/** One-at-a-time celebration pop for badges earned this round. */
-function BadgePop({ badges }) {
-  const [index, setIndex] = useState(-1)
-  useEffect(() => {
-    if (!badges.length) return undefined
-    setIndex(0)
-    const timers = []
-    for (let i = 1; i <= badges.length; i += 1) {
-      timers.push(setTimeout(() => setIndex(i < badges.length ? i : -1), i * 2200))
-    }
-    return () => timers.forEach(clearTimeout)
-  }, [badges])
-  const badge = index >= 0 ? badges[index] : null
-  return (
-    <div className={`lhx-bpop ${badge ? 'is-show' : ''}`} role="status" aria-live="polite">
-      {badge && (
-        <>
-          <div className="lhx-bpop-ic">{badge.icon}</div>
-          <div className="lhx-bpop-lab">NEW BADGE!</div>
-          <div className="lhx-bpop-nm">{badge.name}</div>
-          <div className="lhx-bpop-desc">{badge.description}</div>
-        </>
-      )}
-    </div>
   )
 }
 
@@ -425,11 +330,15 @@ export default function NumberTargetGame({ game }) {
         )}
         {screen === 'win' && (
           <WinScreen
-            level={playingLevel}
+            stars={starsForScore(finalScore)}
+            title={`Level ${playingLevel} complete!`}
+            sub={
+              playingLevel < TOTAL_LEVELS
+                ? `You've unlocked Level ${playingLevel + 1}. Keep going!`
+                : 'You finished the whole path! 🎉'
+            }
             score={finalScore}
-            saveResult={saveResult}
-            streakResult={streakResult}
-            signedIn={!!currentUser}
+            saveNote={buildSaveNote({ signedIn: !!currentUser, saveResult, streakResult })}
             onContinue={() => setScreen('path')}
           />
         )}
