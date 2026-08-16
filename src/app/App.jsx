@@ -245,6 +245,7 @@ const GamesHub = lazy(() => import('../features/games/pages/GamesHub'))
 const SubjectSelector = lazy(() => import('../features/games/pages/SubjectSelector'))
 const GameList = lazy(() => import('../features/games/pages/GameList'))
 const PlayGame = lazy(() => import('../features/games/pages/PlayGame'))
+const DuelRace = lazy(() => import('../features/games/pages/DuelRace'))
 const GlobalLeaderboard = lazy(() => import('../features/games/pages/GlobalLeaderboard'))
 
 // Admin — games seed importer
@@ -552,6 +553,9 @@ export default function App() {
           <Route path="/games/g/:grade"                element={<SubjectSelector />} />
           <Route path="/games/g/:grade/:subject"       element={<GameList />} />
           <Route path="/games/play/:gameId"            element={<PlayGame />} />
+          {/* Race Zed! — the honest duel: full-screen chrome of its own,
+              so it mounts bare like the play surface. */}
+          <Route path="/games/duel"                    element={<DuelRace />} />
 
           {/* ── Learner routes ─────────────────────────────────── */}
           {/* The prototype-v3 learner shell (2026-08 redesign). The chrome

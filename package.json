@@ -260,6 +260,7 @@
     "test:word-builder": "node scripts/test-word-builder.mjs",
     "test:meaning-match": "node scripts/test-meaning-match.mjs",
     "test:punctuation": "node scripts/test-punctuation.mjs",
+    "test:duel": "node scripts/test-duel.mjs",
     "test:game-feel": "node scripts/test-game-feel.mjs",
     "test:game-progress": "node scripts/test-game-progress.mjs",
     "test:csv-import": "node scripts/test-csv-import.mjs",

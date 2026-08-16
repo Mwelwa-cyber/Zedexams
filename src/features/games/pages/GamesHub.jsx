@@ -184,6 +184,18 @@ export default function GamesHub() {
         </Link>
       )}
 
+      {/* Race Zed! — the honest duel (the prototype's LIVE CHALLENGE
+          card, reframed: the opponent is openly our robot). */}
+      <Link to="/games/duel" className="lhx-duel-card">
+        <div className="lhx-daily-emoji" aria-hidden="true">⚔️</div>
+        <div className="lhx-daily-body">
+          <div className="lhx-daily-label">CHALLENGE MODE</div>
+          <div className="lhx-daily-name">Race Zed!</div>
+          <div className="lhx-daily-sub">5 quick questions · beat our robot before the clock does</div>
+        </div>
+        <span className="lhx-play-pill">Play</span>
+      </Link>
+
       {/* XP / level card. */}
       <div className="lhx-xp">
         <div className="lhx-xp-top">
