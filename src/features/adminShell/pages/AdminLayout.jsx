@@ -1,33 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
-  LayoutDashboard,
-  Presentation,
-  BookOpen,
-  PencilLine,
-  FolderOpen,
-  BellRing,
-  TrendingUp,
-  CreditCard,
-  Home,
   Menu,
   X,
   LogOut,
-  Users,
-  GraduationCap,
-  Settings,
-  Bot,
-  FileText,
-  Sparkles,
-  Upload,
-  ShieldCheck,
-  Bell,
-  ChartBarIcon,
   Search,
-  Lightbulb,
-  LayoutGrid,
-  Globe,
 } from '../../../shared/components/icons'
+import {
+  ADMIN_NAV_SECTIONS,
+  ADMIN_PALETTE_SECTIONS,
+  ADMIN_SWITCH_ITEMS,
+} from '../lib/adminNav'
 import { useAuth } from '../../../contexts/AuthContext'
 import Icon from '../../../shared/components/Icon'
 import ErrorBoundary from '../../../shared/components/ErrorBoundary'
@@ -58,83 +41,26 @@ function AdminBrand({ compact = false }) {
   )
 }
 
-// Grouped navigation. Each entry can carry a `badgeKey` referencing the
-// `badges` map computed below (pending counts), so admins can see how
-// much is waiting in approvals + agent queue without leaving the page.
-const NAV_SECTIONS = [
-  {
-    label: 'Overview',
-    items: [
-      { to: '/admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
-      { to: '/admin/company', icon: LayoutGrid, label: 'AI Company' },
-      { to: '/admin/analytics', icon: ChartBarIcon, label: 'Analytics' },
-    ],
-  },
-  {
-    label: 'Users',
-    items: [
-      { to: '/admin/users', icon: Users, label: 'All users' },
-      { to: '/admin/learners', icon: GraduationCap, label: 'Learners' },
-      { to: '/admin/teachers', icon: GraduationCap, label: 'Teachers' },
-      { to: '/admin/admins', icon: ShieldCheck, label: 'Admins' },
-    ],
-  },
-  {
-    label: 'Content',
-    items: [
-      { to: '/admin/content', icon: FolderOpen, label: 'Manage content' },
-      { to: '/admin/quizzes/new', icon: PencilLine, label: 'Create quiz' },
-      { to: '/admin/lessons', icon: Presentation, label: 'Notes Studio' },
-      { to: '/admin/lessons/new', icon: BookOpen, label: 'Create note' },
-      { to: '/admin/papers', icon: FileText, label: 'Past papers' },
-      { to: '/admin/import/csv', icon: Upload, label: 'CSV import' },
-      { to: '/admin/cbc-kb', icon: BookOpen, label: 'CBC KB' },
-      { to: '/admin/curriculum/replace', icon: Upload, label: 'Replace syllabus' },
-      { to: '/admin/curriculum-upload', icon: Upload, label: 'Curriculum uploads' },
-      { to: '/admin/games-seed', icon: Sparkles, label: 'Games seed' },
-    ],
-  },
-  {
-    label: 'Approvals',
-    items: [
-      { to: '/admin/approvals', icon: BellRing, label: 'Content queue', badgeKey: 'content' },
-      { to: '/admin/question-review', icon: BellRing, label: 'Question review' },
-      { to: '/admin/import-questions', icon: Upload, label: 'Import questions' },
-      { to: '/admin/agents', icon: Bot, label: 'AI agents', badgeKey: 'agents' },
-      { to: '/admin/generations', icon: Sparkles, label: 'AI generations' },
-      { to: '/admin/feedback', icon: Lightbulb, label: 'Suggestions', badgeKey: 'feedback' },
-    ],
-  },
-  {
-    label: 'Reports',
-    items: [
-      { to: '/admin/visitors', icon: Globe, label: 'Website visitors' },
-      { to: '/admin/results', icon: TrendingUp, label: 'Results' },
-      { to: '/admin/ai-costs', icon: TrendingUp, label: 'AI costs' },
-    ],
-  },
-  {
-    label: 'Billing',
-    items: [
-      { to: '/admin/payments', icon: CreditCard, label: 'Payments', badgeKey: 'payments' },
-      { to: '/admin/demo-trials', icon: Sparkles, label: 'Demo trials' },
-    ],
-  },
-  {
-    label: 'Operations',
-    items: [
-      { to: '/admin/settings', icon: Settings, label: 'Settings' },
-      { to: '/admin/announcements', icon: Bell, label: 'Announcements' },
-      { to: '/admin/activity', icon: ShieldCheck, label: 'Activity log' },
-      { to: '/admin/app-check', icon: ShieldCheck, label: 'App Check' },
-    ],
-  },
-]
-
+/**
+ * Pending counts for the sidebar badges and the ⌘K palette.
+ *
+ * Five aggregate queries per refresh. The refresh used to be an unconditional
+ * 60s interval that ran for as long as the tab existed, so an admin who left
+ * /admin open in a background tab over a weekend billed ~14,400 count queries
+ * against Firestore having never looked at the badges — and came back to a
+ * number computed a minute ago either way.
+ *
+ * Now the timer only fires while the document is visible, and becoming
+ * visible refreshes immediately. That is strictly better on both axes: a
+ * hidden tab costs nothing, and a returning admin sees fresh counts at once
+ * instead of up to a minute of stale ones.
+ */
 function useAdminBadges() {
   const [badges, setBadges] = useState({ content: 0, agents: 0, payments: 0, feedback: 0 })
   useEffect(() => {
     let cancelled = false
+    let interval = null
+
     async function load() {
       try {
         const [pendingQuiz, pendingLesson, awaitingApproval, pendingPayments, newFeedback] = await Promise.all([
@@ -155,9 +81,24 @@ function useAdminBadges() {
         // Soft-fail: badges are decorative; never block the shell.
       }
     }
-    load()
-    const interval = setInterval(load, 60_000)
-    return () => { cancelled = true; clearInterval(interval) }
+
+    const stop = () => { if (interval) { clearInterval(interval); interval = null } }
+    const start = () => { stop(); interval = setInterval(load, 60_000) }
+
+    function onVisibility() {
+      if (document.visibilityState === 'hidden') { stop(); return }
+      load()
+      start()
+    }
+
+    if (document.visibilityState !== 'hidden') { load(); start() }
+    document.addEventListener('visibilitychange', onVisibility)
+
+    return () => {
+      cancelled = true
+      stop()
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
   }, [])
   return badges
 }
@@ -182,10 +123,17 @@ export default function AdminLayout({ children }) {
   const [paletteOpen, setPaletteOpen] = useState(false)
   const badges = useAdminBadges()
 
-  async function handleLogout() {
+  const handleLogout = useCallback(async () => {
     await logout()
     navigate('/login')
-  }
+  }, [logout, navigate])
+
+  // Actions the palette can dispatch. Keyed by the `command` string on the
+  // registry entry, so adding an action is a registry edit plus a handler
+  // here — the palette itself stays unaware of what any of them do.
+  const runShellCommand = useCallback((command) => {
+    if (command === 'logout') handleLogout()
+  }, [handleLogout])
 
   // Cmd/Ctrl+K opens the global command palette so an admin can jump to
   // any section by name without reaching for the sidebar.
@@ -200,6 +148,28 @@ export default function AdminLayout({ children }) {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
+
+  // The mobile drawer covers the page, so Escape must close it — otherwise a
+  // keyboard user who opened it has no way out but to find the toggle again.
+  // It also locks body scroll while open: without that, scrolling past the
+  // end of the drawer scrolls the page underneath it.
+  useEffect(() => {
+    if (!mobileOpen) return undefined
+    function onKey(e) {
+      if (e.key === 'Escape') { e.preventDefault(); setMobileOpen(false) }
+    }
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = previousOverflow
+    }
+  }, [mobileOpen])
+
+  // A route change closes the drawer. Every nav item already does this on
+  // click, but the browser Back button does not go through them.
+  useEffect(() => { setMobileOpen(false) }, [location.pathname])
 
   const navClass = ({ isActive }) =>
     `relative flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-extrabold transition-all duration-fast ease-out ${
@@ -277,23 +247,20 @@ export default function AdminLayout({ children }) {
         </div>
 
         <nav className="flex-1 min-h-0 overflow-y-auto p-2">
-          {NAV_SECTIONS.map(section => renderSection(section, false))}
+          {ADMIN_NAV_SECTIONS.map(section => renderSection(section, false))}
           <div className="theme-border my-3 border-t" />
           <p className="px-3 pt-1 pb-1 text-[10px] font-black uppercase tracking-[0.14em] theme-text-muted">
             Quick switch
           </p>
-          <Link
-            to="/teacher"
-            className="theme-text-muted hover:theme-bg-subtle hover:theme-text flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-bold transition-all duration-fast ease-out"
-          >
-            <Icon as={GraduationCap} size="sm" />Teacher view
-          </Link>
-          <Link
-            to="/dashboard"
-            className="theme-text-muted hover:theme-bg-subtle hover:theme-text flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-bold transition-all duration-fast ease-out"
-          >
-            <Icon as={Home} size="sm" />Learner view
-          </Link>
+          {ADMIN_SWITCH_ITEMS.map(item => (
+            <Link
+              key={item.to}
+              to={item.to}
+              className="theme-text-muted hover:theme-bg-subtle hover:theme-text flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-bold transition-all duration-fast ease-out"
+            >
+              <Icon as={item.icon} size="sm" />{item.label}
+            </Link>
+          ))}
         </nav>
 
         <div className="p-3" style={{ borderTop: '2px solid #0F1B2D' }}>
@@ -353,22 +320,18 @@ export default function AdminLayout({ children }) {
             className="theme-card theme-border absolute left-0 right-0 top-16 bottom-0 overflow-y-auto overscroll-contain border-t p-2 shadow-elev-xl"
             onClick={e => e.stopPropagation()}
           >
-            {NAV_SECTIONS.map(section => renderSection(section, true))}
+            {ADMIN_NAV_SECTIONS.map(section => renderSection(section, true))}
             <div className="theme-border my-2 border-t" />
-            <Link
-              to="/teacher"
-              onClick={() => setMobileOpen(false)}
-              className="theme-text-muted hover:theme-bg-subtle hover:theme-text flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-colors"
-            >
-              <Icon as={GraduationCap} size="sm" />Teacher view
-            </Link>
-            <Link
-              to="/dashboard"
-              onClick={() => setMobileOpen(false)}
-              className="theme-text-muted hover:theme-bg-subtle hover:theme-text flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-colors"
-            >
-              <Icon as={Home} size="sm" />Learner view
-            </Link>
+            {ADMIN_SWITCH_ITEMS.map(item => (
+              <Link
+                key={item.to}
+                to={item.to}
+                onClick={() => setMobileOpen(false)}
+                className="theme-text-muted hover:theme-bg-subtle hover:theme-text flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-colors"
+              >
+                <Icon as={item.icon} size="sm" />{item.label}
+              </Link>
+            ))}
             <button
               onClick={handleLogout}
               className="w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-danger hover:bg-danger-subtle min-h-0 transition-colors"
@@ -401,7 +364,9 @@ export default function AdminLayout({ children }) {
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
-        sections={NAV_SECTIONS}
+        sections={ADMIN_PALETTE_SECTIONS}
+        badges={badges}
+        onCommand={runShellCommand}
       />
     </div>
   )
