@@ -555,6 +555,7 @@
     "test:activation-provider": "node functions/subscriptionActivationProvider.test.js",
     "test:google-play-core": "node functions/googlePlayBillingCore.test.js",
     "test:google-play-verify": "node functions/googlePlayVerify.test.js",
+    "test:platform-metrics": "node functions/platformMetricsCore.test.js",
     "test:play-catalog-mirror": "node scripts/test-play-catalog-mirror.mjs",
     "test:play-catalog-health": "node scripts/test-play-catalog-health.mjs",
     "test:subscription-upgrade": "node functions/subscriptionUpgrade.test.js",
