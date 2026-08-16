@@ -1151,6 +1151,11 @@ export default function LessonPlanStudio() {
               syllabusHint: curriculumMode === 'previous' ? 'OBC' : 'CBC',
               grade: lessonDetails.grade,
               subject: lessonDetails.subject,
+              // The SAME term that goes into `inputs` above. Omitting it here
+              // filed every lesson plan — not just the ones missing a grade —
+              // under Unsorted at the term level, because classifyForLibrary
+              // reads this object and never looks at `inputs`.
+              term: plannedMeta?.termNumber != null ? String(plannedMeta.termNumber) : null,
             },
           })
           setSavedPlanId(savedId)
@@ -1384,6 +1389,9 @@ export default function LessonPlanStudio() {
         syllabusHint: mode === 'previous' ? 'OBC' : 'CBC',
         grade: s.lessonDetails.grade,
         subject: s.lessonDetails.subject,
+        // See the auto-save path above: this has to carry the same term
+        // `inputs` does, or the plan files under Unsorted at the term level.
+        term: lastMeta?.planned?.termNumber != null ? String(lastMeta.planned.termNumber) : null,
       },
     })
     setSavedPlanId(id)

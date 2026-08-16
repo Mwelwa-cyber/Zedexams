@@ -240,11 +240,30 @@ export const GRADE_FORMS = {
     { value: 'Form 3',  label: 'Form 3',  band: 'senior_secondary', active: true },
     { value: 'Form 4',  label: 'Form 4',  band: 'senior_secondary', active: true },
   ],
+  // OBC numbers every year, Grade 1 → Grade 12, and keeps those numbers in the
+  // library rather than renaming its upper years to Forms. That is deliberate
+  // and load-bearing: thousands of saved documents are filed under 'Grade 10',
+  // so this list does NOT follow src/config/educationLevels.js, which names the
+  // same years Form 3/4/5. See the note on the CBC list above.
+  //
+  // Grades 1, 2, 4 and 8 were missing until 2026-08 — the studio offered them
+  // (PREVIOUS_GRADES in features/lessonPlanStudio/lib/studioGrades.js) with no
+  // folder here to receive them, so those plans landed on a grey orphan tile.
+  // test:studio-grades now walks both lists and fails if they drift again.
   [SYLLABUS_TYPES.OBC]: [
+    { value: 'Grade 1',  label: 'Grade 1',  band: 'lower_primary',   active: true },
+    { value: 'Grade 2',  label: 'Grade 2',  band: 'lower_primary',   active: true },
     { value: 'Grade 3',  label: 'Grade 3',  band: 'lower_primary',   active: true },
+    { value: 'Grade 4',  label: 'Grade 4',  band: 'lower_primary',   active: true },
     { value: 'Grade 5',  label: 'Grade 5',  band: 'upper_primary',   active: true },
     { value: 'Grade 6',  label: 'Grade 6',  band: 'upper_primary',   active: true },
     { value: 'Grade 7',  label: 'Grade 7',  band: 'upper_primary',   active: true },
+    { value: 'Grade 8',  label: 'Grade 8',  band: 'junior_secondary', active: true },
+    // Grade 9 is a real 2013 year with no sheet in curriculum-data-2013.json,
+    // so the Lesson Plan Studio cannot offer it. The folder exists anyway —
+    // this list describes the curriculum, not one studio's reach, and a
+    // document arriving from anywhere else needs somewhere to land.
+    { value: 'Grade 9',  label: 'Grade 9',  band: 'junior_secondary', active: true },
     { value: 'Grade 10', label: 'Grade 10', band: 'senior_secondary', active: true },
     { value: 'Grade 11', label: 'Grade 11', band: 'senior_secondary', active: true },
     { value: 'Grade 12', label: 'Grade 12', band: 'senior_secondary', active: true },

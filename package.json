@@ -828,7 +828,9 @@
     "test:release-name": "node scripts/test-release-name.mjs",
     "test:cold-start": "node scripts/test-cold-start-budget.mjs",
     "test:library-move": "node src/features/teacherLibrary/lib/moveTarget.test.js",
-    "test:library-ece": "node src/utils/libraryEceClassification.test.js"
+    "test:library-ece": "node src/utils/libraryEceClassification.test.js",
+    "test:studio-grades": "node src/features/lessonPlanStudio/lib/studioGrades.test.js",
+    "test:lesson-plan-term": "node src/features/lessonPlanStudio/lib/lessonPlanTermFiling.test.js"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",
