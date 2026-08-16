@@ -532,7 +532,7 @@ scheduleAppCheckInit()
 // that was thrown on feature-phone browsers and headless environments
 // that expose serviceWorker/PushManager stubs but lack the full API set.
 // `messaging` resolves to null on iOS Safari < 16.4, private-mode
-// browsers, and Capacitor — callers in src/utils/fcm.js await this
+// browsers, and Capacitor — callers in src/services/notifications/fcm.js await this
 // Promise and degrade gracefully (the permission prompt simply never renders).
 export const messaging = (async () => {
   try {

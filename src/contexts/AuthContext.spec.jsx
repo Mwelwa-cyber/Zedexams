@@ -71,7 +71,7 @@ vi.mock('../utils/sentry', () => ({
   reportAuthInitFailure: h.reportAuthInitFailure,
 }))
 vi.mock('../utils/analytics', () => ({ capture: vi.fn(), identifyUser: vi.fn(), resetAnalytics: vi.fn() }))
-vi.mock('../utils/fcm', () => ({ refreshTokenIfGranted: () => Promise.resolve(), clearPushUser: () => {} }))
+vi.mock('../services/notifications/fcm', () => ({ refreshTokenIfGranted: () => Promise.resolve(), clearPushUser: () => {} }))
 vi.mock('../utils/referrals', () => ({
   mintAndPersistReferralCode: vi.fn(() => Promise.resolve(null)),
   readPendingReferral: () => null,

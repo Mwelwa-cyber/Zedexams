@@ -24,7 +24,7 @@ import { capture, identifyUser, resetAnalytics } from '../utils/analytics'
 import { requiresGuardianConsent } from '../utils/guardianConsent'
 // (The guardian consent request is sent from the sign-up flow's guardian
 // screen, which is the only place a guardian's address is collected.)
-import { refreshTokenIfGranted, clearPushUser } from '../utils/fcm'
+import { refreshTokenIfGranted, clearPushUser } from '../services/notifications/fcm'
 import { mintAndPersistReferralCode, readPendingReferral, clearPendingReferral } from '../utils/referrals'
 import { clearAllSearchCaches } from '../utils/cache/searchCache.js'
 import { isAccountDeletionInFlight, onAccountDeletionStart } from '../utils/accountDeletionState'

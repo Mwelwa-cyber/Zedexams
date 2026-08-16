@@ -25,9 +25,9 @@
  */
 
 import { arrayUnion, doc, serverTimestamp, updateDoc } from 'firebase/firestore'
-import { db } from '../firebase/config'
-import { nativePlugin } from './runtime'
-import { capture } from './analytics'
+import { db } from '../../firebase/config'
+import { nativePlugin } from '../../utils/runtime'
+import { capture } from '../../utils/analytics'
 
 // Cache of the last-known native permission, mapped to the web tri-state that
 // the shared UI (PushPermissionPrompt, settings panels) reads synchronously via

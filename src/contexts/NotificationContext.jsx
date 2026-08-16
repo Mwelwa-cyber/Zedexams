@@ -26,7 +26,7 @@ import {
 import { db } from '../firebase/config'
 import { useAuth } from './AuthContext'
 import { useToast } from '../shared/components/Toast'
-import { onForegroundMessage } from '../utils/fcm'
+import { onForegroundMessage } from '../services/notifications/fcm'
 
 /**
  * NotificationContext — the client side of the Smart Notification System.
