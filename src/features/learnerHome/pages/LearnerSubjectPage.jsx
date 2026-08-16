@@ -156,7 +156,7 @@ export default function LearnerSubjectPage() {
     return (
       <div className="lhx-card">
           <EmptyState icon="learn">This subject isn’t available for your grade.</EmptyState>
-          <button type="button" className="lhx-btn lhx-btn-soft lhx-btn-block" onClick={() => navigate('/learn')}>Back to Learn</button>
+          <button type="button" className="lhx-btn lhx-btn-soft lhx-btn-block" onClick={() => navigate('/dashboard')}>Back to Home</button>
       </div>
     )
   }

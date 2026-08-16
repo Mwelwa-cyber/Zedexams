@@ -44,12 +44,17 @@ export default function Navbar() {
   // (not just a card on the dashboard) so we expose it here too. Admins
   // and teachers see their dedicated portal link below instead of a
   // "Home" item since the homePath would just duplicate that link.
+  // Aligned to the prototype-v3 4-tab IA (step 5 — Learn/Practice retired):
+  // the four tabs lead, then the destinations this chrome is the only door
+  // to on self-chromed pages (quizzes, daily exams, results). "Practise"
+  // became "Quizzes" so the retired tab's name doesn't live on here.
   const learnerLinks = [
     { to: homePath,      label: 'Home',     icon: Home },
-    { to: '/lessons',    label: 'Lessons',  icon: BookOpen },
-    { to: '/notes',      label: 'Notes',    icon: FileText },
-    { to: '/quizzes',    label: 'Practise', icon: PencilLine },
     { to: '/papers',     label: 'Papers',   icon: Files },
+    { to: '/notes',      label: 'Notes',    icon: FileText },
+    { to: '/games',      label: 'Games',    icon: Sparkles },
+    { to: '/lessons',    label: 'Lessons',  icon: BookOpen },
+    { to: '/quizzes',    label: 'Quizzes',  icon: PencilLine },
     { to: '/exams',      label: 'Exams',    icon: TrophyIcon },
     { to: '/my-results', label: 'Results',  icon: BarChart3 },
   ]

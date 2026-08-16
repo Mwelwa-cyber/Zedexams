@@ -145,7 +145,7 @@ describe('LearnerHomePage', () => {
   it('shows the Continue Learning empty state with no resume signal', () => {
     mockDashboard.data = { ...baseData, learningResume: null }
     renderHome()
-    expect(screen.getByText('Choose a subject to begin learning.')).toBeInTheDocument()
+    expect(screen.getByText('Choose a subject below to begin learning.')).toBeInTheDocument()
   })
 
   it("shows Today's Exams only when exams are open, with real counts", () => {

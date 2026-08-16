@@ -13,11 +13,13 @@ import { capture } from '../../../utils/analytics'
 
 // ── Quick Access ────────────────────────────────────────────────────
 
+// Learn + Practice retired (redesign step 5) — the cards deep-link the
+// libraries and the quiz list directly instead of going through tabs.
 const QUICK_ITEMS = [
-  { icon: 'lessons', title: 'Lessons', label: 'Learn', to: '/learn?tab=lessons', tint: 'lhx-tint-purple' },
-  { icon: 'notes', title: 'Notes', label: 'Read', to: '/learn?tab=notes', tint: 'lhx-tint-green' },
+  { icon: 'lessons', title: 'Lessons', label: 'Learn', to: '/lessons', tint: 'lhx-tint-purple' },
+  { icon: 'notes', title: 'Notes', label: 'Read', to: '/notes', tint: 'lhx-tint-green' },
   { icon: 'papers', title: 'Past Papers', label: 'ECZ', to: '/papers', tint: 'lhx-tint-orange' },
-  { icon: 'quiz', title: 'Quizzes', label: 'Practice', to: '/practice?tab=quizzes', tint: 'lhx-tint-blue' },
+  { icon: 'quiz', title: 'Quizzes', label: 'Practice', to: '/quizzes', tint: 'lhx-tint-blue' },
 ]
 
 export function QuickAccessGrid() {
@@ -55,16 +57,15 @@ const SUBJECT_TONES = ['var(--lhx-green)', 'var(--lhx-blue)', 'var(--lhx-pink)',
 
 export function MySubjectsSection({ subjects, activeTerm, loading }) {
   const navigate = useNavigate()
+  // With the Learn tab retired (step 5), Home IS the subjects list — every
+  // subject with material renders here, so there is no "View all" to link.
   const withMaterial = (subjects || []).filter((s) => s.hasMaterial)
-  const rows = (withMaterial.length ? withMaterial : subjects || []).slice(0, 4)
+  const rows = withMaterial.length ? withMaterial : subjects || []
 
   return (
     <section className="lhx-section" aria-labelledby="lhx-subjects-title">
       <div className="lhx-section-head">
         <h2 id="lhx-subjects-title" className="lhx-section-title">My Subjects</h2>
-        <button type="button" className="lhx-view-all" onClick={() => navigate('/learn')}>
-          View all <ChevronRight size={18} aria-hidden="true" />
-        </button>
       </div>
       {loading ? (
         <SectionSkeleton lines={4} height={56} />
@@ -111,7 +112,9 @@ export function RecommendationsSection({ recommendations, loading }) {
   const open = (rec) => {
     capture('recommendation_started', { kind: rec.kind, id: rec.id })
     if (rec.kind === 'practice') {
-      navigate(rec.subject ? `/practice?subject=${rec.subject}${rec.topic ? `&topic=${encodeURIComponent(rec.topic)}` : ''}` : '/practice')
+      // Practice tab retired (step 5) — a practice nudge opens the quiz
+      // list, whose subject cards carry the drill-down.
+      navigate('/quizzes')
     } else if (rec.kind === 'note') {
       navigate(`/notes/${rec.targetId}`)
     } else if (rec.kind === 'lesson') {
@@ -119,7 +122,7 @@ export function RecommendationsSection({ recommendations, loading }) {
     } else if (rec.kind === 'quiz') {
       navigate(`/quiz/${rec.targetId}`)
     } else {
-      navigate('/learn')
+      navigate('/dashboard')
     }
   }
 
