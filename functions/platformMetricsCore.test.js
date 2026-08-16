@@ -7,6 +7,7 @@ const assert = require("node:assert");
 const {
   ACTIVITY_SOURCES,
   RETENTION_WINDOWS,
+  RETENTION_COHORT_ROLE,
   dayKeyFor,
   dayWindow,
   shiftDayKey,
@@ -73,6 +74,13 @@ const rec = retentionRecord(7, "2026-06-16", 20, 6);
 ok("retentionRecord carries the cohort day it measured", rec.cohortDay === "2026-06-16");
 ok("retentionRecord computes its own rate", rec.rate === 0.3);
 ok("retentionRecord names its window", rec.window === 7);
+// The rate is LEARNER retention, because every ACTIVITY_SOURCE is a learner
+// action. Recording the population on the document stops a later reader taking
+// it for all-user retention — and pins that widening the cohort has to be a
+// deliberate edit here, made together with adding the other roles' activity.
+ok("retentionRecord says which population it measured", rec.cohortRole === "learner");
+ok("the cohort role matches the exported constant",
+    rec.cohortRole === RETENTION_COHORT_ROLE);
 
 // ── chunk: dropping a user here inflates retention ──────────────────────────
 ok("chunk splits evenly", JSON.stringify(chunk([1, 2, 3, 4], 2)) === "[[1,2],[3,4]]");

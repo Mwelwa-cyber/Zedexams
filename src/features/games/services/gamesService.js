@@ -120,6 +120,38 @@ export async function getGame(gameId) {
  * ───────────────────────────────────────────────────────────────── */
 
 /**
+ * Report that a game ROUND began — the denominator `game_completed` needs.
+ *
+ * Called from each game engine's own `start()`, deliberately, rather than from
+ * the PlayGame route or the cards that link into it. Both alternatives
+ * undercount, in different ways:
+ *
+ *   • The dashboard challenge card fired the only `game_started` in the repo,
+ *     so a learner arriving from the games list, a shared /games/play/:id link
+ *     or a search result completed a game that never started. Completions could
+ *     exceed starts, which makes an abandonment rate not merely wrong but
+ *     nonsensical.
+ *   • A latch on the PlayGame route would fix those entry paths and still miss
+ *     "Play again", which calls the engine's start() again WITHOUT remounting
+ *     the route — while saveScore() fires once per finished round. Three
+ *     replays would read as one start and three completions.
+ *
+ * start() is the only thing that is true once per round for every engine, which
+ * is what makes this the counterpart of saveScore() rather than an approximation
+ * of it. Aggregate fields only, and no Firestore write — analytics is a
+ * side-channel here, so a failure must never break the game: `capture` already
+ * swallows its own errors, and this adds nothing that can throw.
+ */
+export function reportGameStart(game) {
+  captureAnalytics('game_started', {
+    gameId: game?.id ?? null,
+    subject: game?.subject ?? null,
+    grade: typeof game?.grade === 'number' ? game.grade : null,
+    gameType: game?.type ?? null,
+  })
+}
+
+/**
  * Save a completed-game score. Only works when the user is signed in.
  * Returns { ok, id?, skipped?, reason? }.
  */
@@ -157,13 +189,11 @@ export async function saveScore({ game, score, accuracy, timeSpent, correct, wro
     } catch (err) {
       console.warn('learner intelligence update skipped', err?.code || err?.message)
     }
-    // Completion counterpart to `game_started` (HomeSections.jsx). Without it
-    // there is no game abandonment rate — starts were measured and finishes
-    // were not, so a game that learners quit halfway looked identical to one
+    // Completion counterpart to reportGameStart(). Without it there is no game
+    // abandonment rate — a game learners quit halfway looked identical to one
     // they loved. Aggregate fields only: no answers, no question content.
-    // Fires here rather than in each game component because every game — the
-    // dashboard challenge card, the games list, direct /games/play/:id, and
-    // "play again" — funnels its finished round through saveScore().
+    // Fires here because every game funnels its finished round through
+    // saveScore(), which is what makes this ONE call cover every game.
     captureAnalytics('game_completed', {
       gameId: game?.id ?? null,
       subject: game?.subject ?? null,

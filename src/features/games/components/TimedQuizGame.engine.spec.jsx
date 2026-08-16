@@ -43,6 +43,11 @@ vi.mock('../services/gamesService', () => ({
   // of the verdict, which the deck order does not touch.
   shuffle: (arr) => arr.slice(),
   saveScore: vi.fn(async () => ({ ok: true, id: 'score-1' })),
+  // start() reports the round for the game_started/game_completed pair. Mocked
+  // here because this factory REPLACES the module: a missing export is
+  // undefined, and calling it throws inside start(), which unmounts the game
+  // and surfaces as "container is null" rather than as a missing mock.
+  reportGameStart: vi.fn(),
   readRoundBaseline: vi.fn(async () => ({})),
   readRoundOutcome: vi.fn(async () => ({ levelChange: null, personalBest: null })),
 }))

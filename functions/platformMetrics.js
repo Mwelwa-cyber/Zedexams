@@ -128,16 +128,43 @@ async function resolveRoles(db, uids) {
   return byUid;
 }
 
-/** uids of accounts created inside a day window. */
+/**
+ * uids of LEARNER accounts created inside a day window — the retention cohort.
+ *
+ * Restricted to learners on purpose, and the restriction is what makes the
+ * number mean anything. Retention joins this cohort against the day's active
+ * set, and that active set is built from ACTIVITY_SOURCES — results, scores and
+ * exam_attempts — which are all things a LEARNER does. A teacher who signs up
+ * and comes back to author a paper, or a parent who returns to read a child's
+ * progress, does none of those, so an all-roles cohort counts them as churned
+ * by construction. The published rate would then be understated by an amount
+ * that moves with the cohort's role mix — a week with a teacher signup drive
+ * would show retention falling.
+ *
+ * The role is read from a PROJECTION and filtered in memory rather than with a
+ * `where("role", "==", "learner")` clause, deliberately: combining an equality
+ * with the createdAt range would need a composite (role, createdAt) index, and
+ * a metrics rollup should not be able to fail closed on a missing index — the
+ * document count per day is one day's signups, so the reads are identical.
+ *
+ * An account with no role field is treated as a learner: `learner` is the
+ * default assigned at signup (resolveInitialUserRole), so a missing field means
+ * a legacy or partially-written profile, not a non-learner.
+ */
 async function cohortUids(db, dayKey) {
   const {start, end} = dayWindow(dayKey);
   const snap = await db
       .collection("users")
       .where("createdAt", ">=", admin.firestore.Timestamp.fromDate(start))
       .where("createdAt", "<", admin.firestore.Timestamp.fromDate(end))
-      .select()
+      .select("role")
       .get();
-  return snap.docs.map((d) => d.id);
+  return snap.docs
+      .filter((d) => {
+        const role = d.get("role");
+        return !role || role === "learner";
+      })
+      .map((d) => d.id);
 }
 
 /** Distinct uids active across the 7-day window ending on dayKey. */

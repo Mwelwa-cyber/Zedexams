@@ -442,6 +442,37 @@ export default function QuizRunnerV2() {
       return
     }
     const now = Date.now()
+    // Quiz START — the missing denominator.
+    //
+    // `quiz_completed` has been recorded since audit B2
+    // (useFirestore.saveResult), but nothing marked a quiz BEGINNING, so
+    // completions had no denominator and abandonment was unmeasurable: a quiz
+    // nobody finishes and a quiz nobody opens produced identical analytics.
+    // `assessment_engine_path` is an engine-rollout diagnostic that carries no
+    // quiz identity and will be deleted when the rollout ends, so it cannot be
+    // the funnel event.
+    //
+    // Fired HERE — the one path that begins a new attempt — rather than from an
+    // effect watching `started`. `started` is also set by the RESUME branch of
+    // the loader, and any latch guarding that effect is component-local, so it
+    // resets on mount: every refresh or reopen of an in-progress quiz would
+    // emit another `quiz_started` against the single `quiz_completed` that
+    // attempt eventually writes, inflating the denominator and making ordinary
+    // refreshes look like abandonment. PreQuizCard (the only caller) renders
+    // only while `!started`, so a resumed attempt cannot reach this.
+    //
+    // questionCount reads the LOADED questions, not `quiz.questions`: for a
+    // standard quiz the questions live in the `quizzes/{id}/questions`
+    // subcollection and the parent doc carries no array, so the latter is
+    // undefined and would record null on every ordinary run.
+    capture('quiz_started', {
+      quizId: quiz.id ?? null,
+      subject: quiz.subject ?? null,
+      grade: quiz.grade ?? null,
+      quizType: quiz.quizType ?? null,
+      mode: nextMode ?? null,
+      questionCount: Array.isArray(questions) ? questions.length : null,
+    })
     setMode(nextMode)
     setStarted(true)
     setStartTime(now)
@@ -686,32 +717,6 @@ export default function QuizRunnerV2() {
     if (!attemptAssessment) return null
     return new Map(attemptAssessment.questions.map((q) => [q.id, q]))
   }, [attemptAssessment])
-
-  // Quiz START — the missing denominator.
-  //
-  // `quiz_completed` has been recorded since audit B2 (useFirestore.saveResult),
-  // but nothing marked a quiz BEGINNING, so completions had no denominator and
-  // quiz abandonment was unmeasurable: a quiz nobody finishes and a quiz nobody
-  // opens produced identical analytics. `assessment_engine_path` below fires on
-  // the same condition but is an engine-rollout diagnostic carrying no quiz
-  // identity, and it will be deleted when the rollout ends — so it cannot be
-  // the funnel event.
-  //
-  // Once per runner entry (the ref latch), aggregate fields only, and
-  // deliberately NOT gated on the engine flag settling — a learner who starts a
-  // quiz has started it whether or not the rollout has made up its mind.
-  const startReported = useRef(false)
-  useEffect(() => {
-    if (startReported.current || loading || !quiz || !started) return
-    startReported.current = true
-    capture('quiz_started', {
-      quizId: quiz.id ?? null,
-      subject: quiz.subject ?? null,
-      grade: quiz.grade ?? null,
-      quizType: quiz.quizType ?? null,
-      questionCount: Array.isArray(quiz.questions) ? quiz.questions.length : null,
-    })
-  }, [loading, quiz, started])
 
   // §7.2: ONE PostHog event per runner entry, both paths, aggregate only.
   // `engine` records which card actually SERVED — a flag that said engine while

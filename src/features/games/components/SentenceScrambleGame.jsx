@@ -7,7 +7,7 @@ import {
   TrophyIcon,
   XCircleIcon,
 } from '@heroicons/react/24/solid'
-import { shuffle } from '../services/gamesService'
+import { shuffle, reportGameStart } from '../services/gamesService'
 import { playCorrect, playWrong, playWin, playTick, primeSounds } from '../lib/gameSounds'
 import { useGameFinish } from '../hooks/useGameFinish'
 import { SaveBanner, StreakBanner, DoneStat } from './DoneBanners'
@@ -81,6 +81,9 @@ export default function SentenceScrambleGame({ game }) {
 
   function start() {
     primeSounds()
+    // Per ROUND, not per mount: "Play again" re-enters start() without
+    // remounting, and saveScore() fires once per finished round.
+    reportGameStart(game)
     reset()
     setOrder(shuffle(items.map((_, i) => i), Date.now()))
     setPos(0)

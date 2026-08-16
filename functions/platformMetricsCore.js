@@ -60,6 +60,20 @@ const ACTIVE_MARKER_TTL_DAYS = 400;
 const RETENTION_WINDOWS = [1, 7, 30];
 
 /**
+ * The population these retention rates are ABOUT, recorded on every record so
+ * the stored document says what it measures instead of leaving a reader to
+ * infer it.
+ *
+ * It is `learner` because ACTIVITY_SOURCES below are all learner actions. A
+ * cohort drawn from every role would count a returning teacher or parent as
+ * churned by construction, since neither writes a quiz result, a game score or
+ * an exam attempt — so the rate would drift with the cohort's role mix rather
+ * than with retention. Widening this means adding the other roles' activity
+ * sources FIRST; the two have to move together or the join is dishonest again.
+ */
+const RETENTION_COHORT_ROLE = "learner";
+
+/**
  * Activity sources. Each is a collection the product ALREADY writes when a
  * learner does something real, with a uid field and a server timestamp.
  *
@@ -155,6 +169,7 @@ function retentionRecord(windowDays, cohortDay, cohortSize, retained) {
     cohortSize,
     retained,
     rate: retentionRate(retained, cohortSize),
+    cohortRole: RETENTION_COHORT_ROLE,
   };
 }
 
@@ -226,6 +241,7 @@ module.exports = {
   LUSAKA_OFFSET_MINUTES,
   ACTIVE_MARKER_TTL_DAYS,
   RETENTION_WINDOWS,
+  RETENTION_COHORT_ROLE,
   ACTIVITY_SOURCES,
   dayKeyFor,
   dayWindow,

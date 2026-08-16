@@ -60,16 +60,39 @@ try {
   process.exit(1)
 }
 
+/**
+ * WAU on day N is the distinct uids across N and the six days before it, read
+ * from those days' `active` marker subcollections. On a FIRST backfill those
+ * markers do not exist yet for anything before the requested range, and
+ * weeklyActiveUsers() cannot tell "nobody was active" from "nobody has computed
+ * this day yet" — it reads an empty collection either way and still writes a
+ * confident number. The earliest six rows would therefore be silently
+ * understated, which is precisely the failure this rollup refuses elsewhere
+ * (the scan cap reports `truncated` rather than passing a floor off as a total).
+ *
+ * So the range is extended by six WARM-UP days that exist only to lay down
+ * markers for the first real day to read. They are rolled up identically — a
+ * warm-up day is a real day, and it gets its own correct summary — they are
+ * just the days whose OWN wau is the one we accept as understated, and the
+ * console says so rather than leaving it to be discovered.
+ */
+const WAU_WARMUP_DAYS = 6
+
 async function main() {
   const today = dayKeyFor(new Date())
   // Oldest first (see header): day N's WAU depends on N-1..N-6 having markers.
   const days = []
-  for (let back = DAYS; back >= 1; back -= 1) days.push(shiftDayKey(today, -back))
+  for (let back = DAYS + WAU_WARMUP_DAYS; back >= 1; back -= 1) days.push(shiftDayKey(today, -back))
+  const firstRequested = days[WAU_WARMUP_DAYS]
 
   console.log(
     APPLY
       ? `*** APPLY MODE *** rolling up ${days.length} days: ${days[0]} → ${days[days.length - 1]}`
       : `dry run — would roll up ${days.length} days: ${days[0]} → ${days[days.length - 1]} (pass --apply to write)`,
+  )
+  console.log(
+    `  (${DAYS} requested, plus ${WAU_WARMUP_DAYS} warm-up days before ${firstRequested} so its WAU ` +
+    `has markers to read; the warm-up days' OWN wau is understated for the same reason)`,
   )
 
   if (!APPLY) {
