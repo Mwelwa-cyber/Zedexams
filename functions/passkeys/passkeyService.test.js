@@ -235,7 +235,21 @@ Module._load = function (request, ...rest) {
 
 const svc = require("./passkeyService");
 
-Module._load = origLoad;
+// passkeyService resolves @simplewebauthn/server LAZILY — on the first passkey
+// call rather than at module load — so the library stays off the Cloud
+// Functions cold-start path that every one of the ~196 exports pays for (see
+// the webauthn() note in passkeyService.js).
+//
+// That stub therefore has to OUTLIVE the module load. Every other stub above is
+// captured into a const while passkeyService is being required, so restoring
+// the real loader afterwards is fine for those; this one is required during the
+// tests themselves. CI installs only the root workspace (see the header note),
+// so falling through to the real loader here is a MODULE_NOT_FOUND, not merely
+// a slower test.
+Module._load = function (request, ...rest) {
+  if (request === "@simplewebauthn/server") return webauthnStub;
+  return origLoad.call(this, request, ...rest);
+};
 
 // ── Fixtures ───────────────────────────────────────────────────────────────
 const NOW_SEC = Math.floor(Date.now() / 1000);
