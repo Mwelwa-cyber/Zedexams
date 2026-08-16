@@ -14,7 +14,7 @@ import { SUBJECTS } from '../../../config/curriculum'
 // Prices come from the same source-of-truth configs the /pricing page uses,
 // so the homepage can never drift from the real numbers.
 import { PLAN_PRICES } from '../../../config/teacherPlanPricing'
-import { PLANS } from '../../../utils/subscriptionConfig'
+import { PLANS } from '../../../engines/payment-engine/subscriptionConfig'
 import {
   AcademicCapIcon,
   Sparkles,

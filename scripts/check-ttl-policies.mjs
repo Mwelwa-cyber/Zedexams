@@ -68,6 +68,20 @@ const REGISTRY = [
       'grows without bound. Audit this one first.',
   },
   {
+    collection: 'guardianRequests',
+    field: 'expiresAt',
+    isCollectionGroup: false,
+    codeSideBackstop: null,
+    notes:
+      'One doc per "ask your guardian to unlock" request; the doc id is the ' +
+      'sha256 of the pay-link token and expiresAt is that link\'s 7-day life. ' +
+      'No scheduled reaper — an expired request is dead weight rather than a ' +
+      'live credential (settleGuardianRequest is only reached by a payment ' +
+      'that already carries the id), so TTL is the whole cleanup story. ' +
+      'Volume follows under-18 lock taps, rate-limited to one per learner ' +
+      'per 72 hours. Added 2026-08-16 with the tiered paywall.',
+  },
+  {
     collection: 'webauthnChallenges',
     field: 'expiresAt',
     isCollectionGroup: false,
@@ -122,6 +136,25 @@ const REGISTRY = [
     notes:
       'Short-lived download bearer tickets. Also consumed on use since ' +
       'SECURITY_ENDPOINT_AUDIT §4.4, so three things remove these.',
+  },
+  {
+    // NOT `platformStats`. Same trap as `feed` above: the markers live at
+    // platformStats/{day}/active/{uid}, so the policy must be scoped to the
+    // collection GROUP `active`. A policy on `platformStats` would match the
+    // per-day summary documents — which carry no expiresAt and are the thing
+    // you actually want to KEEP — and reap nothing. `active` is currently
+    // unique to this feature, so the group scope collides with nothing else.
+    collection: 'active',
+    field: 'expiresAt',
+    isCollectionGroup: true,
+    codeSideBackstop: null,
+    notes:
+      'Per-day roster of which uids were active, written by ' +
+      'rollUpPlatformMetrics — the join key that makes D1/D7/D30 retention ' +
+      'computable. 400-day expiry (ACTIVE_MARKER_TTL_DAYS). No scheduled ' +
+      'reaper: if the TTL policy is missing these grow one doc per active ' +
+      'user per day, forever — the exact failure mode `visits` already has. ' +
+      'The summary docs at platformStats/{day} are deliberately permanent.',
   },
 ];
 

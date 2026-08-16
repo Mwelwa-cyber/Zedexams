@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
-import { PLANS, PAYMENT_DETAILS } from '../../../utils/subscriptionConfig'
+import { PLANS, PAYMENT_DETAILS } from '../../../engines/payment-engine/subscriptionConfig'
 import { captureReferralFromUrl } from '../../../utils/referrals'
 import { isNativePlatform } from '../../../utils/runtime'
 import Logo from '../../../shared/components/Logo'

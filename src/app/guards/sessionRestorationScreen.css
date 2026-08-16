@@ -91,7 +91,7 @@
   border-radius: 50%;
   background: radial-gradient(circle, var(--zsr-orange-glow) 0%, rgba(197, 97, 63, 0) 68%);
   filter: blur(6px);
-  animation: zsr-glow 2.8s ease-in-out infinite;
+  animation: zsr-glow calc(var(--load-tempo, 1.6s) * 2) var(--load-ease, ease-in-out) infinite;
 }
 
 .zsr__ring {
@@ -112,9 +112,12 @@
  * leading dot orbits with it. */
 .zsr__ring-arc {
   transform-origin: 50% 50%;
-  animation: zsr-spin 1.5s linear infinite;
+  animation: zsr-spin var(--load-tempo, 1.6s) linear infinite;
 }
-.zsr__ring-arc--orange { animation-duration: 1.9s; animation-direction: reverse; }
+.zsr__ring-arc--orange {
+  animation-duration: calc(var(--load-tempo, 1.6s) * 1.5);
+  animation-direction: reverse;
+}
 
 .zsr__ring-stroke {
   fill: none;
@@ -184,7 +187,7 @@
   border-radius: 999px;
   /* Brand blue → orange sweep, matching the loader arcs. */
   background: linear-gradient(90deg, var(--zsr-blue), var(--zsr-orange));
-  animation: zsr-indeterminate 1.5s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  animation: zsr-indeterminate var(--load-tempo, 1.6s) var(--load-ease, ease-in-out) infinite;
 }
 /* Steady (non-animated) fill for the terminal offline/timeout/error states. */
 .zsr__bar--stalled .zsr__bar-fill {
@@ -280,7 +283,7 @@
   border: 2px solid rgba(255, 255, 255, 0.5);
   border-top-color: #fff;
   border-radius: 50%;
-  animation: zsr-spin 0.7s linear infinite;
+  animation: zsr-spin 0.9s linear infinite;
 }
 
 /* ── Optional teacher-dashboard skeleton (faint, behind the loader) ──────── */
@@ -339,7 +342,7 @@
   border-radius: 8px;
   background: linear-gradient(90deg, var(--zsr-track) 25%, #f3e6d3 37%, var(--zsr-track) 63%);
   background-size: 400% 100%;
-  animation: zsr-shimmer 1.6s ease infinite;
+  animation: zsr-shimmer var(--load-tempo, 1.6s) var(--load-ease, ease) infinite;
 }
 .zsr__sk--logo { width: 108px; height: 22px; }
 .zsr__sk--pill { width: 100%; height: 34px; border-radius: 10px; }
@@ -363,6 +366,16 @@
 }
 
 /* ── Motion ─────────────────────────────────────────────────────────────── */
+/* Every duration above derives from --load-tempo (src/shared/styles/zxLoading.css)
+ * so this screen breathes with the rest of the app rather than against it. The
+ * ring and the bar share the tempo exactly; the counter-arc is a clean 3:2 of
+ * it, which reads as one motion with depth instead of as two loaders. The glow
+ * runs at 2× so it lands on the beat every second cycle.
+ *
+ * COLOUR is deliberately NOT unified with --accent here: this screen paints at
+ * boot, before a saved reading theme is guaranteed to be on <body>, and it has
+ * to hand off seamlessly from the pre-React skeleton in index.html. The blue
+ * and orange are the logo's own two colours, not a third palette. */
 @keyframes zsr-spin { to { transform: rotate(360deg); } }
 @keyframes zsr-glow {
   0%, 100% { opacity: 0.55; transform: scale(0.96); }

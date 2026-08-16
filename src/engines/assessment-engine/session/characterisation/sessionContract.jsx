@@ -68,7 +68,7 @@
  *      writes an empty cell), and NOTHING aggregates the field: `classAnalytics`
  *      does not read it, so there is no average to poison.
  *   2. **The nullability belongs in `persist/`'s own contract.** There is no zod
- *      write schema for `results` to amend — `src/schemas/result.js` is a
+ *      write schema for `results` to amend — `src/shared/schemas/result.js` is a
  *      read-side coercer that says in its own docblock why no write schema
  *      exists yet, and does not touch `timeSpent`, which passes through as an
  *      undocumented extra.

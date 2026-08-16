@@ -58,7 +58,7 @@ const { mergeSectionBatches, visionSectionsToLocal, groupSectionsIntoParts } =
   await import('../src/services/quizImport/scannedQuizImporter.js')
 const { serializeQuizSections } = await import('../src/utils/quizSections.js')
 const { normalizeQuestionPayload } = await import('../src/utils/questionWritePayload.js')
-const { quizUpdateSchema } = await import('../src/schemas/quiz.js')
+const { quizUpdateSchema } = await import('../src/shared/schemas/quiz.js')
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const RULES_PATH = join(__dirname, '..', 'firestore.rules')

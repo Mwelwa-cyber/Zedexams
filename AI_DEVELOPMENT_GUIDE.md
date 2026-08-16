@@ -32,7 +32,7 @@ say so explicitly in the PR description.
 - **Lint config is law.** `eslint.config.js` (flat config) documents the rationale for every
   rule inline. Don't add `eslint-disable` without a one-line reason; don't weaken rules to make
   a PR pass.
-- **Routes are lazy.** New routes in `src/App.jsx` use `React.lazy()` + `<Suspense>`. Never
+- **Routes are lazy.** New routes in `src/app/App.jsx` use `React.lazy()` + `<Suspense>`. Never
   import a page component eagerly. The saved reading theme applies on public routes too, so a
   new public surface must be legible in Midnight (`npm run contrast:routes` gates the key ones).
 - **Comments state constraints, not narration.** Write a comment only for something the code
@@ -52,7 +52,7 @@ say so explicitly in the PR description.
 
 There are four distinct schema layers. Know which one you're touching:
 
-1. **Client domain schemas — `src/schemas/*.js` (Zod).** Quiz, attempt, result, class records,
+1. **Client domain schemas — `src/shared/schemas/*.js` (Zod).** Quiz, attempt, result, class records,
    visual assets. Changing a shape here means: update the parallel checks in
    `scripts/test-quiz-attempt-schemas.mjs`, run `npm run test:schema` +
    `npm run test:schemas-domain`, and audit every producer/consumer of that shape.

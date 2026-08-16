@@ -43,7 +43,7 @@
 import {
   planDiagramAssetMigration, migrationDocId,
 } from '../src/features/visualStudio/lib/diagramAssetMigration.js'
-import { diagramAssetWriteSchema } from '../src/schemas/diagramAsset.js'
+import { diagramAssetWriteSchema } from '../src/shared/schemas/diagramAsset.js'
 import { confirmByTyping } from './lib/confirmPrompt.mjs'
 
 const LIVE = process.argv.includes('--live')

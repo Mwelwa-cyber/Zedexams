@@ -599,7 +599,7 @@ function isPlainObject(v) {
  * Normalise a raw Firestore question document for safe consumption by the
  * UI + the grader.
  *
- * Sibling of coerceQuiz / coerceAttempt — see src/schemas/quiz.js + attempt.js
+ * Sibling of coerceQuiz / coerceAttempt — see src/shared/schemas/quiz.js + attempt.js
  * for the established pattern. Same asymmetry: writes are strict, reads are
  * permissive so legacy/partial docs already in Firestore don't blank the UI.
  *

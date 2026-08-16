@@ -122,6 +122,21 @@ const RETAINED = new Map([
     "accountDeletionRequests.closeDeletionRequests() on the deleteMyAccount " +
     "path: status/timestamps survive as the audit trail that the request was " +
     "honoured, while email, name, notes, IP and user-agent are cleared"],
+  ["platformStats",
+    "REVIEW: DAU/WAU/retention rollup written by rollUpPlatformMetrics. The " +
+    "platformStats/{day} summary documents are pure aggregate counts — no " +
+    "uid, no name, no email — and purging them would corrupt historical " +
+    "business metrics for everyone else, since one departing user would " +
+    "retroactively change a past day's DAU. The subcollection " +
+    "platformStats/{day}/active/{uid} is the part that carries an end-user " +
+    "identifier: a uid, a role string and a TTL stamp, and nothing else. It " +
+    "is flagged REVIEW rather than clean-RETAINED because that uid IS user " +
+    "data under a strict reading, even though it is pseudonymous residue once " +
+    "the auth record and users doc are gone. It self-limits at 400 days via " +
+    "ACTIVE_MARKER_TTL_DAYS. Purging it per-uid is not free — the markers are " +
+    "spread one doc per active day, so erasure means walking up to 400 daily " +
+    "subcollections — and it would shrink historical retention cohorts after " +
+    "the fact. Owner decision, deliberately not made unilaterally here"],
   ["securityAuditLogs", "MFA/admin-security ledger; compliance record"],
   ["visitorStats", "per-day visitor rollups; anonymous telemetry"],
   ["visits", "raw visit tracker; anonymous telemetry"],

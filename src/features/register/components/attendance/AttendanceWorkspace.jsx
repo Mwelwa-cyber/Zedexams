@@ -17,7 +17,7 @@ import { canMarkDay } from '../../lib/attendanceDayCore'
 import {
   calendarMetaForTerm, formatDateLong, groupDaysByMonth, isValidIsoDate, markableDays,
 } from '../../../../utils/attendanceCalendarResolver'
-import { classDisplayName } from '../../../../schemas/classRegister'
+import { classDisplayName } from '../../../../shared/schemas/classRegister'
 import { saveAttendanceTermSettings, setAttendanceTermState } from '../../services/attendanceService'
 import { useToast } from '../../../../shared/components/Toast'
 import Button from '../../../../shared/components/Button'

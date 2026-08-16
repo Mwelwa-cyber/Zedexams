@@ -2,14 +2,14 @@
 // Quiz Limit Reached, Welcome Back). Each popup has a distinct hero + purpose,
 // but they share the benefit pills, the Weekly/Monthly pricing cards and the
 // "Most Popular" ribbon so pricing can never drift between them — it all reads
-// from src/utils/subscriptionConfig.js (PLANS).
+// from src/engines/payment-engine/subscriptionConfig.js (PLANS).
 //
 // Deliberately uses a fixed light "premium purple" palette (Tailwind literal
 // colours, not theme-* tokens) rather than following the learner theme — the
 // same approach PaywallHost takes. Upgrade modals read as a branded moment and
 // stay legible whatever theme the learner has picked.
 
-import { PLANS } from '../../../utils/subscriptionConfig'
+import { PLANS } from '../../../engines/payment-engine/subscriptionConfig'
 import Icon from '../../../shared/components/Icon'
 import { Check, Lock, RefreshCw } from '../../../shared/components/icons'
 

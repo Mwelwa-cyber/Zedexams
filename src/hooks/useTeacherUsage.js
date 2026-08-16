@@ -9,7 +9,7 @@ import {
   PLAN_LABELS,
   DAILY_LIMITS,
   resolveTeacherPlan,
-} from '../utils/teacherPlans'
+} from '../engines/payment-engine/teacherPlans'
 
 // Maps live server tool keys (functions/teacherTools/teacherPlans.js PLAN_LIMITS)
 // onto the dashboard-widget feature keys. Each feature row in UsageMeter.jsx

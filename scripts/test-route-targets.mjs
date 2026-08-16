@@ -39,7 +39,7 @@ import { join } from 'node:path'
 import { declaredRoutePaths, readSource, TEACHER_ROUTES_PATH } from './lib/declaredRoutes.mjs'
 
 const SRC = 'src'
-const APP = join(SRC, 'App.jsx')
+const APP = join(SRC, 'app', 'App.jsx')
 
 let passed = 0
 function test(name, fn) {

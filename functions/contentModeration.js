@@ -17,7 +17,11 @@
  * without a redeploy.
  */
 
-const {decideContentOutcome, DEFAULT_BLOCKED_CATEGORIES} = require("./contentModerationCore");
+const {
+  decideContentOutcome,
+  describeModerationDegradation,
+  DEFAULT_BLOCKED_CATEGORIES,
+} = require("./contentModerationCore");
 
 const MODERATION_ENDPOINT = "https://api.openai.com/v1/moderations";
 const MODERATION_MODEL = process.env.OPENAI_MODERATION_MODEL || "omni-moderation-latest";
@@ -92,13 +96,26 @@ async function checkLearnerText(apiKey, text, opts = {}) {
   }
   let apiResult = null;
   let errored = false;
+  let errorMessage = "";
   try {
     apiResult = await moderateText(apiKey, clean);
   } catch (err) {
     errored = true;
-    console.warn(`[contentModeration] ${label} moderation call failed`, {message: err?.message?.slice(0, 200)});
+    errorMessage = err?.message?.slice(0, 200) || "";
   }
   const outcome = decideContentOutcome({apiResult, errored, failClosed, blockedCategories});
+  // A moderation SERVICE failure is reported on its outcome, not on the
+  // provider error alone — see describeModerationDegradation for why the
+  // severity differs. Emitted at ERROR when the text passed unscreened,
+  // because functionErrorWatch (the only thing watching server logs since
+  // #2230) filters severity>=ERROR and a WARNING never reaches it.
+  const degraded = describeModerationDegradation({outcome, label, error: errorMessage});
+  if (degraded) {
+    const line = `[contentModeration] ${degraded.event}`;
+    const body = JSON.stringify(degraded);
+    if (degraded.severity === "error") console.error(line, body);
+    else console.warn(line, body);
+  }
   if (outcome.blocked) {
     // Structured, PII-free audit line so blocked content is observable without
     // logging the child's actual message.

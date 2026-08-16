@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useFirestore } from '../../../hooks/useFirestore'
-import { PLANS } from '../../../utils/subscriptionConfig'
+import { PLANS } from '../../../engines/payment-engine/subscriptionConfig'
 import Icon from '../../../shared/components/Icon'
 import { CreditCard } from '../../../shared/components/icons'
 

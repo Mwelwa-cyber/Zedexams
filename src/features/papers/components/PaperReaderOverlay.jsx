@@ -1,6 +1,8 @@
 /**
  * PaperReaderOverlay — an immersive, full-viewport reading mode for a past
- * paper.
+ * paper, in the prototype-v3 viewer language (`.papers-reader`): pages on
+ * the dark slate canvas, a floating gradient top bar (back + title), and
+ * a bottom action bar carrying Save offline and Start Quiz.
  *
  * Why this replaces the native Fullscreen API:
  *   The old "Fullscreen" button called `element.requestFullscreen()` on the
@@ -24,14 +26,16 @@
  */
 
 import { useEffect, useRef } from 'react'
-import { Download, X } from '../../../shared/components/icons'
+import { ArrowLeft, Download, PencilLine } from '../../../shared/components/icons'
 import useFocusTrap from '../../../hooks/useFocusTrap'
 
 export default function PaperReaderOverlay({
   title,
+  subtitle = '',
   onClose,
   onDownload,
   downloading = false,
+  onStartQuiz = null,
   children,
 }) {
   const overlayRef = useRef(null)
@@ -78,32 +82,23 @@ export default function PaperReaderOverlay({
       role="dialog"
       aria-modal="true"
       aria-label={title ? `${title} — reading mode` : 'Reading mode'}
-      className="fixed inset-0 z-[60] theme-bg flex flex-col"
+      className="papers-reader fixed inset-0 z-[60] flex flex-col"
     >
-      {/* Toolbar — always visible, unlike the old native-fullscreen chrome. */}
-      <div className="flex-shrink-0 flex items-center gap-2 px-3 py-2 border-b theme-border theme-card">
+      {/* Floating gradient top bar (prototype .pv-top) — always visible,
+          unlike the old native-fullscreen chrome. */}
+      <div className="papers-reader-topbar flex-shrink-0 flex items-center gap-2.5 px-3 pt-3 pb-5">
         <button
           type="button"
           onClick={onClose}
           aria-label="Exit reading mode"
-          className="inline-flex items-center gap-1.5 rounded-full theme-bg-subtle theme-text px-3 py-2 text-xs font-black hover:theme-card active:scale-95 transition"
+          className="papers-reader-ghost inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl !border-0 active:scale-95 transition"
         >
-          <X size={16} strokeWidth={2.6} /> Exit
+          <ArrowLeft size={18} strokeWidth={2.6} />
         </button>
-        <p className="min-w-0 flex-1 truncate text-sm font-black theme-text">
-          {title}
-        </p>
-        {onDownload && (
-          <button
-            type="button"
-            onClick={onDownload}
-            disabled={downloading}
-            aria-label="Download paper"
-            className="inline-flex items-center gap-1.5 rounded-full theme-accent-fill theme-on-accent px-3 py-2 text-xs font-black active:scale-95 transition disabled:opacity-60"
-          >
-            <Download size={15} strokeWidth={2.4} /> {downloading ? 'Preparing…' : 'Download'}
-          </button>
-        )}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[14.5px] font-black leading-tight">{title}</p>
+          {subtitle && <p className="truncate text-[11px] font-bold text-white/75">{subtitle}</p>}
+        </div>
       </div>
 
       {/* Scroll surface — `pan-y pinch-zoom` keeps single-finger scroll AND
@@ -117,6 +112,35 @@ export default function PaperReaderOverlay({
       >
         {children}
       </div>
+
+      {/* Bottom action bar (prototype .pv-bot): Save offline + Start Quiz. */}
+      {(onDownload || onStartQuiz) && (
+        <div
+          className="papers-reader-botbar flex-shrink-0 flex items-center gap-2.5 px-4 pt-5"
+          style={{ paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))' }}
+        >
+          {onDownload && (
+            <button
+              type="button"
+              onClick={onDownload}
+              disabled={downloading}
+              aria-label="Download paper"
+              className="papers-reader-ghost flex-1 inline-flex items-center justify-center gap-1.5 rounded-2xl px-3 py-3 text-[13px] font-black active:scale-95 transition disabled:opacity-60"
+            >
+              <Download size={15} strokeWidth={2.4} /> {downloading ? 'Preparing…' : 'Save offline'}
+            </button>
+          )}
+          {onStartQuiz && (
+            <button
+              type="button"
+              onClick={onStartQuiz}
+              className="papers-reader-quiz flex-[1.35] inline-flex items-center justify-center gap-1.5 rounded-2xl px-3 py-3 text-[13px] font-black active:scale-95 transition"
+            >
+              <PencilLine size={15} strokeWidth={2.4} /> Start Quiz ▸
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }

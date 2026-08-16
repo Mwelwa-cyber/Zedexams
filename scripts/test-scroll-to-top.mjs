@@ -54,7 +54,7 @@ function assert(cond, msg) {
 const COMPONENT_PATH = 'src/shared/components/ScrollToTop.jsx'
 const componentExists = existsSync(join(root, COMPONENT_PATH))
 const componentSrc = componentExists ? read(COMPONENT_PATH) : ''
-const appSrc = read('src/App.jsx')
+const appSrc = read('src/app/App.jsx')
 
 // ── 1. Component file exists ─────────────────────────────────────────
 console.log('\nScrollToTop component structure')

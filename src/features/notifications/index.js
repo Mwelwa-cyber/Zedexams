@@ -36,7 +36,7 @@
  * an edge that an already-decided migration turns into a hard failure, which
  * is the `useRecentStudios` ruling of 2026-08-13 applied unchanged.
  *
- * `src/utils/notificationPrefs.js` stays for the ordinary reason: its
+ * `src/engines/notification-engine/notificationPrefs.js` stays for the ordinary reason: its
  * consumers are the settings page and `teacherSettings`' panel, neither of
  * which is this feature.
  */

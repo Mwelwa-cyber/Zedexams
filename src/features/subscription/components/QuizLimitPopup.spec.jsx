@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, act, fireEvent } from '@testing-library/react'
 import QuizLimitPopup from './QuizLimitPopup'
-import { paywall } from '../../../utils/paywall'
+import { paywall } from '../../../engines/payment-engine/paywall'
 import { capture } from '../../../utils/analytics'
 
 vi.mock('../../../utils/analytics', () => ({ capture: vi.fn() }))

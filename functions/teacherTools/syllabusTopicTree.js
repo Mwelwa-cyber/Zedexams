@@ -104,7 +104,7 @@ function normalizeTopicTree(inner) {
   // Every key a numbered entry occupies → the entries occupying it. Two owners
   // means two topics in this one scope share a code, so a child of that code has
   // two candidate parents and the hierarchy is undecidable. Callers must pass
-  // ONE curriculum + grade + subject (see src/utils/curriculumTopicIdentity.js).
+  // ONE curriculum + grade + subject (see src/curriculum/resolvers/curriculumTopicIdentity.js).
   const keyOwners = new Map();
   for (const e of entries) {
     if (!e.parsed) continue;

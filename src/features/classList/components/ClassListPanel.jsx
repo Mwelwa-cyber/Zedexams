@@ -19,7 +19,7 @@ import {
 } from '../../../utils/classRoster'
 import { buildRosterCsvTemplate, parseRosterText } from '../../../utils/rosterImport'
 import { mergeLearners } from '../../../utils/learnerDuplicates'
-import { classDisplayName } from '../../../schemas/classRegister'
+import { classDisplayName } from '../../../shared/schemas/classRegister'
 import { useToast } from '../../../shared/components/Toast'
 import Button from '../../../shared/components/Button'
 import ResponsiveModal from '../../../shared/components/ResponsiveModal'

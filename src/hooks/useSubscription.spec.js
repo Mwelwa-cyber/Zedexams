@@ -19,7 +19,7 @@ vi.mock('./useFirestore', () => ({ useFirestore: vi.fn() }))
 import { useAuth } from '../contexts/AuthContext'
 import { useFirestore } from './useFirestore'
 import { useSubscription } from './useSubscription.js'
-import { ACCESS_LEVELS } from '../utils/subscriptionConfig'
+import { ACCESS_LEVELS } from '../engines/payment-engine/subscriptionConfig'
 
 const future = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
 const consume = vi.fn()

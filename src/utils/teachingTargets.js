@@ -19,7 +19,7 @@
 //
 // Run tests: npm run test:teaching-targets
 
-import { matchFrameworkSubject } from './frameworkSubjectMatch.js'
+import { matchFrameworkSubject } from '../curriculum/resolvers/frameworkSubjectMatch.js'
 
 /**
  * @param {{grade,subject,periodsPerWeek}} assignment  a normalized assignment

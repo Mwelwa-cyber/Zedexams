@@ -668,12 +668,16 @@ test('isVerified()/tokenEmailVerified() helpers exist and check the token claim'
 })
 
 test('role helpers require verification', () => {
+  // Whitespace-tolerant: these pin the INTENT (isVerified() is the first term
+  // of the predicate) rather than the one-line formatting the helpers happened
+  // to have when the test was written. Both grew a multi-line body when the
+  // role custom-claim fast path was folded in.
   assert(
-    /function isAdmin\(\) \{ return isVerified\(\)/.test(rules),
+    /function isAdmin\(\)\s*\{\s*return isVerified\(\)/.test(rules),
     'isAdmin() must be built on isVerified() so unverified admins are rejected',
   )
   assert(
-    /function isTeacherOrAbove\(\) \{ return isVerified\(\)/.test(rules),
+    /function isTeacherOrAbove\(\)\s*\{\s*return isVerified\(\)/.test(rules),
     'isTeacherOrAbove() must be built on isVerified()',
   )
 })
@@ -846,8 +850,16 @@ test('platformAdmin custom claim helper exists and checks the token claim', () =
   // The claim must fold into isAdmin() so platform-wide admin does not depend
   // on a client-writable users.role field alone.
   assert(
-    /function isAdmin\(\) \{ return isVerified\(\) && \(isPlatformAdmin\(\)/.test(rules),
+    /function isAdmin\(\)\s*\{\s*return isVerified\(\)\s*&&\s*\(\s*isPlatformAdmin\(\)/.test(rules),
     'isAdmin() must accept the platformAdmin claim (isPlatformAdmin() first, short-circuiting the callerRole() read)',
+  )
+  // The role custom claim must also be checked BEFORE the callerRole() get(),
+  // mirroring storage.rules' hasRoleClaim() — rules get()/exists() are billed
+  // document reads, so the claim path is what keeps admin/teacher checks free.
+  assert(rules.includes('function hasRoleClaim(role)'), 'hasRoleClaim() helper missing')
+  assert(
+    rules.indexOf("hasRoleClaim('admin')") < rules.indexOf("callerRole() == 'admin'"),
+    'hasRoleClaim() must be evaluated before the callerRole() Firestore read',
   )
 })
 

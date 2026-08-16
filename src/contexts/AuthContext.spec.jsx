@@ -71,7 +71,7 @@ vi.mock('../utils/sentry', () => ({
   reportAuthInitFailure: h.reportAuthInitFailure,
 }))
 vi.mock('../utils/analytics', () => ({ capture: vi.fn(), identifyUser: vi.fn(), resetAnalytics: vi.fn() }))
-vi.mock('../utils/fcm', () => ({ refreshTokenIfGranted: () => Promise.resolve(), clearPushUser: () => {} }))
+vi.mock('../services/notifications/fcm', () => ({ refreshTokenIfGranted: () => Promise.resolve(), clearPushUser: () => {} }))
 vi.mock('../utils/referrals', () => ({
   mintAndPersistReferralCode: vi.fn(() => Promise.resolve(null)),
   readPendingReferral: () => null,
@@ -79,7 +79,7 @@ vi.mock('../utils/referrals', () => ({
 }))
 vi.mock('../hooks/useAuthRecovery', () => ({ useAuthRecovery: () => {} }))
 
-// NOTE: ../utils/subscriptionConfig and ../utils/permissions are deliberately
+// NOTE: ../engines/payment-engine/subscriptionConfig and ../utils/permissions are deliberately
 // NOT mocked — the real role-resolution logic is what we're testing.
 
 import { AuthProvider, useAuth } from './AuthContext'
@@ -773,5 +773,60 @@ describe('AuthProvider auth-init fast path + telemetry', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+// ── Action identity ────────────────────────────────────────────────────────
+// 219 files call useAuth(). An action with a fresh identity on every render is
+// unusable in a consumer's dependency array — an `useEffect(…, [logout])`
+// re-fires on every auth render — so the memoisation of these actions is a
+// contract, not an optimisation detail, and it regresses silently the moment
+// someone converts one back to a plain `function` declaration.
+//
+// The second test is the more important one: the two actions that close over
+// the `currentUser` STATE must NOT be stable across a user change. Freezing
+// them would be a stale closure over the previous account, and
+// updateProfileFields WRITES to users/{uid} — so the bug would be one account's
+// fields landing on another's document.
+describe('AuthProvider action identity', () => {
+  function IdentityProbe({ seen }) {
+    const a = useAuth()
+    seen.push({
+      login: a.login,
+      logout: a.logout,
+      register: a.register,
+      resetPassword: a.resetPassword,
+      loginWithGoogle: a.loginWithGoogle,
+      refreshProfile: a.refreshProfile,
+      updateProfileFields: a.updateProfileFields,
+    })
+    return null
+  }
+
+  it('session-independent actions keep one identity across auth re-renders', () => {
+    const seen = []
+    render(<AuthProvider><IdentityProbe seen={seen} /></AuthProvider>)
+    act(() => { h.onAuthCb.current({ uid: 'u1', getIdToken: vi.fn() }) })
+    act(() => { h.snap.next({ exists: () => true, data: () => ({ role: 'learner' }) }) })
+
+    expect(seen.length).toBeGreaterThan(1)
+    const first = seen[0]
+    for (const key of ['login', 'logout', 'register', 'resetPassword', 'loginWithGoogle']) {
+      for (const render_ of seen) {
+        expect(render_[key], `${key} identity changed between renders`).toBe(first[key])
+      }
+    }
+  })
+
+  it('actions that close over the signed-in user are rebuilt when the user changes', () => {
+    const seen = []
+    render(<AuthProvider><IdentityProbe seen={seen} /></AuthProvider>)
+    act(() => { h.onAuthCb.current({ uid: 'u1', getIdToken: vi.fn() }) })
+    const afterFirstUser = seen[seen.length - 1]
+    act(() => { h.onAuthCb.current({ uid: 'u2', getIdToken: vi.fn() }) })
+    const afterSecondUser = seen[seen.length - 1]
+
+    expect(afterSecondUser.updateProfileFields).not.toBe(afterFirstUser.updateProfileFields)
+    expect(afterSecondUser.refreshProfile).not.toBe(afterFirstUser.refreshProfile)
   })
 })

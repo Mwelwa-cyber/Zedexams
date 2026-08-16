@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
-import { resolveTeacherPlan, PLAN_LABELS } from '../../../utils/teacherPlans'
+import { resolveTeacherPlan, PLAN_LABELS } from '../../../engines/payment-engine/teacherPlans'
 import { capture } from '../../../utils/analytics'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 import { UsageReminderBanner } from '../../subscription'

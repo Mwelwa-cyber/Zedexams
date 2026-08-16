@@ -5,7 +5,7 @@
 // isPremium flag while the usage meter read the stale usageMeters snapshot, so
 // a teacher who paid for Pro could see "Pro" in the banner but free-tier caps,
 // locked Pro tools and a "Free" chip in the meter. Both surfaces now resolve
-// the LIVE teacher plan from the profile via src/utils/teacherPlans.js, using
+// the LIVE teacher plan from the profile via src/engines/payment-engine/teacherPlans.js, using
 // the same logic + limits the server gates on.
 //
 // Run: node scripts/test-teacher-plan-resolution.mjs
@@ -23,7 +23,7 @@ const {
   DAILY_LIMITS,
   FREE_PREVIEW_LIMITS,
   PLAN_CATALOG_VERSION,
-} = await import('../src/utils/teacherPlans.js')
+} = await import('../src/engines/payment-engine/teacherPlans.js')
 
 // Server-side catalogue the client mirror must stay in sync with.
 const server = require('../functions/teacherTools/teacherPlans.js')

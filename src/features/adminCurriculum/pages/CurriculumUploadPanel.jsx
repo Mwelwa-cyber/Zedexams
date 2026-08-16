@@ -5,7 +5,7 @@
  * function returns.
  *
  * Pairs with `functions/teacherTools/uploadCurriculumModule.js`.
- * Route: /admin/curriculum-upload (registered in src/App.jsx).
+ * Route: /admin/curriculum-upload (registered in src/app/App.jsx).
  *
  * Flow:
  *   1. Admin picks file + grade + subject + document type (+ optional

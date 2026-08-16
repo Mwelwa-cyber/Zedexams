@@ -30,6 +30,10 @@ const SECURITY_EVENTS = Object.freeze({
   ADMIN_ROLE_GRANTED: "admin.role.granted",
   ADMIN_ROLE_REMOVED: "admin.role.removed",
   ADMIN_ACCESS_DENIED_NO_MFA: "admin.access.denied_no_mfa",
+  // An admin aimed a role or status change at their own account. Both admin
+  // screens disable the control, so this only fires for a stale client or a
+  // direct callable invocation. See security/selfTargetGuardCore.js.
+  ADMIN_SELF_TARGET_DENIED: "admin.self_target.denied",
 });
 
 // Keys that must never be written even if a caller passes them by mistake.

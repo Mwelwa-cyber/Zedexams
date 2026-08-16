@@ -46,7 +46,11 @@ import { resolveVisitorId } from './visitorId'
 
 export { getOrCreateAnonId, resolveVisitorId } from './visitorId'
 
-export const FREE_QUESTION_LIMIT = 30
+// One number, declared in the pure module that the free-set logic and the
+// plain-node tests both read. Re-exported here under its historical name so
+// every existing importer is unaffected.
+export { DEFAULT_FREE_TO_QUESTION as FREE_QUESTION_LIMIT } from '../services/entitlements/freeSet.js'
+import { DEFAULT_FREE_TO_QUESTION as FREE_QUESTION_LIMIT } from '../services/entitlements/freeSet.js'
 const COUNTER_PREFIX = 'zedexams:pastPaperQuiz:'
 
 function safeStorage() {

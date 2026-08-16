@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { PLANS } from '../../../utils/subscriptionConfig'
+import { PLANS } from '../../../engines/payment-engine/subscriptionConfig'
 import { resolveUpgradeScenario, UPGRADE_REASONS } from './upgradeScenarios'
 
 // The copy map behind the compact contextual upgrade pop-up. Pure module —

@@ -1,0 +1,104 @@
+/**
+ * papers-proto — the learner-redesign (prototype-v3) look for the papers
+ * surfaces, expressed through the SAME theme variables the Tailwind
+ * utilities read (theme-bg / theme-card / theme-accent-* / shadow-elev-*),
+ * so the hub and viewer reskin without structural markup changes:
+ * indigo canvas, white 24px cards with the soft indigo shadow, coral
+ * accent, Nunito. It replaces the fixed cream `admin-game-theme` on the
+ * hub — and, unlike that skin, carries a Night variant, so Midnight
+ * readers finally get dark papers surfaces.
+ *
+ * Scoped by class, imported only by the papers pages; nothing leaks.
+ */
+
+.papers-proto {
+  --bg: #edeffd;
+  --bg-subtle: #eef1ff;
+  --card: #ffffff;
+  --card-hover: #f5f6ff;
+  --text: #2b2d51;
+  --text-muted: #8a8fb5;
+  --border: #e4e7fb;
+
+  /* The prototype's coral (#ff5c39) reads 3.07:1 under white small text,
+     so the FLAT accent fill is deepened until the on-accent ink clears
+     WCAG AA (4.86:1) — the same shift admin-game-theme made to its
+     terracotta, and `contrast:routes` gates /papers on it. The bright
+     coral survives on the GRADIENT surfaces (timetable row, reader's
+     Start Quiz), which carry large bold labels. */
+  --accent: #c94418;
+  --accent-bg: #fff0e8;
+  --accent-fg: #e8622f;
+  --accent-text: #ffffff;
+
+  --input-bg: #ffffff;
+  --input-border: #e4e7fb;
+
+  --shadow-sm: 0 4px 12px rgba(90, 100, 200, 0.12);
+  --shadow-md: 0 8px 24px rgba(90, 100, 200, 0.12);
+  --shadow-lg: 0 12px 26px rgba(81, 88, 208, 0.25);
+  --shadow-xl: 0 20px 50px rgba(43, 45, 81, 0.3);
+  --hero-gradient: linear-gradient(135deg, #7180f2 0%, #5158d0 100%);
+
+  --success: #2ec06a; --success-bg: #e0f8ea; --success-fg: #1f9451;
+  --warning: #e8622f; --warning-bg: #fff8e6; --warning-fg: #8a6a1e;
+  --danger: #ef5a5f;  --danger-bg: #fdeaea;  --danger-fg: #cf3d42;
+  --info: #5158d0;    --info-bg: #eef1ff;    --info-fg: #5158d0;
+
+  font-family: 'Nunito', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The prototype is all-Nunito — fold the display face into it. */
+.papers-proto :is(h1, h2, h3, h4, .font-display) { font-family: inherit; }
+
+/* Night (prototype `#phone.night`) — same triggers as the learner shell. */
+:is(body.theme-midnight, html[data-theme='night'] body) .papers-proto {
+  --bg: #171929;
+  --bg-subtle: #2a2d4a;
+  --card: #232640;
+  --card-hover: #2a2d4a;
+  --text: #e9ebff;
+  --text-muted: #9aa0c8;
+  --border: #32365a;
+
+  --accent-bg: rgba(255, 154, 107, 0.16);
+  --accent-fg: #ff9a6b;
+
+  --input-bg: #232640;
+  --input-border: #32365a;
+
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 26px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 20px 50px rgba(0, 0, 0, 0.5);
+
+  --success-bg: #173327; --success-fg: #7bd9a3;
+  --warning-bg: #332c18; --warning-fg: #e6c473;
+  --danger-bg: rgba(239, 90, 95, 0.16); --danger-fg: #f4a5a8;
+  --info-bg: #2a2d4a; --info-fg: #aab2f0;
+}
+
+/* ── Reading canvas (prototype .pv-scroll) ─────────────────────────
+ * The full-screen reading mode draws pages on the prototype's dark
+ * slate so the white A4 sheets read like paper — in light AND Night. */
+
+.papers-reader { background: #23242f; }
+.papers-reader-topbar {
+  background: linear-gradient(180deg, rgba(15, 16, 26, 0.88) 55%, rgba(15, 16, 26, 0.55));
+  color: #fff;
+}
+.papers-reader-botbar {
+  background: linear-gradient(0deg, rgba(15, 16, 26, 0.9) 55%, rgba(15, 16, 26, 0.55));
+}
+.papers-reader-ghost {
+  background: rgba(255, 255, 255, 0.14);
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  color: #fff;
+}
+.papers-reader-quiz {
+  background: linear-gradient(135deg, #ff9057, #ff5c39);
+  color: #fff;
+  box-shadow: 0 4px 0 #e04f22;
+}

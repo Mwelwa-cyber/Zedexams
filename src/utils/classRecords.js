@@ -26,7 +26,7 @@ import {
   classRecordWriteSchema,
   classRecordUpdateSchema,
   coerceClassRecord,
-} from '../schemas/classRecord'
+} from '../shared/schemas/classRecord'
 import { snapshotFromRoster, computeRecord, addLearnerToRecord } from './classRecordMath'
 
 function recordsCol(classId) {

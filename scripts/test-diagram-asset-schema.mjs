@@ -7,7 +7,7 @@ import assert from 'node:assert'
 import {
   diagramAssetWriteSchema, diagramAssetUpdateSchema, coerceDiagramAsset,
   DIAGRAM_ART_TYPES, DIAGRAM_PROVENANCES, MAX_DIAGRAM_LABELS,
-} from '../src/schemas/diagramAsset.js'
+} from '../src/shared/schemas/diagramAsset.js'
 
 const base = {
   createdBy: 'uid-1',

@@ -7,7 +7,7 @@
 import { useState } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useSubscription } from '../../../hooks/useSubscription'
-import { PLANS } from '../../../utils/subscriptionConfig'
+import { PLANS } from '../../../engines/payment-engine/subscriptionConfig'
 import { UpgradeModal } from '../../subscription'
 import { Panel, Section, Btn, Note } from '../components/ui'
 

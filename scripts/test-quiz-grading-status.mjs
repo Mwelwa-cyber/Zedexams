@@ -19,7 +19,7 @@ import {
   buildResultGrading,
   isProvisionalResult,
 } from '../src/utils/quizScoring.js'
-import { coerceResult } from '../src/schemas/result.js'
+import { coerceResult } from '../src/shared/schemas/result.js'
 
 let passed = 0
 function check(name, fn) {

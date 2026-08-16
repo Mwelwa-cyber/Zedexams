@@ -37,7 +37,7 @@ for commands, deploy flow, conventions, and the off-limits list.
    Reconcile rather than duplicate.
 6. **Defend both boundaries.** Writes strict (bad data can't get in); reads
    permissive (bad data already in Firestore can't blank the UI). See
-   `src/schemas/quiz.js` for the canonical write-strict / read-coerce pattern.
+   `src/shared/schemas/quiz.js` for the canonical write-strict / read-coerce pattern.
 
 ## Bug classes to hunt first (learned from real incidents)
 

@@ -67,7 +67,7 @@ function asString(v, max) {
 }
 
 // Defensive sanitiser for the learner-submitted answer map. Mirrors the
-// bounds in src/schemas/attempt.js (answersMap) so a hostile client can't
+// bounds in src/shared/schemas/attempt.js (answersMap) so a hostile client can't
 // bloat the attempt doc or smuggle weird shapes server-side.
 function sanitizeAnswers(raw) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};

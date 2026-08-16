@@ -417,6 +417,17 @@ async function main() {
       event: 'mfa_enrolled', uid: ADMIN, at: new Date(),
     })
 
+    // platformStats — the DAU / retention rollup written by the
+    // rollUpPlatformMetrics cron (admin SDK). The `active` marker subcollection
+    // is a per-day list of WHICH uids used the platform, so it is closed to
+    // every client including admins — see the rules block.
+    await setDoc(doc(db, 'platformStats', '2026-06-23'), {
+      day: '2026-06-23', dau: 4, wau: 9, newUsers: 3, activityEvents: 46,
+    })
+    await setDoc(doc(db, 'platformStats', '2026-06-23', 'active', LEARNER_A), {
+      role: 'learner', expiresAt: new Date(),
+    })
+
     // schoolLicences — TEACHER_A is a member; TEACHER_B is not.
     await setDoc(doc(db, 'schoolLicences', 'licence_1'), {
       schoolName: 'Test Basic School', memberUids: [TEACHER_A],
@@ -530,6 +541,19 @@ async function main() {
     await setDoc(doc(db, 'passkeyUserHandles', LEARNER_A), { handle: 'opaque' })
     await setDoc(doc(db, 'passkeyAuditLog', 'pk_evt_1'), {
       event: 'registered', uidHash: 'h', at: new Date(),
+    })
+
+    // A guardian-unlock request. The doc id IS the sha256 of the pay-link
+    // token; the raw token exists only in the guardian's message.
+    await setDoc(doc(db, 'guardianRequests', 'req_hash_1'), {
+      uid: LEARNER_A,
+      feature: 'PAPER_CONTINUE',
+      contact: 'parent@example.com',
+      method: 'email',
+      planId: 'term_pass',
+      priceZMW: 120,
+      status: 'sent',
+      used: false,
     })
   })
 
@@ -1916,6 +1940,35 @@ async function main() {
     await assertSucceeds(getDoc(doc(unverified, 'settings', 'global')))
   })
 
+  // The settings read is an explicit ALLOWLIST, not a collection-wide `if true`.
+  // The test above passes under BOTH the old wildcard and the new allowlist, so
+  // on its own it proves nothing about the closure. These pin the other three
+  // corners: the second allowlisted id still opens, a non-allowlisted id is shut
+  // to a signed-in non-admin, and an admin can still reach it. Without the
+  // negative case, widening the allowlist back to a wildcard stays green.
+  await test('anonymous CAN read the allowlisted quizLibrary settings doc', async () => {
+    // The public quiz runner fetches this before any sign-in state exists, so a
+    // regression here breaks /quizzes for logged-out visitors.
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'settings', 'quizLibrary'), { quizzes: [] })
+    })
+    await assertSucceeds(getDoc(doc(guest, 'settings', 'quizLibrary')))
+  })
+
+  await test('a NON-allowlisted settings doc is closed to anonymous and to a learner', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'settings', 'fxRate'), { usdToZmw: 27.5 })
+    })
+    await assertFails(getDoc(doc(guest, 'settings', 'fxRate')))
+    await assertFails(getDoc(doc(learnerA, 'settings', 'fxRate')))
+  })
+
+  await test('an admin CAN still read a non-allowlisted settings doc', async () => {
+    // fxRate's only reader is /admin/company (CompanyHQ.jsx, behind AdminRoute)
+    // plus the server-side budget governor, which uses the admin SDK.
+    await assertSucceeds(getDoc(doc(admin, 'settings', 'fxRate')))
+  })
+
   // ── default-deny fallback ────────────────────────────────────
   section('default-deny — unlisted collections are denied for every identity')
 
@@ -2165,6 +2218,46 @@ async function main() {
   await test('even a super admin CANNOT write securityAuditLogs from the client', async () => {
     await assertFails(setDoc(doc(superAdmin, 'securityAuditLogs', 'sec_forged'), {
       event: 'fake',
+    }))
+  })
+
+  // ── platformStats — admin-read summaries, closed markers ─────
+  section('platformStats — admin reads the rollup, nobody reads the uid markers')
+
+  await test('admin can read a platformStats day summary', async () => {
+    await assertSucceeds(getDoc(doc(admin, 'platformStats', '2026-06-23')))
+  })
+
+  await test('a learner CANNOT read a platformStats day summary', async () => {
+    await assertFails(getDoc(doc(learnerA, 'platformStats', '2026-06-23')))
+  })
+
+  await test('a teacher CANNOT read a platformStats day summary', async () => {
+    await assertFails(getDoc(doc(teacherA, 'platformStats', '2026-06-23')))
+  })
+
+  await test('even an admin CANNOT read the active-uid markers', async () => {
+    // The markers are the retention join key — a per-day roster of who used the
+    // platform. Nothing in the product reads them from a client, so the client
+    // door stays shut for every role rather than merely for learners.
+    await assertFails(getDoc(doc(admin, 'platformStats', '2026-06-23', 'active', LEARNER_A)))
+  })
+
+  await test('a learner CANNOT enumerate their own activity marker', async () => {
+    await assertFails(getDoc(doc(learnerA, 'platformStats', '2026-06-23', 'active', LEARNER_A)))
+  })
+
+  await test('even an admin CANNOT forge a platformStats day', async () => {
+    await assertFails(setDoc(doc(admin, 'platformStats', '2026-06-24'), { dau: 99999 }))
+  })
+
+  await test('even an admin CANNOT edit a platformStats day from the client', async () => {
+    await assertFails(updateDoc(doc(admin, 'platformStats', '2026-06-23'), { dau: 1 }))
+  })
+
+  await test('even an admin CANNOT write an active marker', async () => {
+    await assertFails(setDoc(doc(admin, 'platformStats', '2026-06-23', 'active', TEACHER_A), {
+      role: 'teacher',
     }))
   })
 
@@ -2666,6 +2759,63 @@ async function main() {
     await assertFails(setDoc(doc(admin, 'passkeyCredentials', 'cred_forged'), {
       uid: ADMIN, publicKey: 'pk', counter: 0,
     }))
+  })
+
+  // ── guardianRequests — the ask-your-guardian ledger ──
+  section('guardianRequests — server-only writes, admin-only reads')
+
+  await test('the learner who sent it CANNOT read their own guardian request', async () => {
+    // The doc carries the guardian's contact details and the learner's
+    // evidence. The learner does not need it — their bell notification is the
+    // receipt — and the guardian has the message itself.
+    await assertFails(getDoc(doc(learnerA, 'guardianRequests', 'req_hash_1')))
+  })
+
+  await test('another learner CANNOT read it either', async () => {
+    await assertFails(getDoc(doc(learnerB, 'guardianRequests', 'req_hash_1')))
+  })
+
+  await test('a learner CANNOT mark their own request paid', async () => {
+    // The attack this stops: flip status to `paid` and the settle path unlocks
+    // the account without a payment ever landing.
+    await assertFails(setDoc(doc(learnerA, 'guardianRequests', 'req_hash_1'), {
+      status: 'paid', used: true,
+    }, {merge: true}))
+  })
+
+  await test('a learner CANNOT forge a request document', async () => {
+    await assertFails(setDoc(doc(learnerA, 'guardianRequests', 'req_forged'), {
+      uid: LEARNER_A, status: 'paid', planId: 'term_pass',
+    }))
+  })
+
+  await test('an admin may read for support, but still cannot write', async () => {
+    await assertSucceeds(getDoc(doc(admin, 'guardianRequests', 'req_hash_1')))
+    await assertFails(setDoc(doc(admin, 'guardianRequests', 'req_hash_1'), {
+      status: 'paid',
+    }, {merge: true}))
+  })
+
+  await test('a guest CANNOT read a request even holding its id', async () => {
+    await assertFails(getDoc(doc(guest, 'guardianRequests', 'req_hash_1')))
+  })
+
+  // ── users.guardianUnlock — the server's copy of the 72-hour rule ──
+  section('users.guardianUnlock — the rate limit a learner must not be able to clear')
+
+  await test('a learner CANNOT clear their own guardian-request cooldown', async () => {
+    // The client's copy of this rule runs on the learner's device. If the
+    // SERVER's copy were writable from there too, a child could put four
+    // messages in a parent's inbox in one evening.
+    await assertFails(setDoc(doc(learnerA, 'users', LEARNER_A), {
+      guardianUnlock: {lastRequestAt: null},
+    }, {merge: true}))
+  })
+
+  await test('an ordinary profile edit beside it still succeeds', async () => {
+    await assertSucceeds(setDoc(doc(learnerA, 'users', LEARNER_A), {
+      displayName: 'Elena B',
+    }, {merge: true}))
   })
 
   // ── processedWebhookEvents — the replay ledger ──

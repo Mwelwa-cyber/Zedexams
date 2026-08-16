@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import {
   createUserWithEmailAndPassword,
   sendEmailVerification,
@@ -17,14 +17,14 @@ import { doc, setDoc, getDoc, updateDoc, serverTimestamp, onSnapshot } from 'fir
 import app, { auth, db, googleProvider } from '../firebase/config'
 import { isNativePlatform } from '../utils/runtime'
 import { retryOnNetworkError } from '../utils/authRetry'
-import { ROLES, hasPremiumAccess, hasLearnerPortalAccess } from '../utils/subscriptionConfig'
+import { ROLES, hasPremiumAccess, hasLearnerPortalAccess } from '../engines/payment-engine/subscriptionConfig'
 import { isSuperAdmin as isSuperAdminRole, resolvePermissionFlags } from '../utils/permissions'
 import { setSentryUser, clearSentryUser, setAuthStateTag, reportAuthInitFailure } from '../utils/sentry'
 import { capture, identifyUser, resetAnalytics } from '../utils/analytics'
 import { requiresGuardianConsent } from '../utils/guardianConsent'
 // (The guardian consent request is sent from the sign-up flow's guardian
 // screen, which is the only place a guardian's address is collected.)
-import { refreshTokenIfGranted, clearPushUser } from '../utils/fcm'
+import { refreshTokenIfGranted, clearPushUser } from '../services/notifications/fcm'
 import { mintAndPersistReferralCode, readPendingReferral, clearPendingReferral } from '../utils/referrals'
 import { clearAllSearchCaches } from '../utils/cache/searchCache.js'
 import { isAccountDeletionInFlight, onAccountDeletionStart } from '../utils/accountDeletionState'
@@ -126,7 +126,7 @@ function defaultUserRecord({ displayName, email, role = ROLES.LEARNER, grade = n
     subscriptionActivatedBy: null,
     premiumActivatedAt: null,
     // Plain-language plan type surfaced by the subscription-reminder system
-    // (Free / Trial / Pro / Expired is derived in utils/subscriptionStatus.js;
+    // (Free / Trial / Pro / Expired is derived in engines/payment-engine/subscriptionStatus.js;
     // this stores the catalogue planType, 'free' on a fresh account).
     planType: 'free',
     // Reminder-system UX state. Both are self-writable (not on the Firestore
@@ -300,7 +300,24 @@ export function AuthProvider({ children }) {
   // without the subscription internals leaking out of the effect.
   const subscribeProfileRef = useRef(null)
 
-  async function register(email, password, displayName, grade, school, role = ROLES.LEARNER, extras = {}) {
+  // ── Why the actions below are useCallback ────────────────────────────────
+  //
+  // Eight of the actions in this file were already memoised; these are the rest,
+  // finishing that pattern rather than introducing a new one. The point is NOT
+  // to stop consumers re-rendering — see the note on the context value at the
+  // bottom of this component for why that is not achievable here. It is that
+  // 219 files call useAuth(), and a function with a fresh identity on every
+  // render is unusable in a consumer's own dependency array: an
+  // `useEffect(…, [refreshProfile])` re-fires on every auth render, and a
+  // React.memo child taking `logout` as a prop re-renders regardless.
+  //
+  // Dependency arrays here are exhaustive and verified by
+  // react-hooks/exhaustive-deps. Most are genuinely empty because these actions
+  // read `auth.currentUser` — the live Firebase object — rather than the
+  // `currentUser` React state, which is the convention the existing memoised
+  // actions in this file already follow. The three that DO close over React
+  // state declare it, so none of them can capture a stale user.
+  const register = useCallback(async (email, password, displayName, grade, school, role = ROLES.LEARNER, extras = {}) => {
     // Only learner / teacher / parent are self-selectable at signup; anything
     // else falls back to learner. Parents carry no grade and no teacher extras.
     const signupRole = (role === ROLES.TEACHER || role === ROLES.PARENT) ? role : ROLES.LEARNER
@@ -397,15 +414,15 @@ export function AuthProvider({ children }) {
       provider: 'email',
     })
     return cred
-  }
+  }, [])
 
-  async function login(email, password) {
+  const login = useCallback(async (email, password) => {
     // Auto-retry a transient `auth/network-request-failed` (a dropped/timed-out
     // fetch to Google's auth server — common on flaky Zambian mobile links)
     // before surfacing the error. Wrong-password / rate-limit / etc. are not
     // retried (see utils/authRetry.js).
     return retryOnNetworkError(() => signInWithEmailAndPassword(auth, email, password))
-  }
+  }, [])
 
   // Google sign-in. Web uses an OAuth popup; the native Android shell can't
   // open one — and Google blocks its sign-in pages inside embedded WebViews
@@ -427,7 +444,7 @@ export function AuthProvider({ children }) {
   // object rather than changing the return shape keeps the other caller
   // (Login.jsx, which only wants the credential) working unchanged — this is
   // a sign-up concern and should not ripple into sign-in.
-  async function loginWithGoogle({ role, onboarding } = {}) {
+  const loginWithGoogle = useCallback(async ({ role, onboarding } = {}) => {
     const targetRole = (role === ROLES.TEACHER || role === ROLES.PARENT) ? role : ROLES.LEARNER
     const cred = isNativePlatform()
       ? await signInWithGoogleNative()
@@ -435,7 +452,7 @@ export function AuthProvider({ children }) {
     const created = await ensureGoogleUserProfile(cred, targetRole, onboarding || {})
     try { cred.isNewAccount = created } catch { /* frozen credential — caller falls back */ }
     return cred
-  }
+  }, [])
 
   // Two delivery paths, tried in order, because one of them depends on
   // things we do not control.
@@ -456,7 +473,7 @@ export function AuthProvider({ children }) {
   // to: `auth/user-not-found` and the throttling codes resolve as success
   // (see passwordResetFallback.js), so the second path cannot be used to
   // mine the user base behind the first path's back.
-  async function resetPassword(email) {
+  const resetPassword = useCallback(async (email) => {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://zedexams.com'
     try {
       return await sendPasswordResetEmailCallable({ email, continueUrl: origin })
@@ -486,13 +503,13 @@ export function AuthProvider({ children }) {
         throw primaryError
       }
     }
-  }
+  }, [])
 
-  async function logout() {
+  const logout = useCallback(async () => {
     setUserProfile(null)
     setProfileIssue(null)
     return signOut(auth)
-  }
+  }, [])
 
   // Re-check verification against the Auth server. On success, force a token
   // refresh so Firestore rules + Cloud Functions see email_verified=true NOW
@@ -589,9 +606,12 @@ export function AuthProvider({ children }) {
     return repairedProfile
   }, [bootstrapMissingProfile, fetchUserProfile])
 
-  async function refreshProfile() {
+  // Closes over the `currentUser` STATE (not auth.currentUser), so it declares
+  // it: a stale capture here would refresh the profile of the previously
+  // signed-in account.
+  const refreshProfile = useCallback(async () => {
     if (currentUser) return ensureUserProfile(currentUser)
-  }
+  }, [currentUser, ensureUserProfile])
 
   // Re-run session restoration on demand — the "Try again" action on the
   // <SessionRestorationScreen>. Forces a fresh ID token (a stale one is the
@@ -617,15 +637,18 @@ export function AuthProvider({ children }) {
     subscribeProfileRef.current?.()
   }, [])
 
-  async function updateProfileFields(fields) {
+  // Same reasoning as refreshProfile, and the consequence of getting it wrong is
+  // sharper: this WRITES to users/{uid}, so a stale `currentUser` would write
+  // one account's fields onto another's document.
+  const updateProfileFields = useCallback(async (fields) => {
     if (!currentUser) return
     await updateDoc(doc(db, 'users', currentUser.uid), fields)
     setUserProfile(prev => ({ ...prev, ...fields }))
-  }
+  }, [currentUser])
 
-  async function updateLearnerGrade(newGrade) {
+  const updateLearnerGrade = useCallback(async (newGrade) => {
     return updateProfileFields({ grade: Number(newGrade) })
-  }
+  }, [updateProfileFields])
 
   // Whether this account has enrolled MFA (from Firebase Auth, not Firestore).
   // Drives the mandatory-admin-MFA route guard. Derived from currentUser so it
@@ -1059,19 +1082,54 @@ export function AuthProvider({ children }) {
     onSessionExpired: (reason) => expireSession(`resume-${reason}`),
   })
 
+  /**
+   * Memoised — but read this before assuming it buys what the equivalent memo
+   * in DataSaverContext / PlatformSettingsContext buys, because it does not.
+   *
+   * Those two providers sit INSIDE AuthProvider in main.jsx, so they re-render
+   * whenever an ancestor does while their own state is unchanged; memoising
+   * their value stops a token refresh re-rendering every consumer of theirs.
+   *
+   * AuthProvider has no such ancestor. Its only re-render triggers are its own
+   * six useState values — currentUser, userProfile, loading, authSettled,
+   * profileIssue, emailVerified — and every one of them is a dependency of this
+   * object (useAuthRecovery holds refs and effects only, no state). So this memo
+   * is invalidated on essentially every render that actually occurs, and it does
+   * NOT meaningfully reduce consumer re-renders. Do not cite it as if it did.
+   *
+   * What it is worth: it holds the object's identity stable if the component
+   * ever re-renders for a reason that is not one of these values (a future hook
+   * with state, a parent that starts re-rendering), and it makes the set of
+   * things that can change the value explicit and lint-checked. The real win for
+   * the 219 useAuth() consumers is the stable action identities above.
+   *
+   * The change that WOULD cut consumer re-renders is splitting this into a state
+   * context and a stable actions context, so a component that only needs
+   * `logout` stops re-rendering on every auth state change. That is an API
+   * change across all 219 consumers and belongs in its own PR.
+   */
+  const value = useMemo(() => ({
+    currentUser, userProfile, loading, authSettled, profileIssue,
+    emailVerified,
+    needsEmailVerification: !!currentUser && emailVerified === false,
+    refreshEmailVerification, resendVerificationEmail,
+    login, loginWithGoogle, register, logout, resetPassword,
+    fetchUserProfile, ensureUserProfile, refreshProfile, retrySession, updateProfileFields, updateLearnerGrade,
+    isLearner, isTeacher, isParent, isAdmin, isAdminOnly, isSuperAdmin, isPremium, isPaidTeacher, canAccessFullContent, canAccessLearnerPortal,
+    permissions,
+    userStatus, isSuspended,
+    mfaEnrolled,
+  }), [
+    currentUser, userProfile, loading, authSettled, profileIssue, emailVerified,
+    refreshEmailVerification, resendVerificationEmail,
+    login, loginWithGoogle, register, logout, resetPassword,
+    fetchUserProfile, ensureUserProfile, refreshProfile, retrySession, updateProfileFields, updateLearnerGrade,
+    isLearner, isTeacher, isParent, isAdmin, isAdminOnly, isSuperAdmin, isPremium, isPaidTeacher, canAccessFullContent, canAccessLearnerPortal,
+    permissions, userStatus, isSuspended, mfaEnrolled,
+  ])
+
   return (
-    <AuthContext.Provider value={{
-      currentUser, userProfile, loading, authSettled, profileIssue,
-      emailVerified,
-      needsEmailVerification: !!currentUser && emailVerified === false,
-      refreshEmailVerification, resendVerificationEmail,
-      login, loginWithGoogle, register, logout, resetPassword,
-      fetchUserProfile, ensureUserProfile, refreshProfile, retrySession, updateProfileFields, updateLearnerGrade,
-      isLearner, isTeacher, isParent, isAdmin, isAdminOnly, isSuperAdmin, isPremium, isPaidTeacher, canAccessFullContent, canAccessLearnerPortal,
-      permissions,
-      userStatus, isSuspended,
-      mfaEnrolled,
-    }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   )

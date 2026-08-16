@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useSubscriptionReminder } from '../../../hooks/useSubscriptionReminder'
-import { reminderCopy } from '../../../utils/subscriptionStatus'
+import { reminderCopy } from '../../../engines/payment-engine/subscriptionStatus'
 import Icon from '../../../shared/components/Icon'
 import { ArrowRight } from '../../../shared/components/icons'
 

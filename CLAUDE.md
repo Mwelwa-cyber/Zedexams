@@ -111,14 +111,15 @@ ZedExams ships via GitHub Actions. As of 2026-05-14 the project owner delegated 
 ```
 src/
   features/flashcards/ — the REFERENCE MIGRATION (architecture.md Phase 2, steps written up in `docs/MIGRATION_TEMPLATE.md` — read it before migrating another feature). Page, components, hook, `services/` (the only Firebase access), `lib/*Core.js` (pure, node-tested) and `export/` behind one public `index.js`. The page is deliberately NOT exported: route tables mount it with `lazy(() => import('…/pages/FlashcardGenerator'))`, because a page in a front door lands in the chunk of every consumer — one of which is the public marketing page
-  app/ engines/ shared/ curriculum/ — MIGRATION SCAFFOLD (architecture.md Phase 1), empty apart from `curriculum/catalog/`, which re-exports the taxonomy roots `config/canonicalEducation.js` + `config/educationLevels.js`. Nothing has moved in yet: App.jsx, src/contexts/, the four quiz runners and the exporters are all still canonical where they are. What IS live is the layering — `app → features → engines/curriculum → shared/services/config`, one-way, enforced by the `no-restricted-imports` blocks in `eslint.config.js` plus `test:import-boundaries` (which resolves every import in `src/` to a real path — covering the sibling-feature case ESLint's string matching cannot see, **dynamic `import()` which it does not inspect at all**, and the shrink-only debt lists a warning could never fail a build over — and asserts the lint rules still fire). Each directory index is a namespace marker, NOT a barrel — import the area (`src/shared/utils`), never the root
-  App.jsx                       — router; nearly every route is React.lazy(); ThemeApplicator pins public routes to brand default
+  app/ engines/ shared/ curriculum/ — the Phase 1 MIGRATION SCAFFOLD, now substantially occupied (this line described it as empty until 2026-08-16, long after it was). Live today: `app/` holds App.jsx + guards + teacherRoutes; `engines/` holds the export engine, assessment engine, paper-render, payment-engine and notification-engine; `shared/` holds components, hooks, utils, schemas, constants, icons and styles; `curriculum/` holds catalog, diagrams and resolvers. **Four areas are still empty and only one of them is merely pending** — `app/providers/`, `curriculum/{adapters,validators}` and `shared/validation/` are BLOCKED by the layering itself, and `app/layouts/` + `curriculum/aliases/` are empty because their contents went elsewhere or never existed. Each area's `index.js` records which case it is and why; read that before assuming a directory is waiting for you. The recurring blocker: a module cannot move UP into `curriculum/` or `engines/` while something in `shared/` or `config/` still imports it, and `src/contexts/` cannot move into `app/providers/` while 294 files under `features/` import it. What IS live is the layering — `app → features → engines/curriculum → shared/services/config`, one-way, enforced by the `no-restricted-imports` blocks in `eslint.config.js` plus `test:import-boundaries` (which resolves every import in `src/` to a real path — covering the sibling-feature case ESLint's string matching cannot see, **dynamic `import()` which it does not inspect at all**, and the shrink-only debt lists a warning could never fail a build over — and asserts the lint rules still fire). Each directory index is a namespace marker, NOT a barrel — import the area (`src/shared/utils`), never the root
+  app/App.jsx                       — router; nearly every route is React.lazy(); ThemeApplicator pins public routes to brand default
   main.jsx                      — entry; wraps <App /> in ErrorBoundary + AuthProvider + ThemeProvider + DataSaverProvider + PlatformSettingsProvider
   firebase/config.js            — Firebase init; sets auth persistence, App Check (reCAPTCHA Enterprise on web, Play Integrity on Android via Capacitor plugin), multi-tab IndexedDB persistence, FCM (web-push only)
   firebase/ai.js                — Firebase AI Logic (Gemini) client; src/utils/aiLogic.js wraps generateText/streamText/generateJSON
   contexts/                     — AuthContext, ThemeContext, DataSaverContext, PlatformSettingsContext
   components/
     (admin/ MIGRATED — the directory is gone as of 2026-08-14. Its 26 files became the `features/admin*` features one slice at a time from 2026-08-12; the last three — AdminPastPapers, PastPaperStudio, pastPaperReport — were held back only by the freeze and became `src/features/adminPastPapers/` when the sixth ruling closed it. **PastPaperStudio's Quiz step is still optional** — a paper can publish with `quizStatus: 'pending'`; every read of that state goes through `src/utils/pastPaperQuizStatus.js`, the status is DERIVED (`quizStatus ?? (quizId ? 'attached' : 'pending')`) so papers predating the field still resolve, and it fail-closes: `'attached'` with no `quizId` reads as pending rather than rendering a Start Quiz button that leads nowhere. `functions/pastPapersIndexHelpers.js` carries a CommonJS mirror, kept honest by `test:past-papers-index`)
+  features/adminShell — `AdminLayout` is the ONE shell for every `/admin/*` route: sidebar (desktop), drawer (mobile), the ⌘K command palette, the pending-count badges. **One nav registry**: `lib/adminNav.js` holds `ADMIN_NAV_SECTIONS` (the seven grouped sections), `ADMIN_SWITCH_ITEMS` (Teacher/Learner view) and `ADMIN_ACTION_ITEMS` (Sign out, which carries a `command` string the shell resolves rather than a route, so the registry never imports the auth context). It lived inline in `AdminLayout.jsx` until 2026-08-16, which cost two things: the desktop and mobile "Quick switch" links were written out twice and free to drift, and the palette was handed the nav sections ALONE — so ⌘K could reach "AI costs" but not "Sign out" or either view switch, which sat in their own hard-coded block. `ADMIN_PALETTE_SECTIONS` is what the palette gets. **`scripts/test-admin-links.mjs` (`test:admin-links`) is the admin twin of `test:dashboard-v2-links`** — it text-parses seventeen `features/admin*` directories and fails CI if any hard-coded target has no matching `<Route>` (40 targets at introduction, 0 broken). It reads two shapes, because anchoring to a quote is not enough: literal attributes/properties (`to:`, `to=`, `href=`, `route:`) AND expression forms (`navigate(...)`, `to={...}`), where every route-like literal inside the argument text is pulled out — `navigate(id ? `/admin/agents/jobs/${id}` : '/admin/agents/jobs')` matched NEITHER branch under the literal-only pattern, so retargeting a real admin flow at a dead route left the guard green. Dynamic targets (`/admin/users/${uid}`) are unresolvable from source, so they are excluded AND PRINTED: a guard that skips work silently reads exactly like one that found nothing wrong. Keep destinations as plain string literals so the parser can see them. **Palette ranking is pure and node-tested** — `lib/adminNavSearch.js` (`test:admin-nav-search`) matches AND across whitespace tokens over label + section + `keywords` + path, so "costs ai" and "ai costs" are equivalent and an admin can type what a page is FOR ("billing", "refund", "audit") rather than its label; results rank exact-label ▸ label-prefix ▸ label-word ▸ label-substring ▸ keyword-only, ties keeping registry order so the list only ever narrows as you type. Behaviour that needs a DOM (action dispatch, badge pills, focus restore on close, `aria-activedescendant`) is in `CommandPalette.spec.jsx`. Badge counts are five Firestore aggregate queries on a 60s timer that **only runs while the document is visible** and refreshes on becoming visible — before that a backgrounded `/admin` tab billed ~14,400 count queries over a weekend nobody looked at.
     ai/                         — ZedChatLauncher + ZedChatPage (learner study assistant; SSE streamed from apiAiChat)
     auth/                       — Login, Register, AuthAction (password reset)
     dashboard/                  — StudentDashboard, GradeHub, MyResults, Badges, Profile
@@ -138,8 +139,8 @@ src/
   features/lessons, features/notes, features/visualStudio — feature-folder pattern (pages/, components/, services/, lib/) for newer surfaces; visualStudio drives admin image authoring AND the teacher Picture & Diagram Studio at /teacher/visual-studio. **Visual Studio v2 foundation (2026-08)**: the `diagramAssets` collection is the curriculum Diagram Library — ONE asset stores source art + labels `{ word, anchor, box }` (normalized 0–1) and the four printable versions (teacher words / learner P,Q,R / answer key / picture only) are RENDER-TIME projections (`lib/diagramProjections.js`; letters are NEVER stored — derived from reading order, sort anchor.y then anchor.x, so add/delete can't skip a letter; the learner word bank is lowercase-alphabetical because anchor order leaks answers). `lib/labelBoxLayout.js` owns auto box placement (nearer margin, greedy push-down) + the 2F "Perfect layout" + leader-crossing detection; `schemas/diagramAsset.js` is the Zod pair; `services/diagramAssetService.js` bumps `version` on every label edit (consumers reference assetId + version). AI auto-label: the `autoLabelDiagram` callable (`functions/teacherTools/autoLabelDiagram.js`, pure decisions in `autoLabelCore.js`) runs Claude vision + `resolveCbcContext` grounding and returns proposals the editor treats as pre-filled manual labels — confidence < 0.7 flags amber, an ungrounded run says so, two malformed replies fall back to manual mode, and NOTHING is written server-side. Legacy pictureBank/visualAssets docs migrate via `npm run migrate:diagram-assets:dry` (idempotent, deterministic `mig-*` doc ids)
   editor/                       — TipTap-based rich-content editor shared between quiz/notes/lessons
   hooks/                        — useFirestore, useSubscription, useTeacherUsage, useQuizPersistence, …
-  utils/                        — Firestore services + AI clients + DOCX/PDF exporters + Lenco payments + permissions + paywall + analytics (~325 non-test modules; the catch-all bucket). Several files here are now RE-EXPORT SHIMS onto functions/shared/assessment — see "One copy of the export rules" below before adding logic to one
-  schemas/                      — Zod schemas for quiz, attempt, result
+  utils/                        — Firestore services + AI clients + DOCX/PDF exporters + Lenco payments + permissions + analytics (~263 non-test modules; the catch-all bucket). Several files here are now RE-EXPORT SHIMS onto functions/shared/assessment — see "One copy of the export rules" below before adding logic to one. **The paywall/entitlement group left on 2026-08-16** → `src/engines/payment-engine/` (`paywall`, `subscriptionConfig`, `subscriptionStatus`, `subscriptionUpgrade`, `teacherPlans`); `permissions.js` stayed, because `isSuperAdmin` is a role predicate the whole app reads, not a payment concept
+  (schemas/ MIGRATED 2026-08-16 → src/shared/schemas/ — the root directory is gone. All eight Zod files moved at once rather than one at a time, because each already had consumers in two or more of features/, hooks/ and utils/, so there was no ownership question to settle per file. The precondition was measured, not assumed: `src/shared/**` may not import the Firebase SDK, and all eight are plain-object coercers/validators with no Firebase import — which is why they were eligible where `syllabusKbService.js` and the FCM modules are not. Nine `scripts/` suites import these paths directly under plain node, one of them from inside the rules-emulator job)
   config/curriculum.js          — SUBJECTS / GRADES; single source of truth for CBC dropdowns
 
 functions/                      — Cloud Functions v2, Node 22, codebase=default. Separate package.json.
@@ -215,6 +216,58 @@ consent records keep their meaning.
 
 If a future feature needs teachers and learners connected, it is a new design
 decision — do not restore this one.
+
+### One gating service — `src/services/entitlements/`
+
+Every lock, quota, chip and unlock sheet reads from here, and nothing else may
+decide gating. The mount-time "Your Premium has ended" interstitial is **gone**
+— deleted outright, not delayed or shrunk — and must not come back in any form.
+
+Two rules override everything else in this area:
+
+1. **No gate ever interrupts work in progress.** Locks live at boundaries — the
+   end of a set, the end of a session, a tapped padlock. Screens declare
+   themselves with `useActivity('quiz_active')`; `interruptionBudget.canShow`
+   refuses while the stack is non-empty.
+2. **Feedback on work already done is never charged for.** Marking, wrong
+   answers and weak-topic advice for questions the learner has answered are
+   free on every plan, permanently. `AUTO_MARKING` covers papers beyond the
+   free set and must never sit in front of a free set's own results.
+
+- **`gates.js`** is the registry — a gate declares its quota, tier, icon and
+  copy, and nothing may be locked without an entry. **`planState.js`** is pure:
+  grace is DERIVED (`expired && now < expiresAt + 3 days`, everything unlocked),
+  `ageBand` fails closed (a learner is `under18` unless `isMinor === false`), and
+  **every quota must expose a `resetsAt`** — a lock that cannot say when it lifts
+  renders nothing rather than rendering bare.
+- **Under-18 learners are never shown a price.** `useUnlockFlow` routes them to
+  `GuardianAskSheet`, which imports no pricing module at all — the guarantee is
+  structural, not a conditional. The ask goes to `requestGuardianUnlock`
+  (`functions/guardianUnlock/`), rate-limited to one per learner per 72 hours
+  **server-side** (`users.guardianUnlock` is on the rules blocklist). Message
+  order is fixed by `functions/shared/guardian/guardianMessageCore.js`:
+  evidence → the ask → exam countdown → price. Never price first.
+- **The in-paper free set never walls the learner.** `PublicQuizRunner` ends the
+  RUN at the free-set boundary and goes to the results screen; the offer is an
+  inline `PaperContinueLock` below the free score, free review and free weak
+  topic. Answers are written to a local draft BEFORE the results render (the
+  route's zero-Firestore-write property is unchanged — see
+  `features/papers/lib/paperAttemptDraft.js`). Papers declare
+  `freeSet: { toQuestion, sectionId }` landing on a section boundary.
+- **Surfaces live where their consumers can reach them without the checkout.**
+  The subscription front door eagerly exports `UpgradeModal`; `PlanChip` and
+  `LockedCard` are in `src/shared/components/`, `PaperContinueLock` in
+  `features/papers/`, and `UnlockSheetHost` / `GraceRibbon` are lazy route
+  mounts in App.jsx. `MomentOfWinModal` exists and is tested but is **not
+  mounted** — it is Part 9 of the rollout and has no trigger site yet.
+- Prices are data (`src/config/plans.js`, joined to the checkout catalogue by
+  `checkoutPlanId` and guarded by `test:entitlements`); the exam countdown is
+  one constant (`src/config/examDates.js` ← `PSLE_2026.startsAt`, mirrored
+  server-side and guarded).
+
+Tests: `test:entitlements`, `test:guardian-unlock`, plus the Vitest specs beside
+each surface (`ContextualUnlockSheet`, `MomentOfWinModal`, `FreeSetResults`,
+`FreeSetMeter`, `paperAttemptDraft`, `PublicQuizRunner.freeset`).
 
 ### Three AI surfaces, each on a different model
 
@@ -939,7 +992,7 @@ Web uses reCAPTCHA Enterprise (via `ReCaptchaEnterpriseProvider`, silent unless 
 
 ### Schemas
 
-Quiz/attempt/result Zod schemas live in `src/schemas/`. There's also a parallel server-side schema at `scripts/test-quiz-attempt-schemas.mjs` for the migration tooling. The teacher-tool generators each have their own JSON schema in `functions/teacherTools/<tool>Schema.js` — they describe the LLM output shape, not Firestore docs.
+Quiz/attempt/result Zod schemas live in `src/shared/schemas/` (moved there from `src/schemas/` on 2026-08-16 — the root directory is gone). There's also a parallel server-side schema at `scripts/test-quiz-attempt-schemas.mjs` for the migration tooling. The teacher-tool generators each have their own JSON schema in `functions/teacherTools/<tool>Schema.js` — they describe the LLM output shape, not Firestore docs.
 
 ## Conventions worth knowing
 

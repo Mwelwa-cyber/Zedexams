@@ -7,7 +7,7 @@ import {
   audienceForProfile,
   resolveSubscriptionStatus,
   upgradePortal,
-} from '../../../utils/subscriptionStatus'
+} from '../../../engines/payment-engine/subscriptionStatus'
 import { capture } from '../../../utils/analytics'
 import Icon from '../../../shared/components/Icon'
 import { ArrowRight, Lock, X } from '../../../shared/components/icons'

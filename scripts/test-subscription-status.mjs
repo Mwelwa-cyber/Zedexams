@@ -10,7 +10,7 @@ const {
   AUDIENCE,
   upgradePortal,
   reminderCopy,
-} = await import('../src/utils/subscriptionStatus.js')
+} = await import('../src/engines/payment-engine/subscriptionStatus.js')
 
 let pass = 0
 let fail = 0

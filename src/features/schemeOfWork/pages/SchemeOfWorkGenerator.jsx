@@ -16,6 +16,7 @@ import SchemePreviewCard from '../components/SchemePreviewCard'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../../../shared/components/StudioPageHeader'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
+import Skeleton from '../../../shared/components/Skeleton'
 import {
   attachLibraryToGeneration,
   isFreePlanTeacher,
@@ -28,7 +29,7 @@ import LiveGenerationCanvas from '../../../shared/components/LiveGenerationCanva
 import { FreePreviewUpsell } from '../../teacherPaywall'
 import { StudioNextSteps } from '../../teacherPaywall'
 import { capture } from '../../../utils/analytics'
-import { resolveTeacherPlan, FREE_PREVIEW_LIMITS } from '../../../utils/teacherPlans'
+import { resolveTeacherPlan, FREE_PREVIEW_LIMITS } from '../../../engines/payment-engine/teacherPlans'
 import { useToast } from '../../../shared/components/Toast'
 import StudioCurriculumSelector from '../../../shared/components/StudioCurriculumSelector'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
@@ -59,7 +60,7 @@ import {
   deliveryWeekCount,
   defaultRevisionWeeks,
 } from '../lib/schemeTermPlan'
-import { matchFrameworkSubject, periodsPerWeekLabel } from '../../../utils/frameworkSubjectMatch'
+import { matchFrameworkSubject, periodsPerWeekLabel } from '../../../curriculum/resolvers/frameworkSubjectMatch'
 import { evaluate as evaluateReadiness } from '../lib/schemeReadiness'
 import { normalizeCurriculum, curriculumLabel } from '../../../shared/utils/schemeFormat'
 import { stampEditHistory } from '../../../utils/schemeEditHistory'
@@ -1062,8 +1063,11 @@ function LiveSchemeReveal({ scheme, status }) {
   return (
     <div>
       <SchemeOfWorkView scheme={partial} />
+      {/* No pulse on the line below: the week number itself is the progress
+          signal, and fading the only line that carries it costs legibility to
+          say something the text already says. */}
       {visible < total && (
-        <p className="mt-2 text-center text-xs animate-pulse" style={{ color: 'var(--zt-text-muted)' }}>
+        <p className="mt-2 text-center text-xs" style={{ color: 'var(--zt-text-muted)' }}>
           Writing week {visible + 1} of {total}…
         </p>
       )}
@@ -1072,16 +1076,19 @@ function LiveSchemeReveal({ scheme, status }) {
 }
 
 function SchemeSkeleton() {
+  // The frame is real; only the contents are placeholder. Rows carry `index`
+  // so the six weeks read as one wave down the table rather than as eighteen
+  // independent flashes.
   return (
-    <div className="rounded-xl border theme-border bg-white p-5" aria-hidden="true">
-      <div className="mx-auto h-4 w-2/3 rounded bg-slate-200 animate-pulse" />
-      <div className="mx-auto mt-2 h-3 w-1/2 rounded bg-slate-100 animate-pulse" />
+    <div className="rounded-xl border theme-border theme-card p-5" aria-hidden="true">
+      <Skeleton className="mx-auto" width="66%" height={16} />
+      <Skeleton className="mx-auto mt-2" width="50%" height={12} index={1} />
       <div className="mt-5 space-y-2">
         {Array.from({ length: 6 }).map((_, i) => (
           <div key={i} className="flex gap-2">
-            <div className="h-3 w-8 rounded bg-slate-200 animate-pulse" />
-            <div className="h-3 flex-1 rounded bg-slate-100 animate-pulse" />
-            <div className="h-3 w-1/4 rounded bg-slate-100 animate-pulse" />
+            <Skeleton width={32} height={12} index={i} />
+            <Skeleton className="flex-1" height={12} index={i} />
+            <Skeleton width="25%" height={12} index={i} />
           </div>
         ))}
       </div>

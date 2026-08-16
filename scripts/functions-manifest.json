@@ -2414,6 +2414,22 @@
       "classification": "mechanical",
       "batch": null
     },
+    "requestGuardianUnlock": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {
+        "secrets": "[emailSmtpUser, emailSmtpPassword]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "./guardianUnlock",
+      "optionsUnresolved": null,
+      "target": "require('./guardianUnlock').requestGuardianUnlock",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": null
+    },
     "resendInvoiceEmail": {
       "kind": "onCall",
       "inline": false,
@@ -2566,6 +2582,24 @@
       "optionsFrom": "./teacherTools/rollbackSyllabusVersion",
       "optionsUnresolved": null,
       "target": "rollbackSyllabusVersion",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "rollUpPlatformMetrics": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {
+        "schedule": "\"30 0 * * *\"",
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "540",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "./platformMetrics",
+      "optionsUnresolved": null,
+      "target": "rollUpPlatformMetricsCron",
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
