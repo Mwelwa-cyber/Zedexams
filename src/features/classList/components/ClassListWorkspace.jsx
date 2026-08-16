@@ -29,7 +29,7 @@ import {
   CLASS_LIST_SORTS, ROWS_PER_PAGE_OPTIONS, DEFAULT_CLASS_LIST_FILTERS,
 } from '../../../utils/classListCore'
 import { LEARNER_STATUSES, learnerStatusLabel } from '../../../utils/learnerStatus'
-import { classDisplayName } from '../../../schemas/classRegister'
+import { classDisplayName } from '../../../shared/schemas/classRegister'
 import { useToast } from '../../../shared/components/Toast'
 import Button from '../../../shared/components/Button'
 import ConfirmDialog from '../../../shared/components/ConfirmDialog'

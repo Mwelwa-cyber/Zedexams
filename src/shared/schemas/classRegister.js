@@ -12,8 +12,8 @@
  */
 
 import { z } from 'zod'
-import { normalizeSubject } from '../config/curriculum.js'
-import { CANONICAL_GRADES } from '../config/canonicalEducation.js'
+import { normalizeSubject } from '../../config/curriculum.js'
+import { CANONICAL_GRADES } from '../../config/canonicalEducation.js'
 
 const CLASS_STATUSES = ['active', 'archived']
 

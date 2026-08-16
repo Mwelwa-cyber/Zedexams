@@ -19,7 +19,7 @@ import { Users } from 'lucide-react'
 import ResponsiveModal from './ResponsiveModal'
 import { listTeacherRegisters } from '../../utils/classRegister'
 import { listRoster } from '../../utils/classRoster'
-import { formatClassGrade } from '../../schemas/classRegister'
+import { formatClassGrade } from '../schemas/classRegister'
 
 export default function ImportFromClassListModal({
   uid,

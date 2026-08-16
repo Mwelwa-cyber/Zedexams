@@ -139,7 +139,7 @@ src/
   editor/                       — TipTap-based rich-content editor shared between quiz/notes/lessons
   hooks/                        — useFirestore, useSubscription, useTeacherUsage, useQuizPersistence, …
   utils/                        — Firestore services + AI clients + DOCX/PDF exporters + Lenco payments + permissions + paywall + analytics (~325 non-test modules; the catch-all bucket). Several files here are now RE-EXPORT SHIMS onto functions/shared/assessment — see "One copy of the export rules" below before adding logic to one
-  schemas/                      — Zod schemas for quiz, attempt, result
+  (schemas/ MIGRATED 2026-08-16 → src/shared/schemas/ — the root directory is gone. All eight Zod files moved at once rather than one at a time, because each already had consumers in two or more of features/, hooks/ and utils/, so there was no ownership question to settle per file. The precondition was measured, not assumed: `src/shared/**` may not import the Firebase SDK, and all eight are plain-object coercers/validators with no Firebase import — which is why they were eligible where `syllabusKbService.js` and the FCM modules are not. Nine `scripts/` suites import these paths directly under plain node, one of them from inside the rules-emulator job)
   config/curriculum.js          — SUBJECTS / GRADES; single source of truth for CBC dropdowns
 
 functions/                      — Cloud Functions v2, Node 22, codebase=default. Separate package.json.
@@ -939,7 +939,7 @@ Web uses reCAPTCHA Enterprise (via `ReCaptchaEnterpriseProvider`, silent unless 
 
 ### Schemas
 
-Quiz/attempt/result Zod schemas live in `src/schemas/`. There's also a parallel server-side schema at `scripts/test-quiz-attempt-schemas.mjs` for the migration tooling. The teacher-tool generators each have their own JSON schema in `functions/teacherTools/<tool>Schema.js` — they describe the LLM output shape, not Firestore docs.
+Quiz/attempt/result Zod schemas live in `src/shared/schemas/` (moved there from `src/schemas/` on 2026-08-16 — the root directory is gone). There's also a parallel server-side schema at `scripts/test-quiz-attempt-schemas.mjs` for the migration tooling. The teacher-tool generators each have their own JSON schema in `functions/teacherTools/<tool>Schema.js` — they describe the LLM output shape, not Firestore docs.
 
 ## Conventions worth knowing
 

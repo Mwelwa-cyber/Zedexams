@@ -32,7 +32,7 @@ import {
   classRegisterWriteSchema,
   classRegisterUpdateSchema,
   coerceClassRegister,
-} from '../schemas/classRegister'
+} from '../shared/schemas/classRegister'
 
 const COLLECTION = 'classRegisters'
 

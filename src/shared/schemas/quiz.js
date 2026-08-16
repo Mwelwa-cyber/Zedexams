@@ -31,8 +31,8 @@
  */
 
 import { z } from 'zod'
-import { normalizeSubject } from '../config/curriculum.js'
-import { gradesForFeature, gradeNumberOf } from '../config/canonicalEducation.js'
+import { normalizeSubject } from '../../config/curriculum.js'
+import { gradesForFeature, gradeNumberOf } from '../../config/canonicalEducation.js'
 
 // ── Field helpers ─────────────────────────────────────────────────
 

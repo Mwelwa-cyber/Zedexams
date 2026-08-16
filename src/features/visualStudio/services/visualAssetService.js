@@ -21,7 +21,7 @@ import { uploadBytes, deleteObject } from '../../../firebase/attestedStorage'
 import { db, storage } from '../../../firebase/config'
 import {
   visualAssetWriteSchema, visualAssetUpdateSchema, coerceVisualAsset,
-} from '../../../schemas/visualAsset'
+} from '../../../shared/schemas/visualAsset'
 
 const FETCH_LIMIT = 300
 const COLLECTION = 'visualAssets'

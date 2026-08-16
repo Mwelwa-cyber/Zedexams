@@ -33,7 +33,7 @@ import {
   rosterEntryWriteSchema,
   rosterEntryUpdateSchema,
   coerceRosterEntry,
-} from '../schemas/rosterEntry'
+} from '../shared/schemas/rosterEntry'
 import { parseRosterText, rowsToRoster, partitionNewRosterEntries } from './rosterImport'
 
 function rosterCol(classId) {

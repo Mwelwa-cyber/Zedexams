@@ -35,7 +35,7 @@ import {
   CLASS_REGISTER_GRADES,
   formatClassGrade,
   suggestClassName,
-} from '../../../schemas/classRegister'
+} from '../../../shared/schemas/classRegister'
 import { normalizeCurriculum } from '../../../config/paperTerminology'
 import { useToast } from '../../../shared/components/Toast'
 import Button from '../../../shared/components/Button'

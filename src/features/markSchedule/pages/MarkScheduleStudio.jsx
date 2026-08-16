@@ -32,7 +32,7 @@ import { downloadMarkScheduleXlsx } from '../../../engines/export-engine/markSch
 import { downloadReportCardsDocx } from '../../../engines/export-engine/reportCardsToDocx'
 import { saveMarkScheduleGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { listTeacherRegisters } from '../../../utils/classRegister'
-import { formatClassGrade } from '../../../schemas/classRegister'
+import { formatClassGrade } from '../../../shared/schemas/classRegister'
 import { useLibraryAutoSave } from '../../../hooks/useLibraryAutoSave'
 import { clampInt } from '../../../utils/inputs.js'
 import { Link } from 'react-router-dom'

@@ -16,7 +16,7 @@ import {
 import { db } from '../../../firebase/config'
 import {
   diagramAssetWriteSchema, diagramAssetUpdateSchema, coerceDiagramAsset,
-} from '../../../schemas/diagramAsset'
+} from '../../../shared/schemas/diagramAsset'
 
 const FETCH_LIMIT = 300
 const COLLECTION = 'diagramAssets'

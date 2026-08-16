@@ -9,7 +9,7 @@
 
 import { collection, getDocs, limit as fsLimit, orderBy, query, where } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
-import { coerceQuiz } from '../../../schemas/quiz.js'
+import { coerceQuiz } from '../../../shared/schemas/quiz.js'
 import { normalizeSubject } from '../../../config/curriculum'
 
 /** Published quizzes for a grade, newest first. Never throws — returns []. */
