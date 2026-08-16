@@ -32,7 +32,7 @@ import { useAILessonCount } from '../hooks/useAILessonCount'
 import { useTeacherPlanContext } from '../../../shared/hooks/useTeacherPlanContext'
 import { useActiveAssignmentContext } from '../hooks/useActiveAssignmentContext'
 import { buildPlannedTeachingMeta } from '../../../utils/plannedTeachingMeta'
-import { isNonTeachingDay, isWeekend, publicHolidayOn } from '../../../utils/calendarResolver'
+import { isNonTeachingDay, isWeekend, publicHolidayOn, resolveTeachingContext } from '../../../utils/calendarResolver'
 import { useCoverageAnalysis } from '../hooks/useCoverageAnalysis'
 import { buildAlignmentInstructions } from '../../../shared/utils/teacherPlanContext'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
@@ -984,10 +984,31 @@ export default function LessonPlanStudio() {
     // aiGenerations rules), so it needs no rules change. Reused by
     // persistPlanToLibrary via lastMeta, so a manual re-save keeps it.
     const ac = assignmentContextRef.current
+    // Resolve the calendar for the LESSON'S date, not for today.
+    //
+    // `tp.context` is derived at read time for today (see useTeachingProfile),
+    // and the date field lets a teacher plan any teaching day — so a Term 2
+    // lesson written during Term 1 used to be stamped Term 1, week-of-Term-1.
+    // Everything downstream inherits that: the library folder, the Record of
+    // Work's week join (whose own contract is that meta.planned.schoolWeek
+    // attributes a plan to a week, never createdAt), plan inheritance, and the
+    // dashboard's term filter. resolveTeachingContext takes `referenceDate` for
+    // exactly this case — its doc names a Lesson Plan's planned date as the
+    // example — and every field of plannedMeta then describes one date instead
+    // of two.
+    //
+    // Only re-resolved when the profile's own context is 'ok': a blank
+    // calendarId falls back to the NATIONAL calendar, so re-resolving an
+    // unavailable/invalid context would convert an honest "we don't know" into
+    // a confident answer from a calendar the teacher never chose.
+    const plannedDate = lessonDetails.date
+    const plannedContext = plannedDate && ac.context?.status === 'ok'
+      ? resolveTeachingContext({ calendarId: ac.context.calendarId, referenceDate: plannedDate })
+      : ac.context
     const plannedMeta = buildPlannedTeachingMeta({
       assignment: ac.assignment,
-      context: ac.context,
-      plannedDate: lessonDetails.date,
+      context: plannedContext,
+      plannedDate,
     })
     const meta = {
       format: formatOptions.format || 'modern',
@@ -1151,6 +1172,11 @@ export default function LessonPlanStudio() {
               syllabusHint: curriculumMode === 'previous' ? 'OBC' : 'CBC',
               grade: lessonDetails.grade,
               subject: lessonDetails.subject,
+              // The SAME term that goes into `inputs` above. Omitting it here
+              // filed every lesson plan — not just the ones missing a grade —
+              // under Unsorted at the term level, because classifyForLibrary
+              // reads this object and never looks at `inputs`.
+              term: plannedMeta?.termNumber != null ? String(plannedMeta.termNumber) : null,
             },
           })
           setSavedPlanId(savedId)
@@ -1384,6 +1410,9 @@ export default function LessonPlanStudio() {
         syllabusHint: mode === 'previous' ? 'OBC' : 'CBC',
         grade: s.lessonDetails.grade,
         subject: s.lessonDetails.subject,
+        // See the auto-save path above: this has to carry the same term
+        // `inputs` does, or the plan files under Unsorted at the term level.
+        term: lastMeta?.planned?.termNumber != null ? String(lastMeta.planned.termNumber) : null,
       },
     })
     setSavedPlanId(id)
