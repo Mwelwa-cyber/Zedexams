@@ -16,6 +16,7 @@ import { useNotifications } from '../../../contexts/NotificationContext'
 import { useTheme, THEMES } from '../../../contexts/ThemeContext'
 import useHideOnScroll from '../../../hooks/useHideOnScroll'
 import { NotificationCenter } from '../../notifications'
+import PlanChip from '../../../shared/components/PlanChip'
 import CharacterAvatar from '../../../shared/components/CharacterAvatar'
 import LearnerIcon from './LearnerIcon'
 import LearnerProfileSheet from './LearnerProfileSheet'
@@ -136,6 +137,12 @@ export default function LearnerHeader({ activeTerm, showGreeting = true }) {
             <img src="/zedexams-logo.webp" alt="ZedExams" height="30" />
           </Link>
           <nav className="lhx-chrome" aria-label="Account and settings">
+            {/* Tier 0 — the ambient plan chip, beside the bell. Never blocks,
+                never animates, never asks the interruption budget: it is the
+                page, not an interruption. A meter running down motivates more
+                reliably than a modal, and it makes the limit legible BEFORE it
+                is hit, which is the difference between a rule and an ambush. */}
+            <PlanChip />
             <ChromeTile as={Link} to="/my-results" icon="progress" label="Progress" />
             <ThemeTile />
             <ChromeTile

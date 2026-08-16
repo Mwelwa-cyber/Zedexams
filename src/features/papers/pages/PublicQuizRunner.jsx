@@ -6,14 +6,30 @@
  * runner is wired to the authenticated session (uid required, Firestore
  * `results` write on submit, badge updates, subscription nudges,
  * localStorage session keyed on uid). The past-paper preview has a
- * different contract — no auth, no result persistence, a 30-question
- * free preview gate, and a short-and-sweet score card at the end.
+ * different contract — no auth, no Firestore result write, a free set of
+ * questions, and a score card at the end.
  *
- * Counter: every answered question increments a localStorage tally
- * via pastPaperQuiz.recordAnsweredQuestion. When the tally hits 30 and
- * the visitor is not premium, the existing paywall bus fires the
- * `quiz-preview-limit` scenario and the runner blocks further answers
- * behind a modal CTA.
+ * ── The free set, and the rule that shapes this whole file ─────────────
+ *
+ * NOTHING RENDERS AT THE FREE-SET BOUNDARY. No modal, no sheet, no toast, no
+ * banner, no route to a paywall. Completing the last free question does
+ * exactly what completing the last question of any quiz does: it goes to the
+ * results screen, where the learner gets their score, their wrong answers with
+ * the correct ones, and their weakest topic — all free, on every plan,
+ * permanently — and meets the offer at the bottom, inline and dismissible.
+ *
+ * This route used to fire `paywall.show('quiz-preview-limit')` on the 31st
+ * question: twenty or thirty questions of real work, then a wall, no score and
+ * no answers. That is the single most expensive thing a learning app can do,
+ * and it is why the runner declares `quiz_active` for its whole run — a
+ * blocked context, so even a surface that forgot to ask the interruption
+ * budget is refused while a learner is working.
+ *
+ * Counter: every answered question increments a localStorage tally via
+ * pastPaperQuiz.recordAnsweredQuestion; the answers themselves go to a local
+ * draft (lib/paperAttemptDraft.js) BEFORE the results screen renders, which is
+ * what makes the boundary survivable if the app is killed at it. The route's
+ * zero-Firestore-write property is unchanged — see that module for why.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -26,22 +42,35 @@ import {
   paperQuizIsAttached,
 } from '../../../utils/pastPaperQuizStatus'
 import {
-  FREE_QUESTION_LIMIT,
   QUIZ_LOAD,
   QUIZ_LOAD_TEXT,
   getAnsweredCount,
-  hasReachedFreeLimit,
   loadPublicQuiz,
   recordAnsweredQuestion,
   resetCounter,
 } from '../../../utils/pastPaperQuiz'
 import { reportClientError } from '../../../utils/clientErrorReporting'
+// The specific modules, not the area index: that index also exports
+// `useEntitlements`, which reaches `useTeacherUsage` and through it the
+// Firebase SDK. This route is public, anonymous-capable and deliberately
+// Firebase-light on its render path — importing the door for two pure helpers
+// would put the whole entitlements graph in its chunk.
+import { freeSetDisclosure, resolveFreeSet } from '../../../services/entitlements/freeSet'
+import { useActivity } from '../../../services/entitlements/activity'
+import FreeSetMeter from '../components/FreeSetMeter'
+import FreeSetResults from '../components/FreeSetResults'
+import FreeSetReview from '../components/FreeSetReview'
+import {
+  clearAttemptDraft,
+  readAttemptDraft,
+  saveAttemptDraft,
+  weakestTopic,
+} from '../lib/paperAttemptDraft'
 import { useAssessmentEngineFlag } from '../../../hooks/useAssessmentEngineFlag'
 import { fromQuiz, markAttempt, unrenderableTypes } from '../../../engines/assessment-engine'
 import { ChoiceQuestion } from '../../../engines/assessment-engine/render'
 import { capture } from '../../../utils/analytics'
 import { BUILD_ID } from '../../../utils/buildId'
-import { paywall } from '../../../utils/paywall'
 import { validateQuizSubjectIntegrity } from '../../../utils/quizSubjectIntegrity'
 import { PAPER_SUBJECTS } from '../../../config/curriculum'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
@@ -130,6 +159,21 @@ function isCorrectChoice(question, optionIndex) {
     return plainTextFromOption(opt).trim().toLowerCase() === target
   }
   return false
+}
+
+/**
+ * Which option is the correct one, or null.
+ *
+ * Derived by asking `isCorrectChoice` about each option rather than reading
+ * any of the four answer-key shapes directly — one resolver, so the review
+ * screen can never disagree with the ✓ the learner saw on the card.
+ */
+function correctIndexOf(question) {
+  const options = Array.isArray(question?.options) ? question.options : []
+  for (let i = 0; i < options.length; i += 1) {
+    if (isCorrectChoice(question, i)) return i
+  }
+  return null
 }
 
 function FilterPill({ children }) {
@@ -230,6 +274,20 @@ export default function PublicQuizRunner() {
   // Mirrors the localStorage counter so we re-render when it bumps.
   const [previewCount, setPreviewCount] = useState(0)
   const [finished, setFinished] = useState(false)
+  // Every graded answer, in order, kept so the results screen can show the
+  // free wrong-answer review and so the draft can be persisted before the
+  // results render. See lib/paperAttemptDraft.js for why it is local.
+  const [attemptAnswers, setAttemptAnswers] = useState([])
+  // Whether this run ended at the free-set boundary rather than at the end of
+  // the paper. Drives which results screen is shown; nothing renders AT the
+  // boundary itself.
+  const [freeSetEnded, setFreeSetEnded] = useState(false)
+  const [showReview, setShowReview] = useState(false)
+
+  // The whole run is a blocked context. Even a surface that forgot to ask the
+  // interruption budget is refused while this is mounted — which is the case
+  // `quiz_active` exists for.
+  useActivity('quiz_active')
 
   // Stop read-aloud audio when moving to another question so it never bleeds over.
   useEffect(() => {
@@ -250,6 +308,9 @@ export default function PublicQuizRunner() {
     setScore(0)
     setAnsweredIds(new Set())
     setFinished(false)
+    setAttemptAnswers([])
+    setFreeSetEnded(false)
+    setShowReview(false)
 
     ;(async () => {
       try {
@@ -308,6 +369,21 @@ export default function PublicQuizRunner() {
         setQuiz(payload.quiz)
         setQuestions(payload.questions)
         setPreviewCount(getAnsweredCount(paperId, uid))
+
+        // Re-entering a paper whose free set is spent lands on the RESULTS
+        // screen — not on question 1 (which would silently discard the work)
+        // and not on a paywall (which would charge for feedback already
+        // earned). The same path is what makes killing the app after the last
+        // free question survivable: the draft was written before the results
+        // ever rendered, so a reload resumes exactly where the learner was.
+        const draft = readAttemptDraft(paperId, uid)
+        if (draft?.complete) {
+          setAttemptAnswers(draft.answers)
+          setScore(Number(draft.score) || 0)
+          setAnsweredIds(new Set(draft.answers.map((a) => a.questionId)))
+          setFreeSetEnded(draft.freeSetEnded === true)
+          setFinished(true)
+        }
       } catch (err) {
         console.warn('[PublicQuizRunner] load failed', err)
         if (!cancelled) setError('We could not load this quiz. Please try again.')
@@ -323,12 +399,18 @@ export default function PublicQuizRunner() {
   const total = questions.length
   const subjectMeta = paper && PAPER_SUBJECTS.find((s) => s.id === paper.subject)
 
+  // The free set, aligned to the paper's own sections so the boundary reads as
+  // "Section A, Part 1 done" rather than "you ran out at 20". A paper that
+  // declares no `freeSet` falls back to the historical global limit — see
+  // services/entitlements/freeSet.js.
+  const freeSet = useMemo(() => resolveFreeSet(paper, total), [paper, total])
+
   // ── The Phase 3 canary (docs/phase3-plan.md §5.0) ─────────────────────────
   //
   // This route is the first cutover because it persists nothing: if the engine
   // is wrong here the failure is a bad render, visible immediately, reverted by
   // one toggle. The flag selects the QUESTION CARD and the VERDICT — the chrome
-  // around them (loading, SEO, the free-preview counter, the paywall, the score
+  // around them (loading, SEO, the free-preview counter, the free set, the score
   // card) is shared code, so it cannot differ between paths by construction.
   // During a canary any visible difference must mean defect, and the way to
   // afford that rule is to keep everything that is not under test identical.
@@ -438,10 +520,10 @@ export default function PublicQuizRunner() {
   }, [engineFlag.final, engineFlag.source, engineFlag.latched, engineActive, loading, quiz])
 
   function handleSelect(idx) {
-    // `lockedOut` was enforced only by the old card's disabled attribute; the
-    // engine card routes every press through here, so the guard lives here for
-    // both paths.
-    if (revealed || lockedOut) return
+    // There is no mid-quiz lock-out any more, so this is the ordinary
+    // "already graded" guard. The engine card routes every press through here,
+    // which is why it lives here rather than on the old card's `disabled`.
+    if (revealed) return
     setSelection(idx)
   }
 
@@ -468,6 +550,13 @@ export default function PublicQuizRunner() {
       const nextSet = new Set(answeredIds)
       nextSet.add(question.id)
       setAnsweredIds(nextSet)
+      setAttemptAnswers((prev) => [...prev, {
+        questionId: question.id,
+        order: currentIndex,
+        selectedIndex: selection,
+        correctIndex: engineActive ? engineQuestion?.correctIndex ?? null : correctIndexOf(question),
+        correct,
+      }])
       if (!isPremium) {
         const next = recordAnsweredQuestion(paperId, uid)
         setPreviewCount(next)
@@ -475,19 +564,43 @@ export default function PublicQuizRunner() {
     }
   }
 
+  /**
+   * End the run and write the draft BEFORE the results screen is allowed to
+   * render. The order matters: a crash in the window between "last answer
+   * graded" and "results painted" must not lose twenty questions of work.
+   */
+  function finishRun({ atFreeSetBoundary }) {
+    const answers = attemptAnswers
+    saveAttemptDraft(paperId, uid, {
+      answers,
+      score: answers.filter((a) => a.correct).length,
+      outOf: answers.length,
+      complete: true,
+      freeSetEnded: atFreeSetBoundary,
+    })
+    setFreeSetEnded(atFreeSetBoundary)
+    setFinished(true)
+  }
+
   function handleNext() {
-    // Gate AFTER the current answer has been recorded, so the visitor
-    // sees the explanation for the 30th question before the wall drops.
-    if (!isPremium && hasReachedFreeLimit(paperId, uid) && currentIndex < total - 1) {
-      paywall.show('quiz-preview-limit', {
-        paperId,
-        paperTitle: paper?.title || 'this paper',
-        limit: FREE_QUESTION_LIMIT,
-      })
-      return
-    }
-    if (currentIndex >= total - 1) {
-      setFinished(true)
+    // ── HARD RULE: nothing renders at the free-set boundary ──────────────
+    //
+    // No modal, no sheet, no toast, no banner, no route change to a paywall.
+    // Completing the last free question does exactly what completing the last
+    // question of any quiz does: it goes to the results screen. The gating
+    // service is not consulted here at all — the offer lives further down that
+    // results screen, after the learner has been paid in feedback for the work
+    // they actually did. (This is where `paywall.show('quiz-preview-limit')`
+    // used to fire, mid-paper, on the 31st question.)
+    // The PERSISTENT count, not this session's, so restarting a paper does not
+    // mint a fresh free set. `previewCount` is bumped by
+    // `recordAnsweredQuestion` on the first grading of each question, which is
+    // the same event that fills `attemptAnswers`.
+    const atFreeSetBoundary =
+      !isPremium && !freeSet.coversWholePaper && previewCount >= freeSet.toQuestion
+
+    if (currentIndex >= total - 1 || atFreeSetBoundary) {
+      finishRun({ atFreeSetBoundary: atFreeSetBoundary && currentIndex < total - 1 })
       return
     }
     setCurrentIndex((i) => i + 1)
@@ -502,6 +615,10 @@ export default function PublicQuizRunner() {
     setScore(0)
     setAnsweredIds(new Set())
     setFinished(false)
+    setAttemptAnswers([])
+    setFreeSetEnded(false)
+    setShowReview(false)
+    clearAttemptDraft(paperId, uid)
     if (isPremium) {
       resetCounter(paperId, uid)
       setPreviewCount(0)
@@ -560,6 +677,52 @@ export default function PublicQuizRunner() {
     )
   }
 
+  // The free wrong-answer review. No plan check — feedback on work already
+  // done is free on every plan, permanently.
+  if (finished && showReview) {
+    return (
+      <div className="min-h-screen theme-bg">
+        <SeoHelmet
+          title={`${paper.title} — review`}
+          description={`Review your answers on the ${paper.title} past-paper quiz.`}
+          path={`/papers/${paperId}/quiz`}
+          noIndex
+        />
+        <FreeSetReview
+          answers={attemptAnswers}
+          questions={questions}
+          onBack={() => setShowReview(false)}
+        />
+      </div>
+    )
+  }
+
+  // The free set ended here rather than the paper. Score, review and weak
+  // topic first; the offer last, inline, and dismissible.
+  if (finished && freeSetEnded) {
+    const wrongCount = attemptAnswers.filter((a) => !a.correct).length
+    return (
+      <div className="min-h-screen theme-bg">
+        <SeoHelmet
+          title={`${paper.title} — practice complete`}
+          description={`Your score on the ${paper.title} past-paper practice.`}
+          path={`/papers/${paperId}/quiz`}
+          noIndex
+        />
+        <FreeSetResults
+          paper={paper}
+          freeSet={freeSet}
+          score={attemptAnswers.filter((a) => a.correct).length}
+          outOf={attemptAnswers.length}
+          wrongCount={wrongCount}
+          weakTopic={weakestTopic(attemptAnswers, questions)}
+          onReview={() => setShowReview(true)}
+          unlocked={isPremium}
+        />
+      </div>
+    )
+  }
+
   if (finished) {
     const pct = Math.round((score / total) * 100)
     return (
@@ -611,8 +774,20 @@ export default function PublicQuizRunner() {
   }
 
   const options = Array.isArray(question.options) ? question.options : []
-  const remaining = Math.max(0, FREE_QUESTION_LIMIT - previewCount)
-  const lockedOut = !isPremium && hasReachedFreeLimit(paperId, uid)
+  // The question NUMBER within the free set, which is what the meter counts
+  // down — not the index into the paper, which can differ once a learner
+  // resumes. 1-based.
+  const freeSetPosition = isPremium ? 0 : Math.min(previewCount + 1, freeSet.toQuestion)
+  // Whether pressing "next" ends the run. The button says so; nothing else
+  // does, and nothing appears when it happens.
+  const nextEndsRun = currentIndex >= total - 1 ||
+    (!isPremium && !freeSet.coversWholePaper && previewCount >= freeSet.toQuestion)
+  // Shown until the learner is inside the free set's final stretch, at which
+  // point the meter takes over — two statements of the same limit on one
+  // screen is one too many.
+  const freeSetDisclosureText = !isPremium && previewCount === 0
+    ? freeSetDisclosure(freeSet)
+    : ''
 
   const { className: _quizShellClass, style: quizDisplayStyle, ...quizDisplayAttrs } = quizDisplayVars
 
@@ -649,6 +824,16 @@ export default function PublicQuizRunner() {
             {paper.year ? <FilterPill>{paper.year}</FilterPill> : null}
             <FilterPill>{total} questions</FilterPill>
           </div>
+          {/* Disclose the limit BEFORE the first question rather than at the
+              boundary. Named as a designed unit ("Section A, Part 1"), not as
+              a ration, and paired with the promise that the marks and answers
+              are free — which is the part that makes the limit survivable. */}
+          {freeSetDisclosureText && (
+            <p className="mt-3 text-xs font-bold text-white/85">
+              {freeSetDisclosureText}
+              <span className="ml-1.5 font-medium text-white/70">Your marks and answers are free.</span>
+            </p>
+          )}
         </div>
       </header>
 
@@ -666,6 +851,15 @@ export default function PublicQuizRunner() {
               </span>
             </div>
             <Progress value={currentIndex + (revealed ? 1 : 0)} max={total} />
+            {/* One quiet line from two questions out. No dialog, no button,
+                nothing to dismiss — it lets the learner brace. A limit that
+                arrives unannounced reads as a betrayal; the same limit
+                announced reads as a rule. */}
+            <FreeSetMeter
+              questionNumber={freeSetPosition}
+              freeSet={freeSet}
+              unlocked={isPremium}
+            />
           </div>
 
           {/* Stem figure + prompt. Library diagrams win over uploaded photos
@@ -779,7 +973,6 @@ export default function PublicQuizRunner() {
                 answer={selection}
                 revealed={revealed}
                 onAnswer={handleSelect}
-                disabled={lockedOut}
               />
             </div>
           ) : (
@@ -799,7 +992,7 @@ export default function PublicQuizRunner() {
                     revealed={revealed}
                     correct={isCorrectChoice(question, idx)}
                     onClick={() => handleSelect(idx)}
-                    disabled={revealed || lockedOut}
+                    disabled={revealed}
                   />
                 )
               })}
@@ -834,7 +1027,7 @@ export default function PublicQuizRunner() {
               <button
                 type="button"
                 onClick={handleCheck}
-                disabled={selection == null || lockedOut}
+                disabled={selection == null}
                 className="theme-accent-fill theme-on-accent rounded-full px-5 py-2 text-sm font-black hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Check answer
@@ -845,38 +1038,11 @@ export default function PublicQuizRunner() {
                 onClick={handleNext}
                 className="theme-accent-fill theme-on-accent rounded-full px-5 py-2 text-sm font-black hover:opacity-90"
               >
-                {currentIndex >= total - 1 ? 'See your score' : 'Next question →'}
+                {nextEndsRun ? 'See your score' : 'Next question →'}
               </button>
-            )}
-            {!isPremium && (
-              <span className="theme-text-muted text-xs font-bold ml-auto">
-                {remaining > 0
-                  ? `${remaining} free question${remaining === 1 ? '' : 's'} left`
-                  : 'Free preview ended'}
-              </span>
             )}
           </div>
 
-          {lockedOut && (
-            <div className="theme-bg-subtle border theme-border rounded-radius-md p-4 text-sm">
-              <p className="theme-text font-black mb-1">Your free preview ended</p>
-              <p className="theme-text-muted">
-                Upgrade to unlock the rest of this paper, every past-paper quiz, and the full
-                Grade {paper.grade} learning pack.
-              </p>
-              <button
-                type="button"
-                onClick={() => paywall.show('quiz-preview-limit', {
-                  paperId,
-                  paperTitle: paper.title,
-                  limit: FREE_QUESTION_LIMIT,
-                })}
-                className="mt-3 rounded-full px-4 py-2 text-xs font-black theme-accent-fill theme-on-accent"
-              >
-                Upgrade to keep going
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Footer hint for anon visitors */}

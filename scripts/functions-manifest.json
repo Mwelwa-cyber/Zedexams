@@ -2414,6 +2414,22 @@
       "classification": "mechanical",
       "batch": null
     },
+    "requestGuardianUnlock": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {
+        "secrets": "[emailSmtpUser, emailSmtpPassword]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "./guardianUnlock",
+      "optionsUnresolved": null,
+      "target": "require('./guardianUnlock').requestGuardianUnlock",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": null
+    },
     "resendInvoiceEmail": {
       "kind": "onCall",
       "inline": false,

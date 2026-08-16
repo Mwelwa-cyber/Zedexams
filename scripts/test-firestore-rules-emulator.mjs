@@ -531,6 +531,19 @@ async function main() {
     await setDoc(doc(db, 'passkeyAuditLog', 'pk_evt_1'), {
       event: 'registered', uidHash: 'h', at: new Date(),
     })
+
+    // A guardian-unlock request. The doc id IS the sha256 of the pay-link
+    // token; the raw token exists only in the guardian's message.
+    await setDoc(doc(db, 'guardianRequests', 'req_hash_1'), {
+      uid: LEARNER_A,
+      feature: 'PAPER_CONTINUE',
+      contact: 'parent@example.com',
+      method: 'email',
+      planId: 'term_pass',
+      priceZMW: 120,
+      status: 'sent',
+      used: false,
+    })
   })
 
   const learnerA = testEnv.authenticatedContext(LEARNER_A, verifiedToken(LEARNER_A)).firestore()
@@ -2666,6 +2679,63 @@ async function main() {
     await assertFails(setDoc(doc(admin, 'passkeyCredentials', 'cred_forged'), {
       uid: ADMIN, publicKey: 'pk', counter: 0,
     }))
+  })
+
+  // ── guardianRequests — the ask-your-guardian ledger ──
+  section('guardianRequests — server-only writes, admin-only reads')
+
+  await test('the learner who sent it CANNOT read their own guardian request', async () => {
+    // The doc carries the guardian's contact details and the learner's
+    // evidence. The learner does not need it — their bell notification is the
+    // receipt — and the guardian has the message itself.
+    await assertFails(getDoc(doc(learnerA, 'guardianRequests', 'req_hash_1')))
+  })
+
+  await test('another learner CANNOT read it either', async () => {
+    await assertFails(getDoc(doc(learnerB, 'guardianRequests', 'req_hash_1')))
+  })
+
+  await test('a learner CANNOT mark their own request paid', async () => {
+    // The attack this stops: flip status to `paid` and the settle path unlocks
+    // the account without a payment ever landing.
+    await assertFails(setDoc(doc(learnerA, 'guardianRequests', 'req_hash_1'), {
+      status: 'paid', used: true,
+    }, {merge: true}))
+  })
+
+  await test('a learner CANNOT forge a request document', async () => {
+    await assertFails(setDoc(doc(learnerA, 'guardianRequests', 'req_forged'), {
+      uid: LEARNER_A, status: 'paid', planId: 'term_pass',
+    }))
+  })
+
+  await test('an admin may read for support, but still cannot write', async () => {
+    await assertSucceeds(getDoc(doc(admin, 'guardianRequests', 'req_hash_1')))
+    await assertFails(setDoc(doc(admin, 'guardianRequests', 'req_hash_1'), {
+      status: 'paid',
+    }, {merge: true}))
+  })
+
+  await test('a guest CANNOT read a request even holding its id', async () => {
+    await assertFails(getDoc(doc(guest, 'guardianRequests', 'req_hash_1')))
+  })
+
+  // ── users.guardianUnlock — the server's copy of the 72-hour rule ──
+  section('users.guardianUnlock — the rate limit a learner must not be able to clear')
+
+  await test('a learner CANNOT clear their own guardian-request cooldown', async () => {
+    // The client's copy of this rule runs on the learner's device. If the
+    // SERVER's copy were writable from there too, a child could put four
+    // messages in a parent's inbox in one evening.
+    await assertFails(setDoc(doc(learnerA, 'users', LEARNER_A), {
+      guardianUnlock: {lastRequestAt: null},
+    }, {merge: true}))
+  })
+
+  await test('an ordinary profile edit beside it still succeeds', async () => {
+    await assertSucceeds(setDoc(doc(learnerA, 'users', LEARNER_A), {
+      displayName: 'Elena B',
+    }, {merge: true}))
   })
 
   // ── processedWebhookEvents — the replay ledger ──

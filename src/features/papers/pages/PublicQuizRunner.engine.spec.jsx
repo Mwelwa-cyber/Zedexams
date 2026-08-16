@@ -39,6 +39,14 @@ vi.mock('../../../utils/quizSubjectIntegrity', () => ({
   validateQuizSubjectIntegrity: () => ({ ok: true }),
 }))
 vi.mock('../../../utils/analytics', () => ({ capture: vi.fn() }))
+// The runner's results screen reaches the entitlements service for the
+// PAPER_CONTINUE lock, and through it `useTeacherUsage` → the Firebase SDK.
+// The runner's own render path uses only the pure free-set helpers, so this
+// mock keeps the canary spec free of a Firebase boot it never needed.
+vi.mock('../../../hooks/useTeacherUsage', () => ({
+  useTeacherUsage: () => ({ data: null, loading: false, error: null }),
+  TOOL_TO_FEATURE: { lesson_plan: 'plans' },
+}))
 vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
 vi.mock('../../../hooks/useQuizDisplayPrefs', () => ({
   useQuizDisplayPrefs: () => ({
@@ -255,17 +263,29 @@ describe('the past-paper canary card swap', () => {
     expect(capture).not.toHaveBeenCalled()
   })
 
-  it('a locked-out preview DISABLES the engine rows, not just their handler', async () => {
-    // Codex P2 on #2149 (r3733259617): the old card disables its buttons when
-    // the free quota is spent; swallowing clicks in the handler leaves the
-    // engine rows focusable and apparently actionable — an unresponsive card,
-    // and a different story for assistive tech than for sighted users.
+  it('a spent free set NEVER disables the engine rows — there is no mid-quiz wall', async () => {
+    // This test used to assert the opposite, and the inversion is the point.
+    //
+    // The old runner disabled every option once the free quota was spent, then
+    // fired a paywall modal: twenty or thirty questions of real work, then a
+    // wall, no score and no answers. The free set now ends the RUN at its
+    // boundary and the offer lives on the results screen, after the learner
+    // has been paid in feedback for what they did. So a learner mid-question
+    // is never locked out of the question they are on — the rows stay
+    // enabled, for assistive tech and sighted users alike.
+    //
+    // (The original note, Codex P2 on #2149 r3733259617, was that swallowing
+    // clicks in the handler leaves the rows focusable and apparently
+    // actionable. That asymmetry is gone because nothing is refused.)
     quizState.lockedOut = true
     const { container } = mountRunner()
     await screen.findByText('What is 2 + 2?')
     const rows = container.querySelectorAll('[data-engine-runner] .zx-opt')
     expect(rows.length).toBe(5)
-    for (const row of rows) expect(row.disabled).toBe(true)
+    for (const row of rows) expect(row.disabled).toBe(false)
+    // And no modal, sheet, toast or banner anywhere in the tree.
+    expect(container.querySelector('[role="dialog"]')).toBeNull()
+    expect(container.textContent).not.toMatch(/free preview ended|upgrade to keep going/i)
   })
 
   it('a provisional answer is never recorded: no event until the decision is final', async () => {

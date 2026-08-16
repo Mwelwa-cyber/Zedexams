@@ -42,6 +42,7 @@ import { useFirestore }         from '../../../hooks/useFirestore'
 import { useBadges }            from '../../../hooks/useBadges'
 import { useDataSaver }         from '../../../contexts/DataSaverContext'
 import { GRADE_META, SUBJECTS, getTopics, normalizeSubject } from '../../../config/curriculum'
+import { GRADE7_ECZ_EXAM_START } from '../../../config/examDates'
 import ProfessorPako            from '../../../shared/components/ProfessorPako'
 import DataSaverToggle          from '../../../shared/components/DataSaverToggle'
 import BadgeCard                from '../../../shared/components/BadgeCard'
@@ -285,11 +286,13 @@ const DashboardActionCard = memo(function DashboardActionCard({
 // public/timetables/, so it opens in a new tab where the learner can read
 // it inline and use the browser's built-in download. Rendered only when the
 // learner's grade is 7 (see the gate in the action-card stack below).
-// First day of the 2026 Grade 7 Primary School Leaving Examination. The
-// countdown on the timetable card ticks down to this moment (local time).
-// TEMPORARY: update or remove alongside ExamTimetableCard once the 2026
-// exams are over.
-const GRADE7_EXAM_START = new Date('2026-10-26T08:00:00')
+// First day of the 2026 Grade 7 Primary School Leaving Examination. Read from
+// src/config/examDates.js, which reads it from the seeded ECZ timetable — one
+// constant, in one place. This used to be a `new Date('2026-10-26T08:00:00')`
+// literal here as well as a `startsAt` in the timetable, so correcting an ECZ
+// date meant finding both; it also dropped the +02:00 offset, so a device on
+// UTC counted down to two hours after the papers actually start.
+const GRADE7_EXAM_START = new Date(GRADE7_ECZ_EXAM_START)
 
 // Breaks the milliseconds until the exam into whole days/hours/minutes/seconds.
 // Returns `over: true` once the start moment has passed so the card can swap
