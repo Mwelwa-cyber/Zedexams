@@ -7,7 +7,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
-import LearnerShell from '../components/LearnerShell'
+import LearnerHeader from '../components/LearnerHeader'
 import LearnerIcon from '../components/LearnerIcon'
 import { SectionSkeleton, ErrorState } from '../components/LearnerPrimitives'
 import TodaysExamsCard from '../sections/TodaysExamsCard'
@@ -47,7 +47,8 @@ export default function PracticePage() {
   const hasExamsToday = state.exams.length > 0
 
   return (
-    <LearnerShell greeting={false}>
+    <>
+      <LearnerHeader showGreeting={false} />
       <div>
         <h1 className="lhx-page-title">Practice</h1>
         <p className="lhx-page-sub">Daily exams, quizzes and revision</p>
@@ -84,6 +85,6 @@ export default function PracticePage() {
           ))}
         </div>
       </section>
-    </LearnerShell>
+    </>
   )
 }

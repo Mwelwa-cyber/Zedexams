@@ -16,7 +16,6 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { useFirestore } from '../../../hooks/useFirestore'
 import { SUBJECT_MAP, getTopics, normalizeSubject } from '../../../config/curriculum'
 import { getActiveTerm } from '../../../utils/moeCalendar'
-import LearnerShell from '../components/LearnerShell'
 import LearnerIcon, { subjectIconName } from '../components/LearnerIcon'
 import { ProgressBar, ProgressRing, EmptyState, ErrorState, SectionSkeleton } from '../components/LearnerPrimitives'
 import {
@@ -155,12 +154,10 @@ export default function LearnerSubjectPage() {
 
   if (!subject) {
     return (
-      <LearnerShell header={false}>
-        <div className="lhx-card">
+      <div className="lhx-card">
           <EmptyState icon="learn">This subject isn’t available for your grade.</EmptyState>
           <button type="button" className="lhx-btn lhx-btn-soft lhx-btn-block" onClick={() => navigate('/learn')}>Back to Learn</button>
-        </div>
-      </LearnerShell>
+      </div>
     )
   }
 
@@ -183,7 +180,7 @@ export default function LearnerSubjectPage() {
   ]
 
   return (
-    <LearnerShell header={false}>
+    <>
       <div className="lhx-subject-header">
         <button type="button" className="lhx-iconbtn" aria-label="Go back" onClick={() => navigate(-1)}>
           <ArrowLeft size={22} aria-hidden="true" />
@@ -336,6 +333,6 @@ export default function LearnerSubjectPage() {
           </section>
         </>
       )}
-    </LearnerShell>
+    </>
   )
 }

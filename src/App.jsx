@@ -79,6 +79,7 @@ const GradeHub = lazy(() => import('./features/learnerDashboard/pages/GradeHub')
 // New learner home experience (2026-07 rebuild): mobile-first dashboard +
 // Learn / Practice hubs + term-organised subject pages. GradeHub stays
 // reachable at /dashboard/classic as the transition fallback.
+const LearnerLayout = lazy(() => import('./features/learnerHome/components/LearnerLayout'))
 const LearnerHomePage = lazy(() => import('./features/learnerHome/pages/LearnerHomePage'))
 const LearnPage = lazy(() => import('./features/learnerHome/pages/LearnPage'))
 const PracticePage = lazy(() => import('./features/learnerHome/pages/PracticePage'))
@@ -543,15 +544,20 @@ export default function App() {
           <Route path="/games/play/:gameId"            element={<PlayGame />} />
 
           {/* ── Learner routes ─────────────────────────────────── */}
-          {/* The rebuilt learner home (2026-07). The previous GradeHub
-              dashboard stays at /dashboard/classic during the transition. */}
-          <Route path="/dashboard"         element={<ProtectedRoute><LearnerOnlyRoute><LearnerHomePage /></LearnerOnlyRoute></ProtectedRoute>} />
+          {/* The prototype-v3 learner shell (2026-08 redesign). The chrome
+              (4-tab nav + page column) is a LAYOUT route so it never
+              remounts between tab changes; auth guards stay on each child
+              route's own line because the route-guard scripts parse them
+              per line. GradeHub stays at /dashboard/classic. */}
+          <Route element={<LearnerLayout />}>
+            <Route path="/dashboard"         element={<ProtectedRoute><LearnerOnlyRoute><LearnerHomePage /></LearnerOnlyRoute></ProtectedRoute>} />
+            <Route path="/dashboard-preview" element={<ProtectedRoute><LearnerOnlyRoute><LearnerHomePage /></LearnerOnlyRoute></ProtectedRoute>} />
+            <Route path="/learn"             element={<ProtectedRoute><LearnerOnlyRoute><LearnPage /></LearnerOnlyRoute></ProtectedRoute>} />
+            <Route path="/practice"          element={<ProtectedRoute><LearnerOnlyRoute><PracticePage /></LearnerOnlyRoute></ProtectedRoute>} />
+            <Route path="/subjects/:subjectId" element={<ProtectedRoute><LearnerOnlyRoute><LearnerSubjectPage /></LearnerOnlyRoute></ProtectedRoute>} />
+          </Route>
           <Route path="/dashboard/classic" element={<ProtectedRoute><LearnerOnlyRoute><GradeHub /></LearnerOnlyRoute></ProtectedRoute>} />
-          <Route path="/dashboard-preview" element={<ProtectedRoute><LearnerOnlyRoute><LearnerHomePage /></LearnerOnlyRoute></ProtectedRoute>} />
-          <Route path="/learn"             element={<ProtectedRoute><LearnerOnlyRoute><LearnPage /></LearnerOnlyRoute></ProtectedRoute>} />
-          <Route path="/practice"          element={<ProtectedRoute><LearnerOnlyRoute><PracticePage /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/practice/daily-exams" element={<Navigate to="/exams" replace />} />
-          <Route path="/subjects/:subjectId" element={<ProtectedRoute><LearnerOnlyRoute><LearnerSubjectPage /></LearnerOnlyRoute></ProtectedRoute>} />
           {/* /learner/* aliases from the redesign spec → canonical routes */}
           <Route path="/learner" element={<Navigate to="/dashboard" replace />} />
           <Route path="/learner/learn" element={<Navigate to="/learn" replace />} />
