@@ -9,7 +9,7 @@
 // same approach PaywallHost takes. Upgrade modals read as a branded moment and
 // stay legible whatever theme the learner has picked.
 
-import { PLANS } from '../../../utils/subscriptionConfig'
+import { PLANS } from '../../../engines/payment-engine/subscriptionConfig'
 import Icon from '../../../shared/components/Icon'
 import { Check, Lock, RefreshCw } from '../../../shared/components/icons'
 

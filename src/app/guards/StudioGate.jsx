@@ -17,7 +17,7 @@
 
 import { lazy, Suspense } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
-import { resolveTeacherPlan, PLAN_LIMITS } from '../../utils/teacherPlans'
+import { resolveTeacherPlan, PLAN_LIMITS } from '../../engines/payment-engine/teacherPlans'
 import PageLoader from '../../shared/components/PageLoader'
 import { UsageReminderBanner } from '../../features/subscription'
 

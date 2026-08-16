@@ -65,7 +65,7 @@ import { coerceQuestion } from '../editor/schema/question.js'
 import { quizWriteSchema, quizUpdateSchema, coerceQuiz } from '../shared/schemas/quiz.js'
 import { coerceResult } from '../shared/schemas/result.js'
 import { normalizeSubject } from '../config/curriculum.js'
-import { PLANS } from '../utils/subscriptionConfig.js'
+import { PLANS } from '../engines/payment-engine/subscriptionConfig.js'
 
 // Map a granted/confirmed plan id onto the teacher studio tier the usage
 // meter reads (users.teacherPlan — see functions/teacherTools/usageMeter.js),

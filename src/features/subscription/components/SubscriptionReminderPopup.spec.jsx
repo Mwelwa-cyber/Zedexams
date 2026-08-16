@@ -44,7 +44,7 @@ vi.mock('./PremiumUpgradeUI', () => ({
 }))
 vi.mock('./UpgradeModal', () => ({ default: () => null }))
 
-import { paywall } from '../../../utils/paywall'
+import { paywall } from '../../../engines/payment-engine/paywall'
 import { lockedFeature } from '../lib/lockedFeature'
 import SubscriptionReminderPopup from './SubscriptionReminderPopup'
 

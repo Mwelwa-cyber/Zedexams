@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { capture } from '../../../utils/analytics'
-import { resolveTeacherPlan } from '../../../utils/teacherPlans'
+import { resolveTeacherPlan } from '../../../engines/payment-engine/teacherPlans'
 import {
   clearPremiumAction,
   readPremiumActionState,

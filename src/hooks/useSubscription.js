@@ -1,6 +1,6 @@
 import { useAuth } from '../contexts/AuthContext'
 import { useFirestore } from './useFirestore'
-import { getActivePlan, getPlanTier, ACCESS_LEVELS } from '../utils/subscriptionConfig'
+import { getActivePlan, getPlanTier, ACCESS_LEVELS } from '../engines/payment-engine/subscriptionConfig'
 
 export function useSubscription() {
   const { currentUser, userProfile, isPremium, isAdmin, isPaidTeacher } = useAuth()

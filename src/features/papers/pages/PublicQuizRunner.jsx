@@ -19,7 +19,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
-import { hasPremiumAccess } from '../../../utils/subscriptionConfig'
+import { hasPremiumAccess } from '../../../engines/payment-engine/subscriptionConfig'
 import { getPaperById } from '../../../utils/pastPaperLookup'
 import {
   LEARNER_QUIZ_PENDING_TEXT,
@@ -41,7 +41,7 @@ import { fromQuiz, markAttempt, unrenderableTypes } from '../../../engines/asses
 import { ChoiceQuestion } from '../../../engines/assessment-engine/render'
 import { capture } from '../../../utils/analytics'
 import { BUILD_ID } from '../../../utils/buildId'
-import { paywall } from '../../../utils/paywall'
+import { paywall } from '../../../engines/payment-engine/paywall'
 import { validateQuizSubjectIntegrity } from '../../../utils/quizSubjectIntegrity'
 import { PAPER_SUBJECTS } from '../../../config/curriculum'
 import SeoHelmet from '../../../shared/components/SeoHelmet'

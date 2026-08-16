@@ -17,7 +17,7 @@ import { doc, setDoc, getDoc, updateDoc, serverTimestamp, onSnapshot } from 'fir
 import app, { auth, db, googleProvider } from '../firebase/config'
 import { isNativePlatform } from '../utils/runtime'
 import { retryOnNetworkError } from '../utils/authRetry'
-import { ROLES, hasPremiumAccess, hasLearnerPortalAccess } from '../utils/subscriptionConfig'
+import { ROLES, hasPremiumAccess, hasLearnerPortalAccess } from '../engines/payment-engine/subscriptionConfig'
 import { isSuperAdmin as isSuperAdminRole, resolvePermissionFlags } from '../utils/permissions'
 import { setSentryUser, clearSentryUser, setAuthStateTag, reportAuthInitFailure } from '../utils/sentry'
 import { capture, identifyUser, resetAnalytics } from '../utils/analytics'

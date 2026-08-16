@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import RenewalBanner from './RenewalBanner'
 import { useAuth } from '../../../contexts/AuthContext'
-import { daysUntilExpiry } from '../../../utils/subscriptionConfig'
+import { daysUntilExpiry } from '../../../engines/payment-engine/subscriptionConfig'
 import { isNativePlatform } from '../../../utils/runtime'
 
 // RenewalBanner is the soft renewal nudge shown to learners within 7 days of
@@ -15,7 +15,7 @@ import { isNativePlatform } from '../../../utils/runtime'
 
 vi.mock('../../../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
 vi.mock('../../../utils/runtime', () => ({ isNativePlatform: vi.fn(() => false) }))
-vi.mock('../../../utils/subscriptionConfig', async (importActual) => {
+vi.mock('../../../engines/payment-engine/subscriptionConfig', async (importActual) => {
   const actual = await importActual()
   return { ...actual, daysUntilExpiry: vi.fn() }
 })

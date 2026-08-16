@@ -79,7 +79,7 @@ vi.mock('../utils/referrals', () => ({
 }))
 vi.mock('../hooks/useAuthRecovery', () => ({ useAuthRecovery: () => {} }))
 
-// NOTE: ../utils/subscriptionConfig and ../utils/permissions are deliberately
+// NOTE: ../engines/payment-engine/subscriptionConfig and ../utils/permissions are deliberately
 // NOT mocked — the real role-resolution logic is what we're testing.
 
 import { AuthProvider, useAuth } from './AuthContext'

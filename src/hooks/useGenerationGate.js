@@ -16,8 +16,8 @@
 
 import { useAuth } from '../contexts/AuthContext'
 import { useTeacherUsage, TOOL_TO_FEATURE, FEATURE_LABELS } from './useTeacherUsage'
-import { paywall } from '../utils/paywall'
-import { MAX_ONLY_TOOLS } from '../utils/teacherPlans'
+import { paywall } from '../engines/payment-engine/paywall'
+import { MAX_ONLY_TOOLS } from '../engines/payment-engine/teacherPlans'
 import { isSuperAdmin } from '../utils/permissions'
 
 const MAX_ONLY_FEATURES = new Set(

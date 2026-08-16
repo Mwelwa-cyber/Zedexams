@@ -14,7 +14,7 @@ import {
 } from '../../../utils/teacherLibraryService'
 import { getDocumentActions } from '../../../utils/documentActions'
 import { useToast } from '../../../shared/components/Toast'
-import { resolveTeacherPlan } from '../../../utils/teacherPlans'
+import { resolveTeacherPlan } from '../../../engines/payment-engine/teacherPlans'
 import { isExamPaperType, assessmentEditPath } from '../../../shared/utils/paperTaxonomy'
 import {
   getTimeGreeting,

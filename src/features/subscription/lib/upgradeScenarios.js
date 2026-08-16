@@ -17,7 +17,7 @@
 // runs through Play Billing, so ZMW price literals and the K25 Lenco one-off
 // never render — pass { native: true } and the resolver strips them.
 
-import { PLANS } from '../../../utils/subscriptionConfig'
+import { PLANS } from '../../../engines/payment-engine/subscriptionConfig'
 
 export const UPGRADE_REASONS = ['feature-locked', 'monthly-limit', 'daily-cap', 'max-feature']
 
