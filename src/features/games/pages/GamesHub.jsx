@@ -1,49 +1,57 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import {
-  ClockIcon,
-  LockClosedIcon,
-  StarIcon,
-} from '@heroicons/react/24/solid'
+/**
+ * /games — the prototype-v3 games hub (learner redesign step 4).
+ *
+ * Renders inside LearnerLayout (the 4-tab shell) in the `.lhx` design
+ * system: back row, the indigo daily-challenge card, the XP/level card,
+ * the achievements shelf, and the "Your games" card list with the 🏆
+ * leaderboard link — the prototype's view-games, screen for screen.
+ *
+ * Data flow is UNCHANGED from the old hub (locked scope — reskin on the
+ * kept games backend): listGames + today's challenge + history + badges
+ * + streak, all via Promise.allSettled so a single Firestore failure
+ * never freezes the hub, with the seed catalogue as the fallback. The
+ * games list is scoped to the learner's grade when it matches any game
+ * (the prototype hub is single-grade); the grade lanes at the bottom
+ * keep every other grade reachable through the existing /games/g routes.
+ *
+ * The prototype's LIVE CHALLENGE duel card is deliberately absent — its
+ * opponent was faked client-side, and shipping a pretend matchmaker is
+ * a product decision that has not been made.
+ */
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import '../gamesProto.css'
 import { useAuth } from '../../../contexts/AuthContext'
 import { GAME_BADGES } from '../../../data/gameBadges'
 import { getFallbackGames } from '../../../data/gamesSeed'
 import { getTodaysChallenge, getMyStreak } from '../../../utils/dailyChallengeService'
 import { getMyGameBadges } from '../../../utils/gameBadgesService'
-import {
-  GRADES,
-  SUBJECTS,
-  getMyHistory,
-  listGames,
-  subscribeToGlobalLeaderboard,
-} from '../services/gamesService'
-import DailyChallengeCard from '../components/DailyChallengeCard'
-import GamesShell from '../components/GamesShell'
-import MascotAvatar from '../components/MascotAvatar'
-import { LevelMeter } from '../components/Progress'
+import { GRADES, SUBJECTS, getMyHistory, listGames } from '../services/gamesService'
 import { levelInfo } from '../../../utils/gameProgress'
-import {
-  buildSubjectProgress,
-  getDurationLabel,
-  getGameAccessMeta,
-  getGameTypeTheme,
-  getSubjectMascot,
-} from '../components/gamesUi'
+import { TOTAL_LEVELS, currentLevel, normalizeProgress } from '../lib/numberPathCore'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 import { GamesHubTour } from '../../../shared/components/learnerTours'
 import Skeleton from '../../../shared/components/Skeleton'
 
-/**
- * /games — playful mobile-first hub. Mockup-faithful 440px column with a
- * dark stats strip, the daily challenge hero, a 2×2 subjects grid, and
- * horizontal scrollers for hot games + badges.
- *
- * Data flow is unchanged: listGames + history + badges + streak +
- * leaderboard, all via Promise.allSettled so a single Firestore failure
- * never freezes the hub.
- */
+const SUBJECT_SKIN = {
+  mathematics: { emoji: '🔢', cls: 'g-math' },
+  english:     { emoji: '🔤', cls: 'g-word' },
+  science:     { emoji: '🔬', cls: 'g-sci' },
+  social:      { emoji: '🗺️', cls: 'g-map' },
+}
+
+/** Local Number Path progress for the level tag + bar on its game card. */
+function readPathProgress(gameId) {
+  try {
+    return normalizeProgress(JSON.parse(window.localStorage.getItem(`zx:number-path:${gameId}`)))
+  } catch {
+    return normalizeProgress(null)
+  }
+}
+
 export default function GamesHub() {
-  const { currentUser } = useAuth()
+  const navigate = useNavigate()
+  const { currentUser, userProfile } = useAuth()
   const [state, setState] = useState({
     loading: true,
     games: [],
@@ -51,7 +59,6 @@ export default function GamesHub() {
     history: [],
     badgesById: {},
     streak: { streak: 0, longestStreak: 0, signedIn: false },
-    leaderboardRows: [],
   })
 
   useEffect(() => {
@@ -69,20 +76,15 @@ export default function GamesHub() {
       if (cancelled) return
 
       const value = (i, fallback) => (results[i].status === 'fulfilled' ? results[i].value : fallback)
-      const liveGames  = value(0, [])
-      const challenge  = value(1, null)
-      const history    = value(2, [])
-      const badgeState = value(3, { byId: {} })
-      const streak     = value(4, { streak: 0, longestStreak: 0, signedIn: !!currentUser })
-
+      const liveGames = value(0, [])
       setState((prev) => ({
         ...prev,
         loading: false,
         games: liveGames.length ? liveGames : getFallbackGames(),
-        challenge,
-        history,
-        badgesById: badgeState?.byId || {},
-        streak,
+        challenge: value(1, null),
+        history: value(2, []),
+        badgesById: value(3, { byId: {} })?.byId || {},
+        streak: value(4, { streak: 0, longestStreak: 0, signedIn: !!currentUser }),
       }))
     }
 
@@ -90,392 +92,200 @@ export default function GamesHub() {
     return () => { cancelled = true }
   }, [currentUser])
 
-  useEffect(() => {
-    if (!currentUser) {
-      setState((prev) => ({ ...prev, leaderboardRows: [] }))
-      return undefined
-    }
-    const unsub = subscribeToGlobalLeaderboard({ window: 'all', max: 25 }, (next) => {
-      setState((prev) => ({ ...prev, leaderboardRows: next?.rows || [] }))
-    })
-    return () => unsub()
-  }, [currentUser])
-
   const totalPoints = state.history.reduce((sum, row) => sum + (Number(row.score) || 0), 0)
   const progress = levelInfo(totalPoints)
-  const level = progress.level
-  const currentRank = currentUser
-    ? state.leaderboardRows.findIndex((row) => row.userId === currentUser.uid) + 1
-    : 0
-  const earnedBadgeIds = new Set(Object.keys(state.badgesById || {}))
-  const hotGames = buildHotGames(state.games, state.history, state.challenge?.game)
+  const earnedIds = new Set(Object.keys(state.badgesById || {}))
+  const earnedCount = GAME_BADGES.filter((b) => earnedIds.has(b.id)).length
 
-  const subjectCards = SUBJECTS.map((subject) => {
-    const grade = pickGradeForSubject(state.games, subject.slug)
-    const progress = buildSubjectProgress(subject.slug, state.games, state.history, grade)
-    return { subject, progress, grade }
-  })
+  // Best saved score per game, from the same history rows the XP uses.
+  const bestByGame = useMemo(() => {
+    const map = new Map()
+    for (const row of state.history) {
+      if (!row?.gameId) continue
+      map.set(row.gameId, Math.max(map.get(row.gameId) || 0, Number(row.score) || 0))
+    }
+    return map
+  }, [state.history])
 
-  const stats = [
-    { emoji: '⚡',  label: 'Level',  value: `Lv ${level}` },
-    { emoji: '🔥', label: 'Streak', value: `${state.streak.streak || 0} day${state.streak.streak === 1 ? '' : 's'}`, animate: 'flame' },
-    { emoji: '⭐', label: 'Points', value: totalPoints.toLocaleString() },
-    { emoji: '🏆', label: 'Rank',   value: currentUser ? (currentRank ? `#${currentRank}` : '—') : 'Guest' },
-  ]
+  // The prototype hub is single-grade; scope to the learner's grade when
+  // it matches any game, and fall back to the whole catalogue otherwise.
+  const profileGrade = Number(userProfile?.grade)
+  const gradeGames = state.games.filter((g) => Number(g.grade) === profileGrade)
+  const scopedToGrade = gradeGames.length > 0
+  const visibleGames = useMemo(() => {
+    const pool = scopedToGrade ? gradeGames : state.games
+    const challengeId = state.challenge?.game?.id
+    const subjectRank = new Map(SUBJECTS.map((s, i) => [s.slug, i]))
+    return pool.slice().sort((a, b) => {
+      if (a.id === challengeId) return -1
+      if (b.id === challengeId) return 1
+      if ((a.type === 'number_target') !== (b.type === 'number_target')) {
+        return a.type === 'number_target' ? -1 : 1
+      }
+      const sa = subjectRank.get(String(a.subject || '').toLowerCase()) ?? 99
+      const sb = subjectRank.get(String(b.subject || '').toLowerCase()) ?? 99
+      if (sa !== sb) return sa - sb
+      return Number(a.grade) - Number(b.grade)
+    })
+    // gradeGames derives from state.games + profileGrade — both captured here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.games, state.challenge, scopedToGrade, profileGrade])
+
+  const challengeGame = state.challenge?.game || null
+  const streakDays = Number(state.streak?.streak) || 0
 
   return (
-    <GamesShell crumbs={[]}>
+    <div>
       <SeoHelmet
         title="Games"
-        description="Play Zambian CBC-aligned learning games with daily challenges, subject progress, badges, and live leaderboard climbing."
+        description="Play Zambian CBC-aligned learning games with daily challenges, XP levels, badges and the leaderboard."
         path="/games"
       />
-      {/* Audit A8 PR 3 — first-session tour, self-suppressing. */}
       <GamesHubTour />
-      <div className="mx-auto w-full max-w-md space-y-7 pb-4 sm:max-w-3xl sm:space-y-9 lg:max-w-5xl lg:space-y-12">
-        {/* Stats strip */}
-        <section className="zx-card flex items-center justify-between gap-2 rounded-[18px] bg-slate-900 px-3.5 py-2.5 text-white sm:gap-4 sm:rounded-[22px] sm:px-6 sm:py-4">
-          {stats.map((stat, i) => (
-            <div key={stat.label} className="flex flex-1 items-center gap-2 sm:gap-3">
-              <span className={`text-lg leading-none sm:text-2xl ${stat.animate === 'flame' ? 'zx-flame' : ''}`}>
-                {stat.emoji}
-              </span>
-              <div className="leading-tight">
-                <div className="font-display text-[18px] font-bold leading-none sm:text-[22px] lg:text-2xl">{stat.value}</div>
-                <div className="mt-0.5 text-[10px] uppercase tracking-[0.12em] text-white/65 sm:text-[11px] sm:tracking-[0.16em]">
-                  {stat.label}
-                </div>
-              </div>
-              {i < stats.length - 1 && <span aria-hidden="true" className="h-5 w-px bg-white/20 sm:h-8" />}
-            </div>
-          ))}
-        </section>
 
-        {/* Level / rank progress — the goal to chase between sessions */}
-        <LevelMeter progress={progress} signedIn={!!currentUser} />
-
-        {/* Hero — Daily Challenge */}
-        <DailyChallengeCard
-          challenge={state.challenge}
-          streak={state.streak}
-          loading={state.loading}
-          hideGrade
-        />
-
-        {/* Subjects */}
-        <Section eyebrow="Subjects" title="Pick your quest" actionLabel="All ›" actionTo="/games">
-          {state.loading ? (
-            <SubjectGridSkeleton />
-          ) : (
-            <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 lg:gap-5">
-              {subjectCards.map(({ subject, progress, grade }) => (
-                <SubjectTile
-                  key={subject.slug}
-                  subject={subject}
-                  progress={progress}
-                  href={`/games/g/${grade}/${subject.slug}`}
-                />
-              ))}
-            </div>
-          )}
-        </Section>
-
-        {/* Grades — every grade gets a lane, lower primary included */}
-        <Section eyebrow="Grades" title="Browse by grade">
-          <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 sm:gap-3 lg:grid-cols-7">
-            {GRADES.map((grade) => {
-              const count = state.loading
-                ? null
-                : state.games.filter((g) => Number(g.grade) === grade.value).length
-              return (
-                <Link
-                  key={grade.value}
-                  to={`/games/g/${grade.value}`}
-                  className="zx-card rounded-[16px] bg-white px-2 py-3 text-center transition active:translate-y-[2px] active:shadow-none"
-                >
-                  <div className="font-display text-xl font-bold leading-none text-slate-900 sm:text-2xl">
-                    G{grade.value}
-                  </div>
-                  <div className="mt-1 text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-500">
-                    {count == null ? '…' : count === 1 ? '1 game' : `${count} games`}
-                  </div>
-                </Link>
-              )
-            })}
-          </div>
-        </Section>
-
-        {/* Hot games — horizontal scroller (becomes a grid on desktop) */}
-        <Section eyebrow="🔥 Hot right now" title="Loved by players" actionLabel="All ›" actionTo="/games">
-          {state.loading ? (
-            <HotGamesSkeleton />
-          ) : (
-            <div className="zx-hscroll -mx-4 flex gap-3.5 overflow-x-auto px-4 pb-3 pt-1 sm:-mx-6 sm:gap-4 sm:px-6 lg:mx-0 lg:grid lg:grid-cols-3 lg:gap-5 lg:overflow-visible lg:px-0 lg:pb-0">
-              {hotGames.map((entry) => (
-                <HotGameCard key={entry.game.id} game={entry.game} badge={entry.badge} />
-              ))}
-            </div>
-          )}
-        </Section>
-
-        {/* Badges — horizontal scroller everywhere; just wider on desktop */}
-        <Section eyebrow="🏆 Badges" title="Collect them all" actionLabel="All ›" actionTo="/my-badges">
-          <div className="zx-hscroll -mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:gap-3 sm:px-6 lg:mx-0 lg:px-0">
-            {GAME_BADGES.slice(0, 6).map((badge) => (
-              <BadgeChip key={badge.id} badge={badge} earned={earnedBadgeIds.has(badge.id)} />
-            ))}
-          </div>
-        </Section>
-      </div>
-    </GamesShell>
-  )
-}
-
-/* ───────────────────────── Pieces ───────────────────────── */
-
-function Section({ eyebrow, title, actionLabel, actionTo, children }) {
-  return (
-    <section>
-      <div className="mb-3 flex items-end justify-between sm:mb-4">
+      <div className="lhx-back-row">
+        <button type="button" className="lhx-back-btn" aria-label="Back to Home" onClick={() => navigate('/dashboard')}>‹</button>
         <div>
-          <span className="zx-eyebrow">{eyebrow}</span>
-          <h2 className="font-display mt-1 text-[26px] font-bold leading-none tracking-tight text-slate-900 sm:text-3xl lg:text-4xl">
-            {title}
-          </h2>
+          <div className="lhx-back-title">Games</div>
+          <div className="lhx-back-sub">
+            {scopedToGrade ? `Grade ${profileGrade} · play, score, level up!` : 'Play, score, level up!'}
+          </div>
         </div>
-        {actionTo && (
-          <Link to={actionTo} className="text-xs font-extrabold text-[#0E5E70] transition hover:text-[#053541] sm:text-sm">
-            {actionLabel}
-          </Link>
-        )}
-      </div>
-      {children}
-    </section>
-  )
-}
-
-const SUBJECT_TILE_SKIN = {
-  mathematics: { tile: 'bg-orange-100', bar: 'bg-orange-500' },
-  english:     { tile: 'bg-blue-100',   bar: 'bg-blue-600' },
-  science:     { tile: 'bg-green-100',  bar: 'bg-green-600' },
-  social:      { tile: 'bg-yellow-100', bar: 'bg-yellow-500' },
-}
-
-function SubjectTile({ subject, progress, href }) {
-  const skin = SUBJECT_TILE_SKIN[subject.slug] || SUBJECT_TILE_SKIN.mathematics
-  const mascot = getSubjectMascot(subject.slug)
-  const empty = progress.totalGames === 0
-
-  return (
-    <Link
-      to={href}
-      className="zx-card group relative flex flex-col rounded-[22px] bg-white p-4 transition active:translate-y-[2px] active:shadow-none sm:p-5"
-    >
-      <span className="absolute right-3 top-3 rounded-full bg-slate-900 px-2 py-1 text-[9.5px] font-extrabold uppercase tracking-[0.08em] text-white">
-        {progress.totalGames} {progress.totalGames === 1 ? 'game' : 'games'}
-      </span>
-
-      <div className={`zx-mascot-tile mb-3 grid h-16 w-16 place-items-center overflow-hidden rounded-[18px] border-2 border-slate-900 sm:h-20 sm:w-20 ${skin.tile}`}>
-        <MascotAvatar slug={subject.slug} className="h-full w-full p-1.5" />
       </div>
 
-      <h3 className="font-display text-[19px] font-bold leading-none text-slate-900 sm:text-xl lg:text-[22px]">{subject.label}</h3>
-      <p className="mt-1 text-[11.5px] font-semibold text-slate-500 sm:text-xs">{mascot.name}</p>
-
-      <div className="mt-3 h-2 overflow-hidden rounded-full border-[1.5px] border-slate-900 bg-[#EFE9DB] sm:h-2.5">
-        <div className={`h-full rounded-full ${skin.bar}`} style={{ width: `${empty ? 0 : progress.progress}%` }} />
-      </div>
-      <div className="mt-1.5 flex items-center justify-between gap-2">
-        <span className="text-[11px] font-extrabold text-slate-900 sm:text-xs">
-          {empty ? 'Soon' : progress.progress === 100 ? '100% ✓' : `${progress.progress}%`}
-        </span>
-        <span className="truncate text-right text-[10.5px] uppercase tracking-[0.06em] text-slate-500 sm:text-[11px]">
-          {empty
-            ? 'Coming soon'
-            : `${progress.plays} of ${progress.totalGames} played`}
-        </span>
-      </div>
-    </Link>
-  )
-}
-
-const HOT_BADGE_SKIN = {
-  Popular:     'bg-[#D97757] text-white',
-  New:         'bg-blue-600 text-white',
-  Recommended: 'bg-emerald-500 text-white',
-}
-
-const HOT_ICON_BG = {
-  mathematics: 'bg-orange-100',
-  english:     'bg-blue-100',
-  science:     'bg-green-100',
-  social:      'bg-yellow-100',
-}
-
-function HotGameCard({ game, badge }) {
-  const typeTheme = getGameTypeTheme(game.type)
-  const TypeIcon = typeTheme.icon
-  const subjectKey = String(game.subject || '').toLowerCase()
-  const iconBg = HOT_ICON_BG[subjectKey] || 'bg-amber-100'
-  const subjectLabel = SUBJECTS.find((s) => s.slug === subjectKey)?.label || 'Game'
-  const accessMeta = getGameAccessMeta(game, { compact: true })
-  const AccessIcon = accessMeta.icon
-
-  return (
-    <Link
-      to={`/games/play/${game.id}`}
-      className="zx-card relative flex w-[230px] shrink-0 snap-start flex-col rounded-[22px] bg-white p-4 transition active:translate-y-[2px] active:shadow-none sm:w-[260px] sm:p-5 lg:w-auto lg:shrink"
-    >
-      {badge && (
-        <span className={`absolute right-3 top-3 rounded-full border-[1.5px] border-slate-900 px-2 py-1 text-[9.5px] font-extrabold uppercase tracking-[0.08em] ${HOT_BADGE_SKIN[badge] || HOT_BADGE_SKIN.Popular}`}>
-          {badge}
-        </span>
+      {/* Daily challenge — the prototype's indigo hero card. */}
+      {state.loading ? (
+        <Skeleton height={96} className="lhx-skel" style={{ borderRadius: 24 }} />
+      ) : challengeGame && (
+        <Link to={`/games/play/${challengeGame.id}`} className="lhx-daily">
+          <div className="lhx-daily-emoji" aria-hidden="true">🌟</div>
+          <div className="lhx-daily-body">
+            <div className="lhx-daily-label">
+              TODAY'S CHALLENGE{Number(challengeGame.grade) ? ` · GRADE ${challengeGame.grade}` : ''}
+            </div>
+            <div className="lhx-daily-name">{challengeGame.title}</div>
+            <div className="lhx-daily-sub">
+              {streakDays > 0 ? `${streakDays}-day streak — keep it going 🔥` : 'Play today to start a streak 🔥'}
+            </div>
+          </div>
+          <span className="lhx-play-pill">Play</span>
+        </Link>
       )}
 
-      <div className={`mb-3 grid h-11 w-11 place-items-center rounded-[12px] border-2 border-slate-900 ${iconBg} text-slate-900`}>
-        <TypeIcon className="h-5 w-5" />
+      {/* XP / level card. */}
+      <div className="lhx-xp">
+        <div className="lhx-xp-top">
+          <div className="lhx-xp-badge" aria-hidden="true">{progress.rank?.emoji || '🎓'}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="lhx-xp-lvl">Level {progress.level} {progress.rank?.title || 'Learner'}</div>
+            <div className="lhx-xp-sub">
+              {currentUser
+                ? `${progress.pointsToNext} XP to Level ${progress.level + 1}`
+                : 'Sign in to earn XP and badges'}
+            </div>
+          </div>
+        </div>
+        <div className="lhx-xp-bar"><i style={{ width: `${progress.progress}%` }} /></div>
       </div>
 
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-[#053541]">{subjectLabel}</div>
-        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[9.5px] font-extrabold uppercase tracking-[0.08em] ${accessMeta.className}`}>
-          <AccessIcon className={`h-3.5 w-3.5 ${accessMeta.iconClassName}`} />
-          {accessMeta.label}
-        </span>
-      </div>
-      <h3 className="font-display mt-1 text-[18px] font-bold leading-tight tracking-tight text-slate-900">
-        {game.title}
-      </h3>
-      <p className="mt-1.5 line-clamp-2 min-h-[32px] text-[12px] font-medium text-slate-500">
-        {game.description}
-      </p>
+      {/* Achievements shelf. */}
+      <section>
+        <div className="lhx-section-head">
+          <h2 className="lhx-section-title">Achievements</h2>
+          <Link to="/my-badges" className="lhx-view-all">{earnedCount} / {GAME_BADGES.length}</Link>
+        </div>
+        <div className="lhx-badge-shelf">
+          {GAME_BADGES.map((badge) => {
+            const earned = earnedIds.has(badge.id)
+            return (
+              <div
+                key={badge.id}
+                className={`lhx-badge ${earned ? 'is-earned' : 'is-locked'}`}
+                title={earned ? badge.description : badge.hint}
+              >
+                <div className="lhx-badge-ic" aria-hidden="true">{earned ? badge.icon : '🔒'}</div>
+                <div className="lhx-badge-nm">{badge.name}</div>
+              </div>
+            )
+          })}
+        </div>
+      </section>
 
-      <div className="mt-auto flex gap-2.5 border-t border-dashed border-[#D8D0BC] pt-2.5 text-[11px] text-slate-500">
-        <span className="inline-flex items-center gap-1"><ClockIcon className="h-3.5 w-3.5" /> {getDurationLabel(game)}</span>
-        <span className="inline-flex items-center gap-1"><StarIcon className="h-3.5 w-3.5 text-amber-500" /> {Number(game.points) || 0} pts</span>
+      {/* Your games. */}
+      <section>
+        <div className="lhx-section-head">
+          <h2 className="lhx-section-title">Your games</h2>
+          <Link to="/games/leaderboard" className="lhx-view-all">🏆 Leaderboard</Link>
+        </div>
+        {state.loading ? (
+          <div style={{ display: 'grid', gap: 12 }}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} height={90} className="lhx-skel" style={{ borderRadius: 24 }} />
+            ))}
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gap: 12 }}>
+            {visibleGames.map((game) => (
+              <GameCard key={game.id} game={game} best={bestByGame.get(game.id) || 0} />
+            ))}
+            {visibleGames.length === 0 && (
+              <p className="lhx-back-sub">No games yet — check back soon!</p>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* Grade lanes — every grade stays reachable (existing routes). */}
+      <section>
+        <div className="lhx-section-head">
+          <h2 className="lhx-section-title">Browse by grade</h2>
+        </div>
+        <div className="lhx-chip-row" style={{ flexWrap: 'wrap' }}>
+          {GRADES.map((grade) => (
+            <Link key={grade.value} to={`/games/g/${grade.value}`} className="lhx-chip">
+              {grade.label}
+            </Link>
+          ))}
+        </div>
+      </section>
+    </div>
+  )
+}
+
+/** One prototype game card: icon, name, tags, progress bar, best score. */
+function GameCard({ game, best }) {
+  const subjectKey = String(game.subject || '').toLowerCase()
+  const skin = SUBJECT_SKIN[subjectKey] || { emoji: '🎮', cls: 'g-math' }
+  const subjectLabel = SUBJECTS.find((s) => s.slug === subjectKey)?.label || 'Game'
+  const isPath = game.type === 'number_target'
+  const pathProgress = isPath ? readPathProgress(game.id) : null
+
+  const created = game.createdAt?.toMillis?.() || game.createdAt || 0
+  const isNew = created && Date.now() - created < 1000 * 60 * 60 * 24 * 30
+
+  const levelTag = isPath ? `Level ${currentLevel(pathProgress)}` : null
+  const barPct = isPath
+    ? Math.round((normalizeProgress(pathProgress).completed / TOTAL_LEVELS) * 100)
+    : best > 0
+      ? Math.min(100, Math.round((best / ((Number(game.points) || 100) * 2)) * 100))
+      : 0
+
+  return (
+    <Link to={`/games/play/${game.id}`} className="lhx-gc">
+      <div className={`lhx-gc-icon ${skin.cls}`} aria-hidden="true">{skin.emoji}</div>
+      <div className="lhx-gc-body">
+        <div className="lhx-gc-name">{game.title}</div>
+        <div className="lhx-gc-tags">
+          <span className="lhx-gc-tag t-subj">{subjectLabel}</span>
+          {levelTag && <span className="lhx-gc-tag t-level">{levelTag}</span>}
+          {isNew && <span className="lhx-gc-tag t-new">NEW</span>}
+        </div>
+        <div className="lhx-gc-progress">
+          <div className="lhx-gc-bar" aria-hidden="true"><i style={{ width: `${barPct}%` }} /></div>
+          <div className="lhx-gc-best">{best > 0 ? `Best ${best}` : 'Not played yet'}</div>
+        </div>
       </div>
+      <div className="lhx-gc-chev" aria-hidden="true">›</div>
     </Link>
   )
 }
-
-const TIER_MEDAL = {
-  bronze: 'bg-amber-300',
-  silver: 'bg-slate-200',
-  gold:   'bg-yellow-400',
-}
-
-function BadgeChip({ badge, earned }) {
-  const medal = TIER_MEDAL[badge.tier] || TIER_MEDAL.bronze
-
-  return (
-    <div
-      title={!earned ? badge.hint : badge.description}
-      className={`zx-card flex min-w-[178px] shrink-0 items-center gap-2.5 rounded-[18px] bg-white p-2.5 ${earned ? '' : 'opacity-50'}`}
-    >
-      <span className={`grid h-10 w-10 place-items-center rounded-[12px] border-2 border-slate-900 text-[20px] ${medal}`}>
-        {earned ? badge.icon : <LockClosedIcon className="h-5 w-5 text-slate-700" />}
-      </span>
-      <div className="min-w-0">
-        <div className="font-display text-[13px] font-semibold leading-none text-slate-900">{badge.name}</div>
-        <div className="mt-1 text-[9.5px] font-extrabold uppercase tracking-[0.1em] text-slate-500">
-          {earned ? badge.tier : 'Locked'}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/* ───────────────────────── Skeletons ───────────────────────── */
-
-function SubjectGridSkeleton() {
-  return (
-    <div className="grid grid-cols-2 gap-3.5">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="zx-card rounded-[22px] bg-white p-4">
-          <Skeleton width={64} height={64} className="mb-3 border-2 border-slate-900 !rounded-[18px]" />
-          <Skeleton width="66%" height={16} className="!rounded" />
-          <Skeleton width="50%" height={12} className="mt-2 !rounded" />
-          <Skeleton height={8} className="mt-3 border-[1.5px] border-slate-900 !rounded-full" />
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function HotGamesSkeleton() {
-  return (
-    <div className="zx-hscroll -mx-[18px] flex gap-3.5 overflow-hidden px-[18px] pb-3 pt-1">
-      {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="zx-card w-[230px] shrink-0 rounded-[22px] bg-white p-4">
-          <Skeleton width={44} height={44} className="mb-3 border-2 border-slate-900 !rounded-[12px]" />
-          <Skeleton width="50%" height={12} className="!rounded" />
-          <Skeleton width="75%" height={16} className="mt-2 !rounded" />
-          <Skeleton height={12} className="mt-2 !rounded" />
-        </div>
-      ))}
-    </div>
-  )
-}
-
-/* ───────────────────────── Helpers ───────────────────────── */
-
-function buildHotGames(games, history, challengeGame) {
-  if (!games.length) return []
-
-  const playedIds = new Set(history.map((row) => row.gameId))
-  const subjectCounts = history.reduce((acc, row) => {
-    const key = String(row.subject || '').toLowerCase()
-    if (!key) return acc
-    acc[key] = (acc[key] || 0) + 1
-    return acc
-  }, {})
-  const favouriteSubject = Object.entries(subjectCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null
-
-  const score = (game) => {
-    let total = 0
-    if (challengeGame?.id && game.id === challengeGame.id) total += 100
-    if (!playedIds.has(game.id)) total += 18
-    if (favouriteSubject && game.subject === favouriteSubject) total += 8
-    if ((game.difficulty || '').toLowerCase() === 'easy') total += 6
-    total += Number(game.points) || 0
-    return total
-  }
-
-  const ranked = games.slice().sort((a, b) => score(b) - score(a))
-  // Spread across subjects so the scroller shows variety.
-  const seen = new Set()
-  const picks = []
-  for (const game of ranked) {
-    const key = String(game.subject || '').toLowerCase()
-    if (picks.length < 2 || !seen.has(key)) {
-      picks.push(game)
-      seen.add(key)
-    }
-    if (picks.length >= 4) break
-  }
-
-  return picks.map((game, index) => ({ game, badge: badgeFor(game, index) }))
-}
-
-function badgeFor(game, index) {
-  const created = game.createdAt?.toMillis?.() || game.createdAt || 0
-  const isRecent = created && Date.now() - created < 1000 * 60 * 60 * 24 * 30
-  if (isRecent) return 'New'
-  if (index === 0) return 'Popular'
-  if ((game.difficulty || '').toLowerCase() === 'easy') return 'New'
-  return 'Popular'
-}
-
-function pickGradeForSubject(games, subjectSlug) {
-  // Only grades in GRADES have a working Grade→Subject→Games page; linking to
-  // an out-of-scope grade (e.g. a seed game tagged G1) makes GameList bounce
-  // back to /games via gradeByValue() returning null.
-  const supported = new Set(GRADES.map((g) => g.value))
-  const inScope = games.find(
-    (game) =>
-      String(game.subject || '').toLowerCase() === subjectSlug &&
-      supported.has(Number(game.grade)),
-  )
-  return inScope?.grade || GRADES[0]?.value || 4
-}
-

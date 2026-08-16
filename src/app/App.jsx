@@ -544,7 +544,12 @@ export default function App() {
 
           {/* ── Public games (no auth) ──────────────────────────── */}
           {/* Flow: /games → /games/g/:grade → /games/g/:grade/:subject → /games/play/:gameId */}
-          <Route path="/games"                         element={<GamesHub />} />
+          {/* The hub renders inside the learner shell (4-tab nav) but stays
+              public — the LearnerLayout chrome renders nothing
+              account-specific, so no guard is needed on this line. */}
+          <Route element={<LearnerLayout />}>
+            <Route path="/games"                       element={<GamesHub />} />
+          </Route>
           <Route path="/games/leaderboard"             element={<GlobalLeaderboard />} />
           <Route path="/games/g/:grade"                element={<SubjectSelector />} />
           <Route path="/games/g/:grade/:subject"       element={<GameList />} />
