@@ -28,17 +28,22 @@ ext {
     // platform and no JS handler ever runs. Those are also what Play Console
     // vitals grade a new listing on.
     //
-    // Two artefacts, two coordinates: the Gradle PLUGIN (classpath in
-    // android/build.gradle) uploads the R8 mapping file so release stack
-    // traces are readable, and the SDK below is what actually reports. Both
-    // are pinned here so a bump is one file, matching recaptchaVersion above.
+    // Two artefacts, two coordinates — and only ONE of them can live here.
+    // The SDK version below is read by app/build.gradle's dependencies block,
+    // which is evaluated after this file is applied. The Gradle PLUGIN version
+    // (which uploads the R8 mapping file so release stack traces are readable)
+    // is a hardcoded literal in android/build.gradle's buildscript block,
+    // because Gradle evaluates buildscript BEFORE applying this file — a
+    // $variable there fails the build with "Could not get unknown property",
+    // which is exactly how this shipped broken on 2026-08-16. Do not "tidy"
+    // the plugin version into this file; scripts/test-android-buildscript-
+    // versions.mjs fails the build if anyone does.
     //
     // The SDK carries NO user identifier: setUserId is never called, so a
     // report is a stack trace and device metadata, consistent with the
     // children's-privacy posture that keeps PostHog on identify:false for
     // learners.
     firebaseCrashlyticsVersion = '20.0.0'
-    firebaseCrashlyticsGradleVersion = '3.0.6'
     // @capacitor-firebase/authentication: ship the native Google sign-in
     // dependencies (play-services-auth, androidx.credentials, googleid) as
     // implementation instead of compileOnly. capacitor.config.json enables

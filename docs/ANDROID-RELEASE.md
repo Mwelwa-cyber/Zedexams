@@ -89,15 +89,28 @@ crash in the wrapper/plugin layer and an ANR, where the platform kills the
 process and no JS handler ever runs. Crashlytics is the only thing in the build
 that observes those, and Play Console vitals grade the listing on them.
 
-Three pieces, all pinned in `android/variables.gradle` so a bump is one file:
+Three pieces. The two versions live in **different files, and must**:
 
-| Piece | Where | Job |
-|---|---|---|
-| `firebase-crashlytics-gradle` classpath | `android/build.gradle` | uploads the R8 mapping file so release traces symbolicate |
-| `firebase-crashlytics` SDK | `android/app/build.gradle` dependencies | reports; self-registers, no init code |
-| `apply plugin: 'com.google.firebase.crashlytics'` | `android/app/build.gradle` | activates the upload |
+| Piece | Where | Version pinned in | Job |
+|---|---|---|---|
+| `firebase-crashlytics-gradle` classpath | `android/build.gradle` `buildscript` | **hardcoded literal, same file** | uploads the R8 mapping file so release traces symbolicate |
+| `firebase-crashlytics` SDK | `android/app/build.gradle` dependencies | `android/variables.gradle` | reports; self-registers, no init code |
+| `apply plugin: 'com.google.firebase.crashlytics'` | `android/app/build.gradle` | — | activates the upload |
 
-Two things about the wiring are deliberate and easy to "tidy" into a bug:
+Three things about the wiring are deliberate and easy to "tidy" into a bug:
+
+- **The plugin version is a hardcoded literal and cannot be moved into
+  `variables.gradle`.** Gradle evaluates `buildscript {}` *before* the rest of
+  the script — before `apply from: "variables.gradle"` runs, and regardless of
+  whether that line sits above or below the block — so `rootProject.ext` does
+  not exist yet and `classpath "...:$someVersion"` fails configuration outright
+  with *"Could not get unknown property"*. This shipped broken exactly that way
+  on 2026-08-16 and was caught only by the post-merge build on `main`.
+  `scripts/test-android-buildscript-versions.mjs` (`test:android-buildscript-versions`,
+  runs in `test:all` on every PR) now fails if any version in that block becomes
+  a variable. Module-level dependencies in `app/build.gradle` are evaluated
+  later and *do* read `variables.gradle` — that half is fine, and is where the
+  SDK version lives.
 
 - **The plugin is applied INSIDE the existing `google-services.json`
   conditional, after `google-services`.** It reads the Firebase application id

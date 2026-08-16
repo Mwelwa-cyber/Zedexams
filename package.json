@@ -558,6 +558,7 @@
     "test:google-play-verify": "node functions/googlePlayVerify.test.js",
     "test:platform-metrics": "node functions/platformMetricsCore.test.js",
     "test:visitor-retention-mirror": "node scripts/test-visitor-retention-mirror.mjs",
+    "test:android-buildscript-versions": "node scripts/test-android-buildscript-versions.mjs",
     "test:play-catalog-mirror": "node scripts/test-play-catalog-mirror.mjs",
     "test:play-catalog-health": "node scripts/test-play-catalog-health.mjs",
     "test:subscription-upgrade": "node functions/subscriptionUpgrade.test.js",
