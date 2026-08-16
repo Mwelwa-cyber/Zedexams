@@ -1,191 +1,142 @@
 /**
- * LearnerHeader — the logo row with the learner chrome bar (Progress ·
- * Theme · Alerts · Account) and, on the home page, the time-aware
- * greeting with Grade · Curriculum · Term meta.
+ * LearnerHeader — the prototype-v3 glass topbar: logo on the left; Night
+ * toggle, streak pill, alerts and the avatar (profile entry point) on
+ * the right. On Home it also renders the "Hi, {name}! 👋" greeting with
+ * the Grade · Term chip.
  *
- * The chrome bar is the one the classic learner dashboard carried: four
- * labelled icon tiles beside the logo. Account is the profile entry
- * point and shows the learner's avatar inside its tile, so Profile keeps
- * an avatar affordance even though it is not in the bottom navigation.
+ * The old four-tile chrome bar (Progress · Theme · Alerts · Account) is
+ * gone with the redesign: Progress lives in the profile sheet, and the
+ * multi-theme picker is replaced by the prototype's single Night toggle.
+ * The curriculum label was dropped from the meta on purpose — the old
+ * header hardcoded "CBC", which is wrong for Grade 7 (frameworks:
+ * ['2013']), and the prototype chip shows Grade · Term only.
  */
-import { forwardRef, useEffect, useRef, useState } from 'react'
-import { Check } from 'lucide-react'
+import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useNotifications } from '../../../contexts/NotificationContext'
-import { useTheme, THEMES } from '../../../contexts/ThemeContext'
+import { useTheme, DEFAULT_THEME } from '../../../contexts/ThemeContext'
 import useHideOnScroll from '../../../hooks/useHideOnScroll'
 import { NotificationCenter } from '../../notifications'
 import PlanChip from '../../../shared/components/PlanChip'
 import CharacterAvatar from '../../../shared/components/CharacterAvatar'
 import LearnerIcon from './LearnerIcon'
 import LearnerProfileSheet from './LearnerProfileSheet'
-import { getGreeting, firstNameOf } from '../lib/learnerHomeCore'
+import { firstNameOf } from '../lib/learnerHomeCore'
 
-/** One labelled tile in the chrome bar. */
-const ChromeTile = forwardRef(function ChromeTile(
-  { as: As = 'button', icon, label, badge, children, ...rest },
-  ref,
-) {
-  return (
-    <As ref={ref} className="lhx-chrome-btn" {...(As === 'button' ? { type: 'button' } : {})} {...rest}>
-      <span className="lhx-chrome-tile">
-        {children || <LearnerIcon name={icon} size={20} />}
-        {badge ? <span className="lhx-chrome-count" aria-hidden="true">{badge}</span> : null}
-      </span>
-      <span className="lhx-chrome-label">{label}</span>
-    </As>
-  )
-})
+const LAST_LIGHT_KEY = 'lhx:last-light-theme'
 
 /**
- * Reading-theme picker. Same themes and the same setTheme call the classic
- * dashboard's selector used — only the chrome is rebuilt in .lhx idiom.
+ * Night toggle — the prototype's 🌙/☀️ pill. Rides on the existing theme
+ * system (midnight IS night), so the choice persists exactly the way a
+ * theme choice always has. The previously chosen light theme is
+ * remembered so surfaces that still vary by light theme return to it.
  */
-function ThemeTile() {
+function NightToggle() {
   const { theme, setTheme } = useTheme()
-  const [open, setOpen] = useState(false)
-  const wrapRef = useRef(null)
-
-  useEffect(() => {
-    if (!open) return undefined
-    const onPointer = (e) => { if (!wrapRef.current?.contains(e.target)) setOpen(false) }
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false) }
-    document.addEventListener('pointerdown', onPointer)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('pointerdown', onPointer)
-      document.removeEventListener('keydown', onKey)
+  const night = theme === 'midnight'
+  const toggle = () => {
+    if (night) {
+      let last = null
+      try { last = window.localStorage.getItem(LAST_LIGHT_KEY) } catch { /* private mode */ }
+      setTheme(last && last !== 'midnight' ? last : DEFAULT_THEME)
+    } else {
+      try { window.localStorage.setItem(LAST_LIGHT_KEY, theme) } catch { /* private mode */ }
+      setTheme('midnight')
     }
-  }, [open])
-
-  const current = THEMES.find((t) => t.id === theme) || THEMES[0]
-
+  }
   return (
-    <div ref={wrapRef} style={{ position: 'relative' }}>
-      <ChromeTile
-        icon="theme"
-        label="Theme"
-        onClick={() => setOpen((o) => !o)}
-        aria-label={`Change theme, current theme is ${current.label}`}
-        aria-haspopup="menu"
-        aria-expanded={open}
-      />
-      {open && (
-        <div className="lhx-menu" role="menu" aria-label="Theme options">
-          <p className="lhx-menu-title">Theme</p>
-          {THEMES.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              role="menuitemradio"
-              aria-checked={theme === t.id}
-              className="lhx-menu-item"
-              onClick={() => { setTheme(t.id); setOpen(false) }}
-            >
-              {/* Self-previewing: the swatch declares the palette it offers
-                  (the `.reading-swatch` alias in index.css), so the "Aa" is
-                  drawn in that theme's real text colour on its real page
-                  background instead of a colour repeated here. */}
-              <span
-                className="reading-swatch lhx-menu-swatch"
-                data-reading-theme={t.id}
-                aria-hidden="true"
-              >
-                Aa
-              </span>
-              {t.label}
-              {theme === t.id && (
-                <span className="lhx-menu-check" aria-hidden="true"><Check size={16} strokeWidth={2.5} /></span>
-              )}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <button
+      type="button"
+      className="lhx-pill"
+      onClick={toggle}
+      aria-pressed={night}
+      aria-label={night ? 'Switch to day mode' : 'Switch to night mode'}
+    >
+      <span aria-hidden="true">{night ? '☀️' : '🌙'}</span>
+    </button>
   )
 }
 
-export default function LearnerHeader({ activeTerm, showGreeting = true }) {
+export default function LearnerHeader({ activeTerm, showGreeting = true, streak = null }) {
   const { userProfile } = useAuth()
   // The app-wide notification feed — one listener in NotificationProvider,
   // shared by every shell. Reading it here adds no Firestore work.
   const { unreadCount, open: alertsOpen, setOpen: setAlertsOpen } = useNotifications()
   const [sheetOpen, setSheetOpen] = useState(false)
   const accountRef = useRef(null)
-  // LinkedIn-style auto-hide, same hook the glass Navbar uses: the chrome
-  // bar folds away while the learner scrolls down into the page and glides
-  // back the moment they scroll up. Kept pinned while an overlay anchored
-  // to it (alerts, account sheet) is open so it can't slide out from under
-  // its own dialog.
+  // LinkedIn-style auto-hide. Kept pinned while an overlay anchored to it
+  // (alerts, account sheet) is open so it can't slide out from under its
+  // own dialog.
   const scrolledHidden = useHideOnScroll()
   const topbarHidden = scrolledHidden && !alertsOpen && !sheetOpen
 
   const firstName = firstNameOf(userProfile?.displayName)
-  const greeting = getGreeting(new Date().getHours())
-  const meta = [
-    userProfile?.grade ? `Grade ${userProfile.grade}` : null,
-    'CBC',
+  const showStreak = Number.isFinite(Number(streak)) && Number(streak) > 0
+  const gradeChip = [
+    userProfile?.grade ? `🎓 Grade ${userProfile.grade}` : null,
     activeTerm ? `Term ${activeTerm}` : null,
-  ].filter(Boolean)
+  ].filter(Boolean).join('  ·  ')
 
   return (
     <header className="lhx-header">
       <div className={`lhx-topbar ${topbarHidden ? 'lhx-topbar-hidden' : ''}`}>
-        <div className="lhx-header-row">
-          <Link to="/dashboard" className="lhx-logo" aria-label="ZedExams home">
-            <img src="/zedexams-logo.webp" alt="ZedExams" height="30" />
-          </Link>
-          <nav className="lhx-chrome" aria-label="Account and settings">
-            {/* Tier 0 — the ambient plan chip, beside the bell. Never blocks,
-                never animates, never asks the interruption budget: it is the
-                page, not an interruption. A meter running down motivates more
-                reliably than a modal, and it makes the limit legible BEFORE it
-                is hit, which is the difference between a rule and an ambush. */}
-            <PlanChip />
-            <ChromeTile as={Link} to="/my-results" icon="progress" label="Progress" />
-            <ThemeTile />
-            <ChromeTile
-              icon="notification"
-              label="Alerts"
-              badge={unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : null}
-              onClick={() => setAlertsOpen(true)}
-              aria-label={unreadCount > 0 ? `Alerts, ${unreadCount} unread` : 'Alerts'}
-              aria-haspopup="dialog"
-            />
-            <ChromeTile
-              ref={accountRef}
-              label="Account"
-              onClick={() => setSheetOpen(true)}
-              aria-label={`Account menu for ${userProfile?.displayName || 'your account'}`}
-              aria-haspopup="dialog"
-              aria-expanded={sheetOpen}
-            >
-              <span className="lhx-chrome-avatar">
-                {userProfile?.avatarCharacter ? (
-                  <CharacterAvatar characterId={userProfile.avatarCharacter} className="w-full h-full" />
-                ) : (
-                  <span aria-hidden="true">{(firstName || 'Z').charAt(0).toUpperCase()}</span>
-                )}
-              </span>
-            </ChromeTile>
-          </nav>
+        <Link to="/dashboard" className="lhx-logo" aria-label="ZedExams home">
+          <img src="/zedexams-logo.webp" alt="ZedExams" height="30" />
+        </Link>
+        <div className="lhx-top-right">
+          <NightToggle />
+          {showStreak && (
+            <span className="lhx-streak-pill" aria-label={`${streak} day streak`}>
+              <span aria-hidden="true">🔥</span> {streak}
+            </span>
+          )}
+          {/* Tier 0 — the ambient plan chip, beside the bell. Never blocks,
+              never animates, never asks the interruption budget: it is the
+              page, not an interruption. A meter running down motivates more
+              reliably than a modal, and it makes the limit legible BEFORE it
+              is hit, which is the difference between a rule and an ambush.
+              It self-hides for a paid account outside grace, so the
+              prototype-v3 right cluster gains nothing for a subscriber. */}
+          <PlanChip />
+          <button
+            type="button"
+            className="lhx-pill"
+            onClick={() => setAlertsOpen(true)}
+            aria-label={unreadCount > 0 ? `Alerts, ${unreadCount} unread` : 'Alerts'}
+            aria-haspopup="dialog"
+          >
+            <LearnerIcon name="notification" size={19} />
+            {unreadCount > 0 && (
+              <span className="lhx-pill-count" aria-hidden="true">{unreadCount > 99 ? '99+' : unreadCount}</span>
+            )}
+          </button>
+          <button
+            ref={accountRef}
+            type="button"
+            className="lhx-avatar-btn"
+            onClick={() => setSheetOpen(true)}
+            aria-label={`Account menu for ${userProfile?.displayName || 'your account'}`}
+            aria-haspopup="dialog"
+            aria-expanded={sheetOpen}
+          >
+            {userProfile?.avatarCharacter ? (
+              <CharacterAvatar characterId={userProfile.avatarCharacter} className="w-full h-full" />
+            ) : (
+              <span aria-hidden="true">{(firstName || 'Z').charAt(0).toUpperCase()}</span>
+            )}
+          </button>
         </div>
       </div>
       {showGreeting && (
         <div>
           <h1 className="lhx-greeting">
-            {greeting}{firstName ? `, ${firstName}!` : '!'}
+            Hi{firstName ? ', ' : ''}<span>{firstName ? `${firstName}!` : 'there!'}</span> 👋
           </h1>
-          {meta.length > 0 && (
-            <p className="lhx-header-meta">
-              {meta.map((m, i) => (
-                <span key={m}>
-                  {i > 0 && <span className="lhx-dot" aria-hidden="true">·</span>}
-                  {m}
-                </span>
-              ))}
-            </p>
+          {gradeChip && (
+            <div className="lhx-header-meta lhx-chip-row">
+              <span className="lhx-chip">{gradeChip}</span>
+            </div>
           )}
         </div>
       )}

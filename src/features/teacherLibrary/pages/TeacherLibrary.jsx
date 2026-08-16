@@ -10,7 +10,9 @@ import {
   bucketIntoTree,
   librarySectionForGeneration,
   libraryTypeForGeneration,
+  moveLibraryDocument,
 } from '../../../utils/teacherLibraryService'
+import MoveToFolderDialog from '../components/MoveToFolderDialog'
 import {
   LIBRARY_SECTION_BY_ID,
   LIBRARY_TYPES,
@@ -248,6 +250,25 @@ export default function TeacherLibrary() {
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [typeFilter, setTypeFilter] = useState('')
 
+  /* ── Move a document to a different folder ─────────────────── */
+  // { row, section } while the dialog is open, null otherwise.
+  const [moving, setMoving] = useState(null)
+
+  // Re-file locally once the write lands, rather than re-reading the whole
+  // library: the tree, the counts and the folder the teacher is standing in
+  // all derive from these two arrays, so patching the moved row's `library`
+  // moves the document out of this folder and into its new one immediately.
+  // A full reload would cost two Firestore round-trips to arrive at exactly
+  // the state we already know.
+  async function handleMove(library) {
+    const { row } = moving
+    await moveLibraryDocument(row, library)
+    const patch = (list) => list.map((d) => (d.id === row.id ? { ...d, library } : d))
+    if (row.tool === 'assessment') setAssessments(patch)
+    else setGenerations(patch)
+    setMoving(null)
+  }
+
   /* ── Data load ─────────────────────────────────────────────── */
   useEffect(() => {
     if (!currentUser) return
@@ -393,7 +414,7 @@ export default function TeacherLibrary() {
     body = <ErrorState message={errorMessage} onRetry={() => setReloadKey((k) => k + 1)} />
   } else if (trimmedQuery) {
     subtitle = `${searchRows.length} result${searchRows.length === 1 ? '' : 's'} for “${trimmedQuery}”`
-    body = <SearchResults rows={searchRows} />
+    body = <SearchResults rows={searchRows} onMove={(row, sec) => setMoving({ row, section: sec })} />
   } else if (!sel.type) {
     subtitle = `${totalSaved} saved item${totalSaved === 1 ? '' : 's'} across all studios`
     body = (
@@ -462,7 +483,13 @@ export default function TeacherLibrary() {
     const leaf = readLeaf(tree, sel)
     subtitle = [section.label, sel.syllabus, sel.grade, section.hasTerm && sel.term, sel.subject, section.hasAssessmentType && labelForAssessment(sel.syllabus, sel.grade, sel.assess)]
       .filter(Boolean).join(' · ')
-    body = <DocumentList items={leaf} section={section} />
+    body = (
+      <DocumentList
+        items={leaf}
+        section={section}
+        onMove={(row, sec) => setMoving({ row, section: sec })}
+      />
+    )
   }
 
   const showChrome = status === 'ready' && !trimmedQuery
@@ -484,6 +511,14 @@ export default function TeacherLibrary() {
         section={showChrome ? section : null}
       />
       {body}
+      {moving && (
+        <MoveToFolderDialog
+          row={moving.row}
+          section={moving.section}
+          onCancel={() => setMoving(null)}
+          onMove={handleMove}
+        />
+      )}
     </Shell>
   )
 }
@@ -914,28 +949,31 @@ function AssessmentTypePicker({ syllabus, gradeForm, subTree, palette, onPick })
 
 /* ── Documents (leaf) ──────────────────────────────────────────── */
 
-function DocumentList({ items, section }) {
+function DocumentList({ items, section, onMove }) {
   if (!items || items.length === 0) {
     return <EmptyHint text={section.emptyHint} />
   }
   return (
     <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
       {items.map((item) => (
-        <DocumentCard key={item.id} item={item} section={section} />
+        <DocumentCard key={item.id} item={item} section={section} onMove={onMove} />
       ))}
     </div>
   )
 }
 
-function DocumentCard({ item, section }) {
+function DocumentCard({ item, section, onMove }) {
   const title = item.__title || titleForGeneration(item)
   const linkTo = item.__linkTo || `/teacher/library/${item.id}`
   const itemIcon = TOOL_ICON[item.tool] || iconFor(section.id) || DocumentTextIcon
   const pal = paletteFor(section.id)
   return (
+    // The lift-on-hover sits on the wrapper rather than the link so the Move
+    // button rides with the card instead of staying behind as it moves.
+    <div className="relative transition-transform hover:-translate-y-0.5">
     <Link
       to={linkTo}
-      className="block no-underline rounded-2xl p-4 transition-transform hover:-translate-y-0.5"
+      className="block no-underline rounded-2xl p-4"
       style={{
         background: COLORS.card,
         border: `1px solid ${COLORS.border}`,
@@ -962,12 +1000,28 @@ function DocumentCard({ item, section }) {
         </p>
       )}
     </Link>
+    {/* A SIBLING of the link, never a child: a button inside an anchor is
+        invalid and leaves keyboard and screen-reader users unable to reach
+        one of the two actions. */}
+    {onMove && (
+      <button
+        type="button"
+        onClick={() => onMove(item, section)}
+        aria-label={`Move ${title} to a different folder`}
+        title="Move to folder"
+        className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full transition-colors"
+        style={{ background: COLORS.card, border: `1px solid ${COLORS.border}`, color: COLORS.inkSoft }}
+      >
+        <Icon as={FolderOpen} size="sm" />
+      </button>
+    )}
+    </div>
   )
 }
 
 /* ── Search results ────────────────────────────────────────────── */
 
-function SearchResults({ rows }) {
+function SearchResults({ rows, onMove }) {
   if (!rows || rows.length === 0) {
     return <EmptyHint text="No saved items match your search. Try a different keyword or clear the folder filter." />
   }
@@ -975,7 +1029,7 @@ function SearchResults({ rows }) {
     <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
       {rows.map((item) => {
         const section = librarySectionForGeneration(item) || LIBRARY_SECTION_BY_ID[LIBRARY_TYPES.NOTES]
-        return <DocumentCard key={item.id} item={item} section={section} />
+        return <DocumentCard key={item.id} item={item} section={section} onMove={onMove} />
       })}
     </div>
   )

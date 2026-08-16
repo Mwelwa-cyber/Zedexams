@@ -245,6 +245,41 @@ export async function setGenerationLibrary(id, library) {
 }
 
 /**
+ * Re-file a saved library document into a different folder.
+ *
+ * The library shows rows from TWO collections — `aiGenerations` (everything a
+ * studio generates) and `assessments` (papers the Assessment Studio saves,
+ * adapted into library rows by TeacherLibrary.jsx). A move has to write to
+ * whichever one the row actually came from; writing every move to
+ * aiGenerations would silently do nothing for half the library, and the UI
+ * would report success because the update itself succeeded against a document
+ * id that exists in the other collection or not at all.
+ *
+ * Both collections already permit this write: `library` is in the owner's
+ * changedKeys allowlist on aiGenerations, and assessments validates the merged
+ * document, so a library-only patch leaves every other field as it was. No
+ * rules change is needed to move a document.
+ *
+ * Throws with a teacher-presentable message — the caller surfaces it in the
+ * dialog rather than leaving the document looking moved when it is not.
+ *
+ * @param {object} row      the library row (needs `id`; `tool` picks the collection)
+ * @param {object} library  coords from coordsFromDraft()
+ */
+export async function moveLibraryDocument(row, library) {
+  if (!row?.id) throw new Error('This document cannot be moved.')
+  if (!library || typeof library !== 'object') throw new Error('Pick a folder first.')
+  const collectionName = row.tool === 'assessment' ? 'assessments' : 'aiGenerations'
+  try {
+    await updateDoc(doc(db, collectionName, row.id), { library })
+    return library
+  } catch (err) {
+    console.error('moveLibraryDocument failed', err)
+    throw new Error('Could not move this document. Check your connection and try again.')
+  }
+}
+
+/**
  * One-shot helper used by studios: classify the studio's raw inputs into
  * canonical library coords, then patch the saved generation. Silent
  * no-op when classification fails or the row isn't owned by the user.

@@ -7,7 +7,7 @@
  * loading states.
  */
 import { useEffect } from 'react'
-import LearnerShell from '../components/LearnerShell'
+import LearnerHeader from '../components/LearnerHeader'
 import { ErrorState } from '../components/LearnerPrimitives'
 import useLearnerDashboard from '../hooks/useLearnerDashboard'
 import PastPapersHero from '../sections/PastPapersHero'
@@ -32,7 +32,8 @@ export default function LearnerHomePage() {
   const activeTerm = data?.activeTerm?.term ?? null
 
   return (
-    <LearnerShell activeTerm={activeTerm}>
+    <>
+      <LearnerHeader activeTerm={activeTerm} streak={data?.streak ?? null} />
       {error ? (
         <div className="lhx-card">
           <ErrorState onRetry={refresh}>
@@ -68,6 +69,6 @@ export default function LearnerHomePage() {
           </div>
         </>
       )}
-    </LearnerShell>
+    </>
   )
 }

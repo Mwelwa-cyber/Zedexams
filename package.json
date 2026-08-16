@@ -828,7 +828,9 @@
     "test:http-request-guard": "node functions/httpRequestGuard.test.js",
     "test:auth-init-recovery": "node scripts/test-auth-init-recovery.mjs",
     "test:release-name": "node scripts/test-release-name.mjs",
-    "test:cold-start": "node scripts/test-cold-start-budget.mjs"
+    "test:cold-start": "node scripts/test-cold-start-budget.mjs",
+    "test:library-move": "node src/features/teacherLibrary/lib/moveTarget.test.js",
+    "test:library-ece": "node src/utils/libraryEceClassification.test.js"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",
