@@ -27,6 +27,10 @@ import {
 } from '../components/gamesUi'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 
+// Game types whose engine is the prototype-v3 rebuild (learner redesign
+// step 4) — these render full-screen in the learner design system.
+const PROTO_ENGINES = new Set(['number_target'])
+
 const SUBJECT_TILE_BG = {
   mathematics: 'bg-orange-100',
   english:     'bg-blue-100',
@@ -117,6 +121,23 @@ export default function PlayGame() {
     { label: game.title },
   ].filter(Boolean)
   const locked = !isDemoGame(game) && !canAccessFullContent
+
+  // The rebuilt prototype-v3 engines bring their own full-screen `.lhx`
+  // chrome (path head, ✕ control, win screen) — mount them bare, without
+  // the legacy GamesShell/GameHeader wrapper. The premium lock keeps the
+  // legacy chrome until the games paywall surface is redesigned.
+  if (!locked && PROTO_ENGINES.has(game.type)) {
+    return (
+      <>
+        <SeoHelmet
+          title={game.title}
+          description={game.description || `Play ${game.title} on ZedExams. CBC-aligned learning game for ${gradeMeta?.label || 'Zambian learners'}.`}
+          path={`/games/play/${game.id || gameId}`}
+        />
+        <GameEngine game={game} />
+      </>
+    )
+  }
 
   return (
     <GamesShell crumbs={crumbs} maxW="max-w-4xl">

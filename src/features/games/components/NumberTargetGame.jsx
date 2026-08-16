@@ -1,489 +1,440 @@
-import { useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
-import {
-  ArrowPathIcon,
-  ArrowUturnLeftIcon,
-  CalculatorIcon,
-  CheckBadgeIcon,
-  ForwardIcon,
-  LightBulbIcon,
-  TrophyIcon,
-} from '@heroicons/react/24/solid'
-import { playCorrect, playWrong, playWin, playTick, primeSounds } from '../lib/gameSounds'
-import { reportGameStart } from '../services/gamesService'
-import { useGameFinish } from '../hooks/useGameFinish'
-import { SaveBanner, StreakBanner, DoneStat } from './DoneBanners'
-import { LevelUpBanner, XpProgressBar, PersonalBestBanner } from './Progress'
-import BadgeToast from './BadgeToast'
-import ShareButton from './ShareButton'
-import Confetti from '../../../shared/components/Confetti'
-import Leaderboard from './Leaderboard'
-import MascotCelebration from './MascotCelebration'
-import MascotGreeting from './MascotGreeting'
-import SmartFeedback from './SmartFeedback'
-import { RatingStars } from './gamesUi'
-import {
-  applyOp,
-  configForGame,
-  formatStep,
-  generateRound,
-  invalidMoveHint,
-} from '../lib/numberTargetCore'
-
 /**
- * Engine for any `type: "number_target"` game document.
+ * NumberTargetGame — the prototype-v3 "Number Path" engine for
+ * `type: 'number_target'` games (learner redesign step 4, the first of
+ * the four rebuilt mechanics).
  *
- * Countdown-style maths: each round the player gets a set of number tiles
- * and must COMBINE them with + − × ÷ to hit a target number. Combining two
- * tiles consumes them and produces a new tile with the result, so the player
- * is building an expression, not picking an answer — every round is solvable
- * by construction (see numberTargetCore.js).
+ * Three screens, exactly the prototype's flow:
+ *   path — the 8-node level path under the indigo stats head. Only the
+ *          current level starts a round; cleared nodes show their star.
+ *   play — the tap-to-sum board: a 4×4 tile grid, a target that is by
+ *          construction the sum of tiles on the board, 20 × combo per
+ *          match, a per-level countdown driving the yellow timebar.
+ *   win  — stars, "Level N complete!", the XP + SCORE cards, confetti.
  *
- * Rounds are fully procedural: `game.questions` is ignored, so these games
- * need zero content authoring. Difficulty comes from `game.difficulty`
- * (easy | medium | hard) with a grade-band fallback, and `game.rounds` can
- * override the per-difficulty round count.
+ * The backend contract is UNCHANGED (locked scope): the finished round
+ * flows through useGameFinish → saveScore / badges / daily streak, the
+ * same plumbing every engine shares, and reportGameStart keeps the
+ * start/completion funnel intact. What is new and local is the level
+ * path itself — per-game progress lives in localStorage (there is no
+ * server-side per-game level model, and building one is out of scope),
+ * so the path survives reloads on this device while score/XP/badges
+ * remain the server-backed truth.
+ *
+ * Renders full-screen in the learner design system: PlayGame mounts it
+ * bare (no GamesShell chrome), and the ✕ / back controls navigate
+ * path ↔ play ↔ /games like the prototype's views.
  */
-export default function NumberTargetGame({ game }) {
-  const points = Number(game.points) || 15
-  const cfg = useMemo(() => configForGame(game), [game])
-  const roundCount = Number(game.rounds) > 0 ? Number(game.rounds) : cfg.rounds
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import '../../../shared/styles/learnerTheme.css'
+import '../gamesProto.css'
+import { useAuth } from '../../../contexts/AuthContext'
+import { useGameFinish } from '../hooks/useGameFinish'
+import { reportGameStart } from '../services/gamesService'
+import { playCorrect, playWrong, playWin, primeSounds } from '../lib/gameSounds'
+import {
+  NODE_POS,
+  PATH_VIEW_HEIGHT,
+  TOTAL_LEVELS,
+  applyRound,
+  currentLevel,
+  fillTiles,
+  judgeSelection,
+  levelTimeMax,
+  matchGain,
+  newTarget,
+  nodeStates,
+  normalizeProgress,
+  replaceMatched,
+  roundResult,
+  starsForScore,
+  sumOf,
+  toggleTile,
+  totalStars,
+} from '../lib/numberPathCore'
 
-  const [phase, setPhase] = useState('ready') // ready | playing | done
-  const [rounds, setRounds] = useState([])
-  const [pos, setPos] = useState(0)
-  const [history, setHistory] = useState([])   // stack of boards; board = [{ id, value }]
-  const [selectedId, setSelectedId] = useState(null)
-  const [op, setOp] = useState(null)
-  const [hint, setHint] = useState(null)
-  const [roundState, setRoundState] = useState('solve') // solve | solved | revealed
-  const [solvedCount, setSolvedCount] = useState(0)
-  const [cleanSolves, setCleanSolves] = useState(0)     // solved without undo/reset
-  const [undosThisRound, setUndosThisRound] = useState(0)
-  const [streak, setStreak] = useState(0)
-  const [bestStreak, setBestStreak] = useState(0)
-  const [confettiKey, setConfettiKey] = useState(0)
-  const startRef = useRef(null)
-  const idRef = useRef(0)
+const ZED_ART = '/images/characters/zed-zara-reading.webp'
+const CONFETTI_BITS = ['🎉', '⭐', '✨', '🎊', '🧡', '💜']
 
-  const { saveResult, newBadges, streakResult, levelChange, personalBest, finish, reset } = useGameFinish()
+const progressKey = (gameId) => `zx:number-path:${gameId || 'default'}`
 
-  const round = rounds[pos] || null
-  const board = history[history.length - 1] || []
-
-  function freshBoard(tiles) {
-    return tiles.map((value) => ({ id: ++idRef.current, value }))
+function loadProgress(gameId) {
+  try {
+    return normalizeProgress(JSON.parse(window.localStorage.getItem(progressKey(gameId))))
+  } catch {
+    return normalizeProgress(null)
   }
+}
 
-  function start() {
-    primeSounds()
-    // Per ROUND, not per mount: "Play again" re-enters start() without
-    // remounting, and saveScore() fires once per finished round.
-    reportGameStart(game)
-    reset()
-    const generated = Array.from({ length: roundCount }, () => generateRound(cfg))
-    setRounds(generated)
-    setPos(0)
-    setHistory([freshBoard(generated[0].tiles)])
-    setSelectedId(null)
-    setOp(null)
-    setHint(null)
-    setRoundState('solve')
-    setSolvedCount(0)
-    setCleanSolves(0)
-    setUndosThisRound(0)
-    setStreak(0)
-    setBestStreak(0)
-    startRef.current = Date.now()
-    setPhase('playing')
-  }
+function saveProgress(gameId, progress) {
+  try {
+    window.localStorage.setItem(progressKey(gameId), JSON.stringify(progress))
+  } catch { /* private mode — the path just won't persist */ }
+}
 
-  function tapTile(cell) {
-    if (roundState !== 'solve') return
-    setHint(null)
-    if (cell.id === selectedId) {
-      setSelectedId(null)
-      setOp(null)
-      return
-    }
-    if (selectedId === null || op === null) {
-      playTick()
-      setSelectedId(cell.id)
-      return
-    }
-    combine(cell)
-  }
+/* ── Level path screen ─────────────────────────────────────────── */
 
-  function tapOp(nextOp) {
-    if (roundState !== 'solve' || selectedId === null) return
-    playTick()
-    setHint(null)
-    setOp(nextOp)
-  }
-
-  function combine(secondCell) {
-    const firstCell = board.find((c) => c.id === selectedId)
-    if (!firstCell) return
-    const result = applyOp(firstCell.value, secondCell.value, op)
-    if (result === null) {
-      playWrong()
-      setHint(invalidMoveHint(op))
-      setOp(null)
-      return
-    }
-    const merged = { id: ++idRef.current, value: result }
-    const nextBoard = board
-      .filter((c) => c.id !== firstCell.id && c.id !== secondCell.id)
-      .concat(merged)
-    setHistory((h) => [...h, nextBoard])
-    setOp(null)
-
-    if (result === round.target) {
-      playCorrect()
-      setSelectedId(null)
-      setRoundState('solved')
-      setSolvedCount((c) => c + 1)
-      if (undosThisRound === 0) setCleanSolves((c) => c + 1)
-      setStreak((s) => {
-        const next = s + 1
-        setBestStreak((b) => Math.max(b, next))
-        return next
-      })
-    } else {
-      playTick()
-      // Keep the new tile selected so players can chain operations.
-      setSelectedId(merged.id)
-    }
-  }
-
-  function undo() {
-    if (roundState !== 'solve' || history.length <= 1) return
-    playTick()
-    setHistory((h) => h.slice(0, -1))
-    setSelectedId(null)
-    setOp(null)
-    setHint(null)
-    setUndosThisRound((u) => u + 1)
-  }
-
-  function resetRound() {
-    if (roundState !== 'solve' || history.length <= 1) return
-    playTick()
-    setHistory((h) => [h[0]])
-    setSelectedId(null)
-    setOp(null)
-    setHint(null)
-    setUndosThisRound((u) => u + 1)
-  }
-
-  function skip() {
-    if (roundState !== 'solve') return
-    playWrong()
-    setRoundState('revealed')
-    setSelectedId(null)
-    setOp(null)
-    setHint(null)
-    setStreak(0)
-  }
-
-  async function nextRound() {
-    if (pos + 1 >= rounds.length) {
-      await endRound()
-      return
-    }
-    const nextPos = pos + 1
-    setPos(nextPos)
-    setHistory([freshBoard(rounds[nextPos].tiles)])
-    setSelectedId(null)
-    setOp(null)
-    setHint(null)
-    setUndosThisRound(0)
-    setRoundState('solve')
-  }
-
-  function computeScore(solved, clean) {
-    return solved * points + clean * Math.round(points / 2)
-  }
-
-  async function endRound() {
-    playWin()
-    setConfettiKey((k) => k + 1)
-    setPhase('done')
-    const total = rounds.length
-    const accuracy = Math.round((solvedCount / Math.max(total, 1)) * 100)
-    const timeSpent = startRef.current ? Math.round((Date.now() - startRef.current) / 1000) : 0
-
-    await finish({
-      game,
-      score: computeScore(solvedCount, cleanSolves),
-      correct: solvedCount,
-      wrong: total - solvedCount,
-      accuracy,
-      bestStreak,
-      timeSpent,
-    })
-  }
-
-  if (phase === 'ready') {
-    return <ReadyCard game={game} cfg={cfg} roundCount={roundCount} points={points} onStart={start} />
-  }
-  if (phase === 'done') {
-    const total = rounds.length
-    const accuracy = Math.round((solvedCount / Math.max(total, 1)) * 100)
-    return (
-      <>
-        <Confetti fire={confettiKey} />
-        <DoneCard
-          game={game}
-          score={computeScore(solvedCount, cleanSolves)}
-          solved={solvedCount}
-          total={total}
-          accuracy={accuracy}
-          bestStreak={bestStreak}
-          saveResult={saveResult}
-          newBadges={newBadges}
-          streakResult={streakResult}
-          levelChange={levelChange}
-          personalBest={personalBest}
-          onRestart={start}
-        />
-      </>
-    )
-  }
-
-  // Playing
-  const firstValue = board.find((c) => c.id === selectedId)?.value ?? null
-  const solved = roundState === 'solved'
-  const revealed = roundState === 'revealed'
-  const stuck = roundState === 'solve' && board.length === 1
+function PathScreen({ game, progress, onBack, onStart }) {
+  const p = normalizeProgress(progress)
+  const states = nodeStates(p)
+  const current = currentLevel(p)
+  const pathD = NODE_POS.map((pos, i) => `${i === 0 ? 'M' : 'L'} ${pos[0]} ${pos[1]}`).join(' ')
+  // Zed cheers from beside the last cleared node once the path has begun.
+  const mascotAt = p.completed > 0 && p.completed < TOTAL_LEVELS ? NODE_POS[p.completed - 1] : null
 
   return (
-    <div className="space-y-5">
-      <div className="zx-card-dark flex items-center justify-between rounded-[22px] px-4 py-3">
-        <span className="text-[10.5px] font-extrabold uppercase tracking-[0.16em] text-amber-300">
-          Target {pos + 1} of {rounds.length}
-        </span>
-        <span className="text-sm font-black text-white">
-          Solved: <span className="text-amber-300">{solvedCount}</span>
-          {streak > 1 && <span className="ml-2 text-amber-300">🔥 {streak}</span>}
-        </span>
+    <>
+      <div className="lhx-path-head">
+        <div className="lhx-back-row">
+          <button type="button" className="lhx-back-btn" aria-label="Back to games" onClick={onBack}>‹</button>
+          <div>
+            <div className="lhx-back-title">🔢 {game.title || 'Number Path'}</div>
+            <div className="lhx-back-sub">Mathematics{game.grade ? ` · Grade ${game.grade}` : ''}</div>
+          </div>
+        </div>
+        <div className="lhx-path-stats">
+          <div className="lhx-stat-box"><div className="lhx-stat-num">{p.completed}</div><div className="lhx-stat-lab">LEVELS DONE</div></div>
+          <div className="lhx-stat-box"><div className="lhx-stat-num">{p.best}</div><div className="lhx-stat-lab">BEST SCORE</div></div>
+          <div className="lhx-stat-box"><div className="lhx-stat-num">⭐ {totalStars(p)}</div><div className="lhx-stat-lab">STARS</div></div>
+        </div>
       </div>
 
-      <div className="zx-card rounded-[22px] bg-white p-6 sm:p-8">
-        <p className="text-center text-[10.5px] font-extrabold uppercase tracking-[0.16em] text-slate-500">
-          Make this number
-        </p>
-        <p className={`font-display mt-1 text-center text-5xl font-bold sm:text-6xl ${solved ? 'text-emerald-600' : 'text-slate-900'}`}>
-          {round.target}
-        </p>
-
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
-          {board.map((cell) => {
-            const isSelected = cell.id === selectedId
-            const isTarget = solved && cell.value === round.target
-            return (
-              <button
-                key={cell.id}
-                type="button"
-                onClick={() => tapTile(cell)}
-                disabled={solved || revealed}
-                className={`zx-card min-w-[3.5rem] rounded-[12px] px-3 h-14 sm:h-16 font-black text-2xl sm:text-3xl transition active:translate-y-[2px] active:shadow-none ${
-                  isTarget
-                    ? 'bg-emerald-100 text-emerald-900'
-                    : isSelected
-                    ? 'bg-amber-200 text-slate-900 ring-2 ring-amber-500'
-                    : 'bg-white text-slate-900'
-                }`}
-              >
-                {cell.value}
-              </button>
-            )
-          })}
-        </div>
-
-        <div className="mt-5 flex justify-center gap-2">
-          {cfg.ops.map((o) => (
+      <div className="lhx-path-wrap">
+        <svg className="lhx-path-svg" viewBox={`0 0 100 ${PATH_VIEW_HEIGHT}`} preserveAspectRatio="none" aria-hidden="true">
+          <path
+            d={pathD}
+            fill="none"
+            stroke="#c3c8ef"
+            strokeWidth="2.2"
+            strokeDasharray="1.5 4"
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+        {states.map(({ level, state }) => {
+          const [x, y] = NODE_POS[level - 1]
+          const label =
+            state === 'done' ? `Level ${level} done`
+            : state === 'current' ? `Start level ${level}`
+            : `Level ${level} locked — finish level ${current} first`
+          return (
             <button
-              key={o}
+              key={level}
               type="button"
-              onClick={() => tapOp(o)}
-              disabled={solved || revealed || selectedId === null}
-              className={`h-12 w-12 rounded-[12px] border-2 border-slate-900 font-black text-xl transition sm:h-14 sm:w-14 sm:text-2xl ${
-                op === o
-                  ? 'bg-slate-900 text-amber-300'
-                  : selectedId === null
-                  ? 'bg-slate-50 text-slate-300'
-                  : 'bg-blue-100 text-slate-900'
-              }`}
+              className={`lhx-node is-${state}`}
+              style={{ left: `${x}%`, top: `${(y / PATH_VIEW_HEIGHT) * 100}%` }}
+              aria-label={label}
+              disabled={state === 'locked'}
+              onClick={state === 'current' ? () => onStart(level) : undefined}
             >
-              {o}
+              {state === 'done' ? '⭐' : state === 'current' ? level : '🔒'}
             </button>
-          ))}
-        </div>
-
-        <p className="mt-4 min-h-[1.5rem] text-center text-sm font-bold text-slate-500">
-          {solved
-            ? null
-            : revealed
-            ? null
-            : hint
-            ? <span className="text-rose-600">{hint}</span>
-            : stuck
-            ? 'Only one tile left and it is not the target — undo and try another way!'
-            : firstValue === null
-            ? 'Tap a number, then a sign, then another number.'
-            : op === null
-            ? `${firstValue} … now pick + − × ÷`
-            : `${firstValue} ${op} … now tap the second number`}
-        </p>
-
-        {solved && (
-          <div className="zx-card mt-4 rounded-[14px] bg-emerald-100 p-4 text-center font-bold text-emerald-900">
-            <span className="inline-flex items-center gap-2">
-              <CheckBadgeIcon className="h-5 w-5" />
-              You made {round.target}!{undosThisRound === 0 && ' Clean solve — bonus points!'}
-            </span>
-          </div>
-        )}
-        {revealed && (
-          <div className="zx-card mt-4 rounded-[14px] bg-sky-100 p-4 text-center text-sky-900">
-            <span className="inline-flex items-center gap-2 font-bold">
-              <LightBulbIcon className="h-5 w-5" />
-              One way to make {round.target}:
-            </span>
-            <div className="mt-2 flex flex-wrap justify-center gap-2 font-black">
-              {round.recipe.map((step, i) => (
-                <span key={i} className="rounded-full border-[1.5px] border-sky-900/30 bg-white/70 px-3 py-1 text-sm">
-                  {formatStep(step)}
-                </span>
-              ))}
+          )
+        })}
+        {states.map(({ level, state }) =>
+          state === 'current' ? (
+            <div
+              key={`bubble-${level}`}
+              className="lhx-start-bubble"
+              style={{
+                left: `${NODE_POS[level - 1][0]}%`,
+                top: `${(NODE_POS[level - 1][1] / PATH_VIEW_HEIGHT) * 100}%`,
+              }}
+              aria-hidden="true"
+            >
+              START ▸
             </div>
+          ) : null,
+        )}
+        {mascotAt && (
+          <div
+            className="lhx-path-mascot"
+            style={{
+              left: `${mascotAt[0] + (mascotAt[0] < 50 ? 18 : -18)}%`,
+              top: `${(mascotAt[1] / PATH_VIEW_HEIGHT) * 100}%`,
+            }}
+            aria-hidden="true"
+          >
+            <img src={ZED_ART} alt="" style={{ width: 48, height: 64, objectFit: 'contain' }} />
           </div>
         )}
       </div>
-
-      <div className="flex flex-wrap justify-between gap-3">
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={undo}
-            disabled={solved || revealed || history.length <= 1}
-            className="zx-sticker-btn zx-sticker-btn-secondary rounded-[14px] px-3.5 py-2.5 text-sm"
-          >
-            <ArrowUturnLeftIcon className="h-4 w-4" />
-            Undo
-          </button>
-          <button
-            type="button"
-            onClick={resetRound}
-            disabled={solved || revealed || history.length <= 1}
-            className="zx-sticker-btn zx-sticker-btn-secondary rounded-[14px] px-3.5 py-2.5 text-sm"
-          >
-            <ArrowPathIcon className="h-4 w-4" />
-            Start over
-          </button>
-        </div>
-        {solved || revealed ? (
-          <button
-            type="button"
-            onClick={nextRound}
-            className="zx-sticker-btn zx-sticker-btn-primary rounded-[14px] px-4 py-2.5 text-sm"
-          >
-            {pos + 1 >= rounds.length ? 'Finish round' : 'Next target'}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={skip}
-            className="zx-sticker-btn zx-sticker-btn-secondary rounded-[14px] px-3.5 py-2.5 text-sm"
-          >
-            <ForwardIcon className="h-4 w-4" />
-            Show me &amp; skip
-          </button>
-        )}
-      </div>
-    </div>
+    </>
   )
 }
 
-function ReadyCard({ game, cfg, roundCount, points, onStart }) {
+/* ── Play screen ───────────────────────────────────────────────── */
+
+function PlayScreen({ level, best, onExit, onEnd }) {
+  const timeMax = useMemo(() => levelTimeMax(level), [level])
+  const [{ tiles, target }, setBoard] = useState(() => {
+    const board = fillTiles(level)
+    return { tiles: board, target: newTarget(board, level) }
+  })
+  const [sel, setSel] = useState([])
+  const [score, setScore] = useState(0)
+  const [time, setTime] = useState(timeMax)
+  const [popped, setPopped] = useState([])
+  const [combo, setCombo] = useState({ text: '', show: false })
+
+  // Round tallies that outlive renders but never draw anything.
+  const round = useRef({ combo: 1, peakCombo: 1, matches: 0, busts: 0 })
+  const timeouts = useRef([])
+  const later = (fn, ms) => { timeouts.current.push(setTimeout(fn, ms)) }
+  useEffect(() => () => timeouts.current.forEach(clearTimeout), [])
+
+  // Refs mirroring what the countdown needs at expiry — the interval
+  // closure is created once, so it must not read state directly.
+  const endedRef = useRef(false)
+  const scoreRef = useRef(0)
+  useEffect(() => { scoreRef.current = score }, [score])
+  const onEndRef = useRef(onEnd)
+  useEffect(() => { onEndRef.current = onEnd }, [onEnd])
+
+  useEffect(() => {
+    const iv = setInterval(() => {
+      setTime((t) => {
+        if (t <= 1) {
+          clearInterval(iv)
+          if (!endedRef.current) {
+            endedRef.current = true
+            onEndRef.current({
+              score: scoreRef.current,
+              matches: round.current.matches,
+              busts: round.current.busts,
+              peakCombo: round.current.peakCombo,
+              timeMax,
+            })
+          }
+          return 0
+        }
+        return t - 1
+      })
+    }, 1000)
+    return () => clearInterval(iv)
+  }, [timeMax])
+
+  const tap = (index) => {
+    if (endedRef.current) return
+    const nextSel = toggleTile(sel, index)
+    setSel(nextSel)
+    const verdict = judgeSelection(tiles, nextSel, target)
+    if (verdict === 'match') {
+      const comboNow = round.current.combo
+      const gained = matchGain(comboNow)
+      round.current.matches += 1
+      round.current.peakCombo = Math.max(round.current.peakCombo, comboNow)
+      playCorrect()
+      setScore((s) => s + gained)
+      setPopped(nextSel)
+      setCombo({ text: `${comboNow > 1 ? `Combo ×${comboNow}! ` : 'Nice! '}+${gained}`, show: true })
+      later(() => setCombo((c) => ({ ...c, show: false })), 700)
+      later(() => {
+        const fresh = replaceMatched(tiles, nextSel)
+        round.current.combo = comboNow + 1
+        setBoard({ tiles: fresh, target: newTarget(fresh, level) })
+        setSel([])
+        setPopped([])
+      }, 320)
+    } else if (verdict === 'bust') {
+      round.current.busts += 1
+      playWrong()
+      later(() => {
+        round.current.combo = 1
+        setSel([])
+      }, 250)
+    }
+  }
+
+  const total = sumOf(tiles, sel)
+
   return (
-    <div className="zx-card rounded-[22px] bg-white p-8 text-center sm:p-10">
-      <MascotGreeting game={game} intro={`Ready for ${game.title}?`} />
-      <span className="mx-auto grid h-16 w-16 place-items-center rounded-[18px] border-2 border-slate-900 bg-orange-100 text-slate-900">
-        <CalculatorIcon className="h-8 w-8" />
-      </span>
-      <h2 className="font-display mb-2 mt-4 text-3xl font-bold text-slate-900">{game.title}</h2>
-      <p className="mx-auto mb-6 max-w-md text-slate-700">{game.description}</p>
-      <ul className="mx-auto mb-7 max-w-sm space-y-1.5 text-left text-sm text-slate-700">
-        <li>{roundCount} target numbers to make</li>
-        <li>Combine number tiles with {cfg.ops.join(' ')} — two tiles become one</li>
-        <li>+{points} points per target, bonus for solving without undo</li>
-        <li>Every target CAN be made — keep trying combinations!</li>
-      </ul>
-      <button
-        type="button"
-        onClick={onStart}
-        className="zx-sticker-btn zx-sticker-btn-primary rounded-[14px] px-5 py-3 text-base"
-      >
-        <CalculatorIcon className="h-4 w-4" />
-        Start crunching
+    <>
+      <div className="lhx-nt-head">
+        <div className="lhx-nt-top">
+          <button type="button" className="lhx-nt-x" aria-label="Leave the round" onClick={onExit}>✕</button>
+          <div className="lhx-nt-timebar" role="timer" aria-label={`${time} seconds left`}>
+            <i style={{ width: `${Math.max(0, (time / timeMax) * 100)}%` }} />
+          </div>
+          <div className="lhx-nt-score">⭐ {score}</div>
+        </div>
+        <div className="lhx-nt-goal">
+          <div className="lhx-nt-goal-lab">MAKE THIS NUMBER</div>
+          <div className="lhx-nt-goal-num">{target}</div>
+        </div>
+        <div className="lhx-nt-best">Your best: {best}</div>
+      </div>
+      <div className="lhx-nt-sum" aria-live="polite">
+        {sel.length ? <>Your total: <b>{total}</b> / {target}</> : <>Combine tiles to make <b>{target}</b></>}
+      </div>
+      <div className="lhx-nt-grid">
+        {tiles.map((n, i) => (
+          <button
+            key={i}
+            type="button"
+            className={`lhx-nt-tile ${sel.includes(i) ? 'is-sel' : ''} ${popped.includes(i) ? 'is-pop' : ''}`}
+            onClick={() => tap(i)}
+          >
+            {n}
+          </button>
+        ))}
+      </div>
+      <div className={`lhx-nt-combo ${combo.show ? 'is-show' : ''}`} aria-hidden="true">{combo.text}</div>
+    </>
+  )
+}
+
+/* ── Win screen ────────────────────────────────────────────────── */
+
+function WinScreen({ level, score, saveResult, streakResult, signedIn, onContinue }) {
+  const stars = starsForScore(score)
+  const confetti = useMemo(
+    () =>
+      Array.from({ length: 20 }, (_, i) => ({
+        bit: CONFETTI_BITS[i % CONFETTI_BITS.length],
+        left: `${(i * 17 + 5) % 95}%`,
+        duration: `${2.5 + ((i * 7) % 20) / 10}s`,
+        delay: `${((i * 13) % 12) / 10}s`,
+      })),
+    [],
+  )
+
+  const saveNote = !signedIn
+    ? 'Sign in to save your score, earn badges and climb the leaderboard.'
+    : saveResult && !saveResult.ok
+      ? 'Score not saved — check your connection and play again.'
+      : streakResult?.isDaily
+        ? `🔥 Daily challenge done — ${streakResult.streak}-day streak!`
+        : null
+
+  return (
+    <div className="lhx-win">
+      {confetti.map((c, i) => (
+        <span
+          key={i}
+          className="lhx-confetti"
+          style={{ left: c.left, animationDuration: c.duration, animationDelay: c.delay }}
+          aria-hidden="true"
+        >
+          {c.bit}
+        </span>
+      ))}
+      <div className="lhx-win-middle">
+        <div className="lhx-win-stars" aria-label={`${stars} of 3 stars`}>
+          {'⭐'.repeat(stars)}{'☆'.repeat(3 - stars)}
+        </div>
+        <h2 className="lhx-win-title">Level {level} complete!</h2>
+        <p className="lhx-win-sub">
+          {level < TOTAL_LEVELS ? `You've unlocked Level ${level + 1}. Keep going!` : 'You finished the whole path! 🎉'}
+        </p>
+        <div className="lhx-win-cards">
+          <div className="lhx-win-stat ws-xp">
+            <div className="lhx-win-stat-label">XP EARNED</div>
+            <div className="lhx-win-stat-body">+{score}</div>
+          </div>
+          <div className="lhx-win-stat ws-score">
+            <div className="lhx-win-stat-label">SCORE</div>
+            <div className="lhx-win-stat-body">{score}</div>
+          </div>
+        </div>
+        {saveNote && <p className="lhx-win-note">{saveNote}</p>}
+      </div>
+      <button type="button" className="lhx-btn lhx-btn-primary lhx-btn-block" onClick={onContinue}>
+        CONTINUE ▸
       </button>
     </div>
   )
 }
 
-function DoneCard({ game, score, solved, total, accuracy, bestStreak, saveResult, newBadges, streakResult, levelChange, personalBest, onRestart }) {
+/** One-at-a-time celebration pop for badges earned this round. */
+function BadgePop({ badges }) {
+  const [index, setIndex] = useState(-1)
+  useEffect(() => {
+    if (!badges.length) return undefined
+    setIndex(0)
+    const timers = []
+    for (let i = 1; i <= badges.length; i += 1) {
+      timers.push(setTimeout(() => setIndex(i < badges.length ? i : -1), i * 2200))
+    }
+    return () => timers.forEach(clearTimeout)
+  }, [badges])
+  const badge = index >= 0 ? badges[index] : null
   return (
-    <div className="space-y-5">
-      {levelChange?.leveledUp && <LevelUpBanner change={levelChange} />}
-      {personalBest?.isBest && <PersonalBestBanner personalBest={personalBest} />}
-      {streakResult?.isDaily && <StreakBanner result={streakResult} />}
-      {newBadges?.length > 0 && <BadgeToast badges={newBadges} />}
+    <div className={`lhx-bpop ${badge ? 'is-show' : ''}`} role="status" aria-live="polite">
+      {badge && (
+        <>
+          <div className="lhx-bpop-ic">{badge.icon}</div>
+          <div className="lhx-bpop-lab">NEW BADGE!</div>
+          <div className="lhx-bpop-nm">{badge.name}</div>
+          <div className="lhx-bpop-desc">{badge.description}</div>
+        </>
+      )}
+    </div>
+  )
+}
 
-      <div className="zx-card rounded-[22px] bg-white p-8 text-center">
-        <MascotCelebration game={game} accuracy={accuracy} score={score} />
-        <span className="mx-auto grid h-16 w-16 place-items-center rounded-[18px] border-2 border-slate-900 bg-slate-900 text-white">
-          <TrophyIcon className="h-8 w-8 text-amber-300" />
-        </span>
-        <h2 className="font-display mb-1 mt-4 text-3xl font-bold text-slate-900">{score} pts</h2>
-        <div className="my-4 flex justify-center">
-          <RatingStars filled={accuracy >= 90 ? 5 : accuracy >= 70 ? 4 : accuracy >= 50 ? 3 : 2} />
-        </div>
-        <div className="mx-auto my-5 grid max-w-md grid-cols-3 gap-3">
-          <DoneStat label="Targets"     value={`${solved}/${total}`} tone="emerald" />
-          <DoneStat label="Accuracy"    value={`${accuracy}%`} tone="sky" />
-          <DoneStat label="Best streak" value={bestStreak} tone="rose" />
-        </div>
-        <SaveBanner saveResult={saveResult} />
-        {levelChange?.after && (
-          <div className="mt-4"><XpProgressBar progress={levelChange.after} gained={score} /></div>
+/* ── The engine ────────────────────────────────────────────────── */
+
+export default function NumberTargetGame({ game }) {
+  const navigate = useNavigate()
+  const { currentUser } = useAuth()
+  const [screen, setScreen] = useState('path')
+  const [progress, setProgress] = useState(() => loadProgress(game?.id))
+  const [playingLevel, setPlayingLevel] = useState(1)
+  const [finalScore, setFinalScore] = useState(0)
+  const { saveResult, newBadges, streakResult, finish, reset } = useGameFinish()
+
+  const start = (level) => {
+    reset()
+    primeSounds()
+    reportGameStart(game)
+    setPlayingLevel(level)
+    setScreen('play')
+  }
+
+  const endRound = (outcome) => {
+    setFinalScore(outcome.score)
+    const next = applyRound(progress, { level: playingLevel, score: outcome.score })
+    setProgress(next)
+    saveProgress(game?.id, next)
+    playWin()
+    setScreen('win')
+    // The shared end-of-round plumbing: score save, badges, daily streak.
+    finish(roundResult({ game, ...outcome }))
+  }
+
+  return (
+    <div className="lhx">
+      <div className="lhx-page">
+        {screen === 'path' && (
+          <PathScreen
+            game={game}
+            progress={progress}
+            onBack={() => navigate('/games')}
+            onStart={start}
+          />
         )}
-        <SmartFeedback
-          game={game}
-          result={{ score, accuracy, correct: solved, wrong: total - solved, bestStreak }}
-          saveResult={saveResult}
-        />
-        <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <button
-            type="button"
-            onClick={onRestart}
-            className="zx-sticker-btn zx-sticker-btn-primary rounded-[14px] px-4 py-2.5 text-sm"
-          >
-            <ArrowPathIcon className="h-4 w-4" />
-            Play again
-          </button>
-          <ShareButton game={game} score={score} accuracy={accuracy} bestStreak={bestStreak} />
-          <Link
-            to={`/games/g/${game.grade}/${game.subject}`}
-            className="zx-sticker-btn zx-sticker-btn-secondary rounded-[14px] px-4 py-2.5 text-sm"
-          >
-            More games
-          </Link>
-        </div>
+        {screen === 'play' && (
+          <PlayScreen
+            key={playingLevel}
+            level={playingLevel}
+            best={progress.best}
+            onExit={() => setScreen('path')}
+            onEnd={endRound}
+          />
+        )}
+        {screen === 'win' && (
+          <WinScreen
+            level={playingLevel}
+            score={finalScore}
+            saveResult={saveResult}
+            streakResult={streakResult}
+            signedIn={!!currentUser}
+            onContinue={() => setScreen('path')}
+          />
+        )}
       </div>
-
-      <Leaderboard gameId={game.id} />
+      <BadgePop badges={newBadges} />
     </div>
   )
 }
