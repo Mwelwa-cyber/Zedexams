@@ -20,9 +20,9 @@
  * Pure + dependency-light so `node` can exercise it.
  */
 
-import { getFrameworkForGrade, obcSeniorSecondaryAllocation } from './curriculumFramework.js'
-import { normalizeCurriculum } from '../shared/utils/schemeFormat.js'
-import { resolveStoredSubject } from '../config/canonicalEducation.js'
+import { getFrameworkForGrade, obcSeniorSecondaryAllocation } from '../../utils/curriculumFramework.js'
+import { normalizeCurriculum } from '../../shared/utils/schemeFormat.js'
+import { resolveStoredSubject } from '../../config/canonicalEducation.js'
 
 // Normalised curriculum ('cbc'|'obc') → the framework id its allocations live
 // under in curriculumFramework.js.

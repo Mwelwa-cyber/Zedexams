@@ -30,7 +30,7 @@ import { EDUCATION_LEVELS, levelsForFramework } from '../src/config/educationLev
 import { CLASS_REGISTER_GRADE_OPTIONS } from '../src/shared/schemas/classRegister.js'
 import { STUDIO_SUBJECTS, STUDIO_GRADES } from '../src/features/assessmentStudio/lib/assessmentStudioMeta.js'
 import { PAPER_SUBJECTS, SUBJECTS as LEARNER_SUBJECTS } from '../src/config/curriculum.js'
-import { matchFrameworkSubject } from '../src/utils/frameworkSubjectMatch.js'
+import { matchFrameworkSubject } from '../src/curriculum/resolvers/frameworkSubjectMatch.js'
 import { planField, planDocument } from './migrate-canonical-education.mjs'
 
 let pass = 0

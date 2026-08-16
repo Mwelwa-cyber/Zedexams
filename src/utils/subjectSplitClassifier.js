@@ -36,7 +36,7 @@
  * Pure (no React, no Firebase, no I/O).
  */
 
-import { normalizeCurriculumId } from './curriculumTopicIdentity.js'
+import { normalizeCurriculumId } from '../curriculum/resolvers/curriculumTopicIdentity.js'
 import { SPLIT_DOCUMENTS } from './syllabusSubjectSplit.js'
 import { parseTopicCode } from './syllabusTopicTree.js'
 

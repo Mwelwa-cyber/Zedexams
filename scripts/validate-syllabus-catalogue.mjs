@@ -38,7 +38,7 @@ import path from 'node:path'
 import { extract2013TopicLookupRaw } from '../src/utils/syllabus2013Topics.js'
 import { syllabiToKbTopics } from '../src/utils/syllabusMapping.js'
 import { parseTopicCode, looksLikeTopicFragment, normalizeTopicTree } from '../src/utils/syllabusTopicTree.js'
-import { parseLookupKey } from '../src/utils/curriculumTopicIdentity.js'
+import { parseLookupKey } from '../src/curriculum/resolvers/curriculumTopicIdentity.js'
 // The same ascending-run detection the Commerce split uses. Here it tells apart
 // "two syllabi share a subject key" from "one syllabus is laid out in numbered
 // components" — see the componentSections check below.

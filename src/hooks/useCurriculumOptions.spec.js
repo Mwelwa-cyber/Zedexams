@@ -15,7 +15,7 @@ const subjectValuesOf = vi.fn(() => new Set(['math']))
 
 vi.mock('../utils/syllabusKbService', () => ({ getMergedSyllabi: (...a) => getMergedSyllabi(...a) }))
 vi.mock('../utils/syllabusMapping', () => ({ syllabiToKbTopics: (...a) => syllabiToKbTopics(...a) }))
-vi.mock('../utils/curriculumOptions', () => ({
+vi.mock('../curriculum/resolvers/curriculumOptions', () => ({
   buildSubjectOptions: (...a) => buildSubjectOptions(...a),
   subjectValuesOf: (...a) => subjectValuesOf(...a),
 }))

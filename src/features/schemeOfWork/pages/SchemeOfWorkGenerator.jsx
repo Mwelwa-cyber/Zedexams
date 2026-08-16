@@ -59,7 +59,7 @@ import {
   deliveryWeekCount,
   defaultRevisionWeeks,
 } from '../lib/schemeTermPlan'
-import { matchFrameworkSubject, periodsPerWeekLabel } from '../../../utils/frameworkSubjectMatch'
+import { matchFrameworkSubject, periodsPerWeekLabel } from '../../../curriculum/resolvers/frameworkSubjectMatch'
 import { evaluate as evaluateReadiness } from '../lib/schemeReadiness'
 import { normalizeCurriculum, curriculumLabel } from '../../../shared/utils/schemeFormat'
 import { stampEditHistory } from '../../../utils/schemeEditHistory'
