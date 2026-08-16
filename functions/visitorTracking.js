@@ -47,6 +47,9 @@ const {
   sumShards,
   parseUserAgent,
   normalizeBeacon,
+  expiryFrom,
+  VISIT_RETENTION_DAYS,
+  VISITOR_MARKER_RETENTION_DAYS,
 } = require("./visitorTrackingCore");
 
 // Structured, one-line-JSON telemetry for the beacon so ops can build alerts
@@ -93,13 +96,22 @@ function countryFrom(req) {
  * the same visitor can't double-count. The day doc itself is written only by
  * aggregateVisitorStats (below), never here.
  */
-async function updateDailyRollup(db, {dayKey, visitorId, sessionId, isBot}) {
+async function updateDailyRollup(db, {dayKey, visitorId, sessionId, isBot, now}) {
   const statRef = db.collection("visitorStats").doc(dayKey);
   const shardRef = statRef.collection("shards").doc(String(pickShardId()));
   const visitorMarker = visitorId ?
     statRef.collection("visitors").doc(visitorId) : null;
   const sessionMarker = sessionId ?
     statRef.collection("sessions").doc(sessionId) : null;
+
+  // A marker is only ever read for its OWN day (see the doc comment), so it is
+  // dead weight the moment that day closes — but nothing removed one, so these
+  // accumulated at a document per visitor per day alongside `visits`. The TTL
+  // stamp is a real Timestamp: a numeric expiry is accepted, reported as
+  // enabled, and reaped by nothing.
+  const markerExpiresAt = admin.firestore.Timestamp.fromDate(
+      expiryFrom(now instanceof Date ? now : new Date(), VISITOR_MARKER_RETENTION_DAYS),
+  );
 
   await db.runTransaction(async (tx) => {
     const [visitorSnap, sessionSnap] = await Promise.all([
@@ -121,11 +133,13 @@ async function updateDailyRollup(db, {dayKey, visitorId, sessionId, isBot}) {
     if (visitorMarker && (!visitorSnap || !visitorSnap.exists)) {
       tx.set(visitorMarker, {
         at: admin.firestore.FieldValue.serverTimestamp(),
+        expiresAt: markerExpiresAt,
       });
     }
     if (sessionMarker && (!sessionSnap || !sessionSnap.exists)) {
       tx.set(sessionMarker, {
         at: admin.firestore.FieldValue.serverTimestamp(),
+        expiresAt: markerExpiresAt,
       });
     }
   });
@@ -283,6 +297,14 @@ async function handleVisit(req, res, deps = {}) {
           country: countryFrom(req) || null,
           day: dayKey,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          // Nothing removed a visit document before this: no TTL policy, no
+          // reaper, and analyticsPurge.js deletes the PostHog person rather
+          // than these. One doc per pageview, forever. The per-day TOTALS in
+          // visitorStats/{day} are the durable history and are not expired —
+          // this only bounds the raw per-visit detail.
+          expiresAt: admin.firestore.Timestamp.fromDate(
+              expiryFrom(now, VISIT_RETENTION_DAYS),
+          ),
         };
 
         // Track whether the write settled (vs. timed out) so the two are
@@ -299,6 +321,7 @@ async function handleVisit(req, res, deps = {}) {
             visitorId: beacon.visitorId,
             sessionId: beacon.sessionId,
             isBot: ua.bot,
+            now,
           }),
         ]).then(() => {
           settled = true;

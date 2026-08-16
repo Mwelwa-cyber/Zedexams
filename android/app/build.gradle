@@ -124,6 +124,17 @@ dependencies {
     // reCAPTCHA Enterprise SDK — see recaptchaVersion in variables.gradle and
     // ZedExamsApplication/RecaptchaPlugin for the init + execute wiring.
     implementation "com.google.android.recaptcha:recaptcha:$recaptchaVersion"
+    // Firebase Crashlytics — native crash + ANR reporting. No init code: the
+    // SDK registers itself through Firebase's ContentProvider and starts
+    // catching uncaught native exceptions and ANRs on first launch, which is
+    // precisely the surface Sentry cannot reach from inside the WebView.
+    //
+    // Declared unconditionally even though the Gradle plugin below is applied
+    // only when google-services.json exists. Without that file Firebase simply
+    // fails to initialise and Crashlytics stays dormant — the same way the
+    // three @capacitor-firebase plugins already in this APK behave — so a
+    // developer build with no secret still compiles and runs.
+    implementation "com.google.firebase:firebase-crashlytics:$firebaseCrashlyticsVersion"
 }
 
 apply from: 'capacitor.build.gradle'
@@ -132,7 +143,17 @@ try {
     def servicesJSON = file('google-services.json')
     if (servicesJSON.text) {
         apply plugin: 'com.google.gms.google-services'
+        // MUST stay inside this block, and after google-services. The
+        // Crashlytics plugin reads the Firebase application id that
+        // google-services generates, so applying it unconditionally would turn
+        // "no google-services.json" from a warning that still builds (the
+        // documented behaviour of android-debug-apk.yml when the
+        // GOOGLE_SERVICES_JSON secret is unset) into a hard build failure.
+        // Both release workflows refuse to build without the file, so release
+        // APKs/AABs always get this — which is what matters, since it is the
+        // release build that is minified and needs the mapping upload.
+        apply plugin: 'com.google.firebase.crashlytics'
     }
 } catch(Exception e) {
-    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications and Crashlytics won't work")
 }

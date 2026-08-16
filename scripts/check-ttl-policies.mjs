@@ -153,8 +153,57 @@ const REGISTRY = [
       'rollUpPlatformMetrics — the join key that makes D1/D7/D30 retention ' +
       'computable. 400-day expiry (ACTIVE_MARKER_TTL_DAYS). No scheduled ' +
       'reaper: if the TTL policy is missing these grow one doc per active ' +
-      'user per day, forever — the exact failure mode `visits` already has. ' +
+      'user per day, forever — the exact failure mode `visits` USED to have ' +
+      '(fixed 2026-08-16, three entries below). ' +
       'The summary docs at platformStats/{day} are deliberately permanent.',
+  },
+  {
+    collection: 'visits',
+    field: 'expiresAt',
+    isCollectionGroup: false,
+    codeSideBackstop: null,
+    notes:
+      'One document per pageview, written by apiTrackVisit. Had NO expiry of ' +
+      'any kind until 2026-08-16 — no TTL policy, no reaper, and ' +
+      'analyticsPurge.js deletes the PostHog person rather than these — which ' +
+      'made it the unbounded hotspot 11-firestore-data-model.md flagged. ' +
+      '90-day expiry (VISIT_RETENTION_DAYS in visitorTrackingCore.js). The ' +
+      'per-day TOTALS at visitorStats/{day} are aggregates and are NOT ' +
+      'expired, so long-range history survives; this bounds only the raw ' +
+      'per-visit detail. The window is mirrored in the /admin/visitors ' +
+      'page-view tile label and pinned by test:visitor-retention-mirror.',
+  },
+  {
+    // NOT `visitorStats` — the same collection-GROUP trap as `feed` and
+    // `active`. The markers live at visitorStats/{day}/visitors/{id}, and a
+    // policy on the parent would match the per-day rollup documents, which
+    // carry no expiresAt and are the durable history we are keeping.
+    collection: 'visitors',
+    field: 'expiresAt',
+    isCollectionGroup: true,
+    codeSideBackstop: null,
+    notes:
+      'Per-day uniqueness markers so a returning visitor does not double-count ' +
+      'uniqueVisitors. updateDailyRollup only ever reads the marker for the ' +
+      'day it is writing, so a marker is dead once its day closes; the 7-day ' +
+      'window (VISITOR_MARKER_RETENTION_DAYS) is slack for a late beacon and ' +
+      'clock skew. At one doc per visitor per day these outgrow the visits ' +
+      'they support, which is why fixing `visits` alone would not have been ' +
+      'enough. Unique to visitorStats — no other Firestore collection is ' +
+      'named `visitors`.',
+  },
+  {
+    // Sibling of `visitors` above, same reasoning and same day-scoped life.
+    collection: 'sessions',
+    field: 'expiresAt',
+    isCollectionGroup: true,
+    codeSideBackstop: null,
+    notes:
+      'Per-day session markers behind the `sessions` counter, written beside ' +
+      'the `visitors` markers in the same transaction and expiring on the ' +
+      'same 7-day window. Unique as a Firestore collection name — the other ' +
+      '/sessions/ paths in this repo are Claude Managed Agent HTTP endpoints ' +
+      'in agents/runners/dawn.js, not collections.',
   },
 ];
 

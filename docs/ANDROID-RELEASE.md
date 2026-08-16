@@ -80,6 +80,58 @@ Android SDK, so R8 only actually runs there.
 
 ---
 
+## Crash + ANR reporting (Firebase Crashlytics)
+
+Added 2026-08-16. **Sentry does not cover this and cannot be made to.**
+`src/utils/sentry.js` runs inside the WebView and sees JavaScript errors; the
+two failure classes that decide a new Play Store listing's fate are a native
+crash in the wrapper/plugin layer and an ANR, where the platform kills the
+process and no JS handler ever runs. Crashlytics is the only thing in the build
+that observes those, and Play Console vitals grade the listing on them.
+
+Three pieces, all pinned in `android/variables.gradle` so a bump is one file:
+
+| Piece | Where | Job |
+|---|---|---|
+| `firebase-crashlytics-gradle` classpath | `android/build.gradle` | uploads the R8 mapping file so release traces symbolicate |
+| `firebase-crashlytics` SDK | `android/app/build.gradle` dependencies | reports; self-registers, no init code |
+| `apply plugin: 'com.google.firebase.crashlytics'` | `android/app/build.gradle` | activates the upload |
+
+Two things about the wiring are deliberate and easy to "tidy" into a bug:
+
+- **The plugin is applied INSIDE the existing `google-services.json`
+  conditional, after `google-services`.** It reads the Firebase application id
+  that `google-services` generates, so applying it unconditionally turns "no
+  `google-services.json`" from a warning that still builds — the documented
+  behaviour of `android-debug-apk.yml` when the `GOOGLE_SERVICES_JSON` secret
+  is unset — into a hard build failure. Both release workflows *refuse* to
+  build without the file, so release artifacts always get Crashlytics, which is
+  what matters: the release build is the minified one that needs the mapping
+  upload.
+- **The SDK dependency is unconditional.** Without `google-services.json`
+  Firebase simply fails to initialise and Crashlytics stays dormant, exactly as
+  the three `@capacitor-firebase/*` plugins already in this APK behave, so a
+  developer build with no secret still compiles and runs.
+
+`proguard-rules.pro` already keeps `SourceFile`/`LineNumberTable` (see Release
+hardening above), which is what preserves line numbers in a symbolicated trace
+— Crashlytics needs both that and the mapping upload, not either alone.
+
+**No user identifier is attached.** `setUserId` is never called, so a report is
+a stack trace plus device metadata. That is consistent with the
+children's-privacy posture that keeps PostHog on `identify: false` for
+learners; do not add it without revisiting that policy.
+
+**Verifying it.** There is no Android SDK in the node CI job, so nothing on a
+pull request compiles this. `android-debug-apk.yml` runs on push to `main` for
+`android/**` paths, and can be dispatched against a branch from the Actions tab
+— do that before merging a change to these files, or the first signal is a red
+build on `main`. Reports land in Firebase Console → Crashlytics; the first one
+appears only after a real crash on a device running a build that carries a
+valid `google-services.json`.
+
+---
+
 ## Releasing via CI (recommended)
 
 The `.github/workflows/android-release.yml` workflow builds a **signed

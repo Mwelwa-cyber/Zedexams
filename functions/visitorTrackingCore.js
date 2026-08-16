@@ -35,6 +35,69 @@ const SHARD_COUNT = 10;
 const SHARD_COUNTER_FIELDS = ["pageviews", "botPageviews", "uniqueVisitors", "sessions"];
 
 /**
+ * How long a RAW visit document survives.
+ *
+ * `visits` is one document per pageview and, until this was added, nothing
+ * ever removed one: no TTL policy, no reaper, and analyticsPurge.js deletes
+ * the PostHog person rather than these. It was the unbounded hotspot
+ * docs/architecture/11-firestore-data-model.md has been flagging.
+ *
+ * 90 days rather than something shorter because the raw docs are the only
+ * place the per-visit detail (path, referrer, device, country) exists — the
+ * durable history lives in the visitorStats/{day} rollups, which are
+ * aggregates and are deliberately NOT expired. So this is the window in which
+ * a question like "which pages did that referrer spike land on" can still be
+ * answered; beyond it, the daily totals remain forever.
+ *
+ * CHANGING THIS NUMBER IS NOT ENOUGH ON ITS OWN — it is mirrored in
+ * src/features/adminAnalytics/pages/AdminVisitors.jsx, which labels the
+ * page-view tile with it, and pinned by test:visitor-retention-mirror. The
+ * mirror exists because the dashboard tile used to read "all time" over a
+ * collection that genuinely was all-time; the moment a TTL reaps it, that
+ * label becomes a quiet lie rather than a visible error.
+ */
+const VISIT_RETENTION_DAYS = 90;
+
+/**
+ * How long a per-day uniqueness MARKER survives
+ * (visitorStats/{day}/visitors/{id} and .../sessions/{id}).
+ *
+ * These are not history — they exist so that a second pageview from the same
+ * visitor on the SAME Lusaka day does not double-count uniqueVisitors, and
+ * updateDailyRollup only ever reads the marker for the day it is writing. A
+ * marker is therefore dead the moment its day ends. Kept a week rather than a
+ * day purely as slack for a late-arriving beacon and for clock skew; nothing
+ * reads one after its own day closes.
+ *
+ * Short on purpose: at one document per visitor per day these outgrow the raw
+ * visits they support, and they are the reason the fix cannot stop at `visits`.
+ */
+const VISITOR_MARKER_RETENTION_DAYS = 7;
+
+/**
+ * The instant a document written at `now` should expire.
+ *
+ * Returns a Date, not epoch milliseconds, and that is the whole point of it
+ * being a named function: a Firestore TTL policy only acts on a TIMESTAMP
+ * field. Write a number and Firestore accepts the document, reports the policy
+ * as enabled, and reaps nothing — the exact silent failure that
+ * check-ttl-policies.mjs's assertTtlFieldIsTimestamp exists to catch, and that
+ * `processedEvents` shipped with until 2026-08-14. Callers wrap this in
+ * admin.firestore.Timestamp.fromDate().
+ *
+ * @param {Date} now
+ * @param {number} days
+ * @returns {Date}
+ */
+function expiryFrom(now, days) {
+  const base = now instanceof Date && Number.isFinite(now.getTime()) ?
+    now.getTime() :
+    Date.now();
+  const span = Number.isFinite(days) && days > 0 ? days : 0;
+  return new Date(base + span * 24 * 60 * 60 * 1000);
+}
+
+/**
  * Pick a shard id in [0, SHARD_COUNT) for this write. `rand` is injectable
  * (a function or a raw number) so the distribution is deterministically
  * testable; defaults to Math.random. Always returns a valid in-range integer
@@ -191,6 +254,9 @@ module.exports = {
   LUSAKA_OFFSET_MINUTES,
   SHARD_COUNT,
   SHARD_COUNTER_FIELDS,
+  VISIT_RETENTION_DAYS,
+  VISITOR_MARKER_RETENTION_DAYS,
+  expiryFrom,
   dayKeyFor,
   pickShardId,
   sumShards,

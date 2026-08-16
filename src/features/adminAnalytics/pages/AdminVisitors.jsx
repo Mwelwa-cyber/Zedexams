@@ -12,6 +12,21 @@ const LUSAKA_OFFSET_MIN = 120
 const TREND_DAYS = 14
 const RECENT_LIMIT = 100
 
+// Mirrors VISIT_RETENTION_DAYS in functions/visitorTrackingCore.js, pinned by
+// test:visitor-retention-mirror.
+//
+// This tile counted `visits` and was labelled "all time", which was true while
+// nothing ever deleted a visit document. Now that the collection carries a TTL,
+// the count is bounded by the retention window — and a stale label here would
+// not fail anything, it would just quietly report a shrinking number as a
+// lifetime total. Hence the mirror: the label states the window, and the window
+// cannot drift from the one the writer stamps without CI saying so.
+//
+// Longer history is NOT lost with the raw docs — the per-day rollups in
+// visitorStats are aggregates and are never expired, which is what the 7d/30d
+// tiles and the trend chart above read.
+const VISIT_RETENTION_DAYS = 90
+
 function lusakaDayKey(date = new Date()) {
   return new Date(date.getTime() + LUSAKA_OFFSET_MIN * 60000).toISOString().slice(0, 10)
 }
@@ -135,7 +150,7 @@ export default function AdminVisitors() {
         <Tile label="Page views · 30d" value={sumWindow(30, 'pageviews')} loading={loading} />
         <Tile label="Visitors · 30d" value={sumWindow(30, 'uniqueVisitors')} loading={loading} />
         <Tile label="Sessions · 7d" value={sumWindow(7, 'sessions')} loading={loading} />
-        <Tile label="Page views · all time" value={allTime ?? '—'} loading={loading} />
+        <Tile label={`Page views · last ${VISIT_RETENTION_DAYS}d`} value={allTime ?? '—'} loading={loading} />
       </div>
 
       <Card variant="elevated" size="md">
