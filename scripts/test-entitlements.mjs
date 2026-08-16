@@ -59,16 +59,35 @@ import { PLANS as CHECKOUT_PLANS } from '../src/utils/subscriptionConfig.js'
 import { crossedWinBackThreshold, daysToExam, examCountdownLabel } from '../src/config/examDates.js'
 
 let failures = 0
-function test(name, fn) {
-  try {
-    fn()
-    console.log(`  ✓ ${name}`)
-  } catch (err) {
-    failures += 1
-    console.error(`  ✗ ${name}\n    ${err.message}`)
+
+/**
+ * Tests and section headings are QUEUED, then run in order at the bottom of
+ * this file.
+ *
+ * The obvious shape — `try { fn() } catch` — silently passes every async test
+ * in the file: `fn()` returns a promise, the try block exits before it
+ * settles, and a rejected assertion becomes an unhandled rejection that
+ * `process.exit` beats to the finish line. Two tests here are async (the
+ * codebase scan and the exam-date mirror) and both were reporting ✓ without
+ * ever running their assertions. Queueing lets one `await` cover sync and
+ * async alike, and keeps the printed order identical to the source order.
+ */
+const queue = []
+function test(name, fn) { queue.push({ kind: 'test', name, fn }) }
+function section(name) { queue.push({ kind: 'section', name }) }
+
+async function runQueue() {
+  for (const item of queue) {
+    if (item.kind === 'section') { console.log(`\n${item.name}`); continue }
+    try {
+      await item.fn()
+      console.log(`  ✓ ${item.name}`)
+    } catch (err) {
+      failures += 1
+      console.error(`  ✗ ${item.name}\n    ${err.message}`)
+    }
   }
 }
-function section(name) { console.log(`\n${name}`) }
 
 const DAY = 24 * 60 * 60 * 1000
 const NOW = new Date('2026-08-19T10:00:00Z') // a Wednesday
@@ -591,7 +610,7 @@ test('ACCEPTANCE 7 — nothing in the codebase clears progress alongside a plan 
   // progress on a downgrade — which is the way this promise would actually be
   // broken, months from now, by a well-meaning "clean up expired accounts"
   // script.
-  const { readdirSync, readFileSync, statSync } = await import('node:fs')
+  const { readdirSync, readFileSync } = await import('node:fs')
   const { join } = await import('node:path')
 
   const PROGRESS_FIELDS = ['currentStreak', 'longestStreak', 'xp', 'badges', 'quizHistory']
@@ -600,14 +619,23 @@ test('ACCEPTANCE 7 — nothing in the codebase clears progress alongside a plan 
     `(${PROGRESS_FIELDS.join('|')})\\s*:\\s*(0|null|\\[\\]|false|deleteField\\(\\))`,
   )
   const offenders = []
+  let scanned = 0
 
+  // `withFileTypes` rather than a readdir followed by a statSync on each name:
+  // the entry type comes back from the SAME directory read, so there is no
+  // window between deciding a path is a file and opening it. CodeQL flags the
+  // check-then-use shape (js/file-system-race) and is right to — a scan that
+  // walks the whole tree is exactly where a path can change underneath you.
   function walk(dir) {
-    for (const entry of readdirSync(dir)) {
-      if (entry === 'node_modules' || entry.startsWith('.')) continue
-      const full = join(dir, entry)
-      if (statSync(full).isDirectory()) { walk(full); continue }
-      if (!/\.(js|jsx|mjs)$/.test(entry)) continue
-      if (/\.(test|spec)\./.test(entry)) continue
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const name = entry.name
+      if (name === 'node_modules' || name.startsWith('.')) continue
+      const full = join(dir, name)
+      if (entry.isDirectory()) { walk(full); continue }
+      if (!entry.isFile()) continue
+      if (!/\.(js|jsx|mjs)$/.test(name)) continue
+      if (/\.(test|spec)\./.test(name)) continue
+      scanned += 1
       const text = readFileSync(full, 'utf8')
       // Only where a plan/expiry write is in the same file — a legitimate
       // "reset my stats" feature the user asked for is not this.
@@ -619,6 +647,16 @@ test('ACCEPTANCE 7 — nothing in the codebase clears progress alongside a plan 
   }
   walk('src')
   walk('functions')
+
+  // A scanner that walks nothing reports clean, and "no offenders" then means
+  // "no evidence" rather than "no problem". `isFile()` skips symlinks, which
+  // the old statSync followed, so the floor is also what would catch a future
+  // tree layout this walk silently stops seeing. The number is a floor, not a
+  // pin — it only has to be high enough that an empty or collapsed walk fails.
+  assert.ok(
+    scanned > 500,
+    `the progress-clearing scan only reached ${scanned} files — it is not looking at the codebase`,
+  )
 
   assert.deepEqual(
     offenders, [],
@@ -647,6 +685,14 @@ test('the server mirror equals the seeded ECZ timetable date', async () => {
   assert.equal(server.daysToExam(7, NOW), daysToExam(7, NOW))
   assert.equal(server.daysToExam(7, new Date('2027-01-01')), null)
 })
+
+await runQueue()
+
+// A file that queued nothing would print "All tests passed" having run none.
+if (queue.filter((q) => q.kind === 'test').length === 0) {
+  console.error('\nno tests were queued — the runner is not running anything')
+  process.exit(1)
+}
 
 console.log(failures === 0 ? '\nAll entitlements tests passed.' : `\n${failures} failing`)
 process.exit(failures === 0 ? 0 : 1)

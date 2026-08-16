@@ -29,7 +29,14 @@ const {
 let failures = 0;
 function test(name, fn) {
   try {
-    fn();
+    const result = fn();
+    // Every test here is synchronous, and this is what keeps it that way: a
+    // promise returned into a sync try/catch settles after the block exits, so
+    // an async test would log ✓ without ever running its assertions. Refusing
+    // the shape is cheaper than discovering later that a test never ran.
+    if (result && typeof result.then === "function") {
+      throw new Error("test callback returned a promise — this runner is synchronous");
+    }
     console.log(`  ✓ ${name}`);
   } catch (err) {
     failures += 1;
