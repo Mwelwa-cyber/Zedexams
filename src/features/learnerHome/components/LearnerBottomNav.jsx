@@ -2,7 +2,7 @@
  * LearnerBottomNav — the persistent learner navigation, prototype-v3 IA:
  * Home · Papers · Notes · Games. On phones it is the glass bottom bar
  * with the coral active indicator; from 1000px it renders as the fixed
- * left sidebar (see learnerHome.css), where the brand row shows.
+ * left sidebar (see shared/styles/learnerTheme.css), where the brand row shows.
  *
  * Learn and Practice are deliberately absent (locked scope) — their
  * routes stay reachable until step 5 retires them, via Home's cards and

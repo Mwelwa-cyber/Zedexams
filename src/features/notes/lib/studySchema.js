@@ -40,6 +40,74 @@ const blockSchemas = {
   exam:       z.object({ id: str.optional(), type: z.literal('exam'),       q: str, a: str }),
   mistake:    z.object({ id: str.optional(), type: z.literal('mistake'),    wrong: str, correct: str }),
   quiz:       z.object({ id: str.optional(), type: z.literal('quiz'),       quizId: str.optional().default(''), quizTitle: str.optional().default(''), questionCount: z.number().int().nullable().optional() }),
+
+  // ── Reader-engine blocks (learner redesign step 3) ────────────────
+  // The interactive vocabulary of the prototype-v3 note reader. Notes
+  // regenerated through the pipeline carry these; their presence is what
+  // routes a study note into the new ReaderEngine (see readerCore.js).
+  // All shapes are maps/arrays-of-maps — Firestore forbids nested arrays.
+
+  // Section key points — shown in Revise mode (Learn mode hides them the
+  // way the prototype does; the practice blocks invert).
+  keypoints: z.object({ id: str.optional(), type: z.literal('keypoints'), items: strArr }),
+
+  // Keyword glossary — never rendered as a block. Paragraph text marks
+  // keywords as [[word]]; the reader resolves them here and opens the
+  // word-explainer sheet (meaning · how to use it · examples).
+  glossary: z.object({
+    id: str.optional(),
+    type: z.literal('glossary'),
+    entries: z.array(z.object({
+      word: str,
+      meaning: str,
+      how: str.optional().default(''),
+      examples: strArr.optional().default([]),
+    })),
+  }),
+
+  // "YOUR TURN" practice: chips; wrong picks shake and stay tappable,
+  // the correct pick locks the card with its feedback line.
+  practice: z.object({
+    id: str.optional(),
+    type: z.literal('practice'),
+    q: str,
+    options: z.array(z.object({ text: str, correct: z.boolean().optional().default(false) })).min(2),
+    correctNote: str.optional().default(''),
+  }),
+
+  // SECTION CHECK with remediation: a wrong pick opens "Let's look at it
+  // again" — explanation + example + a similar retry question — instead
+  // of just marking the answer red.
+  sectioncheck: z.object({
+    id: str.optional(),
+    type: z.literal('sectioncheck'),
+    label: str.optional().default(''),
+    q: str,
+    options: z.array(z.object({ text: str, correct: z.boolean().optional().default(false) })).min(2),
+    remediation: z.object({
+      explain: str,
+      example: str.optional().default(''),
+      retryQ: str,
+      retryOptions: z.array(z.object({ text: str, correct: z.boolean().optional().default(false) })).min(2),
+      retryHint: str.optional().default(''),
+    }),
+  }),
+
+  // Label-the-diagram: drag each word onto its box (or tap word → tap
+  // box). Anchors are normalised 0–1 fractions of the rendered image.
+  labeldiagram: z.object({
+    id: str.optional(),
+    type: z.literal('labeldiagram'),
+    url: str,
+    alt: str.optional().default(''),
+    instructions: str.optional().default(''),
+    items: z.array(z.object({
+      key: str.optional().default(''),
+      label: str,
+      x: z.number().min(0).max(1),
+      y: z.number().min(0).max(1),
+    })).min(2),
+  }),
 }
 
 export const studyBlockSchema = z.discriminatedUnion(

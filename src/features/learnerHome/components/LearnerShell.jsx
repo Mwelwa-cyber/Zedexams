@@ -9,7 +9,7 @@
  * header of its own. Mount it once as a layout route via LearnerLayout
  * so the navigation never remounts between tab changes.
  */
-import '../learnerHome.css'
+import '../../../shared/styles/learnerTheme.css'
 import LearnerBottomNav from './LearnerBottomNav'
 import { OfflineBadge } from './LearnerPrimitives'
 import { useNetworkStatus } from '../../../hooks/useNetworkStatus'

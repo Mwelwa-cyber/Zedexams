@@ -52,6 +52,12 @@ export const STUDY_BLOCK_LABELS = {
   mistake:    '⚠️ Common mistake',
   summary:    '✅ Summary',
   quiz:       '🧪 Practice quiz',
+  // Reader-engine blocks (learner redesign step 3)
+  keypoints:  '🔑 Key points (revise)',
+  glossary:   '📖 Keyword glossary',
+  practice:   '✏️ Your turn',
+  sectioncheck: '🎯 Section check',
+  labeldiagram: '🏷 Label the diagram',
 }
 
 export const STUDY_BLOCK_TYPES = Object.keys(STUDY_BLOCK_LABELS)
@@ -110,6 +116,11 @@ export function newStudyBlock(type) {
     case 'mistake':    return { id: uid(), type, wrong: 'A common wrong answer.', correct: 'The correct answer.' }
     case 'summary':    return { id: uid(), type, items: ['Key point one', 'Key point two'] }
     case 'quiz':       return { id: uid(), type, quizId: '', quizTitle: '', questionCount: null }
+    case 'keypoints':  return { id: uid(), type, items: ['The one thing to remember from this section'] }
+    case 'glossary':   return { id: uid(), type, entries: [{ word: 'keyword', meaning: 'What it means', how: 'How to use it', examples: ['An example sentence.'] }] }
+    case 'practice':   return { id: uid(), type, q: 'A fill-in question with a …… gap.', options: [{ text: 'right', correct: true }, { text: 'wrong', correct: false }], correctNote: '✓ Correct!' }
+    case 'sectioncheck': return { id: uid(), type, label: 'SECTION CHECK', q: 'A question that proves the section landed.', options: [{ text: 'right', correct: true }, { text: 'wrong', correct: false }], remediation: { explain: 'Re-teach the idea in one or two sentences.', example: 'A worked example.', retryQ: 'Try a similar one: ……', retryOptions: [{ text: 'right', correct: true }, { text: 'wrong', correct: false }], retryHint: 'A hint if the retry also misses.' } }
+    case 'labeldiagram': return { id: uid(), type, url: '', alt: '', instructions: 'Drag each word onto the right box — or tap a word, then tap a box.', items: [{ key: 'a', label: 'Part A', x: 0.2, y: 0.2 }, { key: 'b', label: 'Part B', x: 0.8, y: 0.6 }] }
     default:           return { id: uid(), type: 'paragraph', text: '' }
   }
 }
@@ -201,6 +212,10 @@ export function studySpeechText(blocks, title = '') {
     else if (b.type === 'mistake') parts.push('Common mistake. Wrong: ' + stripMd(b.wrong) + '. Correct: ' + stripMd(b.correct))
     else if (b.type === 'picture') parts.push('Picture. ' + stripMd(b.caption) + '. ' + (b.lines || []).map(stripMd).join('. '))
     else if (b.type === 'table') parts.push((b.rows || []).map(r => (r.cells || []).map(stripMd).join(', ')).join('. '))
+    else if (b.type === 'keypoints') parts.push('Key points. ' + (b.items || []).map(stripMd).join('. '))
+    else if (b.type === 'practice') parts.push('Your turn. ' + stripMd(b.q))
+    else if (b.type === 'sectioncheck') parts.push('Section check. ' + stripMd(b.q))
+    else if (b.type === 'labeldiagram') parts.push('Label the diagram. ' + stripMd(b.instructions || ''))
   }
   return parts.filter(Boolean).join('. ')
 }

@@ -1,0 +1,240 @@
+/**
+ * Note reader engine styles — the prototype-v3 note view (`view-note` /
+ * `view-scinote`), scoped under `.lhx` and built on the shared learner
+ * tokens (src/shared/styles/learnerTheme.css must be loaded alongside).
+ * Ships only with the reader chunk.
+ */
+
+/* ── Reading progress bar (prototype #note-prog) ───────────────── */
+
+.lhx-note-prog {
+  position: fixed; top: 0; left: 0; right: 0; height: 5px;
+  background: transparent; z-index: 60; pointer-events: none;
+}
+.lhx-note-prog i {
+  display: block; height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--lhx-coral1), var(--lhx-coral2));
+  border-radius: 0 99px 99px 0;
+  transition: width 0.15s;
+}
+
+/* ── Note header ───────────────────────────────────────────────── */
+
+.lhx-note-kicker { font-size: 11.5px; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; color: var(--lhx-link); margin-bottom: 6px; }
+.lhx-note-title { font-size: 24px; font-weight: 900; line-height: 1.25; margin-bottom: 6px; }
+.lhx-note-meta { font-size: 12.5px; color: var(--lhx-muted); font-weight: 700; margin-bottom: 18px; }
+.lhx-note-hint { font-size: 12.5px; font-weight: 800; color: var(--lhx-link); margin: -6px 0 16px; }
+
+/* Learn / Revise segment — sized like the prototype's compact seg. */
+.lhx-note-mode { max-width: 220px; margin-bottom: 16px; }
+.lhx-note-mode .lhx-seg-btn { min-height: 40px; font-size: 12.5px; padding: 8px 4px; }
+
+/* ── Body text + keywords ──────────────────────────────────────── */
+
+.lhx-note-p { font-size: 16px; line-height: 1.75; font-weight: 600; margin-bottom: 16px; }
+.lhx-note-p b, .lhx-note-p strong { font-weight: 900; }
+.lhx-kw {
+  display: inline-block; background: var(--lhx-indigo-soft); color: var(--lhx-indigo2);
+  font-weight: 900; border-radius: 8px; padding: 1px 8px; margin: 0 1px;
+  cursor: pointer; border: 0; border-bottom: 2px dotted #97a0f0;
+  font: inherit; font-weight: 900; line-height: inherit;
+}
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-kw { background: #2a2d4a; color: #aab2f0; }
+
+/* Section heading with the numbered coral badge (prototype .note-h2). */
+.lhx-note-h2 { font-size: 19px; font-weight: 900; margin: 26px 0 10px; display: flex; align-items: center; gap: 8px; }
+.lhx-note-h2 .lhx-h2-num {
+  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--lhx-coral1), var(--lhx-coral2)); color: #fff;
+  font-size: 13px; display: flex; align-items: center; justify-content: center;
+}
+.lhx-note-h3 { font-size: 16px; font-weight: 900; margin: 18px 0 8px; }
+
+/* ── Callouts ──────────────────────────────────────────────────── */
+
+.lhx-tipbox {
+  display: flex; gap: 12px; align-items: flex-start;
+  background: linear-gradient(135deg, #eef1ff, #e4e9ff);
+  border-radius: 18px; padding: 14px; margin-bottom: 16px;
+  font-size: 13.5px; font-weight: 700; line-height: 1.6;
+}
+.lhx-tipbox b { color: var(--lhx-indigo2); }
+.lhx-tip-zed { width: 44px; height: 56px; object-fit: contain; flex-shrink: 0; border-radius: 10px; }
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-tipbox { background: linear-gradient(135deg, #252849, #20223c); }
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-tipbox b { color: #aab2f0; }
+
+.lhx-ex-card {
+  background: #fdf7ec; border-left: 4px solid var(--lhx-yellow); border-radius: 14px;
+  padding: 13px 15px; font-size: 15px; font-weight: 700; line-height: 1.6; margin-bottom: 16px;
+}
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-ex-card { background: #33301f; }
+
+/* Term rows (prototype .mean-row). */
+.lhx-mean-row {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--lhx-card); border-radius: 14px; box-shadow: var(--lhx-shadow);
+  padding: 10px 13px; margin-bottom: 8px;
+}
+.lhx-mean-row .lhx-mean-term {
+  min-width: 64px; text-align: center; flex-shrink: 0;
+  display: inline-block; background: var(--lhx-indigo-soft); color: var(--lhx-indigo2);
+  font-weight: 900; border-radius: 8px; padding: 1px 8px; font-size: 14px;
+}
+.lhx-mean-row .lhx-mean-def { font-size: 13.5px; font-weight: 700; color: var(--lhx-muted); }
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-mean-row .lhx-mean-term { background: #2a2d4a; color: #aab2f0; }
+
+/* Key points (revise mode; prototype .keypoints). */
+.lhx-keypoints {
+  background: var(--lhx-green-wash); border-left: 4px solid var(--lhx-green);
+  border-radius: 14px; padding: 13px 15px; margin-bottom: 16px;
+}
+.lhx-kp-label { font-size: 10.5px; font-weight: 900; letter-spacing: 0.12em; color: var(--lhx-green-dark); margin-bottom: 6px; }
+.lhx-kp-body { font-size: 14px; font-weight: 700; line-height: 1.75; }
+
+/* ── Interactive cards ─────────────────────────────────────────── */
+
+/* Tap-to-reveal (prototype .reveal-card, renders `quickcheck` blocks). */
+.lhx-reveal-card {
+  width: 100%; border: 2px dashed #b9c4fb; border-radius: 18px; padding: 15px;
+  text-align: center; margin-bottom: 16px; cursor: pointer; font-weight: 800;
+  background: transparent; color: inherit; font-family: inherit;
+}
+.lhx-reveal-q { font-size: 15px; margin-bottom: 6px; line-height: 1.5; }
+.lhx-reveal-hint { font-size: 12.5px; color: var(--lhx-link); }
+.lhx-reveal-a { font-size: 15px; color: var(--lhx-green-dark); margin-top: 8px; line-height: 1.5; animation: lhx-fadein 0.3s ease; }
+@keyframes lhx-fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* Practice card (prototype .try-card "YOUR TURN"). */
+.lhx-try-card {
+  background: var(--lhx-card); border-radius: 20px; box-shadow: var(--lhx-shadow);
+  padding: 16px; margin-bottom: 16px;
+}
+.lhx-try-label { font-size: 11px; font-weight: 900; letter-spacing: 0.12em; color: var(--lhx-coral-text); margin-bottom: 8px; }
+.lhx-try-q { font-size: 16px; font-weight: 800; line-height: 1.6; margin-bottom: 12px; }
+.lhx-try-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.lhx-try-chips button {
+  border: 2px solid var(--lhx-line); border-bottom-width: 4px;
+  background: var(--lhx-card); color: var(--lhx-ink);
+  border-radius: 13px; padding: 10px 18px; font-family: inherit; font-weight: 900; font-size: 15px; cursor: pointer;
+}
+.lhx-try-chips button.is-ok { background: var(--lhx-green-soft); border-color: #79cf98; color: var(--lhx-green-dark); }
+.lhx-try-chips button.is-no { background: #fdeaea; border-color: #f2a0a3; color: var(--lhx-red); animation: lhx-shake 0.3s; }
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-try-chips button.is-ok { background: #173327; border-color: #2e7d54; color: #7bd9a3; }
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-try-chips button.is-no { background: #3a2024; border-color: #8a4046; color: #f4a5a8; }
+@keyframes lhx-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+.lhx-try-fb { font-size: 13.5px; font-weight: 800; margin-top: 10px; }
+.lhx-try-fb.is-ok { color: var(--lhx-green-dark); }
+.lhx-try-fb.is-no { color: var(--lhx-red); }
+
+/* Section check + remediation (prototype .check-card / .remed). */
+.lhx-check-card {
+  background: linear-gradient(150deg, #eef1ff, var(--lhx-card));
+  border: 2px solid #c3cbf7; border-radius: 20px; padding: 16px; margin: 4px 0 20px;
+}
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-check-card { background: linear-gradient(150deg, #252849, #232640); border-color: #3a3f68; }
+.lhx-check-label { font-size: 11px; font-weight: 900; letter-spacing: 0.12em; color: var(--lhx-indigo-text); margin-bottom: 8px; }
+.lhx-remed { margin-top: 14px; border-top: 2px dashed #c3cbf7; padding-top: 13px; animation: lhx-fadein 0.35s ease; }
+.lhx-remed-head { display: flex; align-items: center; gap: 9px; font-size: 14px; font-weight: 900; margin-bottom: 8px; color: var(--lhx-indigo-text); }
+.lhx-remed-zed { width: 34px; height: 42px; object-fit: contain; border-radius: 8px; }
+.lhx-remed-p { font-size: 14px; font-weight: 700; line-height: 1.65; margin-bottom: 10px; }
+
+/* ── Label-the-diagram (prototype .lbl-*) ──────────────────────── */
+
+.lhx-lbl-wrap { background: var(--lhx-card); border-radius: 20px; box-shadow: var(--lhx-shadow); padding: 16px; margin-bottom: 18px; }
+.lhx-lbl-diagram { position: relative; width: 100%; margin: 0 auto 12px; user-select: none; }
+.lhx-lbl-img { width: 100%; display: block; border-radius: 12px; }
+.lhx-lbl-slot {
+  position: absolute; transform: translate(-50%, -50%);
+  width: 22%; min-height: 5.6%;
+  background: var(--lhx-card); border: 2px dashed #7f8bf0; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9.5px; font-weight: 800; color: #9aa0d8; text-align: center;
+  padding: 2px 3px; line-height: 1.05; cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.12); font-family: inherit;
+}
+.lhx-lbl-slot.is-over { border-color: var(--lhx-indigo2); background: #dfe4ff; border-style: solid; }
+.lhx-lbl-slot.is-filled { border-style: solid; border-color: var(--lhx-indigo2); color: var(--lhx-ink); background: var(--lhx-indigo-soft); }
+.lhx-lbl-slot.is-ok { background: var(--lhx-green-soft); border-color: #3fbf74; color: var(--lhx-green-dark); }
+.lhx-lbl-slot.is-no { background: #fdeaea; border-color: #ef6a6f; color: var(--lhx-red); }
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-lbl-slot { background: #232640; color: #8a90c8; }
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-lbl-slot.is-filled { background: #2f3358; color: #e9ebff; }
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-lbl-slot.is-ok { background: #173327; color: #7bd9a3; }
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-lbl-slot.is-no { background: #3a2024; color: #f4a5a8; }
+.lhx-lbl-bank { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; min-height: 40px; }
+.lhx-lbl-chip {
+  background: linear-gradient(135deg, #7c8bf5, #5b63dd); color: #fff;
+  font-weight: 900; font-size: 13.5px; border: none; border-radius: 12px; padding: 9px 14px;
+  cursor: grab; box-shadow: 0 4px 0 #4a4fc9; font-family: inherit;
+  touch-action: none; user-select: none;
+}
+.lhx-lbl-chip.is-sel { outline: 3px solid #ffd25f; transform: translateY(-2px); }
+.lhx-lbl-chip.is-dragging { opacity: 0.4; }
+.lhx-lbl-drag-clone {
+  position: fixed; z-index: 999; pointer-events: none;
+  background: linear-gradient(135deg, #7c8bf5, #5b63dd); color: #fff;
+  font-weight: 900; font-size: 13.5px; border-radius: 12px; padding: 9px 14px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.3);
+  font-family: 'Nunito', ui-sans-serif, system-ui, sans-serif;
+}
+.lhx-lbl-actions { display: flex; gap: 10px; margin-top: 14px; }
+.lhx-lbl-actions button { flex: 1; border: none; border-radius: 14px; font-family: inherit; font-weight: 900; font-size: 14px; padding: 12px; cursor: pointer; }
+.lhx-lbl-check { background: var(--lhx-green); color: #fff; box-shadow: 0 4px 0 #1f9451; }
+.lhx-lbl-reset { background: var(--lhx-indigo-soft); color: var(--lhx-indigo2); }
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-lbl-reset { background: #2a2d4a; color: #aab2f0; }
+.lhx-lbl-score { text-align: center; font-weight: 900; font-size: 14px; margin-top: 10px; }
+
+/* ── Paced reveal (prototype .rv-continue / .rv-dots) ──────────── */
+
+.lhx-rv-continue {
+  background: linear-gradient(135deg, #7c8bf5, #5b63dd); color: #fff;
+  box-shadow: 0 4px 0 #4a4fc9; margin: 8px 0 22px;
+  animation: lhx-fadein 0.3s ease;
+}
+.lhx-rv-continue:active { transform: scale(0.98); }
+.lhx-rv-dots { display: flex; justify-content: center; gap: 6px; margin: 2px 0 10px; }
+.lhx-rv-dot { width: 7px; height: 7px; border-radius: 50%; background: #d5daf5; }
+.lhx-rv-dot.is-on { background: #5b63dd; width: 20px; border-radius: 4px; }
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-rv-dot { background: #3a3f68; }
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-rv-dot.is-on { background: #7c8bf5; }
+
+/* ── Word-explainer bottom sheet (prototype .word-sheet) ───────── */
+
+.lhx-word-sheet {
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%) translateY(110%);
+  width: 100%; max-width: 480px;
+  padding: 20px 18px calc(24px + env(safe-area-inset-bottom, 0px));
+  border-radius: 28px 28px 0 0; transition: transform 0.28s ease; z-index: 70;
+  background: var(--lhx-card);
+  box-shadow: 0 -12px 34px rgba(18, 49, 79, 0.28);
+}
+.lhx-word-sheet.is-open { transform: translateX(-50%) translateY(0); }
+.lhx-word-sheet-x {
+  position: absolute; right: 16px; top: 12px;
+  font-size: 18px; color: var(--lhx-faint); font-weight: 900;
+  background: none; border: none; cursor: pointer; font-family: inherit;
+  min-width: 40px; min-height: 40px;
+}
+.lhx-ws-word {
+  display: inline-block; background: var(--lhx-indigo-soft); color: var(--lhx-indigo2);
+  font-weight: 900; border-radius: 8px; padding: 3px 13px; margin-bottom: 7px; font-size: 18px;
+}
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-ws-word { background: #2a2d4a; color: #aab2f0; }
+.lhx-ws-meaning { font-weight: 900; font-size: 14.5px; margin-bottom: 5px; }
+.lhx-ws-how { font-size: 13.5px; font-weight: 700; color: var(--lhx-muted); line-height: 1.6; margin-bottom: 10px; }
+
+/* ── Reader lists / tables reused from study content ───────────── */
+
+.lhx-note-ul, .lhx-note-ol { margin: 0 0 16px; padding-left: 22px; font-size: 15px; font-weight: 600; line-height: 1.7; }
+.lhx-note-ol { list-style: decimal; }
+.lhx-note-ul { list-style: disc; }
+.lhx-note-table-wrap { overflow-x: auto; margin-bottom: 16px; border-radius: 14px; box-shadow: var(--lhx-shadow); }
+.lhx-note-table { width: 100%; border-collapse: collapse; background: var(--lhx-card); font-size: 13.5px; }
+.lhx-note-table th { text-align: left; font-weight: 900; padding: 10px 12px; border-bottom: 2px solid var(--lhx-line); }
+.lhx-note-table td { padding: 9px 12px; border-bottom: 1px solid var(--lhx-line); font-weight: 600; }
+
+.lhx-note-img { width: 100%; border-radius: 16px; margin-bottom: 6px; }
+.lhx-note-figcap { text-align: center; font-size: 12px; color: var(--lhx-muted); font-weight: 700; margin-bottom: 16px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lhx-note-prog i, .lhx-word-sheet { transition: none; }
+}
