@@ -12,6 +12,9 @@ import { useSubscription } from '../../../hooks/useSubscription'
 import UpgradeModal from '../../../components/subscription/UpgradeModal'
 import Button from '../../../shared/components/Button'
 import GamesShell from '../components/GamesShell'
+import GameStickerStyles from '../../../shared/components/GameStickerStyles'
+import '../../../shared/styles/learnerTheme.css'
+import '../gamesProto.css'
 import TimedQuizGame from '../components/TimedQuizGame'
 import MeaningMatchGame from '../components/MeaningMatchGame'
 import PunctuationProGame from '../components/PunctuationProGame'
@@ -134,6 +137,39 @@ export default function PlayGame() {
         />
         <GameEngine game={game} />
       </>
+    )
+  }
+
+  // timed_quiz (the daily-quiz engine) keeps its component untouched —
+  // it carries the Phase 3 assessment-engine flag wiring and two pinned
+  // specs — but plays inside the learner shell: a `.lhx` page with the
+  // prototype back row, GameStickerStyles for its animations, and the
+  // `.lhx-tq` bridge in gamesProto.css restyling its zx vocabulary to
+  // the prototype palette (colours only, structure identical).
+  if (!locked && game.type === 'timed_quiz') {
+    return (
+      <div className="lhx">
+        <SeoHelmet
+          title={game.title}
+          description={game.description || `Play ${game.title} on ZedExams. CBC-aligned learning game for ${gradeMeta?.label || 'Zambian learners'}.`}
+          path={`/games/play/${game.id || gameId}`}
+        />
+        <div className="lhx-page">
+          <div className="lhx-back-row">
+            <Link to="/games" className="lhx-back-btn" aria-label="Back to games">‹</Link>
+            <div>
+              <div className="lhx-back-title">⚡ {game.title}</div>
+              <div className="lhx-back-sub">
+                {[subjectMeta?.label, gradeMeta?.label].filter(Boolean).join(' · ')}
+              </div>
+            </div>
+          </div>
+          <div className="lhx-tq">
+            <GameStickerStyles />
+            <GameEngine game={game} />
+          </div>
+        </div>
+      </div>
     )
   }
 
