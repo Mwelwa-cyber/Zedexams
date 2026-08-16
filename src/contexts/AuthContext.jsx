@@ -126,7 +126,7 @@ function defaultUserRecord({ displayName, email, role = ROLES.LEARNER, grade = n
     subscriptionActivatedBy: null,
     premiumActivatedAt: null,
     // Plain-language plan type surfaced by the subscription-reminder system
-    // (Free / Trial / Pro / Expired is derived in utils/subscriptionStatus.js;
+    // (Free / Trial / Pro / Expired is derived in engines/payment-engine/subscriptionStatus.js;
     // this stores the catalogue planType, 'free' on a fresh account).
     planType: 'free',
     // Reminder-system UX state. Both are self-writable (not on the Firestore

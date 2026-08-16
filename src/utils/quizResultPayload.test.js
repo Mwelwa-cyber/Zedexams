@@ -183,7 +183,7 @@ test('an empty quiz scores 0/0/0% rather than NaN', () => {
   const payload = buildQuizResultPayload({ ...base, questions: [], answers: {} })
   assert.equal(payload.score, 0)
   assert.equal(payload.totalMarks, 0)
-  assert.equal(payload.percentage, 0, 'NaN% is the bug src/schemas/result.js exists to absorb')
+  assert.equal(payload.percentage, 0, 'NaN% is the bug src/shared/schemas/result.js exists to absorb')
 })
 
 test('an unanswered submit is a real 0, still final', () => {

@@ -15,7 +15,7 @@
  *     `box` = where the label box sits) so the same data renders on a phone
  *     canvas, an A4 paper block, and the learner app's drag-the-label zones.
  *
- * Distinct from `src/schemas/visualAsset.js` (a teacher's flattened, baked
+ * Distinct from `src/shared/schemas/visualAsset.js` (a teacher's flattened, baked
  * PNGs — "My Visuals"): a diagramAsset stores the SOURCE art + label data and
  * is consumed by ID (`assetId` + `version`) from papers, notes, worksheets and
  * the learner app. Style mirrors visualAsset.js: strict write schema +

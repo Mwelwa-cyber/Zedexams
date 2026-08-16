@@ -51,7 +51,7 @@ const BATCH_SIZE = 400
 /**
  * Parse a Firestore expiry value (Timestamp | Date | ISO string | ms) into a
  * Date, or null when absent/unparseable. Mirrors toDateValue() in
- * src/utils/subscriptionConfig.js.
+ * src/engines/payment-engine/subscriptionConfig.js.
  */
 export function parseExpiry(value) {
   if (!value) return null

@@ -1,5 +1,5 @@
 /**
- * src/schemas/classRecord.js
+ * src/shared/schemas/classRecord.js
  *
  * Shape of a Class Register marking record
  * (classRegisters/{classId}/records/{recordId}).

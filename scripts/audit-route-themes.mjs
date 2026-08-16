@@ -59,7 +59,7 @@ const lazyMap = new Map()
 // teacherRoutes.jsx's specifiers are relative to ITS directory, so they are
 // rebased onto src/ before being stored — otherwise every teacher page
 // resolves to nothing and reports as unmeasured.
-const REBASE = { 'App.jsx': '', 'teacherRoutes.jsx': 'app/routes/' }
+const REBASE = { 'App.jsx': 'app/', 'teacherRoutes.jsx': 'app/routes/' }
 for (const [src, text] of [['App.jsx', app], ['teacherRoutes.jsx', teacherSrc]]) {
   const rebase = (spec) => spec.startsWith('./')
     ? './' + REBASE[src] + spec.slice(2)

@@ -1,6 +1,6 @@
 /**
  * Unit tests for frameworkSubjectMatch — KB slug → framework allocation.
- * Run: node src/utils/frameworkSubjectMatch.test.js
+ * Run: node src/curriculum/resolvers/frameworkSubjectMatch.test.js
  */
 
 import { matchFrameworkSubject, periodsPerWeekLabel } from './frameworkSubjectMatch.js'

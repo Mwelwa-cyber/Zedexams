@@ -1,5 +1,5 @@
 /**
- * src/schemas/attempt.js
+ * src/shared/schemas/attempt.js
  *
  * Single source of truth for the shape of an Exam Attempt document
  * (Firestore collection: `exam_attempts`).

@@ -1,5 +1,5 @@
 /**
- * src/schemas/quiz.js
+ * src/shared/schemas/quiz.js
  *
  * Single source of truth for the shape of a Quiz document.
  *

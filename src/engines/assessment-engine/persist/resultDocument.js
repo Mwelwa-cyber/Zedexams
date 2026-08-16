@@ -54,7 +54,7 @@
  *      Nothing aggregates the field — `classAnalytics` does not read it — so
  *      there is no average to poison.
  *   2. **The nullability is declared here** because there is nothing else to
- *      declare it in. `src/schemas/result.js` is a read-side coercer that says
+ *      declare it in. `src/shared/schemas/result.js` is a read-side coercer that says
  *      in its own docblock why no write schema exists, and does not touch
  *      `timeSpent` at all — it passes through as an undocumented extra. The
  *      table above and `RESULT_DOCUMENT_KEYS` below are that declaration, and

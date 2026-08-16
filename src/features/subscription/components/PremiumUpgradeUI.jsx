@@ -2,7 +2,7 @@
 // Quiz Limit Reached, Welcome Back). Each popup has a distinct hero + purpose,
 // but they share the benefit pills, the Weekly/Monthly pricing cards and the
 // "Most Popular" ribbon so pricing can never drift between them — it all reads
-// from src/utils/subscriptionConfig.js (PLANS).
+// from src/engines/payment-engine/subscriptionConfig.js (PLANS).
 //
 // Deliberately uses a fixed light "premium purple" palette (Tailwind literal
 // colours, not theme-* tokens) rather than following the learner theme — the

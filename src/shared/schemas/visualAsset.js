@@ -7,7 +7,7 @@
  * who made them (`createdBy`), private by default, and optionally shared to
  * the school / made public for admin approval.
  *
- * Style mirrors src/schemas/quiz.js: a strict WRITE schema (catch bugs before
+ * Style mirrors src/shared/schemas/quiz.js: a strict WRITE schema (catch bugs before
  * a Firestore write) + a permissive read coercer (survive legacy / partial
  * docs without throwing in render).
  */

@@ -1,5 +1,5 @@
 /**
- * src/schemas/classRegister.js
+ * src/shared/schemas/classRegister.js
  *
  * Shape of a Class Register document (classRegisters/{classId}).
  *
@@ -8,7 +8,7 @@
  * classRegisters/{classId}/records. A register holds non-account learners
  * only — names entered manually or imported from CSV / Excel.
  *
- * Write-strict / read-permissive, per src/schemas/quiz.js.
+ * Write-strict / read-permissive, per src/shared/schemas/quiz.js.
  */
 
 import { z } from 'zod'

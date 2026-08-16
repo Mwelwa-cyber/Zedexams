@@ -1725,6 +1725,31 @@ absent.
 
 **Phase 4 is complete for everything the freeze permits.** What remains in `components/` is the four frozen domains, the shared infrastructure that stays by design (`ui/`, `layout/`, `seo/`, `theme/`, `banners/`, `diagrams/`, `native/`, `notifications/`), and this one shim.
 
+**Correction, 2026-08-16 — that sentence measured the wrong thing, and for two days it read as "Phase 4 is complete".** It is a statement about `src/components/`, which is accurate. But Phase 4's charter is not only "empty the component directories": §12 also gives it **nine scaffold areas to FILL**, and a coverage check found every one of them still empty, each holding an `index.js` that said "Empty until Phase 4" — after Phase 4 had been declared done. Nothing in CI measures scaffold occupancy, so the gap was invisible from both ends: the component sweep reported success and the empty areas reported nothing at all.
+
+Filled on 2026-08-16 (branch `claude/migration-coverage-check-*`), each a separate verified commit:
+
+| Area | Filled with | From |
+|---|---|---|
+| `shared/schemas/` | all 8 zod contracts | `src/schemas/` (root directory now gone) |
+| `curriculum/resolvers/` | `frameworkSubjectMatch`, `curriculumOptions`, `curriculumTopicIdentity` | `src/utils/` |
+| `engines/payment-engine/` | `paywall`, `subscriptionConfig`, `subscriptionStatus`, `subscriptionUpgrade`, `teacherPlans` | `src/utils/` |
+| `engines/notification-engine/` | `notificationPrefs` | `src/utils/` |
+| `services/notifications/` | `fcm`, `nativePush` | `src/utils/` — first of §12's seven service areas to exist |
+| `app/` | `App.jsx` — §12's first line | `src/App.jsx` |
+| `app/providers/` | `AppProviders.jsx`, mounted in `main.jsx` | new (§12's named artifact) |
+
+**Four areas remain empty, and three of them are BLOCKED BY THE LAYERING THIS PHASE INSTALLED — not pending.** That is the substantive finding, and it is why the remaining work is an owner decision rather than more migration commits:
+
+- **`app/providers/` cannot take `src/contexts/`.** 294 files under `src/features/` import the contexts, and `features → app` is error-level in both `eslint.config.js` and `FORBIDDEN_TARGETS`. There is no second destination either: `shared/` is closed to them because `AuthContext` and `NotificationContext` use the Firebase SDK. Under the layering exactly as written, the contexts have nowhere legal to go. This is the same wall that stopped `app/layouts/`, at 147× the scale.
+- **`curriculum/{adapters,validators}` cannot take their eight named modules** — `curriculumFramework`, `syllabusTopicTree`, `syllabus2013Topics`, `syllabusMapping`, `syllabusSubjectSplit`, `curriculum2013Parser`, `curriculumTopicCell`, `curriculumDiagnostics`. Each is imported from a layer BELOW curriculum that may not import it: seven modules under `src/shared/` and one under `src/config/`. The cause is datable — the teacher migration of **2026-08-15** sent the shared studio layer (`syllabusTopicOptions`, `curriculumDataService`, `curriculumSelectorConstants`, the curriculum selector) into `src/shared/`. Those are curriculum logic by content but now sit below the curriculum layer, so the dependency runs upward into the material §5 charters this engine to own. §12 predates that and does not describe it.
+- **`shared/validation/` is empty because nothing qualifies**, which was checked rather than assumed: the one pure candidate (`formValidation.js`) has a single consumer in `features/auth` and therefore belongs to that feature under this layer's own admission rule.
+- **`curriculum/aliases/`** is empty for the same benign reason — no module in the tree does alias resolution as its own job yet.
+
+Each area's `index.js` now carries its own case, so the next reader learns which of the four they are looking at without re-deriving it. **The two resolutions available for the blocked three are (a) amend the layering so `shared` may read `curriculum` and `features` may read a narrow `app/providers` surface, or (b) split the affected modules into a lower, dependency-free half and a thin upper half.** Both change the contract; neither belongs in a migration commit, and choosing one silently is how a layering rule stops meaning anything.
+
+**What this correction does NOT claim.** `src/utils/` still holds ~263 non-test modules and remains the catch-all; Phase 5 has not started (47 handlers still inline in `functions/index.js`, 12 of §12's domain directories absent); and the Phase 3 rollout flags are still at their fail-closed defaults. Those are separate open items, not consequences of this one.
+
 **`parentPortal` — CLAIMED 2026-08-13 by session A**, branch `claude/admin-cbc-kb` (named before the block above was found; the branch carries the parent portal, not the KB). Nine files, ~1,060 lines: `components/parent/` in full plus `src/utils/familyPortal.js`. Outside every freeze clause — it reads `parentLinks` and `familyInviteCodes` and calls the family-portal callables, and touches no quiz, paper, game or assessment surface at any depth.
 
 **The first front door in this wave that is NOT empty.** The three admin slices each exported nothing, because their pages were route-mounted and nothing else imported them. Here `features/learnerSettings`' Parent panel genuinely renders `ParentShareManager` and `FamilyCodePanel` — the controls for who may see a learner's progress belong on the LEARNER's settings page — and two legacy-tree pages (`dashboard/ProfilePage`, `settings/zedexams-settings`) render `ParentShareManager` too. Those two, and only those two, are exported; the three pages stay unexported under the route-mount exception, so a consumer wanting two panels does not pull the whole portal into its chunk. Before the move, `learnerSettings` reaching into `components/parent/` was legal only because the target was not a feature; it is now a declared dependency the boundary guard can see.

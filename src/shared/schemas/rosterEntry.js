@@ -1,11 +1,11 @@
 /**
- * src/schemas/rosterEntry.js
+ * src/shared/schemas/rosterEntry.js
  *
  * Shape of one learner in a class register's official roster
  * (classRegisters/{classId}/roster/{rosterId}).
  *
  * Mirrors the project's write-strict / read-permissive convention (see
- * src/schemas/quiz.js): rosterEntryWriteSchema validates before any
+ * src/shared/schemas/quiz.js): rosterEntryWriteSchema validates before any
  * addDoc/updateDoc; coerceRosterEntry normalises a doc on read so a legacy
  * or partially-broken row never blanks the roster table.
  */

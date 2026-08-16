@@ -1,4 +1,4 @@
-// Singleton bus for the "this is a Pro feature" modal, mirroring utils/paywall.js.
+// Singleton bus for the "this is a Pro feature" modal, mirroring engines/payment-engine/paywall.js.
 // Any component can call lockedFeature.show({ feature, audience }) to prompt an
 // upgrade without prop-drilling. LockedFeatureModal mounts once at the root and
 // subscribes. Kept separate from the teacher-studio paywall bus so the learner

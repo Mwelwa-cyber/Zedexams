@@ -1,6 +1,6 @@
 /**
  * Native (Capacitor / Android) push registration — the counterpart to the
- * web-push helpers in src/utils/fcm.js.
+ * web-push helpers in src/services/notifications/fcm.js.
  *
  * The web build reaches FCM through `firebase/messaging` + a VAPID key + a
  * service worker. None of that exists inside the Capacitor WebView: web push

@@ -8,7 +8,7 @@
 //
 // Dependency-light on purpose (inlines the super-admin role check, imports
 // only the dependency-free teacherPlans mirror) so the repo-root node test
-// suite can `import` it directly — same pattern as src/utils/teacherPlans.js.
+// suite can `import` it directly — same pattern as src/engines/payment-engine/teacherPlans.js.
 
 import { resolveTeacherPlan, normalizeTeacherPlan, PLAN_LABELS } from './teacherPlans.js'
 

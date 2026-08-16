@@ -49,7 +49,7 @@ function choiceEquals(given, correct) {
  * @param {object} args.answers   { [questionId]: value } from the learner.
  * @param {number} args.nowMs     Server time in ms (Date.now()).
  * @returns {object} The scoring payload (no Firestore sentinels) matching
- *                    src/schemas/attempt.js attemptSubmitSchema minus
+ *                    src/shared/schemas/attempt.js attemptSubmitSchema minus
  *                    `status`/`submittedAt`, which the caller adds.
  */
 function gradeAttempt({attempt, questions, answers, nowMs}) {
