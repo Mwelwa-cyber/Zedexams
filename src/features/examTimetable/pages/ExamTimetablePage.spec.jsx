@@ -1,17 +1,24 @@
+/**
+ * Behaviour tests for the prototype-v3 /timetable redesign. The page
+ * owns the season logic + rendering; everything with a Firebase
+ * dependency is mocked. Times are pinned with fake timers so each
+ * season phase (before / during / after) is reproducible.
+ *
+ * The redesign shows the whole week at once (no search/collapse), so
+ * these assert: the countdown hero per phase, all day cards visible,
+ * the dimmed briefing day, Practise/Past papers actions, the persisted
+ * choose-ONE selection, reminders, the PDF rows, and archived years.
+ */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, fireEvent, act } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import useExamTimetables from '../../../hooks/useExamTimetables'
 import { PSLE_2026 } from '../../../config/examTimetable2026'
 import ExamTimetablePage from './ExamTimetablePage.jsx'
 
-// The page under test owns the season logic + rendering; everything with a
-// Firebase dependency is mocked. Times are pinned with fake timers so each
-// season phase (before / during / after) is reproducible.
 vi.mock('../../../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
 vi.mock('../../../hooks/useExamTimetables', () => ({ default: vi.fn() }))
-vi.mock('../../../components/layout/Navbar', () => ({ default: () => <nav data-testid="navbar" /> }))
 vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
 vi.mock('../../../utils/runtime', () => ({ isNativePlatform: () => false }))
 
@@ -44,9 +51,6 @@ function renderPage() {
 
 const at = (iso) => vi.setSystemTime(new Date(Date.parse(iso)))
 
-// Day-group headers are buttons named by their date heading.
-const dayHeader = (re) => screen.getByRole('button', { name: re })
-
 describe('ExamTimetablePage', () => {
   beforeEach(() => {
     localStorage.clear()
@@ -62,49 +66,60 @@ describe('ExamTimetablePage', () => {
   it('shows loading skeletons while the timetable loads', () => {
     setData({ active: null, loading: true })
     const { container } = renderPage()
-    expect(container.querySelector('.zx-sk')).toBeTruthy()
-    expect(screen.queryByText(/starts in/i)).not.toBeInTheDocument()
+    expect(container.querySelector('.lhx-skel')).toBeTruthy()
+    expect(screen.queryByText(/next exam/i)).not.toBeInTheDocument()
   })
 
-  it('BEFORE the season: countdown hero, exam progress, and the next exam', () => {
+  it('BEFORE the season: hero counts down to the first sat paper, never the briefing', () => {
     renderPage()
+    expect(screen.getByText('Next exam')).toBeInTheDocument()
+    // English (Tue 27 Oct 08:00) is the countdown target, not Monday's briefing.
+    const hero = screen.getByRole('region', { name: 'Next exam' })
+    expect(hero).toHaveTextContent('English Language')
+    expect(hero).toHaveTextContent('Tuesday 27 October · 08:00')
+    expect(screen.getByRole('timer')).toBeInTheDocument()
+    expect(screen.getByText('days')).toBeInTheDocument()
+    // The exam-name strip below the hero names the exam + span.
     expect(screen.getByText('Primary School Leaving Examination')).toBeInTheDocument()
-    expect(screen.getByText(/starts in/i)).toBeInTheDocument()
-    expect(screen.getByText('Days')).toBeInTheDocument()
-    expect(screen.getByText('Exam Progress')).toBeInTheDocument()
-    expect(screen.getByText('0 / 8 Papers Completed')).toBeInTheDocument()
-    expect(screen.getByText('0%')).toBeInTheDocument()
-    // Next Exam panel features the first paper (not the briefing day).
-    expect(screen.getByText('Next Exam')).toBeInTheDocument()
-    expect(screen.getAllByText('English Language').length).toBeGreaterThan(0)
   })
 
-  it('collapses every day except the next exam day; tapping expands', () => {
+  it('shows every exam day at once — no taps needed to see Wednesday', () => {
     renderPage()
-    // The next exam day (Tue 27) starts open — its cards carry status pills.
-    expect(screen.getByText('Paper 1/1')).toBeInTheDocument()
-    expect(screen.getByText('Next')).toBeInTheDocument() // eng-p1 is the next paper
-    // Wednesday's cards are collapsed to a summary row…
-    expect(screen.queryByText('Paper 3/1')).not.toBeInTheDocument()
-    // …until the learner taps the day header.
-    fireEvent.click(dayHeader(/Wednesday, 28 October/i))
-    expect(screen.getByText('Paper 3/1')).toBeInTheDocument()
-    // Tapping again collapses it.
-    fireEvent.click(dayHeader(/Wednesday, 28 October/i))
-    expect(screen.queryByText('Paper 3/1')).not.toBeInTheDocument()
+    // Tuesday's and Wednesday's papers are both visible immediately.
+    expect(screen.getByText(/Paper 1\/1/)).toBeInTheDocument()
+    expect(screen.getByText(/Paper 3\/1/)).toBeInTheDocument()
+    // The next exam day (Tuesday) carries the Next badge.
+    expect(screen.getByText('Next')).toBeInTheDocument()
   })
 
-  it('DURING a paper: live time remaining, In Progress + Today highlighting', () => {
+  it('dims the briefing day and marks it "No paper written"', () => {
+    renderPage()
+    expect(screen.getByText('Guidelines to candidates and invigilators')).toBeInTheDocument()
+    expect(screen.getByText('No paper written')).toBeInTheDocument()
+    expect(screen.getByText('Guidelines to candidates and invigilators').closest('.lhx-tt-sess'))
+      .toHaveClass('lhx-tt-brief')
+  })
+
+  it('each paper session offers Practise and Past papers actions', () => {
+    renderPage()
+    const practise = screen.getAllByRole('link', { name: 'Practise' })
+    expect(practise.some((l) => l.getAttribute('href') === '/practise/7/english')).toBe(true)
+    const papers = screen.getAllByRole('link', { name: 'Past papers' })
+    expect(papers.some((l) => l.getAttribute('href') === '/papers?grade=7&subject=english')).toBe(true)
+    // Special papers have no curriculum subject → a subject-filtered
+    // Past papers link but no Practise link.
+    expect(papers.some((l) => l.getAttribute('href') === '/papers?grade=7&subject=special-paper-1')).toBe(true)
+    expect(practise.some((l) => l.getAttribute('href')?.includes('special'))).toBe(false)
+  })
+
+  it('DURING a paper: hero shows today’s exam with live time remaining', () => {
     at('2026-10-27T08:30:00+02:00') // 30 min into English Language
     renderPage()
-    expect(screen.getByText("Today's Examination")).toBeInTheDocument()
-    expect(screen.getByText(/time remaining/i)).toBeInTheDocument()
+    expect(screen.getByText(/Today's exam · in progress/i)).toBeInTheDocument()
+    expect(screen.getByText('Time remaining')).toBeInTheDocument()
     expect(screen.getByText('01:00:00')).toBeInTheDocument() // ends 09:30
-    expect(screen.getByText('Next Examination')).toBeInTheDocument()
-    expect(screen.getAllByText('Integrated Science').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('In Progress').length).toBeGreaterThan(0)
-    // Today's day group is expanded automatically and flagged.
-    expect(screen.getAllByText('Today').length).toBeGreaterThan(0)
+    // The 27th's day card is badged Today.
+    expect(screen.getByText('Today')).toBeInTheDocument()
   })
 
   it('AFTER the season: congratulations + all five resource links, never empty', () => {
@@ -113,79 +128,51 @@ describe('ExamTimetablePage', () => {
     expect(
       screen.getByText(/2026 Primary School Leaving Examination Completed/i),
     ).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /past papers/i })).toHaveAttribute(
-      'href',
-      '/papers?grade=7',
-    )
-    const notesLinks = screen.getAllByRole('link', { name: /revision notes/i })
-    expect(notesLinks.some((l) => l.getAttribute('href') === '/notes')).toBe(true)
-    expect(screen.getByRole('link', { name: /practice quizzes/i })).toHaveAttribute(
-      'href',
-      '/quizzes',
-    )
-    expect(screen.getByRole('link', { name: /mock examinations/i })).toHaveAttribute(
-      'href',
-      '/exams',
-    )
-    expect(screen.getByRole('link', { name: /grade 8 bridge lessons/i })).toHaveAttribute(
-      'href',
-      '/lessons',
-    )
+    // Day cards also carry per-session "Past papers" actions after the
+    // season, so match the season-over link among them.
+    expect(
+      screen.getAllByRole('link', { name: /past papers/i }).some(
+        (l) => l.getAttribute('href') === '/papers?grade=7',
+      ),
+    ).toBe(true)
+    expect(screen.getByRole('link', { name: /revision notes/i })).toHaveAttribute('href', '/notes')
+    expect(screen.getByRole('link', { name: /practice quizzes/i })).toHaveAttribute('href', '/quizzes')
+    expect(screen.getByRole('link', { name: /mock examinations/i })).toHaveAttribute('href', '/exams')
+    expect(screen.getByRole('link', { name: /grade 8 bridge lessons/i })).toHaveAttribute('href', '/lessons')
   })
 
-  it('search expands and filters the day cards by subject', () => {
+  it('choose-ONE sessions list every alternative; tapping one reveals its actions and persists', () => {
     renderPage()
-    // Wednesday is collapsed before searching.
-    expect(screen.queryByText('Paper 3/1')).not.toBeInTheDocument()
-    fireEvent.change(screen.getByRole('searchbox', { name: /search subjects/i }), {
-      target: { value: 'math' },
-    })
-    // The search text is debounced before it drives filtering.
-    act(() => { vi.advanceTimersByTime(200) })
-    // The matching day auto-expands; non-matching days are pruned.
-    expect(screen.getAllByText('Mathematics').length).toBeGreaterThan(0)
-    expect(screen.getByText('Paper 3/1')).toBeInTheDocument()
-    expect(screen.queryByText('Paper 1/1')).not.toBeInTheDocument()
-  })
-
-  it('keeps Practice Quiz + Past Paper visible and folds the rest into More', () => {
-    renderPage()
-    // Tuesday (next exam day) is open: English card shows the two primaries.
-    expect(screen.getAllByRole('link', { name: 'Practice Quiz' }).length).toBeGreaterThan(0)
-    expect(screen.getAllByRole('link', { name: 'Past Paper' }).length).toBeGreaterThan(0)
-    expect(screen.queryByRole('link', { name: 'Mock Exam' })).not.toBeInTheDocument()
-    fireEvent.click(screen.getAllByRole('button', { name: /more/i })[0])
-    expect(screen.getByRole('link', { name: 'Revision Notes' })).toHaveAttribute('href', '/notes')
-    expect(screen.getByRole('link', { name: 'Mock Exam' })).toHaveAttribute('href', '/exams')
-    expect(screen.getByRole('link', { name: 'Study Plan' })).toHaveAttribute('href', '/study-plan')
-    expect(screen.getByRole('button', { name: /share/i })).toBeInTheDocument()
-  })
-
-  it('language day: only the tapped language expands its actions', () => {
-    renderPage()
-    // Collapse the default-open Tuesday so its Practice Quiz links don't
-    // shadow the language ones we assert on below.
-    fireEvent.click(dayHeader(/Tuesday, 27 October/i))
-    fireEvent.click(dayHeader(/Friday, 30 October/i))
-    expect(screen.getByText('Choose Your Zambian Language')).toBeInTheDocument()
-    // Nothing expanded yet → no per-language actions.
-    expect(screen.queryByRole('link', { name: 'Revision Notes' })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /Cinyanja/i }))
-    expect(screen.getByRole('link', { name: 'Practice Quiz' })).toHaveAttribute(
-      'href',
-      '/practise/7/cinyanja',
-    )
-    expect(screen.getByRole('link', { name: 'Past Paper' })).toHaveAttribute(
-      'href',
-      '/papers?grade=7&subject=cinyanja',
-    )
-    expect(screen.getByRole('link', { name: 'Revision Notes' })).toBeInTheDocument()
-    // The pick persists per device, scoped by timetable id (keys like 'zl'
-    // repeat across years).
+    // Friday's language session renders the full alternatives list.
+    expect(screen.getAllByText(/Candidates sit ONE/i).length).toBeGreaterThan(0)
+    const cinyanja = screen.getByRole('button', { name: 'Cinyanja' })
+    // Nothing selected yet → no Practise link points at a language.
+    expect(
+      screen.getAllByRole('link', { name: 'Practise' }).some(
+        (l) => l.getAttribute('href') === '/practise/7/cinyanja',
+      ),
+    ).toBe(false)
+    fireEvent.click(cinyanja)
+    expect(cinyanja).toHaveAttribute('aria-pressed', 'true')
+    expect(
+      screen.getAllByRole('link', { name: 'Practise' }).some(
+        (l) => l.getAttribute('href') === '/practise/7/cinyanja',
+      ),
+    ).toBe(true)
+    expect(
+      screen.getAllByRole('link', { name: 'Past papers' }).some(
+        (l) => l.getAttribute('href') === '/papers?grade=7&subject=cinyanja',
+      ),
+    ).toBe(true)
+    // The pick persists per device, scoped by timetable id.
     expect(localStorage.getItem('zx_exam_paper_choice_g7-2026_zl')).toBe('5/1')
-    // Selecting another language moves the expansion, it does not stack.
-    fireEvent.click(screen.getByRole('button', { name: /Icibemba/i }))
-    expect(screen.queryByRole('link', { name: 'Practice Quiz' })).not.toBeInTheDocument()
+    // Selecting another language moves the selection — it does not stack.
+    fireEvent.click(screen.getByRole('button', { name: 'Icibemba' }))
+    expect(
+      screen.queryAllByRole('link', { name: 'Practise' }).some(
+        (l) => l.getAttribute('href') === '/practise/7/cinyanja',
+      ),
+    ).toBe(false)
   })
 
   it('reminder offsets hide behind the Enable Exam Reminders switch', () => {
@@ -207,54 +194,30 @@ describe('ExamTimetablePage', () => {
     expect(JSON.parse(localStorage.getItem('zx_exam_reminders_u1_g7-2026')).offsets).toContain('1d')
   })
 
-  it('status filter chips appear mid-season and partition the timeline', () => {
-    at('2026-10-27T08:30:00+02:00') // English in progress; briefing done; rest upcoming
+  it('offers the official PDF as a view row + download link', () => {
     renderPage()
-    // The chip row shows because several buckets are non-empty.
-    const completedChip = screen.getByRole('button', { name: /show completed exams/i })
-    const todayChip = screen.getByRole('button', { name: /show today exams/i })
-    // Filtering to Completed leaves only the finished briefing day in the
-    // timeline (paper chips prove which subject cards render there — the
-    // summary's "Next Examination" panel is unaffected by the filter).
-    fireEvent.click(completedChip)
-    expect(screen.getByText('Guidelines to candidates and invigilators')).toBeInTheDocument()
-    expect(screen.queryByText('Paper 3/1')).not.toBeInTheDocument() // Mathematics (upcoming)
-    expect(screen.queryByText('Paper 4/1')).not.toBeInTheDocument() // Science (today)
-    // Switching to Today swaps the visible sessions.
-    fireEvent.click(todayChip)
-    expect(screen.getByText('Paper 4/1')).toBeInTheDocument() // Integrated Science, today
-    expect(
-      screen.queryByText('Guidelines to candidates and invigilators'),
-    ).not.toBeInTheDocument()
-  })
-
-  it('does not show the filter row before the season (nothing to partition)', () => {
-    renderPage() // beforeEach pins 2026-09-01 — everything is "upcoming"
-    expect(screen.queryByRole('button', { name: /show upcoming exams/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /show completed exams/i })).not.toBeInTheDocument()
-  })
-
-  it('offers the official PDF as view + download buttons, not the default view', () => {
-    renderPage()
-    expect(
-      screen.getByRole('link', { name: /view official ecz timetable \(pdf\)/i }),
-    ).toHaveAttribute('href', '/timetable/pdf')
+    expect(screen.getByRole('link', { name: /official ecz timetable/i })).toHaveAttribute(
+      'href',
+      '/timetable/pdf',
+    )
     expect(screen.getByRole('link', { name: /download official pdf/i })).toHaveAttribute(
       'href',
       PSLE_2026.pdfUrl,
     )
   })
 
-  it('lists archived years under Past Exam Timetables with collapsed days', () => {
+  it('lists archived years collapsed; expanding shows read-only day cards', () => {
     setData({ archived: [ARCHIVED_2025] })
     renderPage()
     expect(screen.getByText('Past Exam Timetables')).toBeInTheDocument()
+    // Only the active year's Practise links exist before expanding…
+    const before = screen.getAllByRole('link', { name: 'Practise' }).length
     fireEvent.click(
       screen.getByRole('button', { name: /2025 Primary School Leaving Examination/i }),
     )
-    // Archived days start collapsed; expanding one reveals Archived cards.
-    expect(screen.getAllByText('Archived').length).toBe(1)
-    fireEvent.click(screen.getAllByRole('button', { name: /Tuesday, 27 October/i })[1])
-    expect(screen.getAllByText('Archived').length).toBeGreaterThan(1)
+    // …and still after: archived day cards are read-only (no actions added).
+    expect(screen.getAllByRole('link', { name: 'Practise' }).length).toBe(before)
+    // The archived days themselves are visible (two English rows now).
+    expect(screen.getAllByText('English Language').length).toBeGreaterThan(2)
   })
 })

@@ -37,7 +37,9 @@ import SeoHelmet from '../../../shared/components/SeoHelmet'
 import Logo from '../../../shared/components/Logo'
 import Skeleton from '../../../shared/components/Skeleton'
 
-const PdfJsViewer = lazy(() => import('../../../shared/components/PdfJsViewer'))
+// Timed practice reads the paper the same way the viewer does: one
+// continuous vertical stack, whatever the file format.
+const PdfPageStream = lazy(() => import('../../../shared/components/PdfPageStream'))
 
 const FALLBACK_DURATION_MINUTES = 60
 
@@ -386,9 +388,9 @@ export default function PastPaperPractice() {
       </div>
 
       {/* Paper body — same picker as the viewer. PDF papers render
-          through PdfJsViewer; scanned (image) papers render as a
-          vertical stack of <img> elements so the learner can scroll
-          the paper while the timer counts down. */}
+          through PdfPageStream and scanned (image) papers as a vertical
+          stack of <img> elements: either way the learner scrolls one
+          continuous paper while the timer counts down. */}
       <div className="flex-1 px-4 pt-3 pb-6">
         <PaperBody
           previewSource={previewSource}
@@ -424,7 +426,8 @@ function PaperBody({ previewSource, paperUrl, imageAssetUrls, paperTitle }) {
           Loading paper…
         </div>
       }>
-        <PdfJsViewer url={paperUrl} title={paperTitle} />
+        {/* No dock: the timed runner owns the bottom edge (timer + submit). */}
+        <PdfPageStream url={paperUrl} title={paperTitle} showDock={false} />
       </Suspense>
     )
   }

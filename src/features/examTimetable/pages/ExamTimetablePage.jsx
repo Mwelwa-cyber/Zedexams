@@ -1,61 +1,39 @@
 /**
- * ExamTimetablePage — /timetable
+ * ExamTimetablePage — /timetable, prototype-v3 redesign.
  *
- * A clean, mobile-first exam timeline for Grade-7 PSLE candidates. It replaced
- * the inline ECZ PDF viewer (which stayed A4-sized on phones); the PDF is still
- * reachable at /timetable/pdf and via the button below the hero.
+ * The full timetable screen the Home countdown chip and the Papers-tab
+ * row tap through to (LEARNER_REDESIGN_SCOPE.md): a next-exam hero with
+ * a live days/hrs/min/sec countdown, then the exam days as cards. Each
+ * session shows its time block, paper code and duration with Practise
+ * and Past papers actions; the choose-ONE sessions (Friday) render the
+ * full alternatives list; the briefing day is dimmed and marked "No
+ * paper written". The official ECZ PDF stays reachable at the bottom.
  *
- * The page adapts to the season, all computed from a ticking clock + the pure
- * helpers in utils/examTimetableLogic.js:
- *   BEFORE the exams  → big countdown, exam progress, next exam
- *   DURING the season → "Today's Examination" with live time remaining, then
- *                       the next session; a floating banner keeps today's exam
- *                       visible once the summary scrolls away
+ * Renders inside LearnerLayout (glass chrome + 4-tab nav), back to the
+ * Papers tab. The season logic is unchanged from the previous page:
+ *   BEFORE the exams  → hero counts down to the first SAT paper
+ *   DURING the season → hero shows today's paper with time remaining
  *   AFTER the season  → congratulations + revision resource links
  *
- * Two clocks drive the rendering: `nowMs` ticks every second for the summary
- * countdown + banner (they display seconds), while the day list, statuses, and
- * reminders take the minute-floored `nowMinuteMs` — session boundaries sit on
- * whole minutes, so the (memoized) day list re-renders once a minute instead
- * of every second. The navy hero is memoized on static data, so per-second
- * work is confined to the summary card.
+ * Functional carry-overs from the pre-redesign page (working features,
+ * restyled rather than dropped): the per-device choose-ONE selection
+ * (a Silozi learner never re-picks their language), in-app reminders
+ * (localStorage per learner + timetable), and archived years. The old
+ * page's search/filter/collapse chrome is gone — five day cards don't
+ * need it, and the prototype shows the whole week at once.
  *
- * Days are collapsible on a vertical timeline: today + the next exam day start
- * open (getDefaultExpandedDates), everything else collapses to a header row +
- * one-line summary and mounts its cards only when tapped; the choice is
- * remembered for the session. A subject/date search temporarily expands
- * whatever matches.
- *
- * Data comes from Firestore (examTimetables, per grade+year) through
- * useExamTimetables, with the bundled 2026 PSLE timetable as fallback. Older
- * years render under "Past Exam Timetables" with every session marked Archived.
- *
- * Reminders are v1 in-app only: a master switch + offset preferences and
- * dismissals live in localStorage (per uid + timetable) and surface as banners
- * here — no Cloud Functions, no FCM.
+ * Two clocks: `nowMs` ticks every second for the hero; everything else
+ * takes the minute-floored `nowMinuteMs` so the day list re-renders
+ * once a minute instead of every second.
  */
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import useExamTimetables from '../../../hooks/useExamTimetables'
-import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
 import { isNativePlatform } from '../../../utils/runtime'
-import Navbar from '../../../components/layout/Navbar'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 import Skeleton from '../../../shared/components/Skeleton'
-import Icon from '../../../shared/components/Icon'
-import {
-  ArrowLeft,
-  Bell,
-  Calendar,
-  ChevronRight,
-  DocumentTextIcon,
-  Download,
-  Search,
-} from '../../../shared/components/icons'
-import { ExamDayGroup } from '../components/ExamSessionCard'
-import { sessionVisual } from '../lib/subjectVisuals'
 import {
   PHASE,
   STATUS,
@@ -64,14 +42,6 @@ import {
   getCurrentSession,
   getNextSession,
   getNextPaperSession,
-  getDefaultExpandedDates,
-  listSessions,
-  computeProgress,
-  filterTimetable,
-  filterTimetableByStatus,
-  statusBucketCounts,
-  formatSessionTime,
-  formatDayHeading,
   countdownParts,
   hms,
   sessionLabel,
@@ -79,10 +49,11 @@ import {
   remindersEnabled,
   reminderStorageKey,
   getDueReminders,
+  lusakaDateString,
 } from '../../../utils/examTimetableLogic'
 
-// localStorage guards, same idiom as PastPapersHub: never let a blocked or
-// full storage (Safari private mode) break the page.
+// localStorage guards — a blocked or full storage (Safari private mode)
+// must never break the page.
 function readStored(key) {
   try {
     const raw = localStorage.getItem(key)
@@ -99,213 +70,132 @@ function writeStored(key, value) {
   }
 }
 
-// ── Hero ───────────────────────────────────────────────────────────────────
+// The learner's pick within a choose-ONE session, remembered per device
+// and scoped by timetable id (session keys such as 'zl' repeat across
+// years). Same keys the pre-redesign card wrote, so choices survive.
+function choiceStorageKey(timetableId, sessionKey) {
+  return `zx_exam_paper_choice_${timetableId}_${sessionKey}`
+}
+function readChoice(timetableId, sessionKey) {
+  try {
+    return localStorage.getItem(choiceStorageKey(timetableId, sessionKey)) || null
+  } catch {
+    return null
+  }
+}
+function writeChoice(timetableId, sessionKey, code) {
+  try {
+    localStorage.setItem(choiceStorageKey(timetableId, sessionKey), code)
+  } catch {
+    /* best-effort */
+  }
+}
 
-const ExamHero = memo(function ExamHero({ timetable }) {
-  return (
-    <header className="ztt-hero p-4 sm:p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <span className="ztt-hero-eyebrow">Exam Timetable</span>
-          <h1 className="mt-1 text-[20px] font-extrabold leading-tight sm:text-[23px]">
-            {timetable.shortName} Exam Timetable
-          </h1>
-          <p className="mt-0.5 text-[12.5px] font-semibold text-white/70">
-            Grade {timetable.grade} · {timetable.board} {timetable.year}
-          </p>
-        </div>
-        <div className="ztt-hero-cal shrink-0">
-          <Icon as={Calendar} size="sm" style={{ color: '#fff' }} strokeWidth={2} />
-          <span className="mt-0.5 tabular-nums">{timetable.year}</span>
-        </div>
-      </div>
-      <div className="mt-3 flex justify-end">
-        <Link to="/dashboard" className="ztt-hero-btn">
-          <Icon as={ArrowLeft} size="sm" strokeWidth={2.4} />
-          Back to Dashboard
-        </Link>
-      </div>
-    </header>
-  )
-})
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const DOW = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
-// ── Summary building blocks ──────────────────────────────────────────────────
+// "26–30 October 2026" from the timetable's ISO start/end (sliced, not
+// Date-formatted — the strings carry the Lusaka offset already).
+function spanText(timetable) {
+  const s = timetable.startsAt || ''
+  const e = timetable.endsAt || ''
+  const sd = parseInt(s.slice(8, 10), 10)
+  const ed = parseInt(e.slice(8, 10), 10)
+  const sm = parseInt(s.slice(5, 7), 10) - 1
+  const em = parseInt(e.slice(5, 7), 10) - 1
+  if (!Number.isFinite(sd) || !Number.isFinite(ed)) return String(timetable.year || '')
+  const monthName = (i) => new Date(2000, i, 1).toLocaleDateString('en-GB', { month: 'long' })
+  return sm === em
+    ? `${sd}–${ed} ${monthName(em)} ${timetable.year}`
+    : `${sd} ${monthName(sm)} – ${ed} ${monthName(em)} ${timetable.year}`
+}
 
-const COUNTDOWN_UNITS = [
-  ['days', 'Days'],
-  ['hours', 'Hrs'],
-  ['minutes', 'Min'],
-  ['seconds', 'Sec'],
+function fmtWhen(iso) {
+  const dateStr = iso.slice(0, 10)
+  const d = new Date(`${dateStr}T12:00:00`)
+  return `${DOW[d.getDay()]} ${d.getDate()} ${d.toLocaleDateString('en-GB', { month: 'long' })} · ${iso.slice(11, 16)}`
+}
+
+// ── Hero ───────────────────────────────────────────────────────────
+
+const COUNT_CELLS = [
+  ['days', 'days'],
+  ['hours', 'hrs'],
+  ['minutes', 'min'],
+  ['seconds', 'sec'],
 ]
 
-// Compact countdown row (four padded units on one line). Fed pre-computed
-// parts so it stays presentational.
-function CountdownTimer({ parts }) {
+function CountGrid({ parts }) {
   return (
-    <div className="flex items-stretch gap-2">
-      {COUNTDOWN_UNITS.map(([key, label]) => (
-        <div key={key} className="ztt-count">
-          <span className="text-[19px] font-extrabold tabular-nums leading-none theme-text sm:text-[22px]">
-            {String(parts[key]).padStart(2, '0')}
-          </span>
-          <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider theme-text-muted">
-            {label}
-          </span>
+    <div
+      className="lhx-tt-count"
+      role="timer"
+      aria-label={`${parts.days} days, ${parts.hours} hours, ${parts.minutes} minutes, ${parts.seconds} seconds`}
+    >
+      {COUNT_CELLS.map(([key, unit]) => (
+        <div key={key} className="lhx-tt-cell">
+          <div className="lhx-tt-num">{key === 'days' ? parts[key] : String(parts[key]).padStart(2, '0')}</div>
+          <div className="lhx-tt-unit">{unit}</div>
         </div>
       ))}
     </div>
   )
 }
 
-function ExamProgress({ progress }) {
-  return (
-    <div>
-      <div className="flex items-center justify-between">
-        <span className="ztt-eyebrow">Exam Progress</span>
-        <span className="text-[12px] font-extrabold tabular-nums theme-text">{progress.pct}%</span>
-      </div>
-      <div className="ztt-progress-track mt-1.5">
-        <div className="ztt-progress-fill" style={{ width: `${progress.pct}%` }} />
-      </div>
-      <p className="mt-1.5 text-[11.5px] font-semibold theme-text-muted">
-        {progress.completed} / {progress.total} Papers Completed
-      </p>
-    </div>
-  )
-}
-
-// "Next exam" highlight panel — tap to open + scroll to that day/subject.
-function NextExamCard({ session, heading = 'Next Exam', onOpen }) {
-  if (!session) return null
-  const visual = sessionVisual(session)
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      aria-label={`${heading}: ${sessionLabel(session)} — open in timetable`}
-      className="ztt-next"
-    >
-      <span
-        className="ztt-tile"
-        style={{ background: visual.tint.bg, width: 36, height: 36 }}
-        aria-hidden="true"
-      >
-        <Icon as={visual.Icon} size="sm" style={{ color: visual.tint.fg }} strokeWidth={2} />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-[10px] font-bold uppercase tracking-widest text-orange-600">
-          {heading}
-        </span>
-        <span className="block truncate text-[14.5px] font-extrabold leading-tight text-slate-900">
-          {sessionLabel(session)}
-        </span>
-        <span className="block text-[11.5px] font-semibold text-slate-500">
-          {formatDayHeading(session.start.slice(0, 10))} · {formatSessionTime(session)}
-        </span>
-      </span>
-      <Icon as={ChevronRight} size="sm" className="shrink-0 text-orange-500" strokeWidth={2.4} />
-    </button>
-  )
-}
-
 /**
- * The one summary card: the exam name, a live countdown/time-remaining, the
- * progress bar, and the next-exam panel — its content follows the season
- * phase (BEFORE = countdown to the first paper; DURING = today's paper +
- * time remaining). AFTER is handled by SeasonOverBanner instead.
+ * The indigo hero. BEFORE: countdown to the next sat paper (never the
+ * briefing). DURING: today's session with live time remaining (or the
+ * next one starting today). Between sessions on an exam evening it
+ * falls back to the next paper countdown.
  */
-function ExamSummary({ timetable, nowMs, onOpenDay }) {
-  const phase = getSeasonPhase(timetable, nowMs)
-  const progress = computeProgress(timetable, nowMs)
-  const nextExam = getNextPaperSession(timetable, nowMs)
+function TimetableHero({ timetable, nowMs }) {
+  const current = getCurrentSession(timetable, nowMs)
+  const next = getNextSession(timetable, nowMs)
+  const nextPaper = getNextPaperSession(timetable, nowMs)
+  const nextIsToday = next && getSessionStatus(next, nowMs) === STATUS.TODAY
 
-  let header
-  let nextPanelSession = nextExam
-  let nextPanelHeading = 'Next Exam'
-
-  if (phase === PHASE.BEFORE) {
-    const parts = countdownParts(Date.parse(timetable.startsAt), nowMs)
-    header = (
-      <>
-        <p className="mt-2 ztt-eyebrow">Starts in</p>
-        <div className="mt-1.5">
-          <CountdownTimer parts={parts} />
-        </div>
-      </>
+  if (current) {
+    return (
+      <section className="lhx-tt-hero" aria-label="Current exam">
+        <div className="lhx-tt-lab">{current.briefing ? "Today's briefing" : "Today's exam · in progress"}</div>
+        <div className="lhx-tt-next">{sessionLabel(current)}</div>
+        <div className="lhx-tt-when">Started {current.start.slice(11, 16)} · Ends {current.end.slice(11, 16)}</div>
+        <div className="lhx-tt-lab" style={{ marginTop: 14 }}>Time remaining</div>
+        <div className="lhx-tt-remaining">{hms(Date.parse(current.end) - nowMs)}</div>
+      </section>
     )
-  } else {
-    // DURING: a paper is running, or we're between sessions / on an evening.
-    const current = getCurrentSession(timetable, nowMs)
-    const next = getNextSession(timetable, nowMs)
-    const nextIsToday = next && getSessionStatus(next, nowMs) === STATUS.TODAY
-    const featured = current || (nextIsToday ? next : null)
-    nextPanelHeading = 'Next Examination'
-    nextPanelSession = featured
-      ? listSessions(timetable).find(
-          (s) => (s.papers || []).length > 0 && Date.parse(s.start) > Date.parse(featured.start),
-        )
-      : nextExam
-
-    if (current) {
-      header = (
-        <>
-          <p className="mt-1 text-[16px] font-extrabold theme-text">
-            {current.briefing ? "Today's Briefing" : "Today's Examination"}
-          </p>
-          <p className="mt-0.5 text-[13.5px] font-bold theme-text">{sessionLabel(current)}</p>
-          <p className="text-[12px] font-semibold theme-text-muted">
-            Started {current.start.slice(11, 16)} · Ends {current.end.slice(11, 16)}
-          </p>
-          <p className="mt-2.5 ztt-eyebrow">Time remaining</p>
-          <p className="mt-0.5 text-3xl font-extrabold tabular-nums text-orange-600">
-            {hms(Date.parse(current.end) - nowMs)}
-          </p>
-        </>
-      )
-    } else if (nextIsToday) {
-      header = (
-        <>
-          <p className="mt-1 text-[16px] font-extrabold theme-text">
-            {next.briefing ? 'Today' : "Today's Examination"}
-          </p>
-          <p className="mt-0.5 text-[13.5px] font-bold theme-text">{sessionLabel(next)}</p>
-          <p className="text-[12px] font-semibold theme-text-muted">
-            Starts {next.start.slice(11, 16)} · Ends {next.end.slice(11, 16)}
-          </p>
-          <p className="mt-2.5 ztt-eyebrow">Starts in</p>
-          <p className="mt-0.5 text-3xl font-extrabold tabular-nums theme-text">
-            {hms(Date.parse(next.start) - nowMs)}
-          </p>
-        </>
-      )
-    } else {
-      header = <p className="mt-1 text-[16px] font-extrabold theme-text">Done for today — well done! 💪</p>
-    }
   }
-
+  if (nextIsToday) {
+    return (
+      <section className="lhx-tt-hero" aria-label="Next exam">
+        <div className="lhx-tt-lab">{next.briefing ? 'Today' : "Today's exam"}</div>
+        <div className="lhx-tt-next">{sessionLabel(next)}</div>
+        <div className="lhx-tt-when">Starts {next.start.slice(11, 16)} · Ends {next.end.slice(11, 16)}</div>
+        <div className="lhx-tt-lab" style={{ marginTop: 14 }}>Starts in</div>
+        <div className="lhx-tt-remaining">{hms(Date.parse(next.start) - nowMs)}</div>
+      </section>
+    )
+  }
+  if (nextPaper) {
+    return (
+      <section className="lhx-tt-hero" aria-label="Next exam">
+        <div className="lhx-tt-lab">Next exam</div>
+        <div className="lhx-tt-next">{sessionLabel(nextPaper)}</div>
+        <div className="lhx-tt-when">{fmtWhen(nextPaper.start)}</div>
+        <CountGrid parts={countdownParts(Date.parse(nextPaper.start), nowMs)} />
+      </section>
+    )
+  }
   return (
-    <section className="ztt-card p-4 sm:p-5">
-      <span className="ztt-eyebrow">
-        Grade {timetable.grade} · {timetable.board} {timetable.year}
-      </span>
-      <h2 className="mt-0.5 text-[19px] font-extrabold leading-tight theme-text sm:text-[21px]">
-        {timetable.examName}
-      </h2>
-      {header}
-      <div className="mt-4 space-y-3">
-        <ExamProgress progress={progress} />
-        <NextExamCard
-          session={nextPanelSession}
-          heading={nextPanelHeading}
-          onOpen={() => nextPanelSession && onOpenDay(nextPanelSession.start.slice(0, 10))}
-        />
-      </div>
+    <section className="lhx-tt-hero" aria-label="Exams">
+      <div className="lhx-tt-lab">Done for today</div>
+      <div className="lhx-tt-next">Well done! 💪</div>
     </section>
   )
 }
 
-// Resource links shown once the whole season is over — the page must never go
-// empty after the last paper.
+// Resource links once the season is over — the page never goes empty
+// after the last paper.
 const SEASON_OVER_LINKS = (grade) => [
   { label: '📄 Past Papers', to: `/papers?grade=${grade}` },
   { label: '📒 Revision Notes', to: '/notes' },
@@ -314,22 +204,20 @@ const SEASON_OVER_LINKS = (grade) => [
   { label: `🌉 Grade ${grade + 1} Bridge Lessons`, to: '/lessons' },
 ]
 
-function SeasonOverBanner({ timetable }) {
+function SeasonOverCard({ timetable }) {
   return (
-    <section className="ztt-card bg-emerald-50/60 p-4 sm:p-5">
-      <span className="ztt-eyebrow">
-        {timetable.shortName} · {timetable.board}
-      </span>
-      <h2 className="mt-1 text-xl font-extrabold theme-text sm:text-2xl">
+    <section className="lhx-card">
+      <p className="lhx-kicker">{timetable.shortName} · {timetable.board}</p>
+      <h2 className="lhx-section-title" style={{ marginTop: 4 }}>
         🎉 {timetable.year} {timetable.examName} Completed
       </h2>
-      <p className="mt-1 text-[13px] font-semibold theme-text-muted">
+      <p className="lhx-page-sub" style={{ marginTop: 6 }}>
         Congratulations to all Grade {timetable.grade} learners — you made it! Keep the momentum
         going while you wait for your results:
       </p>
-      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
         {SEASON_OVER_LINKS(timetable.grade).map((l) => (
-          <Link key={l.label} to={l.to} className="ztt-btn ztt-btn-block justify-start !px-4">
+          <Link key={l.label} to={l.to} className="lhx-btn lhx-btn-sm lhx-btn-soft" style={{ justifyContent: 'flex-start' }}>
             {l.label}
           </Link>
         ))}
@@ -338,63 +226,181 @@ function SeasonOverBanner({ timetable }) {
   )
 }
 
-/**
- * Floating banner that keeps today's exam in view once the summary scrolls
- * away: the session running now, or the next one starting today. Derived from
- * the ticking clock, so it vanishes on its own when the last session of the
- * day ends. Fixed below the navbar; pointer events pass through the gutter so
- * only the pill itself is tappable.
- */
-function TodayExamBanner({ timetable, nowMs, onView }) {
-  const current = getCurrentSession(timetable, nowMs)
-  const next = getNextSession(timetable, nowMs)
-  const featured =
-    current || (next && getSessionStatus(next, nowMs) === STATUS.TODAY ? next : null)
-  if (!featured) return null
-  const running = Boolean(current)
-  const visual = sessionVisual(featured)
+// ── Sessions ───────────────────────────────────────────────────────
+
+function paperActions(paper, grade, { completed = false } = {}) {
+  const actions = []
+  if (paper.subjectId) {
+    actions.push({
+      label: completed ? 'Practise similar' : 'Practise',
+      to: `/practise/${grade}/${paper.subjectId}`,
+      tone: '',
+    })
+  }
+  actions.push({
+    label: 'Past papers',
+    to: paper.paperSubjectId
+      ? `/papers?grade=${grade}&subject=${paper.paperSubjectId}`
+      : `/papers?grade=${grade}`,
+    tone: 'orange',
+  })
+  return actions
+}
+
+function SessionActions({ paper, grade, completed }) {
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-16 z-30 px-4">
-      <div className="ztt-banner animate-slide-in-soft pointer-events-auto mx-auto flex max-w-3xl items-center gap-2.5 px-3 py-2">
-        <span
-          className="ztt-tile"
-          style={{ background: visual.tint.bg, width: 34, height: 34 }}
-          aria-hidden="true"
-        >
-          <Icon as={visual.Icon} size="sm" style={{ color: visual.tint.fg }} strokeWidth={2} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-[9.5px] font-bold uppercase tracking-widest text-emerald-700">
-            {running ? 'In progress' : "Today's Exam"}
-          </p>
-          <p className="truncate text-[13px] font-extrabold leading-tight theme-text">
-            {sessionLabel(featured)}
-            <span className="ml-1.5 font-semibold theme-text-muted">
-              {formatSessionTime(featured)}
-            </span>
-          </p>
+    <div className="lhx-tt-actions">
+      {paperActions(paper, grade, { completed }).map((a) => (
+        <Link key={a.label} to={a.to} className={`lhx-tt-act ${a.tone}`}>
+          {a.label}
+        </Link>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * One session row. Briefing rows are dimmed with "No paper written";
+ * completed rows dim and drop the Practise emphasis; choose-ONE rows
+ * render the alternatives note + the full list as pills — tapping a
+ * pill selects that paper (persisted per device) and its actions render
+ * beneath. Archived rows are read-only.
+ */
+function SessionRow({ session, grade, timetableId, nowMs, archived = false, nextKey = null }) {
+  const status = getSessionStatus(session, nowMs, { archived, nextKey })
+  const completed = status === STATUS.COMPLETED
+  const papers = session.papers || []
+  const single = papers.length === 1 ? papers[0] : null
+  const isMulti = papers.length > 1
+
+  const [selectedCode, setSelectedCode] = useState(() =>
+    isMulti && !archived ? readChoice(timetableId, session.key) : null,
+  )
+  const selectPaper = (code) => {
+    if (archived) return
+    const next = selectedCode === code ? null : code
+    setSelectedCode(next)
+    if (next) writeChoice(timetableId, session.key, next)
+  }
+  const selectedPaper = isMulti ? papers.find((p) => p.code === selectedCode) : null
+
+  const heading = session.briefing ? session.title : single ? single.name : session.sessionNote || 'Choose your paper'
+  const dimmed = session.briefing || (completed && !archived)
+
+  return (
+    <div className={`lhx-tt-sess ${session.briefing ? 'lhx-tt-brief' : ''} ${completed && !archived ? 'lhx-tt-done' : ''}`}>
+      <div className="lhx-tt-time" aria-hidden="true">
+        {session.start.slice(11, 16)}<br />{session.end.slice(11, 16)}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="lhx-tt-paper">
+          {completed && !archived ? <span aria-hidden="true">✓ </span> : null}
+          {heading}
         </div>
-        <button type="button" onClick={onView} className="ztt-btn ztt-btn-primary shrink-0 !min-h-[38px] !px-3">
-          View
-        </button>
+        <div className="lhx-tt-pmeta">
+          {session.briefing
+            ? 'No paper written'
+            : single
+              ? `Paper ${single.code} · ${single.durationMinutes} minutes`
+              : `${papers.length} papers · ${papers[0].durationMinutes} minutes`}
+          {status === STATUS.IN_PROGRESS ? ' · In progress' : ''}
+        </div>
+        {/* sr-only status so the state is never colour/opacity alone */}
+        <span className="sr-only">
+          {completed ? 'Completed exam.' : status === STATUS.IN_PROGRESS ? 'Exam in progress.' : ''}
+        </span>
+        {isMulti && (
+          <div className="lhx-tt-alt">
+            ⚠️ {session.sessionNote || 'Candidates sit ONE of these papers'}
+            {!archived && ' — tap yours'}
+            <div className="lhx-tt-altlist">
+              {papers.map((p) =>
+                archived ? (
+                  <span key={p.code} className="lhx-tt-altpill">{p.name}</span>
+                ) : (
+                  <button
+                    key={p.code}
+                    type="button"
+                    className="lhx-tt-altpill"
+                    aria-pressed={selectedCode === p.code}
+                    onClick={() => selectPaper(p.code)}
+                  >
+                    {p.name}
+                  </button>
+                ),
+              )}
+            </div>
+          </div>
+        )}
+        {!archived && !dimmed && single && <SessionActions paper={single} grade={grade} completed={completed} />}
+        {!archived && completed && single && <SessionActions paper={single} grade={grade} completed />}
+        {!archived && selectedPaper && <SessionActions paper={selectedPaper} grade={grade} completed={completed} />}
       </div>
     </div>
   )
 }
 
-function ReminderBar({ reminders, onDismiss }) {
+/**
+ * One exam day as a card: date tile + weekday + paper count, with a
+ * "Next" badge on the next exam day (or "Done" once the day is over),
+ * then the day's sessions.
+ */
+function DayCard({ day, grade, timetableId, nowMs, archived = false, nextKey = null }) {
+  const d = new Date(`${day.date}T12:00:00`)
+  const sessions = day.sessions || []
+  const paperSessions = sessions.filter((s) => (s.papers || []).length > 0)
+  const meta = paperSessions.length
+    ? `${paperSessions.length} ${paperSessions.length === 1 ? 'paper session' : 'paper sessions'}`
+    : 'Briefing only'
+  const isNextDay = !archived && nextKey != null && sessions.some((s) => s.key === nextKey)
+  const isToday = !archived && day.date === lusakaDateString(nowMs)
+  const allDone =
+    !archived &&
+    sessions.length > 0 &&
+    sessions.every((s) => getSessionStatus(s, nowMs) === STATUS.COMPLETED)
+
+  return (
+    <section className="lhx-tt-day" aria-label={`${DOW[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`}>
+      <div className="lhx-tt-dayhead">
+        <div className={`lhx-tt-dnum ${isNextDay || isToday ? 'is-next' : ''}`} aria-hidden="true">
+          <span className="d">{d.getDate()}</span>
+          <span className="m">{MONTHS[d.getMonth()]}</span>
+        </div>
+        <div>
+          <div className="lhx-tt-dname">{DOW[d.getDay()]}</div>
+          <div className="lhx-tt-dmeta">{meta}</div>
+        </div>
+        {isToday && !allDone && <span className="lhx-tt-badge">Today</span>}
+        {!isToday && isNextDay && <span className="lhx-tt-badge">Next</span>}
+        {allDone && <span className="lhx-tt-badge is-done">✓ Done</span>}
+      </div>
+      {sessions.map((s) => (
+        <SessionRow
+          key={s.key}
+          session={s}
+          grade={grade}
+          timetableId={timetableId}
+          nowMs={nowMs}
+          archived={archived}
+          nextKey={nextKey}
+        />
+      ))}
+    </section>
+  )
+}
+
+// ── Reminders (functional carry-over, prototype idiom) ─────────────
+
+function ReminderBanners({ reminders, onDismiss }) {
   if (reminders.length === 0) return null
   return (
-    <div className="space-y-2">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {reminders.map((r) => (
-        <div key={r.key} className="ztt-card flex items-start gap-2 bg-amber-50/70 p-3">
-          <span aria-hidden="true" className="text-base leading-none">
-            ⏰
-          </span>
-          <p className="min-w-0 flex-1 text-[12px] font-semibold leading-snug theme-text-muted">
-            <span className="font-bold theme-text">{sessionLabel(r.session)}</span> —{' '}
-            {formatDayHeading(r.session.start.slice(0, 10))}, {formatSessionTime(r.session)}
-            <span className="ml-1 text-[10.5px] font-bold uppercase tracking-wide text-amber-700">
+        <div key={r.key} className="lhx-tt-remind">
+          <span aria-hidden="true">⏰</span>
+          <p style={{ flex: 1, minWidth: 0, margin: 0 }}>
+            <b>{sessionLabel(r.session)}</b> — {fmtWhen(r.session.start)}
+            <span style={{ marginLeft: 4, fontSize: 11, fontWeight: 900, textTransform: 'uppercase', color: '#b3600c' }}>
               ({r.offsetLabel})
             </span>
           </p>
@@ -402,7 +408,7 @@ function ReminderBar({ reminders, onDismiss }) {
             type="button"
             onClick={() => onDismiss(r.key)}
             aria-label="Dismiss reminder"
-            className="shrink-0 rounded-full px-1.5 text-sm font-black theme-text-muted hover:theme-text"
+            style={{ flexShrink: 0, fontWeight: 900 }}
           >
             ✕
           </button>
@@ -412,29 +418,16 @@ function ReminderBar({ reminders, onDismiss }) {
   )
 }
 
-/**
- * Compact reminder control: a bell + label + supporting text, with the toggle
- * switch on the right. The offset pills only exist while it's on; turning it
- * off hides the choices but keeps them stored so toggling back restores them.
- */
-function ReminderToggle({ prefs, onToggleEnabled, onToggleOffset }) {
+function ReminderCard({ prefs, onToggleEnabled, onToggleOffset }) {
   const enabled = remindersEnabled(prefs)
   const selected = new Set(prefs?.offsets || [])
   return (
-    <section className="ztt-card p-3.5">
-      <div className="flex items-center gap-3">
-        <span
-          className="ztt-tile"
-          style={{ background: '#e3edfb', width: 38, height: 38 }}
-          aria-hidden="true"
-        >
-          <Icon as={Bell} size="sm" style={{ color: '#1d4ed8' }} strokeWidth={2} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-[13.5px] font-extrabold theme-text">Exam reminders</p>
-          <p className="text-[11.5px] font-semibold theme-text-muted">
-            Receive reminders before each paper
-          </p>
+    <section className="lhx-card">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span className="lhx-quick-icon lhx-tint-orange" aria-hidden="true" style={{ width: 40, height: 40, fontSize: 19 }}>⏰</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: 14, fontWeight: 900, margin: 0 }}>Exam reminders</p>
+          <p className="lhx-back-sub" style={{ margin: 0 }}>Receive reminders before each paper</p>
         </div>
         <button
           type="button"
@@ -442,31 +435,26 @@ function ReminderToggle({ prefs, onToggleEnabled, onToggleOffset }) {
           aria-checked={enabled}
           aria-label="Enable exam reminders"
           onClick={onToggleEnabled}
-          className="ztt-switch"
+          className="lhx-switch"
         />
       </div>
       {enabled && (
-        <div className="animate-fade-in mt-3 border-t theme-border pt-3">
-          <p className="mb-2 text-[10.5px] font-bold uppercase tracking-wide theme-text-muted">
-            Remind me
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {REMINDER_OFFSETS.map((o) => {
-              const on = selected.has(o.id)
-              return (
-                <button
-                  key={o.id}
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => onToggleOffset(o.id)}
-                  className={`ztt-pick ${on ? 'ztt-pick-on' : ''}`}
-                >
-                  {o.label}
-                </button>
-              )
-            })}
+        <div style={{ marginTop: 12, borderTop: '1px dashed var(--lhx-line)', paddingTop: 12 }}>
+          <p className="lhx-kicker" style={{ marginBottom: 8 }}>Remind me</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {REMINDER_OFFSETS.map((o) => (
+              <button
+                key={o.id}
+                type="button"
+                aria-pressed={selected.has(o.id)}
+                onClick={() => onToggleOffset(o.id)}
+                className="lhx-pick"
+              >
+                {o.label}
+              </button>
+            ))}
           </div>
-          <p className="mt-2 text-[10.5px] font-medium theme-text-muted">
+          <p className="lhx-back-sub" style={{ marginTop: 8 }}>
             Reminders show here in the app when you open it within the window.
           </p>
         </div>
@@ -475,278 +463,90 @@ function ReminderToggle({ prefs, onToggleEnabled, onToggleOffset }) {
   )
 }
 
-// External-link glyph (no matching Heroicon export) — small, decorative.
-function ExternalLinkGlyph({ className = '' }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="15"
-      height="15"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={`shrink-0 ${className}`}
-      aria-hidden="true"
-    >
-      <path d="M15 3h6v6" />
-      <path d="M10 14 21 3" />
-      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-    </svg>
-  )
-}
+// ── PDF + archived ─────────────────────────────────────────────────
 
-function OfficialPdfButtons({ pdfUrl }) {
+function OfficialPdfRows({ pdfUrl }) {
   return (
-    <div className="space-y-2">
-      <Link to="/timetable/pdf" className="ztt-btn ztt-btn-block justify-between !px-4">
-        <span className="flex items-center gap-2">
-          <Icon as={DocumentTextIcon} size="sm" strokeWidth={2} />
-          View Official ECZ Timetable (PDF)
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <Link to="/timetable/pdf" className="lhx-card lhx-press" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span className="lhx-quick-icon lhx-tint-orange" aria-hidden="true" style={{ fontSize: 20 }}>📄</span>
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <b style={{ fontSize: 14.5 }}>Official ECZ timetable</b>
+          <span className="lhx-back-sub" style={{ display: 'block' }}>Open the signed PDF · read offline</span>
         </span>
-        <ExternalLinkGlyph />
+        <span className="lhx-chevron" aria-hidden="true">›</span>
       </Link>
-      {/* Android WebView can't run a browser download; the in-app viewer at
-          /timetable/pdf covers reading it there. */}
+      {/* Android WebView can't run a browser download; the in-app viewer
+          at /timetable/pdf covers reading it there. */}
       {!isNativePlatform() && pdfUrl && (
-        <a href={pdfUrl} download className="ztt-btn ztt-btn-block justify-between !px-4">
-          <span className="flex items-center gap-2">
-            <Icon as={Download} size="sm" strokeWidth={2} />
-            Download Official PDF
-          </span>
+        <a href={pdfUrl} download className="lhx-btn lhx-btn-sm lhx-btn-soft lhx-btn-block">
+          💾 Download official PDF
         </a>
       )}
     </div>
   )
 }
 
-function TimetableSearch({ value, onChange }) {
-  return (
-    <div className="relative">
-      <label htmlFor="timetable-search" className="sr-only">
-        Search subjects
-      </label>
-      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 theme-text-muted">
-        <Icon as={Search} size="sm" strokeWidth={2} />
-      </span>
-      <input
-        id="timetable-search"
-        type="search"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="Search subjects, papers or dates…"
-        className="ztt-search"
-      />
-    </div>
-  )
-}
-
-// Filter chips over the (already search-filtered) timeline. Each chip carries
-// its live match count and only renders when it would match something; the
-// whole row hides unless at least two buckets are non-empty — so filters never
-// appear when they couldn't meaningfully partition the list (e.g. before the
-// season, when everything is simply "upcoming").
-const FILTER_CHIPS = [
-  { key: 'today', label: 'Today' },
-  { key: 'upcoming', label: 'Upcoming' },
-  { key: 'completed', label: 'Completed' },
-]
-
-function TimetableFilters({ counts, value, onChange }) {
-  const available = FILTER_CHIPS.filter((c) => counts[c.key] > 0)
-  if (available.length < 2) return null
-  const chips = [{ key: 'all', label: 'All', count: counts.all }, ...available.map((c) => ({ ...c, count: counts[c.key] }))]
-  return (
-    <div
-      role="group"
-      aria-label="Filter exams by status"
-      className="flex flex-wrap gap-1.5"
-    >
-      {chips.map((c) => {
-        const on = value === c.key
-        return (
-          <button
-            key={c.key}
-            type="button"
-            aria-pressed={on}
-            aria-label={`Show ${c.label.toLowerCase()} exams`}
-            onClick={() => onChange(c.key)}
-            className={`ztt-pick ${on ? 'ztt-pick-sel' : ''}`}
-          >
-            {c.label}
-            <span className="ml-1 opacity-70 tabular-nums">{c.count}</span>
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
-function PastTimetablesSection({ archived, nowMs }) {
+function PastTimetables({ archived, nowMs, grade }) {
   const [openId, setOpenId] = useState(null)
   if (archived.length === 0) return null
   return (
-    <section>
-      <h2 className="mb-2 text-[15px] font-extrabold theme-text sm:text-base">
-        Past Exam Timetables
-      </h2>
-      <div className="space-y-3">
-        {archived.map((t) => {
-          const open = openId === t.id
-          return (
-            <div key={t.id}>
-              <button
-                type="button"
-                onClick={() => setOpenId(open ? null : t.id)}
-                aria-expanded={open}
-                className="ztt-card flex min-h-[44px] w-full items-center gap-2 p-3 text-left"
-              >
-                <span className="min-w-0 flex-1 truncate text-[14px] font-extrabold theme-text">
-                  {t.year} {t.examName}
-                </span>
-                <span className="ztt-badge ztt-badge-archived">Archived</span>
-                <Icon
-                  as={ChevronRight}
-                  size="sm"
-                  className={`shrink-0 theme-text-muted transition-transform ${open ? 'rotate-90' : ''}`}
-                  aria-hidden="true"
-                />
-              </button>
-              {open && (
-                <div className="animate-slide-in-soft ztt-timeline mt-3 space-y-4 pl-1">
-                  {t.days.map((day, i) => (
-                    <ExamDayGroup
-                      key={day.date}
-                      day={day}
-                      dayNumber={i + 1}
-                      grade={t.grade}
-                      timetableId={t.id}
-                      nowMs={nowMs}
-                      archived
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
+    <section className="lhx-section">
+      <h2 className="lhx-section-title">Past Exam Timetables</h2>
+      {archived.map((t) => {
+        const open = openId === t.id
+        return (
+          <div key={t.id}>
+            <button
+              type="button"
+              onClick={() => setOpenId(open ? null : t.id)}
+              aria-expanded={open}
+              className="lhx-list-row"
+            >
+              <span style={{ flex: 1, minWidth: 0, fontWeight: 900, fontSize: 14 }}>
+                {t.year} {t.examName}
+              </span>
+              <span className="lhx-soon-badge">Archived</span>
+              <span className="lhx-chevron" aria-hidden="true">{open ? '⌄' : '›'}</span>
+            </button>
+            {open && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+                {t.days.map((day) => (
+                  <DayCard
+                    key={day.date}
+                    day={day}
+                    grade={grade}
+                    timetableId={t.id}
+                    nowMs={nowMs}
+                    archived
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })}
     </section>
   )
 }
 
-function PageSkeleton() {
-  return (
-    <div className="space-y-4">
-      <Skeleton height={150} className="!rounded-[20px]" />
-      <Skeleton height={46} className="!rounded-[14px]" />
-      {[0, 1, 2].map((i) => (
-        <Skeleton key={i} height={110} className="!rounded-[20px]" />
-      ))}
-    </div>
-  )
-}
-
-function ErrorState({ onRetry }) {
-  return (
-    <div className="ztt-card p-6 text-center">
-      <p className="text-[14px] font-extrabold theme-text">
-        We could not load the exam timetable.
-      </p>
-      <p className="mt-1 text-[12px] font-semibold theme-text-muted">
-        Check your connection and try again.
-      </p>
-      <button type="button" onClick={onRetry} className="ztt-btn ztt-btn-primary mx-auto mt-3">
-        Try Again
-      </button>
-    </div>
-  )
-}
+// ── Page ───────────────────────────────────────────────────────────
 
 export default function ExamTimetablePage() {
+  const navigate = useNavigate()
   const { currentUser, userProfile } = useAuth()
-  // Grade-agnostic page; learners without a grade set (who also see the
-  // dashboard card) get the Grade-7 PSLE timetable, matching the card's gate.
+  // Grade-agnostic page; learners without a grade set get the Grade-7
+  // PSLE timetable, matching the Home chip's gate.
   const grade = parseInt(userProfile?.grade, 10) || 7
   const { active, archived, loading, error } = useExamTimetables(grade)
 
-  // The 1 s clock drives the summary + floating banner (they display seconds).
-  // Everything below — statuses, day groups, reminders — takes the minute-
-  // floored clock instead: session boundaries sit on whole minutes, so the
-  // day list only re-renders when something can actually change.
+  // 1 s clock for the hero; minute-floored clock for everything else.
   const [nowMs, setNowMs] = useState(() => Date.now())
   useEffect(() => {
     const id = setInterval(() => setNowMs(Date.now()), 1000)
     return () => clearInterval(id)
   }, [])
   const nowMinuteMs = nowMs - (nowMs % 60000)
-
-  const [search, setSearch] = useState('')
-  const debouncedSearch = useDebouncedValue(search, 200)
-  const isSearching = debouncedSearch.trim().length > 0
-  // Status filter chips ('all' | 'today' | 'upcoming' | 'completed'). Like a
-  // search, an active filter expands every matching day so results are visible.
-  const [statusFilter, setStatusFilter] = useState('all')
-  const isFiltering = isSearching || statusFilter !== 'all'
-
-  // Collapsible days: today + the next exam day start open, the rest start
-  // collapsed. A learner's taps override the defaults until the page reloads
-  // or the timetable changes; an active search expands every match.
-  const defaultOpenKey = active
-    ? [...getDefaultExpandedDates(active, nowMinuteMs)].sort().join(',')
-    : ''
-  const defaultOpenDates = useMemo(
-    () => new Set(defaultOpenKey ? defaultOpenKey.split(',') : []),
-    [defaultOpenKey],
-  )
-  const [dayOverrides, setDayOverrides] = useState({})
-  useEffect(() => {
-    setDayOverrides({})
-    setStatusFilter('all')
-  }, [active?.id])
-  const toggleDay = useCallback(
-    (date) => {
-      if (isFiltering) return
-      setDayOverrides((prev) => ({
-        ...prev,
-        [date]: !(prev[date] ?? defaultOpenDates.has(date)),
-      }))
-    },
-    [defaultOpenDates, isFiltering],
-  )
-
-  // Open (if collapsed) and scroll to a specific day — used by the next-exam
-  // panel so tapping it jumps straight to the relevant timeline entry.
-  const openAndScrollToDay = useCallback(
-    (date) => {
-      if (!isSearching) setDayOverrides((prev) => ({ ...prev, [date]: true }))
-      if (typeof requestAnimationFrame === 'function') {
-        requestAnimationFrame(() => {
-          document
-            .getElementById(`day-${date}`)
-            ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        })
-      }
-    },
-    [isSearching],
-  )
-
-  // Floating today-banner: only while the summary (which carries the same
-  // information, bigger) is scrolled out of view during the exam season.
-  const heroRef = useRef(null)
-  const [heroVisible, setHeroVisible] = useState(true)
-  useEffect(() => {
-    const el = heroRef.current
-    if (!el || typeof IntersectionObserver === 'undefined') return undefined
-    const observer = new IntersectionObserver(([entry]) => setHeroVisible(entry.isIntersecting))
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [loading, active?.id])
-  const scrollToHero = useCallback(
-    () => heroRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
-    [],
-  )
 
   // Reminder prefs live in localStorage per learner + timetable.
   const prefsKey = active ? reminderStorageKey(currentUser?.uid, active.id) : null
@@ -780,144 +580,86 @@ export default function ExamTimetablePage() {
     [active, prefs, nowMinuteMs],
   )
 
-  // Search first, then the status chip — order-independent, both prune days.
-  const filtered = useMemo(() => {
-    if (!active) return null
-    return filterTimetableByStatus(filterTimetable(active, debouncedSearch), statusFilter, nowMinuteMs)
-  }, [active, debouncedSearch, statusFilter, nowMinuteMs])
-  // Chip counts run over the search-filtered set so they reflect the current
-  // search context (and the row hides itself when filters wouldn't partition).
-  const filterCounts = useMemo(
-    () => (active ? statusBucketCounts(filterTimetable(active, debouncedSearch), nowMinuteMs) : null),
-    [active, debouncedSearch, nowMinuteMs],
-  )
-  const dayNumbers = useMemo(
-    () => new Map((active?.days || []).map((d, i) => [d.date, i + 1])),
-    [active],
-  )
   const nextPaperKey = useMemo(
     () => (active ? getNextPaperSession(active, nowMinuteMs)?.key || null : null),
     [active, nowMinuteMs],
   )
-
   const phase = active ? getSeasonPhase(active, nowMs) : null
 
   return (
-    <div
-      className="theme-bg theme-text min-h-screen"
-      style={{ paddingBottom: 'calc(6.5rem + env(safe-area-inset-bottom))' }}
-    >
+    <>
       <SeoHelmet title="Exam Timetable" path="/timetable" noIndex />
-      <Navbar />
-
-      {active && phase === PHASE.DURING && !heroVisible && (
-        <TodayExamBanner timetable={active} nowMs={nowMs} onView={scrollToHero} />
-      )}
-
-      <div className="mx-auto max-w-[1100px] px-4 pt-4">
-        {loading ? (
-          <PageSkeleton />
-        ) : error && !active ? (
-          <ErrorState onRetry={() => window.location.reload()} />
-        ) : !active ? (
-          <div className="ztt-card p-6 text-center">
-            <p className="text-[14px] font-extrabold theme-text">
-              No exam timetable is available for Grade {grade} yet.
-            </p>
-            <p className="mt-1 text-[12px] font-semibold theme-text-muted">
-              Check back soon — timetables appear here as soon as ECZ publishes them.
-            </p>
-            <Link to="/dashboard" className="ztt-btn mx-auto mt-3">
-              ← Back to dashboard
-            </Link>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <ExamHero timetable={active} />
-
-            <div className="lg:grid lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] lg:items-start lg:gap-5">
-              {/* Left column — summary + controls (sticky on desktop) */}
-              <div ref={heroRef} className="space-y-3 lg:sticky lg:top-20 lg:self-start">
-                {phase === PHASE.AFTER ? (
-                  <SeasonOverBanner timetable={active} />
-                ) : (
-                  <ExamSummary
-                    timetable={active}
-                    nowMs={nowMs}
-                    onOpenDay={openAndScrollToDay}
-                  />
-                )}
-
-                <ReminderBar reminders={dueReminders} onDismiss={dismissReminder} />
-
-                {phase !== PHASE.AFTER && (
-                  <ReminderToggle
-                    prefs={prefs}
-                    onToggleEnabled={toggleEnabled}
-                    onToggleOffset={toggleOffset}
-                  />
-                )}
-
-                <OfficialPdfButtons pdfUrl={active.pdfUrl} />
-
-                <div className="space-y-2.5">
-                  <TimetableSearch value={search} onChange={setSearch} />
-                  <TimetableFilters
-                    counts={filterCounts}
-                    value={statusFilter}
-                    onChange={setStatusFilter}
-                  />
-                </div>
-              </div>
-
-              {/* Right column — the exam timeline */}
-              <div className="mt-3 min-w-0 lg:mt-0">
-                {filtered.days.length === 0 ? (
-                  <div className="ztt-card p-6 text-center">
-                    <p className="text-[13px] font-bold theme-text-muted">
-                      No timetable items match your {isSearching ? 'search' : 'filter'}.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSearch('')
-                        setStatusFilter('all')
-                      }}
-                      className="ztt-btn mx-auto mt-3"
-                    >
-                      {isSearching ? 'Clear search' : 'Show all'}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="ztt-timeline space-y-4">
-                    {filtered.days.map((day) => (
-                      <ExamDayGroup
-                        key={day.date}
-                        day={day}
-                        dayNumber={dayNumbers.get(day.date) || 0}
-                        grade={active.grade}
-                        timetableId={active.id}
-                        nowMs={nowMinuteMs}
-                        nextKey={nextPaperKey}
-                        open={
-                          isFiltering
-                            ? true
-                            : (dayOverrides[day.date] ?? defaultOpenDates.has(day.date))
-                        }
-                        onToggle={toggleDay}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                <div className="mt-4">
-                  <PastTimetablesSection archived={archived} nowMs={nowMinuteMs} />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+      <div className="lhx-back-row">
+        <button type="button" className="lhx-back-btn" aria-label="Back to Papers" onClick={() => navigate('/papers')}>
+          ‹
+        </button>
+        <div>
+          <h1 className="lhx-back-title">Exam Timetable</h1>
+          {active && <p className="lhx-back-sub">Grade {active.grade} · {active.board} {active.year}</p>}
+        </div>
       </div>
-    </div>
+
+      {loading ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* .lhx-skel keeps the skeleton on the shell's palette */}
+          {[150, 46, 110, 110].map((h, i) => (
+            <Skeleton key={i} height={h} className="lhx-skel !rounded-[20px]" />
+          ))}
+        </div>
+      ) : error && !active ? (
+        <div className="lhx-card" style={{ textAlign: 'center' }}>
+          <p style={{ fontWeight: 900, fontSize: 14 }}>We could not load the exam timetable.</p>
+          <p className="lhx-back-sub" style={{ marginTop: 4 }}>Check your connection and try again.</p>
+          <button type="button" className="lhx-btn lhx-btn-sm lhx-btn-primary" style={{ marginTop: 12 }} onClick={() => window.location.reload()}>
+            Try again
+          </button>
+        </div>
+      ) : !active ? (
+        <div className="lhx-card" style={{ textAlign: 'center' }}>
+          <p style={{ fontWeight: 900, fontSize: 14 }}>No exam timetable is available for Grade {grade} yet.</p>
+          <p className="lhx-back-sub" style={{ marginTop: 4 }}>
+            Check back soon — timetables appear here as soon as ECZ publishes them.
+          </p>
+        </div>
+      ) : (
+        <>
+          {phase === PHASE.AFTER ? (
+            <SeasonOverCard timetable={active} />
+          ) : (
+            <TimetableHero timetable={active} nowMs={nowMs} />
+          )}
+
+          <div className="lhx-tt-span">
+            <span aria-hidden="true">📘</span>
+            <span>
+              <b>{active.examName}</b> · {active.board} · {active.days.length} days · {spanText(active)}
+            </span>
+          </div>
+
+          <ReminderBanners reminders={dueReminders} onDismiss={dismissReminder} />
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {active.days.map((day) => (
+              <DayCard
+                key={day.date}
+                day={day}
+                grade={active.grade}
+                timetableId={active.id}
+                nowMs={nowMinuteMs}
+                nextKey={nextPaperKey}
+              />
+            ))}
+          </div>
+
+          {phase !== PHASE.AFTER && (
+            <ReminderCard prefs={prefs} onToggleEnabled={toggleEnabled} onToggleOffset={toggleOffset} />
+          )}
+
+          <OfficialPdfRows pdfUrl={active.pdfUrl} />
+
+          <PastTimetables archived={archived} nowMs={nowMinuteMs} grade={grade} />
+        </>
+      )}
+    </>
   )
 }
