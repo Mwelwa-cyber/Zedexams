@@ -11,6 +11,7 @@ import {
   XCircleIcon,
 } from '@heroicons/react/24/solid'
 import { playCorrect, playWrong, playWin, playTick, primeSounds } from '../lib/gameSounds'
+import { reportGameStart } from '../services/gamesService'
 import { useGameFinish } from '../hooks/useGameFinish'
 import { SaveBanner, StreakBanner, DoneStat } from './DoneBanners'
 import { LevelUpBanner, XpProgressBar, PersonalBestBanner } from './Progress'
@@ -130,6 +131,9 @@ export default function MarketChallengeGame({ game }) {
 
   function start() {
     primeSounds()
+    // Per ROUND, not per mount: "Play again" re-enters start() without
+    // remounting, and saveScore() fires once per finished round.
+    reportGameStart(game)
     reset()
     setCustomers(Array.from({ length: cfg.customers }, () => generateCustomer(cfg)))
     setPos(0)

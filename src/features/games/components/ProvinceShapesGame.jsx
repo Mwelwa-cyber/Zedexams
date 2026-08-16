@@ -7,7 +7,7 @@ import {
   MapPinIcon,
 } from '@heroicons/react/24/solid'
 import { useAuth } from '../../../contexts/AuthContext'
-import { saveScore, shuffle, readRoundBaseline, readRoundOutcome } from '../services/gamesService'
+import { saveScore, shuffle, readRoundBaseline, readRoundOutcome, reportGameStart } from '../services/gamesService'
 import { evaluateAndAwardGameBadges } from '../../../utils/gameBadgesService'
 import { getTodaysChallenge, recordDailyPlay } from '../../../utils/dailyChallengeService'
 import { playCorrect, playWrong, playWin, playStreak, primeSounds } from '../lib/gameSounds'
@@ -119,6 +119,9 @@ export default function ProvinceShapesGame({ game }) {
 
   function start() {
     primeSounds()
+    // Per ROUND, not per mount: "Play again" re-enters start() without
+    // remounting, and saveScore() fires once per finished round.
+    reportGameStart(game)
     setSeed((s) => s + 1)
     setPhase('playing')
     setDeck(shuffle(pool, Date.now()))

@@ -79,7 +79,40 @@ service cloud.firestore {
     // to every collection an admin can touch. The platformAdmin custom claim
     // is an equivalent, tamper-proof grant (checked first so it short-circuits
     // the callerRole() Firestore read).
-    function isAdmin() { return isVerified() && (isPlatformAdmin() || callerRole() == 'admin' || callerRole() == 'superAdmin'); }
+    // The `role` custom claim minted by buildRoleClaims()
+    // (functions/security/adminClaims.js) — the SAME admin-SDK write that sets
+    // users/{uid}.role, so the claim and the document agree by construction.
+    // storage.rules has trusted this claim since #2394; firestore.rules did
+    // not, so every admin/teacher decision here still paid a get() on
+    // users/{uid} that storage.rules had already learned to skip.
+    //
+    // Why it matters beyond tidiness: rules get()/exists() are BILLED document
+    // reads. isAdmin() evaluates callerRole() up to twice, isTeacherOrAbove()
+    // up to three times, and both sit behind isVerified()'s own exists() on
+    // ~167 call sites — so the read amplification is multiplicative, and it is
+    // what turns a modest per-user request rate into a large Firestore bill as
+    // traffic grows.
+    //
+    // "Claim present AND equals", mirroring tokenEmailVerified() and
+    // storage.rules' hasRoleClaim(), so a token without the claim denies closed
+    // rather than erroring. Purely ADDITIVE: the claim is the fast path and the
+    // existing callerRole() read is the unchanged fallback, so an account whose
+    // claims are stale or were never minted behaves exactly as before and
+    // nothing that was allowed becomes denied.
+    function hasRoleClaim(role) {
+      return isAuthed()
+        && 'role' in request.auth.token
+        && request.auth.token.role == role;
+    }
+    function isAdmin() {
+      return isVerified() && (
+        isPlatformAdmin()
+        || hasRoleClaim('admin')
+        || hasRoleClaim('superAdmin')
+        || callerRole() == 'admin'
+        || callerRole() == 'superAdmin'
+      );
+    }
     // Strict super-admin check for the most sensitive reads (security audit
     // ledger). Accepts the boolean superAdmin custom claim (minted by
     // adminSetUserRole / grant-superadmin), the platformAdmin break-glass claim,
@@ -87,11 +120,22 @@ service cloud.firestore {
     function isSuperAdmin() {
       return isVerified() && (
         isPlatformAdmin()
-        || callerRole() == 'superAdmin'
         || ('superAdmin' in request.auth.token && request.auth.token.superAdmin == true)
+        || hasRoleClaim('superAdmin')
+        || callerRole() == 'superAdmin'
       );
     }
-    function isTeacherOrAbove() { return isVerified() && (callerRole() == 'teacher' || callerRole() == 'admin' || callerRole() == 'superAdmin'); }
+    function isTeacherOrAbove() {
+      return isVerified() && (
+        isPlatformAdmin()
+        || hasRoleClaim('teacher')
+        || hasRoleClaim('admin')
+        || hasRoleClaim('superAdmin')
+        || callerRole() == 'teacher'
+        || callerRole() == 'admin'
+        || callerRole() == 'superAdmin'
+      );
+    }
 
     // ── canonical school-membership helpers (multi-school RBAC) ───────────
     // The single source of truth for a user's school-level role is the
@@ -622,12 +666,31 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // ── settings/global (platform-wide configuration) ─────────────
-    // Public read so non-admin clients can pick up the site name,
-    // maintenance flag, and registration toggle without elevated rights.
-    // Writes are admin-only.
+    // ── settings/* (platform-wide configuration) ──────────────────
+    // Public read is scoped to an EXPLICIT ALLOWLIST, not the whole
+    // collection. The previous collection-wide wildcard with
+    // `allow read: if true` made every document under /settings
+    // world-readable to unauthenticated callers — so the security of any
+    // future settings doc depended on nobody ever putting a secret in one.
+    // That is a silent failure mode: a Lenco/provider config or webhook
+    // secret dropped in here would be public with no error and no log.
+    //
+    // PUBLIC (must resolve before sign-in state does):
+    //   global      — site name, maintenance flag, registration toggle;
+    //                 read pre-auth by passkeyService.js and AdminSettings.
+    //   quizLibrary — the quiz summary index behind the public quiz runner.
+    // Everything else (fxRate, curriculumUpdateSourceState, and anything
+    // added later) is admin-read by default — fxRate is only consumed by
+    // /admin/company and the server-side budget governor, and
+    // curriculumUpdateSourceState is internal scraper state (source URLs,
+    // checksums, body hints) that has no client reader at all.
+    //
+    // Writes stay admin-only across the whole collection, unchanged.
+    function isPublicSettingsDoc(settingId) {
+      return settingId in ['global', 'quizLibrary'];
+    }
     match /settings/{settingId} {
-      allow read: if true;
+      allow read: if isPublicSettingsDoc(settingId) || isAdmin();
       allow write: if isAdmin();
     }
 
@@ -674,6 +737,22 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow create, update, delete: if false;
       match /{markerCollection}/{markerId} {
+        allow read, write: if false;
+      }
+    }
+
+    // ── platformStats (DAU / WAU / retention rollup) ──────────────
+    // Written exclusively by the rollUpPlatformMetrics cron (admin SDK, which
+    // bypasses these rules). Clients can never read or write: these are
+    // business metrics, and the `active` marker subcollection is a per-day list
+    // of which uids used the platform — the exact join key that makes retention
+    // computable, and therefore the exact thing that must not be enumerable by
+    // a signed-in learner. Admins read the summary docs; the markers are closed
+    // even to admins from the client, matching visitorStats' marker treatment.
+    match /platformStats/{day} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+      match /active/{uid} {
         allow read, write: if false;
       }
     }

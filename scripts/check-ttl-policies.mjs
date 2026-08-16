@@ -137,6 +137,25 @@ const REGISTRY = [
       'Short-lived download bearer tickets. Also consumed on use since ' +
       'SECURITY_ENDPOINT_AUDIT §4.4, so three things remove these.',
   },
+  {
+    // NOT `platformStats`. Same trap as `feed` above: the markers live at
+    // platformStats/{day}/active/{uid}, so the policy must be scoped to the
+    // collection GROUP `active`. A policy on `platformStats` would match the
+    // per-day summary documents — which carry no expiresAt and are the thing
+    // you actually want to KEEP — and reap nothing. `active` is currently
+    // unique to this feature, so the group scope collides with nothing else.
+    collection: 'active',
+    field: 'expiresAt',
+    isCollectionGroup: true,
+    codeSideBackstop: null,
+    notes:
+      'Per-day roster of which uids were active, written by ' +
+      'rollUpPlatformMetrics — the join key that makes D1/D7/D30 retention ' +
+      'computable. 400-day expiry (ACTIVE_MARKER_TTL_DAYS). No scheduled ' +
+      'reaper: if the TTL policy is missing these grow one doc per active ' +
+      'user per day, forever — the exact failure mode `visits` already has. ' +
+      'The summary docs at platformStats/{day} are deliberately permanent.',
+  },
 ];
 
 /* ---------------------------------------------------------------------------

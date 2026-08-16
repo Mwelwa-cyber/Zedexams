@@ -417,6 +417,17 @@ async function main() {
       event: 'mfa_enrolled', uid: ADMIN, at: new Date(),
     })
 
+    // platformStats — the DAU / retention rollup written by the
+    // rollUpPlatformMetrics cron (admin SDK). The `active` marker subcollection
+    // is a per-day list of WHICH uids used the platform, so it is closed to
+    // every client including admins — see the rules block.
+    await setDoc(doc(db, 'platformStats', '2026-06-23'), {
+      day: '2026-06-23', dau: 4, wau: 9, newUsers: 3, activityEvents: 46,
+    })
+    await setDoc(doc(db, 'platformStats', '2026-06-23', 'active', LEARNER_A), {
+      role: 'learner', expiresAt: new Date(),
+    })
+
     // schoolLicences — TEACHER_A is a member; TEACHER_B is not.
     await setDoc(doc(db, 'schoolLicences', 'licence_1'), {
       schoolName: 'Test Basic School', memberUids: [TEACHER_A],
@@ -1929,6 +1940,35 @@ async function main() {
     await assertSucceeds(getDoc(doc(unverified, 'settings', 'global')))
   })
 
+  // The settings read is an explicit ALLOWLIST, not a collection-wide `if true`.
+  // The test above passes under BOTH the old wildcard and the new allowlist, so
+  // on its own it proves nothing about the closure. These pin the other three
+  // corners: the second allowlisted id still opens, a non-allowlisted id is shut
+  // to a signed-in non-admin, and an admin can still reach it. Without the
+  // negative case, widening the allowlist back to a wildcard stays green.
+  await test('anonymous CAN read the allowlisted quizLibrary settings doc', async () => {
+    // The public quiz runner fetches this before any sign-in state exists, so a
+    // regression here breaks /quizzes for logged-out visitors.
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'settings', 'quizLibrary'), { quizzes: [] })
+    })
+    await assertSucceeds(getDoc(doc(guest, 'settings', 'quizLibrary')))
+  })
+
+  await test('a NON-allowlisted settings doc is closed to anonymous and to a learner', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'settings', 'fxRate'), { usdToZmw: 27.5 })
+    })
+    await assertFails(getDoc(doc(guest, 'settings', 'fxRate')))
+    await assertFails(getDoc(doc(learnerA, 'settings', 'fxRate')))
+  })
+
+  await test('an admin CAN still read a non-allowlisted settings doc', async () => {
+    // fxRate's only reader is /admin/company (CompanyHQ.jsx, behind AdminRoute)
+    // plus the server-side budget governor, which uses the admin SDK.
+    await assertSucceeds(getDoc(doc(admin, 'settings', 'fxRate')))
+  })
+
   // ── default-deny fallback ────────────────────────────────────
   section('default-deny — unlisted collections are denied for every identity')
 
@@ -2178,6 +2218,46 @@ async function main() {
   await test('even a super admin CANNOT write securityAuditLogs from the client', async () => {
     await assertFails(setDoc(doc(superAdmin, 'securityAuditLogs', 'sec_forged'), {
       event: 'fake',
+    }))
+  })
+
+  // ── platformStats — admin-read summaries, closed markers ─────
+  section('platformStats — admin reads the rollup, nobody reads the uid markers')
+
+  await test('admin can read a platformStats day summary', async () => {
+    await assertSucceeds(getDoc(doc(admin, 'platformStats', '2026-06-23')))
+  })
+
+  await test('a learner CANNOT read a platformStats day summary', async () => {
+    await assertFails(getDoc(doc(learnerA, 'platformStats', '2026-06-23')))
+  })
+
+  await test('a teacher CANNOT read a platformStats day summary', async () => {
+    await assertFails(getDoc(doc(teacherA, 'platformStats', '2026-06-23')))
+  })
+
+  await test('even an admin CANNOT read the active-uid markers', async () => {
+    // The markers are the retention join key — a per-day roster of who used the
+    // platform. Nothing in the product reads them from a client, so the client
+    // door stays shut for every role rather than merely for learners.
+    await assertFails(getDoc(doc(admin, 'platformStats', '2026-06-23', 'active', LEARNER_A)))
+  })
+
+  await test('a learner CANNOT enumerate their own activity marker', async () => {
+    await assertFails(getDoc(doc(learnerA, 'platformStats', '2026-06-23', 'active', LEARNER_A)))
+  })
+
+  await test('even an admin CANNOT forge a platformStats day', async () => {
+    await assertFails(setDoc(doc(admin, 'platformStats', '2026-06-24'), { dau: 99999 }))
+  })
+
+  await test('even an admin CANNOT edit a platformStats day from the client', async () => {
+    await assertFails(updateDoc(doc(admin, 'platformStats', '2026-06-23'), { dau: 1 }))
+  })
+
+  await test('even an admin CANNOT write an active marker', async () => {
+    await assertFails(setDoc(doc(admin, 'platformStats', '2026-06-23', 'active', TEACHER_A), {
+      role: 'teacher',
     }))
   })
 

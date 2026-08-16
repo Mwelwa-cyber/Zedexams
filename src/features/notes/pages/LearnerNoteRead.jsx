@@ -20,6 +20,8 @@ import { formatDate }         from '../lib/format'
 import { sanitizeNoteHTML }   from '../../../editor/utils/sanitize.js'
 import { SlideNotesReader }   from '../components/SlideNotesReader'
 import { StudyNoteReader }    from '../components/StudyNoteReader'
+import ReaderEngine           from '../reader/ReaderEngine'
+import { isReaderNote }       from '../reader/readerCore'
 import { ReaderControls }     from '../components/ReaderControls'
 import { ReaderPrefsMenu }    from '../components/ReaderPrefsMenu'
 import { useReaderPrefs }     from '../hooks/useReaderPrefs'
@@ -131,6 +133,28 @@ export function LearnerNoteRead() {
   const isLegacySlides = !note.noteFormat && Array.isArray(note.slides) && note.slides.length > 0
   if (isLegacySlides) {
     return <Navigate to={`/lessons/${id}`} replace />
+  }
+
+  // Reader-engine study notes (learner redesign step 3): a study note
+  // carrying any interactive reader block renders full-screen through
+  // the prototype-v3 engine. The per-note gate is what lets the
+  // pipeline retire old notes subject-by-subject — untouched notes keep
+  // the legacy reader below until they are regenerated.
+  if (note.noteFormat === NOTE_FORMAT.STUDY && isReaderNote(studyData)) {
+    const kicker = [note.subject, note.grade ? `GRADE ${note.grade}` : null]
+      .filter(Boolean).join(' · ').toUpperCase()
+    return (
+      <>
+        <SeoHelmet title={note.title || 'Note'} path={`/notes/${id}`} noIndex />
+        <ReaderEngine
+          note={{ title: note.title, kicker }}
+          blocks={studyData}
+          initialMode={searchParams.get('mode') === 'revise' ? 'revise' : 'learn'}
+          onBack={() => navigate('/notes')}
+          footer={<div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}><SaveOfflineButton note={note} /></div>}
+        />
+      </>
+    )
   }
 
   const s = subjectStyle(note.subject)

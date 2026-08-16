@@ -288,6 +288,8 @@ const {
 const {dailyStreakReminders: dailyStreakRemindersCron} = require("./dailyReminders");
 // Audit C4 — public marketing-page stats aggregator (every 30 minutes).
 const {updatePublicStats: updatePublicStatsCron} = require("./publicStats");
+// Platform metrics rollup — DAU / WAU / D1-D7-D30 retention (Africa/Lusaka 00:30).
+const {rollUpPlatformMetrics: rollUpPlatformMetricsCron} = require("./platformMetrics");
 // Audit B4 follow-up — daily AI-cost summary cron (Africa/Lusaka 02:00).
 const {aiCostDailySummary} = require("./aiCostDailySummary");
 // Hourly sweep of expired AI-budget reservations (issue #1755).
@@ -2027,6 +2029,18 @@ exports.archiveOldNotifications = archiveOldNotifications;
 // games played this week) to anonymous visitors. Aggregate counts via
 // admin SDK; rules expose the resulting doc as public-read.
 exports.updatePublicStats = updatePublicStatsCron;
+
+// Platform metrics — the DAU / WAU / retention rollup. Runs 00:30 Africa/Lusaka
+// over the day that just ended and writes platformStats/{YYYY-MM-DD}.
+//
+// This is the answer to a question neither existing analytics surface can
+// reach: visitorStats counts anonymous pageviews with no uid attached, and
+// PostHog runs learners with identify:false by deliberate children's-privacy
+// policy, so a learner's events can never be joined into a cohort there. This
+// derives activity first-party from documents the product already writes
+// (results, scores, exam_attempts) — no new client instrumentation, no third
+// party, no cookie-consent dependency. Admin-read; server-only write.
+exports.rollUpPlatformMetrics = rollUpPlatformMetricsCron;
 
 // Class Register Studio — server-validated attendance writes (see
 // functions/attendance/). Rules deny direct client writes to the

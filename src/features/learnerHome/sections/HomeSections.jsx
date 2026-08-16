@@ -181,7 +181,14 @@ export function DailyGameChallengeCard({ challenge }) {
         type="button"
         className="lhx-btn lhx-btn-sm lhx-btn-primary"
         onClick={() => {
-          capture('game_started', { gameId: game.id, from: 'dashboard_challenge' })
+          // NOT `game_started` — this is a NAVIGATION out of the dashboard, and
+          // the learner may never press Start once the play surface loads.
+          // `game_started` is now emitted by each game engine's start(), once
+          // per round, so that it pairs 1:1 with `game_completed`; firing it
+          // here as well would double-count every dashboard-originated play
+          // and make abandonment look better than it is. Kept as its own event
+          // so the dashboard-attribution signal this had is not lost.
+          capture('game_challenge_opened', { gameId: game.id, from: 'dashboard_challenge' })
           navigate(`/games/play/${game.id}`)
         }}
       >
