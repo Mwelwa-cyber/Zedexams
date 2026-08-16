@@ -13,7 +13,7 @@ import UpgradeModal from '../../../components/subscription/UpgradeModal'
 import Button from '../../../shared/components/Button'
 import GamesShell from '../components/GamesShell'
 import TimedQuizGame from '../components/TimedQuizGame'
-import MemoryMatchGame from '../components/MemoryMatchGame'
+import MeaningMatchGame from '../components/MeaningMatchGame'
 import WordBuilderGame from '../components/WordBuilderGame'
 import ProvinceShapesGame from '../components/ProvinceShapesGame'
 import NumberTargetGame from '../components/NumberTargetGame'
@@ -29,7 +29,7 @@ import SeoHelmet from '../../../shared/components/SeoHelmet'
 
 // Game types whose engine is the prototype-v3 rebuild (learner redesign
 // step 4) — these render full-screen in the learner design system.
-const PROTO_ENGINES = new Set(['number_target', 'word_builder'])
+const PROTO_ENGINES = new Set(['number_target', 'word_builder', 'memory_match'])
 
 const SUBJECT_TILE_BG = {
   mathematics: 'bg-orange-100',
@@ -248,7 +248,7 @@ function PremiumLockedState({ currentUser, onUpgrade }) {
 
 function GameEngine({ game }) {
   if (game.type === 'timed_quiz') return <TimedQuizGame game={game} />
-  if (game.type === 'memory_match') return <MemoryMatchGame game={game} />
+  if (game.type === 'memory_match') return <MeaningMatchGame game={game} />
   if (game.type === 'word_builder') return <WordBuilderGame game={game} />
   if (game.type === 'province_shapes') return <ProvinceShapesGame game={game} />
   if (game.type === 'number_target') return <NumberTargetGame game={game} />
