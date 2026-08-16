@@ -849,6 +849,17 @@ reported **zero** across the same window. So *"Sentry is clean, therefore the
 backend is healthy"* is an unsupported inference; Sentry is frontend telemetry
 and cannot see a Cloud Function failing.
 
+**Nor does Sentry see an Android native crash or an ANR** — same shape of gap,
+different edge. Sentry runs inside the Capacitor WebView, so it observes
+JavaScript; a crash in the native wrapper/plugin layer, or an ANR where the
+platform kills the process, never reaches a JS handler. **Firebase Crashlytics**
+covers those on the Android build (added 2026-08-16, wiring and the reason the
+Gradle plugin is applied conditionally are in
+[`docs/ANDROID-RELEASE.md`](docs/ANDROID-RELEASE.md)). Note that **no required
+check compiles the Android project** — the node CI jobs have no Android SDK — so
+a change under `android/` is verified by dispatching `android-debug-apk.yml`,
+not by a green PR.
+
 The decision is that server-side errors reach ops through **Cloud Logging, not
 Sentry**, watched by **`functionErrorWatch`** (`functions/monitoring/`, every 5
 minutes over a 7-minute window, #2235). It is a monitoring function rather than

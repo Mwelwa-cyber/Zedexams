@@ -26,6 +26,7 @@ try {
   process.exit(0);
 }
 const {handleVisit, RATE_LIMIT_BUDGET_MS} = require("./visitorTracking");
+const {VISIT_RETENTION_DAYS} = require("./visitorTrackingCore");
 
 let passed = 0;
 function ok(name, cond) {
@@ -90,10 +91,24 @@ function makeDb({add = "resolve", tx = "resolve"} = {}) {
     return Promise.resolve({id: "fake"});
   };
   const docRef = {collection: () => ({doc: () => ({})})};
-  return {
-    collection: () => ({add: () => behave(add), doc: () => docRef}),
+  // The visit documents this fake was handed. Previously discarded, which left
+  // the SHAPE of the write untested — and the shape is where the TTL stamp
+  // lives. check-ttl-policies.mjs is a static scan, so it can see that
+  // `expiresAt:` is written somewhere in the file but not that it reaches the
+  // document the handler actually adds.
+  const added = [];
+  const db = {
+    collection: () => ({
+      add: (doc) => {
+        added.push(doc);
+        return behave(add);
+      },
+      doc: () => docRef,
+    }),
     runTransaction: () => behave(tx),
   };
+  db.added = added;
+  return db;
 }
 
 const noopCors = () => {};
@@ -109,12 +124,36 @@ async function run() {
   {
     const res = makeRes();
     const {log, events} = captureLog();
+    const db = makeDb();
     await handleVisit(makeReq(), res, {
-      db: makeDb(), enforceRateLimit: allow, applyCors: noopCors, log,
+      db, enforceRateLimit: allow, applyCors: noopCors, log,
     });
     ok("happy path returns 204", res.statusCode === 204);
     ok("happy path sets x-request-id header", typeof res.headers["x-request-id"] === "string" && res.headers["x-request-id"].length > 0);
     ok("happy path logs no failure category", !events.some((e) => e.category));
+
+    // ── the TTL stamp ────────────────────────────────────────────────────
+    // `visits` had no expiry of any kind until 2026-08-16 — no TTL policy and
+    // no reaper — so it grew one document per pageview forever. These pin the
+    // half of the fix that lives in code; the GCP policy itself is outside
+    // anything this repo can check (see check-ttl-policies.mjs).
+    const visit = db.added[0];
+    ok("a visit document was written", visit !== undefined);
+    ok("the visit carries an expiresAt", visit.expiresAt !== undefined);
+    // A Firestore TTL policy acts ONLY on a timestamp field. A number is
+    // accepted, the policy still reports as enabled, and nothing is ever
+    // reaped — the silent failure processedEvents shipped with until
+    // 2026-08-14. toDate() is what distinguishes a real Timestamp here.
+    ok("expiresAt is a Timestamp, not a number",
+        typeof visit.expiresAt?.toDate === "function");
+    const daysOut = (visit.expiresAt.toDate().getTime() - Date.now()) / 86400000;
+    ok(`expiresAt is ~${VISIT_RETENTION_DAYS} days out (got ${daysOut.toFixed(1)})`,
+        Math.abs(daysOut - VISIT_RETENTION_DAYS) < 1);
+    // The rollup docs are the durable history and must NOT inherit the visit's
+    // expiry — expiring them would silently delete the traffic record the
+    // /admin/visitors trend chart and its 7d/30d tiles are built from.
+    ok("the visit still records its Lusaka day for the rollups",
+        typeof visit.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(visit.day));
   }
 
   // 2. Non-POST → 405 + method_not_allowed category (a caller bug, must be visible).

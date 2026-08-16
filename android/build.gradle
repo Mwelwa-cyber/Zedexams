@@ -1,7 +1,12 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 
+// variables.gradle has to be read BEFORE the buildscript block can reference
+// firebaseCrashlyticsGradleVersion — `apply from` at the bottom of the file
+// would run too late, leaving the classpath line resolving a null version.
+apply from: "variables.gradle"
+
 buildscript {
-    
+
     repositories {
         google()
         mavenCentral()
@@ -9,13 +14,19 @@ buildscript {
     dependencies {
         classpath 'com.android.tools.build:gradle:8.13.2'
         classpath 'com.google.gms:google-services:4.4.4'
+        // Crashlytics Gradle plugin — uploads the R8 mapping file so release
+        // crash reports symbolicate. Release builds run minifyEnabled +
+        // shrinkResources, so WITHOUT this every native stack trace in the
+        // console is obfuscated and effectively unreadable. Applied
+        // conditionally in app/build.gradle (it requires google-services to
+        // have run first); see firebaseCrashlyticsGradleVersion in
+        // variables.gradle.
+        classpath "com.google.firebase:firebase-crashlytics-gradle:$firebaseCrashlyticsGradleVersion"
 
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
     }
 }
-
-apply from: "variables.gradle"
 
 allprojects {
     repositories {
