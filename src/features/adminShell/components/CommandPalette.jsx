@@ -76,9 +76,31 @@ export default function CommandPalette({ open, onClose, sections, badges = {}, o
       if (e.key === 'Escape') { e.preventDefault(); onClose() }
       else if (e.key === 'ArrowDown') { e.preventDefault(); setHighlight(h => moveHighlight(h, 1, filtered.length)) }
       else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlight(h => moveHighlight(h, -1, filtered.length)) }
-      else if (e.key === 'Home' && filtered.length) { e.preventDefault(); setHighlight(0) }
-      else if (e.key === 'End' && filtered.length) { e.preventDefault(); setHighlight(filtered.length - 1) }
-      else if (e.key === 'Enter') { e.preventDefault(); runCommand(filtered[highlight]) }
+      else if (e.key === 'Enter') {
+        // Enter belongs to whatever is focused. This listener is on window so
+        // the arrows work from anywhere in the dialog, but a focused button
+        // must be allowed to activate itself: preventDefault() here also
+        // suppresses the button's click, so a keyboard user who tabbed to
+        // Close got the highlighted command run instead — and if that command
+        // was Sign out, reaching for Close signed them out.
+        //
+        // The option rows are buttons too, so Enter on a focused row activates
+        // that row through its own onClick, which is the behaviour anyone
+        // tabbing into the list expects.
+        // Narrow on purpose: bail only for a DIFFERENT focused control. When
+        // nothing interactive holds focus (the open animation, a click on the
+        // dialog chrome), Enter still opens the highlighted row.
+        const target = e.target
+        const onOtherControl = target !== inputRef.current
+          && typeof target?.closest === 'function'
+          && target.closest('button, a, [role="option"]')
+        if (onOtherControl) return
+        e.preventDefault()
+        runCommand(filtered[highlight])
+      }
+      // Home/End are deliberately NOT bound: the search field is a text input,
+      // where those keys move the caret. The arrows wrap, so the last item is
+      // one ArrowUp away regardless.
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)

@@ -83,13 +83,30 @@ function collect(dir) {
 }
 const files = DIRS.flatMap((d) => collect(join(ROOT, d)))
 
+// Targets written as a literal in an attribute or object property.
 const patterns = [
   /\bto:\s*['"`](\/[^'"`\s]*)/g,
   /\bto=["'{]+["'`]?(\/[^'"`}\s]*)/g,
   /\bhref=["'](\/[^'"\s]*)/g,
   /\broute:\s*['"`](\/[^'"`\s]*)/g,
-  /navigate\(\s*['"`](\/[^'"`\s]*)/g,
 ]
+
+/**
+ * Call and JSX-expression forms whose argument is an EXPRESSION, not just a
+ * literal. Anchoring to a quote right after the paren means
+ *
+ *   navigate(firstJobId ? `/admin/agents/jobs/${firstJobId}` : '/admin/agents/jobs')
+ *
+ * matches nothing at all — neither the dynamic branch nor the literal
+ * fallback — so retargeting a real admin flow at a nonexistent route left
+ * this guard green. These capture the whole argument text and pull every
+ * route-like literal out of it, so each branch of a ternary is seen.
+ */
+const expressionForms = [
+  /\bnavigate\(([^)]*)\)/g,
+  /\bto=\{([^}]*)\}/g,
+]
+const LITERAL_IN_EXPRESSION = /['"`](\/[^'"`]*)/g
 
 const links = new Map()   // path -> Set of files
 const dynamic = new Map() // raw target -> Set of files (reported, not checked)
@@ -97,18 +114,25 @@ const dynamic = new Map() // raw target -> Set of files (reported, not checked)
 for (const file of files) {
   const src = readFileSync(file, 'utf8')
   const rel = relative(ROOT, file)
+
+  const record = (raw) => {
+    // A template hole (`${id}`) means the tail is data, not a literal.
+    if (raw.includes('$')) {
+      if (!dynamic.has(raw)) dynamic.set(raw, new Set())
+      dynamic.get(raw).add(rel)
+      return
+    }
+    const path = raw.split('?')[0].split('#')[0].replace(/\/$/, '') || '/'
+    if (!links.has(path)) links.set(path, new Set())
+    links.get(path).add(rel)
+  }
+
   for (const re of patterns) {
+    for (const m of src.matchAll(re)) record(m[1])
+  }
+  for (const re of expressionForms) {
     for (const m of src.matchAll(re)) {
-      const raw = m[1]
-      // A template hole (`${id}`) means the tail is data, not a literal.
-      if (raw.includes('$')) {
-        if (!dynamic.has(raw)) dynamic.set(raw, new Set())
-        dynamic.get(raw).add(rel)
-        continue
-      }
-      const path = raw.split('?')[0].split('#')[0].replace(/\/$/, '') || '/'
-      if (!links.has(path)) links.set(path, new Set())
-      links.get(path).add(rel)
+      for (const lit of m[1].matchAll(LITERAL_IN_EXPRESSION)) record(lit[1])
     }
   }
 }

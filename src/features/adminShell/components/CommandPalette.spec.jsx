@@ -99,6 +99,34 @@ describe('CommandPalette', () => {
     expect(screen.getByText(/No matches/i)).toBeInTheDocument()
   })
 
+  it('lets a focused Close button handle its own Enter', () => {
+    const onCommand = vi.fn()
+    const onClose = vi.fn()
+    renderPalette({ onCommand, onClose })
+    // Search for the action, then Tab to Close and press Enter. The keydown
+    // listener is on window, so before this it ran the highlighted command
+    // and preventDefault()ed the button's click — a keyboard user reaching
+    // for Close got signed out instead.
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'sign out' } })
+    const close = screen.getByLabelText('Close palette')
+    close.focus()
+    fireEvent.keyDown(close, { key: 'Enter' })
+    expect(onCommand).not.toHaveBeenCalled()
+  })
+
+  it('leaves Home/End to the search input caret', () => {
+    const onCommand = vi.fn()
+    renderPalette({ onCommand })
+    const input = screen.getByRole('combobox')
+    input.focus()
+    // Binding these hijacked caret movement in a text field. The wrapping
+    // arrows already reach both ends of the list.
+    const home = fireEvent.keyDown(input, { key: 'Home' })
+    const end = fireEvent.keyDown(input, { key: 'End' })
+    expect(home).toBe(true)
+    expect(end).toBe(true)
+  })
+
   it('closes on Escape', () => {
     const onClose = vi.fn()
     renderPalette({ onClose })
