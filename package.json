@@ -196,6 +196,8 @@
     "test:sba-docx": "node scripts/test-sba-task-docx.mjs",
     "test:sba-paper": "node scripts/test-sba-task-to-paper.mjs",
     "test:schema": "node scripts/test-question-schema.mjs",
+    "test:entitlements": "node scripts/test-entitlements.mjs",
+    "test:guardian-unlock": "node functions/guardianUnlock/guardianUnlock.test.js",
     "test:teaching-profile": "node scripts/test-teaching-profile.mjs",
     "test:detected-assignments": "node scripts/test-detected-assignments.mjs",
     "test:calendar-resolver": "node scripts/test-calendar-resolver.mjs",

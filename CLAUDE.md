@@ -217,6 +217,58 @@ consent records keep their meaning.
 If a future feature needs teachers and learners connected, it is a new design
 decision — do not restore this one.
 
+### One gating service — `src/services/entitlements/`
+
+Every lock, quota, chip and unlock sheet reads from here, and nothing else may
+decide gating. The mount-time "Your Premium has ended" interstitial is **gone**
+— deleted outright, not delayed or shrunk — and must not come back in any form.
+
+Two rules override everything else in this area:
+
+1. **No gate ever interrupts work in progress.** Locks live at boundaries — the
+   end of a set, the end of a session, a tapped padlock. Screens declare
+   themselves with `useActivity('quiz_active')`; `interruptionBudget.canShow`
+   refuses while the stack is non-empty.
+2. **Feedback on work already done is never charged for.** Marking, wrong
+   answers and weak-topic advice for questions the learner has answered are
+   free on every plan, permanently. `AUTO_MARKING` covers papers beyond the
+   free set and must never sit in front of a free set's own results.
+
+- **`gates.js`** is the registry — a gate declares its quota, tier, icon and
+  copy, and nothing may be locked without an entry. **`planState.js`** is pure:
+  grace is DERIVED (`expired && now < expiresAt + 3 days`, everything unlocked),
+  `ageBand` fails closed (a learner is `under18` unless `isMinor === false`), and
+  **every quota must expose a `resetsAt`** — a lock that cannot say when it lifts
+  renders nothing rather than rendering bare.
+- **Under-18 learners are never shown a price.** `useUnlockFlow` routes them to
+  `GuardianAskSheet`, which imports no pricing module at all — the guarantee is
+  structural, not a conditional. The ask goes to `requestGuardianUnlock`
+  (`functions/guardianUnlock/`), rate-limited to one per learner per 72 hours
+  **server-side** (`users.guardianUnlock` is on the rules blocklist). Message
+  order is fixed by `functions/shared/guardian/guardianMessageCore.js`:
+  evidence → the ask → exam countdown → price. Never price first.
+- **The in-paper free set never walls the learner.** `PublicQuizRunner` ends the
+  RUN at the free-set boundary and goes to the results screen; the offer is an
+  inline `PaperContinueLock` below the free score, free review and free weak
+  topic. Answers are written to a local draft BEFORE the results render (the
+  route's zero-Firestore-write property is unchanged — see
+  `features/papers/lib/paperAttemptDraft.js`). Papers declare
+  `freeSet: { toQuestion, sectionId }` landing on a section boundary.
+- **Surfaces live where their consumers can reach them without the checkout.**
+  The subscription front door eagerly exports `UpgradeModal`; `PlanChip` and
+  `LockedCard` are in `src/shared/components/`, `PaperContinueLock` in
+  `features/papers/`, and `UnlockSheetHost` / `GraceRibbon` are lazy route
+  mounts in App.jsx. `MomentOfWinModal` exists and is tested but is **not
+  mounted** — it is Part 9 of the rollout and has no trigger site yet.
+- Prices are data (`src/config/plans.js`, joined to the checkout catalogue by
+  `checkoutPlanId` and guarded by `test:entitlements`); the exam countdown is
+  one constant (`src/config/examDates.js` ← `PSLE_2026.startsAt`, mirrored
+  server-side and guarded).
+
+Tests: `test:entitlements`, `test:guardian-unlock`, plus the Vitest specs beside
+each surface (`ContextualUnlockSheet`, `MomentOfWinModal`, `FreeSetResults`,
+`FreeSetMeter`, `paperAttemptDraft`, `PublicQuizRunner.freeset`).
+
 ### Three AI surfaces, each on a different model
 
 - **Generators (lesson plan, worksheet, flashcards, scheme of work, rubric, notes, homework, assessment, quiz)** — Cloud Functions in `functions/teacherTools/*`. Each tool is a pair of `<tool>Prompt.js` + `<tool>Schema.js` plus a `generate<Tool>.js` runner. They all share `aiService.callAnthropic` (Sonnet 4.5 by default; override per-runtime with `ANTHROPIC_MODEL`). Two-layer caching: Anthropic prompt caching for the system prompt + CBC-context caching via `teacherTools/cbcKnowledge.js`'s `resolveCbcContext()`. Per-user daily caps live in `usageMeter.js` and write to `aiUsage/{uid}_{day}` / `usageMeters/`. Super-admins bypass the meter (see PR #512).

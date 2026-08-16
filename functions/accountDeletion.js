@@ -98,6 +98,13 @@ const FIELD_QUERY_COLLECTIONS = [
   // click — third-party PII collected because of this account, so it goes when
   // the account goes. Deleting the row also kills any live approval link.
   {collection: "consentRequests", field: "uid"},
+  // Guardian-unlock requests. Same shape and the same reason as consentRequests
+  // above: the row holds this learner's uid, their guardian's email or phone
+  // number, and the evidence (score, weak topic) that was sent to a third party
+  // because of this account. Deleting it also kills any live pay link, which is
+  // a bearer credential — an expired-in-7-days one, but not one to leave behind
+  // for an account that no longer exists.
+  {collection: "guardianRequests", field: "uid"},
   // AI content reports filed BY this user. The report carries their uid and a
   // snapshot of what they were shown, so it goes with the account. A report
   // about content someone else saw is not keyed to this uid and is unaffected.
