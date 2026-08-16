@@ -114,6 +114,8 @@ const AdminVisualNotesGenerator = lazy(() => import('./features/notes/pages/Admi
 // Notes Studio learner — /notes list + reader, gated by LearnerGate
 const LearnerNotesList  = lazy(() => import('./features/notes/pages/LearnerNotesList').then(m => ({ default: m.LearnerNotesList })))
 const LearnerNoteRead   = lazy(() => import('./features/notes/pages/LearnerNoteRead').then(m => ({ default: m.LearnerNoteRead })))
+// Reader-engine preview (learner redesign step 3) — fixture data only.
+const NoteReaderPreview = lazy(() => import('./features/notes/pages/ReaderPreview'))
 const LearnerGate       = lazy(() => import('./features/notes/components/LearnerGate').then(m => ({ default: m.LearnerGate })))
 const MyResults = lazy(() => import('./features/learnerDashboard/pages/MyResults'))
 const BadgesPage = lazy(() => import('./features/learnerDashboard/pages/BadgesPage'))
@@ -597,6 +599,7 @@ export default function App() {
           <Route path="/search"            element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerSearch /></LearnerOnlyRoute></ProtectedRoute>} />
           {/* Notes (standalone reading material) — canonical /notes routes. */}
           <Route path="/notes"             element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerGate><LearnerNotesList /></LearnerGate></LearnerOnlyRoute></ProtectedRoute>} />
+          <Route path="/notes/reader-preview" element={<ProtectedRoute><LearnerOnlyRoute><NoteReaderPreview /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/notes/:id"         element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerGate><LearnerNoteRead /></LearnerGate></LearnerOnlyRoute></ProtectedRoute>} />
 
           {/* Lessons (interactive slide-based lessons) — canonical /lessons routes.
