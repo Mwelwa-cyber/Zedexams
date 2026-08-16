@@ -24,7 +24,6 @@
 
 const {onObjectFinalized} = require("firebase-functions/v2/storage");
 const admin = require("firebase-admin");
-const ExcelJS = require("exceljs");
 const crypto = require("node:crypto");
 
 const {normalizeGrade, normalizeSubject} = require("./cbcKnowledge");
@@ -145,6 +144,12 @@ exports.parseSyllabusUpload = onObjectFinalized(
       await writeUploadStatus(version, filename, {status: "parsing"});
 
       const buffer = await downloadFile(bucketName, filePath);
+      // Lazy require: exceljs costs 27.5 MiB of RSS and ~160 ms to load, and
+      // functions/index.js pulls this module into all 196 exports — so every
+      // callable and trigger in the codebase was paying it for a workbook
+      // parser only this storage trigger uses. Matches the same lazy require
+      // already used in uploadCurriculumModuleHelpers.js.
+      const ExcelJS = require("exceljs");
       const wb = new ExcelJS.Workbook();
       await wb.xlsx.load(buffer);
 

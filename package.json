@@ -825,7 +825,8 @@
     "test:library-download": "node functions/libraryDownload.test.js",
     "test:http-request-guard": "node functions/httpRequestGuard.test.js",
     "test:auth-init-recovery": "node scripts/test-auth-init-recovery.mjs",
-    "test:release-name": "node scripts/test-release-name.mjs"
+    "test:release-name": "node scripts/test-release-name.mjs",
+    "test:cold-start": "node scripts/test-cold-start-budget.mjs"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",

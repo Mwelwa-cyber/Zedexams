@@ -27,7 +27,6 @@ exports.buildMessagingHandlers = (deps) => {
     crypto,
     emailSmtpPassword,
     emailSmtpUser,
-    nodemailer,
     passwordResetDayKey,
     passwordResetRateLimitKeys,
     passwordResetRateLimited,
@@ -91,6 +90,11 @@ exports.buildMessagingHandlers = (deps) => {
         const resetLink = await admin.auth().generatePasswordResetLink(email, actionCodeSettings);
 
         stage = "smtp";
+        // Lazy require rather than an injected dep: this factory is called at
+        // functions/index.js module load, so destructuring nodemailer out of
+        // `deps` loaded it into all 196 exports for one password-reset mailer.
+        // Required here, at the point a reset email is actually sent.
+        const nodemailer = require("nodemailer");
         const transporter = nodemailer.createTransport({
           host: "mail.privateemail.com",
           port: 587,

@@ -29,7 +29,7 @@
  */
 
 const admin = require("firebase-admin");
-const mammoth = require("mammoth");
+// mammoth is required lazily inside extractDocxText() — see the note there.
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
 const {assertCallableRateLimit} = require("../rateLimit");
@@ -507,6 +507,11 @@ async function extractDocxText(source) {
   }
   let text = "";
   try {
+    // Lazy require: mammoth is 18.2 MiB of RSS and ~78 ms to load, paid by all
+    // 196 exports through functions/index.js for a .docx text extractor only
+    // the past-paper importer reaches. Required AFTER the archive guard above,
+    // so a hostile upload is still rejected before any ZIP parser is loaded.
+    const mammoth = require("mammoth");
     const result = await mammoth.extractRawText({buffer: buf});
     text = String(result && result.value || "").trim();
   } catch (err) {
