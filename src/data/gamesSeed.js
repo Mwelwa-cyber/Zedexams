@@ -1201,6 +1201,62 @@ function applyGameAccessDefaults(game) {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+ *  PUNCTUATION PRO — exercises the `punctuation` engine (learner
+ *  redesign step 4d: tap the correctly punctuated sentence). Standard
+ *  MCQ content shape; `answer` is the correct option verbatim.
+ * ═══════════════════════════════════════════════════════════════════ */
+const PUNCTUATION_G4 = {
+  id: 'english_punctuation_g4',
+  title: 'Punctuation Pro',
+  subject: 'english',
+  grade: 4,
+  type: 'punctuation',
+  difficulty: 'easy',
+  description: 'Tap the sentence that is punctuated correctly before time runs out.',
+  timer: 60,
+  points: 12,
+  active: true,
+  cbc_topic: 'Punctuation',
+  isDemo: true,
+  questions: [
+    { question: '', options: ['We are going to the farm.', 'we are going to the farm.', 'We are going to the farm,'], answer: 'We are going to the farm.' },
+    { question: '', options: ['What is your name?', 'What is your name.', 'what is your name?'], answer: 'What is your name?' },
+    { question: '', options: ['I have a dog, a cat and a goat.', 'I have a dog a cat and a goat.', 'i have a dog, a cat and a goat.'], answer: 'I have a dog, a cat and a goat.' },
+    { question: '', options: ['Lusaka is the capital of Zambia.', 'lusaka is the capital of Zambia.', 'Lusaka is the capital of Zambia'], answer: 'Lusaka is the capital of Zambia.' },
+    { question: '', options: ['Watch out!', 'Watch out.', 'watch out!'], answer: 'Watch out!' },
+    { question: '', options: ['My friend, Chipo, likes mangoes.', 'My friend Chipo likes mangoes,', 'my friend Chipo likes mangoes.'], answer: 'My friend, Chipo, likes mangoes.' },
+    { question: '', options: ['Where do you live?', 'Where do you live.', 'where do you live?'], answer: 'Where do you live?' },
+    { question: '', options: ['It is Monday today.', 'it is Monday today.', 'It is monday today.'], answer: 'It is Monday today.' },
+  ],
+}
+
+const PUNCTUATION_G7 = {
+  id: 'english_punctuation_g7',
+  title: 'Punctuation Pro',
+  subject: 'english',
+  grade: 7,
+  type: 'punctuation',
+  difficulty: 'medium',
+  description: 'Commas, quotation marks and capitals — tap the correctly punctuated sentence.',
+  timer: 60,
+  points: 15,
+  active: true,
+  cbc_topic: 'Punctuation',
+  questions: [
+    { question: '', options: ['She has a beautiful voice.', 'She has a beautiful voice,', 'she has a beautiful voice.'], answer: 'She has a beautiful voice.' },
+    { question: '', options: ['How many countries are there in Africa?', 'how many countries are there in Africa?', 'How many countries are there in Africa.'], answer: 'How many countries are there in Africa?' },
+    { question: '', options: ['Plums, pears, apples and bananas are good sources of vitamin C.', 'Plums pears apples and bananas are good sources of vitamin C.', 'Plums, pears, apples and bananas are good sources of Vitamin C,'], answer: 'Plums, pears, apples and bananas are good sources of vitamin C.' },
+    { question: '', options: ['“Are you a student here?” Tony asked.', '“Are you a student here? Tony asked.', 'Are you a student here, Tony asked?'], answer: '“Are you a student here?” Tony asked.' },
+    { question: '', options: ['Where are you going, Mary?', 'Where are you going Mary.', 'where are you going, Mary?'], answer: 'Where are you going, Mary?' },
+    { question: '', options: ['I bought sugar, salt and rice.', 'I bought sugar salt and rice.', 'I bought sugar, salt and rice'], answer: 'I bought sugar, salt and rice.' },
+    { question: '', options: ['It is raining, so we stayed inside.', 'It is raining so we stayed inside', 'it is raining, so we stayed inside.'], answer: 'It is raining, so we stayed inside.' },
+    { question: '', options: ['My uncle lives in Ndola, but he works in Kitwe.', 'My uncle lives in Ndola but he works in Kitwe', 'my uncle lives in Ndola, but he works in Kitwe.'], answer: 'My uncle lives in Ndola, but he works in Kitwe.' },
+    { question: '', options: ['The teacher said, “Open your books.”', 'The teacher said “Open your books”', 'the teacher said, “open your books.”'], answer: 'The teacher said, “Open your books.”' },
+    { question: '', options: ['What a wonderful surprise!', 'What a wonderful surprise.', 'what a wonderful surprise!'], answer: 'What a wonderful surprise!' },
+  ],
+}
+
 export const GAMES_SEED = [
   // ── Lower primary (G1-G3) ──
   COUNTING_G1,
@@ -1225,6 +1281,7 @@ export const GAMES_SEED = [
   SPELL_IT_RIGHT_G4,
   PLANT_PARTS_G4,
   ZAMBIA_BASICS_G4,
+  PUNCTUATION_G4,
   // G5
   HUMAN_BODY_G5,
   DIGESTIVE_SYSTEM_G5,
@@ -1249,6 +1306,7 @@ export const GAMES_SEED = [
 
   // G7
   MARKET_CHALLENGE_G7,
+  PUNCTUATION_G7,
 
   // ── Outside primary CBC scope — kept in seed so admin can flip active=true if needed ──
   INTEGERS_G7,

@@ -145,6 +145,7 @@ const GAME_TYPE_META = {
   sorting_factory: { icon: InboxStackIcon, label: 'Sorting' },
   sentence_scramble: { icon: QueueListIcon, label: 'Scramble' },
   market_challenge: { icon: BanknotesIcon,  label: 'Market' },
+  punctuation:  { icon: CheckBadgeIcon,   label: 'Punctuation' },
 }
 
 export function gameTypeMeta(type) {
