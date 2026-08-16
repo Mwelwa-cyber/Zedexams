@@ -78,6 +78,13 @@ export default function AiGenerationProgress({
     return () => clearInterval(id)
   }, [running])
 
+  // Name the step in flight beside the percentage. A named step is the whole
+  // reason this panel beats a spinner: on a slow connection it is what tells a
+  // teacher the run is moving and roughly how much is left.
+  const activeLabel =
+    items.find((s) => s.status === 'active')?.label ||
+    (error ? 'Stopped' : running ? 'Working' : 'Done')
+
   const notice = connectionNoticeFor({
     online,
     elapsedMs: runMs,
@@ -92,23 +99,27 @@ export default function AiGenerationProgress({
       aria-live="polite"
       aria-label={`${title} ${percent}% complete`}
     >
-      {/* Heading */}
+      {/* Heading. The bouncing emoji is gone: it was a second, faster tempo
+          competing with the stage list for attention, and it carried no
+          information about a run the user is waiting on. The error glyph
+          stays — that one IS the information. */}
       <div className="text-center mb-5">
-        <div
-          className={`text-4xl mb-2 ${reducedMotion ? '' : 'animate-bounce'}`}
-          aria-hidden="true"
-        >
-          {error ? '⚠️' : '✨'}
-        </div>
+        {error && (
+          <div className="text-4xl mb-2" aria-hidden="true">
+            ⚠️
+          </div>
+        )}
         <h3 className="text-display-md theme-text font-black">{title}</h3>
         {subtitle && (
           <p className="text-body-sm theme-text-muted mt-1">{subtitle}</p>
         )}
       </div>
 
-      {/* Overall progress bar */}
+      {/* Overall progress bar. The fill moves only when progress actually
+          arrives — it is never itself animated, because a pulsing bar reads as
+          a problem rather than as work in flight. */}
       <div
-        className="theme-bg-subtle h-1.5 w-full rounded-full overflow-hidden mb-5"
+        className="theme-bg-subtle h-1.5 w-full rounded-full overflow-hidden"
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={100}
@@ -118,6 +129,18 @@ export default function AiGenerationProgress({
           className={`h-full rounded-full transition-all duration-500 ${error ? 'bg-danger' : 'theme-accent-fill'}`}
           style={{ width: `${percent}%` }}
         />
+      </div>
+
+      <div className="flex items-baseline justify-between gap-3 mt-2 mb-4">
+        <span className="text-body-sm theme-text-muted font-semibold truncate">
+          {activeLabel}
+        </span>
+        <span
+          className="text-body-sm theme-accent-text font-black tabular-nums flex-shrink-0"
+          aria-hidden="true"
+        >
+          {percent}%
+        </span>
       </div>
 
       {/* Stage list */}
@@ -217,21 +240,24 @@ function StageRow({ stage, reducedMotion }) {
       ].join(' ')}
       aria-current={active ? 'step' : undefined}
     >
+      {/* A completed step is filled with the ACCENT, not emerald. Green means
+          "success" everywhere else in the product; spending it on "step 2 of 5
+          finished" makes the real success state say less. */}
       <span
         className={[
           'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-sm',
-          done ? 'bg-emerald-600 text-white'
+          done ? 'theme-accent-fill theme-on-accent'
             : errored ? 'bg-danger text-white'
             : active ? 'theme-accent-fill theme-on-accent'
             : 'theme-bg-subtle theme-text-muted',
+          // Only ONE thing in the panel animates: the step in flight, breathing
+          // on the shared tempo. The reduced-motion variant of .zx-breathe is a
+          // no-op, so this is safe to apply unconditionally.
+          active && !errored ? 'zx-breathe' : '',
         ].join(' ')}
         aria-hidden="true"
       >
-        {done ? '✓' : errored ? '!' : active && !reducedMotion ? (
-          <Spinner />
-        ) : (
-          icon
-        )}
+        {done ? '✓' : errored ? '!' : icon}
       </span>
       <span
         className={[
@@ -250,19 +276,5 @@ function StageRow({ stage, reducedMotion }) {
         </span>
       )}
     </li>
-  )
-}
-
-function Spinner() {
-  return (
-    <svg
-      className="animate-spin h-4 w-4 text-current"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.4 0 0 5.4 0 12h4z" />
-    </svg>
   )
 }

@@ -18,11 +18,6 @@ body {
 .safe-top { padding-top: env(safe-area-inset-top, 0); }
 /* .safe-area-bottom is defined further down (existing helper). */
 
-@keyframes zed-page-load {
-  0%   { background-position: 200% center; }
-  100% { background-position: -200% center; }
-}
-
 /* ── Theme CSS custom properties ──────────────────────────── */
 /* Applied via body.theme-* classes set by ThemeContext        */
 /*
@@ -1242,13 +1237,20 @@ body {
   .studio-theme .studio-btn-ghost:focus-visible {
     outline: 3px solid rgba(217,119,87,.45); outline-offset: 2px;
   }
-  /* Spinner shown inside the primary button while a generation runs. */
+  /* Spinner shown inside the primary button while a generation runs.
+   * 0.9s, on the shared .zx-spin rhythm — at the old 0.7s it ran at roughly
+   * twice the speed of everything around it, which is what made a 15px element
+   * feel urgent. currentColor so it needs no per-variant tint. */
   .studio-theme .studio-btn-spinner {
     width: 15px; height: 15px; flex: 0 0 auto; border-radius: 50%;
-    border: 2.5px solid rgba(255,255,255,.35); border-top-color: #ffffff;
-    animation: studio-spin .7s linear infinite;
+    border: 2.5px solid currentColor; border-top-color: transparent; opacity: .9;
+    animation: zx-rotate .9s linear infinite;
   }
-  @keyframes studio-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    .studio-theme .studio-btn-spinner {
+      animation: none; border-top-color: currentColor; opacity: .5;
+    }
+  }
   .studio-theme .studio-input {
     width: 100%; background: #ffffff; border: 1.5px solid #d9cfb8;
     color: #0e2a32; border-radius: 12px; padding: 9px 12px;
@@ -6019,8 +6021,6 @@ html:not([data-theme='night']) body:not(.theme-midnight) .marketing-page .theme-
 /* Typing dot — a soft bounce for the "Zed is typing…" indicator. */
 @keyframes typing-dot   { 0%,80%,100% { transform:translateY(0);opacity:0.4 } 40% { transform:translateY(-3px);opacity:1 } }
 
-/* Phase 0 — shimmer sweep replaces animate-pulse on skeletons */
-@keyframes shimmer      { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }
 /* Phase 0 — press feedback for buttons and tap targets */
 @keyframes press        { 0% { transform:scale(1) } 50% { transform:scale(0.96) } 100% { transform:scale(1) } }
 /* Phase 0 — quiet entrance used on staggered lists */
@@ -6384,14 +6384,9 @@ body.data-saver [data-bg-gradient] {
   .animate-typing-dot { animation: none; opacity: 0.6; }
 }
 
-/* Phase 0 — shimmer: applies a sweeping gradient; element must be
-   empty / a fixed height placeholder. Swap `animate-pulse` for this
-   on skeleton blocks. */
-.animate-shimmer {
-  background: linear-gradient(90deg, var(--bg-subtle) 0%, var(--card-hover) 50%, var(--bg-subtle) 100%);
-  background-size: 200% 100%;
-  animation: shimmer 1.4s linear infinite;
-}
+/* Skeleton placeholders are `.zx-sk` (src/shared/styles/zxLoading.css) — one
+   tempo, one easing, theme-mixed tint. The `.animate-shimmer` utility that used
+   to live here ran on its own 1.4s loop and is gone with its keyframe. */
 .animate-press        { animation: press 180ms var(--ease-out); }
 .animate-slide-in-soft { animation: slide-in-soft 0.4s var(--ease-out) both; }
 
