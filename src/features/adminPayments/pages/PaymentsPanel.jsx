@@ -345,6 +345,19 @@ export default function PaymentsPanel() {
   }
 
   function handleRoleChange(uid, role) {
+    // You cannot change your OWN role from here. AdminUserProfile blocks this
+    // deliberately (its `isSelf`); this panel grew a role editor later and
+    // never got the same guard, so the two admin surfaces disagreed about a
+    // rule only one of them enforced. adminSetUserRole revokes the caller's
+    // refresh tokens, so a self-demotion signs you out INTO the role you just
+    // demoted yourself to — and `platformAdmin`, the break-glass claim both
+    // rules files name, has no minter, so there is nothing to climb back with.
+    // The server does not stop this either: functions/adminUsers.js never
+    // compares actor.uid to the target uid.
+    if (currentUser?.uid && uid === currentUser.uid) {
+      show("❌ You can't change your own role. Ask another admin.")
+      return
+    }
     // Promotion to / demotion from admin is one-click and irreversible
     // without a second admin available — confirm before applying.
     const current = users.find(u => u.id === uid)?.role
@@ -830,6 +843,12 @@ export default function PaymentsPanel() {
                 {users.map(u => {
                   const isPremium = hasPremiumAccess(u)
                   const busy = rowActionUid === u.id
+                  const isSelf = !!currentUser?.uid && currentUser.uid === u.id
+                  // This picker offers learner/teacher/admin only. A superAdmin
+                  // row has no matching <option>, so every change to it is a
+                  // silent DEMOTION — show the role instead of a control that
+                  // can only take it away.
+                  const roleLocked = u.role === 'superAdmin'
                   return (
                   <tr key={u.id} className="border-b theme-border hover:bg-gray-50">
                     <td className="px-4 py-3">
@@ -844,13 +863,21 @@ export default function PaymentsPanel() {
                       </button>
                     </td>
                     <td className="px-4 py-3">
-                      <select value={u.role || ''} onChange={e => handleRoleChange(u.id, e.target.value)}
-                        className="border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold focus:border-green-500 focus:outline-none">
-                        <option value="" disabled>— no role —</option>
-                        <option value="learner">learner</option>
-                        <option value="teacher">teacher</option>
-                        <option value="admin">admin</option>
-                      </select>
+                      {roleLocked ? (
+                        <span className="text-xs font-black text-gray-700" title="Change a superAdmin's role from the user's admin profile page.">
+                          superAdmin
+                        </span>
+                      ) : (
+                        <select value={u.role || ''} disabled={isSelf}
+                          title={isSelf ? "You can't change your own role here — ask another admin." : undefined}
+                          onChange={e => handleRoleChange(u.id, e.target.value)}
+                          className="border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold focus:border-green-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed">
+                          <option value="" disabled>— no role —</option>
+                          <option value="learner">learner</option>
+                          <option value="teacher">teacher</option>
+                          <option value="admin">admin</option>
+                        </select>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       {isPremium ? <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full text-xs font-black">⭐ {u.subscriptionPlan}</span>
