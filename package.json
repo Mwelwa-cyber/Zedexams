@@ -260,6 +260,7 @@
     "test:game-round": "node scripts/test-timed-quiz-round.mjs",
     "test:word-builder": "node scripts/test-word-builder.mjs",
     "test:meaning-match": "node scripts/test-meaning-match.mjs",
+    "test:punctuation": "node scripts/test-punctuation.mjs",
     "test:province-shapes": "node scripts/test-province-shapes.mjs",
     "test:sentence-scramble": "node scripts/test-sentence-scramble.mjs",
     "test:market-challenge": "node scripts/test-market-challenge.mjs",

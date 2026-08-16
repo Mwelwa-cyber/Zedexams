@@ -101,6 +101,7 @@
 .lhx-gc-icon.g-word { background: radial-gradient(circle at 30% 30%, #ffc9d8, #ff7fa6); box-shadow: 0 6px 14px rgba(255, 127, 166, 0.35); }
 .lhx-gc-icon.g-sci  { background: radial-gradient(circle at 30% 30%, #d7ffe9, #7ee0a3); box-shadow: 0 6px 14px rgba(126, 224, 163, 0.35); }
 .lhx-gc-icon.g-map  { background: radial-gradient(circle at 30% 30%, #c9e5ff, #6db2f5); box-shadow: 0 6px 14px rgba(109, 178, 245, 0.35); }
+.lhx-gc-icon.g-gold { background: radial-gradient(circle at 30% 30%, #ffe1a8, #ffb43a); box-shadow: 0 6px 14px rgba(255, 180, 58, 0.35); }
 .lhx-gc-body { flex: 1; min-width: 0; }
 .lhx-gc-name { font-weight: 900; font-size: 16px; }
 .lhx-gc-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
@@ -307,6 +308,24 @@
   animation: lhx-wb-shake 0.3s;
 }
 
+/* ── Punctuation Pro: tap the correct sentence ─────────────────── */
+
+.lhx-pn-opts { display: flex; flex-direction: column; gap: 12px; padding-top: 20px; }
+.lhx-pn-opt {
+  border: 2px solid var(--lhx-line); border-bottom-width: 4px;
+  background: var(--lhx-card); color: var(--lhx-ink);
+  border-radius: 16px; padding: 16px 15px;
+  font-weight: 700; font-size: 15px; line-height: 1.4;
+  text-align: left;
+  transition: transform 0.08s;
+}
+.lhx-pn-opt:active { transform: scale(0.98); }
+.lhx-pn-opt.is-ok { background: var(--lhx-green-soft); border-color: #7bd9a3; color: var(--lhx-green-dark); }
+.lhx-pn-opt.is-no {
+  background: #fdeaea; border-color: #ef6a6f; color: var(--lhx-red);
+  animation: lhx-wb-shake 0.3s;
+}
+
 /* ── Win screen ────────────────────────────────────────────────── */
 
 .lhx-win {
@@ -372,6 +391,7 @@
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-nt-tile { box-shadow: 0 5px 0 #171929; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-wb-tile { box-shadow: 0 5px 0 #171929; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-mm-chip.is-wrong { background: #3a2024; border-color: #8a4046; color: #f4a5a8; }
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-pn-opt.is-no { background: #3a2024; border-color: #8a4046; color: #f4a5a8; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-node.is-locked { background: #2a2d4a; box-shadow: 0 5px 0 #1d1f36; color: #565b85; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-start-bubble { background: #232640; color: #ff8a5c; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-start-bubble::after { background: #232640; }

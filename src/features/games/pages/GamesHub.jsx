@@ -40,6 +40,15 @@ const SUBJECT_SKIN = {
   social:      { emoji: '🗺️', cls: 'g-map' },
 }
 
+// The rebuilt prototype mechanics carry their prototype icons; every
+// other game falls back to its subject's skin.
+const TYPE_SKIN = {
+  number_target: { emoji: '🔢', cls: 'g-math' },
+  word_builder:  { emoji: '🔤', cls: 'g-word' },
+  memory_match:  { emoji: '🧠', cls: 'g-sci' },
+  punctuation:   { emoji: '✒️', cls: 'g-gold' },
+}
+
 /** Local Number Path progress for the level tag + bar on its game card. */
 function readPathProgress(gameId) {
   try {
@@ -255,7 +264,7 @@ export default function GamesHub() {
 /** One prototype game card: icon, name, tags, progress bar, best score. */
 function GameCard({ game, best }) {
   const subjectKey = String(game.subject || '').toLowerCase()
-  const skin = SUBJECT_SKIN[subjectKey] || { emoji: '🎮', cls: 'g-math' }
+  const skin = TYPE_SKIN[game.type] || SUBJECT_SKIN[subjectKey] || { emoji: '🎮', cls: 'g-math' }
   const subjectLabel = SUBJECTS.find((s) => s.slug === subjectKey)?.label || 'Game'
   const isPath = game.type === 'number_target'
   const pathProgress = isPath ? readPathProgress(game.id) : null

@@ -127,6 +127,7 @@ export const GAME_TYPE_THEMES = {
   sorting_factory: { label: 'Sorting', icon: InboxStackIcon },
   sentence_scramble: { label: 'Scramble', icon: QueueListIcon },
   market_challenge: { label: 'Market', icon: BanknotesIcon },
+  punctuation: { label: 'Punctuation', icon: CheckBadgeIcon },
 }
 
 const DEFAULT_TYPE_THEME = { label: 'Game', icon: PuzzlePieceIcon }
