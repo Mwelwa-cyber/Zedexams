@@ -27,6 +27,21 @@ function defaultSyllabusForGradeNumber(n) {
   return n === 7 ? SYLLABUS_TYPES.OBC : SYLLABUS_TYPES.CBC
 }
 
+// Every spelling of an early-childhood year → its library folder. The folder
+// labels are the `value`s in GRADE_FORMS[CBC] (src/config/library.js); the
+// spellings are what the studios actually send. Lower-cased keys.
+const ECE_SPELLINGS = {
+  nursery: 'Nursery',
+  ece_n: 'Nursery',
+  'nursery class': 'Nursery',
+  // Pre-dates the Nursery/Reception split and spans both years; folds onto the
+  // younger one so content is pitched down rather than up.
+  ece: 'Nursery',
+  reception: 'Reception',
+  ece_r: 'Reception',
+  'reception class': 'Reception',
+}
+
 // Which syllabus an *academic* 'Grade N' label belongs to with no hint. CBC
 // never labels its upper grades "Grade 7"…"Grade 12" — it uses Forms 1–4 — so
 // an academic "Grade 7" or higher can only be OBC (which numbers grades 1–12).
@@ -66,10 +81,19 @@ export function resolveGradeForm(grade, syllabusHint) {
   if (!grade) return { syllabus: syllabusHint || null, gradeForm: null }
   const raw = String(grade).trim()
 
-  // ECE buckets → CBC Grade 1 (the library has no separate ECE bucket yet).
-  if (/^ECE(_[NR])?$/i.test(raw)) {
-    return { syllabus: syllabusHint || SYLLABUS_TYPES.CBC, gradeForm: 'Grade 1' }
-  }
+  // ECE. Both spellings the app produces resolve to the same folder: the
+  // studio's dropdown value ('Nursery' / 'Reception', see CBC_GRADES in
+  // LessonDetailsForm.jsx) and the stored ladder code ('ECE_N' / 'ECE_R', see
+  // storedValueForRung in src/config/educationLevels.js). Neither used to:
+  // 'Nursery' matched none of the patterns below and fell through to
+  // gradeForm: null — the Unsorted pile — while 'ECE_N' resolved to 'Grade 1',
+  // filing early-childhood work into a primary folder where it looked
+  // correctly sorted. A bare 'ECE' predates the Nursery/Reception split and
+  // folds onto Nursery, matching LEGACY_LEVEL_ALIASES in canonicalEducation.js.
+  // ECE exists in CBC only, so an OBC hint cannot pull these into an OBC
+  // folder — there is no such folder to pull them into.
+  const ece = ECE_SPELLINGS[raw.toLowerCase()]
+  if (ece) return { syllabus: SYLLABUS_TYPES.CBC, gradeForm: ece }
 
   // Already-academic labels are kept verbatim — the caller has already chosen
   // the exact label, so we never re-map 'Grade 10' into a Form here.
