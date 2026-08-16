@@ -3,6 +3,7 @@ const admin = require("firebase-admin");
 const {writeAuditLog} = require("./auditLog");
 const {requireAdminMfa} = require("./security/requireAdminMfa");
 const {syncUserRoleClaims} = require("./security/adminClaims");
+const {isSelfTargeted, SELF_TARGET_MESSAGES} = require("./security/selfTargetGuardCore");
 const {
   writeSecurityAudit,
   SECURITY_EVENTS,
@@ -23,6 +24,36 @@ async function assertCallerIsAdmin(request) {
 }
 
 /**
+ * Refuse a privileged user-management action aimed at the caller's own
+ * account. See security/selfTargetGuardCore.js for the rule and why the two
+ * callables below could otherwise lock the last admin out of the platform.
+ *
+ * The refusal is recorded before it is thrown. Reaching this point means the
+ * request did NOT come from either admin screen — both disable the control —
+ * so it is a stale client or a direct callable invocation, and which of those
+ * it was is worth being able to answer later. writeSecurityAudit swallows its
+ * own errors, so the ledger can never convert a refusal into a success.
+ *
+ * @param {{uid: string, isSuperAdmin: boolean}} actor authenticated caller.
+ * @param {*} targetUid uid the request wants to act on.
+ * @param {'role'|'status'} field which action was attempted.
+ * @param {object} request the callable request, for requestMetaFrom.
+ */
+async function assertNotSelfTargeted(actor, targetUid, field, request) {
+  if (!isSelfTargeted(actor.uid, targetUid)) return;
+  await writeSecurityAudit({
+    eventType: SECURITY_EVENTS.ADMIN_SELF_TARGET_DENIED,
+    actorUid: actor.uid,
+    targetUid: actor.uid,
+    actorRole: actor.isSuperAdmin ? "superAdmin" : "admin",
+    outcome: "denied",
+    reason: `self-${field}-change`,
+    ...requestMetaFrom(request),
+  });
+  throw new HttpsError("permission-denied", SELF_TARGET_MESSAGES[field]);
+}
+
+/**
  * adminSetUserStatus — flip a user's lifecycle status.
  *
  * status: 'active' | 'suspended' | 'deleted'
@@ -40,6 +71,7 @@ exports.adminSetUserStatus = onCall(
     if (!uid || typeof uid !== "string") {
       throw new HttpsError("invalid-argument", "uid is required.");
     }
+    await assertNotSelfTargeted(actor, uid, "status", request);
     if (!ALLOWED_STATUS.has(status)) {
       throw new HttpsError("invalid-argument", `Invalid status: ${status}`);
     }
@@ -103,6 +135,7 @@ exports.adminSetUserRole = onCall(
     if (!uid || typeof uid !== "string") {
       throw new HttpsError("invalid-argument", "uid is required.");
     }
+    await assertNotSelfTargeted(actor, uid, "role", request);
     if (!ALLOWED_ROLE.has(role)) {
       throw new HttpsError("invalid-argument", `Invalid role: ${role}`);
     }
