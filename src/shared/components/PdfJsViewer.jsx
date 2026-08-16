@@ -41,6 +41,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { loadPdfjs } from '../../utils/pdfjsLoader'
 import { friendlyMessage } from '../../utils/friendlyErrors'
 import GlassPageNavigation from './GlassPageNavigation'
+import Skeleton from './Skeleton'
 import PageThumbnailSheet from './PageThumbnailSheet'
 import {
   Download,
@@ -525,12 +526,15 @@ export default function PdfJsViewer({ url, blob, title, fill = false, storageKey
           // Paper-shaped skeleton instead of a blank strip while PDF.js
           // fetches + parses the document.
           <div className="m-auto w-full max-w-md py-4" aria-hidden="true">
-            <div className="mx-auto w-full aspect-[1/1.3] max-h-[62vh] rounded-radius-md bg-white shadow-elev-sm p-5 space-y-3 animate-pulse">
-              <div className="h-4 w-2/3 mx-auto rounded bg-black/10" />
-              <div className="h-3 w-1/2 mx-auto rounded bg-black/10" />
+            {/* The sheet itself stays a solid white page — a PDF really is
+                white paper, so pulsing it would misrepresent what is loading.
+                Only the lines on it are placeholder. */}
+            <div className="mx-auto w-full aspect-[1/1.3] max-h-[62vh] rounded-radius-md bg-white shadow-elev-sm p-5 space-y-3">
+              <Skeleton className="mx-auto" width="66%" height={16} />
+              <Skeleton className="mx-auto" width="50%" height={12} index={1} />
               <div className="pt-4 space-y-2.5">
                 {Array.from({ length: 8 }, (_, i) => (
-                  <div key={i} className="h-2.5 rounded bg-black/5" style={{ width: `${90 - (i % 3) * 12}%` }} />
+                  <Skeleton key={i} height={10} index={i} width={`${90 - (i % 3) * 12}%`} />
                 ))}
               </div>
             </div>

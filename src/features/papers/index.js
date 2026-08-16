@@ -100,13 +100,15 @@
  *
  * ── The PDF viewers went DOWN a layer, not across ──────────────────────
  *
- * `PdfJsViewer`, `PdfScrollViewer` and the two components private to the first
- * (`GlassPageNavigation`, `PageThumbnailSheet`) are now in
- * `src/shared/components/`. Their consumer sets are what decided it, and one
- * of them settles the question on its own: **`PdfScrollViewer`'s only consumer
- * is `TimetableViewerPage`** — an exam *timetable*, not a past paper. It was
- * never papers' to keep. `PdfJsViewer` is shared between two papers pages and
- * the admin `PastPaperStudio`.
+ * `PdfJsViewer`, `PdfScrollViewer`, `PdfPageStream` and the two components
+ * shared by the first and third (`GlassPageNavigation`, `PageThumbnailSheet`)
+ * are now in `src/shared/components/`. Their consumer sets are what decided
+ * it, and one of them settles the question on its own: **`PdfScrollViewer`'s
+ * only consumer is `TimetableViewerPage`** — an exam *timetable*, not a past
+ * paper. It was never papers' to keep. `PdfJsViewer` now has a single consumer
+ * too, the admin `PastPaperStudio`: the two learner papers pages moved to
+ * `PdfPageStream`, the continuous-scroll viewer, so PDF papers read the way
+ * scanned image papers always have.
  *
  * They pass §14.6 on reach rather than on their own import lines: each takes a
  * URL and renders pages, and `pdfjsLoader` + `friendlyErrors` have no static

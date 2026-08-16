@@ -43,6 +43,7 @@ vi.mock('../hooks/useLearnerDashboard', () => ({
 
 import LearnerHomePage from './LearnerHomePage'
 import LearnerLayout from '../components/LearnerLayout'
+import { PSLE_2026 } from '../../../config/examTimetable2026'
 
 const baseData = {
   activeTerm: { term: 2, source: 'calendar' },
@@ -167,9 +168,22 @@ describe('LearnerHomePage', () => {
     expect(within(section).getByText('82%')).toBeInTheDocument()
   })
 
-  it('states the timetable has not been published when data is missing', () => {
+  it('shows the coral exam-countdown chip when a timetable is published', () => {
+    // Countdown target is the first sat paper (English, Tue 27 Oct 08:00).
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(Date.parse('2026-09-01T10:00:00+02:00')))
+    mockDashboard.timetables = { active: PSLE_2026, archived: [], loading: false, error: null }
     renderHome()
-    expect(screen.getByText('The examination timetable has not been published yet.')).toBeInTheDocument()
+    const chip = screen.getByRole('button', { name: /exams in 55 days/i })
+    expect(chip.classList.contains('lhx-chip-exam')).toBe(true)
+    vi.useRealTimers()
+  })
+
+  it('renders no exam chip (and no countdown card) without a published timetable', () => {
+    renderHome()
+    expect(screen.queryByRole('button', { name: /exams in/i })).toBeNull()
+    // The big countdown card is gone — Home stays minimal, the chip pulls.
+    expect(screen.queryByText('The examination timetable has not been published yet.')).toBeNull()
   })
 
   it('renders recommendations with their reasons', () => {

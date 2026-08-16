@@ -119,6 +119,7 @@ src/
   contexts/                     — AuthContext, ThemeContext, DataSaverContext, PlatformSettingsContext
   components/
     (admin/ MIGRATED — the directory is gone as of 2026-08-14. Its 26 files became the `features/admin*` features one slice at a time from 2026-08-12; the last three — AdminPastPapers, PastPaperStudio, pastPaperReport — were held back only by the freeze and became `src/features/adminPastPapers/` when the sixth ruling closed it. **PastPaperStudio's Quiz step is still optional** — a paper can publish with `quizStatus: 'pending'`; every read of that state goes through `src/utils/pastPaperQuizStatus.js`, the status is DERIVED (`quizStatus ?? (quizId ? 'attached' : 'pending')`) so papers predating the field still resolve, and it fail-closes: `'attached'` with no `quizId` reads as pending rather than rendering a Start Quiz button that leads nowhere. `functions/pastPapersIndexHelpers.js` carries a CommonJS mirror, kept honest by `test:past-papers-index`)
+  features/adminShell — `AdminLayout` is the ONE shell for every `/admin/*` route: sidebar (desktop), drawer (mobile), the ⌘K command palette, the pending-count badges. **One nav registry**: `lib/adminNav.js` holds `ADMIN_NAV_SECTIONS` (the seven grouped sections), `ADMIN_SWITCH_ITEMS` (Teacher/Learner view) and `ADMIN_ACTION_ITEMS` (Sign out, which carries a `command` string the shell resolves rather than a route, so the registry never imports the auth context). It lived inline in `AdminLayout.jsx` until 2026-08-16, which cost two things: the desktop and mobile "Quick switch" links were written out twice and free to drift, and the palette was handed the nav sections ALONE — so ⌘K could reach "AI costs" but not "Sign out" or either view switch, which sat in their own hard-coded block. `ADMIN_PALETTE_SECTIONS` is what the palette gets. **`scripts/test-admin-links.mjs` (`test:admin-links`) is the admin twin of `test:dashboard-v2-links`** — it text-parses seventeen `features/admin*` directories and fails CI if any hard-coded target has no matching `<Route>` (40 targets at introduction, 0 broken). It reads two shapes, because anchoring to a quote is not enough: literal attributes/properties (`to:`, `to=`, `href=`, `route:`) AND expression forms (`navigate(...)`, `to={...}`), where every route-like literal inside the argument text is pulled out — `navigate(id ? `/admin/agents/jobs/${id}` : '/admin/agents/jobs')` matched NEITHER branch under the literal-only pattern, so retargeting a real admin flow at a dead route left the guard green. Dynamic targets (`/admin/users/${uid}`) are unresolvable from source, so they are excluded AND PRINTED: a guard that skips work silently reads exactly like one that found nothing wrong. Keep destinations as plain string literals so the parser can see them. **Palette ranking is pure and node-tested** — `lib/adminNavSearch.js` (`test:admin-nav-search`) matches AND across whitespace tokens over label + section + `keywords` + path, so "costs ai" and "ai costs" are equivalent and an admin can type what a page is FOR ("billing", "refund", "audit") rather than its label; results rank exact-label ▸ label-prefix ▸ label-word ▸ label-substring ▸ keyword-only, ties keeping registry order so the list only ever narrows as you type. Behaviour that needs a DOM (action dispatch, badge pills, focus restore on close, `aria-activedescendant`) is in `CommandPalette.spec.jsx`. Badge counts are five Firestore aggregate queries on a 60s timer that **only runs while the document is visible** and refreshes on becoming visible — before that a backgrounded `/admin` tab billed ~14,400 count queries over a weekend nobody looked at.
     ai/                         — ZedChatLauncher + ZedChatPage (learner study assistant; SSE streamed from apiAiChat)
     auth/                       — Login, Register, AuthAction (password reset)
     dashboard/                  — StudentDashboard, GradeHub, MyResults, Badges, Profile
@@ -215,6 +216,58 @@ consent records keep their meaning.
 
 If a future feature needs teachers and learners connected, it is a new design
 decision — do not restore this one.
+
+### One gating service — `src/services/entitlements/`
+
+Every lock, quota, chip and unlock sheet reads from here, and nothing else may
+decide gating. The mount-time "Your Premium has ended" interstitial is **gone**
+— deleted outright, not delayed or shrunk — and must not come back in any form.
+
+Two rules override everything else in this area:
+
+1. **No gate ever interrupts work in progress.** Locks live at boundaries — the
+   end of a set, the end of a session, a tapped padlock. Screens declare
+   themselves with `useActivity('quiz_active')`; `interruptionBudget.canShow`
+   refuses while the stack is non-empty.
+2. **Feedback on work already done is never charged for.** Marking, wrong
+   answers and weak-topic advice for questions the learner has answered are
+   free on every plan, permanently. `AUTO_MARKING` covers papers beyond the
+   free set and must never sit in front of a free set's own results.
+
+- **`gates.js`** is the registry — a gate declares its quota, tier, icon and
+  copy, and nothing may be locked without an entry. **`planState.js`** is pure:
+  grace is DERIVED (`expired && now < expiresAt + 3 days`, everything unlocked),
+  `ageBand` fails closed (a learner is `under18` unless `isMinor === false`), and
+  **every quota must expose a `resetsAt`** — a lock that cannot say when it lifts
+  renders nothing rather than rendering bare.
+- **Under-18 learners are never shown a price.** `useUnlockFlow` routes them to
+  `GuardianAskSheet`, which imports no pricing module at all — the guarantee is
+  structural, not a conditional. The ask goes to `requestGuardianUnlock`
+  (`functions/guardianUnlock/`), rate-limited to one per learner per 72 hours
+  **server-side** (`users.guardianUnlock` is on the rules blocklist). Message
+  order is fixed by `functions/shared/guardian/guardianMessageCore.js`:
+  evidence → the ask → exam countdown → price. Never price first.
+- **The in-paper free set never walls the learner.** `PublicQuizRunner` ends the
+  RUN at the free-set boundary and goes to the results screen; the offer is an
+  inline `PaperContinueLock` below the free score, free review and free weak
+  topic. Answers are written to a local draft BEFORE the results render (the
+  route's zero-Firestore-write property is unchanged — see
+  `features/papers/lib/paperAttemptDraft.js`). Papers declare
+  `freeSet: { toQuestion, sectionId }` landing on a section boundary.
+- **Surfaces live where their consumers can reach them without the checkout.**
+  The subscription front door eagerly exports `UpgradeModal`; `PlanChip` and
+  `LockedCard` are in `src/shared/components/`, `PaperContinueLock` in
+  `features/papers/`, and `UnlockSheetHost` / `GraceRibbon` are lazy route
+  mounts in App.jsx. `MomentOfWinModal` exists and is tested but is **not
+  mounted** — it is Part 9 of the rollout and has no trigger site yet.
+- Prices are data (`src/config/plans.js`, joined to the checkout catalogue by
+  `checkoutPlanId` and guarded by `test:entitlements`); the exam countdown is
+  one constant (`src/config/examDates.js` ← `PSLE_2026.startsAt`, mirrored
+  server-side and guarded).
+
+Tests: `test:entitlements`, `test:guardian-unlock`, plus the Vitest specs beside
+each surface (`ContextualUnlockSheet`, `MomentOfWinModal`, `FreeSetResults`,
+`FreeSetMeter`, `paperAttemptDraft`, `PublicQuizRunner.freeset`).
 
 ### Three AI surfaces, each on a different model
 

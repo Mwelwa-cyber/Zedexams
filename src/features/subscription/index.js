@@ -53,3 +53,24 @@ export { default as UpgradeModal } from './components/UpgradeModal'
 export { default as RenewalBanner } from './components/RenewalBanner'
 export { default as SubscriptionReminderCard } from './components/SubscriptionReminderCard'
 export { default as PremiumGate, UpgradeBanner, AttemptCounter } from './components/PremiumGate'
+
+// ── Where the tiered gating surfaces are, and why none is here ──────────
+//
+// This door eagerly exports `UpgradeModal`, and through it `utils/invoices` —
+// which resolves the Functions SDK at module load. Anything routed through it
+// carries that whole closure into the importer's chunk, which is the same
+// measurement the shim note above records for the quiz runner and PlayGame. So
+// each new surface lives where its consumers can reach it WITHOUT paying for
+// the checkout:
+//
+//   PlanChip, LockedCard/LockBadge  → src/shared/components/ (two features
+//                                     each; they reach Firebase only through
+//                                     src/services/entitlements)
+//   PaperContinueLock               → src/features/papers/components/ (one
+//                                     consumer: the free-set results screen)
+//   UnlockSheetHost, GraceRibbon    → lazy route mounts in App.jsx, under the
+//                                     same exception as the six paywall hosts
+//   MomentOfWinModal                → stays in this feature, unexported: it
+//                                     has no mount yet (Part 9, the last step
+//                                     of the rollout) and an export with no
+//                                     consumer is a door to nowhere.

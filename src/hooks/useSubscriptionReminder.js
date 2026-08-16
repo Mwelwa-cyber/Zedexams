@@ -26,6 +26,19 @@ function toDate(value) {
  * subscription status for the right audience and exposes the once-a-day
  * dismissal state backed by the user's Firestore profile.
  *
+ * ── The popup this cadence was built for is gone ────────────────────────
+ *
+ * `popupEligible`, `snoozeReminders` and `recordReminderShown` existed for the
+ * mount-time "Welcome Back / Your Premium has ended" interstitial, which was
+ * deleted outright. The three live consumers left — SubscriptionStatusBanner,
+ * SubscriptionReminderCard and the teacher SubscriptionPanel — read only the
+ * resolved status. The snooze primitives are kept because the cadence they
+ * encode (a nudge every ~2.5 days, never in the first 24 hours) is the same
+ * cadence the notification centre needs for renewal messages, and re-deriving
+ * it from scratch later is how two different answers to "how often" appear.
+ * Nothing may reintroduce a mount-time modal on top of them; the interruption
+ * budget in src/services/entitlements is where that decision now lives.
+ *
  * @param {object} [opts]
  * @param {'learner'|'teacher'} [opts.audience] force an audience (defaults to role)
  */

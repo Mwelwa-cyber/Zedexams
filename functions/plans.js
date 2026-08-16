@@ -14,8 +14,22 @@
  */
 
 const PLANS = {
+  // ── The learner unlock ladder (src/config/plans.js) ────────────────────
+  // Four rungs from airtime-sized to term-sized, plus a seasonal exam rung.
+  // `weekly` and `monthly` predate the ladder and are its middle two rungs;
+  // the other three were added with it. Every rung's `checkoutPlanId` must
+  // resolve here — test:plans-ladder fails the build otherwise, because a
+  // rung that cannot be paid for is a button that takes money nowhere.
+  day_pass: {id: "day_pass", name: "Day pass", priceZMW: 5, durationDays: 1},
   weekly: {id: "weekly", name: "Weekly", priceZMW: 15, durationDays: 7},
   monthly: {id: "monthly", name: "Monthly", priceZMW: 50, durationDays: 30},
+  // "4 months" as sold; 120 days as charged. School fees are budgeted per
+  // term, which is why this is the highlighted rung rather than monthly.
+  term_pass: {id: "term_pass", name: "Term Pass", priceZMW: 120, durationDays: 120},
+  // Sold only between 1 September and 30 November (the ladder enforces the
+  // window client-side). 90 days from purchase carries a 1 September buyer
+  // past the October ECZ papers, which is what "until the exam" promises.
+  exam_pass: {id: "exam_pass", name: "Exam Pass", priceZMW: 99, durationDays: 90},
 
   grade7_monthly: {id: "grade7_monthly", name: "Grade 7 ECZ Pack · Monthly", priceZMW: 75, durationDays: 30},
   grade7_termly: {id: "grade7_termly", name: "Grade 7 ECZ Pack · Termly", priceZMW: 200, durationDays: 90},

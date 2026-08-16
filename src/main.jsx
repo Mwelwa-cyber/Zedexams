@@ -13,6 +13,10 @@ import { bootstrapCurriculumCatalogue } from './config/curriculumCatalogBootstra
 // import; the singleton is consumed via useTranslation() in components.
 import './i18n'
 import './index.css'
+// The loading system (tokens + top line + skeletons + button states). Global
+// because its `:root` tempo/easing tokens are read from several stylesheets,
+// and because a route fallback must not wait on a feature chunk to be styled.
+import './shared/styles/zxLoading.css'
 
 initNativeShell()
 // Sentry is a support-triage error sink, not part of first paint, so its

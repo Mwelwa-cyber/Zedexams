@@ -566,6 +566,14 @@ service cloud.firestore {
           // screen's one forbidden outcome. The Resend control does not touch
           // these — it calls sendGuardianConsent, which writes server-side.
           'guardian', 'dob', 'isMinor',
+          // The guardian-unlock rate limit. `guardianUnlock.lastRequestAt` is
+          // stamped by the requestGuardianUnlock callable and is the SERVER's
+          // copy of the one-request-per-72-hours rule — the client's copy in
+          // interruptionBudget runs on the learner's device and is a courtesy
+          // to the button. A learner who could clear this field could put four
+          // messages in their parent's inbox in an evening, which is how an
+          // app's messages become the thing a parent blocks.
+          'guardianUnlock',
           'role', 'plan', 'premium', 'isPremium', 'paymentStatus', 'subscriptionStatus',
           'premiumActivatedAt', 'subscriptionPlan', 'subscriptionExpiry', 'subscriptionActivatedBy',
           'subscriptionActivatedAt', 'subscriptionProvider', 'subscriptionPaymentId',
@@ -3283,6 +3291,27 @@ service cloud.firestore {
     match /approvedSyllabi/{syllabusId} {
       allow read: if isVerified();
       allow write: if isAdmin();
+    }
+
+    // ── guardianRequests (ask-your-guardian-to-unlock) ────────────────
+    //
+    // One doc per request a learner sent their guardian. The doc id IS the
+    // sha256 of the pay-link token, and the raw token exists only in the
+    // guardian's message and their URL bar — so a leak of this collection
+    // hands over no ability to pay on, or read about, anybody's child.
+    //
+    // SERVER-ONLY in both directions, which is stronger than it looks:
+    //   • create/update — a client that could write here could mark its own
+    //     request `paid` and, through the settle path, unlock itself.
+    //   • READ — the doc carries the guardian's contact details and the
+    //     learner's evidence. The learner does not need to read it (their bell
+    //     notification is the receipt) and the guardian has the message.
+    //
+    // Every mutation goes through requestGuardianUnlock / settleGuardianRequest
+    // with the admin SDK. Pinned by test:rules-text.
+    match /guardianRequests/{requestId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     // ── notifications (Smart Notification System) ─────────────────────

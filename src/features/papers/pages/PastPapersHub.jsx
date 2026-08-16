@@ -39,6 +39,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
+import useExamTimetables from '../../../hooks/useExamTimetables'
+import { getNextPaperSession } from '../../../utils/examTimetableLogic'
 import {
   PAPER_GRADES,
   getCachedPublishedPapers,
@@ -56,12 +58,14 @@ import { isOfficialSource, paperSourceLabel } from '../../../config/paperSources
 import { fullPaperTitle } from '../../../utils/paperTitleCore'
 import PaperTitle, { PaperSourceBadge } from '../components/PaperTitle'
 import { subjectMeta } from '../lib/paperVisuals'
+import '../papersTheme.css'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 import Logo from '../../../shared/components/Logo'
 import Skeleton from '../../../shared/components/Skeleton'
 import {
   ArrowRight,
   BookmarkSquareIcon,
+  BookOpen,
   CalendarDays,
   Check,
   ChevronLeft,
@@ -150,7 +154,7 @@ function writeStored(key, value) {
 function QuizBadge({ available, compact = false }) {
   if (available) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide">
+      <span className="inline-flex items-center gap-1 rounded-full bg-[var(--success-bg)] text-[var(--success-fg)] px-2 py-0.5 text-[10px] font-black uppercase tracking-wide">
         <Check size={11} strokeWidth={3} />
         Quiz
       </span>
@@ -168,7 +172,7 @@ function QuizBadge({ available, compact = false }) {
 // "Paper Available" badge for the subject cards (Screen 2).
 function AvailableBadge() {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2.5 py-1 text-[11px] font-black">
+    <span className="inline-flex items-center gap-1 rounded-full bg-[var(--success-bg)] text-[var(--success-fg)] px-2.5 py-1 text-[11px] font-black">
       <Check size={12} strokeWidth={3} />
       Paper Available
     </span>
@@ -236,7 +240,7 @@ function YearCard({ year, count, onSelect }) {
       onClick={() => onSelect(year)}
       className="group text-left theme-card rounded-radius-lg shadow-elev-md ring-1 ring-black/5 p-4 flex items-center gap-4 transition-all hover:-translate-y-0.5 hover:shadow-elev-lg active:scale-[0.98] animate-press"
     >
-      <div className="flex-shrink-0 w-14 h-14 rounded-2xl grid place-items-center bg-orange-100 text-orange-700 group-hover:bg-orange-200 transition-colors">
+      <div className="flex-shrink-0 w-14 h-14 rounded-2xl grid place-items-center bg-[var(--accent-bg)] text-[var(--accent-fg)] group-hover:brightness-95 transition">
         <CalendarDays size={26} strokeWidth={2.2} />
       </div>
       <div className="flex-1 min-w-0">
@@ -446,15 +450,65 @@ function GradeToggle({ grade, onChange }) {
   )
 }
 
+/**
+ * The exam-timetable strip above the paper list (learner redesign):
+ * "2026 Exam Timetable · ECZ · 26–30 October · N days to go" on the
+ * prototype's indigo gradient, tapping through to /timetable. Data is
+ * the same examTimetables source /timetable renders (public read,
+ * bundled fallback); the row hides for grades with no published
+ * timetable and once the last paper has been sat. Ticks once a minute —
+ * only the day count shows here.
+ */
+function TimetableRow({ grade }) {
+  const { active } = useExamTimetables(grade)
+  const [nowMs, setNowMs] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 60000)
+    return () => clearInterval(id)
+  }, [])
+  const next = active ? getNextPaperSession(active, nowMs) : null
+  if (!active || !next) return null
+
+  const days = Math.floor(Math.max(0, Date.parse(next.start) - nowMs) / 86400000)
+  const when = days > 0 ? `${days} ${days === 1 ? 'day' : 'days'} to go` : 'Exams this week'
+  // "26–30 October" from the ISO span (sliced — the strings carry the
+  // Lusaka offset already).
+  const sd = parseInt((active.startsAt || '').slice(8, 10), 10)
+  const ed = parseInt((active.endsAt || '').slice(8, 10), 10)
+  const month = Number.isFinite(ed)
+    ? new Date(2000, parseInt(active.endsAt.slice(5, 7), 10) - 1, 1).toLocaleDateString('en-GB', { month: 'long' })
+    : ''
+  const span = Number.isFinite(sd) && Number.isFinite(ed) ? `${sd}–${ed} ${month}` : String(active.year)
+
+  return (
+    <Link
+      to="/timetable"
+      className="mt-4 flex items-center gap-3 rounded-2xl p-3.5 text-white shadow-elev-md transition active:scale-[0.99]"
+      style={{ background: 'linear-gradient(135deg, #7180f2, #5158d0)' }}
+    >
+      <span className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl bg-white/20 text-lg" aria-hidden="true">
+        📅
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-black leading-tight">{active.year} Exam Timetable</span>
+        <span className="block truncate text-xs font-bold text-white/90">
+          {active.board} · {span} · {when}
+        </span>
+      </span>
+      <ChevronRight size={18} strokeWidth={2.6} className="flex-shrink-0 text-white/90" aria-hidden="true" />
+    </Link>
+  )
+}
+
 // ── Floating glassmorphism bottom navigation ────────────────────────
 function BottomNav() {
-  // Matches the learner-home bottom-nav IA (Home · Learn · Papers ·
-  // Practice · Games). Profile moved to the header avatar (2026-07).
+  // Matches the learner-shell bottom-nav IA (Home · Papers · Notes ·
+  // Games — the 2026-08 redesign). Profile lives behind the header
+  // avatar on the learner shell.
   const items = [
     { to: '/dashboard', label: 'Home', Icon: Home },
-    { to: '/learn', label: 'Learn', Icon: GraduationCap },
     { to: '/papers', label: 'Papers', Icon: FileText, active: true },
-    { to: '/practice', label: 'Practice', Icon: PencilLine },
+    { to: '/notes', label: 'Notes', Icon: BookOpen },
     { to: '/games', label: 'Games', Icon: Gamepad2 },
   ]
   return (
@@ -472,7 +526,7 @@ function BottomNav() {
               active ? 'theme-accent-text' : 'theme-text-muted hover:theme-text'
             }`}
           >
-            <span className={`grid place-items-center h-7 w-9 rounded-full transition ${active ? 'bg-orange-100' : ''}`}>
+            <span className={`grid place-items-center h-7 w-9 rounded-full transition ${active ? 'bg-[var(--accent-bg)]' : ''}`}>
               <Icon size={20} strokeWidth={active ? 2.6 : 2} />
             </span>
             <span className={`text-[10px] ${active ? 'font-black' : 'font-bold'}`}>{label}</span>
@@ -645,7 +699,7 @@ export default function PastPapersHub() {
   }
 
   return (
-    <div className="admin-game-theme min-h-screen theme-bg theme-text pb-28">
+    <div className="papers-proto min-h-screen theme-bg theme-text pb-28">
       <SeoHelmet
         title="ECZ Past Papers — Grade 7 & Grade 12 archive"
         description="Browse the official ECZ past-paper archive — Grade 7 and Grade 12 papers across every CBC subject. Choose a year, pick a subject, read the paper and take the linked quiz."
@@ -657,7 +711,7 @@ export default function PastPapersHub() {
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
           <Link to="/" className="flex items-center gap-2 min-w-0">
             <Logo variant="icon" size="sm" className="!h-8 !w-8" />
-            <span className="rounded-full bg-orange-100 theme-accent-text text-[10px] font-black px-2 py-0.5 uppercase tracking-wide whitespace-nowrap">
+            <span className="rounded-full bg-[var(--accent-bg)] theme-accent-text text-[10px] font-black px-2 py-0.5 uppercase tracking-wide whitespace-nowrap">
               ECZ Archive
             </span>
           </Link>
@@ -697,6 +751,13 @@ export default function PastPapersHub() {
         {/* Grade toggle */}
         <GradeToggle grade={grade} onChange={chooseGrade} />
 
+        {/* Exam-timetable row (learner redesign): the indigo strip above
+            the paper list that taps through to /timetable. Renders only
+            while a published timetable for this grade still has papers
+            ahead — grades without one (or once the season ends) see
+            nothing. */}
+        <TimetableRow grade={grade} />
+
         {/* Search first, with a Filters button inside on the right */}
         <div className="relative mt-4">
           <Search
@@ -710,7 +771,7 @@ export default function PastPapersHub() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search years, subjects, or papers"
-            className="w-full rounded-full theme-card pl-12 pr-14 py-3.5 text-sm font-medium theme-text placeholder:theme-text-muted shadow-elev-sm ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-orange-300 transition"
+            className="w-full rounded-full theme-card pl-12 pr-14 py-3.5 text-sm font-medium theme-text placeholder:theme-text-muted shadow-elev-sm ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition"
             aria-label="Search years, subjects, or papers"
           />
           <button
@@ -746,7 +807,7 @@ export default function PastPapersHub() {
         </div>
 
         {usingSample && !loading && (
-          <div className="mt-3 flex items-start gap-2 rounded-radius-md bg-orange-50 px-3 py-2.5 text-xs theme-text">
+          <div className="mt-3 flex items-start gap-2 rounded-radius-md bg-[var(--accent-bg)] px-3 py-2.5 text-xs theme-text">
             <Sparkles size={16} strokeWidth={2.2} className="theme-accent-text flex-shrink-0 mt-0.5" />
             <span>
               Showing sample papers while we upload the official ECZ archive.{' '}

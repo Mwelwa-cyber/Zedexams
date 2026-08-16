@@ -1,18 +1,18 @@
+import TopLine from './TopLine'
+
+/**
+ * PageLoader — the Suspense fallback for lazily-loaded routes.
+ *
+ * It draws the shared 2px accent line and nothing else. Two things changed
+ * when the loading system landed:
+ *
+ *   • It was a green (#10B981) gradient on its own 1.4s loop. Green is the
+ *     success colour everywhere else in the product, so using it for
+ *     in-progress was a false signal — and being hard-coded it ignored the
+ *     reader's theme entirely.
+ *   • It now runs through TopLine's delay gate, so a chunk that resolves
+ *     inside ~200ms (most of them) paints no loader at all instead of a flash.
+ */
 export default function PageLoader() {
-  return (
-    <div
-      aria-hidden="true"
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        height: 3,
-        zIndex: 10000,
-        background: 'linear-gradient(90deg, #10B981 0%, #34D399 40%, #6EE7B7 60%, #10B981 100%)',
-        backgroundSize: '200% 100%',
-        animation: 'zed-page-load 1.4s ease-in-out infinite',
-      }}
-    />
-  )
+  return <TopLine fixed label="Loading page" />
 }

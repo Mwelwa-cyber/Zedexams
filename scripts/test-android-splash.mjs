@@ -66,7 +66,13 @@ check(
 const splashZ = Number((splashStyleZ().match(/z-index:\s*(\d+)/) || [])[1])
 check('splash sits at max z-index (2147483647)', splashZ === 2147483647, `found ${splashZ}`)
 const loaderZ = Number((read('src/shared/components/FullScreenLoader.jsx').match(/zIndex:\s*(\d+)/) || [])[1])
-const pageLoaderZ = Number((read('src/shared/components/PageLoader.jsx').match(/zIndex:\s*(\d+)/) || [])[1])
+// PageLoader is the shared top line; its stacking lives in the loading system's
+// `.zx-topline--fixed` rule, not in an inline style on the component.
+const pageLoaderZ = Number(
+  (read('src/shared/styles/zxLoading.css').match(
+    /\.zx-topline--fixed\s*\{[^}]*?z-index:\s*(\d+)/
+  ) || [])[1]
+)
 check(
   'splash z-index beats FullScreenLoader and PageLoader',
   Number.isFinite(loaderZ) && Number.isFinite(pageLoaderZ) && splashZ > loaderZ && splashZ > pageLoaderZ,
