@@ -35,6 +35,7 @@
 
 import admin from "firebase-admin";
 import process from "node:process";
+import {paperStoragePaths} from "./lib/paperStoragePaths.mjs";
 
 const argv = process.argv.slice(2);
 function flag(name) {
@@ -195,15 +196,31 @@ function parsePathFromUrl(url) {
   return null;
 }
 
+/** Paper docs holding an asset entry with no readable path — see below. */
+const UNREADABLE_PAPER_ASSETS = [];
+
+/**
+ * Every Storage path a live pastPapers doc still points at.
+ *
+ * The per-document logic lives in scripts/lib/paperStoragePaths.mjs so it is
+ * unit-testable — this file initialises the Admin SDK and runs main() on load,
+ * so nothing in it could be reached from a test, and that is how `assets[]`
+ * went unread long enough to make every scanned page in the archive look like
+ * an orphan. See that module for the full account.
+ *
+ * `.select()` is deliberately NOT used. A projection is what made the omission
+ * invisible in the first place — the code silently sees nothing for fields it
+ * forgot to name — and `assets[]` is a heavy array whose element shape has
+ * changed before. Reading whole documents costs the same number of document
+ * reads; only bytes differ, on a collection sized in the hundreds.
+ */
 async function livePaperPaths() {
   const paths = new Set();
-  const snap = await db.collection("pastPapers")
-    .select("pdfPath", "markSchemePath").get();
+  const snap = await db.collection("pastPapers").get();
   for (const d of snap.docs) {
-    const pdf = d.get("pdfPath");
-    const ms = d.get("markSchemePath");
-    if (pdf) paths.add(String(pdf));
-    if (ms) paths.add(String(ms));
+    const {paths: docPaths, unreadable} = paperStoragePaths(d.data());
+    for (const p of docPaths) paths.add(p);
+    for (let i = 0; i < unreadable; i += 1) UNREADABLE_PAPER_ASSETS.push(d.id);
   }
   return paths;
 }
@@ -375,6 +392,21 @@ async function main() {
 
   console.log("## Orphan scan\n");
   const orphans = await findOrphans(summaries);
+  if (UNREADABLE_PAPER_ASSETS.length) {
+    // A paper asset entry whose path we could not read means its blob is not
+    // in the live set, so it is about to be called an orphan. Say so loudly
+    // BEFORE the list: this is the one class of "orphan" here that may be a
+    // parsing failure on our side rather than a genuinely unreferenced file,
+    // and --delete does not distinguish them.
+    const ids = [...new Set(UNREADABLE_PAPER_ASSETS)];
+    console.log(
+      `> WARNING: ${UNREADABLE_PAPER_ASSETS.length} asset entr(ies) across ` +
+      `${ids.length} pastPapers doc(s) have no readable \`path\`. Their blobs ` +
+      `cannot be matched and may appear below as orphans. Inspect before ` +
+      `deleting: ${ids.slice(0, 10).join(", ")}` +
+      `${ids.length > 10 ? ` … +${ids.length - 10} more` : ""}\n`,
+    );
+  }
   if (orphans.length === 0) {
     console.log("No orphans found above the age cutoff. Nothing to do.");
     return;

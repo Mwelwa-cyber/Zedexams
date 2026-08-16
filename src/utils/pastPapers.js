@@ -30,6 +30,7 @@ import { getDownloadURL, ref as storageRef } from 'firebase/storage'
 import { deleteObject, uploadBytes } from '../firebase/attestedStorage'
 import { db, storage } from '../firebase/config'
 import { capture } from './analytics'
+import { compressImage } from './imageCompression'
 import { isOfficialSource } from '../config/paperSources.js'
 import { derivedPaperTitle, normalizePaperFields } from './pastPaperNormalize.js'
 import {
@@ -430,6 +431,66 @@ export async function uploadPaperPdf({ uid, paperId, kind, file }) {
  * mobile). Returns null on any failure — dimensions are nice-to-have,
  * never block the upload.
  */
+/**
+ * Downscale ceiling for a scanned page, in pixels of width.
+ *
+ * NOT the 1200 that quiz images and logos use. Those are illustrations, judged
+ * by whether they look right; a paper asset is a DOCUMENT, judged by whether a
+ * learner can read the smallest printed digit on it. A4 at 1200px wide is
+ * ~150 DPI once the margins are counted, which is where subscripts and
+ * fraction bars start to mush. 1800px is ~200 DPI across an A4 width — still a
+ * large reduction from a phone camera's 3000-4000px, and legible.
+ *
+ * Quality 0.82 rather than 0.85 for the same reason in reverse: text is where
+ * JPEG ringing is most visible, so the saving is taken in resolution (which
+ * degrades gracefully) rather than in quantisation (which does not).
+ */
+export const PAPER_IMAGE_MAX_WIDTH = 1800
+export const PAPER_IMAGE_QUALITY = 0.82
+
+/**
+ * Shrink a scanned paper page before it is uploaded.
+ *
+ * WHY: uploadPaperAsset sent the raw file. A scanned ECZ page off a phone is
+ * routinely 4-8 MB and the cap allowed 50 MB, so the archive stored originals
+ * at whatever size the scanner produced — and every learner who opens that
+ * paper downloads those bytes again. Stored size and egress both follow this
+ * one call.
+ *
+ * Four things it refuses to do, each of which would be a worse bug than the
+ * bytes it saves:
+ *
+ *   • Touch a PDF. Canvas cannot re-encode one, and a paper's PDF is usually
+ *     already the compact form.
+ *   • Return something BIGGER. An already-optimised JPEG, or a small flat PNG,
+ *     can grow when re-encoded. The original wins on a tie or a loss.
+ *   • Composite transparency onto black — hence the explicit white background.
+ *   • Fail the upload. Canvas can throw on a very large image (memory) or a
+ *     format the browser will not decode; every failure path falls back to the
+ *     original file, because a slightly larger paper is fine and a paper the
+ *     admin cannot upload is not.
+ *
+ * @returns {Promise<{blob: Blob, contentType: string, filename: string}|null>}
+ *   null when the file should be uploaded exactly as-is.
+ */
+async function compressPaperImage(file) {
+  if (typeof window === 'undefined') return null
+  if (!file?.type?.startsWith('image/')) return null
+  try {
+    const blob = await compressImage(
+      file, PAPER_IMAGE_MAX_WIDTH, PAPER_IMAGE_QUALITY, '#ffffff',
+    )
+    if (!blob || blob.size >= file.size) return null
+    // The stored bytes are JPEG whatever went in, so the name has to say so —
+    // a .png that is actually a JPEG confuses every downstream consumer that
+    // trusts the extension, including the exporters.
+    const filename = (file.name || 'asset').replace(/\.[^.]+$/, '') + '.jpg'
+    return { blob, contentType: 'image/jpeg', filename }
+  } catch {
+    return null
+  }
+}
+
 async function readImageDimensions(file) {
   if (typeof window === 'undefined') return null
   if (!file?.type?.startsWith('image/')) return null
@@ -465,15 +526,28 @@ export async function uploadPaperAsset({ uid, paperId, file, index = 0 }) {
   if (file.size > MAX_PAPER_FILE_BYTES) {
     throw new Error(`File "${file.name}" is larger than 50MB.`)
   }
-  const safeName = (file.name || 'asset').replace(/[^a-z0-9._-]+/gi, '_')
+  // Compress AFTER the 50 MB gate, not before. Compressing first would let a
+  // file the Studio currently rejects slip through at a smaller size — a
+  // defensible change, but a change to what the product accepts, and it would
+  // mean decoding an arbitrarily large image on the client just to find out.
+  // The gate stays exactly where it was; this only shrinks what we send.
+  const compressed = await compressPaperImage(file)
+  const body = compressed ? compressed.blob : file
+  const contentType = compressed ? compressed.contentType : file.type
+  const displayName = compressed ? compressed.filename : file.name
+
+  const safeName = (displayName || 'asset').replace(/[^a-z0-9._-]+/gi, '_')
   const path = `papers/${uid}/${paperId}/assets/${index}-${safeName}`
-  const dims = await readImageDimensions(file)
-  await uploadBytes(storageRef(storage, path), file, { contentType: file.type })
+  // Dimensions must describe the bytes actually STORED. Reading them from the
+  // original would make the viewer reserve a layout slot for an image that no
+  // longer exists at that size — the jank this field was added to prevent.
+  const dims = await readImageDimensions(body)
+  await uploadBytes(storageRef(storage, path), body, { contentType })
   return {
     path,
-    filename: file.name,
-    size: file.size,
-    contentType: file.type,
+    filename: displayName,
+    size: body.size,
+    contentType,
     ...(dims ? { width: dims.width, height: dims.height } : {}),
   }
 }
