@@ -282,6 +282,31 @@
 }
 .lhx-wb-del:active { transform: scale(0.96); }
 
+/* ── Meaning Match: tap-pair board ─────────────────────────────── */
+
+.lhx-mm-board { display: flex; gap: 10px; padding-top: 18px; }
+.lhx-mm-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.lhx-mm-chip {
+  border: 2px solid var(--lhx-line); border-bottom-width: 4px;
+  background: var(--lhx-card); color: var(--lhx-ink);
+  border-radius: 14px; padding: 13px 10px;
+  font-weight: 800; font-size: 13px; line-height: 1.25;
+  min-height: 58px;
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  transition: transform 0.08s;
+}
+.lhx-mm-chip:active { transform: scale(0.97); }
+.lhx-mm-word { font-weight: 900; font-size: 15.5px; text-transform: capitalize; }
+.lhx-mm-chip.is-sel { border-color: var(--lhx-indigo2); background: var(--lhx-indigo-soft); color: var(--lhx-indigo-text); }
+.lhx-mm-chip.is-matched {
+  background: var(--lhx-green-soft); border-color: #7bd9a3; color: var(--lhx-green-dark);
+  pointer-events: none; opacity: 0.85;
+}
+.lhx-mm-chip.is-wrong {
+  border-color: #ef6a6f; background: #fdeaea; color: var(--lhx-red);
+  animation: lhx-wb-shake 0.3s;
+}
+
 /* ── Win screen ────────────────────────────────────────────────── */
 
 .lhx-win {
@@ -346,6 +371,7 @@
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-gc-bar { background: #2a2d4a; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-nt-tile { box-shadow: 0 5px 0 #171929; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-wb-tile { box-shadow: 0 5px 0 #171929; }
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-mm-chip.is-wrong { background: #3a2024; border-color: #8a4046; color: #f4a5a8; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-node.is-locked { background: #2a2d4a; box-shadow: 0 5px 0 #1d1f36; color: #565b85; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-start-bubble { background: #232640; color: #ff8a5c; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-start-bubble::after { background: #232640; }
