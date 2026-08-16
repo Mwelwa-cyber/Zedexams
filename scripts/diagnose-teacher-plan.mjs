@@ -3,7 +3,7 @@
  * (free caps, locked tools, "Free" chip) on the teacher dashboard.
  *
  * The dashboard now resolves the plan from users/{uid}.teacherPlan (see
- * src/utils/teacherPlans.js + functions/teacherTools/usageMeter.js). If that
+ * src/engines/payment-engine/teacherPlans.js + functions/teacherTools/usageMeter.js). If that
  * field is missing/expired the teacher correctly reads as Free — so this
  * script prints the field, the resolved plan, and the payment history that
  * SHOULD have set it, to pinpoint where provisioning went wrong.

@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
-import { paywall } from '../../../utils/paywall'
+import { paywall } from '../../../engines/payment-engine/paywall'
 import { topup } from '../../../utils/topup'
 import { capture } from '../../../utils/analytics'
 import { isNativePlatform } from '../../../utils/runtime'

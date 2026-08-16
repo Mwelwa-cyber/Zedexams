@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import StudioGate, { freeAllowanceFor } from './StudioGate'
 import { useAuth } from '../../contexts/AuthContext'
-import { resolveTeacherPlan } from '../../utils/teacherPlans'
+import { resolveTeacherPlan } from '../../engines/payment-engine/teacherPlans'
 
 // StudioGate is the route-level gate for the teacher generator studios.
 // Capability-based since the free-preview phase: a Free teacher opens any
@@ -14,7 +14,7 @@ import { resolveTeacherPlan } from '../../utils/teacherPlans'
 // a fixture so the spec pins gate BEHAVIOUR, not the live catalogue numbers.
 
 vi.mock('../../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
-vi.mock('../../utils/teacherPlans', () => ({
+vi.mock('../../engines/payment-engine/teacherPlans', () => ({
   resolveTeacherPlan: vi.fn(),
   PLAN_LIMITS: {
     free: { lesson_plan: 8, worksheet: 4, homework: 4, assessment: 2, scheme_of_work: 2, exam_paper: 0, rubric: 0 },

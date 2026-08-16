@@ -1,7 +1,7 @@
 /**
  * unlockSheet — the bus the contextual sheet listens on.
  *
- * Same shape as the existing `utils/paywall` bus, deliberately: a singleton a
+ * Same shape as the existing `engines/payment-engine/paywall` bus, deliberately: a singleton a
  * lock badge anywhere in the tree can call without prop-drilling, with one
  * host mounted at the root. It carries the ROUTE decision (guardian vs
  * checkout) alongside the gate, so the host never re-derives it — the decision

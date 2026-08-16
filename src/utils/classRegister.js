@@ -8,7 +8,7 @@
  * account is involved, and none can be linked to one. All writes are direct
  * and gated by Firestore rules on teacherUid == request.auth.uid.
  *
- * Validation goes through src/schemas/classRegister.js so a bad payload is
+ * Validation goes through src/shared/schemas/classRegister.js so a bad payload is
  * caught client-side with a named error rather than an opaque rule rejection.
  */
 
@@ -32,7 +32,7 @@ import {
   classRegisterWriteSchema,
   classRegisterUpdateSchema,
   coerceClassRegister,
-} from '../schemas/classRegister'
+} from '../shared/schemas/classRegister'
 
 const COLLECTION = 'classRegisters'
 

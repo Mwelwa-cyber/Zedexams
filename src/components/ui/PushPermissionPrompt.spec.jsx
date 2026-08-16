@@ -17,7 +17,7 @@ const h = vi.hoisted(() => ({
 
 vi.mock('../../contexts/AuthContext', () => ({ useAuth: () => ({ currentUser: h.currentUser }) }))
 vi.mock('../../shared/components/Toast', () => ({ useToast: () => h.toast }))
-vi.mock('../../utils/fcm', () => ({
+vi.mock('../../services/notifications/fcm', () => ({
   isPushSupported: () => h.isPushSupported(),
   pushPermission: () => h.pushPermission(),
   requestPushPermission: (...args) => h.requestPushPermission(...args),

@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { resolveSubscriptionStatus } from '../utils/subscriptionStatus'
+import { resolveSubscriptionStatus } from '../engines/payment-engine/subscriptionStatus'
 
 // How long the Welcome-Back popup stays snoozed after a dismissal. ~60h (2.5
 // days) so a Free user is nudged every few days rather than every login —

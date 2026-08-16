@@ -16,7 +16,7 @@ vi.mock('../../features/flashcards', () => ({ FlashcardsView: () => null }))
 // honest than a per-file mock: the component imports a front door, so the
 // spec mocks a front door.
 vi.mock('../../features/marketing', () => ({ TestPaperOfficial: () => null }))
-import { paywall } from '../../utils/paywall.js'
+import { paywall } from '../../engines/payment-engine/paywall.js'
 import { SAMPLE_TOOL_KEYS, STUDIO_SAMPLES } from '../../data/studioSamples.js'
 
 // Render LockedStudio for every gated tool and assert the sample mounts without

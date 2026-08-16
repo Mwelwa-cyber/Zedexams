@@ -7,7 +7,7 @@
  * test it without installing functions/ deps — same pattern as
  * functions/cors.js and functions/aiPromptPolicy.js.
  *
- * Plan ids match the marketing tiers (src/utils/subscriptionConfig.js,
+ * Plan ids match the marketing tiers (src/engines/payment-engine/subscriptionConfig.js,
  * src/components/marketing/Plans.jsx):
  *   free → Free
  *   pro  → Pro  (K59/mo, "for the everyday teacher")    — stored as "individual" before 2026-06
@@ -151,7 +151,7 @@ function isDailyCountedTool(tool) {
 // (assessment) became an allowance-based entitlement (Free 2 previews /
 // Pro 3 complete papers / Max heavy) once Pro started getting full papers,
 // so it is deliberately NOT max-only. Keep this list in sync with the
-// client mirror in src/utils/teacherPlans.js.
+// client mirror in src/engines/payment-engine/teacherPlans.js.
 const MAX_ONLY_TOOLS = ["exam_paper"];
 
 function isMaxOnlyTool(tool) {
@@ -181,7 +181,7 @@ function normalizeTeacherPlan(raw) {
 // Free-preview shaping enforced inside the generators (not the meter): a
 // free short test is truncated to maxShortTestQuestions with its marks
 // budget clamped, and a free Scheme of Work covers only the first
-// schemePreviewWeeks weeks of the term. Mirrored in src/utils/teacherPlans.js
+// schemePreviewWeeks weeks of the term. Mirrored in src/engines/payment-engine/teacherPlans.js
 // (guarded by scripts/test-teacher-plan-resolution.mjs) so the studios can
 // explain the preview before the teacher generates.
 // Bumped whenever plan allowances change, so a rollout can be traced from

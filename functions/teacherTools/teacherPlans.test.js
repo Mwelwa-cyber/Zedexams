@@ -114,7 +114,7 @@ test("paid tiers never offer less than free", () => {
 });
 
 // ── marketing-copy contract (src/components/marketing/Plans.jsx,
-//    src/utils/subscriptionConfig.js pro_monthly features) ─────────────
+//    src/engines/payment-engine/subscriptionConfig.js pro_monthly features) ─────────────
 test("pro limits match the published marketing numbers", () => {
   assert.strictEqual(PLAN_LIMITS.pro.lesson_plan, 40); // "40 lesson plans / month"
   assert.strictEqual(PLAN_LIMITS.pro.worksheet, 25); // "25 worksheets & teacher notes"

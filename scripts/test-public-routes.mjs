@@ -42,7 +42,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = join(__dirname, '..')
 const read = (p) => readFileSync(join(root, p), 'utf8')
 
-const appJsx = read('src/App.jsx')
+const appJsx = read('src/app/App.jsx')
 const firebaseJson = JSON.parse(read('firebase.json'))
 const manifest = JSON.parse(read('public/manifest.webmanifest'))
 const indexHtml = read('index.html')

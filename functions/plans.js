@@ -3,7 +3,7 @@
  *
  * Server-authoritative subscription pricing for the payment pipeline.
  *
- * IMPORTANT: keep this in sync with src/utils/subscriptionConfig.js's
+ * IMPORTANT: keep this in sync with src/engines/payment-engine/subscriptionConfig.js's
  * PLANS (same ids, prices, durations). The client copy drives what the
  * learner *sees*; THIS copy is the source of truth for the amount we
  * actually charge through Lenco — the initiate callable resolves the

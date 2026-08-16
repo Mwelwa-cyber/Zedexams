@@ -35,7 +35,7 @@ import {
   classifyRecord, buildTopicSubjectIndex, buildSubjectPresence, resolveGradeCode,
   topicMatchKey, OUTCOMES,
 } from '../src/utils/subjectSplitClassifier.js'
-import { topicIdentity, topicScopeKey } from '../src/utils/curriculumTopicIdentity.js'
+import { topicIdentity, topicScopeKey } from '../src/curriculum/resolvers/curriculumTopicIdentity.js'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const require = createRequire(import.meta.url)

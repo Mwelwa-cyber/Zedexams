@@ -19,18 +19,18 @@ const h = vi.hoisted(() => ({
   state: { plugin: null },
 }))
 
-vi.mock('./runtime', () => ({
+vi.mock('../../utils/runtime', () => ({
   isNativePlatform: () => true,
   nativePlugin: (name) => (name === 'FirebaseMessaging' ? h.state.plugin : null),
 }))
-vi.mock('./analytics', () => ({ capture: (...args) => h.captureMock(...args) }))
+vi.mock('../../utils/analytics', () => ({ capture: (...args) => h.captureMock(...args) }))
 vi.mock('firebase/firestore', () => ({
   doc: (...args) => ({ __doc: args }),
   arrayUnion: (value) => ({ __arrayUnion: value }),
   serverTimestamp: () => ({ __ts: true }),
   updateDoc: (...args) => h.updateDocMock(...args),
 }))
-vi.mock('../firebase/config', () => ({ db: { __db: true } }))
+vi.mock('../../firebase/config', () => ({ db: { __db: true } }))
 
 function makePlugin({
   receiveOnRequest = 'granted',

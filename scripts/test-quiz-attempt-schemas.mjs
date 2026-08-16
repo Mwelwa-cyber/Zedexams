@@ -6,11 +6,11 @@
  * No DOM needed — both modules are pure data validators.
  */
 
-const { quizWriteSchema, quizUpdateSchema, coerceQuiz } = await import('../src/schemas/quiz.js')
-const { attemptStartSchema, attemptSubmitSchema, coerceAttempt } = await import('../src/schemas/attempt.js')
+const { quizWriteSchema, quizUpdateSchema, coerceQuiz } = await import('../src/shared/schemas/quiz.js')
+const { attemptStartSchema, attemptSubmitSchema, coerceAttempt } = await import('../src/shared/schemas/attempt.js')
 const { numericMatches } = await import('../src/utils/numericGrading.js')
 const { hotspotMatches } = await import('../src/utils/hotspotGrading.js')
-const { coerceResult } = await import('../src/schemas/result.js')
+const { coerceResult } = await import('../src/shared/schemas/result.js')
 
 let pass = 0
 let fail = 0

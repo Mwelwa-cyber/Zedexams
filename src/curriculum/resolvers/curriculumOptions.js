@@ -20,7 +20,7 @@
  *     dropdown is never empty and a teacher is never fully blocked.
  */
 
-import { getSubjectsForGrade, TEACHER_SUBJECTS, ECE_SUBJECTS } from '../config/teacherTaxonomy.js'
+import { getSubjectsForGrade, TEACHER_SUBJECTS, ECE_SUBJECTS } from '../../config/teacherTaxonomy.js'
 
 // slug → human label, drawn from the canonical subject menus. Used only as a
 // last resort for a syllabus slug the grade-filtered taxonomy doesn't list

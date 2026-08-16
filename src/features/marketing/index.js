@@ -30,7 +30,7 @@
  * Marketing imports no quiz, past-paper, game or assessment module. Its one
  * consumer outside App.jsx that could have been frozen — `LockedStudio` — is
  * not: it imports ten already-migrated features through their front doors,
- * `utils/paywall` and `data/studioSamples`, and nothing on the freeze list.
+ * `engines/payment-engine/paywall` and `data/studioSamples`, and nothing on the freeze list.
  *
  * `Plans` and `GradePackLanding` DYNAMICALLY import `UpgradeModal`. That was a
  * reach into `components/subscription/` while this feature migrated first; it

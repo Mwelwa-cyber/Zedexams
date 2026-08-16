@@ -14,7 +14,7 @@
 import { buildSchedule } from '../../../shared/utils/markSchedule.js'
 import { computeRecordRows, maxTotalOf } from '../../../utils/classRecordMath.js'
 import { convertSbaMark } from '../../../config/sba.js'
-import { classGradeShortLabel, formatClassGrade } from '../../../schemas/classRegister.js'
+import { classGradeShortLabel, formatClassGrade } from '../../../shared/schemas/classRegister.js'
 
 function header(record, register) {
   return {

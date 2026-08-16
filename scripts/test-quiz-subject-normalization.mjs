@@ -13,7 +13,7 @@
  */
 import assert from 'node:assert/strict'
 import { normalizeSubject, SUBJECT_LABELS } from '../src/config/curriculum.js'
-import { quizWriteSchema, quizUpdateSchema } from '../src/schemas/quiz.js'
+import { quizWriteSchema, quizUpdateSchema } from '../src/shared/schemas/quiz.js'
 
 let passed = 0
 function check(name, fn) {
@@ -203,7 +203,7 @@ check('a null / garbage grade is rejected, never written to the rule', () => {
 })
 
 check('isSaveableGrade mirrors what the schema accepts', async () => {
-  const { isSaveableGrade } = await import('../src/schemas/quiz.js')
+  const { isSaveableGrade } = await import('../src/shared/schemas/quiz.js')
   assert.equal(isSaveableGrade('7'), true)
   assert.equal(isSaveableGrade(7), true)
   assert.equal(isSaveableGrade(''), false)

@@ -5,7 +5,7 @@ import assert from 'node:assert'
 import {
   visualAssetWriteSchema, coerceVisualAsset,
   VISUAL_STATUSES, VISUAL_VISIBILITIES,
-} from '../src/schemas/visualAsset.js'
+} from '../src/shared/schemas/visualAsset.js'
 
 // Minimal valid write applies sensible defaults.
 const ok = visualAssetWriteSchema.safeParse({

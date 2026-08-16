@@ -71,7 +71,7 @@ vi.mock('../utils/sentry', () => ({
   reportAuthInitFailure: h.reportAuthInitFailure,
 }))
 vi.mock('../utils/analytics', () => ({ capture: vi.fn(), identifyUser: vi.fn(), resetAnalytics: vi.fn() }))
-vi.mock('../utils/fcm', () => ({ refreshTokenIfGranted: () => Promise.resolve(), clearPushUser: () => {} }))
+vi.mock('../services/notifications/fcm', () => ({ refreshTokenIfGranted: () => Promise.resolve(), clearPushUser: () => {} }))
 vi.mock('../utils/referrals', () => ({
   mintAndPersistReferralCode: vi.fn(() => Promise.resolve(null)),
   readPendingReferral: () => null,
@@ -79,7 +79,7 @@ vi.mock('../utils/referrals', () => ({
 }))
 vi.mock('../hooks/useAuthRecovery', () => ({ useAuthRecovery: () => {} }))
 
-// NOTE: ../utils/subscriptionConfig and ../utils/permissions are deliberately
+// NOTE: ../engines/payment-engine/subscriptionConfig and ../utils/permissions are deliberately
 // NOT mocked — the real role-resolution logic is what we're testing.
 
 import { AuthProvider, useAuth } from './AuthContext'

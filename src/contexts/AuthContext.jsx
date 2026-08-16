@@ -17,14 +17,14 @@ import { doc, setDoc, getDoc, updateDoc, serverTimestamp, onSnapshot } from 'fir
 import app, { auth, db, googleProvider } from '../firebase/config'
 import { isNativePlatform } from '../utils/runtime'
 import { retryOnNetworkError } from '../utils/authRetry'
-import { ROLES, hasPremiumAccess, hasLearnerPortalAccess } from '../utils/subscriptionConfig'
+import { ROLES, hasPremiumAccess, hasLearnerPortalAccess } from '../engines/payment-engine/subscriptionConfig'
 import { isSuperAdmin as isSuperAdminRole, resolvePermissionFlags } from '../utils/permissions'
 import { setSentryUser, clearSentryUser, setAuthStateTag, reportAuthInitFailure } from '../utils/sentry'
 import { capture, identifyUser, resetAnalytics } from '../utils/analytics'
 import { requiresGuardianConsent } from '../utils/guardianConsent'
 // (The guardian consent request is sent from the sign-up flow's guardian
 // screen, which is the only place a guardian's address is collected.)
-import { refreshTokenIfGranted, clearPushUser } from '../utils/fcm'
+import { refreshTokenIfGranted, clearPushUser } from '../services/notifications/fcm'
 import { mintAndPersistReferralCode, readPendingReferral, clearPendingReferral } from '../utils/referrals'
 import { clearAllSearchCaches } from '../utils/cache/searchCache.js'
 import { isAccountDeletionInFlight, onAccountDeletionStart } from '../utils/accountDeletionState'
@@ -126,7 +126,7 @@ function defaultUserRecord({ displayName, email, role = ROLES.LEARNER, grade = n
     subscriptionActivatedBy: null,
     premiumActivatedAt: null,
     // Plain-language plan type surfaced by the subscription-reminder system
-    // (Free / Trial / Pro / Expired is derived in utils/subscriptionStatus.js;
+    // (Free / Trial / Pro / Expired is derived in engines/payment-engine/subscriptionStatus.js;
     // this stores the catalogue planType, 'free' on a fresh account).
     planType: 'free',
     // Reminder-system UX state. Both are self-writable (not on the Firestore

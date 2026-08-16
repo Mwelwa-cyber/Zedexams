@@ -9,7 +9,7 @@
  *
  * The studio-chrome pass promoted five components to `src/shared/components/`
  * and left six behind, each failing the shared test on its closure —
- * `utils/paywall`, `utils/lenco`, `utils/topup`, `utils/teacherPlans`, and
+ * `engines/payment-engine/paywall`, `utils/lenco`, `utils/topup`, `engines/payment-engine/teacherPlans`, and
  * `utils/analytics`' Firebase reach. That exclusion is not a loose end: those
  * six are one coherent surface, and the payment logic that disqualified them
  * from the bottom layer is exactly what makes them a feature.

@@ -19,7 +19,7 @@ import CharacterAvatar, {
 import SeoHelmet from '../../../shared/components/SeoHelmet';
 import LanguageToggle from '../../../shared/components/LanguageToggle';
 import { ParentShareManager } from '../../parentPortal';
-import { isPushSupported, pushPermission, requestPushPermission } from '../../../utils/fcm';
+import { isPushSupported, pushPermission, requestPushPermission } from '../../../services/notifications/fcm';
 import {
   loadAccessibilityPrefs,
   saveAccessibilityPrefs,
@@ -27,7 +27,7 @@ import {
 import {
   NOTIFICATION_CATEGORY_META,
   normalizeNotificationPrefs,
-} from '../../../utils/notificationPrefs';
+} from '../../../engines/notification-engine/notificationPrefs';
 
 /* ============================================================================
  * ZedExams — Settings module
@@ -729,7 +729,7 @@ function TabSidebar({ tabs, active, onChange, isMobile }) {
 const GRADE_NUMBERS = [4, 5, 6, 7];
 
 // Notification categories + normalizer are shared with the Teacher Settings
-// page — see src/utils/notificationPrefs.js (imported above).
+// page — see src/engines/notification-engine/notificationPrefs.js (imported above).
 
 const DEFAULT_LEARNER_LEARNING_PREFS = Object.freeze({
   soundEffects: true,

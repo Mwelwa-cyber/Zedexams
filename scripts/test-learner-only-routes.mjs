@@ -29,7 +29,7 @@ const declared = learnerOnlyRoutePaths()
 // pass vacuously. The router declares ~26 learner-only routes today.
 assert.ok(
   declared.length >= 20,
-  `Parsed only ${declared.length} <LearnerOnlyRoute> paths from src/App.jsx — parser drifted?`,
+  `Parsed only ${declared.length} <LearnerOnlyRoute> paths from src/app/App.jsx — parser drifted?`,
 )
 
 const declaredSegments = new Set(declared.map(firstSegment))

@@ -50,7 +50,7 @@ import { LIBRARY_TYPES } from '../../../config/library'
 import { generateDiagram } from '../../../utils/generateDiagram'
 import { buildLessonDiagramPrompt } from '../../../utils/lessonDiagramPrompt'
 import { useGenerationGate } from '../../../hooks/useGenerationGate'
-import { paywall } from '../../../utils/paywall'
+import { paywall } from '../../../engines/payment-engine/paywall'
 import { beginCriticalWork } from '../../../utils/criticalWork'
 import { useLessonMemory } from '../hooks/useLessonMemory'
 import {

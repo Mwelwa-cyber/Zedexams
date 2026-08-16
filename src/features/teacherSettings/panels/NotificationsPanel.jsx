@@ -3,8 +3,8 @@ import { useAuth } from '../../../contexts/AuthContext'
 import {
   NOTIFICATION_CATEGORY_META,
   normalizeNotificationPrefs,
-} from '../../../utils/notificationPrefs'
-import { isPushSupported, pushPermission, requestPushPermission } from '../../../utils/fcm'
+} from '../../../engines/notification-engine/notificationPrefs'
+import { isPushSupported, pushPermission, requestPushPermission } from '../../../services/notifications/fcm'
 import SettingsDetailShell from '../components/SettingsDetailShell'
 import ToggleRow from '../components/fields/ToggleRow'
 import { useSettingsSave } from '../lib/useSettingsSave'

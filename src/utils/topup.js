@@ -1,5 +1,5 @@
 // Singleton bus for the pay-per-generation top-up checkout, mirroring
-// utils/paywall.js. Any module can call `topup.show({ feature })` to open the
+// engines/payment-engine/paywall.js. Any module can call `topup.show({ feature })` to open the
 // K25 "one extra generation" modal; PaywallHost mounts the listener once and
 // renders <TopUpModal />. Kept separate from the paywall bus so the top-up can
 // be opened on its own (e.g. straight from the dashboard usage banner) without

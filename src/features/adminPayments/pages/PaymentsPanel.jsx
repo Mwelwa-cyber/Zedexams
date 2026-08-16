@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useFirestore } from '../../../hooks/useFirestore'
-import { PLANS, PAYMENT_DETAILS, hasPremiumAccess, daysUntilExpiry } from '../../../utils/subscriptionConfig'
+import { PLANS, PAYMENT_DETAILS, hasPremiumAccess, daysUntilExpiry } from '../../../engines/payment-engine/subscriptionConfig'
 import { resendInvoiceEmail } from '../../../utils/invoices'
 import { sendActivationConfirmation, sendExpiryReminders } from '../lib/whatsapp'
 import { adminSetUserRole } from '../../../utils/adminUsersService'

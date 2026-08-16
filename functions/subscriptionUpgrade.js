@@ -3,7 +3,7 @@
  *
  * Server-authoritative prorated tier-upgrade pricing (Pro → Max).
  *
- * Mirror of src/utils/subscriptionUpgrade.js — keep the maths identical. When
+ * Mirror of src/engines/payment-engine/subscriptionUpgrade.js — keep the maths identical. When
  * a teacher steps up from Pro to Max mid-subscription we charge ONLY the
  * difference in daily rate for the days they have left, and we DO NOT extend
  * their renewal date (same model as Claude). The client copy drives what the
@@ -48,7 +48,7 @@ function dailyRate(plan) {
 // of cadence (Pro Monthly → Max Yearly) keeps its own renewal date and adds no
 // days under the prorated model, which is incoherent for an annual plan — it
 // falls through to full-price checkout, which starts a fresh term. Keep this in
-// sync with src/utils/subscriptionUpgrade.js.
+// sync with src/engines/payment-engine/subscriptionUpgrade.js.
 function isUpgradePath(fromPlanId, toPlanId) {
   const from = getPlan(fromPlanId);
   const to = getPlan(toPlanId);

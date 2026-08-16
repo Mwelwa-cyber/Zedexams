@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
-import { daysUntilExpiry, PLANS } from '../../../utils/subscriptionConfig'
+import { daysUntilExpiry, PLANS } from '../../../engines/payment-engine/subscriptionConfig'
 import { isNativePlatform } from '../../../utils/runtime'
 import Button from '../../../shared/components/Button'
 

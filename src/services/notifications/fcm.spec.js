@@ -1,5 +1,5 @@
 /**
- * Regression tests for the WEB push path in src/utils/fcm.js.
+ * Regression tests for the WEB push path in src/services/notifications/fcm.js.
  *
  * The bug these lock down: when the VAPID key is missing (or a token otherwise
  * can't be minted), registerToken() silently returns null but the old
@@ -17,8 +17,8 @@ const h = vi.hoisted(() => ({
   captureMock: vi.fn(),
 }))
 
-vi.mock('./runtime', () => ({ isNativePlatform: () => false }))
-vi.mock('./analytics', () => ({ capture: (...args) => h.captureMock(...args) }))
+vi.mock('../../utils/runtime', () => ({ isNativePlatform: () => false }))
+vi.mock('../../utils/analytics', () => ({ capture: (...args) => h.captureMock(...args) }))
 vi.mock('./nativePush', () => ({
   isNativePushSupported: () => false,
   nativePushPermissionSync: () => 'unsupported',
@@ -26,7 +26,7 @@ vi.mock('./nativePush', () => ({
   refreshNativeTokenIfGranted: vi.fn(),
   clearNativePushUser: vi.fn(),
 }))
-vi.mock('../firebase/config', () => ({ db: { __db: true }, messaging: { __messaging: true } }))
+vi.mock('../../firebase/config', () => ({ db: { __db: true }, messaging: { __messaging: true } }))
 vi.mock('firebase/messaging', () => ({
   getToken: (...args) => h.getTokenMock(...args),
   onMessage: vi.fn(() => () => {}),

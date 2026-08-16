@@ -35,7 +35,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
-import { hasPremiumAccess } from '../../../utils/subscriptionConfig'
+import { hasPremiumAccess } from '../../../engines/payment-engine/subscriptionConfig'
 import { getPaperById } from '../../../utils/pastPaperLookup'
 import {
   LEARNER_QUIZ_PENDING_TEXT,

@@ -55,7 +55,7 @@ import {
   priceComesLast,
 } from '../functions/shared/guardian/guardianMessageCore.js'
 import { PLANS, availablePlans, cheapestPlan, planSaving, savingLabel } from '../src/config/plans.js'
-import { PLANS as CHECKOUT_PLANS } from '../src/utils/subscriptionConfig.js'
+import { PLANS as CHECKOUT_PLANS } from '../src/engines/payment-engine/subscriptionConfig.js'
 import { crossedWinBackThreshold, daysToExam, examCountdownLabel } from '../src/config/examDates.js'
 
 let failures = 0

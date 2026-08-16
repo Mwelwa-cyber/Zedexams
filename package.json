@@ -216,7 +216,7 @@
     "test:curriculum-2013": "node scripts/test-curriculum-2013-parser.mjs",
     "test:curriculum-2013-migration": "node scripts/test-migrate-2013-curriculum.mjs",
     "test:curriculum-selector": "node src/shared/utils/curriculumSelectorConstants.test.js",
-    "test:scheme-studio": "node src/shared/utils/schemeFormat.test.js && node src/features/schemeOfWork/lib/schemeTermPlan.test.js && node src/features/schemeOfWork/lib/schemeReadiness.test.js && node src/features/schemeOfWork/lib/schemeEditing.test.js && node src/utils/frameworkSubjectMatch.test.js && node src/utils/schemeEditHistory.test.js && node src/features/schemeOfWork/lib/schemeTermDivision.test.js",
+    "test:scheme-studio": "node src/shared/utils/schemeFormat.test.js && node src/features/schemeOfWork/lib/schemeTermPlan.test.js && node src/features/schemeOfWork/lib/schemeReadiness.test.js && node src/features/schemeOfWork/lib/schemeEditing.test.js && node src/curriculum/resolvers/frameworkSubjectMatch.test.js && node src/utils/schemeEditHistory.test.js && node src/features/schemeOfWork/lib/schemeTermDivision.test.js",
     "test:lesson-activities": "node functions/teacherTools/lessonActivitiesSchema.test.js",
     "test:zambian-facts": "node functions/teacherTools/zambianFacts.test.js",
     "test:fill-blanks": "node scripts/test-fill-blanks.mjs",

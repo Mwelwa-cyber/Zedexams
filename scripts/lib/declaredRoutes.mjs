@@ -1,7 +1,7 @@
 /**
  * Where the app's routes are declared, for the text-level route guards.
  *
- * They all used to read `<Route path="...">` out of src/App.jsx, which was
+ * They all used to read `<Route path="...">` out of src/app/App.jsx, which was
  * the whole story until the /teacher/* routes moved into
  * teacherRoutes.jsx (declared as data so a spec can render every one and
  * assert the shared shell; since 2026-08-15 it lives in src/app/routes/,
@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url'
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
-export const APP_PATH = 'src/App.jsx'
+export const APP_PATH = 'src/app/App.jsx'
 export const TEACHER_ROUTES_PATH = 'src/app/routes/teacherRoutes.jsx'
 
 export const readSource = (rel) => readFileSync(join(ROOT, rel), 'utf8')

@@ -11,7 +11,7 @@ import { useState } from 'react'
 import Icon from '../../../shared/components/Icon'
 import { ArrowRight, X } from '../../../shared/components/icons'
 import { capture } from '../../../utils/analytics'
-import { PLAN_CATALOG_VERSION } from '../../../utils/teacherPlans'
+import { PLAN_CATALOG_VERSION } from '../../../engines/payment-engine/teacherPlans'
 
 const SEEN_KEY = `zedexams:allowance-notice:${PLAN_CATALOG_VERSION}`
 

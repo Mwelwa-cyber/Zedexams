@@ -12,7 +12,7 @@
  *
  * This file is the LADDER — the four-to-five rungs a learner (or their
  * guardian) is offered in the contextual unlock sheet, ordered from
- * airtime-sized to term-sized. `src/utils/subscriptionConfig.js` PLANS is the
+ * airtime-sized to term-sized. `src/engines/payment-engine/subscriptionConfig.js` PLANS is the
  * CHECKOUT catalogue: every purchasable product, learner and teacher, keyed by
  * the id Lenco and `functions/plans.js` charge against. A rung is a
  * presentation choice; a checkout plan is a contract with a payment provider,

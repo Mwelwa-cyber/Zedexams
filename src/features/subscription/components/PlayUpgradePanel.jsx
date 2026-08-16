@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Check, Loader2, Sparkles, X } from '../../../shared/components/icons'
 import { useAuth } from '../../../contexts/AuthContext'
-import { PLANS } from '../../../utils/subscriptionConfig'
-import { resolveSubscriptionStatus } from '../../../utils/subscriptionStatus'
+import { PLANS } from '../../../engines/payment-engine/subscriptionConfig'
+import { resolveSubscriptionStatus } from '../../../engines/payment-engine/subscriptionStatus'
 import { resolveNativePlanIds } from '../../../utils/playBillingCatalog'
 import {
   classifyPurchaseError,

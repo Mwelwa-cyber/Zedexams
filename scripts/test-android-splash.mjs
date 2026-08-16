@@ -1,6 +1,6 @@
 /*
  * test:android-splash — guards the Android in-app splash wiring
- * (index.html + public/zx-splash.js + src/App.jsx + the native hand-off).
+ * (index.html + public/zx-splash.js + src/app/App.jsx + the native hand-off).
  *
  * The failure modes this pins are all quiet ones:
  *   • The controller migrating back to an inline <script> — the site CSP has
@@ -35,7 +35,7 @@ function check(name, ok, detail = '') {
 
 const indexHtml = read('index.html')
 const controller = read('public/zx-splash.js')
-const appJsx = read('src/App.jsx')
+const appJsx = read('src/app/App.jsx')
 const colorsXml = read('android/app/src/main/res/values/colors.xml')
 
 console.log('index.html')
@@ -104,7 +104,7 @@ check('minimum show time is 2600ms', /MIN_SHOW\s*=\s*2600/.test(controller))
 check('10s failsafe hide', /setTimeout\(hide,\s*10000\)/.test(controller))
 check('exposes window.ZedSplash.hide', /window\.ZedSplash\s*=\s*\{\s*hide:\s*hide\s*\}/.test(controller))
 
-console.log('src/App.jsx')
+console.log('src/app/App.jsx')
 check('App signals ready via window.ZedSplash?.hide?.()', appJsx.includes('window.ZedSplash?.hide?.()'))
 // hide() must be anchored to the auth boot decision, never bare App mount —
 // otherwise the splash's exit isn't tied to a decided first screen and the

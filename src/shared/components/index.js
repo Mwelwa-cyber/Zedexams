@@ -87,8 +87,8 @@
  *     `shared` is in `NO_FIREBASE_LAYERS`, so this is a hard boundary failure
  *     rather than a judgement call.
  *   • `StudioGate`, `LockedStudio`, `UsageMeter`, `PlanUsageCard` and
- *     `FreeAllowanceNotice` reach `utils/paywall`, `utils/lenco`,
- *     `utils/topup` or `utils/teacherPlans` — payment logic, named in §14.6.
+ *     `FreeAllowanceNotice` reach `engines/payment-engine/paywall`, `utils/lenco`,
+ *     `utils/topup` or `engines/payment-engine/teacherPlans` — payment logic, named in §14.6.
  *
  * Single-consumer chrome travels INTO its one consumer unless an owner rules
  * otherwise: `StudioUnavailableNotice` (+ spec) went to

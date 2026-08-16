@@ -1,7 +1,7 @@
 // Single source of truth for all plan limits and pricing.
 // To change a limit, edit ONLY this file.
 
-import { isSuperAdmin } from './permissions.js'
+import { isSuperAdmin } from '../../utils/permissions.js'
 
 export const ROLES = {
   LEARNER:     'learner',

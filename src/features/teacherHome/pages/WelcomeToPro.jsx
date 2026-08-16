@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
-import { PLANS, getActivePlan } from '../../../utils/subscriptionConfig'
+import { PLANS, getActivePlan } from '../../../engines/payment-engine/subscriptionConfig'
 import { ensureProFonts } from '../../../utils/proFonts'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 

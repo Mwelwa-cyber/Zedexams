@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
-import { paywall } from '../../../utils/paywall'
+import { paywall } from '../../../engines/payment-engine/paywall'
 import useFocusTrap from '../../../hooks/useFocusTrap'
 import { isNativePlatform } from '../../../utils/runtime'
 import { capture } from '../../../utils/analytics'

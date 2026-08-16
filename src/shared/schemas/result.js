@@ -1,5 +1,5 @@
 /**
- * src/schemas/result.js
+ * src/shared/schemas/result.js
  *
  * Read-side normaliser for the `results` Firestore collection — quiz
  * completion records saved by QuizRunnerV2.handleSubmit via

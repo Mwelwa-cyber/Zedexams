@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getMergedSyllabi } from '../utils/syllabusKbService'
 import { syllabiToKbTopics } from '../utils/syllabusMapping'
-import { buildSubjectOptions, subjectValuesOf } from '../utils/curriculumOptions'
+import { buildSubjectOptions, subjectValuesOf } from '../curriculum/resolvers/curriculumOptions'
 import { TEACHER_GRADES } from '../config/teacherTaxonomy'
 import { createAsyncCache } from '../utils/requestDeduplication.js'
 import { useAbortableRequest } from './useAbortableRequest.js'

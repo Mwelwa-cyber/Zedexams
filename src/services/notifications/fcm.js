@@ -18,9 +18,9 @@
 
 import { getToken, onMessage } from 'firebase/messaging'
 import { arrayUnion, doc, serverTimestamp, updateDoc } from 'firebase/firestore'
-import { db, messaging } from '../firebase/config'
-import { isNativePlatform } from './runtime'
-import { capture } from './analytics'
+import { db, messaging } from '../../firebase/config'
+import { isNativePlatform } from '../../utils/runtime'
+import { capture } from '../../utils/analytics'
 import {
   isNativePushSupported,
   nativePushPermissionSync,

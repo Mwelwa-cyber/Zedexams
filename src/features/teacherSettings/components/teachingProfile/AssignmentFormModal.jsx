@@ -5,7 +5,7 @@ import {
   foldFormCodeToGrade,
   assignmentGradeToStudioLabel,
 } from '../../../../shared/utils/curriculumSelectorConstants'
-import { matchFrameworkSubject } from '../../../../utils/frameworkSubjectMatch'
+import { matchFrameworkSubject } from '../../../../curriculum/resolvers/frameworkSubjectMatch'
 import {
   normalizeAssignment,
   validateAssignment,

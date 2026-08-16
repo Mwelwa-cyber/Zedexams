@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Lock, Sparkles, X } from '../../../shared/components/icons'
 import { useSubscription } from '../../../hooks/useSubscription'
-import { PLANS } from '../../../utils/subscriptionConfig'
+import { PLANS } from '../../../engines/payment-engine/subscriptionConfig'
 import { isNativePlatform } from '../../../utils/runtime'
 import { lockedFeature } from '../lib/lockedFeature'
 import Button from '../../../shared/components/Button'

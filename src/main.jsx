@@ -1,14 +1,8 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { HelmetProvider } from 'react-helmet-async'
-import App from './App'
-import { AuthProvider } from './contexts/AuthContext'
-import { DataSaverProvider } from './contexts/DataSaverContext'
-import { OfflineProvider } from './offline'
-import { ThemeProvider } from './contexts/ThemeContext'
+import App from './app/App'
+import AppProviders from './app/providers/AppProviders'
 import ErrorBoundary from './shared/components/ErrorBoundary'
-import { ToastProvider } from './shared/components/Toast'
-import { NotificationProvider } from './contexts/NotificationContext'
 import { initNativeShell } from './utils/nativeShell'
 import { initSentry } from './utils/sentry'
 import { initAnalytics, capture as captureAnalytics } from './utils/analytics'
@@ -79,21 +73,9 @@ bootstrapCurriculumCatalogue({ capture: captureAnalytics, reportError: reportCli
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <HelmetProvider>
-        <ThemeProvider>
-          <DataSaverProvider>
-            <OfflineProvider>
-              <AuthProvider>
-                <ToastProvider>
-                  <NotificationProvider>
-                    <App />
-                  </NotificationProvider>
-                </ToastProvider>
-              </AuthProvider>
-            </OfflineProvider>
-          </DataSaverProvider>
-        </ThemeProvider>
-      </HelmetProvider>
+      <AppProviders>
+        <App />
+      </AppProviders>
     </ErrorBoundary>
   </React.StrictMode>
 )

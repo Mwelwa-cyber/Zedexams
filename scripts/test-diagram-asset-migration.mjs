@@ -9,7 +9,7 @@ import {
   migrationDocId, gradeFromBand, pictureBankToDiagramAsset,
   visualAssetToDiagramAsset, planDiagramAssetMigration,
 } from '../src/features/visualStudio/lib/diagramAssetMigration.js'
-import { diagramAssetWriteSchema } from '../src/schemas/diagramAsset.js'
+import { diagramAssetWriteSchema } from '../src/shared/schemas/diagramAsset.js'
 
 // Deterministic target ids — the idempotency key.
 assert.equal(migrationDocId('pictureBank', 'abc'), 'mig-pb-abc')

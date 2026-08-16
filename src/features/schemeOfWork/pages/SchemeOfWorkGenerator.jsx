@@ -29,7 +29,7 @@ import LiveGenerationCanvas from '../../../shared/components/LiveGenerationCanva
 import { FreePreviewUpsell } from '../../teacherPaywall'
 import { StudioNextSteps } from '../../teacherPaywall'
 import { capture } from '../../../utils/analytics'
-import { resolveTeacherPlan, FREE_PREVIEW_LIMITS } from '../../../utils/teacherPlans'
+import { resolveTeacherPlan, FREE_PREVIEW_LIMITS } from '../../../engines/payment-engine/teacherPlans'
 import { useToast } from '../../../shared/components/Toast'
 import StudioCurriculumSelector from '../../../shared/components/StudioCurriculumSelector'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
@@ -60,7 +60,7 @@ import {
   deliveryWeekCount,
   defaultRevisionWeeks,
 } from '../lib/schemeTermPlan'
-import { matchFrameworkSubject, periodsPerWeekLabel } from '../../../utils/frameworkSubjectMatch'
+import { matchFrameworkSubject, periodsPerWeekLabel } from '../../../curriculum/resolvers/frameworkSubjectMatch'
 import { evaluate as evaluateReadiness } from '../lib/schemeReadiness'
 import { normalizeCurriculum, curriculumLabel } from '../../../shared/utils/schemeFormat'
 import { stampEditHistory } from '../../../utils/schemeEditHistory'

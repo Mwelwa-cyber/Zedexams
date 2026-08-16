@@ -11,7 +11,7 @@
 //   displayName, preferredName, school, grade, className, dateOfBirth,
 //   gender, preferredLanguage, country, avatarCharacter, avatarPhotoUrl
 //                                            → flat profile fields
-//   notificationPrefs                        → src/utils/notificationPrefs.js
+//   notificationPrefs                        → src/engines/notification-engine/notificationPrefs.js
 //   learningPrefs                            → extended below
 //   learnerSettings.security                 → recovery email/phone, 2FA intent
 //   learnerSettings.personalisation          → card style, accent, nav, layout
@@ -363,7 +363,7 @@ export function normalizePrivacyPrefs(input) {
 
 /* ── Notification reminders (learner-friendly grouping) ───────────────────── */
 //
-// The notification *centre* still runs off src/utils/notificationPrefs.js
+// The notification *centre* still runs off src/engines/notification-engine/notificationPrefs.js
 // (server-honoured categories + channels). This grouped set is the learner
 // experience layer — granular reminders + the extra Email/SMS channels — and
 // persists under learnerSettings.notifications so it syncs across devices.

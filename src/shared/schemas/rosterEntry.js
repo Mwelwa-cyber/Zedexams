@@ -1,19 +1,19 @@
 /**
- * src/schemas/rosterEntry.js
+ * src/shared/schemas/rosterEntry.js
  *
  * Shape of one learner in a class register's official roster
  * (classRegisters/{classId}/roster/{rosterId}).
  *
  * Mirrors the project's write-strict / read-permissive convention (see
- * src/schemas/quiz.js): rosterEntryWriteSchema validates before any
+ * src/shared/schemas/quiz.js): rosterEntryWriteSchema validates before any
  * addDoc/updateDoc; coerceRosterEntry normalises a doc on read so a legacy
  * or partially-broken row never blanks the roster table.
  */
 
 import { z } from 'zod'
-import { GENDERS } from '../utils/rosterImport.js'
-import { LEARNER_STATUS_VALUES, normalizeLearnerStatus } from '../utils/learnerStatus.js'
-import { REVIEW_REASONS } from '../utils/learnerStatus.js'
+import { GENDERS } from '../../utils/rosterImport.js'
+import { LEARNER_STATUS_VALUES, normalizeLearnerStatus } from '../../utils/learnerStatus.js'
+import { REVIEW_REASONS } from '../../utils/learnerStatus.js'
 
 const emptyableString = (max) =>
   z.preprocess((v) => (v == null ? '' : v), z.string().max(max))

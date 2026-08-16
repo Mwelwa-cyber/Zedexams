@@ -3,13 +3,13 @@
 // Everything persists under learnerSettings.notifications (normalized with
 // normalizeReminderPrefs) so it syncs across devices via Firestore. The master
 // Push channel also mirrors to the real notification centre: turning it on
-// requests OS permission + registers an FCM token via src/utils/fcm.js.
+// requests OS permission + registers an FCM token via src/services/notifications/fcm.js.
 
 import { useAuth } from '../../../contexts/AuthContext'
 import { useSettingsSave } from '../components/SaveContext'
 import { Panel, Section, Toggle, Note } from '../components/ui'
 import { normalizeReminderPrefs, REMINDER_GROUPS } from '../lib/learnerPrefs'
-import { isPushSupported, pushPermission, requestPushPermission } from '../../../utils/fcm'
+import { isPushSupported, pushPermission, requestPushPermission } from '../../../services/notifications/fcm'
 
 export default function NotificationsPanel({ section, pushToast }) {
   const { userProfile, currentUser } = useAuth()

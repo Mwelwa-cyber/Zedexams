@@ -16,10 +16,10 @@ vi.mock('firebase/firestore', () => ({
   onSnapshot: (...args) => onSnapshot(...args),
 }))
 vi.mock('../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
-vi.mock('../utils/paywall', () => ({ paywall: { show: vi.fn() } }))
+vi.mock('../engines/payment-engine/paywall', () => ({ paywall: { show: vi.fn() } }))
 
 import { useAuth } from '../contexts/AuthContext'
-import { paywall } from '../utils/paywall'
+import { paywall } from '../engines/payment-engine/paywall'
 import { useGenerationGate } from './useGenerationGate.js'
 
 // Every tool key a live studio actually passes to ensureCanGenerate —

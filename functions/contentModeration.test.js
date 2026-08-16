@@ -83,6 +83,69 @@ function freshModule(env = {}) {
     }
   }
 
+  // A provider failure must be OBSERVABLE, at the severity that reaches the
+  // only watcher there is. The unit for the decision is
+  // contentModerationCore.describeModerationDegradation; this pins that the
+  // child-facing path actually EMITS it, because a correct record nobody
+  // writes is the bug this closes rather than fixes.
+  {
+    const realFetch = global.fetch;
+    const realError = console.error;
+    const realWarn = console.warn;
+    const errors = [];
+    const warns = [];
+    // Serialise object args rather than letting them stringify to
+    // "[object Object]" — the blocked-content audit line passes its reason as
+    // an object, and a capture that flattens it cannot tell the two log lines
+    // apart.
+    const render = (a) => a.map((x) => (typeof x === "string" ? x : JSON.stringify(x))).join(" ");
+    console.error = (...a) => errors.push(render(a));
+    console.warn = (...a) => warns.push(render(a));
+    global.fetch = async () => { throw new Error("moderation HTTP 503"); };
+    try {
+      // Fail-OPEN: the learner's text was let through UNSCREENED.
+      const open = freshModule({});
+      const openOutcome = await open.checkLearnerText("sk-test", "some text", {label: "aiChat:input"});
+      ok("fail-open still allows (behaviour unchanged)", openOutcome.allowed === true);
+      ok("fail-open emits on console.error", errors.length === 1);
+      ok("fail-open line is greppable", errors[0].includes("moderation_degraded"));
+      ok("fail-open line says the text was unscreened", errors[0].includes('"unscreened":true'));
+      ok("fail-open line carries the call-site label", errors[0].includes("aiChat:input"));
+      ok("fail-open does NOT go to console.warn (invisible to functionErrorWatch)", warns.length === 0);
+
+      // Fail-CLOSED: safety held, so this is a warning, not a child-safety event.
+      errors.length = 0;
+      warns.length = 0;
+      const closed = freshModule({MODERATION_FAIL_CLOSED: "true"});
+      const closedOutcome = await closed.checkLearnerText("sk-test", "some text", {label: "aiChat:input"});
+      ok("fail-closed still blocks (behaviour unchanged)", closedOutcome.blocked === true);
+      // Two warns, and both belong: the degradation record, plus the
+      // pre-existing blocked-content audit line, which should log every block
+      // including one caused by a service error.
+      ok("fail-closed emits the degradation on console.warn",
+        warns.some((w) => w.includes("moderation_degraded")));
+      ok("the blocked-content audit line still fires alongside it",
+        warns.some((w) => w.includes("blocked") && w.includes("service_error")));
+      ok("fail-closed does NOT raise an ERROR", errors.length === 0);
+
+      // CONTROL: a screen that RUNS must stay silent, or the signal is noise
+      // and the alert it feeds gets muted by whoever reads it first.
+      errors.length = 0;
+      warns.length = 0;
+      global.fetch = async () => ({
+        ok: true,
+        json: async () => ({results: [{flagged: false, categories: {}, category_scores: {}}]}),
+      });
+      const fine = freshModule({});
+      await fine.checkLearnerText("sk-test", "what is photosynthesis");
+      ok("a working screen emits nothing", errors.length === 0 && warns.length === 0);
+    } finally {
+      global.fetch = realFetch;
+      console.error = realError;
+      console.warn = realWarn;
+    }
+  }
+
   // Restore a clean env for any later test in a shared runner.
   freshModule({});
 

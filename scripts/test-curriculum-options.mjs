@@ -1,6 +1,6 @@
 /**
  * Unit tests for the syllabi-sourced Subject dropdown builder
- * (src/utils/curriculumOptions.js). Plain `node` assertions — run with:
+ * (src/curriculum/resolvers/curriculumOptions.js). Plain `node` assertions — run with:
  *   node scripts/test-curriculum-options.mjs
  */
 
@@ -9,7 +9,7 @@ import {
   buildSubjectOptions,
   subjectValuesOf,
   subjectLabel,
-} from '../src/utils/curriculumOptions.js'
+} from '../src/curriculum/resolvers/curriculumOptions.js'
 import { getSubjectsForGrade } from '../src/config/teacherTaxonomy.js'
 
 let passed = 0

@@ -21,7 +21,7 @@ const NOTE_MAX = 200;
 const REASON_MAX = 200;
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // Grades whose classes follow the ECE calendar (mirror of the ECE band in
-// src/schemas/classRegister.js CLASS_REGISTER_GRADE_OPTIONS).
+// src/shared/schemas/classRegister.js CLASS_REGISTER_GRADE_OPTIONS).
 const ECE_GRADES = ["baby", "middle", "reception"];
 
 const ERROR_CODES = {
