@@ -62,7 +62,7 @@ describe('ExamTimetablePage', () => {
   it('shows loading skeletons while the timetable loads', () => {
     setData({ active: null, loading: true })
     const { container } = renderPage()
-    expect(container.querySelector('.animate-shimmer')).toBeTruthy()
+    expect(container.querySelector('.zx-sk')).toBeTruthy()
     expect(screen.queryByText(/starts in/i)).not.toBeInTheDocument()
   })
 

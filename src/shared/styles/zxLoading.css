@@ -1,0 +1,184 @@
+/* ── The loading system ──────────────────────────────────────────────────
+ *
+ * One tempo, one easing, one accent. Every loading state in the app derives
+ * from the three tokens below; change --load-tempo and the whole system
+ * re-times together.
+ *
+ * The problem this exists to close: loading elements were tuned one at a time,
+ * so nothing lined up — a 0.7s button spinner beside a 1.4s shimmer beside a
+ * 1.5s ring and a 2.8s glow. The eye reads competing rhythms as chaos long
+ * before it reads any one of them as "loading".
+ *
+ * COLOUR — skeletons are MIXED FROM THE LIVE THEME rather than hard-coded, so
+ * they follow oatmeal / night / sky automatically. A grey (#eee) placeholder
+ * on the warm cream background reads as a broken image, not as content
+ * arriving, and it had to be re-picked by hand for every theme.
+ *
+ * Data Saver is already handled globally — `body.data-saver *` in index.css
+ * collapses every animation-duration, so nothing here needs a variant.
+ */
+
+:root {
+  --load-tempo: 1.6s;
+  --load-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --load-stagger: 90ms;
+}
+
+/* The skeleton tints MUST be declared on `body`, not on `:root`.
+ *
+ * A custom property is substituted where it is DECLARED, and the inherited
+ * value carries that already-computed result down. The reading themes live on
+ * `body.theme-*` (index.css), so a color-mix declared at `:root` resolves
+ * against the DEFAULT palette and every other theme silently inherits it — a
+ * pale sky blue on the terracotta cream, which is the precise "grey slab on
+ * warm background" failure this system was built to remove.
+ *
+ * Declared here, `var(--accent)` and `var(--bg-subtle)` resolve in body's
+ * cascade, which is where the theme class actually sits. */
+body {
+  --skeleton-base: color-mix(in srgb, var(--accent) 6%, var(--bg-subtle));
+  --skeleton-hi: color-mix(in srgb, var(--surface, var(--card)) 82%, var(--bg-subtle));
+}
+
+/* ── 1. Top progress line ───────────────────────────────────────────────
+ * The route-transition indicator. It replaces a full-screen treatment on
+ * purpose: the shell (sidebar, top bar, layout) does not depend on data, so
+ * it can paint from the first frame and the wait happens *inside* a real
+ * page rather than in front of one. */
+.zx-topline {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 60;
+}
+
+/* For the app-wide route fallback, which has no positioned shell to sit in. */
+.zx-topline--fixed {
+  position: fixed;
+  z-index: 10000;
+}
+
+.zx-topline::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 34%;
+  border-radius: 2px;
+  background: var(--accent);
+  animation: zx-topline var(--load-tempo) var(--load-ease) infinite;
+}
+
+@keyframes zx-topline {
+  0%   { left: -34%; width: 34%; }
+  55%  { width: 46%; }
+  100% { left: 100%; width: 34%; }
+}
+
+/* ── 2. Skeletons ───────────────────────────────────────────────────────
+ * The frame is real (border, radius, padding); only the contents are
+ * placeholder. That way the swap to real content barely moves anything. */
+.zx-sk {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-md, 12px);
+  background: var(--skeleton-base);
+}
+
+.zx-sk::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--skeleton-hi) 50%,
+    transparent 100%
+  );
+  animation: zx-sweep var(--load-tempo) var(--load-ease) infinite;
+  /* Rows stagger by a fraction of the tempo so a list reads as ONE wave down
+   * the page rather than as N independent flashes. */
+  animation-delay: var(--zx-delay, 0ms);
+}
+
+@keyframes zx-sweep {
+  to { transform: translateX(100%); }
+}
+
+/* ── 3. Inline (button) states ──────────────────────────────────────────
+ * currentColor so one spinner serves primary, ghost and danger buttons
+ * without a variant per theme. */
+.zx-spin {
+  flex: 0 0 auto;
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  opacity: 0.9;
+  animation: zx-rotate 0.9s linear infinite;
+}
+
+@keyframes zx-rotate {
+  to { transform: rotate(360deg); }
+}
+
+/* Dots for waits under about a second (save, toggle, refresh a count). A
+ * rotating ring for a 400ms save reads as effort the app is not expending. */
+.zx-dots {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+.zx-dots i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.35;
+  animation: zx-dot 1.2s var(--load-ease) infinite;
+}
+.zx-dots i:nth-child(2) { animation-delay: 0.15s; }
+.zx-dots i:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes zx-dot {
+  0%, 100% { opacity: 0.3; }
+  40%      { opacity: 1; }
+}
+
+/* The current step of a long run breathes on the shared tempo — it is the one
+ * thing that animates in the generation panel, so "still working" is legible
+ * without the panel looking frantic. */
+.zx-breathe {
+  animation: zx-breathe var(--load-tempo) var(--load-ease) infinite;
+}
+
+@keyframes zx-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 30%, transparent); }
+  50%      { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 0%, transparent); }
+}
+
+[aria-busy='true'] { cursor: progress; }
+
+/* ── 4. Reduced motion ──────────────────────────────────────────────────
+ * Each loader drops to a static, still-legible state rather than simply
+ * freezing mid-animation: a spinner frozen with a transparent arc top reads
+ * as a broken ring, and a skeleton frozen mid-sweep reads as a gradient. */
+@media (prefers-reduced-motion: reduce) {
+  .zx-topline::after,
+  .zx-sk::after,
+  .zx-spin,
+  .zx-dots i,
+  .zx-breathe {
+    animation: none;
+  }
+  .zx-sk::after { display: none; }
+  .zx-topline::after { left: 0; width: 100%; opacity: 0.5; }
+  .zx-spin { border-top-color: currentColor; opacity: 0.5; }
+  .zx-dots i { opacity: 0.6; }
+}
