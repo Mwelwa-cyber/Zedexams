@@ -379,6 +379,62 @@
 .lhx-bpop-nm { font-size: 20px; font-weight: 900; margin-bottom: 4px; }
 .lhx-bpop-desc { font-size: 13px; color: var(--lhx-muted); font-weight: 700; }
 
+/* ── The timed-quiz bridge (daily quiz in the learner shell) ─────────
+ *
+ * TimedQuizGame stays byte-identical — it carries the Phase 3
+ * assessment-engine flag wiring and two pinned specs — so the reskin is
+ * this scoped remap of its zx/Tailwind vocabulary onto the lhx tokens,
+ * the same technique index.css uses for the Midnight remap. Colours
+ * only: the two-column option grid (the D3 layout contract the engine
+ * ramp measures against) and every behaviour stay exactly as pinned.
+ * Night falls out of the token flip; the few literals that don't ride
+ * a token are overridden at the bottom of this file.
+ */
+
+.lhx-tq .zx-card {
+  border-color: var(--lhx-line);
+  box-shadow: var(--lhx-shadow-sm);
+}
+.lhx-tq .bg-white { background-color: var(--lhx-card); }
+.lhx-tq .zx-card-dark {
+  background: linear-gradient(150deg, #7c8bf5, #4a4fc9);
+  border: none;
+  box-shadow: 0 10px 24px rgba(81, 88, 208, 0.3);
+}
+.lhx-tq .zx-eyebrow { color: var(--lhx-indigo-text); }
+.lhx-tq .zx-eyebrow::before { background: var(--lhx-indigo-text); }
+.lhx-tq :is(.text-slate-900, .text-slate-800, .text-slate-700, .text-slate-600) { color: var(--lhx-ink); }
+.lhx-tq .text-slate-500 { color: var(--lhx-muted); }
+.lhx-tq .border-slate-900 { border-color: var(--lhx-line); }
+.lhx-tq .bg-slate-900 { background-color: var(--lhx-indigo2); }
+.lhx-tq .bg-slate-50 { background-color: var(--lhx-indigo-soft); }
+.lhx-tq .bg-slate-100 { background-color: var(--lhx-indigo-soft); }
+.lhx-tq .bg-orange-100 { background-color: var(--lhx-coral-soft); }
+.lhx-tq .bg-amber-100 { background-color: var(--lhx-orange-soft); }
+.lhx-tq .text-amber-900 { color: var(--lhx-coral-soft-text); }
+.lhx-tq .bg-emerald-100 { background-color: var(--lhx-green-soft); }
+.lhx-tq :is(.text-emerald-900, .text-emerald-600) { color: var(--lhx-green-dark); }
+.lhx-tq .bg-rose-100 { background-color: var(--lhx-pink-soft); }
+.lhx-tq :is(.text-rose-900, .text-rose-600) { color: var(--lhx-red); }
+.lhx-tq .zx-sticker-btn {
+  border: none;
+  border-radius: 14px;
+  font-weight: 900;
+}
+.lhx-tq .zx-sticker-btn-primary {
+  background: linear-gradient(135deg, var(--lhx-coral1), var(--lhx-coral2));
+  color: #fff;
+  box-shadow: 0 4px 0 var(--lhx-coral-shadow);
+}
+.lhx-tq :is(.zx-sticker-btn-secondary, .zx-sticker-btn-dark) {
+  background: var(--lhx-card);
+  color: var(--lhx-indigo-text);
+  box-shadow: var(--lhx-shadow-sm);
+}
+/* The sticker styles' pressed states drop a hard shadow the bridge no
+ * longer draws — keep the press readable with the lhx scale idiom. */
+.lhx-tq .zx-sticker-btn:active { transform: scale(0.97); }
+
 /* Wider game column on desktop — the prototype widens the play views. */
 @media (min-width: 1000px) {
   .lhx-nt-grid { max-width: 560px; margin: 0 auto; }
