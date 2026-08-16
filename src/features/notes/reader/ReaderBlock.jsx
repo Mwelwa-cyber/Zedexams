@@ -8,7 +8,7 @@
  * quickchecks → tap-to-reveal cards) so a regenerated note can mix old
  * and new blocks freely.
  */
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { tokenizeInline } from './readerCore'
 import LabelDiagram from './LabelDiagram'
@@ -98,6 +98,15 @@ function PracticeCard({ block, onWord }) {
   const [verdicts, setVerdicts] = useState({})
   const [state, setState] = useState('idle') // idle | correct | wrong
   const clearTimer = useRef(null)
+
+  // Cancel the pending wrong-answer reset on unmount. The clearTimeout in
+  // pick() only covers a SECOND wrong pick; a learner who answers wrongly and
+  // then navigates away within 450ms left a live timer holding a setState on a
+  // gone component. In the browser that is a leak React swallows, but under
+  // Vitest the timer fires after jsdom teardown and the whole run fails with
+  // "ReferenceError: window is not defined" — every test passing and the job
+  // still red, attributed to whichever spec happened to be running.
+  useEffect(() => () => clearTimeout(clearTimer.current), [])
 
   const pick = (i) => {
     if (state === 'correct') return
