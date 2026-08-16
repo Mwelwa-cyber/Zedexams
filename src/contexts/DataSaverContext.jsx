@@ -13,7 +13,7 @@
  * State is persisted to localStorage so the preference survives
  * a page refresh.
  */
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
 
 const DataSaverContext = createContext({ dataSaver: false, toggleDataSaver: () => {} })
 
@@ -30,10 +30,23 @@ export function DataSaverProvider({ children }) {
     document.body.classList.toggle('data-saver', dataSaver)
   }, [dataSaver])
 
-  function toggleDataSaver() { setDataSaver(v => !v) }
+  // Stable identity: the updater uses the functional form, so it closes over
+  // nothing and never needs to be rebuilt.
+  const toggleDataSaver = useCallback(() => setDataSaver(v => !v), [])
+
+  // Memoised so a re-render of an ANCESTOR provider doesn't re-render every
+  // data-saver consumer. main.jsx nests these providers
+  // (Auth → Theme → DataSaver → PlatformSettings), so without this an auth
+  // state change — sign-in, token refresh, profile reload — handed every
+  // useDataSaver() consumer a brand-new object and re-rendered it, even though
+  // the toggle itself changes maybe once in a session.
+  const value = useMemo(
+    () => ({ dataSaver, toggleDataSaver }),
+    [dataSaver, toggleDataSaver],
+  )
 
   return (
-    <DataSaverContext.Provider value={{ dataSaver, toggleDataSaver }}>
+    <DataSaverContext.Provider value={value}>
       {children}
     </DataSaverContext.Provider>
   )

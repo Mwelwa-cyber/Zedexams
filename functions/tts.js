@@ -1,6 +1,5 @@
 const { onRequest } = require('firebase-functions/v2/https');
 const admin         = require('firebase-admin');
-const textToSpeech  = require('@google-cloud/text-to-speech');
 const { getUserRole, assertDailyLimit } = require('./aiService');
 const { assertDecodedVerified } = require('./authGuard');
 const { applyCors } = require('./cors');
@@ -8,7 +7,29 @@ const { guardHttpRateLimit } = require('./rateLimit');
 const { softVerifyAppCheckHttp } = require('./appCheckHttp');
 const { enforceJsonRequest } = require('./httpRequestGuard');
 
-const client = new textToSpeech.TextToSpeechClient();
+/**
+ * The Text-to-Speech SDK and its client are built on FIRST SYNTHESIS, not at
+ * module load.
+ *
+ * functions/index.js requires every module in the codebase, so a top-level
+ * `require('@google-cloud/text-to-speech')` here was paid by all 196 exports —
+ * 37.5 MiB of RSS and ~180 ms of cold start on a Lenco webhook, a Firestore
+ * trigger, a quiz generation, everything — for a package exactly one HTTP
+ * endpoint calls. Constructing the client at module scope compounded it: that
+ * opens the gRPC/auth stack on load too.
+ *
+ * The client is cached across invocations, so a warm instance still reuses one
+ * client exactly as before; only the FIRST synthesis on an instance pays the
+ * load, and that request was already making a network round trip to Google.
+ */
+let _client = null;
+function ttsClient() {
+  if (!_client) {
+    const textToSpeech = require('@google-cloud/text-to-speech');
+    _client = new textToSpeech.TextToSpeechClient();
+  }
+  return _client;
+}
 
 const MAX_CHARS = 3000;
 const ALLOWED_VOICES = new Set([
@@ -113,7 +134,7 @@ exports.apiTextToSpeech = onRequest(
     }
 
     try {
-      const [response] = await client.synthesizeSpeech({
+      const [response] = await ttsClient().synthesizeSpeech({
         input: { text },
         voice: { languageCode: languageCodeFor(voice), name: voice },
         audioConfig: {

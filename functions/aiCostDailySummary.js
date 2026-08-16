@@ -21,7 +21,7 @@
 const admin = require("firebase-admin");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {defineSecret} = require("firebase-functions/params");
-const nodemailer = require("nodemailer");
+// nodemailer is required lazily in getTransporter() — see the note there.
 const crypto = require("node:crypto");
 
 const {
@@ -97,6 +97,8 @@ function getTransporter() {
   if (cachedTransporter) return cachedTransporter;
   const senderEmail = String(emailSmtpUser.value() || "").trim();
   if (!senderEmail) return null;
+  // Lazy require, matching opsAlert.js — see the note in invoiceGenerator.js.
+  const nodemailer = require("nodemailer");
   cachedTransporter = nodemailer.createTransport({
     host: "mail.privateemail.com",
     port: 587,

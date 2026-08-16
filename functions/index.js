@@ -4,7 +4,6 @@ const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {defineSecret} = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const crypto = require("node:crypto");
-const nodemailer = require("nodemailer");
 
 admin.initializeApp();
 
@@ -598,7 +597,6 @@ const batch2HandlerDeps = {
   isAdminRole,
   isEditQuestionAction,
   isStaffRole,
-  nodemailer,
   openaiApiKey,
   parseEditedQuestion,
   parseGeneratedQuiz,

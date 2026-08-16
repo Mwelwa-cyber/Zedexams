@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useMemo } from 'react'
 import { doc, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase/config'
 
@@ -75,8 +75,15 @@ export function PlatformSettingsProvider({ children }) {
     return () => unsub()
   }, [])
 
+  // Memoised for the same reason as DataSaverContext: this provider sits
+  // innermost in main.jsx, so it re-renders whenever ANY ancestor provider
+  // does. `settings` only gets a new identity when the settings/global snapshot
+  // actually fires, so without this every useSettings() consumer was
+  // re-rendering on unrelated auth and theme activity.
+  const value = useMemo(() => ({ settings, loaded, live }), [settings, loaded, live])
+
   return (
-    <PlatformSettingsContext.Provider value={{ settings, loaded, live }}>
+    <PlatformSettingsContext.Provider value={value}>
       {children}
     </PlatformSettingsContext.Provider>
   )
