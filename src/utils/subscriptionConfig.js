@@ -1,7 +1,7 @@
 // Single source of truth for all plan limits and pricing.
 // To change a limit, edit ONLY this file.
 
-import { isSuperAdmin } from './permissions'
+import { isSuperAdmin } from './permissions.js'
 
 export const ROLES = {
   LEARNER:     'learner',
@@ -32,6 +32,24 @@ export const PLANS = {
     features: ['Demo quizzes (one per subject)', 'Basic results', 'Practice mode only'],
     locked:   ['All quizzes', 'Exam mode (timed)', 'Weakness analysis'],
   },
+  // ── The learner unlock ladder ─────────────────────────────────────────
+  // `src/config/plans.js` is the ladder (which rungs are offered, in what
+  // order, with which one highlighted); these are the CHECKOUT products those
+  // rungs name. Mirrored in functions/plans.js, which is what Lenco is
+  // actually charged against.
+  day_pass: {
+    id: 'day_pass',
+    name: 'Day pass',
+    tagline: "Tonight's revision",
+    priceZMW: 5,
+    durationDays: 1,
+    dailyQuizLimit: Infinity,
+    weaknessAnalysis: true,
+    examMode: true,
+    badge: '⚡',
+    features: ['Everything unlocked for today', 'Full past papers', 'Auto-marking'],
+    locked: [],
+  },
   weekly: {
     id: 'weekly',
     name: 'Weekly',
@@ -56,6 +74,41 @@ export const PLANS = {
     examMode: true,
     badge: '⭐',
     features: ['Unlimited quizzes', 'Exam mode (timed)', 'Weakness analysis', 'Priority support'],
+    locked: [],
+  },
+  term_pass: {
+    id: 'term_pass',
+    name: 'Term Pass',
+    tagline: 'Cover the whole term',
+    priceZMW: 120,
+    durationDays: 120,
+    dailyQuizLimit: Infinity,
+    weaknessAnalysis: true,
+    examMode: true,
+    badge: '🎯',
+    features: [
+      'Every past paper for your grade',
+      'Auto-marking with topic breakdowns',
+      'Offline downloads',
+      'Covers the full exam run-up',
+    ],
+    locked: [],
+  },
+  exam_pass: {
+    id: 'exam_pass',
+    name: 'Exam Pass',
+    tagline: 'Until the exam',
+    priceZMW: 99,
+    durationDays: 90,
+    dailyQuizLimit: Infinity,
+    weaknessAnalysis: true,
+    examMode: true,
+    badge: '📘',
+    features: [
+      'Everything unlocked through the exam run-up',
+      'Every past paper with solutions',
+      'Auto-marking and weak-topic tracking',
+    ],
     locked: [],
   },
 

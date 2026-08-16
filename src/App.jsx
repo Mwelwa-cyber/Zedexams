@@ -129,8 +129,9 @@ const PostUpgradeContinuation = lazy(() => import('./features/subscription/compo
 const NativePlayBillingSync = lazy(() => import('./features/subscription/components/NativePlayBillingSync'))
 const LockedFeatureModal = lazy(() => import('./features/subscription/components/LockedFeatureModal'))
 const QuizLimitPopup = lazy(() => import('./features/subscription/components/QuizLimitPopup'))
-const SubscriptionReminderPopup = lazy(() => import('./features/subscription/components/SubscriptionReminderPopup'))
 const MySubscriptionRoute = lazy(() => import('./features/subscription/pages/MySubscriptionRoute'))
+const UnlockSheetHost = lazy(() => import('./features/subscription/components/UnlockSheetHost'))
+const GraceRibbon = lazy(() => import('./features/subscription/components/GraceRibbon'))
 const NotFound = lazy(() => import('./components/ui/NotFound'))
 const Marketing = lazy(() => import('./features/marketing/pages/Marketing'))
 const Plans = lazy(() => import('./features/marketing/pages/Plans'))
@@ -412,6 +413,10 @@ export default function App() {
           for users who still need to upgrade. Self-hides for Pro/Trial and
           on marketing/auth/immersive routes. */}
       <SubscriptionStatusBanner />
+      {/* Days 0–3 after expiry — a thin amber bar, not a barrier. Everything
+          stays unlocked during grace; this is the fade that replaced the wall.
+          Self-hides outside the grace window and on immersive routes. */}
+      <Suspense fallback={null}><GraceRibbon /></Suspense>
       {/* Offline banner — slides in at the top when navigator.onLine flips
           false. Firestore queues writes locally so the user's progress
           survives the network drop; this is the visible reassurance. */}
@@ -744,8 +749,14 @@ export default function App() {
           <LockedFeatureModal />
           {/* Popup #2 — Quiz Limit Reached; listens for paywall.show('quiz-preview-limit') */}
           <QuizLimitPopup />
-          {/* Popup #3 — Welcome Back upgrade nudge for Free & Expired users (every few days) */}
-          <SubscriptionReminderPopup />
+          {/* Tier 2 — the contextual unlock sheet. Opens ONLY from a tapped
+              lock (unlockSheet.open via useUnlockFlow), never on mount, never
+              on a route change, never on sign-in. The mount-time "Your Premium
+              has ended" interstitial that used to sit here was deleted in full
+              rather than delayed or shrunk: it charged a toll at the highest-
+              intent moment of the day, before any value had landed, and it
+              showed a price to learners who have no mobile money account. */}
+          <UnlockSheetHost />
         </Suspense>
       </div>
       </PlatformSettingsProvider>

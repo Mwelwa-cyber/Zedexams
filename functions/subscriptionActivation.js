@@ -191,6 +191,9 @@ async function activateSubscriptionFromPayment({
         phoneNumber: pay.phoneNumber || null,
         provider: pay.provider || "lenco",
         userId: pay.userId,
+        // Set by the guardian checkout, absent on every other payment. Carried
+        // out of the transaction because `pay` is scoped to it.
+        guardianRequestId: pay.guardianRequestId || null,
       };
       return;
     }
@@ -291,6 +294,9 @@ async function activateSubscriptionFromPayment({
       phoneNumber: pay.phoneNumber || null,
       provider: pay.provider || "lenco",
       userId: pay.userId,
+      // Set by the guardian checkout, absent on every other payment. Carried
+      // out of the transaction because `pay` is scoped to it.
+      guardianRequestId: pay.guardianRequestId || null,
     };
   });
 
@@ -334,6 +340,19 @@ async function activateSubscriptionFromPayment({
       await consumeReferralCredits({userId: payloadForInvoice.userId, paymentId, planId: planForInvoice.id});
     } catch (err) {
       console.error("[subscriptionActivation] referral side effects failed", err);
+    }
+  }
+
+  // A payment that carries a guardian request id came from the link in a
+  // guardian's message. Mark that request paid and tell the LEARNER — the
+  // buyer already knows, and the learner is the one waiting. Best-effort and
+  // after activation, so a failure here cannot undo access somebody paid for.
+  if (payloadForInvoice.guardianRequestId) {
+    try {
+      const {settleGuardianRequest} = require("./guardianUnlock");
+      await settleGuardianRequest({requestId: payloadForInvoice.guardianRequestId});
+    } catch (err) {
+      console.error("[subscriptionActivation] guardian request settle failed", err);
     }
   }
 

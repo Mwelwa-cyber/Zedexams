@@ -538,7 +538,12 @@
 .lhx-skel::after {
   content: ''; position: absolute; inset: 0;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.85), transparent);
-  animation: lhx-shimmer 1.4s infinite;
+  /* The learner shell keeps its own sweep COLOUR (tuned to this palette) but
+   * not its own tempo. These blocks render through the shared <Skeleton>, so
+   * `.zx-sk` and `.lhx-skel` both style the same ::after at equal specificity
+   * — which one wins is decided by chunk load order. On the shared token they
+   * agree, so the outcome stops depending on that. */
+  animation: lhx-shimmer var(--load-tempo, 1.6s) var(--load-ease, linear) infinite;
 }
 @keyframes lhx-shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 

@@ -9,6 +9,7 @@ import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl
 import ReminderPanel from '../../../shared/components/ReminderPanel'
 import { QUICK_CREATE } from '../lib/teacherNav'
 import { Bell, Plus, X } from '../../../shared/components/icons'
+import PlanChip from '../../../shared/components/PlanChip'
 import Icon from '../../../shared/components/Icon'
 
 export default function TeacherTopBar() {
@@ -62,6 +63,9 @@ export default function TeacherTopBar() {
         borderBottom: '1px solid var(--zt-line)',
       }}
     >
+      {/* Tier 0 — the ambient plan chip. Beside the bell, never blocking,
+          never animating. It makes the limit legible before it is hit. */}
+      <PlanChip surface="teacher" className="flex-shrink-0 hidden lg:inline-flex" />
       {/* Notifications — desktop only (below lg the shell's MobileChrome carries the mobile chrome) */}
       <div ref={bellRef} className="relative flex-shrink-0 hidden lg:block">
         <button

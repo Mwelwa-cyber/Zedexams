@@ -2337,6 +2337,14 @@ exports.apiRequestAccountDeletion =
 exports.sendGuardianConsent = require('./guardianConsent').sendGuardianConsent;
 exports.apiGuardianConsent = require('./guardianConsent').apiGuardianConsent;
 exports.recordAgeGateAttempt = require('./guardianConsent').recordAgeGateAttempt;
+
+// "Ask your guardian to unlock this" — the under-18 half of the paywall. A
+// learner under 18 is never shown a price; they tap a lock and this sends
+// their guardian a progress report with the offer at the end of it. Rate
+// limited to one per learner per 72 hours SERVER-SIDE (the client's copy of
+// that rule runs on the learner's device and is a courtesy to the button).
+// See functions/guardianUnlock/ and functions/shared/guardian/.
+exports.requestGuardianUnlock = require('./guardianUnlock').requestGuardianUnlock;
 // Re-derives isMinor from the declared date of birth on user-doc creation, so
 // the flag the consent gate reads is never the one the client wrote. Pinned to
 // africa-south1 with the (default) database.

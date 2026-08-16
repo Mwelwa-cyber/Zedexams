@@ -187,6 +187,10 @@ function architectureClaims(archSrc) {
  * so it must not drift behind reality in either direction.
  */
 const COVERED = [
+  // Server-only in both directions, admin-readable for support. Its emulator
+  // tests are the money path: a learner who could write here could mark their
+  // own request paid and unlock without paying.
+  'guardianRequests',
   'accountPurgeJobs', 'adminAuditLogs', 'agentControl', 'agentJobs', 'aiDailyLimits', 'aiGenerations',
   'aiOperations', 'aiUsage', 'aiUsageDaily', 'announcements', 'assessmentDrafts', 'assessmentExports', 'assessments',
   'classRegisters', 'curriculum', 'downloadTickets', 'exam_attempts',

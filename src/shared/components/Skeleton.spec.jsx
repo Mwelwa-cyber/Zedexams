@@ -2,13 +2,13 @@ import { describe, it, expect } from 'vitest'
 import { render } from '@testing-library/react'
 import Skeleton, { SkeletonText, SkeletonCard } from './Skeleton.jsx'
 
-const shimmers = (container) => container.querySelectorAll('.animate-shimmer')
+const shimmers = (container) => container.querySelectorAll('.zx-sk')
 
 describe('Skeleton', () => {
   it('renders a shimmer block with sensible defaults (full width, 16px, 10px radius)', () => {
     const { container } = render(<Skeleton />)
     const el = container.firstChild
-    expect(el).toHaveClass('animate-shimmer')
+    expect(el).toHaveClass('zx-sk')
     expect(el).toHaveAttribute('aria-hidden', 'true')
     expect(el).toHaveStyle({ width: '100%', height: '16px', borderRadius: '10px' })
   })
@@ -28,7 +28,7 @@ describe('Skeleton', () => {
 
   it('appends caller className (so !rounded-* / spacing overrides apply)', () => {
     const { container } = render(<Skeleton className="mt-2 !rounded-full" />)
-    expect(container.firstChild).toHaveClass('animate-shimmer', 'mt-2', '!rounded-full')
+    expect(container.firstChild).toHaveClass('zx-sk', 'mt-2', '!rounded-full')
   })
 
   it('SkeletonText renders one shimmer line per `lines`', () => {
