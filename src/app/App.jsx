@@ -81,8 +81,6 @@ const GradeHub = lazy(() => import('../features/learnerDashboard/pages/GradeHub'
 // reachable at /dashboard/classic as the transition fallback.
 const LearnerLayout = lazy(() => import('../features/learnerHome/components/LearnerLayout'))
 const LearnerHomePage = lazy(() => import('../features/learnerHome/pages/LearnerHomePage'))
-const LearnPage = lazy(() => import('../features/learnerHome/pages/LearnPage'))
-const PracticePage = lazy(() => import('../features/learnerHome/pages/PracticePage'))
 const LearnerSubjectPage = lazy(() => import('../features/learnerHome/pages/LearnerSubjectPage'))
 const StudyPlanPage = lazy(() => import('../features/learnerDashboard/pages/StudyPlanPage'))
 const LearnerCalendar = lazy(() => import('../features/learnerDashboard/pages/LearnerCalendar'))
@@ -564,8 +562,6 @@ export default function App() {
           <Route element={<LearnerLayout />}>
             <Route path="/dashboard"         element={<ProtectedRoute><LearnerOnlyRoute><LearnerHomePage /></LearnerOnlyRoute></ProtectedRoute>} />
             <Route path="/dashboard-preview" element={<ProtectedRoute><LearnerOnlyRoute><LearnerHomePage /></LearnerOnlyRoute></ProtectedRoute>} />
-            <Route path="/learn"             element={<ProtectedRoute><LearnerOnlyRoute><LearnPage /></LearnerOnlyRoute></ProtectedRoute>} />
-            <Route path="/practice"          element={<ProtectedRoute><LearnerOnlyRoute><PracticePage /></LearnerOnlyRoute></ProtectedRoute>} />
             <Route path="/subjects/:subjectId" element={<ProtectedRoute><LearnerOnlyRoute><LearnerSubjectPage /></LearnerOnlyRoute></ProtectedRoute>} />
             {/* Interactive exam timetable — the prototype's timetable screen
                 (Home chip + Papers row tap through here). The PDF twin stays
@@ -574,11 +570,18 @@ export default function App() {
           </Route>
           <Route path="/dashboard/classic" element={<ProtectedRoute><LearnerOnlyRoute><GradeHub /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/practice/daily-exams" element={<Navigate to="/exams" replace />} />
+          {/* Learn + Practice retired (redesign step 5, locked scope): the
+              4-tab IA carries their destinations — subjects on Home,
+              lessons/notes/quizzes via Quick Access, daily exams on Home's
+              Today's Exams card, results/achievements in the profile
+              sheet. Old bookmarks land Home. */}
+          <Route path="/learn" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/practice" element={<Navigate to="/dashboard" replace />} />
           {/* /learner/* aliases from the redesign spec → canonical routes */}
           <Route path="/learner" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/learner/learn" element={<Navigate to="/learn" replace />} />
+          <Route path="/learner/learn" element={<Navigate to="/dashboard" replace />} />
           <Route path="/learner/papers" element={<Navigate to="/papers" replace />} />
-          <Route path="/learner/practice" element={<Navigate to="/practice" replace />} />
+          <Route path="/learner/practice" element={<Navigate to="/dashboard" replace />} />
           <Route path="/learner/games" element={<Navigate to="/games" replace />} />
           <Route path="/learner/profile" element={<Navigate to="/profile" replace />} />
           {/* Legacy stats page (kept for admin/teacher reference) */}

@@ -1,18 +1,19 @@
 import { NavLink } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Files, Gamepad2, GraduationCap, Home, PencilLine } from './icons'
+import { FileText, Files, Gamepad2, Home } from './icons'
 import Icon from './Icon'
 import useHideOnScroll from '../../hooks/useHideOnScroll'
 
-// 5 items at 20% width each, matching the learner-home bottom nav IA
-// (Home · Learn · Papers · Practice · Games — 2026-07 learner redesign).
+// The prototype-v3 4-tab learner IA (Home · Papers · Notes · Games —
+// 2026-08 redesign; Learn and Practice retired in step 5). This bar is
+// the side door on self-chromed pages (Navbar surfaces), so it must
+// match LearnerBottomNav or the retired tabs come back through it.
 // Labels resolve via i18n (audit A7) — `nav.*` keys, English fallback.
 const MOBILE_NAV_ITEMS = [
-  { to: '/dashboard', icon: Home,          labelKey: 'nav.dashboard', end: true },
-  { to: '/learn',     icon: GraduationCap, labelKey: 'nav.learn',     end: false },
-  { to: '/papers',    icon: Files,         labelKey: 'nav.papers',    end: false },
-  { to: '/practice',  icon: PencilLine,    labelKey: 'nav.practice',  end: false },
-  { to: '/games',     icon: Gamepad2,      labelKey: 'nav.games',     end: false },
+  { to: '/dashboard', icon: Home,     labelKey: 'nav.dashboard', end: true },
+  { to: '/papers',    icon: Files,    labelKey: 'nav.papers',    end: false },
+  { to: '/notes',     icon: FileText, labelKey: 'nav.notes',     end: false },
+  { to: '/games',     icon: Gamepad2, labelKey: 'nav.games',     end: false },
 ]
 
 export default function MobileBottomNav({ mode = 'fixed', className = '' }) {

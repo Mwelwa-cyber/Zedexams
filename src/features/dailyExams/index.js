@@ -69,8 +69,9 @@
  * name, and none of them qualifies:
  *
  *   • `examService.js` — fifteen files outside this feature read it:
- *     `QuizRunnerV2` and its three specs, `GradeHub`, `PracticePage`,
- *     `ManageContent`, `useStudyPlanData`, `schemas/attempt.js`.
+ *     `QuizRunnerV2` and its three specs, `GradeHub`, `ManageContent`,
+ *     `useStudyPlanData`, `schemas/attempt.js` (the count predates step 5
+ *     retiring `PracticePage`, another reader).
  *   • `gamificationService.js` — `useLearnerStats`, `StreakXpCard` and
  *     `RecoveryCentre` read it.
  *   • `examLeaderboardService.js` — **this one is worth recording, because the

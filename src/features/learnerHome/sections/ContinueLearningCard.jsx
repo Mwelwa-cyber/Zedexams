@@ -22,15 +22,14 @@ export default function ContinueLearningCard({ resume, activeTerm, loading }) {
   }
 
   if (!resume) {
+    // No button here since step 5: the Learn tab is retired and the full
+    // subjects list now renders right below this card on Home.
     return (
       <section className="lhx-card lhx-continue" aria-labelledby="lhx-continue-title">
         <p id="lhx-continue-title" className="lhx-kicker">Continue Learning</p>
         <EmptyState icon="learn">
-          Choose a subject to begin learning.
+          Choose a subject below to begin learning.
         </EmptyState>
-        <button type="button" className="lhx-btn lhx-btn-green" onClick={() => navigate('/learn')}>
-          Explore subjects
-        </button>
       </section>
     )
   }
