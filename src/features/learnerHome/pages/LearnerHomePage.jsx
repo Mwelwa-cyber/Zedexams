@@ -13,7 +13,6 @@ import useLearnerDashboard from '../hooks/useLearnerDashboard'
 import PastPapersHero from '../sections/PastPapersHero'
 import ContinueLearningCard from '../sections/ContinueLearningCard'
 import TodaysExamsCard from '../sections/TodaysExamsCard'
-import OfficialExamCountdownCard from '../sections/OfficialExamCountdownCard'
 import {
   QuickAccessGrid,
   MySubjectsSection,
@@ -33,7 +32,7 @@ export default function LearnerHomePage() {
 
   return (
     <>
-      <LearnerHeader activeTerm={activeTerm} streak={data?.streak ?? null} />
+      <LearnerHeader activeTerm={activeTerm} streak={data?.streak ?? null} timetables={timetables} />
       {error ? (
         <div className="lhx-card">
           <ErrorState onRetry={refresh}>
@@ -61,7 +60,6 @@ export default function LearnerHomePage() {
               columns (CSS multi-column) without changing the DOM. */}
           <div className="lhx-cols">
             <div className="lhx-colitem"><MySubjectsSection subjects={data?.subjects} activeTerm={activeTerm} loading={loading} /></div>
-            <div className="lhx-colitem"><OfficialExamCountdownCard grade={grade} timetables={timetables} /></div>
             <div className="lhx-colitem"><RecommendationsSection recommendations={data?.recommendations} loading={loading} /></div>
             {!loading && <div className="lhx-colitem"><DailyGameChallengeCard challenge={data?.gameChallenge} /></div>}
             <div className="lhx-colitem"><RecentActivitySection recentActivity={data?.recentActivity} loading={loading} /></div>
