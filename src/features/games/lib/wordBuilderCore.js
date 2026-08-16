@@ -1,100 +1,112 @@
 /**
- * Pure logic for the `word_builder` game engine.
+ * Pure logic for the `word_builder` engine — the prototype-v3 spelling
+ * sprint (learner redesign step 4, the second rebuilt mechanic).
  *
- * Plain .js module (no React, no DOM) so it can be unit-tested from plain
- * Node scripts — same pattern as numberTargetCore.js / sentenceScrambleCore.js.
- * The React engine in WordBuilderGame.jsx consumes these helpers.
+ * The mechanic is the prototype's: one 60-second round, a shuffled queue
+ * of words that recycles if the speller outruns it. Each word shows its
+ * clue (or, when text-to-speech is available, sometimes only says the
+ * word aloud), its letters shuffled into tap tiles — the word's OWN
+ * letters, no decoys — and auto-checks when every slot is filled:
+ * correct pays 20 × combo and advances, wrong shakes, resets the combo
+ * and clears the slots for another try.
  *
- * Content shape: `game.questions` is an array of { question, answer } where
- *   question = the clue (e.g. "🦁 King of the jungle.")
- *   answer   = the word to spell (upper or lower case — we normalise)
+ * Content comes from the game doc's `questions` array
+ * ({ question: clue, answer: word }), the same shape the old engine
+ * read, with the prototype's word list as the fallback for a doc with
+ * no usable words. No React, no DOM; every draw takes an injectable
+ * `rng` so scripts/test-word-builder.mjs can drive it deterministically.
  */
 
-export const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+export const ROUND_SECONDS = 60
 
-function defaultRandom() {
-  return Math.random()
+/** The prototype's word list — the fallback when a game doc has none. */
+export const FALLBACK_WORDS = [
+  { word: 'MARKET', clue: 'A place where people buy and sell things.' },
+  { word: 'AUDIENCE', clue: 'The people watching or listening to a show.' },
+  { word: 'HONORARY', clue: 'Given as an honour, without the usual duties.' },
+  { word: 'EMPEROR', clue: 'A male ruler of an empire.' },
+  { word: 'CAMPAIGN', clue: 'Activities to win an election or support.' },
+  { word: 'INTELLIGENT', clue: 'Clever and quick to understand.' },
+  { word: 'EMBARRASSED', clue: 'Feeling shy or silly in front of others.' },
+  { word: 'POSTPONED', clue: 'Moved to a later time.' },
+  { word: 'FAVOURITE', clue: 'The one you like best.' },
+  { word: 'APARTMENT', clue: 'A set of rooms to live in; a flat.' },
+]
+
+function shuffled(list, rng = Math.random) {
+  const out = list.slice()
+  for (let i = out.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rng() * (i + 1))
+    ;[out[i], out[j]] = [out[j], out[i]]
+  }
+  return out
 }
 
-/** Only items with an answer are playable. */
+/**
+ * The playable words of a game doc: uppercased, letters only (spaces and
+ * punctuation cannot become tap tiles), clue from `question`.
+ */
 export function playableWords(questions) {
-  return (questions || []).filter((q) => q.answer)
+  return (questions || [])
+    .map((q) => ({
+      word: String(q?.answer || '').toUpperCase().trim(),
+      clue: String(q?.question || '').trim(),
+    }))
+    .filter((it) => it.word.length >= 2 && /^[A-Z]+$/.test(it.word))
 }
 
-/** Points per solved word; defaults to 10 when unset or not a number. */
-export function pointsForGame(game) {
-  return Number(game?.points) || 10
+/** A fresh shuffled queue — the game's own words, or the fallback list. */
+export function wordQueue(questions, rng = Math.random) {
+  const words = playableWords(questions)
+  return shuffled(words.length ? words : FALLBACK_WORDS, rng)
 }
 
-/** The word to spell, uppercased; empty string when there is no answer. */
-export function normalizeTarget(answer) {
-  return String(answer || '').toUpperCase()
+/** The word's own letters as shuffled tap tiles (prototype: no decoys). */
+export function tilesFor(word, rng = Math.random) {
+  return shuffled(String(word).split(''), rng).map((letter) => ({ letter, used: false }))
 }
 
-/** Short words get decoy letters so the answer is not just "use every tile". */
-export function decoyCountFor(wordLength) {
-  return wordLength <= 4 ? 2 : wordLength <= 6 ? 1 : 0
+/** The guess read off the placed tile indices. */
+export function guessFrom(placed, tiles) {
+  return placed.map((i) => tiles[i]?.letter || '').join('')
 }
 
-/**
- * Build the shuffled letter-tile pool for a word: its own letters plus
- * decoys drawn (without repeats) from letters NOT in the word.
- * `rand` is injectable for deterministic tests; defaults to Math.random.
- */
-export function makeTiles(word, rand = defaultRandom) {
-  const letters = Array.from(word)
-  const decoyPool = ALPHABET.split('').filter((l) => !word.includes(l))
-  const decoyCount = decoyCountFor(word.length)
-  for (let i = 0; i < decoyCount; i++) {
-    const idx = Math.floor(rand() * decoyPool.length)
-    letters.push(decoyPool.splice(idx, 1)[0])
-  }
-  for (let i = letters.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1))
-    ;[letters[i], letters[j]] = [letters[j], letters[i]]
-  }
-  return letters.map((letter) => ({ letter, placed: false }))
+/** Points for a solved word — 20 × the current combo multiplier. */
+export function solveGain(combo) {
+  return 20 * Math.max(1, Math.floor(Number(combo) || 1))
 }
 
-/** First open slot, or -1 when the word is fully filled. */
-export function emptySlotIndex(slots) {
-  return slots.findIndex((v) => v === null)
-}
-
-export function allSlotsFilled(slots) {
-  return slots.every((v) => v !== null)
-}
-
-/** Read the player's word off the slots (each slot holds a tile index). */
-export function buildGuess(slots, tiles) {
-  return slots.map((idx) => tiles[idx].letter).join('')
-}
-
-/** Exact match only — target is already uppercased by normalizeTarget. */
-export function isCorrectGuess(guess, target) {
-  return guess === target
-}
-
-/** Is `pos` the final word of the round? */
-export function isLastWord(pos, totalWords) {
-  return pos + 1 >= totalWords
-}
-
-/** Whole-number percentage; safe when the round somehow had zero words. */
-export function computeAccuracy(solvedCount, totalWords) {
-  return Math.round((solvedCount / Math.max(totalWords, 1)) * 100)
+/** Stars for a finished round — the prototype's word-game thresholds. */
+export function starsForWordScore(score) {
+  const s = Number(score) || 0
+  return s >= 140 ? 3 : s >= 60 ? 2 : 1
 }
 
 /**
- * Round score: base points per solved word plus a no-mistakes bonus that
- * shrinks by 2 per wrong attempt (never below zero).
+ * Whether this word plays in listen mode (the clue is replaced by
+ * "tap what you hear" + the word spoken aloud). Only when speech is
+ * available, and then half the time — the prototype's coin flip.
  */
-export function computeScore(solvedCount, points, mistakes) {
-  return solvedCount * points + Math.max(0, solvedCount * points - mistakes * 2)
+export function pickListenMode(ttsAvailable, rng = Math.random) {
+  return Boolean(ttsAvailable) && rng() < 0.5
 }
 
-/** Clues may start with a decorative emoji — the UI renders it elsewhere. */
-export function stripLeadingEmoji(s) {
-  if (!s) return ''
-  return String(s).replace(/^\s*\p{Extended_Pictographic}+\s*/u, '').trim()
+/**
+ * Map a finished round onto the shared `useGameFinish` result shape —
+ * solved words count as correct answers, failed checks as wrong ones,
+ * and the peak combo is the round's best streak.
+ */
+export function roundResult({ game, score, solved, misses, peakCombo }) {
+  const correct = Math.max(0, Math.floor(Number(solved) || 0))
+  const wrong = Math.max(0, Math.floor(Number(misses) || 0))
+  const attempts = correct + wrong
+  return {
+    game,
+    score: Math.max(0, Math.floor(Number(score) || 0)),
+    correct,
+    wrong,
+    accuracy: attempts ? Math.round((correct / attempts) * 100) : 0,
+    bestStreak: Math.max(0, Math.floor(Number(peakCombo) || 0)),
+    timeSpent: ROUND_SECONDS,
+  }
 }

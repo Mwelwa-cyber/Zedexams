@@ -29,7 +29,7 @@ import SeoHelmet from '../../../shared/components/SeoHelmet'
 
 // Game types whose engine is the prototype-v3 rebuild (learner redesign
 // step 4) — these render full-screen in the learner design system.
-const PROTO_ENGINES = new Set(['number_target'])
+const PROTO_ENGINES = new Set(['number_target', 'word_builder'])
 
 const SUBJECT_TILE_BG = {
   mathematics: 'bg-orange-100',
