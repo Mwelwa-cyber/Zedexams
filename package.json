@@ -471,6 +471,7 @@
     "test:ops-alert": "node functions/opsAlert.test.js",
     "test:ops-alert-recipients": "node functions/opsAlertRecipients.test.js",
     "test:admin-bootstrap": "node functions/security/adminBootstrapCore.test.js",
+    "test:self-target-guard": "node functions/security/selfTargetGuardCore.test.js",
     "test:ops-alert-secrets": "node functions/opsAlertSecrets.test.js",
     "test:ops-alert-test": "node functions/opsAlertTestCore.test.js",
     "test:deploy-timeouts": "node scripts/test-deploy-timeouts.mjs",
