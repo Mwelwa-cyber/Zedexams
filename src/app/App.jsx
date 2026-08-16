@@ -1,33 +1,33 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { useAuth, hasAuthSessionHint } from './contexts/AuthContext'
-import { useTheme, applyThemeToBody, DEFAULT_THEME } from './contexts/ThemeContext'
-import { getTeacherTheme } from './contexts/teacherThemeCore'
-import TeacherThemeSync from './contexts/TeacherThemeSync'
-import { PlatformSettingsProvider } from './contexts/PlatformSettingsContext'
-import { MaintenanceBanner, AndroidUpdateBanner } from './features/platformNotices'
-import { AnnouncementBanner } from './features/announcements'
-import { SubscriptionStatusBanner } from './features/subscription'
-import ProtectedRoute from './app/guards/ProtectedRoute'
-import { TEACHER_ROUTES, FlaggedStudioRoute } from './app/routes/teacherRoutes'
-import AdminMfaGate from './app/guards/AdminMfaGate'
-import LearnerOnlyRoute from './app/guards/LearnerOnlyRoute'
-import MissingProfileRecovery from './app/guards/MissingProfileRecovery'
-import Navbar from './components/layout/Navbar'
-import { getRoleLandingPath } from './utils/navigation'
-import { isWithinVerificationGrace } from './utils/verification'
-import { isNativePlatform } from './utils/runtime'
-import PageLoader from './shared/components/PageLoader'
-import FullScreenLoader from './shared/components/FullScreenLoader'
-import OfflineBanner from './shared/components/OfflineBanner'
-import { OfflineIndicator } from './offline'
-import UpdatePrompt from './shared/components/UpdatePrompt'
-import CookieConsentBanner from './components/ui/CookieConsentBanner'
-import { ZedChatLauncher } from './features/zedChat'
-import ErrorBoundary from './shared/components/ErrorBoundary'
-import ScrollToTop from './shared/components/ScrollToTop'
-import VisitorTracker from './components/ui/VisitorTracker'
-import { ActiveAssignmentSync } from './hooks/useActiveAssignmentSync'
+import { useAuth, hasAuthSessionHint } from '../contexts/AuthContext'
+import { useTheme, applyThemeToBody, DEFAULT_THEME } from '../contexts/ThemeContext'
+import { getTeacherTheme } from '../contexts/teacherThemeCore'
+import TeacherThemeSync from '../contexts/TeacherThemeSync'
+import { PlatformSettingsProvider } from '../contexts/PlatformSettingsContext'
+import { MaintenanceBanner, AndroidUpdateBanner } from '../features/platformNotices'
+import { AnnouncementBanner } from '../features/announcements'
+import { SubscriptionStatusBanner } from '../features/subscription'
+import ProtectedRoute from './guards/ProtectedRoute'
+import { TEACHER_ROUTES, FlaggedStudioRoute } from './routes/teacherRoutes'
+import AdminMfaGate from './guards/AdminMfaGate'
+import LearnerOnlyRoute from './guards/LearnerOnlyRoute'
+import MissingProfileRecovery from './guards/MissingProfileRecovery'
+import Navbar from '../components/layout/Navbar'
+import { getRoleLandingPath } from '../utils/navigation'
+import { isWithinVerificationGrace } from '../utils/verification'
+import { isNativePlatform } from '../utils/runtime'
+import PageLoader from '../shared/components/PageLoader'
+import FullScreenLoader from '../shared/components/FullScreenLoader'
+import OfflineBanner from '../shared/components/OfflineBanner'
+import { OfflineIndicator } from '../offline'
+import UpdatePrompt from '../shared/components/UpdatePrompt'
+import CookieConsentBanner from '../components/ui/CookieConsentBanner'
+import { ZedChatLauncher } from '../features/zedChat'
+import ErrorBoundary from '../shared/components/ErrorBoundary'
+import ScrollToTop from '../shared/components/ScrollToTop'
+import VisitorTracker from '../components/ui/VisitorTracker'
+import { ActiveAssignmentSync } from '../hooks/useActiveAssignmentSync'
 
 // The saved reading theme applies EVERYWHERE, public routes included. The
 // old PUBLIC_THEME_PATHS pin reset /login, /papers, /pricing, … to the brand
@@ -70,187 +70,187 @@ function ThemeApplicator() {
   return null
 }
 
-const Login = lazy(() => import('./features/auth/pages/Login'))
-const Register = lazy(() => import('./features/auth/pages/Register'))
-const AuthAction = lazy(() => import('./features/auth/pages/AuthAction'))
-const VerifyEmail = lazy(() => import('./features/auth/pages/VerifyEmail'))
-const StudentDashboard = lazy(() => import('./features/learnerDashboard/pages/StudentDashboard'))
-const GradeHub = lazy(() => import('./features/learnerDashboard/pages/GradeHub'))
+const Login = lazy(() => import('../features/auth/pages/Login'))
+const Register = lazy(() => import('../features/auth/pages/Register'))
+const AuthAction = lazy(() => import('../features/auth/pages/AuthAction'))
+const VerifyEmail = lazy(() => import('../features/auth/pages/VerifyEmail'))
+const StudentDashboard = lazy(() => import('../features/learnerDashboard/pages/StudentDashboard'))
+const GradeHub = lazy(() => import('../features/learnerDashboard/pages/GradeHub'))
 // New learner home experience (2026-07 rebuild): mobile-first dashboard +
 // Learn / Practice hubs + term-organised subject pages. GradeHub stays
 // reachable at /dashboard/classic as the transition fallback.
-const LearnerLayout = lazy(() => import('./features/learnerHome/components/LearnerLayout'))
-const LearnerHomePage = lazy(() => import('./features/learnerHome/pages/LearnerHomePage'))
-const LearnPage = lazy(() => import('./features/learnerHome/pages/LearnPage'))
-const PracticePage = lazy(() => import('./features/learnerHome/pages/PracticePage'))
-const LearnerSubjectPage = lazy(() => import('./features/learnerHome/pages/LearnerSubjectPage'))
-const StudyPlanPage = lazy(() => import('./features/learnerDashboard/pages/StudyPlanPage'))
-const LearnerCalendar = lazy(() => import('./features/learnerDashboard/pages/LearnerCalendar'))
+const LearnerLayout = lazy(() => import('../features/learnerHome/components/LearnerLayout'))
+const LearnerHomePage = lazy(() => import('../features/learnerHome/pages/LearnerHomePage'))
+const LearnPage = lazy(() => import('../features/learnerHome/pages/LearnPage'))
+const PracticePage = lazy(() => import('../features/learnerHome/pages/PracticePage'))
+const LearnerSubjectPage = lazy(() => import('../features/learnerHome/pages/LearnerSubjectPage'))
+const StudyPlanPage = lazy(() => import('../features/learnerDashboard/pages/StudyPlanPage'))
+const LearnerCalendar = lazy(() => import('../features/learnerDashboard/pages/LearnerCalendar'))
 // Exam timetable hub: /timetable is the interactive per-grade exam schedule
 // (Firestore-driven with a bundled fallback); /timetable/pdf keeps the inline
 // viewer for the official ECZ PDF because Android/Capacitor WebViews silently
 // drop external PDF links.
-const ExamTimetablePage = lazy(() => import('./features/examTimetable/pages/ExamTimetablePage'))
-const TimetableViewerPage = lazy(() => import('./features/learnerDashboard/pages/TimetableViewerPage'))
-const SubjectDrillDown = lazy(() => import('./features/learnerDashboard/pages/SubjectDrillDown'))
-const QuizList = lazy(() => import('./features/quiz/pages/QuizList'))
-const LearnerSearch = lazy(() => import('./features/learnerSearch/pages/LearnerSearch'))
+const ExamTimetablePage = lazy(() => import('../features/examTimetable/pages/ExamTimetablePage'))
+const TimetableViewerPage = lazy(() => import('../features/learnerDashboard/pages/TimetableViewerPage'))
+const SubjectDrillDown = lazy(() => import('../features/learnerDashboard/pages/SubjectDrillDown'))
+const QuizList = lazy(() => import('../features/quiz/pages/QuizList'))
+const LearnerSearch = lazy(() => import('../features/learnerSearch/pages/LearnerSearch'))
 
-const QuizRunner = lazy(() => import('./features/quiz/pages/QuizRunnerV2'))
-const QuizResults = lazy(() => import('./features/quiz/pages/QuizResultsV2'))
+const QuizRunner = lazy(() => import('../features/quiz/pages/QuizRunnerV2'))
+const QuizResults = lazy(() => import('../features/quiz/pages/QuizResultsV2'))
 // Slide-based interactive lessons. /lessons is the canonical learner-
 // facing list (LearnerLessonsList) and /lessons/:lessonId opens the
 // existing slide player. The teacher panel uses LessonEditor under
 // /teacher/lessons for authoring.
-const LessonPlayer    = lazy(() => import('./features/lessons/pages/LessonPlayer'))
-const LearnerLessonsList = lazy(() => import('./features/lessons/pages/LearnerLessonsList').then(m => ({ default: m.LearnerLessonsList })))
+const LessonPlayer    = lazy(() => import('../features/lessons/pages/LessonPlayer'))
+const LearnerLessonsList = lazy(() => import('../features/lessons/pages/LearnerLessonsList').then(m => ({ default: m.LearnerLessonsList })))
 
 // Notes Studio admin — replaces the old slide-builder at /admin/lessons
-const AdminNotesList    = lazy(() => import('./features/notes/pages/AdminNotesList').then(m => ({ default: m.AdminNotesList })))
-const AdminNoteEditor   = lazy(() => import('./features/notes/pages/AdminNoteEditor').then(m => ({ default: m.AdminNoteEditor })))
-const AdminNoteImport   = lazy(() => import('./features/notes/pages/AdminNoteImport').then(m => ({ default: m.AdminNoteImport })))
-const AdminVisualNotesGenerator = lazy(() => import('./features/notes/pages/AdminVisualNotesGenerator').then(m => ({ default: m.AdminVisualNotesGenerator })))
+const AdminNotesList    = lazy(() => import('../features/notes/pages/AdminNotesList').then(m => ({ default: m.AdminNotesList })))
+const AdminNoteEditor   = lazy(() => import('../features/notes/pages/AdminNoteEditor').then(m => ({ default: m.AdminNoteEditor })))
+const AdminNoteImport   = lazy(() => import('../features/notes/pages/AdminNoteImport').then(m => ({ default: m.AdminNoteImport })))
+const AdminVisualNotesGenerator = lazy(() => import('../features/notes/pages/AdminVisualNotesGenerator').then(m => ({ default: m.AdminVisualNotesGenerator })))
 
 // Notes Studio learner — /notes list + reader, gated by LearnerGate
-const LearnerNotesList  = lazy(() => import('./features/notes/pages/LearnerNotesList').then(m => ({ default: m.LearnerNotesList })))
-const LearnerNoteRead   = lazy(() => import('./features/notes/pages/LearnerNoteRead').then(m => ({ default: m.LearnerNoteRead })))
-const LearnerGate       = lazy(() => import('./features/notes/components/LearnerGate').then(m => ({ default: m.LearnerGate })))
-const MyResults = lazy(() => import('./features/learnerDashboard/pages/MyResults'))
-const BadgesPage = lazy(() => import('./features/learnerDashboard/pages/BadgesPage'))
-const ProfilePage = lazy(() => import('./features/learnerDashboard/pages/ProfilePage'))
-const OfflineLibraryPage = lazy(() => import('./offline/OfflineLibraryPage.jsx'))
-const ZedExamsSettings = lazy(() => import('./features/accountSettings/pages/zedexams-settings'))
-const TeacherSettings = lazy(() => import('./features/teacherSettings/TeacherSettings'))
-const LearnerSettings = lazy(() => import('./features/learnerSettings/LearnerSettings'))
-const PaywallHost = lazy(() => import('./features/subscription/components/PaywallHost'))
-const PostUpgradeContinuation = lazy(() => import('./features/subscription/components/PostUpgradeContinuation'))
-const NativePlayBillingSync = lazy(() => import('./features/subscription/components/NativePlayBillingSync'))
-const LockedFeatureModal = lazy(() => import('./features/subscription/components/LockedFeatureModal'))
-const QuizLimitPopup = lazy(() => import('./features/subscription/components/QuizLimitPopup'))
-const SubscriptionReminderPopup = lazy(() => import('./features/subscription/components/SubscriptionReminderPopup'))
-const MySubscriptionRoute = lazy(() => import('./features/subscription/pages/MySubscriptionRoute'))
-const NotFound = lazy(() => import('./components/ui/NotFound'))
-const Marketing = lazy(() => import('./features/marketing/pages/Marketing'))
-const Plans = lazy(() => import('./features/marketing/pages/Plans'))
-const TeachersLanding = lazy(() => import('./features/marketing/pages/TeachersLanding'))
-const AiTeam = lazy(() => import('./features/marketing/pages/AiTeam'))
-const GradePackLanding = lazy(() => import('./features/marketing/pages/GradePackLanding'))
-const PrivacyPolicy = lazy(() => import('./features/marketing/pages/PrivacyPolicy'))
-const Terms = lazy(() => import('./features/marketing/pages/Terms'))
+const LearnerNotesList  = lazy(() => import('../features/notes/pages/LearnerNotesList').then(m => ({ default: m.LearnerNotesList })))
+const LearnerNoteRead   = lazy(() => import('../features/notes/pages/LearnerNoteRead').then(m => ({ default: m.LearnerNoteRead })))
+const LearnerGate       = lazy(() => import('../features/notes/components/LearnerGate').then(m => ({ default: m.LearnerGate })))
+const MyResults = lazy(() => import('../features/learnerDashboard/pages/MyResults'))
+const BadgesPage = lazy(() => import('../features/learnerDashboard/pages/BadgesPage'))
+const ProfilePage = lazy(() => import('../features/learnerDashboard/pages/ProfilePage'))
+const OfflineLibraryPage = lazy(() => import('../offline/OfflineLibraryPage.jsx'))
+const ZedExamsSettings = lazy(() => import('../features/accountSettings/pages/zedexams-settings'))
+const TeacherSettings = lazy(() => import('../features/teacherSettings/TeacherSettings'))
+const LearnerSettings = lazy(() => import('../features/learnerSettings/LearnerSettings'))
+const PaywallHost = lazy(() => import('../features/subscription/components/PaywallHost'))
+const PostUpgradeContinuation = lazy(() => import('../features/subscription/components/PostUpgradeContinuation'))
+const NativePlayBillingSync = lazy(() => import('../features/subscription/components/NativePlayBillingSync'))
+const LockedFeatureModal = lazy(() => import('../features/subscription/components/LockedFeatureModal'))
+const QuizLimitPopup = lazy(() => import('../features/subscription/components/QuizLimitPopup'))
+const SubscriptionReminderPopup = lazy(() => import('../features/subscription/components/SubscriptionReminderPopup'))
+const MySubscriptionRoute = lazy(() => import('../features/subscription/pages/MySubscriptionRoute'))
+const NotFound = lazy(() => import('../components/ui/NotFound'))
+const Marketing = lazy(() => import('../features/marketing/pages/Marketing'))
+const Plans = lazy(() => import('../features/marketing/pages/Plans'))
+const TeachersLanding = lazy(() => import('../features/marketing/pages/TeachersLanding'))
+const AiTeam = lazy(() => import('../features/marketing/pages/AiTeam'))
+const GradePackLanding = lazy(() => import('../features/marketing/pages/GradePackLanding'))
+const PrivacyPolicy = lazy(() => import('../features/marketing/pages/PrivacyPolicy'))
+const Terms = lazy(() => import('../features/marketing/pages/Terms'))
 // Public consent/preferences page — no auth, so the cookie banner can link
 // signed-out visitors somewhere they can actually change their decision.
-const CookiePreferences = lazy(() => import('./features/marketing/pages/CookiePreferences'))
+const CookiePreferences = lazy(() => import('../features/marketing/pages/CookiePreferences'))
 // Public account-deletion request page — the no-login deletion route Google
 // Play's Data safety form links to. Must stay reachable signed out.
-const DeleteAccountRequest = lazy(() => import('./features/marketing/pages/DeleteAccountRequest'))
+const DeleteAccountRequest = lazy(() => import('../features/marketing/pages/DeleteAccountRequest'))
 // Child safety standards — the page Play's CSAE declaration links to.
-const ChildSafety = lazy(() => import('./features/marketing/pages/ChildSafety'))
-const PastPapersHub = lazy(() => import('./features/papers/pages/PastPapersHub'))
-const PastPaperViewer = lazy(() => import('./features/papers/pages/PastPaperViewer'))
-const PastPaperPractice = lazy(() => import('./features/papers/pages/PastPaperPractice'))
-const PublicQuizRunner = lazy(() => import('./features/papers/pages/PublicQuizRunner'))
-const MyPapersHistory = lazy(() => import('./features/papers/pages/MyPapersHistory'))
-const AdminPastPapers = lazy(() => import('./features/adminPastPapers/pages/AdminPastPapers'))
-const PastPaperStudio = lazy(() => import('./features/adminPastPapers/pages/PastPaperStudio'))
-const ZedChatPage = lazy(() => import('./features/zedChat/pages/ZedChatPage'))
-const StatusPage = lazy(() => import('./features/marketing/pages/StatusPage'))
+const ChildSafety = lazy(() => import('../features/marketing/pages/ChildSafety'))
+const PastPapersHub = lazy(() => import('../features/papers/pages/PastPapersHub'))
+const PastPaperViewer = lazy(() => import('../features/papers/pages/PastPaperViewer'))
+const PastPaperPractice = lazy(() => import('../features/papers/pages/PastPaperPractice'))
+const PublicQuizRunner = lazy(() => import('../features/papers/pages/PublicQuizRunner'))
+const MyPapersHistory = lazy(() => import('../features/papers/pages/MyPapersHistory'))
+const AdminPastPapers = lazy(() => import('../features/adminPastPapers/pages/AdminPastPapers'))
+const PastPaperStudio = lazy(() => import('../features/adminPastPapers/pages/PastPaperStudio'))
+const ZedChatPage = lazy(() => import('../features/zedChat/pages/ZedChatPage'))
+const StatusPage = lazy(() => import('../features/marketing/pages/StatusPage'))
 // Audit C5 — SEO blog. Markdown-driven, posts ship in the bundle.
-const BlogIndex = lazy(() => import('./features/blog/pages/BlogIndex'))
-const BlogPost = lazy(() => import('./features/blog/pages/BlogPost'))
+const BlogIndex = lazy(() => import('../features/blog/pages/BlogIndex'))
+const BlogPost = lazy(() => import('../features/blog/pages/BlogPost'))
 
 // Admin section
-const AdminLayout = lazy(() => import('./features/adminShell/pages/AdminLayout'))
-const AdminDashboard = lazy(() => import('./features/adminHome/pages/AdminDashboard'))
+const AdminLayout = lazy(() => import('../features/adminShell/pages/AdminLayout'))
+const AdminDashboard = lazy(() => import('../features/adminHome/pages/AdminDashboard'))
 // Mandatory MFA enrolment page — admin-only, rendered full-screen (no admin
 // chrome) so a not-yet-enrolled admin gets one focused task.
-const MfaSetupPage = lazy(() => import('./features/adminMfa/pages/MfaSetupPage'))
-const CreateQuiz = lazy(() => import('./features/quizEditor/pages/CreateQuizV2'))
-const AdminCsvImport = lazy(() => import('./features/adminContent/pages/AdminCsvImport'))
-const ManageContent = lazy(() => import('./features/adminContent/pages/ManageContent'))
-const AdminResults = lazy(() => import('./features/adminLearners/pages/AdminResults'))
-const ContentApprovals = lazy(() => import('./features/adminContent/pages/ContentApprovals'))
-const QuestionReviewQueue = lazy(() => import('./features/adminQuestionBank/pages/QuestionReviewQueue'))
-const ImportQuestionBankPanel = lazy(() => import('./features/adminQuestionBank/pages/ImportQuestionBankPanel'))
-const FeedbackInbox = lazy(() => import('./features/adminFeedback/pages/FeedbackInbox'))
-const PaymentsPanel = lazy(() => import('./features/adminPayments/pages/PaymentsPanel'))
-const BulkGrantTrialsPanel = lazy(() => import('./features/adminTrials/pages/BulkGrantTrialsPanel'))
-const AdminLearners = lazy(() => import('./features/adminLearners/pages/AdminLearners'))
-const AdminLearnerProfile = lazy(() => import('./features/adminLearners/pages/AdminLearnerProfile'))
-const GenerationsAdmin = lazy(() => import('./features/adminContent/pages/GenerationsAdmin'))
-const CbcKbAdmin = lazy(() => import('./features/adminCbcKb/pages/CbcKbAdmin'))
-const PictureBankAdmin = lazy(() => import('./features/visualStudio/pages/PictureBankAdmin'))
-const VisualStudioAdmin = lazy(() => import('./features/visualStudio/pages/VisualStudioAdmin'))
-const CurriculumReplaceStudio = lazy(() => import('./features/adminCurriculum/pages/CurriculumReplaceStudio'))
-const CurriculumUploadPanel = lazy(() => import('./features/adminCurriculum/pages/CurriculumUploadPanel'))
-const AdminAiCosts = lazy(() => import('./features/adminAiCosts/pages/AdminAiCosts'))
-const AdminAppCheck = lazy(() => import('./features/adminAppCheck/pages/AdminAppCheck'))
-const AdminUsersList = lazy(() => import('./features/adminUsers/pages/AdminUsersList'))
-const AdminUserProfile = lazy(() => import('./features/adminUsers/pages/AdminUserProfile'))
-const AdminSettings = lazy(() => import('./features/adminSettings/pages/AdminSettings'))
-const AnnouncementsAdmin = lazy(() => import('./features/announcements/pages/AnnouncementsAdmin'))
-const AdminActivityLog = lazy(() => import('./features/adminAnalytics/pages/AdminActivityLog'))
-const AdminAnalytics = lazy(() => import('./features/adminAnalytics/pages/AdminAnalytics'))
-const AdminVisitors = lazy(() => import('./features/adminAnalytics/pages/AdminVisitors'))
+const MfaSetupPage = lazy(() => import('../features/adminMfa/pages/MfaSetupPage'))
+const CreateQuiz = lazy(() => import('../features/quizEditor/pages/CreateQuizV2'))
+const AdminCsvImport = lazy(() => import('../features/adminContent/pages/AdminCsvImport'))
+const ManageContent = lazy(() => import('../features/adminContent/pages/ManageContent'))
+const AdminResults = lazy(() => import('../features/adminLearners/pages/AdminResults'))
+const ContentApprovals = lazy(() => import('../features/adminContent/pages/ContentApprovals'))
+const QuestionReviewQueue = lazy(() => import('../features/adminQuestionBank/pages/QuestionReviewQueue'))
+const ImportQuestionBankPanel = lazy(() => import('../features/adminQuestionBank/pages/ImportQuestionBankPanel'))
+const FeedbackInbox = lazy(() => import('../features/adminFeedback/pages/FeedbackInbox'))
+const PaymentsPanel = lazy(() => import('../features/adminPayments/pages/PaymentsPanel'))
+const BulkGrantTrialsPanel = lazy(() => import('../features/adminTrials/pages/BulkGrantTrialsPanel'))
+const AdminLearners = lazy(() => import('../features/adminLearners/pages/AdminLearners'))
+const AdminLearnerProfile = lazy(() => import('../features/adminLearners/pages/AdminLearnerProfile'))
+const GenerationsAdmin = lazy(() => import('../features/adminContent/pages/GenerationsAdmin'))
+const CbcKbAdmin = lazy(() => import('../features/adminCbcKb/pages/CbcKbAdmin'))
+const PictureBankAdmin = lazy(() => import('../features/visualStudio/pages/PictureBankAdmin'))
+const VisualStudioAdmin = lazy(() => import('../features/visualStudio/pages/VisualStudioAdmin'))
+const CurriculumReplaceStudio = lazy(() => import('../features/adminCurriculum/pages/CurriculumReplaceStudio'))
+const CurriculumUploadPanel = lazy(() => import('../features/adminCurriculum/pages/CurriculumUploadPanel'))
+const AdminAiCosts = lazy(() => import('../features/adminAiCosts/pages/AdminAiCosts'))
+const AdminAppCheck = lazy(() => import('../features/adminAppCheck/pages/AdminAppCheck'))
+const AdminUsersList = lazy(() => import('../features/adminUsers/pages/AdminUsersList'))
+const AdminUserProfile = lazy(() => import('../features/adminUsers/pages/AdminUserProfile'))
+const AdminSettings = lazy(() => import('../features/adminSettings/pages/AdminSettings'))
+const AnnouncementsAdmin = lazy(() => import('../features/announcements/pages/AnnouncementsAdmin'))
+const AdminActivityLog = lazy(() => import('../features/adminAnalytics/pages/AdminActivityLog'))
+const AdminAnalytics = lazy(() => import('../features/adminAnalytics/pages/AdminAnalytics'))
+const AdminVisitors = lazy(() => import('../features/adminAnalytics/pages/AdminVisitors'))
 
 // Admin — Agents (operating-model dashboard)
-const AgentsHome      = lazy(() => import('./features/agentsConsole/pages/AgentsHome').then(m => ({ default: m.AgentsHome })))
-const AgentsAllJobs   = lazy(() => import('./features/agentsConsole/pages/AgentsHome').then(m => ({ default: m.AgentsAllJobs })))
-const AgentProfile    = lazy(() => import('./features/agentsConsole/pages/AgentsHome').then(m => ({ default: m.AgentProfile })))
-const AgentJobDetail  = lazy(() => import('./features/agentsConsole/pages/AgentJobDetail'))
-const CompanyHQ       = lazy(() => import('./features/companyHQ/pages/CompanyHQ').then(m => ({ default: m.CompanyHQ })))
+const AgentsHome      = lazy(() => import('../features/agentsConsole/pages/AgentsHome').then(m => ({ default: m.AgentsHome })))
+const AgentsAllJobs   = lazy(() => import('../features/agentsConsole/pages/AgentsHome').then(m => ({ default: m.AgentsAllJobs })))
+const AgentProfile    = lazy(() => import('../features/agentsConsole/pages/AgentsHome').then(m => ({ default: m.AgentProfile })))
+const AgentJobDetail  = lazy(() => import('../features/agentsConsole/pages/AgentJobDetail'))
+const CompanyHQ       = lazy(() => import('../features/companyHQ/pages/CompanyHQ').then(m => ({ default: m.CompanyHQ })))
 
 // Internal UI audit page at /dev/ui — see the route comment below.
-const UiAuditPage     = lazy(() => import('./features/uiAudit/pages/UiAuditPage'))
+const UiAuditPage     = lazy(() => import('../features/uiAudit/pages/UiAuditPage'))
 
 
 // Audit A3 PR 1 — parent portal (public read-only progress view).
-const ParentProgressView = lazy(() => import('./features/parentPortal/pages/ParentProgressView'))
+const ParentProgressView = lazy(() => import('../features/parentPortal/pages/ParentProgressView'))
 
 // Family portal (authenticated parent accounts)
-const ParentLayout = lazy(() => import('./app/guards/ParentLayout'))
-const FamilyHome = lazy(() => import('./features/parentPortal/pages/FamilyHome'))
-const ChildProgressPage = lazy(() => import('./features/parentPortal/pages/ChildProgressPage'))
+const ParentLayout = lazy(() => import('./guards/ParentLayout'))
+const FamilyHome = lazy(() => import('../features/parentPortal/pages/FamilyHome'))
+const ChildProgressPage = lazy(() => import('../features/parentPortal/pages/ChildProgressPage'))
 
 // Teacher section. The /teacher/* routes themselves live in
 // app/routes/teacherRoutes.jsx — declared as data so a spec can
 // render every one of them and fail if the shared shell is missing. Add a
 // teacher page there. TeacherLayout is still imported here for the
 // role-branched Settings page below, which is a /settings route.
-const TeacherLayout = lazy(() => import('./features/teacherShell/pages/TeacherLayout'))
+const TeacherLayout = lazy(() => import('../features/teacherShell/pages/TeacherLayout'))
 // Class List + Register preview — mock data only, intentionally unguarded.
 // Teacher — AI Generators
-const WorksheetGenerator = lazy(() => import('./features/worksheet/pages/WorksheetGenerator'))
-const FlashcardGenerator = lazy(() => import('./features/flashcards/pages/FlashcardGenerator'))
-const SchemeOfWorkGenerator = lazy(() => import('./features/schemeOfWork/pages/SchemeOfWorkGenerator'))
-const ClassTimetableStudio = lazy(() => import('./features/classTimetable/pages/ClassTimetableStudio'))
+const WorksheetGenerator = lazy(() => import('../features/worksheet/pages/WorksheetGenerator'))
+const FlashcardGenerator = lazy(() => import('../features/flashcards/pages/FlashcardGenerator'))
+const SchemeOfWorkGenerator = lazy(() => import('../features/schemeOfWork/pages/SchemeOfWorkGenerator'))
+const ClassTimetableStudio = lazy(() => import('../features/classTimetable/pages/ClassTimetableStudio'))
 // Rubric Studio is retired (2026-08); no admin route mounts it either. Saved
 // rubrics still render in My Library via features/rubric's RubricView.
-const NotesStudio = lazy(() => import('./features/teacherNotes/pages/NotesStudio'))
+const NotesStudio = lazy(() => import('../features/teacherNotes/pages/NotesStudio'))
 // Teacher — Visual Studio (ZedExams Picture & Diagram Studio). Self-contained
 // feature module under src/features/visualStudio/.
 
 // Teacher — Library
-const LibraryItemDetail = lazy(() => import('./features/teacherLibrary/pages/LibraryItemDetail'))
-const PublicShareView = lazy(() => import('./features/teacherLibrary/pages/PublicShareView'))
+const LibraryItemDetail = lazy(() => import('../features/teacherLibrary/pages/LibraryItemDetail'))
+const PublicShareView = lazy(() => import('../features/teacherLibrary/pages/PublicShareView'))
 
 // Daily Exams (auth required)
-const DailyExamsHub      = lazy(() => import('./features/dailyExams/pages/DailyExamsHub'))
-const DailyExamRunner    = lazy(() => import('./features/dailyExams/pages/DailyExamRunner'))
-const ExamResultsPage    = lazy(() => import('./features/dailyExams/pages/ExamResultsPage'))
-const ExamLeaderboardPage = lazy(() => import('./features/dailyExams/pages/ExamLeaderboardPage'))
+const DailyExamsHub      = lazy(() => import('../features/dailyExams/pages/DailyExamsHub'))
+const DailyExamRunner    = lazy(() => import('../features/dailyExams/pages/DailyExamRunner'))
+const ExamResultsPage    = lazy(() => import('../features/dailyExams/pages/ExamResultsPage'))
+const ExamLeaderboardPage = lazy(() => import('../features/dailyExams/pages/ExamLeaderboardPage'))
 
 // Public games (no auth)
-const GamesHub = lazy(() => import('./features/games/pages/GamesHub'))
-const SubjectSelector = lazy(() => import('./features/games/pages/SubjectSelector'))
-const GameList = lazy(() => import('./features/games/pages/GameList'))
-const PlayGame = lazy(() => import('./features/games/pages/PlayGame'))
-const GlobalLeaderboard = lazy(() => import('./features/games/pages/GlobalLeaderboard'))
+const GamesHub = lazy(() => import('../features/games/pages/GamesHub'))
+const SubjectSelector = lazy(() => import('../features/games/pages/SubjectSelector'))
+const GameList = lazy(() => import('../features/games/pages/GameList'))
+const PlayGame = lazy(() => import('../features/games/pages/PlayGame'))
+const GlobalLeaderboard = lazy(() => import('../features/games/pages/GlobalLeaderboard'))
 
 // Admin — games seed importer
-const GamesSeedAdmin = lazy(() => import('./features/games/pages/GamesSeedAdmin'))
+const GamesSeedAdmin = lazy(() => import('../features/games/pages/GamesSeedAdmin'))
 
 // Quiz editor (shared by admin + teacher)
-const EditQuiz = lazy(() => import('./features/quizEditor/pages/EditQuizV2'))
+const EditQuiz = lazy(() => import('../features/quizEditor/pages/EditQuizV2'))
 
 // Lifts the Android in-app splash (index.html + /public/zx-splash.js) once
 // the app has DECIDED its first real screen — not on bare App mount. The

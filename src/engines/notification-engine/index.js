@@ -13,8 +13,8 @@
  * do that — `fcm.js` and `nativePush.js` — cannot live here. Both import
  * `firebase/messaging` and `firebase/firestore` directly, and
  * `src/engines/**` may not touch the Firebase SDK (`NO_FIREBASE_LAYERS` in
- * `scripts/test-import-boundaries.mjs`, which catches the dynamic
- * `await import('firebase/…')` form that ESLint does not see).
+ * `scripts/test-import-boundaries.mjs`, which also catches the dynamic and
+ * `require()` forms of that dependency — the ones ESLint cannot see).
  *
  * That is not a contradiction in the target, it is the target working: §12 also
  * says engines reach Firebase **through `src/services/`**, and it names a

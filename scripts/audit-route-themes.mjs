@@ -23,7 +23,7 @@ import { readFileSync, existsSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 
 const ROOT = process.cwd()
-const app = readFileSync(join(ROOT, 'src/App.jsx'), 'utf8')
+const app = readFileSync(join(ROOT, 'src/app/App.jsx'), 'utf8')
 
 /* ── route sources ────────────────────────────────────────────────────────
  * Routes are declared in more than one place. App.jsx has most of them as
@@ -186,7 +186,7 @@ for (const r of routes) {
       })
       if (cs.length && cs.every(Boolean)) {
         container = `Dispatcher → ${[...new Set(cs)].join(' / ')}`
-        file = 'src/App.jsx'
+        file = 'src/app/App.jsx'
       }
     }
   }
