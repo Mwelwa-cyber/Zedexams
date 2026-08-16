@@ -471,6 +471,7 @@
     "test:ops-alert": "node functions/opsAlert.test.js",
     "test:ops-alert-recipients": "node functions/opsAlertRecipients.test.js",
     "test:admin-bootstrap": "node functions/security/adminBootstrapCore.test.js",
+    "test:self-target-guard": "node functions/security/selfTargetGuardCore.test.js",
     "test:ops-alert-secrets": "node functions/opsAlertSecrets.test.js",
     "test:ops-alert-test": "node functions/opsAlertTestCore.test.js",
     "test:deploy-timeouts": "node scripts/test-deploy-timeouts.mjs",
@@ -827,6 +828,8 @@
     "test:auth-init-recovery": "node scripts/test-auth-init-recovery.mjs",
     "test:release-name": "node scripts/test-release-name.mjs",
     "test:cold-start": "node scripts/test-cold-start-budget.mjs",
+    "test:library-move": "node src/features/teacherLibrary/lib/moveTarget.test.js",
+    "test:library-ece": "node src/utils/libraryEceClassification.test.js",
     "test:admin-links": "node scripts/test-admin-links.mjs",
     "test:admin-nav-search": "node src/features/adminShell/lib/adminNavSearch.test.js"
   },

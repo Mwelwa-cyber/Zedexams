@@ -30,7 +30,8 @@
  *   - `hooks/useExamTimetables` — also read by
  *     `features/learnerHome/hooks/useLearnerDashboard`.
  *   - `utils/examTimetableLogic` — also read by `learnerHome`'s
- *     `OfficialExamCountdownCard`, AND by `scripts/test-exam-timetable.mjs`
+ *     `ExamCountdownChip` and `features/papers`' timetable row, AND by
+ *     `scripts/test-exam-timetable.mjs`
  *     and `scripts/seed-exam-timetables.mjs`. That second pair is the
  *     `MIGRATION_TEMPLATE.md` hiding place a path-shaped search misses:
  *     moving it would have broken `test:exam-timetable`, a suite whose name

@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 
 vi.mock('../../../firebase/config', () => ({ default: {}, auth: {}, db: {} }))
 
@@ -33,10 +33,7 @@ vi.mock('../../../contexts/NotificationContext', () => ({
 }))
 vi.mock('../../../contexts/ThemeContext', () => ({
   useTheme: () => ({ theme: 'oatmeal', setTheme: vi.fn() }),
-  THEMES: [
-    { id: 'sky', label: 'Sky Blue', swatch: '#0EA5E9' },
-    { id: 'oatmeal', label: 'Warm Oatmeal', swatch: '#D97706' },
-  ],
+  DEFAULT_THEME: 'oatmeal',
 }))
 
 let mockDashboard
@@ -45,6 +42,8 @@ vi.mock('../hooks/useLearnerDashboard', () => ({
 }))
 
 import LearnerHomePage from './LearnerHomePage'
+import LearnerLayout from '../components/LearnerLayout'
+import { PSLE_2026 } from '../../../config/examTimetable2026'
 
 const baseData = {
   activeTerm: { term: 2, source: 'calendar' },
@@ -81,9 +80,15 @@ const baseData = {
 }
 
 function renderHome() {
+  // Rendered through the layout route, the way App.jsx mounts it — the
+  // shell chrome (nav, page column) belongs to LearnerLayout now.
   return render(
     <MemoryRouter initialEntries={['/dashboard']}>
-      <LearnerHomePage />
+      <Routes>
+        <Route element={<LearnerLayout />}>
+          <Route path="/dashboard" element={<LearnerHomePage />} />
+        </Route>
+      </Routes>
     </MemoryRouter>,
   )
 }
@@ -102,13 +107,14 @@ beforeEach(() => {
 })
 
 describe('LearnerHomePage', () => {
-  it('greets the learner by first name with grade, curriculum and term meta', () => {
+  it('greets the learner by first name with the Grade · Term chip and no curriculum label', () => {
     renderHome()
     const header = screen.getByRole('banner')
-    expect(within(header).getByRole('heading', { level: 1 }).textContent).toMatch(/Good (morning|afternoon|evening), Lydia!/)
-    expect(within(header).getByText('Grade 7')).toBeInTheDocument()
-    expect(within(header).getByText('CBC')).toBeInTheDocument()
-    expect(within(header).getByText('Term 2')).toBeInTheDocument()
+    expect(within(header).getByRole('heading', { level: 1 }).textContent).toMatch(/Hi, Lydia!/)
+    expect(within(header).getByText(/Grade 7\s+·\s+Term 2/)).toBeInTheDocument()
+    // The old header hardcoded "CBC" — wrong for Grade 7 (frameworks:
+    // ['2013']) — and the prototype chip carries Grade · Term only.
+    expect(within(header).queryByText(/CBC/)).toBeNull()
   })
 
   it('renders the Past Papers hero with the real resume data', () => {
@@ -162,9 +168,22 @@ describe('LearnerHomePage', () => {
     expect(within(section).getByText('82%')).toBeInTheDocument()
   })
 
-  it('states the timetable has not been published when data is missing', () => {
+  it('shows the coral exam-countdown chip when a timetable is published', () => {
+    // Countdown target is the first sat paper (English, Tue 27 Oct 08:00).
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(Date.parse('2026-09-01T10:00:00+02:00')))
+    mockDashboard.timetables = { active: PSLE_2026, archived: [], loading: false, error: null }
     renderHome()
-    expect(screen.getByText('The examination timetable has not been published yet.')).toBeInTheDocument()
+    const chip = screen.getByRole('button', { name: /exams in 55 days/i })
+    expect(chip.classList.contains('lhx-chip-exam')).toBe(true)
+    vi.useRealTimers()
+  })
+
+  it('renders no exam chip (and no countdown card) without a published timetable', () => {
+    renderHome()
+    expect(screen.queryByRole('button', { name: /exams in/i })).toBeNull()
+    // The big countdown card is gone — Home stays minimal, the chip pulls.
+    expect(screen.queryByText('The examination timetable has not been published yet.')).toBeNull()
   })
 
   it('renders recommendations with their reasons', () => {
@@ -179,12 +198,16 @@ describe('LearnerHomePage', () => {
     expect(screen.getByText('Your completed lessons, quizzes and papers will appear here.')).toBeInTheDocument()
   })
 
-  it('bottom navigation has Home/Learn/Papers/Practice/Games and no Profile', () => {
+  it('bottom navigation has the four prototype tabs and no Profile', () => {
     renderHome()
     const nav = screen.getByRole('navigation', { name: 'Learner navigation' })
     const labels = Array.from(nav.querySelectorAll('a')).map((a) => a.textContent)
-    expect(labels).toEqual(['Home', 'Learn', 'Papers', 'Practice', 'Games'])
+    expect(labels).toEqual(['Home', 'Papers', 'Notes', 'Games'])
     expect(labels).not.toContain('Profile')
+    // Learn and Practice tabs are gone (locked scope); their routes stay
+    // reachable elsewhere until step 5 retires them.
+    expect(labels).not.toContain('Learn')
+    expect(labels).not.toContain('Practice')
   })
 
   it('marks the active bottom-navigation item with aria-current', () => {
@@ -195,22 +218,22 @@ describe('LearnerHomePage', () => {
     expect(active.textContent).toBe('Home')
   })
 
-  it('header chrome bar carries Progress, Theme, Alerts and Account', () => {
+  it('topbar carries the Night toggle, streak pill and Alerts', () => {
     renderHome()
-    const chrome = screen.getByRole('navigation', { name: /account and settings/i })
-    expect(within(chrome).getByRole('link', { name: /progress/i })).toHaveAttribute('href', '/my-results')
-    expect(within(chrome).getByRole('button', { name: /change theme/i })).toBeInTheDocument()
+    const header = screen.getByRole('banner')
+    expect(within(header).getByRole('button', { name: /switch to night mode/i })).toBeInTheDocument()
+    expect(within(header).getByLabelText('3 day streak')).toBeInTheDocument()
     // Unread count is surfaced to assistive tech, not just as a dot.
-    expect(within(chrome).getByRole('button', { name: 'Alerts, 3 unread' })).toBeInTheDocument()
+    expect(within(header).getByRole('button', { name: 'Alerts, 3 unread' })).toBeInTheDocument()
   })
 
-  it('profile opens from the header Account tile, which carries the avatar', () => {
+  it('profile opens from the topbar avatar button', () => {
     renderHome()
     const account = screen.getByRole('button', { name: /account menu for Lydia Mwansa/i })
     expect(account).toBeInTheDocument()
     // Profile is absent from the bottom navigation by design, so the
     // avatar affordance has to live here.
-    expect(account.querySelector('.lhx-chrome-avatar')).not.toBeNull()
+    expect(account.classList.contains('lhx-avatar-btn')).toBe(true)
   })
 
   it('shows a retryable error state when the dashboard load fails', () => {

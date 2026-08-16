@@ -215,10 +215,20 @@ export const SYLLABUS_OPTIONS = [
 //
 // `active` flips on as we roll a grade/form out. Inactive entries still
 // render in admin views but are hidden from teacher-facing dropdowns.
-// CBC matches the studio: Grades 1–6 then Forms 1–4 (no Grade 7).
+// CBC matches the studio: Nursery, Reception, Grades 1–6 then Forms 1–4 (no
+// Grade 7). The studio's own list is CBC_GRADES in
+// src/features/lessonPlanStudio/components/sections/LessonDetailsForm.jsx —
+// a grade offered there but missing here has no folder to land in, which is
+// exactly how Nursery and Reception spent their first months filing into
+// Unsorted. Keep the two in step.
 
 export const GRADE_FORMS = {
   [SYLLABUS_TYPES.CBC]: [
+    // ECE. The 2013 (OBC) syllabus declares no early-childhood years, which is
+    // why these appear under CBC only — see levelsForFramework() in
+    // src/config/educationLevels.js, the ladder these two mirror.
+    { value: 'Nursery',   label: 'Nursery',   band: 'early_childhood', active: true },
+    { value: 'Reception', label: 'Reception', band: 'early_childhood', active: true },
     { value: 'Grade 1', label: 'Grade 1', band: 'lower_primary',    active: true },
     { value: 'Grade 2', label: 'Grade 2', band: 'lower_primary',    active: true },
     { value: 'Grade 3', label: 'Grade 3', band: 'lower_primary',    active: true },

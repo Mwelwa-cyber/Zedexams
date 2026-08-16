@@ -29,9 +29,13 @@ describe('resolveGradeForm', () => {
     expect(resolveGradeForm('G7')).toEqual({ syllabus: 'OBC', gradeForm: 'Grade 7' })
   })
 
-  it('treats ECE buckets as CBC Grade 1', () => {
-    expect(resolveGradeForm('ECE')).toEqual({ syllabus: 'CBC', gradeForm: 'Grade 1' })
-    expect(resolveGradeForm('ECE_R')).toEqual({ syllabus: 'CBC', gradeForm: 'Grade 1' })
+  it('files ECE buckets into their own folders, not into Grade 1', () => {
+    // These used to resolve to 'Grade 1' because the library had no ECE
+    // folders. It has them now, so early-childhood work files where a teacher
+    // would look for it. A bare 'ECE' predates the Nursery/Reception split and
+    // folds onto the younger year. See libraryEceClassification.test.js.
+    expect(resolveGradeForm('ECE')).toEqual({ syllabus: 'CBC', gradeForm: 'Nursery' })
+    expect(resolveGradeForm('ECE_R')).toEqual({ syllabus: 'CBC', gradeForm: 'Reception' })
   })
 
   it('accepts already-academic forms, normalising case/spacing', () => {
