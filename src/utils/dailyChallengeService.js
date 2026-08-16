@@ -19,7 +19,7 @@ import {
   collection, doc, getDoc, getDocs, setDoc, Timestamp, where, query,
 } from 'firebase/firestore'
 import { db, auth } from '../firebase/config'
-import { GAMES_SEED } from '../data/gamesSeed'
+import { GAMES_SEED, RETIRED_GAME_TYPES } from '../data/gamesSeed'
 import {
   describeFirestoreReadError,
   isFirestoreReadTimeout,
@@ -97,6 +97,10 @@ export async function getTodaysChallenge() {
   // `active` flag so deactivated/out-of-scope seed entries are never chosen
   // as the daily challenge.
   if (!available.length) available = GAMES_SEED.filter((g) => g.active !== false)
+
+  // A retired mechanic must never be the daily pick — a live doc can still
+  // carry one after the 2026-08 redesign retired its engine (step 4).
+  available = available.filter((g) => !RETIRED_GAME_TYPES.has(g?.type))
 
   // Deterministic pick keyed by the UTC date integer
   const idx = ((dateKeyToInt(dateId) % available.length) + available.length) % available.length

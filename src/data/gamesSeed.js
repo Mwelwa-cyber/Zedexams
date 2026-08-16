@@ -1332,7 +1332,7 @@ export function isDemoGame(game) {
  * the player UI when Firestore reads time out.
  */
 export function getFallbackGames(filter = {}) {
-  let games = GAMES_SEED.filter((g) => g.active !== false)
+  let games = GAMES_SEED.filter((g) => g.active !== false && !RETIRED_GAME_TYPES.has(g.type))
   if (filter.grade != null) games = games.filter((g) => g.grade === Number(filter.grade))
   if (filter.subject) games = games.filter((g) => g.subject === filter.subject)
   return games
@@ -1340,6 +1340,21 @@ export function getFallbackGames(filter = {}) {
 
 export function getFallbackGame(id) {
   const found = GAMES_SEED.find((g) => g.id === id) || null
-  if (!found || found.active === false) return null
+  if (!found || found.active === false || RETIRED_GAME_TYPES.has(found.type)) return null
   return found
 }
+
+/**
+ * Game types whose engines the 2026-08 learner redesign retired (step 4:
+ * the legacy mechanics gave way to the prototype's four — Number Path,
+ * Word Builder, Meaning Match, Punctuation Pro — with timed_quiz kept
+ * for the daily quiz). The seed entries above stay for the record, but
+ * fallbacks and player-facing lists filter them, and PlayGame shows a
+ * retirement card for any live Firestore doc still carrying one.
+ */
+export const RETIRED_GAME_TYPES = new Set([
+  'province_shapes',
+  'sorting_factory',
+  'sentence_scramble',
+  'market_challenge',
+])
