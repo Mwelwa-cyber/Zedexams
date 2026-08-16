@@ -21,6 +21,7 @@ import { NotificationCenter } from '../../notifications'
 import CharacterAvatar from '../../../shared/components/CharacterAvatar'
 import LearnerIcon from './LearnerIcon'
 import LearnerProfileSheet from './LearnerProfileSheet'
+import ExamCountdownChip from './ExamCountdownChip'
 import { firstNameOf } from '../lib/learnerHomeCore'
 
 const LAST_LIGHT_KEY = 'lhx:last-light-theme'
@@ -57,7 +58,7 @@ function NightToggle() {
   )
 }
 
-export default function LearnerHeader({ activeTerm, showGreeting = true, streak = null }) {
+export default function LearnerHeader({ activeTerm, showGreeting = true, streak = null, timetables = null }) {
   const { userProfile } = useAuth()
   // The app-wide notification feed — one listener in NotificationProvider,
   // shared by every shell. Reading it here adds no Firestore work.
@@ -124,9 +125,12 @@ export default function LearnerHeader({ activeTerm, showGreeting = true, streak 
           <h1 className="lhx-greeting">
             Hi{firstName ? ', ' : ''}<span>{firstName ? `${firstName}!` : 'there!'}</span> 👋
           </h1>
-          {gradeChip && (
+          {(gradeChip || timetables) && (
             <div className="lhx-header-meta lhx-chip-row">
-              <span className="lhx-chip">{gradeChip}</span>
+              {gradeChip && <span className="lhx-chip">{gradeChip}</span>}
+              {/* The coral countdown chip — Home stays minimal, the pull
+                  to the timetable rides here (prototype). */}
+              {timetables && <ExamCountdownChip timetables={timetables} />}
             </div>
           )}
         </div>

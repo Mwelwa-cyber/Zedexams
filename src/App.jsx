@@ -555,6 +555,10 @@ export default function App() {
             <Route path="/learn"             element={<ProtectedRoute><LearnerOnlyRoute><LearnPage /></LearnerOnlyRoute></ProtectedRoute>} />
             <Route path="/practice"          element={<ProtectedRoute><LearnerOnlyRoute><PracticePage /></LearnerOnlyRoute></ProtectedRoute>} />
             <Route path="/subjects/:subjectId" element={<ProtectedRoute><LearnerOnlyRoute><LearnerSubjectPage /></LearnerOnlyRoute></ProtectedRoute>} />
+            {/* Interactive exam timetable — the prototype's timetable screen
+                (Home chip + Papers row tap through here). The PDF twin stays
+                below, outside the shell. */}
+            <Route path="/timetable"       element={<ProtectedRoute><LearnerOnlyRoute><ExamTimetablePage /></LearnerOnlyRoute></ProtectedRoute>} />
           </Route>
           <Route path="/dashboard/classic" element={<ProtectedRoute><LearnerOnlyRoute><GradeHub /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/practice/daily-exams" element={<Navigate to="/exams" replace />} />
@@ -569,9 +573,9 @@ export default function App() {
           <Route path="/my-stats"          element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><StudentDashboard /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/study-plan"        element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><StudyPlanPage /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/calendar"          element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerCalendar /></LearnerOnlyRoute></ProtectedRoute>} />
-          {/* Interactive exam timetable hub; the official ECZ PDF stays readable
-              in-app at /timetable/pdf (Android WebViews drop external PDF links). */}
-          <Route path="/timetable"         element={<ProtectedRoute><LearnerOnlyRoute><ExamTimetablePage /></LearnerOnlyRoute></ProtectedRoute>} />
+          {/* The official ECZ PDF stays readable in-app at /timetable/pdf
+              (Android WebViews drop external PDF links); the interactive
+              /timetable lives in the LearnerLayout group above. */}
           <Route path="/timetable/pdf"     element={<ProtectedRoute><LearnerOnlyRoute><TimetableViewerPage /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/exams"                        element={<ProtectedRoute><LearnerOnlyRoute><DailyExamsHub /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/exams/leaderboard"           element={<ProtectedRoute><LearnerOnlyRoute><ExamLeaderboardPage /></LearnerOnlyRoute></ProtectedRoute>} />

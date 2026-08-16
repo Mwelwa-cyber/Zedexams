@@ -39,6 +39,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
+import useExamTimetables from '../../../hooks/useExamTimetables'
+import { getNextPaperSession } from '../../../utils/examTimetableLogic'
 import {
   PAPER_GRADES,
   getCachedPublishedPapers,
@@ -62,6 +64,7 @@ import Skeleton from '../../../shared/components/Skeleton'
 import {
   ArrowRight,
   BookmarkSquareIcon,
+  BookOpen,
   CalendarDays,
   Check,
   ChevronLeft,
@@ -446,15 +449,65 @@ function GradeToggle({ grade, onChange }) {
   )
 }
 
+/**
+ * The exam-timetable strip above the paper list (learner redesign):
+ * "2026 Exam Timetable · ECZ · 26–30 October · N days to go" on the
+ * prototype's indigo gradient, tapping through to /timetable. Data is
+ * the same examTimetables source /timetable renders (public read,
+ * bundled fallback); the row hides for grades with no published
+ * timetable and once the last paper has been sat. Ticks once a minute —
+ * only the day count shows here.
+ */
+function TimetableRow({ grade }) {
+  const { active } = useExamTimetables(grade)
+  const [nowMs, setNowMs] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 60000)
+    return () => clearInterval(id)
+  }, [])
+  const next = active ? getNextPaperSession(active, nowMs) : null
+  if (!active || !next) return null
+
+  const days = Math.floor(Math.max(0, Date.parse(next.start) - nowMs) / 86400000)
+  const when = days > 0 ? `${days} ${days === 1 ? 'day' : 'days'} to go` : 'Exams this week'
+  // "26–30 October" from the ISO span (sliced — the strings carry the
+  // Lusaka offset already).
+  const sd = parseInt((active.startsAt || '').slice(8, 10), 10)
+  const ed = parseInt((active.endsAt || '').slice(8, 10), 10)
+  const month = Number.isFinite(ed)
+    ? new Date(2000, parseInt(active.endsAt.slice(5, 7), 10) - 1, 1).toLocaleDateString('en-GB', { month: 'long' })
+    : ''
+  const span = Number.isFinite(sd) && Number.isFinite(ed) ? `${sd}–${ed} ${month}` : String(active.year)
+
+  return (
+    <Link
+      to="/timetable"
+      className="mt-4 flex items-center gap-3 rounded-2xl p-3.5 text-white shadow-elev-md transition active:scale-[0.99]"
+      style={{ background: 'linear-gradient(135deg, #7180f2, #5158d0)' }}
+    >
+      <span className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl bg-white/20 text-lg" aria-hidden="true">
+        📅
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-black leading-tight">{active.year} Exam Timetable</span>
+        <span className="block truncate text-xs font-bold text-white/90">
+          {active.board} · {span} · {when}
+        </span>
+      </span>
+      <ChevronRight size={18} strokeWidth={2.6} className="flex-shrink-0 text-white/90" aria-hidden="true" />
+    </Link>
+  )
+}
+
 // ── Floating glassmorphism bottom navigation ────────────────────────
 function BottomNav() {
-  // Matches the learner-home bottom-nav IA (Home · Learn · Papers ·
-  // Practice · Games). Profile moved to the header avatar (2026-07).
+  // Matches the learner-shell bottom-nav IA (Home · Papers · Notes ·
+  // Games — the 2026-08 redesign). Profile lives behind the header
+  // avatar on the learner shell.
   const items = [
     { to: '/dashboard', label: 'Home', Icon: Home },
-    { to: '/learn', label: 'Learn', Icon: GraduationCap },
     { to: '/papers', label: 'Papers', Icon: FileText, active: true },
-    { to: '/practice', label: 'Practice', Icon: PencilLine },
+    { to: '/notes', label: 'Notes', Icon: BookOpen },
     { to: '/games', label: 'Games', Icon: Gamepad2 },
   ]
   return (
@@ -696,6 +749,13 @@ export default function PastPapersHub() {
 
         {/* Grade toggle */}
         <GradeToggle grade={grade} onChange={chooseGrade} />
+
+        {/* Exam-timetable row (learner redesign): the indigo strip above
+            the paper list that taps through to /timetable. Renders only
+            while a published timetable for this grade still has papers
+            ahead — grades without one (or once the season ends) see
+            nothing. */}
+        <TimetableRow grade={grade} />
 
         {/* Search first, with a Filters button inside on the right */}
         <div className="relative mt-4">
