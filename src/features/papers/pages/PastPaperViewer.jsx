@@ -30,6 +30,7 @@ import { siblingPapers, viewPath } from '../lib/paperNav'
 import { isOfficialSource, paperNumberLabel, paperSourceLabel } from '../../../config/paperSources'
 import { PaperSourceBadge } from '../components/PaperTitle'
 import { subjectMeta } from '../lib/paperVisuals'
+import '../papersTheme.css'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 import Skeleton from '../../../shared/components/Skeleton'
 import {
@@ -568,7 +569,7 @@ export default function PastPaperViewer() {
 
   return (
     <div
-      className="min-h-screen theme-bg flex flex-col overflow-x-clip"
+      className="papers-proto min-h-screen theme-bg flex flex-col overflow-x-clip"
       // Reserve space under the content so the fixed dock never permanently
       // covers the panels / footer at the end of the page.
       style={dockActive ? { paddingBottom: 'calc(112px + env(safe-area-inset-bottom))' } : undefined}
@@ -646,7 +647,7 @@ export default function PastPaperViewer() {
               onClick={toggleBookmark}
               aria-pressed={bookmarked}
               className={`flex-shrink-0 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-black active:scale-95 transition ${
-                bookmarked ? 'theme-accent-text bg-orange-50' : 'theme-bg-subtle theme-text hover:theme-card'
+                bookmarked ? 'theme-accent-text bg-[var(--accent-bg)]' : 'theme-bg-subtle theme-text hover:theme-card'
               }`}
             >
               <BookmarkSquareIcon size={15} strokeWidth={bookmarked ? 2.6 : 2.2} /> {bookmarked ? 'Saved' : 'Bookmark'}
@@ -706,7 +707,7 @@ export default function PastPaperViewer() {
         </section>
 
         {downloadError && (
-          <p role="alert" className="text-sm font-bold text-rose-700 mb-3">
+          <p role="alert" className="text-sm font-bold text-[var(--danger-fg)] mb-3">
             {downloadError}
             {downloadFallbackUrl && (
               <>
@@ -786,7 +787,7 @@ export default function PastPaperViewer() {
                     title="Answers available"
                   />
                 ) : (
-                  <span className="text-[10px] font-bold theme-text-muted uppercase tracking-wide bg-amber-100 text-amber-800 rounded-full px-1.5 py-0.5">
+                  <span className="text-[10px] font-bold theme-text-muted uppercase tracking-wide bg-[var(--warning-bg)] text-[var(--warning-fg)] rounded-full px-1.5 py-0.5">
                     Soon
                   </span>
                 )}
@@ -947,9 +948,13 @@ export default function PastPaperViewer() {
         <Suspense fallback={null}>
           <PaperReaderOverlay
             title={`Grade ${paper.grade} ${subjectLabel} · ${paper.year}`}
+            subtitle={[paperSourceLabel(paper.source), paper.examBoard || 'ECZ'].filter(Boolean).join(' · ')}
             onClose={closeReader}
             onDownload={canDownloadPaper ? () => downloadSource(previewSource, 'paper') : null}
             downloading={downloading}
+            /* Close first so the overlay's throwaway history entry is
+               unwound before navigating to the quiz. */
+            onStartQuiz={quizAvailable ? () => { closeReader(); navigate(`/papers/${paperId}/quiz`) } : null}
           >
             {previewSource.kind === 'pdf' && (
               paperUrl ? (
@@ -1009,7 +1014,7 @@ function PaperPanels({
         {quizAvailable ? (
           <>
             <div className="flex items-center gap-2">
-              <span className="grid place-items-center w-8 h-8 rounded-full bg-emerald-100 text-emerald-700">
+              <span className="grid place-items-center w-8 h-8 rounded-full bg-[var(--success-bg)] text-[var(--success-fg)]">
                 <Check size={16} strokeWidth={3} />
               </span>
               <h2 className="theme-text font-black text-base">Quiz Available</h2>
@@ -1075,7 +1080,7 @@ function PaperPanels({
         {attemptCount > 0 || quizTaken ? (
           <>
             {quizTaken && (
-              <p className="inline-flex items-center gap-1.5 text-sm font-black text-emerald-700 mb-3">
+              <p className="inline-flex items-center gap-1.5 text-sm font-black text-[var(--success-fg)] mb-3">
                 <Check size={15} strokeWidth={3} /> Quiz completed
               </p>
             )}
@@ -1430,7 +1435,7 @@ function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, r
             <div className="w-full bg-white rounded-radius-md overflow-hidden shadow-elev-sm">
               {hasFailed ? (
                 <div className="px-4 py-8 text-center bg-rose-50">
-                  <p className="text-sm font-bold text-rose-700">
+                  <p className="text-sm font-bold text-[var(--danger-fg)]">
                     Page failed to load. Please check your connection and try again.
                   </p>
                   {onRetry && (

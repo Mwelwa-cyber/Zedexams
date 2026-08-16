@@ -24,6 +24,7 @@
  */
 
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import '../papersTheme.css'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import {
@@ -251,7 +252,7 @@ export default function PastPaperPractice() {
 
   if (loadError) {
     return (
-      <div className="min-h-screen theme-bg flex flex-col items-center justify-center px-4 text-center">
+      <div className="papers-proto min-h-screen theme-bg flex flex-col items-center justify-center px-4 text-center">
         <div className="text-5xl mb-3">📄</div>
         <h1 className="theme-text font-black text-xl">Paper not available</h1>
         <p className="theme-text-muted text-sm mt-2 max-w-sm">
@@ -269,7 +270,7 @@ export default function PastPaperPractice() {
 
   if (!paper) {
     return (
-      <div className="min-h-screen theme-bg p-6 max-w-3xl mx-auto space-y-4">
+      <div className="papers-proto min-h-screen theme-bg p-6 max-w-3xl mx-auto space-y-4">
         <Skeleton className="h-10 w-2/3 rounded-md" />
         <Skeleton className="h-12 rounded-md" />
         <Skeleton className="h-96 rounded-radius-md" />
@@ -280,7 +281,7 @@ export default function PastPaperPractice() {
   // Done state: success card with link back to mark scheme + papers list.
   if (done) {
     return (
-      <div className="min-h-screen theme-bg flex flex-col items-center px-4 py-12">
+      <div className="papers-proto min-h-screen theme-bg flex flex-col items-center px-4 py-12">
         <SeoHelmet title="Practice complete" path={`/papers/${paperId}/practice`} noIndex />
         <div className="w-full max-w-md theme-card border theme-border rounded-radius-md p-6 text-center">
           <div className="text-5xl mb-2">🎯</div>
@@ -326,7 +327,7 @@ export default function PastPaperPractice() {
   }
 
   return (
-    <div className="min-h-screen theme-bg flex flex-col">
+    <div className="papers-proto min-h-screen theme-bg flex flex-col">
       <SeoHelmet title={`${paper.title} — practice`} path={`/papers/${paperId}/practice`} noIndex />
 
       {/* Top bar — fixed so the timer + Submit are always visible while

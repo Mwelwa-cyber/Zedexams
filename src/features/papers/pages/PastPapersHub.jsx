@@ -58,6 +58,7 @@ import { isOfficialSource, paperSourceLabel } from '../../../config/paperSources
 import { fullPaperTitle } from '../../../utils/paperTitleCore'
 import PaperTitle, { PaperSourceBadge } from '../components/PaperTitle'
 import { subjectMeta } from '../lib/paperVisuals'
+import '../papersTheme.css'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 import Logo from '../../../shared/components/Logo'
 import Skeleton from '../../../shared/components/Skeleton'
@@ -153,7 +154,7 @@ function writeStored(key, value) {
 function QuizBadge({ available, compact = false }) {
   if (available) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide">
+      <span className="inline-flex items-center gap-1 rounded-full bg-[var(--success-bg)] text-[var(--success-fg)] px-2 py-0.5 text-[10px] font-black uppercase tracking-wide">
         <Check size={11} strokeWidth={3} />
         Quiz
       </span>
@@ -171,7 +172,7 @@ function QuizBadge({ available, compact = false }) {
 // "Paper Available" badge for the subject cards (Screen 2).
 function AvailableBadge() {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2.5 py-1 text-[11px] font-black">
+    <span className="inline-flex items-center gap-1 rounded-full bg-[var(--success-bg)] text-[var(--success-fg)] px-2.5 py-1 text-[11px] font-black">
       <Check size={12} strokeWidth={3} />
       Paper Available
     </span>
@@ -239,7 +240,7 @@ function YearCard({ year, count, onSelect }) {
       onClick={() => onSelect(year)}
       className="group text-left theme-card rounded-radius-lg shadow-elev-md ring-1 ring-black/5 p-4 flex items-center gap-4 transition-all hover:-translate-y-0.5 hover:shadow-elev-lg active:scale-[0.98] animate-press"
     >
-      <div className="flex-shrink-0 w-14 h-14 rounded-2xl grid place-items-center bg-orange-100 text-orange-700 group-hover:bg-orange-200 transition-colors">
+      <div className="flex-shrink-0 w-14 h-14 rounded-2xl grid place-items-center bg-[var(--accent-bg)] text-[var(--accent-fg)] group-hover:brightness-95 transition">
         <CalendarDays size={26} strokeWidth={2.2} />
       </div>
       <div className="flex-1 min-w-0">
@@ -525,7 +526,7 @@ function BottomNav() {
               active ? 'theme-accent-text' : 'theme-text-muted hover:theme-text'
             }`}
           >
-            <span className={`grid place-items-center h-7 w-9 rounded-full transition ${active ? 'bg-orange-100' : ''}`}>
+            <span className={`grid place-items-center h-7 w-9 rounded-full transition ${active ? 'bg-[var(--accent-bg)]' : ''}`}>
               <Icon size={20} strokeWidth={active ? 2.6 : 2} />
             </span>
             <span className={`text-[10px] ${active ? 'font-black' : 'font-bold'}`}>{label}</span>
@@ -698,7 +699,7 @@ export default function PastPapersHub() {
   }
 
   return (
-    <div className="admin-game-theme min-h-screen theme-bg theme-text pb-28">
+    <div className="papers-proto min-h-screen theme-bg theme-text pb-28">
       <SeoHelmet
         title="ECZ Past Papers — Grade 7 & Grade 12 archive"
         description="Browse the official ECZ past-paper archive — Grade 7 and Grade 12 papers across every CBC subject. Choose a year, pick a subject, read the paper and take the linked quiz."
@@ -710,7 +711,7 @@ export default function PastPapersHub() {
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
           <Link to="/" className="flex items-center gap-2 min-w-0">
             <Logo variant="icon" size="sm" className="!h-8 !w-8" />
-            <span className="rounded-full bg-orange-100 theme-accent-text text-[10px] font-black px-2 py-0.5 uppercase tracking-wide whitespace-nowrap">
+            <span className="rounded-full bg-[var(--accent-bg)] theme-accent-text text-[10px] font-black px-2 py-0.5 uppercase tracking-wide whitespace-nowrap">
               ECZ Archive
             </span>
           </Link>
@@ -770,7 +771,7 @@ export default function PastPapersHub() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search years, subjects, or papers"
-            className="w-full rounded-full theme-card pl-12 pr-14 py-3.5 text-sm font-medium theme-text placeholder:theme-text-muted shadow-elev-sm ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-orange-300 transition"
+            className="w-full rounded-full theme-card pl-12 pr-14 py-3.5 text-sm font-medium theme-text placeholder:theme-text-muted shadow-elev-sm ring-1 ring-black/5 focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition"
             aria-label="Search years, subjects, or papers"
           />
           <button
@@ -806,7 +807,7 @@ export default function PastPapersHub() {
         </div>
 
         {usingSample && !loading && (
-          <div className="mt-3 flex items-start gap-2 rounded-radius-md bg-orange-50 px-3 py-2.5 text-xs theme-text">
+          <div className="mt-3 flex items-start gap-2 rounded-radius-md bg-[var(--accent-bg)] px-3 py-2.5 text-xs theme-text">
             <Sparkles size={16} strokeWidth={2.2} className="theme-accent-text flex-shrink-0 mt-0.5" />
             <span>
               Showing sample papers while we upload the official ECZ archive.{' '}
