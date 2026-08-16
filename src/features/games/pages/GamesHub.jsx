@@ -23,7 +23,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import '../gamesProto.css'
 import { useAuth } from '../../../contexts/AuthContext'
 import { GAME_BADGES } from '../../../data/gameBadges'
-import { getFallbackGames } from '../../../data/gamesSeed'
+import { RETIRED_GAME_TYPES, getFallbackGames } from '../../../data/gamesSeed'
 import { getTodaysChallenge, getMyStreak } from '../../../utils/dailyChallengeService'
 import { getMyGameBadges } from '../../../utils/gameBadgesService'
 import { GRADES, SUBJECTS, getMyHistory, listGames } from '../services/gamesService'
@@ -85,7 +85,10 @@ export default function GamesHub() {
       if (cancelled) return
 
       const value = (i, fallback) => (results[i].status === 'fulfilled' ? results[i].value : fallback)
-      const liveGames = value(0, [])
+      // A live Firestore doc can still carry a retired mechanic — filter
+      // here so the hub never advertises a game that opens on a
+      // retirement card (the seed fallback already filters itself).
+      const liveGames = value(0, []).filter((g) => !RETIRED_GAME_TYPES.has(g?.type))
       setState((prev) => ({
         ...prev,
         loading: false,

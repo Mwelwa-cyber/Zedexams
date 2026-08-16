@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { SparklesIcon } from '@heroicons/react/24/solid'
-import { getFallbackGames } from '../../../data/gamesSeed'
+import { RETIRED_GAME_TYPES, getFallbackGames } from '../../../data/gamesSeed'
 import {
   GRADES,
   SUBJECTS,
@@ -41,7 +41,9 @@ export default function SubjectSelector() {
         getMyHistory(40),
       ])
       if (cancelled) return
-      const liveGames = liveResult.status === 'fulfilled' ? liveResult.value : []
+      // Live docs of retired mechanics never make the list (redesign step 4).
+      const liveGames = (liveResult.status === 'fulfilled' ? liveResult.value : [])
+        .filter((g) => !RETIRED_GAME_TYPES.has(g?.type))
       const history = historyResult.status === 'fulfilled' ? historyResult.value : []
       setState({
         loading: false,

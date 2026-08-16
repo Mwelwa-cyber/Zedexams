@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { SparklesIcon } from '@heroicons/react/24/solid'
-import { getFallbackGames } from '../../../data/gamesSeed'
+import { RETIRED_GAME_TYPES, getFallbackGames } from '../../../data/gamesSeed'
 import { gradeByValue, listGames, subjectBySlug } from '../services/gamesService'
 import GamesShell from '../components/GamesShell'
 import {
@@ -37,7 +37,9 @@ export default function GameList() {
 
     let cancelled = false
     async function load() {
-      const live = await listGames({ grade: gradeMeta.value, subject: subjectMeta.slug })
+      // Live docs of retired mechanics never make the list (redesign step 4).
+      const live = (await listGames({ grade: gradeMeta.value, subject: subjectMeta.slug }))
+        .filter((g) => !RETIRED_GAME_TYPES.has(g?.type))
       if (cancelled) return
       if (live.length) {
         setGames(live)

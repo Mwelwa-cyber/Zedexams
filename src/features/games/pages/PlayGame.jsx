@@ -16,11 +16,8 @@ import TimedQuizGame from '../components/TimedQuizGame'
 import MeaningMatchGame from '../components/MeaningMatchGame'
 import PunctuationProGame from '../components/PunctuationProGame'
 import WordBuilderGame from '../components/WordBuilderGame'
-import ProvinceShapesGame from '../components/ProvinceShapesGame'
 import NumberTargetGame from '../components/NumberTargetGame'
-import SortingFactoryGame from '../components/SortingFactoryGame'
-import SentenceScrambleGame from '../components/SentenceScrambleGame'
-import MarketChallengeGame from '../components/MarketChallengeGame'
+import { RETIRED_GAME_TYPES } from '../../../data/gamesSeed'
 import {
   getGameAccessMeta,
   getGameTypeTheme,
@@ -252,11 +249,31 @@ function GameEngine({ game }) {
   if (game.type === 'memory_match') return <MeaningMatchGame game={game} />
   if (game.type === 'punctuation') return <PunctuationProGame game={game} />
   if (game.type === 'word_builder') return <WordBuilderGame game={game} />
-  if (game.type === 'province_shapes') return <ProvinceShapesGame game={game} />
   if (game.type === 'number_target') return <NumberTargetGame game={game} />
-  if (game.type === 'sorting_factory') return <SortingFactoryGame game={game} />
-  if (game.type === 'sentence_scramble') return <SentenceScrambleGame game={game} />
-  if (game.type === 'market_challenge') return <MarketChallengeGame game={game} />
+
+  // The 2026-08 redesign retired the legacy mechanics (learner redesign
+  // step 4). A live Firestore doc of a retired type can still be reached
+  // by an old bookmark or a stale list — say so warmly instead of
+  // rendering the "not wired" developer card.
+  if (RETIRED_GAME_TYPES.has(game.type)) {
+    return (
+      <div className="zx-card rounded-[22px] bg-white p-10 text-center">
+        <span className="mx-auto grid h-16 w-16 place-items-center rounded-[18px] border-2 border-slate-900 bg-amber-100 text-[2rem]" aria-hidden="true">
+          🏝️
+        </span>
+        <h2 className="font-display mt-5 text-2xl font-bold text-slate-900">This game has retired</h2>
+        <p className="mt-3 text-base leading-7 text-slate-600">
+          {game.title} took a bow when the new games arrived. Try Number Path, Word Builder, Meaning Match or Punctuation Pro — same points, badges and leaderboard.
+        </p>
+        <Link
+          to="/games"
+          className="zx-sticker-btn zx-sticker-btn-dark mt-6 rounded-[14px] px-4 py-2.5 text-sm"
+        >
+          See the new games
+        </Link>
+      </div>
+    )
+  }
 
   return (
     <div className="zx-card rounded-[22px] bg-white p-10 text-center">
