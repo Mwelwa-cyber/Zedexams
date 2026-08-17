@@ -2818,6 +2818,34 @@ async function main() {
     }, {merge: true}))
   })
 
+  // ── users.guardianControls — a parent's restriction ──
+  section('users.guardianControls — the Guardian Zone controls the child cannot lift')
+
+  await test('a learner CANNOT lift a guardian control from their own client', async () => {
+    // The Guardian Zone runs inside the CHILD's session behind a friction
+    // gate. If the field were self-writable, a parent turning Ask Zed off
+    // would be undone by one console line, with nothing recorded. The
+    // setGuardianControl callable (admin SDK) is the only writer, and it
+    // audits + emails the guardian on every change.
+    await assertFails(setDoc(doc(learnerA, 'users', LEARNER_A), {
+      guardianControls: {askZed: true},
+    }, {merge: true}))
+  })
+
+  await test('a learner CANNOT write the audit trail of those changes', async () => {
+    // guardianControlAudit has no match block at all — Firestore denies
+    // every client read and write to an unmatched path, which is the
+    // closure, not an oversight. A child who could append to it could
+    // manufacture a record of a change a parent never made.
+    await assertFails(setDoc(doc(learnerA, 'guardianControlAudit', 'forged'), {
+      uid: LEARNER_A, control: 'askZed', to: true,
+    }))
+  })
+
+  await test('a learner CANNOT read the audit trail either', async () => {
+    await assertFails(getDoc(doc(learnerA, 'guardianControlAudit', 'anything')))
+  })
+
   // ── processedWebhookEvents — the replay ledger ──
   section('processedWebhookEvents — server-only in both directions')
 

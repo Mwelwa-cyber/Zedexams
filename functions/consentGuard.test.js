@@ -113,6 +113,58 @@ async function refused(fn) {
     assert.strictEqual(access.limited, false);
   });
 
+  // ── Guardian controls (the Guardian Zone's switches) ───────────────────
+  //
+  // These live HERE, on the shared gate, rather than at each call site: the
+  // SPA reaches Zed through the apiAiChat SSE endpoint, so a check that only
+  // covered the callable would leave the real door open — the same lesson
+  // apiAiChat's own comment records about the consent gate.
+  await test("a guardian who turned Ask Zed off refuses an APPROVED learner", async () => {
+    __resetFlagCache();
+    const err = await refused(() => assertLearnerCapability(
+        "u1", "aiChat", {db: fakeDb({user: learner(
+            {consentStatus: "granted"}, {guardianControls: {askZed: false}})})}));
+    assert.ok(err, "expected a refusal");
+    assert.strictEqual(err.code, "permission-denied");
+    assert.strictEqual(err.details.reason, "guardian-control-off");
+    assert.strictEqual(err.details.control, "askZed");
+    // The child is told who decided and what still works — a refusal that
+    // does not say what to do next is how a nine-year-old concludes the app
+    // is broken.
+    assert.match(err.message, /parent or guardian/i);
+    assert.match(err.message, /still works/i);
+  });
+
+  await test("the control gates ONLY its capability", async () => {
+    __resetFlagCache();
+    // Turning Ask Zed off must not stop a child reading a past paper.
+    const access = await assertLearnerCapability(
+        "u1", "browse", {db: fakeDb({user: learner(
+            {consentStatus: "granted"}, {guardianControls: {askZed: false}})})});
+    assert.strictEqual(access.limited, false);
+  });
+
+  await test("an absent or non-boolean control is not a restriction", async () => {
+    // No guardian has expressed a view. Treating that as OFF would lock a
+    // feature nobody chose to lock.
+    for (const controls of [undefined, {}, {askZed: null}, {askZed: "false"}, {askZed: 0}]) {
+      __resetFlagCache();
+      const access = await assertLearnerCapability(
+          "u1", "aiChat", {db: fakeDb({user: learner(
+              {consentStatus: "granted"}, {guardianControls: controls})})});
+      assert.strictEqual(access.limited, false,
+          `guardianControls ${JSON.stringify(controls)} should not restrict`);
+    }
+  });
+
+  await test("a guardian's ON is simply not a restriction", async () => {
+    __resetFlagCache();
+    const access = await assertLearnerCapability(
+        "u1", "aiChat", {db: fakeDb({user: learner(
+            {consentStatus: "granted"}, {guardianControls: {askZed: true}})})});
+    assert.strictEqual(access.limited, false);
+  });
+
   await test("teachers are not caught by the learner gate", async () => {
     __resetFlagCache();
     const access = await assertLearnerCapability("t1", "aiChat", {db: fakeDb({user: {role: "teacher"}})});

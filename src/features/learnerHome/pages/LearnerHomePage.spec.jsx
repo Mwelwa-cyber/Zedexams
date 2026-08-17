@@ -1,10 +1,10 @@
 /**
  * Behaviour tests for the learner home (LearnerHomePage) and its shell.
  * The view-model hook is stubbed with fixture data so these exercise the
- * render contract: the mockup's section list and NOTHING ELSE, the
- * greeting/meta, real-data-only rendering (no fake values), empty
- * states, and the bottom-nav information architecture (Games present,
- * Profile absent).
+ * render contract: the prototype's five blocks in its order, greeting/
+ * meta, real-data-only rendering (no fake values), empty states, the
+ * conditional countdown and Today's-Quiz cards, and the bottom-nav
+ * information architecture (Games present, Profile absent).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, within, fireEvent } from '@testing-library/react'
@@ -47,10 +47,6 @@ import { PSLE_2026 } from '../../../config/examTimetable2026'
 
 const baseData = {
   activeTerm: { term: 2, source: 'calendar' },
-  paperResume: {
-    paperId: 'p1', title: 'Mathematics Paper 1', year: 2024, subject: 'mathematics', page: 6, totalPages: 12,
-  },
-  papersMeta: { count: 40, yearMin: 2016, yearMax: 2025 },
   learningResume: {
     kind: 'note', id: 'n1', title: 'The Human Body — Respiratory System',
     subject: 'science', subjectLabel: 'Integrated Science', grade: '7', percent: 57, openedAt: 1,
@@ -66,15 +62,8 @@ const baseData = {
     { id: 'science', label: 'Integrated Science', topicCount: 5, percent: 57, hasMaterial: true },
     { id: 'mathematics', label: 'Mathematics', topicCount: 6, percent: 82, hasMaterial: true },
   ],
-  recentActivity: [
-    { type: 'quiz_completed', sourceId: 'q1', attemptId: 'a1', completedAt: Date.now() - 3600_000, title: 'The Solar System Quiz', subjectLabel: 'Integrated Science', score: 79, href: '/results/a1', icon: 'quiz' },
-  ],
-  recommendations: [
-    { id: 'weak:mathematics:Fractions', kind: 'practice', title: 'Improve in Fractions', subject: 'mathematics', subjectLabel: 'Mathematics', grade: '7', reason: 'You scored 40% in Fractions — a focused practice can lift it.' },
-  ],
   streak: 3,
   xp: 120,
-  gameChallenge: null,
   notesCount: 12,
   lessonsCount: 4,
 }
@@ -91,6 +80,9 @@ function renderHome() {
         {/* Stub destinations — the v6 topbar bell/avatar NAVIGATE. */}
         <Route path="/profile" element={<div>PROFILE ROUTE</div>} />
         <Route path="/notifications" element={<div>NOTIFICATIONS ROUTE</div>} />
+        <Route path="/timetable" element={<div>TIMETABLE ROUTE</div>} />
+        <Route path="/exam/:examId" element={<div>EXAM ROUTE</div>} />
+        <Route path="/exams/leaderboard" element={<div>LEADERBOARD ROUTE</div>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -120,60 +112,68 @@ describe('LearnerHomePage', () => {
     expect(within(header).queryByText(/CBC/)).toBeNull()
   })
 
-  it('is EXACTLY the mockup\u2019s sections, in order, and nothing else', () => {
-    mockDashboard.timetables = { active: PSLE_2026, archived: [], loading: false, error: null }
-    mockDashboard.data = { ...baseData, gameChallenge: { id: 'g1', title: 'Number Path', grade: 7 } }
-    renderHome()
-    // Every section heading the page renders, top to bottom.
-    const headings = Array.from(document.querySelectorAll('main h2, h2')).map((h) => h.textContent.trim())
-    expect(headings).toEqual(['Explore', 'My subjects'])
-    // The sections earlier passes carried over from the old dashboard —
-    // none of them is in prototype v3\u2013v6, so none may come back.
-    for (const gone of ['Quick Access', 'Recommended for You', 'Recent Activity', 'My Achievements', 'Today\u2019s Exams']) {
-      expect(screen.queryByText(gone)).toBeNull()
-    }
-  })
-
-  it('Explore has the mockup\u2019s four tiles and no Lessons or Quizzes', () => {
+  it('renders the four Explore tiles in the prototype order', () => {
     renderHome()
     const section = screen.getByRole('heading', { name: 'Explore' }).closest('section')
-    const tiles = Array.from(section.querySelectorAll('a'))
-    expect(tiles.map((a) => a.getAttribute('href'))).toEqual(['/papers', '/notes', '/games', '/timetable'])
-    expect(tiles.map((a) => a.querySelector('.lhx-tile-name').textContent))
-      .toEqual(['Past Papers', 'Notes', 'Games', 'Timetable'])
-    // The retired Quick Access grid linked both of these; the mockup has
-    // neither anywhere on Home.
-    expect(document.querySelector('a[href="/quizzes"]')).toBeNull()
-    expect(document.querySelector('a[href="/lessons"]')).toBeNull()
+    const tiles = Array.from(section.querySelectorAll('.lhx-tile .lhx-tile-name')).map((n) => n.textContent)
+    expect(tiles).toEqual(['Past Papers', 'Notes', 'Games', 'Timetable'])
   })
 
-  it("shows the Today's Quiz slim card when a daily challenge exists", () => {
-    mockDashboard.data = { ...baseData, gameChallenge: { id: 'g1', title: 'Number Path', grade: 7 } }
+  it('the Timetable tile opens the timetable', () => {
     renderHome()
-    const card = screen.getByText('Today\u2019s Quiz').closest('button')
-    expect(card.classList.contains('lhx-daily-slim')).toBe(true)
-    expect(within(card).getByText(/keep your 3-day/)).toBeInTheDocument()
-    expect(within(card).getByText('Play')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Timetable — Exam dates/i }))
+    expect(screen.getByText('TIMETABLE ROUTE')).toBeInTheDocument()
   })
 
-  it("renders no Today's Quiz card when there is no daily challenge", () => {
-    renderHome() // baseData.gameChallenge is null
-    expect(screen.queryByText('Today\u2019s Quiz')).toBeNull()
-  })
-
-  it('shows the Continue Learning resume with subject, term and progress', () => {
+  it('shows the Continue hero with subject, term and progress', () => {
     renderHome()
-    expect(screen.getByText('Integrated Science · Term 2')).toBeInTheDocument()
+    expect(screen.getByText('CONTINUE WHERE YOU LEFT OFF')).toBeInTheDocument()
     expect(screen.getByText('The Human Body — Respiratory System')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Continue Notes' })).toBeInTheDocument()
-    const card = screen.getByText('The Human Body — Respiratory System').closest('section')
-    expect(within(card).getByText('57%')).toBeInTheDocument()
+    expect(screen.getByText('Integrated Science · Term 2')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Continue learning/ })).toBeInTheDocument()
+    // Progress is a real bar, not a number the card invented.
+    const bar = screen.getByRole('progressbar', { name: /Respiratory System: 57% complete/ })
+    expect(bar.firstChild.style.width).toBe('57%')
+  })
+
+  it('draws no progress bar when the resume has not been started', () => {
+    mockDashboard.data = { ...baseData, learningResume: { ...baseData.learningResume, percent: 0 } }
+    renderHome()
+    expect(screen.queryByRole('progressbar', { name: /Respiratory System/ })).toBeNull()
   })
 
   it('shows the Continue Learning empty state with no resume signal', () => {
     mockDashboard.data = { ...baseData, learningResume: null }
     renderHome()
     expect(screen.getByText('Choose a subject below to begin learning.')).toBeInTheDocument()
+  })
+
+  it("shows Today's Quiz with what is left, and starts the next exam", () => {
+    renderHome()
+    expect(screen.getByText('Today’s Quiz')).toBeInTheDocument()
+    expect(screen.getByText(/1 of 2 left · with Zed · keep your 🔥 3/)).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Today’s Quiz'))
+    expect(screen.getByText('EXAM ROUTE')).toBeInTheDocument()
+  })
+
+  it("Today's Quiz flips to the leaderboard once every exam is done", () => {
+    mockDashboard.data = {
+      ...baseData,
+      todaysExams: {
+        exams: baseData.todaysExams.exams,
+        locks: { mathematics: { status: 'submitted' }, science: { status: 'submitted' } },
+      },
+    }
+    renderHome()
+    expect(screen.getByText('Done for today ✓ · see the leaderboard')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Today’s Quiz'))
+    expect(screen.getByText('LEADERBOARD ROUTE')).toBeInTheDocument()
+  })
+
+  it("renders no Today's Quiz card when no exam is open", () => {
+    mockDashboard.data = { ...baseData, todaysExams: { exams: [], locks: {} } }
+    renderHome()
+    expect(screen.queryByText('Today’s Quiz')).toBeNull()
   })
 
   it('shows subject rows with term-scoped progress', () => {
@@ -183,26 +183,40 @@ describe('LearnerHomePage', () => {
     expect(within(section).getByText('82%')).toBeInTheDocument()
   })
 
-  it('shows the coral exam-countdown CARD when a timetable is published', () => {
+  it('shows the countdown card naming the next paper when a timetable is published', () => {
     // Countdown target is the first sat paper (English, Tue 27 Oct 08:00).
     vi.useFakeTimers()
     vi.setSystemTime(new Date(Date.parse('2026-09-01T10:00:00+02:00')))
     mockDashboard.timetables = { active: PSLE_2026, archived: [], loading: false, error: null }
     renderHome()
-    const card = screen.getByRole('button', { name: /exams in 55 days/i })
-    // The mockup's card, not the chip an earlier pass shrank it to.
+    const card = screen.getByRole('button', { name: /2026 PSLE — 55 days to go/i })
     expect(card.classList.contains('lhx-exam-card')).toBe(true)
     expect(within(card).getByText('EXAMS ARE COMING')).toBeInTheDocument()
+    // The card names the paper as well as counting the days — the chip it
+    // replaced could only ever count.
+    expect(within(card).getByText(/Next paper: Tue 27 Oct · English Language/)).toBeInTheDocument()
     expect(within(card).getByText('55')).toBeInTheDocument()
-    expect(within(card).getByText('DAYS')).toBeInTheDocument()
-    expect(within(card).getByText(/First paper: Tue 27 Oct · English Language 1\/1/)).toBeInTheDocument()
+    fireEvent.click(card)
+    expect(screen.getByText('TIMETABLE ROUTE')).toBeInTheDocument()
     vi.useRealTimers()
   })
 
-  it('renders no countdown at all without a published timetable', () => {
+  it('names the NEXT unsat paper mid-season, not the first of the week', () => {
+    // Wednesday morning: English (Tue) is behind the learner. Naming it
+    // would tell them to revise for a paper they already sat.
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(Date.parse('2026-10-28T06:00:00+02:00')))
+    mockDashboard.timetables = { active: PSLE_2026, archived: [], loading: false, error: null }
     renderHome()
-    expect(screen.queryByRole('button', { name: /exams in/i })).toBeNull()
+    expect(screen.queryByText(/English Language/)).toBeNull()
+    expect(screen.getByText(/Next paper: Wed 28 Oct/)).toBeInTheDocument()
+    vi.useRealTimers()
+  })
+
+  it('renders no countdown card without a published timetable', () => {
+    renderHome()
     expect(document.querySelector('.lhx-exam-card')).toBeNull()
+    expect(screen.queryByText('The examination timetable has not been published yet.')).toBeNull()
   })
 
   it('bottom navigation has the four prototype tabs and no Profile', () => {

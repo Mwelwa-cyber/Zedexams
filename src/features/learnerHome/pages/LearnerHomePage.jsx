@@ -1,25 +1,15 @@
 /**
- * LearnerHomePage — Home, in the mockup's order and with nothing the
- * mockup does not have:
+ * LearnerHomePage — the prototype's Home, in its order and with only
+ * its blocks: the exam countdown card, Continue where you left off,
+ * Today's Quiz, Explore (Papers · Notes · Games · Timetable), then My
+ * subjects.
  *
- *   topbar (logo · night · streak · bell · avatar)
- *   greeting + Grade · Term chip
- *   exam countdown card              → /timetable
- *   Continue where you left off
- *   Today's Quiz (slim daily card)
- *   Explore — Past Papers · Notes · Games · Timetable
- *   My subjects
- *
- * That list is the whole page. Earlier passes carried over sections from
- * the pre-redesign dashboard — a Past Papers hero, Today's Exams, a
- * Quick Access grid (which linked Lessons and Quizzes, neither of which
- * exists in the mockup), Recommended for You, Recent Activity and an
- * Achievements summary. None of them appear in prototype v3, v4, v5 or
- * v6, so they are gone rather than restyled. Achievements live on the
- * Games hub and Profile, where the mockup puts them.
- *
- * One view-model hook feeds every card; sections own their empty and
- * loading states.
+ * The Past Papers hero, Today's Exams panel, Recommended, the Daily
+ * Game Challenge, Recent Activity and the Achievements summary left
+ * with this step — the mockup's Home is five blocks, and each of those
+ * surfaces has a home of its own (Explore tiles, /my-results,
+ * /profile, the games hub). One view-model hook still feeds every
+ * card; sections own their empty/loading states.
  */
 import { useEffect } from 'react'
 import LearnerHeader from '../components/LearnerHeader'
@@ -27,7 +17,8 @@ import ExamCountdownCard from '../components/ExamCountdownCard'
 import { ErrorState } from '../components/LearnerPrimitives'
 import useLearnerDashboard from '../hooks/useLearnerDashboard'
 import ContinueLearningCard from '../sections/ContinueLearningCard'
-import { TodaysQuizCard, ExploreGrid, MySubjectsSection } from '../sections/HomeSections'
+import TodaysQuizCard from '../sections/TodaysQuizCard'
+import { ExploreGrid, MySubjectsSection } from '../sections/HomeSections'
 import { capture } from '../../../utils/analytics'
 
 export default function LearnerHomePage() {
@@ -54,7 +45,7 @@ export default function LearnerHomePage() {
             activeTerm={activeTerm}
             loading={loading}
           />
-          {!loading && <TodaysQuizCard challenge={data?.gameChallenge} streak={data?.streak || 0} />}
+          {!loading && <TodaysQuizCard todaysExams={data?.todaysExams} streak={data?.streak || 0} />}
           <ExploreGrid />
           <MySubjectsSection subjects={data?.subjects} activeTerm={activeTerm} loading={loading} />
         </>

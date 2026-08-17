@@ -9,11 +9,21 @@
  *   3. published notes+lessons for grade    — one query (shared cache)
  *   4. today's daily exams + locks          — one query + batched gets (always fresh)
  *   5. learnerStats doc (streak/xp)         — one doc read
- *   6. published-papers index               — one doc read (own cache)
- *   7. learner_profiles doc (cross-device resume) — one doc read
- *   8. today's game challenge               — one/two small reads
  * The exam timetable arrives via useExamTimetables (one query + bundled
  * fallback). Everything else is derived in learnerHomeCore pure logic.
+ *
+ * `useLearnerDashboard({ extras: true })` additionally derives the recent
+ * activity feed and the weak-topic list, for the Guardian Zone. Both are
+ * pure functions of `results` + `noteProgress`, which this hook already
+ * loads, so the flag costs CPU and no extra reads — and Home, which shows
+ * neither, does not pay even that.
+ *
+ * Three reads left with prototype v7's Home: the published-papers index
+ * and the learner_profiles doc (both only fed the Past Papers hero's
+ * cross-device resume) and today's game challenge (the Daily Game
+ * Challenge card). v7's Home carries none of those cards, and a read
+ * nothing renders is a read nobody should pay for on every visit — the
+ * papers hub and the games hub each load their own.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -24,17 +34,14 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { useFirestore } from '../../../hooks/useFirestore'
 import useExamTimetables from '../../../hooks/useExamTimetables'
 import { getTodaysExamsBySubject, checkTodaysLocks } from '../../../utils/examService'
-import { loadPublishedPapers } from '../../../utils/pastPapers'
-import { getTodaysChallenge } from '../../../utils/dailyChallengeService'
 import { getActiveTerm } from '../../../utils/moeCalendar'
 import { SUBJECTS, SUBJECT_MAP, getTopics, normalizeSubject } from '../../../config/curriculum'
 import {
-  resolveActiveTerm, normalizeTerm, pickLearningResume, buildRecentActivity,
-  buildRecommendations, extractWeakTopics, computeSubjectCompletion,
+  resolveActiveTerm, normalizeTerm, pickLearningResume, computeSubjectCompletion,
+  buildRecentActivity, extractWeakTopics,
 } from '../lib/learnerHomeCore'
 import {
-  PAPER_RESUME_KEY, preferredTermKey, readJson, writeJson,
-  readRecentPaperIds, readPaperPage, readQuizSessions,
+  preferredTermKey, readJson, writeJson, readQuizSessions,
 } from '../lib/learnerLocal'
 
 const tsToMs = (v) => {
@@ -54,7 +61,7 @@ function subjectIdOf(value) {
   return hit ? hit.id : null
 }
 
-export default function useLearnerDashboard() {
+export default function useLearnerDashboard({ extras = false } = {}) {
   const { currentUser, userProfile } = useAuth()
   const { getUserResults, getQuizById } = useFirestore()
   const uid = currentUser?.uid || null
@@ -96,9 +103,6 @@ export default function useLearnerDashboard() {
         todaysExams,
         locks,
         statsSnap,
-        papers,
-        profileSnap,
-        challenge,
       ] = await Promise.all([
         safe(getUserResults(uid, 50), []),
         safe(getDocs(query(collection(db, 'noteProgress'), where('uid', '==', uid), fsLimit(100))), null),
@@ -111,9 +115,6 @@ export default function useLearnerDashboard() {
         safe(getTodaysExamsBySubject(grade), []),
         safe(checkTodaysLocks(uid), {}),
         safe(getDoc(doc(db, 'learnerStats', uid)), null),
-        safe(loadPublishedPapers(), []),
-        safe(getDoc(doc(db, 'learner_profiles', uid)), null),
-        safe(getTodaysChallenge(), null),
       ])
       if (stale || !aliveRef.current) return
 
@@ -126,7 +127,6 @@ export default function useLearnerDashboard() {
       const notes = materials.filter((m) => m.noteFormat)
       const slideLessons = materials.filter((m) => !m.noteFormat && Array.isArray(m.slides) && m.slides.length > 0)
       const stats = statsSnap && statsSnap.exists() ? statsSnap.data() : null
-      const remoteProfile = profileSnap && profileSnap.exists() ? profileSnap.data() : null
 
       // ── Active term (school → calendar → saved → 1) ────────────
       const calendarActive = getActiveTerm()
@@ -135,49 +135,6 @@ export default function useLearnerDashboard() {
         calendarTerm: calendarActive?.term?.number ?? null,
         savedTerm,
       })
-
-      // ── Past-paper resume ──────────────────────────────────────
-      const gradePapers = papers.filter((p) => String(p.grade) === grade)
-      const localResume = readJson(PAPER_RESUME_KEY)
-      const remoteResume = remoteProfile?.lastSession?.paperResume || null
-      let paperResume = null
-      const pick = [localResume, remoteResume]
-        .filter((r) => r && r.paperId)
-        .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0] || null
-      if (pick) {
-        const meta = papers.find((p) => p.id === pick.paperId)
-        if (meta || pick.title) {
-          paperResume = {
-            paperId: pick.paperId,
-            title: pick.title || meta?.title || 'Past paper',
-            year: pick.year ?? meta?.year ?? null,
-            subject: pick.subject ?? meta?.subject ?? null,
-            page: readPaperPage(pick.paperId) || pick.page || null,
-            totalPages: pick.totalPages || null,
-          }
-        }
-      }
-      if (!paperResume) {
-        // Fall back to the papers-hub recents list (ids only).
-        const recentId = readRecentPaperIds()[0]
-        const meta = recentId ? papers.find((p) => p.id === recentId) : null
-        if (meta) {
-          paperResume = {
-            paperId: meta.id,
-            title: meta.title,
-            year: meta.year ?? null,
-            subject: meta.subject ?? null,
-            page: readPaperPage(meta.id),
-            totalPages: null,
-          }
-        }
-      }
-      const paperYears = gradePapers.map((p) => Number(p.year)).filter(Number.isFinite)
-      const papersMeta = {
-        count: gradePapers.length,
-        yearMin: paperYears.length ? Math.min(...paperYears) : null,
-        yearMax: paperYears.length ? Math.max(...paperYears) : null,
-      }
 
       // ── Learning resume candidates ─────────────────────────────
       const candidates = []
@@ -270,96 +227,59 @@ export default function useLearnerDashboard() {
         }
       })
 
-      // ── Recent activity (deduped) ──────────────────────────────
-      const activityItems = []
-      for (const r of results) {
-        const completedAt = tsToMs(r.completedAt || r.createdAt)
-        activityItems.push({
-          type: r.quizType === 'daily_exam' ? 'daily_exam_completed' : 'quiz_completed',
-          sourceId: r.quizId || r.id,
-          attemptId: r.id,
-          completedAt,
-          title: r.quizTitle || 'Quiz',
-          subjectLabel: normalizeSubject(r.subject),
-          score: Number.isFinite(Number(r.percentage)) ? Math.round(Number(r.percentage)) : null,
-          href: `/results/${r.id}`,
-          icon: r.quizType === 'daily_exam' ? 'daily-exam' : 'quiz',
-        })
-      }
-      for (const np of noteProgress) {
-        const when = tsToMs(np.completedAt || np.lastOpenedAt || np.updatedAt)
-        if (!when) continue
-        const isLesson = np.resourceType === 'lesson'
-        const done = np.status === 'completed'
-        activityItems.push({
-          type: isLesson
-            ? (done ? 'lesson_completed' : 'lesson_opened')
-            : (done ? 'notes_completed' : 'notes_opened'),
-          sourceId: np.noteId,
-          completedAt: when,
-          title: np.title || (isLesson ? 'Lesson' : 'Notes'),
-          subjectLabel: normalizeSubject(np.subject),
-          score: null,
-          href: isLesson ? `/lessons/${np.noteId}` : `/notes/${np.noteId}`,
-          icon: isLesson ? 'lessons' : 'notes',
-        })
-      }
-      if (paperResume && (localResume?.updatedAt || remoteResume?.updatedAt)) {
-        activityItems.push({
-          type: 'paper_opened',
-          sourceId: paperResume.paperId,
-          completedAt: Math.max(localResume?.updatedAt || 0, remoteResume?.updatedAt || 0),
-          title: paperResume.title,
-          subjectLabel: normalizeSubject(paperResume.subject),
-          score: null,
-          href: `/papers/${paperResume.paperId}`,
-          icon: 'papers',
-        })
-      }
-      const recentActivity = buildRecentActivity(activityItems, { limit: 3 })
-
-      // ── Recommendations ────────────────────────────────────────
-      const weakTopics = extractWeakTopics(results).map((w) => ({
-        ...w,
-        subject: subjectIdOf(w.subject) || w.subject,
-        subjectLabel: normalizeSubject(w.subject),
-        topicLabel: w.topic,
-        grade,
-      }))
-      const nextTermItems = notes
-        .filter((n) => {
-          const t = normalizeTerm(n.term)
-          return (t == null || t === activeTerm.term) && !completedNoteIds.has(n.id)
-        })
-        .slice(0, 5)
-        .map((n) => ({
-          kind: 'note',
-          id: n.id,
-          title: n.title,
-          subject: subjectIdOf(n.subject),
-          subjectLabel: normalizeSubject(n.subject),
-          grade,
+      // ── Guardian Zone extras (opt-in; no extra reads) ──────────
+      let recentActivity = null
+      let weakTopics = null
+      if (extras) {
+        const activityItems = []
+        for (const r of results) {
+          activityItems.push({
+            type: r.quizType === 'daily_exam' ? 'daily_exam_completed' : 'quiz_completed',
+            sourceId: r.quizId || r.id,
+            attemptId: r.id,
+            completedAt: tsToMs(r.completedAt || r.createdAt),
+            title: r.quizTitle || 'Quiz',
+            subjectLabel: normalizeSubject(r.subject),
+            score: Number.isFinite(Number(r.percentage)) ? Math.round(Number(r.percentage)) : null,
+            icon: r.quizType === 'daily_exam' ? 'daily-exam' : 'quiz',
+          })
+        }
+        for (const np of noteProgress) {
+          const when = tsToMs(np.completedAt || np.lastOpenedAt || np.updatedAt)
+          if (!when) continue
+          const isLesson = np.resourceType === 'lesson'
+          const done = np.status === 'completed'
+          activityItems.push({
+            type: isLesson
+              ? (done ? 'lesson_completed' : 'lesson_opened')
+              : (done ? 'notes_completed' : 'notes_opened'),
+            sourceId: np.noteId,
+            completedAt: when,
+            title: np.title || (isLesson ? 'Lesson' : 'Notes'),
+            subjectLabel: normalizeSubject(np.subject),
+            score: null,
+            icon: isLesson ? 'lessons' : 'notes',
+          })
+        }
+        recentActivity = buildRecentActivity(activityItems, { limit: 6 })
+        weakTopics = extractWeakTopics(results).map((w) => ({
+          ...w,
+          subjectLabel: normalizeSubject(w.subject),
         }))
-      const recommendations = buildRecommendations(
-        { weakTopics, resumeCandidates: candidates, nextTermItems, grade },
-        { limit: 3 },
-      )
+      }
 
       setState({
         loading: false,
         error: null,
         data: {
           activeTerm,
-          paperResume,
-          papersMeta,
           learningResume,
+          recentActivity,
+          weakTopics,
           todaysExams: { exams: todaysExams, locks },
           subjects,
-          recentActivity,
-          recommendations,
           streak: Number(stats?.currentStreak) || 0,
           xp: Number(stats?.xp) || 0,
-          gameChallenge: challenge || null,
           notesCount: notes.length,
           lessonsCount: slideLessons.length,
         },
@@ -372,7 +292,7 @@ export default function useLearnerDashboard() {
     })
     return () => { stale = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uid, grade, savedTerm, reloadNonce])
+  }, [uid, grade, savedTerm, reloadNonce, extras])
 
   return useMemo(() => ({
     ...state,

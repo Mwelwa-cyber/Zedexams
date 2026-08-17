@@ -85,6 +85,7 @@ const LearnerHomePage = lazy(() => import('../features/learnerHome/pages/Learner
 const LearnerSubjectPage = lazy(() => import('../features/learnerHome/pages/LearnerSubjectPage'))
 const LearnerNotificationsPage = lazy(() => import('../features/notifications/pages/LearnerNotificationsPage'))
 const LearnerProfilePage = lazy(() => import('../features/learnerHome/pages/LearnerProfilePage'))
+const GuardianZonePage = lazy(() => import('../features/learnerHome/pages/GuardianZonePage'))
 const ProfilePage = lazy(() => import('../features/learnerDashboard/pages/ProfilePage'))
 
 /**
@@ -349,10 +350,10 @@ function SettingsPage() {
       </TeacherLayout>
     )
   }
-  // Learners get the prototype-v6 Settings screen in the learner shell.
-  // The existing detail panels stay behind ?section=<id> — the v6 rows
-  // for Name & avatar, Report a problem and Delete account link into
-  // them, so the flows that carry real weight (LEGAL-003 delete
+  // Learners get the mockup's Settings screen in the learner shell.
+  // The existing detail panels stay behind ?section=<id> — the rows for
+  // Name & avatar, Report a problem and Delete account link into them,
+  // so the flows that carry real weight (LEGAL-003 delete
   // re-authentication, the contact dialog) are unchanged. Admins keep
   // the shared account-preferences page under the global Navbar.
   if (role === 'learner') {
@@ -672,6 +673,14 @@ export default function App() {
               Profile" in the learner shell; other roles keep the shared
               ProfilePage. Branch lives in ProfileRoute. */}
           <Route path="/profile"           element={<ProtectedRoute><ProfileRoute /></ProtectedRoute>} />
+          {/* The prototype-v7 Guardian Zone — an adult friction check, then
+              a read-only view of the child's progress plus the permission
+              controls. Deliberately OUTSIDE the learner layout: the mockup
+              hides the child's tab bar inside the zone so it reads as a
+              separate space. Learner-only, because the zone is bound to one
+              child's account (a guardian with their own login uses the
+              parent portal). */}
+          <Route path="/guardian"          element={<ProtectedRoute><LearnerOnlyRoute><GuardianZonePage /></LearnerOnlyRoute></ProtectedRoute>} />
           {/* Offline Library + Storage settings (offline-first). Downloaded
               content, device-storage breakdown, and cache/sync controls. */}
           <Route path="/offline"           element={<ProtectedRoute><Navbar /><OfflineLibraryPage /></ProtectedRoute>} />

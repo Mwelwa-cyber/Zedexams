@@ -4,6 +4,11 @@
  * Home it also renders the "Hi, {name}! 👋" greeting with the
  * Grade · Term chip.
  *
+ * The exam countdown is no longer a chip here: prototype v7 puts it
+ * back as the coral card directly under this greeting
+ * (ExamCountdownCard), which can name the next paper as well as count
+ * the days.
+ *
  * Since prototype-v6 (step 10) the bell and the avatar NAVIGATE — to the
  * full-screen /notifications centre and to /profile — instead of opening
  * overlays; the old account sheet is gone with them. The multi-theme
@@ -125,8 +130,6 @@ export default function LearnerHeader({ activeTerm, showGreeting = true, streak 
           <h1 className="lhx-greeting">
             Hi{firstName ? ', ' : ''}<span>{firstName ? `${firstName}!` : 'there!'}</span> 👋
           </h1>
-          {/* Grade · Term only. The exam countdown is the mockup's coral
-              CARD, rendered by the page below this header — not a chip. */}
           {gradeChip && (
             <div className="lhx-header-meta lhx-chip-row">
               <span className="lhx-chip">{gradeChip}</span>

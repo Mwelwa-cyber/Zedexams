@@ -1,85 +1,63 @@
 /**
- * The Home sections, and ONLY the ones the prototype's Home has:
- * Today's Quiz (the slim daily card), Explore (the four gradient tiles)
- * and My subjects. All data arrives pre-shaped from useLearnerDashboard
- * — these render only (spec §18: no per-card queries).
+ * The two list sections the mockup's Home carries below the cards:
+ * Explore (the four gradient tiles) and My Subjects.
  *
- * What used to live here and why it is gone: Home carried a Quick Access
- * grid (Lessons · Notes · Past Papers · Quizzes), Recommended for You,
- * Recent Activity and an Achievements summary. None of those are in the
- * mockup — v3 through v6 all show exactly countdown → continue →
- * Today's Quiz → Explore → My subjects. The mockup is the spec, so the
- * extra sections were removed rather than restyled, and "Quick Access"
- * became "Explore" with the mockup's own four destinations (Past Papers,
- * Notes, Games, Timetable — no Lessons, no Quizzes).
+ * The mockup's Home is exactly five blocks — countdown, Continue,
+ * Today's Quiz, Explore, My subjects — so Recommended, the Daily Game
+ * Challenge, Recent Activity and the Achievements summary left with
+ * this step. Nothing they surfaced is lost: recent results live on
+ * /my-results, achievements on /profile (the badge shelf and the XP
+ * bar), and the daily game on the games hub's own challenge card.
+ *
+ * Data still arrives pre-shaped from useLearnerDashboard — these
+ * render only (spec §18: no per-card queries).
  */
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 import LearnerIcon, { subjectIconName } from '../components/LearnerIcon'
 import { ProgressBar, EmptyState, SectionSkeleton } from '../components/LearnerPrimitives'
 import { capture } from '../../../utils/analytics'
 
-// ── Today's Quiz (prototype .daily-slim) ────────────────────────────
+// ── Explore (prototype .big-grid / .big-tile) ───────────────────────
 
-export function TodaysQuizCard({ challenge, streak = 0 }) {
-  const navigate = useNavigate()
-  const game = challenge?.game || challenge
-  if (!game || !game.id) return null
-
-  return (
-    <button
-      type="button"
-      className="lhx-daily-slim"
-      onClick={() => {
-        // A navigation, not a play: the engine emits game_started once the
-        // round actually begins, so this must not double-count.
-        capture('game_challenge_opened', { gameId: game.id, from: 'home_daily' })
-        navigate(`/games/play/${game.id}`)
-      }}
-    >
-      <span className="lhx-ds-icon" aria-hidden="true">
-        <img src="/images/characters/poses/zed-waving.webp" alt="" style={{ width: 40, height: 40, objectFit: 'contain' }} />
-      </span>
-      <span style={{ flex: 1, minWidth: 0 }}>
-        <span className="lhx-ds-title" style={{ display: 'block' }}>Today&rsquo;s Quiz</span>
-        <span className="lhx-ds-sub" style={{ display: 'block' }}>
-          {streak > 0 ? `with Zed · keep your ${streak}-day 🔥` : 'with Zed · start a streak 🔥'}
-        </span>
-      </span>
-      <span className="lhx-play-pill" style={{ padding: '9px 18px', fontSize: 13 }}>Play</span>
-    </button>
-  )
-}
-
-// ── Explore (prototype .big-grid) ───────────────────────────────────
-
+// The mockup's four tiles, in its order. Timetable joined them in
+// prototype v7 — it was the fourth tile the exam-countdown work never
+// added, so the timetable was previously reachable only from the
+// countdown itself.
 const EXPLORE_TILES = [
-  { to: '/papers', icon: '📄', name: 'Past Papers', sub: 'ECZ papers', tint: 'lhx-bt-papers' },
-  { to: '/notes', icon: '📚', name: 'Notes', sub: 'Read & revise', tint: 'lhx-bt-notes' },
-  { to: '/games', icon: '🎮', name: 'Games', sub: 'Play & learn', tint: 'lhx-bt-games' },
-  { to: '/timetable', icon: '📅', name: 'Timetable', sub: 'Exam dates', tint: 'lhx-bt-time' },
+  { key: 'papers', icon: '📄', title: 'Past Papers', sub: 'ECZ papers', to: '/papers', tone: 'lhx-bt-papers' },
+  { key: 'notes', icon: '📚', title: 'Notes', sub: 'Read & revise', to: '/notes', tone: 'lhx-bt-notes' },
+  { key: 'games', icon: '🎮', title: 'Games', sub: 'Play & learn', to: '/games', tone: 'lhx-bt-games' },
+  { key: 'timetable', icon: '📅', title: 'Timetable', sub: 'Exam dates', to: '/timetable', tone: 'lhx-bt-time' },
 ]
 
 export function ExploreGrid() {
+  const navigate = useNavigate()
   return (
     <section className="lhx-section" aria-labelledby="lhx-explore-title">
       <div className="lhx-section-head">
         <h2 id="lhx-explore-title" className="lhx-section-title">Explore</h2>
       </div>
-      <div className="lhx-big-grid">
-        {EXPLORE_TILES.map((t) => (
-          <Link key={t.to} to={t.to} className={`lhx-big-tile ${t.tint}`}>
-            <div className="lhx-tile-icon" aria-hidden="true">{t.icon}</div>
-            <div className="lhx-tile-name">{t.name}</div>
-            <div className="lhx-tile-sub">{t.sub}</div>
-          </Link>
+      <div className="lhx-explore">
+        {EXPLORE_TILES.map((tile) => (
+          <button
+            key={tile.key}
+            type="button"
+            className={`lhx-tile ${tile.tone} lhx-press`}
+            aria-label={`${tile.title} — ${tile.sub}`}
+            onClick={() => { capture('explore_opened', { tile: tile.key }); navigate(tile.to) }}
+          >
+            <span className="lhx-tile-icon" aria-hidden="true">{tile.icon}</span>
+            <span className="lhx-tile-name">{tile.title}</span>
+            <span className="lhx-tile-sub">{tile.sub}</span>
+          </button>
         ))}
       </div>
     </section>
   )
 }
 
-// ── My subjects ─────────────────────────────────────────────────────
+// ── My Subjects ─────────────────────────────────────────────────────
 
 const SUBJECT_TINTS = ['lhx-tint-green', 'lhx-tint-blue', 'lhx-tint-pink', 'lhx-tint-orange', 'lhx-tint-purple']
 const SUBJECT_TONES = ['var(--lhx-green)', 'var(--lhx-blue)', 'var(--lhx-pink)', 'var(--lhx-orange)', 'var(--lhx-purple)']
@@ -95,7 +73,10 @@ export function MySubjectsSection({ subjects, activeTerm, loading }) {
     <section className="lhx-section" aria-labelledby="lhx-subjects-title">
       <div className="lhx-section-head">
         <h2 id="lhx-subjects-title" className="lhx-section-title">My subjects</h2>
-        {activeTerm && <span className="lhx-view-all" aria-hidden="true">Term {activeTerm}</span>}
+        {/* The mockup's "Term 2" see-all slot. It states the term the
+            percentages are measured over, which is the one thing that
+            makes them readable — it is a label, not a link. */}
+        {activeTerm && <span className="lhx-see-all">Term {activeTerm}</span>}
       </div>
       {loading ? (
         <SectionSkeleton lines={4} height={56} />
