@@ -50,24 +50,35 @@ export function normalizeTerm(value) {
 
 // ── Learning resume selection ───────────────────────────────────────
 //
-// Priority (spec §7):
-//   1. in-progress lesson        (no lesson tracking exists yet → slot kept)
-//   2. in-progress topic quiz    (localStorage quiz session)
-//   3. recently opened notes     (noteProgress in-progress, then opened)
-//   4. assigned incomplete material
-//   5. recommended next current-term item
+// "Continue where you left off" resumes READING:
+//   1. recently opened note      (noteProgress in-progress, then opened)
+//   2. in-progress lesson        (the legacy slide player)
+//   3. recommended next current-term item
+//
+// QUIZZES ARE NOT RESUMED HERE, and that is the fix rather than an
+// omission. The card used to rank an in-progress quiz above every note,
+// so a learner who had never deliberately opened one was met with
+// "5.5 Metals and Non-metals — Practice Quiz · Continue quiz" on their
+// home screen — a half-finished quiz session, surfaced as the single
+// thing the app thought they were in the middle of. The prototype's card
+// is a note ("1.1 The Digestive System · Continue learning"), and quizzes
+// have their own front door in Today's Quiz. One card, one meaning.
 //
 // Each candidate: { kind, id, title, subject, grade, term, topic, percent,
 //                   openedAt (ms), status }
 // `grade` on the candidate must match the learner's grade — wrong-grade,
 // completed, or unpublished candidates are filtered here.
 
-const RESUME_PRIORITY = ['lesson', 'quiz', 'note', 'assignment', 'recommended']
+const RESUME_PRIORITY = ['note', 'lesson', 'recommended']
+
+/** Kinds this card will never resume into. See above. */
+const RESUME_EXCLUDED_KINDS = new Set(['quiz', 'assignment'])
 
 export function pickLearningResume(candidates, { grade } = {}) {
   if (!Array.isArray(candidates)) return null
   const eligible = candidates.filter((c) => {
     if (!c || !c.kind || !c.id) return false
+    if (RESUME_EXCLUDED_KINDS.has(c.kind)) return false
     if (c.status === 'completed' || (Number(c.percent) || 0) >= 100) return false
     if (c.unpublished) return false
     if (grade != null && c.grade != null && String(c.grade) !== String(grade)) return false

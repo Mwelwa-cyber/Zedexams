@@ -46,6 +46,7 @@ import { useFirestore } from '../../../hooks/useFirestore'
 import { SUBJECT_MAP, getTopics, getSubtopics, normalizeSubject } from '../../../config/curriculum'
 import {
   getTermPlan, planTopicsForTerm, strandLabel, strandTone, unplacedCatalogueTopics,
+  bestTitleMatch,
 } from '../../../config/gradeTermPlan'
 import { deriveTermPlan } from '../../../config/termDivision'
 import { getActiveTerm } from '../../../utils/moeCalendar'
@@ -154,11 +155,14 @@ export default function LearnerSubjectPage() {
     const rows = plan
       ? [
           ...planRows.map((r) => ({
-            name: r.title, icon: r.icon || null, planned: true,
+            // A derived row carries no icon and may carry no parent topic to
+            // name, so both fall back rather than rendering an empty tile or a
+            // blank pill; an authored row is unchanged.
+            name: r.title, icon: r.icon || null, planned: true, note: r.note || null,
             strand: r.strand ? strandLabel(r.strand) : null,
             tone: r.tone || strandTone(r.strand),
           })),
-          ...unplaced.map((name) => ({ name, icon: null, strand: null, tone: null, planned: false })),
+          ...unplaced.map((name) => ({ name, icon: null, strand: null, tone: null, planned: false, note: null })),
         ]
       : topicsForTerm(catalogueTopics, topicTerms, term).map(
           (name) => ({ name, icon: null, strand: null, tone: null, planned: false }),
@@ -189,9 +193,27 @@ export default function LearnerSubjectPage() {
       // under it would repeat the syllabus at two levels on one line.
       const subtopics = row.planned ? [] : (getSubtopics(subjectId, Number(grade), name) || [])
       const lower = String(name).toLowerCase()
-      const noteTarget = termNotes.find((n) => String(n.topic || '').toLowerCase() === lower)
-        || termNotes.find((n) => String(n.title || '').toLowerCase().includes(lower))
-        || null
+      // An exact topic tag wins; then an exact title contains; then the
+      // shared fuzzy match, which is what actually connects the term
+      // plan's wording to the published note's ("Electric Circuits" →
+      // "5.2 Electric Current and Circuits"). Notes are searched within
+      // the term first, then across the subject — a note filed under a
+      // different term is still the note for this topic.
+      const findIn = (pool) => {
+        // The plan names its note, so that is looked up first and exactly.
+        if (row.note) {
+          const named = pool.find((n) => String(n.title || '').trim() === row.note)
+          if (named) return named
+        }
+        return pool.find((n) => String(n.topic || '').toLowerCase() === lower)
+          || pool.find((n) => String(n.title || '').toLowerCase().includes(lower))
+          || bestTitleMatch(pool, name, (n) => n.topic || n.title)
+          || null
+      }
+      // Term first, then the whole subject: a note filed under a different
+      // term is still this topic's note, and refusing it would say "coming
+      // soon" about something already published.
+      const noteTarget = findIn(termNotes) || findIn(subjectNotes) || null
       const noteRead = noteTarget ? readNoteIds.has(noteTarget.id) : false
       return {
         // Not the name: a sub-topic name is only unique WITHIN its topic, and

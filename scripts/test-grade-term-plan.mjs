@@ -16,9 +16,10 @@
  */
 
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import {
   GRADE_TERM_PLAN, getTermPlan, planTopicsForTerm, strandLabel,
-  unplacedCatalogueTopics, STRAND_LABELS,
+  unplacedCatalogueTopics, STRAND_LABELS, titlesMatch, bestTitleMatch,
 } from '../src/config/gradeTermPlan.js'
 import { TOPICS, getSubtopics, SUBJECTS } from '../src/config/curriculum.js'
 
@@ -115,6 +116,56 @@ test('unplaced matching does not collapse or explode', () => {
   assert.deepEqual(unplacedCatalogueTopics([], ['Mining']), [])
   // Stop-words alone never make a match.
   assert.deepEqual(unplacedCatalogueTopics([{ term: 1, title: 'The', icon: 'x', strand: 'health' }], ['The Flower']), ['The Flower'])
+})
+
+test('every `note` a plan row names is a note that actually exists', () => {
+  // The guard against the quiet failure: a row naming a note nobody
+  // published renders "Note coming soon" about a topic the plan claims is
+  // ready. Checked against the real seed, not a fixture.
+  const seed = JSON.parse(readFileSync(
+    new URL('../src/features/notes/seed/grade7Seed.json', import.meta.url), 'utf8'))
+  const titles = new Set(seed.notes.map((n) => String(n.title).trim()))
+  let named = 0
+  for (const id of ['english', 'science']) {
+    for (const row of getTermPlan(id, 7)) {
+      if (!row.note) continue
+      named += 1
+      assert.ok(titles.has(row.note), `${id} "${row.title}" names a missing note: ${row.note}`)
+    }
+  }
+  assert.equal(named, 14, 'expected 13 Science notes + Conjunctions')
+})
+
+test('no two plan rows open the same note', () => {
+  // "Fruits & Seeds as Food" and "Fruits & Seeds" share every meaningful
+  // word; before the mapping was stated they resolved to one note and a
+  // learner opening Term 3 got the Term 1 note about fruit as food.
+  for (const id of ['english', 'science']) {
+    const notes = getTermPlan(id, 7).map((r) => r.note).filter(Boolean)
+    assert.equal(new Set(notes).size, notes.length, `${id} has two rows pointing at one note`)
+  }
+})
+
+test('bestTitleMatch prefers the closer title, and keeps lopsided matches', () => {
+  const pool = [{ t: '2.2 Fruits' }, { t: '4.3 Fruits and Seeds' }]
+  const pick = (want) => bestTitleMatch(pool, want, (c) => c.t)?.t
+  assert.equal(pick('Fruits & Seeds'), '4.3 Fruits and Seeds')
+  assert.equal(pick('Fruits'), '2.2 Fruits')
+  // A real but lopsided pair must survive: scoring used to start at 0, so
+  // this scored 0 and was dropped as though nothing matched.
+  assert.equal(
+    bestTitleMatch([{ t: '2.1 Diseases' }], 'Diseases — Viruses & Bacteria', (c) => c.t)?.t,
+    '2.1 Diseases',
+  )
+  assert.equal(bestTitleMatch(pool, 'Lightning', (c) => c.t), null)
+  assert.equal(bestTitleMatch(null, 'Lightning', (c) => c.t), null)
+  assert.equal(bestTitleMatch(pool, '', (c) => c.t), null)
+})
+
+test('a leading section number is filing, not meaning', () => {
+  assert.equal(titlesMatch('1.1 The Digestive System', 'The Digestive System'), true)
+  assert.equal(titlesMatch('5.2 Electric Current and Circuits', 'Electric Circuits'), true)
+  assert.equal(titlesMatch('5.3 Lightning', 'Energy'), false)
 })
 
 test('the planned subjects are subjects a Grade 7 actually takes', () => {

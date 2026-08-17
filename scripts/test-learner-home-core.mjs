@@ -73,27 +73,39 @@ test('normalizeTerm handles Firestore string variants', () => {
 })
 
 // ── Resume selection ────────────────────────────────────────────────
-test('resume picks by priority: in-progress lesson beats quiz and notes', () => {
+test('resume picks by priority: the note beats the lesson', () => {
   const picked = pickLearningResume([
-    { kind: 'note', id: 'n1', grade: '7', percent: 40, openedAt: 900 },
-    { kind: 'quiz', id: 'q1', grade: '7', percent: 10, openedAt: 800 },
-    { kind: 'lesson', id: 'l1', grade: '7', percent: 30, openedAt: 100 },
+    { kind: 'lesson', id: 'l1', grade: '7', percent: 30, openedAt: 900 },
+    { kind: 'note', id: 'n1', grade: '7', percent: 40, openedAt: 100 },
   ], { grade: '7' })
-  assert.equal(picked.id, 'l1')
+  assert.equal(picked.id, 'n1')
 })
 
-test('resume picks by priority: quiz session over notes', () => {
+test('resume NEVER returns a quiz — "Continue where you left off" resumes reading', () => {
+  // The bug this pins: an in-progress quiz session outranked every note,
+  // so a learner who had not deliberately opened one was told they were
+  // in the middle of "5.5 Metals and Non-metals — Practice Quiz". The
+  // prototype's card is a note; quizzes have their own front door.
   const picked = pickLearningResume([
     { kind: 'note', id: 'n1', title: 'Notes', grade: '7', percent: 40, openedAt: 200 },
-    { kind: 'quiz', id: 'q1', title: 'Quiz', grade: '7', percent: 10, openedAt: 100 },
+    { kind: 'quiz', id: 'q1', title: 'Quiz', grade: '7', percent: 10, openedAt: 900 },
   ], { grade: '7' })
-  assert.equal(picked.id, 'q1')
+  assert.equal(picked.id, 'n1')
+  // …and with nothing but a quiz on file, the card shows its empty state
+  // rather than resuming into one.
+  assert.equal(pickLearningResume([
+    { kind: 'quiz', id: 'q1', grade: '7', percent: 10, openedAt: 900 },
+  ], { grade: '7' }), null)
+  // Assignments are excluded for the same reason — nothing can assign.
+  assert.equal(pickLearningResume([
+    { kind: 'assignment', id: 'a1', grade: '7', percent: 10, openedAt: 900 },
+  ], { grade: '7' }), null)
 })
 
 test('resume skips completed, wrong-grade and unpublished items', () => {
   const picked = pickLearningResume([
-    { kind: 'quiz', id: 'q1', grade: '7', status: 'completed', openedAt: 500 },
-    { kind: 'quiz', id: 'q2', grade: '5', percent: 10, openedAt: 400 },
+    { kind: 'lesson', id: 'l1', grade: '7', status: 'completed', openedAt: 500 },
+    { kind: 'lesson', id: 'l2', grade: '5', percent: 10, openedAt: 400 },
     { kind: 'note', id: 'n1', grade: '7', percent: 100, openedAt: 300 },
     { kind: 'note', id: 'n2', grade: '7', percent: 20, openedAt: 200, unpublished: true },
     { kind: 'note', id: 'n3', grade: '7', percent: 20, openedAt: 100 },
