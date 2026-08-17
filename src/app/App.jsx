@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuth, hasAuthSessionHint } from '../contexts/AuthContext'
 import { useTheme, applyThemeToBody, DEFAULT_THEME } from '../contexts/ThemeContext'
 import { getTeacherTheme } from '../contexts/teacherThemeCore'
@@ -113,12 +113,12 @@ const LearnerSearch = lazy(() => import('../features/learnerSearch/pages/Learner
 
 const QuizRunner = lazy(() => import('../features/quiz/pages/QuizRunnerV2'))
 const QuizResults = lazy(() => import('../features/quiz/pages/QuizResultsV2'))
-// Slide-based interactive lessons. /lessons is the canonical learner-
-// facing list (LearnerLessonsList) and /lessons/:lessonId opens the
-// existing slide player. The teacher panel uses LessonEditor under
-// /teacher/lessons for authoring.
+// Slide-based interactive lessons. /lessons/:lessonId opens the slide
+// player; the learner-facing LIST is retired (the mockup's one reading
+// surface is the Notes tab), so /lessons redirects there. The teacher
+// panel uses LessonEditor under /teacher/lessons for authoring, and
+// LearnerLessonsList remains for that side of the house.
 const LessonPlayer    = lazy(() => import('../features/lessons/pages/LessonPlayer'))
-const LearnerLessonsList = lazy(() => import('../features/lessons/pages/LearnerLessonsList').then(m => ({ default: m.LearnerLessonsList })))
 
 // Notes Studio admin — replaces the old slide-builder at /admin/lessons
 const AdminNotesList    = lazy(() => import('../features/notes/pages/AdminNotesList').then(m => ({ default: m.AdminNotesList })))
@@ -137,8 +137,7 @@ const BadgesPage = lazy(() => import('../features/learnerDashboard/pages/BadgesP
 const OfflineLibraryPage = lazy(() => import('../offline/OfflineLibraryPage.jsx'))
 const ZedExamsSettings = lazy(() => import('../features/accountSettings/pages/zedexams-settings'))
 const TeacherSettings = lazy(() => import('../features/teacherSettings/TeacherSettings'))
-const LearnerSettings = lazy(() => import('../features/learnerSettings/LearnerSettings'))
-const LearnerSettingsPage = lazy(() => import('../features/learnerSettings/pages/LearnerSettingsPage'))
+const LearnerSettingsRoute = lazy(() => import('../features/learnerSettings/pages/LearnerSettingsRoute'))
 // The learner chrome (page column + 4-tab nav) for the settings screen,
 // which is not mounted through the LearnerLayout route group because
 // /settings/* also serves the detail panels and other roles.
@@ -339,8 +338,6 @@ function RootRedirect() {
 // admins must stay on the admin tab set.
 function SettingsPage() {
   const { userProfile, isAdmin, isTeacher } = useAuth()
-  const [settingsParams] = useSearchParams()
-  const settingsSection = settingsParams.get('section')
   const role = isAdmin ? 'admin' : (isTeacher ? 'teacher' : (userProfile?.role || 'learner'))
   if (role === 'teacher') {
     return (
@@ -350,23 +347,19 @@ function SettingsPage() {
     )
   }
   // Learners get the prototype-v6 Settings screen in the learner shell.
-  // The existing detail panels stay behind ?section=<id> — the v6 rows
-  // for Name & avatar, Report a problem and Delete account link into
-  // them, so the flows that carry real weight (LEGAL-003 delete
-  // re-authentication, the contact dialog) are unchanged. Admins keep
-  // the shared account-preferences page under the global Navbar.
+  // Two of its rows open a real flow that would be reckless to
+  // reimplement — the account panel (LEGAL-003 delete re-authentication)
+  // and the help panel (contact dialog) — so those render BARE inside
+  // the same shell: one panel, a learner back row, nothing else.
+  //
+  // No other section is reachable. The old settings dashboard (a rail of
+  // ten sections, a settings search, a card grid) is not in the learner
+  // mockup, and an unknown ?section= falls back to the mockup screen
+  // rather than dropping a child into it.
   if (role === 'learner') {
-    if (settingsSection) {
-      return (
-        <>
-          <Navbar />
-          <LearnerSettings />
-        </>
-      )
-    }
     return (
       <LearnerShell>
-        <LearnerSettingsPage />
+        <LearnerSettingsRoute />
       </LearnerShell>
     )
   }
@@ -664,7 +657,12 @@ export default function App() {
           {/* Lessons (interactive slide-based lessons) — canonical /lessons routes.
               LearnerNoteRead handles the bookmark-back-compat case: if a learner
               lands on /notes/:id with a slide-based doc it redirects them here. */}
-          <Route path="/lessons"                element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerGate><LearnerLessonsList /></LearnerGate></LearnerOnlyRoute></ProtectedRoute>} />
+          {/* The mockup has ONE reading surface — the Notes tab. The
+              slide-lesson LIBRARY is not in it, so browsing it is
+              retired; the player below stays for the handoff from
+              LearnerNoteRead and for links already in the wild, so no
+              published lesson becomes unreachable. */}
+          <Route path="/lessons"                element={<Navigate to="/notes" replace />} />
           <Route path="/lessons/:lessonId"      element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerGate><LessonPlayer /></LearnerGate></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/my-results"        element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><MyResults /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/my-badges"         element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><BadgesPage /></LearnerOnlyRoute></ProtectedRoute>} />

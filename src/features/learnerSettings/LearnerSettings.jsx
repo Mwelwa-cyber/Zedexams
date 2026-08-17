@@ -112,7 +112,7 @@ function NavItem({ section, active, onClick }) {
 }
 
 /* ── Inner shell (inside the save provider) ───────────────────── */
-function LearnerSettingsInner() {
+function LearnerSettingsInner({ bare = false }) {
   const { userProfile } = useAuth()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -197,6 +197,28 @@ function LearnerSettingsInner() {
     if (detailId) openDetail(id)
     else requestAnimationFrame(() => scrollToCard(id))
   }, [detailId, openDetail, scrollToCard])
+
+  // Bare: one focused panel inside the learner shell, reached from the
+  // prototype-v6 Settings screen. No rail, no card grid, no settings
+  // search — that dashboard is not part of the learner mockup.
+  if (bare) {
+    return (
+      <div className="lset lset--bare" data-accent={personalisation.accent} data-card-style={personalisation.cardStyle}>
+        <SeoHelmet title={activeSection?.label || 'Settings'} path="/settings" noIndex />
+        <div className="lhx-back-row">
+          <button type="button" className="lhx-back-btn" aria-label="Back to Settings" onClick={closeDetail}>‹</button>
+          <div className="lhx-back-title">{activeSection?.label || 'Settings'}</div>
+        </div>
+        <Suspense fallback={<PageLoader />}>
+          {ActivePanel && (
+            <ActivePanel key={detailId} section={activeSection} pushToast={pushToast} navigate={navigate} />
+          )}
+        </Suspense>
+        <SaveBar />
+        {toast && <div className={`lset-toast lset-toast--${toast.kind}`} role="status">{toast.message}</div>}
+      </div>
+    )
+  }
 
   return (
     <div
@@ -297,10 +319,10 @@ function LearnerSettingsInner() {
   )
 }
 
-export default function LearnerSettings() {
+export default function LearnerSettings({ bare = false }) {
   return (
     <SettingsSaveProvider>
-      <LearnerSettingsInner />
+      <LearnerSettingsInner bare={bare} />
     </SettingsSaveProvider>
   )
 }
