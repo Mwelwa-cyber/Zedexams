@@ -254,4 +254,49 @@ t('an average score is quoted only when there is one', () => {
   assert.doesNotMatch(without.focusOn, /averaging/)
 })
 
+/* ── The Sunday email ──────────────────────────────────────────────── */
+
+const { buildReportEmail } = core
+
+t('the email says the same thing the Reports screen says', () => {
+  // One builder, two renderers. A parent who reads the email and then
+  // opens the app must not find a different account of the same week.
+  const report = buildWeeklyReport({
+    childName: 'Milton', quizzes: 5, notes: 2, streak: 12,
+    weakTopics: [{ topic: 'Spelling', subjectLabel: 'English' }],
+  })
+  const mail = buildReportEmail({ childName: 'Milton Phiri', report, quizzes: 5, notes: 2 })
+
+  assert.match(mail.subject, /Milton Phiri's week on ZedExams/)
+  assert.ok(mail.text.includes(report.wentWell))
+  assert.ok(mail.text.includes(report.focusOn))
+  assert.ok(mail.text.includes(report.suggestion))
+  assert.ok(mail.text.includes(report.headline))
+})
+
+t('the email says where its claims come from, and offers a way out', () => {
+  const report = buildWeeklyReport({ childName: 'Milton', quizzes: 3 })
+  const mail = buildReportEmail({ childName: 'Milton', report, quizzes: 3 })
+  assert.match(mail.text, /built from Milton's own quizzes/)
+  assert.match(mail.text, /We do not measure time spent in the app/)
+  assert.match(mail.text, /To stop these emails/)
+  assert.match(mail.text, /https:\/\/zedexams\.com\/family/)
+})
+
+t('the email never claims a figure we do not hold', () => {
+  const report = buildWeeklyReport({ childName: 'Milton', quizzes: 4 })
+  const mail = buildReportEmail({ childName: 'Milton', report, quizzes: 4, notes: 0 })
+  assert.doesNotMatch(mail.text, /undefined|NaN|null/)
+  // "0 topics read" would be a claim about nothing; the clause is omitted.
+  assert.doesNotMatch(mail.text, /0 topics/)
+  assert.match(mail.text, /4 quizzes/)
+})
+
+t('a missing child name degrades to words', () => {
+  const report = buildWeeklyReport({ quizzes: 1 })
+  const mail = buildReportEmail({ report, quizzes: 1 })
+  assert.match(mail.subject, /your child's week/)
+  assert.doesNotMatch(mail.text, /undefined/)
+})
+
 console.log(`parent app core — ${passed} total assertions passed`)

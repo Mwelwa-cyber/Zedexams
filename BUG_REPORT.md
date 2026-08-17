@@ -1,6 +1,6 @@
 # ZedExams — Bug & Cleanup Report
 
-> Snapshot as of 2026-08-06 — verify before acting.
+> Snapshot as of 2026-08-17 — verify before acting.
 
 **Original audit:** 2026-04-18
 **Re-verified:** 2026-06-07 — almost everything below has shipped. Read "Current status" before acting on anything; the original audit's line/file references have drifted.
@@ -14,6 +14,20 @@ The 2026-04-18 audit found **no P0/P1 issues** and a list of P2 hardening + P3 c
 A teacher-side audit on 2026-07-11 (157 raw findings, 24 adversarially verified) fixed 23 issues — data-loss, silent-failure, and input bugs across the studios, register, library, scan import, and dashboard. The items below were confirmed real but deliberately deferred.
 
 ### Still open
+
+- **PAY-001 · A guardian cannot pay for a child, and three separate things have to be true before they can** — found while building the parent app (PROMPT 8g), which needs it and does not have it.
+
+  The whole "child asks → guardian pays → child unlocks" journey terminates in a wall, in three places, none of which is visible from the code that starts it:
+
+  1. **`subscriptionActivation` credits `pay.userId`** — the payer — and there is no beneficiary concept anywhere. A parent paying from their own account activates Premium on *their* account. The child stays exactly as locked as before.
+  2. **Nothing ever writes `payment.guardianRequestId`.** `subscriptionActivation.js` reads it in three places and calls `settleGuardianRequest` when it is set; no writer exists (`grep guardianRequestId functions/` finds only the reads). So even a guardian who paid through the emailed pay link would never settle the request that prompted it.
+  3. **`/guardian-unlock` is not a route.** `functions/guardianUnlock/index.js` mails every guardian a link to `https://zedexams.com/guardian-unlock?t=…`; App.jsx has no such path, so it falls through to `NotFound`. The under-18 paywall's only call to action currently lands on "Page not found".
+
+  Each is individually small. Together they mean the under-18 monetisation path (PROMPT 8e) does not close, and they were not caught because each half looks finished from the other end: the learner side sends a real message with a real token, and the payment side has real handling for a field nobody sets.
+
+  **The parent app deliberately does NOT paper over this.** `/family/plan` shows the real catalogue prices — that is where prices belong, since an under-18 learner is never shown one — but offers no Pay button, because one that credited the parent's own account would look like it worked. The screen says so in as many words.
+
+  Fixing it is a payments change and wants its own PR: a `beneficiaryUid` on the payment, authorised against `parentLinks` at initiation and honoured in activation, plus the same question answered for invoices, the upgrade quote, the Lenco webhook, Play Billing and the lifecycle sweeps — every one of which currently assumes payer and beneficiary are the same person, and each of which fails as "somebody paid and nobody was credited" if it is missed. `functions/paymentLifecycleEmulator.test.js` is the suite that should grow with it.
 
 - **PURGE-005 · A deletion the SWEEPER recovered was quietly less complete than one the callable finished — fixed, with one stated limit** — Codex P1 on #2228. `purgeUserData` was already shared, so the Firestore half matched. The two steps that are not Firestore — closing the web deletion request, and deleting the PostHog person and their events — lived inline in `accountCallableHandlers.js`, below `runAccountDeletion` and unreachable from the recovery path. So a deletion the cron finished left the analytics profile in place and reported `completed`, because from where it stood the purge had verified. The Privacy Policy §7 promise was kept on one path and not the other, invisibly.
 

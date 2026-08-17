@@ -34,8 +34,7 @@
  */
 
 const admin = require("firebase-admin");
-const {onCall, HttpsError} = require("firebase-functions/v2/https");
-const {defineSecret} = require("firebase-functions/params");
+const {HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
 const {aggregateProgress} = require("../parentPortalShared");
 const {parentLinkId} = require("../familyPortalCore");
@@ -62,8 +61,13 @@ const ACTIVITY_WINDOW_DAYS = 7;
 const REPORT_WINDOW_DAYS = 7;
 const MAX_GUARDIANS_PER_CHILD = 6;
 
-const emailSmtpUser = defineSecret("EMAIL_SMTP_USER");
-const emailSmtpPassword = defineSecret("EMAIL_SMTP_PASSWORD");
+// The mail transport reads the secrets from the process environment rather
+// than holding `defineSecret` params of its own. The BUILDERS live in
+// functions/index.js (test:functions-manifest requires it: an export whose
+// onCall wrapper moves out of index.js takes its region, secrets and runtime
+// options out of that guard's sight), and they are what bind these two.
+const SMTP_USER_ENV = "EMAIL_SMTP_USER";
+const SMTP_PASSWORD_ENV = "EMAIL_SMTP_PASSWORD";
 
 /* ── Shared package (ESM) ──────────────────────────────────────────── */
 
@@ -200,11 +204,7 @@ function lastActiveFrom(items) {
  * Every child linked to the caller, with the caller's role over each and
  * enough progress to render the overview cards.
  */
-const listGuardianChildren = onCall({
-  region: REGION,
-  timeoutSeconds: 60,
-  memory: "512MiB",
-}, async (request) => {
+async function listGuardianChildren(request) {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
   const db = admin.firestore();
   const {roleFor, capabilitiesOf} = await loadRoles();
@@ -240,15 +240,11 @@ const listGuardianChildren = onCall({
   }));
 
   return {children};
-});
+}
 
 /* ── getGuardianChildDetail ────────────────────────────────────────── */
 
-const getGuardianChildDetail = onCall({
-  region: REGION,
-  timeoutSeconds: 60,
-  memory: "512MiB",
-}, async (request) => {
+async function getGuardianChildDetail(request) {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
   const db = admin.firestore();
   const childUid = String(request.data?.childUid || "").trim();
@@ -291,15 +287,11 @@ const getGuardianChildDetail = onCall({
       createdAt: toMillis(l.createdAt),
     })),
   };
-});
+}
 
 /* ── getGuardianChildActivity ──────────────────────────────────────── */
 
-const getGuardianChildActivity = onCall({
-  region: REGION,
-  timeoutSeconds: 60,
-  memory: "512MiB",
-}, async (request) => {
+async function getGuardianChildActivity(request) {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
   const db = admin.firestore();
   const childUid = String(request.data?.childUid || "").trim();
@@ -314,7 +306,7 @@ const getGuardianChildActivity = onCall({
     days,
     activity: groupActivityByDay(items, {now: Date.now(), days}),
   };
-});
+}
 
 /* ── setChildGuardianControl ───────────────────────────────────────── */
 
@@ -330,11 +322,7 @@ const getGuardianChildActivity = onCall({
  * with an account rather than whoever passed a times-table sum on the
  * child's phone.
  */
-const setChildGuardianControl = onCall({
-  secrets: [emailSmtpUser, emailSmtpPassword],
-  region: REGION,
-  timeoutSeconds: 30,
-}, async (request) => {
+async function setChildGuardianControl(request) {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
   const db = admin.firestore();
   const childUid = String(request.data?.childUid || "").trim();
@@ -376,15 +364,11 @@ const setChildGuardianControl = onCall({
   });
 
   return {ok: true, changed: true};
-});
+}
 
 /* ── The approval feed ─────────────────────────────────────────────── */
 
-const listGuardianApprovals = onCall({
-  region: REGION,
-  timeoutSeconds: 60,
-  memory: "512MiB",
-}, async (request) => {
+async function listGuardianApprovals(request) {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
   const db = admin.firestore();
 
@@ -409,7 +393,7 @@ const listGuardianApprovals = onCall({
 
   const requests = reqSnap ? reqSnap.docs.map((d) => ({id: d.id, ...d.data()})) : [];
   return {approvals: shapeApprovalFeed(requests, children, Date.now())};
-});
+}
 
 /**
  * Decline a pending request. (There is deliberately no "approve" here —
@@ -418,10 +402,7 @@ const listGuardianApprovals = onCall({
  * after Lenco confirms the money. A button that marked it approved
  * without payment would unlock nothing and tell the child otherwise.)
  */
-const declineGuardianApproval = onCall({
-  region: REGION,
-  timeoutSeconds: 30,
-}, async (request) => {
+async function declineGuardianApproval(request) {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
   const db = admin.firestore();
   const requestId = String(request.data?.requestId || "").trim();
@@ -460,15 +441,11 @@ const declineGuardianApproval = onCall({
   }
 
   return {ok: true};
-});
+}
 
 /* ── The weekly report ─────────────────────────────────────────────── */
 
-const getGuardianWeeklyReport = onCall({
-  region: REGION,
-  timeoutSeconds: 60,
-  memory: "512MiB",
-}, async (request) => {
+async function getGuardianWeeklyReport(request) {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
   const db = admin.firestore();
   const childUid = String(request.data?.childUid || "").trim();
@@ -504,12 +481,12 @@ const getGuardianWeeklyReport = onCall({
   });
 
   return {childUid, displayName: child.displayName || "your child", report, quizzes, notes};
-});
+}
 
 /* ── Family sharing ────────────────────────────────────────────────── */
 
 async function sendMail({to, subject, text}) {
-  const senderEmail = String(emailSmtpUser.value() || "").trim();
+  const senderEmail = String(process.env[SMTP_USER_ENV] || "").trim();
   if (!senderEmail || !to) return false;
   const senderDomain = senderEmail.split("@")[1] || "zedexams.com";
   const crypto = require("crypto");
@@ -519,7 +496,7 @@ async function sendMail({to, subject, text}) {
     port: 587,
     secure: false,
     requireTLS: true,
-    auth: {user: senderEmail, pass: emailSmtpPassword.value()},
+    auth: {user: senderEmail, pass: process.env[SMTP_PASSWORD_ENV]},
     tls: {minVersion: "TLSv1.2", servername: "mail.privateemail.com"},
   });
   await transporter.sendMail({
@@ -543,11 +520,7 @@ async function sendMail({to, subject, text}) {
  * co-guardians would make the owner's control over who sees their
  * child's data nominal.
  */
-const inviteCoGuardian = onCall({
-  secrets: [emailSmtpUser, emailSmtpPassword],
-  region: REGION,
-  timeoutSeconds: 30,
-}, async (request) => {
+async function inviteCoGuardian(request) {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
   const db = admin.firestore();
   const childUid = String(request.data?.childUid || "").trim();
@@ -600,7 +573,7 @@ const inviteCoGuardian = onCall({
   }
 
   return {ok: true, inviteId, sent, email};
-});
+}
 
 /**
  * Accept a co-guardian invite. The caller must be signed in as a parent
@@ -608,10 +581,7 @@ const inviteCoGuardian = onCall({
  * PERSON, and letting a forwarded link be redeemed by whoever opened it
  * would make the address on the invite decorative.
  */
-const acceptCoGuardianInvite = onCall({
-  region: REGION,
-  timeoutSeconds: 30,
-}, async (request) => {
+async function acceptCoGuardianInvite(request) {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
   const db = admin.firestore();
   const rawToken = String(request.data?.token || "").trim();
@@ -680,13 +650,10 @@ const acceptCoGuardianInvite = onCall({
   const childSnap = await db.collection("users").doc(learnerUid).get();
   const child = childSnap.exists ? (childSnap.data() || {}) : {};
   return {ok: true, childUid: learnerUid, displayName: child.displayName || "your child"};
-});
+}
 
 /** Owner removes a co-guardian (or revokes an invite that is still pending). */
-const removeCoGuardian = onCall({
-  region: REGION,
-  timeoutSeconds: 30,
-}, async (request) => {
+async function removeCoGuardian(request) {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
   const db = admin.firestore();
   const childUid = String(request.data?.childUid || "").trim();
@@ -718,7 +685,7 @@ const removeCoGuardian = onCall({
 
   await db.collection(LINKS).doc(parentLinkId(parentUid, childUid)).delete();
   return {ok: true};
-});
+}
 
 module.exports = {
   acceptCoGuardianInvite,

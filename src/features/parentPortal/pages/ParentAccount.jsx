@@ -14,6 +14,7 @@ import { Avatar, ParentHeader } from '../components/ParentPrimitives'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 
 const CHILDLINE = '116'
+const SUPPORT_EMAIL = 'support@zedexams.com'
 
 export default function ParentAccount() {
   const { userProfile, currentUser, logout } = useAuth()
@@ -107,13 +108,17 @@ export default function ParentAccount() {
           </span>
           <span className="lhx-set-chev" aria-hidden="true">›</span>
         </Link>
-        <Link className="lhx-set-row lhx-set-tap" to="/contact">
+        {/* A mailto rather than a route: there is no public help page to
+            send a parent to, and a link to one that does not exist is a
+            "Page not found" in the middle of the safety section. */}
+        <a className="lhx-set-row lhx-set-tap" href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('ZedExams — parent account')}`}>
           <span className="lhx-set-ic" aria-hidden="true">❓</span>
           <span className="lhx-set-txt">
             <span className="lhx-set-title">Help &amp; support</span>
+            <span className="lhx-set-desc">{SUPPORT_EMAIL}</span>
           </span>
           <span className="lhx-set-chev" aria-hidden="true">›</span>
-        </Link>
+        </a>
         <button type="button" className="lhx-set-row lhx-set-tap lhx-set-danger" onClick={signOut}>
           <span className="lhx-set-ic" aria-hidden="true">↩︎</span>
           <span className="lhx-set-txt">

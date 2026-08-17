@@ -113,6 +113,17 @@ const FIELD_QUERY_COLLECTIONS = [
   // deletion must clear it, so BOTH owner fields are queried.
   {collection: "parentLinks", field: "parentUid"},
   {collection: "parentLinks", field: "learnerUid"},
+  // Family-sharing invites (functions/parentApp/). The row names the CHILD it
+  // grants access to, the parent who sent it, and a third party's email
+  // address — so it goes with either account, and BOTH owner fields are
+  // queried for the same reason parentLinks needs two.
+  //
+  // Deleting it also kills a live invite, which is a bearer credential: the
+  // doc id is the sha256 of a token that is still sitting in somebody's
+  // inbox, and an invite that outlived the child it names would hand a
+  // stranger a guardian's view of an account that no longer exists.
+  {collection: "guardianInvites", field: "learnerUid"},
+  {collection: "guardianInvites", field: "invitedBy"},
 ];
 
 // uid lives inside an array on a doc owned by another user.

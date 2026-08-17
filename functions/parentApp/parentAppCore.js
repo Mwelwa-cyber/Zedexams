@@ -308,8 +308,57 @@ function buildWeeklyReport({
   return {headline, wentWell, focusOn, suggestion: suggestionParts.join(" "), quiet};
 }
 
+/**
+ * The Sunday email's body.
+ *
+ * It lives here, beside `buildWeeklyReport`, so the email and the
+ * Reports screen are provably the same words about the same week — and
+ * so it can be tested under plain node, which the cron module (which
+ * loads firebase-functions at import) cannot be.
+ *
+ * It names what the report is built from. A parent who wants to check a
+ * claim should be able to see where it came from rather than being
+ * asked to trust a summary.
+ */
+function buildReportEmail({childName, report, quizzes = 0, notes = 0} = {}) {
+  const name = String(childName || "").trim() || "your child";
+  const subject = `${name}'s week on ZedExams`;
+  const activity = [
+    quizzes ? plural(quizzes, "quiz", "quizzes") : null,
+    notes ? `${plural(notes, "topic", "topics")} read` : null,
+  ].filter(Boolean).join(" · ");
+
+  const text = [
+    report.headline,
+    activity ? `${name} · the last 7 days · ${activity}` : `${name} · the last 7 days`,
+    ``,
+    `WHAT WENT WELL`,
+    report.wentWell,
+    ``,
+    `WHERE TO FOCUS`,
+    report.focusOn,
+    ``,
+    `WHAT TO TRY NEXT`,
+    report.suggestion,
+    ``,
+    `See the full picture, and change what ${name} can use:`,
+    `https://zedexams.com/family`,
+    ``,
+    `This report is built from ${name}'s own quizzes, topics and past`,
+    `papers. We do not measure time spent in the app, so it never claims`,
+    `a figure for that.`,
+    ``,
+    `To stop these emails: zedexams.com/settings → Notifications.`,
+    ``,
+    `— ZedExams`,
+  ].join("\n");
+
+  return {subject, text};
+}
+
 module.exports = {
   LUSAKA_OFFSET_MS,
+  buildReportEmail,
   NUDGE_AFTER_DAYS,
   ONE_DAY_MS,
   QUIET_AFTER_DAYS,
