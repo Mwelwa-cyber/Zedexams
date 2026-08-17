@@ -83,7 +83,7 @@ export const LEARNER_SETTINGS_SECTIONS = [
     desc: 'Upgrade your plan and benefits',
     icon: TrophyIcon,
     tone: 'orange',
-    keywords: ['premium', 'upgrade', 'plan', 'subscription', 'unlimited', 'pro', 'max', 'invoices', 'payment', 'benefits', 'no ads', 'offline'],
+    keywords: ['premium', 'upgrade', 'plan', 'subscription', 'unlimited', 'pro', 'max', 'invoices', 'payment', 'benefits', 'offline'],
   },
   {
     id: 'security',

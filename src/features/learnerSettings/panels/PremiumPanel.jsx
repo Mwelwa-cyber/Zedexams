@@ -45,7 +45,11 @@ const PLAN_CARDS = [
   },
 ]
 
-// The headline benefits the mockup lists — what Premium unlocks.
+// What Premium unlocks.
+//
+// "No ads" is deliberately absent: ZedExams shows no ads on ANY plan, so
+// listing it as a Premium benefit implies the free plan has them. A
+// benefit both tiers share is not a reason to pay.
 const PREMIUM_BENEFITS = [
   'Unlimited quizzes',
   'Unlimited past papers',
@@ -55,7 +59,6 @@ const PREMIUM_BENEFITS = [
   'Performance analytics',
   'Priority AI',
   'Offline downloads',
-  'No ads',
 ]
 
 export default function PremiumPanel({ section }) {
