@@ -2370,6 +2370,36 @@ exports.requestGuardianUnlock = require('./guardianUnlock').requestGuardianUnloc
 // "cannot change silently", not "cannot change".
 // See functions/guardianControls/ and functions/shared/guardian/.
 exports.setGuardianControl = require('./guardianControls').setGuardianControl;
+
+// ── The parent app (PROMPT 8g) — the guardian's OWN logged-in surface ──
+//
+// Distinct from the Guardian Zone above, which renders the same data inside
+// the CHILD's app behind a friction gate. These callables are called by a
+// verified adult signed in as themselves, on their own device.
+//
+// Almost all of them are callables rather than client reads for one reason:
+// a parent may read `parentLinks` only for rows that name them, and every
+// question this surface asks (who else guards this child, which of us owns
+// the account, may I approve this) needs the OTHER rows. Answering
+// server-side behind an explicit check is the alternative to widening that
+// rule until the client can answer for itself.
+//
+// setChildGuardianControl is the second writer of users/{uid}.guardianControls
+// and the stronger of the two — the caller is an authenticated guardian
+// rather than whoever passed a times-table sum on the child's phone. It
+// writes the same guardianControlAudit trail, stamped with who did it.
+// See functions/parentApp/.
+const parentApp = require('./parentApp');
+exports.listGuardianChildren = parentApp.listGuardianChildren;
+exports.getGuardianChildDetail = parentApp.getGuardianChildDetail;
+exports.getGuardianChildActivity = parentApp.getGuardianChildActivity;
+exports.setChildGuardianControl = parentApp.setChildGuardianControl;
+exports.listGuardianApprovals = parentApp.listGuardianApprovals;
+exports.declineGuardianApproval = parentApp.declineGuardianApproval;
+exports.getGuardianWeeklyReport = parentApp.getGuardianWeeklyReport;
+exports.inviteCoGuardian = parentApp.inviteCoGuardian;
+exports.acceptCoGuardianInvite = parentApp.acceptCoGuardianInvite;
+exports.removeCoGuardian = parentApp.removeCoGuardian;
 // Re-derives isMinor from the declared date of birth on user-doc creation, so
 // the flag the consent gate reads is never the one the client wrote. Pinned to
 // africa-south1 with the (default) database.

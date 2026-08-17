@@ -2663,6 +2663,34 @@ service cloud.firestore {
       );
     }
 
+    // ── guardianInvites (family sharing — a second guardian) ──
+    //
+    // SERVER-ONLY, both directions, and the read side is the load-bearing
+    // half. The doc id is the SHA-256 of the raw invite token, and the raw
+    // token exists only in the invitee's inbox — so a client that could
+    // READ this collection could enumerate pending invites and accept one
+    // addressed to somebody else, which is precisely what hashing the id
+    // was for. inviteCoGuardian / acceptCoGuardianInvite / removeCoGuardian
+    // (admin SDK) own every access; see functions/parentApp/.
+    match /guardianInvites/{inviteId} {
+      allow read, write: if false;
+    }
+
+    // ── guardianRequests (the child's "ask my guardian to unlock") ──
+    //
+    // SERVER-ONLY. Written by requestGuardianUnlock, read by the parent
+    // app's approval feed through listGuardianApprovals, and settled by
+    // subscriptionActivation once Lenco confirms payment. The doc id is a
+    // hashed pay-link token, so the same reasoning as guardianInvites
+    // applies: a readable row is a redeemable one.
+    //
+    // Note the parent's feed does NOT read this from the client even
+    // though the parent is entitled to see it — the query needs the set of
+    // children linked to them, which is a join no rule can express.
+    match /guardianRequests/{requestId} {
+      allow read, write: if false;
+    }
+
     // ── assignments + classes + classInvites — REMOVED ──────────────
     //
     // The learner/teacher class feature (invite codes, join/approve,

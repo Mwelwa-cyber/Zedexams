@@ -854,7 +854,8 @@
     "test:grade-term-plan": "node scripts/test-grade-term-plan.mjs",
     "test:term-division": "node scripts/test-term-division.mjs",
     "test:guardian-roles": "node scripts/test-guardian-roles.mjs",
-    "test:parent-app": "node scripts/test-parent-app.mjs"
+    "test:parent-app": "node scripts/test-parent-app.mjs",
+    "test:co-guardian": "node scripts/test-co-guardian.mjs"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",
