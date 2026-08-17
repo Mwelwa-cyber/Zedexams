@@ -226,7 +226,9 @@ export default function GamesHub() {
       <section>
         <div className="lhx-section-head">
           <h2 className="lhx-section-title">Achievements</h2>
-          <Link to="/my-badges" className="lhx-view-all">{earnedCount} / {GAME_BADGES.length}</Link>
+          {/* The mockup shows this as plain text: the badge shelf is right
+              below, and the full set lives on Profile. */}
+          <span className="lhx-view-all">{earnedCount} / {GAME_BADGES.length}</span>
         </div>
         <div className="lhx-badge-shelf">
           {GAME_BADGES.map((badge) => {

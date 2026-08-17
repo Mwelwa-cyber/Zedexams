@@ -148,6 +148,25 @@ describe('LearnerHomePage', () => {
     expect(screen.getByText('Choose a subject below to begin learning.')).toBeInTheDocument()
   })
 
+  it('shows every subject the grade takes, even ones with nothing published', () => {
+    // The list used to be filtered to subjects that already had material,
+    // so a learner saw one card where the mockup shows seven, and the
+    // list changed shape as content landed.
+    mockDashboard.data = {
+      ...baseData,
+      subjects: [
+        { id: 'english', label: 'English', topicCount: 6, percent: 0, hasMaterial: false },
+        { id: 'mathematics', label: 'Mathematics', topicCount: 13, percent: 40, hasMaterial: true },
+        { id: 'science', label: 'Integrated Science', topicCount: 5, percent: 0, hasMaterial: false },
+      ],
+    }
+    renderHome()
+    const section = screen.getByRole('heading', { name: 'My subjects' }).closest('section')
+    for (const label of ['English', 'Mathematics', 'Integrated Science']) {
+      expect(within(section).getByText(label)).toBeInTheDocument()
+    }
+  })
+
   it("shows Today's Quiz with what is left, and starts the next exam", () => {
     renderHome()
     expect(screen.getByText('Today’s Quiz')).toBeInTheDocument()

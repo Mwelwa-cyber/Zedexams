@@ -120,3 +120,9 @@ export function searchSections(query) {
 export function getSection(id) {
   return LEARNER_SETTINGS_SECTIONS.find((s) => s.id === id) || null
 }
+
+// The only sections a learner can reach, because they are the only ones
+// the prototype-v6 Settings rows link to: Name & avatar / Delete account
+// → `account`, Report a problem / Get help → `help`. Everything else in
+// the settings dashboard is not in the learner mockup.
+export const LEARNER_REACHABLE_SECTIONS = ['account', 'help']

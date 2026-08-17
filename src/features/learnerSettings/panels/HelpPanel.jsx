@@ -9,7 +9,7 @@ import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
 import { ContactDialog } from '../../marketing'
 import { Panel, Section, Note, LinkRow } from '../components/ui'
 import {
-  Info, Mail, AlertTriangle, Lightbulb, Play, ShieldCheck, DocumentTextIcon, Sparkles,
+  Info, Mail, AlertTriangle, Lightbulb, ShieldCheck, DocumentTextIcon, Sparkles,
 } from '../../../shared/components/icons'
 
 export default function HelpPanel({ section }) {
@@ -31,7 +31,6 @@ export default function HelpPanel({ section }) {
           <LinkRow icon={Mail} title="Contact support" hint="Message our team" onClick={() => setContact('settings-contact')} />
           <LinkRow icon={AlertTriangle} title="Report a problem" hint="Tell us what went wrong" onClick={() => setContact('settings-report')} />
           <LinkRow icon={Lightbulb} title="Suggest a feature" hint="Share an idea" onClick={() => setContact('settings-feature')} />
-          <LinkRow icon={Play} title="Tutorials" hint="Learn your way around" onClick={() => navigate('/lessons')} />
         </div>
       </Section>
 

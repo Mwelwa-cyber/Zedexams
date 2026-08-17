@@ -64,10 +64,12 @@ const SUBJECT_TONES = ['var(--lhx-green)', 'var(--lhx-blue)', 'var(--lhx-pink)',
 
 export function MySubjectsSection({ subjects, activeTerm, loading }) {
   const navigate = useNavigate()
-  // With the Learn tab retired (step 5), Home IS the subjects list — every
-  // subject with material renders here, so there is no "View all" to link.
-  const withMaterial = (subjects || []).filter((s) => s.hasMaterial)
-  const rows = withMaterial.length ? withMaterial : subjects || []
+  // Every subject the grade is taught, always. This used to render only
+  // the subjects that already had material — so a learner whose school had
+  // one published note saw ONE subject card where the mockup shows seven,
+  // and the list silently changed shape as content landed. A subject with
+  // nothing published yet is still a subject the child takes; it shows at
+  // 0% and says so when opened.
 
   return (
     <section className="lhx-section" aria-labelledby="lhx-subjects-title">
@@ -80,11 +82,11 @@ export function MySubjectsSection({ subjects, activeTerm, loading }) {
       </div>
       {loading ? (
         <SectionSkeleton lines={4} height={56} />
-      ) : rows.length === 0 ? (
+      ) : (subjects || []).length === 0 ? (
         <div className="lhx-card"><EmptyState icon="learn">Your subjects will appear here once your grade is set.</EmptyState></div>
       ) : (
         <div className="lhx-subjects">
-          {rows.map((s, i) => (
+          {(subjects || []).map((s, i) => (
             <button
               key={s.id}
               type="button"
