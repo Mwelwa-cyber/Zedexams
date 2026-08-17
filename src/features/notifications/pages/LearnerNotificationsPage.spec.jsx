@@ -5,11 +5,12 @@
  * empty state. The data layer is the existing NotificationContext.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen, fireEvent, within, act } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 
 const markRead = vi.fn()
 const markAllRead = vi.fn()
+const removeAll = vi.fn()
 const loadMore = vi.fn()
 let mockValue
 
@@ -69,6 +70,7 @@ function renderPage() {
 beforeEach(() => {
   markRead.mockClear()
   markAllRead.mockClear()
+  removeAll.mockClear()
   mockValue = {
     notifications: seed,
     unreadCount: 1,
@@ -77,6 +79,7 @@ beforeEach(() => {
     loadMore,
     markRead,
     markAllRead,
+    removeAll,
   }
 })
 
@@ -92,10 +95,29 @@ describe('LearnerNotificationsPage (prototype-v6)', () => {
     expect(unread.classList.contains('is-unread')).toBe(true)
   })
 
-  it('mark all read goes through the context', () => {
+  it('"Clear all" asks once before it destroys anything', () => {
+    // The prototype clears on one tap because its own "Show demo
+    // notifications" button puts everything back. The real app has no
+    // undo, so the control asks — still one control, in the same place.
     renderPage()
-    fireEvent.click(screen.getByRole('button', { name: 'Mark all read' }))
-    expect(markAllRead).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Clear all' }))
+    expect(removeAll).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Tap again to clear' }))
+    expect(removeAll).toHaveBeenCalledTimes(1)
+  })
+
+  it('the confirm lapses on its own, so a stray tap cannot arm a later one', () => {
+    vi.useFakeTimers()
+    try {
+      renderPage()
+      fireEvent.click(screen.getByRole('button', { name: 'Clear all' }))
+      act(() => { vi.advanceTimersByTime(4500) })
+      expect(screen.getByRole('button', { name: 'Clear all' })).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Clear all' }))
+      expect(removeAll).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('tapping a card marks it read and deep-links to its action url', () => {
