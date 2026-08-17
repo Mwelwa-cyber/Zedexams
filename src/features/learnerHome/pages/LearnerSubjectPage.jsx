@@ -13,21 +13,27 @@
  * them were the last learner entry points into /lessons and /quizzes,
  * which the mockup does not contain at all.
  *
- * TERM ASSIGNMENT comes from one of two places, in this order:
+ * TERM ASSIGNMENT comes from one of three places, in this order:
  *
  *   1. A published term plan for the grade+subject (`config/gradeTermPlan`).
  *      Grade 7 English and Integrated Science have one — the owner's own
  *      allocation, transcribed from the prototype. Rows carry an icon and a
  *      curriculum strand, and the row IS the sub-topic (Science's strands
  *      are its five parent topics).
- *   2. Otherwise the topic's quizzes' term tags, as before.
+ *   2. Otherwise the catalogue divided across the three terms
+ *      (`config/termDivision`): the published sub-topic order cut into three
+ *      consecutive slices, each roughly a third of the year's sub-topics, so
+ *      a wide topic takes a proportionally wider share. Labelled on screen as
+ *      a suggested split, because it is pacing rather than the syllabus's own
+ *      word — the ECZ 2013 syllabus has no term column, and allocating it is a
+ *      school's scheme of work. Nothing is invented: every row is a title
+ *      already in the catalogue, in the order the catalogue publishes it.
+ *   3. Otherwise the topic's quizzes' term tags, as before.
  *
- * With neither, the full syllabus shows on every tab and the screen SAYS SO.
- * That last part is the fix for "the terms aren't working": three identical
- * tabs with no explanation is indistinguishable from a broken switcher, and
- * the honest alternative — inventing a term for a topic — would put a
- * fabricated syllabus in front of a child. The ECZ 2013 syllabus has no term
- * column; allocating it is a school's scheme of work.
+ * With none of the three — a catalogue too small to divide and no tagged
+ * quizzes — the full syllabus shows on every tab and the screen SAYS SO,
+ * because three identical tabs with no explanation is indistinguishable from
+ * a broken switcher.
  *
  * A topic with no note published yet says so rather than leading nowhere.
  */
@@ -42,6 +48,7 @@ import {
   getTermPlan, planTopicsForTerm, strandLabel, strandTone, unplacedCatalogueTopics,
   bestTitleMatch,
 } from '../../../config/gradeTermPlan'
+import { deriveTermPlan } from '../../../config/termDivision'
 import { getActiveTerm } from '../../../utils/moeCalendar'
 import LearnerIcon, { subjectIconName } from '../components/LearnerIcon'
 import { EmptyState, ErrorState, SectionSkeleton } from '../components/LearnerPrimitives'
@@ -127,14 +134,20 @@ export default function LearnerSubjectPage() {
     // A published plan is the authority when there is one. Its rows already
     // carry the term, so the quiz-tag derivation is not consulted at all —
     // two sources disagreeing about which term a topic is in is worse than
-    // either source alone.
-    const plan = getTermPlan(subjectId, Number(grade))
+    // either source alone. With no published plan, the catalogue is divided
+    // across the three terms; that is a suggestion, so it never overrides the
+    // owner's own allocation and the screen says which one it is showing.
+    const authored = getTermPlan(subjectId, Number(grade))
+    const plan = authored
+      || deriveTermPlan(catalogueTopics, (t) => getSubtopics(subjectId, Number(grade), t))
     const planRows = plan ? planTopicsForTerm(plan, term) : []
-    // Catalogue content the plan does not place. Shown on EVERY tab rather
-    // than dropped: it is real syllabus material, and hiding it to make the
-    // tabs tidy removes curriculum from a child's screen.
-    const unplaced = plan
-      ? unplacedCatalogueTopics(plan, catalogueTopics.flatMap(
+    // Catalogue content an AUTHORED plan does not place. Shown on EVERY tab
+    // rather than dropped: it is real syllabus material, and hiding it to make
+    // the tabs tidy removes curriculum from a child's screen. A derived plan
+    // divides the whole catalogue, so it has nothing unplaced by construction
+    // — running the loose matcher over it could only invent a false report.
+    const unplaced = authored
+      ? unplacedCatalogueTopics(authored, catalogueTopics.flatMap(
           (t) => (getSubtopics(subjectId, Number(grade), t) || [t]),
         ))
       : []
@@ -142,8 +155,12 @@ export default function LearnerSubjectPage() {
     const rows = plan
       ? [
           ...planRows.map((r) => ({
-            name: r.title, icon: r.icon, planned: true, note: r.note || null,
-            strand: strandLabel(r.strand), tone: strandTone(r.strand),
+            // A derived row carries no icon and may carry no parent topic to
+            // name, so both fall back rather than rendering an empty tile or a
+            // blank pill; an authored row is unchanged.
+            name: r.title, icon: r.icon || null, planned: true, note: r.note || null,
+            strand: r.strand ? strandLabel(r.strand) : null,
+            tone: r.tone || strandTone(r.strand),
           })),
           ...unplaced.map((name) => ({ name, icon: null, strand: null, tone: null, planned: false, note: null })),
         ]
@@ -199,6 +216,11 @@ export default function LearnerSubjectPage() {
       const noteTarget = findIn(termNotes) || findIn(subjectNotes) || null
       const noteRead = noteTarget ? readNoteIds.has(noteTarget.id) : false
       return {
+        // Not the name: a sub-topic name is only unique WITHIN its topic, and
+        // Grade 7 Mathematics has "Multiplication" under both Fractions and
+        // Decimals. Two siblings sharing a React key leaves rows from the
+        // previous term standing when the learner switches tab.
+        key: `${i}:${row.strand || ''}:${name}`,
         name,
         icon: row.icon,
         strand: row.strand,
@@ -239,7 +261,8 @@ export default function LearnerSubjectPage() {
     return {
       subjectNotes, subjectLessons, subjectQuizzes, topics, termNotes,
       hasTermData, overall, revisionQuizzes, doneCount,
-      hasPlan: Boolean(plan), unplacedCount: unplaced.length,
+      hasPlan: Boolean(plan), planSource: authored ? 'authored' : (plan ? 'derived' : null),
+      unplacedCount: unplaced.length,
       lessonCount: subjectLessons.length,
     }
   }, [state, subjectId, subjectLabel, grade, term])
@@ -314,6 +337,14 @@ export default function LearnerSubjectPage() {
               isn’t published yet.
             </p>
           )}
+          {/* A divided catalogue is pacing, not the syllabus's own word.
+              Saying so is the difference between a plan and a claim. */}
+          {model.planSource === 'derived' && model.topics.length > 0 && (
+            <p className="lhx-back-sub" style={{ textAlign: 'center' }}>
+              Suggested split — the {subjectLabel} syllabus shared across the three
+              terms, in order. Your school may reach these at a different time.
+            </p>
+          )}
           {model.hasPlan && model.unplacedCount > 0 && (
             <p className="lhx-back-sub" style={{ textAlign: 'center' }}>
               Plus {model.unplacedCount} {model.unplacedCount === 1 ? 'topic' : 'topics'} not
@@ -340,11 +371,17 @@ export default function LearnerSubjectPage() {
                       : { cls: 'lhx-st-todo', mark: '○', label: 'not started' }
                   return (
                     <button
-                      key={topic.name}
+                      key={topic.key}
                       type="button"
                       className="lhx-topic-row"
                       aria-disabled={!openable}
-                      aria-label={`${topic.name} — ${openable ? st.label : 'note coming soon'}`}
+                      // The strand is part of the accessible name, not
+                      // decoration: "Multiplication" alone names two
+                      // different rows on the Grade 7 Mathematics tab.
+                      aria-label={[
+                        topic.name, topic.strand,
+                        openable ? st.label : 'note coming soon',
+                      ].filter(Boolean).join(' — ')}
                       onClick={() => openTopic(topic)}
                     >
                       <span className="lhx-topic-ic" aria-hidden="true">

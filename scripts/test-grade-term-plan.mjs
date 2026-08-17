@@ -4,9 +4,12 @@
  *
  * The Grade 7 term plan. The claims worth pinning:
  *
- *   • It covers English and Integrated Science and NOTHING ELSE — the other
- *     five subjects have no published scheme of work, and a term guessed for
- *     them is a fabricated syllabus in front of a child.
+ *   • It covers English and Integrated Science and NOTHING ELSE — this file is
+ *     the owner's own allocation, and a term GUESSED for another subject would
+ *     be a fabricated syllabus in front of a child. The other subjects get
+ *     their terms by dividing the published catalogue instead
+ *     (`config/termDivision`, `test:term-division`), which invents no content
+ *     and is labelled on screen as a suggested split.
  *   • Every planned Science title names a real sub-topic in the catalogue.
  *   • The unplaced-topic matcher neither drops real content nor duplicates
  *     the whole list onto all three tabs.
@@ -27,7 +30,8 @@ test('only the two subjects the owner has actually planned', () => {
   assert.deepEqual(Object.keys(GRADE_TERM_PLAN), ['7'])
   assert.deepEqual(Object.keys(GRADE_TERM_PLAN[7]).sort(), ['english', 'science'])
   // The five unplanned subjects return null, not an empty plan — "no scheme
-  // of work" and "a scheme of work with nothing in it" are different claims.
+  // of work" and "a scheme of work with nothing in it" are different claims,
+  // and the caller distinguishes them: null is what sends it to termDivision.
   for (const id of ['mathematics', 'social-studies', 'technology', 'expressive-arts', 'home-economics']) {
     assert.equal(getTermPlan(id, 7), null, `${id} must not carry an invented plan`)
   }
