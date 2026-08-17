@@ -73,6 +73,26 @@ ok("different phone is a NEW attempt",
     decide(existing(), {phone: "0966123456"}).action === "create");
 ok("different plan is a NEW attempt",
     decide(existing({planId: "pro_monthly"})).action === "create");
+
+// ── a guardian paying for TWO children ─────────────────────────────────────
+//
+// The lock is keyed by PAYER, so a parent buying the same plan for a second
+// child from the same phone inside the reuse window has identical plan and
+// phone — which is exactly what this comparison exists to tell apart. Without
+// the beneficiary in it, they are handed the FIRST child's payment: told it
+// worked, not charged again, and the second child never credited.
+ok("second child, same plan and phone, is a NEW attempt",
+    decide(existing({beneficiaryUid: "kid-a"}), {beneficiaryUid: "kid-b"}).action === "create");
+ok("the SAME child double-tapping is still one attempt",
+    decide(existing({beneficiaryUid: "kid-a"}), {beneficiaryUid: "kid-a"}).action === "reuse-pending");
+ok("a guardian attempt is never reused by a payment for the parent themselves",
+    decide(existing({beneficiaryUid: "kid-a"})).action === "create");
+ok("an ordinary attempt is never reused by a guardian payment",
+    decide(existing(), {beneficiaryUid: "kid-a"}).action === "create");
+// A doc written before the field existed must compare equal to an ordinary
+// payment, not to every guardian one.
+ok("a pre-field payment doc still reuses for an ordinary payment",
+    decide(existing({beneficiaryUid: undefined})).action === "reuse-pending");
 ok("stale attempt (outside the reuse window) → new attempt",
     decide(existing({createdAt: agoMs(REUSE_WINDOW_MS + 1000)})).action === "create");
 ok("failed attempt → retry is a legitimate new attempt",
