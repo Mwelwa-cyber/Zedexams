@@ -9,10 +9,15 @@ import ReadingThemeSwatches from './ReadingThemeSwatches'
  * learner note reader and the quiz runner.
  *
  * It used to live only in Settings → Appearance on the teacher side, which is
- * the one surface it does NOT colour. It is a per-device preference (the same
- * `examprep:theme` key every learner view already reads), so it deliberately
+ * the one surface it does NOT colour. It writes through the same
+ * `examprep:theme` key every learner view already reads, and it deliberately
  * does not depend on auth: it works signed-in, signed-out, and on a shared
  * school device where the "account" is whoever sat down last.
+ *
+ * The choice does reach the account when there is one, but that happens a
+ * layer down (setTheme → the persister <ReadingThemeSync> registers), not
+ * here — which is what keeps this component mountable with no AuthProvider
+ * above it.
  *
  * `surface` is recorded on the analytics event so we can tell a reader who
  * changes theme mid-note from a learner who changes it mid-quiz — different
@@ -84,7 +89,8 @@ export default function ReadingThemePicker({ surface, className = '', align = 'r
           <p className="rth-popover__title">Reading theme</p>
           <ReadingThemeSwatches value={theme} onChange={choose} />
           <p className="rth-popover__note">
-            Saved on this device — pick what&apos;s comfortable for your eyes.
+            Saved to your account when you&apos;re signed in — pick what&apos;s
+            comfortable for your eyes.
           </p>
         </div>
       )}
