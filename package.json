@@ -847,7 +847,8 @@
     "test:planned-term-source": "node src/features/lessonPlanStudio/lib/plannedTermSource.test.js",
     "test:ask-zed-core": "node scripts/test-ask-zed-core.mjs",
     "test:guardian-controls": "node scripts/test-guardian-controls.mjs",
-    "test:grade-subjects": "node scripts/test-grade-subjects.mjs"
+    "test:grade-subjects": "node scripts/test-grade-subjects.mjs",
+    "test:setup-wizard": "node scripts/test-setup-wizard.mjs"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",

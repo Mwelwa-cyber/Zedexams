@@ -89,8 +89,17 @@ function fillValidLearner() {
   fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: 'pass123' } })
   fireEvent.change(screen.getByLabelText(/confirm password/i), { target: { value: 'pass123' } })
   fireEvent.change(screen.getByLabelText(/school name/i), { target: { value: 'Lusaka Academy' } })
-  fireEvent.change(screen.getByLabelText(/^grade$/i), { target: { value: '5' } })
+  // No grade field: it moved to the setup wizard's first step (/setup), and
+  // LearnerSetupGate routes any learner without one there. The assertion that
+  // it is really gone is its own test below.
 }
+
+it('does not ask a learner for their grade — that is the setup wizard\'s first step', async () => {
+  await renderRegister()
+  expect(screen.queryByLabelText(/^grade$/i)).toBeNull()
+  // The rest of the learner form is untouched.
+  expect(screen.getByLabelText(/school name/i)).toBeInTheDocument()
+})
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -397,7 +406,10 @@ describe('Register — friendly field validation', () => {
 
     await waitFor(() => expect(mockRegister).toHaveBeenCalledTimes(1))
     expect(mockRegister).toHaveBeenCalledWith(
-      'learner@school.com', 'pass123', 'Test User', '5', 'Lusaka Academy', 'learner',
+      // The grade argument is now empty: the account is created without one
+      // and the setup wizard writes it. LearnerSetupGate is what guarantees a
+      // grade-less learner never reaches a screen that needs one.
+      'learner@school.com', 'pass123', 'Test User', '', 'Lusaka Academy', 'learner',
       // The age screen's answer travels with the signup. register() still
       // derives isMinor from the date itself rather than trusting a flag from
       // here, and the server re-derives it again on document creation.

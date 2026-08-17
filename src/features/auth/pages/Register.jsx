@@ -231,7 +231,14 @@ export default function Register() {
       // Parents have no school/grade of their own; they link to a child later.
       ...(isParent ? {} : { school: ['required'] }),
       ...(isTeacher ? { subject: ['required'], province: ['required'] } : {}),
-      ...(isLearner ? { grade: ['required'] } : {}),
+      // A learner's grade is NOT asked here any more — it is the first step of
+      // the setup wizard (`/setup`), which is where the prototype puts it and
+      // where it belongs: it is a choice with consequences the learner can see
+      // (the subject list on the very next screen changes with it), not a
+      // dropdown buried between "school" and "confirm password". The account
+      // is created without one, and `LearnerSetupGate` routes any learner
+      // without a grade to the wizard, so there is no window in which a
+      // grade-less learner reaches a screen that needs one.
     }
   }
 
@@ -674,33 +681,8 @@ export default function Register() {
             />
           )}
 
-          {isLearner && (
-            <div>
-              <label htmlFor="grade" className="block text-[13px] font-medium text-[#1A1F2E] mb-1.5">Grade</label>
-              <div className="relative">
-                <select
-                  id="grade"
-                  name="grade"
-                  value={form.grade}
-                  onChange={set('grade')}
-                  required
-                  aria-invalid={fieldErrors.grade ? 'true' : undefined}
-                  aria-describedby={fieldErrors.grade ? 'grade-error' : undefined}
-                  className={`${SELECT_CLASS} ${fieldErrors.grade ? '!border-red-500' : ''}`}
-                >
-                  <option value="">Select your grade</option>
-                  <option value="4">Grade 4</option>
-                  <option value="5">Grade 5</option>
-                  <option value="6">Grade 6</option>
-                  <option value="7">Grade 7</option>
-                </select>
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6E7280] text-[13px] pointer-events-none" aria-hidden="true">▾</span>
-              </div>
-              {fieldErrors.grade && (
-                <p id="grade-error" className="text-red-600 text-[11.5px] mt-1">{fieldErrors.grade}</p>
-              )}
-            </div>
-          )}
+          {/* The learner's Grade dropdown used to sit here. It moved to the
+              setup wizard's first step — see buildSchema above. */}
 
           {isTeacher && (
             <div className="grid grid-cols-2 gap-2.5">
