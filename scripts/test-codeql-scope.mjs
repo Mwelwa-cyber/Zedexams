@@ -107,15 +107,21 @@ ok("does not exclude the whole tree", () => {
   }
 });
 
-ok("excludes only generated output", () => {
-  const generated = /^(android|dist|coverage)/;
+ok("excludes only generated output or the design-pack references", () => {
+  // `docs/learner` is the one non-generated exception: the owner's prototype
+  // HTML mockups. Their inline demo JS is a reference artefact — never served,
+  // never bundled (hosting ships dist/, built from src/ + public/) — and
+  // scanning it files permanent alerts against a document. Pinned to exactly
+  // that directory so the exception cannot quietly widen to docs/ at large.
+  const allowed = /^(android|dist|coverage|docs\/learner$)/;
   for (const p of ignored) {
     assert.match(
       p,
-      generated,
-      `"${p}" is not obviously build output — if it is genuinely generated, ` +
-      "add it to the allowed prefixes here so the exclusion is a decision " +
-      "rather than a drift",
+      allowed,
+      `"${p}" is not obviously build output — if it is genuinely generated ` +
+      "(or a non-shipping reference document like docs/learner), add it to " +
+      "the allowed prefixes here so the exclusion is a decision rather than " +
+      "a drift",
     );
   }
 });

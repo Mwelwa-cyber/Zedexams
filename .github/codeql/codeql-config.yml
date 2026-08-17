@@ -10,13 +10,22 @@ name: "ZedExams CodeQL config"
 queries:
   - uses: security-extended
 
-# Generated or build output only. Everything hand-written is scanned, including
-# public/*.js (boot.js, sw-reload-clients.js and the messaging SW are real
-# source, not vendored libraries) and scripts/ (they run in CI with repo
-# credentials, so they are worth scanning, not less so).
+# Generated or build output only — plus one reference-document exception.
+# Everything hand-written that SHIPS is scanned, including public/*.js
+# (boot.js, sw-reload-clients.js and the messaging SW are real source, not
+# vendored libraries) and scripts/ (they run in CI with repo credentials, so
+# they are worth scanning, not less so).
+#
+# docs/learner holds the owner's design-pack prototypes: self-contained HTML
+# mockups whose inline demo JS (innerHTML string concatenation throughout) is
+# a reference artefact, never served or bundled — hosting ships dist/, built
+# from src/ + public/. Scanning it files permanent "high" alerts against a
+# document, and the weekly baseline then replays them onto unrelated PRs.
+# test:codeql-scope pins this exclusion to exactly this directory.
 paths-ignore:
   - android
   - dist
   - coverage
   - coverage-src
   - coverage-functions
+  - docs/learner
