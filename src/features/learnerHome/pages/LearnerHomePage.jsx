@@ -1,8 +1,8 @@
 /**
  * LearnerHomePage — the prototype's Home, in its order and with only
  * its blocks: the exam countdown card, Continue where you left off,
- * Today's Quiz, Explore (Papers · Notes · Games · Timetable), then My
- * subjects.
+ * Today's Quiz, Explore (Papers · Notes · Games — one horizontal row at
+ * every width), then My subjects.
  *
  * The Past Papers hero, Today's Exams panel, Recommended, the Daily
  * Game Challenge, Recent Activity and the Achievements summary left
