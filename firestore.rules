@@ -686,7 +686,7 @@ service cloud.firestore {
     //
     // PUBLIC (must resolve before sign-in state does):
     //   global      — site name, maintenance flag, registration toggle;
-    //                 read pre-auth by passkeyService.js and AdminSettings.
+    //                 read pre-auth by PlatformSettingsContext.
     //   quizLibrary — the quiz summary index behind the public quiz runner.
     // Everything else (fxRate, curriculumUpdateSourceState, and anything
     // added later) is admin-read by default — fxRate is only consumed by
@@ -2532,38 +2532,30 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // ── Passkey (WebAuthn) sign-in — server-only credential store ────
-    // Public-key credentials written exclusively by the passkey Cloud
-    // Functions (functions/passkeys/, admin SDK). The client NEVER touches
-    // these docs — it sees only the safe metadata the listUserPasskeys
-    // callable returns — so a client can't forge a credential, reassign
-    // one to another uid, tamper with the signature counter, or clear a
-    // revocation. Ownership (uid), publicKey, and counter are therefore
-    // unforgeable by construction.
+    // ── Legacy passkey (WebAuthn) collections — feature removed ──────
+    // Passkey sign-in was removed 2026-08-17 (callables + client deleted).
+    // These four collections stay CLOSED so the data written while the
+    // feature was live remains unreachable from any client; it purges with
+    // its account via accountDeletion.js. Do not open any of them.
     match /passkeyCredentials/{credentialId} {
       allow read, write: if false;
     }
 
-    // Single-use WebAuthn challenges ("{randomId}" docs holding only the
-    // challenge HASH). Written + consumed exclusively by the passkey
-    // Cloud Functions; carry an `expiresAt` field for a Firestore TTL
-    // policy to reap. A client-readable/writable challenge would defeat
-    // replay protection — no client read or write, ever.
+    // Single-use WebAuthn challenges (challenge HASH only, `expiresAt`
+    // TTL-reaped). Nothing writes these any more; the block keeps any
+    // residue closed until the TTL policy drains it.
     match /webauthnChallenges/{challengeId} {
       allow read, write: if false;
     }
 
-    // Opaque per-user WebAuthn user handles (random bytes, NOT the uid)
-    // so authenticators never store a readable account reference.
-    // Server-only.
+    // Opaque per-user WebAuthn user handles (random bytes, NOT the uid).
     match /passkeyUserHandles/{uid} {
       allow read, write: if false;
     }
 
-    // Append-only passkey security audit trail (registered / auth
-    // succeeded / auth failed / renamed / removed / replay rejected).
-    // Rows hold hashes + coarse UA categories only — never biometrics,
-    // assertions, tokens, or raw ids. Admin-read for abuse monitoring.
+    // Append-only passkey security audit trail (hashes + coarse UA only —
+    // never biometrics, assertions, tokens, or raw ids). Admin-read for
+    // historical abuse review.
     match /passkeyAuditLog/{eventId} {
       allow read: if isAdmin();
       allow create, update, delete: if false;

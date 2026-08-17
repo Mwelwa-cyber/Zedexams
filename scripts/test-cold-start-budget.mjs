@@ -56,7 +56,8 @@ const MUST_STAY_LAZY = [
   ['@google-cloud/text-to-speech', 'apiTextToSpeech only', '37.5 MiB / 181 ms'],
   ['exceljs', 'parseSyllabusUpload storage trigger only', '27.5 MiB / 160 ms'],
   ['mammoth', 'past-paper .docx import only', '18.2 MiB / 78 ms'],
-  ['@simplewebauthn/server', 'the four passkey callables only', '17.7 MiB / 114 ms'],
+  // @simplewebauthn/server left this list 2026-08-17: the passkey feature was
+  // removed and the package uninstalled, so there is nothing to keep lazy.
   ['nodemailer', 'the email senders only', '17.8 MiB / 47 ms'],
 ]
 

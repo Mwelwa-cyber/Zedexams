@@ -2,7 +2,7 @@
  * Public surface of shared account settings — the `/settings` page an admin
  * (and any role that is neither learner nor teacher) sees: theme and reading
  * preferences, avatar, notification permissions, accessibility options, the
- * school profile, passkeys, parent sharing, and account deletion.
+ * school profile, parent sharing, and account deletion.
  *
  * Migrated under docs/architecture.md Phase 4 (Wave 4).
  *
@@ -30,13 +30,12 @@
  * commit as the move would make a pure relocation read as a rewrite in review
  * (docs/MIGRATION_TEMPLATE.md step 1).
  *
- * ── It now consumes three sibling features through their front doors ────
+ * ── It consumes sibling features through their front doors ──────────────
  *
- * `PasskeySection` from `features/auth`, `ParentShareManager` from
- * `features/parentPortal`, and — before this migration — both of those plus
- * the dashboard billing cards were reached by deep relative paths into
- * `components/`. Those became declared dependencies as each area migrated;
- * this page is where several of them land at once.
+ * `ParentShareManager` from `features/parentPortal` and — before this
+ * migration — the dashboard billing cards were reached by deep relative
+ * paths into `components/`. Those became declared dependencies as each area
+ * migrated; this page is where several of them land at once.
  */
 
 export {}

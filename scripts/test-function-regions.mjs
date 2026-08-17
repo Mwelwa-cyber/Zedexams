@@ -52,10 +52,12 @@ ok(
 
 // The whole premise of the migration is colocation with Firestore, so the
 // target region must be the one the existing Firestore triggers already use.
+// The agent dispatcher is the canonical africa-south1-pinned trigger (see
+// CLAUDE.md's Firestore-region note).
 ok(
   'the target region is the one Firestore triggers already run in',
   indexSrc.includes(`region: "${registry.firestoreRegion}"`) ||
-    readFileSync(join(root, 'functions/passkeys/passkeyRegions.js'), 'utf8')
+    readFileSync(join(root, 'functions/agents/dispatcher.js'), 'utf8')
       .includes(`"${registry.firestoreRegion}"`),
 )
 
@@ -81,7 +83,7 @@ for (const name of registry.migrated) {
   )
 }
 
-for (const name of ['aiChat', 'generateAssessment', 'listUserPasskeys', '__not_a_function__']) {
+for (const name of ['aiChat', 'generateAssessment', 'verifyQuiz', '__not_a_function__']) {
   if (registry.migrated.includes(name)) continue
   ok(
     `${name}: unmigrated resolves to ${registry.legacyRegion} on both sides`,

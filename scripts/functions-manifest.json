@@ -1226,74 +1226,6 @@
       "classification": "secrets-bound",
       "batch": null
     },
-    "generatePasskeyAuthenticationOptions": {
-      "kind": "onCall",
-      "inline": false,
-      "options": {
-        "region": "\"us-central1\"",
-        "timeoutSeconds": "30",
-        "memory": "\"256MiB\"",
-        "enforceAppCheck": "shouldEnforceAppCheck(\"generatePasskeyAuthenticationOptions\")"
-      },
-      "optionsFrom": "index.js",
-      "optionsUnresolved": null,
-      "target": null,
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
-    "generatePasskeyAuthenticationOptionsAfrica": {
-      "kind": "factory",
-      "inline": false,
-      "options": {
-        "region": "\"africa-south1\"",
-        "timeoutSeconds": "30",
-        "memory": "\"256MiB\"",
-        "enforceAppCheck": "shouldEnforceAppCheck(baseName)"
-      },
-      "optionsFrom": "index.js (factory passkeyRegionalCallable)",
-      "optionsUnresolved": null,
-      "target": "passkeyRegionalCallable( \"generatePasskeyAuthenticationOptions\", runGeneratePasskeyAuthenticationOptions)",
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
-    "generatePasskeyRegistrationOptions": {
-      "kind": "onCall",
-      "inline": false,
-      "options": {
-        "region": "\"us-central1\"",
-        "timeoutSeconds": "30",
-        "memory": "\"256MiB\"",
-        "enforceAppCheck": "shouldEnforceAppCheck(\"generatePasskeyRegistrationOptions\")"
-      },
-      "optionsFrom": "index.js",
-      "optionsUnresolved": null,
-      "target": null,
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
-    "generatePasskeyRegistrationOptionsAfrica": {
-      "kind": "factory",
-      "inline": false,
-      "options": {
-        "region": "\"africa-south1\"",
-        "timeoutSeconds": "30",
-        "memory": "\"256MiB\"",
-        "enforceAppCheck": "shouldEnforceAppCheck(baseName)"
-      },
-      "optionsFrom": "index.js (factory passkeyRegionalCallable)",
-      "optionsUnresolved": null,
-      "target": "passkeyRegionalCallable( \"generatePasskeyRegistrationOptions\", runGeneratePasskeyRegistrationOptions)",
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
     "generateQuiz": {
       "kind": "factory",
       "inline": false,
@@ -1901,23 +1833,6 @@
       "classification": "mechanical",
       "batch": null
     },
-    "listUserPasskeys": {
-      "kind": "onCall",
-      "inline": false,
-      "options": {
-        "region": "\"us-central1\"",
-        "timeoutSeconds": "30",
-        "memory": "\"256MiB\"",
-        "enforceAppCheck": "shouldEnforceAppCheck(\"listUserPasskeys\")"
-      },
-      "optionsFrom": "index.js",
-      "optionsUnresolved": null,
-      "target": null,
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
     "logAdminMfaEvent": {
       "kind": "delegated",
       "inline": false,
@@ -2511,40 +2426,6 @@
       "options": {
         "region": "\"us-central1\"",
         "timeoutSeconds": "30"
-      },
-      "optionsFrom": "index.js",
-      "optionsUnresolved": null,
-      "target": null,
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
-    "removeUserPasskey": {
-      "kind": "onCall",
-      "inline": false,
-      "options": {
-        "region": "\"us-central1\"",
-        "timeoutSeconds": "30",
-        "memory": "\"256MiB\"",
-        "enforceAppCheck": "shouldEnforceAppCheck(\"removeUserPasskey\")"
-      },
-      "optionsFrom": "index.js",
-      "optionsUnresolved": null,
-      "target": null,
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
-    "renameUserPasskey": {
-      "kind": "onCall",
-      "inline": false,
-      "options": {
-        "region": "\"us-central1\"",
-        "timeoutSeconds": "30",
-        "memory": "\"256MiB\"",
-        "enforceAppCheck": "shouldEnforceAppCheck(\"renameUserPasskey\")"
       },
       "optionsFrom": "index.js",
       "optionsUnresolved": null,
@@ -3343,74 +3224,6 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "payment-webhook",
-      "batch": null
-    },
-    "verifyPasskeyAuthentication": {
-      "kind": "onCall",
-      "inline": false,
-      "options": {
-        "region": "\"us-central1\"",
-        "timeoutSeconds": "30",
-        "memory": "\"256MiB\"",
-        "enforceAppCheck": "shouldEnforceAppCheck(\"verifyPasskeyAuthentication\")"
-      },
-      "optionsFrom": "index.js",
-      "optionsUnresolved": null,
-      "target": null,
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
-    "verifyPasskeyAuthenticationAfrica": {
-      "kind": "factory",
-      "inline": false,
-      "options": {
-        "region": "\"africa-south1\"",
-        "timeoutSeconds": "30",
-        "memory": "\"256MiB\"",
-        "enforceAppCheck": "shouldEnforceAppCheck(baseName)"
-      },
-      "optionsFrom": "index.js (factory passkeyRegionalCallable)",
-      "optionsUnresolved": null,
-      "target": "passkeyRegionalCallable( \"verifyPasskeyAuthentication\", runVerifyPasskeyAuthentication)",
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
-    "verifyPasskeyRegistration": {
-      "kind": "onCall",
-      "inline": false,
-      "options": {
-        "region": "\"us-central1\"",
-        "timeoutSeconds": "30",
-        "memory": "\"256MiB\"",
-        "enforceAppCheck": "shouldEnforceAppCheck(\"verifyPasskeyRegistration\")"
-      },
-      "optionsFrom": "index.js",
-      "optionsUnresolved": null,
-      "target": null,
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
-    "verifyPasskeyRegistrationAfrica": {
-      "kind": "factory",
-      "inline": false,
-      "options": {
-        "region": "\"africa-south1\"",
-        "timeoutSeconds": "30",
-        "memory": "\"256MiB\"",
-        "enforceAppCheck": "shouldEnforceAppCheck(baseName)"
-      },
-      "optionsFrom": "index.js (factory passkeyRegionalCallable)",
-      "optionsUnresolved": null,
-      "target": "passkeyRegionalCallable( \"verifyPasskeyRegistration\", runVerifyPasskeyRegistration)",
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
       "batch": null
     },
     "verifyQuiz": {

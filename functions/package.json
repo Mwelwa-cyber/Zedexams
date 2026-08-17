@@ -19,7 +19,6 @@
   "dependencies": {
     "@google-cloud/text-to-speech": "^7.0.0",
     "@octokit/rest": "^22.0.1",
-    "@simplewebauthn/server": "^13.3.2",
     "adm-zip": "^0.6.0",
     "cors": "^2.8.6",
     "docx": "^9.6.1",

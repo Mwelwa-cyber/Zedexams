@@ -1,6 +1,6 @@
 /**
  * Public surface of authentication — sign-in, registration, the email-action
- * and verification screens, the TOTP challenge, passkeys, and the guardian
+ * and verification screens, the TOTP challenge, and the guardian
  * consent + age-gate flow.
  *
  * Migrated under docs/architecture.md Phase 4 (Wave 4).
@@ -23,15 +23,12 @@
  * is purely presentational and looks like feature code. Splitting them would
  * make `ProtectedRoute` — which `App.jsx` imports EAGERLY — import this front
  * door, and importing any name from a feature evaluates every module its index
- * re-exports. That would put `PasskeySection` and, through it,
- * `@simplewebauthn/browser` in the main bundle for every visitor including
- * signed-out ones. The pair has exactly one consumer, so keeping them together
- * costs nothing and closes that path.
+ * re-exports — putting every re-export in the main bundle for every visitor
+ * including signed-out ones. The pair has exactly one consumer, so keeping
+ * them together costs nothing and closes that path.
  *
- * ── Four exports, all reached from lazily-loaded surfaces ───────────────
+ * ── Three exports, all reached from lazily-loaded surfaces ──────────────
  *
- *   - `PasskeySection`      — `settings/zedexams-settings`, and the Security
- *                             panels of `learnerSettings` and `teacherSettings`
  *   - `OtpInput`            — `features/adminMfa`'s enrolment page
  *   - `GoogleSignInButton`  — the same page, for re-authentication
  *   - `GuardianConsentBanner` — `learnerDashboard`'s StudentDashboard
@@ -44,7 +41,6 @@
  * exported either; `Register` alone is 876 lines.
  */
 
-export { default as PasskeySection } from './components/passkeys/PasskeySection'
 export { default as OtpInput } from './components/OtpInput'
 export { default as GoogleSignInButton } from './components/GoogleSignInButton'
 export { default as GuardianConsentBanner } from './components/GuardianConsentBanner'

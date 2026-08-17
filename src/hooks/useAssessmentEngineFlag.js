@@ -5,8 +5,8 @@
  * This supplies its three inputs — the live `settings/global` document, the
  * signed-in uid, and the device's stable visitor id — and nothing else. It
  * contains no condition of its own, deliberately: the moment a hook starts
- * deciding, there are two resolvers and §4's rule 3 is gone. `passkeyService`
- * over `passkeyRegionCore` is the same split.
+ * deciding, there are two resolvers and §4's rule 3 is gone. The (since-
+ * removed) passkey service over its pure region core was the same split.
  *
  * ## Using it at a cutover
  *

@@ -1,12 +1,11 @@
-// Compact trust strip at the foot of the auth card. The "Private" wording is
-// deliberate: passkeys DO store a public key + credential metadata server-side,
-// but biometric data (fingerprint/face) never leaves the user's device — so the
-// claim is "we never store your biometrics", nothing broader.
+// Compact trust strip at the foot of the auth card. Keep each claim narrow
+// enough to be literally true — no promises about third parties or retention
+// that the platform doesn't enforce elsewhere.
 import { ShieldCheck, LockKeyhole, BadgeCheck } from 'lucide-react'
 
 const ITEMS = [
   { icon: ShieldCheck, color: 'var(--info-fg)', title: 'Secure', text: 'Your data is protected' },
-  { icon: LockKeyhole, color: 'var(--danger-fg)', title: 'Private', text: 'We never store your biometrics' },
+  { icon: LockKeyhole, color: 'var(--danger-fg)', title: 'Private', text: 'Your details stay private' },
   { icon: BadgeCheck, color: '#16A34A', title: 'Trusted', text: 'Built for teachers and learners' },
 ]
 

@@ -670,9 +670,9 @@ function readFactoryBody(source, name, from, ctx) {
 /**
  * The `const NAME = { … }` object literal declared in `source`, or null.
  *
- * `Object.freeze({ … })` counts — `passkeys/passkeyRegions.js` declares its
- * shared runtime options that way, and a wrapper that changes nothing about
- * the literal should not decide whether the guard can read it.
+ * `Object.freeze({ … })` counts — the (since-removed) passkey region module
+ * declared its shared runtime options that way, and a wrapper that changes
+ * nothing about the literal should not decide whether the guard can read it.
  *
  * With a `ctx`, a name this source does not declare is chased into the module
  * it is imported from. That is not a nicety: `PASSKEY_CALLABLE_RUNTIME` is

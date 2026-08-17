@@ -3,8 +3,8 @@
 //
 // This MIRRORS functions/functionRegions.json (the server's copy). The two are
 // kept honest by scripts/test-function-regions.mjs, which fails CI the moment
-// they disagree — the same arrangement the passkey migration uses for
-// passkeyRegionCore.js ⇄ passkeyRegions.js. A single shared file would be
+// they disagree — the same arrangement the (since-removed) passkey region
+// mirror used. A single shared file would be
 // nicer in theory, but the server must resolve its region SYNCHRONOUSLY from
 // CommonJS at module load (firebase deploy discovers regions by running the
 // source), and a JSON import needs `with { type: 'json' }` to work in plain

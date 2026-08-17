@@ -16,11 +16,8 @@ import Logo from '../../../shared/components/Logo'
 import Button from '../../../shared/components/Button'
 import Icon from '../../../shared/components/Icon'
 import GoogleSignInButton from '../components/GoogleSignInButton'
-import PasskeySignInButton from '../components/PasskeySignInButton'
 import AuthDivider from '../components/AuthDivider'
 import SecurityReassurance from '../components/SecurityReassurance'
-import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
-import { isPasskeySupported, signInWithPasskey, mapPasskeyError } from '../../../services/passkeyService'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 import FullScreenLoader from '../../../shared/components/FullScreenLoader'
 
@@ -117,22 +114,13 @@ export default function Login() {
   const [showPw, setShowPw]       = useState(false)
   const [loading, setLoading]     = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
-  const [passkeyLoading, setPasskeyLoading] = useState(false)
   const [error, setError]         = useState('')
-  // Neutral (non-error) notice — e.g. the user dismissed the passkey prompt.
-  const [notice, setNotice]       = useState('')
   // Move keyboard/screen-reader focus to the alert when an error lands so
   // assistive tech announces it and a keyboard user isn't left hunting.
   const errorRef = useRef(null)
   useEffect(() => {
     if (error) errorRef.current?.focus()
   }, [error])
-  // Staged rollout: the passkey option only renders when the platform flag
-  // is on. Support detection keeps the page working on browsers without
-  // WebAuthn — they see a short pointer to the other methods instead.
-  const { settings: platformSettings } = usePlatformSettings()
-  const passkeysEnabled = platformSettings?.featureFlags?.passkeyAuthenticationEnabled === true
-  const passkeySupported = isPasskeySupported()
   // Firebase multi-factor resolver, set when a first-factor sign-in throws
   // auth/multi-factor-auth-required. Held in component state ONLY (never
   // serialised) — a refresh clears it and drops the user back to the form.
@@ -226,25 +214,6 @@ export default function Login() {
       console.error('[Google sign-in]', err?.code, err?.message)
       setError(friendlyAuthMessage(err.code, { online: navigator.onLine, fallback: 'Google sign-in failed. Please try again.' }))
     } finally { setGoogleLoading(false) }
-  }
-
-  async function handlePasskeySignIn() {
-    setError('')
-    setNotice('')
-    setPasskeyLoading(true)
-    try {
-      const cred = await signInWithPasskey()
-      await completePostLogin(cred)
-    } catch (err) {
-      const mapped = mapPasskeyError(err)
-      if (mapped.cancelled) {
-        // Dismissing the OS prompt is a normal outcome, not a system error.
-        setNotice(mapped.message)
-      } else {
-        console.error('[Passkey sign-in]', mapped.code)
-        setError(mapped.message)
-      }
-    } finally { setPasskeyLoading(false) }
   }
 
   // MFA challenge completed → continue the normal role/route resolution.
@@ -410,27 +379,10 @@ export default function Login() {
             )}
 
             <div className="animate-slide-up motion-reduce:animate-none space-y-3.5">
-              {passkeysEnabled && passkeySupported && (
-                <PasskeySignInButton
-                  onClick={handlePasskeySignIn}
-                  loading={passkeyLoading}
-                  disabled={loading || googleLoading}
-                />
-              )}
-              {passkeysEnabled && !passkeySupported && (
-                <p className="text-[13px] text-[color:var(--text-muted)] text-center">
-                  Passkeys are not supported on this browser. Use Google or your password to sign in.
-                </p>
-              )}
-              {notice && (
-                <p aria-live="polite" className="text-[14px] text-center rounded-xl px-4 py-2.5 bg-[color:var(--bg-subtle)] text-[color:var(--text-muted)] border border-[color:var(--border)]">
-                  {notice}
-                </p>
-              )}
               <GoogleSignInButton
                 onClick={handleGoogleSignIn}
                 loading={googleLoading}
-                disabled={loading || passkeyLoading}
+                disabled={loading}
               />
             </div>
 

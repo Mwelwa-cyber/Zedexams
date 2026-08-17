@@ -12,11 +12,9 @@ describe('SecurityReassurance', () => {
     expect(screen.getByText('Built for teachers and learners')).toBeInTheDocument()
   })
 
-  it('claims only that biometrics are never stored — not that no passkey data is stored', () => {
-    // Passkeys DO store a public key + credential metadata server-side; the
-    // honest claim is scoped to biometric data, which never leaves the device.
+  it('keeps the privacy claim narrow — never an absolute "we store nothing"', () => {
     render(<SecurityReassurance />)
-    expect(screen.getByText('We never store your biometrics')).toBeInTheDocument()
+    expect(screen.getByText('Your details stay private')).toBeInTheDocument()
     expect(screen.queryByText(/never store any data/i)).not.toBeInTheDocument()
   })
 })

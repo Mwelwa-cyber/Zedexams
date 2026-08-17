@@ -7,7 +7,6 @@ import {
 import { useAuth } from '../../../contexts/AuthContext'
 import { deleteMyAccount, pickReauthMethod } from '../../../utils/accountService'
 import { canSubmitDeletion, deletionErrorMessage } from '../../../utils/accountReauth'
-import { PasskeySection } from '../../auth'
 import SettingsDetailShell from '../components/SettingsDetailShell'
 import FieldRow from '../components/fields/FieldRow'
 import Icon from '../../../shared/components/Icon'
@@ -210,9 +209,6 @@ export default function SecurityPanel() {
   return (
     <SettingsDetailShell rowId="security">
       <ChangePasswordCard />
-
-      {/* Passkeys (WebAuthn) — renders only while the platform flag is on. */}
-      <PasskeySection />
 
       <section className="tset-section">
         <h2 className="tset-section__title">This session</h2>

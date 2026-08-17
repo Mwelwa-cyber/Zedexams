@@ -81,15 +81,10 @@ const REGISTRY = [
       'Volume follows under-18 lock taps, rate-limited to one per learner ' +
       'per 72 hours. Added 2026-08-16 with the tiered paywall.',
   },
-  {
-    collection: 'webauthnChallenges',
-    field: 'expiresAt',
-    isCollectionGroup: false,
-    codeSideBackstop: null,
-    notes:
-      'Short-lived (5 min) single-use passkey challenges. No scheduled ' +
-      'reaper. Volume follows passkey sign-in, which is feature-flagged.',
-  },
+  // webauthnChallenges was registered here until 2026-08-17, when the passkey
+  // feature (the only writer) was removed. The GCP TTL policy on
+  // webauthnChallenges.expiresAt can be deleted once the residue drains —
+  // challenges lived 5 minutes, so that is immediate.
   {
     collection: 'processedWebhookEvents',
     field: 'expiresAt',
@@ -573,9 +568,9 @@ function assertRegistryMatchesCode() {
     // Deliberately the WRITERS, not every file that mentions the name.
     // "Does any file referencing this collection mention the field" is too
     // coarse and produced a false negative on its own control run: renaming
-    // rateLimits.expireAt did not fail, because passkeyService.js happens to
-    // mention both `rateLimits` and `expireAt` for unrelated reasons, which
-    // satisfied the check while the real writer had drifted.
+    // rateLimits.expireAt did not fail, because a since-removed service file
+    // happened to mention both `rateLimits` and `expireAt` for unrelated
+    // reasons, which satisfied the check while the real writer had drifted.
     const referencing = writersOf(entry);
     if (referencing.length === 0) {
       // Fall back to the loose match before declaring it missing, so a

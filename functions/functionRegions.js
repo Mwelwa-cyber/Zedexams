@@ -13,14 +13,14 @@
 // importing the JSON, because a JSON import needs `with { type: 'json' }` to
 // work in plain Node and that is a bundler-dependent detail to hang a public
 // URL on. scripts/test-function-regions.mjs fails CI if the two disagree —
-// the arrangement passkeyRegions.js ⇄ passkeyRegionCore.js already uses.
+// the same arrangement the (since-removed) passkey region mirror used.
 //
 // HOW A MIGRATION WAVE WORKS — deploy a TWIN, never move the original:
 //   1. Add the export name(s) to `migrated` in functionRegions.json AND to
 //      MIGRATED_FUNCTIONS in src/config/functionRegions.js.
 //   2. Export the same handler under `<baseName>Africa` with
-//      `region: regionFor("<baseName>")` — see passkeyRegionalCallable() in
-//      index.js. Both regions serve at once; the original is untouched.
+//      `region: regionFor("<baseName>")`. Both regions serve at once; the
+//      original is untouched.
 //   3. Verify the twin in production BEFORE any caller points at it.
 //   4. Move callers to `getFunctions(app, regionFor('<exportName>'))`.
 //   5. Hosting rewrite targets: update `region` in firebase.json only after
