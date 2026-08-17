@@ -27,7 +27,20 @@ export const ZED_TUNING = Object.freeze({
   maxDelayMs: 6200,
 })
 
-function shuffled(list, rng = Math.random) {
+/**
+ * The default random source: crypto-backed uniform [0, 1). Game
+ * outcomes are not secrets, but CodeQL rightly refuses to take that on
+ * faith for a draw that decides scores — and `crypto.getRandomValues`
+ * is available in every runtime this code sees (browsers, node tests),
+ * so there is no cost to drawing properly. Tests inject a seeded rng.
+ */
+function defaultRng() {
+  const buf = new Uint32Array(1)
+  globalThis.crypto.getRandomValues(buf)
+  return buf[0] / 4294967296
+}
+
+function shuffled(list, rng = defaultRng) {
   const out = list.slice()
   for (let i = out.length - 1; i > 0; i -= 1) {
     const j = Math.floor(rng() * (i + 1))
@@ -61,7 +74,7 @@ export function playableQuestions(questions) {
  * field a race — the caller shows "no race today" rather than inventing
  * content.
  */
-export function pickDuelSource(games, { grade = null, rng = Math.random } = {}) {
+export function pickDuelSource(games, { grade = null, rng = defaultRng } = {}) {
   const quizzes = (games || []).filter((g) => g?.type === 'timed_quiz' && playableQuestions(g.questions).length >= DUEL_QUESTIONS)
   if (!quizzes.length) return null
   const inGrade = quizzes.filter((g) => Number(g.grade) === Number(grade))
@@ -75,7 +88,7 @@ export function pickDuelSource(games, { grade = null, rng = Math.random } = {}) 
  * Zed's plan: for each question, whether he gets it right and how long
  * he takes. Pure draw — the race never re-rolls it.
  */
-export function zedPlan(count = DUEL_QUESTIONS, rng = Math.random, tuning = ZED_TUNING) {
+export function zedPlan(count = DUEL_QUESTIONS, rng = defaultRng, tuning = ZED_TUNING) {
   return Array.from({ length: Math.max(0, Math.floor(count)) }, () => ({
     correct: rng() < tuning.accuracy,
     delayMs: Math.round(tuning.minDelayMs + rng() * (tuning.maxDelayMs - tuning.minDelayMs)),
