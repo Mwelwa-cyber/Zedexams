@@ -251,7 +251,7 @@ export default function LearnerSettingsPage() {
         />
       </div>
 
-      <div className="lhx-set-foot">
+      <div className="lhx-set-footer">
         ZedExams{version ? ` · v${version}` : ''} · Made for Zambian learners 🇿🇲
       </div>
     </>

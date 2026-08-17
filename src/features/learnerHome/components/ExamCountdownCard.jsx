@@ -1,18 +1,27 @@
 /**
- * ExamCountdownCard — the prototype's coral "EXAMS ARE COMING" card on
- * Home, directly under the Grade · Term chip: calendar tile, the season
- * name, the first paper's date and subject, and the days-to-go badge.
- * Taps through to the full timetable screen.
+ * ExamCountdownCard — the prototype's coral `.exam-countdown` card, the
+ * first thing under the Grade · Term chip on Home: calendar tile, the
+ * "EXAMS ARE COMING" label, the season name, the next paper's date and
+ * subject, and the days-to-go badge. Tapping it opens /timetable.
  *
- * This is the mockup's shape. An earlier pass shrank it to a chip beside
- * the grade chip, which the mockup does not have — v3 through v6 all
- * show the card.
+ * This replaces the chip step 2 shipped in its place. The chip could
+ * only ever say "Exams in 12 days"; the mockup's card says WHICH paper
+ * is next and WHEN, which is the part a learner plans around — so the
+ * sub-line is built from a real session's papers, not from a count.
  *
- * Counts to the first SAT paper (a briefing day is never "the next
- * exam") via the same session list + phase machine /timetable uses, so
- * the two always agree. Renders nothing when no timetable is published
- * or the season is over — a countdown to an unknown date is worse than
- * no countdown.
+ * Two things it is careful about:
+ *   - The named paper is the next paper session that has NOT started,
+ *     not `sessions[0]` — mid-season, the first session of the week is
+ *     in the past, and naming it would tell a learner to revise for an
+ *     exam they already sat.
+ *   - A choose-ONE session (Friday) carries several papers; it says how
+ *     many rather than picking one, because the learner sits one of
+ *     them and we do not know which.
+ *
+ * The countdown maths is unchanged (getExamCountdownState over the same
+ * session list /timetable reads), so the two can never disagree.
+ * Renders nothing when no timetable is published or the season is over
+ * — an absent timetable is never drawn as "0 days".
  */
 import { useNavigate } from 'react-router-dom'
 import useCountdown from '../hooks/useCountdown'
@@ -22,66 +31,58 @@ import { capture } from '../../../utils/analytics'
 
 const DAY_FMT = { weekday: 'short', day: 'numeric', month: 'short' }
 
+/** Papers → the mockup's paper name ("English Language", "3 papers"). */
+export function paperName(papers) {
+  const list = papers || []
+  if (list.length === 0) return null
+  if (list.length > 1) return `${list.length} papers`
+  return list[0]?.name || null
+}
+
+/** "First paper: Mon 27 Oct · English Language" for a session. */
+export function nextPaperLine(session) {
+  if (!session) return null
+  const when = Number.isFinite(session.startsAt)
+    ? new Date(session.startsAt).toLocaleDateString('en-GB', DAY_FMT)
+    : null
+  return [when ? `Next paper: ${when}` : null, paperName(session.papers)]
+    .filter(Boolean).join(' · ') || null
+}
+
 export default function ExamCountdownCard({ timetables }) {
   const navigate = useNavigate()
   const active = timetables?.active || null
 
   const sessions = active
     ? listSessions(active)
-      .filter((s) => (s.papers || []).length > 0)
-      .map((s) => ({ startsAt: Date.parse(s.start), endsAt: Date.parse(s.end), papers: s.papers }))
+        .filter((s) => (s.papers || []).length > 0)
+        .map((s) => ({ startsAt: Date.parse(s.start), endsAt: Date.parse(s.end), papers: s.papers }))
     : []
   const now = useCountdown(sessions.length > 0)
   const state = getExamCountdownState(sessions, now)
 
   if (state.phase !== 'upcoming' && state.phase !== 'in_progress') return null
 
-  const upcoming = state.phase === 'upcoming'
-  const days = upcoming ? countdownParts(state.msRemaining).days : 0
-
-  // The first paper still ahead — what the learner actually sits next.
-  const next = sessions.find((s) => s.startsAt >= now) || sessions[0]
-  const firstPaper = next?.papers?.[0] || null
-  const whenLabel = next ? new Date(next.startsAt).toLocaleDateString('en-GB', DAY_FMT) : null
-  // Papers carry { name, code } — "English Language 1/1".
-  const paperLabel = [firstPaper?.name, firstPaper?.code].filter(Boolean).join(' ')
-
-  const open = () => {
-    capture('timetable_opened', { from: 'home_countdown' })
-    navigate('/timetable')
-  }
+  const days = state.phase === 'upcoming' ? countdownParts(state.msRemaining).days : 0
+  const title = active?.shortName || active?.examName || 'Exams'
+  const sub = nextPaperLine(sessions.find((s) => s.startsAt > now) || null)
+  const label = days > 0 ? `${days} ${days === 1 ? 'day' : 'days'} to go` : 'exams are on today'
 
   return (
     <button
       type="button"
-      className="lhx-exam-card"
-      onClick={open}
-      aria-label={`${upcoming ? `Exams in ${days} days` : 'Exams in progress'} — open the exam timetable`}
+      className="lhx-exam-card lhx-press"
+      onClick={() => { capture('timetable_opened', { from: 'home_countdown' }); navigate('/timetable') }}
+      aria-label={`${title} — ${label}. Open the exam timetable.`}
     >
-      <span className="lhx-ec-cal" aria-hidden="true">📅</span>
-      <span className="lhx-ec-body">
-        <span className="lhx-ec-label" style={{ display: 'block' }}>
-          {upcoming ? 'EXAMS ARE COMING' : 'EXAMS ARE ON'}
-        </span>
-        <span className="lhx-ec-title" style={{ display: 'block' }}>{active?.title || 'Exam season'}</span>
-        {whenLabel && (
-          <span className="lhx-ec-sub" style={{ display: 'block' }}>
-            {upcoming ? 'First paper' : 'Next paper'}: {whenLabel}{paperLabel ? ` · ${paperLabel}` : ''}
-          </span>
-        )}
+      <span className="lhx-exam-cal" aria-hidden="true">📅</span>
+      <span className="lhx-exam-body">
+        <span className="lhx-exam-label">EXAMS ARE COMING</span>
+        <span className="lhx-exam-title">{title}</span>
+        {sub && <span className="lhx-exam-sub">{sub}</span>}
       </span>
-      <span className="lhx-ec-days">
-        {upcoming ? (
-          <>
-            <b>{days}</b>
-            <span>{days === 1 ? 'DAY' : 'DAYS'}</span>
-          </>
-        ) : (
-          <>
-            <b>NOW</b>
-            <span>ON</span>
-          </>
-        )}
+      <span className="lhx-exam-days" aria-hidden="true">
+        {days > 0 ? <><b>{days}</b><span>{days === 1 ? 'DAY' : 'DAYS'}</span></> : <b>NOW</b>}
       </span>
     </button>
   )

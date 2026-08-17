@@ -2755,6 +2755,22 @@
       "classification": "secrets-bound",
       "batch": null
     },
+    "setGuardianControl": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {
+        "secrets": "[emailSmtpUser, emailSmtpPassword]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "./guardianControls",
+      "optionsUnresolved": null,
+      "target": "require('./guardianControls').setGuardianControl",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": null
+    },
     "setSubscriptionCancellation": {
       "kind": "delegated",
       "inline": false,

@@ -28,6 +28,7 @@ export const FAB_HIDDEN_PATHS = [
   '/profile',          // prototype-v6: fab hides on Profile…
   '/settings',         // …Settings…
   '/notifications',    // …and the notification centre
+  '/guardian',         // the Guardian Zone is a parent's space, not a child's
   '/admin',            // admin surfaces — distraction
   '/teacher',          // teacher surfaces — distraction
   '/login',

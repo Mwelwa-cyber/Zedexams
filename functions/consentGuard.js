@@ -43,6 +43,22 @@ function loadCore() {
   return corePromise;
 }
 
+let controlsPromise = null;
+function loadControls() {
+  if (!controlsPromise) controlsPromise = import("./shared/guardian/guardianControlsCore.js");
+  return controlsPromise;
+}
+
+/**
+ * Which guardian control governs which capability. A capability with no
+ * entry is not controllable by a guardian, and the check below skips it —
+ * so adding a control is one line here plus one in the shared core, and a
+ * capability can never be silently governed by a control nobody declared.
+ */
+const CAPABILITY_CONTROL = Object.freeze({
+  aiChat: "askZed",
+});
+
 // Cache the enforcement flag briefly. It is read on every gated call, it
 // changes about once in the product's lifetime, and a per-call read of
 // settings/global would add a Firestore round trip to every Ask Zed message.
@@ -110,6 +126,13 @@ const MESSAGES = {
     "We could not load your account just now. Please try again in a moment.",
   "unknown-role":
     "We could not load your account just now. Please try again in a moment.",
+  // A guardian turned this feature off from the Guardian Zone. It names
+  // who decided and what still works, because a child who is told only
+  // "not allowed" concludes the app is broken — and the child should ask
+  // the person who actually made the decision, not support.
+  "guardian-control-off":
+    "Your parent or guardian has turned this off for now. Everything else — " +
+    "notes, past papers, quizzes and games — still works.",
 };
 
 function messageFor(reason) {
@@ -147,13 +170,30 @@ async function assertLearnerCapability(uid, capability, deps = {}) {
     );
   }
 
-  const {access} = resolved;
+  const {access, user} = resolved;
   if (!access.capabilities.includes(capability)) {
     throw new HttpsError(
         "permission-denied",
         messageFor(access.reason),
         {reason: access.reason, capability, consentStatus: access.status},
     );
+  }
+
+  // A guardian's own restriction, set from the Guardian Zone. It is checked
+  // HERE rather than at each call site for the reason apiAiChat's comment
+  // already records about the consent gate: the SPA uses the SSE endpoint,
+  // so gating only the callable would leave the real door open. The user
+  // document was read above, so this costs no extra Firestore work.
+  const controlKey = CAPABILITY_CONTROL[capability];
+  if (controlKey) {
+    const {readGuardianControls} = await loadControls();
+    if (readGuardianControls(user)[controlKey] === false) {
+      throw new HttpsError(
+          "permission-denied",
+          messageFor("guardian-control-off"),
+          {reason: "guardian-control-off", capability, control: controlKey},
+      );
+    }
   }
   return access;
 }
