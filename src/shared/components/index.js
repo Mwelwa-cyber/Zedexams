@@ -103,7 +103,8 @@
  * second imports React — and both are drawn by surfaces outside games:
  *
  *   • `GameStickerStyles` — `features/quiz/QuizList`, `learnerDashboard/GradeHub`
- *     and `learnerDashboard/SubjectDrillDown`, as well as `games/GamesShell`.
+ *     and `games/GamesShell` (also `learnerDashboard/SubjectDrillDown` until
+ *     the practise course map was retired).
  *     (QuizList reached it through a freeze shim at
  *     `components/games/GameStickerStyles.jsx` for a few hours; the quiz
  *     migration moved QuizList and the shim was deleted.)
@@ -112,7 +113,9 @@
  * Consumer count alone would have justified this. What made it necessary was
  * measured: exporting them from `features/games/index.js` instead cost
  * **+75 kB of static edges each on GradeHub, SubjectDrillDown and
- * ExamResultsPage**, because Rollup groups a front door's re-exports into one
+ * ExamResultsPage** (SubjectDrillDown has since been deleted with the practise
+ * route; the measurement is left as recorded), because Rollup groups a front
+ * door's re-exports into one
  * chunk, and one of the other names on that door (`GameBadgeCard`) reaches
  * `utils/gamesService` and the Firebase client. Three learner routes that
  * render no game were being made to fetch the games service to draw a

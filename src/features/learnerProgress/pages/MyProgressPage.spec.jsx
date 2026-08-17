@@ -38,7 +38,9 @@ function mount(ui, at) {
       <Routes>
         <Route path="/progress" element={ui} />
         <Route path="/study-plan" element={<StudyPlanPage />} />
-        <Route path="/practise/:grade/:subjectId" element={<div>PRACTISE ROUTE</div>} />
+        {/* The practise course map (/practise/:grade/:subjectId) was retired;
+            Practise now goes to the quiz library. */}
+        <Route path="/quizzes" element={<div>QUIZZES ROUTE</div>} />
         <Route path="/papers" element={<div>PAPERS ROUTE</div>} />
       </Routes>
     </MemoryRouter>,
@@ -113,12 +115,13 @@ describe('MyProgressPage', () => {
 })
 
 describe('StudyPlanPage', () => {
-  it('lists weak topics worst-first and deep-links Practise to that subject', () => {
+  it('lists weak topics worst-first and sends Practise to the quiz library', () => {
     mount(<StudyPlanPage />, '/study-plan')
     const cards = screen.getAllByRole('listitem').filter((li) => li.className.includes('lhx-sp-topic'))
     expect(within(cards[0]).getByText('Fractions')).toBeInTheDocument()
     fireEvent.click(within(cards[0]).getByRole('button', { name: 'Practise' }))
-    expect(screen.getByText('PRACTISE ROUTE')).toBeInTheDocument()
+    // Was the retired /practise/:grade/:subjectId course map.
+    expect(screen.getByText('QUIZZES ROUTE')).toBeInTheDocument()
   })
 
   it('says what was counted, never a judgement', () => {

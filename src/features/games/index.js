@@ -59,7 +59,8 @@
  * of them, so a page that wanted the sticker stylesheet — 149 lines with NO
  * imports — gained an edge to `gamesUi` → `gamesService` → the Firebase
  * client. **+75 kB each on GradeHub, SubjectDrillDown and ExamResultsPage**,
- * three learner routes that render no game.
+ * three learner routes that render no game. (SubjectDrillDown was deleted with
+ * the practise route; the measurement is left as it was taken.)
  *
  * Both pass §14.6 cleanly (`GameStickerStyles` imports nothing, `Confetti`
  * imports React) and both are shared by surfaces outside games — the quizzes
