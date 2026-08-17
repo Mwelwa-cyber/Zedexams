@@ -77,6 +77,44 @@
 .lhx-badge-nm { font-size: 10.5px; font-weight: 800; line-height: 1.15; }
 .lhx-badge.is-locked .lhx-badge-nm { color: var(--lhx-muted); }
 
+/* ── Daily-challenge intro (prototype view-daily-intro) ────────── */
+
+.lhx-dq-hero {
+  background: linear-gradient(140deg, #7c8bf5, #5b63dd);
+  border-radius: 26px; padding: 20px;
+  color: #fff; text-align: center;
+  position: relative; overflow: hidden;
+  box-shadow: 0 14px 30px rgba(81, 88, 208, 0.4);
+  margin-bottom: 16px;
+}
+.lhx-dq-hero::before {
+  content: ""; position: absolute; right: -40px; top: -40px;
+  width: 150px; height: 150px;
+  background: rgba(255, 255, 255, 0.12); border-radius: 50%;
+}
+.lhx-dq-hero img {
+  width: 88px; height: 88px; object-fit: contain;
+  position: relative; z-index: 2;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.25));
+}
+.lhx-dq-date { font-size: 12px; font-weight: 800; opacity: 0.9; position: relative; z-index: 2; letter-spacing: 0.3px; }
+.lhx-dq-title { font-size: 24px; font-weight: 900; position: relative; z-index: 2; margin-top: 1px; }
+.lhx-dq-sub { font-size: 13px; opacity: 0.92; font-weight: 700; position: relative; z-index: 2; }
+.lhx-dq-facts {
+  background: var(--lhx-card); border-radius: 18px;
+  padding: 4px 16px;
+  box-shadow: var(--lhx-shadow);
+  margin-bottom: 16px;
+}
+.lhx-dq-fact {
+  display: flex; gap: 11px; align-items: flex-start;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(120, 130, 200, 0.1);
+  font-size: 13px; font-weight: 700; line-height: 1.45;
+}
+.lhx-dq-fact:last-child { border-bottom: none; }
+.lhx-dq-fact .em { font-size: 17px; flex-shrink: 0; }
+
 /* ── Sticker Collection (prototype view-stickers) ──────────────── */
 
 .lhx-stk-note {

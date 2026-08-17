@@ -167,7 +167,7 @@ export default function GamesHub() {
       {state.loading ? (
         <Skeleton height={96} className="lhx-skel" style={{ borderRadius: 24 }} />
       ) : challengeGame && (
-        <Link to={`/games/play/${challengeGame.id}`} className="lhx-daily">
+        <Link to="/games/daily" className="lhx-daily">
           <div className="lhx-daily-emoji" aria-hidden="true">
             <img
               src="/images/characters/poses/zed-waving.webp"
