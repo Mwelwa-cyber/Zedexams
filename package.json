@@ -852,7 +852,9 @@
     "test:grade-subjects": "node scripts/test-grade-subjects.mjs",
     "test:setup-wizard": "node scripts/test-setup-wizard.mjs",
     "test:grade-term-plan": "node scripts/test-grade-term-plan.mjs",
-    "test:term-division": "node scripts/test-term-division.mjs"
+    "test:term-division": "node scripts/test-term-division.mjs",
+    "test:guardian-roles": "node scripts/test-guardian-roles.mjs",
+    "test:parent-app": "node scripts/test-parent-app.mjs"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",
