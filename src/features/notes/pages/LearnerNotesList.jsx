@@ -22,7 +22,7 @@ import { fetchNoteForCache } from '../hooks/useOfflineNote'
 import { downloadForOffline } from '../../../offline/contentCache.js'
 import { isReaderNote, reviseMinutes } from '../reader/readerCore'
 import { coerceStudyBlocks } from '../lib/studySchema'
-import { NOTE_FORMAT, getSubjectsForGrade } from '../../../config/curriculum'
+import { NOTE_FORMAT, getGradeSubjects } from '../../../config/curriculum'
 import { reportClientError } from '../../../utils/clientErrorReporting'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 import Skeleton from '../../../shared/components/Skeleton'
@@ -85,7 +85,12 @@ export function LearnerNotesList() {
 
   // Group by the grade's subject order; English leads (the demo lives there).
   const sections = useMemo(() => {
-    const subjects = getSubjectsForGrade(grade) || []
+    // Subject OBJECTS for the grade. This used to take the band-wide LABEL
+    // list and lowercase it ("Integrated Science" → "integrated science"),
+    // which never equals the id notes are tagged with ("science"), so every
+    // multi-word subject dropped out of the grade's order into the
+    // catch-all below.
+    const subjects = getGradeSubjects(grade) || []
     const bySubject = new Map()
     for (const row of readerNotes) {
       const key = String(row.subject || 'other').toLowerCase()
@@ -96,10 +101,10 @@ export function LearnerNotesList() {
     bySubject.delete('english')
     const out = [{ key: 'english', label: 'English', rows: [...english, DEMO_ROW] }]
     for (const s of subjects) {
-      const key = String(s).toLowerCase()
+      const key = String(s.id).toLowerCase()
       if (key === 'english') continue
       if (bySubject.has(key)) {
-        out.push({ key, label: subjectLabel(s), rows: bySubject.get(key) })
+        out.push({ key, label: s.label, rows: bySubject.get(key) })
         bySubject.delete(key)
       }
     }

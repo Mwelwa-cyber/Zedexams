@@ -47,7 +47,7 @@ export default function BadgeToast({ badges }) {
       ))}
 
       <div className="pt-1 text-right">
-        <Link to="/my-badges" className="text-sm font-black text-slate-700 underline transition hover:text-slate-900">
+        <Link to="/profile" className="text-sm font-black text-slate-700 underline transition hover:text-slate-900">
           Open badge gallery
         </Link>
       </div>

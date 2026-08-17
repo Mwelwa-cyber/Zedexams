@@ -964,3 +964,51 @@ export const getSubjectsForGrade = (gradeValue) => {
   if (!band) return []
   return SUBJECTS_BY_BAND[band] ?? []
 }
+
+/**
+ * The subjects a learner in this grade is actually TAUGHT — the list the
+ * learner's "My subjects" is built from.
+ *
+ * `getSubjectsForGrade` above answers a different question: every subject
+ * label in the grade's BAND, which is what an admin dropdown wants. It is
+ * not a per-grade list at all, so the learner home was showing subjects a
+ * Grade 7 never takes (and, through a label-vs-id comparison, mis-grouping
+ * the ones it did).
+ *
+ * Grade 7 is the ECZ Primary School Leaving Examination set, taken from
+ * `config/examTimetable2026`, which is the authority on what a Grade 7
+ * actually sits:
+ *
+ *   English Language · Mathematics · Integrated Science · Social Studies ·
+ *   Expressive Arts · Home Economics · Technology Studies
+ *
+ * Two entries in SUBJECTS are deliberately NOT here:
+ *   - `cinyanja` is one of SEVEN Zambian-language alternatives on that
+ *     timetable (Icibemba, Chitonga, Silozi, Lunda, Luvale, Kiikaonde too).
+ *     Listing Cinyanja for everyone would put a subject on a Silozi
+ *     learner's home screen that they do not take. A language belongs here
+ *     once the learner has told us which one they sit.
+ *   - `creative-technology-studies` ("Special Paper 1") is an exam PAPER,
+ *     not a taught subject.
+ */
+export const GRADE_SUBJECT_IDS = {
+  7: ['english', 'mathematics', 'science', 'social-studies', 'technology', 'expressive-arts', 'home-economics'],
+}
+
+/**
+ * Subject OBJECTS for a grade, in teaching order — never labels, because a
+ * label ("Integrated Science") is not the id ("science") the content is
+ * tagged with, and comparing the two is how the Notes hub quietly lost
+ * every multi-word subject.
+ *
+ * A grade with no explicit list falls back to the subjects that actually
+ * have a topic catalogue for it, so a new grade degrades to "what we have
+ * content for" rather than to nothing.
+ */
+export function getGradeSubjects(gradeValue) {
+  const grade = Number(gradeValue)
+  if (!Number.isFinite(grade)) return []
+  const ids = GRADE_SUBJECT_IDS[grade]
+  if (ids) return ids.map((id) => SUBJECTS.find((s) => s.id === id)).filter(Boolean)
+  return SUBJECTS.filter((s) => (TOPICS[s.id]?.[grade] || []).length > 0)
+}
