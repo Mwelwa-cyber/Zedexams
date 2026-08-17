@@ -927,6 +927,21 @@
       "classification": "secrets-bound",
       "batch": null
     },
+    "duelQueueOnCreate": {
+      "kind": "factory",
+      "inline": false,
+      "options": {
+        "document": "\"duelQueue/{uid}\"",
+        "region": "\"africa-south1\""
+      },
+      "optionsFrom": "./duel (factory createDuelQueueOnCreate)",
+      "optionsUnresolved": null,
+      "target": "createDuelQueueOnCreate()",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
     "editQuizQuestion": {
       "kind": "onCall",
       "inline": false,
@@ -3088,6 +3103,21 @@
       "optionsFrom": "./dailyExamGradingFns",
       "optionsUnresolved": null,
       "target": "submitDailyExamFn",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "submitDuelAnswers": {
+      "kind": "factory",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "./duel (factory createSubmitDuelAnswers)",
+      "optionsUnresolved": null,
+      "target": "createSubmitDuelAnswers()",
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
