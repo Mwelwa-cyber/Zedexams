@@ -848,7 +848,8 @@
     "test:ask-zed-core": "node scripts/test-ask-zed-core.mjs",
     "test:guardian-controls": "node scripts/test-guardian-controls.mjs",
     "test:grade-subjects": "node scripts/test-grade-subjects.mjs",
-    "test:setup-wizard": "node scripts/test-setup-wizard.mjs"
+    "test:setup-wizard": "node scripts/test-setup-wizard.mjs",
+    "test:grade-term-plan": "node scripts/test-grade-term-plan.mjs"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",

@@ -1199,3 +1199,26 @@ button.lhx-tt-altpill { cursor: pointer; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-streak-chip { background: #33301f; color: #ffce7a; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-exams-next { background: #1d3328; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-chevron { color: #565b85; }
+
+/* ── Strand tags on a subject's topic rows (prototype `.strand-tag`) ──
+ * Which part of the syllabus a topic belongs to — Speaking/Reading/
+ * Writing/Structure for English, and the five Grade 7 topics for
+ * Integrated Science, which the prototype colours with the same four
+ * tones. Every pair is an existing token, so Night mode is the one flip
+ * at the top of this file rather than four more overrides. */
+.lhx-strand-tag {
+  display: inline-block;
+  margin-top: 3px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  background: var(--lhx-indigo-soft);
+  color: var(--lhx-indigo-text);
+}
+.lhx-sd-speak  { background: var(--lhx-pink-soft);   color: var(--lhx-pink); }
+.lhx-sd-read   { background: var(--lhx-green-soft);  color: var(--lhx-green-dark); }
+.lhx-sd-write  { background: var(--lhx-coral-soft);  color: var(--lhx-coral-soft-text); }
+.lhx-sd-struct { background: var(--lhx-indigo-soft); color: var(--lhx-indigo-text); }
