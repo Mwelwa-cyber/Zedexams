@@ -2057,6 +2057,33 @@ service cloud.firestore {
       allow delete:        if isAdmin();
     }
 
+    // ── Live challenge (PROMPT 9) ─────────────────────────────────────
+    // duelQueue/{uid}: a learner queues by writing THEIR OWN doc and
+    // learns their match by watching it — `get`, never `list`, so no
+    // client can browse who is online (no roster, by rule). The server
+    // trigger stamps `matchId`; a client may not write it, so update is
+    // denied outright. Delete lets a learner leave the queue.
+    match /duelQueue/{userId} {
+      allow get:    if isVerified() && isOwner(userId);
+      allow list:   if false;
+      allow create: if isVerified() && isOwner(userId)
+        && incoming().keys().hasOnly(['grade', 'createdAtMs'])
+        && incoming().grade is int
+        && incoming().createdAtMs is int;
+      allow update: if false;
+      allow delete: if isVerified() && isOwner(userId);
+    }
+    // matches/{matchId}: SERVER-ONLY writes — the trigger creates it and
+    // the submitDuelAnswers callable settles it, so a score can never be
+    // client-written. A player may `get` their own match (the race screen
+    // shows the opponent's progress bar only); no list, no browsing.
+    match /matches/{matchId} {
+      allow get:   if isVerified() && isAuthed()
+        && request.auth.uid in resource.data.players;
+      allow list:  if false;
+      allow write: if false;
+    }
+
     // ── learner_profiles (per-user learning intelligence snapshot) ──
     // Single doc per user holding totals, per-subject stats, per-topic
     // stats, weak topics, recent games, last session, and today's goal.

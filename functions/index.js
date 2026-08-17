@@ -1801,6 +1801,14 @@ exports.agentJobsOnApproved = createAgentJobsOnApproved(
 // review degrades gracefully without it).
 exports.questionReviewOnWrite = createQuestionReviewOnWrite(anthropicApiKey, openaiApiKey);
 
+// Live challenge (PROMPT 9) — server-authoritative learner-vs-learner race.
+// The trigger pairs queued players and creates the match (africa-south1,
+// colocated with the database); the callable grades raw answers against the
+// server's copy of the questions — a score is never accepted from a client.
+const {createDuelQueueOnCreate, createSubmitDuelAnswers} = require("./duel");
+exports.duelQueueOnCreate = createDuelQueueOnCreate();
+exports.submitDuelAnswers = createSubmitDuelAnswers();
+
 // Central Question Bank — admin-only grade classifier for the one-click
 // "Import existing questions" backfill (/admin/import-questions). Given a batch
 // of questions whose syllabus topic didn't map to one grade, returns the CBC
