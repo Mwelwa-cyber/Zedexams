@@ -16,12 +16,15 @@
  *     (Africa/Lusaka, no DST). Date.parse() then yields the correct absolute
  *     instant on a device in ANY timezone; wall-clock display slices the
  *     string directly (see formatSessionTime in utils/examTimetableLogic.js).
- *   - `subjectId` is a curriculum id from SUBJECT_MAP (src/config/curriculum.js)
- *     and drives the Practice Quiz deep link + subject colour coding.
- *   - `paperSubjectId` is an id valid in PAPER_SUBJECTS and drives the
- *     past-papers deep link. Either id may be null → that quick action is
- *     simply not rendered (e.g. the special papers have no curriculum
- *     subject, so they offer a past paper but no practice quiz).
+ *   - `subjectId` is a curriculum id from SUBJECT_MAP (src/config/curriculum.js);
+ *     `paperSubjectId` is an id valid in PAPER_SUBJECTS. Either may be null
+ *     (the special papers have no curriculum subject). Both are currently
+ *     DATA ONLY — they used to drive per-session Practise / Past papers
+ *     buttons on /timetable, which were removed: the day list is a
+ *     reference the learner reads, not a launcher. They are kept because
+ *     test-exam-timetable.mjs validates them against the curriculum, so
+ *     a future surface that wants a subject-filtered link inherits ids
+ *     that are known-good rather than guessing from paper names.
  *   - Sessions where candidates sit ONE of several papers (Friday) carry
  *     `alternatives: true` + a `sessionNote`; the briefing day carries
  *     `briefing: true` with an empty `papers` array.
