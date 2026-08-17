@@ -20,15 +20,15 @@ import { capture } from '../../../utils/analytics'
 
 // ── Explore (prototype .big-grid / .big-tile) ───────────────────────
 
-// The mockup's four tiles, in its order. Timetable joined them in
-// prototype v7 — it was the fourth tile the exam-countdown work never
-// added, so the timetable was previously reachable only from the
-// countdown itself.
+// THREE tiles, not four. Timetable was added as a fourth in prototype v7
+// and taken out again in v13, and the reason is on the same screen: the
+// exam-countdown card sits directly above Explore and already opens the
+// timetable. Two doors to one room, one of them a scroll apart from the
+// other, is clutter rather than convenience — so the countdown keeps it.
 const EXPLORE_TILES = [
   { key: 'papers', icon: '📄', title: 'Past Papers', sub: 'ECZ papers', to: '/papers', tone: 'lhx-bt-papers' },
   { key: 'notes', icon: '📚', title: 'Notes', sub: 'Read & revise', to: '/notes', tone: 'lhx-bt-notes' },
   { key: 'games', icon: '🎮', title: 'Games', sub: 'Play & learn', to: '/games', tone: 'lhx-bt-games' },
-  { key: 'timetable', icon: '📅', title: 'Timetable', sub: 'Exam dates', to: '/timetable', tone: 'lhx-bt-time' },
 ]
 
 export function ExploreGrid() {
@@ -104,9 +104,17 @@ export function MySubjectsSection({ subjects, activeTerm, loading }) {
                 <span className="lhx-subject-meta" style={{ display: 'block' }}>
                   {[activeTerm ? `Term ${activeTerm}` : null, s.topicCount ? `${s.topicCount} topics` : null].filter(Boolean).join(' · ')}
                 </span>
-                <ProgressBar percent={s.percent} tone={SUBJECT_TONES[i % SUBJECT_TONES.length]} label={`${s.label}: ${s.percent}% complete`} />
+                {/* A subject nobody has opened has no progress to report, so
+                    it reports none. "0%" beside an empty bar is not a
+                    measurement — it is five subjects' worth of zeroes the
+                    learner has to read past to find the one they started. */}
+                {s.started && (
+                  <ProgressBar percent={s.percent} tone={SUBJECT_TONES[i % SUBJECT_TONES.length]} label={`${s.label}: ${s.percent}% complete`} />
+                )}
               </span>
-              <span className="lhx-subject-pct" style={{ color: SUBJECT_TONES[i % SUBJECT_TONES.length] }}>{s.percent}%</span>
+              {s.started && (
+                <span className="lhx-subject-pct" style={{ color: SUBJECT_TONES[i % SUBJECT_TONES.length] }}>{s.percent}%</span>
+              )}
               <ChevronRight size={18} className="lhx-chevron" aria-hidden="true" />
             </button>
           ))}

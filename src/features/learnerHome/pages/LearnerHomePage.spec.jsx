@@ -59,8 +59,8 @@ const baseData = {
     locks: { mathematics: { status: 'submitted' } },
   },
   subjects: [
-    { id: 'science', label: 'Integrated Science', topicCount: 5, percent: 57, hasMaterial: true },
-    { id: 'mathematics', label: 'Mathematics', topicCount: 6, percent: 82, hasMaterial: true },
+    { id: 'science', label: 'Integrated Science', topicCount: 5, percent: 57, started: true, hasMaterial: true },
+    { id: 'mathematics', label: 'Mathematics', topicCount: 6, percent: 82, started: true, hasMaterial: true },
   ],
   streak: 3,
   xp: 120,
@@ -112,17 +112,18 @@ describe('LearnerHomePage', () => {
     expect(within(header).queryByText(/CBC/)).toBeNull()
   })
 
-  it('renders the four Explore tiles in the prototype order', () => {
+  it('renders THREE Explore tiles — no Timetable', () => {
     renderHome()
     const section = screen.getByRole('heading', { name: 'Explore' }).closest('section')
     const tiles = Array.from(section.querySelectorAll('.lhx-tile .lhx-tile-name')).map((n) => n.textContent)
-    expect(tiles).toEqual(['Past Papers', 'Notes', 'Games', 'Timetable'])
+    expect(tiles).toEqual(['Past Papers', 'Notes', 'Games'])
   })
 
-  it('the Timetable tile opens the timetable', () => {
+  it('the timetable is reached from the countdown card, not a second Explore tile', () => {
+    // Two doors to one room, a scroll apart, is clutter. The countdown
+    // card sits directly above Explore and already opens the timetable.
     renderHome()
-    fireEvent.click(screen.getByRole('button', { name: /Timetable — Exam dates/i }))
-    expect(screen.getByText('TIMETABLE ROUTE')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Timetable — Exam dates/i })).toBeNull()
   })
 
   it('shows the Continue hero with subject, term and progress', () => {
@@ -189,17 +190,44 @@ describe('LearnerHomePage', () => {
     expect(screen.getByText('LEADERBOARD ROUTE')).toBeInTheDocument()
   })
 
-  it("renders no Today's Quiz card when no exam is open", () => {
+  it("still shows Today's Quiz when no exam is picked for today", () => {
+    // It used to render nothing, which is how a card that is in every
+    // mockup came to be missing from a real learner's home: the picker is
+    // a cron, and a grade it has not run for has an empty set. It says
+    // what is true and opens a real screen instead of vanishing.
     mockDashboard.data = { ...baseData, todaysExams: { exams: [], locks: {} } }
     renderHome()
-    expect(screen.queryByText('Today’s Quiz')).toBeNull()
+    expect(screen.getByText('Today’s Quiz')).toBeInTheDocument()
+    expect(screen.getByText(/No quiz today/)).toBeInTheDocument()
+    // …and never offers a Play that would be refused.
+    expect(screen.queryByText('Play')).toBeNull()
   })
 
-  it('shows subject rows with term-scoped progress', () => {
+  it('shows subject rows with term-scoped progress once started', () => {
     renderHome()
     const section = screen.getByRole('heading', { name: 'My subjects' }).closest('section')
     expect(within(section).getByText('Integrated Science')).toBeInTheDocument()
     expect(within(section).getByText('82%')).toBeInTheDocument()
+  })
+
+  it('a subject nobody has opened shows no percentage and no bar', () => {
+    // "0%" beside an empty bar is not a measurement — it is five subjects'
+    // worth of zeroes to read past to find the one that was started.
+    mockDashboard.data = {
+      ...baseData,
+      subjects: [
+        { id: 'english', label: 'English', topicCount: 7, percent: 0, started: false },
+        { id: 'science', label: 'Integrated Science', topicCount: 3, percent: 82, started: true },
+      ],
+    }
+    renderHome()
+    const section = screen.getByRole('heading', { name: 'My subjects' }).closest('section')
+    const englishRow = within(section).getByText('English').closest('button')
+    expect(within(englishRow).queryByText('0%')).toBeNull()
+    expect(englishRow.querySelector('[role="progressbar"]')).toBeNull()
+    // The started one is unaffected.
+    const sciRow = within(section).getByText('Integrated Science').closest('button')
+    expect(within(sciRow).getByText('82%')).toBeInTheDocument()
   })
 
   it('shows the countdown card naming the next paper when a timetable is published', () => {
