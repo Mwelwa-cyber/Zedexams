@@ -379,6 +379,89 @@
 .lhx-bpop-nm { font-size: 20px; font-weight: 900; margin-bottom: 4px; }
 .lhx-bpop-desc { font-size: 13px; color: var(--lhx-muted); font-weight: 700; }
 
+/* ── Race Zed! duel (honest robot challenge) ───────────────────── */
+
+.lhx-duel-card {
+  background: linear-gradient(135deg, var(--lhx-coral1), var(--lhx-coral2));
+  border-radius: var(--lhx-radius-lg);
+  padding: 18px;
+  display: flex; align-items: center; gap: 13px;
+  color: #fff; position: relative; overflow: hidden;
+  box-shadow: 0 12px 26px rgba(255, 92, 57, 0.35);
+  width: 100%; text-align: left; cursor: pointer;
+}
+.lhx-duel-card .lhx-play-pill { background: #fff; color: var(--lhx-coral2); box-shadow: 0 4px 0 rgba(0, 0, 0, 0.18); }
+
+.lhx-vs-wrap {
+  min-height: calc(100dvh - 120px);
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  text-align: center;
+}
+.lhx-vs-kicker { font-size: 13px; font-weight: 900; letter-spacing: 1.4px; color: var(--lhx-link); }
+.lhx-vs-avatars { display: flex; align-items: flex-start; gap: 20px; margin: 8px 0 20px; }
+.lhx-vs-avatars > .lhx-vs-label { align-self: center; }
+.lhx-vs-big {
+  width: 86px; height: 86px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 30px; font-weight: 900; color: #fff;
+  box-shadow: 0 10px 24px rgba(90, 100, 200, 0.3);
+}
+.lhx-vs-big.is-zed { background: linear-gradient(135deg, #7c8bf5, #5b63dd); overflow: hidden; }
+.lhx-vs-big.is-zed img { width: 64px; height: 78px; object-fit: contain; margin-top: 14px; }
+.lhx-vs-label { font-size: 26px; font-weight: 900; color: var(--lhx-coral-text); }
+.lhx-vs-name { font-size: 13.5px; font-weight: 900; margin-top: 8px; }
+.lhx-vs-bot-tag {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 5px;
+  background: var(--lhx-indigo-soft); color: var(--lhx-indigo-text);
+  font-size: 10.5px; font-weight: 900; padding: 3px 10px; border-radius: 99px;
+  letter-spacing: 0.06em;
+}
+.lhx-vs-sub { font-size: 12.5px; color: var(--lhx-muted); font-weight: 700; }
+.lhx-vs-count { font-size: 58px; font-weight: 900; color: var(--lhx-indigo-text); margin-top: 12px; min-height: 74px; }
+.lhx-vs-honest { margin-top: 18px; font-size: 12px; font-weight: 700; color: var(--lhx-muted); max-width: 300px; }
+
+.lhx-quiz-top { display: flex; align-items: center; gap: 12px; }
+.lhx-quiz-x { font-size: 20px; color: var(--lhx-faint); font-weight: 900; }
+.lhx-quiz-bar { flex: 1; height: 13px; background: #e0e3f8; border-radius: 99px; overflow: hidden; }
+.lhx-quiz-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--lhx-coral1), var(--lhx-coral2)); border-radius: 99px; transition: width 0.4s ease; }
+.lhx-quiz-hearts { font-size: 14px; font-weight: 900; color: #f07022; }
+
+.lhx-duel-strip { margin: 8px 0 4px; }
+.lhx-duel-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.lhx-duel-av {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  color: #fff; font-weight: 900; font-size: 12.5px;
+  display: flex; align-items: center; justify-content: center;
+}
+.lhx-duel-row .lhx-gc-bar { flex: 1; height: 9px; }
+.lhx-duel-score { font-weight: 900; font-size: 13.5px; color: var(--lhx-indigo-text); width: 34px; text-align: right; }
+
+.lhx-quiz-kicker { font-size: 12px; font-weight: 900; letter-spacing: 1.4px; color: var(--lhx-link); margin: 10px 0 8px; }
+.lhx-quiz-q { font-size: 23px; font-weight: 900; line-height: 1.3; margin-bottom: 8px; }
+.lhx-quiz-help { font-size: 13.5px; color: var(--lhx-muted); font-weight: 700; margin-bottom: 22px; }
+.lhx-opts { display: flex; flex-direction: column; gap: 11px; }
+.lhx-opt {
+  display: flex; align-items: center; gap: 13px; width: 100%;
+  background: var(--lhx-card);
+  border: 2px solid var(--lhx-line); border-bottom-width: 4px;
+  border-radius: 16px; padding: 15px 16px; text-align: left;
+  font-size: 16.5px; font-weight: 800; color: var(--lhx-ink);
+  box-shadow: 0 5px 14px rgba(90, 100, 200, 0.07);
+  transition: transform 0.08s;
+}
+.lhx-opt:active { transform: scale(0.985); }
+.lhx-opt-letter {
+  width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%;
+  background: var(--lhx-indigo-soft); color: var(--lhx-indigo-text);
+  font-weight: 900; font-size: 15px;
+  display: flex; align-items: center; justify-content: center;
+}
+.lhx-opt-text { flex: 1; line-height: 1.4; }
+.lhx-opt.is-correct { background: var(--lhx-green-soft); border-color: #7bd9a3; color: var(--lhx-green-dark); }
+.lhx-opt.is-correct .lhx-opt-letter { background: var(--lhx-green); color: #fff; }
+.lhx-opt.is-wrong { background: #fdeaea; border-color: #f4a5a8; color: var(--lhx-red); animation: lhx-wb-shake 0.3s; }
+.lhx-opt.is-wrong .lhx-opt-letter { background: var(--lhx-red); color: #fff; }
+
 /* ── The timed-quiz bridge (daily quiz in the learner shell) ─────────
  *
  * TimedQuizGame stays byte-identical — it carries the Phase 3
@@ -448,6 +531,8 @@
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-wb-tile { box-shadow: 0 5px 0 #171929; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-mm-chip.is-wrong { background: #3a2024; border-color: #8a4046; color: #f4a5a8; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-pn-opt.is-no { background: #3a2024; border-color: #8a4046; color: #f4a5a8; }
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-quiz-bar { background: #2a2d4a; }
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-opt.is-wrong { background: #3a2024; border-color: #8a4046; color: #f4a5a8; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-node.is-locked { background: #2a2d4a; box-shadow: 0 5px 0 #1d1f36; color: #565b85; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-start-bubble { background: #232640; color: #ff8a5c; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-start-bubble::after { background: #232640; }
