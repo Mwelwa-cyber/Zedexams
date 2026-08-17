@@ -22,6 +22,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import '../gamesProto.css'
 import { useAuth } from '../../../contexts/AuthContext'
+import { duelAllowed } from '../lib/duelAccess'
 import { GAME_BADGES } from '../../../data/gameBadges'
 import { CATALOGUE_GAME_TYPES, RETIRED_GAME_TYPES, getFallbackGames } from '../../../data/gamesSeed'
 import { getTodaysChallenge, getMyStreak } from '../../../utils/dailyChallengeService'
@@ -69,6 +70,12 @@ export default function GamesHub() {
     badgesById: {},
     streak: { streak: 0, longestStreak: 0, signedIn: false },
   })
+
+  // Race Zed is the app's one competitive surface, so it is what
+  // CAPABILITY.SOCIAL gates — the guardian's "live challenges" switch and
+  // limited mode both land here. Shared with the route so the card cannot
+  // offer a race the page then refuses.
+  const challengesAllowed = duelAllowed(currentUser, userProfile)
 
   useEffect(() => {
     let cancelled = false
@@ -184,7 +191,15 @@ export default function GamesHub() {
       )}
 
       {/* Race Zed! — the honest duel (the prototype's LIVE CHALLENGE
-          card, reframed: the opponent is openly our robot). */}
+          card, reframed: the opponent is openly our robot).
+
+          Hidden when the learner does not hold CAPABILITY.SOCIAL — either
+          because a guardian switched live challenges off in the Guardian Zone,
+          or because the account is still in limited mode awaiting approval.
+          The card is removed rather than disabled: a padlocked card invites
+          the "how do I unlock this" conversation with a parent who has just
+          deliberately locked it. */}
+      {challengesAllowed && (
       <Link to="/games/duel" className="lhx-duel-card">
         <div className="lhx-daily-emoji" aria-hidden="true">⚔️</div>
         <div className="lhx-daily-body">
@@ -194,6 +209,7 @@ export default function GamesHub() {
         </div>
         <span className="lhx-play-pill">Play</span>
       </Link>
+      )}
 
       {/* XP / level card. */}
       <div className="lhx-xp">

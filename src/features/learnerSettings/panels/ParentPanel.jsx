@@ -3,9 +3,11 @@
 // entirely by ParentShareManager (mint link, copy, WhatsApp hand-off, revoke).
 
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { ShieldCheck } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useSettingsSave } from '../components/SaveContext'
-import { Panel, Section, Field, TextInput, SelectField, Note } from '../components/ui'
+import { Panel, Section, Field, TextInput, SelectField, Note, LinkRow } from '../components/ui'
 import { ParentShareManager, FamilyCodePanel } from '../../parentPortal'
 import { normalizeParentContact, RELATIONSHIP_OPTIONS } from '../lib/learnerPrefs'
 
@@ -13,6 +15,7 @@ import { normalizeParentContact, RELATIONSHIP_OPTIONS } from '../lib/learnerPref
 export function ParentBody() {
   const { userProfile } = useAuth()
   const { commit } = useSettingsSave()
+  const navigate = useNavigate()
 
   const pc = normalizeParentContact(userProfile?.learnerSettings?.parent)
 
@@ -80,6 +83,26 @@ export function ParentBody() {
           </Field>
         </div>
         <Note>These details help us reach your parent or guardian and personalise the digest we send them.</Note>
+      </Section>
+
+      <Section
+        title="Guardian Zone"
+        hint="A parents' area inside this app — progress, and the controls for what this account can do."
+      >
+        {/* Plain navigation. The arithmetic gate and the Guardian PIN live on
+            the DESTINATION, never on this row: a gate on the link is one a
+            typed URL or a bookmark walks straight around. */}
+        <LinkRow
+          icon={ShieldCheck}
+          title="Open the Guardian Zone"
+          hint="Progress at a glance, plus the controls for what this account can do."
+          onClick={() => navigate('/guardian')}
+        />
+        <Note>
+          The Guardian Zone opens with a quick check for grown-ups. Changing a
+          control needs a Guardian PIN, and the code to set that PIN is emailed
+          to the parent or guardian who approved this account.
+        </Note>
       </Section>
 
       <Section title="Connect a parent account" hint="Give your parent a family code so they can sign in and follow your progress from their own account.">

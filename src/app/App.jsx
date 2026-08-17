@@ -83,6 +83,7 @@ const LearnerLayout = lazy(() => import('../features/learnerHome/components/Lear
 const LearnerHomePage = lazy(() => import('../features/learnerHome/pages/LearnerHomePage'))
 const LearnerSubjectPage = lazy(() => import('../features/learnerHome/pages/LearnerSubjectPage'))
 const LearnerNotificationsPage = lazy(() => import('../features/notifications/pages/LearnerNotificationsPage'))
+const GuardianZonePage = lazy(() => import('../features/guardianZone/pages/GuardianZonePage'))
 const LearnerProfilePage = lazy(() => import('../features/learnerHome/pages/LearnerProfilePage'))
 const ProfilePage = lazy(() => import('../features/learnerDashboard/pages/ProfilePage'))
 
@@ -593,6 +594,14 @@ export default function App() {
                 here; the nav stays visible per the mockup. */}
             <Route path="/notifications"   element={<ProtectedRoute><LearnerOnlyRoute><LearnerNotificationsPage /></LearnerOnlyRoute></ProtectedRoute>} />
           </Route>
+          {/* Guardian Zone — the parents' area inside the child's session.
+              Mounted OUTSIDE the learner layout on purpose: no bottom nav, no
+              Ask Zed pill, no learner header, so it reads as a different place
+              rather than a fifth tab of the child's app. The arithmetic gate
+              and the Guardian PIN live on the page; the route itself is
+              ordinary learner auth, because the person signing in IS the
+              learner. */}
+          <Route path="/guardian"          element={<ProtectedRoute><LearnerOnlyRoute><GuardianZonePage /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/dashboard/classic" element={<ProtectedRoute><LearnerOnlyRoute><GradeHub /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/practice/daily-exams" element={<Navigate to="/exams" replace />} />
           {/* Learn + Practice retired (redesign step 5, locked scope): the

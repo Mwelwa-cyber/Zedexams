@@ -191,6 +191,12 @@ const COVERED = [
   // tests are the money path: a learner who could write here could mark their
   // own request paid and unlock without paying.
   'guardianRequests',
+  // The Guardian PIN and its emailed setup code. Denied to the account OWNER,
+  // which is the unusual case in this file and the reason the emulator tests
+  // matter more here than the posture classification does: every other
+  // server-only collection keeps a stranger out, these two keep the signed-in
+  // child out.
+  'guardianZone', 'guardianZoneSetup',
   'accountPurgeJobs', 'adminAuditLogs', 'agentControl', 'agentJobs', 'aiDailyLimits', 'aiGenerations',
   'aiOperations', 'aiUsage', 'aiUsageDaily', 'announcements', 'assessmentDrafts', 'assessmentExports', 'assessments',
   'classRegisters', 'curriculum', 'downloadTickets', 'exam_attempts',

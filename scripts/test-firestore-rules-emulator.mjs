@@ -2818,6 +2818,71 @@ async function main() {
     }, {merge: true}))
   })
 
+  // ── guardianZone — the one collection the account OWNER must not read ──
+  section('guardianZone — the PIN that protects a guardian from their own child')
+
+  await test('a learner CANNOT read the Guardian PIN hash for their own account', async () => {
+    // Every other server-only collection here is denied to protect someone
+    // ELSE's data. This one is denied to protect the guardian FROM the signed-in
+    // owner: a 4-digit PIN's salted hash falls to an offline guess in about a
+    // second, so "owner may read" would hand the child the credential the whole
+    // zone rests on.
+    await assertFails(getDoc(doc(learnerA, 'guardianZone', LEARNER_A)))
+  })
+
+  await test('a learner CANNOT clear their own wrong-PIN lockout', async () => {
+    // Writing {attempts: 0} would make the five-attempt limit unlimited.
+    await assertFails(setDoc(doc(learnerA, 'guardianZone', LEARNER_A), {
+      attempts: 0, lockedUntil: 0,
+    }, {merge: true}))
+  })
+
+  await test('a learner CANNOT set their own Guardian PIN', async () => {
+    await assertFails(setDoc(doc(learnerA, 'guardianZone', LEARNER_A), {
+      pinHash: 'deadbeef', pinSalt: 'cafe',
+    }))
+  })
+
+  await test('a learner CANNOT read the change log of what their guardian set', async () => {
+    await assertFails(getDoc(doc(learnerA, 'guardianZone', LEARNER_A, 'changes', 'c1')))
+    await assertFails(setDoc(doc(learnerA, 'guardianZone', LEARNER_A, 'changes', 'c2'), {
+      controls: {askZed: true},
+    }))
+  })
+
+  await test('a learner CANNOT read the emailed setup code', async () => {
+    // The code authorises setting the PIN. A readable hash of six digits is a
+    // readable code.
+    await assertFails(getDoc(doc(learnerA, 'guardianZoneSetup', LEARNER_A)))
+    await assertFails(setDoc(doc(learnerA, 'guardianZoneSetup', LEARNER_A), {used: false}))
+  })
+
+  await test('not even an admin reaches guardianZone from a client', async () => {
+    await assertFails(getDoc(doc(admin, 'guardianZone', LEARNER_A)))
+    await assertFails(setDoc(doc(admin, 'guardianZone', LEARNER_A), {pinHash: 'x'}))
+    await assertFails(getDoc(doc(admin, 'guardianZoneSetup', LEARNER_A)))
+  })
+
+  // ── users.guardianControls — the switches themselves ──
+  section('users.guardianControls — readable by the child, writable by nobody')
+
+  await test('a learner CANNOT switch their own restrictions back on', async () => {
+    // This is the control. resolveLearnerAccess narrows the capability set
+    // against this field, so a learner who could write it could hand themselves
+    // back Ask Zed the moment their guardian took it away.
+    await assertFails(setDoc(doc(learnerA, 'users', LEARNER_A), {
+      guardianControls: {askZed: true, challenges: true},
+    }, {merge: true}))
+  })
+
+  await test('a learner CANNOT write a restriction either', async () => {
+    // Both directions: the field is server-owned, not "server-owned when it
+    // would benefit the child".
+    await assertFails(setDoc(doc(learnerA, 'users', LEARNER_A), {
+      guardianControls: {askZed: false},
+    }, {merge: true}))
+  })
+
   // ── processedWebhookEvents — the replay ledger ──
   section('processedWebhookEvents — server-only in both directions')
 

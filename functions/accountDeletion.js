@@ -49,6 +49,14 @@ const UID_DOC_COLLECTIONS = [
   "learnerStats",
   "studyPlanProgress",
   "passkeyUserHandles", // opaque WebAuthn user handle (server-only)
+  // The Guardian Zone's PIN, its wrong-attempt counter and the log of what the
+  // guardian changed (+ the `changes` subcollection, which is why this list —
+  // it recursiveDeletes). A PIN that outlived its account would be inherited by
+  // whoever the uid was next issued to.
+  "guardianZone",
+  // The hash of the code we emailed the guardian. Short-lived either way, but
+  // it is keyed to a child who no longer exists.
+  "guardianZoneSetup",
 ];
 
 // A field on the doc holds the uid. `recursive: true` for collections whose

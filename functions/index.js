@@ -2359,6 +2359,19 @@ exports.recordAgeGateAttempt = require('./guardianConsent').recordAgeGateAttempt
 // that rule runs on the learner's device and is a courtesy to the button).
 // See functions/guardianUnlock/ and functions/shared/guardian/.
 exports.requestGuardianUnlock = require('./guardianUnlock').requestGuardianUnlock;
+
+// The Guardian Zone's write half. The in-app zone opens behind an arithmetic
+// gate a child could solve, so the gate protects reading only: every control a
+// guardian changes goes through these callables, verified against a PIN whose
+// setup code is emailed to the address the consent flow already verified.
+// The controls themselves are narrowed into the capability set by
+// resolveLearnerAccess, so consentGuard enforces them on every gated call
+// without a second check. See functions/guardianZone/.
+exports.guardianZoneStatus = require('./guardianZone').guardianZoneStatus;
+exports.requestGuardianPinSetup = require('./guardianZone').requestGuardianPinSetup;
+exports.setGuardianPin = require('./guardianZone').setGuardianPin;
+exports.verifyGuardianPin = require('./guardianZone').verifyGuardianPin;
+exports.setGuardianControls = require('./guardianZone').setGuardianControls;
 // Re-derives isMinor from the declared date of birth on user-doc creation, so
 // the flag the consent gate reads is never the one the client wrote. Pinned to
 // africa-south1 with the (default) database.

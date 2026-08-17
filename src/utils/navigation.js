@@ -34,6 +34,10 @@ export const LEARNER_ONLY_SEGMENTS = Object.freeze([
   'exam',
   'exam-results',
   'exams',
+  // The Guardian Zone lives inside a LEARNER's session — it is the child's own
+  // account, viewed by their parent — so a teacher redirected here after
+  // sign-in would land on a screen about nobody.
+  'guardian',
   'lessons',
   'my-badges',
   'my-results',

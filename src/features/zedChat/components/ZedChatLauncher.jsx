@@ -21,18 +21,28 @@
 
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
+import { canLearnerUse, CAPABILITY } from '../../../utils/guardianConsent'
 import { shouldHideFab } from '../lib/askZedCore'
 import '../askZed.css'
 
 const ZED_ART = '/images/characters/poses/zed-waving.webp'
 
 export default function ZedChatLauncher() {
-  const { currentUser } = useAuth()
+  const { currentUser, userProfile } = useAuth()
   const { pathname } = useLocation()
   const navigate = useNavigate()
 
   if (!currentUser) return null
   if (shouldHideFab(pathname)) return null
+  // The guardian's switch, and limited mode, reach the pill.
+  //
+  // This is a COURTESY, not the enforcement: `assertLearnerCapability` refuses
+  // the call server-side whether or not the button is on screen, which is what
+  // a Families reviewer tests. What hiding it buys is that a child whose parent
+  // switched Ask Zed off does not tap a button that then apologises — the same
+  // reasoning as the consent banner, which explains a refusal rather than
+  // creating one.
+  if (!canLearnerUse(CAPABILITY.AI_CHAT, userProfile)) return null
 
   return (
     <button

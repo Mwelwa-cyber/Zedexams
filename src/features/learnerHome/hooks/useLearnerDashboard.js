@@ -357,6 +357,12 @@ export default function useLearnerDashboard() {
           subjects,
           recentActivity,
           recommendations,
+          // Already derived above for the recommendations; returned in its own
+          // right because the Guardian Zone shows "needs a little help" as a
+          // list rather than as a suggested next action. Same data, one
+          // derivation — a second pass over the same results would be free to
+          // disagree with the one the child sees.
+          weakTopics,
           streak: Number(stats?.currentStreak) || 0,
           xp: Number(stats?.xp) || 0,
           gameChallenge: challenge || null,

@@ -618,6 +618,16 @@ service cloud.firestore {
           // messages in their parent's inbox in an evening, which is how an
           // app's messages become the thing a parent blocks.
           'guardianUnlock',
+          // What the guardian has switched OFF for this child — Ask Zed, live
+          // challenges, the daily time limit. Written only by
+          // setGuardianControls (admin SDK), which verifies the Guardian PIN
+          // first. This entry IS the control: resolveLearnerAccess narrows the
+          // capability set against this field, so a learner who could write it
+          // could switch their own restrictions back on and the whole zone
+          // would be a preference panel with a padlock drawn on it. Reading it
+          // is fine and necessary — the child's app has to know why Ask Zed is
+          // greyed out.
+          'guardianControls',
           'role', 'plan', 'premium', 'isPremium', 'paymentStatus', 'subscriptionStatus',
           'premiumActivatedAt', 'subscriptionPlan', 'subscriptionExpiry', 'subscriptionActivatedBy',
           'subscriptionActivatedAt', 'subscriptionProvider', 'subscriptionPaymentId',
@@ -2458,6 +2468,29 @@ service cloud.firestore {
     // Neither the learner nor anyone else may read or forge one: a client
     // that could write here could approve its own account.
     match /consentRequests/{tokenHash} {
+      allow read, write: if false;
+    }
+
+    // ── guardianZone / guardianZoneSetup (the Guardian PIN) ──────────
+    // Written and read EXCLUSIVELY by functions/guardianZone (admin SDK).
+    //
+    // These hold the salted hash of the PIN that protects a guardian's
+    // controls, the wrong-attempt counter behind the lockout, the hash of the
+    // one-time code emailed to the guardian, and the change log. The learner
+    // is the SIGNED-IN OWNER of the account these hang off — so unlike most
+    // collections here, "owner only" would be exactly the wrong rule: the
+    // person these documents exist to keep out is the account owner.
+    //
+    // A learner who could read guardianZone/{uid} could brute-force a 4-digit
+    // PIN offline in a second; one who could write it could clear the attempt
+    // counter, or set the PIN themselves. Both sides denied to every client.
+    match /guardianZone/{uid} {
+      allow read, write: if false;
+      match /changes/{changeId} {
+        allow read, write: if false;
+      }
+    }
+    match /guardianZoneSetup/{uid} {
       allow read, write: if false;
     }
 

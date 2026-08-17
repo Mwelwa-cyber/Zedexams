@@ -28,6 +28,7 @@ export const FAB_HIDDEN_PATHS = [
   '/profile',          // prototype-v6: fab hides on Profile…
   '/settings',         // …Settings…
   '/notifications',    // …and the notification centre
+  '/guardian',         // the parents' area — a child's study pill has no place in it
   '/admin',            // admin surfaces — distraction
   '/teacher',          // teacher surfaces — distraction
   '/login',

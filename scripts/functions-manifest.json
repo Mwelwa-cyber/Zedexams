@@ -1524,6 +1524,21 @@
       "classification": "payment-webhook",
       "batch": null
     },
+    "guardianZoneStatus": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "./guardianZone",
+      "optionsUnresolved": null,
+      "target": "require('./guardianZone').guardianZoneStatus",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
     "hourlyAgentSupervisor": {
       "kind": "delegated",
       "inline": false,
@@ -2414,6 +2429,22 @@
       "classification": "mechanical",
       "batch": null
     },
+    "requestGuardianPinSetup": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {
+        "secrets": "[emailSmtpUser, emailSmtpPassword]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "./guardianZone",
+      "optionsUnresolved": null,
+      "target": "require('./guardianZone').requestGuardianPinSetup",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": null
+    },
     "requestGuardianUnlock": {
       "kind": "delegated",
       "inline": false,
@@ -2753,6 +2784,36 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
+      "batch": null
+    },
+    "setGuardianControls": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "./guardianZone",
+      "optionsUnresolved": null,
+      "target": "require('./guardianZone').setGuardianControls",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "setGuardianPin": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "./guardianZone",
+      "optionsUnresolved": null,
+      "target": "require('./guardianZone').setGuardianPin",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
       "batch": null
     },
     "setSubscriptionCancellation": {
@@ -3125,6 +3186,21 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "payment-webhook",
+      "batch": null
+    },
+    "verifyGuardianPin": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "./guardianZone",
+      "optionsUnresolved": null,
+      "target": "require('./guardianZone').verifyGuardianPin",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
       "batch": null
     },
     "verifyPasskeyAuthentication": {

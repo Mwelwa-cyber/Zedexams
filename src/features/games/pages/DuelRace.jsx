@@ -22,6 +22,7 @@ import { useNavigate } from 'react-router-dom'
 import '../../../shared/styles/learnerTheme.css'
 import '../gamesProto.css'
 import { useAuth } from '../../../contexts/AuthContext'
+import { duelAllowed } from '../lib/duelAccess'
 import { useGameFinish } from '../hooks/useGameFinish'
 import { listGames, reportGameStart } from '../services/gamesService'
 import { getFallbackGames } from '../../../data/gamesSeed'
@@ -258,6 +259,7 @@ export default function DuelRace() {
   const { currentUser, userProfile } = useAuth()
   const firstName = (userProfile?.displayName || '').trim().split(/\s+/)[0] || ''
   const grade = Number(userProfile?.grade) || null
+  const challengesAllowed = duelAllowed(currentUser, userProfile)
 
   const [screen, setScreen] = useState('loading') // loading | vs | race | result | empty
   const [source, setSource] = useState(null)
@@ -268,6 +270,10 @@ export default function DuelRace() {
 
   // Draw the race: live games when they load, seed catalogue otherwise.
   useEffect(() => {
+    // Nothing is drawn for a learner who may not race — the refusal above is
+    // the whole screen, so loading a question bank behind it is a read spent
+    // on something nobody will see.
+    if (!challengesAllowed) return undefined
     let cancelled = false
     async function load() {
       let games = []
@@ -283,7 +289,7 @@ export default function DuelRace() {
     }
     load()
     return () => { cancelled = true }
-  }, [grade])
+  }, [grade, challengesAllowed])
 
   // The 3-2-1-GO! countdown, then the race.
   useEffect(() => {
@@ -324,16 +330,31 @@ export default function DuelRace() {
     <div className="lhx">
       <SeoHelmet title="Race Zed!" description="Race Zed the robot through five quick questions on ZedExams." path="/games/duel" noIndex />
       <div className="lhx-page">
-        {screen === 'loading' && <div className="lhx-vs-wrap"><div className="lhx-vs-sub">Getting the race ready…</div></div>}
-        {screen === 'empty' && (
+        {challengesAllowed && screen === 'loading' && <div className="lhx-vs-wrap"><div className="lhx-vs-sub">Getting the race ready…</div></div>}
+        {/* The route, not just the card. A learner whose guardian switched
+            live challenges off — or who is still in limited mode — can still
+            type /games/duel or use a bookmark, so the capability is checked
+            here too. It says who turned it off, because "not available" with
+            no reason reads as the app being broken. */}
+        {!challengesAllowed && (
+          <div className="lhx-vs-wrap">
+            <div className="lhx-vs-sub">
+              Challenges are switched off for this account. A parent or guardian
+              can turn them back on from the Guardian Zone.
+            </div>
+            <div style={{ height: 18 }} />
+            <button type="button" className="lhx-btn lhx-btn-primary" onClick={() => navigate('/games')}>Back to games</button>
+          </div>
+        )}
+        {challengesAllowed && screen === 'empty' && (
           <div className="lhx-vs-wrap">
             <div className="lhx-vs-sub">No race can start right now — check back soon!</div>
             <div style={{ height: 18 }} />
             <button type="button" className="lhx-btn lhx-btn-primary" onClick={() => navigate('/games')}>Back to games</button>
           </div>
         )}
-        {screen === 'vs' && <VsScreen grade={source?.game?.grade || grade} firstName={firstName} count={count} />}
-        {screen === 'race' && (
+        {challengesAllowed && screen === 'vs' && <VsScreen grade={source?.game?.grade || grade} firstName={firstName} count={count} />}
+        {challengesAllowed && screen === 'race' && (
           <RaceScreen
             source={source}
             plan={plan}
@@ -342,7 +363,7 @@ export default function DuelRace() {
             onEnd={endRace}
           />
         )}
-        {screen === 'result' && (
+        {challengesAllowed && screen === 'result' && (
           <ResultScreen
             outcome={outcome}
             saveNote={buildSaveNote({ signedIn: !!currentUser, saveResult, streakResult })}

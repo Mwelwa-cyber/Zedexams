@@ -38,6 +38,8 @@
  * explicit, flagged, and dated — see resolveLearnerAccess.
  */
 
+import {normalizeGuardianControls, narrowCapabilities} from './guardianControlsCore.js'
+
 // The full vocabulary. Anything outside this set is treated as `pending`,
 // because a status nobody has defined is not evidence of approval.
 export const CONSENT_STATUS = Object.freeze({
@@ -176,6 +178,39 @@ export function requiresGuardianConsent(dobIso, asOf = new Date()) {
  *           capabilities: string[], reason: string}}
  */
 export function resolveLearnerAccess(user, opts = {}) {
+  const decision = resolveConsentDecision(user, opts)
+
+  // ── The guardian's own layer, applied last ─────────────────────────────
+  //
+  // Consent answers "may this account do this at all"; the Guardian Zone's
+  // switches answer "and does this child's parent want it". The second is
+  // applied AFTER the first and can only ever remove — see
+  // guardianControlsCore. Running it in the other order, or letting it
+  // produce a list the consent decision did not already contain, would make a
+  // guardian's preference capable of overriding the consent gate itself.
+  //
+  // Only a learner's own controls are read. A `guardianControls` field that
+  // appeared on a teacher or admin document is ignored rather than obeyed,
+  // because nothing legitimate writes one there.
+  const role = typeof user?.role === 'string' ? user.role.trim() : ''
+  if (role !== 'learner') return decision
+
+  const controls = normalizeGuardianControls(user?.guardianControls)
+  const capabilities = narrowCapabilities(decision.capabilities, controls, {
+    aiChat: CAPABILITY.AI_CHAT,
+    social: CAPABILITY.SOCIAL,
+  })
+  return {
+    ...decision,
+    capabilities,
+    controls,
+    // What the CHILD's app shows as "your guardian turned this off", which is
+    // a different message from "your guardian hasn't approved you yet".
+    restrictedByGuardian: capabilities.length < decision.capabilities.length,
+  }
+}
+
+function resolveConsentDecision(user, opts = {}) {
   const {enforceMigration = false} = opts
 
   // A user we cannot read is not an adult. `resolveLearnerAccess(undefined)`
