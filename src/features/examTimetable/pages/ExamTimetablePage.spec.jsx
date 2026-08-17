@@ -6,8 +6,9 @@
  *
  * The redesign shows the whole week at once (no search/collapse), so
  * these assert: the countdown hero per phase, all day cards visible,
- * the dimmed briefing day, Practise/Past papers actions, the persisted
- * choose-ONE selection, reminders, the PDF rows, and archived years.
+ * the dimmed briefing day, that no session row carries an action, the
+ * persisted choose-ONE selection, reminders, the PDF rows, and
+ * archived years.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
@@ -100,16 +101,20 @@ describe('ExamTimetablePage', () => {
       .toHaveClass('lhx-tt-brief')
   })
 
-  it('each paper session offers Practise and Past papers actions', () => {
-    renderPage()
-    const practise = screen.getAllByRole('link', { name: 'Practise' })
-    expect(practise.some((l) => l.getAttribute('href') === '/practise/7/english')).toBe(true)
-    const papers = screen.getAllByRole('link', { name: 'Past papers' })
-    expect(papers.some((l) => l.getAttribute('href') === '/papers?grade=7&subject=english')).toBe(true)
-    // Special papers have no curriculum subject → a subject-filtered
-    // Past papers link but no Practise link.
-    expect(papers.some((l) => l.getAttribute('href') === '/papers?grade=7&subject=special-paper-1')).toBe(true)
-    expect(practise.some((l) => l.getAttribute('href')?.includes('special'))).toBe(false)
+  it('no session row carries a Practise or Past papers action', () => {
+    const { container } = renderPage()
+    // Removed outright, not merely restyled — asserted three ways so a
+    // reintroduction under a new label or link still fails: no action
+    // container survives, no link points at /practise, and no link
+    // carries a subject-filtered /papers query.
+    expect(container.querySelector('.lhx-tt-actions')).toBeNull()
+    expect(container.querySelector('.lhx-tt-act')).toBeNull()
+    expect(screen.queryByRole('link', { name: /practise/i })).toBeNull()
+    const links = screen.getAllByRole('link')
+    expect(links.some((l) => l.getAttribute('href')?.startsWith('/practise'))).toBe(false)
+    expect(links.some((l) => l.getAttribute('href')?.includes('/papers?grade='))).toBe(false)
+    // The sessions themselves are untouched — time, paper code, duration.
+    expect(screen.getByText(/Paper 1\/1 · 90 minutes/)).toBeInTheDocument()
   })
 
   it('DURING a paper: hero shows today’s exam with live time remaining', () => {
@@ -128,13 +133,12 @@ describe('ExamTimetablePage', () => {
     expect(
       screen.getByText(/2026 Primary School Leaving Examination Completed/i),
     ).toBeInTheDocument()
-    // Day cards also carry per-session "Past papers" actions after the
-    // season, so match the season-over link among them.
-    expect(
-      screen.getAllByRole('link', { name: /past papers/i }).some(
-        (l) => l.getAttribute('href') === '/papers?grade=7',
-      ),
-    ).toBe(true)
+    // The season-over card is now the ONLY "Past papers" link on the
+    // page — the day cards carry no per-session actions.
+    expect(screen.getByRole('link', { name: /past papers/i })).toHaveAttribute(
+      'href',
+      '/papers?grade=7',
+    )
     expect(screen.getByRole('link', { name: /revision notes/i })).toHaveAttribute('href', '/notes')
     expect(screen.getByRole('link', { name: /games/i })).toHaveAttribute('href', '/games')
     // Only the mockup's destinations — Practice Quizzes and Bridge
@@ -143,38 +147,22 @@ describe('ExamTimetablePage', () => {
     expect(screen.queryByRole('link', { name: /bridge lessons/i })).toBeNull()
   })
 
-  it('choose-ONE sessions list every alternative; tapping one reveals its actions and persists', () => {
+  it('choose-ONE sessions list every alternative; tapping one marks it and persists', () => {
     renderPage()
     // Friday's language session renders the full alternatives list.
     expect(screen.getAllByText(/Candidates sit ONE/i).length).toBeGreaterThan(0)
     const cinyanja = screen.getByRole('button', { name: 'Cinyanja' })
-    // Nothing selected yet → no Practise link points at a language.
-    expect(
-      screen.getAllByRole('link', { name: 'Practise' }).some(
-        (l) => l.getAttribute('href') === '/practise/7/cinyanja',
-      ),
-    ).toBe(false)
+    expect(cinyanja).toHaveAttribute('aria-pressed', 'false')
     fireEvent.click(cinyanja)
     expect(cinyanja).toHaveAttribute('aria-pressed', 'true')
-    expect(
-      screen.getAllByRole('link', { name: 'Practise' }).some(
-        (l) => l.getAttribute('href') === '/practise/7/cinyanja',
-      ),
-    ).toBe(true)
-    expect(
-      screen.getAllByRole('link', { name: 'Past papers' }).some(
-        (l) => l.getAttribute('href') === '/papers?grade=7&subject=cinyanja',
-      ),
-    ).toBe(true)
     // The pick persists per device, scoped by timetable id.
     expect(localStorage.getItem('zx_exam_paper_choice_g7-2026_zl')).toBe('5/1')
     // Selecting another language moves the selection — it does not stack.
     fireEvent.click(screen.getByRole('button', { name: 'Icibemba' }))
-    expect(
-      screen.queryAllByRole('link', { name: 'Practise' }).some(
-        (l) => l.getAttribute('href') === '/practise/7/cinyanja',
-      ),
-    ).toBe(false)
+    expect(cinyanja).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Icibemba' })).toHaveAttribute('aria-pressed', 'true')
+    // Picking a language still adds no action to the row.
+    expect(screen.queryByRole('link', { name: /practise/i })).toBeNull()
   })
 
   it('reminder offsets hide behind the Enable Exam Reminders switch', () => {
@@ -212,13 +200,13 @@ describe('ExamTimetablePage', () => {
     setData({ archived: [ARCHIVED_2025] })
     renderPage()
     expect(screen.getByText('Past Exam Timetables')).toBeInTheDocument()
-    // Only the active year's Practise links exist before expanding…
-    const before = screen.getAllByRole('link', { name: 'Practise' }).length
     fireEvent.click(
       screen.getByRole('button', { name: /2025 Primary School Leaving Examination/i }),
     )
-    // …and still after: archived day cards are read-only (no actions added).
-    expect(screen.getAllByRole('link', { name: 'Practise' }).length).toBe(before)
+    // Archived day cards are read-only: their alternatives render as
+    // plain pills, not buttons.
+    expect(screen.getAllByText('Cinyanja').length).toBeGreaterThan(1)
+    expect(screen.getAllByRole('button', { name: 'Cinyanja' })).toHaveLength(1)
     // The archived days themselves are visible (two English rows now).
     expect(screen.getAllByText('English Language').length).toBeGreaterThan(2)
   })

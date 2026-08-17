@@ -917,14 +917,8 @@ button.lhx-tt-altpill { cursor: pointer; }
 .lhx-tt-altpill[aria-pressed='true'] { background: linear-gradient(135deg, var(--lhx-indigo1), var(--lhx-indigo2)); color: #fff; }
 .lhx-tt-brief { opacity: 0.72; }
 .lhx-tt-done { opacity: 0.62; }
-.lhx-tt-actions { display: flex; gap: 9px; margin-top: 11px; flex-wrap: wrap; }
-.lhx-tt-act {
-  flex: 1; min-width: 110px; display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 13px; padding: 10px; min-height: 40px;
-  font-size: 12px; font-weight: 900; background: var(--lhx-indigo-soft); color: var(--lhx-indigo2);
-}
-.lhx-tt-act.orange { background: var(--lhx-coral-soft); color: var(--lhx-coral-soft-text); }
-.lhx-tt-act:active { transform: scale(0.97); }
+/* Sessions carry no actions — the per-session Practise / Past papers
+   buttons were removed, so .lhx-tt-act* went with them. */
 
 /* Reminder banners + toggle (functional carry-over, prototype idiom). */
 .lhx-tt-remind {

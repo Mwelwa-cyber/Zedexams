@@ -4,10 +4,13 @@
  * The full timetable screen the Home countdown chip and the Papers-tab
  * row tap through to (LEARNER_REDESIGN_SCOPE.md): a next-exam hero with
  * a live days/hrs/min/sec countdown, then the exam days as cards. Each
- * session shows its time block, paper code and duration with Practise
- * and Past papers actions; the choose-ONE sessions (Friday) render the
- * full alternatives list; the briefing day is dimmed and marked "No
- * paper written". The official ECZ PDF stays reachable at the bottom.
+ * session shows its time block, paper code and duration — and nothing
+ * else: the per-session Practise / Past papers buttons the earlier
+ * version carried are gone, because the day list is a reference the
+ * learner reads rather than a launcher. The choose-ONE sessions
+ * (Friday) render the full alternatives list; the briefing day is
+ * dimmed and marked "No paper written". The official ECZ PDF stays
+ * reachable at the bottom.
  *
  * Renders inside LearnerLayout (glass chrome + 4-tab nav), back to the
  * Papers tab. The season logic is unchanged from the previous page:
@@ -229,45 +232,18 @@ function SeasonOverCard({ timetable }) {
 
 // ── Sessions ───────────────────────────────────────────────────────
 
-function paperActions(paper, grade, { completed = false } = {}) {
-  const actions = []
-  if (paper.subjectId) {
-    actions.push({
-      label: completed ? 'Practise similar' : 'Practise',
-      to: `/practise/${grade}/${paper.subjectId}`,
-      tone: '',
-    })
-  }
-  actions.push({
-    label: 'Past papers',
-    to: paper.paperSubjectId
-      ? `/papers?grade=${grade}&subject=${paper.paperSubjectId}`
-      : `/papers?grade=${grade}`,
-    tone: 'orange',
-  })
-  return actions
-}
-
-function SessionActions({ paper, grade, completed }) {
-  return (
-    <div className="lhx-tt-actions">
-      {paperActions(paper, grade, { completed }).map((a) => (
-        <Link key={a.label} to={a.to} className={`lhx-tt-act ${a.tone}`}>
-          {a.label}
-        </Link>
-      ))}
-    </div>
-  )
-}
-
 /**
  * One session row. Briefing rows are dimmed with "No paper written";
- * completed rows dim and drop the Practise emphasis; choose-ONE rows
- * render the alternatives note + the full list as pills — tapping a
- * pill selects that paper (persisted per device) and its actions render
- * beneath. Archived rows are read-only.
+ * completed rows dim and carry a ✓; choose-ONE rows render the
+ * alternatives note + the full list as pills — tapping a pill records
+ * which paper is this learner's (persisted per device) so the row shows
+ * their language rather than all five. Archived rows are read-only.
+ *
+ * No row carries an action. Practise and Past papers are reached from
+ * the Papers tab; putting them on every session turned a timetable a
+ * learner scans into two buttons per line.
  */
-function SessionRow({ session, grade, timetableId, nowMs, archived = false, nextKey = null }) {
+function SessionRow({ session, timetableId, nowMs, archived = false, nextKey = null }) {
   const status = getSessionStatus(session, nowMs, { archived, nextKey })
   const completed = status === STATUS.COMPLETED
   const papers = session.papers || []
@@ -283,10 +259,7 @@ function SessionRow({ session, grade, timetableId, nowMs, archived = false, next
     setSelectedCode(next)
     if (next) writeChoice(timetableId, session.key, next)
   }
-  const selectedPaper = isMulti ? papers.find((p) => p.code === selectedCode) : null
-
   const heading = session.briefing ? session.title : single ? single.name : session.sessionNote || 'Choose your paper'
-  const dimmed = session.briefing || (completed && !archived)
 
   return (
     <div className={`lhx-tt-sess ${session.briefing ? 'lhx-tt-brief' : ''} ${completed && !archived ? 'lhx-tt-done' : ''}`}>
@@ -333,9 +306,6 @@ function SessionRow({ session, grade, timetableId, nowMs, archived = false, next
             </div>
           </div>
         )}
-        {!archived && !dimmed && single && <SessionActions paper={single} grade={grade} completed={completed} />}
-        {!archived && completed && single && <SessionActions paper={single} grade={grade} completed />}
-        {!archived && selectedPaper && <SessionActions paper={selectedPaper} grade={grade} completed={completed} />}
       </div>
     </div>
   )
@@ -346,7 +316,7 @@ function SessionRow({ session, grade, timetableId, nowMs, archived = false, next
  * "Next" badge on the next exam day (or "Done" once the day is over),
  * then the day's sessions.
  */
-function DayCard({ day, grade, timetableId, nowMs, archived = false, nextKey = null }) {
+function DayCard({ day, timetableId, nowMs, archived = false, nextKey = null }) {
   const d = new Date(`${day.date}T12:00:00`)
   const sessions = day.sessions || []
   const paperSessions = sessions.filter((s) => (s.papers || []).length > 0)
@@ -379,7 +349,6 @@ function DayCard({ day, grade, timetableId, nowMs, archived = false, nextKey = n
         <SessionRow
           key={s.key}
           session={s}
-          grade={grade}
           timetableId={timetableId}
           nowMs={nowMs}
           archived={archived}
@@ -488,7 +457,7 @@ function OfficialPdfRows({ pdfUrl }) {
   )
 }
 
-function PastTimetables({ archived, nowMs, grade }) {
+function PastTimetables({ archived, nowMs }) {
   const [openId, setOpenId] = useState(null)
   if (archived.length === 0) return null
   return (
@@ -513,14 +482,7 @@ function PastTimetables({ archived, nowMs, grade }) {
             {open && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
                 {t.days.map((day) => (
-                  <DayCard
-                    key={day.date}
-                    day={day}
-                    grade={grade}
-                    timetableId={t.id}
-                    nowMs={nowMs}
-                    archived
-                  />
+                  <DayCard key={day.date} day={day} timetableId={t.id} nowMs={nowMs} archived />
                 ))}
               </div>
             )}
@@ -644,7 +606,6 @@ export default function ExamTimetablePage() {
               <DayCard
                 key={day.date}
                 day={day}
-                grade={active.grade}
                 timetableId={active.id}
                 nowMs={nowMinuteMs}
                 nextKey={nextPaperKey}
@@ -658,7 +619,7 @@ export default function ExamTimetablePage() {
 
           <OfficialPdfRows pdfUrl={active.pdfUrl} />
 
-          <PastTimetables archived={archived} nowMs={nowMinuteMs} grade={grade} />
+          <PastTimetables archived={archived} nowMs={nowMinuteMs} />
         </>
       )}
     </>
