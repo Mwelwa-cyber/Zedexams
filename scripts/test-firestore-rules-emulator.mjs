@@ -3407,6 +3407,69 @@ async function main() {
     }))
   })
 
+  section('duelQueue/{uid} — queue by writing your own doc; no roster, no self-matching')
+
+  await test('a learner can queue themselves with exactly grade + createdAtMs', async () => {
+    await assertSucceeds(setDoc(doc(learnerA, 'duelQueue', LEARNER_A), {
+      grade: 7, createdAtMs: 1000,
+    }))
+  })
+
+  await test('extra fields are refused — matchId is the server’s to stamp', async () => {
+    await assertFails(setDoc(doc(learnerB, 'duelQueue', LEARNER_B), {
+      grade: 7, createdAtMs: 1000, matchId: 'forged',
+    }))
+  })
+
+  await test("a learner cannot queue somebody ELSE", async () => {
+    await assertFails(setDoc(doc(learnerB, 'duelQueue', LEARNER_A), {
+      grade: 7, createdAtMs: 1000,
+    }))
+  })
+
+  await test('update is denied outright — even the owner cannot stamp a matchId', async () => {
+    await assertFails(updateDoc(doc(learnerA, 'duelQueue', LEARNER_A), { matchId: 'forged' }))
+  })
+
+  await test('a learner can watch their own entry and leave the queue', async () => {
+    await assertSucceeds(getDoc(doc(learnerA, 'duelQueue', LEARNER_A)))
+    await assertSucceeds(deleteDoc(doc(learnerA, 'duelQueue', LEARNER_A)))
+  })
+
+  await test("no client can read another player's queue entry — no roster", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'duelQueue', LEARNER_B), { grade: 7, createdAtMs: 1 })
+    })
+    await assertFails(getDoc(doc(learnerA, 'duelQueue', LEARNER_B)))
+  })
+
+  section('matches/{id} — server-created, server-settled; players read, nobody writes')
+
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'matches', 'm1'), {
+      players: [LEARNER_A, LEARNER_B],
+      state: 'active', scores: {}, winner: null,
+    })
+  })
+
+  await test('a player can read their own match', async () => {
+    await assertSucceeds(getDoc(doc(learnerA, 'matches', 'm1')))
+    await assertSucceeds(getDoc(doc(learnerB, 'matches', 'm1')))
+  })
+
+  await test("a non-player cannot read someone else's match", async () => {
+    await assertFails(getDoc(doc(admin, 'matches', 'm1')))
+  })
+
+  await test('no client can write a score — settling is the callable’s job', async () => {
+    await assertFails(updateDoc(doc(learnerA, 'matches', 'm1'), {
+      scores: { [LEARNER_A]: 9999 },
+    }))
+    await assertFails(setDoc(doc(learnerA, 'matches', 'forged'), {
+      players: [LEARNER_A, LEARNER_B], state: 'done', winner: LEARNER_A,
+    }))
+  })
+
   section('learner_profiles/{uid} — a private derived record, not leaderboard data')
 
   await testEnv.withSecurityRulesDisabled(async (ctx) => {

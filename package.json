@@ -24,6 +24,7 @@
     "test:diagram-clean": "node src/utils/diagramClean.test.js",
     "test:shared-rules": "node functions/shared/assessment/sharedRules.test.js",
     "test:diagram-catalog": "node functions/shared/assessment/diagramCatalogCore.test.js",
+    "test:duel-core": "node functions/duel/duelCore.test.js",
     "test:svg-geometry": "node scripts/test-svg-geometry.mjs",
     "test:secondary-diagrams": "node functions/shared/assessment/secondaryDiagrams.test.js",
     "test:secondary-shapes-prompt": "node scripts/test-secondary-shapes-prompt.mjs",

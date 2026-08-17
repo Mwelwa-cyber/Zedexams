@@ -45,6 +45,7 @@ const UID_DOC_COLLECTIONS = [
   "questionBankFavourites", // + items subcollection
   "badges",
   "dailyStreaks",
+  "duelQueue", // live-challenge matchmaking entry (grade + queue time), doc id is the uid
   "learner_profiles",
   "learnerStats",
   "studyPlanProgress",
@@ -54,6 +55,13 @@ const UID_DOC_COLLECTIONS = [
 // A field on the doc holds the uid. `recursive: true` for collections whose
 // docs own subcollections that must be cascaded.
 const FIELD_QUERY_COLLECTIONS = [
+  // Live-challenge matches: the doc carries BOTH players' first names and
+  // scores, so the departing learner's data cannot be scrubbed by an
+  // arrayRemove — the whole doc goes. The opponent keeps their own results
+  // through the game-history rows written at race end; a match doc is the
+  // transient race record, not the durable one. `op` widens the query for
+  // array fields (defaults to "==" for every older entry).
+  {collection: "matches", field: "players", op: "array-contains"},
   {collection: "exam_attempts", field: "userId"},
   {collection: "daily_exam_locks", field: "userId"},
   {collection: "results", field: "userId"},
@@ -244,9 +252,9 @@ async function purgeUserData(db, uid, {FieldValue} = {}) {
   }
 
   // 2. Docs referencing uid via a field.
-  for (const {collection, field, recursive} of FIELD_QUERY_COLLECTIONS) {
+  for (const {collection, field, op, recursive} of FIELD_QUERY_COLLECTIONS) {
     try {
-      const q = db.collection(collection).where(field, "==", uid);
+      const q = db.collection(collection).where(field, op || "==", uid);
       summary.fieldDocs += await deleteByQuery(db, q, {recursive: !!recursive});
     } catch (err) {
       summary.errors.push(`${collection}.${field}: ${err.message}`);
