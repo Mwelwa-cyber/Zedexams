@@ -5,6 +5,57 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-08-17
+
+### Fixed
+
+- Bind the learner reading theme to the account (#2433)
+
+### Changed
+
+- Live challenge (PROMPT 9) slice B: the race UI on the real server model (#2466)
+- Live challenge (PROMPT 9) slice A: the server foundation (#2465)
+- Daily-challenge intro: the Zed-hosted screen before today's play (#2464)
+- Sticker Collection: the prototype's full-page grid over the real awards (#2463)
+- Help & Support to the prototype: searchable FAQ, Childline 116, rate-us (8f) (#2462)
+- Learner system states: back-online toast + in-chrome error card (PROMPT 10b) (#2461)
+- Retire the practise course map (/practise/:grade/:subjectId) (#2459)
+- Parent app (PROMPT 8g), and the guardian payment path it needed (PAY-001) (#2458)
+- CodeQL: exclude the docs/learner design-pack prototypes from scanning (#2460)
+- Go Premium: the prototype's plan picker, minus its two false claims (#2456)
+- Explore is one three-up row at every width (#2457)
+- Parent app: the notifications inbox, and something real to put in it (#2455)
+- Remove per-session Practise / Past papers actions from /timetable (#2454)
+- Claude/learner prototype redesign c7j9d1 (#2453)
+- Learner redesign: the weekly leaderboard, to prototype v23 (#2452)
+- Learner notes: the Digestive System, at the mockup's depth (#2451)
+- Learner terms: divide every subject's sub-topics across Term 1, 2 and 3 (#2450)
+- Learner redesign: Home and subject fixes, per prototype v13 (#2449)
+- Learner redesign: the first-run setup wizard, and a real Grade 7 term plan (#2440)
+- Guardian Zone: a second control, and the pill that ignored the first one (#2439)
+- Learner redesign: the seven Grade 7 subjects, their sub-topics, and the odd settings/notes doors (#2437)
+- Learner redesign step 11: Home, Settings and the Guardian Zone, to prototype v7 (#2436)
+- Learner redesign step 11: the v6 Settings screen, with every switch wired to something real (#2435)
+- Learner redesign: make Home and Subject match the mockup — remove what the mockup does not have (#2434)
+- Learner redesign step 10: Profile and Notifications, exactly as the v6 mockup puts them (#2432)
+- Learner redesign steps 8+9: the Notes revision hub, only the mockup's content, and Ask Zed (#2431)
+- Learner redesign step 7: Race Zed! — the honest duel (#2430)
+- Learner redesign step 6: the daily quiz plays in the learner shell (#2429)
+- Storage audit: fix a destructive orphan rule, compress scanned pages (#2428)
+- Learner redesign step 5: remove Learn + Practice (#2427)
+- Fix the Android build: a buildscript classpath cannot read variables.gradle (#2425)
+- Learner redesign step 4e: retire the four legacy game mechanics (#2426)
+
+### Internal
+
+- Bump the misc-minor-and-patch group across 1 directory with 4 updates (#2448)
+- Bump the editor group with 17 updates (#2446)
+- Bump github/codeql-action from 3 to 4 (#2445)
+- Bump globals in the linting group (#2444)
+- Bump the testing group with 2 updates (#2443)
+- Bump @google-cloud/text-to-speech in /functions (#2442)
+- Bump the functions-minor-and-patch group (#2441)
+
 ## 2026-08-16
 
 ### Changed
