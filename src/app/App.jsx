@@ -105,7 +105,12 @@ function ProfileRoute() {
   if (userProfile?.role === 'learner') return <LearnerProfilePage />
   return <><Navbar /><ProfilePage /></>
 }
-const StudyPlanPage = lazy(() => import('../features/learnerDashboard/pages/StudyPlanPage'))
+// My Progress + Study Plan (prototype v26). The Study Plan REPLACES the
+// pre-redesign AI study-plan page, which rendered in the old Navbar
+// chrome and generated a plan from a model call; this one is built from
+// the learner's own weak topics and deep-links into real practice.
+const MyProgressPage = lazy(() => import('../features/learnerProgress/pages/MyProgressPage'))
+const StudyPlanPage = lazy(() => import('../features/learnerProgress/pages/StudyPlanPage'))
 const LearnerCalendar = lazy(() => import('../features/learnerDashboard/pages/LearnerCalendar'))
 // Exam timetable hub: /timetable is the interactive per-grade exam schedule
 // (Firestore-driven with a bundled fallback); /timetable/pdf keeps the inline
@@ -626,6 +631,9 @@ export default function App() {
             {/* The prototype-v6 notification centre — the topbar bell lands
                 here; the nav stays visible per the mockup. */}
             <Route path="/notifications"   element={<ProtectedRoute><LearnerOnlyRoute><LearnerNotificationsPage /></LearnerOnlyRoute></ProtectedRoute>} />
+            {/* My Progress → Study Plan: results → weak topics → practice. */}
+            <Route path="/progress"        element={<ProtectedRoute><LearnerOnlyRoute><MyProgressPage /></LearnerOnlyRoute></ProtectedRoute>} />
+            <Route path="/study-plan"      element={<ProtectedRoute><LearnerOnlyRoute><StudyPlanPage /></LearnerOnlyRoute></ProtectedRoute>} />
             {/* The weekly daily-quiz board. Inside the shell because the
                 mockup keeps the four tabs visible here — it is a place a
                 learner browses to, not an immersive run. */}
@@ -649,7 +657,6 @@ export default function App() {
           <Route path="/learner/profile" element={<Navigate to="/profile" replace />} />
           {/* Legacy stats page (kept for admin/teacher reference) */}
           <Route path="/my-stats"          element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><StudentDashboard /></LearnerOnlyRoute></ProtectedRoute>} />
-          <Route path="/study-plan"        element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><StudyPlanPage /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/calendar"          element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerCalendar /></LearnerOnlyRoute></ProtectedRoute>} />
           {/* The official ECZ PDF stays readable in-app at /timetable/pdf
               (Android WebViews drop external PDF links); the interactive

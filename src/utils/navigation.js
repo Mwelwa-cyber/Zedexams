@@ -45,6 +45,7 @@ export const LEARNER_ONLY_SEGMENTS = Object.freeze([
   'quiz',
   'quizzes',
   'results',
+  'progress',
   'search',
   'setup',
   'study-plan',

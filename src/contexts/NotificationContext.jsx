@@ -45,6 +45,10 @@ const PAGE_SIZE = 20
 // Cap bulk mark-all / delete-all so a single op stays inside one Firestore
 // batch. The archival cron keeps per-user volume well under this.
 const BULK_CAP = 450
+// Bound on removeAll's delete passes. 450 × 12 is far past any real feed,
+// and having a bound is what stops a concurrent write turning the loop
+// into a spin.
+const MAX_CLEAR_PASSES = 12
 
 const NotificationContext = createContext(null)
 
@@ -265,16 +269,33 @@ export function NotificationProvider({ children }) {
     [uid, refreshUnread, toast],
   )
 
+  /**
+   * Clear the whole feed.
+   *
+   * Batched in passes rather than one capped read. A single
+   * `limit(BULK_CAP)` deleted at most 450 documents and then emptied the
+   * local state anyway, so a learner with more than that saw "cleared",
+   * and the remainder reappeared on the next load — a button that looks
+   * broken while having worked partially. The loop is bounded so a
+   * pathological feed cannot spin forever; if it hits the bound, what is
+   * left is genuinely left rather than reported as gone.
+   */
   const removeAll = useCallback(async () => {
     if (!uid) return
     try {
-      const snap = await getDocs(
-        query(collection(db, 'notifications', uid, 'feed'), limit(BULK_CAP)),
-      )
-      if (snap.empty) return
-      const batch = writeBatch(db)
-      snap.docs.forEach((d) => batch.delete(d.ref))
-      await batch.commit()
+      let cleared = 0
+      for (let pass = 0; pass < MAX_CLEAR_PASSES; pass += 1) {
+        const snap = await getDocs(
+          query(collection(db, 'notifications', uid, 'feed'), limit(BULK_CAP)),
+        )
+        if (snap.empty) break
+        const batch = writeBatch(db)
+        snap.docs.forEach((d) => batch.delete(d.ref))
+        await batch.commit()
+        cleared += snap.size
+        if (snap.size < BULK_CAP) break
+      }
+      if (cleared === 0) return
       setLivePage([])
       setOlderPages([])
       setUnreadCount(0)
@@ -283,6 +304,9 @@ export function NotificationProvider({ children }) {
     } catch (err) {
       console.warn('[notifications] removeAll failed:', err)
       toast.error('Could not clear notifications. Please try again.')
+      // The local state is deliberately NOT emptied on failure: showing an
+      // empty feed for notifications still sitting in Firestore is the one
+      // outcome worse than the error itself.
     }
   }, [uid, toast])
 
