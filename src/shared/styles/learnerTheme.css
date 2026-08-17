@@ -649,6 +649,40 @@
   padding: 8px 12px;
 }
 
+/* "Back online" toast — appears once on the offline→online transition and
+   auto-dismisses (LearnerShell owns the timing). Fixed so it is visible
+   whatever the learner was scrolled to when the connection returned. */
+.lhx-online-toast {
+  position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+  z-index: 70;
+  background: var(--lhx-green);
+  color: #fff;
+  font-size: 12.5px; font-weight: 800;
+  padding: 10px 16px;
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+}
+
+/* ── Error card (prototype view-error) ─────────────────────────── */
+
+.lhx-err {
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center;
+  padding: 40px 16px 0;
+}
+.lhx-err-face { font-size: 62px; line-height: 1; }
+.lhx-err-title {
+  font-size: 20px; font-weight: 900; color: var(--lhx-ink);
+  margin: 12px 0 0;
+}
+.lhx-err-sub {
+  font-size: 13.5px; color: var(--lhx-muted); font-weight: 700;
+  line-height: 1.5;
+  margin: 6px auto 18px; max-width: 290px;
+}
+.lhx-err-btn { width: 100%; max-width: 220px; margin-bottom: 10px; }
+
 /* ── Bottom navigation (prototype .navbar) ─────────────────────── */
 
 .lhx-nav {
