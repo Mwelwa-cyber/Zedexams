@@ -53,10 +53,13 @@ function normaliseSubject(value) {
   )) || null
 }
 
-function getSubjectPath(grade, subject) {
-  if (!grade || !subject?.id) return '/quizzes'
-  return `/practise/${grade}/${subject.id}`
-}
+// Every study-plan task that wants "go do a quiz" lands on the library.
+// A getSubjectPath(grade, subject) helper used to resolve a per-subject
+// course map at /practise/:grade/:subjectId, falling back here when grade
+// or subject was unknown. The course map was retired, so the destination
+// no longer varies — a constant says that, where a function taking a
+// subject it ignores would read like it still mattered.
+const QUIZ_LIBRARY_PATH = '/quizzes'
 
 function buildCountdown() {
   const active = getActiveTerm()
@@ -153,7 +156,8 @@ function buildFocusPool(weakTopics = []) {
   return [...weakFocuses, ...fallbackFocuses].slice(0, 5)
 }
 
-function buildWeeklyPlan({ weakTopics = [], grade, aiNotesOn = false, weekKey }) {
+// No `grade`: it only ever built the retired per-subject practise path.
+function buildWeeklyPlan({ weakTopics = [], aiNotesOn = false, weekKey }) {
   const focuses = buildFocusPool(weakTopics)
   const safeFocuses = focuses.length > 0
     ? focuses
@@ -235,7 +239,7 @@ function buildWeeklyPlan({ weakTopics = [], grade, aiNotesOn = false, weekKey })
       key: `week:${weekKey}:${index}:${keyPart(subjectKey)}:${keyPart(focus.topic)}`,
       title: step.title(focus),
       detail: step.detail(focus),
-      to: step.to || getSubjectPath(grade, focus.subject),
+      to: step.to || QUIZ_LIBRARY_PATH,
     }
   })
 }
@@ -389,7 +393,7 @@ export default function TodayStudyPlan({
   const hasDailyExamTarget = dailyGoal.total > 0
   const examDone = hasDailyExamTarget && dailyGoal.done >= dailyGoal.total
   const gradeLabel = grade ? `Grade ${grade}` : 'your grade'
-  const weakSubjectPath = getSubjectPath(grade, weakFocus?.subject)
+  const weakSubjectPath = QUIZ_LIBRARY_PATH
 
   const tasks = useMemo(() => [
     hasDailyExamTarget
@@ -472,8 +476,8 @@ export default function TodayStudyPlan({
   ])
 
   const weeklyPlan = useMemo(
-    () => buildWeeklyPlan({ weakTopics, grade, aiNotesOn, weekKey: currentWeekKey }),
-    [weakTopics, grade, aiNotesOn, currentWeekKey],
+    () => buildWeeklyPlan({ weakTopics, aiNotesOn, weekKey: currentWeekKey }),
+    [weakTopics, aiNotesOn, currentWeekKey],
   )
   const visibleWeeklyPlan = showFullWeek ? weeklyPlan : weeklyPlan.slice(0, 3)
   const validTaskKeys = useMemo(

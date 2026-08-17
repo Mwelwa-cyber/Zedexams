@@ -1,6 +1,8 @@
 /**
- * Public surface of the classic learner dashboard — the grade hub, subject
- * drill-down, results, badges, study plan, calendar and profile.
+ * Public surface of the classic learner dashboard — the grade hub, results,
+ * badges, study plan, calendar and profile. (The subject drill-down —
+ * `SubjectDrillDown`, the /practise/:grade/:subjectId course map — was
+ * retired; the pages that linked it now point at the /quizzes library.)
  *
  * Migrated under docs/architecture.md Phase 4 (Wave 4).
  *
@@ -8,7 +10,7 @@
  * the surface that rebuild is replacing; `GradeHub` remains reachable at
  * `/dashboard/classic` as the transition fallback, which is why both exist.
  *
- * ── Two exports; the nine pages are not among them ──────────────────────
+ * ── Two exports; the seven pages are not among them ─────────────────────
  *
  * `InvoicesCard` and `PaymentHistoryCard` are rendered by
  * `features/learnerSettings`' Account panel and `features/teacherSettings`'
@@ -34,10 +36,11 @@
  *
  * **Both paragraphs are the state at this migration and both targets have since
  * moved (2026-08-14).** `BadgesPage` now reaches `GameBadgeCard` through
- * `features/games`' front door, and `GradeHub` / `SubjectDrillDown` draw
+ * `features/games`' front door, and `GradeHub` (with `SubjectDrillDown`, before
+ * it was retired) draws
  * `GameStickerStyles` from `src/shared/components/` — the games migration sent
  * it down a layer rather than exporting it, because a front door that also
- * exports `GameBadgeCard` would have made these two pages fetch
+ * exports `GameBadgeCard` would have made those pages fetch
  * `utils/gamesService` and the Firebase client to draw a stylesheet. The
  * reasoning above is kept because the DIRECTION test is what made this feature
  * migratable, and that has not changed.

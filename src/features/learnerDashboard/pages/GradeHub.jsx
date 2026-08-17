@@ -406,9 +406,12 @@ const SubjectCardRich = memo(function SubjectCardRich({ subject, grade, perf, qu
   const topicCount = getTopics(subject.id, grade).length
   const tone = SUBJECT_TONES[subject.id] || SUBJECT_TONES.mathematics
   const score = typeof perf === 'number' ? perf : 0
-  // Drill-down course map — opens a dedicated page for the subject with
-  // quizzes grouped by Topic (audit: SubjectDrillDown).
-  const quizPath = ctaHref || `/practise/${grade}/${subject.id}`
+  // The quiz library. This used to open a per-subject course map at
+  // /practise/:grade/:subjectId; that page was retired, and /quizzes was
+  // already this card's declared fallback for an unresolved subject, so
+  // the fallback simply became the destination. `grade` stays a prop —
+  // the topic count above is grade-scoped.
+  const quizPath = ctaHref || '/quizzes'
   // Quiz-count badges mirror the Quiz Library's subject tiles: a "N quizzes"
   // pill (or "Coming soon" when the subject has none yet) plus a demo pill.
   // quizCount is undefined until the count fetch resolves — keep the row out
@@ -1561,7 +1564,7 @@ export default function GradeHub() {
                     grade={userGrade}
                     perf={perfBySubject[subject.label]}
                     ctaLabel="Start Challenge"
-                    ctaHref={`/practise/${userGrade}/${subject.id}`}
+                    ctaHref="/quizzes"
                     {...subjectCounts(userGrade, subject)}
                   />
                 ))}
@@ -1658,18 +1661,16 @@ export default function GradeHub() {
               <div className="flex flex-wrap gap-2">
                 {weakTopics.map(topic => {
                   // topic.subject is the stored subject label; map it back to
-                  // the curriculum id so the chip tone and the drill-down route
-                  // (/practise/:grade/:subjectId) both resolve. Falling back to
-                  // the library keeps the chip clickable for an unknown subject.
+                  // the curriculum id so the chip tone resolves. The chip used
+                  // to deep-link the retired /practise/:grade/:subjectId course
+                  // map, falling back to the library when the subject did not
+                  // resolve; every chip now goes to the library.
                   const subjectId = resolveSubject(topic.subject)?.id
                   const tone = SUBJECT_TONES[subjectId] || SUBJECT_TONES.mathematics
-                  const chipHref = userGrade && subjectId
-                    ? `/practise/${userGrade}/${subjectId}`
-                    : '/quizzes'
                   return (
                     <Link
                       key={`${topic.subject}:${topic.topic}`}
-                      to={chipHref}
+                      to="/quizzes"
                       className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-black ${tone.tile} hover:opacity-90 transition-opacity`}
                     >
                       {topic.topic}

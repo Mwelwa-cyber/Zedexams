@@ -118,7 +118,6 @@ const LearnerCalendar = lazy(() => import('../features/learnerDashboard/pages/Le
 // drop external PDF links.
 const ExamTimetablePage = lazy(() => import('../features/examTimetable/pages/ExamTimetablePage'))
 const TimetableViewerPage = lazy(() => import('../features/learnerDashboard/pages/TimetableViewerPage'))
-const SubjectDrillDown = lazy(() => import('../features/learnerDashboard/pages/SubjectDrillDown'))
 const QuizList = lazy(() => import('../features/quiz/pages/QuizList'))
 const LearnerSearch = lazy(() => import('../features/learnerSearch/pages/LearnerSearch'))
 
@@ -678,10 +677,11 @@ export default function App() {
           <Route path="/exam/:examId"                element={<ProtectedRoute><LearnerOnlyRoute><DailyExamRunner /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/exam-results/:attemptId"     element={<ProtectedRoute><LearnerOnlyRoute><ExamResultsPage /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/quizzes"           element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><QuizList /></LearnerOnlyRoute></ProtectedRoute>} />
-
-          {/* Course-map drill-down — clicking Practise on a subject card
-              lands the learner here, with quizzes grouped by topic. */}
-          <Route path="/practise/:grade/:subjectId" element={<ProtectedRoute><LearnerOnlyRoute><SubjectDrillDown /></LearnerOnlyRoute></ProtectedRoute>} />
+          {/* /practise/:grade/:subjectId (the SubjectDrillDown course map)
+              was retired — the quiz library at /quizzes is the one place a
+              learner browses quizzes by subject. No redirect: the route was
+              never linked from outside the app and carries no shareable
+              content, so a 404 through the SPA fallback is honest. */}
           <Route path="/quiz/:quizId"      element={<ProtectedRoute><LearnerOnlyRoute><QuizRunner /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/results/:resultId" element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><QuizResults /></LearnerOnlyRoute></ProtectedRoute>} />
           {/* Global learner search across quizzes / notes / papers / games. */}

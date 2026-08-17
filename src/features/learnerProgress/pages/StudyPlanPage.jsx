@@ -37,7 +37,9 @@ function finishedToday(activity, kinds, now = Date.now()) {
 
 export default function StudyPlanPage() {
   const navigate = useNavigate()
-  const { loading, error, data, grade, timetables, refresh } = useLearnerDashboard({ extras: true })
+  // `grade` is no longer read — it only ever scoped the retired practise
+  // deep link below.
+  const { loading, error, data, timetables, refresh } = useLearnerDashboard({ extras: true })
 
   const plan = useMemo(() => buildStudyPlan(data?.weakTopics), [data?.weakTopics])
   const activity = data?.recentActivity || []
@@ -59,10 +61,12 @@ export default function StudyPlanPage() {
 
   const practise = (item) => {
     capture('study_plan_practise', { topic: item.topic, subject: item.subject })
-    // The subject's practice surface is the closest real destination for a
-    // topic today; it opens on that subject's quizzes grouped by topic.
-    if (item.subject && grade) navigate(`/practise/${grade}/${item.subject}`)
-    else navigate('/quizzes')
+    // The quiz library. This used to deep-link the per-subject course map at
+    // /practise/:grade/:subjectId when both the subject and the grade were
+    // known, falling back here otherwise; that page was retired, so every
+    // topic lands on the library. The analytics event still carries the topic
+    // and subject, so what the learner was sent to practise is not lost.
+    navigate('/quizzes')
   }
 
   const checklist = [

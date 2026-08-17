@@ -102,9 +102,10 @@ const sum = (rows) => rows.reduce((s, r) => s + r.total, 0)
 const SURFACE = [
   // `GameStickerStyles` is its own row because it is the one file here that is
   // NOT exclusive to `.force-light-theme`: `GamesShell` and `QuizList` mount it
-  // inside that container, but `learnerDashboard`'s GradeHub and
-  // SubjectDrillDown mount it inside `.learner-game-theme`, and the stylesheet
-  // carries rules for both (`.learner-game-theme .zx-card` overrides the base
+  // inside that container, but `learnerDashboard`'s GradeHub mounts it inside
+  // `.learner-game-theme` (SubjectDrillDown did too until the practise course
+  // map was retired), and the stylesheet carries rules for both
+  // (`.learner-game-theme .zx-card` overrides the base
   // `.zx-card`). Filing it under the force-light bucket alone would hand a
   // remediation the wrong scope — the same failure this map's dead patterns
   // cause, one file at a time instead of a whole surface.

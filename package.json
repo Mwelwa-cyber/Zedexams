@@ -45,7 +45,6 @@
     "test:visual-cost": "node scripts/test-visual-cost.mjs",
     "test:quiz-import-order": "node scripts/test-quiz-import-order.mjs",
     "test:comprehension-grouping": "node scripts/test-comprehension-grouping.mjs",
-    "test:course-map-match": "node scripts/test-course-map-match.mjs",
     "test:quiz-import-parts": "node scripts/test-quiz-import-parts.mjs",
     "test:smart-import-gate": "node scripts/test-smart-import-gate.mjs",
     "test:import-rich-text": "node src/shared/utils/importRichText.test.js",
