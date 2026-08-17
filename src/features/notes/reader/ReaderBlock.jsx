@@ -12,6 +12,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { tokenizeInline } from './readerCore'
 import LabelDiagram from './LabelDiagram'
+import TapExplore from './TapExplore'
 
 // Zed's poses (step 8, from the uploaded pack): the tip box gets the
 // map-pointing "let's go" energy; remediation gets the thinking pose
@@ -345,6 +346,36 @@ export default function ReaderBlock({ block, sectionNumber, onWord }) {
       return <SectionCheck block={block} onWord={onWord} />
     case 'labeldiagram':
       return <LabelDiagram block={block} />
+    case 'tapexplore':
+      return <TapExplore block={block} />
+    case 'startend':
+      return (
+        <div className="lhx-startend">
+          <div className="lhx-se-box lhx-se-start">
+            <div className="lhx-se-lab">{block.startLabel || 'STARTS IN'}</div>
+            <div className="lhx-se-org">{block.start}</div>
+          </div>
+          <div className="lhx-se-arrow" aria-hidden="true">→</div>
+          <div className="lhx-se-box lhx-se-end">
+            <div className="lhx-se-lab">{block.endLabel || 'ENDS IN'}</div>
+            <div className="lhx-se-org">{block.end}</div>
+          </div>
+        </div>
+      )
+    case 'flow':
+      return (
+        <ol className="lhx-flow">
+          {(block.steps || []).map((s, i) => (
+            <li key={i} className="lhx-flow-step">
+              <span className="lhx-flow-num" aria-hidden="true">{i + 1}</span>
+              <span>
+                <b>{inline(s.text)}</b>
+                {s.note ? <> — {inline(s.note)}</> : null}
+              </span>
+            </li>
+          ))}
+        </ol>
+      )
     case 'quiz':
       return block.quizId ? (
         <Link to={`/quiz/${block.quizId}`} className="lhx-btn lhx-btn-primary lhx-btn-block" style={{ marginBottom: 16 }}>

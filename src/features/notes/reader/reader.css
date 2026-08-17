@@ -235,6 +235,86 @@
 .lhx-note-img { width: 100%; border-radius: 16px; margin-bottom: 6px; }
 .lhx-note-figcap { text-align: center; font-size: 12px; color: var(--lhx-muted); font-weight: 700; margin-bottom: 16px; }
 
+/* ── Starts-in / ends-in (`startend`) ─────────────────────────────── */
+.lhx-startend { display: flex; align-items: stretch; gap: 10px; margin-bottom: 16px; }
+.lhx-se-box { flex: 1; border-radius: 16px; padding: 11px 12px; text-align: center; }
+.lhx-se-start { background: var(--lhx-green-wash); }
+.lhx-se-end { background: var(--lhx-coral-soft); }
+.lhx-se-lab { font-size: 10px; font-weight: 900; letter-spacing: 0.6px; color: var(--lhx-muted); }
+.lhx-se-org { font-size: 15px; font-weight: 900; color: var(--lhx-ink); margin-top: 2px; }
+.lhx-se-arrow { align-self: center; font-size: 18px; font-weight: 900; color: var(--lhx-muted); }
+
+/* ── Journey of food (`flow`) ─────────────────────────────────────── */
+.lhx-flow { list-style: none; margin: 0 0 16px; padding: 0; }
+.lhx-flow-step {
+  display: flex; align-items: center; gap: 11px;
+  background: var(--lhx-card); border-radius: 16px; padding: 12px 14px;
+  box-shadow: var(--lhx-shadow-sm); font-size: 14px; font-weight: 700;
+  color: var(--lhx-ink);
+}
+/* The arrow between steps is the whole point of `flow` over a plain
+   list — it says each step FEEDS the next. Drawn with ::after so the
+   markup stays an ordered list for anyone not looking at it. */
+.lhx-flow-step + .lhx-flow-step { margin-top: 26px; position: relative; }
+.lhx-flow-step + .lhx-flow-step::before {
+  content: '▼'; position: absolute; top: -22px; left: 50%;
+  transform: translateX(-50%); font-size: 12px; color: var(--lhx-green);
+}
+.lhx-flow-num {
+  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+  background: var(--lhx-green); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 900;
+}
+
+/* ── Tap to explore (`tapexplore`) ────────────────────────────────── */
+.lhx-organ-grid {
+  list-style: none; margin: 0 0 16px; padding: 0;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+.lhx-organ-chip {
+  width: 100%; display: flex; align-items: center; gap: 10px;
+  background: var(--lhx-card); border: none; border-radius: 16px;
+  padding: 10px 12px; box-shadow: var(--lhx-shadow-sm);
+  font-family: inherit; font-size: 12.5px; font-weight: 800;
+  color: var(--lhx-ink); text-align: left; cursor: pointer;
+}
+.lhx-organ-pic {
+  width: 40px; height: 40px; border-radius: 11px; flex-shrink: 0;
+  overflow: hidden; display: flex; align-items: center; justify-content: center;
+  background: var(--lhx-indigo-soft); font-size: 18px;
+}
+.lhx-organ-pic img { width: 100%; height: 100%; object-fit: contain; }
+.lhx-organ-name { line-height: 1.25; }
+
+.lhx-organ-backdrop {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(20, 22, 44, 0.45);
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.lhx-organ-sheet {
+  width: 100%; max-width: 460px;
+  background: var(--lhx-card); color: var(--lhx-ink);
+  border-radius: 24px 24px 0 0; padding: 20px 18px calc(20px + env(safe-area-inset-bottom, 0px));
+  max-height: 86vh; overflow-y: auto; outline: none;
+}
+.lhx-organ-hero {
+  display: block; width: 130px; margin: 0 auto 12px;
+  border-radius: 14px;
+}
+.lhx-organ-title { font-size: 18px; font-weight: 900; text-align: center; margin: 0 0 8px; }
+.lhx-organ-role { font-size: 13.5px; font-weight: 700; line-height: 1.6; color: var(--lhx-ink); margin: 0 0 12px; }
+.lhx-organ-parts {
+  font-size: 13px; font-weight: 700; line-height: 1.55;
+  background: var(--lhx-indigo-soft); color: var(--lhx-indigo-text);
+  border-radius: 14px; padding: 11px 13px; margin: 0 0 14px;
+}
+
+@media (min-width: 700px) {
+  .lhx-organ-backdrop { align-items: center; }
+  .lhx-organ-sheet { border-radius: 24px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lhx-note-prog i, .lhx-word-sheet { transition: none; }
 }

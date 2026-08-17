@@ -108,6 +108,50 @@ const blockSchemas = {
       y: z.number().min(0).max(1),
     })).min(2),
   }),
+
+  // ── The three shapes the Digestive System note needs ──────────────
+  // Added when that note was authored to the mockup's depth. Each is a
+  // distinct idea rather than a restyle of an existing block, which is
+  // why none of them is `bullets` with a class name.
+
+  // "STARTS IN 👄 Mouth → ENDS IN 🌀 Small intestine". Two labelled boxes
+  // and an arrow: the one fact a learner is asked for most often, given
+  // its own shape so it survives being skim-read.
+  startend: z.object({
+    id: str.optional(),
+    type: z.literal('startend'),
+    startLabel: str.optional().default('STARTS IN'),
+    endLabel: str.optional().default('ENDS IN'),
+    start: str,
+    end: str,
+  }),
+
+  // An ordered pipeline drawn as cards with arrows between — the journey
+  // of food. Deliberately NOT `numbers`: that renders an <ol>, and the
+  // point here is that each step FEEDS the next, which a bare list does
+  // not say. `note` is the trailing half of a step ("— teeth chew").
+  flow: z.object({
+    id: str.optional(),
+    type: z.literal('flow'),
+    steps: z.array(z.object({ text: str, note: str.optional().default('') })).min(2),
+  }),
+
+  // Tap-to-explore grid (the spec's `tapExplore`): a card per item, and
+  // tapping one opens a sheet with a real picture and what it does.
+  // `parts` is the optional extra paragraph the small and large
+  // intestines carry ("2 parts: ① Duodenum … ② Ileum …").
+  tapexplore: z.object({
+    id: str.optional(),
+    type: z.literal('tapexplore'),
+    prompt: str.optional().default(''),
+    items: z.array(z.object({
+      key: str.optional().default(''),
+      name: str,
+      url: str.optional().default(''),
+      role: str,
+      parts: str.optional().default(''),
+    })).min(2),
+  }),
 }
 
 export const studyBlockSchema = z.discriminatedUnion(

@@ -104,172 +104,468 @@
       "grade": "7",
       "blocks": [
         {
-          "type": "objectives",
-          "items": [
-            "Describe digestion.",
-            "Identify the organs of the digestive system.",
-            "Identify where digested food is absorbed.",
-            "Explain what happens to undigested food."
+          "id": "gl",
+          "type": "glossary",
+          "entries": [
+            {
+              "word": "digestion",
+              "meaning": "Breaking food into tiny bits 🍽️",
+              "how": "The body turns food into nutrients small enough to pass into the blood.",
+              "examples": [
+                "**Digestion** starts in the mouth when you chew."
+              ]
+            },
+            {
+              "word": "alimentary canal",
+              "meaning": "The food tube 🚇",
+              "how": "The whole tube from the mouth to the anus that food travels through.",
+              "examples": [
+                "The **alimentary canal** runs from the mouth to the anus."
+              ]
+            },
+            {
+              "word": "gut",
+              "meaning": "Another name for the food tube",
+              "how": "An everyday word for the alimentary canal.",
+              "examples": [
+                "Food passes along the **gut**."
+              ]
+            },
+            {
+              "word": "nutrients",
+              "meaning": "The goodness in food ⚡",
+              "how": "The useful parts your cells take in for energy and growth.",
+              "examples": [
+                "The small intestine absorbs **nutrients** into the blood."
+              ]
+            },
+            {
+              "word": "helper organs",
+              "meaning": "Organs that help but food never enters 🤝",
+              "how": "They make juices that help digestion, but food does not pass through them.",
+              "examples": [
+                "The liver and pancreas are **helper organs**."
+              ]
+            },
+            {
+              "word": "ingestion",
+              "meaning": "Taking food into the mouth",
+              "how": "The very first step of digestion.",
+              "examples": [
+                "**Ingestion** happens when you put food in your mouth."
+              ]
+            },
+            {
+              "word": "gastric juice",
+              "meaning": "Stomach juice",
+              "how": "It breaks down proteins in the stomach.",
+              "examples": [
+                "**Gastric juice** breaks down the proteins in meat."
+              ]
+            },
+            {
+              "word": "bile",
+              "meaning": "A juice that breaks down fats",
+              "how": "Made by the liver and stored in the gall bladder.",
+              "examples": [
+                "**Bile** breaks down fats and oils."
+              ]
+            },
+            {
+              "word": "egestion",
+              "meaning": "Getting rid of the waste",
+              "how": "Releasing faeces through the anus.",
+              "examples": [
+                "**Egestion** removes what the body could not digest."
+              ]
+            }
           ]
         },
         {
-          "type": "think",
-          "lines": [
-            "What happens to the food you eat after you swallow it?",
-            "Why can't the body use food without changing it first?"
-          ]
-        },
-        {
+          "id": "p1",
           "type": "paragraph",
-          "text": "We eat food so that our bodies can stay healthy and strong, but food cannot help the body directly — it first has to be broken down. **Digestion** is the chemical breaking down of food into simple substances the body can absorb. It takes place in the **digestive system** (also called the alimentary canal or gut), a long tube from the mouth to the anus."
+          "text": "[[digestion]] is the breaking down of food into tiny **nutrients** that your body cells can use for energy and growth."
         },
         {
+          "id": "p2",
+          "type": "paragraph",
+          "text": "The digestive system is also called the [[alimentary canal]] or [[gut]]. It runs all the way from the **mouth** to the **anus**."
+        },
+        {
+          "id": "img1",
+          "type": "image",
+          "url": "/notes/g7-sci-1-1-body.jpg",
+          "caption": "👆 The food’s journey — top to bottom"
+        },
+        {
+          "id": "se1",
+          "type": "startend",
+          "start": "👄 Mouth",
+          "end": "🌀 Small intestine"
+        },
+        {
+          "id": "p3",
+          "type": "paragraph",
+          "text": "Digestion **starts** in the mouth (chewing) and is **completed** in the small intestine, where the nutrients are taken into the blood. The large intestine after it only takes back **water** — the food is already digested by then."
+        },
+        {
+          "id": "t1",
+          "type": "tip",
+          "lines": [
+            "**Tap any organ below** to see a real picture and find out what it does! 🔍"
+          ]
+        },
+        {
+          "id": "h1",
+          "type": "heading",
+          "level": 2,
+          "text": "The organs of digestion"
+        },
+        {
+          "id": "kp1",
+          "type": "keypoints",
+          "items": [
+            "The food tube: mouth → gullet → stomach → small intestine → large intestine → anus"
+          ]
+        },
+        {
+          "id": "te1",
+          "type": "tapexplore",
+          "items": [
+            {
+              "key": "mouth",
+              "name": "Mouth (teeth & tongue)",
+              "url": "/notes/g7-sci-1-1-mouth.jpg",
+              "role": "Putting food in the mouth is called ingestion. Teeth mash the food, the tongue rolls and turns it, and starch is broken down into glucose. Digestion STARTS here!"
+            },
+            {
+              "key": "esophagus",
+              "name": "Gullet (Esophagus)",
+              "url": "/notes/g7-sci-1-1-esophagus.jpg",
+              "role": "A muscular tube (the gullet) that pushes the swallowed food down from the mouth into the stomach."
+            },
+            {
+              "key": "stomach",
+              "name": "Stomach",
+              "url": "/notes/g7-sci-1-1-stomach.jpg",
+              "role": "Food mixes with gastric juices that break down proteins. Hydrochloric acid is also made here to kill germs in the food."
+            },
+            {
+              "key": "liver",
+              "name": "Liver",
+              "url": "/notes/g7-sci-1-1-liver.jpg",
+              "role": "Produces bile juice, which breaks down fats and oils. The bile is then stored in the gall bladder."
+            },
+            {
+              "key": "gallbladder",
+              "name": "Gall bladder",
+              "url": "/notes/g7-sci-1-1-gallbladder.jpg",
+              "role": "A small green bag that stores the bile juice made by the liver until it is needed for digestion."
+            },
+            {
+              "key": "pancreas",
+              "name": "Pancreas",
+              "url": "/notes/g7-sci-1-1-pancreas.jpg",
+              "role": "Makes pancreatic juice and releases it into the small intestine to break down proteins and carbohydrates."
+            },
+            {
+              "key": "small",
+              "name": "Small intestine",
+              "url": "/notes/g7-sci-1-1-small-intestine.jpg",
+              "role": "A long, coiled tube where nutrients from food are absorbed into the blood.",
+              "parts": "2 parts: ① Duodenum — food mixes with bile & pancreatic juice; ② Ileum — digested food is absorbed into the bloodstream."
+            },
+            {
+              "key": "large",
+              "name": "Large intestine",
+              "url": "/notes/g7-sci-1-1-large-intestine.jpg",
+              "role": "Absorbs water and minerals from the undigested food, then stores the waste until it leaves the body.",
+              "parts": "2 parts: ① Colon — absorbs water & minerals; ② Rectum — stores the waste (faeces) until it leaves through the anus."
+            }
+          ]
+        },
+        {
+          "id": "h2",
+          "type": "heading",
+          "level": 2,
+          "text": "Helper organs 🤝"
+        },
+        {
+          "id": "p4",
+          "type": "paragraph",
+          "text": "Some organs are **not part of the food tube** — food never passes through them — but they still help digestion by making special juices. We call them [[helper organs]]."
+        },
+        {
+          "id": "kt1",
           "type": "keyterms",
           "rows": [
             {
-              "term": "Digestion",
-              "def": "The chemical break-down of food into simple substances the body can absorb."
+              "term": "Salivary glands",
+              "def": "make saliva in the mouth"
             },
             {
-              "term": "Ingestion",
-              "def": "Taking food into the mouth."
+              "term": "Liver",
+              "def": "makes bile to break down fats"
             },
             {
-              "term": "Absorption",
-              "def": "Passing of digested food into the bloodstream."
+              "term": "Gall bladder",
+              "def": "stores the bile until it is needed"
             },
             {
-              "term": "Egestion (voiding)",
-              "def": "Removing undigested food as faeces through the anus."
-            },
-            {
-              "term": "Alimentary canal",
-              "def": "The long tube from the mouth to the anus where digestion happens."
+              "term": "Pancreas",
+              "def": "makes juices (enzymes) for the small intestine"
             }
           ]
         },
         {
-          "type": "heading",
-          "level": 3,
-          "text": "Organs of the alimentary canal and what they do"
-        },
-        {
-          "type": "table",
-          "headers": [
-            "Organ",
-            "What happens there"
-          ],
-          "rows": [
-            {
-              "cells": [
-                "Mouth",
-                "Teeth mash food; the tongue rolls it for swallowing. Starch begins to be broken into glucose."
-              ]
-            },
-            {
-              "cells": [
-                "Oesophagus (gullet)",
-                "Carries swallowed food to the stomach. No digestion here."
-              ]
-            },
-            {
-              "cells": [
-                "Stomach",
-                "Gastric juices begin to break down proteins; hydrochloric acid kills germs."
-              ]
-            },
-            {
-              "cells": [
-                "Small intestine",
-                "Made of the duodenum and ileum. Digestion is completed and food is absorbed into the blood."
-              ]
-            },
-            {
-              "cells": [
-                "Large intestine",
-                "Made of the colon and rectum. Water and mineral salts are absorbed; the rectum stores faeces."
-              ]
-            },
-            {
-              "cells": [
-                "Anus",
-                "Undigested food (faeces) leaves the body here — egestion."
-              ]
-            }
-          ]
-        },
-        {
-          "type": "heading",
-          "level": 3,
-          "text": "Helper organs (make juices but food does not pass through them)"
-        },
-        {
-          "type": "bullets",
-          "items": [
-            "**Liver** — produces bile, which breaks down fats and oils. Bile is stored in the gall bladder.",
-            "**Pancreas** — produces pancreatic juice that further breaks down proteins and carbohydrates."
-          ]
-        },
-        {
-          "type": "heading",
-          "level": 3,
-          "text": "Diagram of the digestive system"
-        },
-        {
-          "type": "image",
-          "url": "/notes/q_digestive_system.png",
-          "caption": "The human digestive system (labelled A–H)"
-        },
-        {
+          "id": "n1",
           "type": "note",
           "lines": [
-            "Path of food: Mouth → Oesophagus → Stomach → Small intestine → Large intestine → Anus.",
-            "Undigested food (mostly fibre) is stored in the rectum, then removed through the anus as faeces."
+            "The food tube itself is: mouth → gullet → stomach → small intestine → large intestine → anus."
           ]
         },
         {
+          "id": "h3",
+          "type": "heading",
+          "level": 2,
+          "text": "The journey of food"
+        },
+        {
+          "id": "fl1",
+          "type": "flow",
+          "steps": [
+            {
+              "text": "Mouth",
+              "note": "teeth chew, saliva softens"
+            },
+            {
+              "text": "Esophagus",
+              "note": "pushes food down to the stomach"
+            },
+            {
+              "text": "Stomach",
+              "note": "churns food into a paste"
+            },
+            {
+              "text": "Small intestine",
+              "note": "digestion completed; food absorbed into blood"
+            },
+            {
+              "text": "Large intestine",
+              "note": "water & minerals absorbed"
+            },
+            {
+              "text": "Undigested food",
+              "note": "leaves the body as waste"
+            }
+          ]
+        },
+        {
+          "id": "t2",
           "type": "tip",
           "lines": [
-            "Remember the order of the gut with a sentence you invent, e.g. 'My Old Stomach Slowly Lets Air' = Mouth, Oesophagus, Stomach, Small intestine, Large intestine, Anus.",
-            "Be ready to point to the stomach, small intestine and liver on a diagram."
+            "**Remember the two jobs:** the **small** intestine grabs the **nutrients**; the **large** intestine grabs the **water**."
           ]
         },
         {
-          "type": "quickcheck",
-          "q": "Where does the digestion of starch begin?",
-          "a": "In the mouth.",
-          "level": "Easy"
+          "id": "h4",
+          "type": "heading",
+          "level": 2,
+          "text": "Label the diagram ✏️"
         },
         {
-          "type": "quickcheck",
-          "q": "In which organ is digestion completed and food absorbed?",
-          "a": "The small intestine.",
-          "level": "Medium"
-        },
-        {
-          "type": "mistake",
-          "wrong": "Food is absorbed in the stomach.",
-          "correct": "Most digested food is absorbed in the small intestine."
-        },
-        {
-          "type": "exam",
-          "q": "State where the digestion of proteins begins.",
-          "a": "Proteins are first digested in the stomach, where gastric juices act on them."
-        },
-        {
-          "type": "summary",
+          "id": "ld1",
+          "type": "labeldiagram",
+          "url": "/notes/g7-sci-1-1-label.jpg",
+          "alt": "The digestive system, unlabelled",
+          "instructions": "Drag each word onto the right box — or tap a word, then tap a box. Just like the exam!",
           "items": [
-            "Digestion breaks food into substances the body can absorb.",
-            "Starch digestion begins in the mouth; protein digestion begins in the stomach.",
-            "Food is absorbed in the small intestine; water in the large intestine.",
-            "The liver makes bile (stored in the gall bladder); the pancreas makes pancreatic juice."
+            {
+              "key": "mouth",
+              "label": "Mouth",
+              "x": 0.187,
+              "y": 0.188
+            },
+            {
+              "key": "saliv",
+              "label": "Salivary glands",
+              "x": 0.796,
+              "y": 0.179
+            },
+            {
+              "key": "oeso",
+              "label": "Oesophagus",
+              "x": 0.844,
+              "y": 0.352
+            },
+            {
+              "key": "liver",
+              "label": "Liver",
+              "x": 0.143,
+              "y": 0.489
+            },
+            {
+              "key": "stomach",
+              "label": "Stomach",
+              "x": 0.845,
+              "y": 0.53
+            },
+            {
+              "key": "gall",
+              "label": "Gall bladder",
+              "x": 0.143,
+              "y": 0.594
+            },
+            {
+              "key": "pancreas",
+              "label": "Pancreas",
+              "x": 0.845,
+              "y": 0.591
+            },
+            {
+              "key": "large",
+              "label": "Large intestine",
+              "x": 0.131,
+              "y": 0.726
+            },
+            {
+              "key": "small",
+              "label": "Small intestine",
+              "x": 0.841,
+              "y": 0.733
+            },
+            {
+              "key": "rectum",
+              "label": "Rectum",
+              "x": 0.848,
+              "y": 0.849
+            },
+            {
+              "key": "anus",
+              "label": "Anus",
+              "x": 0.846,
+              "y": 0.913
+            }
           ]
         },
         {
+          "id": "h5",
+          "type": "heading",
+          "level": 2,
+          "text": "Words to know 📖"
+        },
+        {
+          "id": "kt2",
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Ingestion",
+              "def": "taking food into the mouth"
+            },
+            {
+              "term": "Gastric juice",
+              "def": "stomach juice that breaks down proteins"
+            },
+            {
+              "term": "Bile juice",
+              "def": "from the liver; breaks down fats & oils"
+            },
+            {
+              "term": "Egestion",
+              "def": "releasing faeces through the anus (voiding)"
+            }
+          ]
+        },
+        {
+          "id": "sc1",
+          "type": "sectioncheck",
+          "q": "Which organ absorbs the nutrients from food?",
+          "options": [
+            {
+              "text": "Stomach",
+              "correct": false
+            },
+            {
+              "text": "Small intestine",
+              "correct": true
+            },
+            {
+              "text": "Liver",
+              "correct": false
+            }
+          ],
+          "remediation": {
+            "explain": "The **small intestine** is a long coiled tube. As food passes through it slowly, the **nutrients** soak into the blood. The **large** intestine comes after, and it takes the **water**.",
+            "example": "Small intestine → nutrients. Large intestine → water.",
+            "retryQ": "Try again: The large intestine mainly absorbs ……",
+            "retryOptions": [
+              {
+                "text": "water & minerals",
+                "correct": true
+              },
+              {
+                "text": "nutrients",
+                "correct": false
+              },
+              {
+                "text": "air",
+                "correct": false
+              }
+            ],
+            "retryHint": "Hint: the nutrients were already taken by the small intestine."
+          }
+        },
+        {
+          "id": "sc2",
+          "type": "sectioncheck",
+          "q": "Which of these is a HELPER organ (food does not pass through it)?",
+          "options": [
+            {
+              "text": "Stomach",
+              "correct": false
+            },
+            {
+              "text": "Liver",
+              "correct": true
+            },
+            {
+              "text": "Gullet",
+              "correct": false
+            }
+          ],
+          "remediation": {
+            "explain": "Food travels **through** the stomach and gullet — they are part of the food tube. But it never passes through the **liver**; the liver just sends in **bile** to help. That makes it a helper organ.",
+            "example": "Helper organs: salivary glands, liver, gall bladder, pancreas.",
+            "retryQ": "Try again: The pancreas is a helper organ because it ……",
+            "retryOptions": [
+              {
+                "text": "makes juices to help",
+                "correct": true
+              },
+              {
+                "text": "food passes through it",
+                "correct": false
+              },
+              {
+                "text": "stores faeces",
+                "correct": false
+              }
+            ],
+            "retryHint": "Hint: a helper organ sends juices IN; food stays in the tube."
+          }
+        },
+        {
+          "id": "qz1",
           "type": "quiz",
           "quizKey": "1.1 The Digestive System",
           "quizTitle": "1.1 The Digestive System — Practice Quiz",
           "questionCount": 12
+        },
+        {
+          "id": "ex1",
+          "type": "exam",
+          "q": "The digestive system is asked about in almost every Grade 7 Integrated Science paper — usually as a labelled diagram.",
+          "a": "Learn the order of the tube and which organ absorbs what, and those marks are yours."
         }
       ]
     },
