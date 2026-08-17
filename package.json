@@ -847,6 +847,7 @@
     "test:planned-term-source": "node src/features/lessonPlanStudio/lib/plannedTermSource.test.js",
     "test:ask-zed-core": "node scripts/test-ask-zed-core.mjs",
     "test:guardian-controls": "node scripts/test-guardian-controls.mjs",
+    "test:duel-access": "node src/features/games/lib/duelAccess.test.js",
     "test:grade-subjects": "node scripts/test-grade-subjects.mjs",
     "test:setup-wizard": "node scripts/test-setup-wizard.mjs",
     "test:grade-term-plan": "node scripts/test-grade-term-plan.mjs"
