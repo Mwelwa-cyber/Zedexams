@@ -1,0 +1,108 @@
+/**
+ * My Progress + Study Plan chrome, scoped under `.lhx`.
+ * Every colour is a learner token, so Night mode is the single flip at
+ * the top of learnerTheme.css rather than a second set of rules here.
+ */
+
+/* ── Readiness hero ───────────────────────────────────────────────── */
+.lhx-prog-hero {
+  display: flex; align-items: center; gap: 14px;
+  background: linear-gradient(135deg, var(--lhx-indigo1), var(--lhx-indigo2));
+  border-radius: var(--lhx-radius-lg); padding: 16px;
+  margin-bottom: 18px; color: #fff;
+}
+.lhx-prog-ring {
+  width: 74px; height: 74px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.lhx-prog-ring b {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: var(--lhx-indigo2); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 900;
+}
+.lhx-prog-h1 { font-size: 16px; font-weight: 900; }
+.lhx-prog-h2 { font-size: 12.5px; font-weight: 700; opacity: 0.92; margin-top: 3px; line-height: 1.5; }
+
+/* ── Week chart ───────────────────────────────────────────────────── */
+.lhx-wk-bars {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 6px; height: 96px; margin: 0 0 8px; padding: 0; list-style: none;
+}
+.lhx-wk-bar {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: flex-end; height: 100%; gap: 6px;
+}
+.lhx-wk-fill {
+  width: 100%; border-radius: 8px; min-height: 2px;
+  background: var(--lhx-indigo-soft);
+}
+.lhx-wk-bar.is-today .lhx-wk-fill { background: linear-gradient(180deg, var(--lhx-indigo1), var(--lhx-indigo2)); }
+.lhx-wk-day { font-size: 11px; font-weight: 800; color: var(--lhx-muted); }
+.lhx-wk-cap { text-align: center; font-size: 12px; color: var(--lhx-muted); font-weight: 700; margin: 0; }
+
+/* ── Subject mastery rows ─────────────────────────────────────────── */
+.lhx-gz-subj {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid var(--lhx-line);
+}
+.lhx-gz-subj:last-child { border-bottom: none; }
+.lhx-gz-ic {
+  width: 34px; height: 34px; border-radius: 11px; flex-shrink: 0;
+  background: var(--lhx-indigo-soft); color: var(--lhx-indigo-text);
+  display: flex; align-items: center; justify-content: center;
+}
+.lhx-gz-lab { font-size: 13px; font-weight: 800; color: var(--lhx-ink); flex: 1; min-width: 0; }
+.lhx-gz-bar { width: 78px; height: 8px; border-radius: 99px; background: var(--lhx-line); overflow: hidden; flex-shrink: 0; }
+.lhx-gz-bar i { display: block; height: 100%; border-radius: 99px; background: var(--lhx-green); }
+.lhx-gz-pct { font-size: 12px; font-weight: 900; color: var(--lhx-muted); width: 34px; text-align: right; }
+
+/* ── Weak-topic chips ─────────────────────────────────────────────── */
+.lhx-weak-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.lhx-weak-chip {
+  background: var(--lhx-coral-soft); color: var(--lhx-coral-soft-text);
+  border-radius: 99px; padding: 6px 12px; font-size: 12.5px; font-weight: 800;
+}
+
+/* ── Study plan ───────────────────────────────────────────────────── */
+.lhx-sp-hero {
+  background: linear-gradient(135deg, var(--lhx-coral1), var(--lhx-coral2));
+  border-radius: var(--lhx-radius-lg); padding: 18px; color: #fff;
+  margin-bottom: 18px; text-align: center;
+}
+.lhx-sp-hero-label { font-size: 10.5px; font-weight: 900; letter-spacing: 1px; opacity: 0.9; }
+.lhx-sp-hero-days { font-size: 26px; font-weight: 900; margin: 2px 0; }
+.lhx-sp-hero-sub { font-size: 12.5px; font-weight: 700; opacity: 0.92; line-height: 1.5; }
+
+.lhx-sp-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.lhx-sp-topic { display: flex; align-items: center; gap: 11px; padding: 12px 14px; }
+.lhx-sp-ic {
+  width: 38px; height: 38px; border-radius: 12px; flex-shrink: 0; font-size: 18px;
+  background: var(--lhx-coral-soft);
+  display: flex; align-items: center; justify-content: center;
+}
+.lhx-sp-txt { flex: 1; min-width: 0; }
+.lhx-sp-txt b { display: block; font-size: 14px; font-weight: 900; color: var(--lhx-ink); }
+.lhx-sp-txt small { display: block; font-size: 11.5px; font-weight: 700; color: var(--lhx-muted); margin-top: 1px; }
+.lhx-sp-practise {
+  flex-shrink: 0; border: none; border-radius: 99px; padding: 8px 15px;
+  background: linear-gradient(135deg, var(--lhx-indigo1), var(--lhx-indigo2));
+  color: #fff; font-family: inherit; font-size: 12.5px; font-weight: 900; cursor: pointer;
+}
+
+.lhx-sp-checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.lhx-sp-check {
+  width: 100%; display: flex; align-items: center; gap: 11px;
+  background: var(--lhx-card); border: none; border-radius: var(--lhx-radius-md);
+  padding: 13px 15px; box-shadow: var(--lhx-shadow-sm);
+  font-family: inherit; text-align: left; cursor: pointer;
+}
+.lhx-sp-box {
+  width: 22px; height: 22px; border-radius: 7px; flex-shrink: 0;
+  border: 2px solid var(--lhx-line); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 900;
+}
+.lhx-sp-check.is-done .lhx-sp-box { background: var(--lhx-green); border-color: var(--lhx-green); }
+.lhx-sp-lbl { font-size: 13.5px; font-weight: 800; color: var(--lhx-ink); }
+.lhx-sp-check.is-done .lhx-sp-lbl { color: var(--lhx-muted); text-decoration: line-through; }

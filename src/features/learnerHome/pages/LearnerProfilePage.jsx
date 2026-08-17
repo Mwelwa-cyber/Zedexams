@@ -161,6 +161,16 @@ export default function LearnerProfilePage() {
       </section>
 
       <div>
+        {/* My Progress is reached from Profile, as the mockup puts it. */}
+        <button
+          type="button"
+          className="lhx-btn lhx-btn-block"
+          style={{ background: 'var(--lhx-card)', color: 'var(--lhx-indigo-text)', boxShadow: 'var(--lhx-shadow)' }}
+          onClick={() => navigate('/progress')}
+        >
+          📈&nbsp; My Progress
+        </button>
+        <div style={{ height: 10 }} />
         <button
           type="button"
           className="lhx-btn lhx-btn-block"

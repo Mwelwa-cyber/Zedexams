@@ -852,6 +852,7 @@
     "test:grade-subjects": "node scripts/test-grade-subjects.mjs",
     "test:setup-wizard": "node scripts/test-setup-wizard.mjs",
     "test:grade-term-plan": "node scripts/test-grade-term-plan.mjs",
+    "test:progress-core": "node scripts/test-progress-core.mjs",
     "test:term-division": "node scripts/test-term-division.mjs"
   },
   "lint-staged": {
