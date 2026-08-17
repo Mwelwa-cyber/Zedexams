@@ -17,6 +17,7 @@
  *     routes in lib/askZedCore.js. Notably the pill DOES stay visible in
  *     the note reader, where it pairs with the inline "Stuck? Ask Zed
  *     about this" pill.
+ *   - When the learner has turned Ask Zed off in Settings.
  */
 
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -27,12 +28,15 @@ import '../askZed.css'
 const ZED_ART = '/images/characters/poses/zed-waving.webp'
 
 export default function ZedChatLauncher() {
-  const { currentUser } = useAuth()
+  const { currentUser, userProfile } = useAuth()
   const { pathname } = useLocation()
   const navigate = useNavigate()
 
   if (!currentUser) return null
   if (shouldHideFab(pathname)) return null
+  // Settings → Learning → "Ask Zed". Off means the helper's entry points
+  // are gone, so the switch does something real.
+  if (userProfile?.learnerSettings?.zedAi?.enabled === false) return null
 
   return (
     <button
