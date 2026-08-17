@@ -10,7 +10,16 @@
  */
 
 // Block types that only exist in the reader engine's vocabulary.
-export const READER_BLOCK_TYPES = ['keypoints', 'glossary', 'practice', 'sectioncheck', 'labeldiagram']
+// `tapexplore`, `flow` and `startend` joined when the Digestive System
+// note was authored to the mockup's depth. They belong here for the same
+// reason the others do: a note carrying one could not have come from the
+// old flat authoring path, so its presence is proof the note is a reader
+// note. All three are CONTENT rather than practice, so mode visibility
+// leaves them in both Learn and Revise.
+export const READER_BLOCK_TYPES = [
+  'keypoints', 'glossary', 'practice', 'sectioncheck', 'labeldiagram',
+  'tapexplore', 'flow', 'startend',
+]
 
 /** True when a study note should render through the new ReaderEngine. */
 export function isReaderNote(blocks) {
