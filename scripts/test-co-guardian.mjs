@@ -95,7 +95,12 @@ t('the invite says what it grants AND what it withholds', () => {
   assert.match(mail.text, /does NOT give you billing/)
   assert.match(mail.text, /delete the account/)
   assert.match(mail.text, /7 days/)
-  assert.match(mail.text, /https:\/\/zedexams\.com\/family\/accept\?t=xyz/)
+  // Containment, not a pattern — see the note in test-parent-app.mjs. An
+  // unanchored URL regex reads as a host check that anything can prefix.
+  assert.ok(
+    mail.text.includes('https://zedexams.com/family/accept?t=xyz'),
+    'the invite must carry the accept link, token and all',
+  )
   // An unexpected recipient is told nothing happens until they act.
   assert.match(mail.text, /Nothing\s+happens until you accept/)
 })

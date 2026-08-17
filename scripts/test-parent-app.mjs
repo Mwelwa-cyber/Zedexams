@@ -280,7 +280,15 @@ t('the email says where its claims come from, and offers a way out', () => {
   assert.match(mail.text, /built from Milton's own quizzes/)
   assert.match(mail.text, /We do not measure time spent in the app/)
   assert.match(mail.text, /To stop these emails/)
-  assert.match(mail.text, /https:\/\/zedexams\.com\/family/)
+  // A plain containment check, NOT a regex. An unanchored URL pattern is the
+  // shape of a broken host check — `/zedexams\.com/` matches
+  // `https://evil.example/?x=zedexams.com` — and CodeQL rightly flags it
+  // wherever it appears, because a reader cannot tell an assertion from a
+  // sanitiser at a glance. `includes` says what this actually wants.
+  assert.ok(
+    mail.text.includes('https://zedexams.com/family'),
+    'the email must link to the family dashboard',
+  )
 })
 
 t('the email never claims a figure we do not hold', () => {
