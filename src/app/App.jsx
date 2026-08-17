@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useAuth, hasAuthSessionHint } from '../contexts/AuthContext'
 import { useTheme, applyThemeToBody, DEFAULT_THEME } from '../contexts/ThemeContext'
 import { getTeacherTheme } from '../contexts/teacherThemeCore'
@@ -84,6 +84,7 @@ const LearnerHomePage = lazy(() => import('../features/learnerHome/pages/Learner
 const LearnerSubjectPage = lazy(() => import('../features/learnerHome/pages/LearnerSubjectPage'))
 const LearnerNotificationsPage = lazy(() => import('../features/notifications/pages/LearnerNotificationsPage'))
 const LearnerProfilePage = lazy(() => import('../features/learnerHome/pages/LearnerProfilePage'))
+const LearnerSettingsPage = lazy(() => import('../features/learnerHome/pages/LearnerSettingsPage'))
 const ProfilePage = lazy(() => import('../features/learnerDashboard/pages/ProfilePage'))
 
 /**
@@ -333,6 +334,8 @@ function RootRedirect() {
 // admins must stay on the admin tab set.
 function SettingsPage() {
   const { userProfile, isAdmin, isTeacher } = useAuth()
+  const [searchParams] = useSearchParams()
+  const learnerSettingsSection = searchParams.get('section')
   const role = isAdmin ? 'admin' : (isTeacher ? 'teacher' : (userProfile?.role || 'learner'))
   if (role === 'teacher') {
     return (
@@ -341,15 +344,23 @@ function SettingsPage() {
       </TeacherLayout>
     )
   }
-  // Learners get the redesigned, mobile-first Learner Settings experience;
-  // admins keep the shared account-preferences page under the global Navbar.
+  // Learners land on the prototype-v7 Settings screen (step 11) inside
+  // the learner shell — grouped switch rows, the mockup's five groups.
+  // Its tap-through rows deep-link the DETAIL panels of the older
+  // settings dashboard (?section=account | learning | help), so every
+  // editor those panels own stays reachable and unchanged; the presence
+  // of ?section is what selects between the two. Admins keep the shared
+  // account-preferences page under the global Navbar.
   if (role === 'learner') {
-    return (
-      <>
-        <Navbar />
-        <LearnerSettings />
-      </>
-    )
+    if (learnerSettingsSection) {
+      return (
+        <>
+          <Navbar />
+          <LearnerSettings />
+        </>
+      )
+    }
+    return <LearnerSettingsPage />
   }
   return (
     <>

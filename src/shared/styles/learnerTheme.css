@@ -932,6 +932,35 @@ button.lhx-tt-altpill { cursor: pointer; }
   background: #fdf7ec; border-radius: var(--lhx-radius-sm);
   padding: 11px 13px; font-size: 12.5px; font-weight: 700; color: var(--lhx-ink); line-height: 1.5;
 }
+/* ── Settings rows (prototype .set-head / .set-group / .set-row) ── */
+
+.lhx-set-head {
+  font-size: 12px; font-weight: 900; color: var(--lhx-muted);
+  letter-spacing: 0.05em; text-transform: uppercase; margin: 6px 4px 8px;
+}
+.lhx-set-group {
+  background: var(--lhx-card); border-radius: var(--lhx-radius-md);
+  box-shadow: var(--lhx-shadow); margin-bottom: 16px; overflow: hidden;
+}
+.lhx-set-row {
+  display: flex; align-items: center; gap: 13px; width: 100%;
+  padding: 14px 15px; text-align: left; color: var(--lhx-ink);
+}
+.lhx-set-row + .lhx-set-row { border-top: 1px solid var(--lhx-line); }
+.lhx-set-tap { cursor: pointer; }
+.lhx-set-ic {
+  width: 36px; height: 36px; border-radius: 11px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 17px;
+  background: var(--lhx-indigo-soft);
+}
+.lhx-set-txt { flex: 1; min-width: 0; }
+.lhx-set-title { display: block; font-weight: 800; font-size: 14px; }
+.lhx-set-desc { display: block; font-size: 11.5px; color: var(--lhx-muted); font-weight: 700; margin-top: 1px; line-height: 1.35; }
+.lhx-set-val { font-size: 12.5px; color: var(--lhx-muted); font-weight: 800; flex-shrink: 0; }
+.lhx-set-chev { color: var(--lhx-faint); font-size: 18px; font-weight: 900; flex-shrink: 0; }
+.lhx-set-danger .lhx-set-title { color: var(--lhx-red); }
+.lhx-set-footer { text-align: center; font-size: 11.5px; color: var(--lhx-muted); font-weight: 700; padding: 4px 0 24px; }
+
 .lhx-switch {
   position: relative; width: 46px; height: 28px; border-radius: 999px; flex-shrink: 0;
   background: #d5daf5; transition: background 0.15s var(--lhx-ease);
@@ -942,6 +971,8 @@ button.lhx-tt-altpill { cursor: pointer; }
 }
 .lhx-switch[aria-checked='true'] { background: var(--lhx-green); }
 .lhx-switch[aria-checked='true']::after { transform: translateX(18px); }
+/* A guardian-locked switch reads as fixed, not as broken. */
+.lhx-switch:disabled { opacity: 0.55; cursor: not-allowed; }
 .lhx-pick {
   display: inline-flex; align-items: center; border-radius: 999px; padding: 8px 14px;
   font-size: 12px; font-weight: 900; background: var(--lhx-indigo-soft); color: var(--lhx-indigo-text);

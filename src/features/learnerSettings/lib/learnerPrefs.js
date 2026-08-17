@@ -190,6 +190,10 @@ export function normalizeLearningPrefs(input) {
   return {
     // Original three (kept for backwards compatibility with the old page).
     soundEffects: bool(p.soundEffects, dflt(true)),
+    // The learner's own Ask Zed switch (prototype-v7 Settings → Learning).
+    // A guardian's `guardianControls.askZed === false` overrides it; see
+    // features/learnerHome/lib/guardianControlsCore.js.
+    askZed: bool(p.askZed, dflt(true)),
     showHints: bool(p.showHints, dflt(true)),
     autoplayLessons: bool(p.autoplayLessons, dflt(false)),
     // Extended set.
