@@ -162,6 +162,10 @@
   .lhx-page { max-width: 780px; padding-top: 22px; padding-bottom: 60px; }
   .lhx-cols { display: block; columns: 2; column-gap: 24px; }
   .lhx-colitem { break-inside: avoid; margin-bottom: 20px; }
+  /* The mockup's desktop reflow: Explore four-up, subjects two-up. */
+  .lhx-explore { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .lhx-tile { padding: 22px 10px 18px; }
+  .lhx-subjects { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (min-width: 1400px) {
   .lhx-page { max-width: 820px; }
@@ -170,6 +174,19 @@
 .lhx-section { display: flex; flex-direction: column; gap: 12px; }
 .lhx-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .lhx-section-title { font-size: 17px; font-weight: 900; letter-spacing: -0.01em; color: var(--lhx-ink); }
+.lhx-see-all { font-size: 12.5px; font-weight: 800; color: var(--lhx-link); flex-shrink: 0; }
+
+/* The prototype's coral Play pill. It lives here rather than in
+   gamesProto.css because Home's Today's Quiz card carries one and that
+   stylesheet only loads on /games. */
+.lhx-play-pill {
+  background: linear-gradient(135deg, var(--lhx-coral1), var(--lhx-coral2));
+  color: #fff; font-weight: 900;
+  border-radius: 14px; padding: 11px 22px; font-size: 14px;
+  box-shadow: 0 4px 0 var(--lhx-coral-shadow);
+  position: relative; z-index: 2; flex-shrink: 0;
+}
+.lhx-play-pill:active { transform: scale(0.96); }
 .lhx-view-all {
   display: inline-flex; align-items: center; gap: 4px;
   font-size: 12.5px; font-weight: 800; color: var(--lhx-link);
@@ -240,11 +257,6 @@
   box-shadow: var(--lhx-shadow-sm);
 }
 .lhx-chip-row { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
-.lhx-chip-exam {
-  background: linear-gradient(135deg, var(--lhx-coral1), var(--lhx-coral2));
-  color: #fff; cursor: pointer;
-  box-shadow: 0 4px 12px rgba(224, 79, 34, 0.34);
-}
 
 /* ── Topbar (prototype glass .topbar) ──────────────────────────── */
 
@@ -383,55 +395,105 @@
 /* ── Continue Learning ─────────────────────────────────────────── */
 
 .lhx-continue { display: flex; flex-direction: column; gap: 12px; }
-.lhx-continue-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .lhx-kicker { font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; color: var(--lhx-muted); }
-.lhx-continue-subject { font-size: 18px; font-weight: 900; color: var(--lhx-green-dark); margin-top: 4px; }
-.lhx-continue-topic { font-size: 14.5px; font-weight: 700; color: var(--lhx-ink); margin-top: 2px; }
+
+/* The prototype .continue-card: a sun-flare gradient with the two
+   floating emoji. Both flares are drawn on ::before/::after behind the
+   content (isolation + z-index: -1), so no text sits on a raw gradient
+   stop. */
+.lhx-continue-hero {
+  position: relative; overflow: hidden; isolation: isolate;
+  border-radius: 28px; padding: 22px; color: #fff;
+  background: linear-gradient(140deg, #7c8bf5 0%, #5b63dd 55%, var(--lhx-indigo-deep) 100%);
+  box-shadow: 0 14px 30px rgba(81, 88, 208, 0.4);
+}
+.lhx-continue-hero::before {
+  content: ''; position: absolute; z-index: -1;
+  right: -55px; top: -55px; width: 190px; height: 190px;
+  background: radial-gradient(circle, #ffd25f 0%, #ffb43a 70%);
+  border-radius: 50%; opacity: 0.9;
+}
+.lhx-continue-hero::after {
+  content: ''; position: absolute; z-index: -1;
+  left: -30px; bottom: -50px; width: 120px; height: 120px;
+  background: rgba(255, 255, 255, 0.1); border-radius: 50%;
+}
+.lhx-cc-emoji { position: absolute; right: 14px; top: 14px; font-size: 44px; transform: rotate(8deg); filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.2)); }
+.lhx-cc-emoji2 { position: absolute; right: 64px; top: 44px; font-size: 22px; transform: rotate(-12deg); }
+.lhx-cc-label { font-size: 11px; font-weight: 900; letter-spacing: 0.13em; opacity: 0.85; margin-bottom: 8px; }
+.lhx-cc-title { font-size: 19px; font-weight: 900; line-height: 1.25; margin-bottom: 4px; max-width: 75%; }
+.lhx-cc-sub { font-size: 13px; font-weight: 700; opacity: 0.85; margin-bottom: 14px; }
+.lhx-cc-progress { height: 8px; background: rgba(255, 255, 255, 0.28); border-radius: 99px; margin-bottom: 16px; overflow: hidden; }
+.lhx-cc-progress i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #ffd25f, #ffb43a); transition: width 0.5s var(--lhx-ease); }
 .lhx-continue-meta { font-size: 12.5px; font-weight: 700; color: var(--lhx-muted); margin-top: 2px; }
-.lhx-continue-progress { display: flex; align-items: center; gap: 10px; }
-.lhx-continue-progress .lhx-track { flex: 1; }
-.lhx-continue-pct { font-size: 13px; font-weight: 900; color: var(--lhx-coral-text); }
-.lhx-continue-actions { display: flex; flex-direction: column; gap: 8px; }
-.lhx-continue-actions .lhx-btn { flex: 1 1 auto; }
-@media (min-width: 380px) { .lhx-continue-actions { flex-direction: row; } }
 
-/* ── Today's exams ─────────────────────────────────────────────── */
+/* ── Today's Quiz (prototype .daily-slim) ─────────────────────── */
 
-.lhx-exams {
-  background:
-    radial-gradient(circle at 100% 0%, rgba(46, 192, 106, 0.14), transparent 55%),
-    var(--lhx-card);
+.lhx-daily-slim { display: flex; align-items: center; gap: 13px; padding: 14px 16px; width: 100%; text-align: left; }
+.lhx-ds-icon {
+  width: 48px; height: 48px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 30% 30%, #eef1ff, #b9c4fb);
+  box-shadow: 0 6px 14px rgba(90, 100, 200, 0.3);
 }
-.lhx-exams-count { font-size: 13px; font-weight: 800; color: var(--lhx-green-dark); }
-.lhx-exams-next {
-  display: flex; align-items: center; gap: 12px; padding: 12px;
-  border-radius: var(--lhx-radius-md); background: var(--lhx-green-wash);
-  margin-top: 10px;
-}
-.lhx-exams-next-info { flex: 1; min-width: 0; }
-.lhx-exams-next-subject { font-size: 15px; font-weight: 900; }
-.lhx-exams-next-meta { font-size: 12.5px; color: var(--lhx-muted); font-weight: 700; margin-top: 2px; }
-.lhx-streak-chip {
-  display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px;
-  background: linear-gradient(135deg, #fff3d6, #ffe3b0);
-  color: #e07800; font-size: 12.5px; font-weight: 900;
-}
+.lhx-ds-icon img { width: 40px; height: 40px; object-fit: contain; }
+.lhx-ds-body { flex: 1; min-width: 0; }
+.lhx-ds-title { display: block; font-weight: 900; font-size: 15px; }
+.lhx-ds-sub { display: block; font-size: 12px; color: var(--lhx-muted); font-weight: 700; margin-top: 1px; }
+.lhx-play-pill-sm { padding: 9px 18px; font-size: 13px; flex-shrink: 0; }
 
-/* ── Quick access (prototype .big-tile) ────────────────────────── */
+/* ── Explore (prototype .big-grid / .big-tile) ─────────────────── */
 
-.lhx-quick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-@media (max-width: 359px) { .lhx-quick { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.lhx-quick-card {
-  display: flex; flex-direction: column; align-items: center; gap: 8px;
-  background: var(--lhx-card);
-  border-radius: 22px; box-shadow: var(--lhx-shadow);
-  padding: 15px 6px; min-height: 92px;
-  transition: transform 0.1s var(--lhx-ease);
+.lhx-explore { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.lhx-tile {
+  position: relative; overflow: hidden; isolation: isolate;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  border-radius: 22px; padding: 18px 8px 15px; text-align: center; color: #fff;
 }
-.lhx-quick-card:active { transform: scale(0.95); }
+.lhx-tile::after {
+  content: ''; position: absolute; z-index: -1;
+  right: -18px; top: -18px; width: 60px; height: 60px;
+  background: rgba(255, 255, 255, 0.18); border-radius: 50%;
+}
+.lhx-tile-icon { font-size: 32px; margin-bottom: 6px; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.18)); }
+.lhx-tile-name { font-weight: 900; font-size: 13.5px; }
+.lhx-tile-sub { font-size: 10.5px; font-weight: 800; opacity: 0.85; }
+.lhx-bt-papers { background: linear-gradient(150deg, #ff9c5b, var(--lhx-coral2)); box-shadow: 0 10px 22px rgba(255, 92, 57, 0.4); }
+.lhx-bt-notes { background: linear-gradient(150deg, #41d98a, #1fae62); box-shadow: 0 10px 22px rgba(31, 174, 98, 0.4); }
+.lhx-bt-games { background: linear-gradient(150deg, #8f7bff, #5f4fe0); box-shadow: 0 10px 22px rgba(95, 79, 224, 0.4); }
+.lhx-bt-time { background: linear-gradient(150deg, #ffb14e, #f0447a); box-shadow: 0 10px 22px rgba(240, 68, 122, 0.4); }
+
 .lhx-quick-icon { width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-.lhx-quick-title { font-size: 13px; font-weight: 900; letter-spacing: -0.01em; }
-.lhx-quick-label { font-size: 10.5px; font-weight: 800; color: var(--lhx-muted); }
+
+/* ── Exam countdown card (prototype .exam-countdown) ───────────── */
+
+.lhx-exam-card {
+  position: relative; overflow: hidden; isolation: isolate;
+  display: flex; align-items: center; gap: 13px; width: 100%; text-align: left;
+  padding: 14px 15px; border-radius: 22px; color: #fff;
+  background: linear-gradient(140deg, #ff8f6b, #ff5470 60%, #f0447a);
+  box-shadow: 0 12px 26px rgba(240, 68, 122, 0.38);
+}
+.lhx-exam-card::after {
+  content: ''; position: absolute; z-index: -1;
+  right: -24px; top: -24px; width: 96px; height: 96px;
+  background: rgba(255, 255, 255, 0.16); border-radius: 50%;
+}
+.lhx-exam-cal {
+  width: 46px; height: 46px; border-radius: 14px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 23px;
+  background: rgba(255, 255, 255, 0.2);
+}
+.lhx-exam-body { flex: 1; min-width: 0; }
+.lhx-exam-label { display: block; font-size: 10.5px; font-weight: 900; letter-spacing: 0.1em; opacity: 0.92; }
+.lhx-exam-title { display: block; font-size: 15px; font-weight: 900; margin-top: 1px; }
+.lhx-exam-sub { display: block; font-size: 11.5px; font-weight: 800; opacity: 0.92; margin-top: 2px; }
+.lhx-exam-days {
+  flex-shrink: 0; text-align: center; min-width: 52px;
+  background: rgba(255, 255, 255, 0.22); border-radius: 15px; padding: 7px 12px;
+}
+.lhx-exam-days b { display: block; font-size: 21px; font-weight: 900; line-height: 1; }
+.lhx-exam-days span { font-size: 9.5px; font-weight: 900; letter-spacing: 0.05em; opacity: 0.92; }
 
 /* Tint chips — prototype subject-icon radial gradients. */
 .lhx-tint-purple { background: radial-gradient(circle at 30% 30%, #ded2ff, #a68bf5); color: #fff; box-shadow: 0 6px 14px rgba(166, 139, 245, 0.35); }
@@ -492,14 +554,7 @@
 .lhx-countdown .lhx-empty { color: rgba(255, 255, 255, 0.85); }
 .lhx-countdown .lhx-empty-icon { color: rgba(255, 255, 255, 0.7); }
 
-/* ── Recommendations / activity / games ────────────────────────── */
-
-.lhx-rec { display: flex; gap: 12px; align-items: flex-start; }
-.lhx-rec + .lhx-rec { margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--lhx-line); }
-.lhx-rec-body { flex: 1; min-width: 0; }
-.lhx-rec-title { font-size: 14.5px; font-weight: 900; }
-.lhx-rec-meta { font-size: 12.5px; font-weight: 700; color: var(--lhx-muted); margin-top: 2px; }
-.lhx-rec-reason { font-size: 12.5px; font-weight: 600; color: var(--lhx-muted); margin-top: 4px; line-height: 1.45; }
+/* ── Activity rows (subject page, timetable) ───────────────────── */
 
 .lhx-activity { display: flex; flex-direction: column; }
 .lhx-activity-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; min-height: 44px; }
@@ -509,23 +564,6 @@
 .lhx-activity-title { font-size: 13.5px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lhx-activity-meta { font-size: 12px; font-weight: 700; color: var(--lhx-muted); margin-top: 1px; }
 .lhx-activity-score { font-size: 13.5px; font-weight: 900; color: var(--lhx-green-dark); flex-shrink: 0; }
-
-.lhx-game-card {
-  display: flex; align-items: center; gap: 14px;
-  background: linear-gradient(135deg, #7c8bf5, #5b63dd);
-  color: #fff;
-  position: relative; overflow: hidden; isolation: isolate;
-  box-shadow: 0 12px 26px rgba(81, 88, 208, 0.35);
-}
-.lhx-game-card::before {
-  content: ''; position: absolute; z-index: -1;
-  right: -30px; bottom: -40px; width: 110px; height: 110px;
-  background: radial-gradient(circle, #ffd25f, #ffb43a);
-  border-radius: 50%; opacity: 0.85;
-}
-.lhx-game-card .lhx-kicker { color: rgba(255, 255, 255, 0.85); }
-.lhx-game-card .lhx-rec-meta, .lhx-game-card .lhx-continue-meta { color: rgba(255, 255, 255, 0.85); }
-.lhx-game-art { width: 72px; height: 72px; object-fit: contain; flex-shrink: 0; filter: drop-shadow(0 5px 7px rgba(0, 0, 0, 0.2)); }
 
 /* ── Empty / error / skeleton states ───────────────────────────── */
 

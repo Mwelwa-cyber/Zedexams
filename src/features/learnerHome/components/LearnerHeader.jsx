@@ -4,6 +4,11 @@
  * Home it also renders the "Hi, {name}! 👋" greeting with the
  * Grade · Term chip.
  *
+ * The exam countdown is no longer a chip here: prototype v7 puts it
+ * back as the coral card directly under this greeting
+ * (ExamCountdownCard), which can name the next paper as well as count
+ * the days.
+ *
  * Since prototype-v6 (step 10) the bell and the avatar NAVIGATE — to the
  * full-screen /notifications centre and to /profile — instead of opening
  * overlays; the old account sheet is gone with them. The multi-theme
@@ -20,7 +25,6 @@ import { capture } from '../../../utils/analytics'
 import PlanChip from '../../../shared/components/PlanChip'
 import CharacterAvatar from '../../../shared/components/CharacterAvatar'
 import LearnerIcon from './LearnerIcon'
-import ExamCountdownChip from './ExamCountdownChip'
 import { firstNameOf } from '../lib/learnerHomeCore'
 
 const LAST_LIGHT_KEY = 'lhx:last-light-theme'
@@ -57,7 +61,7 @@ function NightToggle() {
   )
 }
 
-export default function LearnerHeader({ activeTerm, showGreeting = true, streak = null, timetables = null }) {
+export default function LearnerHeader({ activeTerm, showGreeting = true, streak = null }) {
   const { userProfile } = useAuth()
   const navigate = useNavigate()
   // The app-wide notification feed — one listener in NotificationProvider,
@@ -126,12 +130,9 @@ export default function LearnerHeader({ activeTerm, showGreeting = true, streak 
           <h1 className="lhx-greeting">
             Hi{firstName ? ', ' : ''}<span>{firstName ? `${firstName}!` : 'there!'}</span> 👋
           </h1>
-          {(gradeChip || timetables) && (
+          {gradeChip && (
             <div className="lhx-header-meta lhx-chip-row">
-              {gradeChip && <span className="lhx-chip">{gradeChip}</span>}
-              {/* The coral countdown chip — Home stays minimal, the pull
-                  to the timetable rides here (prototype). */}
-              {timetables && <ExamCountdownChip timetables={timetables} />}
+              <span className="lhx-chip">{gradeChip}</span>
             </div>
           )}
         </div>

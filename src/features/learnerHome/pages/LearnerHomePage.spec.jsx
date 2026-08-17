@@ -1,9 +1,9 @@
 /**
- * Behaviour tests for the rebuilt learner home (LearnerHomePage) and its
- * shell. The view-model hook is stubbed with fixture data so these
- * exercise the render contract: approved section order presence,
- * greeting/meta, real-data-only rendering (no fake values), empty
- * states, Today's-Exams conditional visibility, and the bottom-nav
+ * Behaviour tests for the learner home (LearnerHomePage) and its shell.
+ * The view-model hook is stubbed with fixture data so these exercise the
+ * render contract: the prototype's five blocks in its order, greeting/
+ * meta, real-data-only rendering (no fake values), empty states, the
+ * conditional countdown and Today's-Quiz cards, and the bottom-nav
  * information architecture (Games present, Profile absent).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -47,10 +47,6 @@ import { PSLE_2026 } from '../../../config/examTimetable2026'
 
 const baseData = {
   activeTerm: { term: 2, source: 'calendar' },
-  paperResume: {
-    paperId: 'p1', title: 'Mathematics Paper 1', year: 2024, subject: 'mathematics', page: 6, totalPages: 12,
-  },
-  papersMeta: { count: 40, yearMin: 2016, yearMax: 2025 },
   learningResume: {
     kind: 'note', id: 'n1', title: 'The Human Body — Respiratory System',
     subject: 'science', subjectLabel: 'Integrated Science', grade: '7', percent: 57, openedAt: 1,
@@ -66,15 +62,8 @@ const baseData = {
     { id: 'science', label: 'Integrated Science', topicCount: 5, percent: 57, hasMaterial: true },
     { id: 'mathematics', label: 'Mathematics', topicCount: 6, percent: 82, hasMaterial: true },
   ],
-  recentActivity: [
-    { type: 'quiz_completed', sourceId: 'q1', attemptId: 'a1', completedAt: Date.now() - 3600_000, title: 'The Solar System Quiz', subjectLabel: 'Integrated Science', score: 79, href: '/results/a1', icon: 'quiz' },
-  ],
-  recommendations: [
-    { id: 'weak:mathematics:Fractions', kind: 'practice', title: 'Improve in Fractions', subject: 'mathematics', subjectLabel: 'Mathematics', grade: '7', reason: 'You scored 40% in Fractions — a focused practice can lift it.' },
-  ],
   streak: 3,
   xp: 120,
-  gameChallenge: null,
   notesCount: 12,
   lessonsCount: 4,
 }
@@ -91,6 +80,9 @@ function renderHome() {
         {/* Stub destinations — the v6 topbar bell/avatar NAVIGATE. */}
         <Route path="/profile" element={<div>PROFILE ROUTE</div>} />
         <Route path="/notifications" element={<div>NOTIFICATIONS ROUTE</div>} />
+        <Route path="/timetable" element={<div>TIMETABLE ROUTE</div>} />
+        <Route path="/exam/:examId" element={<div>EXAM ROUTE</div>} />
+        <Route path="/exams/leaderboard" element={<div>LEADERBOARD ROUTE</div>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -120,29 +112,34 @@ describe('LearnerHomePage', () => {
     expect(within(header).queryByText(/CBC/)).toBeNull()
   })
 
-  it('renders the Past Papers hero with the real resume data', () => {
+  it('renders the four Explore tiles in the prototype order', () => {
     renderHome()
-    expect(screen.getByRole('heading', { name: 'Past Papers' })).toBeInTheDocument()
-    expect(screen.getByText('ECZ Papers · 2016–2025')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Continue Reading' })).toBeInTheDocument()
-    expect(screen.getByText('Mathematics Paper 1 · 2024')).toBeInTheDocument()
-    expect(screen.getByText('Page 6 of 12')).toBeInTheDocument()
+    const section = screen.getByRole('heading', { name: 'Explore' }).closest('section')
+    const tiles = Array.from(section.querySelectorAll('.lhx-tile .lhx-tile-name')).map((n) => n.textContent)
+    expect(tiles).toEqual(['Past Papers', 'Notes', 'Games', 'Timetable'])
   })
 
-  it('hides Continue Reading when no paper has been opened', () => {
-    mockDashboard.data = { ...baseData, paperResume: null }
+  it('the Timetable tile opens the timetable', () => {
     renderHome()
-    expect(screen.getByRole('button', { name: 'Browse Papers' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Continue Reading' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Timetable — Exam dates/i }))
+    expect(screen.getByText('TIMETABLE ROUTE')).toBeInTheDocument()
   })
 
-  it('shows the Continue Learning resume with subject, term and progress', () => {
+  it('shows the Continue hero with subject, term and progress', () => {
     renderHome()
-    expect(screen.getByText('Integrated Science · Term 2')).toBeInTheDocument()
+    expect(screen.getByText('CONTINUE WHERE YOU LEFT OFF')).toBeInTheDocument()
     expect(screen.getByText('The Human Body — Respiratory System')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Continue Notes' })).toBeInTheDocument()
-    const card = screen.getByText('The Human Body — Respiratory System').closest('section')
-    expect(within(card).getByText('57%')).toBeInTheDocument()
+    expect(screen.getByText('Integrated Science · Term 2')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Continue learning/ })).toBeInTheDocument()
+    // Progress is a real bar, not a number the card invented.
+    const bar = screen.getByRole('progressbar', { name: /Respiratory System: 57% complete/ })
+    expect(bar.firstChild.style.width).toBe('57%')
+  })
+
+  it('draws no progress bar when the resume has not been started', () => {
+    mockDashboard.data = { ...baseData, learningResume: { ...baseData.learningResume, percent: 0 } }
+    renderHome()
+    expect(screen.queryByRole('progressbar', { name: /Respiratory System/ })).toBeNull()
   })
 
   it('shows the Continue Learning empty state with no resume signal', () => {
@@ -151,54 +148,75 @@ describe('LearnerHomePage', () => {
     expect(screen.getByText('Choose a subject below to begin learning.')).toBeInTheDocument()
   })
 
-  it("shows Today's Exams only when exams are open, with real counts", () => {
+  it("shows Today's Quiz with what is left, and starts the next exam", () => {
     renderHome()
-    expect(screen.getByRole('heading', { name: 'Today’s Exams' })).toBeInTheDocument()
-    expect(screen.getByText('1 of 2 completed')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Start Next Exam' })).toBeInTheDocument()
+    expect(screen.getByText('Today’s Quiz')).toBeInTheDocument()
+    expect(screen.getByText(/1 of 2 left · with Zed · keep your 🔥 3/)).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Today’s Quiz'))
+    expect(screen.getByText('EXAM ROUTE')).toBeInTheDocument()
   })
 
-  it("renders no Today's Exams card when none are open", () => {
+  it("Today's Quiz flips to the leaderboard once every exam is done", () => {
+    mockDashboard.data = {
+      ...baseData,
+      todaysExams: {
+        exams: baseData.todaysExams.exams,
+        locks: { mathematics: { status: 'submitted' }, science: { status: 'submitted' } },
+      },
+    }
+    renderHome()
+    expect(screen.getByText('Done for today ✓ · see the leaderboard')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Today’s Quiz'))
+    expect(screen.getByText('LEADERBOARD ROUTE')).toBeInTheDocument()
+  })
+
+  it("renders no Today's Quiz card when no exam is open", () => {
     mockDashboard.data = { ...baseData, todaysExams: { exams: [], locks: {} } }
     renderHome()
-    expect(screen.queryByText('Today’s Exams')).toBeNull()
+    expect(screen.queryByText('Today’s Quiz')).toBeNull()
   })
 
   it('shows subject rows with term-scoped progress', () => {
     renderHome()
-    const section = screen.getByRole('heading', { name: 'My Subjects' }).closest('section')
+    const section = screen.getByRole('heading', { name: 'My subjects' }).closest('section')
     expect(within(section).getByText('Integrated Science')).toBeInTheDocument()
     expect(within(section).getByText('82%')).toBeInTheDocument()
   })
 
-  it('shows the coral exam-countdown chip when a timetable is published', () => {
+  it('shows the countdown card naming the next paper when a timetable is published', () => {
     // Countdown target is the first sat paper (English, Tue 27 Oct 08:00).
     vi.useFakeTimers()
     vi.setSystemTime(new Date(Date.parse('2026-09-01T10:00:00+02:00')))
     mockDashboard.timetables = { active: PSLE_2026, archived: [], loading: false, error: null }
     renderHome()
-    const chip = screen.getByRole('button', { name: /exams in 55 days/i })
-    expect(chip.classList.contains('lhx-chip-exam')).toBe(true)
+    const card = screen.getByRole('button', { name: /2026 PSLE — 55 days to go/i })
+    expect(card.classList.contains('lhx-exam-card')).toBe(true)
+    expect(within(card).getByText('EXAMS ARE COMING')).toBeInTheDocument()
+    // The card names the paper as well as counting the days — the chip it
+    // replaced could only ever count.
+    expect(within(card).getByText(/Next paper: Tue 27 Oct · English Language/)).toBeInTheDocument()
+    expect(within(card).getByText('55')).toBeInTheDocument()
+    fireEvent.click(card)
+    expect(screen.getByText('TIMETABLE ROUTE')).toBeInTheDocument()
     vi.useRealTimers()
   })
 
-  it('renders no exam chip (and no countdown card) without a published timetable', () => {
+  it('names the NEXT unsat paper mid-season, not the first of the week', () => {
+    // Wednesday morning: English (Tue) is behind the learner. Naming it
+    // would tell them to revise for a paper they already sat.
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(Date.parse('2026-10-28T06:00:00+02:00')))
+    mockDashboard.timetables = { active: PSLE_2026, archived: [], loading: false, error: null }
     renderHome()
-    expect(screen.queryByRole('button', { name: /exams in/i })).toBeNull()
-    // The big countdown card is gone — Home stays minimal, the chip pulls.
+    expect(screen.queryByText(/English Language/)).toBeNull()
+    expect(screen.getByText(/Next paper: Wed 28 Oct/)).toBeInTheDocument()
+    vi.useRealTimers()
+  })
+
+  it('renders no countdown card without a published timetable', () => {
+    renderHome()
+    expect(document.querySelector('.lhx-exam-card')).toBeNull()
     expect(screen.queryByText('The examination timetable has not been published yet.')).toBeNull()
-  })
-
-  it('renders recommendations with their reasons', () => {
-    renderHome()
-    expect(screen.getByText('Improve in Fractions')).toBeInTheDocument()
-    expect(screen.getByText(/You scored 40% in Fractions/)).toBeInTheDocument()
-  })
-
-  it('shows the recent-activity empty state message', () => {
-    mockDashboard.data = { ...baseData, recentActivity: [] }
-    renderHome()
-    expect(screen.getByText('Your completed lessons, quizzes and papers will appear here.')).toBeInTheDocument()
   })
 
   it('bottom navigation has the four prototype tabs and no Profile', () => {

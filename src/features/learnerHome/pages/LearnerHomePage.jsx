@@ -1,30 +1,28 @@
 /**
- * LearnerHomePage — the learner dashboard, in the approved section
- * order: Past Papers hero → Continue Learning → Today's Exams (when
- * relevant) → Quick Access → My Subjects → Exam Timetable + countdown →
- * Recommended → Daily Game Challenge → Recent Activity → Achievements.
- * One view-model hook feeds every card; sections own their empty/
- * loading states.
+ * LearnerHomePage — the prototype's Home, in its order and with only
+ * its blocks: the exam countdown card, Continue where you left off,
+ * Today's Quiz, Explore (Papers · Notes · Games · Timetable), then My
+ * subjects.
+ *
+ * The Past Papers hero, Today's Exams panel, Recommended, the Daily
+ * Game Challenge, Recent Activity and the Achievements summary left
+ * with this step — the mockup's Home is five blocks, and each of those
+ * surfaces has a home of its own (Explore tiles, /my-results,
+ * /profile, the games hub). One view-model hook still feeds every
+ * card; sections own their empty/loading states.
  */
 import { useEffect } from 'react'
 import LearnerHeader from '../components/LearnerHeader'
+import ExamCountdownCard from '../components/ExamCountdownCard'
 import { ErrorState } from '../components/LearnerPrimitives'
 import useLearnerDashboard from '../hooks/useLearnerDashboard'
-import PastPapersHero from '../sections/PastPapersHero'
 import ContinueLearningCard from '../sections/ContinueLearningCard'
-import TodaysExamsCard from '../sections/TodaysExamsCard'
-import {
-  QuickAccessGrid,
-  MySubjectsSection,
-  RecommendationsSection,
-  DailyGameChallengeCard,
-  RecentActivitySection,
-  AchievementsSummary,
-} from '../sections/HomeSections'
+import TodaysQuizCard from '../sections/TodaysQuizCard'
+import { ExploreGrid, MySubjectsSection } from '../sections/HomeSections'
 import { capture } from '../../../utils/analytics'
 
 export default function LearnerHomePage() {
-  const { loading, error, data, grade, timetables, refresh } = useLearnerDashboard()
+  const { loading, error, data, timetables, refresh } = useLearnerDashboard()
 
   useEffect(() => { capture('learner_dashboard_viewed') }, [])
 
@@ -32,7 +30,7 @@ export default function LearnerHomePage() {
 
   return (
     <>
-      <LearnerHeader activeTerm={activeTerm} streak={data?.streak ?? null} timetables={timetables} />
+      <LearnerHeader activeTerm={activeTerm} streak={data?.streak ?? null} />
       {error ? (
         <div className="lhx-card">
           <ErrorState onRetry={refresh}>
@@ -41,30 +39,15 @@ export default function LearnerHomePage() {
         </div>
       ) : (
         <>
-          <PastPapersHero
-            grade={grade}
-            papersMeta={data?.papersMeta}
-            paperResume={data?.paperResume}
-            loading={loading}
-          />
+          <ExamCountdownCard timetables={timetables} />
           <ContinueLearningCard
             resume={data?.learningResume}
             activeTerm={activeTerm}
             loading={loading}
           />
-          {!loading && <TodaysExamsCard todaysExams={data?.todaysExams} streak={data?.streak || 0} />}
-          <QuickAccessGrid />
-          {/* Approved order: My Subjects → Timetable/countdown →
-              Recommended → Daily Game → Recent Activity → Achievements.
-              On desktop .lhx-cols reflows this same order into two
-              columns (CSS multi-column) without changing the DOM. */}
-          <div className="lhx-cols">
-            <div className="lhx-colitem"><MySubjectsSection subjects={data?.subjects} activeTerm={activeTerm} loading={loading} /></div>
-            <div className="lhx-colitem"><RecommendationsSection recommendations={data?.recommendations} loading={loading} /></div>
-            {!loading && <div className="lhx-colitem"><DailyGameChallengeCard challenge={data?.gameChallenge} /></div>}
-            <div className="lhx-colitem"><RecentActivitySection recentActivity={data?.recentActivity} loading={loading} /></div>
-            {!loading && <div className="lhx-colitem"><AchievementsSummary streak={data?.streak || 0} xp={data?.xp || 0} /></div>}
-          </div>
+          {!loading && <TodaysQuizCard todaysExams={data?.todaysExams} streak={data?.streak || 0} />}
+          <ExploreGrid />
+          <MySubjectsSection subjects={data?.subjects} activeTerm={activeTerm} loading={loading} />
         </>
       )}
     </>

@@ -31,14 +31,8 @@
 .lhx-daily-label { font-size: 10.5px; font-weight: 900; letter-spacing: 1.2px; opacity: 0.85; margin-bottom: 3px; }
 .lhx-daily-name { font-weight: 900; font-size: 15.5px; }
 .lhx-daily-sub { font-size: 12px; font-weight: 700; opacity: 0.85; }
-.lhx-play-pill {
-  background: linear-gradient(135deg, var(--lhx-coral1), var(--lhx-coral2));
-  color: #fff; font-weight: 900;
-  border-radius: 14px; padding: 11px 22px; font-size: 14px;
-  box-shadow: 0 4px 0 var(--lhx-coral-shadow);
-  position: relative; z-index: 2; flex-shrink: 0;
-}
-.lhx-play-pill:active { transform: scale(0.96); }
+/* .lhx-play-pill now lives in shared/styles/learnerTheme.css — Home's
+   Today's Quiz card needs it and this stylesheet only loads on /games. */
 
 /* ── Hub: XP / level card ──────────────────────────────────────── */
 
