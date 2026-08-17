@@ -85,7 +85,7 @@ const lintCases = [
     why: 'a feature calls a service, never the reverse' },
   { file: 'src/services/probe.js', spec: '../engines/export-engine', severity: 2,
     why: 'services sit below the engines that call them' },
-  { file: 'src/config/probe.js', spec: '../services/passkeyService.js', severity: 2,
+  { file: 'src/config/probe.js', spec: '../services/adminMfa.js', severity: 2,
     why: 'config is data — reaching a service inverts what the taxonomy depends on' },
   { file: 'src/config/probe.js', spec: '../curriculum/catalog', severity: 2,
     why: 'the catalog reads config, not the other way round' },

@@ -7,7 +7,7 @@
  * appears). The reason is §4's rule 3: a flag read in four components becomes
  * four subtly different conditions, and the day one of them is wrong is the
  * day the rollback toggle stops meaning what the person pressing it thinks.
- * `passkeyRegionCore.js` is the precedent.
+ * The (since-removed) passkey region core was the precedent.
  *
  * Pure: no React, no Firebase, no DOM. The effectful half — reading
  * `settings/global`, the signed-in uid and the device's visitor id — is

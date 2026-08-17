@@ -29,8 +29,8 @@
  *
  * NOT every Admin SDK call works on ADC user credentials: createCustomToken
  * has to SIGN a JWT and needs either a service account or an explicit
- * serviceAccountId plus IAM SignBlob. This script never signs anything, but
- * the passkey flow does — don't generalise from this script to that one.
+ * serviceAccountId plus IAM SignBlob. This script never signs anything —
+ * don't generalise from it to code paths that do.
  *
  * Usage:
  *   # dry-run (default) — audits + prints the diff, writes nothing

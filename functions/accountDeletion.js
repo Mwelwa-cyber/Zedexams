@@ -49,6 +49,8 @@ const UID_DOC_COLLECTIONS = [
   "learner_profiles",
   "learnerStats",
   "studyPlanProgress",
+  // Legacy: the passkey feature was removed 2026-08-17, but credential docs
+  // written while it was live still exist and must be purged with the account.
   "passkeyUserHandles", // opaque WebAuthn user handle (server-only)
 ];
 
@@ -91,8 +93,8 @@ const FIELD_QUERY_COLLECTIONS = [
   {collection: "quizzes", field: "createdBy", recursive: true}, // + questions
   {collection: "lessons", field: "createdBy"},
   {collection: "classRegisters", field: "teacherUid", recursive: true}, // + roster, records
-  // Passkey (WebAuthn) sign-in: credentials stop authenticating the moment
-  // their doc is gone, and the uid-bearing audit rows go with them.
+  // Legacy passkey (WebAuthn) data — the feature was removed 2026-08-17, but
+  // credential + audit docs written while it was live purge with the account.
   {collection: "passkeyCredentials", field: "uid"},
   {collection: "passkeyAuditLog", field: "uid"},
   // Teacher-authored / user-owned records the earlier lists missed (LEGAL-004
