@@ -5523,13 +5523,6 @@ select {
                 inset 0 1px 0 rgba(255, 255, 255, 0.9);
   }
 
-  /* While the paper viewer's fixed dock is on screen, lift the global Zed
-   * chat bubble clear of it (dock top edge ≈ 84px + safe-area; ≥12px gap).
-   * !important outranks the launcher's inline `bottom` style. */
-  body[data-viewer-dock='1'] .zx-chat-fab {
-    bottom: calc(7.5rem + env(safe-area-inset-bottom)) !important;
-  }
-
   /* LinkedIn-style auto-hide chrome.
    * The glass header slides up and the bottom nav slides down on scroll-down,
    * then reveal again on scroll-up — driven by useHideOnScroll. Mobile only:

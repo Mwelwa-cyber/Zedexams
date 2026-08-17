@@ -17,6 +17,7 @@
  * while reading), so mount it full-screen — not inside LearnerLayout.
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import '../../../shared/styles/learnerTheme.css'
 import './reader.css'
 import {
@@ -69,7 +70,11 @@ export default function ReaderEngine({
   onBack,
   backLabel = 'Back to Notes',
   footer = null,
+  // Topic label for the "Stuck? Ask Zed about this" pill (prototype-v5's
+  // ask-zed-inline). Defaults to the note title; pass null to hide.
+  askTopic = note?.title || null,
 }) {
+  const navigate = useNavigate()
   const [mode, setMode] = useState(initialMode === 'revise' ? 'revise' : 'learn')
   const [shown, setShown] = useState(0)
   const [word, setWord] = useState(null) // glossary entry in the sheet
@@ -157,6 +162,18 @@ export default function ReaderEngine({
           </div>
           {hasKeywords && mode === 'learn' && (
             <p className="lhx-note-hint">💡 Tap any purple word to see how to use it, with extra examples.</p>
+          )}
+          {askTopic && (
+            <div>
+              <button
+                type="button"
+                className="lhx-ask-zed-inline"
+                onClick={() => navigate(`/ask-zed?topic=${encodeURIComponent(askTopic)}`)}
+              >
+                <img src={ZED_ART} alt="" aria-hidden="true" />
+                Stuck? Ask Zed about this
+              </button>
+            </div>
           )}
         </div>
 

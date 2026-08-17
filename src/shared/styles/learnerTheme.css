@@ -783,6 +783,21 @@
 
 /* ── Back rows (prototype .back-row) ───────────────────────────── */
 
+/* ── "Stuck? Ask Zed about this" pill (prototype-v5 .ask-zed-inline) ── */
+.lhx-ask-zed-inline {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--lhx-indigo-soft); color: #5158d0;
+  border: 1.5px solid #d7ddff; border-radius: 99px;
+  padding: 8px 15px 8px 8px;
+  font-family: inherit; font-weight: 900; font-size: 13px;
+  cursor: pointer; transition: transform 0.1s;
+}
+.lhx-ask-zed-inline:active { transform: scale(0.96); }
+.lhx-ask-zed-inline img {
+  width: 26px; height: 26px; object-fit: contain;
+  background: #fff; border-radius: 50%; padding: 1px; flex-shrink: 0;
+}
+
 .lhx-back-row { display: flex; align-items: center; gap: 10px; }
 .lhx-back-btn {
   width: 40px; height: 40px; border-radius: 14px; flex-shrink: 0;
@@ -896,6 +911,8 @@ button.lhx-tt-altpill { cursor: pointer; }
 .lhx-pick[aria-pressed='true'] { background: linear-gradient(135deg, var(--lhx-indigo1), var(--lhx-indigo2)); color: #fff; }
 
 /* ══ Night mode — component cases (prototype `#phone.night …`) ═══ */
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-ask-zed-inline { color: #aab2f0; border-color: #363a5e; }
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-ask-zed-inline img { background: #3a3f66; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-tt-alt { background: #332c18; color: #e6c473; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-tt-altpill { background: #232640; color: #e6c473; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-tt-altpill[aria-pressed='true'] { background: linear-gradient(135deg, var(--lhx-indigo1), var(--lhx-indigo2)); color: #fff; }

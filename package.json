@@ -844,7 +844,8 @@
     "test:admin-nav-search": "node src/features/adminShell/lib/adminNavSearch.test.js",
     "test:studio-grades": "node src/features/lessonPlanStudio/lib/studioGrades.test.js",
     "test:lesson-plan-term": "node src/features/lessonPlanStudio/lib/lessonPlanTermFiling.test.js",
-    "test:planned-term-source": "node src/features/lessonPlanStudio/lib/plannedTermSource.test.js"
+    "test:planned-term-source": "node src/features/lessonPlanStudio/lib/plannedTermSource.test.js",
+    "test:ask-zed-core": "node scripts/test-ask-zed-core.mjs"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",
