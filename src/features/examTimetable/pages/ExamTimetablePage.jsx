@@ -196,12 +196,13 @@ function TimetableHero({ timetable, nowMs }) {
 
 // Resource links once the season is over — the page never goes empty
 // after the last paper.
+// Only the mockup's destinations: Past Papers, Notes and Games. The
+// list used to include Practice Quizzes and Bridge Lessons, neither of
+// which exists anywhere in the learner mockup.
 const SEASON_OVER_LINKS = (grade) => [
   { label: '📄 Past Papers', to: `/papers?grade=${grade}` },
   { label: '📒 Revision Notes', to: '/notes' },
-  { label: '🧠 Practice Quizzes', to: '/quizzes' },
-  { label: '🏆 Mock Examinations', to: '/exams' },
-  { label: `🌉 Grade ${grade + 1} Bridge Lessons`, to: '/lessons' },
+  { label: '🎮 Games', to: '/games' },
 ]
 
 function SeasonOverCard({ timetable }) {

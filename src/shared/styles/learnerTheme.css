@@ -910,6 +910,120 @@ button.lhx-tt-altpill { cursor: pointer; }
 }
 .lhx-pick[aria-pressed='true'] { background: linear-gradient(135deg, var(--lhx-indigo1), var(--lhx-indigo2)); color: #fff; }
 
+/* ── Topic row — shared by the Notes hub and the Subject screen
+ *    (prototype .topic-row / .topic-ic / .topic-st) ───────────────── */
+.lhx-topic-row {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--lhx-card);
+  border-radius: 20px; padding: 13px 14px;
+  box-shadow: var(--lhx-shadow);
+  width: 100%; text-align: left;
+  transition: transform 0.1s;
+}
+.lhx-topic-row:active { transform: scale(0.98); }
+.lhx-topic-ic {
+  width: 42px; height: 42px; border-radius: 13px; flex-shrink: 0;
+  background: var(--lhx-indigo-soft);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+}
+.lhx-topic-name { font-weight: 900; font-size: 14.5px; color: var(--lhx-ink); }
+.lhx-topic-sub { font-size: 11.5px; color: var(--lhx-muted); font-weight: 700; }
+.lhx-topic-st {
+  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 900;
+}
+.lhx-st-done { background: var(--lhx-green-soft); color: var(--lhx-green-dark); }
+.lhx-st-now { background: linear-gradient(135deg, var(--lhx-coral1), var(--lhx-coral2)); color: #fff; box-shadow: 0 3px 8px rgba(255, 92, 57, 0.4); }
+.lhx-st-todo { background: #eef0fc; color: #b6bce0; }
+
+/* ── Home: exam countdown card (prototype .exam-countdown) ─────── */
+.lhx-exam-card {
+  display: flex; align-items: center; gap: 13px;
+  padding: 14px 15px; border-radius: 22px;
+  color: #fff; position: relative; overflow: hidden; width: 100%; text-align: left;
+  background: linear-gradient(140deg, #ff8f6b, #ff5470 60%, #f0447a);
+  box-shadow: 0 12px 26px rgba(240, 68, 122, 0.38);
+  transition: transform 0.1s;
+}
+.lhx-exam-card:active { transform: scale(0.98); }
+.lhx-exam-card::after {
+  content: ""; position: absolute; right: -24px; top: -24px;
+  width: 96px; height: 96px; background: rgba(255, 255, 255, 0.16); border-radius: 50%;
+}
+.lhx-ec-cal {
+  width: 46px; height: 46px; border-radius: 14px;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 23px; flex-shrink: 0; position: relative; z-index: 2;
+}
+.lhx-ec-body { flex: 1; min-width: 0; position: relative; z-index: 2; }
+.lhx-ec-label { font-size: 10.5px; font-weight: 900; letter-spacing: 1px; opacity: 0.92; }
+.lhx-ec-title { font-size: 15px; font-weight: 900; margin-top: 1px; }
+.lhx-ec-sub { font-size: 11.5px; font-weight: 800; opacity: 0.92; margin-top: 2px; }
+.lhx-ec-days {
+  position: relative; z-index: 2; text-align: center; flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.22); border-radius: 15px;
+  padding: 7px 12px; min-width: 52px;
+}
+.lhx-ec-days b { display: block; font-size: 21px; font-weight: 900; line-height: 1; }
+.lhx-ec-days span { font-size: 9.5px; font-weight: 900; letter-spacing: 0.5px; opacity: 0.92; }
+
+/* ── Home: Today's Quiz slim card (prototype .daily-slim) ──────── */
+.lhx-daily-slim {
+  display: flex; align-items: center; gap: 13px;
+  background: var(--lhx-card); border-radius: var(--lhx-radius-lg);
+  box-shadow: var(--lhx-shadow); padding: 14px 16px;
+  width: 100%; text-align: left; transition: transform 0.1s;
+}
+.lhx-daily-slim:active { transform: scale(0.98); }
+.lhx-ds-icon {
+  width: 48px; height: 48px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 30% 30%, #eef1ff, #b9c4fb);
+  box-shadow: 0 6px 14px rgba(90, 100, 200, 0.3);
+}
+.lhx-ds-title { font-weight: 900; font-size: 15px; color: var(--lhx-ink); }
+.lhx-ds-sub { font-size: 12px; color: var(--lhx-muted); font-weight: 700; }
+
+/* The prototype's coral "Play" pill — shared by the games hub's daily
+   card and Home's Today's Quiz row. */
+.lhx-play-pill {
+  background: linear-gradient(135deg, var(--lhx-coral1), var(--lhx-coral2));
+  color: #fff; font-weight: 900;
+  border-radius: 14px; padding: 11px 22px; font-size: 14px;
+  box-shadow: 0 4px 0 var(--lhx-coral-shadow);
+  position: relative; z-index: 2; flex-shrink: 0;
+}
+.lhx-play-pill:active { transform: scale(0.96); }
+
+/* ── Home: Explore tiles (prototype .big-grid / .big-tile) ─────── */
+.lhx-big-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.lhx-big-tile {
+  border-radius: 22px; padding: 18px 8px 15px; text-align: center;
+  color: #fff; position: relative; overflow: hidden;
+  transition: transform 0.1s;
+}
+.lhx-big-tile:active { transform: scale(0.95); }
+.lhx-big-tile::after {
+  content: ""; position: absolute; right: -18px; top: -18px;
+  width: 60px; height: 60px; background: rgba(255, 255, 255, 0.18); border-radius: 50%;
+}
+.lhx-bt-papers { background: linear-gradient(150deg, #ff9c5b, #ff5c39); box-shadow: 0 10px 22px rgba(255, 92, 57, 0.4); }
+.lhx-bt-notes { background: linear-gradient(150deg, #41d98a, #1fae62); box-shadow: 0 10px 22px rgba(31, 174, 98, 0.4); }
+.lhx-bt-games { background: linear-gradient(150deg, #8f7bff, #5f4fe0); box-shadow: 0 10px 22px rgba(95, 79, 224, 0.4); }
+.lhx-bt-time { background: linear-gradient(150deg, #ffb14e, #f0447a); box-shadow: 0 10px 22px rgba(240, 68, 122, 0.4); }
+.lhx-tile-icon { font-size: 32px; margin-bottom: 8px; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.18)); }
+.lhx-tile-name { font-weight: 900; font-size: 13.5px; }
+.lhx-tile-sub { font-size: 10.5px; font-weight: 800; opacity: 0.85; margin-top: 2px; }
+/* Desktop: the prototype puts all four in one row and subjects two-up. */
+@media (min-width: 1000px) {
+  .lhx-big-grid { grid-template-columns: repeat(4, 1fr); }
+  .lhx-big-tile { padding: 22px 10px 18px; }
+  .lhx-subjects { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+}
+
 /* ── Topbar bell unread dot (prototype-v6 .notif-dot) ──────────── */
 .lhx-notif-dot {
   position: absolute; top: 6px; right: 7px;
