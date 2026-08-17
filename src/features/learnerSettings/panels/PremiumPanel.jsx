@@ -1,55 +1,47 @@
-// Premium — the subscription detail view. Polished pricing cards that mirror the
-// teacher upgrade modal (icon chip, price, headline features, "Most popular"
-// ribbon), plus the full benefit list. Paid cards open the same Lenco checkout
-// modal, pre-selected. Prices + features come from PLANS so the cards never
-// drift from checkout.
+// Premium — the Go Premium screen, to the prototype's view-plans upper half:
+// the Weekly/Monthly cycle toggle, the gradient price card with its feature
+// list, and the K5 day / K120 term pass tiles. Every price is read from the
+// checkout catalogue (subscriptionConfig PLANS) so this screen can never
+// disagree with what Lenco charges; tapping any plan opens the existing
+// UpgradeModal checkout pre-selected — the payment flow itself is not
+// duplicated here.
+//
+// Two of the prototype card's rows are deliberately absent:
+//   • "No ads" — ZedExams shows no ads on ANY plan, so listing it as a
+//     Premium benefit implies the free plan has them (owner ruling).
+//   • "Notes read aloud by Zed (Monthly only)" — the reader's Listen button
+//     is free on every plan and gated by nothing, so selling it as a
+//     monthly-only Premium feature would be false twice over.
 
 import { useState } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useSubscription } from '../../../hooks/useSubscription'
 import { PLANS } from '../../../engines/payment-engine/subscriptionConfig'
 import { UpgradeModal } from '../../subscription'
-import { Panel, Section, Btn, Note } from '../components/ui'
+import { Panel, Section, Note } from '../components/ui'
 
-const PLAN_CARDS = [
-  {
-    id: 'free',
-    planId: null,
-    icon: '🐢',
-    name: 'Free',
-    tagline: 'The basics to get going',
-    priceLabel: 'K0',
-    unit: 'forever',
-    feats: ['Demo quizzes (one per subject)', 'Basic results', 'Practice mode only'],
-  },
-  {
-    id: 'weekly',
-    planId: 'weekly',
-    icon: PLANS.weekly.badge,
-    name: PLANS.weekly.name,
-    tagline: PLANS.weekly.tagline,
-    priceLabel: `K${PLANS.weekly.priceZMW}`,
-    unit: '/ week',
-    feats: PLANS.weekly.features.slice(0, 3),
-  },
-  {
-    id: 'monthly',
-    planId: 'monthly',
-    icon: PLANS.monthly.badge,
-    name: PLANS.monthly.name,
-    tagline: PLANS.monthly.tagline,
-    priceLabel: `K${PLANS.monthly.priceZMW}`,
-    unit: '/ month',
-    feats: PLANS.monthly.features.slice(0, 3),
-    popular: true,
-  },
+// The two billing cycles the big card switches between. Prices come off the
+// checkout catalogue at render time — never hard-coded here.
+const CYCLES = [
+  { id: 'weekly', label: 'Weekly', per: 'per week' },
+  { id: 'monthly', label: 'Monthly', per: 'per month' },
 ]
 
-// What Premium unlocks.
-//
-// "No ads" is deliberately absent: ZedExams shows no ads on ANY plan, so
-// listing it as a Premium benefit implies the free plan has them. A
-// benefit both tiers share is not a reason to pay.
+// Everything on the ladder this screen can sell, so the checkout the taps
+// open offers the same rungs the tiles do.
+const LADDER_PLAN_IDS = ['day_pass', 'weekly', 'monthly', 'term_pass']
+
+// What the card promises. Each row maps to something the app actually gates:
+// past-paper access beyond the free set, timed exam mode + auto-marking of
+// papers beyond the free set, offline downloads, and the daily Ask Zed quota.
+const CARD_FEATURES = [
+  'All past papers — every year, no limits',
+  'Timed exam mode + full marking & review',
+  'Save papers & notes for offline',
+  'More Ask Zed help every day',
+]
+
+// What Premium unlocks (the full list, below the card).
 const PREMIUM_BENEFITS = [
   'Unlimited quizzes',
   'Unlimited past papers',
@@ -65,10 +57,12 @@ export default function PremiumPanel({ section }) {
   const { userProfile } = useAuth()
   const { tierLabel, isPremium } = useSubscription()
 
+  const [cycle, setCycle] = useState('monthly')
   const [showUpgrade, setShowUpgrade] = useState(false)
   const [upgradePlanId, setUpgradePlanId] = useState(null)
 
-  const currentPlan = !isPremium ? 'free' : (userProfile?.subscriptionPlan || 'monthly')
+  const activeCycle = CYCLES.find((c) => c.id === cycle) || CYCLES[1]
+  const cyclePlan = PLANS[activeCycle.id]
 
   const openUpgrade = (planId) => {
     setUpgradePlanId(planId || null)
@@ -77,41 +71,60 @@ export default function PremiumPanel({ section }) {
 
   return (
     <Panel section={section}>
-      <Section title="Your plan" hint="Pick the plan that fits how you study.">
-        <div className="lset-plans" style={{ marginBottom: 14 }}>
-          {PLAN_CARDS.map((p) => {
-            const on = currentPlan === p.id
-            const clickable = !!p.planId && !on
-            return (
-              <button
-                key={p.id}
-                type="button"
-                className={`lset-plan${on ? ' lset-plan--on' : ''}${p.popular ? ' lset-plan--popular' : ''}`}
-                disabled={!clickable}
-                aria-pressed={on}
-                onClick={clickable ? () => openUpgrade(p.planId) : undefined}
-              >
-                {p.popular && <span className="lset-plan__ribbon">✦ Most popular</span>}
-                <div className="lset-plan__head">
-                  <span className="lset-plan__icon" aria-hidden="true">{p.icon}</span>
-                  <span>
-                    <span className="lset-plan__name">{p.name}</span>
-                    <span className="lset-plan__tagline">{p.tagline}</span>
-                  </span>
-                </div>
-                <div>
-                  <span className="lset-plan__price">{p.priceLabel}</span>
-                  <span className="lset-plan__unit">{p.unit}</span>
-                </div>
-                <ul className="lset-plan__feats">
-                  {p.feats.map((f) => <li key={f} className="lset-plan__feat">{f}</li>)}
-                </ul>
-                {on && <div className="lset-plan__current">✓ Current plan</div>}
-              </button>
-            )
-          })}
+      <Section
+        title="Go Premium"
+        hint={isPremium
+          ? `You're on ${tierLabel}.`
+          : "You're on the Free plan — pick how you'd like to unlock everything."}
+      >
+        {/* Weekly / Monthly cycle toggle */}
+        <div className="lset-go-cycle" role="group" aria-label="Billing cycle">
+          {CYCLES.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              className={cycle === c.id ? 'is-on' : ''}
+              aria-pressed={cycle === c.id}
+              onClick={() => setCycle(c.id)}
+            >
+              {c.label}
+            </button>
+          ))}
         </div>
-        {!isPremium && <Btn onClick={() => openUpgrade('monthly')}>Upgrade to unlock everything</Btn>}
+
+        {/* The price card. The "Best value" badge appears only on Monthly —
+            it would be a false claim pinned to the Weekly price. */}
+        <div className="lset-go-card">
+          {cycle === 'monthly' && <span className="lset-go-badge">Best value</span>}
+          <div className="lset-go-name">ZedExams Premium</div>
+          <div className="lset-go-price">K{cyclePlan.priceZMW}</div>
+          <div className="lset-go-per">{activeCycle.per}</div>
+          <ul className="lset-go-feats">
+            {CARD_FEATURES.map((f) => (
+              <li key={f} className="lset-go-feat"><span aria-hidden="true">✓</span> {f}</li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            className="lset-go-cta"
+            onClick={() => openUpgrade(activeCycle.id)}
+          >
+            Get Premium — K{cyclePlan.priceZMW} {activeCycle.per}
+          </button>
+        </div>
+
+        {/* The two passes beside the subscription: one day, whole term. */}
+        <div className="lset-go-passes">
+          <button type="button" className="lset-go-pass" onClick={() => openUpgrade('day_pass')}>
+            <b>K{PLANS.day_pass.priceZMW}</b>
+            <small>Day pass</small>
+          </button>
+          <button type="button" className="lset-go-pass" onClick={() => openUpgrade('term_pass')}>
+            <b>K{PLANS.term_pass.priceZMW}</b>
+            <small>Whole term</small>
+          </button>
+        </div>
+
         {isPremium && (
           <Note tone="accent">You're on <strong>{tierLabel}</strong>. Manage renewal and receipts under My Account.</Note>
         )}
@@ -126,6 +139,7 @@ export default function PremiumPanel({ section }) {
       {showUpgrade && (
         <UpgradeModal
           portal="learner"
+          planIds={LADDER_PLAN_IDS}
           defaultPlanId={upgradePlanId || userProfile?.subscriptionPlan}
           onClose={() => { setShowUpgrade(false); setUpgradePlanId(null) }}
         />
