@@ -13,7 +13,11 @@ import { Link } from 'react-router-dom'
 import { tokenizeInline } from './readerCore'
 import LabelDiagram from './LabelDiagram'
 
-export const ZED_ART = '/images/characters/zed-zara-reading.webp'
+// Zed's poses (step 8, from the uploaded pack): the tip box gets the
+// map-pointing "let's go" energy; remediation gets the thinking pose
+// ("Let's look at it again").
+export const ZED_ART = '/images/characters/poses/zed-waving.webp'
+export const ZED_THINKING = '/images/characters/poses/zed-thinking.webp'
 
 /** Inline text with **bold** and tappable [[keyword]] bubbles. The
  * engine resolves the tapped word against the glossary, so this only
@@ -192,7 +196,7 @@ function SectionCheck({ block, onWord }) {
           <p className="lhx-try-fb is-no" role="status">✗ Not quite — let’s learn it a bit more, then try again 👇</p>
           <div className="lhx-remed">
             <div className="lhx-remed-head">
-              <img className="lhx-remed-zed" src={ZED_ART} alt="" aria-hidden="true" />
+              <img className="lhx-remed-zed" src={ZED_THINKING} alt="" aria-hidden="true" />
               Let’s look at it again
             </div>
             <p className="lhx-remed-p"><InlineText text={rem.explain} onWord={onWord} /></p>

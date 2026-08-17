@@ -1,16 +1,18 @@
 /**
- * Public surface of Zed — the learner study assistant: the floating launcher
- * on every signed-in page, the full-screen `/zed` conversation, and the report
+ * Public surface of Zed — the learner study assistant: the floating "Ask Zed"
+ * pill (prototype-v5), the full-screen `/ask-zed` conversation, and the report
  * control on each answer.
  *
- * Migrated under docs/architecture.md Phase 4 (Wave 4).
+ * Migrated under docs/architecture.md Phase 4 (Wave 4); rebuilt to the
+ * prototype-v5 mockup in the learner redesign (step 9).
  *
  * ── One export, and the chunk boundary is the reason ────────────────────
  *
  * `App.jsx` imports `ZedChatLauncher` EAGERLY — it renders on every signed-in
- * page, so it is main-bundle code by design. `ZedChat` itself (481 lines, plus
- * markdown rendering, speech and the streaming client) is `lazy()`-loaded by
- * the launcher and must stay that way.
+ * page, so it is main-bundle code by design. Since the v5 rebuild the launcher
+ * is just the navigation pill: `ZedChat` (markdown rendering, speech and the
+ * streaming client) is reached only through the lazily route-mounted
+ * `ZedChatPage`, and must stay off the launcher's import graph.
  *
  * So the front door exports the launcher and nothing else. Adding `ZedChat` or
  * `ZedChatPage` here would put the whole assistant in the main bundle for

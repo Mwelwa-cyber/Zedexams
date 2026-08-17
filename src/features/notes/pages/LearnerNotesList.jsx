@@ -1,260 +1,221 @@
 // src/features/notes/pages/LearnerNotesList.jsx
 //
-// /notes — the learner's reading library.
-// Auto-filtered to their grade (from their profile). Subject chips at the top
-// let them narrow further; search box for title lookup. Sibling of /lessons
-// (interactive slide-based lessons) — the two surfaces share the underlying
-// Firestore collection but are presented as distinct menu items.
+// /notes — the prototype-v4 REVISION HUB (learner redesign step 8),
+// rendered inside the learner shell (Notes is one of the four tabs).
 //
-// Mounted under the standard <Navbar /> in App.jsx so learners can navigate
-// back to /dashboard, /quizzes, /lessons, etc. without browser back.
-
+// The hub lists ONLY reader-format notes — `noteFormat: 'study'` whose
+// blocks pass `isReaderNote` — because the redesign retired the old
+// note formats ("odd notes"): they are hidden here and show a retired
+// card if reached by an old link, while regenerated notes join the hub
+// subject by subject as the pipeline publishes them. Rows open the
+// reader in REVISE mode (the hub is for quick revision; the full Learn
+// pace lives one tap away inside the reader). The Conjunctions demo —
+// the prototype's working note — anchors the English section until real
+// English notes replace it.
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Lock, BookOpen } from '../../../shared/components/icons'
-import { useLearnerProfile }   from '../hooks/useLearnerProfile'
-import { useLearnerNotes }     from '../hooks/useLearnerNotes'
-import { useNoteProgressMap }  from '../hooks/useNoteProgressMap'
-import { NOTE_PROGRESS_STATUS } from '../lib/progress'
-import { LearnerNoteCard }     from '../components/LearnerNoteCard'
-import { isStudyTipsNote }     from '../lib/noteMeta'
-import { getSubjectsForGrade } from '../../../config/curriculum'
-import SeoHelmet               from '../../../shared/components/SeoHelmet'
-import Skeleton                from '../../../shared/components/Skeleton'
-import ContentLoadError        from '../../../shared/components/ContentLoadError'
-import '../styles/notes.css'
+import '../../../shared/styles/learnerTheme.css'
+import '../notesHub.css'
+import { useLearnerProfile } from '../hooks/useLearnerProfile'
+import { useLearnerNotes } from '../hooks/useLearnerNotes'
+import { fetchNoteForCache } from '../hooks/useOfflineNote'
+import { downloadForOffline } from '../../../offline/contentCache.js'
+import { isReaderNote, reviseMinutes } from '../reader/readerCore'
+import { coerceStudyBlocks } from '../lib/studySchema'
+import { NOTE_FORMAT, getSubjectsForGrade } from '../../../config/curriculum'
+import { reportClientError } from '../../../utils/clientErrorReporting'
+import SeoHelmet from '../../../shared/components/SeoHelmet'
+import Skeleton from '../../../shared/components/Skeleton'
+
+// Per-subject row icon (the prototype gives each topic a small emoji
+// tile; per-note art is a content field the pipeline can add later).
+const SUBJECT_ICONS = {
+  english: '🔗',
+  mathematics: '🔢',
+  'integrated-science': '🧪',
+  science: '🧪',
+  'social-studies': '🌍',
+  social: '🌍',
+}
+
+const subjectIcon = (subject) => SUBJECT_ICONS[String(subject || '').toLowerCase()] || '📘'
+const subjectLabel = (subject) =>
+  String(subject || '')
+    .split('-')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ')
+
+/** The prototype's working note — a fixture, listed until real English
+ * reader notes exist so the hub always demonstrates the experience. */
+const DEMO_ROW = {
+  id: '__reader-demo__',
+  icon: '🔗',
+  title: 'Conjunctions — Joining Words',
+  minutes: 2,
+  to: '/notes/reader-preview?mode=revise',
+}
 
 export function LearnerNotesList() {
   const navigate = useNavigate()
-  const { user, profile } = useLearnerProfile()
+  const { profile } = useLearnerProfile()
   const grade = profile?.grade
 
-  const [activeSubject, setActiveSubject] = useState('all')
   const [search, setSearch] = useState('')
+  const [saving, setSaving] = useState(null) // null | {done, total} | 'done'
 
-  const { notes, allNotes, countsBySubject, loading, error, reload } =
-    useLearnerNotes({ grade, subject: activeSubject, search })
+  const { allNotes, loading, error, reload } = useLearnerNotes({ grade })
 
-  const { progressById } = useNoteProgressMap()
-
-  const completedCount = useMemo(
-    () => allNotes.filter(n => progressById[n.id]?.status === NOTE_PROGRESS_STATUS.COMPLETED).length,
-    [allNotes, progressById],
+  // Reader-format notes only, with their honest revise time.
+  const readerNotes = useMemo(
+    () =>
+      allNotes
+        .filter((n) => n.noteFormat === NOTE_FORMAT.STUDY)
+        .map((n) => ({ note: n, blocks: coerceStudyBlocks(n.blocks) }))
+        .filter(({ blocks }) => isReaderNote(blocks))
+        .map(({ note, blocks }) => ({
+          id: note.id,
+          subject: note.subject,
+          icon: subjectIcon(note.subject),
+          title: note.title,
+          minutes: reviseMinutes(blocks),
+          to: `/notes/${note.id}?mode=revise`,
+        })),
+    [allNotes],
   )
 
-  const subjects = useMemo(() => getSubjectsForGrade(grade), [grade])
-  const firstName = user?.displayName?.split(' ')[0] || 'there'
+  // Group by the grade's subject order; English leads (the demo lives there).
+  const sections = useMemo(() => {
+    const subjects = getSubjectsForGrade(grade) || []
+    const bySubject = new Map()
+    for (const row of readerNotes) {
+      const key = String(row.subject || 'other').toLowerCase()
+      if (!bySubject.has(key)) bySubject.set(key, [])
+      bySubject.get(key).push(row)
+    }
+    const english = bySubject.get('english') || []
+    bySubject.delete('english')
+    const out = [{ key: 'english', label: 'English', rows: [...english, DEMO_ROW] }]
+    for (const s of subjects) {
+      const key = String(s).toLowerCase()
+      if (key === 'english') continue
+      if (bySubject.has(key)) {
+        out.push({ key, label: subjectLabel(s), rows: bySubject.get(key) })
+        bySubject.delete(key)
+      }
+    }
+    for (const [key, rows] of bySubject) out.push({ key, label: subjectLabel(key), rows })
+    return out
+  }, [readerNotes, grade])
 
-  // "How to Study & Exam Tips" is general study advice, not a syllabus topic —
-  // pin it to the top of the list (regardless of the active subject) and keep
-  // it out of the per-subject sections so it never reads as "buried".
-  const tipsNote = useMemo(() => allNotes.find(isStudyTipsNote) || null, [allNotes])
-  const tipsMatchesSearch = useMemo(() => {
-    if (!tipsNote) return false
-    const q = search.trim().toLowerCase()
-    if (!q) return true
-    return tipsNote.title?.toLowerCase().includes(q)
-  }, [tipsNote, search])
-  const showTips = !!tipsNote && tipsMatchesSearch
+  const q = search.trim().toLowerCase()
+  const visibleSections = sections
+    .map((s) => ({ ...s, rows: q ? s.rows.filter((r) => r.title.toLowerCase().includes(q)) : s.rows }))
+    .filter((s) => s.rows.length > 0)
 
-  const grouped = useMemo(() => {
-    const visible = notes.filter(n => !isStudyTipsNote(n))
-    return activeSubject === 'all'
-      ? subjects.reduce((acc, s) => {
-          const list = visible.filter(n => n.subject === s)
-          if (list.length) acc[s] = list
-          return acc
-        }, {})
-      : { [activeSubject]: visible }
-  }, [activeSubject, notes, subjects])
+  const downloadableIds = readerNotes.map((r) => r.id)
+
+  async function downloadAll() {
+    if (saving || downloadableIds.length === 0) return
+    setSaving({ done: 0, total: downloadableIds.length })
+    let done = 0
+    for (const id of downloadableIds) {
+      try {
+        await downloadForOffline({ type: 'note', id, fetcher: () => fetchNoteForCache(id) })
+      } catch (err) {
+        reportClientError(err, 'notes.downloadAll')
+      }
+      done += 1
+      setSaving({ done, total: downloadableIds.length })
+    }
+    setSaving('done')
+  }
 
   return (
-    <div className="notes-studio note-page-cream min-h-screen pb-24 lg:pb-8">
+    <div>
       <SeoHelmet title="Notes" path="/notes" noIndex />
-      <main className="max-w-5xl mx-auto px-4 sm:px-5 py-8">
-        <div className="mb-6 flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-          <div>
-            <div className="inline-flex items-center gap-2 text-[10.5px] font-extrabold tracking-[0.16em] uppercase text-[#053541] mb-2 before:content-[''] before:w-[22px] before:h-[3px] before:rounded-sm before:bg-[#D97757]">Your notes</div>
-            <h1 className="font-display text-4xl sm:text-5xl tracking-tight mb-2 text-[#0F1B2D]">
-              Welcome back, <span className="font-display-italic">{firstName}.</span>
-            </h1>
-            <p className="text-base text-[#4A5A6E]">
-              {error && allNotes.length === 0
-                ? 'We hit a snag loading your notes.'
-                : allNotes.length === 0
-                  ? `Notes for Grade ${grade} are on the way.`
-                  : `${allNotes.length} note${allNotes.length === 1 ? '' : 's'} published for Grade ${grade}.`}
-            </p>
-          </div>
-          {allNotes.length > 0 && (
-            <NotesProgressPanel total={allNotes.length} completed={completedCount} />
-          )}
-        </div>
-
-        {allNotes.length > 0 && (
-          <div className="relative mb-4 max-w-md">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4A5A6E]" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by title…"
-              className="w-full pl-9 pr-3 py-2.5 text-sm bg-white rounded-xl border-2 border-[#0F1B2D] text-[#0F1B2D] placeholder:text-[#4A5A6E] focus:outline-none focus:ring-2 focus:ring-[#D97757]/40 transition"
-            />
-          </div>
-        )}
-
-        {allNotes.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto pb-3 mb-6 scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
-            <SubjectChip active={activeSubject === 'all'} onClick={() => setActiveSubject('all')}>
-              All <span className="opacity-60">· {allNotes.length}</span>
-            </SubjectChip>
-            {subjects
-              .filter(s => countsBySubject[s])
-              .map(s => (
-                <SubjectChip key={s} active={activeSubject === s} onClick={() => setActiveSubject(s)}>
-                  {s} <span className="opacity-60">· {countsBySubject[s]}</span>
-                </SubjectChip>
-              ))}
-          </div>
-        )}
-
-        {/* A read failure must not masquerade as "no notes yet" — show a
-            retryable error instead of the empty state. */}
-        {error && allNotes.length === 0 ? (
-          <ContentLoadError
-            title="Couldn’t load your notes"
-            message="We couldn’t load your notes right now. Please check your connection and try again."
-            onRetry={reload}
-          />
-        ) : (
-          <>
-            {loading && allNotes.length === 0 && <SkeletonGrid />}
-
-            {!loading && allNotes.length === 0 && (
-              <EmptyState grade={grade} />
-            )}
-          </>
-        )}
-
-        {!loading && showTips && (
-          <section className="mb-10">
-            <div className="flex items-center gap-3 mb-4">
-              <h2 className="font-display text-2xl tracking-tight text-[#0F1B2D]">Start here</h2>
-              <span className="text-xs text-[#4A5A6E]">Study smarter</span>
-            </div>
-            <LearnerNoteCard
-              note={tipsNote}
-              progress={progressById[tipsNote.id]}
-              onClick={() => navigate(`/notes/${tipsNote.id}`)}
-            />
-          </section>
-        )}
-
-        {!loading && Object.keys(grouped).length > 0 && (
-          <div className="space-y-10">
-            {Object.entries(grouped).map(([subject, list]) => (
-              <section key={subject}>
-                <div className="flex items-center gap-3 mb-4">
-                  <h2 className="font-display text-2xl tracking-tight text-[#0F1B2D]">{subject}</h2>
-                  <span className="text-xs text-[#4A5A6E]">{list.length} note{list.length === 1 ? '' : 's'}</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {list.map(note => (
-                    <LearnerNoteCard
-                      key={note.id}
-                      note={note}
-                      progress={progressById[note.id]}
-                      onClick={() => navigate(`/notes/${note.id}`)}
-                    />
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
-        )}
-
-        {!loading && allNotes.length > 0 && Object.keys(grouped).length === 0 && !showTips && (
-          <div className="text-center py-16 text-[#4A5A6E] text-sm">
-            {search ? `No notes match "${search}".` : 'No notes yet for this subject.'}
-          </div>
-        )}
-
-        <div className="notes-card mt-12 p-6 text-center">
-          <div className="w-11 h-11 rounded-xl mx-auto mb-3 grid place-items-center border-2 border-[#0F1B2D] bg-[#EDE9FE]" style={{ boxShadow: '0 2px 0 #0F1B2D' }}>
-            <Lock size={18} className="text-[#6D28D9]" />
-          </div>
-          <h3 className="font-display text-2xl mb-1 text-[#0F1B2D]">Grades 8–12</h3>
-          <p className="text-sm text-[#4A5A6E] max-w-sm mx-auto">
-            Junior and senior secondary notes coming soon. We're building Grades 4–7 first.
-          </p>
-        </div>
-      </main>
-    </div>
-  )
-}
-
-function NotesProgressPanel({ total, completed }) {
-  const percent = total > 0 ? Math.round((completed / total) * 100) : 0
-  return (
-    <div className="notes-card p-4 w-full lg:w-72 shrink-0">
-      <div className="flex items-center gap-2.5 mb-3">
-        <span className="w-9 h-9 rounded-xl grid place-items-center border-2 border-[#0F1B2D] bg-[#F8EADF]" style={{ boxShadow: '0 2px 0 #0F1B2D' }}>
-          <BookOpen size={16} className="text-[#A3422E]" />
-        </span>
+      <div className="lhx-back-row">
+        <button type="button" className="lhx-back-btn" aria-label="Back to Home" onClick={() => navigate('/dashboard')}>‹</button>
         <div>
-          <div className="text-sm font-bold text-[#0F1B2D] leading-tight">Notes progress</div>
-          <div className="text-[11px] text-[#4A5A6E]">{percent}% completed</div>
+          <div className="lhx-back-title">Notes</div>
+          <div className="lhx-back-sub">Quick revision{grade ? ` · Grade ${grade}` : ''}</div>
         </div>
       </div>
-      <div className="h-2 rounded-full bg-[#F5EFE1] border border-[#0F1B2D]/15 overflow-hidden">
-        <div className="h-full rounded-full" style={{ width: `${percent}%`, backgroundColor: '#D97757' }} />
-      </div>
-      <div className="mt-2 text-[11px] text-[#4A5A6E]">{completed} of {total} notes completed</div>
-    </div>
-  )
-}
 
-function SubjectChip({ children, active, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`notes-chip shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full whitespace-nowrap ${
-        active
-          ? 'bg-[#0F1B2D] text-white notes-chip-shadow'
-          : 'bg-white text-[#0F1B2D] hover:-translate-y-px hover:notes-chip-shadow'
-      }`}
-    >
-      {children}
-    </button>
-  )
-}
+      <input
+        type="search"
+        className="lhx-note-search"
+        placeholder="🔍 Search topics… try 'conjunctions'"
+        aria-label="Search notes"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
 
-function SkeletonGrid() {
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="notes-card p-5">
-          <div className="flex gap-2 mb-3">
-            <Skeleton width={64} height={20} className="!rounded-full" />
-            <Skeleton width={48} height={20} className="!rounded-full" />
-          </div>
-          <Skeleton width="75%" height={28} className="!rounded mb-2" />
-          <Skeleton height={16} className="!rounded mb-1" />
-          <Skeleton width="66%" height={16} className="!rounded" />
+      {loading ? (
+        <div style={{ display: 'grid', gap: 12 }}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} height={68} className="lhx-skel" style={{ borderRadius: 20 }} />
+          ))}
         </div>
-      ))}
-    </div>
-  )
-}
+      ) : (
+        <>
+          {error && allNotes.length === 0 && (
+            <div className="lhx-card" style={{ padding: 16 }}>
+              <p className="lhx-topic-sub">We hit a snag loading your notes.</p>
+              <div style={{ height: 10 }} />
+              <button type="button" className="lhx-btn lhx-btn-primary" onClick={reload}>Try again</button>
+            </div>
+          )}
 
-function EmptyState({ grade }) {
-  return (
-    <div className="text-center py-16">
-      <h3 className="font-display text-3xl text-[#0F1B2D] mb-2">Nothing here yet</h3>
-      <p className="text-sm text-[#4A5A6E] max-w-sm mx-auto">
-        Your teacher hasn't published any Grade {grade} notes yet. Check back soon — they'll appear here as soon as they're ready.
-      </p>
+          {visibleSections.map((section) => (
+            <section key={section.key} aria-label={section.label}>
+              <div className="lhx-section-head">
+                <h2 className="lhx-section-title">{section.label}</h2>
+              </div>
+              <div style={{ display: 'grid', gap: 10 }}>
+                {section.rows.map((row) => (
+                  <button
+                    key={row.id}
+                    type="button"
+                    className="lhx-topic-row"
+                    onClick={() => navigate(row.to)}
+                  >
+                    <span className="lhx-topic-ic" aria-hidden="true">{row.icon}</span>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <span className="lhx-topic-name" style={{ display: 'block' }}>{row.title}</span>
+                      <span className="lhx-topic-sub" style={{ display: 'block' }}>
+                        Key points · {row.minutes} min revise
+                      </span>
+                    </span>
+                    <span className="lhx-gc-chev" aria-hidden="true">›</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          ))}
+
+          {q && visibleSections.length === 0 && (
+            <p className="lhx-topic-sub" style={{ textAlign: 'center', marginTop: 8 }}>
+              Nothing matches “{search.trim()}” yet.
+            </p>
+          )}
+
+          {downloadableIds.length > 0 && (
+            <button
+              type="button"
+              className="lhx-btn lhx-btn-block"
+              style={{ background: 'var(--lhx-card)', color: 'var(--lhx-indigo-text)', boxShadow: 'var(--lhx-shadow)' }}
+              onClick={downloadAll}
+              disabled={!!saving && saving !== 'done'}
+            >
+              {saving === 'done'
+                ? '✓ Notes saved for offline'
+                : saving
+                  ? `Saving ${saving.done} / ${saving.total}…`
+                  : '💾 Download all notes for offline'}
+            </button>
+          )}
+        </>
+      )}
     </div>
   )
 }

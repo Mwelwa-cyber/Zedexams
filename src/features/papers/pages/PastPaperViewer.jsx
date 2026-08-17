@@ -574,7 +574,6 @@ export default function PastPaperViewer() {
       // covers the panels / footer at the end of the page.
       style={dockActive ? { paddingBottom: 'calc(112px + env(safe-area-inset-bottom))' } : undefined}
     >
-      <ViewerDockBodyFlag active={dockActive} />
       <SeoHelmet
         title={paper.title}
         description={`${paper.examBoard || 'ECZ'} Grade ${paper.grade} ${subjectLabel} ${paper.year} past paper${paper.paperNumber ? `, Paper ${paper.paperNumber}` : ''}.`}
@@ -1175,20 +1174,6 @@ function SubjectNav({ prev, next, backTo }) {
       ) : <span className="hidden sm:block" />}
     </div>
   )
-}
-
-/**
- * Flags the <body> while the glass dock is on screen so global floating
- * chrome (the Zed chat bubble) can lift itself clear of it via CSS —
- * see `body[data-viewer-dock] .zx-chat-fab` in index.css.
- */
-function ViewerDockBodyFlag({ active }) {
-  useEffect(() => {
-    if (!active) return undefined
-    document.body.setAttribute('data-viewer-dock', '1')
-    return () => document.body.removeAttribute('data-viewer-dock')
-  }, [active])
-  return null
 }
 
 /**

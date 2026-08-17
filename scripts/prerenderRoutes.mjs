@@ -95,7 +95,8 @@ export function buildRouteList() {
   for (const slug of discoverBlogSlugs()) routes.push(`/blog/${slug}`)
   // Grade-pack landings — ECZ exam grades 7 (live) + 12 (coming soon).
   for (const grade of ['7', '12']) routes.push(`/grade-${grade}`)
-  // Per-grade game subject pickers — CBC Grades 4-6 (static subject lists).
-  for (const grade of ['4', '5', '6']) routes.push(`/games/g/${grade}`)
+  // The per-grade game subject pickers retired with learner redesign
+  // step 8 — /games/g/* is a redirect to /games now, so the hub is the
+  // one advertised games URL.
   return routes
 }

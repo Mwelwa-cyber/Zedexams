@@ -7,19 +7,21 @@
  * idea as /teacher/dashboard-preview: fixture data only, nothing
  * written, gated like every learner route.
  */
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import ReaderEngine from '../reader/ReaderEngine'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 import { CONJUNCTIONS_NOTE, CONJUNCTIONS_BLOCKS } from '../reader/fixtures/conjunctionsDemo'
 
 export default function ReaderPreview() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   return (
     <>
       <SeoHelmet title="Note reader preview" path="/notes/reader-preview" noIndex />
       <ReaderEngine
         note={CONJUNCTIONS_NOTE}
         blocks={CONJUNCTIONS_BLOCKS}
+        initialMode={searchParams.get('mode') === 'revise' ? 'revise' : 'learn'}
         onBack={() => navigate('/notes')}
       />
     </>

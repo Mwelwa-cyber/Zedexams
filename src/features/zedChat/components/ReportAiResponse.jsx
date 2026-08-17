@@ -40,9 +40,9 @@ const REASONS = [
   { value: 'other', label: 'Something else' },
 ]
 
-export default function ReportAiResponse({ message, conversationId, surface = 'zed-chat' }) {
+export default function ReportAiResponse({ message, conversationId, surface = 'zed-chat', defaultOpen = false }) {
   const { currentUser, userProfile } = useAuth()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(defaultOpen)
   const [reason, setReason] = useState('')
   const [comment, setComment] = useState('')
   const [state, setState] = useState('idle') // idle | sending | sent | error

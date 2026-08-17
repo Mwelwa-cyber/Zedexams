@@ -105,7 +105,9 @@ const ALLOWLIST = new Set([
  */
 const UNSCANNED_UNTIL_NOW = new Set([
   'src/features/notes/pages/AdminVisualNotesGenerator.jsx',
-  'src/features/notes/pages/LearnerNoteRead.jsx',
+  // LearnerNoteRead left this ledger on 2026-08-17 (learner redesign step
+  // 8): its rewrite deleted the local SUBJECT_STYLES map along with the
+  // legacy reader — the ledger shrank the intended way.
   'src/features/notes/components/NoteCard.jsx',
   'src/features/learnerSettings/lib/learnerPrefs.js',
   'src/features/classTimetable/lib/timetableCoverage.js',

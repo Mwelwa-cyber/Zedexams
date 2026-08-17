@@ -1358,3 +1358,19 @@ export const RETIRED_GAME_TYPES = new Set([
   'sentence_scramble',
   'market_challenge',
 ])
+
+/**
+ * The game types a learner can be SHOWN as catalogue entries (learner
+ * redesign step 8: the hub lists exactly the mockup's four mechanics).
+ * timed_quiz stays playable — it serves the daily challenge and the
+ * duel's question pool — but is not a browsable catalogue card.
+ */
+export const CATALOGUE_GAME_TYPES = new Set([
+  'number_target',
+  'word_builder',
+  'memory_match',
+  'punctuation',
+])
+
+/** Everything a learner may PLAY (catalogue + the daily-quiz engine). */
+export const PLAYABLE_GAME_TYPES = new Set([...CATALOGUE_GAME_TYPES, 'timed_quiz'])

@@ -116,11 +116,9 @@ export default function PlayGame() {
 
   const gradeMeta = gradeByValue(game.grade)
   const subjectMeta = subjectBySlug(game.subject)
-  const crumbs = [
-    gradeMeta && { label: gradeMeta.label, to: `/games/g/${gradeMeta.value}` },
-    gradeMeta && subjectMeta && { label: subjectMeta.label, to: `/games/g/${gradeMeta.value}/${subjectMeta.slug}` },
-    { label: game.title },
-  ].filter(Boolean)
+  // Grade/subject browsing retired (step 8) — the crumb trail is just
+  // the hub and the game.
+  const crumbs = [{ label: 'Games', to: '/games' }, { label: game.title }]
   const locked = !isDemoGame(game) && !canAccessFullContent
 
   // The rebuilt prototype-v3 engines bring their own full-screen `.lhx`

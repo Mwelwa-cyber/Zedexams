@@ -102,7 +102,7 @@ describe('GamesHub', () => {
     expect(document.querySelectorAll('.lhx-badge.is-locked')).toHaveLength(GAME_BADGES.length - 1)
   })
 
-  it('game cards are scoped to the learner grade with best scores from history', async () => {
+  it('the catalogue is exactly the mockup: one card per mechanic + the Map Quest teaser', async () => {
     renderHub()
     const words = (await screen.findByText('Word Builder')).closest('a')
     expect(within(words).getByText('Best 120')).toBeInTheDocument()
@@ -110,10 +110,14 @@ describe('GamesHub', () => {
     const path = document.querySelector('a.lhx-gc[href="/games/play/g-path"]')
     expect(within(path).getByText('Level 1')).toBeInTheDocument()
     expect(within(path).getByText('Not played yet')).toBeInTheDocument()
-    // The grade-6 game is not in the learner's lane…
+    // timed_quiz games never list as catalogue cards (daily-only)…
     expect(screen.queryByText('G6 Quiz')).toBeNull()
-    // …but every grade stays reachable through the lanes.
-    expect(screen.getByRole('link', { name: 'Grade 6' })).toHaveAttribute('href', '/games/g/6')
+    // …grade browsing is gone…
+    expect(screen.queryByText(/Browse by grade/)).toBeNull()
+    // …and the Map Quest teaser renders honestly as coming soon, not a link.
+    const mapQuest = screen.getByText('Map Quest').closest('.lhx-gc')
+    expect(mapQuest.tagName).not.toBe('A')
+    expect(within(mapQuest).getByText('Coming soon')).toBeInTheDocument()
   })
 
   it('a Firestore failure falls back to the seed catalogue instead of an empty hub', async () => {

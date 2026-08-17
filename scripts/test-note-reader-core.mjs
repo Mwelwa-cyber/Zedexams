@@ -16,6 +16,7 @@ import {
   assignRevealSteps,
   visibleAtStep,
   readerMeta,
+  reviseMinutes,
   scoreLabelPlacement,
   labelSlotKey,
   labelBankOrder,
@@ -117,6 +118,19 @@ test('readerMeta counts sections and never reports zero minutes', () => {
   assert.equal(meta.sections, 1)
   assert.ok(meta.minutes >= 1)
   assert.deepEqual(readerMeta([]), { minutes: 1, sections: 1 })
+})
+
+test('reviseMinutes counts only revise-visible blocks and never reports zero', () => {
+  const longText = Array.from({ length: 360 }, () => 'word').join(' ') // ≈2 min at 180wpm
+  // Practice is revision-hidden — a note that is mostly exercises still
+  // revises quickly; keypoints are what the pass actually reads.
+  const minutes = reviseMinutes([
+    { type: 'keypoints', items: [longText] },
+    { type: 'practice', q: longText, options: [] },
+  ])
+  assert.equal(minutes, 2)
+  assert.equal(reviseMinutes([]), 1)
+  assert.ok(reviseMinutes([{ type: 'practice', q: longText, options: [] }]) === 1)
 })
 
 // ── Label diagram ────────────────────────────────────────────────────
