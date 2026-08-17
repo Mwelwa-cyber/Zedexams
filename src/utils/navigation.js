@@ -39,6 +39,7 @@ export const LEARNER_ONLY_SEGMENTS = Object.freeze([
   'my-results',
   'my-stats',
   'notes',
+  'notifications',
   'practise',
   'quiz',
   'quizzes',

@@ -19,6 +19,7 @@ for (const p of [
   '/papers/p1', '/papers/p1/practice', '/papers/p1/quiz',
   '/lessons/l1', '/games/play/g1', '/games/duel', '/games/leaderboard',
   '/exams/leaderboard', '/timetable/pdf',
+  '/profile', '/settings', '/settings/profile', '/notifications',
   '/admin', '/admin/users', '/teacher', '/login', '/register', '/pricing',
 ]) {
   assert.equal(shouldHideFab(p), true, `fab should HIDE on ${p}`)

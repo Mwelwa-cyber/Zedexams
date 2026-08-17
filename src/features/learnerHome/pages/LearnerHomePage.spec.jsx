@@ -7,7 +7,7 @@
  * information architecture (Games present, Profile absent).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, within, fireEvent } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 
 vi.mock('../../../firebase/config', () => ({ default: {}, auth: {}, db: {} }))
@@ -88,6 +88,9 @@ function renderHome() {
         <Route element={<LearnerLayout />}>
           <Route path="/dashboard" element={<LearnerHomePage />} />
         </Route>
+        {/* Stub destinations — the v6 topbar bell/avatar NAVIGATE. */}
+        <Route path="/profile" element={<div>PROFILE ROUTE</div>} />
+        <Route path="/notifications" element={<div>NOTIFICATIONS ROUTE</div>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -227,13 +230,21 @@ describe('LearnerHomePage', () => {
     expect(within(header).getByRole('button', { name: 'Alerts, 3 unread' })).toBeInTheDocument()
   })
 
-  it('profile opens from the topbar avatar button', () => {
+  it('the topbar avatar navigates to the Profile view (prototype-v6)', () => {
     renderHome()
-    const account = screen.getByRole('button', { name: /account menu for Lydia Mwansa/i })
+    const account = screen.getByRole('button', { name: /my profile, Lydia Mwansa/i })
     expect(account).toBeInTheDocument()
     // Profile is absent from the bottom navigation by design, so the
     // avatar affordance has to live here.
     expect(account.classList.contains('lhx-avatar-btn')).toBe(true)
+    fireEvent.click(account)
+    expect(screen.getByText('PROFILE ROUTE')).toBeInTheDocument()
+  })
+
+  it('the topbar bell navigates to the Notifications view (prototype-v6)', () => {
+    renderHome()
+    fireEvent.click(screen.getByRole('button', { name: 'Alerts, 3 unread' }))
+    expect(screen.getByText('NOTIFICATIONS ROUTE')).toBeInTheDocument()
   })
 
   it('shows a retryable error state when the dashboard load fails', () => {

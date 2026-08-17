@@ -1,27 +1,25 @@
 /**
- * LearnerHeader — the prototype-v3 glass topbar: logo on the left; Night
- * toggle, streak pill, alerts and the avatar (profile entry point) on
- * the right. On Home it also renders the "Hi, {name}! 👋" greeting with
- * the Grade · Term chip.
+ * LearnerHeader — the prototype glass topbar: logo on the left; Night
+ * toggle, streak pill, the alerts bell and the avatar on the right. On
+ * Home it also renders the "Hi, {name}! 👋" greeting with the
+ * Grade · Term chip.
  *
- * The old four-tile chrome bar (Progress · Theme · Alerts · Account) is
- * gone with the redesign: Progress lives in the profile sheet, and the
- * multi-theme picker is replaced by the prototype's single Night toggle.
- * The curriculum label was dropped from the meta on purpose — the old
- * header hardcoded "CBC", which is wrong for Grade 7 (frameworks:
- * ['2013']), and the prototype chip shows Grade · Term only.
+ * Since prototype-v6 (step 10) the bell and the avatar NAVIGATE — to the
+ * full-screen /notifications centre and to /profile — instead of opening
+ * overlays; the old account sheet is gone with them. The multi-theme
+ * picker remains replaced by the prototype's single Night toggle, and
+ * the curriculum label stays off the meta on purpose — the old header
+ * hardcoded "CBC", which is wrong for Grade 7 (frameworks: ['2013']).
  */
-import { useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useNotifications } from '../../../contexts/NotificationContext'
 import { useTheme, DEFAULT_THEME } from '../../../contexts/ThemeContext'
 import useHideOnScroll from '../../../hooks/useHideOnScroll'
-import { NotificationCenter } from '../../notifications'
+import { capture } from '../../../utils/analytics'
 import PlanChip from '../../../shared/components/PlanChip'
 import CharacterAvatar from '../../../shared/components/CharacterAvatar'
 import LearnerIcon from './LearnerIcon'
-import LearnerProfileSheet from './LearnerProfileSheet'
 import ExamCountdownChip from './ExamCountdownChip'
 import { firstNameOf } from '../lib/learnerHomeCore'
 
@@ -61,16 +59,14 @@ function NightToggle() {
 
 export default function LearnerHeader({ activeTerm, showGreeting = true, streak = null, timetables = null }) {
   const { userProfile } = useAuth()
+  const navigate = useNavigate()
   // The app-wide notification feed — one listener in NotificationProvider,
-  // shared by every shell. Reading it here adds no Firestore work.
-  const { unreadCount, open: alertsOpen, setOpen: setAlertsOpen } = useNotifications()
-  const [sheetOpen, setSheetOpen] = useState(false)
-  const accountRef = useRef(null)
-  // LinkedIn-style auto-hide. Kept pinned while an overlay anchored to it
-  // (alerts, account sheet) is open so it can't slide out from under its
-  // own dialog.
-  const scrolledHidden = useHideOnScroll()
-  const topbarHidden = scrolledHidden && !alertsOpen && !sheetOpen
+  // shared by every shell. Reading it here adds no Firestore work. Since
+  // prototype-v6 the bell and avatar are NAVIGATION (full-screen
+  // Notifications and Profile views), not overlays — so the topbar has no
+  // anchored dialogs to keep pinned any more.
+  const { unreadCount } = useNotifications()
+  const topbarHidden = useHideOnScroll()
 
   const firstName = firstNameOf(userProfile?.displayName)
   const showStreak = Number.isFinite(Number(streak)) && Number(streak) > 0
@@ -103,23 +99,19 @@ export default function LearnerHeader({ activeTerm, showGreeting = true, streak 
           <button
             type="button"
             className="lhx-pill"
-            onClick={() => setAlertsOpen(true)}
+            onClick={() => navigate('/notifications')}
             aria-label={unreadCount > 0 ? `Alerts, ${unreadCount} unread` : 'Alerts'}
-            aria-haspopup="dialog"
           >
             <LearnerIcon name="notification" size={19} />
-            {unreadCount > 0 && (
-              <span className="lhx-pill-count" aria-hidden="true">{unreadCount > 99 ? '99+' : unreadCount}</span>
-            )}
+            {/* Unread is a red dot (prototype-v6 .notif-dot); the count is
+                surfaced to assistive tech through the label above. */}
+            {unreadCount > 0 && <span className="lhx-notif-dot" aria-hidden="true" />}
           </button>
           <button
-            ref={accountRef}
             type="button"
             className="lhx-avatar-btn"
-            onClick={() => setSheetOpen(true)}
-            aria-label={`Account menu for ${userProfile?.displayName || 'your account'}`}
-            aria-haspopup="dialog"
-            aria-expanded={sheetOpen}
+            onClick={() => { capture('profile_opened'); navigate('/profile') }}
+            aria-label={`My profile, ${userProfile?.displayName || 'your account'}`}
           >
             {userProfile?.avatarCharacter ? (
               <CharacterAvatar characterId={userProfile.avatarCharacter} className="w-full h-full" />
@@ -144,8 +136,6 @@ export default function LearnerHeader({ activeTerm, showGreeting = true, streak 
           )}
         </div>
       )}
-      {alertsOpen && <NotificationCenter />}
-      <LearnerProfileSheet open={sheetOpen} onClose={() => setSheetOpen(false)} returnFocusRef={accountRef} />
     </header>
   )
 }
