@@ -298,6 +298,7 @@ const LearnerLeaderboardPage = lazy(() => import('../features/dailyExams/pages/L
 const GamesHub = lazy(() => import('../features/games/pages/GamesHub'))
 const PlayGame = lazy(() => import('../features/games/pages/PlayGame'))
 const DuelRace = lazy(() => import('../features/games/pages/DuelRace'))
+const DuelLive = lazy(() => import('../features/games/pages/DuelLive'))
 const GlobalLeaderboard = lazy(() => import('../features/games/pages/GlobalLeaderboard'))
 const StickerCollection = lazy(() => import('../features/games/pages/StickerCollection'))
 const DailyIntro = lazy(() => import('../features/games/pages/DailyIntro'))
@@ -663,6 +664,7 @@ export default function App() {
           {/* Race Zed! — the honest duel: full-screen chrome of its own,
               so it mounts bare like the play surface. */}
           <Route path="/games/duel"                    element={<DuelRace />} />
+          <Route path="/games/duel/live"               element={<DuelLive />} />
 
           {/* ── Learner routes ─────────────────────────────────── */}
           {/* The prototype-v3 learner shell (2026-08 redesign). The chrome

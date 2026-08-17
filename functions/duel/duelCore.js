@@ -80,11 +80,27 @@ function drawQuestions(bank, seed, count = 5) {
 }
 
 /**
+ * Index of the correct option for a bank question. The games bank stores
+ * `answer` as the answer STRING ('42'), compared loosely against options
+ * — this mirrors the client's canonical `correctIndexFor`
+ * (src/features/games/lib/timedQuizCore.js) exactly, because grading
+ * against a different comparison than the one the runner renders with
+ * would mark honest answers wrong. An integer `answer` is accepted as an
+ * index for banks that store it that way. -1 when nothing matches.
+ */
+function correctIndexOf(question) {
+  const options = Array.isArray(question?.options) ? question.options : [];
+  const answer = question?.answer;
+  if (Number.isInteger(answer)) return answer >= 0 && answer < options.length ? answer : -1;
+  return options.findIndex((o) => String(o) === String(answer));
+}
+
+/**
  * Grade a submitted answer sheet against the bank — the server's copy,
  * never the client's. A submission is an array of option indexes (or
  * null for unanswered), positional against the match's question order.
  *
- * @param {Array<{answer:number}>} questions  the match's drawn questions
+ * @param {Array<object>} questions  the match's drawn questions
  * @param {Array<number|null>} submitted
  * @return {{correct:number, total:number, score:number}}
  */
@@ -93,7 +109,8 @@ function gradeSubmission(questions, submitted) {
   const subs = Array.isArray(submitted) ? submitted : [];
   let correct = 0;
   qs.forEach((q, i) => {
-    if (q && Number.isInteger(q.answer) && subs[i] === q.answer) correct += 1;
+    const want = correctIndexOf(q);
+    if (want >= 0 && subs[i] === want) correct += 1;
   });
   // 10 points per correct answer — mirrors the timed-quiz scale the
   // leaderboard already speaks.
@@ -138,6 +155,7 @@ function settleMatch(match, uid, score, nowMs) {
 
 module.exports = {
   QUEUE_TTL_MS,
+  correctIndexOf,
   MATCH_TTL_MS,
   pickOpponent,
   drawQuestions,

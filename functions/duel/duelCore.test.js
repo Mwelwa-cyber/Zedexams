@@ -58,12 +58,25 @@ test("a bank smaller than the draw is used whole, never padded", () => {
   assert.strictEqual(drawQuestions(bank, "m", 5).length, 2);
 });
 
-test("grading counts only exact answer-index matches, 10 points each", () => {
-  const qs = [{ answer: 1 }, { answer: 2 }, { answer: 0 }];
-  const g = gradeSubmission(qs, [1, 0, 0]);
+test("grading resolves the REAL bank shape — answer is the option STRING", () => {
+  // The games bank stores answer as the answer string ('42'), matched
+  // loosely — the exact shape gamesSeed.js ships. Grading against an
+  // integer-index assumption marked every honest answer wrong.
+  const qs = [
+    { options: ["42", "36", "48"], answer: "42" },   // correct index 0
+    { options: [30, 35, 40], answer: "40" },          // loose: 40 vs "40" → 2
+    { options: ["a", "b"], answer: "zzz" },           // no match → ungradable
+  ];
+  const g = gradeSubmission(qs, [0, 2, 0]);
   assert.deepStrictEqual(g, { correct: 2, total: 3, score: 20 });
   // Nulls and gaps are wrong answers, not errors.
   assert.strictEqual(gradeSubmission(qs, [null]).correct, 0);
+});
+
+test("an integer answer is accepted as an index, bounds-checked", () => {
+  const qs = [{ options: ["x", "y"], answer: 1 }, { options: ["x"], answer: 9 }];
+  const g = gradeSubmission(qs, [1, 0]);
+  assert.strictEqual(g.correct, 1);
 });
 
 test("settle records the first score and waits for the opponent", () => {
