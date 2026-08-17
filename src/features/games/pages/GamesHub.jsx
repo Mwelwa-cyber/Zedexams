@@ -206,6 +206,23 @@ export default function GamesHub() {
       </Link>
       )}
 
+      {/* The LIVE challenge — real matchmaking on the server model
+          (#2465), so this card is no longer withheld: the opponent is a
+          real same-grade learner, the questions provably shared, the
+          scores server-graded. Signed-in only: the queue is written as
+          the learner's own doc. */}
+      {challengesAllowed && currentUser && (
+      <Link to="/games/duel/live" className="lhx-duel-card">
+        <div className="lhx-daily-emoji" aria-hidden="true">🏁</div>
+        <div className="lhx-daily-body">
+          <div className="lhx-daily-label">LIVE CHALLENGE</div>
+          <div className="lhx-daily-name">Race a classmate!</div>
+          <div className="lhx-daily-sub">Same questions · another Grade {Number(userProfile?.grade) || 7} learner · server keeps score</div>
+        </div>
+        <span className="lhx-play-pill">Race</span>
+      </Link>
+      )}
+
       {/* XP / level card. */}
       <div className="lhx-xp">
         <div className="lhx-xp-top">
