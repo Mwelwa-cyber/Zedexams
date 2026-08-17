@@ -10,6 +10,7 @@
 // switched something off themselves.
 
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import {
   GUARDIAN_CONTROLS,
   GUARDIAN_CONTROL_KEYS,
@@ -31,6 +32,31 @@ t('every control declares a key, label, hint and icon', () => {
     }
   }
   assert.equal(new Set(GUARDIAN_CONTROL_KEYS).size, GUARDIAN_CONTROL_KEYS.length)
+})
+
+t('every control declares where its OFF is enforced', () => {
+  for (const c of GUARDIAN_CONTROLS) {
+    assert.ok(
+      c.enforcement === 'server' || c.enforcement === 'client',
+      `${c.key} must declare enforcement as 'server' or 'client'`,
+    )
+  }
+})
+
+t("a control claiming server enforcement is actually read by consentGuard", () => {
+  // The claim this file exists to keep honest. `enforcement: 'server'` is
+  // what lets the product tell a parent that a modified client cannot
+  // ignore their decision — so a control that says it and is never read at
+  // the point of use is the one failure here that would be invisible and
+  // would matter. Read as SOURCE rather than by importing: consentGuard
+  // needs firebase-functions, which the root-deps CI run does not install.
+  const guard = readFileSync(new URL('../functions/consentGuard.js', import.meta.url), 'utf8')
+  for (const c of GUARDIAN_CONTROLS.filter((x) => x.enforcement === 'server')) {
+    assert.ok(
+      guard.includes(`"${c.key}"`) || guard.includes(`'${c.key}'`) || guard.includes(c.key),
+      `${c.key} claims server enforcement but functions/consentGuard.js never names it`,
+    )
+  }
 })
 
 t('isGuardianControl accepts declared keys and nothing else', () => {

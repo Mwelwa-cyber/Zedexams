@@ -22,6 +22,7 @@ import { useNavigate } from 'react-router-dom'
 import '../../../shared/styles/learnerTheme.css'
 import '../gamesProto.css'
 import { useAuth } from '../../../contexts/AuthContext'
+import { duelAllowed } from '../lib/duelAccess'
 import { useGameFinish } from '../hooks/useGameFinish'
 import { listGames, reportGameStart } from '../services/gamesService'
 import { getFallbackGames } from '../../../data/gamesSeed'
@@ -258,6 +259,7 @@ export default function DuelRace() {
   const { currentUser, userProfile } = useAuth()
   const firstName = (userProfile?.displayName || '').trim().split(/\s+/)[0] || ''
   const grade = Number(userProfile?.grade) || null
+  const challengesAllowed = duelAllowed(currentUser, userProfile)
 
   const [screen, setScreen] = useState('loading') // loading | vs | race | result | empty
   const [source, setSource] = useState(null)
@@ -268,6 +270,10 @@ export default function DuelRace() {
 
   // Draw the race: live games when they load, seed catalogue otherwise.
   useEffect(() => {
+    // Nothing is drawn for a learner who may not race — the refusal below
+    // is the whole screen, so loading a question bank behind it spends a
+    // read on something nobody will see.
+    if (!challengesAllowed) return undefined
     let cancelled = false
     async function load() {
       let games = []
@@ -283,7 +289,7 @@ export default function DuelRace() {
     }
     load()
     return () => { cancelled = true }
-  }, [grade])
+  }, [grade, challengesAllowed])
 
   // The 3-2-1-GO! countdown, then the race.
   useEffect(() => {
@@ -318,6 +324,28 @@ export default function DuelRace() {
     setOutcome(null)
     setScreen('vs')
     setCount(3)
+  }
+
+  // The route, not just the hub card. A bookmark or a typed URL reaches
+  // here directly, so the refusal is the whole screen rather than a branch
+  // inside it — and it NAMES who switched it off, because "not available"
+  // with no reason reads as the app being broken.
+  if (!challengesAllowed) {
+    return (
+      <div className="lhx">
+        <SeoHelmet title="Race Zed!" description="Race Zed the robot through five quick questions on ZedExams." path="/games/duel" noIndex />
+        <div className="lhx-page">
+          <div className="lhx-vs-wrap">
+            <div className="lhx-vs-sub">
+              Challenges are switched off for this account. A parent or guardian
+              can turn them back on in the Guardian Zone.
+            </div>
+            <div style={{ height: 18 }} />
+            <button type="button" className="lhx-btn lhx-btn-primary" onClick={() => navigate('/games')}>Back to games</button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

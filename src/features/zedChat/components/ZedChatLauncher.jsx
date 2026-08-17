@@ -17,11 +17,24 @@
  *     routes in lib/askZedCore.js. Notably the pill DOES stay visible in
  *     the note reader, where it pairs with the inline "Stuck? Ask Zed
  *     about this" pill.
- *   - When the learner has turned Ask Zed off in Settings.
+ *   - When the learner has turned Ask Zed off in Settings, OR when their
+ *     guardian has turned it off in the Guardian Zone. Both answers come
+ *     from `isAllowed`, which composes them the way the guardian control
+ *     is specified: the guardian's OFF wins, and the guardian's ON does
+ *     not override a child who switched it off themselves.
+ *
+ *     This is a COURTESY, not the enforcement. `consentGuard.
+ *     assertLearnerCapability` refuses the chat turn server-side whether
+ *     or not this pill renders — which is what a Families reviewer tests,
+ *     and what a modified client cannot get around. What hiding the pill
+ *     buys is that a child whose parent switched Ask Zed off does not tap
+ *     a button that then apologises: the refusal is real either way, and
+ *     meeting it mid-conversation is a worse way to learn about it.
  */
 
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
+import { isAllowed } from '../../../utils/guardianControls'
 import { shouldHideFab } from '../lib/askZedCore'
 import '../askZed.css'
 
@@ -34,9 +47,11 @@ export default function ZedChatLauncher() {
 
   if (!currentUser) return null
   if (shouldHideFab(pathname)) return null
-  // Settings → Learning → "Ask Zed". Off means the helper's entry points
-  // are gone, so the switch does something real.
-  if (userProfile?.learnerSettings?.zedAi?.enabled === false) return null
+  // Settings → Learning → "Ask Zed" is the learner's own switch; the
+  // Guardian Zone's is their guardian's. `isAllowed` is the one place the
+  // two are combined, so the pill cannot disagree with the server.
+  const learnerChoice = userProfile?.learnerSettings?.zedAi?.enabled !== false
+  if (!isAllowed(userProfile, 'askZed', learnerChoice)) return null
 
   return (
     <button
