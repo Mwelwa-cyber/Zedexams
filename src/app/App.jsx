@@ -300,6 +300,7 @@ const PlayGame = lazy(() => import('../features/games/pages/PlayGame'))
 const DuelRace = lazy(() => import('../features/games/pages/DuelRace'))
 const GlobalLeaderboard = lazy(() => import('../features/games/pages/GlobalLeaderboard'))
 const StickerCollection = lazy(() => import('../features/games/pages/StickerCollection'))
+const DailyIntro = lazy(() => import('../features/games/pages/DailyIntro'))
 
 // Admin — games seed importer
 const GamesSeedAdmin = lazy(() => import('../features/games/pages/GamesSeedAdmin'))
@@ -651,6 +652,7 @@ export default function App() {
           <Route element={<LearnerLayout />}>
             <Route path="/games"                       element={<GamesHub />} />
             <Route path="/games/stickers"              element={<StickerCollection />} />
+            <Route path="/games/daily"                 element={<DailyIntro />} />
           </Route>
           <Route path="/games/leaderboard"             element={<GlobalLeaderboard />} />
           {/* Grade/subject browsing retired (step 8) — the hub IS the

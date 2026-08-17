@@ -81,10 +81,12 @@ beforeEach(() => {
 })
 
 describe('GamesHub', () => {
-  it('renders the daily hero linking to the challenge game, with the streak line', async () => {
+  it('renders the daily hero linking to the intro screen, with the streak line', async () => {
     renderHub()
     const hero = (await screen.findByText(/TODAY'S CHALLENGE/)).closest('a')
-    expect(hero).toHaveAttribute('href', '/games/play/g-path')
+    // The card opens the prototype's daily-intro screen, which owns the
+    // Play button into the actual challenge game.
+    expect(hero).toHaveAttribute('href', '/games/daily')
     expect(within(hero).getByText('3-day streak — keep it going 🔥')).toBeInTheDocument()
   })
 
