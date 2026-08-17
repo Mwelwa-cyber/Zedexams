@@ -1,10 +1,10 @@
 /**
- * Behaviour tests for the rebuilt learner home (LearnerHomePage) and its
- * shell. The view-model hook is stubbed with fixture data so these
- * exercise the render contract: approved section order presence,
+ * Behaviour tests for the learner home (LearnerHomePage) and its shell.
+ * The view-model hook is stubbed with fixture data so these exercise the
+ * render contract: the mockup's section list and NOTHING ELSE, the
  * greeting/meta, real-data-only rendering (no fake values), empty
- * states, Today's-Exams conditional visibility, and the bottom-nav
- * information architecture (Games present, Profile absent).
+ * states, and the bottom-nav information architecture (Games present,
+ * Profile absent).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, within, fireEvent } from '@testing-library/react'
@@ -120,20 +120,45 @@ describe('LearnerHomePage', () => {
     expect(within(header).queryByText(/CBC/)).toBeNull()
   })
 
-  it('renders the Past Papers hero with the real resume data', () => {
+  it('is EXACTLY the mockup\u2019s sections, in order, and nothing else', () => {
+    mockDashboard.timetables = { active: PSLE_2026, archived: [], loading: false, error: null }
+    mockDashboard.data = { ...baseData, gameChallenge: { id: 'g1', title: 'Number Path', grade: 7 } }
     renderHome()
-    expect(screen.getByRole('heading', { name: 'Past Papers' })).toBeInTheDocument()
-    expect(screen.getByText('ECZ Papers · 2016–2025')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Continue Reading' })).toBeInTheDocument()
-    expect(screen.getByText('Mathematics Paper 1 · 2024')).toBeInTheDocument()
-    expect(screen.getByText('Page 6 of 12')).toBeInTheDocument()
+    // Every section heading the page renders, top to bottom.
+    const headings = Array.from(document.querySelectorAll('main h2, h2')).map((h) => h.textContent.trim())
+    expect(headings).toEqual(['Explore', 'My subjects'])
+    // The sections earlier passes carried over from the old dashboard —
+    // none of them is in prototype v3\u2013v6, so none may come back.
+    for (const gone of ['Quick Access', 'Recommended for You', 'Recent Activity', 'My Achievements', 'Today\u2019s Exams']) {
+      expect(screen.queryByText(gone)).toBeNull()
+    }
   })
 
-  it('hides Continue Reading when no paper has been opened', () => {
-    mockDashboard.data = { ...baseData, paperResume: null }
+  it('Explore has the mockup\u2019s four tiles and no Lessons or Quizzes', () => {
     renderHome()
-    expect(screen.getByRole('button', { name: 'Browse Papers' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Continue Reading' })).toBeNull()
+    const section = screen.getByRole('heading', { name: 'Explore' }).closest('section')
+    const tiles = Array.from(section.querySelectorAll('a'))
+    expect(tiles.map((a) => a.getAttribute('href'))).toEqual(['/papers', '/notes', '/games', '/timetable'])
+    expect(tiles.map((a) => a.querySelector('.lhx-tile-name').textContent))
+      .toEqual(['Past Papers', 'Notes', 'Games', 'Timetable'])
+    // The retired Quick Access grid linked both of these; the mockup has
+    // neither anywhere on Home.
+    expect(document.querySelector('a[href="/quizzes"]')).toBeNull()
+    expect(document.querySelector('a[href="/lessons"]')).toBeNull()
+  })
+
+  it("shows the Today's Quiz slim card when a daily challenge exists", () => {
+    mockDashboard.data = { ...baseData, gameChallenge: { id: 'g1', title: 'Number Path', grade: 7 } }
+    renderHome()
+    const card = screen.getByText('Today\u2019s Quiz').closest('button')
+    expect(card.classList.contains('lhx-daily-slim')).toBe(true)
+    expect(within(card).getByText(/keep your 3-day/)).toBeInTheDocument()
+    expect(within(card).getByText('Play')).toBeInTheDocument()
+  })
+
+  it("renders no Today's Quiz card when there is no daily challenge", () => {
+    renderHome() // baseData.gameChallenge is null
+    expect(screen.queryByText('Today\u2019s Quiz')).toBeNull()
   })
 
   it('shows the Continue Learning resume with subject, term and progress', () => {
@@ -151,54 +176,33 @@ describe('LearnerHomePage', () => {
     expect(screen.getByText('Choose a subject below to begin learning.')).toBeInTheDocument()
   })
 
-  it("shows Today's Exams only when exams are open, with real counts", () => {
-    renderHome()
-    expect(screen.getByRole('heading', { name: 'Today’s Exams' })).toBeInTheDocument()
-    expect(screen.getByText('1 of 2 completed')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Start Next Exam' })).toBeInTheDocument()
-  })
-
-  it("renders no Today's Exams card when none are open", () => {
-    mockDashboard.data = { ...baseData, todaysExams: { exams: [], locks: {} } }
-    renderHome()
-    expect(screen.queryByText('Today’s Exams')).toBeNull()
-  })
-
   it('shows subject rows with term-scoped progress', () => {
     renderHome()
-    const section = screen.getByRole('heading', { name: 'My Subjects' }).closest('section')
+    const section = screen.getByRole('heading', { name: 'My subjects' }).closest('section')
     expect(within(section).getByText('Integrated Science')).toBeInTheDocument()
     expect(within(section).getByText('82%')).toBeInTheDocument()
   })
 
-  it('shows the coral exam-countdown chip when a timetable is published', () => {
+  it('shows the coral exam-countdown CARD when a timetable is published', () => {
     // Countdown target is the first sat paper (English, Tue 27 Oct 08:00).
     vi.useFakeTimers()
     vi.setSystemTime(new Date(Date.parse('2026-09-01T10:00:00+02:00')))
     mockDashboard.timetables = { active: PSLE_2026, archived: [], loading: false, error: null }
     renderHome()
-    const chip = screen.getByRole('button', { name: /exams in 55 days/i })
-    expect(chip.classList.contains('lhx-chip-exam')).toBe(true)
+    const card = screen.getByRole('button', { name: /exams in 55 days/i })
+    // The mockup's card, not the chip an earlier pass shrank it to.
+    expect(card.classList.contains('lhx-exam-card')).toBe(true)
+    expect(within(card).getByText('EXAMS ARE COMING')).toBeInTheDocument()
+    expect(within(card).getByText('55')).toBeInTheDocument()
+    expect(within(card).getByText('DAYS')).toBeInTheDocument()
+    expect(within(card).getByText(/First paper: Tue 27 Oct · English Language 1\/1/)).toBeInTheDocument()
     vi.useRealTimers()
   })
 
-  it('renders no exam chip (and no countdown card) without a published timetable', () => {
+  it('renders no countdown at all without a published timetable', () => {
     renderHome()
     expect(screen.queryByRole('button', { name: /exams in/i })).toBeNull()
-    // The big countdown card is gone — Home stays minimal, the chip pulls.
-    expect(screen.queryByText('The examination timetable has not been published yet.')).toBeNull()
-  })
-
-  it('renders recommendations with their reasons', () => {
-    renderHome()
-    expect(screen.getByText('Improve in Fractions')).toBeInTheDocument()
-    expect(screen.getByText(/You scored 40% in Fractions/)).toBeInTheDocument()
-  })
-
-  it('shows the recent-activity empty state message', () => {
-    mockDashboard.data = { ...baseData, recentActivity: [] }
-    renderHome()
-    expect(screen.getByText('Your completed lessons, quizzes and papers will appear here.')).toBeInTheDocument()
+    expect(document.querySelector('.lhx-exam-card')).toBeNull()
   })
 
   it('bottom navigation has the four prototype tabs and no Profile', () => {

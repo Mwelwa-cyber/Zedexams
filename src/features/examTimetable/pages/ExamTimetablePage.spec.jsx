@@ -136,9 +136,11 @@ describe('ExamTimetablePage', () => {
       ),
     ).toBe(true)
     expect(screen.getByRole('link', { name: /revision notes/i })).toHaveAttribute('href', '/notes')
-    expect(screen.getByRole('link', { name: /practice quizzes/i })).toHaveAttribute('href', '/quizzes')
-    expect(screen.getByRole('link', { name: /mock examinations/i })).toHaveAttribute('href', '/exams')
-    expect(screen.getByRole('link', { name: /grade 8 bridge lessons/i })).toHaveAttribute('href', '/lessons')
+    expect(screen.getByRole('link', { name: /games/i })).toHaveAttribute('href', '/games')
+    // Only the mockup's destinations — Practice Quizzes and Bridge
+    // Lessons pointed at surfaces the learner mockup does not have.
+    expect(screen.queryByRole('link', { name: /practice quizzes/i })).toBeNull()
+    expect(screen.queryByRole('link', { name: /bridge lessons/i })).toBeNull()
   })
 
   it('choose-ONE sessions list every alternative; tapping one reveals its actions and persists', () => {

@@ -1,56 +1,85 @@
 /**
- * The compact home sections: Quick Access, My Subjects, Recommended,
- * Daily Game Challenge, Recent Activity and the Achievements summary.
- * All data arrives pre-shaped from useLearnerDashboard — these render
- * only (spec §18: no per-card queries).
+ * The Home sections, and ONLY the ones the prototype's Home has:
+ * Today's Quiz (the slim daily card), Explore (the four gradient tiles)
+ * and My subjects. All data arrives pre-shaped from useLearnerDashboard
+ * — these render only (spec §18: no per-card queries).
+ *
+ * What used to live here and why it is gone: Home carried a Quick Access
+ * grid (Lessons · Notes · Past Papers · Quizzes), Recommended for You,
+ * Recent Activity and an Achievements summary. None of those are in the
+ * mockup — v3 through v6 all show exactly countdown → continue →
+ * Today's Quiz → Explore → My subjects. The mockup is the spec, so the
+ * extra sections were removed rather than restyled, and "Quick Access"
+ * became "Explore" with the mockup's own four destinations (Past Papers,
+ * Notes, Games, Timetable — no Lessons, no Quizzes).
  */
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 import LearnerIcon, { subjectIconName } from '../components/LearnerIcon'
 import { ProgressBar, EmptyState, SectionSkeleton } from '../components/LearnerPrimitives'
-import { relativeTime } from '../lib/learnerHomeCore'
 import { capture } from '../../../utils/analytics'
 
-// ── Quick Access ────────────────────────────────────────────────────
+// ── Today's Quiz (prototype .daily-slim) ────────────────────────────
 
-// Learn + Practice retired (redesign step 5) — the cards deep-link the
-// libraries and the quiz list directly instead of going through tabs.
-const QUICK_ITEMS = [
-  { icon: 'lessons', title: 'Lessons', label: 'Learn', to: '/lessons', tint: 'lhx-tint-purple' },
-  { icon: 'notes', title: 'Notes', label: 'Read', to: '/notes', tint: 'lhx-tint-green' },
-  { icon: 'papers', title: 'Past Papers', label: 'ECZ', to: '/papers', tint: 'lhx-tint-orange' },
-  { icon: 'quiz', title: 'Quizzes', label: 'Practice', to: '/quizzes', tint: 'lhx-tint-blue' },
+export function TodaysQuizCard({ challenge, streak = 0 }) {
+  const navigate = useNavigate()
+  const game = challenge?.game || challenge
+  if (!game || !game.id) return null
+
+  return (
+    <button
+      type="button"
+      className="lhx-daily-slim"
+      onClick={() => {
+        // A navigation, not a play: the engine emits game_started once the
+        // round actually begins, so this must not double-count.
+        capture('game_challenge_opened', { gameId: game.id, from: 'home_daily' })
+        navigate(`/games/play/${game.id}`)
+      }}
+    >
+      <span className="lhx-ds-icon" aria-hidden="true">
+        <img src="/images/characters/poses/zed-waving.webp" alt="" style={{ width: 40, height: 40, objectFit: 'contain' }} />
+      </span>
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span className="lhx-ds-title" style={{ display: 'block' }}>Today&rsquo;s Quiz</span>
+        <span className="lhx-ds-sub" style={{ display: 'block' }}>
+          {streak > 0 ? `with Zed · keep your ${streak}-day 🔥` : 'with Zed · start a streak 🔥'}
+        </span>
+      </span>
+      <span className="lhx-play-pill" style={{ padding: '9px 18px', fontSize: 13 }}>Play</span>
+    </button>
+  )
+}
+
+// ── Explore (prototype .big-grid) ───────────────────────────────────
+
+const EXPLORE_TILES = [
+  { to: '/papers', icon: '📄', name: 'Past Papers', sub: 'ECZ papers', tint: 'lhx-bt-papers' },
+  { to: '/notes', icon: '📚', name: 'Notes', sub: 'Read & revise', tint: 'lhx-bt-notes' },
+  { to: '/games', icon: '🎮', name: 'Games', sub: 'Play & learn', tint: 'lhx-bt-games' },
+  { to: '/timetable', icon: '📅', name: 'Timetable', sub: 'Exam dates', tint: 'lhx-bt-time' },
 ]
 
-export function QuickAccessGrid() {
-  const navigate = useNavigate()
+export function ExploreGrid() {
   return (
-    <section className="lhx-section" aria-labelledby="lhx-quick-title">
+    <section className="lhx-section" aria-labelledby="lhx-explore-title">
       <div className="lhx-section-head">
-        <h2 id="lhx-quick-title" className="lhx-section-title">Quick Access</h2>
+        <h2 id="lhx-explore-title" className="lhx-section-title">Explore</h2>
       </div>
-      <div className="lhx-quick">
-        {QUICK_ITEMS.map((item) => (
-          <button
-            key={item.title}
-            type="button"
-            className="lhx-quick-card lhx-press"
-            aria-label={`${item.title} — ${item.label}`}
-            onClick={() => navigate(item.to)}
-          >
-            <span className={`lhx-quick-icon ${item.tint}`} aria-hidden="true">
-              <LearnerIcon name={item.icon} size={22} />
-            </span>
-            <span className="lhx-quick-title">{item.title}</span>
-            <span className="lhx-quick-label">{item.label}</span>
-          </button>
+      <div className="lhx-big-grid">
+        {EXPLORE_TILES.map((t) => (
+          <Link key={t.to} to={t.to} className={`lhx-big-tile ${t.tint}`}>
+            <div className="lhx-tile-icon" aria-hidden="true">{t.icon}</div>
+            <div className="lhx-tile-name">{t.name}</div>
+            <div className="lhx-tile-sub">{t.sub}</div>
+          </Link>
         ))}
       </div>
     </section>
   )
 }
 
-// ── My Subjects ─────────────────────────────────────────────────────
+// ── My subjects ─────────────────────────────────────────────────────
 
 const SUBJECT_TINTS = ['lhx-tint-green', 'lhx-tint-blue', 'lhx-tint-pink', 'lhx-tint-orange', 'lhx-tint-purple']
 const SUBJECT_TONES = ['var(--lhx-green)', 'var(--lhx-blue)', 'var(--lhx-pink)', 'var(--lhx-orange)', 'var(--lhx-purple)']
@@ -65,7 +94,8 @@ export function MySubjectsSection({ subjects, activeTerm, loading }) {
   return (
     <section className="lhx-section" aria-labelledby="lhx-subjects-title">
       <div className="lhx-section-head">
-        <h2 id="lhx-subjects-title" className="lhx-section-title">My Subjects</h2>
+        <h2 id="lhx-subjects-title" className="lhx-section-title">My subjects</h2>
+        {activeTerm && <span className="lhx-view-all" aria-hidden="true">Term {activeTerm}</span>}
       </div>
       {loading ? (
         <SectionSkeleton lines={4} height={56} />
@@ -99,190 +129,6 @@ export function MySubjectsSection({ subjects, activeTerm, loading }) {
           ))}
         </div>
       )}
-    </section>
-  )
-}
-
-// ── Recommended for You ─────────────────────────────────────────────
-
-export function RecommendationsSection({ recommendations, loading }) {
-  const navigate = useNavigate()
-  if (!loading && (!recommendations || recommendations.length === 0)) return null
-
-  const open = (rec) => {
-    capture('recommendation_started', { kind: rec.kind, id: rec.id })
-    if (rec.kind === 'practice') {
-      // Practice tab retired (step 5) — a practice nudge opens the quiz
-      // list, whose subject cards carry the drill-down.
-      navigate('/quizzes')
-    } else if (rec.kind === 'note') {
-      navigate(`/notes/${rec.targetId}`)
-    } else if (rec.kind === 'lesson') {
-      navigate(`/lessons/${rec.targetId}`)
-    } else if (rec.kind === 'quiz') {
-      navigate(`/quiz/${rec.targetId}`)
-    } else {
-      navigate('/dashboard')
-    }
-  }
-
-  return (
-    <section className="lhx-section" aria-labelledby="lhx-rec-title">
-      <div className="lhx-section-head">
-        <h2 id="lhx-rec-title" className="lhx-section-title">Recommended for You</h2>
-      </div>
-      <div className="lhx-card">
-        {loading ? (
-          <SectionSkeleton lines={3} />
-        ) : (
-          recommendations.map((rec) => (
-            <button key={rec.id} type="button" className="lhx-rec lhx-press" style={{ width: '100%', textAlign: 'left' }} onClick={() => open(rec)}>
-              <span className={`lhx-quick-icon ${rec.kind === 'practice' ? 'lhx-tint-orange' : 'lhx-tint-purple'}`} aria-hidden="true">
-                <LearnerIcon name={rec.kind === 'practice' ? 'practice' : rec.kind === 'note' ? 'notes' : 'quiz'} size={20} />
-              </span>
-              <span className="lhx-rec-body">
-                <span className="lhx-rec-title" style={{ display: 'block' }}>{rec.title}</span>
-                {rec.subjectLabel && <span className="lhx-rec-meta" style={{ display: 'block' }}>{rec.subjectLabel}</span>}
-                <span className="lhx-rec-reason" style={{ display: 'block' }}>{rec.reason}</span>
-              </span>
-              <ChevronRight size={18} className="lhx-chevron" aria-hidden="true" />
-            </button>
-          ))
-        )}
-      </div>
-    </section>
-  )
-}
-
-// ── Daily Game Challenge ────────────────────────────────────────────
-
-export function DailyGameChallengeCard({ challenge }) {
-  const navigate = useNavigate()
-  const game = challenge?.game || challenge
-  if (!game || !game.id) return null
-
-  return (
-    <section className="lhx-card lhx-game-card" aria-labelledby="lhx-game-title">
-      <img
-        className="lhx-game-art"
-        src="/assets/learner/illustrations/games.webp"
-        alt=""
-        width="72"
-        height="72"
-        loading="lazy"
-      />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p className="lhx-kicker">Daily Game Challenge</p>
-        <p id="lhx-game-title" className="lhx-rec-title" style={{ marginTop: 3 }}>{game.title || 'Today’s challenge'}</p>
-        {(game.subject || game.grade) && (
-          <p className="lhx-rec-meta">
-            {[game.subject, game.grade ? `Grade ${game.grade}` : null].filter(Boolean).join(' · ')}
-          </p>
-        )}
-      </div>
-      <button
-        type="button"
-        className="lhx-btn lhx-btn-sm lhx-btn-primary"
-        onClick={() => {
-          // NOT `game_started` — this is a NAVIGATION out of the dashboard, and
-          // the learner may never press Start once the play surface loads.
-          // `game_started` is now emitted by each game engine's start(), once
-          // per round, so that it pairs 1:1 with `game_completed`; firing it
-          // here as well would double-count every dashboard-originated play
-          // and make abandonment look better than it is. Kept as its own event
-          // so the dashboard-attribution signal this had is not lost.
-          capture('game_challenge_opened', { gameId: game.id, from: 'dashboard_challenge' })
-          navigate(`/games/play/${game.id}`)
-        }}
-      >
-        Play
-      </button>
-    </section>
-  )
-}
-
-// ── Recent Activity ─────────────────────────────────────────────────
-
-const ACTIVITY_TINTS = {
-  quiz_completed: 'lhx-tint-blue',
-  daily_exam_completed: 'lhx-tint-green',
-  notes_opened: 'lhx-tint-purple',
-  notes_completed: 'lhx-tint-purple',
-  lesson_opened: 'lhx-tint-purple',
-  lesson_completed: 'lhx-tint-green',
-  paper_opened: 'lhx-tint-orange',
-}
-
-export function RecentActivitySection({ recentActivity, loading }) {
-  const navigate = useNavigate()
-  const now = Date.now()
-
-  return (
-    <section className="lhx-section" aria-labelledby="lhx-activity-title">
-      <div className="lhx-section-head">
-        <h2 id="lhx-activity-title" className="lhx-section-title">Recent Activity</h2>
-        <button type="button" className="lhx-view-all" onClick={() => navigate('/my-results')}>
-          View all <ChevronRight size={18} aria-hidden="true" />
-        </button>
-      </div>
-      <div className="lhx-card lhx-activity">
-        {loading ? (
-          <SectionSkeleton lines={3} height={40} />
-        ) : !recentActivity || recentActivity.length === 0 ? (
-          <EmptyState icon="progress">
-            Your completed lessons, quizzes and papers will appear here.
-          </EmptyState>
-        ) : (
-          recentActivity.map((item) => (
-            <button
-              key={`${item.type}-${item.attemptId || item.sourceId}-${item.completedAt}`}
-              type="button"
-              className="lhx-activity-item"
-              style={{ width: '100%', textAlign: 'left' }}
-              onClick={() => item.href && navigate(item.href)}
-            >
-              <span className={`lhx-activity-icon ${ACTIVITY_TINTS[item.type] || 'lhx-tint-purple'}`} aria-hidden="true">
-                <LearnerIcon name={item.icon || 'progress'} size={18} />
-              </span>
-              <span className="lhx-activity-main">
-                <span className="lhx-activity-title" style={{ display: 'block' }}>{item.title}</span>
-                <span className="lhx-activity-meta" style={{ display: 'block' }}>
-                  {[item.subjectLabel, relativeTime(item.completedAt, now)].filter(Boolean).join(' · ')}
-                </span>
-              </span>
-              {item.score != null && <span className="lhx-activity-score">{item.score}%</span>}
-            </button>
-          ))
-        )}
-      </div>
-    </section>
-  )
-}
-
-// ── Achievements summary (compact, optional) ────────────────────────
-
-export function AchievementsSummary({ streak, xp }) {
-  const navigate = useNavigate()
-  if (!streak && !xp) return null
-  return (
-    <section className="lhx-card" aria-label="Achievements summary">
-      <button
-        type="button"
-        className="lhx-activity-item"
-        style={{ width: '100%', textAlign: 'left', padding: 0, minHeight: 0 }}
-        onClick={() => navigate('/my-badges')}
-      >
-        <span className="lhx-activity-icon lhx-tint-orange" aria-hidden="true">
-          <LearnerIcon name="trophy" size={18} />
-        </span>
-        <span className="lhx-activity-main">
-          <span className="lhx-activity-title" style={{ display: 'block' }}>My Achievements</span>
-          <span className="lhx-activity-meta" style={{ display: 'block' }}>
-            {[streak ? `${streak}-day streak` : null, xp ? `${xp} XP` : null].filter(Boolean).join(' · ')}
-          </span>
-        </span>
-        <ChevronRight size={18} className="lhx-chevron" aria-hidden="true" />
-      </button>
     </section>
   )
 }
