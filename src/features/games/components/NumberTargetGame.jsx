@@ -54,7 +54,9 @@ import {
   totalStars,
 } from '../lib/numberPathCore'
 
-const ZED_ART = '/images/characters/zed-zara-reading.webp'
+// The path mascot is the prototype's ZED_GO — the "let's go" pose from
+// the uploaded pose pack (step 8).
+const ZED_ART = '/images/characters/poses/zed-lets-go.webp'
 
 const progressKey = (gameId) => `zx:number-path:${gameId || 'default'}`
 

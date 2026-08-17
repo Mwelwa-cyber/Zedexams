@@ -123,6 +123,22 @@ export function readerMeta(blocks) {
 }
 
 /**
+ * Revision time estimate — the Notes hub's "2 min revise" line (the v4
+ * prototype's revision hub). Counted over the blocks Revise mode
+ * actually shows (blockVisibleInMode), so it is the honest cost of the
+ * key-points pass rather than a fraction of the full read.
+ */
+export function reviseMinutes(blocks) {
+  let words = 0
+  for (const b of blocks || []) {
+    if (!b || !blockVisibleInMode(b.type, 'revise')) continue
+    const texts = [b.text, b.q, b.caption, ...(b.items || []), ...(b.lines || [])]
+    for (const t of texts) if (typeof t === 'string') words += t.split(/\s+/).filter(Boolean).length
+  }
+  return Math.max(1, Math.round(words / 180))
+}
+
+/**
  * Label-diagram scoring. `items` are the authored slots; `placed` maps
  * slot key → placed label. Only placed slots are judged (the prototype
  * reports "You got N of M. Fix the red boxes"). Matching is by label

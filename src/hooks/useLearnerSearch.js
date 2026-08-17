@@ -14,6 +14,7 @@ import { useFirestore } from './useFirestore'
 import { fetchLearnerNotes } from '../features/notes'
 import { loadPublishedPapers } from '../utils/pastPapers'
 import { listGames } from '../features/games'
+import { PLAYABLE_GAME_TYPES } from '../data/gamesSeed'
 import { buildResultItems, rankResults, groupByType } from '../utils/learnerSearch'
 import { reportClientError } from '../utils/clientErrorReporting'
 import { buildRequestKey } from '../utils/requestControl.js'
@@ -53,7 +54,9 @@ export function useLearnerSearch(query, grade) {
           quizzes: settledValue(q),
           notes: settledValue(n),
           papers: settledValue(p),
-          games: settledValue(g),
+          // A live doc of a retired mechanic must not resurface through
+          // search (learner redesign step 8) — only playable types list.
+          games: settledValue(g).filter((game) => PLAYABLE_GAME_TYPES.has(game?.type)),
         }))
         // A source that rejected just contributes nothing — search still works
         // over the rest. Surface it for observability, not as a hard error.

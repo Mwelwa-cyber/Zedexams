@@ -261,6 +261,8 @@
     "test:meaning-match": "node scripts/test-meaning-match.mjs",
     "test:punctuation": "node scripts/test-punctuation.mjs",
     "test:duel": "node scripts/test-duel.mjs",
+    "cleanup:odd-notes:dry": "node scripts/cleanup-odd-notes.mjs",
+    "cleanup:odd-notes:live": "node scripts/cleanup-odd-notes.mjs --live --unpublish",
     "test:game-feel": "node scripts/test-game-feel.mjs",
     "test:game-progress": "node scripts/test-game-progress.mjs",
     "test:csv-import": "node scripts/test-csv-import.mjs",

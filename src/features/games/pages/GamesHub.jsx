@@ -23,10 +23,10 @@ import { Link, useNavigate } from 'react-router-dom'
 import '../gamesProto.css'
 import { useAuth } from '../../../contexts/AuthContext'
 import { GAME_BADGES } from '../../../data/gameBadges'
-import { RETIRED_GAME_TYPES, getFallbackGames } from '../../../data/gamesSeed'
+import { CATALOGUE_GAME_TYPES, RETIRED_GAME_TYPES, getFallbackGames } from '../../../data/gamesSeed'
 import { getTodaysChallenge, getMyStreak } from '../../../utils/dailyChallengeService'
 import { getMyGameBadges } from '../../../utils/gameBadgesService'
-import { GRADES, SUBJECTS, getMyHistory, listGames } from '../services/gamesService'
+import { SUBJECTS, getMyHistory, listGames } from '../services/gamesService'
 import { levelInfo } from '../../../utils/gameProgress'
 import { TOTAL_LEVELS, currentLevel, normalizeProgress } from '../lib/numberPathCore'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
@@ -119,29 +119,22 @@ export default function GamesHub() {
     return map
   }, [state.history])
 
-  // The prototype hub is single-grade; scope to the learner's grade when
-  // it matches any game, and fall back to the whole catalogue otherwise.
+  // The mockup's catalogue is EXACTLY the four mechanics, one card each
+  // (step 8): per type, the learner's-grade doc when one exists, else
+  // any active doc of that type. timed_quiz never lists — it plays
+  // through the daily card and the duel only.
   const profileGrade = Number(userProfile?.grade)
-  const gradeGames = state.games.filter((g) => Number(g.grade) === profileGrade)
-  const scopedToGrade = gradeGames.length > 0
+  const scopedToGrade = state.games.some((g) => Number(g.grade) === profileGrade)
   const visibleGames = useMemo(() => {
-    const pool = scopedToGrade ? gradeGames : state.games
-    const challengeId = state.challenge?.game?.id
-    const subjectRank = new Map(SUBJECTS.map((s, i) => [s.slug, i]))
-    return pool.slice().sort((a, b) => {
-      if (a.id === challengeId) return -1
-      if (b.id === challengeId) return 1
-      if ((a.type === 'number_target') !== (b.type === 'number_target')) {
-        return a.type === 'number_target' ? -1 : 1
-      }
-      const sa = subjectRank.get(String(a.subject || '').toLowerCase()) ?? 99
-      const sb = subjectRank.get(String(b.subject || '').toLowerCase()) ?? 99
-      if (sa !== sb) return sa - sb
-      return Number(a.grade) - Number(b.grade)
-    })
-    // gradeGames derives from state.games + profileGrade — both captured here.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.games, state.challenge, scopedToGrade, profileGrade])
+    const order = ['number_target', 'word_builder', 'memory_match', 'punctuation']
+    return order
+      .map((type) => {
+        const ofType = state.games.filter((g) => g.type === type && CATALOGUE_GAME_TYPES.has(g.type))
+        if (!ofType.length) return null
+        return ofType.find((g) => Number(g.grade) === profileGrade) || ofType[0]
+      })
+      .filter(Boolean)
+  }, [state.games, profileGrade])
 
   const challengeGame = state.challenge?.game || null
   const streakDays = Number(state.streak?.streak) || 0
@@ -170,7 +163,13 @@ export default function GamesHub() {
         <Skeleton height={96} className="lhx-skel" style={{ borderRadius: 24 }} />
       ) : challengeGame && (
         <Link to={`/games/play/${challengeGame.id}`} className="lhx-daily">
-          <div className="lhx-daily-emoji" aria-hidden="true">🌟</div>
+          <div className="lhx-daily-emoji" aria-hidden="true">
+            <img
+              src="/images/characters/poses/zed-waving.webp"
+              alt=""
+              style={{ width: 56, height: 56, objectFit: 'contain', filter: 'drop-shadow(0 5px 7px rgba(0,0,0,.25))' }}
+            />
+          </div>
           <div className="lhx-daily-body">
             <div className="lhx-daily-label">
               TODAY'S CHALLENGE{Number(challengeGame.grade) ? ` · GRADE ${challengeGame.grade}` : ''}
@@ -255,22 +254,25 @@ export default function GamesHub() {
             {visibleGames.length === 0 && (
               <p className="lhx-back-sub">No games yet — check back soon!</p>
             )}
+            {/* Map Quest — the mockup's teaser card. Not playable yet;
+                rendered honestly as coming soon rather than as a link. */}
+            <div className="lhx-gc" aria-disabled="true" style={{ cursor: 'default' }}>
+              <div className="lhx-gc-icon g-map" aria-hidden="true">🗺️</div>
+              <div className="lhx-gc-body">
+                <div className="lhx-gc-name">Map Quest</div>
+                <div className="lhx-gc-tags">
+                  <span className="lhx-gc-tag t-subj">Social Studies</span>
+                  <span className="lhx-gc-tag t-new">NEW</span>
+                </div>
+                <div className="lhx-gc-progress">
+                  <div className="lhx-gc-bar" aria-hidden="true"><i style={{ width: '0%' }} /></div>
+                  <div className="lhx-gc-best">Coming soon</div>
+                </div>
+              </div>
+              <div className="lhx-gc-chev" aria-hidden="true">›</div>
+            </div>
           </div>
         )}
-      </section>
-
-      {/* Grade lanes — every grade stays reachable (existing routes). */}
-      <section>
-        <div className="lhx-section-head">
-          <h2 className="lhx-section-title">Browse by grade</h2>
-        </div>
-        <div className="lhx-chip-row" style={{ flexWrap: 'wrap' }}>
-          {GRADES.map((grade) => (
-            <Link key={grade.value} to={`/games/g/${grade.value}`} className="lhx-chip">
-              {grade.label}
-            </Link>
-          ))}
-        </div>
       </section>
     </div>
   )
@@ -285,7 +287,9 @@ function GameCard({ game, best }) {
   const pathProgress = isPath ? readPathProgress(game.id) : null
 
   const created = game.createdAt?.toMillis?.() || game.createdAt || 0
-  const isNew = created && Date.now() - created < 1000 * 60 * 60 * 24 * 30
+  // Boolean() matters: a seed game has no createdAt, and `0 && …` is 0 —
+  // which React renders as a literal "0" chip beside the subject tag.
+  const isNew = Boolean(created && Date.now() - created < 1000 * 60 * 60 * 24 * 30)
 
   const levelTag = isPath ? `Level ${currentLevel(pathProgress)}` : null
   const barPct = isPath

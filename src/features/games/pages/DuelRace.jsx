@@ -41,7 +41,14 @@ import {
   zedTimeline,
 } from '../lib/duelCore'
 
-const ZED_ART = '/images/characters/zed-games.webp'
+// Zed's poses (step 8, from the uploaded pack): raring to go on the VS
+// screen; the result screen reacts to the verdict.
+const ZED_ART = '/images/characters/poses/zed-lets-go.webp'
+const ZED_RESULT_ART = {
+  win: '/images/characters/poses/zed-celebrate.webp',
+  lose: '/images/characters/poses/zed-oops.webp',
+  tie: '/images/characters/poses/zed-thinking.webp',
+}
 
 /* ── VS screen with countdown ──────────────────────────────────── */
 
@@ -205,6 +212,12 @@ function ResultScreen({ outcome, saveNote, onRematch, onBack }) {
   return (
     <div className="lhx-win" style={{ minHeight: 'calc(100dvh - 40px)' }}>
       <div className="lhx-win-middle">
+        <img
+          src={ZED_RESULT_ART[verdict]}
+          alt=""
+          aria-hidden="true"
+          style={{ width: 110, height: 138, objectFit: 'contain', marginBottom: 6 }}
+        />
         <div className="lhx-win-stars" aria-hidden="true">{verdict === 'win' ? '⭐⭐⭐' : verdict === 'tie' ? '⭐⭐☆' : '⭐☆☆'}</div>
         <h2 className="lhx-win-title">{copy.title}</h2>
         <p className="lhx-win-sub">{copy.sub}</p>

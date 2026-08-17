@@ -242,8 +242,6 @@ const ExamLeaderboardPage = lazy(() => import('../features/dailyExams/pages/Exam
 
 // Public games (no auth)
 const GamesHub = lazy(() => import('../features/games/pages/GamesHub'))
-const SubjectSelector = lazy(() => import('../features/games/pages/SubjectSelector'))
-const GameList = lazy(() => import('../features/games/pages/GameList'))
 const PlayGame = lazy(() => import('../features/games/pages/PlayGame'))
 const DuelRace = lazy(() => import('../features/games/pages/DuelRace'))
 const GlobalLeaderboard = lazy(() => import('../features/games/pages/GlobalLeaderboard'))
@@ -550,8 +548,10 @@ export default function App() {
             <Route path="/games"                       element={<GamesHub />} />
           </Route>
           <Route path="/games/leaderboard"             element={<GlobalLeaderboard />} />
-          <Route path="/games/g/:grade"                element={<SubjectSelector />} />
-          <Route path="/games/g/:grade/:subject"       element={<GameList />} />
+          {/* Grade/subject browsing retired (step 8) — the hub IS the
+              catalogue now, one card per mechanic like the mockup. */}
+          <Route path="/games/g/:grade"                element={<Navigate to="/games" replace />} />
+          <Route path="/games/g/:grade/:subject"       element={<Navigate to="/games" replace />} />
           <Route path="/games/play/:gameId"            element={<PlayGame />} />
           {/* Race Zed! — the honest duel: full-screen chrome of its own,
               so it mounts bare like the play surface. */}
@@ -571,6 +571,9 @@ export default function App() {
                 (Home chip + Papers row tap through here). The PDF twin stays
                 below, outside the shell. */}
             <Route path="/timetable"       element={<ProtectedRoute><LearnerOnlyRoute><ExamTimetablePage /></LearnerOnlyRoute></ProtectedRoute>} />
+            {/* The Notes tab — the prototype-v4 revision hub. Individual
+                notes (/notes/:id) stay full-screen outside the shell. */}
+            <Route path="/notes"           element={<ProtectedRoute><LearnerOnlyRoute><LearnerGate><LearnerNotesList /></LearnerGate></LearnerOnlyRoute></ProtectedRoute>} />
           </Route>
           <Route path="/dashboard/classic" element={<ProtectedRoute><LearnerOnlyRoute><GradeHub /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/practice/daily-exams" element={<Navigate to="/exams" replace />} />
@@ -610,7 +613,6 @@ export default function App() {
           {/* Global learner search across quizzes / notes / papers / games. */}
           <Route path="/search"            element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerSearch /></LearnerOnlyRoute></ProtectedRoute>} />
           {/* Notes (standalone reading material) — canonical /notes routes. */}
-          <Route path="/notes"             element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerGate><LearnerNotesList /></LearnerGate></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/notes/reader-preview" element={<ProtectedRoute><LearnerOnlyRoute><NoteReaderPreview /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/notes/:id"         element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerGate><LearnerNoteRead /></LearnerGate></LearnerOnlyRoute></ProtectedRoute>} />
 
