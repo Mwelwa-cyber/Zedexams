@@ -97,7 +97,9 @@ describe('GamesHub', () => {
   it('badge shelf shows every badge, locking the unearned ones', async () => {
     renderHub()
     await screen.findByText(/TODAY'S CHALLENGE/)
-    expect(screen.getByText(`1 / ${GAME_BADGES.length}`)).toBeInTheDocument()
+    // The count is now the link into the Sticker Collection.
+    const shelfLink = screen.getByRole('link', { name: `1 / ${GAME_BADGES.length} ›` })
+    expect(shelfLink).toHaveAttribute('href', '/games/stickers')
     expect(document.querySelectorAll('.lhx-badge.is-earned')).toHaveLength(1)
     expect(document.querySelectorAll('.lhx-badge.is-locked')).toHaveLength(GAME_BADGES.length - 1)
   })

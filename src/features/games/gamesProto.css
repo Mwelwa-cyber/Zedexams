@@ -77,6 +77,35 @@
 .lhx-badge-nm { font-size: 10.5px; font-weight: 800; line-height: 1.15; }
 .lhx-badge.is-locked .lhx-badge-nm { color: var(--lhx-muted); }
 
+/* ── Sticker Collection (prototype view-stickers) ──────────────── */
+
+.lhx-stk-note {
+  background: var(--lhx-indigo-soft); color: var(--lhx-indigo2);
+  border-radius: 16px; padding: 12px 14px;
+  font-size: 12.5px; font-weight: 800; line-height: 1.45;
+  margin-bottom: 16px;
+}
+.lhx-stk-grid {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;
+}
+.lhx-stk {
+  background: var(--lhx-card); border-radius: 18px;
+  padding: 12px 6px; text-align: center;
+  box-shadow: var(--lhx-shadow);
+}
+.lhx-stk-art {
+  width: 62px; height: 62px; border-radius: 16px;
+  margin: 0 auto 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px;
+}
+.lhx-stk.is-earned .lhx-stk-art { background: radial-gradient(circle at 30% 25%, #e6f9ea, #bce9c8); }
+.lhx-stk.is-locked .lhx-stk-art { background: #e7eaf6; }
+.lhx-stk-nm { font-weight: 900; font-size: 12.5px; }
+.lhx-stk.is-locked .lhx-stk-nm { color: var(--lhx-muted); }
+.lhx-stk-how { font-size: 10px; font-weight: 800; color: var(--lhx-muted); margin-top: 2px; line-height: 1.2; }
+
 /* ── Hub: game cards ───────────────────────────────────────────── */
 
 .lhx-gc {
@@ -520,6 +549,7 @@
 /* ── Night mode (prototype #phone.night cases that don't token-flip) ── */
 
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-badge.is-locked .lhx-badge-ic { background: #2a2d4a; }
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-stk.is-locked .lhx-stk-art { background: #2a2d4a; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-gc-bar { background: #2a2d4a; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-nt-tile { box-shadow: 0 5px 0 #171929; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-wb-tile { box-shadow: 0 5px 0 #171929; }
