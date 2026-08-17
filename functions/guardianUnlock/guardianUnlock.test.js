@@ -17,9 +17,11 @@
 const assert = require("node:assert/strict");
 
 const {
+  MAX_NOTIFIED_PARENTS,
   OUTCOME,
   REQUEST_COOLDOWN_MS,
   REQUESTABLE_GATES,
+  buildParentAskNotification,
   buildProgressPayload,
   chooseQuotedPlan,
   decideRateLimit,
@@ -169,6 +171,70 @@ test("the requestable gates are an allow-list, not a pass-through", () => {
   assert.ok(!REQUESTABLE_GATES.includes("TEACHER_AI_GEN"), "a teacher gate has no guardian");
   assert.ok(!REQUESTABLE_GATES.includes("<script>alert(1)</script>"));
   assert.ok(Object.isFrozen(REQUESTABLE_GATES));
+});
+
+console.log("\nguardian unlock — the linked parent's copy");
+
+test("the ask names the child and describes what they asked for", () => {
+  const n = buildParentAskNotification({
+    learnerName: "Milton Phiri",
+    learnerUid: "child-1",
+    requestClause: "wants to open more past papers for revision",
+  });
+  assert.equal(n.title, "Milton wants Premium");
+  assert.match(n.body, /Milton wants to open more past papers for revision\./);
+});
+
+test("a clause we could not build is omitted, never guessed at", () => {
+  // The emailed message follows the same rule: an absence is an omission
+  // rather than a plausible substitution.
+  const n = buildParentAskNotification({learnerName: "Milton", learnerUid: "child-1"});
+  assert.equal(n.body, "Tap to see how they are doing before you decide.");
+  assert.ok(!n.body.includes("undefined"));
+});
+
+test("a child with no name on file still produces a readable ask", () => {
+  const n = buildParentAskNotification({learnerUid: "child-1"});
+  assert.equal(n.title, "Your child wants Premium");
+});
+
+test("it lands in a category a parent cannot have switched off", () => {
+  // `account` is one of notificationPrefsCore.ALWAYS_IN_APP_CATEGORIES. A
+  // child asking their guardian for something must reach that guardian's own
+  // record; only the push is theirs to silence.
+  const {ALWAYS_IN_APP_CATEGORIES} = require("../notifications/notificationPrefsCore");
+  const n = buildParentAskNotification({learnerName: "Milton", learnerUid: "child-1"});
+  assert.ok(ALWAYS_IN_APP_CATEGORIES.includes(n.category));
+});
+
+test("the tap target is the child's progress, not a checkout", () => {
+  // Evidence before price is the rule the whole guardian path is built on,
+  // and it does not stop applying because the ask arrived through the bell.
+  const n = buildParentAskNotification({learnerName: "Milton", learnerUid: "child-1"});
+  assert.equal(n.action.url, "/family/child/child-1");
+  assert.ok(n.action.label);
+  assert.ok(!/pay|checkout|price|K\d/i.test(n.action.label + n.body + n.title));
+});
+
+test("a missing learner uid yields no tap target rather than a broken one", () => {
+  const n = buildParentAskNotification({learnerName: "Milton"});
+  assert.equal(n.action, null);
+  assert.equal(n.dedupeKey, null);
+});
+
+test("two asks about the same child collapse onto one notification", () => {
+  const a = buildParentAskNotification({learnerName: "Milton", learnerUid: "child-1"});
+  const b = buildParentAskNotification({learnerName: "Milton", learnerUid: "child-1"});
+  const other = buildParentAskNotification({learnerName: "Chanda", learnerUid: "child-2"});
+  assert.equal(a.dedupeKey, b.dedupeKey);
+  assert.notEqual(a.dedupeKey, other.dedupeKey);
+});
+
+test("the fan-out is capped", () => {
+  // One request a child can trigger must not become an unbounded number of
+  // writes and pushes if the link table grows unexpectedly.
+  assert.ok(Number.isInteger(MAX_NOTIFIED_PARENTS));
+  assert.ok(MAX_NOTIFIED_PARENTS > 0 && MAX_NOTIFIED_PARENTS <= 25);
 });
 
 console.log(failures === 0 ? "\nAll guardian-unlock tests passed." : `\n${failures} failing`);

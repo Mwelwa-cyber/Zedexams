@@ -538,6 +538,7 @@
     "test:admin-payments": "node functions/adminPaymentsCore.test.js",
     "test:invoice-generator-core": "node functions/invoiceGeneratorCore.test.js",
     "test:parent-digest-core": "node functions/weeklyParentDigestCore.test.js",
+    "test:parent-notification-view": "node scripts/test-parent-notification-view.mjs",
     "test:dispatcher-core": "node functions/agents/dispatcherCore.test.js",
     "test:cron-core": "node functions/agents/cronCore.test.js",
     "test:question-review-core": "node functions/agents/questionReviewCore.test.js",

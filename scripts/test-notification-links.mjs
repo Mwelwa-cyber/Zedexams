@@ -43,7 +43,17 @@ const files = collect(DIR)
 
 // action: {label: "…", url: "/x"} — label is optional and may precede or
 // follow the url, so match the url key inside an `action` object literal.
-const ACTION_URL = /\baction:\s*\{[^}]*?\burl:\s*['"`](\/[^'"`\s]*)/g
+//
+// The literal is not the only shape a sender writes. A notification whose tap
+// target depends on something — `action: uid ? {…} : null`, so a missing id
+// yields no button rather than a link to nowhere — puts an expression between
+// the key and the brace, and anchoring to `action:{` skipped it entirely: the
+// link was never checked, which reads exactly like a link that passed. The
+// gap is closed the way test-admin-links.mjs closes its own, by allowing a
+// short expression before the object while staying anchored to the `action`
+// key (no `{`, `;` or newline in it, so this cannot wander into the next
+// statement and start treating unrelated objects as tap targets).
+const ACTION_URL = /\baction:\s*[^{;\n]{0,60}\{[^}]*?\burl:\s*['"`](\/[^'"`\s]*)/g
 
 const links = new Map() // path -> Set of files
 for (const file of files) {

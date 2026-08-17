@@ -242,6 +242,7 @@ const ParentProgressView = lazy(() => import('../features/parentPortal/pages/Par
 const ParentLayout = lazy(() => import('./guards/ParentLayout'))
 const FamilyHome = lazy(() => import('../features/parentPortal/pages/FamilyHome'))
 const ChildProgressPage = lazy(() => import('../features/parentPortal/pages/ChildProgressPage'))
+const ParentNotificationsPage = lazy(() => import('../features/parentPortal/pages/ParentNotificationsPage'))
 
 // Teacher section. The /teacher/* routes themselves live in
 // app/routes/teacherRoutes.jsx — declared as data so a spec can
@@ -404,7 +405,12 @@ function AdminRoute({ children }) {
 // parent from a learner (both sit at level 1), so this checks the role
 // explicitly: only a parent (or an admin, for support) reaches the family
 // portal; anyone else is bounced to their own landing page.
-function ParentRoute({ children }) {
+//
+// `shell={false}` keeps the GUARD and drops the chrome, for a page that
+// brings its own (the notifications screen carries the prototype's back row).
+// The opt-out is on the layout only — every check above it still runs, which
+// is the difference between this and mounting the page outside the gate.
+function ParentRoute({ children, shell = true }) {
   const { currentUser, userProfile, loading, isParent, isAdmin, needsEmailVerification } = useAuth()
   const location = useLocation()
   if (loading) return <FullScreenLoader label="Loading your family hub…" />
@@ -414,7 +420,7 @@ function ParentRoute({ children }) {
     return <Navigate to="/verify-email" replace state={{ from: location }} />
   }
   if (!isParent && !isAdmin) return <Navigate to={getRoleLandingPath(userProfile)} replace />
-  return <ParentLayout>{children}</ParentLayout>
+  return shell ? <ParentLayout>{children}</ParentLayout> : children
 }
 
 // Route-level error boundary. Sits inside <BrowserRouter> so it can read
@@ -588,6 +594,12 @@ export default function App() {
           {/* Family portal — authenticated parent accounts. */}
           <Route path="/family"                   element={<ParentRoute><FamilyHome /></ParentRoute>} />
           <Route path="/family/child/:childUid"   element={<ParentRoute><ChildProgressPage /></ParentRoute>} />
+          {/* Self-chromed (prototype back row), so it skips ParentLayout —
+              the guard above it is unchanged. */}
+          <Route
+            path="/family/notifications"
+            element={<ParentRoute shell={false}><ParentNotificationsPage /></ParentRoute>}
+          />
 
           {/* ── Public games (no auth) ──────────────────────────── */}
           {/* Flow: /games → /games/g/:grade → /games/g/:grade/:subject → /games/play/:gameId */}

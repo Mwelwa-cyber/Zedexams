@@ -20,11 +20,17 @@
  * is now a declared dependency between two features through the front door,
  * which is what §14.7 asks for and what the boundary guard can actually see.
  *
- * The three PAGES are deliberately not exported (`FamilyHome`,
- * `ChildProgressPage`, `ParentProgressView`). Route tables mount them with
- * `lazy(() => import(…))` under the route-mount exception; re-exporting a page
- * here would drag the whole portal into `learnerSettings`' chunk, which wanted
- * two panels.
+ * The PAGES are deliberately not exported (`FamilyHome`, `ChildProgressPage`,
+ * `ParentProgressView`, `ParentNotificationsPage`). Route tables mount them
+ * with `lazy(() => import(…))` under the route-mount exception; re-exporting a
+ * page here would drag the whole portal into `learnerSettings`' chunk, which
+ * wanted two panels.
+ *
+ * `lib/parentNotificationView.js` is not exported either, for the ordinary
+ * reason: it is this feature's own view model, and nothing outside the inbox
+ * screen reads it. Its rules are pinned under plain node in
+ * `scripts/test-parent-notification-view.mjs`, which imports the file by path
+ * — a test harness, not a consumer.
  *
  * ── `parentShares` did not travel with the feature, and now has ─────────
  *

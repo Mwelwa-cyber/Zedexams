@@ -53,6 +53,7 @@ import {
 import {
   buildGuardianMessage,
   priceComesLast,
+  requestClause,
 } from '../functions/shared/guardian/guardianMessageCore.js'
 import { PLANS, availablePlans, cheapestPlan, planSaving, savingLabel } from '../src/config/plans.js'
 import { PLANS as CHECKOUT_PLANS } from '../src/engines/payment-engine/subscriptionConfig.js'
@@ -493,6 +494,26 @@ test('nothing is invented — a missing figure omits its line rather than guessi
   // A past exam is not a countdown of zero.
   const past = buildGuardianMessage({ ...FULL_PAYLOAD, daysToExam: -3 })
   assert.ok(!past.blocks.some((b) => b.id === 'countdown'))
+})
+
+test('the emailed ask and the in-app one describe the request identically', () => {
+  // A guardian can now be told about the same request twice — the email that
+  // reaches a payer with no account, and the notification in a linked parent
+  // account's inbox (functions/guardianUnlock buildParentAskNotification).
+  // `requestClause` is the one copy of that wording; this fails if the
+  // message builder ever grows a second.
+  for (const feature of ['PAPER_CONTINUE', 'PAPER_OFFLINE', 'AUTO_MARKING', 'SOMETHING_NEW']) {
+    const payload = { ...FULL_PAYLOAD, feature }
+    const request = buildGuardianMessage(payload).blocks.find((b) => b.id === 'request')
+    assert.equal(request.text, `Elena ${requestClause(payload)}.`, feature)
+  }
+})
+
+test('the request clause interpolates, and never leaks a template placeholder', () => {
+  assert.match(requestClause({ feature: 'PAPER_CONTINUE', remaining: 12 }), /12 questions/)
+  const noCount = requestClause({ feature: 'PAPER_CONTINUE' })
+  assert.ok(!/[{}]/.test(noCount), noCount)
+  assert.ok(!/undefined|NaN|null/.test(noCount), noCount)
 })
 
 test('the first name is used, and an unknown gate still produces a sane ask', () => {

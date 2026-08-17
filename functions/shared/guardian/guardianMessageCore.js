@@ -68,6 +68,23 @@ function firstName(name) {
 }
 
 /**
+ * What the child asked for, as a clause that follows their name: "wants to
+ * open more past papers for revision".
+ *
+ * Exported because the guardian is now told this in two places — the message
+ * that reaches their email, and the notification that lands in a linked
+ * parent account's inbox — and the two must not describe the same request
+ * differently. This is the one copy of that wording.
+ *
+ * @param {{feature?: string, remaining?: number}} payload
+ * @returns {string} the clause, unpunctuated
+ */
+export function requestClause(payload = {}) {
+  const sentence = REQUEST_SENTENCES[payload.feature] || DEFAULT_REQUEST_SENTENCE
+  return interpolate(sentence, payload)
+}
+
+/**
  * Assemble the guardian message.
  *
  * @param {object} payload
@@ -121,10 +138,9 @@ export function buildGuardianMessage(payload = {}) {
   if (evidence.length) blocks.push({ id: 'evidence', text: evidence.join(' ') })
 
   // ── 2. What the child asked for ───────────────────────────────────────
-  const sentence = REQUEST_SENTENCES[payload.feature] || DEFAULT_REQUEST_SENTENCE
   blocks.push({
     id: 'request',
-    text: `${name} ${interpolate(sentence, payload)}.`,
+    text: `${name} ${requestClause(payload)}.`,
   })
 
   // ── 3. Exam countdown ─────────────────────────────────────────────────
