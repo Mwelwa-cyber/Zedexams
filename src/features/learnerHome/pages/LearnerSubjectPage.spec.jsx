@@ -179,20 +179,52 @@ describe('LearnerSubjectPage', () => {
     await waitFor(() => expect(screen.getByText('The Solar System')).toBeInTheDocument())
   })
 
-  it('a subject with no plan says so instead of faking a term split', async () => {
-    // Mathematics has no published scheme of work. The full syllabus shows
-    // on every tab — which is correct — and the screen says that is why.
+  it('a subject with no authored plan gets its catalogue divided, and says so', async () => {
+    // Mathematics has no owner-written scheme of work, so its sub-topics are
+    // shared across the three terms in syllabus order. Term 1 opens on
+    // Fractions; Number Bases is Term 2's work and must not be on this tab.
     renderSubject('/subjects/mathematics?term=1')
     await waitFor(() => {
-      expect(screen.getByText(/term plan for this subject\s+isn’t published yet/)).toBeInTheDocument()
+      expect(screen.getByText('Operations on Fractions')).toBeInTheDocument()
     })
-    const term1 = screen.getAllByRole('button').filter((b) => b.className.includes('lhx-topic-row')).length
+    // The claim is weaker than an authored plan's, and the screen makes it.
+    expect(screen.getByText(/Suggested split/)).toBeInTheDocument()
+    expect(screen.queryByText(/term plan for this subject\s+isn’t published yet/)).toBeNull()
+    expect(screen.queryByText('Base Eight')).toBeNull()
+    // The parent topic is the row's tag, without the catalogue's numbering.
+    const row = screen.getByText('Operations on Fractions').closest('button')
+    expect(within(row).getByText('Fractions')).toBeInTheDocument()
+  })
+
+  it('two sub-topics sharing a name are two rows, told apart by their topic', async () => {
+    // Grade 7 Mathematics lists "Multiplication" under BOTH Fractions and
+    // Decimals. Keying a row by its name made them one React key, which left
+    // rows from the previous term standing after a tab switch.
+    renderSubject('/subjects/mathematics?term=1')
+    await waitFor(() => expect(screen.getAllByText('Multiplication')).toHaveLength(2))
+    const tags = screen.getAllByText('Multiplication')
+      .map((el) => within(el.closest('button')).getByText(/Fractions|Decimals/).textContent)
+    expect(tags.sort()).toEqual(['Decimals', 'Fractions'])
+    // Same for the screen reader: the name alone does not identify the row.
+    expect(screen.getByRole('button', { name: /^Multiplication — Fractions/ })).toBeInTheDocument()
+  })
+
+  it('the three Mathematics tabs are different lists, in syllabus order', async () => {
+    // The bug this fixes: every tab showing the same full syllabus.
+    const titles = () => screen.getAllByRole('button')
+      .filter((b) => b.className.includes('lhx-topic-row'))
+      .map((b) => b.querySelector('.lhx-topic-name').textContent)
+
+    renderSubject('/subjects/mathematics?term=1')
+    await waitFor(() => expect(screen.getByText('Operations on Fractions')).toBeInTheDocument())
+    const term1 = titles()
+
     fireEvent.click(screen.getByRole('tab', { name: 'Term 3' }))
-    await waitFor(() => {
-      const term3 = screen.getAllByRole('button').filter((b) => b.className.includes('lhx-topic-row')).length
-      expect(term3).toBe(term1)
-    })
-    // …and no strand tags, because there is no plan to take them from.
-    expect(document.querySelector('.lhx-strand-tag')).toBeNull()
+    await waitFor(() => expect(screen.getByText('Mean, Mode and Median')).toBeInTheDocument())
+    const term3 = titles()
+
+    expect(term3).not.toEqual(term1)
+    // Consecutive slices: nothing is taught twice.
+    expect(term1.filter((t) => term3.includes(t))).toEqual([])
   })
 })

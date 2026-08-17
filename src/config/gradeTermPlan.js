@@ -24,11 +24,15 @@
  *
  * WHAT IS DELIBERATELY ABSENT. The other five Grade 7 subjects, and three
  * Science sub-topics the prototype's plan does not list (The Solar System,
- * Metals and Non-metals, Mining). They are not guessed into a term. A topic
- * with no term shows on every tab — the existing, tested `topicsForTerm`
- * rule — and the screen says how many are unplaced rather than letting the
- * duplication read as a bug. Adding a subject here is a data edit, not a
- * code change.
+ * Metals and Non-metals, Mining). They are not guessed into a term HERE:
+ * this file is the owner's stated allocation, and anything added to it
+ * inherits that authority. Sub-topics this plan leaves unplaced show on every
+ * tab and the screen says how many there are. Subjects with no plan at all
+ * fall through to `config/termDivision`, which divides the published
+ * catalogue into three consecutive slices and is labelled on screen as a
+ * SUGGESTED split — a weaker claim, made deliberately, because it is pacing
+ * rather than the owner's word. Adding a subject here is a data edit, not a
+ * code change, and it overrides the derived split for that subject.
  *
  * Pure data + pure lookups: no DOM, no React, no Firebase.
  */
