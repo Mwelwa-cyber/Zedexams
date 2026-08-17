@@ -27,23 +27,57 @@
 // which requires an approved guardian on the account, records an audit
 // entry, and emails the guardian. See functions/guardianControls/.
 //
-// What "enforced" means here, precisely: the value is read SERVER-SIDE at
-// the point of use (apiAiChat refuses a chat turn when askZed is false),
-// so turning a control off is not a UI courtesy that a modified client
-// can ignore. What it is not is tamper-proof against the child
-// themselves — the in-app zone runs in the child's own session behind a
-// friction gate, so a child who reached the callable directly could flip
-// it back. That is why every change is audited and mailed to the
-// guardian: the guarantee offered is "cannot be changed silently", not
-// "cannot be changed".
+// What "enforced" means here, precisely, and it is NOT the same for every
+// control — see the `enforcement` field below. A 'server' control is read
+// SERVER-SIDE at the point of use (apiAiChat refuses a chat turn when
+// askZed is false), so turning it off is not a UI courtesy a modified
+// client can ignore. A 'client' control removes the surface and refuses
+// the route, and nothing re-checks behind that; it is reserved for solo
+// activities, where what a guardian is expressing is a preference about
+// time rather than a safety boundary. Recording the difference as data is
+// how the weaker one avoids inheriting the stronger one's reputation.
+//
+// What NEITHER is, is tamper-proof against the child themselves — the
+// in-app zone runs in the child's own session behind a friction gate, so
+// a child who reached the callable directly could flip a control back.
+// That is why every change is audited and mailed to the guardian: the
+// guarantee offered is "cannot be changed silently", not "cannot be
+// changed".
 
-/** Every control, with the human label used in the audit trail + email. */
+/**
+ * Every control, with the human label used in the audit trail + email.
+ *
+ * `enforcement` records where the OFF actually bites, and it is a field
+ * rather than a comment because the two are not equally strong and a
+ * parent should not be told they are:
+ *
+ *   'server' — read at the point of use in consentGuard, so a modified
+ *              client cannot ignore it. `test:guardian-controls` fails if
+ *              a control claims this and consentGuard never reads it.
+ *   'client' — the surface is removed and the route refuses, but nothing
+ *              server-side re-checks. Honest for a control whose subject
+ *              is a solo activity: Race Zed involves no other people (the
+ *              opponent is our robot), so what a guardian is expressing is
+ *              a preference about how their child spends time, not a
+ *              safety boundary. Gating the score write would mean a
+ *              cross-service read in a rules predicate, which this repo
+ *              has already paid for once — see the Storage-rules incident
+ *              in CLAUDE.md.
+ */
 export const GUARDIAN_CONTROLS = Object.freeze([
   {
     key: 'askZed',
     label: 'Ask Zed helper',
     hint: 'AI study answers (online only)',
     icon: '🤖',
+    enforcement: 'server',
+  },
+  {
+    key: 'challenges',
+    label: 'Live challenges',
+    hint: 'Racing our robot coach — never another child',
+    icon: '⚔️',
+    enforcement: 'client',
   },
 ])
 
