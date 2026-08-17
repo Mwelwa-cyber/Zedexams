@@ -36,11 +36,16 @@ function itemToRow(it, topic) {
 
 console.log('\ngrade-7 seed bundle')
 
-test('42 notes (17 Science + 25 Social Studies), 41 quiz banks', () => {
-  assert(bundle.notes.length === 42, `notes=${bundle.notes.length}`)
+test('43 notes (17 Science + 25 Social Studies + 1 English), 41 quiz banks', () => {
+  assert(bundle.notes.length === 43, `notes=${bundle.notes.length}`)
   const bySubject = bundle.notes.reduce((m, n) => ((m[n.subject] = (m[n.subject] || 0) + 1), m), {})
   assert(bySubject['Integrated Science'] === 17, `Integrated Science=${bySubject['Integrated Science']}`)
   assert(bySubject['Social Studies'] === 25, `Social Studies=${bySubject['Social Studies']}`)
+  // Conjunctions — the reader engine's reference note, and the only
+  // English content published so far. It was written as a test fixture and
+  // rendered by nothing but a spec and a preview page, so the topic row
+  // for it said "Note coming soon" about a note that existed.
+  assert(bySubject.English === 1, `English=${bySubject.English}`)
   assert(Object.keys(bundle.quizzes).length === 41, `quizzes=${Object.keys(bundle.quizzes).length}`)
 })
 

@@ -179,6 +179,38 @@ describe('LearnerSubjectPage', () => {
     await waitFor(() => expect(screen.getByText('The Solar System')).toBeInTheDocument())
   })
 
+  it('opens the seeded note even when its title is worded differently', async () => {
+    // The plan says "Diseases — Viruses & Bacteria"; the published note is
+    // titled "2.1 Diseases". Equality and `title.includes(topic)` both miss
+    // that, so the row used to say "Note coming soon" about a note sitting
+    // in the library. The plan names its note, and the fuzzy matcher is
+    // the fallback for everything else.
+    mockMaterials = [{
+      id: 'n7', noteFormat: 'study', isPublished: true, grade: '7',
+      subject: 'science', title: '2.1 Diseases',
+    }]
+    renderSubject('/subjects/science?term=1')
+    await waitFor(() => expect(screen.getByText('Diseases — Viruses & Bacteria')).toBeInTheDocument())
+    const row = screen.getByText('Diseases — Viruses & Bacteria').closest('button')
+    expect(within(row).queryByText('Note coming soon')).toBeNull()
+    fireEvent.click(row)
+    await waitFor(() => expect(screen.getByText('NOTE n7')).toBeInTheDocument())
+  })
+
+  it('the two Fruits topics open their OWN notes, not each other’s', async () => {
+    // "Fruits & Seeds as Food" (Term 1, Health) and "Fruits & Seeds"
+    // (Term 3, Plants) share every meaningful word. Title similarity alone
+    // sent both to whichever note came first in the array.
+    mockMaterials = [
+      { id: 'nA', noteFormat: 'study', isPublished: true, grade: '7', subject: 'science', title: '2.2 Fruits' },
+      { id: 'nB', noteFormat: 'study', isPublished: true, grade: '7', subject: 'science', title: '4.3 Fruits and Seeds' },
+    ]
+    renderSubject('/subjects/science?term=1')
+    await waitFor(() => expect(screen.getByText('Fruits & Seeds as Food')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('Fruits & Seeds as Food').closest('button'))
+    await waitFor(() => expect(screen.getByText('NOTE nA')).toBeInTheDocument())
+  })
+
   it('a subject with no plan says so instead of faking a term split', async () => {
     // Mathematics has no published scheme of work. The full syllabus shows
     // on every tab — which is correct — and the screen says that is why.

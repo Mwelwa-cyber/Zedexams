@@ -36,6 +36,7 @@ import useExamTimetables from '../../../hooks/useExamTimetables'
 import { getTodaysExamsBySubject, checkTodaysLocks } from '../../../utils/examService'
 import { getActiveTerm } from '../../../utils/moeCalendar'
 import { SUBJECTS, SUBJECT_MAP, getTopics, getGradeSubjects, normalizeSubject } from '../../../config/curriculum'
+import { getTermPlan, planTopicsForTerm } from '../../../config/gradeTermPlan'
 import {
   resolveActiveTerm, normalizeTerm, pickLearningResume, computeSubjectCompletion,
   buildRecentActivity, extractWeakTopics,
@@ -201,7 +202,15 @@ export default function useLearnerDashboard({ extras = false } = {}) {
       // SUBJECTS holds all nine, including a Zambian-language alternative
       // and an exam paper, neither of which belongs on a learner's home.
       const subjects = getGradeSubjects(Number(grade)).map((s) => {
+        // The count the row prints has to be the count the subject screen
+        // then shows. Where a term plan exists that is the term's topics
+        // (Grade 7 Science: 3 in Term 1, not the catalogue's 5 parents);
+        // where it does not, the catalogue is still all we know.
+        const plan = getTermPlan(s.id, Number(grade))
         const topics = getTopics(s.id, Number(grade)) || []
+        const shownTopicCount = plan
+          ? planTopicsForTerm(plan, activeTerm.term).length
+          : topics.length
         const subjectNotes = notes.filter((n) => subjectIdOf(n.subject) === s.id)
         const termNotes = subjectNotes.filter((n) => {
           const t = normalizeTerm(n.term)
@@ -224,8 +233,13 @@ export default function useLearnerDashboard({ extras = false } = {}) {
         return {
           id: s.id,
           label: s.label,
-          topicCount: topics.length,
+          topicCount: shownTopicCount,
           percent,
+          // Has the learner actually done anything here? Read a note or
+          // attempted a topic. Derived from the same two signals `percent`
+          // is, so a subject can never show a bar with nothing behind it —
+          // or hide one that has something.
+          started: notesRead > 0 || attempted > 0,
           hasMaterial,
         }
       })

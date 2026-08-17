@@ -69,7 +69,9 @@ const ENGLISH_7 = [
   { term: 2, title: 'Using References — Dictionary & Index', icon: '📚', strand: 'reading' },
   { term: 2, title: 'Formal Letters', icon: '✉️', strand: 'writing' },
   { term: 2, title: 'Adverbs', icon: '🏃', strand: 'structure' },
-  { term: 2, title: 'Conjunctions — Joining Words', icon: '🔗', strand: 'structure' },
+  // The one English topic with a published note today. The rest carry no
+  // `note` and say "Note coming soon", which is true.
+  { term: 2, title: 'Conjunctions — Joining Words', icon: '🔗', strand: 'structure', note: 'Conjunctions — the joining words 🔗' },
   // Term 3
   { term: 3, title: 'Drama & Messages', icon: '🎭', strand: 'speaking' },
   { term: 3, title: 'Extensive Reading', icon: '📚', strand: 'reading' },
@@ -80,23 +82,33 @@ const ENGLISH_7 = [
   { term: 3, title: 'Direct & Indirect Speech', icon: '💬', strand: 'structure' },
 ]
 
+// `note` names the published note this row opens.
+//
+// It is stated rather than guessed because guessing is genuinely
+// ambiguous here: "Fruits & Seeds as Food" (Term 1, Health — fruit as
+// food) and "Fruits & Seeds" (Term 3, Plants — dispersal) are different
+// topics whose titles share every meaningful word, and no title-similarity
+// score can separate them. Left to the matcher, both rows opened the same
+// note and one of them was the wrong one. A `seedKey` would be tighter
+// still; the title is what a teacher publishing through the admin tools
+// actually controls, so the matcher stays as the fallback.
 const SCIENCE_7 = [
   // Term 1 — syllabus 7.1 The human body, 7.2 Health
-  { term: 1, title: 'The Digestive System', icon: '🍽️', strand: 'human-body' },
-  { term: 1, title: 'Diseases — Viruses & Bacteria', icon: '🦠', strand: 'health' },
-  { term: 1, title: 'Fruits & Seeds as Food', icon: '🍊', strand: 'health' },
+  { term: 1, title: 'The Digestive System', icon: '🍽️', strand: 'human-body', note: '1.1 The Digestive System' },
+  { term: 1, title: 'Diseases — Viruses & Bacteria', icon: '🦠', strand: 'health', note: '2.1 Diseases' },
+  { term: 1, title: 'Fruits & Seeds as Food', icon: '🍊', strand: 'health', note: '2.2 Fruits' },
   // Term 2
-  { term: 2, title: 'Separating Substances', icon: '⚗️', strand: 'environment' },
-  { term: 2, title: 'Water Supply System', icon: '💧', strand: 'environment' },
-  { term: 2, title: 'The Flower', icon: '🌸', strand: 'plants-animals' },
-  { term: 2, title: 'Pollination & Fertilisation', icon: '🐝', strand: 'plants-animals' },
+  { term: 2, title: 'Separating Substances', icon: '⚗️', strand: 'environment', note: '3.1 Separating Substances' },
+  { term: 2, title: 'Water Supply System', icon: '💧', strand: 'environment', note: '3.2 Water Supply Systems' },
+  { term: 2, title: 'The Flower', icon: '🌸', strand: 'plants-animals', note: '4.1 The Flower' },
+  { term: 2, title: 'Pollination & Fertilisation', icon: '🐝', strand: 'plants-animals', note: '4.2 Pollination and Fertilisation' },
   // Term 3
-  { term: 3, title: 'Fruits & Seeds', icon: '🍎', strand: 'plants-animals' },
-  { term: 3, title: 'Seed Dispersal', icon: '🌬️', strand: 'plants-animals' },
-  { term: 3, title: 'Plant Propagation', icon: '🌱', strand: 'plants-animals' },
-  { term: 3, title: 'Energy', icon: '⚡', strand: 'materials-energy' },
-  { term: 3, title: 'Electric Circuits', icon: '🔌', strand: 'materials-energy' },
-  { term: 3, title: 'Lightning', icon: '🌩️', strand: 'materials-energy' },
+  { term: 3, title: 'Fruits & Seeds', icon: '🍎', strand: 'plants-animals', note: '4.3 Fruits and Seeds' },
+  { term: 3, title: 'Seed Dispersal', icon: '🌬️', strand: 'plants-animals', note: '4.4 Seed Dispersal' },
+  { term: 3, title: 'Plant Propagation', icon: '🌱', strand: 'plants-animals', note: '4.5 Propagation' },
+  { term: 3, title: 'Energy', icon: '⚡', strand: 'materials-energy', note: '5.1 Energy' },
+  { term: 3, title: 'Electric Circuits', icon: '🔌', strand: 'materials-energy', note: '5.2 Electric Current and Circuits' },
+  { term: 3, title: 'Lightning', icon: '🌩️', strand: 'materials-energy', note: '5.3 Lightning' },
 ]
 
 /**
@@ -175,6 +187,68 @@ export function unplacedCatalogueTopics(plan, catalogueTopics) {
   const planned = rows.map((r) => tokens(r.title))
   return (Array.isArray(catalogueTopics) ? catalogueTopics : [])
     .filter((name) => !planned.some((p) => overlaps(p, tokens(name))))
+}
+
+/**
+ * Do these two strings name the same topic?
+ *
+ * The same comparison `unplacedCatalogueTopics` runs, exported because the
+ * subject screen needs it for a second job: finding the NOTE a topic row
+ * opens. Three vocabularies describe one topic and none of them agree —
+ * the term plan says "Electric Circuits", the syllabus catalogue says
+ * "Electric Current and Circuits", and the published note is titled
+ * "5.2 Electric Current and Circuits". Matching on equality, or on
+ * `title.includes(topic)`, found the note for some rows and not others,
+ * so tapping "Diseases — Viruses & Bacteria" or "Plant Propagation" said
+ * "Note coming soon" about a note that was sitting in the library.
+ *
+ * Leading section numbers are dropped before comparing, because "1.1" is
+ * the note's filing, not part of what it is about.
+ */
+export function titlesMatch(a, b) {
+  return overlaps(tokens(stripLeadingNumber(a)), tokens(stripLeadingNumber(b)))
+}
+
+/**
+ * The BEST title match among candidates, not the first.
+ *
+ * First-match is not good enough here and the failure is subtle: Term 3's
+ * "Fruits & Seeds" (a Plants and Animals topic about dispersal) matches
+ * both "4.3 Fruits and Seeds" and "2.2 Fruits" — the latter being the
+ * Health note about fruit as food — and array order decided which the
+ * learner got. Score by how much of the two titles actually coincides and
+ * the right one wins on its own merits.
+ *
+ * @param {Array} candidates
+ * @param {string} target
+ * @param {(c:any)=>string} getTitle
+ */
+export function bestTitleMatch(candidates, target, getTitle) {
+  const want = tokens(stripLeadingNumber(target))
+  if (want.size === 0) return null
+  let best = null
+  // -Infinity, not 0: `overlaps` has already decided a candidate is a
+  // match, so the score only ranks the survivors. Starting at 0 threw away
+  // every legitimate-but-lopsided pair — "Diseases — Viruses & Bacteria"
+  // against the note titled just "2.1 Diseases" scores 0 and was silently
+  // dropped, which reads to the learner as "Note coming soon".
+  let bestScore = -Infinity
+  for (const c of Array.isArray(candidates) ? candidates : []) {
+    const have = tokens(stripLeadingNumber(getTitle(c)))
+    if (!overlaps(want, have)) continue
+    let shared = 0
+    for (const w of have) if (want.has(w)) shared += 1
+    // Reward coincidence, penalise the extra words neither side shares —
+    // "Fruits" (1 shared, 0 spare) must lose to "Fruits and Seeds"
+    // (2 shared, 0 spare) rather than win on being shorter.
+    const score = shared * 2 - (want.size - shared) - (have.size - shared)
+    if (score > bestScore) { bestScore = score; best = c }
+  }
+  return best
+}
+
+function stripLeadingNumber(value) {
+  return String(value || '').replace(/^\s*\d+(\.\d+)*\s*/, '')
 }
 
 const STOP = new Set(['the', 'a', 'an', 'and', 'of', 'in', 'to', 'as', 'for', 'or'])
