@@ -269,6 +269,13 @@ async function emitInvoice({payment, plan, senderEmail, senderPassword}) {
       currency: payment.currency,
       provider: payment.provider || "mtn_momo",
       phoneNumber: payment.phoneNumber || null,
+      // Who the purchase was FOR, when that is not the buyer — a guardian
+      // paying for a child. The receipt still belongs to the payer (it is
+      // their money, their email, their invoices/{uid}/ path); this only
+      // records what they bought, so a parent with two children can tell
+      // two identical K50 receipts apart.
+      ...(payment.beneficiaryName ? {beneficiaryName: payment.beneficiaryName} : {}),
+      ...(payment.beneficiaryUid ? {beneficiaryUid: payment.beneficiaryUid} : {}),
       storagePath,
       emailedTo: null,
       emailedAt: null,

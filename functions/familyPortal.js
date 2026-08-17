@@ -177,15 +177,37 @@ const redeemFamilyInviteCode = onCall({
   const learnerSnap = await db.collection("users").doc(learnerUid).get();
   const learner = learnerSnap.exists ? (learnerSnap.data() || {}) : {};
 
+  // Which role this link gets. The first guardian to link a child owns
+  // the account (billing, deletion); everyone after them is a
+  // co-guardian. Recording it at creation is what stops the derived
+  // answer in guardianRolesCore from depending on timestamps forever —
+  // and re-redeeming must NOT rewrite it, or a parent who re-entered
+  // their code would demote themselves. Hence the explicit read-back.
+  const {roleForNewLink} = await import("./shared/guardian/guardianRolesCore.js");
+  const siblings = await db.collection("parentLinks")
+      .where("learnerUid", "==", learnerUid)
+      .get();
+  const priorLink = siblings.docs.find((d) => d.id === linkId);
+  const role = priorLink ?
+    ((priorLink.data() || {}).role || null) :
+    roleForNewLink(siblings.docs.map((d) => d.data() || {}));
+
   // Idempotent: re-redeeming the same code just refreshes the snapshot.
+  // `createdAt` is written only on FIRST creation — it used to be stamped
+  // on every redeem, which was harmless when nothing read it and is not
+  // now: for a legacy link with no stored role, guardianRolesCore derives
+  // ownership from it, so bumping it on a re-redeem could hand the owner
+  // role to whichever parent last typed the code.
   await db.collection("parentLinks").doc(linkId).set({
     parentUid: uid,
     learnerUid,
     learnerDisplayName: learner.displayName || null,
     learnerGrade: learner.grade || null,
+    parentDisplayName: redeemer.displayName || null,
+    ...(role ? {role} : {}),
     createdVia: "code",
     code,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    ...(priorLink ? {} : {createdAt: admin.firestore.FieldValue.serverTimestamp()}),
   }, {merge: true});
 
   // Best-effort redemption tally for the learner's own visibility.

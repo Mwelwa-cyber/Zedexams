@@ -555,6 +555,17 @@ async function main() {
       status: 'sent',
       used: false,
     })
+
+    // A pending co-guardian invite (family sharing). Same token design as
+    // above: the doc id IS the sha256 of the invite token, and the raw
+    // token exists only in the invitee's inbox.
+    await setDoc(doc(db, 'guardianInvites', 'inv_hash_1'), {
+      learnerUid: LEARNER_A,
+      invitedBy: PARENT_USER,
+      email: 'second.guardian@example.com',
+      role: 'co_guardian',
+      status: 'pending',
+    })
   })
 
   const learnerA = testEnv.authenticatedContext(LEARNER_A, verifiedToken(LEARNER_A)).firestore()
@@ -2798,6 +2809,48 @@ async function main() {
 
   await test('a guest CANNOT read a request even holding its id', async () => {
     await assertFails(getDoc(doc(guest, 'guardianRequests', 'req_hash_1')))
+  })
+
+  // ── guardianInvites — family sharing, and why READ is the risk ──
+  section('guardianInvites — server-only in BOTH directions')
+
+  await test('nobody may READ an invite — not even the parent who sent it', async () => {
+    // This is the load-bearing half. The doc id is the sha256 of the
+    // invite token and the raw token exists only in the invitee's inbox,
+    // so anyone who could read a row could accept an invite addressed to
+    // someone else and gain a guardian's view of a child. Hashing the id
+    // buys nothing if the row is readable.
+    await assertFails(getDoc(doc(parent, 'guardianInvites', 'inv_hash_1')))
+    await assertFails(getDoc(doc(learnerA, 'guardianInvites', 'inv_hash_1')))
+    await assertFails(getDoc(doc(guest, 'guardianInvites', 'inv_hash_1')))
+  })
+
+  await test('an admin cannot read one either — support has no need', async () => {
+    await assertFails(getDoc(doc(admin, 'guardianInvites', 'inv_hash_1')))
+  })
+
+  await test('a client CANNOT accept an invite by writing the status itself', async () => {
+    // The attack: flip status to accepted and write your own parentLinks
+    // row. The second half is already denied (parentLinks is create:false),
+    // and this denies the first.
+    await assertFails(setDoc(doc(parent, 'guardianInvites', 'inv_hash_1'), {
+      status: 'accepted', acceptedBy: PARENT_USER,
+    }, { merge: true }))
+    await assertFails(setDoc(doc(learnerA, 'guardianInvites', 'inv_hash_1'), {
+      status: 'accepted',
+    }, { merge: true }))
+  })
+
+  await test('a client CANNOT forge an invite to somebody else’s child', async () => {
+    await assertFails(setDoc(doc(parent, 'guardianInvites', 'inv_forged'), {
+      learnerUid: LEARNER_B, invitedBy: PARENT_USER, email: 'me@example.com',
+      role: 'co_guardian', status: 'pending',
+    }))
+  })
+
+  await test('a client CANNOT delete an invite to cover its tracks', async () => {
+    await assertFails(deleteDoc(doc(parent, 'guardianInvites', 'inv_hash_1')))
+    await assertFails(deleteDoc(doc(admin, 'guardianInvites', 'inv_hash_1')))
   })
 
   // ── users.guardianUnlock — the server's copy of the 72-hour rule ──

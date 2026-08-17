@@ -191,6 +191,10 @@ const COVERED = [
   // tests are the money path: a learner who could write here could mark their
   // own request paid and unlock without paying.
   'guardianRequests',
+  // Family sharing. Server-only in BOTH directions and, unusually, not
+  // even admin-readable — its doc id is the sha256 of the invite token,
+  // so a readable row is an acceptable invite to somebody else's child.
+  'guardianInvites',
   'accountPurgeJobs', 'adminAuditLogs', 'agentControl', 'agentJobs', 'aiDailyLimits', 'aiGenerations',
   'aiOperations', 'aiUsage', 'aiUsageDaily', 'announcements', 'assessmentDrafts', 'assessmentExports', 'assessments',
   'classRegisters', 'curriculum', 'downloadTickets', 'exam_attempts',

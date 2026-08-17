@@ -146,13 +146,83 @@ exports.buildPaymentHandlers = (deps) => {
         throw new HttpsError("invalid-argument", "Could not detect your mobile money operator — please choose one.");
       }
 
+      // ── Is this a guardian buying for a child? ────────────────────────
+      //
+      // Authorised HERE, from the server's own read of parentLinks, before
+      // anything is written or charged. The client sends a uid and nothing
+      // more; a client that could name any beneficiary could credit a
+      // stranger's account. See functions/guardianBillingCore.js.
+      const {
+        decideGuardianPayment,
+        guardianPaymentFields,
+        normalizeBeneficiary,
+      } = require("./guardianBillingCore");
+      const beneficiaryUid = normalizeBeneficiary(request.data?.beneficiaryUid, uid);
+
+      let beneficiary = null;
+      let guardianRequestId = null;
+      if (beneficiaryUid) {
+        const [{roleFor, can}, linkSnap] = await Promise.all([
+          import("./shared/guardian/guardianRolesCore.js"),
+          db.collection("parentLinks").where("learnerUid", "==", beneficiaryUid).get(),
+        ]);
+        const links = linkSnap.docs.map((d) => d.data() || {});
+        const verdict = decideGuardianPayment({
+          beneficiaryUid,
+          role: roleFor(links, uid),
+          can,
+        });
+        if (!verdict.allowed) {
+          throw new HttpsError("permission-denied", verdict.message, {reason: verdict.reason});
+        }
+        const beneficiarySnap = await db.collection("users").doc(beneficiaryUid).get();
+        if (!beneficiarySnap.exists) {
+          throw new HttpsError("not-found", "That child's account could not be found.");
+        }
+        beneficiary = beneficiarySnap.data() || {};
+
+        // Which request, if any, this payment settles. The id arrives from a
+        // URL in an email, and settling it flips a record and tells a child
+        // their guardian unlocked what they asked for — so it is honoured
+        // only when the STORED request names this same child and is still
+        // outstanding. A mismatch is dropped silently rather than refused:
+        // the payment itself is legitimate and must not be blocked by a
+        // stale link.
+        const requestedId = cleanString(request.data?.guardianRequestId, 128);
+        if (requestedId) {
+          const {decideRequestSettlement} = require("./guardianBillingCore");
+          const reqSnap = await db.collection("guardianRequests").doc(requestedId).get();
+          const verdict = decideRequestSettlement({
+            request: reqSnap.exists ? reqSnap.data() : null,
+            beneficiaryUid,
+          });
+          if (verdict.settle) {
+            guardianRequestId = requestedId;
+          } else {
+            console.warn("[initiateLencoPayment] guardian request not settled", {
+              requestedId, reason: verdict.reason,
+            });
+          }
+        }
+      }
+
       // Pro → Max upgrade: charge ONLY the prorated daily-rate difference for the
       // days the teacher has left, and keep their existing renewal date (the
       // activation step preserves the expiry when isUpgrade is set). Recomputed
       // server-side from the user record so the client can never dictate the
       // prorated amount.
+      //
+      // A GUARDIAN payment is never an upgrade, and the reason is the line
+      // above: the quote is computed from the PAYER's subscription. A parent
+      // holding an active plan would be quoted a few kwacha of tier
+      // difference and their child would receive a full fresh period for it.
+      // Guardian purchases pay full plan price. (guardianPaymentFields also
+      // writes `isUpgrade: false` explicitly, so the activation branch cannot
+      // pick one up from anywhere else either.)
       const {quoteUpgradeForUser, projectRenewalDate} = require("./subscriptionUpgrade");
-      const quote = quoteUpgradeForUser(user, planId);
+      const quote = beneficiaryUid ?
+        {isUpgrade: false, amountZMW: Number(plan.priceZMW)} :
+        quoteUpgradeForUser(user, planId);
       const amount = quote.isUpgrade ? quote.amountZMW : Number(plan.priceZMW);
 
       // Displayed-price integrity: when the client echoes the amount it showed
@@ -212,7 +282,7 @@ exports.buildPaymentHandlers = (deps) => {
           const paySnap = await tx.get(db.collection("payments").doc(String(lock.paymentId)));
           if (paySnap.exists) existing = {id: paySnap.id, data: paySnap.data() || {}};
         }
-        const decision = decideLockedInitiation({existing, planId, phone: rawPhone});
+        const decision = decideLockedInitiation({existing, planId, phone: rawPhone, beneficiaryUid});
         if (decision.action !== "create") return decision;
 
         tx.set(newPayRef, {
@@ -232,6 +302,15 @@ exports.buildPaymentHandlers = (deps) => {
           status: "pending",
           lencoStatus: "pending",
           ...upgradeFields,
+          // Written LAST so `isUpgrade: false` wins over upgradeFields —
+          // which is inert here anyway, since a beneficiary payment never
+          // gets an upgrade quote — rather than depending on the order of
+          // two spreads staying what it is today.
+          ...guardianPaymentFields({
+            beneficiaryUid,
+            beneficiaryName: beneficiary?.displayName,
+            guardianRequestId,
+          }),
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         tx.set(lockRef, {
@@ -239,6 +318,7 @@ exports.buildPaymentHandlers = (deps) => {
           userId: uid,
           planId,
           phoneNumber,
+          beneficiaryUid: beneficiaryUid || null,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         return {action: "created"};

@@ -2370,6 +2370,105 @@ exports.requestGuardianUnlock = require('./guardianUnlock').requestGuardianUnloc
 // "cannot change silently", not "cannot change".
 // See functions/guardianControls/ and functions/shared/guardian/.
 exports.setGuardianControl = require('./guardianControls').setGuardianControl;
+
+// ── The parent app (PROMPT 8g) — the guardian's OWN logged-in surface ──
+//
+// Distinct from the Guardian Zone above, which renders the same data inside
+// the CHILD's app behind a friction gate. These callables are called by a
+// verified adult signed in as themselves, on their own device.
+//
+// Almost all of them are callables rather than client reads for one reason:
+// a parent may read `parentLinks` only for rows that name them, and every
+// question this surface asks (who else guards this child, which of us owns
+// the account, may I approve this) needs the OTHER rows. Answering
+// server-side behind an explicit check is the alternative to widening that
+// rule until the client can answer for itself.
+//
+// setChildGuardianControl is the second writer of users/{uid}.guardianControls
+// and the stronger of the two — the caller is an authenticated guardian
+// rather than whoever passed a times-table sum on the child's phone. It
+// writes the same guardianControlAudit trail, stamped with who did it.
+// See functions/parentApp/.
+// The BUILDERS stay here and only the bodies live in functions/parentApp/ —
+// test:functions-manifest's rule, and the reason for it is that a bare
+// re-export takes an export's region, secrets and runtime options out of that
+// guard's sight.
+const parentApp = require('./parentApp');
+
+// Read-only reads. No secrets; 512MiB because listGuardianChildren fans out
+// over every linked child.
+exports.listGuardianChildren = onCall({
+  region: "us-central1", timeoutSeconds: 60, memory: "512MiB",
+}, parentApp.listGuardianChildren);
+
+exports.getGuardianChildDetail = onCall({
+  region: "us-central1", timeoutSeconds: 60, memory: "512MiB",
+}, parentApp.getGuardianChildDetail);
+
+exports.getGuardianChildActivity = onCall({
+  region: "us-central1", timeoutSeconds: 60, memory: "512MiB",
+}, parentApp.getGuardianChildActivity);
+
+exports.listGuardianApprovals = onCall({
+  region: "us-central1", timeoutSeconds: 60, memory: "512MiB",
+}, parentApp.listGuardianApprovals);
+
+exports.getGuardianWeeklyReport = onCall({
+  region: "us-central1", timeoutSeconds: 60, memory: "512MiB",
+}, parentApp.getGuardianWeeklyReport);
+
+// Writes. setChildGuardianControl carries the SMTP secrets because a control
+// change mails the guardian — the same "cannot change silently" promise
+// setGuardianControl makes above.
+exports.setChildGuardianControl = onCall({
+  secrets: [emailSmtpUser, emailSmtpPassword],
+  region: "us-central1", timeoutSeconds: 30,
+}, parentApp.setChildGuardianControl);
+
+exports.declineGuardianApproval = onCall({
+  region: "us-central1", timeoutSeconds: 30,
+}, parentApp.declineGuardianApproval);
+
+// Family sharing. inviteCoGuardian mails the invite; accept/remove do not.
+exports.inviteCoGuardian = onCall({
+  secrets: [emailSmtpUser, emailSmtpPassword],
+  region: "us-central1", timeoutSeconds: 30,
+}, parentApp.inviteCoGuardian);
+
+exports.acceptCoGuardianInvite = onCall({
+  region: "us-central1", timeoutSeconds: 30,
+}, parentApp.acceptCoGuardianInvite);
+
+exports.removeCoGuardian = onCall({
+  region: "us-central1", timeoutSeconds: 30,
+}, parentApp.removeCoGuardian);
+
+// The guardian pay link. UNAUTHENTICATED by design: the guardian who
+// receives requestGuardianUnlock's email may have no ZedExams account, and a
+// link that demands a sign-in before it will say what it is about is a link
+// people close. It requires the 32-byte raw token (never stored — the request
+// doc id is its sha256), returns only what that email already told them, and
+// grants nothing; paying still goes through the authorised checkout.
+exports.resolveGuardianPayLink = onCall({
+  region: "us-central1", timeoutSeconds: 30,
+}, parentApp.resolveGuardianPayLink);
+
+// The Sunday report, for parent ACCOUNTS. Not a duplicate of
+// weeklyParentDigest: that one fans out over `progressShares` (the anonymous
+// link a learner hands to a parent with no account), this one over
+// `parentLinks` (real guardian accounts). The populations do not overlap, so
+// a family gets one email. It renders the SAME words as the Reports screen,
+// because a parent who reads the email and then opens the app must not find
+// a different account of the same week — and a quiet week is not emailed at
+// all. See functions/parentApp/weeklyGuardianReport.js.
+exports.weeklyGuardianReport = onSchedule({
+  schedule: "every sunday 09:00",
+  timeZone: "Africa/Lusaka",
+  secrets: [emailSmtpUser, emailSmtpPassword],
+  region: "us-central1",
+  timeoutSeconds: 540,
+  memory: "512MiB",
+}, require('./parentApp/weeklyGuardianReport').runWeeklyGuardianReport);
 // Re-derives isMinor from the declared date of birth on user-doc creation, so
 // the flag the consent gate reads is never the one the client wrote. Pinned to
 // africa-south1 with the (default) database.

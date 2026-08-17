@@ -1,6 +1,6 @@
 # ZedExams — Bug & Cleanup Report
 
-> Snapshot as of 2026-08-06 — verify before acting.
+> Snapshot as of 2026-08-17 — verify before acting.
 
 **Original audit:** 2026-04-18
 **Re-verified:** 2026-06-07 — almost everything below has shipped. Read "Current status" before acting on anything; the original audit's line/file references have drifted.
@@ -14,6 +14,22 @@ The 2026-04-18 audit found **no P0/P1 issues** and a list of P2 hardening + P3 c
 A teacher-side audit on 2026-07-11 (157 raw findings, 24 adversarially verified) fixed 23 issues — data-loss, silent-failure, and input bugs across the studios, register, library, scan import, and dashboard. The items below were confirmed real but deliberately deferred.
 
 ### Still open
+
+- **PAY-001 · A guardian could not pay for a child — fixed on the web, with two stated limits** — found while building the parent app (PROMPT 8g), which needs it.
+
+  The "child asks → guardian pays → child unlocks" journey terminated in a wall in **three** places, none visible from the code that starts it, and each looking finished from the other end — the learner side sent a real message with a real token, and the payment side had real handling for a field nobody set:
+
+  1. **`subscriptionActivation` credited `pay.userId`** — the payer — with no beneficiary concept anywhere. A parent paying activated Premium on *their* account and the child stayed locked.
+  2. **Nothing ever wrote `payment.guardianRequestId`**, which `subscriptionActivation.js` reads in three places to call `settleGuardianRequest`.
+  3. **`/guardian-unlock` was not a route**, so the URL `requestGuardianUnlock` has mailed every guardian since it shipped fell through to `NotFound`.
+
+  **Fixed.** A payment may carry `beneficiaryUid`; `creditedUid()` in `functions/guardianBillingCore.js` is the one place the precedence is written down, and switching `userRef` at the top of the activation transaction moves the grant, expiry stacking, teacher-tier mapping and reminder reset together. Authorised at initiation from the server's own read of `parentLinks` against the `manageBilling` capability — so a co-guardian cannot pay. A guardian payment is never an upgrade (the prorated quote is computed from the *payer's* subscription, so a parent on an active plan would otherwise have bought a full period for a few kwacha of tier difference). The request id is verified against the beneficiary before it is honoured. Proven in `paymentLifecycleEmulator.test.js`, which asserts both halves together: the child gains premium **and** the parent does not.
+
+  **A fourth bug surfaced while fixing it**, and it would have bitten immediately: the duplicate-initiation lock is keyed by PAYER and its reuse test was plan + phone. A parent buying the same plan for a second child from the same phone inside the three-minute window has identical plan and phone — precisely the case that comparison exists to tell apart — so they would have been handed the first child's payment: told it worked, not charged again, second child never credited. `decideLockedInitiation` now compares the beneficiary too.
+
+  **Limit 1 — Google Play has no beneficiary path.** `verifyGooglePlayPurchase` grants to the purchasing account, because a Play subscription is owned by the Google account that bought it. A parent on the Android build therefore still cannot buy for a child in-app; they must use the web checkout. Not a regression (it never worked), but it means the Android and web paywalls now differ, and that difference is not surfaced to the user anywhere.
+
+  **Limit 2 — renewal reminders follow the credited account, which is the child.** `subscriptionLifecycle` reads `users/{uid}.subscriptionExpiry` and nudges that user, so a guardian-funded subscription reminds the **child** to renew, not the adult who would actually pay. Nobody is charged wrongly and no access is lost; the nudge just reaches the wrong person. Fixing it means the lifecycle sweeps learning about `beneficiaryUid` the same way activation now has.
 
 - **PURGE-005 · A deletion the SWEEPER recovered was quietly less complete than one the callable finished — fixed, with one stated limit** — Codex P1 on #2228. `purgeUserData` was already shared, so the Firestore half matched. The two steps that are not Firestore — closing the web deletion request, and deleting the PostHog person and their events — lived inline in `accountCallableHandlers.js`, below `runAccountDeletion` and unreachable from the recovery path. So a deletion the cron finished left the analytics profile in place and reported `completed`, because from where it stood the purge had verified. The Privacy Policy §7 promise was kept on one path and not the other, invisibly.
 

@@ -4,7 +4,7 @@
 > upload; a newer revision from the owner supersedes the file committed here.
 
 The owner's design pack for the learner-experience rebuild (PROMPT 0.A of the
-build prompts). The four specs are committed **verbatim as shipped**:
+build prompts). The specs are committed **verbatim as shipped**:
 
 | File | What it is |
 |---|---|
@@ -13,6 +13,15 @@ build prompts). The four specs are committed **verbatim as shipped**:
 | `ZedExams_Content_Intake_Template.md` | The intake shape content authors fill in |
 | `ZedExams_Grade7_English_Reference.md` | Worked Grade 7 English example of the above |
 | `zedexams-learner-prototype.html` | The working visual + interaction reference — see below |
+| `ZedExams_ClaudeCode_Prompts.md` | The build playbook itself — the ordered prompts the rebuild is run from |
+| `zedexams-parent-prototype.html` | The parent app's visual + interaction reference (PROMPT 8g) |
+
+The playbook was landed later than the four specs, and carries its own
+snapshot header for a reason worth repeating here: it is a PLAN, not a record.
+Much of it has already shipped (`git log --oneline --grep "Learner redesign"`),
+so reading it as a to-do list re-opens closed work. Two revisions of it exist;
+the committed one is the superset — the only one describing the parent app's
+activity timeline and co-guardian sharing.
 
 ## Which prototype this is
 

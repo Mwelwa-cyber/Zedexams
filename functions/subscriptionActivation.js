@@ -155,10 +155,28 @@ async function activateSubscriptionFromPayment({
       throw new Error(`payment ${paymentId} has no userId`);
     }
 
-    const userRef = db.collection("users").doc(pay.userId);
+    // WHICH ACCOUNT THIS CREDITS. Ordinarily the payer; for a guardian
+    // buying for a child, the child. `creditedUid` is the one place that
+    // precedence is written down (functions/guardianBillingCore.js), and
+    // `beneficiaryUid` only ever reaches a payment doc through the
+    // authorisation in initiateLencoPayment — a client cannot set it.
+    //
+    // Everything downstream in this transaction reads `user` and writes
+    // `userRef`, so switching them here moves the grant, the expiry
+    // stacking, the teacher-tier mapping and the reminder reset together.
+    // That is deliberate: the alternative — crediting some fields to one
+    // account and some to the other — is the failure that would be
+    // invisible until a renewal.
+    const {creditedUid} = require("./guardianBillingCore");
+    const grantUid = creditedUid(pay);
+    if (!grantUid) {
+      throw new Error(`payment ${paymentId} names no account to credit`);
+    }
+
+    const userRef = db.collection("users").doc(grantUid);
     const userSnap = await tx.get(userRef);
     if (!userSnap.exists) {
-      throw new Error(`user ${pay.userId} not found for payment ${paymentId}`);
+      throw new Error(`user ${grantUid} not found for payment ${paymentId}`);
     }
     const user = userSnap.data() || {};
 
@@ -190,10 +208,14 @@ async function activateSubscriptionFromPayment({
         planId: pay.planId,
         phoneNumber: pay.phoneNumber || null,
         provider: pay.provider || "lenco",
+        // The PAYER, always — the receipt is their money, their email and
+        // their invoices/{uid}/ path, even when the access went to a child.
         userId: pay.userId,
         // Set by the guardian checkout, absent on every other payment. Carried
         // out of the transaction because `pay` is scoped to it.
         guardianRequestId: pay.guardianRequestId || null,
+        beneficiaryUid: pay.beneficiaryUid || null,
+        beneficiaryName: pay.beneficiaryName || null,
       };
       return;
     }
@@ -293,10 +315,14 @@ async function activateSubscriptionFromPayment({
       planId: pay.planId,
       phoneNumber: pay.phoneNumber || null,
       provider: pay.provider || "lenco",
+      // The PAYER, always — the receipt is their money, their email and
+      // their invoices/{uid}/ path, even when the access went to a child.
       userId: pay.userId,
       // Set by the guardian checkout, absent on every other payment. Carried
       // out of the transaction because `pay` is scoped to it.
       guardianRequestId: pay.guardianRequestId || null,
+      beneficiaryUid: pay.beneficiaryUid || null,
+      beneficiaryName: pay.beneficiaryName || null,
     };
   });
 

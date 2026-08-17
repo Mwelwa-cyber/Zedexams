@@ -245,6 +245,55 @@ async function run() {
     ok("missing signature fails verification", provider.verifyWebhookSignature({rawBody, signature: ""}) === false);
   }
 
+  // 9. GUARDIAN PAYS FOR A CHILD — the whole point of beneficiaryUid.
+  //
+  // Every assertion here is one half of a claim that is worthless without
+  // the other: the CHILD must gain premium AND the parent must not. A
+  // change that credited both would pass a "the child got it" test while
+  // quietly giving away a second subscription.
+  {
+    const parent = "u_parent";
+    const child = "u_child";
+    const ref = "pay_guardian";
+
+    await db.collection("users").doc(parent).set({
+      email: "parent@test.zedexams.com", role: "parent", plan: "free", premium: false,
+    });
+    await seed({
+      uid: child, ref,
+      user: {role: "student"},
+      // The payer is the parent; the payment names the child.
+      payment: {userId: parent, beneficiaryUid: child, beneficiaryName: "Milton Phiri"},
+    });
+
+    const before = Date.now();
+    const r = await dispatch(evt("collection.successful", {
+      reference: ref, status: "successful", amount: 50, currency: "ZMW",
+    }));
+    ok("guardian payment activates", r.action === "activated");
+
+    const kid = await getUser(child);
+    const mum = await getUser(parent);
+    ok("the CHILD gained premium", kid.premium === true && kid.plan === "premium");
+    ok("the child's subscription links the parent's payment", kid.subscriptionPaymentId === ref);
+    ok("the PARENT did not gain premium", mum.premium !== true && mum.plan === "free");
+    ok("the parent has no subscription expiry", !mum.subscriptionExpiry);
+
+    const expiry = kid.subscriptionExpiry.toDate().getTime();
+    ok("the child's expiry ≈ now + 30 days",
+        expiry > before + 29 * DAY_MS && expiry < before + 31 * DAY_MS);
+
+    // The receipt is still the payer's — their money, their email.
+    const pay = await getPayment(ref);
+    ok("the payment still records who paid", pay.userId === parent);
+    ok("…and who it was for", pay.beneficiaryUid === child);
+
+    // Replaying the webhook must not stack a second period on the child.
+    await dispatch(evt("collection.successful", {reference: ref, status: "successful", amount: 50, currency: "ZMW"}));
+    const after = (await getUser(child)).subscriptionExpiry.toDate().getTime();
+    ok("a replayed guardian payment does not re-stack the child's expiry", after === expiry);
+  }
+
   console.log(`\n${passed} assertions passed (Firestore emulator).`);
 }
 

@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ZedExams — Parent</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  :root{
+    --bg:#edeffd;--card:#fff;--ink:#2b2d51;--muted:#8a90b8;
+    --indigo1:#7c8bf5;--indigo2:#5b63dd;--coral1:#ff9057;--coral2:#ff5c39;--coral-shadow:#e8471f;
+    --green:#2ec06a;--green-dark:#1fae62;--amber:#f5a623;--red:#ef5a5f;
+    --shadow:0 8px 22px rgba(90,100,200,.12);
+  }
+  body{font-family:'Nunito',sans-serif;background:#dbe0f5;color:var(--ink)}
+  #phone{max-width:430px;margin:0 auto;min-height:100vh;height:100vh;overflow-y:auto;background:var(--bg);position:relative;-webkit-overflow-scrolling:touch}
+  #phone.night{--bg:#171929;--card:#20223a;--ink:#e9ebff;--muted:#8990c0;--shadow:0 8px 22px rgba(0,0,0,.35)}
+  .pview{display:none;padding:16px 16px 96px;min-height:100vh;animation:fade .25s ease}
+  .pview.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+  /* top bar */
+  .ptop{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:900;font-size:18px;color:#4a51c4}
+  #phone.night .brand{color:#aab2f0}
+  .brand .zb{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#7180f2,#5158d0);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 6px 14px rgba(81,88,208,.35)}
+  .parent-pill{background:#e4f8ec;color:#1fae62;font-size:11px;font-weight:800;padding:5px 11px;border-radius:99px}
+  #phone.night .parent-pill{background:#173327;color:#7bd9a3}
+  .ptop .sp{margin-left:auto}
+  .iconbtn{width:38px;height:38px;border-radius:50%;border:none;background:#eef1ff;color:#5f66d8;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(90,100,200,.18);position:relative}
+  #phone.night .iconbtn{background:#2a2d4a;color:#aab2f0}
+  .p-avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#41d98a,#1fae62);color:#fff;font-weight:900;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 4px 12px rgba(31,174,98,.35)}
+  .dot{position:absolute;top:6px;right:7px;width:9px;height:9px;border-radius:50%;background:#ff4d4f;border:2px solid #fff}
+  #phone.night .dot{border-color:#20223a}
+
+  .greet{font-size:22px;font-weight:900;margin-bottom:3px}
+  .greet span{color:#5b63dd}
+  .sub-greet{font-size:13px;color:var(--muted);font-weight:700;margin-bottom:16px}
+  .card{background:var(--card);border-radius:20px;box-shadow:var(--shadow)}
+  .section-title{font-size:16px;font-weight:900;margin:20px 2px 12px;display:flex;align-items:center;justify-content:space-between}
+  .see-all{font-size:12.5px;color:#5b63dd;font-weight:800;cursor:pointer}
+  .btn{display:block;width:100%;text-align:center;border:none;border-radius:16px;padding:15px;font-family:'Nunito',sans-serif;font-weight:900;font-size:15px;cursor:pointer}
+  .btn-coral{background:linear-gradient(135deg,var(--coral1),var(--coral2));color:#fff;box-shadow:0 6px 0 var(--coral-shadow)}
+  .btn-coral:active{transform:translateY(2px);box-shadow:0 4px 0 var(--coral-shadow)}
+  .btn-ghost{background:var(--card);color:#5f66d8;box-shadow:var(--shadow)}
+
+  /* pending requests */
+  .req-card{background:linear-gradient(140deg,#fff2d6,#ffe1ad);border:1.5px solid #ffd488;border-radius:20px;padding:15px;margin-bottom:16px}
+  #phone.night .req-card{background:#3a3320;border-color:#5a4d2a}
+  .req-head{display:flex;align-items:center;gap:9px;font-weight:900;font-size:14px;color:#a86a12;margin-bottom:10px}
+  #phone.night .req-head{color:#ffcf8a}
+  .req-row{display:flex;align-items:center;gap:11px;background:rgba(255,255,255,.7);border-radius:14px;padding:11px 12px;margin-bottom:8px}
+  #phone.night .req-row{background:rgba(0,0,0,.18)}
+  .req-row:last-child{margin-bottom:0}
+  .req-av{width:38px;height:38px;border-radius:50%;color:#fff;font-weight:900;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+  .req-txt{flex:1;min-width:0}
+  .req-txt b{font-size:13.5px;font-weight:900}
+  .req-txt small{display:block;font-size:11.5px;color:#8a6a3a;font-weight:700;margin-top:1px}
+  #phone.night .req-txt small{color:#caa98a}
+  .req-go{background:#ff9c1a;color:#fff;border:none;border-radius:99px;padding:8px 14px;font-family:'Nunito',sans-serif;font-weight:900;font-size:12px;cursor:pointer;flex-shrink:0}
+
+  /* child card */
+  .kid-card{display:flex;align-items:center;gap:13px;padding:15px;margin-bottom:12px;cursor:pointer;transition:transform .1s}
+  .kid-card:active{transform:scale(.99)}
+  .kid-av{width:52px;height:52px;border-radius:50%;color:#fff;font-weight:900;display:flex;align-items:center;justify-content:center;font-size:21px;flex-shrink:0;box-shadow:0 5px 12px rgba(0,0,0,.14)}
+  .kid-main{flex:1;min-width:0}
+  .kid-name{font-weight:900;font-size:15.5px}
+  .kid-meta{font-size:12px;color:var(--muted);font-weight:700;margin:2px 0 7px}
+  .kid-bar{height:7px;background:#eef0fc;border-radius:99px;overflow:hidden}
+  #phone.night .kid-bar{background:#2a2d4a}
+  .kid-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#41d98a,#1fae62)}
+  .status{font-size:10.5px;font-weight:900;padding:5px 10px;border-radius:99px;flex-shrink:0}
+  .st-on{background:#e4f8ec;color:#1fae62}
+  .st-att{background:#fff0e0;color:#d98324}
+  #phone.night .st-on{background:#173327;color:#7bd9a3}
+  #phone.night .st-att{background:#3a2f1c;color:#ffcf8a}
+
+  /* child detail */
+  .cd-hero{background:linear-gradient(140deg,#7c8bf5,#5b63dd);border-radius:24px;padding:18px;color:#fff;margin-bottom:16px;position:relative;overflow:hidden;box-shadow:0 12px 26px rgba(81,88,208,.34)}
+  .cd-hero::after{content:"";position:absolute;right:-30px;top:-30px;width:120px;height:120px;background:rgba(255,255,255,.1);border-radius:50%}
+  .cd-top{display:flex;align-items:center;gap:14px;position:relative;z-index:2}
+  .cd-av{width:56px;height:56px;border-radius:50%;color:#fff;font-weight:900;display:flex;align-items:center;justify-content:center;font-size:22px;border:3px solid rgba(255,255,255,.4);flex-shrink:0}
+  .cd-name{font-size:18px;font-weight:900}
+  .cd-sub{font-size:12px;opacity:.92;font-weight:700}
+  .cd-mini{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:14px;position:relative;z-index:2}
+  .cd-tile{background:rgba(255,255,255,.16);border-radius:14px;padding:9px 6px;text-align:center}
+  .cd-tile b{display:block;font-size:15px;font-weight:900}
+  .cd-tile span{font-size:9px;font-weight:800;opacity:.9}
+  .subj{display:flex;align-items:center;gap:11px;padding:11px 2px}
+  .subj .si{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+  .subj .lab{flex:1;font-weight:800;font-size:13.5px}
+  .subj .bar{width:110px;height:8px;background:#eef0fc;border-radius:99px;overflow:hidden;flex-shrink:0}
+  #phone.night .subj .bar{background:#2a2d4a}
+  .subj .bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#41d98a,#1fae62)}
+  .subj .pct{font-size:12px;font-weight:900;color:#1fae62;width:34px;text-align:right;flex-shrink:0}
+  .weak-chips{display:flex;flex-wrap:wrap;gap:8px}
+  .weak-chip{background:#fff0e9;color:#ff6b3d;border-radius:99px;padding:7px 13px;font-size:12px;font-weight:800}
+  #phone.night .weak-chip{background:#3a2a20;color:#ffb083}
+  .act{display:flex;gap:11px;align-items:center;padding:11px 2px;border-bottom:1px solid rgba(120,130,200,.1)}
+  .act:last-child{border-bottom:none}
+  .act-ic{width:34px;height:34px;border-radius:10px;background:#eef1ff;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+  #phone.night .act-ic{background:#2a2d4a}
+  .act-t{flex:1;font-size:13px;font-weight:700}
+  .act-tm{font-size:11px;color:var(--muted);font-weight:800}
+
+  /* settings-style rows + switch */
+  .set-head{font-size:12px;font-weight:900;color:var(--muted);letter-spacing:.6px;margin:6px 4px 8px;text-transform:uppercase}
+  .group{background:var(--card);border-radius:18px;box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden}
+  .row{display:flex;align-items:center;gap:13px;padding:14px 15px;border-bottom:1px solid rgba(120,130,200,.1)}
+  .row:last-child{border-bottom:none}
+  .row-ic{width:36px;height:36px;border-radius:11px;background:#eef1ff;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+  #phone.night .row-ic{background:#2a2d4a}
+  .row-txt{flex:1;min-width:0}
+  .row-title{font-weight:800;font-size:14px}
+  .row-desc{font-size:11.5px;color:var(--muted);font-weight:700;margin-top:1px;line-height:1.35}
+  .row-val{font-size:12.5px;color:var(--muted);font-weight:800;flex-shrink:0}
+  .chev{color:#c3c8ef;font-size:18px;font-weight:900;flex-shrink:0}
+  .row.tap{cursor:pointer}
+  .row.danger .row-title{color:#ef5a5f}
+  .switch{position:relative;width:46px;height:27px;flex-shrink:0;cursor:pointer;display:inline-block}
+  .switch input{opacity:0;width:0;height:0;position:absolute}
+  .switch .track{position:absolute;inset:0;background:#d4d9ef;border-radius:99px;transition:.2s}
+  .switch .knob{position:absolute;top:3px;left:3px;width:21px;height:21px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 2px 5px rgba(0,0,0,.2)}
+  .switch input:checked ~ .track{background:linear-gradient(135deg,#7c8bf5,#5b63dd)}
+  .switch input:checked ~ .knob{left:22px}
+  #phone.night .switch .track{background:#3a3f66}
+
+  /* reports */
+  .rep-item{display:flex;align-items:center;gap:13px;padding:14px 15px;margin-bottom:10px;cursor:pointer}
+  .rep-ic{width:44px;height:44px;border-radius:14px;background:radial-gradient(circle at 30% 30%,#cfe0ff,#82a9f7);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+  .rep-main{flex:1;min-width:0}
+  .rep-title{font-weight:900;font-size:14px}
+  .rep-sub{font-size:11.5px;color:var(--muted);font-weight:700;margin-top:2px}
+  .rep-new{font-size:10px;font-weight:900;color:#1fae62;background:#e4f8ec;padding:3px 8px;border-radius:99px;flex-shrink:0}
+  #phone.night .rep-new{background:#173327;color:#7bd9a3}
+  .rep-hero{background:linear-gradient(140deg,#41d98a,#1fae62);border-radius:22px;padding:20px;color:#fff;margin-bottom:16px;box-shadow:0 12px 26px rgba(31,174,98,.3)}
+  .rep-hero .rl{font-size:11px;font-weight:900;letter-spacing:1px;opacity:.9}
+  .rep-hero .rh{font-size:20px;font-weight:900;margin:3px 0 2px}
+  .rep-block{padding:15px 16px;margin-bottom:12px}
+  .rep-block h4{font-size:13px;font-weight:900;margin-bottom:8px;display:flex;align-items:center;gap:7px}
+  .rep-block p{font-size:13px;font-weight:700;color:var(--muted);line-height:1.55}
+
+  /* plans */
+  .plan-cycle{display:flex;background:#eef1ff;border-radius:14px;padding:4px;margin-bottom:16px}
+  .plan-cycle button{flex:1;border:none;background:none;border-radius:11px;padding:10px;font-family:'Nunito',sans-serif;font-weight:900;font-size:13.5px;color:var(--muted);cursor:pointer}
+  .plan-cycle button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
+  #phone.night .plan-cycle{background:#2a2d4a}
+  .plan-card{background:linear-gradient(140deg,#7c8bf5,#5b63dd);border-radius:22px;padding:20px;color:#fff;position:relative;overflow:hidden;box-shadow:0 12px 26px rgba(81,88,208,.4);margin-bottom:14px}
+  .plan-badge{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.22);border-radius:99px;padding:4px 10px;font-size:10px;font-weight:900}
+  .plan-price{font-size:34px;font-weight:900;line-height:1}
+  .plan-per{font-size:12px;font-weight:800;opacity:.9;margin-bottom:12px}
+  .pf{display:flex;align-items:flex-start;gap:9px;font-size:13px;font-weight:700;margin-bottom:8px}
+  .pass-row{display:flex;gap:10px;margin-bottom:16px}
+  .pass{flex:1;background:var(--card);border-radius:16px;padding:13px;text-align:center;box-shadow:var(--shadow);cursor:pointer}
+  .pass b{display:block;font-size:16px;font-weight:900}
+  .pass small{font-size:11px;color:var(--muted);font-weight:800}
+  .pay-method{display:flex;gap:10px;margin-bottom:12px}
+  .pay-opt{flex:1;background:var(--card);border:2px solid transparent;border-radius:14px;padding:12px;text-align:center;font-weight:900;font-size:13px;cursor:pointer;box-shadow:var(--shadow)}
+  .pay-opt.sel{border-color:#5b63dd;background:#eef1ff}
+  #phone.night .pay-opt.sel{background:#2a2d4a}
+  .field{width:100%;border:1.5px solid #d7ddff;background:#f4f6ff;border-radius:14px;padding:13px 15px;font-family:'Nunito',sans-serif;font-weight:700;font-size:14.5px;color:var(--ink);outline:none;margin-bottom:12px}
+  #phone.night .field{background:#232640;border-color:#363a5e;color:#e9ebff}
+  .lenco-note{text-align:center;font-size:11px;color:var(--muted);font-weight:800;margin-top:10px}
+
+  /* back row */
+  .back-row{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+  .back-btn{width:40px;height:40px;border-radius:14px;border:none;background:var(--card);box-shadow:var(--shadow);font-size:19px;color:var(--ink);cursor:pointer;flex-shrink:0}
+  .back-title{font-weight:900;font-size:18px}
+
+  /* activity timeline */
+  .tl-day{font-size:12px;font-weight:900;color:var(--muted);letter-spacing:.5px;margin:16px 4px 10px;text-transform:uppercase}
+  .tl-item{display:flex;gap:12px;position:relative;padding-bottom:14px}
+  .tl-item::before{content:"";position:absolute;left:17px;top:38px;bottom:-2px;width:2px;background:rgba(120,130,200,.18)}
+  .tl-item:last-child::before{display:none}
+  .tl-ic{width:36px;height:36px;border-radius:11px;background:#eef1ff;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;z-index:1}
+  #phone.night .tl-ic{background:#2a2d4a}
+  .tl-body{flex:1;background:var(--card);border-radius:14px;padding:11px 13px;box-shadow:var(--shadow)}
+  .tl-body b{font-size:13.5px;font-weight:800}
+  .tl-time{font-size:11px;color:var(--muted);font-weight:800;margin-top:2px}
+  .tl-item.win .tl-ic{background:radial-gradient(circle at 30% 30%,#ffe9b8,#ffc242)}
+
+  /* co-guardians */
+  .cg-card{display:flex;align-items:center;gap:12px;padding:14px 15px}
+  .cg-av{width:44px;height:44px;border-radius:50%;color:#fff;font-weight:900;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+  .cg-main{flex:1;min-width:0}
+  .cg-name{font-weight:900;font-size:14.5px}
+  .cg-role{font-size:11.5px;color:var(--muted);font-weight:700;margin-top:1px}
+  .cg-tag{font-size:10px;font-weight:900;padding:4px 9px;border-radius:99px;flex-shrink:0}
+  .cg-owner{background:#eef1ff;color:#5158d0}
+  .cg-pend{background:#fff0e0;color:#d98324}
+  #phone.night .cg-owner{background:#2a2d4a;color:#aab2f0}
+  #phone.night .cg-pend{background:#3a2f1c;color:#ffcf8a}
+  .cando{display:flex;align-items:flex-start;gap:9px;font-size:12.5px;font-weight:700;padding:9px 0;border-bottom:1px solid rgba(120,130,200,.1)}
+  .cando:last-child{border-bottom:none}
+  .cando .yes{color:#1fae62}.cando .no{color:#ef5a5f}
+
+  /* approve sheet */
+  .scrim{position:fixed;inset:0;z-index:60;background:rgba(20,22,40,.55);display:none;align-items:flex-end;justify-content:center}
+  .scrim.show{display:flex}
+  .sheet{background:var(--card);width:100%;max-width:430px;border-radius:26px 26px 0 0;padding:22px 20px calc(20px + env(safe-area-inset-bottom));box-shadow:0 -10px 40px rgba(0,0,0,.3);animation:up .25s ease}
+  @keyframes up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  .sheet h3{font-size:18px;font-weight:900;text-align:center;margin-bottom:4px}
+  .sheet .sh-sub{font-size:13px;color:var(--muted);font-weight:700;text-align:center;line-height:1.5;margin-bottom:14px}
+  .prog-strip{background:#eef1ff;border-radius:14px;padding:12px 14px;margin-bottom:16px}
+  #phone.night .prog-strip{background:#2a2d4a}
+  .prog-strip .ps-t{font-size:12px;font-weight:900;color:#5158d0;margin-bottom:8px}
+  #phone.night .prog-strip .ps-t{color:#aab2f0}
+  .prog-strip .ps-row{display:flex;justify-content:space-between;font-size:12.5px;font-weight:800;margin-bottom:4px}
+
+  /* bottom nav */
+  .pnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:rgba(255,255,255,.8);backdrop-filter:blur(18px) saturate(170%);-webkit-backdrop-filter:blur(18px) saturate(170%);border-radius:26px 26px 0 0;box-shadow:0 -8px 30px rgba(90,100,200,.15);display:flex;justify-content:space-around;padding:11px 6px calc(11px + env(safe-area-inset-bottom));z-index:50}
+  #phone.night .pnav{background:rgba(23,25,41,.72)}
+  .nav-item{border:none;background:none;display:flex;flex-direction:column;align-items:center;gap:3px;font-family:'Nunito',sans-serif;font-weight:800;font-size:10.5px;color:#a3a9cf;cursor:pointer;flex:1;padding:4px}
+  .nav-item .ni{font-size:20px}
+  .nav-item.on{color:#5b63dd}
+  #phone.night .nav-item{color:#6a7099}
+  #phone.night .nav-item.on{color:#aab2f0}
+
+  /* toast */
+  #toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%);background:#2b2d51;color:#fff;font-weight:800;font-size:13px;padding:10px 18px;border-radius:99px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:99;white-space:nowrap;max-width:90%;overflow:hidden;text-overflow:ellipsis}
+
+  /* desktop reflow */
+  .nav-brand{display:none}
+  @media(min-width:1000px){
+    body{background:#dbe0f5}
+    #phone{max-width:none;width:100vw;box-shadow:none}
+    .pnav{left:0;right:auto;top:0;bottom:0;transform:none;width:240px;height:100vh;flex-direction:column;justify-content:flex-start;gap:6px;border-radius:0 26px 26px 0;padding:20px 14px}
+    .nav-brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:18px;color:#4a51c4;padding:6px 12px 18px}
+    #phone.night .nav-brand{color:#aab2f0}
+    .nav-brand .zb{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#7180f2,#5158d0);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px}
+    .nav-item{flex-direction:row;justify-content:flex-start;gap:13px;width:100%;padding:12px 15px;border-radius:14px;font-size:15px}
+    .nav-item .ni{font-size:22px}
+    .nav-item.on{background:#eef1ff}
+    #phone.night .nav-item.on{background:#2a2d4a}
+    .pview{max-width:760px;margin:0 auto;padding:24px 24px 60px}
+    .ptop .brand{display:none}
+    .scrim{align-items:center}
+    .sheet{max-width:440px;border-radius:26px}
+  }
+</style>
+</head>
+<body>
+<div id="phone">
+
+  <!-- ============ HOME / DASHBOARD ============ -->
+  <div class="pview active" id="p-home">
+    <div class="ptop">
+      <div class="brand"><span class="zb">Z</span>ZedExams</div>
+      <span class="parent-pill">Parent</span>
+      <div class="sp"></div>
+      <button class="iconbtn" onclick="toggleNight()" id="night-btn">🌙</button>
+      <button class="iconbtn" onclick="pshow('p-account')">G</button>
+    </div>
+
+    <div class="greet">Hi, <span>Grace</span> 👋</div>
+    <div class="sub-greet">Here's how your children are doing.</div>
+
+    <div class="req-card" id="req-card">
+      <div class="req-head">🔔 Needs your approval (2)</div>
+      <div class="req-row">
+        <div class="req-av" style="background:linear-gradient(135deg,#ffb199,#ff6b3d)">M</div>
+        <div class="req-txt"><b>Milton wants Premium</b><small>To unlock all past papers &amp; read-aloud</small></div>
+        <button class="req-go" onclick="openApprove('premium')">Review</button>
+      </div>
+      <div class="req-row">
+        <div class="req-av" style="background:linear-gradient(135deg,#82a9f7,#5b63dd)">C</div>
+        <div class="req-txt"><b>Chanda wants to add a friend</b><small>Compete-only · no chatting</small></div>
+        <button class="req-go" onclick="openApprove('friend')">Review</button>
+      </div>
+    </div>
+
+    <div class="section-title">Your children <span class="see-all" onclick="pshow('p-children')">Manage</span></div>
+    <div id="home-kids"></div>
+
+    <div class="section-title">This week</div>
+    <div class="card" style="padding:16px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-weight:900;font-size:14px">📈 Weekly progress report</div>
+          <div style="font-size:12px;color:var(--muted);font-weight:700;margin-top:3px">Milton's report is ready</div>
+        </div>
+        <button class="req-go" style="background:#5b63dd" onclick="openReport()">Read</button>
+      </div>
+    </div>
+
+    <div class="card" style="padding:16px;display:flex;align-items:center;gap:13px">
+      <div style="font-size:26px">✨</div>
+      <div style="flex:1"><div style="font-weight:900;font-size:14px">On the Free plan</div><div style="font-size:12px;color:var(--muted);font-weight:700;margin-top:2px">Unlock everything for both children</div></div>
+      <button class="req-go" style="background:linear-gradient(135deg,#ff9057,#ff5c39)" onclick="pshow('p-plan')">Go Premium</button>
+    </div>
+  </div>
+
+  <!-- ============ CHILDREN ============ -->
+  <div class="pview" id="p-children">
+    <div class="ptop"><div class="brand"><span class="zb">Z</span>ZedExams</div><span class="parent-pill">Parent</span></div>
+    <div class="section-title" style="margin-top:0">Your children</div>
+    <div id="all-kids"></div>
+    <button class="btn btn-ghost" onclick="pshow('p-addchild')">＋ Add or link a child</button>
+  </div>
+
+  <!-- ============ ADD CHILD ============ -->
+  <div class="pview" id="p-addchild">
+    <div class="back-row"><button class="back-btn" onclick="pshow('p-children')">‹</button><div class="back-title">Add your child</div></div>
+    <div style="font-size:13px;color:var(--muted);font-weight:700;line-height:1.5;margin-bottom:16px">Link a child to your account. You can add as many as you like.</div>
+    <div class="card row tap" style="margin-bottom:12px" onclick="toast('Invite sent (demo)')"><div class="row-ic" style="background:radial-gradient(circle at 30% 30%,#cfe0ff,#82a9f7)">📧</div><div class="row-txt"><div class="row-title">They have their own login</div><div class="row-desc">Invite an older learner by email or username</div></div><div class="chev">›</div></div>
+    <div class="card row tap" onclick="toast('Opens the name + PIN profile creator (demo)')"><div class="row-ic" style="background:radial-gradient(circle at 30% 30%,#ffe4b8,#ffb03a)">🧒</div><div class="row-txt"><div class="row-title">Create a profile for a younger child</div><div class="row-desc">No email — they sign in with a name &amp; PIN you manage</div></div><div class="chev">›</div></div>
+  </div>
+
+  <!-- ============ CHILD DETAIL ============ -->
+  <div class="pview" id="p-child">
+    <div class="back-row"><button class="back-btn" onclick="pshow('p-children')">‹</button><div class="back-title" id="cd-back">Milton</div></div>
+    <div class="cd-hero">
+      <div class="cd-top">
+        <div class="cd-av" id="cd-av">M</div>
+        <div><div class="cd-name" id="cd-name">Milton Phiri</div><div class="cd-sub" id="cd-sub">Grade 7 · Term 2 · verified</div></div>
+      </div>
+      <div class="cd-mini">
+        <div class="cd-tile"><b id="cd-streak">🔥 12</b><span>DAY STREAK</span></div>
+        <div class="cd-tile"><b id="cd-week">3h 20m</b><span>THIS WEEK</span></div>
+        <div class="cd-tile"><b id="cd-ready">68%</b><span>EXAM READY</span></div>
+      </div>
+    </div>
+
+    <div class="section-title" style="margin-top:0">Subject progress</div>
+    <div class="group" style="padding:6px 15px" id="cd-subjects"></div>
+
+    <div class="section-title">Needs a little help</div>
+    <div class="card" style="padding:14px 16px;margin-bottom:16px">
+      <div style="font-size:12.5px;color:var(--muted);font-weight:700;margin-bottom:10px">From recent quizzes &amp; papers:</div>
+      <div class="weak-chips" id="cd-weak"></div>
+    </div>
+
+    <div class="section-title">Recent activity <span class="see-all" onclick="openActivity(curKid)">See all →</span></div>
+    <div class="group" style="padding:4px 15px" id="cd-activity"></div>
+
+    <div class="set-head">What they can do</div>
+    <div class="group">
+      <div class="row"><div class="row-ic">🤖</div><div class="row-txt"><div class="row-title">Ask Zed helper</div><div class="row-desc">AI study answers (online only)</div></div><label class="switch"><input type="checkbox" checked><span class="track"></span><span class="knob"></span></label></div>
+      <div class="row"><div class="row-ic">⚔️</div><div class="row-txt"><div class="row-title">Live challenges &amp; friends</div><div class="row-desc">Compete only · no chatting</div></div><label class="switch"><input type="checkbox" checked><span class="track"></span><span class="knob"></span></label></div>
+      <div class="row tap" onclick="toast('Set a daily time limit (demo)')"><div class="row-ic">⏳</div><div class="row-txt"><div class="row-title">Daily time limit</div></div><div class="row-val">1h 30m</div><div class="chev">›</div></div>
+    </div>
+
+    <button class="btn btn-ghost" onclick="openReport()">📈&nbsp; See weekly report</button>
+    <div style="height:20px"></div>
+  </div>
+
+  <!-- ============ REPORTS ============ -->
+  <div class="pview" id="p-reports">
+    <div class="ptop"><div class="brand"><span class="zb">Z</span>ZedExams</div><span class="parent-pill">Parent</span></div>
+    <div class="section-title" style="margin-top:0">Weekly reports</div>
+    <div class="card rep-item" onclick="openReport()"><div class="rep-ic">📈</div><div class="rep-main"><div class="rep-title">Milton — this week</div><div class="rep-sub">13–19 Oct · 5 quizzes · streak kept</div></div><span class="rep-new">NEW</span></div>
+    <div class="card rep-item" onclick="openReport()"><div class="rep-ic" style="background:radial-gradient(circle at 30% 30%,#ffe4b8,#ffb03a)">📈</div><div class="rep-main"><div class="rep-title">Chanda — this week</div><div class="rep-sub">13–19 Oct · quieter week · needs a nudge</div></div><span class="rep-new">NEW</span></div>
+    <div class="card rep-item" onclick="openReport()"><div class="rep-ic">📄</div><div class="rep-main"><div class="rep-title">Milton — last week</div><div class="rep-sub">6–12 Oct · 4 quizzes</div></div></div>
+    <div style="font-size:12px;color:var(--muted);font-weight:700;text-align:center;margin-top:14px;line-height:1.5">📧 We also email you this report every Sunday.<br>Manage it in Account → Alerts.</div>
+  </div>
+
+  <!-- ============ REPORT DETAIL ============ -->
+  <div class="pview" id="p-report">
+    <div class="back-row"><button class="back-btn" onclick="pshow('p-reports')">‹</button><div class="back-title">Weekly report</div></div>
+    <div class="rep-hero">
+      <div class="rl">MILTON · 13–19 OCTOBER</div>
+      <div class="rh">A strong week! 🎉</div>
+      <div style="font-size:12.5px;opacity:.95;font-weight:700">3h 20m learning · 5 quizzes · 🔥 streak kept</div>
+    </div>
+    <div class="card rep-block"><h4>✅ What went well</h4><p>Milton played the daily quiz every day and topped it twice. Integrated Science is now at 62% — his strongest subject.</p></div>
+    <div class="card rep-block"><h4>🎯 Where to focus</h4><p>Spelling and Punctuation came up as weak spots in past-paper practice. A few minutes on the word games this week would help before Term 2 exams.</p></div>
+    <div class="card rep-block"><h4>💡 Zed suggests</h4><p>Exams are 12 days away. Encourage one past-paper section and the Spelling game each day — Milton is on track if he keeps the streak.</p></div>
+    <button class="btn btn-coral" onclick="toast('Nudge sent to Milton ✓')">👏&nbsp; Send Milton some encouragement</button>
+    <div style="height:20px"></div>
+  </div>
+
+  <!-- ============ ACCOUNT ============ -->
+  <div class="pview" id="p-account">
+    <div class="ptop"><div class="brand"><span class="zb">Z</span>ZedExams</div><span class="parent-pill">Parent</span></div>
+    <div class="card" style="padding:18px;display:flex;align-items:center;gap:14px;margin-bottom:16px">
+      <div class="p-avatar" style="width:56px;height:56px;font-size:20px">G</div>
+      <div style="flex:1"><div style="font-weight:900;font-size:17px">Grace Phiri</div><div style="font-size:12.5px;color:var(--muted);font-weight:700">grace@example.com · 2 children</div></div>
+    </div>
+
+    <div class="set-head">Plan &amp; billing</div>
+    <div class="group">
+      <div class="row tap" onclick="pshow('p-plan')"><div class="row-ic">💳</div><div class="row-txt"><div class="row-title">Subscription</div><div class="row-desc">Free plan · tap to go Premium</div></div><div class="row-val" style="color:#a86a12">Free</div><div class="chev">›</div></div>
+      <div class="row tap" onclick="toast('Payment history (demo)')"><div class="row-ic">🧾</div><div class="row-txt"><div class="row-title">Payment history</div></div><div class="chev">›</div></div>
+    </div>
+
+    <div class="set-head">Alerts you receive</div>
+    <div class="group">
+      <div class="row"><div class="row-ic">📧</div><div class="row-txt"><div class="row-title">Weekly progress email</div><div class="row-desc">Every Sunday</div></div><label class="switch"><input type="checkbox" checked><span class="track"></span><span class="knob"></span></label></div>
+      <div class="row"><div class="row-ic">📅</div><div class="row-txt"><div class="row-title">Exam reminders</div></div><label class="switch"><input type="checkbox" checked><span class="track"></span><span class="knob"></span></label></div>
+      <div class="row"><div class="row-ic">🛟</div><div class="row-txt"><div class="row-title">Safety alerts</div><div class="row-desc">If a child may need support</div></div><label class="switch"><input type="checkbox" checked><span class="track"></span><span class="knob"></span></label></div>
+      <div class="row"><div class="row-ic">🔔</div><div class="row-txt"><div class="row-title">Approval requests</div><div class="row-desc">Unlock &amp; friend requests</div></div><label class="switch"><input type="checkbox" checked><span class="track"></span><span class="knob"></span></label></div>
+    </div>
+
+    <div class="set-head">Children</div>
+    <div class="group">
+      <div class="row tap" onclick="pshow('p-children')"><div class="row-ic">👪</div><div class="row-txt"><div class="row-title">Manage children</div><div class="row-desc">Progress, controls &amp; linking</div></div><div class="chev">›</div></div>
+      <div class="row tap" onclick="pshow('p-addchild')"><div class="row-ic">＋</div><div class="row-txt"><div class="row-title">Add or link a child</div></div><div class="chev">›</div></div>
+      <div class="row tap" onclick="pshow('p-guardians')"><div class="row-ic">🧑‍🤝‍🧑</div><div class="row-txt"><div class="row-title">Family sharing</div><div class="row-desc">Add another parent / co-guardian</div></div><div class="chev">›</div></div>
+    </div>
+
+    <div class="set-head">Safety &amp; account</div>
+    <div class="group">
+      <div class="row"><div class="row-ic">🛡️</div><div class="row-txt"><div class="row-title">Guardian consent</div><div class="row-desc">Approved for both children</div></div><div class="row-val" style="color:#1fae62">Active</div></div>
+      <div class="row tap" onclick="toast('Childline Zambia — call 116')"><div class="row-ic">☎️</div><div class="row-txt"><div class="row-title">Get help</div><div class="row-desc">Childline Zambia · 116</div></div><div class="chev">›</div></div>
+      <div class="row tap" onclick="toast('Help &amp; FAQ (demo)')"><div class="row-ic">❓</div><div class="row-txt"><div class="row-title">Help &amp; support</div></div><div class="chev">›</div></div>
+      <div class="row tap danger" onclick="toast('Signed out (demo)')"><div class="row-ic">↩︎</div><div class="row-txt"><div class="row-title">Sign out</div></div><div class="chev">›</div></div>
+    </div>
+    <div style="text-align:center;font-size:11.5px;color:var(--muted);font-weight:700;padding:2px 0 24px">ZedExams · Parent · v1.0 🇿🇲</div>
+  </div>
+
+  <!-- ============ PLAN / CHECKOUT ============ -->
+  <div class="pview" id="p-plan">
+    <div class="back-row"><button class="back-btn" onclick="pshow('p-account')">‹</button><div><div class="back-title">Go Premium</div><div style="font-size:12px;color:var(--muted);font-weight:700">Covers all your children</div></div></div>
+    <div class="plan-cycle" id="plan-cycle">
+      <button data-c="weekly" onclick="setPlanCycle('weekly')">Weekly</button>
+      <button data-c="monthly" class="on" onclick="setPlanCycle('monthly')">Monthly</button>
+    </div>
+    <div class="plan-card">
+      <div class="plan-badge">Best value</div>
+      <div style="font-weight:900;font-size:15px;margin-bottom:6px">ZedExams Premium</div>
+      <div class="plan-price" id="plan-price">K50</div>
+      <div class="plan-per" id="plan-per">per month</div>
+      <div class="pf"><span>✓</span> All past papers — every year, no limits</div>
+      <div class="pf"><span>✓</span> Timed exam mode + full marking &amp; review</div>
+      <div class="pf"><span>✓</span> Save papers &amp; notes for offline</div>
+      <div class="pf" id="readaloud-line"><span>🔊</span> Notes read aloud by Zed <b>(Monthly only)</b></div>
+      <div class="pf"><span>✓</span> Covers every child on your account</div>
+    </div>
+    <div class="pass-row">
+      <div class="pass" onclick="toast('Day pass selected (demo)')"><b>K5</b><small>Day pass</small></div>
+      <div class="pass" onclick="toast('Term pass selected (demo)')"><b>K120</b><small>Whole term</small></div>
+    </div>
+    <div class="section-title" style="margin-top:0">Pay with mobile money</div>
+    <div class="pay-method">
+      <div class="pay-opt sel" onclick="pickPay(this)">📱 MTN MoMo</div>
+      <div class="pay-opt" onclick="pickPay(this)">📱 Airtel Money</div>
+    </div>
+    <input class="field" placeholder="Mobile money number (e.g. 097…)" inputmode="numeric">
+    <button class="btn btn-coral" onclick="payNow()">Pay <span id="pay-amt">K50</span> · Activate Premium</button>
+    <div class="lenco-note">🔒 Secured by Lenco · MTN &amp; Airtel mobile money</div>
+    <div style="height:20px"></div>
+  </div>
+
+  <!-- ============ FULL ACTIVITY TIMELINE ============ -->
+  <div class="pview" id="p-activity">
+    <div class="back-row"><button class="back-btn" onclick="pshow('p-child')">‹</button><div class="back-title" id="tl-title">Activity</div></div>
+    <div id="tl-body"></div>
+    <div style="font-size:12px;color:var(--muted);font-weight:700;text-align:center;margin-top:8px">Showing the last 7 days</div>
+    <div style="height:20px"></div>
+  </div>
+
+  <!-- ============ FAMILY SHARING / CO-GUARDIANS ============ -->
+  <div class="pview" id="p-guardians">
+    <div class="back-row"><button class="back-btn" onclick="pshow('p-account')">‹</button><div class="back-title">Family sharing</div></div>
+    <div style="font-size:13px;color:var(--muted);font-weight:700;line-height:1.5;margin-bottom:16px">Add another parent or guardian to help look after your children. Everyone sees progress and can approve requests — only the owner manages billing.</div>
+
+    <div class="set-head">Guardians</div>
+    <div class="group">
+      <div class="cg-card"><div class="cg-av" style="background:linear-gradient(135deg,#41d98a,#1fae62)">G</div><div class="cg-main"><div class="cg-name">Grace Phiri</div><div class="cg-role">grace@example.com · you</div></div><span class="cg-tag cg-owner">Owner</span></div>
+      <div class="cg-card" id="cg-pending" style="display:none;border-top:1px solid rgba(120,130,200,.1)"><div class="cg-av" style="background:linear-gradient(135deg,#82a9f7,#5b63dd)">?</div><div class="cg-main"><div class="cg-name" id="cg-pname">Invited</div><div class="cg-role">Waiting to accept</div></div><span class="cg-tag cg-pend">Pending</span></div>
+    </div>
+
+    <div class="set-head">Invite a co-guardian</div>
+    <div class="card" style="padding:15px;margin-bottom:16px">
+      <input class="field" id="cg-email" placeholder="Their email address" style="margin-bottom:10px">
+      <div style="display:flex;gap:9px;margin-bottom:12px">
+        <div class="pay-opt sel">👀 Can view &amp; approve</div>
+        <div class="pay-opt" onclick="toast('Owner role can only be transferred, not shared')">👑 Owner</div>
+      </div>
+      <button class="btn btn-coral" onclick="sendCoGuardian()">Send invite</button>
+    </div>
+
+    <div class="set-head">What a co-guardian can do</div>
+    <div class="group" style="padding:6px 15px">
+      <div class="cando"><span class="yes">✓</span> See every child's progress &amp; reports</div>
+      <div class="cando"><span class="yes">✓</span> Approve unlock &amp; friend requests</div>
+      <div class="cando"><span class="yes">✓</span> Change what a child can do (Ask Zed, challenges, time)</div>
+      <div class="cando"><span class="no">✗</span> Manage billing or delete the account (owner only)</div>
+    </div>
+    <div style="height:20px"></div>
+  </div>
+
+  <!-- bottom nav -->
+  <nav class="pnav" id="pnav">
+    <div class="nav-brand"><span class="zb">Z</span>ZedExams</div>
+    <button class="nav-item on" data-v="p-home" onclick="pshow('p-home')"><span class="ni">🏠</span>Home</button>
+    <button class="nav-item" data-v="p-children" onclick="pshow('p-children')"><span class="ni">👪</span>Children</button>
+    <button class="nav-item" data-v="p-reports" onclick="pshow('p-reports')"><span class="ni">📈</span>Reports</button>
+    <button class="nav-item" data-v="p-account" onclick="pshow('p-account')"><span class="ni">⚙️</span>Account</button>
+  </nav>
+
+  <!-- approve sheet -->
+  <div class="scrim" id="approve" onclick="if(event.target===this)closeApprove()">
+    <div class="sheet">
+      <h3 id="ap-title">Approve request</h3>
+      <div class="sh-sub" id="ap-sub">Review and decide.</div>
+      <div class="prog-strip" id="ap-prog">
+        <div class="ps-t">📊 MILTON'S PROGRESS THIS WEEK</div>
+        <div class="ps-row"><span>Daily quiz</span><b>5 / 5 days</b></div>
+        <div class="ps-row"><span>Streak</span><b>🔥 12 days</b></div>
+        <div class="ps-row"><span>Exam readiness</span><b>68%</b></div>
+      </div>
+      <button class="btn btn-coral" onclick="approveDo()">✅&nbsp; <span id="ap-yes">Approve &amp; unlock Premium</span></button>
+      <div style="height:10px"></div>
+      <button class="btn" style="background:#eef1ff;color:#5f66d8" onclick="closeApprove()">Not now</button>
+    </div>
+  </div>
+
+  <div id="toast">…</div>
+</div>
+
+<script>
+const KIDS=[
+  {id:'milton',name:'Milton Phiri',grade:7,term:2,av:'M',color:'linear-gradient(135deg,#ffb199,#ff6b3d)',streak:'🔥 12',week:'3h 20m',ready:68,status:'on',
+   mastery:[['Integrated Science',62,'🧪','#7ee0a3'],['English',48,'📖','#ff8fb1'],['Mathematics',35,'🔢','#ffc242'],['Social Studies',54,'🌍','#82a9f7']],
+   weak:['Spelling','Punctuation','Fractions'],
+   activity:[['🧠',"Completed today's quiz — 5/5",'2h'],['🎮','Played Number Target — new best','5h'],['📖','Read: The Digestive System','Yest'],['📄','Practised English 2025 Paper 1','2d']]},
+  {id:'chanda',name:'Chanda Phiri',grade:4,term:2,av:'C',color:'linear-gradient(135deg,#82a9f7,#5b63dd)',streak:'🔥 2',week:'45m',ready:31,status:'attention',
+   mastery:[['Mathematics',28,'🔢','#ffc242'],['English',22,'📖','#ff8fb1']],
+   weak:['Reading','Counting'],
+   activity:[['🎮','Played a counting game','1d'],['📖','Opened a reading lesson','2d']]}
+];
+const SI={'🧪':'#c8f7d8','📖':'#ffd3e0','🔢':'#ffe9b8','🌍':'#cfe0ff'};
+
+function kidCard(k){
+  const st = k.status==='on' ? '<span class="status st-on">On track</span>' : '<span class="status st-att">Needs a nudge</span>';
+  return `<div class="card kid-card" onclick="openChild('${k.id}')">
+    <div class="kid-av" style="background:${k.color}">${k.av}</div>
+    <div class="kid-main">
+      <div class="kid-name">${k.name.split(' ')[0]}</div>
+      <div class="kid-meta">Grade ${k.grade} · ${k.streak} · ${k.week} this week</div>
+      <div class="kid-bar"><i style="width:${k.ready}%"></i></div>
+    </div>${st}</div>`;
+}
+function renderKids(){
+  document.getElementById('home-kids').innerHTML = KIDS.map(kidCard).join('');
+  document.getElementById('all-kids').innerHTML = KIDS.map(kidCard).join('');
+}
+let curKid='milton';
+const TIMELINE={
+  milton:[
+    ['Today',[['🧠',"Completed today's quiz — 5/5",'08:12',0],['🎮','Number Target — new best 240 ⭐','07:50',1]]],
+    ['Yesterday',[['📖','Read note: The Digestive System','18:20',0],['🏅','Earned badge: Number Ninja','17:05',1],['📄','English 2025 · Paper 1 — 18/20','16:10',0]]],
+    ['Mon 14 Oct',[['🔥','Reached a 10-day streak!','19:40',1],['⚔️','Won a live challenge vs Chola','18:02',0],['🧠','Daily quiz — 4/5','08:05',0]]],
+    ['Sun 13 Oct',[['📚','Revised: Conjunctions','16:30',0],['🎮','Word Builder — 12 words','15:10',0]]]
+  ],
+  chanda:[
+    ['Yesterday',[['🎮','Played a counting game','17:20',0],['📖','Opened a reading lesson','16:40',0]]],
+    ['Fri 11 Oct',[['🧠','Daily quiz — 3/5','08:15',0]]]
+  ]
+};
+function openActivity(id){
+  const k=KIDS.find(x=>x.id===id)||KIDS[0];
+  document.getElementById('tl-title').textContent = k.name.split(' ')[0]+"'s activity";
+  const days=TIMELINE[id]||TIMELINE.milton;
+  document.getElementById('tl-body').innerHTML = days.map(([day,items])=>
+    `<div class="tl-day">${day}</div>`+
+    items.map(([ic,t,tm,win])=>`<div class="tl-item${win?' win':''}"><div class="tl-ic">${ic}</div><div class="tl-body"><b>${t}</b><div class="tl-time">${tm}</div></div></div>`).join('')
+  ).join('');
+  pshow('p-activity');
+}
+function sendCoGuardian(){
+  const e=(document.getElementById('cg-email').value||'').trim();
+  const p=document.getElementById('cg-pending');
+  document.getElementById('cg-pname').textContent = e || 'Invited guardian';
+  p.style.display='flex';
+  document.getElementById('cg-email').value='';
+  toast('Invite sent ✓ They can accept from their email');
+}
+function openChild(id){
+  const k = KIDS.find(x=>x.id===id); if(!k) return;
+  curKid=id;
+  document.getElementById('cd-back').textContent = k.name.split(' ')[0];
+  document.getElementById('cd-av').textContent = k.av;
+  document.getElementById('cd-av').style.background = k.color;
+  document.getElementById('cd-name').textContent = k.name;
+  document.getElementById('cd-sub').textContent = `Grade ${k.grade} · Term ${k.term} · verified`;
+  document.getElementById('cd-streak').textContent = k.streak;
+  document.getElementById('cd-week').textContent = k.week;
+  document.getElementById('cd-ready').textContent = k.ready+'%';
+  document.getElementById('cd-subjects').innerHTML = k.mastery.map(([nm,p,ic,c])=>
+    `<div class="subj"><div class="si" style="background:${SI[ic]||'#eef1ff'}">${ic}</div><div class="lab">${nm}</div><div class="bar"><i style="width:${p}%"></i></div><div class="pct">${p}%</div></div>`).join('');
+  document.getElementById('cd-weak').innerHTML = k.weak.map(w=>`<span class="weak-chip">${w}</span>`).join('');
+  document.getElementById('cd-activity').innerHTML = k.activity.map(([ic,t,tm])=>
+    `<div class="act"><div class="act-ic">${ic}</div><div class="act-t">${t}</div><div class="act-tm">${tm}</div></div>`).join('');
+  pshow('p-child');
+}
+
+function pshow(id){
+  document.querySelectorAll('.pview').forEach(v=>v.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const tabs=['p-home','p-children','p-reports','p-account'];
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('on', n.dataset.v===id));
+  document.getElementById('phone').scrollTo(0,0);
+}
+function openReport(){ pshow('p-report'); }
+
+function toggleNight(){
+  const on=document.getElementById('phone').classList.toggle('night');
+  document.getElementById('night-btn').textContent = on?'☀️':'🌙';
+}
+let toastTimer;
+function toast(m){ const t=document.getElementById('toast'); t.innerHTML=m; t.style.opacity=1; clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.style.opacity=0,1900); }
+
+/* approvals */
+function openApprove(kind){
+  const title=document.getElementById('ap-title'), sub=document.getElementById('ap-sub'), yes=document.getElementById('ap-yes'), prog=document.getElementById('ap-prog');
+  if(kind==='premium'){
+    title.textContent='Milton wants Premium';
+    sub.textContent='Unlocks all past papers, timed exams, offline and read-aloud. Here’s how he’s doing:';
+    yes.textContent='Approve → choose a plan';
+    prog.style.display='block';
+  }else{
+    title.textContent='Chanda wants to add a friend';
+    sub.textContent='Friends can challenge each other on the same questions — compete only, never chat. You can turn this off any time.';
+    yes.textContent='Approve friend';
+    prog.style.display='none';
+  }
+  document.getElementById('approve').dataset.kind=kind;
+  document.getElementById('approve').classList.add('show');
+}
+function closeApprove(){ document.getElementById('approve').classList.remove('show'); }
+function approveDo(){
+  const kind=document.getElementById('approve').dataset.kind;
+  closeApprove();
+  if(kind==='premium'){ pshow('p-plan'); }
+  else { toast('Approved ✓ Chanda can now add friends'); document.getElementById('req-card').style.display='none'; }
+}
+
+/* plan */
+function setPlanCycle(c){
+  document.querySelectorAll('#plan-cycle button').forEach(b=>b.classList.toggle('on', b.dataset.c===c));
+  const monthly=c==='monthly';
+  document.getElementById('plan-price').textContent = monthly?'K50':'K15';
+  document.getElementById('plan-per').textContent = monthly?'per month':'per week';
+  document.getElementById('pay-amt').textContent = monthly?'K50':'K15';
+  document.getElementById('readaloud-line').style.opacity = monthly?'1':'.45';
+}
+function pickPay(el){ document.querySelectorAll('.pay-opt').forEach(x=>x.classList.remove('sel')); el.classList.add('sel'); }
+function payNow(){ toast('Payment request sent to your phone — approve to activate ✓'); setTimeout(()=>{ pshow('p-home'); toast('Premium is active for both children! 🎉'); },1000); }
+
+renderKids();
+</script>
+</body>
+</html>

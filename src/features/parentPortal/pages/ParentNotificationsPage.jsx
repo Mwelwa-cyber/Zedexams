@@ -17,11 +17,14 @@
 //      lib/parentNotificationView.js. What is left here is rendering, which
 //      is what the Vitest spec beside this file covers.
 //
-//   3. It is SELF-CHROMED — mounted outside ParentLayout with its own back
-//      row, in the prototype's design system. The portal's other pages are
-//      still the older Tailwind surface; this screen is the parent side's
-//      first in that reskin rather than a one-off, and mixing the two inside
-//      one shell would have read as a bug in both.
+//   3. It renders inside ParentShell like every other parent screen. It was
+//      SELF-CHROMED when it shipped — mounted outside the old Tailwind
+//      ParentLayout with its own `.lhx` wrapper — because it was "the parent
+//      side's first in that reskin" and mixing the two inside one shell would
+//      have read as a bug in both. The rest of the reskin has since landed,
+//      so the wrapper came off and the shell supplies it: the tab bar belongs
+//      here, since a parent arrives from the bell and leaves to whatever the
+//      notification was about. Its own back row stays.
 //
 // The footer line is not decoration: the prototype ends this list by saying
 // where the switches are, because an inbox a parent cannot tune is one they
@@ -92,8 +95,7 @@ export default function ParentNotificationsPage() {
   const empty = !loading && (notifications || []).length === 0
 
   return (
-    <div className="lhx">
-      <div className="lhx-page">
+    <>
         <SeoHelmet title="Notifications" path="/family/notifications" noIndex />
 
         <div className="lhx-back-row">
@@ -172,7 +174,6 @@ export default function ParentNotificationsPage() {
           </Link>
           .
         </p>
-      </div>
-    </div>
+    </>
   )
 }

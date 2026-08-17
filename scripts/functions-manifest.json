@@ -2,6 +2,21 @@
   "_comment": "Phase 5 frozen-surface manifest. Regenerate with scripts/generate-functions-manifest.mjs; classification and batch are hand-owned and survive regeneration. Guarded by test:functions-manifest.",
   "generatedFrom": "functions/index.js + firebase.json",
   "exports": {
+    "acceptCoGuardianInvite": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
     "accountPurgeResweep": {
       "kind": "onSchedule",
       "inline": false,
@@ -831,6 +846,21 @@
       "classification": "mechanical",
       "batch": null
     },
+    "declineGuardianApproval": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
     "deleteCurriculumUpload": {
       "kind": "factory",
       "inline": false,
@@ -1442,6 +1472,54 @@
       "classification": "mechanical",
       "batch": null
     },
+    "getGuardianChildActivity": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "getGuardianChildDetail": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "getGuardianWeeklyReport": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
     "getLencoPaymentStatus": {
       "kind": "onCall",
       "inline": false,
@@ -1709,6 +1787,22 @@
       "classification": "mechanical",
       "batch": null
     },
+    "inviteCoGuardian": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {
+        "secrets": "[emailSmtpUser, emailSmtpPassword]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": null
+    },
     "learnerAgeOnUserCreated": {
       "kind": "delegated",
       "inline": false,
@@ -1758,6 +1852,38 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
+      "batch": null
+    },
+    "listGuardianApprovals": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "listGuardianChildren": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
       "batch": null
     },
     "listUserPasskeys": {
@@ -2364,6 +2490,21 @@
       "classification": "secrets-bound",
       "batch": null
     },
+    "removeCoGuardian": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
     "removeUserPasskey": {
       "kind": "onCall",
       "inline": false,
@@ -2456,6 +2597,21 @@
       "optionsFrom": "./security/resetAdminMfa",
       "optionsUnresolved": null,
       "target": "require(\"./security/resetAdminMfa\").resetAdminMfa",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "resolveGuardianPayLink": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
@@ -2750,6 +2906,22 @@
       "optionsFrom": "./opsAlertTest (factory createSendTestOpsAlert)",
       "optionsUnresolved": null,
       "target": "require(\"./opsAlertTest\").createSendTestOpsAlert( lencoEmailSecrets, opsAlertSecrets([emailSmtpUser, emailSmtpPassword]))",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": null
+    },
+    "setChildGuardianControl": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {
+        "secrets": "[emailSmtpUser, emailSmtpPassword]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
@@ -3244,6 +3416,25 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
+      "batch": null
+    },
+    "weeklyGuardianReport": {
+      "kind": "onSchedule",
+      "inline": false,
+      "options": {
+        "schedule": "\"every sunday 09:00\"",
+        "timeZone": "\"Africa/Lusaka\"",
+        "secrets": "[emailSmtpUser, emailSmtpPassword]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "540",
+        "memory": "\"512MiB\""
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
       "batch": null
     },
     "weeklyParentDigest": {

@@ -58,13 +58,19 @@ function toMillis(value) {
  *   write from a crashed invocation).
  * @param {string} args.planId  plan requested NOW
  * @param {string} args.phone   raw phone requested NOW (normalised here)
+ * @param {string|null} [args.beneficiaryUid]
+ *   The account the purchase CREDITS, when that is not the payer — a
+ *   guardian buying for a child. Absent/null on every ordinary payment.
  * @param {number} [args.nowMs]
  * @param {number} [args.reuseWindowMs]
  * @returns {{action: 'create'} |
  *           {action: 'reuse-pending', payment: {id, data}} |
  *           {action: 'reuse-paid',    payment: {id, data}}}
  */
-function decideLockedInitiation({existing, planId, phone, nowMs = Date.now(), reuseWindowMs = REUSE_WINDOW_MS} = {}) {
+function decideLockedInitiation({
+  existing, planId, phone, beneficiaryUid = null,
+  nowMs = Date.now(), reuseWindowMs = REUSE_WINDOW_MS,
+} = {}) {
   const CREATE = {action: "create"};
   const normalized = normalizePhone(phone);
   if (!normalized || !existing?.data) return CREATE;
@@ -74,6 +80,16 @@ function decideLockedInitiation({existing, planId, phone, nowMs = Date.now(), re
   // not a duplicate of the locked attempt.
   if (d.planId !== planId) return CREATE;
   if (normalizePhone(d.phoneNumber) !== normalized) return CREATE;
+
+  // …and so is a different BENEFICIARY. The lock is keyed by payer, so
+  // without this a guardian buying the same plan for a second child from
+  // the same phone inside the reuse window gets the FIRST child's payment
+  // handed back: they are told it worked, they are not charged again, and
+  // the second child is never credited. Plan and phone are identical in
+  // exactly that case, which is the one this whole comparison exists to
+  // tell apart. `|| null` so a doc predating the field compares equal to
+  // an ordinary payment rather than to every guardian one.
+  if ((d.beneficiaryUid || null) !== (beneficiaryUid || null)) return CREATE;
 
   // Stale attempt → the prompt has long expired; a fresh attempt is fine.
   // (Guard against clock skew: a createdAt more than a minute in the future

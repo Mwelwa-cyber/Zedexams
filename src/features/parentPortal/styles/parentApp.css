@@ -1,0 +1,547 @@
+/*
+ * Parent app ("pax") — the guardian's own logged-in surface.
+ *
+ * Visual source of truth: docs/learner/zedexams-parent-prototype.html.
+ *
+ * It layers on the learner design system rather than forking it: the
+ * shell renders `.lhx .pax`, so every colour here is an `--lhx-*` token
+ * and Night mode is inherited whole. That is deliberate — the learner
+ * side's Night mode kept growing white patches for exactly as long as
+ * components chose their own colours, and a second palette would be a
+ * second set of patches to find.
+ *
+ * NOTHING in this file may name a colour literally. If a shade is
+ * missing, add a token to learnerTheme.css so both surfaces get it.
+ *
+ * Only genuinely parent-shaped components live here. Settings rows,
+ * cards, buttons, back-rows, subject bars, weak-topic chips and the
+ * switch are all `.lhx-*` already (the Guardian Zone proved they render
+ * a guardian dashboard), so they are reused rather than restyled.
+ */
+
+/* ── Header ───────────────────────────────────────────────────────── */
+
+.pax-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.pax-role-pill {
+  background: var(--lhx-green-soft);
+  color: var(--lhx-green-dark);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 5px 11px;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+
+.pax-greet {
+  font-size: 22px;
+  font-weight: 900;
+  margin-bottom: 3px;
+  color: var(--lhx-ink);
+}
+
+.pax-greet em {
+  font-style: normal;
+  color: var(--lhx-indigo2);
+}
+
+.pax-greet-sub {
+  font-size: 13px;
+  color: var(--lhx-muted);
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+/* ── "Needs your approval" ────────────────────────────────────────── */
+
+.pax-req-card {
+  background: var(--lhx-amber-wash);
+  border: 1.5px solid var(--lhx-amber-line);
+  border-radius: var(--lhx-radius-lg);
+  padding: 15px;
+  margin-bottom: 16px;
+}
+
+.pax-req-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 900;
+  font-size: 14px;
+  color: var(--lhx-amber-ink);
+  margin-bottom: 10px;
+}
+
+.pax-req-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  background: var(--lhx-amber-row);
+  border-radius: var(--lhx-radius-sm);
+  padding: 11px 12px;
+  margin-bottom: 8px;
+}
+
+.pax-req-row:last-child { margin-bottom: 0; }
+
+.pax-req-text { flex: 1; min-width: 0; }
+.pax-req-text b { font-size: 13.5px; font-weight: 900; display: block; }
+.pax-req-text small {
+  display: block;
+  font-size: 11.5px;
+  color: var(--lhx-amber-ink);
+  font-weight: 700;
+  margin-top: 1px;
+}
+
+.pax-req-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+/* ── Avatars ──────────────────────────────────────────────────────── */
+
+.pax-av {
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, var(--lhx-indigo1), var(--lhx-indigo2));
+  box-shadow: var(--lhx-shadow-sm);
+}
+
+.pax-av-sm { width: 38px; height: 38px; font-size: 14px; }
+.pax-av-md { width: 52px; height: 52px; font-size: 21px; }
+.pax-av-lg { width: 56px; height: 56px; font-size: 22px; }
+
+/* A stable per-child tint so the same child looks the same everywhere.
+   Chosen by index rather than by name so it never depends on a string
+   the parent can edit. */
+.pax-av-t1 { background: linear-gradient(135deg, var(--lhx-coral1), var(--lhx-coral2)); }
+.pax-av-t2 { background: linear-gradient(135deg, var(--lhx-indigo1), var(--lhx-indigo2)); }
+.pax-av-t3 { background: linear-gradient(135deg, var(--lhx-green), var(--lhx-green-dark)); }
+.pax-av-t4 { background: linear-gradient(135deg, var(--lhx-pink), var(--lhx-pink-deep)); }
+
+/* ── Child cards ──────────────────────────────────────────────────── */
+
+.pax-kid {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 15px;
+  margin-bottom: 12px;
+  width: 100%;
+  text-align: left;
+  border: none;
+  font-family: inherit;
+  color: inherit;
+  background: var(--lhx-card);
+  border-radius: var(--lhx-radius-lg);
+  box-shadow: var(--lhx-shadow);
+  cursor: pointer;
+  transition: transform 0.1s var(--lhx-ease);
+}
+
+.pax-kid:active { transform: scale(0.99); }
+
+.pax-kid-main { flex: 1; min-width: 0; }
+.pax-kid-name { font-weight: 900; font-size: 15.5px; }
+.pax-kid-meta {
+  font-size: 12px;
+  color: var(--lhx-muted);
+  font-weight: 700;
+  margin: 2px 0 7px;
+}
+
+.pax-status {
+  font-size: 10.5px;
+  font-weight: 900;
+  padding: 5px 10px;
+  border-radius: 99px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.pax-status-ok { background: var(--lhx-green-soft); color: var(--lhx-green-dark); }
+.pax-status-warn { background: var(--lhx-amber-wash); color: var(--lhx-amber-ink); }
+.pax-status-idle { background: var(--lhx-indigo-soft); color: var(--lhx-indigo-text); }
+
+/* ── Child detail hero ────────────────────────────────────────────── */
+
+.pax-hero {
+  background: linear-gradient(140deg, var(--lhx-indigo1), var(--lhx-indigo2));
+  border-radius: var(--lhx-radius-lg);
+  padding: 18px;
+  color: #fff;
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--lhx-shadow-float);
+}
+
+.pax-hero::after {
+  content: "";
+  position: absolute;
+  right: -30px;
+  top: -30px;
+  width: 120px;
+  height: 120px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+}
+
+.pax-hero-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  position: relative;
+  z-index: 2;
+}
+
+.pax-hero-name { font-size: 18px; font-weight: 900; }
+.pax-hero-sub { font-size: 12px; opacity: 0.92; font-weight: 700; }
+
+.pax-hero-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+  position: relative;
+  z-index: 2;
+}
+
+.pax-tile {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: var(--lhx-radius-sm);
+  padding: 9px 6px;
+  text-align: center;
+}
+
+.pax-tile b { display: block; font-size: 15px; font-weight: 900; }
+.pax-tile span { font-size: 9px; font-weight: 800; opacity: 0.9; letter-spacing: 0.3px; }
+
+/* ── Activity timeline ────────────────────────────────────────────── */
+
+.pax-tl-day {
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--lhx-muted);
+  letter-spacing: 0.5px;
+  margin: 16px 4px 10px;
+  text-transform: uppercase;
+}
+
+.pax-tl-item {
+  display: flex;
+  gap: 12px;
+  position: relative;
+  padding-bottom: 14px;
+}
+
+/* The connecting rail. It stops at the last item of each day rather than
+   running into the next heading. */
+.pax-tl-item::before {
+  content: "";
+  position: absolute;
+  left: 17px;
+  top: 38px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--lhx-line);
+}
+
+.pax-tl-item:last-child::before { display: none; }
+
+.pax-tl-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  background: var(--lhx-indigo-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.pax-tl-item.is-win .pax-tl-icon {
+  background: radial-gradient(circle at 30% 30%, var(--lhx-amber-wash), var(--lhx-yellow));
+}
+
+.pax-tl-body {
+  flex: 1;
+  background: var(--lhx-card);
+  border-radius: var(--lhx-radius-sm);
+  padding: 11px 13px;
+  box-shadow: var(--lhx-shadow-sm);
+}
+
+.pax-tl-body b { font-size: 13.5px; font-weight: 800; }
+.pax-tl-meta {
+  font-size: 11px;
+  color: var(--lhx-muted);
+  font-weight: 800;
+  margin-top: 2px;
+}
+
+/* ── Co-guardians ─────────────────────────────────────────────────── */
+
+.pax-cg {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 15px;
+  border-bottom: 1px solid var(--lhx-line);
+}
+
+.pax-cg:last-child { border-bottom: none; }
+.pax-cg-main { flex: 1; min-width: 0; }
+.pax-cg-name { font-weight: 900; font-size: 14.5px; }
+.pax-cg-role {
+  font-size: 11.5px;
+  color: var(--lhx-muted);
+  font-weight: 700;
+  margin-top: 1px;
+}
+
+.pax-tag {
+  font-size: 10px;
+  font-weight: 900;
+  padding: 4px 9px;
+  border-radius: 99px;
+  flex-shrink: 0;
+}
+
+.pax-tag-owner { background: var(--lhx-indigo-soft); color: var(--lhx-indigo-text); }
+.pax-tag-pending { background: var(--lhx-amber-wash); color: var(--lhx-amber-ink); }
+
+.pax-cando {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--lhx-line);
+}
+
+.pax-cando:last-child { border-bottom: none; }
+.pax-cando-yes { color: var(--lhx-green-dark); }
+.pax-cando-no { color: var(--lhx-red); }
+
+/* ── Reports ──────────────────────────────────────────────────────── */
+
+.pax-rep-item {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 14px 15px;
+  margin-bottom: 10px;
+  width: 100%;
+  text-align: left;
+  border: none;
+  font-family: inherit;
+  color: inherit;
+  background: var(--lhx-card);
+  border-radius: var(--lhx-radius-md);
+  box-shadow: var(--lhx-shadow);
+  cursor: pointer;
+}
+
+.pax-rep-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--lhx-radius-sm);
+  background: var(--lhx-indigo-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.pax-rep-main { flex: 1; min-width: 0; }
+.pax-rep-title { font-weight: 900; font-size: 14px; }
+.pax-rep-sub {
+  font-size: 11.5px;
+  color: var(--lhx-muted);
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+.pax-rep-hero {
+  background: linear-gradient(140deg, var(--lhx-green), var(--lhx-green-dark));
+  border-radius: var(--lhx-radius-lg);
+  padding: 20px;
+  color: #fff;
+  margin-bottom: 16px;
+  box-shadow: var(--lhx-shadow-float);
+}
+
+.pax-rep-hero-kicker {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  opacity: 0.9;
+  text-transform: uppercase;
+}
+
+.pax-rep-hero-title { font-size: 20px; font-weight: 900; margin: 3px 0 2px; }
+.pax-rep-hero-meta { font-size: 12.5px; opacity: 0.95; font-weight: 700; }
+
+.pax-rep-block { padding: 15px 16px; margin-bottom: 12px; }
+.pax-rep-block :is(h2, h3) {
+  font-size: 13px;
+  font-weight: 900;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.pax-rep-block p {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--lhx-muted);
+  line-height: 1.55;
+}
+
+/* ── Plans + checkout ─────────────────────────────────────────────── */
+
+.pax-cycle {
+  display: flex;
+  background: var(--lhx-indigo-soft);
+  border-radius: var(--lhx-radius-sm);
+  padding: 4px;
+  margin-bottom: 16px;
+}
+
+.pax-cycle button {
+  flex: 1;
+  border: none;
+  background: none;
+  border-radius: 11px;
+  padding: 10px;
+  font-family: inherit;
+  font-weight: 900;
+  font-size: 13.5px;
+  color: var(--lhx-muted);
+  cursor: pointer;
+}
+
+.pax-cycle button.is-on {
+  background: var(--lhx-card);
+  color: var(--lhx-ink);
+  box-shadow: var(--lhx-shadow-sm);
+}
+
+.pax-plan {
+  background: linear-gradient(140deg, var(--lhx-indigo1), var(--lhx-indigo2));
+  border-radius: var(--lhx-radius-lg);
+  padding: 20px;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--lhx-shadow-float);
+  margin-bottom: 14px;
+}
+
+.pax-plan-badge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 99px;
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.pax-plan-price { font-size: 34px; font-weight: 900; line-height: 1; }
+.pax-plan-per { font-size: 12px; font-weight: 800; opacity: 0.9; margin-bottom: 12px; }
+
+.pax-plan-feature {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.pax-plan-feature.is-dim { opacity: 0.45; }
+
+.pax-passes { display: flex; gap: 10px; margin-bottom: 16px; }
+
+.pax-pass {
+  flex: 1;
+  background: var(--lhx-card);
+  border: 2px solid transparent;
+  border-radius: var(--lhx-radius-md);
+  padding: 13px;
+  text-align: center;
+  box-shadow: var(--lhx-shadow);
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+}
+
+.pax-pass.is-selected { border-color: var(--lhx-indigo2); background: var(--lhx-indigo-soft); }
+.pax-pass b { display: block; font-size: 16px; font-weight: 900; }
+.pax-pass small { font-size: 11px; color: var(--lhx-muted); font-weight: 800; }
+
+.pax-pay-methods { display: flex; gap: 10px; margin-bottom: 12px; }
+
+.pax-pay {
+  flex: 1;
+  background: var(--lhx-card);
+  border: 2px solid transparent;
+  border-radius: var(--lhx-radius-sm);
+  padding: 12px;
+  text-align: center;
+  font-weight: 900;
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: var(--lhx-shadow);
+  font-family: inherit;
+  color: inherit;
+}
+
+.pax-pay.is-selected { border-color: var(--lhx-indigo2); background: var(--lhx-indigo-soft); }
+
+.pax-field {
+  width: 100%;
+  border: 1.5px solid var(--lhx-line);
+  background: var(--lhx-indigo-soft);
+  border-radius: var(--lhx-radius-sm);
+  padding: 13px 15px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 14.5px;
+  color: var(--lhx-ink);
+  outline: none;
+  margin-bottom: 12px;
+}
+
+.pax-field:focus-visible { border-color: var(--lhx-indigo2); }
+
+.pax-note {
+  text-align: center;
+  font-size: 11px;
+  color: var(--lhx-muted);
+  font-weight: 800;
+  margin-top: 10px;
+  line-height: 1.5;
+}
+
+/* ── Night mode component cases ───────────────────────────────────── */
+
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .pax-tl-icon,
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .pax-rep-icon {
+  background: var(--lhx-indigo-soft);
+}
