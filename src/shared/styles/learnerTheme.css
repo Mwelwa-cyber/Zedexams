@@ -44,6 +44,16 @@
   --lhx-coral-soft: #fff0e8;
   --lhx-coral-soft-text: #e8622f;
 
+  /* Amber — the "something needs you" family. Introduced for the parent
+     app's approval card (docs/learner/zedexams-parent-prototype.html),
+     and used by any surface that means "waiting on a person" rather
+     than "warning". It lives here rather than in the parent stylesheet
+     so both surfaces flip together in Night mode. */
+  --lhx-amber-wash: #fff2d6;
+  --lhx-amber-line: #ffd488;
+  --lhx-amber-ink: #a86a12;
+  --lhx-amber-row: rgba(255, 255, 255, 0.7);
+
   /* Compatibility aliases — section components reference the old five
      hue families; they now all resolve to prototype hues so there is
      ONE palette declaration (the old hardcoded families were the root
@@ -116,6 +126,10 @@
   --lhx-pink-wash: rgba(212, 84, 138, 0.12);
   --lhx-pink-deep: #f4a0c4;
   --lhx-red: #f4757a;
+  --lhx-amber-wash: #3a3320;
+  --lhx-amber-line: #5a4d2a;
+  --lhx-amber-ink: #ffcf8a;
+  --lhx-amber-row: rgba(0, 0, 0, 0.18);
 
   --lhx-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
   --lhx-shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.3);

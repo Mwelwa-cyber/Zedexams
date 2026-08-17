@@ -234,9 +234,23 @@ const UiAuditPage     = lazy(() => import('../features/uiAudit/pages/UiAuditPage
 const ParentProgressView = lazy(() => import('../features/parentPortal/pages/ParentProgressView'))
 
 // Family portal (authenticated parent accounts)
-const ParentLayout = lazy(() => import('./guards/ParentLayout'))
-const FamilyHome = lazy(() => import('../features/parentPortal/pages/FamilyHome'))
-const ChildProgressPage = lazy(() => import('../features/parentPortal/pages/ChildProgressPage'))
+
+// The parent app (PROMPT 8g) — the guardian's own logged-in surface, in
+// the learner design system with its own four-tab IA. Mounted under one
+// layout route so the navigation never remounts between tabs (the same
+// fix LearnerLayout made for the learner chrome); every page is lazy, so
+// a parent loads only the screen they opened.
+const ParentShell = lazy(() => import('../features/parentPortal/components/ParentShell'))
+const ParentHome = lazy(() => import('../features/parentPortal/pages/ParentHome'))
+const ParentChildren = lazy(() => import('../features/parentPortal/pages/ParentChildren'))
+const ParentChildDetail = lazy(() => import('../features/parentPortal/pages/ParentChildDetail'))
+const ParentChildActivity = lazy(() => import('../features/parentPortal/pages/ParentChildActivity'))
+const ParentReports = lazy(() => import('../features/parentPortal/pages/ParentReports'))
+const ParentReportDetail = lazy(() => import('../features/parentPortal/pages/ParentReportDetail'))
+const ParentAccount = lazy(() => import('../features/parentPortal/pages/ParentAccount'))
+const ParentPlan = lazy(() => import('../features/parentPortal/pages/ParentPlan'))
+const FamilySharing = lazy(() => import('../features/parentPortal/pages/FamilySharing'))
+const AcceptCoGuardian = lazy(() => import('../features/parentPortal/pages/AcceptCoGuardian'))
 
 // Teacher section. The /teacher/* routes themselves live in
 // app/routes/teacherRoutes.jsx — declared as data so a spec can
@@ -395,11 +409,15 @@ function AdminRoute({ children }) {
   )
 }
 
-// Parent portal gate. The role levels in ProtectedRoute can't distinguish a
-// parent from a learner (both sit at level 1), so this checks the role
-// explicitly: only a parent (or an admin, for support) reaches the family
-// portal; anyone else is bounced to their own landing page.
-function ParentRoute({ children }) {
+// Parent app gate, as a LAYOUT route. The role levels in ProtectedRoute
+// can't distinguish a parent from a learner (both sit at level 1), so this
+// checks the role explicitly: only a parent (or an admin, for support)
+// reaches the family surface; anyone else is bounced to their own landing
+// page. On success it renders ParentShell, which carries the four-tab
+// navigation and its own Suspense boundary and renders the page through
+// an <Outlet> — so the chrome is mounted once for the whole section
+// instead of re-mounting on every tab change.
+function ParentAppRoute() {
   const { currentUser, userProfile, loading, isParent, isAdmin, needsEmailVerification } = useAuth()
   const location = useLocation()
   if (loading) return <FullScreenLoader label="Loading your family hub…" />
@@ -409,7 +427,7 @@ function ParentRoute({ children }) {
     return <Navigate to="/verify-email" replace state={{ from: location }} />
   }
   if (!isParent && !isAdmin) return <Navigate to={getRoleLandingPath(userProfile)} replace />
-  return <ParentLayout>{children}</ParentLayout>
+  return <ParentShell />
 }
 
 // Route-level error boundary. Sits inside <BrowserRouter> so it can read
@@ -580,9 +598,28 @@ export default function App() {
           {/* Audit A3 — parent portal. Public token-based read; no auth. */}
           <Route path="/parent/:token"            element={<ParentProgressView />} />
 
-          {/* Family portal — authenticated parent accounts. */}
-          <Route path="/family"                   element={<ParentRoute><FamilyHome /></ParentRoute>} />
-          <Route path="/family/child/:childUid"   element={<ParentRoute><ChildProgressPage /></ParentRoute>} />
+          {/* ── The parent app — authenticated guardian accounts ───── */}
+          {/* One layout route, so the four-tab navigation is mounted once
+              and only the page swaps. The guard sits on the layout rather
+              than on each line because every page below it is the same
+              surface for the same role; a page that needed a different
+              posture would take its own line outside this block. */}
+          <Route element={<ParentAppRoute />}>
+            <Route path="/family"                              element={<ParentHome />} />
+            <Route path="/family/children"                     element={<ParentChildren />} />
+            <Route path="/family/child/:childUid"              element={<ParentChildDetail />} />
+            <Route path="/family/child/:childUid/activity"     element={<ParentChildActivity />} />
+            <Route path="/family/child/:childUid/report"       element={<ParentReportDetail />} />
+            <Route path="/family/sharing/:childUid"            element={<FamilySharing />} />
+            <Route path="/family/reports"                      element={<ParentReports />} />
+            <Route path="/family/account"                      element={<ParentAccount />} />
+            <Route path="/family/plan"                         element={<ParentPlan />} />
+            {/* The co-guardian invite lands here from an email. It is
+                inside the guard on purpose: accepting requires a parent
+                account, and the page explains that before bouncing
+                anyone to /login with a return path. */}
+            <Route path="/family/accept"                       element={<AcceptCoGuardian />} />
+          </Route>
 
           {/* ── Public games (no auth) ──────────────────────────── */}
           {/* Flow: /games → /games/g/:grade → /games/g/:grade/:subject → /games/play/:gameId */}

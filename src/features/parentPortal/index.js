@@ -20,11 +20,23 @@
  * is now a declared dependency between two features through the front door,
  * which is what §14.7 asks for and what the boundary guard can actually see.
  *
- * The three PAGES are deliberately not exported (`FamilyHome`,
- * `ChildProgressPage`, `ParentProgressView`). Route tables mount them with
+ * The PAGES are deliberately not exported. Route tables mount them with
  * `lazy(() => import(…))` under the route-mount exception; re-exporting a page
  * here would drag the whole portal into `learnerSettings`' chunk, which wanted
- * two panels.
+ * two panels. `ParentShell` is mounted the same way, as the layout element for
+ * the whole `/family` section.
+ *
+ * ── The parent app replaced the first family portal (PROMPT 8g) ─────────
+ *
+ * `FamilyHome` and `ChildProgressPage` are gone, along with the
+ * `ChildProgressSections` they shared and the minimal `ParentLayout` chrome
+ * that wrapped them. They were a children list and a progress read-out; the
+ * parent app is the same data plus the things a guardian actually comes here
+ * to DO — approve what a child asked for, change what a child may use, invite
+ * a second guardian — and it renders in the learner design system with its own
+ * four-tab navigation. Keeping both would have left two parent UIs disagreeing
+ * about what a parent can do, which is the thing the teacher and admin shell
+ * rulings exist to prevent.
  *
  * ── `parentShares` did not travel with the feature, and now has ─────────
  *

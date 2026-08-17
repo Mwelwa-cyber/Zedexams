@@ -7,7 +7,7 @@
  * checks, same session-restoration flow.
  *
  * `ProtectedRoute` · `LearnerOnlyRoute` · `AdminMfaGate` ·
- * `MissingProfileRecovery` · `ParentLayout` · `SessionRestorationLoader` ·
+ * `MissingProfileRecovery` · `SessionRestorationLoader` ·
  * `SessionRestorationScreen`
  *
  * **This front door is deliberately empty.** Every consumer is `App.jsx` or
