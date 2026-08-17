@@ -13,6 +13,7 @@ import ProtectedRoute from './guards/ProtectedRoute'
 import { TEACHER_ROUTES, FlaggedStudioRoute } from './routes/teacherRoutes'
 import AdminMfaGate from './guards/AdminMfaGate'
 import LearnerOnlyRoute from './guards/LearnerOnlyRoute'
+import LearnerSetupGate from './guards/LearnerSetupGate'
 import MissingProfileRecovery from './guards/MissingProfileRecovery'
 import Navbar from '../components/layout/Navbar'
 import { getRoleLandingPath } from '../utils/navigation'
@@ -85,6 +86,10 @@ const LearnerHomePage = lazy(() => import('../features/learnerHome/pages/Learner
 const LearnerSubjectPage = lazy(() => import('../features/learnerHome/pages/LearnerSubjectPage'))
 const LearnerNotificationsPage = lazy(() => import('../features/notifications/pages/LearnerNotificationsPage'))
 const LearnerProfilePage = lazy(() => import('../features/learnerHome/pages/LearnerProfilePage'))
+// First-run setup (grade → subjects → Meet Zed → reminders). Mounted bare:
+// the mockup hides the nav here, because setup is not somewhere you tab away
+// from half-done.
+const LearnerSetupPage = lazy(() => import('../features/learnerOnboarding/pages/LearnerSetupPage'))
 const GuardianZonePage = lazy(() => import('../features/learnerHome/pages/GuardianZonePage'))
 const ProfilePage = lazy(() => import('../features/learnerDashboard/pages/ProfilePage'))
 
@@ -599,8 +604,12 @@ export default function App() {
               remounts between tab changes; auth guards stay on each child
               route's own line because the route-guard scripts parse them
               per line. GradeHub stays at /dashboard/classic. */}
+          {/* First-run setup, outside the shell — the mockup hides the nav so
+              a half-finished setup has nowhere to tab away to. It is also
+              outside LearnerSetupGate, which is what it redirects TO. */}
+          <Route path="/setup" element={<ProtectedRoute><LearnerOnlyRoute><LearnerSetupPage /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route element={<LearnerLayout />}>
-            <Route path="/dashboard"         element={<ProtectedRoute><LearnerOnlyRoute><LearnerHomePage /></LearnerOnlyRoute></ProtectedRoute>} />
+            <Route path="/dashboard"         element={<ProtectedRoute><LearnerOnlyRoute><LearnerSetupGate><LearnerHomePage /></LearnerSetupGate></LearnerOnlyRoute></ProtectedRoute>} />
             <Route path="/dashboard-preview" element={<ProtectedRoute><LearnerOnlyRoute><LearnerHomePage /></LearnerOnlyRoute></ProtectedRoute>} />
             <Route path="/subjects/:subjectId" element={<ProtectedRoute><LearnerOnlyRoute><LearnerSubjectPage /></LearnerOnlyRoute></ProtectedRoute>} />
             {/* Interactive exam timetable — the prototype's timetable screen

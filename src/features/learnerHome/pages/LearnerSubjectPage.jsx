@@ -13,10 +13,23 @@
  * them were the last learner entry points into /lessons and /quizzes,
  * which the mockup does not contain at all.
  *
- * Term assignment for a topic derives from its quizzes' term tags; with
- * no term-tagged material the full syllabus shows on every tab (never
- * invented into one term). A topic with no note published yet says so
- * rather than leading nowhere — nothing fake.
+ * TERM ASSIGNMENT comes from one of two places, in this order:
+ *
+ *   1. A published term plan for the grade+subject (`config/gradeTermPlan`).
+ *      Grade 7 English and Integrated Science have one — the owner's own
+ *      allocation, transcribed from the prototype. Rows carry an icon and a
+ *      curriculum strand, and the row IS the sub-topic (Science's strands
+ *      are its five parent topics).
+ *   2. Otherwise the topic's quizzes' term tags, as before.
+ *
+ * With neither, the full syllabus shows on every tab and the screen SAYS SO.
+ * That last part is the fix for "the terms aren't working": three identical
+ * tabs with no explanation is indistinguishable from a broken switcher, and
+ * the honest alternative — inventing a term for a topic — would put a
+ * fabricated syllabus in front of a child. The ECZ 2013 syllabus has no term
+ * column; allocating it is a school's scheme of work.
+ *
+ * A topic with no note published yet says so rather than leading nowhere.
  */
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -25,6 +38,9 @@ import { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useFirestore } from '../../../hooks/useFirestore'
 import { SUBJECT_MAP, getTopics, getSubtopics, normalizeSubject } from '../../../config/curriculum'
+import {
+  getTermPlan, planTopicsForTerm, strandLabel, strandTone, unplacedCatalogueTopics,
+} from '../../../config/gradeTermPlan'
 import { getActiveTerm } from '../../../utils/moeCalendar'
 import LearnerIcon, { subjectIconName } from '../components/LearnerIcon'
 import { EmptyState, ErrorState, SectionSkeleton } from '../components/LearnerPrimitives'
@@ -104,10 +120,38 @@ export default function LearnerSubjectPage() {
     const subjectLessons = materials.filter((m) => !m.noteFormat && Array.isArray(m.slides) && m.slides.length > 0 && subjectMatches(m.subject, subjectId, subjectLabel))
     const subjectQuizzes = quizzes.filter((q) => subjectMatches(q.subject, subjectId, subjectLabel))
 
-    const topicNames = getTopics(subjectId, Number(grade)) || []
+    const catalogueTopics = getTopics(subjectId, Number(grade)) || []
     const topicTerms = deriveTopicTerms(subjectQuizzes)
-    const termTopics = topicsForTerm(topicNames, topicTerms, term)
-    const hasTermData = topicTerms.size > 0
+
+    // A published plan is the authority when there is one. Its rows already
+    // carry the term, so the quiz-tag derivation is not consulted at all —
+    // two sources disagreeing about which term a topic is in is worse than
+    // either source alone.
+    const plan = getTermPlan(subjectId, Number(grade))
+    const planRows = plan ? planTopicsForTerm(plan, term) : []
+    // Catalogue content the plan does not place. Shown on EVERY tab rather
+    // than dropped: it is real syllabus material, and hiding it to make the
+    // tabs tidy removes curriculum from a child's screen.
+    const unplaced = plan
+      ? unplacedCatalogueTopics(plan, catalogueTopics.flatMap(
+          (t) => (getSubtopics(subjectId, Number(grade), t) || [t]),
+        ))
+      : []
+
+    const rows = plan
+      ? [
+          ...planRows.map((r) => ({
+            name: r.title, icon: r.icon, planned: true,
+            strand: strandLabel(r.strand), tone: strandTone(r.strand),
+          })),
+          ...unplaced.map((name) => ({ name, icon: null, strand: null, tone: null, planned: false })),
+        ]
+      : topicsForTerm(catalogueTopics, topicTerms, term).map(
+          (name) => ({ name, icon: null, strand: null, tone: null, planned: false }),
+        )
+
+    const hasTermData = Boolean(plan)
+      || topicTerms.size > 0
       || subjectNotes.some((n) => normalizeTerm(n.term) != null)
 
     const termNotes = subjectNotes.filter((n) => {
@@ -117,7 +161,8 @@ export default function LearnerSubjectPage() {
     const completedQuizIds = new Set(results.map((r) => r.quizId).filter(Boolean))
     const readNoteIds = new Set(noteProgress.filter((np) => np.status === 'completed').map((np) => np.noteId))
 
-    const topics = termTopics.map((name, i) => {
+    const topics = rows.map((row, i) => {
+      const { name } = row
       const topicQuizzes = subjectQuizzes.filter((q) => q.topic === name)
       const doneQuizzes = topicQuizzes.filter((q) => completedQuizIds.has(q.id))
       const percent = topicQuizzes.length
@@ -125,11 +170,10 @@ export default function LearnerSubjectPage() {
         : 0
       // The note this topic opens: an explicit topic tag first, then a
       // title match. No match means no note yet — the row says so.
-      // The syllabus sub-topics for this topic, where the catalogue has
-      // them (Integrated Science, Mathematics and Social Studies do at
-      // Grade 7). Shown as the row's second line so a topic reads as the
-      // week's actual content rather than a bare heading.
-      const subtopics = getSubtopics(subjectId, Number(grade), name) || []
+      // Sub-topics are the row's second line, but only for an UNPLANNED row:
+      // a planned row already IS the sub-topic, so listing its children
+      // under it would repeat the syllabus at two levels on one line.
+      const subtopics = row.planned ? [] : (getSubtopics(subjectId, Number(grade), name) || [])
       const lower = String(name).toLowerCase()
       const noteTarget = termNotes.find((n) => String(n.topic || '').toLowerCase() === lower)
         || termNotes.find((n) => String(n.title || '').toLowerCase().includes(lower))
@@ -137,6 +181,10 @@ export default function LearnerSubjectPage() {
       const noteRead = noteTarget ? readNoteIds.has(noteTarget.id) : false
       return {
         name,
+        icon: row.icon,
+        strand: row.strand,
+        tone: row.tone,
+        planned: row.planned,
         subtopics,
         position: i + 1,
         quizCount: topicQuizzes.length,
@@ -172,6 +220,7 @@ export default function LearnerSubjectPage() {
     return {
       subjectNotes, subjectLessons, subjectQuizzes, topics, termNotes,
       hasTermData, overall, revisionQuizzes, doneCount,
+      hasPlan: Boolean(plan), unplacedCount: unplaced.length,
       lessonCount: subjectLessons.length,
     }
   }, [state, subjectId, subjectLabel, grade, term])
@@ -238,9 +287,19 @@ export default function LearnerSubjectPage() {
         <>
           <p className="lhx-back-sub" style={{ textAlign: 'center', marginTop: -6 }}>{termNote}</p>
 
+          {/* Three identical tabs with no explanation reads as a broken
+              switcher. Say which case this is instead. */}
           {!model.hasTermData && model.topics.length > 0 && (
             <p className="lhx-back-sub" style={{ textAlign: 'center' }}>
-              Showing the full {subjectLabel} syllabus — materials haven’t been split by term yet.
+              Showing the full {subjectLabel} syllabus — the term plan for this subject
+              isn’t published yet.
+            </p>
+          )}
+          {model.hasPlan && model.unplacedCount > 0 && (
+            <p className="lhx-back-sub" style={{ textAlign: 'center' }}>
+              Plus {model.unplacedCount} {model.unplacedCount === 1 ? 'topic' : 'topics'} not
+              yet placed in a term — {model.unplacedCount === 1 ? 'it shows' : 'they show'} on
+              every tab.
             </p>
           )}
 
@@ -270,10 +329,15 @@ export default function LearnerSubjectPage() {
                       onClick={() => openTopic(topic)}
                     >
                       <span className="lhx-topic-ic" aria-hidden="true">
-                        <LearnerIcon name={subjectIconName(subjectId)} size={20} />
+                        {topic.icon
+                          ? <span style={{ fontSize: 18 }}>{topic.icon}</span>
+                          : <LearnerIcon name={subjectIconName(subjectId)} size={20} />}
                       </span>
                       <span style={{ flex: 1, minWidth: 0 }}>
                         <span className="lhx-topic-name" style={{ display: 'block' }}>{topic.name}</span>
+                        {topic.strand && (
+                          <span className={`lhx-strand-tag lhx-sd-${topic.tone}`}>{topic.strand}</span>
+                        )}
                         {topic.subtopics.length > 0 && (
                           <span className="lhx-topic-sub" style={{ display: 'block' }}>
                             {topic.subtopics.slice(0, 3).join(' · ')}

@@ -1,0 +1,193 @@
+/**
+ * The prototype's onboarding chrome (`.ob-*`), scoped under `.lhx`.
+ *
+ * Every colour here is a learner token, so Night mode needs no rules of its
+ * own — the prototype carries a `#phone.night` override for each of these
+ * surfaces (`.ob-input`, `.ob-brand`, `.grade-opt.sel`, `.subj-opt.sel`,
+ * `.ob-step`), and each one turns out to be an existing token flip:
+ * `--lhx-card`, `--lhx-indigo-soft`, `--lhx-indigo-text`, `--lhx-muted`. One
+ * declaration instead of two is the point of the token layer, and hardcoding
+ * these was the root cause of every Night-mode patch the redesign started
+ * out fixing.
+ */
+
+/* ── Page frame ────────────────────────────────────────────────── */
+
+.lhx-ob {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 18px 18px calc(28px + env(safe-area-inset-bottom, 0px));
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.lhx-ob-body { flex: 1; }
+
+/* ── Progress dots (prototype .ob-steps) ───────────────────────── */
+
+.lhx-ob-steps {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 18px;
+  list-style: none;
+  padding: 0;
+}
+
+.lhx-ob-step {
+  flex: 1;
+  height: 6px;
+  border-radius: 99px;
+  background: var(--lhx-line);
+  transition: background 0.25s var(--lhx-ease);
+}
+
+.lhx-ob-step.is-on {
+  background: linear-gradient(90deg, var(--lhx-indigo1), var(--lhx-indigo2));
+}
+
+/* ── Type ──────────────────────────────────────────────────────── */
+
+.lhx-ob-title {
+  font-size: 22px;
+  font-weight: 900;
+  margin: 6px 2px 4px;
+  color: var(--lhx-ink);
+}
+
+.lhx-ob-sub {
+  font-size: 13.5px;
+  color: var(--lhx-muted);
+  font-weight: 700;
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+
+.lhx-ob-hero { text-align: center; padding: 26px 10px 6px; }
+
+.lhx-ob-hero img {
+  width: 118px;
+  height: 118px;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.2));
+}
+
+.lhx-ob-emoji { font-size: 60px; line-height: 1; }
+
+/* ── Grade grid (prototype .grade-grid) ────────────────────────── */
+
+/* Two columns, not the prototype's three: the prototype's grid held six
+   grades (4–9) and ours holds four, and 3-up leaves Grade 7 stranded alone
+   on a second row. 2×2 is the same grid rule applied to the real list. */
+.lhx-ob-grades {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.lhx-ob-grade {
+  background: var(--lhx-card);
+  border: 2px solid transparent;
+  border-radius: var(--lhx-radius-md);
+  padding: 16px 6px;
+  text-align: center;
+  font-family: inherit;
+  font-weight: 900;
+  font-size: 14.5px;
+  color: var(--lhx-ink);
+  cursor: pointer;
+  box-shadow: var(--lhx-shadow-sm);
+}
+
+.lhx-ob-grade[aria-pressed='true'] {
+  border-color: var(--lhx-indigo2);
+  background: var(--lhx-indigo-soft);
+}
+
+/* ── Subject chips (prototype .subj-grid) ──────────────────────── */
+
+.lhx-ob-subjects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-bottom: 8px;
+  list-style: none;
+  padding: 0;
+}
+
+.lhx-ob-subject {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--lhx-card);
+  border: 2px solid transparent;
+  border-radius: var(--lhx-radius-sm);
+  padding: 11px 14px;
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 13.5px;
+  color: var(--lhx-ink);
+  cursor: pointer;
+  box-shadow: var(--lhx-shadow-sm);
+}
+
+.lhx-ob-subject[aria-pressed='true'] {
+  border-color: var(--lhx-green);
+  background: var(--lhx-green-wash);
+}
+
+/* The tick keeps its box at all times so selecting a subject cannot
+   reflow the chip row under the learner's finger. */
+.lhx-ob-check { color: var(--lhx-green); font-weight: 900; opacity: 0; }
+.lhx-ob-subject[aria-pressed='true'] .lhx-ob-check { opacity: 1; }
+
+/* ── Buttons ───────────────────────────────────────────────────── */
+
+.lhx-ob-btn {
+  display: block;
+  width: 100%;
+  border: none;
+  border-radius: var(--lhx-radius-md);
+  padding: 15px;
+  font-family: inherit;
+  font-weight: 900;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.lhx-ob-btn-primary {
+  background: linear-gradient(135deg, var(--lhx-coral1), var(--lhx-coral2));
+  color: #fff;
+  box-shadow: 0 6px 0 var(--lhx-coral-shadow), var(--lhx-shadow-sm);
+}
+
+.lhx-ob-btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: var(--lhx-shadow-sm);
+}
+
+.lhx-ob-btn-ghost {
+  background: var(--lhx-card);
+  color: var(--lhx-indigo-text);
+  box-shadow: var(--lhx-shadow-sm);
+}
+
+.lhx-ob-btn + .lhx-ob-btn { margin-top: 10px; }
+
+.lhx-ob-error {
+  background: var(--lhx-coral-soft);
+  color: var(--lhx-coral-soft-text);
+  border-radius: var(--lhx-radius-sm);
+  padding: 11px 14px;
+  font-size: 12.5px;
+  font-weight: 800;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lhx-ob-step { transition: none; }
+}
