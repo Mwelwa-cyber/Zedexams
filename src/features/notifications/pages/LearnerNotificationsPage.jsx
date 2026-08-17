@@ -7,10 +7,11 @@
 // It is a THIN VIEW over the existing notification system: the docs live
 // in notifications/{uid}/feed (server-written only), the one app-wide
 // listener lives in NotificationProvider, and read-state mutations go
-// through the context's markRead/markAllRead. The overlay
+// through the context's markRead; "Clear all" goes through removeAll.
+// The overlay
 // NotificationCenter remains for the teacher/admin shells.
 
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../../../shared/styles/learnerTheme.css'
 import { useNotifications } from '../../../contexts/NotificationContext'
@@ -60,8 +61,40 @@ function NotifCard({ n, onOpen }) {
 export default function LearnerNotificationsPage() {
   const navigate = useNavigate()
   const {
-    notifications, unreadCount, loading, hasMore, loadMore, markRead, markAllRead,
+    notifications, loading, hasMore, loadMore, markRead, removeAll,
   } = useNotifications()
+
+  // "Clear all" DELETES the feed, and there is no undo. The prototype
+  // fires it on one tap — it can afford to, because its own "Show demo
+  // notifications" button puts everything back. The real app has no such
+  // button, so the control asks once. It is still a single control in the
+  // same place, not a modal: one deliberate beat, then it does exactly
+  // what the mockup does.
+  const [confirming, setConfirming] = useState(false)
+  const confirmTimer = useRef(null)
+  useEffect(() => () => clearTimeout(confirmTimer.current), [])
+
+  const clearAll = () => {
+    if (!confirming) {
+      setConfirming(true)
+      clearTimeout(confirmTimer.current)
+      confirmTimer.current = setTimeout(() => setConfirming(false), 4000)
+      return
+    }
+    clearTimeout(confirmTimer.current)
+    setConfirming(false)
+    removeAll()
+  }
+
+  // A plain function, not a component: a component declared in the render
+  // body is a new type on every render, so React unmounts and remounts it
+  // — which would drop keyboard focus the moment the label changes to
+  // "Tap again to clear", i.e. exactly when focus matters most.
+  const clearAllButton = () => (
+    <button type="button" className="lhx-notif-mark" onClick={clearAll}>
+      {confirming ? 'Tap again to clear' : 'Clear all'}
+    </button>
+  )
 
   const { today, earlier } = useMemo(() => {
     const cutoff = startOfToday()
@@ -104,7 +137,9 @@ export default function LearnerNotificationsPage() {
             style={{ width: 90, height: 112, objectFit: 'contain', margin: '0 auto 10px' }}
           />
           <p className="lhx-back-title" style={{ fontSize: 16 }}>You&rsquo;re all caught up!</p>
-          <p className="lhx-notif-text">New quizzes, badges and exam reminders will land here.</p>
+          <p className="lhx-notif-text">
+            No new notifications right now. We&rsquo;ll ping you when there&rsquo;s something new.
+          </p>
         </div>
       ) : (
         <>
@@ -112,9 +147,7 @@ export default function LearnerNotificationsPage() {
             <section aria-label="Today">
               <div className="lhx-notif-head-row">
                 <div style={{ fontSize: '12.5px', color: 'var(--lhx-muted)', fontWeight: 800 }}>Today</div>
-                {unreadCount > 0 && (
-                  <button type="button" className="lhx-notif-mark" onClick={markAllRead}>Mark all read</button>
-                )}
+                {clearAllButton()}
               </div>
               <div style={{ display: 'grid', gap: 10, marginTop: 10 }}>
                 {today.map((n) => <NotifCard key={n.id} n={n} onOpen={openNotification} />)}
@@ -126,9 +159,7 @@ export default function LearnerNotificationsPage() {
             <section aria-label="Earlier">
               <div className="lhx-notif-head-row">
                 <div style={{ fontSize: '12.5px', color: 'var(--lhx-muted)', fontWeight: 800 }}>Earlier</div>
-                {today.length === 0 && unreadCount > 0 && (
-                  <button type="button" className="lhx-notif-mark" onClick={markAllRead}>Mark all read</button>
-                )}
+                {today.length === 0 && clearAllButton()}
               </div>
               <div style={{ display: 'grid', gap: 10, marginTop: 10 }}>
                 {earlier.map((n) => <NotifCard key={n.id} n={n} onOpen={openNotification} />)}

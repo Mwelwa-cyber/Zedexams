@@ -16,6 +16,9 @@ vi.mock('../../../utils/analytics', () => ({ capture: vi.fn() }))
 vi.mock('../../../utils/clientErrorReporting', () => ({ reportClientError: vi.fn() }))
 vi.mock('../../../hooks/useNetworkStatus', () => ({ useNetworkStatus: () => true }))
 vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../contexts/NotificationContext', () => ({
+  useNotifications: () => ({ unreadCount: 0 }),
+}))
 vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({ userProfile: { displayName: 'Grace Phiri' } }),
 }))

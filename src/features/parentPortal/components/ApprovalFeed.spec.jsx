@@ -20,6 +20,9 @@ import { MemoryRouter } from 'react-router-dom'
 vi.mock('../../../firebase/config', () => ({ default: {}, auth: {}, db: {} }))
 vi.mock('../../../utils/analytics', () => ({ capture: vi.fn() }))
 vi.mock('../../../utils/clientErrorReporting', () => ({ reportClientError: vi.fn() }))
+vi.mock('../../../contexts/NotificationContext', () => ({
+  useNotifications: () => ({ unreadCount: 0 }),
+}))
 
 const declineGuardianApproval = vi.fn(() => Promise.resolve({ ok: true }))
 vi.mock('../services/parentApp', () => ({

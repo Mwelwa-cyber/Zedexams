@@ -176,8 +176,17 @@
   .lhx-page { max-width: 780px; padding-top: 22px; padding-bottom: 60px; }
   .lhx-cols { display: block; columns: 2; column-gap: 24px; }
   .lhx-colitem { break-inside: avoid; margin-bottom: 20px; }
-  /* The mockup's desktop reflow: Explore four-up, subjects two-up. */
-  .lhx-explore { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  /* The mockup's desktop reflow: subjects two-up. Explore is NOT
+     reflowed here — it is three-up at every width, declared ONCE next
+     to the rest of the Explore rules further down this file.
+
+     There used to be a `.lhx-explore { repeat(4, …) }` on this line,
+     left over from the fourth Timetable tile, and it never did
+     anything: the base `.lhx-explore` rule further down carries equal
+     specificity and comes LATER, so it won at every width including
+     this one. Explore was two-up everywhere, desktop included. Keep
+     Explore's grid in the one place — a column count added up here in
+     the scaffold block is silently overridden. */
   .lhx-tile { padding: 22px 10px 18px; }
   .lhx-subjects { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -458,20 +467,53 @@
 
 /* ── Explore (prototype .big-grid / .big-tile) ─────────────────── */
 
-.lhx-explore { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+/* ONE row at every width — phone, tablet and desktop alike. The three
+   tiles are a single horizontal strip, as in the mockup, and there is
+   no width at which Explore changes shape.
+
+   Before this, the grid was two-up HERE and three-up nowhere: the
+   ≥1000px block's `repeat(4, …)` was dead (same specificity, earlier in
+   the file, so this rule beat it), which is why the second row showed
+   up on a desktop as well as on a phone. Games sat alone under the
+   other two at every width, reading as an orphan rather than as the
+   third of a set. This is now the ONLY place Explore's column count is
+   declared; do not add a per-breakpoint override above.
+
+   Three columns on a phone leaves each tile ~90px of content, which is
+   almost exactly what "Past Papers" occupies at 13.5px — so the type
+   scales with the row rather than wrapping the longest label onto two
+   lines. `cqi` is the grid's OWN inline size: `vw` would keep growing
+   past the point where the page stops widening (max-width 480/780px)
+   and the tiles stop with it. Measured, not guessed — the values below
+   hold one line for every label from 320px up (scripts/
+   test-learner-explore-row.mjs is the check; the tiles wrap but stay
+   three-up below that, which is under the repo's device matrix). */
+.lhx-explore {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  container-type: inline-size;
+}
+@media (min-width: 640px) { .lhx-explore { gap: 12px; } }
 .lhx-tile {
   position: relative; overflow: hidden; isolation: isolate;
   display: flex; flex-direction: column; align-items: center; gap: 2px;
-  border-radius: 22px; padding: 18px 8px 15px; text-align: center; color: #fff;
+  border-radius: 22px; padding: 16px 4px 14px; text-align: center; color: #fff;
+  min-width: 0;
 }
+@media (min-width: 640px) { .lhx-tile { padding: 18px 8px 15px; } }
 .lhx-tile::after {
   content: ''; position: absolute; z-index: -1;
   right: -18px; top: -18px; width: 60px; height: 60px;
   background: rgba(255, 255, 255, 0.18); border-radius: 50%;
 }
-.lhx-tile-icon { font-size: 32px; margin-bottom: 6px; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.18)); }
-.lhx-tile-name { font-weight: 900; font-size: 13.5px; }
-.lhx-tile-sub { font-size: 10.5px; font-weight: 800; opacity: 0.85; }
+.lhx-tile-icon {
+  font-size: clamp(24px, 11cqi, 32px);
+  margin-bottom: 6px;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.18));
+}
+.lhx-tile-name { font-weight: 900; font-size: clamp(11px, 3.9cqi, 13.5px); }
+.lhx-tile-sub { font-size: clamp(9.5px, 3.6cqi, 10.5px); font-weight: 800; opacity: 0.85; }
 .lhx-bt-papers { background: linear-gradient(150deg, #ff9c5b, var(--lhx-coral2)); box-shadow: 0 10px 22px rgba(255, 92, 57, 0.4); }
 .lhx-bt-notes { background: linear-gradient(150deg, #41d98a, #1fae62); box-shadow: 0 10px 22px rgba(31, 174, 98, 0.4); }
 .lhx-bt-games { background: linear-gradient(150deg, #8f7bff, #5f4fe0); box-shadow: 0 10px 22px rgba(95, 79, 224, 0.4); }
@@ -931,14 +973,8 @@ button.lhx-tt-altpill { cursor: pointer; }
 .lhx-tt-altpill[aria-pressed='true'] { background: linear-gradient(135deg, var(--lhx-indigo1), var(--lhx-indigo2)); color: #fff; }
 .lhx-tt-brief { opacity: 0.72; }
 .lhx-tt-done { opacity: 0.62; }
-.lhx-tt-actions { display: flex; gap: 9px; margin-top: 11px; flex-wrap: wrap; }
-.lhx-tt-act {
-  flex: 1; min-width: 110px; display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 13px; padding: 10px; min-height: 40px;
-  font-size: 12px; font-weight: 900; background: var(--lhx-indigo-soft); color: var(--lhx-indigo2);
-}
-.lhx-tt-act.orange { background: var(--lhx-coral-soft); color: var(--lhx-coral-soft-text); }
-.lhx-tt-act:active { transform: scale(0.97); }
+/* Sessions carry no actions — the per-session Practise / Past papers
+   buttons were removed, so .lhx-tt-act* went with them. */
 
 /* Reminder banners + toggle (functional carry-over, prototype idiom). */
 .lhx-tt-remind {

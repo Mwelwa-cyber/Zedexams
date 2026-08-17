@@ -26,6 +26,12 @@
  * two panels. `ParentShell` is mounted the same way, as the layout element for
  * the whole `/family` section.
  *
+ * `lib/parentNotificationView.js` and `lib/parentAppView.js` are not exported
+ * either, for the ordinary reason: they are this feature's own view models and
+ * nothing outside it reads them. Their rules are pinned under plain node in
+ * `scripts/test-parent-notification-view.mjs` and `scripts/test-parent-app-view.mjs`,
+ * which import the files by path — test harnesses, not consumers.
+ *
  * ── The parent app replaced the first family portal (PROMPT 8g) ─────────
  *
  * `FamilyHome` and `ChildProgressPage` are gone, along with the

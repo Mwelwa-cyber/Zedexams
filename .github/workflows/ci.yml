@@ -202,6 +202,11 @@ jobs:
         run: npm run smoke:mobile
       - name: Dashboard responsive navigation (viewport matrix)
         run: npm run smoke:dashboard
+      # Learner Home's Explore row: three tiles, one horizontal row, at every
+      # width. Needs a real Chromium (it measures computed grid tracks and
+      # font metrics), which is why it lives here and not in the Tests job.
+      - name: Learner Explore row (three-up at every width)
+        run: npm run smoke:explore
       # WCAG AA in the two dark themes: live-walks the public routes under a
       # saved Midnight theme (also proving navigation keeps the saved theme)
       # and renders each gated teacher/settings route's risk surfaces against

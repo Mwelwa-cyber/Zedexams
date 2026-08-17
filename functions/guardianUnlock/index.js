@@ -45,9 +45,11 @@ const admin = require("firebase-admin");
 const crypto = require("crypto");
 
 const {
+  MAX_NOTIFIED_PARENTS,
   OUTCOME,
   PAY_LINK_TTL_DAYS,
   REQUESTABLE_GATES,
+  buildParentAskNotification,
   buildProgressPayload,
   chooseQuotedPlan,
   decideRateLimit,
@@ -120,6 +122,59 @@ async function readEvidence(db, uid) {
   }
 }
 
+/**
+ * Put the ask in the inbox of every linked parent ACCOUNT.
+ *
+ * `parentLinks` is the authenticated parent↔child relationship behind the
+ * family portal — a different, verified thing from the guardian contact the
+ * child typed, which is why both are served: the contact gets the email, and
+ * an account that already exists gets it where they are already signed in.
+ *
+ * Best-effort in every direction. A parent with no account, an unreadable
+ * link table, or a failed write must not change what the learner is told
+ * about their request — the email is the delivery that matters and it has
+ * already gone.
+ *
+ * @returns {Promise<{notified: number}>}
+ */
+async function notifyLinkedParents({db, learnerUid, learnerName, clause}) {
+  let links = [];
+  try {
+    const snap = await db.collection("parentLinks")
+        .where("learnerUid", "==", learnerUid)
+        .limit(MAX_NOTIFIED_PARENTS)
+        .get();
+    links = snap.docs.map((d) => d.data() || {});
+  } catch (err) {
+    console.warn("[guardianUnlock] parentLinks read failed", err);
+    return {notified: 0};
+  }
+  if (links.length === 0) return {notified: 0};
+
+  const notification = buildParentAskNotification({
+    learnerName,
+    learnerUid,
+    requestClause: clause,
+  });
+  const {createNotification} = require("../notifications/createNotification");
+
+  let notified = 0;
+  // Sequential rather than parallel: this is at most MAX_NOTIFIED_PARENTS
+  // writes on a path a child triggers, and one slow parent must not be able
+  // to make the callable time out.
+  for (const link of links) {
+    const parentUid = typeof link.parentUid === "string" ? link.parentUid : "";
+    if (!parentUid) continue;
+    try {
+      const res = await createNotification({...notification, uid: parentUid, db});
+      if (res.written) notified += 1;
+    } catch (err) {
+      console.warn("[guardianUnlock] parent notification failed", err);
+    }
+  }
+  return {notified};
+}
+
 exports.requestGuardianUnlock = onCall(
     {secrets: [emailSmtpUser, emailSmtpPassword], region: "us-central1", timeoutSeconds: 30},
     async (request) => {
@@ -156,7 +211,8 @@ exports.requestGuardianUnlock = onCall(
       // reached with `await import` INSIDE the handler — never a top-level
       // require. Same rule as functions/shared/assessment and
       // functions/shared/consent.
-      const {buildGuardianMessage} = await import("../shared/guardian/guardianMessageCore.js");
+      const {buildGuardianMessage, requestClause} =
+        await import("../shared/guardian/guardianMessageCore.js");
       const {daysToExam} = require("./examCountdown");
 
       const results = await readEvidence(db, uid);
@@ -237,6 +293,22 @@ exports.requestGuardianUnlock = onCall(
         });
       } catch (err) {
         console.warn("[guardianUnlock] learner notification failed", err);
+      }
+
+      // …and to any linked parent ACCOUNT's inbox. Never throws: the email
+      // above is the delivery this callable reports on.
+      try {
+        await notifyLinkedParents({
+          db,
+          learnerUid: uid,
+          learnerName: user.firstName || user.displayName || user.name || "",
+          clause: requestClause({
+            feature,
+            remaining: payloadBase.remaining,
+          }),
+        });
+      } catch (err) {
+        console.warn("[guardianUnlock] linked-parent notification failed", err);
       }
 
       return {outcome: OUTCOME.SENT};

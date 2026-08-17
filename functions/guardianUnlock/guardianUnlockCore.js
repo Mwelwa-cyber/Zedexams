@@ -157,11 +157,74 @@ function chooseQuotedPlan(daysToExam, now = new Date()) {
   return {id: "term", checkoutPlanId: "term_pass", label: "Term Pass", price: 120};
 }
 
+/**
+ * How many linked parent ACCOUNTS one ask may reach.
+ *
+ * A child can be linked to both parents and, later, a co-guardian. The cap is
+ * here so a link table that grows unexpectedly (or is abused) cannot turn one
+ * request into an unbounded fan-out of writes and pushes.
+ */
+const MAX_NOTIFIED_PARENTS = 10;
+
+function firstNameOf(name) {
+  const trimmed = typeof name === "string" ? name.trim() : "";
+  if (!trimmed) return "Your child";
+  return trimmed.split(/\s+/)[0];
+}
+
+/**
+ * The notification a linked parent account gets when their child asks.
+ *
+ * The guardian on the consent record is emailed — that path is unchanged and
+ * is the one that reaches a payer who has never opened the app. This is the
+ * SECOND surface: a parent who does have an account should not have to find
+ * out from their inbox that their child asked them for something in an app
+ * they are signed in to.
+ *
+ * Two choices worth defending:
+ *
+ *   • Category `account`, which is one of the three that are always written
+ *     in-app (notificationPrefsCore.ALWAYS_IN_APP_CATEGORIES). A child asking
+ *     their guardian for something must reach that guardian's own record; a
+ *     toggle they set months ago should not be able to swallow it. The PUSH
+ *     is still gated by their preferences and quiet hours, which is the part
+ *     that is actually an interruption.
+ *
+ *   • The tap target is the child's progress, not a checkout. The rule the
+ *     whole guardian path is built on — evidence before price — does not stop
+ *     applying because the ask arrived through the bell.
+ *
+ * @param {object} input
+ * @param {string} input.learnerName    the child's display name
+ * @param {string} input.learnerUid
+ * @param {string} [input.requestClause] from guardianMessageCore.requestClause
+ * @returns {{category: string, type: string, title: string, body: string,
+ *   action: {label: string, url: string}|null, dedupeKey: string|null}}
+ */
+function buildParentAskNotification({learnerName, learnerUid, requestClause} = {}) {
+  const name = firstNameOf(learnerName);
+  const clause = String(requestClause || "").trim().replace(/[.\s]+$/, "");
+  // A clause we could not build is omitted, never replaced with a guess about
+  // what the child wanted — the same rule the emailed message follows.
+  const detail = clause ? `${name} ${clause}. ` : "";
+  const uid = typeof learnerUid === "string" ? learnerUid.trim() : "";
+  return {
+    category: "account",
+    type: "child_unlock_request",
+    title: `${name} wants Premium`,
+    body: `${detail}Tap to see how they are doing before you decide.`,
+    action: uid ? {label: "See their progress", url: `/family/child/${uid}`} : null,
+    dedupeKey: uid ? `child-unlock-request:${uid}` : null,
+  };
+}
+
 module.exports = {
+  MAX_NOTIFIED_PARENTS,
   OUTCOME,
   PAY_LINK_TTL_DAYS,
   REQUEST_COOLDOWN_MS,
   REQUESTABLE_GATES,
+  buildParentAskNotification,
   buildProgressPayload,
   chooseQuotedPlan,
   decideRateLimit,

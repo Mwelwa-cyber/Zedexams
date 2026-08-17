@@ -535,92 +535,111 @@
 }
 .lset-stat__label { margin-top: 3px; font-size: 12px; font-weight: 700; color: var(--text-muted); }
 
-/* Subscription plan cards — mirror the teacher upgrade modal's polished
-   pricing cards (icon chip, price, feature list, "Most popular" ribbon,
-   selected/current highlight) inside the learner settings design system. */
-.lset-plans {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-}
-@media (min-width: 560px) {
-  .lset-plans { grid-template-columns: repeat(3, 1fr); }
-}
-.lset-plan {
-  position: relative;
+/* ── Go Premium (prototype view-plans upper half) ─────────────────
+   The Weekly/Monthly cycle toggle, the gradient price card, and the two
+   pass tiles. Gradient rides the personalisation accents so a re-picked
+   accent recolours the card; text on it is always white, so the gradient
+   stays saturated enough in every theme (mockup: #7c8bf5 → #5b63dd). */
+.lset-go-cycle {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 16px 15px 15px;
-  border-radius: 18px;
+  background: color-mix(in srgb, var(--lset-accent) 10%, var(--card));
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 4px;
+  margin-bottom: 14px;
+}
+.lset-go-cycle button {
+  flex: 1;
+  border: none;
+  background: none;
+  border-radius: 11px;
+  padding: 10px;
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 13.5px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.lset-go-cycle button.is-on {
+  background: var(--card);
+  color: var(--text);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, .12);
+}
+.lset-go-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 22px;
+  padding: 20px;
+  color: #fff;
+  background: linear-gradient(140deg,
+    color-mix(in srgb, var(--lset-accent) 72%, #fff),
+    var(--lset-accent-2));
+  box-shadow: 0 12px 26px color-mix(in srgb, var(--lset-accent-2) 40%, transparent);
+  margin-bottom: 14px;
+}
+.lset-go-badge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: rgba(255, 255, 255, .22);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 900;
+}
+.lset-go-name { font-weight: 900; font-size: 15px; margin-bottom: 6px; }
+.lset-go-price {
+  font-family: var(--font-display, 'Sora', system-ui, sans-serif);
+  font-size: 34px;
+  font-weight: 900;
+  line-height: 1;
+}
+.lset-go-per { font-size: 12px; font-weight: 800; opacity: .9; margin-bottom: 12px; }
+.lset-go-feats { list-style: none; margin: 0 0 14px; padding: 0; }
+.lset-go-feat {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.lset-go-feat span { flex-shrink: 0; }
+.lset-go-cta {
+  display: block;
+  width: 100%;
+  border: none;
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(255, 255, 255, .95);
+  color: var(--lset-accent-2);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.lset-go-cta:hover { background: #fff; }
+.lset-go-passes { display: flex; gap: 10px; }
+.lset-go-pass {
+  flex: 1;
   background: var(--card);
   border: 2px solid var(--border);
-  text-align: left;
+  border-radius: 16px;
+  padding: 13px;
+  text-align: center;
   cursor: pointer;
-  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+  font-family: inherit;
+  transition: border-color .18s ease, transform .18s ease;
 }
-.lset-plan:hover:not(:disabled) { border-color: var(--lset-accent); transform: translateY(-2px); }
-.lset-plan:disabled { cursor: default; }
-.lset-plan--on {
-  border-color: var(--lset-accent);
-  background: color-mix(in srgb, var(--lset-accent) 8%, var(--card));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lset-accent) 20%, transparent);
-}
-.lset-plan__ribbon {
-  position: absolute;
-  top: -11px;
-  left: 14px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: #6366f1;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: .01em;
-  box-shadow: 0 4px 10px color-mix(in srgb, #6366f1 40%, transparent);
-}
-.lset-plan__head { display: flex; align-items: center; gap: 10px; }
-.lset-plan__icon {
-  flex-shrink: 0;
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--lset-accent) 14%, var(--card));
-  font-size: 19px;
-}
-.lset-plan--popular { border-color: color-mix(in srgb, var(--lset-accent) 55%, var(--border)); }
-.lset-plan__name {
-  display: block;
-  font-family: var(--font-display, 'Sora', system-ui, sans-serif);
-  font-size: 16px;
-  font-weight: 800;
-  line-height: 1.1;
-  color: var(--text);
-}
-.lset-plan__tagline { display: block; margin-top: 1px; font-size: 11.5px; font-weight: 600; color: var(--text-muted); }
-.lset-plan__price {
-  font-family: var(--font-display, 'Sora', system-ui, sans-serif);
-  font-size: 26px;
-  font-weight: 800;
-  line-height: 1;
-  color: var(--text);
-}
-.lset-plan__unit { font-size: 12px; font-weight: 700; color: var(--text-muted); margin-left: 2px; }
+.lset-go-pass:hover { border-color: var(--lset-accent); transform: translateY(-2px); }
+.lset-go-pass b { display: block; font-size: 16px; font-weight: 900; color: var(--text); }
+.lset-go-pass small { font-size: 11px; color: var(--text-muted); font-weight: 800; }
+
+/* The "Everything you unlock" benefit list (kept from the previous plan
+   cards — the list survives below the new price card). */
 .lset-plan__feats { list-style: none; margin: 2px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .lset-plan__feat { display: flex; gap: 7px; font-size: 12px; font-weight: 600; color: var(--text); line-height: 1.35; }
 .lset-plan__feat::before { content: "✓"; color: #22c55e; font-weight: 800; flex-shrink: 0; }
-.lset-plan__current {
-  margin-top: auto;
-  padding-top: 4px;
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--lset-accent);
-}
 .lset-progress-rings { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 14px; }
 .lset-pring { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .lset-pring svg { transform: rotate(-90deg); }
