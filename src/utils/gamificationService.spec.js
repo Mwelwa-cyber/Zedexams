@@ -8,7 +8,6 @@ import { describe, it, expect, vi } from 'vitest'
 // them isn't unit-tested here.
 vi.mock('../firebase/config', () => ({ db: {} }))
 vi.mock('./examService', () => ({ todayString: () => '2026-06-19' }))
-vi.mock('./examLeaderboardService', () => ({ getDailyLeaderboard: vi.fn() }))
 
 import {
   levelFromXp,

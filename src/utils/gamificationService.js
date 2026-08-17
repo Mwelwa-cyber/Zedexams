@@ -19,8 +19,12 @@
  *       updatedAt:         serverTimestamp
  *     }
  *
- * Weekly champions are aggregated client-side from the existing per-day
- * leaderboard queries — no new index is required.
+ * Weekly aggregation is NOT here any more. `getWeeklyChampions` fanned out
+ * seven per-day leaderboard queries and merged them; the prototype-v23
+ * board replaced it with a single `attemptDate` range read, which lives in
+ * `features/dailyExams/services/weeklyLeaderboardService.js` beside the
+ * screen that needs it. It went with its one consumer rather than being
+ * left here unused.
  *
  * The activity feed re-uses the daily leaderboard subscription shape
  * (status == submitted AND attemptDate == today), ordered by submittedAt.
@@ -32,7 +36,6 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { todayString } from './examService'
-import { getDailyLeaderboard } from './examLeaderboardService'
 // Pure XP/level/streak/completion logic lives in the dependency-free core so
 // it is unit-tested under plain node (scripts/test-gamification-core.mjs).
 import {
@@ -180,69 +183,6 @@ export function computeRivalry(rows, myUserId) {
   }
 
   return { myRank: me.rank, messages }
-}
-
-// ── Weekly champions ─────────────────────────────────────────────────────────
-
-/**
- * Aggregate the past `days` daily leaderboards into a weekly champion list.
- * Re-uses the existing per-day index — no new composite index required.
- *
- * Sort key:
- *   totalScore DESC (sum of percentages across days)
- *   bestRank   ASC  (tie-break: who reached the highest rank in any one day)
- */
-export async function getWeeklyChampions({ subject, grade, days = 7 } = {}) {
-  const now = new Date()
-  const dateKeys = []
-  for (let i = 0; i < days; i++) {
-    const d = new Date(now)
-    d.setDate(d.getDate() - i)
-    dateKeys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)
-  }
-
-  const dailyResults = await Promise.all(
-    dateKeys.map(k => getDailyLeaderboard(subject || undefined, k, grade || undefined)),
-  )
-
-  const agg = new Map()
-  dailyResults.forEach((rows, idx) => {
-    const day = dateKeys[idx]
-    for (const r of rows) {
-      const cur = agg.get(r.userId) || {
-        userId: r.userId,
-        displayName: r.displayName,
-        bestPercentage: 0,
-        totalAttempts: 0,
-        totalScore: 0,
-        bestRank: 999,
-        subjects: new Set(),
-        days: new Set(),
-      }
-      cur.bestPercentage = Math.max(cur.bestPercentage, r.percentage)
-      cur.totalAttempts += 1
-      cur.totalScore    += r.percentage
-      cur.bestRank      = Math.min(cur.bestRank, r.rank)
-      if (r.subject) cur.subjects.add(r.subject)
-      cur.days.add(day)
-      agg.set(r.userId, cur)
-    }
-  })
-
-  return Array.from(agg.values())
-    .map(u => ({
-      userId: u.userId,
-      displayName: u.displayName,
-      bestPercentage: u.bestPercentage,
-      avgPercentage: Math.round(u.totalScore / Math.max(1, u.totalAttempts)),
-      totalAttempts: u.totalAttempts,
-      totalScore: u.totalScore,
-      bestRank: u.bestRank,
-      subjectsCount: u.subjects.size,
-      activeDays: u.days.size,
-    }))
-    .sort((a, b) => (b.totalScore - a.totalScore) || (a.bestRank - b.bestRank))
-    .slice(0, 10)
 }
 
 // ── Live activity feed ────────────────────────────────────────────────────────

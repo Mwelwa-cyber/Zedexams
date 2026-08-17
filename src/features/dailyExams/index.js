@@ -12,8 +12,8 @@
  *
  * Nothing in `src/` imports anything from this feature. All four pages are
  * reached only by `lazy(() => import(…))` in App.jsx, under the route-mount
- * exception Phase 1 recorded, and the three components (`ExamCelebrations`,
- * `LiveActivityFeed`, `WeeklyChampions`) are used only by pages beside them.
+ * exception Phase 1 recorded, and the one remaining component
+ * (`ExamCelebrations`) is used only by a page beside it.
  *
  * So this file exports nothing, exactly as `features/quiz`'s does. An empty
  * front door is the honest answer when a feature has no consumers: the
@@ -82,17 +82,34 @@
  *     match. `test:import-boundaries` caught it — it resolves every import to a
  *     file on disk, so the orphaned sibling import failed loudly instead of
  *     becoming a runtime chunk-load error on the leaderboard route. The module
- *     was moved back, and it stays in `src/utils/` because `gamificationService`
- *     stays there too.
+ *     was moved back, and it stayed in `src/utils/` because
+ *     `gamificationService` stayed there too.
  *
- * So there is no `services/` directory here, deliberately — an empty one would
- * suggest a Firebase boundary this feature does not yet have. §14.2 is
- * therefore NOT satisfied: the pages reach `utils/examService`,
- * `utils/examLeaderboardService` and `utils/gamificationService` directly.
- * That is recorded debt rather than a shortcut, and it does not clear by
- * moving these three — it clears when the Daily Quiz rework replaces this
- * surface, since two of the three are read across half the learner app and
- * belong below any one feature.
+ *     **That sibling import is now gone** (2026-08-17). It existed only to
+ *     serve `getWeeklyChampions`, which the weekly board replaced and which
+ *     was deleted with it, so `examLeaderboardService` today has exactly one
+ *     consumer: `ExamResultsPage` — inside this feature. By the rule above it
+ *     has therefore become eligible to move down into `services/`. It is NOT
+ *     moved here, because that is a refactor of the results screen rather
+ *     than of the board, and doing it as a side effect of an unrelated
+ *     change is how a migration stops being reviewable. It moves when
+ *     `ExamResultsPage` is next worked on. The lesson stands unchanged: a
+ *     path-substring grep cannot see a sibling import, so re-measure with
+ *     `test:import-boundaries` rather than trusting this note.
+ *
+ * So none of the three travelled, and for a while there was deliberately no
+ * `services/` directory at all. There is one now, and it was not created by
+ * moving a util down: `weeklyLeaderboardService.js` is NEW code, written for
+ * the prototype-v23 weekly board, and this feature is its only consumer.
+ *
+ * §14.2 is still NOT satisfied. The remaining pages reach `utils/examService`,
+ * `utils/examLeaderboardService` and `utils/gamificationService` directly, and
+ * that is recorded debt rather than a shortcut. It does not clear by moving
+ * those three — they are read across half the learner app and belong below any
+ * one feature — it clears as the Daily Quiz rework replaces the surfaces that
+ * read them. The weekly board is the first of those replacements: it reaches
+ * Firebase only through `services/`, which is why `getWeeklyChampions` could
+ * be deleted from `utils/gamificationService` when its last caller went.
  *
  * The lesson generalises past this feature: when deciding whether a util is
  * feature-only, a path-substring grep is not the measurement. A sibling import
