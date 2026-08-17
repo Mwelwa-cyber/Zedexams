@@ -27,7 +27,7 @@ import { getTodaysExamsBySubject, checkTodaysLocks } from '../../../utils/examSe
 import { loadPublishedPapers } from '../../../utils/pastPapers'
 import { getTodaysChallenge } from '../../../utils/dailyChallengeService'
 import { getActiveTerm } from '../../../utils/moeCalendar'
-import { SUBJECTS, SUBJECT_MAP, getTopics, normalizeSubject } from '../../../config/curriculum'
+import { SUBJECTS, SUBJECT_MAP, getTopics, getGradeSubjects, normalizeSubject } from '../../../config/curriculum'
 import {
   resolveActiveTerm, normalizeTerm, pickLearningResume, buildRecentActivity,
   buildRecommendations, extractWeakTopics, computeSubjectCompletion,
@@ -240,7 +240,10 @@ export default function useLearnerDashboard() {
         Object.keys(r.topicScores).forEach((t) => set.add(t))
         attemptedTopicsBySubject.set(sid, set)
       }
-      const subjects = SUBJECTS.map((s) => {
+      // The subjects this GRADE is taught — not every subject in the band.
+      // SUBJECTS holds all nine, including a Zambian-language alternative
+      // and an exam paper, neither of which belongs on a learner's home.
+      const subjects = getGradeSubjects(Number(grade)).map((s) => {
         const topics = getTopics(s.id, Number(grade)) || []
         const subjectNotes = notes.filter((n) => subjectIdOf(n.subject) === s.id)
         const termNotes = subjectNotes.filter((n) => {

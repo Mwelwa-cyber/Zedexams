@@ -24,7 +24,7 @@ import { collection, getDocs, limit as fsLimit, query, where } from 'firebase/fi
 import { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useFirestore } from '../../../hooks/useFirestore'
-import { SUBJECT_MAP, getTopics, normalizeSubject } from '../../../config/curriculum'
+import { SUBJECT_MAP, getTopics, getSubtopics, normalizeSubject } from '../../../config/curriculum'
 import { getActiveTerm } from '../../../utils/moeCalendar'
 import LearnerIcon, { subjectIconName } from '../components/LearnerIcon'
 import { EmptyState, ErrorState, SectionSkeleton } from '../components/LearnerPrimitives'
@@ -125,6 +125,11 @@ export default function LearnerSubjectPage() {
         : 0
       // The note this topic opens: an explicit topic tag first, then a
       // title match. No match means no note yet — the row says so.
+      // The syllabus sub-topics for this topic, where the catalogue has
+      // them (Integrated Science, Mathematics and Social Studies do at
+      // Grade 7). Shown as the row's second line so a topic reads as the
+      // week's actual content rather than a bare heading.
+      const subtopics = getSubtopics(subjectId, Number(grade), name) || []
       const lower = String(name).toLowerCase()
       const noteTarget = termNotes.find((n) => String(n.topic || '').toLowerCase() === lower)
         || termNotes.find((n) => String(n.title || '').toLowerCase().includes(lower))
@@ -132,6 +137,7 @@ export default function LearnerSubjectPage() {
       const noteRead = noteTarget ? readNoteIds.has(noteTarget.id) : false
       return {
         name,
+        subtopics,
         position: i + 1,
         quizCount: topicQuizzes.length,
         percent,
@@ -268,6 +274,12 @@ export default function LearnerSubjectPage() {
                       </span>
                       <span style={{ flex: 1, minWidth: 0 }}>
                         <span className="lhx-topic-name" style={{ display: 'block' }}>{topic.name}</span>
+                        {topic.subtopics.length > 0 && (
+                          <span className="lhx-topic-sub" style={{ display: 'block' }}>
+                            {topic.subtopics.slice(0, 3).join(' · ')}
+                            {topic.subtopics.length > 3 ? ` · +${topic.subtopics.length - 3} more` : ''}
+                          </span>
+                        )}
                         {!openable && (
                           <span className="lhx-topic-sub" style={{ display: 'block' }}>Note coming soon</span>
                         )}
