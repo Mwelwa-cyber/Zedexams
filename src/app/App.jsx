@@ -264,7 +264,11 @@ const PublicShareView = lazy(() => import('../features/teacherLibrary/pages/Publ
 const DailyExamsHub      = lazy(() => import('../features/dailyExams/pages/DailyExamsHub'))
 const DailyExamRunner    = lazy(() => import('../features/dailyExams/pages/DailyExamRunner'))
 const ExamResultsPage    = lazy(() => import('../features/dailyExams/pages/ExamResultsPage'))
-const ExamLeaderboardPage = lazy(() => import('../features/dailyExams/pages/ExamLeaderboardPage'))
+// The prototype-v23 weekly board. It replaced the filter-driven daily
+// page: grade is auto-scoped from the profile (no grade browsing on the
+// child UI) and points accumulate Monday-to-Sunday rather than resetting
+// every night.
+const LearnerLeaderboardPage = lazy(() => import('../features/dailyExams/pages/LearnerLeaderboardPage'))
 
 // Public games (no auth)
 const GamesHub = lazy(() => import('../features/games/pages/GamesHub'))
@@ -622,6 +626,10 @@ export default function App() {
             {/* The prototype-v6 notification centre — the topbar bell lands
                 here; the nav stays visible per the mockup. */}
             <Route path="/notifications"   element={<ProtectedRoute><LearnerOnlyRoute><LearnerNotificationsPage /></LearnerOnlyRoute></ProtectedRoute>} />
+            {/* The weekly daily-quiz board. Inside the shell because the
+                mockup keeps the four tabs visible here — it is a place a
+                learner browses to, not an immersive run. */}
+            <Route path="/exams/leaderboard" element={<ProtectedRoute><LearnerOnlyRoute><LearnerLeaderboardPage /></LearnerOnlyRoute></ProtectedRoute>} />
           </Route>
           <Route path="/dashboard/classic" element={<ProtectedRoute><LearnerOnlyRoute><GradeHub /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/practice/daily-exams" element={<Navigate to="/exams" replace />} />
@@ -648,7 +656,6 @@ export default function App() {
               /timetable lives in the LearnerLayout group above. */}
           <Route path="/timetable/pdf"     element={<ProtectedRoute><LearnerOnlyRoute><TimetableViewerPage /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/exams"                        element={<ProtectedRoute><LearnerOnlyRoute><DailyExamsHub /></LearnerOnlyRoute></ProtectedRoute>} />
-          <Route path="/exams/leaderboard"           element={<ProtectedRoute><LearnerOnlyRoute><ExamLeaderboardPage /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/exam/:examId"                element={<ProtectedRoute><LearnerOnlyRoute><DailyExamRunner /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/exam-results/:attemptId"     element={<ProtectedRoute><LearnerOnlyRoute><ExamResultsPage /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/quizzes"           element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><QuizList /></LearnerOnlyRoute></ProtectedRoute>} />

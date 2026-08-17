@@ -376,6 +376,7 @@
     "test:android-splash": "node scripts/test-android-splash.mjs",
     "test:boot-watchdog": "node scripts/test-boot-watchdog.mjs",
     "test:exam-grading": "node functions/grading/dailyExamGrading.test.js",
+    "test:learner-leaderboard": "node src/features/dailyExams/lib/learnerLeaderboardCore.test.js",
     "test:assessment-exports-core": "node functions/assessmentExports/exportsCore.test.js",
     "test:assessment-exports-render": "node functions/assessmentExports/renderers.test.js",
     "test:assessment-exports-service": "node functions/assessmentExports/exportService.test.js",

@@ -1222,3 +1222,187 @@ button.lhx-tt-altpill { cursor: pointer; }
 .lhx-sd-read   { background: var(--lhx-green-soft);  color: var(--lhx-green-dark); }
 .lhx-sd-write  { background: var(--lhx-coral-soft);  color: var(--lhx-coral-soft-text); }
 .lhx-sd-struct { background: var(--lhx-indigo-soft); color: var(--lhx-indigo-text); }
+
+/* ── Weekly leaderboard (prototype v23 `#view-board`) ─────────────────
+ * The daily-quiz board: an indigo header carrying the learner's own
+ * rank/points/streak, two context chips, a top-3 podium, the ranked
+ * list from #4, and a sticky "you" row for anyone below the podium.
+ *
+ * Every colour is a token, so Night mode is the single flip at the top
+ * of this file — the podium medal blocks are the one exception and are
+ * overridden explicitly at the foot of this block, because their
+ * gold/silver/bronze IS the meaning and must not invert. */
+.lhx-lb-head {
+  position: relative;
+  overflow: hidden;
+  padding: 18px 18px 20px;
+  border-radius: 0 0 var(--lhx-radius-lg) var(--lhx-radius-lg);
+  background: linear-gradient(140deg, var(--lhx-indigo1), var(--lhx-indigo2));
+  color: #fff;
+  box-shadow: var(--lhx-shadow-float);
+}
+/* The soft disc the prototype bleeds off the top-right corner. */
+.lhx-lb-head::before {
+  content: '';
+  position: absolute;
+  right: -40px;
+  top: -46px;
+  width: 152px;
+  height: 152px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+}
+.lhx-lb-head .lhx-back-row { position: relative; z-index: 2; margin-bottom: 0; }
+.lhx-lb-head .lhx-back-title { color: #fff; }
+.lhx-lb-head .lhx-back-btn { background: rgba(255, 255, 255, 0.2); color: #fff; }
+.lhx-lb-sub { font-size: 12px; font-weight: 700; opacity: 0.85; }
+
+.lhx-lb-stats {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+.lhx-lb-stat {
+  flex: 1;
+  padding: 10px 6px;
+  text-align: center;
+  border-radius: var(--lhx-radius-sm);
+  background: rgba(255, 255, 255, 0.18);
+}
+.lhx-lb-stat-num { font-size: 19px; font-weight: 900; line-height: 1.1; }
+.lhx-lb-stat-lab { margin-top: 2px; font-size: 9.5px; font-weight: 800; letter-spacing: 0.5px; opacity: 0.9; }
+
+/* The reset countdown + last week's champion. */
+.lhx-lb-strip { display: flex; gap: 10px; margin: 18px 0 16px; }
+.lhx-lb-chip {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 12px;
+  border-radius: var(--lhx-radius-sm);
+  background: var(--lhx-card);
+  box-shadow: var(--lhx-shadow-sm);
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--lhx-muted);
+}
+.lhx-lb-chip b { color: var(--lhx-ink); }
+
+/* Podium — rendered in display order (2nd · 1st · 3rd), so the DOM
+ * order is the visual order and no CSS reordering is needed. */
+.lhx-podium { display: flex; align-items: flex-end; justify-content: center; gap: 10px; margin-bottom: 18px; }
+.lhx-pod { flex: 1; max-width: 104px; text-align: center; }
+.lhx-pod-av {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 3px solid var(--lhx-card);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.16);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 900;
+}
+.lhx-pod-name {
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lhx-pod-pts { font-size: 11px; font-weight: 800; color: var(--lhx-muted); }
+.lhx-pod-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  margin-top: 8px;
+  padding-top: 7px;
+  border-radius: 12px 12px 0 0;
+  font-size: 19px;
+}
+.lhx-pod-1 .lhx-pod-av { width: 60px; height: 60px; font-size: 21px; }
+.lhx-pod-1 .lhx-pod-bar { height: 72px; background: linear-gradient(135deg, #ffd25f, #ffb43a); }
+.lhx-pod-2 .lhx-pod-bar { height: 54px; background: linear-gradient(135deg, #cdd4e6, #aab2c8); }
+.lhx-pod-3 .lhx-pod-bar { height: 42px; background: linear-gradient(135deg, #ffbf9a, #ff9868); }
+
+/* The ranked list from #4 down. */
+.lhx-board-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding: 12px 14px;
+  border-radius: var(--lhx-radius-md);
+  background: var(--lhx-card);
+  box-shadow: var(--lhx-shadow-sm);
+}
+.lhx-board-rank { width: 32px; flex-shrink: 0; text-align: center; font-size: 15px; font-weight: 900; color: var(--lhx-muted); }
+.lhx-board-av {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 900;
+}
+.lhx-board-name { flex: 1; min-width: 0; font-size: 14.5px; font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lhx-board-pts { flex-shrink: 0; font-size: 14px; font-weight: 900; color: var(--lhx-indigo-text); }
+.lhx-board-row.is-me {
+  background: linear-gradient(135deg, var(--lhx-coral1), var(--lhx-coral2));
+  box-shadow: 0 10px 22px rgba(255, 92, 57, 0.4);
+}
+.lhx-board-row.is-me .lhx-board-rank,
+.lhx-board-row.is-me .lhx-board-name,
+.lhx-board-row.is-me .lhx-board-pts { color: #fff; }
+
+.lhx-board-note {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.6;
+  color: var(--lhx-muted);
+}
+
+/* The sticky "you" row. `position: sticky` keeps it in the normal flow,
+ * so it settles above the note at the end of the list instead of
+ * covering it the way a fixed bar would. `bottom` clears the tab nav. */
+.lhx-lb-pin {
+  position: sticky;
+  bottom: calc(var(--lhx-nav-h) + 12px);
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 12px 15px;
+  border-radius: var(--lhx-radius-md);
+  background: linear-gradient(135deg, var(--lhx-coral1), var(--lhx-coral2));
+  box-shadow: 0 12px 26px rgba(255, 92, 57, 0.45);
+  color: #fff;
+}
+.lhx-lb-pin-rank { flex-shrink: 0; font-size: 15px; font-weight: 900; }
+.lhx-lb-pin-name { flex: 1; font-size: 14px; font-weight: 900; }
+.lhx-lb-pin-pts { flex-shrink: 0; font-size: 14px; font-weight: 900; }
+
+/* Desktop: the sidebar carries navigation, so the pin clears the page
+ * edge rather than a bottom bar that is not mounted at this width. */
+@media (min-width: 1000px) {
+  .lhx-lb-pin { bottom: 16px; }
+}
+
+/* Night mode. The podium blocks keep their metal colours — gold, silver
+ * and bronze are the RANK, not decoration — so only the avatar ring,
+ * which reads as a cut-out of the page, follows the surface token. */
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-pod-av { border-color: var(--lhx-card); }
