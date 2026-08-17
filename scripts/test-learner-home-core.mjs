@@ -22,6 +22,8 @@ import {
   buildTodaysExamsSummary,
   deriveTopicTerms,
   topicsForTerm,
+  countThisWeek,
+  timestampMillis,
 } from '../src/features/learnerHome/lib/learnerHomeCore.js'
 
 let passed = 0
@@ -323,6 +325,22 @@ test('a plain practice-quiz result (no provenance at all) still counts', () => {
   }])
   assert.equal(weak.length, 1)
   assert.equal(weak[0].topic, 'Forces')
+})
+
+test('countThisWeek counts only rows dated within the last 7 days', () => {
+  const now = Date.UTC(2026, 7, 17)
+  const day = 24 * 60 * 60 * 1000
+  const rows = [
+    { completedAt: { seconds: (now - 1 * day) / 1000 } },        // Firestore shape, 1d ago
+    { completedAt: { toMillis: () => now - 6 * day } },          // Timestamp shape, 6d ago
+    { completedAt: new Date(now - 8 * day).toISOString() },      // too old
+    { completedAt: null },                                        // undated never counts
+    {},
+  ]
+  assert.equal(countThisWeek(rows, 'completedAt', now), 2)
+  assert.equal(countThisWeek([], 'completedAt', now), 0)
+  assert.equal(countThisWeek(null, 'completedAt', now), 0)
+  assert.equal(timestampMillis('not a date'), null)
 })
 
 console.log(`\nlearner-home-core: ${passed} tests passed`)

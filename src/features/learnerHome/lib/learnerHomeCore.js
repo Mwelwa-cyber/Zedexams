@@ -364,3 +364,25 @@ export function topicsForTerm(allTopics, topicTerms, term) {
     return assigned == null || assigned === term
   })
 }
+
+// ── "This week" counting (Profile page, prototype-v6) ───────────────
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000
+
+/** Firestore Timestamp | {seconds} | date-ish → epoch ms, or null. */
+export function timestampMillis(v) {
+  if (!v) return null
+  if (typeof v.toMillis === 'function') return v.toMillis()
+  if (typeof v.seconds === 'number') return v.seconds * 1000
+  const t = new Date(v).getTime()
+  return Number.isFinite(t) ? t : null
+}
+
+/** How many rows carry `field` within the last 7 days. Undated rows never count. */
+export function countThisWeek(rows, field, now = Date.now()) {
+  const cutoff = now - WEEK_MS
+  return (rows || []).reduce((n, row) => {
+    const t = timestampMillis(row?.[field])
+    return t != null && t >= cutoff ? n + 1 : n
+  }, 0)
+}

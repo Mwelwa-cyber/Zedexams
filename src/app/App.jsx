@@ -82,6 +82,22 @@ const GradeHub = lazy(() => import('../features/learnerDashboard/pages/GradeHub'
 const LearnerLayout = lazy(() => import('../features/learnerHome/components/LearnerLayout'))
 const LearnerHomePage = lazy(() => import('../features/learnerHome/pages/LearnerHomePage'))
 const LearnerSubjectPage = lazy(() => import('../features/learnerHome/pages/LearnerSubjectPage'))
+const LearnerNotificationsPage = lazy(() => import('../features/notifications/pages/LearnerNotificationsPage'))
+const LearnerProfilePage = lazy(() => import('../features/learnerHome/pages/LearnerProfilePage'))
+const ProfilePage = lazy(() => import('../features/learnerDashboard/pages/ProfilePage'))
+
+/**
+ * /profile is role-branched (step 10): learners get the prototype-v6
+ * "My Profile" view (it brings its own LearnerShell); every other role
+ * keeps the shared ProfilePage under the classic Navbar. The branch
+ * lives here because App.jsx is the one file licensed to lazy-mount
+ * feature pages directly (test:import-boundaries' route-table rule).
+ */
+function ProfileRoute() {
+  const { userProfile } = useAuth()
+  if (userProfile?.role === 'learner') return <LearnerProfilePage />
+  return <><Navbar /><ProfilePage /></>
+}
 const StudyPlanPage = lazy(() => import('../features/learnerDashboard/pages/StudyPlanPage'))
 const LearnerCalendar = lazy(() => import('../features/learnerDashboard/pages/LearnerCalendar'))
 // Exam timetable hub: /timetable is the interactive per-grade exam schedule
@@ -117,7 +133,6 @@ const NoteReaderPreview = lazy(() => import('../features/notes/pages/ReaderPrevi
 const LearnerGate       = lazy(() => import('../features/notes/components/LearnerGate').then(m => ({ default: m.LearnerGate })))
 const MyResults = lazy(() => import('../features/learnerDashboard/pages/MyResults'))
 const BadgesPage = lazy(() => import('../features/learnerDashboard/pages/BadgesPage'))
-const ProfilePage = lazy(() => import('../features/learnerDashboard/pages/ProfilePage'))
 const OfflineLibraryPage = lazy(() => import('../offline/OfflineLibraryPage.jsx'))
 const ZedExamsSettings = lazy(() => import('../features/accountSettings/pages/zedexams-settings'))
 const TeacherSettings = lazy(() => import('../features/teacherSettings/TeacherSettings'))
@@ -574,6 +589,9 @@ export default function App() {
             {/* The Notes tab — the prototype-v4 revision hub. Individual
                 notes (/notes/:id) stay full-screen outside the shell. */}
             <Route path="/notes"           element={<ProtectedRoute><LearnerOnlyRoute><LearnerGate><LearnerNotesList /></LearnerGate></LearnerOnlyRoute></ProtectedRoute>} />
+            {/* The prototype-v6 notification centre — the topbar bell lands
+                here; the nav stays visible per the mockup. */}
+            <Route path="/notifications"   element={<ProtectedRoute><LearnerOnlyRoute><LearnerNotificationsPage /></LearnerOnlyRoute></ProtectedRoute>} />
           </Route>
           <Route path="/dashboard/classic" element={<ProtectedRoute><LearnerOnlyRoute><GradeHub /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/practice/daily-exams" element={<Navigate to="/exams" replace />} />
@@ -623,7 +641,10 @@ export default function App() {
           <Route path="/lessons/:lessonId"      element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerGate><LessonPlayer /></LearnerGate></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/my-results"        element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><MyResults /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/my-badges"         element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><BadgesPage /></LearnerOnlyRoute></ProtectedRoute>} />
-          <Route path="/profile"           element={<ProtectedRoute><Navbar /><ProfilePage /></ProtectedRoute>} />
+          {/* Role-branched (step 10): learners get the prototype-v6 "My
+              Profile" in the learner shell; other roles keep the shared
+              ProfilePage. Branch lives in ProfileRoute. */}
+          <Route path="/profile"           element={<ProtectedRoute><ProfileRoute /></ProtectedRoute>} />
           {/* Offline Library + Storage settings (offline-first). Downloaded
               content, device-storage breakdown, and cache/sync controls. */}
           <Route path="/offline"           element={<ProtectedRoute><Navbar /><OfflineLibraryPage /></ProtectedRoute>} />

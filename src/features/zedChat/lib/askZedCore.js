@@ -25,6 +25,9 @@ export const FAB_HIDDEN_PATHS = [
   '/games/duel',       // Race Zed!
   '/games/leaderboard',
   '/timetable/pdf',    // full-screen ECZ PDF viewer
+  '/profile',          // prototype-v6: fab hides on Profile…
+  '/settings',         // …Settings…
+  '/notifications',    // …and the notification centre
   '/admin',            // admin surfaces — distraction
   '/teacher',          // teacher surfaces — distraction
   '/login',
