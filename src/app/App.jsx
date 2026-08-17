@@ -4,6 +4,7 @@ import { useAuth, hasAuthSessionHint } from '../contexts/AuthContext'
 import { useTheme, applyThemeToBody, DEFAULT_THEME } from '../contexts/ThemeContext'
 import { getTeacherTheme } from '../contexts/teacherThemeCore'
 import TeacherThemeSync from '../contexts/TeacherThemeSync'
+import ReadingThemeSync from '../contexts/ReadingThemeSync'
 import { PlatformSettingsProvider } from '../contexts/PlatformSettingsContext'
 import { MaintenanceBanner, AndroidUpdateBanner } from '../features/platformNotices'
 import { AnnouncementBanner } from '../features/announcements'
@@ -459,6 +460,14 @@ export default function App() {
           above AuthProvider and so cannot read auth (headless; no-op when
           signed out). */}
       <TeacherThemeSync />
+      {/* The same binding for the learner READING palette, at
+          users/{uid}.preferences.readingTheme. Without it the theme lived in
+          localStorage alone, so a browser that had never saved one fell back
+          to the prefers-color-scheme seed — which is why a learner on a
+          dark-mode machine got Midnight in incognito and on every other
+          browser no matter what they had picked. Mounted here for the same
+          reason as TeacherThemeSync above (headless; no-op when signed out). */}
+      <ReadingThemeSync />
       {/* Live cross-device sync of the teacher's ACTIVE teaching assignment
           (headless; no-op unless a teacher is signed in). Notifies open
           studios via the Switch / Keep notice — never mutates form state. */}
