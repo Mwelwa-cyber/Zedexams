@@ -1,8 +1,17 @@
-// src/features/learnerHome/lib/guardianControlsCore.js
+// functions/shared/guardian/guardianControlsCore.js
 //
-// Guardian controls — the permissions a guardian sets over their child's
-// account from the Guardian Zone. Pure: no React, no Firebase, tested
-// under plain node by scripts/test-guardian-controls.mjs.
+// ⚠️ SHARED WITH THE FRONTEND. Guardian controls — the permissions a
+// guardian sets over their child's account from the Guardian Zone.
+//
+// It lives here, not in src/, for the reason functions/shared/README.md
+// gives: what this module decides is whether a child may reach an AI, and
+// a rule that lives only in the browser is not a rule. The server reads it
+// in consentGuard.assertLearnerCapability (so BOTH the aiChat callable and
+// the apiAiChat SSE endpoint are covered by one check) and the client
+// reaches it through src/utils/guardianControls.js.
+//
+// Plain ESM: no React, no DOM, no Firebase. Tested under plain node by
+// scripts/test-guardian-controls.mjs.
 //
 // The shape is deliberately three-valued. A control is `true` (the
 // guardian allowed it), `false` (the guardian turned it off) or `null`

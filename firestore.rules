@@ -618,6 +618,15 @@ service cloud.firestore {
           // messages in their parent's inbox in an evening, which is how an
           // app's messages become the thing a parent blocks.
           'guardianUnlock',
+          // The Guardian Zone's permission controls. Written ONLY by the
+          // setGuardianControl callable (admin SDK), which requires an
+          // approved guardian on the account, appends to
+          // guardianControlAudit and emails the guardian. A child who could
+          // write this field from their own client could lift a parent's
+          // restriction with one console line and no trace — which is the
+          // whole of what the control is for. Enforcement of the value
+          // itself lives in consentGuard.assertLearnerCapability.
+          'guardianControls',
           'role', 'plan', 'premium', 'isPremium', 'paymentStatus', 'subscriptionStatus',
           'premiumActivatedAt', 'subscriptionPlan', 'subscriptionExpiry', 'subscriptionActivatedBy',
           'subscriptionActivatedAt', 'subscriptionProvider', 'subscriptionPaymentId',

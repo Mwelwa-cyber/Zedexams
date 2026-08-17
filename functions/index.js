@@ -2359,6 +2359,17 @@ exports.recordAgeGateAttempt = require('./guardianConsent').recordAgeGateAttempt
 // that rule runs on the learner's device and is a courtesy to the button).
 // See functions/guardianUnlock/ and functions/shared/guardian/.
 exports.requestGuardianUnlock = require('./guardianUnlock').requestGuardianUnlock;
+
+// The Guardian Zone's permission controls. The ONLY writer of
+// users/{uid}.guardianControls — that field is on the users self-update
+// blocklist in firestore.rules, so a client cannot set it directly. Turning
+// a control off is enforced server-side in consentGuard.assertLearnerCapability
+// (the one gate both the aiChat callable and the apiAiChat SSE endpoint pass
+// through), and every change appends to guardianControlAudit and emails the
+// guardian — the zone runs in the child's own session, so the guarantee is
+// "cannot change silently", not "cannot change".
+// See functions/guardianControls/ and functions/shared/guardian/.
+exports.setGuardianControl = require('./guardianControls').setGuardianControl;
 // Re-derives isMinor from the declared date of birth on user-doc creation, so
 // the flag the consent gate reads is never the one the client wrote. Pinned to
 // africa-south1 with the (default) database.

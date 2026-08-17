@@ -85,6 +85,7 @@ const LearnerSubjectPage = lazy(() => import('../features/learnerHome/pages/Lear
 const LearnerNotificationsPage = lazy(() => import('../features/notifications/pages/LearnerNotificationsPage'))
 const LearnerProfilePage = lazy(() => import('../features/learnerHome/pages/LearnerProfilePage'))
 const LearnerSettingsPage = lazy(() => import('../features/learnerHome/pages/LearnerSettingsPage'))
+const GuardianZonePage = lazy(() => import('../features/learnerHome/pages/GuardianZonePage'))
 const ProfilePage = lazy(() => import('../features/learnerDashboard/pages/ProfilePage'))
 
 /**
@@ -656,6 +657,14 @@ export default function App() {
               Profile" in the learner shell; other roles keep the shared
               ProfilePage. Branch lives in ProfileRoute. */}
           <Route path="/profile"           element={<ProtectedRoute><ProfileRoute /></ProtectedRoute>} />
+          {/* The prototype-v7 Guardian Zone — an adult friction check, then
+              a read-only view of the child's progress plus the permission
+              controls. Deliberately OUTSIDE the learner layout: the mockup
+              hides the child's tab bar inside the zone so it reads as a
+              separate space. Learner-only, because the zone is bound to one
+              child's account (a guardian with their own login uses the
+              parent portal). */}
+          <Route path="/guardian"          element={<ProtectedRoute><LearnerOnlyRoute><GuardianZonePage /></LearnerOnlyRoute></ProtectedRoute>} />
           {/* Offline Library + Storage settings (offline-first). Downloaded
               content, device-storage breakdown, and cache/sync controls. */}
           <Route path="/offline"           element={<ProtectedRoute><Navbar /><OfflineLibraryPage /></ProtectedRoute>} />

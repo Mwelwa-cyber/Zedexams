@@ -18,6 +18,15 @@
  * The pages stay unexported — route tables mount them lazily (the Phase 1
  * route-mount exception), and a page on a front door lands in the chunk of
  * every consumer.
+ *
+ * The learning-preference shape joined the door on 2026-08-17, for
+ * `features/learnerHome`'s prototype-v7 Settings screen. This feature owns
+ * that shape — its panels are what write the rest of it — and the two
+ * screens MUST agree on the normalizer, or a switch on one would read a
+ * default the other never stored. Both symbols are plain data helpers
+ * (no React, no Firebase), so the door costs a consumer nothing but the
+ * function it asked for.
  */
 
 export { default as ReadingThemePicker } from './components/ReadingThemePicker'
+export { normalizeLearningPrefs, DAILY_GOAL_OPTIONS } from './lib/learnerPrefs'

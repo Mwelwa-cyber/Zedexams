@@ -12,6 +12,12 @@
  * The exam timetable arrives via useExamTimetables (one query + bundled
  * fallback). Everything else is derived in learnerHomeCore pure logic.
  *
+ * `useLearnerDashboard({ extras: true })` additionally derives the recent
+ * activity feed and the weak-topic list, for the Guardian Zone. Both are
+ * pure functions of `results` + `noteProgress`, which this hook already
+ * loads, so the flag costs CPU and no extra reads — and Home, which shows
+ * neither, does not pay even that.
+ *
  * Three reads left with prototype v7's Home: the published-papers index
  * and the learner_profiles doc (both only fed the Past Papers hero's
  * cross-device resume) and today's game challenge (the Daily Game
@@ -32,6 +38,7 @@ import { getActiveTerm } from '../../../utils/moeCalendar'
 import { SUBJECTS, SUBJECT_MAP, getTopics, normalizeSubject } from '../../../config/curriculum'
 import {
   resolveActiveTerm, normalizeTerm, pickLearningResume, computeSubjectCompletion,
+  buildRecentActivity, extractWeakTopics,
 } from '../lib/learnerHomeCore'
 import {
   preferredTermKey, readJson, writeJson, readQuizSessions,
@@ -54,7 +61,7 @@ function subjectIdOf(value) {
   return hit ? hit.id : null
 }
 
-export default function useLearnerDashboard() {
+export default function useLearnerDashboard({ extras = false } = {}) {
   const { currentUser, userProfile } = useAuth()
   const { getUserResults, getQuizById } = useFirestore()
   const uid = currentUser?.uid || null
@@ -220,12 +227,55 @@ export default function useLearnerDashboard() {
         }
       })
 
+      // ── Guardian Zone extras (opt-in; no extra reads) ──────────
+      let recentActivity = null
+      let weakTopics = null
+      if (extras) {
+        const activityItems = []
+        for (const r of results) {
+          activityItems.push({
+            type: r.quizType === 'daily_exam' ? 'daily_exam_completed' : 'quiz_completed',
+            sourceId: r.quizId || r.id,
+            attemptId: r.id,
+            completedAt: tsToMs(r.completedAt || r.createdAt),
+            title: r.quizTitle || 'Quiz',
+            subjectLabel: normalizeSubject(r.subject),
+            score: Number.isFinite(Number(r.percentage)) ? Math.round(Number(r.percentage)) : null,
+            icon: r.quizType === 'daily_exam' ? 'daily-exam' : 'quiz',
+          })
+        }
+        for (const np of noteProgress) {
+          const when = tsToMs(np.completedAt || np.lastOpenedAt || np.updatedAt)
+          if (!when) continue
+          const isLesson = np.resourceType === 'lesson'
+          const done = np.status === 'completed'
+          activityItems.push({
+            type: isLesson
+              ? (done ? 'lesson_completed' : 'lesson_opened')
+              : (done ? 'notes_completed' : 'notes_opened'),
+            sourceId: np.noteId,
+            completedAt: when,
+            title: np.title || (isLesson ? 'Lesson' : 'Notes'),
+            subjectLabel: normalizeSubject(np.subject),
+            score: null,
+            icon: isLesson ? 'lessons' : 'notes',
+          })
+        }
+        recentActivity = buildRecentActivity(activityItems, { limit: 6 })
+        weakTopics = extractWeakTopics(results).map((w) => ({
+          ...w,
+          subjectLabel: normalizeSubject(w.subject),
+        }))
+      }
+
       setState({
         loading: false,
         error: null,
         data: {
           activeTerm,
           learningResume,
+          recentActivity,
+          weakTopics,
           todaysExams: { exams: todaysExams, locks },
           subjects,
           streak: Number(stats?.currentStreak) || 0,
@@ -242,7 +292,7 @@ export default function useLearnerDashboard() {
     })
     return () => { stale = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uid, grade, savedTerm, reloadNonce])
+  }, [uid, grade, savedTerm, reloadNonce, extras])
 
   return useMemo(() => ({
     ...state,
