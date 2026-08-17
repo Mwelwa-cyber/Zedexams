@@ -29,6 +29,9 @@ const {
 let passed = 0
 const t = (name, fn) => { fn(); passed += 1; void name }
 
+/** An email body as trimmed lines, so a link can be compared for equality. */
+const lines = (text) => String(text).split('\n').map((l) => l.trim())
+
 /* ── Days, in Lusaka rather than in UTC ────────────────────────────── */
 
 t('a day is a Lusaka day, not a UTC one', () => {
@@ -280,14 +283,22 @@ t('the email says where its claims come from, and offers a way out', () => {
   assert.match(mail.text, /built from Milton's own quizzes/)
   assert.match(mail.text, /We do not measure time spent in the app/)
   assert.match(mail.text, /To stop these emails/)
-  // A plain containment check, NOT a regex. An unanchored URL pattern is the
-  // shape of a broken host check — `/zedexams\.com/` matches
-  // `https://evil.example/?x=zedexams.com` — and CodeQL rightly flags it
-  // wherever it appears, because a reader cannot tell an assertion from a
-  // sanitiser at a glance. `includes` says what this actually wants.
+  // EQUALITY on a whole line, not a substring search of the body.
+  //
+  // Two earlier shapes both tripped CodeQL's incomplete-URL-substring rule,
+  // and both deserved to: `/https:\/\/zedexams\.com\/family/` matches
+  // `https://evil.example/?x=https://zedexams.com/family`, and so does
+  // `.includes('https://zedexams.com/family')` — substring containment IS
+  // the vulnerability that query is named after, so swapping the regex for
+  // `includes` swapped one spelling of the finding for another.
+  //
+  // The builder puts the link on a line of its own, so comparing whole
+  // lines for equality is both what the rule asks for and a stricter
+  // assertion than either: a URL merely embedded in some longer line would
+  // now fail, which is exactly the case the rule is warning about.
   assert.ok(
-    mail.text.includes('https://zedexams.com/family'),
-    'the email must link to the family dashboard',
+    lines(mail.text).some((line) => line === 'https://zedexams.com/family'),
+    'the email must link to the family dashboard on a line of its own',
   )
 })
 

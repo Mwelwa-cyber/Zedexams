@@ -95,10 +95,12 @@ t('the invite says what it grants AND what it withholds', () => {
   assert.match(mail.text, /does NOT give you billing/)
   assert.match(mail.text, /delete the account/)
   assert.match(mail.text, /7 days/)
-  // Containment, not a pattern — see the note in test-parent-app.mjs. An
-  // unanchored URL regex reads as a host check that anything can prefix.
+  // Whole-line EQUALITY — see the note in test-parent-app.mjs. Neither an
+  // unanchored regex nor `.includes` will do: both are substring checks
+  // against a URL, which is the shape of a host check anything can prefix.
   assert.ok(
-    mail.text.includes('https://zedexams.com/family/accept?t=xyz'),
+    mail.text.split('\n').map((l) => l.trim())
+      .some((line) => line === 'https://zedexams.com/family/accept?t=xyz'),
     'the invite must carry the accept link, token and all',
   )
   // An unexpected recipient is told nothing happens until they act.
