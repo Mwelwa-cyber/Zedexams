@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useAuth, hasAuthSessionHint } from '../contexts/AuthContext'
 import { useTheme, applyThemeToBody, DEFAULT_THEME } from '../contexts/ThemeContext'
 import { getTeacherTheme } from '../contexts/teacherThemeCore'
@@ -138,6 +138,11 @@ const OfflineLibraryPage = lazy(() => import('../offline/OfflineLibraryPage.jsx'
 const ZedExamsSettings = lazy(() => import('../features/accountSettings/pages/zedexams-settings'))
 const TeacherSettings = lazy(() => import('../features/teacherSettings/TeacherSettings'))
 const LearnerSettings = lazy(() => import('../features/learnerSettings/LearnerSettings'))
+const LearnerSettingsPage = lazy(() => import('../features/learnerSettings/pages/LearnerSettingsPage'))
+// The learner chrome (page column + 4-tab nav) for the settings screen,
+// which is not mounted through the LearnerLayout route group because
+// /settings/* also serves the detail panels and other roles.
+const LearnerShell = lazy(() => import('../features/learnerHome/components/LearnerShell'))
 const PaywallHost = lazy(() => import('../features/subscription/components/PaywallHost'))
 const PostUpgradeContinuation = lazy(() => import('../features/subscription/components/PostUpgradeContinuation'))
 const NativePlayBillingSync = lazy(() => import('../features/subscription/components/NativePlayBillingSync'))
@@ -334,6 +339,8 @@ function RootRedirect() {
 // admins must stay on the admin tab set.
 function SettingsPage() {
   const { userProfile, isAdmin, isTeacher } = useAuth()
+  const [settingsParams] = useSearchParams()
+  const settingsSection = settingsParams.get('section')
   const role = isAdmin ? 'admin' : (isTeacher ? 'teacher' : (userProfile?.role || 'learner'))
   if (role === 'teacher') {
     return (
@@ -342,14 +349,25 @@ function SettingsPage() {
       </TeacherLayout>
     )
   }
-  // Learners get the redesigned, mobile-first Learner Settings experience;
-  // admins keep the shared account-preferences page under the global Navbar.
+  // Learners get the prototype-v6 Settings screen in the learner shell.
+  // The existing detail panels stay behind ?section=<id> — the v6 rows
+  // for Name & avatar, Report a problem and Delete account link into
+  // them, so the flows that carry real weight (LEGAL-003 delete
+  // re-authentication, the contact dialog) are unchanged. Admins keep
+  // the shared account-preferences page under the global Navbar.
   if (role === 'learner') {
+    if (settingsSection) {
+      return (
+        <>
+          <Navbar />
+          <LearnerSettings />
+        </>
+      )
+    }
     return (
-      <>
-        <Navbar />
-        <LearnerSettings />
-      </>
+      <LearnerShell>
+        <LearnerSettingsPage />
+      </LearnerShell>
     )
   }
   return (
