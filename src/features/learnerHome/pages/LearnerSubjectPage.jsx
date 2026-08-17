@@ -1,15 +1,25 @@
 /**
- * LearnerSubjectPage — one subject organised by Term 1/2/3 (spec §9).
- * Topics come from the CBC catalogue; lessons, notes, quizzes and past
- * questions connect to each topic through the same subject/grade/term/
- * topic identifiers. Term assignment for a topic derives from its
- * quizzes' term tags; with no term-tagged material the full syllabus
- * shows on every tab (never invented into one term). Actions with no
- * material render disabled with a Coming Soon badge — nothing fake.
+ * LearnerSubjectPage — one subject organised by Term 1/2/3, in the
+ * mockup's shape: a back row carrying the subject and "Grade N · Term T
+ * · X of Y topics done", the Term 1/2/3 segment, a one-line note about
+ * the term, and the topic list. A topic row is an icon tile, the topic
+ * name, and a status pill (\u2713 done / \u25b6 current / \u25cb to do); tapping
+ * it opens that topic's note.
+ *
+ * What is deliberately NOT here, because the mockup has none of it: the
+ * per-topic Lessons / Quiz / Past Qs action buttons, the bookmark
+ * control, the term-overview card and the "Term N Resources" list. An
+ * earlier pass carried those over from the pre-redesign screen; two of
+ * them were the last learner entry points into /lessons and /quizzes,
+ * which the mockup does not contain at all.
+ *
+ * Term assignment for a topic derives from its quizzes' term tags; with
+ * no term-tagged material the full syllabus shows on every tab (never
+ * invented into one term). A topic with no note published yet says so
+ * rather than leading nowhere — nothing fake.
  */
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
 import { collection, getDocs, limit as fsLimit, query, where } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
@@ -17,7 +27,7 @@ import { useFirestore } from '../../../hooks/useFirestore'
 import { SUBJECT_MAP, getTopics, normalizeSubject } from '../../../config/curriculum'
 import { getActiveTerm } from '../../../utils/moeCalendar'
 import LearnerIcon, { subjectIconName } from '../components/LearnerIcon'
-import { ProgressBar, ProgressRing, EmptyState, ErrorState, SectionSkeleton } from '../components/LearnerPrimitives'
+import { EmptyState, ErrorState, SectionSkeleton } from '../components/LearnerPrimitives'
 import {
   resolveActiveTerm, normalizeTerm, deriveTopicTerms, topicsForTerm,
 } from '../lib/learnerHomeCore'
@@ -44,7 +54,6 @@ export default function LearnerSubjectPage() {
   const subjectLabel = subject?.label || normalizeSubject(subjectId)
 
   const [state, setState] = useState({ loading: true, error: null, materials: [], quizzes: [], results: [], noteProgress: [] })
-  const [bookmarked, setBookmarked] = useState(() => (readJson('lhx:subject-bookmarks', []) || []).includes(subjectId))
 
   useEffect(() => {
     if (!uid || !grade || !subject) { setState((s) => ({ ...s, loading: false })); return undefined }
@@ -114,19 +123,35 @@ export default function LearnerSubjectPage() {
       const percent = topicQuizzes.length
         ? Math.round((doneQuizzes.length / topicQuizzes.length) * 100)
         : 0
-      const quizTarget = topicQuizzes.find((q) => !completedQuizIds.has(q.id)) || topicQuizzes[0] || null
+      // The note this topic opens: an explicit topic tag first, then a
+      // title match. No match means no note yet — the row says so.
+      const lower = String(name).toLowerCase()
+      const noteTarget = termNotes.find((n) => String(n.topic || '').toLowerCase() === lower)
+        || termNotes.find((n) => String(n.title || '').toLowerCase().includes(lower))
+        || null
+      const noteRead = noteTarget ? readNoteIds.has(noteTarget.id) : false
       return {
         name,
         position: i + 1,
         quizCount: topicQuizzes.length,
         percent,
         hasQuiz: topicQuizzes.length > 0,
-        quizTarget,
-        hasLessons: subjectLessons.length > 0,
-        hasNotes: termNotes.length > 0,
-        status: percent >= 100 ? 'completed' : (doneQuizzes.length > 0 ? 'in-progress' : 'available'),
+        noteTarget,
+        noteRead,
+        // ✓ done when its note is read (or every quiz is), ▶ current for
+        // the first topic still open, ○ otherwise — set in a second pass.
+        status: (noteRead || percent >= 100) ? 'completed' : (doneQuizzes.length > 0 ? 'in-progress' : 'available'),
       }
     })
+
+    // The mockup marks exactly one topic as "current": the first one not
+    // finished. Everything after it is plain to-do.
+    const currentIdx = topics.findIndex((t) => t.status !== 'completed')
+    if (currentIdx >= 0) topics[currentIdx].status = 'in-progress'
+    topics.forEach((t, i) => {
+      if (t.status === 'in-progress' && i !== currentIdx) t.status = 'available'
+    })
+    const doneCount = topics.filter((t) => t.status === 'completed').length
 
     const readTermNotes = termNotes.filter((n) => readNoteIds.has(n.id)).length
     const overall = topics.length || termNotes.length
@@ -140,17 +165,10 @@ export default function LearnerSubjectPage() {
 
     return {
       subjectNotes, subjectLessons, subjectQuizzes, topics, termNotes,
-      hasTermData, overall, revisionQuizzes,
+      hasTermData, overall, revisionQuizzes, doneCount,
       lessonCount: subjectLessons.length,
     }
   }, [state, subjectId, subjectLabel, grade, term])
-
-  const toggleBookmark = () => {
-    const list = readJson('lhx:subject-bookmarks', []) || []
-    const next = bookmarked ? list.filter((id) => id !== subjectId) : [...new Set([...list, subjectId])]
-    writeJson('lhx:subject-bookmarks', next)
-    setBookmarked(!bookmarked)
-  }
 
   if (!subject) {
     return (
@@ -161,41 +179,34 @@ export default function LearnerSubjectPage() {
     )
   }
 
-  const action = (topic, kind) => {
-    if (kind === 'lessons') return navigate('/lessons')
-    if (kind === 'notes') return navigate('/notes')
-    if (kind === 'quiz' && topic.quizTarget) return navigate(`/quiz/${topic.quizTarget.id}`)
-    if (kind === 'pastqs') {
-      capture('past_papers_opened', { from: 'subject_topic' })
-      return navigate(`/papers?grade=${grade}`)
-    }
-    return null
+  // A topic row opens that topic's note (the mockup's only tap target).
+  const openTopic = (topic) => {
+    if (!topic.noteTarget) return
+    capture('note_opened', { from: 'subject_topic', noteId: topic.noteTarget.id })
+    navigate(`/notes/${topic.noteTarget.id}`)
   }
 
-  const TOPIC_ACTIONS = [
-    { key: 'lessons', label: 'Lessons', icon: 'lessons', tone: 'tone-purple', enabled: (t) => t.hasLessons },
-    { key: 'notes', label: 'Notes', icon: 'notes', tone: 'tone-green', enabled: (t) => t.hasNotes },
-    { key: 'quiz', label: 'Quiz', icon: 'quiz', tone: 'tone-blue', enabled: (t) => t.hasQuiz },
-    { key: 'pastqs', label: 'Past Qs', icon: 'marking-scheme', tone: 'tone-orange', enabled: () => true },
-  ]
+  const activeCalendarTerm = resolveActiveTerm({ calendarTerm: getActiveTerm()?.term?.number ?? null }).term
+  const termNote = term < activeCalendarTerm
+    ? `Term ${term} is finished — revise any topic, any time.`
+    : term > activeCalendarTerm
+      ? `Term ${term} starts later — but you can read ahead.`
+      : 'This term — keep going!'
 
   return (
     <>
-      <div className="lhx-subject-header">
-        <button type="button" className="lhx-iconbtn" aria-label="Go back" onClick={() => navigate(-1)}>
-          <ArrowLeft size={22} aria-hidden="true" />
-        </button>
-        <h1>{subjectLabel}</h1>
-        <button
-          type="button"
-          className="lhx-iconbtn"
-          aria-label={bookmarked ? 'Remove subject bookmark' : 'Bookmark this subject'}
-          aria-pressed={bookmarked}
-          style={bookmarked ? { color: 'var(--lhx-purple)' } : undefined}
-          onClick={toggleBookmark}
-        >
-          <LearnerIcon name="bookmark" size={22} />
-        </button>
+      <div className="lhx-back-row">
+        <button type="button" className="lhx-back-btn" aria-label="Go back" onClick={() => navigate(-1)}>‹</button>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="lhx-back-title">{subjectLabel}</div>
+          <div className="lhx-back-sub">
+            {[
+              grade ? `Grade ${grade}` : null,
+              `Term ${term}`,
+              state.loading ? null : `${model.doneCount} of ${model.topics.length} topics done`,
+            ].filter(Boolean).join(' · ')}
+          </div>
+        </div>
       </div>
 
       <div className="lhx-terms" role="tablist" aria-label="School terms">
@@ -219,117 +230,54 @@ export default function LearnerSubjectPage() {
         <div className="lhx-card"><ErrorState /></div>
       ) : (
         <>
-          <section className="lhx-card lhx-term-overview" aria-label={`Term ${term} overview`}>
-            <span className="lhx-subject-icon lhx-tint-green" aria-hidden="true">
-              <LearnerIcon name={subjectIconName(subjectId)} size={24} />
-            </span>
-            <div className="lhx-term-overview-main">
-              <p className="lhx-term-overview-title">Term {term}</p>
-              <p className="lhx-term-overview-meta">
-                {[
-                  `${model.topics.length} topic${model.topics.length === 1 ? '' : 's'}`,
-                  model.lessonCount ? `${model.lessonCount} lesson${model.lessonCount === 1 ? '' : 's'}` : null,
-                  model.termNotes.length ? `${model.termNotes.length} notes` : null,
-                ].filter(Boolean).join(' · ')}
-              </p>
-              <ProgressBar percent={model.overall} label={`Term ${term} completion: ${model.overall}%`} />
-              {!model.hasTermData && model.topics.length > 0 && (
-                <p className="lhx-term-overview-note">
-                  Showing the full {subjectLabel} syllabus — materials haven’t been split by term yet.
-                </p>
-              )}
-            </div>
-          </section>
+          <p className="lhx-back-sub" style={{ textAlign: 'center', marginTop: -6 }}>{termNote}</p>
+
+          {!model.hasTermData && model.topics.length > 0 && (
+            <p className="lhx-back-sub" style={{ textAlign: 'center' }}>
+              Showing the full {subjectLabel} syllabus — materials haven’t been split by term yet.
+            </p>
+          )}
 
           <section className="lhx-section" aria-label={`Topics in Term ${term}`}>
-            <div className="lhx-section-head">
-              <h2 className="lhx-section-title">Topics in Term {term}</h2>
-            </div>
             {model.topics.length === 0 ? (
               <div className="lhx-card">
                 <EmptyState icon="learn">
-                  Materials for Term {term} are being prepared. Check the other terms or the libraries below.
+                  Materials for Term {term} are being prepared. Try another term.
                 </EmptyState>
               </div>
             ) : (
-              model.topics.map((topic) => (
-                <article key={topic.name} className="lhx-card lhx-topic">
-                  <div className="lhx-topic-head">
-                    <span className="lhx-topic-num" aria-hidden="true">{topic.position}</span>
-                    <div className="lhx-topic-body">
-                      <h3 className="lhx-topic-title">{topic.name}</h3>
-                      <p className="lhx-topic-meta">
-                        {topic.hasQuiz
-                          ? `${topic.quizCount} quiz${topic.quizCount === 1 ? '' : 'zes'} available`
-                          : 'Practice coming soon'}
-                      </p>
-                    </div>
-                    {topic.hasQuiz && (
-                      <ProgressRing percent={topic.percent} size={52} label={`${topic.name}: ${topic.percent}% complete`} />
-                    )}
-                  </div>
-                  <div className="lhx-topic-actions">
-                    {TOPIC_ACTIONS.map((a) => {
-                      const enabled = a.enabled(topic)
-                      return (
-                        <button
-                          key={a.key}
-                          type="button"
-                          className={`lhx-topic-action ${enabled ? a.tone : ''}`}
-                          aria-disabled={!enabled}
-                          disabled={!enabled}
-                          aria-label={enabled ? `${a.label} for ${topic.name}` : `${a.label} for ${topic.name} — coming soon`}
-                          onClick={() => enabled && action(topic, a.key)}
-                        >
-                          <LearnerIcon name={a.icon} size={18} />
-                          {enabled ? a.label : <span className="lhx-soon-badge">Coming soon</span>}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </article>
-              ))
+              <div style={{ display: 'grid', gap: 10 }}>
+                {model.topics.map((topic) => {
+                  const openable = Boolean(topic.noteTarget)
+                  const st = topic.status === 'completed'
+                    ? { cls: 'lhx-st-done', mark: '✓', label: 'done' }
+                    : topic.status === 'in-progress'
+                      ? { cls: 'lhx-st-now', mark: '▶', label: 'current topic' }
+                      : { cls: 'lhx-st-todo', mark: '○', label: 'not started' }
+                  return (
+                    <button
+                      key={topic.name}
+                      type="button"
+                      className="lhx-topic-row"
+                      aria-disabled={!openable}
+                      aria-label={`${topic.name} — ${openable ? st.label : 'note coming soon'}`}
+                      onClick={() => openTopic(topic)}
+                    >
+                      <span className="lhx-topic-ic" aria-hidden="true">
+                        <LearnerIcon name={subjectIconName(subjectId)} size={20} />
+                      </span>
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <span className="lhx-topic-name" style={{ display: 'block' }}>{topic.name}</span>
+                        {!openable && (
+                          <span className="lhx-topic-sub" style={{ display: 'block' }}>Note coming soon</span>
+                        )}
+                      </span>
+                      <span className={`lhx-topic-st ${st.cls}`} aria-hidden="true">{st.mark}</span>
+                    </button>
+                  )
+                })}
+              </div>
             )}
-          </section>
-
-          <section className="lhx-section" aria-label={`Term ${term} resources`}>
-            <div className="lhx-section-head">
-              <h2 className="lhx-section-title">Term {term} Resources</h2>
-            </div>
-            <div className="lhx-card lhx-resources">
-              <button type="button" className="lhx-resource-row" onClick={() => navigate('/notes')}>
-                <span className="lhx-quick-icon lhx-tint-green" aria-hidden="true"><LearnerIcon name="notes" size={20} /></span>
-                <span className="lhx-activity-main">
-                  <span className="lhx-resource-title" style={{ display: 'block' }}>Term {term} Notes</span>
-                  <span className="lhx-resource-sub" style={{ display: 'block' }}>
-                    {model.termNotes.length ? `${model.termNotes.length} notes for ${subjectLabel}` : 'Notes for this term are being prepared'}
-                  </span>
-                </span>
-              </button>
-              {model.revisionQuizzes.length > 0 && (
-                <button type="button" className="lhx-resource-row" onClick={() => navigate(`/quiz/${model.revisionQuizzes[0].id}`)}>
-                  <span className="lhx-quick-icon lhx-tint-blue" aria-hidden="true"><LearnerIcon name="quiz" size={20} /></span>
-                  <span className="lhx-activity-main">
-                    <span className="lhx-resource-title" style={{ display: 'block' }}>Term {term} Revision Quiz</span>
-                    <span className="lhx-resource-sub" style={{ display: 'block' }}>Test your understanding</span>
-                  </span>
-                </button>
-              )}
-              <button
-                type="button"
-                className="lhx-resource-row"
-                onClick={() => {
-                  capture('past_papers_opened', { from: 'subject_resources' })
-                  navigate(`/papers?grade=${grade}`)
-                }}
-              >
-                <span className="lhx-quick-icon lhx-tint-orange" aria-hidden="true"><LearnerIcon name="papers" size={20} /></span>
-                <span className="lhx-activity-main">
-                  <span className="lhx-resource-title" style={{ display: 'block' }}>Past Papers</span>
-                  <span className="lhx-resource-sub" style={{ display: 'block' }}>Questions by year for Grade {grade}</span>
-                </span>
-              </button>
-            </div>
           </section>
         </>
       )}

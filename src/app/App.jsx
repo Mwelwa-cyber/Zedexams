@@ -4,6 +4,7 @@ import { useAuth, hasAuthSessionHint } from '../contexts/AuthContext'
 import { useTheme, applyThemeToBody, DEFAULT_THEME } from '../contexts/ThemeContext'
 import { getTeacherTheme } from '../contexts/teacherThemeCore'
 import TeacherThemeSync from '../contexts/TeacherThemeSync'
+import ReadingThemeSync from '../contexts/ReadingThemeSync'
 import { PlatformSettingsProvider } from '../contexts/PlatformSettingsContext'
 import { MaintenanceBanner, AndroidUpdateBanner } from '../features/platformNotices'
 import { AnnouncementBanner } from '../features/announcements'
@@ -84,7 +85,6 @@ const LearnerHomePage = lazy(() => import('../features/learnerHome/pages/Learner
 const LearnerSubjectPage = lazy(() => import('../features/learnerHome/pages/LearnerSubjectPage'))
 const LearnerNotificationsPage = lazy(() => import('../features/notifications/pages/LearnerNotificationsPage'))
 const LearnerProfilePage = lazy(() => import('../features/learnerHome/pages/LearnerProfilePage'))
-const LearnerSettingsPage = lazy(() => import('../features/learnerHome/pages/LearnerSettingsPage'))
 const GuardianZonePage = lazy(() => import('../features/learnerHome/pages/GuardianZonePage'))
 const ProfilePage = lazy(() => import('../features/learnerDashboard/pages/ProfilePage'))
 
@@ -139,6 +139,11 @@ const OfflineLibraryPage = lazy(() => import('../offline/OfflineLibraryPage.jsx'
 const ZedExamsSettings = lazy(() => import('../features/accountSettings/pages/zedexams-settings'))
 const TeacherSettings = lazy(() => import('../features/teacherSettings/TeacherSettings'))
 const LearnerSettings = lazy(() => import('../features/learnerSettings/LearnerSettings'))
+const LearnerSettingsPage = lazy(() => import('../features/learnerSettings/pages/LearnerSettingsPage'))
+// The learner chrome (page column + 4-tab nav) for the settings screen,
+// which is not mounted through the LearnerLayout route group because
+// /settings/* also serves the detail panels and other roles.
+const LearnerShell = lazy(() => import('../features/learnerHome/components/LearnerShell'))
 const PaywallHost = lazy(() => import('../features/subscription/components/PaywallHost'))
 const PostUpgradeContinuation = lazy(() => import('../features/subscription/components/PostUpgradeContinuation'))
 const NativePlayBillingSync = lazy(() => import('../features/subscription/components/NativePlayBillingSync'))
@@ -335,8 +340,8 @@ function RootRedirect() {
 // admins must stay on the admin tab set.
 function SettingsPage() {
   const { userProfile, isAdmin, isTeacher } = useAuth()
-  const [searchParams] = useSearchParams()
-  const learnerSettingsSection = searchParams.get('section')
+  const [settingsParams] = useSearchParams()
+  const settingsSection = settingsParams.get('section')
   const role = isAdmin ? 'admin' : (isTeacher ? 'teacher' : (userProfile?.role || 'learner'))
   if (role === 'teacher') {
     return (
@@ -345,15 +350,14 @@ function SettingsPage() {
       </TeacherLayout>
     )
   }
-  // Learners land on the prototype-v7 Settings screen (step 11) inside
-  // the learner shell — grouped switch rows, the mockup's five groups.
-  // Its tap-through rows deep-link the DETAIL panels of the older
-  // settings dashboard (?section=account | learning | help), so every
-  // editor those panels own stays reachable and unchanged; the presence
-  // of ?section is what selects between the two. Admins keep the shared
-  // account-preferences page under the global Navbar.
+  // Learners get the mockup's Settings screen in the learner shell.
+  // The existing detail panels stay behind ?section=<id> — the rows for
+  // Name & avatar, Report a problem and Delete account link into them,
+  // so the flows that carry real weight (LEGAL-003 delete
+  // re-authentication, the contact dialog) are unchanged. Admins keep
+  // the shared account-preferences page under the global Navbar.
   if (role === 'learner') {
-    if (learnerSettingsSection) {
+    if (settingsSection) {
       return (
         <>
           <Navbar />
@@ -361,7 +365,11 @@ function SettingsPage() {
         </>
       )
     }
-    return <LearnerSettingsPage />
+    return (
+      <LearnerShell>
+        <LearnerSettingsPage />
+      </LearnerShell>
+    )
   }
   return (
     <>
@@ -471,6 +479,14 @@ export default function App() {
           above AuthProvider and so cannot read auth (headless; no-op when
           signed out). */}
       <TeacherThemeSync />
+      {/* The same binding for the learner READING palette, at
+          users/{uid}.preferences.readingTheme. Without it the theme lived in
+          localStorage alone, so a browser that had never saved one fell back
+          to the prefers-color-scheme seed — which is why a learner on a
+          dark-mode machine got Midnight in incognito and on every other
+          browser no matter what they had picked. Mounted here for the same
+          reason as TeacherThemeSync above (headless; no-op when signed out). */}
+      <ReadingThemeSync />
       {/* Live cross-device sync of the teacher's ACTIVE teaching assignment
           (headless; no-op unless a teacher is signed in). Notifies open
           studios via the Switch / Keep notice — never mutates form state. */}

@@ -59,6 +59,99 @@ export function normalizeThemeId(id) {
   return THEME_IDS.includes(next) ? next : DEFAULT_THEME
 }
 
+/** Firestore path on the user profile: users/{uid}.preferences.readingTheme */
+export const READING_THEME_PROFILE_FIELD = 'preferences.readingTheme'
+
+/**
+ * The id a stored value actually means, or null if it means nothing.
+ *
+ * The distinction `normalizeThemeId` cannot make is the one that matters
+ * here: it answers "which palette do I paint?" and so folds an absent value
+ * into the default. This answers "did anyone choose?" — and an absent value
+ * is NOT a choice of the default. Collapsing the two is how a profile that
+ * has never recorded a theme silently overwrites a deliberate pick made on
+ * the device in front of the learner.
+ */
+export function knownThemeId(id) {
+  if (typeof id !== 'string') return null
+  const next = LEGACY_THEME_MAP[id] || RETIRED_THEME_MAP[id] || id
+  return THEME_IDS.includes(next) ? next : null
+}
+
+/**
+ * Decide which theme wins when the signed-in profile and this device's
+ * localStorage disagree. The twin of teacherThemeCore.resolveThemeConflict,
+ * and it exists for the same reason: the profile is the account's answer and
+ * a device is only ever a cache of one.
+ *
+ * The profile wins whenever it holds a usable value. A profile with none is
+ * "not answered" and must leave the device alone — including when the device
+ * value is itself only the prefers-color-scheme seed, because a learner on a
+ * dark-OS machine who has never picked anything is exactly who that seed is
+ * for.
+ */
+export function resolveReadingThemeConflict({ profileTheme, localTheme } = {}) {
+  const fromProfile = knownThemeId(profileTheme)
+  if (fromProfile) return { theme: fromProfile, source: 'profile' }
+  const fromLocal = knownThemeId(localTheme)
+  if (fromLocal) return { theme: fromLocal, source: 'local' }
+  return { theme: DEFAULT_THEME, source: 'default' }
+}
+
+/**
+ * Whether a profile write is worth making. Skips the no-op that would
+ * otherwise fire on every hydration and bill a write per sign-in. Compared
+ * against the RAW stored value, not its normalised form, so a profile still
+ * holding a legacy alias ('dark') is rewritten to the current id once rather
+ * than re-mapped on every read forever.
+ */
+export function shouldPersistReadingTheme({ nextTheme, profileTheme } = {}) {
+  const next = knownThemeId(nextTheme)
+  return Boolean(next) && next !== profileTheme
+}
+
+/**
+ * The theme this device has ACTUALLY SAVED, or null if it has never saved
+ * one. The difference from the live `theme` value is the whole point: that
+ * one is never null, because an unanswered device resolves to the
+ * prefers-color-scheme seed or the brand default. Only a value that is
+ * physically in localStorage is a choice somebody made here — the seed is
+ * deliberately never written, precisely so this distinction stays readable.
+ *
+ * <ReadingThemeSync> uses it to decide whether a signed-in learner's empty
+ * profile may be backfilled from this device.
+ */
+export function readStoredThemeChoice() {
+  try {
+    return knownThemeId(localStorage.getItem(LS_KEY))
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The Firestore writer, registered by <ReadingThemeSync> once a learner is
+ * signed in. Null when signed out, which is not an error state — the choice
+ * still applies and still persists to this device.
+ *
+ * It lives at module scope rather than in provider state for the reason
+ * teacherThemeStore documents at length: a persister held in state is
+ * re-created on every render and a registration is easy to lose to a stale
+ * cleanup. The identity check on unregister is what makes a late cleanup
+ * unable to clear a newer registration.
+ */
+let readingThemePersister = null
+
+export function registerReadingThemePersister(fn) {
+  readingThemePersister = fn
+  return () => { if (readingThemePersister === fn) readingThemePersister = null }
+}
+
+/** Test seam — clears the registration between cases. */
+export function resetReadingThemePersister() {
+  readingThemePersister = null
+}
+
 // Themes whose palette is dark. Tailwind's `dark:` variants (darkMode:
 // 'class') only fire when an ancestor carries the `dark` class, so these
 // themes must also toggle it — otherwise every dark: style in the tree is
@@ -183,11 +276,41 @@ export function ThemeProvider({ children }) {
   // for why (the dashboard's own dark toggle reads the same value).
   const teacherTheme = useTeacherThemeValue()
 
+  /**
+   * A deliberate choice by the learner: apply, save to this device, and sync
+   * to the signed-in profile. Every user-facing write goes through here — the
+   * reading-theme picker, the learner header's Night toggle, the settings
+   * panels and the theme selector alike — which is what makes the account
+   * agree with the device rather than the device being the only record.
+   *
+   * The Firestore call is fire-and-forget by design: the choice is already
+   * applied and already saved locally, so a rejected or offline write costs
+   * cross-browser sync and nothing else. It must never be awaited here, or a
+   * slow network would stall the palette change.
+   */
   function setTheme(id) {
     const next = normalizeThemeId(id)
     setThemeState(next)
     try { localStorage.setItem(LS_KEY, next) } catch { }
+    readingThemePersister?.(next)
   }
+
+  /**
+   * Apply a value that CAME FROM the profile. Identical to setTheme except
+   * that it does not persist upward — echoing a value straight back to the
+   * server it was just read from would bill a write on every sign-in.
+   *
+   * It DOES write localStorage, and that is the half that fixes the flash:
+   * boot.js paints pre-paint from that key alone, so without this the account
+   * theme would be re-applied a frame late on every single load of this
+   * browser instead of once.
+   */
+  const hydrateTheme = useCallback((id) => {
+    const next = knownThemeId(id)
+    if (!next) return
+    setThemeState(next)
+    try { localStorage.setItem(LS_KEY, next) } catch { }
+  }, [])
 
   /*
    * Persisting the teacher theme to Firestore has to happen OUTSIDE this
@@ -232,13 +355,17 @@ export function ThemeProvider({ children }) {
   }, [teacherTheme])
 
   // The body class is applied by <ThemeApplicator /> inside the Router.
-  // Persistence happens ONLY in setTheme: an initial value seeded from
-  // prefers-color-scheme must stay unwritten, or the seed would turn into a
-  // saved "choice" on first load and stop following the OS setting.
+  // Persistence happens ONLY in setTheme (device + profile) and hydrateTheme
+  // (device only): an initial value seeded from prefers-color-scheme must
+  // stay unwritten on both, or the seed would turn into a saved "choice" on
+  // first load — locally it would stop following the OS setting, and on the
+  // profile it would masquerade as an answer the learner never gave and then
+  // be pushed onto every other browser they sign in from.
 
   return (
     <ThemeContext.Provider value={{
       theme, setTheme, themes: THEMES,
+      hydrateTheme, registerReadingThemePersister,
       teacherTheme, setTeacherTheme, teacherThemes: TEACHER_THEMES,
       hydrateTeacherTheme, registerTeacherThemePersister,
     }}>

@@ -1,11 +1,14 @@
 /**
- * Subject-page behaviour: accessible Term 1/2/3 tabs with ?term deep
- * links, real topic lists from the CBC catalogue, Coming Soon states
- * for actions without material, and wrong-subject safety.
+ * Subject-page behaviour, against the mockup's shape: accessible Term
+ * 1/2/3 tabs with ?term deep links, real topic rows from the CBC
+ * catalogue with their status pill, a row opening that topic's note,
+ * an honest "Note coming soon" when none is published, and
+ * wrong-subject safety. The page must NOT grow per-topic Lessons /
+ * Quiz / Past Qs buttons again — the mockup has no such controls.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react'
+import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom'
 
 vi.mock('../../../firebase/config', () => ({ default: {}, auth: {}, db: {} }))
 vi.mock('../../../utils/analytics', () => ({ capture: vi.fn() }))
@@ -44,11 +47,17 @@ vi.mock('firebase/firestore', () => ({
 
 import LearnerSubjectPage from './LearnerSubjectPage'
 
+function NoteStub() {
+  const { id } = useParams()
+  return <div>NOTE {id}</div>
+}
+
 function renderSubject(path = '/subjects/science') {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/subjects/:subjectId" element={<LearnerSubjectPage />} />
+        <Route path="/notes/:id" element={<NoteStub />} />
       </Routes>
     </MemoryRouter>,
   )
@@ -63,7 +72,7 @@ beforeEach(() => {
 describe('LearnerSubjectPage', () => {
   it('renders accessible term tabs and the subject title', async () => {
     renderSubject()
-    expect(screen.getByRole('heading', { name: 'Integrated Science' })).toBeInTheDocument()
+    expect(screen.getByText('Integrated Science')).toBeInTheDocument()
     const tablist = screen.getByRole('tablist', { name: 'School terms' })
     const tabs = Array.from(tablist.querySelectorAll('[role="tab"]'))
     expect(tabs.map((t) => t.textContent)).toEqual(['Term 1', 'Term 2', 'Term 3'])
@@ -81,25 +90,40 @@ describe('LearnerSubjectPage', () => {
     })
   })
 
-  it('lists the real Grade 7 CBC topics with Coming Soon on empty actions', async () => {
+  it('lists the real Grade 7 CBC topics as rows, saying so when a note is missing', async () => {
     renderSubject()
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'The Human Body' })).toBeInTheDocument()
+      expect(screen.getByText('The Human Body')).toBeInTheDocument()
     })
-    // No quizzes/notes/lessons exist → those actions are disabled Coming Soon.
-    const disabled = screen.getAllByText('Coming soon')
-    expect(disabled.length).toBeGreaterThan(0)
-    const quizBtn = screen.getByRole('button', { name: 'Quiz for The Human Body — coming soon' })
-    expect(quizBtn).toBeDisabled()
+    const row = screen.getByText('The Human Body').closest('button')
+    expect(row.classList.contains('lhx-topic-row')).toBe(true)
+    // No note is published for it yet — the row says so instead of
+    // leading nowhere.
+    expect(within(row).getByText('Note coming soon')).toBeInTheDocument()
+    expect(row).toHaveAttribute('aria-disabled', 'true')
   })
 
-  it('enables the Quiz action when a topic quiz exists', async () => {
+  it('a topic row opens that topic\u2019s note', async () => {
+    mockMaterials = [{
+      id: 'n1', noteFormat: 'study', isPublished: true, grade: '7',
+      subject: 'science', term: '1', topic: 'The Human Body', title: 'The Human Body',
+    }]
+    renderSubject('/subjects/science?term=1')
+    await waitFor(() => expect(screen.getByText('The Human Body')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('The Human Body').closest('button'))
+    await waitFor(() => expect(screen.getByText('NOTE n1')).toBeInTheDocument())
+  })
+
+  it('has none of the retired per-topic actions (the mockup has no such buttons)', async () => {
     mockQuizzes = [{ id: 'q1', subject: 'science', topic: 'The Human Body', term: '1', isPublished: true }]
     renderSubject('/subjects/science?term=1')
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Quiz for The Human Body' })).toBeEnabled()
-    })
-    expect(screen.getByText('1 quiz available')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('The Human Body')).toBeInTheDocument())
+    for (const gone of [/^Quiz for/, /^Lessons for/, /^Past Qs for/, /^Notes for/]) {
+      expect(screen.queryByRole('button', { name: gone })).toBeNull()
+    }
+    // …and no bookmark control or resources list either.
+    expect(screen.queryByRole('button', { name: /bookmark/i })).toBeNull()
+    expect(screen.queryByText(/Resources$/)).toBeNull()
   })
 
   it('shows a safe message for an unknown subject', () => {

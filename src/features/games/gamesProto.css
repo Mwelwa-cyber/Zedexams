@@ -31,8 +31,8 @@
 .lhx-daily-label { font-size: 10.5px; font-weight: 900; letter-spacing: 1.2px; opacity: 0.85; margin-bottom: 3px; }
 .lhx-daily-name { font-weight: 900; font-size: 15.5px; }
 .lhx-daily-sub { font-size: 12px; font-weight: 700; opacity: 0.85; }
-/* .lhx-play-pill now lives in shared/styles/learnerTheme.css — Home's
-   Today's Quiz card needs it and this stylesheet only loads on /games. */
+/* .lhx-play-pill moved to learnerTheme.css — Home's Today's Quiz card
+   uses it too, and Home does not load this stylesheet. */
 
 /* ── Hub: XP / level card ──────────────────────────────────────── */
 

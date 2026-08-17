@@ -1046,7 +1046,7 @@ button.lhx-tt-altpill { cursor: pointer; }
   content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%;
   background: #fff; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); transition: transform 0.15s var(--lhx-ease);
 }
-.lhx-switch[aria-checked='true'] { background: var(--lhx-green); }
+.lhx-switch[aria-checked='true'] { background: linear-gradient(135deg, #7c8bf5, #5b63dd); }
 .lhx-switch[aria-checked='true']::after { transform: translateX(18px); }
 /* A guardian-locked switch reads as fixed, not as broken. */
 .lhx-switch:disabled { opacity: 0.55; cursor: not-allowed; }
@@ -1055,6 +1055,34 @@ button.lhx-tt-altpill { cursor: pointer; }
   font-size: 12px; font-weight: 900; background: var(--lhx-indigo-soft); color: var(--lhx-indigo-text);
 }
 .lhx-pick[aria-pressed='true'] { background: linear-gradient(135deg, var(--lhx-indigo1), var(--lhx-indigo2)); color: #fff; }
+
+/* ── Topic row — shared by the Notes hub and the Subject screen
+ *    (prototype .topic-row / .topic-ic / .topic-st) ───────────────── */
+.lhx-topic-row {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--lhx-card);
+  border-radius: 20px; padding: 13px 14px;
+  box-shadow: var(--lhx-shadow);
+  width: 100%; text-align: left;
+  transition: transform 0.1s;
+}
+.lhx-topic-row:active { transform: scale(0.98); }
+.lhx-topic-ic {
+  width: 42px; height: 42px; border-radius: 13px; flex-shrink: 0;
+  background: var(--lhx-indigo-soft);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+}
+.lhx-topic-name { font-weight: 900; font-size: 14.5px; color: var(--lhx-ink); }
+.lhx-topic-sub { font-size: 11.5px; color: var(--lhx-muted); font-weight: 700; }
+.lhx-topic-st {
+  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 900;
+}
+.lhx-st-done { background: var(--lhx-green-soft); color: var(--lhx-green-dark); }
+.lhx-st-now { background: linear-gradient(135deg, var(--lhx-coral1), var(--lhx-coral2)); color: #fff; box-shadow: 0 3px 8px rgba(255, 92, 57, 0.4); }
+.lhx-st-todo { background: #eef0fc; color: #b6bce0; }
 
 /* ── Topbar bell unread dot (prototype-v6 .notif-dot) ──────────── */
 .lhx-notif-dot {
@@ -1142,6 +1170,7 @@ button.lhx-tt-altpill { cursor: pointer; }
 
 /* ══ Night mode — component cases (prototype `#phone.night …`) ═══ */
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-notif-dot { border-color: #171929; }
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-set-ic { background: #2a2d4a; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-prof-xp-bar { background: #2a2d4a; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-badge-medal.is-locked { background: #2a2d4a; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-ask-zed-inline { color: #aab2f0; border-color: #363a5e; }
@@ -1152,7 +1181,7 @@ button.lhx-tt-altpill { cursor: pointer; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-tt-remind { background: #33301f; color: #e9ebff; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-switch { background: #2a2d4a; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-gz-input { border-color: #363a5e; }
-:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-switch[aria-checked='true'] { background: var(--lhx-green); }
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-switch[aria-checked='true'] { background: linear-gradient(135deg, #7c8bf5, #5b63dd); }
 
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-logo,
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-nav-brand { color: #aab2f0; }

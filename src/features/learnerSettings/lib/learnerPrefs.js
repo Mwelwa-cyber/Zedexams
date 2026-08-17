@@ -285,6 +285,10 @@ export const ZED_SPEED_OPTIONS = Object.freeze([
 export function normalizeZedAiPrefs(input) {
   const p = input && typeof input === 'object' ? input : {}
   return {
+    // Whether the Ask Zed entry points appear at all (the Settings
+    // "Ask Zed" switch). Default on — turning the helper off is a
+    // deliberate choice, not the starting state.
+    enabled: bool(p.enabled, dflt(true)),
     voice: str(p.voice, ['warm', 'bright', 'calm', 'off'], 'warm'),
     personality: str(p.personality, ['friendly', 'coach', 'tutor'], 'friendly'),
     avatar: str(p.avatar, null, 'spark'),
