@@ -1,118 +1,172 @@
 /**
- * ParentPlan — /family/plan. The price list, on the side of the app
- * where prices belong.
+ * ParentPlan — /family/plan. The price list and the checkout, on the side
+ * of the app where prices belong.
  *
  * The paywall's rule is that an under-18 learner is never shown a price
- * (see src/services/entitlements): they tap a lock, their guardian gets
- * a message, and the figure appears HERE. So this screen exists to make
- * the offer legible to the adult deciding — what each rung costs, what
- * it covers, and which child asked.
+ * (see src/services/entitlements): they tap a lock, their guardian gets a
+ * message, and the figure appears HERE. So this screen makes the offer
+ * legible to the adult deciding — what each rung costs, what it covers,
+ * and which child it is for — and then takes the payment.
  *
- * ── What this screen does NOT do, and why it says so ────────────────
+ * ── Which account the money credits ────────────────────────────────
  *
- * It does not take the payment. A guardian paying for a child needs the
- * money to credit the CHILD's account, and that does not exist yet:
- * `subscriptionActivation` credits `pay.userId`, the payer, and nothing
- * anywhere writes a beneficiary onto a payment. Wiring it touches
- * initiation, activation, invoices, the upgrade quote, the Lenco webhook,
- * Play Billing and the lifecycle sweeps — every one of which currently
- * assumes payer and beneficiary are the same person, and each of which
- * fails as "somebody paid and nobody was credited" if it is missed.
+ * The child's. Every initiation carries `beneficiaryUid`, the server
+ * authorises that pairing against `parentLinks` before charging, and
+ * `subscriptionActivation` grants to the beneficiary rather than the
+ * payer. That was not true until PAY-001 — a payment credited whoever
+ * paid — which is why this screen showed prices and no Pay button for as
+ * long as it did.
  *
- * A Pay button that credited the parent's own account would look like it
- * worked and would leave the child exactly as locked as before, so there
- * isn't one. The screen says what to do instead.
+ * A guardian purchase is never an upgrade, so the price shown is always
+ * the plan's full price; there is no prorated quote to refresh.
  */
+import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { PLANS } from '../../../engines/payment-engine/subscriptionConfig'
+import { PLANS as CHECKOUT_PLANS } from '../../../engines/payment-engine/subscriptionConfig'
+import { useNetworkStatus } from '../../../hooks/useNetworkStatus'
 import useGuardianChildren from '../hooks/useGuardianChildren'
+import { can } from '../../../utils/guardianRoles'
 import { firstNameOf } from '../lib/parentAppView'
-import { BackRow } from '../components/ParentPrimitives'
+import GuardianCheckout from '../components/GuardianCheckout'
+import { BackRow, Empty, ListSkeleton } from '../components/ParentPrimitives'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 
-/** The rungs a guardian is offered, in the prototype's order. */
-const CYCLES = [
-  { id: 'weekly', label: 'Weekly' },
-  { id: 'monthly', label: 'Monthly' },
-]
-const PASSES = ['day_pass', 'term_pass']
+/** The rungs offered here, in the prototype's order. */
+const OFFERED = ['weekly', 'monthly', 'day_pass', 'term_pass']
+const HEADLINE = ['weekly', 'monthly']
 
 export default function ParentPlan() {
   const [params] = useSearchParams()
-  const childUid = params.get('child')
-  const { children } = useGuardianChildren()
-  const child = children.find((c) => c.childUid === childUid)
-  const childName = firstNameOf(child?.displayName)
+  const online = useNetworkStatus()
+  const { loading, children } = useGuardianChildren()
+
+  const requestedChild = params.get('child')
+  const guardianRequestId = params.get('request') || null
+
+  const [selectedChild, setSelectedChild] = useState(requestedChild || '')
+  const [planId, setPlanId] = useState('monthly')
+
+  // Only children this guardian may actually pay for. A co-guardian can
+  // approve and control but not buy, and the server refuses them — so
+  // offering them a Pay button would be a button that fails.
+  const payableChildren = useMemo(
+    () => children.filter((c) => can(c.role, 'manageBilling')),
+    [children],
+  )
+
+  const child = payableChildren.find((c) => c.childUid === (selectedChild || requestedChild))
+    || payableChildren[0]
+    || null
+  const childName = firstNameOf(child?.displayName) || 'your child'
+  const plan = CHECKOUT_PLANS[planId]
 
   return (
     <>
       <SeoHelmet title="Plans · ZedExams" noIndex />
       <BackRow
-        title="Plans"
-        subtitle={childName ? `${childName} asked to unlock` : 'What each plan costs and covers'}
+        title="Go Premium"
+        subtitle={child ? `For ${childName}` : 'What each plan costs and covers'}
         to="/family"
       />
 
-      {CYCLES.map((cycle) => {
-        const plan = PLANS[cycle.id]
-        if (!plan) return null
-        return (
-          <section className="pax-plan" key={cycle.id}>
-            {cycle.id === 'monthly' && <span className="pax-plan-badge">Best value</span>}
-            <p style={{ fontWeight: 900, fontSize: 15, marginBottom: 6 }}>
-              ZedExams Premium · {plan.name}
-            </p>
-            <p className="pax-plan-price">K{plan.priceZMW}</p>
-            <p className="pax-plan-per">
-              per {cycle.id === 'monthly' ? 'month' : 'week'}
-            </p>
-            {plan.features.map((f) => (
-              <p className="pax-plan-feature" key={f}><span aria-hidden="true">✓</span> {f}</p>
+      {loading ? (
+        <ListSkeleton rows={2} height={140} />
+      ) : payableChildren.length === 0 ? (
+        <Empty icon="👪">
+          {children.length > 0 ?
+            'Only the account owner can pay for a child. Ask the guardian who set the account up.' :
+            'Link a child first — then you can unlock ZedExams for them here.'}
+        </Empty>
+      ) : (
+        <>
+          {payableChildren.length > 1 && (
+            <>
+              <h2 className="lhx-set-head">Who is this for?</h2>
+              <div className="pax-pay-methods" role="radiogroup" aria-label="Choose a child">
+                {payableChildren.map((c) => (
+                  <button
+                    type="button"
+                    key={c.childUid}
+                    role="radio"
+                    aria-checked={c.childUid === child?.childUid}
+                    className={`pax-pay ${c.childUid === child?.childUid ? 'is-selected' : ''}`}
+                    onClick={() => setSelectedChild(c.childUid)}
+                  >
+                    {firstNameOf(c.displayName)}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          <div className="pax-cycle" role="tablist" aria-label="Billing period">
+            {HEADLINE.map((id) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={planId === id}
+                className={planId === id ? 'is-on' : ''}
+                onClick={() => setPlanId(id)}
+              >
+                {CHECKOUT_PLANS[id].name}
+              </button>
             ))}
-          </section>
-        )
-      })}
+          </div>
 
-      <h2 className="lhx-set-head">One-off passes</h2>
-      <div className="pax-passes">
-        {PASSES.map((id) => {
-          const plan = PLANS[id]
-          if (!plan) return null
-          return (
-            <div className="pax-pass" key={id}>
-              <b>K{plan.priceZMW}</b>
-              <small>{plan.name}</small>
-            </div>
-          )
-        })}
-      </div>
+          {HEADLINE.includes(planId) && plan && (
+            <section className="pax-plan">
+              {planId === 'monthly' && <span className="pax-plan-badge">Best value</span>}
+              <p style={{ fontWeight: 900, fontSize: 15, marginBottom: 6 }}>
+                ZedExams Premium · {plan.name}
+              </p>
+              <p className="pax-plan-price">K{plan.priceZMW}</p>
+              <p className="pax-plan-per">per {planId === 'monthly' ? 'month' : 'week'}</p>
+              {plan.features.map((f) => (
+                <p className="pax-plan-feature" key={f}><span aria-hidden="true">✓</span> {f}</p>
+              ))}
+            </section>
+          )}
 
-      <div className="lhx-card" style={{ padding: 16 }}>
-        <p className="lhx-set-title">How to pay for {childName || 'your child'}</p>
-        <p className="lhx-set-desc" style={{ margin: '8px 0 0', lineHeight: 1.5 }}>
-          Paying from a parent account does not credit a child's account yet —
-          the payment would unlock <em>your</em> account instead, which would
-          leave {childName || 'your child'} exactly as locked as before. So we
-          have not put a Pay button here that would do that.
-        </p>
-        <p className="lhx-set-desc" style={{ margin: '10px 0 0', lineHeight: 1.5 }}>
-          For now, the payment has to be made from {childName || 'the child'}'s
-          own account, on their device — everything they need is under
-          Settings → Subscription there. We are building the family payment,
-          and it is the next thing on this screen.
-        </p>
-      </div>
+          <h2 className="lhx-set-head">Or a one-off pass</h2>
+          <div className="pax-passes">
+            {OFFERED.filter((id) => !HEADLINE.includes(id)).map((id) => {
+              const p = CHECKOUT_PLANS[id]
+              if (!p) return null
+              return (
+                <button
+                  type="button"
+                  key={id}
+                  className={`pax-pass ${planId === id ? 'is-selected' : ''}`}
+                  aria-pressed={planId === id}
+                  onClick={() => setPlanId(id)}
+                >
+                  <b>K{p.priceZMW}</b>
+                  <small>{p.name}</small>
+                </button>
+              )
+            })}
+          </div>
 
-      <p className="pax-note">
-        🔒 Payments run through Lenco — MTN and Airtel mobile money, in kwacha.
-        <br />
-        Prices are per account and shown in ZMW.
-      </p>
+          {plan && child && (
+            <GuardianCheckout
+              plan={plan}
+              childUid={child.childUid}
+              childName={childName}
+              guardianRequestId={guardianRequestId}
+              disabled={online === false}
+            />
+          )}
+
+          <p className="pax-note">
+            One plan covers one child. Paying here unlocks {childName}'s account —
+            not yours — and the receipt comes to you.
+          </p>
+        </>
+      )}
 
       <div style={{ height: 12 }} />
-      <Link className="lhx-btn lhx-btn-soft lhx-btn-block" to="/family">
-        Back to my family
-      </Link>
+      <Link className="lhx-btn lhx-btn-soft lhx-btn-block" to="/family">Back to my family</Link>
       <div style={{ height: 20 }} />
     </>
   )

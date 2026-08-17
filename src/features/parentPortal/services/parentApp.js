@@ -32,6 +32,7 @@ const getGuardianWeeklyReportCallable = call('getGuardianWeeklyReport')
 const inviteCoGuardianCallable = call('inviteCoGuardian')
 const acceptCoGuardianInviteCallable = call('acceptCoGuardianInvite')
 const removeCoGuardianCallable = call('removeCoGuardian')
+const resolveGuardianPayLinkCallable = call('resolveGuardianPayLink')
 
 /** Every child linked to the signed-in guardian, with this guardian's role. */
 export async function listGuardianChildren() {
@@ -98,6 +99,17 @@ export async function inviteCoGuardian(childUid, email) {
 export async function acceptCoGuardianInvite(token) {
   const res = await acceptCoGuardianInviteCallable({ token })
   capture('co_guardian_accepted', {})
+  return res.data
+}
+
+/**
+ * Resolve the token in a guardian's pay link. Callable without being
+ * signed in — the guardian holding that email may have no account yet,
+ * and the page has to say what the request is before it can ask them to
+ * make one.
+ */
+export async function resolveGuardianPayLink(token) {
+  const res = await resolveGuardianPayLinkCallable({ token })
   return res.data
 }
 

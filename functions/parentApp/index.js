@@ -483,6 +483,57 @@ async function getGuardianWeeklyReport(request) {
   return {childUid, displayName: child.displayName || "your child", report, quizzes, notes};
 }
 
+/* ── The guardian pay link ─────────────────────────────────────────── */
+
+/**
+ * Resolve the token in a guardian's pay link.
+ *
+ * `requestGuardianUnlock` mails every guardian a link to
+ * /guardian-unlock?t=<raw token>, and the raw token is never stored —
+ * `guardianRequests`' doc id is its sha256. So the landing page cannot
+ * look anything up without asking the server to hash it.
+ *
+ * UNAUTHENTICATED on purpose: the guardian who receives that email may
+ * have no ZedExams account at all, and a link that demands a sign-in
+ * before it will say what it is about is a link people close. What it
+ * returns is bounded to what the email they are holding already told
+ * them — the child's first name and the plan quoted — and it requires a
+ * 32-byte secret to return anything. It grants nothing; paying still
+ * goes through the authorised checkout.
+ */
+async function resolveGuardianPayLink(request) {
+  const rawToken = String(request.data?.token || "").trim();
+  if (!rawToken) return {valid: false, reason: "missing"};
+
+  const db = admin.firestore();
+  const requestId = require("node:crypto")
+      .createHash("sha256").update(rawToken).digest("hex");
+
+  const snap = await db.collection(REQUESTS).doc(requestId).get();
+  if (!snap.exists) return {valid: false, reason: "unknown"};
+  const record = snap.data() || {};
+
+  const expiresAt = toMillis(record.expiresAt);
+  if (expiresAt != null && expiresAt <= Date.now()) return {valid: false, reason: "expired"};
+  if (record.status === "paid") return {valid: false, reason: "already-paid", requestId};
+  if (record.status !== "sent") return {valid: false, reason: "withdrawn"};
+
+  const childSnap = await db.collection("users").doc(record.uid).get();
+  const child = childSnap.exists ? (childSnap.data() || {}) : {};
+
+  return {
+    valid: true,
+    requestId,
+    childUid: record.uid,
+    // First name only. The email said this much; the surname is not
+    // needed to decide and is not offered.
+    childFirstName: child.firstName || (child.displayName || "").split(" ")[0] || "your child",
+    planId: record.planId || null,
+    priceZMW: Number.isFinite(Number(record.priceZMW)) ? Number(record.priceZMW) : null,
+    feature: record.feature || null,
+  };
+}
+
 /* ── Family sharing ────────────────────────────────────────────────── */
 
 async function sendMail({to, subject, text}) {
@@ -697,5 +748,6 @@ module.exports = {
   listGuardianApprovals,
   listGuardianChildren,
   removeCoGuardian,
+  resolveGuardianPayLink,
   setChildGuardianControl,
 };

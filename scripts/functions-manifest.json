@@ -2602,6 +2602,21 @@
       "classification": "mechanical",
       "batch": null
     },
+    "resolveGuardianPayLink": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
     "resolvePaperAssetUrl": {
       "kind": "factory",
       "inline": false,

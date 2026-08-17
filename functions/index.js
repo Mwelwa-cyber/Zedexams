@@ -2443,6 +2443,16 @@ exports.removeCoGuardian = onCall({
   region: "us-central1", timeoutSeconds: 30,
 }, parentApp.removeCoGuardian);
 
+// The guardian pay link. UNAUTHENTICATED by design: the guardian who
+// receives requestGuardianUnlock's email may have no ZedExams account, and a
+// link that demands a sign-in before it will say what it is about is a link
+// people close. It requires the 32-byte raw token (never stored — the request
+// doc id is its sha256), returns only what that email already told them, and
+// grants nothing; paying still goes through the authorised checkout.
+exports.resolveGuardianPayLink = onCall({
+  region: "us-central1", timeoutSeconds: 30,
+}, parentApp.resolveGuardianPayLink);
+
 // The Sunday report, for parent ACCOUNTS. Not a duplicate of
 // weeklyParentDigest: that one fans out over `progressShares` (the anonymous
 // link a learner hands to a parent with no account), this one over

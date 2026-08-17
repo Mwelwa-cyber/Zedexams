@@ -251,6 +251,11 @@ const ParentAccount = lazy(() => import('../features/parentPortal/pages/ParentAc
 const ParentPlan = lazy(() => import('../features/parentPortal/pages/ParentPlan'))
 const FamilySharing = lazy(() => import('../features/parentPortal/pages/FamilySharing'))
 const AcceptCoGuardian = lazy(() => import('../features/parentPortal/pages/AcceptCoGuardian'))
+// The URL requestGuardianUnlock has mailed every guardian since it
+// shipped. OUTSIDE the parent guard on purpose — the recipient may have
+// no account at all, and the page says what the request is before it
+// asks them to make one.
+const GuardianUnlock = lazy(() => import('../features/parentPortal/pages/GuardianUnlock'))
 
 // Teacher section. The /teacher/* routes themselves live in
 // app/routes/teacherRoutes.jsx — declared as data so a spec can
@@ -597,6 +602,8 @@ export default function App() {
           <Route path="/share/:token"             element={<PublicShareView />} />
           {/* Audit A3 — parent portal. Public token-based read; no auth. */}
           <Route path="/parent/:token"            element={<ParentProgressView />} />
+
+          <Route path="/guardian-unlock"          element={<GuardianUnlock />} />
 
           {/* ── The parent app — authenticated guardian accounts ───── */}
           {/* One layout route, so the four-tab navigation is mounted once
