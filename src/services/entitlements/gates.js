@@ -67,6 +67,27 @@ export const MOMENT_OF_WIN_EVENTS = Object.freeze([
 ])
 
 export const FEATURE_GATES = {
+  /*
+   * The whole-product ask, for the surfaces that are not about one
+   * feature: a learner who reached a price list or an upgrade banner.
+   *
+   * It exists because those surfaces have to send an under-18 learner
+   * SOMEWHERE, and every other gate here names one thing ("open more past
+   * papers", "see what you got wrong"). Reusing PAPER_OPEN there would put
+   * a message about past papers in front of a guardian whose child was
+   * asking about ZedExams — a request the parent cannot match to anything
+   * their child did.
+   *
+   * No `quota`: nothing counts down to it. It is reached by arriving at a
+   * price, which is not a thing a learner runs out of.
+   */
+  FULL_ACCESS: {
+    tier: TIER.CONTEXTUAL,
+    icon: '🔓',
+    title: 'Unlock everything on ZedExams',
+    body: 'Every past paper, every quiz and full marking for your grade.',
+  },
+
   PAPER_OPEN: {
     quota: 'papersThisWeek',
     tier: TIER.CONTEXTUAL,

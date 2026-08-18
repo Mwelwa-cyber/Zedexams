@@ -9,6 +9,11 @@
 // `critical: true` categories are always delivered in-app (a learner cannot
 // hide "payment failed" / "password changed"); their toggle gates PUSH only.
 
+// `audience` narrows a category to the roles it means anything for.
+// Absent = everybody. `guardianReports` is the Sunday family email, which
+// only a linked guardian ever receives, so showing the switch to a
+// learner or a teacher would be a control over a message they will never
+// get — the settings-screen equivalent of a dead link.
 export const NOTIFICATION_CATEGORY_META = [
   { key: 'learning',      label: 'Learning',      hint: 'Quizzes, results, streaks, daily practice.' },
   { key: 'lessonPlans',   label: 'Lesson Plans',  hint: 'Teacher tools and generation updates.' },
@@ -17,7 +22,17 @@ export const NOTIFICATION_CATEGORY_META = [
   { key: 'account',       label: 'Account',       hint: 'Sign-ins, password and security.', critical: true },
   { key: 'system',        label: 'System',        hint: 'Maintenance and important service notices.', critical: true },
   { key: 'announcements', label: 'Announcements', hint: 'New features and platform news.' },
+  { key: 'guardianReports', label: 'Family reports', hint: "Your child's weekly progress report.", audience: 'guardian' },
 ]
+
+/**
+ * The categories a given role should be offered. Kept beside the list so
+ * a new audience-scoped category cannot appear on an unrelated settings
+ * screen just because that screen maps over the whole array.
+ */
+export function categoriesForAudience(audience) {
+  return NOTIFICATION_CATEGORY_META.filter((c) => !c.audience || c.audience === audience)
+}
 
 // Coerce a stored (possibly legacy / partial) notificationPrefs into the full
 // structured client shape. Mirrors functions/notifications/notificationPrefsCore
@@ -46,10 +61,14 @@ export function normalizeNotificationPrefs(input) {
       account:       pick(cats.account),
       system:        pick(cats.system),
       announcements: pick(cats.announcements, legacyAnnouncements),
+      guardianReports: pick(cats.guardianReports),
     },
     channels: {
       push:  typeof ch.push === 'boolean' ? ch.push : true,
       inApp: typeof ch.inApp === 'boolean' ? ch.inApp : true,
+      // Mirrors functions/notifications/notificationPrefsCore.js. Default
+      // on: a profile written before the field existed has not opted out.
+      email: typeof ch.email === 'boolean' ? ch.email : true,
     },
     quietHours: {
       enabled: qh.enabled === true,

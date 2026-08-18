@@ -87,6 +87,19 @@ async function reportForLink(db, link, now = Date.now()) {
   const to = String(parent.email || "").trim();
   if (!to) return {sent: false, reason: "no-parent-email"};
 
+  // The guardian's own preference, and it is honoured here rather than
+  // being a claim on a settings screen. /family/account promised "turn it
+  // off in Account → Alerts" while nothing behind that row could switch
+  // this email off — a parent who opted out and kept receiving it learns
+  // that our settings do not mean anything. `emailEnabled` checks the
+  // master switch, the email channel and the guardianReports category
+  // together; an unset preference is on, so nobody silently stops
+  // receiving a report they were already getting.
+  const {emailEnabled} = require("../notifications/notificationPrefsCore");
+  if (!emailEnabled(parent.notificationPrefs, "guardianReports")) {
+    return {sent: false, reason: "guardian-opted-out"};
+  }
+
   const child = childSnap.exists ? (childSnap.data() || {}) : {};
   const stats = statsSnap && statsSnap.exists ? (statsSnap.data() || {}) : {};
 
@@ -122,6 +135,8 @@ async function reportForLink(db, link, now = Date.now()) {
   return {sent: true, to};
 }
 
+const {isLinkActive} = require("../familyPortalCore");
+
 async function runWeeklyGuardianReport() {
   const db = admin.firestore();
   const now = Date.now();
@@ -132,6 +147,14 @@ async function runWeeklyGuardianReport() {
 
   for (const doc of snap.docs) {
     const link = {id: doc.id, ...doc.data()};
+    // A pending or declined link is not a guardian. Emailing a child's
+    // week to somebody the child has not confirmed would hand over the
+    // very data the confirmation step exists to protect — and by email,
+    // where it cannot be taken back.
+    if (!isLinkActive(link)) {
+      skipped += 1;
+      continue;
+    }
     try {
       const result = await reportForLink(db, link, now);
       if (result.sent) {

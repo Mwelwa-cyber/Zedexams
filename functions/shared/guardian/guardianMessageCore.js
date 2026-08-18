@@ -39,6 +39,7 @@ export const MESSAGE_BLOCK_ORDER = Object.freeze([
 
 /** Gate id → the sentence describing what the learner asked to unlock. */
 const REQUEST_SENTENCES = Object.freeze({
+  FULL_ACCESS: 'is asking to unlock ZedExams — every past paper, quiz and full marking for their grade',
   PAPER_CONTINUE:
     'wants to finish the remaining {remaining} questions of the paper and get it marked like the real exam',
   PAPER_OPEN: 'wants to open more past papers for revision',

@@ -313,6 +313,7 @@ const {
   createFamilyInviteCode,
   revokeFamilyInviteCode,
   redeemFamilyInviteCode,
+  respondToFamilyLink,
   getChildProgress,
 } = require("./familyPortal");
 // Audit A3 PR 2 — weekly digest cron (Sunday 09:00 Africa/Lusaka).
@@ -2083,6 +2084,10 @@ exports.getProgressShare = getProgressShare;
 exports.createFamilyInviteCode = createFamilyInviteCode;
 exports.revokeFamilyInviteCode = revokeFamilyInviteCode;
 exports.redeemFamilyInviteCode = redeemFamilyInviteCode;
+// The child's answer to "is this your grown-up?". Redeeming a code now
+// creates a PENDING link and this is what makes it real — see the header
+// of functions/familyPortal.js.
+exports.respondToFamilyLink = respondToFamilyLink;
 exports.getChildProgress = getChildProgress;
 
 // A3 PR 2 — weekly digest cron. Sunday 09:00 Africa/Lusaka. Fans out
@@ -2450,6 +2455,14 @@ exports.acceptCoGuardianInvite = onCall({
 exports.removeCoGuardian = onCall({
   region: "us-central1", timeoutSeconds: 30,
 }, parentApp.removeCoGuardian);
+
+// Guardian consent, granted or withdrawn from the parent app. Owner-only
+// server-side; withdrawing writes the same denied/suspended/scheduled-for-
+// deletion record the emailed "this wasn't me" link writes, through the one
+// shared builder in guardianConsent/consentRecord.js.
+exports.setGuardianConsent = onCall({
+  region: "us-central1", timeoutSeconds: 30,
+}, parentApp.setGuardianConsent);
 
 // The guardian pay link. UNAUTHENTICATED by design: the guardian who
 // receives requestGuardianUnlock's email may have no ZedExams account, and a

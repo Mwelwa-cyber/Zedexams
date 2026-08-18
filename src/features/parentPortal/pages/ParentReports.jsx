@@ -30,7 +30,7 @@ export default function ParentReports() {
       ) : error ? (
         <ErrorRetry message={error} onRetry={reload} />
       ) : ordered.length === 0 ? (
-        <Empty icon="📈">
+        <Empty icon="📈" action={{ label: 'Add a child', to: '/family/children' }}>
           Reports appear once you have linked a child.
         </Empty>
       ) : (

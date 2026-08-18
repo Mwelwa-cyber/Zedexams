@@ -12,6 +12,8 @@
  *
  * Self-hides:
  *   - When the user isn't signed in (chat would just show "sign in").
+ *   - For a parent account, everywhere. Ask Zed is the learner's helper,
+ *     not the household's; see shouldHideFabForRole.
  *   - On focused/immersive surfaces (runners, viewers, games, results)
  *     and non-learner areas — the prototype's fabHidden list, ported to
  *     routes in lib/askZedCore.js. Notably the pill DOES stay visible in
@@ -35,7 +37,7 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { isAllowed } from '../../../utils/guardianControls'
-import { shouldHideFab } from '../lib/askZedCore'
+import { shouldHideFab, shouldHideFabForRole } from '../lib/askZedCore'
 import '../askZed.css'
 
 const ZED_ART = '/images/characters/poses/zed-waving.webp'
@@ -46,6 +48,12 @@ export default function ZedChatLauncher() {
   const navigate = useNavigate()
 
   if (!currentUser) return null
+  // A parent never gets the pill, on any route. See shouldHideFabForRole —
+  // Ask Zed is metered against a LEARNER's allowance and prompted for a
+  // child, so a guardian tapping it spends their child's quota on an
+  // answer written for their child. Help for a parent is Account → Help
+  // & support.
+  if (shouldHideFabForRole(userProfile?.role)) return null
   if (shouldHideFab(pathname)) return null
   // Settings → Learning → "Ask Zed" is the learner's own switch; the
   // Guardian Zone's is their guardian's. `isAllowed` is the one place the

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import Logo from '../../../shared/components/Logo'
 import Button from '../../../shared/components/Button'
@@ -8,7 +8,17 @@ import SeoHelmet from '../../../shared/components/SeoHelmet'
 // Prices live in src/config/teacherPlanPricing.js so /pricing and the
 // /teachers landing can never drift apart on the numbers.
 import { PLAN_PRICES } from '../../../config/teacherPlanPricing'
+// The learner ladder. A separate catalogue from the teacher tiers on
+// purpose — see the header of src/config/plans.js — and the reason this
+// page has a learner section at all: a guardian sent here from the family
+// app was landing on Pro (K59) and Max (K149), which are what a TEACHER
+// buys. There was no price on this page for the product they were
+// actually buying.
+import { SIBLING_ADDON, availablePlans, formatKwacha, savingLabel } from '../../../config/plans'
 import { isNativePlatform } from '../../../utils/runtime'
+// Deep import — see MySubscriptionRoute. planState is pure; the barrel
+// reaches Firebase, and this is a public marketing page.
+import { mayShowPrice } from '../../../services/entitlements/planState'
 
 const UpgradeModal = lazy(() => import('../../subscription').then(m => ({ default: m.UpgradeModal })))
 
@@ -228,6 +238,54 @@ const PLANS = [
   },
 ]
 
+/**
+ * The learner / family ladder.
+ *
+ * `Free`, `Pro` and `Max` above are the TEACHER tiers. A parent buying
+ * ZedExams for their child is buying a different product on a different
+ * catalogue (src/config/plans.js), and until this section existed the
+ * family app's upgrade link pointed at a page that priced neither.
+ *
+ * Rungs come from the ladder rather than being retyped, so the figure a
+ * guardian reads here is the same one the checkout charges. Seasonal
+ * rungs (the Exam Pass) come and go with `availablePlans`.
+ */
+function FamilyPlanRung({ plan, native }) {
+  const saving = savingLabel(plan)
+  return (
+    <Card
+      variant={plan.highlight ? 'elevated' : 'flat'}
+      size="md"
+      className={`relative flex flex-col ${plan.highlight ? 'ring-2 ring-[color:var(--accent)]' : ''}`}
+    >
+      {plan.badge && (
+        <span className="absolute -top-2.5 left-4 rounded-full bg-[color:var(--accent)] px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-white">
+          {plan.badge}
+        </span>
+      )}
+      <div className="font-display font-black text-lg">{plan.label}</div>
+      {/* Android: Google Play's own sheet shows the authoritative
+          localized price, and Play policy forbids advertising a
+          different one alongside it. */}
+      <div className="mt-1 flex items-baseline gap-1.5">
+        {native ? (
+          <span className="font-display font-black text-2xl tracking-tight">Via Google Play</span>
+        ) : (
+          <>
+            <span className="font-display font-black text-3xl tracking-tight leading-none">
+              {formatKwacha(plan.price)}
+            </span>
+            <span className="text-sm theme-text-muted">{plan.period}</span>
+          </>
+        )}
+      </div>
+      <div className="mt-1.5 min-h-[18px] text-xs theme-text-muted">
+        {!native && saving ? saving : plan.blurb || ''}
+      </div>
+    </Card>
+  )
+}
+
 function SectionTag({ children }) {
   return (
     <div className="flex items-center gap-2.5 mb-4">
@@ -238,7 +296,7 @@ function SectionTag({ children }) {
 }
 
 export default function Plans() {
-  const { currentUser, isTeacher } = useAuth()
+  const { currentUser, isTeacher, isParent, userProfile } = useAuth()
   const navigate = useNavigate()
   const [billing, setBilling] = useState('monthly')
   const [showUpgrade, setShowUpgrade] = useState(null) // 'pro' | 'max' | null
@@ -263,6 +321,28 @@ export default function Plans() {
     return key === 'free' ? handleFreeCta : () => handlePaidCta(key)
   }
 
+  // Where a guardian goes to actually buy. A signed-in parent has a
+  // checkout that already knows which child the money credits
+  // (/family/plan carries `beneficiaryUid`); anyone else needs a parent
+  // account first, which is what the register intent asks for. Never the
+  // teacher upgrade modal — that charges the wrong catalogue to the
+  // wrong account.
+  const familyCtaTo = isParent ?
+    '/family/plan' :
+    (currentUser ? '/family' : '/register?intent=family')
+
+  // Seasonal rungs come and go; the ladder decides, not this page.
+  const familyRungs = availablePlans()
+
+  // A signed-in learner who is not positively an adult never sees a price
+  // list. Two rows in the learner settings help panel link here ("Pricing
+  // & plans", "FAQs"), so this page is genuinely reachable from a child's
+  // session — the banners routing their taps elsewhere is not enough on
+  // its own. An ANONYMOUS visitor is not a known child and keeps the
+  // public page: `mayShowPrice` draws that distinction deliberately, and
+  // the hook order is preserved by placing the redirect after every hook.
+  const blockedByAge = !!currentUser && !mayShowPrice(userProfile)
+
   const upgradePlanIds = showUpgrade
     ? [`${showUpgrade}_monthly`, `${showUpgrade}_yearly`]
     : []
@@ -270,11 +350,13 @@ export default function Plans() {
     ? `${showUpgrade}_${billing === 'annual' ? 'yearly' : 'monthly'}`
     : null
 
+  if (blockedByAge) return <Navigate to="/ask-a-grown-up" replace />
+
   return (
     <>
       <SeoHelmet
         title="Pricing — Free, Pro and Max plans"
-        description="ZedExams Pro and Max plans for Zambian teachers and learners. Pay with Airtel Money or MTN MoMo, confirm on WhatsApp."
+        description="ZedExams plans for Zambian teachers (Pro and Max) and for learners and families. Pay with Airtel Money or MTN MoMo, confirm on WhatsApp."
         path="/pricing"
       />
       <div className="marketing-page min-h-screen theme-bg theme-text font-body">
@@ -362,6 +444,35 @@ export default function Plans() {
                 native={native}
               />
             ))}
+          </div>
+        </Section>
+
+        {/* Learners and families — a different catalogue from the three
+            teacher tiers above, and the destination the family app's
+            upgrade link needs. */}
+        <Section className="pb-16 sm:pb-20">
+          <SectionTag>For learners and families</SectionTag>
+          <h2 className="font-display font-black text-3xl sm:text-4xl mb-3 max-w-xl">
+            One plan covers every child you look after.
+          </h2>
+          <p className="theme-text-muted mb-8 max-w-xl">
+            Pro and Max are teacher tools. A parent or guardian buys the learner
+            plan — past papers, quizzes, notes and marking for the child on your
+            account, from a day at a time to a whole term.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
+            {familyRungs.map((plan) => (
+              <FamilyPlanRung key={plan.id} plan={plan} native={native} />
+            ))}
+          </div>
+          <div className="mt-8 flex flex-wrap items-center gap-4">
+            <Button as={Link} to={familyCtaTo} variant="primary" size="lg">
+              {isParent ? 'Unlock for my children' : 'Set up a parent account'}
+            </Button>
+            <span className="text-sm theme-text-muted">
+              Adding a second child costs {formatKwacha(SIBLING_ADDON.price)}
+              {SIBLING_ADDON.period}.
+            </span>
           </div>
         </Section>
 

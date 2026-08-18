@@ -83,7 +83,16 @@ describe('LearnerSettingsPage (prototype-v6)', () => {
     renderSettings()
     fireEvent.click(screen.getByLabelText('Push notifications'))
     expect(updateProfileFields).toHaveBeenCalledWith(
-      expect.objectContaining({ notificationPrefs: expect.objectContaining({ channels: { push: false, inApp: true } }) }),
+      expect.objectContaining({
+        notificationPrefs: expect.objectContaining({
+          // objectContaining on the channels too: `email` joined the
+          // shape when the guardian's Sunday report grew a real switch,
+          // and this assertion is about the PUSH toggle writing what it
+          // says it writes — not about the full channel list, which is
+          // pinned by the notification-prefs tests.
+          channels: expect.objectContaining({ push: false, inApp: true }),
+        }),
+      }),
     )
 
     updateProfileFields.mockClear()
@@ -120,7 +129,12 @@ describe('LearnerSettingsPage (prototype-v6)', () => {
 
     mockProfile = { ...mockProfile, guardian: null }
     renderSettings()
-    expect(screen.getAllByText('Not verified yet').length).toBeGreaterThan(0)
+    // No guardian record: the row says what it IS for rather than
+    // reporting a state, because the thing a learner needs from it in
+    // that case is the family code, not a verdict.
+    expect(
+      screen.getAllByText('Family code and who can see your progress').length,
+    ).toBeGreaterThan(0)
   })
 
   it('Downloads & storage opens the offline library; back goes to Profile', () => {

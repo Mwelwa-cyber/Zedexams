@@ -24,6 +24,7 @@ import {
   nextWeeklyReset,
   planChipLabel,
   quotaLeft,
+  mayShowPrice,
   resolveAgeBand,
   resolvePlanState,
 } from '../src/services/entitlements/planState.js'
@@ -151,6 +152,28 @@ test('ageBand fails closed — a learner is under18 unless isMinor is exactly fa
   // Account holders by definition: there is no guardian to route to.
   assert.equal(resolveAgeBand({ role: 'teacher' }), AGE_BAND.ADULT)
   assert.equal(resolveAgeBand({ role: 'parent' }), AGE_BAND.ADULT)
+})
+
+test('a price is shown only to a session that is positively an adult', () => {
+  // The commitment on /child-safety and Play's Families policy: an
+  // under-18 learner never sees a price or a purchase path. The banner,
+  // the dashboard card, /my-subscription and /pricing all key off this.
+  assert.equal(mayShowPrice({ role: 'learner' }), false)
+  assert.equal(mayShowPrice({ role: 'learner', isMinor: true }), false)
+  assert.equal(mayShowPrice({ role: 'learner', isMinor: null }), false)
+  assert.equal(mayShowPrice({}), false, 'a profile with no role is not evidence of an adult')
+
+  assert.equal(mayShowPrice({ role: 'learner', isMinor: false }), true)
+  assert.equal(mayShowPrice({ role: 'teacher' }), true)
+  assert.equal(mayShowPrice({ role: 'parent' }), true)
+  assert.equal(mayShowPrice({ role: 'admin' }), true)
+
+  // The one place this does NOT fail closed, and it is deliberate: an
+  // ABSENT profile is a signed-out visitor reading the public marketing
+  // site, not a child. Failing closed there would take the price list off
+  // /pricing for everybody who has not signed in.
+  assert.equal(mayShowPrice(null), true)
+  assert.equal(mayShowPrice(undefined), true)
 })
 
 test('every quota states a reset date, and the weekly one is the next Monday', () => {

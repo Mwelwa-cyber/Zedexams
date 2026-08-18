@@ -97,6 +97,31 @@ export function resolveAgeBand(profile) {
   return profile?.isMinor === false ? AGE_BAND.ADULT : AGE_BAND.UNDER_18
 }
 
+/**
+ * May this session be shown a price, or a route to a checkout?
+ *
+ * The rule on /child-safety, and Play's Families policy, is that an
+ * under-18 learner never sees one. `resolveAgeBand` already answers "is
+ * this an adult", and it fails closed — but it cannot be used on its own
+ * here, because a profile that is ABSENT is not a child: it is a
+ * signed-out visitor reading the public marketing site, and failing
+ * closed on them would take the price list off /pricing for everybody who
+ * has not signed in. Those are different unknowns and they take different
+ * defaults, which is why this is a function and not an inline comparison.
+ *
+ * So: no profile → yes (a public page for an anonymous reader). A profile
+ * → only when it positively says adult.
+ *
+ * What a `false` means in practice is NOT "hide the offer". It means
+ * route it to the guardian: the child still asks, the parent still pays.
+ * See useUnlockFlow — a twelve-year-old with no mobile money account
+ * cannot accept an offer of K50 whether or not we show it to them.
+ */
+export function mayShowPrice(profile) {
+  if (!profile) return true
+  return resolveAgeBand(profile) === AGE_BAND.ADULT
+}
+
 function hasPaidFlag(profile) {
   return (
     profile?.premium === true ||

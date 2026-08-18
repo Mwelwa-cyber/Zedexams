@@ -9,6 +9,7 @@ import { PlatformSettingsProvider } from '../contexts/PlatformSettingsContext'
 import { MaintenanceBanner, AndroidUpdateBanner } from '../features/platformNotices'
 import { AnnouncementBanner } from '../features/announcements'
 import { SubscriptionStatusBanner } from '../features/subscription'
+import ParentRouteGuard from './guards/ParentRouteGuard'
 import ProtectedRoute from './guards/ProtectedRoute'
 import { TEACHER_ROUTES, FlaggedStudioRoute } from './routes/teacherRoutes'
 import AdminMfaGate from './guards/AdminMfaGate'
@@ -158,6 +159,7 @@ const NativePlayBillingSync = lazy(() => import('../features/subscription/compon
 const LockedFeatureModal = lazy(() => import('../features/subscription/components/LockedFeatureModal'))
 const QuizLimitPopup = lazy(() => import('../features/subscription/components/QuizLimitPopup'))
 const MySubscriptionRoute = lazy(() => import('../features/subscription/pages/MySubscriptionRoute'))
+const AskGrownUpPage = lazy(() => import('../features/subscription/pages/AskGrownUpPage'))
 const UnlockSheetHost = lazy(() => import('../features/subscription/components/UnlockSheetHost'))
 const GraceRibbon = lazy(() => import('../features/subscription/components/GraceRibbon'))
 const NotFound = lazy(() => import('../components/ui/NotFound'))
@@ -254,6 +256,10 @@ const ParentReportDetail = lazy(() => import('../features/parentPortal/pages/Par
 const ParentAccount = lazy(() => import('../features/parentPortal/pages/ParentAccount'))
 const ParentPlan = lazy(() => import('../features/parentPortal/pages/ParentPlan'))
 const FamilySharing = lazy(() => import('../features/parentPortal/pages/FamilySharing'))
+const FamilySharingPicker = lazy(() => import('../features/parentPortal/pages/FamilySharingPicker'))
+const ParentAlerts = lazy(() => import('../features/parentPortal/pages/ParentAlerts'))
+const ParentBilling = lazy(() => import('../features/parentPortal/pages/ParentBilling'))
+const ParentConsent = lazy(() => import('../features/parentPortal/pages/ParentConsent'))
 const AcceptCoGuardian = lazy(() => import('../features/parentPortal/pages/AcceptCoGuardian'))
 // The URL requestGuardianUnlock has mailed every guardian since it
 // shipped. OUTSIDE the parent guard on purpose — the recipient may have
@@ -533,6 +539,12 @@ export default function App() {
       <div id="main" tabIndex={-1}>
         <Suspense fallback={<PageLoader />}>
           <RouteErrorBoundary>
+          {/* A parent session never renders a learner screen. Mounted here,
+              above the table, because the failure it closes is a shape of
+              link rather than one link: anything landing a guardian on
+              /settings or /my-subscription produced the learner shell and
+              the heading "Signed in as Learner". See guards/parentRedirects. */}
+          <ParentRouteGuard>
           <Routes>
           <Route path="/" element={<RootRedirect />} />
           {/* /welcome and /plans were legacy aliases that served the same
@@ -625,10 +637,23 @@ export default function App() {
             <Route path="/family/child/:childUid"              element={<ParentChildDetail />} />
             <Route path="/family/child/:childUid/activity"     element={<ParentChildActivity />} />
             <Route path="/family/child/:childUid/report"       element={<ParentReportDetail />} />
+            {/* Co-guardianship is per CHILD, so the account row lands on a
+                picker; with one child it redirects straight through. */}
+            <Route path="/family/sharing"                      element={<FamilySharingPicker />} />
             <Route path="/family/sharing/:childUid"            element={<FamilySharing />} />
             <Route path="/family/reports"                      element={<ParentReports />} />
             <Route path="/family/account"                      element={<ParentAccount />} />
             <Route path="/family/plan"                         element={<ParentPlan />} />
+            {/* The guardian's own settings, in the family shell. These
+                three replace links that pointed OUT of /family/* into the
+                learner surface: /settings?section=notifications rendered
+                the learner shell and told a parent they were "signed in as
+                Learner", and /my-subscription is written for the account
+                that holds the plan — which a guardian never is, because
+                the money credits the child. */}
+            <Route path="/family/account/alerts"               element={<ParentAlerts />} />
+            <Route path="/family/account/billing"              element={<ParentBilling />} />
+            <Route path="/family/account/consent"              element={<ParentConsent />} />
             {/* The co-guardian invite lands here from an email. It is
                 inside the guard on purpose: accepting requires a parent
                 account, and the page explains that before bouncing
@@ -776,6 +801,11 @@ export default function App() {
               notifications are already in learners' inboxes, so keep the
               alias for the ones still sitting there. */}
           <Route path="/subscription"      element={<Navigate to="/my-subscription" replace />} />
+          {/* Where an under-18 learner lands instead of a price list —
+              /my-subscription and /pricing both redirect here. It carries no
+              price and no checkout; the ask goes to the linked guardian
+              through requestGuardianUnlock. See AskGrownUpPage. */}
+          <Route path="/ask-a-grown-up"    element={<ProtectedRoute><AskGrownUpPage /></ProtectedRoute>} />
           {/* Nested paths (/settings/profile, /settings/school, …) are the
               Teacher Settings detail panels; SettingsPage renders the right
               chrome per role and TeacherSettings routes the subpath. */}
@@ -888,6 +918,7 @@ export default function App() {
 
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </ParentRouteGuard>
         </RouteErrorBoundary>
         {/* Paywall — listens for paywall.show(reason, ctx) from anywhere */}
           <PaywallHost />

@@ -2790,6 +2790,15 @@ body {
     margin-bottom: 6px;
     background: #f5efe1;
   }
+  /* The tile art is sized here, not by the <img>'s own width/height
+     attributes: Tailwind's preflight sets `img { height: auto }` at
+     author level, which outranks a presentational hint, so an attribute
+     alone leaves the art at its intrinsic size inside a 52px box. */
+  .studio-theme .teacher-quickcreate-card__icon img {
+    width: 44px;
+    height: 44px;
+    object-fit: contain;
+  }
   .studio-theme .teacher-quickcreate-card--orange .teacher-quickcreate-card__icon { background: #fde2c4; }
   .studio-theme .teacher-quickcreate-card--violet .teacher-quickcreate-card__icon { background: #e3dcf5; }
   .studio-theme .teacher-quickcreate-card--green  .teacher-quickcreate-card__icon { background: #d8ecd0; }

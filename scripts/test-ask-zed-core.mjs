@@ -6,7 +6,9 @@
 // chips are built from name / grade / note-topic context.
 
 import assert from 'node:assert/strict'
-import { shouldHideFab, buildAskZedIntro, firstNameOf } from '../src/features/zedChat/lib/askZedCore.js'
+import {
+  shouldHideFab, shouldHideFabForRole, buildAskZedIntro, firstNameOf,
+} from '../src/features/zedChat/lib/askZedCore.js'
 
 // ── shouldHideFab ────────────────────────────────────────────────────
 // Visible on the four learner tabs + the surfaces the mockup keeps it on.
@@ -21,8 +23,22 @@ for (const p of [
   '/exams/leaderboard', '/timetable/pdf',
   '/profile', '/settings', '/settings/profile', '/notifications',
   '/admin', '/admin/users', '/teacher', '/login', '/register', '/pricing',
+  // The parent app. Hidden by route as well as by role, so an admin
+  // viewing a family screen for support sees what the parent sees.
+  '/family', '/family/children', '/family/account', '/family/plan',
 ]) {
   assert.equal(shouldHideFab(p), true, `fab should HIDE on ${p}`)
+}
+
+// ── shouldHideFabForRole ─────────────────────────────────────────────
+// A parent never gets the pill, on any route: Ask Zed is metered against
+// a LEARNER's allowance and prompted for a child.
+assert.equal(shouldHideFabForRole('parent'), true)
+// Everyone else keeps whatever the route rule says. An absent or unknown
+// role must NOT hide it — a learner whose profile has not loaded yet
+// would otherwise lose Ask Zed for the first frames of every session.
+for (const role of ['learner', 'teacher', 'admin', 'superAdmin', '', null, undefined, 'Parent']) {
+  assert.equal(shouldHideFabForRole(role), false, `role ${String(role)} should not hide the fab`)
 }
 // The hub/viewer split: /papers shows, /papers/<id> hides.
 assert.equal(shouldHideFab('/papers'), false)

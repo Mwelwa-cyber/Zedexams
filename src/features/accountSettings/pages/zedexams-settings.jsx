@@ -20,11 +20,17 @@ import LanguageToggle from '../../../shared/components/LanguageToggle';
 import { ParentShareManager } from '../../parentPortal';
 import { isPushSupported, pushPermission, requestPushPermission } from '../../../services/notifications/fcm';
 import {
+  LEGACY_TAB_PARAM,
+  SECTION_PARAM,
+  applySettingsTabToParams,
+  resolveSettingsTab,
+} from '../lib/settingsSection';
+import {
   loadAccessibilityPrefs,
   saveAccessibilityPrefs,
 } from '../../../utils/accessibility';
 import {
-  NOTIFICATION_CATEGORY_META,
+  categoriesForAudience,
   normalizeNotificationPrefs,
 } from '../../../engines/notification-engine/notificationPrefs';
 
@@ -1088,7 +1094,10 @@ function NotificationsPanel({ pushToast }) {
         title="Categories"
         description="Choose what you hear about. Payments, Account and System always appear in your notification centre for your safety — turning them off here only stops their push alerts."
       >
-        {NOTIFICATION_CATEGORY_META.map((c) => (
+        {/* Audience-scoped categories (the guardian's Sunday family
+            report) are managed in the family app, not here — this page
+            serves admin, teacher and learner accounts. */}
+        {categoriesForAudience(null).map((c) => (
           <Toggle
             key={c.key}
             label={c.critical ? `${c.label} (push only)` : c.label}
@@ -1451,18 +1460,35 @@ export default function ZedExamsSettings({ role = 'admin' }) {
 
   const safeRole = VALID_ROLES.includes(role) ? role : 'learner';
   const tabs = TABS[safeRole];
-  // Honour a ?tab=<id> deep link (e.g. the Assessment Studio links to
-  // /settings?tab=school) when it's a valid tab for this role.
-  const [searchParams] = useSearchParams();
-  const requestedTab = searchParams.get('tab');
-  const [active, setActive] = useState(
-    tabs.some((t) => t.id === requestedTab) ? requestedTab : tabs[0].id,
-  );
 
-  // Reset active tab if role changes (and current tab no longer valid).
-  useEffect(() => {
-    if (!tabs.some((t) => t.id === active)) setActive(tabs[0].id);
-  }, [tabs, active]);
+  // The open tab is DERIVED from the URL, not held beside it.
+  //
+  // Two things follow, and both were broken before. `?section=<id>` now
+  // opens that section — the parent app's alerts row linked to
+  // /settings?section=notifications and silently landed on Profile,
+  // because only `?tab=` was ever read (see lib/settingsSection.js).
+  // And because switching tabs pushes the new section into the URL
+  // rather than into component state, the back button walks back through
+  // the sections a person visited and the address bar is shareable.
+  //
+  // `?tab=` is still honoured for the links already out in the world
+  // (the Assessment Studio's /settings?tab=school), and is dropped from
+  // the URL on the first switch so the two spellings cannot disagree.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const resolved = resolveSettingsTab({
+    tab: searchParams.get(LEGACY_TAB_PARAM),
+    section: searchParams.get(SECTION_PARAM),
+    tabs,
+  });
+  const active = resolved || tabs[0].id;
+
+  const setActive = useCallback((tabId) => {
+    setSearchParams(
+        (prev) => applySettingsTabToParams(new URLSearchParams(prev), tabId),
+        {replace: false},
+    );
+    if (typeof window !== 'undefined') window.scrollTo({top: 0, behavior: 'smooth'});
+  }, [setSearchParams]);
 
   const [toast, setToast] = useState(null);
   const pushToast = useCallback((kind, message) => {

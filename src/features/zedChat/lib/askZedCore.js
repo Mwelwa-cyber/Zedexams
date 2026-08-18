@@ -29,6 +29,7 @@ export const FAB_HIDDEN_PATHS = [
   '/settings',         // …Settings…
   '/notifications',    // …and the notification centre
   '/guardian',         // the Guardian Zone is a parent's space, not a child's
+  '/family',           // the parent app — see shouldHideFabForRole
   '/admin',            // admin surfaces — distraction
   '/teacher',          // teacher surfaces — distraction
   '/login',
@@ -44,6 +45,33 @@ export const FAB_HIDDEN_PATHS = [
 export function shouldHideFab(pathname) {
   if (!pathname || pathname === '/') return true // marketing root redirect
   return FAB_HIDDEN_PATHS.some((p) => pathname === p || pathname.startsWith(p))
+}
+
+/**
+ * Roles the pill never appears for, whatever route they are on.
+ *
+ * Ask Zed is the LEARNER's study helper: it is grade-scoped, it carries a
+ * child-safety system prompt, and every turn is metered against a
+ * learner's own allowance. A guardian who taps it is not the person any
+ * of that was written for — a parent asking it about their child's
+ * homework spends the CHILD's allowance on an answer pitched at the
+ * child. So it is refused by role, not only by route: the route list is
+ * a list of screens, and a screen added tomorrow inherits nothing from
+ * it, whereas a parent account is a parent account everywhere.
+ *
+ * `/family` is in FAB_HIDDEN_PATHS as well, and deliberately so — an
+ * admin looking at the family surface for support gets the same answer
+ * as the parent whose screen it is.
+ *
+ * Unknown or missing roles are NOT hidden: the pill's other guards (auth,
+ * the guardian control, the learner's own switch) already decide that
+ * case, and defaulting to hidden here would take Ask Zed away from every
+ * learner whose profile has not loaded yet.
+ */
+export const FAB_HIDDEN_ROLES = ['parent']
+
+export function shouldHideFabForRole(role) {
+  return FAB_HIDDEN_ROLES.includes(String(role || ''))
 }
 
 /** First word of a display name, for the personalised greeting. */
