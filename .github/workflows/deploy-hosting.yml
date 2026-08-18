@@ -255,6 +255,7 @@ jobs:
           import os
           import sys
           import time
+          import urllib.error
           import urllib.request
 
           repo = os.environ["GITHUB_REPOSITORY"]
@@ -275,8 +276,35 @@ jobs:
           deadline = time.time() + timeout_seconds
           while time.time() < deadline:
             req = urllib.request.Request(url, headers=headers)
-            with urllib.request.urlopen(req, timeout=30) as response:
-              payload = json.load(response)
+            try:
+              with urllib.request.urlopen(req, timeout=30) as response:
+                payload = json.load(response)
+            except urllib.error.HTTPError as err:
+              # A 401/403/404 here is configuration, not weather: it will still
+              # be true in 25 minutes, so fail now and name the remedy instead
+              # of burning the whole wait window to reach a timeout that
+              # explains nothing.
+              if err.code in (401, 403, 404):
+                print(
+                  f"::error::The Deploy Firebase run lookup returned {err.code}, "
+                  "so this job cannot tell whether the functions deploy "
+                  "succeeded. Grant this job `actions: read` in the workflow's "
+                  "permissions block."
+                )
+                sys.exit(1)
+              print(
+                "::warning::Deploy Firebase run lookup failed with "
+                f"{err.code} {err.reason}; retrying in {poll_seconds}s..."
+              )
+              time.sleep(poll_seconds)
+              continue
+            except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as err:
+              print(
+                f"::warning::Deploy Firebase run lookup failed ({err}); "
+                f"retrying in {poll_seconds}s..."
+              )
+              time.sleep(poll_seconds)
+              continue
 
             runs = payload.get("workflow_runs", [])
             if not runs:
