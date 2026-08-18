@@ -62,6 +62,23 @@ export const STUDY_BLOCK_LABELS = {
 
 export const STUDY_BLOCK_TYPES = Object.keys(STUDY_BLOCK_LABELS)
 
+// Reader-engine blocks that a note can CARRY but the editor does not yet
+// offer in the "add a block" menu, because it has no fields for them.
+// They are deliberately out of STUDY_BLOCK_LABELS — adding them there
+// would make them insertable and then uneditable — but they still need a
+// human-readable name: a block card headed `tapexplore` reads as debris
+// rather than as the tap-to-explore picture grid it is.
+export const READER_ONLY_BLOCK_LABELS = {
+  tapexplore: '👆 Tap to explore',
+  flow:       '➡️ Journey / flow',
+  startend:   '🎯 Starts in / ends in',
+}
+
+/** Display name for any block type, insertable or not. */
+export function studyBlockLabel(type) {
+  return STUDY_BLOCK_LABELS[type] || READER_ONLY_BLOCK_LABELS[type] || type
+}
+
 // ─── tiny text helpers ────────────────────────────────────────────────
 
 /** HTML-escape a string for safe insertion. */
