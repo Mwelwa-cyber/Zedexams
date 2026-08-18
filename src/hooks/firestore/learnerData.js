@@ -32,7 +32,7 @@ import { coerceResult } from '../../shared/schemas/result.js'
 import { isMockPaperRecord } from '../../utils/paperProvenance.js'
 import {
   LEARNER_QUIZ_LIMIT, LEARNER_LESSON_LIMIT,
-  reportRead, shouldUseQuizSummaries,
+  reportRead, shouldUseQuizSummaries, canIssueUserRead,
 } from './internal.js'
 
 export async function getQuizzes(filters = {}) {
@@ -127,6 +127,10 @@ export async function getResultById(resultId) {
 }
 
 export async function getUserResults(userId, limitCount = 20) {
+  // Never issue this before auth resolves — the denial it earns is invisible
+  // (the catch below returns []) and shows the learner an empty history for a
+  // full account. See `canIssueUserRead`.
+  if (!await canIssueUserRead(userId)) return []
   try {
     const snap = await getDocs(query(collection(db, 'results'), where('userId', '==', userId), orderBy('completedAt', 'desc'), limit(limitCount)))
     return snap.docs.map(d => coerceResult({ id: d.id, ...d.data() })).filter(Boolean)
@@ -134,6 +138,7 @@ export async function getUserResults(userId, limitCount = 20) {
 }
 
 export async function getWeaknessAnalysis(userId) {
+  if (!await canIssueUserRead(userId)) return []
   try {
     const results = await getUserResults(userId, 50)
     const map = {}
@@ -160,7 +165,7 @@ export async function getWeaknessAnalysis(userId) {
 // already permits read where userId == auth.uid, so this works
 // straight from the client without a callable.
 export async function getMyPayments(uid, { limit: limitCount = 20 } = {}) {
-  if (!uid) return []
+  if (!await canIssueUserRead(uid)) return []
   try {
     const snap = await getDocs(query(
       collection(db, 'payments'),

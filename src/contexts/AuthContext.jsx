@@ -14,7 +14,7 @@ import {
 } from 'firebase/auth'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp, onSnapshot } from 'firebase/firestore'
-import app, { auth, db, googleProvider } from '../firebase/config'
+import app, { auth, db, googleProvider, authPersistenceReady } from '../firebase/config'
 import { isNativePlatform } from '../utils/runtime'
 import { retryOnNetworkError } from '../utils/authRetry'
 import { ROLES, hasPremiumAccess, hasLearnerPortalAccess } from '../engines/payment-engine/subscriptionConfig'
@@ -39,6 +39,15 @@ import {
   RELOAD,
   DEFER,
 } from '../hooks/authInitRecoveryPolicy'
+import {
+  planAuthInitAttempt,
+  shouldClearStoredUser,
+  AUTH_INIT_RETRY_DELAYS_MS,
+  RETRY,
+  CLEAR,
+  WEDGED as WEDGED_PLAN,
+} from '../hooks/authInitRetryPolicy'
+import { markAuthReady } from '../utils/authReadyGate'
 import {
   shouldTryFallback,
   isContinueUrlError,
@@ -65,6 +74,12 @@ export const SESSION_EXPIRED_KEY = 'auth:sessionExpired'
 // immediately with no spinner. localStorage (not sessionStorage) so it
 // survives the app being fully closed and reopened.
 export const AUTH_HINT_KEY = 'auth:hasSession'
+
+// How long one rung of the auth-init retry ladder waits for `authStateReady()`
+// before calling that rung a miss. Short relative to the backoff itself: the
+// point of the rung is the WAIT between attempts, not the attempt, and a probe
+// that outlasts its own backoff would stretch a 12 s ladder into a minute.
+export const AUTH_INIT_PROBE_MS = 2000
 export function hasAuthSessionHint() {
   try { return localStorage.getItem(AUTH_HINT_KEY) === '1' } catch { return false }
 }
@@ -284,6 +299,22 @@ export function AuthProvider({ children }) {
   // "commit to an answer". Anything that FREEZES a per-user decision must wait
   // for this one instead. Never set by the watchdog, by design.
   const [authSettled, setAuthSettled] = useState(false)
+  // The public name for the same fact, and the one every route guard reads.
+  //
+  // `authSettled` and `authReady` are set together, from the one place Firebase
+  // actually speaks. They are kept as two names rather than merged because they
+  // answer questions with different blast radii: `authSettled` is consumed by
+  // `useAssessmentEngineFlag` to freeze a per-attempt rollout decision, and
+  // `authReady` is what stops a guard NAVIGATING. Renaming one into the other
+  // would silently move a rollout decision onto a routing signal, or the other
+  // way round, the first time either gained a second setter.
+  //
+  // NEVER set by the restoration watchdog. `loading` is a "stop waiting, render
+  // something" signal and the watchdog drops it without knowing who the user
+  // is; a guard that redirected on that pair (`loading === false &&
+  // currentUser === null`) is exactly how a returning learner holding a valid
+  // refresh token got bounced to /login on a cold load.
+  const [authReady, setAuthReady] = useState(false)
   const [profileIssue, setProfileIssue] = useState(null)
   // Explicit React state, NOT derived from currentUser at render time:
   // user.reload() mutates the Firebase User in place, so a verification that
@@ -323,6 +354,9 @@ export function AuthProvider({ children }) {
     const signupRole = (role === ROLES.TEACHER || role === ROLES.PARENT) ? role : ROLES.LEARNER
     const isTeacherSignup = signupRole === ROLES.TEACHER
     const isLearnerSignup = signupRole === ROLES.LEARNER
+    // Never mint a session before the SDK knows where to store it — see
+    // `authPersistenceReady` in firebase/config.js.
+    await authPersistenceReady
     const cred = await createUserWithEmailAndPassword(auth, email, password)
     await updateProfile(cred.user, { displayName })
 
@@ -421,6 +455,9 @@ export function AuthProvider({ children }) {
     // fetch to Google's auth server — common on flaky Zambian mobile links)
     // before surfacing the error. Wrong-password / rate-limit / etc. are not
     // retried (see utils/authRetry.js).
+    // Persistence first: a session written before setPersistence settles
+    // lands in the SDK's in-memory default and does not survive the reload.
+    await authPersistenceReady
     return retryOnNetworkError(() => signInWithEmailAndPassword(auth, email, password))
   }, [])
 
@@ -446,6 +483,7 @@ export function AuthProvider({ children }) {
   // a sign-up concern and should not ripple into sign-in.
   const loginWithGoogle = useCallback(async ({ role, onboarding } = {}) => {
     const targetRole = (role === ROLES.TEACHER || role === ROLES.PARENT) ? role : ROLES.LEARNER
+    await authPersistenceReady
     const cred = isNativePlatform()
       ? await signInWithGoogleNative()
       : await signInWithPopup(auth, googleProvider)
@@ -732,8 +770,14 @@ export function AuthProvider({ children }) {
     // against nobody (PYTHON-K read as "Users impacted: 0" for eight days
     // precisely because the user tag is set from the callback that never ran).
     setAuthStateTag('unresolved')
-    // Reported at most once, however many paths reach the same conclusion.
+    // Reported at most once PER TERMINAL VERDICT, however many paths reach the
+    // same conclusion. Retry reports are separate and deliberately not capped
+    // by this — each rung is its own event.
     let failureReported = false
+    // Which rung of the backoff ladder we are on, and the timer holding the
+    // next one. Both are torn down by the first auth event.
+    let retryAttempt = 0
+    let retryTimer = null
     const revealAsSignedOut = () => {
       if (disposedRef.current) return
       setLoading(false)
@@ -743,12 +787,108 @@ export function AuthProvider({ children }) {
       console.warn('[auth] auth never initialised — reloading once to recover the session')
       window.location.reload()
     }
-    const runWatchdogDecision = ({ viaFastPath = false } = {}) => {
+    // One rung of the ladder: ask Firebase again, and report back whatever it
+    // said. Never throws — the CALLER decides what an error means, because the
+    // classification (keep the session vs clear it) is the whole point and
+    // belongs in one tested place, not in a catch block here.
+    const probeAuthInit = async () => {
+      try {
+        const user = auth.currentUser
+        if (user) {
+          // Auth resolved between the timer being armed and it firing. Force a
+          // fresh ID token: that is the call that surfaces a revoked or
+          // disabled credential as a code we can classify, and the one whose
+          // failure the ladder exists to absorb.
+          await user.getIdToken(true)
+          return {}
+        }
+        // Still nothing. `authStateReady()` settles the moment initialisation
+        // completes, so a slow-but-alive cold start finishes here and the
+        // onAuthStateChanged listener tears the ladder down. A genuinely wedged
+        // SDK never settles it, which is what the race bounds.
+        await Promise.race([
+          auth.authStateReady?.() ?? Promise.resolve(),
+          new Promise((resolve) => { setTimeout(resolve, AUTH_INIT_PROBE_MS) }),
+        ])
+        return {}
+      } catch (e) {
+        return { errorCode: e?.code }
+      }
+    }
+
+    // The stored session is genuinely no good — the server said so. This is the
+    // ONLY path in the watchdog that ends a session; every other outcome keeps
+    // the stored user, because "we could not confirm it" is not "it is dead".
+    const clearStoredUser = (errorCode) => {
+      if (disposedRef.current) return
+      console.warn('[auth] stored session rejected by the server:', errorCode)
+      setAuthSessionHint(false)
+      expireSession(`init-${errorCode}`)
+      // signOut() is built on the same initialisation promise that may be
+      // wedged, so it can never be relied on to produce the auth event that
+      // would end the loader. Reveal directly.
+      revealAsSignedOut()
+    }
+
+    const runWatchdogDecision = ({ viaFastPath = false, errorCode } = {}) => {
       if (disposedRef.current) return
       const storage = typeof window !== 'undefined' ? window.sessionStorage : null
       const hasHint = hasAuthSessionHint()
       const recoveryAttempted = readRecoveryAttempted(storage)
       const documentHidden = typeof document !== 'undefined' && document.visibilityState === 'hidden'
+
+      // ── The backoff ladder ────────────────────────────────────────────────
+      // Before concluding anything, ask again. A device holding a live refresh
+      // token whose reload failed on a dropped mobile request has a perfectly
+      // good session, and 12 s of patience recovers it; treating that first
+      // failure as a verdict is what logged learners out of working accounts.
+      //
+      // NOT on the fast path, and the distinction is the point. The watchdog
+      // fires on a TIMEOUT — ambiguous between "wedged" and "slow", which is
+      // exactly the ambiguity the ladder resolves. The fast path fires on an
+      // observed rejection while hidden with a hint, which is positive evidence
+      // that `_initializationPromise` has already rejected; from there the SDK
+      // is wedged for the life of the page and no amount of asking again can
+      // change that (`authStateReady()` is built on the same promise and never
+      // settles). Running the ladder there would spend 12 s to re-learn what we
+      // already know, and spending it is the opposite of what the fast path is
+      // for. A terminal error code is still honoured on both paths.
+      const plan = (viaFastPath && !shouldClearStoredUser(errorCode))
+        ? { action: WEDGED_PLAN, delayMs: 0, attempt: retryAttempt, keepsUser: true }
+        : planAuthInitAttempt({ attempt: retryAttempt, hasHint, errorCode })
+      if (plan.action === CLEAR) {
+        setAuthStateTag('wedged')
+        reportAuthInitFailure({
+          action: CLEAR, viaFastPath, documentHidden, hidDuringInit, recoveryAttempted,
+          attempt: retryAttempt, errorCode,
+        })
+        clearStoredUser(errorCode)
+        return
+      }
+      if (plan.action === RETRY) {
+        retryAttempt = plan.attempt
+        // Reported at `warning`, not `error`: a retry is the system working.
+        // Reporting it anyway is what makes the ladder visible in triage — the
+        // alternative files only the cases where it failed, which reads as if
+        // it never helps.
+        reportAuthInitFailure({
+          action: RETRY, viaFastPath, documentHidden, hidDuringInit, recoveryAttempted,
+          attempt: plan.attempt, errorCode,
+        })
+        console.warn(`[auth] auth init unresolved — retry ${plan.attempt}/${AUTH_INIT_RETRY_DELAYS_MS.length} in ${plan.delayMs}ms`)
+        clearTimeout(retryTimer)
+        retryTimer = setTimeout(() => {
+          if (disposedRef.current) return
+          void probeAuthInit().then((result) => {
+            if (disposedRef.current) return
+            runWatchdogDecision({ viaFastPath, errorCode: result.errorCode })
+          })
+        }, plan.delayMs)
+        return
+      }
+
+      // Out of rungs. The session is KEPT — falling through here means we could
+      // not confirm it, not that it is dead — and recovery moves to the reload.
       const action = decideAuthInitRecovery({ hasHint, recoveryAttempted, documentHidden })
       // Only a HINTED device is a failure worth reporting — a slow cold start
       // on a signed-out visitor is ordinary and must not page anyone.
@@ -757,6 +897,7 @@ export function AuthProvider({ children }) {
         setAuthStateTag('wedged')
         reportAuthInitFailure({
           action, viaFastPath, documentHidden, hidDuringInit, recoveryAttempted,
+          attempt: retryAttempt, errorCode,
         })
       }
       if (action === DEFER) {
@@ -968,6 +1109,11 @@ export function AuthProvider({ children }) {
 
     const unsub = onAuthStateChanged(auth, (user) => {
       clearTimeout(timeout)
+      // Firebase spoke — abandon any rung still waiting to fire, and reset the
+      // ladder so a later failure episode gets its own full three attempts.
+      clearTimeout(retryTimer)
+      retryTimer = null
+      retryAttempt = 0
       // Firebase initialised, so this failure episode is over. Give the tab its
       // recovery reload back — a session that hits the hide-during-init race
       // again later deserves the same rescue, and cannot loop because every
@@ -989,6 +1135,10 @@ export function AuthProvider({ children }) {
       // `useAssessmentEngineFlag`, which is the first consumer to need the
       // distinction.
       setAuthSettled(true)
+      setAuthReady(true)
+      // The module-level mirror the Firestore read path waits on. Same single
+      // setter, same single moment — see utils/authReadyGate.js.
+      markAuthReady()
       if (import.meta.env.DEV) {
         console.info('[auth] auth state resolved:', user ? `uid=${user.uid}` : 'no user (signed out)')
       }
@@ -1052,6 +1202,7 @@ export function AuthProvider({ children }) {
     return () => {
       disposedRef.current = true
       clearTimeout(timeout)
+      clearTimeout(retryTimer)
       if (recoveryVisibilityListener) {
         document.removeEventListener('visibilitychange', recoveryVisibilityListener)
         recoveryVisibilityListener = null
@@ -1091,8 +1242,8 @@ export function AuthProvider({ children }) {
    * their value stops a token refresh re-rendering every consumer of theirs.
    *
    * AuthProvider has no such ancestor. Its only re-render triggers are its own
-   * six useState values — currentUser, userProfile, loading, authSettled,
-   * profileIssue, emailVerified — and every one of them is a dependency of this
+   * seven useState values — currentUser, userProfile, loading, authSettled,
+   * authReady, profileIssue, emailVerified — and every one of them is a dependency of this
    * object (useAuthRecovery holds refs and effects only, no state). So this memo
    * is invalidated on essentially every render that actually occurs, and it does
    * NOT meaningfully reduce consumer re-renders. Do not cite it as if it did.
@@ -1109,7 +1260,7 @@ export function AuthProvider({ children }) {
    * change across all 219 consumers and belongs in its own PR.
    */
   const value = useMemo(() => ({
-    currentUser, userProfile, loading, authSettled, profileIssue,
+    currentUser, userProfile, loading, authSettled, authReady, profileIssue,
     emailVerified,
     needsEmailVerification: !!currentUser && emailVerified === false,
     refreshEmailVerification, resendVerificationEmail,
@@ -1120,7 +1271,7 @@ export function AuthProvider({ children }) {
     userStatus, isSuspended,
     mfaEnrolled,
   }), [
-    currentUser, userProfile, loading, authSettled, profileIssue, emailVerified,
+    currentUser, userProfile, loading, authSettled, authReady, profileIssue, emailVerified,
     refreshEmailVerification, resendVerificationEmail,
     login, loginWithGoogle, register, logout, resetPassword,
     fetchUserProfile, ensureUserProfile, refreshProfile, retrySession, updateProfileFields, updateLearnerGrade,

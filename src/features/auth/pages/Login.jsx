@@ -68,7 +68,7 @@ const LABEL_CLASS = 'block text-[15px] font-medium text-[color:var(--text)] mb-1
 export default function Login() {
   const {
     login, loginWithGoogle, resetPassword, ensureUserProfile,
-    currentUser, userProfile, loading: authLoading, profileIssue,
+    currentUser, userProfile, authReady, profileIssue,
     needsEmailVerification,
   } = useAuth()
   const navigate = useNavigate()
@@ -85,14 +85,25 @@ export default function Login() {
   const fromPath = location.state?.from
     ? `${location.state.from.pathname || ''}${location.state.from.search || ''}` || null
     : null
-  const postLoginPath = (profile) => resolvePostAuthPath(profile, fromPath, '/')
+  // `/dashboard` is the fallback, not `/`. Sending a signed-in user to `/`
+  // meant a second hop through RootRedirect to work out the same answer, and
+  // that hop is a window in which a slow profile read renders the public
+  // marketing page to somebody who just signed in. resolvePostAuthPath still
+  // owns the role correction, so a teacher whose stashed `from` is a
+  // learner-only path lands on /teacher rather than being bounced.
+  const postLoginPath = (profile) => resolvePostAuthPath(profile, fromPath, '/dashboard')
 
   // A user who is ALREADY signed in has no business on the login form —
   // this is what makes the "bounced to /login while Firebase was still
   // restoring the session" case self-heal: the moment restoration completes,
   // they're sent straight back to where they were.
   useEffect(() => {
-    if (authLoading || !currentUser) return
+    // `authReady`, not `authLoading`. The restoration watchdog drops
+    // `authLoading` without knowing who the user is, so gating on it let this
+    // effect run — and decline to redirect — while Firebase was still
+    // restoring, which is what left a signed-in learner sitting on the sign-in
+    // form after a cold load bounced them here.
+    if (!authReady || !currentUser) return
     // Unverified email/password session — the verification gate, not the
     // dashboard, is where they continue. Carry fromPath through so verifying
     // returns them to the page they originally wanted.
@@ -106,8 +117,11 @@ export default function Login() {
       navigate('/', { replace: true })
       return
     }
-    if (userProfile) navigate(resolvePostAuthPath(userProfile, fromPath, '/'), { replace: true })
-  }, [authLoading, currentUser, userProfile, profileIssue, fromPath, navigate, needsEmailVerification, location.state])
+    if (userProfile) navigate(postLoginPath(userProfile), { replace: true })
+    // `postLoginPath` is recreated every render and would re-run this effect on
+    // each one; it is a pure function of `fromPath`, which IS declared.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authReady, currentUser, userProfile, profileIssue, fromPath, navigate, needsEmailVerification, location.state])
 
   const [email, setEmail]         = useState('')
   const [password, setPassword]   = useState('')
@@ -160,8 +174,17 @@ export default function Login() {
     // A null profile after a successful auth is almost always a transient
     // read failure on a flaky network (Zambia), NOT a missing profile.
     // AuthContext's onSnapshot listener runs concurrently and will populate the
-    // profile — or surface profileIssue — on its own. Navigate and let
-    // RootRedirect / MissingProfileRecovery handle any profileIssue state.
+    // profile — or surface profileIssue — on its own.
+    //
+    // With no profile there is no role, so there is nothing to land ON. `/` is
+    // the destination on purpose: RootRedirect owns the recovery screen and
+    // re-decides the moment the profile arrives. Sending them to the learner
+    // landing instead would guess at a role we do not have — and guess wrong
+    // for every teacher and admin.
+    if (!profile) {
+      navigate('/', { replace: true })
+      return
+    }
     navigate(postLoginPath(profile), { replace: true })
   }
 
@@ -265,8 +288,18 @@ export default function Login() {
   // restoring — hold on the branded loader rather than flashing the sign-in
   // form at a user who never signed out. A genuinely signed-out visitor has
   // no hint and falls straight through to the form.
-  if (authLoading && !currentUser && hasAuthSessionHint()) {
+  // Two cases, one screen:
+  //   • auth is still resolving on a device with a known session — the old
+  //     condition, kept;
+  //   • auth HAS resolved and there is a live user — the redirect effect above
+  //     is about to fire, and the form must not flash in the meantime. Without
+  //     this an authenticated user saw the sign-in form for a frame on every
+  //     bounce through /login.
+  if (!authReady && !currentUser && hasAuthSessionHint()) {
     return <FullScreenLoader label="Restoring your session…" />
+  }
+  if (authReady && currentUser) {
+    return <FullScreenLoader label="Taking you back…" />
   }
 
   return (

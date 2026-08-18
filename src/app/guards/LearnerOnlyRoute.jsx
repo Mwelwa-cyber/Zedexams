@@ -6,13 +6,17 @@ import FullScreenLoader from '../../shared/components/FullScreenLoader'
 import { Sparkles, ArrowLeft } from '../../shared/components/icons'
 
 export default function LearnerOnlyRoute({ children }) {
-  const { userProfile, loading, isAdmin, isLearner, isTeacher, canAccessLearnerPortal } = useAuth()
+  const { userProfile, loading, authReady, isAdmin, isLearner, isTeacher, canAccessLearnerPortal } = useAuth()
   const navigate = useNavigate()
 
-  // Wait for the profile to load before evaluating role — otherwise a teacher
-  // (or any non-learner) briefly renders the learner-only children while
-  // userProfile is still null.
-  if (loading || !userProfile) return <FullScreenLoader label="Loading your dashboard…" />
+  // Wait for auth AND the profile before evaluating role. `authReady` first:
+  // every role flag below is derived from a profile that cannot exist before
+  // Firebase has emitted, so deciding here while auth is unresolved would show
+  // a returning learner the "teacher accounts stay in the teacher portal" card
+  // on their own dashboard. The profile wait is the original reason — otherwise
+  // a teacher (or any non-learner) briefly renders the learner-only children
+  // while userProfile is still null.
+  if (!authReady || loading || !userProfile) return <FullScreenLoader label="Loading your dashboard…" />
 
   // Admins and learners always pass through.
   if (isAdmin || isLearner) return children

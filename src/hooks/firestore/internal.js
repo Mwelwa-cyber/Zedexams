@@ -11,8 +11,9 @@
  * schemas (see `attemptLimiter.js` for the measurement behind that rule).
  */
 import { doc, getDoc } from 'firebase/firestore'
-import { db } from '../../firebase/config'
+import { db, auth } from '../../firebase/config'
 import { reportClientError } from '../../utils/clientErrorReporting.js'
+import { isAuthReady, whenAuthReady } from '../../utils/authReadyGate.js'
 
 // Safety cap on every "get all X" admin query — keeps a single mistaken
 // dashboard reload from reading the entire collection. Admin pages that
@@ -83,4 +84,43 @@ export function shouldUseQuizSummaries() {
       .catch(() => false)
   }
   return _useQuizSummariesPromise
+}
+
+/**
+ * Hold a user-scoped read until Firebase Auth has resolved, and confirm the uid
+ * still belongs to the signed-in account before the query goes out.
+ *
+ * Two failures, one gate:
+ *
+ *   1. NO TOKEN YET. A learner hook fires the moment a uid exists, which is
+ *      before the ID token is attached to outgoing requests. Firestore rejects
+ *      the query with `Missing or insufficient permissions`, the getter
+ *      degrades to `[]`, and the screen shows an empty state — a wrong answer
+ *      that looks like a real one. Waiting for auth costs nothing on the happy
+ *      path (the gate is already open by the time any learner screen mounts)
+ *      and removes the whole class of denial.
+ *
+ *   2. THE WRONG USER'S UID. A uid captured before a sign-out (or a sign-in as
+ *      someone else) is still a valid-looking string. Reading it against the
+ *      new token is denied by the rules — correctly — and would be reported as
+ *      a permission error rather than as the stale closure it is.
+ *
+ * Returns `false` when the read must not be issued. Callers return their empty
+ * value on `false` WITHOUT reporting: a read that was never sent is not a read
+ * that failed, and filing it would put the noise back in a different column.
+ *
+ * @param {string|null|undefined} uid
+ * @returns {Promise<boolean>}
+ */
+export async function canIssueUserRead(uid) {
+  if (!uid) return false
+  if (!isAuthReady()) {
+    // Bounded — see authReadyGate. A wedged auth resolves this to `false` and
+    // the caller degrades, rather than hanging the screen forever.
+    const ready = await whenAuthReady()
+    if (!ready) return false
+  }
+  const signedInUid = auth.currentUser?.uid
+  if (!signedInUid) return false
+  return signedInUid === uid
 }
