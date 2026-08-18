@@ -230,7 +230,7 @@ export default function AiTeam() {
         <Card variant="hero" size="lg" className="text-center">
           <h2 className="font-display text-2xl font-black text-white sm:text-3xl">Learn with a team that checks its work.</h2>
           <p className="mx-auto mt-2 max-w-xl text-white/85">
-            Daily CBC exams, quizzes, lessons and AI study help for Grade 4–7 — every piece
+            Daily CBC exams, quizzes, lessons and AI study help for Grade 7 — every piece
             of it made and checked by the team above.
           </p>
           <div className="mt-5 flex flex-wrap justify-center gap-3">
@@ -251,7 +251,7 @@ export default function AiTeam() {
             <div>
               <Logo size="sm" />
               <p className="theme-text-muted mt-3 max-w-xs text-sm">
-                CBC exam prep and AI teacher tools, built in Zambia for Zambian Grade 4–7
+                CBC exam prep and AI teacher tools, built in Zambia for Zambian Grade 7
                 classrooms.
               </p>
             </div>

@@ -74,10 +74,13 @@ function WhatsAppIcon({ size = 16, className = '' }) {
 }
 
 // Hero highlight chips (under the CTAs). The grade/curriculum split is
-// deliberate and truthful: the learner app is CBC Grades 4–7, while the
-// teacher generation tools span the wider CBC (2023) + OBC (2013) frameworks.
+// deliberate and truthful: the learner app is CBC Grade 7 TODAY — Grades 4–6
+// are built but not open, so claiming them here would sell a learner an empty
+// app — while the teacher generation tools span the wider CBC (2023) + OBC
+// (2013) frameworks. When a grade opens (`LEARNER_GRADES` in
+// src/config/curriculum.js), this copy moves with it.
 const HERO_CHIPS = [
-  { icon: GraduationCap, label: 'Grades 4–7', sub: 'for learners' },
+  { icon: GraduationCap, label: 'Grade 7', sub: 'for learners · more grades soon' },
   { icon: BookOpen, label: 'CBC + OBC', sub: 'Nursery–Form 4 · teacher tools' },
   { icon: Sparkles, label: 'AI powered', sub: 'drafts in seconds' },
   { icon: ComputerDesktop, label: 'Any device', sub: 'phone, tablet, laptop' },
@@ -118,7 +121,7 @@ const AUDIENCES = [
   {
     icon: AcademicCapIcon,
     title: 'Learners',
-    tag: 'Grades 4–7',
+    tag: 'Grade 7',
     bullets: [
       'Daily CBC exams and curriculum-mapped quizzes',
       'Lessons, games, and Ask Zed AI study help',
@@ -483,7 +486,7 @@ export default function Marketing() {
     <div className="marketing-page min-h-screen theme-bg theme-text font-body">
       <SeoHelmet
         title="Zambian CBC exam prep that fits the classroom"
-        description="Daily CBC exams, quizzes, lessons, games and AI study help for Grade 4–7 learners. Printable lesson tools for Zambian teachers, all in one place."
+        description="Daily CBC exams, quizzes, lessons, games and AI study help for Grade 7 learners. Printable lesson tools for Zambian teachers, all in one place."
         path="/"
       />
       {/* Top nav */}
@@ -542,8 +545,8 @@ export default function Marketing() {
             </h1>
             <p className="marketing-hero-copy">
               AI lesson plans, homework, quizzes, exams and notes for teachers — plus daily CBC
-              exams, quizzes and study help for Grade 4–7 learners. All aligned to the CBC (2023)
-              and OBC (2013) curricula.
+              exams, quizzes and study help for Grade 7 learners, with Grades 4–6 coming next.
+              All aligned to the CBC (2023) and OBC (2013) curricula.
             </p>
             <div className="flex flex-wrap gap-3">
               <Button as={Link} to="/register" variant="primary" size="lg">
@@ -572,7 +575,7 @@ export default function Marketing() {
           <div className="mt-10 lg:hidden">
             <img
               src="/images/characters/zed-hero-team.webp"
-              alt="A ZedExams teacher and a Grade 4–7 learner studying together with the Zed AI assistant"
+              alt="A ZedExams teacher and a Grade 7 learner studying together with the Zed AI assistant"
               className="w-full rounded-3xl shadow-elev-lg ring-1 ring-white/15"
               width="1536"
               height="1024"
@@ -922,7 +925,7 @@ export default function Marketing() {
             <div>
               <Logo size="sm" />
               <p className="mt-3 text-sm theme-text-muted max-w-xs">
-                CBC exam prep and AI teacher tools, built in Zambia for Zambian Grade 4–7
+                CBC exam prep and AI teacher tools, built in Zambia for Zambian Grade 7
                 classrooms.
               </p>
             </div>

@@ -15,6 +15,14 @@
  *   3. IT ONLY APPLIES TO LEARNERS. Admins and parents reach learner screens
  *      through `LearnerOnlyRoute` and have no grade of their own; sending
  *      them to a child's setup wizard would be a dead end they cannot leave.
+ *
+ * It tests against `GRADES`, the full catalogue, and NOT the staged-rollout
+ * list. That is deliberate: this gate's question is "does this learner have a
+ * grade at all", and a learner whose grade is real but not yet open is a
+ * different case with a different answer — `LearnerGradeGate` holds them on
+ * the waitlist BEFORE this runs, keeping their grade rather than marching them
+ * back through a wizard that would overwrite it. Narrowing the list here is
+ * exactly the silent relabel that gate exists to prevent.
  */
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'

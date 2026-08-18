@@ -36,8 +36,19 @@ test("threshold matches the client's classification rule (50)", () => {
   assert.strictEqual(EXAM_QUESTION_THRESHOLD, 50);
 });
 
-test("the daily-exam rotation serves grades 4–7 (shared with Vigil's coverage check)", () => {
-  assert.deepStrictEqual(DAILY_EXAM_GRADES, ["4", "5", "6", "7"]);
+// The rotation's grade list is a ROLLOUT setting, not a constant, so this
+// checks its SHAPE and leaves membership to `test:learner-grades`, which
+// compares it against its client twin (`LEARNER_GRADES` in
+// src/config/curriculum.js) — the only comparison that can catch the bug that
+// matters. Re-pinning the literal here would mean every rollout edits two
+// tests, one of which proves nothing beyond "someone typed the same thing
+// twice".
+test("the daily-exam rotation names at least one grade, as unique strings", () => {
+  assert.ok(Array.isArray(DAILY_EXAM_GRADES));
+  assert.ok(DAILY_EXAM_GRADES.length > 0, "no grade covered — the rotation would never run");
+  assert.ok(DAILY_EXAM_GRADES.every((g) => typeof g === "string"),
+      "grades are compared against String(doc.grade) in monitor.js");
+  assert.strictEqual(new Set(DAILY_EXAM_GRADES).size, DAILY_EXAM_GRADES.length);
 });
 
 test("a 50+-question quiz is an exam paper (legacy doc, no flag)", () => {
