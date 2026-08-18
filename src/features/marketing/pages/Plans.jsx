@@ -14,6 +14,15 @@ import { PLAN_PRICES } from '../../../config/teacherPlanPricing'
 // charge for — a hard-coded "K15" on a marketing page is a number nobody
 // reconciles until a learner taps it and pays the wrong amount.
 import { getPlan } from '../../../config/plans'
+// The age band, from the SAME resolver every gate in the app uses. Not a
+// re-derived `profile.isMinor` check: `resolveAgeBand` is where the
+// fail-closed rule lives (a learner is under-18 unless `isMinor === false`
+// positively says otherwise), and a second copy of that default is exactly
+// how a surface ends up disagreeing with the rest of the product about
+// whether it is talking to a child. planState.js is pure — no React, no
+// Firebase — so this costs the marketing chunk nothing but the function.
+import { resolveAgeBand, AGE_BAND } from '../../../services/entitlements/planState'
+import GuardianPricingNotice from '../components/GuardianPricingNotice'
 import { isNativePlatform } from '../../../utils/runtime'
 
 const UpgradeModal = lazy(() => import('../../subscription').then(m => ({ default: m.UpgradeModal })))
@@ -342,14 +351,34 @@ function SectionTag({ children }) {
 }
 
 export default function Plans() {
-  const { currentUser, isTeacher } = useAuth()
+  const { currentUser, isTeacher, userProfile } = useAuth()
   const navigate = useNavigate()
   const [billing, setBilling] = useState('monthly')
   const [showUpgrade, setShowUpgrade] = useState(null) // 'pro' | 'max' | null
   // Android shell: Google Play Billing only — no mobile-money copy, no ZMW
   // price literals, no payment-method badges (Play policy).
   const native = isNativePlatform()
+
+  /**
+   * A learner we know to be (or must assume to be) under 18 sees no price.
+   *
+   * Gated on being SIGNED IN, deliberately. `resolveAgeBand` fails closed, so
+   * it reads a visitor with no profile as under-18 — correct for a locked
+   * feature, wrong here: it would blank the public pricing page for every
+   * signed-out parent and teacher, which is most of its audience. We withhold
+   * when we have an ACCOUNT that is or might be a child; an anonymous visitor
+   * is not one, has no account to buy against, and is served the normal page.
+   *
+   * Teachers, parents and admins resolve to `adult` inside the resolver, so
+   * they are unaffected without a role check here.
+   */
+  const isMinorLearner =
+    Boolean(currentUser) && resolveAgeBand(userProfile) === AGE_BAND.UNDER_18
   const faqItems = native ? FAQ_NATIVE : FAQ
+
+  // Before anything priced is constructed. Every hook above this line runs
+  // unconditionally, so the early return is safe under the rules of hooks.
+  if (isMinorLearner) return <GuardianPricingNotice />
 
   function handleFreeCta() {
     navigate(currentUser ? '/' : '/register')
@@ -370,15 +399,22 @@ export default function Plans() {
   /**
    * Where a learner rung's CTA goes.
    *
-   * Deliberately NOT the UpgradeModal the teacher cards open, even though it
-   * supports `portal="learner"`. A signed-in learner may be under 18, and the
-   * product's standing rule is that an under-18 learner is never shown a price
-   * or a pay button — they are routed to the guardian ask instead (see
-   * src/services/entitlements/useUnlockFlow.js). That decision needs plan
-   * state this marketing chunk deliberately does not load, so the CTA hands
-   * off to /my-subscription, the learner's own subscription surface, and lets
-   * the age-aware flow there decide. Anonymous visitors register first, which
-   * is where an age is captured at all.
+   * Anyone reaching this is an ADULT — `isMinorLearner` returned above, so a
+   * minor never sees the rung this fires from. That is worth stating because
+   * an earlier version of this comment claimed the opposite: that the CTA
+   * could hand a minor to /my-subscription and let "the age-aware flow there"
+   * decide. There is no such flow. `MySubscriptionPage` opens `UpgradeModal`
+   * with no age check at all, so it shows prices to whoever opens it — a real
+   * gap, reachable today by direct navigation and by the payment
+   * notifications that link there, and NOT something this page can close.
+   * Do not reintroduce a minor-facing path to it on the strength of that
+   * assumption.
+   *
+   * Still deliberately not the UpgradeModal the teacher cards open: the
+   * learner's own subscription surface is where a learner manages a plan, and
+   * a second checkout entry point on a marketing page is a second thing to
+   * keep age-correct. Anonymous visitors register first, which is where an
+   * age is captured at all.
    */
   function handleLearnerCta() {
     navigate(currentUser ? '/my-subscription' : '/register?intent=upgrade&tier=learner')
