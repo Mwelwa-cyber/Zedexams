@@ -252,6 +252,7 @@
     "test:slide-notes": "node scripts/test-slide-notes-schema.mjs",
     "test:contractions-lesson": "node scripts/test-grade4-contractions-lesson.mjs",
     "test:study-blocks": "node scripts/test-study-blocks.mjs",
+    "test:study-block-render": "node scripts/test-study-block-render.mjs",
     "test:notes-toc": "node scripts/test-notes-toc.mjs",
     "test:grade7-seed": "node scripts/test-grade7-seed.mjs",
     "test:number-path": "node scripts/test-number-path.mjs",
