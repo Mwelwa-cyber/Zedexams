@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
-import { useFirestore } from '../../../hooks/useFirestore'
+import { useLearnerFirestore } from '../../../hooks/useLearnerFirestore'
 import { PLANS } from '../../../engines/payment-engine/subscriptionConfig'
 import Icon from '../../../shared/components/Icon'
 import { CreditCard } from '../../../shared/components/icons'
@@ -37,7 +37,7 @@ function statusChip(status) {
  */
 export default function PaymentHistoryCard() {
   const { currentUser } = useAuth()
-  const { getMyPayments } = useFirestore()
+  const { getMyPayments } = useLearnerFirestore()
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
 

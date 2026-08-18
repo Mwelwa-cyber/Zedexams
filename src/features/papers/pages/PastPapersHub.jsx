@@ -62,6 +62,8 @@ import '../papersTheme.css'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 import Logo from '../../../shared/components/Logo'
 import Skeleton from '../../../shared/components/Skeleton'
+import { readArray, writeJson } from '../../../shared/utils/safeStorage'
+import { PAPER_BOOKMARKS_KEY, RECENT_PAPERS_KEY } from '../lib/paperStorageKeys'
 import {
   ArrowRight,
   BookmarkSquareIcon,
@@ -127,26 +129,13 @@ const QUICK_FILTERS = [
 const FALLBACK_YEARS = [2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016]
 
 // ── localStorage helpers (bookmarks + recently opened) ──────────────
-const BOOKMARK_KEY = 'zx_paper_bookmarks'
-const RECENT_KEY = 'zx_recent_papers'
+// The keys live in ../lib/paperStorageKeys because the viewer writes the same
+// bookmark list and learner home reads the same recents list.
+const BOOKMARK_KEY = PAPER_BOOKMARKS_KEY
+const RECENT_KEY = RECENT_PAPERS_KEY
 
-function readStored(key) {
-  try {
-    const raw = localStorage.getItem(key)
-    const parsed = raw ? JSON.parse(raw) : []
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
-function writeStored(key, value) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value))
-  } catch {
-    /* private mode / quota — bookmarks are best-effort */
-  }
-}
+const readStored = readArray
+const writeStored = writeJson
 
 // ── Small building blocks ───────────────────────────────────────────
 

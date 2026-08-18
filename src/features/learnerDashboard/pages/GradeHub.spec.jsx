@@ -39,8 +39,12 @@ vi.mock('../../../contexts/DataSaverContext', () => ({
 const mockGetUserResults = vi.fn()
 const mockGetWeaknessAnalysis = vi.fn()
 const mockGetQuizzes = vi.fn()
-vi.mock('../../../hooks/useFirestore', () => ({
-  useFirestore: () => ({
+// GradeHub reads through the SCOPED learner hook, which lives in its own
+// module precisely so importing it does not pull the authoring and admin data
+// modules into this route's chunk. Mocking the facade instead would leave the
+// component's real import unmocked.
+vi.mock('../../../hooks/useLearnerFirestore', () => ({
+  useLearnerFirestore: () => ({
     getUserResults: mockGetUserResults,
     getWeaknessAnalysis: mockGetWeaknessAnalysis,
     getQuizzes: mockGetQuizzes,

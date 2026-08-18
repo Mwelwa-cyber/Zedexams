@@ -27,7 +27,7 @@
  */
 
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 
 let passed = 0
 function check(label, fn) {
@@ -38,7 +38,25 @@ function check(label, fn) {
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 
-const firestore = read('src/hooks/useFirestore.js')
+/**
+ * The Firestore data layer, read as ONE text.
+ *
+ * `useFirestore.js` was a single 1,144-line module when this guard was
+ * written, so it named that file. The layer is now a facade over
+ * `src/hooks/firestore/*`, and the assessment write path this guard exists to
+ * pin lives in `authoringData.js`. Reading the whole directory rather than
+ * naming the current file keeps the guard pointed at the BEHAVIOUR (no
+ * `arrayUnion`, no `questions:` field written on a paper doc, one subcollection
+ * doc per question) instead of at a filename — so the next reorganisation of
+ * the data layer cannot quietly move the write path out from under it.
+ */
+const FIRESTORE_DIR = 'src/hooks/firestore'
+const firestore = [
+  read('src/hooks/useFirestore.js'),
+  ...readdirSync(new URL(`../${FIRESTORE_DIR}`, import.meta.url))
+    .filter((f) => f.endsWith('.js'))
+    .map((f) => read(`${FIRESTORE_DIR}/${f}`)),
+].join('\n')
 const studio = read('src/features/assessmentStudio/pages/AssessmentStudio.jsx')
 const placement = read('src/features/assessmentStudio/lib/questionBankPlacement.js')
 
@@ -56,7 +74,7 @@ check('questions are written one document per question into the subcollection', 
 check('no assessment write path uses arrayUnion', () => {
   // arrayUnion on a questions field is the shape this guard exists to refuse:
   // it is an append to an array living on the paper document.
-  for (const [name, source] of [['useFirestore.js', firestore], ['AssessmentStudio.jsx', studio]]) {
+  for (const [name, source] of [['the Firestore data layer', firestore], ['AssessmentStudio.jsx', studio]]) {
     assert.equal(/arrayUnion/.test(source), false, `${name} must not use arrayUnion`)
   }
 })
@@ -109,7 +127,7 @@ check('the extent scanner really finds a questions-array write', () => {
 check('the paper document never carries a questions array', () => {
   // `questionCount` is a number and is fine; `questions:` as a written FIELD is
   // the array whose overwrite loses a paper.
-  assert.deepEqual(writesQuestionsField(firestore), [], 'useFirestore must not write a questions field on a doc')
+  assert.deepEqual(writesQuestionsField(firestore), [], 'the Firestore data layer must not write a questions field on a doc')
   assert.deepEqual(writesQuestionsField(studio), [], 'AssessmentStudio must not write a questions field on a doc')
 })
 

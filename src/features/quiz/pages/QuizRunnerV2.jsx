@@ -38,6 +38,7 @@ import {
   isSequenceType,
 } from '../../../utils/quizScoring'
 import { buildQuizResultPayload } from '../../../utils/quizResultPayload'
+import { useExamCountdown } from '../../../shared/hooks/useExamCountdown'
 import { useAssessmentEngineFlag } from '../../../hooks/useAssessmentEngineFlag'
 import { fromQuiz, markAttempt, unrenderableTypes } from '../../../engines/assessment-engine'
 import { ChoiceQuestion } from '../../../engines/assessment-engine/render'
@@ -279,11 +280,17 @@ export default function QuizRunnerV2() {
   const [answers, setAnswers] = useState({})
   const [flagged, setFlagged] = useState({})
   const [revealed, setRevealed] = useState({})
-  const [timeLeft, setTimeLeft] = useState(0)
   // endTime is a Unix-ms timestamp; timeLeft is always derived from it so
-  // a page refresh can't reset the clock.
+  // a page refresh can't reset the clock. Both live in useExamCountdown now.
   const [endTime, setEndTime] = useState(null)
   const [startTime, setStartTime] = useState(null)
+  // The exam clock. `timerRef`/`autoRef` used to be local; the hook owns both,
+  // and `expireOnce` is the latch the expired-resume path below shares with it.
+  const { timeLeft, stop: stopTimer, expireOnce } = useExamCountdown({
+    endTime,
+    active: started && mode === 'exam',
+    onExpire: () => submitRef.current?.(true),
+  })
   const [showSubmit, setShowSubmit] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [showUpgrade, setShowUpgrade] = useState(false)
@@ -296,8 +303,6 @@ export default function QuizRunnerV2() {
   const [shortText, setShortText] = useState({})
   const [aiChecking, setAiChecking] = useState({})
   const [aiResults, setAiResults] = useState({})
-  const timerRef = useRef(null)
-  const autoRef = useRef(false)
   const submitRef = useRef(null)
   // Set when an exam is resumed after its deadline already passed — the
   // auto-submit effect finalises the saved answers instead of dropping them.
@@ -412,8 +417,11 @@ export default function QuizRunnerV2() {
     }
 
     load()
-    return () => clearInterval(timerRef.current)
-  }, [quizId, getQuizById, getQuestions, canAccessFullContent, navigate, currentUser, difficultyFilter, shuffleParam])
+    // The countdown's own cleanup clears its interval; stopping it here too
+    // keeps the previous behaviour of halting the clock when the quiz reloads
+    // under a new id or filter.
+    return () => stopTimer()
+  }, [quizId, getQuizById, getQuestions, canAccessFullContent, navigate, currentUser, difficultyFilter, shuffleParam, stopTimer])
 
   // Warm the next section's images in the browser cache while the learner
   // is still on the current one, so advancing shows the picture instantly
@@ -483,40 +491,19 @@ export default function QuizRunnerV2() {
     }
   }
 
-  useEffect(() => {
-    if (!started || mode !== 'exam' || !endTime) return
-
-    // Tick every 500 ms so the displayed second never lags more than half a beat.
-    // timeLeft is always re-computed from the fixed endTime, never decremented,
-    // so a page refresh can't add time back.
-    const tick = () => {
-      const remaining = Math.max(0, Math.round((endTime - Date.now()) / 1000))
-      setTimeLeft(remaining)
-      if (remaining <= 0) {
-        clearInterval(timerRef.current)
-        if (!autoRef.current) {
-          autoRef.current = true
-          submitRef.current?.(true)
-        }
-      }
-    }
-
-    tick() // apply immediately on mount / resume
-    timerRef.current = setInterval(tick, 500)
-    return () => clearInterval(timerRef.current)
-  }, [started, mode, endTime])
 
   // Finalise an exam that was resumed after its deadline. The restore path sets
   // expiredResumeRef; once the session is started and questions are in state
   // (so handleSubmit's closure holds the recovered answers) we submit exactly
-  // once. autoRef is shared with the live timer path so the two can never
+  // once. The latch is shared with the live timer path so the two can never
   // double-submit. Without this the learner's saved answers would be lost.
   useEffect(() => {
     if (!expiredResumeRef.current) return
-    if (!started || !questions.length || autoRef.current) return
-    autoRef.current = true
-    submitRef.current?.(true)
-  }, [started, questions])
+    if (!started || !questions.length) return
+    // Claims the SAME latch the countdown's expiry uses, so the two can never
+    // both submit — see useExamCountdown's docstring.
+    expireOnce(() => submitRef.current?.(true))
+  }, [started, questions, expireOnce])
 
   // Persist state whenever anything meaningful changes.
   // endTime / startTime are stable after the session starts, so we omit them

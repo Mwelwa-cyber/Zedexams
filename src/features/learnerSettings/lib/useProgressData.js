@@ -5,7 +5,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
-import { useFirestore } from '../../../hooks/useFirestore'
+import { useLearnerFirestore } from '../../../hooks/useLearnerFirestore'
 import useLearnerStats from '../../../hooks/useLearnerStats'
 import { SUBJECT_MAP } from '../../../config/curriculum'
 
@@ -90,7 +90,7 @@ export function computeInsights(results, weakness) {
 
 export default function useProgressData() {
   const { userProfile, currentUser } = useAuth()
-  const { getUserResults, getWeaknessAnalysis } = useFirestore()
+  const { getUserResults, getWeaknessAnalysis } = useLearnerFirestore()
   const { stats, level } = useLearnerStats(currentUser?.uid)
   const [results, setResults] = useState([])
   const [weakness, setWeakness] = useState([])

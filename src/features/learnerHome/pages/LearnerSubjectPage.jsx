@@ -42,7 +42,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { collection, getDocs, limit as fsLimit, query, where } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
-import { useFirestore } from '../../../hooks/useFirestore'
+import { useLearnerFirestore } from '../../../hooks/useLearnerFirestore'
 import { SUBJECT_MAP, getTopics, getSubtopics, normalizeSubject } from '../../../config/curriculum'
 import {
   getTermPlan, planTopicsForTerm, strandLabel, strandTone, unplacedCatalogueTopics,
@@ -70,7 +70,7 @@ export default function LearnerSubjectPage() {
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const { currentUser, userProfile } = useAuth()
-  const { getQuizzes, getUserResults } = useFirestore()
+  const { getQuizzes, getUserResults } = useLearnerFirestore()
 
   const uid = currentUser?.uid || null
   const grade = userProfile?.grade ? String(userProfile.grade) : null

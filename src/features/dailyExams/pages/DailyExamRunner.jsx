@@ -34,6 +34,7 @@ import {
   submitExam,
 } from '../../../utils/examService'
 import RichContent from '../../../editor/RichContent'
+import { useExamCountdown } from '../../../shared/hooks/useExamCountdown'
 import { useQuizDisplayPrefs } from '../../../hooks/useQuizDisplayPrefs'
 import { useQuizReadAloud } from '../../../hooks/useQuizReadAloud'
 import ReadingSettingsButton from '../../../shared/components/ReadingSettingsButton'
@@ -206,10 +207,12 @@ function DailyExamRunnerInner() {
 
   // Timer
   const [endTime, setEndTime]   = useState(null)
-  const [timeLeft, setTimeLeft] = useState(0)
-  const timerRef  = useRef(null)
-  const autoRef   = useRef(false)
   const submitRef = useRef(null)
+  const { timeLeft, stop: stopTimer } = useExamCountdown({
+    endTime,
+    active: status === 'ready' && !alreadyDone,
+    onExpire: () => submitRef.current?.(true),
+  })
 
   // ── Load exam + initialise session ────────────────────────────────────────
 
@@ -306,31 +309,14 @@ function DailyExamRunnerInner() {
     init()
     return () => {
       cancelled = true
-      clearInterval(timerRef.current)
+      stopTimer()
     }
-  }, [currentUser, examId, userProfile, initAttempt])
+  }, [currentUser, examId, userProfile, initAttempt, stopTimer])
 
   // ── Timer — driven by endTime, not decremented seconds ────────────────────
-
-  useEffect(() => {
-    if (status !== 'ready' || alreadyDone || !endTime) return
-
-    const tick = () => {
-      const remaining = Math.max(0, Math.round((endTime - Date.now()) / 1000))
-      setTimeLeft(remaining)
-      if (remaining <= 0) {
-        clearInterval(timerRef.current)
-        if (!autoRef.current) {
-          autoRef.current = true
-          submitRef.current?.(true)
-        }
-      }
-    }
-
-    tick()
-    timerRef.current = setInterval(tick, 500)
-    return () => clearInterval(timerRef.current)
-  }, [status, alreadyDone, endTime])
+  //
+  // Shared with QuizRunnerV2 (src/shared/hooks/useExamCountdown.js). It was the
+  // same effect in both files, down to the rounding and the double-submit ref.
 
   // ── Auto-save on state changes ─────────────────────────────────────────────
 
@@ -362,7 +348,7 @@ function DailyExamRunnerInner() {
     if (!auto) setShowConfirm(false)
     if (submitting) return
     setSubmitting(true)
-    clearInterval(timerRef.current)
+    stopTimer()
 
     try {
       const result = await submitExam(currentUser.uid, examId, attemptId, answers)
@@ -376,7 +362,7 @@ function DailyExamRunnerInner() {
       setActionError('Failed to submit. Please check your connection and try again.')
       setSubmitting(false)
     }
-  }, [currentUser, examId, attemptId, answers, navigate, submitting])
+  }, [currentUser, examId, attemptId, answers, navigate, submitting, stopTimer])
 
   submitRef.current = handleSubmit
 

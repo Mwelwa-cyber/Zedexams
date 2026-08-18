@@ -18,32 +18,18 @@
  * cross-feature one, and that list only ever shrinks.
  *
  * Everything degrades to null/no-op in private mode or when storage is
- * unavailable — a reading position is never worth an exception.
+ * unavailable — a reading position is never worth an exception. That guarantee
+ * now comes from `safeStorage`, which this module wraps: what stays here is the
+ * part that is genuinely this seam's, namely the KEYS. Re-exporting the two
+ * generic helpers keeps the existing importers of this path working.
  */
+import { readJson, writeJson, readPositiveInt } from './safeStorage'
+
+export { readJson, writeJson }
 
 export const PAPER_RESUME_KEY = 'lhx:paper-resume'
 
-export function readJson(key, fallback = null) {
-  try {
-    const raw = window.localStorage.getItem(key)
-    return raw ? JSON.parse(raw) : fallback
-  } catch {
-    return fallback
-  }
-}
-
-export function writeJson(key, value) {
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value))
-  } catch { /* quota / private mode — ignore */ }
-}
-
 /** Last visible page number for a paper, or null if never opened. */
 export function readPaperPage(paperId) {
-  try {
-    const n = Number(window.localStorage.getItem(`paper-progress:${paperId}`))
-    return Number.isFinite(n) && n > 0 ? n : null
-  } catch {
-    return null
-  }
+  return readPositiveInt(`paper-progress:${paperId}`)
 }

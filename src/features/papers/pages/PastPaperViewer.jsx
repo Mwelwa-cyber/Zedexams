@@ -25,6 +25,8 @@ import {
 import { QUIZ_PENDING_COPY, paperQuizIsAttached } from '../../../utils/pastPaperQuizStatus'
 import { saveBlob } from '../../../utils/saveBlob'
 import usePaperResumeSync from '../lib/paperResumeSync'
+import { readArray, writeJson } from '../../../shared/utils/safeStorage'
+import { PAPER_BOOKMARKS_KEY } from '../lib/paperStorageKeys'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { siblingPapers, viewPath } from '../lib/paperNav'
 import { isOfficialSource, paperNumberLabel, paperSourceLabel } from '../../../config/paperSources'
@@ -408,23 +410,16 @@ export default function PastPaperViewer() {
   // Bookmark state mirrors the hub's `zx_paper_bookmarks` list so a save
   // here shows up as saved back on /papers.
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('zx_paper_bookmarks')
-      const ids = raw ? JSON.parse(raw) : []
-      setBookmarked(Array.isArray(ids) && ids.includes(paperId))
-    } catch { /* private mode — bookmarks are best-effort */ }
+    setBookmarked(readArray(PAPER_BOOKMARKS_KEY).includes(paperId))
   }, [paperId])
 
   const toggleBookmark = useCallback(() => {
     setBookmarked((prev) => {
       const next = !prev
-      try {
-        const raw = localStorage.getItem('zx_paper_bookmarks')
-        const ids = new Set(Array.isArray(JSON.parse(raw || '[]')) ? JSON.parse(raw || '[]') : [])
-        if (next) ids.add(paperId)
-        else ids.delete(paperId)
-        localStorage.setItem('zx_paper_bookmarks', JSON.stringify([...ids]))
-      } catch { /* ignore quota / private mode */ }
+      const ids = new Set(readArray(PAPER_BOOKMARKS_KEY))
+      if (next) ids.add(paperId)
+      else ids.delete(paperId)
+      writeJson(PAPER_BOOKMARKS_KEY, [...ids])
       return next
     })
   }, [paperId])

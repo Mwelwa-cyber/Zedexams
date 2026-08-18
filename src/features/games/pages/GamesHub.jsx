@@ -46,6 +46,7 @@ import { SUBJECTS, getMyHistory, listGames } from '../services/gamesService'
 import { levelInfo } from '../../../utils/gameProgress'
 import { TOTAL_LEVELS, currentLevel, normalizeProgress } from '../lib/numberPathCore'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
+import { readJson } from '../../../shared/utils/safeStorage'
 import { GamesHubTour } from '../../../shared/components/learnerTours'
 import Skeleton from '../../../shared/components/Skeleton'
 
@@ -67,11 +68,7 @@ const TYPE_SKIN = {
 
 /** Local Number Path progress for the level tag + bar on its game card. */
 function readPathProgress(gameId) {
-  try {
-    return normalizeProgress(JSON.parse(window.localStorage.getItem(`zx:number-path:${gameId}`)))
-  } catch {
-    return normalizeProgress(null)
-  }
+  return normalizeProgress(readJson(`zx:number-path:${gameId}`))
 }
 
 export default function GamesHub() {

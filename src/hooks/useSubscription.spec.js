@@ -9,20 +9,26 @@ import { renderHook } from '@testing-library/react'
 // own spec; this one pins the COMBINATION logic in the hook, which is where
 // a learner/teacher gating regression would actually slip through.
 //
-// useAuth and useFirestore are mocked (they pull in Firebase); the real
+// useAuth and the attempt limiter are mocked (they pull in Firebase); the real
 // subscriptionConfig runs so the plan→feature-flag mapping is exercised
 // end-to-end.
+//
+// The limiter is mocked at `./firestore/attemptLimiter`, which is the module
+// `useSubscription` imports. It deliberately does NOT go through
+// `useFirestore`: routing it there would drag the whole Firestore surface —
+// and the authoring schemas behind it — into the eager app shell. Mocking the
+// facade instead of the limiter would make this spec pass while that
+// regression shipped, so the mock target is part of what is being asserted.
 
 vi.mock('../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
-vi.mock('./useFirestore', () => ({ useFirestore: vi.fn() }))
+vi.mock('./firestore/attemptLimiter', () => ({ checkAndConsumeAttempt: vi.fn() }))
 
 import { useAuth } from '../contexts/AuthContext'
-import { useFirestore } from './useFirestore'
+import { checkAndConsumeAttempt } from './firestore/attemptLimiter'
 import { useSubscription } from './useSubscription.js'
 import { ACCESS_LEVELS } from '../engines/payment-engine/subscriptionConfig'
 
 const future = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-const consume = vi.fn()
 
 // Sensible all-false defaults; each test overrides the bits it cares about.
 function setAuth(overrides = {}) {
@@ -38,7 +44,6 @@ function setAuth(overrides = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  useFirestore.mockReturnValue({ checkAndConsumeAttempt: consume })
 })
 
 describe('useSubscription — content-access gating', () => {
@@ -155,6 +160,6 @@ describe('useSubscription — tryStartQuiz + legacy fields', () => {
     expect(result.current.dailyLimit).toBe(Infinity)
     expect(result.current.usedToday).toBe(0)
     expect(result.current.isAtLimit).toBe(false)
-    expect(result.current.checkAndConsumeAttempt).toBe(consume)
+    expect(result.current.checkAndConsumeAttempt).toBe(checkAndConsumeAttempt)
   })
 })

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
-import { useFirestore } from '../../../hooks/useFirestore'
+import { useLearnerFirestore } from '../../../hooks/useLearnerFirestore'
 import { useSubscription } from '../../../hooks/useSubscription'
 import { PremiumGate, RenewalBanner, UpgradeBanner, AttemptCounter, UpgradeModal } from '../../subscription'
 import Mascot from '../../../shared/components/Mascot'
@@ -71,7 +71,7 @@ export default function StudentDashboard() {
   const { settings: platformSettings } = usePlatformSettings()
   const aiNotesOn = !!(platformSettings && platformSettings.learnerAi &&
     platformSettings.learnerAi.showAiNotesToLearners)
-  const { getUserResults, getWeaknessAnalysis } = useFirestore()
+  const { getUserResults, getWeaknessAnalysis } = useLearnerFirestore()
   const { isPremium, canUseWeaknessAnalysis }   = useSubscription()
   const navigate = useNavigate()
 
@@ -81,7 +81,7 @@ export default function StudentDashboard() {
   const [error, setError]       = useState(null)
   const [showUpgrade, setShowUpgrade] = useState(false)
 
-  // `getUserResults`/`getWeaknessAnalysis` (from useFirestore()) get a fresh
+  // `getUserResults`/`getWeaknessAnalysis` (from useLearnerFirestore()) get a fresh
   // identity every render, so `load` itself is re-created every render and
   // this effect can refire far more often than `userProfile.id` actually
   // changes. `deduplicatedRequest` collapses those repeat calls (same user,
