@@ -64,6 +64,15 @@ jobs:
 
     permissions:
       contents: read
+      # Required by the "Wait for Deploy Firebase run" step below, which reads
+      # /repos/{repo}/actions/workflows/deploy-firebase.yml/runs. Declaring a
+      # permissions block restricts GITHUB_TOKEN to exactly what it lists, so
+      # `contents: read` alone left that endpoint unauthorized. It worked while
+      # the repository was public — the Actions API serves public repositories'
+      # run metadata without the actions scope — and started returning 403 the
+      # moment the repository went private, failing the step and skipping the
+      # Hosting deploy on every commit that also touches functions/ or rules.
+      actions: read
 
     steps:
       - name: Check out repository
