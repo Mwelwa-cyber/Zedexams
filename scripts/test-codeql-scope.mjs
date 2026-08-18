@@ -10,10 +10,23 @@
  *   2. The workflow grows a `paths:` trigger filter, so it never starts on the
  *      PRs that change code.
  *   3. `config-file` points at a path that no longer exists.
+ *   4. The workflow is HALF restored from dormancy — `pull_request` back but
+ *      not `schedule`, or the reverse — so either PRs are scanned against a
+ *      baseline nothing refreshes, or the baseline refreshes and no PR is ever
+ *      scanned. Both look like a working scanner from the outside.
  *
  * Same shape as the Ledger no-op (test:release-notes) and the opt-in security
  * trigger (test:security-review-trigger): the failure is indistinguishable
  * from a clean result.
+ *
+ * DORMANCY. The workflow has automatic triggers OFF while the repository is
+ * private without Code Security — see the header of codeql.yml for why. This
+ * script accepts that state and SAYS SO on every run, because a guard that
+ * quietly passes over disabled work reads exactly like one that found nothing
+ * wrong. Everything that describes WHAT would be scanned — languages, build
+ * mode, config file, paths-ignore — is asserted in both states, so the scan
+ * cannot rot while it is switched off. The moment either trigger comes back,
+ * the full unfiltered-trigger assertions apply again with no edit here.
  */
 
 import assert from "node:assert";
@@ -45,18 +58,56 @@ ok("analyses JavaScript/TypeScript", () => {
   );
 });
 
-ok("runs on pull requests to main, unfiltered", () => {
-  assert.ok(triggers.pull_request, "no pull_request trigger");
-  for (const filter of ["paths", "paths-ignore"]) {
-    assert.ok(
-      !(filter in triggers.pull_request),
-      `a ${filter} filter on the trigger silently skips the PRs it excludes; ` +
-      "scope belongs in the CodeQL config, where it is at least visible",
-    );
-  }
+// Dormant = neither automatic trigger present. Asserted as both-or-neither
+// below, so "dormant" can never mean "half restored".
+const dormant = !triggers.pull_request && !triggers.schedule;
+
+if (dormant) {
+  console.log(
+    "  ⚠  DORMANT: automatic triggers are off — CodeQL is not scanning any PR.\n" +
+    "      Expected while the repository is private without Code Security.\n" +
+    "      Restore both triggers per the header of .github/workflows/codeql.yml.",
+  );
+}
+
+ok("automatic triggers are on together or off together", () => {
+  assert.strictEqual(
+    Boolean(triggers.pull_request),
+    Boolean(triggers.schedule),
+    "one automatic trigger is present and the other is not. Scanning PRs " +
+    "without a scheduled run leaves the baseline stale forever; a scheduled " +
+    "run with no PR trigger never looks at a change before it merges. " +
+    "Restore both or neither",
+  );
 });
 
-ok("keeps a scheduled run to refresh the baseline", () => {
+ok(
+  dormant
+    ? "dormant: reachable by workflow_dispatch so it can still be run by hand"
+    : "runs on pull requests to main, unfiltered",
+  () => {
+    if (dormant) {
+      assert.ok(
+        triggers.workflow_dispatch !== undefined,
+        "with no automatic trigger, workflow_dispatch is the only way to run " +
+        "this at all — without it the workflow is dead code, not dormant",
+      );
+      return;
+    }
+    for (const filter of ["paths", "paths-ignore"]) {
+      assert.ok(
+        !(filter in triggers.pull_request),
+        `a ${filter} filter on the trigger silently skips the PRs it excludes; ` +
+        "scope belongs in the CodeQL config, where it is at least visible",
+      );
+    }
+  },
+);
+
+ok(dormant
+  ? "dormant: no scheduled run, so nothing is baselining `main`"
+  : "keeps a scheduled run to refresh the baseline", () => {
+  if (dormant) return;
   assert.ok(
     triggers.schedule,
     "there is no push:[main] trigger by design (runner contention with " +

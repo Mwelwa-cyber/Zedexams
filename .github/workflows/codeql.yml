@@ -8,37 +8,55 @@ name: CodeQL
 # WHY THIS EXISTS: it replaces the per-PR AI security review. That reviewer
 # billed the Anthropic API on every run and #2295 made it opt-in behind the
 # `security-review` label, which left nothing looking at application logic by
-# default. CodeQL is free on public repositories — as are Actions minutes — so
-# this restores automatic coverage at zero cost. It is complementary, not
-# identical: CodeQL follows taint across the WHOLE codebase rather than reading
-# one diff, but it cannot reason about authorization semantics ("this callable
-# never checks the caller's role"). That gap is covered behaviourally by the
-# Firestore/Storage rules emulator jobs in ci.yml, and the `security-review`
-# label remains as the escape hatch when an AI opinion is actually wanted.
+# default. It is complementary, not identical: CodeQL follows taint across the
+# WHOLE codebase rather than reading one diff, but it cannot reason about
+# authorization semantics ("this callable never checks the caller's role").
+# That gap is covered behaviourally by the Firestore/Storage rules emulator
+# jobs in ci.yml, and the `security-review` label remains as the escape hatch
+# when an AI opinion is actually wanted.
+#
+# ⚠️ DORMANT SINCE 2026-08-18 — automatic triggers are OFF. Read this before
+# turning them back on.
+#
+# This workflow was written for a PUBLIC repository, where code scanning and
+# Actions minutes are both free. The repository went PRIVATE on 2026-08-18, and
+# on a private repository code scanning requires a paid Code Security plan. The
+# analysis itself still succeeds — it indexed all 2,399 JavaScript files — and
+# then the upload is rejected:
+#
+#     Code scanning is not enabled for this repository.
+#
+# So every run burned ~7 minutes of now-METERED Actions time, produced no
+# finding anywhere, and posted a red X on the PR. A permanently failing check
+# is worse than an absent one, because it teaches everyone to stop reading the
+# check list. Hence dormant rather than deleted: the scan configuration and its
+# scope guard are still correct and still tested, they simply have nowhere to
+# publish results to.
+#
+# TO RESTORE, once EITHER Code Security is enabled on the private repository OR
+# the repository is public again:
+#
+#   1. put back the two triggers below —
+#          pull_request:
+#            branches: [main]
+#          schedule:
+#            - cron: "0 3 * * 1"
+#   2. run `npm run test:codeql-scope`; it asserts the restored triggers are
+#      unfiltered, and stops accepting the dormant state automatically.
+#
+# Note on the schedule: there is deliberately NO `push: [main]` trigger, for
+# the runner-contention reason ci.yml documents at length — jobs firing on the
+# merge commit make deploy-hosting / deploy-firebase queue behind them. The
+# weekly cron is what baselines the default branch instead. Its cost is that
+# for up to seven days an alert already on `main` can surface on a PR as if
+# that PR introduced it, and one fixed on `main` stays open until the next run.
+# Both self-correct; neither blocks anything.
 #
 # NOT A REQUIRED CHECK, and it should not become one. Code scanning reports
 # findings against the whole repository, so a pre-existing alert unrelated to a
 # PR would block that PR from merging. Read the Security tab; do not gate on it.
 
 on:
-  pull_request:
-    branches: [main]
-  # Weekly, to refresh the default-branch baseline.
-  #
-  # Deliberately NO `push: [main]` trigger, for the reason ci.yml documents at
-  # length: GitHub-hosted runners are a shared, capped pool, and jobs firing on
-  # the merge commit make deploy-hosting / deploy-firebase queue behind them —
-  # that queue wait, not the pipeline, was the bulk of the old "deploys are
-  # slow" delay. CodeQL on a codebase this size is not a short job, so putting
-  # it on the merge path would reintroduce exactly that.
-  #
-  # The cost of baselining weekly instead of per-merge: for up to seven days,
-  # an alert already present on `main` can be reported on a PR as if the PR
-  # introduced it, and an alert fixed on `main` stays open until the next
-  # scheduled run. Both self-correct. Neither blocks anything, since this is
-  # not a required check.
-  schedule:
-    - cron: "0 3 * * 1"
   workflow_dispatch:
 
 concurrency:
