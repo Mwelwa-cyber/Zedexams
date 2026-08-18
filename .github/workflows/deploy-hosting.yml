@@ -64,6 +64,23 @@ jobs:
 
     permissions:
       contents: read
+      # REQUIRED by the "Wait for Deploy Firebase run" step below, which reads
+      # /repos/{repo}/actions/workflows/deploy-firebase.yml/runs.
+      #
+      # Declaring a `permissions:` block restricts GITHUB_TOKEN to EXACTLY what
+      # it lists, so `contents: read` alone left that endpoint unauthorized.
+      # It worked anyway for as long as the repository was PUBLIC — the Actions
+      # API serves public repositories' run metadata without the actions scope.
+      # The repository went private on 2026-08-18 and the very next deploy got
+      # `HTTP Error 403: Forbidden` on the first poll, which crashed the step
+      # in under a second and skipped the Hosting deploy.
+      #
+      # The failure is silent in the worst way: everything real (lint, tests,
+      # build, prerender) passes, so the run looks like a deploy that got as
+      # far as deploying. Production simply stops receiving frontend changes
+      # on every commit that touches functions/ — the only commits that reach
+      # this step at all.
+      actions: read
 
     steps:
       - name: Check out repository

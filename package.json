@@ -486,6 +486,7 @@
     "test:self-target-guard": "node functions/security/selfTargetGuardCore.test.js",
     "test:ops-alert-secrets": "node functions/opsAlertSecrets.test.js",
     "test:ops-alert-test": "node functions/opsAlertTestCore.test.js",
+    "test:workflow-api-permissions": "node scripts/test-workflow-api-permissions.mjs",
     "test:deploy-timeouts": "node scripts/test-deploy-timeouts.mjs",
     "test:circuit-breaker": "node functions/agents/circuitBreaker.test.js",
     "test:agent-rollups": "node functions/agents/rollups.test.js",
