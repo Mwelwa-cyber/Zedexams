@@ -1,1144 +1,144 @@
+/**
+ * useFirestore — the Firestore data surface, composed from role-scoped modules.
+ *
+ * ## What this file used to be
+ *
+ * One 1,144-line module holding ~60 functions: the learner's quiz library sat
+ * beside the admin's `grantAccessByEmail`, and the teacher's question-write
+ * normaliser sat beside `getUserResults`. Nothing enforced which of them a
+ * given screen was entitled to reach, so every new helper landed wherever its
+ * nearest neighbour happened to be, and the file grew in the one direction a
+ * file that big can grow.
+ *
+ * ## What it is now
+ *
+ * A facade. The bodies moved VERBATIM into four modules split by capability:
+ *
+ *   ./firestore/learnerData.js    published content + own results + own payments
+ *   ./firestore/authoringData.js  quiz/question/assessment writes (heavy deps)
+ *   ./firestore/adminData.js      admin listings, payments, approvals
+ *   ./firestore/attemptLimiter.js the free-plan daily attempt counter
+ *
+ * `useFirestore()` returns the SAME object with the SAME keys it always
+ * returned, so all 54 existing call sites are untouched and no behaviour
+ * changed. `useFirestoreSurface.test.js` pins the key set against a recorded
+ * snapshot, which is what makes "no functionality change" a checked claim
+ * rather than a promise.
+ *
+ * ## Prefer the scoped hook in new code
+ *
+ * `useLearnerFirestore()` (in ./useLearnerFirestore.js) returns only the
+ * learner read path. A learner screen that uses it cannot reach the authoring
+ * writes or the admin grant tools by accident, and does not have to read a
+ * 60-method surface to find the two functions it wants.
+ *
+ * It is NOT re-exported from here, and that is the whole point: this module
+ * statically imports all four data modules to compose the facade, so any
+ * import from this path pulls the authoring and admin graphs with it. A
+ * convenience re-export would be an import that works and silently costs the
+ * bytes the scoped hook exists to avoid.
+ */
 import { useMemo } from 'react'
-import {
-  collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc,
-  query, where, orderBy, limit, serverTimestamp, increment, writeBatch, Timestamp,
-  getCountFromServer,
-} from 'firebase/firestore'
 
-// Safety cap on every "get all X" admin query — keeps a single mistaken
-// dashboard reload from reading the entire collection. Admin pages that
-// need more should paginate or use count aggregations instead.
-//
-// Tuned down from 500 → 200 after observing that the Admin Learners page
-// reads users + results on every mount; at 500/500 a single admin reload
-// burned ~1k document reads, which was a noticeable chunk of the overload
-// signal. 200 is enough to show "recent activity" for any realistic class
-// load; admins who need a longer view should use the dedicated reports.
-export const ADMIN_QUERY_LIMIT = 200
+import * as learner from './firestore/learnerData.js'
+import * as authoring from './firestore/authoringData.js'
+import * as admin from './firestore/adminData.js'
+import { checkAndConsumeAttempt } from './firestore/attemptLimiter.js'
 
-// Safety cap on the learner-facing quiz library query. Without it, getQuizzes
-// reads *every* published practice quiz for a grade on each load — and each
-// quiz doc carries its full embedded `passages[]` (comprehension text + image
-// URLs) that the list view never renders, so the payload (and the time-to-show
-// on a slow mobile connection) grows unbounded with the catalogue. 400 is far
-// above any realistic per-grade practice count, so it never trims the visible
-// library; it only stops a runaway full-collection read. Ordered newest-first.
-export const LEARNER_QUIZ_LIMIT = 400
+// Re-exported so the three admin pages that import ADMIN_QUERY_LIMIT from this
+// path keep working; the caps themselves are declared once, in ./firestore/internal.js.
+export {
+  ADMIN_QUERY_LIMIT,
+  LEARNER_QUIZ_LIMIT,
+  LEARNER_LESSON_LIMIT,
+  TEACHER_QUERY_LIMIT,
+} from './firestore/internal.js'
 
-// Same safety cap for the learner lesson library: getLessons reads every
-// published lesson for a grade/subject on each filter change, and a lesson doc
-// carries its full slide/content payload. 400 is well above any realistic
-// per-(grade, subject) lesson count, so it never trims the library — it only
-// stops an unbounded read as the catalogue grows. Newest-first.
-export const LEARNER_LESSON_LIMIT = 400
-
-// Safety cap on the teacher-owned content lists (own quizzes / lessons /
-// assessments). These `where('createdBy','==',uid) + orderBy` queries feed
-// library + header lists and had no bound, so a prolific author read their
-// entire back-catalogue on every mount. 300 is far above any realistic
-// per-teacher count, so it never trims a visible library — it only stops an
-// unbounded read as the account ages. Newest-first.
-export const TEACHER_QUERY_LIMIT = 300
-
-// How far back the admin "recent activity" queries reach. 90 days is the
-// rolling window the dashboards visualise; reading the entire history on
-// every admin reload was a major Firestore read-amplifier.
-const ADMIN_RECENT_WINDOW_DAYS = 90
-
-// Log a swallowed Firestore read failure to the console (dev) AND forward it to
-// the client error reporter (prod analytics). Every getter below degrades to
-// []/null on error, which keeps the UI alive but made read failures —
-// permission-denied, a missing composite index, an offline round-trip —
-// completely invisible in production. reportClientError dedups + rate-limits
-// (5/session) and stamps network status, so routing every read through this is
-// safe and never throws. `label` is the getter name → context `firestore.<fn>`.
-function reportRead(label, e) {
-  console.error(`${label}:`, e)
-  reportClientError(e, `firestore.${label}`)
-}
-import { db } from '../firebase/config'
-import { capture as captureAnalytics } from '../utils/analytics.js'
-import { reportClientError } from '../utils/clientErrorReporting.js'
-import { deleteQuizWithQuestions } from '../utils/deleteQuizWithQuestions.js'
-import { isAssessmentDeleted } from '../utils/assessmentDeletion.js'
-import { coerceQuestion } from '../editor/schema/question.js'
-import { quizWriteSchema, quizUpdateSchema, coerceQuiz } from '../shared/schemas/quiz.js'
-import { coerceResult } from '../shared/schemas/result.js'
-import { normalizeSubject } from '../config/curriculum.js'
-import { PLANS } from '../engines/payment-engine/subscriptionConfig.js'
-
-// Map a granted/confirmed plan id onto the teacher studio tier the usage
-// meter reads (users.teacherPlan — see functions/teacherTools/usageMeter.js),
-// which is a SEPARATE axis from subscriptionPlan/premium. Mirrors the
-// server-side Lenco activation (functions/subscriptionActivation.js) so an
-// admin-granted Pro/Max teacher gets studio quotas, not just premium content
-// access. Returns {} for learner plans (which carry no `tier`).
-function teacherTierFields(planId, expiryDate) {
-  const tier = PLANS[planId]?.tier
-  if (tier !== 'pro' && tier !== 'max') return {}
-  return {
-    teacherPlan: tier,
-    teacherPlanExpiresAt: expiryDate ? Timestamp.fromDate(expiryDate) : null,
-    teacherPlanActivatedAt: serverTimestamp(),
-  }
-}
-
-// The question-write normaliser (dual HTML+JSON format, Zod-validated) lives
-// in src/utils/questionWritePayload.js so the Firestore-rules emulator suite
-// can replay REAL editor payloads through the exact production function. It
-// still lazy-loads the Tiptap write pipeline, so the editor stays out of the
-// eager entry chunk (see the module's docstring).
-import { normalizeQuestionPayload } from '../utils/questionWritePayload.js'
-import { isMockPaperRecord } from '../utils/paperProvenance.js'
-
-// One-shot, process-cached read of the quiz-library cutover flag. getQuizzes
-// reads the lightweight `quizSummaries` mirror (quiz docs minus the heavy
-// passages[]/parts[]/description — maintained by the onQuizWritten Cloud
-// Function) only once an operator flips `settings/quizLibrary.useSummaries` to
-// true. The backfill script (scripts/backfill-quiz-summaries.mjs) sets it after
-// it populates existing docs, so the cutover is atomic and operator-controlled:
-// until then — and on any mirror read error — the library keeps reading the
-// full `quizzes` collection, so the migration can never blank the catalogue.
-// Cached for the session because the flag only flips once, at cutover.
-let _useQuizSummariesPromise
-function shouldUseQuizSummaries() {
-  if (!_useQuizSummariesPromise) {
-    _useQuizSummariesPromise = getDoc(doc(db, 'settings', 'quizLibrary'))
-      .then(s => (s.exists() ? s.data()?.useSummaries === true : false))
-      .catch(() => false)
-  }
-  return _useQuizSummariesPromise
-}
-
+/**
+ * The whole surface, unchanged.
+ *
+ * The functions are module-scope bindings now rather than per-render closures,
+ * so the empty dependency list that used to need an eslint-disable is simply
+ * correct: there is nothing to depend on.
+ */
 export function useFirestore() {
-
-  // ── Quizzes ──────────────────────────────────────────────────
-  async function getQuizzes(filters = {}) {
-    // Build the constraint list fresh per source so the mirror query and the
-    // source-of-truth query stay byte-for-byte identical.
-    //
-    // Only quizzes explicitly assigned as practice by admin are visible to
-    // students. `isPublished == true` is required to stay inside
-    // firestore.rules: without it, a single orphan (practice but unpublished —
-    // e.g. after EditQuizV2's handleTogglePublish) would cause Firestore to
-    // deny the whole query and blank the library for every learner.
-    const constraints = () => {
-      const c = [
-        where('isPublished', '==', true),
-        where('quizType', '==', 'practice'),
-      ]
-      if (filters.grade)    c.push(where('grade',   '==', filters.grade))
-      if (filters.subject)  c.push(where('subject', '==', filters.subject))
-      if (filters.term)     c.push(where('term',    '==', filters.term))
-      if (filters.isDemoOnly) c.push(where('isDemo', '==', true))
-      c.push(orderBy('createdAt', 'desc'))
-      c.push(limit(LEARNER_QUIZ_LIMIT))
-      return c
-    }
-    // Prefer the lightweight mirror once cut over. coerceQuiz still defaults a
-    // missing passages[] to [], so a runner that somehow received a summary
-    // object would degrade gracefully — but the runner reads quizzes/{id}
-    // directly via getQuizById, so it always gets the full doc.
-    if (await shouldUseQuizSummaries()) {
-      try {
-        const snap = await getDocs(query(collection(db, 'quizSummaries'), ...constraints()))
-        return snap.docs.map(d => coerceQuiz({ id: d.id, ...d.data() })).filter(Boolean)
-      } catch (e) {
-        // Index still building, rules race, etc. — fall through to the full
-        // collection so the library is never empty because of the mirror.
-        console.warn('getQuizzes: quizSummaries read failed, using quizzes', e)
-      }
-    }
-    try {
-      const snap = await getDocs(query(collection(db, 'quizzes'), ...constraints()))
-      return snap.docs.map(d => coerceQuiz({ id: d.id, ...d.data() })).filter(Boolean)
-    } catch (e) { reportRead('getQuizzes', e); return [] }
-  }
-
-  async function getAllQuizzes(limitCount = ADMIN_QUERY_LIMIT) {
-    try {
-      const snap = await getDocs(query(collection(db, 'quizzes'), orderBy('createdAt', 'desc'), limit(limitCount)))
-      return snap.docs.map(d => coerceQuiz({ id: d.id, ...d.data() })).filter(Boolean)
-    } catch (e) { reportRead('getAllQuizzes', e); return [] }
-  }
-
-  async function getQuizzesByTeacher(teacherId, limitCount = TEACHER_QUERY_LIMIT) {
-    try {
-      const snap = await getDocs(query(collection(db, 'quizzes'), where('createdBy', '==', teacherId), orderBy('createdAt', 'desc'), limit(limitCount)))
-      return snap.docs.map(d => coerceQuiz({ id: d.id, ...d.data() })).filter(Boolean)
-    } catch (e) { reportRead('getQuizzesByTeacher', e); return [] }
-  }
-
-  async function getQuizById(quizId) {
-    try {
-      const snap = await getDoc(doc(db, 'quizzes', quizId))
-      return snap.exists() ? coerceQuiz({ id: snap.id, ...snap.data() }) : null
-    } catch (e) { reportRead('getQuizById', e); return null }
-  }
-
-  async function createQuiz(data) {
-    // Validate the full payload before it hits Firestore. quizWriteSchema is
-    // permissive on unknown fields (passthrough) but strict on the ones we
-    // know — a typo or wrong-type value fails loudly on the form instead of
-    // silently writing garbage that later blanks the learner runner.
-    const parsed = quizWriteSchema.safeParse(data)
-    if (!parsed.success) {
-      const first = parsed.error.issues?.[0]
-      const path = first?.path?.join('.') || '(root)'
-      throw new Error(`Invalid quiz payload at "${path}": ${first?.message || 'schema violation'}`)
-    }
-    const ref = await addDoc(collection(db, 'quizzes'), { ...parsed.data, createdAt: serverTimestamp() })
-    return ref.id
-  }
-
-  async function updateQuiz(quizId, data) {
-    // updateDoc is a PATCH — only the supplied fields are touched, so we
-    // validate against the partial schema. Unknown fields still pass through
-    // unchanged thanks to passthrough; the gain is catching e.g. a stray
-    // `status: 'archived'` (not in the enum) before it lands.
-    const parsed = quizUpdateSchema.safeParse(data)
-    if (!parsed.success) {
-      const first = parsed.error.issues?.[0]
-      const path = first?.path?.join('.') || '(root)'
-      throw new Error(`Invalid quiz update at "${path}": ${first?.message || 'schema violation'}`)
-    }
-    await updateDoc(doc(db, 'quizzes', quizId), parsed.data)
-  }
-
-  async function deleteQuiz(quizId) {
-    await deleteQuizWithQuestions(db, quizId)
-  }
-
-  // ── Questions ────────────────────────────────────────────────
-  async function getQuestions(quizId) {
-    try {
-      const snap = await getDocs(query(collection(db, 'quizzes', quizId, 'questions'), orderBy('order', 'asc')))
-      return snap.docs.map(d => coerceQuestion({ id: d.id, ...d.data() })).filter(Boolean)
-    } catch (e) { reportRead('getQuestions', e); return [] }
-  }
-
-  async function saveQuestions(quizId, questions) {
-    // Firestore caps writeBatch at 500 operations. Chunk to stay well under it.
-    const chunkSize = 490
-    for (let i = 0; i < questions.length; i += chunkSize) {
-      const chunk = questions.slice(i, i + chunkSize)
-      const batch = writeBatch(db)
-      for (const [offset, q] of chunk.entries()) {
-        const ref = doc(collection(db, 'quizzes', quizId, 'questions'))
-        batch.set(ref, await normalizeQuestionPayload(q, i + offset + 1))
-      }
-      await batch.commit()
-    }
-  }
-
-  // ── Assessments (teacher-private) ────────────────────────────
-  async function getMyAssessments(uid, limitCount = TEACHER_QUERY_LIMIT) {
-    try {
-      const snap = await getDocs(query(
-        collection(db, 'assessments'),
-        where('createdBy', '==', uid),
-        orderBy('createdAt', 'desc'),
-        limit(limitCount),
-      ))
-      // Exclude any paper tombstoned this session — Firestore's offline cache
-      // can briefly still return a just-deleted doc; the registry filter stops
-      // it resurfacing in the studio's recent-papers list (and anywhere else
-      // this read feeds).
-      return snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(a => !isAssessmentDeleted(a.id))
-    } catch (e) {
-      // Log + forward to telemetry before re-throwing so callers can
-      // distinguish "zero results" (genuine empty, returns [] above) from
-      // "read failed" (throws here). Callers must track the error and show
-      // a retryable error state rather than a false "no papers yet" empty.
-      reportRead('getMyAssessments', e)
-      throw e
-    }
-  }
-
-  async function getAssessmentById(assessmentId) {
-    try {
-      const snap = await getDoc(doc(db, 'assessments', assessmentId))
-      return snap.exists() ? { id: snap.id, ...snap.data() } : null
-    } catch (e) {
-      // Log + forward to telemetry before re-throwing so the caller can
-      // distinguish "doc does not exist" (returns null above) from "read failed"
-      // (throws here). The AssessmentStudio edit loader catches this and shows
-      // a retryable 'loadfailed' state instead of a false "not found" message.
-      reportRead('getAssessmentById', e)
-      throw e
-    }
-  }
-
-  // Assessments have no Zod schema yet, so subject parity with quizzes/lessons
-  // is enforced with a lightweight normalize: repair a stray curriculum slug
-  // ("mathematics") to its display label ("Mathematics") on the way in.
-  function withNormalizedAssessmentSubject(data) {
-    if (data && typeof data === 'object' && 'subject' in data) {
-      return { ...data, subject: normalizeSubject(data.subject) }
-    }
-    return data
-  }
-
-  async function createAssessment(data) {
-    const ref = await addDoc(collection(db, 'assessments'), {
-      ...withNormalizedAssessmentSubject(data),
-      createdAt: serverTimestamp(),
-    })
-    return ref.id
-  }
-
-  async function updateAssessment(assessmentId, data) {
-    await updateDoc(doc(db, 'assessments', assessmentId), {
-      ...withNormalizedAssessmentSubject(data),
-      updatedAt: serverTimestamp(),
-    })
-  }
-
-  async function deleteAssessment(assessmentId) {
-    // Mirror deleteQuizWithQuestions cascade: remove all questions in the
-    // subcollection first, then the parent doc. Chunk to stay under the 500
-    // batch-op limit.
-    const qSnap = await getDocs(collection(db, 'assessments', assessmentId, 'questions'))
-    const questionIds = qSnap.docs.map(d => d.id)
-    const chunkSize = 490
-    for (let i = 0; i < questionIds.length; i += chunkSize) {
-      const batch = writeBatch(db)
-      questionIds.slice(i, i + chunkSize).forEach(qId => {
-        batch.delete(doc(db, 'assessments', assessmentId, 'questions', qId))
-      })
-      await batch.commit()
-    }
-    await deleteDoc(doc(db, 'assessments', assessmentId))
-  }
-
-  async function getAssessmentQuestions(assessmentId) {
-    try {
-      const snap = await getDocs(query(
-        collection(db, 'assessments', assessmentId, 'questions'),
-        orderBy('order', 'asc'),
-      ))
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    } catch (e) {
-      // Log + forward to telemetry before re-throwing. A genuine empty
-      // subcollection returns [] above (Firestore returns an empty snapshot,
-      // not an error); reaching here means the read itself failed.
-      reportRead('getAssessmentQuestions', e)
-      throw e
-    }
-  }
-
-  async function saveAssessmentQuestions(assessmentId, questions) {
-    // Return the Firestore ID assigned to every freshly-created question so the
-    // caller can patch `_id` back into React state. The Assessment Studio keeps
-    // editing the same paper in place (via createdIdRef) after this first
-    // create, so without the write-back every question would still carry
-    // `_id:null` and the NEXT autosave (which takes the update branch) would
-    // re-create all of them — the "30 → 90" duplication reported for papers.
-    const idMap = []
-    const chunkSize = 490
-    for (let i = 0; i < questions.length; i += chunkSize) {
-      const chunk = questions.slice(i, i + chunkSize)
-      const batch = writeBatch(db)
-      for (const [offset, q] of chunk.entries()) {
-        const ref = doc(collection(db, 'assessments', assessmentId, 'questions'))
-        batch.set(ref, await normalizeQuestionPayload(q, i + offset + 1))
-        idMap.push({ localId: q.localId, id: ref.id })
-      }
-      await batch.commit()
-    }
-    return idMap
-  }
-
-  /**
-   * Atomically update an assessment's metadata + its questions.
-   * Mirrors updateQuizWithQuestions but writes to the `assessments` collection.
-   */
-  async function updateAssessmentWithQuestions(assessmentId, assessmentData, questions, deletedIds = []) {
-    const totalMarks = questions.reduce((s, q) => s + (q.marks || 1), 0)
-
-    await updateDoc(doc(db, 'assessments', assessmentId), {
-      ...withNormalizedAssessmentSubject(assessmentData),
-      questionCount: questions.length,
-      totalMarks,
-      updatedAt: serverTimestamp(),
-    })
-
-    if (deletedIds.length > 0) {
-      const delBatch = writeBatch(db)
-      deletedIds.forEach(id => delBatch.delete(doc(db, 'assessments', assessmentId, 'questions', id)))
-      await delBatch.commit()
-    }
-
-    // Return the assigned Firestore ID for every question so callers can patch
-    // `_id` back into React state. Without this, questions that start with
-    // `_id:null` (freshly generated / imported / hand-added) get re-created as
-    // new docs on every subsequent autosave — the "30 → 90" question-count
-    // explosion. This mirrors updateQuizWithQuestions, whose identical fix
-    // (PR #674) stopped the same growth on the quiz side.
-    const idMap = []
-    const chunkSize = 490
-    for (let i = 0; i < questions.length; i += chunkSize) {
-      const chunk = questions.slice(i, i + chunkSize)
-      const upsertBatch = writeBatch(db)
-      for (const [offset, q] of chunk.entries()) {
-        const cleanQ = await normalizeQuestionPayload(q, i + offset + 1)
-        if (q._id) {
-          upsertBatch.update(doc(db, 'assessments', assessmentId, 'questions', q._id), cleanQ)
-          idMap.push({ localId: q.localId, id: q._id })
-        } else {
-          const newRef = doc(collection(db, 'assessments', assessmentId, 'questions'))
-          upsertBatch.set(newRef, cleanQ)
-          idMap.push({ localId: q.localId, id: newRef.id })
-        }
-      }
-      await upsertBatch.commit()
-    }
-    return idMap
-  }
-
-  // ── Results ──────────────────────────────────────────────────
-  async function saveResult(data) {
-    const ref = await addDoc(collection(db, 'results'), { ...data, completedAt: serverTimestamp() })
-    // Audit B2 — capture quiz_completed. Aggregate fields only; no
-    // student answer text, no question content. Funnels around
-    // "completion → second attempt" use percentage + grade.
-    captureAnalytics('quiz_completed', {
-      grade: data.grade ?? null,
-      subject: data.subject ?? null,
-      percentage: typeof data.percentage === 'number' ? data.percentage : null,
-      score: typeof data.score === 'number' ? data.score : null,
-      totalMarks: typeof data.totalMarks === 'number' ? data.totalMarks : null,
-      isDailyExam: data.quizType === 'daily_exam',
-    })
-    return ref.id
-  }
-
-  async function getResultById(resultId) {
-    try {
-      const snap = await getDoc(doc(db, 'results', resultId))
-      return snap.exists() ? coerceResult({ id: snap.id, ...snap.data() }) : null
-    } catch (e) { reportRead('getResultById', e); return null }
-  }
-
-  async function getUserResults(userId, limitCount = 20) {
-    try {
-      const snap = await getDocs(query(collection(db, 'results'), where('userId', '==', userId), orderBy('completedAt', 'desc'), limit(limitCount)))
-      return snap.docs.map(d => coerceResult({ id: d.id, ...d.data() })).filter(Boolean)
-    } catch (e) { reportRead('getUserResults', e); return [] }
-  }
-
-  async function getResultsForQuiz(quizId, limitCount = ADMIN_QUERY_LIMIT) {
-    try {
-      const snap = await getDocs(query(collection(db, 'results'), where('quizId', '==', quizId), orderBy('completedAt', 'desc'), limit(limitCount)))
-      return snap.docs.map(d => coerceResult({ id: d.id, ...d.data() })).filter(Boolean)
-    } catch (e) { reportRead('getResultsForQuiz', e); return [] }
-  }
-
-  async function getAllResults(limitCount = ADMIN_QUERY_LIMIT) {
-    try {
-      const snap = await getDocs(query(collection(db, 'results'), orderBy('completedAt', 'desc'), limit(limitCount)))
-      return snap.docs.map(d => coerceResult({ id: d.id, ...d.data() })).filter(Boolean)
-    } catch (e) { reportRead('getAllResults', e); return [] }
-  }
-
-  // Admin-page variant of getAllResults that filters server-side to the last
-  // ADMIN_RECENT_WINDOW_DAYS days. Reading 90 days of activity instead of the
-  // whole collection is the single biggest read-volume win on the admin
-  // dashboard; older results are still reachable via the reports section.
-  async function getResultsInWindow(limitCount = ADMIN_QUERY_LIMIT, windowDays = ADMIN_RECENT_WINDOW_DAYS) {
-    try {
-      const since = Timestamp.fromMillis(Date.now() - windowDays * 24 * 60 * 60 * 1000)
-      const snap = await getDocs(query(
-        collection(db, 'results'),
-        where('completedAt', '>=', since),
-        orderBy('completedAt', 'desc'),
-        limit(limitCount),
-      ))
-      return snap.docs.map(d => coerceResult({ id: d.id, ...d.data() })).filter(Boolean)
-    } catch (e) { reportRead('getResultsInWindow', e); return [] }
-  }
-
-  // Cheap dashboard counts via Firestore aggregation. Each call costs
-  // ~1 read regardless of collection size — use this instead of
-  // getAll*().length when you only need totals. The learner total
-  // subtracts suspended + soft-deleted accounts so it matches the row
-  // count shown on /admin/learners.
-  async function getDashboardCounts() {
-    try {
-      const learnerRoles = ['learner', 'student']
-      const [
-        lessonsAgg,
-        quizzesAgg,
-        learnersAgg,
-        studentsAgg,
-        suspendedLearnersAgg,
-        deletedLearnersAgg,
-        resultsAgg,
-        pendingQuizAgg,
-        pendingLessonAgg,
-      ] = await Promise.all([
-        getCountFromServer(collection(db, 'lessons')),
-        getCountFromServer(collection(db, 'quizzes')),
-        getCountFromServer(query(collection(db, 'users'), where('role', '==', 'learner'))),
-        getCountFromServer(query(collection(db, 'users'), where('role', '==', 'student'))),
-        getCountFromServer(query(
-          collection(db, 'users'),
-          where('role', 'in', learnerRoles),
-          where('status', '==', 'suspended'),
-        )),
-        getCountFromServer(query(
-          collection(db, 'users'),
-          where('role', 'in', learnerRoles),
-          where('status', '==', 'deleted'),
-        )),
-        getCountFromServer(collection(db, 'results')),
-        getCountFromServer(query(collection(db, 'quizzes'), where('status', '==', 'pending'))),
-        getCountFromServer(query(collection(db, 'lessons'), where('status', '==', 'pending'))),
-      ])
-      const totalLearners    = learnersAgg.data().count + studentsAgg.data().count
-      const inactiveLearners = suspendedLearnersAgg.data().count + deletedLearnersAgg.data().count
-      return {
-        lessons:  lessonsAgg.data().count,
-        quizzes:  quizzesAgg.data().count,
-        learners: Math.max(0, totalLearners - inactiveLearners),
-        results:  resultsAgg.data().count,
-        pending:  pendingQuizAgg.data().count + pendingLessonAgg.data().count,
-      }
-    } catch (e) {
-      reportRead('getDashboardCounts', e)
-      return { lessons: 0, quizzes: 0, learners: 0, results: 0, pending: 0 }
-    }
-  }
-
-  async function getRecentResults(limitCount = 8) {
-    try {
-      const snap = await getDocs(query(collection(db, 'results'), orderBy('completedAt', 'desc'), limit(limitCount)))
-      const results = snap.docs.map(d => coerceResult({ id: d.id, ...d.data() })).filter(Boolean)
-
-      // Hydrate learner displayName for any result whose write predated the
-      // userName-on-result patch (admin dashboard previously rendered the
-      // string "Learner" for every row because the field was missing).
-      const missingNameUids = Array.from(new Set(
-        results.filter(r => !r.userName && r.userId).map(r => r.userId),
-      ))
-      if (missingNameUids.length === 0) return results
-
-      const profiles = {}
-      await Promise.all(missingNameUids.map(async uid => {
-        try {
-          const snap = await getDoc(doc(db, 'users', uid))
-          if (snap.exists()) profiles[uid] = snap.data()
-        } catch (err) {
-          console.warn('getRecentResults: profile hydrate failed for', uid, err)
-        }
-      }))
-      return results.map(r => (r.userName || !profiles[r.userId])
-        ? r
-        : { ...r, userName: profiles[r.userId].displayName || profiles[r.userId].email || 'Learner' })
-    } catch (e) { reportRead('getRecentResults', e); return [] }
-  }
-
-  async function getWeaknessAnalysis(userId) {
-    try {
-      const results = await getUserResults(userId, 50)
-      const map = {}
-      results.forEach(r => {
-        // Same rule as extractWeakTopics: a result that states it came from a
-        // mock paper is not evidence about the real examination, so it is not
-        // pooled into topic weighting. A result with no paper behind it (the
-        // ordinary CBC practice quiz) is unaffected.
-        if (isMockPaperRecord(r)) return
-        if (!r.topicScores) return
-        Object.entries(r.topicScores).forEach(([topic, data]) => {
-          map[topic] ??= { correct: 0, total: 0, subject: r.subject }
-          map[topic].correct += data.correct ?? 0
-          map[topic].total   += data.total   ?? 0
-        })
-      })
-      return Object.entries(map)
-        .map(([topic, d]) => ({ topic, subject: d.subject, percentage: d.total > 0 ? Math.round((d.correct / d.total) * 100) : 0, correct: d.correct, total: d.total }))
-        .sort((a, b) => a.percentage - b.percentage)
-    } catch (e) { reportRead('getWeaknessAnalysis', e); return [] }
-  }
-
-  // ── Users ────────────────────────────────────────────────────
-  async function getAllUsers(limitCount = ADMIN_QUERY_LIMIT) {
-    try {
-      const snap = await getDocs(query(collection(db, 'users'), limit(limitCount)))
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    } catch (e) { reportRead('getAllUsers', e); return [] }
-  }
-
-  // Role-scoped variant of getAllUsers. The Admin Learners page only renders
-  // learner/student rows but was pulling every user (admins, teachers,
-  // pending sign-ups …) and filtering client-side, which doubled the read
-  // count on a teacher-heavy tenant. Firestore's `in` accepts up to 30
-  // values so two roles fit comfortably.
-  async function getAllLearners(limitCount = ADMIN_QUERY_LIMIT) {
-    try {
-      const snap = await getDocs(query(
-        collection(db, 'users'),
-        where('role', 'in', ['learner', 'student']),
-        limit(limitCount),
-      ))
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    } catch (e) { reportRead('getAllLearners', e); return [] }
-  }
-
-  async function updateUserRole(userId, role) {
-    await updateDoc(doc(db, 'users', userId), { role })
-  }
-
-  // ── Subscription / daily limit ───────────────────────────────
-  async function checkAndConsumeAttempt(userId, isPremium, dailyLimit) {
-    if (isPremium) return { allowed: true, attemptsToday: 0, limit: Infinity }
-    const ref  = doc(db, 'users', userId)
-    const snap = await getDoc(ref)
-    if (!snap.exists()) return { allowed: false, attemptsToday: 0, limit: dailyLimit }
-    const data      = snap.data()
-    const today     = new Date().toISOString().slice(0, 10)
-    const isNewDay  = data.lastAttemptDate !== today
-    const used      = isNewDay ? 0 : (data.dailyAttempts ?? 0)
-    if (used >= dailyLimit) return { allowed: false, attemptsToday: used, limit: dailyLimit }
-    await updateDoc(ref, { dailyAttempts: isNewDay ? 1 : increment(1), lastAttemptDate: today })
-    return { allowed: true, attemptsToday: used + 1, limit: dailyLimit }
-  }
-
-  // ── Payments ─────────────────────────────────────────────────
-  async function submitPaymentRequest(userId, displayName, email, plan, amountZMW, method, phoneNumber, transactionRef = '') {
-    const ref = await addDoc(collection(db, 'payments'), {
-      userId, displayName, email, plan, amountZMW, method, phoneNumber, transactionRef,
-      status: 'pending', confirmedBy: null, confirmedAt: null, createdAt: serverTimestamp(),
-    })
-    return ref.id
-  }
-
-  async function getPendingPayments(limitCount = ADMIN_QUERY_LIMIT) {
-    try {
-      // Oldest-first so the admin works the queue FIFO; the cap bounds the read
-      // if a backlog builds. A backlog beyond ADMIN_QUERY_LIMIT is cleared by
-      // processing the oldest and reloading.
-      const snap = await getDocs(query(collection(db, 'payments'), where('status', '==', 'pending'), orderBy('createdAt', 'asc'), limit(limitCount)))
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    } catch (e) { reportRead('getPendingPayments', e); return [] }
-  }
-
-  async function getAllPayments(limitCount = ADMIN_QUERY_LIMIT) {
-    try {
-      const snap = await getDocs(query(collection(db, 'payments'), orderBy('createdAt', 'desc'), limit(limitCount)))
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    } catch (e) { reportRead('getAllPayments', e); return [] }
-  }
-
-  async function confirmPayment(paymentId, userId, plan, durationDays, adminId) {
-    const expiry = new Date()
-    expiry.setDate(expiry.getDate() + durationDays)
-    const batch = writeBatch(db)
-    batch.update(doc(db, 'users', userId), {
-      plan: 'premium',
-      premium: true,
-      isPremium: true,
-      paymentStatus: 'active',
-      subscriptionStatus: 'active',
-      premiumActivatedAt: serverTimestamp(),
-      subscriptionPlan: plan,
-      subscriptionExpiry: Timestamp.fromDate(expiry),
-      subscriptionActivatedBy: adminId,
-      subscriptionActivatedAt: serverTimestamp(),
-      subscriptionProvider: 'manual_override',
-      subscriptionPaymentId: paymentId,
-      ...teacherTierFields(plan, expiry),
-    })
-    batch.update(doc(db, 'payments', paymentId), {
-      status: 'confirmed',
-      mtnStatus: 'MANUAL_OVERRIDE',
-      reason: '',
-      confirmedBy: adminId,
-      confirmedAt: serverTimestamp(),
-    })
-    await batch.commit()
-  }
-
-  async function rejectPayment(paymentId, adminId) {
-    await updateDoc(doc(db, 'payments', paymentId), {
-      status: 'rejected',
-      mtnStatus: 'MANUAL_REJECTED',
-      reason: 'Rejected by admin.',
-      confirmedBy: adminId,
-      confirmedAt: serverTimestamp(),
-    })
-  }
-
-  async function grantPremium(userId, plan, durationDays, adminId) {
-    const expiry = new Date()
-    expiry.setDate(expiry.getDate() + durationDays)
-    await updateDoc(doc(db, 'users', userId), {
-      plan: 'premium',
-      premium: true,
-      isPremium: true,
-      paymentStatus: 'active',
-      subscriptionStatus: 'active',
-      premiumActivatedAt: serverTimestamp(),
-      subscriptionPlan: plan,
-      subscriptionExpiry: durationDays === 0 ? null : Timestamp.fromDate(expiry),
-      // Explicit lifetime/comp grant marker. hasPremiumAccess() now fails
-      // closed on a missing expiry UNLESS this is true, so durationDays === 0
-      // (no expiry) must record the intent rather than rely on null meaning
-      // "forever".
-      subscriptionLifetime: durationDays === 0,
-      subscriptionActivatedBy: adminId,
-      subscriptionActivatedAt: serverTimestamp(),
-      subscriptionProvider: 'manual_grant',
-      ...teacherTierFields(plan, durationDays === 0 ? null : expiry),
-    })
-  }
-
-  // Admin "Grant access" flow — looks up a user by email, then activates
-  // their subscription AND writes a payment doc in one batch so the
-  // dashboard's today's-revenue / activations / CSV-export queries have a
-  // row to aggregate. Returns { ok, userId, displayName } or throws.
-  // Quick admin-side email → user lookup. Returns the matched user
-  // doc (with id) or null. Used by the Grant Access form to preview
-  // the customer's current subscription / phone-on-file before the
-  // admin commits to a grant, so they catch "wrong email" / "user
-  // hasn't signed up yet" before filling out the rest of the form.
-  async function findUserByEmail(email) {
-    const cleanEmail = String(email || '').trim().toLowerCase()
-    if (!cleanEmail) return null
-    try {
-      const snap = await getDocs(query(
-        collection(db, 'users'),
-        where('email', '==', cleanEmail),
-        limit(1),
-      ))
-      if (snap.empty) return null
-      const userDoc = snap.docs[0]
-      return { id: userDoc.id, ...userDoc.data() }
-    } catch (e) {
-      reportRead('findUserByEmail', e)
-      return null
-    }
-  }
-
-  async function grantAccessByEmail({ email, planId, durationDays, paymentReference = '', phoneNumber = '', adminId }) {
-    const cleanEmail = String(email || '').trim().toLowerCase()
-    if (!cleanEmail) throw new Error('Email is required.')
-    const plan = PLANS[planId]
-    if (!plan) throw new Error(`Unknown plan: ${planId}`)
-    const days = Number(durationDays || plan.durationDays || 30)
-    const cleanPhone = String(phoneNumber || '').trim()
-
-    const userSnap = await getDocs(
-      query(collection(db, 'users'), where('email', '==', cleanEmail), limit(1))
-    )
-    if (userSnap.empty) {
-      throw new Error(`No account found for ${cleanEmail}. Ask the customer to sign up first.`)
-    }
-    const userDoc = userSnap.docs[0]
-    const userId = userDoc.id
-    const userData = userDoc.data() || {}
-
-    // Stack onto an existing active subscription. A customer who renews
-    // early shouldn't lose the days they've already paid for; the old
-    // MoMo `markPaymentSuccessful` flow did the same thing. When the
-    // current expiry is in the past (or absent), start fresh from
-    // today.
-    const currentExpiry = userData.subscriptionExpiry?.toDate?.() ||
-      (userData.subscriptionExpiry ? new Date(userData.subscriptionExpiry) : null)
-    const baseDate = currentExpiry && currentExpiry > new Date()
-      ? currentExpiry
-      : new Date()
-    const expiry = new Date(baseDate)
-    expiry.setDate(expiry.getDate() + days)
-
-    const paymentRef = await addDoc(collection(db, 'payments'), {
-      userId,
-      displayName: userData.displayName || '',
-      email: cleanEmail,
-      userRole: userData.role || 'learner',
-      planId,
-      planName: plan.name,
-      amountZMW: plan.priceZMW || 0,
-      currency: 'ZMW',
-      provider: 'manual_grant',
-      method: 'mobile_money',
-      paymentReference: String(paymentReference || '').trim(),
-      status: 'confirmed',
-      confirmedBy: adminId,
-      confirmedAt: serverTimestamp(),
-      createdAt: serverTimestamp(),
-    })
-
-    const userUpdate = {
-      plan: 'premium',
-      premium: true,
-      isPremium: true,
-      paymentStatus: 'active',
-      subscriptionStatus: 'active',
-      premiumActivatedAt: serverTimestamp(),
-      subscriptionPlan: planId,
-      subscriptionExpiry: Timestamp.fromDate(expiry),
-      subscriptionActivatedBy: adminId,
-      subscriptionActivatedAt: serverTimestamp(),
-      subscriptionProvider: 'manual_grant',
-      subscriptionPaymentId: paymentRef.id,
-      // Reset the reminder cooldown so the next near-expiry window is
-      // eligible to send a renewal nudge to this customer.
-      expiryReminderSentAt: null,
-      ...teacherTierFields(planId, expiry),
-    }
-    if (cleanPhone) {
-      userUpdate.subscriptionPhoneNumber = cleanPhone
-    }
-    await updateDoc(doc(db, 'users', userId), userUpdate)
-
-    return {
-      ok: true,
-      userId,
-      displayName: userData.displayName || cleanEmail,
-      expiry,
-    }
-  }
-
-  // Today's revenue + activation count. Counts manual grants and any
-  // legacy MoMo successes confirmed since 00:00 local time. Two reads
-  // (count + small doc fetch) keeps the dashboard cheap.
-  async function getTodayPaymentStats() {
-    try {
-      const startOfToday = new Date()
-      startOfToday.setHours(0, 0, 0, 0)
-      const cutoff = Timestamp.fromDate(startOfToday)
-      const todayQuery = query(
-        collection(db, 'payments'),
-        where('status', 'in', ['confirmed', 'successful']),
-        where('confirmedAt', '>=', cutoff),
-      )
-      const snap = await getDocs(todayQuery)
-      let revenue = 0
-      snap.docs.forEach((d) => {
-        const data = d.data() || {}
-        revenue += Number(data.amountZMW || 0)
-      })
-      return { activations: snap.size, revenue }
-    } catch (e) {
-      reportRead('getTodayPaymentStats', e)
-      return { activations: 0, revenue: 0 }
-    }
-  }
-
-  // Cheap server-side count of users currently flagged as premium. This
-  // overcounts the few users whose expiry passed without a cleanup write
-  // — acceptable for a top-of-page stat; the per-user dashboards use the
-  // accurate hasPremiumAccess() helper.
-  async function getActivePremiumCount() {
-    try {
-      const countSnap = await getCountFromServer(
-        query(collection(db, 'users'), where('premium', '==', true)),
-      )
-      return countSnap.data().count
-    } catch (e) {
-      reportRead('getActivePremiumCount', e)
-      return 0
-    }
-  }
-
-  // Most recent confirmed payments — feeds the activations table on the
-  // grant page. Ordered by confirmedAt so manual grants and legacy MoMo
-  // successes appear in the same timeline.
-  // Customer-scoped payment history. Firestore rule for /payments
-  // already permits read where userId == auth.uid, so this works
-  // straight from the client without a callable.
-  async function getMyPayments(uid, { limit: limitCount = 20 } = {}) {
-    if (!uid) return []
-    try {
-      const snap = await getDocs(query(
-        collection(db, 'payments'),
-        where('userId', '==', uid),
-        orderBy('createdAt', 'desc'),
-        limit(limitCount),
-      ))
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-    } catch (e) {
-      reportRead('getMyPayments', e)
-      return []
-    }
-  }
-
-  // Per-day revenue + activation count for the admin dashboard. Reads
-  // every confirmed/successful payment from the last `days` days and
-  // buckets client-side. The status-in + confirmedAt range combination
-  // REQUIRES the (status ASC, confirmedAt ASC) composite index in
-  // firestore.indexes.json — without it this query throws, the catch
-  // below returns zeroed buckets, and the revenue chart silently reads
-  // K0. Cheap at the volume we expect (~tens of payments/day); revisit
-  // when daily volume gets into the hundreds.
-  async function getRevenueByDay(days = 7) {
-    const buckets = []
-    const startOfToday = new Date()
-    startOfToday.setHours(0, 0, 0, 0)
-    for (let i = days - 1; i >= 0; i -= 1) {
-      const d = new Date(startOfToday)
-      d.setDate(d.getDate() - i)
-      buckets.push({ date: d, revenue: 0, activations: 0 })
-    }
-    const windowStart = new Date(startOfToday)
-    windowStart.setDate(windowStart.getDate() - (days - 1))
-    try {
-      const snap = await getDocs(query(
-        collection(db, 'payments'),
-        where('status', 'in', ['confirmed', 'successful']),
-        where('confirmedAt', '>=', Timestamp.fromDate(windowStart)),
-      ))
-      snap.docs.forEach((doc) => {
-        const data = doc.data() || {}
-        const ts = data.confirmedAt?.toDate?.() ?? (data.confirmedAt ? new Date(data.confirmedAt) : null)
-        if (!ts) return
-        const dayKey = new Date(ts); dayKey.setHours(0, 0, 0, 0)
-        const bucket = buckets.find((b) => b.date.getTime() === dayKey.getTime())
-        if (!bucket) return
-        bucket.revenue += Number(data.amountZMW || 0)
-        bucket.activations += 1
-      })
-      return buckets
-    } catch (e) {
-      reportRead('getRevenueByDay', e)
-      return buckets
-    }
-  }
-
-  async function getRecentConfirmedPayments(limitCount = 25) {
-    try {
-      const snap = await getDocs(query(
-        collection(db, 'payments'),
-        where('status', 'in', ['confirmed', 'successful']),
-        orderBy('confirmedAt', 'desc'),
-        limit(limitCount),
-      ))
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-    } catch (e) {
-      reportRead('getRecentConfirmedPayments', e)
-      return []
-    }
-  }
-
-  async function revokePremium(userId) {
-    await updateDoc(doc(db, 'users', userId), {
-      plan: 'free',
-      premium: false,
-      isPremium: false,
-      paymentStatus: 'inactive',
-      subscriptionStatus: 'inactive',
-      premiumActivatedAt: null,
-      subscriptionPlan: 'free',
-      subscriptionExpiry: null,
-      subscriptionActivatedBy: null,
-      subscriptionActivatedAt: null,
-      subscriptionProvider: null,
-      subscriptionPaymentId: null,
-    })
-  }
-
-  // ── Lessons ──────────────────────────────────────────────────
-  async function getLessons(filters = {}) {
-    try {
-      const c = [where('isPublished', '==', true)]
-      if (filters.grade)   c.push(where('grade',   '==', filters.grade))
-      if (filters.subject) c.push(where('subject', '==', filters.subject))
-      c.push(orderBy('createdAt', 'desc'))
-      c.push(limit(LEARNER_LESSON_LIMIT))
-      const snap = await getDocs(query(collection(db, 'lessons'), ...c))
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    } catch (e) { reportRead('getLessons', e); return [] }
-  }
-
-  async function getAllLessons(limitCount = ADMIN_QUERY_LIMIT) {
-    try {
-      const snap = await getDocs(query(collection(db, 'lessons'), orderBy('createdAt', 'desc'), limit(limitCount)))
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    } catch (e) { reportRead('getAllLessons', e); return [] }
-  }
-
-  async function getLessonById(lessonId) {
-    try {
-      const snap = await getDoc(doc(db, 'lessons', lessonId))
-      return snap.exists() ? { id: snap.id, ...snap.data() } : null
-    } catch (e) { reportRead('getLessonById', e); return null }
-  }
-
-  // Repair a stray curriculum slug ("mathematics") to its display label on
-  // the way in. The lesson editor only offers labels today, so this is
-  // defensive against a future importer writing a slug — and keeps lessons
-  // consistent with the same normalization quizzes and notes apply.
-  function withNormalizedSubject(data) {
-    if (data && typeof data === 'object' && 'subject' in data) {
-      return { ...data, subject: normalizeSubject(data.subject) }
-    }
-    return data
-  }
-
-  async function createLesson(data) {
-    const ref = await addDoc(collection(db, 'lessons'), { ...withNormalizedSubject(data), createdAt: serverTimestamp(), updatedAt: serverTimestamp() })
-    return ref.id
-  }
-
-  async function updateLesson(lessonId, data) {
-    await updateDoc(doc(db, 'lessons', lessonId), { ...withNormalizedSubject(data), updatedAt: serverTimestamp() })
-  }
-
-  async function deleteLesson(lessonId) {
-    await deleteDoc(doc(db, 'lessons', lessonId))
-  }
-
-  // ── Teacher / content-workflow ───────────────────────────────
-  async function getMyQuizzes(uid, limitCount = TEACHER_QUERY_LIMIT) {
-    try {
-      const snap = await getDocs(query(collection(db, 'quizzes'), where('createdBy', '==', uid), orderBy('createdAt', 'desc'), limit(limitCount)))
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    } catch (e) { reportRead('getMyQuizzes', e); return [] }
-  }
-
-  async function getMyLessons(uid, limitCount = TEACHER_QUERY_LIMIT) {
-    try {
-      const snap = await getDocs(query(collection(db, 'lessons'), where('createdBy', '==', uid), orderBy('createdAt', 'desc'), limit(limitCount)))
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    } catch (e) { reportRead('getMyLessons', e); return [] }
-  }
-
-  async function getPendingApprovals(limitCount = ADMIN_QUERY_LIMIT) {
-    try {
-      const [qSnap, lSnap] = await Promise.all([
-        getDocs(query(collection(db, 'quizzes'), where('status', '==', 'pending'), orderBy('submittedAt', 'desc'), limit(limitCount))),
-        getDocs(query(collection(db, 'lessons'), where('status', '==', 'pending'), orderBy('submittedAt', 'desc'), limit(limitCount))),
-      ])
-      return [
-        ...qSnap.docs.map(d => ({ id: d.id, contentType: 'quiz',   ...d.data() })),
-        ...lSnap.docs.map(d => ({ id: d.id, contentType: 'lesson', ...d.data() })),
-      ].sort((a, b) => (b.submittedAt?.toMillis?.() ?? 0) - (a.submittedAt?.toMillis?.() ?? 0))
-    } catch (e) { reportRead('getPendingApprovals', e); return [] }
-  }
-
-  function _approvalCol(contentType) {
-    if (contentType === 'quiz')   return 'quizzes'
-    if (contentType === 'lesson') return 'lessons'
-    throw new Error(`Unknown contentType: ${contentType}`)
-  }
-
-  async function submitForApproval(contentType, id) {
-    await updateDoc(doc(db, _approvalCol(contentType), id), { status: 'pending', submittedAt: serverTimestamp() })
-  }
-
-  async function withdrawFromApproval(contentType, id) {
-    await updateDoc(doc(db, _approvalCol(contentType), id), { status: 'draft', submittedAt: null })
-  }
-
-  async function approveContent(contentType, id, adminId) {
-    await updateDoc(doc(db, _approvalCol(contentType), id), {
-      status: 'published', isPublished: true,
-      approvedBy: adminId, approvedAt: serverTimestamp(),
-    })
-  }
-
-  async function rejectContent(contentType, id, adminId, reason = '') {
-    await updateDoc(doc(db, _approvalCol(contentType), id), {
-      status: 'rejected', isPublished: false,
-      rejectionReason: reason, rejectedBy: adminId, rejectedAt: serverTimestamp(),
-    })
-  }
-
-  // ── Quiz editing ─────────────────────────────────────────────
-  /**
-   * Delete a single question from a quiz subcollection.
-   */
-  async function deleteQuestion(quizId, questionId) {
-    await deleteDoc(doc(db, 'quizzes', quizId, 'questions', questionId))
-  }
-
-  /**
-   * Atomically update a quiz's metadata + its questions.
-   * - Deletes questions whose IDs are in deletedIds
-   * - Updates questions that have a _id field (existing)
-   * - Adds questions without a _id field (new)
-   * Split into two batches (delete + upsert) to stay within the 500-op limit.
-   */
-  async function updateQuizWithQuestions(quizId, quizData, questions, deletedIds = []) {
-    const totalMarks = questions.reduce((s, q) => s + (q.marks || 1), 0)
-
-    // 1. Update quiz doc — validate the metadata the same way updateQuiz does.
-    //    This is the HOT autosave path, so a raw write here used to bypass the
-    //    schema entirely: a stray subject slug or out-of-range field would
-    //    either land verbatim in Firestore or fail later with an opaque
-    //    permission error. quizUpdateSchema is .partial() + .passthrough(), so
-    //    it coerces subject via normalizeSubject and validates known fields
-    //    while preserving ad-hoc ones (reviewCount, mode, importStatus, …).
-    const parsed = quizUpdateSchema.safeParse({
-      ...quizData,
-      questionCount: questions.length,
-      totalMarks,
-    })
-    if (!parsed.success) {
-      const first = parsed.error.issues?.[0]
-      const path = first?.path?.join('.') || '(root)'
-      throw new Error(`Invalid quiz update at "${path}": ${first?.message || 'schema violation'}`)
-    }
-    await updateDoc(doc(db, 'quizzes', quizId), {
-      ...parsed.data,
-      updatedAt: serverTimestamp(),
-    })
-
-    // 2. Delete removed questions
-    if (deletedIds.length > 0) {
-      const delBatch = writeBatch(db)
-      deletedIds.forEach(id => delBatch.delete(doc(db, 'quizzes', quizId, 'questions', id)))
-      await delBatch.commit()
-    }
-
-    // 3. Upsert remaining questions in chunks of 490.
-    //    Return the assigned Firestore ID for every question so callers can
-    //    patch _id back into React state. Without this, questions that start
-    //    with _id:null (e.g. freshly imported) get re-created as new Firestore
-    //    docs on every subsequent auto-save — producing the "60 → 2000"
-    //    question-count explosion reported by teachers.
-    const idMap = []
-    const chunkSize = 490
-    for (let i = 0; i < questions.length; i += chunkSize) {
-      const chunk = questions.slice(i, i + chunkSize)
-      const upsertBatch = writeBatch(db)
-      for (const [offset, q] of chunk.entries()) {
-        const cleanQ = await normalizeQuestionPayload(q, i + offset + 1)
-        if (q._id) {
-          upsertBatch.update(doc(db, 'quizzes', quizId, 'questions', q._id), cleanQ)
-          idMap.push({ localId: q.localId, id: q._id })
-        } else {
-          const newRef = doc(collection(db, 'quizzes', quizId, 'questions'))
-          upsertBatch.set(newRef, cleanQ)
-          idMap.push({ localId: q.localId, id: newRef.id })
-        }
-      }
-      await upsertBatch.commit()
-    }
-    return idMap
-  }
-
   return useMemo(() => ({
-    getQuizzes, getAllQuizzes, getQuizzesByTeacher, getQuizById, createQuiz, updateQuiz, deleteQuiz,
-    getQuestions, saveQuestions,
-    saveResult, getResultById, getUserResults, getResultsForQuiz, getAllResults, getResultsInWindow, getRecentResults, getDashboardCounts, getWeaknessAnalysis,
-    getAllUsers, getAllLearners, updateUserRole,
+    // Quizzes — learner reads
+    getQuizzes: learner.getQuizzes,
+    getQuizById: learner.getQuizById,
+    // Quizzes — authoring + admin
+    getAllQuizzes: admin.getAllQuizzes,
+    getQuizzesByTeacher: admin.getQuizzesByTeacher,
+    createQuiz: authoring.createQuiz,
+    updateQuiz: authoring.updateQuiz,
+    deleteQuiz: authoring.deleteQuiz,
+    getQuestions: authoring.getQuestions,
+    saveQuestions: authoring.saveQuestions,
+
+    // Results
+    saveResult: learner.saveResult,
+    getResultById: learner.getResultById,
+    getUserResults: learner.getUserResults,
+    getResultsForQuiz: admin.getResultsForQuiz,
+    getAllResults: admin.getAllResults,
+    getResultsInWindow: admin.getResultsInWindow,
+    getRecentResults: admin.getRecentResults,
+    getDashboardCounts: admin.getDashboardCounts,
+    getWeaknessAnalysis: learner.getWeaknessAnalysis,
+
+    // Users
+    getAllUsers: admin.getAllUsers,
+    getAllLearners: admin.getAllLearners,
+    updateUserRole: admin.updateUserRole,
+
+    // Subscription / daily limit
     checkAndConsumeAttempt,
-    submitPaymentRequest, getPendingPayments, getAllPayments, confirmPayment, rejectPayment, grantPremium, revokePremium,
-    grantAccessByEmail, getTodayPaymentStats, getActivePremiumCount, getRecentConfirmedPayments,
-    getMyPayments, findUserByEmail, getRevenueByDay,
-    getLessons, getAllLessons, getLessonById, createLesson, updateLesson, deleteLesson,
-    getMyQuizzes, getMyLessons,
-    getPendingApprovals, submitForApproval, withdrawFromApproval, approveContent, rejectContent,
-    deleteQuestion, updateQuizWithQuestions,
-    getMyAssessments, getAssessmentById, createAssessment, updateAssessment, deleteAssessment,
-    getAssessmentQuestions, saveAssessmentQuestions, updateAssessmentWithQuestions,
-    // The intent is a stable identity for the returned API surface: every
-    // listed function is a fresh closure on each render but only references
-    // module-scope bindings (`db`, schemas), so freezing them on first mount
-    // is the correct behaviour. Adding them to deps would defeat the cache.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    // Payments
+    submitPaymentRequest: admin.submitPaymentRequest,
+    getPendingPayments: admin.getPendingPayments,
+    getAllPayments: admin.getAllPayments,
+    confirmPayment: admin.confirmPayment,
+    rejectPayment: admin.rejectPayment,
+    grantPremium: admin.grantPremium,
+    revokePremium: admin.revokePremium,
+    grantAccessByEmail: admin.grantAccessByEmail,
+    getTodayPaymentStats: admin.getTodayPaymentStats,
+    getActivePremiumCount: admin.getActivePremiumCount,
+    getRecentConfirmedPayments: admin.getRecentConfirmedPayments,
+    getMyPayments: learner.getMyPayments,
+    findUserByEmail: admin.findUserByEmail,
+    getRevenueByDay: admin.getRevenueByDay,
+
+    // Lessons
+    getLessons: learner.getLessons,
+    getAllLessons: admin.getAllLessons,
+    getLessonById: learner.getLessonById,
+    createLesson: admin.createLesson,
+    updateLesson: admin.updateLesson,
+    deleteLesson: admin.deleteLesson,
+
+    // Teacher / content-workflow
+    getMyQuizzes: authoring.getMyQuizzes,
+    getMyLessons: authoring.getMyLessons,
+    getPendingApprovals: admin.getPendingApprovals,
+    submitForApproval: admin.submitForApproval,
+    withdrawFromApproval: admin.withdrawFromApproval,
+    approveContent: admin.approveContent,
+    rejectContent: admin.rejectContent,
+
+    // Quiz editing
+    deleteQuestion: authoring.deleteQuestion,
+    updateQuizWithQuestions: authoring.updateQuizWithQuestions,
+
+    // Assessments (teacher-private)
+    getMyAssessments: authoring.getMyAssessments,
+    getAssessmentById: authoring.getAssessmentById,
+    createAssessment: authoring.createAssessment,
+    updateAssessment: authoring.updateAssessment,
+    deleteAssessment: authoring.deleteAssessment,
+    getAssessmentQuestions: authoring.getAssessmentQuestions,
+    saveAssessmentQuestions: authoring.saveAssessmentQuestions,
+    updateAssessmentWithQuestions: authoring.updateAssessmentWithQuestions,
   }), [])
 }
-

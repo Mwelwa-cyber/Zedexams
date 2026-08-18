@@ -33,6 +33,7 @@ import { useGameFinish } from '../hooks/useGameFinish'
 import { reportGameStart } from '../services/gamesService'
 import { playCorrect, playWrong, playWin, primeSounds } from '../lib/gameSounds'
 import { BadgePop, GameTopBar, WinScreen, buildSaveNote } from './protoGameChrome'
+import { readJson, writeJson } from '../../../shared/utils/safeStorage'
 import {
   NODE_POS,
   PATH_VIEW_HEIGHT,
@@ -61,17 +62,11 @@ const ZED_ART = '/images/characters/poses/zed-lets-go.webp'
 const progressKey = (gameId) => `zx:number-path:${gameId || 'default'}`
 
 function loadProgress(gameId) {
-  try {
-    return normalizeProgress(JSON.parse(window.localStorage.getItem(progressKey(gameId))))
-  } catch {
-    return normalizeProgress(null)
-  }
+  return normalizeProgress(readJson(progressKey(gameId)))
 }
 
 function saveProgress(gameId, progress) {
-  try {
-    window.localStorage.setItem(progressKey(gameId), JSON.stringify(progress))
-  } catch { /* private mode — the path just won't persist */ }
+  writeJson(progressKey(gameId), progress)
 }
 
 /* ── Level path screen ─────────────────────────────────────────── */

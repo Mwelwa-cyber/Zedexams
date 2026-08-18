@@ -1,10 +1,15 @@
 import { useAuth } from '../contexts/AuthContext'
-import { useFirestore } from './useFirestore'
+// The attempt limiter is imported DIRECTLY, not through `useFirestore`.
+// `useSubscription` is reached eagerly from the app shell (App.jsx → the
+// subscription front door, and Navbar), so importing the whole Firestore
+// surface here put the quiz write schema and the question schema into every
+// learner's first paint for the sake of one 12-line counter. See
+// ./firestore/attemptLimiter.js. Do not route this back through useFirestore.
+import { checkAndConsumeAttempt } from './firestore/attemptLimiter'
 import { getActivePlan, getPlanTier, ACCESS_LEVELS } from '../engines/payment-engine/subscriptionConfig'
 
 export function useSubscription() {
   const { currentUser, userProfile, isPremium, isAdmin, isPaidTeacher } = useAuth()
-  const { checkAndConsumeAttempt } = useFirestore()
 
   const plan = getActivePlan(userProfile)
 

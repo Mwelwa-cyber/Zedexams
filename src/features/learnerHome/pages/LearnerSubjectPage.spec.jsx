@@ -24,8 +24,10 @@ const mockAuth = {
 vi.mock('../../../contexts/AuthContext', () => ({ useAuth: () => mockAuth }))
 
 let mockQuizzes = []
-vi.mock('../../../hooks/useFirestore', () => ({
-  useFirestore: () => ({
+// The page reads through the scoped learner hook (its own module, so the
+// authoring + admin data modules stay out of this route's chunk).
+vi.mock('../../../hooks/useLearnerFirestore', () => ({
+  useLearnerFirestore: () => ({
     getQuizzes: vi.fn(async () => mockQuizzes),
     getUserResults: vi.fn(async () => []),
   }),

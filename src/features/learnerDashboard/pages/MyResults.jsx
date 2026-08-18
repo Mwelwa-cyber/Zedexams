@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BarChart3, CheckCircleIcon, ChevronRight, PencilLine, Search, Target, TrophyIcon, X } from '../../../shared/components/icons'
 import { useAuth } from '../../../contexts/AuthContext'
-import { useFirestore } from '../../../hooks/useFirestore'
+import { useLearnerFirestore } from '../../../hooks/useLearnerFirestore'
 import Button from '../../../shared/components/Button'
 import Icon from '../../../shared/components/Icon'
 import Skeleton from '../../../shared/components/Skeleton'
@@ -56,7 +56,7 @@ function ResultSkeleton() {
 
 export default function MyResults() {
   const { userProfile } = useAuth()
-  const { getUserResults } = useFirestore()
+  const { getUserResults } = useLearnerFirestore()
   const navigate = useNavigate()
 
   const [results, setResults]   = useState([])

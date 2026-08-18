@@ -31,7 +31,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
-import { useFirestore } from '../../../hooks/useFirestore'
+import { useLearnerFirestore } from '../../../hooks/useLearnerFirestore'
 import useExamTimetables from '../../../hooks/useExamTimetables'
 import { getTodaysExamsBySubject, checkTodaysLocks } from '../../../utils/examService'
 import { getActiveTerm } from '../../../utils/moeCalendar'
@@ -64,7 +64,7 @@ function subjectIdOf(value) {
 
 export default function useLearnerDashboard({ extras = false } = {}) {
   const { currentUser, userProfile } = useAuth()
-  const { getUserResults, getQuizById } = useFirestore()
+  const { getUserResults, getQuizById } = useLearnerFirestore()
   const uid = currentUser?.uid || null
   const grade = userProfile?.grade ? String(userProfile.grade) : null
 

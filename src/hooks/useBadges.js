@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useFirestore } from './useFirestore'
+import { useLearnerFirestore } from './useLearnerFirestore'
 import { evaluateBadges } from '../config/badges'
 
 /**
@@ -17,7 +17,7 @@ import { evaluateBadges } from '../config/badges'
  * }}
  */
 export function useBadges(userId) {
-  const { getUserResults } = useFirestore()
+  const { getUserResults } = useLearnerFirestore()
   const [earned,   setEarned]   = useState([])
   const [progress, setProgress] = useState([])
   const [loading,  setLoading]  = useState(true)

@@ -15,7 +15,7 @@ import { useNavigate }         from 'react-router-dom'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import app                     from '../../../firebase/config'
 import { useAuth }             from '../../../contexts/AuthContext'
-import { useFirestore }        from '../../../hooks/useFirestore'
+import { useLearnerFirestore } from '../../../hooks/useLearnerFirestore'
 import { useBadges }           from '../../../hooks/useBadges'
 import { useSubscription }     from '../../../hooks/useSubscription'
 import { getRoleLandingPath }  from '../../../utils/navigation'
@@ -79,7 +79,7 @@ function Field({ label, htmlFor, children }) {
 
 export default function ProfilePage() {
   const { currentUser, userProfile, updateProfileFields, logout } = useAuth()
-  const { getUserResults }                                         = useFirestore()
+  const { getUserResults }                                         = useLearnerFirestore()
   const { earned: earnedBadges }                                   = useBadges(currentUser?.uid)
   const { accessBadge, isPremium, tierLabel }                      = useSubscription()
   const navigate                                                   = useNavigate()

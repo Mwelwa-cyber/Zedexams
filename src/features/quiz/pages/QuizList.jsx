@@ -13,7 +13,7 @@ import {
   StarIcon,
   X,
 } from '../../../shared/components/icons'
-import { useFirestore } from '../../../hooks/useFirestore'
+import { useLearnerFirestore } from '../../../hooks/useLearnerFirestore'
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
 import { useSubscription } from '../../../hooks/useSubscription'
 import { useAuth } from '../../../contexts/AuthContext'
@@ -268,7 +268,7 @@ function LockedBanner({ onUpgrade, hasDemos }) {
 
 // ── Main ───────────────────────────────────────────────────────────────────
 export default function QuizList() {
-  const { getQuizzes } = useFirestore()
+  const { getQuizzes } = useLearnerFirestore()
   const { isDemoOnly, accessBadge } = useSubscription()
   const { userProfile, isAdmin, isTeacher } = useAuth()
   const navigate = useNavigate()

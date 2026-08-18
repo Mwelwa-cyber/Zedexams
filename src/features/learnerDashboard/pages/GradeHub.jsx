@@ -38,9 +38,10 @@ import {
 } from '../../../shared/components/icons'
 import { useAuth }              from '../../../contexts/AuthContext'
 import { usePlatformSettings }  from '../../../contexts/PlatformSettingsContext'
-import { useFirestore }         from '../../../hooks/useFirestore'
+import { useLearnerFirestore }  from '../../../hooks/useLearnerFirestore'
 import { useBadges }            from '../../../hooks/useBadges'
 import { useDataSaver }         from '../../../contexts/DataSaverContext'
+import { readArray, writeJson } from '../../../shared/utils/safeStorage'
 import { GRADE_META, SUBJECTS, getTopics, normalizeSubject } from '../../../config/curriculum'
 import { GRADE7_ECZ_EXAM_START } from '../../../config/examDates'
 import ProfessorPako            from '../../../shared/components/ProfessorPako'
@@ -151,25 +152,11 @@ function getNotificationStorageKey(userId) {
 }
 
 function readSeenNotificationIds(userId) {
-  if (typeof window === 'undefined') return []
-
-  try {
-    const raw = window.localStorage.getItem(getNotificationStorageKey(userId))
-    const parsed = JSON.parse(raw || '[]')
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
+  return readArray(getNotificationStorageKey(userId))
 }
 
 function writeSeenNotificationIds(userId, ids) {
-  if (typeof window === 'undefined') return
-
-  try {
-    window.localStorage.setItem(getNotificationStorageKey(userId), JSON.stringify(ids))
-  } catch {
-    // Ignore storage failures so notifications still render.
-  }
+  writeJson(getNotificationStorageKey(userId), ids)
 }
 
 // These sub-components are pure and prop-driven, but GradeHub re-renders on
@@ -629,7 +616,7 @@ function NotificationPanel({ notifications, unreadCount, onClose }) {
 export default function GradeHub() {
   const { currentUser, userProfile, logout, isAdmin, isTeacher } = useAuth()
   const { settings: platformSettings } = usePlatformSettings()
-  const { getUserResults, getWeaknessAnalysis, getQuizzes } = useFirestore()
+  const { getUserResults, getWeaknessAnalysis, getQuizzes } = useLearnerFirestore()
   const { earned: earnedBadges, loading: badgesLoading } = useBadges(currentUser?.uid)
   const { dataSaver }                        = useDataSaver()
   const navigate                             = useNavigate()
@@ -888,7 +875,7 @@ export default function GradeHub() {
         out[g] = bySubject
       }
       // getQuizzes() swallows Firestore errors and returns [] (see
-      // useFirestore.js), so a failed read is indistinguishable from a real
+      // the learner data module), so a failed read is indistinguishable from a real
       // "zero quizzes" result here. A long-lived dashboard re-runs this in the
       // background (e.g. on the ~hourly auth-token refresh); if that read
       // transiently fails we'd cache an all-empty map and every card would
