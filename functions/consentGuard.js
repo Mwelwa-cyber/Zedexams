@@ -49,6 +49,12 @@ function loadControls() {
   return controlsPromise;
 }
 
+let linkCorePromise = null;
+function loadLinkCore() {
+  if (!linkCorePromise) linkCorePromise = import("./shared/guardian/guardianLinkCore.js");
+  return linkCorePromise;
+}
+
 /**
  * Which guardian control governs which capability. A capability with no
  * entry is not controllable by a guardian, and the check below skips it —
@@ -57,6 +63,32 @@ function loadControls() {
  */
 const CAPABILITY_CONTROL = Object.freeze({
   aiChat: "askZed",
+});
+
+/**
+ * Which LINK permission governs which capability.
+ *
+ * Distinct from CAPABILITY_CONTROL above, and both are checked, because
+ * they are set by different people through different surfaces with
+ * different strengths of evidence:
+ *
+ *   CAPABILITY_CONTROL  → `users/{uid}.guardianControls`, set from the
+ *                         Guardian Zone INSIDE the child's own session
+ *                         behind a friction gate. One value for the whole
+ *                         account.
+ *   CAPABILITY_PERMISSION → `parentLinks/{id}.permissions`, set by a
+ *                         verified guardian FROM THEIR OWN ACCOUNT. One
+ *                         value per guardian, folded most-restrictive-wins.
+ *
+ * A restriction from either refuses. Folding them into one store was
+ * considered and rejected: a co-guardian's setting would overwrite the
+ * other's, and a change made on a child's phone would be indistinguishable
+ * from one made by an adult who proved who they were.
+ */
+const CAPABILITY_PERMISSION = Object.freeze({
+  aiChat: "askZed",
+  leaderboard: "leaderboard",
+  social: "challenges",
 });
 
 // Cache the enforcement flag briefly. It is read on every gated call, it
@@ -99,12 +131,60 @@ async function resolveEnforceMigration(db = admin.firestore()) {
  * @return {Promise<{access: object, user: object|null}>}
  */
 async function resolveCallerAccess(uid, db = admin.firestore()) {
-  const {resolveLearnerAccess} = await loadCore();
-  const snap = await db.doc(`users/${uid}`).get();
+  const {resolveLearnerAccess, CONSENT_STATUS} = await loadCore();
+  const core = await loadLinkCore();
+
+  // One read of the profile, one of the links. The links query is by the
+  // learner's own uid on an indexed field, so it is a single lookup — and
+  // it has to happen here rather than at each call site, because the
+  // whole point is that every gated capability passes through one gate.
+  const [snap, linkSnap] = await Promise.all([
+    db.doc(`users/${uid}`).get(),
+    db.collection("parentLinks").where("learnerUid", "==", uid).get(),
+  ]);
   const user = snap.exists ? snap.data() : null;
+  const links = linkSnap.docs.map((d) => ({id: d.id, ...(d.data() || {})}));
   const enforceMigration = await resolveEnforceMigration(db);
-  return {access: resolveLearnerAccess(user, {enforceMigration}), user};
+
+  const base = resolveLearnerAccess(user, {enforceMigration});
+  const linkConsent = core.resolveLinkConsent(links, {
+    accountStatus: user?.guardian?.consentStatus,
+    enforceMigration,
+  });
+
+  // ── Consent lives on the LINK ──────────────────────────────────────
+  //
+  // `resolveLearnerAccess` answers from the ACCOUNT record, which is one
+  // guardian's decision and cannot represent two. An approved link is
+  // therefore promoted to full access here — that is the case a mother
+  // who approved by email, or a father who was confirmed by family code,
+  // must land in even though the account field says nothing about them.
+  //
+  // The promotion is deliberately one-directional. It never DEMOTES: a
+  // learner the account record already grants (an adult learner, a
+  // migration-grace account, a `granted` status) keeps what they had,
+  // because a child with no link at all is not a child whose guardian
+  // said no. And it never touches `denied`, which is a suspension
+  // guardianConsentCore owns and which no link may override — otherwise
+  // a second adult typing a family code would reinstate an account the
+  // first one had deactivated.
+  const access = (
+    linkConsent.approved &&
+    base.limited &&
+    base.status !== CONSENT_STATUS.DENIED
+  ) ?
+    {...base, limited: false, capabilities: FULL_ON_LINK, reason: "link-approved", status: CONSENT_STATUS.GRANTED} :
+    base;
+
+  return {access, user, links, linkConsent};
 }
+
+// The capability set an approved link confers. Held as a local constant
+// rather than re-exported from the shared core so that adding a
+// capability there cannot silently widen what a link grants — a new
+// capability has to be listed HERE, deliberately, to be reachable this
+// way.
+const FULL_ON_LINK = Object.freeze(["browse", "aiChat", "social", "leaderboard", "purchase"]);
 
 // What a learner is told, per reason. Written for a child to read, and each
 // one names the way OUT — a refusal that does not say what to do next is how
@@ -195,6 +275,24 @@ async function assertLearnerCapability(uid, capability, deps = {}) {
       );
     }
   }
+
+  // A guardian's restriction set from their OWN account, on their own
+  // link. Folded most-restrictive-wins across every approved guardian, so
+  // one parent's "no" holds even while the other's link says yes. The
+  // links were read above, so this costs no extra Firestore work.
+  const permissionKey = CAPABILITY_PERMISSION[capability];
+  if (permissionKey) {
+    const core = await loadLinkCore();
+    const enforceMigration = await resolveEnforceMigration(db);
+    if (core.resolveLinkPermissions(resolved.links || [], {enforceMigration})[permissionKey] === false) {
+      throw new HttpsError(
+          "permission-denied",
+          messageFor("guardian-control-off"),
+          {reason: "guardian-control-off", capability, control: permissionKey},
+      );
+    }
+  }
+
   return access;
 }
 

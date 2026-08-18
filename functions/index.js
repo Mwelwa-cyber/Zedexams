@@ -55,6 +55,8 @@ const {assertLearnerCapability} = require("./consentGuard");
 // rename there fails CI rather than silently disabling a gate here.
 const CAPABILITY_AI_CHAT = "aiChat";
 const CAPABILITY_SOCIAL = "social";
+const CAPABILITY_PURCHASE = "purchase";
+const CAPABILITY_LEADERBOARD = "leaderboard";
 // MFA second-factor gate for admin callables that already confirm admin their
 // own way (bulk grants, global content publishing). See functions/security/.
 const {assertAdminSecondFactor} = require("./security/requireAdminMfa");
@@ -651,6 +653,7 @@ const scheduledOpsHandlers = require("./scheduledOpsHandlers").buildScheduledOps
 // same TDZ reason batch 2 documents there.
 const batch3HandlerDeps = {
   CAPABILITY_AI_CHAT,
+  CAPABILITY_PURCHASE,
   CHAT_HEARTBEAT_MS,
   HttpsError,
   LEARNER_BLOCK_MESSAGE,
@@ -2378,6 +2381,60 @@ exports.requestGuardianUnlock = require('./guardianUnlock').requestGuardianUnloc
 // "cannot change silently", not "cannot change".
 // See functions/guardianControls/ and functions/shared/guardian/.
 exports.setGuardianControl = require('./guardianControls').setGuardianControl;
+
+// ── The guardian↔learner LINK lifecycle ────────────────────────────────
+//
+// The link record IS the relationship: consent, permissions, role and
+// entitlement all hang off `parentLinks/{parentUid}_{learnerUid}`, and the
+// learner's own state is DERIVED from the set (approved iff at least one
+// link is approved). Two doors create one — the child naming a guardian's
+// email (guardianConsent/) and a parent typing a family code
+// (familyPortal.js) — and both converge on ONE guardian account, matched
+// on the verified address (guardianLink/convergence.js).
+//
+// These five own what happens to a link after it exists:
+//
+//   confirmGuardianLink     the CHILD's confirmation. A link created by
+//                           the family-code door starts `pending` and
+//                           grants nothing until this runs, which is the
+//                           real defence against a code reaching the
+//                           wrong adult — the only person who knows is
+//                           asked, on their own device.
+//   requestGuardianUnlink   the child asks to be unlinked. Files a
+//                           request; removes nobody. See the module
+//                           docblock for why this one is not immediate,
+//                           and for the Childline route that pays for it.
+//   reportGuardianLink      "this isn't my grown-up." Removes an
+//                           unconfirmed link outright, flags a confirmed
+//                           one for review, and never silently does
+//                           nothing.
+//   withdrawGuardianConsent the guardian ends it. The child returns to
+//                           limited mode only if no OTHER guardian's
+//                           approval is still standing.
+//   setLinkPermission       one guardian's own view on one permission,
+//                           written to THEIR link. Two guardians who
+//                           disagree are both recorded and resolved
+//                           most-restrictive-wins at read time.
+//
+// Every transition appends to `guardianLinkAudit` (server-only,
+// append-only), because /child-safety promises a guardian can see what we
+// hold and "who approved what, when" cannot be reconstructed from a
+// mutable document after the fact.
+const guardianLink = require('./guardianLink');
+exports.confirmGuardianLink = guardianLink.confirmGuardianLink;
+exports.requestGuardianUnlink = guardianLink.requestGuardianUnlink;
+exports.reportGuardianLink = guardianLink.reportGuardianLink;
+exports.withdrawGuardianConsent = guardianLink.withdrawGuardianConsent;
+exports.setLinkPermission = guardianLink.setLinkPermission;
+
+// The rules-readable mirror of the fold above. A Firestore rule can `get()`
+// one document but cannot run a query, so "does this learner have an
+// approved link" is unaskable in firestore.rules — and the leaderboard is
+// written straight from the client with no function in the path. This
+// trigger mirrors the answer onto `users/{uid}.guardian.effective` where a
+// rule can reach it. It is a CACHE: nothing that can read the live links
+// reads it instead. Pinned to africa-south1 like every Firestore trigger.
+exports.onParentLinkWritten = require('./guardianLink/onLinkWritten').onParentLinkWritten;
 
 // ── The parent app (PROMPT 8g) — the guardian's OWN logged-in surface ──
 //

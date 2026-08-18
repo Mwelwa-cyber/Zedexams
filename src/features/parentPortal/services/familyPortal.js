@@ -11,8 +11,6 @@
 
 import {
   collection,
-  deleteDoc,
-  doc,
   getDocs,
   limit as fsLimit,
   orderBy,
@@ -28,6 +26,10 @@ const createFamilyInviteCodeCallable = httpsCallable(fns, 'createFamilyInviteCod
 const revokeFamilyInviteCodeCallable = httpsCallable(fns, 'revokeFamilyInviteCode')
 const redeemFamilyInviteCodeCallable = httpsCallable(fns, 'redeemFamilyInviteCode')
 const getChildProgressCallable = httpsCallable(fns, 'getChildProgress')
+const confirmGuardianLinkCallable = httpsCallable(fns, 'confirmGuardianLink')
+const requestGuardianUnlinkCallable = httpsCallable(fns, 'requestGuardianUnlink')
+const reportGuardianLinkCallable = httpsCallable(fns, 'reportGuardianLink')
+const withdrawGuardianConsentCallable = httpsCallable(fns, 'withdrawGuardianConsent')
 
 const LINKS = 'parentLinks'
 const CODES = 'familyInviteCodes'
@@ -106,11 +108,57 @@ export async function getChildProgress(childUid) {
   return result.data
 }
 
+// ── The link lifecycle ───────────────────────────────────────────────
+//
+// `unlinkParentLink` USED TO LIVE HERE and deleted the document directly.
+// It is gone, and the two sides now have different, deliberately unequal
+// routes — because "remove this link" means two different things depending
+// on who is asking:
+//
+//   a guardian leaving   → withdrawGuardianConsent. Marks the link
+//                          `withdrawn` and KEEPS the record, because "who
+//                          approved this account, and when did that stop"
+//                          is what /child-safety promises we can answer.
+//   a child asking       → requestGuardianUnlink. Files a request and tells
+//                          the guardian and support. Removes nobody. A
+//                          child who could quietly drop supervision is a
+//                          child who can be talked into dropping it, by
+//                          the person the supervision exists to notice.
+//
+// Firestore rules now deny every client write to `parentLinks`, delete
+// included, so there is no third route.
+
 /**
- * Remove a parent↔child link by its doc id. Firestore rules allow either side
- * (parent or learner) to delete, so this serves both "parent removes a child"
- * and "learner cuts off a parent".
+ * The child answers "<Name> wants to be your guardian. Is this your
+ * grown-up?". `decision` is 'confirm' or 'reject'.
+ *
+ * Until this resolves, the link grants nothing at all — functions/parentApp's
+ * `authorise` refuses every read of a child's data through an unconfirmed
+ * link, so this is a real gate rather than a screen.
  */
-export async function unlinkParentLink(linkId) {
-  await deleteDoc(doc(db, LINKS, linkId))
+export async function confirmGuardianLink(parentUid, decision) {
+  const result = await confirmGuardianLinkCallable({ parentUid, decision })
+  capture('guardian_link_decision', { decision })
+  return result.data
+}
+
+/** The child asks for a guardian to be removed. Files a request; removes nobody. */
+export async function requestGuardianUnlink(parentUid, reason = '') {
+  const result = await requestGuardianUnlinkCallable({ parentUid, reason })
+  capture('guardian_unlink_requested', {})
+  return result.data
+}
+
+/** "This isn't my grown-up." Removes an unconfirmed link; flags a confirmed one. */
+export async function reportGuardianLink(parentUid, reason = '') {
+  const result = await reportGuardianLinkCallable({ parentUid, reason })
+  capture('guardian_link_reported', {})
+  return result.data
+}
+
+/** A guardian ends their own link. The child keeps every lesson and past paper. */
+export async function withdrawGuardianConsent(childUid) {
+  const result = await withdrawGuardianConsentCallable({ childUid })
+  capture('guardian_consent_withdrawn', {})
+  return result.data
 }

@@ -112,6 +112,25 @@ export default function ChildSafety() {
             a leaderboard, or buy anything.
           </li>
           <li>
+            <strong>A guardian sees what a child is working on, not what they
+            typed.</strong> A linked parent or guardian sees subject progress, a
+            streak, a weekly report and the topics their child finds hard. They do
+            not see the child's password, and they do not see Ask Zed
+            conversations word for word. If a learner says something suggesting
+            they are being hurt, that message is not forwarded to a guardian — it
+            is answered with the helpline below and reviewed by a person, because
+            the adult a child is disclosing may be the adult who is linked.
+          </li>
+          <li>
+            <strong>The child can see who is linked to them, and say no.</strong>{' '}
+            Linking is never silent. A guardian who enters a family code is not
+            connected until the learner confirms them by name on their own device,
+            and the learner's Guardian screen always lists who is linked, exactly
+            what they can see, and a way to report an adult they do not recognise.
+            Childline Zambia is one tap away from that screen and needs no
+            guardian's permission.
+          </li>
+          <li>
             <strong>There is no open messaging between users.</strong> ZedExams has no
             direct messaging, no friend requests, no public profiles, and no way for
             one learner to contact another privately.

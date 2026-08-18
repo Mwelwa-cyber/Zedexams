@@ -4,31 +4,53 @@ import {
   createFamilyInviteCode,
   revokeFamilyInviteCode,
   listMyFamilyCodes,
-  listMyLinkedParents,
-  unlinkParentLink,
 } from '../services/familyPortal'
 import { reportClientError } from '../../../utils/clientErrorReporting'
 import Button from '../../../shared/components/Button'
 
 /**
- * FamilyCodePanel — learner-side control (mounted in learner settings). Lets a
- * learner generate a family code to give a parent, see the current code, rotate
- * or turn it off, and see + remove the parents currently linked to them.
+ * FamilyCodePanel — the learner mints, shows and turns off the code a
+ * parent types to link themselves.
  *
- * The code doc's own `revokedAt` / `expiresAt` are the source of truth; this
- * panel just surfaces the newest active code.
+ * The "linked parents" list USED to live here too, with a Remove button
+ * that deleted the link document. Both moved to GuardianLinkPanel, and the
+ * split is not cosmetic: this panel is about a credential the child hands
+ * out, that one is about the people who hold it and what they can see.
+ * Mixing them meant the child's answer to "who can see my results?" was a
+ * row saying "A parent account" underneath a code they were being
+ * encouraged to share.
+ *
+ * ── What a family code is now ────────────────────────────────────────
+ *
+ * Single-use, 48 hours, and typing it does NOT link anybody — it asks the
+ * child to confirm. So the copy here says "expires soon" rather than
+ * implying a standing code, and there is no revoke-in-a-panic path to
+ * design around: a code that has been used is already spent.
+ *
+ * The code document's own `revokedAt` / `usedAt` / `expiresAt` are the
+ * source of truth. `isCodeActive` mirrors familyPortalCore.familyCodeStatus
+ * — including its fail-closed reading of a MISSING expiry, because a panel
+ * that showed a code as live that the callable would refuse is how a child
+ * reads a dead code down a phone line to their parent.
  */
 function isCodeActive(codeDoc, nowMs) {
-  if (!codeDoc || codeDoc.revokedAt) return false
+  if (!codeDoc || codeDoc.revokedAt || codeDoc.usedAt) return false
   const expMs = codeDoc.expiresAt?.toMillis ? codeDoc.expiresAt.toMillis() : codeDoc.expiresAtMs
-  if (typeof expMs === 'number' && expMs < nowMs) return false
-  return true
+  if (typeof expMs !== 'number' || Number.isNaN(expMs)) return false
+  return expMs >= nowMs
+}
+
+/** "Expires in 5 hours" — the countdown that makes a 48-hour code legible. */
+function expiryHint(codeDoc, nowMs) {
+  const expMs = codeDoc?.expiresAt?.toMillis ? codeDoc.expiresAt.toMillis() : codeDoc?.expiresAtMs
+  if (typeof expMs !== 'number') return null
+  const hours = Math.max(0, Math.ceil((expMs - nowMs) / 3_600_000))
+  return hours <= 1 ? 'Expires in less than an hour' : `Expires in ${hours} hours`
 }
 
 export default function FamilyCodePanel() {
   const { currentUser } = useAuth()
   const [activeCode, setActiveCode] = useState(null)
-  const [parents, setParents] = useState([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -36,12 +58,8 @@ export default function FamilyCodePanel() {
   const load = useCallback(async () => {
     if (!currentUser?.uid) return
     try {
-      const [codes, linked] = await Promise.all([
-        listMyFamilyCodes(currentUser.uid),
-        listMyLinkedParents(currentUser.uid),
-      ])
+      const codes = await listMyFamilyCodes(currentUser.uid)
       setActiveCode(codes.find((c) => isCodeActive(c, Date.now())) || null)
-      setParents(linked)
     } catch (err) {
       reportClientError(err, 'family.learnerPanelLoad')
     } finally {
@@ -79,38 +97,30 @@ export default function FamilyCodePanel() {
     }
   }
 
-  async function handleRemoveParent(linkId) {
-    setBusy(true)
-    setError('')
-    try {
-      await unlinkParentLink(linkId)
-      setParents((prev) => prev.filter((p) => p.id !== linkId))
-    } catch (err) {
-      setError(err?.message || 'Could not remove that parent. Please try again.')
-    } finally {
-      setBusy(false)
-    }
-  }
-
   return (
     <section className="theme-card rounded-2xl border theme-border p-4">
-      <h2 className="text-sm font-black theme-text">Family &amp; parents</h2>
+      <h2 className="text-sm font-black theme-text">Family code</h2>
       <p className="mt-0.5 text-xs theme-text-muted">
-        Share a family code so a parent or guardian can follow your progress. You
-        can turn it off or remove a parent any time.
+        Give this code to a parent or guardian so they can follow your progress.
+        It works once, and we will ask you to say yes before they can see
+        anything.
       </p>
 
       {loading ? (
         <p className="mt-3 text-xs theme-text-muted">Loading…</p>
       ) : (
         <>
-          {/* Current code */}
           <div className="mt-3">
             {activeCode ? (
               <div className="flex flex-wrap items-center gap-3 rounded-xl theme-bg-subtle px-3 py-3">
                 <div className="flex-1">
-                  <p className="text-[11px] font-bold uppercase tracking-wider theme-text-muted">Your family code</p>
-                  <p className="font-mono text-lg font-black tracking-[0.3em] theme-text">{activeCode.code}</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wider theme-text-muted">
+                    Your family code
+                  </p>
+                  <p className="font-mono text-lg font-black tracking-[0.3em] theme-text">
+                    {activeCode.code}
+                  </p>
+                  <p className="text-[11px] theme-text-muted">{expiryHint(activeCode, Date.now())}</p>
                 </div>
                 <Button variant="ghost" size="sm" onClick={handleGenerate} disabled={busy}>
                   New code
@@ -125,32 +135,6 @@ export default function FamilyCodePanel() {
               </Button>
             )}
           </div>
-
-          {/* Linked parents */}
-          {parents.length > 0 && (
-            <div className="mt-4">
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-wider theme-text-muted">
-                Linked parents ({parents.length})
-              </p>
-              <ul className="space-y-2">
-                {parents.map((p) => (
-                  <li key={p.id} className="flex items-center gap-2 rounded-lg theme-bg-subtle px-3 py-2">
-                    <span className="min-w-0 flex-1 truncate text-sm font-bold theme-text">
-                      A parent account
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveParent(p.id)}
-                      disabled={busy}
-                      className="text-xs font-black text-rose-700 underline decoration-dotted disabled:opacity-50"
-                    >
-                      Remove
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
 
           {error && (
             <p className="mt-2 rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-800">

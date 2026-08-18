@@ -210,6 +210,44 @@ service cloud.firestore {
         || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('status', 'active') == 'active';
     }
 
+    // ── guardian consent: may this learner appear on a leaderboard? ──────
+    //
+    // The leaderboard is the one gated capability written STRAIGHT FROM THE
+    // CLIENT — there is no Cloud Function in the path, so consentGuard never
+    // sees it and a rule is the only enforcement available.
+    //
+    // Consent lives on `parentLinks`, and a rule cannot run a query, so it
+    // cannot ask "does this learner have an approved link". The answer is
+    // therefore mirrored onto `users/{uid}.guardian.effective` by the
+    // onParentLinkWritten trigger, and read here by path. See
+    // functions/guardianLink/onLinkWritten.js for why the mirror exists and
+    // why nothing that CAN read the live links reads it instead.
+    //
+    // ── The default is permissive, and that is deliberate ──────────────
+    //
+    // A learner with no mirror yet is allowed. Every account that predates
+    // this trigger has no `guardian.effective`, and denying on absence would
+    // remove every existing learner from the leaderboard on the deploy that
+    // shipped it — before a single guardian had been asked. It is the same
+    // migration exception guardianLinkCore makes for a link with no consent
+    // record, made in the same direction, and it closes the same way: once
+    // the backfill has run, the default here becomes `false`.
+    //
+    // What it is NOT permissive about is a recorded answer. A learner whose
+    // mirror says `approved: false` is refused, and so is one whose guardian
+    // turned the leaderboard off — those are decisions, not silence.
+    function learnerGuardianEffective() {
+      return callerUserData().get('guardian', {}).get('effective', {});
+    }
+    function mayAppearOnLeaderboard() {
+      return isAdmin()
+        || !exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        || (
+          learnerGuardianEffective().get('approved', true) == true
+          && learnerGuardianEffective().get('permissions', {}).get('leaderboard', true) != false
+        );
+    }
+
     // ── premium learner-content entitlement (P0) ─────────────────────────
     // Mirrors hasPremiumAccess() in src/utils/subscriptionConfig.js: one of
     // the access flags AND an unexpired subscriptionExpiry (or an explicit
@@ -1946,7 +1984,13 @@ service cloud.firestore {
     // Update/delete: admin only (prevents tampering with leaderboards).
     match /scores/{scoreId} {
       allow read:   if true;
+      // A score is a public leaderboard row carrying a learner's name, so
+      // writing one is the LEADERBOARD capability. An unapproved under-18
+      // learner is refused here rather than merely hidden in the UI — this
+      // is the rule a Families reviewer reaches by calling the API
+      // directly. See mayAppearOnLeaderboard().
       allow create: if isVerified()
+        && mayAppearOnLeaderboard()
         && incoming().userId == request.auth.uid
         && incoming().gameId is string
         && incoming().score is number
@@ -2675,11 +2719,68 @@ service cloud.firestore {
         resource.data.parentUid == request.auth.uid ||
         resource.data.learnerUid == request.auth.uid
       );
-      allow create, update: if false;
-      allow delete: if isVerified() && (
-        resource.data.parentUid == request.auth.uid ||
-        resource.data.learnerUid == request.auth.uid
-      );
+      // ── NO CLIENT WRITE OF ANY KIND, INCLUDING DELETE ───────────────
+      //
+      // Delete used to be allowed to either side. It cannot be, now that
+      // the link carries consent, for two separate reasons:
+      //
+      //   • The CHILD must not be able to end supervision on their own.
+      //     A child who can quietly drop a guardian is a child who can be
+      //     talked into dropping one, by the person the supervision
+      //     exists to notice. requestGuardianUnlink files a request and
+      //     tells the guardian and support; a human decides.
+      //     (reportGuardianLink DOES remove an unconfirmed link outright
+      //     — refusing a stranger is not ending supervision — and it goes
+      //     through the callable so the removal is audited.)
+      //
+      //   • A GUARDIAN leaving must leave a record. withdrawGuardianConsent
+      //     marks the link `withdrawn` rather than deleting it, because
+      //     "who approved this account, and when did that stop" is exactly
+      //     what /child-safety promises we can answer, and a deleted row
+      //     answers nothing.
+      //
+      // Every mutation is a callable in functions/guardianLink/ (admin
+      // SDK), each of which appends to guardianLinkAudit.
+      allow create, update, delete: if false;
+    }
+
+    // ── guardianLinkAudit (append-only consent trail) ─────────────────
+    //
+    // SERVER-ONLY, both directions. It records every consent transition —
+    // who approved, who withdrew, who a child said was not their grown-up
+    // — which is the evidence behind /child-safety's promise that a
+    // guardian can see and change what we hold.
+    //
+    // Read is denied to the guardian too, deliberately: a row names BOTH
+    // parties, so a readable trail would let one guardian enumerate the
+    // other's actions and let a child's rejection of an adult be read by
+    // that adult. Support surfaces it through a callable that filters.
+    match /guardianLinkAudit/{entryId} {
+      allow read, write: if false;
+    }
+
+    // ── guardianLinkClaims (a guardian who approved before they had an
+    //    account) ───────────────────────────────────────────────────────
+    //
+    // SERVER-ONLY, and the READ side is the load-bearing half. A claim is
+    // keyed by a guardian's email address and names a child. A client that
+    // could read this collection could enumerate "which children named
+    // this adult", which is a directory of minors indexed by their
+    // parents' email addresses — the single worst document set in this
+    // schema to expose. Written by guardianLink/convergence.js and
+    // redeemed only by an account that has PROVED it holds the address.
+    match /guardianLinkClaims/{claimId} {
+      allow read, write: if false;
+    }
+
+    // ── guardianUnlinkRequests (a child asking to remove a guardian) ──
+    //
+    // SERVER-ONLY. Written by requestGuardianUnlink, read by support. Not
+    // readable by the child — a request they could delete is a request
+    // they could be made to delete — and not by the guardian, whose copy
+    // arrives by email rather than as a row they could quietly close.
+    match /guardianUnlinkRequests/{requestId} {
+      allow read, write: if false;
     }
 
     // ── guardianInvites (family sharing — a second guardian) ──

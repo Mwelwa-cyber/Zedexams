@@ -33,9 +33,11 @@
 const admin = require("firebase-admin");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("./authGuard");
-const {aggregateProgress, ONE_DAY_MS} = require("./parentPortalShared");
+const {assertCallableRateLimit} = require("./rateLimit");
+const {aggregateProgress} = require("./parentPortalShared");
 const {
-  FAMILY_CODE_TTL_DAYS,
+  FAMILY_CODE_TTL_HOURS,
+  ONE_HOUR_MS,
   normalizeFamilyCode,
   isValidFamilyCode,
   randomFamilyCode,
@@ -43,6 +45,15 @@ const {
   familyCodeStatusMessage,
   parentLinkId,
 } = require("./familyPortalCore");
+
+// The shared ESM link vocabulary, reached the way functions/shared/ is
+// always reached from CommonJS: `await import(...)` inside the handler,
+// cached per instance.
+let linkCorePromise = null;
+function loadLinkCore() {
+  if (!linkCorePromise) linkCorePromise = import("./shared/guardian/guardianLinkCore.js");
+  return linkCorePromise;
+}
 
 const REGION = "us-central1";
 const STATS_WINDOW_DAYS = 30;
@@ -89,7 +100,7 @@ const createFamilyInviteCode = onCall({
 
   const code = await mintUniqueCode(db);
   const expiresAt = admin.firestore.Timestamp.fromMillis(
-      Date.now() + FAMILY_CODE_TTL_DAYS * ONE_DAY_MS,
+      Date.now() + FAMILY_CODE_TTL_HOURS * ONE_HOUR_MS,
   );
   await db.collection("familyInviteCodes").doc(code).set({
     code,
@@ -98,10 +109,14 @@ const createFamilyInviteCode = onCall({
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     expiresAt,
     revokedAt: null,
+    // Single-use. `null` rather than absent so the burn is a transition
+    // a transaction can test for, and so a code minted before this field
+    // existed is not indistinguishable from one that has been spent.
+    usedAt: null,
     redeemedCount: 0,
   });
 
-  return {code, expiresAt: expiresAt.toMillis()};
+  return {code, expiresAt: expiresAt.toMillis(), ttlHours: FAMILY_CODE_TTL_HOURS};
 });
 
 const revokeFamilyInviteCode = onCall({
@@ -134,12 +149,26 @@ const redeemFamilyInviteCode = onCall({
 }, async (request) => {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
 
+  // Per account AND per IP. A family code is a credential, and the one
+  // attack it is actually exposed to is grinding — so the limit is on
+  // the REDEEM, which is where a guess is tested, rather than on the
+  // mint, which is where a child is trying to get on with their evening.
+  // Fail-open (see rateLimit.js): a Firestore blip must not stop a
+  // parent linking, because the code is single-use, 48-hour and
+  // confirmed by the child regardless.
+  await assertCallableRateLimit(request, {
+    action: "familyCodeRedeem",
+    userPerMin: 5,
+    ipPerMin: 15,
+  });
+
   const code = normalizeFamilyCode(request.data?.code);
   if (!isValidFamilyCode(code)) {
     throw new HttpsError("invalid-argument", familyCodeStatusMessage("invalid"));
   }
 
   const db = admin.firestore();
+  const core = await loadLinkCore();
 
   // Only parent accounts may link a child — otherwise a learner could redeem
   // another learner's code and read their results. Fail closed.
@@ -152,7 +181,8 @@ const redeemFamilyInviteCode = onCall({
     );
   }
 
-  const codeSnap = await db.collection("familyInviteCodes").doc(code).get();
+  const codeRef = db.collection("familyInviteCodes").doc(code);
+  const codeSnap = await codeRef.get();
   const codeDoc = codeSnap.exists ? (codeSnap.data() || {}) : null;
   const status = familyCodeStatus(codeDoc, Date.now());
   if (status !== "ok") {
@@ -188,38 +218,87 @@ const redeemFamilyInviteCode = onCall({
       .where("learnerUid", "==", learnerUid)
       .get();
   const priorLink = siblings.docs.find((d) => d.id === linkId);
-  const role = priorLink ?
-    ((priorLink.data() || {}).role || null) :
+  const priorData = priorLink ? (priorLink.data() || {}) : null;
+  const role = priorData ?
+    (priorData.role || null) :
     roleForNewLink(siblings.docs.map((d) => d.data() || {}));
 
-  // Idempotent: re-redeeming the same code just refreshes the snapshot.
-  // `createdAt` is written only on FIRST creation — it used to be stamped
-  // on every redeem, which was harmless when nothing read it and is not
-  // now: for a legacy link with no stored role, guardianRolesCore derives
-  // ownership from it, so bumping it on a re-redeem could hand the owner
-  // role to whichever parent last typed the code.
-  await db.collection("parentLinks").doc(linkId).set({
-    parentUid: uid,
-    learnerUid,
-    learnerDisplayName: learner.displayName || null,
-    learnerGrade: learner.grade || null,
-    parentDisplayName: redeemer.displayName || null,
-    ...(role ? {role} : {}),
-    createdVia: "code",
-    code,
-    ...(priorLink ? {} : {createdAt: admin.firestore.FieldValue.serverTimestamp()}),
-  }, {merge: true});
+  // ── Burn the code and create the link in ONE transaction ──────────
+  //
+  // Two things have to be true together or the hardening is theatre. If
+  // the code burned but the link write failed, the child's code is spent
+  // and nobody is linked; if the link were written first and the burn
+  // failed, a screenshotted code stays live. The transaction re-reads
+  // `usedAt` inside itself so two parents racing on the same code
+  // resolve to one winner rather than two links.
+  //
+  // A link that already exists is NOT re-burned: re-entering a code you
+  // already used is a no-op, not a way to consume a fresh one.
+  const consentState = priorData && core.normalizeLink(priorData).state === core.LINK_CONSENT.APPROVED ?
+    core.LINK_CONSENT.APPROVED :
+    core.LINK_CONSENT.PENDING;
 
-  // Best-effort redemption tally for the learner's own visibility.
-  db.collection("familyInviteCodes").doc(code).update({
-    redeemedCount: admin.firestore.FieldValue.increment(1),
-    lastRedeemedAt: admin.firestore.FieldValue.serverTimestamp(),
-  }).catch((err) => console.warn("[familyPortal] redeem tally failed", err));
+  await db.runTransaction(async (tx) => {
+    const fresh = await tx.get(codeRef);
+    const freshDoc = fresh.exists ? (fresh.data() || {}) : null;
+    const freshStatus = familyCodeStatus(freshDoc, Date.now());
+    if (freshStatus !== "ok") {
+      throw new HttpsError("failed-precondition", familyCodeStatusMessage(freshStatus));
+    }
+
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    tx.set(db.collection("parentLinks").doc(linkId), {
+      parentUid: uid,
+      learnerUid,
+      learnerDisplayName: learner.displayName || null,
+      learnerGrade: learner.grade || null,
+      parentDisplayName: redeemer.displayName || null,
+      // The guardian's own address, so a link decision can be mailed to
+      // them without a second read of their user document — and so the
+      // convergence key (guardianLinkCore.guardianEmailKey) is on the
+      // link itself rather than reconstructed from an account that may
+      // later change address.
+      parentEmail: redeemer.email || null,
+      parentEmailKey: core.guardianEmailKey(redeemer.email) || null,
+      ...(role ? {role} : {}),
+      createdVia: "code",
+      code,
+      // THE CHANGE THIS WHOLE FLOW EXISTS FOR. Redeeming a code no
+      // longer grants anything: it creates a PENDING link and asks the
+      // child. Everything that reads a link — the parent dashboard, the
+      // approval feed, the consent gate — treats pending as no access.
+      consent: {
+        state: consentState,
+        method: core.LINK_METHOD.FAMILY_CODE,
+        requestedAt: now,
+        ...(consentState === core.LINK_CONSENT.PENDING ? {grantedAt: null, withdrawnAt: null} : {}),
+      },
+      ...(priorData ? {} : {createdAt: now}),
+    }, {merge: true});
+
+    // Burn. Only on a redeem that actually created a new link.
+    if (!priorData) {
+      tx.update(codeRef, {
+        usedAt: now,
+        usedBy: uid,
+        redeemedCount: admin.firestore.FieldValue.increment(1),
+        lastRedeemedAt: now,
+      });
+    }
+  });
 
   return {
     learnerUid,
     learnerDisplayName: learner.displayName || "your child",
     learnerGrade: learner.grade || null,
+    consentState,
+    // Said in the response rather than left for the UI to guess, because
+    // a parent who thinks they are linked and sees nothing will conclude
+    // the app is broken instead of asking their child to tap yes.
+    awaitingChildConfirmation: consentState === core.LINK_CONSENT.PENDING,
+    message: consentState === core.LINK_CONSENT.PENDING ?
+      `Almost there. We have asked ${learner.displayName || "your child"} to confirm you on their own device.` :
+      "Linked.",
   };
 });
 
