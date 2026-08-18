@@ -53,9 +53,11 @@ vi.mock('../../../shared/components/SeoHelmet', () => ({
 import GamesHub from './GamesHub'
 import { GAME_BADGES } from '../../../data/gameBadges'
 
+// Deliberately titled with CONTENT names, the way real docs are: the hub
+// must name each card for its mechanic, not for the pack behind it.
 const GAMES = [
-  { id: 'g-path', title: 'Number Path', type: 'number_target', grade: 4, subject: 'mathematics', points: 15 },
-  { id: 'g-words', title: 'Word Builder', type: 'word_builder', grade: 4, subject: 'english', points: 15 },
+  { id: 'g-path', title: 'Number Target: Master', type: 'number_target', grade: 4, subject: 'mathematics', points: 15 },
+  { id: 'g-words', title: 'Spell the Animal', type: 'word_builder', grade: 4, subject: 'english', cbc_topic: 'Spelling', points: 15 },
   { id: 'g-other-grade', title: 'G6 Quiz', type: 'timed_quiz', grade: 6, subject: 'science', points: 15 },
 ]
 
@@ -83,7 +85,8 @@ beforeEach(() => {
 describe('GamesHub', () => {
   it('renders the daily hero linking to the intro screen, with the streak line', async () => {
     renderHub()
-    const hero = (await screen.findByText(/TODAY'S CHALLENGE/)).closest('a')
+    const hero = (await screen.findByText(/TODAY'S QUIZ/)).closest('a')
+    expect(within(hero).getByText('with Zed')).toBeInTheDocument()
     // The card opens the prototype's daily-intro screen, which owns the
     // Play button into the actual challenge game.
     expect(hero).toHaveAttribute('href', '/games/daily')
@@ -98,7 +101,7 @@ describe('GamesHub', () => {
 
   it('badge shelf shows every badge, locking the unearned ones', async () => {
     renderHub()
-    await screen.findByText(/TODAY'S CHALLENGE/)
+    await screen.findByText(/TODAY'S QUIZ/)
     // The count is now the link into the Sticker Collection.
     const shelfLink = screen.getByRole('link', { name: `1 / ${GAME_BADGES.length} ›` })
     expect(shelfLink).toHaveAttribute('href', '/games/stickers')
@@ -108,12 +111,26 @@ describe('GamesHub', () => {
 
   it('the catalogue is exactly the mockup: one card per mechanic + the Map Quest teaser', async () => {
     renderHub()
+    // Named for the MECHANIC, never for the content pack behind it.
     const words = (await screen.findByText('Word Builder')).closest('a')
+    expect(words).toHaveAttribute('href', '/games/play/g-words')
     expect(within(words).getByText('Best 120')).toBeInTheDocument()
-    // "Number Path" is also the daily hero's name — scope to the card list.
+    expect(within(words).getByText('Spelling')).toBeInTheDocument()
+    expect(screen.queryByText('Spell the Animal')).toBeNull()
+    expect(screen.queryByText('Number Target: Master')).toBeNull()
+
     const path = document.querySelector('a.lhx-gc[href="/games/play/g-path"]')
+    expect(within(path).getByText('Number Path')).toBeInTheDocument()
     expect(within(path).getByText('Level 1')).toBeInTheDocument()
     expect(within(path).getByText('Not played yet')).toBeInTheDocument()
+
+    // The two mechanics the live collection has no doc for still render,
+    // backed by the bundled seed pack — a catalogue of "exactly four"
+    // that silently shows two is the bug this asserts against.
+    expect(screen.getByText('Meaning Match')).toBeInTheDocument()
+    expect(screen.getByText('Punctuation Pro')).toBeInTheDocument()
+    expect(document.querySelectorAll('a.lhx-gc')).toHaveLength(4)
+
     // timed_quiz games never list as catalogue cards (daily-only)…
     expect(screen.queryByText('G6 Quiz')).toBeNull()
     // …grade browsing is gone…
@@ -122,6 +139,16 @@ describe('GamesHub', () => {
     const mapQuest = screen.getByText('Map Quest').closest('.lhx-gc')
     expect(mapQuest.tagName).not.toBe('A')
     expect(within(mapQuest).getByText('Coming soon')).toBeInTheDocument()
+  })
+
+  it('offers ONE race card — the live one — and no Race Zed! bot card', async () => {
+    renderHub()
+    const live = (await screen.findByText('Race another learner!')).closest('a')
+    expect(live).toHaveAttribute('href', '/games/duel/live')
+    expect(within(live).getByText('LIVE CHALLENGE')).toBeInTheDocument()
+    expect(screen.queryByText('Race Zed!')).toBeNull()
+    expect(screen.queryByText('CHALLENGE MODE')).toBeNull()
+    expect(document.querySelector('a[href="/games/duel"]')).toBeNull()
   })
 
   it('a Firestore failure falls back to the seed catalogue instead of an empty hub', async () => {

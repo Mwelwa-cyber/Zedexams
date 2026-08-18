@@ -2,9 +2,17 @@
  * /games — the prototype-v3 games hub (learner redesign step 4).
  *
  * Renders inside LearnerLayout (the 4-tab shell) in the `.lhx` design
- * system: back row, the indigo daily-challenge card, the XP/level card,
- * the achievements shelf, and the "Your games" card list with the 🏆
- * leaderboard link — the prototype's view-games, screen for screen.
+ * system: back row, the indigo TODAY'S QUIZ card, the orange LIVE
+ * CHALLENGE card, the XP/level card, the achievements shelf, and the
+ * "Your games" card list with the 🏆 leaderboard link — the mockup's
+ * view-games, screen for screen.
+ *
+ * Three hero cards, not four. The "CHALLENGE MODE · Race Zed!" card —
+ * the solo race against our own bot — was removed on 2026-08-18 to match
+ * the mockup: with real same-grade matchmaking shipped (#2465), two race
+ * cards stacked on top of each other made the live one look like a
+ * variant of the practice one. /games/duel is untouched and still
+ * reachable; only the hub entry point is gone.
  *
  * Data flow is UNCHANGED from the old hub (locked scope — reskin on the
  * kept games backend): listGames + today's challenge + history + badges
@@ -14,9 +22,11 @@
  * (the prototype hub is single-grade); the grade lanes at the bottom
  * keep every other grade reachable through the existing /games/g routes.
  *
- * The prototype's LIVE CHALLENGE duel card is deliberately absent — its
- * opponent was faked client-side, and shipping a pretend matchmaker is
- * a product decision that has not been made.
+ * One deliberate wording difference from the mockup: its daily card
+ * reads "5 questions · keep your streak", and the daily rotation can
+ * pick ANY mechanic — Number Path has rounds, not questions. The sub
+ * line therefore states the streak, which is true of every pick, for
+ * the same reason DailyIntro drops that phrase.
  */
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
@@ -24,7 +34,12 @@ import '../gamesProto.css'
 import { useAuth } from '../../../contexts/AuthContext'
 import { duelAllowed } from '../lib/duelAccess'
 import { GAME_BADGES } from '../../../data/gameBadges'
-import { CATALOGUE_GAME_TYPES, RETIRED_GAME_TYPES, getFallbackGames } from '../../../data/gamesSeed'
+import {
+  CATALOGUE_MECHANICS,
+  RETIRED_GAME_TYPES,
+  getFallbackGames,
+  mechanicName,
+} from '../../../data/gamesSeed'
 import { getTodaysChallenge, getMyStreak } from '../../../utils/dailyChallengeService'
 import { getMyGameBadges } from '../../../utils/gameBadgesService'
 import { SUBJECTS, getMyHistory, listGames } from '../services/gamesService'
@@ -125,19 +140,27 @@ export default function GamesHub() {
   }, [state.history])
 
   // The mockup's catalogue is EXACTLY the four mechanics, one card each
-  // (step 8): per type, the learner's-grade doc when one exists, else
-  // any active doc of that type. timed_quiz never lists — it plays
-  // through the daily card and the duel only.
+  // (step 8), in the mockup's order: per mechanic, the learner's-grade
+  // doc when one exists, else any active doc of that mechanic, else the
+  // bundled seed pack for it. timed_quiz never lists — it plays through
+  // the daily card and the duel only.
+  //
+  // The seed step is what keeps all four on screen. Before it, a mechanic
+  // the live `games` collection had not been seeded with simply vanished
+  // from the hub — which is how Punctuation Pro came to be missing from a
+  // catalogue the code describes as "exactly four". A seed-backed card is
+  // playable: PlayGame falls back to the same bundled doc by id.
   const profileGrade = Number(userProfile?.grade)
   const scopedToGrade = state.games.some((g) => Number(g.grade) === profileGrade)
   const visibleGames = useMemo(() => {
-    const order = ['number_target', 'word_builder', 'memory_match', 'punctuation']
-    return order
-      .map((type) => {
-        const ofType = state.games.filter((g) => g.type === type && CATALOGUE_GAME_TYPES.has(g.type))
-        if (!ofType.length) return null
-        return ofType.find((g) => Number(g.grade) === profileGrade) || ofType[0]
-      })
+    const seeded = getFallbackGames()
+    const pick = (pool, type) => {
+      const ofType = pool.filter((g) => g?.type === type)
+      if (!ofType.length) return null
+      return ofType.find((g) => Number(g.grade) === profileGrade) || ofType[0]
+    }
+    return CATALOGUE_MECHANICS
+      .map(({ type }) => pick(state.games, type) || pick(seeded, type))
       .filter(Boolean)
   }, [state.games, profileGrade])
 
@@ -177,33 +200,15 @@ export default function GamesHub() {
           </div>
           <div className="lhx-daily-body">
             <div className="lhx-daily-label">
-              TODAY'S CHALLENGE{Number(challengeGame.grade) ? ` · GRADE ${challengeGame.grade}` : ''}
+              TODAY'S QUIZ{Number(challengeGame.grade) ? ` · GRADE ${challengeGame.grade}` : ''}
             </div>
-            <div className="lhx-daily-name">{challengeGame.title}</div>
+            <div className="lhx-daily-name">with Zed</div>
             <div className="lhx-daily-sub">
               {streakDays > 0 ? `${streakDays}-day streak — keep it going 🔥` : 'Play today to start a streak 🔥'}
             </div>
           </div>
           <span className="lhx-play-pill">Play</span>
         </Link>
-      )}
-
-      {/* Race Zed! — the honest duel (the prototype's LIVE CHALLENGE
-          card, reframed: the opponent is openly our robot).
-
-          Removed, not padlocked, when a guardian has switched live
-          challenges off: a locked card invites the "how do I unlock this"
-          conversation with the parent who just deliberately locked it. */}
-      {challengesAllowed && (
-      <Link to="/games/duel" className="lhx-duel-card">
-        <div className="lhx-daily-emoji" aria-hidden="true">⚔️</div>
-        <div className="lhx-daily-body">
-          <div className="lhx-daily-label">CHALLENGE MODE</div>
-          <div className="lhx-daily-name">Race Zed!</div>
-          <div className="lhx-daily-sub">5 quick questions · beat our robot before the clock does</div>
-        </div>
-        <span className="lhx-play-pill">Play</span>
-      </Link>
       )}
 
       {/* The LIVE challenge — real matchmaking on the server model
@@ -213,13 +218,13 @@ export default function GamesHub() {
           the learner's own doc. */}
       {challengesAllowed && currentUser && (
       <Link to="/games/duel/live" className="lhx-duel-card">
-        <div className="lhx-daily-emoji" aria-hidden="true">🏁</div>
+        <div className="lhx-daily-emoji" aria-hidden="true">⚔️</div>
         <div className="lhx-daily-body">
           <div className="lhx-daily-label">LIVE CHALLENGE</div>
-          <div className="lhx-daily-name">Race a classmate!</div>
-          <div className="lhx-daily-sub">Same questions · another Grade {Number(userProfile?.grade) || 7} learner · server keeps score</div>
+          <div className="lhx-daily-name">Race another learner!</div>
+          <div className="lhx-daily-sub">Grade {Number(userProfile?.grade) || 7} · 5 quick questions · same questions, server keeps score</div>
         </div>
-        <span className="lhx-play-pill">Race</span>
+        <span className="lhx-play-pill">Play</span>
       </Link>
       )}
 
@@ -315,6 +320,14 @@ function GameCard({ game, best }) {
   const subjectLabel = SUBJECTS.find((s) => s.slug === subjectKey)?.label || 'Game'
   const isPath = game.type === 'number_target'
   const pathProgress = isPath ? readPathProgress(game.id) : null
+  // The card is named for the MECHANIC (see CATALOGUE_MECHANICS); the
+  // doc's own title names its content pack and belongs on the play
+  // surface, where that pack is what the learner is looking at.
+  const name = mechanicName(game)
+  // Second chip: the level for Number Path (it has a level path), the
+  // pack's CBC topic for the other three — "Spelling", "Word meanings",
+  // "Punctuation", exactly as the mockup labels them.
+  const topicTag = !isPath && game.cbc_topic ? String(game.cbc_topic) : null
 
   const created = game.createdAt?.toMillis?.() || game.createdAt || 0
   // Boolean() matters: a seed game has no createdAt, and `0 && …` is 0 —
@@ -332,10 +345,11 @@ function GameCard({ game, best }) {
     <Link to={`/games/play/${game.id}`} className="lhx-gc">
       <div className={`lhx-gc-icon ${skin.cls}`} aria-hidden="true">{skin.emoji}</div>
       <div className="lhx-gc-body">
-        <div className="lhx-gc-name">{game.title}</div>
+        <div className="lhx-gc-name">{name}</div>
         <div className="lhx-gc-tags">
           <span className="lhx-gc-tag t-subj">{subjectLabel}</span>
           {levelTag && <span className="lhx-gc-tag t-level">{levelTag}</span>}
+          {topicTag && <span className="lhx-gc-tag t-level">{topicTag}</span>}
           {isNew && <span className="lhx-gc-tag t-new">NEW</span>}
         </div>
         <div className="lhx-gc-progress">

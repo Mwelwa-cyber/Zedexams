@@ -1257,6 +1257,66 @@ const PUNCTUATION_G7 = {
   ],
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+ *  MEANING MATCH — exercises the `memory_match` engine with the
+ *  mechanic's own content: an English word down the left, its meaning
+ *  down the right. The two older memory_match docs pair fractions and
+ *  capitals, which the engine plays perfectly well but which read
+ *  oddly under the mechanic's name — so English word/meaning packs are
+ *  seeded here and the hub prefers the learner's own grade.
+ * ═══════════════════════════════════════════════════════════════════ */
+const MEANING_MATCH_G4 = {
+  id: 'english_meaning_match_g4',
+  title: 'Meaning Match',
+  subject: 'english',
+  grade: 4,
+  type: 'memory_match',
+  difficulty: 'easy',
+  description: 'Tap a word, then tap its meaning, before the clock runs out.',
+  timer: 60,
+  points: 12,
+  active: true,
+  cbc_topic: 'Word meanings',
+  questions: [
+    { question: 'brave',     options: [], answer: 'not afraid of danger' },
+    { question: 'weary',     options: [], answer: 'very tired' },
+    { question: 'gather',    options: [], answer: 'bring things together' },
+    { question: 'silent',    options: [], answer: 'making no sound' },
+    { question: 'generous',  options: [], answer: 'happy to give to others' },
+    { question: 'ancient',   options: [], answer: 'very, very old' },
+    { question: 'journey',   options: [], answer: 'a trip from one place to another' },
+    { question: 'harvest',   options: [], answer: 'gathering the crops' },
+    { question: 'shallow',   options: [], answer: 'not deep' },
+    { question: 'delicious', options: [], answer: 'tasting very good' },
+  ],
+}
+
+const MEANING_MATCH_G7 = {
+  id: 'english_meaning_match_g7',
+  title: 'Meaning Match',
+  subject: 'english',
+  grade: 7,
+  type: 'memory_match',
+  difficulty: 'medium',
+  description: 'Match each word to its meaning before the clock runs out.',
+  timer: 60,
+  points: 15,
+  active: true,
+  cbc_topic: 'Word meanings',
+  questions: [
+    { question: 'postponed',   options: [], answer: 'moved to a later time' },
+    { question: 'intelligent', options: [], answer: 'clever and quick to understand' },
+    { question: 'audience',    options: [], answer: 'people watching a show' },
+    { question: 'campaign',    options: [], answer: 'activities to win support' },
+    { question: 'suspended',   options: [], answer: 'stopped for a time' },
+    { question: 'reluctant',   options: [], answer: 'unwilling to do something' },
+    { question: 'abundant',    options: [], answer: 'more than enough' },
+    { question: 'fragile',     options: [], answer: 'easily broken' },
+    { question: 'persuade',    options: [], answer: 'talk someone into something' },
+    { question: 'deteriorate', options: [], answer: 'become worse' },
+  ],
+}
+
 export const GAMES_SEED = [
   // ── Lower primary (G1-G3) ──
   COUNTING_G1,
@@ -1282,6 +1342,7 @@ export const GAMES_SEED = [
   PLANT_PARTS_G4,
   ZAMBIA_BASICS_G4,
   PUNCTUATION_G4,
+  MEANING_MATCH_G4,
   // G5
   HUMAN_BODY_G5,
   DIGESTIVE_SYSTEM_G5,
@@ -1307,6 +1368,7 @@ export const GAMES_SEED = [
   // G7
   MARKET_CHALLENGE_G7,
   PUNCTUATION_G7,
+  MEANING_MATCH_G7,
 
   // ── Outside primary CBC scope — kept in seed so admin can flip active=true if needed ──
   INTEGERS_G7,
@@ -1360,17 +1422,35 @@ export const RETIRED_GAME_TYPES = new Set([
 ])
 
 /**
- * The game types a learner can be SHOWN as catalogue entries (learner
- * redesign step 8: the hub lists exactly the mockup's four mechanics).
- * timed_quiz stays playable — it serves the daily challenge and the
- * duel's question pool — but is not a browsable catalogue card.
+ * The four mechanics a learner can be SHOWN as catalogue entries, in the
+ * order the mockup lists them, each with the name the mockup gives it.
+ *
+ * The NAME belongs to the MECHANIC, not to the content pack behind it.
+ * A game doc's `title` names its content ("Spell the Animal", "Number
+ * Target: Master", "Fraction · Decimal · Percent Match"), and which pack
+ * a learner gets depends on their grade — so titling the hub cards from
+ * the docs made the catalogue rename itself per grade and per seeding
+ * state. The hub therefore reads the card name from here and leaves the
+ * doc title to the play surface, where the content is what is on screen.
+ *
+ * timed_quiz is deliberately absent: it stays playable — it serves the
+ * daily challenge and the duel's question pool — but is not a browsable
+ * catalogue card.
  */
-export const CATALOGUE_GAME_TYPES = new Set([
-  'number_target',
-  'word_builder',
-  'memory_match',
-  'punctuation',
-])
+export const CATALOGUE_MECHANICS = [
+  { type: 'number_target', name: 'Number Path' },
+  { type: 'word_builder',  name: 'Word Builder' },
+  { type: 'memory_match',  name: 'Meaning Match' },
+  { type: 'punctuation',   name: 'Punctuation Pro' },
+]
+
+/** The same four, as a membership test. Derived so the two cannot drift. */
+export const CATALOGUE_GAME_TYPES = new Set(CATALOGUE_MECHANICS.map((m) => m.type))
+
+/** The mechanic name for a game doc, or its own title if it is not one of the four. */
+export function mechanicName(game) {
+  return CATALOGUE_MECHANICS.find((m) => m.type === game?.type)?.name || game?.title || 'Game'
+}
 
 /** Everything a learner may PLAY (catalogue + the daily-quiz engine). */
 export const PLAYABLE_GAME_TYPES = new Set([...CATALOGUE_GAME_TYPES, 'timed_quiz'])
