@@ -18,9 +18,12 @@ import '../../../shared/styles/learnerTheme.css'
 import '../notesHub.css'
 import { useLearnerProfile } from '../hooks/useLearnerProfile'
 import { useLearnerNotes } from '../hooks/useLearnerNotes'
+import { useNoteProgressMap } from '../hooks/useNoteProgressMap'
+import { useDownloadedNotes } from '../hooks/useDownloadedNotes'
+import { NOTE_PROGRESS_STATUS } from '../lib/progress'
 import { fetchNoteForCache } from '../hooks/useOfflineNote'
 import { downloadForOffline } from '../../../offline/contentCache.js'
-import { isReaderNote, reviseMinutes } from '../reader/readerCore'
+import { buildNoteSearchText, isReaderNote, matchesNoteSearch, reviseMinutes } from '../reader/readerCore'
 import { coerceStudyBlocks } from '../lib/studySchema'
 import { NOTE_FORMAT, getGradeSubjects } from '../../../config/curriculum'
 import { reportClientError } from '../../../utils/clientErrorReporting'
@@ -53,6 +56,8 @@ const DEMO_ROW = {
   title: 'Conjunctions — Joining Words',
   minutes: 2,
   to: '/notes/reader-preview?mode=revise',
+  searchText: 'conjunctions joining words and but so because english',
+  downloadable: false,
 }
 
 export function LearnerNotesList() {
@@ -62,10 +67,18 @@ export function LearnerNotesList() {
 
   const [search, setSearch] = useState('')
   const [saving, setSaving] = useState(null) // null | {done, total} | 'done'
+  const [downloadingId, setDownloadingId] = useState(null)
 
   const { allNotes, loading, error, reload } = useLearnerNotes({ grade })
+  const { progressById } = useNoteProgressMap()
+  const { downloadedIds, refresh: refreshDownloads } = useDownloadedNotes()
 
   // Reader-format notes only, with their honest revise time.
+  //
+  // The hub holds NO content — it is an index over the same `notes/*`
+  // the Subjects doorway opens. Each row is a reference (the note id)
+  // plus state (progress, downloaded); nothing here can drift from the
+  // note because nothing here is authored.
   const readerNotes = useMemo(
     () =>
       allNotes
@@ -79,6 +92,10 @@ export function LearnerNotesList() {
           title: note.title,
           minutes: reviseMinutes(blocks),
           to: `/notes/${note.id}?mode=revise`,
+          // Stamped on write; recomputed here for notes authored before
+          // the field existed, by the same function that stamps it.
+          searchText: note.searchText || buildNoteSearchText(note, blocks),
+          downloadable: true,
         })),
     [allNotes],
   )
@@ -112,12 +129,33 @@ export function LearnerNotesList() {
     return out
   }, [readerNotes, grade])
 
-  const q = search.trim().toLowerCase()
+  // Search reaches into the note (title, headings, key points) and runs
+  // across every subject at once — the hub's whole reason for existing.
+  const q = search.trim()
   const visibleSections = sections
-    .map((s) => ({ ...s, rows: q ? s.rows.filter((r) => r.title.toLowerCase().includes(q)) : s.rows }))
+    .map((s) => ({
+      ...s,
+      rows: q ? s.rows.filter((r) => matchesNoteSearch(r.searchText || r.title.toLowerCase(), q)) : s.rows,
+    }))
     .filter((s) => s.rows.length > 0)
 
   const downloadableIds = readerNotes.map((r) => r.id)
+
+  // Per-note download. The hub is where revision is planned, so a
+  // learner picks the topics they will study without data — downloading
+  // every note is the other button, not the only one.
+  async function downloadOne(id) {
+    if (!id || downloadingId) return
+    setDownloadingId(id)
+    try {
+      await downloadForOffline({ type: 'note', id, fetcher: () => fetchNoteForCache(id) })
+      await refreshDownloads()
+    } catch (err) {
+      reportClientError(err, 'notes.downloadOne')
+    } finally {
+      setDownloadingId(null)
+    }
+  }
 
   async function downloadAll() {
     if (saving || downloadableIds.length === 0) return
@@ -133,6 +171,7 @@ export function LearnerNotesList() {
       setSaving({ done, total: downloadableIds.length })
     }
     setSaving('done')
+    await refreshDownloads()
   }
 
   return (
@@ -177,23 +216,40 @@ export function LearnerNotesList() {
                 <h2 className="lhx-section-title">{section.label}</h2>
               </div>
               <div style={{ display: 'grid', gap: 10 }}>
-                {section.rows.map((row) => (
-                  <button
-                    key={row.id}
-                    type="button"
-                    className="lhx-topic-row"
-                    onClick={() => navigate(row.to)}
-                  >
-                    <span className="lhx-topic-ic" aria-hidden="true">{row.icon}</span>
-                    <span style={{ flex: 1, minWidth: 0 }}>
-                      <span className="lhx-topic-name" style={{ display: 'block' }}>{row.title}</span>
-                      <span className="lhx-topic-sub" style={{ display: 'block' }}>
-                        Key points · {row.minutes} min revise
-                      </span>
-                    </span>
-                    <span className="lhx-gc-chev" aria-hidden="true">›</span>
-                  </button>
-                ))}
+                {section.rows.map((row) => {
+                  const learned = progressById[row.id]?.status === NOTE_PROGRESS_STATUS.COMPLETED
+                  const downloaded = downloadedIds.has(row.id)
+                  return (
+                    <div key={row.id} className="lhx-note-row">
+                      <button
+                        type="button"
+                        className="lhx-topic-row"
+                        onClick={() => navigate(row.to)}
+                      >
+                        <span className="lhx-topic-ic" aria-hidden="true">{row.icon}</span>
+                        <span style={{ flex: 1, minWidth: 0 }}>
+                          <span className="lhx-topic-name" style={{ display: 'block' }}>{row.title}</span>
+                          <span className="lhx-topic-sub" style={{ display: 'block' }}>
+                            {learned ? '✓ Learned' : 'Not learned yet'} · {row.minutes} min revise
+                            {downloaded && <span className="lhx-note-offline-badge"> · ⬇ Offline</span>}
+                          </span>
+                        </span>
+                        <span className="lhx-gc-chev" aria-hidden="true">›</span>
+                      </button>
+                      {row.downloadable && !downloaded && (
+                        <button
+                          type="button"
+                          className="lhx-note-dl"
+                          aria-label={`Download ${row.title} for offline`}
+                          disabled={downloadingId === row.id}
+                          onClick={() => downloadOne(row.id)}
+                        >
+                          {downloadingId === row.id ? '…' : '⬇'}
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             </section>
           ))}

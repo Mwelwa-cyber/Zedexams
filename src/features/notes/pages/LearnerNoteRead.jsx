@@ -10,7 +10,7 @@
 // (Slide-based docs still hand off to /lessons, and admin surfaces
 // keep their own editors/previews for every format.)
 
-import { useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useNavigate, useParams, Navigate, useSearchParams } from 'react-router-dom'
 import { Loader2 } from '../../../shared/components/icons'
 
@@ -22,6 +22,7 @@ import ReaderEngine from '../reader/ReaderEngine'
 import { isReaderNote } from '../reader/readerCore'
 import { coerceStudyBlocks } from '../lib/studySchema'
 import { SaveOfflineButton } from '../components/SaveOfflineButton'
+import { readLearnStep, writeLearnStep } from '../lib/learnStep'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 
 function HubShell({ title, children }) {
@@ -43,11 +44,39 @@ function HubShell({ title, children }) {
 export function LearnerNoteRead() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { note, loading, error } = useOfflineNote(id)
 
-  // Records opened / scroll-% / completed for the signed-in learner.
-  useRecordNoteProgress(note?.noteFormat ? note : null)
+  // Which doorway the learner is standing in. Seeded from `?mode=` (the
+  // Notes tab deep-links to Revise) and then owned by the reader's own
+  // segment control, which reports back through onModeChange.
+  const [mode, setMode] = useState(searchParams.get('mode') === 'revise' ? 'revise' : 'learn')
+
+  // Records opened / scroll-% / completed for the signed-in learner —
+  // in LEARN mode only. Revising is not re-learning: a scroll to the
+  // bottom of the flat revise view is not evidence the guided pass was
+  // made, and counting it would mark a never-taught topic complete.
+  useRecordNoteProgress(mode === 'learn' && note?.noteFormat ? note : null)
+
+  // Furthest Learn section reached on this device — what Revise's
+  // "Learn this properly" resumes at.
+  const resumeStep = useMemo(() => readLearnStep(id), [id])
+
+  const handleModeChange = useCallback((next) => {
+    setMode(next)
+    // Keep the URL honest so a share/refresh reopens the same doorway.
+    setSearchParams(
+      (prev) => {
+        const p = new URLSearchParams(prev)
+        if (next === 'revise') p.set('mode', 'revise')
+        else p.delete('mode')
+        return p
+      },
+      { replace: true },
+    )
+  }, [setSearchParams])
+
+  const handleStepReached = useCallback((step) => writeLearnStep(id, step), [id])
 
   const studyData = useMemo(
     () => (note?.noteFormat === NOTE_FORMAT.STUDY ? coerceStudyBlocks(note.blocks) : null),
@@ -94,7 +123,10 @@ export function LearnerNoteRead() {
         <ReaderEngine
           note={{ title: note.title, kicker }}
           blocks={studyData}
-          initialMode={searchParams.get('mode') === 'revise' ? 'revise' : 'learn'}
+          initialMode={mode}
+          resumeStep={resumeStep}
+          onStepReached={handleStepReached}
+          onModeChange={handleModeChange}
           onBack={() => navigate('/notes')}
           footer={<div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}><SaveOfflineButton note={note} /></div>}
         />

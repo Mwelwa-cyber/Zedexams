@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import { NOTE_STATUS, NOTE_FORMAT, normalizeSubject } from '../../../config/curriculum'
+import { buildNoteSearchText } from '../reader/readerCore'
 
 const NOTES = 'lessons'
 
@@ -168,6 +169,19 @@ export async function createNote(data) {
     coverImage:   data.coverImage || null,
     // Stable key for idempotent seed imports (skip a note that's already seeded).
     seedKey:      data.seedKey || null,
+    // What the Notes hub searches this note by: title + subject +
+    // headings + key points, lower-cased (readerCore.buildNoteSearchText).
+    // Stamped here so the cross-subject search can reach INTO a note
+    // without the hub loading every note's blocks. Notes written before
+    // this field existed are searched on a value the hub recomputes with
+    // the same function, so both are searched identically.
+    searchText:   buildNoteSearchText(
+      // The NORMALISED subject, matching the stored field — a raw slug
+      // ("integrated-science") would not be found by anyone typing the
+      // subject as they read it on the page.
+      { title: data.title, subject: normalizeSubject(data.subject), topic: data.topic },
+      noteFormat === NOTE_FORMAT.STUDY && Array.isArray(data.blocks) ? data.blocks : [],
+    ),
     createdBy:    data.createdBy,
     createdAt:    serverTimestamp(),
     updatedAt:    serverTimestamp(),
@@ -193,6 +207,27 @@ export async function updateNote(id, patch) {
   if ('term'  in safe) safe.term  = toString(safe.term)
   if ('week'  in safe) safe.week  = toString(safe.week)
   if ('title' in safe && typeof safe.title === 'string') safe.title = safe.title.trim()
+
+  // Editing a note edits BOTH views, so the search index has to move with
+  // it. Recomputed only when an input to it changed, and from the note as
+  // it will be AFTER the patch — a title-only edit still needs the
+  // stored headings, so the existing doc supplies whatever the patch
+  // does not.
+  if ('title' in safe || 'subject' in safe || 'blocks' in safe || 'topic' in safe) {
+    const existing = 'blocks' in safe && 'title' in safe && 'subject' in safe
+      ? null
+      : await getNote(id)
+    safe.searchText = buildNoteSearchText(
+      {
+        title:   'title'   in safe ? safe.title   : existing?.title,
+        subject: 'subject' in safe ? safe.subject : existing?.subject,
+        topic:   'topic'   in safe ? safe.topic   : existing?.topic,
+      },
+      Array.isArray('blocks' in safe ? safe.blocks : existing?.blocks)
+        ? ('blocks' in safe ? safe.blocks : existing.blocks)
+        : [],
+    )
+  }
 
   await updateDoc(doc(db, NOTES, id), safe)
 }

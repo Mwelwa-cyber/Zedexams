@@ -64,6 +64,83 @@ describe('ReaderEngine', () => {
     expect(screen.queryByText(/Tap to see the answer/)).toBeNull()
   })
 
+  it('Revise hoists the key points above the note body', () => {
+    const { container } = renderEngine({ initialMode: 'revise' })
+    const kps = container.querySelectorAll('.lhx-keypoints')
+    expect(kps.length).toBe(3)
+    // The first thing under the header is a key-points card, not the
+    // note's opening paragraph — Revise leads with the summary.
+    const body = container.querySelector('.lhx-page > div:last-of-type')
+    expect(body.firstElementChild).toHaveClass('lhx-keypoints')
+    // Hoisted, not re-entered: the words are the authored ones.
+    expect(screen.getAllByText(/Pairs always travel together/).length).toBe(1)
+  })
+
+  it('Revise collapses the exercises into a closed accordion, not out of existence', () => {
+    renderEngine({ initialMode: 'revise' })
+    const head = screen.getByRole('button', { name: /practice these later/i })
+    expect(head).toHaveAttribute('aria-expanded', 'false')
+    // The fixture has 4 practice + 3 section-check blocks.
+    expect(screen.getByText('7 exercises')).toBeInTheDocument()
+    // Closed → the questions are not on the page at all.
+    expect(screen.queryByText(/YOUR TURN/)).toBeNull()
+    fireEvent.click(head)
+    expect(head).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getAllByText(/YOUR TURN/).length).toBe(4)
+    expect(screen.getAllByText(/SECTION CHECK/).length).toBe(3)
+  })
+
+  it('Revise shows the reveal card already open — no re-earning a known answer', () => {
+    renderEngine({ initialMode: 'revise' })
+    expect(screen.queryByText(/tap to see the answer/i)).toBeNull()
+    expect(screen.getByText(/he kept on studying/)).toBeInTheDocument()
+  })
+
+  it('Revise offers the guided pass when the Learn pass is unfinished', () => {
+    const onModeChange = vi.fn()
+    renderEngine({ initialMode: 'revise', onModeChange })
+    fireEvent.click(screen.getByRole('button', { name: /learn this properly/i }))
+    expect(onModeChange).toHaveBeenCalledWith('learn')
+    // Same note, now paced.
+    expect(screen.getByRole('button', { name: /let's begin/i })).toBeInTheDocument()
+  })
+
+  it('Revise resumes the Learn pass at the first un-revealed section', () => {
+    renderEngine({ initialMode: 'revise', resumeStep: 2 })
+    fireEvent.click(screen.getByRole('button', { name: /learn this properly/i }))
+    // Sections 1 and 2 are already revealed; section 3 is not.
+    expect(screen.getByText('Coordinating — joining equals')).toBeInTheDocument()
+    expect(screen.getByText(/Subordinating — one idea/)).toBeInTheDocument()
+    expect(screen.queryByText(/Conjunction pairs — words that work as a team/)).toBeNull()
+    expect(screen.getByRole('button', { name: /continue/i })).toBeInTheDocument()
+  })
+
+  it('a finished Learn pass is not asked to be learned again', () => {
+    renderEngine({ initialMode: 'revise', resumeStep: 3 })
+    expect(screen.queryByRole('button', { name: /learn this properly/i })).toBeNull()
+  })
+
+  it('the end of the Learn pass points at the same note in Revise', () => {
+    const onModeChange = vi.fn()
+    renderEngine({ onModeChange })
+    expect(screen.queryByText(/saved to your notes/i)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /let's begin/i }))
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(screen.getByText(/📌 Saved to your Notes for revision/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /revise this in notes/i }))
+    expect(onModeChange).toHaveBeenCalledWith('revise')
+    expect(screen.getAllByText(/KEY POINTS/).length).toBe(3)
+  })
+
+  it('reports each section reached so the Learn pass can be resumed', () => {
+    const onStepReached = vi.fn()
+    renderEngine({ onStepReached })
+    fireEvent.click(screen.getByRole('button', { name: /let's begin/i }))
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onStepReached.mock.calls.map(([n]) => n)).toEqual([1, 2])
+  })
+
   it('tapping a keyword opens the word-explainer sheet with its meaning and examples', () => {
     renderEngine()
     fireEvent.click(screen.getAllByRole('button', { name: 'conjunction' })[0])
