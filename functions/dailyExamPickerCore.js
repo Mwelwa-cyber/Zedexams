@@ -18,7 +18,18 @@ const EXAM_QUESTION_THRESHOLD = 50;
 // The grades the daily-exam rotation serves. Shared with Vigil's hourly
 // per-grade coverage check (monitor.js) so "every grade has a pick today"
 // means the same thing in both places.
-const DAILY_EXAM_GRADES = ["4", "5", "6", "7"];
+//
+// This is the SERVER TWIN of `LEARNER_GRADES` in src/config/curriculum.js and
+// the two must list the same grades — `test:learner-grades` fails if they
+// drift. The failure each direction is different and both are bad: a grade
+// here but not there has no learners who can reach it, and Vigil re-runs the
+// picker and reports the gap every hour, forever, for a grade nobody is
+// waiting on. A grade there but not here opens to learners with no daily exam.
+//
+// Grades 4-6 were removed on 2026-08-18 for the staged Grade 7 rollout: they
+// have no exam content, so every hourly run was reporting three uncovered
+// grades and attempting a self-heal that could not succeed.
+const DAILY_EXAM_GRADES = ["7"];
 
 /**
  * Whether a quiz doc is an exam paper. An explicit boolean `examOnly` flag

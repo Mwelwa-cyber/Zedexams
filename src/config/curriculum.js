@@ -48,6 +48,47 @@
 
 export const GRADES = [4, 5, 6, 7]
 
+/**
+ * LEARNER_GRADES — the grades a LEARNER may currently sign up for and use.
+ *
+ * This is a ROLLOUT gate, not a curriculum fact. `GRADES` above stays the full
+ * CBC upper-primary catalogue (4–7) because that is what the product AUTHORS
+ * for: the Assessment Studio, the syllabi, the Question Bank, Notes Studio,
+ * class registers and the CBC knowledge base all have to keep offering Grade 4
+ * so the content for it can be written BEFORE the grade opens. Narrowing
+ * `GRADES` would take the authoring surfaces down with the learner ones and
+ * make it impossible to prepare the next grade.
+ *
+ * It is also deliberately NOT the `active` flag on `ALL_GRADES` further down.
+ * That flag answers "which BAND has notes subjects wired up" and its consumers
+ * (`NoteMetaPanel`, `NoteFilters`) are admin AUTHORING screens — reusing it
+ * here would stop an admin writing the Grade 5 notes that the Grade 5 rollout
+ * is waiting on. Two questions, two lists.
+ *
+ * Rolling out a grade is a one-line change here plus the twin in
+ * `functions/dailyExamPickerCore.js` (`DAILY_EXAM_GRADES`), which decides
+ * which grades the daily-exam rotation must cover and which grades Vigil pages
+ * ops about hourly when a pick is missing. A grade listed there and not here
+ * alerts forever about learners who cannot reach it; a grade listed here and
+ * not there opens to learners with no daily exam. `test:learner-grades` fails
+ * if the two disagree.
+ *
+ * Learners already holding a grade that is not live are NOT converted and NOT
+ * locked out — `resolveLearnerGradeAccess` in features/learnerOnboarding sends
+ * them to the waitlist screen with their grade intact.
+ */
+export const LEARNER_GRADES = Object.freeze([7])
+
+/** Is this a grade the learner side is currently open for? */
+export const isLearnerGrade = (grade) => LEARNER_GRADES.includes(Number(grade))
+
+/**
+ * A grade that exists in the catalogue but has not opened to learners yet.
+ * Drives the waitlist screen's "Grade 5 is coming soon" copy.
+ */
+export const isPendingLearnerGrade = (grade) =>
+  GRADES.includes(Number(grade)) && !isLearnerGrade(grade)
+
 /** Learning Areas (subjects) — 8 as per CBC Upper Primary.
  *
  * This is the LEARNER catalogue: the eight upper-primary subjects the app

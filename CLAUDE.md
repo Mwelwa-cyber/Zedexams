@@ -177,6 +177,72 @@ capacitor.config.json           — appId com.zedexams.android; android/ holds t
 
 ## Architecture notes that span multiple files
 
+### The learner app rolls out one grade at a time (2026-08-18)
+
+The learner side is open to **Grade 7 only**. Grades 4–6 exist everywhere else
+in the product and are being authored; they are not offered to learners until
+they have content, because a grade opened empty is worse than a grade not yet
+open.
+
+**Two lists, not one, and the distinction is the whole design:**
+
+- **`GRADES` (`src/config/curriculum.js`) stays `[4, 5, 6, 7]`** — the CBC
+  upper-primary CATALOGUE. It is what the product AUTHORS for: the Assessment
+  Studio, the syllabi, the Question Bank, Notes Studio, class registers and
+  `functions/teacherTools/cbcKnowledge.js`. Narrowing it would take the
+  authoring surfaces down with the learner ones and make it impossible to
+  prepare the next grade — which is the one thing the rollout is waiting on.
+- **`LEARNER_GRADES` is the rollout list**, currently `[7]`. Every learner-side
+  grade picker reads it: the setup wizard, both settings pages, and the gate.
+
+It is deliberately NOT the `active` flag on `ALL_GRADES` further down that
+file. That flag answers "which BAND has notes subjects wired up" and its
+consumers (`NoteMetaPanel`, `NoteFilters`) are admin AUTHORING screens —
+reusing it would stop an admin writing the Grade 5 notes the Grade 5 rollout
+is waiting on. Two questions, two lists.
+
+**An existing learner in a paused grade is never relabelled.** This is the
+failure the change was built around rather than a nicety: `needsSetup` keys on
+the grade, so narrowing the wizard's list ALONE bounces every Grade 4–6 learner
+back into onboarding where the only button on offer writes Grade 7 to their
+profile — a silent data change to a child's account, made by a rollout decision
+they never saw. So `resolveLearnerGradeAccess`
+(`features/learnerOnboarding/lib/setupWizardCore.js`) is three-way, not two:
+
+- `OK` — grade is open.
+- `WAITLIST` — a real catalogue grade that has not opened. `LearnerGradeGate`
+  renders `GradeWaitlistScreen`, the stored grade is kept, and nothing is
+  written. Two ways out (change grade → the wizard; sign out) because a screen
+  a child cannot leave is the dead end `LearnerOnlyRoute` was careful about for
+  teachers. The copy promises no email, because nothing sends one.
+- `UNKNOWN` — no grade, or nothing the catalogue knows. Passes through to
+  `LearnerSetupGate`, which redirects to the wizard. Returning `WAITLIST` here
+  would be both false and inescapable, and would catch every admin and parent —
+  they legitimately have no grade of their own.
+
+**`LearnerGradeGate` is composed inside `LearnerOnlyRoute`, not mounted per
+route.** `LearnerSetupGate` wraps `/dashboard` alone, which suffices for a
+redirect to a wizard. This gate cannot borrow that placement: "only Grade 7 may
+use the learner app" has to hold for a deep link into `/quizzes`, a bookmarked
+`/notes` and a notification into `/exams` too. `LearnerOnlyRoute` already runs
+on every learner route, so composing there covers the surface without editing
+thirty route lines — which the route-parsing guards read one line at a time.
+
+**The server twin is `DAILY_EXAM_GRADES` (`functions/dailyExamPickerCore.js`)
+and `test:learner-grades` fails if the two disagree.** Both directions are bad
+and neither raises an error anywhere: a grade there and not in `LEARNER_GRADES`
+has no learners who can reach it, and Vigil (`hourlyMonitor`) re-runs the
+picker and reports the gap **every hour, forever** — which is exactly what was
+happening for grades 4, 5 and 6 before this landed. A grade in `LEARNER_GRADES`
+and not there opens to learners with no daily exam. `dailyExamPicker.test.js`
+deliberately checks the list's SHAPE rather than re-pinning its membership;
+membership belongs in the one test that compares it against something.
+
+**Opening a grade** is: add it to `LEARNER_GRADES`, add it to
+`DAILY_EXAM_GRADES`, and move the marketing copy (`Marketing.jsx`,
+`AiTeam.jsx`, `Register.jsx`, `PrivacyPolicy.jsx`) with it. The tests are driven
+off the config, so none of them need editing.
+
 ### There is no learner↔teacher link (removed 2026-08)
 
 Learners and teachers have **no connecting surface**. A teacher cannot reach a

@@ -4,6 +4,7 @@ import Button from '../../shared/components/Button'
 import Icon from '../../shared/components/Icon'
 import FullScreenLoader from '../../shared/components/FullScreenLoader'
 import { Sparkles, ArrowLeft } from '../../shared/components/icons'
+import LearnerGradeGate from './LearnerGradeGate'
 
 export default function LearnerOnlyRoute({ children }) {
   const { userProfile, loading, isAdmin, isLearner, isTeacher, canAccessLearnerPortal } = useAuth()
@@ -14,8 +15,13 @@ export default function LearnerOnlyRoute({ children }) {
   // userProfile is still null.
   if (loading || !userProfile) return <FullScreenLoader label="Loading your dashboard…" />
 
-  // Admins and learners always pass through.
-  if (isAdmin || isLearner) return children
+  // Admins and learners always pass through the ROLE check. Learners then meet
+  // the staged-rollout gate: `LearnerGradeGate` is composed here rather than on
+  // each route line because it has to hold on every learner route (deep links,
+  // bookmarks, notification targets), and this guard is the one thing already
+  // on all of them. It is a no-op for admins and for any learner whose grade is
+  // open — see the file header there.
+  if (isAdmin || isLearner) return <LearnerGradeGate>{children}</LearnerGradeGate>
 
   // Any other role with learner-portal access (e.g. parents on a premium plan)
   // passes through. Teachers are intentionally excluded — the two portals are

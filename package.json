@@ -190,6 +190,7 @@
     "test:draft-core": "node src/hooks/draft/draftCore.test.js",
     "test:draft-restore": "node src/hooks/draft/restoreLessonPlan.test.js",
     "test:draft-descriptors": "node src/hooks/draft/descriptors/handBuilt.test.js",
+    "test:learner-grades": "node scripts/test-learner-grades.mjs",
     "test:learner-prefs": "node src/features/learnerSettings/lib/learnerPrefs.test.js",
     "test:quiz-display-prefs": "node src/utils/quizDisplayPrefs.test.js",
     "test:read-aloud-text": "node src/utils/readAloudText.test.js",

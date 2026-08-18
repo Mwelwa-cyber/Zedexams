@@ -23,7 +23,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import '../../../shared/styles/learnerTheme.css'
 import '../onboarding.css'
 import { useAuth } from '../../../contexts/AuthContext'
-import { GRADES, getGradeSubjects } from '../../../config/curriculum'
+import { LEARNER_GRADES, getGradeSubjects } from '../../../config/curriculum'
 import { normalizeNotificationPrefs } from '../../../engines/notification-engine/notificationPrefs'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 import { capture } from '../../../utils/analytics'
@@ -37,7 +37,7 @@ export default function LearnerSetupPage() {
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
 
-  const [grade, setGrade] = useState(() => normalizeGrade(userProfile?.grade, GRADES))
+  const [grade, setGrade] = useState(() => normalizeGrade(userProfile?.grade, LEARNER_GRADES))
   const [subjects, setSubjects] = useState(() =>
     Array.isArray(userProfile?.learnerSubjects) ? userProfile.learnerSubjects : [])
   const [saving, setSaving] = useState(false)
@@ -118,7 +118,7 @@ export default function LearnerSetupPage() {
               <h1 className="lhx-ob-title">What grade are you in?</h1>
               <p className="lhx-ob-sub">We’ll show only your grade’s lessons, papers and games.</p>
               <div className="lhx-ob-grades">
-                {GRADES.map((g) => (
+                {LEARNER_GRADES.map((g) => (
                   <button
                     key={g}
                     type="button"
