@@ -82,6 +82,8 @@ function contentFingerprint(blocks) {
  *   - new (no seedKey match)        → create note + quiz, publish        → 'created'
  *   - exists, content differs (e.g. new diagrams) or its quiz link was
  *     broken/unpublished and got re-created → updateNote refreshed blocks → 'updated'
+ *   - exists, content already right but the NOTE was unpublished, so no
+ *     learner could open it                 → publishNote               → 'published'
  *   - exists, identical content + a healthy published quiz               → 'skipped'
  *
  * A healthy existing quiz link is reused (never duplicated); a broken one
@@ -93,7 +95,7 @@ export async function importGrade7Seed({
   createQuiz, saveQuestions, createNote, updateNote, publishNote, findBySeedKey, getQuizById, currentUid, onProgress,
 }) {
   const deps = { createQuiz, saveQuestions, currentUid }
-  const summary = { total: (seed.notes || []).length, created: 0, updated: 0, skipped: 0, failed: 0, quizzes: 0, repaired: 0 }
+  const summary = { total: (seed.notes || []).length, created: 0, updated: 0, published: 0, skipped: 0, failed: 0, quizzes: 0, repaired: 0 }
 
   for (const note of seed.notes || []) {
     try {
@@ -153,10 +155,31 @@ export async function importGrade7Seed({
       // Existing note: update only when teaching content changed or a quiz was
       // just linked — otherwise leave it (and its updatedAt) untouched.
       const changed = createdQuiz || contentFingerprint(existing.blocks) !== contentFingerprint(blocks)
+      if (changed) await updateNote(existing.id, { blocks })
+
+      // …and make sure it is actually LEARNER-VISIBLE. createNote always
+      // writes `isPublished: false` and only the create path above published
+      // it, so a note that exists but was never published — an import that
+      // died between the create and the publish, or one an admin unpublished
+      // — stayed invisible to every learner while each re-run reported
+      // "updated"/"skipped" and looked like it had worked. Nothing on the
+      // learner side reads an unpublished note: the notes list, the subject
+      // page's `where('isPublished','==',true)` query and the term plan's
+      // topic rows all skip it, so the note is missing from the app rather
+      // than merely stale. This is the same repair the quiz link above
+      // already gets, applied to the note itself.
+      const republished = existing.isPublished !== true
+      if (republished) await publishNote(existing.id)
+
       if (changed) {
-        await updateNote(existing.id, { blocks })
         summary.updated++
-        onProgress?.({ seedKey: note.seedKey, title: note.title, status: 'updated', quizId: quizBlock?.quizId })
+        if (republished) summary.published++
+        onProgress?.({ seedKey: note.seedKey, title: note.title, status: 'updated', republished, quizId: quizBlock?.quizId })
+      } else if (republished) {
+        // Content was already right; what was wrong is that nobody could see
+        // it. Reported as its own status so the admin reads what happened.
+        summary.published++
+        onProgress?.({ seedKey: note.seedKey, title: note.title, status: 'published', republished: true, quizId: quizBlock?.quizId })
       } else {
         summary.skipped++
         onProgress?.({ seedKey: note.seedKey, title: note.title, status: 'skipped' })

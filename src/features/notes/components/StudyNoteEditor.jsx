@@ -14,9 +14,11 @@ import { useRef, useState } from 'react'
 import { ImageIcon, Loader2, Trash2, ChevronUp, ChevronDown } from '../../../shared/components/icons'
 import { uploadInlineImage } from '../lib/storage'
 import {
-  STUDY_BLOCK_LABELS, STUDY_BLOCK_TYPES, newStudyBlock, linesFrom,
+  STUDY_BLOCK_LABELS, STUDY_BLOCK_TYPES, studyBlockLabel, newStudyBlock, linesFrom,
 } from '../lib/studyBlocks'
 import { StudyNoteReader } from './StudyNoteReader'
+import BlocksPreview from '../reader/BlocksPreview'
+import { isReaderNote } from '../reader/readerCore'
 import { QuizPicker } from './QuizPicker'
 
 const inputCls    = 'w-full rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-900 focus:outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20'
@@ -271,7 +273,7 @@ function BlockCard({ block, idx, total, patch, onMove, onRemove, ownerUid, asset
   return (
     <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
       <div className="flex items-center gap-2 bg-neutral-50 px-3 py-2 border-b border-neutral-100">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-600">{STUDY_BLOCK_LABELS[block.type] || block.type}</span>
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-600">{studyBlockLabel(block.type)}</span>
         <span className="flex-1" />
         <button type="button" title="Move up" disabled={idx === 0} onClick={() => onMove(idx, -1)}
           className="w-7 h-7 inline-flex items-center justify-center rounded-md border border-neutral-200 text-neutral-500 hover:bg-white disabled:opacity-30"><ChevronUp size={14} /></button>
@@ -289,6 +291,7 @@ function BlockCard({ block, idx, total, patch, onMove, onRemove, ownerUid, asset
 
 export function StudyNoteEditor({ value, onChange, ownerUid, assetBatchId, subject, grade }) {
   const blocks = Array.isArray(value) ? value : []
+  const reader = isReaderNote(blocks)
 
   // Patches resolve against the LATEST blocks, not the render closure that
   // created the handler. An image/picture upload is async: if the author edits
@@ -339,12 +342,24 @@ export function StudyNoteEditor({ value, onChange, ownerUid, assetBatchId, subje
         </div>
       </div>
 
-      {/* live preview column */}
+      {/* Live preview column.
+          A reader note previews through the LEARNER's own renderer
+          (BlocksPreview → ReaderBlock). The legacy StudyNoteReader has no
+          case for the reader-engine blocks — tap-to-explore grids, the
+          label-the-diagram figure, start/end and flow — so previewing a
+          reader note through it silently dropped them, pictures included.
+          Notes still on the old vocabulary keep the old preview. */}
       <div className="lg:sticky lg:top-4">
         <div className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400 mb-2">Live preview</div>
         <div className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5 max-h-[78vh] overflow-auto">
-          <StudyNoteReader blocks={blocks} />
+          {reader ? <BlocksPreview blocks={blocks} /> : <StudyNoteReader blocks={blocks} />}
         </div>
+        {reader && (
+          <p className="text-[11px] text-neutral-400 mt-2">
+            Every block you have written, in the order you wrote them. Learn and Revise are two
+            doorways into this one note — they decide where a block lands, never what it says.
+          </p>
+        )}
       </div>
     </div>
   )

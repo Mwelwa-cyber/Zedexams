@@ -144,7 +144,21 @@ jobs:
     # on `main` branch protection.
     name: Tests (Vitest unit + coverage)
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # 20, not 10. This is the only job that saturates every core (locally:
+    # ~15m of CPU in ~5m of wall clock across 406 spec files), so it is the
+    # one whose wall time tracks the runner's core count. It ran in 5m16s
+    # while the repository was public; once the repository became private the
+    # same suite stopped finishing inside 10 minutes and was killed mid-run,
+    # twice, on a healthy pass with every spec green. The jobs that are
+    # sequential — src node coverage, test:all, functions coverage — were
+    # unchanged across the same window, which is what points at cores rather
+    # than at a slow test.
+    #
+    # This bounds a HANG; it is not a performance budget. Set it well above
+    # the honest runtime so a genuine deadlock still fails in minutes, and do
+    # not tune it down to "just above" the current number — that turns every
+    # slow runner into a red required check on an unrelated PR.
+    timeout-minutes: 20
     permissions:
       contents: read
     steps:

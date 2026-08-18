@@ -87,7 +87,7 @@ subagent to verify it.
 | Name | Where | Used by |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | Firebase secret (`defineSecret`) | Aria, Cala (resolve), Reva, Vigil (fix suggestions) |
-| `ANTHROPIC_AGENTS_KEY` | GitHub repo secret | Mendi (`bug` label) and Security Review (`security-review` label) — both opt-in, so nothing on this key runs automatically. Falls back to `ANTHROPIC_API_KEY` when unset. NOT used by Rex (a subagent), Ledger (deterministic since 2026-08) or CodeQL (free, GitHub-native) |
+| `ANTHROPIC_AGENTS_KEY` | GitHub repo secret | Mendi (`bug` label) and Security Review (`security-review` label) — both opt-in, so nothing on this key runs automatically. Falls back to `ANTHROPIC_API_KEY` when unset. NOT used by Rex (a subagent) or Ledger (deterministic since 2026-08). Since CodeQL was removed on 2026-08-18 — code scanning needs GitHub Advanced Security once a repository is private — Security Review is the ONLY vulnerability scanner left, and it is opt-in |
 | `EMAIL_SMTP_USER` / `EMAIL_SMTP_PASSWORD` | Firebase secret | AI-cost summary, Vigil alert email |
 | `OPS_ALERT_EMAILS` | Functions env var | Recipients for Vigil + cost alerts. NOT `ADMIN_EMAILS` — that is an admin-bootstrap allowlist (#1993) |
 | `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY` / `GITHUB_APP_INSTALLATION_ID` | Firebase secret *(preferred)* | Vigil files `bug` issues → Mendi via a GitHub App installation token (no expiry to babysit). |
