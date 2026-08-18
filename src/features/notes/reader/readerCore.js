@@ -54,9 +54,20 @@ export const PLACEMENT = Object.freeze({
 
 const LEARN_HIDDEN = new Set(['keypoints'])
 const REVISE_TOP = new Set(['keypoints'])
-// The end-of-topic quiz and the drag-the-labels game are assessment, and
-// revision mode is explicitly not an assessment pass.
-const REVISE_HIDDEN = new Set(['quiz', 'labeldiagram'])
+// The end-of-topic quiz is assessment and revision mode is not an
+// assessment pass — and it LEAVES the note (`/quiz/:id`), which is the
+// real reason it has no place in a revision read.
+//
+// `labeldiagram` used to be hidden here on the same "not assessment"
+// reasoning, and that was wrong twice over. It is a PICTURE as much as a
+// game: hiding the exercise threw away the labelled figure with it, and
+// for a topic the syllabus examines as a labelled diagram, that figure is
+// the single most revision-worthy thing on the page. It also cost nothing
+// to leave in — unlike the quiz it never navigates away, so a learner who
+// only wants to look at it just looks at it. In the Digestive System note
+// it was the ONLY block in its section, so hiding it left "4 Label the
+// diagram ✏️" as a heading with a gap under it.
+const REVISE_HIDDEN = new Set(['quiz'])
 // "Practice these later" — collapsed behind a closed accordion.
 const REVISE_PRACTICE = new Set(['practice', 'sectioncheck'])
 
@@ -120,7 +131,37 @@ export function planNoteView(blocks, mode = 'learn') {
     }
   })
 
-  return { top, main, practice, maxStep }
+  return { top, main: dropEmptySections(main), practice, maxStep }
+}
+
+/**
+ * Drop a section heading that this mode left with nothing under it.
+ *
+ * A mode hides block TYPES, not sections, so a section whose only content
+ * is a hidden type keeps its heading and loses its body — the learner gets
+ * a numbered heading followed by the next heading. That is what "4 Label
+ * the diagram ✏️" was: one `labeldiagram` block, hidden in Revise, so the
+ * section rendered as a title and a gap.
+ *
+ * Section NUMBERS are deliberately not recompacted. They are assigned over
+ * the authored order precisely so section 3 is section 3 in both doorways;
+ * renumbering here would make the same heading a different number
+ * depending on which door the learner came through, which is the thing
+ * that rule exists to prevent. A gap in the sequence is the honest signal
+ * that a section is not part of this pass.
+ */
+function dropEmptySections(entries) {
+  const isSection = (e) => e.block.type === 'heading' && (e.block.level ?? 2) === 2
+  return entries.filter((entry, i) => {
+    if (!isSection(entry)) return true
+    // Keep the heading only if something that is not itself a section
+    // heading follows it before the next one.
+    for (let j = i + 1; j < entries.length; j += 1) {
+      if (isSection(entries[j])) return false
+      return true
+    }
+    return false
+  })
 }
 
 /**

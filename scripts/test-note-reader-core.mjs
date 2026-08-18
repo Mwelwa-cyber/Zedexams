@@ -68,10 +68,19 @@ test('Revise collapses the exercises rather than deleting them', () => {
   }
 })
 
-test('Revise hides the assessment surfaces outright', () => {
-  for (const t of ['quiz', 'labeldiagram']) {
-    assert.equal(blockPlacement(t, 'learn'), PLACEMENT.MAIN, t)
-    assert.equal(blockPlacement(t, 'revise'), PLACEMENT.HIDDEN, t)
+test('Revise hides the one surface that leaves the note', () => {
+  // The quiz navigates to /quiz/:id, so it ends the revision read.
+  assert.equal(blockPlacement('quiz', 'learn'), PLACEMENT.MAIN)
+  assert.equal(blockPlacement('quiz', 'revise'), PLACEMENT.HIDDEN)
+})
+
+test('Revise keeps the label diagram — it is a figure, not just a game', () => {
+  // Hiding it threw away the labelled picture along with the exercise, and
+  // for a topic examined as a labelled diagram that picture is the point of
+  // revising. It never navigates away, so leaving it in costs nothing.
+  for (const mode of ['learn', 'revise']) {
+    assert.equal(blockPlacement('labeldiagram', mode), PLACEMENT.MAIN, mode)
+    assert.equal(blockVisibleInMode('labeldiagram', mode), true, mode)
   }
 })
 
@@ -115,20 +124,109 @@ test('planNoteView: Revise hoists, collapses and hides — same blocks', () => {
   const plan = planNoteView(TWO_VIEW_BLOCKS, 'revise')
   assert.deepEqual(plan.top.map((e) => e.block.type), ['keypoints'])
   assert.deepEqual(plan.practice.map((e) => e.block.type), ['practice', 'sectioncheck'])
-  assert.deepEqual(plan.main.map((e) => e.block.type), ['paragraph', 'heading', 'paragraph', 'heading'])
-  // Every authored block is accounted for: placed somewhere, or the one
-  // type Revise deliberately drops. Nothing is invented, nothing is lost.
+  // Section "Two" holds only a sectioncheck (collapsed), the keypoints
+  // (hoisted) and the quiz (hidden), so Revise leaves nothing under its
+  // heading and the heading goes with it — see the empty-section tests.
+  assert.deepEqual(plan.main.map((e) => e.block.type), ['paragraph', 'heading', 'paragraph'])
+  // Every authored block is still accounted for: placed somewhere, or the
+  // one type Revise drops. Nothing is invented, nothing is lost — the
+  // dropped HEADING is chrome for content that moved, not content.
   const placed = [...plan.top, ...plan.main, ...plan.practice].length
-  assert.equal(placed, TWO_VIEW_BLOCKS.length - 1) // the quiz is hidden
+  assert.equal(placed, TWO_VIEW_BLOCKS.length - 2) // quiz hidden, heading "Two" emptied
 })
 
-test('planNoteView: section numbers are the same in both doorways', () => {
+test('planNoteView: a section that renders in both doorways keeps its number', () => {
   const nums = (mode) =>
     planNoteView(TWO_VIEW_BLOCKS, mode).main
       .filter((e) => e.sectionNumber != null)
       .map((e) => e.sectionNumber)
   assert.deepEqual(nums('learn'), [1, 2])
-  assert.deepEqual(nums('revise'), [1, 2])
+  // Section 2 is emptied by Revise, so it is absent — and section 1 is
+  // still 1. Numbers are never recompacted: renumbering would make the
+  // same heading a different number depending on the doorway, which is
+  // exactly what stable numbering exists to prevent.
+  assert.deepEqual(nums('revise'), [1])
+})
+
+// ── empty sections ───────────────────────────────────────────────────
+// The live bug: "4 Label the diagram ✏️" rendered as a numbered heading
+// with a gap under it, because the section held one `labeldiagram` block
+// and Revise hid that type. A mode hides block TYPES, not sections.
+
+test('planNoteView: drops a heading this mode left with nothing under it', () => {
+  const blocks = [
+    { type: 'heading', level: 2, text: 'Has content' },
+    { type: 'paragraph', text: 'Body' },
+    { type: 'heading', level: 2, text: 'Emptied' },
+    { type: 'quiz', quizId: 'q1' }, // hidden in Revise
+  ]
+  assert.deepEqual(
+    planNoteView(blocks, 'learn').main.map((e) => e.block.text || e.block.type),
+    ['Has content', 'Body', 'Emptied', 'quiz'],
+  )
+  assert.deepEqual(
+    planNoteView(blocks, 'revise').main.map((e) => e.block.text || e.block.type),
+    ['Has content', 'Body'],
+  )
+})
+
+test('planNoteView: a trailing heading with nothing after it is dropped', () => {
+  const blocks = [
+    { type: 'paragraph', text: 'Intro' },
+    { type: 'heading', level: 2, text: 'Dangling' },
+  ]
+  for (const mode of ['learn', 'revise']) {
+    assert.deepEqual(
+      planNoteView(blocks, mode).main.map((e) => e.block.type),
+      ['paragraph'],
+      mode,
+    )
+  }
+})
+
+test('planNoteView: a sub-heading counts as content and keeps its section', () => {
+  // Only level-2 headings open a section, so a level-3 heading under one
+  // is content — a section that holds just a sub-heading is not empty.
+  const blocks = [
+    { type: 'heading', level: 2, text: 'Section' },
+    { type: 'heading', level: 3, text: 'Sub' },
+  ]
+  assert.deepEqual(
+    planNoteView(blocks, 'revise').main.map((e) => e.block.text),
+    ['Section', 'Sub'],
+  )
+})
+
+test('planNoteView: consecutive headings drop only the ones left empty', () => {
+  const blocks = [
+    { type: 'heading', level: 2, text: 'A' },
+    { type: 'heading', level: 2, text: 'B' },
+    { type: 'paragraph', text: 'Body' },
+  ]
+  assert.deepEqual(
+    planNoteView(blocks, 'revise').main.map((e) => e.block.text || e.block.type),
+    ['B', 'Body'],
+  )
+})
+
+test('planNoteView: the Digestive System label section survives Revise', () => {
+  // The exact shape that shipped broken: one labeldiagram under its own
+  // heading. Both must be on the page in both doorways.
+  const blocks = [
+    { type: 'heading', level: 2, text: 'Label the diagram ✏️' },
+    {
+      type: 'labeldiagram',
+      url: '/notes/g7-sci-1-1-label.jpg',
+      items: [{ label: 'Mouth', x: 0.187, y: 0.188 }, { label: 'Liver', x: 0.143, y: 0.489 }],
+    },
+  ]
+  for (const mode of ['learn', 'revise']) {
+    assert.deepEqual(
+      planNoteView(blocks, mode).main.map((e) => e.block.type),
+      ['heading', 'labeldiagram'],
+      mode,
+    )
+  }
 })
 
 test('planNoteView: steps let Learn pace the body one section at a time', () => {
