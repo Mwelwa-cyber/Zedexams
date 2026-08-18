@@ -20,7 +20,13 @@ vi.mock('../../shared/components/SeoHelmet', () => ({
     return null
   },
 }))
-vi.mock('../../utils/analytics', () => ({ capture: vi.fn() }))
+const capture = vi.fn()
+vi.mock('../../utils/analytics', () => ({ capture: (...a) => capture(...a) }))
+
+const reportClientError = vi.fn()
+vi.mock('../../utils/clientErrorReporting', () => ({
+  reportClientError: (...a) => reportClientError(...a),
+}))
 
 let mockAuth = { userProfile: null }
 vi.mock('../../contexts/AuthContext', () => ({ useAuth: () => mockAuth }))
@@ -38,7 +44,15 @@ function renderAt(path) {
 beforeEach(() => {
   seoProps.length = 0
   mockAuth = { userProfile: null }
+  capture.mockClear()
+  reportClientError.mockClear()
 })
+
+/** The single route_not_found payload this render emitted. */
+function captured() {
+  const call = capture.mock.calls.find(([event]) => event === 'route_not_found')
+  return call?.[1]
+}
 
 describe('NotFound', () => {
   it('renders the 404 message', () => {
@@ -71,5 +85,63 @@ describe('NotFound', () => {
     mockAuth = { userProfile: { role: 'teacher' } }
     renderAt('/nope')
     expect(screen.getByRole('link', { name: /Back to Teacher Home/ })).toBeInTheDocument()
+  })
+})
+
+/**
+ * The escalation wiring. The RULE itself is pinned under plain node in
+ * scripts/test-route-not-found-severity.mjs; what these cover is that the page
+ * actually reaches for it and forwards the verdict — a correct rule nobody
+ * calls reports exactly as much as no rule at all, which is how /subscription
+ * sat at 4 hits for 30 days without anyone seeing it.
+ */
+describe('NotFound — learner 404s are escalated', () => {
+  it('tags a learner 404 high severity', () => {
+    mockAuth = { userProfile: { role: 'learner' } }
+    renderAt('/subscription')
+    expect(captured()).toMatchObject({
+      path: '/subscription',
+      role: 'learner',
+      severity: 'high',
+      is_learner: true,
+    })
+  })
+
+  it('escalates the legacy "student" role spelling too', () => {
+    mockAuth = { userProfile: { role: 'student' } }
+    renderAt('/subscription')
+    expect(captured().severity).toBe('high')
+  })
+
+  it('also files a learner 404 to the client-error sink', () => {
+    mockAuth = { userProfile: { role: 'learner' } }
+    renderAt('/subscription')
+    expect(reportClientError).toHaveBeenCalledTimes(1)
+    const [err, context, opts] = reportClientError.mock.calls[0]
+    expect(err.message).toContain('/subscription')
+    expect(context).toBe('route_not_found_learner')
+    // force: a broken learner link must survive the per-session budget.
+    expect(opts).toMatchObject({ force: true })
+  })
+
+  it('leaves a teacher 404 at normal severity and files no error report', () => {
+    mockAuth = { userProfile: { role: 'teacher' } }
+    renderAt('/teacher/typo')
+    expect(captured().severity).toBe('normal')
+    expect(reportClientError).not.toHaveBeenCalled()
+  })
+
+  it('does not escalate a signed-out visitor', () => {
+    renderAt('/nope')
+    expect(captured().severity).toBe('normal')
+    expect(reportClientError).not.toHaveBeenCalled()
+  })
+
+  it('still records the funnel event unchanged for every role', () => {
+    // route_not_found keeps its existing shape so the 30-day counts that
+    // surfaced this bug keep working — severity is an addition, not a move.
+    mockAuth = { userProfile: { role: 'learner' } }
+    renderAt('/subscription?x=1')
+    expect(captured()).toMatchObject({ path: '/subscription?x=1', role: 'learner' })
   })
 })

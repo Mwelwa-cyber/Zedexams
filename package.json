@@ -302,6 +302,7 @@
     "test:curriculum-canon": "node scripts/test-curriculum-canon.mjs",
     "test:curriculum-diagnostics": "node scripts/test-curriculum-diagnostics.mjs",
     "test:client-errors": "node scripts/test-client-error-reporting.mjs",
+    "test:route-404-severity": "node scripts/test-route-not-found-severity.mjs",
     "test:friendly-errors": "node src/utils/friendlyErrors.test.js",
     "test:form-validation": "node src/utils/formValidation.test.js",
     "test:statusbar": "node scripts/test-statusbar-brightness.mjs",

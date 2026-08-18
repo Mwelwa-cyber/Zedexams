@@ -8,6 +8,12 @@ import SeoHelmet from '../../../shared/components/SeoHelmet'
 // Prices live in src/config/teacherPlanPricing.js so /pricing and the
 // /teachers landing can never drift apart on the numbers.
 import { PLAN_PRICES } from '../../../config/teacherPlanPricing'
+// Learner prices come from the LADDER (src/config/plans.js) rather than being
+// typed again here. That module is joined to the checkout catalogue by
+// `checkoutPlanId`, so a rung this page advertises is provably one Lenco can
+// charge for — a hard-coded "K15" on a marketing page is a number nobody
+// reconciles until a learner taps it and pays the wrong amount.
+import { getPlan } from '../../../config/plans'
 import { isNativePlatform } from '../../../utils/runtime'
 
 const UpgradeModal = lazy(() => import('../../subscription').then(m => ({ default: m.UpgradeModal })))
@@ -228,6 +234,104 @@ const PLANS = [
   },
 ]
 
+// The two learner rungs /pricing advertises. `week` and `month` are ladder
+// ids; their prices and the checkout products behind them live in
+// src/config/plans.js, which is why nothing below states a figure.
+//
+// Deliberately the weekly + monthly pair and not the whole five-rung ladder:
+// the day pass and the seasonal Exam Pass are contextual offers made at a
+// lock, and a marketing page that lists all five turns a clear choice into a
+// price list.
+const LEARNER_RUNGS = [
+  {
+    ladderId: 'week',
+    mascot: '⚡',
+    meta: 'For this week\u2019s test',
+    feats: [
+      'Unlimited quizzes',
+      'Exam mode (timed practice)',
+      'Weakness analysis after every attempt',
+      'Every past paper for your grade',
+    ],
+  },
+  {
+    ladderId: 'month',
+    mascot: '\u2b50',
+    meta: 'For keeping the habit',
+    popular: true,
+    feats: [
+      'Everything in Weekly',
+      'Auto-marking with topic breakdowns',
+      'Offline downloads',
+      'Priority support',
+    ],
+  },
+]
+
+function LearnerPlanCard({ rung, onCta, native }) {
+  const plan = getPlan(rung.ladderId)
+  // A rung the ladder no longer offers renders nothing rather than a card with
+  // a blank price — the ladder is allowed to change without this page breaking.
+  if (!plan) return null
+  return (
+    <Card
+      variant={rung.popular ? 'hero' : 'elevated'}
+      size="lg"
+      className={`relative flex flex-col ${rung.popular ? '' : 'theme-text'}`}
+    >
+      {rung.popular && (
+        <span className="absolute -top-3 left-1/2 -translate-x-1/2 z-10 rounded-full bg-[color:var(--hero-cta-bg)] px-3 py-1 text-[11px] font-black uppercase tracking-wider text-[color:var(--hero-cta-text)] shadow-elev-sm ring-1 ring-black/5">
+          Best value
+        </span>
+      )}
+      <div
+        className={`grid place-items-center w-14 h-14 rounded-2xl text-3xl ${
+          rung.popular ? 'bg-white/15' : 'bg-[color:var(--bg-subtle)]'
+        }`}
+        aria-hidden="true"
+      >{rung.mascot}</div>
+      <div className="font-display font-black text-2xl mt-4">{plan.label}</div>
+      <div className={`text-sm mt-1 mb-5 ${rung.popular ? 'text-white/70' : 'theme-text-muted'}`}>{rung.meta}</div>
+      {/* Android: the ZMW figure stays off-screen for the same reason it does
+          on the teacher cards — the learner rungs are real Play products
+          (learner_premium_weekly / _monthly), so Play's sheet shows the
+          authoritative localized price. */}
+      {native ? (
+        <div className="flex items-baseline gap-1.5 mb-1.5">
+          <span className="font-display font-black text-3xl tracking-tight leading-none">Via Google Play</span>
+        </div>
+      ) : (
+        <div className="flex items-baseline gap-1.5 mb-1.5">
+          <span className={`text-base font-bold ${rung.popular ? 'text-white/70' : 'theme-text-muted'}`}>K</span>
+          <span className="font-display font-black text-5xl tracking-tight leading-none">{plan.price}</span>
+          <span className={`text-sm ${rung.popular ? 'text-white/70' : 'theme-text-muted'}`}>{plan.period}</span>
+        </div>
+      )}
+      <div className={`text-xs mb-6 min-h-[18px] ${rung.popular ? 'text-white/70' : 'theme-text-muted'}`}>
+        {native ? plan.blurb : `${plan.blurb} \u00b7 no auto-renewal`}
+      </div>
+      <Button
+        variant={rung.popular ? 'primary' : 'secondary'}
+        size="lg"
+        fullWidth
+        onClick={onCta}
+        className={rung.popular ? '!bg-[color:var(--hero-cta-bg)] !text-[color:var(--hero-cta-text)] hover:!bg-[color:var(--hero-cta-bg)]' : ''}
+      >
+        {`Get ${plan.label}`}
+      </Button>
+      <div
+        className={`mt-6 pt-6 border-t border-dashed flex flex-col gap-3 ${
+          rung.popular ? 'border-white/20' : 'theme-border'
+        }`}
+      >
+        {rung.feats.map((f, i) => (
+          <Feat key={i} onDark={rung.popular}>{f}</Feat>
+        ))}
+      </div>
+    </Card>
+  )
+}
+
 function SectionTag({ children }) {
   return (
     <div className="flex items-center gap-2.5 mb-4">
@@ -261,6 +365,23 @@ export default function Plans() {
 
   function ctaFor(key) {
     return key === 'free' ? handleFreeCta : () => handlePaidCta(key)
+  }
+
+  /**
+   * Where a learner rung's CTA goes.
+   *
+   * Deliberately NOT the UpgradeModal the teacher cards open, even though it
+   * supports `portal="learner"`. A signed-in learner may be under 18, and the
+   * product's standing rule is that an under-18 learner is never shown a price
+   * or a pay button — they are routed to the guardian ask instead (see
+   * src/services/entitlements/useUnlockFlow.js). That decision needs plan
+   * state this marketing chunk deliberately does not load, so the CTA hands
+   * off to /my-subscription, the learner's own subscription surface, and lets
+   * the age-aware flow there decide. Anonymous visitors register first, which
+   * is where an age is captured at all.
+   */
+  function handleLearnerCta() {
+    navigate(currentUser ? '/my-subscription' : '/register?intent=upgrade&tier=learner')
   }
 
   const upgradePlanIds = showUpgrade
@@ -365,12 +486,44 @@ export default function Plans() {
           </div>
         </Section>
 
+        {/* Learner plans. /pricing was teacher-only, so a learner (or the
+            parent paying for one) who landed here found three teacher tiers
+            and no way to buy what they actually came for. */}
+        <Section className="pb-16 sm:pb-20">
+          <SectionTag>For learners</SectionTag>
+          <h2 className="font-display font-black text-3xl sm:text-4xl mb-3 max-w-xl">
+            Studying for an exam? Start here.
+          </h2>
+          <p className="theme-text-muted mb-9 max-w-xl">
+            {native
+              ? 'Unlimited quizzes, timed exam mode and every past paper for your grade. Pay by the week or by the month \u2014 whichever suits.'
+              : 'Unlimited quizzes, timed exam mode and every past paper for your grade. Pay by the week or by the month \u2014 no auto-renewal, so you only pay for the period you choose.'}
+          </p>
+          <div className="grid gap-5 md:grid-cols-2 items-start max-w-3xl">
+            {LEARNER_RUNGS.map((rung) => (
+              <LearnerPlanCard
+                key={rung.ladderId}
+                rung={rung}
+                onCta={handleLearnerCta}
+                native={native}
+              />
+            ))}
+          </div>
+        </Section>
+
         {/* Comparison */}
         <Section className="pb-16 sm:pb-20">
           <SectionTag>Compare</SectionTag>
-          <h2 className="font-display font-black text-3xl sm:text-4xl mb-9 max-w-xl">
+          <h2 className="font-display font-black text-3xl sm:text-4xl mb-3 max-w-xl">
             Every feature, side by side.
           </h2>
+          {/* The table below is the TEACHER tiers only. Saying so matters now
+              that learner plans share the page: an unlabelled comparison read
+              as covering all five products, and none of these rows describe
+              the learner rungs. */}
+          <p className="theme-text-muted mb-9 max-w-xl">
+            The Free, Pro and Max teacher plans.
+          </p>
           <Card variant="flat" size="md" className="!p-0 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">

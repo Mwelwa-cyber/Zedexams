@@ -10,6 +10,8 @@ import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { getRoleLandingPath } from '../../utils/navigation'
 import { capture } from '../../utils/analytics'
+import { reportClientError } from '../../utils/clientErrorReporting'
+import { resolveRouteNotFoundSeverity, SEVERITY } from '../../utils/routeNotFoundSeverity'
 import SeoHelmet from '../../shared/components/SeoHelmet'
 
 export default function NotFound() {
@@ -25,8 +27,35 @@ export default function NotFound() {
   useEffect(() => {
     const path = `${location.pathname}${location.search}`
     const from = typeof document !== 'undefined' ? document.referrer : ''
-    console.warn('[404] no route matched', { path, from, role: userProfile?.role || 'anonymous' })
-    capture('route_not_found', { path, from, role: userProfile?.role || 'anonymous' })
+    const role = userProfile?.role || 'anonymous'
+    const origin = typeof window !== 'undefined' ? window.location?.origin : ''
+    // A learner-role 404 is escalated (see routeNotFoundSeverity): a learner
+    // arrives by tapping something we rendered, so the dead URL is a link we
+    // shipped, and it is standing between them and a lesson.
+    const verdict = resolveRouteNotFoundSeverity({ role, path, from, origin })
+
+    console.warn('[404] no route matched', { path, from, role, severity: verdict.severity })
+    capture('route_not_found', {
+      path,
+      from,
+      role,
+      severity: verdict.severity,
+      severity_reason: verdict.reason,
+      is_learner: verdict.isLearner,
+      in_app_link: verdict.inApp,
+    })
+
+    // High-severity 404s ALSO go to the client-error sink, which is what the
+    // admin error surface reads — an analytics event nobody has a saved view
+    // for is not a report. `route_not_found` stays as the funnel event so the
+    // existing 30-day counts keep working; this is an addition, not a move.
+    if (verdict.severity === SEVERITY.HIGH) {
+      const err = new Error(`Learner 404: ${path}`)
+      err.name = 'RouteNotFound'
+      // force: a broken learner link must not be dropped by the background
+      // per-session budget or deduped away by an unrelated earlier error.
+      reportClientError(err, 'route_not_found_learner', { force: true })
+    }
   }, [location.pathname, location.search, userProfile?.role])
 
   const homePath = getRoleLandingPath(userProfile, '/login')
