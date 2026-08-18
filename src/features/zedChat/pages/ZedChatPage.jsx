@@ -18,12 +18,14 @@ import '../../../shared/styles/learnerTheme.css'
 import '../askZed.css'
 
 export default function ZedChatPage() {
-  const { currentUser, loading } = useAuth()
+  const { currentUser, loading, authReady } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const topic = (searchParams.get('topic') || '').trim() || null
 
-  if (loading) return null
+  // `authReady` as well as `loading`: the watchdog clears `loading` on a timer
+  // without knowing who the user is, and this page redirects on `!currentUser`.
+  if (!authReady || loading) return null
   // Auth required. A signed-out visitor reaching /ask-zed directly
   // bounces to login with the original target preserved.
   if (!currentUser) {

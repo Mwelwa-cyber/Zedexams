@@ -18,6 +18,7 @@ import { getMessaging, isSupported } from 'firebase/messaging'
 import { getStorage } from 'firebase/storage'
 import { isNativePlatform } from '../utils/runtime'
 import { resolveAuthDomain } from './authDomain'
+import { hardenAuthPersistenceLifecycle } from './authPersistenceLifecycle'
 
 const firebaseConfig = {
   apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
@@ -97,19 +98,52 @@ googleProvider.setCustomParameters({ prompt: 'select_account' })
 // Persistent auth on every platform: learners and teachers stay signed in
 // across browser restarts and app relaunches. Closing the tab or killing
 // the Capacitor wrapper no longer ends the session — they were complaining
-// about having to sign in repeatedly. Web uses browserLocalPersistence
-// (IndexedDB-backed, falls back to localStorage); native uses
-// indexedDBLocalPersistence so the wrapper relaunch path keeps the session.
+// about having to sign in repeatedly.
+//
+// indexedDBLocalPersistence FIRST on every platform, web included. It used to
+// be native-only, with the web on browserLocalPersistence, and the two are not
+// interchangeable on the path that matters here: `browserLocalPersistence` is
+// localStorage-backed, so a session written by one and looked for in the other
+// is a session that is not found. The stored session in the incident
+// (`firebase:authUser:*` in IndexedDB, valid refresh token, cold load still
+// bounced to /login) lives in the IndexedDB store, so that is the store the
+// SDK must be reading. `browserLocalPersistence` stays as the fallback for the
+// environments where IndexedDB genuinely is not available — Safari private
+// mode, a locked-down WebView, a quota-exhausted profile — where losing the
+// session on restart beats failing to sign in at all.
+//
+// The lifecycle patch is applied BEFORE setPersistence, and that order is
+// load-bearing: the SDK registers its `visibilitychange` teardown lazily, on
+// the first listener added to the persistence instance, which setPersistence
+// is what triggers. See ./authPersistenceLifecycle.js for the wedge this
+// prevents.
+hardenAuthPersistenceLifecycle(indexedDBLocalPersistence)
+
 export function applyAuthPersistence() {
-  const persistence = isNativePlatform()
-    ? indexedDBLocalPersistence
-    : browserLocalPersistence
-  return setPersistence(auth, persistence).catch((e) => {
-    console.error('Failed to set auth persistence:', e)
-  })
+  return setPersistence(auth, indexedDBLocalPersistence)
+    .catch((e) => {
+      console.warn('[firebase] IndexedDB auth persistence unavailable, falling back to local storage:', e)
+      return setPersistence(auth, browserLocalPersistence)
+    })
+    .catch((e) => {
+      // Both stores refused. Auth still works for the life of the tab (the SDK
+      // falls back to in-memory), so this must not throw and take the app down
+      // with it — the user simply signs in again next visit.
+      console.error('Failed to set auth persistence:', e)
+    })
 }
 
-applyAuthPersistence()
+/**
+ * Resolves once persistence has been chosen. Every sign-in path awaits this.
+ *
+ * `setPersistence` is asynchronous, and a sign-in that starts before it settles
+ * writes the new session into whichever store the SDK was using at the time —
+ * which, on a cold start, is the in-memory default. That session is gone on the
+ * next load, which looks exactly like the bug this file is fixing. Awaiting a
+ * promise that is already resolved costs a microtask, so the guard is free on
+ * every call after the first.
+ */
+export const authPersistenceReady = applyAuthPersistence()
 
 // ── App Check (audit B3) ──────────────────────────────────────────────
 // Mints a short-lived attestation token the SDK forwards to Firestore,
