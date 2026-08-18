@@ -58,8 +58,11 @@ function Tipbox({ icon = null, lead, lines, onWord }) {
 }
 
 /** Tap-to-reveal card (renders the study `quickcheck` type). */
-function RevealCard({ block, onWord }) {
-  const [open, setOpen] = useState(false)
+/** Tap-to-reveal in Learn mode; already open in Revise (`revealed`) —
+ * the same card, not a second one: revision should not make the learner
+ * re-earn an answer they have already worked through. */
+function RevealCard({ block, onWord, revealed = false }) {
+  const [open, setOpen] = useState(revealed)
   return (
     <button
       type="button"
@@ -229,7 +232,7 @@ function SectionCheck({ block, onWord }) {
 }
 
 /** One block → its reader rendering. Unknown types render nothing. */
-export default function ReaderBlock({ block, sectionNumber, onWord }) {
+export default function ReaderBlock({ block, sectionNumber, onWord, revealed = false }) {
   const t = block?.type
   const inline = (text) => <InlineText text={text} onWord={onWord} />
 
@@ -339,7 +342,7 @@ export default function ReaderBlock({ block, sectionNumber, onWord }) {
         </figure>
       )
     case 'quickcheck':
-      return <RevealCard block={block} onWord={onWord} />
+      return <RevealCard block={block} onWord={onWord} revealed={revealed} />
     case 'practice':
       return <PracticeCard block={block} onWord={onWord} />
     case 'sectioncheck':

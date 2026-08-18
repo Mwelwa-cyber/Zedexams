@@ -6,12 +6,19 @@
  * the 📖 Learn / ⚡ Revise segment, keyword bubbles opening the
  * word-explainer sheet, and the interactive cards (ReaderBlock.jsx).
  *
+ * ONE content source, TWO views. Learn and Revise are doorways into the
+ * same `notes/{id}` — this component never forks the content, it renders
+ * whatever `readerCore.planNoteView` places where. Nothing is authored
+ * per mode, so editing the note once changes both views by construction.
+ *
  * Learn mode paces the note: sections (level-2 headings) reveal one at
  * a time behind a "Continue ▾" button with progress dots — an honest
  * reveal of real content, the same idea as the teacher studios' Live
- * Generation Canvas. Revise mode shows the whole note at once with the
- * key points visible and the practice surfaces hidden
- * (readerCore.blockVisibleInMode).
+ * Generation Canvas. Revise mode shows the whole note at once, with the
+ * key points hoisted to the top, the quiz and the label-diagram game
+ * gone, and the exercises folded into a closed "Practice these later"
+ * accordion — collapsed rather than deleted, since they are the same
+ * blocks.
  *
  * The engine brings its own chrome (the prototype hides the bottom nav
  * while reading), so mount it full-screen — not inside LearnerLayout.
@@ -21,10 +28,9 @@ import { useNavigate } from 'react-router-dom'
 import '../../../shared/styles/learnerTheme.css'
 import './reader.css'
 import {
-  assignRevealSteps,
-  blockVisibleInMode,
   buildGlossary,
   normalizeKeyword,
+  planNoteView,
   readerMeta,
 } from './readerCore'
 import ReaderBlock, { InlineText, ZED_ART } from './ReaderBlock'
@@ -73,17 +79,29 @@ export default function ReaderEngine({
   // Topic label for the "Stuck? Ask Zed about this" pill (prototype-v5's
   // ask-zed-inline). Defaults to the note title; pass null to hide.
   askTopic = note?.title || null,
+  // Furthest Learn-mode section the learner has reached on this device
+  // (lib/learnStep.js). Revise's "Learn this properly" resumes here.
+  resumeStep = 0,
+  onStepReached = null,
+  // Called whenever the learner flips doorway, so the page can keep the
+  // URL honest and stop writing reading progress in Revise.
+  onModeChange = null,
 }) {
   const navigate = useNavigate()
   const [mode, setMode] = useState(initialMode === 'revise' ? 'revise' : 'learn')
-  const [shown, setShown] = useState(0)
+  const [shown, setShown] = useState(initialMode === 'revise' ? 0 : resumeStep)
   const [word, setWord] = useState(null) // glossary entry in the sheet
+  const [practiceOpen, setPracticeOpen] = useState(false)
   const continueRef = useRef(null)
 
   const glossary = useMemo(() => buildGlossary(blocks), [blocks])
   const meta = useMemo(() => readerMeta(blocks), [blocks])
-  const { steps, maxStep } = useMemo(() => assignRevealSteps(blocks), [blocks])
+  const plan = useMemo(() => planNoteView(blocks, mode), [blocks, mode])
+  const { maxStep } = plan
   const paced = mode === 'learn' && maxStep > 0
+  // The Learn pass is finished once its last section has been revealed —
+  // on this visit or on an earlier one (resumeStep).
+  const learnDone = Math.max(shown, resumeStep) >= maxStep
 
   // Reading-progress bar driven by window scroll (the app scrolls the body).
   const [progress, setProgress] = useState(0)
@@ -103,37 +121,39 @@ export default function ReaderEngine({
   }
 
   const advance = () => {
-    setShown((s) => Math.min(s + 1, maxStep))
+    setShown((s) => {
+      const next = Math.min(s + 1, maxStep)
+      onStepReached?.(next)
+      return next
+    })
     // Bring the next section's continue point into view once it renders.
     setTimeout(() => continueRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' }), 70)
   }
+
+  // Flipping doorway never re-enters content — it re-places the SAME
+  // blocks (readerCore.planNoteView). Learn resumes at the furthest
+  // section already reached rather than restarting the note.
   const switchMode = (m) => {
     setMode(m)
     setWord(null)
-    if (m === 'learn') setShown(0)
+    setPracticeOpen(false)
+    if (m === 'learn') setShown(resumeStep)
+    onModeChange?.(m)
+    window.scrollTo?.({ top: 0, behavior: 'smooth' })
   }
 
-  // Section numbering follows level-2 headings in document order.
-  let sectionCounter = 0
-  const rendered = []
-  for (let i = 0; i < blocks.length; i += 1) {
-    const b = blocks[i]
-    if (!b || !blockVisibleInMode(b.type, mode)) continue
-    if (paced && (steps[i] ?? 0) > shown) break
-    let sectionNumber = null
-    if (b.type === 'heading' && (b.level ?? 2) === 2) {
-      sectionCounter += 1
-      sectionNumber = sectionCounter
-    }
-    rendered.push(
-      <ReaderBlock
-        key={b.id || i}
-        block={b}
-        sectionNumber={sectionNumber}
-        onWord={openWord}
-      />,
-    )
-  }
+  const renderEntry = ({ block, index, sectionNumber }) => (
+    <ReaderBlock
+      key={block.id || index}
+      block={block}
+      sectionNumber={sectionNumber}
+      onWord={openWord}
+      revealed={mode === 'revise'}
+    />
+  )
+
+  // Learn paces the body one section at a time; Revise renders it whole.
+  const body = (paced ? plan.main.filter((e) => e.step <= shown) : plan.main).map(renderEntry)
 
   const hasKeywords = glossary.size > 0
 
@@ -163,6 +183,13 @@ export default function ReaderEngine({
           {hasKeywords && mode === 'learn' && (
             <p className="lhx-note-hint">💡 Tap any purple word to see how to use it, with extra examples.</p>
           )}
+          {/* Revising a topic never taught: offer the guided pass, resumed
+              at the first section still un-revealed. */}
+          {mode === 'revise' && !learnDone && (
+            <button type="button" className="lhx-btn lhx-btn-block lhx-learn-properly" onClick={() => switchMode('learn')}>
+              ▶ Learn this properly
+            </button>
+          )}
           {askTopic && (
             <div>
               <button
@@ -178,7 +205,35 @@ export default function ReaderEngine({
         </div>
 
         <div>
-          {rendered}
+          {/* Revise hoists the key points above the note body. They are
+              POSITIONED here, never re-entered — the same keypoints
+              block the author wrote once. */}
+          {plan.top.map(renderEntry)}
+
+          {body}
+
+          {/* Practice these later — the exercises Revise collapses.
+              Children stay unmounted until the accordion is opened, so a
+              closed panel cannot answer a question the learner never
+              saw, and revision stays a reading pass. */}
+          {mode === 'revise' && plan.practice.length > 0 && (
+            <div className="lhx-revise-practice">
+              <button
+                type="button"
+                className="lhx-revise-practice-head"
+                aria-expanded={practiceOpen}
+                onClick={() => setPracticeOpen((o) => !o)}
+              >
+                <span>✏️ Practice these later</span>
+                <span className="lhx-revise-practice-count">
+                  {plan.practice.length} {plan.practice.length === 1 ? 'exercise' : 'exercises'}
+                  <i aria-hidden="true">{practiceOpen ? '▴' : '▾'}</i>
+                </span>
+              </button>
+              {practiceOpen && <div>{plan.practice.map(renderEntry)}</div>}
+            </div>
+          )}
+
           {paced && shown < maxStep && (
             <>
               <div className="lhx-rv-dots" aria-hidden="true">
@@ -191,6 +246,19 @@ export default function ReaderEngine({
               </button>
             </>
           )}
+
+          {/* End of the Learn pass: the note is already in the Notes tab
+              — say so, and open the revision doorway onto the same note
+              rather than leaving the learner to find it. */}
+          {mode === 'learn' && shown >= maxStep && (
+            <div className="lhx-saved-note">
+              <div className="lhx-saved-note-line">📌 Saved to your Notes for revision</div>
+              <button type="button" className="lhx-btn lhx-btn-block" onClick={() => switchMode('revise')}>
+                ⚡ Revise this in Notes
+              </button>
+            </div>
+          )}
+
           {(!paced || shown >= maxStep) && footer}
         </div>
       </div>

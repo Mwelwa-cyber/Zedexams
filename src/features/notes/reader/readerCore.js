@@ -27,18 +27,100 @@ export function isReaderNote(blocks) {
 }
 
 /**
- * Mode visibility (prototype Learn / Revise):
- *  - Learn hides the key-points blocks (they are the revise summary);
- *  - Revise hides the practice surfaces (reveal cards, your-turn,
- *    section checks, the label diagram) and shows key points instead.
- * Everything else renders in both modes.
+ * Mode placement (Learn / Revise) — "one content source, two views".
+ *
+ * There is exactly ONE authored note. Learn and Revise are two doorways
+ * into it, so a block is never re-authored per mode: the mode only
+ * decides WHERE the block lands on the page.
+ *
+ * Four placements:
+ *   'top'      — hoisted above the note body (Revise's key-points card).
+ *   'main'     — in the note body, in authored order.
+ *   'practice' — folded into Revise's closed "Practice these later"
+ *                accordion. Collapsed, NOT deleted: the exercises are
+ *                still the same blocks, one tap away.
+ *   'hidden'   — not rendered in this mode at all.
+ *
+ * Learn hides the key-points block (it is the revise summary, and
+ * handing it over first would give away the pass the learner is about
+ * to make). Revise hoists it instead, hides the end-of-topic quiz and
+ * the label-diagram GAME (revision is not assessment), and collapses
+ * the practice surfaces. Everything else — paragraphs, tips, examples,
+ * tap-to-explore cards, tap-to-reveal cards — reads in both.
  */
-const LEARN_HIDDEN = new Set(['keypoints'])
-const REVISE_HIDDEN = new Set(['practice', 'sectioncheck', 'quickcheck', 'labeldiagram'])
+export const PLACEMENT = Object.freeze({
+  TOP: 'top', MAIN: 'main', PRACTICE: 'practice', HIDDEN: 'hidden',
+})
 
+const LEARN_HIDDEN = new Set(['keypoints'])
+const REVISE_TOP = new Set(['keypoints'])
+// The end-of-topic quiz and the drag-the-labels game are assessment, and
+// revision mode is explicitly not an assessment pass.
+const REVISE_HIDDEN = new Set(['quiz', 'labeldiagram'])
+// "Practice these later" — collapsed behind a closed accordion.
+const REVISE_PRACTICE = new Set(['practice', 'sectioncheck'])
+
+/** Where a block of `type` lands in `mode`. */
+export function blockPlacement(type, mode) {
+  if (mode === 'revise') {
+    if (REVISE_TOP.has(type)) return PLACEMENT.TOP
+    if (REVISE_HIDDEN.has(type)) return PLACEMENT.HIDDEN
+    if (REVISE_PRACTICE.has(type)) return PLACEMENT.PRACTICE
+    return PLACEMENT.MAIN
+  }
+  return LEARN_HIDDEN.has(type) ? PLACEMENT.HIDDEN : PLACEMENT.MAIN
+}
+
+/**
+ * True when the block reads as part of the note body in `mode` — i.e.
+ * it is on the page without being unfolded first. `reviseMinutes` is
+ * counted over exactly these, so the hub's "2 min revise" stays the
+ * honest cost of the revision pass rather than of the whole note.
+ */
 export function blockVisibleInMode(type, mode) {
-  if (mode === 'revise') return !REVISE_HIDDEN.has(type)
-  return !LEARN_HIDDEN.has(type)
+  const p = blockPlacement(type, mode)
+  return p === PLACEMENT.MAIN || p === PLACEMENT.TOP
+}
+
+/**
+ * The whole render plan for one note in one mode, in a single pure pass:
+ * the hoisted blocks, the body, the collapsed practice set, and the
+ * Learn-mode reveal steps.
+ *
+ * Section numbers are assigned over the AUTHORED order of level-2
+ * headings, not over what a mode happens to render, so section 3 is
+ * section 3 in both doorways.
+ *
+ * Returns `{ top, main, practice, maxStep }`, each list holding
+ * `{ block, index, step, sectionNumber }` entries.
+ */
+export function planNoteView(blocks, mode = 'learn') {
+  const list = Array.isArray(blocks) ? blocks : []
+  const { steps, maxStep } = assignRevealSteps(list)
+  const top = []
+  const main = []
+  const practice = []
+  let section = 0
+
+  list.forEach((block, index) => {
+    if (!block) return
+    if (block.type === 'heading' && (block.level ?? 2) === 2) section += 1
+    const entry = {
+      block,
+      index,
+      step: steps[index] ?? 0,
+      sectionNumber:
+        block.type === 'heading' && (block.level ?? 2) === 2 ? section : null,
+    }
+    switch (blockPlacement(block.type, mode)) {
+      case PLACEMENT.TOP: top.push(entry); break
+      case PLACEMENT.MAIN: main.push(entry); break
+      case PLACEMENT.PRACTICE: practice.push(entry); break
+      default: break // hidden
+    }
+  })
+
+  return { top, main, practice, maxStep }
 }
 
 /**
@@ -195,4 +277,51 @@ export function labelBankOrder(items) {
 export function scrollProgress(scrollY, maxScroll) {
   if (!Number.isFinite(scrollY) || !Number.isFinite(maxScroll) || maxScroll <= 0) return 0
   return Math.min(100, Math.max(0, (scrollY / maxScroll) * 100))
+}
+
+/**
+ * The one string the Notes hub searches a note by: title + headings +
+ * key points, lower-cased.
+ *
+ * Search has to reach INTO the note (the acceptance check is "find a
+ * topic by a word in its key points, across subjects") without loading
+ * every note's blocks on the hub. So the field is stamped on write
+ * (lib/firestore.js) and this same function recomputes it on read for
+ * notes authored before the field existed — one implementation, so a
+ * stamped note and a recomputed one are searched identically.
+ *
+ * Deliberately NOT the full body text: it would be most of the note in
+ * a Firestore field, and a match on a passing mention in paragraph
+ * eleven is not why anyone searches a revision hub.
+ */
+export function buildNoteSearchText(note = {}, blocks = []) {
+  const parts = [note.title, note.subject, note.topic]
+  for (const b of Array.isArray(blocks) ? blocks : []) {
+    if (!b) continue
+    if (b.type === 'heading') parts.push(plainInline(b.text))
+    else if (b.type === 'keypoints') for (const it of b.items || []) parts.push(plainInline(it))
+    else if (b.type === 'keyidea') parts.push(plainInline(b.text))
+  }
+  return parts
+    .filter((p) => typeof p === 'string' && p.trim())
+    .join(' ')
+    .toLowerCase()
+    // plainInline unwraps one level of marks; a nested `**[[word]]**`
+    // leaves its brackets behind, and a learner searching "conjunction"
+    // types no brackets. Strip whatever survived.
+    .replace(/[[\]*]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/**
+ * Does a note match the hub's search box? Every whitespace-separated
+ * term must appear (AND), so "science digestion" narrows rather than
+ * widening — the same rule the admin command palette uses.
+ */
+export function matchesNoteSearch(searchText, query) {
+  const terms = String(query || '').toLowerCase().split(/\s+/).filter(Boolean)
+  if (terms.length === 0) return true
+  const hay = String(searchText || '')
+  return terms.every((t) => hay.includes(t))
 }
