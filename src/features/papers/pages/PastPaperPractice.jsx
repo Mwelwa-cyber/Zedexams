@@ -73,7 +73,7 @@ function pickPreviewSource(paper) {
 
 export default function PastPaperPractice() {
   const { paperId } = useParams()
-  const { currentUser, loading: authLoading } = useAuth()
+  const { currentUser, loading: authLoading, authReady } = useAuth()
 
   const [paper, setPaper] = useState(null)
   const [paperUrl, setPaperUrl] = useState(null)
@@ -245,7 +245,9 @@ export default function PastPaperPractice() {
     }
   }, [paper])
 
-  if (authLoading) return null
+  // See ProtectedRoute: `authLoading` alone is not enough to conclude "signed
+  // out", because the restoration watchdog drops it on a timer.
+  if (!authReady || authLoading) return null
   if (!currentUser) {
     return <Navigate to={`/login?next=/papers/${paperId}/practice`} replace />
   }

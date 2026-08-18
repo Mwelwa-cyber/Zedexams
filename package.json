@@ -866,7 +866,8 @@
     "test:guardian-billing": "node scripts/test-guardian-billing.mjs",
     "test:auth-init-retry": "node src/hooks/authInitRetryPolicy.test.js",
     "test:auth-persistence-lifecycle": "node src/firebase/authPersistenceLifecycle.test.js",
-    "test:auth-ready-gate": "node src/utils/authReadyGate.test.js"
+    "test:auth-ready-gate": "node src/utils/authReadyGate.test.js",
+    "test:auth-ready-guards": "node scripts/test-auth-ready-guards.mjs"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",

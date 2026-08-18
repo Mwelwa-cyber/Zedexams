@@ -447,9 +447,14 @@ function AdminRoute({ children }) {
 // an <Outlet> — so the chrome is mounted once for the whole section
 // instead of re-mounting on every tab change.
 function ParentAppRoute() {
-  const { currentUser, userProfile, loading, isParent, isAdmin, needsEmailVerification } = useAuth()
+  const { currentUser, userProfile, loading, authReady, isParent, isAdmin, needsEmailVerification } = useAuth()
   const location = useLocation()
-  if (loading) return <FullScreenLoader label="Loading your family hub…" />
+  // Same rule as ProtectedRoute, and it has to be stated here because this
+  // route guards ITSELF rather than composing that one: `loading` is dropped by
+  // the restoration watchdog without knowing who the user is, so redirecting on
+  // `!currentUser` while auth is unresolved bounces a live session to /login.
+  // Admins reach the family hub too, so this is not only a parent's problem.
+  if (!authReady || loading) return <FullScreenLoader label="Loading your family hub…" />
   if (!currentUser) return <Navigate to="/login" replace state={{ from: location }} />
   if (!userProfile) return <FullScreenLoader label="Loading your family hub…" />
   if (needsEmailVerification && !isWithinVerificationGrace(userProfile)) {
