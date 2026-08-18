@@ -15,10 +15,14 @@ import { Sparkles, Loader2, Check, X as XIcon } from '../../../shared/components
 import { createNote, updateNote, publishNote } from '../lib/firestore'
 
 const STATUS_META = {
-  created:  { icon: '✓', cls: 'text-emerald-600' },
-  updated:  { icon: '↻', cls: 'text-blue-600' },
-  skipped:  { icon: '↷', cls: 'text-neutral-400' },
-  failed:   { icon: '✗', cls: 'text-red-600' },
+  created:   { icon: '✓', cls: 'text-emerald-600' },
+  updated:   { icon: '↻', cls: 'text-blue-600' },
+  // A note that existed but was never learner-visible. Its own icon and
+  // colour because it is the outcome an admin is most likely looking for:
+  // the note was in the studio the whole time and in the app for nobody.
+  published: { icon: '👁', cls: 'text-emerald-600' },
+  skipped:   { icon: '↷', cls: 'text-neutral-400' },
+  failed:    { icon: '✗', cls: 'text-red-600' },
 }
 
 export function SeedImportPanel() {
@@ -103,6 +107,8 @@ export function SeedImportPanel() {
                         <span className={`${m.cls} font-bold`}>{m.icon}</span>
                         <span className="flex-1 min-w-0">
                           <span className="text-neutral-800">{e.title}</span>
+                          {e.status === 'published' && <span className="block text-xs text-emerald-700">was not published — learners could not open it</span>}
+                          {e.status === 'updated' && e.republished && <span className="block text-xs text-emerald-700">also published — learners could not open it</span>}
                           {e.status === 'failed' && e.error && <span className="block text-xs text-red-600 truncate">{e.error}</span>}
                         </span>
                       </li>
@@ -120,6 +126,7 @@ export function SeedImportPanel() {
                     <p className="text-neutral-800">
                       <Check size={14} className="inline text-emerald-600" /> Done — <strong>{result.created}</strong> created
                       {result.updated ? <>, <strong>{result.updated}</strong> updated</> : ''}
+                      {result.published ? <>, <strong>{result.published}</strong> published</> : ''}
                       {', '}{result.skipped} skipped{result.failed ? <>, <span className="text-red-600">{result.failed} failed</span></> : ''}
                       {result.quizzes ? <> · {result.quizzes} quizzes created{result.repaired ? <> ({result.repaired} relinked)</> : ''}</> : ''}.
                     </p>
