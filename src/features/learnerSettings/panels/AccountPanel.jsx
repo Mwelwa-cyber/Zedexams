@@ -11,6 +11,7 @@ import { useSubscription } from '../../../hooks/useSubscription'
 import { deleteMyAccount, pickReauthMethod } from '../../../utils/accountService'
 import { canSubmitDeletion, deletionErrorMessage } from '../../../utils/accountReauth'
 import { InvoicesCard, PaymentHistoryCard } from '../../learnerDashboard'
+import { mayShowPrice } from '../../../services/entitlements/planState'
 import { Panel, Section, Btn, Note, Field, TextInput } from '../components/ui'
 
 function fmtDate(ts) {
@@ -87,14 +88,33 @@ export function AccountBody({ pushToast }) {
           <Field label="Login email" htmlFor="lset-acct-email">
             <TextInput id="lset-acct-email" value={currentUser?.email ?? ''} disabled />
           </Field>
-          <Field label="Plan"><TextInput value={isPremium ? tierLabel : 'Free'} disabled /></Field>
+          {!!userProfile && mayShowPrice(userProfile) && (
+            <Field label="Plan"><TextInput value={isPremium ? tierLabel : 'Free'} disabled /></Field>
+          )}
           <Field label="Member since"><TextInput value={fmtDate(userProfile?.createdAt)} disabled /></Field>
           <Field label="Storage used" hint="Your avatar and saved items"><TextInput value={`${storageKb} KB`} disabled /></Field>
         </div>
       </Section>
 
-      <InvoicesCard />
-      <PaymentHistoryCard />
+      {/* Billing is not a child's screen, and this is the structural half of
+          that rule rather than the routing half. A learner reaches Name &
+          avatar at /settings/profile now, so nothing on the learner side
+          mounts this panel at all — but "nothing routes here today" is a fact
+          about the router, and the router is one line away from changing. The
+          decision is made where the components are, by the same predicate
+          every other price surface uses, so a future route that lands a
+          twelve-year-old on this panel shows them no invoices rather than
+          reintroducing the bug that started this work.
+
+          `mayShowPrice` reads a missing profile as an anonymous visitor, not
+          as a child. That is right for a public marketing page and wrong here,
+          so the profile must positively resolve before either card renders. */}
+      {!!userProfile && mayShowPrice(userProfile) && (
+        <>
+          <InvoicesCard />
+          <PaymentHistoryCard />
+        </>
+      )}
 
       {/* Data & privacy */}
       <Section title="Your data" hint="Download a copy of your information or review your privacy choices.">
@@ -107,7 +127,7 @@ export function AccountBody({ pushToast }) {
       {/* Danger zone */}
       <Section title="Delete account" hint="Permanently delete your ZedExams account and personal data. This cannot be undone.">
         <Note tone="danger">
-          Deleting removes your profile, results, saved content, class memberships and subscription records tied to{' '}
+          Deleting removes your profile, results, saved content and class memberships tied to{' '}
           <strong>{currentUser?.email || 'your account'}</strong>. You'll be signed out immediately.
         </Note>
         {!confirming ? (

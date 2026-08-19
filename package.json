@@ -876,7 +876,10 @@
     "test:auth-init-retry": "node src/hooks/authInitRetryPolicy.test.js",
     "test:auth-persistence-lifecycle": "node src/firebase/authPersistenceLifecycle.test.js",
     "test:auth-ready-gate": "node src/utils/authReadyGate.test.js",
-    "test:auth-ready-guards": "node scripts/test-auth-ready-guards.mjs"
+    "test:auth-ready-guards": "node scripts/test-auth-ready-guards.mjs",
+    "test:learner-avatars": "node src/shared/components/learnerAvatarManifest.test.js",
+    "test:name-avatar-form": "node src/features/learnerSettings/lib/nameAvatarFormCore.test.js",
+    "test:learner-settings-routes": "node src/features/learnerSettings/lib/settingsRoutes.test.js"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",

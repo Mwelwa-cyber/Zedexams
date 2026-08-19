@@ -116,14 +116,19 @@ function NavItem({ section, active, onClick }) {
 }
 
 /* ── Inner shell (inside the save provider) ───────────────────── */
-function LearnerSettingsInner({ bare = false }) {
+function LearnerSettingsInner({ bare = false, forceSection = null }) {
   const { userProfile } = useAuth()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
 
-  const requested = searchParams.get('section')
+  // `forceSection` is the ROUTE speaking (/settings/security and friends,
+  // mounted by LearnerSettingsRoute); `?section=` is the older parameter,
+  // still honoured for the dashboard the non-learner roles use. The route
+  // wins, because on those paths there is no parameter to read and falling
+  // back to one would render the wrong panel at the right URL.
+  const requested = forceSection || searchParams.get('section')
   // PANEL_SECTION_IDS, not SECTION_IDS: the Guardian panel has no
-  // dashboard card but is a real destination (?section=parent).
+  // dashboard card but is a real destination (/settings/guardian).
   const detailId = PANEL_SECTION_IDS.includes(requested) ? requested : null
 
   const [query, setQuery] = useState('')
@@ -212,7 +217,14 @@ function LearnerSettingsInner({ bare = false }) {
       <div className="lset lset--bare" data-accent={personalisation.accent} data-card-style={personalisation.cardStyle}>
         <SeoHelmet title={activeSection?.label || 'Settings'} path="/settings" noIndex />
         <div className="lhx-back-row">
-          <button type="button" className="lhx-back-btn" aria-label="Back to Settings" onClick={closeDetail}>‹</button>
+          {/* Route-mounted panels have no `?section=` to strip, so closeDetail
+              would leave the child exactly where they are. Navigate instead. */}
+          <button
+            type="button"
+            className="lhx-back-btn"
+            aria-label="Back to Settings"
+            onClick={() => (forceSection ? navigate('/settings') : closeDetail())}
+          >‹</button>
           <div className="lhx-back-title">{activeSection?.label || 'Settings'}</div>
         </div>
         <Suspense fallback={<PageLoader />}>
@@ -325,10 +337,10 @@ function LearnerSettingsInner({ bare = false }) {
   )
 }
 
-export default function LearnerSettings({ bare = false }) {
+export default function LearnerSettings({ bare = false, forceSection = null }) {
   return (
     <SettingsSaveProvider>
-      <LearnerSettingsInner bare={bare} />
+      <LearnerSettingsInner bare={bare} forceSection={forceSection} />
     </SettingsSaveProvider>
   )
 }
