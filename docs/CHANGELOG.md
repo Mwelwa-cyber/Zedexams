@@ -5,6 +5,49 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-08-19
+
+### Added
+
+- Pick learner voices from /admin/voice, and route /api/tts by provider (#2505)
+- A voice &amp; speech control room, and provider-aware TTS pricing (#2494)
+
+### Fixed
+
+- The guardian checkout read the poll result wrong, so every payment reported failure (#2507)
+- Make cloud text-to-speech actually work, price it, and stop paying twice (#2490)
+
+### Changed
+
+- Learner redesign: Zambia's physical features, playable (PROMPT 7f-3) (#2511)
+- Close the 8 open CodeQL alerts, mostly by asking the question differently (#2513)
+- Games importer: separate Clear selection from permanent deletion (#2512)
+- Stop the two auth recoveries spending each other's only reload (#2510)
+- Learner redesign: five more map modes for Know Zambia (PROMPT 7f-2) (#2509)
+- Learner redesign: Know Zambia, the geography and heritage game (PROMPT 7f) (#2508)
+- Grade-scope the games catalogue, and show the gap instead of hiding it (#2502)
+- Remove the daily quiz's countdown, and calm the two clocks that stay (#2501)
+- Tell a blocked parent the truth about their own account (#2499)
+- Restore the public-repo security posture, and record the history scan (#2506)
+- Add the four maths prototypes: game, notation, fraction levels, level 1 (#2504)
+- Account deletion: the child asks, the guardian decides, nobody is trapped (#2498)
+- Remove the countdown from the solo games, and add the three spelling prototypes (#2495)
+- Stop Firebase deleting a working session on every cold load (#2500)
+- Rebuild the learner Games hub to the mockup, and grade-scope the daily quiz (#2496)
+- Age screen: numeric fields, an age echo, and a route for a child who doesn't know (#2492)
+- Guardian contact step: WhatsApp first, confirm before sending, hand the phone over (0c-3) (#2493)
+- Learner settings: real routes, the new avatars, and billing off a child's screen (#2491)
+- Parent app: the two /family gaps #2481 left, on top of it (#2482)
+- Join parent and learner accounts through one link record (#2487)
+- Parent app: fix the live /family surface, and treat a family code as a credential (#2481)
+- Stop three specs failing for the first three hours of every day (#2489)
+- Never show a price to an under-18 learner on /pricing (#2486)
+- Fix the auth wedge that logged a valid session out on a cold load (#2480)
+
+### Internal
+
+- Shard the Vitest job 3 ways to undo the private-repo core cut (#2503)
+
 ## 2026-08-18
 
 ### Changed
