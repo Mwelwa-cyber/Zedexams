@@ -291,6 +291,9 @@ export default function QuizRunnerV2() {
     active: started && mode === 'exam',
     onExpire: () => submitRef.current?.(true),
   })
+  // Exam mode's clock can be hidden. Seeing it is the learner's choice; the
+  // deadline is unchanged either way, and practice mode has no clock at all.
+  const [showClock, setShowClock] = useState(true)
   const [showSubmit, setShowSubmit] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [showUpgrade, setShowUpgrade] = useState(false)
@@ -2162,7 +2165,32 @@ export default function QuizRunnerV2() {
               {difficultyState === 'fallback' && (
                 <span className="zx-pill-dark zx-pill-light" title="No hard questions in this quiz — running the full quiz instead.">🔥 Full quiz</span>
               )}
-              {mode === 'exam' && <div className={`zx-timer ${warn ? 'zx-timer-warn' : ''}`}>⏱️ {fmt(timeLeft)}</div>}
+              {/* Exam mode is OPT-IN — practice is the default and has no clock
+                  at all — so this one keeps its countdown. Where a clock stays
+                  it is shown calmly (`zx-timer-warn` is amber, not a pulsing
+                  red) and the learner can hide it. */}
+              {mode === 'exam' && (showClock
+                ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowClock(false)}
+                    title="Hide the timer"
+                    aria-label={`${fmt(timeLeft)} left — hide the timer`}
+                    className={`zx-timer ${warn ? 'zx-timer-warn' : ''}`}
+                  >
+                    ⏱️ {fmt(timeLeft)}
+                  </button>
+                )
+                : (
+                  <button
+                    type="button"
+                    onClick={() => setShowClock(true)}
+                    className="zx-timer"
+                    aria-label="Show the timer"
+                  >
+                    Show timer
+                  </button>
+                ))}
               {mode === 'practice' && <span className="zx-pill-dark zx-pill-green">🌱 Practice</span>}
               <ReadingThemePicker surface="quiz" />
               <ReadingSettingsButton onClick={() => setShowReadingSettings(true)} />

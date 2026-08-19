@@ -248,7 +248,7 @@ export default function DailyExamsHub() {
         <div className="zx-card-shared mb-4 flex items-start gap-2 bg-amber-50 p-3">
           <span aria-hidden className="text-base leading-none">⚠️</span>
           <p className="text-[11.5px] font-bold leading-snug text-slate-700">
-            Each subject can be attempted <strong>once per day</strong>. The timer can&apos;t be paused — even if you refresh.
+            Each subject can be attempted <strong>once per day</strong>. There is <strong>no timer</strong> — take as long as you need, and your answers are saved as you go.
           </p>
         </div>
 

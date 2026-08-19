@@ -3,13 +3,22 @@
  *
  * The audit's leverage point on past papers: practising under timed
  * pressure is the #1 thing that improves performance on the real
- * exam. We don't auto-grade — past papers are PDFs and the mark
+ * exam.
+ *
+ * THIS IS THE ONE LEARNER SURFACE THAT KEEPS A CLOCK, and it keeps it for a
+ * reason the solo games and the daily quiz cannot claim: it is an explicitly
+ * opt-in simulation of a real ECZ paper, run against that paper's own
+ * official duration, and the untimed reader is one tap away at
+ * /papers/:paperId. The rules for a clock that stays apply here in full —
+ * it is shown CALMLY (no red flash, no pulse, no ticking), the learner can
+ * hide it outright, and running out saves the attempt rather than
+ * discarding it. We don't auto-grade — past papers are PDFs and the mark
  * scheme is the teacher / parent step — but we DO record the
  * attempt so the learner can see "your second attempt was 12
  * minutes faster" later.
  *
  * Layout:
- *   - Top bar: paper title + countdown timer + Submit button
+ *   - Top bar: paper title + the clock (hideable) + Submit button
  *   - Body: PDF.js viewer (re-uses #319) so the paper stays
  *     scrollable + zoomable
  *   - On submit / time-up: brief reflection prompt + "Save" → toast
@@ -87,6 +96,9 @@ export default function PastPaperPractice() {
   const [done, setDone] = useState(false)
   const [reflection, setReflection] = useState('')
   const [submitError, setSubmitError] = useState('')
+  // A learner may hide the clock. Seeing it is a choice, not a condition of
+  // practising under exam conditions — some learners work better without it.
+  const [showClock, setShowClock] = useState(true)
 
   // Track whether we already finalised the attempt so the unmount
   // cleanup doesn't flip a successful submit into 'abandoned'.
@@ -345,14 +357,32 @@ export default function PastPaperPractice() {
             Grade {paper.grade} · {paper.year} · {durationMinutes} min target
           </p>
         </div>
-        <div
-          aria-live="polite"
-          className={`tabular-nums font-black text-2xl px-3 py-1 rounded-xl flex-shrink-0 ${
-            lowTime ? 'bg-rose-100 text-rose-800 animate-timer-urgent' : 'theme-bg-subtle theme-text'
-          }`}
-        >
-          {fmtClock(remainingSeconds)}
-        </div>
+        {/* Calm, and hideable. The low-time state is amber rather than a
+            pulsing red: a learner who panics in the last five minutes loses
+            the marks the clock was meant to protect. */}
+        {showClock ? (
+          <button
+            type="button"
+            onClick={() => setShowClock(false)}
+            aria-live="polite"
+            aria-label={`${fmtClock(remainingSeconds)} left — hide the clock`}
+            title="Hide the clock"
+            className={`tabular-nums font-black text-2xl px-3 py-1 rounded-xl flex-shrink-0 ${
+              lowTime ? 'bg-amber-100 text-amber-900' : 'theme-bg-subtle theme-text'
+            }`}
+          >
+            {fmtClock(remainingSeconds)}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowClock(true)}
+            aria-label="Show the clock"
+            className="theme-bg-subtle theme-text-muted rounded-xl px-3 py-1.5 text-xs font-black flex-shrink-0"
+          >
+            Show clock
+          </button>
+        )}
         <button
           type="button"
           onClick={() => handleSubmit()}

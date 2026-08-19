@@ -14,6 +14,8 @@
  * Timer strategy:
  *   endTime is a fixed Unix-ms timestamp written to Firestore on startExam().
  *   On every restore, endTime is read from Firestore — never from localStorage.
+ *   It is the attempt's SESSION WINDOW (end of the day it belongs to), not a
+ *   countdown: the daily quiz has no clock. See startExam for why it exists.
  *   This prevents any client-side clock manipulation.
  *
  * Firebase / Cloud Function migration path:
@@ -57,6 +59,21 @@ function isNotFoundError(e) {
 export function todayString() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** Milliseconds in two hours — the floor on a late-night attempt's window. */
+const MIN_SESSION_MS = 2 * 60 * 60 * 1000
+
+/**
+ * Local midnight at the END of the day containing `ms`.
+ *
+ * Local, not UTC, for the same reason the leaderboard's date keys are: Zambia
+ * is UTC+2, so a UTC day boundary would close a learner's attempt at 22:00.
+ */
+export function endOfLocalDay(ms) {
+  const d = new Date(ms)
+  d.setHours(24, 0, 0, 0)
+  return d.getTime()
 }
 
 function lockId(userId, subject) {
@@ -219,7 +236,7 @@ export async function checkTodaysLocks(userId) {
  * The returned session object is what the runner component stores in state.
  */
 export async function startExam(userId, displayName, exam) {
-  const { id: examId, subject, grade, totalMarks, durationMinutes } = exam
+  const { id: examId, subject, grade, totalMarks } = exam
 
   const existingLock = await checkDailyLock(userId, subject)
   if (existingLock) {
@@ -231,9 +248,22 @@ export async function startExam(userId, displayName, exam) {
   }
 
   const now = Date.now()
-  // endTime is the only source of truth for remaining time.
-  // It is written once here and never changed.
-  const endTime = now + (durationMinutes || 30) * 60 * 1000
+  // endTime is the attempt's SESSION WINDOW, not a countdown.
+  //
+  // It used to be `now + durationMinutes`, and the runner counted it down and
+  // auto-submitted at zero — so a learner who read slowly, lost signal or was
+  // called away had their paper taken off them. The daily quiz no longer has a
+  // clock at all (see DailyExamRunner's header), and fairness comes from every
+  // learner in a grade getting the same questions once a day.
+  //
+  // The field survives because something still has to close an attempt that is
+  // simply never submitted: without it the daily lock would sit `in_progress`
+  // forever and the learner could never sit another. The attempt belongs to a
+  // DAY, so the window is the end of that day — with a two-hour floor, so a
+  // learner starting at 23:50 still gets a real sitting rather than ten
+  // minutes. `restoreExam` uses it to finalise a stale attempt on the next
+  // visit; nothing counts it down and nothing displays it.
+  const endTime = Math.max(endOfLocalDay(now), now + MIN_SESSION_MS)
   const today = todayString()
 
   // Validate the new-attempt payload before it reaches Firestore so a
@@ -306,7 +336,13 @@ export async function restoreExam(userId, attemptId) {
     return { alreadySubmitted: true, attemptId }
   }
 
-  // If the deadline already passed, auto-submit with whatever was saved.
+  // If the attempt's SESSION WINDOW has closed — i.e. the learner is coming
+  // back on a later day — finalise it with whatever was saved. This is not a
+  // countdown expiring under a learner who is sitting the paper: the window
+  // runs to the end of the day the attempt belongs to, so reaching this branch
+  // means they left and returned, and the alternative is a daily lock stuck
+  // `in_progress` forever.
+  //
   // Grading + the lock flip happen server-side (submitDailyExam); the
   // server loads the questions with the admin SDK, so the client no longer
   // needs (and is no longer allowed) to read the answer-bearing question
@@ -356,7 +392,7 @@ export async function restoreExam(userId, attemptId) {
   const session = {
     attemptId,
     examId: attempt.examId,
-    endTime: attempt.endTime, // Firestore is authoritative
+    endTime: attempt.endTime, // Firestore is authoritative (session window, not a clock)
     answers: safeAnswers,
     flagged: safeFlagged,
     currentSectionIndex: Number.isFinite(attempt.currentSectionIndex) ? attempt.currentSectionIndex : 0,

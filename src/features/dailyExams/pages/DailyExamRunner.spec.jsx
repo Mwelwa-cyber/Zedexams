@@ -234,12 +234,26 @@ describe('DailyExamRunner — taking the exam', () => {
   })
 })
 
-describe('DailyExamRunner — timer + restore', () => {
-  it('auto-submits immediately when the session endTime has already passed', async () => {
+describe('DailyExamRunner — no clock, and restore', () => {
+  it('never counts down and never auto-submits, however long the learner takes', async () => {
+    // The acceptance criterion for the daily quiz. `endTime` is now the
+    // attempt's SESSION WINDOW (end of the day it belongs to), not a deadline
+    // the runner enforces — a learner who reads slowly, loses signal or is
+    // called away keeps their paper. Closing a stale attempt is `restoreExam`'s
+    // job on the NEXT visit, which the "already closed" case below covers.
     mockStartExam.mockResolvedValue(freshSession({ endTime: Date.now() - 1000 }))
     renderRunner()
-    // The first synchronous tick sees remaining <= 0 and auto-submits.
-    await waitFor(() => expect(mockSubmitExam).toHaveBeenCalledTimes(1))
+    expect(await screen.findByText(/What is 2 \+ 2\?/)).toBeInTheDocument()
+    await new Promise((r) => setTimeout(r, 60))
+    expect(mockSubmitExam).not.toHaveBeenCalled()
+  })
+
+  it('shows no timer anywhere on the running exam', async () => {
+    renderRunner()
+    expect(await screen.findByText(/What is 2 \+ 2\?/)).toBeInTheDocument()
+    expect(screen.queryByText(/⏱️/)).toBeNull()
+    expect(document.querySelector('.zx-timer')).toBeNull()
+    expect(screen.queryByRole('timer')).toBeNull()
   })
 
   it('restores an in-progress attempt instead of starting a new one', async () => {

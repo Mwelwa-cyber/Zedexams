@@ -5408,17 +5408,16 @@ select {
     font-weight: 800;
     font-variant-numeric: tabular-nums;
   }
+  /* The last-minute state of a clock that STAYS (the opt-in exam mode).
+     It used to be a red fill that pulsed once a second; it is now a calm
+     amber with no animation at all. Where a clock is kept, it is shown
+     calmly — no red flashing, no ticking, no shake — because panicking a
+     learner in the final minute costs them the marks the clock was
+     supposedly protecting. */
   .zx-timer-warn {
-    background: #EF4444;
-    color: #fff;
-    animation: zx-timer-pulse 1s ease-in-out infinite;
-  }
-  @keyframes zx-timer-pulse {
-    0%, 100% { transform: translateY(0); }
-    50%      { transform: translateY(-1px); }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .zx-timer-warn { animation: none; }
+    background: #FEF3C7;
+    color: #78350F;
+    border-color: #78350F;
   }
 
   /* Answer-option button */

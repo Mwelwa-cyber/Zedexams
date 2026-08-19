@@ -9,16 +9,28 @@
  *        submitted  → show "Already Completed" screen
  *        in_progress → restoreExam() (endTime from Firestore, tamper-proof)
  *        no lock    → startExam() (creates attempt + lock, writes endTime)
- *   3. Start countdown timer derived from endTime (never from seconds remaining)
- *   4. Auto-save answers + section index to localStorage on every change
- *   5. Auto-submit when timer reaches zero
- *   6. Manual submit → calculate score → navigate to /exam-results/:attemptId
+ *   3. Auto-save answers + section index to localStorage on every change
+ *   4. Manual submit → calculate score → navigate to /exam-results/:attemptId
+ *
+ * THERE IS NO COUNTDOWN, and its absence is a rule rather than an omission.
+ * The daily quiz used to run the quiz's `durationMinutes` down to zero and
+ * auto-submit, which meant a learner who read slowly, lost signal, or was
+ * called away had their paper taken off them. Fairness on this surface comes
+ * from every learner in a grade getting the SAME questions once a day, not
+ * from a stopwatch. Elapsed time is still recorded — server-side, capped, and
+ * used for exactly one thing: breaking ties on the weekly leaderboard.
+ *
+ * `endTime` survives as a SESSION WINDOW rather than a deadline: the attempt
+ * belongs to a day, so it closes at the end of that day (see
+ * `examService.startExam`). Coming back the next day resolves the old attempt
+ * instead of leaving it open forever; coming back an hour later does not.
  *
  * Anti-cheat guarantees:
  *   - endTime is written once to Firestore and never modified
  *   - On restore, endTime is read from Firestore (not localStorage)
  *   - Daily lock blocks any second attempt even if localStorage is cleared
  *   - beforeunload warns the user before navigating away
+ *   - Score and elapsed time are computed by the grader, never by the client
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -34,7 +46,6 @@ import {
   submitExam,
 } from '../../../utils/examService'
 import RichContent from '../../../editor/RichContent'
-import { useExamCountdown } from '../../../shared/hooks/useExamCountdown'
 import { useQuizDisplayPrefs } from '../../../hooks/useQuizDisplayPrefs'
 import { useQuizReadAloud } from '../../../hooks/useQuizReadAloud'
 import ReadingSettingsButton from '../../../shared/components/ReadingSettingsButton'
@@ -51,11 +62,9 @@ import ErrorBoundary from '../../../shared/components/ErrorBoundary'
 
 // ── Tiny utilities ─────────────────────────────────────────────────────────────
 
-function fmt(seconds) {
-  const m = Math.floor(seconds / 60)
-  const s = String(seconds % 60).padStart(2, '0')
-  return `${m}:${s}`
-}
+// `fmt(seconds)` lived here to draw the countdown. There is no countdown, so
+// there is nothing to format: the results screen has its own duration
+// formatter for the elapsed time the grader records.
 
 function isTextType(type) {
   return type === 'short_answer' || type === 'diagram'
@@ -131,7 +140,7 @@ function ExamRecoveryCard({ examId, onRetry, technicalMessage }) {
         <div className="mb-3 text-4xl">😕</div>
         <h2 className="mb-2 text-xl font-black text-slate-900">We hit a snag loading this exam</h2>
         <p className="mb-6 text-sm font-semibold text-slate-600">
-          This usually clears with a quick retry. Your timer and answers are
+          This usually clears with a quick retry. Your answers are
           saved on our side — nothing is lost.
         </p>
         <div className="flex flex-col gap-3">
@@ -187,7 +196,7 @@ function DailyExamRunnerInner() {
   const [actionError, setActionError] = useState('')
   // Bumped by the recovery card's "Try again" button so the init effect
   // re-runs from scratch without forcing a full page reload (which would
-  // restart the timer fetch and re-flash the loading screen needlessly).
+  // restart the fetch and re-flash the loading screen needlessly).
   const [initAttempt, setInitAttempt] = useState(0)
 
   // Exam session
@@ -205,14 +214,11 @@ function DailyExamRunnerInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSectionIndex])
 
-  // Timer
-  const [endTime, setEndTime]   = useState(null)
+  // The attempt's session window. It is NOT counted down and NOT displayed;
+  // it exists so an attempt left open overnight resolves on the learner's
+  // next visit rather than blocking the daily lock forever. See the header.
+  const [, setEndTime] = useState(null)
   const submitRef = useRef(null)
-  const { timeLeft, stop: stopTimer } = useExamCountdown({
-    endTime,
-    active: status === 'ready' && !alreadyDone,
-    onExpire: () => submitRef.current?.(true),
-  })
 
   // ── Load exam + initialise session ────────────────────────────────────────
 
@@ -309,14 +315,8 @@ function DailyExamRunnerInner() {
     init()
     return () => {
       cancelled = true
-      stopTimer()
     }
-  }, [currentUser, examId, userProfile, initAttempt, stopTimer])
-
-  // ── Timer — driven by endTime, not decremented seconds ────────────────────
-  //
-  // Shared with QuizRunnerV2 (src/shared/hooks/useExamCountdown.js). It was the
-  // same effect in both files, down to the rounding and the double-submit ref.
+  }, [currentUser, examId, userProfile, initAttempt])
 
   // ── Auto-save on state changes ─────────────────────────────────────────────
 
@@ -335,7 +335,7 @@ function DailyExamRunnerInner() {
     if (status !== 'ready' || alreadyDone) return
     const handler = e => {
       e.preventDefault()
-      e.returnValue = 'Your exam is in progress — the timer will keep running.'
+      e.returnValue = 'Your exam is in progress — your answers are saved on this device.'
       return e.returnValue
     }
     window.addEventListener('beforeunload', handler)
@@ -348,7 +348,6 @@ function DailyExamRunnerInner() {
     if (!auto) setShowConfirm(false)
     if (submitting) return
     setSubmitting(true)
-    stopTimer()
 
     try {
       const result = await submitExam(currentUser.uid, examId, attemptId, answers)
@@ -362,7 +361,7 @@ function DailyExamRunnerInner() {
       setActionError('Failed to submit. Please check your connection and try again.')
       setSubmitting(false)
     }
-  }, [currentUser, examId, attemptId, answers, navigate, submitting, stopTimer])
+  }, [currentUser, examId, attemptId, answers, navigate, submitting])
 
   submitRef.current = handleSubmit
 
@@ -682,7 +681,6 @@ function DailyExamRunnerInner() {
 
   const answered = Object.keys(answers).length
   const progress = questions.length ? Math.round((answered / questions.length) * 100) : 0
-  const warn = timeLeft <= 60
   const { className: _quizShellClass, style: quizDisplayStyle, ...quizDisplayAttrs } = quizDisplayVars
 
   return (
@@ -734,11 +732,9 @@ function DailyExamRunnerInner() {
               </span>
               <p className="truncate text-sm font-black leading-tight text-slate-900">{quiz?.title}</p>
             </div>
-            {/* Timer — red when ≤ 60 s */}
+            {/* No clock. Nothing here counts down, turns red or hurries a
+                learner — see the header for why. */}
             <div className="flex items-center gap-2">
-              <div className={`zx-timer ${warn ? 'zx-timer-warn' : ''}`}>
-                ⏱️ {fmt(timeLeft)}
-              </div>
               <ReadingSettingsButton onClick={() => setShowReadingSettings(true)} />
             </div>
           </div>

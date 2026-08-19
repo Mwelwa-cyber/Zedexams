@@ -286,7 +286,7 @@ export default function TimedQuizGame({ game }) {
     // The set is what ends the round now, and it is checked HERE — after the
     // reveal beat — so the learner always sees the verdict on their last
     // answer before the done screen replaces it.
-    if (questionNo + 1 >= roundLength) { finish(); return }
+    if (questionNo + 1 >= roundLength) { finish('set_complete'); return }
     pickedRef.current = null
     setPicked(null)
     setQuestionNo((n) => n + 1)
@@ -364,7 +364,7 @@ export default function TimedQuizGame({ game }) {
     }
   }
 
-  async function finish() {
+  async function finish(endedBy = 'set_complete') {
     setPhase('done')
     // Closed through the shared function, so a live round and a replayed one
     // reach the four writes by the same road (see timedQuizRound.js).
@@ -384,7 +384,8 @@ export default function TimedQuizGame({ game }) {
     // before saving, so level-up / personal best resolve exactly.
     const baseline = await readRoundBaseline(game.id)
 
-    const result = await saveScore({ game, ...outcome })
+    // `endedBy` rides the analytics side-channel only — see saveScore.
+    const result = await saveScore({ game, ...outcome, endedBy })
     setSaveResult(result)
 
     // Only evaluate/award badges if the score actually saved (i.e. signed in).
@@ -518,7 +519,7 @@ export default function TimedQuizGame({ game }) {
       <div className="text-center">
         <button
           type="button"
-          onClick={finish}
+          onClick={() => finish('ended_early')}
           className="text-sm font-bold text-slate-500 hover:text-slate-900 underline"
         >
           End round early
