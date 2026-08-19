@@ -320,6 +320,8 @@
     "test:dashboard-v2-links": "node scripts/test-dashboard-v2-links.mjs",
     "test:teacher-nav-active": "node src/features/teacherShell/lib/teacherNavActive.test.js",
     "test:sidebar-collapse": "node src/features/teacherShell/lib/sidebarCollapseCore.test.js",
+    "test:games-hub-core": "node src/features/games/lib/gamesHubCore.test.js",
+    "test:games-hub-layout": "node scripts/test-games-hub-layout.mjs",
     "test:shared-primitive-theming": "node src/shared/components/sharedPrimitiveTheming.test.js",
     "test:notification-links": "node scripts/test-notification-links.mjs",
     "test:route-targets": "node scripts/test-route-targets.mjs",

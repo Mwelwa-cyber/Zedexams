@@ -29,7 +29,7 @@
  * the same reason DailyIntro drops that phrase.
  */
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import '../gamesProto.css'
 import { useAuth } from '../../../contexts/AuthContext'
 import { duelAllowed } from '../lib/duelAccess'
@@ -44,9 +44,14 @@ import { getTodaysChallenge, getMyStreak } from '../../../utils/dailyChallengeSe
 import { getMyGameBadges } from '../../../utils/gameBadgesService'
 import { SUBJECTS, getMyHistory, listGames } from '../services/gamesService'
 import { levelInfo } from '../../../utils/gameProgress'
-import { TOTAL_LEVELS, currentLevel, normalizeProgress } from '../lib/numberPathCore'
+import {
+  challengeMatchesGrade,
+  gameMetaLine,
+  gameStatusPill,
+  pickGameForGrade,
+  resolveLearnerGrade,
+} from '../lib/gamesHubCore'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
-import { readJson } from '../../../shared/utils/safeStorage'
 import { GamesHubTour } from '../../../shared/components/learnerTours'
 import Skeleton from '../../../shared/components/Skeleton'
 
@@ -66,14 +71,16 @@ const TYPE_SKIN = {
   punctuation:   { emoji: '✒️', cls: 'g-gold' },
 }
 
-/** Local Number Path progress for the level tag + bar on its game card. */
-function readPathProgress(gameId) {
-  return normalizeProgress(readJson(`zx:number-path:${gameId}`))
-}
-
 export default function GamesHub() {
-  const navigate = useNavigate()
   const { currentUser, userProfile } = useAuth()
+  // ONE answer to "what grade is this learner", read by the daily-quiz
+  // query, the daily hero's pill, the live-challenge card's pill and the
+  // catalogue scoping. They used to answer it separately — the hero from
+  // whatever game the rotation picked, the challenge card from the profile
+  // with a hard-coded `|| 7` — which is how one screen showed "GRADE 3"
+  // and "Grade 7" for the same child. null means signed out: no grade to
+  // scope by and none to claim.
+  const learnerGrade = resolveLearnerGrade(userProfile)
   const [state, setState] = useState({
     loading: true,
     games: [],
@@ -94,7 +101,7 @@ export default function GamesHub() {
       setState((prev) => ({ ...prev, loading: true }))
       const results = await Promise.allSettled([
         listGames(),
-        getTodaysChallenge(),
+        getTodaysChallenge({ grade: learnerGrade }),
         getMyHistory(40),
         getMyGameBadges(),
         getMyStreak(),
@@ -119,7 +126,7 @@ export default function GamesHub() {
 
     load()
     return () => { cancelled = true }
-  }, [currentUser])
+  }, [currentUser, learnerGrade])
 
   const totalPoints = state.history.reduce((sum, row) => sum + (Number(row.score) || 0), 0)
   const progress = levelInfo(totalPoints)
@@ -147,21 +154,21 @@ export default function GamesHub() {
   // from the hub — which is how Punctuation Pro came to be missing from a
   // catalogue the code describes as "exactly four". A seed-backed card is
   // playable: PlayGame falls back to the same bundled doc by id.
-  const profileGrade = Number(userProfile?.grade)
-  const scopedToGrade = state.games.some((g) => Number(g.grade) === profileGrade)
   const visibleGames = useMemo(() => {
     const seeded = getFallbackGames()
-    const pick = (pool, type) => {
-      const ofType = pool.filter((g) => g?.type === type)
-      if (!ofType.length) return null
-      return ofType.find((g) => Number(g.grade) === profileGrade) || ofType[0]
-    }
     return CATALOGUE_MECHANICS
-      .map(({ type }) => pick(state.games, type) || pick(seeded, type))
+      .map(({ type }) =>
+        pickGameForGrade(state.games, type, learnerGrade) ||
+        pickGameForGrade(seeded, type, learnerGrade))
       .filter(Boolean)
-  }, [state.games, profileGrade])
+  }, [state.games, learnerGrade])
 
-  const challengeGame = state.challenge?.game || null
+  // Refused rather than shown if it is not this learner's grade — see
+  // challengeMatchesGrade. The query is already scoped; this is the second
+  // gate, because an admin date-override names a game id and knows nothing
+  // about who is looking.
+  const rawChallenge = state.challenge?.game || null
+  const challengeGame = challengeMatchesGrade(rawChallenge, learnerGrade) ? rawChallenge : null
   const streakDays = Number(state.streak?.streak) || 0
 
   return (
@@ -173,14 +180,20 @@ export default function GamesHub() {
       />
       <GamesHubTour />
 
-      <div className="lhx-back-row">
-        <button type="button" className="lhx-back-btn" aria-label="Back to Home" onClick={() => navigate('/dashboard')}>‹</button>
-        <div>
-          <div className="lhx-back-title">Games</div>
-          <div className="lhx-back-sub">
-            {scopedToGrade ? `Grade ${profileGrade} · play, score, level up!` : 'Play, score, level up!'}
-          </div>
-        </div>
+      {/* Games is a bottom-nav TAB, so a back chevron was the wrong
+          affordance — there is nothing to go back to. The old block spent
+          ~110px on a title and a slogan; this is 52px and carries the two
+          controls the screen actually needs. */}
+      <div className="ghx-topbar">
+        <h1 className="ghx-topbar-title">Games</h1>
+        {streakDays > 0 && (
+          <span className="ghx-streak-chip" aria-label={`${streakDays} day streak`}>
+            <span aria-hidden="true">🔥</span> {streakDays}
+          </span>
+        )}
+        <Link to="/games/leaderboard" className="ghx-icon-btn" aria-label="Leaderboard">
+          <span aria-hidden="true">🏆</span>
+        </Link>
       </div>
 
       {/* Daily challenge — the prototype's indigo hero card. */}
@@ -197,9 +210,10 @@ export default function GamesHub() {
           </div>
           <div className="lhx-daily-body">
             <div className="lhx-daily-label">
-              TODAY'S QUIZ{Number(challengeGame.grade) ? ` · GRADE ${challengeGame.grade}` : ''}
+              Today&apos;s quiz
+              {learnerGrade != null && <span className="ghx-grade-pill">Grade {learnerGrade}</span>}
             </div>
-            <div className="lhx-daily-name">with Zed</div>
+            <div className="lhx-daily-name">Play with Zed</div>
             <div className="lhx-daily-sub">
               {streakDays > 0 ? `${streakDays}-day streak — keep it going 🔥` : 'Play today to start a streak 🔥'}
             </div>
@@ -217,28 +231,39 @@ export default function GamesHub() {
       <Link to="/games/duel/live" className="lhx-duel-card">
         <div className="lhx-daily-emoji" aria-hidden="true">⚔️</div>
         <div className="lhx-daily-body">
-          <div className="lhx-daily-label">LIVE CHALLENGE</div>
-          <div className="lhx-daily-name">Race another learner!</div>
-          <div className="lhx-daily-sub">Grade {Number(userProfile?.grade) || 7} · 5 quick questions · same questions, server keeps score</div>
+          <div className="lhx-daily-label">
+            Live challenge
+            {learnerGrade != null && <span className="ghx-grade-pill">Grade {learnerGrade}</span>}
+          </div>
+          <div className="lhx-daily-name">Race a learner</div>
+          {/* "same questions, server keeps score" was reassurance written
+              for an adult reviewer, not an 11-year-old — and it pushed the
+              card to three lines. Fairness is still the promise; the server
+              is how we keep it, and that belongs in no UI string. */}
+          <div className="lhx-daily-sub">5 quick questions</div>
         </div>
         <span className="lhx-play-pill">Play</span>
       </Link>
       )}
 
-      {/* XP / level card. */}
-      <div className="lhx-xp">
-        <div className="lhx-xp-top">
-          <div className="lhx-xp-badge" aria-hidden="true">{progress.rank?.emoji || '🎓'}</div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="lhx-xp-lvl">Level {progress.level} {progress.rank?.title || 'Learner'}</div>
-            <div className="lhx-xp-sub">
-              {currentUser
-                ? `${progress.pointsToNext} XP to Level ${progress.level + 1}`
-                : 'Sign in to earn XP and badges'}
-            </div>
+      {/* Level strip. 78px, not the 150px billboard it replaces — that
+          spent a card's worth of height on one number, and put the XP
+          figure on its own line below the level it refers to. Here they
+          sit on one row, which is also what lets the strip be short. */}
+      <div className="ghx-level">
+        <div className="ghx-level-top">
+          <div className="ghx-level-badge" aria-hidden="true">{progress.rank?.emoji || '🎓'}</div>
+          <div className="ghx-level-name">
+            <b>Level {progress.level}</b>
+            <span>{progress.rank?.title || 'Learner'}</span>
+          </div>
+          <div className="ghx-level-xp">
+            {currentUser
+              ? `${progress.pointsToNext} XP to Level ${progress.level + 1}`
+              : 'Sign in to earn XP'}
           </div>
         </div>
-        <div className="lhx-xp-bar"><i style={{ width: `${progress.progress}%` }} /></div>
+        <div className="ghx-track"><i style={{ width: `${progress.progress}%` }} /></div>
       </div>
 
       {/* Achievements shelf. */}
@@ -270,12 +295,11 @@ export default function GamesHub() {
       <section>
         <div className="lhx-section-head">
           <h2 className="lhx-section-title">Your games</h2>
-          <Link to="/games/leaderboard" className="lhx-view-all">🏆 Leaderboard</Link>
         </div>
         {state.loading ? (
           <div style={{ display: 'grid', gap: 12 }}>
             {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} height={90} className="lhx-skel" style={{ borderRadius: 24 }} />
+              <Skeleton key={i} height={68} className="lhx-skel" style={{ borderRadius: 18 }} />
             ))}
           </div>
         ) : (
@@ -286,22 +310,20 @@ export default function GamesHub() {
             {visibleGames.length === 0 && (
               <p className="lhx-back-sub">No games yet — check back soon!</p>
             )}
-            {/* Map Quest — the mockup's teaser card. Not playable yet;
-                rendered honestly as coming soon rather than as a link. */}
-            <div className="lhx-gc" aria-disabled="true" style={{ cursor: 'default' }}>
-              <div className="lhx-gc-icon g-map" aria-hidden="true">🗺️</div>
-              <div className="lhx-gc-body">
-                <div className="lhx-gc-name">Map Quest</div>
-                <div className="lhx-gc-tags">
-                  <span className="lhx-gc-tag t-subj">Social Studies</span>
-                  <span className="lhx-gc-tag t-new">NEW</span>
-                </div>
-                <div className="lhx-gc-progress">
-                  <div className="lhx-gc-bar" aria-hidden="true"><i style={{ width: '0%' }} /></div>
-                  <div className="lhx-gc-best">Coming soon</div>
-                </div>
+            {/* Map Quest — the mockup's teaser. Not playable yet, so it is
+                a div, not a link: a card that navigates nowhere is worse
+                than one that says it is not ready. Same shape and height as
+                a real card so the list stays uniform. */}
+            <div className="ghx-game is-soon" aria-disabled="true">
+              <div className="ghx-game-icon g-map" aria-hidden="true">🗺️</div>
+              <div className="ghx-game-main">
+                <b>Map Quest</b>
+                <span>Social Studies · Maps</span>
               </div>
-              <div className="lhx-gc-chev" aria-hidden="true">›</div>
+              <div className="ghx-game-end">
+                <span className="ghx-pill ghx-pill--new">New</span>
+                <span className="ghx-chev" aria-hidden="true">›</span>
+              </div>
             </div>
           </div>
         )}
@@ -310,51 +332,37 @@ export default function GamesHub() {
   )
 }
 
-/** One prototype game card: icon, name, tags, progress bar, best score. */
+/**
+ * One game card: icon, name, one meta line, one status pill.
+ *
+ * Fixed height by construction — every string on it is one line with
+ * ellipsis, so a long game name truncates instead of reflowing the card.
+ * The two wrapping chips this replaces are what made Meaning Match ~40px
+ * taller than Punctuation Pro, and the progress bar they sat under
+ * measured nothing it claimed to (see gameStatusPill).
+ */
 function GameCard({ game, best }) {
   const subjectKey = String(game.subject || '').toLowerCase()
   const skin = TYPE_SKIN[game.type] || SUBJECT_SKIN[subjectKey] || { emoji: '🎮', cls: 'g-math' }
   const subjectLabel = SUBJECTS.find((s) => s.slug === subjectKey)?.label || 'Game'
-  const isPath = game.type === 'number_target'
-  const pathProgress = isPath ? readPathProgress(game.id) : null
   // The card is named for the MECHANIC (see CATALOGUE_MECHANICS); the
   // doc's own title names its content pack and belongs on the play
   // surface, where that pack is what the learner is looking at.
   const name = mechanicName(game)
-  // Second chip: the level for Number Path (it has a level path), the
-  // pack's CBC topic for the other three — "Spelling", "Word meanings",
-  // "Punctuation", exactly as the mockup labels them.
-  const topicTag = !isPath && game.cbc_topic ? String(game.cbc_topic) : null
-
-  const created = game.createdAt?.toMillis?.() || game.createdAt || 0
-  // Boolean() matters: a seed game has no createdAt, and `0 && …` is 0 —
-  // which React renders as a literal "0" chip beside the subject tag.
-  const isNew = Boolean(created && Date.now() - created < 1000 * 60 * 60 * 24 * 30)
-
-  const levelTag = isPath ? `Level ${currentLevel(pathProgress)}` : null
-  const barPct = isPath
-    ? Math.round((normalizeProgress(pathProgress).completed / TOTAL_LEVELS) * 100)
-    : best > 0
-      ? Math.min(100, Math.round((best / ((Number(game.points) || 100) * 2)) * 100))
-      : 0
+  const meta = gameMetaLine(subjectLabel, game.cbc_topic)
+  const status = gameStatusPill(game, best, { now: Date.now() })
 
   return (
-    <Link to={`/games/play/${game.id}`} className="lhx-gc">
-      <div className={`lhx-gc-icon ${skin.cls}`} aria-hidden="true">{skin.emoji}</div>
-      <div className="lhx-gc-body">
-        <div className="lhx-gc-name">{name}</div>
-        <div className="lhx-gc-tags">
-          <span className="lhx-gc-tag t-subj">{subjectLabel}</span>
-          {levelTag && <span className="lhx-gc-tag t-level">{levelTag}</span>}
-          {topicTag && <span className="lhx-gc-tag t-level">{topicTag}</span>}
-          {isNew && <span className="lhx-gc-tag t-new">NEW</span>}
-        </div>
-        <div className="lhx-gc-progress">
-          <div className="lhx-gc-bar" aria-hidden="true"><i style={{ width: `${barPct}%` }} /></div>
-          <div className="lhx-gc-best">{best > 0 ? `Best ${best}` : 'Not played yet'}</div>
-        </div>
+    <Link to={`/games/play/${game.id}`} className="ghx-game">
+      <div className={`ghx-game-icon ${skin.cls}`} aria-hidden="true">{skin.emoji}</div>
+      <div className="ghx-game-main">
+        <b>{name}</b>
+        <span>{meta}</span>
       </div>
-      <div className="lhx-gc-chev" aria-hidden="true">›</div>
+      <div className="ghx-game-end">
+        <span className={`ghx-pill ghx-pill--${status.kind}`}>{status.label}</span>
+        <span className="ghx-chev" aria-hidden="true">›</span>
+      </div>
     </Link>
   )
 }

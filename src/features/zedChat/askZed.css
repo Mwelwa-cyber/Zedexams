@@ -14,10 +14,17 @@
 .lhx-zed-fab {
   position: fixed;
   right: 16px;
-  bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  /* Docked ABOVE the nav rather than at a hard-coded offset. 96px was a
+   * guess that predated --lhx-nav-h; when the nav grew to 76px the pill
+   * overlapped it, and on /games it landed on the Centurion badge label,
+   * Punctuation Pro and Map Quest. Deriving from the token keeps the two
+   * together if either moves. */
+  bottom: calc(var(--lhx-nav-h, 76px) + 14px + env(safe-area-inset-bottom, 0px));
   z-index: 45;
   display: flex; align-items: center; gap: 8px;
-  padding: 7px 15px 7px 7px;
+  height: 44px;
+  padding: 0 15px 0 7px;
+  transition: transform 0.28s ease, opacity 0.28s ease;
   border: none; cursor: pointer; border-radius: 99px;
   background: linear-gradient(135deg, #7c8bf5, #5b63dd);
   color: #fff;
@@ -27,6 +34,14 @@
   transition: transform 0.12s;
 }
 .lhx-zed-fab:active { transform: scale(0.94); }
+/* Hidden on scroll-down, back on scroll-up — same gesture as the nav, so
+ * the two never disagree about whether chrome is showing. It must never
+ * be the reason a card cannot be reached. */
+.lhx-zed-fab.is-hidden {
+  transform: translateY(160%);
+  opacity: 0;
+  pointer-events: none;
+}
 .lhx-zed-fab img {
   width: 34px; height: 34px; object-fit: contain;
   background: rgba(255, 255, 255, 0.2);

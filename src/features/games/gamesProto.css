@@ -598,3 +598,168 @@
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-node.is-locked { background: #2a2d4a; box-shadow: 0 5px 0 #1d1f36; color: #565b85; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-start-bubble { background: #232640; color: #ff8a5c; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-start-bubble::after { background: #232640; }
+
+/* ═══════════════════════════════════════════════════════════════════
+ *  Games hub visual fix (docs/learner/zedexams-games-hub-mockup.html)
+ *
+ *  Tokens only — no hex literals. `audit:colors` scans
+ *  src/features/games and a raw colour here fails CI.
+ * ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Top bar ───────────────────────────────────────────────────────
+ * 52px, replacing a ~110px block with a back chevron. Games is a
+ * bottom-nav tab: there is nothing to go back TO, so the chevron was
+ * pointing at a destination the tab bar already owns. */
+.ghx-topbar {
+  display: flex; align-items: center; gap: 8px;
+  height: 52px; flex: none;
+  margin: -4px 0 2px;
+}
+.ghx-topbar-title {
+  flex: 1; min-width: 0; margin: 0;
+  font-size: 20px; font-weight: 900; letter-spacing: -0.01em;
+  color: var(--lhx-ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ghx-streak-chip,
+.ghx-icon-btn {
+  flex: none;
+  background: var(--lhx-card);
+  border: 1px solid var(--lhx-line);
+  color: var(--lhx-ink);
+  text-decoration: none;
+}
+.ghx-streak-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 30px; padding: 0 11px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 800; white-space: nowrap;
+}
+.ghx-icon-btn {
+  width: 34px; height: 34px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center; font-size: 15px;
+}
+
+/* ── Grade pill on BOTH heroes ─────────────────────────────────────
+ * Rendered from one resolved grade (gamesHubCore.resolveLearnerGrade),
+ * so a future mismatch is visible on the screen itself rather than
+ * buried in an eyebrow label the way "TODAY'S QUIZ · GRADE 3" was. */
+.lhx-daily-label { display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; }
+.ghx-grade-pill {
+  flex: none; white-space: nowrap;
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 999px; padding: 2px 7px;
+  font-size: 9.5px; letter-spacing: 0.04em;
+}
+
+/* Hero one-liners truncate rather than reflow. "Race another / learner!"
+ * and "TODAY'S QUIZ · GRADE / 3" both broke mid-phrase at 390px. */
+.lhx-daily-name,
+.lhx-daily-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Achievements shelf ────────────────────────────────────────────
+ * The native scrollbar rendered as a tan bar under the row on Android.
+ * Snap + a part-visible 5th tile is what signals "there is more" once
+ * the scrollbar is gone. */
+.lhx-badge-shelf {
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.lhx-badge-shelf::-webkit-scrollbar { display: none; }
+.lhx-badge { scroll-snap-align: start; }
+
+/* ── Game cards ────────────────────────────────────────────────────
+ * One fixed height for every card. Height is declared, not derived
+ * from content, so nothing a game is called or tagged can change it. */
+.ghx-game {
+  display: flex; align-items: center; gap: 11px;
+  height: 68px; padding: 0 12px;
+  /* A grid item defaults to `min-width: auto`, i.e. it refuses to shrink
+   * below its own min-content. Once the title and meta line became
+   * `nowrap` (they must, so a long name truncates instead of reflowing
+   * the card), that min-content became the untruncated text — and the
+   * card pushed the whole page 51px wider than the viewport. min-width:0
+   * lets the card take the column's width and hand the shrinking to the
+   * ellipsis, which is the whole point of the nowrap. */
+  min-width: 0;
+  background: var(--lhx-card);
+  border: 1px solid var(--lhx-line);
+  border-radius: var(--lhx-radius-md);
+  box-shadow: var(--lhx-shadow-sm);
+  text-decoration: none; color: var(--lhx-ink);
+}
+.ghx-game.is-soon { cursor: default; }
+.ghx-game-icon {
+  flex: none; width: 44px; height: 44px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center; font-size: 23px;
+}
+.ghx-game-main { flex: 1; min-width: 0; }
+.ghx-game-main b {
+  display: block; font-size: 15.5px; font-weight: 900; letter-spacing: -0.01em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ghx-game-main span {
+  display: block; margin-top: 2px;
+  font-size: 12px; font-weight: 700; color: var(--lhx-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ghx-game-end { flex: none; display: flex; align-items: center; gap: 6px; }
+
+/* One status pill instead of a bar that measured nothing: a best SCORE
+ * is not a completion percentage. */
+.ghx-pill {
+  height: 26px; padding: 0 10px; border-radius: 999px;
+  display: inline-flex; align-items: center;
+  font-size: 11.5px; font-weight: 900; white-space: nowrap;
+}
+.ghx-pill--best { background: var(--lhx-coral-soft); color: var(--lhx-coral-soft-text); }
+.ghx-pill--new  { background: var(--lhx-green-soft); color: var(--lhx-green-deep); }
+.ghx-pill--play { background: var(--lhx-indigo-soft); color: var(--lhx-indigo-text); }
+.ghx-chev { color: var(--lhx-muted); font-size: 19px; font-weight: 900; line-height: 1; }
+
+/* ── Level strip ───────────────────────────────────────────────────
+ * 78px, replacing a ~150px indigo billboard whose decorative circle
+ * bled over the right edge and sat under the text. A white card with
+ * the page's own border keeps it a STRIP: it reports a number, it is
+ * not a hero. "XP to next" sits beside the level rather than on its own
+ * line below the thing it refers to, which is what makes the height
+ * possible. */
+.ghx-level {
+  background: var(--lhx-card);
+  border: 1px solid var(--lhx-line);
+  border-radius: var(--lhx-radius-md);
+  box-shadow: var(--lhx-shadow-sm);
+  padding: 13px 14px;
+  min-width: 0;
+}
+.ghx-level-top { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+.ghx-level-badge {
+  flex: none; width: 38px; height: 38px; border-radius: 13px;
+  background: var(--lhx-indigo-soft);
+  display: flex; align-items: center; justify-content: center; font-size: 19px;
+}
+.ghx-level-name { flex: 1; min-width: 0; }
+.ghx-level-name b {
+  display: block; font-size: 15px; font-weight: 900; letter-spacing: -0.01em;
+  color: var(--lhx-ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ghx-level-name span {
+  display: block; margin-top: 1px; font-size: 11.5px; font-weight: 700;
+  color: var(--lhx-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ghx-level-xp {
+  flex: none; font-size: 12px; font-weight: 800; white-space: nowrap;
+  color: var(--lhx-link);
+}
+.ghx-track {
+  height: 9px; border-radius: 999px;
+  background: var(--lhx-faint);
+  overflow: hidden;
+}
+.ghx-track i {
+  display: block; height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--lhx-yellow), var(--lhx-orange));
+  transition: width 0.6s var(--lhx-ease, ease);
+}

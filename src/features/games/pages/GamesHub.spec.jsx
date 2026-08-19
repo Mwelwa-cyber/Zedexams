@@ -1,6 +1,6 @@
 /**
- * Behaviour tests for the prototype-v3 games hub reskin (learner
- * redesign step 4): the daily-challenge hero links to the day's game,
+ * Behaviour tests for the games hub (visual fix, docs/learner/
+ * zedexams-games-hub-mockup.html): the daily-challenge hero links to the day's game,
  * the XP card reads the kept levelInfo curve from saved history, the
  * badge shelf locks unearned badges, the game cards carry best scores
  * from history, and a Firestore failure falls back to the seed
@@ -85,8 +85,8 @@ beforeEach(() => {
 describe('GamesHub', () => {
   it('renders the daily hero linking to the intro screen, with the streak line', async () => {
     renderHub()
-    const hero = (await screen.findByText(/TODAY'S QUIZ/)).closest('a')
-    expect(within(hero).getByText('with Zed')).toBeInTheDocument()
+    const hero = (await screen.findByText(/Today's quiz/)).closest('a')
+    expect(within(hero).getByText('Play with Zed')).toBeInTheDocument()
     // The card opens the prototype's daily-intro screen, which owns the
     // Play button into the actual challenge game.
     expect(hero).toHaveAttribute('href', '/games/daily')
@@ -101,7 +101,7 @@ describe('GamesHub', () => {
 
   it('badge shelf shows every badge, locking the unearned ones', async () => {
     renderHub()
-    await screen.findByText(/TODAY'S QUIZ/)
+    await screen.findByText(/Today's quiz/)
     // The count is now the link into the Sticker Collection.
     const shelfLink = screen.getByRole('link', { name: `1 / ${GAME_BADGES.length} ›` })
     expect(shelfLink).toHaveAttribute('href', '/games/stickers')
@@ -114,38 +114,83 @@ describe('GamesHub', () => {
     // Named for the MECHANIC, never for the content pack behind it.
     const words = (await screen.findByText('Word Builder')).closest('a')
     expect(words).toHaveAttribute('href', '/games/play/g-words')
+    // A best SCORE is a number, not a completion percentage — one pill,
+    // no bar. The bar it replaces read full at "Best 120", meaning nothing.
     expect(within(words).getByText('Best 120')).toBeInTheDocument()
-    expect(within(words).getByText('Spelling')).toBeInTheDocument()
+    // ONE meta line, `Subject · Topic`, not two wrapping chips.
+    expect(within(words).getByText('English · Spelling')).toBeInTheDocument()
     expect(screen.queryByText('Spell the Animal')).toBeNull()
     expect(screen.queryByText('Number Target: Master')).toBeNull()
 
-    const path = document.querySelector('a.lhx-gc[href="/games/play/g-path"]')
+    const path = document.querySelector('a.ghx-game[href="/games/play/g-path"]')
     expect(within(path).getByText('Number Path')).toBeInTheDocument()
-    expect(within(path).getByText('Level 1')).toBeInTheDocument()
-    expect(within(path).getByText('Not played yet')).toBeInTheDocument()
+    // Never played → "Play", not a 0%-filled track beside "Not played yet".
+    expect(within(path).getByText('Play')).toBeInTheDocument()
+    expect(screen.queryByText('Not played yet')).toBeNull()
+    expect(document.querySelectorAll('.lhx-gc-bar')).toHaveLength(0)
 
     // The two mechanics the live collection has no doc for still render,
     // backed by the bundled seed pack — a catalogue of "exactly four"
     // that silently shows two is the bug this asserts against.
     expect(screen.getByText('Meaning Match')).toBeInTheDocument()
     expect(screen.getByText('Punctuation Pro')).toBeInTheDocument()
-    expect(document.querySelectorAll('a.lhx-gc')).toHaveLength(4)
+    expect(document.querySelectorAll('a.ghx-game')).toHaveLength(4)
 
     // timed_quiz games never list as catalogue cards (daily-only)…
     expect(screen.queryByText('G6 Quiz')).toBeNull()
     // …grade browsing is gone…
     expect(screen.queryByText(/Browse by grade/)).toBeNull()
-    // …and the Map Quest teaser renders honestly as coming soon, not a link.
-    const mapQuest = screen.getByText('Map Quest').closest('.lhx-gc')
+    // …and the Map Quest teaser is not a link, because it goes nowhere.
+    const mapQuest = screen.getByText('Map Quest').closest('.ghx-game')
     expect(mapQuest.tagName).not.toBe('A')
-    expect(within(mapQuest).getByText('Coming soon')).toBeInTheDocument()
+  })
+
+  it('shows the SAME grade on both heroes, from one source', async () => {
+    // The bug this screen was rebuilt around: the daily hero read its
+    // grade off whatever game the rotation picked and the challenge card
+    // read it off the profile, so one screen said "GRADE 3" and "Grade 7"
+    // for the same child. Both now render resolveLearnerGrade.
+    renderHub()
+    const daily = (await screen.findByText(/Today's quiz/)).closest('a')
+    const live = screen.getByText('Race a learner').closest('a')
+    expect(within(daily).getByText('Grade 4')).toBeInTheDocument()
+    expect(within(live).getByText('Grade 4')).toBeInTheDocument()
+    // …and never a grade the learner did not state. The old challenge card
+    // hard-coded `|| 7`.
+    expect(screen.queryByText('Grade 7')).toBeNull()
+  })
+
+  it('refuses a daily quiz from another grade rather than showing it', async () => {
+    // "If the grade-scoped query returns nothing, render the empty state —
+    // never fall back to another grade's quiz."
+    mocks.getTodaysChallenge.mockResolvedValue({
+      game: { ...GAMES[0], id: 'g-wrong-grade', grade: 3 },
+      source: 'firestore-override',
+      dateId: '2026-08-16',
+    })
+    renderHub()
+    await screen.findByText('Word Builder')
+    expect(screen.queryByText(/Today's quiz/)).toBeNull()
+    expect(document.querySelector('a[href="/games/daily"]')).toBeNull()
+  })
+
+  it('the leaderboard is offered once, from the top bar', async () => {
+    renderHub()
+    await screen.findByText('Word Builder')
+    const links = document.querySelectorAll('a[href="/games/leaderboard"]')
+    expect(links).toHaveLength(1)
+    expect(links[0]).toHaveAttribute('aria-label', 'Leaderboard')
   })
 
   it('offers ONE race card — the live one — and no Race Zed! bot card', async () => {
     renderHub()
-    const live = (await screen.findByText('Race another learner!')).closest('a')
+    const live = (await screen.findByText('Race a learner')).closest('a')
     expect(live).toHaveAttribute('href', '/games/duel/live')
-    expect(within(live).getByText('LIVE CHALLENGE')).toBeInTheDocument()
+    expect(within(live).getByText(/Live challenge/)).toBeInTheDocument()
+    // Child-readable: "same questions, server keeps score" was written for
+    // an adult reviewer and pushed the card to three lines.
+    expect(within(live).getByText('5 quick questions')).toBeInTheDocument()
+    expect(screen.queryByText(/server keeps score/)).toBeNull()
     expect(screen.queryByText('Race Zed!')).toBeNull()
     expect(screen.queryByText('CHALLENGE MODE')).toBeNull()
     expect(document.querySelector('a[href="/games/duel"]')).toBeNull()
@@ -159,7 +204,7 @@ describe('GamesHub', () => {
     mocks.getMyGameBadges.mockRejectedValue(new Error('offline'))
     renderHub()
     // Seed games render (the learner is grade 4, the seed has grade-4 games).
-    const cards = await screen.findAllByRole('link', { name: /Best|Not played yet/ })
+    const cards = await screen.findAllByRole('link', { name: /Best|Play|New/ })
     expect(cards.length).toBeGreaterThan(0)
   })
 })

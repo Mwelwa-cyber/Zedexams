@@ -47,9 +47,16 @@ function dateKeyToInt(dateId) {
  * Load today's challenge game. Returns { game, source } where source is
  * 'firestore-override' or 'rotation'.
  */
-export async function getTodaysChallenge() {
+export async function getTodaysChallenge({ grade = null } = {}) {
   const dateId = todaysDateId()
   let liveReadsTimedOut = false
+  // A learner's grade scopes the pick AT THE QUERY, not after it. Without
+  // this the rotation ran over every active game in every grade and the
+  // hub told a Grade 7 learner "TODAY'S QUIZ · GRADE 3". `grade == null`
+  // means signed out on the public hub — there is no grade to scope to,
+  // so the unscoped rotation is correct there and only there.
+  const scoped = Number.isFinite(Number(grade)) && Number(grade) > 0 ? Number(grade) : null
+  const inGrade = (g) => scoped == null || Number(g?.grade) === scoped
 
   // 1. Firestore override?
   try {
@@ -66,10 +73,14 @@ export async function getTodaysChallenge() {
           "today's challenge game",
         )
         if (gameSnap.exists()) {
-          return {
-            game: { id: gameSnap.id, ...gameSnap.data() },
-            source: 'firestore-override',
-            dateId,
+          const overrideGame = { id: gameSnap.id, ...gameSnap.data() }
+          // An override names one game id for a date; it carries no notion
+          // of who is looking. Checked against the learner's grade rather
+          // than trusted, so an override for another grade falls through
+          // to the scoped rotation below instead of overriding the one
+          // rule this screen exists to keep.
+          if (inGrade(overrideGame)) {
+            return {game: overrideGame, source: 'firestore-override', dateId}
           }
         }
       }
@@ -84,7 +95,12 @@ export async function getTodaysChallenge() {
   if (!liveReadsTimedOut) {
     try {
       const snap = await withFirestoreReadTimeout(
-        getDocs(query(collection(db, 'games'), where('active', '==', true))),
+        getDocs(query(
+          collection(db, 'games'),
+          where('active', '==', true),
+          // Two equality filters need no composite index.
+          ...(scoped == null ? [] : [where('grade', '==', scoped)]),
+        )),
         "today's challenge games list",
       )
       available = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
@@ -96,16 +112,22 @@ export async function getTodaysChallenge() {
   // Fallback to bundled seed when live reads are unavailable. Respect the
   // `active` flag so deactivated/out-of-scope seed entries are never chosen
   // as the daily challenge.
-  if (!available.length) available = GAMES_SEED.filter((g) => g.active !== false)
+  if (!available.length) available = GAMES_SEED.filter((g) => g.active !== false && inGrade(g))
 
   // A retired mechanic must never be the daily pick — a live doc can still
   // carry one after the 2026-08 redesign retired its engine (step 4).
   available = available.filter((g) => !RETIRED_GAME_TYPES.has(g?.type))
 
+  // Nothing in this learner's grade → say so. The caller renders the empty
+  // state; it must never be handed another grade's quiz as a consolation,
+  // which is the failure this whole change is about. Guarding here also
+  // keeps the modulo below from dividing by zero.
+  if (!available.length) return {game: null, source: 'none', dateId, grade: scoped}
+
   // Deterministic pick keyed by the UTC date integer
   const idx = ((dateKeyToInt(dateId) % available.length) + available.length) % available.length
   available.sort((a, b) => (a.id || '').localeCompare(b.id || '')) // stable order
-  return { game: available[idx], source: 'rotation', dateId }
+  return { game: available[idx], source: 'rotation', dateId, grade: scoped }
 }
 
 /** Current user's streak state: { streak, longestStreak, lastPlayedDate }. */

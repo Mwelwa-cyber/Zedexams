@@ -38,6 +38,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { isAllowed } from '../../../utils/guardianControls'
 import { shouldHideFab, shouldHideFabForRole } from '../lib/askZedCore'
+import useHideOnScroll from '../../../hooks/useHideOnScroll'
 import '../askZed.css'
 
 const ZED_ART = '/images/characters/poses/zed-waving.webp'
@@ -46,6 +47,11 @@ export default function ZedChatLauncher() {
   const { currentUser, userProfile } = useAuth()
   const { pathname } = useLocation()
   const navigate = useNavigate()
+  // Same gesture as the bottom nav, so the two never disagree about
+  // whether chrome is showing. Sits with the other hooks, above every
+  // early return below — a hook after a conditional return changes hook
+  // order between renders and React throws.
+  const hidden = useHideOnScroll()
 
   if (!currentUser) return null
   // A parent never gets the pill, on any route. See shouldHideFabForRole —
@@ -64,7 +70,7 @@ export default function ZedChatLauncher() {
   return (
     <button
       type="button"
-      className="lhx-zed-fab"
+      className={`lhx-zed-fab ${hidden ? 'is-hidden' : ''}`}
       aria-label="Ask Zed, your study helper"
       onClick={() => navigate('/ask-zed')}
     >

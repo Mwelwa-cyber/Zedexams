@@ -159,7 +159,12 @@
 .lhx-page {
   max-width: 480px;
   margin: 0 auto;
-  padding: 12px 18px calc(var(--lhx-nav-h) + env(safe-area-inset-bottom, 0px) + 24px);
+  /* nav + the Ask Zed pill + the notch. The old +24px cleared the nav but
+   * not the floating pill, so the last card in any list sat under it with
+   * no way to scroll clear — the pill is fixed, so the page has to reserve
+   * its height rather than the pill getting out of the way. 62px is the
+   * 44px pill plus its 18px gap. */
+  padding: 12px 18px calc(var(--lhx-nav-h) + 62px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -687,9 +692,13 @@
 
 .lhx-nav {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 40;
-  background: var(--lhx-glass-nav);
-  backdrop-filter: blur(18px) saturate(170%);
-  -webkit-backdrop-filter: blur(18px) saturate(170%);
+  /* OPAQUE, not glass. A translucent nav let "Your games", the
+   * leaderboard link and the first game card show THROUGH it, which reads
+   * as a rendering fault rather than as depth — and on a busy card list
+   * the blurred text behind the labels made the tabs themselves harder to
+   * read. The top border replaces the blur as the edge cue. */
+  background: var(--lhx-card);
+  border-top: 1px solid var(--lhx-line);
   border-radius: 26px 26px 0 0;
   box-shadow: 0 -8px 30px rgba(90, 100, 200, 0.15);
   padding-bottom: env(safe-area-inset-bottom, 0px);
