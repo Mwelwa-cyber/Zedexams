@@ -25,7 +25,8 @@ build prompts). The specs are committed **verbatim as shipped**:
 | `zedexams-fraction-levels.html` | The nine fraction levels and their sub-steps (PROMPT 7e) |
 | `zedexams-fractions-level1.html` | Level 1 — pictures before symbols (PROMPT 7e-1) |
 | `zedexams-zambia-game.html` | Know Zambia — geography &amp; heritage, playable (PROMPT 7f) — see below |
-| `zambia_provinces.json` | The ten province outlines, their label anchors, the lon/lat projection and the provenance |
+| `zedexams-zambia-map-modes.html` | Know Zambia — five more map modes, playable (PROMPT 7f-2) — see below |
+| `zambia_provinces.json` | The ten province outlines, their label anchors, the province adjacency graph, the lon/lat projection and the provenance |
 | `zambia_facts.json` | Every fact the Zambia game teaches — the sheet a Zambian teacher signs off in |
 
 The playbook was landed later than the four specs, and carries its own
@@ -159,6 +160,46 @@ What each one actually runs, rather than describes:
   BOUNDARIES are not in the dataset and must be sourced separately, which is
   why level 3 asks which province a district is in rather than asking for it to
   be drawn.
+- **`zedexams-zambia-map-modes.html`** — five more modes off one menu, reading
+  the same two datasets, so each is a rules file rather than another drawing of
+  Zambia. **Journey** is the one worth building: tap the provinces between
+  Livingstone and Kasama in order, and the map answers a wrong tap from its own
+  geometry — *"Western does touch Southern, but you are heading for Kasama"* is
+  a different lesson from *"Northern does not touch Southern at all, so you
+  cannot get there from here"*, and a third branch catches re-tapping a province
+  already crossed. That needed the province **adjacency graph** now in
+  `zambia_provinces.json`; it was derived from the traced outlines and is
+  re-measured against them on every render and by `npm run test:zambia-game`,
+  which fails on a declared border the trace cannot support. Two adjacency facts
+  are pinned because both surprise people and both fall out of the map:
+  **Copperbelt and Luapula do not touch** — the Congo Pedicle is between them,
+  which is why the road to Mansa either crosses another country or goes the long
+  way round — and **Central borders eight of the other nine**, every one except
+  Northern. **Odd one out** is *derived, never authored*: each set declares a
+  rule (`borders:cd`, `borders:any`, `touches:ce`) evaluated against the new
+  per-province `borders` list, and a set is only correct if exactly three of its
+  four satisfy it and the fourth is the one marked odd — so a wrong set fails
+  CI instead of quietly teaching the wrong thing. Its dimmed six carry no hit
+  target, no `tabindex` and no halo, so a tap, the Tab key and a screen reader
+  all agree with the picture. **Where's the capital?** replaces a multiple-choice
+  round with a pin plotted from real coordinates; **ceremonies** are deliberately
+  only one-third map — tap the province, then answer *whose* and *when* as plain
+  options, because a learner who only ever taps a map stops reading. There is
+  **no clock anywhere**, and a test fails on `setTimeout` appearing in the file
+  at all, because a flash that takes feedback away after 600ms is a timer under
+  another name. Two things this page found and fixed in the older game too: the
+  touch halo rounded its radius to nearest and produced a 43.996px target at
+  320px, and province names were sized from the **bounding box** — which is the
+  box-centre mistake one step along, and printed "North-Western" straight
+  through "Copperbelt" whenever both were labelled. Both now size from the
+  **inscribed radius at the label anchor**, and the panel measures the names it
+  actually drew with `getBBox()` rather than estimating from a character count.
+  The new fact classes — per-province borders, the four route sequences, and the
+  rounded road distances printed to learners — are named in
+  `verification.requiredBeforeRelease`, and one boundary is flagged as genuinely
+  unsettled: whether Southern faces Namibia across the Zambezi near Kazungula,
+  where four countries meet at almost a point. Its **neighbours** mode
+  duplicates level 8 of the older game; the two should not both ship.
 - **`zedexams-fractions-level1.html`** — nine acceptance rules run against the
   round data and are printed: no fraction symbol in any stem, caption or option
   (it appears only in the feedback after a correct answer), all four question
