@@ -14,19 +14,18 @@
  * test forces the purge to throw and asserts the request is still `scheduled`,
  * because "the next sweep retries it" is only true if nothing moved it.
  *
+ * Imports `deletionSweepCore` and NOT `./index`: the Functions-coverage job
+ * runs `npm ci` at the repo root only, so `functions/node_modules` does not
+ * exist when this runs and anything reaching `firebase-functions` cannot load.
+ * That is the whole reason the sweeps are a `*Core.js` — see its header.
+ *
  * Run: npm run test:deletion-sweeps
  */
 
 const assert = require("node:assert/strict");
 
 const core = require("./deletionRequestCore");
-
-// The module pulls in firebase-functions at load, which needs these.
-process.env.GCLOUD_PROJECT = process.env.GCLOUD_PROJECT || "test-project";
-process.env.FIREBASE_CONFIG = process.env.FIREBASE_CONFIG ||
-  JSON.stringify({projectId: "test-project"});
-
-const {runDeletionRequestSweep, runDeletionExecutionSweep} = require("./index");
+const {runDeletionRequestSweep, runDeletionExecutionSweep} = require("./deletionSweepCore");
 
 const tests = [];
 const test = (name, fn) => tests.push([name, fn]);
@@ -77,6 +76,7 @@ const recorder = () => {
   const calls = [];
   return {
     calls,
+    serverTimestamp: "STAMP",
     commitTransition: async (args) => { calls.push({kind: "commit", ...args}); },
     notifyLearner: async (learnerId, kind, extra) => {
       calls.push({kind: "notify", learnerId, notifyKind: kind, extra});
@@ -147,6 +147,7 @@ test("one failing request does not stop the rest of the sweep", async () => {
       [core.STATE.SCHEDULED]: [],
     }),
     now: NOW,
+    serverTimestamp: "STAMP",
     commitTransition: async (args) => {
       if (first) { first = false; throw new Error("firestore said no"); }
       calls.push(args);
@@ -216,6 +217,7 @@ test("A FAILED PURGE LEAVES THE REQUEST SCHEDULED, so the next sweep retries it"
   const summary = await runDeletionExecutionSweep({
     db: fakeDb({[core.STATE.SCHEDULED]: [scheduledDoc()]}),
     now: NOW,
+    serverTimestamp: "STAMP",
     purge: async () => { throw new Error("purge exploded"); },
     commitTransition: async (args) => { commits.push(args); },
   });
@@ -231,6 +233,7 @@ test("a window that has not closed is skipped, and nothing is purged", async () 
   const summary = await runDeletionExecutionSweep({
     db: fakeDb({[core.STATE.SCHEDULED]: [scheduledDoc({scheduledDeleteAt: NOW + days(5)})]}),
     now: NOW,
+    serverTimestamp: "STAMP",
     purge: async () => { purged += 1; },
     commitTransition: async () => {},
   });
@@ -244,6 +247,7 @@ test("a scheduled request with no date is skipped rather than purged", async () 
   const summary = await runDeletionExecutionSweep({
     db: fakeDb({[core.STATE.SCHEDULED]: [scheduledDoc({scheduledDeleteAt: null})]}),
     now: NOW + days(365),
+    serverTimestamp: "STAMP",
     purge: async () => { purged += 1; },
     commitTransition: async () => {},
   });
@@ -261,6 +265,7 @@ test("one failing purge does not stop the others", async () => {
       ],
     }),
     now: NOW,
+    serverTimestamp: "STAMP",
     purge: async (uid) => {
       if (uid === "la") throw new Error("no");
       purged.push(uid);
@@ -270,6 +275,40 @@ test("one failing purge does not stop the others", async () => {
   assert.deepEqual(purged, ["lb"]);
   assert.equal(summary.deleted, 1);
   assert.equal(summary.errors.length, 1);
+});
+
+/* ── The dependencies are required, not defaulted ────────────────────── */
+
+test("a missing dependency throws before anything is purged", async () => {
+  // `undefined is not a function` halfway through a sweep that has already
+  // deleted three accounts is not a failure anybody can act on. And an absent
+  // `serverTimestamp` is worse than a crash: Firestore rejects an undefined
+  // field, so the reminder stamp would silently fail to write and the child
+  // would be reminded again on every run.
+  const db = fakeDb({[core.STATE.SCHEDULED]: [scheduledDoc()]});
+  const full = {
+    db, now: NOW, serverTimestamp: "STAMP",
+    commitTransition: async () => {}, notifyLearner: async () => {},
+    purge: async () => {},
+  };
+  for (const missing of ["db", "now", "commitTransition", "serverTimestamp", "purge"]) {
+    const deps = {...full};
+    delete deps[missing];
+    await assert.rejects(
+      () => runDeletionExecutionSweep(deps),
+      new RegExp(missing),
+      `executor accepted a missing \`${missing}\``,
+    );
+  }
+  for (const missing of ["db", "now", "commitTransition", "notifyLearner", "serverTimestamp"]) {
+    const deps = {...full};
+    delete deps[missing];
+    await assert.rejects(
+      () => runDeletionRequestSweep(deps),
+      new RegExp(missing),
+      `sweep accepted a missing \`${missing}\``,
+    );
+  }
 });
 
 /* ── Runner ──────────────────────────────────────────────────────────── */

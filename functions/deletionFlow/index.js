@@ -53,6 +53,7 @@ const {assertVerifiedAuth} = require("../authGuard");
 
 const core = require("./deletionRequestCore");
 const decisionContext = require("./decisionContextCore");
+const sweeps = require("./deletionSweepCore");
 
 // Already in Secret Manager and bound to sendPasswordResetEmail /
 // requestGuardianUnlock, so binding them here cannot cause the "no value for
@@ -93,9 +94,6 @@ async function sendEmailMessage({to, subject, text}) {
 const REQUESTS = "accountDeletionRequests";
 const AUDIT = "accountDeletionAudit";
 const LINKS = "parentLinks";
-
-/** Cap on how many documents one sweep will touch. */
-const SWEEP_LIMIT = 200;
 
 const db = () => admin.firestore();
 const nowMs = () => Date.now();
@@ -615,112 +613,54 @@ async function reportWrongGuardian(request) {
 /* ── Sweeps ──────────────────────────────────────────────────────────── */
 
 /**
- * The 7-day escalation and the day-25 reminders, in one pass.
+ * The scheduled sweeps live in `deletionSweepCore.js` with every dependency
+ * injected — no firebase-admin, no firebase-functions — because what they
+ * decide is the ORDER of a handful of writes, and a module that can only be
+ * exercised against a live Firestore is one whose ordering nobody checks until
+ * it is wrong in production. (It is also what lets them run in the
+ * Functions-coverage job, which installs root dependencies only.)
  *
- * Both read `state == pending_guardian` / `state == scheduled` and both are
- * cheap; running them as two scheduled functions would double the invocations
- * to do the same two queries.
+ * These two wrappers are the only place the real Firestore, the real clock and
+ * the real purge are supplied.
  */
-async function runDeletionRequestSweep(deps = {}) {
-  const database = deps.db || db();
-  const now = Number.isFinite(deps.now) ? deps.now : nowMs();
-  const commit = deps.commitTransition || commitTransition;
-  const tell = deps.notifyLearner || notifyLearner;
-  const summary = {escalated: 0, reminded: 0, errors: []};
 
-  const pendingSnap = await database.collection(REQUESTS)
-    .where("state", "==", core.STATE.PENDING_GUARDIAN)
-    .limit(SWEEP_LIMIT).get();
-
-  for (const doc of pendingSnap.docs) {
-    const stored = {id: doc.id, ...(doc.data() || {})};
-    const out = core.escalateIfStale({request: stored, now});
-    if (!out) continue;
-    try {
-      await commit({
-        requestId: doc.id, request: stored, patch: out.patch,
-        actor: "system", actorUid: null, reason: "guardian_did_not_respond",
-      });
-      await tell(stored.learnerId, "escalated", {stamp: doc.id});
-      summary.escalated += 1;
-    } catch (err) {
-      summary.errors.push({id: doc.id, step: "escalate", message: err?.message});
-    }
-  }
-
-  const scheduledSnap = await database.collection(REQUESTS)
-    .where("state", "==", core.STATE.SCHEDULED)
-    .limit(SWEEP_LIMIT).get();
-
-  for (const doc of scheduledSnap.docs) {
-    const stored = {id: doc.id, ...(doc.data() || {})};
-    const due = core.reminderDue({request: stored, now});
-    if (!due) continue;
-    try {
-      await doc.ref.set({
-        graceReminderSentAt: deps.serverTimestamp || admin.firestore.FieldValue.serverTimestamp(),
-      }, {merge: true});
-      await tell(stored.learnerId, "reminder", {daysLeft: due.daysLeft, stamp: doc.id});
-      summary.reminded += 1;
-    } catch (err) {
-      summary.errors.push({id: doc.id, step: "remind", message: err?.message});
-    }
-  }
-
-  return summary;
+async function runDeletionRequestSweep() {
+  return sweeps.runDeletionRequestSweep({
+    db: db(),
+    now: nowMs(),
+    commitTransition,
+    notifyLearner,
+    serverTimestamp: admin.firestore.FieldValue.serverTimestamp(),
+  });
 }
 
 /**
- * The 30-day window closing.
+ * The 30-day executor with the REAL purge wired in.
  *
- * The order is the whole safety property: purge FIRST, write `completed`
- * SECOND. A purge that throws leaves the request in `scheduled` and the next
- * sweep retries it — where writing `completed` first would mark an account
- * deleted that still exists, and nothing would ever look at it again.
- *
- * @param {(learnerId: string) => Promise<object>} purge  injected so the sweep
- *   is testable without the real deletion path, and so this module never
- *   carries a second idea of what deletion means.
+ * `runAccountDeletion` owns the tombstone, the token revocation and the
+ * ordering that #2399 settled; injecting it here is what keeps this module
+ * from carrying a second idea of what deletion means.
  */
-async function runDeletionExecutionSweep({purge, ...deps} = {}) {
-  const database = deps.db || db();
-  const now = Number.isFinite(deps.now) ? deps.now : nowMs();
-  const commit = deps.commitTransition || commitTransition;
-  const summary = {deleted: 0, skipped: 0, errors: []};
-
-  const snap = await database.collection(REQUESTS)
-    .where("state", "==", core.STATE.SCHEDULED)
-    .limit(SWEEP_LIMIT).get();
-
-  for (const doc of snap.docs) {
-    const stored = {id: doc.id, ...(doc.data() || {})};
-    const due = core.dueForDeletion({request: stored, now});
-    if (!due) { summary.skipped += 1; continue; }
-    try {
-      await purge(due.learnerId);
-      // The purge removes this request document too — it carries the child's
-      // display name, and `accountDeletion.js` lists the collection for that
-      // reason. What the merge below leaves behind is therefore a deliberate
-      // STUB: the state and the timestamp, no learnerId, no name. It records
-      // that the window closed without re-creating anything personal, and
-      // because it has no learnerId it can never match the purge query again.
-      // The full trail is in `accountDeletionAudit`, which is retained.
-      await commit({
-        requestId: doc.id, request: stored,
-        patch: {
-          state: core.STATE.COMPLETED,
-          completedAt: deps.serverTimestamp || admin.firestore.FieldValue.serverTimestamp(),
-        },
-        actor: "system", actorUid: null, reason: "grace_window_closed",
+async function runDeletionExecutionSweep() {
+  const {runAccountDeletion} = require("../account/accountDeletionFlow");
+  const {purgeUserData} = require("../accountDeletion");
+  return sweeps.runDeletionExecutionSweep({
+    db: db(),
+    now: nowMs(),
+    commitTransition,
+    serverTimestamp: admin.firestore.FieldValue.serverTimestamp(),
+    purge: async (learnerId) => {
+      const profile = await readProfile(learnerId);
+      return runAccountDeletion({
+        uid: learnerId,
+        email: profile?.email || null,
+        db: db(),
+        auth: admin.auth(),
+        FieldValue: admin.firestore.FieldValue,
+        purge: purgeUserData,
       });
-      summary.deleted += 1;
-    } catch (err) {
-      // Left in `scheduled` on purpose. The next sweep retries it.
-      summary.errors.push({id: doc.id, learnerId: due.learnerId, message: err?.message});
-    }
-  }
-
-  return summary;
+    },
+  });
 }
 
 /* ── Helpers ─────────────────────────────────────────────────────────── */
@@ -754,32 +694,6 @@ function refusalCode(code) {
  * from the module that reads the secrets.
  */
 
-/**
- * The 30-day executor with the REAL purge wired in.
- *
- * The purge is injected rather than imported by the sweep, so this module
- * never carries a second idea of what deletion means — `runAccountDeletion`
- * owns the tombstone, the token revocation and the ordering that #2399
- * settled. This is the one place the two are joined.
- */
-async function runScheduledDeletionExecution() {
-  const {runAccountDeletion} = require("../account/accountDeletionFlow");
-  const {purgeUserData} = require("../accountDeletion");
-  return runDeletionExecutionSweep({
-    purge: async (learnerId) => {
-      const profile = await readProfile(learnerId);
-      return runAccountDeletion({
-        uid: learnerId,
-        email: profile?.email || null,
-        db: db(),
-        auth: admin.auth(),
-        FieldValue: admin.firestore.FieldValue,
-        purge: purgeUserData,
-      });
-    },
-  });
-}
-
 module.exports = {
   REQUESTS,
   AUDIT,
@@ -791,7 +705,6 @@ module.exports = {
   reportWrongGuardian,
   runDeletionRequestSweep,
   runDeletionExecutionSweep,
-  runScheduledDeletionExecution,
   findOpenRequest,
   notifyLearner,
   notifyGuardianOfRequest,

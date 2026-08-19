@@ -891,7 +891,8 @@
     "test:deletion-request-core": "node functions/deletionFlow/deletionRequestCore.test.js",
     "test:deletion-sweeps": "node functions/deletionFlow/deletionSweeps.test.js",
     "test:deletion-decision-context": "node functions/deletionFlow/decisionContextCore.test.js",
-    "test:deletion-state-mirror": "node scripts/test-deletion-state-mirror.mjs"
+    "test:deletion-state-mirror": "node scripts/test-deletion-state-mirror.mjs",
+    "test:deletion-neutrality": "node functions/deletionFlow/neutrality.test.js"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",
