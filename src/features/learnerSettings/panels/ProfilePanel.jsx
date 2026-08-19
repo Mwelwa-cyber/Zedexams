@@ -57,6 +57,12 @@ export function ProfileBody({ pushToast }) {
     commit({ [key]: value })
   }
 
+  // Fails closed, deliberately, and by the same rule the pricing gate uses: a
+  // learner is a minor unless `isMinor === false` positively says otherwise.
+  // Not knowing must resolve to collecting LESS, not more.
+  const isMinorLearner = (userProfile?.role ?? 'learner') === 'learner'
+    && userProfile?.isMinor !== false
+
   return (
     <>
       <AvatarStudio profile={userProfile} commit={commit} pushToast={pushToast} />
@@ -103,32 +109,48 @@ export function ProfileBody({ pushToast }) {
             onChange={(v) => commit({ grade: Number(v) })}
             options={GRADE_NUMBERS.map((g) => ({ value: String(g), label: `Grade ${g}` }))}
           />
-          {/* Read-only, and the reason is the whole age gate.
-              `dob` is the single value the guardian-consent gate reads from —
-              a learner who could change it could age themselves out of the
-              restricted experience from their own settings page, which is the
-              one outcome the neutral age screen exists to prevent.
-              firestore.rules refuses the write regardless, so an editable
-              field here would be a control that silently does nothing.
+          {/* Date of birth is READ-ONLY, and that is a safety decision rather
+              than a form-design one. Three things key off it — the age gate,
+              whether a guardian's consent is required, and whether this
+              account may be shown a price — and all three fail in the
+              dangerous direction if a child can move it. A learner who edited
+              their year of birth would be quoting themselves K50 and
+              switching off the guardian requirement, by typing in a field
+              marked "Optional". firestore.rules refuses the write regardless,
+              so an editable control here would be one that silently does
+              nothing.
 
-              It used to be worse than that: this field wrote `dateOfBirth`, a
-              SECOND birthday on the same document that the gate never read. A
-              child who corrected it reasonably believed they had changed their
-              date of birth and had changed nothing. That field is gone and is
-              blocklisted in the rules. */}
+              It is captured once at registration and changed only through
+              support, where a human can ask why. Shown rather than hidden,
+              because a child is entitled to see what we hold about them.
+
+              What is shown is `dob` — the value the age gate actually reads.
+              This field used to render `dateOfBirth`, a SECOND birthday on the
+              same document that the gate never read: a child who corrected it
+              changed nothing and reasonably believed otherwise. Nothing writes
+              that field any more and the rules blocklist it, so displaying it
+              would now mean an empty box on every account — the "waiting to be
+              filled in" trap in its purest form. */}
           <Field
             label="Date of birth"
-            hint="Ask a grown-up or contact support to change this"
+            hint="Set when you signed up. Ask your grown-up or our team if it is wrong."
             htmlFor="lset-dob"
           >
             <TextInput id="lset-dob" value={formatDob(userProfile?.dob)} disabled />
           </Field>
+          {/* Gender is asked of adults only. We have no feature that reads it
+              for a learner — it personalises nothing, filters nothing and
+              appears on no screen — so collecting it from a child is data we
+              hold for no reason, which is the one thing a minor's record must
+              not contain. */}
+          {!isMinorLearner && (
           <SelectField
             label="Gender"
             value={userProfile?.gender ?? ''}
             onChange={(v) => commit({ gender: v })}
             options={GENDER_OPTIONS}
           />
+          )}
           <SelectField
             label="Preferred language"
             value={userProfile?.preferredLanguage ?? 'en'}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { apiUrl } from '../utils/runtime'
+import { ttsAuthHeaders } from '../utils/ttsAuth'
 
 /**
  * useSpeech — Cloud-TTS-powered (Google Cloud Text-to-Speech via /api/tts)
@@ -152,10 +153,19 @@ export function useSpeech() {
     setActiveId(id)
     activeIdRef.current = id
 
+    // /api/tts refuses an unauthenticated request (401). Without a token there
+    // is nothing to gain from the round trip, so read with the browser voice
+    // directly — the normal path for a signed-out learner on /papers.
+    const headers = await ttsAuthHeaders()
+    if (!headers) {
+      speakBrowserFallback(text, id)
+      return
+    }
+
     try {
       const res = await fetch(apiUrl(TTS_ENDPOINT), {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           text:  text.slice(0, 3000), // backend cap
           voice: readLatestVoiceURI() || voice?.voiceURI || 'en-GB-Neural2-A',

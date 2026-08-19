@@ -260,6 +260,11 @@ const FamilySharingPicker = lazy(() => import('../features/parentPortal/pages/Fa
 const ParentAlerts = lazy(() => import('../features/parentPortal/pages/ParentAlerts'))
 const ParentBilling = lazy(() => import('../features/parentPortal/pages/ParentBilling'))
 const ParentConsent = lazy(() => import('../features/parentPortal/pages/ParentConsent'))
+// The parent's own Help & support screen. The Account row for it was a
+// bare mailto, on the reasoning that there was no help page to send a
+// guardian to — teachers have /teacher/help and guardians had nothing, so
+// their only route out of a problem was composing an email by hand.
+const ParentHelp = lazy(() => import('../features/parentPortal/pages/ParentHelp'))
 const AcceptCoGuardian = lazy(() => import('../features/parentPortal/pages/AcceptCoGuardian'))
 // The URL requestGuardianUnlock has mailed every guardian since it
 // shipped. OUTSIDE the parent guard on purpose — the recipient may have
@@ -675,6 +680,7 @@ export default function App() {
             <Route path="/family/account/alerts"               element={<ParentAlerts />} />
             <Route path="/family/account/billing"              element={<ParentBilling />} />
             <Route path="/family/account/consent"              element={<ParentConsent />} />
+            <Route path="/family/help"                          element={<ParentHelp />} />
             {/* The co-guardian invite lands here from an email. It is
                 inside the guard on purpose: accepting requires a parent
                 account, and the page explains that before bouncing
