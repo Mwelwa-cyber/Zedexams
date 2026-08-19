@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { useAuth } from '../../../contexts/AuthContext'
 import { saveScore, readRoundBaseline, readRoundOutcome } from '../services/gamesService'
 import { evaluateAndAwardGameBadges } from '../../../utils/gameBadgesService'
 import { getTodaysChallenge, recordDailyPlay } from '../../../utils/dailyChallengeService'
+import { resolveLearnerGrade } from '../lib/gamesHubCore'
 
 /**
  * Shared "end of round" plumbing for any game engine.
@@ -29,6 +31,11 @@ import { getTodaysChallenge, recordDailyPlay } from '../../../utils/dailyChallen
  *   phase ∈ 'playing' | 'done'
  */
 export function useGameFinish() {
+  // The daily-challenge lookup below has to ask for the SAME grade the hub
+  // offered, or the streak is compared against a game the learner was
+  // never shown and never bumps. One function answers both.
+  const { userProfile } = useAuth()
+  const grade = resolveLearnerGrade(userProfile)
   const [phase, setPhase] = useState('playing')
   const [saveResult, setSaveResult] = useState(null)
   const [newBadges, setNewBadges] = useState([])
@@ -92,7 +99,7 @@ export function useGameFinish() {
 
     // Daily streak
     try {
-      const { game: todaysGame } = await getTodaysChallenge()
+      const { game: todaysGame } = await getTodaysChallenge({ grade })
       if (todaysGame?.id) {
         const streakOutcome = await recordDailyPlay({
           gameId: result.game.id,

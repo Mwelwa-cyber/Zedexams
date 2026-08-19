@@ -9,63 +9,271 @@
  * bubble; nt-head/grid/tile/combo; win screen + confetti; badge pop.
  */
 
-/* ── Hub: daily challenge card ─────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════
+   HUB (2026-08-19 pass, docs/learner/zedexams-games-hub-mockup.html)
 
-.lhx-daily {
-  background: linear-gradient(135deg, #7c8bf5, #5b63dd);
-  border-radius: var(--lhx-radius-lg);
-  padding: 18px;
-  display: flex; align-items: center; gap: 13px;
-  color: #fff; position: relative; overflow: hidden;
-  box-shadow: var(--lhx-shadow-float);
-  width: 100%; text-align: left; cursor: pointer;
+   Two rules run through every block below.
+
+   FIXED ROW HEIGHTS. Every one-line string is `nowrap` + `ellipsis` and
+   the cards that carry them are sized, not content-derived. A long game
+   name truncates; it never reflows its card and never makes one row
+   taller than its neighbours. The two wrapping chips this replaced were
+   what made Meaning Match ~40px taller than Punctuation Pro.
+
+   TOKENS ONLY. Every colour is a `--lhx-*` from learnerTheme.css, so
+   Night mode is the token flip and not a second set of rules to keep in
+   step. The four game-icon skins are the one exception and say so where
+   they are declared.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Visually hidden, still read aloud. The streak chip is "🔥 3" on screen
+   and "Streak: 3" to a screen reader — the flame is decoration and an
+   unlabelled number is not a fact. */
+.lhx-sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
-.lhx-daily::before {
-  content: ""; position: absolute; right: -30px; bottom: -40px;
-  width: 110px; height: 110px;
-  background: radial-gradient(circle, #ffd25f, #ffb43a);
-  border-radius: 50%; opacity: 0.85;
+
+/* The hub's own vertical rhythm. `.lhx-page` is a 20px-gap flex column
+   for every learner surface; the hub is denser than that by design (the
+   whole point of the pass was recovering vertical space), so it opts into
+   12px and lets the two heroes sit tighter still. */
+.lhx-gh { display: flex; flex-direction: column; gap: 12px; }
+
+/* ── Hub: the 52px bar ─────────────────────────────────────────── */
+
+/* Not a page header: Games is a bottom-nav TAB, so there is no back
+   affordance here. Title, streak, leaderboard — the whole first hero
+   card's worth of space that "Games / Play, score, level up!" plus a
+   floating back button used to spend. */
+.lhx-gh-bar {
+  height: 52px; flex: none;
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 2px;
 }
-.lhx-daily-emoji { font-size: 36px; filter: drop-shadow(0 5px 7px rgba(0, 0, 0, 0.2)); position: relative; z-index: 2; }
-.lhx-daily-body { flex: 1; min-width: 0; position: relative; z-index: 2; }
-.lhx-daily-label { font-size: 10.5px; font-weight: 900; letter-spacing: 1.2px; opacity: 0.85; margin-bottom: 3px; }
-.lhx-daily-name { font-weight: 900; font-size: 15.5px; }
-.lhx-daily-sub { font-size: 12px; font-weight: 700; opacity: 0.85; }
-/* .lhx-play-pill moved to learnerTheme.css — Home's Today's Quiz card
-   uses it too, and Home does not load this stylesheet. */
+.lhx-gh-title {
+  flex: 1; min-width: 0; margin: 0;
+  font-size: 22px; font-weight: 900; letter-spacing: -0.01em; color: var(--lhx-ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lhx-gh-streak {
+  flex: none;
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 32px; padding: 0 12px; border-radius: 999px;
+  background: var(--lhx-card); border: 1px solid var(--lhx-line);
+  font-size: 13px; font-weight: 800; color: var(--lhx-ink);
+  white-space: nowrap;
+}
+.lhx-gh-icon-btn {
+  flex: none;
+  width: 36px; height: 36px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--lhx-card); border: 1px solid var(--lhx-line);
+  font-size: 16px;
+}
+.lhx-gh-icon-btn:active { transform: scale(0.94); }
 
-/* ── Hub: XP / level card ──────────────────────────────────────── */
+/* ── Hub: hero cards ───────────────────────────────────────────── */
 
-.lhx-xp {
-  background: linear-gradient(135deg, #7c8bf5, #5b63dd);
-  border-radius: 22px; padding: 16px; color: #fff;
-  box-shadow: var(--lhx-shadow-float);
+/* One component, two skins. The grade pill renders on BOTH from the same
+   function, which is what makes a repeat of the "GRADE 3 / Grade 7"
+   mismatch visible on the screen instead of buried in an eyebrow. */
+.lhx-gh-hero {
+  display: flex; align-items: center; gap: 11px;
+  padding: 13px 13px 13px 12px;
+  border-radius: 20px;
   position: relative; overflow: hidden;
+  color: var(--lhx-on-brand);
+  width: 100%; text-align: left;
 }
-.lhx-xp::before {
-  content: ""; position: absolute; right: -30px; top: -30px;
-  width: 110px; height: 110px;
-  background: radial-gradient(circle, #ffd25f, #ffb43a);
-  border-radius: 50%; opacity: 0.85;
+.lhx-gh-hero-quiz { background: linear-gradient(135deg, var(--lhx-indigo1), var(--lhx-indigo2)); box-shadow: var(--lhx-shadow-float); }
+.lhx-gh-hero-race { background: linear-gradient(135deg, var(--lhx-coral1), var(--lhx-coral2)); box-shadow: 0 12px 26px rgba(255, 92, 57, 0.35); }
+/* Decoration is clipped INSIDE the card (the old hub's circle bled over
+   the right edge and under the text). */
+.lhx-gh-hero::after {
+  content: ""; position: absolute; right: -34px; bottom: -46px;
+  width: 118px; height: 118px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.10);
 }
-.lhx-xp-top { display: flex; align-items: center; gap: 12px; position: relative; z-index: 2; margin-bottom: 12px; }
-.lhx-xp-badge {
-  width: 46px; height: 46px; border-radius: 14px; flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.2);
-  display: flex; align-items: center; justify-content: center; font-size: 24px;
+.lhx-gh-hero-avatar {
+  flex: none; width: 42px; height: 42px; border-radius: 14px;
+  background: rgba(255, 255, 255, 0.18);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; position: relative; z-index: 1;
 }
-.lhx-xp-lvl { font-weight: 900; font-size: 16px; }
-.lhx-xp-sub { font-size: 12px; opacity: 0.85; font-weight: 700; }
-.lhx-xp-bar { height: 10px; background: rgba(255, 255, 255, 0.25); border-radius: 99px; overflow: hidden; position: relative; z-index: 2; }
-.lhx-xp-bar i { display: block; height: 100%; background: linear-gradient(90deg, #ffd25f, #ffb43a); border-radius: 99px; transition: width 0.6s ease; }
+.lhx-gh-hero-avatar img { width: 34px; height: 34px; object-fit: contain; }
+.lhx-gh-hero-body { flex: 1; min-width: 0; position: relative; z-index: 1; display: block; }
+.lhx-gh-hero-eyebrow {
+  display: flex; align-items: center; gap: 6px;
+  white-space: nowrap; overflow: hidden;
+  font-size: 9.5px; font-weight: 900; letter-spacing: 0.09em; text-transform: uppercase;
+  opacity: 0.88; margin-bottom: 3px;
+}
+.lhx-gh-hero-grade {
+  flex: none; white-space: nowrap;
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 999px; padding: 2px 7px;
+  letter-spacing: 0.04em; font-size: 9.5px;
+}
+.lhx-gh-hero-title {
+  display: block;
+  font-size: 16.5px; font-weight: 900; line-height: 1.15; letter-spacing: -0.015em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lhx-gh-hero-sub {
+  display: block;
+  font-size: 12.5px; font-weight: 600; opacity: 0.9; margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lhx-gh-hero-btn {
+  flex: none; position: relative; z-index: 1;
+  height: 38px; min-width: 66px; padding: 0 13px;
+  border-radius: 13px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14.5px; font-weight: 900;
+}
+.lhx-gh-hero-quiz .lhx-gh-hero-btn { background: var(--lhx-coral2); color: var(--lhx-on-brand); box-shadow: 0 3px 0 var(--lhx-coral-shadow); }
+.lhx-gh-hero-race .lhx-gh-hero-btn { background: var(--lhx-card); color: var(--lhx-coral-soft-text); box-shadow: 0 3px 0 rgba(0, 0, 0, 0.12); }
+.lhx-gh-hero:active { transform: scale(0.99); }
+
+/* ── Hub: level strip ──────────────────────────────────────────── */
+
+/* 78px, not the 150px billboard it replaced: "224 XP to Level 7" sits
+   BESIDE the level rather than below it. */
+.lhx-lvl {
+  background: var(--lhx-card); border: 1px solid var(--lhx-line);
+  border-radius: 20px; padding: 13px 14px;
+  box-shadow: var(--lhx-shadow-sm);
+}
+.lhx-lvl-top { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+.lhx-lvl-badge {
+  flex: none; width: 38px; height: 38px; border-radius: 13px;
+  background: var(--lhx-indigo-soft);
+  display: flex; align-items: center; justify-content: center; font-size: 19px;
+}
+.lhx-lvl-name { flex: 1; min-width: 0; }
+.lhx-lvl-name b {
+  display: block; font-size: 15px; font-weight: 900; letter-spacing: -0.01em; color: var(--lhx-ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lhx-lvl-name span {
+  display: block; font-size: 11.5px; font-weight: 700; color: var(--lhx-muted); margin-top: 1px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lhx-lvl-xp { flex: none; font-size: 12px; font-weight: 800; color: var(--lhx-indigo-text); white-space: nowrap; }
+.lhx-lvl-track { height: 9px; border-radius: 999px; background: var(--lhx-indigo-soft); overflow: hidden; }
+.lhx-lvl-track i {
+  display: block; height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--lhx-yellow), var(--lhx-coral1));
+  transition: width 0.6s ease;
+}
+
+/* ── Hub: section heads ────────────────────────────────────────── */
+
+/* Only where they earn it — Achievements and Your games. The two heroes
+   and the level strip label themselves. */
+.lhx-gh-sect {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  margin: 4px 2px 9px;
+}
+.lhx-gh-sect-title { margin: 0; font-size: 15.5px; font-weight: 900; letter-spacing: -0.01em; color: var(--lhx-ink); }
+.lhx-gh-sect-link { flex: none; font-size: 12.5px; font-weight: 800; color: var(--lhx-indigo-text); white-space: nowrap; }
+
+/* ── Hub: game rows ────────────────────────────────────────────── */
+
+.lhx-gh-list { display: flex; flex-direction: column; gap: 9px; }
+
+/* Fixed 68px. Five rows fit one viewport instead of two and a half, and
+   — because nothing inside can wrap — every row is the same height
+   whatever the content is. `box-sizing` is set by the .lhx reset. */
+.lhx-game {
+  height: 68px;
+  display: flex; align-items: center; gap: 11px;
+  padding: 11px 12px;
+  background: var(--lhx-card); border: 1px solid var(--lhx-line);
+  border-radius: 18px;
+  box-shadow: var(--lhx-shadow-sm);
+  width: 100%; text-align: left;
+  transition: transform 0.1s;
+}
+.lhx-game:active { transform: scale(0.98); }
+.lhx-game-icon {
+  flex: none; width: 44px; height: 44px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center; font-size: 23px;
+}
+/* The four subject skins. These ARE the literals the prototype specifies
+   and they are deliberately not tokenised: a game icon is a sticker — a
+   small saturated tile that reads the same on a light page and a dark one
+   — so there is nothing for Night mode to flip. Same reasoning the
+   games dark-surface guard records for `bg-emerald-100` and friends.
+   Declared once, here, and nowhere else. */
+.lhx-game-icon.g-math,
+.lhx-game-icon.g-gold { background: radial-gradient(circle at 30% 30%, #ffe1a8, #ffb43a); }
+.lhx-game-icon.g-word { background: radial-gradient(circle at 30% 30%, #ffc9d8, #ff7fa6); }
+.lhx-game-icon.g-sci  { background: radial-gradient(circle at 30% 30%, #d7ffe9, #7ee0a3); }
+.lhx-game-icon.g-map  { background: radial-gradient(circle at 30% 30%, #c9e5ff, #6db2f5); }
+.lhx-game-main { flex: 1; min-width: 0; display: block; }
+.lhx-game-main b {
+  display: block; font-size: 15.5px; font-weight: 900; letter-spacing: -0.01em; color: var(--lhx-ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lhx-game-main span {
+  display: block; font-size: 12px; font-weight: 700; color: var(--lhx-muted); margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lhx-game-end { flex: none; display: flex; align-items: center; gap: 6px; }
+
+/* ONE pill, three states. There is no progress bar here on purpose: a
+   best score is not a completion percentage, and an empty track beside
+   "Not played yet" measures nothing. */
+.lhx-game-pill {
+  height: 26px; padding: 0 10px; border-radius: 999px;
+  display: inline-flex; align-items: center;
+  font-size: 11.5px; font-weight: 900; white-space: nowrap;
+}
+.lhx-game-pill.is-play { background: var(--lhx-indigo-soft); color: var(--lhx-indigo-text); }
+.lhx-game-pill.is-best { background: var(--lhx-coral-soft); color: var(--lhx-coral-soft-text); }
+.lhx-game-pill.is-new  { background: var(--lhx-green-soft); color: var(--lhx-green-dark); }
+/* Not a status a game doc can produce — the Map Quest teaser only. Muted
+   on purpose: it is the one row that does not open. */
+.lhx-game-pill.is-soon { background: var(--lhx-indigo-soft); color: var(--lhx-muted); }
+.lhx-game[aria-disabled='true'] { cursor: default; }
+.lhx-game[aria-disabled='true'] .lhx-game-icon { filter: grayscale(0.55); opacity: 0.85; }
+.lhx-game-chev { color: var(--lhx-faint); font-size: 19px; font-weight: 900; line-height: 1; margin-left: -2px; }
+
+.lhx-gh-endcap {
+  text-align: center; padding: 6px 0 0;
+  font-size: 11.5px; font-weight: 700; color: var(--lhx-muted);
+}
+
+/* ── Retired 2026-08-19 ─────────────────────────────────────────
+ * `.lhx-daily*`, `.lhx-xp*` and `.lhx-duel-card` were the old hub's
+ * indigo daily card, 150px XP billboard and orange race card. They are
+ * gone rather than left in place: their replacements (`.lhx-gh-hero*`,
+ * `.lhx-lvl*`) render the same three things above, and a retired rule
+ * that still matches nothing is the one a later edit re-adopts by
+ * accident. `.lhx-daily-slim` in learnerTheme.css is a DIFFERENT card
+ * (Home's Today's Quiz row) and is untouched.
+ * ───────────────────────────────────────────────────────────────── */
 
 /* ── Hub: badge shelf ──────────────────────────────────────────── */
 
+/* The native scrollbar is hidden and replaced by scroll-snap plus a
+ * deliberately part-visible tile at the right edge: a tan scrollbar rule
+ * under a row of stickers reads as a rendering artefact, while half a
+ * tile reads as "there is more". Hiding a scrollbar without giving the
+ * row an affordance of its own would just hide the fact that it scrolls,
+ * so the two go together. */
 .lhx-badge-shelf {
   display: flex; gap: 10px; overflow-x: auto;
   padding: 2px 2px 6px; -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;      /* Firefox */
+  -ms-overflow-style: none;   /* legacy Edge */
 }
-.lhx-badge { flex-shrink: 0; width: 78px; text-align: center; }
+.lhx-badge-shelf::-webkit-scrollbar { display: none; }
+.lhx-badge { flex-shrink: 0; width: 78px; text-align: center; scroll-snap-align: start; }
 .lhx-badge-ic {
   width: 64px; height: 64px; border-radius: 18px;
   display: flex; align-items: center; justify-content: center;
@@ -73,8 +281,13 @@
   box-shadow: var(--lhx-shadow);
 }
 .lhx-badge.is-earned .lhx-badge-ic { background: linear-gradient(135deg, #ffe08a, #ffb43a); }
-.lhx-badge.is-locked .lhx-badge-ic { background: #e7eaf6; filter: grayscale(1); opacity: 0.6; }
-.lhx-badge-nm { font-size: 10.5px; font-weight: 800; line-height: 1.15; }
+/* Locked: grey, padlocked and muted-labelled, so "9 of 10" is legible on
+   the shelf itself rather than only in the count above it. */
+.lhx-badge.is-locked .lhx-badge-ic { background: #e7eaf6; filter: grayscale(1); opacity: 0.6; box-shadow: none; font-size: 24px; }
+.lhx-badge-nm {
+  font-size: 10.5px; font-weight: 800; line-height: 1.25;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
 .lhx-badge.is-locked .lhx-badge-nm { color: var(--lhx-muted); }
 
 /* ── Daily-challenge intro (prototype view-daily-intro) ────────── */
@@ -144,37 +357,16 @@
 .lhx-stk.is-locked .lhx-stk-nm { color: var(--lhx-muted); }
 .lhx-stk-how { font-size: 10px; font-weight: 800; color: var(--lhx-muted); margin-top: 2px; line-height: 1.2; }
 
-/* ── Hub: game cards ───────────────────────────────────────────── */
+/* ── Shared card internals (NOT the hub's own rows) ────────────────
+ * All that survives of the old `.lhx-gc` game card. The hub's rows are
+ * `.lhx-game` above; these two are kept because other surfaces draw
+ * them: `.lhx-gc-bar` is DuelRace's two score tracks and
+ * `.lhx-gc-chev` is the notes list's row chevron.
+ * ───────────────────────────────────────────────────────────────── */
 
-.lhx-gc {
-  display: flex; align-items: center; gap: 14px; padding: 16px;
-  background: var(--lhx-card); border-radius: var(--lhx-radius-lg);
-  box-shadow: var(--lhx-shadow);
-  width: 100%; text-align: left;
-  transition: transform 0.1s;
-}
-.lhx-gc:active { transform: scale(0.98); }
-.lhx-gc-icon {
-  width: 58px; height: 58px; border-radius: 18px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center; font-size: 28px;
-}
-.lhx-gc-icon.g-math { background: radial-gradient(circle at 30% 30%, #ffe1a8, #ffb43a); box-shadow: 0 6px 14px rgba(255, 180, 58, 0.35); }
-.lhx-gc-icon.g-word { background: radial-gradient(circle at 30% 30%, #ffc9d8, #ff7fa6); box-shadow: 0 6px 14px rgba(255, 127, 166, 0.35); }
-.lhx-gc-icon.g-sci  { background: radial-gradient(circle at 30% 30%, #d7ffe9, #7ee0a3); box-shadow: 0 6px 14px rgba(126, 224, 163, 0.35); }
-.lhx-gc-icon.g-map  { background: radial-gradient(circle at 30% 30%, #c9e5ff, #6db2f5); box-shadow: 0 6px 14px rgba(109, 178, 245, 0.35); }
-.lhx-gc-icon.g-gold { background: radial-gradient(circle at 30% 30%, #ffe1a8, #ffb43a); box-shadow: 0 6px 14px rgba(255, 180, 58, 0.35); }
-.lhx-gc-body { flex: 1; min-width: 0; }
-.lhx-gc-name { font-weight: 900; font-size: 16px; }
-.lhx-gc-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
-.lhx-gc-tag { font-size: 10.5px; font-weight: 900; padding: 3px 9px; border-radius: 99px; }
-.lhx-gc-tag.t-subj  { background: var(--lhx-indigo-soft); color: var(--lhx-indigo-text); }
-.lhx-gc-tag.t-level { background: var(--lhx-coral-soft); color: var(--lhx-coral-soft-text); }
-.lhx-gc-tag.t-new   { background: var(--lhx-green-soft); color: var(--lhx-green-dark); }
-.lhx-gc-progress { display: flex; align-items: center; gap: 8px; }
 .lhx-gc-bar { flex: 1; height: 7px; background: #eef0fc; border-radius: 99px; overflow: hidden; }
 .lhx-gc-bar i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--lhx-coral1), var(--lhx-coral2)); }
-.lhx-gc-best { font-size: 11.5px; color: var(--lhx-muted); font-weight: 800; white-space: nowrap; }
-.lhx-gc-chev { color: #c3c8ef; font-size: 18px; font-weight: 900; }
+.lhx-gc-chev { color: var(--lhx-faint); font-size: 18px; font-weight: 900; }
 
 /* ── Level path ────────────────────────────────────────────────── */
 
@@ -441,17 +633,6 @@
 .lhx-bpop-desc { font-size: 13px; color: var(--lhx-muted); font-weight: 700; }
 
 /* ── Race Zed! duel (honest robot challenge) ───────────────────── */
-
-.lhx-duel-card {
-  background: linear-gradient(135deg, var(--lhx-coral1), var(--lhx-coral2));
-  border-radius: var(--lhx-radius-lg);
-  padding: 18px;
-  display: flex; align-items: center; gap: 13px;
-  color: #fff; position: relative; overflow: hidden;
-  box-shadow: 0 12px 26px rgba(255, 92, 57, 0.35);
-  width: 100%; text-align: left; cursor: pointer;
-}
-.lhx-duel-card .lhx-play-pill { background: #fff; color: var(--lhx-coral2); box-shadow: 0 4px 0 rgba(0, 0, 0, 0.18); }
 
 .lhx-vs-wrap {
   min-height: calc(100dvh - 120px);

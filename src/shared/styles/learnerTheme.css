@@ -14,6 +14,18 @@
  * surfaces), toggled from the topbar moon button.
  */
 
+/*
+ * The one token that lives on :root rather than on `.lhx`.
+ *
+ * The tab bar's height is not only the bar's business — the page's bottom
+ * padding and the floating Ask Zed pill are both positioned off it, and
+ * the pill is mounted globally by App.jsx, outside `.lhx`. A token scoped
+ * to the container it decorates would resolve to its fallback there, and
+ * the pill would dock to nothing and sit UNDER the bar it is meant to
+ * clear. Same value, reachable from both.
+ */
+:root { --lhx-nav-h: 76px; }
+
 .lhx {
   /* ── Prototype tokens ─────────────────────────────────────────── */
   --lhx-bg: #edeffd;
@@ -31,6 +43,11 @@
   --lhx-coral-shadow: #e04f22;
   --lhx-coral-text: #ff6b3d;
   --lhx-yellow: #ffc542;
+  /* Ink on a brand fill (indigo / coral gradients, the hero buttons).
+     Named rather than written as `#fff` at each call site so the one
+     place it would ever change is one place. It does NOT flip in Night
+     mode: a coral card is coral in both looks, so its text stays white. */
+  --lhx-on-brand: #ffffff;
   --lhx-green: #2ec06a;
   --lhx-green-dark: #1f9451;
   --lhx-red: #ef5a5f;
@@ -84,8 +101,14 @@
   --lhx-shadow-sm: 0 4px 12px rgba(90, 100, 200, 0.12);
   --lhx-shadow-float: 0 12px 26px rgba(81, 88, 208, 0.35);
   --lhx-glass: rgba(233, 239, 253, 0.68);
+  /* Retired with the nav going opaque (see `.lhx-nav`); kept as a token
+     only so a surface that wants frosted chrome over content it is
+     ALLOWED to cover has one. Nothing reads it today. */
   --lhx-glass-nav: rgba(255, 255, 255, 0.72);
-  --lhx-nav-h: 76px;
+  /* --lhx-nav-h is declared on :root (see the block above this rule) and
+     inherited here. It is NOT redeclared: a custom property that reads
+     itself is a cycle, which makes it invalid at computed-value time and
+     would take every rule below that positions off the tab bar with it. */
   --lhx-sidebar-w: 250px;
   --lhx-ease: cubic-bezier(0.22, 0.8, 0.32, 1);
 
@@ -156,10 +179,25 @@
 
 /* ── Page scaffold ─────────────────────────────────────────────── */
 
+/*
+ * The foot of this padding is a bug fix, not a margin preference.
+ *
+ * There are TWO fixed things over the bottom of every learner page — the
+ * tab bar and the Ask Zed pill — and the page used to reserve room for
+ * neither properly: 24px of slack under a 76px nav, with the pill floating
+ * above that. So the last section of a scrolled page rendered UNDER the
+ * chrome. On /games that was "Your games", the Leaderboard link and the
+ * first game card; the same arithmetic was wrong on every learner tab.
+ *
+ * nav + 62px + the notch: 62 is the Ask Zed pill (44px) plus the 14px it
+ * is docked above the nav plus 4px of air, so the last card can always be
+ * scrolled clear of BOTH. Keep this in step with `.lhx-zed-fab`'s `bottom`
+ * in askZed.css and its height — they are the two halves of one sum.
+ */
 .lhx-page {
   max-width: 480px;
   margin: 0 auto;
-  padding: 12px 18px calc(var(--lhx-nav-h) + env(safe-area-inset-bottom, 0px) + 24px);
+  padding: 12px 18px calc(var(--lhx-nav-h) + 62px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -173,7 +211,10 @@
    fixed left sidebar and the page is a centred readable column. */
 @media (min-width: 1000px) {
   .lhx { padding-left: var(--lhx-sidebar-w); }
-  .lhx-page { max-width: 780px; padding-top: 22px; padding-bottom: 60px; }
+  /* No bottom bar at this width — but the Ask Zed pill still floats over
+     the page column (right: 24, bottom: 24), so the foot still reserves
+     it: 44px pill + 24px offset + 16px air. */
+  .lhx-page { max-width: 780px; padding-top: 22px; padding-bottom: 84px; }
   .lhx-cols { display: block; columns: 2; column-gap: 24px; }
   .lhx-colitem { break-inside: avoid; margin-bottom: 20px; }
   /* The mockup's desktop reflow: subjects two-up. Explore is NOT
@@ -685,11 +726,19 @@
 
 /* ── Bottom navigation (prototype .navbar) ─────────────────────── */
 
+/*
+ * OPAQUE, deliberately. This was `--lhx-glass-nav` (72% white + an 18px
+ * backdrop blur), and a translucent bar over a page with no reserved
+ * bottom padding is how a learner came to read a section heading and a
+ * card THROUGH the navigation. Frosted chrome only works when nothing is
+ * ever meant to be behind it; here the page scrolls under it by
+ * construction. The top border replaces the blur as the edge that says
+ * where the page stops.
+ */
 .lhx-nav {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 40;
-  background: var(--lhx-glass-nav);
-  backdrop-filter: blur(18px) saturate(170%);
-  -webkit-backdrop-filter: blur(18px) saturate(170%);
+  background: var(--lhx-card);
+  border-top: 1px solid var(--lhx-line);
   border-radius: 26px 26px 0 0;
   box-shadow: 0 -8px 30px rgba(90, 100, 200, 0.15);
   padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -724,6 +773,9 @@
   .lhx-nav {
     left: 0; right: auto; top: 0; bottom: 0;
     width: var(--lhx-sidebar-w);
+    /* The bar's top border is the edge between page and chrome; as a
+       sidebar that edge is on the right. */
+    border-top: 0; border-right: 1px solid var(--lhx-line);
     border-radius: 0 26px 26px 0;
     box-shadow: 6px 0 34px rgba(90, 100, 200, 0.12);
     padding: 22px 14px;

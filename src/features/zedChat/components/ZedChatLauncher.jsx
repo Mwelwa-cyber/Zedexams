@@ -36,6 +36,7 @@
 
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
+import useHideOnScroll from '../../../hooks/useHideOnScroll'
 import { isAllowed } from '../../../utils/guardianControls'
 import { shouldHideFab, shouldHideFabForRole } from '../lib/askZedCore'
 import '../askZed.css'
@@ -46,6 +47,9 @@ export default function ZedChatLauncher() {
   const { currentUser, userProfile } = useAuth()
   const { pathname } = useLocation()
   const navigate = useNavigate()
+  // Called before every early return: a hook cannot be conditional, and
+  // the returns below depend on props/route rather than on this value.
+  const hidden = useHideOnScroll()
 
   if (!currentUser) return null
   // A parent never gets the pill, on any route. See shouldHideFabForRole —
@@ -64,8 +68,9 @@ export default function ZedChatLauncher() {
   return (
     <button
       type="button"
-      className="lhx-zed-fab"
+      className={`lhx-zed-fab ${hidden ? 'is-hidden' : ''}`}
       aria-label="Ask Zed, your study helper"
+      tabIndex={hidden ? -1 : 0}
       onClick={() => navigate('/ask-zed')}
     >
       <img src={ZED_ART} alt="" aria-hidden="true" />

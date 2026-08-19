@@ -19,6 +19,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import '../gamesProto.css'
 import { useAuth } from '../../../contexts/AuthContext'
 import { getTodaysChallenge, getMyStreak } from '../../../utils/dailyChallengeService'
+import { resolveLearnerGrade } from '../lib/gamesHubCore'
 import { SectionSkeleton } from '../../learnerHome'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 
@@ -28,12 +29,16 @@ function todayLabel(d = new Date()) {
 
 export default function DailyIntro() {
   const navigate = useNavigate()
-  const { currentUser } = useAuth()
+  const { currentUser, userProfile } = useAuth()
+  // The SAME grade the hub scoped its daily card to. If these two ever
+  // disagreed, the card would open on a different quiz than the one it
+  // advertised — see gamesHubCore.
+  const grade = resolveLearnerGrade(userProfile)
   const [state, setState] = useState({ loading: true, game: null, streak: 0 })
 
   useEffect(() => {
     let cancelled = false
-    Promise.allSettled([getTodaysChallenge(), getMyStreak()]).then(([c, s]) => {
+    Promise.allSettled([getTodaysChallenge({ grade }), getMyStreak()]).then(([c, s]) => {
       if (cancelled) return
       setState({
         loading: false,
@@ -43,7 +48,7 @@ export default function DailyIntro() {
       return null
     }).catch(() => { /* allSettled never rejects; satisfies promise/catch-or-return */ })
     return () => { cancelled = true }
-  }, [currentUser])
+  }, [currentUser, grade])
 
   const { loading, game, streak } = state
 

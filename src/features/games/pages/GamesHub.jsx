@@ -1,38 +1,60 @@
 /**
- * /games — the prototype-v3 games hub (learner redesign step 4).
+ * /games — the learner Games hub.
  *
- * Renders inside LearnerLayout (the 4-tab shell) in the `.lhx` design
- * system: back row, the indigo TODAY'S QUIZ card, the orange LIVE
- * CHALLENGE card, the XP/level card, the achievements shelf, and the
- * "Your games" card list with the 🏆 leaderboard link — the mockup's
- * view-games, screen for screen.
+ * Built to `docs/learner/zedexams-games-hub-mockup.html`. Renders inside
+ * LearnerLayout (the 4-tab shell) in the `.lhx` design system: a 52px bar,
+ * the two hero cards, the level strip, the achievements shelf and the
+ * "Your games" list.
  *
- * Three hero cards, not four. The "CHALLENGE MODE · Race Zed!" card —
- * the solo race against our own bot — was removed on 2026-08-18 to match
- * the mockup: with real same-grade matchmaking shipped (#2465), two race
- * cards stacked on top of each other made the live one look like a
- * variant of the practice one. /games/duel is untouched and still
- * reachable; only the hub entry point is gone.
+ * ── What the 2026-08-19 pass changed, and why ───────────────────────────
  *
- * Data flow is UNCHANGED from the old hub (locked scope — reskin on the
- * kept games backend): listGames + today's challenge + history + badges
- * + streak, all via Promise.allSettled so a single Firestore failure
- * never freezes the hub, with the seed catalogue as the fallback. The
- * games list is scoped to the learner's grade when it matches any game
- * (the prototype hub is single-grade); the grade lanes at the bottom
- * keep every other grade reachable through the existing /games/g routes.
+ * The backend is untouched — XP, levels, badges, daily-challenge scoring
+ * and the leaderboard are exactly as they were and stay server-validated.
+ * This is presentation, plus one real bug:
  *
- * One deliberate wording difference from the mockup: its daily card
- * reads "5 questions · keep your streak", and the daily rotation can
- * pick ANY mechanic — Number Path has rounds, not questions. The sub
- * line therefore states the streak, which is true of every pick, for
- * the same reason DailyIntro drops that phrase.
+ *  1. NOTHING RENDERS UNDER THE FIXED CHROME. The bottom nav is opaque and
+ *     the scroll body reserves nav + Ask Zed + safe-area at its foot (both
+ *     in learnerTheme.css, both global — the bug was general to the learner
+ *     surface, not local to this page). "Your games", the Leaderboard link
+ *     and the first game card used to render THROUGH the nav.
+ *  2. THE GRADE. The daily hero read the grade of whatever game the
+ *     unscoped rotation landed on ("TODAY'S QUIZ · GRADE 3") while the
+ *     challenge card beside it read the learner's ("Grade 7"). Both now
+ *     come from `resolveLearnerGrade`, ONE function, rendered as a pill on
+ *     both heroes so a future mismatch is visible side by side; and the
+ *     quiz itself is grade-scoped in the query (`getTodaysChallenge({
+ *     grade })`). A grade with no quiz today gets the empty state — never
+ *     another grade's quiz.
+ *  3. FIXED-HEIGHT ROWS. Every one-line string is nowrap + ellipsis and a
+ *     game card carries ONE meta line (`subject · topic`) instead of two
+ *     wrapping chips, which is what made Meaning Match ~40px taller than
+ *     Punctuation Pro. A long game name truncates; it never reflows a card.
+ *  4. NO EMPTY PROGRESS BARS. A best score is not a completion percentage
+ *     — Word Builder's bar read full at "Best 120" and three of five games
+ *     drew a 0%-filled track beside "Not played yet". Status is one pill:
+ *     Play / Best <n> / New (`gameStatusPill`).
+ *  5. NO PAGE HEADER. Games is a bottom-nav TAB, so a back chevron was the
+ *     wrong affordance and "Games / Play, score, level up!" spent ~110px
+ *     saying nothing. The 52px bar carries the title, the streak chip and
+ *     the leaderboard button — which is also where the duplicate "🏆
+ *     Leaderboard" link from the "Your games" row went.
+ *
+ * Data flow is otherwise unchanged: listGames + today's challenge + history
+ * + badges + streak, all through Promise.allSettled so one Firestore
+ * failure never freezes the hub, with the seed catalogue as the fallback.
  */
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import '../gamesProto.css'
 import { useAuth } from '../../../contexts/AuthContext'
 import { duelAllowed } from '../lib/duelAccess'
+import {
+  dailyHeroCopy,
+  gameMetaLine,
+  gameStatusPill,
+  isRecentlyAdded,
+  resolveLearnerGrade,
+} from '../lib/gamesHubCore'
 import { GAME_BADGES } from '../../../data/gameBadges'
 import {
   CATALOGUE_MECHANICS,
@@ -44,7 +66,7 @@ import { getTodaysChallenge, getMyStreak } from '../../../utils/dailyChallengeSe
 import { getMyGameBadges } from '../../../utils/gameBadgesService'
 import { SUBJECTS, getMyHistory, listGames } from '../services/gamesService'
 import { levelInfo } from '../../../utils/gameProgress'
-import { TOTAL_LEVELS, currentLevel, normalizeProgress } from '../lib/numberPathCore'
+import { currentLevel, normalizeProgress } from '../lib/numberPathCore'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 import { readJson } from '../../../shared/utils/safeStorage'
 import { GamesHubTour } from '../../../shared/components/learnerTours'
@@ -66,13 +88,12 @@ const TYPE_SKIN = {
   punctuation:   { emoji: '✒️', cls: 'g-gold' },
 }
 
-/** Local Number Path progress for the level tag + bar on its game card. */
+/** Local Number Path progress — the level it labels its meta line with. */
 function readPathProgress(gameId) {
   return normalizeProgress(readJson(`zx:number-path:${gameId}`))
 }
 
 export default function GamesHub() {
-  const navigate = useNavigate()
   const { currentUser, userProfile } = useAuth()
   const [state, setState] = useState({
     loading: true,
@@ -82,6 +103,11 @@ export default function GamesHub() {
     badgesById: {},
     streak: { streak: 0, longestStreak: 0, signedIn: false },
   })
+
+  // ONE answer to "which grade is this learner in", read by both hero
+  // pills AND by the daily-quiz query, so the label and the quiz cannot
+  // disagree. See gamesHubCore for the bug this replaced.
+  const grade = resolveLearnerGrade(userProfile)
 
   // Shared with the /games/duel route, so the card cannot offer a race the
   // page then refuses.
@@ -94,7 +120,7 @@ export default function GamesHub() {
       setState((prev) => ({ ...prev, loading: true }))
       const results = await Promise.allSettled([
         listGames(),
-        getTodaysChallenge(),
+        getTodaysChallenge({ grade }),
         getMyHistory(40),
         getMyGameBadges(),
         getMyStreak(),
@@ -119,7 +145,7 @@ export default function GamesHub() {
 
     load()
     return () => { cancelled = true }
-  }, [currentUser])
+  }, [currentUser, grade])
 
   const totalPoints = state.history.reduce((sum, row) => sum + (Number(row.score) || 0), 0)
   const progress = levelInfo(totalPoints)
@@ -136,36 +162,35 @@ export default function GamesHub() {
     return map
   }, [state.history])
 
-  // The mockup's catalogue is EXACTLY the four mechanics, one card each
-  // (step 8), in the mockup's order: per mechanic, the learner's-grade
-  // doc when one exists, else any active doc of that mechanic, else the
-  // bundled seed pack for it. timed_quiz never lists — it plays through
-  // the daily card and the duel only.
+  // The catalogue is EXACTLY the four mechanics, one card each, in the
+  // mockup's order: per mechanic, the learner's-grade doc when one exists,
+  // else any active doc of that mechanic, else the bundled seed pack for
+  // it. timed_quiz never lists — it plays through the daily card and the
+  // duel only.
   //
   // The seed step is what keeps all four on screen. Before it, a mechanic
   // the live `games` collection had not been seeded with simply vanished
   // from the hub — which is how Punctuation Pro came to be missing from a
   // catalogue the code describes as "exactly four". A seed-backed card is
   // playable: PlayGame falls back to the same bundled doc by id.
-  const profileGrade = Number(userProfile?.grade)
-  const scopedToGrade = state.games.some((g) => Number(g.grade) === profileGrade)
   const visibleGames = useMemo(() => {
     const seeded = getFallbackGames()
     const pick = (pool, type) => {
       const ofType = pool.filter((g) => g?.type === type)
       if (!ofType.length) return null
-      return ofType.find((g) => Number(g.grade) === profileGrade) || ofType[0]
+      return ofType.find((g) => Number(g.grade) === grade) || ofType[0]
     }
     return CATALOGUE_MECHANICS
       .map(({ type }) => pick(state.games, type) || pick(seeded, type))
       .filter(Boolean)
-  }, [state.games, profileGrade])
+  }, [state.games, grade])
 
   const challengeGame = state.challenge?.game || null
   const streakDays = Number(state.streak?.streak) || 0
+  const daily = dailyHeroCopy({ hasQuiz: !!challengeGame, streakDays })
 
   return (
-    <div>
+    <div className="lhx-gh">
       <SeoHelmet
         title="Games"
         description="Play Zambian CBC-aligned learning games with daily challenges, XP levels, badges and the leaderboard."
@@ -173,81 +198,83 @@ export default function GamesHub() {
       />
       <GamesHubTour />
 
-      <div className="lhx-back-row">
-        <button type="button" className="lhx-back-btn" aria-label="Back to Home" onClick={() => navigate('/dashboard')}>‹</button>
-        <div>
-          <div className="lhx-back-title">Games</div>
-          <div className="lhx-back-sub">
-            {scopedToGrade ? `Grade ${profileGrade} · play, score, level up!` : 'Play, score, level up!'}
-          </div>
-        </div>
+      {/* The tab bar. No back chevron: Games IS a tab, so "back" has no
+          destination a learner asked for. */}
+      <div className="lhx-gh-bar">
+        <h1 className="lhx-gh-title">Games</h1>
+        <span className="lhx-gh-streak" title={streakDays > 0 ? `${streakDays}-day streak` : 'No streak yet'}>
+          <span aria-hidden="true">🔥</span>
+          <span className="lhx-sr-only">Streak: </span>
+          {streakDays}
+        </span>
+        <Link to="/games/leaderboard" className="lhx-gh-icon-btn" aria-label="Leaderboard">
+          <span aria-hidden="true">🏆</span>
+        </Link>
       </div>
 
-      {/* Daily challenge — the prototype's indigo hero card. */}
+      {/* Today's quiz. */}
       {state.loading ? (
-        <Skeleton height={96} className="lhx-skel" style={{ borderRadius: 24 }} />
-      ) : challengeGame && (
-        <Link to="/games/daily" className="lhx-daily">
-          <div className="lhx-daily-emoji" aria-hidden="true">
+        <Skeleton height={68} className="lhx-skel" style={{ borderRadius: 20 }} />
+      ) : (
+        <HeroCard
+          as={challengeGame ? Link : 'div'}
+          to={challengeGame ? '/games/daily' : undefined}
+          variant="quiz"
+          avatar={(
             <img
               src="/images/characters/poses/zed-waving.webp"
               alt=""
-              style={{ width: 56, height: 56, objectFit: 'contain', filter: 'drop-shadow(0 5px 7px rgba(0,0,0,.25))' }}
+              width="34"
+              height="34"
+              loading="lazy"
             />
-          </div>
-          <div className="lhx-daily-body">
-            <div className="lhx-daily-label">
-              TODAY'S QUIZ{Number(challengeGame.grade) ? ` · GRADE ${challengeGame.grade}` : ''}
-            </div>
-            <div className="lhx-daily-name">with Zed</div>
-            <div className="lhx-daily-sub">
-              {streakDays > 0 ? `${streakDays}-day streak — keep it going 🔥` : 'Play today to start a streak 🔥'}
-            </div>
-          </div>
-          <span className="lhx-play-pill">Play</span>
-        </Link>
+          )}
+          eyebrow="Today's quiz"
+          grade={grade}
+          title={daily.title}
+          sub={daily.sub}
+          action={daily.action}
+        />
       )}
 
-      {/* The LIVE challenge — real matchmaking on the server model
-          (#2465), so this card is no longer withheld: the opponent is a
-          real same-grade learner, the questions provably shared, the
-          scores server-graded. Signed-in only: the queue is written as
-          the learner's own doc. */}
+      {/* The LIVE challenge — real same-grade matchmaking on the server
+          model (#2465). Signed-in only: the queue is written as the
+          learner's own doc. */}
       {challengesAllowed && currentUser && (
-      <Link to="/games/duel/live" className="lhx-duel-card">
-        <div className="lhx-daily-emoji" aria-hidden="true">⚔️</div>
-        <div className="lhx-daily-body">
-          <div className="lhx-daily-label">LIVE CHALLENGE</div>
-          <div className="lhx-daily-name">Race another learner!</div>
-          <div className="lhx-daily-sub">Grade {Number(userProfile?.grade) || 7} · 5 quick questions · same questions, server keeps score</div>
-        </div>
-        <span className="lhx-play-pill">Play</span>
-      </Link>
+        <HeroCard
+          as={Link}
+          to="/games/duel/live"
+          variant="race"
+          avatar={<span aria-hidden="true">⚔️</span>}
+          eyebrow="Live challenge"
+          grade={grade}
+          title="Race a learner"
+          sub="5 quick questions"
+          action="Play"
+        />
       )}
 
-      {/* XP / level card. */}
-      <div className="lhx-xp">
-        <div className="lhx-xp-top">
-          <div className="lhx-xp-badge" aria-hidden="true">{progress.rank?.emoji || '🎓'}</div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="lhx-xp-lvl">Level {progress.level} {progress.rank?.title || 'Learner'}</div>
-            <div className="lhx-xp-sub">
-              {currentUser
-                ? `${progress.pointsToNext} XP to Level ${progress.level + 1}`
-                : 'Sign in to earn XP and badges'}
-            </div>
+      {/* Level strip. */}
+      <div className="lhx-lvl">
+        <div className="lhx-lvl-top">
+          <div className="lhx-lvl-badge" aria-hidden="true">{progress.rank?.emoji || '🎓'}</div>
+          <div className="lhx-lvl-name">
+            <b>Level {progress.level}</b>
+            <span>{progress.rank?.title || 'Learner'}</span>
+          </div>
+          <div className="lhx-lvl-xp">
+            {currentUser ? `${progress.pointsToNext} XP to Level ${progress.level + 1}` : 'Sign in to earn XP'}
           </div>
         </div>
-        <div className="lhx-xp-bar"><i style={{ width: `${progress.progress}%` }} /></div>
+        <div className="lhx-lvl-track"><i style={{ width: `${progress.progress}%` }} /></div>
       </div>
 
-      {/* Achievements shelf. */}
+      {/* Achievements. */}
       <section>
-        <div className="lhx-section-head">
-          <h2 className="lhx-section-title">Achievements</h2>
-          {/* The count doubles as the door to the Sticker Collection —
-              the prototype's view-stickers full-page grid. */}
-          <Link to="/games/stickers" className="lhx-view-all">{earnedCount} / {GAME_BADGES.length} ›</Link>
+        <div className="lhx-gh-sect">
+          <h2 className="lhx-gh-sect-title">Achievements</h2>
+          {/* The count doubles as the door to the Sticker Collection. */}
+          <Link to="/games/stickers" className="lhx-gh-sect-link">{earnedCount} of {GAME_BADGES.length} ›</Link>
         </div>
         <div className="lhx-badge-shelf">
           {GAME_BADGES.map((badge) => {
@@ -268,41 +295,41 @@ export default function GamesHub() {
 
       {/* Your games. */}
       <section>
-        <div className="lhx-section-head">
-          <h2 className="lhx-section-title">Your games</h2>
-          <Link to="/games/leaderboard" className="lhx-view-all">🏆 Leaderboard</Link>
+        <div className="lhx-gh-sect">
+          <h2 className="lhx-gh-sect-title">Your games</h2>
         </div>
         {state.loading ? (
-          <div style={{ display: 'grid', gap: 12 }}>
+          <div className="lhx-gh-list">
             {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} height={90} className="lhx-skel" style={{ borderRadius: 24 }} />
+              <Skeleton key={i} height={68} className="lhx-skel" style={{ borderRadius: 18 }} />
             ))}
           </div>
         ) : (
-          <div style={{ display: 'grid', gap: 12 }}>
+          <div className="lhx-gh-list">
             {visibleGames.map((game) => (
               <GameCard key={game.id} game={game} best={bestByGame.get(game.id) || 0} />
             ))}
             {visibleGames.length === 0 && (
-              <p className="lhx-back-sub">No games yet — check back soon!</p>
+              <p className="lhx-gh-endcap">No games yet — check back soon!</p>
             )}
-            {/* Map Quest — the mockup's teaser card. Not playable yet;
-                rendered honestly as coming soon rather than as a link. */}
-            <div className="lhx-gc" aria-disabled="true" style={{ cursor: 'default' }}>
-              <div className="lhx-gc-icon g-map" aria-hidden="true">🗺️</div>
-              <div className="lhx-gc-body">
-                <div className="lhx-gc-name">Map Quest</div>
-                <div className="lhx-gc-tags">
-                  <span className="lhx-gc-tag t-subj">Social Studies</span>
-                  <span className="lhx-gc-tag t-new">NEW</span>
-                </div>
-                <div className="lhx-gc-progress">
-                  <div className="lhx-gc-bar" aria-hidden="true"><i style={{ width: '0%' }} /></div>
-                  <div className="lhx-gc-best">Coming soon</div>
-                </div>
-              </div>
-              <div className="lhx-gc-chev" aria-hidden="true">›</div>
+            {/* Map Quest — the mockup's fifth row. It is NOT playable yet,
+                so it is a div rather than a link and its pill reads
+                "Soon". The mockup draws it with a New pill; New is what
+                the other rows use for a game a learner CAN open, and a
+                row that looks openable and is not is worse than a row
+                that says what it is. Same 68px height as the rest. */}
+            <div className="lhx-game" aria-disabled="true">
+              <span className="lhx-game-icon g-map" aria-hidden="true">🗺️</span>
+              <span className="lhx-game-main">
+                <b>Map Quest</b>
+                <span>{gameMetaLine('Social Studies', 'Maps')}</span>
+              </span>
+              <span className="lhx-game-end">
+                <span className="lhx-game-pill is-soon">Soon</span>
+                <span className="lhx-game-chev" aria-hidden="true">›</span>
+              </span>
             </div>
+            <p className="lhx-gh-endcap">More games unlock as you level up 🎉</p>
           </div>
         )}
       </section>
@@ -310,51 +337,62 @@ export default function GamesHub() {
   )
 }
 
-/** One prototype game card: icon, name, tags, progress bar, best score. */
+/**
+ * One hero card. `as` is Link or a plain div, because the empty daily state
+ * is a statement rather than a destination — a card that says "no quiz
+ * today" must not be tappable into a page that says it again.
+ *
+ * The classes are `lhx-gh-hero*`, not `lhx-hero*`: learnerTheme.css already
+ * owns `.lhx-hero`, `.lhx-hero-title` and `.lhx-hero-sub` for Home's hero
+ * panel. Sharing those names made this card inherit Home's centred,
+ * column layout depending on which stylesheet the bundler emitted last —
+ * a collision that looked like a CSS bug and was a naming one.
+ */
+function HeroCard({ as: Tag, to, variant, avatar, eyebrow, grade, title, sub, action }) {
+  const props = Tag === 'div' ? {} : { to }
+  return (
+    <Tag className={`lhx-gh-hero lhx-gh-hero-${variant}`} {...props}>
+      <span className="lhx-gh-hero-avatar" aria-hidden="true">{avatar}</span>
+      <span className="lhx-gh-hero-body">
+        <span className="lhx-gh-hero-eyebrow">
+          {eyebrow}
+          <span className="lhx-gh-hero-grade">Grade {grade}</span>
+        </span>
+        <span className="lhx-gh-hero-title">{title}</span>
+        <span className="lhx-gh-hero-sub">{sub}</span>
+      </span>
+      {action && <span className="lhx-gh-hero-btn">{action}</span>}
+    </Tag>
+  )
+}
+
+/** One game row: icon, name, one meta line, one status pill, chevron. */
 function GameCard({ game, best }) {
   const subjectKey = String(game.subject || '').toLowerCase()
   const skin = TYPE_SKIN[game.type] || SUBJECT_SKIN[subjectKey] || { emoji: '🎮', cls: 'g-math' }
   const subjectLabel = SUBJECTS.find((s) => s.slug === subjectKey)?.label || 'Game'
-  const isPath = game.type === 'number_target'
-  const pathProgress = isPath ? readPathProgress(game.id) : null
   // The card is named for the MECHANIC (see CATALOGUE_MECHANICS); the
   // doc's own title names its content pack and belongs on the play
   // surface, where that pack is what the learner is looking at.
   const name = mechanicName(game)
-  // Second chip: the level for Number Path (it has a level path), the
-  // pack's CBC topic for the other three — "Spelling", "Word meanings",
-  // "Punctuation", exactly as the mockup labels them.
-  const topicTag = !isPath && game.cbc_topic ? String(game.cbc_topic) : null
-
-  const created = game.createdAt?.toMillis?.() || game.createdAt || 0
-  // Boolean() matters: a seed game has no createdAt, and `0 && …` is 0 —
-  // which React renders as a literal "0" chip beside the subject tag.
-  const isNew = Boolean(created && Date.now() - created < 1000 * 60 * 60 * 24 * 30)
-
-  const levelTag = isPath ? `Level ${currentLevel(pathProgress)}` : null
-  const barPct = isPath
-    ? Math.round((normalizeProgress(pathProgress).completed / TOTAL_LEVELS) * 100)
-    : best > 0
-      ? Math.min(100, Math.round((best / ((Number(game.points) || 100) * 2)) * 100))
-      : 0
+  // Number Path has a level path, so its own progress is the honest second
+  // half of the meta line; every other mechanic names its CBC topic.
+  const topic = game.type === 'number_target'
+    ? `Level ${currentLevel(readPathProgress(game.id))}`
+    : game.cbc_topic || ''
+  const status = gameStatusPill({ best, isNew: isRecentlyAdded(game.createdAt, Date.now()) })
 
   return (
-    <Link to={`/games/play/${game.id}`} className="lhx-gc">
-      <div className={`lhx-gc-icon ${skin.cls}`} aria-hidden="true">{skin.emoji}</div>
-      <div className="lhx-gc-body">
-        <div className="lhx-gc-name">{name}</div>
-        <div className="lhx-gc-tags">
-          <span className="lhx-gc-tag t-subj">{subjectLabel}</span>
-          {levelTag && <span className="lhx-gc-tag t-level">{levelTag}</span>}
-          {topicTag && <span className="lhx-gc-tag t-level">{topicTag}</span>}
-          {isNew && <span className="lhx-gc-tag t-new">NEW</span>}
-        </div>
-        <div className="lhx-gc-progress">
-          <div className="lhx-gc-bar" aria-hidden="true"><i style={{ width: `${barPct}%` }} /></div>
-          <div className="lhx-gc-best">{best > 0 ? `Best ${best}` : 'Not played yet'}</div>
-        </div>
-      </div>
-      <div className="lhx-gc-chev" aria-hidden="true">›</div>
+    <Link to={`/games/play/${game.id}`} className="lhx-game">
+      <span className={`lhx-game-icon ${skin.cls}`} aria-hidden="true">{skin.emoji}</span>
+      <span className="lhx-game-main">
+        <b>{name}</b>
+        <span>{gameMetaLine(subjectLabel, topic)}</span>
+      </span>
+      <span className="lhx-game-end">
+        <span className={`lhx-game-pill is-${status.kind}`}>{status.label}</span>
+        <span className="lhx-game-chev" aria-hidden="true">›</span>
+      </span>
     </Link>
   )
 }
