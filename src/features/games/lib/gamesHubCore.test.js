@@ -100,22 +100,47 @@ assert.equal(isRecentlyAdded('yesterday', now), false)
 
 /* ── dailyHeroCopy ─────────────────────────────────────────────────── */
 
-const streaking = dailyHeroCopy({ hasQuiz: true, streakDays: 3 })
-assert.equal(streaking.title, 'Play with Zed')
+// The card NAMES the game it opens. It used to read "Today's quiz · Play
+// with Zed": the destination is the Daily CHALLENGE (a rotating game), not
+// the five-question /daily quiz, and Zed hosts it rather than playing it —
+// so a learner who tapped "Play with Zed" landed on "Today's Challenge"
+// and read it as a wrong turn.
+const streaking = dailyHeroCopy({ hasChallenge: true, streakDays: 3, gameTitle: 'Meaning Match' })
+assert.equal(streaking.eyebrow, 'Today’s challenge')
+assert.equal(streaking.title, 'Meaning Match')
 assert.match(streaking.sub, /3-day streak/)
 assert.equal(streaking.action, 'Play')
 
-const fresh = dailyHeroCopy({ hasQuiz: true, streakDays: 0 })
+// Neither of the two names this replaced may come back in any state.
+for (const copy of [
+  streaking,
+  dailyHeroCopy({ hasChallenge: true, streakDays: 0, gameTitle: 'Number Target' }),
+  dailyHeroCopy({ hasChallenge: false }),
+]) {
+  const words = `${copy.eyebrow} ${copy.title} ${copy.sub}`
+  assert.ok(!/with Zed/i.test(words), 'the daily challenge is hosted by Zed, not played with him')
+  assert.ok(!/quiz/i.test(words), '"quiz" is Home’s /daily card — this one opens a game')
+}
+
+const fresh = dailyHeroCopy({ hasChallenge: true, streakDays: 0, gameTitle: 'Number Target' })
+assert.equal(fresh.title, 'Number Target')
 assert.match(fresh.sub, /start a streak/)
 assert.equal(fresh.action, 'Play')
 
+// A challenge doc with no usable title is still a real challenge: keep the
+// Play and borrow the destination button's wording, never a placeholder
+// that reads like a game's name.
+const untitled = dailyHeroCopy({ hasChallenge: true, streakDays: 1, gameTitle: '   ' })
+assert.equal(untitled.title, 'Play today’s challenge')
+assert.equal(untitled.action, 'Play')
+
 // The grade-scoped query found nothing. The card says so and offers NO
-// action — the alternative is another grade's quiz, which is the bug.
-const empty = dailyHeroCopy({ hasQuiz: false, streakDays: 9 })
-assert.equal(empty.title, 'No quiz today')
+// action — the alternative is another grade's challenge, which is the bug.
+const empty = dailyHeroCopy({ hasChallenge: false, streakDays: 9 })
+assert.equal(empty.title, 'No challenge today')
 assert.equal(empty.action, null, 'an empty day must not offer a Play that leads nowhere')
 assert.ok(!/streak/i.test(empty.sub), 'do not dangle a streak at a learner who cannot play today')
-assert.deepEqual(dailyHeroCopy(), dailyHeroCopy({ hasQuiz: false }))
+assert.deepEqual(dailyHeroCopy(), dailyHeroCopy({ hasChallenge: false }))
 
 /* ── buildCatalogue: every game that exists, at this grade only ────── */
 

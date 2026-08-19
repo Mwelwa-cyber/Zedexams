@@ -100,18 +100,39 @@ beforeEach(() => {
 })
 
 describe('GamesHub', () => {
-  it('renders the daily hero linking to the intro screen, with the streak line', async () => {
+  it('names the game it opens, under the destination\'s own word', async () => {
     renderHub()
-    const hero = (await screen.findByText('Play with Zed')).closest('a')
+    // The card used to read "Today's quiz · Play with Zed" whatever the
+    // rotation returned. Both halves misdescribed the destination: this is
+    // the Daily CHALLENGE (a rotating game — "Today's quiz" is Home's
+    // /daily card, five ranked questions), and Zed HOSTS it rather than
+    // playing it, so the one card promising him as an opponent was the one
+    // that never had him. A learner who tapped it landed on a screen
+    // headed "Today's Challenge" and read the trip as a wrong turn.
+    const hero = (await screen.findByText('Number Target: Master')).closest('a')
+    expect(within(hero).getByText('Today\u2019s challenge')).toBeInTheDocument()
+    expect(screen.queryByText('Play with Zed')).toBeNull()
     // The card opens the daily-intro screen, which owns the Play button
     // into the actual challenge game.
     expect(hero).toHaveAttribute('href', '/games/daily')
     expect(within(hero).getByText(/Keep your 3-day streak/)).toBeInTheDocument()
   })
 
-  it('asks for TODAY\'S QUIZ by the learner\'s grade, and prints that grade on BOTH heroes', async () => {
+  it('a challenge doc with no title keeps its Play instead of inventing a name', async () => {
+    mocks.getTodaysChallenge.mockResolvedValue({
+      game: { id: 'g-untitled', type: 'memory_match', grade: 4 },
+      source: 'rotation',
+      dateId: '2026-08-19',
+    })
     renderHub()
-    await screen.findByText('Play with Zed')
+    const hero = (await screen.findByText('Play today\u2019s challenge')).closest('a')
+    expect(hero).toHaveAttribute('href', '/games/daily')
+    expect(screen.queryByText('Game')).toBeNull()
+  })
+
+  it('asks for TODAY\'S CHALLENGE by the learner\'s grade, and prints that grade on BOTH heroes', async () => {
+    renderHub()
+    await screen.findByText('Number Target: Master')
 
     // The query is scoped at the source. Before this, the rotation ran
     // over the whole collection and the hero labelled whatever it landed
@@ -122,7 +143,7 @@ describe('GamesHub', () => {
     // One function feeds both pills, so they cannot disagree. Asserting
     // BOTH (rather than one) is what makes a second grade source fail
     // here instead of in production.
-    const quiz = screen.getByText('Play with Zed').closest('a')
+    const quiz = screen.getByText('Number Target: Master').closest('a')
     const race = screen.getByText('Race a learner').closest('a')
     expect(within(quiz).getByText('Grade 4')).toBeInTheDocument()
     expect(within(race).getByText('Grade 4')).toBeInTheDocument()
@@ -130,13 +151,13 @@ describe('GamesHub', () => {
     // which for GAMES[0] is also 4 — so the fixture below proves it.
   })
 
-  it('a grade with no quiz today gets the empty state, never another grade\'s quiz', async () => {
+  it('a grade with no challenge today gets the empty state, never another grade\'s', async () => {
     mocks.getTodaysChallenge.mockResolvedValue({ game: null, source: 'none', dateId: '2026-08-19', grade: 4 })
     renderHub()
-    expect(await screen.findByText('No quiz today')).toBeInTheDocument()
+    expect(await screen.findByText('No challenge today')).toBeInTheDocument()
     // Not a link: a card that says there is nothing to play must not open
     // a page that says it again.
-    expect(screen.getByText('No quiz today').closest('a')).toBeNull()
+    expect(screen.getByText('No challenge today').closest('a')).toBeNull()
     expect(document.querySelector('a[href="/games/daily"]')).toBeNull()
     // The rest of the hub is unaffected — an empty day is not an outage.
     expect(screen.getByText('Your games')).toBeInTheDocument()
@@ -151,7 +172,7 @@ describe('GamesHub', () => {
       dateId: '2026-08-19',
     })
     renderHub()
-    const quiz = (await screen.findByText('Play with Zed')).closest('a')
+    const quiz = (await screen.findByText('Someone else\'s quiz')).closest('a')
     expect(within(quiz).getByText('Grade 4')).toBeInTheDocument()
     expect(within(quiz).queryByText('Grade 3')).toBeNull()
     expect(screen.queryByText(/GRADE 3/i)).toBeNull()
@@ -165,7 +186,7 @@ describe('GamesHub', () => {
 
   it('badge shelf shows every badge, locking the unearned ones', async () => {
     renderHub()
-    await screen.findByText('Play with Zed')
+    await screen.findByText('Number Target: Master')
     // The count is now the link into the Sticker Collection.
     const shelfLink = screen.getByRole('link', { name: `1 of ${GAME_BADGES.length} ›` })
     expect(shelfLink).toHaveAttribute('href', '/games/stickers')
@@ -182,8 +203,12 @@ describe('GamesHub', () => {
     expect(words).toHaveAttribute('href', '/games/play/g-words')
     expect(within(words).getByText('Best 120')).toBeInTheDocument()
     expect(within(words).getByText('English · Spelling')).toBeInTheDocument()
-    expect(screen.queryByText('Spell the Animal')).toBeNull()
-    expect(screen.queryByText('Number Target: Master')).toBeNull()
+    // Scoped to the catalogue ROWS. The rule is about how a row is named;
+    // the daily hero above legitimately carries the challenge pack's own
+    // title, because it names the game it opens.
+    const rowText = [...document.querySelectorAll('a.lhx-game')].map((r) => r.textContent).join(' | ')
+    expect(rowText).not.toContain('Spell the Animal')
+    expect(rowText).not.toContain('Number Target: Master')
 
     const path = document.querySelector('a.lhx-game[href="/games/play/g-path"]')
     expect(within(path).getByText('Number Path')).toBeInTheDocument()
@@ -281,7 +306,7 @@ describe('GamesHub', () => {
 
   it('asks the games list for the learner\'s grade too, not just the daily', async () => {
     renderHub()
-    await screen.findByText('Play with Zed')
+    await screen.findByText('Number Target: Master')
     expect(mocks.listGames).toHaveBeenCalledWith({ grade: 4 })
   })
 

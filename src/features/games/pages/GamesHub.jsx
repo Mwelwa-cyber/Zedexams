@@ -230,7 +230,14 @@ export default function GamesHub() {
 
   const challengeGame = state.challenge?.game || null
   const streakDays = Number(state.streak?.streak) || 0
-  const daily = dailyHeroCopy({ hasQuiz: !!challengeGame, streakDays })
+  // The card names the game it opens (and the destination's own word,
+  // "challenge"), so tapping it lands on a screen the learner
+  // recognises — see dailyHeroCopy for the two names this replaced.
+  const daily = dailyHeroCopy({
+    hasChallenge: !!challengeGame,
+    streakDays,
+    gameTitle: challengeGame?.title,
+  })
 
   return (
     <div className="lhx-gh">
@@ -255,7 +262,7 @@ export default function GamesHub() {
         </Link>
       </div>
 
-      {/* Today's quiz. */}
+      {/* Today’s challenge — one rotating game, NOT the /daily quiz. */}
       {state.loading ? (
         <Skeleton height={68} className="lhx-skel" style={{ borderRadius: 20 }} />
       ) : (
@@ -272,7 +279,7 @@ export default function GamesHub() {
               loading="lazy"
             />
           )}
-          eyebrow="Today's quiz"
+          eyebrow={daily.eyebrow}
           grade={grade}
           title={daily.title}
           sub={daily.sub}
