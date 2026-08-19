@@ -1,4 +1,5 @@
 import { apiUrl } from './runtime';
+import { ttsAuthHeaders } from './ttsAuth';
 
 const TTS_ENDPOINT = '/api/tts';
 
@@ -27,10 +28,16 @@ export async function speak(rawText, options = {}) {
   stopSpeaking();
   const { voice = 'en-GB-Neural2-A', rate = 1.0, pitch = 0 } = options;
 
+  // No usable ID token → /api/tts would answer 401, so skip the round trip and
+  // read with the browser voice. Routine when signed out (the public paper-quiz
+  // runner is reachable that way), hence no warning.
+  const headers = await ttsAuthHeaders();
+  if (!headers) return speakBrowser(text, { rate });
+
   try {
     const res = await fetch(apiUrl(TTS_ENDPOINT), {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body:    JSON.stringify({ text, voice, rate, pitch }),
     });
     if (!res.ok) throw new Error(`Cloud TTS ${res.status}`);
