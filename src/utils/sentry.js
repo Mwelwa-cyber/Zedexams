@@ -344,12 +344,21 @@ export function reportAuthInitFailure({ action, viaFastPath, documentHidden, hid
     // It is still reported: without it the ladder is invisible, and the only
     // events in triage would be the ones where it did not work.
     const isRetry = action === 'retry'
+    // A rescue is its own event, not a wedge. The SDK DID initialise — it
+    // finished by throwing the session away over a failed boot check, and the
+    // guard kept it. Filing that under "never completed" would merge two
+    // different failures into one issue and hide which one is actually
+    // happening. `warning`, because the session survived.
+    const isRescue = action === 'session-rescued'
     sentryModule.captureMessage(
-      isRetry ? 'Auth initialisation retrying' : 'Auth initialisation never completed',
+      isRescue
+        ? 'Auth boot check failed — stored session rescued'
+        : isRetry ? 'Auth initialisation retrying' : 'Auth initialisation never completed',
       {
-        level: isRetry ? 'warning' : 'error',
+        level: isRetry || isRescue ? 'warning' : 'error',
         tags: {
-          'auth.init_failure': !isRetry,
+          'auth.init_failure': !isRetry && !isRescue,
+          'auth.session_rescued': isRescue,
           'auth.had_session_hint': true,
           'auth.recovery_action': action,
           'auth.detected_via': viaFastPath ? 'rejection' : 'watchdog',

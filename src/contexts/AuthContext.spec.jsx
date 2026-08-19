@@ -27,6 +27,16 @@ const h = vi.hoisted(() => ({
   callable: vi.fn(() => Promise.resolve({ data: {} })),
   setAuthStateTag: vi.fn(),
   reportAuthInitFailure: vi.fn(),
+  // The boot-session guard's verdict. Default: nothing was rescued, which is
+  // every existing test in this file.
+  disarmGuard: vi.fn(() => ({ preserved: false, verdict: null })),
+}))
+
+// The guard itself is unit-tested under plain node
+// (src/firebase/authSessionGuard.test.js). What matters HERE is what the
+// provider does with its answer.
+vi.mock('../firebase/authSessionGuard', () => ({
+  disarmAuthSessionGuard: (...a) => h.disarmGuard(...a),
 }))
 
 vi.mock('../firebase/config', () => ({
@@ -888,5 +898,123 @@ describe('AuthProvider action identity', () => {
 
     expect(afterSecondUser.updateProfileFields).not.toBe(afterFirstUser.updateProfileFields)
     expect(afterSecondUser.refreshProfile).not.toBe(afterFirstUser.refreshProfile)
+  })
+})
+
+describe('AuthProvider — a session the SDK gave up on but the guard kept', () => {
+  let reload
+  let realLocation
+
+  beforeEach(() => {
+    h.onAuthCb.current = null
+    h.snap.next = null
+    h.snap.error = null
+    h.signOut.mockClear()
+    h.reportAuthInitFailure.mockClear()
+    h.disarmGuard.mockReturnValue({ preserved: false, verdict: null })
+    window.localStorage.clear()
+    window.sessionStorage.clear()
+    reload = vi.fn()
+    realLocation = window.location
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      writable: true,
+      value: { ...realLocation, reload },
+    })
+  })
+
+  afterEach(() => {
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      writable: true,
+      value: realLocation,
+    })
+    window.localStorage.clear()
+    window.sessionStorage.clear()
+  })
+
+  // Firebase deletes the persisted user on any boot-check failure that is not a
+  // rejected fetch — a rate limit, a 5xx, an attestation refusal. It then
+  // reports `user === null`, which is indistinguishable from a real sign-out.
+  // This is the whole bug: revealing that as signed out is what bounced a
+  // working account to /login on every reload.
+  const bootWithRescue = async (verdict = 'infrastructural') => {
+    window.localStorage.setItem('auth:hasSession', '1')
+    h.disarmGuard.mockReturnValue({ preserved: true, verdict })
+    vi.useFakeTimers()
+    try {
+      render(<AuthProvider><SettleProbe /></AuthProvider>)
+      await act(async () => { h.onAuthCb.current(null) })
+      await act(async () => { await vi.advanceTimersByTimeAsync(2_000) })
+    } finally {
+      vi.useRealTimers()
+    }
+  }
+
+  it('re-drives initialisation instead of presenting the user as signed out', async () => {
+    await bootWithRescue()
+    expect(reload).toHaveBeenCalledTimes(1)
+    // The loader must still be up. loading:false + uid:null is exactly the pair
+    // ProtectedRoute turns into a redirect to /login.
+    expect(readSettle().loading).toBe(true)
+    expect(readSettle().authSettled).toBe(false)
+  })
+
+  it('keeps the session hint, so the next load still knows to wait', async () => {
+    await bootWithRescue()
+    expect(window.localStorage.getItem('auth:hasSession')).toBe('1')
+  })
+
+  it('files the rescue as its own event, naming the verdict', async () => {
+    await bootWithRescue('infrastructural')
+    expect(h.reportAuthInitFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'session-rescued',
+        errorCode: 'boot-verdict-infrastructural',
+      }),
+    )
+  })
+
+  it('reloads at most once — a condition that outlives the retry must not loop', async () => {
+    // The flag the first attempt recorded is still in sessionStorage, exactly
+    // as it would be on the reloaded page.
+    window.sessionStorage.setItem('auth:initRecoveryAttempted', '1')
+    await bootWithRescue()
+    expect(reload).not.toHaveBeenCalled()
+    // …and it falls through to the ordinary signed-out reveal rather than
+    // holding the loader forever.
+    expect(readSettle().authSettled).toBe(true)
+    expect(readSettle().uid).toBe(null)
+  })
+
+  it('does nothing when the guard rescued nothing', async () => {
+    window.localStorage.setItem('auth:hasSession', '1')
+    vi.useFakeTimers()
+    try {
+      render(<AuthProvider><SettleProbe /></AuthProvider>)
+      await act(async () => { h.onAuthCb.current(null) })
+      await act(async () => { await vi.advanceTimersByTimeAsync(2_000) })
+    } finally {
+      vi.useRealTimers()
+    }
+    // A genuine sign-out. Reloading here would make "Log out" impossible.
+    expect(reload).not.toHaveBeenCalled()
+    expect(readSettle().authSettled).toBe(true)
+    expect(window.localStorage.getItem('auth:hasSession')).toBe(null)
+  })
+
+  it('never holds a signed-in user back', async () => {
+    window.localStorage.setItem('auth:hasSession', '1')
+    h.disarmGuard.mockReturnValue({ preserved: true, verdict: 'infrastructural' })
+    vi.useFakeTimers()
+    try {
+      render(<AuthProvider><SettleProbe /></AuthProvider>)
+      await act(async () => { h.onAuthCb.current({ uid: 'u1', emailVerified: true, getIdToken: vi.fn() }) })
+      await act(async () => { await vi.advanceTimersByTimeAsync(2_000) })
+    } finally {
+      vi.useRealTimers()
+    }
+    expect(reload).not.toHaveBeenCalled()
+    expect(readSettle().uid).toBe('u1')
   })
 })
