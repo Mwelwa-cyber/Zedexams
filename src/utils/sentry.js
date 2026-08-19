@@ -350,10 +350,19 @@ export function reportAuthInitFailure({ action, viaFastPath, documentHidden, hid
     // different failures into one issue and hide which one is actually
     // happening. `warning`, because the session survived.
     const isRescue = action === 'session-rescued'
+    // The rescue ladder ran out and the user is about to be shown /login while
+    // a session the server never rejected is still on disk. Its own event, at
+    // `error`: it is the only outcome in this path that actually loses the
+    // session, and merging it into the `warning`-level rescues (which SUCCEED)
+    // is why it never showed up in triage. Reported at all is the point — it
+    // used to be a bare console.warn.
+    const isRescueExhausted = action === 'session-rescue-exhausted'
     sentryModule.captureMessage(
-      isRescue
-        ? 'Auth boot check failed — stored session rescued'
-        : isRetry ? 'Auth initialisation retrying' : 'Auth initialisation never completed',
+      isRescueExhausted
+        ? 'Auth boot check failed — stored session could not be restored'
+        : isRescue
+          ? 'Auth boot check failed — stored session rescued'
+          : isRetry ? 'Auth initialisation retrying' : 'Auth initialisation never completed',
       {
         level: isRetry || isRescue ? 'warning' : 'error',
         tags: {

@@ -20,7 +20,13 @@ import {
   markRecoveryAttempted,
   clearRecoveryAttempted,
   shouldFastRecover,
+  planSessionRescue,
+  readRescueAttempts,
+  recordRescueAttempt,
+  clearRescueAttempts,
   AUTH_INIT_RECOVERY_KEY,
+  AUTH_SESSION_RESCUE_KEY,
+  SESSION_RESCUE_DELAYS_MS,
   REVEAL,
   RELOAD,
   DEFER,
@@ -184,6 +190,110 @@ test('it is a pure precondition test — no message matching', () => {
 
 test('a missing precondition object never throws', () => {
   assert.equal(shouldFastRecover({}), false)
+})
+
+/* ── The session-rescue budget ───────────────────────────────────────────────
+ *
+ * The regression these guard: the wedge recovery and the boot-check rescue
+ * shared ONE single-use sessionStorage flag while answering two different
+ * failures. The wedge reloads without `onAuthStateChanged` ever firing, and the
+ * flag is only cleared from inside that callback — so it survived the reload
+ * and the next boot-check failure read a spent attempt that was never its own.
+ * The rescue was refused, AuthContext fell through, and `authReady` was set
+ * with `currentUser === null`: a logout of a session still on disk and never
+ * rejected by anyone. sessionStorage outlives a reload, so a tab that hit the
+ * wedge once logged out on EVERY boot-check failure thereafter.
+ */
+
+test('the two recoveries do not share a key', () => {
+  // The entire bug in one assertion. Same key → the interference is back.
+  assert.notEqual(AUTH_SESSION_RESCUE_KEY, AUTH_INIT_RECOVERY_KEY)
+})
+
+test("a spent wedge reload does not spend the rescue's budget", () => {
+  const storage = makeStorage()
+  // Exactly the state a tab is in after the wedge recovery reloaded: the wedge
+  // flag is set and, because onAuthStateChanged never fired, never cleared.
+  assert.equal(markRecoveryAttempted(storage), true)
+  assert.equal(readRecoveryAttempted(storage), true)
+  // The rescue must still have its full budget.
+  assert.equal(readRescueAttempts(storage), 0)
+  assert.equal(planSessionRescue({ attempts: readRescueAttempts(storage) }).action, RELOAD)
+})
+
+test("a spent rescue does not spend the wedge's budget", () => {
+  // The same interference in the other direction.
+  const storage = makeStorage()
+  assert.equal(recordRescueAttempt(storage, 1), true)
+  assert.equal(readRecoveryAttempted(storage), false)
+  assert.equal(
+    decideAuthInitRecovery({
+      hasHint: true,
+      recoveryAttempted: readRecoveryAttempted(storage),
+      documentHidden: false,
+    }),
+    RELOAD,
+  )
+})
+
+test('the rescue ladder climbs, then stops', () => {
+  const seen = []
+  let attempts = 0
+  for (let i = 0; i < 6; i++) {
+    const plan = planSessionRescue({ attempts })
+    if (plan.action === REVEAL) { seen.push('reveal'); break }
+    seen.push(plan.delayMs)
+    attempts = plan.attempt
+  }
+  // Bounded: every rung is spent, then it reveals — it cannot loop, because
+  // `attempt` only ever climbs and is reset solely by an auth event that
+  // settled (which requires a successful initialisation in between).
+  assert.deepEqual(seen, [...SESSION_RESCUE_DELAYS_MS, 'reveal'])
+})
+
+test('each rung waits longer than the last', () => {
+  // The single 1500ms attempt this replaced re-asked inside the same bad
+  // window as the failure — a project-wide 429 outlives it every time.
+  for (let i = 1; i < SESSION_RESCUE_DELAYS_MS.length; i++) {
+    assert.ok(SESSION_RESCUE_DELAYS_MS[i] > SESSION_RESCUE_DELAYS_MS[i - 1])
+  }
+})
+
+test('the rescue budget round-trips through storage', () => {
+  const storage = makeStorage()
+  assert.equal(readRescueAttempts(storage), 0)
+  recordRescueAttempt(storage, 1)
+  assert.equal(storage._raw.get(AUTH_SESSION_RESCUE_KEY), '1')
+  assert.equal(readRescueAttempts(storage), 1)
+  clearRescueAttempts(storage)
+  assert.equal(readRescueAttempts(storage), 0)
+})
+
+test('unusable storage fails CLOSED, never into a loop', () => {
+  // An attempt we cannot count is an attempt we cannot bound, so it reports the
+  // budget exhausted — the same direction readRecoveryAttempted fails in.
+  const exhausted = SESSION_RESCUE_DELAYS_MS.length
+  assert.equal(readRescueAttempts(null), exhausted)
+  assert.equal(readRescueAttempts(makeStorage('throw-read')), exhausted)
+  assert.equal(planSessionRescue({ attempts: readRescueAttempts(null) }).action, REVEAL)
+  // A garbage value is not a licence to reload forever either.
+  const storage = makeStorage()
+  storage.setItem(AUTH_SESSION_RESCUE_KEY, 'not-a-number')
+  assert.equal(readRescueAttempts(storage), exhausted)
+  storage.setItem(AUTH_SESSION_RESCUE_KEY, '-3')
+  assert.equal(readRescueAttempts(storage), exhausted)
+})
+
+test('an unwritable attempt is never reloaded on', () => {
+  assert.equal(recordRescueAttempt(makeStorage('throw-write'), 1), false)
+  assert.equal(recordRescueAttempt(null, 1), false)
+  assert.doesNotThrow(() => clearRescueAttempts(makeStorage('throw-remove')))
+  assert.doesNotThrow(() => clearRescueAttempts(null))
+})
+
+test('a missing argument object never throws', () => {
+  assert.equal(planSessionRescue().action, RELOAD)
+  assert.equal(planSessionRescue({}).action, RELOAD)
 })
 
 console.log(`\n✓ auth init recovery: ${passed} tests passed\n`)

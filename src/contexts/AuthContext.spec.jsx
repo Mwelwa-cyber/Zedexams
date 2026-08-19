@@ -975,16 +975,75 @@ describe('AuthProvider — a session the SDK gave up on but the guard kept', () 
     )
   })
 
-  it('reloads at most once — a condition that outlives the retry must not loop', async () => {
-    // The flag the first attempt recorded is still in sessionStorage, exactly
-    // as it would be on the reloaded page.
-    window.sessionStorage.setItem('auth:initRecoveryAttempted', '1')
+  it('reloads a bounded number of times — a condition that outlives the ladder must not loop', async () => {
+    // The count the earlier attempts recorded is still in sessionStorage,
+    // exactly as it would be on the reloaded page, and the ladder is spent.
+    window.sessionStorage.setItem('auth:sessionRescueAttempts', '2')
     await bootWithRescue()
     expect(reload).not.toHaveBeenCalled()
     // …and it falls through to the ordinary signed-out reveal rather than
     // holding the loader forever.
     expect(readSettle().authSettled).toBe(true)
     expect(readSettle().uid).toBe(null)
+  })
+
+  it('climbs the ladder rather than giving up after the first attempt', async () => {
+    // One rung already spent. The second is 6s, so the 2s the harness advances
+    // must NOT have reloaded yet — and must not have revealed either.
+    window.sessionStorage.setItem('auth:sessionRescueAttempts', '1')
+    await bootWithRescue()
+    expect(reload).not.toHaveBeenCalled()
+    expect(readSettle().authSettled).toBe(false)
+    expect(readSettle().loading).toBe(true)
+    expect(window.sessionStorage.getItem('auth:sessionRescueAttempts')).toBe('2')
+  })
+
+  it('reports the exhaustion that actually loses the session', async () => {
+    // The moment a valid session becomes a trip to /login. It used to be a bare
+    // console.warn — the only outcome in this path with no telemetry, which is
+    // why triage saw the rescues that succeeded and never the ones that did not.
+    window.sessionStorage.setItem('auth:sessionRescueAttempts', '2')
+    await bootWithRescue()
+    expect(h.reportAuthInitFailure).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'session-rescue-exhausted' }),
+    )
+  })
+
+  // ── THE REGRESSION ────────────────────────────────────────────────────────
+  // The wedge recovery (onAuthStateChanged never fires) and this rescue (it
+  // fires with user === null after a failed boot check) are different failures,
+  // and they shared ONE single-use flag. The wedge reloads WITHOUT that callback
+  // ever running, and the flag is only cleared from inside it — so it survived
+  // into the next load and this rescue read a spent attempt that was never its
+  // own. It was then refused, fell through, and set authReady with
+  // currentUser === null, which every route guard correctly turns into /login.
+  // The session blob was still on disk and had never been rejected by anyone.
+  it("is not denied its rescue by the wedge recovery's spent reload", async () => {
+    window.sessionStorage.setItem('auth:initRecoveryAttempted', '1')
+    await bootWithRescue()
+    expect(reload).toHaveBeenCalledTimes(1)
+    // Above all: it must NOT have revealed. loading:false + uid:null is exactly
+    // the pair ProtectedRoute turns into a redirect to /login.
+    expect(readSettle().authSettled).toBe(false)
+    expect(readSettle().loading).toBe(true)
+  })
+
+  it("does not spend the wedge recovery's reload either", async () => {
+    // The same interference in the other direction: a tab that rescued must
+    // still have its wedge reload for a later, different failure.
+    await bootWithRescue()
+    expect(reload).toHaveBeenCalledTimes(1)
+    expect(window.sessionStorage.getItem('auth:initRecoveryAttempted')).toBe(null)
+  })
+
+  it('returns both budgets to the tab once auth actually settles', async () => {
+    window.sessionStorage.setItem('auth:initRecoveryAttempted', '1')
+    window.sessionStorage.setItem('auth:sessionRescueAttempts', '1')
+    window.localStorage.setItem('auth:hasSession', '1')
+    render(<AuthProvider><SettleProbe /></AuthProvider>)
+    act(() => { h.onAuthCb.current({ uid: 'u1', emailVerified: true, getIdToken: vi.fn() }) })
+    expect(window.sessionStorage.getItem('auth:initRecoveryAttempted')).toBe(null)
+    expect(window.sessionStorage.getItem('auth:sessionRescueAttempts')).toBe(null)
   })
 
   it('does nothing when the guard rescued nothing', async () => {
