@@ -72,3 +72,9 @@
 
 export { default as ParentShareManager } from './components/ParentShareManager'
 export { default as FamilyCodePanel } from './components/FamilyCodePanel'
+// The child's own view of who is looking after them. Exported beside the
+// code panel because they are mounted together in learner settings, and
+// because a build that shipped the code without the transparency panel
+// would be one that hands out a linking credential without telling the
+// child who ended up holding it.
+export { default as GuardianLinkPanel } from './components/GuardianLinkPanel'

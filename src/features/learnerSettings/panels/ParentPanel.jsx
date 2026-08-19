@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useSettingsSave } from '../components/SaveContext'
 import { Panel, Section, Field, TextInput, SelectField, Note } from '../components/ui'
-import { ParentShareManager, FamilyCodePanel } from '../../parentPortal'
+import { ParentShareManager, FamilyCodePanel, GuardianLinkPanel } from '../../parentPortal'
 import { normalizeParentContact, RELATIONSHIP_OPTIONS } from '../lib/learnerPrefs'
 
 // Headerless body — composed by MyAccountPanel; default keeps the Panel wrapper.
@@ -80,6 +80,15 @@ export function ParentBody() {
           </Field>
         </div>
         <Note>These details help us reach your parent or guardian and personalise the digest we send them.</Note>
+      </Section>
+
+      {/* Who is linked comes FIRST, above the code that creates a link.
+          A child arriving at this screen because somebody typed their code
+          needs to answer that before they are offered another one — and
+          the ordering is also the honest one: what is true about your
+          account now, then the thing that would change it. */}
+      <Section title="Your grown-ups" hint="Who is linked to your account, and exactly what they can see.">
+        <GuardianLinkPanel />
       </Section>
 
       <Section title="Connect a parent account" hint="Give your parent a family code so they can sign in and follow your progress from their own account.">

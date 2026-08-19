@@ -27,8 +27,9 @@ async function test(name, fn) {
   console.log(`  ✓ ${name}`);
 }
 
-// A Firestore stand-in: users/{uid} plus settings/global.
-function fakeDb({user, flag = false, throwOn = null} = {}) {
+// A Firestore stand-in: users/{uid}, settings/global, and the parentLinks
+// query the guard runs to resolve consent-on-links.
+function fakeDb({user, flag = false, throwOn = null, links = []} = {}) {
   return {
     doc: (path) => ({
       get: async () => {
@@ -39,8 +40,24 @@ function fakeDb({user, flag = false, throwOn = null} = {}) {
         return {exists: !!user, data: () => user};
       },
     }),
+    collection: (name) => ({
+      where: () => ({
+        get: async () => {
+          if (throwOn && name.startsWith(throwOn)) throw new Error("firestore down");
+          return {docs: links.map((l, i) => ({id: l.id || `link${i}`, data: () => l}))};
+        },
+      }),
+    }),
   };
 }
+
+/** A stored link, with the noise a real document carries left out. */
+const link = (parentUid, state, permissions = {}) => ({
+  parentUid,
+  learnerUid: "u1",
+  consent: {state, method: "family_code"},
+  permissions,
+});
 
 const learner = (guardian, extra = {}) => ({role: "learner", guardian, ...extra});
 
@@ -77,6 +94,124 @@ async function refused(fn) {
     // learner/teacher class-join flow, removed with that feature. The
     // capability stays in the consent taxonomy so a stored consent record
     // keeps its meaning; assert the string so a future consumer inherits it.
+  });
+
+  // ── Consent on the LINK ────────────────────────────────────────────────
+  //
+  // The account record holds ONE guardian's decision and cannot represent
+  // two, so an approved link has to be able to grant access the account
+  // field says nothing about. These pin the four ways that promotion must
+  // and must not fire.
+
+  await test("an approved LINK lets a pending-on-account learner through", async () => {
+    __resetFlagCache();
+    const db = fakeDb({
+      user: learner({consentStatus: "pending"}),
+      links: [link("mum", "approved")],
+    });
+    // No throw is the assertion.
+    await assertLearnerCapability("u1", "aiChat", {db});
+  });
+
+  await test("a PENDING link grants nothing — the child has not confirmed", async () => {
+    __resetFlagCache();
+    const err = await refused(() => assertLearnerCapability("u1", "aiChat", {db: fakeDb({
+      user: learner({consentStatus: "pending"}),
+      links: [link("stranger", "pending")],
+    })}));
+    assert.ok(err, "a family code typed by a stranger must grant nothing");
+    assert.strictEqual(err.code, "permission-denied");
+  });
+
+  await test("a WITHDRAWN link drops the learner back to limited mode", async () => {
+    __resetFlagCache();
+    const err = await refused(() => assertLearnerCapability("u1", "leaderboard", {db: fakeDb({
+      user: learner({consentStatus: "pending"}),
+      links: [link("mum", "withdrawn")],
+    })}));
+    assert.ok(err, "withdrawal must actually withdraw");
+  });
+
+  await test("one guardian withdrawing does not drop a child the other still approves", async () => {
+    __resetFlagCache();
+    await assertLearnerCapability("u1", "aiChat", {db: fakeDb({
+      user: learner({consentStatus: "pending"}),
+      links: [link("dad", "withdrawn"), link("mum", "approved")],
+    })});
+  });
+
+  await test("a link can NEVER un-deny a suspended account", async () => {
+    // Otherwise a second adult typing a family code reinstates an account
+    // the first one deactivated — which is the one direction this
+    // promotion must not run.
+    __resetFlagCache();
+    const err = await refused(() => assertLearnerCapability("u1", "aiChat", {db: fakeDb({
+      user: learner({consentStatus: "denied"}),
+      links: [link("someone", "approved")],
+    })}));
+    assert.ok(err, "denied is a suspension, not a vote");
+    assert.strictEqual(err.details.reason, "guardian-denied");
+  });
+
+  await test("a legacy link with no consent record still works (migration grace)", async () => {
+    __resetFlagCache();
+    await assertLearnerCapability("u1", "aiChat", {db: fakeDb({
+      user: learner({consentStatus: "pending"}),
+      links: [{parentUid: "mum", learnerUid: "u1"}],
+    })});
+  });
+
+  // ── Link permissions, most restrictive wins ────────────────────────────
+
+  await test("a guardian's link permission refuses even an approved learner", async () => {
+    __resetFlagCache();
+    const err = await refused(() => assertLearnerCapability("u1", "aiChat", {db: fakeDb({
+      user: learner({consentStatus: "granted"}),
+      links: [link("mum", "approved", {askZed: false})],
+    })}));
+    assert.ok(err, "a guardian who turned Ask Zed off must be obeyed server-side");
+    assert.strictEqual(err.details.reason, "guardian-control-off");
+    assert.strictEqual(err.details.control, "askZed");
+  });
+
+  await test("one guardian's NO beats the other's YES", async () => {
+    __resetFlagCache();
+    const err = await refused(() => assertLearnerCapability("u1", "aiChat", {db: fakeDb({
+      user: learner({consentStatus: "granted"}),
+      links: [link("mum", "approved", {askZed: true}), link("dad", "approved", {askZed: false})],
+    })}));
+    assert.ok(err, "most restrictive wins, and it is enforced here not just rendered");
+  });
+
+  await test("a permission on an UNAPPROVED link restricts nobody", async () => {
+    __resetFlagCache();
+    await assertLearnerCapability("u1", "aiChat", {db: fakeDb({
+      user: learner({consentStatus: "granted"}),
+      links: [link("stranger", "pending", {askZed: false})],
+    })});
+  });
+
+  await test("the leaderboard and social capabilities are governed too", async () => {
+    __resetFlagCache();
+    const board = await refused(() => assertLearnerCapability("u1", "leaderboard", {db: fakeDb({
+      user: learner({consentStatus: "granted"}),
+      links: [link("mum", "approved", {leaderboard: false})],
+    })}));
+    assert.ok(board, "leaderboard must be gated, not only Ask Zed");
+
+    const social = await refused(() => assertLearnerCapability("u1", "social", {db: fakeDb({
+      user: learner({consentStatus: "granted"}),
+      links: [link("mum", "approved", {challenges: false})],
+    })}));
+    assert.ok(social);
+  });
+
+  await test("a link permission gates ONLY its own capability", async () => {
+    __resetFlagCache();
+    await assertLearnerCapability("u1", "leaderboard", {db: fakeDb({
+      user: learner({consentStatus: "granted"}),
+      links: [link("mum", "approved", {askZed: false})],
+    })});
   });
 
   // ── Refusals ───────────────────────────────────────────────────────────

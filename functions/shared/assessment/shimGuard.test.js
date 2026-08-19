@@ -32,6 +32,14 @@ const SHIMS = [
   'src/utils/mcqChoices.js',
   'src/utils/paperMarksModel.js',
   'src/curriculum/diagrams/diagramCatalog.js',
+  // The guardian package's shims. Same rule, higher stakes: what these
+  // re-export decides whether a child's account is in limited mode, whether
+  // one guardian may loosen another's restriction, and who may spend a
+  // parent's money. A rule that grew here would be a rule the server never
+  // sees.
+  'src/utils/guardianLink.js',
+  'src/utils/guardianRoles.js',
+  'src/utils/guardianControls.js',
 ]
 
 let passed = 0
@@ -79,9 +87,15 @@ for (const shim of SHIMS) {
 
   test(`${shim} points at the shared package`, () => {
     const code = codeOf(shim)
+    // Any package under functions/shared/, not `assessment` alone: this
+    // guard started life covering the export rules and now also covers the
+    // guardian package, whose shims front rules of exactly the same kind
+    // (a decision the SERVER has to make, fronted in src/ for a short
+    // import path). Pinning one directory would have quietly excused a
+    // shim in the other from ever being checked.
     assert.match(
       code,
-      /functions\/shared\/assessment\//,
+      /functions\/shared\/[a-z]+\//,
       `${shim} no longer re-exports from the shared package — the rule it fronts has moved somewhere else`,
     )
   })

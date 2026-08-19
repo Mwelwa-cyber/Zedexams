@@ -66,6 +66,15 @@ const {
   buildConsentPreview,
   safeName,
 } = require("./consentMessages");
+const {attachOnApproval} = require("../guardianLink/convergence");
+
+// The shared ESM link vocabulary, reached the CommonJS way: `await
+// import(...)` inside the async handler, cached per instance.
+let linkCorePromise = null;
+function loadLinkCore() {
+  if (!linkCorePromise) linkCorePromise = import("../shared/guardian/guardianLinkCore.js");
+  return linkCorePromise;
+}
 const {
   WITHDRAWN_DELETION_DAYS,
   grantedRecord,
@@ -320,6 +329,12 @@ exports.sendGuardianConsent = onCall(
           method: core.CONTACT_CHANNEL.SAME_DEVICE,
           channel: core.CONTACT_CHANNEL.SAME_DEVICE,
           contact: "",
+          // Written explicitly rather than left absent, so every request doc
+          // has the same shape. It is null and stays null: nobody was
+          // messaged, so there is no address for the guardian-account
+          // convergence to attach this approval to. The child can still name
+          // a contact later, from the dashboard banner.
+          contactEmailKey: null,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
           expiresAt: expiryFrom(),
           used: false,
@@ -420,6 +435,12 @@ exports.sendGuardianConsent = onCall(
       }
 
       const rawToken = mintToken();
+      const {guardianEmailKey} = await loadLinkCore();
+      const contactEmailKey = contact.channel === core.CONTACT_CHANNEL.EMAIL ?
+        (guardianEmailKey(contact.value) || null) :
+        null;
+
+
       await db.collection(REQUESTS).doc(tokenDocId(rawToken)).set({
         uid,
         method: contact.channel,
@@ -427,6 +448,13 @@ exports.sendGuardianConsent = onCall(
         // The contact is stored so support can answer "who did you message?"
         // and so the purge can find it. The raw token is NOT stored.
         contact: contact.value,
+        // The convergence key, canonicalised at WRITE time. Recomputing
+        // it later from `contact` would work today and quietly stop
+        // working the day the canonicalisation rule changes. `contact` is
+        // now normalised before it is stored, which narrows that gap but
+        // does not close it — the two canonicalisations answer different
+        // questions and are free to diverge.
+        contactEmailKey,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         expiresAt: expiryFrom(),
         used: false,
@@ -532,7 +560,24 @@ async function applyDecision(db, docRef, decision) {
 
     tx.set(userRef, grantedRecord({now, evidence}), {merge: true});
     tx.update(docRef, {used: true, outcome: "granted", decidedAt: now});
-    return {outcome: "approved", childName: userSnap.data()?.firstName};
+    return {
+      outcome: "approved",
+      childName: userSnap.data()?.firstName,
+      // Handed back so the caller can converge this approval onto a real
+      // guardian ACCOUNT (functions/guardianLink/convergence.js). It is
+      // done outside the transaction deliberately: attaching involves an
+      // Auth lookup and a second collection, and a failure there must
+      // not roll back a consent decision the guardian has already been
+      // shown a success page for.
+      learnerUid: record.uid,
+      guardianContact: record.contact || "",
+      guardianMethod: record.method || "email",
+      evidence: {
+        ip: record.clickIp || "",
+        userAgent: record.clickUserAgent || "",
+        tokenId: docRef.id,
+      },
+    };
   });
 }
 
@@ -614,7 +659,22 @@ async function handleConsent(req, res, deps = {}) {
     }
 
     const result = await applyDecision(db, docRef, decision);
-    if (result.outcome === "approved") return send(200, renderApprovedPage({childName: safeName(result.childName)}));
+    if (result.outcome === "approved") {
+      // Converge on ONE guardian account. If a parent account already
+      // holds this verified address, the link is created now; if not, a
+      // claim is left so the account that signs up with it later arrives
+      // to a dashboard that already has this child in it. Never throws —
+      // see attachOnApproval — because the guardian's decision is
+      // already recorded and this page must not report it as failed.
+      if (result.guardianMethod === "email") {
+        await attachOnApproval(db, {
+          learnerUid: result.learnerUid,
+          guardianEmail: result.guardianContact,
+          evidence: result.evidence,
+        });
+      }
+      return send(200, renderApprovedPage({childName: safeName(result.childName)}));
+    }
     if (result.outcome === "declined") return send(200, renderDeclinedPage());
     return send(result.outcome === "used" ? 200 : 410, renderOutcomePage(result.outcome));
   } catch (err) {

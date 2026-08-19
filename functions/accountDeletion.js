@@ -134,6 +134,30 @@ const FIELD_QUERY_COLLECTIONS = [
   // stranger a guardian's view of an account that no longer exists.
   {collection: "guardianInvites", field: "learnerUid"},
   {collection: "guardianInvites", field: "invitedBy"},
+  // The consent trail (functions/guardianLink/). Every row names BOTH the
+  // learner and the guardian, and records who approved, who withdrew, and
+  // what a child said about an adult — so it goes with either account, and
+  // BOTH owner fields are queried for the same reason parentLinks needs two.
+  //
+  // It is PURGED rather than retained, and the choice is worth stating
+  // because an audit trail is the obvious thing to argue for keeping. What
+  // it holds is a record of a relationship between two named people, and it
+  // exists to serve the person it is about — /child-safety's promise that a
+  // guardian can see, change and DELETE what we hold. A trail that outlived
+  // the accounts it describes would be the one part of that promise we did
+  // not keep, and it would be the part containing a child's statement that
+  // an adult was not their grown-up.
+  {collection: "guardianLinkAudit", field: "learnerUid"},
+  {collection: "guardianLinkAudit", field: "parentUid"},
+  // A child's request to have a guardian removed. Names both parties and
+  // carries the child's own reason in free text.
+  {collection: "guardianUnlinkRequests", field: "learnerUid"},
+  {collection: "guardianUnlinkRequests", field: "parentUid"},
+  // An approval waiting for a guardian account that does not exist yet. The
+  // row names this learner and is keyed by a third party's email address —
+  // and, unpurged, it is live: whoever eventually registered that address
+  // would be handed a link to an account that had been deleted.
+  {collection: "guardianLinkClaims", field: "learnerUid"},
 ];
 
 // uid lives inside an array on a doc owned by another user.

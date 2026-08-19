@@ -2020,6 +2020,23 @@
       "classification": "mechanical",
       "batch": null
     },
+    "onParentLinkWritten": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {
+        "document": "\"parentLinks/{linkId}\"",
+        "region": "\"africa-south1\"",
+        "memory": "\"256MiB\"",
+        "timeoutSeconds": "60"
+      },
+      "optionsFrom": "./guardianLink/onLinkWritten",
+      "optionsUnresolved": null,
+      "target": "require('./guardianLink/onLinkWritten').onParentLinkWritten",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
     "onQuizQuestionDeleted": {
       "kind": "delegated",
       "inline": false,
@@ -2435,6 +2452,22 @@
       "classification": "mechanical",
       "batch": null
     },
+    "reportGuardianLink": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./guardianLink",
+      "optionsUnresolved": null,
+      "target": "guardianLink.reportGuardianLink",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
     "requestAssessmentExport": {
       "kind": "delegated",
       "inline": false,
@@ -2449,6 +2482,23 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
+      "batch": null
+    },
+    "requestGuardianUnlink": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {
+        "secrets": "[emailSmtpUser, emailSmtpPassword]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./guardianLink",
+      "optionsUnresolved": null,
+      "target": "guardianLink.requestGuardianUnlink",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
       "batch": null
     },
     "requestGuardianUnlock": {
@@ -2868,6 +2918,22 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
+      "batch": null
+    },
+    "setLinkPermission": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./guardianLink",
+      "optionsUnresolved": null,
+      "target": "guardianLink.setLinkPermission",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
       "batch": null
     },
     "setSubscriptionCancellation": {
@@ -3379,6 +3445,22 @@
       "optionsFrom": "./notifications/reminderCrons",
       "optionsUnresolved": null,
       "target": "weeklyRevisionReminder",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "withdrawGuardianConsent": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./guardianLink",
+      "optionsUnresolved": null,
+      "target": "guardianLink.withdrawGuardianConsent",
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
