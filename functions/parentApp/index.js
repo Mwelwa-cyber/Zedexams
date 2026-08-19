@@ -36,6 +36,7 @@
 const admin = require("firebase-admin");
 const {HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
+const {claimForGuardian} = require("../guardianLink/convergence");
 const {aggregateProgress} = require("../parentPortalShared");
 const {activeLinks, parentLinkId} = require("../familyPortalCore");
 const {
@@ -92,6 +93,11 @@ function loadControls() {
   if (!controlsPromise) controlsPromise = import("../shared/guardian/guardianControlsCore.js");
   return controlsPromise;
 }
+let linkCorePromise = null;
+function loadLinkCore() {
+  if (!linkCorePromise) linkCorePromise = import("../shared/guardian/guardianLinkCore.js");
+  return linkCorePromise;
+}
 
 /* ── Authorisation ─────────────────────────────────────────────────── */
 
@@ -119,12 +125,35 @@ async function authorise(db, parentUid, childUid, capability) {
   const links = activeLinks(linkSnap.docs.map((d) => ({id: d.id, ...d.data()})));
 
   const {roleFor, can} = await loadRoles();
+  const core = await loadLinkCore();
   const role = roleFor(links, parentUid);
 
   // No link is "not your child" — deliberately the same error as a
   // missing child, so this surface cannot be used to test whether a
   // given uid exists.
   if (!role) throw new HttpsError("permission-denied", "You are not linked to this child.");
+
+  // AN UNCONFIRMED LINK GRANTS NOTHING. This is the server half of the
+  // child's confirmation step, and it is the only reason that step is
+  // worth anything: a family code that reached the wrong adult creates a
+  // `pending` link, and every read of a child's data — progress,
+  // activity, the weekly report — passes through here.
+  //
+  // Same message as "not linked", again on purpose. Telling a stranger
+  // "this child exists but has not confirmed you" is telling them to
+  // wait and try again; telling them nothing is telling them nothing.
+  // The pending state is surfaced to the parent through
+  // listGuardianChildren, which is reached from their OWN link and so
+  // needs no such protection.
+  const mineRaw = links.find((l) => l.parentUid === parentUid) || {};
+  if (!core.linkIsApproved(mineRaw)) {
+    const state = core.normalizeLink(mineRaw).state;
+    throw new HttpsError(
+        "permission-denied",
+        "You are not linked to this child.",
+        {reason: state === core.LINK_CONSENT.WITHDRAWN ? "withdrawn" : "unconfirmed"},
+    );
+  }
   if (!can(role, capability)) {
     throw new HttpsError(
         "permission-denied",
@@ -222,6 +251,23 @@ async function listGuardianChildren(request) {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
   const db = admin.firestore();
   const {roleFor, capabilitiesOf} = await loadRoles();
+  const core = await loadLinkCore();
+
+  // CONVERGENCE, on every visit rather than only at signup.
+  //
+  // A guardian who approved by email before they had an account has a
+  // CLAIM against their address, not a link. Sweeping here — the parent
+  // app's first read — is what makes "the child named mum@example.com in
+  // March and mum signed up in June" resolve to one guardian holding one
+  // link. Doing it at signup alone would miss the common case: parents
+  // verify their address after registering, and a claim can only be
+  // redeemed once the address is verified.
+  //
+  // Never throws (see convergence.js) — a sweep failure must degrade to
+  // "no new children this visit", not to an unopenable dashboard.
+  await claimForGuardian(db, uid).catch((err) => {
+    console.warn("[parentApp] claim sweep failed", err?.message || err);
+  });
 
   // Same rule as `authorise`: only confirmed links. A parent whose child
   // has not answered yet sees no child here — the request is shown to
@@ -263,6 +309,24 @@ async function listGuardianChildren(request) {
       // the promise on /child-safety ("you can see, change and withdraw
       // it") has something behind it in the product.
       consent: consentSummary(child),
+      // ── The LINK's own state, which is a different question ─────────
+      //
+      // `consent` above is the account-level record: what this guardian
+      // has approved about the child. These four are about the LINK: is
+      // this particular guardian confirmed, is the child approved by
+      // anyone, and what has each adult switched off.
+      //
+      // `linkState` folds `status` (the confirmation flag, owned by the
+      // family-code flow) together with `consent.state` (withdrawal,
+      // which `status` has no way to express). A parent whose link is
+      // still pending sees a card saying what it is waiting for, rather
+      // than an empty dashboard they would reasonably read as broken.
+      linkState: core.readLinkState(links.find((l) => l.parentUid === uid) || {}),
+      childApproved: core.resolveLinkConsent(links, {
+        accountStatus: child?.guardian?.consentStatus,
+      }).approved,
+      permissions: core.readLinkPermissions(links.find((l) => l.parentUid === uid) || {}),
+      effectivePermissions: core.resolveLinkPermissions(links)
       // Deliberately NOT sent: a time-on-task figure and an
       // "exam readiness" percentage. See parentAppCore's header.
     };

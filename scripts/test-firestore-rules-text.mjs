@@ -638,18 +638,91 @@ test('familyInviteCodes reads are scoped to the owning learner', () => {
   )
 })
 
-test('parentLinks are readable/deletable only by the linked parent or learner, never client-written', () => {
+test('parentLinks are readable only by the linked parent or learner', () => {
   const start = rules.indexOf('match /parentLinks/{linkId}')
-  const slice = rules.slice(start, rules.indexOf('}', rules.indexOf('allow delete', start)))
   assert(start >= 0, 'parentLinks block not found')
+  const slice = rules.slice(start, rules.indexOf('allow create, update, delete', start))
   assert(
     slice.includes('resource.data.parentUid == request.auth.uid') &&
     slice.includes('resource.data.learnerUid == request.auth.uid'),
-    'parentLinks read/delete must be gated to the linked parent or learner',
+    'parentLinks read must be gated to the linked parent or learner',
+  )
+})
+
+test('parentLinks are CLOSED to every client write, delete included', () => {
+  // Delete used to be allowed to either side, and cannot be now that the
+  // link carries consent. A child who could delete a link could end their
+  // own supervision silently — which is the one thing the whole flow is
+  // built to prevent — and a guardian who could delete one would leave no
+  // record of a relationship that existed and ended, which is exactly what
+  // /child-safety promises we can show them.
+  //
+  // Both paths are callables in functions/guardianLink/ that append to
+  // guardianLinkAudit. This assertion is what stops the delete arm coming
+  // back as a convenience.
+  const start = rules.indexOf('match /parentLinks/{linkId}')
+  assert(start >= 0, 'parentLinks block not found')
+  const block = rules.slice(start, rules.indexOf('match /', start + 10))
+  assert(
+    block.includes('allow create, update, delete: if false'),
+    'parentLinks must deny every client write including delete',
   )
   assert(
-    slice.includes('allow create, update: if false'),
-    'parentLinks create/update must be server-only (redeemFamilyInviteCode owns the shape)',
+    !/allow\s+delete\s*:\s*if\s+(?!false)/.test(block),
+    'parentLinks must not carry a permissive delete arm',
+  )
+})
+
+test('the three guardian-link server collections are closed in both directions', () => {
+  // guardianLinkClaims is the one that matters most and is the least
+  // obvious: a claim is keyed by a guardian's email and names a child, so
+  // a readable collection is a directory of minors indexed by their
+  // parents' addresses.
+  for (const name of ['guardianLinkAudit', 'guardianLinkClaims', 'guardianUnlinkRequests']) {
+    const start = rules.indexOf(`match /${name}/`)
+    assert(start >= 0, `${name} needs an explicit deny block`)
+    // Slice from the block's OPENING brace, not from `start`: the match
+    // path itself contains a `}` (the `{entryId}` wildcard), so searching
+    // for the first `}` after `start` lands inside the path and yields an
+    // empty block that passes nothing.
+    const open = rules.indexOf('{', rules.indexOf('/{', start) + 2)
+    const block = rules.slice(open, rules.indexOf('}', open) + 1)
+    assert(
+      block.includes('allow read, write: if false'),
+      `${name} must deny client reads AND writes`,
+    )
+  }
+})
+
+test('leaderboard writes are gated on guardian consent', () => {
+  // The leaderboard is the only gated capability written straight from the
+  // client — no Cloud Function is in the path, so consentGuard never sees
+  // it and this rule is the only enforcement there is.
+  assert(
+    rules.includes('function mayAppearOnLeaderboard()'),
+    'mayAppearOnLeaderboard() helper missing',
+  )
+  const start = rules.indexOf('match /scores/{scoreId}')
+  assert(start >= 0, 'scores block not found')
+  const block = rules.slice(start, rules.indexOf('match /', start + 10))
+  assert(
+    block.includes('mayAppearOnLeaderboard()'),
+    'scores create must consult the guardian-consent gate',
+  )
+  // A recorded refusal must actually refuse. The helper defaults
+  // permissively for accounts with no mirror yet (the migration window),
+  // and that default must not extend to a learner whose mirror says no.
+  const helper = rules.slice(
+    rules.indexOf('function mayAppearOnLeaderboard()'),
+    rules.indexOf('premium learner-content entitlement'),
+  )
+  assert(
+    helper.includes("get('approved', true) == true"),
+    'the consent gate must read the mirrored approved flag',
+  )
+  assert(
+    helper.includes("get('leaderboard', true) != false"),
+    "a guardian's leaderboard restriction must be enforced here too",
   )
 })
 

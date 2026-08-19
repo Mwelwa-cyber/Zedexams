@@ -2552,12 +2552,71 @@ async function main() {
     }))
   })
 
-  await test('the learner CAN cut off a link about them (delete)', async () => {
-    await assertSucceeds(deleteDoc(doc(learnerA, 'parentLinks', `${PARENT_USER}_${LEARNER_A}`)))
+  await test('the LEARNER cannot delete a link about them', async () => {
+    // This used to succeed, and it cannot now that the link carries
+    // consent. A child who can quietly drop supervision is a child who can
+    // be TALKED INTO dropping it, by the person the supervision exists to
+    // notice. The route is requestGuardianUnlink, which files a request and
+    // tells the guardian and support; a human decides.
+    //
+    // The child is not trapped: reportGuardianLink removes an unconfirmed
+    // link outright (refusing a stranger is not ending supervision), and
+    // Childline 116 needs no guardian's permission. Both are callables, so
+    // both leave an audit row.
+    await assertFails(deleteDoc(doc(learnerA, 'parentLinks', `${PARENT_USER}_${LEARNER_A}`)))
   })
 
-  await test('the parent CAN delete their own link', async () => {
-    await assertSucceeds(deleteDoc(doc(parent, 'parentLinks', `${PARENT_USER}_${LEARNER_B}`)))
+  await test('the PARENT cannot delete their own link either', async () => {
+    // withdrawGuardianConsent marks it `withdrawn` and keeps the record,
+    // because "who approved this account, and when did that stop" is what
+    // /child-safety promises we can answer — and a deleted row answers
+    // nothing.
+    await assertFails(deleteDoc(doc(parent, 'parentLinks', `${PARENT_USER}_${LEARNER_B}`)))
+  })
+
+  await test('a client cannot UPDATE a link to approve itself', async () => {
+    // The attack the consent-on-link design has to survive: a parent who
+    // typed a family code holds a pending link, and flipping one field
+    // would promote it to approved without the child ever being asked.
+    await assertFails(setDoc(
+      doc(parent, 'parentLinks', `${PARENT_USER}_${LEARNER_A}`),
+      { consent: { state: 'approved' } },
+      { merge: true },
+    ))
+  })
+
+  section('the guardian-link server collections are closed in both directions')
+
+  await test('nobody can read or write guardianLinkAudit', async () => {
+    // It records every consent transition and each row names BOTH parties,
+    // so a readable trail would let one guardian enumerate the other's
+    // actions — and let a child's rejection of an adult be read by that
+    // adult.
+    for (const as of [parent, learnerA, admin]) {
+      await assertFails(getDoc(doc(as, 'guardianLinkAudit', 'entry1')))
+      await assertFails(setDoc(doc(as, 'guardianLinkAudit', 'entry1'), { event: 'forged' }))
+    }
+  })
+
+  await test('nobody can read or write guardianLinkClaims', async () => {
+    // The read side is the load-bearing half and the worst thing in this
+    // schema to expose: a claim is keyed by a guardian's email address and
+    // names a child, so a readable collection is a directory of minors
+    // indexed by their parents' email addresses.
+    for (const as of [parent, learnerA, admin]) {
+      await assertFails(getDoc(doc(as, 'guardianLinkClaims', 'claim1')))
+      await assertFails(setDoc(doc(as, 'guardianLinkClaims', 'claim1'), { emailKey: 'x@y.z' }))
+    }
+  })
+
+  await test('nobody can read or write guardianUnlinkRequests', async () => {
+    // Not readable by the child — a request they could delete is a request
+    // they could be MADE to delete — and not by the guardian, whose copy
+    // arrives by email rather than as a row they could quietly close.
+    for (const as of [parent, learnerA, admin]) {
+      await assertFails(getDoc(doc(as, 'guardianUnlinkRequests', 'req1')))
+      await assertFails(setDoc(doc(as, 'guardianUnlinkRequests', 'req1'), { status: 'closed' }))
+    }
   })
 
   await test('the owning learner can read their own family invite code', async () => {
