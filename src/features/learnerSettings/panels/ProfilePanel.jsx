@@ -7,12 +7,26 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { useSettingsSave } from '../components/SaveContext'
 import { Panel, Section, Field, TextInput, SelectField } from '../components/ui'
 import AvatarStudio from '../components/AvatarStudio'
+import { formatLongDate } from '../../../utils/ageAnswerCore'
 import {
   GRADE_NUMBERS,
   GENDER_OPTIONS,
   LANGUAGE_OPTIONS,
   COUNTRY_OPTIONS,
 } from '../lib/learnerPrefs'
+
+/**
+ * The account's date of birth, in words.
+ *
+ * An account created before the age screen has none, and so does a profile
+ * `bootstrapUserProfile` recovered. Those say "Not set" rather than rendering
+ * an empty box that reads as a field waiting to be filled in — the learner
+ * cannot fill it in, and pretending otherwise is the same trap the editable
+ * duplicate was.
+ */
+function formatDob(dob) {
+  return formatLongDate(dob) || 'Not set'
+}
 
 // Headerless body — composed by MyAccountPanel (the "My Account" detail view)
 // alongside the parent + account bodies. The default export keeps the standalone
@@ -22,7 +36,7 @@ export function ProfileBody({ pushToast }) {
   const { commit } = useSettingsSave()
 
   const [form, setForm] = useState({
-    displayName: '', preferredName: '', school: '', className: '', dateOfBirth: '',
+    displayName: '', preferredName: '', school: '', className: '',
   })
 
   // Initialise text fields once the profile arrives (keyed on uid so onSnapshot
@@ -34,7 +48,6 @@ export function ProfileBody({ pushToast }) {
       preferredName: userProfile.preferredName ?? '',
       school: userProfile.school ?? '',
       className: userProfile.className ?? '',
-      dateOfBirth: userProfile.dateOfBirth ?? '',
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userProfile?.id, userProfile?.uid])
@@ -43,6 +56,12 @@ export function ProfileBody({ pushToast }) {
     setForm((f) => ({ ...f, [key]: value }))
     commit({ [key]: value })
   }
+
+  // Fails closed, deliberately, and by the same rule the pricing gate uses: a
+  // learner is a minor unless `isMinor === false` positively says otherwise.
+  // Not knowing must resolve to collecting LESS, not more.
+  const isMinorLearner = (userProfile?.role ?? 'learner') === 'learner'
+    && userProfile?.isMinor !== false
 
   return (
     <>
@@ -90,15 +109,48 @@ export function ProfileBody({ pushToast }) {
             onChange={(v) => commit({ grade: Number(v) })}
             options={GRADE_NUMBERS.map((g) => ({ value: String(g), label: `Grade ${g}` }))}
           />
-          <Field label="Date of birth" hint="Optional" htmlFor="lset-dob">
-            <TextInput id="lset-dob" type="date" value={form.dateOfBirth} onChange={(v) => setText('dateOfBirth', v)} />
+          {/* Date of birth is READ-ONLY, and that is a safety decision rather
+              than a form-design one. Three things key off it — the age gate,
+              whether a guardian's consent is required, and whether this
+              account may be shown a price — and all three fail in the
+              dangerous direction if a child can move it. A learner who edited
+              their year of birth would be quoting themselves K50 and
+              switching off the guardian requirement, by typing in a field
+              marked "Optional". firestore.rules refuses the write regardless,
+              so an editable control here would be one that silently does
+              nothing.
+
+              It is captured once at registration and changed only through
+              support, where a human can ask why. Shown rather than hidden,
+              because a child is entitled to see what we hold about them.
+
+              What is shown is `dob` — the value the age gate actually reads.
+              This field used to render `dateOfBirth`, a SECOND birthday on the
+              same document that the gate never read: a child who corrected it
+              changed nothing and reasonably believed otherwise. Nothing writes
+              that field any more and the rules blocklist it, so displaying it
+              would now mean an empty box on every account — the "waiting to be
+              filled in" trap in its purest form. */}
+          <Field
+            label="Date of birth"
+            hint="Set when you signed up. Ask your grown-up or our team if it is wrong."
+            htmlFor="lset-dob"
+          >
+            <TextInput id="lset-dob" value={formatDob(userProfile?.dob)} disabled />
           </Field>
+          {/* Gender is asked of adults only. We have no feature that reads it
+              for a learner — it personalises nothing, filters nothing and
+              appears on no screen — so collecting it from a child is data we
+              hold for no reason, which is the one thing a minor's record must
+              not contain. */}
+          {!isMinorLearner && (
           <SelectField
             label="Gender"
             value={userProfile?.gender ?? ''}
             onChange={(v) => commit({ gender: v })}
             options={GENDER_OPTIONS}
           />
+          )}
           <SelectField
             label="Preferred language"
             value={userProfile?.preferredLanguage ?? 'en'}

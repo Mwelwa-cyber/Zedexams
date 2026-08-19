@@ -106,17 +106,19 @@ function useSectionAnchor() {
 
 // The v6 screen is one scrolling page rather than a rail of panels, so a
 // `?section=` deep link cannot open a tab here — there are no tabs. It
-// scrolls to the matching group instead, which is the same promise kept
-// in the shape this screen has. Sections the page does not carry
-// (`progress`, `ai`, `premium`, `help`) simply leave the page at the
-// top: landing at the top of Settings is a fair answer to "we do not
-// have that section", where silently sitting on an unrelated one is not.
+// scrolls to the matching group instead.
+//
+// Most of what this map used to hold has gone, and that is the settings
+// route split rather than a deletion: `?section=notifications`,
+// `learning`, `security` and `account` now REDIRECT to their own routes
+// before this page renders (LearnerSettingsRoute → redirectForSection),
+// so an anchor for them would be unreachable code that reads like a
+// working feature. What is left is the one section that still lives on
+// this page and nowhere else. Sections the app has no screen for
+// (`progress`, `ai`, `premium`) land at the top, which is a fair answer
+// to "we do not have that", where sitting on an unrelated group is not.
 const SECTION_ANCHORS = {
   appearance: 'set-appearance',
-  notifications: 'set-notifications',
-  learning: 'set-learning',
-  account: 'set-account',
-  security: 'set-security',
 }
 
 export default function LearnerSettingsPage() {
@@ -244,7 +246,7 @@ export default function LearnerSettingsPage() {
         <LinkRow
           icon="🙂" title="Name & avatar"
           value={userProfile?.displayName?.split(/\s+/)[0] || null}
-          onClick={() => navigate('/settings?section=account')}
+          onClick={() => navigate('/settings/profile')}
         />
         {/* A LinkRow, not an InfoRow. The parent app tells guardians "your
             child finds this in their app under Settings → Guardian", and
@@ -256,21 +258,25 @@ export default function LearnerSettingsPage() {
           icon="🛡️" title="Guardian"
           desc={guardianGranted ? 'Verified · manages approvals' : 'Family code and who can see your progress'}
           value={guardianGranted ? '✅' : null}
-          onClick={() => navigate('/settings?section=parent')}
+          onClick={() => navigate('/settings/guardian')}
         />
         <LinkRow
           icon="⬇️" title="Downloads & storage" desc="Offline papers and notes"
           onClick={() => navigate('/offline')}
         />
+        <LinkRow
+          icon="📦" title="Your data" desc="Download a copy of everything"
+          onClick={() => navigate('/settings/data')}
+        />
       </div>
 
       <div className="lhx-set-head" id="set-security">Privacy &amp; safety</div>
       <div className="lhx-set-group">
-        <LinkRow icon="🚩" title="Report a problem" onClick={() => navigate('/settings?section=help')} />
-        <LinkRow icon="☎️" title="Get help" desc={CHILDLINE} onClick={() => navigate('/settings?section=help')} />
+        <LinkRow icon="🚩" title="Report a problem" onClick={() => navigate('/settings/help')} />
+        <LinkRow icon="☎️" title="Get help" desc={CHILDLINE} onClick={() => navigate('/settings/help')} />
         <LinkRow
-          icon="🗑️" title="Delete account" desc="Guardian approval required" danger
-          onClick={() => navigate('/settings?section=account')}
+          icon="🗑️" title="Delete account" desc="Read what happens first" danger
+          onClick={() => navigate('/settings/delete')}
         />
       </div>
 

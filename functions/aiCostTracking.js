@@ -239,12 +239,72 @@ function ttsVoiceTier(voice) {
  * imageCostUsd. A voice we cannot price is a gap to notice in the per-tool
  * rollup (calls with no cost), not a number to guess at.
  */
-function ttsCostUsd(voice, characters) {
-  const tier = ttsVoiceTier(voice);
-  if (!tier) return 0;
+function ttsCostUsd(voice, characters, provider = "google") {
+  const rate = ttsRateUsdPerMchar(provider, voice);
+  if (rate === null) return 0;
   const chars = Number(characters);
   if (!Number.isFinite(chars) || chars <= 0) return 0;
-  return (chars * TTS_PRICE_PER_MCHAR[tier]) / 1_000_000;
+  return (chars * rate) / 1_000_000;
+}
+
+// ── ElevenLabs: the rate is CONFIGURED, not derived ───────────────────────
+//
+// Google's price is a property of the voice — the tier is in its name, so the
+// rate can be looked up. ElevenLabs is nothing like that: its voice ids are
+// opaque (`21m00Tcm4TlvDq8ikWAM`) and its price is a property of the ACCOUNT'S
+// PLAN, not of the voice. The effective $/million characters is the monthly
+// fee divided by the included credits, which changes when the plan changes and
+// is not exposed by any API.
+//
+// So it comes from configuration, and — this is the load-bearing part — an
+// UNSET rate is reported as unset rather than silently treated as free.
+// Deriving it from the voice name the way Google's works would return null for
+// every ElevenLabs id and record 100% of that spend at $0: the exact
+// under-reporting failure the segment-vs-prefix lookup was written to avoid,
+// reintroduced one provider later. Synthesis is deliberately NOT blocked on a
+// missing rate — a learner losing audio over an accounting gap is the worse
+// outcome — so the gap is surfaced instead, by ttsRateStatus() on the admin
+// TTS panel.
+const ELEVENLABS_RATE_ENV = "ELEVENLABS_USD_PER_MCHAR";
+
+/** Configured ElevenLabs $/million characters, or null when unset/invalid. */
+function elevenLabsUsdPerMchar() {
+  const raw = Number(process.env[ELEVENLABS_RATE_ENV]);
+  return Number.isFinite(raw) && raw > 0 ? raw : null;
+}
+
+/**
+ * The $/million-character rate for a synthesis, or null when we cannot price
+ * it. Null is a REPORTABLE state, never quietly a zero — see ttsRateStatus.
+ */
+function ttsRateUsdPerMchar(provider, voice) {
+  if (String(provider || "google").toLowerCase() === "elevenlabs") {
+    return elevenLabsUsdPerMchar();
+  }
+  const tier = ttsVoiceTier(voice);
+  return tier ? TTS_PRICE_PER_MCHAR[tier] : null;
+}
+
+/**
+ * Per-provider pricing health, for the admin TTS panel.
+ *
+ * `priced: false` means spend through that provider is being recorded at $0 —
+ * the dashboard is under-reporting and the operator needs to know, because
+ * every other number on the page is then wrong in the reassuring direction.
+ */
+function ttsRateStatus() {
+  const el = elevenLabsUsdPerMchar();
+  return {
+    google: {priced: true, usdPerMchar: null, note: "Per-voice, by tier."},
+    elevenlabs: {
+      priced: el !== null,
+      usdPerMchar: el,
+      note: el === null ?
+        `Set ${ELEVENLABS_RATE_ENV} (monthly fee ÷ included credits, ` +
+        "in USD per million characters) — until then ElevenLabs spend records as $0." :
+        "From configuration; update it when the plan changes.",
+    },
+  };
 }
 
 /**
@@ -265,7 +325,7 @@ function ttsCostUsd(voice, characters) {
  * never incurred; not recording them at all would leave the cache's whole
  * value invisible on the dashboard that justifies it.
  */
-async function recordAiTtsUsage({uid, voice, characters, tool, cached = false}) {
+async function recordAiTtsUsage({uid, voice, characters, tool, cached = false, provider = "google"}) {
   const chars = Number(characters);
   return writeUsageRollups({
     uid,
@@ -275,7 +335,7 @@ async function recordAiTtsUsage({uid, voice, characters, tool, cached = false}) 
     cacheCreation: 0,
     cacheRead: 0,
     characters: Number.isFinite(chars) && chars > 0 ? chars : 0,
-    costUsd: cached ? 0 : ttsCostUsd(voice, characters),
+    costUsd: cached ? 0 : ttsCostUsd(voice, characters, provider),
   });
 }
 
@@ -940,6 +1000,10 @@ module.exports = {
   imageCostUsd,
   ttsCostUsd,
   ttsVoiceTier,
+  ttsRateUsdPerMchar,
+  ttsRateStatus,
+  elevenLabsUsdPerMchar,
+  ELEVENLABS_RATE_ENV,
   PRICE_PER_MTOK,
   IMAGE_PRICE_USD,
   TTS_PRICE_PER_MCHAR,

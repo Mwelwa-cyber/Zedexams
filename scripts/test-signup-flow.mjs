@@ -184,8 +184,9 @@ test('a timestamp from the future is a clock change, not an answer', () => {
 
 test('there is no minimum age — every plausible date proceeds', () => {
   // A screen that rejects young answers teaches the user which answer is
-  // accepted, which is the one thing a neutral age screen must not do.
-  for (const age of [0, 4, 9, 12, 17, 18, 45, 100]) {
+  // accepted, which is the one thing a neutral age screen must not do. The
+  // range runs to the plausibility floor and no further.
+  for (const age of [4, 9, 12, 17, 18, 45, 100]) {
     assert.equal(checkAgeAnswer(age).ok, true, `age ${age} must be accepted`)
   }
 })
@@ -195,6 +196,16 @@ test('an unreadable, future or implausible date is refused', () => {
   assert.deepEqual(checkAgeAnswer(undefined), { ok: false, reason: 'unreadable' })
   assert.deepEqual(checkAgeAnswer(-1), { ok: false, reason: 'future' })
   assert.deepEqual(checkAgeAnswer(101), { ok: false, reason: 'implausible' })
+})
+
+test('an implausibly young age is refused as a typo, not as a policy', () => {
+  // The distinction is the whole neutrality argument: 2 is refused because
+  // nobody filling in this form is two, in the SAME words that refuse 120 —
+  // not because young answers are unwelcome. See ageAnswerCore.js, which
+  // builds both messages from one template.
+  assert.deepEqual(checkAgeAnswer(0), { ok: false, reason: 'too_young' })
+  assert.deepEqual(checkAgeAnswer(3), { ok: false, reason: 'too_young' })
+  assert.equal(checkAgeAnswer(4).ok, true)
 })
 
 // ── Report ────────────────────────────────────────────────────────

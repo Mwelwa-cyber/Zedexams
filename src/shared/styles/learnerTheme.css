@@ -1490,3 +1490,132 @@ button.lhx-tt-altpill { cursor: pointer; }
  * and bronze are the RANK, not decoration — so only the avatar ring,
  * which reads as a cut-out of the page, follows the surface token. */
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-pod-av { border-color: var(--lhx-card); }
+
+/* ── /settings/profile — Name & avatar ───────────────────────────────
+ *
+ * Built to docs/learner/zedexams-avatars-mockup.html. Every colour is an
+ * lhx token, so Night mode needs no second rule here: the two places it
+ * would otherwise need one are the preview card (which is a fixed indigo
+ * gradient in BOTH modes, because it is a picture of a leaderboard row and
+ * the real board is that gradient at night too) and the tile grid, which
+ * sits on --lhx-card and follows it.
+ * ─────────────────────────────────────────────────────────────────── */
+
+/* The preview — a real leaderboard row, live as the child types. */
+.lhx-av-preview {
+  background: linear-gradient(135deg, var(--lhx-indigo1), var(--lhx-indigo2));
+  border-radius: var(--lhx-radius-lg);
+  padding: 16px;
+  color: #fff;
+  margin-bottom: 16px;
+  box-shadow: 0 10px 24px rgba(81, 88, 208, 0.28);
+}
+.lhx-av-preview-label {
+  font-size: 11px; font-weight: 900; letter-spacing: 0.09em;
+  text-transform: uppercase; opacity: 0.82; margin-bottom: 10px;
+}
+.lhx-av-preview-row {
+  display: flex; align-items: center; gap: 12px;
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 14px; padding: 11px 12px;
+}
+.lhx-av-rank { font-weight: 900; font-size: 15px; width: 20px; flex-shrink: 0; }
+.lhx-av-preview-text { min-width: 0; }
+.lhx-av-preview-text b {
+  display: block; font-weight: 900; font-size: 15px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lhx-av-preview-text small { display: block; font-size: 11.5px; opacity: 0.85; font-weight: 700; }
+
+/* A card that matches .lhx-set-group but takes its own padding. */
+.lhx-av-card {
+  background: var(--lhx-card);
+  border-radius: var(--lhx-radius-md);
+  box-shadow: var(--lhx-shadow);
+  padding: 15px;
+  margin-bottom: 16px;
+}
+
+/* The image inside a circular frame — used at 46, 74 and 92px. */
+.lhx-av-img { width: 100%; height: 100%; display: block; }
+
+.lhx-av-bigrow { display: flex; align-items: center; gap: 14px; }
+.lhx-av-bigtext { flex: 1; min-width: 0; }
+.lhx-av-bigname { font-weight: 900; font-size: 15px; color: var(--lhx-ink); }
+.lhx-av-bigsub { font-size: 12px; color: var(--lhx-muted); font-weight: 700; margin-top: 2px; }
+.lhx-av-upload { margin-top: 10px; cursor: pointer; }
+.lhx-av-clear {
+  display: block; margin-top: 8px; font-size: 12px; font-weight: 800;
+  color: var(--lhx-muted); text-decoration: underline;
+}
+
+/* Grade groups — a segmented control, own group first. */
+.lhx-av-seg {
+  display: flex; background: var(--lhx-bg);
+  border-radius: 13px; padding: 4px; margin-bottom: 14px; gap: 2px;
+}
+.lhx-av-segbtn {
+  flex: 1; min-height: 40px; padding: 9px 6px; border-radius: 10px;
+  font-size: 12.5px; font-weight: 900; color: var(--lhx-muted);
+  transition: background 0.12s var(--lhx-ease), color 0.12s var(--lhx-ease);
+}
+.lhx-av-segbtn.is-on {
+  background: var(--lhx-card); color: var(--lhx-indigo-text);
+  box-shadow: 0 1px 4px rgba(40, 44, 90, 0.1);
+}
+
+/* Three across on a phone. Each tile carries the avatar's NAME — children
+ * pick by personality, so a numbered tile would be the wrong interface. */
+.lhx-av-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 11px; }
+.lhx-av-tile {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  background: var(--lhx-bg); border: 2px solid transparent;
+  border-radius: 15px; padding: 9px 5px 8px; cursor: pointer;
+}
+.lhx-av-tile-img { width: 100%; max-width: 74px; aspect-ratio: 1; border-radius: 50%; display: block; }
+.lhx-av-tile span {
+  font-size: 10.5px; font-weight: 800; color: var(--lhx-muted);
+  line-height: 1.25; text-align: center;
+}
+.lhx-av-tile.is-on { border-color: var(--lhx-indigo2); background: var(--lhx-indigo-soft); }
+.lhx-av-tile.is-on span { color: var(--lhx-indigo-text); }
+.lhx-av-tile.is-on::after {
+  content: '\2713'; position: absolute; top: 5px; right: 5px;
+  width: 19px; height: 19px; border-radius: 50%;
+  background: var(--lhx-indigo2); color: #fff;
+  font-size: 11px; font-weight: 900; display: grid; place-items: center;
+}
+.lhx-av-hint {
+  background: var(--lhx-indigo-soft); color: var(--lhx-indigo-text);
+  border-radius: 13px; padding: 11px 12px; margin: 12px 0 0;
+  font-size: 12px; font-weight: 700; line-height: 1.5;
+}
+
+/* Two fields, and only two. */
+.lhx-av-field { display: block; }
+.lhx-av-field + .lhx-av-field { margin-top: 14px; }
+.lhx-av-flabel { display: block; font-size: 13px; font-weight: 900; color: var(--lhx-ink); margin-bottom: 6px; }
+.lhx-av-input {
+  width: 100%; min-height: 46px; padding: 11px 13px;
+  border-radius: 13px; border: 1.5px solid var(--lhx-line);
+  background: var(--lhx-bg); color: var(--lhx-ink);
+  font: inherit; font-size: 15px; font-weight: 700;
+}
+.lhx-av-input:focus { outline: 2px solid var(--lhx-indigo2); outline-offset: 1px; }
+.lhx-av-fhint { display: block; font-size: 11.5px; color: var(--lhx-muted); font-weight: 700; margin-top: 5px; }
+
+.lhx-av-error { color: var(--lhx-red); font-size: 12.5px; font-weight: 800; margin: 10px 4px 0; }
+.lhx-av-toast { color: var(--lhx-green-dark); font-size: 12.5px; font-weight: 800; margin: 10px 4px 0; }
+
+/* Sticky save. Always visible — an SPA navigation from the shell's nav is
+ * not interceptable here, so a bar that hid on scroll would let a child
+ * leave unsaved work behind with nothing on screen to warn them. */
+.lhx-av-savebar {
+  position: sticky; bottom: 0; z-index: 4;
+  padding: 14px 0 8px;
+  /* A solid surface token, not a fade to a literal: the page background
+     changes in Night mode, and a gradient anchored to the light value
+     draws a pale band across a dark page. */
+  background: var(--lhx-bg);
+  box-shadow: 0 -10px 14px -6px var(--lhx-bg);
+}

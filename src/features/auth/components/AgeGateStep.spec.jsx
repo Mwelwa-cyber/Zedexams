@@ -10,6 +10,13 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
  * save a tap, and the screen becomes a quiz with the answer on the back.
  * These tests are what makes the declaration checkable.
  *
+ * The date RULES — plausibility, the age echoed back, every derivation
+ * landing under the consent age — are pure and tested under plain node in
+ * scripts/test-age-answer.mjs. What is tested here is what only a DOM can
+ * answer: that the keyboard reaches every field, that Continue stays shut
+ * until the age has been read back, and that no route out of "I'm not sure"
+ * ends in a screen the learner cannot leave.
+ *
  * The guardian capture that used to live on this screen moved to
  * GuardianConsentStep, after the account exists — see that spec.
  */
@@ -29,12 +36,19 @@ function setup(props = {}) {
   return render(<AgeGateStep onAnswer={onAnswer} {...props} />)
 }
 
-function enterDob({ day, month, year }) {
-  fireEvent.change(screen.getByLabelText(/^day$/i), { target: { value: String(day) } })
-  fireEvent.change(screen.getByLabelText(/^month$/i), { target: { value: String(month) } })
-  fireEvent.change(screen.getByLabelText(/^year$/i), { target: { value: String(year) } })
-  fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+const field = (name) => screen.getByLabelText(new RegExp(`^${name}$`, 'i'))
+
+/** Type a date the way a thumb does — one field at a time, digits only. */
+function typeDob({ day, month, year }) {
+  fireEvent.change(field('day'), { target: { value: String(day) } })
+  fireEvent.change(field('month'), { target: { value: String(month) } })
+  fireEvent.change(field('year'), { target: { value: String(year) } })
 }
+
+const continueButton = () => screen.getByRole('button', { name: /^continue$/i })
+
+/** This year, so the fixtures age with the calendar instead of rotting. */
+const THIS_YEAR = new Date().getUTCFullYear()
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -46,14 +60,16 @@ describe('AgeGateStep — neutrality', () => {
     setup()
     expect(screen.getByText(/when were you born/i)).toBeInTheDocument()
     // The failure this guards: a well-meaning hint that teaches the user
-    // which answer gets them the bigger app.
+    // which answer gets them the bigger app. "grown-up" is allowed and the
+    // privacy line uses it — what is not allowed is any statement about what
+    // an ANSWER leads to.
     const text = document.body.textContent
-    expect(text).not.toMatch(/parent|guardian|approve|under 1[38]|adult|age/i)
+    expect(text).not.toMatch(/approve|under 1[38]|too young|adult|permission/i)
   })
 
   it('gives a reason for asking that reveals nothing', () => {
     setup()
-    expect(screen.getByText(/helps us set zedexams up right for you/i)).toBeInTheDocument()
+    expect(screen.getByText(/set up the right account for you/i)).toBeInTheDocument()
   })
 
   it('carries no sign-up method of its own', () => {
@@ -67,26 +83,120 @@ describe('AgeGateStep — neutrality', () => {
 
   it('pre-fills nothing', () => {
     setup()
-    for (const label of [/^day$/i, /^month$/i, /^year$/i]) {
-      expect(screen.getByLabelText(label).value).toBe('')
+    for (const name of ['day', 'month', 'year']) {
+      expect(field(name).value).toBe('')
     }
   })
 
-  it('does not offer an adult year as the first option', () => {
+  it('refuses both ends of the plausible range in the same words', () => {
+    // Symmetry IS the neutrality. A gentler refusal for a young answer is a
+    // hint about which end of the range is welcome.
     setup()
-    const options = [...screen.getByLabelText(/^year$/i).querySelectorAll('option')]
-    expect(options[0].value).toBe('')
-    // Years run newest-first, so the first real option is this year — not a
-    // date that would route straight past the guardian step.
-    expect(Number(options[1].value)).toBe(new Date().getFullYear())
+    typeDob({ day: '01', month: '01', year: String(THIS_YEAR - 2) })
+    const young = screen.getByRole('alert').textContent
+    typeDob({ day: '01', month: '01', year: String(THIS_YEAR - 120) })
+    const old = screen.getByRole('alert').textContent
+    const shape = (s) => s.replace(/\d+/g, 'N')
+    expect(shape(young)).toBe(shape(old))
+    expect(young).toMatch(/check the year/i)
   })
 })
 
-describe('AgeGateStep — the answer', () => {
-  it('hands back a real date', async () => {
+describe('AgeGateStep — typing the date', () => {
+  it('offers three numeric fields, not three dropdowns', () => {
+    // The whole point of the redesign: one keyboard instead of three modal
+    // pickers and a year list a child born in 2014 has to scroll down.
     setup()
-    enterDob({ day: 1, month: 0, year: 1990 })
-    await waitFor(() => expect(onAnswer).toHaveBeenCalledWith({ dob: '1990-01-01' }))
+    for (const [name, len] of [['day', '2'], ['month', '2'], ['year', '4']]) {
+      const el = field(name)
+      expect(el.tagName).toBe('INPUT')
+      expect(el.getAttribute('inputmode')).toBe('numeric')
+      expect(el.getAttribute('maxlength')).toBe(len)
+    }
+  })
+
+  it('moves the caret on when a field is full', () => {
+    setup()
+    fireEvent.change(field('day'), { target: { value: '14' } })
+    expect(document.activeElement).toBe(field('month'))
+    fireEvent.change(field('month'), { target: { value: '03' } })
+    expect(document.activeElement).toBe(field('year'))
+  })
+
+  it('does not move the caret while a field could still grow', () => {
+    // A `4` in the day box might yet become `14`. Jumping out from under
+    // someone mid-number costs more than the tap it saves.
+    setup()
+    const day = field('day')
+    day.focus()
+    fireEvent.change(day, { target: { value: '4' } })
+    expect(document.activeElement).toBe(day)
+  })
+
+  it('backspacing out of an empty field steps back', () => {
+    // Without this the auto-advance is a one-way door and a correction needs
+    // a tap the keyboard is covering.
+    setup()
+    typeDob({ day: '14', month: '03', year: '' })
+    const year = field('year')
+    year.focus()
+    fireEvent.keyDown(year, { key: 'Backspace' })
+    expect(document.activeElement).toBe(field('month'))
+  })
+
+  it('keeps digits and drops everything else', () => {
+    setup()
+    fireEvent.change(field('year'), { target: { value: '2o14x' } })
+    expect(field('year').value).toBe('214')
+  })
+})
+
+describe('AgeGateStep — the age echo', () => {
+  it('reads the age back before Continue is available', () => {
+    // THE headline change. A child who types 2004 for 2014 reads "22 years
+    // old" and fixes it — which is the exact typo that would otherwise drop a
+    // twelve-year-old into an adult account with no guardian.
+    setup()
+    expect(continueButton()).toBeDisabled()
+    typeDob({ day: '14', month: '03', year: '2014' })
+    expect(screen.getByRole('status')).toHaveTextContent(/that makes you \d+ years old/i)
+    expect(screen.getByRole('status')).toHaveTextContent(/14 March 2014 — is that right\?/i)
+    expect(continueButton()).toBeEnabled()
+  })
+
+  it('shows nothing at all while the date is half-typed', () => {
+    // Shouting at someone who has typed two of eight digits is how a form
+    // teaches a child that it is angry at them.
+    setup()
+    typeDob({ day: '14', month: '', year: '' })
+    expect(screen.queryByRole('status')).toBeNull()
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(continueButton()).toBeDisabled()
+  })
+
+  it('blocks Continue on an impossible date and says which part is wrong', () => {
+    // new Date('2015-02-31') rolls into March. A rolled date is a typo, and
+    // treating it as real assigns an age nobody entered.
+    setup()
+    typeDob({ day: '31', month: '02', year: '2015' })
+    expect(screen.getByRole('alert')).toHaveTextContent(/day and month/i)
+    expect(screen.queryByRole('status')).toBeNull()
+    expect(continueButton()).toBeDisabled()
+  })
+
+  it('blames the year, not the day, when the year has not happened', () => {
+    setup()
+    typeDob({ day: '01', month: '01', year: String(THIS_YEAR + 1) })
+    expect(screen.getByRole('alert')).toHaveTextContent(/has not happened yet/i)
+    expect(continueButton()).toBeDisabled()
+  })
+
+  it('hands back the confirmed date', async () => {
+    setup()
+    typeDob({ day: '01', month: '01', year: '1990' })
+    fireEvent.click(continueButton())
+    await waitFor(() =>
+      expect(onAnswer).toHaveBeenCalledWith({ dob: '1990-01-01', dobSource: 'typed' }))
   })
 
   it('hands back a child date on exactly the same terms', async () => {
@@ -94,66 +204,99 @@ describe('AgeGateStep — the answer', () => {
     // behave differently for a younger answer — behaving differently is how a
     // user learns what the screen is for.
     setup()
-    enterDob({ day: 3, month: 5, year: 2015 })
-    await waitFor(() => expect(onAnswer).toHaveBeenCalledWith({ dob: '2015-06-03' }))
+    typeDob({ day: '03', month: '06', year: '2015' })
+    fireEvent.click(continueButton())
+    await waitFor(() =>
+      expect(onAnswer).toHaveBeenCalledWith({ dob: '2015-06-03', dobSource: 'typed' }))
+  })
+})
+
+describe('AgeGateStep — "I\'m not sure of my birthday"', () => {
+  const notSure = () => screen.getByRole('button', { name: /not sure of my birthday/i })
+
+  it('is offered, because a required three-field form stops a child who does not know', () => {
+    setup()
+    expect(notSure()).toBeInTheDocument()
   })
 
-  it('rejects an impossible date instead of inventing an age', async () => {
-    // new Date('2015-02-31') rolls into March. A rolled date is a typo, and
-    // treating it as real assigns an age nobody entered.
+  it('offers three ways out and a way back', () => {
     setup()
-    enterDob({ day: 31, month: 1, year: 2015 })
-    await waitFor(() =>
-      expect(screen.getByText(/doesn't look right/i)).toBeInTheDocument(),
-    )
-    expect(onAnswer).not.toHaveBeenCalled()
+    fireEvent.click(notSure())
+    expect(screen.getByRole('button', { name: /know the year only/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /know my grade/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /ask my grown-up/i })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /go back and type it/i }))
+    expect(screen.getByText(/when were you born/i)).toBeInTheDocument()
   })
 
-  it('rejects a date in the future', async () => {
+  it('resolves the year-only route to a date', async () => {
     setup()
-    const next = new Date().getFullYear() + 1
-    // The year list only runs backwards, so a future year has to be forced in
-    // — which is exactly what a tampered client would do.
-    const yearSelect = screen.getByLabelText(/^year$/i)
-    const option = document.createElement('option')
-    option.value = String(next)
-    yearSelect.appendChild(option)
-    enterDob({ day: 1, month: 0, year: next })
+    fireEvent.click(notSure())
+    fireEvent.click(screen.getByRole('button', { name: /know the year only/i }))
+    fireEvent.change(screen.getByLabelText(/^year$/i), { target: { value: '2014' } })
+    fireEvent.click(continueButton())
     await waitFor(() =>
-      expect(screen.getByText(/doesn't look right/i)).toBeInTheDocument(),
-    )
-    expect(onAnswer).not.toHaveBeenCalled()
+      expect(onAnswer).toHaveBeenCalledWith({ dob: '2014-12-31', dobSource: 'year_only' }))
   })
 
-  it('will not continue on a partial date', async () => {
+  it('resolves the grade route to a date, after showing the estimate', async () => {
     setup()
-    fireEvent.change(screen.getByLabelText(/^year$/i), { target: { value: '2015' } })
-    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
-    await waitFor(() =>
-      expect(screen.getByText(/choose the day, month and year/i)).toBeInTheDocument(),
-    )
-    expect(onAnswer).not.toHaveBeenCalled()
+    fireEvent.click(notSure())
+    fireEvent.click(screen.getByRole('button', { name: /know my grade/i }))
+    fireEvent.change(screen.getByLabelText(/^grade$/i), { target: { value: '7' } })
+    // Hedged on purpose: it IS a guess, and presenting it as a fact invites a
+    // correction the learner has no way to make.
+    expect(screen.getByText(/about 13 years old/i)).toBeInTheDocument()
+    fireEvent.click(continueButton())
+    await waitFor(() => expect(onAnswer).toHaveBeenCalled())
+    expect(onAnswer.mock.calls[0][0].dobSource).toBe('grade')
+  })
+
+  it('never leaves the grown-up route without a way forward', () => {
+    // "Not a dead end" has to mean the screen a child lands on can be left.
+    setup()
+    fireEvent.click(notSure())
+    fireEvent.click(screen.getByRole('button', { name: /ask my grown-up/i }))
+    fireEvent.click(screen.getByRole('button', { name: /type it now/i }))
+    expect(screen.getByText(/when were you born/i)).toBeInTheDocument()
+  })
+
+  it('offers no year a four-year-old could not have', () => {
+    setup()
+    fireEvent.click(notSure())
+    fireEvent.click(screen.getByRole('button', { name: /know the year only/i }))
+    const options = [...screen.getByLabelText(/^year$/i).querySelectorAll('option')]
+    expect(options[0].value).toBe('')
+    // Newest first, so the first real option is never an adult date.
+    expect(Number(options[1].value)).toBe(THIS_YEAR - 4)
   })
 })
 
 describe('AgeGateStep — the locked first answer', () => {
-  it('shows the first answer, read-only, on a return visit', async () => {
+  it('shows the first answer, read-only, on a return visit', () => {
     // Criterion 5: backing out and coming back must not be a way to try a
     // different birthday.
     setup({ lockedDob: '2015-06-03' })
-    expect(screen.getByLabelText(/^day$/i).value).toBe('3')
-    expect(screen.getByLabelText(/^month$/i).value).toBe('5')
-    expect(screen.getByLabelText(/^year$/i).value).toBe('2015')
-    for (const label of [/^day$/i, /^month$/i, /^year$/i]) {
-      expect(screen.getByLabelText(label)).toBeDisabled()
+    expect(field('day').value).toBe('03')
+    expect(field('month').value).toBe('06')
+    expect(field('year').value).toBe('2015')
+    for (const name of ['day', 'month', 'year']) {
+      expect(field(name)).toBeDisabled()
     }
+  })
+
+  it('hides the escape hatch once an answer is locked', () => {
+    // "I'm not sure" is a way to ANSWER, not a way to answer again.
+    setup({ lockedDob: '2015-06-03' })
+    expect(screen.queryByRole('button', { name: /not sure of my birthday/i })).toBeNull()
   })
 
   it('confirms the locked answer without re-running the cooldown', async () => {
     // Re-reporting it would block the user with their own previous answer.
     setup({ lockedDob: '2015-06-03' })
-    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
-    await waitFor(() => expect(onAnswer).toHaveBeenCalledWith({ dob: '2015-06-03' }))
+    fireEvent.click(continueButton())
+    await waitFor(() =>
+      expect(onAnswer).toHaveBeenCalledWith({ dob: '2015-06-03', dobSource: 'typed' }))
     expect(recordAgeGateAttempt).not.toHaveBeenCalled()
   })
 })
@@ -161,17 +304,30 @@ describe('AgeGateStep — the locked first answer', () => {
 describe('AgeGateStep — retry cooldown', () => {
   it('reports the attempt to the server', async () => {
     setup()
-    enterDob({ day: 1, month: 0, year: 1990 })
+    typeDob({ day: '01', month: '01', year: '1990' })
+    fireEvent.click(continueButton())
+    await waitFor(() => expect(recordAgeGateAttempt).toHaveBeenCalled())
+  })
+
+  it('reports the derived routes too', async () => {
+    // A route that skipped the cooldown would be a retry with extra steps —
+    // exactly the thing the lock exists to stop, hidden behind a friendlier
+    // screen.
+    setup()
+    fireEvent.click(screen.getByRole('button', { name: /not sure of my birthday/i }))
+    fireEvent.click(screen.getByRole('button', { name: /know the year only/i }))
+    fireEvent.change(screen.getByLabelText(/^year$/i), { target: { value: '2014' } })
+    fireEvent.click(continueButton())
     await waitFor(() => expect(recordAgeGateAttempt).toHaveBeenCalled())
   })
 
   it('honours a server block instead of routing', async () => {
     recordAgeGateAttempt.mockResolvedValue({ blocked: true })
     setup()
-    enterDob({ day: 1, month: 0, year: 1990 })
+    typeDob({ day: '01', month: '01', year: '1990' })
+    fireEvent.click(continueButton())
     await waitFor(() =>
-      expect(screen.getByText(/already answered this today/i)).toBeInTheDocument(),
-    )
+      expect(screen.getByRole('alert')).toHaveTextContent(/already answered this today/i))
     expect(onAnswer).not.toHaveBeenCalled()
   })
 
@@ -180,7 +336,8 @@ describe('AgeGateStep — retry cooldown', () => {
     // check, and an outage must not block signup entirely.
     recordAgeGateAttempt.mockRejectedValue(new Error('offline'))
     setup()
-    enterDob({ day: 1, month: 0, year: 1990 })
+    typeDob({ day: '01', month: '01', year: '1990' })
+    fireEvent.click(continueButton())
     await waitFor(() => expect(onAnswer).toHaveBeenCalled())
   })
 })

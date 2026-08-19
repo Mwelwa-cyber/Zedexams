@@ -169,8 +169,18 @@ export default function ParentNotificationsPage() {
           style={{ textAlign: 'center', marginTop: 16, lineHeight: 1.5 }}
         >
           Choose which of these you get in{' '}
-          <Link to="/settings" style={{ color: 'var(--lhx-indigo-text)', fontWeight: 800 }}>
-            Settings → Notifications
+          {/* The parent's OWN alert settings, not /settings. ParentRouteGuard
+              already redirects a guardian off the learner settings screen, so
+              this was no longer a leak — but it was still a link that named
+              the wrong destination and described it with the wrong words
+              ("Settings → Notifications" is the learner's screen). A footer
+              whose job is to say where the switches are should say where they
+              actually are. */}
+          <Link
+            to="/family/account/alerts"
+            style={{ color: 'var(--lhx-indigo-text)', fontWeight: 800 }}
+          >
+            Account → Alerts
           </Link>
           .
         </p>

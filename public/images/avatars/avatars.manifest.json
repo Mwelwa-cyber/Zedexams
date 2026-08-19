@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "groups": [
+    {
+      "id": "junior",
+      "label": "Junior Scholars",
+      "grades": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ]
+    },
+    {
+      "id": "senior",
+      "label": "Exam Candidates",
+      "grades": [
+        10,
+        11,
+        12
+      ]
+    }
+  ],
+  "avatars": [
+    {
+      "id": "questioner",
+      "name": "The Questioner",
+      "group": "junior",
+      "file": "avatars/01-questioner.png"
+    },
+    {
+      "id": "raiser",
+      "name": "Hand Raiser",
+      "group": "junior",
+      "file": "avatars/02-raiser.png"
+    },
+    {
+      "id": "bookworm",
+      "name": "Bookworm",
+      "group": "junior",
+      "file": "avatars/03-bookworm.png"
+    },
+    {
+      "id": "scientist",
+      "name": "The Scientist",
+      "group": "junior",
+      "file": "avatars/04-scientist.png"
+    },
+    {
+      "id": "eagle",
+      "name": "ZedExams Eagle",
+      "group": "junior",
+      "file": "avatars/05-eagle.png"
+    },
+    {
+      "id": "graduate",
+      "name": "The Graduate",
+      "group": "senior",
+      "file": "avatars/06-graduate.png"
+    },
+    {
+      "id": "lateshift",
+      "name": "Late Shift",
+      "group": "senior",
+      "file": "avatars/07-lateshift.png"
+    },
+    {
+      "id": "focus",
+      "name": "Focus Mode",
+      "group": "senior",
+      "file": "avatars/08-headphones.png"
+    },
+    {
+      "id": "proud",
+      "name": "Proud",
+      "group": "senior",
+      "file": "avatars/09-proud.png"
+    },
+    {
+      "id": "mature",
+      "name": "Mature Student",
+      "group": "senior",
+      "file": "avatars/10-mature.png"
+    }
+  ]
+}

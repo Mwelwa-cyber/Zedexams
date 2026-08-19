@@ -96,7 +96,13 @@ function renderPage() {
         <Route path="/family/notifications" element={<ParentNotificationsPage />} />
         <Route path="/family" element={<div>FAMILY HOME</div>} />
         <Route path="/family/child/:childUid" element={<div>CHILD ROUTE</div>} />
-        <Route path="/settings" element={<div>SETTINGS ROUTE</div>} />
+        <Route path="/family/account/alerts" element={<div>PARENT ALERTS</div>} />
+        {/* The learner settings screen, stubbed so the test can prove the
+            footer does NOT point there. ParentRouteGuard would redirect a
+            guardian away from it, but a link that names the wrong screen —
+            and calls it "Settings → Notifications" — is still the wrong
+            link. */}
+        <Route path="/settings" element={<div>LEARNER SETTINGS</div>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -198,11 +204,12 @@ describe('ParentNotificationsPage', () => {
     expect(screen.getByText(/all caught up/i)).toBeInTheDocument()
   })
 
-  it('always points at where the switches are', () => {
+  it('points at the PARENT switches, never the learner settings screen', () => {
     mockValue = { ...mockValue, notifications: [], unreadCount: 0 }
     renderPage()
-    fireEvent.click(screen.getByRole('link', { name: /settings/i }))
-    expect(screen.getByText('SETTINGS ROUTE')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('link', { name: /account.*alerts/i }))
+    expect(screen.getByText('PARENT ALERTS')).toBeInTheDocument()
+    expect(screen.queryByText('LEARNER SETTINGS')).not.toBeInTheDocument()
   })
 
   it('offers Show earlier when the context has more pages', () => {

@@ -22,6 +22,7 @@ import { isSuperAdmin as isSuperAdminRole, resolvePermissionFlags } from '../uti
 import { setSentryUser, clearSentryUser, setAuthStateTag, reportAuthInitFailure } from '../utils/sentry'
 import { capture, identifyUser, resetAnalytics } from '../utils/analytics'
 import { requiresGuardianConsent } from '../utils/guardianConsent'
+import { isKnownDobSource } from '../utils/ageAnswerCore'
 // (The guardian consent request is sent from the sign-up flow's guardian
 // screen, which is the only place a guardian's address is collected.)
 import { refreshTokenIfGranted, clearPushUser } from '../services/notifications/fcm'
@@ -265,6 +266,11 @@ async function ensureGoogleUserProfile(cred, targetRole, onboarding = {}) {
   // same server-side recomputation, same pending guardian record.
   if (targetRole === ROLES.LEARNER) {
     if (onboarding.dob) record.dob = String(onboarding.dob)
+    // HOW the date was arrived at, recorded beside it. A date estimated from
+    // a grade is weaker evidence than one the learner typed, and support
+    // cannot tell them apart from the value alone. Nothing routes on it —
+    // `isMinor` comes from the date, here and again on the server.
+    if (isKnownDobSource(onboarding.dobSource)) record.dobSource = onboarding.dobSource
     const minor = requiresGuardianConsent(onboarding.dob)
     record.isMinor = minor
     if (minor) {
@@ -406,6 +412,8 @@ export function AuthProvider({ children }) {
       // restricted experience rather than out of it. The value written here is
       // re-derived server-side by the users-create trigger regardless.
       if (extras.dob) userRecord.dob = String(extras.dob)
+      // See the Google path above: provenance, not a routing flag.
+      if (isKnownDobSource(extras.dobSource)) userRecord.dobSource = extras.dobSource
       const minor = requiresGuardianConsent(extras.dob)
       userRecord.isMinor = minor
       if (minor) {

@@ -12,7 +12,7 @@
  */
 
 const assert = require("assert");
-const {resolveAgeBootstrap} = require("./userAgeBootstrapCore");
+const {resolveAgeBootstrap, needsDobStamp} = require("./userAgeBootstrapCore");
 
 // The real rule, restated locally so this file stays a plain-node script: a
 // date under 18 years before `now` needs consent, and anything unreadable
@@ -197,6 +197,41 @@ test("someone exactly 18 today is not", () => {
       null,
       "2008-08-01 turns 18 on 2026-08-01 and needs no correction",
   );
+});
+
+// ── The recorded moment ───────────────────────────────────────────
+
+test("a learner's first date of birth gets stamped", () => {
+  // The screen's promise is that the FIRST answer is the answer. `dob` is
+  // already pinned against client updates; without a timestamp there is
+  // nothing to show WHEN it was given, which is what a support request or a
+  // guardian dispute actually turns on.
+  assert.strictEqual(needsDobStamp({role: "learner", dob: "2014-03-14"}), true);
+});
+
+test("a stamp is never moved forward", () => {
+  // A retry or a replayed Eventarc delivery must not rewrite the recorded
+  // moment — that is the difference between evidence and a field.
+  assert.strictEqual(
+      needsDobStamp({role: "learner", dob: "2014-03-14", dobRecordedAt: "2026-08-01"}),
+      false,
+  );
+});
+
+test("nothing is stamped without a date to stamp", () => {
+  // Accounts predating the age screen, and profiles bootstrapUserProfile
+  // recovered, carry no date. A stamp on those would claim an answer nobody
+  // gave.
+  assert.strictEqual(needsDobStamp({role: "learner"}), false);
+  assert.strictEqual(needsDobStamp({role: "learner", dob: "   "}), false);
+});
+
+test("teachers and parents are never stamped", () => {
+  // They are not asked, so a date on their document is a stale client's
+  // mistake that resolveAgeBootstrap strips. Stamping it would preserve it.
+  assert.strictEqual(needsDobStamp({role: "teacher", dob: "1990-01-01"}), false);
+  assert.strictEqual(needsDobStamp({role: "parent", dob: "1990-01-01"}), false);
+  assert.strictEqual(needsDobStamp(null), false);
 });
 
 console.log("");

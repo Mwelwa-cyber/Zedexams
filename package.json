@@ -67,7 +67,6 @@
     "test:img-size-attributes": "node scripts/test-img-size-attributes.mjs",
     "test:settings-section": "node scripts/test-settings-section.mjs",
     "test:parent-redirects": "node scripts/test-parent-redirects.mjs",
-
     "test:quiz-image-upload": "node src/utils/quizImageUpload.test.js",
     "test:math-notation-reach": "node src/editor/mathNotationReach.test.js",
     "test:quiz-result-payload": "node src/utils/quizResultPayload.test.js",
@@ -500,6 +499,7 @@
     "test:ai-cost-providers": "node functions/aiCostProviders.test.js",
     "test:ai-cost-tts": "node functions/aiCostTts.test.js",
     "test:tts-cache": "node functions/ttsCache.test.js",
+    "test:tts-admin": "node functions/ttsAdmin.test.js",
     "test:firestore-backup": "node functions/firestoreBackup.test.js",
     "test:storage-backup": "node functions/storageBackup.test.js",
     "test:storage-backup-heartbeat": "node functions/storageBackupHeartbeatCore.test.js",
@@ -805,9 +805,11 @@
     "test:account-deletion-request": "node functions/accountDeletionRequests.test.js",
     "test:analytics-purge": "node functions/analyticsPurge.test.js",
     "test:guardian-consent": "node functions/shared/consent/guardianConsentCore.test.js && node functions/guardianConsent/guardianConsent.test.js",
+    "test:guardian-contact": "node functions/shared/consent/guardianContactCore.test.js",
     "test:shared-consent-neutral": "node functions/shared/consent/neutrality.test.js",
     "test:consent-guard": "node functions/consentGuard.test.js",
     "test:signup-flow": "node scripts/test-signup-flow.mjs",
+    "test:age-answer": "node scripts/test-age-answer.mjs",
     "test:user-age-bootstrap": "node functions/guardianConsent/userAgeBootstrap.test.js",
     "test:learner-safety": "node functions/learnerSafety/learnerSafetyCore.test.js",
     "test:android-manifest": "node scripts/test-android-manifest.mjs",
@@ -885,7 +887,10 @@
     "test:auth-init-retry": "node src/hooks/authInitRetryPolicy.test.js",
     "test:auth-persistence-lifecycle": "node src/firebase/authPersistenceLifecycle.test.js",
     "test:auth-ready-gate": "node src/utils/authReadyGate.test.js",
-    "test:auth-ready-guards": "node scripts/test-auth-ready-guards.mjs"
+    "test:auth-ready-guards": "node scripts/test-auth-ready-guards.mjs",
+    "test:learner-avatars": "node src/shared/components/learnerAvatarManifest.test.js",
+    "test:name-avatar-form": "node src/features/learnerSettings/lib/nameAvatarFormCore.test.js",
+    "test:learner-settings-routes": "node src/features/learnerSettings/lib/settingsRoutes.test.js"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",

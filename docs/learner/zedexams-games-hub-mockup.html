@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZedExams · Games hub redesign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#211D52;
+    --muted:#6E6C93;
+    --line:#E6E7F5;
+    --bg:#EFF0FB;
+    --brand:#5A61E6;
+    --brand-2:#4A50D6;
+    --coral:#FB6A43;
+    --coral-2:#EF5A32;
+    --gold:#F6B93B;
+    --mint:#17B27C;
+    --nav-h:60px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0}
+  body{
+    font-family:'Nunito',system-ui,-apple-system,sans-serif;
+    background:#15132C;
+    color:#E9E8F7;
+    padding:28px 16px 56px;
+  }
+
+  /* ---------- page chrome ---------- */
+  .doc{max-width:980px;margin:0 auto}
+  .kicker{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#8E8CC8;margin:0 0 6px}
+  h1{font-size:26px;font-weight:900;margin:0 0 8px;letter-spacing:-.01em}
+  .lede{font-size:15px;line-height:1.55;color:#B6B4DC;margin:0 0 28px;max-width:62ch}
+  .frames{display:flex;flex-wrap:wrap;gap:26px;justify-content:center;margin-bottom:36px}
+  figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:10px}
+  figcaption{font-size:12.5px;font-weight:800;color:#9694CF;letter-spacing:.02em}
+
+  /* ---------- phone ---------- */
+  .phone{
+    width:390px;max-width:100%;height:768px;
+    background:var(--bg);
+    border:9px solid #0D0B22;border-radius:38px;
+    overflow:hidden;position:relative;
+    box-shadow:0 30px 70px rgba(0,0,0,.5);
+    color:var(--ink);
+  }
+  .screen{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--bg)}
+
+  .statusbar{height:26px;flex:none;display:flex;align-items:center;justify-content:space-between;
+    padding:0 18px;font-size:11px;font-weight:800;color:var(--ink);opacity:.75}
+
+  /* top bar */
+  .topbar{
+    flex:none;height:52px;display:flex;align-items:center;gap:8px;
+    padding:0 14px;background:rgba(239,240,251,.92);backdrop-filter:blur(8px);
+    border-bottom:1px solid rgba(0,0,0,.04);
+  }
+  .topbar h2{margin:0;font-size:20px;font-weight:900;letter-spacing:-.01em;flex:1}
+  .chip-streak{
+    display:inline-flex;align-items:center;gap:4px;height:30px;padding:0 11px;border-radius:999px;
+    background:#FFF;border:1px solid var(--line);font-size:12.5px;font-weight:800;color:var(--ink);
+  }
+  .icon-btn{
+    width:34px;height:34px;border-radius:12px;background:#FFF;border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;font-size:15px;
+  }
+
+  /* scroll body */
+  .body{flex:1;overflow:hidden;padding:12px 14px 0}
+  .body.scrolled{padding-top:6px}
+
+  .sect{display:flex;align-items:baseline;justify-content:space-between;margin:16px 2px 9px}
+  .sect:first-child{margin-top:2px}
+  .sect h3{margin:0;font-size:15.5px;font-weight:900;letter-spacing:-.01em}
+  .sect a{font-size:12.5px;font-weight:800;color:var(--brand);text-decoration:none}
+
+  /* hero cards */
+  .hero{
+    display:flex;align-items:center;gap:11px;
+    border-radius:20px;padding:13px 13px 13px 12px;margin-bottom:10px;
+    position:relative;overflow:hidden;
+  }
+  .hero--quiz{background:linear-gradient(135deg,#6067EA 0%,#4A50D6 100%);color:#fff}
+  .hero--race{background:linear-gradient(135deg,#FC7A50 0%,#F05A2C 100%);color:#fff}
+  .hero::after{
+    content:"";position:absolute;right:-34px;bottom:-46px;width:118px;height:118px;
+    border-radius:50%;background:rgba(255,255,255,.10);
+  }
+  .hero-avatar{
+    flex:none;width:42px;height:42px;border-radius:14px;
+    background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:22px;
+  }
+  .hero-body{flex:1;min-width:0;position:relative;z-index:1}
+  .hero-eyebrow{
+    display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;
+    font-size:9.5px;font-weight:900;letter-spacing:.09em;text-transform:uppercase;opacity:.88;margin-bottom:3px;
+  }
+  .grade-pill{
+    flex:none;white-space:nowrap;
+    background:rgba(255,255,255,.22);border-radius:999px;padding:2px 7px;letter-spacing:.04em;font-size:9.5px;
+  }
+  .hero-title{
+    font-size:16.5px;font-weight:900;line-height:1.15;letter-spacing:-.015em;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .hero-sub{
+    font-size:12.5px;font-weight:600;opacity:.9;margin-top:2px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .btn{
+    flex:none;height:38px;min-width:66px;padding:0 13px;border:0;border-radius:13px;
+    font-family:inherit;font-size:14.5px;font-weight:900;position:relative;z-index:1;
+  }
+  .btn--coral{background:var(--coral);color:#fff;box-shadow:0 3px 0 var(--coral-2)}
+  .btn--white{background:#fff;color:var(--coral-2);box-shadow:0 3px 0 rgba(0,0,0,.12)}
+
+  /* level strip */
+  .level{
+    background:#fff;border-radius:20px;padding:13px 14px;border:1px solid var(--line);
+    box-shadow:0 1px 2px rgba(33,29,82,.04);
+  }
+  .level-top{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+  .level-badge{
+    flex:none;width:38px;height:38px;border-radius:13px;
+    background:linear-gradient(135deg,#EEF0FF,#DDE0FA);display:flex;align-items:center;justify-content:center;font-size:19px;
+  }
+  .level-name{flex:1;min-width:0}
+  .level-name b{display:block;font-size:15px;font-weight:900;letter-spacing:-.01em}
+  .level-name span{display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin-top:1px}
+  .level-xp{font-size:12px;font-weight:800;color:var(--brand);white-space:nowrap}
+  .track{height:9px;border-radius:999px;background:#EAEBF7;overflow:hidden}
+  .track i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#F9C55C,#F6A93B)}
+
+  /* achievements */
+  .shelf{display:flex;gap:9px;overflow-x:auto;padding:2px 0 4px;scroll-snap-type:x mandatory;-ms-overflow-style:none;scrollbar-width:none}
+  .shelf::-webkit-scrollbar{display:none}
+  .ach{flex:none;width:70px;scroll-snap-align:start;text-align:center}
+  .ach-tile{
+    width:70px;height:66px;border-radius:19px;
+    background:linear-gradient(160deg,#FFD98A,#F8B93F);
+    display:flex;align-items:center;justify-content:center;font-size:28px;
+    box-shadow:0 2px 5px rgba(246,169,59,.28);
+  }
+  .ach.locked .ach-tile{background:#E6E7F3;box-shadow:none;font-size:22px;opacity:.85}
+  .ach span{
+    display:block;margin-top:6px;font-size:10.5px;font-weight:800;line-height:1.25;color:var(--ink);
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  }
+  .ach.locked span{color:var(--muted)}
+
+  /* game cards */
+  .game{
+    display:flex;align-items:center;gap:11px;
+    background:#fff;border:1px solid var(--line);border-radius:18px;
+    padding:11px 12px;margin-bottom:9px;
+    box-shadow:0 1px 2px rgba(33,29,82,.04);
+  }
+  .game-icon{
+    flex:none;width:44px;height:44px;border-radius:14px;
+    background:var(--c,#EEF0FB);display:flex;align-items:center;justify-content:center;font-size:23px;
+  }
+  .game-main{flex:1;min-width:0}
+  .game-main b{
+    display:block;font-size:15.5px;font-weight:900;letter-spacing:-.01em;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .game-main span{
+    display:block;font-size:12px;font-weight:700;color:var(--muted);margin-top:2px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .game-end{flex:none;display:flex;align-items:center;gap:6px}
+  .pill{height:26px;padding:0 10px;border-radius:999px;display:inline-flex;align-items:center;font-size:11.5px;font-weight:900}
+  .pill--best{background:#FFEDE6;color:var(--coral-2)}
+  .pill--new{background:#E2F7EF;color:var(--mint)}
+  .pill--play{background:#EEF0FF;color:var(--brand)}
+  .chev{color:#B9B8D4;font-size:19px;font-weight:900;line-height:1;margin-left:-2px}
+
+  .endcap{text-align:center;font-size:11.5px;font-weight:700;color:var(--muted);padding:4px 0 0}
+  .cut{height:42px;overflow:hidden;margin-bottom:4px}
+  .cut .shelf{margin-top:-42px}
+
+  /* fixed chrome */
+  .fab{
+    position:absolute;right:14px;bottom:calc(var(--nav-h) + 14px);z-index:6;
+    height:44px;padding:0 15px 0 8px;border-radius:999px;
+    background:linear-gradient(135deg,#6067EA,#4A50D6);color:#fff;
+    display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:900;
+    box-shadow:0 8px 20px rgba(74,80,214,.4);
+  }
+  .fab i{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:16px;font-style:normal}
+  .nav{
+    position:absolute;left:0;right:0;bottom:0;height:var(--nav-h);z-index:7;
+    background:#fff;border-top:1px solid var(--line);
+    display:flex;align-items:center;justify-content:space-around;
+    box-shadow:0 -2px 14px rgba(33,29,82,.06);
+  }
+  .nav a{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;font-weight:800;color:#9C9AC0;text-decoration:none}
+  .nav a em{font-style:normal;font-size:19px;line-height:1}
+  .nav a.on{color:var(--coral)}
+  .spacer{height:calc(var(--nav-h) + 62px)}
+
+  /* ---------- notes ---------- */
+  .notes{background:#1E1B3E;border:1px solid #2E2A58;border-radius:22px;padding:22px 22px 6px}
+  .notes h2{font-size:18px;font-weight:900;margin:0 0 4px}
+  .notes p.sub{font-size:13.5px;color:#A9A7D4;margin:0 0 18px}
+  .fix{display:flex;gap:13px;padding:13px 0;border-top:1px solid #2E2A58}
+  .fix:first-of-type{border-top:0}
+  .fix .n{
+    flex:none;width:25px;height:25px;border-radius:9px;background:#3A3670;color:#CFCDF6;
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;
+  }
+  .fix .t{font-size:14px;line-height:1.5}
+  .fix .t b{display:block;font-weight:800;margin-bottom:2px}
+  .fix .t span{color:#A9A7D4}
+  .tag{display:inline-block;font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;
+    padding:2px 7px;border-radius:6px;margin-left:6px;vertical-align:1px}
+  .tag.bug{background:#4A1F2B;color:#FF9C9C}
+  .tag.pol{background:#243C4E;color:#8FD3FF}
+  @media(max-width:520px){
+    body{padding:20px 12px 40px}
+    h1{font-size:22px}
+    .notes{padding:18px 16px 4px;border-radius:18px}
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+  <p class="kicker">ZedExams · learner side</p>
+  <h1>Games hub — proposed fix</h1>
+  <p class="lede">Same content, same brand, same backend. What changes is density, overflow behaviour and the fixed chrome: nothing gets covered by the bottom nav or the Ask&nbsp;Zed pill, no text wraps mid-phrase, and every card is one predictable height.</p>
+
+  <div class="frames">
+
+    <!-- ============ FRAME 1 : TOP ============ -->
+    <figure>
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>13:18</span><span>▲ ▮▮ 91%</span></div>
+
+          <div class="topbar">
+            <h2>Games</h2>
+            <span class="chip-streak">🔥 1</span>
+            <span class="icon-btn">🏆</span>
+          </div>
+
+          <div class="body">
+            <div class="hero hero--quiz">
+              <div class="hero-avatar">🤖</div>
+              <div class="hero-body">
+                <div class="hero-eyebrow">Today's quiz <span class="grade-pill">Grade 7</span></div>
+                <div class="hero-title">Play with Zed</div>
+                <div class="hero-sub">🔥 Keep your 1-day streak</div>
+              </div>
+              <button class="btn btn--coral">Play</button>
+            </div>
+
+            <div class="hero hero--race">
+              <div class="hero-avatar">⚔️</div>
+              <div class="hero-body">
+                <div class="hero-eyebrow">Live challenge <span class="grade-pill">Grade 7</span></div>
+                <div class="hero-title">Race a learner</div>
+                <div class="hero-sub">5 quick questions</div>
+              </div>
+              <button class="btn btn--white">Play</button>
+            </div>
+
+            <div class="level">
+              <div class="level-top">
+                <div class="level-badge">🎓</div>
+                <div class="level-name"><b>Level 6</b><span>Scholar</span></div>
+                <div class="level-xp">224 XP to Level 7</div>
+              </div>
+              <div class="track"><i style="width:64%"></i></div>
+            </div>
+
+            <div class="sect"><h3>Achievements</h3><a href="#">9 of 10 ›</a></div>
+            <div class="shelf">
+              <div class="ach"><div class="ach-tile">🌱</div><span>First game</span></div>
+              <div class="ach"><div class="ach-tile">🔥</div><span>On fire</span></div>
+              <div class="ach"><div class="ach-tile">💯</div><span>Centurion</span></div>
+              <div class="ach"><div class="ach-tile">🎯</div><span>Sharp shooter</span></div>
+              <div class="ach locked"><div class="ach-tile">🔒</div><span>Champion</span></div>
+            </div>
+
+            <div class="sect"><h3>Your games</h3></div>
+            <div class="game">
+              <div class="game-icon" style="--c:#FFE9B8">🔢</div>
+              <div class="game-main"><b>Number Path</b><span>Mathematics · Numbers</span></div>
+              <div class="game-end"><span class="pill pill--play">Play</span><span class="chev">›</span></div>
+            </div>
+          </div>
+
+          <div class="fab"><i>🤖</i>Ask Zed</div>
+          <div class="nav">
+            <a href="#"><em>🏠</em>Home</a>
+            <a href="#"><em>📄</em>Papers</a>
+            <a href="#"><em>📝</em>Notes</a>
+            <a href="#" class="on"><em>🎮</em>Games</a>
+          </div>
+        </div>
+      </div>
+      <figcaption>1 · Top of the hub</figcaption>
+    </figure>
+
+    <!-- ============ FRAME 2 : SCROLLED ============ -->
+    <figure>
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>13:18</span><span>▲ ▮▮ 91%</span></div>
+
+          <div class="topbar">
+            <h2>Games</h2>
+            <span class="chip-streak">🔥 1</span>
+            <span class="icon-btn">🏆</span>
+          </div>
+
+          <div class="body scrolled">
+            <div class="cut">
+              <div class="shelf">
+                <div class="ach"><div class="ach-tile">🌱</div><span>First game</span></div>
+                <div class="ach"><div class="ach-tile">🔥</div><span>On fire</span></div>
+                <div class="ach"><div class="ach-tile">💯</div><span>Centurion</span></div>
+                <div class="ach"><div class="ach-tile">🎯</div><span>Sharp shooter</span></div>
+                <div class="ach locked"><div class="ach-tile">🔒</div><span>Champion</span></div>
+              </div>
+            </div>
+
+            <div class="sect"><h3>Your games</h3></div>
+
+            <div class="game">
+              <div class="game-icon" style="--c:#FFE9B8">🔢</div>
+              <div class="game-main"><b>Number Path</b><span>Mathematics · Numbers</span></div>
+              <div class="game-end"><span class="pill pill--play">Play</span><span class="chev">›</span></div>
+            </div>
+
+            <div class="game">
+              <div class="game-icon" style="--c:#FFD9E4">🔤</div>
+              <div class="game-main"><b>Word Builder</b><span>English · Spelling</span></div>
+              <div class="game-end"><span class="pill pill--best">Best 120</span><span class="chev">›</span></div>
+            </div>
+
+            <div class="game">
+              <div class="game-icon" style="--c:#D8F5E6">🧠</div>
+              <div class="game-main"><b>Meaning Match</b><span>Mathematics · Fractions</span></div>
+              <div class="game-end"><span class="pill pill--play">Play</span><span class="chev">›</span></div>
+            </div>
+
+            <div class="game">
+              <div class="game-icon" style="--c:#FFE9B8">🖋️</div>
+              <div class="game-main"><b>Punctuation Pro</b><span>English · Punctuation</span></div>
+              <div class="game-end"><span class="pill pill--play">Play</span><span class="chev">›</span></div>
+            </div>
+
+            <div class="game">
+              <div class="game-icon" style="--c:#D7EAFF">🗺️</div>
+              <div class="game-main"><b>Map Quest</b><span>Social Studies · Maps</span></div>
+              <div class="game-end"><span class="pill pill--new">New</span><span class="chev">›</span></div>
+            </div>
+
+            <p class="endcap">More games unlock as you level up 🎉</p>
+            <div class="spacer"></div>
+          </div>
+
+          <div class="fab"><i>🤖</i>Ask Zed</div>
+          <div class="nav">
+            <a href="#"><em>🏠</em>Home</a>
+            <a href="#"><em>📄</em>Papers</a>
+            <a href="#"><em>📝</em>Notes</a>
+            <a href="#" class="on"><em>🎮</em>Games</a>
+          </div>
+        </div>
+      </div>
+      <figcaption>2 · Scrolled to “Your games”</figcaption>
+    </figure>
+  </div>
+
+  <!-- ============ NOTES ============ -->
+  <div class="notes">
+    <h2>What changed, and why</h2>
+    <p class="sub">Ordered worst-first. Items marked BUG are broken on the live page right now, not taste.</p>
+
+    <div class="fix"><div class="n">1</div><div class="t">
+      <b>Nothing sits under the bottom nav any more <span class="tag bug">bug</span></b>
+      <span>Live, the nav is translucent and the page has no bottom padding, so “Your games”, the Leaderboard link and the first game card render <em>through</em> it. Nav is now opaque with a top border, and the scroll body ends in <code>padding-bottom: calc(60px + 62px + safe-area)</code> — nav height, plus the Ask&nbsp;Zed pill, plus the notch inset.</span>
+    </div></div>
+
+    <div class="fix"><div class="n">2</div><div class="t">
+      <b>Ask Zed stops covering content <span class="tag bug">bug</span></b>
+      <span>It currently lands on the “Centurion” badge label, on Punctuation Pro and on Map Quest. It now docks above the nav (<code>bottom: nav + 14px</code>), is shorter (44px), hides on scroll-down and returns on scroll-up (reuse <code>useHideOnScroll</code>, already in the codebase), and the reserved bottom padding means the last card can always be scrolled clear of it.</span>
+    </div></div>
+
+    <div class="fix"><div class="n">3</div><div class="t">
+      <b>The daily quiz is serving the wrong grade <span class="tag bug">bug</span></b>
+      <span>The hero says “Grade 3” while the challenge card beside it says “Grade 7”. Same bug as the audit found (two code paths, one not grade-filtered). The grade now renders as a pill on <em>both</em> heroes, from one source, so a mismatch is visible instantly instead of hiding in an eyebrow.</span>
+    </div></div>
+
+    <div class="fix"><div class="n">4</div><div class="t">
+      <b>No more mid-phrase wrapping</b>
+      <span>“TODAY'S QUIZ · GRADE / 3”, “Race another / learner!”, “Fractions, Decimals &amp; / Percent” all break across lines today because the type is sized for a tablet. Titles are 17.5px, meta 12px, and every one-line string is <code>nowrap + ellipsis</code>, so a long game name truncates cleanly instead of reflowing the card.</span>
+    </div></div>
+
+    <div class="fix"><div class="n">5</div><div class="t">
+      <b>Empty progress bars are gone <span class="tag pol">honesty</span></b>
+      <span>Three of five games show a 0%-filled bar next to “Not played yet” — a bar that measures nothing. And a “best score” isn’t a completion percentage, so Word Builder’s bar reading 100% at “Best 120” is meaningless. Status is now one pill: <b>Play</b>, <b>Best 120</b>, or <b>New</b>.</span>
+    </div></div>
+
+    <div class="fix"><div class="n">6</div><div class="t">
+      <b>Every game card is the same height</b>
+      <span>Two wrapping chips made Meaning Match ~40px taller than Punctuation Pro. Chips become a single truncating meta line, <code>subject · topic</code>. Cards are 68px, so five fit in one viewport instead of two and a half.</span>
+    </div></div>
+
+    <div class="fix"><div class="n">7</div><div class="t">
+      <b>The header block earns its space</b>
+      <span>“Games / Play, score, level up!” plus a floating back button costs ~110px to say nothing — and Games is a bottom-nav tab, so a back chevron is the wrong affordance. Replaced by a 52px bar: title, streak chip, leaderboard. That’s the whole first hero card recovered.</span>
+    </div></div>
+
+    <div class="fix"><div class="n">8</div><div class="t">
+      <b>Achievements scroll cleanly</b>
+      <span>The tan native scrollbar under the row is now hidden, with scroll-snap and a visible 5th tile edge to signal there’s more. Locked badges render grey with a padlock so “9 / 10” is legible on the shelf itself.</span>
+    </div></div>
+
+    <div class="fix"><div class="n">9</div><div class="t">
+      <b>Child-readable copy <span class="tag pol">copy</span></b>
+      <span>“same questions, server keeps score” is engineering reassurance written for you, not for an 11-year-old — and it pushed the card to three lines. Now just “5 quick questions”. Fairness is the promise; the server is the implementation.</span>
+    </div></div>
+
+    <div class="fix"><div class="n">10</div><div class="t">
+      <b>The level card is a strip, not a billboard</b>
+      <span>It was 150px tall for one number, with a decorative circle bleeding over the right edge and under the text. Now 78px, with “224 XP to Level 7” next to the level rather than below it, and the decoration clipped inside the card.</span>
+    </div></div>
+
+    <div class="fix"><div class="n">11</div><div class="t">
+      <b>Worth a look: Meaning Match <span class="tag pol">content</span></b>
+      <span>It’s named and iconed like a vocabulary game (🧠, “meaning”) but tagged Mathematics · Fractions, Decimals &amp; Percent. Either the name or the mapping is wrong — a child hunting for a maths game won’t find it there.</span>
+    </div></div>
+  </div>
+</div>
+</body>
+</html>

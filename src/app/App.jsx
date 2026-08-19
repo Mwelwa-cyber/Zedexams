@@ -216,6 +216,7 @@ const VisualStudioAdmin = lazy(() => import('../features/visualStudio/pages/Visu
 const CurriculumReplaceStudio = lazy(() => import('../features/adminCurriculum/pages/CurriculumReplaceStudio'))
 const CurriculumUploadPanel = lazy(() => import('../features/adminCurriculum/pages/CurriculumUploadPanel'))
 const AdminAiCosts = lazy(() => import('../features/adminAiCosts/pages/AdminAiCosts'))
+const AdminVoice = lazy(() => import('../features/adminVoice/pages/AdminVoice'))
 const AdminAppCheck = lazy(() => import('../features/adminAppCheck/pages/AdminAppCheck'))
 const AdminUsersList = lazy(() => import('../features/adminUsers/pages/AdminUsersList'))
 const AdminUserProfile = lazy(() => import('../features/adminUsers/pages/AdminUserProfile'))
@@ -260,6 +261,11 @@ const FamilySharingPicker = lazy(() => import('../features/parentPortal/pages/Fa
 const ParentAlerts = lazy(() => import('../features/parentPortal/pages/ParentAlerts'))
 const ParentBilling = lazy(() => import('../features/parentPortal/pages/ParentBilling'))
 const ParentConsent = lazy(() => import('../features/parentPortal/pages/ParentConsent'))
+// The parent's own Help & support screen. The Account row for it was a
+// bare mailto, on the reasoning that there was no help page to send a
+// guardian to — teachers have /teacher/help and guardians had nothing, so
+// their only route out of a problem was composing an email by hand.
+const ParentHelp = lazy(() => import('../features/parentPortal/pages/ParentHelp'))
 const AcceptCoGuardian = lazy(() => import('../features/parentPortal/pages/AcceptCoGuardian'))
 // The URL requestGuardianUnlock has mailed every guardian since it
 // shipped. OUTSIDE the parent guard on purpose — the recipient may have
@@ -675,6 +681,7 @@ export default function App() {
             <Route path="/family/account/alerts"               element={<ParentAlerts />} />
             <Route path="/family/account/billing"              element={<ParentBilling />} />
             <Route path="/family/account/consent"              element={<ParentConsent />} />
+            <Route path="/family/help"                          element={<ParentHelp />} />
             {/* The co-guardian invite lands here from an email. It is
                 inside the guard on purpose: accepting requires a parent
                 account, and the page explains that before bouncing
@@ -868,6 +875,7 @@ export default function App() {
           {/* Audit B4 — AI cost dashboard. Admin-only per route +
               Firestore rules. */}
           <Route path="/admin/ai-costs"                 element={<AdminRoute><AdminAiCosts /></AdminRoute>} />
+          <Route path="/admin/voice"                    element={<AdminRoute><AdminVoice /></AdminRoute>} />
           {/* App Check enforcement readiness — soft-verify telemetry.
               Admin-only per route + Firestore rules. */}
           <Route path="/admin/app-check"                element={<AdminRoute><AdminAppCheck /></AdminRoute>} />

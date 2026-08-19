@@ -1,6 +1,6 @@
 # Learner-side design pack
 
-> Snapshot as of 2026-08-17 — verify before acting. The prototype iterates by
+> Snapshot as of 2026-08-19 — verify before acting. The prototype iterates by
 > upload; a newer revision from the owner supersedes the file committed here.
 
 The owner's design pack for the learner-experience rebuild (PROMPT 0.A of the
@@ -15,6 +15,8 @@ build prompts). The specs are committed **verbatim as shipped**:
 | `zedexams-learner-prototype.html` | The working visual + interaction reference — see below |
 | `ZedExams_ClaudeCode_Prompts.md` | The build playbook itself — the ordered prompts the rebuild is run from |
 | `zedexams-parent-prototype.html` | The parent app's visual + interaction reference (PROMPT 8g) |
+| `zedexams-age-screen-mockup.html` | The age / date-of-birth screen at `/register?step=age` (PROMPT 0c-2) |
+| `zedexams-guardian-email-mockup.html` | The four screens of the grown-up's contact step, after the age gate (PROMPT 0c-3) |
 | `zedexams-spelling-game.html` | The spelling game, playable (PROMPT 7a) — see below |
 | `zedexams-spelling-stages.html` | The spelling stage ladder, mastery and tricky-word pool (PROMPT 7a-2) |
 | `zedexams-spelling-coach.html` | The "break it up" coach shown after a missed word (PROMPT 7a-3) |
@@ -93,3 +95,32 @@ What each one actually runs, rather than describes:
   behaviour they don't encode — pricing, entitlements, data — comes from the
   app's own registries (`src/config/plans.js`, `src/services/entitlements/`),
   and nothing is shown to a learner that the app does not actually measure.
+
+## Where the age-screen mockup does NOT win
+
+`zedexams-age-screen-mockup.html` is authoritative for the age screen's layout
+and interaction — three numeric fields that auto-advance, the age echoed back
+before Continue enables, the "I'm not sure of my birthday" panel. Three things
+in it are deliberately NOT what shipped, and each is a rule from the prompt
+overriding a detail the mockup could not know:
+
+- **The guardian-email screen is not the next page.** The mockup numbers it
+  "3 of 6" straight after the date. In this codebase the guardian hand-off
+  comes AFTER the account exists (`signupFlowCore.stepsForRole`), so the
+  learner starts practising in limited mode instead of waiting at a form for
+  their parent's address. The substance the prompt asks for holds either way:
+  an under-18 answer moves forward with no rejection language, no error state
+  and no invitation to guess again.
+- **"Ask my grown-up" hands over the DEVICE, not an email.** There is no
+  account yet to attach a consent request to, so the only hand-off that
+  actually resolves at this point in the flow is the one where the person who
+  knows the date types it in. It always returns to a screen that can finish.
+- **The "why we need something" copy is neutral.** The mockup's version says a
+  learner's age decides "which lessons you get and whether we need to ask a
+  grown-up first". That tells a child what a younger answer leads to, which is
+  the one thing the screen must never do — so the shipped copy says only that
+  we would rather ask than guess.
+
+The step counter reads "Step 2 of 4", not "2 of 6", because it is derived from
+the flow machine rather than written down — and it counts the guardian step for
+every learner, so the number of screens cannot change with the answer.
