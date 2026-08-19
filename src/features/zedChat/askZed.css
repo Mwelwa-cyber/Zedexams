@@ -10,29 +10,63 @@
  * from learnerTheme.css for Night mode.
  */
 
-/* ── Floating "Ask Zed" pill (prototype #zed-fab) ───────────────── */
+/* ── Floating "Ask Zed" pill (prototype #zed-fab) ─────────────────
+ *
+ * DOCKED to the tab bar, not floating at an arbitrary height. It used to
+ * sit at a hard-coded `bottom: 96px` — 20px above a 76px nav by
+ * coincidence rather than by arithmetic — and at 48px tall it covered
+ * whatever the page's own bottom padding failed to clear. On /games that
+ * was a badge label, a game card and the Map Quest row.
+ *
+ * Three halves of one sum, and they must move together:
+ *   • this `bottom`   = nav height + 14px
+ *   • this `height`   = 44px
+ *   • `.lhx-page`'s   `padding-bottom: calc(nav + 62px + safe-area)`
+ *     in learnerTheme.css — 62 being 44 + 14 + 4px of air.
+ * Change one and the last card stops being reachable.
+ *
+ * `--lhx-nav-h` is declared on `.lhx`, and this pill mounts OUTSIDE that
+ * container (App.jsx renders it globally), so the fallback in the var()
+ * is what actually applies on a page that never loaded the learner
+ * stylesheet — where there is no tab bar to clear either.
+ */
 .lhx-zed-fab {
   position: fixed;
   right: 16px;
-  bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--lhx-nav-h, 0px) + 14px + env(safe-area-inset-bottom, 0px));
   z-index: 45;
+  height: 44px;
   display: flex; align-items: center; gap: 8px;
-  padding: 7px 15px 7px 7px;
+  padding: 5px 15px 5px 5px;
   border: none; cursor: pointer; border-radius: 99px;
   background: linear-gradient(135deg, #7c8bf5, #5b63dd);
   color: #fff;
   font-family: 'Nunito', system-ui, -apple-system, sans-serif;
   font-weight: 900; font-size: 13.5px;
   box-shadow: 0 8px 22px rgba(81, 88, 208, 0.45);
-  transition: transform 0.12s;
+  transition: transform 0.12s, opacity 0.28s ease;
 }
 .lhx-zed-fab:active { transform: scale(0.94); }
+/* Folds away with the tab bar on scroll-down and returns on scroll-up —
+   `useHideOnScroll`, the same hook and the same direction as the nav, so
+   the two never disagree about whether the chrome is showing. It must
+   never be the reason a card is unreachable. */
+.lhx-zed-fab.is-hidden {
+  transform: translateY(calc(100% + 24px));
+  opacity: 0;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lhx-zed-fab { transition: none; }
+}
 .lhx-zed-fab img {
   width: 34px; height: 34px; object-fit: contain;
   background: rgba(255, 255, 255, 0.2);
   border-radius: 50%; padding: 2px;
 }
 @media (min-width: 1000px) {
+  /* Desktop mounts the sidebar instead of a bottom bar, so there is
+     nothing down there to dock to. */
   .lhx-zed-fab { right: 24px; bottom: 24px; }
 }
 

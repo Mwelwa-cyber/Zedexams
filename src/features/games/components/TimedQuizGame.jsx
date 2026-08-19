@@ -16,6 +16,7 @@ import { saveScore, shuffle, readRoundBaseline, readRoundOutcome, reportGameStar
 import { evaluateAndAwardGameBadges } from '../../../utils/gameBadgesService'
 import { getTodaysChallenge, recordDailyPlay } from '../../../utils/dailyChallengeService'
 import { playCorrect, playWrong, playWin, playStreak, primeSounds } from '../lib/gameSounds'
+import { resolveLearnerGrade } from '../lib/gamesHubCore'
 import Leaderboard from './Leaderboard'
 import BadgeToast from './BadgeToast'
 import ShareButton from './ShareButton'
@@ -59,6 +60,11 @@ import { EMPTY_ROUND, applyPick, roundOutcome } from '../lib/timedQuizRound'
  *      sign-in nudge if their score wasn't saved.
  */
 export default function TimedQuizGame({ game }) {
+  // The learner's grade, for the daily-challenge lookup at the end of a
+  // round. `useAuth` is already mounted around every game surface (the
+  // ReadyCard sub-component below reads it too).
+  const { userProfile } = useAuth()
+  const learnerGrade = resolveLearnerGrade(userProfile)
   const { points, duration } = resolveGameConfig(game)
   const pool = useMemo(() => game.questions || [], [game.questions])
 
@@ -406,7 +412,10 @@ export default function TimedQuizGame({ game }) {
 
       // Check if this game is today's daily challenge — if so, bump streak.
       try {
-        const { game: todaysGame } = await getTodaysChallenge()
+        // Same grade the hub offered the challenge for — an unscoped
+        // lookup here compares against a different game and silently
+        // never bumps the streak. See gamesHubCore.
+        const { game: todaysGame } = await getTodaysChallenge({ grade: learnerGrade })
         if (todaysGame?.id) {
           const streakOutcome = await recordDailyPlay({
             gameId: game.id,
