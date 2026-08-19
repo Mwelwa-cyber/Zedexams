@@ -11,6 +11,20 @@
  * Polling exists because the webhook is authoritative but not prompt: a
  * parent watching a spinner needs to be told when the prompt on their
  * phone has been approved. The poll grants nothing — it only reads.
+ *
+ * `pollLencoStatus` resolves to a STATUS STRING — 'successful', 'failed',
+ * or 'pending' when its two-minute window closes without an answer. This
+ * component used to read `.status` off it, so EVERY outcome fell through to
+ * the failure arm: a parent whose payment had gone through was told it had
+ * not, `onPaid` never fired, and the child stayed locked while the money had
+ * left the account. Both subscription checkouts (UpgradeModal, TopUpModal)
+ * read the string; this is now the third.
+ *
+ * The rule that survives that bug: **only Lenco's own 'failed' may be
+ * reported as a failure.** Everything else — a closed poll window, a
+ * dropped request, an unknown status — is UNSETTLED, because a parent
+ * told "nothing has been charged" about a payment that went through pays
+ * a second time.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
@@ -29,6 +43,18 @@ import { capture } from '../../../utils/analytics'
 // than one extra button.
 const METHODS = OPERATORS
 
+// The only wording that may claim nothing was taken. Reserved for Lenco
+// saying 'failed' and nothing else.
+const DECLINED =
+  'That payment did not go through. Nothing has been charged — you can try again.'
+
+// …and the wording for everything we are merely unsure about. It never
+// claims either way, because the webhook settles the payment whether this
+// screen is still watching or not.
+const UNSETTLED =
+  'We have not heard back from your network yet. If you approved the prompt ' +
+  'on your phone the payment will still go through — check again in a minute.'
+
 export default function GuardianCheckout({
   plan,
   childUid,
@@ -40,7 +66,11 @@ export default function GuardianCheckout({
   const [phone, setPhone] = useState('')
   const [operator, setOperator] = useState('')
   const [operatorTouched, setOperatorTouched] = useState(false)
-  const [stage, setStage] = useState('idle') // idle | starting | waiting | otp | done | error
+  // idle | starting | waiting | pending | otp | done | error
+  //   waiting — the prompt is live on the phone and we are polling
+  //   pending — the poll window closed with no answer; NOT a failure
+  const [stage, setStage] = useState('idle')
+  const [checking, setChecking] = useState(false)
   const [message, setMessage] = useState('')
   const [payment, setPayment] = useState(null)
   const [otp, setOtp] = useState('')
@@ -52,31 +82,46 @@ export default function GuardianCheckout({
 
   const resolvedOperator = operatorTouched ? operator : (detectOperator(phone) || operator)
 
-  const watch = useCallback(async (paymentId) => {
+  const watch = useCallback(async (paymentId, { maxAttempts } = {}) => {
+    if (!paymentId) return
     const controller = new AbortController()
     abortRef.current = controller
+    setChecking(true)
     try {
-      const final = await pollLencoStatus(paymentId, { signal: controller.signal })
-      if (final?.status === 'successful') {
+      // A STATUS STRING, not an object — see the header.
+      const status = await pollLencoStatus(paymentId, {
+        signal: controller.signal,
+        ...(maxAttempts ? { maxAttempts } : {}),
+      })
+      if (controller.signal.aborted) return
+      if (status === 'successful') {
         setStage('done')
         setMessage('')
         capture('guardian_payment_succeeded', { planId: plan?.id })
         onPaid?.()
-      } else {
-        setStage('error')
-        setMessage('That payment did not go through. Nothing has been charged — you can try again.')
+        return
       }
+      if (status === 'failed') {
+        setStage('error')
+        setMessage(DECLINED)
+        return
+      }
+      // 'pending' — our window closed before the network answered. A
+      // mobile-money prompt routinely outlives two minutes, and the
+      // webhook settles it either way, so this is a screen the parent can
+      // re-check, not a refusal.
+      setStage('pending')
+      setMessage(UNSETTLED)
     } catch (err) {
       if (controller.signal.aborted) return
       reportClientError(err, 'guardianCheckout.poll')
       // A poll that fails is NOT a payment that failed: the webhook is
       // what settles it, so say so rather than telling a parent their
       // money is gone.
-      setStage('waiting')
-      setMessage(
-        'We lost track of this payment while waiting. If you approved it on ' +
-        'your phone it will still go through — check back in a minute.',
-      )
+      setStage('pending')
+      setMessage(UNSETTLED)
+    } finally {
+      if (!controller.signal.aborted) setChecking(false)
     }
   }, [onPaid, plan?.id])
 
@@ -158,6 +203,36 @@ export default function GuardianCheckout({
     )
   }
 
+  if (stage === 'pending') {
+    return (
+      <div className="lhx-card" style={{ padding: 16 }}>
+        <p className="lhx-set-title">Waiting on your network</p>
+        <p className="lhx-set-desc" style={{ marginTop: 6, lineHeight: 1.5 }} role="status">
+          {message}
+        </p>
+        {/* Re-READS the same reference. It never initiates, so a parent
+            tapping it while the first prompt is still live cannot be
+            charged twice. */}
+        <button
+          type="button"
+          className="lhx-btn lhx-btn-primary lhx-btn-block"
+          onClick={() => watch(payment?.paymentId, { maxAttempts: 4 })}
+          disabled={checking || !payment?.paymentId}
+        >
+          {checking ? 'Checking…' : 'Check payment status'}
+        </button>
+        <button
+          type="button"
+          className="lhx-btn lhx-btn-soft lhx-btn-block"
+          onClick={() => { setStage('idle'); setMessage(''); setPayment(null) }}
+          disabled={checking}
+        >
+          Use a different number
+        </button>
+      </div>
+    )
+  }
+
   if (stage === 'otp') {
     return (
       <form className="lhx-card" style={{ padding: 16 }} onSubmit={sendOtp}>
@@ -204,7 +279,13 @@ export default function GuardianCheckout({
         autoComplete="tel"
         placeholder="Mobile money number (e.g. 0977 740 465)"
         value={phone}
-        onChange={(e) => { setPhone(e.target.value); if (stage === 'error') setStage('idle') }}
+        onChange={(e) => {
+          setPhone(e.target.value)
+          // Clear the MESSAGE too. Dropping only the stage left the
+          // refusal sitting under the button while the field it named was
+          // being corrected.
+          if (stage === 'error') { setStage('idle'); setMessage('') }
+        }}
       />
 
       <button
