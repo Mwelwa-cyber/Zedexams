@@ -870,22 +870,39 @@ async function recoverNumberGaps({apiKey, paper, segments, accum, seenKeys, seen
 }
 
 /**
- * Erase the existing question set on a quiz before writing fresh AI output.
- * Past-paper quizzes are AI-curated end-to-end; the admin re-runs the importer
- * when they want a clean slate.
+ * Remove the questions a fresh import did NOT rewrite.
+ *
+ * This used to be `clearQuizQuestions`, and it ran BEFORE the write: erase
+ * everything, then write the new set. Idempotency was fine either way — the
+ * ids are deterministic (`q001`…), so a re-run converges — but the ORDER put
+ * the destructive half first, on a quiz learners can be sitting in. Between
+ * the clear and the write the paper had no questions at all, and a write that
+ * failed in between left it that way.
+ *
+ * Writing first and pruning after closes both. The overlap is a re-import
+ * rewriting `q001`…`qN` in place, which is what the deterministic ids are for;
+ * the only documents removed are the ones the new set does not cover — a
+ * shorter extraction's tail, and any legacy auto-id docs from an import that
+ * predates the deterministic scheme, which is why this takes the ids to KEEP
+ * rather than a count.
  */
-async function clearQuizQuestions(quizId) {
+async function pruneQuestionsNotIn(quizId, keepIds) {
   const ref = admin.firestore().collection(`quizzes/${quizId}/questions`);
   const snap = await ref.get();
   if (snap.empty) return 0;
-  const docs = snap.docs;
-  for (let i = 0; i < docs.length; i += 400) {
-    const chunk = docs.slice(i, i + 400);
+  const stale = snap.docs.filter((d) => !keepIds.has(d.id));
+  for (let i = 0; i < stale.length; i += 400) {
+    const chunk = stale.slice(i, i + 400);
     const batch = admin.firestore().batch();
     chunk.forEach((d) => batch.delete(d.ref));
     await batch.commit();
   }
-  return docs.length;
+  return stale.length;
+}
+
+/** The deterministic id a question at 0-based `index` is written under. */
+function questionDocId(index) {
+  return `q${String(index + 1).padStart(3, "0")}`;
 }
 
 /**
@@ -994,7 +1011,7 @@ async function writeQuestionsToQuiz(quizId, questions, provenance = {}) {
     const chunk = questions.slice(i, i + 400);
     const batch = admin.firestore().batch();
     chunk.forEach((q, offset) => {
-      const id = `q${String(i + offset + 1).padStart(3, "0")}`;
+      const id = questionDocId(i + offset);
       const ref = admin.firestore().doc(`quizzes/${quizId}/questions/${id}`);
       batch.set(ref, {...toQuestionDoc(q, i + offset), ...provenance}, {merge: false});
     });
@@ -1206,8 +1223,13 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
   let cleared = 0;
   let written = 0;
   if (quizId && questions.length && gate.ok) {
-    cleared = await clearQuizQuestions(quizId);
+    // Write FIRST, prune after — see pruneQuestionsNotIn. `questionsCleared`
+    // keeps its meaning (documents the re-import removed); it is now the stale
+    // tail rather than the whole previous set, because everything the new set
+    // covers was rewritten in place instead of being deleted and re-created.
     written = await writeQuestionsToQuiz(quizId, questions, paperProvenanceFields(paper));
+    const keepIds = new Set(questions.map((_q, i) => questionDocId(i)));
+    cleared = await pruneQuestionsNotIn(quizId, keepIds);
     try {
       await admin.firestore().doc(`quizzes/${quizId}`).set({
         questionCount: written,

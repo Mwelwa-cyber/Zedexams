@@ -118,6 +118,31 @@ describe('ACCEPTANCE 2 — an under-18 learner is never shown a price', () => {
     expect(dialog.textContent).toMatch(/ask your guardian/i)
   })
 
+  it('offers a way round the guardian, and it is support rather than Childline', () => {
+    // Every other guardian-routed flow carries one: the consent and unlink
+    // callables all return Childline 116. This sheet carried nothing, which
+    // left a child whose guardian is unreachable — or whom they do not want
+    // to ask — on a screen whose only action needs that adult.
+    //
+    // It is SUPPORT and deliberately not Childline: a purchase a child cannot
+    // get approved is an inconvenience, not a safety event, and putting a
+    // child-protection helpline on a paywall spends its meaning on the wrong
+    // problem. This asserts both halves, because either drifting is a bug.
+    settleBudget()
+    render(<UnlockSheetHost />)
+    act(() => {
+      unlockSheet.open({ gate: 'PAPER_CONTINUE', route: 'guardian', context: {} })
+    })
+
+    const dialog = screen.getByRole('dialog')
+    const support = screen.getByRole('link', { name: /support@zedexams\.com/i })
+    expect(support.getAttribute('href')).toBe('mailto:support@zedexams.com')
+    expect(dialog.textContent).not.toMatch(/childline/i)
+    // And it still shows no price — a mailto adds no digits, but the guarantee
+    // is worth re-asserting on the tree that now carries an extra link.
+    expect(dialog.textContent).not.toMatch(PRICE_PATTERN)
+  })
+
   it('sends the request through the callable and reports the outcome', async () => {
     settleBudget()
     const user = userEvent.setup()
