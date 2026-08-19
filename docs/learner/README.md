@@ -112,13 +112,18 @@ What each one actually runs, rather than describes:
   a human.
 - **`zedexams-fraction-levels.html`** — the nine levels are data
   (`{id, order, name, blurb, exampleExpr, prereq[], subSteps[]}`) and nothing in
-  the engine is fraction-specific. `prereq` is a **list**, not "the one
-  before" — which is what makes the prompt's two arguments real rather than an
-  accident of ordering: level 4 is locked while level 2 is unpassed, level 7
-  while level 6 is, and level 6 needs *equal fractions* rather than *adding*.
-  Fourteen self-checks run on every render and are printed. `composeStage()`
-  mixes the learner's own due misses into each stage, capped at half of it, and
-  switching learner in the rig genuinely changes both halves.
+  the engine is fraction-specific. **No level is skippable**: one opens when
+  the level *before* it is passed AND every level it names in `prereq[]` is.
+  The sequence is what stops a learner jumping ahead; the declared list is what
+  lets a lock say *why* rather than only "it is next" — level 4 cites equal
+  fractions, level 7 cites multiplying, level 9 cites all four operations —
+  and blockers are named earliest-first, so the lock points at the next thing
+  to do rather than the furthest. Seventeen self-checks run on every render and
+  are printed, among them one that passes **every other level** and confirms
+  each one still refuses to open without its own predecessor. Stars are never
+  consulted. `composeStage()` mixes the learner's own due misses into each
+  stage, capped at half of it, and switching learner in the rig genuinely
+  changes both halves.
 - **`zedexams-fractions-level1.html`** — nine acceptance rules run against the
   round data and are printed: no fraction symbol in any stem, caption or option
   (it appears only in the feedback after a correct answer), all four question

@@ -117,7 +117,7 @@ font-size:12px;line-height:1.75;font-family:ui-monospace,SFMono-Regular,Menlo,mo
 <div class="notes">
   <div class="note warn"><h3>Two rungs added to the requested list, and each is load-bearing</h3><b>Multiplying</b> has to sit before dividing, because dividing fractions <i>is</i> multiplying by the flipped one — teaching division first teaches a rule with nothing under it. <b>Fractions, decimals &amp; percentages</b> exists because ECZ papers move between the three constantly, and a learner who has only met fractions freezes when the same amount turns up as 0.5 or 50%.</div>
   <div class="note"><h3>And one rung earlier than you would think</h3><b>Equal fractions</b> has to come before adding. You cannot add <span class="fr"><span class="n">1</span><span class="d">2</span></span> + <span class="fr"><span class="n">1</span><span class="d">4</span></span> without first knowing <span class="fr"><span class="n">1</span><span class="d">2</span></span> = <span class="fr"><span class="n">2</span><span class="d">4</span></span>. Skip it and level 4 stops being a step and becomes a wall. Un-pass level 2 in the rig and watch level 4 shut.</div>
-  <div class="note warn"><h3>The prerequisite is a list, not "the one before"</h3>Each level declares <code>prereq[]</code>, so this is a graph rather than a ladder — and it has to be, or the two claims above would be true only by accident of ordering. Multiplying needs <i>equal fractions</i>, not <i>adding</i>, so a learner who has cleared level 2 can start level 6 without clearing level 5. The numbering is a reading order; the gate is the graph.</div>
+  <div class="note warn"><h3>No level is skippable, and the reason is still declared</h3>A level opens when the level <b>before it</b> is passed <i>and</i> every level it names in <code>prereq[]</code> is. The sequence is what stops a learner jumping ahead — un-pass a middle level in the rig and everything above it shuts, in order. The declared list is what lets a lock say <i>why</i> rather than only "it is next": level 4 cites equal fractions, level 7 cites multiplying, level 9 cites all four operations. Both halves are checked below, including one that passes <b>every other level</b> and confirms each one still refuses to open without its own predecessor.</div>
   <div class="note"><h3>Stars never gate anything</h3>A level opens when its prerequisites are passed. Three stars are a reason to feel good, not a toll — a child who scrapes a pass still moves on, and a locked level always <b>names the level that unlocks it</b> rather than showing a padlock and nothing else.</div>
   <div class="note"><h3>Each level splits into ordered sub-steps</h3>"Adding fractions" is not one skill — it is five, and the order <i>is</i> the teaching: same bottom, one bottom fits the other, no common bottom, answers over one, then a word problem. Smallest jump first, one new difficulty per sub-step. Sequencing this is the difference between a child climbing and a child stuck.</div>
   <div class="note"><h3>Level 9 is the capstone, not the introduction</h3>Word problems ask a learner to do two things at once — decide which operation, then perform it. It goes last, once the operations are automatic, and it is the only level whose prerequisites are <i>all four operations plus level 8</i>. Kwacha, mealie meal, chitenge and time, so the story is one they recognise.</div>
@@ -222,9 +222,21 @@ const TOTAL_STAGES=LEVELS.reduce(function(a,l){return a+stageCount(l);},0);
 /* ============================================================
    THE ENGINE — nothing below knows what a fraction is
    ============================================================ */
+/* A level opens when the level BEFORE it is passed and every level it
+   declares a dependency on is passed. The sequence is what stops a level
+   being skipped; the declared prereq[] is what lets a lock say WHY rather
+   than only "it is next". Stars are never consulted by either half. */
 function levelState(id,passed){
   if(passed.indexOf(id)>=0)return{state:'done',blockers:[]};
-  const blockers=BY_ID[id].prereq.filter(function(p){return passed.indexOf(p)<0;});
+  const lvl=BY_ID[id];
+  const prev=LEVELS.find(function(l){return l.order===lvl.order-1;});
+  const blockers=[];
+  if(prev&&passed.indexOf(prev.id)<0)blockers.push(prev.id);
+  lvl.prereq.forEach(function(p){
+    if(passed.indexOf(p)<0&&blockers.indexOf(p)<0)blockers.push(p);
+  });
+  /* earliest first, so the lock names the next thing to do rather than the furthest */
+  blockers.sort(function(a,b){return BY_ID[a].order-BY_ID[b].order;});
   return{state:blockers.length?'locked':'open',blockers:blockers};
 }
 function isOpen(id,passed){return levelState(id,passed).state!=='locked';}
@@ -366,16 +378,34 @@ function selfChecks(){
     return l.subSteps.length>0&&l.subSteps.every(function(s,i){return s.order===i+1;});}));
   t('sub-step stage ranges are contiguous and start at 1',LEVELS.every(function(l){
     let n=1;return l.subSteps.every(function(s){const ok=s.stageRange[0]===n;n=s.stageRange[1]+1;return ok;});}));
+  /* every level except the first, with EVERY other level passed but its own
+     predecessor missing — if any of these opens, that level is skippable */
+  const skippable=LEVELS.slice(1).filter(function(l){
+    const prev=LEVELS[l.order-2];
+    const allButPrev=LEVELS.filter(function(x){return x.id!==l.id&&x.id!==prev.id;}).map(function(x){return x.id;});
+    return levelState(l.id,allButPrev).state!=='locked';
+  });
+  t('no level can be skipped — each one needs the level before it',skippable.length===0,
+    skippable.length?skippable.map(function(l){return 'level '+l.order;}).join(', '):'checked all '+(LEVELS.length-1));
+  t('walking the ladder in order opens each level in turn',(function(){
+    const done=[];
+    return LEVELS.every(function(l){
+      const ok=levelState(l.id,done.slice()).state==='open';done.push(l.id);return ok;});
+  })());
   t('level 4 is locked while level 2 is unpassed',levelState('add',['basics']).state==='locked');
-  t('level 4 opens the moment level 2 passes',levelState('add',['basics','equal']).state==='open');
-  t('level 7 is locked while level 6 is unpassed',levelState('div',['basics','equal','add','sub']).state==='locked');
-  t('level 7 opens the moment level 6 passes',levelState('div',['basics','equal','mult']).state==='open');
+  t('level 4 stays locked even with every OTHER level passed',
+    levelState('add',LEVELS.filter(function(l){return l.id!=='equal'&&l.id!=='add';}).map(function(l){return l.id;})).state==='locked');
+  t('level 4 opens once levels 1 to 3 are passed',levelState('add',['basics','equal','compare']).state==='open');
+  t('level 7 is locked while level 6 is unpassed',
+    levelState('div',LEVELS.filter(function(l){return l.id!=='mult'&&l.id!=='div';}).map(function(l){return l.id;})).state==='locked');
+  t('level 7 opens once levels 1 to 6 are passed',
+    levelState('div',['basics','equal','compare','add','sub','mult']).state==='open');
   t('level 9 needs all four operations and level 8',
-    levelState('real',['basics','equal','add','sub','mult','div']).state==='locked'&&
-    levelState('real',['basics','equal','add','sub','mult','div','fdp']).state==='open');
+    levelState('real',['basics','equal','compare','add','sub','mult','div']).state==='locked'&&
+    levelState('real',['basics','equal','compare','add','sub','mult','div','fdp']).state==='open');
   t('a locked level always names at least one blocker',LEVELS.every(function(l){
     const s=levelState(l.id,[]);return s.state!=='locked'||s.blockers.length>0;}));
-  t('stars are never read by the gate',levelState('add',['basics','equal']).state==='open');
+  t('stars are never read by the gate',levelState('add',['basics','equal','compare']).state==='open');
   t('review items never take more than half a stage',(function(){
     const fat=[];for(let i=0;i<20;i++)fat.push({id:'x'+i,label:'x'+i,fromLevel:'equal',dueStage:1});
     return composeStage(BY_ID['add'],9,fat,'A').reviewCount<=STAGE_SIZE/2;})());
