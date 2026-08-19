@@ -155,18 +155,19 @@ export function getSection(id) {
     null
 }
 
-// The only sections a learner can reach, because they are the only ones
-// the prototype-v6 Settings rows link to: Name & avatar / Delete account
-// → `account`, Report a problem / Get help → `help`, Guardian → `parent`.
-// Everything else in the settings dashboard is not in the learner mockup.
+// The panels a learner can reach, and the ROUTE each one is behind.
 //
-// `parent` was added when family codes became single-use, 48-hour and
-// CHILD-CONFIRMED. The parent app tells a guardian "your child finds this
-// in their app under Settings → Guardian", and that sentence was simply
-// untrue: the Guardian row on the v6 screen was an InfoRow with no
-// destination, and the panel holding the code lived at a section a
-// learner could not reach. A child could not mint a code, could not
-// rotate one, and — once redemption started asking them to confirm — had
-// nowhere to answer. The confirmation step needs a screen, so the screen
-// is reachable.
-export const LEARNER_REACHABLE_SECTIONS = ['account', 'help', 'parent']
+// This used to be a list of `?section=` values, read by the router to decide
+// whether a parameter opened a panel or fell back to the Settings index. It is
+// no longer read by anything: each of these is its own path now
+// (`lib/settingsRoutes.js`), so "which sections are reachable" is answered by
+// the route table rather than by a list a route table has to agree with.
+//
+// It stays because it says something the route table does not, and something
+// worth stating: these are the panels — screens that predate the split and
+// carry real save logic — as opposed to the four screens written for their own
+// routes (Name & avatar, Delete, Your data, and the index itself). If a panel
+// is ever added or dropped, it belongs here and in SETTINGS_ROUTES together.
+export const LEARNER_REACHABLE_SECTIONS = [
+  'security', 'notifications', 'learning', 'parent', 'help',
+]
