@@ -42,8 +42,12 @@ vi.mock('../../../utils/gameBadgesService', () => ({
   }),
 }))
 
+// The page reads `getMostRecentTerm`, not `getActiveTerm`: the latter
+// reports nothing between terms, which is what used to label every
+// learner "Term 1" through the holidays.
 vi.mock('../../../utils/moeCalendar', () => ({
   getActiveTerm: () => ({ term: { number: 2 } }),
+  getMostRecentTerm: () => ({ term: { number: 2 }, phase: 'in-term' }),
 }))
 
 import LearnerProfilePage from './LearnerProfilePage'

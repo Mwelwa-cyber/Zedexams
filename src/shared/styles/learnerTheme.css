@@ -1225,6 +1225,12 @@ button.lhx-tt-altpill { cursor: pointer; }
   transition: transform 0.1s;
 }
 .lhx-topic-row:active { transform: scale(0.98); }
+/* A topic whose note is not published yet renders as a plain row rather
+   than a button (see LearnerSubjectPage). The press animation belongs to
+   the button, so it is taken back here — a row that shrinks under the
+   thumb is the same false promise the tap target was, made with motion. */
+.lhx-topic-row--soon { cursor: default; }
+.lhx-topic-row--soon:active { transform: none; }
 .lhx-topic-ic {
   width: 42px; height: 42px; border-radius: 13px; flex-shrink: 0;
   background: var(--lhx-indigo-soft);

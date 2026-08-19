@@ -49,11 +49,12 @@ import {
   bestTitleMatch,
 } from '../../../config/gradeTermPlan'
 import { deriveTermPlan } from '../../../config/termDivision'
-import { getActiveTerm } from '../../../utils/moeCalendar'
+import { getMostRecentTerm } from '../../../utils/moeCalendar'
 import LearnerIcon, { subjectIconName } from '../components/LearnerIcon'
 import { EmptyState, ErrorState, SectionSkeleton } from '../components/LearnerPrimitives'
 import {
-  resolveActiveTerm, normalizeTerm, deriveTopicTerms, topicsForTerm,
+  resolveActiveTerm, calendarTermInputs, normalizeTerm, deriveTopicTerms,
+  topicsForTerm, termNoteFor, topicOpenTarget,
 } from '../lib/learnerHomeCore'
 import { readJson, writeJson, preferredTermKey } from '../lib/learnerLocal'
 import { capture } from '../../../utils/analytics'
@@ -111,8 +112,10 @@ export default function LearnerSubjectPage() {
   }, [uid, grade, subjectId])
 
   // Active term: URL ?term wins (deep link), else calendar/saved default.
+  // `getMostRecentTerm` rather than `getActiveTerm` so a holiday resolves to
+  // the term that just closed instead of falling through to Term 1.
   const defaultTerm = useMemo(() => resolveActiveTerm({
-    calendarTerm: getActiveTerm()?.term?.number ?? null,
+    ...calendarTermInputs(getMostRecentTerm()),
     savedTerm: normalizeTerm(readJson(preferredTermKey(uid))),
   }).term, [uid])
   const urlTerm = normalizeTerm(params.get('term'))
@@ -277,18 +280,17 @@ export default function LearnerSubjectPage() {
   }
 
   // A topic row opens that topic's note (the mockup's only tap target).
+  // A row with no destination is not a button, so this cannot be reached
+  // without one — the guard stays as the belt to that braces.
   const openTopic = (topic) => {
-    if (!topic.noteTarget) return
-    capture('note_opened', { from: 'subject_topic', noteId: topic.noteTarget.id })
-    navigate(`/notes/${topic.noteTarget.id}`)
+    const target = topicOpenTarget(topic)
+    if (!target) return
+    capture('note_opened', { from: 'subject_topic', noteId: target.id })
+    navigate(target.path)
   }
 
-  const activeCalendarTerm = resolveActiveTerm({ calendarTerm: getActiveTerm()?.term?.number ?? null }).term
-  const termNote = term < activeCalendarTerm
-    ? `Term ${term} is finished — revise any topic, any time.`
-    : term > activeCalendarTerm
-      ? `Term ${term} starts later — but you can read ahead.`
-      : 'This term — keep going!'
+  const active = resolveActiveTerm(calendarTermInputs(getMostRecentTerm()))
+  const termNote = termNoteFor({ term, activeTerm: active.term, source: active.source })
 
   return (
     <>
@@ -363,26 +365,37 @@ export default function LearnerSubjectPage() {
             ) : (
               <div style={{ display: 'grid', gap: 10 }}>
                 {model.topics.map((topic) => {
-                  const openable = Boolean(topic.noteTarget)
+                  const target = topicOpenTarget(topic)
+                  const openable = Boolean(target)
                   const st = topic.status === 'completed'
                     ? { cls: 'lhx-st-done', mark: '✓', label: 'done' }
                     : topic.status === 'in-progress'
                       ? { cls: 'lhx-st-now', mark: '▶', label: 'current topic' }
                       : { cls: 'lhx-st-todo', mark: '○', label: 'not started' }
+                  // A row with nothing to open is not a button. It was one,
+                  // marked `aria-disabled` and wired to a handler that
+                  // returned silently — so it took focus, invited a tap, and
+                  // answered with nothing. Rendered as plain content it still
+                  // shows the topic, its strand, its sub-topics and why it is
+                  // not ready; it simply stops claiming to be a way in.
+                  // `aria-disabled` goes with the button: it describes a
+                  // control, and this is no longer one.
+                  const Row = openable ? 'button' : 'div'
+                  const rowProps = openable
+                    ? {
+                        type: 'button',
+                        onClick: () => openTopic(topic),
+                        // The strand is part of the accessible name, not
+                        // decoration: "Multiplication" alone names two
+                        // different rows on the Grade 7 Mathematics tab.
+                        'aria-label': [topic.name, topic.strand, st.label].filter(Boolean).join(' — '),
+                      }
+                    : {}
                   return (
-                    <button
+                    <Row
                       key={topic.key}
-                      type="button"
-                      className="lhx-topic-row"
-                      aria-disabled={!openable}
-                      // The strand is part of the accessible name, not
-                      // decoration: "Multiplication" alone names two
-                      // different rows on the Grade 7 Mathematics tab.
-                      aria-label={[
-                        topic.name, topic.strand,
-                        openable ? st.label : 'note coming soon',
-                      ].filter(Boolean).join(' — ')}
-                      onClick={() => openTopic(topic)}
+                      className={`lhx-topic-row${openable ? '' : ' lhx-topic-row--soon'}`}
+                      {...rowProps}
                     >
                       <span className="lhx-topic-ic" aria-hidden="true">
                         {topic.icon
@@ -405,7 +418,7 @@ export default function LearnerSubjectPage() {
                         )}
                       </span>
                       <span className={`lhx-topic-st ${st.cls}`} aria-hidden="true">{st.mark}</span>
-                    </button>
+                    </Row>
                   )
                 })}
               </div>

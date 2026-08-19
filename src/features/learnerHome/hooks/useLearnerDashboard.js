@@ -34,11 +34,11 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { useLearnerFirestore } from '../../../hooks/useLearnerFirestore'
 import useExamTimetables from '../../../hooks/useExamTimetables'
 import { getTodaysExamsBySubject, checkTodaysLocks } from '../../../utils/examService'
-import { getActiveTerm } from '../../../utils/moeCalendar'
+import { getMostRecentTerm } from '../../../utils/moeCalendar'
 import { SUBJECTS, SUBJECT_MAP, getTopics, getGradeSubjects, normalizeSubject } from '../../../config/curriculum'
 import { getTermPlan, planTopicsForTerm } from '../../../config/gradeTermPlan'
 import {
-  resolveActiveTerm, normalizeTerm, pickLearningResume, computeSubjectCompletion,
+  resolveActiveTerm, calendarTermInputs, normalizeTerm, pickLearningResume, computeSubjectCompletion,
   buildRecentActivity, extractWeakTopics,
 } from '../lib/learnerHomeCore'
 import {
@@ -129,11 +129,13 @@ export default function useLearnerDashboard({ extras = false } = {}) {
       const slideLessons = materials.filter((m) => !m.noteFormat && Array.isArray(m.slides) && m.slides.length > 0)
       const stats = statsSnap && statsSnap.exists() ? statsSnap.data() : null
 
-      // ── Active term (school → calendar → saved → 1) ────────────
-      const calendarActive = getActiveTerm()
+      // ── Active term (school → calendar → holiday → saved → 1) ──
+      // `getMostRecentTerm`, not `getActiveTerm`: the latter reports nothing
+      // between terms, which used to drop this straight past a stale saved
+      // value onto the Term 1 default for a month a year.
       const activeTerm = resolveActiveTerm({
         schoolTerm: null, // no school-level term config exists yet
-        calendarTerm: calendarActive?.term?.number ?? null,
+        ...calendarTermInputs(getMostRecentTerm()),
         savedTerm,
       })
 

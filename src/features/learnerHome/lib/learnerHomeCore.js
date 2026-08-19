@@ -30,14 +30,92 @@ export function firstNameOf(displayName) {
 // ── Active term resolution ──────────────────────────────────────────
 //
 // Fallback order (spec §8): school-configured term → MoE/platform
-// calendar → learner's last selected term → Term 1. Never hard-coded.
+// calendar → the term the calendar most recently CLOSED → learner's last
+// selected term → Term 1. Never hard-coded.
+//
+// `holidayTerm` is the rung that was missing, and its absence was not a
+// rare edge: `getActiveTerm` reports nothing on every day between terms,
+// which in 2026 is 31 days between Term 2 and Term 3 alone. Without it the
+// chain fell past a stale device-local `savedTerm` to the Term 1 default,
+// so for a month a year every learner's home and every subject page
+// scoped to January's topics — in August, with no way to tell that the
+// answer was a fallback rather than the calendar's.
+//
+// It sits ABOVE `savedTerm` because the calendar knows today's date and
+// `savedTerm` is a localStorage value that may be months old. It stays
+// BELOW `calendarTerm` because a term in session outranks one that ended.
+// The Term 1 default survives underneath, and is still right where it now
+// fires: a date before the calendar's first term has no closed term to
+// name, and Term 1 is what comes next.
 
-export function resolveActiveTerm({ schoolTerm, calendarTerm, savedTerm } = {}) {
+export function resolveActiveTerm({ schoolTerm, calendarTerm, holidayTerm, savedTerm } = {}) {
   const valid = (t) => Number.isInteger(t) && t >= 1 && t <= 3
   if (valid(schoolTerm)) return { term: schoolTerm, source: 'school' }
   if (valid(calendarTerm)) return { term: calendarTerm, source: 'calendar' }
+  if (valid(holidayTerm)) return { term: holidayTerm, source: 'holiday' }
   if (valid(savedTerm)) return { term: savedTerm, source: 'saved' }
   return { term: 1, source: 'default' }
+}
+
+/**
+ * Split a `getMostRecentTerm()` reading into the two inputs above.
+ *
+ * Three screens resolve the term — Home, the subject page and the profile
+ * — and each used to inline `getActiveTerm()?.term?.number ?? null`. That
+ * is the shape a fourth caller copies, and it is how one of them would
+ * keep the old behaviour after the other two were fixed. One adapter, so
+ * the reading is turned into inputs the same way everywhere.
+ *
+ * @param {{term?: {number?: number}, phase?: string}|null} recent
+ */
+export function calendarTermInputs(recent) {
+  const number = recent?.term?.number ?? null
+  if (number == null) return { calendarTerm: null, holidayTerm: null }
+  return recent.phase === 'holiday'
+    ? { calendarTerm: null, holidayTerm: number }
+    : { calendarTerm: number, holidayTerm: null }
+}
+
+/**
+ * The one-line note under the subject page's term tabs.
+ *
+ * The holiday case is why this is a function rather than a ternary at the
+ * call site: with the term resolved to the one that just closed, the
+ * "same term" branch would otherwise read "This term — keep going!" while
+ * the school is shut, which is the same wrong answer the term fallback
+ * used to give, only in words.
+ */
+export function termNoteFor({ term, activeTerm, source } = {}) {
+  if (!Number.isInteger(term) || !Number.isInteger(activeTerm)) return ''
+  if (term < activeTerm) return `Term ${term} is finished — revise any topic, any time.`
+  if (term > activeTerm) return `Term ${term} starts later — but you can read ahead.`
+  if (source === 'holiday') return `Term ${term} is finished — the holiday is a good time to revise it.`
+  return 'This term — keep going!'
+}
+
+// ── What a topic row opens ──────────────────────────────────────────
+//
+// ONE rule, because the bug was two of them disagreeing: `openTopic`
+// checked `noteTarget` and returned silently without it, while the row
+// rendered as a `<button>` regardless and only mentioned the absence in a
+// sub-line. So a topic with no note published was a full-size tap target
+// that did nothing and said nothing when tapped — and with the note
+// library near-empty, that was most of the list.
+//
+// Returning the destination rather than a boolean is what keeps them in
+// step: the row asks whether there is one, `openTopic` navigates to it,
+// and neither can drift from the other. It is also where a second kind of
+// destination would go if the owner ever wants one — a topic's practice
+// quiz is the obvious candidate, and is deliberately NOT wired here,
+// because the subject page has no quiz surface by design (see the page's
+// docblock: the per-topic Quiz / Lessons / Past Qs buttons were removed
+// on purpose, and re-opening that route through the row is a design
+// decision, not a bug fix).
+
+export function topicOpenTarget(topic) {
+  const noteId = topic?.noteTarget?.id
+  if (!noteId) return null
+  return { kind: 'note', id: noteId, path: `/notes/${noteId}` }
 }
 
 /** Normalize a term value from Firestore docs ('Term 1', '1', 1) → 1|2|3|null */
