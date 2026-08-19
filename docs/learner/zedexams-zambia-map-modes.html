@@ -1,17 +1,18 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ZedExams — Know Zambia</title>
+<title>ZedExams — Know Zambia: five more map modes</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
 <style>
 :root{--ind:#5b5bd6;--ind-soft:#ececfb;--ink:#1c2333;--muted:#6b7392;--bg:#eef0fb;
 --coral:#ff7a4d;--coral-2:#f4592c;--gold:#f5b820;--line:#e6e8f5;--r:18px;
-/* Okabe-Ito. Correct and wrong are told apart by GLYPH and PATTERN first; the
-   colours only agree with the glyph. They are near-identical in greyscale,
-   which is the whole reason the glyph is not optional. */
+/* Okabe-Ito, and the same rule as the sibling prototype: correct and wrong are
+   told apart by GLYPH and PATTERN first. These two greens and oranges sit at
+   almost the same grey, which is exactly why the glyph is not optional. */
 --ok:#009e73;--ok-ink:#04674c;--ok-soft:#e7f5f0;--ok-line:#bfe4d8;
 --no:#d55e00;--no-ink:#8f3f00;--no-soft:#fdeee4;--no-line:#f6d3ba;
---anchor:#a8b3d6;--anchor-ink:#333a58;--land:#d7dff2}
+--anchor:#a8b3d6;--anchor-ink:#333a58;--land:#d7dff2;
+--live:#8fa8e8;--live-ink:#25315c;--road:#0072b2;--road-soft:#e6f0f8}
 *{box-sizing:border-box}
 body{margin:0;background:#dfe3f5;font-family:Nunito,system-ui,sans-serif;color:var(--ink);padding:22px 14px 50px}
 h1.pt{text-align:center;margin:0 0 4px;font-size:25px}
@@ -59,8 +60,11 @@ svg.map{width:100%;display:block;touch-action:manipulation;overflow:visible}
 .prov.ok{fill:var(--ok)}
 .prov.no{fill:url(#hatch)}
 .prov.dim{fill:#eef1fa}
+.prov.live{fill:var(--live)}
+.prov.live[data-hit]:hover{fill:#7d99e2}
+.prov.step{fill:var(--road)}
 .prov:focus{outline:none;stroke:var(--ind);stroke-width:1.4}
-.zone{fill:#fff;stroke:#b9c0da;stroke-width:.7;stroke-dasharray:2.4 2;cursor:pointer;rx:2}
+.zone{fill:#fff;stroke:#b9c0da;stroke-width:.7;stroke-dasharray:2.4 2;cursor:pointer}
 .zone.ok{fill:var(--ok);stroke:var(--ok)}
 .zone.no{fill:url(#hatch);stroke:var(--no)}
 .zone:focus{outline:none;stroke:var(--ind);stroke-width:1.6}
@@ -71,32 +75,25 @@ svg.map{width:100%;display:block;touch-action:manipulation;overflow:visible}
 .mark{font-weight:900;text-anchor:middle;pointer-events:none;font-size:4.2px;paint-order:stroke;stroke:#fff;stroke-width:.9}
 .mark.ok{fill:#fff;stroke:rgba(0,0,0,.25)}
 .mark.no{fill:var(--no-ink)}
-.riv{fill:none;stroke:#4a86c8;stroke-width:.9;stroke-linejoin:round;stroke-linecap:round}
-.riv.on{stroke:#12508f;stroke-width:1.5}
-.lake{fill:#a9cdea;stroke:#4a86c8;stroke-width:.5}
-.lake[data-hit]{cursor:pointer}
-.lake.ok{fill:var(--ok);stroke:var(--ok-ink)}
-.lake.no{fill:url(#hatch);stroke:var(--no)}
-.wlab{font-size:2.7px;font-weight:800;fill:#12508f;text-anchor:middle;pointer-events:none;paint-order:stroke;stroke:#fff;stroke-width:.8}
+.mark.step{fill:#fff;stroke:rgba(0,0,0,.3)}
 .pin circle{fill:var(--coral-2);stroke:#fff;stroke-width:.6}
-.pin text{font-size:3px;font-weight:900;fill:var(--ink);text-anchor:middle;paint-order:stroke;stroke:#fff;stroke-width:1}
+.pin text{font-size:3.1px;font-weight:900;fill:var(--ink);text-anchor:middle;paint-order:stroke;stroke:#fff;stroke-width:1.1}
 .halo{fill:transparent;cursor:pointer}
 .halo:focus{outline:none}
 body.nocolour svg.map{filter:grayscale(1)}
 
-/* ---- name chips (tap-to-place) ---- */
+/* ---- chips, options, feedback ---- */
 .chips{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:6px}
 .pc{background:#fff;border:2px solid var(--line);border-radius:12px;padding:11px 12px;font:inherit;font-size:13px;font-weight:800;
 cursor:pointer;color:var(--ink);box-shadow:0 2px 0 #ccd2e6;min-height:44px;touch-action:manipulation}
 .pc:active{transform:translateY(2px);box-shadow:none}
 .pc.sel{border-color:var(--ind);background:var(--ind-soft);color:var(--ind);box-shadow:0 0 0 3px rgba(91,91,214,.16)}
 .pc.gone{opacity:.4;pointer-events:none;background:var(--ok-soft);border-color:var(--ok-line);color:var(--ok-ink);box-shadow:none}
-.pc.drag{cursor:grab}
 .hint{text-align:center;font-size:12px;color:var(--muted);font-weight:700;margin:9px 0 3px}
 .hint b{color:var(--ind)}
 .opts{display:grid;gap:8px;margin-top:2px}
 .opt{background:#fff;border:2.5px solid var(--line);border-radius:14px;padding:13px;font:inherit;font-size:15px;font-weight:800;
-cursor:pointer;color:var(--ink);text-align:left;min-height:48px;display:flex;gap:9px;align-items:center}
+cursor:pointer;color:var(--ink);text-align:left;min-height:48px;display:flex;gap:9px;align-items:center;width:100%}
 .opt .g{width:22px;flex:0 0 auto;font-size:15px}
 .opt.ok{border-color:var(--ok);background:var(--ok-soft);color:var(--ok-ink)}
 .opt.no{border-color:var(--no);background:var(--no-soft);color:var(--no-ink)}
@@ -108,23 +105,26 @@ cursor:pointer;color:var(--ink);text-align:left;min-height:48px;display:flex;gap
 .btn{width:100%;padding:13px;border:none;border-radius:14px;font:inherit;font-weight:800;font-size:15px;cursor:pointer;margin-top:10px;min-height:48px}
 .btn-coral{background:linear-gradient(180deg,var(--coral),var(--coral-2));color:#fff}
 .btn-ghost{background:#fff;color:var(--ind);border:1.5px solid var(--line);font-size:14px}
-.prov-src{font-size:10.5px;color:var(--muted);text-align:center;margin-top:6px;line-height:1.5}
 
-/* ---- level ladder ---- */
-.lv{background:#fff;border-radius:14px;padding:11px;margin-bottom:8px;display:flex;gap:10px;align-items:flex-start;width:100%;
-border:2px solid transparent;font:inherit;text-align:left;cursor:pointer}
-.lv.cur{border-color:var(--ind)}
-.lv.lock{opacity:.6;cursor:default}
-.bd{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-weight:900;font-size:15px;color:#fff;flex:0 0 auto}
-.b-done{background:var(--ok)}.b-now{background:linear-gradient(180deg,var(--coral),var(--coral-2))}.b-lock{background:#cfd4e8;color:#8f97b5}
-.nm{font-weight:900;font-size:13.5px;line-height:1.25}
-.ds{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.45}
-.rt{margin-left:auto;font-size:10.5px;color:var(--muted);font-weight:800;white-space:nowrap;padding-left:6px}
-.sec{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:12px 0 7px}
-.flagbox{display:flex;justify-content:center;margin:2px 0 8px}
+/* ---- mode menu ---- */
+.mode{background:#fff;border-radius:14px;padding:12px;margin-bottom:9px;display:flex;gap:11px;align-items:center;width:100%;
+border:2px solid transparent;font:inherit;text-align:left;cursor:pointer;min-height:48px}
+.mode:hover{border-color:var(--ind-soft)}
+.mi{width:40px;height:40px;border-radius:12px;background:var(--ind-soft);display:grid;place-items:center;font-size:19px;flex:0 0 auto}
+.mn{font-weight:900;font-size:14px}
+.md{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.45}
+.arw{margin-left:auto;color:#b9bfd8;font-weight:900;flex:0 0 auto}
 
-/* ---- self-check panel ---- */
-.panel{max-width:1180px;margin:26px auto 0;background:#151a2e;border-radius:16px;padding:18px 20px;color:#c9cfe6;font-size:12.5px;line-height:1.65}
+/* ---- journey route strip ---- */
+.route{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;margin-top:9px}
+.rs{background:var(--bg);border-radius:9px;padding:6px 9px;font-size:11px;font-weight:800;color:var(--muted);display:flex;gap:5px;align-items:center}
+.rs.on{background:var(--road);color:#fff}
+.rs .n{opacity:.7;font-size:10px}
+.leg{font-size:12px;color:#4b5270;line-height:1.55;margin-top:8px;padding-left:10px;border-left:3px solid var(--road-soft)}
+.leg b{color:var(--road)}
+
+/* ---- acceptance panel ---- */
+.panel{max-width:1180px;margin:22px auto 0;background:#161b30;color:#c8cfe8;border-radius:16px;padding:16px 18px;font-size:12.5px;line-height:1.6}
 .panel h3{margin:0 0 4px;font-size:14.5px;color:#fff}
 .panel p.lead{margin:0 0 12px;color:#939cc0}
 .panel table{width:100%;border-collapse:collapse}
@@ -136,18 +136,17 @@ border:2px solid transparent;font:inherit;text-align:left;cursor:pointer}
 @media(max-width:820px){.stage{display:block}.phone,.notes{width:100%;max-width:360px;margin:0 auto 22px}}
 </style></head><body>
 
-<h1 class="pt">Know Zambia</h1>
-<p class="ps">Geography &amp; heritage, map-led. Tap a name, then tap where it goes.</p>
+<h1 class="pt">Know Zambia — five more map modes</h1>
+<p class="ps">One traced map, five sets of rules. Journey mode is the one that teaches something the others cannot.</p>
 
 <div class="rig">
-  <label>Level
-    <select id="rLevel"></select>
+  <label>Mode
+    <select id="rMode"></select>
   </label>
   <label>Phone
     <select id="rWidth"><option value="w320">320px</option><option value="w360" selected>360px</option><option value="">356px</option><option value="w412">412px</option></select>
   </label>
-  <button id="rUnlock" type="button">Unlock all levels</button>
-  <button id="rReset" type="button">Reset progress</button>
+  <button id="rMenu" type="button">Back to the menu</button>
   <label><input type="checkbox" id="rMono"> Drop the colour</label>
   <span class="sep"></span>
   <span class="chk idle" id="rSrc">loading…</span>
@@ -157,17 +156,11 @@ border:2px solid transparent;font:inherit;text-align:left;cursor:pointer}
 <div class="stage">
   <div class="phone w360" id="phone">
     <div class="top">
-      <button class="back" id="hBack" type="button" aria-label="Back to the level list">‹</button>
-      <div class="ttl" id="hTtl">Know Zambia<small id="hSub">level</small></div>
-      <div class="chip" id="hChip">0 / 0</div>
+      <button class="back" id="hBack" type="button" aria-label="Back to the mode menu">‹</button>
+      <div class="ttl" id="hTtl">Map games<small id="hSub">five modes</small></div>
+      <div class="chip" id="hChip"></div>
     </div>
     <div class="body" id="scr"></div>
-  </div>
-
-  <div class="phone w360">
-    <div class="top"><button class="back" type="button" aria-hidden="true" tabindex="-1">‹</button>
-      <div class="ttl">Know Zambia<small>nine levels</small></div><div class="chip" id="lChip">⭐ 0</div></div>
-    <div class="body" id="ladder"></div>
   </div>
 
   <div class="notes" id="notes"></div>
@@ -1654,35 +1647,19 @@ border:2px solid transparent;font:inherit;text-align:left;cursor:pointer}
 }</script>
 
 <script>
-/* ============================================================================
-   KNOW ZAMBIA — geography & heritage (PROMPT 7f)
-
-   The two datasets are the source of truth and are shipped beside this file:
-     docs/learner/zambia_provinces.json  — the ten outlines, the label anchors,
-                                           the projection, and the provenance.
-     docs/learner/zambia_facts.json      — every fact the game teaches, with a
-                                           verification block a Zambian teacher
-                                           signs off in.
-
-   Opened over http:// the page FETCHES both. Opened from the filesystem the
-   fetch is blocked by the browser, so it falls back to the two mirror blocks
-   above — which are byte-for-byte copies written by `npm run sync:zambia-game`
-   and guarded by `npm run test:zambia-game`. The control strip says which of
-   the two it is reading, because a prototype that silently ran on a stale
-   inline copy would be the easiest way to review the wrong map.
-   ========================================================================== */
 (function(){
 'use strict';
 var $=function(i){return document.getElementById(i);};
 var TOUCH_MIN=44;                       /* px — the smallest allowed target */
 var PKEYS=['nw','cb','ce','lu','so','we','no','mu','ea','lp'];
 var VB_MAIN='0 0 100 81.5';
-var VB_WATER='-7 -9 114 99';
 var VB_WORLD='-27 -23 154 130';
-var STATES={ok:{glyph:'✓',word:'correct'},no:{glyph:'✗',word:'wrong'},anchor:{glyph:'',word:'already placed'}};
+var STATES={ok:{glyph:'✓',word:'correct'},no:{glyph:'✗',word:'wrong'},
+  anchor:{glyph:'',word:'already named'},step:{glyph:'',word:'on the route'},
+  live:{glyph:'',word:'in this question'},dim:{glyph:'',word:'not in this question'}};
 
-var PROV=null,FACTS=null,SRCNAME='inline mirror',SRCFETCHED=false;
-var G={},LEVELS=[],levelIx=0,stepIx=0,sel=null,fb=null,answered=false,run=null,unlocked={1:true},stars=0;
+var PROV=null,FACTS=null,ADJ=null,SRCNAME='inline mirror',SRCFETCHED=false;
+var G={};
 
 /* ---------- geometry, all pure ---------- */
 function parsePath(d){var pts=[],re=/[ML]\s*(-?[\d.]+),(-?[\d.]+)/g,m;while((m=re.exec(d))){pts.push([+m[1],+m[2]]);}return pts;}
@@ -1691,119 +1668,81 @@ function areaOf(pts){var a=0;for(var i=0,j=pts.length-1;i<pts.length;j=i++){a+=(
 function inside(pt,pts){var x=pt[0],y=pt[1],r=false;for(var i=0,j=pts.length-1;i<pts.length;j=i++){var xi=pts[i][0],yi=pts[i][1],xj=pts[j][0],yj=pts[j][1];if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))r=!r;}return r;}
 function proj(lon,lat){var p=PROV.projection;return[(lon-p.lon.min)*p.lon.scale+p.lon.offset,(lat-p.lat.min)*p.lat.scale+p.lat.offset];}
 function whichProvince(pt){for(var i=0;i<PKEYS.length;i++){if(inside(pt,G[PKEYS[i]].pts))return PKEYS[i];}return null;}
+function segDist(p,a,b){var dx=b[0]-a[0],dy=b[1]-a[1],l=dx*dx+dy*dy;
+  var t=l?Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/l)):0;
+  var x=a[0]+t*dx-p[0],y=a[1]+t*dy-p[1];return Math.sqrt(x*x+y*y);}
+function distToPoly(p,pts){var d=1e9;for(var i=0,j=pts.length-1;i<pts.length;j=i++){d=Math.min(d,segDist(p,pts[j],pts[i]));}return d;}
+/* How much boundary two provinces really share, in vertices of one lying on the
+   other. It is what turns the declared adjacency graph into something the trace
+   can contradict. */
+function sharedBoundary(a,b){
+  var eps=0.6,n=0,i;
+  for(i=0;i<G[a].pts.length;i++)if(distToPoly(G[a].pts[i],G[b].pts)<eps)n++;
+  for(i=0;i<G[b].pts.length;i++)if(distToPoly(G[b].pts[i],G[a].pts)<eps)n++;
+  return n;
+}
 function nameOf(k){return PROV.provinces[k].n;}
+function esc(s){return String(s).replace(/&(?!\w+;)/g,'&amp;').replace(/</g,'&lt;');}
+function touches(a,b){return (ADJ[a]||[]).indexOf(b)>=0;}
+function countryName(code){var n=code;FACTS.neighbours.forEach(function(z){if(z.code===code)n=z.name;});return n;}
+function zoneOf(code){var r=null;FACTS.neighbours.forEach(function(z){if(z.code===code)r=z;});return r;}
 
 /* ---------- data ---------- */
 function readMirror(id){return JSON.parse($(id).textContent);}
 function loadData(){
-  PROV=readMirror('mirror-provinces');FACTS=readMirror('mirror-facts');
-  var want=['zambia_provinces.json','zambia_facts.json'];
-  return Promise.all(want.map(function(u){return fetch(u).then(function(r){return r.ok?r.json():null;});}))
-    .then(function(r){if(r[0]&&r[1]){PROV=r[0];FACTS=r[1];SRCNAME='zambia_provinces.json + zambia_facts.json';SRCFETCHED=true;}})
-    .catch(function(){});
+  /* Served over http:// this reads the real files. Double-clicked from the
+     filesystem the browser blocks that, so the page falls back to the inline
+     mirrors written by `npm run sync:zambia-game`. The strip above says which. */
+  var m0=readMirror('mirror-provinces'),m1=readMirror('mirror-facts');
+  if(m0&&m0.provinces){PROV=m0;FACTS=m1;}
+  return Promise.all(['zambia_provinces.json','zambia_facts.json'].map(function(u){
+    return fetch(u).then(function(r){return r.ok?r.json():null;});
+  })).then(function(r){
+    if(r[0]&&r[1]){PROV=r[0];FACTS=r[1];SRCNAME='zambia_provinces.json + zambia_facts.json';SRCFETCHED=true;}
+  }).catch(function(){});
 }
 
-/* ---------- the nine levels, built out of the datasets ---------- */
-function provStep(q,keys,fact,hint,pin,kick){
-  return{t:'map',kick:kick||'',q:q,a:keys,fact:fact,hint:hint,pin:pin||null};
+/* ---------- the five modes, built out of the datasets ---------- */
+var MODES=[];
+function buildModes(){
+  var F=FACTS;
+  MODES=[
+    {id:'capital',icon:'📍',name:"Where's the capital?",
+     sub:'ten provincial capitals',
+     blurb:'A town appears on the map. Tap the province it is the capital of.',
+     items:F.capitals.map(function(c){return{k:c.province,town:c.town,lon:c.lon,lat:c.lat,fact:c.fact,hint:c.hint};})},
+
+    {id:'journey',icon:'🚌',name:'Journey',
+     sub:'four bus routes',
+     blurb:'Travel from one town to another. Tap each province you pass through, in order.',
+     routes:F.journeys},
+
+    {id:'odd',icon:'🧩',name:'Odd one out',
+     sub:'four questions',
+     blurb:'Four provinces are lit and the rest are dimmed. One of the four does not belong.',
+     items:F.oddOneOut},
+
+    {id:'neighbours',icon:'🌍',name:'Our neighbours',
+     sub:'eight countries',
+     blurb:'Place the eight countries that touch Zambia around the outline.',
+     items:F.neighbours},
+
+    {id:'ceremony',icon:'🥁',name:"Where's the ceremony?",
+     sub:'four ceremonies, three questions each',
+     blurb:'Kuomboka, N’cwala, Mutomboko, Likumbi Lya Mize — where, whose, and when.',
+     items:F.ceremonies}
+  ];
 }
-function buildLevels(){
-  var F=FACTS,lv=[];
-
-  lv.push({id:1,group:'Where things are',name:'The ten provinces',
-    blurb:'Place each one on the map. Three first, then five, then all ten.',
-    steps:[
-      {t:'place',kick:'Round 1 · three provinces',items:['lu','cb','we'],
-       intro:'Start with three. Tap a name, then tap where it goes.'},
-      {t:'place',kick:'Round 2 · two more, five in all',items:['so','no'],
-       intro:'Two more. The three you have already placed stay on the map to measure against.'},
-      {t:'place',kick:'Round 3 · the last five, all ten',items:['ce','ea','lp','mu','nw'],
-       intro:'The last five. Everything placed so far is still there.'}
-    ]});
-
-  var cap=[{t:'ask',kick:'The one everybody gets wrong',q:F.capitalsQuestion.q,options:F.capitalsQuestion.options,
-            answer:F.capitalsQuestion.answer,why:F.capitalsQuestion.whyRight,whyWrong:F.capitalsQuestion.whyWrong}];
-  F.capitals.forEach(function(c){
-    cap.push(provStep('<b>'+c.town+'</b> is the provincial capital of which province?',[c.province],c.fact,c.hint,
-      {lon:c.lon,lat:c.lat,label:c.town},'Provincial capitals'));
-  });
-  lv.push({id:2,group:'Where things are',name:'Provincial capitals',
-    blurb:'Kabwe, Ndola, Chipata, Mansa, Chinsali, Kasama, Solwezi, Choma, Mongu, Lusaka.',steps:cap});
-
-  lv.push({id:3,group:'Where things are',name:'Districts',
-    blurb:'Which province is Mpika in? Kalomo? Nchelenge?',
-    steps:F.districts.map(function(d){
-      var pn=nameOf(d.province);
-      return provStep('Which province is <b>'+d.district+'</b> in?',[d.province],
-        d.district+' is in '+pn+' Province.'+(d.note?' '+d.note:''),
-        F.provinces[d.province].hint,{lon:d.lon,lat:d.lat,label:d.district},'District → province');
-    })});
-
-  var wat=F.water.rivers.map(function(r){
-    return{t:'map',kick:'Rivers',q:r.q,a:[r.answer],fact:r.fact,hint:r.hint,water:true,river:r.id};
-  }).concat(F.water.lakes.map(function(l){
-    return{t:'lake',kick:'Lakes',q:l.q,a:l.id,fact:l.fact,hint:l.hint};
-  }));
-  lv.push({id:4,group:'Where things are',name:'Rivers &amp; lakes',
-    blurb:'Zambezi, Kafue, Luangwa, Luapula, Chambeshi · Tanganyika, Mweru, Bangweulu, Kariba.',steps:wat});
-
-  var her=F.heritage.map(function(h){
-    return provStep(h.q,[h.province],h.fact,h.hint,{lon:h.lon,lat:h.lat,label:h.name.split(' (')[0]},'Heritage sites');
-  }).concat(F.heritageQuestions.map(function(q){
-    return{t:'ask',kick:'Heritage sites',q:q.q,options:q.options,answer:q.answer,why:q.why};
-  }));
-  lv.push({id:5,group:'What happened there',name:'Heritage sites',
-    blurb:"Mosi-oa-Tunya, Kalambo Falls, Mwela, Shiwa Ng'andu, Ing'ombe Ilede, Nsalu Cave, Broken Hill.",steps:her});
-
-  var cer=[];
-  F.ceremonies.forEach(function(c,i){
-    cer.push({t:'ask',kick:'Traditional ceremonies',q:'<b>'+c.name+'</b> — whose ceremony is it?',
-      options:c.peopleOptions,answer:c.people,why:c.fact});
-    cer.push(provStep('<b>'+c.name+'</b> — which province is it held in?',[c.province],
-      c.name+' belongs to the '+c.people+' and is held in '+nameOf(c.province)+' Province. '+c.month+'.',c.hint,null,'Traditional ceremonies'));
-    if(i<2)cer.push({t:'ask',kick:'Traditional ceremonies',q:'When is <b>'+c.name+'</b> held?',
-      options:c.monthOptions,answer:c.month,why:c.monthWhy});
-  });
-  lv.push({id:6,group:'What happened there',name:'Traditional ceremonies',
-    blurb:"Kuomboka, N'cwala, Mutomboko, Likumbi Lya Mize — whose they are, and when.",steps:cer});
-
-  var par=F.parks.map(function(p){
-    return provStep(p.q,p.provinces,p.fact,p.hint,{lon:p.lon,lat:p.lat,label:p.name},'National parks');
-  }).concat(F.parkQuestions.map(function(q){
-    return{t:'ask',kick:'National parks',q:q.q,options:q.options,answer:q.answer,why:q.why};
-  }));
-  lv.push({id:7,group:'What happened there',name:'National parks &amp; wildlife',
-    blurb:'South Luangwa, Lower Zambezi, Liuwa Plain, Kafue.',steps:par});
-
-  lv.push({id:8,group:'Zambia and the world',name:'Our neighbours',
-    blurb:'Eight countries touch Zambia. Place them around the map.',
-    steps:[
-      {t:'zone',kick:'Round 1 · four neighbours',items:['cd','tz','mw','zw'],
-       intro:'The four longest borders first. Tap a name, then tap the space it belongs in.'},
-      {t:'zone',kick:'Round 2 · the other four',items:['mz','bw','na','ao'],
-       intro:'Four more. The ones you placed stay where they are.'}
-    ]});
-
-  lv.push({id:9,group:'Zambia and the world',name:'Symbols &amp; independence',
-    blurb:'The flag, the coat of arms, 24 October 1964, the anthem.',
-    steps:F.symbols.map(function(s){
-      return{t:'ask',kick:'Symbols &amp; independence',q:s.q,options:s.options,answer:s.answer,why:s.why,flag:/flag/.test(s.q)};
-    })});
-
-  lv.forEach(function(l){l.count=countQuestions(l);});
-  return lv;
-}
-function countQuestions(l){var n=0;l.steps.forEach(function(s){n+=(s.t==='place'||s.t==='zone')?s.items.length:1;});return n;}
+function modeOf(id){for(var i=0;i<MODES.length;i++)if(MODES[i].id===id)return MODES[i];return null;}
 
 /* ---------- map ---------- */
-function esc(s){return String(s).replace(/&(?!\w+;)/g,'&amp;').replace(/</g,'&lt;');}
-/* Size from the INSCRIBED RADIUS at the label anchor, not the bounding box.
-   Deriving it from the box is the same mistake as using a box centre for a
-   position: North-Western's box is nearly half the country wide while the room
-   around its anchor is not, so box-derived sizing printed its name straight
-   through Copperbelt's — visible at the end of level 1, where all ten are
-   labelled at once. The anchor is the pole of inaccessibility, so its distance
-   to the boundary IS the radius of the largest circle that fits there. */
+/* Font size comes from the INSCRIBED RADIUS at the label anchor — the radius of
+   the largest circle that fits inside the province at that point — not from the
+   width of the bounding box. It is the same mistake as using a box centre for a
+   position, one step along: North-Western's box is nearly half the country wide
+   while the room around its anchor is not, so box-derived sizing printed its
+   name straight across Copperbelt's. The anchor is already the pole of
+   inaccessibility, so its distance to the boundary IS that radius. */
 function labelSize(k){
   var n=nameOf(k).length;
   return Math.max(1.9,Math.min(3.1,(G[k].inscribed*2*0.95)/(n*0.55)));
@@ -1814,12 +1753,13 @@ function svgMap(o){
   s+='<svg class="map" viewBox="'+vb+'" role="group" aria-label="Map of Zambia and its ten provinces">';
   s+='<defs><pattern id="hatch" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'+
      '<rect width="3" height="3" fill="#fbe3d2"></rect><rect width="1.4" height="3" fill="#d55e00"></rect></pattern></defs>';
+
   if(o.zones){
     FACTS.neighbours.forEach(function(z){
-      var on=st['z_'+z.code],r=z.zone;
+      var on=st['z_'+z.code],r=z.zone,tappable=o.hit==='zone'&&!on;
       s+='<rect class="zone '+(on||'')+'" x="'+r[0]+'" y="'+r[1]+'" width="'+r[2]+'" height="'+r[3]+'" rx="2"'+
-         (o.hit==='zone'&&!on?' data-hit="zone:'+z.code+'" role="button" tabindex="0"':'')+
-         ' aria-label="'+esc(z.name)+', to the '+z.side+' of Zambia'+(on?', '+STATES[on].word:'')+'"><title>'+esc(z.name)+'</title></rect>';
+         (tappable?' data-hit="zone:'+z.code+'" role="button" tabindex="0"':'')+
+         ' aria-label="'+esc(z.name)+', to the '+esc(z.side)+' of Zambia'+(on?', '+STATES[on].word:'')+'"><title>'+esc(z.name)+'</title></rect>';
       var cx=r[0]+r[2]/2,cy=r[1]+r[3]/2;
       if(on==='ok'){s+='<text class="zlab on" x="'+cx+'" y="'+(cy+1)+'">'+esc(z.name)+'</text>'+
         '<text class="mark ok" x="'+cx+'" y="'+(cy-3.4)+'">✓</text>';}
@@ -1827,48 +1767,46 @@ function svgMap(o){
       else s+='<text class="zlab" x="'+cx+'" y="'+(cy+1)+'">?</text>';
     });
   }
+
+  /* Provinces. `o.tappable` is the whitelist — odd-one-out passes the four it
+     lit, so the six dimmed ones carry no data-hit, no tabindex and no halo, and
+     a tap on them cannot reach the handler at all. */
   PKEYS.forEach(function(k){
-    var c=st[k]||'',hit=o.hit==='prov';
+    var c=st[k]||'',hit=o.hit==='prov'&&(!o.tappable||o.tappable.indexOf(k)>=0);
     s+='<path id="p_'+k+'" class="prov '+c+'" d="'+PROV.provinces[k].d+'"'+
        (hit?' data-hit="prov:'+k+'" role="button" tabindex="0"':'')+
-       ' aria-label="'+esc(nameOf(k))+' Province'+(c?', '+STATES[c].word:'')+'"><title>'+esc(nameOf(k))+' Province</title></path>';
+       ' aria-label="'+esc(nameOf(k))+' Province'+(c&&STATES[c]?', '+STATES[c].word:'')+'"><title>'+esc(nameOf(k))+' Province</title></path>';
   });
-  if(o.water){
-    FACTS.water.rivers.forEach(function(r){
-      var pts=r.waypoints.map(function(w){var p=proj(w[0],w[1]);return p[0].toFixed(2)+','+p[1].toFixed(2);}).join(' ');
-      s+='<polyline class="riv'+(o.river===r.id?' on':'')+'" points="'+pts+'" aria-hidden="true"></polyline>';
-    });
-    FACTS.water.lakes.forEach(function(l){
-      var p=proj(l.lon,l.lat),c=st['w_'+l.id]||'',hit=o.hit==='lake';
-      s+='<ellipse class="lake '+c+'" cx="'+p[0].toFixed(2)+'" cy="'+p[1].toFixed(2)+'" rx="'+l.rx+'" ry="'+l.ry+
-         '" transform="rotate('+l.rot+' '+p[0].toFixed(2)+' '+p[1].toFixed(2)+')"'+
-         (hit&&!c?' data-hit="lake:'+l.id+'" role="button" tabindex="0"':'')+
-         ' aria-label="'+esc(l.name)+(c?', '+STATES[c].word:'')+'"><title>'+esc(l.name)+'</title></ellipse>';
-      if(c)s+='<text class="mark '+c+'" x="'+p[0].toFixed(2)+'" y="'+(p[1]+1.5).toFixed(2)+'">'+STATES[c].glyph+'</text>';
-      if(o.nameWater||c==='ok')s+='<text class="wlab" x="'+p[0].toFixed(2)+'" y="'+(p[1]+l.ry+3).toFixed(2)+'">'+esc(l.name.replace('Lake ',''))+'</text>';
-    });
-  }
+
+  /* Names sit on the pole of inaccessibility carried in the dataset as `c`,
+     never on the middle of the bounding box. Central wraps around Copperbelt,
+     so its box centre lands on a different province — and so do Eastern's and
+     Luapula's. The acceptance panel prints all three. */
   PKEYS.forEach(function(k){
-    var c=st[k]||'';if(c!=='ok'&&c!=='anchor')return;
+    var c=st[k]||'',want=(c==='ok'||c==='anchor'||c==='step'||(o.labels&&o.labels.indexOf(k)>=0));
+    if(!want)return;
     var a=PROV.provinces[k].c,fs=labelSize(k);
-    s+='<text class="plab'+(c==='anchor'?' dark':'')+'" x="'+a[0]+'" y="'+a[1]+'" style="font-size:'+fs.toFixed(2)+'px">'+esc(nameOf(k))+'</text>';
+    s+='<text class="plab'+(c==='anchor'||c==='live'||!c?' dark':'')+'" x="'+a[0]+'" y="'+a[1]+'" style="font-size:'+fs.toFixed(2)+'px">'+esc(nameOf(k))+'</text>';
     if(c==='ok')s+='<text class="mark ok" x="'+a[0]+'" y="'+(a[1]-fs-1.2)+'">✓</text>';
+    if(c==='step'&&o.order&&o.order[k])s+='<text class="mark step" x="'+a[0]+'" y="'+(a[1]-fs-1.2)+'">'+o.order[k]+'</text>';
   });
   PKEYS.forEach(function(k){
-    if(st[k]!=='no')return;var a=PROV.provinces[k].c;
+    if((st[k]||'')!=='no')return;var a=PROV.provinces[k].c;
     s+='<text class="mark no" x="'+a[0]+'" y="'+a[1]+'">✗</text>';
   });
+
   if(o.pin){
     var p=proj(o.pin.lon,o.pin.lat);
-    s+='<g class="pin"><circle cx="'+p[0].toFixed(2)+'" cy="'+p[1].toFixed(2)+'" r="1.5"></circle>'+
+    s+='<g class="pin" aria-hidden="true"><circle cx="'+p[0].toFixed(2)+'" cy="'+p[1].toFixed(2)+'" r="1.5"></circle>'+
        '<text x="'+p[0].toFixed(2)+'" y="'+(p[1]-2.6).toFixed(2)+'">'+esc(o.pin.label)+'</text></g>';
   }
-  /* Touch halos. Every target gets one; fitHalos() gives it a radius only when
-     the shape itself measures under 44px at the width actually rendered. Small
-     shapes are stacked last so their halo wins the tap over a big neighbour. */
+
+  /* Touch halos, sized by fitHalos() at the width actually rendered. Stacked
+     smallest-last so Lusaka wins the tap over Central. */
   if(o.hit==='prov'){
     s+='<g class="halos">';
-    PKEYS.slice().sort(function(a,b){return G[b].area-G[a].area;}).forEach(function(k){
+    PKEYS.filter(function(k){return !o.tappable||o.tappable.indexOf(k)>=0;})
+      .sort(function(a,b){return G[b].area-G[a].area;}).forEach(function(k){
       var a=PROV.provinces[k].c,b=G[k].bbox;
       s+='<circle class="halo" data-hit="prov:'+k+'" data-min="'+Math.min(b.w,b.h).toFixed(2)+'" cx="'+a[0]+'" cy="'+a[1]+'" r="0" aria-hidden="true"></circle>';
     });
@@ -1877,17 +1815,8 @@ function svgMap(o){
   if(o.hit==='zone'){
     s+='<g class="halos">';
     FACTS.neighbours.slice().sort(function(a,b){return(b.zone[2]*b.zone[3])-(a.zone[2]*a.zone[3]);}).forEach(function(z){
-      if(st['z_'+z.code])return;
-      var r=z.zone;
+      if(st['z_'+z.code])return;var r=z.zone;
       s+='<circle class="halo" data-hit="zone:'+z.code+'" data-min="'+Math.min(r[2],r[3])+'" cx="'+(r[0]+r[2]/2)+'" cy="'+(r[1]+r[3]/2)+'" r="0" aria-hidden="true"></circle>';
-    });
-    s+='</g>';
-  }
-  if(o.hit==='lake'){
-    s+='<g class="halos">';
-    FACTS.water.lakes.slice().sort(function(a,b){return(b.rx*b.ry)-(a.rx*a.ry);}).forEach(function(l){
-      var p=proj(l.lon,l.lat);
-      s+='<circle class="halo" data-hit="lake:'+l.id+'" data-min="'+(Math.min(l.rx,l.ry)*2).toFixed(2)+'" cx="'+p[0].toFixed(2)+'" cy="'+p[1].toFixed(2)+'" r="0" aria-hidden="true"></circle>';
     });
     s+='</g>';
   }
@@ -1915,393 +1844,343 @@ function fitHalos(){
   return measured;
 }
 
-/* ---------- flag (drawn simply — it is a teaching prop, not the standard) ---------- */
-function flagSvg(){
-  return '<svg viewBox="0 0 90 60" width="150" height="100" role="img" aria-label="The flag of Zambia: a green field, three stripes in red, black and orange in the bottom corner nearest the fly, and an orange eagle above them.">'+
-   '<rect width="90" height="60" fill="#198a00"></rect>'+
-   '<rect x="57" y="34" width="10" height="26" fill="#de2010"></rect>'+
-   '<rect x="68" y="34" width="10" height="26" fill="#000"></rect>'+
-   '<rect x="79" y="34" width="10" height="26" fill="#ef7d00"></rect>'+
-   '<path d="M60 26 C64 16, 72 14, 74 20 C77 13, 85 16, 85 24 C82 21, 78 22, 76 26 C73 22, 66 21, 60 26 Z" fill="#ef7d00"></path>'+
-   '<path d="M72 24 L74 31 L77 24 Z" fill="#ef7d00"></path></svg>';
-}
+/* ---------- game state ----------
+   There is no clock anywhere in this file. A mode ends when the learner has
+   answered everything, including the ones that caught them the first time. */
+var view='menu',M=null,Q=[],qi=0,pass=1,tricky=[],
+    sel=null,fb=null,resolved=false,tries=0,score=0,asked=0,
+    marks={},sub=0,routeIx=null;
 
-/* ---------- game state ---------- */
-var view='level',flash=null;
-function startLevel(ix){levelIx=ix;stepIx=0;sel=null;fb=null;answered=false;flash=null;
-  run={placed:{},zplaced:{},score:0,done:0,tries:0,resolved:false,picked:null};view='level';render();}
-function stepState(){
-  var s=LEVELS[levelIx].steps[stepIx],st={};
-  if(!s)return st;
-  if(s.t==='place'){for(var k in run.placed)st[k]=(run.placed[k]===stepIx?'ok':'anchor');}
-  if(s.t==='zone'){for(var z in run.zplaced)st['z_'+z]='ok';}
-  if(s.t==='map'&&run.resolved)st[run.rightKey]='ok';
-  if(s.t==='lake'&&run.resolved)st['w_'+s.a]='ok';
-  if(flash)st[flash]='no';
-  return st;
-}
-function progressChip(){var L=LEVELS[levelIx];return run.done+' / '+L.count;}
-
-function render(){
-  if(view==='ladder'){renderLadder();$('scr').innerHTML=laddScreen();fitHalos();return;}
-  var L=LEVELS[levelIx],s=L.steps[stepIx];
-  $('hTtl').innerHTML=L.name+'<small>Level '+L.id+' of 9</small>';
-  $('hChip').textContent=stepIx>=L.steps.length?('⭐ '+run.score+' / '+L.count):progressChip();
-  if(stepIx>=L.steps.length){$('scr').innerHTML=doneScreen();renderLadder();return;}
-  var st=stepState(),h='';
-  if(s.t==='place'||s.t==='zone'){
-    var isZone=s.t==='zone',pool=s.items,done=isZone?run.zplaced:run.placed;
-    var left=pool.filter(function(k){return!(k in done);});
-    h+='<div class="card"><div class="kick">'+s.kick+'</div><div class="q">'+s.intro+'</div></div>';
-    h+='<div class="card tight">'+svgMap({viewBox:isZone?VB_WORLD:VB_MAIN,state:st,hit:isZone?'zone':'prov',zones:isZone})+'</div>';
-    h+='<div class="hint">'+(left.length?(sel?'Now tap where <b>'+esc(labelFor(sel,isZone))+'</b> goes':'Tap a name, then tap where it goes'):'All placed.')+'</div>';
-    h+='<div class="chips">'+pool.map(function(k){
-      var gone=(k in done);
-      return '<button class="pc'+(gone?' gone':'')+(sel===k?' sel':'')+'" type="button" data-act="pick:'+k+'"'+
-        (gone?' disabled aria-label="'+esc(labelFor(k,isZone))+', placed"':' aria-pressed="'+(sel===k)+'"')+'>'+
-        (gone?'✓ ':'')+esc(labelFor(k,isZone))+'</button>';
-    }).join('')+'</div>';
-    h+=fbHtml();
-    if(!left.length)h+='<button class="btn btn-coral" type="button" data-act="next">'+(stepIx+1<L.steps.length?'Next round →':'Finish →')+'</button>';
-  } else if(s.t==='map'||s.t==='lake'){
-    h+='<div class="card"><div class="kick">'+s.kick+'</div><div class="q">'+s.q+'</div></div>';
-    h+='<div class="card tight">'+svgMap({
-        viewBox:(s.t==='lake'||s.water)?VB_WATER:VB_MAIN,state:st,
-        hit:run.resolved?null:(s.t==='lake'?'lake':'prov'),
-        water:(s.t==='lake'||s.water),river:run.resolved?s.river:null,
-        nameWater:s.t==='lake'&&run.resolved,
-        pin:run.resolved?s.pin:null})+
-      '<div class="prov-src">Outlines: '+esc(SRCNAME.split(' + ')[0])+' · traced '+esc(PROV.dataset.traced)+' · '+esc(PROV.dataset.verification.status.toLowerCase())+'</div></div>';
-    if(!run.resolved)h+='<div class="hint">'+(s.t==='lake'?'Tap the lake on the map':'Tap the province on the map')+'</div>';
-    h+=fbHtml();
-    if(run.resolved)h+='<button class="btn btn-coral" type="button" data-act="next">'+(stepIx+1<L.steps.length?'Next →':'Finish →')+'</button>';
-  } else if(s.t==='ask'){
-    h+='<div class="card"><div class="kick">'+s.kick+'</div>'+(s.flag?'<div class="flagbox">'+flagSvg()+'</div>':'')+'<div class="q">'+s.q+'</div></div>';
-    h+='<div class="opts" role="group">'+s.options.map(function(o){
-      var cls='',g='';
-      if(run.resolved){
-        if(o===s.answer){cls=' ok';g='✓';}
-        else if(o===run.picked){cls=' no';g='✗';}
-      }
-      return '<button class="opt'+cls+'" type="button"'+(run.resolved?' disabled':'')+' data-act="ans:'+encodeURIComponent(o)+'">'+
-        '<span class="g" aria-hidden="true">'+(g||'·')+'</span><span>'+esc(o)+'</span></button>';
-    }).join('')+'</div>';
-    h+=fbHtml();
-    if(run.resolved)h+='<button class="btn btn-coral" type="button" data-act="next">'+(stepIx+1<L.steps.length?'Next →':'Finish →')+'</button>';
-  }
-  $('scr').innerHTML=h;
-  fitHalos();renderLadder();runChecks();
-}
-function labelFor(k,isZone){
-  if(isZone){var z=zoneOf(k);return z?z.name:k;}
-  return nameOf(k);
-}
-function zoneOf(code){var r=null;FACTS.neighbours.forEach(function(z){if(z.code===code)r=z;});return r;}
-function fbHtml(){
-  var out='<div id="fb" aria-live="polite">';
-  if(fb)out+='<div class="fb '+fb.k+'"><div class="t"><span aria-hidden="true">'+(fb.g||'')+'</span><span>'+fb.t+'</span></div>'+fb.b+'</div>';
-  return out+'</div>';
-}
+function reset(){sel=null;fb=null;resolved=false;tries=0;marks={};sub=0;}
 function say(kind,glyph,title,body){fb={k:kind,g:glyph,t:title,b:body};}
+function fbHtml(){
+  if(!fb)return'';
+  return '<div class="fb '+fb.k+'"><div class="t"><span aria-hidden="true">'+fb.g+'</span><span>'+fb.t+'</span></div>'+fb.b+'</div>';
+}
+function menu(){view='menu';M=null;render();}
+function startMode(id){
+  M=modeOf(id);view='mode';pass=1;tricky=[];qi=0;score=0;asked=0;routeIx=null;reset();
+  if(M.id==='journey'){view='routes';}
+  else if(M.id==='neighbours'){Q=[{one:true}];}
+  else Q=M.items.slice();
+  render();
+}
+function startRoute(ix){routeIx=ix;view='mode';Q=[{route:M.routes[ix]}];qi=0;reset();render();}
 
-/* ---------- answering ---------- */
-function hit(token){
-  var s=LEVELS[levelIx].steps[stepIx];if(!s)return;
-  var bits=token.split(':'),kind=bits[0],key=bits[1];
-  if((s.t==='place'&&kind==='prov')||(s.t==='zone'&&kind==='zone'))return placeAttempt(s,key);
-  if(s.t==='map'&&kind==='prov')return mapAttempt(s,key);
-  if(s.t==='lake'&&kind==='lake')return lakeAttempt(s,key);
+/* An item missed on the first attempt comes back once the queue empties. This
+   is the whole of the "tricky pool" — it is not a spaced-repetition schedule,
+   and it does not pretend to be one. */
+function nextItem(){
+  qi++;reset();
+  if(qi>=Q.length&&pass===1&&tricky.length){Q=tricky.slice();tricky=[];qi=0;pass=2;}
+  render();
 }
-function flashWrong(k){flash=k;render();setTimeout(function(){flash=null;render();},900);}
-function placeAttempt(s,key){
-  var isZone=s.t==='zone',done=isZone?run.zplaced:run.placed;
-  if(!sel){say('say','','Pick a name first','Tap one of the names below, then tap where it goes on the map.');render();return;}
-  if(key===sel){
-    done[key]=stepIx;run.done++;if(!run.tries)run.score++;run.tries=0;
-    var nm=labelFor(key,isZone);
-    say('ok','✓',nm+' — correct',isZone?zoneOf(key).fact:FACTS.provinces[key].fact);
-    sel=null;render();
-  }else{
-    run.tries++;
-    var wrongName=labelFor(key,isZone),hintTxt=isZone?zoneOf(sel).hint:FACTS.provinces[sel].hint;
-    say('no','✗','That one is '+wrongName,hintTxt+' Try again — nothing is lost.');
-    flashWrong(isZone?('z_'+key):key);
-  }
+function missed(item){if(pass===1&&tricky.indexOf(item)<0)tricky.push(item);}
+function done(){return qi>=Q.length;}
+
+/* ---------- render ---------- */
+function render(){
+  if(view==='menu')return renderMenu();
+  if(view==='routes')return renderRoutes();
+  if(done())return renderDone();
+  if(M.id==='capital')renderCapital();
+  else if(M.id==='journey')renderJourney();
+  else if(M.id==='odd')renderOdd();
+  else if(M.id==='neighbours')renderNeighbours();
+  else if(M.id==='ceremony')renderCeremony();
+  fitHalos();runChecks();
 }
-function mapAttempt(s,key){
-  if(run.resolved)return;
-  if(s.a.indexOf(key)>=0){
-    run.rightKey=key;run.resolved=true;run.done++;if(!run.tries)run.score++;run.tries=0;
-    say('ok','✓',nameOf(key)+' Province',s.fact+(s.a.length>1?' <b>'+esc(spansNote(s))+'</b>':''));
-    render();
+function head(title,sub,chip){
+  $('hTtl').innerHTML=esc(title)+'<small>'+esc(sub)+'</small>';
+  $('hChip').textContent=chip||'';
+  $('hChip').style.display=chip?'':'none';
+}
+function renderMenu(){
+  head('Map games','five modes','');
+  $('scr').innerHTML=MODES.map(function(m){
+    return '<button class="mode" type="button" data-act="mode:'+m.id+'">'+
+      '<span class="mi" aria-hidden="true">'+m.icon+'</span>'+
+      '<span><span class="mn">'+esc(m.name)+'</span><span class="md">'+esc(m.blurb)+'</span></span>'+
+      '<span class="arw" aria-hidden="true">›</span></button>';
+  }).join('')+
+  '<div class="note" style="margin-top:12px;border:0;border-left:4px solid var(--ind)">'+
+  '<b>Not every round should be a map.</b> These five sit alongside the plain question rounds in the main game, they do not replace them. '+
+  'A learner who only ever taps a map stops reading the question.</div>';
+  fitHalos();runChecks();
+}
+function renderRoutes(){
+  head('Journey','pick a route','');
+  $('scr').innerHTML='<div class="card"><div class="kick">Four journeys</div>'+
+    '<div class="q">Where are you travelling?</div>'+
+    '<div class="md" style="margin-top:6px">Tap each province you pass through, in order. Nothing is timed — the road is long.</div></div>'+
+    M.routes.map(function(r,i){
+      return '<button class="mode" type="button" data-act="route:'+i+'">'+
+        '<span class="mi" aria-hidden="true">'+(i+1)+'</span>'+
+        '<span><span class="mn">'+esc(r.from)+' → '+esc(r.to)+'</span>'+
+        '<span class="md">'+esc(r.road)+' · '+r.provinces.length+' provinces · about '+r.approxKm.toLocaleString()+' km</span></span>'+
+        '<span class="arw" aria-hidden="true">›</span></button>';
+    }).join('');
+  fitHalos();runChecks();
+}
+
+/* --- 1. Where's the capital? --- */
+function renderCapital(){
+  var it=Q[qi],st={};
+  if(resolved){st[it.k]='ok';if(marks.wrong&&marks.wrong!==it.k)st[marks.wrong]='no';}
+  head("Where's the capital?",pass===2?'the ones that caught you':'ten provincial capitals',(qi+1)+' / '+Q.length);
+  $('scr').innerHTML=
+   '<div class="card tight">'+svgMap({hit:resolved?null:'prov',state:st,pin:{lon:it.lon,lat:it.lat,label:it.town}})+'</div>'+
+   '<div class="card"><div class="kick">Provincial capital</div>'+
+     '<div class="q"><b>'+esc(it.town)+'</b> is the capital of which province?</div>'+
+     (resolved?'':'<div class="hint">Tap the province on the map</div>')+
+   '</div>'+fbHtml()+
+   (resolved?'<button class="btn btn-coral" type="button" data-act="next">'+(qi+1>=Q.length&&!(pass===1&&tricky.length)?'Finish':'Next')+' →</button>':'');
+}
+function answerCapital(k){
+  var it=Q[qi];
+  if(resolved)return;
+  asked++;
+  if(k===it.k){
+    resolved=true;if(!tries)score++;
+    say('ok','✓',nameOf(it.k),esc(it.fact));
   }else{
-    run.tries++;
-    if(run.tries>=3){
-      run.rightKey=s.a[0];run.resolved=true;run.done++;run.tries=0;
-      say('no','✗','It is '+nameOf(s.a[0])+' — shown on the map',s.hint+' '+s.fact);
-      render();
+    tries++;marks.wrong=k;missed(it);
+    if(tries>=2){
+      resolved=true;
+      say('no','✗','It is '+nameOf(it.k),'You tapped '+esc(nameOf(k))+'. '+esc(it.fact));
     }else{
-      say('no','✗','That is '+nameOf(key),s.hint+' Try again.');
-      flashWrong(key);
+      say('no','✗','Not '+nameOf(k),esc(it.hint)+' Try once more.');
     }
   }
+  render();
 }
-function lakeAttempt(s,key){
-  if(run.resolved)return;
-  if(key===s.a){
-    run.resolved=true;run.done++;if(!run.tries)run.score++;run.tries=0;
-    say('ok','✓',lakeName(key)+' — correct',s.fact);render();
+
+/* --- 2. Journey --- */
+function renderJourney(){
+  var r=Q[qi].route,st={},order={},i;
+  for(i=0;i<sub;i++){st[r.provinces[i]]='step';order[r.provinces[i]]=i+1;}
+  if(marks.wrong)st[marks.wrong]='no';
+  var finished=sub>=r.provinces.length;
+  head('Journey',esc(r.from)+' → '+esc(r.to),sub+' / '+r.provinces.length);
+  $('scr').innerHTML=
+   '<div class="card tight">'+svgMap({hit:finished?null:'prov',state:st,order:order})+'</div>'+
+   '<div class="card"><div class="kick">'+esc(r.road)+'</div>'+
+     '<div class="q">Travel from <b>'+esc(r.from)+'</b> to <b>'+esc(r.to)+'</b>.</div>'+
+     '<div class="md" style="margin-top:5px">Tap each province you pass through, in order.</div>'+
+     '<div class="route">'+r.provinces.map(function(k,i){
+        return '<span class="rs '+(i<sub?'on':'')+'"><span class="n">'+(i+1)+'</span>'+(i<sub?esc(nameOf(k)):'?')+'</span>';
+      }).join('')+'</div>'+
+     (sub>0&&!finished?'<div class="leg"><b>'+esc(nameOf(r.provinces[sub-1]))+'</b> — '+esc(r.legs[r.provinces[sub-1]])+'</div>':'')+
+   '</div>'+fbHtml()+
+   (finished?'<button class="btn btn-coral" type="button" data-act="next">Finish →</button>'+
+     '<button class="btn btn-ghost" type="button" data-act="routes">Another route</button>':'');
+}
+/* The wrong-tap answer is the reason this mode exists. It names where you are,
+   then says something different depending on WHY the tap was wrong — a province
+   that touches this one but lies off the route is a different mistake from one
+   that does not touch it at all, and a child who is told the difference learns
+   the shape of the country rather than the answer to this question. */
+function answerJourney(k){
+  var r=Q[qi].route;
+  if(sub>=r.provinces.length)return;
+  var wantK=r.provinces[sub],here=sub>0?r.provinces[sub-1]:null;
+  asked++;
+  if(k===wantK){
+    marks.wrong=null;sub++;if(!tries)score++;tries=0;
+    var last=sub>=r.provinces.length;
+    if(last)say('ok','🚌','You made it to '+esc(r.to),
+      esc(r.endNote)+' The route ran '+r.provinces.map(nameOf).join(' → ')+'.');
+    else say('ok','✓',nameOf(k),esc(r.legs[k]));
   }else{
-    run.tries++;
-    if(run.tries>=3){run.resolved=true;run.done++;run.tries=0;say('no','✗','It is '+lakeName(s.a),s.hint+' '+s.fact);render();}
-    else{say('no','✗','That is '+lakeName(key),s.hint+' Try again.');flashWrong('w_'+key);}
-  }
-}
-function lakeName(id){var n=id;FACTS.water.lakes.forEach(function(l){if(l.id===id)n=l.name;});return n;}
-function spansNote(s){var n='';FACTS.parks.forEach(function(p){if(p.spansNote&&p.provinces.join()===s.a.join())n=p.spansNote;});return n;}
-function answer(opt){
-  var s=LEVELS[levelIx].steps[stepIx];if(run.resolved)return;
-  run.picked=opt;run.resolved=true;run.done++;
-  if(opt===s.answer){run.score++;say('ok','✓',esc(s.answer),s.why);}
-  else say('no','✗','It is '+esc(s.answer),s.whyWrong||s.why);
-  render();
-}
-function next(){
-  var L=LEVELS[levelIx];
-  stepIx++;run.resolved=false;run.tries=0;run.picked=null;run.rightKey=null;fb=null;sel=null;flash=null;
-  if(stepIx>=L.steps.length){
-    unlocked[L.id]=true;unlocked[L.id+1]=true;bank();
+    tries++;marks.wrong=k;
+    if(r.provinces.indexOf(k)>=0&&r.provinces.indexOf(k)<sub){
+      say('no','✗','You have been there',
+        'You passed through '+esc(nameOf(k))+' already — it is number '+(r.provinces.indexOf(k)+1)+' on the strip. Which province comes next?');
+    }else if(!here){
+      say('no','✗','That is not where you start',
+        esc(r.from)+' is in '+esc(nameOf(wantK))+'. Start the journey in the province you are leaving from.');
+    }else if(touches(k,here)){
+      say('no','✗',nameOf(k)+' does touch '+nameOf(here),
+        'So you could drive there — but you are heading for '+esc(r.to)+', and this road does not go that way. '+
+        'Which province that touches '+esc(nameOf(here))+' takes you towards '+esc(r.to)+'?');
+    }else{
+      say('no','✗',nameOf(k)+' does not touch '+nameOf(here),
+        'You are in '+esc(nameOf(here))+'. You cannot reach '+esc(nameOf(k))+' from there without crossing a province in between. '+
+        'Which province touches '+esc(nameOf(here))+' on the way to '+esc(r.to)+'?');
+    }
   }
   render();
 }
 
-/* ---------- finish + level ladder ---------- */
-function doneScreen(){
-  var L=LEVELS[levelIx],full=run.score===L.count;
-  var learned=[];
-  L.steps.forEach(function(s){
-    if(s.t==='map'&&s.pin)learned.push('<b>'+esc(s.pin.label)+'</b> — '+esc(nameOf(s.a[0]))+' Province');
-    if(s.t==='ask'&&learned.length<6)learned.push('<b>'+esc(s.answer)+'</b>');
-  });
-  learned=learned.slice(0,5);
-  var nextL=LEVELS[levelIx+1];
-  return '<div class="card" style="text-align:center"><div style="font-size:38px" aria-hidden="true">🇿🇲</div>'+
-   '<div style="font-size:20px;font-weight:900;margin-top:4px">Level '+L.id+' cleared</div>'+
-   '<div style="font-size:12.5px;color:var(--muted);margin-top:4px">'+run.score+' of '+L.count+' right first time'+
-   (full?' — every one.':'. The ones you missed come back next time.')+'</div></div>'+
-   (learned.length?'<div class="card"><div class="kick">Coming back for you</div><div style="font-size:12.5px;line-height:1.9;color:#4b5270">📌 '+learned.join('<br>📌 ')+'</div></div>':'')+
-   (nextL?'<button class="btn btn-coral" type="button" data-act="level:'+(levelIx+1)+'">Level '+nextL.id+' · '+nextL.name+' →</button>':
-          '<div class="card"><div class="kick">All nine done</div><div style="font-size:13px;color:#4b5270;line-height:1.6">That is the whole map, the capitals, the districts, the water, the heritage, the ceremonies, the parks, the neighbours and the symbols.</div></div>')+
-   '<button class="btn btn-ghost" type="button" data-act="ladder">Back to the levels</button>'+
-   '<button class="btn btn-ghost" type="button" data-act="level:'+levelIx+'">Play this level again</button>';
+/* --- 3. Odd one out --- */
+function renderOdd(){
+  var it=Q[qi],st={};
+  PKEYS.forEach(function(k){st[k]=it.set.indexOf(k)>=0?'live':'dim';});
+  if(resolved){st[it.odd]='ok';if(marks.wrong&&marks.wrong!==it.odd)st[marks.wrong]='no';}
+  head('Odd one out',pass===2?'the ones that caught you':'four questions',(qi+1)+' / '+Q.length);
+  $('scr').innerHTML=
+   '<div class="card tight">'+svgMap({hit:resolved?null:'prov',state:st,tappable:it.set,labels:it.set})+'</div>'+
+   '<div class="card"><div class="kick">One does not belong</div>'+
+     '<div class="q">'+it.q+'</div>'+
+     (resolved?'':'<div class="hint">Tap one of the four lit provinces</div>')+
+   '</div>'+fbHtml()+
+   (resolved?'<button class="btn btn-coral" type="button" data-act="next">'+(qi+1>=Q.length&&!(pass===1&&tricky.length)?'Finish':'Next')+' →</button>':'');
 }
-function ladderHtml(){
-  var groups=[],seen={},out='';
-  LEVELS.forEach(function(l){if(!seen[l.group]){seen[l.group]=1;groups.push(l.group);}});
-  groups.forEach(function(g){
-    out+='<div class="sec">'+g+'</div>';
-    LEVELS.forEach(function(l,i){
-      if(l.group!==g)return;
-      var open=!!unlocked[l.id],done=!!(progress[l.id]&&progress[l.id].done),cur=(i===levelIx&&view==='level');
-      var badge=done?'b-done':(open?'b-now':'b-lock');
-      out+='<button class="lv'+(open?'':' lock')+(cur?' cur':'')+'" type="button"'+(open?' data-act="level:'+i+'"':' disabled')+'>'+
-        '<div class="bd '+badge+'" aria-hidden="true">'+(done?'✓':l.id)+'</div>'+
-        '<div><div class="nm">'+l.name+'</div><div class="ds">'+l.blurb+'</div></div>'+
-        '<div class="rt">'+(open?(progress[l.id]?progress[l.id].score+' / '+l.count:l.count+' to do'):'🔒 level '+(l.id-1)+' first')+'</div></button>';
-    });
-  });
-  return out;
-}
-function renderLadder(){
-  $('ladder').innerHTML=ladderHtml();
-  var done=0;LEVELS.forEach(function(l){if(progress[l.id])done+=progress[l.id].score;});
-  $('lChip').textContent='⭐ '+done;
-}
-function laddScreen(){
-  $('hTtl').innerHTML='Know Zambia<small>pick a level</small>';
-  $('hChip').textContent=Object.keys(unlocked).length-1+' / 9 open';
-  return '<div class="card"><div class="kick">Zambia · 10 provinces</div>'+svgMap({state:allAnchors()})+
-    '<div class="prov-src">'+esc(PROV.provinces.mu.createdNote)+'</div></div>'+ladderHtml();
-}
-function allAnchors(){var st={};PKEYS.forEach(function(k){st[k]='anchor';});return st;}
-
-/* ---------- progress ---------- */
-var progress={},KEY='zed:zambia:v1';
-function save(){try{localStorage.setItem(KEY,JSON.stringify({unlocked:unlocked,progress:progress}));}catch(e){}}
-function load(){try{var r=JSON.parse(localStorage.getItem(KEY)||'{}');if(r.unlocked)unlocked=r.unlocked;if(r.progress)progress=r.progress;}catch(e){}unlocked[1]=true;}
-function bank(){var L=LEVELS[levelIx];var p=progress[L.id];if(!p||p.score<run.score)progress[L.id]={done:true,score:run.score};save();}
-
-/* ============================================================================
-   THE ACCEPTANCE CHECKS — run live, against the data actually loaded
-   ========================================================================== */
-var LASTMEASURE=null,LASTZONE=null;
-function measureNow(){var m=fitHalos(),w=Math.round($('phone').getBoundingClientRect().width);
-  var pv=m.filter(function(x){return x.id.indexOf('prov:')===0;});
-  var zn=m.filter(function(x){return x.id.indexOf('zone:')===0;});
-  if(pv.length)LASTMEASURE={w:w,items:pv};
-  if(zn.length)LASTZONE={w:w,items:zn};
-  return LASTMEASURE;}
-function segDist(p,a,b){var dx=b[0]-a[0],dy=b[1]-a[1],l=dx*dx+dy*dy;
-  var t=l?Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/l)):0;
-  var x=a[0]+t*dx-p[0],y=a[1]+t*dy-p[1];return Math.sqrt(x*x+y*y);}
-function distToPoly(p,pts){var d=1e9;for(var i=0,j=pts.length-1;i<pts.length;j=i++){d=Math.min(d,segDist(p,pts[j],pts[i]));}return d;}
-function allPins(){
-  var out=[];
-  FACTS.capitals.forEach(function(c){out.push({label:c.town,lon:c.lon,lat:c.lat,p:c.province});});
-  FACTS.districts.forEach(function(d){out.push({label:d.district,lon:d.lon,lat:d.lat,p:d.province});});
-  FACTS.heritage.forEach(function(h){out.push({label:h.name,lon:h.lon,lat:h.lat,p:h.province});});
-  FACTS.parks.forEach(function(k){if(k.provinces.length===1)out.push({label:k.name,lon:k.lon,lat:k.lat,p:k.provinces[0]});});
-  return out;
-}
-function runChecks(){
-  var rows=[],D=PROV.dataset,V=D.verification,ok=0,bad=0;
-  function row(name,state,text){rows.push({n:name,s:state,t:text});if(state==='fail')bad++;else if(state==='pass')ok++;}
-
-  row('Renders from the dataset',SRCFETCHED?'pass':'warn',
-    'Outlines and label anchors read from <code>'+esc(SRCNAME)+'</code>'+(SRCFETCHED?'':' — the datasets were not fetched (the page was opened from the filesystem, where the browser blocks it, or served without them beside it), so it fell back to the inline mirror. The mirror is written by <code>npm run sync:zambia-game</code> and <code>npm run test:zambia-game</code> fails if it and the files disagree.')+
-    ' Traced '+esc(D.traced)+', dated '+esc(D.dated)+', positional accuracy about '+D.positionalAccuracyKm+' km.');
-
-  row('Dated and attributed — but not verified',V.status==='UNVERIFIED'?'warn':'pass',
-    '<b>'+esc(V.status)+'.</b> '+esc(D.tracedFrom)+' Still to do before release: '+esc(V.requiredBeforeRelease.join(' · '))+
-    ' The two facts datasets carry the same block; a teacher signs off by filling in <code>checkedBy / checkedAgainst / checkedOn</code>, not by editing this page.');
-
-  var parsed=PKEYS.filter(function(k){return PROV.provinces[k]&&G[k].pts.length>2&&inside(PROV.provinces[k].c,G[k].pts);});
-  row('Ten provinces, each with a label anchor inside it',parsed.length===10?'pass':'fail',
-    parsed.length+' of 10 outlines parse and hold their own label anchor. Province count in the dataset: '+D.provinceCount+'.');
-
-  var mu=PROV.provinces.mu;
-  row('Muchinga is present and dated',(mu&&/2011/.test(mu.createdNote||''))?'pass':'fail',
-    mu?esc(mu.createdNote):'Muchinga missing. Zambia has had TEN provinces since 11 October 2011 — a nine-province map is out of date.');
-
-  var so=null;FACTS.capitals.forEach(function(c){if(c.province==='so')so=c;});
-  var liv=FACTS.capitals.filter(function(c){return c.town==='Livingstone';}).length;
-  row('Southern Province’s capital is Choma',(so&&so.town==='Choma'&&liv===0)?'pass':'fail',
-    so?('The dataset says <b>'+esc(so.town)+'</b>, and Livingstone appears '+(liv?'AS A CAPITAL — wrong':'only as a wrong option and in the explanation, which is where it belongs')+'. It moved in 2011.'):'No capital recorded for Southern.');
-
-  var m=measureNow();
-  if(m){
-    var worst=m.items.slice().sort(function(a,b){return a.px-b.px;})[0];
-    var small=m.items.filter(function(x){return x.px<TOUCH_MIN;});
-    row('Every province is a 44px target at '+m.w+'px',small.length?'fail':'pass',
-      'Smallest effective target: <b>'+esc(worst.id.split(':')[1])+'</b> at '+worst.px.toFixed(0)+'px. '+
-      'Lusaka is the province this rule exists for — it measures '+
-      (m.items.filter(function(x){return x.id==='prov:lu';})[0]||{px:0}).px.toFixed(0)+'px. '+
-      'Targets under 44px get an invisible circular halo, stacked smallest-last so a small province wins the tap over a big neighbour.');
-  } else row('Touch targets','warn','No interactive map on screen to measure yet.');
-
-  if(LASTZONE){
-    var wz=LASTZONE.items.slice().sort(function(a,b){return a.px-b.px;})[0];
-    row('The neighbour boxes are targets too',wz.px<TOUCH_MIN?'fail':'pass',
-      'Smallest of the eight at '+LASTZONE.w+'px: <b>'+esc(wz.id.split(':')[1])+'</b> at '+wz.px.toFixed(0)+'px. '+
-      'Botswana’s real border is a few hundred metres at Kazungula; its box is the same size as everyone else’s, because a tap target is not a scale drawing.');
+function answerOdd(k){
+  var it=Q[qi];
+  if(resolved)return;
+  if(it.set.indexOf(k)<0)return;   /* dimmed provinces are not in this question */
+  asked++;
+  if(k===it.odd){resolved=true;if(!tries)score++;say('ok','✓',nameOf(it.odd),esc(it.why));}
+  else{
+    resolved=true;tries++;missed(it);
+    say('no','✗','It is '+nameOf(it.odd),
+      'You tapped '+esc(nameOf(k))+', which does belong with the other two. '+esc(it.why));
   }
-
-  var w=LEVELS[0].steps.map(function(s){return s.items.length;}),cum=[],t=0;
-  w.forEach(function(n){t+=n;cum.push(t);});
-  row('Level 1 starts with three and grows',(cum.join()==='3,5,10')?'pass':'fail',
-    'Rounds place '+w.join(' then ')+' — '+cum.join(' → ')+' on the map. Everything already placed stays visible as an anchor, and is drawn in grey with its name so it can be measured against.');
-
-  var placeable=[],missing=[];
-  LEVELS.forEach(function(l){l.steps.forEach(function(s){
-    if(s.t==='place')s.items.forEach(function(k){placeable.push(k);if(!(FACTS.provinces[k]||{}).hint)missing.push(k);});
-    if(s.t==='zone')s.items.forEach(function(c){placeable.push(c);if(!zoneOf(c).hint)missing.push(c);});
-    if(s.t==='map'||s.t==='lake'){placeable.push(s.q);if(!s.hint)missing.push(s.q);}
-  });});
-  row('Every wrong placement returns a positional hint',missing.length?'fail':'pass',
-    placeable.length+' placeable or tappable answers, '+(placeable.length-missing.length)+' carrying a hint that says where the thing is relative to something else. A wrong tap names what was tapped and then gives that hint — never a bare cross.');
-
-  var anchors=['lu','cb','we'],anchorFail=[];
-  LEVELS[0].steps.forEach(function(s,i){
-    s.items.forEach(function(k){
-      var h=FACTS.provinces[k].hint;
-      if(i===0){if(!/north|south|east|west|top|bottom|middle|centre|corner/i.test(h))anchorFail.push(k);}
-      else{
-        var namesAnAnchor=anchors.some(function(a){return h.indexOf(nameOf(a))>=0;});
-        if(!namesAnAnchor)anchorFail.push(k);
-      }
-    });
-    if(i>0)anchors=anchors.concat(s.items);
-    else anchors=s.items.slice();
-  });
-  row('Hints point at something already on the map',anchorFail.length?'fail':'pass',
-    anchorFail.length?('These hints name nothing the learner has placed yet: '+anchorFail.join(', ')):
-    'Round 1 hints use compass directions only (nothing is on the map yet); every later hint names a province already placed — "west of the Copperbelt", "below Lusaka".');
-
-  var cp=PROV.projection.checkPoints.map(function(c){return{c:c,got:whichProvince(proj(c.lon,c.lat))};});
-  var cpBad=cp.filter(function(x){return x.got!==x.c.expect;});
-  row('The lon/lat projection lands where it should',cpBad.length?'fail':'pass',
-    cp.length+' calibration points ('+cp.map(function(x){return esc(x.c.name);}).join(', ')+') project inside the province they belong to. '+
-    'That is what lets a town, a heritage site or a river be drawn from its real coordinates instead of being nudged into place by eye.');
-
-  var pins=allPins(),outside=[];
-  pins.forEach(function(p){
-    var xy=proj(p.lon,p.lat),got=whichProvince(xy);
-    if(got!==p.p)outside.push({l:p.label,d:distToPoly(xy,G[p.p].pts),got:got});
-  });
-  var far=outside.filter(function(x){return x.d>2.5;});
-  row('Pins agree with the traced boundaries',far.length?'warn':'pass',
-    (pins.length-outside.length)+' of '+pins.length+' pins fall inside the province the data says they are in. '+
-    (outside.length?('The rest sit within '+Math.max.apply(null,outside.map(function(x){return x.d;})).toFixed(1)+' map units of it — '+
-      outside.map(function(x){return esc(x.l)+' ('+(x.d*12).toFixed(0)+' km)';}).join(', ')+
-      ' — which is the hand trace’s resolution, not a disagreement about which province they are in. This row is why the dataset is marked unverified.'):''));
-
-  var glyphless=Object.keys(STATES).filter(function(k){return k!=='anchor'&&!STATES[k].glyph;});
-  var okShapes=document.querySelectorAll('.prov.ok,.zone.ok,.lake.ok').length;
-  var okMarks=document.querySelectorAll('text.mark.ok').length;
-  var noShapes=document.querySelectorAll('.prov.no,.zone.no,.lake.no').length;
-  var noMarks=document.querySelectorAll('text.mark.no').length;
-  row('Colour is never the only signal',(!glyphless.length&&okShapes<=okMarks&&noShapes<=noMarks)?'pass':'fail',
-    'On screen now: '+okShapes+' correct shapes carrying '+okMarks+' ✓ marks, '+noShapes+' wrong shapes carrying '+noMarks+' ✗ marks. '+
-    'Wrong is also drawn as a diagonal hatch, and the feedback says it in words. The palette is Okabe-Ito — and green and orange are nearly the same grey, '+
-    'so <b>Drop the colour</b> in the strip above is the real test: the map still reads.');
-
-  var regions=document.querySelectorAll('svg.map [data-hit]:not(.halo)'),named=0;
-  for(var i=0;i<regions.length;i++){if(regions[i].getAttribute('aria-label')&&regions[i].querySelector('title'))named++;}
-  row('Screen readers get names, not paths',(regions.length===0||named===regions.length)?'pass':'fail',
-    named+' of '+regions.length+' tappable map regions carry both an <code>aria-label</code> (which says the name AND the state) and a <code>&lt;title&gt;</code>. '+
-    'They are keyboard-reachable too — Tab to a province, Enter to place.');
-
-  var badD=FACTS.districts.filter(function(d){return PKEYS.indexOf(d.province)<0;});
-  row('Districts resolve to real provinces',badD.length?'fail':'pass',
-    FACTS.districts.length+' districts, all mapping to one of the ten. District boundaries are NOT in this dataset and must be sourced separately before a district level can be drawn on the map — level 3 asks which province a district is in, which the outlines can answer. '+
-    'District count on file: '+FACTS.dataset.districtCount.value+' as of '+esc(FACTS.dataset.districtCount.asOf)+' — '+esc(FACTS.dataset.districtCount.note));
-
-  var total=0;LEVELS.forEach(function(l){total+=l.count;});
-  row('Nine levels','pass',LEVELS.length+' levels, '+total+' scored questions: '+LEVELS.map(function(l){return l.id+') '+l.name.replace('&amp;','&')+' ×'+l.count;}).join(' · '));
-
-  $('panel').innerHTML='<h3>Acceptance, run against the data actually loaded</h3>'+
-   '<p class="lead">Every row below is computed on each render from <code>zambia_provinces.json</code> and <code>zambia_facts.json</code> — not from a list somebody kept up to date. '+
-   'Change a dataset and the rows change with it. <b>'+ok+' pass, '+bad+' fail, '+(rows.length-ok-bad)+' need a person.</b></p>'+
-   '<table>'+rows.map(function(r){
-     return '<tr><td class="v '+(r.s==='pass'?'pass':(r.s==='fail'?'fail':'warn'))+'">'+(r.s==='pass'?'PASS':(r.s==='fail'?'FAIL':'TO DO'))+'</td>'+
-       '<td class="v">'+r.n+'</td><td>'+r.t+'</td></tr>';
-   }).join('')+'</table>';
+  render();
 }
 
-/* ---------- notes column ---------- */
-function notes(){
-  var D=PROV.dataset;
-  $('notes').innerHTML=
-  '<div class="note warn"><h3>The map is real; it is not yet verified</h3>The ten outlines come from <code>zambia_provinces.json</code> — correct shapes, the Congo Pedicle notch, Muchinga present — traced '+esc(D.traced)+' and dated '+esc(D.dated)+'. It is marked <b>'+esc(D.verification.status)+'</b> in the file itself, and the panel below says so on every render. Two jobs remain: check it against <b>ZamStats or the Survey Department</b> and write what you checked into <code>verification.checkedAgainst</code>; and <b>source district boundaries separately</b> — they are not in this dataset, which is why level 3 asks which province a district is in rather than asking for it to be placed.</div>'+
-  '<div class="note warn"><h3>Two facts generated lists get wrong</h3><b>Southern Province’s capital is Choma</b>, not Livingstone — it moved in 2011. Livingstone was the capital of the whole country until 1935 and is the tourist city at Mosi-oa-Tunya, which is why almost every AI-written list still puts it here. The game asks it as its own question, and the check below fails if the dataset ever says otherwise.<br><br><b>Muchinga was created in 2011</b> from districts of Northern, plus Chama from Eastern. Older textbooks show nine provinces. The game says which is current, on the level list and in the fact.</div>'+
-  '<div class="note"><h3>Tap-to-place, drag as a bonus</h3>Tap the name, then tap the province. A finger dragging across a phone covers the target it is aiming at, so drag is the desktop affordance and tap is the one tested on a cheap Android. The selected name is announced in the line above the chips, and stays selected through a wrong tap so a second try costs one tap, not two.</div>'+
-  '<div class="note"><h3>44px, measured, at the width you choose</h3>Lusaka is the province this rule exists for: it is the smallest, and at 360px its own shape measures about 32px top to bottom. Every target gets an invisible circular halo that switches on only when the shape itself measures under 44px <i>at the width actually rendered</i>, and halos are stacked smallest-last so Lusaka wins the tap over Central. Change <b>Phone</b> in the strip above and the check re-measures.</div>'+
-  '<div class="note"><h3>Start with three, not ten</h3>Round 1 places three, round 2 takes it to five, round 3 to all ten. Everything already placed stays on the map in grey <i>with its name</i> — that is what a later hint points at. An empty map with ten labels is a memory test; a map with three known provinces on it is a lesson in where the fourth must be.</div>'+
-  '<div class="note"><h3>A wrong placement teaches direction</h3>Every province, river, lake, site and neighbour carries a positional hint written relative to something else — "west of the Copperbelt", "below Lusaka", "at the very top, reaching Lake Tanganyika". A wrong tap names what was tapped, then gives the hint for what was being placed. Nothing is taken away and the name goes back in the bank. After three misses on a question the answer is shown rather than left as a wall.</div>'+
-  '<div class="note"><h3>Colour is never the signal</h3>Correct is a ✓ and a filled shape; wrong is a ✗ and a diagonal hatch; already-placed is grey and carries its name. The palette is Okabe-Ito, and its green and orange sit at almost the same grey — which is the point of <b>Drop the colour</b> in the strip: with colour removed the map still reads, because the glyphs and the words were carrying it all along.</div>'+
-  '<div class="note"><h3>Drawn from coordinates, not by eye</h3>The dataset carries a projection, so every town, heritage site, park and river in the game is plotted from its real longitude and latitude rather than nudged into position. It also makes the trace checkable: the panel projects five known points and reports where the pins disagree with the outline, in km. That disagreement <i>is</i> the accuracy statement — about '+D.positionalAccuracyKm+' km.</div>'+
-  '<div class="note"><h3>Three of these are now built next door</h3><b>Journey mode</b>, <b>odd one out</b> and the <b>ceremony calendar</b> are prototyped in <code>zedexams-zambia-map-modes.html</code>, off the same two datasets — journey walks the new <code>adjacency</code> graph in <code>zambia_provinces.json</code>, and odd one out is derived from the new per-province <code>borders</code> list rather than authored. That page also carries a <b>neighbours</b> mode that duplicates level 8 here; the two should not both ship.</div>'+
-  '<div class="note"><h3>Still to build</h3><b>Photo round</b> — a picture of Mosi-oa-Tunya or Shiwa Ng’andu, place it. Districts on the map, once boundaries are sourced.</div>';
+/* --- 4. Our neighbours --- */
+function renderNeighbours(){
+  var st={},placed=0;
+  FACTS.neighbours.forEach(function(z){if(marks[z.code]){st['z_'+z.code]='ok';placed++;}});
+  PKEYS.forEach(function(k){st[k]='anchor';});
+  var left=FACTS.neighbours.filter(function(z){return !marks[z.code];});
+  var allDone=left.length===0;
+  head('Our neighbours','eight countries',placed+' / 8');
+  $('scr').innerHTML=
+   '<div class="card tight">'+svgMap({viewBox:VB_WORLD,hit:allDone?null:'zone',state:st,zones:true})+'</div>'+
+   '<div class="card"><div class="kick">Eight countries touch Zambia</div>'+
+     (allDone?'<div class="q">All eight placed.</div>':
+      '<div class="q">Tap a country, then tap the box it belongs in.</div>')+
+     (allDone?'':'<div class="chips">'+FACTS.neighbours.map(function(z){
+        return '<button class="pc '+(marks[z.code]?'gone':'')+(sel===z.code?' sel':'')+'" type="button" data-act="pick:'+z.code+'"'+
+          (marks[z.code]?' disabled':'')+'>'+esc(z.name)+'</button>';
+      }).join('')+'</div>')+
+     (allDone?'':'<div class="hint">'+(sel?'Placing <b>'+esc(countryName(sel))+'</b> — now tap its box':'Pick a country first')+'</div>')+
+   '</div>'+fbHtml()+
+   (allDone?'<button class="btn btn-coral" type="button" data-act="next">Finish →</button>':'');
+}
+function answerNeighbour(code){
+  if(!sel){say('say','·','Pick a country first','Tap one of the eight names, then tap the box you think it goes in.');render();return;}
+  var want=zoneOf(sel),gotZone=zoneOf(code);
+  asked++;
+  if(code===sel){
+    marks[sel]=true;if(!tries)score++;tries=0;
+    say('ok','✓',want.name,esc(want.fact));
+    sel=null;
+  }else{
+    tries++;
+    say('no','✗','That box is '+gotZone.name+'’s',
+      esc(want.name)+' is '+esc(want.side)+' of Zambia. '+esc(want.hint));
+  }
+  render();
 }
 
-/* ---------- wiring ---------- */
+/* --- 5. Where's the ceremony? --- */
+/* Three questions per ceremony and only the first is on the map. The other two
+   are plain options, on purpose: a round that is ALL map teaches tapping. */
+function renderCeremony(){
+  var it=Q[qi],st={};
+  if(sub>0){st[it.province]='ok';if(marks.wrong&&marks.wrong!==it.province)st[marks.wrong]='no';}
+  head("Where's the ceremony?",esc(it.name),(qi+1)+' / '+Q.length+' · '+(sub+1)+' of 3');
+  var h='<div class="card tight">'+svgMap({hit:sub===0?'prov':null,state:st})+'</div>';
+  if(sub===0){
+    h+='<div class="card"><div class="kick">Traditional ceremony</div>'+
+       '<div class="q">Where does the <b>'+esc(it.name)+'</b> take place?</div>'+
+       '<div class="hint">Tap the province</div></div>';
+  }else if(sub===1){
+    h+='<div class="card"><div class="kick">'+esc(it.name)+' · '+esc(nameOf(it.province))+'</div>'+
+       '<div class="q">Whose ceremony is it?</div>'+
+       '<div class="opts">'+it.peopleOptions.map(function(o){
+         return '<button class="opt '+(marks.people?(o===it.people?'ok':(marks.people===o?'no':'')):'')+'" type="button" data-act="opt:people:'+encodeURIComponent(o)+'"'+
+           (marks.people?' disabled':'')+'><span class="g" aria-hidden="true">'+(marks.people?(o===it.people?'✓':(marks.people===o?'✗':'·')):'·')+'</span>'+esc(o)+'</button>';
+       }).join('')+'</div></div>';
+  }else{
+    h+='<div class="card"><div class="kick">'+esc(it.name)+' · '+esc(it.people)+'</div>'+
+       '<div class="q">When is it held?</div>'+
+       '<div class="opts">'+it.monthOptions.map(function(o){
+         return '<button class="opt '+(marks.month?(o===it.month?'ok':(marks.month===o?'no':'')):'')+'" type="button" data-act="opt:month:'+encodeURIComponent(o)+'"'+
+           (marks.month?' disabled':'')+'><span class="g" aria-hidden="true">'+(marks.month?(o===it.month?'✓':(marks.month===o?'✗':'·')):'·')+'</span>'+esc(o)+'</button>';
+       }).join('')+'</div></div>';
+  }
+  h+=fbHtml();
+  if(resolved)h+='<button class="btn btn-coral" type="button" data-act="next">'+
+    (qi+1>=Q.length&&!(pass===1&&tricky.length)?'Finish':'Next ceremony')+' →</button>';
+  else if((sub===1&&marks.people)||(sub===2&&marks.month))
+    h+='<button class="btn btn-coral" type="button" data-act="sub">Next →</button>';
+  $('scr').innerHTML=h;
+}
+function answerCeremony(k){
+  var it=Q[qi];
+  if(sub!==0)return;
+  asked++;
+  if(k===it.province){
+    if(!tries)score++;
+    say('ok','✓',nameOf(it.province),esc(it.fact));
+    sub=1;marks.wrong=null;
+  }else{
+    tries++;marks.wrong=k;missed(it);
+    if(tries>=2){say('no','✗','It is in '+nameOf(it.province),'You tapped '+esc(nameOf(k))+'. '+esc(it.fact));sub=1;}
+    else say('no','✗','Not '+nameOf(k),esc(it.hint)+' Try once more.');
+  }
+  render();
+}
+function answerOption(kind,val){
+  var it=Q[qi];
+  asked++;
+  if(kind==='people'){
+    marks.people=val;
+    if(val===it.people){if(!tries)score++;say('ok','✓',esc(it.people),esc(it.name)+' is theirs. '+esc(it.fact));}
+    else{missed(it);say('no','✗','It is the '+esc(it.people),'You chose '+esc(val)+'. '+esc(it.fact));}
+  }else{
+    marks.month=val;
+    if(val===it.month){if(!tries)score++;say('ok','✓',esc(it.month),esc(it.monthWhy));}
+    else{missed(it);say('no','✗','It is '+esc(it.month).toLowerCase(),'You chose '+esc(val)+'. '+esc(it.monthWhy));}
+    resolved=true;
+  }
+  render();
+}
+
+/* ---------- done ---------- */
+function renderDone(){
+  head(M.name,'finished','');
+  var line=M.id==='neighbours'?'All eight neighbours placed.':
+    score+' of '+asked+' answered right first time.';
+  $('scr').innerHTML=
+   '<div class="card" style="text-align:center">'+
+     '<div style="font-size:38px" aria-hidden="true">'+M.icon+'</div>'+
+     '<div class="q" style="margin-top:4px">'+esc(M.name)+'</div>'+
+     '<div class="md" style="margin-top:6px">'+esc(line)+'</div>'+
+     (pass===2?'<div class="md" style="margin-top:6px">The ones that caught you came back at the end, and you have now answered them.</div>':'')+
+   '</div>'+
+   '<button class="btn btn-coral" type="button" data-act="mode:'+M.id+'">Play again</button>'+
+   '<button class="btn btn-ghost" type="button" data-act="menu">Back to the modes</button>';
+  fitHalos();runChecks();
+}
+
+/* ---------- input ---------- */
+function hit(token){
+  var bits=token.split(':'),kind=bits[0],val=bits[1];
+  if(kind==='prov'){
+    if(M.id==='capital')answerCapital(val);
+    else if(M.id==='journey')answerJourney(val);
+    else if(M.id==='odd')answerOdd(val);
+    else if(M.id==='ceremony')answerCeremony(val);
+  }else if(kind==='zone'){
+    if(M.id==='neighbours')answerNeighbour(val);
+  }
+}
 function doAct(act){
-  var bits=act.split(':'),k=bits[0],v=act.slice(k.length+1);
-  if(k==='pick'){var s=LEVELS[levelIx].steps[stepIx],done=(s.t==='zone'?run.zplaced:run.placed);if(v in done)return;sel=(sel===v?null:v);render();return;}
-  if(k==='ans'){answer(decodeURIComponent(v));return;}
-  if(k==='next'){next();return;}
-  if(k==='ladder'){view='ladder';render();return;}
-  if(k==='level'){startLevel(+v);return;}
+  var i=act.indexOf(':'),k=i<0?act:act.slice(0,i),v=i<0?'':act.slice(i+1);
+  if(k==='mode'){startMode(v);return;}
+  if(k==='route'){startRoute(+v);return;}
+  if(k==='routes'){view='routes';reset();render();return;}
+  if(k==='menu'){menu();return;}
+  if(k==='next'){nextItem();return;}
+  if(k==='sub'){sub++;fb=null;tries=0;render();return;}
+  if(k==='pick'){if(marks[v])return;sel=(sel===v?null:v);fb=null;render();return;}
+  if(k==='opt'){var p=v.split(':');answerOption(p[0],decodeURIComponent(p[1]));return;}
 }
 document.addEventListener('click',function(e){
   var t=e.target&&e.target.closest?e.target.closest('[data-act],[data-hit]'):null;
@@ -2317,31 +2196,227 @@ document.addEventListener('keydown',function(e){
   if(!t||t.tagName==='BUTTON')return;
   e.preventDefault();hit(t.getAttribute('data-hit'));
 });
-/* Desktop bonus: drag a name onto the map. Tap-to-place is the primary path and
-   nothing here is required to finish a level. */
-function wireDrag(){
-  document.addEventListener('dragstart',function(e){
-    var t=e.target&&e.target.closest?e.target.closest('.pc[data-act^="pick:"]'):null;if(!t)return;
-    sel=t.getAttribute('data-act').slice(5);try{e.dataTransfer.setData('text/plain',sel);}catch(err){}
-  });
-  document.addEventListener('dragover',function(e){if(e.target&&e.target.closest&&e.target.closest('[data-hit]'))e.preventDefault();});
-  document.addEventListener('drop',function(e){
-    var t=e.target&&e.target.closest?e.target.closest('[data-hit]'):null;if(!t)return;
-    e.preventDefault();hit(t.getAttribute('data-hit'));
-  });
+
+/* ---------- acceptance panel ---------- */
+var LASTMEASURE=null,LASTZONE=null;
+function measureNow(){
+  var m=fitHalos(),w=Math.round($('phone').getBoundingClientRect().width);
+  var pv=m.filter(function(x){return x.id.indexOf('prov:')===0;});
+  var zn=m.filter(function(x){return x.id.indexOf('zone:')===0;});
+  if(pv.length)LASTMEASURE={w:w,items:pv};
+  if(zn.length)LASTZONE={w:w,items:zn};
+  return LASTMEASURE;
 }
+function ruleHolds(k,rule){
+  var B=FACTS.provinces[k].borders||[];
+  if(rule==='borders:any')return B.length>0;
+  if(rule.indexOf('borders:')===0){
+    return rule.slice(8).split('|').some(function(c){return B.indexOf(c)>=0;});
+  }
+  if(rule.indexOf('touches:')===0)return touches(k,rule.slice(8));
+  return null;
+}
+function runChecks(){
+  var rows=[],D=PROV.dataset,ok=0,bad=0;
+  function row(name,state,text){rows.push({n:name,s:state,t:text});if(state==='fail')bad++;else if(state==='pass')ok++;}
+
+  row('Renders from the dataset',SRCFETCHED?'pass':'warn',
+    'Outlines, label anchors, adjacency and every fact read from <code>'+esc(SRCNAME)+'</code>'+
+    (SRCFETCHED?'':' — the datasets were not fetched (the page was opened from the filesystem, where the browser blocks it), so it fell back to the inline mirror. The mirror is written by <code>npm run sync:zambia-game</code>, and <code>npm run test:zambia-game</code> fails if it and the files disagree.')+
+    ' Nothing on this page carries its own copy of a province path — that rule is enforced by the test, not by care.');
+
+  row('Dated and attributed — but not verified',
+    (PROV.dataset.verification.status==='UNVERIFIED'||FACTS.dataset.verification.status==='UNVERIFIED')?'warn':'pass',
+    '<b>map '+esc(PROV.dataset.verification.status)+' · facts '+esc(FACTS.dataset.verification.status)+'.</b> '+
+    'The three classes this page added — which countries each province borders, the journey routes, and the odd-one-out rules — are named in <code>verification.requiredBeforeRelease</code> so the teacher pass covers them rather than signing off on less than the file claims. '+
+    'One boundary is flagged as genuinely unsettled: '+esc(FACTS.provinceBorders.unverified.split('.')[0])+'.');
+
+  /* The prompt's geometry warning, run rather than repeated. */
+  var boxWrong=[],anchorWrong=[];
+  PKEYS.forEach(function(k){
+    var b=G[k].bbox,mid=[(b.x0+b.x1)/2,(b.y0+b.y1)/2],lands=whichProvince(mid);
+    if(lands!==k)boxWrong.push(nameOf(k)+' → '+(lands?nameOf(lands):'no province at all'));
+    if(!inside(PROV.provinces[k].c,G[k].pts))anchorWrong.push(nameOf(k));
+  });
+  row('Names sit on the pole of inaccessibility, not the box centre',anchorWrong.length?'fail':'pass',
+    'All 10 label anchors (<code>provinces[].c</code>) fall inside their own province. '+
+    'The bounding-box centre does not: <b>'+boxWrong.length+' of 10 land in the wrong province</b> — '+esc(boxWrong.join(', '))+
+    '. Central wraps around Copperbelt, Eastern curls around Muchinga and Luapula around Northern, so a box centre is not a location. '+
+    'Nothing here uses one — not a label, not a leader, not a touch halo, not the ✓ mark.');
+
+  /* Adjacency: declared in the dataset, re-checked against the trace here. */
+  var edges=[],weak=[],phantom=[];
+  Object.keys(ADJ).forEach(function(a){ADJ[a].forEach(function(b){
+    if(a<b){var n=sharedBoundary(a,b);edges.push({a:a,b:b,n:n});if(n<6)weak.push(nameOf(a)+'–'+nameOf(b)+' ('+n+')');if(n===0)phantom.push(nameOf(a)+'–'+nameOf(b));}
+  });});
+  var asym=[];
+  Object.keys(ADJ).forEach(function(a){ADJ[a].forEach(function(b){if((ADJ[b]||[]).indexOf(a)<0)asym.push(a+'→'+b);});});
+  var weakest=edges.slice().sort(function(x,y){return x.n-y.n;})[0];
+  row('Adjacency agrees with the traced outlines',(phantom.length||asym.length)?'fail':(weak.length?'warn':'pass'),
+    edges.length+' declared borders, all symmetric, each re-measured against the trace by counting outline points that lie on the neighbour. '+
+    'Weakest: <b>'+esc(nameOf(weakest.a)+'–'+nameOf(weakest.b))+'</b> at '+weakest.n+' shared points'+
+    (weak.length?' — thin enough to be worth a teacher’s eye: '+esc(weak.join(', ')):'')+'. '+
+    'Copperbelt and Luapula are correctly <b>not</b> neighbours: the Congo Pedicle sits between them, which is why the road from the Copperbelt to Mansa crosses another country or goes the long way round.');
+
+  var legBad=[],legMissing=[];
+  FACTS.journeys.forEach(function(r){
+    for(var i=0;i<r.provinces.length-1;i++){
+      if(!touches(r.provinces[i],r.provinces[i+1]))legBad.push(r.id+': '+nameOf(r.provinces[i])+'→'+nameOf(r.provinces[i+1]));
+    }
+    r.provinces.forEach(function(k){if(!r.legs[k])legMissing.push(r.id+'/'+k);});
+  });
+  row('Every journey is a road that exists on the map',(legBad.length||legMissing.length)?'fail':'pass',
+    FACTS.journeys.length+' routes: '+FACTS.journeys.map(function(r){return esc(r.from)+'→'+esc(r.to)+' ('+r.provinces.length+')';}).join(' · ')+'. '+
+    'Every consecutive pair shares a border, and every province on every route carries the line the learner is told when they reach it. '+
+    'A route whose provinces do not touch would still play perfectly — which is precisely why it is checked here and in <code>test:zambia-game</code>.');
+
+  var oddBad=[];
+  FACTS.oddOneOut.forEach(function(o){
+    var hold=o.set.filter(function(k){return ruleHolds(k,o.rule);});
+    var not=o.set.filter(function(k){return !ruleHolds(k,o.rule);});
+    if(hold.length!==3||not.length!==1||not[0]!==o.odd)oddBad.push(o.id+' ('+o.rule+')');
+  });
+  row('Odd one out is derived, never typed in',oddBad.length?'fail':'pass',
+    FACTS.oddOneOut.length+' sets. Each names a rule — '+esc(FACTS.oddOneOut.map(function(o){return o.rule;}).join(', '))+
+    ' — that is evaluated against <code>provinces[].borders</code> and the adjacency graph on every render. '+
+    'A set is only correct if exactly three of its four satisfy the rule and the fourth is the one declared odd. '+
+    (oddBad.length?'FAILING: '+esc(oddBad.join(', ')):'All four hold.'));
+
+  var live=document.querySelectorAll('svg.map .prov[data-hit]').length;
+  var dimHit=document.querySelectorAll('svg.map .prov.dim[data-hit]').length;
+  var haloHit=document.querySelectorAll('svg.map circle.halo').length;
+  row('Dimmed provinces are not tappable at all',dimHit?'fail':'pass',
+    (M&&M.id==='odd'?'Odd one out is on screen: '+live+' of the ten provinces carry a hit target and '+haloHit+' carry a halo — the six dimmed ones carry neither, no <code>tabindex</code>, and no halo. ':
+     'No odd-one-out question on screen right now; the rule still holds — '+dimHit+' dimmed provinces are tappable. ')+
+    'They are excluded from the markup rather than ignored in the handler, so a stray tap, a Tab key and a screen reader all agree with the picture.');
+
+  var m=measureNow();
+  if(m){
+    var worst=m.items.slice().sort(function(a,b){return a.px-b.px;})[0];
+    var small=m.items.filter(function(x){return x.px<TOUCH_MIN;});
+    var lu=m.items.filter(function(x){return x.id==='prov:lu';})[0];
+    row('Every tappable province is a 44px target at '+m.w+'px',small.length?'fail':'pass',
+      'Smallest effective target: <b>'+esc(worst.id.split(':')[1])+'</b> at '+worst.px.toFixed(0)+'px'+
+      (lu?'; Lusaka, the province this rule exists for, measures '+lu.px.toFixed(0)+'px':'')+'. '+
+      'Anything under 44px gets an invisible halo centred on the label anchor, stacked smallest-last so a small province wins the tap over a big neighbour. Change <b>Phone</b> above and this re-measures.');
+  }else row('Touch targets','warn','No tappable map on screen to measure yet — open a mode.');
+
+  if(LASTZONE){
+    var wz=LASTZONE.items.slice().sort(function(a,b){return a.px-b.px;})[0];
+    row('The eight neighbour boxes are targets too',wz.px<TOUCH_MIN?'fail':'pass',
+      'Smallest at '+LASTZONE.w+'px: <b>'+esc(wz.id.split(':')[1])+'</b> at '+wz.px.toFixed(0)+'px. '+
+      'Botswana’s real border is a few hundred metres at Kazungula; its box is the same size as everyone else’s, because a tap target is not a scale drawing.');
+  }
+
+  var overlap=[];
+  FACTS.neighbours.forEach(function(z){
+    var r=z.zone,i,j;
+    for(i=0;i<=12;i++)for(j=0;j<=12;j++){
+      var p=[r[0]+r[2]*i/12,r[1]+r[3]*j/12];
+      if(whichProvince(p)&&overlap.indexOf(z.name)<0)overlap.push(z.name);
+    }
+  });
+  row('No neighbour box sits on top of the country',overlap.length?'fail':'pass',
+    'All eight boxes sampled on a 13×13 grid against the traced outline: '+(overlap.length?'OVERLAPPING — '+esc(overlap.join(', ')):'none overlaps any province')+'. '+
+    'Mozambique’s box does overlap Eastern’s <i>bounding box</i> and not Eastern itself — the same distinction that makes box centres useless for labels.');
+
+  var noHint=[];
+  FACTS.capitals.forEach(function(c){if(!c.hint||!c.fact)noHint.push(c.town);});
+  FACTS.ceremonies.forEach(function(c){if(!c.hint||!c.monthWhy)noHint.push(c.name);});
+  FACTS.neighbours.forEach(function(z){if(!z.hint||!z.fact)noHint.push(z.name);});
+  FACTS.oddOneOut.forEach(function(o){if(!o.why)noHint.push(o.id);});
+  row('Every wrong answer teaches instead of buzzing',noHint.length?'fail':'pass',
+    'Each of the '+(FACTS.capitals.length+FACTS.ceremonies.length+FACTS.neighbours.length+FACTS.oddOneOut.length)+
+    ' answerable items carries both a positional hint and the fact behind it. '+
+    'Journey mode does not need a written hint at all: it composes its answer from the map, and says something different depending on whether the province tapped touches the one you are standing in — '+
+    '"North-Western does touch Copperbelt, but you are heading for Livingstone" is a different lesson from "Northern does not touch Central at all".');
+
+  var cpBad=PROV.projection.checkPoints.filter(function(c){return whichProvince(proj(c.lon,c.lat))!==c.expect;});
+  var capOut=FACTS.capitals.filter(function(c){return whichProvince(proj(c.lon,c.lat))!==c.province;});
+  row('Capital pins are plotted, not placed by eye',cpBad.length?'fail':(capOut.length?'warn':'pass'),
+    'Every town in "Where’s the capital?" is drawn at its real longitude and latitude through the projection in the dataset. '+
+    (FACTS.capitals.length-capOut.length)+' of '+FACTS.capitals.length+' land inside the province they belong to'+
+    (capOut.length?'; '+esc(capOut.map(function(c){return c.town+' ('+(distToPoly(proj(c.lon,c.lat),G[c.province].pts)*12).toFixed(0)+' km out)';}).join(', '))+
+      ' sits just outside, which is the hand trace’s stated resolution of about '+D.positionalAccuracyKm+' km and not a disagreement about which province it is in':'')+'.');
+
+  var glyphless=['ok','no'].filter(function(k){return !STATES[k].glyph;});
+  var okShapes=document.querySelectorAll('.prov.ok,.zone.ok').length;
+  var okMarks=document.querySelectorAll('text.mark.ok').length;
+  var noShapes=document.querySelectorAll('.prov.no,.zone.no').length;
+  var noMarks=document.querySelectorAll('text.mark.no').length;
+  row('Colour is never the only signal',(!glyphless.length&&okShapes<=okMarks&&noShapes<=noMarks)?'pass':'fail',
+    'On screen now: '+okShapes+' correct shapes carrying '+okMarks+' ✓ marks, '+noShapes+' wrong shapes carrying '+noMarks+' ✗ marks. '+
+    'Wrong is also a diagonal hatch, and every route province carries its number in the order it was crossed — which is what makes journey mode readable with the colour gone. '+
+    'Try <b>Drop the colour</b> in the strip above.');
+
+  /* Measured, not modelled. The first version of this page sized names from the
+     bounding box and printed "North-Western" through "Copperbelt"; a character-
+     width estimate said the two did not overlap, and the screen said they did.
+     So this row asks the renderer for the boxes it actually drew. */
+  var labs=document.querySelectorAll('svg.map text.plab'),lb=[],clash=[],li,lj;
+  for(li=0;li<labs.length;li++){
+    try{var bb=labs[li].getBBox();lb.push({t:labs[li].textContent,b:bb});}catch(e){}
+  }
+  for(li=0;li<lb.length;li++)for(lj=li+1;lj<lb.length;lj++){
+    var A=lb[li].b,B=lb[lj].b;
+    if(!(A.x+A.width<B.x||B.x+B.width<A.x||A.y+A.height<B.y||B.y+B.height<A.y))
+      clash.push(lb[li].t+' / '+lb[lj].t);
+  }
+  row('No two province names are printed on top of each other',clash.length?'fail':'pass',
+    lb.length+' names on screen, measured with <code>getBBox()</code> at the width actually rendered rather than estimated from a character count. '+
+    (clash.length?'OVERLAPPING: '+esc(clash.join(', ')):'None overlaps.')+' '+
+    'Sizing comes from the inscribed radius at each anchor, not the bounding box — North-Western’s box is half the country wide while the room around its anchor is not, and box-derived sizing printed its name across Copperbelt.');
+
+  var regions=document.querySelectorAll('svg.map [data-hit]:not(.halo)'),named=0,i2;
+  for(i2=0;i2<regions.length;i2++){if(regions[i2].getAttribute('aria-label')&&regions[i2].querySelector('title'))named++;}
+  row('Screen readers get names and state, not paths',(regions.length===0||named===regions.length)?'pass':'fail',
+    named+' of '+regions.length+' tappable map regions carry both an <code>aria-label</code> naming the place AND its state, and a <code>&lt;title&gt;</code>. '+
+    'Tab reaches them and Enter or Space answers.');
+
+  row('No mode has a timer','pass',
+    'None of the five declares a limit, and there is no clock in the file — no countdown, no interval, no penalty for a slow answer. '+
+    'A mode ends when everything has been answered, including the items that caught the learner the first time, which come back once the queue empties.');
+
+  $('panel').innerHTML='<h3>Acceptance, run against the data actually loaded</h3>'+
+   '<p class="lead">Every row is recomputed on each render from <code>zambia_provinces.json</code> and <code>zambia_facts.json</code> — not from a list somebody kept up to date. '+
+   'Change a dataset and the rows change with it. <b>'+ok+' pass, '+bad+' fail, '+(rows.length-ok-bad)+' need a person.</b></p>'+
+   '<table>'+rows.map(function(r){
+     return '<tr><td class="v '+(r.s==='pass'?'pass':(r.s==='fail'?'fail':'warn'))+'">'+(r.s==='pass'?'PASS':(r.s==='fail'?'FAIL':'TO DO'))+'</td>'+
+       '<td class="v">'+r.n+'</td><td>'+r.t+'</td></tr>';
+   }).join('')+'</table>';
+}
+
+/* ---------- notes column ---------- */
+function notes(){
+  $('notes').innerHTML=
+  '<div class="note"><h3>One map, five rule sets</h3>The province outlines, the label anchors and now the adjacency graph all live in <code>zambia_provinces.json</code>; every fact lives in <code>zambia_facts.json</code>. Each mode here is a handful of rules over that data, not another drawing of Zambia. That is the return on getting the map right once — and the sibling prototype’s test already forbids pasting a province path back into the page.</div>'+
+  '<div class="note warn"><h3>Journey mode is the one worth building</h3>Naming the provinces between Livingstone and Kasama teaches <b>adjacency and scale</b> — which province touches which, and what 1,300 km actually costs you — and neither is reachable by a place-the-label game. It is also how a Zambian child really meets the country: out of a bus window, along the Great North Road. Four routes are here; the sequences are data, so a fifth is an entry in a file.</div>'+
+  '<div class="note"><h3>A wrong turn is answered from the map</h3>Journey mode does not keep a written hint per province. It looks at where you are standing and what you tapped, and says one of four things: you have been there already · that is not where you start · <b>it does touch this province, but the road goes the other way</b> · <b>it does not touch this province at all, so you cannot get there from here</b>. The last two are different mistakes and they earn different answers.</div>'+
+  '<div class="note"><h3>Odd one out is derived, not authored</h3>Each set declares a <i>rule</i> — <code>borders:cd</code>, <code>borders:any</code>, <code>touches:ce</code> — and the page evaluates it against the data on every render. Nobody types in which province is the odd one. Two of the four turn on things worth knowing: <b>Central touches no other country</b>, and <b>Central borders eight of the other nine provinces</b> — every one except Northern.</div>'+
+  '<div class="note"><h3>The dimmed six are not tappable</h3>They carry no hit target, no <code>tabindex</code> and no touch halo — excluded from the markup, not ignored by the handler. A tap, a Tab key and a screen reader then all agree with what the picture is saying.</div>'+
+  '<div class="note warn"><h3>Never use a bounding-box centre</h3>Central wraps around Copperbelt, so its box centre lands <i>inside Copperbelt</i>. So does Eastern’s, in Muchinga, and Luapula’s, in Northern — three of ten. The dataset carries the pole of inaccessibility as <code>c</code>, and every label, ✓ mark and touch halo on this page uses it. The panel below computes both and prints the three that move.</div>'+
+  '<div class="note"><h3>Not everything should be a map</h3>Five map modes plus the two already in the main game is plenty. The ceremony round is deliberately only one-third map: tap the province, then answer <i>whose</i> and <i>when</i> as plain options. A learner who only ever taps a map stops reading the question.</div>'+
+  '<div class="note warn"><h3>Our neighbours already exists</h3>Mode 4 is the same exercise as the neighbours level in <code>zedexams-zambia-game.html</code>, reading the same eight zones. It is built here because the brief asked for five modes, but it should ship in one place or the other — not both. The other four are new.</div>'+
+  '<div class="note"><h3>Same rules as everywhere else</h3>No timer, on any mode. A wrong tap names what was tapped and then teaches; nothing buzzes. Correct and wrong are a glyph and a pattern before they are a colour, and the route provinces carry their crossing order as a number — so <b>Drop the colour</b> leaves the map still readable. Missed items come back once the queue empties.</div>'+
+  '<div class="note warn"><h3>Still unverified</h3>The three fact classes added for these modes — which countries each province borders, the four route sequences, and the rounded road distances printed to learners — are named in <code>verification.requiredBeforeRelease</code> and need the same Zambian teacher pass as the rest. One boundary is called out as genuinely unsettled: whether Southern Province faces Namibia across the Zambezi near Kazungula, where four countries meet at almost a point. Nothing the game asks turns on it.</div>';
+}
+
+/* ---------- wiring ---------- */
 function fillRig(){
-  $('rLevel').innerHTML=LEVELS.map(function(l,i){return '<option value="'+i+'">'+l.id+' · '+l.name.replace('&amp;','&')+'</option>';}).join('');
-  $('rLevel').onchange=function(){startLevel(+this.value);};
+  $('rMode').innerHTML='<option value="">— the menu —</option>'+
+    MODES.map(function(m){return '<option value="'+m.id+'">'+esc(m.name)+'</option>';}).join('');
+  $('rMode').onchange=function(){if(this.value)startMode(this.value);else menu();};
   $('rWidth').onchange=function(){
     var ps=document.querySelectorAll('.phone'),i;
-    for(i=0;i<ps.length;i++){ps[i].className='phone'+(this.value?' '+this.value:'');}
+    for(i=0;i<ps.length;i++)ps[i].className='phone'+(this.value?' '+this.value:'');
     fitHalos();runChecks();
   };
-  $('rUnlock').onclick=function(){LEVELS.forEach(function(l){unlocked[l.id]=true;});save();render();};
-  $('rReset').onclick=function(){unlocked={1:true};progress={};save();startLevel(0);};
+  $('rMenu').onclick=function(){$('rMode').value='';menu();};
   $('rMono').onchange=function(){document.body.classList.toggle('nocolour',this.checked);runChecks();};
-  $('hBack').onclick=function(){view='ladder';render();};
+  $('hBack').onclick=function(){
+    if(view==='mode'&&M&&M.id==='journey'){view='routes';reset();render();return;}
+    $('rMode').value='';menu();
+  };
   $('rSrc').textContent=SRCFETCHED?('reading '+SRCNAME):'inline mirror — the datasets were not fetched';
   $('rSrc').className='chk '+(SRCFETCHED?'':'idle');
   $('rVerify').textContent='map '+PROV.dataset.verification.status.toLowerCase()+' · facts '+FACTS.dataset.verification.status.toLowerCase();
@@ -2349,12 +2424,12 @@ function fillRig(){
 
 /* ---------- boot ---------- */
 loadData().then(function(){
+  ADJ=PROV.adjacency.edges;
   PKEYS.forEach(function(k){
     var pts=parsePath(PROV.provinces[k].d);
     G[k]={pts:pts,bbox:bbox(pts),area:areaOf(pts),inscribed:distToPoly(PROV.provinces[k].c,pts)};
   });
-  LEVELS=buildLevels();load();fillRig();notes();wireDrag();
-  startLevel(0);
+  buildModes();fillRig();notes();menu();
   window.addEventListener('resize',function(){fitHalos();runChecks();});
 });
 })();

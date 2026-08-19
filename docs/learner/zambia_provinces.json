@@ -180,5 +180,66 @@
    "createdNote": null
   }
  },
+ "adjacency": {
+  "_readme": "Which provinces share a boundary. Journey mode walks it and odd-one-out questions it, so a wrong edge here is a wrong lesson rather than a wrong pixel. Derived from the traced outlines and re-checked against them by test:zambia-game, which measures how much boundary each declared pair actually shares and fails on a pair the trace cannot support.",
+  "note": "Two facts worth knowing before editing. CENTRAL TOUCHES EIGHT of the other nine — every province except Northern — which is why it is the one province a journey can nearly always route through. And COPPERBELT AND LUAPULA DO NOT TOUCH: the Congo Pedicle, the thumb of DRC land, sits between them, which is why the road from the Copperbelt to Mansa either crosses another country or goes the long way round through Central. Both are real, both surprise people, and both fall out of the map rather than having to be asserted.",
+  "unit": "Province codes, symmetric — if a is in b, b is in a.",
+  "edges": {
+   "nw": [
+    "cb",
+    "ce",
+    "we"
+   ],
+   "cb": [
+    "nw",
+    "ce"
+   ],
+   "ce": [
+    "nw",
+    "cb",
+    "lp",
+    "mu",
+    "ea",
+    "lu",
+    "so",
+    "we"
+   ],
+   "lu": [
+    "ce",
+    "ea",
+    "so"
+   ],
+   "so": [
+    "ce",
+    "lu",
+    "we"
+   ],
+   "we": [
+    "nw",
+    "ce",
+    "so"
+   ],
+   "no": [
+    "lp",
+    "mu"
+   ],
+   "mu": [
+    "no",
+    "lp",
+    "ce",
+    "ea"
+   ],
+   "ea": [
+    "mu",
+    "ce",
+    "lu"
+   ],
+   "lp": [
+    "no",
+    "mu",
+    "ce"
+   ]
+  }
+ },
  "source": "Traced from a reference province map supplied by the ZedExams team, Aug 2026. NOT YET VERIFIED against ZamStats / the Survey Department — see dataset.verification."
 }
