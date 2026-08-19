@@ -189,6 +189,96 @@ function imageCostUsd(model, {quality, size} = {}) {
   return (byQuality && byQuality[String(size || "")]) || 0;
 }
 
+// ── Text-to-speech (character-billed) ─────────────────────────────────
+//
+// Google Cloud TTS bills per CHARACTER of input, not per token, so neither
+// PRICE_PER_MTOK nor IMAGE_PRICE_USD can express it — hence a third table.
+// Rates are USD per MILLION characters, keyed by the voice TIER.
+//
+// Tier is the third segment of a Google voice name (`en-GB-Neural2-A` →
+// Neural2), which is why this is a segment lookup rather than the
+// longest-PREFIX match the other two tables use: every voice shares the
+// `en-` prefix and differs in the middle, so prefix matching would price a
+// Studio voice at Standard rates. That is a 40× error in the expensive
+// direction, on the one surface where a learner can trigger synthesis in a
+// loop.
+//
+// The spread is the reason this is worth pricing at all rather than counting
+// calls: one Studio character costs 40× a Standard one, so "how many TTS
+// calls did we serve" says almost nothing about the bill.
+const TTS_PRICE_PER_MCHAR = {
+  standard: 4.00,
+  wavenet: 16.00,
+  neural2: 16.00,
+  polyglot: 16.00,
+  studio: 160.00,
+};
+
+/**
+ * The billing tier of a Google Cloud TTS voice name, lowercased, or null
+ * when the name does not carry a tier we have a rate for.
+ *
+ * Scans the segments rather than indexing a fixed position: the ALLOWED_VOICES
+ * list in tts.js is all `{lang}-{region}-{Tier}-{Variant}`, but Google also
+ * ships names with a different shape, and silently reading the wrong segment
+ * would price them at zero without anything saying so.
+ */
+function ttsVoiceTier(voice) {
+  const parts = String(voice || "").toLowerCase().split("-");
+  for (const part of parts) {
+    if (Object.prototype.hasOwnProperty.call(TTS_PRICE_PER_MCHAR, part)) return part;
+  }
+  return null;
+}
+
+/**
+ * USD cost of synthesising `characters` characters with `voice`.
+ *
+ * An unrecognised voice or a non-finite/negative character count returns 0 —
+ * the same "count the call, never fabricate a number" policy as pickRates and
+ * imageCostUsd. A voice we cannot price is a gap to notice in the per-tool
+ * rollup (calls with no cost), not a number to guess at.
+ */
+function ttsCostUsd(voice, characters) {
+  const tier = ttsVoiceTier(voice);
+  if (!tier) return 0;
+  const chars = Number(characters);
+  if (!Number.isFinite(chars) || chars <= 0) return 0;
+  return (chars * TTS_PRICE_PER_MCHAR[tier]) / 1_000_000;
+}
+
+/**
+ * Fire-and-forget rollup for a character-billed speech synthesis. Same
+ * never-throws contract as recordAiUsage / recordAiImageUsage.
+ *
+ *   recordAiTtsUsage({ uid, voice, characters, tool })
+ *
+ * Records no tokens (there are none) but DOES record the character count, so
+ * the rollups carry the unit this spend is actually billed in — cost alone
+ * cannot be turned back into volume once two tiers are mixed in one total.
+ *
+ * `cached: true` records the call at ZERO cost while still recording its
+ * characters. That is what makes the audio cache's saving measurable rather
+ * than merely asserted: a cache-hit row carries the volume served, so what it
+ * saved is that volume priced at the voice's own rate — the counterfactual
+ * bill. Recording hits at their notional cost would inflate spend that was
+ * never incurred; not recording them at all would leave the cache's whole
+ * value invisible on the dashboard that justifies it.
+ */
+async function recordAiTtsUsage({uid, voice, characters, tool, cached = false}) {
+  const chars = Number(characters);
+  return writeUsageRollups({
+    uid,
+    tool,
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheCreation: 0,
+    cacheRead: 0,
+    characters: Number.isFinite(chars) && chars > 0 ? chars : 0,
+    costUsd: cached ? 0 : ttsCostUsd(voice, characters),
+  });
+}
+
 function dateKeyUtc() {
   // Same UTC YYYY-MM-DD shape used elsewhere (results.completedAt
   // ISO-slice, dailyExamPicker, etc.). Cheap, no Lusaka-aware logic
@@ -280,6 +370,11 @@ async function recordAiImageUsage({uid, model, quality, size, tool}) {
  */
 async function writeUsageRollups({
   uid, tool, inputTokens, outputTokens, cacheCreation, cacheRead, costUsd,
+  // Character-billed surfaces (TTS) report volume here. Defaulted so every
+  // existing token/image caller keeps its current call shape and simply
+  // increments by 0 — the field is additive on a merge:true write, so docs
+  // written before this existed stay valid.
+  characters = 0,
 }) {
   try {
     const db = admin.firestore();
@@ -301,6 +396,7 @@ async function writeUsageRollups({
       totalOutputTokens: inc(outputTokens),
       totalCacheCreationTokens: inc(cacheCreation),
       totalCacheReadTokens: inc(cacheRead),
+      totalCharacters: inc(characters),
       totalCostUsd: inc(costUsd),
       callCount: inc(1),
       updatedAt: now,
@@ -314,6 +410,7 @@ async function writeUsageRollups({
         outputTokens: inc(outputTokens),
         cacheCreation: inc(cacheCreation),
         cacheRead: inc(cacheRead),
+        characters: inc(characters),
         costUsd: inc(costUsd),
         callCount: inc(1),
         updatedAt: now,
@@ -328,6 +425,7 @@ async function writeUsageRollups({
         tool: safeTool,
         inputTokens: inc(inputTokens),
         outputTokens: inc(outputTokens),
+        characters: inc(characters),
         costUsd: inc(costUsd),
         callCount: inc(1),
         updatedAt: now,
@@ -343,13 +441,14 @@ async function writeUsageRollups({
           totalOutputTokens: inc(outputTokens),
           totalCacheCreationTokens: inc(cacheCreation),
           totalCacheReadTokens: inc(cacheRead),
+          totalCharacters: inc(characters),
           totalCostUsd: inc(costUsd),
           callCount: inc(1),
           updatedAt: now,
         }, {merge: true}));
 
     await Promise.allSettled(writes);
-    return {costUsd, inputTokens, outputTokens};
+    return {costUsd, inputTokens, outputTokens, characters};
   } catch (err) {
     // Accounting NEVER blocks the request. Log + move on.
     console.warn("[aiCostTracking] usage rollup write failed", err);
@@ -835,11 +934,15 @@ function _resetBudgetCache() {
 module.exports = {
   recordAiUsage,
   recordAiImageUsage,
+  recordAiTtsUsage,
   computeCostUsd,
   pickRates,
   imageCostUsd,
+  ttsCostUsd,
+  ttsVoiceTier,
   PRICE_PER_MTOK,
   IMAGE_PRICE_USD,
+  TTS_PRICE_PER_MCHAR,
   isOverBudget,
   BUDGET_PAUSED_MESSAGE,
   monthKeyUtc,

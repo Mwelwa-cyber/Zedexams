@@ -80,6 +80,25 @@ test('invoices path is server-write-only', () => {
   assert(/allow write:\s*if false/.test(block[1]), 'invoices write is no longer false')
 })
 
+test('the TTS audio cache stays server-only by ABSENCE', () => {
+  // functions/ttsCache.js stores synthesised audio under tts-cache/, read and
+  // written with the admin SDK through the /api/tts endpoint. Its closure is
+  // the catch-all deny above: a path with no match block is denied to every
+  // client, and deny-by-absence cannot be weakened one `allow` at a time the
+  // way a deny block can.
+  //
+  // Adding a match block here would be the quiet way that breaks. The cache is
+  // SHARED across learners and keyed by a hash of the requested text, so a
+  // client-readable prefix would turn "I already know this exact sentence"
+  // into "I can enumerate and download what everyone has had read to them".
+  // Nothing client-side needs it — the endpoint returns the bytes itself.
+  assert(
+    !/match\s+\/tts-cache/.test(rules),
+    'a match block for tts-cache/ appeared — the audio cache must stay ' +
+    'server-only via the catch-all deny, not gain client access',
+  )
+})
+
 // ── upload content-type whitelists ──────────────────────────────
 
 console.log('\nupload validator content-type whitelists')
