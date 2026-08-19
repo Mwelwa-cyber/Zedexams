@@ -83,6 +83,7 @@ const LIMITED = [
   {name: "apiGenerateLessonPlan", file: "index.js", check: 'action: `stream_${tool}`'},
   {name: "apiGenerateWorksheet", file: "index.js", check: 'action: `stream_${tool}`'},
   {name: "apiTextToSpeech", file: "tts.js", check: "action: 'tts'"},
+  {name: "getTtsControlRoom", file: "ttsAdmin.js", check: 'action: "getTtsControlRoom"'},
 ];
 
 // Provider-backed endpoints that intentionally carry NO per-user burst limiter.

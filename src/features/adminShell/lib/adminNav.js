@@ -29,6 +29,7 @@ import {
   FolderOpen,
   BellRing,
   TrendingUp,
+  Volume2,
   CreditCard,
   Home,
   LogOut,
@@ -109,6 +110,7 @@ export const ADMIN_NAV_SECTIONS = [
       { to: '/admin/visitors', icon: Globe, label: 'Website visitors', keywords: 'traffic sessions analytics web' },
       { to: '/admin/results', icon: TrendingUp, label: 'Results', keywords: 'scores marks attempts grades' },
       { to: '/admin/ai-costs', icon: TrendingUp, label: 'AI costs', keywords: 'spend budget anthropic openai treasury tokens' },
+      { to: '/admin/voice', icon: Volume2, label: 'Voice & speech', keywords: 'tts text to speech elevenlabs google credits audio read aloud pronunciation cache' },
     ],
   },
   {
