@@ -236,6 +236,25 @@ export function studioGradeToKbGrade(grade) {
 // (functions/teacherTools/assessmentFormats.js) exactly, so the value chosen
 // in the picker reaches generateAssessment unchanged — no relabelling, no
 // collapsing distinct exam types onto a single 'mock_exam' format id.
+/**
+ * Does `map` DECLARE `key` — as opposed to inheriting it from Object.prototype?
+ *
+ * `map[key]` is truthy for 'constructor', '__proto__', 'toString' and friends
+ * on any object literal, so a bare lookup is not a membership test: a stored
+ * `assessmentType` of "__proto__" used to pass the registry check here, be
+ * returned as if canonical, and then reach paperNaming's SHORT_TYPE table,
+ * where `build(term)` threw "build is not a function" and took the render down
+ * with it. "constructor" was quieter and worse — it returned an Object wrapper
+ * where every caller expects a string. Neither value is reachable through the
+ * picker; both are reachable in a saved document. (CodeQL #77.)
+ *
+ * hasOwnProperty.call rather than Object.hasOwn: no browser-support floor to
+ * think about, and these run on whatever device a school actually has.
+ */
+function declares(map, key) {
+  return Object.prototype.hasOwnProperty.call(map, key)
+}
+
 export const ASSESSMENT_TYPES = {
   topic_test: { label: 'Topic Test', category: 'test' },
   weekly_test: { label: 'Weekly Test', category: 'test' },
@@ -289,8 +308,8 @@ const LEGACY_TYPE_MAP = {
 export function normalizeAssessmentType(value) {
   const raw = String(value || '').trim().toLowerCase()
   if (!raw) return 'topic_test'
-  if (ASSESSMENT_TYPES[raw]) return raw
-  return LEGACY_TYPE_MAP[raw] || 'topic_test'
+  if (declares(ASSESSMENT_TYPES, raw)) return raw
+  return declares(LEGACY_TYPE_MAP, raw) ? LEGACY_TYPE_MAP[raw] : 'topic_test'
 }
 
 /** 'test' | 'examination' for any canonical or legacy assessment-type value. */
@@ -308,7 +327,8 @@ export const isExamPaperType = isExaminationType
 /** Official display label — recognises canonical AND legacy values. */
 export function assessmentTypeLabel(value) {
   const raw = String(value || '').trim().toLowerCase()
-  return ASSESSMENT_TYPES[raw]?.label || ASSESSMENT_TYPES[normalizeAssessmentType(raw)].label
+  if (declares(ASSESSMENT_TYPES, raw)) return ASSESSMENT_TYPES[raw].label
+  return ASSESSMENT_TYPES[normalizeAssessmentType(raw)].label
 }
 
 // Both test papers and examination papers live in the `assessments`

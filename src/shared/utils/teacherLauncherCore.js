@@ -102,7 +102,14 @@ export function sanitizeIds(ids = [], byId = {}) {
   const seen = new Set()
   const out = []
   for (const id of ids) {
-    if (byId[id] && !seen.has(id)) {
+    // hasOwnProperty, not `byId[id]`: every object literal answers truthily to
+    // 'constructor', '__proto__' and 'toString', so the bare lookup let those
+    // three through the allowlist. They then reached STUDIO_BY_ID[id] at the
+    // render, which returns an inherited function rather than a studio. The
+    // ids come from this device's own localStorage, so nobody else can plant
+    // them -- but "the allowlist admits three ids that are not on it" is a bug
+    // whoever wrote them. (CodeQL #86.)
+    if (Object.prototype.hasOwnProperty.call(byId, id) && !seen.has(id)) {
       seen.add(id)
       out.push(id)
     }

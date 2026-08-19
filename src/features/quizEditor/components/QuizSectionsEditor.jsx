@@ -4,6 +4,7 @@ import { countBlanks, statementLabel, BLANK_TOKEN } from '../../../utils/fillBla
 import { clampInt } from '../../../utils/inputs.js'
 import { questionValidationStatus } from '../../../utils/quizEngineAdapter.js'
 import { sanitizeBulkPatch } from '../lib/bulkQuestionOps.js'
+import { safeImageSrc } from '../../../shared/utils/safeImageSrc.js'
 import DiagramSvg from '../../../curriculum/diagrams/DiagramSvg.jsx'
 import DiagramPicker from '../../../curriculum/diagrams/DiagramPicker.jsx'
 import { getDiagram } from '../../../curriculum/diagrams/diagramCatalog.js'
@@ -515,7 +516,7 @@ function ImageUpload({
     return (
       <div className={joinClasses('group theme-bg-subtle relative overflow-hidden rounded-xl border-2', theme.cardBorder)}>
         <img
-          src={imageUrl}
+          src={safeImageSrc(imageUrl)}
           alt={label}
           className="mx-auto max-h-[60vh] w-full object-contain py-2"
           onError={event => {
@@ -688,7 +689,7 @@ function OptionImageUpload({
     return (
       <div className={joinClasses('group theme-bg-subtle relative overflow-hidden rounded-lg border-2', theme.cardBorder)}>
         <img
-          src={imageUrl}
+          src={safeImageSrc(imageUrl)}
           alt=""
           className="quiz-option-image"
           onError={event => {
@@ -1085,7 +1086,7 @@ const StandaloneQuestionCard = memo(function StandaloneQuestionCard({
                 }}
               >
                 <img
-                  src={question.imageUrl}
+                  src={safeImageSrc(question.imageUrl)}
                   alt=""
                   draggable={false}
                   className="block w-full select-none object-contain"
@@ -1164,7 +1165,7 @@ const StandaloneQuestionCard = memo(function StandaloneQuestionCard({
                 }}
               >
                 <img
-                  src={question.imageUrl}
+                  src={safeImageSrc(question.imageUrl)}
                   alt=""
                   draggable={false}
                   className="block w-full select-none object-contain"

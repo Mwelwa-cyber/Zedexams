@@ -52,9 +52,20 @@ export function blueprintItems(blueprint) {
   return sections.flatMap((s) => (Array.isArray(s.items) ? s.items : []))
 }
 
-/** Count occurrences of `key(x)` across a list, skipping empty keys. */
+/**
+ * Count occurrences of `key(x)` across a list, skipping empty keys.
+ *
+ * A null-prototype accumulator, because the keys are teacher-authored topic
+ * and skill labels and a plain `{}` mis-handles two of them: a topic literally
+ * named `__proto__` was DROPPED from the count (the write sets the prototype
+ * instead of a property, so the label vanished from the drift report), and one
+ * named `constructor` came back as the string
+ * "function Object() { [native code] }1" where the caller expects a number,
+ * which then sorts and subtracts as garbage. `Object.create(null)` inherits
+ * nothing, so every label is just a key. (CodeQL #85.)
+ */
 function tally(list, key) {
-  const out = {}
+  const out = Object.create(null)
   for (const entry of list) {
     const k = key(entry)
     if (!k) continue

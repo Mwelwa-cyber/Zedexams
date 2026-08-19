@@ -81,8 +81,17 @@ export function buildTimetableGridModel(timetableRaw, overrides = {}) {
   const layout = overrides.layout || prefs.timetableLayout || 'days-as-columns'
   const labelMode = overrides.labelMode || prefs.periodLabelMode || 'period-time'
 
-  // Each day's own period rows, annotated with their 1-based lesson slot.
-  const rowsByDay = {}
+  // Every day-keyed map below is null-prototype. `days` carries whatever the
+  // saved timetable names its days, and a plain `{}` answers truthily to
+  // 'constructor', 'toString' and '__proto__' before anything is written to
+  // it: `if (!cells[b.day]) continue` therefore PASSED for a day named
+  // 'toString', and the write that followed landed a slot object on
+  // Object.prototype.toString itself. A day named '__proto__' went the other
+  // way — `cells[day] = {}` reassigned the map's own prototype instead of
+  // adding a key, so that day silently held no cells and rendered empty.
+  // Object.create(null) inherits nothing, so a day name is only ever a key.
+  // (CodeQL #78, #87-#92.)
+  const rowsByDay = Object.create(null)
   let maxSlot = 0
   let referenceDay = null
   for (const day of days) {
@@ -101,8 +110,8 @@ export function buildTimetableGridModel(timetableRaw, overrides = {}) {
   // Which days share the reference's exact clock boundaries. Only those can
   // be resolved by TIME; the rest keep the original slot-based resolution so
   // a half-day Friday renders exactly as it did before.
-  const rowIndexByDay = {}
-  const aligned = {}
+  const rowIndexByDay = Object.create(null)
+  const aligned = Object.create(null)
   for (const day of days) {
     const map = new Map()
     for (const r of rowsByDay[day]) map.set(timeKey(r), r)
@@ -110,12 +119,12 @@ export function buildTimetableGridModel(timetableRaw, overrides = {}) {
     aligned[day] = rows.every((r) => map.has(timeKey(r)))
   }
 
-  const slotCount = {}
+  const slotCount = Object.create(null)
   for (const day of days) slotCount[day] = slotCountForDay(day, periods, t.dayStructure, timing)
 
   // Occupancy: day → slot → { state, block }.
-  const cells = {}
-  for (const day of days) cells[day] = {}
+  const cells = Object.create(null)
+  for (const day of days) cells[day] = Object.create(null)
   for (const b of t.blocks) {
     if (!cells[b.day]) continue
     for (let s = b.startSlot; s < b.startSlot + b.length; s += 1) {

@@ -110,7 +110,16 @@ const SHORT_TYPE = {
 /** The abbreviated type + term for the medium-width form ("EOT 1"). */
 export function paperTypeAbbrev(paper = {}) {
   const canonical = normalizeAssessmentType(paper?.assessmentType)
-  const build = SHORT_TYPE[canonical] || SHORT_TYPE.topic_test
+  // hasOwnProperty, not `SHORT_TYPE[canonical] ||`: a bare lookup finds
+  // Object.prototype's members too, so 'constructor' resolved to `Object` (and
+  // returned a String OBJECT where every caller wants a string) and
+  // '__proto__' resolved to a non-function and threw. normalizeAssessmentType
+  // now refuses both, so this is the second lock rather than the only one --
+  // but this is the line that turns a bad stored value into a crash, so it is
+  // the line that should refuse it. (CodeQL #77.)
+  const build = Object.prototype.hasOwnProperty.call(SHORT_TYPE, canonical)
+    ? SHORT_TYPE[canonical]
+    : SHORT_TYPE.topic_test
   return build(readPaperTerm(paper))
 }
 
