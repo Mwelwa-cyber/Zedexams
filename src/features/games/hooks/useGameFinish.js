@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { saveScore, readRoundBaseline, readRoundOutcome } from '../services/gamesService'
 import { evaluateAndAwardGameBadges } from '../../../utils/gameBadgesService'
@@ -43,7 +43,26 @@ export function useGameFinish() {
   const [levelChange, setLevelChange] = useState(null)
   const [personalBest, setPersonalBest] = useState(null)
 
+  // ONE ROUND WRITES ONE SCORE.
+  //
+  // `saveScore` is an `addDoc`, so it mints a fresh document per call and
+  // cannot converge the way an id-keyed write does. `setPhase('done')` looks
+  // like the re-entry guard but is not one: it is React state, applied on the
+  // next render, so a second call arriving inside the same frame — the "End"
+  // button double-tapped before it unmounts — passes it and reaches the write.
+  // Two rows for one round inflate the public leaderboard, the windowed level
+  // total and the personal-best comparison, and `scores` is append-only for
+  // learners in the rules, so the learner cannot undo it.
+  //
+  // A ref is claimed synchronously, which is the only thing that can refuse a
+  // call made before a render. It is the pattern already used a few lines away
+  // in `pickedRef`, and by `persistInFlightRef` in the Assessment Studio.
+  // Released in `reset()` — per ROUND, since "Play again" re-enters without
+  // remounting the hook.
+  const finishingRef = useRef(false)
+
   function reset() {
+    finishingRef.current = false
     setPhase('playing')
     setSaveResult(null)
     setNewBadges([])
@@ -53,6 +72,8 @@ export function useGameFinish() {
   }
 
   async function finish(result) {
+    if (finishingRef.current) return
+    finishingRef.current = true
     setPhase('done')
 
     // Snapshot progression (windowed total + all-time best for this game)
