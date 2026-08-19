@@ -39,32 +39,11 @@ const {assertVerifiedAuth} = require("./authGuard");
 const {assertCallableRateLimit} = require("./rateLimit");
 const {getUserRole, isAdminRole} = require("./aiService");
 
-// The Google voices the endpoint will synthesise, with what each costs. This
-// mirrors ALLOWED_VOICES in tts.js — test:tts-admin fails if the two drift,
-// because a voice offered by one and unknown to the other is either a voice
-// the admin cannot see or a request the endpoint refuses.
-const GOOGLE_VOICES = [
-  {id: "en-GB-Neural2-A", label: "British Female (Neural)", lang: "en-GB"},
-  {id: "en-GB-Neural2-B", label: "British Male (Neural)", lang: "en-GB"},
-  {id: "en-ZA-Standard-A", label: "South African Female", lang: "en-ZA"},
-  {id: "en-ZA-Standard-B", label: "South African Male", lang: "en-ZA"},
-  {id: "en-GB-Studio-B", label: "British Male (Studio HQ)", lang: "en-GB"},
-  {id: "en-GB-Studio-C", label: "British Female (Studio HQ)", lang: "en-GB"},
-  {id: "en-US-Neural2-F", label: "American Female (Neural)", lang: "en-US"},
-  {id: "en-US-Neural2-J", label: "American Male (Neural)", lang: "en-US"},
-  {id: "en-GB-Standard-A", label: "British (Standard)", lang: "en-GB"},
-];
-
-/** The Google half of the catalogue, priced. Pure — exported for the tests. */
-function googleCatalogue() {
-  const {ttsVoiceTier, ttsRateUsdPerMchar} = require("./aiCostTracking");
-  return GOOGLE_VOICES.map((v) => ({
-    ...v,
-    provider: "google",
-    tier: ttsVoiceTier(v.id),
-    usdPerMchar: ttsRateUsdPerMchar("google", v.id),
-  }));
-}
+// The catalogue and its pricing live in ttsAdminCore.js, which imports no
+// firebase-functions — the functions node suite runs from the repo root where
+// that package does not resolve, so anything a plain-node test loads has to
+// stay clear of it. Same reason as every other *Core.js split here.
+const {GOOGLE_VOICES, googleCatalogue} = require("./ttsAdminCore");
 
 exports.getTtsControlRoom = onCall(
   {region: "us-central1", memory: "256MiB", timeoutSeconds: 30},
@@ -118,5 +97,7 @@ exports.getTtsControlRoom = onCall(
   },
 );
 
+// Re-exported so the callable module remains the single import site for
+// callers that already have it; the tests import ttsAdminCore directly.
 exports.GOOGLE_VOICES = GOOGLE_VOICES;
 exports.googleCatalogue = googleCatalogue;

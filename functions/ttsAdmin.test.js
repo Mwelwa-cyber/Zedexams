@@ -28,7 +28,10 @@ const {
   ELEVENLABS_RATE_ENV,
 } = require("./aiCostTracking");
 const el = require("./elevenLabsClient");
-const {GOOGLE_VOICES, googleCatalogue} = require("./ttsAdmin");
+// ttsAdminCore, NOT ttsAdmin: this suite runs from the repo root, where
+// firebase-functions does not resolve. Importing the onCall module here is
+// what broke the Functions coverage job — the split is the fix.
+const {GOOGLE_VOICES, googleCatalogue} = require("./ttsAdminCore");
 
 let passed = 0;
 function ok(name, cond) {
