@@ -143,6 +143,36 @@ exports.apiTextToSpeech = onRequest(
           pitch:         Math.min(Math.max(Number(pitch) || 0, -10),   10),
         },
       });
+      // Record the spend BEFORE the response goes out.
+      //
+      // Google TTS bills per character, and this endpoint recorded nothing at
+      // all — there was no TTS row in aiCostTracking's price tables, so
+      // /admin/ai-costs and the Treasury month-to-date ceiling were both
+      // blind to every character synthesised here. At the
+      // 3000-char cap a single Studio request is ~$0.48, and the burst limiter
+      // above allows 10/min per user — untracked, that is real money moving
+      // with nothing to show it.
+      //
+      // Awaited rather than fired-and-forgotten: a v2 instance can be frozen
+      // once the response is flushed, so work started after send() is not
+      // guaranteed to finish, and an accounting write that usually lands is
+      // worse than one that always does — it under-reports by an unknown
+      // amount. recordAiTtsUsage swallows its own errors and returns null, so
+      // this cannot fail the request; the cost is a few Firestore increments
+      // against a call that already made a network round trip to Google.
+      //
+      // Required lazily for the same reason the TTS client is (see the note at
+      // the top of this file): functions/index.js loads every module, and this
+      // one pulls in treasury + reservation + sharded-counter machinery that
+      // no other export on a cold instance needs.
+      const {recordAiTtsUsage} = require('./aiCostTracking');
+      await recordAiTtsUsage({
+        uid:        decoded.uid,
+        voice,
+        characters: text.length,
+        tool:       'tts',
+      });
+
       res.set('Content-Type', 'audio/mpeg');
       res.set('Cache-Control', 'public, max-age=3600');
       return res.status(200).send(response.audioContent);

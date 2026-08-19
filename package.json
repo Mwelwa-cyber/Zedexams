@@ -497,6 +497,7 @@
     "test:ai-cost-budget": "node functions/aiCostBudget.test.js",
     "test:ai-cost-openai": "node functions/aiCostOpenAi.test.js",
     "test:ai-cost-providers": "node functions/aiCostProviders.test.js",
+    "test:ai-cost-tts": "node functions/aiCostTts.test.js",
     "test:firestore-backup": "node functions/firestoreBackup.test.js",
     "test:storage-backup": "node functions/storageBackup.test.js",
     "test:storage-backup-heartbeat": "node functions/storageBackupHeartbeatCore.test.js",
