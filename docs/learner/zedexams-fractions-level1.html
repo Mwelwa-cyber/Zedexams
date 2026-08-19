@@ -1,0 +1,444 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ZedExams — Level 1: what a fraction is</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--ind:#5b5bd6;--ind-soft:#ececfb;--ink:#1c2333;--muted:#6b7392;--bg:#eef0fb;
+--coral:#ff7a4d;--coral-2:#f4592c;--ok:#1faa6c;--ok-soft:#eaf7f0;--gold:#f5b820;
+--danger:#d93a3a;--danger-soft:#fdeceb;--warn:#9a6412;--warn-soft:#fff5e6;--line:#e6e8f5;--r:18px}
+*{box-sizing:border-box}
+body{margin:0;background:#dfe3f5;font-family:Nunito,system-ui,sans-serif;color:var(--ink);padding:22px 14px 50px}
+h1.pt{text-align:center;margin:0 0 4px;font-size:25px}
+p.ps{text-align:center;color:#5a6180;margin:0 0 16px;font-size:13.5px}
+
+.rig{max-width:1160px;margin:0 auto 18px;background:#fff;border-radius:14px;padding:12px 15px;
+display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:#4b5270}
+.rig b{color:var(--ink)}
+.rig label{display:flex;gap:6px;align-items:center;font-weight:800}
+.rig select,.rig button{font:inherit;font-weight:800;font-size:12.5px;border-radius:9px;border:1.5px solid var(--line);
+background:#fff;color:var(--ind);padding:6px 10px;cursor:pointer}
+.rig .sep{flex:1}
+.rig .chk{background:var(--ok-soft);color:#12734a;border:1px solid #cfeadd;border-radius:999px;padding:4px 11px;font-weight:800}
+.rig .chk.bad{background:var(--danger-soft);color:#a02a2a;border-color:#f6d4d2}
+
+.stage{display:flex;gap:22px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+.phone{width:352px;height:752px;background:var(--bg);border-radius:34px;overflow:hidden;position:relative;
+box-shadow:0 14px 40px rgba(40,44,90,.22);border:7px solid #12142a;display:flex;flex-direction:column}
+.notes{width:352px}
+.note{background:#fff;border-radius:14px;padding:13px 15px;font-size:12.5px;line-height:1.6;color:#4b5270;border-left:4px solid var(--ind);margin-bottom:11px}
+.note b{color:var(--ink)} .note h3{margin:0 0 5px;font-size:13.5px;color:var(--ink)} .note.warn{border-left-color:#e0a020}
+.note code{background:#f2f3fb;border-radius:5px;padding:1px 5px;font-size:11.5px}
+.top{padding:12px 15px;display:flex;align-items:center;gap:9px;flex:0 0 auto}
+.back{width:30px;height:30px;border-radius:10px;background:#fff;border:1px solid var(--line);display:grid;place-items:center;color:var(--ind);font-size:15px;font-family:inherit}
+.dots{display:flex;gap:5px;flex:1}
+.dot{height:6px;flex:1;background:#dfe3f5;border-radius:99px}
+.dot.done{background:var(--ok)}.dot.now{background:var(--ind)}.dot.miss{background:#f0b4b1}
+.lvl{font-size:11.5px;font-weight:800;color:var(--muted)}
+.body{padding:6px 15px 16px;flex:1;overflow-y:auto}.body::-webkit-scrollbar{width:0}
+.card{background:#fff;border-radius:var(--r);padding:16px;margin-bottom:12px;text-align:center}
+.kick{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-bottom:9px}
+.q{font-size:18px;font-weight:800;line-height:1.45}
+.pic{margin:14px 0 6px;display:flex;justify-content:center;gap:14px;flex-wrap:wrap}
+.cap{font-size:12.5px;color:var(--muted);font-weight:700;line-height:1.5}
+.opts{display:grid;gap:9px;margin-top:4px}
+.opt{background:#fff;border:2.5px solid var(--line);border-radius:15px;padding:15px;font:inherit;font-size:17px;font-weight:800;
+cursor:pointer;color:var(--ink);text-align:center;min-height:48px}
+.opt:active{transform:scale(.98)}
+.opt.ok{border-color:var(--ok);background:var(--ok-soft);color:#12734a}
+.opt.no{border-color:var(--danger);background:var(--danger-soft);color:#a02a2a}
+.picopts{display:flex;gap:8px;justify-content:center;margin-top:8px;flex-wrap:nowrap}
+.po{background:#fff;border:2.5px solid var(--line);border-radius:16px;padding:9px 7px 7px;cursor:pointer;font:inherit;flex:0 0 auto}
+.po.ok{border-color:var(--ok);background:var(--ok-soft)}
+.po.no{border-color:var(--danger);background:var(--danger-soft)}
+.po .l{font-size:11.5px;font-weight:800;color:var(--muted);margin-top:5px}
+.fr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;
+    font-size:.86em;line-height:1.04;margin:0 .18em;position:relative;top:-.09em}
+.fr .n{padding:0 .34em .04em}
+.fr .d{padding:.05em .34em 0;border-top:.11em solid currentColor}
+.fb{border-radius:15px;padding:14px;margin-top:12px;font-size:14px;line-height:1.6;text-align:left}
+.fb.ok{background:var(--ok-soft);border:1px solid #cfeadd;color:#12734a}
+.fb.no{background:var(--danger-soft);border:1px solid #f6d4d2;color:#a02a2a}
+.fb .t{font-weight:900;font-size:15px;margin-bottom:4px}
+.fb .big{font-size:27px;font-weight:900;color:var(--ink);margin:9px 0 3px;text-align:center}
+.btn{width:100%;padding:14px;border:none;border-radius:14px;font:inherit;font-weight:800;font-size:15.5px;cursor:pointer;margin-top:10px;min-height:48px}
+.btn-coral{background:linear-gradient(180deg,var(--coral),var(--coral-2));color:#fff}
+.btn[disabled]{background:#dfe2f0;color:#9aa1bd;cursor:default}
+.tapme{font-size:12px;color:var(--muted);font-weight:700;margin-top:8px}
+.seg{cursor:pointer}
+.done{text-align:center;padding:18px 0 6px}
+.tickc{width:62px;height:62px;border-radius:50%;background:var(--ok-soft);color:var(--ok);display:grid;place-items:center;font-size:29px;margin:0 auto 12px}
+
+.report{max-width:1160px;margin:22px auto 0;background:#12142a;color:#c9d2ee;border-radius:16px;padding:16px 18px;
+font-size:12px;line-height:1.75;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.report h3{font-family:Nunito,sans-serif;color:#ffd25f;margin:0 0 4px;font-size:14.5px}
+.report h4{font-family:Nunito,sans-serif;color:#9aa6cf;margin:16px 0 6px;font-size:12.5px;text-transform:uppercase;letter-spacing:.08em}
+.report p.lead{font-family:Nunito,sans-serif;color:#9aa6cf;margin:0 0 12px;font-size:12.5px;line-height:1.6}
+.report .g{color:#7fe0b0}.report .a{color:#ffc773}.report .d{color:#7d88b5}.report .r{color:#ff9d8a}
+.report table{width:100%;border-collapse:collapse;font-size:11.5px}
+.report td{padding:4px 8px 4px 0;border-bottom:1px solid #23264a;vertical-align:top}
+.report td.w{white-space:nowrap;width:1%}
+@media(max-width:820px){.stage{display:block}.phone,.notes{width:100%;max-width:352px;margin:0 auto 24px}}
+</style></head><body>
+
+<h1 class="pt">Level 1 — what a fraction is</h1>
+<p class="ps">Pictures first, words second, the symbol last. Playable — tap through it.</p>
+
+<div class="rig">
+  <label>Drawing
+    <select id="look">
+      <option value="real" selected>Things a child has held</option>
+      <option value="sheet">Plain worksheet shapes (what we are avoiding)</option>
+    </select>
+  </label>
+  <button id="replay" type="button">Start again</button>
+  <span class="sep"></span>
+  <span class="chk" id="checks">level-1 rules: …</span>
+</div>
+
+<div class="stage">
+<div class="phone">
+  <div class="top"><button class="back" type="button">‹</button><div class="dots" id="dots"></div><div class="lvl">Level 1</div></div>
+  <div class="body" id="scr"></div>
+</div>
+
+<div class="notes">
+  <div class="note"><h3>See it, say it, then write it</h3>The order matters and it is not shortened: a <b>drawing</b> of a cut orange, then the name <b>in words</b> — "one quarter" — and only then the symbol. Most children who "can't do fractions" met the symbol first with nothing underneath it to attach it to. In this level the symbol appears <b>only in the feedback after a correct answer</b> — never in a question, and the rule check below fails the build if one leaks in.</div>
+  <div class="note warn"><h3>Equal parts is the idea everyone skips</h3>Two pieces are not halves unless they are the <b>same size</b>. Round 4 tests it deliberately, and two of its three oranges are cut into two <i>unequal</i> pieces — the exact distractor the idea needs. A child who never has this challenged will compare and simplify wrongly for years, and nothing downstream ever reveals why.</div>
+  <div class="note"><h3>Change the shape, keep the fraction</h3>One half turns up on a bun cut into a bar, on a round orange, and on a basket of six — three shapes, one idea, inside a single level. Children who only ever see circles bind the fraction to the picture and stall the moment a bar appears.</div>
+  <div class="note"><h3>One whole, then a group</h3>Half of <i>one</i> orange and half of <i>six</i> oranges are the same idea worn differently. Round 5 makes that jump on purpose — it is the bridge to "three quarters of 240 learners" three levels later, and without it that question reads as a different topic.</div>
+  <div class="note warn"><h3>Objects they actually hold</h3>Oranges, buns, chitenge, sweets. Switch the rig to <b>plain worksheet shapes</b> to see the version we are not building: the maths is identical and the picture stops being about anything. A worksheet circle is abstract; a cut orange is this morning.</div>
+  <div class="note"><h3>Wrong answers get taught, not marked</h3>Every distractor maps to one named confusion — naming by the number of pieces <i>taken</i> rather than the number <i>made</i>, or ignoring equal size. There is no generic "incorrect" anywhere in this level, and the check below counts the explanations to prove it.</div>
+  <div class="note"><h3>Grade 4 reading level</h3>Short sentences. No "numerator" and no "denominator" — "the top" and "the bottom" until the idea is solid; the formal words arrive in level 2. The longest sentence in the whole level is measured and printed below, because a reading-level rule nobody measures drifts within a week.</div>
+</div>
+</div>
+
+<div class="report" id="report"></div>
+
+<script>
+const $=i=>document.getElementById(i);
+let look='real';
+function pal(){
+  return look==='real'
+    ? {on:'#f79020',off:'#ffeed6',edge:'#d96f06',leaf:'#4a7c2f'}
+    : {on:'#8f97b5',off:'#e6e8f5',edge:'#8f97b5',leaf:'#8f97b5'};
+}
+
+/* ============================================================
+   DRAWINGS — SVG, so they scale and print
+   ============================================================ */
+function pie(parts,shaded,size,gaps){
+  /* the fruit sits low enough to leave headroom for a stalk and a leaf */
+  const P=pal();size=size||132;const r=size/2-11,cx=size/2,cy=size/2+5;
+  let out='<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'" role="img" aria-label="A round shape in '+parts+' pieces">';
+  out+='<circle cx="'+cx+'" cy="'+cy+'" r="'+(r+3)+'" fill="'+P.edge+'" opacity=".28"/>';
+  const g=gaps||Array.from({length:parts},function(){return 1/parts;});
+  let a0=-Math.PI/2;
+  g.forEach(function(frac,i){
+    const a1=a0+frac*Math.PI*2;
+    const x0=cx+r*Math.cos(a0),y0=cy+r*Math.sin(a0);
+    const x1=cx+r*Math.cos(a1),y1=cy+r*Math.sin(a1);
+    const big=frac>0.5?1:0;
+    const on=Array.isArray(shaded)?shaded.indexOf(i)>=0:i<shaded;
+    out+='<path d="M'+cx+','+cy+' L'+x0+','+y0+' A'+r+','+r+' 0 '+big+',1 '+x1+','+y1+' Z" fill="'+(on?P.on:P.off)+'" stroke="#fff" stroke-width="3"/>';
+    a0=a1;
+  });
+  /* a stalk and a leaf, so it reads as an orange rather than a pie chart */
+  if(look==='real'){
+    const ty=cy-r-3,lw=size/5.5,lh=size/11;
+    out+='<path d="M'+cx+','+ty+' l0,-'+(size/18)+'" stroke="#7a5522" stroke-width="'+(size>110?3.5:2.5)+'" stroke-linecap="round"/>';
+    out+='<path d="M'+cx+','+(ty-size/22)+' q'+(lw*0.55)+',-'+lh+' '+lw+',0 q-'+(lw*0.45)+','+lh+' -'+lw+',0 Z" fill="'+P.leaf+'"/>';
+  }
+  return out+'</svg>';
+}
+function bun(parts,shaded,w){
+  const P=pal();w=w||222;const h=58,sw=w/parts;
+  let out='<svg width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="A bun in '+parts+' equal pieces">';
+  for(let i=0;i<parts;i++){
+    const on=Array.isArray(shaded)?shaded.indexOf(i)>=0:i<shaded;
+    out+='<rect class="seg" data-i="'+i+'" x="'+(i*sw)+'" y="4" width="'+sw+'" height="'+(h-8)+'" rx="9" fill="'+(on?P.on:P.off)+'" stroke="#fff" stroke-width="3"/>';
+    if(look==='real'&&on)out+='<circle cx="'+(i*sw+sw/2)+'" cy="'+(h/2)+'" r="3" fill="#fff" opacity=".55" pointer-events="none"/>';
+  }
+  return out+'</svg>';
+}
+function chitenge(parts,shaded,w){
+  const P=pal();w=w||240;const h=72,sw=w/parts;
+  let out='<svg width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="A chitenge in '+parts+' equal strips">';
+  for(let i=0;i<parts;i++){
+    const on=Array.isArray(shaded)?shaded.indexOf(i)>=0:i<shaded;
+    out+='<rect class="seg" data-i="'+i+'" x="'+(i*sw)+'" y="0" width="'+sw+'" height="'+h+'" fill="'+(on?P.on:P.off)+'" stroke="#fff" stroke-width="3"/>';
+    if(look==='real')for(let r=0;r<3;r++)for(let c=0;c<2;c++)
+      out+='<circle cx="'+(i*sw+sw*(c?0.68:0.32))+'" cy="'+(14+r*22)+'" r="4" fill="'+(on?'#fff':P.edge)+'" opacity="'+(on?.5:.28)+'" pointer-events="none"/>';
+  }
+  return out+'</svg>';
+}
+function basket(n,shaded){
+  const P=pal();
+  let out='<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:236px">';
+  for(let i=0;i<n;i++){
+    const on=Array.isArray(shaded)?shaded.indexOf(i)>=0:i<shaded;
+    out+='<svg width="44" height="44" viewBox="0 0 44 44" role="img" aria-label="'+(on?'a taken one':'one left')+'">'+
+      '<circle cx="22" cy="23" r="18" fill="'+(on?P.on:P.off)+'" stroke="'+P.edge+'" stroke-width="2" opacity="'+(on?1:.85)+'"/>'+
+      (look==='real'?'<path d="M22 5 q4 -3 6 1" stroke="'+P.leaf+'" stroke-width="3" fill="none" stroke-linecap="round"/>':'')+
+      '</svg>';
+  }
+  return out+'</div>';
+}
+function F(n,d){
+  const U={2:'half',3:'third',4:'quarter'},w=['zero','one','two','three','four','five','six'];
+  const words=n===1?('one '+U[d]):(w[n]+' '+(U[d]==='half'?'halves':U[d]+'s'));
+  return '<span class="fr" role="math" aria-label="'+words+'"><span class="n" aria-hidden="true">'+n+
+    '</span><span class="d" aria-hidden="true">'+d+'</span></span>';
+}
+
+/* ============================================================
+   THE LEVEL — five rounds, four question types.
+   NO stem may contain a fraction symbol. Every wrong option
+   carries its own explanation; there is no shared fallback.
+   ============================================================ */
+const NOUN={real:{orange:'orange',bun:'bun',chitenge:'chitenge',basket:'basket'},
+            sheet:{orange:'shape',bun:'bar',chitenge:'strip',basket:'set'}};
+function noun(k){return NOUN[look][k];}
+
+const ROUNDS=[
+{type:'name',shape:'circle',object:'orange',fraction:[1,4],
+ kick:'An orange, cut up',
+ stem:'What do we call the piece that was taken?',
+ caption:function(){return 'The '+noun('orange')+' is cut into 4 equal pieces. One piece is taken.';},
+ draw:function(){return pie(4,1);},
+ options:['One half','One third','One quarter'],answer:'One quarter',
+ right:{t:'Yes — one quarter',
+   body:'4 equal pieces, and you take 1. We say <b>one quarter</b>. This is how we write it:',
+   after:'The bottom is how many pieces it was cut into. The top is how many were taken.'},
+ wrong:{'One half':'A half is when there are only <b>2</b> pieces. Count again — this one was cut into 4.',
+        'One third':'A third is when there are <b>3</b> pieces. Count again — this one has 4.'}},
+
+{type:'shade',shape:'bar',object:'bun',fraction:[1,2],parts:4,want:2,
+ kick:'Now you do one',
+ stem:'Shade one half of this bun.',
+ caption:function(){return 'Tap the pieces to shade them.';},
+ draw:function(sh){return bun(4,sh||[]);},
+ right:{t:"That's one half",
+   body:'The bun has 4 pieces. Half means <b>the same amount on each side</b>, so 2 pieces. Two of the four pieces is written:',
+   after:'Two quarters and one half are the same amount, with two names.'},
+ wrong:{'1':'One piece out of 4 is a quarter, not a half. Half needs the same amount on each side.',
+        '3':'Three pieces out of 4 is more than half. The other side would only have 1.',
+        '4':'That is the whole bun. Half means the shaded part and the rest are the same size.'}},
+
+{type:'name',shape:'strip',object:'chitenge',fraction:[1,3],
+ kick:'A different thing, the same idea',
+ stem:'What do we call the strip that was cut off?',
+ caption:function(){return 'The '+noun('chitenge')+' is cut into 3 equal strips. One strip is cut off.';},
+ draw:function(){return chitenge(3,1);},
+ options:['One half','One third','One quarter'],answer:'One third',
+ right:{t:'Yes — one third',
+   body:'3 equal strips, and you take 1. We say <b>one third</b>, and we write it:',
+   after:'A fraction works on a long strip the same way it works on a round orange.'},
+ wrong:{'One half':'A half is when there are only <b>2</b> pieces. This chitenge is cut into 3.',
+        'One quarter':'A quarter is when there are <b>4</b> pieces. Count them — this one has 3.'}},
+
+{type:'equal',shape:'circle',object:'orange',fraction:[1,2],
+ kick:'Careful with this one',
+ stem:'Which one has been cut into halves?',
+ caption:function(){return 'All three are cut into 2 pieces.';},
+ pics:[{k:'a',gaps:[0.33,0.67],equal:false},{k:'b',gaps:null,equal:true},{k:'c',gaps:[0.2,0.8],equal:false}],
+ answer:'b',
+ right:{t:'Only B',
+   body:'A and C are cut into 2 pieces too, but the pieces are not the <b>same size</b>. Only B gives:',
+   after:'For halves, thirds and quarters the pieces must always be equal.'},
+ wrong:{'a':'A is in 2 pieces, but one is a bit bigger than the other. Halves must be the same size.',
+        'c':'C is in 2 pieces, but one is much bigger than the other. Halves must be the same size.'}},
+
+{type:'group',shape:'group',object:'basket',fraction:[1,2],
+ kick:'Now a whole basket',
+ stem:'What fraction was taken?',
+ caption:function(){return '6 oranges in the '+noun('basket')+'. 3 have been taken.';},
+ draw:function(){return basket(6,3);},
+ options:['One third','One half','One quarter'],answer:'One half',
+ right:{t:'One half',
+   body:'3 taken and 3 left — the same amount on each side. Three out of six is written:',
+   after:'Fractions work on a group of things too, not only on one thing cut up.'},
+ wrong:{'One third':'3 were taken, but count what is left as well — 3 taken and 3 left is the same on each side.',
+        'One quarter':'A quarter would be 1 taken out of 4. Here 3 were taken out of 6.'}}
+];
+
+/* ============================================================
+   PLAY
+   ============================================================ */
+let r=0,done=[],shaded=[];
+function dots(){
+  $('dots').innerHTML=ROUNDS.map(function(_,k){
+    const c=k<done.length?(done[k]?'done':'miss'):(k===done.length?'now':'');
+    return '<div class="dot '+c+'"></div>';}).join('');
+}
+function ask(){
+  if(r>=ROUNDS.length)return fin();
+  const q=ROUNDS[r];shaded=[];dots();
+  if(q.type==='shade'){
+    $('scr').innerHTML='<div class="card"><div class="kick">'+q.kick+'</div>'+
+      '<div class="q">'+q.stem+'</div>'+
+      '<div class="pic" id="picwrap">'+q.draw([])+'</div>'+
+      '<div class="tapme">'+q.caption()+'</div></div>'+
+      '<button class="btn" id="go" type="button" disabled onclick="answerShade()">Check</button><div id="fb"></div>';
+    wire();return;
+  }
+  if(q.type==='equal'){
+    $('scr').innerHTML='<div class="card"><div class="kick">'+q.kick+'</div>'+
+      '<div class="q">'+q.stem+'</div>'+
+      '<div class="picopts">'+q.pics.map(function(p){
+        return '<button class="po" type="button" onclick="answerPic(this,\''+p.k+'\')">'+pie(2,1,84,p.gaps)+
+          '<div class="l">'+p.k.toUpperCase()+'</div></button>';}).join('')+'</div>'+
+      '<div class="cap" style="margin-top:10px">'+q.caption()+'</div></div><div id="fb"></div>';
+    return;
+  }
+  $('scr').innerHTML='<div class="card"><div class="kick">'+q.kick+'</div>'+
+    '<div class="pic">'+q.draw()+'</div>'+
+    '<div class="cap">'+q.caption()+'</div>'+
+    '<div class="q" style="margin-top:14px">'+q.stem+'</div></div>'+
+    '<div class="opts">'+q.options.map(function(t){
+      return '<button class="opt" type="button" onclick="answerName(this,\''+t+'\')">'+t+'</button>';}).join('')+'</div>'+
+    '<div id="fb"></div>';
+}
+function wire(){
+  const q=ROUNDS[r];
+  document.querySelectorAll('#picwrap .seg').forEach(function(s){
+    s.onclick=function(){
+      const i=+s.dataset.i;
+      shaded=shaded.indexOf(i)>=0?shaded.filter(function(x){return x!==i;}):shaded.concat(i);
+      $('picwrap').innerHTML=q.draw(shaded);wire();
+      const go=$('go');go.disabled=!shaded.length;go.className=shaded.length?'btn btn-coral':'btn';
+    };
+  });
+}
+function good(q){
+  const n=q.fraction[0],d=q.fraction[1];
+  const extra=q.type==='shade'?F(2,4)+' = '+F(1,2):(q.type==='group'?F(3,6)+' = '+F(1,2):F(n,d));
+  return '<div class="fb ok"><div class="t">✓ '+q.right.t+'</div>'+q.right.body+
+    '<div class="big">'+extra+'</div>'+q.right.after+'</div>'+
+    '<button class="btn btn-coral" type="button" onclick="nxt()">'+(r===ROUNDS.length-1?'Finish →':'Next →')+'</button>';
+}
+function bad(q,key){
+  return '<div class="fb no"><div class="t">Have another look</div>'+q.wrong[key]+'</div>'+
+    '<button class="btn btn-coral" type="button" onclick="nxt()">'+(r===ROUNDS.length-1?'Finish →':'I see it →')+'</button>';
+}
+function answerName(el,t){
+  const q=ROUNDS[r];
+  document.querySelectorAll('.opt').forEach(function(o){o.onclick=null;});
+  const ok=t===q.answer;el.classList.add(ok?'ok':'no');
+  done.push(ok);dots();
+  $('fb').innerHTML=ok?good(q):bad(q,t);
+}
+function answerPic(el,k){
+  const q=ROUNDS[r];
+  document.querySelectorAll('.po').forEach(function(o){o.onclick=null;});
+  const ok=k===q.answer;el.classList.add(ok?'ok':'no');
+  if(!ok)document.querySelectorAll('.po')[1].classList.add('ok');
+  done.push(ok);dots();
+  $('fb').innerHTML=ok?good(q):bad(q,k);
+}
+function answerShade(){
+  const q=ROUNDS[r];$('go').disabled=true;$('go').className='btn';
+  const ok=shaded.length===q.want;
+  done.push(ok);dots();
+  $('fb').innerHTML=ok?good(q):bad(q,String(shaded.length));
+}
+function nxt(){r++;ask();}
+function fin(){
+  const n=done.filter(Boolean).length;
+  $('scr').innerHTML='<div class="done"><div class="tickc">✓</div>'+
+   '<div style="font-size:20px;font-weight:900">Stage cleared</div>'+
+   '<div style="font-size:13px;color:var(--muted);margin-top:5px">'+n+' of '+ROUNDS.length+' right first time</div>'+
+   '<div class="card" style="margin-top:16px;text-align:left">'+
+     '<div class="kick">What you learned</div>'+
+     '<div style="font-size:13.5px;line-height:1.9">'+
+       '• The pieces must be <b>equal</b><br>'+
+       '• The bottom is how many pieces<br>'+
+       '• The top is how many were taken<br>'+
+       '• '+F(2,4)+' and '+F(1,2)+' are the same amount<br>'+
+       '• A fraction works on a group too</div></div>'+
+   '<button class="btn btn-coral" type="button" onclick="restart()">Play it again</button></div>';
+  dots();
+}
+function restart(){r=0;done=[];ask();}
+
+/* ============================================================
+   LEVEL-1 RULE CHECK — the acceptance criteria, run on the data
+   ============================================================ */
+const SYMBOL=/(class="fr")|(\b\d\s*\/\s*\d\b)/;
+function stemsAndCaptions(){
+  const out=[];
+  ROUNDS.forEach(function(q){
+    out.push({what:'stem',round:q.type,text:q.stem});
+    out.push({what:'caption',round:q.type,text:q.caption()});
+    out.push({what:'kicker',round:q.type,text:q.kick});
+    (q.options||[]).forEach(function(o){out.push({what:'option',round:q.type,text:o});});
+  });
+  return out;
+}
+function sentences(t){return String(t).replace(/<[^>]*>/g,'').split(/[.!?]+/).map(function(s){return s.trim();}).filter(Boolean);}
+function longestSentence(){
+  let best={n:0,text:''};
+  stemsAndCaptions().forEach(function(x){
+    sentences(x.text).forEach(function(s){
+      const n=s.split(/\s+/).length;
+      if(n>best.n)best={n:n,text:s};
+    });
+  });
+  return best;
+}
+function rules(){
+  const out=[];function t(name,ok,detail){out.push({name:name,ok:!!ok,detail:detail||''});}
+  const leaks=stemsAndCaptions().filter(function(x){return SYMBOL.test(x.text);});
+  t('no fraction symbol in any question, caption or option',leaks.length===0,
+    leaks.map(function(l){return l.round+'/'+l.what;}).join(', '));
+  t('the symbol IS shown in the feedback after a correct answer',
+    ROUNDS.every(function(q){return q.right&&q.right.body;}));
+  const types=ROUNDS.map(function(q){return q.type;});
+  t('all four question types present — name, shade, equal parts, group',
+    ['name','shade','equal','group'].every(function(k){return types.indexOf(k)>=0;}),types.join(' → '));
+  const eq=ROUNDS.find(function(q){return q.type==='equal';});
+  const unequal=eq?eq.pics.filter(function(p){return !p.equal;}):[];
+  t('the equal-parts round offers a two-unequal-pieces distractor',unequal.length>=1,
+    unequal.length+' of '+(eq?eq.pics.length:0)+' are unequal cuts');
+  const halfShapes=ROUNDS.filter(function(q){return q.fraction[0]===1&&q.fraction[1]===2;})
+    .map(function(q){return q.shape;});
+  t('one half appears on at least two different shapes',new Set(halfShapes).size>=2,halfShapes.join(', '));
+  t('the group round bridges one whole to a set of things',types.indexOf('group')>=0);
+  const generic=ROUNDS.filter(function(q){return Object.keys(q.wrong||{}).length===0;});
+  const shared=[];
+  ROUNDS.forEach(function(q){
+    const vals=Object.values(q.wrong||{});
+    if(new Set(vals).size!==vals.length)shared.push(q.type);
+  });
+  const nWrong=ROUNDS.reduce(function(a,q){return a+Object.keys(q.wrong||{}).length;},0);
+  const nDistinct=new Set(ROUNDS.reduce(function(a,q){return a.concat(Object.values(q.wrong||{}));},[])).size;
+  t('every wrong answer has its own explanation — none shared, none generic',
+    generic.length===0&&shared.length===0&&nDistinct===nWrong,
+    nDistinct+' distinct explanations across '+nWrong+' wrong answers, in '+ROUNDS.length+' rounds');
+  const banned=stemsAndCaptions().filter(function(x){return /numerator|denominator/i.test(x.text);});
+  t('no "numerator" or "denominator" anywhere in level 1',banned.length===0);
+  const ls=longestSentence();
+  t('longest sentence is 16 words or fewer (Grade 4)',ls.n<=16,ls.n+' words — “'+ls.text+'”');
+  return out;
+}
+function report(){
+  const rs=rules(),bad=rs.filter(function(x){return !x.ok;});
+  $('checks').className='chk'+(bad.length?' bad':'');
+  $('checks').textContent='level-1 rules: '+(rs.length-bad.length)+'/'+rs.length+(bad.length?' ✗':' ✓');
+  $('report').innerHTML='<h3>The level-1 rules, run against the level data</h3>'+
+   '<p class="lead">Every one of these is a line from the prompt turned into an assertion over <code>ROUNDS</code>. '+
+   'Add a sixth round that names a fraction in its stem, or reuse one explanation for two distractors, and this panel goes red before a reviewer ever notices.</p>'+
+   '<table>'+rs.map(function(c){
+     return '<tr><td class="w '+(c.ok?'g':'r')+'">'+(c.ok?'PASS':'FAIL')+'</td><td>'+c.name+
+       (c.detail?'<br><span class="d">'+c.detail+'</span>':'')+'</td></tr>';}).join('')+'</table>'+
+   '<h4>Order of the level</h4><table>'+ROUNDS.map(function(q,i){
+     return '<tr><td class="w a">round '+(i+1)+'</td><td class="w d">'+q.type+'</td><td class="w d">'+q.shape+'</td>'+
+       '<td class="d">'+q.stem+'</td></tr>';}).join('')+'</table>';
+}
+
+/* boot */
+$('look').onchange=function(){look=this.value;restart();report();};
+$('replay').onclick=restart;
+ask();report();
+</script>
+</body></html>

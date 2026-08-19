@@ -1,0 +1,460 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ZedExams — fraction levels</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--ind:#5b5bd6;--ind-soft:#ececfb;--ink:#1c2333;--muted:#6b7392;--bg:#eef0fb;
+--coral:#ff7a4d;--coral-2:#f4592c;--ok:#1faa6c;--ok-soft:#eaf7f0;--gold:#f5b820;
+--danger:#d93a3a;--danger-soft:#fdeceb;--warn:#9a6412;--warn-soft:#fff5e6;--line:#e6e8f5;--r:18px}
+*{box-sizing:border-box}
+body{margin:0;background:#dfe3f5;font-family:Nunito,system-ui,sans-serif;color:var(--ink);padding:22px 14px 50px}
+h1.pt{text-align:center;margin:0 0 4px;font-size:25px}
+p.ps{text-align:center;color:#5a6180;margin:0 0 16px;font-size:13.5px}
+
+.rig{max-width:1160px;margin:0 auto 18px;background:#fff;border-radius:14px;padding:12px 15px;
+display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:#4b5270}
+.rig b{color:var(--ink)}
+.rig label{display:flex;gap:6px;align-items:center;font-weight:800}
+.rig select,.rig button{font:inherit;font-weight:800;font-size:12.5px;border-radius:9px;border:1.5px solid var(--line);
+background:#fff;color:var(--ind);padding:6px 10px;cursor:pointer}
+.rig .sep{flex:1}
+.rig .chk{background:var(--ok-soft);color:#12734a;border:1px solid #cfeadd;border-radius:999px;padding:4px 11px;font-weight:800}
+.rig .chk.bad{background:var(--danger-soft);color:#a02a2a;border-color:#f6d4d2}
+
+.stage{display:flex;gap:22px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+.phone{width:352px;height:756px;background:var(--bg);border-radius:34px;overflow:hidden;position:relative;
+box-shadow:0 14px 40px rgba(40,44,90,.22);border:7px solid #12142a;display:flex;flex-direction:column}
+.notes{width:352px}
+.note{background:#fff;border-radius:14px;padding:13px 15px;font-size:12.5px;line-height:1.6;color:#4b5270;border-left:4px solid var(--ind);margin-bottom:11px}
+.note b{color:var(--ink)} .note h3{margin:0 0 5px;font-size:13.5px;color:var(--ink)} .note.warn{border-left-color:#e0a020}
+.note code{background:#f2f3fb;border-radius:5px;padding:1px 5px;font-size:11.5px}
+.top{padding:12px 15px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:9px;flex:0 0 auto}
+.back{width:30px;height:30px;border-radius:10px;background:var(--bg);display:grid;place-items:center;color:var(--ind);font-size:15px;border:none;font-family:inherit;cursor:pointer}
+.ttl{font-weight:900;font-size:15.5px}
+.chip{margin-left:auto;background:var(--warn-soft);color:var(--warn);border:1px solid #f2dcb4;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:800}
+.body{padding:14px;flex:1;overflow-y:auto}.body::-webkit-scrollbar{width:0}
+
+.fr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;
+    font-size:.86em;line-height:1.04;margin:0 .16em;position:relative;top:-.09em}
+.fr .n{padding:0 .3em .04em}
+.fr .d{padding:.05em .3em 0;border-top:.11em solid currentColor}
+
+.lv{background:#fff;border-radius:15px;padding:13px;margin-bottom:9px;display:flex;gap:12px;align-items:flex-start;
+position:relative;border:none;width:100%;text-align:left;font:inherit;cursor:pointer}
+.lv.lock{opacity:.55}
+.lv.cur{outline:2.5px solid var(--ind)}
+.badge{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;font-weight:900;font-size:16px;flex:0 0 auto;color:#fff}
+.b-done{background:var(--ok)}.b-now{background:linear-gradient(180deg,var(--coral),var(--coral-2))}
+.b-lock{background:#cfd4e8;color:#8f97b5}
+.lv .nm{font-weight:900;font-size:14.5px;line-height:1.25}
+.lv .ds{font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.45}
+.lv .ex{margin-top:6px;font-size:15px;font-weight:800;color:var(--ind)}
+.lv .rt{margin-left:auto;text-align:right;flex:0 0 auto}
+.lv .st{font-size:11px;color:var(--gold);letter-spacing:.5px}
+.lv .st .off{color:#d9deee}
+.lv .cnt{font-size:10.5px;color:var(--muted);font-weight:800;margin-top:3px;white-space:nowrap}
+.gate{font-size:10.5px;font-weight:800;color:var(--warn);background:var(--warn-soft);border:1px solid #f2dcb4;
+border-radius:9px;padding:6px 9px;margin:-4px 0 10px 56px;line-height:1.5}
+.sec{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:14px 0 9px}
+.card{background:#fff;border-radius:var(--r);padding:15px;margin-bottom:11px}
+.h2{font-size:20px;font-weight:900;line-height:1.2}
+.sub{font-size:12.5px;color:var(--muted);margin-top:5px;line-height:1.5}
+.sub2{display:flex;align-items:flex-start;gap:11px;padding:11px 0;border-bottom:1px solid var(--line)}
+.sub2:last-child{border-bottom:none}
+.sd{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;font-size:13px;font-weight:900;flex:0 0 auto}
+.sd.d{background:var(--ok-soft);color:var(--ok)}.sd.n{background:#ffe8df;color:var(--coral-2)}.sd.l{background:var(--bg);color:#a6adc8}
+.sn{font-weight:800;font-size:13.5px;line-height:1.3}
+.sx{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.45}
+.se{margin-left:auto;font-size:14px;font-weight:800;color:var(--ind);flex:0 0 auto;padding-left:6px}
+.bar{height:7px;background:#dfe3f5;border-radius:99px;margin-top:10px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ok)}
+.btn{width:100%;padding:14px;border:none;border-radius:14px;font:inherit;font-weight:800;font-size:15.5px;cursor:pointer;margin-top:11px;min-height:48px}
+.btn-coral{background:linear-gradient(180deg,var(--coral),var(--coral-2));color:#fff}
+.btn[disabled]{background:#dfe2f0;color:#9aa1bd;cursor:default}
+.mix{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.pi{border-radius:8px;padding:5px 8px;font-size:11px;font-weight:800}
+.pi.new{background:var(--ind-soft);color:var(--ind)}
+.pi.rev{background:var(--warn-soft);color:var(--warn);border:1px solid #f2dcb4}
+
+.report{max-width:1160px;margin:22px auto 0;background:#12142a;color:#c9d2ee;border-radius:16px;padding:16px 18px;
+font-size:12px;line-height:1.75;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.report h3{font-family:Nunito,sans-serif;color:#ffd25f;margin:0 0 4px;font-size:14.5px}
+.report h4{font-family:Nunito,sans-serif;color:#9aa6cf;margin:16px 0 6px;font-size:12.5px;text-transform:uppercase;letter-spacing:.08em}
+.report p.lead{font-family:Nunito,sans-serif;color:#9aa6cf;margin:0 0 12px;font-size:12.5px;line-height:1.6}
+.report .g{color:#7fe0b0}.report .a{color:#ffc773}.report .d{color:#7d88b5}.report .r{color:#ff9d8a}
+.report table{width:100%;border-collapse:collapse;font-size:11.5px}
+.report td{padding:4px 8px 4px 0;border-bottom:1px solid #23264a;vertical-align:top}
+.report td.w{white-space:nowrap;width:1%}
+@media(max-width:820px){.stage{display:block}.phone,.notes{width:100%;max-width:352px;margin:0 auto 24px}}
+</style></head><body>
+
+<h1 class="pt">Fraction levels</h1>
+<p class="ps">Nine levels, each split into ordered sub-steps. The gate is the prerequisite, never the stars.</p>
+
+<div class="rig">
+  <label>Level <select id="lvSel"></select></label>
+  <button id="pass" type="button">Pass this level</button>
+  <button id="unpass" type="button">Un-pass it</button>
+  <button id="reset" type="button">Reset to level 1</button>
+  <label>Learner <select id="who"><option value="A">Chanda</option><option value="B">Mwansa</option></select></label>
+  <span class="sep"></span>
+  <span class="chk" id="checks">self-checks: …</span>
+</div>
+
+<div class="stage">
+
+<div class="phone">
+  <div class="top"><button class="back" type="button">‹</button><div class="ttl">Fractions</div><div class="chip" id="chip">—</div></div>
+  <div class="body" id="ladder"></div>
+</div>
+
+<div class="phone">
+  <div class="top"><button class="back" type="button">‹</button><div class="ttl" id="lvTtl">Level</div><div class="chip" id="chip2">—</div></div>
+  <div class="body" id="inside"></div>
+</div>
+
+<div class="notes">
+  <div class="note warn"><h3>Two rungs added to the requested list, and each is load-bearing</h3><b>Multiplying</b> has to sit before dividing, because dividing fractions <i>is</i> multiplying by the flipped one — teaching division first teaches a rule with nothing under it. <b>Fractions, decimals &amp; percentages</b> exists because ECZ papers move between the three constantly, and a learner who has only met fractions freezes when the same amount turns up as 0.5 or 50%.</div>
+  <div class="note"><h3>And one rung earlier than you would think</h3><b>Equal fractions</b> has to come before adding. You cannot add <span class="fr"><span class="n">1</span><span class="d">2</span></span> + <span class="fr"><span class="n">1</span><span class="d">4</span></span> without first knowing <span class="fr"><span class="n">1</span><span class="d">2</span></span> = <span class="fr"><span class="n">2</span><span class="d">4</span></span>. Skip it and level 4 stops being a step and becomes a wall. Un-pass level 2 in the rig and watch level 4 shut.</div>
+  <div class="note warn"><h3>No level is skippable, and the reason is still declared</h3>A level opens when the level <b>before it</b> is passed <i>and</i> every level it names in <code>prereq[]</code> is. The sequence is what stops a learner jumping ahead — un-pass a middle level in the rig and everything above it shuts, in order. The declared list is what lets a lock say <i>why</i> rather than only "it is next": level 4 cites equal fractions, level 7 cites multiplying, level 9 cites all four operations. Both halves are checked below, including one that passes <b>every other level</b> and confirms each one still refuses to open without its own predecessor.</div>
+  <div class="note"><h3>Stars never gate anything</h3>A level opens when its prerequisites are passed. Three stars are a reason to feel good, not a toll — a child who scrapes a pass still moves on, and a locked level always <b>names the level that unlocks it</b> rather than showing a padlock and nothing else.</div>
+  <div class="note"><h3>Each level splits into ordered sub-steps</h3>"Adding fractions" is not one skill — it is five, and the order <i>is</i> the teaching: same bottom, one bottom fits the other, no common bottom, answers over one, then a word problem. Smallest jump first, one new difficulty per sub-step. Sequencing this is the difference between a child climbing and a child stuck.</div>
+  <div class="note"><h3>Level 9 is the capstone, not the introduction</h3>Word problems ask a learner to do two things at once — decide which operation, then perform it. It goes last, once the operations are automatic, and it is the only level whose prerequisites are <i>all four operations plus level 8</i>. Kwacha, mealie meal, chitenge and time, so the story is one they recognise.</div>
+  <div class="note"><h3>Every stage mixes new work with the learner's own misses</h3><code>composeStage()</code> is a pure function of (level, sub-step, the learner's tricky pool, stage number, learner salt). It draws review items that are DUE and never lets them take more than half a stage — so no two children walk the same path, and switching learner in the rig genuinely reshuffles both halves.</div>
+  <div class="note"><h3>The level definition is data, not code</h3><code>level { id, order, name, blurb, exampleExpr, prereq[], subSteps[] }</code> and <code>subStep { order, name, hint, questionBand, stageRange }</code>. Nothing in the engine below is fraction-specific — decimals, ratio and geometry get their own file of the same shape.</div>
+</div>
+</div>
+
+<div class="report" id="report"></div>
+
+<script>
+const $=i=>document.getElementById(i);
+function Frac(n,d){return '<span class="fr"><span class="n">'+n+'</span><span class="d">'+d+'</span></span>';}
+
+/* ============================================================
+   LEVEL DEFINITIONS — data. The engine below knows nothing about
+   fractions; another topic ships another file of this shape.
+   ============================================================ */
+const LEVELS=[
+{id:'basics',order:1,group:'Understanding them',name:'What a fraction is',
+ blurb:'Parts of a whole. What the top and bottom each mean.',exampleExpr:Frac(3,4)+' of a bun',prereq:[],
+ subSteps:[
+  {order:1,name:'Equal parts',hint:'Two pieces are only halves if they are the same size',questionBand:'recognise',stageRange:[1,2]},
+  {order:2,name:'Naming them in words',hint:'One half, one third, one quarter — before any symbol',questionBand:'recognise',stageRange:[3,4]},
+  {order:3,name:'What the top and bottom mean',hint:'Bottom is how many pieces, top is how many taken',questionBand:'recognise',stageRange:[5,6]},
+  {order:4,name:'The same fraction, a different shape',hint:'Circles, bars and strips',questionBand:'recognise',stageRange:[7,8]},
+  {order:5,name:'A fraction of a group',hint:'6 oranges, 3 taken',questionBand:'apply',stageRange:[9,9]}]},
+
+{id:'equal',order:2,group:'Understanding them',name:'Equal fractions & simplifying',
+ blurb:'The same amount written different ways.',exampleExpr:Frac(2,4)+' = '+Frac(1,2),prereq:['basics'],
+ subSteps:[
+  {order:1,name:'Same amount, different name',hint:'Shown on a bar before it is shown as numbers',questionBand:'recognise',stageRange:[1,3]},
+  {order:2,name:'Making a fraction bigger',hint:'Times the top and the bottom by the same number',questionBand:'fluency',stageRange:[4,5]},
+  {order:3,name:'Making a fraction simpler',hint:'Divide the top and the bottom by the same number',questionBand:'fluency',stageRange:[6,8]},
+  {order:4,name:'Lowest terms',hint:'When there is nothing left to divide by',questionBand:'fluency',stageRange:[9,10]}]},
+
+{id:'compare',order:3,group:'Understanding them',name:'Which one is bigger?',
+ blurb:'Comparing and putting them in order.',exampleExpr:Frac(2,3)+' &gt; '+Frac(1,2),prereq:['equal'],
+ subSteps:[
+  {order:1,name:'Same bottom',hint:'Bigger top wins',questionBand:'fluency',stageRange:[1,2]},
+  {order:2,name:'Same top',hint:'More pieces means smaller pieces',questionBand:'reasoning',stageRange:[3,4]},
+  {order:3,name:'Compare against a half',hint:'Is it more or less than half?',questionBand:'reasoning',stageRange:[5,6]},
+  {order:4,name:'Put a list in order',hint:'Make the bottoms match first',questionBand:'apply',stageRange:[7,8]}]},
+
+{id:'add',order:4,group:'Working with them',name:'Adding fractions',
+ blurb:'Same bottoms first, then different bottoms.',exampleExpr:Frac(1,2)+' + '+Frac(1,4),prereq:['equal'],
+ subSteps:[
+  {order:1,name:'Same bottom',hint:'Just add the tops',questionBand:'fluency',stageRange:[1,3]},
+  {order:2,name:'One bottom fits into the other',hint:'Change one of them',questionBand:'fluency',stageRange:[4,6]},
+  {order:3,name:'The bottoms do not match at all',hint:'Find a common bottom',questionBand:'reasoning',stageRange:[7,9]},
+  {order:4,name:'Answers bigger than one',hint:'Turn it into a mixed number',questionBand:'reasoning',stageRange:[10,11]},
+  {order:5,name:'Adding inside a story',hint:'One word problem to finish',questionBand:'apply',stageRange:[12,12]}]},
+
+{id:'sub',order:5,group:'Working with them',name:'Taking fractions away',
+ blurb:'Including taking one from a whole.',exampleExpr:'1 − '+Frac(1,3),prereq:['add'],
+ subSteps:[
+  {order:1,name:'Same bottom',hint:'Just take the tops away',questionBand:'fluency',stageRange:[1,3]},
+  {order:2,name:'One bottom fits into the other',hint:'Change one of them first',questionBand:'fluency',stageRange:[4,6]},
+  {order:3,name:'The bottoms do not match',hint:'Find a common bottom',questionBand:'reasoning',stageRange:[7,8]},
+  {order:4,name:'Taking one from a whole',hint:'Turn the 1 into pieces first',questionBand:'reasoning',stageRange:[9,10]},
+  {order:5,name:'Taking away inside a story',hint:'What is left of the mealie meal?',questionBand:'apply',stageRange:[11,11]}]},
+
+{id:'mult',order:6,group:'Working with them',name:'Multiplying fractions',
+ blurb:'"Of" means times. Needed before you can divide.',exampleExpr:Frac(2,3)+' × '+Frac(3,4),prereq:['equal'],
+ subSteps:[
+  {order:1,name:'"Of" means times',hint:'Half of 8 is the same as a half times 8',questionBand:'recognise',stageRange:[1,3]},
+  {order:2,name:'A fraction times a fraction',hint:'Tops together, bottoms together',questionBand:'fluency',stageRange:[4,6]},
+  {order:3,name:'Simplify before you multiply',hint:'Smaller numbers, same answer',questionBand:'fluency',stageRange:[7,8]},
+  {order:4,name:'A whole number times a fraction',hint:'The whole number is over 1',questionBand:'apply',stageRange:[9,10]}]},
+
+{id:'div',order:7,group:'Working with them',name:'Dividing fractions',
+ blurb:'Turn the second one upside down and multiply.',exampleExpr:Frac(1,2)+' ÷ '+Frac(1,4),prereq:['mult'],
+ subSteps:[
+  {order:1,name:'How many quarters fit in a half?',hint:'Answered with a picture before a rule',questionBand:'recognise',stageRange:[1,3]},
+  {order:2,name:'Dividing by a whole number',hint:'Sharing a fraction out',questionBand:'fluency',stageRange:[4,5]},
+  {order:3,name:'Flip the second one and multiply',hint:'Now the rule, on top of the picture',questionBand:'fluency',stageRange:[6,8]},
+  {order:4,name:'Sharing inside a story',hint:'How many half-cups from three cups?',questionBand:'apply',stageRange:[9,9]}]},
+
+{id:'fdp',order:8,group:'Using them',name:'Fractions, decimals & percentages',
+ blurb:'The same amount, three ways. Heavy in ECZ papers.',exampleExpr:Frac(1,2)+' = 0.5 = 50%',prereq:['equal'],
+ subSteps:[
+  {order:1,name:'Tenths and hundredths as decimals',hint:'The place value is the bottom',questionBand:'recognise',stageRange:[1,3]},
+  {order:2,name:'Fraction to decimal',hint:'Top divided by bottom',questionBand:'fluency',stageRange:[4,5]},
+  {order:3,name:'Fraction to percentage',hint:'Out of a hundred',questionBand:'fluency',stageRange:[6,7]},
+  {order:4,name:'The ones worth knowing by heart',hint:'A half, a quarter, three quarters, a tenth',questionBand:'fluency',stageRange:[8,8]},
+  {order:5,name:'Putting all three in order',hint:'0.4, 45%, three eighths — smallest first',questionBand:'reasoning',stageRange:[9,10]}]},
+
+{id:'real',order:9,group:'Using them',name:'Fractions in real life',
+ blurb:'Word problems — mealie meal, kwacha, chitenge, time.',exampleExpr:Frac(3,4)+' of K180',
+ prereq:['add','sub','mult','div','fdp'],
+ subSteps:[
+  {order:1,name:'Which operation is this?',hint:'Deciding, before doing',questionBand:'reasoning',stageRange:[1,3]},
+  {order:2,name:'Money — kwacha and ngwee',hint:'Fractions of a price',questionBand:'apply',stageRange:[4,5]},
+  {order:3,name:'Mealie meal, chitenge, cooking',hint:'Fractions of a measure',questionBand:'apply',stageRange:[6,8]},
+  {order:4,name:'Time and distance',hint:'Three quarters of an hour to Kabwe',questionBand:'apply',stageRange:[9,10]},
+  {order:5,name:'Two-step problems',hint:'Two operations in one story',questionBand:'reasoning',stageRange:[11,12]}]}
+];
+const BY_ID={};LEVELS.forEach(function(l){BY_ID[l.id]=l;});
+function stageCount(l){return l.subSteps.reduce(function(m,s){return Math.max(m,s.stageRange[1]);},0);}
+const TOTAL_STAGES=LEVELS.reduce(function(a,l){return a+stageCount(l);},0);
+
+/* ============================================================
+   THE ENGINE — nothing below knows what a fraction is
+   ============================================================ */
+/* A level opens when the level BEFORE it is passed and every level it
+   declares a dependency on is passed. The sequence is what stops a level
+   being skipped; the declared prereq[] is what lets a lock say WHY rather
+   than only "it is next". Stars are never consulted by either half. */
+function levelState(id,passed){
+  if(passed.indexOf(id)>=0)return{state:'done',blockers:[]};
+  const lvl=BY_ID[id];
+  const prev=LEVELS.find(function(l){return l.order===lvl.order-1;});
+  const blockers=[];
+  if(prev&&passed.indexOf(prev.id)<0)blockers.push(prev.id);
+  lvl.prereq.forEach(function(p){
+    if(passed.indexOf(p)<0&&blockers.indexOf(p)<0)blockers.push(p);
+  });
+  /* earliest first, so the lock names the next thing to do rather than the furthest */
+  blockers.sort(function(a,b){return BY_ID[a].order-BY_ID[b].order;});
+  return{state:blockers.length?'locked':'open',blockers:blockers};
+}
+function isOpen(id,passed){return levelState(id,passed).state!=='locked';}
+function blockerText(ids){
+  const names=ids.map(function(i){return 'Level '+BY_ID[i].order+' — '+BY_ID[i].name;});
+  if(names.length===1)return names[0];
+  return names.slice(0,-1).join(', ')+' and '+names[names.length-1];
+}
+function subStepForStage(level,stage){
+  return level.subSteps.find(function(s){return stage>=s.stageRange[0]&&stage<=s.stageRange[1];})||level.subSteps[0];
+}
+
+/* deterministic per-learner shuffle — same inputs, same stage, always */
+function hash(str){let h=2166136261;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+
+/* composeStage — new work plus the learner's OWN misses, capped at half the stage */
+const STAGE_SIZE=8,REVIEW_CAP=3;
+function composeStage(level,stage,pool,salt){
+  const sub=subStepForStage(level,stage);
+  const openOrders=LEVELS.filter(function(l){return l.order<=level.order;}).map(function(l){return l.id;});
+  const due=pool
+    .filter(function(p){return openOrders.indexOf(p.fromLevel)>=0&&p.dueStage<=stage;})
+    .sort(function(a,b){return(a.dueStage-b.dueStage)||(hash(salt+a.id)-hash(salt+b.id));});
+  const take=Math.min(REVIEW_CAP,Math.floor(STAGE_SIZE/2),due.length);
+  const review=due.slice(0,take).map(function(p){return{kind:'review',label:p.label,display:p.display||p.label,from:p.fromLevel};});
+  const fresh=[];
+  for(let k=0;k<STAGE_SIZE-review.length;k++){
+    const n=(hash(salt+level.id+':'+stage+':'+k)%9)+1;
+    const lab=sub.name+' · item '+n;
+    fresh.push({kind:'new',label:lab,display:lab,from:level.id,band:sub.questionBand});
+  }
+  /* interleave so review items are not all at the front */
+  const out=[];let ri=0,fi=0;
+  for(let k=0;k<STAGE_SIZE;k++){
+    const wantReview=ri<review.length&&(k%3===1||fi>=fresh.length);
+    out.push(wantReview?review[ri++]:fresh[fi++]);
+  }
+  return{stage:stage,subStep:sub,items:out,reviewCount:review.length};
+}
+
+/* ============================================================
+   THE LEARNER'S TRICKY POOL — their own missed questions
+   ============================================================ */
+/* label is plain text (logs, reports, read-aloud); display is the rendered form */
+const POOLS={
+ A:[{id:'p1',label:'Simplify six eighths',display:'Simplify '+Frac(6,8),fromLevel:'equal',dueStage:2},
+    {id:'p2',label:'Two quarters and one half — same or not?',display:Frac(2,4)+' and '+Frac(1,2)+' — same or not?',fromLevel:'equal',dueStage:4},
+    {id:'p3',label:'Bigger: three fifths or one half?',display:'Bigger: '+Frac(3,5)+' or '+Frac(1,2)+'?',fromLevel:'compare',dueStage:5},
+    {id:'p4',label:'Equal parts — which one is halves?',display:'Equal parts — which one is halves?',fromLevel:'basics',dueStage:1}],
+ B:[{id:'q1',label:'Name one third in words',display:'Name '+Frac(1,3)+' in words',fromLevel:'basics',dueStage:3},
+    {id:'q2',label:'Make one half into quarters',display:'Make '+Frac(1,2)+' into quarters',fromLevel:'equal',dueStage:2},
+    {id:'q3',label:'Lowest terms of nine twelfths',display:'Lowest terms of '+Frac(9,12),fromLevel:'equal',dueStage:6}]
+};
+
+/* ============================================================
+   UI
+   ============================================================ */
+let passed=['basics','equal','compare'],current='add',who='A';
+
+function stars(id){
+  const st=levelState(id,passed);
+  if(st.state!=='done')return '';
+  const n=(hash(id+who)%3)+1;
+  return '<div class="st">'+'★'.repeat(n)+'<span class="off">'+'★'.repeat(3-n)+'</span></div>';
+}
+function ladder(){
+  let out='',group='';
+  let earned=0;
+  LEVELS.forEach(function(l){
+    if(levelState(l.id,passed).state==='done')earned+=((hash(l.id+who)%3)+1);
+  });
+  $('chip').textContent='⭐ '+earned+' / '+(LEVELS.length*3);
+  LEVELS.forEach(function(l){
+    if(l.group!==group){group=l.group;out+='<div class="sec">'+group+'</div>';}
+    const st=levelState(l.id,passed);
+    const cls=st.state==='done'?'b-done':(st.state==='locked'?'b-lock':'b-now');
+    out+='<button class="lv '+(st.state==='locked'?'lock ':'')+(l.id===current?'cur':'')+'" type="button" onclick="pick(\''+l.id+'\')">'+
+      '<div class="badge '+cls+'">'+(st.state==='done'?'✓':l.order)+'</div>'+
+      '<div><div class="nm">'+l.name+'</div><div class="ds">'+l.blurb+'</div>'+
+      '<div class="ex">'+l.exampleExpr+'</div></div>'+
+      '<div class="rt">'+stars(l.id)+'<div class="cnt">'+stageCount(l)+' stages</div></div></button>';
+    if(st.state==='locked')out+='<div class="gate">🔒 Locked until you pass '+blockerText(st.blockers)+'</div>';
+  });
+  out+='<div class="sec">'+TOTAL_STAGES+' stages across the nine levels</div>';
+  $('ladder').innerHTML=out;
+}
+function pick(id){current=id;$('lvSel').value=id;draw();}
+
+function inside(){
+  const l=BY_ID[current],st=levelState(current,passed),pool=POOLS[who];
+  $('lvTtl').textContent='Level '+l.order;
+  if(st.state==='locked'){
+    $('chip2').textContent='🔒 locked';
+    $('inside').innerHTML='<div class="card" style="text-align:center;padding:28px 18px">'+
+      '<div style="font-size:38px">🔒</div><div class="h2" style="margin-top:8px">'+l.name+'</div>'+
+      '<div class="sub">This one opens when you pass<br><b style="color:var(--ink)">'+blockerText(st.blockers)+'</b>.</div>'+
+      '<div class="sub" style="margin-top:10px">Stars do not open it. Passing does.</div>'+
+      '<button class="btn btn-coral" type="button" onclick="pick(\''+st.blockers[0]+'\')">Go to '+BY_ID[st.blockers[0]].name+' →</button></div>';
+    return;
+  }
+  /* where the learner is: first stage of the first unfinished sub-step */
+  const doneStages=st.state==='done'?stageCount(l):Math.min(4,stageCount(l));
+  const nextStage=Math.min(doneStages+ (st.state==='done'?0:0), stageCount(l));
+  const at=st.state==='done'?stageCount(l):doneStages;
+  const plan=composeStage(l,Math.max(1,at),pool,who);
+  $('chip2').textContent='⭐ '+(st.state==='done'?'passed':'in progress');
+
+  let subs='';
+  l.subSteps.forEach(function(s){
+    const state=s.stageRange[1]<at?'d':(at>=s.stageRange[0]?'n':'l');
+    subs+='<div class="sub2"><div class="sd '+state+'">'+(state==='d'?'✓':s.stageRange[0])+'</div>'+
+      '<div><div class="sn">'+s.name+'</div><div class="sx">Stage'+(s.stageRange[0]===s.stageRange[1]?' '+s.stageRange[0]:'s '+s.stageRange[0]+'–'+s.stageRange[1])+
+      ' · '+s.hint+'</div></div><div class="se">'+s.questionBand+'</div></div>';
+  });
+
+  $('inside').innerHTML=
+   '<div class="card"><div class="h2">'+l.name+'</div>'+
+     '<div class="sub">'+stageCount(l)+' stages, '+l.subSteps.length+' sub-steps. '+l.blurb+'</div>'+
+     '<div class="bar"><i style="width:'+Math.round(at/stageCount(l)*100)+'%"></i></div></div>'+
+   '<div class="card">'+subs+'</div>'+
+   '<div class="card" style="background:var(--warn-soft);border:1px solid #f2dcb4">'+
+     '<div style="font-weight:800;font-size:13px;color:var(--warn);margin-bottom:4px">📌 Stage '+plan.stage+' is '+
+     (plan.reviewCount?plan.reviewCount+' of your own tricky ones plus '+(8-plan.reviewCount)+' new':'8 new — nothing of yours is due yet')+'</div>'+
+     '<div class="mix">'+plan.items.map(function(it){
+        return '<span class="pi '+(it.kind==='review'?'rev':'new')+'">'+(it.kind==='review'?'↺ ':'')+it.display+'</span>';}).join('')+'</div>'+
+   '</div>'+
+   '<button class="btn btn-coral" type="button">Continue stage '+plan.stage+'</button>';
+}
+function draw(){ladder();inside();report();}
+
+/* ============================================================
+   SELF-CHECKS + STAGE COMPOSITION DUMP
+   ============================================================ */
+function selfChecks(){
+  const out=[];
+  function t(name,ok){out.push({name:name,ok:!!ok});}
+  t('all nine levels declared',LEVELS.length===9);
+  t('every level lists its sub-steps in order',LEVELS.every(function(l){
+    return l.subSteps.length>0&&l.subSteps.every(function(s,i){return s.order===i+1;});}));
+  t('sub-step stage ranges are contiguous and start at 1',LEVELS.every(function(l){
+    let n=1;return l.subSteps.every(function(s){const ok=s.stageRange[0]===n;n=s.stageRange[1]+1;return ok;});}));
+  /* every level except the first, with EVERY other level passed but its own
+     predecessor missing — if any of these opens, that level is skippable */
+  const skippable=LEVELS.slice(1).filter(function(l){
+    const prev=LEVELS[l.order-2];
+    const allButPrev=LEVELS.filter(function(x){return x.id!==l.id&&x.id!==prev.id;}).map(function(x){return x.id;});
+    return levelState(l.id,allButPrev).state!=='locked';
+  });
+  t('no level can be skipped — each one needs the level before it',skippable.length===0,
+    skippable.length?skippable.map(function(l){return 'level '+l.order;}).join(', '):'checked all '+(LEVELS.length-1));
+  t('walking the ladder in order opens each level in turn',(function(){
+    const done=[];
+    return LEVELS.every(function(l){
+      const ok=levelState(l.id,done.slice()).state==='open';done.push(l.id);return ok;});
+  })());
+  t('level 4 is locked while level 2 is unpassed',levelState('add',['basics']).state==='locked');
+  t('level 4 stays locked even with every OTHER level passed',
+    levelState('add',LEVELS.filter(function(l){return l.id!=='equal'&&l.id!=='add';}).map(function(l){return l.id;})).state==='locked');
+  t('level 4 opens once levels 1 to 3 are passed',levelState('add',['basics','equal','compare']).state==='open');
+  t('level 7 is locked while level 6 is unpassed',
+    levelState('div',LEVELS.filter(function(l){return l.id!=='mult'&&l.id!=='div';}).map(function(l){return l.id;})).state==='locked');
+  t('level 7 opens once levels 1 to 6 are passed',
+    levelState('div',['basics','equal','compare','add','sub','mult']).state==='open');
+  t('level 9 needs all four operations and level 8',
+    levelState('real',['basics','equal','compare','add','sub','mult','div']).state==='locked'&&
+    levelState('real',['basics','equal','compare','add','sub','mult','div','fdp']).state==='open');
+  t('a locked level always names at least one blocker',LEVELS.every(function(l){
+    const s=levelState(l.id,[]);return s.state!=='locked'||s.blockers.length>0;}));
+  t('stars are never read by the gate',levelState('add',['basics','equal','compare']).state==='open');
+  t('review items never take more than half a stage',(function(){
+    const fat=[];for(let i=0;i<20;i++)fat.push({id:'x'+i,label:'x'+i,fromLevel:'equal',dueStage:1});
+    return composeStage(BY_ID['add'],9,fat,'A').reviewCount<=STAGE_SIZE/2;})());
+  t('a stage always holds exactly '+STAGE_SIZE+' items',
+    composeStage(BY_ID['add'],5,POOLS.A,'A').items.length===STAGE_SIZE);
+  t('two learners get different stages for the same number',(function(){
+    const a=composeStage(BY_ID['add'],5,POOLS.A,'A').items.map(function(i){return i.label;}).join('|');
+    const b=composeStage(BY_ID['add'],5,POOLS.B,'B').items.map(function(i){return i.label;}).join('|');
+    return a!==b;})());
+  t('the same learner gets the same stage twice',(function(){
+    const a=composeStage(BY_ID['add'],5,POOLS.A,'A').items.map(function(i){return i.label;}).join('|');
+    const b=composeStage(BY_ID['add'],5,POOLS.A,'A').items.map(function(i){return i.label;}).join('|');
+    return a===b;})());
+  return out;
+}
+function report(){
+  const checks=selfChecks(),bad=checks.filter(function(c){return !c.ok;});
+  $('checks').className='chk'+(bad.length?' bad':'');
+  $('checks').textContent='self-checks: '+(checks.length-bad.length)+'/'+checks.length+(bad.length?' ✗':' ✓');
+
+  const l=BY_ID[current],pool=POOLS[who];
+  let mix='';
+  for(let s=1;s<=Math.min(6,stageCount(l));s++){
+    const p=composeStage(l,s,pool,who);
+    mix+='<tr><td class="w d">stage '+s+'</td><td class="w a">'+p.subStep.name+'</td>'+
+      '<td>'+p.items.map(function(it){
+        return it.kind==='review'
+          ? '<span class="a">↺ '+it.label+'</span>'
+          : '<span class="d">'+it.label+'</span>';}).join(' · ')+'</td></tr>';
+  }
+  $('report').innerHTML=
+   '<h3>What the engine actually enforces</h3>'+
+   '<p class="lead">These run on every render against the level data above. A rule stated in a note and not checked here is a claim, not a guarantee.</p>'+
+   '<table>'+checks.map(function(c){
+     return '<tr><td class="w '+(c.ok?'g':'r')+'">'+(c.ok?'PASS':'FAIL')+'</td><td>'+c.name+'</td></tr>';}).join('')+'</table>'+
+   '<h4>Stage composition — '+l.name+', learner '+(who==='A'?'Chanda':'Mwansa')+'</h4>'+
+   '<p class="lead"><span class="a">↺ amber</span> is one of this learner\'s own missed questions coming back; grey is new work. '+
+   'Switch learner in the rig — the pool changes, so the stages do.</p>'+
+   '<table>'+mix+'</table>';
+}
+
+/* boot */
+$('lvSel').innerHTML=LEVELS.map(function(l){return '<option value="'+l.id+'">'+l.order+' — '+l.name.replace(/&amp;/g,'&')+'</option>';}).join('');
+$('lvSel').value=current;
+$('lvSel').onchange=function(){current=this.value;draw();};
+$('who').onchange=function(){who=this.value;draw();};
+$('pass').onclick=function(){if(passed.indexOf(current)<0)passed.push(current);draw();};
+$('unpass').onclick=function(){passed=passed.filter(function(p){return p!==current;});draw();};
+$('reset').onclick=function(){passed=['basics'];current='equal';$('lvSel').value='equal';draw();};
+draw();
+</script>
+</body></html>

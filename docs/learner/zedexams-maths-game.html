@@ -1,0 +1,645 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ZedExams — maths game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--ind:#5b5bd6;--ind-soft:#ececfb;--ink:#1c2333;--muted:#6b7392;--bg:#eef0fb;
+--coral:#ff7a4d;--coral-2:#f4592c;--ok:#1faa6c;--ok-soft:#eaf7f0;--gold:#f5b820;
+--danger:#d93a3a;--danger-soft:#fdeceb;--warn:#9a6412;--warn-soft:#fff5e6;--line:#e6e8f5;--r:18px;
+--org:#f79020;--org-d:#d96f06;--org-l:#ffe2bd}
+*{box-sizing:border-box}
+body{margin:0;background:#dfe3f5;font-family:Nunito,system-ui,sans-serif;color:var(--ink);padding:22px 14px 50px}
+h1.pt{text-align:center;margin:0 0 4px;font-size:25px}
+p.ps{text-align:center;color:#5a6180;margin:0 0 16px;font-size:13.5px}
+
+.rig{max-width:1160px;margin:0 auto 18px;background:#fff;border-radius:14px;padding:12px 15px;
+display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:#4b5270}
+.rig b{color:var(--ink)}
+.rig label{display:flex;gap:6px;align-items:center;font-weight:800}
+.rig select,.rig button{font:inherit;font-weight:800;font-size:12.5px;border-radius:9px;border:1.5px solid var(--line);
+background:#fff;color:var(--ind);padding:6px 10px;cursor:pointer}
+.rig .sep{flex:1}
+.rig .chk{background:var(--ok-soft);color:#12734a;border:1px solid #cfeadd;border-radius:999px;padding:4px 11px;font-weight:800}
+.rig .chk.bad{background:var(--danger-soft);color:#a02a2a;border-color:#f6d4d2}
+.rig .chk.idle{background:var(--bg);color:var(--muted);border-color:var(--line)}
+
+.stage{display:flex;gap:22px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+.phone{width:352px;height:748px;background:var(--bg);border-radius:34px;overflow:hidden;position:relative;
+box-shadow:0 14px 40px rgba(40,44,90,.22);border:7px solid #12142a;display:flex;flex-direction:column}
+.notes{width:352px}
+.note{background:#fff;border-radius:14px;padding:13px 15px;font-size:12.5px;line-height:1.6;color:#4b5270;border-left:4px solid var(--ind);margin-bottom:11px}
+.note b{color:var(--ink)} .note h3{margin:0 0 5px;font-size:13.5px;color:var(--ink)} .note.warn{border-left-color:#e0a020}
+.note code{background:#f2f3fb;border-radius:5px;padding:1px 5px;font-size:11.5px}
+.top{padding:12px 15px;display:flex;align-items:center;gap:9px;flex:0 0 auto}
+.back{width:30px;height:30px;border-radius:10px;background:#fff;border:1px solid var(--line);display:grid;place-items:center;color:var(--ind);font-size:15px;font-family:inherit}
+.dots{display:flex;gap:5px;flex:1}
+.dot{height:6px;flex:1;background:#dfe3f5;border-radius:99px}
+.dot.done{background:var(--ok)}.dot.now{background:var(--ind)}.dot.miss{background:#f0b4b1}
+.streak{font-size:12.5px;font-weight:800;color:var(--coral-2)}
+.top.plain{background:#fff;border-bottom:1px solid var(--line)}
+.ttl{font-weight:900;font-size:15.5px}
+.body{padding:6px 15px 16px;flex:1;overflow-y:auto}.body::-webkit-scrollbar{width:0}
+.notimer{background:var(--ok-soft);border:1px solid #cfeadd;border-radius:13px;padding:10px 12px;font-size:12px;color:#12734a;font-weight:700;margin-bottom:12px;line-height:1.5}
+.card{background:#fff;border-radius:var(--r);padding:16px;margin-bottom:12px}
+.kick{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-bottom:9px}
+.q{font-size:17.5px;font-weight:800;line-height:1.7}
+.tol{font-size:11.5px;color:var(--muted);font-weight:800;margin-top:9px}
+
+/* the one fraction renderer, em-sized so it scales with its sentence */
+.fr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;
+    font-size:.86em;line-height:1.04;margin:0 .18em;position:relative;top:-.09em}
+.fr .n{padding:0 .34em .04em}
+.fr .d{padding:.05em .34em 0;border-top:.11em solid currentColor}
+
+.model{margin:14px 0 2px;display:flex;justify-content:center}
+.modlab{text-align:center;font-size:11.5px;color:var(--muted);font-weight:700;margin-top:4px}
+.ans{background:#fff;border:2.5px solid var(--line);border-radius:15px;height:62px;display:flex;align-items:center;justify-content:center;
+font-size:29px;font-weight:900;letter-spacing:1px;margin-bottom:11px;color:var(--ink)}
+.ans.empty{color:#c3c8dd}
+.ans.good{border-color:var(--ok);background:var(--ok-soft);color:#12734a}
+.ans.bad{border-color:var(--danger);background:var(--danger-soft);color:#a02a2a}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.k{background:#fff;border:none;border-radius:13px;padding:15px 0;font:inherit;font-size:23px;font-weight:800;
+cursor:pointer;box-shadow:0 2px 0 #ccd2e6;color:var(--ink);min-height:48px}
+.k:active{transform:translateY(2px);box-shadow:none}
+.k.fn{font-size:16px;font-weight:800;background:#e7eaf6;color:var(--muted)}
+.opts{display:grid;gap:9px;margin-top:2px}
+.opt{background:#fff;border:2.5px solid var(--line);border-radius:15px;padding:15px;font:inherit;font-size:17px;
+font-weight:800;cursor:pointer;color:var(--ink);text-align:left;display:flex;gap:11px;align-items:center;min-height:48px}
+.opt .lt{width:26px;height:26px;border-radius:8px;background:var(--bg);color:var(--muted);display:grid;place-items:center;font-size:13px;flex:0 0 auto}
+.opt.ok{border-color:var(--ok);background:var(--ok-soft);color:#12734a}
+.opt.no{border-color:var(--danger);background:var(--danger-soft);color:#a02a2a}
+.btn{width:100%;padding:14px;border:none;border-radius:14px;font:inherit;font-weight:800;font-size:15.5px;cursor:pointer;margin-top:10px;min-height:48px}
+.btn-coral{background:linear-gradient(180deg,var(--coral),var(--coral-2));color:#fff}
+.btn-ghost{background:#fff;color:var(--ind);border:1.5px solid var(--line);font-size:14px;padding:12px}
+.btn[disabled]{background:#dfe2f0;color:#9aa1bd;box-shadow:none;cursor:default}
+.fb{border-radius:15px;padding:14px;margin-top:12px;font-size:13.5px;line-height:1.6}
+.fb.ok{background:var(--ok-soft);border:1px solid #cfeadd;color:#12734a}
+.fb.no{background:var(--danger-soft);border:1px solid #f6d4d2;color:#a02a2a}
+.fb .t{font-weight:900;font-size:15px;margin-bottom:4px}
+.fb .tagline{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;opacity:.7;margin-top:8px}
+.step{background:#fff;border-radius:14px;padding:13px 14px;margin-bottom:9px;border-left:4px solid var(--ind);opacity:.26;transition:opacity .25s}
+.step.on{opacity:1}
+.step .n{font-size:10.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.step .t{font-weight:800;font-size:14px;margin:2px 0 4px}
+.step .m{font-size:19px;font-weight:900;color:var(--ind);letter-spacing:.5px}
+.hookc{background:var(--gold);color:#fff;border-radius:14px;padding:12px 13px;font-size:13px;font-weight:800;line-height:1.5;margin-top:10px}
+.done{text-align:center;padding:16px 0 6px}
+.tickc{width:60px;height:60px;border-radius:50%;background:var(--ok-soft);color:var(--ok);display:grid;place-items:center;font-size:28px;margin:0 auto 10px}
+.wl{background:#fff;border-radius:var(--r);padding:14px;margin-bottom:11px;text-align:left}
+.wl h4{margin:0 0 7px;font-size:13px}
+.w{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px;font-weight:700;line-height:1.4}
+.w:last-child{border-bottom:none}
+.w em{margin-left:auto;font-style:normal;font-size:11px;color:var(--muted);font-weight:800;white-space:nowrap}
+.st{display:flex;gap:8px;margin:12px 0}
+.stx{flex:1;background:#fff;border-radius:12px;padding:10px 4px;text-align:center}
+.stx .n{font-size:18px;font-weight:900}.stx .l{font-size:10px;color:var(--muted);font-weight:700}
+
+/* chapter ladder */
+.ch{background:#fff;border-radius:15px;padding:12px 13px;margin-bottom:9px;display:flex;gap:11px;align-items:flex-start;
+border:none;width:100%;text-align:left;font:inherit;cursor:pointer}
+.ch.lock{opacity:.56;cursor:default}
+.ch.cur{outline:2.5px solid var(--ind)}
+.bdg{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-weight:900;font-size:14px;flex:0 0 auto;color:#fff}
+.b-done{background:var(--ok)}.b-now{background:linear-gradient(180deg,var(--coral),var(--coral-2))}.b-lock{background:#cfd4e8;color:#8f97b5}
+.ch .nm{font-weight:900;font-size:14px;line-height:1.25}
+.ch .ds{font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.45}
+.gate{font-size:10.5px;font-weight:800;color:var(--warn);background:var(--warn-soft);border:1px solid #f2dcb4;
+border-radius:9px;padding:5px 8px;margin:-4px 0 10px 49px;line-height:1.45}
+.sec{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:14px 0 9px}
+
+.report{max-width:1160px;margin:22px auto 0;background:#12142a;color:#c9d2ee;border-radius:16px;padding:16px 18px;
+font-size:12px;line-height:1.75;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.report h3{font-family:Nunito,sans-serif;color:#ffd25f;margin:0 0 4px;font-size:14.5px}
+.report p.lead{font-family:Nunito,sans-serif;color:#9aa6cf;margin:0 0 12px;font-size:12.5px;line-height:1.6}
+.report table{width:100%;border-collapse:collapse;font-size:11.5px}
+.report td{padding:5px 8px 5px 0;border-bottom:1px solid #23264a;vertical-align:top}
+.report td.w{white-space:nowrap;width:1%}
+.report .a{color:#ffc773}.report .d{color:#7d88b5}.report .g{color:#7fe0b0}
+@media(max-width:820px){.stage{display:block}.phone,.notes{width:100%;max-width:352px;margin:0 auto 24px}}
+</style></head><body>
+
+<h1 class="pt">Maths game</h1>
+<p class="ps">Type the answer. Get one wrong on purpose — the feedback names the mistake, not the mark.</p>
+
+<div class="rig">
+  <label>Chapter <select id="chap"></select></label>
+  <label>Mode
+    <select id="mode">
+      <option value="type" selected>Practice — type it</option>
+      <option value="exam">Exam style — A to D</option>
+    </select>
+  </label>
+  <button id="pass" type="button">Pass this chapter</button>
+  <button id="resetP" type="button">Reset progress</button>
+  <span class="sep"></span>
+  <span class="chk idle" id="rate">first-time correct: —</span>
+  <button id="clearLog" type="button">Clear the unlisted log</button>
+</div>
+
+<div class="stage">
+
+<div class="phone">
+  <div class="top"><button class="back" type="button">‹</button><div class="dots" id="dots"></div><div class="streak" id="streak">🔥 0</div></div>
+  <div class="body" id="scr"></div>
+</div>
+
+<div class="phone">
+  <div class="top plain"><button class="back" type="button">‹</button><div class="ttl">Maths chapters</div></div>
+  <div class="body" id="ladder"></div>
+</div>
+
+<div class="notes">
+  <div class="note warn"><h3>The wrong answer is the useful bit</h3>In maths, <i>which</i> wrong answer a child gives tells you the misconception. 320 for <span class="fr"><span class="n">3</span><span class="d">4</span></span> of 240 means they divided by 3 and multiplied by 4. So every question carries its known wrong answers mapped to what went wrong, and the feedback <b>names the mistake</b> instead of saying "incorrect". Type 320 and see.</div>
+  <div class="note"><h3>Type it, don't pick it</h3>A number pad, not A–D. Multiple choice lets a child guess right while understanding nothing, and it hides the misconception you want to catch. <b>Exam style</b> exists in the rig for paper familiarity — and note where its distractors come from: the same <code>traps</code> map. A child who picks the trap gets the same named explanation either way.</div>
+  <div class="note warn"><h3>Anything not in traps is logged, not shrugged at</h3>A generic "let's walk through it" is the fallback, never the plan. Every unlisted wrong answer lands in the log at the bottom of this page with a count against it. A value that keeps recurring is a misconception nobody wrote down yet — that log is how the trap lists get good, and reviewing it is a content job, not a code one.</div>
+  <div class="note"><h3>Show the working, then make them redo it</h3>Steps reveal one at a time, then the <i>same</i> question comes back with the steps hidden. Seeing a worked solution teaches far less than re-walking it. A learner who already spots their error can take <b>Skip — I see it</b> and lose nothing.</div>
+  <div class="note"><h3>One transferable line per question</h3>"Divide by the bottom, multiply by the top." "Perimeter is the walk around the edge; area is the grass inside." The rule is what carries to the next question — the answer doesn't. It is shown on a correct answer and again at the end of the working.</div>
+  <div class="note"><h3>A model wherever one exists</h3>Fraction bars, number lines, arrays and labelled shapes, all SVG. For Grades 4–7 the picture often <i>is</i> the explanation, so a question that has a model renders it in the stem, not in the answer.</div>
+  <div class="note"><h3>Chapters gate on the prerequisite</h3>The ladder is ordered by dependency, not by syllabus number: bonds and tables → the four operations → fractions → decimals and percentages → ratio → measurement → money → geometry → data → early algebra. A locked chapter <b>names its blocker</b>. Pick a locked one in the rig and the round refuses to start.</div>
+  <div class="note"><h3>No clock, anywhere</h3>Fluency is measured by streak and by first-time-correct rate — including on times tables. A countdown filters out exactly the learners who need the practice: slower readers, cheap phones with laggy touch, and anyone who stops to think.</div>
+</div>
+</div>
+
+<div class="report" id="report"></div>
+
+<script>
+const $=i=>document.getElementById(i);
+const LOGKEY='zedexams:proto:maths:unlisted';
+const PASSKEY='zedexams:proto:maths:passed';
+
+/* ---- the one fraction renderer (see zedexams-maths-notation.html) ---- */
+const UNIT={2:'half',3:'third',4:'quarter',5:'fifth',6:'sixth',8:'eighth',10:'tenth',100:'hundredth'};
+const ONES=['zero','one','two','three','four','five','six','seven','eight','nine','ten'];
+function fracWords(n,d){const u=UNIT[d]||(d+'th');const w=ONES[n]||n;return n===1?('one '+u):(w+' '+(u==='half'?'halves':u+'s'));}
+function Frac(n,d){return '<span class="fr" role="math" aria-label="'+fracWords(n,d)+'">'+
+  '<span class="n" aria-hidden="true">'+n+'</span><span class="d" aria-hidden="true">'+d+'</span></span>';}
+
+/* ============================================================
+   MODELS — every one is SVG so it scales and prints
+   ============================================================ */
+const OR='#f79020',PALE='#ffe2bd',INK='#1c2333',IND='#5b5bd6';
+function mFractionBar(p){
+  const w=250,h=52,sw=w/p.parts;let o='<svg width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="A bar in '+p.parts+' equal parts, '+p.shaded+' shaded">';
+  for(let i=0;i<p.parts;i++)o+='<rect x="'+(i*sw)+'" y="0" width="'+sw+'" height="'+h+'" rx="7" fill="'+(i<p.shaded?OR:PALE)+'" stroke="#fff" stroke-width="3"/>';
+  return o+'</svg>';
+}
+function mNumberLine(p){
+  const w=270,h=64,pad=16,span=p.to-p.from,x=v=>pad+(v-p.from)/span*(w-2*pad);
+  let o='<svg width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="A number line from '+p.from+' to '+p.to+'">';
+  o+='<line x1="'+pad+'" y1="34" x2="'+(w-pad)+'" y2="34" stroke="'+INK+'" stroke-width="2.5"/>';
+  for(let v=p.from;v<=p.to;v+=p.step){
+    o+='<line x1="'+x(v)+'" y1="28" x2="'+x(v)+'" y2="40" stroke="'+INK+'" stroke-width="2"/>';
+    o+='<text x="'+x(v)+'" y="55" font-size="10" font-weight="800" fill="#6b7392" text-anchor="middle">'+v+'</text>';
+  }
+  (p.hops||[]).forEach(function(hp){
+    const a=x(hp[0]),b=x(hp[1]),mid=(a+b)/2;
+    o+='<path d="M'+a+',26 Q'+mid+',2 '+b+',26" fill="none" stroke="'+IND+'" stroke-width="2.5"/>';
+    o+='<text x="'+mid+'" y="14" font-size="10.5" font-weight="900" fill="'+IND+'" text-anchor="middle">'+(hp[2]||'')+'</text>';
+  });
+  return o+'</svg>';
+}
+function mArray(p){
+  const s=17,g=4,w=p.cols*(s+g),h=p.rows*(s+g);
+  let o='<svg width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="'+p.rows+' rows of '+p.cols+'">';
+  for(let r=0;r<p.rows;r++)for(let c=0;c<p.cols;c++)
+    o+='<circle cx="'+(c*(s+g)+s/2)+'" cy="'+(r*(s+g)+s/2)+'" r="'+(s/2-1)+'" fill="'+OR+'"/>';
+  return o+'</svg>';
+}
+function mShape(p){
+  const W=250,H=118,mx=34,my=24,w=W-2*mx,h=H-2*my;
+  return '<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="A rectangle '+p.w+' by '+p.h+' '+(p.unit||'')+'">'+
+   '<rect x="'+mx+'" y="'+my+'" width="'+w+'" height="'+h+'" rx="4" fill="'+PALE+'" stroke="'+OR+'" stroke-width="3"/>'+
+   '<text x="'+(mx+w/2)+'" y="'+(my-8)+'" font-size="12.5" font-weight="900" fill="#1c2333" text-anchor="middle">'+p.w+' '+(p.unit||'')+'</text>'+
+   '<text x="'+(mx-10)+'" y="'+(my+h/2+4)+'" font-size="12.5" font-weight="900" fill="#1c2333" text-anchor="end">'+p.h+' '+(p.unit||'')+'</text>'+
+   '</svg>';
+}
+const MODELS={fractionBar:mFractionBar,numberLine:mNumberLine,array:mArray,shape:mShape};
+function renderModel(m){
+  if(!m||!MODELS[m.type])return '';
+  return '<div class="model">'+MODELS[m.type](m.params)+'</div>'+(m.caption?'<div class="modlab">'+m.caption+'</div>':'');
+}
+
+/* ============================================================
+   CHAPTERS — ordered by dependency, not by syllabus number
+   ============================================================ */
+const CHAPTERS=[
+ {id:'bonds',   name:'Number bonds & tables',      blurb:'Everything below is built on these.',      prereq:[]},
+ {id:'fourops', name:'The four operations',        blurb:'Add, take away, times, share.',            prereq:['bonds']},
+ {id:'fract',   name:'Fractions',                  blurb:'Parts of a whole, and of a group.',        prereq:['fourops']},
+ {id:'decpct',  name:'Decimals & percentages',     blurb:'The same amount, written three ways.',     prereq:['fract']},
+ {id:'ratio',   name:'Ratio & proportion',         blurb:'Sharing in parts.',                        prereq:['fract']},
+ {id:'measure', name:'Measurement',                blurb:'Length, mass, capacity, time.',            prereq:['fourops']},
+ {id:'money',   name:'Money',                      blurb:'Kwacha and ngwee, change, budgets.',       prereq:['fourops','decpct']},
+ {id:'geom',    name:'Geometry — perimeter, area, volume', blurb:'Measuring shapes.',                prereq:['measure']},
+ {id:'data',    name:'Data handling',              blurb:'Tables, charts, mean.',                    prereq:['fourops']},
+ {id:'algebra', name:'Early algebra',              blurb:'Letters standing in for numbers.',         prereq:['fourops','fract']}
+];
+/* pure: a chapter opens when EVERY prerequisite is passed. Stars are never consulted. */
+function chapterState(id,passed){
+  if(passed.indexOf(id)>=0)return{state:'done',blockers:[]};
+  const ch=CHAPTERS.find(c=>c.id===id);
+  const blockers=ch.prereq.filter(p=>passed.indexOf(p)<0);
+  return{state:blockers.length?'locked':'open',blockers:blockers};
+}
+function blockerNames(ids){return ids.map(function(i){return CHAPTERS.find(c=>c.id===i).name;}).join(' and ');}
+
+/* ============================================================
+   QUESTIONS
+   text, answer, unit?, tolerance?, formMatters?, band, grade, topic,
+   steps[], rule, traps{}, model?
+   ============================================================ */
+const QS=[
+ {id:'b1',chapter:'bonds',grade:4,band:'fluency',topic:'multiplication tables',
+  text:'8 &times; 7',answer:56,
+  model:{type:'array',params:{rows:8,cols:7},caption:'8 rows of 7'},
+  steps:[{t:'Start from a table you know',m:'8 × 5 = 40'},{t:'Two more eights',m:'40 + 8 + 8 = 56'}],
+  rule:'If a table slips, build it from one you already own.',
+  traps:{'15':'You added instead of timesing. 8 + 7 is 15; 8 × 7 is eight sevens.',
+         '49':'That is 7 × 7. Count one more seven.',
+         '54':'Close — that is 6 more than 48, but 8 × 7 is 56.',
+         '63':'That is 9 × 7. One seven too many.'}},
+
+ {id:'f1',chapter:'fourops',grade:4,band:'application',topic:'addition',
+  text:'A minibus drives 38 km from Lusaka to Chongwe, then another 27 km. How far has it gone altogether, in kilometres?',
+  answer:65,unit:'km',
+  model:{type:'numberLine',params:{from:0,to:80,step:10,hops:[[0,38,'38'],[38,65,'+27']]},caption:'Two hops along the road'},
+  steps:[{t:'Add the tens',m:'30 + 20 = 50'},{t:'Add the ones',m:'8 + 7 = 15'},{t:'Put them together',m:'50 + 15 = 65'}],
+  rule:'Split into tens and ones, add each, then join them up.',
+  traps:{'11':'You took 27 away instead of adding it. The bus kept going, so the distance grows.',
+         '55':'The tens are right but the ones were dropped — 8 + 7 is 15, not 5.',
+         '515':'You wrote the tens answer and the ones answer side by side. They have to be added: 50 + 15.'}},
+
+ {id:'fr1',chapter:'fract',grade:6,band:'application',topic:'fraction of a quantity',
+  text:Frac(3,4)+' of the 240 learners at Kabulonga Primary passed. How many passed?',answer:180,
+  model:{type:'fractionBar',params:{parts:4,shaded:3},caption:'3 of the 4 parts'},
+  steps:[{t:'Find one quarter',m:'240 ÷ 4 = 60'},{t:'You need three of them',m:'60 × 3 = 180'}],
+  rule:'Divide by the bottom, multiply by the top.',
+  traps:{'320':'You divided by 3 and multiplied by 4 — it is the other way round. Bottom first.',
+         '60':'That is one quarter. The question asks for three of them.',
+         '720':'You multiplied by 3 but forgot to divide by 4 first.',
+         '243':'You added 3 to 240. The fraction is not an amount to add on.'}},
+
+ {id:'fr2',chapter:'fract',grade:6,band:'application',topic:'fraction of a quantity',
+  text:'A chitenge is 6 m long. Mum cuts off '+Frac(2,3)+' of it for a dress. How many metres does she cut?',answer:4,unit:'m',
+  model:{type:'fractionBar',params:{parts:3,shaded:2},caption:'2 of the 3 parts'},
+  steps:[{t:'Find one third',m:'6 ÷ 3 = 2'},{t:'You need two of them',m:'2 × 2 = 4'}],
+  rule:'Divide by the bottom, multiply by the top.',
+  traps:{'2':'That is one third. She cut two of them.',
+         '9':'You divided by 2 and multiplied by 3. Bottom first, then top.',
+         '12':'You multiplied by 2 and never divided by 3.'}},
+
+ {id:'fr3',chapter:'fract',grade:6,band:'fluency',topic:'fraction as division',tolerance:0.005,formMatters:'decimal',
+  text:'A rope 1 m long is cut into 3 equal pieces. How long is each piece in metres? Give your answer to two decimal places.',
+  answer:0.33,
+  steps:[{t:'One whole shared between three',m:'1 ÷ 3'},{t:'Round to two places',m:'0.333… → 0.33'}],
+  rule:'A fraction is a division waiting to happen.',
+  traps:{'3':'That is how many pieces there are, not how long one is.',
+         '0.3':'Right idea, but the question asks for two decimal places.',
+         '0.34':'Rounded the wrong way — the third digit is a 3, so it stays 0.33.'}},
+
+ {id:'d1',chapter:'decpct',grade:7,band:'application',topic:'percentage increase',
+  text:'A bag of mealie meal costs K180. The price goes up by 15%. How much is the increase, in kwacha?',answer:27,unit:'K',
+  steps:[{t:'Find 10%',m:'180 ÷ 10 = 18'},{t:'Find 5% — half of 10%',m:'18 ÷ 2 = 9'},{t:'Add them',m:'18 + 9 = 27'}],
+  rule:'Awkward percentages are easier built from 10% and 5%.',
+  traps:{'207':'That is the new price. The question asks for the increase only.',
+         '18':'That is 10%. You still need the other 5%.',
+         '15':'You used the 15 as kwacha. It is 15 out of every 100.',
+         '2700':'You multiplied by 15 and forgot to divide by 100.'}},
+
+ {id:'d2',chapter:'decpct',grade:7,band:'fluency',topic:'fraction to decimal',tolerance:0.001,formMatters:'decimal',
+  text:'Write '+Frac(3,4)+' as a decimal.',answer:0.75,
+  steps:[{t:'A fraction is a division',m:'3 ÷ 4'},{t:'Work it out',m:'3 ÷ 4 = 0.75'}],
+  rule:'Top divided by bottom turns any fraction into a decimal.',
+  traps:{'0.34':'You wrote the two numbers side by side. It is 3 shared between 4.',
+         '1.33':'That is 4 ÷ 3 — the wrong way round.',
+         '75':'That is the percentage. As a decimal it is 0.75.'}},
+
+ {id:'r1',chapter:'ratio',grade:7,band:'application',topic:'sharing in a ratio',
+  text:'K120 is shared between Bwalya and Mutale in the ratio 1 : 2. How much does Mutale get, in kwacha?',answer:80,unit:'K',
+  model:{type:'fractionBar',params:{parts:3,shaded:2},caption:'3 parts in total — Mutale has 2'},
+  steps:[{t:'Count the parts',m:'1 + 2 = 3 parts'},{t:'One part',m:'120 ÷ 3 = 40'},{t:'Mutale has two parts',m:'40 × 2 = 80'}],
+  rule:'Add the parts first — the total is always shared into that many.',
+  traps:{'60':'You split it in half. The ratio 1 : 2 makes three parts, not two.',
+         '40':'That is Bwalya’s share — one part. Mutale has two.',
+         '240':'You multiplied by 2 instead of sharing into 3 parts first.'}},
+
+ {id:'m1',chapter:'measure',grade:5,band:'fluency',topic:'capacity conversion',
+  text:'A jerrycan holds 5 litres. How many millilitres is that?',answer:5000,unit:'ml',
+  steps:[{t:'One litre is a thousand millilitres',m:'1 ℓ = 1 000 mℓ'},{t:'Five of them',m:'5 × 1 000 = 5 000'}],
+  rule:'Milli means a thousandth — so a thousand of them make one.',
+  traps:{'500':'That is 5 × 100. A litre holds a thousand millilitres, not a hundred.',
+         '50':'That is 5 × 10.',
+         '0.005':'You divided instead of multiplying. Millilitres are smaller, so there are more of them.'}},
+
+ {id:'k1',chapter:'money',grade:6,band:'application',topic:'change',tolerance:0.005,
+  text:'Chanda has K50. She buys 3 exercise books at K12.50 each. How much change does she get, in kwacha?',answer:12.5,unit:'K',
+  steps:[{t:'Three books',m:'12.50 × 3 = 37.50'},{t:'Take it off her fifty',m:'50.00 − 37.50 = 12.50'}],
+  rule:'Work out what it costs before you work out what is left.',
+  traps:{'37.5':'That is what the books cost. The question asks for her change.',
+         '12':'The 50 ngwee has gone missing — the change is K12.50.',
+         '87.5':'You added the cost to her fifty instead of taking it off.'}},
+
+ {id:'g1',chapter:'geom',grade:5,band:'application',topic:'perimeter',
+  text:'A garden is 12 m long and 7 m wide. What is its perimeter, in metres?',answer:38,unit:'m',
+  model:{type:'shape',params:{w:12,h:7,unit:'m'},caption:'Walk all the way round the edge'},
+  steps:[{t:'Add one long and one short side',m:'12 + 7 = 19'},{t:'There are two of each',m:'19 × 2 = 38'}],
+  rule:'Perimeter is the walk around the edge. Area is the grass inside.',
+  traps:{'84':'You found the area. Perimeter is the distance around the outside.',
+         '19':'That is only half way round — one long side and one short side.',
+         '26':'You doubled the length but not the width.',
+         '24':'You doubled the length only.'}},
+
+ {id:'g2',chapter:'geom',grade:5,band:'application',topic:'area',
+  text:'The same garden is 12 m long and 7 m wide. What is its area, in square metres?',answer:84,unit:'m²',
+  model:{type:'shape',params:{w:12,h:7,unit:'m'},caption:'Now the grass inside'},
+  steps:[{t:'Area is length times width',m:'12 × 7'},{t:'Work it out',m:'12 × 7 = 84'}],
+  rule:'Perimeter is the walk around the edge. Area is the grass inside.',
+  traps:{'38':'That is the perimeter — the walk round the edge. Area is the space inside.',
+         '19':'You added the two sides. Area multiplies them.',
+         '19.5':'You added instead of multiplying.'}},
+
+ {id:'t1',chapter:'data',grade:7,band:'application',topic:'mean',
+  text:'Five learners scored 4, 7, 7, 9 and 8 out of ten. What is the mean score?',answer:7,
+  steps:[{t:'Add every score',m:'4 + 7 + 7 + 9 + 8 = 35'},{t:'Share between the five learners',m:'35 ÷ 5 = 7'}],
+  rule:'The mean is the total shared out evenly — add, then divide by how many.',
+  traps:{'35':'That is the total, not the mean. It still has to be shared between the five.',
+         '9':'That is the highest score. The mean is not the biggest one.',
+         '7.5':'That is the middle of 7 and 8. The mean uses all five scores.'}},
+
+ {id:'a1',chapter:'algebra',grade:7,band:'reasoning',topic:'solving for an unknown',
+  text:'If n + 7 = 19, what is n?',answer:12,
+  model:{type:'numberLine',params:{from:0,to:20,step:5,hops:[[12,19,'+7']]},caption:'Something, plus 7, lands on 19'},
+  steps:[{t:'Whatever n is, adding 7 lands on 19',m:'n + 7 = 19'},{t:'So take the 7 back off',m:'19 − 7 = 12'}],
+  rule:'To undo an addition, take the same amount away from both sides.',
+  traps:{'26':'You added the 7 instead of taking it away. n is smaller than 19, not bigger.',
+         '19':'That is the answer to the sum, not the missing number.',
+         '7':'That is the number already in the sum.'}}
+];
+
+/* ============================================================
+   MARKING
+   ============================================================ */
+function parseTyped(s){
+  s=String(s).trim();
+  if(!s)return null;
+  const sl=s.indexOf('/');
+  if(sl>0){
+    const n=parseFloat(s.slice(0,sl)),d=parseFloat(s.slice(sl+1));
+    if(!isFinite(n)||!isFinite(d)||d===0)return null;
+    return{value:n/d,form:'fraction',raw:s};
+  }
+  const v=parseFloat(s);
+  if(!isFinite(v))return null;
+  return{value:v,form:s.indexOf('.')>=0?'decimal':'integer',raw:s};
+}
+function markMaths(raw,q){
+  const p=parseTyped(raw);
+  if(!p)return{correct:false,reason:'unreadable',why:'That is not a number I can read yet.'};
+  /* form only matters when the question is ABOUT the form */
+  if(q.formMatters==='decimal'&&p.form==='fraction')
+    return{correct:false,reason:'form',why:'This one asks for a decimal. '+p.raw+' is the right amount written the other way.'};
+  if(q.formMatters==='fraction'&&p.form!=='fraction')
+    return{correct:false,reason:'form',why:'This one asks for a fraction.'};
+  const tol=q.tolerance||0;
+  if(Math.abs(p.value-q.answer)<=tol)
+    return{correct:true,reason:'ok',equivalent:p.form==='fraction'&&!q.formMatters};
+  /* a listed wrong answer names its own misconception */
+  const hit=q.traps[p.raw]||q.traps[String(p.value)]||q.traps[String(+p.value.toFixed(4))];
+  if(hit)return{correct:false,reason:'trap',why:hit,listed:true};
+  return{correct:false,reason:'unlisted',why:'Not quite. Let us walk through it.',listed:false,logged:p.raw};
+}
+
+/* ---- unlisted-answer log ---- */
+function readLog(){try{return JSON.parse(localStorage.getItem(LOGKEY)||'[]');}catch(e){return[];}}
+function writeLog(l){try{localStorage.setItem(LOGKEY,JSON.stringify(l));}catch(e){}}
+function logUnlisted(q,given){
+  const l=readLog();
+  const row=l.find(function(r){return r.qid===q.id&&r.given===given;});
+  if(row){row.count++;row.last=new Date().toISOString().slice(0,10);}
+  else l.push({qid:q.id,chapter:q.chapter,topic:q.topic,given:given,answer:q.answer,count:1,last:new Date().toISOString().slice(0,10)});
+  writeLog(l);renderReport();
+}
+
+/* ---- exam-style options: distractors ARE the traps ---- */
+function examOptions(q){
+  const wrong=Object.keys(q.traps).slice(0,3);
+  const all=[String(q.answer)].concat(wrong);
+  /* deterministic shuffle so a reload does not move the answer around */
+  const seed=q.id.split('').reduce(function(a,c){return a+c.charCodeAt(0);},0);
+  return all.map(function(v,i){return{v:v,k:(seed*(i+3))%97};}).sort(function(a,b){return a.k-b.k;}).map(function(o){return o.v;});
+}
+
+/* ============================================================
+   ROUND
+   ============================================================ */
+let passed=[],chapter='fract',round=[],i=0,typed='',locked=false;
+let streak=0,best=0,firstTry=0,answered=[],missed=[];
+
+function loadPassed(){try{const v=JSON.parse(localStorage.getItem(PASSKEY)||'null');passed=Array.isArray(v)?v:['bonds','fourops'];}catch(e){passed=['bonds','fourops'];}}
+function savePassed(){try{localStorage.setItem(PASSKEY,JSON.stringify(passed));}catch(e){}}
+
+function startRound(){
+  round=QS.filter(function(q){return q.chapter===chapter;});
+  i=0;typed='';locked=false;streak=0;best=0;firstTry=0;answered=[];missed=[];
+  ask();ladder();rate();
+}
+function dots(){
+  $('dots').innerHTML=round.map(function(_,k){
+    const c=k<answered.length?(answered[k]?'done':'miss'):(k===answered.length?'now':'');
+    return '<div class="dot '+c+'"></div>';
+  }).join('');
+  $('streak').textContent='🔥 '+streak;
+}
+function rate(){
+  const el=$('rate');
+  if(!answered.length){el.className='chk idle';el.textContent='first-time correct: — · streak 0';return;}
+  const pct=Math.round(firstTry/answered.length*100);
+  el.className='chk'+(pct>=60?'':' bad');
+  el.textContent='first-time correct: '+pct+'% · best streak '+best;
+}
+
+function ask(){
+  const st=chapterState(chapter,passed);
+  if(st.state==='locked')return lockScreen(st);
+  if(i>=round.length)return end();
+  const q=round[i];typed='';locked=false;dots();
+  const exam=$('mode').value==='exam';
+  $('scr').innerHTML=
+   '<div class="notimer">⏱️ No timer. Work it out properly — that is the point.</div>'+
+   '<div class="card">'+
+     '<div class="kick">Question '+(answered.length+1)+' of '+round.length+' · '+q.topic+'</div>'+
+     '<div class="q">'+q.text+'</div>'+
+     renderModel(q.model)+
+     (q.tolerance?'<div class="tol">Accepted within ±'+q.tolerance+'</div>':'')+
+   '</div>'+
+   (exam
+     ? '<div class="opts">'+examOptions(q).map(function(v,k){
+         return '<button class="opt" type="button" data-v="'+v+'" onclick="pickOpt(this)"><span class="lt">'+'ABCD'[k]+'</span>'+
+           (q.unit==='K'?'K':'')+v+(q.unit&&q.unit!=='K'?' '+q.unit:'')+'</button>';}).join('')+'</div>'
+     : '<div class="ans empty" id="ans">–</div>'+numpad('check'))+
+   '<div id="fb"></div>';
+}
+function numpad(fn){
+  return '<div class="pad">'+
+   [1,2,3,4,5,6,7,8,9].map(function(n){return '<button class="k" type="button" onclick="key(\''+n+'\')">'+n+'</button>';}).join('')+
+   '<button class="k fn" type="button" onclick="key(\'.\')">·</button>'+
+   '<button class="k" type="button" onclick="key(\'0\')">0</button>'+
+   '<button class="k fn" type="button" onclick="key(\'del\')">⌫</button>'+
+   '<button class="k fn" type="button" onclick="key(\'/\')" style="grid-column:1/4">write it as a fraction  /</button>'+
+   '</div>'+
+   '<button class="btn" id="go" type="button" disabled onclick="'+fn+'()">Check</button>';
+}
+function key(v){
+  if(locked)return;
+  if(v==='del')typed=typed.slice(0,-1);
+  else if(v==='.'&&typed.indexOf('.')>=0)return;
+  else if(v==='/'&&(typed.indexOf('/')>=0||!typed))return;
+  else if(typed.length<8)typed+=v;
+  $('ans').textContent=typed||'–';
+  $('ans').className='ans'+(typed?'':' empty');
+  const go=$('go');go.disabled=!typed;go.className=typed?'btn btn-coral':'btn';
+}
+function pickOpt(el){
+  if(locked)return;
+  typed=el.dataset.v;
+  document.querySelectorAll('.opt').forEach(function(o){o.onclick=null;});
+  const q=round[i],res=markMaths(typed,q);
+  el.classList.add(res.correct?'ok':'no');
+  settle(res,q);
+}
+function check(){
+  const q=round[i],res=markMaths(typed,q);
+  $('ans').className='ans '+(res.correct?'good':'bad');
+  $('go').disabled=true;$('go').className='btn';
+  settle(res,q);
+}
+function settle(res,q){
+  locked=true;
+  if(res.correct){
+    firstTry++;streak++;best=Math.max(best,streak);answered.push(true);
+    $('fb').innerHTML='<div class="fb ok"><div class="t">✓ That is right</div>'+
+      (res.equivalent?'That form works too — '+q.answer+' is the same amount.<br>':'')+
+      q.rule+'<div class="tagline">the rule, not the answer</div></div>'+
+      '<button class="btn btn-coral" type="button" onclick="next()">Next question →</button>';
+  }else{
+    streak=0;answered.push(false);
+    if(missed.indexOf(q)<0)missed.push(q);
+    if(res.reason==='unlisted')logUnlisted(q,res.logged);
+    $('fb').innerHTML='<div class="fb no"><div class="t">'+(res.listed?'Not quite — I know that one':'Not quite')+'</div>'+res.why+
+      (res.listed?'':'<div class="tagline">logged for review</div>')+'</div>'+
+      '<button class="btn btn-coral" type="button" onclick="work()">📝 Show me the working</button>'+
+      '<button class="btn btn-ghost" type="button" onclick="next()">Skip — I see it</button>';
+  }
+  dots();rate();
+}
+function work(){
+  const q=round[i];
+  $('scr').innerHTML=
+   '<div class="card"><div class="kick">Step by step</div><div class="q" style="font-size:15px">'+q.text+'</div>'+renderModel(q.model)+'</div>'+
+   '<div id="steps">'+q.steps.map(function(s,k){
+     return '<div class="step" id="s'+k+'"><div class="n">Step '+(k+1)+'</div><div class="t">'+s.t+'</div><div class="m">'+s.m+'</div></div>';}).join('')+'</div>'+
+   '<div class="hookc">💡 '+q.rule+'</div>'+
+   '<button class="btn btn-coral" id="rv" type="button" onclick="reveal()">Show step 1</button>';
+  window._rv=0;
+}
+function reveal(){
+  const q=round[i],k=window._rv;
+  $('s'+k).classList.add('on');window._rv++;
+  if(window._rv<q.steps.length)$('rv').textContent='Show step '+(window._rv+1);
+  else{$('rv').textContent='Now you try it again — steps hidden →';$('rv').onclick=retry;}
+}
+function retry(){
+  const q=round[i];typed='';locked=false;
+  $('scr').innerHTML=
+   '<div class="card"><div class="kick">Your turn — no help this time</div><div class="q">'+q.text+'</div>'+renderModel(q.model)+'</div>'+
+   '<div class="ans empty" id="ans">–</div>'+numpad('recheck')+'<div id="fb"></div>';
+}
+function recheck(){
+  const q=round[i],res=markMaths(typed,q);
+  locked=true;$('go').disabled=true;$('go').className='btn';
+  $('ans').className='ans '+(res.correct?'good':'bad');
+  if(res.correct){
+    $('fb').innerHTML='<div class="fb ok"><div class="t">✓ Got it</div>'+q.rule+
+      '<div class="tagline">this one comes back later with no help</div></div>'+
+      '<button class="btn btn-coral" type="button" onclick="next()">Next question →</button>';
+  }else{
+    if(res.reason==='unlisted')logUnlisted(q,res.logged);
+    $('fb').innerHTML='<div class="fb no"><div class="t">Still tricky</div>'+res.why+'</div>'+
+      '<button class="btn btn-ghost" type="button" onclick="work()">See the steps again</button>'+
+      '<button class="btn btn-coral" type="button" onclick="next()">Come back to this later →</button>';
+  }
+}
+function next(){i++;ask();}
+function end(){
+  const pct=answered.length?Math.round(firstTry/answered.length*100):0;
+  $('scr').innerHTML='<div class="done"><div class="tickc">✓</div>'+
+   '<div style="font-size:32px;font-weight:900;color:var(--ind)">'+pct+'%</div>'+
+   '<div style="font-weight:900;font-size:18px">Round finished</div>'+
+   '<div style="font-size:12.5px;color:var(--muted);margin-top:3px">Right first time — no clock involved.</div>'+
+   '<div class="st"><div class="stx"><div class="n">'+round.length+'</div><div class="l">questions</div></div>'+
+     '<div class="stx"><div class="n">'+best+'</div><div class="l">best streak</div></div>'+
+     '<div class="stx"><div class="n">'+missed.length+'</div><div class="l">to practise</div></div></div>'+
+   (missed.length?'<div class="wl"><h4>📌 Coming back for you</h4>'+missed.map(function(m){
+      return '<div class="w">'+m.topic+'<em>in 2 stages</em></div>';}).join('')+'</div>':'')+
+   '<button class="btn btn-coral" type="button" onclick="startRound()">Play the round again</button></div>';
+  dots();
+}
+function lockScreen(st){
+  $('scr').innerHTML='<div class="card" style="text-align:center;padding:26px 18px">'+
+   '<div style="font-size:38px">🔒</div>'+
+   '<div style="font-weight:900;font-size:18px;margin-top:8px">'+CHAPTERS.find(c=>c.id===chapter).name+'</div>'+
+   '<div style="font-size:13.5px;color:var(--muted);line-height:1.6;margin-top:8px">This chapter needs <b>'+blockerNames(st.blockers)+'</b> first. '+
+   'It is not a star count — passing that chapter opens this one.</div>'+
+   '<button class="btn btn-coral" type="button" onclick="goTo(\''+st.blockers[0]+'\')">Go to '+CHAPTERS.find(c=>c.id===st.blockers[0]).name+' →</button></div>';
+  $('dots').innerHTML='';$('streak').textContent='🔥 0';
+}
+function goTo(id){chapter=id;$('chap').value=id;startRound();}
+
+/* ============================================================
+   LADDER
+   ============================================================ */
+function ladder(){
+  let out='<div class="sec">Ordered by what each one needs</div>';
+  CHAPTERS.forEach(function(c,n){
+    const st=chapterState(c.id,passed);
+    const cls=st.state==='done'?'b-done':(st.state==='locked'?'b-lock':'b-now');
+    out+='<button class="ch '+(st.state==='locked'?'lock ':'')+(c.id===chapter?'cur':'')+'" type="button" onclick="goTo(\''+c.id+'\')">'+
+      '<div class="bdg '+cls+'">'+(st.state==='done'?'✓':(n+1))+'</div>'+
+      '<div><div class="nm">'+c.name+'</div><div class="ds">'+c.blurb+'</div></div></button>';
+    if(st.state==='locked')out+='<div class="gate">🔒 needs '+blockerNames(st.blockers)+' first</div>';
+  });
+  $('ladder').innerHTML=out;
+}
+
+/* ============================================================
+   THE UNLISTED-ANSWER LOG
+   ============================================================ */
+function renderReport(){
+  const l=readLog().sort(function(a,b){return b.count-a.count;});
+  let rows=l.map(function(r){
+    return '<tr><td class="w a">'+r.count+'×</td><td class="w d">'+r.chapter+'/'+r.qid+'</td>'+
+      '<td>gave <b style="color:#fff">'+r.given+'</b>, answer was '+r.answer+' <span class="d">· '+r.topic+' · last seen '+r.last+'</span></td></tr>';
+  }).join('');
+  if(!rows)rows='<tr><td class="d">Nothing logged yet. Type a wrong answer that is not in a question’s traps — 41 for the perimeter, say — and it lands here.</td></tr>';
+  $('report').innerHTML='<h3>Unlisted wrong answers — the review queue</h3>'+
+   '<p class="lead">Every wrong answer with no entry in its question’s <code>traps</code> map is recorded here with a running count, and persists across a reload. '+
+   'A value that keeps coming back is a misconception nobody has written down yet. This list is the input to the next content pass — it is how the trap lists get good.</p>'+
+   '<table>'+rows+'</table>';
+}
+
+/* ============================================================
+   BOOT + RIG
+   ============================================================ */
+loadPassed();
+$('chap').innerHTML=CHAPTERS.map(function(c){return '<option value="'+c.id+'">'+c.name+'</option>';}).join('');
+$('chap').value=chapter;
+$('chap').onchange=function(){chapter=this.value;startRound();};
+$('mode').onchange=function(){startRound();};
+$('pass').onclick=function(){if(passed.indexOf(chapter)<0)passed.push(chapter);savePassed();ladder();startRound();};
+$('resetP').onclick=function(){passed=['bonds','fourops'];savePassed();chapter='fract';$('chap').value='fract';startRound();};
+$('clearLog').onclick=function(){writeLog([]);renderReport();};
+startRound();renderReport();
+</script>
+</body></html>

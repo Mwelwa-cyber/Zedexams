@@ -1,0 +1,521 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ZedExams — maths written the school way</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--ind:#5b5bd6;--ind-soft:#ececfb;--ink:#1c2333;--muted:#6b7392;--bg:#eef0fb;
+--coral:#ff7a4d;--coral-2:#f4592c;--ok:#1faa6c;--ok-soft:#eaf7f0;--gold:#f5b820;
+--danger:#d93a3a;--danger-soft:#fdeceb;--warn:#9a6412;--warn-soft:#fff5e6;--line:#e6e8f5;--r:18px}
+*{box-sizing:border-box}
+body{margin:0;background:#dfe3f5;font-family:Nunito,system-ui,sans-serif;color:var(--ink);padding:22px 14px 50px}
+h1.pt{text-align:center;margin:0 0 4px;font-size:25px}
+p.ps{text-align:center;color:#5a6180;margin:0 0 16px;font-size:13.5px}
+
+.rig{max-width:1160px;margin:0 auto 18px;background:#fff;border-radius:14px;padding:12px 15px;
+display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:#4b5270}
+.rig b{color:var(--ink)}
+.rig label{display:flex;gap:6px;align-items:center;font-weight:800}
+.rig select,.rig button{font:inherit;font-weight:800;font-size:12.5px;border-radius:9px;border:1.5px solid var(--line);
+background:#fff;color:var(--ind);padding:6px 10px;cursor:pointer}
+.rig .sep{flex:1}
+.rig .chk{background:var(--ok-soft);color:#12734a;border:1px solid #cfeadd;border-radius:999px;padding:4px 11px;font-weight:800}
+.rig .chk.bad{background:var(--danger-soft);color:#a02a2a;border-color:#f6d4d2}
+.rig .chk.idle{background:var(--bg);color:var(--muted);border-color:var(--line)}
+
+.stage{display:flex;gap:22px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+.phone{width:352px;height:748px;background:var(--bg);border-radius:34px;overflow:hidden;position:relative;
+box-shadow:0 14px 40px rgba(40,44,90,.22);border:7px solid #12142a;display:flex;flex-direction:column}
+.notes{width:352px}
+.note{background:#fff;border-radius:14px;padding:13px 15px;font-size:12.5px;line-height:1.6;color:#4b5270;border-left:4px solid var(--ind);margin-bottom:11px}
+.note b{color:var(--ink)} .note h3{margin:0 0 5px;font-size:13.5px;color:var(--ink)} .note.warn{border-left-color:#e0a020}
+.note code{background:#f2f3fb;border-radius:5px;padding:1px 5px;font-size:11.5px}
+.top{padding:12px 15px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:9px;flex:0 0 auto}
+.back{width:30px;height:30px;border-radius:10px;background:var(--bg);display:grid;place-items:center;color:var(--ind);font-size:15px;border:none;font-family:inherit}
+.ttl{font-weight:900;font-size:15.5px}
+.pill{margin-left:auto;font-size:10.5px;font-weight:800;color:var(--muted);background:var(--bg);border-radius:999px;padding:4px 9px}
+.body{padding:15px;flex:1;overflow-y:auto}.body::-webkit-scrollbar{width:0}
+.card{background:#fff;border-radius:var(--r);padding:16px;margin-bottom:12px}
+.kick{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+
+/* ---- THE ONE FRACTION RENDERER ---- */
+/* every unit is em, so a fraction scales with whatever text it sits in */
+.fr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;
+    font-size:.86em;line-height:1.04;margin:0 .18em;position:relative;top:-.09em}
+.fr .n{padding:0 .34em .04em}
+.fr .d{padding:.05em .34em 0;border-top:.11em solid currentColor}
+.mx{display:inline-flex;align-items:center;vertical-align:middle;gap:.14em}
+.mx .w{font-weight:900}
+.q{font-size:17.5px;font-weight:800;line-height:1.75}
+
+.row{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:none}
+.row .lab{font-size:11.5px;font-weight:800;color:var(--muted);width:86px;flex:0 0 auto;line-height:1.35}
+.row .val{font-size:21px;font-weight:900}
+.row .val.chain{font-size:17px;white-space:nowrap;display:flex;align-items:center;gap:.18em}
+.no{color:var(--danger);font-size:15.5px;font-weight:800;text-decoration:line-through;opacity:.6;margin-left:auto}
+.spk{margin-left:auto;background:var(--ind-soft);color:var(--ind);border:none;border-radius:10px;padding:8px 10px;
+font:inherit;font-weight:800;font-size:11.5px;cursor:pointer;min-height:36px}
+.said{font-size:11.5px;color:var(--muted);font-weight:800;margin-top:6px;font-style:italic}
+
+/* answer pad */
+.apad{background:#fff;border:2.5px solid var(--line);border-radius:16px;padding:14px;display:flex;
+      align-items:center;justify-content:center;gap:10px;margin-bottom:9px;min-height:108px}
+.fbox{display:inline-flex;flex-direction:column;align-items:center;gap:3px}
+.slotb{width:58px;height:42px;border:2.5px dashed #d3d8ec;border-radius:11px;display:grid;place-items:center;
+   font-size:23px;font-weight:900;background:var(--bg);color:var(--ink);cursor:pointer;font-family:inherit}
+.slotb.act{border-style:solid;border-color:var(--ind);background:var(--ind-soft)}
+.vinc{width:64px;height:3px;background:var(--ink);border-radius:2px}
+.wbox{width:52px;height:42px;border:2.5px dashed #d3d8ec;border-radius:11px;display:grid;place-items:center;
+   font-size:23px;font-weight:900;background:var(--bg);cursor:pointer;align-self:center;font-family:inherit;color:var(--ink)}
+.wbox.act{border-style:solid;border-color:var(--ind);background:var(--ind-soft)}
+.dbox{width:150px;height:46px;border:2.5px solid var(--ind);border-radius:12px;display:grid;place-items:center;
+   font-size:24px;font-weight:900;background:var(--ind-soft);color:var(--ink)}
+.hintl{text-align:center;font-size:11.5px;color:var(--muted);font-weight:700;margin-bottom:9px}
+.swap{display:flex;gap:7px;margin-bottom:11px}
+.swap button{flex:1;background:#fff;border:1.5px solid var(--line);border-radius:11px;padding:9px;font:inherit;
+font-weight:800;font-size:11.5px;color:var(--ind);cursor:pointer;min-height:40px}
+.swap button.on{background:var(--ind-soft);border-color:var(--ind)}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.k{background:#fff;border:none;border-radius:13px;padding:14px 0;font:inherit;font-size:22px;font-weight:800;
+cursor:pointer;box-shadow:0 2px 0 #ccd2e6;color:var(--ink);min-height:48px}
+.k:active{transform:translateY(2px);box-shadow:none}
+.k.fn{font-size:14px;background:#e7eaf6;color:var(--muted);font-weight:800}
+.btn{width:100%;padding:14px;border:none;border-radius:14px;font:inherit;font-weight:800;font-size:15.5px;cursor:pointer;margin-top:10px;min-height:48px}
+.btn-coral{background:linear-gradient(180deg,var(--coral),var(--coral-2));color:#fff}
+.btn[disabled]{background:#dfe2f0;color:#9aa1bd;box-shadow:none;cursor:default}
+.fb{border-radius:14px;padding:13px;margin-top:11px;font-size:13.5px;line-height:1.65}
+.fb.ok{background:var(--ok-soft);border:1px solid #cfeadd;color:#12734a}
+.fb.bad{background:var(--danger-soft);border:1px solid #f6d4d2;color:#a02a2a}
+.fb .t{font-weight:900;font-size:14.5px;margin-bottom:3px}
+.fb .why{margin-top:6px;font-size:12.5px;opacity:.92}
+.step{background:#fff;border-radius:14px;padding:12px 13px;margin-bottom:9px;border-left:4px solid var(--ind)}
+.step .n{font-size:10.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.step .t{font-weight:800;font-size:13.5px;margin:2px 0 5px}
+.step .m{font-size:19px;font-weight:900;color:var(--ind)}
+.scaler .s1{font-size:12px;line-height:2;margin-bottom:4px}
+.scaler .s2{font-size:16.5px;line-height:1.9;margin-bottom:4px}
+.scaler .s3{font-size:23px;line-height:1.8}
+
+.report{max-width:1160px;margin:22px auto 0;background:#12142a;color:#c9d2ee;border-radius:16px;padding:16px 18px;
+font-size:12px;line-height:1.75;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.report h3{font-family:Nunito,sans-serif;color:#ffd25f;margin:0 0 4px;font-size:14.5px}
+.report p.lead{font-family:Nunito,sans-serif;color:#9aa6cf;margin:0 0 12px;font-size:12.5px;line-height:1.6}
+.report .g{color:#7fe0b0}.report .a{color:#ffc773}.report .d{color:#7d88b5}
+.report table{width:100%;border-collapse:collapse;font-size:11.5px}
+.report td{padding:5px 8px 5px 0;border-bottom:1px solid #23264a;vertical-align:top}
+.report td.w{white-space:nowrap;width:1%}
+.report .out{font-family:Nunito,sans-serif;font-size:14px;color:#fff}
+@media(max-width:820px){.stage{display:block}.phone,.notes{width:100%;max-width:352px;margin:0 auto 24px}}
+</style></head><body>
+
+<h1 class="pt">Maths written the school way</h1>
+<p class="ps">One renderer, one marking rule. Change the rig and the same answer is marked differently.</p>
+
+<div class="rig">
+  <label>This question asks for
+    <select id="form">
+      <option value="any" selected>any correct form</option>
+      <option value="lowest">lowest terms</option>
+      <option value="mixed">a mixed number</option>
+      <option value="improper">an improper fraction</option>
+    </select>
+  </label>
+  <label><input type="checkbox" id="dec"> a decimal is also fine</label>
+  <span class="sep"></span>
+  <span class="chk idle" id="verdict">marking: waiting for an answer</span>
+  <button id="say" type="button">🔊 Read the answer aloud</button>
+</div>
+
+<div class="stage">
+
+<div class="phone">
+  <div class="top"><button class="back" type="button">‹</button><div class="ttl">Fractions</div><div class="pill" id="qpill">1 of 2</div></div>
+  <div class="body" id="scr"></div>
+</div>
+
+<div class="phone">
+  <div class="top"><button class="back" type="button">‹</button><div class="ttl">How we write it</div></div>
+  <div class="body" id="ref"></div>
+</div>
+
+<div class="notes">
+  <div class="note warn"><h3>One renderer, used everywhere</h3>This is not a games fix. The same component has to serve <b>notes, quizzes, past papers, the study plan, results and the guardian's report</b> — anywhere a fraction can appear. Build it once as <code>&lt;Frac&gt;</code>; the moment two screens render fractions differently, learners notice. In this prototype every fraction on both phones — question, working, answer, reference table — comes out of <code>Frac()</code> and <code>Mixed()</code>. There is no second path.</div>
+  <div class="note"><h3>It has to scale, not just exist</h3>A fraction is sized in <code>em</code>, not px, so it grows with the sentence around it and still sits on the baseline. The reference phone prints the same fraction inside body text, a list row and an exam-zoom heading — if it only worked at one size it would be obvious there.</div>
+  <div class="note"><h3>The pad has to match the question</h3>A child cannot answer a stacked fraction in one text box. Two boxes and a bar, a whole-number box in front when a mixed number is on the table, and the same number pad used everywhere else. Tap a box to move focus; the numerator auto-advances at two digits.</div>
+  <div class="note warn"><h3>Marking lives in one function, not per question</h3><code>markFractionAnswer()</code> is the only thing that decides. Its rules: an unsimplified but correct answer is <b>right</b>, with a follow-up line naming the simpler form; improper and mixed are interchangeable; a decimal is refused for a fraction question unless the question says otherwise. Switch the rig to <b>lowest terms</b> and the identical answer flips to wrong — the change is in the question's data, not in new code.</div>
+  <div class="note"><h3>Signs matter too</h3>ECZ papers use <b>÷ × −</b>, not <b>/ * -</b>, and Zambian money is written <b>K180.00</b>. The minus is U+2212, not a hyphen — a hyphen is narrower and sits lower, and in a column of subtractions it reads as a typo.</div>
+  <div class="note"><h3>Read-aloud is the accessibility test</h3>Every fraction carries <code>role="math"</code> and an <code>aria-label</code> in words, with the digits hidden from the accessibility tree so nothing says "three four". The read-aloud button speaks <b>that same label</b> — one string for the screen reader and the paid voice, so they cannot drift apart.</div>
+  <div class="note"><h3>Migration is a report, not a rewrite</h3>The scan below is deliberately timid. It converts only what is unambiguously a fraction and prints everything else for a human — dates, <code>km/h</code>, <code>and/or</code>, ratios. Converting those blindly is how "3/4 of the class" and "12/03/2026" end up rendered the same way.</div>
+</div>
+</div>
+
+<div class="report" id="report"></div>
+
+<script>
+const $=i=>document.getElementById(i);
+
+/* ============================================================
+   NUMBER WORDS — one source for aria-labels, read-aloud and copy
+   ============================================================ */
+const ONES=['zero','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve',
+'thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen'];
+const TENS=['','','twenty','thirty','forty','fifty','sixty','seventy','eighty','ninety'];
+function numWord(n){
+  n=Math.abs(Math.trunc(n));
+  if(n<20)return ONES[n];
+  if(n<100){const t=TENS[Math.floor(n/10)],r=n%10;return r?t+'-'+ONES[r]:t;}
+  if(n===100)return 'one hundred';
+  return String(n);
+}
+const UNIT={2:'half',3:'third',4:'quarter',5:'fifth',6:'sixth',7:'seventh',8:'eighth',9:'ninth',10:'tenth',
+11:'eleventh',12:'twelfth',16:'sixteenth',20:'twentieth',25:'twenty-fifth',50:'fiftieth',100:'hundredth',1000:'thousandth'};
+function unitWord(d){return UNIT[d]||(numWord(d)+'th');}
+function pluralUnit(d){const u=unitWord(d);return u==='half'?'halves':u+'s';}
+function fracWords(n,d){
+  if(d===1)return numWord(n);
+  return n===1?('one '+unitWord(d)):(numWord(n)+' '+pluralUnit(d));
+}
+function mixedWords(w,n,d){
+  if(!w)return fracWords(n,d);
+  if(!n)return numWord(w);
+  return numWord(w)+' and '+fracWords(n,d);
+}
+
+/* ============================================================
+   THE ONE RENDERER — Frac() / Mixed()
+   digits are aria-hidden, the words are the accessible name
+   ============================================================ */
+function Frac(n,d){
+  return '<span class="fr" role="math" aria-label="'+fracWords(n,d)+'">'+
+    '<span class="n" aria-hidden="true">'+n+'</span>'+
+    '<span class="d" aria-hidden="true">'+d+'</span></span>';
+}
+function Mixed(w,n,d){
+  if(!w)return Frac(n,d);
+  return '<span class="mx" role="math" aria-label="'+mixedWords(w,n,d)+'">'+
+    '<span class="w" aria-hidden="true">'+w+'</span>'+
+    '<span class="fr" aria-hidden="true"><span class="n">'+n+'</span><span class="d">'+d+'</span></span></span>';
+}
+function speak(text){
+  if(!('speechSynthesis' in window))return false;
+  window.speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);u.rate=.9;u.lang='en-GB';
+  window.speechSynthesis.speak(u);return true;
+}
+
+/* ============================================================
+   MARKING — the single comparison function
+   entry  { whole, num, den, decimal, mode }
+   q      { value:{n,d}, form, allowDecimal, traps }
+   ============================================================ */
+function gcd(a,b){a=Math.abs(a);b=Math.abs(b);while(b){const t=a%b;a=b;b=t;}return a||1;}
+function simplify(n,d){const g=gcd(n,d);return[n/g,d/g];}
+function improperOf(w,n,d){return[w*d+n,d];}
+function isLowest(n,d){return gcd(n,d)===1;}
+
+function markFractionAnswer(entry,q){
+  const want=q.value, wantVal=want.n/want.d;
+  /* --- decimal branch --- */
+  if(entry.mode==='decimal'){
+    const v=parseFloat(entry.decimal);
+    if(!q.allowDecimal){
+      return{correct:false,reason:'form-decimal',headline:'This one wants a fraction',
+        why:'A decimal is not accepted here. Write it as a fraction — '+fracWords(want.n,want.d)+'.'};
+    }
+    if(!isFinite(v))return{correct:false,reason:'blank',headline:'Nothing entered',why:''};
+    if(Math.abs(v-wantVal)<=(q.tolerance||0.005))
+      return{correct:true,reason:'ok-decimal',headline:'Correct',
+        note:'As a fraction that is '+fracWords(want.n,want.d)+'.',spoken:fracWords(want.n,want.d)};
+    return{correct:false,reason:'value',headline:'Not quite',why:''};
+  }
+  /* --- fraction branch --- */
+  const w=parseInt(entry.whole||'0',10)||0;
+  const n=parseInt(entry.num,10), d=parseInt(entry.den,10);
+  if(!isFinite(n)||!isFinite(d))return{correct:false,reason:'blank',headline:'Nothing entered',why:''};
+  if(d===0)return{correct:false,reason:'zero-denominator',headline:'The bottom cannot be nothing',
+    why:'The bottom number says how many pieces the whole was cut into, so it is never 0.'};
+
+  const[gn,gd]=improperOf(w,n,d);
+  const equal=gn*want.d===want.n*gd;
+
+  if(!equal){
+    const key=(w?w+' ':'')+n+'/'+d;
+    return{correct:false,reason:'value',headline:'Not quite',
+      why:(q.traps&&q.traps[key])||'Let us walk through it.'};
+  }
+
+  /* value is right — now the FORM rules */
+  const gaveMixed=w>0;
+  const simplest=isLowest(n,d);
+
+  if(q.form==='lowest'&&!simplest){
+    const[ln,ld]=simplify(n,d);
+    return{correct:false,reason:'form-lowest',headline:'Right amount, wrong form',
+      why:'This question asks for lowest terms. That is the right amount, but it can still be made simpler — '+fracWords(ln,ld)+'.'};
+  }
+  if(q.form==='mixed'&&!gaveMixed&&gn>gd){
+    return{correct:false,reason:'form-mixed',headline:'Right amount, wrong form',
+      why:'This question asks for a mixed number — a whole number with a fraction beside it.'};
+  }
+  if(q.form==='improper'&&gaveMixed){
+    return{correct:false,reason:'form-improper',headline:'Right amount, wrong form',
+      why:'This question asks for an improper fraction — everything over the bottom, no whole number in front.'};
+  }
+
+  /* correct — decide whether to add a teaching line */
+  let note=null,spoken=mixedWords(w,n,d);
+  if(!simplest){
+    const[ln,ld]=simplify(n,d);
+    note='Correct — and it simplifies to '+fracWords(ln,ld)+'.';
+  }else if(!gaveMixed&&gn>gd&&q.form!=='improper'){
+    const wh=Math.floor(gn/gd),rem=gn%gd;
+    note='Correct — and as a mixed number that is '+mixedWords(wh,rem,gd)+'.';
+  }else if(gaveMixed&&q.form!=='mixed'){
+    note='Correct — and as an improper fraction that is '+fracWords(gn,gd)+'.';
+  }
+  return{correct:true,reason:'ok',headline:"That's right",note:note,spoken:spoken};
+}
+
+/* ============================================================
+   QUESTIONS
+   ============================================================ */
+const QS=[
+ {stem:'Mwansa ate '+Frac(1,2)+' of a bun and Chanda ate '+Frac(1,4)+' of the same bun. What fraction did they eat altogether?',
+  value:{n:3,d:4},tolerance:0.005,
+  traps:{'2/6':'You added the tops <i>and</i> the bottoms. The bottom tells you the size of the piece — it does not get added.',
+         '1/6':'The bottoms were made to match, but only one top was counted.',
+         '2/4':'That is only Chanda’s quarter doubled. Add one half and one quarter.'},
+  steps:[{t:'The bottoms are different — make them match',m:Frac(1,2)+' = '+Frac(2,4)},
+         {t:'Now add the tops only',m:Frac(2,4)+' + '+Frac(1,4)+' = '+Frac(3,4)}],
+  rule:'Same-size pieces first, then count them.'},
+ {stem:'A builder used '+Frac(3,4)+' of a bag of cement on Monday and '+Frac(3,4)+' of a bag on Tuesday. How much cement did he use in total?',
+  value:{n:3,d:2},tolerance:0.005,
+  traps:{'6/8':'You added the tops and the bottoms. The bottoms already matched — leave them alone.',
+         '3/4':'That is one day only. Both days used three quarters.',
+         '1 1/4':'Close — three quarters and three quarters is six quarters, not five.'},
+  steps:[{t:'The bottoms already match — add the tops',m:Frac(3,4)+' + '+Frac(3,4)+' = '+Frac(6,4)},
+         {t:'Six quarters is more than a whole',m:Frac(6,4)+' = '+Mixed(1,2,4)+' = '+Mixed(1,1,2)}],
+  rule:'When the top passes the bottom, you have more than one whole.'}
+];
+
+/* ============================================================
+   PLAYABLE PHONE
+   ============================================================ */
+let qi=0,whole='',num='',den='',decimal='',act='n',mode='fraction',locked=false,useWhole=false,last=null;
+
+function question(){
+  const q=QS[qi];
+  return Object.assign({},q,{form:$('form').value,allowDecimal:$('dec').checked});
+}
+function reset(){whole='';num='';den='';decimal='';act='n';mode='fraction';locked=false;useWhole=false;last=null;}
+
+function render(){
+  const q=question();
+  $('qpill').textContent=(qi+1)+' of '+QS.length;
+  $('scr').innerHTML=
+   '<div class="card"><div class="kick">Question '+(qi+1)+' of '+QS.length+' · Fractions</div>'+
+   '<div class="q">'+q.stem+'</div>'+
+   (q.form!=='any'?'<div class="hintl" style="margin:10px 0 0;text-align:left">Give your answer '+
+     ({lowest:'in its lowest terms.',mixed:'as a mixed number.',improper:'as an improper fraction.'}[q.form])+'</div>':'')+
+   '</div>'+
+   '<div class="swap">'+
+     '<button type="button" class="'+(mode==='fraction'?'on':'')+'" onclick="setMode(\'fraction\')">Fraction</button>'+
+     '<button type="button" class="'+(useWhole?'on':'')+'" onclick="toggleWhole()">+ whole number</button>'+
+     '<button type="button" class="'+(mode==='decimal'?'on':'')+'" onclick="setMode(\'decimal\')">Decimal</button>'+
+   '</div>'+
+   '<div class="apad" id="ap"></div>'+
+   '<div class="hintl">'+(mode==='decimal'?'Type the decimal.':'Tap a box, then type. Top number first.')+'</div>'+
+   '<div class="pad">'+
+     [1,2,3,4,5,6,7,8,9].map(function(n){return '<button class="k" type="button" onclick="key(\''+n+'\')">'+n+'</button>';}).join('')+
+     '<button class="k fn" type="button" onclick="key(\'.\')">'+(mode==='decimal'?'·':'clear')+'</button>'+
+     '<button class="k" type="button" onclick="key(\'0\')">0</button>'+
+     '<button class="k fn" type="button" onclick="key(\'del\')">⌫</button>'+
+   '</div>'+
+   '<button class="btn" id="go" type="button" disabled onclick="check()">Check</button>'+
+   '<div id="fb"></div>';
+  paint();
+}
+function paint(){
+  if(mode==='decimal'){
+    $('ap').innerHTML='<div class="dbox">'+(decimal||'·')+'</div>';
+  }else{
+    $('ap').innerHTML=
+     (useWhole?'<div class="wbox '+(act==='w'?'act':'')+'" onclick="sel(\'w\')">'+(whole||'')+'</div>':'')+
+     '<div class="fbox">'+
+       '<div class="slotb '+(act==='n'?'act':'')+'" onclick="sel(\'n\')">'+(num||'')+'</div>'+
+       '<div class="vinc"></div>'+
+       '<div class="slotb '+(act==='d'?'act':'')+'" onclick="sel(\'d\')">'+(den||'')+'</div>'+
+     '</div>';
+  }
+  const ready=mode==='decimal'?!!decimal:(!!num&&!!den);
+  const go=$('go');if(go){go.disabled=!ready||locked;go.className=(ready&&!locked)?'btn btn-coral':'btn';}
+  badge();
+}
+function sel(w){if(!locked){act=w;paint();}}
+function setMode(m){if(locked)return;mode=m;act=m==='decimal'?'x':'n';render();}
+function toggleWhole(){if(locked)return;useWhole=!useWhole;if(!useWhole)whole='';if(useWhole)act='w';mode='fraction';render();}
+function key(v){
+  if(locked)return;
+  if(mode==='decimal'){
+    if(v==='del')decimal=decimal.slice(0,-1);
+    else if(v==='.'){if(decimal.indexOf('.')<0&&decimal)decimal+='.';}
+    else if(decimal.length<6)decimal+=v;
+    paint();return;
+  }
+  if(v==='.'){whole='';num='';den='';act=useWhole?'w':'n';paint();return;}
+  if(v==='del'){
+    if(act==='w')whole=whole.slice(0,-1);
+    else if(act==='n')num=num.slice(0,-1);
+    else den=den.slice(0,-1);
+  }else{
+    if(act==='w'){if(whole.length<2)whole+=v;if(whole.length===2)act='n';}
+    else if(act==='n'){if(num.length<2)num+=v;if(num.length===2)act='d';}
+    else if(den.length<2)den+=v;
+  }
+  paint();
+}
+function check(){
+  const q=question();
+  const res=markFractionAnswer({whole:whole,num:num,den:den,decimal:decimal,mode:mode},q);
+  last=res;locked=true;$('go').disabled=true;$('go').className='btn';
+  $('fb').innerHTML=res.correct
+    ? '<div class="fb ok"><div class="t">✓ '+res.headline+'</div>'+
+      (res.note?res.note:q.rule)+(res.note?'<div class="why">'+q.rule+'</div>':'')+'</div>'+
+      '<button class="btn btn-coral" type="button" onclick="next()">Next question →</button>'
+    : '<div class="fb bad"><div class="t">'+res.headline+'</div>'+(res.why||'')+'</div>'+
+      '<button class="btn btn-coral" type="button" onclick="work()">📝 Show me the working</button>';
+  badge();
+}
+function work(){
+  const q=question();
+  $('scr').innerHTML='<div class="card"><div class="kick">Step by step</div><div class="q" style="font-size:15.5px">'+q.stem+'</div></div>'+
+   q.steps.map(function(s,k){return '<div class="step"><div class="n">Step '+(k+1)+'</div><div class="t">'+s.t+'</div><div class="m">'+s.m+'</div></div>';}).join('')+
+   '<div class="step" style="border-left-color:var(--gold)"><div class="n">Remember</div>'+
+   '<div class="t">'+q.rule+'</div></div>'+
+   '<button class="btn btn-coral" type="button" onclick="again()">Try it again →</button>';
+}
+function again(){reset();render();}
+function next(){qi=(qi+1)%QS.length;reset();render();}
+function badge(){
+  const el=$('verdict');
+  if(!last){el.className='chk idle';el.textContent='marking: waiting for an answer';return;}
+  el.className='chk'+(last.correct?'':' bad');
+  el.textContent='marking: '+last.reason+(last.correct?' ✓':' ✗');
+}
+
+/* ============================================================
+   REFERENCE PHONE
+   ============================================================ */
+function buildRef(){
+  $('ref').innerHTML=
+  '<div class="card"><div class="kick">The four forms</div>'+
+    '<div class="row"><div class="lab">Proper</div><div class="val">'+Frac(3,4)+'</div><div class="no">3/4</div></div>'+
+    '<div class="row"><div class="lab">Improper</div><div class="val">'+Frac(11,4)+'</div><div class="no">11/4</div></div>'+
+    '<div class="row"><div class="lab">Mixed number</div><div class="val">'+Mixed(2,3,4)+'</div><div class="no">2 3/4</div></div>'+
+    '<div class="row"><div class="lab">Equivalence</div><div class="val chain">'+Frac(1,2)+' = '+Frac(2,4)+' = '+Frac(50,100)+'</div></div>'+
+  '</div>'+
+
+  '<div class="card"><div class="kick">It scales with the text</div>'+
+    '<div class="scaler">'+
+      '<div class="s1">Body copy: she drank '+Frac(1,2)+' a litre before school.</div>'+
+      '<div class="s2">A list row: '+Frac(3,4)+' of 240 learners passed.</div>'+
+      '<div class="s3">Exam zoom: '+Mixed(2,3,4)+' km</div>'+
+    '</div>'+
+  '</div>'+
+
+  '<div class="card"><div class="kick">Signs</div>'+
+    '<div class="row"><div class="lab">Divide</div><div class="val">240 ÷ 4</div><div class="no">240 / 4</div></div>'+
+    '<div class="row"><div class="lab">Multiply</div><div class="val">60 × 3</div><div class="no">60 * 3</div></div>'+
+    '<div class="row"><div class="lab">Minus</div><div class="val">9 − 4</div><div class="no">9 - 4</div></div>'+
+    '<div class="row"><div class="lab">Money</div><div class="val">K180.00</div><div class="no">180 ZMW</div></div>'+
+    '<div class="row"><div class="lab">Thousands</div><div class="val">12 500</div><div class="no">12,500</div></div>'+
+  '</div>'+
+
+  '<div class="card"><div class="kick">Read aloud · tap to hear it</div>'+
+    ['3|4','11|4','1|2','7|10'].map(function(p){
+      const a=p.split('|'),n=+a[0],d=+a[1];
+      return '<div class="row"><div class="val">'+Frac(n,d)+'</div>'+
+        '<button class="spk" type="button" onclick="sayIt(\''+fracWords(n,d)+'\',this)">🔊 '+fracWords(n,d)+'</button></div>';
+    }).join('')+
+    '<div class="row"><div class="val">'+Mixed(2,3,4)+'</div>'+
+      '<button class="spk" type="button" onclick="sayIt(\''+mixedWords(2,3,4)+'\',this)">🔊 '+mixedWords(2,3,4)+'</button></div>'+
+    '<div class="said" id="saidLine">The button speaks the fraction’s own aria-label — one string, both voices.</div>'+
+  '</div>'+
+
+  '<div class="card"><div class="kick">In the working</div>'+
+    '<div class="step"><div class="n">Step 1</div><div class="t">Make the bottoms the same</div><div class="m">'+Frac(1,2)+' = '+Frac(2,4)+'</div></div>'+
+    '<div class="step"><div class="n">Step 2</div><div class="t">Add the tops only</div><div class="m">'+Frac(2,4)+' + '+Frac(1,4)+' = '+Frac(3,4)+'</div></div>'+
+  '</div>';
+}
+function sayIt(words,btn){
+  const ok=speak(words);
+  $('saidLine').textContent=ok?('Speaking: “'+words+'”'):'This browser has no speech voice — the aria-label still reads “'+words+'”.';
+}
+$('say').onclick=function(){
+  const q=question();
+  const words=last&&last.spoken?last.spoken:fracWords(q.value.n,q.value.d);
+  const ok=speak(words);
+  $('verdict').className='chk idle';
+  $('verdict').textContent=(ok?'speaking: ':'no voice — label reads: ')+'“'+words+'”';
+};
+
+/* ============================================================
+   MIGRATION SCAN — timid on purpose
+   ============================================================ */
+const CONTENT=[
+ {where:'notes/g7-fractions.md',text:'Three quarters is written 3/4 and one half is written 1/2.'},
+ {where:'quiz/q_88 stem',text:'What is 1/2 + 1/4 of a bun?'},
+ {where:'quiz/q_88 answerKey',text:'3/4'},
+ {where:'paper/2024-maths-p1 q12',text:'A tank is 2 3/4 metres deep.'},
+ {where:'notes/g6-measure.md',text:'A minibus travels at 60 km/h between Kabwe and Lusaka.'},
+ {where:'paper/2023-maths-p2 header',text:'Examination date: 12/03/2026.'},
+ {where:'notes/g7-ratio.md',text:'Share the money in the ratio 3/4 — that is three parts to four parts.'},
+ {where:'quiz/q_104 stem',text:'Tick the boxes that apply and/or write your own answer.'},
+ {where:'studyplan/week3',text:'Cover 5/8, 7/10 and 9/100 before Friday.'},
+ {where:'guardian/report-copy',text:'Chanda scored 18/20 on the fractions quiz.'}
+];
+function scanLine(text){
+  const out=[];
+  const re=/(\d{1,4})\s*\/\s*(\d{1,4})/g;let m;
+  while((m=re.exec(text))!==null){
+    const n=+m[1],d=+m[2],at=m.index,end=re.lastIndex;
+    const before=text.slice(Math.max(0,at-14),at),after=text.slice(end,end+14);
+    let verdict='convert',why='';
+    if(/\d\s*\/\s*$/.test(before)||/^\s*\/\s*\d/.test(after)){verdict='ambiguous';why='part of a three-part date';}
+    else if(/[A-Za-z]$/.test(before)||/^[A-Za-z]/.test(after)){verdict='ambiguous';why='letters either side — a unit or a word pair';}
+    else if(/ratio/i.test(text)){verdict='ambiguous';why='the line says "ratio"';}
+    else if(/scored|mark|out of/i.test(text)){verdict='ambiguous';why='reads as a score out of a total, not a fraction';}
+    else if(d===0){verdict='ambiguous';why='bottom is zero';}
+    out.push({raw:m[0],n:n,d:d,verdict:verdict,why:why});
+  }
+  if(/\b[a-z]+\/[a-z]+\b/i.test(text)&&!out.length)out.push({raw:(text.match(/\b[a-z]+\/[a-z]+\b/i)||[''])[0],verdict:'ambiguous',why:'word pair, not a fraction'});
+  return out;
+}
+function renderReport(){
+  let conv=0,amb=0,rows='';
+  CONTENT.forEach(function(c){
+    const hits=scanLine(c.text);
+    if(!hits.length)return;
+    hits.forEach(function(h){
+      if(h.verdict==='convert'){
+        conv++;
+        rows+='<tr><td class="w g">CONVERT</td><td class="w d">'+c.where+'</td><td><code>'+h.raw+'</code> &rarr; <span class="out">'+Frac(h.n,h.d)+'</span> <span class="d">“'+fracWords(h.n,h.d)+'”</span></td></tr>';
+      }else{
+        amb++;
+        rows+='<tr><td class="w a">REVIEW</td><td class="w d">'+c.where+'</td><td><code>'+h.raw+'</code> left alone — '+h.why+'<br><span class="d">'+c.text+'</span></td></tr>';
+      }
+    });
+  });
+  $('report').innerHTML='<h3>Migration scan — '+CONTENT.length+' content strings</h3>'+
+   '<p class="lead">What a real migration run would print. It converts only what is unambiguously a fraction and hands everything else to a human. '+
+   '<span class="g">'+conv+' converted</span> · <span class="a">'+amb+' for review</span>.</p>'+
+   '<table>'+rows+'</table>';
+}
+
+/* boot */
+$('form').onchange=function(){reset();render();};
+$('dec').onchange=function(){reset();render();};
+reset();render();buildRef();renderReport();
+</script>
+</body></html>

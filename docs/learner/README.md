@@ -20,6 +20,10 @@ build prompts). The specs are committed **verbatim as shipped**:
 | `zedexams-spelling-game.html` | The spelling game, playable (PROMPT 7a) — see below |
 | `zedexams-spelling-stages.html` | The spelling stage ladder, mastery and tricky-word pool (PROMPT 7a-2) |
 | `zedexams-spelling-coach.html` | The "break it up" coach shown after a missed word (PROMPT 7a-3) |
+| `zedexams-maths-game.html` | The maths game, playable (PROMPT 7c) — see below |
+| `zedexams-maths-notation.html` | Fractions written the school way, and the one marking rule (PROMPT 7d) |
+| `zedexams-fraction-levels.html` | The nine fraction levels and their sub-steps (PROMPT 7e) |
+| `zedexams-fractions-level1.html` | Level 1 — pictures before symbols (PROMPT 7e-1) |
 
 The playbook was landed later than the four specs, and carries its own
 snapshot header for a reason worth repeating here: it is a PLAN, not a record.
@@ -39,17 +43,19 @@ an older build. v13 remains the deepest reference for note-reader *content*
 (the fully worked Digestive System note); its blocks are already seeded in
 `src/features/notes/seed/grade7Seed.json`.
 
-## The three spelling prototypes
+## The seven playable prototypes
 
-Unlike the files above these are **not committed verbatim** — the owner's
-mockups are the visual reference, and each of these implements the rules its
-prompt states on top of that design. They are working prototypes rather than
+The three spelling files and the four maths files below are, unlike the files
+above, **not committed verbatim** — the owner's mockups are the visual
+reference, and each of these implements the rules its prompt states on top of
+that design. They are working prototypes rather than
 screens: every rule that can be demonstrated is driven by real code, so a
 reviewer can find out whether a rule holds by using it rather than by reading
 about it.
 
 Each carries a prototype CONTROL STRIP above the phone — a grade picker, a
-learner switch, a schema saboteur. That strip is not part of the app. It
+learner switch, a schema saboteur, a chapter lock, a "this question asks for
+lowest terms" switch. That strip is not part of the app. It
 exists because several of these rules only show themselves across states one
 screenshot cannot hold: decoys scaling from Grade 4 to Grade 9, two learners
 getting different words for the same stage number, a validator that has to be
@@ -81,6 +87,53 @@ What each one actually runs, rather than describes:
   no `hook` render with no empty gold box; the rebuild rejects out-of-order
   picks without taking anything away; and the skip path still hands the word to
   the pool.
+- **`zedexams-maths-game.html`** — `markMaths()` is the one marking function:
+  a listed wrong answer returns its own named misconception, an unlisted one is
+  written to `localStorage` with a running count and printed in the review
+  queue below the phones, a decimal answer is accepted within its question's
+  stated tolerance, and an equivalent form (`180/1` for `180`) passes wherever
+  the question is not *about* the form. The working reveals one step at a time
+  and then re-asks the same question with the steps gone. `chapterState()`
+  gates on the prerequisite list, so picking a locked chapter in the rig
+  refuses to start the round and names what opens it. **Exam style** builds its
+  A–D options out of the same `traps` map, so the distractors are the
+  misconceptions. Nothing in the file calls `setInterval`, `setTimeout` or
+  `Date.now` — the no-clock rule is structural, not a setting.
+- **`zedexams-maths-notation.html`** — every fraction on both phones comes out
+  of one `Frac()`/`Mixed()` pair, sized in `em` so it scales with its sentence,
+  with the digits `aria-hidden` and the words as the accessible name (the
+  read-aloud button speaks *that* string, so the screen reader and the paid
+  voice cannot drift). `markFractionAnswer()` is the single comparison
+  function: `2/4` is correct for `1/2` **with** a simplification line, wrong
+  only when the question asks for lowest terms; improper and mixed are
+  interchangeable unless one is asked for; a decimal is refused unless the
+  question allows it. The dark panel is a migration scan that converts only
+  unambiguous fractions and hands dates, `km/h`, `and/or`, ratios and scores to
+  a human.
+- **`zedexams-fraction-levels.html`** — the nine levels are data
+  (`{id, order, name, blurb, exampleExpr, prereq[], subSteps[]}`) and nothing in
+  the engine is fraction-specific. **No level is skippable**: one opens when
+  the level *before* it is passed AND every level it names in `prereq[]` is.
+  The sequence is what stops a learner jumping ahead; the declared list is what
+  lets a lock say *why* rather than only "it is next" — level 4 cites equal
+  fractions, level 7 cites multiplying, level 9 cites all four operations —
+  and blockers are named earliest-first, so the lock points at the next thing
+  to do rather than the furthest. Seventeen self-checks run on every render and
+  are printed, among them one that passes **every other level** and confirms
+  each one still refuses to open without its own predecessor. Stars are never
+  consulted. `composeStage()` mixes the learner's own due misses into each
+  stage, capped at half of it, and switching learner in the rig genuinely
+  changes both halves.
+- **`zedexams-fractions-level1.html`** — nine acceptance rules run against the
+  round data and are printed: no fraction symbol in any stem, caption or option
+  (it appears only in the feedback after a correct answer), all four question
+  types present in order, two of the three equal-parts oranges cut into
+  *unequal* pieces, one half drawn on three different shapes, every wrong
+  answer carrying its own explanation with none shared, no "numerator" or
+  "denominator" anywhere, and the longest sentence in the level measured
+  against a Grade 4 bar. Every drawing is SVG. The rig's **plain worksheet
+  shapes** setting renders the version the prompt argues against, so the
+  argument can be looked at rather than only read.
 
 ## Ground rules the prompts repeat (binding for every learner-side change)
 
