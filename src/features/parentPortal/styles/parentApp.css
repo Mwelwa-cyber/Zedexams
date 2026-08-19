@@ -683,3 +683,31 @@
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .pax-rep-icon {
   background: var(--lhx-indigo-soft);
 }
+
+/* ── FAQ rows (Help & support) ────────────────────────────────────── */
+
+.pax-faq { padding: 12px 15px; }
+.pax-faq + .pax-faq { border-top: 1px solid var(--lhx-line); }
+
+.pax-faq-q {
+  font-size: 13.5px;
+  font-weight: 900;
+  color: var(--lhx-ink);
+  cursor: pointer;
+  list-style: none;
+  /* A summary is a tap target before it is a heading. */
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+}
+.pax-faq-q::-webkit-details-marker { display: none; }
+.pax-faq-q::after { content: '+'; margin-left: auto; padding-left: 12px; color: var(--lhx-faint); font-size: 17px; }
+.pax-faq[open] .pax-faq-q::after { content: '\2013'; }
+
+.pax-faq-a {
+  margin-top: 7px;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.55;
+  color: var(--lhx-muted);
+}
