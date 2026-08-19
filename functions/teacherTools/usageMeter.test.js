@@ -48,21 +48,32 @@ function getNestedValue(obj, dottedKey) {
 // Segments that would walk or overwrite the prototype chain are refused
 // outright: this fake must never be able to pollute Object.prototype, and
 // Firestore field paths never legitimately contain these names.
-const FORBIDDEN_SEGMENT = new Set(["__proto__", "constructor", "prototype"]);
-
+//
+// The refusal is written as an === test against each literal, immediately
+// before the segment is used, rather than as a `SET.has(segment)` pre-pass
+// over the whole path. Both reject the same inputs, but only the first shape
+// is one an analyser can follow from the check to the write it protects: the
+// Set version left CodeQL #10 (js/prototype-pollution-utility) reporting this
+// helper as unguarded, because a Set membership call proves nothing about the
+// value that reaches `cur[segment] = ...` several lines later.
 function setNestedValue(obj, dottedKey, value) {
   const parts = dottedKey.split(".");
-  if (parts.some((p) => FORBIDDEN_SEGMENT.has(p))) {
-    throw new Error(`unsafe field path in test write: ${dottedKey}`);
-  }
   let cur = obj;
   for (let i = 0; i < parts.length - 1; i++) {
-    if (cur[parts[i]] == null || typeof cur[parts[i]] !== "object") {
-      cur[parts[i]] = {};
+    const segment = parts[i];
+    if (segment === "__proto__" || segment === "constructor" || segment === "prototype") {
+      throw new Error(`unsafe field path in test write: ${dottedKey}`);
     }
-    cur = cur[parts[i]];
+    if (cur[segment] == null || typeof cur[segment] !== "object") {
+      cur[segment] = {};
+    }
+    cur = cur[segment];
   }
-  cur[parts[parts.length - 1]] = value;
+  const leaf = parts[parts.length - 1];
+  if (leaf === "__proto__" || leaf === "constructor" || leaf === "prototype") {
+    throw new Error(`unsafe field path in test write: ${dottedKey}`);
+  }
+  cur[leaf] = value;
 }
 
 const makeRef = (path) => ({

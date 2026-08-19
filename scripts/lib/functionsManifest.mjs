@@ -627,7 +627,15 @@ function readV1Chain(source, binding, modulePath) {
   // `\s*` between every segment: the chain is written one call per line, so a
   // pattern that allows no whitespace matches nothing on the only file it has
   // to read.
-  const event = /\.(auth|firestore|database|pubsub|storage|https|analytics|remoteConfig|testLab)\s*((?:\.\s*[A-Za-z]+\s*(?:\([^)]*\))?\s*)*?)\.\s*on([A-Za-z]+)\s*\(/.exec(chain)
+  //
+  // Exactly ONE `\s*` may consume the run of whitespace after each segment
+  // name, and the optional argument list is entered only through its `(`.
+  // Written the other way round -- `[A-Za-z]+\s*(?:\([^)]*\))?\s*` -- the two
+  // `\s*` both compete for the same spaces on every segment that takes no
+  // arguments, and the repetition then has 2^n ways to split the whitespace of
+  // an n-segment chain: CodeQL #62 (js/redos) measured exponential blow-up on
+  // `.auth.A` followed by many `\t.A`. Same language, one parse.
+  const event = /\.(auth|firestore|database|pubsub|storage|https|analytics|remoteConfig|testLab)\s*((?:\.\s*[A-Za-z]+\s*(?:\([^)]*\)\s*)?)*?)\.\s*on([A-Za-z]+)\s*\(/.exec(chain)
   if (!event) return { unresolved: `v1 chain for "${binding}" in ${modulePath} names no event` }
   options.event = normalise(`functions.${event[1]}${event[2]}.on${event[3]}`).replace(/\s+/g, '')
   return { options, kind: 'authTrigger', from: modulePath }

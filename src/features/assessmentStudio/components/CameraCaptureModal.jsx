@@ -34,11 +34,24 @@ const GHOST_BTN = {
   cursor: 'pointer', borderRadius: 10, padding: '10px 16px', fontWeight: 700, fontSize: 14,
 }
 
-// Preview URLs are only ever minted by URL.createObjectURL, so enforce the
-// blob: scheme before the value reaches the <img src> sink — no string that
-// arrived any other way (e.g. derived from a picked file) can render.
+// Preview URLs are only ever minted by URL.createObjectURL, so the value is
+// pinned to the blob: scheme before it reaches the <img src> sink — no string
+// that arrived any other way (e.g. derived from a picked file) can render, and
+// a javascript: URL can never appear here.
+//
+// Anchored whole-string match rather than startsWith: `^blob:` alone still
+// admits whitespace, quotes and angle brackets later in the value, which is
+// what would matter if this were ever moved to an attribute that is parsed as
+// markup. encodeURI is the escaping step for a value going into a URL
+// attribute; a blob: URL is scheme + origin + UUID, so it round-trips
+// unchanged, and anything that would not is rejected by the pattern first.
+//
+// Both parts are also what CodeQL #70 (js/xss-through-dom) was asking for: it
+// tracks the picked File through URL.createObjectURL to this attribute, and a
+// startsWith() prefix test is not a shape it can read as a barrier.
+const BLOB_URL = /^blob:[^\s"'<>]+$/
 function blobUrlOnly(url) {
-  return typeof url === 'string' && url.startsWith('blob:') ? url : undefined
+  return typeof url === 'string' && BLOB_URL.test(url) ? encodeURI(url) : undefined
 }
 
 export default function CameraCaptureModal({ onConfirm, onClose }) {

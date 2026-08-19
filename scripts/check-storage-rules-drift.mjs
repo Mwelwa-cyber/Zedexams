@@ -51,9 +51,28 @@ const API = API_ORIGIN + '/v1'
 const RULES_FILE = new URL('../storage.rules', import.meta.url)
 const FIREBASERC = new URL('../.firebaserc', import.meta.url)
 
-/** The project whose rules to read: explicit env first, then .firebaserc. */
+// A Google Cloud project id: 6-30 characters, lowercase letters, digits and
+// hyphens, first character a letter, last not a hyphen.
+const PROJECT_ID = /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/
+
+/**
+ * The project whose rules to read: explicit env first, then .firebaserc.
+ *
+ * The value is checked against the project-id grammar before it is used,
+ * because it is the one part of the request path this script does not write
+ * itself. A value carrying `/`, `?` or `#` would silently address a different
+ * Rules API resource while still passing the origin pin in getJson; that is a
+ * repository or workflow misconfiguration, so it is refused outright rather
+ * than escaped and sent anyway (CodeQL #67, js/file-access-to-http, is what
+ * pointed at this path -- file contents reaching an outbound request URL).
+ */
 function projectId() {
-  if (process.env.FIREBASE_PROJECT_ID) return process.env.FIREBASE_PROJECT_ID
+  const raw = process.env.FIREBASE_PROJECT_ID || readDefaultProject()
+  return typeof raw === 'string' && PROJECT_ID.test(raw) ? raw : null
+}
+
+/** The default project recorded in .firebaserc, or null if there isn't one. */
+function readDefaultProject() {
   try {
     const rc = JSON.parse(readFileSync(FIREBASERC, 'utf8'))
     return (rc && rc.projects && rc.projects.default) || null
@@ -105,7 +124,11 @@ async function getJson(url, token) {
     throw new Error('refusing to call ' + target.origin + ' — only ' + API_ORIGIN + ' is allowed')
   }
   const res = await fetch(target, {headers: {Authorization: 'Bearer ' + token}})
-  if (!res.ok) throw new Error('HTTP ' + res.status + ' from the Rules API')
+  // Number(), not res.status directly: the status is the only thing from this
+  // response that may be repeated, and the coercion says so at the point of
+  // use. Nothing from the body, the headers or the URL is ever echoed -- this
+  // message reaches a public job log (CodeQL #69, js/http-to-file-access).
+  if (!res.ok) throw new Error('HTTP ' + Number(res.status) + ' from the Rules API')
   return res.json()
 }
 
@@ -122,7 +145,10 @@ async function storageReleases(project, token) {
 
   for (let page = 0; page < 20; page++) {
     const query = pageToken ? '&pageToken=' + encodeURIComponent(pageToken) : ''
-    const payload = await getJson(API + '/projects/' + project + '/releases?pageSize=100' + query, token)
+    const payload = await getJson(
+      API + '/projects/' + encodeURIComponent(project) + '/releases?pageSize=100' + query,
+      token,
+    )
     found.push(...selectStorageReleases(payload))
     pageToken = (payload && payload.nextPageToken) || null
     if (!pageToken) break
