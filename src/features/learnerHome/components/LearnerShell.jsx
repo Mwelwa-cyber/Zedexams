@@ -9,11 +9,17 @@
  * header of its own. Mount it once as a layout route via LearnerLayout
  * so the navigation never remounts between tab changes.
  */
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import '../../../shared/styles/learnerTheme.css'
 import LearnerBottomNav from './LearnerBottomNav'
 import { OfflineBadge } from './LearnerPrimitives'
 import { useNetworkStatus } from '../../../hooks/useNetworkStatus'
+
+// Lazy, and mounted in the SHELL rather than on a page, because an account
+// counting down to deletion is not something to discover by navigating to the
+// right screen. It renders nothing at all for the overwhelming majority of
+// learners — no request, no banner, and the chunk is never fetched.
+const DeletionPendingBanner = lazy(() => import('./DeletionPendingBanner'))
 
 const BACK_ONLINE_MS = 4000
 
@@ -43,6 +49,10 @@ export default function LearnerShell({ children }) {
     <div className="lhx">
       <div className="lhx-page">
         {offline && <OfflineBadge />}
+        {/* No Suspense fallback: a banner that flashes a skeleton on every
+            navigation would be worse than one that appears a moment late,
+            and for almost everyone it never appears at all. */}
+        <Suspense fallback={null}><DeletionPendingBanner /></Suspense>
         {backOnline && (
           <div className="lhx-online-toast" role="status">
             ✅ Back online — your progress is syncing.

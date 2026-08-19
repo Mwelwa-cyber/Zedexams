@@ -75,6 +75,17 @@ const RETAINED = new Map([
     "replay window on their own payment webhooks, which is the failure the " +
     "collection exists to prevent. Self-limiting anyway — every row carries a " +
     "30-day expiresAt for a Firestore TTL policy"],
+  ["accountDeletionAudit",
+    "Append-only trail of every deletion-request transition: who asked, "  +
+    "who answered, when it escalated, when the window closed. RETAINED "  +
+    "because it is the evidence /child-safety promises a guardian — that " +
+    "they can view, change and delete their child's data, and that it "    +
+    "actually happened. A trail purged along with the account proves "     +
+    "nothing about the one deletion anybody would ever ask about. It "     +
+    "holds uids, state names and timestamps and NO personal data: no "     +
+    "name, no email, no content. Once the auth record and the users doc "  +
+    "are gone those uids identify nobody. The request document itself, "   +
+    "which DOES carry the child's display name, is purged"],
   ["adminAuditLogs", "append-only admin-action ledger; compliance record"],
   ["agentControl", "per-agent circuit-breaker flags; ops config"],
   ["aiAgentControls", "learner-AI agent toggles; ops config"],

@@ -28,9 +28,10 @@ vi.mock('../hooks/useGuardianChildren', () => ({
   default: () => mockChildren,
 }))
 
-const listGuardianApprovals = vi.fn(() => Promise.resolve([]))
+const listGuardianFeed = vi.fn(() => Promise.resolve({ approvals: [], deletionRequests: [] }))
 vi.mock('../services/parentApp', () => ({
-  listGuardianApprovals: (...a) => listGuardianApprovals(...a),
+  listGuardianFeed: (...a) => listGuardianFeed(...a),
+  listGuardianApprovals: vi.fn(() => Promise.resolve([])),
   declineGuardianApproval: vi.fn(),
 }))
 
@@ -53,9 +54,45 @@ function renderHome() {
 
 describe('ParentHome', () => {
   beforeEach(() => {
-    listGuardianApprovals.mockClear()
-    listGuardianApprovals.mockResolvedValue([])
+    listGuardianFeed.mockClear()
+    listGuardianFeed.mockResolvedValue({ approvals: [], deletionRequests: [] })
     mockChildren = { loading: false, error: null, children: [onTrack, stopped], reload: vi.fn() }
+  })
+
+  it('shows a deletion request as its own alert, above the approval feed', async () => {
+    listGuardianFeed.mockResolvedValue({
+      approvals: [],
+      deletionRequests: [
+        { id: 'req1', learnerId: 'kid-ok', childName: 'Aaron Phiri', requestedAt: Date.now() - 2 * DAY },
+      ],
+    })
+    renderHome()
+    await waitFor(() => expect(screen.getByText(/wants to delete their account/)).toBeInTheDocument())
+    // Days REMAINING, not days elapsed: what a parent has to act on.
+    expect(screen.getByText(/5 days to reply/)).toBeInTheDocument()
+  })
+
+  it('offers NO decision on the alert itself — only a route to the screen that can inform one', async () => {
+    listGuardianFeed.mockResolvedValue({
+      approvals: [],
+      deletionRequests: [
+        { id: 'req1', learnerId: 'kid-ok', childName: 'Aaron Phiri', requestedAt: Date.now() },
+      ],
+    })
+    renderHome()
+    await waitFor(() => expect(screen.getByText(/wants to delete their account/)).toBeInTheDocument())
+    // A one-tap Approve on a home-screen card would be the same mistake as a
+    // one-tap purchase: the decision needs the streak, the exam countdown, the
+    // two lists and the plan panel to be an informed one.
+    expect(screen.queryByRole('button', { name: /approve/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /decline/i })).toBeNull()
+    expect(screen.getByRole('link', { name: /wants to delete/ })).toHaveAttribute('href', '/family/requests/req1')
+  })
+
+  it('shows no alert when nothing is pending', async () => {
+    renderHome()
+    await waitFor(() => expect(listGuardianFeed).toHaveBeenCalled())
+    expect(screen.queryByText(/Needs your answer/)).toBeNull()
   })
 
   it('greets the parent by first name', () => {
@@ -80,9 +117,9 @@ describe('ParentHome', () => {
   })
 
   it('a failed approvals read leaves the children list standing', async () => {
-    listGuardianApprovals.mockRejectedValue(new Error('offline'))
+    listGuardianFeed.mockRejectedValue(new Error('offline'))
     renderHome()
-    await waitFor(() => expect(listGuardianApprovals).toHaveBeenCalled())
+    await waitFor(() => expect(listGuardianFeed).toHaveBeenCalled())
     expect(screen.getByText(/Zoe/)).toBeInTheDocument()
     expect(screen.queryByText(/Needs your approval/)).not.toBeInTheDocument()
   })

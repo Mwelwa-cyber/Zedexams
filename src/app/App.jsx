@@ -254,6 +254,7 @@ const ParentChildDetail = lazy(() => import('../features/parentPortal/pages/Pare
 const ParentChildActivity = lazy(() => import('../features/parentPortal/pages/ParentChildActivity'))
 const ParentReports = lazy(() => import('../features/parentPortal/pages/ParentReports'))
 const ParentReportDetail = lazy(() => import('../features/parentPortal/pages/ParentReportDetail'))
+const ParentDeletionRequest = lazy(() => import('../features/parentPortal/pages/ParentDeletionRequest'))
 const ParentAccount = lazy(() => import('../features/parentPortal/pages/ParentAccount'))
 const ParentPlan = lazy(() => import('../features/parentPortal/pages/ParentPlan'))
 const FamilySharing = lazy(() => import('../features/parentPortal/pages/FamilySharing'))
@@ -664,6 +665,11 @@ export default function App() {
             <Route path="/family/child/:childUid"              element={<ParentChildDetail />} />
             <Route path="/family/child/:childUid/activity"     element={<ParentChildActivity />} />
             <Route path="/family/child/:childUid/report"       element={<ParentReportDetail />} />
+            {/* A deletion request the guardian was asked to answer. Its own
+                route rather than a modal on /family, because the decision is
+                time-boxed and irreversible: it has to survive a closed tab,
+                a re-read, and the deep link in the email. */}
+            <Route path="/family/requests/:requestId"          element={<ParentDeletionRequest />} />
             {/* Co-guardianship is per CHILD, so the account row lands on a
                 picker; with one child it redirects straight through. */}
             <Route path="/family/sharing"                      element={<FamilySharingPicker />} />

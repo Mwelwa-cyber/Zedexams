@@ -894,7 +894,12 @@
     "test:auth-ready-guards": "node scripts/test-auth-ready-guards.mjs",
     "test:learner-avatars": "node src/shared/components/learnerAvatarManifest.test.js",
     "test:name-avatar-form": "node src/features/learnerSettings/lib/nameAvatarFormCore.test.js",
-    "test:learner-settings-routes": "node src/features/learnerSettings/lib/settingsRoutes.test.js"
+    "test:learner-settings-routes": "node src/features/learnerSettings/lib/settingsRoutes.test.js",
+    "test:deletion-request-core": "node functions/deletionFlow/deletionRequestCore.test.js",
+    "test:deletion-sweeps": "node functions/deletionFlow/deletionSweeps.test.js",
+    "test:deletion-decision-context": "node functions/deletionFlow/decisionContextCore.test.js",
+    "test:deletion-state-mirror": "node scripts/test-deletion-state-mirror.mjs",
+    "test:deletion-neutrality": "node functions/deletionFlow/neutrality.test.js"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",

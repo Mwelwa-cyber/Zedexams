@@ -2447,6 +2447,61 @@ async function main() {
     await assertFails(deleteDoc(doc(admin, 'accountPurgeJobs', LEARNER_DELETING)))
   })
 
+  section('accountDeletionRequests / accountDeletionAudit — the deletion state machine, server-only')
+
+  await test('a learner CANNOT write their own deletion request', async () => {
+    // `state` decides whether an account is waiting, scheduled or gone. A
+    // client that could write it could move its own request straight to
+    // `completed` and out of every sweep — or schedule any account it can name.
+    await assertFails(setDoc(doc(learnerA, 'accountDeletionRequests', 'req-forged'), {
+      learnerId: LEARNER_A, state: 'scheduled',
+    }))
+  })
+
+  await test('a learner CANNOT open a deletion request against ANOTHER account', async () => {
+    await assertFails(setDoc(doc(learnerA, 'accountDeletionRequests', 'req-victim'), {
+      learnerId: LEARNER_B, state: 'pending_guardian',
+    }))
+  })
+
+  await test('a learner CANNOT read the request that is about them', async () => {
+    // Not an oversight. The learner and the named guardian get two DIFFERENT
+    // projections of one document (the guardian's carries the child's name and
+    // exam readiness), which a rule cannot express — so both go through the
+    // getDeletionRequest callable and neither reads the raw doc.
+    await assertFails(getDoc(doc(learnerA, 'accountDeletionRequests', 'req-any')))
+  })
+
+  await test('a guardian CANNOT approve by writing the document directly', async () => {
+    // Approving is what starts the 30-day clock. It must go through the
+    // callable, which checks that this guardian is the one who was ASKED.
+    await assertFails(setDoc(doc(parent, 'accountDeletionRequests', 'req-any'), {
+      state: 'scheduled',
+    }, { merge: true }))
+  })
+
+  await test('nobody may append to — or read — the audit trail from a client', async () => {
+    // A trail a client can write is not evidence of anything, and /child-safety
+    // promises guardians a record that the deletion happened.
+    await assertFails(setDoc(doc(learnerA, 'accountDeletionAudit', 'entry-1'), {
+      requestId: 'r', to: 'completed',
+    }))
+    await assertFails(getDoc(doc(learnerA, 'accountDeletionAudit', 'entry-1')))
+  })
+
+  await test('a learner CANNOT set the deletion mirror on their own profile', async () => {
+    // `deletionRequestState` is what the shell reads to decide whether to draw
+    // the pending-deletion banner. Writable, a learner could put "your account
+    // is being deleted" on any profile they can write — a lie the server never
+    // told — or clear their own countdown.
+    await assertFails(updateDoc(doc(learnerA, 'users', LEARNER_A), {
+      deletionRequestState: 'scheduled',
+    }))
+    await assertFails(updateDoc(doc(learnerA, 'users', LEARNER_A), {
+      deletionRequestId: 'req-forged',
+    }))
+  })
+
   section('rateLimits / aiDailyLimits / downloadTickets / topicMisconceptions — fully server-only')
 
   await test('a learner CANNOT read their own rateLimits counter', async () => {

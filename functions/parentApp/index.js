@@ -488,8 +488,36 @@ async function listGuardianApprovals(request) {
       .get()
       .catch(() => null);
 
+  // Deletion requests addressed to THIS guardian. A separate query and a
+  // separate key rather than folded into the unlock feed, because they are not
+  // the same kind of thing: an unlock request asks for money and waits
+  // indefinitely, a deletion request is time-boxed and irreversible. Merging
+  // them would mean one shape permissive enough for both, and one styling
+  // decision covering an amber nudge and a red alert.
+  const delSnap = await db.collection("accountDeletionRequests")
+      .where("guardianUid", "==", uid)
+      .where("state", "==", "pending_guardian")
+      .limit(20)
+      .get()
+      .catch(() => null);
+
+  const deletionRequests = delSnap ? delSnap.docs.map((d) => {
+    const data = d.data() || {};
+    const child = children.get(data.learnerId) || {};
+    return {
+      id: d.id,
+      learnerId: data.learnerId,
+      childName: data.learnerDisplayName || child.displayName || "Your child",
+      requestedAt: toMillis(data.requestedAt),
+      parkedAt: toMillis(data.parkedAt) || null,
+    };
+  }) : [];
+
   const requests = reqSnap ? reqSnap.docs.map((d) => ({id: d.id, ...d.data()})) : [];
-  return {approvals: shapeApprovalFeed(requests, children, Date.now())};
+  return {
+    approvals: shapeApprovalFeed(requests, children, Date.now()),
+    deletionRequests,
+  };
 }
 
 /**

@@ -643,6 +643,18 @@
       "classification": "payment-webhook",
       "batch": null
     },
+    "cancelDeletionRequest": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {},
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
     "checkShortAnswer": {
       "kind": "onCall",
       "inline": false,
@@ -907,6 +919,44 @@
       "rewriteRegion": null,
       "classification": "mechanical",
       "batch": null
+    },
+    "deletionExecutionSweep": {
+      "kind": "onSchedule",
+      "inline": true,
+      "options": {
+        "schedule": "'every 24 hours'",
+        "timeZone": "'Etc/UTC'",
+        "region": "'us-central1'",
+        "timeoutSeconds": "540",
+        "memory": "'512MiB'",
+        "secrets": "deletionFlow.DELETION_FLOW_SECRETS"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": 2
+    },
+    "deletionRequestSweep": {
+      "kind": "onSchedule",
+      "inline": true,
+      "options": {
+        "schedule": "'every 6 hours'",
+        "timeZone": "'Etc/UTC'",
+        "region": "'us-central1'",
+        "timeoutSeconds": "540",
+        "memory": "'256MiB'",
+        "secrets": "deletionFlow.DELETION_FLOW_SECRETS"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": 2
     },
     "deliverDawnBriefings": {
       "kind": "delegated",
@@ -1399,6 +1449,18 @@
       "optionsFrom": "./familyPortal",
       "optionsUnresolved": null,
       "target": "getChildProgress",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "getDeletionRequest": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {},
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
@@ -2485,6 +2547,30 @@
       "classification": "mechanical",
       "batch": null
     },
+    "reportWrongGuardian": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {},
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "requestAccountDeletion": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {},
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
     "requestAssessmentExport": {
       "kind": "delegated",
       "inline": false,
@@ -2588,6 +2674,18 @@
       "optionsUnresolved": null,
       "noOptionsDeclared": true,
       "target": "createResolvePaperAssetUrl()",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "respondToDeletionRequest": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {},
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",

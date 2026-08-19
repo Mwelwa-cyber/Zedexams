@@ -11,7 +11,8 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useNetworkStatus } from '../../../hooks/useNetworkStatus'
 import useGuardianChildren from '../hooks/useGuardianChildren'
-import { listGuardianApprovals } from '../services/parentApp'
+import { listGuardianFeed } from '../services/parentApp'
+import DeletionAlert from '../components/DeletionAlert'
 import { reportClientError } from '../../../utils/clientErrorReporting'
 import { firstNameOf, greetingFor, sortChildren } from '../lib/parentAppView'
 import ApprovalFeed from '../components/ApprovalFeed'
@@ -25,16 +26,22 @@ export default function ParentHome() {
   const online = useNetworkStatus()
   const { loading, error, children, reload } = useGuardianChildren()
   const [approvals, setApprovals] = useState([])
+  const [deletions, setDeletions] = useState([])
 
   const loadApprovals = useCallback(async () => {
     try {
-      setApprovals(await listGuardianApprovals())
+      // ONE round trip for both feeds. The server returns them together, so
+      // asking twice would double the query to draw two cards.
+      const feed = await listGuardianFeed()
+      setApprovals(feed.approvals)
+      setDeletions(feed.deletionRequests)
+      return
     } catch (err) {
       // A failed approvals read must not take the dashboard down with
       // it: the children list is the more important half, and an empty
       // feed reads the same as "nothing pending" either way. It is
       // reported so a silent failure is still visible to us.
-      reportClientError(err, 'parentApp.listGuardianApprovals')
+      reportClientError(err, 'parentApp.listGuardianFeed')
     }
   }, [])
 
@@ -55,6 +62,11 @@ export default function ParentHome() {
           'Link a child to see how they are getting on.' :
           'Here is how your children are doing.'}
       </p>
+
+      {/* Above the amber feed and styled as a RED alert, because a deletion
+          request has a clock on it and is irreversible — where a Premium or
+          friend request is neither. Same habit to learn, different weight. */}
+      <DeletionAlert requests={deletions} />
 
       <ApprovalFeed
         approvals={approvals}

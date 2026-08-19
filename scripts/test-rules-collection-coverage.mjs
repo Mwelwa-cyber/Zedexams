@@ -204,6 +204,7 @@ const COVERED = [
   // even admin-readable — its doc id is the sha256 of the invite token,
   // so a readable row is an acceptable invite to somebody else's child.
   'guardianInvites',
+  'accountDeletionAudit', 'accountDeletionRequests',
   'accountPurgeJobs', 'adminAuditLogs', 'agentControl', 'agentJobs', 'aiDailyLimits', 'aiGenerations',
   'aiOperations', 'aiUsage', 'aiUsageDaily', 'announcements', 'assessmentDrafts', 'assessmentExports', 'assessments',
   'classRegisters', 'curriculum', 'downloadTickets', 'duelQueue', 'exam_attempts',
