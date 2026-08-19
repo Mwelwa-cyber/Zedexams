@@ -63,6 +63,40 @@ function normalizeDiagramParams(params) {
 }
 
 /**
+ * The ADDITIONAL figures a question carries beside its primary `imageUrl` —
+ * the stacked `images[]` a multi-figure scanned question produces.
+ *
+ * This normaliser was missing entirely, and because `questionSchema` gives
+ * `images` a `.default([])`, its absence did not present as a dropped field:
+ * every save wrote an empty array over whatever was stored. So a question
+ * that HAD extra figures lost them on the next autosave, silently, while the
+ * read side (`coerceQuestion`), the paper layout, three learner runners and
+ * the Storage-cleanup cascade all went on expecting the field to be there.
+ *
+ * Entries without a usable `url` are dropped rather than written as empty
+ * slots — the renderers already filter on exactly that, so an entry they
+ * would never draw has no reason to reach Firestore.
+ *
+ * The `.max(6)` cap is applied by SLICING rather than by letting Zod throw.
+ * A teacher whose scanned page yielded a seventh figure did not choose that
+ * and cannot act on a validation error about it, and turning a save that
+ * currently succeeds into one that fails is a worse trade than keeping the
+ * six the schema admits. Unknown keys (a transient `imageAssetId`) are left
+ * for the schema's inner object to strip.
+ */
+function normalizeExtraImages(images) {
+  if (!Array.isArray(images)) return []
+  return images
+    .filter(img => img && typeof img === 'object' && typeof img.url === 'string' && img.url.trim())
+    .slice(0, 6)
+    .map(img => ({
+      url: img.url.trim(),
+      alt: String(img.alt ?? '').trim().slice(0, 2000),
+      width: normaliseImageWidth(img.width),
+    }))
+}
+
+/**
  * Normalise a question for Firestore, emitting the dual HTML+JSON format
  * (contentVersion: 3).
  *
@@ -237,6 +271,8 @@ export async function normalizeQuestionPayload(q, order) {
     imageDiagram,
     imagePosition: q.imagePosition || null,
     imageWidth:    normaliseImageWidth(q.imageWidth),
+    // The stacked extras beside the primary image — see normalizeExtraImages.
+    images:        normalizeExtraImages(q.images),
     diagramText:   q.diagramText || null,
     // Answer-space settings. Only persisted when the teacher set a non-default
     // value so a plain MCQ never carries them (keeps the .strict() schema happy
