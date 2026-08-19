@@ -23,9 +23,11 @@
  */
 exports.buildPaymentHandlers = (deps) => {
   const {
+    CAPABILITY_PURCHASE,
     HttpsError,
     admin,
     assertAdminSecondFactor,
+    assertLearnerCapability,
     assertVerifiedAuth,
     cleanString,
     crypto,
@@ -108,6 +110,18 @@ exports.buildPaymentHandlers = (deps) => {
 
     initiateLencoPayment: async (request) => {
       const uid = await assertVerifiedAuth(request, "Please sign in first.");
+
+      // PURCHASE IS A GATED CAPABILITY. An unapproved under-18 learner
+      // must be refused checkout when the callable is invoked DIRECTLY,
+      // not merely shown no price — which is what the published
+      // /child-safety page commits us to and what a Families reviewer
+      // tests. `assertLearnerCapability` no-ops for teachers, parents and
+      // adult learners (they resolve to the full capability set), so this
+      // is a refusal for exactly one population.
+      //
+      // It sits before the provider is even constructed: a refused call
+      // should cost nothing and leave no payments document behind.
+      await assertLearnerCapability(uid, CAPABILITY_PURCHASE);
 
       const lenco = require("./paymentProvider").getPaymentProvider();
       const {getPlan} = require("./plans");

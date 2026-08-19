@@ -101,6 +101,12 @@ async function activateSubscriptionFromPayment({
   let planForInvoice = null;
   let payloadForInvoice = null;
   let amountMismatch = null;
+  // Carried OUT of the transaction so the guardian entitlement cascade can
+  // run post-commit. `pay`, `expiry` and `grantUid` are all transaction-
+  // scoped; the cascade must not be, because it writes other users'
+  // documents and a failure there must never roll back the activation the
+  // buyer paid for.
+  let cascadeInput = null;
   let overCollected = null;
 
   await db.runTransaction(async (tx) => {
@@ -306,6 +312,18 @@ async function activateSubscriptionFromPayment({
     }
     tx.update(userRef, userUpdate);
 
+    // Who to cascade from, and who has already been credited. The PAYER is
+    // the guardian; `grantUid` is whoever this payment credited, which is
+    // the payer for an ordinary purchase and the named child for a
+    // guardian checkout. Both are excluded from the cascade so nobody is
+    // written twice.
+    cascadeInput = {
+      guardianUid: pay.userId,
+      planId: pay.planId,
+      expiry,
+      alreadyCredited: [grantUid, pay.userId].filter(Boolean),
+    };
+
     activated = true;
     planForInvoice = {id: pay.planId, name: plan.name, durationDays: invoiceDays};
     payloadForInvoice = {
@@ -379,6 +397,36 @@ async function activateSubscriptionFromPayment({
       await settleGuardianRequest({requestId: payloadForInvoice.guardianRequestId});
     } catch (err) {
       console.error("[subscriptionActivation] guardian request settle failed", err);
+    }
+  }
+
+  // ── The entitlement cascade ───────────────────────────────────────────
+  //
+  // A paid plan on a guardian unlocks every learner with an APPROVED link
+  // to them, to the same expiry. A parent with three children does not
+  // expect to buy three plans, and a parent who bought one and found it
+  // covered only one child would experience that as being overcharged.
+  //
+  // It runs HERE — post-commit, from the confirmed-payment path — for the
+  // reason every other side effect in this block does: there is no route
+  // from "a parent tapped pay" to a child being unlocked, only from money
+  // actually arriving. Best-effort; see functions/guardianEntitlement.js
+  // for the four rules it holds to, including that it never shortens an
+  // entitlement a child already has and never revokes one when a guardian
+  // later unlinks.
+  if (!isTopUp && cascadeInput) {
+    try {
+      const {cascadeGuardianEntitlement} = require("./guardianEntitlement");
+      const result = await cascadeGuardianEntitlement(db, {...cascadeInput, paymentId});
+      if (result.cascaded.length > 0) {
+        console.log(
+            `[subscriptionActivation] cascaded ${cascadeInput.planId} to ` +
+            `${result.cascaded.length} linked learner(s)`,
+            {paymentId},
+        );
+      }
+    } catch (err) {
+      console.error("[subscriptionActivation] guardian cascade failed", err);
     }
   }
 

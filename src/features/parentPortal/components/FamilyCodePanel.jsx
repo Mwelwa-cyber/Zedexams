@@ -5,8 +5,8 @@ import {
   revokeFamilyInviteCode,
   listMyFamilyCodes,
   listMyLinkedParents,
+  requestGuardianUnlink,
   respondToFamilyLink,
-  unlinkParentLink,
 } from '../services/familyPortal'
 import { reportClientError } from '../../../utils/clientErrorReporting'
 import Button from '../../../shared/components/Button'
@@ -58,6 +58,7 @@ export default function FamilyCodePanel() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
 
   const load = useCallback(async () => {
     if (!currentUser?.uid) return
@@ -120,14 +121,31 @@ export default function FamilyCodePanel() {
     }
   }
 
-  async function handleRemoveParent(linkId) {
+  // ── A child ASKS; a child does not remove ──────────────────────────
+  //
+  // This used to delete the link document straight from the client. It
+  // cannot, for two reasons that arrived together: `firestore.rules` now
+  // denies every client write to `parentLinks` (so the delete would fail
+  // at runtime), and the rule behind that is the point rather than an
+  // obstacle — a child who can quietly drop supervision is a child who
+  // can be TALKED INTO dropping it, by the person the supervision exists
+  // to notice.
+  //
+  // So the ask is recorded, the guardian and support are told, and a
+  // human decides. What pays for the delay is Childline 116, which needs
+  // no guardian's permission and is one tap away on the Guardian panel
+  // below. A child refusing a guardian they never confirmed is a
+  // different thing and is still immediate — that is the decline button
+  // on a pending row.
+  async function handleAskToRemoveParent(parentUid) {
     setBusy(true)
     setError('')
+    setNotice('')
     try {
-      await unlinkParentLink(linkId)
-      setParents((prev) => prev.filter((p) => p.id !== linkId))
+      const res = await requestGuardianUnlink(parentUid)
+      setNotice(res?.message || 'We have told your grown-up. Nobody has been removed yet.')
     } catch (err) {
-      setError(err?.message || 'Could not remove that parent. Please try again.')
+      setError(err?.message || 'Could not send that. Please try again.')
     } finally {
       setBusy(false)
     }
@@ -230,16 +248,22 @@ export default function FamilyCodePanel() {
                     </span>
                     <button
                       type="button"
-                      onClick={() => handleRemoveParent(p.id)}
+                      onClick={() => handleAskToRemoveParent(p.parentUid)}
                       disabled={busy}
                       className="text-xs font-black text-rose-700 underline decoration-dotted disabled:opacity-50"
                     >
-                      Remove
+                      Ask to remove
                     </button>
                   </li>
                 ))}
               </ul>
             </div>
+          )}
+
+          {notice && (
+            <p className="mt-2 rounded-lg border theme-border theme-bg-subtle px-3 py-2 text-xs font-bold theme-text">
+              {notice}
+            </p>
           )}
 
           {error && (

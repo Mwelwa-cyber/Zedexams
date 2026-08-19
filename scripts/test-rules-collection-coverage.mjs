@@ -187,6 +187,15 @@ function architectureClaims(archSrc) {
  * so it must not drift behind reality in either direction.
  */
 const COVERED = [
+  // The guardian↔learner link's server-only collections. Covered by the
+  // deny-both-directions tests in test-firestore-rules-emulator.mjs — worth
+  // real emulator coverage rather than an acknowledgement because
+  // guardianLinkClaims is keyed by a guardian's email and names a child, so
+  // a readable copy would be a directory of minors indexed by their
+  // parents' addresses.
+  'guardianLinkAudit',
+  'guardianLinkClaims',
+  'guardianUnlinkRequests',
   // Server-only in both directions, admin-readable for support. Its emulator
   // tests are the money path: a learner who could write here could mark their
   // own request paid and unlock without paying.

@@ -177,6 +177,118 @@ capacitor.config.json           — appId com.zedexams.android; android/ holds t
 
 ## Architecture notes that span multiple files
 
+### The guardian↔learner link — one record, two doors
+
+A guardian account and a learner account are never merged. They are joined by
+`parentLinks/{parentUid}_{learnerUid}`, and that document is the relationship:
+it carries the consent, the permissions, the role and the audit reference.
+(The collection kept its pre-existing name — it IS the "link record"; renaming
+a live collection with a live parent portal reading it buys nothing.)
+
+**Consent lives on the LINK, not on the learner.** `users/{uid}.guardian.
+consentStatus` was one guardian's decision, which cannot represent two: a
+withdrawal by one adult would clear the field the other's approval was stored
+in. So each link carries its own `consent {state, method, grantedAt,
+withdrawnAt}` and the learner's state is DERIVED — approved if **at least one**
+link is approved (`guardianLinkCore.resolveLinkConsent`). That one choice is
+what makes multi-guardian, withdrawal and "which adult approved what" fall out
+instead of each needing a special case. The account-level field is still
+honoured (`source: 'account'`), because every learner approved before this
+existed has consent recorded only there.
+
+- **Approval is a disjunction, restriction is a conjunction.** One adult saying
+  yes approves the child; one adult saying no restricts them
+  (`resolveLinkPermissions`, most-restrictive-wins; smallest `dailyMinutes`
+  wins; `false` beats `true` beats `null`). The asymmetry is deliberate — were
+  approval a conjunction, anyone who typed a family code would hold a veto over
+  a child's account. **Only APPROVED links contribute permissions**: a pending
+  guardian has not said they are this child's parent, a withdrawn one no longer
+  is, and neither sets the rules.
+- **Two doors, one guardian account, joined on the verified email.**
+  `guardianLink/convergence.js` owns it. Door A (child names a guardian's email
+  → they approve by link) creates the link APPROVED — the child nominated the
+  address and the adult proved they read that inbox, so both halves are already
+  present. If no account holds that address yet, a **claim** is left in
+  `guardianLinkClaims` and swept up by `listGuardianChildren` on the parent's
+  first visit — not at signup, because parents verify their address afterwards
+  and a claim is only redeemable once verified (`admin.auth()`, never the
+  profile's `email` field, which the account itself can write).
+- **Door B (family code) creates a PENDING link and asks the child.** The code
+  is single-use (burned in the same transaction that writes the link), lives 48
+  hours, is regenerable, and is rate-limited per account and per IP. The
+  confirmation is the real defence against a code reaching the wrong adult — it
+  is the only step involving the one human who knows the answer — and it is
+  enforced server-side: `parentApp`'s `authorise` refuses **every** read of a
+  child's data through an unconfirmed link.
+- **Legacy links are grandfathered, explicitly and temporarily.** A link with
+  no `consent` object at all reads as approved while `enforceMigration` is
+  false (`linkIsApproved`), for the same reason `guardianConsentCore` grants the
+  migration grace: the strict reading would lock every existing parent out of
+  their own dashboard on one deploy. `npm run backfill:link-consent:live`
+  stamps them `grandfathered: true` — approved-by-inference, distinguishable
+  from a child having tapped yes — after which the flag can be flipped. A link
+  that STATES `pending` is never covered: the grace is for silence, not for a
+  recorded answer.
+
+**Server-side enforcement, per capability.** `consentGuard` reads the live
+links on every gated call and folds two independent stores: `users.
+guardianControls` (set inside the child's session behind a friction gate) and
+`parentLinks.permissions` (set by a verified guardian from their own account).
+A restriction from either refuses. `aiChat`, `social` and `purchase` are gated
+in Cloud Functions; **`leaderboard` is the exception and needed a mirror** —
+scores are written straight from the client with no function in the path, and a
+Firestore rule can `get()` one document but cannot run a query, so "does this
+learner have an approved link" is unaskable in `firestore.rules`. The
+`onParentLinkWritten` trigger (africa-south1, like every Firestore trigger)
+mirrors the fold onto `users/{uid}.guardian.effective`, which
+`mayAppearOnLeaderboard()` reads by path. **It is a cache**: nothing that can
+read the live links reads it instead, so a stale mirror costs at most a
+leaderboard row.
+
+**The child is told, and the child can act.** Settings › Guardian
+(`GuardianLinkPanel`) names every linked adult, states what they can and cannot
+see (`GUARDIAN_VISIBILITY` — one declaration shared with `/child-safety` and
+the guardian's confirmation email), shows the permissions each has set, and
+carries Childline Zambia 116 as a real `tel:` link. **Settled decision: a
+guardian sees Ask Zed TOPICS, never transcripts** — `learnerSafetyCore`
+intercepts distress before the model and answers with the helpline, and
+forwarding a flagged transcript would send a child's disclosure to the adult
+who may be its subject. A safety flag routes to Childline and human review,
+never automatically to a guardian.
+
+**Removal is asymmetric, and that is the point.**
+
+| Who | Action | Effect |
+|---|---|---|
+| Child, before confirming | reject / report | link **deleted** — refusing a stranger is not ending supervision |
+| Child, after confirming | `requestGuardianUnlink` | a **request**; guardian and support told; nobody removed |
+| Guardian | `withdrawGuardianConsent` | link marked `withdrawn`, record kept; child limited **only** if no other approval stands |
+
+A child who can quietly drop supervision is a child who can be talked into
+dropping it, by the person the supervision exists to notice. What pays for that
+is Childline 116, which needs no guardian's knowledge and is returned in every
+one of these callables' payloads so a screen cannot forget to show it.
+**`firestore.rules` denies every client write to `parentLinks`, delete
+included** — both routes are callables that append to `guardianLinkAudit`
+(server-only in both directions, as are `guardianLinkClaims` and
+`guardianUnlinkRequests`; a readable claims collection would be a directory of
+minors indexed by their parents' email addresses).
+
+**Entitlement cascades; unlinking does not revoke.** A confirmed payment on a
+guardian unlocks every approved-linked learner to the same expiry
+(`guardianEntitlement.js`, called post-commit from `subscriptionActivation` —
+so only from the Lenco webhook and Play verification, never from an intent). It
+never shortens a plan a child already holds, never grants `teacherPlan`, and
+skips suspended or guardian-denied accounts. The grant is a plain expiry on the
+child's own document, so a guardian who later unlinks leaves the child's plan
+running to the end of the period paid for — intended, and pinned by a test.
+
+Tests: `test:guardian-link`, `test:guardian-link-lifecycle`,
+`test:guardian-entitlement`, `test:consent-guard`, `test:family-portal`,
+`test:shared-guardian-neutral`, `test:rules-text`, plus
+`GuardianLinkPanel.spec.jsx` and the deny-both-directions arms in
+`test-firestore-rules-emulator.mjs`.
+
 ### The learner app rolls out one grade at a time (2026-08-18)
 
 The learner side is open to **Grade 7 only**. Grades 4–6 exist everywhere else
