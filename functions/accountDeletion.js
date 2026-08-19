@@ -67,6 +67,11 @@ const FIELD_QUERY_COLLECTIONS = [
   {collection: "exam_attempts", field: "userId"},
   {collection: "daily_exam_locks", field: "userId"},
   {collection: "results", field: "userId"},
+  // The learner's own deletion request. Purged rather than retained because it
+  // carries `learnerDisplayName` — a child's name, on the record produced by
+  // the process that promised to remove it. The proof that the process ran
+  // lives in `accountDeletionAudit`, which holds uids and states and no name.
+  {collection: "accountDeletionRequests", field: "learnerId"},
   {collection: "payments", field: "userId"},
   {collection: "invoices", field: "userId"},
   {collection: "paperAttempts", field: "userId"},

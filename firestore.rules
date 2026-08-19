@@ -665,6 +665,21 @@ service cloud.firestore {
           // whole of what the control is for. Enforcement of the value
           // itself lives in consentGuard.assertLearnerCapability.
           'guardianControls',
+          // The deletion-request mirror. `deletionRequestState` is written by
+          // functions/deletionFlow on every transition, and it is what the
+          // learner shell reads to decide whether to render the pending-
+          // deletion banner AT ALL — one field already in memory, instead of a
+          // callable on every session for the ~100% of learners with no
+          // request open.
+          //
+          // Blocklisted in both directions, and the second one is the point. A
+          // learner who could CLEAR it would hide their own countdown, which is
+          // survivable; a learner who could SET it would put a "your account is
+          // being deleted" banner on any account whose profile they could write
+          // — and the field is only a mirror, so the banner would be a lie the
+          // server never told. The authoritative state is in
+          // accountDeletionRequests, which is server-only in both directions.
+          'deletionRequestState', 'deletionRequestId',
           'role', 'plan', 'premium', 'isPremium', 'paymentStatus', 'subscriptionStatus',
           'premiumActivatedAt', 'subscriptionPlan', 'subscriptionExpiry', 'subscriptionActivatedBy',
           'subscriptionActivatedAt', 'subscriptionProvider', 'subscriptionPaymentId',
@@ -3550,6 +3565,44 @@ service cloud.firestore {
     // Every mutation goes through requestGuardianUnlock / settleGuardianRequest
     // with the admin SDK. Pinned by test:rules-text.
     match /guardianRequests/{requestId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // ── accountDeletionRequests (the child-requests / guardian-decides
+    //    deletion state machine) ─────────────────────────────────────
+    //
+    // SERVER-ONLY WRITES, and that is the actual control rather than a
+    // second layer over one. `state` decides whether an account is
+    // waiting, scheduled for deletion, or already gone; a client that
+    // could write it could schedule any account it can name, or move its
+    // own request straight to `completed` and out of every sweep. Every
+    // transition runs through functions/deletionFlow with the admin SDK,
+    // which is why there is nothing for a client to be allowed here.
+    //
+    // Reads are deliberately CLOSED too, even to the two people the
+    // document is about. The learner and the named guardian both reach it
+    // through the `getDeletionRequest` callable instead, because the
+    // guardian's view needs the child's display name and the child's view
+    // needs nothing about the guardian beyond that one was asked — two
+    // different projections of one document, which a rule cannot express
+    // and a callable can. Admins read it directly for support.
+    //
+    // NOT the same collection as `deletionRequests`, which is the public
+    // /delete-account portal keyed by email. Two shapes in one collection
+    // would force one set of rules permissive enough for both.
+    match /accountDeletionRequests/{requestId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // ── accountDeletionAudit (append-only trail) ──────────────────────
+    //
+    // /child-safety promises guardians can view, change and delete their
+    // child's data — this is the record that it happened, and a record a
+    // client can write is not evidence of anything. Server-only in both
+    // directions; support reads it through the admin console.
+    match /accountDeletionAudit/{entryId} {
       allow read: if isAdmin();
       allow write: if false;
     }

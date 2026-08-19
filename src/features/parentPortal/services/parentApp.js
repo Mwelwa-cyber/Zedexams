@@ -73,6 +73,27 @@ export async function listGuardianApprovals() {
 }
 
 /**
+ * Everything waiting on this guardian, in ONE round trip.
+ *
+ * Two lists rather than one, because they are not the same kind of thing: an
+ * unlock request asks for money and waits indefinitely, a deletion request is
+ * time-boxed and irreversible. The home screen renders the second as a RED
+ * alert above the amber feed for exactly that reason, and a single merged list
+ * would have had to pick one styling for both.
+ *
+ * `listGuardianApprovals` above stays for the callers that only want the unlock
+ * feed; this is what the home screen uses, so it does not pay for the same
+ * query twice to draw two cards.
+ */
+export async function listGuardianFeed() {
+  const res = await listGuardianApprovalsCallable({})
+  return {
+    approvals: res.data?.approvals || [],
+    deletionRequests: res.data?.deletionRequests || [],
+  }
+}
+
+/**
  * Decline a request. There is no `approve` twin on purpose — approving a
  * premium unlock means paying for it, so the approve path routes to
  * checkout and the request is settled by the payment webhook.

@@ -2387,6 +2387,86 @@ exports.requestGuardianUnlock = require('./guardianUnlock').requestGuardianUnloc
 // See functions/guardianControls/ and functions/shared/guardian/.
 exports.setGuardianControl = require('./guardianControls').setGuardianControl;
 
+// ── Account deletion: the child asks, the guardian decides ───────────
+//
+// Deleting a child's account is a state machine, not a button, and the reason
+// is that three requirements pull against each other: a minor's account is the
+// guardian's responsibility, a guardian who never answers must not be able to
+// trap a child inside the product, and a child whose "guardian" is the wrong
+// adult must never be made to ask that adult for permission.
+//
+//   pending_guardian --approve--> scheduled --30 days--> completed
+//          |                          `--restore/sign-in--> cancelled
+//          |--decline--> declined
+//          |--7 days---> escalated_support     (silence is not a veto)
+//          `--cancel---> cancelled
+//
+// Nothing is deleted until `completed`. `scheduled` in particular is a LIVE
+// account with a banner on it — the 30 days are the product, not a formality —
+// and the purge runs in exactly one place, the daily executor, never in a
+// callable and never on approval.
+//
+// Decisions are pure and node-tested in deletionFlow/deletionRequestCore.js;
+// the sweeps' write ORDER (purge first, `completed` second) is tested in
+// deletionFlow/deletionSweeps.test.js, because writing `completed` on a purge
+// that then failed would mark an account deleted that still exists and hide it
+// from every future sweep.
+//
+// `accountDeletionRequests`, NOT `deletionRequests` — the latter is the public,
+// email-keyed /delete-account portal Google Play requires and has a different
+// shape, lifecycle and security posture. See functions/deletionFlow/.
+const deletionFlow = require('./deletionFlow');
+const DELETION_CALL_OPTS = {
+  secrets: deletionFlow.DELETION_FLOW_SECRETS,
+  region: 'us-central1',
+  timeoutSeconds: 60,
+};
+
+exports.requestAccountDeletion = onCall(DELETION_CALL_OPTS, deletionFlow.requestAccountDeletion);
+exports.respondToDeletionRequest = onCall(DELETION_CALL_OPTS, deletionFlow.respondToDeletionRequest);
+exports.cancelDeletionRequest = onCall(DELETION_CALL_OPTS, deletionFlow.cancelDeletionRequest);
+exports.getDeletionRequest = onCall(DELETION_CALL_OPTS, deletionFlow.getDeletionRequest);
+exports.reportWrongGuardian = onCall(DELETION_CALL_OPTS, deletionFlow.reportWrongGuardian);
+
+// The 7-day escalation and the day-25 reminders.
+//
+// Every 6 hours rather than daily, and the difference belongs to the child: a
+// daily sweep means a request that came due at 09:00 waits until tomorrow's
+// run, so the "seven days" they were promised is really seven-to-eight. Four
+// runs a day costs four Firestore queries and makes the number honest.
+exports.deletionRequestSweep = onSchedule(
+  {
+    schedule: 'every 6 hours',
+    timeZone: 'Etc/UTC',
+    region: 'us-central1',
+    timeoutSeconds: 540,
+    memory: '256MiB',
+    secrets: deletionFlow.DELETION_FLOW_SECRETS,
+  },
+  async () => {
+    const summary = await deletionFlow.runDeletionRequestSweep();
+    console.log('[deletionRequestSweep]', JSON.stringify(summary));
+  },
+);
+
+// The 30-day window closing. Daily is right here, unlike the sweep above:
+// being a few hours late to DELETE errs in the direction of the account still
+// existing, which is the survivable mistake. Being early is not.
+exports.deletionExecutionSweep = onSchedule(
+  {
+    schedule: 'every 24 hours',
+    timeZone: 'Etc/UTC',
+    region: 'us-central1',
+    timeoutSeconds: 540,
+    memory: '512MiB',
+    secrets: deletionFlow.DELETION_FLOW_SECRETS,
+  },
+  async () => {
+    const summary = await deletionFlow.runScheduledDeletionExecution();
+    console.log('[deletionExecutionSweep]', JSON.stringify(summary));
+  },
+);
+
 // ── The guardian↔learner LINK lifecycle ────────────────────────────────
 //
 // The link record IS the relationship: consent, permissions, role and

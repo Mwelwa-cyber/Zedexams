@@ -41,6 +41,21 @@
   --lhx-link: #7a83ea;
   --lhx-green-soft: #e0f8ea;
   --lhx-green-wash: #f0faf4;
+  /* Red washes — the destructive family's backgrounds. Added for the
+     delete flow's "Deleted" list and its danger card. They are tokens
+     rather than literals at the call site for the usual reason and one
+     specific one: a literal pink would stay pink in Night mode, where
+     this family has to darken with everything else. */
+  --lhx-red-wash: #fdecec;
+  --lhx-red-line: #f6d4d2;
+  /* Destructive INK and FILL, separate from --lhx-red, because the two jobs
+     have different contrast requirements and --lhx-red only satisfies one.
+     White on #ef5a5f is 3.33:1 — fine for a 1px rule or a large glyph,
+     under AA for the 15px label on a filled button. #b8353b is 5.82:1 on
+     white and 5.09:1 on the red wash, so one value serves both the button
+     fill and the danger heading. */
+  --lhx-red-ink: #b8353b;
+  --lhx-red-btn: #b8353b;
   --lhx-coral-soft: #fff0e8;
   --lhx-coral-soft-text: #e8622f;
 
@@ -126,6 +141,13 @@
   --lhx-pink-wash: rgba(212, 84, 138, 0.12);
   --lhx-pink-deep: #f4a0c4;
   --lhx-red: #f4757a;
+  --lhx-red-wash: #3a2226;
+  --lhx-red-line: #5c3236;
+  /* Inverted, and for the same reason: on a dark card the LIGHT red is the
+     readable ink (5.39:1 on --lhx-card), while a filled button still needs a
+     ground dark enough to carry white text (#c9414a is 4.84:1). */
+  --lhx-red-ink: #f4757a;
+  --lhx-red-btn: #c9414a;
   --lhx-amber-wash: #3a3320;
   --lhx-amber-line: #5a4d2a;
   --lhx-amber-ink: #ffcf8a;
@@ -1618,4 +1640,87 @@ button.lhx-tt-altpill { cursor: pointer; }
      draws a pale band across a dark page. */
   background: var(--lhx-bg);
   box-shadow: 0 -10px 14px -6px var(--lhx-bg);
+}
+
+/* ── /settings/delete — the child's side ─────────────────────────────
+ *
+ * All tokens, so Night mode needs no second rule. The one place a literal
+ * would be tempting is the danger card, and it uses --lhx-red like every
+ * other destructive control — a delete screen with its own red is a delete
+ * screen that stops matching the app the day the palette moves.
+ * ─────────────────────────────────────────────────────────────────── */
+
+.lhx-del-intro {
+  font-size: 13.5px; line-height: 1.6; color: var(--lhx-ink);
+  font-weight: 600; margin: 10px 4px 16px;
+}
+
+/* The two lists both sides read, word for word. */
+.lhx-del-list {
+  border-radius: var(--lhx-radius-md);
+  padding: 13px 14px; margin-bottom: 12px;
+  font-size: 13px; line-height: 1.6;
+}
+.lhx-del-list b {
+  display: block; margin-bottom: 6px;
+  font-size: 11.5px; letter-spacing: 0.05em; text-transform: uppercase;
+}
+.lhx-del-list ul { margin: 0; padding-left: 18px; }
+.lhx-del-list li { margin-bottom: 3px; }
+.lhx-del-list--gone { background: var(--lhx-red-wash); border: 1px solid var(--lhx-red-line); }
+.lhx-del-list--gone b { color: var(--lhx-red-ink); }
+.lhx-del-list--kept { background: var(--lhx-green-wash); border: 1px solid var(--lhx-green-soft); }
+.lhx-del-list--kept b { color: var(--lhx-green-dark); }
+.lhx-del-list--warn { background: var(--lhx-amber-wash); border: 1px solid var(--lhx-amber-line); }
+.lhx-del-list--warn b { color: var(--lhx-amber-ink); }
+.lhx-del-list--info { background: var(--lhx-indigo-soft); border: 1px solid var(--lhx-line); }
+.lhx-del-list--info b { color: var(--lhx-indigo-text); }
+
+/* "Still want to delete?" — separated from the off-ramps above it, but
+   never hidden. The real action stays visible and one tap away. */
+.lhx-del-danger {
+  background: var(--lhx-card);
+  border: 1.5px solid var(--lhx-red-line);
+  border-radius: var(--lhx-radius-md);
+  padding: 15px; margin-top: 18px;
+  box-shadow: var(--lhx-shadow);
+}
+.lhx-del-danger-title { font-weight: 900; font-size: 15px; color: var(--lhx-red-ink); }
+.lhx-del-danger-body { font-size: 12.5px; color: var(--lhx-muted); font-weight: 700; margin: 5px 0 13px; }
+.lhx-del-btn { background: var(--lhx-red-btn); color: #fff; margin-bottom: 9px; }
+
+.lhx-del-pill {
+  display: inline-block; margin-bottom: 9px;
+  background: var(--lhx-amber-wash); color: var(--lhx-amber-ink);
+  border: 1px solid var(--lhx-amber-line); border-radius: 999px;
+  padding: 3px 11px; font-size: 11px; font-weight: 900; letter-spacing: 0.04em;
+}
+
+/* The escape hatch. Quiet, present on every step, and never a dead end. */
+.lhx-del-safe {
+  margin-top: 18px; text-align: center;
+  font-size: 12px; line-height: 1.8; color: var(--lhx-muted); font-weight: 700;
+}
+.lhx-del-safe a, .lhx-del-link {
+  color: var(--lhx-indigo-text); font-weight: 800; text-decoration: underline;
+}
+
+/* The banner every screen carries while a deletion is pending. It is the
+   one thing on the learner side allowed to sit above the content: an
+   account counting down to deletion is not something to discover later. */
+.lhx-del-banner {
+  display: flex; align-items: center; gap: 11px;
+  background: var(--lhx-amber-wash);
+  border: 1.5px solid var(--lhx-amber-line);
+  border-radius: var(--lhx-radius-md);
+  padding: 11px 13px; margin-bottom: 14px;
+}
+.lhx-del-banner-ic { font-size: 19px; flex-shrink: 0; }
+.lhx-del-banner-txt { flex: 1; min-width: 0; }
+.lhx-del-banner-title { display: block; font-weight: 900; font-size: 13.5px; color: var(--lhx-amber-ink); }
+.lhx-del-banner-sub { display: block; font-size: 11.5px; font-weight: 700; color: var(--lhx-amber-ink); opacity: 0.85; }
+.lhx-del-banner-btn {
+  flex-shrink: 0; background: var(--lhx-card); color: var(--lhx-indigo-text);
+  border: 1.5px solid var(--lhx-line); border-radius: 999px;
+  padding: 7px 13px; font-size: 12px; font-weight: 900; min-height: 40px;
 }

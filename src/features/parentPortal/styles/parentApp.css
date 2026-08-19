@@ -711,3 +711,87 @@
   line-height: 1.55;
   color: var(--lhx-muted);
 }
+
+/* ── /family/requests/:id — the guardian's side of a deletion ─────────
+ *
+ * The lists, the pill and the safety footer are the LEARNER classes
+ * (.lhx-del-*), deliberately: the child and the guardian read the same
+ * words about what is deleted, and rendering them through the same CSS
+ * is what stops the two screens drifting apart visually the way they
+ * would have drifted textually. Only what is genuinely parent-shaped
+ * lives here.
+ * ─────────────────────────────────────────────────────────────────── */
+
+.pax-del-tick {
+  width: 66px; height: 66px; border-radius: 50%;
+  background: var(--lhx-green-soft); color: var(--lhx-green-dark);
+  display: grid; place-items: center; font-size: 31px;
+  margin: 0 auto 14px;
+}
+
+.pax-del-stats { display: flex; gap: 9px; margin-top: 14px; }
+.pax-del-stat {
+  flex: 1; background: var(--lhx-bg); border-radius: 13px;
+  padding: 10px; text-align: center;
+}
+.pax-del-stat b { display: block; font-size: 18px; font-weight: 900; color: var(--lhx-ink); }
+.pax-del-stat span { font-size: 10.5px; color: var(--lhx-muted); font-weight: 700; margin-top: 1px; }
+
+.pax-del-actions { display: grid; gap: 9px; margin: 4px 0 8px; }
+
+/* "Approve deletion" — deliberately the quietest of the three. Approving
+   is irreversible after thirty days and keeping is not, so the loud
+   button is the one whose mistake is recoverable. */
+.pax-del-quiet {
+  background: var(--lhx-card); color: var(--lhx-red-ink);
+  border: 1.5px solid var(--lhx-red-line);
+}
+
+/* Hold-to-confirm. The fill is the affordance: a button that fills says
+   it is doing something and how much longer is left, where one that
+   simply waits under a finger reads as broken. */
+.pax-hold {
+  position: relative; overflow: hidden;
+  width: 100%; min-height: 52px; padding: 14px;
+  border-radius: 14px; border: none;
+  background: var(--lhx-red-btn); color: #fff;
+  font: inherit; font-weight: 800; font-size: 15px;
+  cursor: pointer; touch-action: none; user-select: none;
+}
+.pax-hold:disabled { opacity: 0.5; cursor: not-allowed; }
+.pax-hold-fill {
+  position: absolute; inset: 0 auto 0 0;
+  background: rgba(255, 255, 255, 0.26);
+  transition: width 60ms linear;
+  pointer-events: none;
+}
+.pax-hold-label { position: relative; }
+
+/* ── The red alert on /family ─────────────────────────────────────────
+ *
+ * Deliberately NOT .pax-req-card. It sits in the same place so there is
+ * one habit to learn, and reads differently because it is a different
+ * kind of thing: an unlock request waits indefinitely and asks for
+ * money, this one has a seven-day clock and cannot be taken back after
+ * thirty. Two cards that look identical train a parent to skim both.
+ * ─────────────────────────────────────────────────────────────────── */
+.pax-alert-card {
+  background: var(--lhx-red-wash);
+  border: 1.5px solid var(--lhx-red-line);
+  border-radius: var(--lhx-radius-md);
+  padding: 14px;
+  margin-bottom: 16px;
+}
+.pax-alert-head {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 0 9px;
+  font-size: 14px; font-weight: 900; color: var(--lhx-red-ink);
+}
+.pax-alert-row {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--lhx-card);
+  border-radius: 15px; padding: 12px;
+  text-decoration: none; color: var(--lhx-ink);
+}
+.pax-alert-row + .pax-alert-row { margin-top: 9px; }
+.pax-alert-chev { margin-left: auto; color: var(--lhx-faint); font-size: 16px; font-weight: 900; }
