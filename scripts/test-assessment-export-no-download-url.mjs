@@ -38,9 +38,17 @@ test('export hook never calls getDownloadURL', () => {
 })
 
 test('export client never references a raw firebasestorage URL', () => {
-  // A literal substring check, not a regex: the intent is "this hostname
-  // appears nowhere in the source", so no anchoring question arises.
-  assert.ok(!client.includes('firebasestorage.googleapis.com'))
+  // Broader than the full hostname on purpose: ANY mention of the bucket host,
+  // in any spelling, is the regression -- every download goes through the
+  // server-issued /downloads/<path>?t=<ticket> instead.
+  //
+  // Deliberately not written as `includes('<host>.googleapis.com')`: CodeQL
+  // reads an includes()/startsWith() of a host-shaped literal as a URL
+  // allowlist test that an attacker could bypass (#64,
+  // js/incomplete-url-substring-sanitization). This asserts a host is ABSENT
+  // from a source file, which is the opposite question, and now says so in a
+  // shape that cannot be misread.
+  assert.ok(!/firebasestorage/i.test(client), 'export client names the raw storage host')
 })
 
 test('export client downloads via the server-provided branded path + ticket', () => {

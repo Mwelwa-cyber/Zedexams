@@ -73,9 +73,14 @@ await test('footer numbers every page (Page X of Y)', async () => {
 
 await test('clean (paid) export carries no attribution branding', async () => {
   assert.ok(!/Made with ZedExams/.test(clean.footers))
-  // A literal substring check, not a regex: the intent is "this exact brand
-  // string appears nowhere", so no anchoring question arises.
-  assert.ok(!clean.headers.includes('ZedExams.com'))
+  // Stronger than the old `headers.includes('ZedExams.com')`: a paid export
+  // carries no brand mark in the header at all, not merely no domain -- the
+  // branded case below is what asserts the mark IS there on the free plan.
+  //
+  // Also not a host-shaped substring check any more: CodeQL reads one as a URL
+  // allowlist test that arbitrary hosts could straddle (#65,
+  // js/incomplete-url-substring-sanitization), which is not the question here.
+  assert.ok(!/ZedExams/i.test(clean.headers), 'brand mark survived into a paid export header')
 })
 
 await test('free-plan export keeps the attribution AND gains page numbers', async () => {
