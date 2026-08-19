@@ -45,7 +45,10 @@ export default function LearnerHomePage() {
             activeTerm={activeTerm}
             loading={loading}
           />
-          {!loading && <TodaysQuizCard todaysExams={data?.todaysExams} streak={data?.streak || 0} />}
+          {/* Fetches its own state from the one daily-quiz read path — it is
+              not part of the dashboard view-model, and it renders at every
+              stage rather than waiting for the dashboard to finish. */}
+          <TodaysQuizCard />
           <ExploreGrid />
           <MySubjectsSection subjects={data?.subjects} activeTerm={activeTerm} loading={loading} />
         </>

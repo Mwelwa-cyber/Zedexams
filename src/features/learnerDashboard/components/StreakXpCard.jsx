@@ -96,7 +96,7 @@ export default function StreakXpCard() {
             Exams done
           </p>
           <Link
-            to="/exams/leaderboard"
+            to="/daily/leaderboard"
             className="text-[10px] font-bold text-blue-600 hover:underline"
           >
             Leaderboard →

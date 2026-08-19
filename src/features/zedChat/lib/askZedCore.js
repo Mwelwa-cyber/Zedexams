@@ -15,8 +15,8 @@
  */
 export const FAB_HIDDEN_PATHS = [
   '/ask-zed',          // already there
-  '/exam/',            // daily exam runner
-  '/exams/leaderboard',
+  '/daily',            // the daily quiz runner AND its weekly board
+  '/exam/',            // the retired daily-exam runner (now a redirect)
   '/quiz/',            // quiz runner
   '/results/',         // quiz results (prototype hides on result views)
   '/papers/',          // paper viewer / practice / paper quiz — hub stays

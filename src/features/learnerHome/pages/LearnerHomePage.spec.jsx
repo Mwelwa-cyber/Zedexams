@@ -22,6 +22,19 @@ const mockAuth = {
 vi.mock('../../../contexts/AuthContext', () => ({ useAuth: () => mockAuth }))
 
 vi.mock('../../../utils/analytics', () => ({ capture: vi.fn() }))
+// Today's Quiz card fetches its own state through the ONE daily-quiz read
+// path rather than from the dashboard view-model, so the spec drives it here.
+const mockDaily = { payload: null, error: null }
+vi.mock('../../dailyQuiz', async () => {
+  const core = await vi.importActual('../../dailyQuiz/lib/dailyQuizCore.js')
+  return {
+    ...core,
+    getTodaysQuiz: vi.fn(async () => {
+      if (mockDaily.error) throw mockDaily.error
+      return mockDaily.payload
+    }),
+  }
+})
 vi.mock('../../../hooks/useNetworkStatus', () => ({ useNetworkStatus: () => true }))
 
 // The header chrome bar reads the app-wide notification feed and the theme.
@@ -81,14 +94,20 @@ function renderHome() {
         <Route path="/profile" element={<div>PROFILE ROUTE</div>} />
         <Route path="/notifications" element={<div>NOTIFICATIONS ROUTE</div>} />
         <Route path="/timetable" element={<div>TIMETABLE ROUTE</div>} />
-        <Route path="/exam/:examId" element={<div>EXAM ROUTE</div>} />
-        <Route path="/exams/leaderboard" element={<div>LEADERBOARD ROUTE</div>} />
+        <Route path="/daily" element={<div>DAILY ROUTE</div>} />
+        <Route path="/daily/leaderboard" element={<div>LEADERBOARD ROUTE</div>} />
       </Routes>
     </MemoryRouter>,
   )
 }
 
 beforeEach(() => {
+  // Default: a ready ranked quiz. Individual tests override.
+  mockDaily.payload = {
+    ranked: true, grade: '7', alreadyPlayed: false,
+    questions: [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }, { id: 'e' }],
+  }
+  mockDaily.error = null
   mockDashboard = {
     loading: false,
     error: null,
@@ -168,39 +187,55 @@ describe('LearnerHomePage', () => {
     }
   })
 
-  it("shows Today's Quiz with what is left, and starts the next exam", () => {
-    renderHome()
-    expect(screen.getByText('Today’s Quiz')).toBeInTheDocument()
-    expect(screen.getByText(/1 of 2 left · with Zed · keep your 🔥 3/)).toBeInTheDocument()
-    fireEvent.click(screen.getByText('Today’s Quiz'))
-    expect(screen.getByText('EXAM ROUTE')).toBeInTheDocument()
-  })
-
-  it("Today's Quiz flips to the leaderboard once every exam is done", () => {
-    mockDashboard.data = {
-      ...baseData,
-      todaysExams: {
-        exams: baseData.todaysExams.exams,
-        locks: { mathematics: { status: 'submitted' }, science: { status: 'submitted' } },
-      },
+  it("shows Today's Quiz and opens the runner", async () => {
+    mockDaily.payload = {
+      ranked: true, grade: '7', alreadyPlayed: false,
+      questions: [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }, { id: 'e' }],
     }
     renderHome()
-    expect(screen.getByText('Done for today ✓ · see the leaderboard')).toBeInTheDocument()
+    expect(await screen.findByText(/5 questions · once a day/)).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Today’s Quiz'))
+    expect(screen.getByText('DAILY ROUTE')).toBeInTheDocument()
+  })
+
+  it("Today's Quiz flips to the leaderboard once it has been played", async () => {
+    mockDaily.payload = {
+      ranked: true, grade: '7', alreadyPlayed: true,
+      questions: [{ id: 'a' }],
+      result: { credited: 4, total: 5, points: 40, ranked: true },
+    }
+    renderHome()
+    expect(await screen.findByText(/4 out of 5 · \+40 points/)).toBeInTheDocument()
     fireEvent.click(screen.getByText('Today’s Quiz'))
     expect(screen.getByText('LEADERBOARD ROUTE')).toBeInTheDocument()
   })
 
-  it("still shows Today's Quiz when no exam is picked for today", () => {
-    // It used to render nothing, which is how a card that is in every
-    // mockup came to be missing from a real learner's home: the picker is
-    // a cron, and a grade it has not run for has an empty set. It says
-    // what is true and opens a real screen instead of vanishing.
-    mockDashboard.data = { ...baseData, todaysExams: { exams: [], locks: {} } }
+  it('offers a labelled practice set when the bank is too thin to rank', async () => {
+    // The ONLY honest empty state. "No quiz today" with nothing to tap is
+    // what this whole feature replaced, so the card must never render it.
+    mockDaily.payload = {
+      ranked: false, grade: '7', alreadyPlayed: false,
+      questions: [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }, { id: 'e' }],
+    }
     renderHome()
-    expect(screen.getByText('Today’s Quiz')).toBeInTheDocument()
-    expect(screen.getByText(/No quiz today/)).toBeInTheDocument()
-    // …and never offers a Play that would be refused.
-    expect(screen.queryByText('Play')).toBeNull()
+    expect(await screen.findByText(/don’t count towards the board/)).toBeInTheDocument()
+    expect(screen.queryByText(/No quiz today/)).toBeNull()
+    fireEvent.click(screen.getByText('Practise five'))
+    expect(screen.getByText('DAILY ROUTE')).toBeInTheDocument()
+  })
+
+  it('a failed read is honest, and still goes somewhere real', async () => {
+    // The card used to read the daily-exam picker's output directly, so an
+    // empty or unreadable day rendered "No quiz today — see the ones you've
+    // done" with nothing behind it. A failed call is not evidence that there
+    // is nothing to play, and it must not be reported as if it were.
+    mockDaily.payload = null
+    mockDaily.error = new Error('offline')
+    renderHome()
+    expect(await screen.findByText(/We could not load it just now/)).toBeInTheDocument()
+    expect(screen.queryByText(/No quiz today/)).toBeNull()
+    fireEvent.click(screen.getByText('Today’s Quiz'))
+    expect(screen.getByText('DAILY ROUTE')).toBeInTheDocument()
   })
 
   it('shows subject rows with term-scoped progress once started', () => {

@@ -57,6 +57,22 @@ function parseTopLevelCollections(src) {
 // consciously classified, so it does not fail the guard, but it is flagged for
 // an owner decision.
 const RETAINED = new Map([
+  ["dailyQuizzes",
+    "The day's five question IDs for a GRADE — grade, date, question ids, " +
+    "seed and which selection rules bent. No uid, no name, nothing about any " +
+    "individual: one document is shared by every learner in the grade, which " +
+    "is the whole design. The learner's side of it is `dailyAttempts`, which " +
+    "IS purged"],
+  ["dailyQuizEvents",
+    "Operational log of every write to dailyQuizzes and why — cron, " +
+    "self-heal, Vigil or a named admin. A learner's uid is deliberately NEVER " +
+    "written here (a self-heal records `trigger: 'learner_visit'` and nothing " +
+    "more), so the only uid a row can hold is the ADMIN who ran or voided " +
+    "something — an operator action, the same line opsMonitorState draws"],
+  ["dailyQuizAlerts",
+    "One row per grade per month recording that the bank-runway alert was " +
+    "already sent, so the content team is emailed once rather than nightly. " +
+    "Grade, period and a day count — about CONTENT SUPPLY, not about people"],
   // Server-only ops / agent / audit / telemetry / rate-limit / dedup — no
   // end-user PII home (or only an incidental actor/uid reference).
   ["opsMonitorState",
@@ -172,7 +188,13 @@ const RETAINED = new Map([
     "on the games hub and staying playable through a direct link. Purging " +
     "it when that admin closes their account would silently restore every " +
     "game they had ever deleted"],
-  ["leaderboards", "aggregated top-N per game; not keyed by uid"],
+  ["leaderboards",
+    "The TOP-LEVEL doc is the games board's aggregated top-N per game and " +
+    "holds no uid. Its `weeks/{weekId}/entries/{uid}` SUBCOLLECTION — the " +
+    "Daily Quiz's weekly board — does carry a uid and a display name, and is " +
+    "purged: see COLLECTION_GROUP_COLLECTIONS in accountDeletion.js, which " +
+    "exists because a top-level classification says nothing about a " +
+    "subcollection"],
   ["lessonPlanTemplates", "anonymised shared templates; server-maintained"],
   ["noteInsights", "AI summary cache keyed by noteId; about a note, not a user"],
   ["noteSmart", "AI highlight layer keyed by noteId; about a note, not a user"],

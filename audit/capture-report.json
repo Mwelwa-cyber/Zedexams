@@ -1,0 +1,1226 @@
+[
+  {
+    "route": "/",
+    "width": "390",
+    "file": "audit/root__390.png",
+    "overflow": 0,
+    "scrollH": 10802,
+    "smallCount": 29,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      },
+      {
+        "t": "Sign in",
+        "w": 71,
+        "h": 32
+      },
+      {
+        "t": "Get started",
+        "w": 97,
+        "h": 32
+      },
+      {
+        "t": "Browse the full archive →",
+        "w": 171,
+        "h": 16
+      },
+      {
+        "t": "Start learning free",
+        "w": 300,
+        "h": 40
+      },
+      {
+        "t": "Start free",
+        "w": 300,
+        "h": 40
+      },
+      {
+        "t": "Create account",
+        "w": 300,
+        "h": 40
+      },
+      {
+        "t": "See teacher plans",
+        "w": 300,
+        "h": 42
+      }
+    ],
+    "widest": null,
+    "title": "Zambian CBC exam prep that fits the classroom — ZedExams",
+    "hasLhx": false,
+    "navLabel": null,
+    "h1": "The AI partner for Teachers & Learners",
+    "text": "Skip to main content Sign in Get started Built in Zambia, for the Zambian CBC The AI partner for Teachers & Learners AI lesson plans, homework, quizzes, exams and notes for teachers — plus daily CBC exams, quizzes and st",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/login",
+    "width": "390",
+    "file": "audit/login__390.png",
+    "overflow": 0,
+    "scrollH": 920,
+    "smallCount": 1,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      }
+    ],
+    "widest": null,
+    "title": "Sign in — ZedExams",
+    "hasLhx": false,
+    "navLabel": null,
+    "h1": "Welcome back",
+    "text": "Skip to main content Welcome back Sign in to your account Continue with Google OR Email address Password Forgot password? Sign In New to ZedExams? Create a free account Secure Your data is protected Private Your details ",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: net::ERR_CONNECTION_RESET"
+    ]
+  },
+  {
+    "route": "/login",
+    "width": "768",
+    "file": "audit/login__768.png",
+    "overflow": 0,
+    "scrollH": 941,
+    "smallCount": 1,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      }
+    ],
+    "widest": null,
+    "title": "Sign in — ZedExams",
+    "hasLhx": false,
+    "navLabel": null,
+    "h1": "Welcome back",
+    "text": "Skip to main content Welcome back Sign in to your account Continue with Google OR Email address Password Forgot password? Sign In New to ZedExams? Create a free account Secure Your data is protected Private Your details ",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/login",
+    "width": "1440",
+    "file": "audit/login__1440.png",
+    "overflow": 0,
+    "scrollH": 941,
+    "smallCount": 1,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      }
+    ],
+    "widest": null,
+    "title": "Sign in — ZedExams",
+    "hasLhx": false,
+    "navLabel": null,
+    "h1": "Welcome back",
+    "text": "Skip to main content Welcome back Sign in to your account Continue with Google OR Email address Password Forgot password? Sign In New to ZedExams? Create a free account Secure Your data is protected Private Your details ",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/login",
+    "width": "390-night",
+    "file": "audit/login__390-night.png",
+    "overflow": 0,
+    "scrollH": 920,
+    "smallCount": 1,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      }
+    ],
+    "widest": null,
+    "title": "Sign in — ZedExams",
+    "hasLhx": false,
+    "navLabel": null,
+    "h1": "Welcome back",
+    "text": "Skip to main content Welcome back Sign in to your account Continue with Google OR Email address Password Forgot password? Sign In New to ZedExams? Create a free account Secure Your data is protected Private Your details ",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/register",
+    "width": "390",
+    "file": "audit/register__390.png",
+    "overflow": 0,
+    "scrollH": 844,
+    "smallCount": 2,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      },
+      {
+        "t": "Sign In",
+        "w": 43,
+        "h": 15
+      }
+    ],
+    "widest": null,
+    "title": "Create account — ZedExams",
+    "hasLhx": false,
+    "navLabel": null,
+    "h1": "",
+    "text": "Skip to main content Practise smart. Create account First — who's joining us today? Step 1 of 4 I AM A ✓ 🎓 Learner Grade 7 Exam practice ✓ 👩‍🏫 Teacher Lesson plans & tools ✓ 👪 Parent Follow your child's progress 📚 Y",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/register",
+    "width": "768",
+    "file": "audit/register__768.png",
+    "overflow": 0,
+    "scrollH": 900,
+    "smallCount": 2,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      },
+      {
+        "t": "Sign In",
+        "w": 43,
+        "h": 15
+      }
+    ],
+    "widest": null,
+    "title": "Create account — ZedExams",
+    "hasLhx": false,
+    "navLabel": null,
+    "h1": "",
+    "text": "Skip to main content Practise smart. Create account First — who's joining us today? Step 1 of 4 I AM A ✓ 🎓 Learner Grade 7 Exam practice ✓ 👩‍🏫 Teacher Lesson plans & tools ✓ 👪 Parent Follow your child's progress 📚 Y",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/register",
+    "width": "1440",
+    "file": "audit/register__1440.png",
+    "overflow": 0,
+    "scrollH": 900,
+    "smallCount": 2,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      },
+      {
+        "t": "Sign In",
+        "w": 43,
+        "h": 15
+      }
+    ],
+    "widest": null,
+    "title": "Create account — ZedExams",
+    "hasLhx": false,
+    "navLabel": null,
+    "h1": "",
+    "text": "Skip to main content Practise smart. Create account First — who's joining us today? Step 1 of 4 I AM A ✓ 🎓 Learner Grade 7 Exam practice ✓ 👩‍🏫 Teacher Lesson plans & tools ✓ 👪 Parent Follow your child's progress 📚 Y",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/register",
+    "width": "390-night",
+    "file": "audit/register__390-night.png",
+    "overflow": 0,
+    "scrollH": 844,
+    "smallCount": 2,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      },
+      {
+        "t": "Sign In",
+        "w": 43,
+        "h": 15
+      }
+    ],
+    "widest": null,
+    "title": "Create account — ZedExams",
+    "hasLhx": false,
+    "navLabel": null,
+    "h1": "",
+    "text": "Skip to main content Practise smart. Create account First — who's joining us today? Step 1 of 4 I AM A ✓ 🎓 Learner Grade 7 Exam practice ✓ 👩‍🏫 Teacher Lesson plans & tools ✓ 👪 Parent Follow your child's progress 📚 Y",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/papers",
+    "width": "390",
+    "file": "audit/papers__390.png",
+    "overflow": 0,
+    "scrollH": 844,
+    "smallCount": 11,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      },
+      {
+        "t": "ECZ Archive",
+        "w": 133,
+        "h": 32
+      },
+      {
+        "t": "My runs",
+        "w": 98,
+        "h": 32
+      },
+      {
+        "t": "Grade 7",
+        "w": 94,
+        "h": 32
+      },
+      {
+        "t": "Grade 12",
+        "w": 104,
+        "h": 32
+      },
+      {
+        "t": "Sort options",
+        "w": 40,
+        "h": 40
+      },
+      {
+        "t": "All Papers",
+        "w": 100,
+        "h": 32
+      },
+      {
+        "t": "Official only",
+        "w": 112,
+        "h": 32
+      }
+    ],
+    "widest": null,
+    "title": "ECZ Past Papers — Grade 7 & Grade 12 archive — ZedExams",
+    "hasLhx": false,
+    "navLabel": "Primary navigation",
+    "h1": "Grade 7 Past Papers",
+    "text": "Skip to main content ECZ ARCHIVE My runs Grade 7 Past Papers Choose a year to explore ECZ past papers and quizzes. Grade 7 Grade 12 All Papers Official only Quiz Available Recently Added Bookmarked Home Papers Notes Game",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/papers",
+    "width": "768",
+    "file": "audit/papers__768.png",
+    "overflow": 0,
+    "scrollH": 900,
+    "smallCount": 11,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      },
+      {
+        "t": "ECZ Archive",
+        "w": 133,
+        "h": 32
+      },
+      {
+        "t": "My runs",
+        "w": 98,
+        "h": 32
+      },
+      {
+        "t": "Grade 7",
+        "w": 94,
+        "h": 32
+      },
+      {
+        "t": "Grade 12",
+        "w": 104,
+        "h": 32
+      },
+      {
+        "t": "Sort options",
+        "w": 40,
+        "h": 40
+      },
+      {
+        "t": "All Papers",
+        "w": 100,
+        "h": 32
+      },
+      {
+        "t": "Official only",
+        "w": 112,
+        "h": 32
+      }
+    ],
+    "widest": null,
+    "title": "ECZ Past Papers — Grade 7 & Grade 12 archive — ZedExams",
+    "hasLhx": false,
+    "navLabel": "Primary navigation",
+    "h1": "Grade 7 Past Papers",
+    "text": "Skip to main content ECZ ARCHIVE My runs Grade 7 Past Papers Choose a year to explore ECZ past papers and quizzes. Grade 7 Grade 12 All Papers Official only Quiz Available Recently Added Bookmarked Home Papers Notes Game",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/papers",
+    "width": "1440",
+    "file": "audit/papers__1440.png",
+    "overflow": 0,
+    "scrollH": 900,
+    "smallCount": 11,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      },
+      {
+        "t": "ECZ Archive",
+        "w": 133,
+        "h": 32
+      },
+      {
+        "t": "My runs",
+        "w": 98,
+        "h": 32
+      },
+      {
+        "t": "Grade 7",
+        "w": 94,
+        "h": 32
+      },
+      {
+        "t": "Grade 12",
+        "w": 104,
+        "h": 32
+      },
+      {
+        "t": "Sort options",
+        "w": 40,
+        "h": 40
+      },
+      {
+        "t": "All Papers",
+        "w": 100,
+        "h": 32
+      },
+      {
+        "t": "Official only",
+        "w": 112,
+        "h": 32
+      }
+    ],
+    "widest": null,
+    "title": "ECZ Past Papers — Grade 7 & Grade 12 archive — ZedExams",
+    "hasLhx": false,
+    "navLabel": "Primary navigation",
+    "h1": "Grade 7 Past Papers",
+    "text": "Skip to main content ECZ ARCHIVE My runs Grade 7 Past Papers Choose a year to explore ECZ past papers and quizzes. Grade 7 Grade 12 All Papers Official only Quiz Available Recently Added Bookmarked Home Papers Notes Game",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/papers",
+    "width": "390-night",
+    "file": "audit/papers__390-night.png",
+    "overflow": 0,
+    "scrollH": 844,
+    "smallCount": 11,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      },
+      {
+        "t": "ECZ Archive",
+        "w": 133,
+        "h": 32
+      },
+      {
+        "t": "My runs",
+        "w": 98,
+        "h": 32
+      },
+      {
+        "t": "Grade 7",
+        "w": 94,
+        "h": 32
+      },
+      {
+        "t": "Grade 12",
+        "w": 104,
+        "h": 32
+      },
+      {
+        "t": "Sort options",
+        "w": 40,
+        "h": 40
+      },
+      {
+        "t": "All Papers",
+        "w": 100,
+        "h": 32
+      },
+      {
+        "t": "Official only",
+        "w": 112,
+        "h": 32
+      }
+    ],
+    "widest": null,
+    "title": "ECZ Past Papers — Grade 7 & Grade 12 archive — ZedExams",
+    "hasLhx": false,
+    "navLabel": "Primary navigation",
+    "h1": "Grade 7 Past Papers",
+    "text": "Skip to main content ECZ ARCHIVE My runs Grade 7 Past Papers Choose a year to explore ECZ past papers and quizzes. Grade 7 Grade 12 All Papers Official only Quiz Available Recently Added Bookmarked Home Papers Notes Game",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/games",
+    "width": "390",
+    "file": "audit/games__390.png",
+    "overflow": 0,
+    "scrollH": 1010,
+    "smallCount": 3,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      },
+      {
+        "t": "🏆",
+        "w": 36,
+        "h": 36
+      },
+      {
+        "t": "0 of 10 ›",
+        "w": 58,
+        "h": 19
+      }
+    ],
+    "widest": null,
+    "title": "Games — ZedExams",
+    "hasLhx": true,
+    "navLabel": "Learner navigation",
+    "h1": "Games",
+    "text": "Skip to main content Games 🔥 Streak: 0 🏆 TODAY'S QUIZ GRADE 7 Play with Zed 🔥 Play today to start a streak Play 🌱 Level 1 Rookie Sign in to earn XP Achievements 0 of 10 › 🔒 First Game 🔒 On Fire 🔒 Centurion 🔒 Shar",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/games",
+    "width": "768",
+    "file": "audit/games__768.png",
+    "overflow": 0,
+    "scrollH": 1010,
+    "smallCount": 3,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      },
+      {
+        "t": "🏆",
+        "w": 36,
+        "h": 36
+      },
+      {
+        "t": "0 of 10 ›",
+        "w": 58,
+        "h": 19
+      }
+    ],
+    "widest": null,
+    "title": "Games — ZedExams",
+    "hasLhx": true,
+    "navLabel": "Learner navigation",
+    "h1": "Games",
+    "text": "Skip to main content Games 🔥 Streak: 0 🏆 TODAY'S QUIZ GRADE 7 Play with Zed 🔥 Play today to start a streak Play 🌱 Level 1 Rookie Sign in to earn XP Achievements 0 of 10 › 🔒 First Game 🔒 On Fire 🔒 Centurion 🔒 Shar",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/games",
+    "width": "1440",
+    "file": "audit/games__1440.png",
+    "overflow": 0,
+    "scrollH": 966,
+    "smallCount": 3,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      },
+      {
+        "t": "🏆",
+        "w": 36,
+        "h": 36
+      },
+      {
+        "t": "0 of 10 ›",
+        "w": 58,
+        "h": 19
+      }
+    ],
+    "widest": null,
+    "title": "Games — ZedExams",
+    "hasLhx": true,
+    "navLabel": "Learner navigation",
+    "h1": "Games",
+    "text": "Skip to main content Games 🔥 Streak: 0 🏆 TODAY'S QUIZ GRADE 7 Play with Zed 🔥 Play today to start a streak Play 🌱 Level 1 Rookie Sign in to earn XP Achievements 0 of 10 › 🔒 First Game 🔒 On Fire 🔒 Centurion 🔒 Shar",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/games",
+    "width": "390-night",
+    "file": "audit/games__390-night.png",
+    "overflow": 0,
+    "scrollH": 1010,
+    "smallCount": 3,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      },
+      {
+        "t": "🏆",
+        "w": 36,
+        "h": 36
+      },
+      {
+        "t": "0 of 10 ›",
+        "w": 58,
+        "h": 19
+      }
+    ],
+    "widest": null,
+    "title": "Games — ZedExams",
+    "hasLhx": true,
+    "navLabel": "Learner navigation",
+    "h1": "Games",
+    "text": "Skip to main content Games 🔥 Streak: 0 🏆 TODAY'S QUIZ GRADE 7 Play with Zed 🔥 Play today to start a streak Play 🌱 Level 1 Rookie Sign in to earn XP Achievements 0 of 10 › 🔒 First Game 🔒 On Fire 🔒 Centurion 🔒 Shar",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/games/leaderboard",
+    "width": "390",
+    "file": "audit/games-leaderboard__390.png",
+    "overflow": 0,
+    "scrollH": 1407,
+    "smallCount": 8,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      },
+      {
+        "t": "Leaderboard",
+        "w": 40,
+        "h": 32
+      },
+      {
+        "t": "Mute game sounds",
+        "w": 30,
+        "h": 40
+      },
+      {
+        "t": "Games",
+        "w": 47,
+        "h": 20
+      },
+      {
+        "t": "Today",
+        "w": 76,
+        "h": 40
+      },
+      {
+        "t": "This Week",
+        "w": 105,
+        "h": 40
+      },
+      {
+        "t": "All Time",
+        "w": 90,
+        "h": 40
+      },
+      {
+        "t": "Sign in",
+        "w": 47,
+        "h": 16
+      }
+    ],
+    "widest": null,
+    "title": "Live Leaderboard — ZedExams",
+    "hasLhx": false,
+    "navLabel": null,
+    "h1": "",
+    "text": "Skip to main content ZedExams Games PLAY • LEARN • LEVEL UP Save scores Games Live Leaderboard LIVE SCORES TOP 25 PLAYERS ALL TIME LEADERBOARD See who is climbing fastest The board refreshes in real time so learners can ",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/games/leaderboard",
+    "width": "768",
+    "file": "audit/games-leaderboard__768.png",
+    "overflow": 0,
+    "scrollH": 1295,
+    "smallCount": 10,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      },
+      {
+        "t": "Leaderboard",
+        "w": 133,
+        "h": 36
+      },
+      {
+        "t": "Mute game sounds",
+        "w": 40,
+        "h": 40
+      },
+      {
+        "t": "Sign in",
+        "w": 47,
+        "h": 20
+      },
+      {
+        "t": "Save scores",
+        "w": 138,
+        "h": 36
+      },
+      {
+        "t": "Games",
+        "w": 47,
+        "h": 20
+      },
+      {
+        "t": "Today",
+        "w": 76,
+        "h": 40
+      },
+      {
+        "t": "This Week",
+        "w": 105,
+        "h": 40
+      }
+    ],
+    "widest": null,
+    "title": "Live Leaderboard — ZedExams",
+    "hasLhx": false,
+    "navLabel": null,
+    "h1": "",
+    "text": "Skip to main content ZedExams Games PLAY • LEARN • LEVEL UP Leaderboard Sign in Save scores Games Live Leaderboard LIVE SCORES TOP 25 PLAYERS ALL TIME LEADERBOARD See who is climbing fastest The board refreshes in real t",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/games/leaderboard",
+    "width": "1440",
+    "file": "audit/games-leaderboard__1440.png",
+    "overflow": 0,
+    "scrollH": 1299,
+    "smallCount": 10,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      },
+      {
+        "t": "Leaderboard",
+        "w": 133,
+        "h": 36
+      },
+      {
+        "t": "Mute game sounds",
+        "w": 40,
+        "h": 40
+      },
+      {
+        "t": "Sign in",
+        "w": 47,
+        "h": 20
+      },
+      {
+        "t": "Save scores",
+        "w": 138,
+        "h": 36
+      },
+      {
+        "t": "Games",
+        "w": 47,
+        "h": 20
+      },
+      {
+        "t": "Today",
+        "w": 76,
+        "h": 40
+      },
+      {
+        "t": "This Week",
+        "w": 105,
+        "h": 40
+      }
+    ],
+    "widest": null,
+    "title": "Live Leaderboard — ZedExams",
+    "hasLhx": false,
+    "navLabel": null,
+    "h1": "",
+    "text": "Skip to main content ZedExams Games PLAY • LEARN • LEVEL UP Leaderboard Sign in Save scores Games Live Leaderboard LIVE SCORES TOP 25 PLAYERS ALL TIME LEADERBOARD See who is climbing fastest The board refreshes in real t",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/games/leaderboard",
+    "width": "390-night",
+    "file": "audit/games-leaderboard__390-night.png",
+    "overflow": 0,
+    "scrollH": 1407,
+    "smallCount": 8,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      },
+      {
+        "t": "Leaderboard",
+        "w": 40,
+        "h": 32
+      },
+      {
+        "t": "Mute game sounds",
+        "w": 30,
+        "h": 40
+      },
+      {
+        "t": "Games",
+        "w": 47,
+        "h": 20
+      },
+      {
+        "t": "Today",
+        "w": 76,
+        "h": 40
+      },
+      {
+        "t": "This Week",
+        "w": 105,
+        "h": 40
+      },
+      {
+        "t": "All Time",
+        "w": 90,
+        "h": 40
+      },
+      {
+        "t": "Sign in",
+        "w": 47,
+        "h": 16
+      }
+    ],
+    "widest": null,
+    "title": "Live Leaderboard — ZedExams",
+    "hasLhx": false,
+    "navLabel": null,
+    "h1": "",
+    "text": "Skip to main content ZedExams Games PLAY • LEARN • LEVEL UP Save scores Games Live Leaderboard LIVE SCORES TOP 25 PLAYERS ALL TIME LEADERBOARD See who is climbing fastest The board refreshes in real time so learners can ",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/pricing",
+    "width": "390",
+    "file": "audit/pricing__390.png",
+    "overflow": 0,
+    "scrollH": 6881,
+    "smallCount": 8,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      },
+      {
+        "t": "Sign in",
+        "w": 71,
+        "h": 32
+      },
+      {
+        "t": "Get started",
+        "w": 97,
+        "h": 32
+      },
+      {
+        "t": "Monthly",
+        "w": 94,
+        "h": 40
+      },
+      {
+        "t": "AnnualSave 17%",
+        "w": 161,
+        "h": 40
+      },
+      {
+        "t": "Terms",
+        "w": 33,
+        "h": 16
+      },
+      {
+        "t": "Privacy",
+        "w": 39,
+        "h": 16
+      },
+      {
+        "t": "Home",
+        "w": 32,
+        "h": 16
+      }
+    ],
+    "widest": null,
+    "title": "Pricing — Free, Pro and Max plans — ZedExams",
+    "hasLhx": false,
+    "navLabel": null,
+    "h1": "Plans that grow with your classroom.",
+    "text": "Skip to main content Sign in Get started ✦ PLANS Plans that grow with your classroom. Start free. Upgrade when your week gets busy. Pay with Airtel Money or MTN MoMo, confirm on WhatsApp, and you're live within 30 minute",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/dashboard",
+    "width": "390",
+    "file": "audit/dashboard-signedout__390.png",
+    "overflow": 0,
+    "scrollH": 920,
+    "smallCount": 1,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      }
+    ],
+    "widest": null,
+    "title": "Sign in — ZedExams",
+    "hasLhx": false,
+    "navLabel": null,
+    "h1": "Welcome back",
+    "text": "Skip to main content Welcome back Sign in to your account Continue with Google OR Email address Password Forgot password? Sign In New to ZedExams? Create a free account Secure Your data is protected Private Your details ",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/dashboard",
+    "width": "768",
+    "file": "audit/dashboard-signedout__768.png",
+    "overflow": 0,
+    "scrollH": 941,
+    "smallCount": 1,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      }
+    ],
+    "widest": null,
+    "title": "Sign in — ZedExams",
+    "hasLhx": false,
+    "navLabel": null,
+    "h1": "Welcome back",
+    "text": "Skip to main content Welcome back Sign in to your account Continue with Google OR Email address Password Forgot password? Sign In New to ZedExams? Create a free account Secure Your data is protected Private Your details ",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/dashboard",
+    "width": "1440",
+    "file": "audit/dashboard-signedout__1440.png",
+    "overflow": 0,
+    "scrollH": 941,
+    "smallCount": 1,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      }
+    ],
+    "widest": null,
+    "title": "Sign in — ZedExams",
+    "hasLhx": false,
+    "navLabel": null,
+    "h1": "Welcome back",
+    "text": "Skip to main content Welcome back Sign in to your account Continue with Google OR Email address Password Forgot password? Sign In New to ZedExams? Create a free account Secure Your data is protected Private Your details ",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/dashboard",
+    "width": "390-night",
+    "file": "audit/dashboard-signedout__390-night.png",
+    "overflow": 0,
+    "scrollH": 920,
+    "smallCount": 1,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      }
+    ],
+    "widest": null,
+    "title": "Sign in — ZedExams",
+    "hasLhx": false,
+    "navLabel": null,
+    "h1": "Welcome back",
+    "text": "Skip to main content Welcome back Sign in to your account Continue with Google OR Email address Password Forgot password? Sign In New to ZedExams? Create a free account Secure Your data is protected Private Your details ",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/notes",
+    "width": "390",
+    "file": "audit/notes-signedout__390.png",
+    "overflow": 0,
+    "scrollH": 920,
+    "smallCount": 1,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      }
+    ],
+    "widest": null,
+    "title": "Sign in — ZedExams",
+    "hasLhx": false,
+    "navLabel": null,
+    "h1": "Welcome back",
+    "text": "Skip to main content Welcome back Sign in to your account Continue with Google OR Email address Password Forgot password? Sign In New to ZedExams? Create a free account Secure Your data is protected Private Your details ",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/notes",
+    "width": "768",
+    "file": "audit/notes-signedout__768.png",
+    "overflow": 0,
+    "scrollH": 941,
+    "smallCount": 1,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      }
+    ],
+    "widest": null,
+    "title": "Sign in — ZedExams",
+    "hasLhx": false,
+    "navLabel": null,
+    "h1": "Welcome back",
+    "text": "Skip to main content Welcome back Sign in to your account Continue with Google OR Email address Password Forgot password? Sign In New to ZedExams? Create a free account Secure Your data is protected Private Your details ",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/notes",
+    "width": "1440",
+    "file": "audit/notes-signedout__1440.png",
+    "overflow": 0,
+    "scrollH": 941,
+    "smallCount": 1,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      }
+    ],
+    "widest": null,
+    "title": "Sign in — ZedExams",
+    "hasLhx": false,
+    "navLabel": null,
+    "h1": "Welcome back",
+    "text": "Skip to main content Welcome back Sign in to your account Continue with Google OR Email address Password Forgot password? Sign In New to ZedExams? Create a free account Secure Your data is protected Private Your details ",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/notes",
+    "width": "390-night",
+    "file": "audit/notes-signedout__390-night.png",
+    "overflow": 0,
+    "scrollH": 920,
+    "smallCount": 1,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      }
+    ],
+    "widest": null,
+    "title": "Sign in — ZedExams",
+    "hasLhx": false,
+    "navLabel": null,
+    "h1": "Welcome back",
+    "text": "Skip to main content Welcome back Sign in to your account Continue with Google OR Email address Password Forgot password? Sign In New to ZedExams? Create a free account Secure Your data is protected Private Your details ",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/games",
+    "width": "360",
+    "file": "audit/games__360.png",
+    "overflow": 0,
+    "scrollH": 1010,
+    "smallCount": 3,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      },
+      {
+        "t": "🏆",
+        "w": 36,
+        "h": 36
+      },
+      {
+        "t": "0 of 10 ›",
+        "w": 58,
+        "h": 19
+      }
+    ],
+    "widest": null,
+    "title": "Games — ZedExams",
+    "hasLhx": true,
+    "navLabel": "Learner navigation",
+    "h1": "Games",
+    "text": "Skip to main content Games 🔥 Streak: 0 🏆 TODAY'S QUIZ GRADE 7 Play with Zed 🔥 Play today to start a streak Play 🌱 Level 1 Rookie Sign in to earn XP Achievements 0 of 10 › 🔒 First Game 🔒 On Fire 🔒 Centurion 🔒 Shar",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/papers",
+    "width": "360",
+    "file": "audit/papers__360.png",
+    "overflow": 0,
+    "scrollH": 844,
+    "smallCount": 11,
+    "small": [
+      {
+        "t": "Skip to main content",
+        "w": 170,
+        "h": 41
+      },
+      {
+        "t": "ECZ Archive",
+        "w": 133,
+        "h": 32
+      },
+      {
+        "t": "My runs",
+        "w": 98,
+        "h": 32
+      },
+      {
+        "t": "Grade 7",
+        "w": 94,
+        "h": 32
+      },
+      {
+        "t": "Grade 12",
+        "w": 104,
+        "h": 32
+      },
+      {
+        "t": "Sort options",
+        "w": 40,
+        "h": 40
+      },
+      {
+        "t": "All Papers",
+        "w": 100,
+        "h": 32
+      },
+      {
+        "t": "Official only",
+        "w": 112,
+        "h": 32
+      }
+    ],
+    "widest": null,
+    "title": "ECZ Past Papers — Grade 7 & Grade 12 archive — ZedExams",
+    "hasLhx": false,
+    "navLabel": "Primary navigation",
+    "h1": "Grade 7 Past Papers",
+    "text": "Skip to main content ECZ ARCHIVE My runs Grade 7 Past Papers Choose a year to explore ECZ past papers and quizzes. Grade 7 Grade 12 All Papers Official only Quiz Available Recently Added Bookmarked Home Papers Notes Game",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  }
+]

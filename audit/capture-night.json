@@ -1,0 +1,69 @@
+[
+  {
+    "route": "/games",
+    "bodyCls": "theme-midnight",
+    "bg": "rgb(15, 23, 42)",
+    "dataTheme": "terracotta",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/papers",
+    "bodyCls": "theme-midnight",
+    "bg": "rgb(15, 23, 42)",
+    "dataTheme": "terracotta",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/games/leaderboard",
+    "bodyCls": "theme-midnight",
+    "bg": "rgb(15, 23, 42)",
+    "dataTheme": "terracotta",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "route": "/",
+    "bodyCls": "theme-midnight",
+    "bg": "rgb(15, 23, 42)",
+    "dataTheme": "terracotta",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: net::ERR_CONNECTION_RESET"
+    ]
+  },
+  {
+    "route": "/login",
+    "bodyCls": "theme-midnight",
+    "bg": "rgb(15, 23, 42)",
+    "dataTheme": "terracotta",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: net::ERR_CONNECTION_RESET"
+    ]
+  },
+  {
+    "route": "/pricing",
+    "bodyCls": "theme-midnight",
+    "bg": "rgb(15, 23, 42)",
+    "dataTheme": "terracotta",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: net::ERR_CONNECTION_RESET"
+    ]
+  },
+  {
+    "route": "/register",
+    "bodyCls": "theme-midnight",
+    "bg": "rgb(15, 23, 42)",
+    "dataTheme": "terracotta",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: net::ERR_FAILED"
+    ]
+  }
+]

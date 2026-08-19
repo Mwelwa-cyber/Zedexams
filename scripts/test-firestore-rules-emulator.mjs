@@ -3906,6 +3906,107 @@ async function main() {
     }))
   })
 
+  // ── Daily Quiz: the one-read-path closure, enforced by the rules ──
+  //
+  // `getTodaysQuiz` being the only reader is an ARCHITECTURAL claim, and
+  // these arms are what make it a structural one. A client that could read
+  // `dailyQuizzes` would hold tomorrow's quiz tonight (the console previews
+  // future dates) and could pull the questions out of questionBank, which
+  // any verified teacher may read for Master-Bank rows.
+
+  await test('dailyQuizzes is closed to every client, in both directions', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'dailyQuizzes', '7_2026-08-20'), {
+        grade: '7', date: '2026-08-20', questionIds: ['q1', 'q2', 'q3', 'q4', 'q5'],
+        status: 'ok', seed: 'a41f0c2d', createdBy: 'cron',
+      })
+    })
+    // Not the learner it is for, not a teacher, not a guest — and NOT AN
+    // ADMIN either. An admin reads this through the console's callable,
+    // which runs on the admin SDK; leaving a client door open for them
+    // would be a door.
+    await assertFails(getDoc(doc(learnerA, 'dailyQuizzes', '7_2026-08-20')))
+    await assertFails(getDoc(doc(teacherA, 'dailyQuizzes', '7_2026-08-20')))
+    await assertFails(getDoc(doc(guest, 'dailyQuizzes', '7_2026-08-20')))
+    await assertFails(getDoc(doc(admin, 'dailyQuizzes', '7_2026-08-20')))
+
+    await assertFails(setDoc(doc(learnerA, 'dailyQuizzes', '7_2026-08-21'), { grade: '7' }))
+    await assertFails(setDoc(doc(admin, 'dailyQuizzes', '7_2026-08-21'), { grade: '7' }))
+    await assertFails(deleteDoc(doc(admin, 'dailyQuizzes', '7_2026-08-20')))
+  })
+
+  await test('a learner reads their own daily attempt but can never write one', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'dailyAttempts', `${LEARNER_A}_2026-08-20`), {
+        uid: LEARNER_A, grade: '7', date: '2026-08-20',
+        correct: 4, credited: 4, total: 5, points: 40, ranked: true,
+      })
+    })
+    await assertSucceeds(getDoc(doc(learnerA, 'dailyAttempts', `${LEARNER_A}_2026-08-20`)))
+    await assertFails(getDoc(doc(learnerB, 'dailyAttempts', `${LEARNER_A}_2026-08-20`)))
+    await assertFails(getDoc(doc(guest, 'dailyAttempts', `${LEARNER_A}_2026-08-20`)))
+
+    // The write deny is the load-bearing one twice over: this document is
+    // the once-a-day LOCK as well as the score, so a client write would be
+    // both a self-awarded score and a way to re-sit the day.
+    await assertFails(setDoc(
+      doc(learnerA, 'dailyAttempts', `${LEARNER_A}_2026-08-20`),
+      { points: 999 }, { merge: true },
+    ))
+    await assertFails(deleteDoc(doc(learnerA, 'dailyAttempts', `${LEARNER_A}_2026-08-20`)))
+    await assertFails(setDoc(
+      doc(learnerA, 'dailyAttempts', `${LEARNER_A}_2026-08-21`),
+      { uid: LEARNER_A, points: 60 },
+    ))
+  })
+
+  await test('the daily-quiz event log and runway alerts are admin-read, server-write', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'dailyQuizEvents', 'evt1'), {
+        type: 'selfheal_write', grade: '7', date: '2026-08-20',
+      })
+      await setDoc(doc(ctx.firestore(), 'dailyQuizAlerts', '7_2026-08'), {
+        grade: '7', period: '2026-08', runwayDays: 19,
+      })
+    })
+    await assertSucceeds(getDoc(doc(admin, 'dailyQuizEvents', 'evt1')))
+    await assertFails(getDoc(doc(learnerA, 'dailyQuizEvents', 'evt1')))
+    await assertFails(getDoc(doc(teacherA, 'dailyQuizEvents', 'evt1')))
+    await assertSucceeds(getDoc(doc(admin, 'dailyQuizAlerts', '7_2026-08')))
+    await assertFails(getDoc(doc(learnerA, 'dailyQuizAlerts', '7_2026-08')))
+
+    // An append-only log a client could write is a log that can be forged.
+    await assertFails(setDoc(doc(admin, 'dailyQuizEvents', 'evt2'), { type: 'x' }))
+    await assertFails(setDoc(doc(learnerA, 'dailyQuizEvents', 'evt2'), { type: 'x' }))
+    await assertFails(setDoc(doc(admin, 'dailyQuizAlerts', '7_2026-09'), { grade: '7' }))
+  })
+
+  await test('the weekly board is readable but never client-writable', async () => {
+    const entry = ['leaderboards', '7', 'weeks', '2026-W34', 'entries', LEARNER_A]
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), ...entry), {
+        uid: LEARNER_A, grade: '7', weekId: '2026-W34',
+        displayName: 'Lydia', points: 230, daysPlayed: 5,
+      })
+    })
+    // A ranking is meant to be seen — a row carries a display name and a
+    // score and nothing else.
+    await assertSucceeds(getDoc(doc(learnerA, ...entry)))
+    await assertSucceeds(getDoc(doc(learnerB, ...entry)))
+
+    // The write deny also carries the guardian-consent gate: the entry is
+    // only ever incremented by the call that marks the attempt, and only
+    // for a learner whose guardian has approved the leaderboard capability.
+    // A client write would bypass that consent check as well as the score.
+    await assertFails(setDoc(doc(learnerA, ...entry), { points: 9999 }, { merge: true }))
+    await assertFails(setDoc(doc(learnerB, ...entry), { points: 9999 }, { merge: true }))
+    await assertFails(deleteDoc(doc(learnerA, ...entry)))
+    await assertFails(setDoc(
+      doc(learnerA, 'leaderboards', '7', 'weeks', '2026-W35', 'entries', LEARNER_A),
+      { uid: LEARNER_A, points: 500 },
+    ))
+  })
+
   section('invoices + payments — a price never reaches a child, ownership notwithstanding')
 
   await test('a minor cannot read their own payment or invoice', async () => {
@@ -3998,6 +4099,7 @@ async function main() {
     await assertFails(setDoc(doc(admin, 'invoices', 'pay_adult'), { userId: ADMIN, amount: 1 }))
     await assertFails(setDoc(doc(adult, 'payments', 'pay_adult'), { userId: ADULT_LEARNER, amount: 1 }))
   })
+
 
   await testEnv.cleanup()
 

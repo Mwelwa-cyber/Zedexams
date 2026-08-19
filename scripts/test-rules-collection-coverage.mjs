@@ -187,6 +187,22 @@ function architectureClaims(archSrc) {
  * so it must not drift behind reality in either direction.
  */
 const COVERED = [
+  // The Daily Quiz's four server-only collections plus its weekly board.
+  // Real emulator coverage rather than an acknowledgement because the
+  // `dailyQuizzes` deny is what makes "getTodaysQuiz is the one read path" a
+  // structural claim instead of a convention — a client that could read it
+  // would hold tomorrow's quiz tonight. `dailyAttempts` is the once-a-day
+  // LOCK as well as the score, so its write deny closes both a self-awarded
+  // score and a re-sit.
+  'dailyQuizzes',
+  'dailyAttempts',
+  'dailyQuizEvents',
+  'dailyQuizAlerts',
+  // The weekly board moved off the acknowledged-uncovered list with the
+  // Daily Quiz: its entries subcollection is now written by the server on
+  // every scored attempt, and the read/write split carries the guardian
+  // consent gate, so it is worth proving rather than assuming.
+  'leaderboards',
   // The guardian↔learner link's server-only collections. Covered by the
   // deny-both-directions tests in test-firestore-rules-emulator.mjs — worth
   // real emulator coverage rather than an acknowledgement because
@@ -262,7 +278,7 @@ const ACKNOWLEDGED_UNCOVERED = [
   'contactMessages', 'curriculumUpdateReports',
   'curriculumUploads', 'daily_challenges', 'dawnConfig', 'dawnRuns',
   'diagramAssets', 'drafts',
-  'examTimetables', 'feedback', 'leaderboards', 'learnerProgress', 'learnerStats',
+  'examTimetables', 'feedback', 'learnerProgress', 'learnerStats',
   'learnerWeaknessProfiles', 'lessonPlans', 'lessonProgress',
   'lessonSeries', 'lessons', 'newsletterSubscribers', 'noteInsights', 'noteSmart',
   'notifications', 'pictureBank', 'playBindingHealth', 'promptTemplates',

@@ -35,11 +35,20 @@ export function getRoleLandingPath(profileOrFlags, fallback = '/dashboard') {
  */
 export const LEARNER_ONLY_SEGMENTS = Object.freeze([
   'calendar',
+  // The Daily Quiz, which replaced the Daily Exam rotation.
+  //
+  // `exam` and `exams` are NOT listed any more, and that is the bidirectional
+  // half of this guard doing its job: both are now plain <Navigate> redirects
+  // into /daily rather than <LearnerOnlyRoute> pages, and a stale entry here
+  // would discard a destination a teacher is entitled to.
+  //
+  // `exam-results` stays, because it is still a live learner-only page — a
+  // learner's past daily-exam attempts outlived the mechanism that produced
+  // them, and the attempt link is the only way back to one.
+  'daily',
   'dashboard',
   'dashboard-preview',
-  'exam',
   'exam-results',
-  'exams',
   'guardian',
   'lessons',
   'my-badges',

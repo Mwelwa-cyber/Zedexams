@@ -86,6 +86,36 @@
       "classification": "payment-webhook",
       "batch": null
     },
+    "adminDailyQuizFunnel": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "adminDailyQuizOverview": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
     "adminGrantPremium": {
       "kind": "delegated",
       "inline": false,
@@ -131,6 +161,21 @@
       "classification": "payment-webhook",
       "batch": null
     },
+    "adminRunDailyQuizNow": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "300"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
     "adminSetUserRole": {
       "kind": "delegated",
       "inline": false,
@@ -156,6 +201,36 @@
       "optionsFrom": "./adminUsers",
       "optionsUnresolved": null,
       "target": "require(\"./adminUsers\").adminSetUserStatus",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "adminSwapDailyQuizQuestion": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "adminVoidDailyQuizQuestion": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "300"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
@@ -297,6 +372,21 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
+      "batch": null
+    },
+    "answerDailyQuizQuestion": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
       "batch": null
     },
     "apiAiChat": {
@@ -546,23 +636,6 @@
       "classification": "secrets-bound",
       "batch": null
     },
-    "autoPickDailyExams": {
-      "kind": "delegated",
-      "inline": false,
-      "options": {
-        "schedule": "\"every day 05:00\"",
-        "timeZone": "\"Africa/Lusaka\"",
-        "region": "\"us-central1\"",
-        "timeoutSeconds": "300"
-      },
-      "optionsFrom": "./dailyExamPicker",
-      "optionsUnresolved": null,
-      "target": "autoPickDailyExams",
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
     "backfillKbSourceRefs": {
       "kind": "delegated",
       "inline": false,
@@ -619,6 +692,23 @@
       "options": {
         "region": "\"us-central1\"",
         "timeoutSeconds": "20"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "buildDailyQuizzes": {
+      "kind": "onSchedule",
+      "inline": false,
+      "options": {
+        "schedule": "\"5 0 * * *\"",
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "300"
       },
       "optionsFrom": "index.js",
       "optionsUnresolved": null,
@@ -1591,6 +1681,21 @@
       "optionsFrom": "./teacherTools/getTermModuleOutline",
       "optionsUnresolved": null,
       "target": "getTermModuleOutline",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
+    "getTodaysQuiz": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",

@@ -19,7 +19,7 @@ import { ZedAiBody } from './ZedAiPanel'
 // Entry-point cards. `to` navigates to an existing surface; `soon` marks the
 // generators we haven't shipped yet.
 const AI_ACTIONS = [
-  { emoji: '🔥', label: 'Daily Challenge', hint: "Today's mixed practice set", to: '/exams' },
+  { emoji: '🔥', label: 'Daily Challenge', hint: "Today's mixed practice set", to: '/daily' },
   { emoji: '🏆', label: 'Weekly Challenge', hint: 'Climb the weekly leaderboard', to: '/games/leaderboard' },
   { emoji: '🤖', label: 'AI Homework Helper', hint: 'Ask Zed to work through a problem', to: '/ask-zed' },
   { emoji: '💬', label: 'AI Chat Tutor', hint: 'Chat with your study assistant', to: '/ask-zed' },

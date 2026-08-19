@@ -144,7 +144,7 @@ src/
   config/curriculum.js          — SUBJECTS / GRADES; single source of truth for CBC dropdowns
 
 functions/                      — Cloud Functions v2, Node 22, codebase=default. Separate package.json.
-  index.js                      — every function export lives here (~191 exports): aiChat, generateQuiz, verifyQuiz, checkShortAnswer, apiAiChat SSE, apiGenerateLessonPlan / Worksheet SSE, the generate* teacher tools (Assessment/SbaTask/Homework/Notes/Flashcards/SchemeOfWork/Rubric/Diagram/NotePictures/VisualNotes/SlideNotes; the generateExamPaper callable was retired 2026-07 — every assessment type, test AND examination, now generates through the one generateAssessment (the merged Assessment Paper Studio; `assessmentType` is one of the 7 canonical values in `functions/teacherTools/assessmentFormats.js`'s `ASSESSMENT_TYPES`, reaching the backend exactly as the teacher picked it — `examination`/`final_exam` are real recognised types, never collapsed to `mock_exam`), and the library still renders legacy `tool:'exam_paper'` docs via `src/utils/aiPaperToSections.js`; `planAssessment` derives the same paper plan with NO model call so the teacher confirms it before generating, and `regenerateAssessmentQuestion` rewrites ONE question against its plan slot), scanned-quiz + note OCR (structureScannedQuiz, ocrNotePages), parent portal + weeklyParentDigest, newsletter (subscribeToNewsletter), invoices, referrals, syllabus versioning (parseSyllabusUpload, activateSyllabusVersion, rollbackSyllabusVersion), Lenco (lencoWebhook + payment recovery) + Google Play Billing (verifyGooglePlayPurchase), Central Question Bank (questionReviewOnWrite=Qix, importPastPaperQuestions, classifyQuestionGrades, reviseQuestion), agentJobsOnCreate/Approved, storageCleanup triggers, and the scheduled crons (nightlyQaSmoke, hourlyMonitor, hourlyAgentSupervisor=Marshal, hourlyRevenueReconcile, supportTriage, contentAutoPublish, weeklyProductSignal, weeklyRetentionScan, deliverDawnBriefings, weeklyCbcAlignmentAudit, autoPickDailyExams, daily/weekly learner reminders, dailyFxRefresh, aiCostDailySummary, reclaimAiBudgetReservations, rebuildPastPapersIndexCron)
+  index.js                      — every function export lives here (~191 exports): aiChat, generateQuiz, verifyQuiz, checkShortAnswer, apiAiChat SSE, apiGenerateLessonPlan / Worksheet SSE, the generate* teacher tools (Assessment/SbaTask/Homework/Notes/Flashcards/SchemeOfWork/Rubric/Diagram/NotePictures/VisualNotes/SlideNotes; the generateExamPaper callable was retired 2026-07 — every assessment type, test AND examination, now generates through the one generateAssessment (the merged Assessment Paper Studio; `assessmentType` is one of the 7 canonical values in `functions/teacherTools/assessmentFormats.js`'s `ASSESSMENT_TYPES`, reaching the backend exactly as the teacher picked it — `examination`/`final_exam` are real recognised types, never collapsed to `mock_exam`), and the library still renders legacy `tool:'exam_paper'` docs via `src/utils/aiPaperToSections.js`; `planAssessment` derives the same paper plan with NO model call so the teacher confirms it before generating, and `regenerateAssessmentQuestion` rewrites ONE question against its plan slot), scanned-quiz + note OCR (structureScannedQuiz, ocrNotePages), parent portal + weeklyParentDigest, newsletter (subscribeToNewsletter), invoices, referrals, syllabus versioning (parseSyllabusUpload, activateSyllabusVersion, rollbackSyllabusVersion), Lenco (lencoWebhook + payment recovery) + Google Play Billing (verifyGooglePlayPurchase), Central Question Bank (questionReviewOnWrite=Qix, importPastPaperQuestions, classifyQuestionGrades, reviseQuestion), agentJobsOnCreate/Approved, storageCleanup triggers, and the scheduled crons (nightlyQaSmoke, hourlyMonitor, hourlyAgentSupervisor=Marshal, hourlyRevenueReconcile, supportTriage, contentAutoPublish, weeklyProductSignal, weeklyRetentionScan, deliverDawnBriefings, weeklyCbcAlignmentAudit, buildDailyQuizzes, daily/weekly learner reminders, dailyFxRefresh, aiCostDailySummary, reclaimAiBudgetReservations, rebuildPastPapersIndexCron)
   aiService.js                  — Anthropic client (streaming + non-streaming + prompt-caching), assertDailyLimit, role helpers, parsers
   anthropicFetch.js             — low-level fetch around Anthropic API
   geminiClient.js + geminiImageClient.js — Gemini REST client (structureImportedQuiz) + Gemini image generation
@@ -152,7 +152,8 @@ functions/                      — Cloud Functions v2, Node 22, codebase=defaul
   openaiClient.js               — OpenAI client (short-answer marking)
   teacherTools/                 — one folder per generator (prompt + schema + generate*/run* runner) + cbcKnowledge.js + cbcTopics.js (KB resolver), usageMeter.js (per-user + per-agent daily caps), privateCurriculum.js, assessment/exam-paper/SBA schemas + format seeds
   agents/                       — Internal agent pipeline. dispatcher.js drives Aria → Cala → Reva → awaiting_approval → Pubo via Firestore triggers on agentJobs/{id} (pinned to africa-south1). agents/runners/ holds the content agents (aria, cala, reva, pubo, vex) AND the ops/growth agents driven by agents/cron.js (monitor=Vigil, till, echo, compass, anchor, gate, dawn, quill). agentControl/{agentId}.paused is a circuit breaker; agentControl/content.autoPublish gates Gate. learnerAi/ holds the curriculum-ingester runner.
-  grading/                      — daily-exam grading
+  dailyQuiz/                    — the Daily Quiz: pure selection rules (dailyQuizCore), the Firestore layer (dailyQuizService) and the handlers (dailyQuizFns). See "The daily quiz is five questions" below
+  grading/                      — daily-exam grading (HISTORY ONLY — the daily-exam rotation was retired 2026-08; the grader stays so past attempts remain readable)
   parentPortal.js / weeklyParentDigest.js — parent portal data + weekly digest email
   invoiceGenerator.js / lencoService.js / subscriptionActivation.js / subscriptionLifecycle.js / subscriptionUpgrade.js — Lenco payments (MTN/Airtel/Zamtel mobile money + cards, ZMW), idempotent activation, invoices, expiry/cancellation lifecycle, upgrades
   googlePlayBilling.js (+ googlePlayBillingCore.js) — Android in-app subscriptions via Google Play Billing; `verifyGooglePlayPurchase` validates a purchase token against the Play Developer API then activates through the shared idempotent path. `PLAY_PRODUCT_TO_PLAN` must stay the inverse of `src/utils/playBillingCatalog.js` (guarded by `test:play-catalog-mirror`)
@@ -456,6 +457,114 @@ filters, the mixed-selection partition, confirmation copy, result counts,
 and `DELETION_PLAN` — the reviewable list of what deletion touches). Tests:
 `test:games-seed-admin`, `test:games-seed-fallback`, `test:rules-text`,
 `test:rules-emulator`, plus `GamesSeedAdmin.spec.jsx`.
+
+### The daily quiz is five questions, and there is one way to read it (2026-08-19)
+
+The Daily Quiz replaced the **Daily Exam rotation**. The old mechanism pinned
+one whole published exam paper (`questionCount >= 50`) per grade per day by
+flipping fields on a `quizzes` doc, and when `autoPickDailyExams` found nothing
+eligible for a grade, Home said **"No quiz today"** with nothing behind it. A
+rotation over whole papers has no smaller unit to fall back to.
+
+**One document per grade per day, and everyone in the grade gets the same
+five.** `dailyQuizzes/{grade}_{YYYY-MM-DD}` holds five question IDs drawn from
+the approved question bank (`masterEligible == true`). That sameness is the
+design, not a limitation: a personalised daily quiz cannot be ranked — you
+would be comparing a child who drew easy questions with one who drew hard ones.
+Personalisation belongs in Quizzes and Practice, which are already adaptive.
+
+**The pick is SEEDED, so races and self-heals cannot disagree.** Every random
+choice comes from a PRNG seeded with `hash(grade|date)`
+(`functions/dailyQuiz/dailyQuizCore.js`). The nightly cron, the lazy self-heal
+and two simultaneous self-heals all produce the identical five, so generation
+is idempotent by construction — there is no "two learners triggered it and got
+different quizzes" bug to have. `seededShuffle` sorts by id BEFORE shuffling,
+because a stable seed over Firestore's unstable result order is still unstable.
+
+**Selection rules, and the ladder when they cannot all hold:** approved only →
+not served in this grade's last 30 days → subject spread (Maths and English
+every day, the other three slots rotating by weekday through whatever subjects
+the grade's pool actually has) → difficulty 2 easy · 2 medium · 1 hard → seeded
+pick. When the pool cannot satisfy everything, rules relax in REVERSE order —
+difficulty, then subject, then freshness LAST (a repeat is the most visible
+failure) — and `rulesRelaxed` records which bent. Only a pool that cannot yield
+five at all is `status: 'thin'`.
+
+**`getTodaysQuiz` is the ONE read path, and `firestore.rules` is what makes
+that structural.** Every client read of `dailyQuizzes` is denied — admins
+included — so the callable is the only way in. That closure matters twice: the
+console previews FUTURE dates, so a readable collection would hand a learner
+tomorrow's quiz tonight, and the question IDs point into `questionBank`, which
+any verified teacher may read for Master-Bank rows. The learner's GRADE comes
+from their profile server-side and is never a parameter.
+
+**The cron is an optimisation, not a dependency.** `buildDailyQuizzes` runs at
+00:05 Africa/Lusaka; if it misses, the first learner to open the app builds the
+document inside a transaction and everyone else gets the same one. A dead cron
+must never surface to a learner as "no quiz today". Vigil still checks
+hourly — not to rescue learners, but to build a missing day before one pays
+the latency, and to escalate a THIN bank, which is the one thing a self-healing
+system would otherwise hide completely.
+
+**Feedback is immediate and it is the SERVER's.**
+`answerDailyQuizQuestion` marks ONE question and returns the verdict plus a
+line of why. The key for a question comes back only once the learner has
+committed to an answer for it, which leaks nothing; answers are final, so a
+repeat call returns the recorded verdict rather than re-marking. The attempt
+FINALISES on the last answer — score, bonus and the leaderboard write happen in
+that call, so there is no separate submit to lose. The client sends the chosen
+option and nothing else; `test:daily-quiz-scoring` pins that as a list of
+fields the handler must never grow, because "we ignore it" is a claim about
+absence.
+
+**`dailyAttempts/{uid}_{date}` is the attempt AND the once-a-day lock** — being
+keyed uid+date is what makes it the lock, and the transactional create is what
+enforces it. **No countdown is ever shown**: elapsed time is recorded only as
+the leaderboard tie-break. The week shows **days played out of seven**, never a
+streak that resets to zero and tells a child they ruined something.
+
+**The only honest empty state.** A `thin` bank returns a labelled PRACTICE set
+(`ranked: false`) drawn from the same pool with every rule but the grade
+dropped, preferring the learner's two weakest subjects. It is refused by the
+scorer, so `ranked: false` is true rather than decorative. "No quiz today" with
+nothing to tap is unreachable — `test:daily-quiz-view` asserts that no input
+produces it.
+
+**Unapproved learners play but do not rank.** `mayRank` resolves the guardian
+consent gate to a boolean rather than throwing: a refusal costs the child their
+rank, never their quiz, per `/child-safety`. It fails CLOSED.
+
+**Post-lock errors are VOIDED, never edited.** Once one child has answered,
+changing a question would rank learners against different quizzes. Voiding
+credits every player its ten points, re-credits the attempts already filed, and
+tells the learner the question was removed. `canEditQuiz` enforces both locks —
+the 23:00 clock and, outranking it, "has anyone played", which is read live
+rather than from a flag.
+
+**The console is `/admin/daily-quiz`** (staff only, `Disallow`d in robots.txt):
+tonight's run + Run now, the read-only funnel, tomorrow's preview + voiding,
+bank health, and the event log. **Runway** (eligible ÷ 5 = days left) is what
+actually prevents an empty card — the self-heal covers a dead cron, but nothing
+covers a starved bank except noticing weeks early, so below 30 days the content
+team is emailed once per grade per month. A failed count reports `unknown`,
+never zero.
+
+**`DAILY_QUIZ_GRADES` (`dailyQuizCore.js`) is the server twin of
+`LEARNER_GRADES`**, guarded by `test:learner-grades`. It replaced
+`DAILY_EXAM_GRADES`.
+
+**What survived the retirement, and why exactly that much.** `ExamResultsPage`
+(`/exam-results/:attemptId`), `exam_attempts` and its grader stay: a learner's
+past attempts are their record and the attempt link is the only way back to
+one. `/exams` and `/exam/:examId` are redirects into `/daily`; that page is
+deliberately not one. **`npm run retire:daily-exams:dry` must be run once** —
+the retired cron's demote half went with it, so whatever was pinned on its last
+morning is pinned forever, and a `daily_exam` quiz's questions are unreadable
+by clients.
+
+Tests: `test:daily-quiz-core`, `test:daily-quiz-view`, `test:daily-quiz-week`,
+`test:daily-quiz-scoring`, `test:admin-daily-quiz`, `test:learner-grades`,
+`test:rules-text`, `test:rules-emulator`, plus `DailyQuizPage.spec.jsx`.
 
 ### There is no learner↔teacher link (removed 2026-08)
 
@@ -1043,7 +1152,7 @@ Beyond the content line, a fleet of **ops/growth agents** runs on schedules in `
 |-------|----------|-----|
 | **Quill** (`nightlyQaSmoke`) | daily 02:00 | walks Firestore for stuck jobs + KB freshness |
 | **Cala** (`weeklyCbcAlignmentAudit`) | Sun 03:00 | re-runs alignment on recent `aiGenerations`, catches drift |
-| **Vigil** (`hourlyMonitor`, runner `monitor.js`) | hourly | checks pages/Firebase/images/quizzes + today's daily-exam picks (self-heals a missed 05:00 auto-pick by re-running the idempotent picker); on failure asks Haiku for fixes, emails + files a GitHub bug issue → Mendi |
+| **Vigil** (`hourlyMonitor`, runner `monitor.js`) | hourly | checks pages/Firebase/images/quizzes + today's daily quiz per live grade (builds a missing one so no learner pays the self-heal, and escalates a THIN bank — the one thing self-healing cannot fix); on failure asks Haiku for fixes, emails + files a GitHub bug issue → Mendi |
 | **Marshal** (`hourlyAgentSupervisor`, runner `marshal.js`) | hourly | the watchdog-of-watchdogs: confirms every scheduled agent that writes a predictable rollup actually ran in its window, surfaces stuck jobs / tripped breakers / recent failures into a single company-health verdict for the `/admin/company` HQ (files an `awaiting_approval` job when something's wrong). Deterministic, no LLM |
 | **Till** (`hourlyRevenueReconcile`) | hourly | re-queries Lenco for stale "pending" payments; finishes what a dropped webhook missed via the idempotent activation path |
 | **Echo** (`supportTriage`) | every 2h | classifies + prioritises new feedback + public `contactMessages`, drafts replies (Haiku) — never sends |

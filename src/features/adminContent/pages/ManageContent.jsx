@@ -14,7 +14,6 @@ import Button from '../../../shared/components/Button'
 import Icon from '../../../shared/components/Icon'
 import Skeleton from '../../../shared/components/Skeleton'
 import ConfirmDialog from '../../../shared/components/ConfirmDialog'
-import { todayString } from '../../../utils/examService'
 import { EXAM_ONLY_QUESTION_THRESHOLD, isExamOnly } from '../../../utils/quizClassification.js'
 import { summarizeImportReview } from '../../../utils/importReviewSummary.js'
 import { describeQuizPaperLink, unassignWarning } from '../lib/quizPaperLink.js'
@@ -208,84 +207,6 @@ function MenuItem({ onClick, danger, icon, children }) {
   )
 }
 
-// ── Set-as-Daily-Exam modal (unchanged behaviour) ──────────────────────────
-function DailyExamModal({ quiz, onSave, onClose }) {
-  // Local-time date so it matches the student-side todayString() check.
-  // toISOString() returns UTC and can be off-by-one near midnight in any
-  // non-UTC timezone, which would make the saved dailyExamDate never equal
-  // "today" on the /exams page.
-  const today = todayString()
-  const [date,     setDate]     = useState(quiz.dailyExamDate || today)
-  const [duration, setDuration] = useState(quiz.durationMinutes || quiz.duration || 45)
-  const [isDemo,   setIsDemo]   = useState(!!quiz.isDemo)
-  const [saving,   setSaving]   = useState(false)
-
-  async function handleSave() {
-    setSaving(true)
-    await onSave(quiz, { date, duration: Number(duration), isDemo })
-    setSaving(false)
-    onClose()
-  }
-
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
-      <div className="bg-white rounded-3xl shadow-xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-black text-gray-800 text-base flex items-center gap-2">
-            <Icon as={Trophy} size="sm" className="text-[#D97757]" /> Set as Daily Exam
-          </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600" aria-label="Close">
-            <Icon as={X} size="md" />
-          </button>
-        </div>
-        <p className="text-xs text-gray-500 mb-4 font-bold line-clamp-2">{quiz.title}</p>
-        <div className="space-y-3">
-          <div>
-            <label className="block text-xs font-black text-gray-600 mb-1">Exam Date</label>
-            <input type="date" value={date} min={today}
-              onChange={e => setDate(e.target.value)}
-              className="w-full border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:border-amber-500 focus:outline-none" />
-          </div>
-          <div>
-            <label className="block text-xs font-black text-gray-600 mb-1">Duration (minutes)</label>
-            <input type="number" value={duration} min={5} max={180}
-              onChange={e => setDuration(e.target.value)}
-              className="w-full border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:border-amber-500 focus:outline-none" />
-            <p className="text-xs text-gray-400 mt-1">Tip: 45–60 min for 50+ question papers</p>
-          </div>
-          <div className="rounded-xl border-2 border-gray-200 bg-gray-50 px-3 py-2.5">
-            <label className="flex cursor-pointer items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-xs font-black text-gray-700">Mark as Demo Exam</p>
-                <p className="mt-0.5 text-[11px] font-bold text-gray-500 leading-snug">Visible to learners on free/Demo Access so they can try a sample exam.</p>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={isDemo}
-                onClick={() => setIsDemo(v => !v)}
-                className={`relative h-5 w-10 flex-shrink-0 rounded-full p-0 shadow-none transition-colors ${isDemo ? 'bg-amber-500' : 'bg-gray-300'}`}
-              >
-                <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${isDemo ? 'left-5' : 'left-0.5'}`} />
-              </button>
-            </label>
-          </div>
-        </div>
-        <div className="flex gap-2 mt-5">
-          <button onClick={handleSave} disabled={saving || !date}
-            className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-black text-sm rounded-xl py-2.5 disabled:opacity-50 transition-colors">
-            {saving ? 'Saving…' : 'Confirm Daily Exam'}
-          </button>
-          <button onClick={onClose}
-            className="px-4 py-2.5 rounded-xl border-2 border-gray-200 text-gray-600 text-sm font-bold hover:bg-gray-50">
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ── compact status banner ───────────────────────────────────────────────────
 // Soft, low-profile alert: a tinted icon chip, a one-line title + short
 // explanation, and a single action button on the right.
@@ -472,9 +393,6 @@ function Row({ tab, item, selected, onSelect, menuOpen, onMenu, actions, busy })
                   {!item.isPublished && (
                     <MenuItem icon={CheckCircle} onClick={() => { onMenu(null); actions.publish(item) }}>Publish</MenuItem>
                   )}
-                  {item.quizType !== 'daily_exam' && (
-                    <MenuItem icon={Trophy} onClick={() => { onMenu(null); actions.daily(item) }}>Assign to Daily Exam</MenuItem>
-                  )}
                   {(item.quizType || item.isPublished) && (
                     <MenuItem icon={EyeOff} onClick={() => { onMenu(null); actions.unassign(item) }}>Unassign</MenuItem>
                   )}
@@ -561,7 +479,6 @@ export default function ManageContent() {
   const [migrating, setMigrating] = useState(false)
   const [converting, setConverting] = useState(null)
   const [bulkBusy, setBulkBusy]   = useState(false)
-  const [dailyQuiz, setDailyQuiz] = useState(null)
   const [pendingDelete, setPendingDelete] = useState(null)   // { kind, item }
   const [pendingBulkDelete, setPendingBulkDelete] = useState(false)
   // { quiz, link } — set when Unassign would break a past paper's quiz.
@@ -643,17 +560,6 @@ export default function ManageContent() {
     show(patch.examOnly
       ? '🏆 Published as Exam-only — pin it as Daily Exam when you want to use it.'
       : '📝 Published — students can practice it now.')
-  }
-
-  async function setAsDailyExam(quiz, { date, duration, isDemo }) {
-    const demoPatch = typeof isDemo === 'boolean' ? { isDemo } : {}
-    const patch = {
-      quizType: 'daily_exam', isDailyExam: true, dailyExamDate: date,
-      durationMinutes: duration, isPublished: true, status: 'published', ...demoPatch,
-    }
-    await updateQuiz(quiz.id, patch)
-    setQuizzes(qs => qs.map(q => q.id === quiz.id ? { ...q, ...patch } : q))
-    show(`🏆 Set as Daily Exam on ${date}${isDemo ? ' · Demo' : ''}`)
   }
 
   // Unassigning writes `isPublished: false`, and BOTH read clauses on
@@ -950,7 +856,6 @@ export default function ManageContent() {
 
   const rowActions = {
     publish: publishQuiz,
-    daily: q => setDailyQuiz(q),
     unassign: requestUnassign,
     classify: classifyItem,
     togglePublish: tab === 'lessons' ? toggleLessonPublish : togglePaperPublish,
@@ -1017,10 +922,6 @@ export default function ManageContent() {
       />
 
       {/* Daily exam modal */}
-      {dailyQuiz && (
-        <DailyExamModal quiz={dailyQuiz} onSave={setAsDailyExam} onClose={() => setDailyQuiz(null)} />
-      )}
-
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
@@ -1072,8 +973,8 @@ export default function ManageContent() {
         <StatusBanner
           tone="info"
           icon={Bot}
-          title="Daily Exam Auto-Picker · Active"
-          desc={`Each morning (Lusaka time) one short quiz per grade is promoted to today's Daily Exam, then returned to Practice the next day. Quizzes with ${EXAM_ONLY_QUESTION_THRESHOLD}+ questions are exam-only — pin those manually.`}
+          title="Daily Exam rotation · retired"
+          desc={`The daily quiz is now five questions built from the approved question bank — see /admin/daily-quiz. Nothing here is promoted to a Daily Exam any more; quizzes with ${EXAM_ONLY_QUESTION_THRESHOLD}+ questions stay exam-only and are practised from the library.`}
           action={
             <button
               onClick={() => setBannersOff(s => new Set(s).add('picker'))}

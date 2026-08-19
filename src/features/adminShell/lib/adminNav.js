@@ -91,6 +91,7 @@ export const ADMIN_NAV_SECTIONS = [
       { to: '/admin/curriculum/replace', icon: Upload, label: 'Replace syllabus', keywords: 'curriculum version rollback' },
       { to: '/admin/curriculum-upload', icon: Upload, label: 'Curriculum uploads', keywords: 'syllabus parse ingest' },
       { to: '/admin/games-seed', icon: Sparkles, label: 'Games seed', keywords: 'games data seed' },
+      { to: '/admin/daily-quiz', icon: Sparkles, label: 'Daily quiz', keywords: 'generator cron runway bank health leaderboard five questions' },
     ],
   },
   {
