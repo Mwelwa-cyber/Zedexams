@@ -153,6 +153,32 @@ function stubFirestoreCapture() {
   }
 
   {
+    // ── cache hits ────────────────────────────────────────────────────────
+    // A hit spent nothing, so recording it at its notional cost would inflate
+    // spend that never happened. Recording it not at all would leave the audio
+    // cache's entire value invisible on the dashboard that justifies it. So:
+    // zero cost, real characters — the saving is that volume priced at the
+    // voice's own rate.
+    const writes = stubFirestoreCapture();
+    const res = await recordAiTtsUsage({
+      uid: "learner3",
+      voice: "en-GB-Studio-B",
+      characters: 3000,
+      tool: "tts-cache-hit",
+      cached: true,
+    });
+    ok("a cache hit records zero cost", res && res.costUsd === 0);
+    ok("a cache hit still records the characters it served", res.characters === 3000);
+    ok("the same request UNCACHED would have cost $0.48 — the measurable saving",
+      near(ttsCostUsd("en-GB-Studio-B", 3000), 0.48));
+    const day = writes.find((w) => /^aiUsage\/\d{4}-\d{2}-\d{2}\/shards\/\d+$/.test(w.path));
+    ok("a cache hit adds no cost to the daily rollup",
+      day.data.totalCostUsd.__inc === 0 && day.data.totalCharacters.__inc === 3000);
+    ok("cache hits land on their own tool row, separate from paid synthesis",
+      writes.some((w) => /\/toolShards\/tts-cache-hit__\d+$/.test(w.path)));
+  }
+
+  {
     // Regression guard on the shared writer: adding `characters` must not have
     // changed what a token caller records.
     const writes = stubFirestoreCapture();

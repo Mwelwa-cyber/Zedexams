@@ -256,8 +256,16 @@ function ttsCostUsd(voice, characters) {
  * Records no tokens (there are none) but DOES record the character count, so
  * the rollups carry the unit this spend is actually billed in — cost alone
  * cannot be turned back into volume once two tiers are mixed in one total.
+ *
+ * `cached: true` records the call at ZERO cost while still recording its
+ * characters. That is what makes the audio cache's saving measurable rather
+ * than merely asserted: a cache-hit row carries the volume served, so what it
+ * saved is that volume priced at the voice's own rate — the counterfactual
+ * bill. Recording hits at their notional cost would inflate spend that was
+ * never incurred; not recording them at all would leave the cache's whole
+ * value invisible on the dashboard that justifies it.
  */
-async function recordAiTtsUsage({uid, voice, characters, tool}) {
+async function recordAiTtsUsage({uid, voice, characters, tool, cached = false}) {
   const chars = Number(characters);
   return writeUsageRollups({
     uid,
@@ -267,7 +275,7 @@ async function recordAiTtsUsage({uid, voice, characters, tool}) {
     cacheCreation: 0,
     cacheRead: 0,
     characters: Number.isFinite(chars) && chars > 0 ? chars : 0,
-    costUsd: ttsCostUsd(voice, characters),
+    costUsd: cached ? 0 : ttsCostUsd(voice, characters),
   });
 }
 

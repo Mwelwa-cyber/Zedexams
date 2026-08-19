@@ -133,6 +133,51 @@ exports.apiTextToSpeech = onRequest(
       return res.status(503).json({ error: 'Voice is temporarily unavailable.' });
     }
 
+    // ── Cache lookup ──────────────────────────────────────────────────
+    //
+    // Synthesis is billed per character, and the two learner surfaces that
+    // matter repeat heavily ACROSS users: a pronunciation is a short phrase
+    // thousands of learners ask for, and a study note is one long body read
+    // by everyone in the grade. Uncached, identical audio is bought once per
+    // learner per playback. The cache is content-addressed and shared, so the
+    // second listener onwards is free.
+    //
+    // It sits AFTER the rate limiter and the daily meter on purpose. Those
+    // two are fairness and abuse controls, not merely cost controls — letting
+    // a cached request skip them would hand anyone an unmetered endpoint that
+    // just happens to be cheap for us to serve, and would make a learner's
+    // remaining quota depend on whether a stranger had already asked for the
+    // same sentence, which is impossible to explain.
+    //
+    // Everything below degrades to a miss on failure: a cache that is down
+    // must cost money and work, never be free and broken.
+    //
+    // All three are required lazily for the same reason the TTS client is (see
+    // the note at the top of this file): functions/index.js loads every module,
+    // and aiCostTracking alone pulls in treasury + reservation + sharded-counter
+    // machinery that no other export on a cold instance needs.
+    const {ttsCacheKey} = require('./ttsCacheCore');
+    const {readCachedAudio, writeCachedAudio} = require('./ttsCache');
+    const {recordAiTtsUsage} = require('./aiCostTracking');
+    const cacheKey = ttsCacheKey({text, voice, rate, pitch, provider: 'google'});
+
+    const cached = await readCachedAudio(cacheKey);
+    if (cached) {
+      // Recorded at zero cost but WITH its characters, so the dashboard can
+      // price what the cache saved instead of the saving being a claim.
+      await recordAiTtsUsage({
+        uid:        decoded.uid,
+        voice,
+        characters: text.length,
+        tool:       'tts-cache-hit',
+        cached:     true,
+      });
+      res.set('Content-Type', 'audio/mpeg');
+      res.set('Cache-Control', 'public, max-age=3600');
+      res.set('X-Tts-Cache', 'hit');
+      return res.status(200).send(cached);
+    }
+
     try {
       const [response] = await ttsClient().synthesizeSpeech({
         input: { text },
@@ -143,29 +188,12 @@ exports.apiTextToSpeech = onRequest(
           pitch:         Math.min(Math.max(Number(pitch) || 0, -10),   10),
         },
       });
-      // Record the spend BEFORE the response goes out.
-      //
-      // Google TTS bills per character, and this endpoint recorded nothing at
-      // all — there was no TTS row in aiCostTracking's price tables, so
-      // /admin/ai-costs and the Treasury month-to-date ceiling were both
-      // blind to every character synthesised here. At the
-      // 3000-char cap a single Studio request is ~$0.48, and the burst limiter
-      // above allows 10/min per user — untracked, that is real money moving
-      // with nothing to show it.
-      //
-      // Awaited rather than fired-and-forgotten: a v2 instance can be frozen
-      // once the response is flushed, so work started after send() is not
-      // guaranteed to finish, and an accounting write that usually lands is
-      // worse than one that always does — it under-reports by an unknown
-      // amount. recordAiTtsUsage swallows its own errors and returns null, so
-      // this cannot fail the request; the cost is a few Firestore increments
-      // against a call that already made a network round trip to Google.
-      //
-      // Required lazily for the same reason the TTS client is (see the note at
-      // the top of this file): functions/index.js loads every module, and this
-      // one pulls in treasury + reservation + sharded-counter machinery that
-      // no other export on a cold instance needs.
-      const {recordAiTtsUsage} = require('./aiCostTracking');
+      // Record the spend BEFORE the response goes out. Google TTS bills per
+      // character and this endpoint recorded nothing at all, so /admin/ai-costs
+      // and the Treasury month-to-date ceiling were both blind to it: at the
+      // 3000-char cap one Studio request is ~$0.48 and the limiter above allows
+      // 10/min per user. Awaited for the freeze reason given below; it cannot
+      // fail the request, since recordAiTtsUsage swallows its own errors.
       await recordAiTtsUsage({
         uid:        decoded.uid,
         voice,
@@ -173,8 +201,19 @@ exports.apiTextToSpeech = onRequest(
         tool:       'tts',
       });
 
+      // Store for the next listener. Awaited for the same reason as the usage
+      // write — a v2 instance can be frozen once the response is flushed, and
+      // a cache whose writes only sometimes land only sometimes saves money.
+      // The cost falls on the FIRST listener of a text, on a request that has
+      // already spent seconds at Google, and is repaid by everyone after them.
+      // writeCachedAudio never throws; a failed store is a future miss.
+      await writeCachedAudio(cacheKey, response.audioContent, {
+        voice, characters: text.length, provider: 'google',
+      });
+
       res.set('Content-Type', 'audio/mpeg');
       res.set('Cache-Control', 'public, max-age=3600');
+      res.set('X-Tts-Cache', 'miss');
       return res.status(200).send(response.audioContent);
     } catch (err) {
       // Log the real cause server-side; never forward the upstream/internal
