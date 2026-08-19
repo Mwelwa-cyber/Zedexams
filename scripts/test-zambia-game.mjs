@@ -44,8 +44,17 @@ const DIR = path.join(process.cwd(), 'docs', 'learner')
 /* The one list of prototypes carrying inline mirrors. It must stay in step with
    PAGES in scripts/sync-zambia-game-mirror.mjs — a page in the sync and not
    here is a mirror nothing checks; a page here and not in the sync is a mirror
-   nothing writes. The first test below compares the two lists. */
-const PAGES = ['zedexams-zambia-game.html', 'zedexams-zambia-map-modes.html']
+   nothing writes. The first test below compares the two lists.
+
+   The physical-features prototype is here for the mirrors it shares, not for
+   its own content: it carries copies of these same two datasets, so an edit to
+   either has to reach it too. What it teaches on top of them is checked by
+   test:zambia-physical. */
+const PAGES = [
+  'zedexams-zambia-game.html',
+  'zedexams-zambia-map-modes.html',
+  'zedexams-zambia-physical.html',
+]
 const HTML_PATH = path.join(DIR, PAGES[0])
 const html = fs.readFileSync(HTML_PATH, 'utf8')
 const modesHtml = fs.readFileSync(path.join(DIR, 'zedexams-zambia-map-modes.html'), 'utf8')

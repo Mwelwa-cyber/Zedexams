@@ -28,6 +28,8 @@ build prompts). The specs are committed **verbatim as shipped**:
 | `zedexams-zambia-map-modes.html` | Know Zambia — five more map modes, playable (PROMPT 7f-2) — see below |
 | `zambia_provinces.json` | The ten province outlines, their label anchors, the province adjacency graph, the lon/lat projection and the provenance |
 | `zambia_facts.json` | Every fact the Zambia game teaches — the sheet a Zambian teacher signs off in |
+| `zedexams-zambia-physical.html` | Zambia's physical features — rivers, falls, lakes and relief, playable (PROMPT 7f-3) — see below |
+| `zambia_physical.json` | Every fact the physical-features game teaches — the sheet a Zambian geography teacher signs off in |
 
 The playbook was landed later than the four specs, and carries its own
 snapshot header for a reason worth repeating here: it is a PLAN, not a record.
@@ -47,9 +49,9 @@ an older build. v13 remains the deepest reference for note-reader *content*
 (the fully worked Digestive System note); its blocks are already seeded in
 `src/features/notes/seed/grade7Seed.json`.
 
-## The eight playable prototypes
+## The ten playable prototypes
 
-The three spelling files, the four maths files and the Zambia game below are,
+The three spelling files, the four maths files and the three Zambia games below are,
 unlike the files above, **not committed verbatim** — the owner's mockups are the visual
 reference, and each of these implements the rules its prompt states on top of
 that design. They are working prototypes rather than
@@ -200,6 +202,33 @@ What each one actually runs, rather than describes:
   unsettled: whether Southern faces Namibia across the Zambezi near Kazungula,
   where four countries meet at almost a point. Its **neighbours** mode
   duplicates level 8 of the older game; the two should not both ship.
+- **`zedexams-zambia-physical.html`** — five modes on the SAME province
+  outlines: relief ordering, waterfall → province, follow-the-river, the
+  Congo–Zambezi watershed sort, and natural-or-man-made lakes. Every question
+  asks *which province* rather than *which exact spot*, so nothing new had to be
+  traced — and the strip's **Province file only** switch is what makes that a
+  claim you can test rather than a sentence: it removes every pin, lake shape
+  and river line, and all five modes still play. **Relief is first on the menu**,
+  ahead of both river modes, because a learner who has put Mafinga Hills above
+  the plateau above the Luangwa valley above the Zambezi leaving the country
+  reads a river as water going downhill instead of as a name to memorise; the
+  ordering **refuses a pick out of turn** rather than marking the whole sequence
+  at the end, because the comparison it teaches belongs at the moment of
+  choosing. Two checks exist because a second geography dataset is a second
+  chance to contradict the first: the **river courses are re-derived** by
+  projecting each river's own waypoints from `zambia_facts.json` and asking
+  which province each falls in, and the **Kafue's source is compared across the
+  two games** — Know Zambia teaches Copperbelt, so this one starts there too,
+  and the prompt's North-Western is recorded in
+  `zambia_physical.json`'s `dataset.knownDisagreements` rather than quietly
+  resolved. Same for both rivers ending in Lusaka Province rather than Southern.
+  **Nothing is on a clock**, and the panel proves it by scanning the script's own
+  text for timing calls by name — so a wrong tap stays on the map until the next
+  attempt, and three wrong taps show as three crosses. Altitudes come from ONE
+  cited source (Mafinga Central 2,339 m, the Zambezi at 329 m) because sources
+  differ by up to 175 m on the Mafinga Hills alone and a mixed set can silently
+  reorder the mode; `npm run test:zambia-physical` fails if they stop descending,
+  if one loses its source, or if the two games ever disagree about the Kafue.
 - **`zedexams-fractions-level1.html`** — nine acceptance rules run against the
   round data and are printed: no fraction symbol in any stem, caption or option
   (it appears only in the feedback after a correct answer), all four question
