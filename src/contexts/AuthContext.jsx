@@ -18,7 +18,7 @@ import app, { auth, db, googleProvider, authPersistenceReady } from '../firebase
 import { isNativePlatform } from '../utils/runtime'
 import { retryOnNetworkError } from '../utils/authRetry'
 import { ROLES, hasPremiumAccess, hasLearnerPortalAccess } from '../engines/payment-engine/subscriptionConfig'
-import { isSuperAdmin as isSuperAdminRole, resolvePermissionFlags } from '../utils/permissions'
+import { isSuperAdmin as isSuperAdminRole, isLearnerRole, resolvePermissionFlags } from '../utils/permissions'
 import { setSentryUser, clearSentryUser, setAuthStateTag, reportAuthInitFailure } from '../utils/sentry'
 import { capture, identifyUser, resetAnalytics } from '../utils/analytics'
 import { requiresGuardianConsent } from '../utils/guardianConsent'
@@ -699,7 +699,11 @@ export function AuthProvider({ children }) {
 
   // Admin & superAdmin are equivalent everywhere — both get full access.
   const isSuperAdmin = isSuperAdminRole(userProfile)
-  const isLearner  = userProfile?.role === ROLES.LEARNER
+  // Reads the canonical set rather than ROLES.LEARNER alone, so the legacy
+  // 'student' spelling resolves the same way here as it already did in
+  // getRoleLandingPath. See utils/permissions.js for what the disagreement
+  // between those two cost.
+  const isLearner  = isLearnerRole(userProfile)
   const isTeacher  = userProfile?.role === ROLES.TEACHER || isSuperAdmin
   const isParent   = userProfile?.role === ROLES.PARENT
   const isAdmin    = isSuperAdmin

@@ -20,7 +20,7 @@ import { useBadges }           from '../../../hooks/useBadges'
 import { useSubscription }     from '../../../hooks/useSubscription'
 import { getRoleLandingPath }  from '../../../utils/navigation'
 import { daysUntilExpiry }     from '../../../engines/payment-engine/subscriptionConfig'
-import { isSuperAdmin }        from '../../../utils/permissions'
+import { isSuperAdmin, isLearnerRole } from '../../../utils/permissions'
 import { UpgradeModal } from '../../subscription'
 import { ParentShareManager } from '../../parentPortal'
 import LanguageToggle          from '../../../shared/components/LanguageToggle'
@@ -106,7 +106,10 @@ export default function ProfilePage() {
   const [cancelError, setCancelError]     = useState('')
   const cancelAtPeriodEnd = Boolean(userProfile?.cancelAtPeriodEnd)
 
-  const isLearner = userProfile?.role === 'learner'
+  // The canonical set, not a fourth inline copy: this flag gates whether the
+  // grade field is saved at all, so a legacy 'student' account reading false
+  // here could not record its own grade.
+  const isLearner = isLearnerRole(userProfile)
   const isAdmin   = isSuperAdmin(userProfile)
   const daysLeft  = daysUntilExpiry(userProfile)
   const homePath = getRoleLandingPath(userProfile)

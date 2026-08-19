@@ -1,4 +1,5 @@
 import { hasLearnerPortalAccess } from '../engines/payment-engine/subscriptionConfig.js'
+import { isLearnerRole } from './permissions.js'
 
 export function getRoleLandingPath(profileOrFlags, fallback = '/dashboard') {
   const role = typeof profileOrFlags === 'string'
@@ -8,7 +9,10 @@ export function getRoleLandingPath(profileOrFlags, fallback = '/dashboard') {
   if (profileOrFlags?.isAdmin || role === 'admin' || role === 'superAdmin') return '/admin'
   if (profileOrFlags?.isTeacher || role === 'teacher') return '/teacher'
   if (profileOrFlags?.isParent || role === 'parent') return '/family'
-  if (role === 'learner' || role === 'student') return '/dashboard'
+  // The legacy 'student' spelling lands here too — read from the one set in
+  // permissions.js, so this can never again say "learner" about a role that
+  // AuthContext's isLearner calls something else.
+  if (isLearnerRole(role)) return '/dashboard'
   return fallback
 }
 

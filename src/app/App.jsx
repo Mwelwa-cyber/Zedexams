@@ -18,6 +18,7 @@ import LearnerSetupGate from './guards/LearnerSetupGate'
 import MissingProfileRecovery from './guards/MissingProfileRecovery'
 import Navbar from '../components/layout/Navbar'
 import { getRoleLandingPath } from '../utils/navigation'
+import { isLearnerRole } from '../utils/permissions'
 import { isWithinVerificationGrace } from '../utils/verification'
 import { isNativePlatform } from '../utils/runtime'
 import PageLoader from '../shared/components/PageLoader'
@@ -103,7 +104,9 @@ const ProfilePage = lazy(() => import('../features/learnerDashboard/pages/Profil
  */
 function ProfileRoute() {
   const { userProfile } = useAuth()
-  if (userProfile?.role === 'learner') return <LearnerProfilePage />
+  // The canonical set — a legacy 'student' account is a learner and gets the
+  // learner profile, not the teacher-chrome one.
+  if (isLearnerRole(userProfile)) return <LearnerProfilePage />
   return <><Navbar /><ProfilePage /></>
 }
 // My Progress + Study Plan (prototype v26). The Study Plan REPLACES the

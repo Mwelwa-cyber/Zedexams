@@ -149,14 +149,35 @@ describe('LearnerOnlyRoute', () => {
     expect(mockNavigate).toHaveBeenCalledTimes(1)
   })
 
-  it('gives a role it does not recognise a way out that is not a learner route', () => {
+  it('gives a role it does not recognise a way out that actually terminates', () => {
     setAuth({ userProfile: { role: 'nonsense' } })
     renderGuard()
 
     expect(screen.queryByText(CHILD)).not.toBeInTheDocument()
-    screen.getByRole('button', { name: /back to home/i }).click()
-    // Not /dashboard — that is a learner route, and the button would land
-    // straight back on this card.
-    expect(mockNavigate).toHaveBeenCalledWith('/')
+    screen.getByRole('button', { name: /go to your account/i }).click()
+
+    // This used to expect '/', on the reasoning that '/' is not a learner
+    // route. True, and not enough: '/' renders nothing of its own —
+    // RootRedirect resolves it BY ROLE, and the landing path for a role
+    // nobody recognises is /dashboard, which is learner-only, which is this
+    // card again. The way out looped one hop further than the old assertion
+    // could see.
+    //
+    // '/profile' terminates: ProtectedRoute-only, no role re-resolution.
+    expect(mockNavigate).toHaveBeenCalledWith('/profile')
+  })
+
+  it("treats the legacy 'student' role as a learner", () => {
+    // The role branch, not the premium branch. This is the account that was
+    // locked out: getRoleLandingPath called it a learner and sent it to
+    // /dashboard, this guard did not and refused the page. Both now read
+    // LEARNER_ROLES, so `isLearner` arrives true and the children render —
+    // which also puts the account back under LearnerGradeGate, where a
+    // premium one was previously skipping the rollout gate entirely.
+    setAuth({ userProfile: { role: 'student', grade: 7 }, isLearner: true })
+    renderGuard()
+
+    expect(screen.getByText(CHILD)).toBeInTheDocument()
+    expect(mockNavigate).not.toHaveBeenCalled()
   })
 })

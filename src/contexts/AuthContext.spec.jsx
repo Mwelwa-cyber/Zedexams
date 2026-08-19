@@ -150,6 +150,26 @@ describe('AuthProvider role + access resolution', () => {
     expect(f.userStatus).toBe('active')
   })
 
+  it("the legacy 'student' role is a learner here too", () => {
+    // The role vocabularies disagreed: getRoleLandingPath sent a 'student'
+    // account to /dashboard while this flag said it was not a learner, so
+    // LearnerOnlyRoute refused the page the redirect had just chosen — and the
+    // refusal card's only way out led back to /dashboard. A free legacy
+    // account was locked out of the learner app in a loop.
+    //
+    // Nothing writes 'student' any more, but four admin surfaces count it, so
+    // such accounts are expected to exist. Both sides now read LEARNER_ROLES.
+    const f = resolveFlags({ role: 'student' })
+    expect(f.isLearner).toBe(true)
+    expect(f.isTeacher).toBe(false)
+    expect(f.isAdmin).toBe(false)
+    // Unchanged: portal access is still a subscription question, not a role
+    // one. The point is that this account now reaches the ROLE branch of
+    // LearnerOnlyRoute rather than falling through to the premium branch —
+    // which is also what puts it back under LearnerGradeGate.
+    expect(f.canAccessLearnerPortal).toBe(false)
+  })
+
   it('a premium learner unlocks full content + the learner portal', () => {
     const future = new Date(Date.now() + 86_400_000).toISOString()
     const f = resolveFlags({ role: 'learner', subscriptionStatus: 'active', subscriptionExpiry: future })
