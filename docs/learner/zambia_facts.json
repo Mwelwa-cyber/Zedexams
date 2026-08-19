@@ -1,0 +1,1044 @@
+{
+ "_readme": "Every fact the Know Zambia game teaches (docs/learner/zedexams-zambia-game.html). Province OUTLINES live in zambia_provinces.json; nothing here repeats them. This file is the review sheet: a Zambian teacher signs off levels 2, 3, 5 and 6 by filling in dataset.verification, not by reading the HTML.",
+ "dataset": {
+  "id": "zambia_facts",
+  "version": 1,
+  "dated": "2026-08-19",
+  "verification": {
+   "status": "UNVERIFIED",
+   "blocking": true,
+   "requiredBeforeRelease": [
+    "A Zambian teacher checks every entry in capitals, districts, heritage and ceremonies — the four the prompt names.",
+    "District names and counts change. Re-check the districts list against the current ZamStats district register and re-date it.",
+    "Record who checked, against what, and on what date, in the three fields below."
+   ],
+   "checkedBy": null,
+   "checkedAgainst": null,
+   "checkedOn": null
+  },
+  "sources": [
+   {
+    "id": "zamstats",
+    "what": "Zambia Statistics Agency — provinces and districts",
+    "used": "district list, province count",
+    "status": "TO BE CONFIRMED — the district list below was compiled from the general references and has not been read off a ZamStats register"
+   },
+   {
+    "id": "nhcc",
+    "what": "National Heritage Conservation Commission of Zambia",
+    "used": "heritage sites and their districts",
+    "status": "TO BE CONFIRMED"
+   },
+   {
+    "id": "general",
+    "what": "General reference works, checked 2026-08-19",
+    "used": "capitals, ceremonies, parks, rivers, lakes, symbols",
+    "status": "cross-checked at authoring time; still needs the teacher pass"
+   }
+  ],
+  "districtCount": {
+   "value": 116,
+   "asOf": "April 2018",
+   "note": "District names, boundaries and counts change often — 45 new districts were created between 2011 and 2018 alone. Treat this number as dated rather than current, and re-check it before any release that prints it."
+  }
+ },
+ "provinces": {
+  "lu": {
+   "fact": "The smallest province by area, and the one with the most people. Lusaka city is both the provincial capital and the capital of Zambia.",
+   "hint": "Lusaka is the small one in the middle-south, around the capital city."
+  },
+  "cb": {
+   "fact": "Zambia's old mining heartland — Ndola, Kitwe, Chingola, Mufulira. The provincial capital is Ndola.",
+   "hint": "Copperbelt is up north on the DRC border, above the middle of the country."
+  },
+  "we": {
+   "fact": "Barotseland — the Zambezi floodplain, the Lozi kingdom and the Kuomboka. The provincial capital is Mongu.",
+   "hint": "Western is the big one in the south-west, along the Zambezi floodplain."
+  },
+  "so": {
+   "fact": "Tonga country, the Zambezi, Lake Kariba and Mosi-oa-Tunya. The provincial capital is Choma — it moved there from Livingstone in 2011.",
+   "hint": "Southern runs along the Zambezi in the far south, below Lusaka and east of Western — Livingstone sits at its bottom corner."
+  },
+  "no": {
+   "fact": "Reaches Lake Tanganyika at Mpulungu. The provincial capital is Kasama, and Kalambo Falls is on its border with Tanzania.",
+   "hint": "Northern is at the very top of the map, above the Copperbelt, reaching Lake Tanganyika."
+  },
+  "ce": {
+   "fact": "The middle of the country, and the road and rail line through it. The provincial capital is Kabwe, where the Broken Hill skull was found.",
+   "hint": "Central is in the middle, between the Copperbelt and Lusaka."
+  },
+  "ea": {
+   "fact": "Borders Malawi and Mozambique, and holds the Luangwa valley. The provincial capital is Chipata.",
+   "hint": "Eastern is the far right of the map, east of Lusaka and next to Malawi."
+  },
+  "lp": {
+   "fact": "A narrow province along the Luapula river and Lake Mweru, both of which are the border with the DRC. The provincial capital is Mansa.",
+   "hint": "Luapula is the narrow one in the north, west of Northern, along Lake Mweru."
+  },
+  "mu": {
+   "fact": "Created in 2011 from districts of Northern Province, plus Chama from Eastern. The provincial capital is Chinsali, and Shiwa Ng'andu is here.",
+   "hint": "Muchinga is the long strip in the north-east, between Northern and Eastern."
+  },
+  "nw": {
+   "fact": "The newer copper mines — Kansanshi at Solwezi and Kalumbila — and the source of the Zambezi. The provincial capital is Solwezi.",
+   "hint": "North-Western is the top-left corner, west of the Copperbelt."
+  }
+ },
+ "capitals": [
+  {
+   "province": "ce",
+   "town": "Kabwe",
+   "lon": 28.4464,
+   "lat": 14.4469,
+   "fact": "Kabwe is the provincial capital of Central. The Broken Hill skull was found in a mine here in 1921.",
+   "hint": "Kabwe is in the middle of the country, on the road between Lusaka and the Copperbelt."
+  },
+  {
+   "province": "cb",
+   "town": "Ndola",
+   "lon": 28.6366,
+   "lat": 12.9587,
+   "fact": "Ndola is the provincial capital of Copperbelt — not Kitwe, which is the bigger mining town.",
+   "hint": "Ndola is up north in the mining province, right on the DRC border above Central."
+  },
+  {
+   "province": "ea",
+   "town": "Chipata",
+   "lon": 32.65,
+   "lat": 13.6333,
+   "fact": "Chipata is the provincial capital of Eastern, about 25 km from the Malawi border.",
+   "hint": "Chipata is on the far right of the map, close to Malawi."
+  },
+  {
+   "province": "lp",
+   "town": "Mansa",
+   "lon": 28.8942,
+   "lat": 11.1997,
+   "fact": "Mansa is the provincial capital of Luapula.",
+   "hint": "Mansa is in the north, in the narrow province along Lake Mweru and the Luapula river."
+  },
+  {
+   "province": "mu",
+   "town": "Chinsali",
+   "lon": 32.0703,
+   "lat": 10.5486,
+   "fact": "Chinsali is the provincial capital of Muchinga — a new capital for a province created in 2011.",
+   "hint": "Chinsali is in the long north-eastern strip, between Northern and Eastern."
+  },
+  {
+   "province": "no",
+   "town": "Kasama",
+   "lon": 31.1808,
+   "lat": 10.2129,
+   "fact": "Kasama is the provincial capital of Northern. The Mwela rock paintings are just outside it.",
+   "hint": "Kasama is near the top of the country, in the province that reaches Lake Tanganyika."
+  },
+  {
+   "province": "nw",
+   "town": "Solwezi",
+   "lon": 26.3833,
+   "lat": 12.1686,
+   "fact": "Solwezi is the provincial capital of North-Western, next to the newer copper mines at Kansanshi and Kalumbila.",
+   "hint": "Solwezi is in the top-left province, west of the Copperbelt."
+  },
+  {
+   "province": "so",
+   "town": "Choma",
+   "lon": 26.9819,
+   "lat": 16.8089,
+   "fact": "Choma became the provincial capital of Southern in 2011. Livingstone is the famous tourist city and was the capital of the whole country until 1935 — but it is not the provincial capital.",
+   "hint": "Choma is in the south, on the line and road between Lusaka and Livingstone."
+  },
+  {
+   "province": "we",
+   "town": "Mongu",
+   "lon": 23.1256,
+   "lat": 15.2481,
+   "fact": "Mongu is the provincial capital of Western, above the Zambezi floodplain where the Kuomboka ends.",
+   "hint": "Mongu is in the big south-western province, on the edge of the Barotse floodplain."
+  },
+  {
+   "province": "lu",
+   "town": "Lusaka",
+   "lon": 28.2833,
+   "lat": 15.4167,
+   "fact": "Lusaka is both the provincial capital of Lusaka Province and the capital of Zambia. It has been the national capital since 1935, when it took over from Livingstone.",
+   "hint": "Lusaka is in the small province in the middle-south — the one named after the city."
+  }
+ ],
+ "capitalsQuestion": {
+  "q": "Which town is the capital of <b>Southern Province</b>?",
+  "options": [
+   "Livingstone",
+   "Choma",
+   "Monze"
+  ],
+  "answer": "Choma",
+  "whyRight": "Choma took over as provincial capital in <b>2011</b>. Livingstone is the tourist city at Mosi-oa-Tunya, and it was the capital of the whole country until 1935 — which is why so many lists still name it here.",
+  "whyWrong": "Livingstone is the famous one, but the provincial capital moved to <b>Choma in 2011</b>. Monze is a town on the same road, and has never been the capital."
+ },
+ "districts": [
+  {
+   "district": "Mpika",
+   "province": "mu",
+   "lon": 31.45,
+   "lat": 11.83,
+   "note": "Was in Northern Province until 2011."
+  },
+  {
+   "district": "Kalomo",
+   "province": "so",
+   "lon": 26.48,
+   "lat": 17.03,
+   "note": null
+  },
+  {
+   "district": "Nchelenge",
+   "province": "lp",
+   "lon": 28.73,
+   "lat": 9.35,
+   "note": "On the shore of Lake Mweru."
+  },
+  {
+   "district": "Mwinilunga",
+   "province": "nw",
+   "lon": 24.43,
+   "lat": 11.74,
+   "note": "The Zambezi rises in this corner of the country."
+  },
+  {
+   "district": "Petauke",
+   "province": "ea",
+   "lon": 31.32,
+   "lat": 14.25,
+   "note": null
+  },
+  {
+   "district": "Mumbwa",
+   "province": "ce",
+   "lon": 27.06,
+   "lat": 14.98,
+   "note": null
+  },
+  {
+   "district": "Kalulushi",
+   "province": "cb",
+   "lon": 28.09,
+   "lat": 12.84,
+   "note": null
+  },
+  {
+   "district": "Senanga",
+   "province": "we",
+   "lon": 23.27,
+   "lat": 16.12,
+   "note": "On the Zambezi, south of Mongu."
+  },
+  {
+   "district": "Mbala",
+   "province": "no",
+   "lon": 31.37,
+   "lat": 8.84,
+   "note": "Kalambo Falls is in this district."
+  },
+  {
+   "district": "Kafue",
+   "province": "lu",
+   "lon": 28.18,
+   "lat": 15.77,
+   "note": "Named after the river that runs past it."
+  },
+  {
+   "district": "Serenje",
+   "province": "ce",
+   "lon": 30.23,
+   "lat": 13.23,
+   "note": "Nsalu Cave is in this district."
+  },
+  {
+   "district": "Nakonde",
+   "province": "mu",
+   "lon": 32.75,
+   "lat": 9.34,
+   "note": "The border post into Tanzania."
+  },
+  {
+   "district": "Kaoma",
+   "province": "we",
+   "lon": 24.8,
+   "lat": 14.79,
+   "note": null
+  },
+  {
+   "district": "Samfya",
+   "province": "lp",
+   "lon": 29.55,
+   "lat": 11.36,
+   "note": "On Lake Bangweulu."
+  }
+ ],
+ "water": {
+  "accuracy": "SCHEMATIC — each line is drawn through a handful of named places along the river, not traced from a survey. It shows which way a river runs and roughly where; it is not a channel map.",
+  "rivers": [
+   {
+    "id": "zambezi",
+    "name": "Zambezi",
+    "answer": "nw",
+    "q": "The <b>Zambezi</b> is Zambia's longest river, and the country is named after it. Which province does it rise in?",
+    "fact": "The Zambezi rises at Kalene Hill in Ikelenge, in the far north-west. It loops through Angola, comes back at Chavuma, and leaves Zambia far to the south-east — 2,574 km in all.",
+    "hint": "Look at the top-left corner of the map. The river starts there, in the province west of the Copperbelt.",
+    "waypoints": [
+     [
+      24.32,
+      11.37
+     ],
+     [
+      24.05,
+      11.9
+     ],
+     [
+      23.4,
+      12.6
+     ],
+     [
+      22.68,
+      13.08
+     ],
+     [
+      23,
+      13.6
+     ],
+     [
+      23.24,
+      14.37
+     ],
+     [
+      23.13,
+      15.28
+     ],
+     [
+      23.27,
+      16.11
+     ],
+     [
+      23.57,
+      16.65
+     ],
+     [
+      24.32,
+      17.32
+     ],
+     [
+      25.26,
+      17.79
+     ],
+     [
+      25.86,
+      17.93
+     ],
+     [
+      26.7,
+      17.6
+     ],
+     [
+      27.6,
+      17.1
+     ],
+     [
+      28.2,
+      16.65
+     ],
+     [
+      28.76,
+      16.52
+     ],
+     [
+      28.85,
+      16.03
+     ],
+     [
+      30.42,
+      15.61
+     ]
+    ]
+   },
+   {
+    "id": "kafue",
+    "name": "Kafue",
+    "answer": "cb",
+    "q": "The <b>Kafue</b> rises near the DRC border, then curls right round the middle of the country. Which province does it rise in?",
+    "fact": "The Kafue rises on the Copperbelt, runs south-west, spreads out across the Kafue Flats, and joins the Zambezi below Chirundu. It is the only big river that stays inside Zambia from start to finish.",
+    "hint": "It starts in the mining province in the north, next to the DRC border and above Central.",
+    "waypoints": [
+     [
+      28,
+      12.5
+     ],
+     [
+      27.6,
+      13
+     ],
+     [
+      27.3,
+      13.8
+     ],
+     [
+      27.4,
+      14.5
+     ],
+     [
+      26.6,
+      15.2
+     ],
+     [
+      26.02,
+      15.75
+     ],
+     [
+      26.9,
+      15.8
+     ],
+     [
+      27.9,
+      15.77
+     ],
+     [
+      28.18,
+      15.77
+     ],
+     [
+      28.63,
+      15.95
+     ]
+    ]
+   },
+   {
+    "id": "luangwa",
+    "name": "Luangwa",
+    "answer": "lu",
+    "q": "The <b>Luangwa</b> comes down the eastern valley and joins the Zambezi. Which province is that meeting point in?",
+    "fact": "The Luangwa joins the Zambezi at Luangwa town, in the far east of Lusaka Province — the corner where Zambia, Zimbabwe and Mozambique meet. Its valley holds South Luangwa National Park.",
+    "hint": "Follow the river down to the bottom-right corner of the map — it ends in the small province around the capital, not in Eastern.",
+    "waypoints": [
+     [
+      33.3,
+      10
+     ],
+     [
+      32.8,
+      11
+     ],
+     [
+      32.3,
+      12
+     ],
+     [
+      32,
+      12.6
+     ],
+     [
+      31.8,
+      13.1
+     ],
+     [
+      31.6,
+      13.9
+     ],
+     [
+      30.9,
+      14.8
+     ],
+     [
+      30.42,
+      15.61
+     ]
+    ]
+   },
+   {
+    "id": "luapula",
+    "name": "Luapula",
+    "answer": "lp",
+    "q": "The <b>Luapula</b> flows out of Lake Bangweulu and into Lake Mweru, and a province is named after it. Which one?",
+    "fact": "The Luapula is the border with the DRC for most of its length, and it drops over the Mambilima Falls on the way to Lake Mweru.",
+    "hint": "The province has the river's own name — the narrow one in the north, west of Northern.",
+    "waypoints": [
+     [
+      29.6,
+      11.5
+     ],
+     [
+      29,
+      11.2
+     ],
+     [
+      28.7,
+      10.8
+     ],
+     [
+      28.6,
+      10
+     ],
+     [
+      28.7,
+      9.4
+     ],
+     [
+      28.75,
+      9.15
+     ]
+    ]
+   },
+   {
+    "id": "chambeshi",
+    "name": "Chambeshi",
+    "answer": "no",
+    "q": "The <b>Chambeshi</b> is the most distant source of the Congo river. Which province does it rise in?",
+    "fact": "The Chambeshi rises in the highlands near Mbala and flows into the Bangweulu swamps. From there the water carries on as the Luapula and eventually the Congo — so rain falling near Mbala reaches the Atlantic.",
+    "hint": "It starts at the very top of the country, in the province that reaches Lake Tanganyika.",
+    "waypoints": [
+     [
+      31.6,
+      9
+     ],
+     [
+      31.4,
+      9.6
+     ],
+     [
+      31.1,
+      10.3
+     ],
+     [
+      30.6,
+      11
+     ],
+     [
+      30.2,
+      11.3
+     ],
+     [
+      29.9,
+      11.4
+     ]
+    ]
+   }
+  ],
+  "lakes": [
+   {
+    "id": "tanganyika",
+    "name": "Lake Tanganyika",
+    "lon": 31.05,
+    "lat": 8.6,
+    "rx": 4.2,
+    "ry": 8.5,
+    "rot": -18,
+    "provinces": [
+     "no"
+    ],
+    "q": "Tap <b>Lake Tanganyika</b> — the deepest lake in Africa. Zambia owns only its southern tip.",
+    "fact": "Zambia's port on it is Mpulungu, in Northern Province. The lake is shared with the DRC, Burundi and Tanzania.",
+    "hint": "It is at the very top of the map, mostly off the edge — Zambia only touches the bottom end of it."
+   },
+   {
+    "id": "mweru",
+    "name": "Lake Mweru",
+    "lon": 28.72,
+    "lat": 9.05,
+    "rx": 3,
+    "ry": 5.2,
+    "rot": -22,
+    "provinces": [
+     "lp"
+    ],
+    "q": "Tap <b>Lake Mweru</b>, which Zambia shares with the DRC.",
+    "fact": "Lake Mweru is where the Luapula river ends. Nchelenge and Kashikishi are on its Zambian shore, in Luapula Province.",
+    "hint": "North-west, on the DRC border — the long lake at the top of Luapula Province."
+   },
+   {
+    "id": "bangweulu",
+    "name": "Lake Bangweulu",
+    "lon": 29.85,
+    "lat": 11.25,
+    "rx": 5.4,
+    "ry": 4,
+    "rot": 0,
+    "provinces": [
+     "lp",
+     "no"
+    ],
+    "q": "Tap <b>Lake Bangweulu</b> and its swamps — the one big lake that is entirely Zambia's.",
+    "fact": "Bangweulu means \"where the water meets the sky\". The Chambeshi flows in and the Luapula flows out. Samfya sits on its shore.",
+    "hint": "Inland in the north, below Lake Mweru — no border runs through this one."
+   },
+   {
+    "id": "kariba",
+    "name": "Lake Kariba",
+    "lon": 27.9,
+    "lat": 17,
+    "rx": 9.5,
+    "ry": 2.6,
+    "rot": -16,
+    "provinces": [
+     "so"
+    ],
+    "q": "Tap <b>Lake Kariba</b> — made by people, not by nature.",
+    "fact": "Kariba was made by damming the Zambezi; the dam was finished in 1959 and the lake filled by 1963. It is shared with Zimbabwe, and Siavonga is the Zambian town on it.",
+    "hint": "Along the southern border, on the Zambezi — south of Lusaka, in Southern Province."
+   }
+  ]
+ },
+ "heritage": [
+  {
+   "name": "Mosi-oa-Tunya (Victoria Falls)",
+   "province": "so",
+   "lon": 25.8572,
+   "lat": 17.9243,
+   "q": "<b>Mosi-oa-Tunya</b> — \"the smoke that thunders\". Which province?",
+   "fact": "It is on the Zambezi at Livingstone, in Southern Province, and has been a UNESCO World Heritage Site since 1989. The falls are shared with Zimbabwe.",
+   "hint": "Right at the bottom of the map, where the Zambezi runs along the southern border."
+  },
+  {
+   "name": "Kalambo Falls",
+   "province": "no",
+   "lon": 31.2417,
+   "lat": 8.5972,
+   "q": "<b>Kalambo Falls</b> — a single 221 m drop, and one of the oldest settlement sites in Africa. Which province?",
+   "fact": "Kalambo Falls is on the Tanzania border near Mbala, in Northern Province. The tools and charred wood found there are some of the oldest evidence anywhere of people using fire.",
+   "hint": "The very top of the country, near where Zambia meets Tanzania and Lake Tanganyika."
+  },
+  {
+   "name": "Mwela rock paintings",
+   "province": "no",
+   "lon": 31.2333,
+   "lat": 10.2119,
+   "q": "The <b>Mwela rock paintings</b> — hundreds of paintings on rocks and in caves. Which province?",
+   "fact": "Mwela is just east of Kasama, in Northern Province. The paintings are up to about 2,000 years old and were declared a national monument in 1964.",
+   "hint": "Just outside Kasama, in the province at the top that reaches Lake Tanganyika."
+  },
+  {
+   "name": "Shiwa Ng'andu",
+   "province": "mu",
+   "lon": 31.7333,
+   "lat": 11.2,
+   "q": "<b>Shiwa Ng'andu</b>, the great house built by Stewart Gore-Browne in the 1920s. Which province?",
+   "fact": "Shiwa Ng'andu is near Chinsali, in Muchinga Province. \"Shiwa Ng'andu\" means the lake of the royal crocodile.",
+   "hint": "In the long north-eastern strip, near Chinsali — the province that only exists since 2011."
+  },
+  {
+   "name": "Ing'ombe Ilede",
+   "province": "so",
+   "lon": 28.58,
+   "lat": 16.24,
+   "q": "<b>Ing'ombe Ilede</b> — \"the place where the cow lies down\", a trading site 600 years old. Which province?",
+   "fact": "Ing'ombe Ilede is near the meeting of the Zambezi and the Lusitu, close to Siavonga in Southern Province. Gold, copper crosses, glass beads and cloth found in the graves show trade reaching the Indian Ocean.",
+   "hint": "In the south, near Lake Kariba and the Zambezi — the same province as Livingstone."
+  },
+  {
+   "name": "Nsalu Cave",
+   "province": "ce",
+   "lon": 30.4333,
+   "lat": 13.3667,
+   "q": "<b>Nsalu Cave</b>, with rock paintings around 12,000 years old. Which province?",
+   "fact": "Nsalu Cave is in Serenje District, Central Province, north of Kanona. Its schematic paintings are among the finest in Africa.",
+   "hint": "Middle of the country, in the eastern part of the province between Copperbelt and Lusaka."
+  },
+  {
+   "name": "Broken Hill, Kabwe",
+   "province": "ce",
+   "lon": 28.4464,
+   "lat": 14.4469,
+   "q": "<b>Broken Hill</b>, where a skull about 300,000 years old was dug out of a mine in 1921. Which province?",
+   "fact": "Broken Hill is the old name for Kabwe, the capital of Central Province. The skull — Homo rhodesiensis, now usually called Homo heidelbergensis — is still held by the Natural History Museum in London, and Zambia has asked for it back.",
+   "hint": "In the provincial capital in the middle of the country, on the road from Lusaka to the Copperbelt."
+  }
+ ],
+ "heritageQuestions": [
+  {
+   "q": "Which of these is <b>not</b> in Zambia?",
+   "options": [
+    "Kalambo Falls",
+    "Great Zimbabwe",
+    "Nsalu Cave"
+   ],
+   "answer": "Great Zimbabwe",
+   "why": "Great Zimbabwe is in Zimbabwe, about 30 km from Masvingo. Ing'ombe Ilede in Southern Province traded with the same world it belonged to."
+  },
+  {
+   "q": "Mosi-oa-Tunya means:",
+   "options": [
+    "The smoke that thunders",
+    "The river that never sleeps",
+    "The water of the king"
+   ],
+   "answer": "The smoke that thunders",
+   "why": "It is the Lozi and Tonga name for the falls, and it is the name Zambia uses. The spray really can be seen from 50 km away."
+  },
+  {
+   "q": "What was found at Broken Hill in Kabwe in 1921?",
+   "options": [
+    "A very old human skull",
+    "A gold mask",
+    "A meteorite"
+   ],
+   "answer": "A very old human skull",
+   "why": "Miners found the skull of an early human about 300,000 years old. It is one of the most important fossils ever found in Africa."
+  }
+ ],
+ "ceremonies": [
+  {
+   "name": "Kuomboka",
+   "people": "Lozi",
+   "province": "we",
+   "month": "Usually March or April",
+   "fact": "When the Zambezi floods, the Litunga moves from Lealui out on the plain to Limulunga on higher ground, in the royal barge Nalikwanda with its black-and-white stripes and the elephant on top. Kuomboka means \"to get out of the water\".",
+   "hint": "It happens on the Zambezi floodplain in the west — the big province where Mongu is.",
+   "peopleOptions": [
+    "Lozi",
+    "Ngoni",
+    "Lunda"
+   ],
+   "monthOptions": [
+    "Usually March or April",
+    "Always December",
+    "Usually August"
+   ],
+   "monthWhy": "It follows the flood, not the calendar — the Litunga's drums announce it when the water rises, usually in March or April."
+  },
+  {
+   "name": "N'cwala",
+   "people": "Ngoni",
+   "province": "ea",
+   "month": "Late February",
+   "fact": "N'cwala gives thanks for the first harvest. The Paramount Chief Mpezeni tastes the new crops before anyone else, and warriors dance at Mutenguleni village near Chipata.",
+   "hint": "It happens in the far east of the country, next to Malawi.",
+   "peopleOptions": [
+    "Ngoni",
+    "Bemba",
+    "Luvale"
+   ],
+   "monthOptions": [
+    "Late February",
+    "Late July",
+    "January"
+   ],
+   "monthWhy": "It is held around 24 February, at the start of the harvest."
+  },
+  {
+   "name": "Mutomboko",
+   "people": "Lunda of Kazembe",
+   "province": "lp",
+   "month": "Late July",
+   "fact": "Mutomboko means \"the dance of victory\". Mwata Kazembe dances it with a sword at Mwansabombwe in Kawambwa District, remembering the Lunda's journey from the Congo and the land they took.",
+   "hint": "It happens in the narrow northern province along the Luapula river.",
+   "peopleOptions": [
+    "Lunda of Kazembe",
+    "Tonga",
+    "Lozi"
+   ],
+   "monthOptions": [
+    "Late July",
+    "April",
+    "November"
+   ],
+   "monthWhy": "It is held on the last weekend of July."
+  },
+  {
+   "name": "Likumbi Lya Mize",
+   "people": "Luvale",
+   "province": "nw",
+   "month": "August",
+   "fact": "Likumbi Lya Mize is held at the Mize palace near Zambezi town. Makishi masked dancers appear as the boys come back from Mukanda, the initiation camp.",
+   "hint": "It happens in the top-left province, where Solwezi is.",
+   "peopleOptions": [
+    "Luvale",
+    "Ngoni",
+    "Bemba"
+   ],
+   "monthOptions": [
+    "August",
+    "February",
+    "May"
+   ],
+   "monthWhy": "It is held in August, in Zambezi District."
+  }
+ ],
+ "parks": [
+  {
+   "name": "South Luangwa",
+   "provinces": [
+    "ea"
+   ],
+   "lon": 31.79,
+   "lat": 13.09,
+   "q": "<b>South Luangwa National Park</b> — the home of the walking safari. Which province?",
+   "fact": "South Luangwa is in the Luangwa valley in Eastern Province, reached through Mfuwe. Thornicroft's giraffe lives here and nowhere else on earth.",
+   "hint": "In the eastern valley, in the province next to Malawi — the park is on the Eastern side of the river."
+  },
+  {
+   "name": "Lower Zambezi",
+   "provinces": [
+    "lu"
+   ],
+   "lon": 29.2,
+   "lat": 15.65,
+   "q": "<b>Lower Zambezi National Park</b>, on the north bank of the Zambezi. Which province?",
+   "fact": "Lower Zambezi is in Lusaka Province, opposite Mana Pools in Zimbabwe. Elephants swim between the islands here.",
+   "hint": "Down on the Zambezi in the south-east — it is in the small province around the capital, not in Southern."
+  },
+  {
+   "name": "Liuwa Plain",
+   "provinces": [
+    "we"
+   ],
+   "lon": 22.65,
+   "lat": 14.7,
+   "q": "<b>Liuwa Plain National Park</b> and its wildebeest. Which province?",
+   "fact": "Liuwa Plain is in Western Province, on the flat grassland west of the Zambezi. Its wildebeest migration is the second largest in Africa.",
+   "hint": "Far west, out on the open plain beyond the Zambezi floodplain."
+  },
+  {
+   "name": "Kafue",
+   "provinces": [
+    "nw",
+    "ce",
+    "so"
+   ],
+   "lon": 25.9,
+   "lat": 15,
+   "spansNote": "Kafue National Park spans three provinces — North-Western, Central and Southern. Any of the three is right.",
+   "q": "<b>Kafue National Park</b> is Zambia's biggest, at 22,400 km². Tap a province it lies in — there is more than one right answer.",
+   "fact": "Kafue is the oldest and largest park in Zambia and covers ground in North-Western, Central AND Southern Provinces. The Busanga Plains are at its northern end and Itezhi-Tezhi dam at its southern.",
+   "hint": "It sits west of the middle of the country, straddling the boundary where North-Western, Central and Southern meet."
+  }
+ ],
+ "parkQuestions": [
+  {
+   "q": "Which park is famous for the second-largest wildebeest migration in Africa?",
+   "options": [
+    "Liuwa Plain",
+    "South Luangwa",
+    "Lower Zambezi"
+   ],
+   "answer": "Liuwa Plain",
+   "why": "Tens of thousands of wildebeest cross the Liuwa plain in Western Province each year, following the rain."
+  },
+  {
+   "q": "Which is Zambia's largest national park?",
+   "options": [
+    "Kafue",
+    "South Luangwa",
+    "Liuwa Plain"
+   ],
+   "answer": "Kafue",
+   "why": "Kafue covers about 22,400 km² — larger than some countries — and stretches across three provinces."
+  }
+ ],
+ "neighbours": [
+  {
+   "code": "cd",
+   "name": "DR Congo",
+   "zone": [
+    24,
+    -22,
+    42,
+    20
+   ],
+   "side": "north and north-west",
+   "fact": "The longest of Zambia's borders. The Congo Pedicle — the thumb of DRC land that pokes into Zambia — is why the road from Lusaka to Mansa either crosses another country or goes the long way round.",
+   "hint": "The big neighbour along the whole top of the map, wrapping round Luapula."
+  },
+  {
+   "code": "tz",
+   "name": "Tanzania",
+   "zone": [
+    78,
+    -22,
+    26,
+    20
+   ],
+   "side": "north-east",
+   "fact": "Zambia meets Tanzania at Nakonde and Tunduma, and in the middle of Lake Tanganyika. The TAZARA railway and the oil pipeline both run this way to Dar es Salaam.",
+   "hint": "Top-right, above Muchinga and east of Northern."
+  },
+  {
+   "code": "mw",
+   "name": "Malawi",
+   "zone": [
+    102,
+    24,
+    24,
+    24
+   ],
+   "side": "east",
+   "fact": "The border is a short drive east of Chipata, at Mwami. Malawi is almost surrounded by Zambia and Mozambique.",
+   "hint": "Straight out to the right, next to Eastern Province."
+  },
+  {
+   "code": "mz",
+   "name": "Mozambique",
+   "zone": [
+    95,
+    55,
+    24,
+    24
+   ],
+   "side": "south-east",
+   "fact": "Zambia, Zimbabwe and Mozambique meet at Luangwa town, where the Luangwa river joins the Zambezi.",
+   "hint": "Bottom-right, below Malawi — where the Luangwa and Zambezi meet."
+  },
+  {
+   "code": "zw",
+   "name": "Zimbabwe",
+   "zone": [
+    48,
+    85,
+    32,
+    22
+   ],
+   "side": "south",
+   "fact": "The Zambezi is the border, so Zambia and Zimbabwe share both Mosi-oa-Tunya and Lake Kariba.",
+   "hint": "Directly below Southern Province, on the other side of the Zambezi."
+  },
+  {
+   "code": "bw",
+   "name": "Botswana",
+   "zone": [
+    22,
+    85,
+    24,
+    22
+   ],
+   "side": "south-west, at Kazungula",
+   "fact": "The shortest border Zambia has — a few hundred metres at Kazungula, where four countries meet. The Kazungula bridge replaced the ferry in 2021.",
+   "hint": "A tiny corner in the south-west, at Kazungula, west of Zimbabwe."
+  },
+  {
+   "code": "na",
+   "name": "Namibia",
+   "zone": [
+    -6,
+    85,
+    24,
+    22
+   ],
+   "side": "south-west",
+   "fact": "Namibia's Zambezi Region — the long strip once called the Caprivi — runs along Zambia's south-western edge.",
+   "hint": "The narrow strip along the bottom of Western Province, west of Botswana."
+  },
+  {
+   "code": "ao",
+   "name": "Angola",
+   "zone": [
+    -26,
+    33,
+    22,
+    30
+   ],
+   "side": "west",
+   "fact": "The Zambezi leaves Zambia into Angola soon after it rises, and comes back at Chavuma.",
+   "hint": "The whole western side, next to North-Western and Western Provinces."
+  }
+ ],
+ "symbols": [
+  {
+   "q": "Zambia became independent on:",
+   "options": [
+    "24 October 1964",
+    "24 October 1963",
+    "1 January 1964"
+   ],
+   "answer": "24 October 1964",
+   "why": "Northern Rhodesia became the Republic of Zambia on <b>24 October 1964</b>. Independence Day is a public holiday every year."
+  },
+  {
+   "q": "What was Zambia called before independence?",
+   "options": [
+    "Northern Rhodesia",
+    "Nyasaland",
+    "Barotseland"
+   ],
+   "answer": "Northern Rhodesia",
+   "why": "It was Northern Rhodesia, a British protectorate. Nyasaland became Malawi; Barotseland is the Lozi kingdom in the west, inside Zambia."
+  },
+  {
+   "q": "Who was Zambia's first President?",
+   "options": [
+    "Kenneth Kaunda",
+    "Simon Kapwepwe",
+    "Harry Nkumbula"
+   ],
+   "answer": "Kenneth Kaunda",
+   "why": "Kenneth Kaunda led the country from independence in 1964 until 1991. Kapwepwe and Nkumbula were also independence leaders."
+  },
+  {
+   "q": "On the flag, <b>green</b> stands for:",
+   "options": [
+    "The land and its plants",
+    "The copper mines",
+    "The people"
+   ],
+   "answer": "The land and its plants",
+   "why": "Green is the land, its farms and its forests — and it is the background the other three colours sit on."
+  },
+  {
+   "q": "On the flag, <b>red</b> stands for:",
+   "options": [
+    "The struggle for freedom",
+    "The soil",
+    "The sunset"
+   ],
+   "answer": "The struggle for freedom",
+   "why": "Red stands for the struggle for freedom. It is the first of the three stripes in the bottom-right corner."
+  },
+  {
+   "q": "On the flag, <b>black</b> stands for:",
+   "options": [
+    "The people of Zambia",
+    "The night",
+    "Coal"
+   ],
+   "answer": "The people of Zambia",
+   "why": "Black is the people. It is the middle stripe of the three."
+  },
+  {
+   "q": "On the flag, <b>orange</b> stands for:",
+   "options": [
+    "The country's mineral wealth",
+    "The sun",
+    "Maize"
+   ],
+   "answer": "The country's mineral wealth",
+   "why": "Orange is the mineral wealth — above all the copper the Copperbelt is named for. It is the third stripe."
+  },
+  {
+   "q": "What is the bird on the flag, and what does it mean?",
+   "options": [
+    "An African fish eagle — freedom, and rising above the country's problems",
+    "A crane — long life",
+    "A hornbill — good harvests"
+   ],
+   "answer": "An African fish eagle — freedom, and rising above the country's problems",
+   "why": "The eagle flies above the three stripes. It stands for freedom and for the country's ability to rise above its problems."
+  },
+  {
+   "q": "The words on the coat of arms are:",
+   "options": [
+    "One Zambia, One Nation",
+    "Peace and Unity",
+    "Freedom and Labour"
+   ],
+   "answer": "One Zambia, One Nation",
+   "why": "\"One Zambia, One Nation\" is the national motto — a country of many languages choosing to be one."
+  },
+  {
+   "q": "The national anthem is called:",
+   "options": [
+    "Stand and Sing of Zambia, Proud and Free",
+    "God Bless Africa",
+    "Land of the Free"
+   ],
+   "answer": "Stand and Sing of Zambia, Proud and Free",
+   "why": "The words are Zambia's own; the tune is Enoch Sontonga's \"Nkosi Sikelel' iAfrika\", which several African countries share."
+  }
+ ]
+}
