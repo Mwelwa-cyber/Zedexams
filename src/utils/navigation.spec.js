@@ -113,10 +113,38 @@ describe('resolvePostAuthPath', () => {
     expect(resolvePostAuthPath({ isAdmin: true, isTeacher: true }, '/notes/abc')).toBe('/notes/abc')
   })
 
-  it('leaves a parent destination to the route guard, which knows the plan', () => {
-    // canAccessLearnerPortal depends on subscription state this function
-    // cannot see, so a parent's stashed page is never second-guessed here.
-    expect(resolvePostAuthPath({ role: 'parent' }, '/notes/abc')).toBe('/notes/abc')
+  it('discards a learner destination for a parent who cannot open the learner portal', () => {
+    // The reported bug, from the family side: a parent opened a learner
+    // /notes/:id link, signed in, and was sent straight back to it — where the
+    // guard refused them with a card about teacher accounts. This function
+    // used to leave a parent's stash alone on the grounds that plan state was
+    // invisible here; it is not, and reading it is what keeps this answer and
+    // the guard's answer the same one.
+    expect(resolvePostAuthPath({ role: 'parent' }, '/notes/y5YBurkQOKGkVp3ju7IN?mode=revise')).toBe('/family')
+    expect(resolvePostAuthPath({ role: 'parent' }, '/dashboard')).toBe('/family')
+  })
+
+  it('still returns a parent to the family page they were bounced from', () => {
+    expect(resolvePostAuthPath({ role: 'parent' }, '/family/account/billing')).toBe('/family/account/billing')
+    expect(resolvePostAuthPath({ role: 'parent' }, '/papers/g7-science')).toBe('/papers/g7-science')
+  })
+
+  it('honours a learner destination for a parent whose plan opens the learner portal', () => {
+    // The same predicate LearnerOnlyRoute reads: a premium guardian passes the
+    // guard, so sending them to their landing page instead would strand them
+    // away from a page that would have opened.
+    const premiumParent = {
+      role: 'parent',
+      subscriptionStatus: 'active',
+      subscriptionExpiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    }
+    expect(resolvePostAuthPath(premiumParent, '/notes/abc')).toBe('/notes/abc')
+  })
+
+  it('discards a learner destination for a role it does not recognise', () => {
+    // Not a judgement about that role — the guard refuses it, so landing them
+    // there would be a sign-in that ends on a refusal card.
+    expect(resolvePostAuthPath({ role: 'nonsense' }, '/notes/abc', '/')).toBe('/')
   })
 
   it('falls back to the role landing page when there is no stashed page', () => {
@@ -140,6 +168,11 @@ describe('resolvePostAuthPath', () => {
     // non-learner path, so the next guard has no reason to move them again.
     for (const from of ['/notes/x', '/exams', '/my-results', '/teacher/help', null]) {
       const target = resolvePostAuthPath(teacher, from, '/')
+      expect(isLearnerOnlyPath(target)).toBe(false)
+    }
+    // And the same for a parent, whose landing page is /family.
+    for (const from of ['/notes/x', '/exams', '/my-results', '/family/children', null]) {
+      const target = resolvePostAuthPath({ role: 'parent' }, from, '/')
       expect(isLearnerOnlyPath(target)).toBe(false)
     }
   })

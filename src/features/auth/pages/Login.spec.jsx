@@ -402,6 +402,29 @@ describe('Login — refresh/session-restoration behaviour', () => {
     expect(mockNavigate).not.toHaveBeenCalledWith('/notes/FEBUorwhAV471eyS9WdB', { replace: true })
   })
 
+  it('does not return a parent to a learner-only page they were bounced from', async () => {
+    // Same shape from the family side, and the one that was reported: a
+    // guardian opened a learner /notes/:id link, signed in, and landed on the
+    // refusal card every time — which read "Teacher accounts stay in the
+    // teacher portal" at an account that is not a teacher's.
+    setAuth({
+      authReady: true,
+      currentUser: { uid: 'uid-p' },
+      userProfile: { id: 'uid-p', role: 'parent' },
+    })
+
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: '/login', state: { from: { pathname: '/notes/y5YBurkQOKGkVp3ju7IN', search: '?mode=revise' } } }]}
+      >
+        <Login />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/family', { replace: true }))
+    expect(mockNavigate).not.toHaveBeenCalledWith('/notes/y5YBurkQOKGkVp3ju7IN?mode=revise', { replace: true })
+  })
+
   it('does not send a teacher to a learner page after signing in with the form either', async () => {
     mockLogin.mockResolvedValue({ user: { uid: 'uid-t' } })
     mockEnsureUserProfile.mockResolvedValue({ id: 'uid-t', role: 'teacher' })
