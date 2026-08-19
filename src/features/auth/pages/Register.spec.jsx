@@ -66,10 +66,17 @@ function pickRole(name) {
   fireEvent.click(screen.getByRole('button', { name: /^continue$/i }))
 }
 
+/**
+ * Type a date into the age screen and confirm it.
+ *
+ * `month` is a real calendar month (1–12), not the zero-based index the three
+ * `<select>`s used to take — the screen is three numeric fields now, and the
+ * value that reaches it is the one a thumb types.
+ */
 async function answerAge({ day, month, year }) {
   await waitFor(() => expect(screen.getByLabelText(/^day$/i)).toBeInTheDocument())
-  fireEvent.change(screen.getByLabelText(/^day$/i), { target: { value: String(day) } })
-  fireEvent.change(screen.getByLabelText(/^month$/i), { target: { value: String(month) } })
+  fireEvent.change(screen.getByLabelText(/^day$/i), { target: { value: String(day).padStart(2, '0') } })
+  fireEvent.change(screen.getByLabelText(/^month$/i), { target: { value: String(month).padStart(2, '0') } })
   fireEvent.change(screen.getByLabelText(/^year$/i), { target: { value: String(year) } })
   fireEvent.click(screen.getByRole('button', { name: /^continue$/i }))
 }
@@ -78,7 +85,7 @@ async function answerAge({ day, month, year }) {
 async function renderRegister() {
   const result = mount()
   pickRole('learner')
-  await answerAge({ day: 1, month: 0, year: 1990 })
+  await answerAge({ day: 1, month: 1, year: 1990 })
   await waitFor(() => expect(screen.getByLabelText(/full name/i)).toBeInTheDocument())
   return result
 }
@@ -131,7 +138,7 @@ describe('Register — the age screen comes before every sign-up method', () => 
     pickRole('learner')
     await waitFor(() => expect(screen.getByText(/when were you born/i)).toBeInTheDocument())
     expect(screen.queryByLabelText(/full name/i)).toBeNull()
-    await answerAge({ day: 1, month: 0, year: 1990 })
+    await answerAge({ day: 1, month: 1, year: 1990 })
     await waitFor(() => expect(screen.getByLabelText(/full name/i)).toBeInTheDocument())
     expect(screen.getByRole('button', { name: /google/i })).toBeInTheDocument()
   })
@@ -155,7 +162,7 @@ describe('Register — the age screen comes before every sign-up method', () => 
   it('locks a returning learner to their first answer (criterion 5)', async () => {
     mount()
     pickRole('learner')
-    await answerAge({ day: 3, month: 5, year: 2015 })
+    await answerAge({ day: 3, month: 6, year: 2015 })
     await waitFor(() => expect(screen.getByLabelText(/full name/i)).toBeInTheDocument())
 
     // Back out to the age screen the way a user would — a fresh visit to the
@@ -245,7 +252,7 @@ describe('Register — minors (criterion 3)', () => {
     mockEnsureUserProfile.mockResolvedValue({ uid: 'uid-1', role: 'learner' })
     mount()
     pickRole('learner')
-    await answerAge({ day: 3, month: 5, year: 2015 })
+    await answerAge({ day: 3, month: 6, year: 2015 })
     await waitFor(() => expect(screen.getByLabelText(/full name/i)).toBeInTheDocument())
     fillValidLearner()
     fireEvent.click(screen.getByRole('button', { name: /create free account/i }))
@@ -266,7 +273,7 @@ describe('Register — minors (criterion 3)', () => {
   it('does not ask the learner for a guardian before the account exists', async () => {
     mount()
     pickRole('learner')
-    await answerAge({ day: 3, month: 5, year: 2015 })
+    await answerAge({ day: 3, month: 6, year: 2015 })
     await waitFor(() => expect(screen.getByLabelText(/full name/i)).toBeInTheDocument())
     expect(screen.queryByLabelText(/parent or guardian/i)).toBeNull()
   })
@@ -320,7 +327,7 @@ describe('Register — an existing account short-circuits (criterion 8)', () => 
     pickRole('learner')
     // Deliberately a minor's date: even so, an existing account must not be
     // pushed into the guardian flow or have its stored birthday rewritten.
-    await answerAge({ day: 3, month: 5, year: 2015 })
+    await answerAge({ day: 3, month: 6, year: 2015 })
     await waitFor(() => expect(screen.getByRole('button', { name: /google/i })).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: /google/i }))
 
@@ -334,16 +341,18 @@ describe('Register — an existing account short-circuits (criterion 8)', () => 
     mockEnsureUserProfile.mockResolvedValue({ uid: 'uid-10', role: 'learner' })
     mount()
     pickRole('learner')
-    await answerAge({ day: 3, month: 5, year: 2015 })
+    await answerAge({ day: 3, month: 6, year: 2015 })
     await waitFor(() => expect(screen.getByRole('button', { name: /google/i })).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: /google/i }))
 
     await waitFor(() =>
       expect(screen.getByRole('heading', { name: /ask a parent or guardian/i })).toBeInTheDocument(),
     )
-    // And the date reached the account-creating call.
+    // And the date reached the account-creating call, with how it was
+    // arrived at — a typed date and one estimated from a grade are not the
+    // same evidence, and only the write path can record the difference.
     expect(mockLoginWithGoogle).toHaveBeenCalledWith({
-      role: 'learner', onboarding: { dob: '2015-06-03' },
+      role: 'learner', onboarding: { dob: '2015-06-03', dobSource: 'typed' },
     })
   })
 })
@@ -410,10 +419,12 @@ describe('Register — friendly field validation', () => {
       // and the setup wizard writes it. LearnerSetupGate is what guarantees a
       // grade-less learner never reaches a screen that needs one.
       'learner@school.com', 'pass123', 'Test User', '', 'Lusaka Academy', 'learner',
-      // The age screen's answer travels with the signup. register() still
-      // derives isMinor from the date itself rather than trusting a flag from
-      // here, and the server re-derives it again on document creation.
-      { dob: '1990-01-01' },
+      // The age screen's answer travels with the signup, alongside how it was
+      // arrived at. register() still derives isMinor from the DATE rather than
+      // trusting a flag from here — `dobSource` is provenance for support and
+      // a guardian dispute, and nothing routes on it — and the server
+      // re-derives isMinor again on document creation.
+      { dob: '1990-01-01', dobSource: 'typed' },
     )
   })
 })

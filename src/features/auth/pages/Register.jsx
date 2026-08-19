@@ -7,6 +7,7 @@ import { friendlyAuthMessage } from '../../../utils/friendlyErrors'
 import { assessAction, shouldBlock } from '../../../utils/recaptcha'
 import { validateFields, hasErrors, focusFirstError } from '../../../utils/formValidation'
 import { requiresGuardianConsent } from '../../../utils/guardianConsent'
+import { DOB_SOURCE, isKnownDobSource } from '../../../utils/ageAnswerCore'
 import Logo from '../../../shared/components/Logo'
 import Button from '../../../shared/components/Button'
 import GoogleSignInButton from '../components/GoogleSignInButton'
@@ -21,6 +22,7 @@ import {
   needsAdultConfirmation,
   needsAgeAnswer,
   resolveStep,
+  stepsForRole,
 } from '../../../utils/signupFlowCore'
 import {
   clearSignupFlow,
@@ -157,6 +159,18 @@ export default function Register() {
     accountCreated: flow.accountCreated,
   })
 
+  // Where in the flow this is, for the progress bar.
+  //
+  // Derived from stepsForRole rather than written down, so a step added to
+  // the machine cannot leave the bar saying "3 of 4" forever. It is shown
+  // because a form of unknown length feels endless to a nine-year-old — and
+  // it reveals nothing: the number of screens is the same whatever answer
+  // the age question gets, because the guardian screen is counted for every
+  // learner. A bar that grew a step once a child answered "2014" would be a
+  // hint about what that answer led to.
+  const flowSteps = stepsForRole(form.role)
+  const stepIndex = Math.max(0, flowSteps.indexOf(step))
+
   // Keep the URL honest about where the user actually is. `replace` so the
   // back button walks the flow rather than bouncing off a redirect.
   useEffect(() => {
@@ -209,13 +223,22 @@ export default function Register() {
    * the date, server-side, on the user document's creation; a client that
    * could decide its own minor status would make the whole screen decorative.
    */
-  function handleAgeAnswer({ dob }) {
+  function handleAgeAnswer({ dob, dobSource }) {
     // Hold this device to its first answer. lockAgeAnswer ignores a second
     // call while the first is fresh, so backing out and returning re-shows
     // this date rather than accepting a new one.
     lockAgeAnswer(dob)
     setLockedDob(readLockedAgeAnswer())
-    advance({ dob, isMinor: requiresGuardianConsent(dob) }, STEP.AUTH)
+    // `dobSource` travels with the date because a derived date and a typed
+    // one are not the same evidence — support needs to be able to tell a
+    // learner who guessed from a grade apart from one who read their birth
+    // certificate. Nothing ROUTES on it: the account's minor status is
+    // derived from the date alone, which is why the derivations themselves
+    // land below the consent age rather than raising a flag beside it.
+    advance(
+      { dob, dobSource: dobSource || DOB_SOURCE.TYPED, isMinor: requiresGuardianConsent(dob) },
+      STEP.AUTH,
+    )
   }
 
   // Friendlier field nouns than the humanised defaults ("full name", not
@@ -263,7 +286,7 @@ export default function Register() {
         // new account. An existing user's saved date of birth is never
         // overwritten by whatever was typed on the way in.
         onboarding: isLearner
-          ? { dob: flow.dob }
+          ? { dob: flow.dob, dobSource: flow.dobSource }
           : { ageConfirmed18Plus: form.ageConfirmed18Plus === true },
       })
       const profile = await ensureUserProfile(cred.user)
@@ -335,7 +358,17 @@ export default function Register() {
           // other two, which are not asked. register() derives isMinor from
           // the date via the shared consent core rather than trusting a flag
           // the client computed.
-          ...(isLearner ? { dob: flow.dob || null } : {}),
+          ...(isLearner
+            ? {
+              dob: flow.dob || null,
+              // Guarded rather than passed through: sessionStorage is the
+              // learner's own to edit, and firestore.rules pins this field to
+              // a known vocabulary. An unrecognised value falls back to the
+              // conservative reading — a typed date — rather than failing the
+              // whole account write on a string nobody recognises.
+              dobSource: isKnownDobSource(flow.dobSource) ? flow.dobSource : DOB_SOURCE.TYPED,
+            }
+            : {}),
           // Teachers and parents attest instead. A boolean, not a date.
           ...(needsAdultConfirmation(form.role)
             ? { ageConfirmed18Plus: form.ageConfirmed18Plus === true }
@@ -414,12 +447,14 @@ export default function Register() {
           <p className="text-[12px] text-[#6E7280] font-body">Practise smart.</p>
         </div>
 
-        <div className="text-center mb-6">
+        <div className="text-center mb-4">
           <h2 className="text-[20px] font-bold text-[#1A1F2E]">Create account</h2>
           {step === STEP.ROLE && (
             <p className="text-[13px] text-[#6E7280] mt-1">First — who's joining us today?</p>
           )}
         </div>
+
+        <SignupProgress index={stepIndex} total={flowSteps.length} />
 
         {/* ── Step: role select ─────────────────────────────────────────
             No date of birth here and no sign-up buttons here. Both moved
@@ -854,5 +889,34 @@ function EyeBtn({ shown, onClick }) {
     >
       <span aria-hidden="true">{shown ? '🙈' : '👁'}</span>
     </button>
+  )
+}
+
+/**
+ * How far through sign-up this is.
+ *
+ * Deliberately dumb — it is handed a position and a total and draws them. The
+ * `aria-hidden` bar plus the readable "Step 2 of 4" is the pairing that works
+ * in both directions: a sighted child gets the glance, a screen reader gets a
+ * sentence instead of a decorative div.
+ */
+function SignupProgress({ index, total }) {
+  if (!Number.isFinite(total) || total < 2) return null
+  const pct = Math.round(((index + 1) / total) * 100)
+  return (
+    <div className="flex items-center gap-2.5 mb-5">
+      <div
+        aria-hidden="true"
+        className="flex-1 h-[6px] rounded-full bg-[#EDE7DF] overflow-hidden"
+      >
+        <div
+          className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-300"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="text-[11px] font-black text-[#8A8378] whitespace-nowrap">
+        Step {index + 1} of {total}
+      </span>
+    </div>
   )
 }

@@ -773,12 +773,48 @@ test('the age answer stays server-owned after creation', () => {
     rules.indexOf('match /users/{userId}'),
     rules.indexOf('match /settings/'),
   )
-  for (const field of ['guardian', 'dob', 'isMinor']) {
+  for (const field of ['guardian', 'dob', 'isMinor', 'dobSource', 'dobRecordedAt']) {
     assert(
       slice.includes(`'${field}'`),
       `users self-update blocklist must include ${field}`,
     )
   }
+})
+
+test('there is no second, learner-editable date of birth', () => {
+  // Learner settings used to carry an editable "Date of birth (optional)"
+  // field writing `dateOfBirth` onto the same document `dob` lives on. It fed
+  // nothing and gated nothing, but a child who edited it reasonably believed
+  // they had changed their date of birth — while the age gate went on reading
+  // the other one. Two birthdays on one account, one of them a decoy.
+  const slice = rules.slice(
+    rules.indexOf('match /users/{userId}'),
+    rules.indexOf('match /settings/'),
+  )
+  assert(
+    slice.includes("'dateOfBirth'"),
+    'users self-update blocklist must include dateOfBirth',
+  )
+})
+
+test('the age answer records how it was arrived at, from a fixed vocabulary', () => {
+  // A learner who does not know their birthday can give a year or a grade
+  // instead of being stopped at the door. The estimate that produces is
+  // weaker evidence than a typed date, and a free-text provenance field is
+  // one nobody can query when a guardian disputes an account.
+  const rule = usersCreateRule()
+  assert(
+    /incoming\(\)\.get\('dobSource', 'typed'\) in \['typed', 'year_only', 'grade'\]/.test(rule),
+    'users create must pin dobSource to the known vocabulary',
+  )
+  assert(
+    rule.includes("incoming().get('dobRecordedAt', null) == null"),
+    'users create must refuse a client-supplied dobRecordedAt — the server stamps it',
+  )
+  assert(
+    rule.includes("incoming().get('dobSource', null) == null"),
+    'users create must refuse dobSource on non-learner documents',
+  )
 })
 
 // ── teachingAssignments — optional numerics accept explicit null ─

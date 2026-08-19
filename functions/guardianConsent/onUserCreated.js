@@ -23,7 +23,7 @@
 const {onDocumentCreated} = require("firebase-functions/v2/firestore");
 const admin = require("firebase-admin");
 
-const {resolveAgeBootstrap} = require("./userAgeBootstrapCore");
+const {resolveAgeBootstrap, needsDobStamp} = require("./userAgeBootstrapCore");
 
 exports.learnerAgeOnUserCreated = onDocumentCreated(
     {document: "users/{uid}", region: "africa-south1", timeoutSeconds: 30},
@@ -42,8 +42,17 @@ exports.learnerAgeOnUserCreated = onDocumentCreated(
             "../shared/consent/guardianConsentCore.js"
         );
 
-        const patch = resolveAgeBootstrap(user, {requiresGuardianConsent});
-        if (!patch) return;
+        const patch = resolveAgeBootstrap(user, {requiresGuardianConsent}) || {};
+
+        // Stamp WHEN the age answer was recorded. The date itself is already
+        // pinned against client updates by firestore.rules; this is the other
+        // half of "the first answer is the answer" — the evidence of when it
+        // was given, written by the server so it cannot be chosen.
+        if (needsDobStamp(user)) {
+          patch.dobRecordedAt = admin.firestore.FieldValue.serverTimestamp();
+        }
+
+        if (!Object.keys(patch).length) return;
 
         if (user.isMinor !== undefined && patch.isMinor !== undefined &&
             user.isMinor !== patch.isMinor) {

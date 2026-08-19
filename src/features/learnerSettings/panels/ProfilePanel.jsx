@@ -7,12 +7,26 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { useSettingsSave } from '../components/SaveContext'
 import { Panel, Section, Field, TextInput, SelectField } from '../components/ui'
 import AvatarStudio from '../components/AvatarStudio'
+import { formatLongDate } from '../../../utils/ageAnswerCore'
 import {
   GRADE_NUMBERS,
   GENDER_OPTIONS,
   LANGUAGE_OPTIONS,
   COUNTRY_OPTIONS,
 } from '../lib/learnerPrefs'
+
+/**
+ * The account's date of birth, in words.
+ *
+ * An account created before the age screen has none, and so does a profile
+ * `bootstrapUserProfile` recovered. Those say "Not set" rather than rendering
+ * an empty box that reads as a field waiting to be filled in — the learner
+ * cannot fill it in, and pretending otherwise is the same trap the editable
+ * duplicate was.
+ */
+function formatDob(dob) {
+  return formatLongDate(dob) || 'Not set'
+}
 
 // Headerless body — composed by MyAccountPanel (the "My Account" detail view)
 // alongside the parent + account bodies. The default export keeps the standalone
@@ -22,7 +36,7 @@ export function ProfileBody({ pushToast }) {
   const { commit } = useSettingsSave()
 
   const [form, setForm] = useState({
-    displayName: '', preferredName: '', school: '', className: '', dateOfBirth: '',
+    displayName: '', preferredName: '', school: '', className: '',
   })
 
   // Initialise text fields once the profile arrives (keyed on uid so onSnapshot
@@ -34,7 +48,6 @@ export function ProfileBody({ pushToast }) {
       preferredName: userProfile.preferredName ?? '',
       school: userProfile.school ?? '',
       className: userProfile.className ?? '',
-      dateOfBirth: userProfile.dateOfBirth ?? '',
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userProfile?.id, userProfile?.uid])
@@ -90,8 +103,25 @@ export function ProfileBody({ pushToast }) {
             onChange={(v) => commit({ grade: Number(v) })}
             options={GRADE_NUMBERS.map((g) => ({ value: String(g), label: `Grade ${g}` }))}
           />
-          <Field label="Date of birth" hint="Optional" htmlFor="lset-dob">
-            <TextInput id="lset-dob" type="date" value={form.dateOfBirth} onChange={(v) => setText('dateOfBirth', v)} />
+          {/* Read-only, and the reason is the whole age gate.
+              `dob` is the single value the guardian-consent gate reads from —
+              a learner who could change it could age themselves out of the
+              restricted experience from their own settings page, which is the
+              one outcome the neutral age screen exists to prevent.
+              firestore.rules refuses the write regardless, so an editable
+              field here would be a control that silently does nothing.
+
+              It used to be worse than that: this field wrote `dateOfBirth`, a
+              SECOND birthday on the same document that the gate never read. A
+              child who corrected it reasonably believed they had changed their
+              date of birth and had changed nothing. That field is gone and is
+              blocklisted in the rules. */}
+          <Field
+            label="Date of birth"
+            hint="Ask a grown-up or contact support to change this"
+            htmlFor="lset-dob"
+          >
+            <TextInput id="lset-dob" value={formatDob(userProfile?.dob)} disabled />
           </Field>
           <SelectField
             label="Gender"

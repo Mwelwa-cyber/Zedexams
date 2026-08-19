@@ -8,9 +8,13 @@
 // what one panel writes another reads back unchanged.
 //
 // Persistence map (all live on the user's Firestore doc unless noted):
-//   displayName, preferredName, school, grade, className, dateOfBirth,
-//   gender, preferredLanguage, country, avatarCharacter, avatarPhotoUrl
+//   displayName, preferredName, school, grade, className, gender,
+//   preferredLanguage, country, avatarCharacter, avatarPhotoUrl
 //                                            → flat profile fields
+//   dob                                      → READ-ONLY here. The age
+//     screen's answer, pinned against client updates in firestore.rules; the
+//     profile panel displays it and offers no control. (A second, editable
+//     `dateOfBirth` used to live beside it and fed nothing — see that panel.)
 //   notificationPrefs                        → src/engines/notification-engine/notificationPrefs.js
 //   learningPrefs                            → extended below
 //   learnerSettings.security                 → recovery email/phone, 2FA intent
@@ -92,8 +96,10 @@ export const COUNTRY_OPTIONS = Object.freeze([
 ])
 
 // The fields that count toward the "profile completion" ring. Optional fields
-// (preferredName, dateOfBirth, gender) are intentionally excluded so a learner
-// is never nagged for information the platform doesn't require.
+// (preferredName, gender) are intentionally excluded so a learner is never
+// nagged for information the platform doesn't require. Date of birth is not
+// here either, and for a stronger reason: it is not a field the learner can
+// complete, so counting it would be a ring that never fills.
 const COMPLETION_FIELDS = [
   (p) => p.displayName,
   (p) => p.school,

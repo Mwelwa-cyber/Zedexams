@@ -517,7 +517,20 @@ service cloud.firestore {
         // being true without anyone noticing. They attest with a boolean.
         && (incoming().role == 'learner'
             || (incoming().get('dob', null) == null
-                && incoming().get('isMinor', null) == null))
+                && incoming().get('isMinor', null) == null
+                && incoming().get('dobSource', null) == null))
+        // HOW the date was arrived at. A learner who does not know their
+        // birthday can give a year or a grade instead of being stopped at the
+        // door, and the estimate that produces is weaker evidence than a typed
+        // date — support and any guardian dispute need to be able to tell them
+        // apart. Pinned to the known vocabulary so it cannot become a free-text
+        // field nobody can query. It is PROVENANCE, never a routing input:
+        // `isMinor` is derived from the date alone, which is why the client's
+        // derivations land below the consent age rather than raising a flag.
+        && incoming().get('dobSource', 'typed') in ['typed', 'year_only', 'grade']
+        // The server stamps when the answer was recorded
+        // (learnerAgeOnUserCreated). A client-chosen timestamp is not evidence.
+        && incoming().get('dobRecordedAt', null) == null
         && incoming().get('ageConfirmed18Plus', false) is bool
         && incoming().get('plan', 'free') == 'free'
         && incoming().get('premium', false) == false
@@ -610,6 +623,22 @@ service cloud.firestore {
           // screen's one forbidden outcome. The Resend control does not touch
           // these — it calls sendGuardianConsent, which writes server-side.
           'guardian', 'dob', 'isMinor',
+          // The age answer's provenance and the server's record of WHEN it was
+          // given. Both are pinned for the same reason `dob` is: the first
+          // answer is the answer. A learner who could relabel a grade-derived
+          // date as typed, or move its recorded moment, could launder a second
+          // guess into looking like a first one — and the only readers of these
+          // fields are support and a guardian dispute, which are exactly the
+          // conversations that turn on which it was.
+          'dobSource', 'dobRecordedAt',
+          // The duplicate that used to sit in learner settings as an editable
+          // "Date of birth (optional)" field. It fed nothing and gated nothing,
+          // but it was a second birthday on the same document that a learner
+          // COULD change — so the account said one thing to the age gate and
+          // another to anyone reading the profile, and a child who edited it
+          // reasonably believed they had changed their date of birth. The
+          // settings field is gone; this keeps it gone.
+          'dateOfBirth',
           // The guardian-unlock rate limit. `guardianUnlock.lastRequestAt` is
           // stamped by the requestGuardianUnlock callable and is the SERVER's
           // copy of the one-request-per-72-hours rule — the client's copy in

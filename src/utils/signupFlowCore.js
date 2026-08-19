@@ -21,9 +21,12 @@
  *      claim; it should be checkable by a plain `node` script, not only by
  *      driving a form.
  *
- * Pure: no DOM, no storage, no React. The storage half lives in
- * src/utils/signupOnboarding.js.
+ * Pure: no DOM, no storage, no React (the one import is the date rules in
+ * ageAnswerCore.js, which is pure on the same terms). The storage half lives
+ * in src/utils/signupOnboarding.js.
  */
+
+import { MAX_PLAUSIBLE_AGE, MIN_PLAUSIBLE_AGE } from './ageAnswerCore.js'
 
 /** The screens, in the order a learner meets them. */
 export const STEP = Object.freeze({
@@ -166,17 +169,28 @@ export function nextStepAfterAuth({ role, isMinor, existingAccount = false } = {
  * Is this date of birth usable as an age answer?
  *
  * Deliberately narrow: it checks that the date is REAL and PLAUSIBLE, and
- * says nothing about whether the resulting age is welcome. There is no
- * minimum age to reject here — routing by age is the age screen's job, and a
- * screen that refuses young answers teaches the user which answer to give.
+ * says nothing about whether the resulting age is welcome. Within the
+ * plausible range there is no minimum age to reject — routing by age is the
+ * age screen's job, and a screen that refuses young answers teaches the user
+ * which answer to give.
+ *
+ * The two bounds are TYPOS, not policy, and the screen refuses them in
+ * identical language at both ends ("that would make you N years old — check
+ * the year"). Nobody signs themselves up for exam practice at three, and a
+ * stray digit in the year box is far likelier than a toddler; refusing that
+ * silently — or, worse, accepting it — is how a mistyped year becomes an
+ * account nobody can explain. The numbers live in ageAnswerCore.js, which is
+ * where the screen's own copy is built from them.
  *
  * @param {number|null} age  Result of ageInYears() — null for an unreadable date.
  * @return {{ok: boolean, reason?: string}}
+ *   reason ∈ unreadable | future | too_young | implausible
  */
 export function checkAgeAnswer(age) {
   if (age === null || age === undefined) return { ok: false, reason: 'unreadable' }
   if (age < 0) return { ok: false, reason: 'future' }
-  if (age > 100) return { ok: false, reason: 'implausible' }
+  if (age < MIN_PLAUSIBLE_AGE) return { ok: false, reason: 'too_young' }
+  if (age > MAX_PLAUSIBLE_AGE) return { ok: false, reason: 'implausible' }
   return { ok: true }
 }
 
