@@ -103,6 +103,78 @@ export function isRecentlyAdded(createdAt, now) {
 }
 
 /**
+ * The catalogue: one entry per mechanic, and NEVER another grade's pack.
+ *
+ * ── The bug this replaces ──────────────────────────────────────────────
+ *
+ * The hub used to pick, per mechanic, "the learner's-grade doc if one
+ * exists, ELSE any doc of that mechanic". That last clause is how a Grade
+ * 7 learner's hub came to show
+ *
+ *     Meaning Match · Mathematics · Fractions, Decimals & Percent
+ *
+ * — a Grade 6 pack, under a name the hub gives the MECHANIC, with a
+ * subject and topic belonging to content the learner is not studying. It
+ * is the same failure as the daily quiz serving another grade's questions,
+ * and it costs the same two things: the learner is quietly mis-levelled,
+ * and the score they post goes to the same leaderboard as everyone
+ * playing their own grade's pack.
+ *
+ * So the rule here is the rule there: the learner's grade, or nothing.
+ *
+ * ── Why "nothing" is still a ROW ───────────────────────────────────────
+ *
+ * A mechanic with no pack for this grade returns `{ game: null }` rather
+ * than being dropped, and the hub renders it as a row that says so and
+ * does not open. Filtering it out would leave a catalogue the code calls
+ * "exactly four" quietly showing two — which is the exact complaint the
+ * previous version of this comment recorded about Punctuation Pro going
+ * missing. A gap a learner can see is a gap someone can fill; a gap that
+ * removes a row is indistinguishable from the mechanic never existing.
+ *
+ * The placeholder deliberately carries NO subject. A subject would have to
+ * be invented: three of the four mechanics have an inherent one, but
+ * `memory_match` genuinely does not — its packs are English word meanings
+ * in one grade, mathematics in another, African capitals in a third, which
+ * is the whole reason "Meaning Match" reads oddly against a maths topic.
+ * Naming a subject for a pack that does not exist would be guessing in the
+ * one place this function exists to stop guessing.
+ *
+ * @param {object}   options
+ * @param {Array}    options.mechanics  CATALOGUE_MECHANICS — `{type, name}`
+ * @param {Array}    options.games      live docs (already grade-scoped, but
+ *                                      re-checked here: a query is a
+ *                                      promise about the fetch, not about
+ *                                      what reached this function)
+ * @param {Array}    options.seeded     bundled fallback packs
+ * @param {number}   options.grade      the learner's grade
+ * @returns {Array<{type: string, name: string, game: object|null}>}
+ */
+export function buildCatalogue({ mechanics = [], games = [], seeded = [], grade } = {}) {
+  const forGrade = (pool, type) => pool.find(
+    (g) => g?.type === type && Number(g.grade) === Number(grade),
+  ) || null
+  return mechanics.map(({ type, name }) => ({
+    type,
+    name,
+    // Live first, then the bundled pack — a seed-backed card is playable,
+    // because PlayGame falls back to the same doc by id.
+    game: forGrade(games, type) || forGrade(seeded, type),
+  }))
+}
+
+/**
+ * What a catalogue row that has no pack for this grade says.
+ *
+ * Written for the learner rather than about the data: "we have not made
+ * this one for your grade yet" is the true statement, and it is also the
+ * one a child can do something with (wait, or play the others).
+ */
+export function unavailableRowCopy(grade) {
+  return { meta: `Coming soon for Grade ${grade}`, pill: 'Soon' }
+}
+
+/**
  * The daily hero's copy. Three states, and the third is the point.
  *
  * When the grade-scoped query finds no quiz for today, the card SAYS so and
