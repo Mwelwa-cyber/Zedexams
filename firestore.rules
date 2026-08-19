@@ -57,6 +57,69 @@ service cloud.firestore {
     // through their own bypass branches instead of comparing against
     // a real grade.
     function callerGrade() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('grade', ''); }
+    // ── Is the caller an adult? ──────────────────────────────────────────
+    //
+    // Used to keep a price off a child's wire. `initiateLencoPayment` refuses
+    // an unapproved under-18 learner checkout, and `getUpgradeQuote` /
+    // `resendInvoiceEmail` now refuse them a figure — but `invoices` and
+    // `payments` are read STRAIGHT from the client, with no callable in the
+    // path, so a rule is the only place that question can be asked. Ownership
+    // and age are different questions and these rules were asking only the
+    // first: the invoice IS the learner's own, which is precisely why the
+    // ownership check passes.
+    //
+    // The vocabulary mirrors the server's, in
+    // `functions/shared/consent/guardianConsentCore.js`: the non-learner roles
+    // are adults by definition (a teacher holds their own account; a parent's
+    // access is governed by the link to their child), and a learner is an
+    // adult only when `isMinor` POSITIVELY says so. `isMinor` is on the users
+    // self-update blocklist and is re-derived server-side from the declared
+    // date of birth by `learnerAgeOnUserCreated`, so it is not a field the
+    // account can set for itself.
+    //
+    // Defaults are the fail-closed ones. An absent role reads as '' and an
+    // absent `isMinor` reads as true, so an account we cannot classify is a
+    // child — the same asymmetry `resolveAgeBand` states: showing K150 to a
+    // twelve-year-old and inconveniencing an adult are not symmetric mistakes.
+    //
+    // ── Why this get() is not the #2258 hazard ───────────────────────────
+    //
+    // That outage came from a CROSS-SERVICE read: storage.rules calling
+    // firestore.exists() on every evaluation, which stopped resolving in
+    // production while every emulator run stayed green. This is a
+    // same-database get() on the caller's own user document — the identical
+    // shape `callerRole()` and `callerGrade()` above have always used, and
+    // one the emulator does model faithfully.
+    //
+    // It is still placed LAST in every conjunction that uses it, so the cheap
+    // ownership comparison short-circuits it away for a caller who does not
+    // own the document.
+    //
+    // ── Who this refuses that it did not before, and their remedy ────────
+    //
+    // A learner created BEFORE the age screen shipped carries neither `dob`
+    // nor `isMinor`, so this reads them as a child and denies them their own
+    // receipts. That is deliberate rather than overlooked, for two reasons.
+    //
+    // First, it is what the rest of the app already does: `resolveAgeBand` in
+    // src/services/entitlements/planState.js fails closed on exactly the same
+    // field, so such an account is ALREADY treated as under-18 on every
+    // surface and routed to a guardian ask instead of a price. Making the rule
+    // the single place that called them an adult would be the inconsistency.
+    //
+    // Second, a backfill cannot help: the age screen is what collects `dob`,
+    // so for these accounts there is nothing to derive an age FROM. The
+    // remedy is the admin path, which this change deliberately leaves intact
+    // and tested — `/admin/payments` reads every invoice, and
+    // `resendInvoiceEmail`'s admin branch mails one on request.
+    function callerIsAdult() {
+      return isNonLearnerRole(callerRole())
+        || get(/databases/$(database)/documents/users/$(request.auth.uid))
+             .data.get('isMinor', true) == false;
+    }
+    function isNonLearnerRole(role) {
+      return role == 'teacher' || role == 'parent' || role == 'admin' || role == 'superAdmin';
+    }
     // ── platform-admin (high-level role via custom claim) ────────────────
     // Per the RLS model: high-level, infrequently-changing platform roles
     // live in Firebase CUSTOM CLAIMS, not in a client-writable Firestore
@@ -1160,7 +1223,13 @@ service cloud.firestore {
 
     // ── payments ──────────────────────────────────────────────
     match /payments/{paymentId} {
-      allow read: if isVerified() && (resource.data.userId == request.auth.uid || isAdmin());
+      // Owner OR admin, and an owner must also be an adult — see
+      // callerIsAdult(). Ordered so the get() only runs for a caller who
+      // already owns the document.
+      allow read: if isVerified() && (
+        isAdmin()
+        || (resource.data.userId == request.auth.uid && callerIsAdult())
+      );
       // Admin-only create — admin grant flow writes a payment record so
       // today's revenue / activations / CSV export queries have data to
       // aggregate. Learners themselves never create payment docs (the
@@ -2507,8 +2576,13 @@ service cloud.firestore {
     // get(). Read access is the owning learner + admin; writes are
     // server-only via the invoiceGenerator module (admin SDK bypass).
     match /invoices/{invoiceId} {
+      // Same shape as /payments above: an invoice carries a plan name and a
+      // kwacha amount, so an owner must also be an adult. A guardian who paid
+      // for a child is unaffected — the payer's uid is what lands in `userId`
+      // (invoiceGenerator.js), with the child's in `beneficiaryUid`.
       allow read: if isVerified() && (
-        resource.data.userId == request.auth.uid || isAdmin()
+        isAdmin()
+        || (resource.data.userId == request.auth.uid && callerIsAdult())
       );
       allow create, update, delete: if false;
     }
