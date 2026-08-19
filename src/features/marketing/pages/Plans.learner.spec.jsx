@@ -46,7 +46,7 @@ function learnerSection() {
 
 beforeEach(() => {
   navigate.mockClear()
-  mockAuth = { currentUser: null, isTeacher: false }
+  mockAuth = { currentUser: null, isTeacher: false, userProfile: null }
   mockNative = false
 })
 
@@ -77,11 +77,12 @@ describe('/pricing — learner plans', () => {
     expect(navigate).toHaveBeenCalledWith('/register?intent=upgrade&tier=learner')
   })
 
-  it('hands a signed-in learner to /my-subscription, never to an inline price modal', async () => {
-    // The under-18 rule (services/entitlements/useUnlockFlow) is what makes
-    // this the required destination: this page holds no plan state, so it must
-    // not be the surface that decides a learner may see a pay button.
-    mockAuth = { currentUser: { uid: 'u1' }, isTeacher: false }
+  it('hands a signed-in ADULT learner to /my-subscription, never to an inline price modal', async () => {
+    // `isMinor: false` is load-bearing, not decoration. The page now gates on
+    // resolveAgeBand, which fails closed — a signed-in learner with no stated
+    // age is treated as a minor and shown the guardian notice instead of any
+    // price. Only an adult learner reaches this CTA at all.
+    mockAuth = { currentUser: { uid: 'u1' }, isTeacher: false, userProfile: { role: 'learner', isMinor: false } }
     renderPage()
     await userEvent.click(within(learnerSection()).getByRole('button', { name: /Get Monthly/i }))
     expect(navigate).toHaveBeenCalledWith('/my-subscription')
