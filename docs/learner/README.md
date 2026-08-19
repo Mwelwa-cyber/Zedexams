@@ -24,6 +24,9 @@ build prompts). The specs are committed **verbatim as shipped**:
 | `zedexams-maths-notation.html` | Fractions written the school way, and the one marking rule (PROMPT 7d) |
 | `zedexams-fraction-levels.html` | The nine fraction levels and their sub-steps (PROMPT 7e) |
 | `zedexams-fractions-level1.html` | Level 1 — pictures before symbols (PROMPT 7e-1) |
+| `zedexams-zambia-game.html` | Know Zambia — geography &amp; heritage, playable (PROMPT 7f) — see below |
+| `zambia_provinces.json` | The ten province outlines, their label anchors, the lon/lat projection and the provenance |
+| `zambia_facts.json` | Every fact the Zambia game teaches — the sheet a Zambian teacher signs off in |
 
 The playbook was landed later than the four specs, and carries its own
 snapshot header for a reason worth repeating here: it is a PLAN, not a record.
@@ -43,10 +46,10 @@ an older build. v13 remains the deepest reference for note-reader *content*
 (the fully worked Digestive System note); its blocks are already seeded in
 `src/features/notes/seed/grade7Seed.json`.
 
-## The seven playable prototypes
+## The eight playable prototypes
 
-The three spelling files and the four maths files below are, unlike the files
-above, **not committed verbatim** — the owner's mockups are the visual
+The three spelling files, the four maths files and the Zambia game below are,
+unlike the files above, **not committed verbatim** — the owner's mockups are the visual
 reference, and each of these implements the rules its prompt states on top of
 that design. They are working prototypes rather than
 screens: every rule that can be demonstrated is driven by real code, so a
@@ -55,7 +58,7 @@ about it.
 
 Each carries a prototype CONTROL STRIP above the phone — a grade picker, a
 learner switch, a schema saboteur, a chapter lock, a "this question asks for
-lowest terms" switch. That strip is not part of the app. It
+lowest terms" switch, a phone-width switch, a "drop the colour" switch. That strip is not part of the app. It
 exists because several of these rules only show themselves across states one
 screenshot cannot hold: decoys scaling from Grade 4 to Grade 9, two learners
 getting different words for the same stage number, a validator that has to be
@@ -124,6 +127,38 @@ What each one actually runs, rather than describes:
   consulted. `composeStage()` mixes the learner's own due misses into each
   stage, capped at half of it, and switching learner in the rig genuinely
   changes both halves.
+- **`zedexams-zambia-game.html`** — nine levels, map-led, rendering entirely
+  from `zambia_provinces.json` and `zambia_facts.json`; change a dataset and the
+  game and its checks change with it. Tap-to-place is the interaction (drag is
+  the desktop bonus and never required), and **every target is measured**: each
+  one gets an invisible halo that switches on only when the shape itself
+  measures under 44px *at the width actually rendered*, halos stacked
+  smallest-last so Lusaka — the province the rule exists for, about 32px tall at
+  360px — wins the tap over Central. The strip's **Phone** switch re-measures at
+  320/360/412. Level 1 places three provinces, then five, then all ten, and the
+  ones already placed stay on screen in grey **with their names**, because that
+  is what the next hint points at: every wrong tap names what was tapped and
+  then gives the positional hint for what was being placed ("Muchinga is the
+  long strip in the north-east, between Northern and Eastern"), and a test fails
+  if any hint after round 1 names nothing the learner has placed. Correct and
+  wrong are a ✓ and a ✗ plus a hatch before they are a colour — **Drop the
+  colour** in the strip is the proof, and it has to be, because the Okabe-Ito
+  green and orange are almost the same grey. Towns, sites, parks and rivers are
+  plotted from real longitude and latitude through the projection in the
+  dataset rather than nudged into place, which is also what makes the trace
+  checkable: the panel projects five known points, then reports in km where the
+  pins and the hand-traced boundaries disagree. That disagreement *is* the
+  accuracy statement — about 25 km — and it is why both datasets are marked
+  `UNVERIFIED` on their face. **They stay that way until someone checks them**:
+  the outline against ZamStats or the Survey Department, and levels 2, 3, 5 and
+  6 against a Zambian teacher, with the answer written into
+  `verification.checkedBy / checkedAgainst / checkedOn`. Two facts are pinned by
+  `npm run test:zambia-game` because everything that regenerates this content
+  gets them wrong: **Southern Province's capital is Choma**, not Livingstone
+  (it moved in 2011), and **Muchinga exists and dates from 2011**. District
+  BOUNDARIES are not in the dataset and must be sourced separately, which is
+  why level 3 asks which province a district is in rather than asking for it to
+  be drawn.
 - **`zedexams-fractions-level1.html`** — nine acceptance rules run against the
   round data and are printed: no fraction symbol in any stem, caption or option
   (it appears only in the feedback after a correct answer), all four question
