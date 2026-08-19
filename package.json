@@ -264,6 +264,7 @@
     "test:notes-toc": "node scripts/test-notes-toc.mjs",
     "test:grade7-seed": "node scripts/test-grade7-seed.mjs",
     "test:number-path": "node scripts/test-number-path.mjs",
+    "test:no-game-countdown": "node scripts/test-no-game-countdown.mjs",
     "test:timed-quiz": "node scripts/test-timed-quiz.mjs",
     "test:game-round": "node scripts/test-timed-quiz-round.mjs",
     "test:word-builder": "node scripts/test-word-builder.mjs",

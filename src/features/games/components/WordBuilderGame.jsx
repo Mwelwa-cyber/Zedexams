@@ -3,14 +3,21 @@
  * `type: 'word_builder'` games (learner redesign step 4, the second
  * rebuilt mechanic).
  *
- * One 60-second round under the indigo game head: the clue (or, when
- * text-to-speech is available, sometimes just "🎧 tap what you hear"
- * with the word spoken aloud), the underline slots, the word's own
- * letters shuffled into tap tiles, and ⌫ Delete. A full set of slots
- * auto-checks — correct turns them green, pays 20 × combo and advances
- * to the next word (the queue recycles if the speller outruns it);
- * wrong shakes red, resets the combo and clears for another try. The
- * timer ending lands on the shared win screen (140/60 star thresholds).
+ * A fixed set of `ROUND_WORDS` words under the indigo game head: the
+ * clue (or, when text-to-speech is available, sometimes just "🎧 tap
+ * what you hear" with the word spoken aloud), the underline slots, the
+ * word's own letters shuffled into tap tiles, and ⌫ Delete. A full set
+ * of slots auto-checks — correct turns them green, pays 20 × combo and
+ * advances to the next word; wrong shakes red, resets the combo and
+ * clears for another try, with the word staying live. The last word
+ * lands on the shared win screen (140/60 star thresholds).
+ *
+ * There is no countdown (PROMPT 7b), and of the five engines this is
+ * the one it mattered most for: spelling is accuracy, never speed, so a
+ * clock here punished the slower speller the game exists to help. The
+ * head's bar fills with progress through the set instead of draining,
+ * and a word the learner is mid-way through building can never be cut
+ * off — nothing ends the round except finishing it.
  *
  * The backend contract is UNCHANGED (locked scope): the finished round
  * flows through useGameFinish → saveScore / badges / daily streak with
@@ -29,7 +36,7 @@ import { reportGameStart } from '../services/gamesService'
 import { playCorrect, playWrong, playWin, primeSounds } from '../lib/gameSounds'
 import { BadgePop, GameTopBar, WinScreen, buildSaveNote } from './protoGameChrome'
 import {
-  ROUND_SECONDS,
+  ROUND_WORDS,
   guessFrom,
   pickListenMode,
   roundResult,
@@ -66,9 +73,9 @@ function PlayScreen({ game, onExit, onEnd }) {
   const [placed, setPlaced] = useState([])
   const [verdict, setVerdict] = useState(null)    // null | 'ok' | 'no'
   const [score, setScore] = useState(0)
-  const [time, setTime] = useState(ROUND_SECONDS)
 
   const round = useRef({ combo: 1, peakCombo: 1, solved: 0, misses: 0 })
+  const startedAtRef = useRef(Date.now())
   const timeouts = useRef([])
   const later = (fn, ms) => { timeouts.current.push(setTimeout(fn, ms)) }
   useEffect(() => () => timeouts.current.forEach(clearTimeout), [])
@@ -92,33 +99,23 @@ function PlayScreen({ game, onExit, onEnd }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // The countdown — closure reads through refs, so it is stale-proof.
+  // Ending the round. `endedRef` is claimed SYNCHRONOUSLY so the last word
+  // of the set can only finish the round once, however many taps land
+  // inside one React batch.
   const endedRef = useRef(false)
-  const scoreRef = useRef(0)
-  useEffect(() => { scoreRef.current = score }, [score])
   const onEndRef = useRef(onEnd)
   useEffect(() => { onEndRef.current = onEnd }, [onEnd])
-  useEffect(() => {
-    const iv = setInterval(() => {
-      setTime((t) => {
-        if (t <= 1) {
-          clearInterval(iv)
-          if (!endedRef.current) {
-            endedRef.current = true
-            onEndRef.current({
-              score: scoreRef.current,
-              solved: round.current.solved,
-              misses: round.current.misses,
-              peakCombo: round.current.peakCombo,
-            })
-          }
-          return 0
-        }
-        return t - 1
-      })
-    }, 1000)
-    return () => clearInterval(iv)
-  }, [])
+  const endRound = (finalScore) => {
+    if (endedRef.current) return
+    endedRef.current = true
+    onEndRef.current({
+      score: finalScore,
+      solved: round.current.solved,
+      misses: round.current.misses,
+      peakCombo: round.current.peakCombo,
+      timeSpent: Math.round((Date.now() - startedAtRef.current) / 1000),
+    })
+  }
 
   const check = (nextPlaced, nextTiles) => {
     const guess = guessFrom(nextPlaced, nextTiles)
@@ -131,7 +128,10 @@ function PlayScreen({ game, onExit, onEnd }) {
       playCorrect()
       setScore((s) => s + gained)
       setVerdict('ok')
-      later(nextWord, 650)
+      // The score is read here, synchronously — `setScore` above is async and
+      // the end-of-round callback must not close over a stale value.
+      if (round.current.solved >= ROUND_WORDS) later(() => endRound(score + gained), 650)
+      else later(nextWord, 650)
     } else {
       round.current.misses += 1
       round.current.combo = 1
@@ -169,12 +169,14 @@ function PlayScreen({ game, onExit, onEnd }) {
   return (
     <>
       <div className="lhx-nt-head">
-        <GameTopBar onExit={onExit} time={time} timeMax={ROUND_SECONDS} score={score} />
+        <GameTopBar onExit={onExit} done={round.current.solved} total={ROUND_WORDS} score={score} />
         <div className="lhx-nt-goal">
           <div className="lhx-nt-goal-lab">SPELL THE WORD</div>
           <div className="lhx-wb-clue">{listen ? '🎧 Tap what you hear, then spell it' : item.clue || 'Spell it!'}</div>
         </div>
-        <div className="lhx-nt-best">{round.current.solved} spelt · combo ×{round.current.combo}</div>
+        <div className="lhx-nt-best">
+          Word {Math.min(ROUND_WORDS, round.current.solved + 1)} of {ROUND_WORDS} · combo ×{round.current.combo}
+        </div>
       </div>
 
       {ttsOn() && (

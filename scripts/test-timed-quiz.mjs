@@ -12,15 +12,16 @@ import {
   avoidImmediateRepeat,
   correctGain,
   correctIndexFor,
-  isTimerDanger,
+  DEFAULT_ROUND_QUESTIONS,
   optionLetter,
   questionAt,
   ratingStars,
   resolveGameConfig,
+  resolveRoundLength,
+  roundProgressPct,
   shouldCelebrate,
   streakBonus,
   timeSpentSeconds,
-  timerPct,
   wrongPenalty,
 } from '../src/features/games/lib/timedQuizCore.js'
 
@@ -186,14 +187,33 @@ assert(timeSpentSeconds(1000, 1499, 60) === 0, 'sub-half-second rounds down')
 assert(timeSpentSeconds(1000, 1500, 60) === 1, 'half-second rounds up')
 assert(timeSpentSeconds(null, 31000, 60) === 60, 'missing start falls back to the full duration')
 
-assert(timerPct(60, 60) === 100, 'full time → 100%')
-assert(timerPct(0, 60) === 0, 'no time → 0%')
-assert(timerPct(-1, 60) === 0, 'negative time clamps to 0%')
-assert(timerPct(20, 60) === 33, '20 of 60 rounds to 33%')
+/* ── the fixed set that replaced the countdown ────────────────── */
 
-assert(isTimerDanger(11) === false, '11s left is not danger')
-assert(isTimerDanger(10) === true, '10s left is danger')
-assert(isTimerDanger(0) === true, '0s left is danger')
+// A round is questions, not seconds. `game.timer` is deliberately NOT an
+// input here — it survives only as `roundOutcome`'s timeSpent fallback.
+const TEN = Array.from({ length: 10 }, (_, i) => ({ question: `q${i}` }))
+const THIRTY = Array.from({ length: 30 }, (_, i) => ({ question: `q${i}` }))
+
+assert(DEFAULT_ROUND_QUESTIONS === 10, 'a round defaults to ten questions')
+assert(resolveRoundLength({}, THIRTY) === 10, 'a big pool still plays the default set')
+assert(resolveRoundLength({}, TEN) === 10, 'a pool of exactly the set size plays all of it')
+assert(resolveRoundLength({}, [{ question: 'only' }]) === 1,
+  'a short pool caps the round — a set never recycles the deck back over itself')
+assert(resolveRoundLength({ roundQuestions: 5 }, THIRTY) === 5, 'a game doc may name its own set size')
+assert(resolveRoundLength({ roundQuestions: 50 }, TEN) === 10, 'an authored size is still capped by the pool')
+assert(resolveRoundLength({ roundQuestions: 0 }, THIRTY) === 10, 'zero falls back to the default')
+assert(resolveRoundLength({ roundQuestions: 'abc' }, THIRTY) === 10, 'nonsense falls back to the default')
+assert(resolveRoundLength({ timer: 90 }, THIRTY) === 10, 'the legacy timer field never sets the round length')
+assert(resolveRoundLength({}, []) === 10, 'an empty pool falls back rather than yielding a zero-question round')
+assert(resolveRoundLength({}, undefined) === 10, 'a missing pool falls back')
+assert(resolveRoundLength(undefined, undefined) >= 1, 'a round is never shorter than one question')
+
+assert(roundProgressPct(0, 10) === 0, 'an unanswered round shows an EMPTY bar — it fills, never drains')
+assert(roundProgressPct(5, 10) === 50, 'half the set → 50%')
+assert(roundProgressPct(10, 10) === 100, 'the whole set → 100%')
+assert(roundProgressPct(11, 10) === 100, 'progress past the end clamps to 100%')
+assert(roundProgressPct(-1, 10) === 0, 'nonsense progress clamps to 0%')
+assert(roundProgressPct(3, 0) === 100, 'a zero-length set never divides by zero')
 
 assert(ratingStars(100) === 5, '100% → 5 stars')
 assert(ratingStars(90) === 5, '90% → 5 stars (boundary)')

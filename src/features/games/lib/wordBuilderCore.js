@@ -2,13 +2,18 @@
  * Pure logic for the `word_builder` engine — the prototype-v3 spelling
  * sprint (learner redesign step 4, the second rebuilt mechanic).
  *
- * The mechanic is the prototype's: one 60-second round, a shuffled queue
- * of words that recycles if the speller outruns it. Each word shows its
+ * The mechanic is the prototype's, minus its clock: a round is a FIXED
+ * SET of `ROUND_WORDS` words off a shuffled queue. Each word shows its
  * clue (or, when text-to-speech is available, sometimes only says the
  * word aloud), its letters shuffled into tap tiles — the word's OWN
  * letters, no decoys — and auto-checks when every slot is filled:
  * correct pays 20 × combo and advances, wrong shakes, resets the combo
- * and clears the slots for another try.
+ * and clears the slots for another try. The round ends on the last word.
+ *
+ * The prototype ran this on a 60-second countdown. PROMPT 7b deleted it,
+ * and this engine is the clearest case for why: spelling is accuracy,
+ * never speed, and a clock on a spelling sprint punishes the slower
+ * speller who is the entire reason the game exists. Nothing counts down.
  *
  * Content comes from the game doc's `questions` array
  * ({ question: clue, answer: word }), the same shape the old engine
@@ -17,7 +22,8 @@
  * `rng` so scripts/test-word-builder.mjs can drive it deterministically.
  */
 
-export const ROUND_SECONDS = 60
+/** Words in one round — the fixed set that replaced the countdown. */
+export const ROUND_WORDS = 8
 
 /** The prototype's word list — the fallback when a game doc has none. */
 export const FALLBACK_WORDS = [
@@ -94,9 +100,10 @@ export function pickListenMode(ttsAvailable, rng = Math.random) {
 /**
  * Map a finished round onto the shared `useGameFinish` result shape —
  * solved words count as correct answers, failed checks as wrong ones,
- * and the peak combo is the round's best streak.
+ * and the peak combo is the round's best streak. `timeSpent` is the
+ * learner's actual elapsed seconds — a record, never a score.
  */
-export function roundResult({ game, score, solved, misses, peakCombo }) {
+export function roundResult({ game, score, solved, misses, peakCombo, timeSpent }) {
   const correct = Math.max(0, Math.floor(Number(solved) || 0))
   const wrong = Math.max(0, Math.floor(Number(misses) || 0))
   const attempts = correct + wrong
@@ -107,6 +114,8 @@ export function roundResult({ game, score, solved, misses, peakCombo }) {
     wrong,
     accuracy: attempts ? Math.round((correct / attempts) * 100) : 0,
     bestStreak: Math.max(0, Math.floor(Number(peakCombo) || 0)),
-    timeSpent: ROUND_SECONDS,
+    // MEASURED, not the old fixed round length. Still recorded (My Progress
+    // and the weekly report read it) — it is simply never scored or ranked.
+    timeSpent: Math.max(0, Math.floor(Number(timeSpent) || 0)),
   }
 }

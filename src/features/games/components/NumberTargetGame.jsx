@@ -8,7 +8,10 @@
  *          current level starts a round; cleared nodes show their star.
  *   play — the tap-to-sum board: a 4×4 tile grid, a target that is by
  *          construction the sum of tiles on the board, 20 × combo per
- *          match, a per-level countdown driving the yellow timebar.
+ *          match, the yellow bar filling with the learner's progress
+ *          through the level's fixed set of targets — no countdown
+ *          (PROMPT 7b: difficulty climbs through `tileMax` and the
+ *          target's tile span, never by giving a child less time).
  *   win  — stars, "Level N complete!", the XP + SCORE cards, confetti.
  *
  * The backend contract is UNCHANGED (locked scope): the finished round
@@ -24,7 +27,7 @@
  * bare (no GamesShell chrome), and the ✕ / back controls navigate
  * path ↔ play ↔ /games like the prototype's views.
  */
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../../../shared/styles/learnerTheme.css'
 import '../gamesProto.css'
@@ -42,7 +45,7 @@ import {
   currentLevel,
   fillTiles,
   judgeSelection,
-  levelTimeMax,
+  LEVEL_TARGETS,
   matchGain,
   newTarget,
   nodeStates,
@@ -163,53 +166,39 @@ function PathScreen({ game, progress, onBack, onStart }) {
 /* ── Play screen ───────────────────────────────────────────────── */
 
 function PlayScreen({ level, best, onExit, onEnd }) {
-  const timeMax = useMemo(() => levelTimeMax(level), [level])
   const [{ tiles, target }, setBoard] = useState(() => {
     const board = fillTiles(level)
     return { tiles: board, target: newTarget(board, level) }
   })
   const [sel, setSel] = useState([])
   const [score, setScore] = useState(0)
-  const [time, setTime] = useState(timeMax)
   const [popped, setPopped] = useState([])
   const [combo, setCombo] = useState({ text: '', show: false })
 
   // Round tallies that outlive renders but never draw anything.
   const round = useRef({ combo: 1, peakCombo: 1, matches: 0, busts: 0 })
+  const startedAtRef = useRef(Date.now())
   const timeouts = useRef([])
   const later = (fn, ms) => { timeouts.current.push(setTimeout(fn, ms)) }
   useEffect(() => () => timeouts.current.forEach(clearTimeout), [])
 
-  // Refs mirroring what the countdown needs at expiry — the interval
-  // closure is created once, so it must not read state directly.
+  // Ending the level. `endedRef` is claimed SYNCHRONOUSLY so the last
+  // target can only finish the round once, however many taps land inside
+  // one React batch.
   const endedRef = useRef(false)
-  const scoreRef = useRef(0)
-  useEffect(() => { scoreRef.current = score }, [score])
   const onEndRef = useRef(onEnd)
   useEffect(() => { onEndRef.current = onEnd }, [onEnd])
-
-  useEffect(() => {
-    const iv = setInterval(() => {
-      setTime((t) => {
-        if (t <= 1) {
-          clearInterval(iv)
-          if (!endedRef.current) {
-            endedRef.current = true
-            onEndRef.current({
-              score: scoreRef.current,
-              matches: round.current.matches,
-              busts: round.current.busts,
-              peakCombo: round.current.peakCombo,
-              timeMax,
-            })
-          }
-          return 0
-        }
-        return t - 1
-      })
-    }, 1000)
-    return () => clearInterval(iv)
-  }, [timeMax])
+  const endRound = (finalScore) => {
+    if (endedRef.current) return
+    endedRef.current = true
+    onEndRef.current({
+      score: finalScore,
+      matches: round.current.matches,
+      busts: round.current.busts,
+      peakCombo: round.current.peakCombo,
+      timeSpent: Math.round((Date.now() - startedAtRef.current) / 1000),
+    })
+  }
 
   const tap = (index) => {
     if (endedRef.current) return
@@ -226,13 +215,19 @@ function PlayScreen({ level, best, onExit, onEnd }) {
       setPopped(nextSel)
       setCombo({ text: `${comboNow > 1 ? `Combo ×${comboNow}! ` : 'Nice! '}+${gained}`, show: true })
       later(() => setCombo((c) => ({ ...c, show: false })), 700)
-      later(() => {
-        const fresh = replaceMatched(tiles, nextSel)
-        round.current.combo = comboNow + 1
-        setBoard({ tiles: fresh, target: newTarget(fresh, level) })
-        setSel([])
-        setPopped([])
-      }, 320)
+      // The score is read here, synchronously — `setScore` above is async and
+      // the end-of-round callback must not close over a stale value.
+      if (round.current.matches >= LEVEL_TARGETS) {
+        later(() => endRound(score + gained), 320)
+      } else {
+        later(() => {
+          const fresh = replaceMatched(tiles, nextSel)
+          round.current.combo = comboNow + 1
+          setBoard({ tiles: fresh, target: newTarget(fresh, level) })
+          setSel([])
+          setPopped([])
+        }, 320)
+      }
     } else if (verdict === 'bust') {
       round.current.busts += 1
       playWrong()
@@ -248,12 +243,14 @@ function PlayScreen({ level, best, onExit, onEnd }) {
   return (
     <>
       <div className="lhx-nt-head">
-        <GameTopBar onExit={onExit} time={time} timeMax={timeMax} score={score} />
+        <GameTopBar onExit={onExit} done={round.current.matches} total={LEVEL_TARGETS} score={score} />
         <div className="lhx-nt-goal">
           <div className="lhx-nt-goal-lab">MAKE THIS NUMBER</div>
           <div className="lhx-nt-goal-num">{target}</div>
         </div>
-        <div className="lhx-nt-best">Your best: {best}</div>
+        <div className="lhx-nt-best">
+          Target {Math.min(LEVEL_TARGETS, round.current.matches + 1)} of {LEVEL_TARGETS} · your best: {best}
+        </div>
       </div>
       <div className="lhx-nt-sum" aria-live="polite">
         {sel.length ? <>Your total: <b>{total}</b> / {target}</> : <>Combine tiles to make <b>{target}</b></>}

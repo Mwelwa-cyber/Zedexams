@@ -1,0 +1,373 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ZedExams — Spelling game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--ind:#5b5bd6;--ind-soft:#ececfb;--ink:#1c2333;--muted:#6b7392;--bg:#eef0fb;
+--coral:#ff7a4d;--coral-2:#f4592c;--ok:#1faa6c;--ok-soft:#eaf7f0;--warn:#9a6412;--warn-soft:#fff5e6;
+--danger:#d93a3a;--danger-soft:#fdeceb;--line:#e6e8f5;--r:18px}
+*{box-sizing:border-box}
+body{margin:0;background:#dfe3f5;font-family:Nunito,system-ui,sans-serif;color:var(--ink);padding:22px 14px 50px}
+h1.pt{text-align:center;margin:0 0 4px;font-size:25px}
+p.ps{text-align:center;color:#5a6180;margin:0 0 16px;font-size:13.5px}
+.stage{display:flex;gap:24px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+.phone{width:360px;height:750px;background:var(--bg);border-radius:34px;overflow:hidden;position:relative;
+box-shadow:0 14px 40px rgba(40,44,90,.22);border:7px solid #12142a;display:flex;flex-direction:column}
+.notes{width:360px}
+.note{background:#fff;border-radius:14px;padding:13px 15px;font-size:12.5px;line-height:1.6;color:#4b5270;border-left:4px solid var(--ind);margin-bottom:11px}
+.note b{color:var(--ink)} .note h3{margin:0 0 5px;font-size:13.5px;color:var(--ink)}
+.note.warn{border-left-color:#e0a020} .note code{background:#f2f3fb;border-radius:5px;padding:1px 5px;font-size:11.5px}
+
+/* Prototype control strip — NOT part of the app. It exists so a reviewer can
+   see the rules that scale (decoys by grade, the no-audio fallback) without
+   needing six devices. */
+.rig{max-width:1120px;margin:0 auto 18px;background:#fff;border-radius:14px;padding:12px 15px;
+display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:#4b5270}
+.rig b{color:var(--ink)}
+.rig label{display:flex;gap:6px;align-items:center;font-weight:800}
+.rig select,.rig button{font:inherit;font-weight:800;font-size:12.5px;border-radius:9px;border:1.5px solid var(--line);
+background:#fff;color:var(--ind);padding:6px 10px;cursor:pointer}
+.rig .sep{flex:1}
+.rig .chk{background:var(--ok-soft);color:#12734a;border:1px solid #cfeadd;border-radius:999px;padding:4px 11px;font-weight:800}
+.rig .chk.bad{background:var(--danger-soft);color:#a02a2a;border-color:#f6d4d2}
+
+.top{padding:14px 16px 10px;display:flex;align-items:center;gap:10px}
+.back{width:32px;height:32px;border-radius:10px;background:#fff;border:1px solid var(--line);display:grid;place-items:center;color:var(--ind);font-size:16px;flex:0 0 auto}
+.dots{display:flex;gap:5px;flex:1}
+.dot{height:6px;flex:1;background:#dfe3f5;border-radius:99px}
+.dot.done{background:var(--ok)} .dot.now{background:var(--ind)} .dot.miss{background:#f0b4b1}
+.streak{font-size:12.5px;font-weight:800;color:var(--coral-2);white-space:nowrap}
+.body{padding:8px 16px 16px;flex:1;overflow-y:auto}.body::-webkit-scrollbar{width:0}
+.hero{background:#fff;border-radius:var(--r);padding:18px 16px;text-align:center;margin-bottom:14px}
+.kicker{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.hear{background:var(--ind);color:#fff;border:none;border-radius:16px;padding:15px 22px;font:inherit;font-weight:800;font-size:16px;cursor:pointer;display:inline-flex;align-items:center;gap:9px;min-height:52px}
+.hear:active{transform:scale(.97)}
+.flash{margin-top:10px;font-size:29px;font-weight:900;letter-spacing:3px;color:var(--ind);min-height:22px}
+.flash small{display:block;font-size:11.5px;letter-spacing:0;font-weight:800;color:var(--muted);margin-top:2px}
+.sentence{font-size:13.5px;color:var(--muted);margin-top:13px;line-height:1.55}
+.sentence b{color:var(--ink);background:var(--ind-soft);padding:1px 6px;border-radius:6px}
+.slots{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:16px 0 4px;min-height:52px}
+.slot{width:44px;height:48px;border-radius:11px;background:#fff;border:2px dashed #d3d8ec;display:grid;place-items:center;
+font-size:22px;font-weight:900;color:var(--ink);cursor:pointer;font-family:inherit;padding:0}
+.slot.filled{border-style:solid;border-color:var(--ind);background:var(--ind-soft)}
+.slot.good{border-color:var(--ok);background:var(--ok-soft);color:#12734a}
+.slot.bad{border-color:var(--danger);background:var(--danger-soft);color:#a02a2a}
+.tiles{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;margin:16px 0 6px}
+.tile{width:44px;height:50px;border-radius:12px;background:#fff;border:2px solid var(--line);font:inherit;font-size:21px;font-weight:900;
+color:var(--ink);cursor:pointer;box-shadow:0 2px 0 #ccd2e6;padding:0}
+.tile:active{transform:translateY(2px);box-shadow:none}
+.tile.used{opacity:.25;pointer-events:none}
+.row{display:flex;gap:9px;margin-top:14px}
+.btn{flex:1;padding:14px;border:none;border-radius:14px;font:inherit;font-weight:800;font-size:15px;cursor:pointer;min-height:48px}
+.btn-coral{background:linear-gradient(180deg,var(--coral),var(--coral-2));color:#fff}
+.btn-ghost{background:#fff;color:var(--ind);border:1.5px solid var(--line)}
+.btn[disabled]{background:#dfe2f0;color:#9aa1bd;cursor:default;box-shadow:none}
+.fb{border-radius:15px;padding:14px;margin-top:14px;font-size:14px;line-height:1.6}
+.fb.ok{background:var(--ok-soft);border:1px solid #cfeadd;color:#12734a}
+.fb.no{background:var(--danger-soft);border:1px solid #f6d4d2;color:#a02a2a}
+.fb .t{font-weight:900;font-size:15.5px;margin-bottom:5px}
+.fb .word{font-size:23px;font-weight:900;letter-spacing:2px;color:var(--ink);margin:7px 0}
+.fb .word i{color:var(--danger);font-style:normal;text-decoration:underline}
+.fb small{display:block;color:var(--muted);font-weight:700;font-size:12px;margin-top:4px}
+.pill{display:inline-block;background:var(--warn-soft);color:var(--warn);border:1px solid #f2dcb4;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:800}
+.noclock{background:var(--ok-soft);border:1px solid #cfeadd;border-radius:14px;padding:12px 13px;font-size:12.5px;color:#12734a;font-weight:700;line-height:1.55;margin-bottom:14px}
+.end{text-align:center;padding:16px 4px}
+.big{font-size:44px;font-weight:900;color:var(--ind)}
+.stat{display:flex;gap:9px;margin:14px 0}
+.st{flex:1;background:#fff;border-radius:13px;padding:11px 6px;text-align:center}
+.st .n{font-size:19px;font-weight:900}.st .l{font-size:10.5px;color:var(--muted);font-weight:700;line-height:1.3}
+.tricky{background:#fff;border-radius:var(--r);padding:14px;text-align:left;margin-bottom:12px}
+.tricky h4{margin:0 0 8px;font-size:14px}
+.tw{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14.5px;font-weight:800}
+.tw:last-child{border-bottom:none}
+.tw span{margin-left:auto;font-size:11.5px;font-weight:800;color:var(--muted);text-align:right}
+.log{background:#12142a;color:#c9d2ee;border-radius:var(--r);padding:12px 13px;text-align:left;font-size:11px;
+line-height:1.6;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;max-height:190px;overflow:auto;margin-bottom:12px}
+.log b{color:#ffd25f;font-family:Nunito,sans-serif;font-size:12px;display:block;margin-bottom:5px}
+@media(max-width:800px){.stage{display:block}.phone,.notes{width:100%;max-width:360px;margin:0 auto 24px}}
+</style></head><body>
+
+<h1 class="pt">Spelling game — playable</h1>
+<p class="ps">No countdown anywhere. Tap <b>Hear it</b>, build the word, take as long as you like.</p>
+
+<div class="rig">
+  <label>Grade
+    <select id="grade">
+      <option value="4">4</option><option value="5">5</option><option value="6">6</option>
+      <option value="7" selected>7</option><option value="8">8</option><option value="9">9</option>
+    </select>
+  </label>
+  <span>decoy tiles: <b id="decoyN">3</b> · touch targets <b>44px+</b></span>
+  <button id="mute" type="button">🔇 Simulate no audio</button>
+  <span class="sep"></span>
+  <span id="britch" class="chk">British spelling: checking…</span>
+  <button id="wipe" type="button">Clear saved progress</button>
+</div>
+
+<div class="stage">
+<div class="phone">
+  <div class="top">
+    <div class="back">‹</div>
+    <div class="dots" id="dots"></div>
+    <div class="streak" id="streak">🔥 0</div>
+  </div>
+  <div class="body" id="scr"></div>
+</div>
+
+<div class="notes">
+  <div class="note warn"><h3>Why there's no timer</h3>For spelling, <b>speed is not the skill</b> — accuracy is. A countdown punishes exactly the learners who most need the practice: slower readers, children on cheap phones with laggy touch, anyone who stops to think. They get the worst experience and quit first. Tension here comes from the <b>streak</b> and finishing the set, not a clock. This is the default for every learning game in the engine; a timed mode, if ever wanted, is a separate mode the learner opts into — never the default and never the only option.</div>
+  <div class="note"><h3>Build, don't type</h3>Letter tiles instead of a keyboard. The child still <i>produces</i> the word — which is what makes spelling stick — but a fat-finger typo can't be mistaken for a spelling error, and it works one-handed on a small screen. Tiles are the word's own letters plus decoys, and the <b>decoy count scales by grade</b>: about 2 at Grade 4, about 5 by Grade 9. Change the grade above and watch the tile row.</div>
+  <div class="note"><h3>Hear it first, and never block on audio</h3>The word is spoken and <b>not shown</b> — a sentence with the gap gives context. Listening then producing is the strongest form of the exercise; showing the word turns it into copying. Press <b>Simulate no audio</b> to see the fallback: the word flashes for two seconds and then hides. A round never stops because a voice failed to load.</div>
+  <div class="note"><h3>Wrong answers aren't punished</h3>No lives, no buzzer, no lost points. A miss shows the correct spelling with the wrong letters marked, then that word is <b>requeued three positions later in the same round</b>. Getting it right on the second pass is the whole point of the exercise.</div>
+  <div class="note"><h3>Hints are free</h3>A hint places the next correct letter. It's recorded so "first-time correct" stays honest, and it deducts nothing and breaks nothing. Score is <b>first-time-correct percentage, best streak and words mastered</b> — no time bonus anywhere.</div>
+  <div class="note"><h3>Tricky words are the real feature</h3>Every missed word joins the learner's persistent pool and resurfaces in later rounds on a spaced schedule, mixed in with new words. This prototype keeps that pool in <code>localStorage</code> so you can finish a round, reload the page, and watch the same words come back. A spelling game without this is a quiz; with it, it teaches.</div>
+  <div class="note"><h3>Per-word attempts are recorded</h3>Every attempt logs <code>{word, attempts, hinted, correct}</code>. That is what feeds My Progress, the study plan and the guardian's weekly report — the end screen prints the raw log so you can see exactly what the app would write.</div>
+  <div class="note"><h3>British spelling</h3>ECZ marks British forms — <b>colour, realise, neighbour, favourite</b>, and <b>practise</b> (verb) vs <b>practice</b> (noun). The badge above runs a real check over the word list on load. Pin this in the content rules: generated word lists drift American by default.</div>
+  <div class="note"><h3>Works offline</h3>The round's word list and its audio cache as a unit, so a learner with no data can still play. Every rule above runs with the network off in this prototype — the one request it makes is the web font, which falls back to the system stack, and in the app the font ships in the bundle.</div>
+</div>
+</div>
+
+<script>
+/* ══ CONTENT ═══════════════════════════════════════════════════════════════
+   Words come from the grade's CURRICULUM list, not a generic frequency list,
+   and each carries a context sentence. British spelling throughout. */
+const BANK = [
+  {w:"because",   s:"I was late ___ the bus broke down."},
+  {w:"friend",    s:"My best ___ lives in Kitwe."},
+  {w:"believe",   s:"I ___ you can pass this exam."},
+  {w:"separate",  s:"Please ___ the red beans from the white ones."},
+  {w:"neighbour", s:"Our ___ helped us carry the water."},
+  {w:"February",  s:"The rains are heavy in ___."},
+  {w:"favourite", s:"Nshima is my ___ meal."},
+  {w:"colour",    s:"What ___ is the Zambian flag's eagle?"},
+  {w:"realise",   s:"Did you ___ the shop closes at six?"},
+  {w:"practise",  s:"You must ___ your spelling every day."},
+  {w:"necessary", s:"A pen is ___ for the exam."},
+  {w:"beginning", s:"We start at the ___ of the chapter."}
+];
+
+/* ── British-spelling check (the content rule, as code) ─────────────────────
+   Generated lists drift American, so the check runs over the list rather than
+   being trusted to a review. Verb "practise" vs noun "practice" is the one
+   that needs the sentence, not just the word. */
+const AMERICAN = [
+  [/^(.*)or$/, "colour/-our words"], [/ize$/, "-ise, not -ize"],
+  [/^(color|favorite|neighbor|honor|labor|behavior)$/, "-our spelling"],
+  [/^(realize|organize|recognize|apologize)$/, "-ise spelling"],
+  [/^(center|meter|theater)$/, "-re spelling"],
+  [/^(traveled|canceled|marveled)$/, "double the l"]
+];
+function britishCheck(bank){
+  const bad=[];
+  for(const item of bank){
+    for(const [re,why] of AMERICAN.slice(1)){ if(re.test(item.w)) bad.push(item.w+" — "+why); }
+    // "practice" as a VERB is the American form; the sentence tells us which it is.
+    if(item.w==="practice" && /\b(must|will|should|to)\s+___/.test(item.s)) bad.push("practice — verb takes practise");
+  }
+  return bad;
+}
+
+/* ── Decoys scale by grade: ~2 at Grade 4, ~5 at Grade 9 ────────────────── */
+function decoyCount(grade){
+  const g=Math.min(9,Math.max(4,Number(grade)||7));
+  return Math.round(2 + (g-4)*0.6);   // 4→2, 7→4, 9→5
+}
+
+/* ══ PERSISTENCE — the tricky-word pool and the attempt log ════════════════
+   Both survive a reload, which is the point: the pool is what makes this a
+   teaching tool rather than a quiz. */
+const KEY="zx:spelling:pool", LOGKEY="zx:spelling:log";
+const load=(k,f)=>{try{return JSON.parse(localStorage.getItem(k))??f}catch(e){return f}};
+const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+let pool=load(KEY,{});      // word -> {misses, correct, sessions:[]}
+let attemptLog=load(LOGKEY,[]);
+
+/* ══ ROUND STATE ═══════════════════════════════════════════════════════════ */
+const SESSION=String(Date.now());
+let queue=[], idx=0, streak=0, best=0, done=[], missed=[], firstTry=0, total=0;
+let slots=[], tiles=[], usedHint=false, attempts=0, muted=false, revealTimer=null;
+
+const $=id=>document.getElementById(id);
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+const ttsOn=()=>!muted && typeof speechSynthesis!=="undefined";
+function speak(t){ if(!ttsOn()) return false;
+  try{const u=new SpeechSynthesisUtterance(t);u.rate=.8;u.lang='en-GB';speechSynthesis.cancel();speechSynthesis.speak(u);return true;}catch(e){return false;} }
+
+/* The audio fallback. Never block the round: if the word cannot be SPOKEN it
+   is SHOWN for two seconds and then hidden, which is weaker practice but is
+   still practice. */
+function present(word){
+  clearTimeout(revealTimer);
+  const flash=$('flash'); if(!flash) return;
+  if(speak(word)){ flash.innerHTML=''; return; }
+  flash.innerHTML=word.toUpperCase()+'<small>no voice available — read it, then it hides</small>';
+  revealTimer=setTimeout(()=>{ flash.innerHTML='<small>now spell it</small>'; },2000);
+}
+
+/* A round: new words first, then any of the learner's own tricky words that
+   are due — the spaced return. Six words a round. */
+function buildRound(){
+  const duePool=Object.keys(pool).filter(w=>(pool[w].correct||0)<3);
+  const dueWords=BANK.filter(b=>duePool.includes(b.w)).slice(0,2);
+  const fresh=shuffle(BANK.filter(b=>!dueWords.some(d=>d.w===b.w))).slice(0,6-dueWords.length);
+  return shuffle([...fresh,...dueWords]);
+}
+
+function drawDots(){
+  $('dots').innerHTML = Array.from({length:total},(_,i)=>{
+    const c = i<done.length ? (done[i]?'done':'miss') : (i===done.length?'now':'');
+    return '<div class="dot '+c+'"></div>';}).join('');
+  $('streak').textContent='🔥 '+streak;
+}
+
+function round(){
+  if(idx>=queue.length){return end();}
+  const cur=queue[idx]; usedHint=false; attempts=0;
+  slots=Array(cur.w.length).fill(null);
+  const n=decoyCount($('grade').value);
+  const decoys=shuffle('aeioustrnlbcdm'.split('').filter(c=>!cur.w.toLowerCase().includes(c))).slice(0,n);
+  tiles=shuffle(cur.w.split('').concat(decoys)).map((c,i)=>({c,i,used:false}));
+  drawDots();
+  const seenBefore=pool[cur.w];
+  $('scr').innerHTML=`
+    <div class="noclock">⏱️ No timer. Take as long as you need — getting it right is what counts.</div>
+    <div class="hero">
+      <div class="kicker">Word ${Math.min(total,done.length+1)} of ${total}${seenBefore?' · 📌 one of your tricky words':''}</div>
+      <button class="hear" id="hearBtn" type="button">🔊 Hear it</button>
+      <div class="flash" id="flash"></div>
+      <div class="sentence">${cur.s.replace('___','<b>· · ·</b>')}</div>
+    </div>
+    <div class="slots" id="slots"></div>
+    <div class="tiles" id="tiles"></div>
+    <div class="row">
+      <button class="btn btn-ghost" id="hintBtn" type="button">💡 Hint</button>
+      <button class="btn btn-ghost" id="clrBtn" type="button">↺ Clear</button>
+    </div>
+    <div class="row"><button class="btn" id="chk" disabled type="button">Check</button></div>
+    <div id="fb"></div>`;
+  $('hearBtn').onclick=()=>present(cur.w);
+  $('hintBtn').onclick=hint; $('clrBtn').onclick=clr; $('chk').onclick=check;
+  paint(); present(cur.w);
+}
+
+function paint(){
+  $('slots').innerHTML=slots.map((s,i)=>
+    `<button class="slot ${s?'filled':''}" type="button" data-pull="${i}" aria-label="Slot ${i+1}">${s?s.c:''}</button>`).join('');
+  $('tiles').innerHTML=tiles.map(t=>
+    `<button class="tile ${t.used?'used':''}" type="button" data-put="${t.i}">${t.c}</button>`).join('');
+  $('slots').querySelectorAll('[data-pull]').forEach(el=>el.onclick=()=>pull(+el.dataset.pull));
+  $('tiles').querySelectorAll('[data-put]').forEach(el=>el.onclick=()=>put(+el.dataset.put));
+  const full=slots.every(Boolean);
+  $('chk').disabled=!full; $('chk').className=full?'btn btn-coral':'btn';
+}
+function put(i){const t=tiles.find(x=>x.i===i);if(!t||t.used)return;const k=slots.findIndex(s=>!s);if(k<0)return;slots[k]=t;t.used=true;paint();}
+function pull(i){const s=slots[i];if(!s)return;s.used=false;slots[i]=null;paint();}
+function clr(){slots=slots.map(s=>{if(s)s.used=false;return null;});paint();}
+
+/* A hint places the next CORRECT letter. Recorded, never penalised. */
+function hint(){
+  const cur=queue[idx]; usedHint=true;
+  const k=slots.findIndex((s,i)=>!s||s.c!==cur.w[i]);
+  if(k<0)return;
+  if(slots[k]){slots[k].used=false;slots[k]=null;}
+  const t=tiles.find(x=>!x.used&&x.c===cur.w[k]);
+  if(t){t.used=true;slots[k]=t;}
+  paint();
+}
+
+function record(word,correct){
+  attemptLog.push({word,attempts,hinted:usedHint,correct,session:SESSION});
+  save(LOGKEY,attemptLog);
+}
+
+function check(){
+  const cur=queue[idx], got=slots.map(s=>s.c).join('');
+  const right = got===cur.w;
+  attempts++;
+  record(cur.w,right);
+  if(right){
+    if(!usedHint) firstTry++;
+    streak++; best=Math.max(best,streak); done.push(true);
+    // MASTERY is three corrects in three SEPARATE sessions — three in one
+    // sitting is short-term memory, not mastery.
+    const e=pool[cur.w];
+    if(e){ if(!e.sessions.includes(SESSION)){ e.sessions.push(SESSION); e.correct=(e.correct||0)+1; } save(KEY,pool); }
+    const mastered = e && e.correct>=3;
+    $('fb').innerHTML=`<div class="fb ok"><div class="t">✓ Correct!</div><div class="word">${cur.w}</div>
+      ${usedHint?'<span class="pill">used a hint — recorded, costs nothing</span>':''}
+      ${mastered?'<span class="pill">🎓 mastered — it leaves your tricky words</span>':''}
+      <small>${cur.s.replace('___','<b>'+cur.w+'</b>')}</small></div>
+      <div class="row"><button class="btn btn-coral" id="nextBtn" type="button">Next word →</button></div>`;
+    if(mastered) { delete pool[cur.w]; save(KEY,pool); }
+  }else{
+    streak=0; done.push(false);
+    if(!missed.includes(cur.w))missed.push(cur.w);
+    pool[cur.w]=pool[cur.w]||{misses:0,correct:0,sessions:[]};
+    pool[cur.w].misses++; pool[cur.w].correct=0; pool[cur.w].sessions=[];
+    save(KEY,pool);
+    // Requeue THREE positions later in the SAME round — the second pass is
+    // the exercise, not a punishment.
+    queue.splice(Math.min(idx+3,queue.length),0,cur);
+    total=queue.length;
+    const marked=cur.w.split('').map((c,i)=>got[i]===c?c:'<i>'+c+'</i>').join('');
+    $('fb').innerHTML=`<div class="fb no"><div class="t">Not quite — look again</div>
+      <div style="font-size:13px">You built <b>${got}</b>. It's spelt:</div>
+      <div class="word">${marked}</div>
+      <small>No lives lost. We'll come back to this one in a moment.</small></div>
+      <div class="row"><button class="btn btn-coral" id="nextBtn" type="button">Got it →</button></div>`;
+  }
+  $('nextBtn').onclick=next;
+  drawDots();
+  document.querySelectorAll('.slot').forEach((el,i)=>{el.className='slot filled '+(slots[i].c===cur.w[i]?'good':'bad');});
+  $('chk').disabled=true;
+}
+function next(){idx++;round();}
+
+function end(){
+  const uniques=new Set(queue.map(q=>q.w)).size;
+  const pct=Math.round(firstTry/uniques*100);
+  const stillTricky=Object.keys(pool);
+  $('scr').innerHTML=`
+   <div class="end">
+     <div class="big">${pct}%</div>
+     <div style="font-weight:900;font-size:19px;margin-top:2px">Round finished</div>
+     <div style="color:var(--muted);font-size:13px;margin-top:4px">First-time correct — no rushing needed.</div>
+     <div class="stat">
+       <div class="st"><div class="n">${uniques}</div><div class="l">words</div></div>
+       <div class="st"><div class="n">${best}</div><div class="l">best streak</div></div>
+       <div class="st"><div class="n">${stillTricky.length}</div><div class="l">to practise</div></div>
+     </div>
+     ${stillTricky.length?`<div class="tricky"><h4>📌 Your tricky words</h4>${stillTricky.map(w=>
+        `<div class="tw">${w}<span>${3-(pool[w].correct||0)} more session${3-(pool[w].correct||0)===1?'':'s'} to master</span></div>`).join('')}</div>`:''}
+     <div class="log"><b>Per-word attempts — what the app writes</b>${
+        attemptLog.slice(-14).map(a=>`{word:"${a.word}", attempts:${a.attempts}, hinted:${a.hinted}, correct:${a.correct}}`).join('<br>')
+     }</div>
+     <div class="row"><button class="btn btn-coral" id="again" type="button">Play again</button></div>
+     <div class="row"><button class="btn btn-ghost" type="button">Back to games</button></div>
+   </div>`;
+  $('again').onclick=start;
+  drawDots();
+}
+
+function start(){
+  queue=buildRound(); idx=0; streak=0; best=0; done=[]; missed=[]; firstTry=0; total=queue.length;
+  round();
+}
+
+/* ══ PROTOTYPE RIG ═════════════════════════════════════════════════════════ */
+function refreshDecoy(){ $('decoyN').textContent=decoyCount($('grade').value); }
+$('grade').onchange=()=>{ refreshDecoy(); start(); };
+$('mute').onclick=()=>{ muted=!muted;
+  $('mute').textContent = muted ? '🔊 Restore audio' : '🔇 Simulate no audio';
+  const cur=queue[idx]; if(cur) present(cur.w); };
+$('wipe').onclick=()=>{ pool={}; attemptLog=[]; save(KEY,pool); save(LOGKEY,attemptLog); start(); };
+
+const bad=britishCheck(BANK);
+$('britch').textContent = bad.length ? ('British spelling: '+bad.length+' problem(s) — '+bad[0]) : ('British spelling: '+BANK.length+' words pass ✓');
+$('britch').className = bad.length ? 'chk bad' : 'chk';
+
+refreshDecoy();
+start();
+</script>
+</body></html>

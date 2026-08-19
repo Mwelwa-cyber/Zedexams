@@ -3,9 +3,14 @@
  * redesign step 4): the round starts on mount with the game doc's own
  * words, tapping letters fills the slots, a full set auto-checks —
  * correct pays 20 × combo and advances, wrong shakes and clears for a
- * retry — ⌫ takes back the last letter, and the countdown ending lands
- * on the shared win screen with the round saved through the KEPT
+ * retry — ⌫ takes back the last letter, and finishing the fixed set
+ * lands on the shared win screen with the round saved through the KEPT
  * backend plumbing (saveScore via useGameFinish).
+ *
+ * There is no countdown (PROMPT 7b). The "no clock ever ends the round"
+ * test pins the case this engine existed to fix: a learner mid-way
+ * through building a word used to have the round taken off them, and
+ * their spelling scored as nothing.
  *
  * jsdom has no speechSynthesis, so listen mode never triggers here and
  * every word deterministically shows its clue.
@@ -39,7 +44,7 @@ vi.mock('../lib/gameSounds', () => ({
 
 import WordBuilderGame from './WordBuilderGame'
 import { saveScore, reportGameStart } from '../services/gamesService'
-import { ROUND_SECONDS } from '../lib/wordBuilderCore'
+import { ROUND_WORDS } from '../lib/wordBuilderCore'
 
 // One word, so the on-screen clue is known and the queue recycle path runs.
 const GAME = {
@@ -97,7 +102,7 @@ describe('WordBuilderGame', () => {
       await act(async () => { vi.advanceTimersByTime(700) })
       expect(slots().every((s) => !s.className.includes('is-ok'))).toBe(true)
       expect(tiles().every((t) => !t.disabled)).toBe(true)
-      expect(screen.getByText(/1 spelt · combo ×2/)).toBeInTheDocument()
+      expect(screen.getByText(/Word 2 of 8 · combo ×2/)).toBeInTheDocument()
     } finally {
       vi.useRealTimers()
     }
@@ -127,19 +132,47 @@ describe('WordBuilderGame', () => {
     }
   })
 
-  it('the countdown ending lands on the win screen and saves the round through the kept backend', async () => {
+  it('no clock ever ends the round, and a half-built word is never cut off', async () => {
     vi.useFakeTimers()
     try {
       renderGame()
-      spell('LION')
-      await act(async () => { vi.advanceTimersByTime(700) })
-      await act(async () => { vi.advanceTimersByTime(ROUND_SECONDS * 1000) })
+      // Three letters placed, then ten minutes of thinking about the fourth.
+      // Under the old 60-second countdown the round ended mid-word and this
+      // spelling was scored as nothing. Now the learner simply finishes it.
+      spell('LIO')
+      await act(async () => { vi.advanceTimersByTime(600_000) })
+      expect(screen.queryByText('Word Builder done!')).not.toBeInTheDocument()
+      expect(saveScore).not.toHaveBeenCalled()
+      spell('N')
+      expect(screen.getByText('⭐ 20')).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('finishing the set lands on the win screen and saves the round through the kept backend', async () => {
+    vi.useFakeTimers()
+    try {
+      renderGame()
+      // One word in the doc, so the queue recycles it — which is what lets the
+      // test spell the same word ROUND_WORDS times.
+      for (let i = 0; i < ROUND_WORDS; i += 1) {
+        spell('LION')
+        await act(async () => { vi.advanceTimersByTime(700) })
+      }
       expect(screen.getByText('Word Builder done!')).toBeInTheDocument()
-      expect(screen.getByText(/You spelt 1 word correctly/)).toBeInTheDocument()
+      expect(screen.getByText(/You spelt 8 words correctly/)).toBeInTheDocument()
       expect(saveScore).toHaveBeenCalledTimes(1)
       expect(saveScore.mock.calls[0][0]).toMatchObject({
-        game: GAME, score: 20, correct: 1, wrong: 0, bestStreak: 1, timeSpent: ROUND_SECONDS,
+        // 20 × combo, combo climbing 1…8 across the set.
+        game: GAME, score: 720, correct: 8, wrong: 0, bestStreak: 8,
       })
+      // MEASURED, not a fixed round length: the clock stopped when the round
+      // ended — 650ms into the last word's reveal beat, not at the end of it.
+      // Spelling is the engine where this matters most; a careful speller's
+      // round is simply longer, and nothing about the result penalises that.
+      const endedAtMs = (ROUND_WORDS - 1) * 700 + 650
+      expect(saveScore.mock.calls[0][0].timeSpent).toBe(Math.round(endedAtMs / 1000))
     } finally {
       vi.useRealTimers()
     }

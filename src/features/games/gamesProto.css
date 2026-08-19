@@ -454,8 +454,12 @@
   font-size: 18px; font-weight: 900;
   display: inline-flex; align-items: center; justify-content: center;
 }
-.lhx-nt-timebar { flex: 1; height: 11px; background: rgba(255, 255, 255, 0.22); border-radius: 99px; overflow: hidden; }
-.lhx-nt-timebar i { display: block; height: 100%; width: 100%; background: #ffd25f; border-radius: 99px; transition: width 1s linear; }
+/* Round progress, not a countdown — it FILLS as the fixed set is worked
+   through (PROMPT 7b removed every solo-game clock). Starts empty, so the
+   0%-width rule replaces the countdown bar's 100%. */
+.lhx-nt-progressbar { flex: 1; height: 11px; background: rgba(255, 255, 255, 0.22); border-radius: 99px; overflow: hidden; }
+.lhx-nt-progressbar i { display: block; height: 100%; width: 0; background: #ffd25f; border-radius: 99px; transition: width 0.35s ease-out; }
+@media (prefers-reduced-motion: reduce) { .lhx-nt-progressbar i { transition: none; } }
 .lhx-nt-score { font-weight: 900; font-size: 15px; min-width: 56px; text-align: right; }
 .lhx-nt-goal { text-align: center; }
 .lhx-nt-goal-lab { font-size: 11px; font-weight: 900; letter-spacing: 1.4px; opacity: 0.85; }

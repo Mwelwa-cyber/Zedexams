@@ -3,9 +3,16 @@
  * redesign step 4): the round starts on mount with the game doc's own
  * pairs (words left, meanings shuffled right and never self-solving),
  * tap word → tap meaning locks a match for 20 × combo, a wrong pairing
- * shakes and resets the combo, a cleared board deals the next, and the
- * countdown ending lands on the shared win screen with the round saved
- * through the KEPT backend plumbing (saveScore via useGameFinish).
+ * shakes and resets the combo, a cleared board deals the next, and
+ * clearing the LAST board of the fixed set lands on the shared win
+ * screen with the round saved through the KEPT backend plumbing
+ * (saveScore via useGameFinish).
+ *
+ * There is no countdown (PROMPT 7b), and the last test here is what
+ * pins that: the round is ended by finishing the work, and the saved
+ * `timeSpent` is the learner's MEASURED elapsed seconds rather than a
+ * fixed round length. A clock creeping back in would have to end a
+ * round these tests never finish.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, act, within } from '@testing-library/react'
@@ -36,7 +43,7 @@ vi.mock('../lib/gameSounds', () => ({
 
 import MeaningMatchGame from './MeaningMatchGame'
 import { saveScore, reportGameStart } from '../services/gamesService'
-import { ROUND_SECONDS } from '../lib/meaningMatchCore'
+import { ROUND_BOARDS } from '../lib/meaningMatchCore'
 
 // Two pairs → two-chip boards, so a test can name what is on screen.
 const GAME = {
@@ -90,7 +97,8 @@ describe('MeaningMatchGame', () => {
       // Second pair clears the board — combo ×2 pays 40 more.
       matchPair('1/4', '25%')
       expect(screen.getByText('⭐ 60')).toBeInTheDocument()
-      expect(screen.getByText(/2 matched · combo ×3/)).toBeInTheDocument()
+      // Progress through the set, where the countdown used to be.
+      expect(screen.getByText(/Pair 3 of 8 · combo ×3/)).toBeInTheDocument()
       // 500ms later a fresh board is dealt, chips unlocked.
       await act(async () => { vi.advanceTimersByTime(550) })
       expect(within(wordsCol()).getAllByRole('button').every((b) => !b.disabled)).toBe(true)
@@ -117,19 +125,48 @@ describe('MeaningMatchGame', () => {
     }
   })
 
-  it('the countdown ending lands on the win screen and saves the round through the kept backend', async () => {
+  it('no clock ever ends the round — a learner can sit on one board indefinitely', async () => {
     vi.useFakeTimers()
     try {
       renderGame()
       matchPair('1/2', '50%')
+      // Ten minutes of thinking. Under the old 60-second countdown this round
+      // was over nine minutes ago; now nothing has happened at all.
+      await act(async () => { vi.advanceTimersByTime(600_000) })
+      expect(screen.queryByText('Meaning Match done!')).not.toBeInTheDocument()
+      expect(saveScore).not.toHaveBeenCalled()
+      // And the round is still playable.
       matchPair('1/4', '25%')
-      await act(async () => { vi.advanceTimersByTime(ROUND_SECONDS * 1000 + 600) })
+      expect(screen.getByText('⭐ 60')).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('clearing the last board of the set lands on the win screen and saves through the kept backend', async () => {
+    vi.useFakeTimers()
+    try {
+      renderGame()
+      // Two pairs a board × ROUND_BOARDS boards. The pool recycles, so every
+      // board deals the same two pairs — which is what lets the test name them.
+      for (let board = 0; board < ROUND_BOARDS; board += 1) {
+        matchPair('1/2', '50%')
+        matchPair('1/4', '25%')
+        await act(async () => { vi.advanceTimersByTime(550) })
+      }
       expect(screen.getByText('Meaning Match done!')).toBeInTheDocument()
-      expect(screen.getByText(/You matched 2 pairs/)).toBeInTheDocument()
+      expect(screen.getByText(/You matched 8 pairs/)).toBeInTheDocument()
       expect(saveScore).toHaveBeenCalledTimes(1)
       expect(saveScore.mock.calls[0][0]).toMatchObject({
-        game: GAME, score: 60, correct: 2, wrong: 0, bestStreak: 2, timeSpent: ROUND_SECONDS,
+        // 20 × combo, combo climbing 1…8 across the whole set.
+        game: GAME, score: 720, correct: 8, wrong: 0, bestStreak: 8,
       })
+      // MEASURED, not a fixed round length: the clock stopped when the round
+      // ended — 500ms into the last board's clear beat, not at the end of it.
+      // The number a slower learner produces is simply larger, and nothing
+      // scores on it.
+      const endedAtMs = (ROUND_BOARDS - 1) * 550 + 500
+      expect(saveScore.mock.calls[0][0].timeSpent).toBe(Math.round(endedAtMs / 1000))
     } finally {
       vi.useRealTimers()
     }

@@ -106,7 +106,7 @@ function mountGame(game = GAME) {
 
 /** Start the round — every assertion below is about the playing card. */
 function startRound() {
-  fireEvent.click(screen.getByRole('button', { name: /start sprint/i }))
+  fireEvent.click(screen.getByRole('button', { name: /start round/i }))
 }
 
 const engineCard = () => document.querySelector('.opt-grid')

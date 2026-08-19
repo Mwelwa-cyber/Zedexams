@@ -1,0 +1,399 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ZedExams — break it up coach</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--ind:#5b5bd6;--ind-soft:#ececfb;--ink:#1c2333;--muted:#6b7392;--bg:#eef0fb;
+--coral:#ff7a4d;--coral-2:#f4592c;--ok:#1faa6c;--ok-soft:#eaf7f0;--gold:#f5b820;
+--danger:#d93a3a;--danger-soft:#fdeceb;--warn:#9a6412;--warn-soft:#fff5e6;--line:#e6e8f5;--r:18px}
+*{box-sizing:border-box}
+body{margin:0;background:#dfe3f5;font-family:Nunito,system-ui,sans-serif;color:var(--ink);padding:22px 14px 50px}
+h1.pt{text-align:center;margin:0 0 4px;font-size:25px}
+p.ps{text-align:center;color:#5a6180;margin:0 0 16px;font-size:13.5px}
+
+.rig{max-width:1160px;margin:0 auto 18px;background:#fff;border-radius:14px;padding:12px 15px;
+display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:#4b5270}
+.rig b{color:var(--ink)}
+.rig label{display:flex;gap:6px;align-items:center;font-weight:800}
+.rig select,.rig button{font:inherit;font-weight:800;font-size:12.5px;border-radius:9px;border:1.5px solid var(--line);
+background:#fff;color:var(--ind);padding:6px 10px;cursor:pointer}
+.rig .sep{flex:1}
+.rig .chk{background:var(--ok-soft);color:#12734a;border:1px solid #cfeadd;border-radius:999px;padding:4px 11px;font-weight:800}
+.rig .chk.bad{background:var(--danger-soft);color:#a02a2a;border-color:#f6d4d2}
+
+.stage{display:flex;gap:22px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+.phone{width:352px;height:736px;background:var(--bg);border-radius:34px;overflow:hidden;position:relative;
+box-shadow:0 14px 40px rgba(40,44,90,.22);border:7px solid #12142a;display:flex;flex-direction:column}
+.notes{width:352px}
+.note{background:#fff;border-radius:14px;padding:13px 15px;font-size:12.5px;line-height:1.6;color:#4b5270;border-left:4px solid var(--ind);margin-bottom:11px}
+.note b{color:var(--ink)} .note h3{margin:0 0 5px;font-size:13.5px;color:var(--ink)} .note.warn{border-left-color:#e0a020}
+.note code{background:#f2f3fb;border-radius:5px;padding:1px 5px;font-size:11.5px}
+.top{padding:13px 16px;display:flex;align-items:center;gap:10px;background:#fff;border-bottom:1px solid var(--line);flex:0 0 auto}
+.back{width:31px;height:31px;border-radius:10px;background:var(--bg);display:grid;place-items:center;color:var(--ind);font-size:15px;border:none;font-family:inherit;cursor:pointer}
+.ttl{font-weight:900;font-size:15.5px}
+.step{margin-left:auto;font-size:11px;font-weight:800;color:var(--muted)}
+.body{padding:16px;flex:1;overflow-y:auto}.body::-webkit-scrollbar{width:0}
+.card{background:#fff;border-radius:var(--r);padding:16px;margin-bottom:13px}
+.miss{background:var(--danger-soft);border:1px solid #f6d4d2;border-radius:var(--r);padding:14px;margin-bottom:13px}
+.miss .t{font-weight:900;color:#a02a2a;font-size:14.5px;margin-bottom:4px}
+.miss .y{font-size:13px;color:#a02a2a}
+.miss .y b{font-size:18px;letter-spacing:1px}
+.kicker{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.chunks{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;margin:10px 0 4px}
+.ch{background:var(--ind-soft);border:2px solid #d7d7f5;border-radius:14px;padding:13px 14px;font-size:23px;font-weight:900;
+letter-spacing:1px;cursor:pointer;color:var(--ind);position:relative;font-family:inherit;min-height:48px}
+.ch:active{transform:scale(.96)}
+.ch .sp{font-size:10px;font-weight:800;color:var(--muted);position:absolute;top:-9px;left:50%;transform:translateX(-50%);
+background:#fff;padding:0 5px;border-radius:99px;letter-spacing:0}
+.ch.trap{background:var(--warn-soft);border-color:#f0d59b;color:var(--warn)}
+.strat{display:inline-block;background:var(--ind-soft);color:var(--ind);border-radius:999px;padding:3px 11px;font-size:10.5px;
+font-weight:800;letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px}
+.hook{background:var(--gold);color:#fff;border-radius:15px;padding:13px 14px;margin-top:13px;font-size:14px;line-height:1.55;font-weight:800}
+.hook small{display:block;font-weight:700;opacity:.92;font-size:12px;margin-top:3px}
+.hook u{text-decoration:none;background:rgba(255,255,255,.3);border-radius:5px;padding:0 4px}
+.tip{background:var(--ind-soft);border-radius:14px;padding:12px 13px;font-size:12.5px;color:#43438f;line-height:1.6;margin-top:12px}
+.tip b{display:block;margin-bottom:2px}
+.btn{width:100%;padding:14px;border:none;border-radius:14px;font:inherit;font-weight:800;font-size:15.5px;cursor:pointer;min-height:48px}
+.btn-coral{background:linear-gradient(180deg,var(--coral),var(--coral-2));color:#fff}
+.btn-ghost{background:#fff;color:var(--ind);border:1.5px solid var(--line);font-size:14px;padding:12px}
+.gap{height:9px}
+.slots{display:flex;gap:6px;justify-content:center;margin:14px 0 6px;min-height:50px;flex-wrap:wrap}
+.sl{min-width:46px;height:48px;padding:0 8px;border-radius:12px;background:#fff;border:2px dashed #d3d8ec;display:grid;place-items:center;
+font-size:20px;font-weight:900;color:var(--ink)}
+.sl.f{border-style:solid;border-color:var(--ok);background:var(--ok-soft);color:#12734a}
+.opts{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+.op{background:#fff;border:2px solid var(--line);border-radius:13px;padding:12px 15px;font:inherit;font-size:19px;font-weight:900;
+cursor:pointer;box-shadow:0 2px 0 #ccd2e6;color:var(--ink);min-height:48px}
+.op:active{transform:translateY(2px);box-shadow:none}
+.op.gone{opacity:.25;pointer-events:none}
+.op.wrong{border-color:var(--danger);background:var(--danger-soft);color:#a02a2a;animation:shake .35s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+@media (prefers-reduced-motion: reduce){.op.wrong{animation:none}}
+.prompt{text-align:center;font-size:14.5px;font-weight:800;color:var(--muted);margin-top:6px}
+.prompt b{color:var(--ind)}
+.done{text-align:center;padding:20px 0 6px}
+.big{font-size:30px;font-weight:900;letter-spacing:2px;margin:8px 0}
+.tickc{width:62px;height:62px;border-radius:50%;background:var(--ok-soft);color:var(--ok);display:grid;place-items:center;font-size:29px;margin:0 auto}
+.other{background:#fff;border-radius:var(--r);padding:14px;margin-bottom:12px}
+.other h4{margin:0 0 3px;font-size:13.5px}
+.other .k{font-size:10.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.mini{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px}
+.mc{background:var(--ind-soft);border-radius:9px;padding:6px 9px;font-size:15px;font-weight:900;color:var(--ind)}
+.mc.t{background:var(--warn-soft);color:var(--warn)}
+.od{font-size:12px;color:var(--muted);line-height:1.5}
+.val{background:#12142a;color:#c9d2ee;border-radius:var(--r);padding:13px 14px;font-size:11.5px;line-height:1.7;
+font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.val b{color:#ffd25f;font-family:Nunito,sans-serif;font-size:12.5px;display:block;margin-bottom:6px}
+.val .ok{color:#7fe0b0}.val .no{color:#ff9d8a}
+@media(max-width:820px){.stage{display:block}.phone,.notes{width:100%;max-width:352px;margin:0 auto 24px}}
+</style></head><body>
+
+<h1 class="pt">"Break it up" coach</h1>
+<p class="ps">What a child sees after missing a word. Playable — try it.</p>
+
+<div class="rig">
+  <label>Missed word
+    <select id="pick"></select>
+  </label>
+  <label>Band
+    <select id="band">
+      <option value="older" selected>Grade 5+ (syllables)</option>
+      <option value="young">Grade 1–4 (onset–rime)</option>
+    </select>
+  </label>
+  <span>strategy: <b id="stratLab">—</b></span>
+  <span class="sep"></span>
+  <span class="chk" id="valid">schema: checking…</span>
+  <button id="break" type="button">Break the schema on purpose</button>
+</div>
+
+<div class="stage">
+
+<div class="phone">
+  <div class="top">
+    <button class="back" id="backBtn" type="button">‹</button>
+    <div class="ttl" id="ttl">Let's fix this one</div>
+    <div class="step" id="stepLab">1 of 3</div>
+  </div>
+  <div class="body" id="scr"></div>
+</div>
+
+<div class="phone">
+  <div class="top"><div class="back">‹</div><div class="ttl">Other kinds of cut</div></div>
+  <div class="body" id="kinds"></div>
+</div>
+
+<div class="notes">
+  <div class="note"><h3>Why chunking is the right fix</h3>Nobody spells <b>necessary</b> by remembering nine letters in a row — they hold three or four chunks. Teaching the cut turns an unspellable word into a small, ordered set the child can carry. It also transfers: the cut that fixes <i>separate</i> fixes <i>desperate</i> and <i>celebrate</i> too, which is what the last screen names.</div>
+  <div class="note"><h3>Show, then make them do it, then take the help away</h3>Three steps in this order. The reveal alone teaches almost nothing; the <b>rebuild</b> while the shape is fresh is what does the work; and then the word joins the tricky pool and comes back later <b>with no chunking shown at all</b>. Scaffolding that never fades isn't teaching.</div>
+  <div class="note"><h3>The cut depends on the word, not always syllables</h3>Five strategies — <code>syllables</code>, <code>root+affix</code>, <code>trap</code>, <code>sound-out</code>, <code>family</code> — and younger bands get onset–rime (<code>str | eet</code>) rather than syllables. Switch word in the strip above to see each one; the second phone lists them side by side.</div>
+  <div class="note warn"><h3>Chunks are content, not code</h3>Every word needs a hand-checked <code>chunks</code>, a <code>trap</code> index and a <code>strategy</code>. Generated syllabification is wrong often enough to teach children the wrong break — and a bad memory hook is worse than none. This needs the same approval gate as your notes. The badge above runs the one check that <i>can</i> be automated: <code>chunks.join('') === word</code>, validated on save. Press <b>Break the schema on purpose</b> to watch it fail.</div>
+  <div class="note"><h3>Hooks are optional and rare</h3>"There's <b>a rat</b> in sepa<b>rat</b>e" works because it's true and memorable. Most words don't have one — pick <b>receive</b> or <b>street</b> in the strip and note that no empty gold box is rendered. Leave the field empty rather than inventing something forgettable.</div>
+  <div class="note"><h3>Let them skip</h3>A child who already knows what they did wrong gets <b>"Skip — I've got it"</b> on the first screen. The word still joins their tricky pool; the lesson is never forced.</div>
+</div>
+</div>
+
+<script>
+/* ══ WORD SCHEMA ═══════════════════════════════════════════════════════════
+     chunks    ["sep","a","rate"]   ordered, joining back to the word exactly
+     trap      1                    index of the chunk that catches people (nullable)
+     strategy  "syllables"
+     hook      "There's a rat in sepa-rat-e"   optional, USUALLY EMPTY
+     hookNote  "The middle is an a, not an e."
+     why       "Most people write 'seperate' because they say it fast."
+   Chunk audio uses the same voice as the word. */
+const WORDS = [
+  { word:"separate", got:"seperate", strategy:"syllables", chunks:["sep","a","rate"], trap:1,
+    hook:'There\'s <u>a rat</u> in sepa<u>rat</u>e', hookNote:'The middle is an <b>a</b>, not an e.',
+    why:'Most people write "seperate" because they say it fast.',
+    transfer:["desperate","celebrate","decorate"] },
+
+  { word:"necessary", got:"neccessary", strategy:"syllables", chunks:["nec","ess","ar","y"], trap:1,
+    hook:'One <u>c</u>ollar, two <u>s</u>leeves', hookNote:'One <b>c</b>, two <b>s</b>.',
+    why:'People double the c because they hear it hard.',
+    transfer:["accessory","possession","assessment"] },
+
+  { word:"beginning", got:"begining", strategy:"root+affix", chunks:["begin","n","ing"], trap:1,
+    hook:'', hookNote:'',
+    why:'Short vowel before the ending, so the last letter doubles.',
+    transfer:["running","swimming","forgetting"] },
+
+  { word:"receive", got:"recieve", strategy:"trap", chunks:["rec","ei","ve"], trap:1,
+    hook:'', hookNote:'',
+    why:'After c it is ei, not ie — only one bit of this word is hard.',
+    transfer:["deceive","ceiling","perceive"] },
+
+  { word:"street", got:"stret", strategy:"sound-out", chunks:["str","ee","t"], trap:null,
+    hook:'', hookNote:'',
+    why:'Nothing irregular here — say each sound and write what you hear.',
+    transfer:["stream","strong","screen"] },
+
+  { word:"night", got:"nite", strategy:"family", chunks:["n","ight"], trap:1,
+    hook:'', hookNote:'',
+    why:'The -ight family all look wrong and all spell the same way.',
+    transfer:["light","right","fright"] },
+
+  { word:"colour", got:"color", strategy:"root+affix", chunks:["col","our"], trap:1,
+    hook:'You put <u>our</u> colour in it', hookNote:'British <b>-our</b>, the form ECZ marks.',
+    why:'American lists drop the u, and generated word lists drift American.',
+    transfer:["favourite","neighbour","honour"] }
+];
+
+/* Younger bands cut onset–rime rather than by syllable, so the SAME word can
+   carry a different cut per band. Only the band's own cut is ever shown. */
+const ONSET_RIME = { street:["str","eet"], night:["n","ight"] };
+
+const STRATEGY_LABEL = {
+  "syllables":"Syllables · long words",
+  "root+affix":"Root + ending · suffix rules",
+  "trap":"Just the trap · one hard bit",
+  "sound-out":"Sound it out · regular words",
+  "family":"Word family · learn five at once"
+};
+const STRATEGY_BLURB = {
+  "syllables":"Break it where you'd say it. The trap is marked.",
+  "root+affix":"Teaches the rule, not just the word.",
+  "trap":"Only one bit is hard. Don't chop the whole word — point at the part that catches people.",
+  "sound-out":"Nothing irregular here. Say each sound and write what you hear.",
+  "family":"Same awkward pattern, so learning one carries the rest."
+};
+
+/* ══ VALIDATION — the one check that can be automated ══════════════════════
+   `chunks.join('') === word`, run on save. Everything else about a cut needs
+   a human: a wrong break teaches a child the wrong word. */
+function validateWord(entry){
+  const problems = [];
+  if(!Array.isArray(entry.chunks) || !entry.chunks.length) problems.push('no chunks');
+  else if(entry.chunks.join('') !== entry.word) problems.push(`chunks.join('') is "${entry.chunks.join('')}", not "${entry.word}"`);
+  if(entry.trap != null && (entry.trap < 0 || entry.trap >= (entry.chunks||[]).length)) problems.push('trap index out of range');
+  if(!STRATEGY_LABEL[entry.strategy]) problems.push(`unknown strategy "${entry.strategy}"`);
+  if(entry.hook && !entry.hookNote) problems.push('a hook with nothing explaining it');
+  return problems;
+}
+function validateAll(list){
+  return list.flatMap(e => validateWord(e).map(p => `${e.word}: ${p}`));
+}
+
+/* ══ STATE ═════════════════════════════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+let W = WORDS[0], step = 1, built = [], sabotage = false;
+
+/**
+ * The cut this BAND gets. Below the syllable band a word is cut onset–rime
+ * instead — one word can carry two cuts, and only the band's own cut is ever
+ * shown. A word with no onset–rime cut authored keeps its ordinary one rather
+ * than being split by a rule nobody checked.
+ */
+function chunksFor(entry){
+  return $('band').value === 'young' && ONSET_RIME[entry.word]
+    ? ONSET_RIME[entry.word] : entry.chunks;
+}
+function speak(t){ try{ const u=new SpeechSynthesisUtterance(t); u.rate=.72; u.lang='en-GB';
+  speechSynthesis.cancel(); speechSynthesis.speak(u); }catch(e){} }
+function shuffle(a){ const o=a.slice(); for(let i=o.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[o[i],o[j]]=[o[j],o[i]];} return o; }
+
+function setStep(n){ step = n; $('stepLab').textContent = n <= 3 ? `${n} of 3` : 'done'; }
+
+/* ── 1. the miss, and the offer (which can be declined) ─────────────────── */
+function screen1(){
+  setStep(1);
+  $('ttl').textContent = "Let's fix this one";
+  $('scr').innerHTML = `
+  <div class="miss"><div class="t">Not quite</div>
+    <div class="y">You wrote <b>${W.got}</b> — it's <b>${W.word}</b></div></div>
+  <div class="card" style="text-align:center">
+    <div class="kicker">This one catches everybody</div>
+    <div style="font-size:13.5px;color:var(--muted);line-height:1.6">
+      ${W.strategy === 'trap'
+        ? 'Only one bit of this word is hard. Let me show you which bit.'
+        : W.strategy === 'family'
+        ? 'A whole family of words does this. Learn one and you get the rest.'
+        : 'Long words are easier if you cut them into pieces. Let me show you where to cut this one.'}
+    </div>
+  </div>
+  <button class="btn btn-coral" id="go">✂️ Break it up</button>
+  <div class="gap"></div>
+  <button class="btn btn-ghost" id="skip">Skip — I've got it</button>`;
+  $('go').onclick = screen2;
+  $('skip').onclick = () => screen4(true);
+}
+
+/* ── 2. show the cut ────────────────────────────────────────────────────── */
+function screen2(){
+  setStep(2);
+  $('ttl').textContent = 'Where to cut it';
+  const chunks = chunksFor(W);
+  const noun = chunks.length === 2 ? 'two' : chunks.length === 3 ? 'three' : 'four';
+  $('scr').innerHTML = `
+  <div class="card">
+    <div class="strat">${STRATEGY_LABEL[W.strategy]}</div>
+    <div class="kicker">Cut it into ${noun}</div>
+    <div class="chunks">${chunks.map((c,i) =>
+      `<button class="ch ${i===W.trap?'trap':''}" type="button" data-say="${c}"><span class="sp">${i+1}</span>${c}</button>`).join('')}</div>
+    <div style="text-align:center;font-size:12px;color:var(--muted);margin-top:10px">Tap each piece to hear it — same voice as the word</div>
+    ${W.hook ? `<div class="hook">💡 ${W.hook}<small>${W.hookNote}</small></div>` : ''}
+    <div class="tip"><b>Why people get it wrong</b>${W.why}</div>
+  </div>
+  <button class="btn btn-coral" id="go">Now you build it →</button>`;
+  $('scr').querySelectorAll('[data-say]').forEach(el => el.onclick = () => speak(el.dataset.say));
+  $('go').onclick = screen3;
+  // Read the cut aloud, piece by piece, once.
+  setTimeout(() => chunks.forEach((c,i) => setTimeout(() => speak(c), i*700)), 250);
+}
+
+/* ── 3. make them rebuild it ────────────────────────────────────────────── */
+function screen3(){
+  setStep(3);
+  $('ttl').textContent = 'Put it back together';
+  built = [];
+  const chunks = chunksFor(W);
+  const opts = shuffle(chunks);
+  $('scr').innerHTML = `
+  <div class="card">
+    <div class="kicker">Put it back together</div>
+    <div class="slots" id="sl"></div>
+    <div class="prompt" id="pr"></div>
+    <div class="opts" id="op">${opts.map(c => `<button class="op" type="button" data-c="${c}">${c}</button>`).join('')}</div>
+  </div>
+  <div class="tip" style="margin:0 0 13px"><b>No rush</b>A wrong pick shakes and stays available — nothing is lost, and there is no clock.</div>`;
+  $('op').querySelectorAll('[data-c]').forEach(el => el.onclick = () => tap(el, el.dataset.c));
+  paint3();
+}
+function paint3(){
+  const chunks = chunksFor(W);
+  $('sl').innerHTML = chunks.map((c,i) => `<div class="sl ${built[i]?'f':''}">${built[i]||''}</div>`).join('');
+  const n = built.length;
+  $('pr').innerHTML = n < chunks.length ? `Which piece comes <b>${['first','second','third','fourth'][n]}</b>?` : '';
+}
+function tap(el, c){
+  const chunks = chunksFor(W);
+  if(c === chunks[built.length]){
+    built.push(c); el.classList.add('gone'); speak(c); paint3();
+    if(built.length === chunks.length) setTimeout(() => screen4(false), 450);
+  } else {
+    // Wrong pick: shakes, stays available, costs nothing.
+    el.classList.add('wrong');
+    setTimeout(() => el.classList.remove('wrong'), 500);
+  }
+}
+
+/* ── 4. hand it back to the pool, and name the transfer ─────────────────── */
+function screen4(skipped){
+  setStep(4);
+  $('ttl').textContent = skipped ? 'No problem' : 'You built it';
+  const chunks = chunksFor(W);
+  $('scr').innerHTML = `
+  <div class="done">
+    <div class="tickc">✓</div>
+    <div class="big">${chunks.join('·')}</div>
+    <div style="font-size:19px;font-weight:900">${skipped ? 'No problem' : 'You built it'}</div>
+    <div style="font-size:13px;color:var(--muted);margin-top:5px;line-height:1.55">
+      <b>${W.word}</b> goes on your tricky words.<br>It'll come back on its own — <b>no help next time</b>.</div>
+  </div>
+  <div class="tip" style="margin-top:16px"><b>Same cut works on these</b>${W.transfer.join(' · ')} — all cut the same way.</div>
+  <button class="btn btn-coral" id="go">Back to the round →</button>`;
+  $('go').onclick = screen1;
+}
+
+/* ══ SECOND PHONE — the five strategies side by side ═══════════════════════ */
+function renderKinds(){
+  const byStrategy = {};
+  for(const w of WORDS) if(!byStrategy[w.strategy]) byStrategy[w.strategy] = w;
+  $('kinds').innerHTML = `
+    <p style="font-size:12.5px;color:var(--muted);line-height:1.55;margin:0 0 14px">
+      Syllables aren't always the right cut. The word decides which trick it gets, and the
+      <code style="background:#f2f3fb;border-radius:5px;padding:1px 5px">strategy</code> field on the word is what says so.</p>
+    ${Object.values(byStrategy).map(w => `
+      <div class="other">
+        <div class="k">${STRATEGY_LABEL[w.strategy]}</div>
+        <div class="mini">${w.chunks.map((c,i) => `<span class="mc ${i===w.trap?'t':''}">${c}</span>`).join('')}</div>
+        <div class="od">${STRATEGY_BLURB[w.strategy]} <b>${w.word}</b>${w.hook ? '' : ' — no hook, so no gold box is drawn.'}</div>
+      </div>`).join('')}
+    <div class="other">
+      <div class="k">Younger bands · onset–rime</div>
+      <div class="mini">${ONSET_RIME.street.map(c => `<span class="mc">${c}</span>`).join('')}</div>
+      <div class="od">Below the syllable band the same word is cut onset–rime instead —
+        <b>street</b> is <i>str | eet</i>, not <i>str | ee | t</i>. One word can carry two cuts;
+        only the band's own cut is ever shown. Switch <b>Band</b> in the strip above and open
+        <b>street</b> or <b>night</b>.</div>
+    </div>
+    <div class="val" id="valPanel"></div>`;
+  renderValidation();
+}
+
+function renderValidation(){
+  const list = sabotage
+    ? WORDS.map(w => w.word === 'separate' ? { ...w, chunks:['sep','e','rate'] } : w)
+    : WORDS;
+  const problems = validateAll(list);
+  const panel = $('valPanel');
+  if(panel){
+    panel.innerHTML = `<b>validateWord() — run on save</b>` + (problems.length
+      ? problems.map(p => `<div class="no">✗ ${p}</div>`).join('') +
+        `<div style="margin-top:7px;opacity:.8">Refused. A cut that does not rejoin to the word teaches a spelling nobody uses.</div>`
+      : list.map(w => `<div class="ok">✓ ${w.word} = ${w.chunks.join(" + ")}</div>`).join(''));
+  }
+  $('valid').textContent = problems.length
+    ? `schema: ${problems.length} problem(s) — ${problems[0]}`
+    : `schema: ${list.length} words pass · chunks.join('') === word ✓`;
+  $('valid').className = problems.length ? 'chk bad' : 'chk';
+}
+
+/* ══ PROTOTYPE RIG ═════════════════════════════════════════════════════════ */
+$('pick').innerHTML = WORDS.map((w,i) =>
+  `<option value="${i}">${w.word}${w.hook ? '' : ' (no hook)'}</option>`).join('');
+$('pick').onchange = e => { W = WORDS[+e.target.value]; $('stratLab').textContent = W.strategy; screen1(); };
+$('band').onchange = () => screen1();
+$('backBtn').onclick = () => screen1();
+$('break').onclick = () => {
+  sabotage = !sabotage;
+  $('break').textContent = sabotage ? 'Restore the schema' : 'Break the schema on purpose';
+  renderValidation();
+};
+
+$('stratLab').textContent = W.strategy;
+renderKinds();
+screen1();
+</script>
+</body></html>

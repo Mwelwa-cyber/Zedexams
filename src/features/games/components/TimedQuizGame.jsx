@@ -34,13 +34,13 @@ import {
   accuracyPct,
   advanceDeck,
   correctIndexFor,
-  isTimerDanger,
   optionLetter,
   questionAt,
   ratingStars,
   resolveGameConfig,
+  resolveRoundLength,
+  roundProgressPct,
   shouldCelebrate,
-  timerPct,
 } from '../lib/timedQuizCore'
 import { EMPTY_ROUND, applyPick, roundOutcome } from '../lib/timedQuizRound'
 
@@ -49,15 +49,23 @@ import { EMPTY_ROUND, applyPick, roundOutcome } from '../lib/timedQuizRound'
  *
  * Mechanics:
  *   1. The player sees a "Ready?" splash that explains the rules.
- *   2. On start, the global timer (`game.timer` seconds) begins counting
- *      down. Questions are drawn from a shuffled deck of game.questions.
- *      When the deck runs out, it gets reshuffled — and we make sure the
- *      first question of the new deck is NOT the same as the last question
- *      of the old deck, so nothing ever feels like an immediate repeat.
+ *   2. A round is a FIXED SET of `resolveRoundLength` questions, drawn
+ *      from a shuffled deck of game.questions. When the deck runs out it
+ *      gets reshuffled — and we make sure the first question of the new
+ *      deck is NOT the same as the last question of the old deck, so
+ *      nothing ever feels like an immediate repeat.
  *   3. The score is points-per-correct (`game.points`) minus a small
  *      penalty for wrong answers, with a streak bonus.
- *   4. On time-up the player sees their stats, the leaderboard, and a
- *      sign-in nudge if their score wasn't saved.
+ *   4. On the last question the player sees their stats, the leaderboard,
+ *      and a sign-in nudge if their score wasn't saved.
+ *
+ * There is NO COUNTDOWN (PROMPT 7b). This engine used to run `game.timer`
+ * seconds for the whole round and end it at zero, which meant the score a
+ * learner reached was mostly a function of how fast they read. The round
+ * now ends when the set is finished, so the score is a function of how
+ * many they got right — and `game.timer` no longer counts anything (see
+ * `resolveGameConfig`). Elapsed time is still recorded on the `scores`
+ * document; nothing ranks on it.
  */
 export default function TimedQuizGame({ game }) {
   // The learner's grade, for the daily-challenge lookup at the end of a
@@ -67,6 +75,9 @@ export default function TimedQuizGame({ game }) {
   const learnerGrade = resolveLearnerGrade(userProfile)
   const { points, duration } = resolveGameConfig(game)
   const pool = useMemo(() => game.questions || [], [game.questions])
+  // The round's fixed set — what replaced the clock as the thing that ends
+  // a round. Capped by the pool so the deck never recycles inside one round.
+  const roundLength = useMemo(() => resolveRoundLength(game, pool), [game, pool])
 
   const [phase, setPhase] = useState('ready') // ready | playing | done
   const [seed, setSeed] = useState(0)
@@ -84,7 +95,6 @@ export default function TimedQuizGame({ game }) {
   // arithmetic rather than two copies of it.
   const [round, setRound] = useState(EMPTY_ROUND)
   const { score, correct, wrong, streak, bestStreak } = round
-  const [timeLeft, setTimeLeft] = useState(duration)
   const [saveResult, setSaveResult] = useState(null)
   const [newBadges, setNewBadges] = useState([])
   const [streakResult, setStreakResult] = useState(null)
@@ -261,14 +271,6 @@ export default function TimedQuizGame({ game }) {
     }).score > 0
   }
 
-  // Countdown
-  useEffect(() => {
-    if (phase !== 'playing') return
-    if (timeLeft <= 0) { finish(); return }
-    const t = setTimeout(() => setTimeLeft((s) => s - 1), 1000)
-    return () => clearTimeout(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, timeLeft])
 
   // Auto-advance after a brief reveal beat (simulates quiz feel)
   useEffect(() => {
@@ -281,6 +283,10 @@ export default function TimedQuizGame({ game }) {
   }, [revealedAt])
 
   function advanceToNextQuestion() {
+    // The set is what ends the round now, and it is checked HERE — after the
+    // reveal beat — so the learner always sees the verdict on their last
+    // answer before the done screen replaces it.
+    if (questionNo + 1 >= roundLength) { finish(); return }
     pickedRef.current = null
     setPicked(null)
     setQuestionNo((n) => n + 1)
@@ -310,7 +316,6 @@ export default function TimedQuizGame({ game }) {
     pickedRef.current = null
     setPicked(null)
     setRound(EMPTY_ROUND)
-    setTimeLeft(duration)
     setSaveResult(null)
     setNewBadges([])
     setStreakResult(null)
@@ -429,7 +434,7 @@ export default function TimedQuizGame({ game }) {
     }
   }
 
-  if (phase === 'ready') return <ReadyCard game={game} onStart={start} />
+  if (phase === 'ready') return <ReadyCard game={game} roundLength={roundLength} onStart={start} />
   if (phase === 'done') {
     const accuracy = accuracyPct(correct, wrong)
     return (
@@ -457,11 +462,11 @@ export default function TimedQuizGame({ game }) {
   const poolIndex = poolIndexOf(q)
   const engineQuestion = engineActive ? roundAssessment.questions[poolIndex] : null
   const correctIdx = correctIndexFor(q)
-  const pct = timerPct(timeLeft, duration)
+  const pct = roundProgressPct(questionNo, roundLength)
 
   return (
     <div className="space-y-5">
-      <TimerBar timeLeft={timeLeft} pct={pct} />
+      <RoundBar at={questionNo + 1} total={roundLength} pct={pct} />
 
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <div className="relative">
@@ -542,7 +547,7 @@ export default function TimedQuizGame({ game }) {
 
 /* ── Sub-components ─────────────────────────────────────────────── */
 
-function ReadyCard({ game, onStart }) {
+function ReadyCard({ game, roundLength, onStart }) {
   const { currentUser } = useAuth()
   return (
     <div className="zx-card rounded-[22px] bg-white p-8 sm:p-10 text-center">
@@ -555,7 +560,7 @@ function ReadyCard({ game, onStart }) {
         {game.description}
       </p>
       <ul className="text-sm text-slate-700 max-w-sm mx-auto text-left mb-7 space-y-1.5">
-        <li><b>{game.timer}s</b> on the clock</li>
+        <li><b>{roundLength} questions</b> — no clock, take your time</li>
         <li><b>+{game.points}</b> per correct answer, plus streak bonus points</li>
         <li>Small penalties apply for wrong answers</li>
         {currentUser
@@ -568,7 +573,7 @@ function ReadyCard({ game, onStart }) {
         className="zx-sticker-btn zx-sticker-btn-primary rounded-[14px] px-5 py-3 text-base"
       >
         <BoltIcon className="h-4 w-4" />
-        Start sprint
+        Start round
       </button>
       <p className="mt-5 text-xs text-slate-500">Tip: tap the answer or use the A / B / C / D keys.</p>
     </div>
@@ -631,18 +636,29 @@ function DoneCard({ game, score, correct, wrong, accuracy, bestStreak, saveResul
   )
 }
 
-function TimerBar({ timeLeft, pct }) {
-  const danger = isTimerDanger(timeLeft)
+/**
+ * Where the countdown bar was. It FILLS rather than drains, it counts
+ * questions rather than seconds, and it has no danger state — there is
+ * nothing to be in danger of. `animate-timer-urgent` went with the clock.
+ */
+function RoundBar({ at, total, pct }) {
   return (
     <div className="zx-card-dark flex items-center gap-3 rounded-[22px] px-4 py-3">
-      <div className="flex-1 h-3 rounded-full bg-white/15 overflow-hidden border border-white/10">
+      <div
+        className="flex-1 h-3 rounded-full bg-white/15 overflow-hidden border border-white/10"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={total}
+        aria-valuenow={Math.min(at, total)}
+        aria-label={`Question ${Math.min(at, total)} of ${total}`}
+      >
         <div
-          className={`h-full transition-all ${danger ? 'bg-rose-500' : 'bg-gradient-to-r from-amber-400 to-orange-500'}`}
+          className="h-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all motion-reduce:transition-none"
           style={{ width: `${pct}%` }}
         />
       </div>
-      <div className={`w-16 text-center font-display font-bold text-2xl tabular-nums ${danger ? 'text-rose-300 animate-timer-urgent' : 'text-white'}`}>
-        {timeLeft}s
+      <div className="w-16 text-center font-display font-bold text-lg tabular-nums text-white">
+        {Math.min(at, total)}/{total}
       </div>
     </div>
   )

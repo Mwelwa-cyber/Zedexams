@@ -10,12 +10,13 @@
 import {
   BOARD_PAIRS,
   FALLBACK_PAIRS,
-  ROUND_SECONDS,
+  ROUND_BOARDS,
   dealBoard,
   matchGain,
   meaningOrder,
   pairPool,
   playablePairs,
+  roundPairs,
   roundResult,
   starsForScore,
 } from '../src/features/games/lib/meaningMatchCore.js'
@@ -97,15 +98,23 @@ function mulberry32(seed) {
 assert(matchGain(1) === 20 && matchGain(5) === 100, 'a match pays 20 × combo')
 assert(matchGain(0) === 20, 'combo floors at ×1')
 assert(starsForScore(140) === 3 && starsForScore(60) === 2 && starsForScore(0) === 1, 'star thresholds match the prototype word games')
-assert(ROUND_SECONDS === 60, 'the round is the prototype 60 seconds')
+assert(ROUND_BOARDS === 4, 'a round is four boards — the fixed set that replaced the clock')
+assert(roundPairs(BOARD_PAIRS) === ROUND_BOARDS * BOARD_PAIRS, 'a full round is boards × pairs')
+assert(roundPairs(2) === ROUND_BOARDS * 2, 'a short pair list shrinks the board, not the round')
+assert(roundPairs(0) === ROUND_BOARDS * BOARD_PAIRS, 'a nonsense board size falls back to the full board')
+assert(roundPairs(99) === ROUND_BOARDS * BOARD_PAIRS, 'a board is never bigger than BOARD_PAIRS')
 
 /* ── useGameFinish result mapping ──────────────────────────────── */
 {
   const game = { id: 'math_memory_g6' }
-  const result = roundResult({ game, score: 200, solved: 8, misses: 2, peakCombo: 5 })
+  const result = roundResult({ game, score: 200, solved: 8, misses: 2, peakCombo: 5, timeSpent: 74 })
   assert(result.game === game, 'the game doc rides through untouched')
   assert(result.correct === 8 && result.wrong === 2 && result.accuracy === 80, 'solved/misses map to correct/wrong/accuracy')
-  assert(result.bestStreak === 5 && result.timeSpent === 60, 'peak combo and round length carry over')
+  assert(result.bestStreak === 5, 'peak combo carries over')
+  // MEASURED, never the old fixed 60 — a round takes as long as it takes.
+  assert(result.timeSpent === 74, 'the measured elapsed seconds carry over')
+  assert(roundResult({ game, score: 0, solved: 0, misses: 0, peakCombo: 1 }).timeSpent === 0,
+    'an unmeasured round records 0 seconds rather than inventing a round length')
   const idle = roundResult({ game, score: 0, solved: 0, misses: 0, peakCombo: 1 })
   assert(idle.accuracy === 0, 'an idle round is 0% accuracy, not NaN')
 }
