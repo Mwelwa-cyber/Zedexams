@@ -107,12 +107,20 @@ const FIXTURE = {
   history: [{ gameId: 'g-words', score: 120 }],
   games: [
     { id: 'g-path',  title: 'Number Target', type: 'number_target', grade: 7, subject: 'mathematics', cbc_topic: 'Numbers', points: 15 },
-    { id: 'g-words', title: 'Spell the Animal', type: 'word_builder', grade: 7, subject: 'english', cbc_topic: 'Spelling', points: 15 },
+    // NOTE there is deliberately no `word_builder` pack for grade 7 here.
+    // That mechanic renders as the "Coming soon for Grade 7" row, which is
+    // a row the list has to keep at the same height as every other one —
+    // it is a different component (`UnavailableRow`) reaching for the same
+    // 68px, which is exactly the kind of thing that drifts unmeasured.
     { id: 'g-mean',  title: 'Meaning Match', type: 'memory_match', grade: 7, subject: 'english', cbc_topic: 'Word meanings', points: 15 },
     // The overflow probe. Its mechanic name comes from CATALOGUE_MECHANICS,
     // so the long string is put where the component actually reads a free
     // text value from the doc: the topic.
     { id: 'g-punc',  title: LONG_NAME, type: 'punctuation', grade: 7, subject: 'english', cbc_topic: LONG_NAME, points: 15 },
+    // A pack of a mechanic the learner's grade DOES have, at the wrong
+    // grade. It must not appear at all — nothing here should render it,
+    // and the row-count assertion below would notice a sixth row.
+    { id: 'g-wrong-grade', title: 'Someone else\'s Number Path', type: 'number_target', grade: 4, subject: 'mathematics', cbc_topic: 'Numbers', points: 15 },
   ],
 }
 
@@ -276,6 +284,8 @@ function measure() {
     navBorderTop: navStyle?.borderTopWidth || '0px',
     gameHeights: [...document.querySelectorAll('.lhx-game')].map((el) => el.offsetHeight),
     gameCount: document.querySelectorAll('.lhx-game').length,
+    rowNames: [...document.querySelectorAll('.lhx-game b')].map((el) => el.textContent.trim()),
+    unopenableRows: [...document.querySelectorAll('.lhx-game')].filter((el) => el.tagName !== 'A').length,
     heroGrades: [...document.querySelectorAll('.lhx-gh-hero-grade')].map((el) => el.textContent.trim()),
     barHeight: document.querySelector('.lhx-gh-bar')?.offsetHeight ?? null,
     progressBars: document.querySelectorAll('.lhx-game .lhx-gc-bar, .lhx-game progress, .lhx-game-bar').length,
@@ -417,7 +427,18 @@ try {
 
       // 3. Every game row the same height.
       const heights = new Set(bottom.gameHeights)
-      check(bottom.gameCount >= 5, `${where}: expected the five catalogue rows, found ${bottom.gameCount}`)
+      // Exactly five: four mechanics (one of them the "coming soon"
+      // placeholder) plus the Map Quest teaser. `===` rather than `>=`,
+      // because a cross-grade pack leaking back in would ADD a row.
+      check(bottom.gameCount === 5, `${where}: expected exactly five catalogue rows, found ${bottom.gameCount}`)
+      check(
+        bottom.rowNames.join(' | ') === 'Number Path | Word Builder | Meaning Match | Punctuation Pro | Map Quest',
+        `${where}: the catalogue is not the four mechanics in order plus Map Quest — ${bottom.rowNames.join(' | ')}`,
+      )
+      check(
+        bottom.unopenableRows === 2,
+        `${where}: expected two rows that do not open (Word Builder has no grade-7 pack, Map Quest has no engine), found ${bottom.unopenableRows}`,
+      )
       check(
         heights.size === 1,
         `${where}: game rows are not all the same height — ${JSON.stringify(bottom.gameHeights)}`,

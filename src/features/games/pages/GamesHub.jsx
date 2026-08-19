@@ -38,6 +38,16 @@
  *     saying nothing. The 52px bar carries the title, the streak chip and
  *     the leaderboard button — which is also where the duplicate "🏆
  *     Leaderboard" link from the "Your games" row went.
+ *  6. THE CATALOGUE IS GRADE-SCOPED TOO (2026-08-19, second pass). It had
+ *     the same cross-grade fallback the daily quiz had — "the learner's
+ *     grade, ELSE any pack of this mechanic" — which is how a Grade 7
+ *     learner's hub came to offer "Meaning Match · Mathematics ·
+ *     Fractions, Decimals & Percent", a Grade 6 pack, playable, scoring to
+ *     the same leaderboard as everyone playing their own grade. Now:
+ *     `listGames({ grade })`, a grade-scoped seed fallback, and
+ *     `buildCatalogue`, which refuses another grade's pack outright and
+ *     returns the mechanic with `game: null` so the row can say so. Read
+ *     that function before widening any of it.
  *
  * Data flow is otherwise unchanged: listGames + today's challenge + history
  * + badges + streak, all through Promise.allSettled so one Firestore
@@ -49,11 +59,13 @@ import '../gamesProto.css'
 import { useAuth } from '../../../contexts/AuthContext'
 import { duelAllowed } from '../lib/duelAccess'
 import {
+  buildCatalogue,
   dailyHeroCopy,
   gameMetaLine,
   gameStatusPill,
   isRecentlyAdded,
   resolveLearnerGrade,
+  unavailableRowCopy,
 } from '../lib/gamesHubCore'
 import { GAME_BADGES } from '../../../data/gameBadges'
 import {
@@ -119,7 +131,11 @@ export default function GamesHub() {
     async function load() {
       setState((prev) => ({ ...prev, loading: true }))
       const results = await Promise.allSettled([
-        listGames(),
+        // Grade-scoped in the QUERY, like the daily challenge beside it.
+        // The catalogue rule below refuses another grade's pack anyway, so
+        // this is not the guarantee — it is what stops the hub reading
+        // every grade's games to throw all but one away.
+        listGames({ grade }),
         getTodaysChallenge({ grade }),
         getMyHistory(40),
         getMyGameBadges(),
@@ -135,7 +151,10 @@ export default function GamesHub() {
       setState((prev) => ({
         ...prev,
         loading: false,
-        games: liveGames.length ? liveGames : getFallbackGames(),
+        // The seed fallback is grade-scoped too. An unscoped one would put
+        // every grade's packs back in the pool the catalogue picks from,
+        // which is the door the cross-grade fallback came through.
+        games: liveGames.length ? liveGames : getFallbackGames({ grade }),
         challenge: value(1, null),
         history: value(2, []),
         badgesById: value(3, { byId: {} })?.byId || {},
@@ -162,28 +181,16 @@ export default function GamesHub() {
     return map
   }, [state.history])
 
-  // The catalogue is EXACTLY the four mechanics, one card each, in the
-  // mockup's order: per mechanic, the learner's-grade doc when one exists,
-  // else any active doc of that mechanic, else the bundled seed pack for
-  // it. timed_quiz never lists — it plays through the daily card and the
-  // duel only.
-  //
-  // The seed step is what keeps all four on screen. Before it, a mechanic
-  // the live `games` collection had not been seeded with simply vanished
-  // from the hub — which is how Punctuation Pro came to be missing from a
-  // catalogue the code describes as "exactly four". A seed-backed card is
-  // playable: PlayGame falls back to the same bundled doc by id.
-  const visibleGames = useMemo(() => {
-    const seeded = getFallbackGames()
-    const pick = (pool, type) => {
-      const ofType = pool.filter((g) => g?.type === type)
-      if (!ofType.length) return null
-      return ofType.find((g) => Number(g.grade) === grade) || ofType[0]
-    }
-    return CATALOGUE_MECHANICS
-      .map(({ type }) => pick(state.games, type) || pick(seeded, type))
-      .filter(Boolean)
-  }, [state.games, grade])
+  // The catalogue: EXACTLY the four mechanics, one row each, in the
+  // mockup's order, and never another grade's pack — see `buildCatalogue`,
+  // which owns that rule. timed_quiz never lists; it plays through the
+  // daily card and the duel only.
+  const catalogue = useMemo(() => buildCatalogue({
+    mechanics: CATALOGUE_MECHANICS,
+    games: state.games,
+    seeded: getFallbackGames({ grade }),
+    grade,
+  }), [state.games, grade])
 
   const challengeGame = state.challenge?.game || null
   const streakDays = Number(state.streak?.streak) || 0
@@ -306,29 +313,37 @@ export default function GamesHub() {
           </div>
         ) : (
           <div className="lhx-gh-list">
-            {visibleGames.map((game) => (
-              <GameCard key={game.id} game={game} best={bestByGame.get(game.id) || 0} />
-            ))}
-            {visibleGames.length === 0 && (
-              <p className="lhx-gh-endcap">No games yet — check back soon!</p>
-            )}
-            {/* Map Quest — the mockup's fifth row. It is NOT playable yet,
-                so it is a div rather than a link and its pill reads
-                "Soon". The mockup draws it with a New pill; New is what
-                the other rows use for a game a learner CAN open, and a
-                row that looks openable and is not is worse than a row
-                that says what it is. Same 68px height as the rest. */}
-            <div className="lhx-game" aria-disabled="true">
-              <span className="lhx-game-icon g-map" aria-hidden="true">🗺️</span>
-              <span className="lhx-game-main">
-                <b>Map Quest</b>
-                <span>{gameMetaLine('Social Studies', 'Maps')}</span>
-              </span>
-              <span className="lhx-game-end">
-                <span className="lhx-game-pill is-soon">Soon</span>
-                <span className="lhx-game-chev" aria-hidden="true">›</span>
-              </span>
-            </div>
+            {catalogue.map((entry) => (entry.game ? (
+              <GameCard
+                key={entry.type}
+                game={entry.game}
+                best={bestByGame.get(entry.game.id) || 0}
+              />
+            ) : (
+              // The icon is the MECHANIC's, not the pack's — TYPE_SKIN is
+              // keyed by type — so a grade with no pack still shows the
+              // game it is waiting for rather than a generic tile.
+              <UnavailableRow
+                key={entry.type}
+                name={entry.name}
+                grade={grade}
+                icon={TYPE_SKIN[entry.type]?.emoji}
+                skin={TYPE_SKIN[entry.type]?.cls}
+              />
+            )))}
+            {/* Map Quest — the mockup's fifth row. No engine at all yet,
+                as against a mechanic that has one but no pack for this
+                grade, so it states its own subject and its own reason.
+                The mockup draws it with a New pill; New is what the other
+                rows use for a game a learner CAN open, and a row that
+                looks openable and is not is worse than one that says what
+                it is. */}
+            <UnavailableRow
+              name="Map Quest"
+              icon="🗺️"
+              skin="g-map"
+              meta={gameMetaLine('Social Studies', 'Maps')}
+            />
             <p className="lhx-gh-endcap">More games unlock as you level up 🎉</p>
           </div>
         )}
@@ -363,6 +378,35 @@ function HeroCard({ as: Tag, to, variant, avatar, eyebrow, grade, title, sub, ac
       </span>
       {action && <span className="lhx-gh-hero-btn">{action}</span>}
     </Tag>
+  )
+}
+
+/**
+ * A row for something the learner cannot open yet.
+ *
+ * Two callers with the same shape and different reasons: a catalogue
+ * mechanic with no pack for this grade (`grade` given, copy from
+ * `unavailableRowCopy`), and the Map Quest teaser, which has no engine at
+ * all and states its own subject (`meta` given).
+ *
+ * It is a row rather than an omission on purpose — see `buildCatalogue`.
+ * Structurally identical to `GameCard` so the list keeps one row height;
+ * `aria-disabled` and the absence of a link are what say it does not open.
+ */
+function UnavailableRow({ name, grade, icon, skin, meta }) {
+  const copy = grade == null ? null : unavailableRowCopy(grade)
+  return (
+    <div className="lhx-game" aria-disabled="true">
+      <span className={`lhx-game-icon ${skin || 'g-math'}`} aria-hidden="true">{icon || '🎮'}</span>
+      <span className="lhx-game-main">
+        <b>{name}</b>
+        <span>{meta ?? copy.meta}</span>
+      </span>
+      <span className="lhx-game-end">
+        <span className="lhx-game-pill is-soon">{copy?.pill ?? 'Soon'}</span>
+        <span className="lhx-game-chev" aria-hidden="true">›</span>
+      </span>
+    </div>
   )
 }
 

@@ -10,11 +10,13 @@
 import assert from 'node:assert/strict'
 import {
   NEW_GAME_WINDOW_MS,
+  buildCatalogue,
   dailyHeroCopy,
   gameMetaLine,
   gameStatusPill,
   isRecentlyAdded,
   resolveLearnerGrade,
+  unavailableRowCopy,
 } from './gamesHubCore.js'
 import { LEARNER_GRADES } from '../../../config/curriculum.js'
 
@@ -115,6 +117,96 @@ assert.equal(empty.action, null, 'an empty day must not offer a Play that leads 
 assert.ok(!/streak/i.test(empty.sub), 'do not dangle a streak at a learner who cannot play today')
 assert.deepEqual(dailyHeroCopy(), dailyHeroCopy({ hasQuiz: false }))
 
+/* ── buildCatalogue: the learner's grade, or nothing ───────────────── */
+
+const MECHANICS = [
+  { type: 'number_target', name: 'Number Path' },
+  { type: 'word_builder', name: 'Word Builder' },
+  { type: 'memory_match', name: 'Meaning Match' },
+  { type: 'punctuation', name: 'Punctuation Pro' },
+]
+const pack = (id, type, grade, extra = {}) => ({ id, type, grade, ...extra })
+
+// The exact live shape: a Grade 7 learner, a `memory_match` pack that
+// exists for Grade 6 and not for theirs. Before this, that Grade 6 maths
+// pack was shown under the mechanic's name — "Meaning Match · Mathematics
+// · Fractions, Decimals & Percent" — and opened for them.
+{
+  const rows = buildCatalogue({
+    mechanics: MECHANICS,
+    games: [pack('math_memory_g6', 'memory_match', 6), pack('punc_g7', 'punctuation', 7)],
+    seeded: [],
+    grade: 7,
+  })
+  assert.equal(rows.length, 4, 'every mechanic gets a row, present or not')
+  assert.deepEqual(rows.map((r) => r.type), MECHANICS.map((m) => m.type), 'and in the mockup order')
+
+  const meaning = rows.find((r) => r.type === 'memory_match')
+  assert.equal(meaning.game, null, "a Grade 6 pack is not this learner's Meaning Match")
+  assert.equal(meaning.name, 'Meaning Match', 'the row still names the mechanic it is waiting for')
+
+  assert.equal(rows.find((r) => r.type === 'punctuation').game.id, 'punc_g7')
+  // Not filtered out — a catalogue of "exactly four" that shows two is the
+  // failure this shape exists to avoid.
+  assert.equal(rows.filter((r) => !r.game).length, 3)
+}
+
+// Live doc wins over the seed for the same grade; the seed still backs a
+// mechanic the live collection has not been seeded with.
+{
+  const rows = buildCatalogue({
+    mechanics: MECHANICS,
+    games: [pack('live_np_g7', 'number_target', 7)],
+    seeded: [pack('seed_np_g7', 'number_target', 7), pack('seed_wb_g7', 'word_builder', 7)],
+    grade: 7,
+  })
+  assert.equal(rows.find((r) => r.type === 'number_target').game.id, 'live_np_g7')
+  assert.equal(rows.find((r) => r.type === 'word_builder').game.id, 'seed_wb_g7')
+}
+
+// The seed is checked for grade too. A grade-scoped query says nothing
+// about what the FALLBACK contains, and the fallback is where every
+// grade's packs live.
+{
+  const rows = buildCatalogue({
+    mechanics: MECHANICS,
+    games: [],
+    seeded: [pack('seed_np_g4', 'number_target', 4)],
+    grade: 7,
+  })
+  assert.equal(rows.find((r) => r.type === 'number_target').game, null)
+}
+
+// Firestore hands grades back as strings as readily as numbers, and a
+// string/number mismatch here would silently empty the whole catalogue.
+{
+  const rows = buildCatalogue({
+    mechanics: MECHANICS,
+    games: [pack('g', 'punctuation', '7')],
+    seeded: [],
+    grade: 7,
+  })
+  assert.equal(rows.find((r) => r.type === 'punctuation').game.id, 'g')
+}
+
+// Degenerate inputs answer with a shape rather than throwing: the hub
+// calls this during its loading pass, before any fetch has resolved.
+assert.deepEqual(buildCatalogue(), [])
+assert.equal(buildCatalogue({ mechanics: MECHANICS, grade: 7 }).filter((r) => r.game).length, 0)
+
+/* ── unavailableRowCopy ────────────────────────────────────────────── */
+
+const soon = unavailableRowCopy(7)
+assert.equal(soon.pill, 'Soon')
+assert.match(soon.meta, /Grade 7/)
+// No subject. Three of the four mechanics have an inherent one and
+// `memory_match` does not — its packs are English in one grade and
+// mathematics in another — so naming a subject for a pack that does not
+// exist would be guessing in the one place this module exists to stop it.
+for (const subject of ['Mathematics', 'English', 'Science', 'Social Studies']) {
+  assert.ok(!soon.meta.includes(subject), `the placeholder invented a subject: ${soon.meta}`)
+}
+
 /* ── Copy is written for an 11-year-old ────────────────────────────── */
 
 // "same questions, server keeps score" is engineering reassurance written
@@ -125,6 +217,7 @@ const everyString = [
   ...Object.values(dailyHeroCopy({ hasQuiz: false })),
   gameStatusPill({ best: 10 }).label,
   gameStatusPill({}).label,
+  ...Object.values(unavailableRowCopy(7)),
 ].filter((v) => typeof v === 'string')
 for (const line of everyString) {
   assert.ok(
@@ -133,4 +226,7 @@ for (const line of everyString) {
   )
 }
 
-console.log(`✓ games hub core — grade resolution, meta lines, status pills, hero copy (rollout grade ${rollout})`)
+console.log(
+  '✓ games hub core — grade resolution, catalogue scoping, meta lines, status pills, '
+  + `hero copy (rollout grade ${rollout})`,
+)

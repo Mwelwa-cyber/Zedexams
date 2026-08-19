@@ -202,6 +202,39 @@ describe('GamesHub', () => {
     expect(within(mapQuest).getByText('Soon')).toBeInTheDocument()
   })
 
+  it('never shows another grade\'s pack — the mechanic waits instead', async () => {
+    // The exact live shape of the bug. `word_builder` is the probe on
+    // purpose: the bundled seed has no Grade 4 pack for it (only Grade 3),
+    // so this measures the real fallback against the real seed rather than
+    // against a fixture built to have a hole in it.
+    mocks.listGames.mockResolvedValue([
+      { id: 'g-wb-g6', title: 'Spell the Planet', type: 'word_builder', grade: 6, subject: 'english', cbc_topic: 'Spelling' },
+    ])
+    renderHub()
+
+    const row = (await screen.findByText('Word Builder')).closest('.lhx-game')
+    // The row is still there — a catalogue of "exactly four" that shows
+    // three is the other half of the bug.
+    expect(row).toBeInTheDocument()
+    // …but it does not open, and it carries none of that pack's identity.
+    expect(row.tagName).not.toBe('A')
+    expect(document.querySelector('a[href="/games/play/g-wb-g6"]')).toBeNull()
+    expect(within(row).getByText('Coming soon for Grade 4')).toBeInTheDocument()
+    expect(within(row).getByText('Soon')).toBeInTheDocument()
+    expect(screen.queryByText('Spell the Planet')).toBeNull()
+    expect(screen.queryByText(/English · Spelling/)).toBeNull()
+
+    // The four mechanics are all still listed, in order, plus Map Quest.
+    const names = [...document.querySelectorAll('.lhx-game b')].map((el) => el.textContent)
+    expect(names).toEqual(['Number Path', 'Word Builder', 'Meaning Match', 'Punctuation Pro', 'Map Quest'])
+  })
+
+  it('asks the games list for the learner\'s grade too, not just the daily', async () => {
+    renderHub()
+    await screen.findByText('Play with Zed')
+    expect(mocks.listGames).toHaveBeenCalledWith({ grade: 4 })
+  })
+
   it('offers ONE race card — the live one — and no Race Zed! bot card', async () => {
     renderHub()
     const live = (await screen.findByText('Race a learner')).closest('a')
