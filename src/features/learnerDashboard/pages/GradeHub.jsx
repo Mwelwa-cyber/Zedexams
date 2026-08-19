@@ -758,7 +758,7 @@ export default function GradeHub() {
               )}
               {dailyGoal.total > 0 && (
                 <Link
-                  to="/exams"
+                  to="/daily"
                   className="inline-flex items-center gap-1.5 rounded-full border border-amber-200/70 bg-amber-500/35 px-2.5 py-1 text-xs font-black text-white transition-colors hover:bg-amber-500/45"
                 >
                   <Icon as={TrophyIcon} size="xs" strokeWidth={2.1} />
@@ -795,7 +795,7 @@ export default function GradeHub() {
         {showExamTimetable && <ExamTimetableCard />}
 
         <DashboardActionCard
-          to="/exams"
+          to="/daily"
           className="border-amber-300 bg-[linear-gradient(135deg,#FEF3C7_0%,#FCD34D_55%,#F59E0B_100%)]"
           icon={TrophyIcon}
           iconClassName="bg-amber-500 text-white"

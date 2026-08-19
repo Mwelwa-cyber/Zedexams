@@ -289,7 +289,7 @@ function LeaderboardSection({ attempt, currentUserId }) {
           🏆 Today's Leaderboard
           <span className="theme-text-muted text-sm font-bold">{attempt?.subject}</span>
         </h2>
-        <Link to="/exams/leaderboard" className="text-xs font-bold theme-accent-text hover:opacity-80">
+        <Link to="/daily/leaderboard" className="text-xs font-bold theme-accent-text hover:opacity-80">
           Full →
         </Link>
       </div>
@@ -473,7 +473,7 @@ export default function ExamResultsPage() {
       <div className="theme-card theme-border w-full max-w-sm rounded-3xl border p-8 text-center">
         <p className="text-4xl mb-3">😕</p>
         <p className="font-bold text-red-600">{error || 'Result not found.'}</p>
-        <Link to="/exams" className="theme-accent-fill theme-on-accent mt-4 inline-block rounded-2xl px-5 py-2.5 font-bold text-sm">
+        <Link to="/daily" className="theme-accent-fill theme-on-accent mt-4 inline-block rounded-2xl px-5 py-2.5 font-bold text-sm">
           ← Back to Exams
         </Link>
       </div>
@@ -516,7 +516,7 @@ export default function ExamResultsPage() {
                 ? <VolumeX className="h-4 w-4" aria-hidden="true" />
                 : <Volume2 className="h-4 w-4" aria-hidden="true" />}
             </button>
-            <Link to="/exams" onClick={() => playClick()} className="text-xs font-bold theme-accent-text hover:opacity-80">
+            <Link to="/daily" onClick={() => playClick()} className="text-xs font-bold theme-accent-text hover:opacity-80">
               ← All Exams
             </Link>
           </div>
@@ -601,7 +601,7 @@ export default function ExamResultsPage() {
                   🔍 View Corrections
                 </button>
                 <Link
-                  to="/exams"
+                  to="/daily"
                   onClick={() => playClick()}
                   className="w-full rounded-2xl border-2 theme-border py-3 text-center text-sm font-black theme-text hover:theme-bg-subtle transition-colors"
                 >

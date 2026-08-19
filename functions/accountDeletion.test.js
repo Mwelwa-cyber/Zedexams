@@ -80,6 +80,14 @@ function makeFakeDb(seed) {
       doc: (id) => docRef(col, id),
       where: (field, op, val) => makeQuery(col, [{field, op, val}]),
     }),
+    // A collection group is modelled as a flat pseudo-collection keyed
+    // `__group:<name>`, so the query machinery above serves it unchanged.
+    // The real thing spans every subcollection of that name at any depth;
+    // what matters for this suite is that the purge ISSUES the query and
+    // deletes what comes back.
+    collectionGroup: (group) => ({
+      where: (field, op, val) => makeQuery(`__group:${group}`, [{field, op, val}]),
+    }),
     batch() {
       const ops = [];
       return {
@@ -131,6 +139,16 @@ function makeFakeDb(seed) {
     users: {u1: {email: "a@b.com", displayName: "A"}, u2: {email: "c@d.com"}},
     badges: {u1: {count: 3}},
     learnerStats: {u1: {xp: 100}},
+    // The Daily Quiz attempt (the learner's answers AND the once-a-day lock).
+    dailyAttempts: {
+      "u1_2026-08-20": {uid: "u1", grade: "7", points: 40},
+      "u2_2026-08-20": {uid: "u2", grade: "7", points: 60},
+    },
+    // The weekly board, reachable only by collection group.
+    "__group:entries": {
+      lb_u1: {uid: "u1", displayName: "A", points: 230},
+      lb_u2: {uid: "u2", displayName: "C", points: 410},
+    },
     results: {
       r1: {userId: "u1", score: 5},
       r2: {userId: "u2", score: 9},
@@ -161,6 +179,22 @@ function makeFakeDb(seed) {
   assert.strictEqual(db.store.badges.u1, undefined);
   assert.strictEqual(db.store.learnerStats.u1, undefined);
   assert.ok(db.recursiveDeleted.includes("users/u1"), "users/u1 via recursiveDelete");
+
+  assert.ok(!db.store.dailyAttempts["u1_2026-08-20"], "the learner's daily attempt was purged");
+  assert.ok(db.store.dailyAttempts["u2_2026-08-20"], "another learner's attempt was left alone");
+
+  // The weekly-board row is a SUBCOLLECTION doc carrying the learner's
+  // display name. It is reachable only by collection group — a
+  // `db.collection('leaderboards')` query cannot see it at all — which is
+  // how a child's name would otherwise survive their own account deletion.
+  assert.ok(
+    !db.store["__group:entries"]["lb_u1"],
+    "the departing learner's weekly-board entry was purged",
+  );
+  assert.ok(
+    db.store["__group:entries"]["lb_u2"],
+    "another learner's board entry was left alone",
+  );
 
   // field-query docs gone, others kept
   assert.strictEqual(db.store.results.r1, undefined);

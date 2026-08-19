@@ -20,7 +20,7 @@ for (const p of [
   '/', '/ask-zed', '/exam/x1', '/quiz/q1', '/results/r1',
   '/papers/p1', '/papers/p1/practice', '/papers/p1/quiz',
   '/lessons/l1', '/games/play/g1', '/games/duel', '/games/leaderboard',
-  '/exams/leaderboard', '/timetable/pdf',
+  '/daily', '/daily/leaderboard', '/timetable/pdf',
   '/profile', '/settings', '/settings/profile', '/notifications',
   '/admin', '/admin/users', '/teacher', '/login', '/register', '/pricing',
   // The parent app. Hidden by route as well as by role, so an admin

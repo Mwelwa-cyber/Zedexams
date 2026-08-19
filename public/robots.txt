@@ -11,6 +11,7 @@ Disallow: /quiz/
 Disallow: /quizzes
 Disallow: /lessons
 Disallow: /notes
+Disallow: /daily
 Disallow: /exams
 Disallow: /exam/
 Disallow: /results/

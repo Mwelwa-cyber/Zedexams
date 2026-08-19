@@ -225,7 +225,7 @@ function buildWeeklyPlan({ weakTopics = [], aiNotesOn = false, weekKey }) {
       minutes: 25,
       badge: 'Check',
       action: 'Test',
-      to: '/exams',
+      to: '/daily',
       title: focus => `${focus.subjectLabel} mini test`,
       detail: () => `Finish the week with timed practice and review every missed mark.`,
     },
@@ -407,7 +407,7 @@ export default function TodayStudyPlan({
             : `${dailyGoal.done}/${dailyGoal.total} daily exam${dailyGoal.total === 1 ? '' : 's'} done for ${gradeLabel}.`,
           badge: examDone ? 'Done' : `${dailyGoal.total - dailyGoal.done} left`,
           action: examDone ? 'Review' : 'Start',
-          to: '/exams',
+          to: '/daily',
           done: examDone,
         }
       : {

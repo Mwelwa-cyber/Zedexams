@@ -9,7 +9,7 @@
  * (`scripts/test-question-schema.mjs` rejects lists larger than 20) and
  * past-paper import produces up to 10, so a five-option question printed
  * `undefined` as its fifth letter — on the quiz runner, the results screen, the
- * editor preview and the daily-exam runner.
+ * editor preview and the daily-quiz runner.
  *
  * ## Why a guard and not just a fix
  *
@@ -46,7 +46,7 @@ const DISPLAY_SITES = [
   'src/features/quiz/pages/QuizRunnerV2.jsx',
   'src/features/quiz/pages/QuizResultsV2.jsx',
   'src/features/quizEditor/components/QuizEditorPreviewPanel.jsx',
-  'src/features/dailyExams/pages/DailyExamRunner.jsx',
+  'src/features/dailyQuiz/pages/DailyQuizPage.jsx',
   'src/features/dailyExams/pages/ExamResultsPage.jsx',
 ]
 

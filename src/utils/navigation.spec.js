@@ -54,7 +54,14 @@ describe('isLearnerOnlyPath', () => {
     expect(isLearnerOnlyPath('/notes/FEBUorwhAV471eyS9WdB')).toBe(true)
     expect(isLearnerOnlyPath('/notes/abc?insights=1')).toBe(true)
     expect(isLearnerOnlyPath('/quiz/123')).toBe(true)
-    expect(isLearnerOnlyPath('/exam/42')).toBe(true)
+    expect(isLearnerOnlyPath('/daily')).toBe(true)
+    // `/exam/:id` is no longer learner-only: the Daily Exam rotation was
+    // replaced by the Daily Quiz and the path is now a plain redirect into
+    // /daily, so treating it as learner-only would discard a destination a
+    // teacher is entitled to. `/exam-results/:id` IS still learner-only —
+    // a learner's past attempts outlived the mechanism that produced them.
+    expect(isLearnerOnlyPath('/exam/42')).toBe(false)
+    expect(isLearnerOnlyPath('/exam-results/42')).toBe(true)
     expect(isLearnerOnlyPath('/dashboard')).toBe(true)
   })
 

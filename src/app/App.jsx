@@ -298,14 +298,16 @@ const LibraryItemDetail = lazy(() => import('../features/teacherLibrary/pages/Li
 const PublicShareView = lazy(() => import('../features/teacherLibrary/pages/PublicShareView'))
 
 // Daily Exams (auth required)
-const DailyExamsHub      = lazy(() => import('../features/dailyExams/pages/DailyExamsHub'))
-const DailyExamRunner    = lazy(() => import('../features/dailyExams/pages/DailyExamRunner'))
+// The Daily Quiz replaced the Daily Exam rotation in 2026-08. ExamResultsPage
+// stays mounted so a learner's PAST daily-exam attempts remain readable —
+// retiring the mechanism must not delete their history.
+const DailyQuizPage      = lazy(() => import('../features/dailyQuiz/pages/DailyQuizPage'))
+const DailyQuizLeaderboard = lazy(() => import('../features/dailyQuiz/pages/DailyQuizLeaderboard'))
 const ExamResultsPage    = lazy(() => import('../features/dailyExams/pages/ExamResultsPage'))
 // The prototype-v23 weekly board. It replaced the filter-driven daily
 // page: grade is auto-scoped from the profile (no grade browsing on the
 // child UI) and points accumulate Monday-to-Sunday rather than resetting
 // every night.
-const LearnerLeaderboardPage = lazy(() => import('../features/dailyExams/pages/LearnerLeaderboardPage'))
 
 // Public games (no auth)
 const GamesHub = lazy(() => import('../features/games/pages/GamesHub'))
@@ -318,6 +320,7 @@ const DailyIntro = lazy(() => import('../features/games/pages/DailyIntro'))
 
 // Admin — games seed importer
 const GamesSeedAdmin = lazy(() => import('../features/games/pages/GamesSeedAdmin'))
+const AdminDailyQuizPage = lazy(() => import('../features/adminDailyQuiz/pages/AdminDailyQuizPage'))
 
 // Quiz editor (shared by admin + teacher)
 const EditQuiz = lazy(() => import('../features/quizEditor/pages/EditQuizV2'))
@@ -755,10 +758,11 @@ export default function App() {
             {/* The weekly daily-quiz board. Inside the shell because the
                 mockup keeps the four tabs visible here — it is a place a
                 learner browses to, not an immersive run. */}
-            <Route path="/exams/leaderboard" element={<ProtectedRoute><LearnerOnlyRoute><LearnerLeaderboardPage /></LearnerOnlyRoute></ProtectedRoute>} />
+            <Route path="/daily/leaderboard" element={<ProtectedRoute><LearnerOnlyRoute><DailyQuizLeaderboard /></LearnerOnlyRoute></ProtectedRoute>} />
+            <Route path="/exams/leaderboard" element={<Navigate to="/daily/leaderboard" replace />} />
           </Route>
           <Route path="/dashboard/classic" element={<ProtectedRoute><LearnerOnlyRoute><GradeHub /></LearnerOnlyRoute></ProtectedRoute>} />
-          <Route path="/practice/daily-exams" element={<Navigate to="/exams" replace />} />
+          <Route path="/practice/daily-exams" element={<Navigate to="/daily" replace />} />
           {/* Learn + Practice retired (redesign step 5, locked scope): the
               4-tab IA carries their destinations — subjects on Home,
               lessons/notes/quizzes via Quick Access, daily exams on Home's
@@ -780,8 +784,18 @@ export default function App() {
               (Android WebViews drop external PDF links); the interactive
               /timetable lives in the LearnerLayout group above. */}
           <Route path="/timetable/pdf"     element={<ProtectedRoute><LearnerOnlyRoute><TimetableViewerPage /></LearnerOnlyRoute></ProtectedRoute>} />
-          <Route path="/exams"                        element={<ProtectedRoute><LearnerOnlyRoute><DailyExamsHub /></LearnerOnlyRoute></ProtectedRoute>} />
-          <Route path="/exam/:examId"                element={<ProtectedRoute><LearnerOnlyRoute><DailyExamRunner /></LearnerOnlyRoute></ProtectedRoute>} />
+          {/* The Daily Quiz — five questions, once a day, the same five for
+              every learner in the grade. Outside the shell: it is an
+              immersive run, like the quiz runner. */}
+          <Route path="/daily"                       element={<ProtectedRoute><LearnerOnlyRoute><DailyQuizPage /></LearnerOnlyRoute></ProtectedRoute>} />
+          {/* The Daily Exam rotation it replaced. Old bookmarks and push
+              notifications land on today's quiz rather than a 404 — the
+              destination they wanted still exists, it is just five questions
+              now instead of a whole paper. */}
+          <Route path="/exams"                       element={<Navigate to="/daily" replace />} />
+          <Route path="/exam/:examId"                element={<Navigate to="/daily" replace />} />
+          {/* Kept live, NOT redirected: a past attempt is a learner's own
+              record and the link is the only way back to it. */}
           <Route path="/exam-results/:attemptId"     element={<ProtectedRoute><LearnerOnlyRoute><ExamResultsPage /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/quizzes"           element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><QuizList /></LearnerOnlyRoute></ProtectedRoute>} />
           {/* /practise/:grade/:subjectId (the SubjectDrillDown course map)
@@ -893,6 +907,9 @@ export default function App() {
           <Route path="/admin/papers/new"               element={<AdminRoute><PastPaperStudio /></AdminRoute>} />
           <Route path="/admin/papers/:paperId/edit"     element={<AdminRoute><PastPaperStudio /></AdminRoute>} />
           <Route path="/admin/games-seed"               element={<AdminRoute><GamesSeedAdmin /></AdminRoute>} />
+          {/* The Daily Quiz Generator console — tonight's run, the funnel,
+              tomorrow's preview, bank health and the event log. */}
+          <Route path="/admin/daily-quiz"               element={<AdminRoute><AdminDailyQuizPage /></AdminRoute>} />
           <Route path="/admin/users"                    element={<AdminRoute><AdminUsersList defaultRole="all" /></AdminRoute>} />
           <Route path="/admin/users/:userId"            element={<AdminRoute><AdminUserProfile /></AdminRoute>} />
           <Route path="/admin/teachers"                 element={<AdminRoute><AdminUsersList defaultRole="teacher" /></AdminRoute>} />

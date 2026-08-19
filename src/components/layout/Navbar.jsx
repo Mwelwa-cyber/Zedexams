@@ -55,7 +55,7 @@ export default function Navbar() {
     { to: '/games',      label: 'Games',    icon: Sparkles },
     { to: '/lessons',    label: 'Lessons',  icon: BookOpen },
     { to: '/quizzes',    label: 'Quizzes',  icon: PencilLine },
-    { to: '/exams',      label: 'Exams',    icon: TrophyIcon },
+    { to: '/daily',      label: 'Exams',    icon: TrophyIcon },
     { to: '/my-results', label: 'Results',  icon: BarChart3 },
   ]
   const staffLinks = [
