@@ -802,6 +802,7 @@
     "test:account-deletion-request": "node functions/accountDeletionRequests.test.js",
     "test:analytics-purge": "node functions/analyticsPurge.test.js",
     "test:guardian-consent": "node functions/shared/consent/guardianConsentCore.test.js && node functions/guardianConsent/guardianConsent.test.js",
+    "test:guardian-contact": "node functions/shared/consent/guardianContactCore.test.js",
     "test:shared-consent-neutral": "node functions/shared/consent/neutrality.test.js",
     "test:consent-guard": "node functions/consentGuard.test.js",
     "test:signup-flow": "node scripts/test-signup-flow.mjs",

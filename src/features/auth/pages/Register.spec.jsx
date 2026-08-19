@@ -24,9 +24,12 @@ vi.mock('../../../utils/referrals', () => ({ captureReferralFromUrl: () => null 
 // The age gate calls the retry-cooldown endpoint before routing, and the
 // guardian step calls the consent sender. Stub both; each has its own spec.
 const mockSendGuardianConsent = vi.fn()
+const mockPreviewGuardianConsent = vi.fn()
 vi.mock('../../../utils/ageGateService', () => ({
   recordAgeGateAttempt: vi.fn().mockResolvedValue({ blocked: false }),
   sendGuardianConsentRequest: (...a) => mockSendGuardianConsent(...a),
+  previewGuardianConsentRequest: (...a) => mockPreviewGuardianConsent(...a),
+  startSameDeviceConsent: vi.fn(),
   getDeviceId: () => 'device-test',
 }))
 
@@ -149,7 +152,7 @@ describe('Register — the age screen comes before every sign-up method', () => 
   it('redirects a deep link to the guardian step too — there is no account yet', async () => {
     mount('/register?step=guardian')
     await waitFor(() => expect(screen.getByText(/when were you born/i)).toBeInTheDocument())
-    expect(screen.queryByLabelText(/guardian's email/i)).toBeNull()
+    expect(screen.queryByLabelText(/their phone number/i)).toBeNull()
   })
 
   it('locks a returning learner to their first answer (criterion 5)', async () => {
@@ -257,7 +260,7 @@ describe('Register — minors (criterion 3)', () => {
     // learner the account, and skipping it leaves a working limited-mode one.
     await signUpAsMinor()
     await waitFor(() =>
-      expect(screen.getByRole('heading', { name: /ask a parent or guardian/i })).toBeInTheDocument(),
+      expect(screen.getByRole('heading', { name: /how can we reach your grown-up/i })).toBeInTheDocument(),
     )
     // No dashboard navigation yet — the flow continues on this page.
     expect(mockNavigate).not.toHaveBeenCalled()
@@ -271,22 +274,42 @@ describe('Register — minors (criterion 3)', () => {
     expect(screen.queryByLabelText(/parent or guardian/i)).toBeNull()
   })
 
-  it('sends the approval link and confirms who it went to', async () => {
-    await signUpAsMinor()
-    await waitFor(() => expect(screen.getByLabelText(/guardian's email/i)).toBeInTheDocument())
-    fireEvent.change(screen.getByLabelText(/guardian's email/i), {
-      target: { value: 'parent@example.com' },
+  it('confirms the message before sending it, then says who it went to', async () => {
+    // Nothing goes out until the child has seen the number echoed back and
+    // the message the adult will receive. A mistyped digit is otherwise
+    // invisible to everyone: the child waits, the guardian got nothing.
+    mockPreviewGuardianConsent.mockResolvedValue({
+      ok: true, dryRun: true, channel: 'whatsapp', allowed: true,
+      contactDisplay: '+260 977 123 456',
+      preview: { subject: '', body: 'Hello! Please approve this account.' },
     })
-    fireEvent.click(screen.getByRole('button', { name: /send approval link/i }))
+    mockSendGuardianConsent.mockResolvedValue({
+      ok: true, sent: 'whatsapp_link', contactDisplay: '+260 977 123 456',
+      waLink: 'https://wa.me/260977123456?text=x',
+    })
+    vi.stubGlobal('open', vi.fn())
+
+    await signUpAsMinor()
+    await waitFor(() => expect(screen.getByLabelText(/their phone number/i)).toBeInTheDocument())
+    fireEvent.change(screen.getByLabelText(/their phone number/i), {
+      target: { value: '0977123456' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /send the message/i }))
 
     await waitFor(() =>
+      expect(screen.getByRole('heading', { name: /check this is right/i })).toBeInTheDocument())
+    expect(mockSendGuardianConsent).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: /yes, send it/i }))
+    await waitFor(() =>
       expect(mockSendGuardianConsent).toHaveBeenCalledWith({
-        contact: 'parent@example.com', method: 'email',
+        contact: '0977123456', channel: 'whatsapp',
       }),
     )
-    await waitFor(() => expect(screen.getByText(/you're in/i)).toBeInTheDocument())
-    expect(screen.getByText(/limited mode until your guardian approves/i)).toBeInTheDocument()
-    expect(screen.getByText('parent@example.com')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText(/message sent/i)).toBeInTheDocument())
+    // Waiting is not blocking: the child is told what already works.
+    expect(screen.getByText(/you can use these now/i)).toBeInTheDocument()
+    expect(screen.getByText('+260 977 123 456')).toBeInTheDocument()
   })
 
   it('sends only the date of birth with the signup — no guardian contact yet', async () => {
@@ -339,7 +362,7 @@ describe('Register — an existing account short-circuits (criterion 8)', () => 
     fireEvent.click(screen.getByRole('button', { name: /google/i }))
 
     await waitFor(() =>
-      expect(screen.getByRole('heading', { name: /ask a parent or guardian/i })).toBeInTheDocument(),
+      expect(screen.getByRole('heading', { name: /how can we reach your grown-up/i })).toBeInTheDocument(),
     )
     // And the date reached the account-creating call.
     expect(mockLoginWithGoogle).toHaveBeenCalledWith({

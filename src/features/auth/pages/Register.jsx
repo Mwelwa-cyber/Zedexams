@@ -128,7 +128,9 @@ export default function Register() {
   //   isMinor        — derived from it, for routing only; the account's real
   //                    value is recomputed server-side
   //   accountCreated — auth has succeeded; there is no going back
-  //   guardianEmail  — set once the consent request is away
+  //   guardianContact — who we messaged, set once the request is away
+  //   guardianChannel — whatsapp or email, so a resend goes the same way the
+  //                     first message did
   const [flow, setFlow] = useState(() => readSignupFlow())
   const [lockedDob, setLockedDob] = useState(() => readLockedAgeAnswer())
   const [showPw, setShowPw]           = useState(false)
@@ -493,11 +495,27 @@ export default function Register() {
 
         {/* ── Step: guardian hand-off (minors only, account already made) ─ */}
         {step === STEP.GUARDIAN && (
-          flow.guardianEmail ? (
-            <GuardianConsentSent guardianEmail={flow.guardianEmail} onContinue={finishSignup} />
+          // `guardianEmail` is the pre-WhatsApp key. Read as a fallback so a
+          // sign-up that was mid-flight across the deploy lands back on its
+          // waiting screen instead of being asked for the contact again.
+          (flow.guardianContact || flow.guardianEmail) ? (
+            <GuardianConsentSent
+              guardianContact={flow.guardianContact || flow.guardianEmail}
+              channel={flow.guardianChannel}
+              onContinue={finishSignup}
+              // Where a wrong number is caught. It returns to the contact
+              // screen rather than to a support form, because the fix is
+              // almost always one digit.
+              onChangeContact={() => setFlow(writeSignupFlow({
+                guardianContact: '', guardianChannel: '', guardianEmail: '',
+              }))}
+            />
           ) : (
             <GuardianConsentStep
-              onSent={({ guardianEmail }) => setFlow(writeSignupFlow({ guardianEmail }))}
+              childName={form.displayName}
+              onSent={({ guardianContact, channel }) => setFlow(writeSignupFlow({
+                guardianContact, guardianChannel: channel,
+              }))}
               onSkip={finishSignup}
             />
           )
