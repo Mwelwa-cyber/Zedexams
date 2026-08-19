@@ -49,6 +49,8 @@ import {
   WEDGED as WEDGED_PLAN,
 } from '../hooks/authInitRetryPolicy'
 import { markAuthReady } from '../utils/authReadyGate'
+import { AUTH_HINT_KEY, hasAuthSessionHint, setAuthSessionHint } from '../firebase/authSessionHint'
+import { disarmAuthSessionGuard } from '../firebase/authSessionGuard'
 import {
   shouldTryFallback,
   isContinueUrlError,
@@ -65,31 +67,24 @@ const AuthContext = createContext(null)
 // because it lives in sessionStorage, not React state.
 export const SESSION_EXPIRED_KEY = 'auth:sessionExpired'
 
-// Persisted "this device has a signed-in user" hint. Firebase restores the
-// auth session from IndexedDB asynchronously on cold start, so for the first
-// frames `auth.currentUser` is null even for a returning logged-in user. We
-// drop this flag on sign-in and clear it on sign-out so the router can tell
-// the two cases apart *synchronously* on the very first render: a returning
-// user sees a loader (then their dashboard) instead of a flash of the public
-// marketing page, while a genuinely signed-out visitor still gets Marketing
-// immediately with no spinner. localStorage (not sessionStorage) so it
-// survives the app being fully closed and reopened.
-export const AUTH_HINT_KEY = 'auth:hasSession'
+// The "this device has a signed-in user" hint now lives in
+// firebase/authSessionHint so the boot-session guard can read it without
+// importing this module (which imports firebase/config — the other direction).
+// Re-exported here because App, Login and their specs import it from here.
+export { AUTH_HINT_KEY, hasAuthSessionHint }
 
 // How long one rung of the auth-init retry ladder waits for `authStateReady()`
 // before calling that rung a miss. Short relative to the backoff itself: the
 // point of the rung is the WAIT between attempts, not the attempt, and a probe
 // that outlasts its own backoff would stretch a 12 s ladder into a minute.
 export const AUTH_INIT_PROBE_MS = 2000
-export function hasAuthSessionHint() {
-  try { return localStorage.getItem(AUTH_HINT_KEY) === '1' } catch { return false }
-}
-function setAuthSessionHint(present) {
-  try {
-    if (present) localStorage.setItem(AUTH_HINT_KEY, '1')
-    else localStorage.removeItem(AUTH_HINT_KEY)
-  } catch { /* private mode / quota — fall back to the no-hint behaviour */ }
-}
+
+// How long to wait before re-driving Firebase's initialisation after the guard
+// rescued a session the SDK gave up on. Long enough that a rate limit or a 5xx
+// has a moment to pass — re-asking in the same instant usually re-asks into the
+// same bad window — and short enough that the user is looking at the branded
+// restoration loader rather than wondering what happened.
+export const SESSION_RESCUE_RELOAD_MS = 1500
 
 const functions = getFunctions(app, 'us-central1')
 const bootstrapUserProfileCallable = httpsCallable(functions, 'bootstrapUserProfile')
@@ -1132,6 +1127,65 @@ export function AuthProvider({ children }) {
       }
       disarmFastPath()
       setAuthStateTag('resolved')
+
+      // ── The rescued session ──────────────────────────────────────────────
+      // Firebase's initialisation re-verifies the persisted user over the
+      // network and, on ANY failure that is not a rejected fetch, deletes it
+      // — a rate limit, a 5xx, an attestation refusal, an unmapped server
+      // string. That deletion happens inside the SDK, before this callback,
+      // so it arrives here as an ordinary `user === null`: indistinguishable
+      // from a real sign-out, and the reason a working account was signed out
+      // on reload. `firebase/authSessionGuard` refuses that deletion unless
+      // the server actually rejected the credential, and says so here.
+      //
+      // Read-once: disarming returns the outcome AND clears it, so a later
+      // deliberate sign-out on this same listener can never be mistaken for a
+      // rescue (see disarmAuthSessionGuard).
+      const { preserved: sessionRescued, verdict: rescueVerdict } = disarmAuthSessionGuard()
+      if (!user && sessionRescued && hasAuthSessionHint()) {
+        const storage = typeof window !== 'undefined' ? window.sessionStorage : null
+        // One attempt per episode, on the SAME flag the wedge recovery uses.
+        // The stored session is still on disk, and re-driving initialisation
+        // is the only way to make the SDK read it again — but a condition that
+        // outlives one retry must not reload forever, and /login is a better
+        // outcome than a loop. Falling through leaves today's behaviour
+        // exactly as it is, which is what makes the worst case the status quo.
+        if (!readRecoveryAttempted(storage) && markRecoveryAttempted(storage)) {
+          setAuthStateTag('wedged')
+          reportAuthInitFailure({
+            action: 'session-rescued',
+            viaFastPath: false,
+            documentHidden: typeof document !== 'undefined' && document.visibilityState === 'hidden',
+            hidDuringInit,
+            recoveryAttempted: false,
+            attempt: retryAttempt,
+            errorCode: `boot-verdict-${rescueVerdict ?? 'not-observed'}`,
+          })
+          console.warn(
+            '[auth] the stored session survived a failed boot check — re-driving initialisation',
+            { verdict: rescueVerdict ?? 'not-observed' },
+          )
+          // `loading` and `authReady` are deliberately left as they are, so the
+          // guards keep showing the branded restoration screen rather than
+          // flashing /login for a second and a half.
+          setTimeout(() => {
+            if (disposedRef.current) return
+            try {
+              window.location.reload()
+            } catch (err) {
+              // A reload we cannot perform would leave the user on the
+              // restoration loader indefinitely. Falling back to the normal
+              // signed-out reveal is the worse outcome of the two, not the
+              // worst one.
+              console.error('[auth] session-rescue reload failed:', err)
+              revealAsSignedOut()
+            }
+          }, SESSION_RESCUE_RELOAD_MS)
+          return
+        }
+        console.warn('[auth] boot check failed again after a rescue — revealing as signed out')
+      }
+
       clearRecoveryAttempted(typeof window !== 'undefined' ? window.sessionStorage : null)
       // Firebase has actually spoken. Set HERE and nowhere else — in particular
       // NOT by the watchdog above, which drops `loading` without knowing who

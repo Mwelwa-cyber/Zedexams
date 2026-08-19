@@ -19,6 +19,7 @@ import { getStorage } from 'firebase/storage'
 import { isNativePlatform } from '../utils/runtime'
 import { resolveAuthDomain } from './authDomain'
 import { hardenAuthPersistenceLifecycle } from './authPersistenceLifecycle'
+import { installAuthSessionGuard } from './authSessionGuard'
 
 const firebaseConfig = {
   apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
@@ -55,6 +56,18 @@ if (missingConfigKeys.length) {
 }
 
 const app = initializeApp(firebaseConfig)
+
+// Arm the boot-session guard BEFORE getAuth(), and that order is the whole
+// point: getAuth() starts the SDK's initialisation, which re-verifies the
+// persisted user over the network and DELETES it on any failure that is not a
+// rejected fetch — a rate limit, a 5xx, an attestation refusal, an unmapped
+// server string. That deletion is what signs a working account out on reload.
+// The guard refuses it unless the server actually rejected the credential.
+// See ./authBootVerdict.js for the classification and why it errs toward
+// keeping the session.
+installAuthSessionGuard({
+  persistences: [indexedDBLocalPersistence, browserLocalPersistence],
+})
 
 export const auth    = getAuth(app)
 // Firestore offline persistence (audit A1.1) is configured here via the

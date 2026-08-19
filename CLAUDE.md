@@ -1217,6 +1217,64 @@ prefixes and deletes whatever landed. Three things worth knowing:
 
 `firebase/config.js` enables `enableMultiTabIndexedDbPersistence` so the app survives offline and shares cache across tabs. Failures (Safari < 15, private mode, quota) are non-fatal — code paths must still handle a fresh-fetch round-trip. Firestore writes queue while offline and replay on reconnect.
 
+### The SDK deletes a working session at boot, and we refuse it (2026-08-19)
+
+On every cold start Firebase Auth re-verifies the persisted user before it will
+hand it back, and `reloadAndSetCurrentUserOrClear` keeps the session for
+**exactly one** error — `auth/network-request-failed`, which is raised only when
+the `fetch` itself rejects. Every other outcome deletes
+`firebase:authUser:*` from IndexedDB before `onAuthStateChanged` has fired once:
+a 429 (`TOO_MANY_ATTEMPTS_TRY_LATER`, and the limit is **per project**), a 5xx,
+a 403 from App Check or an API-key restriction, a 200 whose `users` array is
+empty (`auth/internal-error`), or any server string the SDK has no mapping for.
+
+None of those is a statement about the credential, all are transient, and
+because the rate limit is project-wide they hit admins, teachers and learners in
+the same window. That is the reported bug: reload signs you out, and a session
+left alone drops on its own when the next refresh lands badly.
+
+**The app's own policy never got to run.** `hooks/authInitRetryPolicy.js` argues
+carefully that network failures, rate limits and timeouts must keep the stored
+user — and the SDK had already destroyed it, so the failure arrived as an
+ordinary `user === null`, indistinguishable from a real sign-out.
+
+Note what #2480 (the `visibilitychange` persistence patch,
+`authPersistenceLifecycle.js`) did and did not fix. PYTHON-K's stack is
+`_openDb` throwing **inside `removeCurrentUser`** — the SDK had *already* decided
+to clear. That patch stopped the crash during the removal; it turned a wedged
+loader into a clean logout. The decision to clear is this section.
+
+- **`firebase/authBootVerdict.js`** (pure, `test:auth-boot-verdict`) classifies
+  the one exchange that decides it — `securetoken/v1/token` and
+  `identitytoolkit/v1/accounts:lookup` — as `ok` / `terminal` /
+  `infrastructural`. Only a recognised server verdict on the credential
+  (`TOKEN_EXPIRED`, `USER_DISABLED`, `USER_NOT_FOUND`, …) is terminal;
+  **unknown is not dead**, the same rule the retry ladder already states.
+- **`firebase/authSessionGuard.js`** (`test:auth-session-guard`) is the
+  mechanism: a fetch observer that classifies those responses (on a `clone()`,
+  never the body the SDK needs), and a `_remove` guard on both persistence
+  classes that no-ops a deletion of the persisted-user key when the verdict was
+  not terminal. **Installed before `getAuth()`** in `firebase/config.js` — that
+  order is load-bearing, since `getAuth()` starts the initialisation being
+  guarded.
+- **Both live only in the boot window** — module load to the first
+  `onAuthStateChanged`. After it, ordinary sign-outs, another tab signing out
+  and account deletion clear storage exactly as before, and `window.fetch` is
+  the browser's own function again. `disarmAuthSessionGuard()` returns the
+  outcome **and clears it**: a `preserved` flag left standing would still read
+  true when the user later taps "Log out", and the provider would answer a
+  deliberate sign-out by reloading them back in.
+- **Refusing the removal does not put the user back** — the SDK's in-memory
+  `currentUser` is already null. It keeps the session on disk so `AuthContext`
+  can re-drive initialisation once (`SESSION_RESCUE_RELOAD_MS`, behind the same
+  one-shot `auth:initRecoveryAttempted` flag the wedge recovery uses), holding
+  the branded restoration screen rather than flashing /login. If the condition
+  outlives that, the user signs in — which is today's behaviour. **The worst
+  case is the status quo**, and that property is deliberate.
+- Telemetry is its own event: `Auth boot check failed — stored session rescued`
+  at `warning` with `auth.session_rescued`, so it never merges into PYTHON-N
+  ("Auth initialisation never completed"), which is a different failure.
+
 ### Passkey (WebAuthn) sign-in — REMOVED 2026-08-17
 
 The passkey feature was removed in full on owner instruction: the login button, the Passkeys section in all three role security panels, the client service (`src/services/passkeyService.js` + `passkeyRegionCore.js`), the eleven callables (seven `us-central1` + four `africa-south1` twins), `functions/passkeys/`, the `@simplewebauthn/*` packages, the admin feature-flag toggle, and `docs/PASSKEYS.md`. Google + email/password sign-in are untouched. Three deliberate leftovers: (1) the four Firestore collections (`passkeyCredentials`, `webauthnChallenges`, `passkeyUserHandles`, `passkeyAuditLog`) keep their **deny-all match blocks** in `firestore.rules` so legacy data written while the feature was live stays server-only — do not open or delete those blocks while data remains; (2) `accountDeletion.js` still purges those collections so legacy credentials leave with their account; (3) the out-of-band GCP TTL policy on `webauthnChallenges.expiresAt` can be deleted at any time (challenges lived 5 minutes). Re-adding passkeys is a new design decision, not a revert.
