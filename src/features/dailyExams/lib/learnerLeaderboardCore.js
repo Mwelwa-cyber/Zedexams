@@ -167,11 +167,17 @@ export function aggregateWeek(attempts = []) {
       points: 0,
       percentageTotal: 0,
       attempts: 0,
+      timeTakenSeconds: 0,
       days: new Set(),
     }
     cur.points += Number(a.score) || 0
     cur.percentageTotal += Number(a.percentage) || 0
     cur.attempts += 1
+    // Summed only to break ties (see `rankBoard`). Never displayed, never
+    // added to points. A missing value counts as 0, which is the kindest
+    // reading: an attempt whose duration was never recorded cannot be used
+    // against the learner.
+    cur.timeTakenSeconds += Number(a.timeTakenSeconds) || 0
     if (a.attemptDate) cur.days.add(a.attemptDate)
     // Keep the longest name seen: attempts written before a learner set a
     // display name carry the fallback, and the fuller one is the better label.
@@ -185,6 +191,7 @@ export function aggregateWeek(attempts = []) {
     points: u.points,
     percentageTotal: u.percentageTotal,
     attempts: u.attempts,
+    timeTakenSeconds: u.timeTakenSeconds,
     activeDays: u.days.size,
   }))
 }
@@ -194,9 +201,21 @@ export function aggregateWeek(attempts = []) {
  *
  * Ties break on total percentage (accuracy beats volume when the marks
  * land equal), then on attempts ASC (fewer sittings for the same points is
- * the better week), then on userId so the order is TOTALLY deterministic.
- * Without that last key two learners level on every measure could swap
- * places between renders, which reads as the board glitching.
+ * the better week), THEN on total time taken ASC, then on userId so the
+ * order is TOTALLY deterministic. Without that last key two learners level
+ * on every measure could swap places between renders, which reads as the
+ * board glitching.
+ *
+ * TIME IS A TIE-BREAK AND NOTHING ELSE, and its position in that list is the
+ * guarantee. The daily quiz has no countdown and awards no speed bonus; a
+ * learner who takes twice as long and answers better always outranks a fast
+ * one, because points and accuracy are both read first. Time only decides
+ * between two learners who are otherwise identical — which is what it is
+ * for, and it beats deciding that on a user id.
+ *
+ * The board never SHOWS this number. A learner reading "you were 40 seconds
+ * slower" learns that hurrying pays, which is the belief the countdown
+ * removal exists to undo.
  */
 export function rankBoard(rows = [], myUid = null) {
   return [...rows]
@@ -204,6 +223,7 @@ export function rankBoard(rows = [], myUid = null) {
       (b.points - a.points)
       || (b.percentageTotal - a.percentageTotal)
       || (a.attempts - b.attempts)
+      || ((a.timeTakenSeconds || 0) - (b.timeTakenSeconds || 0))
       || String(a.userId).localeCompare(String(b.userId)),
     )
     .map((row, i) => ({
@@ -234,6 +254,7 @@ export function withMyRow(rows = [], me) {
       points: 0,
       percentageTotal: 0,
       attempts: 0,
+      timeTakenSeconds: 0,
       activeDays: 0,
     },
   ]

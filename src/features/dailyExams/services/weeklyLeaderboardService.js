@@ -45,6 +45,10 @@ function toRow(doc) {
     displayName: d.displayName || '',
     score: d.score ?? 0,
     percentage: d.percentage ?? 0,
+    // The ONLY thing elapsed time is used for on this surface: breaking a tie
+    // between learners level on points and accuracy. It is never added to a
+    // score, never shown as a rank reason, and never awarded for.
+    timeTakenSeconds: d.timeTakenSeconds ?? 0,
     attemptDate: d.attemptDate || '',
   }
 }

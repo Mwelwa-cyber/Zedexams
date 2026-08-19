@@ -100,9 +100,17 @@ function gradeAttempt({attempt, questions, answers, nowMs}) {
   const percentage = totalMarks > 0 ? Math.round((score / totalMarks) * 100) : 0;
   const startMs = Number.isFinite(attempt.startedAtMs) ? attempt.startedAtMs : (nowMs - 60_000);
   // Cap the submission instant at the attempt deadline so an abandoned
-  // exam auto-submitted hours later can't record an inflated duration.
+  // exam submitted hours later can't record an inflated duration.
   // endTimeMs must be server-derived (startedAt + quiz duration) — never
   // the client-written attempt.endTime, which follows the device clock.
+  //
+  // The daily quiz no longer HAS a countdown (see DailyExamRunner), so this is
+  // no longer a deadline anyone can hit — it is purely a sanity cap on the one
+  // number elapsed time is still used for: breaking ties on the weekly
+  // leaderboard. A learner who genuinely takes longer than the paper's nominal
+  // duration saturates at the cap and ties with everyone else who did, which
+  // is the right failure: the cap is there so an attempt left open overnight
+  // does not record eight hours, not to rank the slow.
   const submitMs = Number.isFinite(attempt.endTimeMs) ? Math.min(nowMs, attempt.endTimeMs) : nowMs;
   const timeTakenSeconds = Math.max(0, Math.round((submitMs - startMs) / 1000));
 

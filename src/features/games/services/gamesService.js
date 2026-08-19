@@ -154,8 +154,17 @@ export function reportGameStart(game) {
 /**
  * Save a completed-game score. Only works when the user is signed in.
  * Returns { ok, id?, skipped?, reason? }.
+ *
+ * `endedBy` is ANALYTICS ONLY — it never reaches the `scores` document,
+ * because `buildGameScorePayload` picks its fields explicitly. It exists
+ * because deleting the countdowns deleted the "timed out" outcome with them,
+ * and PROMPT 7b asks for the change to be measured: the question worth
+ * answering now is whether learners FINISH a set or stop part-way, which is
+ * what `game_started` → `game_completed{endedBy}` measures. Values:
+ * `set_complete` (the default — the round ran out of items) and `ended_early`
+ * (the learner chose to stop).
  */
-export async function saveScore({ game, score, accuracy, timeSpent, correct, wrong, bestStreak, displayName }) {
+export async function saveScore({ game, score, accuracy, timeSpent, correct, wrong, bestStreak, displayName, endedBy = 'set_complete' }) {
   const user = auth.currentUser
   if (!user) return { ok: false, skipped: true, reason: 'not_signed_in' }
   if (!game || !game.id) return { ok: false, reason: 'no_game' }
@@ -202,6 +211,7 @@ export async function saveScore({ game, score, accuracy, timeSpent, correct, wro
       accuracy: typeof accuracy === 'number' ? accuracy : null,
       timeSpent: typeof timeSpent === 'number' ? timeSpent : null,
       bestStreak: typeof bestStreak === 'number' ? bestStreak : null,
+      endedBy,
     })
     return { ok: true, id: ref.id, intelligence }
   } catch (err) {

@@ -196,6 +196,51 @@ test('ties break on accuracy, then on fewer attempts', () => {
   assert.deepEqual(rankBoard(rows).map((r) => r.userId), ['c', 'b', 'a'])
 })
 
+test('elapsed time breaks a tie, and only after points, accuracy and attempts', () => {
+  const rows = [
+    { userId: 'slow', displayName: 'S S', points: 10, percentageTotal: 100, attempts: 1, timeTakenSeconds: 900 },
+    { userId: 'fast', displayName: 'F F', points: 10, percentageTotal: 100, attempts: 1, timeTakenSeconds: 300 },
+  ]
+  assert.deepEqual(rankBoard(rows).map((r) => r.userId), ['fast', 'slow'])
+})
+
+test('a slower learner who scored better still wins — time is never a bonus', () => {
+  // The whole point of removing the countdown: taking longer and answering
+  // better must beat hurrying. Time is read fourth, after points, accuracy
+  // and attempts, so it can only separate learners who are otherwise level.
+  const rows = [
+    { userId: 'careful', displayName: 'C C', points: 12, percentageTotal: 90, attempts: 1, timeTakenSeconds: 1800 },
+    { userId: 'hurried', displayName: 'H H', points: 11, percentageTotal: 95, attempts: 1, timeTakenSeconds: 120 },
+  ]
+  assert.deepEqual(rankBoard(rows).map((r) => r.userId), ['careful', 'hurried'])
+
+  // Level on points but not on accuracy — accuracy still decides, not speed.
+  const level = [
+    { userId: 'accurate', displayName: 'A A', points: 10, percentageTotal: 180, attempts: 1, timeTakenSeconds: 1800 },
+    { userId: 'quick', displayName: 'Q Q', points: 10, percentageTotal: 100, attempts: 1, timeTakenSeconds: 60 },
+  ]
+  assert.deepEqual(rankBoard(level).map((r) => r.userId), ['accurate', 'quick'])
+})
+
+test('a missing duration counts as zero rather than pushing a learner down', () => {
+  // An attempt graded before durations were recorded must not be penalised.
+  const rows = [
+    { userId: 'unknown', displayName: 'U U', points: 10, percentageTotal: 100, attempts: 1 },
+    { userId: 'known', displayName: 'K K', points: 10, percentageTotal: 100, attempts: 1, timeTakenSeconds: 400 },
+  ]
+  assert.deepEqual(rankBoard(rows).map((r) => r.userId), ['unknown', 'known'])
+})
+
+test('aggregateWeek sums durations for the tie-break and nothing else', () => {
+  const rows = aggregateWeek([
+    { userId: 'u1', displayName: 'One', score: 5, percentage: 50, attemptDate: '2026-08-17', timeTakenSeconds: 200 },
+    { userId: 'u1', displayName: 'One', score: 5, percentage: 50, attemptDate: '2026-08-18', timeTakenSeconds: 300 },
+  ])
+  assert.equal(rows[0].timeTakenSeconds, 500)
+  // It is not folded into the points a learner is ranked on.
+  assert.equal(rows[0].points, 10)
+})
+
 test('ranking is total — identical rows keep a stable order', () => {
   const rows = [
     { userId: 'z', displayName: 'Z Z', points: 5, percentageTotal: 50, attempts: 1 },

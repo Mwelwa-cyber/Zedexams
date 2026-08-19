@@ -8,7 +8,6 @@ import {
   CalculatorIcon,
   CheckBadgeIcon,
   ClipboardDocumentListIcon,
-  ClockIcon,
   FireIcon,
   GlobeAltIcon,
   HomeIcon,
@@ -229,9 +228,25 @@ export function getGameStars(game) {
   return Math.min(5, Math.max(3, filled))
 }
 
+/**
+ * The card's "how much is this" chip.
+ *
+ * It used to print the game document's `timer` as "60s". Nothing counts down
+ * any more (PROMPT 7b), so that was a promise no engine keeps — and a card
+ * that still advertises a clock is exactly what makes a learner brace for
+ * one. `timer` survives on the document as a replay fallback only, and this
+ * label must not be the thing that resurrects it.
+ *
+ * A learner is told roughly how much there is to do, never how long they
+ * have. Games that have not authored a `roundQuestions` fall back to the
+ * neutral label rather than to `DEFAULT_ROUND_QUESTIONS`, because the real
+ * length is capped by the pool (`resolveRoundLength`) and a card cannot see
+ * the pool — stating a number here that the round then undercuts would be
+ * worse than stating none.
+ */
 export function getDurationLabel(game) {
-  const timer = Number(game?.timer)
-  return timer > 0 ? `${timer}s` : 'Quick play'
+  const questions = Math.floor(Number(game?.roundQuestions) || 0)
+  return questions > 0 ? `${questions} questions` : 'Quick play'
 }
 
 export function buildSubjectProgress(subjectSlug, games, history, gradeValue = null) {
@@ -390,7 +405,9 @@ export function GameDiscoveryCard({
 
       <div className="mt-auto flex items-center justify-between gap-3 border-t border-dashed border-[#D8D0BC] pt-4 text-[11px] text-slate-500">
         <div className="flex flex-wrap gap-3">
-          <span className="inline-flex items-center gap-1"><ClockIcon className="h-3.5 w-3.5" /> {getDurationLabel(game)}</span>
+          {/* A list icon, not a clock — the chip says how much there is to do,
+              not how long the learner has to do it. */}
+          <span className="inline-flex items-center gap-1"><QueueListIcon className="h-3.5 w-3.5" /> {getDurationLabel(game)}</span>
           <span className="inline-flex items-center gap-1"><StarIcon className="h-3.5 w-3.5 text-amber-500" /> {Number(game.points) || 0} pts</span>
           <span className="inline-flex items-center gap-1"><Icon className="h-3.5 w-3.5" /> {typeTheme.label}</span>
         </div>
