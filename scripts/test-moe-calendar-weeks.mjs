@@ -10,7 +10,7 @@
 
 import {
   getCalendarYears, getTermByNumber, getTotalTeachingWeeks,
-  getTermWeeks, getCurrentForecastWeek,
+  getTermWeeks, getCurrentForecastWeek, getActiveTerm, getMostRecentTerm,
 } from '../src/utils/moeCalendar.js'
 
 let pass = 0
@@ -84,6 +84,48 @@ test('getCurrentForecastWeek rolls to the next term during the holidays', () => 
   assert(wk, 'expected the next upcoming term')
   assert(wk.termNumber === 2 && wk.weekNumber === 1, `expected T2 wk1, got T${wk?.termNumber} wk${wk?.weekNumber}`)
   assert(wk.beginning === '2026-05-11', `wrong beginning ${wk.beginning}`)
+})
+
+/* ── getMostRecentTerm — the learner's term through a holiday ────────── */
+
+test('getActiveTerm reports nothing between terms — the fact the learner side tripped on', () => {
+  // 19 Aug 2026 is 12 days after Term 2 closed and 19 before Term 3 opens.
+  // This assertion is not testing a fix; it pins the input that made the
+  // learner term fall through to its Term 1 default for a month a year.
+  assert(getActiveTerm(new Date('2026-08-19T00:00:00')) === null, 'expected no active term mid-holiday')
+})
+
+test('getMostRecentTerm names the term that just closed, through the holiday', () => {
+  const r = getMostRecentTerm(new Date('2026-08-19T00:00:00'))
+  assert(r, 'expected a term during the August holiday')
+  assert(r.term.number === 2, `expected T2, got T${r?.term?.number}`)
+  assert(r.phase === 'holiday', `expected phase holiday, got ${r?.phase}`)
+  // Every day of the gap, not just the one the bug was found on.
+  for (const day of ['2026-08-08', '2026-08-31', '2026-09-06']) {
+    const g = getMostRecentTerm(new Date(`${day}T00:00:00`))
+    assert(g?.term?.number === 2 && g.phase === 'holiday', `${day} resolved to T${g?.term?.number}/${g?.phase}`)
+  }
+})
+
+test('getMostRecentTerm reports the active term unchanged while school is in', () => {
+  for (const [day, num] of [['2026-02-02', 1], ['2026-06-15', 2], ['2026-10-05', 3]]) {
+    const r = getMostRecentTerm(new Date(`${day}T00:00:00`))
+    assert(r?.term?.number === num, `${day} expected T${num}, got T${r?.term?.number}`)
+    assert(r?.phase === 'in-term', `${day} expected in-term, got ${r?.phase}`)
+  }
+})
+
+test('getMostRecentTerm crosses the year end and stops before the calendar starts', () => {
+  // Late December: Term 3 has closed, next year's Term 1 has not opened.
+  const dec = getMostRecentTerm(new Date('2026-12-20T00:00:00'))
+  assert(dec?.term?.number === 3 && dec.year === 2026, `expected 2026 T3, got ${dec?.year} T${dec?.term?.number}`)
+  // Early January, before Term 1 opens: still last year's Term 3, which is
+  // what the learner was last taught.
+  const jan = getMostRecentTerm(new Date('2027-01-05T00:00:00'))
+  assert(jan?.term?.number === 3 && jan.year === 2026, `expected 2026 T3, got ${jan?.year} T${jan?.term?.number}`)
+  // Before the calendar has any closed term there is nothing to name, and
+  // the caller's own Term 1 default is the right answer there.
+  assert(getMostRecentTerm(new Date('2026-01-05T00:00:00')) === null, 'expected null before the first term')
 })
 
 console.log(`\n${pass} passed, ${fail} failed`)

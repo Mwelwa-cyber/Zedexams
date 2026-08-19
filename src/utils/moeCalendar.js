@@ -291,6 +291,45 @@ export function getNextTerm(date = _today()) {
 }
 
 /**
+ * The term whose material a learner is currently working with.
+ *
+ * `getActiveTerm` answers "is school in session", and returns null on every
+ * day BETWEEN terms — which is correct for the teacher surfaces that ask it
+ * (a register cannot be marked during a holiday) and wrong for a revision
+ * app, where the holiday is when a learner most wants last term's topics.
+ * The 2026 gap between Term 2 closing (7 Aug) and Term 3 opening (7 Sep) is
+ * a month of that, and every day of it used to resolve to Term 1.
+ *
+ * So this is a SEPARATE function rather than a change to `getActiveTerm`:
+ * the two questions have different right answers, and the attendance path
+ * mirrors that one server-side.
+ *
+ * In a term it reports that term. Between terms it reports the term that
+ * just CLOSED — the material the learner has actually been taught and can
+ * revise, rather than the one about to open, which they have not seen.
+ * Before the calendar's first term it reports null, and the caller's own
+ * fallback (Term 1) is then the right answer anyway.
+ *
+ * @param {Date} [date]
+ * @return {{year:number, term:object, termIndex:number, phase:'in-term'|'holiday'}|null}
+ */
+export function getMostRecentTerm(date = _today()) {
+  const active = getActiveTerm(date);
+  if (active) return { ...active, phase: "in-term" };
+  let best = null;
+  for (const year of Object.keys(MOE_CALENDAR).map(Number)) {
+    for (let i = 0; i < MOE_CALENDAR[year].terms.length; i++) {
+      const t = MOE_CALENDAR[year].terms[i];
+      if (_parse(t.close) >= date) continue;
+      if (!best || _parse(t.close) > _parse(best.term.close)) {
+        best = { year, term: t, termIndex: i };
+      }
+    }
+  }
+  return best ? { ...best, phase: "holiday" } : null;
+}
+
+/**
  * Get term status for a term object.
  * Returns "active" | "upcoming" | "past"
  */

@@ -9,6 +9,9 @@ import {
   getGreeting,
   firstNameOf,
   resolveActiveTerm,
+  calendarTermInputs,
+  termNoteFor,
+  topicOpenTarget,
   normalizeTerm,
   pickLearningResume,
   buildRecentActivity,
@@ -53,13 +56,62 @@ test('firstNameOf extracts the first name safely', () => {
 })
 
 // ── Term resolution (spec fallback order) ───────────────────────────
-test('term resolution follows school → calendar → saved → Term 1', () => {
+test('term resolution follows school → calendar → holiday → saved → Term 1', () => {
   assert.deepEqual(resolveActiveTerm({ schoolTerm: 2, calendarTerm: 1, savedTerm: 3 }), { term: 2, source: 'school' })
   assert.deepEqual(resolveActiveTerm({ calendarTerm: 3, savedTerm: 1 }), { term: 3, source: 'calendar' })
   assert.deepEqual(resolveActiveTerm({ savedTerm: 2 }), { term: 2, source: 'saved' })
   assert.deepEqual(resolveActiveTerm({}), { term: 1, source: 'default' })
   // invalid values are skipped, not trusted
   assert.deepEqual(resolveActiveTerm({ schoolTerm: 9, calendarTerm: 0, savedTerm: 2 }), { term: 2, source: 'saved' })
+})
+
+test('a holiday resolves to the term that closed, never to the Term 1 default', () => {
+  // The bug: between terms the calendar reports nothing, so the chain fell
+  // through a stale device-local value to Term 1 — January's topics, in
+  // August. The holiday rung outranks `savedTerm` for exactly that reason.
+  assert.deepEqual(resolveActiveTerm({ holidayTerm: 2 }), { term: 2, source: 'holiday' })
+  assert.deepEqual(resolveActiveTerm({ holidayTerm: 2, savedTerm: 1 }), { term: 2, source: 'holiday' })
+  // …but a term actually in session still outranks one that has ended.
+  assert.deepEqual(resolveActiveTerm({ calendarTerm: 3, holidayTerm: 2 }), { term: 3, source: 'calendar' })
+  // A calendar reading of neither kind leaves the old chain untouched.
+  assert.deepEqual(resolveActiveTerm({ holidayTerm: null, savedTerm: 3 }), { term: 3, source: 'saved' })
+})
+
+test('calendarTermInputs turns one calendar reading into the right rung', () => {
+  assert.deepEqual(
+    calendarTermInputs({ term: { number: 2 }, phase: 'in-term' }),
+    { calendarTerm: 2, holidayTerm: null },
+  )
+  assert.deepEqual(
+    calendarTermInputs({ term: { number: 2 }, phase: 'holiday' }),
+    { calendarTerm: null, holidayTerm: 2 },
+  )
+  // Before the calendar's first term there is nothing to report, and the
+  // caller's own Term 1 default is the right answer there.
+  assert.deepEqual(calendarTermInputs(null), { calendarTerm: null, holidayTerm: null })
+  assert.deepEqual(calendarTermInputs({ phase: 'holiday' }), { calendarTerm: null, holidayTerm: null })
+})
+
+test('the term note does not say "keep going" while the school is shut', () => {
+  assert.equal(termNoteFor({ term: 1, activeTerm: 2, source: 'holiday' }), 'Term 1 is finished — revise any topic, any time.')
+  assert.equal(termNoteFor({ term: 3, activeTerm: 2, source: 'holiday' }), 'Term 3 starts later — but you can read ahead.')
+  assert.equal(termNoteFor({ term: 2, activeTerm: 2, source: 'holiday' }), 'Term 2 is finished — the holiday is a good time to revise it.')
+  assert.equal(termNoteFor({ term: 2, activeTerm: 2, source: 'calendar' }), 'This term — keep going!')
+  assert.equal(termNoteFor({}), '')
+})
+
+// ── What a topic row opens ──────────────────────────────────────────
+test('a topic with no published note has no destination at all', () => {
+  assert.deepEqual(
+    topicOpenTarget({ name: 'Fractions', noteTarget: { id: 'n1' } }),
+    { kind: 'note', id: 'n1', path: '/notes/n1' },
+  )
+  // The row asks this before deciding whether to be a button, so `null`
+  // here is what stops the dead tap. A quiz is deliberately NOT a
+  // fallback — the subject page has no quiz surface by design.
+  assert.equal(topicOpenTarget({ name: 'Fractions', noteTarget: null, quizCount: 3, hasQuiz: true }), null)
+  assert.equal(topicOpenTarget({ noteTarget: {} }), null)
+  assert.equal(topicOpenTarget(null), null)
 })
 
 test('normalizeTerm handles Firestore string variants', () => {

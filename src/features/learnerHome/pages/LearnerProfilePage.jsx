@@ -25,8 +25,8 @@ import useWeeklySummary from '../hooks/useWeeklySummary'
 import { getMyGameBadges } from '../../../utils/gameBadgesService'
 import { GAME_BADGES } from '../../../data/gameBadges'
 import { resolveLearnerAccess } from '../../../utils/guardianConsent'
-import { getActiveTerm } from '../../../utils/moeCalendar'
-import { resolveActiveTerm, firstNameOf } from '../lib/learnerHomeCore'
+import { getMostRecentTerm } from '../../../utils/moeCalendar'
+import { resolveActiveTerm, calendarTermInputs, firstNameOf } from '../lib/learnerHomeCore'
 import CharacterAvatar from '../../../shared/components/CharacterAvatar'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 import LearnerShell from '../components/LearnerShell'
@@ -63,10 +63,12 @@ export default function LearnerProfilePage() {
     [userProfile],
   )
 
-  const activeTerm = useMemo(() => {
-    const calendarActive = getActiveTerm()
-    return resolveActiveTerm({ calendarTerm: calendarActive?.term?.number ?? null }).term
-  }, [])
+  // The Grade · Term line. `getMostRecentTerm` so a holiday names the term
+  // that just closed rather than showing every learner Term 1.
+  const activeTerm = useMemo(
+    () => resolveActiveTerm(calendarTermInputs(getMostRecentTerm())).term,
+    [],
+  )
 
   const subLine = [
     userProfile?.grade ? `Grade ${userProfile.grade}` : null,

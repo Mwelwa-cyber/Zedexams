@@ -100,13 +100,32 @@ describe('LearnerSubjectPage', () => {
     await waitFor(() => {
       expect(screen.getByText('The Digestive System')).toBeInTheDocument()
     })
-    const row = screen.getByText('The Digestive System').closest('button')
-    expect(row.classList.contains('lhx-topic-row')).toBe(true)
+    const row = screen.getByText('The Digestive System').closest('.lhx-topic-row')
+    expect(row).not.toBeNull()
     expect(within(row).getByText('Human Body')).toBeInTheDocument()
     // No note is published for it yet — the row says so instead of
     // leading nowhere.
     expect(within(row).getByText('Note coming soon')).toBeInTheDocument()
-    expect(row).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('a topic with no note is not a control at all — no dead tap, no focus stop', async () => {
+    // This test replaced one that asserted the row WAS a button carrying
+    // aria-disabled. That was the defect, not the contract: the handler
+    // returned silently without a note, so the row took focus, invited a
+    // tap and answered with nothing — on most of the list, because most
+    // topics have no note published yet.
+    renderSubject('/subjects/science?term=1')
+    await waitFor(() => expect(screen.getByText('The Digestive System')).toBeInTheDocument())
+    const row = screen.getByText('The Digestive System').closest('.lhx-topic-row')
+    expect(row.tagName).toBe('DIV')
+    expect(row).not.toHaveAttribute('aria-disabled')
+    expect(row.closest('button')).toBeNull()
+    // Nothing in the row is reachable by keyboard either.
+    expect(within(row).queryByRole('button')).toBeNull()
+    // Tapping it navigates nowhere — the subject page is still on screen.
+    fireEvent.click(row)
+    expect(screen.getByText('The Digestive System')).toBeInTheDocument()
+    expect(screen.queryByText(/^NOTE /)).toBeNull()
   })
 
   it('a topic row opens that topic\u2019s note', async () => {
@@ -116,7 +135,12 @@ describe('LearnerSubjectPage', () => {
     }]
     renderSubject('/subjects/science?term=1')
     await waitFor(() => expect(screen.getByText('The Digestive System')).toBeInTheDocument())
-    fireEvent.click(screen.getByText('The Digestive System').closest('button'))
+    const row = screen.getByText('The Digestive System').closest('button')
+    // The strand is part of the accessible name: "Multiplication" alone
+    // names two different rows on the Grade 7 Mathematics tab, and a
+    // button collapses to its name for a screen reader.
+    expect(row).toHaveAttribute('aria-label', expect.stringMatching(/^The Digestive System — Human Body/))
+    fireEvent.click(row)
     await waitFor(() => expect(screen.getByText('NOTE n1')).toBeInTheDocument())
   })
 
@@ -164,7 +188,7 @@ describe('LearnerSubjectPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Conjunctions — Joining Words')).toBeInTheDocument()
     })
-    const row = screen.getByText('Conjunctions — Joining Words').closest('button')
+    const row = screen.getByText('Conjunctions — Joining Words').closest('.lhx-topic-row')
     expect(within(row).getByText('Structure')).toBeInTheDocument()
     // Term 1's Nouns is not on this tab.
     expect(screen.queryByText('Nouns')).toBeNull()
@@ -226,7 +250,7 @@ describe('LearnerSubjectPage', () => {
     expect(screen.queryByText(/term plan for this subject\s+isn’t published yet/)).toBeNull()
     expect(screen.queryByText('Base Eight')).toBeNull()
     // The parent topic is the row's tag, without the catalogue's numbering.
-    const row = screen.getByText('Operations on Fractions').closest('button')
+    const row = screen.getByText('Operations on Fractions').closest('.lhx-topic-row')
     expect(within(row).getByText('Fractions')).toBeInTheDocument()
   })
 
@@ -237,16 +261,16 @@ describe('LearnerSubjectPage', () => {
     renderSubject('/subjects/mathematics?term=1')
     await waitFor(() => expect(screen.getAllByText('Multiplication')).toHaveLength(2))
     const tags = screen.getAllByText('Multiplication')
-      .map((el) => within(el.closest('button')).getByText(/Fractions|Decimals/).textContent)
+      .map((el) => within(el.closest('.lhx-topic-row')).getByText(/Fractions|Decimals/).textContent)
     expect(tags.sort()).toEqual(['Decimals', 'Fractions'])
-    // Same for the screen reader: the name alone does not identify the row.
-    expect(screen.getByRole('button', { name: /^Multiplication — Fractions/ })).toBeInTheDocument()
+    // Neither row is a control here — no note is published for either — so
+    // the strand that tells them apart is the visible tag. The accessible
+    // NAME of an openable row is pinned in the note-opening test above.
   })
 
   it('the three Mathematics tabs are different lists, in syllabus order', async () => {
     // The bug this fixes: every tab showing the same full syllabus.
-    const titles = () => screen.getAllByRole('button')
-      .filter((b) => b.className.includes('lhx-topic-row'))
+    const titles = () => [...document.querySelectorAll('.lhx-topic-row')]
       .map((b) => b.querySelector('.lhx-topic-name').textContent)
 
     renderSubject('/subjects/mathematics?term=1')
