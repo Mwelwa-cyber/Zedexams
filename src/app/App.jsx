@@ -216,6 +216,7 @@ const VisualStudioAdmin = lazy(() => import('../features/visualStudio/pages/Visu
 const CurriculumReplaceStudio = lazy(() => import('../features/adminCurriculum/pages/CurriculumReplaceStudio'))
 const CurriculumUploadPanel = lazy(() => import('../features/adminCurriculum/pages/CurriculumUploadPanel'))
 const AdminAiCosts = lazy(() => import('../features/adminAiCosts/pages/AdminAiCosts'))
+const AdminVoice = lazy(() => import('../features/adminVoice/pages/AdminVoice'))
 const AdminAppCheck = lazy(() => import('../features/adminAppCheck/pages/AdminAppCheck'))
 const AdminUsersList = lazy(() => import('../features/adminUsers/pages/AdminUsersList'))
 const AdminUserProfile = lazy(() => import('../features/adminUsers/pages/AdminUserProfile'))
@@ -874,6 +875,7 @@ export default function App() {
           {/* Audit B4 — AI cost dashboard. Admin-only per route +
               Firestore rules. */}
           <Route path="/admin/ai-costs"                 element={<AdminRoute><AdminAiCosts /></AdminRoute>} />
+          <Route path="/admin/voice"                    element={<AdminRoute><AdminVoice /></AdminRoute>} />
           {/* App Check enforcement readiness — soft-verify telemetry.
               Admin-only per route + Firestore rules. */}
           <Route path="/admin/app-check"                element={<AdminRoute><AdminAppCheck /></AdminRoute>} />

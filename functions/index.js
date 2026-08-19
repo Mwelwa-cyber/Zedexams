@@ -2339,6 +2339,7 @@ exports.apiWhatsAppWebhook = onRequest({
 }, httpSurfaceHandlers.apiWhatsAppWebhook);
 
 exports.apiTextToSpeech = require('./tts').apiTextToSpeech;
+exports.getTtsControlRoom = require('./ttsAdmin').getTtsControlRoom;
 
 // Website visitor tracker — unauthenticated beacon the SPA POSTs on each
 // route change. Records page-view docs + daily rollups for /admin/visitors.
