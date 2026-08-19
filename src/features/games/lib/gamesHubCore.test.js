@@ -117,7 +117,7 @@ assert.equal(empty.action, null, 'an empty day must not offer a Play that leads 
 assert.ok(!/streak/i.test(empty.sub), 'do not dangle a streak at a learner who cannot play today')
 assert.deepEqual(dailyHeroCopy(), dailyHeroCopy({ hasQuiz: false }))
 
-/* ── buildCatalogue: the learner's grade, or nothing ───────────────── */
+/* ── buildCatalogue: every game that exists, at this grade only ────── */
 
 const MECHANICS = [
   { type: 'number_target', name: 'Number Path' },
@@ -125,7 +125,12 @@ const MECHANICS = [
   { type: 'memory_match', name: 'Meaning Match' },
   { type: 'punctuation', name: 'Punctuation Pro' },
 ]
+// Everything with an engine behind it — the four mechanics plus the
+// daily-quiz engine, which is what `PLAYABLE_GAME_TYPES` is.
+const PLAYABLE = new Set([...MECHANICS.map((m) => m.type), 'timed_quiz'])
 const pack = (id, type, grade, extra = {}) => ({ id, type, grade, ...extra })
+const named = (rows) => rows.map((r) => r.name)
+const ids = (rows) => rows.map((r) => r.game?.id ?? null)
 
 // The exact live shape: a Grade 7 learner, a `memory_match` pack that
 // exists for Grade 6 and not for theirs. Before this, that Grade 6 maths
@@ -134,6 +139,7 @@ const pack = (id, type, grade, extra = {}) => ({ id, type, grade, ...extra })
 {
   const rows = buildCatalogue({
     mechanics: MECHANICS,
+    playableTypes: PLAYABLE,
     games: [pack('math_memory_g6', 'memory_match', 6), pack('punc_g7', 'punctuation', 7)],
     seeded: [],
     grade: 7,
@@ -151,16 +157,104 @@ const pack = (id, type, grade, extra = {}) => ({ id, type, grade, ...extra })
   assert.equal(rows.filter((r) => !r.game).length, 3)
 }
 
-// Live doc wins over the seed for the same grade; the seed still backs a
-// mechanic the live collection has not been seeded with.
+// ── The bug this rewrite fixes ─────────────────────────────────────────
+//
+// A SECOND pack of a mechanic the learner's grade already has. `.find()`
+// returned the first and the new one was invisible — an admin adding a
+// game watched nothing happen. Both list now.
 {
   const rows = buildCatalogue({
     mechanics: MECHANICS,
-    games: [pack('live_np_g7', 'number_target', 7)],
-    seeded: [pack('seed_np_g7', 'number_target', 7), pack('seed_wb_g7', 'word_builder', 7)],
+    playableTypes: PLAYABLE,
+    games: [
+      pack('mm_words_g7', 'memory_match', 7, { title: 'Word Meanings' }),
+      pack('mm_capitals_g7', 'memory_match', 7, { title: 'African Capitals' }),
+    ],
+    seeded: [],
     grade: 7,
   })
-  assert.equal(rows.find((r) => r.type === 'number_target').game.id, 'live_np_g7')
+  const meaning = rows.filter((r) => r.type === 'memory_match')
+  assert.equal(meaning.length, 2, 'a second pack of a mechanic is a second row, not a dropped one')
+  // Two rows both reading "Meaning Match" would identify neither, so the
+  // moment a mechanic owns more than one row each speaks for its own pack.
+  assert.deepEqual(named(meaning), ['African Capitals', 'Word Meanings'], 'sorted by title, named by pack')
+  // Distinct keys, or React collapses the second onto the first — the same
+  // disappearance one layer down.
+  assert.equal(new Set(rows.map((r) => r.key)).size, rows.length, 'every row is keyed uniquely')
+}
+
+// The other half: a playable type that is not one of the four mechanics.
+// 27 of the 47 bundled games are `timed_quiz`, and browsing could not
+// reach a single one of them while learner search listed them all.
+{
+  const rows = buildCatalogue({
+    mechanics: MECHANICS,
+    playableTypes: PLAYABLE,
+    games: [
+      pack('quiz_spell_g7', 'timed_quiz', 7, { title: 'Spell It Right' }),
+      pack('quiz_tables_g7', 'timed_quiz', 7, { title: 'Times Tables' }),
+      pack('punc_g7', 'punctuation', 7),
+    ],
+    seeded: [],
+    grade: 7,
+  })
+  assert.deepEqual(
+    ids(rows),
+    [null, null, null, 'punc_g7', 'quiz_spell_g7', 'quiz_tables_g7'],
+    'the four mechanics lead, in the mockup order; everything else follows',
+  )
+  // A timed_quiz has no mechanic name to borrow, so it uses its own title.
+  assert.deepEqual(
+    named(rows.filter((r) => r.type === 'timed_quiz')),
+    ['Spell It Right', 'Times Tables'],
+  )
+}
+
+// A type with NO engine never lists, whatever the collection says. A card
+// that opens on a retirement notice is worse than no card.
+{
+  const rows = buildCatalogue({
+    mechanics: MECHANICS,
+    playableTypes: PLAYABLE,
+    games: [pack('retired_g7', 'market_challenge', 7, { title: 'Zed Market' })],
+    seeded: [],
+    grade: 7,
+  })
+  assert.equal(rows.filter((r) => r.game).length, 0)
+  assert.equal(rows.length, 4, 'and the four mechanics still say what they are waiting for')
+}
+
+// No `playableTypes` at all: the conservative catalogue, not everything in
+// the pool. A caller that has not said which types have engines must not
+// have unknown types assumed playable on its behalf.
+{
+  const rows = buildCatalogue({
+    mechanics: MECHANICS,
+    games: [pack('q', 'timed_quiz', 7, { title: 'Quiz' }), pack('p', 'punctuation', 7)],
+    seeded: [],
+    grade: 7,
+  })
+  assert.deepEqual(ids(rows).filter(Boolean), ['p'])
+}
+
+// Live doc wins over the seed for the same grade; the seed still backs a
+// TYPE the live collection has not been seeded with. Per type, never per
+// item: merging the pools would list an imported pack beside the bundled
+// copy of the same mechanic as two rows.
+{
+  const rows = buildCatalogue({
+    mechanics: MECHANICS,
+    playableTypes: PLAYABLE,
+    games: [pack('live_np_g7', 'number_target', 7)],
+    seeded: [
+      pack('seed_np_g7', 'number_target', 7),
+      pack('seed_np2_g7', 'number_target', 7),
+      pack('seed_wb_g7', 'word_builder', 7),
+    ],
+    grade: 7,
+  })
+  const path = rows.filter((r) => r.type === 'number_target')
+  assert.deepEqual(ids(path), ['live_np_g7'], 'the live pack answers for its type, alone')
   assert.equal(rows.find((r) => r.type === 'word_builder').game.id, 'seed_wb_g7')
 }
 
@@ -170,6 +264,7 @@ const pack = (id, type, grade, extra = {}) => ({ id, type, grade, ...extra })
 {
   const rows = buildCatalogue({
     mechanics: MECHANICS,
+    playableTypes: PLAYABLE,
     games: [],
     seeded: [pack('seed_np_g4', 'number_target', 4)],
     grade: 7,
@@ -182,6 +277,7 @@ const pack = (id, type, grade, extra = {}) => ({ id, type, grade, ...extra })
 {
   const rows = buildCatalogue({
     mechanics: MECHANICS,
+    playableTypes: PLAYABLE,
     games: [pack('g', 'punctuation', '7')],
     seeded: [],
     grade: 7,
@@ -193,6 +289,7 @@ const pack = (id, type, grade, extra = {}) => ({ id, type, grade, ...extra })
 // calls this during its loading pass, before any fetch has resolved.
 assert.deepEqual(buildCatalogue(), [])
 assert.equal(buildCatalogue({ mechanics: MECHANICS, grade: 7 }).filter((r) => r.game).length, 0)
+assert.equal(buildCatalogue({ mechanics: MECHANICS, games: null, seeded: null, grade: 7 }).length, 4)
 
 /* ── unavailableRowCopy ────────────────────────────────────────────── */
 

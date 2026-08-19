@@ -113,16 +113,48 @@ const FIXTURE = {
     // it is a different component (`UnavailableRow`) reaching for the same
     // 68px, which is exactly the kind of thing that drifts unmeasured.
     { id: 'g-mean',  title: 'Meaning Match', type: 'memory_match', grade: 7, subject: 'english', cbc_topic: 'Word meanings', points: 15 },
-    // The overflow probe. Its mechanic name comes from CATALOGUE_MECHANICS,
-    // so the long string is put where the component actually reads a free
-    // text value from the doc: the topic.
+    // A SECOND pack of a mechanic the grade already has. Before 2026-08-19
+    // the catalogue took one pack per mechanic and this row did not exist;
+    // now it does, and it changes what the row is NAMED — two rows both
+    // reading "Meaning Match" would identify neither, so each falls back
+    // to its own doc title. Which makes a row name a free-text value from
+    // the document for the first time, and therefore an overflow surface.
+    { id: 'g-mean2', title: 'African Capitals', type: 'memory_match', grade: 7, subject: 'social', cbc_topic: 'Africa', points: 15 },
+    // The topic overflow probe. This mechanic has ONE pack, so its name
+    // still comes from CATALOGUE_MECHANICS and the long string goes where
+    // the component reads free text from the doc: the topic.
     { id: 'g-punc',  title: LONG_NAME, type: 'punctuation', grade: 7, subject: 'english', cbc_topic: LONG_NAME, points: 15 },
+    // The NAME overflow probe, and the reason it is a `timed_quiz`: a type
+    // with no mechanic name always renders its own title, so this is the
+    // hostile string in the one slot that used to be safe by construction.
+    // It also proves the type lists at all — 27 of the 47 bundled games are
+    // timed_quiz and browsing could not reach one of them.
+    { id: 'g-quiz',  title: LONG_NAME, type: 'timed_quiz', grade: 7, subject: 'science', cbc_topic: 'Living things', points: 15 },
     // A pack of a mechanic the learner's grade DOES have, at the wrong
     // grade. It must not appear at all — nothing here should render it,
-    // and the row-count assertion below would notice a sixth row.
+    // and the row-count assertion below would notice an extra row.
     { id: 'g-wrong-grade', title: 'Someone else\'s Number Path', type: 'number_target', grade: 4, subject: 'mathematics', cbc_topic: 'Numbers', points: 15 },
   ],
 }
+
+/**
+ * The rows the fixture must produce, in order. Named here rather than
+ * inline so the settle-wait below and the assertion cannot disagree about
+ * what "finished loading" means.
+ *
+ * Four mechanics lead in the mockup's order — `memory_match` owning two of
+ * the rows, each named for its own pack and sorted by title — then every
+ * other playable type, then the Map Quest teaser.
+ */
+const EXPECTED_ROWS = [
+  'Number Path',      // g-path
+  'Word Builder',     // no grade-7 pack: the "Coming soon" placeholder
+  'African Capitals', // g-mean2 ─┬ one mechanic, two packs, sorted by title
+  'Meaning Match',    // g-mean  ─┘ and named for the pack, not the mechanic
+  'Punctuation Pro',  // g-punc: one pack, so still named for the mechanic
+  LONG_NAME,          // g-quiz: no mechanic name, so its own title
+  'Map Quest',        // the teaser: no engine at all
+]
 
 const VIEWPORTS = [
   { id: 'phone',   width: 390,  height: 844 },
@@ -361,10 +393,11 @@ try {
       // the rendered content instead of on a sleep is both faster and the
       // only version that cannot silently measure the wrong screen.
       await p.waitForFunction(
-        () => document.querySelectorAll('.lhx-game').length >= 5
+        (n) => document.querySelectorAll('.lhx-game').length >= n
           && document.querySelectorAll('.lhx-gh-hero-grade').length === 2
           && !document.querySelector('.lhx-skel'),
         { timeout: 20_000 },
+        EXPECTED_ROWS.length,
       ).catch(() => {
         throw new Error(
           `${vp.id} ${theme.id}: the hub never finished loading — `
@@ -405,6 +438,29 @@ try {
         window.scrollTo(0, document.documentElement.scrollHeight)
       })
       await new Promise((r) => setTimeout(r, 120))
+      // Is the page still THERE? Asked explicitly, because the way this
+      // harness breaks is not the way it looks like it breaks. Both stub
+      // gaps found on 2026-08-19 were modules added to the hub's graph
+      // long after this file was written, and the lazy one (the deletion
+      // banner) resolved a tick AFTER a correct first render: the settle
+      // wait passed on a good page, the chunk then threw inside a
+      // <Suspense> with no boundary above it, React unmounted everything,
+      // and the harness reported eleven separate layout failures per
+      // viewport — "the tab bar is not opaque", "rows are not all the same
+      // height — []" — about a page that no longer existed. One check that
+      // names the real cause is worth more than forty that describe its
+      // shadow, so this runs FIRST and short-circuits the rest.
+      const alive = await p.evaluate(() => ({
+        thrown: window.__gamesHubError || null,
+        rootChildren: document.getElementById('root')?.childElementCount ?? 0,
+      }))
+      if (alive.thrown || alive.rootChildren === 0) {
+        check(false, `${where}: the page unmounted before it could be measured${
+          alive.thrown ? ` — ${alive.thrown}` : ' (root is empty; look for an unstubbed module reaching Firebase)'}`)
+        await p.close()
+        continue
+      }
+
       const bottom = await p.evaluate(measure)
 
       check(!bottom.error, `${where}: the page threw — ${bottom.error}`)
@@ -427,13 +483,16 @@ try {
 
       // 3. Every game row the same height.
       const heights = new Set(bottom.gameHeights)
-      // Exactly five: four mechanics (one of them the "coming soon"
-      // placeholder) plus the Map Quest teaser. `===` rather than `>=`,
-      // because a cross-grade pack leaking back in would ADD a row.
-      check(bottom.gameCount === 5, `${where}: expected exactly five catalogue rows, found ${bottom.gameCount}`)
+      // `===` rather than `>=`, in both directions: a cross-grade pack
+      // leaking back in would ADD a row, and the pre-2026-08-19 one-pack-
+      // per-mechanic rule would DROP two (g-mean2 and the timed_quiz).
       check(
-        bottom.rowNames.join(' | ') === 'Number Path | Word Builder | Meaning Match | Punctuation Pro | Map Quest',
-        `${where}: the catalogue is not the four mechanics in order plus Map Quest — ${bottom.rowNames.join(' | ')}`,
+        bottom.gameCount === EXPECTED_ROWS.length,
+        `${where}: expected exactly ${EXPECTED_ROWS.length} catalogue rows, found ${bottom.gameCount}`,
+      )
+      check(
+        bottom.rowNames.join(' | ') === EXPECTED_ROWS.join(' | '),
+        `${where}: the catalogue is not the expected rows in order\n      want: ${EXPECTED_ROWS.join(' | ')}\n      got:  ${bottom.rowNames.join(' | ')}`,
       )
       check(
         bottom.unopenableRows === 2,

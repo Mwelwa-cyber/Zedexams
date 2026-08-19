@@ -48,6 +48,17 @@
  *     `buildCatalogue`, which refuses another grade's pack outright and
  *     returns the mechanic with `game: null` so the row can say so. Read
  *     that function before widening any of it.
+ *  7. THE CATALOGUE IS THE GAMES THAT EXIST (2026-08-19, third pass). The
+ *     grade scope in 6 was right; the shape it was built on was not. The
+ *     hub walked the four mechanics and took ONE pack each, so it rendered
+ *     at most four game rows however many games there were — and `/games`
+ *     is the only browse surface left, the `/games/g/:grade` routes having
+ *     become redirects. An admin adding a game to a mechanic that already
+ *     had one saw nothing change, and the 27 `timed_quiz` packs (every
+ *     "Spell It Right", every subject quiz) were unreachable by browsing
+ *     at all, while learner search happily listed them. Now every playable
+ *     pack at the learner's grade gets a row, the four mechanics still
+ *     leading in the mockup's order. See `buildCatalogue`.
  *
  * Data flow is otherwise unchanged: listGames + today's challenge + history
  * + badges + streak, all through Promise.allSettled so one Firestore
@@ -70,9 +81,9 @@ import {
 import { GAME_BADGES } from '../../../data/gameBadges'
 import {
   CATALOGUE_MECHANICS,
+  PLAYABLE_GAME_TYPES,
   RETIRED_GAME_TYPES,
   getFallbackGames,
-  mechanicName,
 } from '../../../data/gamesSeed'
 import { loadDeletedGameIds } from '../../../utils/gameTombstones'
 import { getTodaysChallenge, getMyStreak } from '../../../utils/dailyChallengeService'
@@ -163,10 +174,14 @@ export default function GamesHub() {
         ...prev,
         loading: false,
         deletedIds,
-        // The seed fallback is grade-scoped too. An unscoped one would put
-        // every grade's packs back in the pool the catalogue picks from,
-        // which is the door the cross-grade fallback came through.
-        games: liveGames.length ? liveGames : getFallbackGames({ grade, exclude: deletedIds }),
+        // The LIVE list, as it came back. The bundled fallback is not
+        // folded in here any more: `buildCatalogue` takes both pools and
+        // backs a type from the seed only when the live collection has no
+        // pack of that type for this grade. Two fallback rules — one here
+        // ("live is empty") and one there ("this mechanic is empty") — is
+        // how the hub came to have two different answers to which pool a
+        // row came from.
+        games: liveGames,
         challenge: value(1, null),
         history: value(2, []),
         badgesById: value(3, { byId: {} })?.byId || {},
@@ -193,15 +208,22 @@ export default function GamesHub() {
     return map
   }, [state.history])
 
-  // The catalogue: EXACTLY the four mechanics, one row each, in the
-  // mockup's order, and never another grade's pack — see `buildCatalogue`,
-  // which owns that rule. timed_quiz never lists; it plays through the
-  // daily card and the duel only.
+  // The catalogue: EVERY game this learner can play, at their grade and
+  // no other, with the mockup's four mechanics leading — see
+  // `buildCatalogue`, which owns that rule and the bug it replaced (the
+  // hub used to render at most four rows however many games existed).
+  //
+  // `playableTypes` is what admits the `timed_quiz` packs — 27 of the 47
+  // bundled games, and whatever an admin has added since. They have an
+  // engine (`PlayGame` renders `TimedQuizGame`) and learner search already
+  // lists them, so the hub refusing to browse them was the odd one out.
   const catalogue = useMemo(() => buildCatalogue({
     mechanics: CATALOGUE_MECHANICS,
+    playableTypes: PLAYABLE_GAME_TYPES,
     games: state.games,
-    // The seeded pool fills a mechanic's row when Firestore has no pack for
-    // this grade, so it is the second place a deleted game could come back.
+    // The seeded pool backs a TYPE the live collection has no pack of for
+    // this grade, so it is the second place a deleted game could come
+    // back — hence `exclude`.
     seeded: getFallbackGames({ grade, exclude: state.deletedIds }),
     grade,
   }), [state.games, state.deletedIds, grade])
@@ -327,9 +349,17 @@ export default function GamesHub() {
           </div>
         ) : (
           <div className="lhx-gh-list">
+            {/* `entry.key` rather than `entry.type`: a type can now own
+                more than one row, so the type is no longer a unique key —
+                React would collapse a grade's second Meaning Match onto
+                its first, which is the same disappearance in a different
+                layer. `entry.name` rather than the doc's title: the
+                catalogue decides when a row speaks for its mechanic and
+                when it must speak for its own pack. */}
             {catalogue.map((entry) => (entry.game ? (
               <GameCard
-                key={entry.type}
+                key={entry.key}
+                name={entry.name}
                 game={entry.game}
                 best={bestByGame.get(entry.game.id) || 0}
               />
@@ -338,7 +368,7 @@ export default function GamesHub() {
               // keyed by type — so a grade with no pack still shows the
               // game it is waiting for rather than a generic tile.
               <UnavailableRow
-                key={entry.type}
+                key={entry.key}
                 name={entry.name}
                 grade={grade}
                 icon={TYPE_SKIN[entry.type]?.emoji}
@@ -424,15 +454,21 @@ function UnavailableRow({ name, grade, icon, skin, meta }) {
   )
 }
 
-/** One game row: icon, name, one meta line, one status pill, chevron. */
-function GameCard({ game, best }) {
+/**
+ * One game row: icon, name, one meta line, one status pill, chevron.
+ *
+ * `name` is decided by `buildCatalogue`, not here. The card used to call
+ * `mechanicName(game)` itself, which was right while a mechanic could own
+ * only one row and wrong the moment it can own several — four Grade 4
+ * quizzes would all have printed "Game", and two Meaning Match packs would
+ * both have printed "Meaning Match". Only the catalogue knows how many
+ * packs a mechanic has, so only the catalogue can choose between the
+ * mechanic's name and the pack's own title.
+ */
+function GameCard({ name, game, best }) {
   const subjectKey = String(game.subject || '').toLowerCase()
   const skin = TYPE_SKIN[game.type] || SUBJECT_SKIN[subjectKey] || { emoji: '🎮', cls: 'g-math' }
   const subjectLabel = SUBJECTS.find((s) => s.slug === subjectKey)?.label || 'Game'
-  // The card is named for the MECHANIC (see CATALOGUE_MECHANICS); the
-  // doc's own title names its content pack and belongs on the play
-  // surface, where that pack is what the learner is looking at.
-  const name = mechanicName(game)
   // Number Path has a level path, so its own progress is the honest second
   // half of the meta line; every other mechanic names its CBC topic.
   const topic = game.type === 'number_target'

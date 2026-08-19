@@ -48,8 +48,33 @@ export const STUBS = {
     }
     export const getMyStreak = async () => (${FIXTURE}).streak || { streak: 0, signedIn: true }
   `,
+  // The permanently-deleted list. Unstubbed, this reaches
+  // `src/firebase/config`, which reads `import.meta.env` — a Vite
+  // construct esbuild leaves alone, so the bundle threw
+  // "Cannot read properties of undefined (reading 'VITE_FIREBASE_API_KEY')"
+  // before React committed and the harness timed out waiting for a page
+  // that was never going to render. GamesHub grew this import in #2512,
+  // months after the harness was written; `smoke:games-hub` is not a CI
+  // job, so nothing said so. Empty by default: the fixture's games are the
+  // catalogue under test, and a deletion list is a different rule with its
+  // own tests (`test:games-seed-fallback`).
+  'src/utils/gameTombstones': `
+    export const loadDeletedGameIds = async () => new Set((${FIXTURE}).deletedGameIds || [])
+    export const resetDeletedGameCache = () => {}
+    export const isDeletedGame = (id, ids) => !!(id && ids && ids.has(id))
+  `,
   'src/utils/gameBadgesService': `
     export const getMyGameBadges = async () => ({ byId: (${FIXTURE}).badges || {} })
+  `,
+  // LearnerShell lazy-loads this banner, and it reaches Firebase. Being
+  // LAZY is what made it hard to see: the hub rendered correctly, then the
+  // chunk resolved a tick later, threw inside a <Suspense> with no error
+  // boundary above it, and React unmounted the whole tree — so the harness
+  // measured a page that HAD been right, found nothing at all, and blamed
+  // every rule at once. Same shape as the gameTombstones gap: an import
+  // added long after the harness, in a file the harness does not name.
+  'src/features/learnerHome/components/DeletionPendingBanner': `
+    export default function DeletionPendingBanner() { return null }
   `,
   'src/shared/components/SeoHelmet': `
     export default function SeoHelmet() { return null }
