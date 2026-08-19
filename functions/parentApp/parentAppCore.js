@@ -174,6 +174,43 @@ function describeStatus(status) {
   }
 }
 
+/* ── Is this child already paid for? ───────────────────────────────── */
+
+/**
+ * Whether a child's account currently holds a paid plan.
+ *
+ * The parent app sells to the guardian, so every offer it makes — the
+ * plan banner in the shell, the Unlock rows — has to know which children
+ * are already covered. Getting that wrong is worse than an ugly banner:
+ * it asks somebody to buy a thing they bought last week.
+ *
+ * The expiry is the authority, not the flag. `isPremium` is written true
+ * on activation and is NOT written false when the period ends (nothing
+ * runs on the stroke of expiry), so a stale `true` outlives the
+ * subscription by design. A plan whose `subscriptionExpiry` has passed is
+ * therefore reported as not premium however the flags read; a plan with a
+ * live expiry counts even if a flag is missing, which is the shape of
+ * every account activated before the flags were all written.
+ */
+function childPlanState(user, now) {
+  const nowMs = Number.isFinite(now) ? now : Date.now();
+  const u = user && typeof user === "object" ? user : {};
+  const expiresAt = toMillis(u.subscriptionExpiry);
+
+  if (expiresAt != null) {
+    return {premium: expiresAt > nowMs, expiresAt};
+  }
+
+  // No expiry recorded at all. Only an explicit active marker counts —
+  // "no information" must not read as "paid".
+  const flagged =
+    u.isPremium === true ||
+    u.premium === true ||
+    u.subscriptionStatus === "active" ||
+    u.paymentStatus === "active";
+  return {premium: flagged, expiresAt: null};
+}
+
 /* ── The approval feed ─────────────────────────────────────────────── */
 
 /**
@@ -348,7 +385,7 @@ function buildReportEmail({childName, report, quizzes = 0, notes = 0} = {}) {
     `papers. We do not measure time spent in the app, so it never claims`,
     `a figure for that.`,
     ``,
-    `To stop these emails: zedexams.com/settings → Notifications.`,
+    `To stop these emails: zedexams.com/family/account/alerts`,
     ``,
     `— ZedExams`,
   ].join("\n");
@@ -363,6 +400,7 @@ module.exports = {
   ONE_DAY_MS,
   QUIET_AFTER_DAYS,
   buildWeeklyReport,
+  childPlanState,
   childStatus,
   clockTime,
   dayKey,

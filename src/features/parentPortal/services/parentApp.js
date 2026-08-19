@@ -33,6 +33,7 @@ const inviteCoGuardianCallable = call('inviteCoGuardian')
 const acceptCoGuardianInviteCallable = call('acceptCoGuardianInvite')
 const removeCoGuardianCallable = call('removeCoGuardian')
 const resolveGuardianPayLinkCallable = call('resolveGuardianPayLink')
+const setGuardianConsentCallable = call('setGuardianConsent')
 
 /** Every child linked to the signed-in guardian, with this guardian's role. */
 export async function listGuardianChildren() {
@@ -116,5 +117,19 @@ export async function resolveGuardianPayLink(token) {
 /** Owner removes a co-guardian, or revokes an invite that is still pending. */
 export async function removeCoGuardian({ childUid, parentUid, inviteId }) {
   const res = await removeCoGuardianCallable({ childUid, parentUid, inviteId })
+  return res.data
+}
+
+/**
+ * Grant or withdraw guardian consent for a linked child.
+ *
+ * `decision` is 'granted' | 'withdrawn'. Withdrawing is not a flag: the
+ * server suspends the child's account and schedules its deletion, which
+ * is what withdrawing the lawful basis for processing a child's data
+ * means. Owner-only, refused server-side for a co-guardian.
+ */
+export async function setGuardianConsent(childUid, decision) {
+  const res = await setGuardianConsentCallable({ childUid, decision })
+  capture('guardian_consent_set', { decision })
   return res.data
 }

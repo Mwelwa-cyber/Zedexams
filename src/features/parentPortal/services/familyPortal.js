@@ -27,6 +27,7 @@ const fns = getFunctions(app, 'us-central1')
 const createFamilyInviteCodeCallable = httpsCallable(fns, 'createFamilyInviteCode')
 const revokeFamilyInviteCodeCallable = httpsCallable(fns, 'revokeFamilyInviteCode')
 const redeemFamilyInviteCodeCallable = httpsCallable(fns, 'redeemFamilyInviteCode')
+const respondToFamilyLinkCallable = httpsCallable(fns, 'respondToFamilyLink')
 const getChildProgressCallable = httpsCallable(fns, 'getChildProgress')
 
 const LINKS = 'parentLinks'
@@ -78,10 +79,31 @@ export async function listMyFamilyCodes(learnerUid, { limit = 5 } = {}) {
 
 // ── Parent side ─────────────────────────────────────────────────────────────
 
-/** Parent redeems a learner's family code, creating the link. Returns the child. */
+/**
+ * Parent redeems a learner's family code.
+ *
+ * This no longer creates a working link. It burns the code and creates a
+ * PENDING one; the child is asked "is this your grown-up?" and has to say
+ * yes before the parent can see anything. The returned `status` says
+ * which happened — `'pending'` for a new link, `'active'` only when the
+ * parent was already a confirmed guardian and simply re-entered a code.
+ * Callers must not report success as "linked".
+ */
 export async function redeemFamilyInviteCode(code) {
   const result = await redeemFamilyInviteCodeCallable({ code })
-  capture('family_child_linked', {})
+  capture('family_child_link_requested', { status: result.data?.status || 'pending' })
+  return result.data
+}
+
+/**
+ * The child answers a pending guardian request: 'accept' | 'decline'.
+ *
+ * Accepting also writes the guardian consent record, so this is not only a
+ * status flip — see functions/familyPortal.js respondToFamilyLink.
+ */
+export async function respondToFamilyLink(linkId, decision) {
+  const result = await respondToFamilyLinkCallable({ linkId, decision })
+  capture('family_link_response', { decision })
   return result.data
 }
 

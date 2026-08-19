@@ -37,14 +37,22 @@ const admin = require("firebase-admin");
 const {HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
 const {aggregateProgress} = require("../parentPortalShared");
-const {parentLinkId} = require("../familyPortalCore");
+const {activeLinks, parentLinkId} = require("../familyPortalCore");
 const {
   buildWeeklyReport,
+  childPlanState,
   childStatus,
   groupActivityByDay,
   shapeApprovalFeed,
   toMillis,
 } = require("./parentAppCore");
+const {
+  WITHDRAWN_DELETION_DAYS,
+  deniedRecord,
+  grantedRecord,
+  isGuardianSuspension,
+  restoredRecord,
+} = require("../guardianConsent/consentRecord");
 const {
   CO_GUARDIAN_INVITE_TTL_DAYS,
   buildCoGuardianInviteEmail,
@@ -102,7 +110,13 @@ async function authorise(db, parentUid, childUid, capability) {
   }
 
   const linkSnap = await db.collection(LINKS).where("learnerUid", "==", childUid).get();
-  const links = linkSnap.docs.map((d) => ({id: d.id, ...d.data()}));
+  // ACTIVE links only. A pending link (redeemed but not yet confirmed by
+  // the child) and a declined one authorise nothing, and filtering here
+  // rather than at each call site is what makes that true for every
+  // handler below — `authorise` is the one gate they all pass through.
+  // It also keeps the OWNER computation honest: a pending link must not
+  // count as a guardian when deciding who owns the account.
+  const links = activeLinks(linkSnap.docs.map((d) => ({id: d.id, ...d.data()})));
 
   const {roleFor, can} = await loadRoles();
   const role = roleFor(links, parentUid);
@@ -209,8 +223,14 @@ async function listGuardianChildren(request) {
   const db = admin.firestore();
   const {roleFor, capabilitiesOf} = await loadRoles();
 
+  // Same rule as `authorise`: only confirmed links. A parent whose child
+  // has not answered yet sees no child here — the request is shown to
+  // THEM as pending by listPendingFamilyLinks, not as a half-linked row
+  // whose cards would all be empty.
   const mine = await db.collection(LINKS).where("parentUid", "==", uid).get();
-  const childUids = mine.docs.map((d) => (d.data() || {}).learnerUid).filter(Boolean);
+  const childUids = activeLinks(mine.docs.map((d) => ({id: d.id, ...d.data()})))
+      .map((link) => link.learnerUid)
+      .filter(Boolean);
   if (childUids.length === 0) return {children: []};
 
   const children = await Promise.all(childUids.map(async (childUid) => {
@@ -219,7 +239,7 @@ async function listGuardianChildren(request) {
       db.collection("users").doc(childUid).get(),
       readActivity(db, childUid, {days: 30}),
     ]);
-    const links = allLinksSnap.docs.map((d) => ({id: d.id, ...d.data()}));
+    const links = activeLinks(allLinksSnap.docs.map((d) => ({id: d.id, ...d.data()})));
     const role = roleFor(links, uid);
     const child = childSnap.exists ? (childSnap.data() || {}) : {};
     const lastActiveAt = lastActiveFrom(activity);
@@ -234,6 +254,15 @@ async function listGuardianChildren(request) {
       guardianCount: links.length,
       status: childStatus({lastActiveAt, now: Date.now()}),
       lastActiveAt,
+      // Whether this child is already covered. The parent app's plan
+      // banner and every Unlock row read it, because an offer made to a
+      // guardian who paid last week is worse than no offer at all.
+      premium: childPlanState(child, Date.now()).premium,
+      // The consent record, so /family/account/consent can show what
+      // this guardian has approved without a second round trip — and so
+      // the promise on /child-safety ("you can see, change and withdraw
+      // it") has something behind it in the product.
+      consent: consentSummary(child),
       // Deliberately NOT sent: a time-on-task figure and an
       // "exam readiness" percentage. See parentAppCore's header.
     };
@@ -372,8 +401,12 @@ async function listGuardianApprovals(request) {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
   const db = admin.firestore();
 
+  // Active links only — a guardian whose link the child has not confirmed
+  // must not be handed that child's unlock requests to approve.
   const mine = await db.collection(LINKS).where("parentUid", "==", uid).get();
-  const childUids = mine.docs.map((d) => (d.data() || {}).learnerUid).filter(Boolean);
+  const childUids = activeLinks(mine.docs.map((d) => ({id: d.id, ...d.data()})))
+      .map((link) => link.learnerUid)
+      .filter(Boolean);
   if (childUids.length === 0) return {approvals: []};
 
   const childDocs = await db.getAll(...childUids.map((c) => db.collection("users").doc(c)));
@@ -738,6 +771,99 @@ async function removeCoGuardian(request) {
   return {ok: true};
 }
 
+/* ── Guardian consent ──────────────────────────────────────────────── */
+
+/**
+ * The child's consent record, flattened for the parent app.
+ *
+ * `unknown` is a real answer and is reported as one. Every learner
+ * account created before the consent flow existed is in that state (see
+ * shared/consent/guardianConsentCore.js), and calling it "not approved"
+ * would tell hundreds of guardians their child is unapproved because of a
+ * migration rather than because of anything they did.
+ */
+function consentSummary(child) {
+  const guardian = (child && typeof child.guardian === "object" && child.guardian) || {};
+  const status = typeof guardian.consentStatus === "string" ? guardian.consentStatus : "unknown";
+  return {
+    status,
+    decidedAt: toMillis(guardian.decidedAt),
+    via: (guardian.evidence && guardian.evidence.via) || null,
+    // Whether a re-approval here would lift the account's suspension.
+    // Reported so the screen can say "this is reversible" only when it is.
+    restorable: isGuardianSuspension(child),
+  };
+}
+
+/**
+ * A guardian grants or withdraws consent for a linked child.
+ *
+ * ── Why withdrawing suspends the account ────────────────────────────
+ *
+ * Because that is what withdrawing consent MEANS. Under Zambia's Data
+ * Protection Act the consent is the lawful basis for processing the
+ * child's data; without it we may not carry on. So this writes exactly
+ * what the emailed "this wasn't me" writes — denied, suspended, deletion
+ * scheduled 30 days out — through the same shared record builder, rather
+ * than inventing a softer third state that would leave a child using an
+ * account their guardian has withdrawn.
+ *
+ * ── And why it is reversible ────────────────────────────────────────
+ *
+ * A control that cannot be undone is a control people are afraid to use,
+ * and a guardian who taps withdraw by mistake would otherwise have 30
+ * days and a support email. Re-granting restores the account — but only
+ * when the suspension is one WE caused (`isGuardianSuspension`). An
+ * account an administrator suspended for something else stays suspended:
+ * a consent decision must never be a route around moderation.
+ *
+ * Owner-only (`deleteChild`), because a co-guardian who could withdraw
+ * consent could delete the account without being allowed to delete the
+ * account.
+ */
+async function setGuardianConsent(request) {
+  const uid = await assertVerifiedAuth(request, "Sign in required.");
+  const db = admin.firestore();
+  const childUid = String(request.data?.childUid || "").trim();
+  const decision = String(request.data?.decision || "").trim();
+
+  if (decision !== "granted" && decision !== "withdrawn") {
+    throw new HttpsError("invalid-argument", "decision must be 'granted' or 'withdrawn'.");
+  }
+
+  const {child} = await authorise(db, uid, childUid, "deleteChild");
+
+  const parentSnap = await db.collection("users").doc(uid).get();
+  const parent = parentSnap.exists ? (parentSnap.data() || {}) : {};
+  const now = admin.firestore.FieldValue.serverTimestamp();
+  const evidence = {
+    via: "parent_app",
+    guardianUid: uid,
+    guardianEmail: parent.email || "",
+  };
+
+  if (decision === "withdrawn") {
+    await db.collection("users").doc(childUid).set(deniedRecord({
+      now,
+      evidence,
+      reason: "guardian_withdrew",
+      deletionAt: new Date(Date.now() + WITHDRAWN_DELETION_DAYS * 24 * 60 * 60 * 1000),
+    }), {merge: true});
+    return {ok: true, status: "denied", deletionInDays: WITHDRAWN_DELETION_DAYS};
+  }
+
+  // Granting. `restoredRecord` ALSO clears the suspension, so it is used
+  // only when the suspension is one this flow caused; otherwise the plain
+  // consent record goes in on its own and whatever suspended the account
+  // keeps it suspended.
+  const record = isGuardianSuspension(child) ?
+    restoredRecord({now, evidence}) :
+    grantedRecord({now, evidence});
+
+  await db.collection("users").doc(childUid).set(record, {merge: true});
+  return {ok: true, status: "granted"};
+}
+
 module.exports = {
   acceptCoGuardianInvite,
   declineGuardianApproval,
@@ -750,4 +876,5 @@ module.exports = {
   removeCoGuardian,
   resolveGuardianPayLink,
   setChildGuardianControl,
+  setGuardianConsent,
 };

@@ -27,6 +27,14 @@ const CATEGORIES = [
   "account",
   "system",
   "announcements",
+  // Guardian-only. The Sunday family report is the one thing this
+  // product sends on a schedule to somebody who did not ask for it that
+  // week, and until this category existed there was no switch behind it
+  // at all — /family/account told a parent they could turn it off in
+  // Alerts, and Alerts had nothing to turn off. A promise in the UI with
+  // no field behind it is worse than no promise: the parent believes
+  // they opted out and the email keeps arriving.
+  "guardianReports",
 ];
 
 // In-app is force-on for these regardless of the master / category / channel
@@ -42,6 +50,7 @@ const DEFAULT_CATEGORY_ICON = {
   account: "user-circle",
   system: "cog",
   announcements: "megaphone",
+  guardianReports: "chart-bar",
 };
 
 // Zambia is UTC+2 year-round (no DST). Quiet-hours are expressed in the user's
@@ -111,10 +120,17 @@ function normalizeServerPrefs(input) {
       account: pick(cats.account),
       system: pick(cats.system),
       announcements: pick(cats.announcements, legacyAnnouncements),
+      guardianReports: pick(cats.guardianReports),
     },
     channels: {
       push: typeof ch.push === "boolean" ? ch.push : true,
       inApp: typeof ch.inApp === "boolean" ? ch.inApp : true,
+      // Email is a real delivery channel (the Sunday family report, and
+      // whatever else grows an email path), so it is normalized here
+      // rather than being decided per sender. Default on, matching the
+      // other two: an existing profile that predates the field has not
+      // opted out of anything.
+      email: typeof ch.email === "boolean" ? ch.email : true,
     },
     quietHours: {
       enabled: qh.enabled === true,
@@ -123,6 +139,25 @@ function normalizeServerPrefs(input) {
     },
     muteUntil: Number.isFinite(Number(p.muteUntil)) ? Number(p.muteUntil) : null,
   };
+}
+
+/**
+ * May we EMAIL this user about this category?
+ *
+ * Deliberately stricter than `categoryEnabled`: an email lands in an
+ * inbox the person did not open for us and cannot dismiss with a swipe,
+ * so it needs the channel switch as well as the category one. There is
+ * no critical-category override here — nothing this product emails on a
+ * schedule is something a recipient may not decline. A transactional
+ * message tied to an action the user just took (a receipt, a password
+ * reset) is not routed through preferences at all and never was.
+ */
+function emailEnabled(prefs, category) {
+  const np = normalizeServerPrefs(prefs);
+  if (!np.master) return false;
+  if (np.channels.email === false) return false;
+  if (category && isCategory(category)) return np.categories[category] !== false;
+  return true;
 }
 
 // Is the user's category switch on? (master + the specific category)
@@ -270,6 +305,7 @@ module.exports = {
   lusakaMinutesOfDay,
   normalizeServerPrefs,
   categoryEnabled,
+  emailEnabled,
   shouldWriteInApp,
   isWithinQuietHours,
   isMuted,

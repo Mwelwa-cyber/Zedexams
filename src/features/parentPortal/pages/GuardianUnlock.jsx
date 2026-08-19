@@ -65,7 +65,7 @@ export default function GuardianUnlock() {
         <SeoHelmet title="Unlock ZedExams · ZedExams" noIndex />
 
         <div className="pax-top">
-          <img src="/zedexams-logo.webp" alt="ZedExams" height="28" />
+          <img className="pax-brand" src="/zedexams-logo.webp" alt="ZedExams" />
           <span className="pax-role-pill">Guardian</span>
         </div>
 

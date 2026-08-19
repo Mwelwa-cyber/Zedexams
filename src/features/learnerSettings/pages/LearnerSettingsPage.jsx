@@ -31,8 +31,8 @@
 // re-authentication), Report a problem goes to the help panel's contact
 // dialog, Downloads & storage to the offline library.
 
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import '../../../shared/styles/learnerTheme.css'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useTheme, DEFAULT_THEME } from '../../../contexts/ThemeContext'
@@ -92,17 +92,31 @@ function LinkRow({ icon, title, desc, value, onClick, danger = false }) {
   )
 }
 
-function InfoRow({ icon, title, desc, value }) {
-  return (
-    <div className="lhx-set-row">
-      <span className="lhx-set-ic" aria-hidden="true">{icon}</span>
-      <span className="lhx-set-txt">
-        <span className="lhx-set-title" style={{ display: 'block' }}>{title}</span>
-        {desc && <span className="lhx-set-desc" style={{ display: 'block' }}>{desc}</span>}
-      </span>
-      {value && <span className="lhx-set-val">{value}</span>}
-    </div>
-  )
+/** Scroll a `?section=` deep link to its group once the page is up. */
+function useSectionAnchor() {
+  const [params] = useSearchParams()
+  const section = params.get('section')
+  useEffect(() => {
+    const anchor = section ? SECTION_ANCHORS[section] : null
+    if (!anchor || typeof document === 'undefined') return
+    const el = document.getElementById(anchor)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [section])
+}
+
+// The v6 screen is one scrolling page rather than a rail of panels, so a
+// `?section=` deep link cannot open a tab here — there are no tabs. It
+// scrolls to the matching group instead, which is the same promise kept
+// in the shape this screen has. Sections the page does not carry
+// (`progress`, `ai`, `premium`, `help`) simply leave the page at the
+// top: landing at the top of Settings is a fair answer to "we do not
+// have that section", where silently sitting on an unrelated one is not.
+const SECTION_ANCHORS = {
+  appearance: 'set-appearance',
+  notifications: 'set-notifications',
+  learning: 'set-learning',
+  account: 'set-account',
+  security: 'set-security',
 }
 
 export default function LearnerSettingsPage() {
@@ -160,6 +174,8 @@ export default function LearnerSettingsPage() {
     save({ learningPrefs: { ...learning, dailyGoal: next.value } })
   }
 
+  useSectionAnchor()
+
   return (
     <>
       <SeoHelmet title="Settings" path="/settings" noIndex />
@@ -168,7 +184,7 @@ export default function LearnerSettingsPage() {
         <div className="lhx-back-title">Settings</div>
       </div>
 
-      <div className="lhx-set-head">Appearance</div>
+      <div className="lhx-set-head" id="set-appearance">Appearance</div>
       <div className="lhx-set-group">
         <ToggleRow
           icon="🌙" title="Night mode" desc="Easier on the eyes at night"
@@ -181,7 +197,7 @@ export default function LearnerSettingsPage() {
         />
       </div>
 
-      <div className="lhx-set-head">Notifications</div>
+      <div className="lhx-set-head" id="set-notifications">Notifications</div>
       <div className="lhx-set-group">
         <ToggleRow
           icon="📲" title="Push notifications" desc="Alerts on your phone"
@@ -211,7 +227,7 @@ export default function LearnerSettingsPage() {
         />
       </div>
 
-      <div className="lhx-set-head">Learning</div>
+      <div className="lhx-set-head" id="set-learning">Learning</div>
       <div className="lhx-set-group">
         <ToggleRow
           icon="🤖" title="Ask Zed" desc="Your study helper (online only)"
@@ -223,17 +239,24 @@ export default function LearnerSettingsPage() {
         <LinkRow icon="🎯" title="Daily goal" value={goalLabel} onClick={cycleGoal} />
       </div>
 
-      <div className="lhx-set-head">Account</div>
+      <div className="lhx-set-head" id="set-account">Account</div>
       <div className="lhx-set-group">
         <LinkRow
           icon="🙂" title="Name & avatar"
           value={userProfile?.displayName?.split(/\s+/)[0] || null}
           onClick={() => navigate('/settings?section=account')}
         />
-        <InfoRow
+        {/* A LinkRow, not an InfoRow. The parent app tells guardians "your
+            child finds this in their app under Settings → Guardian", and
+            until this row had a destination that sentence was false: the
+            family-code panel lived at a section a learner could not reach.
+            It is also where a child now answers "is this your grown-up?"
+            when somebody redeems their code. */}
+        <LinkRow
           icon="🛡️" title="Guardian"
-          desc={guardianGranted ? 'Verified · manages approvals' : 'Not verified yet'}
-          value={guardianGranted ? '✅' : '—'}
+          desc={guardianGranted ? 'Verified · manages approvals' : 'Family code and who can see your progress'}
+          value={guardianGranted ? '✅' : null}
+          onClick={() => navigate('/settings?section=parent')}
         />
         <LinkRow
           icon="⬇️" title="Downloads & storage" desc="Offline papers and notes"
@@ -241,7 +264,7 @@ export default function LearnerSettingsPage() {
         />
       </div>
 
-      <div className="lhx-set-head">Privacy &amp; safety</div>
+      <div className="lhx-set-head" id="set-security">Privacy &amp; safety</div>
       <div className="lhx-set-group">
         <LinkRow icon="🚩" title="Report a problem" onClick={() => navigate('/settings?section=help')} />
         <LinkRow icon="☎️" title="Get help" desc={CHILDLINE} onClick={() => navigate('/settings?section=help')} />

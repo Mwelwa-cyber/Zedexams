@@ -19,7 +19,9 @@ import Icon from '../../shared/components/Icon'
 import { Search, XMarkIcon, ArrowLeft } from '../../shared/components/icons'
 import PageLoader from '../../shared/components/PageLoader'
 import { SettingsSaveProvider, useSettingsSave } from './components/SaveContext'
-import { LEARNER_SETTINGS_SECTIONS, SECTION_IDS, searchSections, getSection } from './sections'
+import {
+  LEARNER_SETTINGS_SECTIONS, PANEL_SECTION_IDS, SECTION_IDS, searchSections, getSection,
+} from './sections'
 import {
   computeProfileCompletion,
   normalizePersonalisation,
@@ -44,6 +46,8 @@ const PANELS = {
   premium: lazy(() => import('./panels/PremiumPanel')),
   security: lazy(() => import('./panels/PrivacySecurityPanel')),
   help: lazy(() => import('./panels/HelpPanel')),
+  // Panel-only — no dashboard card. See PANEL_ONLY_SECTIONS.
+  parent: lazy(() => import('./panels/ParentPanel')),
 }
 
 // Card grid — the mockup arrangement expressed as 12-col spans.
@@ -118,7 +122,9 @@ function LearnerSettingsInner({ bare = false }) {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const requested = searchParams.get('section')
-  const detailId = SECTION_IDS.includes(requested) ? requested : null
+  // PANEL_SECTION_IDS, not SECTION_IDS: the Guardian panel has no
+  // dashboard card but is a real destination (?section=parent).
+  const detailId = PANEL_SECTION_IDS.includes(requested) ? requested : null
 
   const [query, setQuery] = useState('')
   const [spy, setSpy] = useState(detailId || readLastSection() || SECTION_IDS[0])

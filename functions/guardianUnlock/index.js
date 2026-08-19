@@ -144,7 +144,12 @@ async function notifyLinkedParents({db, learnerUid, learnerName, clause}) {
         .where("learnerUid", "==", learnerUid)
         .limit(MAX_NOTIFIED_PARENTS)
         .get();
-    links = snap.docs.map((d) => d.data() || {});
+    // Active links only. A pending link is somebody who typed a code and
+    // has not been confirmed by the child; telling them what the child is
+    // asking to unlock would leak the child's activity to exactly the
+    // person the confirmation step has not yet vouched for.
+    const {activeLinks} = require("../familyPortalCore");
+    links = activeLinks(snap.docs.map((d) => d.data() || {}));
   } catch (err) {
     console.warn("[guardianUnlock] parentLinks read failed", err);
     return {notified: 0};

@@ -54,11 +54,11 @@ export default function ParentAccount() {
           </span>
           <span className="lhx-set-chev" aria-hidden="true">›</span>
         </Link>
-        <Link className="lhx-set-row lhx-set-tap" to="/my-subscription">
+        <Link className="lhx-set-row lhx-set-tap" to="/family/account/billing">
           <span className="lhx-set-ic" aria-hidden="true">🧾</span>
           <span className="lhx-set-txt">
             <span className="lhx-set-title">Payments and receipts</span>
-            <span className="lhx-set-desc">Your own account's payment history</span>
+            <span className="lhx-set-desc">What you have paid, and for whom</span>
           </span>
           <span className="lhx-set-chev" aria-hidden="true">›</span>
         </Link>
@@ -66,7 +66,7 @@ export default function ParentAccount() {
 
       <h2 className="lhx-set-head">Alerts you receive</h2>
       <div className="lhx-set-group">
-        <Link className="lhx-set-row lhx-set-tap" to="/settings?section=notifications">
+        <Link className="lhx-set-row lhx-set-tap" to="/family/account/alerts">
           <span className="lhx-set-ic" aria-hidden="true">🔔</span>
           <span className="lhx-set-txt">
             <span className="lhx-set-title">Email and push alerts</span>
@@ -88,6 +88,33 @@ export default function ParentAccount() {
           </span>
           <span className="lhx-set-chev" aria-hidden="true">›</span>
         </Link>
+        {/* Family sharing was built (invite a second guardian, owner vs
+            can-view-and-approve) and reachable only from one child's
+            detail screen, so a guardian who wanted to add their partner
+            had to guess that it lived behind a child. It belongs on the
+            account, where the rest of the household settings are. */}
+        <Link className="lhx-set-row lhx-set-tap" to="/family/sharing">
+          <span className="lhx-set-ic" aria-hidden="true">🤝</span>
+          <span className="lhx-set-txt">
+            <span className="lhx-set-title">Family sharing</span>
+            <span className="lhx-set-desc">
+              Invite another guardian. Billing and deletion stay with the owner.
+            </span>
+          </span>
+          <span className="lhx-set-chev" aria-hidden="true">›</span>
+        </Link>
+        {/* /child-safety promises a guardian can see, change and withdraw
+            their consent. This is where that promise is kept in-product. */}
+        <Link className="lhx-set-row lhx-set-tap" to="/family/account/consent">
+          <span className="lhx-set-ic" aria-hidden="true">📝</span>
+          <span className="lhx-set-txt">
+            <span className="lhx-set-title">Guardian consent</span>
+            <span className="lhx-set-desc">
+              What you have approved for each child, and how to withdraw it
+            </span>
+          </span>
+          <span className="lhx-set-chev" aria-hidden="true">›</span>
+        </Link>
       </div>
 
       <h2 className="lhx-set-head">Safety &amp; account</h2>
@@ -100,6 +127,12 @@ export default function ParentAccount() {
           </span>
           <span className="lhx-set-chev" aria-hidden="true">›</span>
         </a>
+        {/* The one link out of /family/*, and deliberately so: this is the
+            PUBLISHED child-safety standards document, the same URL named
+            in the Play Console declaration, and it renders in the neutral
+            legal layout — no learner navigation, no "signed in as"
+            heading. A second copy inside the family shell would be a fork
+            of a document a regulator reads back to you. */}
         <Link className="lhx-set-row lhx-set-tap" to="/child-safety">
           <span className="lhx-set-ic" aria-hidden="true">🛡️</span>
           <span className="lhx-set-txt">

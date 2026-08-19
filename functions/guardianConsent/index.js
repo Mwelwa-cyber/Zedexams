@@ -47,6 +47,11 @@ const {
 } = require("./consentTokens");
 const {buildConsentEmail, buildConsentWhatsAppText, safeName} = require("./consentMessages");
 const {
+  WITHDRAWN_DELETION_DAYS,
+  grantedRecord,
+  deniedRecord,
+} = require("./consentRecord");
+const {
   renderDecisionPage,
   renderApprovedPage,
   renderDeclinedPage,
@@ -260,33 +265,31 @@ async function applyDecision(db, docRef, decision) {
     if (!userSnap.exists) return {outcome: "invalid"};
 
     const now = admin.firestore.FieldValue.serverTimestamp();
+    // The record's SHAPE lives in consentRecord.js, shared with the
+    // family-code and parent-app routes to the same decision — three
+    // places writing "approved" three ways is how one of them ends up
+    // without the evidence a regulator asks for.
+    const evidence = {
+      via: "link",
+      ip: record.clickIp || "",
+      userAgent: record.clickUserAgent || "",
+      tokenId: docRef.id,
+    };
+
     if (decision === "decline") {
-      tx.set(userRef, {
-        guardian: {consentStatus: "denied", decidedAt: now},
-        // Suspended immediately. The guardian was told the account is
-        // deactivated, so it has to actually be.
-        suspended: true,
-        suspendedReason: "guardian_declined",
-        scheduledDeletionAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      }, {merge: true});
+      // Suspended immediately. The guardian was told the account is
+      // deactivated, so it has to actually be.
+      tx.set(userRef, deniedRecord({
+        now,
+        evidence,
+        reason: "guardian_declined",
+        deletionAt: new Date(Date.now() + WITHDRAWN_DELETION_DAYS * 24 * 60 * 60 * 1000),
+      }), {merge: true});
       tx.update(docRef, {used: true, outcome: "denied", decidedAt: now});
       return {outcome: "declined", childName: userSnap.data()?.firstName};
     }
 
-    tx.set(userRef, {
-      guardian: {
-        consentStatus: "granted",
-        decidedAt: now,
-        // The consent evidence record. This — contact, timestamp, and the
-        // click's IP/user-agent — is what we would show a regulator or Google
-        // on appeal to demonstrate a guardian actually approved.
-        evidence: {
-          ip: record.clickIp || "",
-          userAgent: record.clickUserAgent || "",
-          tokenId: docRef.id,
-        },
-      },
-    }, {merge: true});
+    tx.set(userRef, grantedRecord({now, evidence}), {merge: true});
     tx.update(docRef, {used: true, outcome: "granted", decidedAt: now});
     return {outcome: "approved", childName: userSnap.data()?.firstName};
   });

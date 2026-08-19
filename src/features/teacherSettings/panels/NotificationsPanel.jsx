@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
 import {
-  NOTIFICATION_CATEGORY_META,
+  categoriesForAudience,
   normalizeNotificationPrefs,
 } from '../../../engines/notification-engine/notificationPrefs'
 import { isPushSupported, pushPermission, requestPushPermission } from '../../../services/notifications/fcm'
@@ -76,7 +76,7 @@ export default function NotificationsPanel() {
 
       <section className="tset-section">
         <h2 className="tset-section__title">What you hear about</h2>
-        {NOTIFICATION_CATEGORY_META.map((c) => (
+        {categoriesForAudience('teacher').map((c) => (
           <ToggleRow
             key={c.key}
             title={c.label}

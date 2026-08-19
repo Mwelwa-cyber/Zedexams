@@ -35,6 +35,11 @@ const OUTCOME = Object.freeze({
  * pass-through: the gate id reaches the message text, and a caller that could
  * name anything could put anything in front of a parent. */
 const REQUESTABLE_GATES = Object.freeze([
+  // The whole-product ask, from a surface that is not about one feature —
+  // a learner who reached a price list or an upgrade banner and was routed
+  // to the guardian instead of to a checkout. Mirrors FULL_ACCESS in
+  // src/services/entitlements/gates.js.
+  "FULL_ACCESS",
   "PAPER_CONTINUE",
   "PAPER_OPEN",
   "PAPER_OFFLINE",

@@ -21,7 +21,7 @@
  */
 
 export { FEATURE_GATES, GATE_IDS, TIER, MOMENT_OF_WIN_EVENTS, FREE_PAPERS_PER_WEEK, getGate, gateQuota, interpolate, resolveGateCopy } from './gates'
-export { AGE_BAND, GRACE_DAYS, PLAN_STATUS, formatResetDate, isGateLocked, nextMonthlyReset, nextWeeklyReset, planChipLabel, planChipTone, quotaLeft, resolveAgeBand, resolvePlanState } from './planState'
+export { AGE_BAND, GRACE_DAYS, PLAN_STATUS, formatResetDate, isGateLocked, mayShowPrice, nextMonthlyReset, nextWeeklyReset, planChipLabel, planChipTone, quotaLeft, resolveAgeBand, resolvePlanState } from './planState'
 export { LIMITS, SUPPRESSION, BLOCKED_CONTEXTS, applyDismissal, decideCanRequestGuardian, decideCanShow, interruptionBudget, isBlockedContext, onSuppressed } from './interruptionBudget'
 export { activeContexts, useActivity } from './activity'
 export { DEFAULT_FREE_TO_QUESTION, METER_LEAD_QUESTIONS, freeSetDisclosure, isWithinFreeSet, meterLabel, resolveFreeSet, shouldShowMeter, validateFreeSetConfig } from './freeSet'

@@ -61,6 +61,7 @@ export function statusPill(status) {
  * "PAPER_CONTINUE" in a sentence about their child.
  */
 const FEATURE_LABELS = {
+  FULL_ACCESS: 'everything on ZedExams',
   PAPER_CONTINUE: 'to finish a past paper',
   PAPER_OPEN: 'to open more past papers',
   PAPER_OFFLINE: 'to save papers for offline',
@@ -118,4 +119,80 @@ export function sortChildren(children) {
     if (ao !== bo) return ao - bo
     return String(a?.displayName || '').localeCompare(String(b?.displayName || ''))
   })
+}
+
+/**
+ * How a child's guardian-consent record reads on /family/account/consent.
+ *
+ * `unknown` is the one that needed care. Every learner account created
+ * before the consent flow existed carries no record at all, and the
+ * honest sentence for those is "we do not have one", not "not approved" —
+ * a guardian told their child is unapproved because of a migration will
+ * either panic or stop believing the screen. The five statuses come from
+ * functions/shared/consent/guardianConsentCore.js; anything outside that
+ * vocabulary is treated as unknown for the same reason a status nobody
+ * defined is not evidence of approval.
+ *
+ * `tone` is a class suffix rather than a colour, so Night mode keeps
+ * working.
+ */
+export function consentView(consent) {
+  const status = String(consent?.status || 'unknown')
+  switch (status) {
+    case 'granted':
+      return {
+        status,
+        label: 'Approved',
+        tone: 'ok',
+        detail: 'You have approved this account.',
+        canWithdraw: true,
+        canGrant: false,
+      }
+    case 'denied':
+      return {
+        status,
+        label: 'Withdrawn',
+        tone: 'warn',
+        detail: 'This account is suspended and will be deleted.',
+        canWithdraw: false,
+        canGrant: true,
+      }
+    case 'pending':
+      return {
+        status,
+        label: 'Waiting',
+        tone: 'idle',
+        detail: 'We have asked a guardian to approve this account.',
+        canWithdraw: false,
+        canGrant: true,
+      }
+    case 'expired':
+      return {
+        status,
+        label: 'Link expired',
+        tone: 'idle',
+        detail: 'The approval link ran out before anyone used it.',
+        canWithdraw: false,
+        canGrant: true,
+      }
+    default:
+      return {
+        status: 'unknown',
+        label: 'No record yet',
+        tone: 'idle',
+        detail: 'This account predates our consent record. Approving it now writes one.',
+        canWithdraw: false,
+        canGrant: true,
+      }
+  }
+}
+
+/** "approved by family code" / "approved by email link", or ''. */
+export function consentViaLabel(via) {
+  switch (via) {
+    case 'code': return 'by family code'
+    case 'link': return 'by email link'
+    case 'parent_app': return 'in the family app'
+    default: return ''
+  }
 }

@@ -63,7 +63,12 @@ describe('LearnerSettingsRoute', () => {
     }
   })
 
-  it('the reachable list is exactly the two the mockup links to', () => {
-    expect(LEARNER_REACHABLE_SECTIONS).toEqual(['account', 'help'])
+  it('the reachable list is exactly the three the mockup links to', () => {
+    // `parent` joined the list when family codes became child-confirmed:
+    // the Guardian row is where a learner mints a code AND where they
+    // answer "is this your grown-up?", so it has to be reachable. The
+    // list stays short on purpose — the old ten-section settings
+    // dashboard is not part of the learner mockup.
+    expect(LEARNER_REACHABLE_SECTIONS).toEqual(['account', 'help', 'parent'])
   })
 })
