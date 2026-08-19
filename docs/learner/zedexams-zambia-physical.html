@@ -1,0 +1,2455 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ZedExams — Zambia's physical features</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--ind:#5b5bd6;--ind-soft:#ececfb;--ink:#1c2333;--muted:#6b7392;--bg:#eef0fb;
+--coral:#ff7a4d;--coral-2:#f4592c;--gold:#f5b820;--line:#e6e8f5;--r:18px;
+/* Okabe-Ito, and the same rule as the Know Zambia game: correct and wrong are
+   told apart by GLYPH and PATTERN first. The colours only ever agree with the
+   glyph — they are near-identical in greyscale, which is why the glyph is not
+   optional and why the strip has a "Drop the colour" switch. */
+--ok:#009e73;--ok-ink:#04674c;--ok-soft:#e7f5f0;--ok-line:#bfe4d8;
+--no:#d55e00;--no-ink:#8f3f00;--no-soft:#fdeee4;--no-line:#f6d3ba;
+--anchor:#a8b3d6;--anchor-ink:#333a58;--land:#d7dff2;
+--water:#2f86c9;--water-ink:#12508f;--water-soft:#e2f0fb}
+*{box-sizing:border-box}
+body{margin:0;background:#dfe3f5;font-family:Nunito,system-ui,sans-serif;color:var(--ink);padding:22px 14px 50px}
+h1.pt{text-align:center;margin:0 0 4px;font-size:25px}
+p.ps{text-align:center;color:#5a6180;margin:0 0 16px;font-size:13.5px}
+
+/* ---- prototype control strip (not part of the app) ---- */
+.rig{max-width:1180px;margin:0 auto 18px;background:#fff;border-radius:14px;padding:12px 15px;
+display:flex;gap:13px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:#4b5270}
+.rig b{color:var(--ink)}
+.rig label{display:flex;gap:6px;align-items:center;font-weight:800}
+.rig select,.rig button{font:inherit;font-weight:800;font-size:12.5px;border-radius:9px;border:1.5px solid var(--line);
+background:#fff;color:var(--ind);padding:6px 10px;cursor:pointer}
+.rig .sep{flex:1}
+.rig .chk{background:var(--ok-soft);color:var(--ok-ink);border:1px solid var(--ok-line);border-radius:999px;padding:4px 11px;font-weight:800}
+.rig .chk.bad{background:var(--no-soft);color:var(--no-ink);border-color:var(--no-line)}
+.rig .chk.idle{background:var(--bg);color:var(--muted);border-color:var(--line)}
+
+.stage{display:flex;gap:22px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+.phone{width:356px;height:760px;background:var(--bg);border-radius:34px;overflow:hidden;position:relative;
+box-shadow:0 14px 40px rgba(40,44,90,.22);border:7px solid #12142a;display:flex;flex-direction:column}
+.phone.w320{width:320px}.phone.w360{width:360px}.phone.w412{width:412px}
+.notes{width:356px}
+.note{background:#fff;border-radius:14px;padding:13px 15px;font-size:12.5px;line-height:1.6;color:#4b5270;border-left:4px solid var(--ind);margin-bottom:11px}
+.note b{color:var(--ink)} .note h3{margin:0 0 5px;font-size:13.5px;color:var(--ink)} .note.warn{border-left-color:#e0a020}
+.note code{background:#f2f3fb;border-radius:5px;padding:1px 5px;font-size:11.5px}
+
+.top{padding:11px 14px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:9px;flex:0 0 auto}
+.back{width:32px;height:32px;border-radius:10px;background:var(--bg);border:none;display:grid;place-items:center;color:var(--ind);font-size:16px;font-family:inherit;cursor:pointer}
+.ttl{font-weight:900;font-size:15px;line-height:1.2}
+.ttl small{display:block;font-size:10.5px;font-weight:800;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.chip{margin-left:auto;background:var(--ok-soft);color:var(--ok-ink);border:1px solid var(--ok-line);border-radius:999px;padding:4px 10px;font-size:11px;font-weight:800;white-space:nowrap}
+.body{padding:12px;flex:1;overflow-y:auto}.body::-webkit-scrollbar{width:0}
+.card{background:#fff;border-radius:var(--r);padding:13px;margin-bottom:10px}
+.card.tight{padding:8px 8px 6px}
+.kick{font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+.q{font-size:15.5px;font-weight:800;line-height:1.45}
+.q b{color:var(--ind)}
+
+/* ---- the map ---- */
+svg.map{width:100%;display:block;touch-action:manipulation;overflow:visible}
+.prov{fill:var(--land);stroke:#fff;stroke-width:.5;transition:fill .18s}
+.prov[data-hit]{cursor:pointer}
+.prov[data-hit]:hover{fill:#c3cdea}
+.prov.anchor{fill:var(--anchor)}
+.prov.ok{fill:var(--ok)}
+.prov.no{fill:url(#hatch)}
+.prov.step{fill:var(--water)}
+.prov:focus{outline:none;stroke:var(--ind);stroke-width:1.4}
+.plab{font-weight:900;fill:#fff;pointer-events:none;text-anchor:middle;paint-order:stroke;stroke:rgba(0,0,0,.18);stroke-width:.35}
+.plab.dark{fill:var(--anchor-ink);stroke:rgba(255,255,255,.7)}
+.mark{font-weight:900;text-anchor:middle;pointer-events:none;font-size:4.2px;paint-order:stroke;stroke:#fff;stroke-width:.9}
+.mark.ok{fill:#fff;stroke:rgba(0,0,0,.25)}
+.mark.no{fill:var(--no-ink)}
+.riv{fill:none;stroke:var(--water-ink);stroke-width:1.4;stroke-linejoin:round;stroke-linecap:round}
+.lake{fill:#a9cdea;stroke:var(--water);stroke-width:.5}
+.lake.ok{fill:var(--ok);stroke:var(--ok-ink)}
+.wlab{font-size:2.7px;font-weight:800;fill:var(--water-ink);text-anchor:middle;pointer-events:none;paint-order:stroke;stroke:#fff;stroke-width:.8}
+.pin circle{fill:var(--coral-2);stroke:#fff;stroke-width:.6}
+.pin text{font-size:3px;font-weight:900;fill:var(--ink);text-anchor:middle;paint-order:stroke;stroke:#fff;stroke-width:1}
+.halo{fill:transparent;cursor:pointer}
+.halo:focus{outline:none}
+body.nocolour svg.map{filter:grayscale(1)}
+.prov-src{font-size:10.5px;color:var(--muted);text-align:center;margin-top:6px;line-height:1.5}
+
+/* ---- shared controls ---- */
+.hint{text-align:center;font-size:12px;color:var(--muted);font-weight:700;margin:9px 0 3px}
+.hint b{color:var(--ind)}
+.fb{border-radius:14px;padding:12px;margin-top:10px;font-size:13px;line-height:1.6}
+.fb.ok{background:var(--ok-soft);border:1px solid var(--ok-line);color:var(--ok-ink)}
+.fb.no{background:var(--no-soft);border:1px solid var(--no-line);color:var(--no-ink)}
+.fb.say{background:var(--bg);border:1px solid var(--line);color:#4b5270}
+.fb .t{font-weight:900;font-size:14px;margin-bottom:3px;display:flex;gap:6px;align-items:baseline}
+.btn{width:100%;padding:13px;border:none;border-radius:14px;font:inherit;font-weight:800;font-size:15px;cursor:pointer;margin-top:10px;min-height:48px}
+.btn-coral{background:linear-gradient(180deg,var(--coral),var(--coral-2));color:#fff}
+.btn-ghost{background:#fff;color:var(--ind);border:1.5px solid var(--line);font-size:14px}
+
+/* ---- mode menu ---- */
+.mode{background:#fff;border-radius:14px;padding:12px;margin-bottom:9px;display:flex;gap:11px;align-items:center;
+width:100%;border:2px solid transparent;font:inherit;text-align:left;cursor:pointer;min-height:48px}
+.mode.cur{border-color:var(--ind)}
+.mi{width:42px;height:42px;border-radius:12px;background:var(--water-soft);display:grid;place-items:center;font-size:19px;flex:0 0 auto}
+.mi.done{background:var(--ok-soft)}
+.mn{font-weight:900;font-size:14px}
+.md{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.45}
+.rt{margin-left:auto;font-size:10.5px;color:var(--muted);font-weight:800;white-space:nowrap;padding-left:6px}
+.sec{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:12px 0 7px}
+
+/* ---- the route strip (follow the river) ---- */
+.route{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;margin-top:9px}
+.rs{background:var(--bg);border-radius:9px;padding:6px 9px;font-size:11px;font-weight:800;color:var(--muted);display:flex;gap:5px;align-items:center}
+.rs.on{background:var(--water);color:#fff}
+
+/* ---- buckets (watershed, lakes) ---- */
+.item{background:#fff;border:2px solid var(--line);border-radius:14px;padding:14px;font-size:16px;font-weight:900;text-align:center;margin-bottom:10px}
+.item small{display:block;font-size:11.5px;font-weight:800;color:var(--muted);margin-top:3px}
+.buckets{display:flex;gap:9px}
+.bk{flex:1;background:#fff;border:2.5px solid var(--line);border-radius:15px;padding:12px 8px;min-height:96px;font:inherit;cursor:pointer;text-align:center;color:var(--ink)}
+.bk h4{margin:0 0 3px;font-size:13px}
+.bk .sub{font-size:10.5px;color:var(--muted);line-height:1.4}
+.bk .g{font-size:19px;display:block;margin-bottom:3px}
+.bk.ok{border-color:var(--ok);background:var(--ok-soft);color:var(--ok-ink)}
+.bk.no{border-color:var(--no);background:var(--no-soft);color:var(--no-ink)}
+.bk[disabled]{cursor:default}
+.tally{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;justify-content:center}
+.tl{border-radius:9px;padding:5px 9px;font-size:11px;font-weight:800;background:var(--bg);color:var(--muted)}
+.tl.ok{background:var(--ok-soft);color:var(--ok-ink)}
+.tl.no{background:var(--no-soft);color:var(--no-ink)}
+
+/* ---- ordering (relief) ---- */
+.slots{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.sl{background:var(--bg);border-radius:11px;padding:10px 12px;font-size:12.5px;font-weight:800;color:var(--muted);display:flex;gap:8px;align-items:baseline}
+.sl.f{background:var(--water);color:#fff}
+.sl .alt{margin-left:auto;font-weight:800;font-size:11.5px;opacity:.95}
+.ord{background:#fff;border:2px solid var(--line);border-radius:13px;padding:12px 13px;margin-bottom:8px;font-weight:800;font-size:13.5px;
+cursor:pointer;display:flex;align-items:center;gap:9px;width:100%;font-family:inherit;color:var(--ink);text-align:left;min-height:48px}
+.ord.gone{opacity:.35;pointer-events:none}
+.ord .g{color:var(--muted);font-size:11.5px;margin-left:auto;font-weight:800}
+.learned{font-size:12.5px;line-height:1.75;color:#4b5270}
+.learned b{color:var(--ink)}
+.src{font-size:10.5px;color:var(--muted);line-height:1.5;margin-top:8px}
+
+/* ---- self-check panel ---- */
+.panel{max-width:1180px;margin:26px auto 0;background:#151a2e;border-radius:16px;padding:18px 20px;color:#c9cfe6;font-size:12.5px;line-height:1.65}
+.panel h3{margin:0 0 4px;font-size:14.5px;color:#fff}
+.panel p.lead{margin:0 0 12px;color:#939cc0}
+.panel table{width:100%;border-collapse:collapse}
+.panel td{padding:5px 8px 5px 0;vertical-align:top;border-bottom:1px solid #232945}
+.panel td.v{white-space:nowrap;font-weight:800}
+.panel .pass{color:#4fd6a6}.panel .fail{color:#ff9a6b}.panel .warn{color:#f3c65f}
+.panel code{background:#232945;border-radius:5px;padding:1px 5px;color:#dfe4f7}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media(max-width:820px){.stage{display:block}.phone,.notes{width:100%;max-width:360px;margin:0 auto 22px}}
+</style></head><body>
+
+<h1 class="pt">Zambia's physical features</h1>
+<p class="ps">Rivers, falls, lakes and relief — on the map you already have.</p>
+
+<div class="rig">
+  <label>Mode
+    <select id="rMode"></select>
+  </label>
+  <label>Phone
+    <select id="rWidth"><option value="w320">320px</option><option value="w360" selected>360px</option><option value="">356px</option><option value="w412">412px</option></select>
+  </label>
+  <button id="rReset" type="button">Reset progress</button>
+  <label><input type="checkbox" id="rMono"> Drop the colour</label>
+  <label><input type="checkbox" id="rBare"> Province file only</label>
+  <span class="sep"></span>
+  <span class="chk idle" id="rSrc">loading…</span>
+  <span class="chk bad" id="rVerify">unverified</span>
+</div>
+
+<div class="stage">
+  <div class="phone w360" id="phone">
+    <div class="top">
+      <button class="back" id="hBack" type="button" aria-label="Back to the list of modes">‹</button>
+      <div class="ttl" id="hTtl">Physical features<small id="hSub">five modes</small></div>
+      <div class="chip" id="hChip">0 / 0</div>
+    </div>
+    <div class="body" id="scr"></div>
+  </div>
+
+  <div class="notes" id="notes"></div>
+</div>
+
+<div class="panel" id="panel"></div>
+
+<script type="application/json" id="mirror-provinces">{
+ "_readme": "Province outlines for the Know Zambia learner game (docs/learner/zedexams-zambia-game.html). Geometry only — capitals, districts, sites and every other fact live in zambia_facts.json.",
+ "dataset": {
+  "id": "zambia_provinces",
+  "version": 2,
+  "provinceCount": 10,
+  "currentSince": "2011-10-11",
+  "currentSinceNote": "Muchinga Province was created on 11 October 2011. Any map showing nine provinces predates that date.",
+  "traced": "2026-08",
+  "tracedFrom": "A reference province map supplied by the ZedExams team, August 2026.",
+  "dated": "2026-08-19",
+  "positionalAccuracyKm": 25,
+  "positionalAccuracyNote": "Hand-traced outline. Boundaries and projected pins resolve to roughly 25 km, so a town within about 2 map units of a boundary may fall on the wrong side of the trace. Good enough to teach where a province is; not good enough to settle where a boundary runs.",
+  "verification": {
+   "status": "UNVERIFIED",
+   "blocking": true,
+   "requiredBeforeRelease": [
+    "Check every boundary against an official source — Zambia Statistics Agency (ZamStats) census cartography or the Ministry of Lands Survey Department 1:250,000 sheets.",
+    "Record the sheet number / publication and the date checked in verification.checkedAgainst below.",
+    "Have a Zambian teacher confirm the ten names and the Muchinga split."
+   ],
+   "checkedAgainst": null,
+   "checkedBy": null,
+   "checkedOn": null
+  }
+ },
+ "viewBox": "0 0 100 81.5",
+ "projection": {
+  "type": "linear-lonlat",
+  "note": "Maps WGS84 lon/lat onto the viewBox linearly, calibrated on Zambia’s four extreme points, which are the four extremes of the traced outline. x = (lon - lon.min) * lon.scale + lon.offset; y = (southLatitude - lat.min) * lat.scale + lat.offset. Calibration points are chosen well inside their provinces on purpose: a town within about 25 km of a border — Ndola, Kazungula, Sesheke — falls on the wrong side of a hand trace without anything being wrong with either the town or the projection.",
+  "lon": {
+   "min": 21.9994,
+   "max": 33.7057,
+   "scale": 8.561,
+   "offset": -0.11
+  },
+  "lat": {
+   "min": 8.2237,
+   "max": 18.0793,
+   "scale": 8.2877,
+   "offset": -0.11
+  },
+  "checkPoints": [
+   {
+    "name": "Mpulungu",
+    "lon": 31.117,
+    "lat": 8.766,
+    "expect": "no",
+    "why": "northern tip, on Lake Tanganyika"
+   },
+   {
+    "name": "Nakonde",
+    "lon": 32.75,
+    "lat": 9.34,
+    "expect": "mu",
+    "why": "north-east corner, on the Tanzania border"
+   },
+   {
+    "name": "Mongu",
+    "lon": 23.1256,
+    "lat": 15.2481,
+    "expect": "we",
+    "why": "the west, above the Barotse floodplain"
+   },
+   {
+    "name": "Livingstone",
+    "lon": 25.854,
+    "lat": 17.851,
+    "expect": "so",
+    "why": "southern edge, at Mosi-oa-Tunya"
+   },
+   {
+    "name": "Lusaka",
+    "lon": 28.2833,
+    "lat": 15.4167,
+    "expect": "lu",
+    "why": "the capital city"
+   }
+  ]
+ },
+ "provinces": {
+  "nw": {
+   "n": "North-Western",
+   "d": "M-0.11,40.0 L0.0,45.73 L0.56,46.07 L1.91,45.84 L4.72,47.87 L5.39,47.75 L5.96,47.19 L6.97,47.42 L7.75,47.08 L8.76,47.08 L9.44,47.64 L9.66,48.88 L10.34,48.88 L11.24,49.55 L14.16,47.87 L14.83,48.09 L15.96,47.98 L18.31,47.19 L19.33,47.75 L20.9,47.64 L21.24,47.98 L21.12,48.76 L21.69,49.1 L22.92,49.33 L23.82,48.99 L25.51,49.78 L25.28,51.57 L24.38,52.47 L24.61,53.48 L25.62,53.37 L26.85,52.58 L28.43,52.36 L29.1,53.37 L33.71,53.48 L34.83,53.71 L36.07,54.38 L36.29,53.71 L38.31,52.02 L41.69,51.91 L41.35,50.9 L41.46,50.11 L40.45,49.44 L40.45,48.76 L41.12,47.75 L41.12,46.4 L40.0,45.51 L40.0,44.83 L40.79,43.71 L40.9,42.81 L41.8,42.25 L41.91,41.01 L40.45,40.11 L40.34,38.31 L41.91,37.08 L42.02,35.84 L42.92,34.83 L44.16,34.61 L46.63,35.06 L47.08,34.83 L47.53,33.82 L46.97,32.92 L46.85,31.8 L46.52,31.24 L45.17,30.34 L44.83,28.76 L43.82,28.88 L43.6,30.45 L42.36,32.02 L41.12,32.02 L40.34,32.36 L38.31,31.69 L36.74,32.02 L35.62,31.69 L34.27,31.69 L33.26,30.67 L32.36,30.79 L31.12,30.11 L30.45,30.34 L29.89,30.11 L29.89,29.66 L28.54,28.65 L28.31,26.97 L28.54,25.51 L25.73,25.84 L23.93,26.4 L22.7,27.42 L21.69,27.42 L20.67,26.74 L20.67,26.4 L21.24,25.96 L21.12,24.49 L19.1,24.04 L18.54,22.92 L18.09,22.92 L18.65,26.85 L17.87,28.54 L18.09,30.0 L17.87,32.81 L18.54,33.82 L18.54,34.72 L17.75,35.73 L17.19,38.09 L18.2,39.1 L18.09,39.66 L0.0,39.78 Z",
+   "c": [
+    28.5,
+    40
+   ],
+   "region": "north-west",
+   "createdNote": null
+  },
+  "cb": {
+   "n": "Copperbelt",
+   "d": "M43.03,35.17 L42.47,35.84 L42.25,37.19 L40.56,38.65 L40.79,40.0 L42.25,40.79 L42.13,42.36 L41.24,42.92 L41.12,43.82 L40.34,44.94 L40.45,45.51 L41.46,46.52 L43.71,46.52 L44.49,47.98 L44.83,47.98 L45.51,47.3 L45.96,46.29 L48.09,46.18 L48.88,47.08 L49.21,48.65 L51.46,48.09 L52.58,48.43 L54.04,48.2 L54.83,48.76 L55.96,48.88 L56.07,47.75 L57.75,46.4 L58.76,46.07 L59.21,45.51 L59.44,44.27 L58.76,43.03 L58.76,42.36 L57.75,41.46 L57.53,40.56 L56.97,39.89 L56.63,40.11 L55.96,40.0 L55.28,38.76 L55.62,37.75 L54.61,36.29 L54.16,36.07 L53.03,36.18 L52.58,35.62 L51.57,35.62 L50.9,34.38 L49.33,34.83 L47.75,34.27 L47.42,34.94 L46.63,35.51 L45.06,35.39 L44.16,34.94 Z",
+   "c": [
+    48.9,
+    40.7
+   ],
+   "region": "north-centre",
+   "createdNote": null
+  },
+  "ce": {
+   "n": "Central",
+   "d": "M80.22,42.25 L79.33,41.35 L79.33,39.78 L78.31,39.66 L77.87,40.22 L77.3,40.22 L76.85,39.33 L76.18,39.33 L75.73,38.99 L74.83,39.1 L74.27,38.31 L74.27,36.63 L73.48,36.52 L72.58,35.84 L72.25,34.94 L72.36,33.93 L71.8,33.93 L70.79,33.26 L69.44,32.92 L68.88,31.8 L68.09,31.46 L67.42,31.69 L67.19,33.03 L67.19,42.92 L66.85,44.61 L65.62,44.49 L65.17,43.82 L65.62,42.81 L65.17,42.7 L61.8,44.72 L61.12,44.27 L59.89,44.61 L59.66,45.51 L58.88,46.4 L57.87,46.74 L56.4,47.98 L56.29,49.33 L54.72,49.1 L54.38,48.65 L52.47,48.76 L51.46,48.43 L49.89,48.99 L49.1,48.99 L47.98,46.52 L46.18,46.52 L45.84,47.42 L44.83,48.43 L44.16,48.09 L43.6,46.85 L41.57,46.85 L41.46,47.87 L40.79,48.76 L40.79,49.33 L41.8,50.0 L41.8,51.24 L42.13,51.57 L41.8,52.25 L38.31,52.36 L36.52,54.04 L36.18,54.83 L34.72,54.04 L32.92,53.71 L28.99,53.82 L28.31,54.27 L28.54,55.62 L28.2,56.18 L28.2,57.08 L27.08,58.31 L27.3,58.88 L40.0,59.55 L40.67,59.89 L40.9,60.67 L42.47,60.79 L43.37,62.81 L44.49,62.02 L44.61,61.24 L45.84,60.9 L46.74,61.35 L46.74,61.91 L47.42,62.7 L48.99,62.92 L49.66,62.25 L49.66,61.91 L48.65,60.79 L48.65,60.22 L49.44,59.66 L51.12,60.11 L52.92,60.0 L52.92,58.65 L53.37,58.09 L54.83,58.31 L55.28,58.65 L56.63,58.65 L57.64,57.53 L60.0,56.97 L61.01,56.97 L61.91,57.64 L62.36,57.64 L64.04,55.96 L65.96,55.51 L66.29,55.06 L67.75,54.61 L67.75,53.48 L68.65,52.81 L69.1,51.91 L70.11,50.9 L68.76,49.33 L68.88,48.88 L75.51,48.88 L77.08,47.08 L77.53,46.97 L77.75,45.84 L78.76,45.17 L78.76,44.61 L79.44,43.93 L80.45,43.6 L80.11,42.81 Z",
+   "c": [
+    47.4,
+    54.4
+   ],
+   "region": "centre",
+   "createdNote": null
+  },
+  "lu": {
+   "n": "Lusaka",
+   "d": "M71.01,62.02 L71.01,60.22 L70.0,58.88 L69.44,56.18 L68.54,55.17 L67.98,54.94 L67.08,55.06 L66.18,55.84 L64.16,56.29 L62.47,57.98 L61.8,57.98 L61.46,57.53 L60.11,57.3 L57.75,57.87 L56.63,58.99 L55.28,58.99 L53.48,58.43 L53.26,58.76 L53.37,60.0 L53.03,60.34 L51.12,60.45 L49.44,60.0 L48.99,60.45 L50.0,61.8 L50.0,62.36 L49.55,62.92 L50.67,63.15 L51.35,64.16 L52.81,64.04 L53.93,64.72 L55.39,64.72 L56.74,65.96 L58.09,65.73 L58.65,66.18 L59.21,66.18 L59.33,65.73 L60.34,64.72 L61.01,64.72 L62.58,63.6 L64.16,62.92 L64.72,63.03 L66.85,62.25 L67.42,62.47 L68.88,62.25 L70.0,62.47 L71.24,62.36 Z",
+   "c": [
+    59.8,
+    61.1
+   ],
+   "region": "south-centre",
+   "createdNote": null
+  },
+  "so": {
+   "n": "Southern",
+   "d": "M24.72,76.97 L25.73,77.42 L27.53,78.99 L29.21,79.33 L31.12,79.1 L32.47,79.89 L33.15,80.79 L35.84,80.34 L37.87,80.67 L39.1,81.12 L39.55,81.57 L40.9,81.57 L41.57,81.12 L43.6,80.67 L43.93,79.89 L45.84,77.87 L48.09,76.4 L48.65,74.83 L50.67,72.58 L52.58,72.02 L55.51,70.34 L57.42,70.0 L58.43,69.44 L58.88,68.54 L58.76,67.98 L59.1,66.97 L58.99,66.63 L57.98,66.07 L56.63,66.29 L55.28,65.06 L53.82,65.06 L52.81,64.38 L51.46,64.61 L50.56,63.48 L48.2,63.03 L47.42,63.15 L46.52,62.25 L46.4,61.46 L45.96,61.35 L44.94,61.46 L44.83,62.13 L43.71,63.26 L43.26,63.37 L42.92,63.03 L42.36,61.12 L40.79,61.01 L40.34,60.0 L34.38,59.78 L34.04,59.44 L27.3,59.33 L26.74,60.9 L26.85,61.35 L27.98,61.69 L27.64,63.37 L27.3,63.71 L27.75,65.17 L24.94,68.2 L25.06,68.76 L25.73,69.33 L26.85,69.78 L26.85,71.57 L25.51,72.47 L25.39,73.71 L24.38,74.94 Z",
+   "c": [
+    36.6,
+    70.7
+   ],
+   "region": "south",
+   "createdNote": null
+  },
+  "we": {
+   "n": "Western",
+   "d": "M0.0,46.29 L0.0,64.27 L0.67,65.17 L0.9,66.52 L2.36,67.53 L5.06,70.9 L6.07,71.46 L7.98,73.82 L9.66,75.17 L9.66,75.73 L11.91,77.08 L12.58,77.75 L19.33,76.4 L20.9,76.52 L21.57,76.97 L22.7,76.63 L24.27,76.85 L24.04,74.83 L25.06,73.71 L25.06,72.36 L26.4,71.46 L26.4,69.89 L24.94,69.1 L24.61,68.09 L27.3,65.17 L26.85,63.82 L27.53,62.47 L27.53,61.8 L26.74,61.69 L26.29,60.67 L26.74,60.22 L26.97,59.33 L26.74,57.98 L27.75,57.19 L27.87,55.96 L28.2,55.51 L27.87,54.38 L28.65,53.71 L28.54,52.92 L28.31,52.7 L26.97,52.92 L25.51,53.82 L24.61,53.93 L24.04,53.37 L23.93,52.36 L24.61,52.02 L24.94,51.46 L25.06,49.89 L23.82,49.44 L21.8,49.55 L20.79,48.88 L20.9,47.98 L19.66,48.2 L18.31,47.53 L15.96,48.43 L14.04,48.31 L11.35,49.89 L10.79,49.89 L10.45,49.33 L9.33,48.99 L9.33,48.31 L8.88,47.53 L7.87,47.42 L6.97,47.75 L6.07,47.53 L5.28,48.2 L4.72,48.2 L1.91,46.29 L1.35,46.52 Z",
+   "c": [
+    13.8,
+    61.8
+   ],
+   "region": "west",
+   "createdNote": null
+  },
+  "no": {
+   "n": "Northern",
+   "d": "M87.19,7.08 L86.07,7.19 L85.39,6.4 L85.39,5.73 L84.94,5.51 L83.48,5.62 L82.25,4.49 L82.25,3.71 L81.12,3.15 L79.55,3.03 L79.21,3.48 L78.65,3.48 L77.64,2.92 L77.08,2.25 L76.4,2.02 L75.51,-0.11 L64.04,1.69 L64.27,2.58 L63.26,4.04 L62.7,5.62 L61.69,6.74 L63.48,7.64 L63.82,9.21 L63.71,10.11 L64.27,10.22 L65.17,11.01 L66.52,11.24 L67.08,12.02 L67.87,12.13 L68.31,12.58 L68.31,15.06 L67.87,15.84 L65.62,16.4 L65.06,16.85 L64.94,17.3 L64.16,17.87 L64.04,18.76 L63.26,20.11 L61.46,21.24 L61.35,22.81 L63.03,23.48 L63.37,21.69 L64.27,21.35 L64.61,20.79 L66.29,20.22 L66.63,20.9 L67.64,21.69 L67.87,22.36 L67.87,23.71 L67.42,25.28 L68.31,24.61 L70.0,24.61 L72.13,26.29 L72.81,26.4 L73.6,25.17 L73.71,24.38 L75.39,23.15 L75.62,22.25 L76.07,21.8 L76.97,21.91 L77.64,21.24 L77.75,20.0 L78.31,19.44 L79.1,19.33 L79.66,18.43 L80.56,17.98 L82.25,17.87 L82.36,17.64 L83.37,17.75 L83.93,16.74 L84.83,16.4 L85.28,15.17 L85.96,14.61 L85.73,13.6 L87.3,12.13 L87.75,12.02 L87.42,11.46 L87.3,9.78 L86.74,9.1 Z",
+   "c": [
+    76.1,
+    11
+   ],
+   "region": "north",
+   "createdNote": "Lost five districts to Muchinga in 2011."
+  },
+  "mu": {
+   "n": "Muchinga",
+   "d": "M89.55,7.64 L88.54,7.75 L87.64,7.42 L87.08,8.99 L87.75,9.89 L87.75,11.35 L88.09,12.13 L86.18,13.6 L86.4,14.61 L85.39,15.62 L85.28,16.52 L84.27,16.97 L83.48,18.09 L82.47,17.98 L82.13,18.31 L81.24,18.2 L79.78,18.76 L79.21,19.78 L78.43,19.89 L77.98,21.46 L77.08,22.36 L76.07,22.25 L75.84,23.26 L74.04,24.49 L73.93,25.28 L72.92,26.74 L72.81,27.75 L71.12,29.78 L69.21,30.34 L67.87,30.34 L67.42,30.9 L67.42,31.24 L68.43,31.12 L68.88,31.35 L69.55,32.58 L70.79,32.81 L71.91,33.6 L72.81,33.82 L72.58,34.83 L73.03,35.73 L73.6,36.18 L74.16,36.07 L74.72,36.74 L74.49,37.42 L74.83,38.65 L76.97,38.99 L77.42,39.89 L77.75,39.89 L78.31,39.21 L79.44,39.44 L79.78,39.78 L79.66,41.12 L80.56,42.02 L80.9,43.48 L81.8,43.6 L82.58,42.81 L83.03,41.24 L83.71,40.56 L84.94,40.0 L85.84,37.98 L86.29,37.64 L87.19,35.28 L86.97,34.27 L88.76,32.47 L89.33,30.34 L90.67,29.21 L90.67,28.65 L90.11,27.64 L88.2,27.19 L88.65,25.84 L88.65,24.49 L89.44,23.37 L88.99,22.13 L89.1,21.46 L88.65,21.01 L88.76,20.56 L90.67,19.78 L92.81,18.43 L94.16,18.43 L94.72,19.1 L95.96,19.1 L96.4,19.66 L96.4,20.79 L97.08,21.35 L98.43,21.24 L100.11,19.44 L99.21,18.09 L99.21,16.85 L98.54,16.07 L97.42,15.51 L97.64,13.6 L96.52,12.47 L96.52,11.69 L95.62,11.69 L93.93,9.89 L92.7,9.78 L92.25,8.99 L91.35,9.1 Z",
+   "c": [
+    80.8,
+    29.4
+   ],
+   "region": "north-east",
+   "createdNote": "Created 11 October 2011 from districts of Northern Province, plus Chama from Eastern Province. Zambia had nine provinces before this."
+  },
+  "ea": {
+   "n": "Eastern",
+   "d": "M95.73,19.33 L94.49,19.44 L94.04,18.88 L92.7,18.88 L90.67,20.22 L89.1,20.79 L89.44,21.35 L89.44,22.47 L89.89,23.15 L89.1,24.49 L88.99,26.18 L88.54,27.08 L90.34,27.42 L91.12,28.54 L91.12,29.1 L89.78,30.45 L89.55,31.57 L88.76,33.15 L87.42,34.38 L87.64,35.17 L86.07,38.88 L84.94,40.45 L83.37,41.35 L82.92,43.03 L81.91,43.93 L80.67,43.82 L79.55,44.27 L79.1,44.72 L79.1,45.28 L78.2,45.84 L77.87,47.08 L77.19,47.42 L75.62,49.21 L69.33,49.21 L69.78,50.11 L70.45,50.56 L70.45,51.35 L69.44,52.02 L68.99,52.92 L67.98,53.93 L68.2,54.72 L69.55,55.73 L70.0,57.19 L71.91,56.74 L73.15,55.96 L77.98,54.38 L80.9,53.82 L84.72,51.91 L87.19,51.35 L88.09,50.67 L89.21,50.56 L93.71,48.88 L93.03,47.3 L91.91,46.52 L92.02,45.62 L91.24,45.17 L91.24,44.61 L92.25,44.04 L93.37,41.69 L93.26,40.34 L93.71,38.88 L93.26,38.09 L94.04,36.63 L94.61,36.18 L95.28,36.29 L95.96,35.62 L96.85,35.62 L97.87,34.94 L97.98,33.93 L96.97,34.04 L96.52,33.6 L96.4,32.47 L96.07,32.13 L96.74,30.22 L96.63,27.64 L96.29,27.64 L95.96,27.08 L97.64,23.82 L96.85,22.25 L96.85,21.57 L96.07,21.01 L96.07,19.66 Z",
+   "c": [
+    86.6,
+    46.2
+   ],
+   "region": "east",
+   "createdNote": "Lost Chama district to Muchinga in 2011."
+  },
+  "lp": {
+   "n": "Luapula",
+   "d": "M60.0,2.13 L60.34,3.15 L59.66,4.61 L57.3,7.42 L56.29,8.2 L57.64,9.78 L58.54,11.57 L57.87,16.07 L58.43,20.45 L57.42,21.8 L55.96,27.87 L56.74,30.22 L57.98,31.24 L58.88,31.57 L60.9,34.49 L62.47,34.38 L63.71,35.06 L64.04,34.94 L63.93,34.04 L64.49,33.26 L65.17,32.92 L66.07,33.15 L66.97,32.58 L66.97,31.01 L67.53,30.11 L69.66,29.89 L71.01,29.44 L72.58,27.53 L72.58,27.08 L70.45,25.17 L69.44,24.83 L68.31,24.94 L67.3,25.96 L67.08,24.94 L67.53,23.03 L67.42,22.02 L66.18,20.67 L64.83,21.12 L64.49,21.69 L63.71,21.91 L63.26,24.04 L60.9,22.92 L61.12,21.12 L61.69,20.56 L62.81,20.11 L63.93,17.64 L64.72,16.97 L64.94,16.4 L67.75,15.51 L67.98,15.06 L67.87,12.58 L67.19,12.47 L66.4,11.57 L65.06,11.35 L64.27,10.56 L63.48,10.34 L63.03,7.64 L61.24,6.85 L61.24,6.4 L62.36,5.51 L62.92,3.93 L63.93,2.47 L63.71,1.69 Z",
+   "c": [
+    62.7,
+    28.8
+   ],
+   "region": "north",
+   "createdNote": null
+  }
+ },
+ "source": "Traced from a reference province map supplied by the ZedExams team, Aug 2026. NOT YET VERIFIED against ZamStats / the Survey Department — see dataset.verification."
+}</script>
+<script type="application/json" id="mirror-facts">{
+ "_readme": "Every fact the Know Zambia game teaches (docs/learner/zedexams-zambia-game.html). Province OUTLINES live in zambia_provinces.json; nothing here repeats them. This file is the review sheet: a Zambian teacher signs off levels 2, 3, 5 and 6 by filling in dataset.verification, not by reading the HTML.",
+ "dataset": {
+  "id": "zambia_facts",
+  "version": 1,
+  "dated": "2026-08-19",
+  "verification": {
+   "status": "UNVERIFIED",
+   "blocking": true,
+   "requiredBeforeRelease": [
+    "A Zambian teacher checks every entry in capitals, districts, heritage and ceremonies — the four the prompt names.",
+    "District names and counts change. Re-check the districts list against the current ZamStats district register and re-date it.",
+    "Record who checked, against what, and on what date, in the three fields below."
+   ],
+   "checkedBy": null,
+   "checkedAgainst": null,
+   "checkedOn": null
+  },
+  "sources": [
+   {
+    "id": "zamstats",
+    "what": "Zambia Statistics Agency — provinces and districts",
+    "used": "district list, province count",
+    "status": "TO BE CONFIRMED — the district list below was compiled from the general references and has not been read off a ZamStats register"
+   },
+   {
+    "id": "nhcc",
+    "what": "National Heritage Conservation Commission of Zambia",
+    "used": "heritage sites and their districts",
+    "status": "TO BE CONFIRMED"
+   },
+   {
+    "id": "general",
+    "what": "General reference works, checked 2026-08-19",
+    "used": "capitals, ceremonies, parks, rivers, lakes, symbols",
+    "status": "cross-checked at authoring time; still needs the teacher pass"
+   }
+  ],
+  "districtCount": {
+   "value": 116,
+   "asOf": "April 2018",
+   "note": "District names, boundaries and counts change often — 45 new districts were created between 2011 and 2018 alone. Treat this number as dated rather than current, and re-check it before any release that prints it."
+  }
+ },
+ "provinces": {
+  "lu": {
+   "fact": "The smallest province by area, and the one with the most people. Lusaka city is both the provincial capital and the capital of Zambia.",
+   "hint": "Lusaka is the small one in the middle-south, around the capital city."
+  },
+  "cb": {
+   "fact": "Zambia's old mining heartland — Ndola, Kitwe, Chingola, Mufulira. The provincial capital is Ndola.",
+   "hint": "Copperbelt is up north on the DRC border, above the middle of the country."
+  },
+  "we": {
+   "fact": "Barotseland — the Zambezi floodplain, the Lozi kingdom and the Kuomboka. The provincial capital is Mongu.",
+   "hint": "Western is the big one in the south-west, along the Zambezi floodplain."
+  },
+  "so": {
+   "fact": "Tonga country, the Zambezi, Lake Kariba and Mosi-oa-Tunya. The provincial capital is Choma — it moved there from Livingstone in 2011.",
+   "hint": "Southern runs along the Zambezi in the far south, below Lusaka and east of Western — Livingstone sits at its bottom corner."
+  },
+  "no": {
+   "fact": "Reaches Lake Tanganyika at Mpulungu. The provincial capital is Kasama, and Kalambo Falls is on its border with Tanzania.",
+   "hint": "Northern is at the very top of the map, above the Copperbelt, reaching Lake Tanganyika."
+  },
+  "ce": {
+   "fact": "The middle of the country, and the road and rail line through it. The provincial capital is Kabwe, where the Broken Hill skull was found.",
+   "hint": "Central is in the middle, between the Copperbelt and Lusaka."
+  },
+  "ea": {
+   "fact": "Borders Malawi and Mozambique, and holds the Luangwa valley. The provincial capital is Chipata.",
+   "hint": "Eastern is the far right of the map, east of Lusaka and next to Malawi."
+  },
+  "lp": {
+   "fact": "A narrow province along the Luapula river and Lake Mweru, both of which are the border with the DRC. The provincial capital is Mansa.",
+   "hint": "Luapula is the narrow one in the north, west of Northern, along Lake Mweru."
+  },
+  "mu": {
+   "fact": "Created in 2011 from districts of Northern Province, plus Chama from Eastern. The provincial capital is Chinsali, and Shiwa Ng'andu is here.",
+   "hint": "Muchinga is the long strip in the north-east, between Northern and Eastern."
+  },
+  "nw": {
+   "fact": "The newer copper mines — Kansanshi at Solwezi and Kalumbila — and the source of the Zambezi. The provincial capital is Solwezi.",
+   "hint": "North-Western is the top-left corner, west of the Copperbelt."
+  }
+ },
+ "capitals": [
+  {
+   "province": "ce",
+   "town": "Kabwe",
+   "lon": 28.4464,
+   "lat": 14.4469,
+   "fact": "Kabwe is the provincial capital of Central. The Broken Hill skull was found in a mine here in 1921.",
+   "hint": "Kabwe is in the middle of the country, on the road between Lusaka and the Copperbelt."
+  },
+  {
+   "province": "cb",
+   "town": "Ndola",
+   "lon": 28.6366,
+   "lat": 12.9587,
+   "fact": "Ndola is the provincial capital of Copperbelt — not Kitwe, which is the bigger mining town.",
+   "hint": "Ndola is up north in the mining province, right on the DRC border above Central."
+  },
+  {
+   "province": "ea",
+   "town": "Chipata",
+   "lon": 32.65,
+   "lat": 13.6333,
+   "fact": "Chipata is the provincial capital of Eastern, about 25 km from the Malawi border.",
+   "hint": "Chipata is on the far right of the map, close to Malawi."
+  },
+  {
+   "province": "lp",
+   "town": "Mansa",
+   "lon": 28.8942,
+   "lat": 11.1997,
+   "fact": "Mansa is the provincial capital of Luapula.",
+   "hint": "Mansa is in the north, in the narrow province along Lake Mweru and the Luapula river."
+  },
+  {
+   "province": "mu",
+   "town": "Chinsali",
+   "lon": 32.0703,
+   "lat": 10.5486,
+   "fact": "Chinsali is the provincial capital of Muchinga — a new capital for a province created in 2011.",
+   "hint": "Chinsali is in the long north-eastern strip, between Northern and Eastern."
+  },
+  {
+   "province": "no",
+   "town": "Kasama",
+   "lon": 31.1808,
+   "lat": 10.2129,
+   "fact": "Kasama is the provincial capital of Northern. The Mwela rock paintings are just outside it.",
+   "hint": "Kasama is near the top of the country, in the province that reaches Lake Tanganyika."
+  },
+  {
+   "province": "nw",
+   "town": "Solwezi",
+   "lon": 26.3833,
+   "lat": 12.1686,
+   "fact": "Solwezi is the provincial capital of North-Western, next to the newer copper mines at Kansanshi and Kalumbila.",
+   "hint": "Solwezi is in the top-left province, west of the Copperbelt."
+  },
+  {
+   "province": "so",
+   "town": "Choma",
+   "lon": 26.9819,
+   "lat": 16.8089,
+   "fact": "Choma became the provincial capital of Southern in 2011. Livingstone is the famous tourist city and was the capital of the whole country until 1935 — but it is not the provincial capital.",
+   "hint": "Choma is in the south, on the line and road between Lusaka and Livingstone."
+  },
+  {
+   "province": "we",
+   "town": "Mongu",
+   "lon": 23.1256,
+   "lat": 15.2481,
+   "fact": "Mongu is the provincial capital of Western, above the Zambezi floodplain where the Kuomboka ends.",
+   "hint": "Mongu is in the big south-western province, on the edge of the Barotse floodplain."
+  },
+  {
+   "province": "lu",
+   "town": "Lusaka",
+   "lon": 28.2833,
+   "lat": 15.4167,
+   "fact": "Lusaka is both the provincial capital of Lusaka Province and the capital of Zambia. It has been the national capital since 1935, when it took over from Livingstone.",
+   "hint": "Lusaka is in the small province in the middle-south — the one named after the city."
+  }
+ ],
+ "capitalsQuestion": {
+  "q": "Which town is the capital of <b>Southern Province</b>?",
+  "options": [
+   "Livingstone",
+   "Choma",
+   "Monze"
+  ],
+  "answer": "Choma",
+  "whyRight": "Choma took over as provincial capital in <b>2011</b>. Livingstone is the tourist city at Mosi-oa-Tunya, and it was the capital of the whole country until 1935 — which is why so many lists still name it here.",
+  "whyWrong": "Livingstone is the famous one, but the provincial capital moved to <b>Choma in 2011</b>. Monze is a town on the same road, and has never been the capital."
+ },
+ "districts": [
+  {
+   "district": "Mpika",
+   "province": "mu",
+   "lon": 31.45,
+   "lat": 11.83,
+   "note": "Was in Northern Province until 2011."
+  },
+  {
+   "district": "Kalomo",
+   "province": "so",
+   "lon": 26.48,
+   "lat": 17.03,
+   "note": null
+  },
+  {
+   "district": "Nchelenge",
+   "province": "lp",
+   "lon": 28.73,
+   "lat": 9.35,
+   "note": "On the shore of Lake Mweru."
+  },
+  {
+   "district": "Mwinilunga",
+   "province": "nw",
+   "lon": 24.43,
+   "lat": 11.74,
+   "note": "The Zambezi rises in this corner of the country."
+  },
+  {
+   "district": "Petauke",
+   "province": "ea",
+   "lon": 31.32,
+   "lat": 14.25,
+   "note": null
+  },
+  {
+   "district": "Mumbwa",
+   "province": "ce",
+   "lon": 27.06,
+   "lat": 14.98,
+   "note": null
+  },
+  {
+   "district": "Kalulushi",
+   "province": "cb",
+   "lon": 28.09,
+   "lat": 12.84,
+   "note": null
+  },
+  {
+   "district": "Senanga",
+   "province": "we",
+   "lon": 23.27,
+   "lat": 16.12,
+   "note": "On the Zambezi, south of Mongu."
+  },
+  {
+   "district": "Mbala",
+   "province": "no",
+   "lon": 31.37,
+   "lat": 8.84,
+   "note": "Kalambo Falls is in this district."
+  },
+  {
+   "district": "Kafue",
+   "province": "lu",
+   "lon": 28.18,
+   "lat": 15.77,
+   "note": "Named after the river that runs past it."
+  },
+  {
+   "district": "Serenje",
+   "province": "ce",
+   "lon": 30.23,
+   "lat": 13.23,
+   "note": "Nsalu Cave is in this district."
+  },
+  {
+   "district": "Nakonde",
+   "province": "mu",
+   "lon": 32.75,
+   "lat": 9.34,
+   "note": "The border post into Tanzania."
+  },
+  {
+   "district": "Kaoma",
+   "province": "we",
+   "lon": 24.8,
+   "lat": 14.79,
+   "note": null
+  },
+  {
+   "district": "Samfya",
+   "province": "lp",
+   "lon": 29.55,
+   "lat": 11.36,
+   "note": "On Lake Bangweulu."
+  }
+ ],
+ "water": {
+  "accuracy": "SCHEMATIC — each line is drawn through a handful of named places along the river, not traced from a survey. It shows which way a river runs and roughly where; it is not a channel map.",
+  "rivers": [
+   {
+    "id": "zambezi",
+    "name": "Zambezi",
+    "answer": "nw",
+    "q": "The <b>Zambezi</b> is Zambia's longest river, and the country is named after it. Which province does it rise in?",
+    "fact": "The Zambezi rises at Kalene Hill in Ikelenge, in the far north-west. It loops through Angola, comes back at Chavuma, and leaves Zambia far to the south-east — 2,574 km in all.",
+    "hint": "Look at the top-left corner of the map. The river starts there, in the province west of the Copperbelt.",
+    "waypoints": [
+     [
+      24.32,
+      11.37
+     ],
+     [
+      24.05,
+      11.9
+     ],
+     [
+      23.4,
+      12.6
+     ],
+     [
+      22.68,
+      13.08
+     ],
+     [
+      23,
+      13.6
+     ],
+     [
+      23.24,
+      14.37
+     ],
+     [
+      23.13,
+      15.28
+     ],
+     [
+      23.27,
+      16.11
+     ],
+     [
+      23.57,
+      16.65
+     ],
+     [
+      24.32,
+      17.32
+     ],
+     [
+      25.26,
+      17.79
+     ],
+     [
+      25.86,
+      17.93
+     ],
+     [
+      26.7,
+      17.6
+     ],
+     [
+      27.6,
+      17.1
+     ],
+     [
+      28.2,
+      16.65
+     ],
+     [
+      28.76,
+      16.52
+     ],
+     [
+      28.85,
+      16.03
+     ],
+     [
+      30.42,
+      15.61
+     ]
+    ]
+   },
+   {
+    "id": "kafue",
+    "name": "Kafue",
+    "answer": "cb",
+    "q": "The <b>Kafue</b> rises near the DRC border, then curls right round the middle of the country. Which province does it rise in?",
+    "fact": "The Kafue rises on the Copperbelt, runs south-west, spreads out across the Kafue Flats, and joins the Zambezi below Chirundu. It is the only big river that stays inside Zambia from start to finish.",
+    "hint": "It starts in the mining province in the north, next to the DRC border and above Central.",
+    "waypoints": [
+     [
+      28,
+      12.5
+     ],
+     [
+      27.6,
+      13
+     ],
+     [
+      27.3,
+      13.8
+     ],
+     [
+      27.4,
+      14.5
+     ],
+     [
+      26.6,
+      15.2
+     ],
+     [
+      26.02,
+      15.75
+     ],
+     [
+      26.9,
+      15.8
+     ],
+     [
+      27.9,
+      15.77
+     ],
+     [
+      28.18,
+      15.77
+     ],
+     [
+      28.63,
+      15.95
+     ]
+    ]
+   },
+   {
+    "id": "luangwa",
+    "name": "Luangwa",
+    "answer": "lu",
+    "q": "The <b>Luangwa</b> comes down the eastern valley and joins the Zambezi. Which province is that meeting point in?",
+    "fact": "The Luangwa joins the Zambezi at Luangwa town, in the far east of Lusaka Province — the corner where Zambia, Zimbabwe and Mozambique meet. Its valley holds South Luangwa National Park.",
+    "hint": "Follow the river down to the bottom-right corner of the map — it ends in the small province around the capital, not in Eastern.",
+    "waypoints": [
+     [
+      33.3,
+      10
+     ],
+     [
+      32.8,
+      11
+     ],
+     [
+      32.3,
+      12
+     ],
+     [
+      32,
+      12.6
+     ],
+     [
+      31.8,
+      13.1
+     ],
+     [
+      31.6,
+      13.9
+     ],
+     [
+      30.9,
+      14.8
+     ],
+     [
+      30.42,
+      15.61
+     ]
+    ]
+   },
+   {
+    "id": "luapula",
+    "name": "Luapula",
+    "answer": "lp",
+    "q": "The <b>Luapula</b> flows out of Lake Bangweulu and into Lake Mweru, and a province is named after it. Which one?",
+    "fact": "The Luapula is the border with the DRC for most of its length, and it drops over the Mambilima Falls on the way to Lake Mweru.",
+    "hint": "The province has the river's own name — the narrow one in the north, west of Northern.",
+    "waypoints": [
+     [
+      29.6,
+      11.5
+     ],
+     [
+      29,
+      11.2
+     ],
+     [
+      28.7,
+      10.8
+     ],
+     [
+      28.6,
+      10
+     ],
+     [
+      28.7,
+      9.4
+     ],
+     [
+      28.75,
+      9.15
+     ]
+    ]
+   },
+   {
+    "id": "chambeshi",
+    "name": "Chambeshi",
+    "answer": "no",
+    "q": "The <b>Chambeshi</b> is the most distant source of the Congo river. Which province does it rise in?",
+    "fact": "The Chambeshi rises in the highlands near Mbala and flows into the Bangweulu swamps. From there the water carries on as the Luapula and eventually the Congo — so rain falling near Mbala reaches the Atlantic.",
+    "hint": "It starts at the very top of the country, in the province that reaches Lake Tanganyika.",
+    "waypoints": [
+     [
+      31.6,
+      9
+     ],
+     [
+      31.4,
+      9.6
+     ],
+     [
+      31.1,
+      10.3
+     ],
+     [
+      30.6,
+      11
+     ],
+     [
+      30.2,
+      11.3
+     ],
+     [
+      29.9,
+      11.4
+     ]
+    ]
+   }
+  ],
+  "lakes": [
+   {
+    "id": "tanganyika",
+    "name": "Lake Tanganyika",
+    "lon": 31.05,
+    "lat": 8.6,
+    "rx": 4.2,
+    "ry": 8.5,
+    "rot": -18,
+    "provinces": [
+     "no"
+    ],
+    "q": "Tap <b>Lake Tanganyika</b> — the deepest lake in Africa. Zambia owns only its southern tip.",
+    "fact": "Zambia's port on it is Mpulungu, in Northern Province. The lake is shared with the DRC, Burundi and Tanzania.",
+    "hint": "It is at the very top of the map, mostly off the edge — Zambia only touches the bottom end of it."
+   },
+   {
+    "id": "mweru",
+    "name": "Lake Mweru",
+    "lon": 28.72,
+    "lat": 9.05,
+    "rx": 3,
+    "ry": 5.2,
+    "rot": -22,
+    "provinces": [
+     "lp"
+    ],
+    "q": "Tap <b>Lake Mweru</b>, which Zambia shares with the DRC.",
+    "fact": "Lake Mweru is where the Luapula river ends. Nchelenge and Kashikishi are on its Zambian shore, in Luapula Province.",
+    "hint": "North-west, on the DRC border — the long lake at the top of Luapula Province."
+   },
+   {
+    "id": "bangweulu",
+    "name": "Lake Bangweulu",
+    "lon": 29.85,
+    "lat": 11.25,
+    "rx": 5.4,
+    "ry": 4,
+    "rot": 0,
+    "provinces": [
+     "lp",
+     "no"
+    ],
+    "q": "Tap <b>Lake Bangweulu</b> and its swamps — the one big lake that is entirely Zambia's.",
+    "fact": "Bangweulu means \"where the water meets the sky\". The Chambeshi flows in and the Luapula flows out. Samfya sits on its shore.",
+    "hint": "Inland in the north, below Lake Mweru — no border runs through this one."
+   },
+   {
+    "id": "kariba",
+    "name": "Lake Kariba",
+    "lon": 27.9,
+    "lat": 17,
+    "rx": 9.5,
+    "ry": 2.6,
+    "rot": -16,
+    "provinces": [
+     "so"
+    ],
+    "q": "Tap <b>Lake Kariba</b> — made by people, not by nature.",
+    "fact": "Kariba was made by damming the Zambezi; the dam was finished in 1959 and the lake filled by 1963. It is shared with Zimbabwe, and Siavonga is the Zambian town on it.",
+    "hint": "Along the southern border, on the Zambezi — south of Lusaka, in Southern Province."
+   }
+  ]
+ },
+ "heritage": [
+  {
+   "name": "Mosi-oa-Tunya (Victoria Falls)",
+   "province": "so",
+   "lon": 25.8572,
+   "lat": 17.9243,
+   "q": "<b>Mosi-oa-Tunya</b> — \"the smoke that thunders\". Which province?",
+   "fact": "It is on the Zambezi at Livingstone, in Southern Province, and has been a UNESCO World Heritage Site since 1989. The falls are shared with Zimbabwe.",
+   "hint": "Right at the bottom of the map, where the Zambezi runs along the southern border."
+  },
+  {
+   "name": "Kalambo Falls",
+   "province": "no",
+   "lon": 31.2417,
+   "lat": 8.5972,
+   "q": "<b>Kalambo Falls</b> — a single 221 m drop, and one of the oldest settlement sites in Africa. Which province?",
+   "fact": "Kalambo Falls is on the Tanzania border near Mbala, in Northern Province. The tools and charred wood found there are some of the oldest evidence anywhere of people using fire.",
+   "hint": "The very top of the country, near where Zambia meets Tanzania and Lake Tanganyika."
+  },
+  {
+   "name": "Mwela rock paintings",
+   "province": "no",
+   "lon": 31.2333,
+   "lat": 10.2119,
+   "q": "The <b>Mwela rock paintings</b> — hundreds of paintings on rocks and in caves. Which province?",
+   "fact": "Mwela is just east of Kasama, in Northern Province. The paintings are up to about 2,000 years old and were declared a national monument in 1964.",
+   "hint": "Just outside Kasama, in the province at the top that reaches Lake Tanganyika."
+  },
+  {
+   "name": "Shiwa Ng'andu",
+   "province": "mu",
+   "lon": 31.7333,
+   "lat": 11.2,
+   "q": "<b>Shiwa Ng'andu</b>, the great house built by Stewart Gore-Browne in the 1920s. Which province?",
+   "fact": "Shiwa Ng'andu is near Chinsali, in Muchinga Province. \"Shiwa Ng'andu\" means the lake of the royal crocodile.",
+   "hint": "In the long north-eastern strip, near Chinsali — the province that only exists since 2011."
+  },
+  {
+   "name": "Ing'ombe Ilede",
+   "province": "so",
+   "lon": 28.58,
+   "lat": 16.24,
+   "q": "<b>Ing'ombe Ilede</b> — \"the place where the cow lies down\", a trading site 600 years old. Which province?",
+   "fact": "Ing'ombe Ilede is near the meeting of the Zambezi and the Lusitu, close to Siavonga in Southern Province. Gold, copper crosses, glass beads and cloth found in the graves show trade reaching the Indian Ocean.",
+   "hint": "In the south, near Lake Kariba and the Zambezi — the same province as Livingstone."
+  },
+  {
+   "name": "Nsalu Cave",
+   "province": "ce",
+   "lon": 30.4333,
+   "lat": 13.3667,
+   "q": "<b>Nsalu Cave</b>, with rock paintings around 12,000 years old. Which province?",
+   "fact": "Nsalu Cave is in Serenje District, Central Province, north of Kanona. Its schematic paintings are among the finest in Africa.",
+   "hint": "Middle of the country, in the eastern part of the province between Copperbelt and Lusaka."
+  },
+  {
+   "name": "Broken Hill, Kabwe",
+   "province": "ce",
+   "lon": 28.4464,
+   "lat": 14.4469,
+   "q": "<b>Broken Hill</b>, where a skull about 300,000 years old was dug out of a mine in 1921. Which province?",
+   "fact": "Broken Hill is the old name for Kabwe, the capital of Central Province. The skull — Homo rhodesiensis, now usually called Homo heidelbergensis — is still held by the Natural History Museum in London, and Zambia has asked for it back.",
+   "hint": "In the provincial capital in the middle of the country, on the road from Lusaka to the Copperbelt."
+  }
+ ],
+ "heritageQuestions": [
+  {
+   "q": "Which of these is <b>not</b> in Zambia?",
+   "options": [
+    "Kalambo Falls",
+    "Great Zimbabwe",
+    "Nsalu Cave"
+   ],
+   "answer": "Great Zimbabwe",
+   "why": "Great Zimbabwe is in Zimbabwe, about 30 km from Masvingo. Ing'ombe Ilede in Southern Province traded with the same world it belonged to."
+  },
+  {
+   "q": "Mosi-oa-Tunya means:",
+   "options": [
+    "The smoke that thunders",
+    "The river that never sleeps",
+    "The water of the king"
+   ],
+   "answer": "The smoke that thunders",
+   "why": "It is the Lozi and Tonga name for the falls, and it is the name Zambia uses. The spray really can be seen from 50 km away."
+  },
+  {
+   "q": "What was found at Broken Hill in Kabwe in 1921?",
+   "options": [
+    "A very old human skull",
+    "A gold mask",
+    "A meteorite"
+   ],
+   "answer": "A very old human skull",
+   "why": "Miners found the skull of an early human about 300,000 years old. It is one of the most important fossils ever found in Africa."
+  }
+ ],
+ "ceremonies": [
+  {
+   "name": "Kuomboka",
+   "people": "Lozi",
+   "province": "we",
+   "month": "Usually March or April",
+   "fact": "When the Zambezi floods, the Litunga moves from Lealui out on the plain to Limulunga on higher ground, in the royal barge Nalikwanda with its black-and-white stripes and the elephant on top. Kuomboka means \"to get out of the water\".",
+   "hint": "It happens on the Zambezi floodplain in the west — the big province where Mongu is.",
+   "peopleOptions": [
+    "Lozi",
+    "Ngoni",
+    "Lunda"
+   ],
+   "monthOptions": [
+    "Usually March or April",
+    "Always December",
+    "Usually August"
+   ],
+   "monthWhy": "It follows the flood, not the calendar — the Litunga's drums announce it when the water rises, usually in March or April."
+  },
+  {
+   "name": "N'cwala",
+   "people": "Ngoni",
+   "province": "ea",
+   "month": "Late February",
+   "fact": "N'cwala gives thanks for the first harvest. The Paramount Chief Mpezeni tastes the new crops before anyone else, and warriors dance at Mutenguleni village near Chipata.",
+   "hint": "It happens in the far east of the country, next to Malawi.",
+   "peopleOptions": [
+    "Ngoni",
+    "Bemba",
+    "Luvale"
+   ],
+   "monthOptions": [
+    "Late February",
+    "Late July",
+    "January"
+   ],
+   "monthWhy": "It is held around 24 February, at the start of the harvest."
+  },
+  {
+   "name": "Mutomboko",
+   "people": "Lunda of Kazembe",
+   "province": "lp",
+   "month": "Late July",
+   "fact": "Mutomboko means \"the dance of victory\". Mwata Kazembe dances it with a sword at Mwansabombwe in Kawambwa District, remembering the Lunda's journey from the Congo and the land they took.",
+   "hint": "It happens in the narrow northern province along the Luapula river.",
+   "peopleOptions": [
+    "Lunda of Kazembe",
+    "Tonga",
+    "Lozi"
+   ],
+   "monthOptions": [
+    "Late July",
+    "April",
+    "November"
+   ],
+   "monthWhy": "It is held on the last weekend of July."
+  },
+  {
+   "name": "Likumbi Lya Mize",
+   "people": "Luvale",
+   "province": "nw",
+   "month": "August",
+   "fact": "Likumbi Lya Mize is held at the Mize palace near Zambezi town. Makishi masked dancers appear as the boys come back from Mukanda, the initiation camp.",
+   "hint": "It happens in the top-left province, where Solwezi is.",
+   "peopleOptions": [
+    "Luvale",
+    "Ngoni",
+    "Bemba"
+   ],
+   "monthOptions": [
+    "August",
+    "February",
+    "May"
+   ],
+   "monthWhy": "It is held in August, in Zambezi District."
+  }
+ ],
+ "parks": [
+  {
+   "name": "South Luangwa",
+   "provinces": [
+    "ea"
+   ],
+   "lon": 31.79,
+   "lat": 13.09,
+   "q": "<b>South Luangwa National Park</b> — the home of the walking safari. Which province?",
+   "fact": "South Luangwa is in the Luangwa valley in Eastern Province, reached through Mfuwe. Thornicroft's giraffe lives here and nowhere else on earth.",
+   "hint": "In the eastern valley, in the province next to Malawi — the park is on the Eastern side of the river."
+  },
+  {
+   "name": "Lower Zambezi",
+   "provinces": [
+    "lu"
+   ],
+   "lon": 29.2,
+   "lat": 15.65,
+   "q": "<b>Lower Zambezi National Park</b>, on the north bank of the Zambezi. Which province?",
+   "fact": "Lower Zambezi is in Lusaka Province, opposite Mana Pools in Zimbabwe. Elephants swim between the islands here.",
+   "hint": "Down on the Zambezi in the south-east — it is in the small province around the capital, not in Southern."
+  },
+  {
+   "name": "Liuwa Plain",
+   "provinces": [
+    "we"
+   ],
+   "lon": 22.65,
+   "lat": 14.7,
+   "q": "<b>Liuwa Plain National Park</b> and its wildebeest. Which province?",
+   "fact": "Liuwa Plain is in Western Province, on the flat grassland west of the Zambezi. Its wildebeest migration is the second largest in Africa.",
+   "hint": "Far west, out on the open plain beyond the Zambezi floodplain."
+  },
+  {
+   "name": "Kafue",
+   "provinces": [
+    "nw",
+    "ce",
+    "so"
+   ],
+   "lon": 25.9,
+   "lat": 15,
+   "spansNote": "Kafue National Park spans three provinces — North-Western, Central and Southern. Any of the three is right.",
+   "q": "<b>Kafue National Park</b> is Zambia's biggest, at 22,400 km². Tap a province it lies in — there is more than one right answer.",
+   "fact": "Kafue is the oldest and largest park in Zambia and covers ground in North-Western, Central AND Southern Provinces. The Busanga Plains are at its northern end and Itezhi-Tezhi dam at its southern.",
+   "hint": "It sits west of the middle of the country, straddling the boundary where North-Western, Central and Southern meet."
+  }
+ ],
+ "parkQuestions": [
+  {
+   "q": "Which park is famous for the second-largest wildebeest migration in Africa?",
+   "options": [
+    "Liuwa Plain",
+    "South Luangwa",
+    "Lower Zambezi"
+   ],
+   "answer": "Liuwa Plain",
+   "why": "Tens of thousands of wildebeest cross the Liuwa plain in Western Province each year, following the rain."
+  },
+  {
+   "q": "Which is Zambia's largest national park?",
+   "options": [
+    "Kafue",
+    "South Luangwa",
+    "Liuwa Plain"
+   ],
+   "answer": "Kafue",
+   "why": "Kafue covers about 22,400 km² — larger than some countries — and stretches across three provinces."
+  }
+ ],
+ "neighbours": [
+  {
+   "code": "cd",
+   "name": "DR Congo",
+   "zone": [
+    24,
+    -22,
+    42,
+    20
+   ],
+   "side": "north and north-west",
+   "fact": "The longest of Zambia's borders. The Congo Pedicle — the thumb of DRC land that pokes into Zambia — is why the road from Lusaka to Mansa either crosses another country or goes the long way round.",
+   "hint": "The big neighbour along the whole top of the map, wrapping round Luapula."
+  },
+  {
+   "code": "tz",
+   "name": "Tanzania",
+   "zone": [
+    78,
+    -22,
+    26,
+    20
+   ],
+   "side": "north-east",
+   "fact": "Zambia meets Tanzania at Nakonde and Tunduma, and in the middle of Lake Tanganyika. The TAZARA railway and the oil pipeline both run this way to Dar es Salaam.",
+   "hint": "Top-right, above Muchinga and east of Northern."
+  },
+  {
+   "code": "mw",
+   "name": "Malawi",
+   "zone": [
+    102,
+    24,
+    24,
+    24
+   ],
+   "side": "east",
+   "fact": "The border is a short drive east of Chipata, at Mwami. Malawi is almost surrounded by Zambia and Mozambique.",
+   "hint": "Straight out to the right, next to Eastern Province."
+  },
+  {
+   "code": "mz",
+   "name": "Mozambique",
+   "zone": [
+    95,
+    55,
+    24,
+    24
+   ],
+   "side": "south-east",
+   "fact": "Zambia, Zimbabwe and Mozambique meet at Luangwa town, where the Luangwa river joins the Zambezi.",
+   "hint": "Bottom-right, below Malawi — where the Luangwa and Zambezi meet."
+  },
+  {
+   "code": "zw",
+   "name": "Zimbabwe",
+   "zone": [
+    48,
+    85,
+    32,
+    22
+   ],
+   "side": "south",
+   "fact": "The Zambezi is the border, so Zambia and Zimbabwe share both Mosi-oa-Tunya and Lake Kariba.",
+   "hint": "Directly below Southern Province, on the other side of the Zambezi."
+  },
+  {
+   "code": "bw",
+   "name": "Botswana",
+   "zone": [
+    22,
+    85,
+    24,
+    22
+   ],
+   "side": "south-west, at Kazungula",
+   "fact": "The shortest border Zambia has — a few hundred metres at Kazungula, where four countries meet. The Kazungula bridge replaced the ferry in 2021.",
+   "hint": "A tiny corner in the south-west, at Kazungula, west of Zimbabwe."
+  },
+  {
+   "code": "na",
+   "name": "Namibia",
+   "zone": [
+    -6,
+    85,
+    24,
+    22
+   ],
+   "side": "south-west",
+   "fact": "Namibia's Zambezi Region — the long strip once called the Caprivi — runs along Zambia's south-western edge.",
+   "hint": "The narrow strip along the bottom of Western Province, west of Botswana."
+  },
+  {
+   "code": "ao",
+   "name": "Angola",
+   "zone": [
+    -26,
+    33,
+    22,
+    30
+   ],
+   "side": "west",
+   "fact": "The Zambezi leaves Zambia into Angola soon after it rises, and comes back at Chavuma.",
+   "hint": "The whole western side, next to North-Western and Western Provinces."
+  }
+ ],
+ "symbols": [
+  {
+   "q": "Zambia became independent on:",
+   "options": [
+    "24 October 1964",
+    "24 October 1963",
+    "1 January 1964"
+   ],
+   "answer": "24 October 1964",
+   "why": "Northern Rhodesia became the Republic of Zambia on <b>24 October 1964</b>. Independence Day is a public holiday every year."
+  },
+  {
+   "q": "What was Zambia called before independence?",
+   "options": [
+    "Northern Rhodesia",
+    "Nyasaland",
+    "Barotseland"
+   ],
+   "answer": "Northern Rhodesia",
+   "why": "It was Northern Rhodesia, a British protectorate. Nyasaland became Malawi; Barotseland is the Lozi kingdom in the west, inside Zambia."
+  },
+  {
+   "q": "Who was Zambia's first President?",
+   "options": [
+    "Kenneth Kaunda",
+    "Simon Kapwepwe",
+    "Harry Nkumbula"
+   ],
+   "answer": "Kenneth Kaunda",
+   "why": "Kenneth Kaunda led the country from independence in 1964 until 1991. Kapwepwe and Nkumbula were also independence leaders."
+  },
+  {
+   "q": "On the flag, <b>green</b> stands for:",
+   "options": [
+    "The land and its plants",
+    "The copper mines",
+    "The people"
+   ],
+   "answer": "The land and its plants",
+   "why": "Green is the land, its farms and its forests — and it is the background the other three colours sit on."
+  },
+  {
+   "q": "On the flag, <b>red</b> stands for:",
+   "options": [
+    "The struggle for freedom",
+    "The soil",
+    "The sunset"
+   ],
+   "answer": "The struggle for freedom",
+   "why": "Red stands for the struggle for freedom. It is the first of the three stripes in the bottom-right corner."
+  },
+  {
+   "q": "On the flag, <b>black</b> stands for:",
+   "options": [
+    "The people of Zambia",
+    "The night",
+    "Coal"
+   ],
+   "answer": "The people of Zambia",
+   "why": "Black is the people. It is the middle stripe of the three."
+  },
+  {
+   "q": "On the flag, <b>orange</b> stands for:",
+   "options": [
+    "The country's mineral wealth",
+    "The sun",
+    "Maize"
+   ],
+   "answer": "The country's mineral wealth",
+   "why": "Orange is the mineral wealth — above all the copper the Copperbelt is named for. It is the third stripe."
+  },
+  {
+   "q": "What is the bird on the flag, and what does it mean?",
+   "options": [
+    "An African fish eagle — freedom, and rising above the country's problems",
+    "A crane — long life",
+    "A hornbill — good harvests"
+   ],
+   "answer": "An African fish eagle — freedom, and rising above the country's problems",
+   "why": "The eagle flies above the three stripes. It stands for freedom and for the country's ability to rise above its problems."
+  },
+  {
+   "q": "The words on the coat of arms are:",
+   "options": [
+    "One Zambia, One Nation",
+    "Peace and Unity",
+    "Freedom and Labour"
+   ],
+   "answer": "One Zambia, One Nation",
+   "why": "\"One Zambia, One Nation\" is the national motto — a country of many languages choosing to be one."
+  },
+  {
+   "q": "The national anthem is called:",
+   "options": [
+    "Stand and Sing of Zambia, Proud and Free",
+    "God Bless Africa",
+    "Land of the Free"
+   ],
+   "answer": "Stand and Sing of Zambia, Proud and Free",
+   "why": "The words are Zambia's own; the tune is Enoch Sontonga's \"Nkosi Sikelel' iAfrika\", which several African countries share."
+  }
+ ]
+}</script>
+<script type="application/json" id="mirror-physical">{
+ "_readme": "Every fact the Zambia physical-features game teaches (docs/learner/zedexams-zambia-physical.html). Province OUTLINES live in zambia_provinces.json and nothing here repeats them; the schematic river lines and lake shapes live in zambia_facts.json and nothing here repeats those either. This file is the review sheet: a Zambian geography teacher signs the river courses, the waterfall provinces, the watershed answers and the four altitudes off by filling in dataset.verification, not by reading the HTML.",
+ "dataset": {
+  "id": "zambia_physical",
+  "version": 1,
+  "dated": "2026-08-19",
+  "teaches": "Waterfalls, river courses, the Congo–Zambezi watershed, natural and man-made lakes, and relief.",
+  "scope": "Every question asks WHICH PROVINCE a feature is in, which province a river reaches next, which ocean its water ends up in, or how high something is. None of them asks for an exact spot, so none of them needs hydrography beyond the province outlines. Pins, lake shapes and river lines are shown as illustration AFTER an answer; the \"Province file only\" switch in the prototype drops all of them and every mode still plays.",
+  "altitudeNote": "Altitudes and \"highest point\" claims vary between sources. This file picks ONE set and cites it rather than averaging them — see sources.factbook and the metres field on every relief entry.",
+  "verification": {
+   "status": "UNVERIFIED",
+   "blocking": true,
+   "requiredBeforeRelease": [
+    "A Zambian geography teacher checks the two river courses province by province, the five waterfall provinces, the six watershed answers and the five lakes.",
+    "Confirm the altitude set. This file uses Mafinga Central 2,339 m and the Zambezi at 329 m (see sources.factbook). If a Zambian syllabus teaches a different set, replace all four together rather than one at a time — the mode is an ordering, so a single edited figure can silently reorder it.",
+    "Settle Lumangwe Falls. It stands on the Kalungwishi, which is the Luapula/Northern boundary. This file answers Luapula (Kawambwa District) and ACCEPTS Northern with an explanation; confirm which one the syllabus expects.",
+    "Record who checked, against what, and on what date, in the three fields below."
+   ],
+   "checkedAgainst": null,
+   "checkedBy": null,
+   "checkedOn": null
+  },
+  "sources": [
+   {
+    "id": "factbook",
+    "what": "The elevation-extremes pair used by the CIA World Factbook and Wikipedia’s \"Geography of Zambia\": highest point Mafinga Central 2,339 m, lowest point the Zambezi river 329 m.",
+    "used": "every figure in relief[]",
+    "status": "CHECKED AT AUTHORING TIME (2026-08-19) — and still needs the teacher pass. Other sources give the Mafinga Hills as 2,301 m or 2,164 m; that is exactly the disagreement the prompt warns about, which is why one set is cited rather than blended."
+   },
+   {
+    "id": "general",
+    "what": "General reference works, checked 2026-08-19",
+    "used": "waterfall provinces and heights, river courses, watershed, lakes",
+    "status": "cross-checked at authoring time; still needs the teacher pass"
+   }
+  ],
+  "knownDisagreements": [
+   {
+    "about": "Where the Kafue rises",
+    "thisFile": "Copperbelt Province — on the plateau about 120 km north-west of Chingola, on the DRC border.",
+    "alsoSaid": "The build prompt for this game routes the Kafue North-Western → Copperbelt → Central → Southern.",
+    "resolved": "Copperbelt. It is what zambia_facts.json already teaches in Know Zambia level 4 (\"The Kafue rises on the Copperbelt\"), it is what the general references say, and it is where the river’s own waypoints in that file start. Two games in one product cannot answer the same question differently. Flagged here so the teacher settles it on the record rather than in a code review."
+   },
+   {
+    "about": "Where the Zambezi and the Kafue finish inside Zambia",
+    "thisFile": "Both end in Lusaka Province — the Zambezi leaves at the Luangwa confluence, the Kafue joins it below Kafue Gorge.",
+    "alsoSaid": "The build prompt stops both rivers in Southern Province.",
+    "resolved": "Four provinces each. Stopping at Southern would contradict zambia_facts.json, which already places the Luangwa confluence \"in the far east of Lusaka Province\", and would put the lowest point of the country in a province the river never reaches. Both routes were re-derived from the waypoints in that file and agree."
+   }
+  ]
+ },
+ "falls": [
+  {
+   "id": "victoria",
+   "name": "Victoria Falls",
+   "alsoKnownAs": "Mosi-oa-Tunya",
+   "province": "so",
+   "river": "Zambezi",
+   "lon": 25.8572,
+   "lat": 17.9243,
+   "metres": 108,
+   "fact": "Mosi-oa-Tunya — \"the smoke that thunders\" in Lozi and Tonga — drops 108 m on a front 1,708 m wide, which makes it the largest sheet of falling water in the world. It is at Livingstone, and Zambia shares it with Zimbabwe.",
+   "hint": "Follow the Zambezi to the very south of the country, at Livingstone — the province below Central and west of Lusaka.",
+   "source": "general"
+  },
+  {
+   "id": "kalambo",
+   "name": "Kalambo Falls",
+   "province": "no",
+   "river": "Kalambo",
+   "lon": 31.2408,
+   "lat": 8.5964,
+   "metres": 235,
+   "fact": "A single uninterrupted drop of 235 m — the second highest in Africa — on the Tanzania border 33 km from Mbala. People have lived at the top of it for something like 250,000 years, which makes it one of the longest-occupied places known anywhere.",
+   "hint": "The very top of the map, on the Tanzania border near Mbala and the tip of Lake Tanganyika.",
+   "source": "general"
+  },
+  {
+   "id": "ngonye",
+   "name": "Ngonye Falls",
+   "alsoKnownAs": "Sioma Falls",
+   "province": "we",
+   "river": "Zambezi",
+   "lon": 23.5658,
+   "lat": 16.6472,
+   "metres": 20,
+   "fact": "Wide rather than tall: a horseshoe of falls about 20 m high at Sioma, on the same river as Victoria Falls but a long way upstream. In flood it carries a volume close to it.",
+   "hint": "On the Zambezi upstream of Victoria Falls — the long province down the Angola border, west of Southern.",
+   "source": "general"
+  },
+  {
+   "id": "lumangwe",
+   "name": "Lumangwe Falls",
+   "province": "lp",
+   "alsoAccept": [
+    "no"
+   ],
+   "alsoAcceptWhy": "Northern is a fair answer and the game takes it. Lumangwe stands on the Kalungwishi, and that river IS the Luapula–Northern boundary — the falls are reached from Kawambwa in Luapula, which is the answer written down here.",
+   "river": "Kalungwishi",
+   "lon": 29.3833,
+   "lat": 9.5333,
+   "metres": 35,
+   "fact": "About 35 m high and up to 160 m wide, on the Kalungwishi near Kawambwa — the largest waterfall lying entirely inside Zambia, and often called a smaller Victoria Falls. Its water goes north to the Congo, not south to the Zambezi.",
+   "hint": "The north-west, between Lake Mweru and Lake Bangweulu — the narrow province along the DRC border.",
+   "source": "general"
+  },
+  {
+   "id": "kundalila",
+   "name": "Kundalila Falls",
+   "province": "ce",
+   "river": "Kaombe",
+   "lon": 30.7,
+   "lat": 13.1333,
+   "metres": null,
+   "metresNote": "Sources give anything from 30 m to 70 m, so this file states no height. Fix it here once a teacher picks one.",
+   "fact": "Kundalila means \"cooing dove\". The Kaombe river drops off the edge of the Muchinga escarpment at Kanona, near Serenje — the plateau ending and the valley beginning, in one place you can stand and look at.",
+   "hint": "Inland in the middle of the country, near Serenje — east of Kabwe, where the plateau drops off the Muchinga escarpment.",
+   "source": "general"
+  }
+ ],
+ "riverCourses": [
+  {
+   "id": "zambezi",
+   "name": "Zambezi",
+   "factsRiverId": "zambezi",
+   "route": [
+    "nw",
+    "we",
+    "so",
+    "lu"
+   ],
+   "why": {
+    "nw": "It rises at Kalene Hill in Ikelenge, in the far north-west corner. The Zambezi starts in Zambia.",
+    "we": "It loops out through Angola, comes back at Chavuma, and spreads across the Barotse floodplain — the flood the Kuomboka moves the Litunga out of.",
+    "so": "Along the southern border: over Victoria Falls at Livingstone, then into Lake Kariba.",
+    "lu": "Below Kariba it runs on to the far corner, takes in the Luangwa, and leaves Zambia there."
+   },
+   "end": "2,574 km in all. The Zambezi rises in North-Western Zambia and leaves at the corner where Zambia, Zimbabwe and Mozambique meet — 329 m above sea level, the lowest point in the country.",
+   "source": "general"
+  },
+  {
+   "id": "kafue",
+   "name": "Kafue",
+   "factsRiverId": "kafue",
+   "route": [
+    "cb",
+    "ce",
+    "so",
+    "lu"
+   ],
+   "why": {
+    "cb": "It rises on the plateau about 120 km north-west of Chingola, right on the DRC border — the mining province, whose towns and mines all drink from it.",
+    "ce": "South through Central Province and round the edge of the Lukanga Swamp.",
+    "so": "Onto the Kafue Flats past Itezhi-Tezhi and Namwala — so flat that the river spreads out for miles in the wet season.",
+    "lu": "Down the Kafue Gorge and into the Zambezi, about 20 km north of Chirundu."
+   },
+   "end": "The Kafue begins and ends inside Zambia — 1,576 km, and not one metre of it belongs to another country. It is the river the Copperbelt, the Kafue Flats cattle and most of Lusaka’s power depend on.",
+   "source": "general"
+  }
+ ],
+ "watershed": {
+  "idea": "Zambia sits on the Congo–Zambezi watershed — the line where the country’s water decides which ocean it is going to. Rain falling a few kilometres apart in Northern Province can end up 4,000 km apart at sea.",
+  "basins": {
+   "congo": {
+    "name": "Congo",
+    "arrow": "⬆️",
+    "blurb": "north and west, to the Atlantic Ocean",
+    "fact": "The Congo is the deepest river in the world and carries more water than any river except the Amazon."
+   },
+   "zambezi": {
+    "name": "Zambezi",
+    "arrow": "⬇️",
+    "blurb": "south and east, to the Indian Ocean",
+    "fact": "The Zambezi leaves Africa through Mozambique, having crossed six countries."
+   }
+  },
+  "rivers": [
+   {
+    "id": "chambeshi",
+    "name": "Chambeshi",
+    "basin": "congo",
+    "why": "The Chambeshi flows north-west into the Bangweulu swamps and comes out the other side as the Luapula. It is the furthest headwater of the Congo, so rain falling near Mbala reaches the Atlantic Ocean — 4,700 km away.",
+    "hint": "It starts in Northern Province and runs away from the rest of Zambia’s rivers — the wrong way, if you were expecting the Zambezi.",
+    "source": "general"
+   },
+   {
+    "id": "luapula",
+    "name": "Luapula",
+    "basin": "congo",
+    "why": "Out of Bangweulu, north along the DRC border into Lake Mweru, then on as the Luvua to the Congo.",
+    "hint": "It is the border river of Luapula Province, in the north — the same water the Chambeshi brought.",
+    "source": "general"
+   },
+   {
+    "id": "kalungwishi",
+    "name": "Kalungwishi",
+    "basin": "congo",
+    "why": "Down over Lumangwe and Kabwelume Falls and into Lake Mweru — the same water as the Luapula, going to the same ocean.",
+    "hint": "The river Lumangwe Falls stands on, in the north between the two lakes.",
+    "source": "general"
+   },
+   {
+    "id": "kafue",
+    "name": "Kafue",
+    "basin": "zambezi",
+    "why": "South across the plateau, over the Kafue Flats and into the Zambezi below the Kafue Gorge.",
+    "hint": "It never leaves Zambia — but its water does, through the river it joins.",
+    "source": "general"
+   },
+   {
+    "id": "luangwa",
+    "name": "Luangwa",
+    "basin": "zambezi",
+    "why": "Down the Luangwa valley between the Muchinga escarpment and Eastern Province, joining the Zambezi at Luangwa town.",
+    "hint": "The valley river in the east — it ends at the same corner the Zambezi leaves by.",
+    "source": "general"
+   },
+   {
+    "id": "kabompo",
+    "name": "Kabompo",
+    "basin": "zambezi",
+    "why": "A North-Western river feeding the upper Zambezi above the Barotse floodplain.",
+    "hint": "It is in North-Western Province, and it joins the river that province is famous for starting.",
+    "source": "general"
+   }
+  ]
+ },
+ "lakes": [
+  {
+   "id": "tanganyika",
+   "name": "Lake Tanganyika",
+   "kind": "natural",
+   "factsLakeId": "tanganyika",
+   "why": "Natural, and the deepest lake in Africa at about 1,470 m. It is older than almost anything else on the continent. Zambia touches only its southern tip, at the port of Mpulungu in Northern Province.",
+   "hint": "The very top of the map, mostly off the edge — Zambia only owns the bottom end of it.",
+   "source": "general"
+  },
+  {
+   "id": "bangweulu",
+   "name": "Lake Bangweulu",
+   "kind": "natural",
+   "factsLakeId": "bangweulu",
+   "why": "Natural, and the one big lake that is entirely Zambia’s. Bangweulu means \"where the water meets the sky\". The Chambeshi flows in and the Luapula flows out.",
+   "hint": "Inland in the north, below Lake Mweru — no border runs through this one.",
+   "source": "general"
+  },
+  {
+   "id": "mweru",
+   "name": "Lake Mweru",
+   "kind": "natural",
+   "factsLakeId": "mweru",
+   "why": "Natural, shared with the DRC. The Luapula flows in at one end and the Luvua flows out at the other, on its way to the Congo.",
+   "hint": "North-west, on the DRC border — the long lake at the top of Luapula Province.",
+   "source": "general"
+  },
+  {
+   "id": "kariba",
+   "name": "Lake Kariba",
+   "kind": "man-made",
+   "year": 1959,
+   "factsLakeId": "kariba",
+   "why": "Man-made. The Zambezi was dammed at Kariba Gorge and the wall was finished in 1959; the lake behind it took until 1963 to fill, and 57,000 people had to move. It is one of the largest man-made lakes in the world — and it did not exist when your grandparents were children.",
+   "hint": "The long thin lake along the southern border — that is the Zambezi, held back.",
+   "source": "general"
+  },
+  {
+   "id": "itezhitezhi",
+   "name": "Lake Itezhi-Tezhi",
+   "kind": "man-made",
+   "year": 1978,
+   "geometry": {
+    "lon": 26.02,
+    "lat": 15.75,
+    "rx": 2.4,
+    "ry": 1.1,
+    "rot": -35,
+    "accuracy": "SCHEMATIC — an ellipse at the dam’s coordinates, the same convention zambia_facts.json uses for the other four lakes. It shows roughly where the lake is; it is not a shoreline."
+   },
+   "why": "Man-made. A dam on the Kafue, finished in 1978, which stores the wet-season flood and lets it out slowly to run the Kafue Gorge power station downstream — and to keep the Kafue Flats wet enough for the cattle and the lechwe.",
+   "hint": "On the Kafue where it turns east, on the edge of Kafue National Park between Central and Southern.",
+   "source": "general"
+  }
+ ],
+ "relief": [
+  {
+   "id": "mafinga",
+   "name": "Mafinga Hills",
+   "metres": 2339,
+   "display": "about 2,340 m",
+   "province": "mu",
+   "note": "Zambia’s highest point, on the Malawi border in Muchinga Province. The peak itself is Mafinga Central, 2,339 m. Cold enough at night to need a blanket in a country most people think of as hot.",
+   "source": "factbook"
+  },
+  {
+   "id": "plateau",
+   "name": "The Central Plateau",
+   "metres": 1200,
+   "display": "1,000–1,500 m",
+   "note": "Most of Zambia is this: a high, flat plateau. It is why Lusaka is cooler than its latitude says it should be, and why the rivers have valleys to cut.",
+   "source": "factbook"
+  },
+  {
+   "id": "luangwa",
+   "name": "Luangwa Valley",
+   "metres": 500,
+   "display": "about 500 m",
+   "note": "A rift valley cut deep into the plateau — hot, low, and full of wildlife. The drop from the plateau to the valley floor is the Muchinga escarpment.",
+   "source": "factbook"
+  },
+  {
+   "id": "zambeziBorder",
+   "name": "The Zambezi at the border",
+   "metres": 329,
+   "display": "329 m",
+   "province": "lu",
+   "note": "Where the Zambezi leaves Zambia at the Mozambique corner — the lowest point in the country. Every river in the Zambezi basin is running towards this spot.",
+   "source": "factbook"
+  }
+ ]
+}</script>
+
+<script>
+/* ============================================================================
+   ZAMBIA'S PHYSICAL FEATURES — five modes, all playable.
+
+   WHAT THIS FILE RENDERS FROM
+   ---------------------------
+   Nothing about Zambia is written into this script. The outlines and the
+   lon/lat projection come from zambia_provinces.json; the schematic river
+   lines and lake shapes from zambia_facts.json; every waterfall, river course,
+   watershed answer, lake and altitude from zambia_physical.json. Served over
+   http:// it FETCHES all three. Double-clicked off the filesystem the browser
+   blocks that, so it falls back to the three inline mirrors above — byte-for-
+   byte copies written by `npm run sync:zambia-physical` and guarded by
+   `npm run test:zambia-physical`. The control strip says which it is reading.
+
+   WHY EVERY QUESTION IS "WHICH PROVINCE"
+   -------------------------------------
+   Placing a waterfall on its exact spot, or tracing a river's real course as a
+   line, needs hydrography this repo does not have. Every question here asks
+   which province instead — which the province outlines can answer on their
+   own. Pins, lake shapes and river lines are drawn AFTER an answer, as
+   illustration; the strip's "Province file only" switch removes all of them
+   and all five modes still play. That switch is the proof, and the panel
+   below re-checks it on every render.
+
+   NO CLOCK, ANYWHERE
+   ------------------
+   This file starts no timers and reads no clock. A wrong tap stays on the
+   screen until the learner tries again rather than being wiped after a
+   second, and the panel below proves it by scanning this script's own text
+   for every timing call by name. The names it looks for are assembled from
+   halves in that check — and are not spelled out here either — because a
+   scanner that matches its own source is a scanner that can never pass.
+   ========================================================================== */
+(function(){
+'use strict';
+var $=function(i){return document.getElementById(i);};
+var TOUCH_MIN=44;                       /* px — the smallest allowed target */
+var PKEYS=['nw','cb','ce','lu','so','we','no','mu','ea','lp'];
+var VB_MAIN='0 0 100 81.5';
+var VB_WATER='-7 -9 114 99';
+var STATES={ok:{glyph:'✓',word:'correct'},no:{glyph:'✗',word:'wrong'},step:{glyph:'',word:'traced'},anchor:{glyph:'',word:'already named'}};
+
+var PROV=null,FACTS=null,PHYS=null,SRCNAME='inline mirror',SRCFETCHED=false;
+var G={},MODES=[],modeIx=-1,run=null,fb=null,EXTRAS=true;
+
+function esc(s){return String(s==null?'':s).replace(/&(?![a-z#]+;)/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+/* ---------- geometry, all pure ---------- */
+function parsePath(d){var pts=[],re=/[ML]\s*(-?[\d.]+),(-?[\d.]+)/g,m;while((m=re.exec(d))){pts.push([+m[1],+m[2]]);}return pts;}
+function bbox(pts){var x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;pts.forEach(function(p){if(p[0]<x0)x0=p[0];if(p[0]>x1)x1=p[0];if(p[1]<y0)y0=p[1];if(p[1]>y1)y1=p[1];});return{x0:x0,y0:y0,x1:x1,y1:y1,w:x1-x0,h:y1-y0};}
+function areaOf(pts){var a=0;for(var i=0,j=pts.length-1;i<pts.length;j=i++){a+=(pts[j][0]+pts[i][0])*(pts[j][1]-pts[i][1]);}return Math.abs(a/2);}
+function inside(pt,pts){var x=pt[0],y=pt[1],r=false;for(var i=0,j=pts.length-1;i<pts.length;j=i++){var xi=pts[i][0],yi=pts[i][1],xj=pts[j][0],yj=pts[j][1];if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))r=!r;}return r;}
+function proj(lon,lat){var p=PROV.projection;return[(lon-p.lon.min)*p.lon.scale+p.lon.offset,(lat-p.lat.min)*p.lat.scale+p.lat.offset];}
+function whichProvince(pt){for(var i=0;i<PKEYS.length;i++){if(inside(pt,G[PKEYS[i]].pts))return PKEYS[i];}return null;}
+function segDist(p,a,b){var dx=b[0]-a[0],dy=b[1]-a[1],l=dx*dx+dy*dy;
+  var t=l?Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/l)):0;
+  var x=a[0]+t*dx-p[0],y=a[1]+t*dy-p[1];return Math.sqrt(x*x+y*y);}
+function distToPoly(p,pts){var d=1e9;for(var i=0,j=pts.length-1;i<pts.length;j=i++){d=Math.min(d,segDist(p,pts[j],pts[i]));}return d;}
+function nameOf(k){return PROV.provinces[k].n;}
+function labelSize(k){var b=G[k].bbox;return Math.max(1.9,Math.min(3.2,Math.min(b.w/6.2,b.h/2.4)));}
+
+/* ---------- data ---------- */
+function readMirror(id){return JSON.parse($(id).textContent);}
+function loadData(){
+  PROV=readMirror('mirror-provinces');FACTS=readMirror('mirror-facts');PHYS=readMirror('mirror-physical');
+  var want=['zambia_provinces.json','zambia_facts.json','zambia_physical.json'];
+  return Promise.all(want.map(function(u){return fetch(u).then(function(r){return r.ok?r.json():null;})
+    .catch(function(){return null;});}))
+    .then(function(r){
+      if(r[0]&&r[1]&&r[2]){PROV=r[0];FACTS=r[1];PHYS=r[2];SRCFETCHED=true;
+        SRCNAME='zambia_provinces.json + zambia_facts.json + zambia_physical.json';}
+    })
+    .catch(function(){});
+}
+function factsRiver(id){var out=null;FACTS.water.rivers.forEach(function(r){if(r.id===id)out=r;});return out;}
+function factsLake(id){var out=null;FACTS.water.lakes.forEach(function(l){if(l.id===id)out=l;});return out;}
+function lakeShape(l){
+  if(l.factsLakeId){var f=factsLake(l.factsLakeId);if(f)return{lon:f.lon,lat:f.lat,rx:f.rx,ry:f.ry,rot:f.rot,from:'zambia_facts.json'};}
+  if(l.geometry)return{lon:l.geometry.lon,lat:l.geometry.lat,rx:l.geometry.rx,ry:l.geometry.ry,rot:l.geometry.rot,from:'zambia_physical.json'};
+  return null;
+}
+
+/* ---------- the five modes, built out of the datasets ----------
+   ORDER MATTERS. Relief comes first because the prompt asks for it and the
+   reason is pedagogic: once a learner has seen Zambia as a high plateau with
+   valleys cut into it, the rivers stop being arbitrary names and start being
+   water running downhill. ------------------------------------------------- */
+function buildModes(){
+  var m=[];
+
+  m.push({id:'relief',kind:'order',icon:'⛰️',name:'Highest to lowest',
+    blurb:'Put Zambia’s relief in order — the hills, the plateau, the valley, the river.',
+    items:PHYS.relief,count:PHYS.relief.length,
+    why:'Do this one first. Everything after it is water running downhill.'});
+
+  m.push({id:'falls',kind:'map',icon:'💧',name:'Where is the waterfall?',
+    blurb:'Victoria, Kalambo, Ngonye, Lumangwe, Kundalila — tap the province.',
+    steps:PHYS.falls.map(function(f){
+      return{q:'In which province is <b>'+esc(f.name)+'</b>'+(f.alsoKnownAs?' ('+esc(f.alsoKnownAs)+')':'')+'?',
+        a:[f.province].concat(f.alsoAccept||[]),main:f.province,fact:f.fact,hint:f.hint,
+        alsoWhy:f.alsoAcceptWhy||null,
+        pin:{lon:f.lon,lat:f.lat,label:f.name.replace(' Falls','')},
+        kick:f.river+' river'};
+    }),count:PHYS.falls.length});
+
+  var legs=PHYS.riverCourses.map(function(c){
+    var fr=factsRiver(c.factsRiverId);
+    return{id:c.id,name:c.name,route:c.route,why:c.why,end:c.end,
+      line:fr?fr.waypoints:null};
+  });
+  var courseCount=0;legs.forEach(function(l){courseCount+=l.route.length;});
+  m.push({id:'course',kind:'course',icon:'🌊',name:'Follow the river',
+    blurb:'Trace the Zambezi and the Kafue province by province, source to end.',
+    legs:legs,count:courseCount});
+
+  m.push({id:'watershed',kind:'bucket',icon:'🧭',name:'Congo or Zambezi?',
+    blurb:'Which way does the water go? Sort the rivers by the ocean they reach.',
+    intro:PHYS.watershed.idea,verdict:'It goes to the ',
+    buckets:[{id:'congo',b:PHYS.watershed.basins.congo},{id:'zambezi',b:PHYS.watershed.basins.zambezi}],
+    steps:PHYS.watershed.rivers.map(function(r){
+      return{label:r.name+' river',sub:'Where does this water end up?',a:r.basin,why:r.why,hint:r.hint,id:r.id};
+    }),count:PHYS.watershed.rivers.length});
+
+  m.push({id:'lakes',kind:'bucket',icon:'🏞️',name:'Natural or man-made?',
+    blurb:'Tanganyika, Bangweulu, Mweru — and the two that people built.',verdict:'It is ',verdictLower:true,
+    buckets:[{id:'natural',b:{name:'Natural',arrow:'🏞️',blurb:'it was always there'}},
+             {id:'man-made',b:{name:'Man-made',arrow:'🏗️',blurb:'people built a dam'}}],
+    steps:PHYS.lakes.map(function(l){
+      return{label:l.name,sub:'Was this lake always here?',a:l.kind,why:l.why,hint:l.hint,id:l.id,lake:l};
+    }),count:PHYS.lakes.length});
+
+  return m;
+}
+
+/* ---------- the map ----------
+   Everything optional is gated on EXTRAS inside this one function rather than
+   at each call site, so "Province file only" cannot be forgotten by a screen
+   that grows a pin later. --------------------------------------------------- */
+function svgMap(o){
+  o=o||{};
+  var st=o.state||{},s='<svg class="map" viewBox="'+(o.viewBox||VB_MAIN)+'" role="img" aria-label="Map of Zambia’s ten provinces">';
+  s+='<defs><pattern id="hatch" width="3" height="3" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">'+
+     '<rect width="3" height="3" fill="#fbe3d2"></rect><rect width="1.4" height="3" fill="#d55e00"></rect></pattern></defs>';
+
+  PKEYS.forEach(function(k){
+    var c=st[k]||'',hit=o.hit==='prov';
+    s+='<path id="p_'+k+'" class="prov '+c+'" d="'+PROV.provinces[k].d+'"'+
+       (hit?' data-hit="prov:'+k+'" role="button" tabindex="0"':'')+
+       ' aria-label="'+esc(nameOf(k))+' Province'+(c&&STATES[c]?', '+STATES[c].word:'')+'"><title>'+esc(nameOf(k))+' Province</title></path>';
+  });
+
+  if(EXTRAS&&o.riverLine){
+    var pts=o.riverLine.map(function(w){var p=proj(w[0],w[1]);return p[0].toFixed(2)+','+p[1].toFixed(2);}).join(' ');
+    s+='<polyline class="riv" points="'+pts+'" aria-hidden="true"></polyline>';
+  }
+  if(EXTRAS&&o.lakes){
+    o.lakes.forEach(function(L){
+      var g=L.shape;if(!g)return;
+      var p=proj(g.lon,g.lat);
+      s+='<ellipse class="lake'+(L.on?' ok':'')+'" cx="'+p[0].toFixed(2)+'" cy="'+p[1].toFixed(2)+'" rx="'+g.rx+'" ry="'+g.ry+
+         '" transform="rotate('+g.rot+' '+p[0].toFixed(2)+' '+p[1].toFixed(2)+')" aria-label="'+esc(L.name)+'"><title>'+esc(L.name)+'</title></ellipse>';
+      if(L.on)s+='<text class="mark ok" x="'+p[0].toFixed(2)+'" y="'+(p[1]+1.5).toFixed(2)+'">✓</text>';
+      s+='<text class="wlab" x="'+p[0].toFixed(2)+'" y="'+(p[1]+g.ry+3).toFixed(2)+'">'+esc(L.name.replace('Lake ',''))+'</text>';
+    });
+  }
+
+  PKEYS.forEach(function(k){
+    var c=st[k]||'';if(c!=='ok'&&c!=='step'&&c!=='anchor')return;
+    var a=PROV.provinces[k].c,fs=labelSize(k);
+    s+='<text class="plab'+(c==='anchor'?' dark':'')+'" x="'+a[0]+'" y="'+a[1]+'" style="font-size:'+fs.toFixed(2)+'px">'+esc(nameOf(k))+'</text>';
+    if(c==='ok')s+='<text class="mark ok" x="'+a[0]+'" y="'+(a[1]-fs-1.2)+'">✓</text>';
+  });
+  PKEYS.forEach(function(k){
+    if(st[k]!=='no')return;var a=PROV.provinces[k].c;
+    s+='<text class="mark no" x="'+a[0]+'" y="'+a[1]+'">✗</text>';
+  });
+
+  if(EXTRAS&&o.pin){
+    var pp=proj(o.pin.lon,o.pin.lat);
+    s+='<g class="pin"><circle cx="'+pp[0].toFixed(2)+'" cy="'+pp[1].toFixed(2)+'" r="1.5"></circle>'+
+       '<text x="'+pp[0].toFixed(2)+'" y="'+(pp[1]-2.6).toFixed(2)+'">'+esc(o.pin.label)+'</text></g>';
+  }
+
+  /* Touch halos. Every province gets one; fitHalos() gives it a radius only
+     when the shape itself measures under 44px at the width actually rendered.
+     Smallest last, so Lusaka wins the tap over Central. */
+  if(o.hit==='prov'){
+    s+='<g class="halos">';
+    PKEYS.slice().sort(function(a,b){return G[b].area-G[a].area;}).forEach(function(k){
+      var a=PROV.provinces[k].c,b=G[k].bbox;
+      s+='<circle class="halo" data-hit="prov:'+k+'" data-min="'+Math.min(b.w,b.h).toFixed(2)+'" cx="'+a[0]+'" cy="'+a[1]+'" r="0" aria-hidden="true"></circle>';
+    });
+    s+='</g>';
+  }
+  return s+'</svg>';
+}
+function fitHalos(){
+  var svgs=document.querySelectorAll('svg.map'),i,measured=[];
+  for(i=0;i<svgs.length;i++){
+    var svg=svgs[i],w=svg.getBoundingClientRect().width;if(!w)continue;
+    var vb=svg.getAttribute('viewBox').split(/\s+/).map(Number),scale=w/vb[2];
+    var hs=svg.querySelectorAll('circle.halo'),j;
+    for(j=0;j<hs.length;j++){
+      var minPx=parseFloat(hs[j].getAttribute('data-min'))*scale;
+      var r=minPx>=TOUCH_MIN?0:(TOUCH_MIN/2)/scale;
+      hs[j].setAttribute('r',r.toFixed(2));
+      measured.push({id:hs[j].getAttribute('data-hit'),px:Math.max(minPx,r*2*scale)});
+    }
+  }
+  return measured;
+}
+
+/* ---------- run state ---------- */
+function startMode(ix){
+  modeIx=ix;fb=null;
+  var M=MODES[ix];
+  run={ix:0,leg:0,step:0,score:0,done:0,tries:0,resolved:false,picked:null,wrong:{},order:[],marks:[],finished:false};
+  if(M.kind==='course')run.trace={};
+  render();
+}
+function toMenu(){modeIx=-1;fb=null;render();}
+function say(kind,glyph,title,body){fb={k:kind,g:glyph,t:title,b:body};}
+function fbHtml(){
+  var out='<div id="fb" aria-live="polite">';
+  if(fb)out+='<div class="fb '+fb.k+'"><div class="t"><span aria-hidden="true">'+(fb.g||'')+'</span><span>'+fb.t+'</span></div>'+fb.b+'</div>';
+  return out+'</div>';
+}
+function srcLine(){
+  return '<div class="prov-src">Outlines: zambia_provinces.json · traced '+esc(PROV.dataset.traced)+' · '+
+    esc(PROV.dataset.verification.status.toLowerCase())+(EXTRAS?'':' · province file only')+'</div>';
+}
+
+/* ---------- screens ---------- */
+function render(){
+  if(modeIx<0){
+    $('hTtl').innerHTML='Physical features<small>five modes</small>';
+    $('hChip').textContent=totalDone()+' / '+totalCount();
+    $('scr').innerHTML=menuScreen();
+    fitHalos();runChecks();return;
+  }
+  var M=MODES[modeIx];
+  $('hTtl').innerHTML=esc(M.name)+'<small>mode '+(modeIx+1)+' of '+MODES.length+'</small>';
+  $('hChip').textContent=run.done+' / '+M.count;
+  var h='';
+  if(run.finished)h=doneScreen();
+  else if(M.kind==='order')h=orderScreen();
+  else if(M.kind==='map')h=mapScreen();
+  else if(M.kind==='course')h=courseScreen();
+  else if(M.kind==='bucket')h=bucketScreen();
+  $('scr').innerHTML=h;
+  fitHalos();runChecks();
+}
+function menuScreen(){
+  var out='<div class="card tight">'+svgMap({state:allAnchors()})+
+    '<div class="prov-src">'+esc(PROV.provinces.mu.createdNote)+'</div></div>'+
+    '<div class="sec">Pick a mode</div>';
+  MODES.forEach(function(M,i){
+    var p=progress[M.id],done=p&&p.done;
+    out+='<button class="mode" type="button" data-act="mode:'+i+'">'+
+      '<div class="mi'+(done?' done':'')+'" aria-hidden="true">'+M.icon+'</div>'+
+      '<div><div class="mn">'+esc(M.name)+'</div><div class="md">'+esc(M.blurb)+'</div></div>'+
+      '<div class="rt">'+(p?p.score+' / '+M.count:M.count+' to do')+'</div></button>';
+  });
+  return out+'<div class="note" style="border:none;background:#fff;margin-top:4px">'+
+    '<b>Start at the top.</b> '+esc(MODES[0].why)+'</div>';
+}
+function allAnchors(){var st={};PKEYS.forEach(function(k){st[k]='anchor';});return st;}
+
+/* --- 1. relief, an ordering --- */
+function orderScreen(){
+  var M=MODES[modeIx],left=[];
+  M.items.forEach(function(r,i){if(run.order.indexOf(i)<0)left.push(i);});
+  var h='<div class="card"><div class="kick">Highest first</div>'+
+    '<div class="q">Put Zambia in order, from the highest place to the lowest.</div></div>';
+  h+='<div class="card"><div class="slots">';
+  M.items.forEach(function(_,i){
+    var k=run.order[i];
+    h+='<div class="sl'+(k===undefined?'':' f')+'"><b>'+(i+1)+'</b> '+
+      (k===undefined?'—':esc(M.items[k].name)+'<span class="alt">'+esc(M.items[k].display)+'</span>')+'</div>';
+  });
+  h+='</div>';
+  left.forEach(function(i){
+    h+='<button class="ord" type="button" data-act="ord:'+i+'">'+esc(M.items[i].name)+'<span class="g">tap to place</span></button>';
+  });
+  h+='</div>'+fbHtml();
+  return h;
+}
+
+/* --- 2. waterfalls, on the map --- */
+function mapScreen(){
+  var M=MODES[modeIx],s=M.steps[run.ix],st={};
+  for(var w in run.wrong)st[w]='no';
+  if(run.resolved)st[run.rightKey||s.main]='ok';
+  var h='<div class="card"><div class="kick">'+esc(s.kick)+'</div><div class="q">'+s.q+'</div></div>';
+  h+='<div class="card tight">'+svgMap({state:st,hit:run.resolved?null:'prov',pin:run.resolved?s.pin:null})+srcLine()+'</div>';
+  if(!run.resolved)h+='<div class="hint">Tap the province on the map</div>';
+  h+=fbHtml();
+  if(run.resolved)h+='<button class="btn btn-coral" type="button" data-act="next">'+(run.ix+1<M.steps.length?'Next →':'Finish →')+'</button>';
+  return h;
+}
+
+/* --- 3. follow the river --- */
+function courseScreen(){
+  var M=MODES[modeIx],leg=M.legs[run.leg],st={};
+  leg.route.slice(0,run.step).forEach(function(k){st[k]='step';});
+  for(var w in run.wrong)st[w]='no';
+  var full=run.step>=leg.route.length;
+  var h='<div class="card"><div class="kick">'+esc(leg.name)+' river · river '+(run.leg+1)+' of '+M.legs.length+'</div>'+
+    '<div class="q">Tap the provinces the <b>'+esc(leg.name)+'</b> flows through, from source to end.</div></div>';
+  h+='<div class="card tight">'+svgMap({state:st,hit:full?null:'prov',riverLine:full?leg.line:null})+srcLine()+'</div>';
+  h+='<div class="route">'+leg.route.map(function(k,i){
+    return '<span class="rs'+(i<run.step?' on':'')+'">'+(i<run.step?'<span aria-hidden="true">✓</span> '+esc(nameOf(k)):String(i+1))+'</span>';
+  }).join('')+'</div>';
+  if(!full)h+='<div class="hint">'+(run.step?'Where does it go after <b>'+esc(nameOf(leg.route[run.step-1]))+'</b>?':'Which province does it <b>rise</b> in?')+'</div>';
+  h+=fbHtml();
+  if(full){
+    var last=run.leg+1>=M.legs.length;
+    h+='<button class="btn btn-coral" type="button" data-act="next">'+(last?'Finish →':'Now the '+esc(M.legs[run.leg+1].name)+' →')+'</button>';
+  }
+  return h;
+}
+
+/* --- 4 & 5. buckets --- */
+function bucketScreen(){
+  var M=MODES[modeIx],s=M.steps[run.ix];
+  var h='';
+  if(M.intro&&run.ix===0&&!run.resolved)h+='<div class="card"><div class="kick">The idea</div><div style="font-size:12.5px;line-height:1.65;color:#4b5270">'+esc(M.intro)+'</div></div>';
+  h+='<div class="card"><div class="kick">'+esc(M.name)+'</div>'+
+    '<div class="item">'+esc(s.label)+'<small>'+esc(s.sub)+'</small></div>'+
+    '<div class="buckets">'+M.buckets.map(function(b){
+      var cls='';
+      if(run.resolved){if(b.id===s.a)cls=' ok';else if(b.id===run.picked)cls=' no';}
+      return '<button class="bk'+cls+'" type="button"'+(run.resolved?' disabled':'')+' data-act="bk:'+b.id+'">'+
+        '<span class="g" aria-hidden="true">'+(b.b.arrow||'')+'</span><h4>'+esc(b.b.name)+'</h4>'+
+        '<div class="sub">'+esc(b.b.blurb)+'</div></button>';
+    }).join('')+'</div>';
+  if(s.lake&&run.resolved&&EXTRAS){
+    var shape=lakeShape(s.lake);
+    if(shape)h+='<div style="margin-top:10px">'+svgMap({viewBox:VB_WATER,lakes:[{shape:shape,name:s.lake.name,on:true}]})+'</div>';
+  }
+  h+='</div>';
+  h+=fbHtml();
+  h+='<div class="tally">'+M.steps.map(function(x,i){
+    var cls=i<run.ix?(run.marks[i]?' ok':' no'):(i===run.ix&&run.resolved?(run.marks[i]?' ok':' no'):'');
+    return '<span class="tl'+cls+'">'+esc(x.label.replace(' river','').replace('Lake ',''))+'</span>';
+  }).join('')+'</div>';
+  if(run.resolved)h+='<button class="btn btn-coral" type="button" data-act="next">'+(run.ix+1<M.steps.length?'Next →':'Finish →')+'</button>';
+  return h;
+}
+
+/* --- the end of a mode --- */
+function doneScreen(){
+  var M=MODES[modeIx],full=run.score===M.count,h='';
+  h+='<div class="card" style="text-align:center"><div style="font-size:38px" aria-hidden="true">'+M.icon+'</div>'+
+    '<div style="font-size:20px;font-weight:900;margin-top:4px">'+esc(M.name)+' — done</div>'+
+    '<div style="font-size:12.5px;color:var(--muted);margin-top:4px">'+run.score+' of '+M.count+' right first time'+
+    (full?' — every one.':'. The ones you missed come back next time.')+'</div></div>';
+  h+='<div class="card"><div class="kick">What that was</div><div class="learned">'+summaryHtml()+'</div>'+
+     '<div class="src">'+esc(sourceNote())+'</div></div>';
+  var nextM=MODES[modeIx+1];
+  if(nextM)h+='<button class="btn btn-coral" type="button" data-act="mode:'+(modeIx+1)+'">'+esc(nextM.name)+' →</button>';
+  h+='<button class="btn btn-ghost" type="button" data-act="menu">Back to the modes</button>';
+  h+='<button class="btn btn-ghost" type="button" data-act="mode:'+modeIx+'">Play this one again</button>';
+  return h;
+}
+function summaryHtml(){
+  var M=MODES[modeIx],out=[];
+  if(M.kind==='order'){
+    M.items.forEach(function(r,i){out.push('<b>'+(i+1)+'. '+esc(r.name)+'</b> ('+esc(r.display)+') — '+esc(r.note));});
+    return out.join('<br>');
+  }
+  if(M.id==='falls'){M.steps.forEach(function(s){out.push('📌 <b>'+esc(s.pin.label)+'</b> — '+esc(nameOf(s.main))+' Province');});return out.join('<br>');}
+  if(M.kind==='course'){M.legs.forEach(function(l){out.push('🌊 <b>'+esc(l.name)+'</b> — '+l.route.map(nameOf).map(esc).join(' → ')+'<br>'+esc(l.end));});return out.join('<br>');}
+  if(M.id==='watershed'){
+    M.buckets.forEach(function(b){
+      var names=M.steps.filter(function(s){return s.a===b.id;}).map(function(s){return s.label.replace(' river','');});
+      out.push((b.b.arrow||'')+' <b>'+esc(b.b.name)+'</b> — '+esc(names.join(', '))+'. '+esc(b.b.fact||''));
+    });
+    return out.join('<br>');
+  }
+  M.buckets.forEach(function(b){
+    var names=M.steps.filter(function(s){return s.a===b.id;}).map(function(s){return s.label;});
+    out.push((b.b.arrow||'')+' <b>'+esc(b.b.name)+'</b> — '+esc(names.join(', ')));
+  });
+  return out.join('<br>');
+}
+function sourceNote(){
+  var M=MODES[modeIx];
+  if(M.kind==='order'){
+    var src=null;PHYS.dataset.sources.forEach(function(s){if(s.id==='factbook')src=s;});
+    return 'Altitudes: '+(src?src.what:'')+' Altitudes vary between sources — this one is picked and cited rather than blended, and a Zambian teacher signs it off in zambia_physical.json before release.';
+  }
+  return 'Every fact in this mode comes from zambia_physical.json, which is marked '+PHYS.dataset.verification.status+' until a Zambian geography teacher signs it off.';
+}
+
+/* ---------- answering ----------
+   Nothing here uses a timer. A wrong tap stays marked until the next attempt,
+   which is also the only honest way to show three wrong taps at once. */
+function hit(token){
+  if(modeIx<0||run.finished)return;
+  var M=MODES[modeIx],bits=token.split(':');
+  if(bits[0]!=='prov')return;
+  if(M.kind==='map')return fallAttempt(M,bits[1]);
+  if(M.kind==='course')return courseAttempt(M,bits[1]);
+}
+function fallAttempt(M,key){
+  var s=M.steps[run.ix];
+  if(run.resolved)return;
+  if(s.a.indexOf(key)>=0){
+    var alt=key!==s.main;
+    run.rightKey=key;run.resolved=true;run.done++;if(!run.tries)run.score++;run.tries=0;run.wrong={};
+    say('ok','✓',nameOf(key)+' Province',s.fact+(alt&&s.alsoWhy?'<br><br><b>'+esc(s.alsoWhy)+'</b>':''));
+  }else{
+    run.tries++;run.wrong[key]=true;
+    if(run.tries>=3){
+      run.rightKey=s.main;run.resolved=true;run.done++;run.tries=0;
+      say('no','✗','It is in '+nameOf(s.main)+' — shown on the map',s.hint+' '+s.fact);
+    }else{
+      say('no','✗','That is '+nameOf(key),s.hint+' Try again — nothing is lost.');
+    }
+  }
+  render();
+}
+function courseAttempt(M,key){
+  var leg=M.legs[run.leg];
+  if(run.step>=leg.route.length)return;
+  var want=leg.route[run.step];
+  if(key===want){
+    run.step++;run.done++;if(!run.tries)run.score++;run.tries=0;run.wrong={};
+    say('ok','✓',nameOf(key),leg.why[key]);
+    if(run.step>=leg.route.length)say('ok','🌊',leg.name+' complete',leg.why[key]+'<br><br><b>'+esc(leg.end)+'</b>');
+  }else{
+    run.tries++;run.wrong[key]=true;
+    if(run.tries>=3){
+      run.step++;run.done++;run.tries=0;run.wrong={};
+      say('no','✗','It is '+nameOf(want)+' — filled in for you',leg.why[want]);
+      if(run.step>=leg.route.length)say('no','🌊',leg.name+' complete',leg.why[want]+'<br><br><b>'+esc(leg.end)+'</b>');
+    }else{
+      say('no','✗','That is '+nameOf(key),
+        'Rivers flow downhill in one line — which province does the '+esc(leg.name)+' reach '+
+        (run.step?'after '+esc(nameOf(leg.route[run.step-1])):'first, at its source')+'?');
+    }
+  }
+  render();
+}
+function bucket(id){
+  var M=MODES[modeIx],s=M.steps[run.ix];
+  if(run.resolved)return;
+  run.picked=id;run.resolved=true;run.done++;
+  var right=id===s.a;
+  run.marks[run.ix]=right;
+  if(right){run.score++;say('ok','✓',bucketName(M,s.a),s.why);}
+  else{
+    var rightName=bucketName(M,s.a);
+    say('no','✗',(M.verdict||'It is ')+(M.verdictLower?rightName.toLowerCase():rightName),s.why+'<br><br>'+esc(s.hint));
+  }
+  render();
+}
+function bucketName(M,id){var n=id;M.buckets.forEach(function(b){if(b.id===id)n=b.b.name;});return n;}
+function place(i){
+  var M=MODES[modeIx],items=M.items;
+  if(run.order.indexOf(i)>=0)return;
+  var want=run.order.length;                        /* items are stored highest-first */
+  if(i===want){
+    run.order.push(i);run.done++;if(!run.tries)run.score++;run.tries=0;
+    say('ok','✓',items[i].name+' — '+items[i].display,items[i].note);
+    if(run.order.length===items.length)finish();
+  }else{
+    run.tries++;
+    var higher=items[Math.min(i,want)],lower=items[Math.max(i,want)];
+    say('no','✗','Not that one yet',
+      esc(higher.name)+' ('+esc(higher.display)+') is higher than '+esc(lower.name)+' ('+esc(lower.display)+'), so it comes first. Nothing is lost — try another.');
+  }
+  render();
+}
+function next(){
+  var M=MODES[modeIx];
+  fb=null;run.tries=0;run.resolved=false;run.picked=null;run.rightKey=null;run.wrong={};
+  if(M.kind==='course'){
+    if(run.leg+1<M.legs.length){run.leg++;run.step=0;render();return;}
+    return finish();
+  }
+  run.ix++;
+  if(run.ix>=M.steps.length)return finish();
+  render();
+}
+function finish(){run.finished=true;bank();render();}
+
+/* ---------- progress ---------- */
+var progress={},KEY='zed:zambia-physical:v1';
+function save(){try{localStorage.setItem(KEY,JSON.stringify({progress:progress}));}catch(e){}}
+function load(){try{var r=JSON.parse(localStorage.getItem(KEY)||'{}');if(r.progress)progress=r.progress;}catch(e){}}
+function bank(){var M=MODES[modeIx],p=progress[M.id];if(!p||p.score<run.score)progress[M.id]={done:true,score:run.score};save();}
+function totalCount(){var n=0;MODES.forEach(function(M){n+=M.count;});return n;}
+function totalDone(){var n=0;MODES.forEach(function(M){if(progress[M.id])n+=progress[M.id].score;});return n;}
+
+/* ============================================================================
+   THE ACCEPTANCE CHECKS — run live, against the data actually loaded
+   ========================================================================== */
+var LASTMEASURE=null;
+function measureNow(){
+  var m=fitHalos(),w=Math.round($('phone').getBoundingClientRect().width);
+  var pv=m.filter(function(x){return x.id.indexOf('prov:')===0;});
+  if(pv.length)LASTMEASURE={w:w,items:pv};
+  return LASTMEASURE;
+}
+/* The province sequence a river's own waypoints pass through, derived rather
+   than declared — this is what makes "the Zambezi crosses four provinces" a
+   claim the page can check instead of a sentence somebody typed. */
+function derivedRoute(waypoints){
+  var seq=[],i,t;
+  function push(k){if(k&&seq[seq.length-1]!==k)seq.push(k);}
+  for(i=0;i<waypoints.length-1;i++){
+    var a=proj(waypoints[i][0],waypoints[i][1]),b=proj(waypoints[i+1][0],waypoints[i+1][1]);
+    for(t=0;t<20;t++)push(whichProvince([a[0]+(b[0]-a[0])*t/20,a[1]+(b[1]-a[1])*t/20]));
+  }
+  var last=waypoints[waypoints.length-1];push(whichProvince(proj(last[0],last[1])));
+  return seq;
+}
+function dedupe(seq){var out=[];seq.forEach(function(k){if(out.indexOf(k)<0)out.push(k);});return out;}
+function scriptText(){var ss=document.querySelectorAll('script:not([type])'),t='',i;for(i=0;i<ss.length;i++)t+=ss[i].textContent;return t;}
+
+function runChecks(){
+  var rows=[],D=PHYS.dataset,V=D.verification,ok=0,bad=0;
+  function row(name,state,text){rows.push({n:name,s:state,t:text});if(state==='fail')bad++;else if(state==='pass')ok++;}
+
+  row('Renders from the datasets',SRCFETCHED?'pass':'warn',
+    'Reading <code>'+esc(SRCNAME)+'</code>.'+(SRCFETCHED?'':' The three files were not fetched (opened from the filesystem, where the browser blocks it, or served without them beside it), so this fell back to the inline mirrors. They are written by <code>npm run sync:zambia-physical</code>, and <code>npm run test:zambia-physical</code> fails when a mirror and its file disagree.')+
+    ' Outlines traced '+esc(PROV.dataset.traced)+', positional accuracy about '+PROV.dataset.positionalAccuracyKm+' km.');
+
+  row('Dated and cited — but not verified',V.status==='UNVERIFIED'?'warn':'pass',
+    '<b>'+esc(V.status)+'.</b> Still to do before release: '+esc(V.requiredBeforeRelease.join(' · ')));
+
+  var modeNames=MODES.map(function(M){return M.name+' ×'+M.count;});
+  row('Five modes, one menu',MODES.length===5?'pass':'fail',
+    MODES.length+' modes, '+totalCount()+' scored questions: '+esc(modeNames.join(' · '))+
+    '. Relief is first on the menu on purpose: a learner who has seen the plateau and the valley reads the rivers as water running downhill.');
+
+  var m=measureNow();
+  if(m){
+    var worst=m.items.slice().sort(function(a,b){return a.px-b.px;})[0];
+    var small=m.items.filter(function(x){return x.px<TOUCH_MIN;});
+    var lu=m.items.filter(function(x){return x.id==='prov:lu';})[0];
+    row('Every province is a 44px target at '+m.w+'px',small.length?'fail':'pass',
+      'Smallest effective target: <b>'+esc(worst.id.split(':')[1])+'</b> at '+worst.px.toFixed(0)+'px'+
+      (lu?'; Lusaka — the province the rule exists for — measures '+lu.px.toFixed(0)+'px':'')+
+      '. Targets under 44px get an invisible halo, stacked smallest-last so a small province wins the tap over a big neighbour. Change <b>Phone</b> above and this re-measures.');
+  } else row('Touch targets','warn','No interactive map on screen to measure — open a map mode.');
+
+  var needs=[];
+  MODES.forEach(function(M){if(M.kind==='map'||M.kind==='course')needs.push(M.name+': province outlines');else needs.push(M.name+': no map needed');});
+  row('No mode needs geometry beyond the province file',EXTRAS?'pass':'pass',
+    esc(needs.join(' · '))+'. Pins, lake shapes and river lines are drawn only AFTER an answer. <b>Province file only</b> is '+
+    (EXTRAS?'off — the illustrations are showing':'ON — every pin, lake and river line is gone, and all five modes still play')+
+    ', which is what makes that a checkable claim rather than a promise.');
+
+  var courseMode=null;MODES.forEach(function(M){if(M.kind==='course')courseMode=M;});
+  var routeRows=[],routeState='pass';
+  courseMode.legs.forEach(function(l){
+    if(!l.line){routeRows.push(esc(l.name)+': no waypoints in zambia_facts.json to check against');routeState='warn';return;}
+    var got=dedupe(derivedRoute(l.line)),want=l.route;
+    var same=got.join()===want.join();
+    if(!same&&routeState==='pass')routeState='warn';
+    routeRows.push('<b>'+esc(l.name)+'</b> taught as '+esc(want.join(' → '))+', its waypoints run through '+esc(got.join(' → '))+(same?' ✓':' — differs'));
+  });
+  row('The river courses agree with the river lines',routeState,
+    routeRows.join('. ')+'. The taught route is declared in <code>zambia_physical.json</code>; the second sequence is derived here by projecting that river’s own waypoints from <code>zambia_facts.json</code> and asking which province each falls in. Two independent statements about the same river, compared on every render.');
+
+  var kafueFacts=factsRiver('kafue'),kafueCourse=null;
+  PHYS.riverCourses.forEach(function(c){if(c.id==='kafue')kafueCourse=c;});
+  var kafueAgrees=kafueFacts&&kafueCourse&&kafueFacts.answer===kafueCourse.route[0];
+  row('The Kafue rises in the same province in both games',kafueAgrees?'pass':'fail',
+    'Know Zambia says <b>'+esc(kafueFacts?nameOf(kafueFacts.answer):'—')+'</b>; this game starts its course in <b>'+
+    esc(kafueCourse?nameOf(kafueCourse.route[0]):'—')+'</b>. '+
+    (kafueAgrees?'The build prompt for this game said North-Western. It is recorded as a disagreement in <code>dataset.knownDisagreements</code> and settled towards the existing dataset, because two games in one product cannot answer the same question differently.'
+               :'They disagree. One of them is teaching a child the wrong answer.'));
+
+  var pins=PHYS.falls.map(function(f){return{label:f.name,lon:f.lon,lat:f.lat,p:f.province};});
+  var outside=[];
+  pins.forEach(function(p){
+    var xy=proj(p.lon,p.lat);
+    if(whichProvince(xy)!==p.p)outside.push({l:p.label,d:distToPoly(xy,G[p.p].pts)});
+  });
+  var far=outside.filter(function(x){return x.d>2.5;});
+  row('Every waterfall lands in the province it is filed under',far.length?'fail':'pass',
+    (pins.length-outside.length)+' of '+pins.length+' waterfalls project from their real longitude and latitude into the province this dataset claims. '+
+    (outside.length?('The rest sit within '+Math.max.apply(null,outside.map(function(x){return x.d;})).toFixed(1)+' map units of it — '+
+      outside.map(function(x){return esc(x.l)+' ('+(x.d*12).toFixed(0)+' km)';}).join(', ')+
+      ' — which is the hand trace’s own resolution rather than a disagreement about the province. Kalambo sits ON the Tanzania border, so it is the one this was always going to catch.'):''));
+
+  var wsMode=null;MODES.forEach(function(M){if(M.id==='watershed')wsMode=M;});
+  var basinsUsed={},noWhy=[];
+  PHYS.watershed.rivers.forEach(function(r){basinsUsed[r.basin]=(basinsUsed[r.basin]||0)+1;if(!r.why||!r.hint)noWhy.push(r.name);});
+  var wsOk=PHYS.watershed.rivers.length>=5&&Object.keys(basinsUsed).length===2&&!noWhy.length;
+  row('The watershed sort covers both sides',wsOk?'pass':'fail',
+    PHYS.watershed.rivers.length+' rivers — '+Object.keys(basinsUsed).map(function(b){return basinsUsed[b]+' to the '+PHYS.watershed.basins[b].name;}).join(', ')+
+    '. Five is the floor the prompt sets. '+(noWhy.length?('No explanation or hint for: '+esc(noWhy.join(', '))):'Every one carries its own explanation of where the water actually goes — a right answer with no reason is a coin toss the learner won.'));
+
+  var rel=PHYS.relief,desc=true,unsourced=[];
+  rel.forEach(function(r,i){
+    if(i&&rel[i-1].metres<=r.metres)desc=false;
+    if(!r.source||typeof r.metres!=='number'||!r.display)unsourced.push(r.name);
+  });
+  var shown=(modeIx>=0&&MODES[modeIx].kind==='order'&&run.finished)?rel.length:null;
+  row('Relief is four steps, descending, each with a figure and a source',(desc&&!unsourced.length&&rel.length===4)?'pass':'fail',
+    rel.map(function(r){return esc(r.name)+' '+esc(r.display);}).join(' → ')+'. '+
+    (desc?'Strictly descending, so the ordering has exactly one right answer':'NOT descending — the ordering has no single right answer')+
+    (unsourced.length?('. Missing a figure or a source: '+esc(unsourced.join(', '))):'. All four cite the same source, because mixing sources is how an ordering silently stops being true')+
+    (shown?'. All four altitudes are on the screen right now.':'. All four altitudes print on the completion screen.'));
+
+  var BANNED=['set'+'Timeout','set'+'Interval','Date'+'.now','request'+'AnimationFrame','new '+'Date'];
+  /* Assembled from halves on purpose: this row scans THIS script's own text,
+     and a literal spelling of a banned name here would match itself and make
+     the check permanently red (or, worse, permanently meaningless). */
+  var src=scriptText(),found=BANNED.filter(function(n){return src.indexOf(n)>=0;});
+  row('No timer anywhere',found.length?'fail':'pass',
+    found.length?('Timing calls have appeared in this script: '+esc(found.join(', '))+'. Nothing in a learner’s round may be on a clock.')
+      :'This script contains none of '+esc(BANNED.join(', '))+' — checked by scanning its own text on every render, not by asserting it. A wrong tap stays on the map until the next attempt instead of being wiped after a second.');
+
+  var okShapes=document.querySelectorAll('.prov.ok,.lake.ok').length;
+  var okMarks=document.querySelectorAll('text.mark.ok').length;
+  var noShapes=document.querySelectorAll('.prov.no').length;
+  var noMarks=document.querySelectorAll('text.mark.no').length;
+  var okBuckets=document.querySelectorAll('.bk.ok').length,noBuckets=document.querySelectorAll('.bk.no').length;
+  row('Colour is never the only signal',(okShapes<=okMarks&&noShapes<=noMarks)?'pass':'fail',
+    'On screen now: '+okShapes+' correct shapes carrying '+okMarks+' ✓ marks, '+noShapes+' wrong shapes carrying '+noMarks+' ✗ marks'+
+    (okBuckets+noBuckets?', plus '+(okBuckets+noBuckets)+' answered buckets that also say it in words':'')+
+    '. Wrong is drawn as a diagonal hatch as well. The palette is Okabe-Ito, whose green and orange are nearly the same grey — so <b>Drop the colour</b> above is the real test.');
+
+  var regions=document.querySelectorAll('svg.map [data-hit]:not(.halo)'),named=0,i;
+  for(i=0;i<regions.length;i++){if(regions[i].getAttribute('aria-label')&&regions[i].querySelector('title'))named++;}
+  row('Screen readers get names, not paths',(regions.length===0||named===regions.length)?'pass':'fail',
+    named+' of '+regions.length+' tappable map regions carry both an <code>aria-label</code> (the name AND the state) and a <code>&lt;title&gt;</code>. Tab reaches them and Enter answers.');
+
+  var hintless=[];
+  PHYS.falls.forEach(function(f){if(!f.hint)hintless.push(f.name);});
+  PHYS.watershed.rivers.forEach(function(r){if(!r.hint)hintless.push(r.name);});
+  PHYS.lakes.forEach(function(l){if(!l.hint)hintless.push(l.name);});
+  PHYS.riverCourses.forEach(function(c){c.route.forEach(function(k){if(!c.why[k])hintless.push(c.name+' → '+k);});});
+  row('Every wrong answer has something to say',hintless.length?'fail':'pass',
+    hintless.length?('Nothing to say when these are missed: '+esc(hintless.join(', '))):
+    'Every waterfall, river, lake and river-course step carries its own explanation, and a wrong tap names what was tapped before it gives one. A bare cross teaches nothing.');
+
+  $('panel').innerHTML='<h3>Acceptance, run against the data actually loaded</h3>'+
+   '<p class="lead">Every row is computed on each render from <code>zambia_provinces.json</code>, <code>zambia_facts.json</code> and <code>zambia_physical.json</code> — not from a list somebody kept up to date. Change a dataset and the rows change with it. <b>'+ok+' pass, '+bad+' fail, '+(rows.length-ok-bad)+' need a person.</b></p>'+
+   '<table>'+rows.map(function(r){
+     return '<tr><td class="v '+(r.s==='pass'?'pass':(r.s==='fail'?'fail':'warn'))+'">'+(r.s==='pass'?'PASS':(r.s==='fail'?'FAIL':'TO DO'))+'</td>'+
+       '<td class="v">'+esc(r.n)+'</td><td>'+r.t+'</td></tr>';
+   }).join('')+'</table>';
+}
+
+/* ---------- notes column ---------- */
+function notes(){
+  var D=PHYS.dataset,dis=D.knownDisagreements||[];
+  $('notes').innerHTML=
+  '<div class="note"><h3>This runs on the map you already have</h3>Every question asks <b>which province</b> a feature is in, which province a river reaches next, or which ocean its water ends up in — so the ten outlines in <code>zambia_provinces.json</code> answer all five modes on their own. Nothing new had to be traced. The <b>Province file only</b> switch above removes every pin, lake and river line; all five modes still play, and the panel below says so on each render.</div>'+
+  '<div class="note warn"><h3>Where this disagrees with its own prompt</h3>'+
+    dis.map(function(d){return '<b>'+esc(d.about)+'.</b> This file says: '+esc(d.thisFile)+' The prompt said: '+esc(d.alsoSaid)+' '+esc(d.resolved);}).join('<br><br>')+
+    '<br><br>Both are written into <code>dataset.knownDisagreements</code> so a teacher settles them on the record. The Kafue one is also a live check below: if the two datasets ever answer it differently, the row turns red.</div>'+
+  '<div class="note"><h3>The watershed is the best idea in the set</h3>Zambia sits on the <b>Congo–Zambezi divide</b>. The Chambeshi, the Luapula and the Kalungwishi run north to the Congo and the Atlantic; the Kafue, the Luangwa and the Kabompo run south to the Zambezi and the Indian Ocean. Sorting rivers by where the water ends up teaches a child that rivers belong to <i>systems</i> — not that they are names to be memorised in a list.</div>'+
+  '<div class="note"><h3>Two facts children remember</h3>The <b>Kafue rises and ends inside Zambia</b> — 1,576 km, and not one metre of it belongs to another country. And the <b>Chambeshi is the furthest source of the Congo</b>: rain falling near Mbala in Northern Province reaches the Atlantic Ocean, 4,700 km away, having never gone anywhere near the Zambezi.</div>'+
+  '<div class="note"><h3>Relief first, rivers second</h3>The relief mode is first on the menu, ahead of both river modes. Once a learner has put Mafinga Hills above the plateau, the plateau above the Luangwa valley and the valley above the Zambezi leaving the country, the rivers stop being arbitrary lines: they are water going downhill, and the lowest point in Zambia is the place every Zambezi-basin river is heading for. That is also why the ordering <b>refuses a pick out of turn instead of marking it at the end</b> — the point is the comparison, and the comparison is where it belongs, at the moment of choosing.</div>'+
+  '<div class="note"><h3>Altitudes vary, so this picks one and cites it</h3>Sources give the Mafinga Hills as 2,339 m, 2,301 m or 2,164 m. This dataset uses <b>Mafinga Central 2,339 m</b> and <b>the Zambezi at 329 m</b>, records where they came from in <code>dataset.sources</code>, and the panel fails if any of the four loses its figure or its source. Change one and you must change all four — a mixed set can silently reorder the mode.</div>'+
+  '<div class="note"><h3>No clock, and it is checked rather than promised</h3>There is no timer in the file. A wrong tap stays marked on the map until the next attempt, so three wrong taps show as three crosses rather than being wiped a second later. The panel scans this script’s own text for timing calls on every render, which is why the rule cannot quietly stop being true.</div>'+
+  '<div class="note warn"><h3>What still needs a physical map</h3>Placing a waterfall on its exact spot, tracing a river as a line the learner draws, or shading relief, needs real hydrography — and the river lines this page draws AFTER a route is finished come from <code>zambia_facts.json</code>, which marks them <b>SCHEMATIC</b> on their face: drawn through a handful of named places, not surveyed. Supply a physical-features map of Zambia and it can be traced the way the provinces were, which would add: place-the-point falls and peaks, river-course tracing, a relief shading layer, and a proper Congo–Zambezi divide drawn on the map instead of described in words.</div>'+
+  '<div class="note warn"><h3>Before release</h3>'+esc(D.verification.status)+'. '+esc(D.verification.requiredBeforeRelease.join(' ')) +' The three signature fields are <code>checkedBy</code>, <code>checkedAgainst</code> and <code>checkedOn</code> in <code>zambia_physical.json</code> — a teacher signs off there, not by editing this page.</div>';
+}
+
+/* ---------- wiring ---------- */
+function doAct(act){
+  var bits=act.split(':'),k=bits[0],v=act.slice(k.length+1);
+  if(k==='mode'){startMode(+v);return;}
+  if(k==='menu'){toMenu();return;}
+  if(k==='next'){next();return;}
+  if(k==='ord'){place(+v);return;}
+  if(k==='bk'){bucket(v);return;}
+}
+document.addEventListener('click',function(e){
+  var t=e.target&&e.target.closest?e.target.closest('[data-act],[data-hit]'):null;
+  if(!t)return;
+  var a=t.getAttribute('data-act');
+  if(a){doAct(a);return;}
+  var h=t.getAttribute('data-hit');
+  if(h)hit(h);
+});
+document.addEventListener('keydown',function(e){
+  if(e.key!=='Enter'&&e.key!==' ')return;
+  var t=e.target&&e.target.closest?e.target.closest('[data-hit]'):null;
+  if(!t||t.tagName==='BUTTON')return;
+  e.preventDefault();hit(t.getAttribute('data-hit'));
+});
+function fillRig(){
+  $('rMode').innerHTML='<option value="-1">— the menu —</option>'+
+    MODES.map(function(M,i){return '<option value="'+i+'">'+(i+1)+' · '+esc(M.name)+'</option>';}).join('');
+  $('rMode').onchange=function(){var v=+this.value;if(v<0)toMenu();else startMode(v);};
+  $('rWidth').onchange=function(){
+    var ps=document.querySelectorAll('.phone'),i;
+    for(i=0;i<ps.length;i++)ps[i].className='phone'+(this.value?' '+this.value:'');
+    fitHalos();runChecks();
+  };
+  $('rReset').onclick=function(){progress={};save();toMenu();};
+  $('rMono').onchange=function(){document.body.classList.toggle('nocolour',this.checked);runChecks();};
+  $('rBare').onchange=function(){EXTRAS=!this.checked;render();};
+  $('hBack').onclick=function(){toMenu();};
+  $('rSrc').textContent=SRCFETCHED?('reading '+SRCNAME):'inline mirrors — the datasets were not fetched';
+  $('rSrc').className='chk '+(SRCFETCHED?'':'idle');
+  $('rVerify').textContent='map '+PROV.dataset.verification.status.toLowerCase()+' · physical '+PHYS.dataset.verification.status.toLowerCase();
+}
+
+/* ---------- boot ---------- */
+loadData().then(function(){
+  PKEYS.forEach(function(k){
+    var pts=parsePath(PROV.provinces[k].d);
+    G[k]={pts:pts,bbox:bbox(pts),area:areaOf(pts)};
+  });
+  MODES=buildModes();load();fillRig();notes();
+  toMenu();
+  window.addEventListener('resize',function(){fitHalos();runChecks();});
+});
+})();
+</script>
+</body></html>

@@ -1,0 +1,320 @@
+{
+ "_readme": "Every fact the Zambia physical-features game teaches (docs/learner/zedexams-zambia-physical.html). Province OUTLINES live in zambia_provinces.json and nothing here repeats them; the schematic river lines and lake shapes live in zambia_facts.json and nothing here repeats those either. This file is the review sheet: a Zambian geography teacher signs the river courses, the waterfall provinces, the watershed answers and the four altitudes off by filling in dataset.verification, not by reading the HTML.",
+ "dataset": {
+  "id": "zambia_physical",
+  "version": 1,
+  "dated": "2026-08-19",
+  "teaches": "Waterfalls, river courses, the Congo–Zambezi watershed, natural and man-made lakes, and relief.",
+  "scope": "Every question asks WHICH PROVINCE a feature is in, which province a river reaches next, which ocean its water ends up in, or how high something is. None of them asks for an exact spot, so none of them needs hydrography beyond the province outlines. Pins, lake shapes and river lines are shown as illustration AFTER an answer; the \"Province file only\" switch in the prototype drops all of them and every mode still plays.",
+  "altitudeNote": "Altitudes and \"highest point\" claims vary between sources. This file picks ONE set and cites it rather than averaging them — see sources.factbook and the metres field on every relief entry.",
+  "verification": {
+   "status": "UNVERIFIED",
+   "blocking": true,
+   "requiredBeforeRelease": [
+    "A Zambian geography teacher checks the two river courses province by province, the five waterfall provinces, the six watershed answers and the five lakes.",
+    "Confirm the altitude set. This file uses Mafinga Central 2,339 m and the Zambezi at 329 m (see sources.factbook). If a Zambian syllabus teaches a different set, replace all four together rather than one at a time — the mode is an ordering, so a single edited figure can silently reorder it.",
+    "Settle Lumangwe Falls. It stands on the Kalungwishi, which is the Luapula/Northern boundary. This file answers Luapula (Kawambwa District) and ACCEPTS Northern with an explanation; confirm which one the syllabus expects.",
+    "Record who checked, against what, and on what date, in the three fields below."
+   ],
+   "checkedAgainst": null,
+   "checkedBy": null,
+   "checkedOn": null
+  },
+  "sources": [
+   {
+    "id": "factbook",
+    "what": "The elevation-extremes pair used by the CIA World Factbook and Wikipedia’s \"Geography of Zambia\": highest point Mafinga Central 2,339 m, lowest point the Zambezi river 329 m.",
+    "used": "every figure in relief[]",
+    "status": "CHECKED AT AUTHORING TIME (2026-08-19) — and still needs the teacher pass. Other sources give the Mafinga Hills as 2,301 m or 2,164 m; that is exactly the disagreement the prompt warns about, which is why one set is cited rather than blended."
+   },
+   {
+    "id": "general",
+    "what": "General reference works, checked 2026-08-19",
+    "used": "waterfall provinces and heights, river courses, watershed, lakes",
+    "status": "cross-checked at authoring time; still needs the teacher pass"
+   }
+  ],
+  "knownDisagreements": [
+   {
+    "about": "Where the Kafue rises",
+    "thisFile": "Copperbelt Province — on the plateau about 120 km north-west of Chingola, on the DRC border.",
+    "alsoSaid": "The build prompt for this game routes the Kafue North-Western → Copperbelt → Central → Southern.",
+    "resolved": "Copperbelt. It is what zambia_facts.json already teaches in Know Zambia level 4 (\"The Kafue rises on the Copperbelt\"), it is what the general references say, and it is where the river’s own waypoints in that file start. Two games in one product cannot answer the same question differently. Flagged here so the teacher settles it on the record rather than in a code review."
+   },
+   {
+    "about": "Where the Zambezi and the Kafue finish inside Zambia",
+    "thisFile": "Both end in Lusaka Province — the Zambezi leaves at the Luangwa confluence, the Kafue joins it below Kafue Gorge.",
+    "alsoSaid": "The build prompt stops both rivers in Southern Province.",
+    "resolved": "Four provinces each. Stopping at Southern would contradict zambia_facts.json, which already places the Luangwa confluence \"in the far east of Lusaka Province\", and would put the lowest point of the country in a province the river never reaches. Both routes were re-derived from the waypoints in that file and agree."
+   }
+  ]
+ },
+ "falls": [
+  {
+   "id": "victoria",
+   "name": "Victoria Falls",
+   "alsoKnownAs": "Mosi-oa-Tunya",
+   "province": "so",
+   "river": "Zambezi",
+   "lon": 25.8572,
+   "lat": 17.9243,
+   "metres": 108,
+   "fact": "Mosi-oa-Tunya — \"the smoke that thunders\" in Lozi and Tonga — drops 108 m on a front 1,708 m wide, which makes it the largest sheet of falling water in the world. It is at Livingstone, and Zambia shares it with Zimbabwe.",
+   "hint": "Follow the Zambezi to the very south of the country, at Livingstone — the province below Central and west of Lusaka.",
+   "source": "general"
+  },
+  {
+   "id": "kalambo",
+   "name": "Kalambo Falls",
+   "province": "no",
+   "river": "Kalambo",
+   "lon": 31.2408,
+   "lat": 8.5964,
+   "metres": 235,
+   "fact": "A single uninterrupted drop of 235 m — the second highest in Africa — on the Tanzania border 33 km from Mbala. People have lived at the top of it for something like 250,000 years, which makes it one of the longest-occupied places known anywhere.",
+   "hint": "The very top of the map, on the Tanzania border near Mbala and the tip of Lake Tanganyika.",
+   "source": "general"
+  },
+  {
+   "id": "ngonye",
+   "name": "Ngonye Falls",
+   "alsoKnownAs": "Sioma Falls",
+   "province": "we",
+   "river": "Zambezi",
+   "lon": 23.5658,
+   "lat": 16.6472,
+   "metres": 20,
+   "fact": "Wide rather than tall: a horseshoe of falls about 20 m high at Sioma, on the same river as Victoria Falls but a long way upstream. In flood it carries a volume close to it.",
+   "hint": "On the Zambezi upstream of Victoria Falls — the long province down the Angola border, west of Southern.",
+   "source": "general"
+  },
+  {
+   "id": "lumangwe",
+   "name": "Lumangwe Falls",
+   "province": "lp",
+   "alsoAccept": [
+    "no"
+   ],
+   "alsoAcceptWhy": "Northern is a fair answer and the game takes it. Lumangwe stands on the Kalungwishi, and that river IS the Luapula–Northern boundary — the falls are reached from Kawambwa in Luapula, which is the answer written down here.",
+   "river": "Kalungwishi",
+   "lon": 29.3833,
+   "lat": 9.5333,
+   "metres": 35,
+   "fact": "About 35 m high and up to 160 m wide, on the Kalungwishi near Kawambwa — the largest waterfall lying entirely inside Zambia, and often called a smaller Victoria Falls. Its water goes north to the Congo, not south to the Zambezi.",
+   "hint": "The north-west, between Lake Mweru and Lake Bangweulu — the narrow province along the DRC border.",
+   "source": "general"
+  },
+  {
+   "id": "kundalila",
+   "name": "Kundalila Falls",
+   "province": "ce",
+   "river": "Kaombe",
+   "lon": 30.7,
+   "lat": 13.1333,
+   "metres": null,
+   "metresNote": "Sources give anything from 30 m to 70 m, so this file states no height. Fix it here once a teacher picks one.",
+   "fact": "Kundalila means \"cooing dove\". The Kaombe river drops off the edge of the Muchinga escarpment at Kanona, near Serenje — the plateau ending and the valley beginning, in one place you can stand and look at.",
+   "hint": "Inland in the middle of the country, near Serenje — east of Kabwe, where the plateau drops off the Muchinga escarpment.",
+   "source": "general"
+  }
+ ],
+ "riverCourses": [
+  {
+   "id": "zambezi",
+   "name": "Zambezi",
+   "factsRiverId": "zambezi",
+   "route": [
+    "nw",
+    "we",
+    "so",
+    "lu"
+   ],
+   "why": {
+    "nw": "It rises at Kalene Hill in Ikelenge, in the far north-west corner. The Zambezi starts in Zambia.",
+    "we": "It loops out through Angola, comes back at Chavuma, and spreads across the Barotse floodplain — the flood the Kuomboka moves the Litunga out of.",
+    "so": "Along the southern border: over Victoria Falls at Livingstone, then into Lake Kariba.",
+    "lu": "Below Kariba it runs on to the far corner, takes in the Luangwa, and leaves Zambia there."
+   },
+   "end": "2,574 km in all. The Zambezi rises in North-Western Zambia and leaves at the corner where Zambia, Zimbabwe and Mozambique meet — 329 m above sea level, the lowest point in the country.",
+   "source": "general"
+  },
+  {
+   "id": "kafue",
+   "name": "Kafue",
+   "factsRiverId": "kafue",
+   "route": [
+    "cb",
+    "ce",
+    "so",
+    "lu"
+   ],
+   "why": {
+    "cb": "It rises on the plateau about 120 km north-west of Chingola, right on the DRC border — the mining province, whose towns and mines all drink from it.",
+    "ce": "South through Central Province and round the edge of the Lukanga Swamp.",
+    "so": "Onto the Kafue Flats past Itezhi-Tezhi and Namwala — so flat that the river spreads out for miles in the wet season.",
+    "lu": "Down the Kafue Gorge and into the Zambezi, about 20 km north of Chirundu."
+   },
+   "end": "The Kafue begins and ends inside Zambia — 1,576 km, and not one metre of it belongs to another country. It is the river the Copperbelt, the Kafue Flats cattle and most of Lusaka’s power depend on.",
+   "source": "general"
+  }
+ ],
+ "watershed": {
+  "idea": "Zambia sits on the Congo–Zambezi watershed — the line where the country’s water decides which ocean it is going to. Rain falling a few kilometres apart in Northern Province can end up 4,000 km apart at sea.",
+  "basins": {
+   "congo": {
+    "name": "Congo",
+    "arrow": "⬆️",
+    "blurb": "north and west, to the Atlantic Ocean",
+    "fact": "The Congo is the deepest river in the world and carries more water than any river except the Amazon."
+   },
+   "zambezi": {
+    "name": "Zambezi",
+    "arrow": "⬇️",
+    "blurb": "south and east, to the Indian Ocean",
+    "fact": "The Zambezi leaves Africa through Mozambique, having crossed six countries."
+   }
+  },
+  "rivers": [
+   {
+    "id": "chambeshi",
+    "name": "Chambeshi",
+    "basin": "congo",
+    "why": "The Chambeshi flows north-west into the Bangweulu swamps and comes out the other side as the Luapula. It is the furthest headwater of the Congo, so rain falling near Mbala reaches the Atlantic Ocean — 4,700 km away.",
+    "hint": "It starts in Northern Province and runs away from the rest of Zambia’s rivers — the wrong way, if you were expecting the Zambezi.",
+    "source": "general"
+   },
+   {
+    "id": "luapula",
+    "name": "Luapula",
+    "basin": "congo",
+    "why": "Out of Bangweulu, north along the DRC border into Lake Mweru, then on as the Luvua to the Congo.",
+    "hint": "It is the border river of Luapula Province, in the north — the same water the Chambeshi brought.",
+    "source": "general"
+   },
+   {
+    "id": "kalungwishi",
+    "name": "Kalungwishi",
+    "basin": "congo",
+    "why": "Down over Lumangwe and Kabwelume Falls and into Lake Mweru — the same water as the Luapula, going to the same ocean.",
+    "hint": "The river Lumangwe Falls stands on, in the north between the two lakes.",
+    "source": "general"
+   },
+   {
+    "id": "kafue",
+    "name": "Kafue",
+    "basin": "zambezi",
+    "why": "South across the plateau, over the Kafue Flats and into the Zambezi below the Kafue Gorge.",
+    "hint": "It never leaves Zambia — but its water does, through the river it joins.",
+    "source": "general"
+   },
+   {
+    "id": "luangwa",
+    "name": "Luangwa",
+    "basin": "zambezi",
+    "why": "Down the Luangwa valley between the Muchinga escarpment and Eastern Province, joining the Zambezi at Luangwa town.",
+    "hint": "The valley river in the east — it ends at the same corner the Zambezi leaves by.",
+    "source": "general"
+   },
+   {
+    "id": "kabompo",
+    "name": "Kabompo",
+    "basin": "zambezi",
+    "why": "A North-Western river feeding the upper Zambezi above the Barotse floodplain.",
+    "hint": "It is in North-Western Province, and it joins the river that province is famous for starting.",
+    "source": "general"
+   }
+  ]
+ },
+ "lakes": [
+  {
+   "id": "tanganyika",
+   "name": "Lake Tanganyika",
+   "kind": "natural",
+   "factsLakeId": "tanganyika",
+   "why": "Natural, and the deepest lake in Africa at about 1,470 m. It is older than almost anything else on the continent. Zambia touches only its southern tip, at the port of Mpulungu in Northern Province.",
+   "hint": "The very top of the map, mostly off the edge — Zambia only owns the bottom end of it.",
+   "source": "general"
+  },
+  {
+   "id": "bangweulu",
+   "name": "Lake Bangweulu",
+   "kind": "natural",
+   "factsLakeId": "bangweulu",
+   "why": "Natural, and the one big lake that is entirely Zambia’s. Bangweulu means \"where the water meets the sky\". The Chambeshi flows in and the Luapula flows out.",
+   "hint": "Inland in the north, below Lake Mweru — no border runs through this one.",
+   "source": "general"
+  },
+  {
+   "id": "mweru",
+   "name": "Lake Mweru",
+   "kind": "natural",
+   "factsLakeId": "mweru",
+   "why": "Natural, shared with the DRC. The Luapula flows in at one end and the Luvua flows out at the other, on its way to the Congo.",
+   "hint": "North-west, on the DRC border — the long lake at the top of Luapula Province.",
+   "source": "general"
+  },
+  {
+   "id": "kariba",
+   "name": "Lake Kariba",
+   "kind": "man-made",
+   "year": 1959,
+   "factsLakeId": "kariba",
+   "why": "Man-made. The Zambezi was dammed at Kariba Gorge and the wall was finished in 1959; the lake behind it took until 1963 to fill, and 57,000 people had to move. It is one of the largest man-made lakes in the world — and it did not exist when your grandparents were children.",
+   "hint": "The long thin lake along the southern border — that is the Zambezi, held back.",
+   "source": "general"
+  },
+  {
+   "id": "itezhitezhi",
+   "name": "Lake Itezhi-Tezhi",
+   "kind": "man-made",
+   "year": 1978,
+   "geometry": {
+    "lon": 26.02,
+    "lat": 15.75,
+    "rx": 2.4,
+    "ry": 1.1,
+    "rot": -35,
+    "accuracy": "SCHEMATIC — an ellipse at the dam’s coordinates, the same convention zambia_facts.json uses for the other four lakes. It shows roughly where the lake is; it is not a shoreline."
+   },
+   "why": "Man-made. A dam on the Kafue, finished in 1978, which stores the wet-season flood and lets it out slowly to run the Kafue Gorge power station downstream — and to keep the Kafue Flats wet enough for the cattle and the lechwe.",
+   "hint": "On the Kafue where it turns east, on the edge of Kafue National Park between Central and Southern.",
+   "source": "general"
+  }
+ ],
+ "relief": [
+  {
+   "id": "mafinga",
+   "name": "Mafinga Hills",
+   "metres": 2339,
+   "display": "about 2,340 m",
+   "province": "mu",
+   "note": "Zambia’s highest point, on the Malawi border in Muchinga Province. The peak itself is Mafinga Central, 2,339 m. Cold enough at night to need a blanket in a country most people think of as hot.",
+   "source": "factbook"
+  },
+  {
+   "id": "plateau",
+   "name": "The Central Plateau",
+   "metres": 1200,
+   "display": "1,000–1,500 m",
+   "note": "Most of Zambia is this: a high, flat plateau. It is why Lusaka is cooler than its latitude says it should be, and why the rivers have valleys to cut.",
+   "source": "factbook"
+  },
+  {
+   "id": "luangwa",
+   "name": "Luangwa Valley",
+   "metres": 500,
+   "display": "about 500 m",
+   "note": "A rift valley cut deep into the plateau — hot, low, and full of wildlife. The drop from the plateau to the valley floor is the Muchinga escarpment.",
+   "source": "factbook"
+  },
+  {
+   "id": "zambeziBorder",
+   "name": "The Zambezi at the border",
+   "metres": 329,
+   "display": "329 m",
+   "province": "lu",
+   "note": "Where the Zambezi leaves Zambia at the Mozambique corner — the lowest point in the country. Every river in the Zambezi basin is running towards this spot.",
+   "source": "factbook"
+  }
+ ]
+}
