@@ -32,6 +32,29 @@ import StudyPlanPage from './StudyPlanPage'
 
 const HOUR = 60 * 60 * 1000
 
+// ── The clock is FROZEN, and it has to be frozen HERE ────────────────
+//
+// This suite asserts that today's checklist ticks an item from activity
+// recorded TODAY, and the fixture below used `Date.now() - 2 * HOUR`. That
+// is false for the first two hours of any local day: run it at 00:49 and
+// "two hours ago" is yesterday, the checklist ticks nothing, and the
+// assertion drops from 1 to 0. CI runs in UTC, so this put the whole repo
+// in a nightly red window — every PR, not just the one that noticed.
+//
+// Freezing at MODULE SCOPE rather than in `beforeEach` is the load-bearing
+// part: the fixture consts are evaluated when this module is imported,
+// which is long before any hook runs. Freeze in a hook and the fixture
+// still reads the real clock while the COMPONENT reads the fake one —
+// which is worse than the bug, because the two would disagree.
+//
+// `toFake: ['Date']` leaves setTimeout/queueMicrotask real, so Testing
+// Library's async utilities keep working; only the calendar is pinned.
+// The instant is written WITHOUT a trailing Z so it is parsed as local
+// time — 09:00 wherever the suite runs — which is what makes "N hours
+// ago is still today" true in every timezone rather than only in UTC.
+vi.useFakeTimers({ toFake: ['Date'] })
+vi.setSystemTime(new Date('2026-05-14T09:00:00'))
+
 function mount(ui, at) {
   return render(
     <MemoryRouter initialEntries={[at]}>
