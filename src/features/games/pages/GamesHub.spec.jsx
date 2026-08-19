@@ -173,9 +173,11 @@ describe('GamesHub', () => {
     expect(document.querySelectorAll('.lhx-badge.is-locked')).toHaveLength(GAME_BADGES.length - 1)
   })
 
-  it('the catalogue is exactly the mockup: one card per mechanic + the Map Quest teaser', async () => {
+  it('lists every playable pack for the learner\'s grade, mechanics first', async () => {
     renderHub()
-    // Named for the MECHANIC, never for the content pack behind it.
+    // A mechanic with exactly ONE pack is still named for the MECHANIC,
+    // never for the content pack behind it — that part of the mockup is
+    // unchanged.
     const words = (await screen.findByText('Word Builder')).closest('a')
     expect(words).toHaveAttribute('href', '/games/play/g-words')
     expect(within(words).getByText('Best 120')).toBeInTheDocument()
@@ -194,13 +196,24 @@ describe('GamesHub', () => {
     expect(path.querySelector('.lhx-gc-bar, .lhx-game-bar')).toBeNull()
 
     // The two mechanics the live collection has no doc for still render,
-    // backed by the bundled seed pack — a catalogue of "exactly four"
-    // that silently shows two is the bug this asserts against.
+    // backed by the bundled seed pack.
     expect(screen.getByText('Meaning Match')).toBeInTheDocument()
     expect(screen.getByText('Punctuation Pro')).toBeInTheDocument()
-    expect(document.querySelectorAll('a.lhx-game')).toHaveLength(4)
 
-    // timed_quiz games never list as catalogue cards (daily-only)…
+    // THE BUG THIS ASSERTS AGAINST: the hub used to stop at four rows —
+    // one per mechanic — so the `timed_quiz` packs were unreachable by
+    // browsing however many of them existed, while learner search listed
+    // them happily. They have an engine, so they list.
+    const spelling = screen.getByText('Spell It Right').closest('a')
+    expect(spelling).toHaveAttribute('href', '/games/play/english_spell_it_right_g4')
+    expect(screen.getByText('Speed Tables Challenge')).toBeInTheDocument()
+    expect(screen.getByText('Plant Parts')).toBeInTheDocument()
+    // Two live packs + two seed-backed mechanics + five seed timed_quiz
+    // packs for Grade 4. The old ceiling was four, whatever the number.
+    expect(document.querySelectorAll('a.lhx-game')).toHaveLength(9)
+
+    // …but a Grade 6 quiz is still not a Grade 4 learner's game. Widening
+    // WHAT lists must not widen WHICH GRADE lists.
     expect(screen.queryByText('G6 Quiz')).toBeNull()
     // …grade browsing is gone…
     expect(screen.queryByText(/Browse by grade/)).toBeNull()
@@ -208,6 +221,29 @@ describe('GamesHub', () => {
     const mapQuest = screen.getByText('Map Quest').closest('.lhx-game')
     expect(mapQuest.tagName).not.toBe('A')
     expect(within(mapQuest).getByText('Soon')).toBeInTheDocument()
+  })
+
+  it('a second pack of a mechanic gets its own row, named for its own pack', async () => {
+    // The shape an admin hits the moment they add a game: a mechanic the
+    // grade already has. `.find()` returned the first one and the new pack
+    // was invisible — adding a game did nothing a learner could see.
+    mocks.listGames.mockResolvedValue([
+      { id: 'mm-words-g4', title: 'Word Meanings', type: 'memory_match', grade: 4, subject: 'english' },
+      { id: 'mm-capitals-g4', title: 'African Capitals', type: 'memory_match', grade: 4, subject: 'social' },
+    ])
+    renderHub()
+
+    const capitals = (await screen.findByText('African Capitals')).closest('a')
+    expect(capitals).toHaveAttribute('href', '/games/play/mm-capitals-g4')
+    const meanings = screen.getByText('Word Meanings').closest('a')
+    expect(meanings).toHaveAttribute('href', '/games/play/mm-words-g4')
+
+    // Two rows both reading "Meaning Match" would identify neither, so
+    // once a mechanic owns more than one row each speaks for its own pack.
+    expect(screen.queryByText('Meaning Match')).toBeNull()
+    // And the live packs answer for their type — the bundled Grade 4
+    // Meaning Match is a fallback for an EMPTY type, not a fifth row.
+    expect(document.querySelector('a[href="/games/play/english_meaning_match_g4"]')).toBeNull()
   })
 
   it('never shows another grade\'s pack — the mechanic waits instead', async () => {
@@ -221,8 +257,8 @@ describe('GamesHub', () => {
     renderHub()
 
     const row = (await screen.findByText('Word Builder')).closest('.lhx-game')
-    // The row is still there — a catalogue of "exactly four" that shows
-    // three is the other half of the bug.
+    // The row is still there — a mechanic that vanishes is indistinguishable
+    // from one that never existed, and nobody fills a gap they cannot see.
     expect(row).toBeInTheDocument()
     // …but it does not open, and it carries none of that pack's identity.
     expect(row.tagName).not.toBe('A')
@@ -230,11 +266,17 @@ describe('GamesHub', () => {
     expect(within(row).getByText('Coming soon for Grade 4')).toBeInTheDocument()
     expect(within(row).getByText('Soon')).toBeInTheDocument()
     expect(screen.queryByText('Spell the Planet')).toBeNull()
-    expect(screen.queryByText(/English · Spelling/)).toBeNull()
 
-    // The four mechanics are all still listed, in order, plus Map Quest.
+    // The four mechanics lead in the mockup's order, whatever else lists
+    // behind them; Map Quest closes the list.
     const names = [...document.querySelectorAll('.lhx-game b')].map((el) => el.textContent)
-    expect(names).toEqual(['Number Path', 'Word Builder', 'Meaning Match', 'Punctuation Pro', 'Map Quest'])
+    expect(names.slice(0, 4)).toEqual(['Number Path', 'Word Builder', 'Meaning Match', 'Punctuation Pro'])
+    expect(names.at(-1)).toBe('Map Quest')
+    // Sorted by title within the tail, so the order is a property of the
+    // data rather than of which pool answered first.
+    expect(names.slice(4, -1)).toEqual([
+      'Fraction Match', 'Plant Parts', 'Speed Tables Challenge', 'Spell It Right', 'Zambia Basics',
+    ])
   })
 
   it('asks the games list for the learner\'s grade too, not just the daily', async () => {
