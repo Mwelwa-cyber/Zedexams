@@ -401,6 +401,62 @@ membership belongs in the one test that compares it against something.
 `AiTeam.jsx`, `Register.jsx`, `PrivacyPolicy.jsx`) with it. The tests are driven
 off the config, so none of them need editing.
 
+### Deleting a game is a Firestore act, not a catalogue edit (2026-08-19)
+
+`/admin/games-seed` compares the curated SEED (`src/data/gamesSeed.js`, a
+bundled array of 47 games) against the live `games` collection, and it now
+does more than import: an admin can **deactivate** (record stays, learners
+stop seeing it) and **delete permanently** (record gone). Those are two
+actions and they stay two. So are **Clear selection** — which unchecks boxes
+and reaches no Firestore call at all — and **Delete selected**; the old
+button was labelled just "Clear", which reads as "clear the games" on a
+screen that can now delete.
+
+- **The seed is never touched.** It is a file in the bundle, so a deleted
+  game goes back to "Not imported" and can be imported again. That is a
+  property of where the two catalogues live, not a promise the code makes.
+- **Statuses are Live / Inactive / Not imported / Unknown**, and the fourth
+  is load-bearing: a FAILED collection read must not render 47 games as "Not
+  imported", which would put an import over 47 live ones one click away. The
+  screen offers no action while the live state is unknown.
+- **`gameTombstones/{gameId}` is why deletion is visible to learners.**
+  Three learner surfaces fall back to the bundled seed — the hub's catalogue
+  rows (`buildCatalogue`), `PlayGame` (by id, which is what made a deleted
+  game still launchable through an old direct link) and the daily-challenge
+  rotation — so deleting `games/{id}` alone removes the game from the LIVE
+  list and from nothing else. The tombstone is written in the same
+  transaction as the delete, read once per page load
+  (`src/utils/gameTombstones.js`), and **fails OPEN**: an unreadable list
+  leaves the fallback unfiltered, because the fallback exists for exactly
+  the outage that would make that read fail, and the Firestore document is
+  genuinely deleted either way. Re-importing deletes the tombstone.
+- **Learner history is never cascaded into.** Deletion removes
+  `games/{id}` and `leaderboards/{id}` (a derived rollup of `scores`,
+  rebuildable). `scores`, `badges`, `learner_profiles.recentGames`,
+  `dailyStreaks` and duel `matches` are kept: a score row is a learner's own
+  result and a public leaderboard row, and deleting a game is an editorial
+  decision about the catalogue, not a statement that a child did not play.
+  The tombstone carries `gameTitle`/`gameType`/`grade`/`subject` so a
+  historical row stays readable — `scores` itself carries only
+  gameId/grade/subject and that field set is pinned by `gameScorePayload.js`
+  and validated in the rules, so it is not a place to add a title.
+- **Authorization is the rules.** `games` create/update/delete and
+  `gameTombstones` writes are `isAdmin()`; `<AdminRoute>` and the service
+  functions are the client asking nicely. Both are now behaviourally pinned
+  in `test-firestore-rules-emulator.mjs` (this is what moved `games` off the
+  acknowledged-uncovered list).
+- **Import is idempotent by construction** — the doc id is the seed id and
+  the existence check is inside the transaction, so a double-click, a stale
+  tab or two admins at once converge on one document. An existing game is
+  SKIPPED rather than merged over, because writing over an inactive one
+  would silently re-activate it.
+
+Decisions live in `features/games/lib/gamesSeedAdminCore.js` (statuses,
+filters, the mixed-selection partition, confirmation copy, result counts,
+and `DELETION_PLAN` — the reviewable list of what deletion touches). Tests:
+`test:games-seed-admin`, `test:games-seed-fallback`, `test:rules-text`,
+`test:rules-emulator`, plus `GamesSeedAdmin.spec.jsx`.
+
 ### There is no learner↔teacher link (removed 2026-08)
 
 Learners and teachers have **no connecting surface**. A teacher cannot reach a

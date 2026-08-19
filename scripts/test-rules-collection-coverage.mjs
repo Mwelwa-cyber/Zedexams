@@ -220,6 +220,13 @@ const COVERED = [
   // four collections, and only `scores` had any coverage before it (§5.1(4)).
   'badges', 'dailyStreaks', 'learner_profiles',
   'teacherProfiles', 'topicMisconceptions', 'usageMeters', 'users', 'webauthnChallenges',
+  // The Games Seed Importer's write pair. Permanent deletion of a game is a
+  // CLIENT delete, so `allow delete: if isAdmin()` on `games` is the only
+  // server-side authorization on it — worth behavioural coverage rather than
+  // an acknowledgement. `gameTombstones` is its other half: a non-admin who
+  // could write there could hide any game from every learner, because the
+  // learner-side bundled-seed fallback is filtered by that list.
+  'games', 'gameTombstones',
 ]
 
 /**
@@ -236,7 +243,7 @@ const COVERED = [
  */
 const ACKNOWLEDGED_UNCOVERED = [
   // 1 — carries a §10 discrepancy (see KNOWN_DISCREPANCIES)
-  'games',
+  //     (`games` moved to COVERED when the importer gained permanent deletion)
   // 2 — payment / consent / deletion / entitlement-adjacent
   'ageGateAttempts', 'consentRequests', 'deletionRequests',
   'processedEvents', 'referralRedemptions',

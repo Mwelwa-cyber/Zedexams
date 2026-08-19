@@ -19,6 +19,10 @@ import useFocusTrap from '../../hooks/useFocusTrap'
  *   variant      — "primary" | "danger" (default). Controls the confirm button.
  *   icon         — optional Heroicons component (default AlertTriangle for danger)
  *   loading      — renders the confirm button in loading state
+ *   confirmDisabled — blocks the confirm button while some extra condition
+ *                  the caller owns is unmet (e.g. a "type DELETE to
+ *                  confirm" box on a large destructive batch). Distinct
+ *                  from `loading`, which means a request is in flight.
  *   onConfirm    — async or sync handler; parent closes the dialog on success
  *   onCancel     — handler for cancel/backdrop/Escape
  *
@@ -38,6 +42,7 @@ export default function ConfirmDialog({
   variant = 'danger',
   icon,
   loading = false,
+  confirmDisabled = false,
   onConfirm,
   onCancel,
 }) {
@@ -111,6 +116,7 @@ export default function ConfirmDialog({
             size="md"
             onClick={onConfirm}
             loading={loading}
+            disabled={confirmDisabled}
           >
             {confirmLabel}
           </Button>

@@ -3773,6 +3773,98 @@ async function main() {
     await assertSucceeds(deleteDoc(doc(admin, 'scores', scoreId)))
   })
 
+  // ── games + gameTombstones: the Games Seed Importer's writes ──
+  //
+  // The importer deletes `games/{id}` and writes `gameTombstones/{id}` from
+  // the CLIENT, so these rules are the only server-side authorization on a
+  // permanent deletion — `<AdminRoute>` around the page and the service
+  // function are both the client asking nicely. That is why this pair moved
+  // out of the acknowledged-uncovered list when deletion shipped.
+
+  await test('only an admin can delete a game', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'games', 'game_delete_me'), {
+        title: 'Fraction Match', subject: 'mathematics', grade: 4,
+        type: 'timed_quiz', active: true,
+      })
+    })
+    // A learner reading it is fine — the catalogue is public.
+    await assertSucceeds(getDoc(doc(learnerA, 'games', 'game_delete_me')))
+    await assertFails(deleteDoc(doc(learnerA, 'games', 'game_delete_me')))
+    await assertFails(deleteDoc(doc(teacherA, 'games', 'game_delete_me')))
+    await assertFails(deleteDoc(doc(guest, 'games', 'game_delete_me')))
+    await assertSucceeds(deleteDoc(doc(admin, 'games', 'game_delete_me')))
+  })
+
+  await test('only an admin can create or edit a game', async () => {
+    const game = {
+      title: 'Smuggled In', subject: 'mathematics', grade: 4,
+      type: 'timed_quiz', active: true,
+    }
+    await assertFails(setDoc(doc(learnerA, 'games', 'game_smuggled'), game))
+    await assertFails(setDoc(doc(teacherA, 'games', 'game_smuggled'), game))
+    await assertSucceeds(setDoc(doc(admin, 'games', 'game_seeded'), game))
+    // Editing someone else's catalogue entry is the same act as writing one.
+    await assertFails(setDoc(doc(learnerA, 'games', 'game_seeded'), { active: false }, { merge: true }))
+    await assertSucceeds(setDoc(doc(admin, 'games', 'game_seeded'), { active: false }, { merge: true }))
+  })
+
+  await test('an inactive game is admin-only to read', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'games', 'game_hidden'), {
+        title: 'Deactivated', subject: 'english', grade: 4,
+        type: 'timed_quiz', active: false,
+      })
+    })
+    // This is what "Inactive" MEANS for a learner: not merely filtered out
+    // of a query they could re-run without the filter.
+    await assertFails(getDoc(doc(learnerA, 'games', 'game_hidden')))
+    await assertFails(getDoc(doc(guest, 'games', 'game_hidden')))
+    await assertSucceeds(getDoc(doc(admin, 'games', 'game_hidden')))
+  })
+
+  await test('only an admin can write a game tombstone', async () => {
+    const tombstone = {
+      gameId: 'game_tombstoned', gameTitle: 'Fraction Match',
+      gameType: 'timed_quiz', grade: 4, subject: 'mathematics',
+      deletedAt: serverTimestamp(), deletedBy: ADMIN,
+    }
+    // A non-admin who could write here could hide any game from every
+    // learner, because the learner-side seed fallback reads this list.
+    await assertFails(setDoc(doc(learnerA, 'gameTombstones', 'game_tombstoned'), { ...tombstone, deletedBy: LEARNER_A }))
+    await assertFails(setDoc(doc(teacherA, 'gameTombstones', 'game_tombstoned'), { ...tombstone, deletedBy: TEACHER_A }))
+    await assertSucceeds(setDoc(doc(admin, 'gameTombstones', 'game_tombstoned'), tombstone))
+
+    // Public read: /games is a signed-out route, and this is a suppression
+    // list over content that already ships in every client bundle.
+    await assertSucceeds(getDoc(doc(guest, 'gameTombstones', 'game_tombstoned')))
+    await assertSucceeds(getDoc(doc(learnerA, 'gameTombstones', 'game_tombstoned')))
+
+    // Deleting a tombstone un-hides the seed entry — the same admin act as
+    // re-importing the game, which is exactly when the importer does it.
+    await assertFails(deleteDoc(doc(learnerA, 'gameTombstones', 'game_tombstoned')))
+    await assertSucceeds(deleteDoc(doc(admin, 'gameTombstones', 'game_tombstoned')))
+  })
+
+  await test('a tombstone cannot be forged onto another id or another admin', async () => {
+    const base = {
+      gameTitle: 'Fraction Match', gameType: 'timed_quiz',
+      grade: 4, subject: 'mathematics', deletedAt: serverTimestamp(),
+    }
+    // The doc id IS the game id every reader looks up, so a mismatch would
+    // be a tombstone that suppresses a game it does not name.
+    await assertFails(setDoc(doc(admin, 'gameTombstones', 'game_x'), {
+      ...base, gameId: 'game_y', deletedBy: ADMIN,
+    }))
+    // deletedBy is the audit trail; it is the caller, not a client choice.
+    await assertFails(setDoc(doc(admin, 'gameTombstones', 'game_x'), {
+      ...base, gameId: 'game_x', deletedBy: LEARNER_A,
+    }))
+    await assertSucceeds(setDoc(doc(admin, 'gameTombstones', 'game_x'), {
+      ...base, gameId: 'game_x', deletedBy: ADMIN,
+    }))
+  })
+
   await testEnv.cleanup()
 
   // ── summary ──────────────────────────────────────────────────

@@ -8,8 +8,10 @@
  *     isDemo?
  *   }
  *
- * Import these into Firestore using the admin button at /admin/games-seed
- * (wired to `upsertGame` in gamesService.js).
+ * Import these into Firestore from /admin/games-seed (wired to
+ * `importSeedGame` in gamesService.js). This array is the SEED, not the
+ * live catalogue: an admin deleting a game removes the Firestore record
+ * only, so the entry below survives and can be imported again.
  *
  * Document IDs use the convention `<subject>_<slug>_g<grade>` so they are
  * stable across environments and easy to reason about in URLs / logs.
@@ -1392,15 +1394,34 @@ export function isDemoGame(game) {
  * Mirrors `listGames()` by hiding any seed entry with `active: false` so
  * out-of-scope games (G7+ placeholders, deactivated packs) never leak into
  * the player UI when Firestore reads time out.
+ *
+ * `filter.exclude` is the set of game ids an admin has PERMANENTLY DELETED
+ * (`gameTombstones` — see `src/utils/gameTombstones.js`). Without it a
+ * deletion would be invisible to learners: the seed ships in the bundle, so
+ * removing `games/{id}` from Firestore does nothing to the copy this
+ * function reads. Callers pass the set they loaded; omitting it filters
+ * nothing, which is the pre-existing behaviour and the right answer for a
+ * caller that has no way to know.
  */
 export function getFallbackGames(filter = {}) {
+  const excluded = filter.exclude
   let games = GAMES_SEED.filter((g) => g.active !== false && !RETIRED_GAME_TYPES.has(g.type))
+  if (excluded?.size) games = games.filter((g) => !excluded.has(g.id))
   if (filter.grade != null) games = games.filter((g) => g.grade === Number(filter.grade))
   if (filter.subject) games = games.filter((g) => g.subject === filter.subject)
   return games
 }
 
-export function getFallbackGame(id) {
+/**
+ * The bundled seed doc behind a `/games/play/:id` link, or null.
+ *
+ * `options.exclude` carries the same deletion list as `getFallbackGames`,
+ * and it is what stops a permanently deleted game staying launchable
+ * through an old direct URL — that path never resolved the id through
+ * Firestore, so deleting the document alone would not have closed it.
+ */
+export function getFallbackGame(id, options = {}) {
+  if (options.exclude?.has(id)) return null
   const found = GAMES_SEED.find((g) => g.id === id) || null
   if (!found || found.active === false || RETIRED_GAME_TYPES.has(found.type)) return null
   return found

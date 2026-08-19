@@ -798,6 +798,8 @@
     "test:reading-theme-contrast": "node src/contexts/readingThemeContrast.test.js",
     "test:games-dark-surface": "node src/features/games/gamesDarkSurface.test.js",
     "test:games-hub-core": "node src/features/games/lib/gamesHubCore.test.js",
+    "test:games-seed-admin": "node src/features/games/lib/gamesSeedAdminCore.test.js",
+    "test:games-seed-fallback": "node src/data/gamesSeedFallback.test.js",
     "test:teacher-dark-surface": "node scripts/test-teacher-dark-surface.mjs",
     "test:select-arrow": "node src/shared/components/selectArrow.test.js",
     "test:theme-bridge": "node src/contexts/themeBridge.test.js",

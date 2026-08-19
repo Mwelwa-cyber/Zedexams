@@ -7,6 +7,7 @@ import {
   subjectBySlug,
 } from '../services/gamesService'
 import { getFallbackGame, isDemoGame } from '../../../data/gamesSeed'
+import { loadDeletedGameIds } from '../../../utils/gameTombstones'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useSubscription } from '../../../hooks/useSubscription'
 import UpgradeModal from '../../../components/subscription/UpgradeModal'
@@ -56,21 +57,30 @@ export default function PlayGame() {
 
     async function load() {
       setLoading(true)
+      // The bundled seed is what makes a game playable before it is seeded
+      // and during a Firestore outage — and it is also why a permanently
+      // deleted game stayed launchable through an old direct link. The
+      // deletion list is loaded alongside the live doc (fail-open: an
+      // unreadable list leaves the fallback as it was) and consulted only
+      // on the fallback path, so a live doc is never gated behind it.
       try {
-        const live = await getGame(gameId)
+        const [live, deletedIds] = await Promise.all([
+          getGame(gameId),
+          loadDeletedGameIds(),
+        ])
         if (cancelled) return
         if (live) {
           setGame(live)
           return
         }
 
-        const fallback = getFallbackGame(gameId)
+        const fallback = getFallbackGame(gameId, { exclude: deletedIds })
         if (fallback) setGame(fallback)
         else setNotFound(true)
       } catch (err) {
         if (cancelled) return
         console.error('PlayGame load failed', err)
-        const fallback = getFallbackGame(gameId)
+        const fallback = getFallbackGame(gameId, { exclude: await loadDeletedGameIds() })
         if (fallback) setGame(fallback)
         else setNotFound(true)
       } finally {
