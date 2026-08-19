@@ -9,12 +9,12 @@
  *   - images     : a sample of content image URLs resolve (no 404s)
  *   - quizzes    : a sample of published quizzes pass the same structural
  *                  checks Vex enforces (options, duplicates, valid answer)
- *   - dailyExams : today's (Lusaka) daily-exam picks exist once the 05:00
- *                  autoPickDailyExams cron should have run. SELF-HEALING:
- *                  when the day is empty it re-runs the idempotent picker,
- *                  then still reports a failure so the missed cron (failed
- *                  deploy, scheduler outage) gets investigated rather than
- *                  silently papered over every morning.
+ *   - dailyQuiz  : today's (Lusaka) daily quiz exists for every live grade
+ *                  once the 00:05 buildDailyQuizzes cron should have run.
+ *                  Builds a missing one so no learner pays the self-heal,
+ *                  and still reports it so the missed cron gets looked at.
+ *                  A THIN bank is the critical case — a self-healing system
+ *                  would otherwise hide the one thing it cannot fix.
  *   - playBilling: the Google Play purchase-verification wiring (SA secret →
  *                  OAuth token → Play Developer API auth) answers a probe.
  *                  A broken config here is REVENUE-CRITICAL: Android buyers
@@ -372,174 +372,132 @@ async function checkQuizzes(db) {
   return {ok: failures.length === 0, checked, failures};
 }
 
-// autoPickDailyExams fires at 05:00 Lusaka. Give it a grace window before
-// treating an empty day as a failure, so a slow-but-successful run is never
+// buildDailyQuizzes fires at 00:05 Lusaka. Give it a grace window before
+// treating a missing day as a failure, so a slow-but-successful run is never
 // raced by the monitor.
-const DAILY_EXAM_GRACE_MIN = 5 * 60 + 15; // 05:15 Lusaka
+const DAILY_QUIZ_GRACE_MIN = 60; // 01:00 Lusaka
 
 /**
- * Whether the daily-exam check should enforce yet (past 05:15 Lusaka), and
+ * Whether the daily-quiz check should enforce yet (past 01:00 Lusaka), and
  * which Lusaka calendar day counts as "today". Pure — unit tested directly.
  */
-function dailyExamCheckWindow(now = new Date()) {
+function dailyQuizCheckWindow(now = new Date()) {
   const p = lusakaNowParts(now);
   return {
-    active: p.hour * 60 + p.minute >= DAILY_EXAM_GRACE_MIN,
+    active: p.hour * 60 + p.minute >= DAILY_QUIZ_GRACE_MIN,
     today: lusakaDayString(now),
   };
 }
 
 /**
- * Verify today's daily-exam picks exist — and self-heal when they don't.
+ * Verify today's daily quiz exists for every live grade.
  *
- * The learner hub (/exams) shows "No exam scheduled today" on every subject
- * card unless a quiz carries quizType=="daily_exam" + dailyExamDate==today,
- * and the ONLY thing that stamps those fields each morning is the
- * autoPickDailyExams cron. A missed firing (failed functions deploy,
- * scheduler outage) therefore blanks the whole surface for the day with no
- * error anywhere. So: if the day is empty after the grace window, re-run the
- * picker directly (runAutoPick is idempotent — an existing pick returns
- * already_pinned) and report a warning so the missed cron is investigated.
- * Only a re-run that promotes nothing (no published exam papers to pick
- * from) is critical — that needs a human to publish content.
+ * ── What this check IS and IS NOT, since the daily quiz self-heals ────
  *
- * `runPick` is injectable for plain-node tests; the default lazy-requires
- * dailyExamPicker because that module pulls in firebase-functions, which is
- * a functions/ dep the root test runner doesn't install.
+ * `getTodaysQuiz` builds the day's document on the spot when it is missing,
+ * so a missing document is NOT a learner-visible outage the way a missing
+ * daily-exam pick used to be — the first learner to open the app creates it
+ * and the seed guarantees they get the same five the cron would have
+ * written. This check therefore exists for two narrower reasons:
+ *
+ *   1. Build it BEFORE a learner has to. The self-heal costs that first
+ *      child a whole-bank read while they wait, and there is no reason to
+ *      make them pay it once the cron is known to have missed.
+ *   2. Catch what the self-heal CANNOT fix. A `thin` document means the
+ *      approved bank cannot yield five questions for that grade, and no
+ *      amount of rebuilding changes that — every learner in the grade gets
+ *      the practice fallback instead of a ranked quiz until someone
+ *      authors more content. That is the critical case, and it is the one
+ *      a self-healing system would otherwise hide completely.
+ *
+ * `build` is injectable for plain-node tests; the default lazy-requires the
+ * service so loading this module never drags in the Firestore-backed builder.
  */
-async function checkDailyExams(db, {now = new Date(), runPick} = {}) {
-  const {active, today} = dailyExamCheckWindow(now);
+async function checkDailyQuiz(db, {now = new Date(), build} = {}) {
+  const {active, today} = dailyQuizCheckWindow(now);
   if (!active) {
     return {ok: true, skipped: true, today, scheduled: 0, failures: []};
   }
+  const {DAILY_QUIZ_GRADES} = require("../../dailyQuiz/dailyQuizCore");
   try {
-    // No limit: the verdict below inspects EVERY pick (bad-pick scan +
-    // per-grade coverage), and a cap could hide a past-paper pick behind
-    // enough manual pins — setAsDailyExam doesn't demote, so the same-day
-    // doc count is unbounded. In practice this is ~4 docs, hourly.
-    const snap = await db.collection("quizzes")
-        .where("quizType", "==", "daily_exam")
-        .where("isDailyExam", "==", true)
-        .where("dailyExamDate", "==", today)
-        .get();
-    if (!snap.empty) {
-      const {isPastPaperPublicQuiz, DAILY_EXAM_GRADES} = require("../../dailyExamPickerCore");
-      const docs = Array.isArray(snap.docs) ? snap.docs : [];
-      // A past paper's public quiz in the daily slot is a BAD pick: the
-      // daily-exam rules arm blocks all client question reads, so the
-      // paper's public /papers/:id/quiz page 403s for the whole day.
-      const badPicks = docs.filter((d) => isPastPaperPublicQuiz(d.data()));
-      // Per-grade coverage EVERY run, not just on the run that demoted a
-      // bad pick: a grade whose pick was demoted without a replacement
-      // (or never picked) must keep failing hourly until it is restored,
-      // otherwise the other grades' picks make the snapshot look healthy
-      // and the gap silently drops out of the rollup. A grade whose only
-      // pick is a bad one is NOT "missing" here — the badPicks path
-      // already reports it (and folds it into problemGrades below).
-      const gradesWithAnyPick = new Set(docs.map((d) => String(d.data().grade)));
-      const missingGrades = DAILY_EXAM_GRADES.filter((g) => !gradesWithAnyPick.has(g));
-      if (badPicks.length === 0 && missingGrades.length === 0) {
-        return {ok: true, skipped: false, today, scheduled: snap.size, failures: []};
+    const snap = await db.collection("dailyQuizzes").where("date", "==", today).get();
+    const docs = Array.isArray(snap.docs) ? snap.docs : [];
+    const byGrade = new Map(docs.map((d) => [String(d.data().grade), d.data()]));
+
+    const missing = DAILY_QUIZ_GRADES.filter((g) => !byGrade.has(String(g)));
+    const failures = [];
+    let healed = 0;
+
+    // 1. Build any grade the cron did not reach, so no learner pays for it.
+    if (missing.length > 0) {
+      const ensure = build || require("../../dailyQuiz/dailyQuizService").ensureDailyQuiz;
+      const stillMissing = [];
+      for (const grade of missing) {
+        try {
+          const {doc} = await ensure(db, {grade, date: today, createdBy: "monitor"});
+          byGrade.set(String(grade), doc);
+          healed += 1;
+        } catch (err) {
+          stillMissing.push(String(grade));
+          console.error("[Vigil] daily-quiz heal failed", {grade, err: err?.message || err});
+        }
       }
-
-      // Re-run the picker — promotePickForGrade demotes every bad pick
-      // (restoring the public pages) and pins a legitimate exam paper
-      // into each uncovered grade.
-      const pick = runPick || require("../../dailyExamPicker").runAutoPick;
-      const summary = await pick({today});
-      const grades = Array.isArray(summary?.grades) ? summary.grades : [];
-      // With the demote-all picker, promoted/already_pinned both mean the
-      // grade now holds ONLY a legitimate pick.
-      const replacedGrades = new Set(grades
-          .filter((g) => g.status === "promoted" || g.status === "already_pinned")
-          .map((g) => String(g.grade)));
-      const problemGrades = [...new Set([
-        ...badPicks.map((d) => String(d.data().grade)),
-        ...missingGrades,
-      ])];
-      const unresolved = problemGrades.filter((g) => !replacedGrades.has(g));
-
-      const failures = [];
-      if (badPicks.length > 0) {
+      if (healed > 0) {
         failures.push({
-          check: "dailyExams",
-          id: `${today}:pastPaperPick`,
+          check: "dailyQuiz",
+          id: `${today}:cronMissed`,
           severity: "warning",
-          message: `Daily-exam pick(s) for ${today} were past-paper public quizzes ` +
-            `(${badPicks.map((d) => d.id).join(", ")}) — their public /papers quiz pages were ` +
-            `blocked by the daily-exam question-read rule. Vigil re-ran the picker to demote ` +
-            `them and pin real exam papers.`,
+          message: `No daily quiz existed for grade(s) ${missing.join(", ")} on ${today} after ` +
+            `01:00 — the buildDailyQuizzes cron did not run. Vigil built ${healed} of them. ` +
+            `Learners were never blocked (getTodaysQuiz self-heals), but check the scheduler job.`,
         });
       }
-      if (missingGrades.length > 0 && missingGrades.some((g) => replacedGrades.has(g))) {
-        const restored = missingGrades.filter((g) => replacedGrades.has(g));
+      if (stillMissing.length > 0) {
         failures.push({
-          check: "dailyExams",
-          id: `${today}:gradeGapHealed`,
-          severity: "warning",
-          message: `Grade(s) ${restored.join(", ")} had no daily exam for ${today} after 05:15. ` +
-            `Vigil re-ran the picker and restored them; check why the morning pick left them empty.`,
-        });
-      }
-      if (unresolved.length > 0) {
-        failures.push({
-          check: "dailyExams",
-          // Stable id (no grade list): recurs every hourly run while the
-          // gap persists, and the notification state doc de-dups it.
-          id: `${today}:gradeGap`,
+          check: "dailyQuiz",
+          // Stable id (no grade list): recurs every hourly run while the gap
+          // persists, and the notification state doc de-dups it.
+          id: `${today}:buildFailed`,
           severity: "critical",
-          message: `Grade(s) ${unresolved.join(", ")} have no daily exam for ${today} even after ` +
-            `re-running the picker (${grades.map((g) => `grade ${g.grade}: ${g.status}`).join("; ") || "no grades processed"}) — ` +
-            `learners there see "No exam scheduled today" until an admin pins one.`,
+          message: `The daily quiz for grade(s) ${stillMissing.join(", ")} could not be built for ` +
+            `${today}. Every read will retry the same failing build, so learners see an error ` +
+            `rather than a quiz.`,
         });
       }
-      return {
-        ok: false, skipped: false, today, scheduled: snap.size,
-        healed: problemGrades.length - unresolved.length,
-        failures,
-      };
     }
 
-    // Pass `today` explicitly: the picker's own default is also the Lusaka
-    // day, but the heal must pin the same date this check just queried.
-    const pick = runPick || require("../../dailyExamPicker").runAutoPick;
-    const summary = await pick({today});
-    const grades = Array.isArray(summary?.grades) ? summary.grades : [];
-    const healed = grades.filter((g) => g.status === "promoted" || g.status === "already_pinned");
-
-    if (healed.length > 0) {
-      return {
-        ok: false, skipped: false, today, scheduled: 0, healed: healed.length,
-        failures: [{
-          check: "dailyExams",
-          id: today,
-          severity: "warning",
-          message: `No daily exams were scheduled for ${today} after 05:15 — the autoPickDailyExams ` +
-            `cron did not run. Vigil re-ran the picker and restored ${healed.length} grade(s) ` +
-            `(${healed.map((g) => g.grade).join(", ")}). Check the autoPickDailyExams scheduler ` +
-            `job and the last functions deploy.`,
-        }],
-      };
-    }
-    return {
-      ok: false, skipped: false, today, scheduled: 0, healed: 0,
-      failures: [{
-        check: "dailyExams",
-        id: today,
+    // 2. A thin bank. Rebuilding cannot fix this — only authoring can.
+    const thin = DAILY_QUIZ_GRADES.filter((g) => byGrade.get(String(g))?.status === "thin");
+    if (thin.length > 0) {
+      failures.push({
+        check: "dailyQuiz",
+        id: `${today}:thinBank`,
         severity: "critical",
-        message: `No daily exams are scheduled for ${today} and the picker re-run could not promote ` +
-          `any quiz (${grades.map((g) => `grade ${g.grade}: ${g.status}`).join("; ") || "no grades processed"}). ` +
-          `Every /exams subject card reads "No exam scheduled today" until an admin pins one.`,
-      }],
+        message: `The approved question bank cannot fill a five-question quiz for grade(s) ` +
+          `${thin.join(", ")} on ${today}. Those learners get the labelled practice set instead ` +
+          `of a ranked quiz, and the weekly board has nothing to rank. Author more approved ` +
+          `questions — see /admin/daily-quiz → Bank health.`,
+      });
+    }
+
+    return {
+      ok: failures.length === 0,
+      skipped: false,
+      today,
+      scheduled: byGrade.size,
+      healed,
+      failures,
     };
   } catch (err) {
+    // A failed query is reported as a failed CHECK, never as a healthy day.
+    // A tool that cannot see a failure reporting silence is the bug.
     return {
       ok: false, skipped: false, today, scheduled: 0,
       failures: [{
-        check: "dailyExams",
+        check: "dailyQuiz",
         id: today,
         severity: "critical",
-        message: `Daily-exam check failed: ${String(err?.message || err)}.`,
+        message: `Daily-quiz check failed: ${String(err?.message || err)}.`,
       }],
     };
   }
@@ -587,16 +545,16 @@ async function checkPlayBilling({saJson, probe} = {}) {
 /** Run all six checks. Pure of secrets/Anthropic — safe to unit test. */
 async function runMonitorChecks(db, {playSaJson, playProbe} = {}) {
   const ranAt = new Date().toISOString();
-  const [pages, firebase, images, quizzes, dailyExams, playBilling] = await Promise.all([
+  const [pages, firebase, images, quizzes, dailyQuiz, playBilling] = await Promise.all([
     checkPages(),
     checkFirebase(db),
     checkImages(db),
     checkQuizzes(db),
-    checkDailyExams(db),
+    checkDailyQuiz(db),
     checkPlayBilling({saJson: playSaJson, probe: playProbe}),
   ]);
 
-  const failures = [...pages.failures, ...firebase.failures, ...images.failures, ...quizzes.failures, ...dailyExams.failures, ...playBilling.failures];
+  const failures = [...pages.failures, ...firebase.failures, ...images.failures, ...quizzes.failures, ...dailyQuiz.failures, ...playBilling.failures];
   const critical = failures.filter((f) => f.severity === "critical");
 
   return {
@@ -613,7 +571,7 @@ async function runMonitorChecks(db, {playSaJson, playProbe} = {}) {
       firebase: {ok: firebase.ok, results: firebase.results},
       images: {ok: images.ok, checked: images.checked},
       quizzes: {ok: quizzes.ok, checked: quizzes.checked},
-      dailyExams: {ok: dailyExams.ok, skipped: dailyExams.skipped, scheduled: dailyExams.scheduled, healed: dailyExams.healed ?? 0},
+      dailyQuiz: {ok: dailyQuiz.ok, skipped: dailyQuiz.skipped, scheduled: dailyQuiz.scheduled, healed: dailyQuiz.healed ?? 0},
       playBilling: {ok: playBilling.ok, status: playBilling.status},
     },
     failures,
@@ -627,7 +585,7 @@ async function suggestFixes(apiKey, report) {
   const systemPrompt =
     "You are Vigil, ZedExams' site reliability engineer. You are handed a JSON " +
     "list of failures from an hourly health check across six surfaces: pages, " +
-    "firebase, images, quizzes, dailyExams, playBilling. Group your answer by surface. For each distinct " +
+    "firebase, images, quizzes, dailyQuiz, playBilling. Group your answer by surface. For each distinct " +
     "problem give a one-line likely root cause and a concrete, minimal fix an " +
     "engineer can act on. Flag anything that looks transient (e.g. a single 5xx " +
     "or one slow image) as 'likely transient — re-check next run'. Be terse and " +
@@ -876,9 +834,9 @@ async function notifyFailures({db, report, smtpUser, smtpPass, adminEmails, gith
 module.exports = {
   runMonitorChecks,
   checkQuizzes,
-  checkDailyExams,
+  checkDailyQuiz,
   checkPlayBilling,
-  dailyExamCheckWindow,
+  dailyQuizCheckWindow,
   runStructuralChecks,
   extractPlainText,
   failureKey,

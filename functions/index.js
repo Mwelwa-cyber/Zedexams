@@ -254,11 +254,13 @@ const {
   runClassListExtraction,
   MAX_PAGES_PER_CALL: MAX_CLASS_LIST_PAGES,
 } = require("./classList/extractClassList");
-// Daily Exam auto-picker — promotes one exam paper (questionCount >= 50
-// or examOnly=true) per grade into the day's Daily Exam slot every
-// morning so the admin no longer has to click "Daily Exam" by hand for
-// routine rotation.
-const {autoPickDailyExams} = require("./dailyExamPicker");
+// The Daily Quiz — five questions a day per grade, built from the approved
+// question bank. This REPLACED the Daily Exam rotation (autoPickDailyExams,
+// which pinned one whole 50+ question paper per grade per day) in 2026-08:
+// two daily systems is exactly the duplication the one-read-path rule
+// exists to prevent. `getExamQuestions` / `submitDailyExam` stay so the
+// historical exam_attempts a learner already holds remain readable.
+const dailyQuizFns = require("./dailyQuiz/dailyQuizFns");
 const {
   getExamQuestions: getExamQuestionsFn,
   submitDailyExam: submitDailyExamFn,
@@ -1179,7 +1181,51 @@ exports.apiAiChat = onRequest(
   httpSurfaceHandlers.apiAiChat,
 );
 
-exports.autoPickDailyExams = autoPickDailyExams;
+// ── Daily Quiz ──────────────────────────────────────────────────────
+//
+// getTodaysQuiz is the ONE read path: every surface that shows the daily
+// quiz calls it, and nothing else reads the dailyQuizzes collection.
+//
+// The BUILDERS stay here and only the bodies live in functions/dailyQuiz/ —
+// the shape `test:functions-manifest` requires, so that region, schedule and
+// timeout stay inside the frozen surface it reads from this file.
+exports.getTodaysQuiz = onCall(
+    {region: "us-central1", timeoutSeconds: 60},
+    dailyQuizFns.getTodaysQuizHandler,
+);
+exports.answerDailyQuizQuestion = onCall(
+    {region: "us-central1", timeoutSeconds: 60},
+    dailyQuizFns.answerDailyQuizQuestionHandler,
+);
+// 00:05 Lusaka. Nine small documents a night at most — but it reads the whole
+// approved bank per grade, so it gets a generous timeout.
+exports.buildDailyQuizzes = onSchedule(
+    {schedule: "5 0 * * *", timeZone: "Africa/Lusaka", region: "us-central1", timeoutSeconds: 300},
+    dailyQuizFns.buildDailyQuizzesHandler,
+);
+exports.adminDailyQuizOverview = onCall(
+    {region: "us-central1", timeoutSeconds: 60},
+    dailyQuizFns.adminDailyQuizOverviewHandler,
+);
+exports.adminDailyQuizFunnel = onCall(
+    {region: "us-central1", timeoutSeconds: 60},
+    dailyQuizFns.adminDailyQuizFunnelHandler,
+);
+exports.adminRunDailyQuizNow = onCall(
+    {region: "us-central1", timeoutSeconds: 300},
+    dailyQuizFns.adminRunDailyQuizNowHandler,
+);
+exports.adminSwapDailyQuizQuestion = onCall(
+    {region: "us-central1", timeoutSeconds: 60},
+    dailyQuizFns.adminSwapDailyQuizQuestionHandler,
+);
+exports.adminVoidDailyQuizQuestion = onCall(
+    {region: "us-central1", timeoutSeconds: 300},
+    dailyQuizFns.adminVoidDailyQuizQuestionHandler,
+);
+
+// Retained for HISTORY only — a learner's past daily-exam attempts stay
+// readable and re-openable. Nothing promotes a new daily exam any more.
 exports.getExamQuestions = getExamQuestionsFn;
 exports.submitDailyExam = submitDailyExamFn;
 

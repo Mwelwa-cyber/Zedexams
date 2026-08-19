@@ -10,7 +10,7 @@
 
 const assert = require("node:assert");
 const crypto = require("node:crypto");
-const {runStructuralChecks, extractPlainText, failureKey, isMendiEligible, makeAppJwt, normalizePem, resolveGithubToken, checkQuizzes, checkDailyExams, checkPlayBilling, dailyExamCheckWindow} = require("./monitor");
+const {runStructuralChecks, extractPlainText, failureKey, isMendiEligible, makeAppJwt, normalizePem, resolveGithubToken, checkQuizzes, checkDailyQuiz, checkPlayBilling, dailyQuizCheckWindow} = require("./monitor");
 const {lusakaDayString} = require("../../lusakaTime");
 
 let passed = 0;
@@ -338,250 +338,136 @@ test("resolveGithubToken returns null when nothing is configured", async () => {
   assert.strictEqual(token, null);
 });
 
-// ── daily-exam self-heal check ───────────────────────────────────────
+// ── daily-quiz coverage check ────────────────────────────────────────
 
 // Minimal Firestore query stub: every builder method chains, get() returns a
-// snapshot whose emptiness is fixed up-front. `docs` defaults to clean
-// daily-exam picks covering grades 4–7 (the per-grade coverage check needs
-// every grade represented for a healthy day); pass explicit docs to model a
-// bad (past-paper) pick or a grade gap.
-function cleanPick(grade) {
+// snapshot of dailyQuizzes docs for the day. The live rollout is Grade 7
+// only (DAILY_QUIZ_GRADES), so a healthy day is one document.
+function quizDoc(grade, status = "ok") {
   return {
-    id: `quiz-clean-${grade}`,
-    data: () => ({questionCount: 60, quizType: "daily_exam", grade}),
+    id: `${grade}_2026-07-01`,
+    data: () => ({grade, date: "2026-07-01", status, questionIds: ["a", "b", "c", "d", "e"]}),
   };
 }
 
-function stubDb(scheduledCount, docs) {
-  const snapDocs = docs ||
-    Array.from({length: scheduledCount}, (_, i) => cleanPick(String(4 + i)));
+function stubDb(docs) {
+  const snapDocs = docs || [];
   const chain = {
     where() { return chain; },
     limit() { return chain; },
-    async get() { return {empty: scheduledCount === 0, size: scheduledCount, docs: snapDocs}; },
+    async get() { return {empty: snapDocs.length === 0, size: snapDocs.length, docs: snapDocs}; },
   };
   return {collection: () => chain};
 }
 
-test("lusakaDayString stays on the UTC date until 22:00 UTC, then rolls", () => {
-  // 21:59 UTC = 23:59 Lusaka (same calendar day)…
-  assert.strictEqual(lusakaDayString(new Date("2026-06-30T21:59:00Z")), "2026-06-30");
-  // …22:00 UTC = 00:00 Lusaka NEXT day. Local-getter date maths in a UTC
-  // container gets this wrong — the regression this helper exists to stop.
-  assert.strictEqual(lusakaDayString(new Date("2026-06-30T22:00:00Z")), "2026-07-01");
-});
-
-test("dailyExamCheckWindow enforces only from 05:15 Lusaka", () => {
-  // 03:10 UTC = 05:10 Lusaka → still inside the picker's grace window.
-  assert.strictEqual(dailyExamCheckWindow(new Date("2026-07-01T03:10:00Z")).active, false);
-  // 03:15 UTC = 05:15 Lusaka → enforcing, keyed to the Lusaka day.
-  const w = dailyExamCheckWindow(new Date("2026-07-01T03:15:00Z"));
+test("dailyQuizCheckWindow enforces only from 01:00 Lusaka", () => {
+  // 22:30 UTC = 00:30 Lusaka next day → still inside the cron's grace window.
+  assert.strictEqual(dailyQuizCheckWindow(new Date("2026-06-30T22:30:00Z")).active, false);
+  // 23:00 UTC = 01:00 Lusaka → enforcing, keyed to the Lusaka day.
+  const w = dailyQuizCheckWindow(new Date("2026-06-30T23:00:00Z"));
   assert.strictEqual(w.active, true);
   assert.strictEqual(w.today, "2026-07-01");
 });
 
-test("checkDailyExams passes when today's picks exist (picker NOT re-run)", async () => {
-  let pickerRan = false;
-  const res = await checkDailyExams(stubDb(4), {
+test("checkDailyQuiz passes when today's quiz exists (nothing rebuilt)", async () => {
+  let built = false;
+  const res = await checkDailyQuiz(stubDb([quizDoc("7")]), {
     now: new Date("2026-07-01T08:00:00Z"),
-    runPick: async () => { pickerRan = true; },
+    build: async () => { built = true; return {doc: {}}; },
   });
   assert.strictEqual(res.ok, true);
-  assert.strictEqual(res.scheduled, 4);
+  assert.strictEqual(res.scheduled, 1);
   assert.strictEqual(res.failures.length, 0);
-  assert.strictEqual(pickerRan, false);
+  assert.strictEqual(built, false, "a healthy day must not trigger a rebuild");
 });
 
-test("checkDailyExams skips inside the grace window (no query verdict, no heal)", async () => {
-  let pickerRan = false;
-  const res = await checkDailyExams(stubDb(0), {
-    now: new Date("2026-07-01T03:00:00Z"), // exactly 05:00 Lusaka — cron may still be running
-    runPick: async () => { pickerRan = true; },
+test("checkDailyQuiz skips inside the grace window (no verdict, no build)", async () => {
+  let built = false;
+  const res = await checkDailyQuiz(stubDb([]), {
+    now: new Date("2026-06-30T22:10:00Z"), // 00:10 Lusaka — the cron may still be running
+    build: async () => { built = true; return {doc: {}}; },
   });
-  assert.strictEqual(res.ok, true);
   assert.strictEqual(res.skipped, true);
-  assert.strictEqual(pickerRan, false);
-});
-
-test("checkDailyExams self-heals an empty day and reports a warning", async () => {
-  let pickedFor = null;
-  const res = await checkDailyExams(stubDb(0), {
-    now: new Date("2026-07-01T08:00:00Z"),
-    runPick: async ({today}) => {
-      pickedFor = today;
-      return {date: today, grades: [
-        {grade: "4", status: "promoted", quizId: "q4"},
-        {grade: "5", status: "no_candidates"},
-        {grade: "6", status: "promoted", quizId: "q6"},
-        {grade: "7", status: "promoted", quizId: "q7"},
-      ]};
-    },
-  });
-  // Healed — but still a failure, so the missed 05:00 cron gets escalated.
-  assert.strictEqual(pickedFor, "2026-07-01"); // heal pins the checked Lusaka day
-  assert.strictEqual(res.ok, false);
-  assert.strictEqual(res.healed, 3);
-  assert.strictEqual(res.failures.length, 1);
-  assert.strictEqual(res.failures[0].severity, "warning");
-  assert.strictEqual(res.failures[0].check, "dailyExams");
-  assert.strictEqual(failureKey(res.failures[0]), "dailyExams:2026-07-01");
-  assert.ok(res.failures[0].message.includes("autoPickDailyExams"));
-});
-
-test("checkDailyExams is critical when the re-run promotes nothing", async () => {
-  const res = await checkDailyExams(stubDb(0), {
-    now: new Date("2026-07-01T08:00:00Z"),
-    runPick: async ({today}) => ({date: today, grades: [
-      {grade: "4", status: "no_candidates"},
-      {grade: "5", status: "error", message: "boom"},
-    ]}),
-  });
-  assert.strictEqual(res.ok, false);
-  assert.strictEqual(res.healed, 0);
-  assert.strictEqual(res.failures[0].severity, "critical");
-  assert.ok(res.failures[0].message.includes("no_candidates"));
-});
-
-const badPick = {
-  id: "quiz-bad",
-  data: () => ({questionCount: 60, quizType: "daily_exam", publicAccess: true, linkedPaperId: "paper-1", grade: "7"}),
-};
-
-test("checkDailyExams re-runs the picker when today's pick is a past-paper public quiz", async () => {
-  // The regression behind "Quiz not available" on /papers/:id/quiz: the
-  // picker pinned a paper-linked public quiz as the daily exam, and the
-  // daily_exam question-read block 403'd the public page all day. Vigil
-  // must spot the bad pick and re-run the (now demote-and-repick) picker.
-  let pickedFor = null;
-  const db = stubDb(4, [cleanPick("4"), cleanPick("5"), cleanPick("6"), badPick]);
-  const res = await checkDailyExams(db, {
-    now: new Date("2026-07-01T08:00:00Z"),
-    runPick: async ({today}) => {
-      pickedFor = today;
-      return {date: today, grades: [
-        {grade: "4", status: "already_pinned", quizId: "quiz-clean-4"},
-        {grade: "5", status: "already_pinned", quizId: "quiz-clean-5"},
-        {grade: "6", status: "already_pinned", quizId: "quiz-clean-6"},
-        {grade: "7", status: "promoted", quizId: "quiz-good", demotedBadPicks: ["quiz-bad"]},
-      ]};
-    },
-  });
-  assert.strictEqual(pickedFor, "2026-07-01");
-  assert.strictEqual(res.ok, false);
-  assert.strictEqual(res.healed, 1);
-  assert.strictEqual(res.failures.length, 1);
-  assert.strictEqual(res.failures[0].severity, "warning");
-  assert.ok(res.failures[0].message.includes("quiz-bad"));
-});
-
-test("checkDailyExams heals a grade holding BOTH a legitimate and a past-paper pick", async () => {
-  // setAsDailyExam pins without demoting, so a grade can carry two picks
-  // for the same day. already_pinned from the demote-all picker means the
-  // bad one was demoted and the legitimate one kept the slot — a heal,
-  // not a suppressed gap.
-  const db = stubDb(5, [cleanPick("4"), cleanPick("5"), cleanPick("6"), cleanPick("7"), badPick]);
-  const res = await checkDailyExams(db, {
-    now: new Date("2026-07-01T08:00:00Z"),
-    runPick: async ({today}) => ({date: today, grades: [
-      {grade: "4", status: "already_pinned", quizId: "quiz-clean-4"},
-      {grade: "5", status: "already_pinned", quizId: "quiz-clean-5"},
-      {grade: "6", status: "already_pinned", quizId: "quiz-clean-6"},
-      {grade: "7", status: "already_pinned", quizId: "quiz-clean-7", demotedBadPicks: ["quiz-bad"]},
-    ]}),
-  });
-  assert.strictEqual(res.ok, false);
-  assert.strictEqual(res.healed, 1);
-  assert.strictEqual(res.failures.length, 1);
-  assert.strictEqual(res.failures[0].severity, "warning");
-  assert.ok(res.failures[0].message.includes("quiz-bad"));
-});
-
-test("checkDailyExams escalates a demoted bad pick that could NOT be replaced", async () => {
-  // runAutoPick catches failures per grade: a demote-only outcome
-  // (no_candidates / error) leaves that grade with no daily exam. It must
-  // be critical, not a "healed" warning.
-  const db = stubDb(4, [cleanPick("4"), cleanPick("5"), cleanPick("6"), badPick]);
-  const res = await checkDailyExams(db, {
-    now: new Date("2026-07-01T08:00:00Z"),
-    runPick: async ({today}) => ({date: today, grades: [
-      {grade: "4", status: "already_pinned", quizId: "quiz-clean-4"},
-      {grade: "5", status: "already_pinned", quizId: "quiz-clean-5"},
-      {grade: "6", status: "already_pinned", quizId: "quiz-clean-6"},
-      {grade: "7", status: "no_candidates", demotedBadPicks: ["quiz-bad"]},
-    ]}),
-  });
-  assert.strictEqual(res.ok, false);
-  assert.strictEqual(res.healed, 0);
-  assert.strictEqual(res.failures.length, 2);
-  assert.strictEqual(res.failures[1].severity, "critical");
-  assert.strictEqual(failureKey(res.failures[1]), "dailyExams:2026-07-01:gradeGap");
-  assert.ok(res.failures[1].message.includes("7"));
-  assert.ok(res.failures[1].message.includes("no_candidates"));
-});
-
-test("checkDailyExams keeps flagging a gradeless day on LATER runs (no bad pick in sight)", async () => {
-  // The hour after a demote-only heal, the bad pick is gone from the
-  // snapshot and the other grades' picks make it non-empty. The per-grade
-  // coverage check must still surface the hole every run until an exam is
-  // pinned — this is the failure that previously vanished after one run.
-  const db = stubDb(3, [cleanPick("4"), cleanPick("5"), cleanPick("6")]);
-  const res = await checkDailyExams(db, {
-    now: new Date("2026-07-01T09:00:00Z"),
-    runPick: async ({today}) => ({date: today, grades: [
-      {grade: "4", status: "already_pinned", quizId: "quiz-clean-4"},
-      {grade: "5", status: "already_pinned", quizId: "quiz-clean-5"},
-      {grade: "6", status: "already_pinned", quizId: "quiz-clean-6"},
-      {grade: "7", status: "no_candidates"},
-    ]}),
-  });
-  assert.strictEqual(res.ok, false);
-  assert.strictEqual(res.healed, 0);
-  assert.strictEqual(res.failures.length, 1);
-  assert.strictEqual(res.failures[0].severity, "critical");
-  assert.strictEqual(failureKey(res.failures[0]), "dailyExams:2026-07-01:gradeGap");
-  assert.ok(res.failures[0].message.includes("7"));
-});
-
-test("checkDailyExams restores a missing grade and reports a warning", async () => {
-  const db = stubDb(3, [cleanPick("4"), cleanPick("5"), cleanPick("6")]);
-  const res = await checkDailyExams(db, {
-    now: new Date("2026-07-01T09:00:00Z"),
-    runPick: async ({today}) => ({date: today, grades: [
-      {grade: "4", status: "already_pinned", quizId: "quiz-clean-4"},
-      {grade: "5", status: "already_pinned", quizId: "quiz-clean-5"},
-      {grade: "6", status: "already_pinned", quizId: "quiz-clean-6"},
-      {grade: "7", status: "promoted", quizId: "quiz-new-7"},
-    ]}),
-  });
-  assert.strictEqual(res.ok, false);
-  assert.strictEqual(res.healed, 1);
-  assert.strictEqual(res.failures.length, 1);
-  assert.strictEqual(res.failures[0].severity, "warning");
-  assert.strictEqual(failureKey(res.failures[0]), "dailyExams:2026-07-01:gradeGapHealed");
-  assert.ok(res.failures[0].message.includes("7"));
-});
-
-test("checkDailyExams leaves clean full-coverage picks alone (picker NOT re-run)", async () => {
-  let pickerRan = false;
-  const res = await checkDailyExams(stubDb(4), {
-    now: new Date("2026-07-01T08:00:00Z"),
-    runPick: async () => { pickerRan = true; },
-  });
   assert.strictEqual(res.ok, true);
-  assert.strictEqual(pickerRan, false);
+  assert.strictEqual(res.failures.length, 0);
+  assert.strictEqual(built, false);
 });
 
-test("checkDailyExams never throws — a query error becomes a critical failure", async () => {
+test("checkDailyQuiz builds a missing day and reports the missed cron as a warning", async () => {
+  // Not critical: getTodaysQuiz self-heals, so no learner was ever blocked.
+  // Building here only saves the first learner the latency.
+  const seen = [];
+  const res = await checkDailyQuiz(stubDb([]), {
+    now: new Date("2026-07-01T08:00:00Z"),
+    build: async (_db, args) => { seen.push(args); return {doc: quizDoc(args.grade).data()}; },
+  });
+  assert.strictEqual(res.ok, false);
+  assert.strictEqual(res.healed, 1);
+  assert.deepStrictEqual(seen.map((a) => a.grade), ["7"]);
+  assert.strictEqual(seen[0].date, "2026-07-01");
+  assert.strictEqual(seen[0].createdBy, "monitor");
+  assert.strictEqual(res.failures.length, 1);
+  assert.strictEqual(res.failures[0].check, "dailyQuiz");
+  assert.strictEqual(res.failures[0].severity, "warning");
+  assert.strictEqual(failureKey(res.failures[0]), "dailyQuiz:2026-07-01:cronMissed");
+});
+
+test("checkDailyQuiz escalates a build that keeps failing", async () => {
+  // Every read retries the same failing build, so the learner sees an error
+  // rather than a quiz. That IS learner-visible, so it is critical.
+  const res = await checkDailyQuiz(stubDb([]), {
+    now: new Date("2026-07-01T08:00:00Z"),
+    build: async () => { throw new Error("bank read denied"); },
+  });
+  assert.strictEqual(res.ok, false);
+  assert.strictEqual(res.healed, 0);
+  assert.strictEqual(res.failures.length, 1);
+  assert.strictEqual(res.failures[0].severity, "critical");
+  assert.strictEqual(failureKey(res.failures[0]), "dailyQuiz:2026-07-01:buildFailed");
+});
+
+test("checkDailyQuiz reports a THIN bank as critical — the thing it cannot heal", async () => {
+  // The whole reason this check still exists once the read path self-heals.
+  // Rebuilding a starved bank produces another starved document.
+  let built = false;
+  const res = await checkDailyQuiz(stubDb([quizDoc("7", "thin")]), {
+    now: new Date("2026-07-01T08:00:00Z"),
+    build: async () => { built = true; return {doc: {}}; },
+  });
+  assert.strictEqual(res.ok, false);
+  assert.strictEqual(built, false, "a thin day is not a missing day — do not rebuild it");
+  assert.strictEqual(res.failures.length, 1);
+  assert.strictEqual(res.failures[0].severity, "critical");
+  assert.strictEqual(failureKey(res.failures[0]), "dailyQuiz:2026-07-01:thinBank");
+  assert.ok(res.failures[0].message.includes("practice set"));
+});
+
+test("checkDailyQuiz keeps flagging a thin bank on every later run", async () => {
+  // A stable id so the notification state doc de-dups it, but the failure
+  // must recur while the gap persists rather than being reported once.
+  const first = await checkDailyQuiz(stubDb([quizDoc("7", "thin")]), {
+    now: new Date("2026-07-01T08:00:00Z"),
+  });
+  const second = await checkDailyQuiz(stubDb([quizDoc("7", "thin")]), {
+    now: new Date("2026-07-01T11:00:00Z"),
+  });
+  assert.strictEqual(failureKey(first.failures[0]), failureKey(second.failures[0]));
+  assert.strictEqual(second.ok, false);
+});
+
+test("checkDailyQuiz never throws — a query error becomes a critical failure", async () => {
+  // A tool that cannot see a failure reporting silence is the bug, not the fix.
   const db = {collection: () => { throw new Error("firestore down"); }};
-  const res = await checkDailyExams(db, {now: new Date("2026-07-01T08:00:00Z")});
+  const res = await checkDailyQuiz(db, {now: new Date("2026-07-01T08:00:00Z")});
   assert.strictEqual(res.ok, false);
   assert.strictEqual(res.failures[0].severity, "critical");
   assert.ok(res.failures[0].message.includes("firestore down"));
 });
 
-test("dailyExams failures are NOT routed to Mendi (ops/data, not code)", () => {
-  assert.strictEqual(isMendiEligible({check: "dailyExams"}), false);
+test("dailyQuiz failures are NOT routed to Mendi (ops/data, not code)", () => {
+  assert.strictEqual(isMendiEligible({check: "dailyQuiz"}), false);
 });
+
 
 // ── checkPlayBilling ─────────────────────────────────────────────────
 test("checkPlayBilling passes when the probe proves the wiring", async () => {

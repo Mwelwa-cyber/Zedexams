@@ -4,10 +4,10 @@
  * Two claims, both of which fail silently in production if they stop holding:
  *
  *   1. THE CLIENT AND SERVER LISTS AGREE. `LEARNER_GRADES` decides who may sign
- *      in; `DAILY_EXAM_GRADES` decides which grades the daily-exam rotation
- *      must cover and which grades Vigil pages ops about hourly. A grade in one
+ *      in; `DAILY_QUIZ_GRADES` decides which grades the daily quiz is built
+ *      for and which grades Vigil pages ops about hourly. A grade in one
  *      and not the other is either an hourly alert about learners who cannot
- *      exist, or a live grade with no daily exam. Neither raises an error
+ *      exist, or a live grade with no daily quiz. Neither raises an error
  *      anywhere — the first is noise you learn to ignore and the second is an
  *      empty screen — so it has to be a test.
  *
@@ -28,7 +28,7 @@ import {
 } from '../src/features/learnerOnboarding/lib/setupWizardCore.js'
 
 const require = createRequire(import.meta.url)
-const { DAILY_EXAM_GRADES } = require('../functions/dailyExamPickerCore.js')
+const { DAILY_QUIZ_GRADES } = require('../functions/dailyQuiz/dailyQuizCore.js')
 
 let failures = 0
 function test(name, fn) {
@@ -45,11 +45,11 @@ console.log('learner-grades')
 
 test('client and server rollout lists name the same grades', () => {
   const client = [...LEARNER_GRADES].map(Number).sort((a, b) => a - b)
-  const server = [...DAILY_EXAM_GRADES].map(Number).sort((a, b) => a - b)
+  const server = [...DAILY_QUIZ_GRADES].map(Number).sort((a, b) => a - b)
   assert.deepEqual(
     server, client,
-    'LEARNER_GRADES (src/config/curriculum.js) and DAILY_EXAM_GRADES ' +
-    '(functions/dailyExamPickerCore.js) must list the same grades. ' +
+    'LEARNER_GRADES (src/config/curriculum.js) and DAILY_QUIZ_GRADES ' +
+    '(functions/dailyQuiz/dailyQuizCore.js) must list the same grades. ' +
     `client=[${client}] server=[${server}]`,
   )
 })

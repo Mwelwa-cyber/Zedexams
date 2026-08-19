@@ -918,6 +918,69 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ── Daily Quiz ────────────────────────────────────────────
+    //
+    // Five questions a day per grade, the same five for every learner in
+    // the grade. Replaced the Daily Exam rotation in 2026-08.
+    //
+    // EVERY collection here is server-only for reads as well as writes, and
+    // that is the mechanism rather than a precaution. `dailyQuizzes` holds
+    // the question IDs for a DATE — including future dates, since the
+    // console previews tomorrow — so a client that could read it would hold
+    // tomorrow's quiz tonight, and could pull the questions straight out of
+    // questionBank (which any verified teacher may read for Master-Bank
+    // rows). Denying the read is what makes `getTodaysQuiz` the one read
+    // path structurally, instead of by convention.
+    //
+    // Deny-by-ABSENCE is not used here, unlike the retired class
+    // collections: these paths are actively written by the admin SDK and a
+    // stated deny documents that the silence is deliberate.
+    match /dailyQuizzes/{quizId} {
+      allow read, write: if false;
+    }
+
+    // The attempt AND the once-a-day lock — being keyed uid_date is what
+    // makes it the lock. A learner may READ their own (the results screen
+    // re-opens it) but may never write one: the score is computed by
+    // answerDailyQuizQuestion against a key the client has never seen, and
+    // a client write here would be a self-awarded score AND a way to
+    // re-sit the day.
+    match /dailyAttempts/{attemptId} {
+      allow read: if isVerified()
+        && (resource.data.uid == request.auth.uid || isAdmin());
+      allow write: if false;
+    }
+
+    // The event log and the runway alerts. Admin-readable so /admin/daily-quiz
+    // can answer "why was there no quiz" without a Cloud Logging session;
+    // written only by the admin SDK.
+    match /dailyQuizEvents/{eventId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    match /dailyQuizAlerts/{alertId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // The weekly board: leaderboards/{grade}/weeks/{weekId}/entries/{uid}.
+    //
+    // Readable by any verified user — a board row carries a display name and
+    // a score and nothing else, and it is a ranking, so it is meant to be
+    // seen. Writes are server-only: the entry is incremented by the same
+    // call that marks the attempt, and only for a learner whose guardian has
+    // approved the leaderboard capability. A client write would bypass that
+    // consent check as well as the score.
+    //
+    // This is a SUBCOLLECTION rule and does not inherit from the
+    // `leaderboards/{gameId}` block below — Firestore rules do not cascade
+    // to subcollections without a {document=**} wildcard, so the games
+    // board's `allow read: if true` says nothing about this path.
+    match /leaderboards/{grade}/weeks/{weekId}/entries/{entryUid} {
+      allow read: if isVerified();
+      allow write: if false;
+    }
+
     // ── assessments (teacher-private) ─────────────────────────
     // Assessments are exam-style papers a teacher creates for their own
     // class. Unlike quizzes, they are NEVER shown to learners through the

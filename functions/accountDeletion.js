@@ -66,6 +66,10 @@ const FIELD_QUERY_COLLECTIONS = [
   {collection: "matches", field: "players", op: "array-contains"},
   {collection: "exam_attempts", field: "userId"},
   {collection: "daily_exam_locks", field: "userId"},
+  // The Daily Quiz attempt: the learner's answers, score and the once-a-day
+  // lock, one doc per day. Keyed uid_date, and it also carries `uid` as a
+  // field, which is what this query reads.
+  {collection: "dailyAttempts", field: "uid"},
   {collection: "results", field: "userId"},
   // The learner's own deletion request. Purged rather than retained because it
   // carries `learnerDisplayName` — a child's name, on the record produced by
@@ -163,6 +167,21 @@ const FIELD_QUERY_COLLECTIONS = [
   // and, unpurged, it is live: whoever eventually registered that address
   // would be handed a link to an account that had been deleted.
   {collection: "guardianLinkClaims", field: "learnerUid"},
+];
+
+// The uid identifies a doc in a SUBCOLLECTION, reachable only by collection
+// group. Listed separately because a `db.collection(name)` query cannot see
+// these at all — the top-level name does not exist.
+const COLLECTION_GROUP_COLLECTIONS = [
+  // The Daily Quiz's weekly board:
+  // leaderboards/{grade}/weeks/{weekId}/entries/{uid}. The row carries the
+  // learner's DISPLAY NAME and their score, so it is their data and it goes.
+  //
+  // The `leaderboards` top-level doc stays — it is the games board's
+  // aggregated top-N and holds no uid. That is why this needs its own list:
+  // classifying the parent as retained says nothing about the subcollection,
+  // which is exactly how a child's name survives their account deletion.
+  {group: "entries", field: "uid"},
 ];
 
 // uid lives inside an array on a doc owned by another user.
@@ -292,7 +311,17 @@ async function purgeUserData(db, uid, {FieldValue} = {}) {
     }
   }
 
-  // 3. Array memberships on other users' docs.
+  // 3. Docs in a SUBCOLLECTION, reachable only by collection group.
+  for (const {group, field} of COLLECTION_GROUP_COLLECTIONS) {
+    try {
+      const q = db.collectionGroup(group).where(field, "==", uid);
+      summary.fieldDocs += await deleteByQuery(db, q);
+    } catch (err) {
+      summary.errors.push(`${group}(group).${field}: ${err.message}`);
+    }
+  }
+
+  // 4. Array memberships on other users' docs.
   for (const {collection, field} of ARRAY_MEMBERSHIP_COLLECTIONS) {
     try {
       const snap = await db
@@ -308,7 +337,7 @@ async function purgeUserData(db, uid, {FieldValue} = {}) {
     }
   }
 
-  // 4. Verify the one document that carries the PII, instead of assuming the
+  // 5. Verify the one document that carries the PII, instead of assuming the
   //    deletes above stuck.
   //
   //    They demonstrably did not, three times in production: for the 21–25 s

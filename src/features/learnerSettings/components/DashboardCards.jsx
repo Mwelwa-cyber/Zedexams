@@ -301,7 +301,7 @@ const AI_LINKS = [
   { emoji: '🎯', label: 'My Learning Goal', to: 'open' },
   { emoji: '📚', label: 'Subjects I Want to Improve', to: 'open' },
   { emoji: '🧠', label: "Let AI Choose Today's Practice", to: 'open' },
-  { emoji: '🔥', label: 'Daily Challenge', to: '/exams' },
+  { emoji: '🔥', label: 'Daily Challenge', to: '/daily' },
   { emoji: '📈', label: 'Focus on My Weak Topics', to: 'open' },
   { emoji: '🏆', label: 'Weekly Challenge', to: '/games/leaderboard' },
 ]
