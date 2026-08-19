@@ -21,20 +21,28 @@
  * leaked" would not save it — that detects keys committed to public repos, not
  * keys served in JavaScript.
  *
- * ── Why no defineSecret() ─────────────────────────────────────────────────
- * ELEVENLABS_API_KEY is read from process.env and NOT bound with
- * defineSecret, following functions/analyticsPurge.js. A defineSecret bound to
- * a function whose secret has no value in Secret Manager makes `firebase
- * deploy` HARD-FAIL and blocks EVERY functions deploy. Binding it before the
- * key is bought would wedge deploys for the whole repo. Configure
- * ELEVENLABS_API_KEY in functions/.env.<project> (or add the binding once the
- * secret genuinely exists) and this lights up; leave it unset and the panel
- * honestly reports "not connected".
+ * ── The secret binding, and the order it had to happen in ────────────────
+ * ELEVENLABS_API_KEY is bound with defineSecret below, which is only safe
+ * BECAUSE the secret already holds a value in Secret Manager. A defineSecret
+ * bound to a valueless secret makes `firebase deploy` HARD-FAIL ("no value for
+ * the secret: X") and blocks EVERY functions deploy in the project, not just
+ * this one — the trap documented for RECRAFT_API_KEY in index.js. So the value
+ * was stored first (`firebase functions:secrets:set ELEVENLABS_API_KEY`) and
+ * the binding added second. If this secret is ever retired, delete the binding
+ * and redeploy BEFORE destroying the secret, or the same deploy-wide failure
+ * arrives from the other direction.
+ *
+ * The binding is UNCONDITIONAL, never gated on a process.env flag: deploy-time
+ * analysis runs in a subprocess that never sees functions/.env, so a flag read
+ * at module load is always undefined there and would silently bind nothing —
+ * the #1983/#1991 failure, which passed CI and shipped because an unreferenced
+ * secret is never validated.
  */
 
 "use strict";
 
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {defineSecret} = require("firebase-functions/params");
 const {assertVerifiedAuth} = require("./authGuard");
 const {assertCallableRateLimit} = require("./rateLimit");
 const {getUserRole, isAdminRole} = require("./aiService");
@@ -45,8 +53,15 @@ const {getUserRole, isAdminRole} = require("./aiService");
 // stay clear of it. Same reason as every other *Core.js split here.
 const {GOOGLE_VOICES, googleCatalogue} = require("./ttsAdminCore");
 
+const elevenLabsApiKey = defineSecret("ELEVENLABS_API_KEY");
+
 exports.getTtsControlRoom = onCall(
-  {region: "us-central1", memory: "256MiB", timeoutSeconds: 30},
+  {
+    region: "us-central1",
+    memory: "256MiB",
+    timeoutSeconds: 30,
+    secrets: [elevenLabsApiKey],
+  },
   async (request) => {
     await assertVerifiedAuth(request);
     await assertCallableRateLimit(request, {action: "getTtsControlRoom", userPerMin: 20});

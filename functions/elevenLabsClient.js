@@ -11,9 +11,10 @@
  * scoped so it cannot create voices, touch the workspace, or manage members.
  *
  * ── The unconfigured case is normal, not an error ─────────────────────────
- * ELEVENLABS_API_KEY may legitimately be absent — on a developer machine, in
- * CI, and in production before the key is bought. Every function here reports
- * that as a STATE (`configured: false`) rather than throwing, so the admin
+ * ELEVENLABS_API_KEY may legitimately be absent — on a developer machine and
+ * in CI, neither of which binds the secret, and in any runtime the binding has
+ * not reached yet. Every function here reports that as a STATE
+ * (`configured: false`) rather than throwing, so the admin
  * surface can say "not connected yet" instead of rendering an error, and so
  * the synthesis path can fall back to Google rather than failing a learner's
  * audio over a missing key.
