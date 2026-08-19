@@ -136,29 +136,45 @@ jobs:
       - name: src node coverage
         run: npm run src:coverage
 
-  unit:
+  unit-shards:
     # Vitest (jsdom) component/hook/behaviour specs — the `*.spec.{js,jsx}`
-    # files under src/. Separate from `tests` (the plain-node `*.test.js`
-    # suite) because it needs the jsdom environment. Runs coverage so the
-    # frontend gap is reported on every PR. This is a required status check
-    # on `main` branch protection.
-    name: Tests (Vitest unit + coverage)
-    runs-on: ubuntu-latest
-    # 20, not 10. This is the only job that saturates every core (locally:
-    # ~15m of CPU in ~5m of wall clock across 406 spec files), so it is the
-    # one whose wall time tracks the runner's core count. It ran in 5m16s
-    # while the repository was public; once the repository became private the
-    # same suite stopped finishing inside 10 minutes and was killed mid-run,
-    # twice, on a healthy pass with every spec green. The jobs that are
-    # sequential — src node coverage, test:all, functions coverage — were
-    # unchanged across the same window, which is what points at cores rather
-    # than at a slow test.
+    # files under src/ — SHARDED three ways. This is the only job that
+    # saturates every core (~15m of CPU across ~417 spec files), so it is the
+    # one whose wall time tracks the runner's core count: 5m16s while the
+    # repository was public (4-vCPU standard runners), ~13m40s once it became
+    # private (2-vCPU standard runners) — measured 2026-08-19, and the whole
+    # reason the run's critical path doubled. Sharding buys the cores back by
+    # renting three 2-vCPU runners at once: each shard runs a third of the
+    # spec files (~5–6 min wall) and the `unit` gate below merges the results.
+    # Cost: ~+6 billable minutes per run over the single job — the spend
+    # decision is recorded in the PR that introduced this. If the repository
+    # ever returns to 4-vCPU runners (public again, or a larger-runner label),
+    # collapse this back to one job before reaching for more shards.
     #
-    # This bounds a HANG; it is not a performance budget. Set it well above
-    # the honest runtime so a genuine deadlock still fails in minutes, and do
-    # not tune it down to "just above" the current number — that turns every
-    # slow runner into a red required check on an unrelated PR.
-    timeout-minutes: 20
+    # Mechanics, verified against vitest 4.1.10 before this landed:
+    #   • `--reporter=blob` writes the shard's test results AND raw coverage
+    #     to .vitest-reports/blob-N-3.json; `--merge-reports` in the gate
+    #     reassembles them (merged totals match a single unsharded run).
+    #   • Thresholds are zeroed PER SHARD because each shard sees ~a third of
+    #     the suite, so the config's ratchet (30/28/26/24.5) would fail every
+    #     shard on partial coverage. The gate's merge step re-applies the
+    #     config thresholds against the MERGED totals — the ratchet still
+    #     gates exactly as before, just in the one place that sees the whole
+    #     picture. Do not zero thresholds anywhere else.
+    name: Vitest (shard ${{ matrix.shard }}/3)
+    runs-on: ubuntu-latest
+    strategy:
+      # One flaky shard must not cancel the other two: a cancelled shard has
+      # no blob, which turns a real test failure into a confusing artifact
+      # error in the gate. Let all three finish and report honestly.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    # Bounds a HANG; it is not a performance budget (a shard honestly runs
+    # ~5–6 min on the 2-vCPU runner). Do not tune it down to "just above" the
+    # current number — that turns every slow runner into a red required check
+    # on an unrelated PR.
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
@@ -169,8 +185,88 @@ jobs:
           cache: "npm"
       - name: Install dependencies
         run: npm ci
-      - name: Vitest
-        run: npm run test:coverage
+      - name: Vitest (shard)
+        # `--reporter=default` rides along so a failing spec prints in THIS
+        # job's log — blob alone records silently and the failure would only
+        # surface as the gate's "a shard failed", one click away from why.
+        run: >
+          npx vitest run --coverage --reporter=blob --reporter=default
+          --shard=${{ matrix.shard }}/3
+          --coverage.thresholds.lines=0
+          --coverage.thresholds.statements=0
+          --coverage.thresholds.functions=0
+          --coverage.thresholds.branches=0
+      - name: Upload shard report
+        uses: actions/upload-artifact@v7
+        with:
+          name: vitest-blob-${{ matrix.shard }}
+          path: .vitest-reports/
+          retention-days: 1
+          if-no-files-found: error
+          # upload-artifact v4+ EXCLUDES dot-prefixed paths by default (the
+          # post-CVE guard against globbing .env/.git into an artifact), and
+          # `.vitest-reports` is vitest's fixed blob directory — without this
+          # the shard's own log says "blob report written" and the upload
+          # still finds nothing. The path above names exactly one directory,
+          # so the broad-glob risk the default protects against does not
+          # apply here.
+          include-hidden-files: true
+
+  unit:
+    # The gate that carries the REQUIRED check name. Branch protection knows
+    # this job as "Tests (Vitest unit + coverage)"; the shards above are
+    # deliberately NOT required (a matrix job name is per-shard, and requiring
+    # three names re-litigates the fixed-nine-checks decision). Same pattern
+    # as the Visual regression gate: `if: always()` so it reports under a
+    # stable name on every PR — a required job that can be skipped is a wedged
+    # repo, and a skip is absence of evidence, which fails.
+    #
+    # It fails when any shard failed, when a blob is missing (three shards in,
+    # three blobs out — a merge over two blobs would report two-thirds of the
+    # suite as if it were the whole), and when the MERGED coverage falls below
+    # the ratchet in vitest.config.js, which is enforced here and only here.
+    name: Tests (Vitest unit + coverage)
+    runs-on: ubuntu-latest
+    needs: unit-shards
+    if: always()
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      # download-artifact reads this run's artifacts. On a public repository
+      # an unstated grant was survivable; privately the same call is a 403 —
+      # see test:workflow-api-permissions and the deploy-hosting incident.
+      actions: read
+    steps:
+      # Before spending an npm ci: if a shard failed or was cancelled, this
+      # run's verdict is already known.
+      - name: Require every shard green
+        if: ${{ needs.unit-shards.result != 'success' }}
+        run: |
+          echo "unit-shards result: ${{ needs.unit-shards.result }} — a Vitest shard failed or did not run."
+          exit 1
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci
+      - name: Download shard reports
+        uses: actions/download-artifact@v8
+        with:
+          pattern: vitest-blob-*
+          path: .vitest-reports
+          merge-multiple: true
+      - name: Require every shard report present
+        run: |
+          count=$(ls .vitest-reports/blob-*.json 2>/dev/null | wc -l)
+          if [ "$count" -ne 3 ]; then
+            echo "expected 3 shard blobs in .vitest-reports/, found $count:"
+            ls -la .vitest-reports/ || true
+            exit 1
+          fi
+      - name: Merge shard reports + enforce coverage ratchet
+        run: npx vitest run --merge-reports --coverage
 
   build:
     # Clean build gate (release-safety layer). The pre-merge guarantee that the

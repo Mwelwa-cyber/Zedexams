@@ -25,6 +25,9 @@ coverage-functions
 coverage-src
 *.lcov
 
+# Vitest blob reports (per-shard test+coverage payloads; merged in CI, never committed)
+.vitest-reports
+
 # nyc test coverage
 .nyc_output
 
