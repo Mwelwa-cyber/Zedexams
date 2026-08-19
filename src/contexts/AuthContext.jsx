@@ -36,6 +36,10 @@ import {
   readRecoveryAttempted,
   markRecoveryAttempted,
   clearRecoveryAttempted,
+  planSessionRescue,
+  readRescueAttempts,
+  recordRescueAttempt,
+  clearRescueAttempts,
   shouldFastRecover,
   RELOAD,
   DEFER,
@@ -79,12 +83,9 @@ export { AUTH_HINT_KEY, hasAuthSessionHint }
 // that outlasts its own backoff would stretch a 12 s ladder into a minute.
 export const AUTH_INIT_PROBE_MS = 2000
 
-// How long to wait before re-driving Firebase's initialisation after the guard
-// rescued a session the SDK gave up on. Long enough that a rate limit or a 5xx
-// has a moment to pass — re-asking in the same instant usually re-asks into the
-// same bad window — and short enough that the user is looking at the branded
-// restoration loader rather than wondering what happened.
-export const SESSION_RESCUE_RELOAD_MS = 1500
+// How long to wait before each re-drive of Firebase's initialisation after the
+// guard rescued a session the SDK gave up on now lives with the budget that
+// bounds it — see SESSION_RESCUE_DELAYS_MS in hooks/authInitRecoveryPolicy.
 
 const functions = getFunctions(app, 'us-central1')
 const bootstrapUserProfileCallable = httpsCallable(functions, 'bootstrapUserProfile')
@@ -1142,32 +1143,44 @@ export function AuthProvider({ children }) {
       // deliberate sign-out on this same listener can never be mistaken for a
       // rescue (see disarmAuthSessionGuard).
       const { preserved: sessionRescued, verdict: rescueVerdict } = disarmAuthSessionGuard()
+      const recoveryStorage = typeof window !== 'undefined' ? window.sessionStorage : null
       if (!user && sessionRescued && hasAuthSessionHint()) {
-        const storage = typeof window !== 'undefined' ? window.sessionStorage : null
-        // One attempt per episode, on the SAME flag the wedge recovery uses.
-        // The stored session is still on disk, and re-driving initialisation
-        // is the only way to make the SDK read it again — but a condition that
-        // outlives one retry must not reload forever, and /login is a better
-        // outcome than a loop. Falling through leaves today's behaviour
-        // exactly as it is, which is what makes the worst case the status quo.
-        if (!readRecoveryAttempted(storage) && markRecoveryAttempted(storage)) {
+        // A BUDGET OF ITS OWN — see AUTH_SESSION_RESCUE_KEY. This used to spend
+        // the wedge recovery's single flag, and the two answer different
+        // failures: the wedge reloads without `onAuthStateChanged` ever firing,
+        // so the flag it set survived into the next load (sessionStorage does)
+        // and was read here as an attempt this failure had already spent. The
+        // rescue was then refused, execution fell through, and `authReady` was
+        // set with `currentUser === null` — which every route guard correctly
+        // reads as signed out. That is a logout of an account whose session is
+        // still on disk and was never rejected by anyone.
+        //
+        // The stored session is still on disk, and re-driving initialisation is
+        // the only way to make the SDK read it again — but a condition that
+        // outlives the whole ladder must not reload forever, and /login is a
+        // better outcome than a loop.
+        const plan = planSessionRescue({ attempts: readRescueAttempts(recoveryStorage) })
+        const rescueContext = {
+          viaFastPath: false,
+          documentHidden: typeof document !== 'undefined' && document.visibilityState === 'hidden',
+          hidDuringInit,
+          errorCode: `boot-verdict-${rescueVerdict ?? 'not-observed'}`,
+        }
+        if (plan.action === RELOAD && recordRescueAttempt(recoveryStorage, plan.attempt)) {
           setAuthStateTag('wedged')
           reportAuthInitFailure({
+            ...rescueContext,
             action: 'session-rescued',
-            viaFastPath: false,
-            documentHidden: typeof document !== 'undefined' && document.visibilityState === 'hidden',
-            hidDuringInit,
-            recoveryAttempted: false,
-            attempt: retryAttempt,
-            errorCode: `boot-verdict-${rescueVerdict ?? 'not-observed'}`,
+            recoveryAttempted: plan.attempt > 1,
+            attempt: plan.attempt,
           })
           console.warn(
             '[auth] the stored session survived a failed boot check — re-driving initialisation',
-            { verdict: rescueVerdict ?? 'not-observed' },
+            { verdict: rescueVerdict ?? 'not-observed', attempt: plan.attempt, delayMs: plan.delayMs },
           )
           // `loading` and `authReady` are deliberately left as they are, so the
           // guards keep showing the branded restoration screen rather than
-          // flashing /login for a second and a half.
+          // flashing /login while we wait.
           setTimeout(() => {
             if (disposedRef.current) return
             try {
@@ -1180,13 +1193,28 @@ export function AuthProvider({ children }) {
               console.error('[auth] session-rescue reload failed:', err)
               revealAsSignedOut()
             }
-          }, SESSION_RESCUE_RELOAD_MS)
+          }, plan.delayMs)
           return
         }
-        console.warn('[auth] boot check failed again after a rescue — revealing as signed out')
+        // Out of budget (or storage we cannot write, which is the same answer
+        // for termination). This is the moment a valid-looking session becomes
+        // a trip to /login, and it used to be a bare console.warn — the one
+        // outcome in this whole path with no telemetry at all, which is why it
+        // never appeared in triage beside the rescues that succeeded.
+        setAuthStateTag('wedged')
+        reportAuthInitFailure({
+          ...rescueContext,
+          action: 'session-rescue-exhausted',
+          recoveryAttempted: true,
+          attempt: plan.attempt,
+        })
+        console.warn('[auth] boot check kept failing after every rescue — revealing as signed out')
       }
 
-      clearRecoveryAttempted(typeof window !== 'undefined' ? window.sessionStorage : null)
+      // Both budgets are returned to the tab by an auth event that actually
+      // settled. Each is cleared only here, and never by the other's failure.
+      clearRecoveryAttempted(recoveryStorage)
+      clearRescueAttempts(recoveryStorage)
       // Firebase has actually spoken. Set HERE and nowhere else — in particular
       // NOT by the watchdog above, which drops `loading` without knowing who
       // the user is. `loading === false` therefore means "stop waiting", which

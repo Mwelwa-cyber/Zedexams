@@ -166,3 +166,112 @@ export function clearRecoveryAttempted(storage) {
 export function shouldFastRecover({ hasHint, authUnresolved, hidDuringInit }) {
   return !!(hasHint && authUnresolved && hidDuringInit)
 }
+
+/* ── The session-rescue budget ───────────────────────────────────────────────
+ *
+ * `firebase/authSessionGuard` refuses the SDK's boot-time deletion of a session
+ * the server never rejected, and `AuthContext` answers that by re-driving
+ * initialisation — a reload, because the SDK exposes no other way to make it
+ * read the blob again. That recovery needs a budget for the same reason the
+ * wedge recovery does: a condition that outlives every attempt must end at
+ * /login rather than in a reload loop.
+ *
+ * It needs its own budget, and that is the bug this section exists for. Both
+ * recoveries used to share `AUTH_INIT_RECOVERY_KEY`, and they are triggered by
+ * DIFFERENT failures:
+ *
+ *   • the wedge      — `onAuthStateChanged` never fires at all (PYTHON-K/N)
+ *   • the boot check — it fires with `user === null` after a failed
+ *                      verification the guard refused to act on (PYTHON-P)
+ *
+ * Sharing one single-use flag made them interfere in both directions. The worse
+ * direction is the wedge's: it reloads WITHOUT `onAuthStateChanged` ever having
+ * fired, and `clearRecoveryAttempted` is only ever called from inside that
+ * callback — so the flag survives the reload, and the boot-check failure on the
+ * next load reads someone else's spent attempt as its own. It is then denied
+ * the rescue, falls through, and sets `authReady` with `currentUser === null`,
+ * which every route guard correctly reads as signed out. The session blob is
+ * still on disk and still valid; the user lands on /login anyway. sessionStorage
+ * outlives a reload, so once a tab hit the wedge, every boot-check failure in
+ * that tab was logged straight out with no attempt at all.
+ *
+ * Two keys, two budgets, no interference. Each is cleared only by an auth event
+ * that actually settles, so neither can be spent on the other's failure.
+ */
+
+/** sessionStorage key holding how many rescue reloads this tab has spent. */
+export const AUTH_SESSION_RESCUE_KEY = 'auth:sessionRescueAttempts'
+
+/**
+ * How long to wait before each re-drive of initialisation.
+ *
+ * A ladder rather than the single 1500 ms attempt this replaces, because the
+ * causes `authBootVerdict` names — a project-wide 429, a 5xx, an attestation
+ * refusal — routinely outlive a second and a half, and asking again inside the
+ * same bad window mostly re-asks into it. Two rungs is the whole budget: ~7.5 s
+ * of branded restoration screen against a spurious logout, and a hard stop
+ * after it.
+ */
+export const SESSION_RESCUE_DELAYS_MS = Object.freeze([1500, 6000])
+
+/**
+ * How many rescue reloads has this tab already spent?
+ *
+ * Fails CLOSED, exactly as `readRecoveryAttempted` does: storage we cannot read
+ * reports the budget EXHAUSTED, because an attempt we cannot count is an
+ * attempt we cannot bound.
+ */
+export function readRescueAttempts(storage) {
+  try {
+    if (!storage) return SESSION_RESCUE_DELAYS_MS.length
+    const raw = Number.parseInt(storage.getItem(AUTH_SESSION_RESCUE_KEY) ?? '0', 10)
+    if (!Number.isFinite(raw) || raw < 0) return SESSION_RESCUE_DELAYS_MS.length
+    return raw
+  } catch {
+    return SESSION_RESCUE_DELAYS_MS.length
+  }
+}
+
+/**
+ * Record that a rescue reload is about to happen.
+ *
+ * Returns whether it was durably stored — the caller must NOT reload on
+ * `false`, for the same termination reason `markRecoveryAttempted` gives.
+ */
+export function recordRescueAttempt(storage, attempt) {
+  try {
+    if (!storage) return false
+    storage.setItem(AUTH_SESSION_RESCUE_KEY, String(attempt))
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Return the budget to the tab once auth has actually settled. */
+export function clearRescueAttempts(storage) {
+  try {
+    storage?.removeItem(AUTH_SESSION_RESCUE_KEY)
+  } catch {
+    /* nothing to clean up if storage is unavailable */
+  }
+}
+
+/**
+ * Decide whether to re-drive initialisation again, and after how long.
+ *
+ * Pure so the budget is testable without a DOM: the whole termination argument
+ * is that `attempt` only ever climbs, and is reset solely by an auth event that
+ * settled — which requires a successful initialisation in between.
+ *
+ * @param {object} state
+ * @param {number} state.attempts Rescue reloads already spent in this tab.
+ * @returns {{action: 'reload'|'reveal', delayMs: number, attempt: number}}
+ */
+export function planSessionRescue({ attempts = 0 } = {}) {
+  const spent = Number.isFinite(attempts) && attempts > 0 ? attempts : 0
+  if (spent >= SESSION_RESCUE_DELAYS_MS.length) {
+    return { action: REVEAL, delayMs: 0, attempt: spent }
+  }
+  return { action: RELOAD, delayMs: SESSION_RESCUE_DELAYS_MS[spent], attempt: spent + 1 }
+}
