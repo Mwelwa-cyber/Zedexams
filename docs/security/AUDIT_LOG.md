@@ -16,6 +16,71 @@ secret it is auditing is itself the leak.
 
 ---
 
+## 2026-08-19 — Full-history secret scan before returning the repository to public
+
+**Verdict: one credential set requires revocation — MTN MoMo *sandbox* API
+credentials, hard-coded in `functions/index.js` in May 2026, in code that no
+longer exists. Everything else found is public-by-design configuration, a
+throwaway browser profile's own local crypto material, or a test fixture. No
+production credential, and no AI-provider, payment-provider, or Firebase-admin
+key, was ever committed.**
+
+**Trigger.** The repository was private for one day (2026-08-18 → 2026-08-19)
+and was returned to **public** on 2026-08-19 to restore free Actions minutes and
+4-vCPU runners. Going public exposes *every commit ever made*, not just the
+current tree, so the whole history had to be cleared first — and the working
+tree having been clean was never evidence about the history behind it.
+
+**Scope.** All **3,148 commits** reachable from any ref (~235 MB of blob
+content). The session's clone was shallow at 106 commits and was `--unshallow`ed
+first — a shallow scan would have reported clean while examining 3% of the
+history, which is the failure mode this entry exists to rule out.
+
+**Method.** `gitleaks` 8.28.0 over the full commit graph. Findings were then
+grouped by *distinct secret value* (60 raw hits collapsed to 24 unique values),
+because a per-hit count is dominated by the same public key reappearing in 23
+build artefacts and says nothing about how many real credentials exist. Each
+distinct value was classified by what produced it and whether it is secret at
+all. No value was printed to a terminal, log, commit, or chat.
+
+**Findings — 24 distinct values:**
+
+| Values | Category | Secret? | Action |
+|---|---|---|---|
+| 3 | **MTN MoMo sandbox credentials** (`MOMO_SUBSCRIPTION_KEY`, `MOMO_API_USER`, `MOMO_API_KEY`), hard-coded in `functions/index.js` at commit `d7cc84a0` (2026-05-01), `MOMO_ENV = "sandbox"` | **Yes — sandbox scope** | **Revoke in the MTN developer portal.** Now permanently public |
+| 1 | Firebase **Web** API key (`AIzaSy…`), in 22 committed `dist_test*/` bundles + a QA browser cache | No — ships in every browser bundle at zedexams.com | Confirm App Check enforcement + API key referrer restrictions |
+| 1 | Firebase **Android** API key, `functions/google-services.json` | No — ships inside the Play Store APK | None |
+| 6 | Chromium profile crypto material from the committed `.playwright/qa-profile/` (OS-crypt wrapped key, Secure-Preferences MACs, an RSA *public* key) | No — the throwaway profile's own local state, not a ZedExams credential | None; already gitignored |
+| 13 | Test fixtures and false positives — the literal `"africa-south1"`, `parentPortal.js`'s `TOKEN_ALPHABET` character set, swagger-example UUIDs, and the deliberate fake keys inside `test-secret-hygiene.mjs` itself | No | None |
+
+**Why the MoMo credentials are low severity but still require revocation.** They
+address MTN's *sandbox* host (`sandbox.momodeveloper.mtn.com`), move no real
+money, and the direct-MoMo integration was replaced by Lenco — no reference to
+`momodeveloper`, `MOMO_API_KEY`, or that code path survives anywhere at `HEAD`.
+The reason to revoke anyway is that they are a real developer-account credential
+that is now permanently readable by anyone, and a sandbox account is a foothold
+for probing the same account's production side. Revocation costs nothing because
+nothing consumes them.
+
+**What was NOT found**, stated explicitly because absence is the useful result:
+no Anthropic, OpenAI, or Gemini key; no Lenco API key; no Firebase service-account
+or admin private key; no Meta/WhatsApp token or app secret; no SMTP credential;
+no GitHub token; no PEM private key of any kind.
+
+**No history rewrite was performed and none is required.** The one real finding
+is sandbox-scoped and is handled by revocation, which is strictly better than a
+rewrite: rewriting 3,148 commits would break every existing clone, fork, and
+open PR, and would not un-publish anything already fetched. Revocation makes the
+exposed value worthless, which a rewrite cannot.
+
+**Follow-on hardening landed with this entry:** GitHub secret scanning and push
+protection are automatically re-enabled by the repository being public, and
+`codeql.yml` — deleted on going private because code scanning needs Advanced
+Security there — was restored from git history along with
+`.github/codeql/codeql-config.yml` and `test:codeql-scope`.
+
+---
+
 ## 2026-08-04 — Phase 0A secret exposure gate: `functions/.env.examsprepzambia`
 
 **Verdict: no incident. No credential was ever committed; no rotation was

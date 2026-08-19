@@ -358,6 +358,7 @@
     "test:sw-navigate-fallback": "node scripts/test-sw-navigate-fallback.mjs",
     "test:prerender-title-dedup": "node scripts/test-prerender-title-dedup.mjs",
     "test:prerender-retry": "node scripts/test-prerender-retry.mjs",
+    "test:codeql-scope": "node scripts/test-codeql-scope.mjs",
     "test:secret-hygiene": "node scripts/test-secret-hygiene.mjs",
     "test:grant-superadmin-config": "node scripts/test-grant-superadmin-config.mjs",
     "test:playwright-mcp-env": "node scripts/test-playwright-mcp-env.mjs",

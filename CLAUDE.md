@@ -998,23 +998,78 @@ Beyond the content line, a fleet of **ops/growth agents** runs on schedules in `
 
 **Vex** bypasses the whole pipeline (synchronous callable from the quiz editor); **Qix** (see above) runs off its own `questionBank` trigger rather than `agentJobs`. **Mendi** (bug-fixer) is a subagent invoked from CI on a `bug` label. **Ledger** (release notes) runs on a GitHub Actions **daily cron** (22:00 Africa/Lusaka) and **calls no model** — it assembles the changelog from commit subjects, so the workflow holds no Anthropic secret. Two things were fixed in 2026-08: it had been a silent no-op for months (`git log --merges` selects nothing on a squash-merged trunk, so it exited before its API call), and once fixed to walk `--first-parent` the model turned out not to be earning its keep — only 39% of commits carry a conventional prefix and 15 of those 21 were Dependabot, while the unprefixed 61% are already well-formed sentences, so it was paraphrasing good prose into different good prose. It now buckets what has a prefix, prints the rest VERBATIM under `Changed`, and collapses Dependabot to one line; the draft PR reports how many entries were classified versus merely listed. Invoke the `release-notes` subagent on a drafted section when a release actually wants polish. Rules + rendering are pure and tested in `scripts/agents/releaseNotesCore.mjs` (`test:release-notes`). **Rex** (code review) is on-demand ONLY — his per-PR GitHub Action was deleted in 2026-08 because it billed the Anthropic API on every push to a PR branch while never being a required check, and because required CI already enforces four of his five checks deterministically (`test:secret-hygiene`, `test:rules-text`, `test:ai-provider-inventory`, `test:ai-dev-guide`). Invoke the `code-reviewer` subagent when you want him; that runs on the session, not on the agents key. Do not re-add a per-PR action without a cost decision. **Security Review** (`security-review.yml`, Anthropic's `claude-code-security-review` action) went opt-in the same way in 2026-08: apply the **`security-review`** label to a PR to run it, or `workflow_dispatch` to re-run one; remove and re-apply the label to re-scan after a fix. Nothing else starts it, so an unlabelled PR costs nothing. `test:security-review-trigger` fails if an automatic trigger comes back or if the label in the workflow drifts from the one documented here.
 
-**⚠️ THE REPOSITORY IS PRIVATE (since 2026-08-18).** Three consequences that change what you should DO, beyond the scanning gap described below:
+**THE REPOSITORY IS PUBLIC AGAIN (since 2026-08-19).** It was private for one
+day (2026-08-18 → 2026-08-19). Three consequences, and the reason the flip back
+happened:
 
-- **Actions minutes are METERED.** Measured on 2026-08-18, after the flip: one CI run bills ~36 minutes across its ten jobs, and a PR push costs 37–66 minutes once the visual gate is counted (it was 44–73 before CodeQL was removed, which is 7 of the minutes that removal bought back). At the historical cadence (~30 CI runs/day) that is tens of thousands of minutes a month against an allowance of 2,000–3,000. Adding a job, or widening what triggers one, is now a spend decision — treat it the way `ci.yml` already treats runner contention. The same measurement corroborates the core-count finding in `ci.yml`'s Vitest timeout comment: that job billed 14 of the 36 minutes.
-- **GitHub secret scanning and push protection are OFF.** They are free only on public repositories. This is what raised alert #1 in `docs/security/AUDIT_LOG.md` (the committed Chromium profile), and it is gone. The pre-commit hook runs `check-file-integrity.mjs` and does **not** scan for credentials, so `test:secret-hygiene` in CI is the only backstop left between a pasted key and `main` — do not weaken it.
-- **`GITHUB_TOKEN` now actually needs the scopes a workflow always should have declared.** Every `/repos/{owner}/{repo}/actions/...` endpoint is anonymously readable on a public repository, so a job calling one was answered whatever its `permissions:` block said. Privately, the same call is 403. This took production Hosting down for two commits on the day of the flip: `deploy-hosting.yml`'s "Wait for Deploy Firebase run" step declared only `contents: read`, and because that step is gated on `firebase_changes.required` it failed **only** on a push that also touched `firestore.rules` / `firestore.indexes.json` / `functions/` — hosting-only pushes stayed green throughout, which is why runs #2160 and #2161 looked like a new bug rather than a config gap of long standing. Both shipped Cloud Functions and left the frontend behind them, the one skew direction that breaks users. `test:workflow-api-permissions` now fails the build if a workflow calls the Actions REST API (or `gh run`/`gh workflow`/`gh api .../actions/`) without granting `actions`. **When you add a step that reads workflow runs, jobs, artifacts or caches, declare `actions: read` on its job** — an unstated permission is not a grant, it was only ever an unenforced one.
+- **Actions minutes are FREE again.** Private billing is what forced the flip
+  back: one CI run billed ~36 minutes across its ten jobs, so at the historical
+  cadence (~30 runs/day) the 2,000-minute free allowance was exhausted inside
+  two days, and every job account-wide then died in under 10 seconds against a
+  $0 spending limit. On a public repository minutes are unmetered, so adding a
+  job is a wall-clock decision again rather than a spend decision. **The Vitest
+  sharding introduced while private (#2503) stays** — it is a straight
+  wall-clock win at zero cost now, not a workaround.
+- **Standard runners are 4-vCPU/16 GB again** (private drops to 2-vCPU/7 GB).
+  That single change is what doubled CI: the Vitest job, the one that saturates
+  every core, went 5m16s → ~13m40s and back. See `ci.yml`'s Vitest timeout
+  comment — that job's wall time tracks the runner's core count and nothing
+  else.
+- **GitHub secret scanning and push protection are ON again.** They are free
+  only on public repositories. `test:secret-hygiene` in CI is no longer the only
+  backstop between a pasted key and `main` — but it is still the one that runs
+  at commit time in spirit, so do not weaken it.
 
-**Nothing scans for vulnerabilities automatically. This is a known, accepted gap** (2026-08-18) — state it plainly rather than assuming something is watching.
+**`GITHUB_TOKEN` scopes: keep declaring them.** Every
+`/repos/{owner}/{repo}/actions/...` endpoint is anonymously readable on a public
+repository, so a job calling one is answered whatever its `permissions:` block
+says. Privately the same call is 403 — which took production Hosting down for
+two commits on the day of the private flip (`deploy-hosting.yml`'s "Wait for
+Deploy Firebase run" step declared only `contents: read`, and being gated on
+`firebase_changes.required` it failed only on pushes that also touched
+`firestore.rules` / `firestore.indexes.json` / `functions/`, so runs #2160 and
+#2161 looked like a new bug rather than a config gap of long standing).
+`test:workflow-api-permissions` still fails the build if a workflow calls the
+Actions REST API without granting `actions`, and it should: **an unstated
+permission is not a grant, it is only unenforced while the repo is public.**
+Going private again must not be able to break deploys a second time.
 
-CodeQL used to fill it (`codeql.yml`, added 2026-08). It was removed when the repository went **private**, because its entire rationale was cost: it was free *on a public repository*, which is what let it restore default coverage after the AI review went opt-in at zero Anthropic spend. On a private repository code scanning requires GitHub Advanced Security, and until that is enabled the workflow does not fail *findings* — it fails to start, with "Code scanning is not enabled for this repository", on every PR. A permanently red check that examines nothing is worse than no check: it trains everyone to ignore a red mark. `codeql.yml`, `.github/codeql/codeql-config.yml` and `test:codeql-scope` went with it.
+**Vulnerability scanning is automatic again.** `codeql.yml` (+
+`.github/codeql/codeql-config.yml`, `test:codeql-scope`) was deleted when the
+repo went private, because code scanning needs GitHub Advanced Security there
+and the workflow failed to *start* on every PR — a permanently red check that
+examines nothing is worse than no check. It is **restored** now that it is free
+again. It is NOT a required check and must not become one: code scanning reports
+against the whole repository, so a pre-existing alert unrelated to a PR would
+block that PR. Read the Security tab; do not gate on it.
 
-So today the security surface is:
+So the security surface is:
 
-- **`security-review` label** — Anthropic's reviewer (`security-review.yml`), opt-in per PR. It comments on the PR (`comment-pr: true`) rather than uploading to code scanning, so it is unaffected by the repository being private and works right now. It runs when someone remembers, which on most PRs will be never. **Label anything touching auth, Firestore rules, payments, user input, or a new external surface.**
-- **Deterministic CI** — `test:secret-hygiene`, `test:rules-text`, `test:storage-rules-text`, and the Firestore/Storage rules emulator jobs. These cover secrets and rules TEXT plus rules BEHAVIOUR; they do not look at application logic. Note that `test:secret-hygiene` is now the ONLY credential check — GitHub push protection went with the repository going private, so nothing blocks a secret at commit time any more.
-- **Nothing else.** No taint analysis, no automatic per-PR scan.
+- **CodeQL** (`codeql.yml`) — automatic taint analysis on every PR to `main`,
+  plus a Monday baseline refresh. Findings land in the Security tab.
+- **`security-review` label** — Anthropic's reviewer (`security-review.yml`),
+  opt-in per PR, complementary to CodeQL: it reads one diff and can reason about
+  authorization semantics ("this callable never checks the caller's role") that
+  taint analysis cannot. **Label anything touching auth, Firestore rules,
+  payments, user input, or a new external surface.** Note it is triggered by
+  `pull_request`, so a **fork** PR gets no secrets and the job cannot run — that
+  is correct (it fails closed rather than leaking the key), but it means a
+  contributor's PR is never AI-reviewed.
+- **Deterministic CI** — `test:secret-hygiene`, `test:rules-text`,
+  `test:storage-rules-text`, and the Firestore/Storage rules emulator jobs.
+- **GitHub secret scanning + push protection** — free again, blocking a
+  credential at push time.
 
-Two ways to close it, if the gap is judged too wide: enable GitHub Advanced Security and restore `codeql.yml` from git history (`git log --diff-filter=D -- .github/workflows/codeql.yml`), or give `security-review.yml` a `paths:`-filtered automatic trigger over the security-sensitive directories so the PRs that can carry a vulnerability are scanned without paying for the ones that cannot. Neither is done. The full agent roster (including departments + invocation modes) is the single source of truth in `src/config/agents.js`; keep it and [`ORG.md`](./ORG.md) in sync when you add one.
+**Public-repo hazard to keep in mind: fork PRs and issue triggers.** No workflow
+uses `pull_request_target`, and both of `agent-bug-fixer.yml`'s paths are
+guarded — the `/mendi` comment path by an `author_association` allowlist, and
+the `bug` label path by GitHub's own permission model (labelling needs triage
+access, which the public does not have). **Keep it that way**: any new workflow
+that runs on `issue_comment`, `issues`, or `pull_request_target` is reachable by
+anyone on the internet and must carry an equivalent guard before it touches a
+secret or gets `contents: write`.
+
+The full agent roster (including departments + invocation modes) is the single source of truth in `src/config/agents.js`; keep it and [`ORG.md`](./ORG.md) in sync when you add one.
 
 **Bonga** (`apiWhatsAppWebhook`, runner `functions/agents/runners/bonga.js`) is the one agent that talks to people directly. It's an `onRequest` webhook Meta calls on every inbound WhatsApp message: it classifies the message (study / support / sales), drafts a reply with Claude Haiku (`functions/agents/runners/bonga.js` is the pure, unit-testable brain; the model + Firestore I/O live in the webhook), and **auto-sends** the reply inside WhatsApp's 24-hour customer-service window via `metaWhatsApp.sendWhatsAppText`. Safety rails: the `X-Hub-Signature-256` HMAC is validated against `META_WHATSAPP_APP_SECRET` (fail-closed once set), `agentControl/bonga.paused` is an instant kill-switch, replies dedupe per Meta message id, and the system prompt forbids fabricating account/payment state. Conversations + reply status log to `whatsappConversations/{phone}`. New secrets: `META_WHATSAPP_VERIFY_TOKEN` (GET handshake) + `META_WHATSAPP_APP_SECRET` (payload HMAC), alongside the existing `META_WHATSAPP_TOKEN` / `META_WHATSAPP_PHONE_NUMBER_ID`. The pure webhook helpers (handshake match, signature check, payload parse) live in `functions/metaWhatsAppCore.js` so they test under plain `node` with no firebase-functions dep (the `*Core.js` split). Meta's webhook URL is `https://zedexams.com/api/whatsapp/webhook`.
 

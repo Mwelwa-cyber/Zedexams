@@ -144,12 +144,20 @@ jobs:
     # repository was public (4-vCPU standard runners), ~13m40s once it became
     # private (2-vCPU standard runners) — measured 2026-08-19, and the whole
     # reason the run's critical path doubled. Sharding buys the cores back by
-    # renting three 2-vCPU runners at once: each shard runs a third of the
-    # spec files (~5–6 min wall) and the `unit` gate below merges the results.
-    # Cost: ~+6 billable minutes per run over the single job — the spend
-    # decision is recorded in the PR that introduced this. If the repository
-    # ever returns to 4-vCPU runners (public again, or a larger-runner label),
-    # collapse this back to one job before reaching for more shards.
+    # renting three runners at once: each shard runs a third of the spec files
+    # and the `unit` gate below merges the results.
+    #
+    # The repository went PUBLIC again on 2026-08-19 (4-vCPU runners, unmetered
+    # minutes) and this stays sharded anyway, which is a reversal of what this
+    # comment said when it landed — so here is the arithmetic. Single job on
+    # 4-vCPU: ~5m20s of suite + ~40s setup ≈ 6m. Sharded on 4-vCPU: ~2m of
+    # suite + ~40s setup per shard, then the gate (~1m, serialized after) ≈
+    # 4m20s. Still the faster shape, and the ~+6 billable minutes it costs
+    # stopped mattering the moment minutes became free. What WOULD justify
+    # collapsing it back: the gate's merge step becoming a maintenance problem,
+    # or the suite shrinking enough that per-shard setup dominates. Neither is
+    # true today. Do not add a fourth shard without re-measuring — setup cost
+    # per shard is fixed and eats the gain quickly.
     #
     # Mechanics, verified against vitest 4.1.10 before this landed:
     #   • `--reporter=blob` writes the shard's test results AND raw coverage
