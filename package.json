@@ -824,7 +824,6 @@
     "test:shared-consent-neutral": "node functions/shared/consent/neutrality.test.js",
     "test:consent-guard": "node functions/consentGuard.test.js",
     "test:child-price": "node functions/paymentHandlers.childPrice.test.js",
-    "test:rules-emulator-coverage": "node scripts/test-rules-emulator-coverage.mjs",
     "test:signup-flow": "node scripts/test-signup-flow.mjs",
     "test:age-answer": "node scripts/test-age-answer.mjs",
     "test:user-age-bootstrap": "node functions/guardianConsent/userAgeBootstrap.test.js",
