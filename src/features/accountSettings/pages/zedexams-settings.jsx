@@ -33,6 +33,7 @@ import {
   categoriesForAudience,
   normalizeNotificationPrefs,
 } from '../../../engines/notification-engine/notificationPrefs';
+import { LEARNER_GRADES } from '../../../config/curriculum';
 
 /* ============================================================================
  * ZedExams — Settings module
@@ -731,7 +732,11 @@ function TabSidebar({ tabs, active, onChange, isMobile }) {
 
 /* ── Learner panels (Firestore-wired) ─────────────────────────────────────── */
 
-const GRADE_NUMBERS = [4, 5, 6, 7];
+// The grades a learner may put themselves in — the staged-rollout list, not
+// the curriculum catalogue. This was a third hard-coded [4, 5, 6, 7] (after
+// the wizard's and learnerPrefs') and would have gone on offering a closed
+// grade after the other two stopped.
+const GRADE_NUMBERS = LEARNER_GRADES;
 
 // Notification categories + normalizer are shared with the Teacher Settings
 // page — see src/engines/notification-engine/notificationPrefs.js (imported above).

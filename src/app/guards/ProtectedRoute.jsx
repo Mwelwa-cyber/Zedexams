@@ -10,7 +10,7 @@ import VerifyEmailBanner from '../../components/ui/VerifyEmailBanner'
 const ROLE_LEVEL = { superAdmin: 4, admin: 3, teacher: 2, learner: 1, student: 1 }
 
 export default function ProtectedRoute({ children, requiredRole }) {
-  const { currentUser, userProfile, loading, profileIssue, needsEmailVerification } = useAuth()
+  const { currentUser, userProfile, loading, authReady, profileIssue, needsEmailVerification } = useAuth()
   const location = useLocation()
 
   // Branded session-restoration screen (progressive stages + offline/timeout/
@@ -22,11 +22,20 @@ export default function ProtectedRoute({ children, requiredRole }) {
   // still true. The skeleton is shown only for the teacher workspace and only
   // once auth has resolved (handled inside the screen), so a signed-out visitor
   // can't glimpse an authenticated layout.
-  if (loading) {
+  //
+  // `authReady` is the gate, and `loading` alone is NOT: the restoration
+  // watchdog drops `loading` after its window WITHOUT knowing who the user is,
+  // so `loading === false && currentUser === null` is not "signed out" — it is
+  // "we stopped waiting". Redirecting on that pair is precisely how a cold load
+  // of /dashboard bounced a learner holding a valid refresh token to /login and
+  // left them there. Until Firebase has actually emitted, this guard decides
+  // nothing and navigates nowhere.
+  if (!authReady || loading) {
     return <SessionRestorationLoader showDashboardSkeleton={requiredRole === 'teacher'} />
   }
-  // Genuinely signed out. Carry the requested URL so Login can send the user
-  // back to the page they were on instead of the generic role landing page.
+  // Genuinely signed out — Firebase said so, rather than a timer having given
+  // up. Carry the requested URL so Login can send the user back to the page
+  // they were on instead of the generic role landing page.
   if (!currentUser) {
     return <Navigate to="/login" replace state={{ from: location }} />
   }

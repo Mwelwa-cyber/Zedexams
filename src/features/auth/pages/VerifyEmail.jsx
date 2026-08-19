@@ -21,7 +21,7 @@ const AUTO_CHECK_THROTTLE_MS = 10_000
  */
 export default function VerifyEmail() {
   const {
-    currentUser, userProfile, loading, emailVerified,
+    currentUser, userProfile, loading, authReady, emailVerified,
     refreshEmailVerification, resendVerificationEmail, logout,
   } = useAuth()
   const navigate = useNavigate()
@@ -61,7 +61,7 @@ export default function VerifyEmail() {
   }, [currentUser, emailVerified, silentCheck])
 
   // ── Guard block: this page renders ONLY for signed-in, unverified users ──
-  if (loading || (currentUser && emailVerified === null)) {
+  if (!authReady || loading || (currentUser && emailVerified === null)) {
     return <FullScreenLoader label="Restoring your session…" />
   }
   if (!currentUser) return <Navigate to="/login" replace />

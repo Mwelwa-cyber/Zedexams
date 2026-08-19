@@ -436,7 +436,7 @@ export default function Register() {
                 onClick={() => pickRole('learner')}
                 emoji="🎓"
                 name="Learner"
-                hint={<>Grades 4–7<br />Exam practice</>}
+                hint={<>Grade 7<br />Exam practice</>}
               />
               <RoleCard
                 active={isTeacher}
@@ -474,7 +474,7 @@ export default function Register() {
                   ? 'Access lesson plans, schemes of work & teaching tools'
                   : isParent
                     ? "Follow your child's quiz scores, streaks & subjects"
-                    : "You'll get access to Grade 4–7 quizzes & exam practice"}
+                    : "You'll get access to Grade 7 quizzes & exam practice"}
               </span>
             </div>
 

@@ -15,6 +15,14 @@
  *   3. IT ONLY APPLIES TO LEARNERS. Admins and parents reach learner screens
  *      through `LearnerOnlyRoute` and have no grade of their own; sending
  *      them to a child's setup wizard would be a dead end they cannot leave.
+ *
+ * It tests against `GRADES`, the full catalogue, and NOT the staged-rollout
+ * list. That is deliberate: this gate's question is "does this learner have a
+ * grade at all", and a learner whose grade is real but not yet open is a
+ * different case with a different answer — `LearnerGradeGate` holds them on
+ * the waitlist BEFORE this runs, keeping their grade rather than marching them
+ * back through a wizard that would overwrite it. Narrowing the list here is
+ * exactly the silent relabel that gate exists to prevent.
  */
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
@@ -22,12 +30,18 @@ import { GRADES } from '../../config/curriculum'
 import { needsSetup } from '../../features/learnerOnboarding'
 
 export default function LearnerSetupGate({ children }) {
-  const { userProfile, isLearner } = useAuth()
+  const { userProfile, isLearner, authReady } = useAuth()
   const location = useLocation()
 
   // The wizard lives outside this gate, but guard the loop anyway — a future
   // route move must not be able to make /setup redirect to itself.
   if (location.pathname.startsWith('/setup')) return children
+  //   4. IT NEVER NAVIGATES BEFORE AUTH RESOLVES. `isLearner` is false while
+  //      auth is unresolved, so today this already falls through — but it falls
+  //      through by accident, on a flag that means "not a learner" rather than
+  //      "not known yet". Stated explicitly so a future rewrite of the role
+  //      flags cannot turn a cold start into a redirect to /setup.
+  if (!authReady) return children
   if (!isLearner) return children
   if (!needsSetup(userProfile, GRADES)) return children
 

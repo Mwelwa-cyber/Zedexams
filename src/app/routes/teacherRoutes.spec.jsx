@@ -47,6 +47,9 @@ vi.mock('../../contexts/NotificationContext', () => ({
 const auth = {
   logout: vi.fn().mockResolvedValue(),
   loading: false,
+  // Firebase has emitted. Route guards decide nothing before this is true, so
+  // a fixture describing a signed-in teacher has to say so explicitly.
+  authReady: true,
   isAdmin: false,
   isTeacher: true,
   currentUser: { uid: 't1', displayName: 'Bwalya Chanda', email: 'bwalya@example.com', emailVerified: true },

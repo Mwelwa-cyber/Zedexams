@@ -5,6 +5,12 @@
  *   1. While AuthContext is still restoring the session (loading === true),
  *      the guard shows the branded loader and NEVER redirects to /login,
  *      even though currentUser is still null on those first frames.
+ *   1b. And — the sharper version of the same rule — it never redirects while
+ *      `authReady` is false, whatever `loading` says. The restoration watchdog
+ *      drops `loading` on a timer without knowing who the user is, so
+ *      `loading === false && currentUser === null` is NOT evidence of a
+ *      signed-out visitor. Deciding on that pair is what left a learner with a
+ *      valid refresh token stranded on /login after a cold load.
  *   2. A genuinely signed-out visit redirects to /login carrying the
  *      requested URL in location.state.from so Login can send them back.
  *   3. A transient profile failure (profileIssue) renders the recovery
@@ -62,7 +68,7 @@ beforeEach(() => {
 
 describe('ProtectedRoute', () => {
   it('holds on the loader while the session is restoring — no /login redirect', () => {
-    useAuth.mockReturnValue({ currentUser: null, userProfile: null, loading: true, profileIssue: null })
+    useAuth.mockReturnValue({ currentUser: null, userProfile: null, loading: true, authReady: false, profileIssue: null })
 
     renderGuard(<ProtectedRoute><div data-testid="page" /></ProtectedRoute>)
 
@@ -71,8 +77,48 @@ describe('ProtectedRoute', () => {
     expect(screen.queryByTestId('page')).not.toBeInTheDocument()
   })
 
+  // ── The cold-load wedge ────────────────────────────────────────────────
+  // This is the incident. The restoration watchdog drops `loading` after its
+  // window WITHOUT knowing who the user is, so a returning learner holding a
+  // valid refresh token was seen as `loading === false && currentUser === null`
+  // — indistinguishable from signed out — and bounced to /login, where they
+  // stayed. `authReady` is the only signal that separates "Firebase said no
+  // user" from "Firebase has not said anything yet".
+  it('never redirects to /login before Firebase has emitted, even once loading has been dropped', () => {
+    useAuth.mockReturnValue({
+      currentUser: null,
+      userProfile: null,
+      loading: false,      // the watchdog gave up…
+      authReady: false,    // …but Firebase never actually spoke
+      profileIssue: null,
+    })
+
+    renderGuard(<ProtectedRoute><div data-testid="page" /></ProtectedRoute>)
+
+    expect(screen.queryByTestId('login-page')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('page')).not.toBeInTheDocument()
+    expect(screen.getByText(/restoring your session/i)).toBeInTheDocument()
+  })
+
+  it('holds the loader while auth is unresolved even with a role required', () => {
+    useAuth.mockReturnValue({
+      currentUser: null,
+      userProfile: null,
+      loading: false,
+      authReady: false,
+      profileIssue: null,
+    })
+
+    renderGuard(
+      <ProtectedRoute requiredRole="teacher"><div data-testid="page" /></ProtectedRoute>,
+    )
+
+    expect(screen.queryByTestId('login-page')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('page')).not.toBeInTheDocument()
+  })
+
   it('redirects a genuinely signed-out user to /login with the requested route in state.from', () => {
-    useAuth.mockReturnValue({ currentUser: null, userProfile: null, loading: false, profileIssue: null })
+    useAuth.mockReturnValue({ currentUser: null, userProfile: null, loading: false, authReady: true, profileIssue: null })
 
     renderGuard(<ProtectedRoute><div data-testid="page" /></ProtectedRoute>)
 
@@ -85,6 +131,7 @@ describe('ProtectedRoute', () => {
       currentUser: { uid: 'u1' },
       userProfile: null,
       loading: false,
+      authReady: true,
       profileIssue: 'unreadable',
     })
 
@@ -99,6 +146,7 @@ describe('ProtectedRoute', () => {
       currentUser: { uid: 'u1' },
       userProfile: { id: 'u1', role: 'teacher' },
       loading: false,
+      authReady: true,
       profileIssue: null,
     })
 
@@ -114,6 +162,7 @@ describe('ProtectedRoute', () => {
       currentUser: { uid: 'u1' },
       userProfile: null,
       loading: false,
+      authReady: true,
       profileIssue: null,
     })
 
@@ -130,6 +179,7 @@ describe('ProtectedRoute', () => {
       currentUser: { uid: 'u1', emailVerified: false },
       userProfile: { id: 'u1', role: 'learner' },
       loading: false,
+      authReady: true,
       profileIssue: null,
       needsEmailVerification: true,
     })
@@ -146,6 +196,7 @@ describe('ProtectedRoute', () => {
       currentUser: { uid: 'u1', emailVerified: false },
       userProfile: null,
       loading: false,
+      authReady: true,
       profileIssue: null,
       needsEmailVerification: true,
     })
@@ -165,6 +216,7 @@ describe('ProtectedRoute', () => {
         verificationGraceUntil: { toMillis: () => Date.now() + 86_400_000 },
       },
       loading: false,
+      authReady: true,
       profileIssue: null,
       needsEmailVerification: true,
     })
@@ -185,6 +237,7 @@ describe('ProtectedRoute', () => {
         verificationGraceUntil: { toMillis: () => Date.now() - 1000 },
       },
       loading: false,
+      authReady: true,
       profileIssue: null,
       needsEmailVerification: true,
     })
@@ -199,6 +252,7 @@ describe('ProtectedRoute', () => {
       currentUser: { uid: 'u1', emailVerified: true },
       userProfile: { id: 'u1', role: 'learner' },
       loading: false,
+      authReady: true,
       profileIssue: null,
       needsEmailVerification: false,
     })
@@ -214,6 +268,7 @@ describe('ProtectedRoute', () => {
       currentUser: { uid: 'u1' },
       userProfile: { id: 'u1', role: 'learner' },
       loading: false,
+      authReady: true,
       profileIssue: null,
     })
 

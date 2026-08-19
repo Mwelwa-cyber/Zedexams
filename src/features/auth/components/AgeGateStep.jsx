@@ -6,8 +6,9 @@ import { checkAgeAnswer } from '../../../utils/signupFlowCore'
 /**
  * The neutral age screen (Play Families policy).
  *
- * ZedExams is a MIXED-AUDIENCE app — children in Grades 4–7 and adult
- * teachers in one product — which is exactly the case Play requires a neutral
+ * ZedExams is a MIXED-AUDIENCE app — upper-primary children (Grades 4–7, the
+ * learner app currently open to Grade 7) and adult teachers in one product —
+ * which is exactly the case Play requires a neutral
  * age screen for. "Neutral" is a specific claim with several parts, and each
  * one is a decision in this file rather than a comment:
  *

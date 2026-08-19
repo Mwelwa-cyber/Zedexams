@@ -30,6 +30,9 @@ function setAuth(overrides = {}) {
   useAuth.mockReturnValue({
     userProfile: null,
     loading: false,
+    // Default to "Firebase has spoken" — the cases that need the opposite say
+    // so explicitly, and there is a test below for each.
+    authReady: true,
     isAdmin: false,
     isLearner: false,
     isTeacher: false,
@@ -87,6 +90,19 @@ describe('LearnerOnlyRoute', () => {
     setAuth({ loading: false, userProfile: null })
     renderGuard()
     expect(screen.queryByText(CHILD)).not.toBeInTheDocument()
+  })
+
+  it('shows no verdict at all before Firebase has emitted', () => {
+    // Every role flag this guard reads is derived from a profile that cannot
+    // exist yet, so all of them are false while auth is unresolved — which
+    // reads identically to "a teacher". Without an `authReady` gate a learner
+    // cold-loading their own dashboard would be told teacher accounts stay in
+    // the teacher portal.
+    setAuth({ loading: false, authReady: false, userProfile: null })
+    renderGuard()
+    expect(screen.queryByText(CHILD)).not.toBeInTheDocument()
+    expect(screen.queryByText(/teacher accounts stay/i)).not.toBeInTheDocument()
+    expect(mockNavigate).not.toHaveBeenCalled()
   })
 
   it('lets learners and admins through unchanged', () => {

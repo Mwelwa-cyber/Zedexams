@@ -194,6 +194,7 @@
     "test:draft-core": "node src/hooks/draft/draftCore.test.js",
     "test:draft-restore": "node src/hooks/draft/restoreLessonPlan.test.js",
     "test:draft-descriptors": "node src/hooks/draft/descriptors/handBuilt.test.js",
+    "test:learner-grades": "node scripts/test-learner-grades.mjs",
     "test:learner-prefs": "node src/features/learnerSettings/lib/learnerPrefs.test.js",
     "test:quiz-display-prefs": "node src/utils/quizDisplayPrefs.test.js",
     "test:read-aloud-text": "node src/utils/readAloudText.test.js",
@@ -306,6 +307,7 @@
     "test:curriculum-canon": "node scripts/test-curriculum-canon.mjs",
     "test:curriculum-diagnostics": "node scripts/test-curriculum-diagnostics.mjs",
     "test:client-errors": "node scripts/test-client-error-reporting.mjs",
+    "test:route-404-severity": "node scripts/test-route-not-found-severity.mjs",
     "test:friendly-errors": "node src/utils/friendlyErrors.test.js",
     "test:form-validation": "node src/utils/formValidation.test.js",
     "test:statusbar": "node scripts/test-statusbar-brightness.mjs",
@@ -489,6 +491,7 @@
     "test:ops-alert-secrets": "node functions/opsAlertSecrets.test.js",
     "test:ops-alert-test": "node functions/opsAlertTestCore.test.js",
     "test:deploy-timeouts": "node scripts/test-deploy-timeouts.mjs",
+    "test:workflow-api-permissions": "node scripts/test-workflow-api-permissions.mjs",
     "test:circuit-breaker": "node functions/agents/circuitBreaker.test.js",
     "test:agent-rollups": "node functions/agents/rollups.test.js",
     "test:ai-cost-budget": "node functions/aiCostBudget.test.js",
@@ -869,7 +872,11 @@
     "test:parent-app": "node scripts/test-parent-app.mjs",
     "test:co-guardian": "node scripts/test-co-guardian.mjs",
     "test:parent-app-view": "node scripts/test-parent-app-view.mjs",
-    "test:guardian-billing": "node scripts/test-guardian-billing.mjs"
+    "test:guardian-billing": "node scripts/test-guardian-billing.mjs",
+    "test:auth-init-retry": "node src/hooks/authInitRetryPolicy.test.js",
+    "test:auth-persistence-lifecycle": "node src/firebase/authPersistenceLifecycle.test.js",
+    "test:auth-ready-gate": "node src/utils/authReadyGate.test.js",
+    "test:auth-ready-guards": "node scripts/test-auth-ready-guards.mjs"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",

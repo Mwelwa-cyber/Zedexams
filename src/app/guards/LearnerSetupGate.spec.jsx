@@ -26,7 +26,7 @@ function mount(at = '/dashboard') {
 }
 
 beforeEach(() => {
-  mockAuth = { userProfile: { role: 'learner', grade: '' }, isLearner: true }
+  mockAuth = { userProfile: { role: 'learner', grade: '' }, isLearner: true, authReady: true }
 })
 
 describe('LearnerSetupGate', () => {
@@ -50,9 +50,19 @@ describe('LearnerSetupGate', () => {
     expect(screen.getByText('HOME')).toBeInTheDocument()
   })
 
+  it('does not bounce anyone before Firebase has emitted', () => {
+    // `isLearner` is false while auth is unresolved, so today this falls
+    // through by accident. Pinned so a future rewrite of the role flags cannot
+    // turn a cold start into a redirect to /setup for a learner who already
+    // has a grade.
+    mockAuth = { userProfile: null, isLearner: false, authReady: false }
+    mount()
+    expect(screen.getByText('HOME')).toBeInTheDocument()
+  })
+
   it('leaves non-learners alone — they have no grade of their own', () => {
     for (const role of ['parent', 'admin', 'teacher']) {
-      mockAuth = { userProfile: { role, grade: '' }, isLearner: false }
+      mockAuth = { userProfile: { role, grade: '' }, isLearner: false, authReady: true }
       const { unmount } = mount()
       expect(screen.getByText('HOME')).toBeInTheDocument()
       unmount()

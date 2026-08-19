@@ -330,8 +330,12 @@ const EditQuiz = lazy(() => import('../features/quizEditor/pages/EditQuizV2'))
 // own 2.6s minimum and 10s failsafe bound both ends; on the website this is
 // a no-op because the splash controller already removed itself.
 function SplashDismissal() {
-  const { currentUser, userProfile, loading, profileIssue } = useAuth()
-  const settled = !loading && (!currentUser || !!userProfile || !!profileIssue)
+  const { currentUser, userProfile, loading, authReady, profileIssue } = useAuth()
+  // `authReady` joins the condition for the same reason the guards now gate on
+  // it: `!loading` can be the watchdog giving up rather than Firebase
+  // answering, and lifting the splash onto a screen that is about to redirect
+  // is the launch-order bug this component exists to avoid.
+  const settled = authReady && !loading && (!currentUser || !!userProfile || !!profileIssue)
   useEffect(() => {
     if (!settled) return undefined
     let raf2 = null
@@ -347,7 +351,7 @@ function SplashDismissal() {
 }
 
 function RootRedirect() {
-  const { currentUser, userProfile, loading, isAdmin, isTeacher, profileIssue, needsEmailVerification } = useAuth()
+  const { currentUser, userProfile, loading, authReady, isAdmin, isTeacher, profileIssue, needsEmailVerification } = useAuth()
   // Cold-start race: Firebase restores the persisted session asynchronously,
   // so on the first frames `currentUser` is still null even for a returning
   // logged-in user. Rendering <Marketing /> here is what made the app flash
@@ -356,6 +360,18 @@ function RootRedirect() {
   // session, hold on the loader instead of flashing Marketing. A signed-out
   // visitor (no hint) still falls straight through to Marketing with no
   // spinner.
+  //
+  // The hint is a fast path, not the gate. It lives in localStorage while the
+  // session lives in IndexedDB, so the two can desynchronise (partial site-data
+  // clearing, localStorage eviction) and leave a signed-in learner with no
+  // hint — who then gets Marketing on their own root URL. `authReady` is the
+  // gate because it is the same fact Firebase actually reports. For a signed-out
+  // visitor it resolves in the first tick (no stored user, no network), so the
+  // public page is not held up; the hint still picks the warmer copy for the
+  // returning user who does have one.
+  if (!authReady) {
+    return <FullScreenLoader label={hasAuthSessionHint() ? 'Welcome back…' : undefined} />
+  }
   if (loading && !currentUser && hasAuthSessionHint()) return <FullScreenLoader label="Welcome back…" />
   if (!currentUser) return <Marketing />
   if (profileIssue) return <MissingProfileRecovery />
@@ -437,9 +453,14 @@ function AdminRoute({ children }) {
 // an <Outlet> — so the chrome is mounted once for the whole section
 // instead of re-mounting on every tab change.
 function ParentAppRoute() {
-  const { currentUser, userProfile, loading, isParent, isAdmin, needsEmailVerification } = useAuth()
+  const { currentUser, userProfile, loading, authReady, isParent, isAdmin, needsEmailVerification } = useAuth()
   const location = useLocation()
-  if (loading) return <FullScreenLoader label="Loading your family hub…" />
+  // Same rule as ProtectedRoute, and it has to be stated here because this
+  // route guards ITSELF rather than composing that one: `loading` is dropped by
+  // the restoration watchdog without knowing who the user is, so redirecting on
+  // `!currentUser` while auth is unresolved bounces a live session to /login.
+  // Admins reach the family hub too, so this is not only a parent's problem.
+  if (!authReady || loading) return <FullScreenLoader label="Loading your family hub…" />
   if (!currentUser) return <Navigate to="/login" replace state={{ from: location }} />
   if (!userProfile) return <FullScreenLoader label="Loading your family hub…" />
   if (needsEmailVerification && !isWithinVerificationGrace(userProfile)) {

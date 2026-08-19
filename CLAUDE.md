@@ -177,6 +177,72 @@ capacitor.config.json           — appId com.zedexams.android; android/ holds t
 
 ## Architecture notes that span multiple files
 
+### The learner app rolls out one grade at a time (2026-08-18)
+
+The learner side is open to **Grade 7 only**. Grades 4–6 exist everywhere else
+in the product and are being authored; they are not offered to learners until
+they have content, because a grade opened empty is worse than a grade not yet
+open.
+
+**Two lists, not one, and the distinction is the whole design:**
+
+- **`GRADES` (`src/config/curriculum.js`) stays `[4, 5, 6, 7]`** — the CBC
+  upper-primary CATALOGUE. It is what the product AUTHORS for: the Assessment
+  Studio, the syllabi, the Question Bank, Notes Studio, class registers and
+  `functions/teacherTools/cbcKnowledge.js`. Narrowing it would take the
+  authoring surfaces down with the learner ones and make it impossible to
+  prepare the next grade — which is the one thing the rollout is waiting on.
+- **`LEARNER_GRADES` is the rollout list**, currently `[7]`. Every learner-side
+  grade picker reads it: the setup wizard, both settings pages, and the gate.
+
+It is deliberately NOT the `active` flag on `ALL_GRADES` further down that
+file. That flag answers "which BAND has notes subjects wired up" and its
+consumers (`NoteMetaPanel`, `NoteFilters`) are admin AUTHORING screens —
+reusing it would stop an admin writing the Grade 5 notes the Grade 5 rollout
+is waiting on. Two questions, two lists.
+
+**An existing learner in a paused grade is never relabelled.** This is the
+failure the change was built around rather than a nicety: `needsSetup` keys on
+the grade, so narrowing the wizard's list ALONE bounces every Grade 4–6 learner
+back into onboarding where the only button on offer writes Grade 7 to their
+profile — a silent data change to a child's account, made by a rollout decision
+they never saw. So `resolveLearnerGradeAccess`
+(`features/learnerOnboarding/lib/setupWizardCore.js`) is three-way, not two:
+
+- `OK` — grade is open.
+- `WAITLIST` — a real catalogue grade that has not opened. `LearnerGradeGate`
+  renders `GradeWaitlistScreen`, the stored grade is kept, and nothing is
+  written. Two ways out (change grade → the wizard; sign out) because a screen
+  a child cannot leave is the dead end `LearnerOnlyRoute` was careful about for
+  teachers. The copy promises no email, because nothing sends one.
+- `UNKNOWN` — no grade, or nothing the catalogue knows. Passes through to
+  `LearnerSetupGate`, which redirects to the wizard. Returning `WAITLIST` here
+  would be both false and inescapable, and would catch every admin and parent —
+  they legitimately have no grade of their own.
+
+**`LearnerGradeGate` is composed inside `LearnerOnlyRoute`, not mounted per
+route.** `LearnerSetupGate` wraps `/dashboard` alone, which suffices for a
+redirect to a wizard. This gate cannot borrow that placement: "only Grade 7 may
+use the learner app" has to hold for a deep link into `/quizzes`, a bookmarked
+`/notes` and a notification into `/exams` too. `LearnerOnlyRoute` already runs
+on every learner route, so composing there covers the surface without editing
+thirty route lines — which the route-parsing guards read one line at a time.
+
+**The server twin is `DAILY_EXAM_GRADES` (`functions/dailyExamPickerCore.js`)
+and `test:learner-grades` fails if the two disagree.** Both directions are bad
+and neither raises an error anywhere: a grade there and not in `LEARNER_GRADES`
+has no learners who can reach it, and Vigil (`hourlyMonitor`) re-runs the
+picker and reports the gap **every hour, forever** — which is exactly what was
+happening for grades 4, 5 and 6 before this landed. A grade in `LEARNER_GRADES`
+and not there opens to learners with no daily exam. `dailyExamPicker.test.js`
+deliberately checks the list's SHAPE rather than re-pinning its membership;
+membership belongs in the one test that compares it against something.
+
+**Opening a grade** is: add it to `LEARNER_GRADES`, add it to
+`DAILY_EXAM_GRADES`, and move the marketing copy (`Marketing.jsx`,
+`AiTeam.jsx`, `Register.jsx`, `PrivacyPolicy.jsx`) with it. The tests are driven
+off the config, so none of them need editing.
+
 ### There is no learner↔teacher link (removed 2026-08)
 
 Learners and teachers have **no connecting surface**. A teacher cannot reach a
@@ -774,10 +840,11 @@ Beyond the content line, a fleet of **ops/growth agents** runs on schedules in `
 
 **Vex** bypasses the whole pipeline (synchronous callable from the quiz editor); **Qix** (see above) runs off its own `questionBank` trigger rather than `agentJobs`. **Mendi** (bug-fixer) is a subagent invoked from CI on a `bug` label. **Ledger** (release notes) runs on a GitHub Actions **daily cron** (22:00 Africa/Lusaka) and **calls no model** — it assembles the changelog from commit subjects, so the workflow holds no Anthropic secret. Two things were fixed in 2026-08: it had been a silent no-op for months (`git log --merges` selects nothing on a squash-merged trunk, so it exited before its API call), and once fixed to walk `--first-parent` the model turned out not to be earning its keep — only 39% of commits carry a conventional prefix and 15 of those 21 were Dependabot, while the unprefixed 61% are already well-formed sentences, so it was paraphrasing good prose into different good prose. It now buckets what has a prefix, prints the rest VERBATIM under `Changed`, and collapses Dependabot to one line; the draft PR reports how many entries were classified versus merely listed. Invoke the `release-notes` subagent on a drafted section when a release actually wants polish. Rules + rendering are pure and tested in `scripts/agents/releaseNotesCore.mjs` (`test:release-notes`). **Rex** (code review) is on-demand ONLY — his per-PR GitHub Action was deleted in 2026-08 because it billed the Anthropic API on every push to a PR branch while never being a required check, and because required CI already enforces four of his five checks deterministically (`test:secret-hygiene`, `test:rules-text`, `test:ai-provider-inventory`, `test:ai-dev-guide`). Invoke the `code-reviewer` subagent when you want him; that runs on the session, not on the agents key. Do not re-add a per-PR action without a cost decision. **Security Review** (`security-review.yml`, Anthropic's `claude-code-security-review` action) went opt-in the same way in 2026-08: apply the **`security-review`** label to a PR to run it, or `workflow_dispatch` to re-run one; remove and re-apply the label to re-scan after a fix. Nothing else starts it, so an unlabelled PR costs nothing. `test:security-review-trigger` fails if an automatic trigger comes back or if the label in the workflow drifts from the one documented here.
 
-**⚠️ THE REPOSITORY IS PRIVATE (since 2026-08-18).** Two consequences that change what you should DO, beyond the scanning gap described below:
+**⚠️ THE REPOSITORY IS PRIVATE (since 2026-08-18).** Three consequences that change what you should DO, beyond the scanning gap described below:
 
 - **Actions minutes are METERED.** Measured on 2026-08-18, after the flip: one CI run bills ~36 minutes across its ten jobs, and a PR push costs 37–66 minutes once the visual gate is counted (it was 44–73 before CodeQL was removed, which is 7 of the minutes that removal bought back). At the historical cadence (~30 CI runs/day) that is tens of thousands of minutes a month against an allowance of 2,000–3,000. Adding a job, or widening what triggers one, is now a spend decision — treat it the way `ci.yml` already treats runner contention. The same measurement corroborates the core-count finding in `ci.yml`'s Vitest timeout comment: that job billed 14 of the 36 minutes.
 - **GitHub secret scanning and push protection are OFF.** They are free only on public repositories. This is what raised alert #1 in `docs/security/AUDIT_LOG.md` (the committed Chromium profile), and it is gone. The pre-commit hook runs `check-file-integrity.mjs` and does **not** scan for credentials, so `test:secret-hygiene` in CI is the only backstop left between a pasted key and `main` — do not weaken it.
+- **`GITHUB_TOKEN` now actually needs the scopes a workflow always should have declared.** Every `/repos/{owner}/{repo}/actions/...` endpoint is anonymously readable on a public repository, so a job calling one was answered whatever its `permissions:` block said. Privately, the same call is 403. This took production Hosting down for two commits on the day of the flip: `deploy-hosting.yml`'s "Wait for Deploy Firebase run" step declared only `contents: read`, and because that step is gated on `firebase_changes.required` it failed **only** on a push that also touched `firestore.rules` / `firestore.indexes.json` / `functions/` — hosting-only pushes stayed green throughout, which is why runs #2160 and #2161 looked like a new bug rather than a config gap of long standing. Both shipped Cloud Functions and left the frontend behind them, the one skew direction that breaks users. `test:workflow-api-permissions` now fails the build if a workflow calls the Actions REST API (or `gh run`/`gh workflow`/`gh api .../actions/`) without granting `actions`. **When you add a step that reads workflow runs, jobs, artifacts or caches, declare `actions: read` on its job** — an unstated permission is not a grant, it was only ever an unenforced one.
 
 **Nothing scans for vulnerabilities automatically. This is a known, accepted gap** (2026-08-18) — state it plainly rather than assuming something is watching.
 

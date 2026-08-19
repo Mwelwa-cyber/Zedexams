@@ -8,13 +8,12 @@ import SeoHelmet from '../../../shared/components/SeoHelmet'
 // Prices live in src/config/teacherPlanPricing.js so /pricing and the
 // /teachers landing can never drift apart on the numbers.
 import { PLAN_PRICES } from '../../../config/teacherPlanPricing'
-// The learner ladder. A separate catalogue from the teacher tiers on
-// purpose — see the header of src/config/plans.js — and the reason this
-// page has a learner section at all: a guardian sent here from the family
-// app was landing on Pro (K59) and Max (K149), which are what a TEACHER
-// buys. There was no price on this page for the product they were
-// actually buying.
-import { SIBLING_ADDON, availablePlans, formatKwacha, savingLabel } from '../../../config/plans'
+// Learner prices come from the LADDER (src/config/plans.js) rather than being
+// typed again here. That module is joined to the checkout catalogue by
+// `checkoutPlanId`, so a rung this page advertises is provably one Lenco can
+// charge for — a hard-coded "K15" on a marketing page is a number nobody
+// reconciles until a learner taps it and pays the wrong amount.
+import { getPlan } from '../../../config/plans'
 import { isNativePlatform } from '../../../utils/runtime'
 // Deep import — see MySubscriptionRoute. planState is pure; the barrel
 // reaches Firebase, and this is a public marketing page.
@@ -238,49 +237,99 @@ const PLANS = [
   },
 ]
 
-/**
- * The learner / family ladder.
- *
- * `Free`, `Pro` and `Max` above are the TEACHER tiers. A parent buying
- * ZedExams for their child is buying a different product on a different
- * catalogue (src/config/plans.js), and until this section existed the
- * family app's upgrade link pointed at a page that priced neither.
- *
- * Rungs come from the ladder rather than being retyped, so the figure a
- * guardian reads here is the same one the checkout charges. Seasonal
- * rungs (the Exam Pass) come and go with `availablePlans`.
- */
-function FamilyPlanRung({ plan, native }) {
-  const saving = savingLabel(plan)
+// The two learner rungs /pricing advertises. `week` and `month` are ladder
+// ids; their prices and the checkout products behind them live in
+// src/config/plans.js, which is why nothing below states a figure.
+//
+// Deliberately the weekly + monthly pair and not the whole five-rung ladder:
+// the day pass and the seasonal Exam Pass are contextual offers made at a
+// lock, and a marketing page that lists all five turns a clear choice into a
+// price list.
+const LEARNER_RUNGS = [
+  {
+    ladderId: 'week',
+    mascot: '⚡',
+    meta: 'For this week\u2019s test',
+    feats: [
+      'Unlimited quizzes',
+      'Exam mode (timed practice)',
+      'Weakness analysis after every attempt',
+      'Every past paper for your grade',
+    ],
+  },
+  {
+    ladderId: 'month',
+    mascot: '\u2b50',
+    meta: 'For keeping the habit',
+    popular: true,
+    feats: [
+      'Everything in Weekly',
+      'Auto-marking with topic breakdowns',
+      'Offline downloads',
+      'Priority support',
+    ],
+  },
+]
+
+function LearnerPlanCard({ rung, onCta, native }) {
+  const plan = getPlan(rung.ladderId)
+  // A rung the ladder no longer offers renders nothing rather than a card with
+  // a blank price — the ladder is allowed to change without this page breaking.
+  if (!plan) return null
   return (
     <Card
-      variant={plan.highlight ? 'elevated' : 'flat'}
-      size="md"
-      className={`relative flex flex-col ${plan.highlight ? 'ring-2 ring-[color:var(--accent)]' : ''}`}
+      variant={rung.popular ? 'hero' : 'elevated'}
+      size="lg"
+      className={`relative flex flex-col ${rung.popular ? '' : 'theme-text'}`}
     >
-      {plan.badge && (
-        <span className="absolute -top-2.5 left-4 rounded-full bg-[color:var(--accent)] px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-white">
-          {plan.badge}
+      {rung.popular && (
+        <span className="absolute -top-3 left-1/2 -translate-x-1/2 z-10 rounded-full bg-[color:var(--hero-cta-bg)] px-3 py-1 text-[11px] font-black uppercase tracking-wider text-[color:var(--hero-cta-text)] shadow-elev-sm ring-1 ring-black/5">
+          Best value
         </span>
       )}
-      <div className="font-display font-black text-lg">{plan.label}</div>
-      {/* Android: Google Play's own sheet shows the authoritative
-          localized price, and Play policy forbids advertising a
-          different one alongside it. */}
-      <div className="mt-1 flex items-baseline gap-1.5">
-        {native ? (
-          <span className="font-display font-black text-2xl tracking-tight">Via Google Play</span>
-        ) : (
-          <>
-            <span className="font-display font-black text-3xl tracking-tight leading-none">
-              {formatKwacha(plan.price)}
-            </span>
-            <span className="text-sm theme-text-muted">{plan.period}</span>
-          </>
-        )}
+      <div
+        className={`grid place-items-center w-14 h-14 rounded-2xl text-3xl ${
+          rung.popular ? 'bg-white/15' : 'bg-[color:var(--bg-subtle)]'
+        }`}
+        aria-hidden="true"
+      >{rung.mascot}</div>
+      <div className="font-display font-black text-2xl mt-4">{plan.label}</div>
+      <div className={`text-sm mt-1 mb-5 ${rung.popular ? 'text-white/70' : 'theme-text-muted'}`}>{rung.meta}</div>
+      {/* Android: the ZMW figure stays off-screen for the same reason it does
+          on the teacher cards — the learner rungs are real Play products
+          (learner_premium_weekly / _monthly), so Play's sheet shows the
+          authoritative localized price. */}
+      {native ? (
+        <div className="flex items-baseline gap-1.5 mb-1.5">
+          <span className="font-display font-black text-3xl tracking-tight leading-none">Via Google Play</span>
+        </div>
+      ) : (
+        <div className="flex items-baseline gap-1.5 mb-1.5">
+          <span className={`text-base font-bold ${rung.popular ? 'text-white/70' : 'theme-text-muted'}`}>K</span>
+          <span className="font-display font-black text-5xl tracking-tight leading-none">{plan.price}</span>
+          <span className={`text-sm ${rung.popular ? 'text-white/70' : 'theme-text-muted'}`}>{plan.period}</span>
+        </div>
+      )}
+      <div className={`text-xs mb-6 min-h-[18px] ${rung.popular ? 'text-white/70' : 'theme-text-muted'}`}>
+        {native ? plan.blurb : `${plan.blurb} \u00b7 no auto-renewal`}
       </div>
-      <div className="mt-1.5 min-h-[18px] text-xs theme-text-muted">
-        {!native && saving ? saving : plan.blurb || ''}
+      <Button
+        variant={rung.popular ? 'primary' : 'secondary'}
+        size="lg"
+        fullWidth
+        onClick={onCta}
+        className={rung.popular ? '!bg-[color:var(--hero-cta-bg)] !text-[color:var(--hero-cta-text)] hover:!bg-[color:var(--hero-cta-bg)]' : ''}
+      >
+        {`Get ${plan.label}`}
+      </Button>
+      <div
+        className={`mt-6 pt-6 border-t border-dashed flex flex-col gap-3 ${
+          rung.popular ? 'border-white/20' : 'theme-border'
+        }`}
+      >
+        {rung.feats.map((f, i) => (
+          <Feat key={i} onDark={rung.popular}>{f}</Feat>
+        ))}
       </div>
     </Card>
   )
@@ -321,26 +370,41 @@ export default function Plans() {
     return key === 'free' ? handleFreeCta : () => handlePaidCta(key)
   }
 
-  // Where a guardian goes to actually buy. A signed-in parent has a
-  // checkout that already knows which child the money credits
-  // (/family/plan carries `beneficiaryUid`); anyone else needs a parent
-  // account first, which is what the register intent asks for. Never the
-  // teacher upgrade modal — that charges the wrong catalogue to the
-  // wrong account.
-  const familyCtaTo = isParent ?
-    '/family/plan' :
-    (currentUser ? '/family' : '/register?intent=family')
+  /**
+   * Where a learner rung's CTA goes.
+   *
+   * Deliberately NOT the UpgradeModal the teacher cards open, even though it
+   * supports `portal="learner"`. A signed-in learner may be under 18, and the
+   * product's standing rule is that an under-18 learner is never shown a price
+   * or a pay button — they are routed to the guardian ask instead (see
+   * src/services/entitlements/useUnlockFlow.js). That decision needs plan
+   * state this marketing chunk deliberately does not load, so the CTA hands
+   * off to /my-subscription, the learner's own subscription surface, and lets
+   * the age-aware flow there decide. Anonymous visitors register first, which
+   * is where an age is captured at all.
+   *
+   * A PARENT is the exception, and takes a different door: /my-subscription is
+   * written for the account that HOLDS the plan, and a guardian never is —
+   * their money credits the child (`beneficiaryUid`). /family/plan is the
+   * checkout that knows which child it is for.
+   */
+  function handleLearnerCta() {
+    if (isParent) {
+      navigate('/family/plan')
+      return
+    }
+    navigate(currentUser ? '/my-subscription' : '/register?intent=upgrade&tier=learner')
+  }
 
-  // Seasonal rungs come and go; the ladder decides, not this page.
-  const familyRungs = availablePlans()
-
-  // A signed-in learner who is not positively an adult never sees a price
-  // list. Two rows in the learner settings help panel link here ("Pricing
-  // & plans", "FAQs"), so this page is genuinely reachable from a child's
-  // session — the banners routing their taps elsewhere is not enough on
-  // its own. An ANONYMOUS visitor is not a known child and keeps the
-  // public page: `mayShowPrice` draws that distinction deliberately, and
-  // the hook order is preserved by placing the redirect after every hook.
+  // A signed-in learner who is not positively an adult never sees this page's
+  // prices at all. `handleLearnerCta` above defers the age decision to
+  // /my-subscription, which is right for the CTA — but the rung cards print
+  // the figure before anybody taps anything, and two rows in the learner
+  // settings help panel link straight here ("Pricing & plans", "FAQs"), so a
+  // child's session genuinely reaches this page. An ANONYMOUS visitor is not a
+  // known child and keeps the public page: `mayShowPrice` draws that
+  // distinction deliberately. Placed after every hook so the redirect cannot
+  // change hook order.
   const blockedByAge = !!currentUser && !mayShowPrice(userProfile)
 
   const upgradePlanIds = showUpgrade
@@ -447,41 +511,44 @@ export default function Plans() {
           </div>
         </Section>
 
-        {/* Learners and families — a different catalogue from the three
-            teacher tiers above, and the destination the family app's
-            upgrade link needs. */}
+        {/* Learner plans. /pricing was teacher-only, so a learner (or the
+            parent paying for one) who landed here found three teacher tiers
+            and no way to buy what they actually came for. */}
         <Section className="pb-16 sm:pb-20">
-          <SectionTag>For learners and families</SectionTag>
+          <SectionTag>For learners</SectionTag>
           <h2 className="font-display font-black text-3xl sm:text-4xl mb-3 max-w-xl">
-            One plan covers every child you look after.
+            Studying for an exam? Start here.
           </h2>
-          <p className="theme-text-muted mb-8 max-w-xl">
-            Pro and Max are teacher tools. A parent or guardian buys the learner
-            plan — past papers, quizzes, notes and marking for the child on your
-            account, from a day at a time to a whole term.
+          <p className="theme-text-muted mb-9 max-w-xl">
+            {native
+              ? 'Unlimited quizzes, timed exam mode and every past paper for your grade. Pay by the week or by the month \u2014 whichever suits.'
+              : 'Unlimited quizzes, timed exam mode and every past paper for your grade. Pay by the week or by the month \u2014 no auto-renewal, so you only pay for the period you choose.'}
           </p>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
-            {familyRungs.map((plan) => (
-              <FamilyPlanRung key={plan.id} plan={plan} native={native} />
+          <div className="grid gap-5 md:grid-cols-2 items-start max-w-3xl">
+            {LEARNER_RUNGS.map((rung) => (
+              <LearnerPlanCard
+                key={rung.ladderId}
+                rung={rung}
+                onCta={handleLearnerCta}
+                native={native}
+              />
             ))}
-          </div>
-          <div className="mt-8 flex flex-wrap items-center gap-4">
-            <Button as={Link} to={familyCtaTo} variant="primary" size="lg">
-              {isParent ? 'Unlock for my children' : 'Set up a parent account'}
-            </Button>
-            <span className="text-sm theme-text-muted">
-              Adding a second child costs {formatKwacha(SIBLING_ADDON.price)}
-              {SIBLING_ADDON.period}.
-            </span>
           </div>
         </Section>
 
         {/* Comparison */}
         <Section className="pb-16 sm:pb-20">
           <SectionTag>Compare</SectionTag>
-          <h2 className="font-display font-black text-3xl sm:text-4xl mb-9 max-w-xl">
+          <h2 className="font-display font-black text-3xl sm:text-4xl mb-3 max-w-xl">
             Every feature, side by side.
           </h2>
+          {/* The table below is the TEACHER tiers only. Saying so matters now
+              that learner plans share the page: an unlabelled comparison read
+              as covering all five products, and none of these rows describe
+              the learner rungs. */}
+          <p className="theme-text-muted mb-9 max-w-xl">
+            The Free, Pro and Max teacher plans.
+          </p>
           <Card variant="flat" size="md" className="!p-0 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
