@@ -12,13 +12,18 @@
  * once there are ElevenLabs voices to choose between.
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 import Skeleton from '../../../shared/components/Skeleton'
 import {
+  buildOfferedPayload,
+  catalogueRows,
   fetchTtsControlRoom,
   fetchTtsDay,
   messageFromError,
+  offeredIds,
+  previewVoice,
+  saveOfferedVoices,
   summariseTtsDay,
 } from '../lib/ttsControlRoom'
 
@@ -69,6 +74,82 @@ export default function AdminVoice() {
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  // ── Voice picking ────────────────────────────────────────────────
+  // `checked` mirrors the server's offered list until the admin touches
+  // it; Save writes the whole list back and the server reports what it
+  // dropped. `testText` feeds the per-voice "Say it" synthesis — the
+  // spend an audition budget exists for.
+  const [checked, setChecked] = useState([])
+  const [dirty, setDirty] = useState(false)
+  const [saveNote, setSaveNote] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [testText, setTestText] = useState('Chipolopolo won at Levy Mwanawasa Stadium in Ndola.')
+  const [speakingId, setSpeakingId] = useState(null)
+  const audioRef = useRef(null)
+  const urlRef = useRef(null)
+
+  const stopAudio = useCallback(() => {
+    if (audioRef.current) { try { audioRef.current.pause() } catch { /* ignore */ } audioRef.current = null }
+    if (urlRef.current) { try { URL.revokeObjectURL(urlRef.current) } catch { /* ignore */ } urlRef.current = null }
+    setSpeakingId(null)
+  }, [])
+  useEffect(() => stopAudio, [stopAudio])
+
+  const playUrl = useCallback((url, id, { revoke = false } = {}) => {
+    stopAudio()
+    const audio = new Audio(url)
+    audioRef.current = audio
+    if (revoke) urlRef.current = url
+    setSpeakingId(id)
+    const done = () => { if (audioRef.current === audio) stopAudio() }
+    audio.onended = done
+    audio.onerror = done
+    audio.play().catch(done)
+  }, [stopAudio])
+
+  const toggleVoice = useCallback((id) => {
+    setChecked((prev) => (prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]))
+    setDirty(true)
+    setSaveNote(null)
+  }, [])
+
+
+  const save = useCallback(async () => {
+    setSaving(true)
+    setSaveNote(null)
+    try {
+      const rows = catalogueRows(room)
+      const payload = buildOfferedPayload(rows, checked)
+      const r = await saveOfferedVoices(payload)
+      setDirty(false)
+      setSaveNote(
+        payload.length === 0
+          ? 'Cleared — learners get the standard Google voices.'
+          : `Saved ${r.saved} voice${r.saved === 1 ? '' : 's'}${r.dropped ? ` · ${r.dropped} invalid entr${r.dropped === 1 ? 'y' : 'ies'} dropped` : ''}.`,
+      )
+    } catch (err) {
+      setSaveNote(messageFromError(err))
+    } finally {
+      setSaving(false)
+    }
+  }, [room, checked])
+
+  const sayIt = useCallback(async (row) => {
+    const text = testText.trim().slice(0, 200)
+    if (!text) return
+    setSpeakingId(`busy:${row.id}`)
+    try {
+      const url = await previewVoice({
+        voice: { id: row.id, provider: row.provider, label: row.label, lang: row.lang },
+        text,
+      })
+      playUrl(url, row.id, { revoke: true })
+    } catch (err) {
+      setSpeakingId(null)
+      setSaveNote(messageFromError(err))
+    }
+  }, [testText, playUrl])
+
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -80,8 +161,11 @@ export default function AdminVoice() {
       fetchTtsControlRoom(),
       fetchTtsDay(todayKey()),
     ])
-    if (roomRes.status === 'fulfilled') setRoom(roomRes.value)
-    else setError(messageFromError(roomRes.reason))
+    if (roomRes.status === 'fulfilled') {
+      setRoom(roomRes.value)
+      setChecked(offeredIds(roomRes.value))
+      setDirty(false)
+    } else setError(messageFromError(roomRes.reason))
     if (dayRes.status === 'fulfilled') setDay(dayRes.value)
     setLoading(false)
   }, [])
@@ -191,34 +275,93 @@ export default function AdminVoice() {
           </Card>
 
           <Card title="Voices">
+            {/* One test phrase for every "Say it" button. Auditioning is the
+                one thing the endpoint's allow-list deliberately does not
+                gate — hearing a voice is how it EARNS a place on the list.
+                A full 200-char test costs ~$0.03 at ElevenLabs rates; the
+                shared cache makes repeating the same phrase free. */}
+            <label className="block mb-3">
+              <span className="theme-text-muted text-[11px] uppercase tracking-wider font-bold">
+                Test phrase (costs a fraction of a cent per voice)
+              </span>
+              <input
+                type="text"
+                maxLength={200}
+                value={testText}
+                onChange={(e) => setTestText(e.target.value)}
+                className="mt-1 w-full rounded-radius-md border-2 theme-border bg-transparent px-3 py-2 text-sm theme-text"
+              />
+            </label>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="theme-text-muted text-[11px] uppercase tracking-wider">
+                    <th className="text-left font-bold py-1.5">Offered</th>
                     <th className="text-left font-bold py-1.5">Voice</th>
                     <th className="text-left font-bold py-1.5">Provider</th>
-                    <th className="text-right font-bold py-1.5">USD / 1M chars</th>
+                    <th className="text-right font-bold py-1.5">USD / 1M</th>
+                    <th className="text-right font-bold py-1.5">Listen</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(room?.voices?.google || []).map((v) => (
+                  {catalogueRows(room).map((v) => (
                     <tr key={v.id} className="border-t theme-border">
-                      <td className="py-1.5 theme-text">{v.label} <span className="theme-text-muted text-xs">{v.id}</span></td>
-                      <td className="py-1.5 theme-text-muted">Google · {v.tier}</td>
-                      <td className="py-1.5 text-right theme-text tabular-nums">{usd.format(v.usdPerMchar)}</td>
-                    </tr>
-                  ))}
-                  {(room?.voices?.elevenlabs || []).map((v) => (
-                    <tr key={v.voiceId} className="border-t theme-border">
-                      <td className="py-1.5 theme-text">{v.name} <span className="theme-text-muted text-xs">{v.voiceId}</span></td>
-                      <td className="py-1.5 theme-text-muted">ElevenLabs{v.category ? ` · ${v.category}` : ''}</td>
+                      <td className="py-1.5">
+                        <input
+                          type="checkbox"
+                          checked={checked.includes(v.id)}
+                          onChange={() => toggleVoice(v.id)}
+                          aria-label={`Offer ${v.label} to learners`}
+                        />
+                      </td>
+                      <td className="py-1.5 theme-text">
+                        {v.label} <span className="theme-text-muted text-xs">{v.id}</span>
+                      </td>
+                      <td className="py-1.5 theme-text-muted">{v.sub}</td>
                       <td className="py-1.5 text-right theme-text tabular-nums">
-                        {elRate == null ? 'not priced' : usd.format(elRate)}
+                        {v.usdPerMchar == null ? 'not priced' : usd.format(v.usdPerMchar)}
+                      </td>
+                      <td className="py-1.5 text-right whitespace-nowrap">
+                        {v.previewUrl && (
+                          <button
+                            type="button"
+                            onClick={() => (speakingId === `sample:${v.id}` ? stopAudio() : playUrl(v.previewUrl, `sample:${v.id}`))}
+                            className="rounded-radius-md border theme-border px-2 py-0.5 text-xs font-bold theme-text mr-1"
+                            title="Free hosted sample"
+                          >
+                            {speakingId === `sample:${v.id}` ? '⏹' : '▶'} Sample
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => (speakingId === v.id ? stopAudio() : sayIt(v))}
+                          disabled={speakingId === `busy:${v.id}` || !testText.trim()}
+                          className="rounded-radius-md border theme-border px-2 py-0.5 text-xs font-bold theme-text disabled:opacity-50"
+                          title="Synthesise the test phrase in this voice"
+                        >
+                          {speakingId === `busy:${v.id}` ? '…' : speakingId === v.id ? '⏹ Stop' : '🗣 Say it'}
+                        </button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div className="mt-3 flex items-center gap-3 flex-wrap">
+              <button
+                type="button"
+                onClick={save}
+                disabled={!dirty || saving}
+                className="rounded-radius-md border-2 border-slate-900/70 px-4 py-1.5 text-sm font-bold theme-text disabled:opacity-50"
+              >
+                {saving ? 'Saving…' : 'Save offered voices'}
+              </button>
+              <p className="theme-text-muted text-xs flex-1 min-w-[200px]">
+                {saveNote
+                  || (room?.offered?.configured
+                    ? 'Ticked voices are what /api/tts will synthesise. Unticking every voice restores the Google defaults.'
+                    : 'No selection saved yet — the Google defaults are standing in. Tick and save to choose.')}
+              </p>
             </div>
             {room?.voices?.elevenlabsError && (
               <p className="theme-text-muted text-xs mt-2">

@@ -2340,6 +2340,24 @@ exports.apiWhatsAppWebhook = onRequest({
 
 exports.apiTextToSpeech = require('./tts').apiTextToSpeech;
 exports.getTtsControlRoom = require('./ttsAdmin').getTtsControlRoom;
+// Builders here, bodies in ttsAdmin.js — the frozen-surface guard requires a
+// NEW export's options to live in this file. previewTtsVoice binds its own
+// defineSecret instance for ELEVENLABS_API_KEY (duplicates of one name are
+// the accepted pattern — see the SMTP pair in firestoreBackup.js).
+const elevenLabsApiKeyTts = defineSecret("ELEVENLABS_API_KEY");
+exports.setTtsOfferedVoices = onCall(
+    {region: "us-central1", memory: "256MiB", timeoutSeconds: 30},
+    require('./ttsAdmin').setTtsOfferedVoicesHandler,
+);
+exports.previewTtsVoice = onCall(
+    {
+      region: "us-central1",
+      memory: "256MiB",
+      timeoutSeconds: 30,
+      secrets: [elevenLabsApiKeyTts],
+    },
+    require('./ttsAdmin').previewTtsVoiceHandler,
+);
 
 // Website visitor tracker — unauthenticated beacon the SPA POSTs on each
 // route change. Records page-view docs + daily rollups for /admin/visitors.

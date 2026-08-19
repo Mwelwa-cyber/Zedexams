@@ -10,7 +10,14 @@ vi.mock('firebase/functions', () => ({
 }))
 vi.mock('../../../utils/aiCosts', () => ({ listToolsForDate: vi.fn() }))
 
-import { summariseTtsDay, TTS_TOOL, TTS_CACHE_TOOL } from './ttsControlRoom.js'
+import {
+  buildOfferedPayload,
+  catalogueRows,
+  offeredIds,
+  summariseTtsDay,
+  TTS_TOOL,
+  TTS_CACHE_TOOL,
+} from './ttsControlRoom.js'
 
 const paid = (o) => ({ tool: TTS_TOOL, callCount: 0, characters: 0, costUsd: 0, ...o })
 const hit = (o) => ({ tool: TTS_CACHE_TOOL, callCount: 0, characters: 0, costUsd: 0, ...o })
@@ -79,5 +86,55 @@ describe('summariseTtsDay', () => {
     ])
     expect(s.totalCalls).toBe(1)
     expect(s.costUsd).toBeCloseTo(0.0016, 10)
+  })
+})
+
+describe('the voice picker helpers', () => {
+  const room = {
+    rates: { elevenlabs: { usdPerMchar: 166.67 } },
+    voices: {
+      google: [
+        { id: 'en-GB-Neural2-A', label: 'British Female (Neural)', lang: 'en-GB', tier: 'neural2', usdPerMchar: 16 },
+      ],
+      elevenlabs: [
+        { voiceId: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel', category: 'premade', previewUrl: 'https://x/p.mp3' },
+      ],
+    },
+    offered: { configured: false, voices: [{ id: 'en-GB-Neural2-A', provider: 'google' }] },
+  }
+
+  it('merges both providers into one row shape', () => {
+    const rows = catalogueRows(room)
+    expect(rows).toHaveLength(2)
+    // The ElevenLabs row prices at the PLAN rate — its id carries no tier.
+    expect(rows[1]).toMatchObject({ id: '21m00Tcm4TlvDq8ikWAM', provider: 'elevenlabs', usdPerMchar: 166.67 })
+    // Google has no hosted sample; ElevenLabs does. The page renders the
+    // Sample button off this field, so the asymmetry is data, not branching.
+    expect(rows[0].previewUrl).toBeNull()
+    expect(rows[1].previewUrl).toBe('https://x/p.mp3')
+  })
+
+  it('an unpriced ElevenLabs rate rows as null, never 0', () => {
+    const rows = catalogueRows({ ...room, rates: { elevenlabs: { usdPerMchar: null } } })
+    expect(rows[1].usdPerMchar).toBeNull()
+  })
+
+  it('reads the standing offered ids', () => {
+    expect(offeredIds(room)).toEqual(['en-GB-Neural2-A'])
+    expect(offeredIds(null)).toEqual([])
+  })
+
+  it('builds the payload in CATALOGUE order, not click order', () => {
+    // The first offered voice is the endpoint default for voice-less
+    // requests, so ordering must be stable and visible — the catalogue —
+    // not an accident of what the admin ticked last.
+    const rows = catalogueRows(room)
+    const payload = buildOfferedPayload(rows, ['21m00Tcm4TlvDq8ikWAM', 'en-GB-Neural2-A'])
+    expect(payload.map((v) => v.id)).toEqual(['en-GB-Neural2-A', '21m00Tcm4TlvDq8ikWAM'])
+    expect(payload[1]).toMatchObject({ provider: 'elevenlabs', label: 'Rachel' })
+  })
+
+  it('an empty tick set builds an empty payload (server reads that as defaults)', () => {
+    expect(buildOfferedPayload(catalogueRows(room), [])).toEqual([])
   })
 })

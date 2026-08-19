@@ -500,6 +500,7 @@
     "test:ai-cost-tts": "node functions/aiCostTts.test.js",
     "test:tts-cache": "node functions/ttsCache.test.js",
     "test:tts-admin": "node functions/ttsAdmin.test.js",
+    "test:tts-voice-config": "node functions/ttsVoiceConfig.test.js",
     "test:firestore-backup": "node functions/firestoreBackup.test.js",
     "test:storage-backup": "node functions/storageBackup.test.js",
     "test:storage-backup-heartbeat": "node functions/storageBackupHeartbeatCore.test.js",
