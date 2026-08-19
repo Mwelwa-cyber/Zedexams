@@ -31,6 +31,12 @@ const SUPPORT_WHATSAPP = "+260 977 740 465";
 const PRIVACY_URL = "https://zedexams.com/privacy";
 const DELETE_URL = "https://zedexams.com/delete-account";
 
+// What stands in for the tokenised link on the child's confirm screen. The
+// token does not exist until the message is actually sent, and inventing one
+// to make the preview look complete would mint a live consent credential for
+// a message nobody has agreed to send yet.
+const PREVIEW_LINK = "zedexams.com/consent/\u00b7\u00b7\u00b7\u00b7\u00b7";
+
 // What we tell a guardian we hold about their child. Kept as a list rather
 // than prose so it can be asserted against, and so a new learner field has an
 // obvious place to be declared — or an obvious test to fail if it isn't.
@@ -99,19 +105,60 @@ function buildConsentEmail({childName, approveUrl, declineUrl, expiryDays}) {
  * Build the WhatsApp message body. Shorter — a wall of text in WhatsApp does
  * not get read — but it still carries both links, because the decline route
  * cannot be the one that gets trimmed for length.
+ *
+ * EACH LINK ENDS A LINE. WhatsApp linkifies up to the next whitespace, so
+ * joining these lines with "" — as this did until the channel became the
+ * default one — glued `Not expected...` onto the end of the approve URL and
+ * produced a link whose token was several words long. Every WhatsApp consent
+ * link sent that way was dead on arrival, and the pre-existing test could not
+ * see it: the message still CONTAINS the approve URL, as a prefix of a longer
+ * broken one.
  */
 function buildConsentWhatsAppText({childName, approveUrl, declineUrl}) {
   const name = safeName(childName);
   return [
-    `Hello! ${name} created a learner account on ${APP_NAME} (zedexams.com), `,
-    "a Zambian CBC learning app. They are under 18, so we need a parent or ",
-    "guardian to approve it.",
+    `Hello! ${name} created a learner account on ${APP_NAME} (zedexams.com), ` +
+      "a Zambian CBC learning app. They are under 18, so we need a parent or " +
+      "guardian to approve it.",
     "",
     `Approve: ${approveUrl}`,
+    "",
     `Not expected / remove the account: ${declineUrl}`,
     "",
     `Questions: ${SUPPORT_EMAIL}`,
-  ].join("");
+  ].join("\n");
+}
+
+/**
+ * The message as it will actually go out, for the CHILD to check before we
+ * send it.
+ *
+ * Built by the same two builders the send uses, with the token elided,
+ * because a preview assembled by a second function is a preview that can
+ * drift from the message — and the whole point of showing it is that a
+ * mistyped digit is invisible to everyone otherwise: the child waits, the
+ * guardian got nothing, and support cannot see why the account is stuck.
+ *
+ * @param {object} args
+ * @param {string} args.channel   "email" | "whatsapp"
+ * @param {string} args.childName
+ * @return {{channel: string, subject: string, body: string, linkPlaceholder: string}}
+ */
+function buildConsentPreview({channel, childName}) {
+  const approveUrl = `${PREVIEW_LINK}`;
+  const declineUrl = `${PREVIEW_LINK}`;
+  if (channel === "whatsapp") {
+    return {
+      channel: "whatsapp",
+      subject: "",
+      body: buildConsentWhatsAppText({childName, approveUrl, declineUrl}),
+      linkPlaceholder: PREVIEW_LINK,
+    };
+  }
+  const {subject, text} = buildConsentEmail({
+    childName, approveUrl, declineUrl, expiryDays: 7,
+  });
+  return {channel: "email", subject, body: text, linkPlaceholder: PREVIEW_LINK};
 }
 
 module.exports = {
@@ -124,4 +171,6 @@ module.exports = {
   safeName,
   buildConsentEmail,
   buildConsentWhatsAppText,
+  buildConsentPreview,
+  PREVIEW_LINK,
 };

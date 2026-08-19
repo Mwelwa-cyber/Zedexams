@@ -1,6 +1,12 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
-import { resolveLearnerAccess, CONSENT_STATUS } from '../../../utils/guardianConsent'
+import {
+  resolveLearnerAccess,
+  CONSENT_STATUS,
+  CONTACT_CHANNEL,
+  DEFAULT_CONTACT_CHANNEL,
+  normalizeGuardianContact,
+} from '../../../utils/guardianConsent'
 import { sendGuardianConsentRequest } from '../../../utils/ageGateService'
 
 /**
@@ -37,7 +43,9 @@ export default function GuardianConsentBanner() {
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState('')
   const [contact, setContact] = useState('')
-  const [method, setMethod] = useState('email')
+  // WhatsApp first here too. The banner and the sign-up step must not offer
+  // different defaults for the same decision — see guardianContactCore.
+  const [method, setMethod] = useState(DEFAULT_CONTACT_CHANNEL)
   const [adding, setAdding] = useState(false)
 
   const access = useMemo(
@@ -63,9 +71,11 @@ export default function GuardianConsentBanner() {
         setNote('Sent. Ask them to check their email.')
       }
     } catch (err) {
+      // The server's message names the wait ("in 15 minutes") or the reason;
+      // only a transport failure has nothing better to say than "try again".
       setNote(
-        err?.code === 'functions/resource-exhausted'
-          ? 'We already sent a link today. Please try again tomorrow.'
+        err?.code === 'functions/resource-exhausted' || err?.code === 'functions/invalid-argument'
+          ? err?.message || 'We could not send that just now. Please try again in a moment.'
           : 'We could not send that just now. Please try again in a moment.',
       )
     } finally {
@@ -75,17 +85,15 @@ export default function GuardianConsentBanner() {
 
   const addGuardian = useCallback(async (event) => {
     event.preventDefault()
-    const value = contact.trim()
-    const okEmail = method === 'email' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
-    const okPhone = method === 'whatsapp' && /^\+?\d{9,15}$/.test(value.replace(/[\s-]/g, ''))
-    if (!okEmail && !okPhone) {
-      setNote(
-        method === 'email'
-          ? "Please enter your parent or guardian's email address."
-          : "Please enter their WhatsApp number, e.g. +260 97 1234567.",
-      )
+    // The shared normaliser, not a second regex: the one this replaced
+    // accepted any nine-to-fifteen digits as a WhatsApp number, so a landline
+    // or a truncated number was sent a message nobody ever received.
+    const checked = normalizeGuardianContact({ contact, channel: method })
+    if (!checked.ok) {
+      setNote(checked.message)
       return
     }
+    const value = checked.value
     setBusy(true)
     setNote('')
     try {
@@ -93,7 +101,7 @@ export default function GuardianConsentBanner() {
       // firestore.rules blocks the client from touching `guardian` at all,
       // because a client that could edit the contact could edit
       // consentStatus alongside it and approve its own account.
-      const res = await sendGuardianConsentRequest({ contact: value, method })
+      const res = await sendGuardianConsentRequest({ contact: value, channel: method })
       if (res?.waLink) {
         window.open(res.waLink, '_blank', 'noopener')
         setNote('WhatsApp is open — send the message to your parent or guardian.')
@@ -156,7 +164,7 @@ export default function GuardianConsentBanner() {
       {needsGuardian && adding && (
         <form onSubmit={addGuardian} className="mt-2 space-y-2">
           <div className="flex gap-2">
-            {[['email', 'Email'], ['whatsapp', 'WhatsApp']].map(([value, label]) => (
+            {[[CONTACT_CHANNEL.WHATSAPP, 'WhatsApp'], [CONTACT_CHANNEL.EMAIL, 'Email']].map(([value, label]) => (
               <button
                 key={value}
                 type="button"

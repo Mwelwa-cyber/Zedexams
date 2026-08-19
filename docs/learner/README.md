@@ -16,6 +16,7 @@ build prompts). The specs are committed **verbatim as shipped**:
 | `ZedExams_ClaudeCode_Prompts.md` | The build playbook itself — the ordered prompts the rebuild is run from |
 | `zedexams-parent-prototype.html` | The parent app's visual + interaction reference (PROMPT 8g) |
 | `zedexams-age-screen-mockup.html` | The age / date-of-birth screen at `/register?step=age` (PROMPT 0c-2) |
+| `zedexams-guardian-email-mockup.html` | The four screens of the grown-up's contact step, after the age gate (PROMPT 0c-3) |
 
 The playbook was landed later than the four specs, and carries its own
 snapshot header for a reason worth repeating here: it is a PLAN, not a record.
