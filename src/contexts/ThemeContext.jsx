@@ -4,11 +4,17 @@ import {
   applyTeacherThemeAttribute,
   hydrateTeacherTheme as hydrateTeacherThemeValue,
   registerTeacherThemePersister,
+  syncSeededTeacherTheme,
   useTeacherThemeValue,
   writeTeacherTheme,
 } from './teacherThemeStore'
+import {
+  READING_THEME_STORAGE_KEY,
+  isDarkReadingThemeId,
+  prefersDarkColorScheme,
+} from './readingThemeCore'
 
-const LS_KEY = 'examprep:theme'
+const LS_KEY = READING_THEME_STORAGE_KEY
 
 /**
  * The reading themes — the palettes a learner reads ON (note reader, quiz
@@ -152,11 +158,12 @@ export function resetReadingThemePersister() {
   readingThemePersister = null
 }
 
-// Themes whose palette is dark. Tailwind's `dark:` variants (darkMode:
-// 'class') only fire when an ancestor carries the `dark` class, so these
-// themes must also toggle it — otherwise every dark: style in the tree is
-// dead and light panels leak into the dark palette.
-const DARK_THEME_IDS = new Set(['midnight'])
+// Which palettes are dark lives in readingThemeCore.isDarkReadingThemeId,
+// because two things now ask the question and they must not be able to
+// disagree: the `dark` class below (Tailwind's `dark:` variants only fire
+// when an ancestor carries it, so without it every dark: style in the tree is
+// dead and light panels leak into the dark palette) and the WORKSPACE theme's
+// seed, which follows the reading palette while nobody has chosen one.
 
 /**
  * The colour the browser paints its own chrome with — the Android address bar
@@ -193,24 +200,17 @@ export function applyThemeToBody(id) {
   const next = normalizeThemeId(id)
   THEME_CLASS_IDS.forEach(t => body.classList.remove(`theme-${t}`))
   body.classList.add(`theme-${next}`)
-  document.documentElement.classList.toggle('dark', DARK_THEME_IDS.has(next))
+  document.documentElement.classList.toggle('dark', isDarkReadingThemeId(next))
   const meta = document.querySelector('meta[name="theme-color"]')
   if (meta && THEME_META_COLORS[next]) meta.setAttribute('content', THEME_META_COLORS[next])
 }
 
 /**
- * Whether the visitor's OS asks for a dark palette. Read through one helper
- * so every seeding site (here, and mirrored in boot.js's pre-paint guards —
- * kept in step by the mirror tests) agrees on the query.
+ * Whether the visitor's OS asks for a dark palette. Defined in
+ * readingThemeCore (the workspace theme's seed reads it too) and re-exported
+ * here, which is where every existing caller looks for it.
  */
-export function prefersDarkColorScheme() {
-  try {
-    return typeof window !== 'undefined'
-      && Boolean(window.matchMedia?.('(prefers-color-scheme: dark)')?.matches)
-  } catch {
-    return false
-  }
-}
+export { prefersDarkColorScheme }
 
 /**
  * Resolve the initial theme for a brand-new visitor.
@@ -353,6 +353,28 @@ export function ThemeProvider({ children }) {
   useEffect(() => {
     applyTeacherThemeAttribute(teacherTheme)
   }, [teacherTheme])
+
+  /*
+   * Keep an UNCHOSEN workspace theme following the reading palette.
+   *
+   * `html[data-theme='night'] body` in index.css restates every reading token
+   * in dark (themeBridge.test.js pins it) and outranks `body.theme-<id>`, so
+   * whatever this attribute says wins. That is right for a teacher who chose
+   * Night and was wrong for everyone who chose nothing: both theme systems
+   * seeded themselves from prefers-color-scheme independently, so on a browser
+   * with neither key written and a dark OS — a second browser, Incognito, a
+   * fresh profile — the attribute came up 'night' for learners too, and the
+   * only theme control a learner has writes the READING theme. Toggling to day
+   * changed the body class, the bridge kept overriding it, and the page stayed
+   * dark with the toggle reading "day".
+   *
+   * syncSeededTeacherTheme no-ops the moment a workspace theme is actually
+   * chosen, and never writes storage — the seed stays unanswered so it keeps
+   * following rather than freezing on the first value it saw.
+   */
+  useEffect(() => {
+    syncSeededTeacherTheme(theme)
+  }, [theme])
 
   // The body class is applied by <ThemeApplicator /> inside the Router.
   // Persistence happens ONLY in setTheme (device + profile) and hydrateTheme

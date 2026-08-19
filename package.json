@@ -796,6 +796,7 @@
     "test:teacher-theme-contrast": "node src/contexts/teacherThemeContrast.test.js",
     "test:teacher-theme-mirror": "node src/contexts/teacherThemeMirror.test.js",
     "test:reading-theme-mirror": "node src/contexts/readingThemeMirror.test.js",
+    "test:reading-theme-core": "node src/contexts/readingThemeCore.test.js",
     "test:reading-theme-contrast": "node src/contexts/readingThemeContrast.test.js",
     "test:games-dark-surface": "node src/features/games/gamesDarkSurface.test.js",
     "test:games-hub-core": "node src/features/games/lib/gamesHubCore.test.js",

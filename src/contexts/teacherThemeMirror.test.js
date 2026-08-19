@@ -101,13 +101,27 @@ assert.equal(
 
 /* ── 2b. the no-saved-choice seeding mirrors teacherThemeStore ─────────── */
 
-// With nothing stored, boot seeds Night on a dark OS and the default
-// otherwise — the same decision teacherThemeStore.readInitial makes after
-// hydration. If either side loses the seed, a dark-OS first visit paints one
+// With nothing stored, both sides seed from the READING palette — which has
+// itself already fallen back to prefers-color-scheme on a device that saved
+// nothing. If either side loses the seed, a dark-OS first visit paints one
 // theme pre-paint and flips to the other when React mounts.
+//
+// It must be the reading palette and NOT prefers-color-scheme directly:
+// `html[data-theme='night'] body` outranks `body.theme-<id>` (themeBridge),
+// so an OS seed here overrides a learner who explicitly chose a light palette
+// and no learner-facing control can clear it. See readingThemeCore.js.
 assert.ok(
-  boot.includes(`? 'night'\n        : (teacherPrefersDark ? 'night' : '${DEFAULT_TEACHER_THEME}');`),
-  'public/boot.js must seed the teacher theme from prefers-color-scheme when nothing is saved',
+  boot.includes(`? 'night'\n        : (teacherDark ? 'night' : '${DEFAULT_TEACHER_THEME}');`),
+  'public/boot.js must seed the teacher theme from the resolved reading palette when nothing is saved',
+)
+assert.ok(
+  boot.includes(`var teacherDark = resolvedReadingTheme === 'midnight';`),
+  'public/boot.js teacher seed no longer derives from the reading palette it just resolved',
+)
+assert.ok(
+  !/teacherPrefersDark/.test(boot),
+  'public/boot.js reads prefers-color-scheme directly for the teacher seed again — that is the '
+    + 'bug readingThemeCore.js documents: it overrides an explicitly chosen light reading palette',
 )
 // The retired dashboard key still counts as a saved dark choice in BOTH
 // readers (it outranks the OS seed in each).
@@ -117,8 +131,27 @@ assert.ok(
 )
 const store = readFileSync(resolve(root, 'src/contexts/teacherThemeStore.js'), 'utf8')
 assert.ok(
-  store.includes(`window.matchMedia?.('(prefers-color-scheme: dark)')?.matches) return 'night'`),
-  'teacherThemeStore.readInitial no longer mirrors the boot.js prefers-color-scheme seed',
+  store.includes('return seedFor(seededDarkness())'),
+  'teacherThemeStore.readInitial no longer mirrors the boot.js seed (the resolved reading palette)',
+)
+// Reading the OS directly here is the regression, not a refactor of it: it is
+// what let an unchosen workspace theme outrank a chosen reading palette.
+assert.ok(
+  !/matchMedia/.test(store),
+  'teacherThemeStore queries the OS colour scheme directly again — it must go through '
+    + 'readingThemeCore.seededDarkness so an explicit reading choice wins over the OS',
+)
+// The seed must keep FOLLOWING: readInitial answers once, and the reading
+// theme moves afterwards (Night toggle, picker, profile hydration).
+assert.ok(
+  store.includes('export function syncSeededTeacherTheme('),
+  'teacherThemeStore no longer exposes syncSeededTeacherTheme — an unchosen workspace theme '
+    + 'would freeze on its first value and the learner Night toggle could not clear it',
+)
+const ctxSrc = readFileSync(resolve(root, 'src/contexts/ThemeContext.jsx'), 'utf8')
+assert.ok(
+  /syncSeededTeacherTheme\(theme\)/.test(ctxSrc),
+  'ThemeProvider no longer re-seeds the workspace theme when the reading theme changes',
 )
 // The seed must never be written — an absent key keeps following the OS.
 assert.ok(

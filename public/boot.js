@@ -33,6 +33,7 @@
   //    resolveInitialTheme mirrors this exactly; test:reading-theme-mirror
   //    fails if the two drift. Midnight also gets the `dark` class on <html>
   //    pre-paint, so native controls (color-scheme) match from the first frame.
+  var resolvedReadingTheme = 'oatmeal';
   try {
     var prefersDark = false;
     try {
@@ -49,6 +50,10 @@
       : (prefersDark ? 'midnight' : 'oatmeal');
     document.body.classList.add('theme-' + resolved);
     if (resolved === 'midnight') document.documentElement.classList.add('dark');
+    // Read by the workspace guard below, which seeds itself from the reading
+    // palette. Assigned here rather than read off `resolved` directly so a
+    // throw above leaves it at the light default instead of `undefined`.
+    resolvedReadingTheme = resolved;
   } catch (e) {
     document.body.classList.add('theme-oatmeal');
   }
@@ -65,15 +70,19 @@
   //     comment. boot.js is render-blocking at the top of <body> and is
   //     preloaded in <head>, so it still runs before first paint and there is
   //     no flash of the default theme.
-  //     No saved choice → the same prefers-color-scheme seeding as the learner
-  //     guard above (night when the OS is dark, the default otherwise), never
-  //     written. Mirrors teacherThemeStore.readInitial.
+  //     No saved choice → FOLLOW THE READING PALETTE resolved just above
+  //     (`resolved === 'midnight'`), which has itself already fallen back to
+  //     prefers-color-scheme when this device has saved nothing. Never
+  //     written. Mirrors teacherThemeStore.readInitial + readingThemeCore.
+  //
+  //     It read prefers-color-scheme directly until 2026-08, and that is the
+  //     bug: `html[data-theme='night'] body` in index.css restates every
+  //     reading token in dark and OUTRANKS `body.theme-<id>`, so on a dark-OS
+  //     browser with no keys written — a second browser, Incognito, a fresh
+  //     profile — this seeded 'night' over a learner's chosen light palette
+  //     and no learner-facing control could clear it.
   try {
-    var teacherPrefersDark = false;
-    try {
-      teacherPrefersDark = !!(window.matchMedia
-        && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    } catch (e) {}
+    var teacherDark = resolvedReadingTheme === 'midnight';
     var teacherIds = ['terracotta', 'miombo', 'copperbelt', 'night'];
     var savedTeacher = localStorage.getItem('zedexams-theme');
     if (teacherIds.indexOf(savedTeacher) === -1) {
@@ -81,7 +90,7 @@
       // toggle counts as a saved dark choice.
       savedTeacher = localStorage.getItem('zedexams:tdv2-theme') === 'dark'
         ? 'night'
-        : (teacherPrefersDark ? 'night' : 'terracotta');
+        : (teacherDark ? 'night' : 'terracotta');
     }
     document.documentElement.setAttribute('data-theme', savedTeacher);
   } catch (e) {
