@@ -3,12 +3,17 @@
  * for `type: 'punctuation'` games (learner redesign step 4, the fourth
  * and last rebuilt mechanic).
  *
- * One 60-second round under the indigo game head: each item deals two
- * or three versions of the same sentence, shuffled, with only one
- * punctuated correctly. Tapping the right one locks it green, pays
- * 20 × combo and deals the next after a beat; a wrong tap shakes red,
- * resets the combo and leaves the item live for another try. The timer
- * ending lands on the shared win screen (140/60 star thresholds).
+ * A fixed set of `ROUND_ITEMS` sentences under the indigo game head:
+ * each item deals two or three versions of the same sentence, shuffled,
+ * with only one punctuated correctly. Tapping the right one locks it
+ * green, pays 20 × combo and deals the next after a beat; a wrong tap
+ * shakes red, resets the combo and leaves the item live for another try.
+ * The last sentence lands on the shared win screen (140/60 stars).
+ *
+ * There is no countdown (PROMPT 7b). Spotting a missing comma is a
+ * reading skill, not a reflex, and the clock used to end the round on
+ * exactly the learners still reading the options. The head's bar fills
+ * with progress through the set instead of draining.
  *
  * Content is the repo's standard MCQ shape ({ question: optional
  * prompt, options, answer }) with the prototype's items as fallback,
@@ -27,7 +32,7 @@ import { reportGameStart } from '../services/gamesService'
 import { playCorrect, playWrong, playWin, primeSounds } from '../lib/gameSounds'
 import { BadgePop, GameTopBar, WinScreen, buildSaveNote } from './protoGameChrome'
 import {
-  ROUND_SECONDS,
+  ROUND_ITEMS,
   dealOptions,
   itemQueue,
   pickGain,
@@ -43,9 +48,9 @@ function PlayScreen({ game, onExit, onEnd }) {
   const [options, setOptions] = useState([])
   const [picked, setPicked] = useState(null) // { text, verdict: 'ok' | 'no' }
   const [score, setScore] = useState(0)
-  const [time, setTime] = useState(ROUND_SECONDS)
 
   const round = useRef({ combo: 1, peakCombo: 1, solved: 0, misses: 0 })
+  const startedAtRef = useRef(Date.now())
   const timeouts = useRef([])
   const later = (fn, ms) => { timeouts.current.push(setTimeout(fn, ms)) }
   useEffect(() => () => timeouts.current.forEach(clearTimeout), [])
@@ -65,33 +70,23 @@ function PlayScreen({ game, onExit, onEnd }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // The countdown — closure reads through refs, so it is stale-proof.
+  // Ending the round. `endedRef` is claimed SYNCHRONOUSLY so the last
+  // sentence of the set can only finish the round once, however many taps
+  // land inside one React batch.
   const endedRef = useRef(false)
-  const scoreRef = useRef(0)
-  useEffect(() => { scoreRef.current = score }, [score])
   const onEndRef = useRef(onEnd)
   useEffect(() => { onEndRef.current = onEnd }, [onEnd])
-  useEffect(() => {
-    const iv = setInterval(() => {
-      setTime((t) => {
-        if (t <= 1) {
-          clearInterval(iv)
-          if (!endedRef.current) {
-            endedRef.current = true
-            onEndRef.current({
-              score: scoreRef.current,
-              solved: round.current.solved,
-              misses: round.current.misses,
-              peakCombo: round.current.peakCombo,
-            })
-          }
-          return 0
-        }
-        return t - 1
-      })
-    }, 1000)
-    return () => clearInterval(iv)
-  }, [])
+  const endRound = (finalScore) => {
+    if (endedRef.current) return
+    endedRef.current = true
+    onEndRef.current({
+      score: finalScore,
+      solved: round.current.solved,
+      misses: round.current.misses,
+      peakCombo: round.current.peakCombo,
+      timeSpent: Math.round((Date.now() - startedAtRef.current) / 1000),
+    })
+  }
 
   const pick = (text) => {
     if (endedRef.current || !item || picked?.verdict === 'ok') return
@@ -104,7 +99,10 @@ function PlayScreen({ game, onExit, onEnd }) {
       playCorrect()
       setScore((s) => s + gained)
       setPicked({ text, verdict: 'ok' })
-      later(nextItem, 500)
+      // The score is read here, synchronously — `setScore` above is async and
+      // the end-of-round callback must not close over a stale value.
+      if (round.current.solved >= ROUND_ITEMS) later(() => endRound(score + gained), 500)
+      else later(nextItem, 500)
     } else {
       round.current.misses += 1
       round.current.combo = 1
@@ -119,12 +117,14 @@ function PlayScreen({ game, onExit, onEnd }) {
   return (
     <>
       <div className="lhx-nt-head">
-        <GameTopBar onExit={onExit} time={time} timeMax={ROUND_SECONDS} score={score} />
+        <GameTopBar onExit={onExit} done={round.current.solved} total={ROUND_ITEMS} score={score} />
         <div className="lhx-nt-goal">
           <div className="lhx-nt-goal-lab">TAP THE CORRECTLY PUNCTUATED SENTENCE</div>
           {item.prompt && <div className="lhx-wb-clue">{item.prompt}</div>}
         </div>
-        <div className="lhx-nt-best">{round.current.solved} correct · combo ×{round.current.combo}</div>
+        <div className="lhx-nt-best">
+          Sentence {Math.min(ROUND_ITEMS, round.current.solved + 1)} of {ROUND_ITEMS} · combo ×{round.current.combo}
+        </div>
       </div>
 
       <div className="lhx-pn-opts">

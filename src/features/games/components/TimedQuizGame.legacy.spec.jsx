@@ -12,6 +12,14 @@
  *
  * The flag is mocked OFF for every case here — this file is about the code path
  * a learner is on right now.
+ *
+ * The round no longer has a CLOCK (PROMPT 7b). Every case that used to end a
+ * round by burning `GAME.timer` seconds now ends it either by finishing the
+ * set (`answerTheSet`) or by the learner's own "End round early" button
+ * (`endRoundEarly`), and one case exists purely to prove no clock came back.
+ * The arithmetic under test — the streak bonus, the quarter-value penalty, the
+ * floor at zero, the rounding — is untouched by that change and still pinned
+ * here against the same recorded numbers.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, within } from '@testing-library/react'
@@ -59,6 +67,11 @@ import { saveScore } from '../services/gamesService'
 /**
  * Three questions, correct at index 1, 2 and 0. `points: 10`, so a correct
  * answer is +10 (no streak bonus below three) and a wrong one is −2.
+ *
+ * Three questions is also the whole ROUND: `resolveRoundLength` caps the set
+ * at the pool, so answering all three ends it. `timer` is left on the doc on
+ * purpose — real game documents still carry it — and every test here would
+ * fail if anything started counting it again.
  */
 const GAME = Object.freeze({
   id: 'game-1',
@@ -80,7 +93,7 @@ function mountGame() {
   return render(<MemoryRouter><TimedQuizGame game={GAME} /></MemoryRouter>)
 }
 
-const startRound = () => fireEvent.click(screen.getByRole('button', { name: /start sprint/i }))
+const startRound = () => fireEvent.click(screen.getByRole('button', { name: /start round/i }))
 const optionCard = () => document.querySelector('.grid.grid-cols-1.sm\\:grid-cols-2')
 const options = () => within(optionCard()).getAllByRole('button')
 const scoreValue = () => screen.getByText('Score').parentElement.querySelector('.font-display').textContent
@@ -92,17 +105,29 @@ function advancePastReveal() {
 }
 
 /**
- * Burn the whole clock, which calls `finish()` from the countdown effect.
+ * End the round the way a learner who has had enough does — the button.
  *
- * Advanced one second at a TIME rather than in one jump: the countdown is a
- * chain of `setTimeout(…, 1000)` calls, each scheduled by the render that the
- * previous tick's `setTimeLeft` caused. Jumping the whole round in one
- * `advanceTimersByTime` fires the first timeout and then finds nothing else
- * scheduled, so the clock never reaches zero and `finish()` never runs.
+ * This replaced `runOutTheClock()`, which burned `GAME.timer` seconds to reach
+ * `finish()` through the countdown effect. There is no countdown any more
+ * (PROMPT 7b), so the only two ways out of a round are finishing the set and
+ * this button, and every test that used to need a partly-played round to END
+ * uses this one.
  */
-async function runOutTheClock() {
-  for (let i = 0; i <= GAME.timer + 1; i += 1) {
-    act(() => { vi.advanceTimersByTime(1000) })
+async function endRoundEarly() {
+  fireEvent.click(screen.getByRole('button', { name: /end round early/i }))
+  await flushFinish()
+}
+
+/**
+ * Answer the whole set, which reaches `finish()` the ordinary way.
+ *
+ * `picks` is one option index per question. The reveal beat after the LAST
+ * answer is what ends the round, so this always runs one more than it clicks.
+ */
+async function answerTheSet(picks) {
+  for (const index of picks) {
+    fireEvent.click(options()[index])
+    advancePastReveal()
   }
   await flushFinish()
 }
@@ -195,48 +220,60 @@ describe('TimedQuizGame — the legacy path, after the reducer extraction', () =
     mountGame()
     startRound()
     fireEvent.click(options()[1])
-    await runOutTheClock()
+    await endRoundEarly()
     fireEvent.click(screen.getByRole('button', { name: /play again/i }))
     fireEvent.click(options()[1])
     expect(scoreValue()).toBe('10')
   })
 
-  // ── 2. the clock expiring on the final answer ──────────────────────────────
+  // ── 2. the last answer of the round ────────────────────────────────────────
 
-  it('an answer given just before the buzzer is counted in the saved round', async () => {
+  it('NO CLOCK ends the round — the set does', async () => {
+    // The regression this whole change exists to prevent. Ten minutes of fake
+    // time on one question: under the old `timer: 10` countdown the round was
+    // over nine minutes and fifty seconds ago, and the learner's one answer was
+    // scored without them ever choosing to stop.
     mountGame()
     startRound()
+    act(() => { vi.advanceTimersByTime(600_000) })
+    expect(saveScore).not.toHaveBeenCalled()
+    // Still playing, and the answer given after all that thinking still scores.
     fireEvent.click(options()[1])
-    advancePastReveal()
-    fireEvent.click(options()[2])
-    await runOutTheClock()
-    expect(saveScore).toHaveBeenCalledTimes(1)
-    expect(saveScore.mock.calls[0][0]).toMatchObject({ score: 20, correct: 2, wrong: 0 })
+    expect(scoreValue()).toBe('10')
   })
 
-  it('the clock expiring with a reveal still on screen saves that answer too', async () => {
-    // The tightest version: the buzzer lands while the last answer is still in
-    // its 700ms reveal beat, so `finish()` runs without the deck having
+  it('the last answer of the set is counted in the saved round', async () => {
+    mountGame()
+    startRound()
+    await answerTheSet([1, 2, 2])
+    expect(saveScore).toHaveBeenCalledTimes(1)
+    // Third answer wrong: 10 + 10 − 2.
+    expect(saveScore.mock.calls[0][0]).toMatchObject({ score: 18, correct: 2, wrong: 1 })
+  })
+
+  it('ending early with a reveal still on screen saves that answer too', async () => {
+    // The tightest version: the round ends while the last answer is still
+    // inside its 700ms reveal beat, so `finish()` runs without the deck having
     // advanced. Both the old five-state read and the one-value read take the
     // same render's numbers, so this was and is counted.
     mountGame()
     startRound()
     fireEvent.click(options()[1])
-    await runOutTheClock()
+    await endRoundEarly()
     expect(saveScore.mock.calls[0][0]).toMatchObject({ score: 10, correct: 1 })
   })
 
   // ── 3. unanswered questions ────────────────────────────────────────────────
 
   it('unanswered questions are not penalised — only answers count', async () => {
-    // A timed round always ends with questions unseen. They must not enter
-    // `wrong`, and they must not enter the accuracy denominator: this is a
-    // sprint, not a paper, and there is no per-question penalty for running out
-    // of clock.
+    // A round ended early leaves questions unseen. They must not enter
+    // `wrong`, and they must not enter the accuracy denominator: stopping is
+    // not the same as getting the rest wrong, and there is no per-question
+    // penalty for leaving before the end of the set.
     mountGame()
     startRound()
     fireEvent.click(options()[1])
-    await runOutTheClock()
+    await endRoundEarly()
     const saved = saveScore.mock.calls[0][0]
     expect(saved.wrong).toBe(0)
     expect(saved.correct).toBe(1)
@@ -246,7 +283,7 @@ describe('TimedQuizGame — the legacy path, after the reducer extraction', () =
   it('a round with no answers at all saves zeroes, not NaN', async () => {
     mountGame()
     startRound()
-    await runOutTheClock()
+    await endRoundEarly()
     const saved = saveScore.mock.calls[0][0]
     expect(saved).toMatchObject({ score: 0, correct: 0, wrong: 0, accuracy: 0 })
     expect(Number.isFinite(saved.accuracy)).toBe(true)
@@ -259,12 +296,7 @@ describe('TimedQuizGame — the legacy path, after the reducer extraction', () =
     // learner's accuracy by a point and shift the badge thresholds with it.
     mountGame()
     startRound()
-    fireEvent.click(options()[1])
-    advancePastReveal()
-    fireEvent.click(options()[2])
-    advancePastReveal()
-    fireEvent.click(options()[1])
-    await runOutTheClock()
+    await answerTheSet([1, 2, 1])
     const saved = saveScore.mock.calls[0][0]
     expect(saved).toMatchObject({ correct: 2, wrong: 1, accuracy: 67 })
     // 10 + 10 − 2. `wrongPenalty(10)` is `max(2, floor(10/4))`.
@@ -277,38 +309,43 @@ describe('TimedQuizGame — the legacy path, after the reducer extraction', () =
     fireEvent.click(options()[0])
     advancePastReveal()
     fireEvent.click(options()[0])
-    await runOutTheClock()
+    await endRoundEarly()
     expect(saveScore.mock.calls[0][0]).toMatchObject({ score: 0, wrong: 2, accuracy: 0 })
   })
 
-  it('timeSpent is whole seconds, rounded', async () => {
+  it('timeSpent is whole seconds, rounded — measured, never scored', async () => {
+    // Still recorded on the `scores` document; nothing ranks on it, and no
+    // clock is derived from it. A learner who takes 90 seconds over three
+    // questions records 90 seconds and loses nothing for it.
     mountGame()
     startRound()
-    await runOutTheClock()
+    act(() => { vi.advanceTimersByTime(90_000) })
+    await endRoundEarly()
     const { timeSpent } = saveScore.mock.calls[0][0]
     expect(Number.isInteger(timeSpent)).toBe(true)
-    expect(timeSpent).toBeGreaterThan(0)
+    expect(timeSpent).toBe(90)
   })
 
   // ── 5. completion fires exactly once ───────────────────────────────────────
 
-  it('the buzzer saves the round exactly once', async () => {
-    // The countdown effect re-runs every tick; only the `timeLeft <= 0` tick may
-    // finish, and `phase !== 'playing'` closes the door behind it.
+  it('finishing the set saves the round exactly once', async () => {
+    // The reveal effect re-runs on every answer; only the one that walks off
+    // the end of the set may finish, and `phase !== 'playing'` closes the door
+    // behind it.
     mountGame()
     startRound()
-    await runOutTheClock()
+    await answerTheSet([1, 2, 0])
     act(() => { vi.advanceTimersByTime(5000) })
     expect(saveScore).toHaveBeenCalledTimes(1)
   })
 
-  it('ending early saves once, and the expiring clock does not save again', async () => {
+  it('ending early saves once, and nothing left running saves again', async () => {
     mountGame()
     startRound()
     fireEvent.click(options()[1])
-    fireEvent.click(screen.getByRole('button', { name: /end round early/i }))
+    await endRoundEarly()
+    act(() => { vi.advanceTimersByTime(600_000) })
     await flushFinish()
-    await runOutTheClock()
     expect(saveScore).toHaveBeenCalledTimes(1)
     expect(saveScore.mock.calls[0][0]).toMatchObject({ score: 10, correct: 1 })
   })
@@ -320,28 +357,28 @@ describe('TimedQuizGame — the legacy path, after the reducer extraction', () =
     mountGame()
     startRound()
     fireEvent.click(options()[1])
-    await runOutTheClock()
+    await endRoundEarly()
     expect(saveScore.mock.calls[0][0]).toMatchObject({ score: 10 })
 
     fireEvent.click(screen.getByRole('button', { name: /play again/i }))
     expect(scoreValue()).toBe('0')
     expect(wrongValue()).toBe('0')
     fireEvent.click(options()[0])
-    await runOutTheClock()
+    await endRoundEarly()
     expect(saveScore).toHaveBeenCalledTimes(2)
     expect(saveScore.mock.calls[1][0]).toMatchObject({ score: 0, correct: 0, wrong: 1 })
   })
 
   it('the round the leaderboard gets is the round the screen showed', async () => {
     // The end-to-end version of all of the above: whatever the score pill said
-    // at the buzzer is what reaches `scores`.
+    // when the round ended is what reaches `scores`.
     mountGame()
     startRound()
     fireEvent.click(options()[1])
     advancePastReveal()
     fireEvent.click(options()[2])
     const onScreen = scoreValue()
-    await runOutTheClock()
+    await endRoundEarly()
     expect(String(saveScore.mock.calls[0][0].score)).toBe(onScreen)
   })
 })

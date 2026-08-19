@@ -3,12 +3,18 @@
  * "Punctuation Pro" tap-the-correct-sentence game (learner redesign
  * step 4, the fourth and last rebuilt mechanic).
  *
- * The mechanic is the prototype's: one 60-second round through a
- * recycling shuffled queue of items, each showing two or three versions
- * of the same sentence with only one punctuated correctly. Tapping the
- * right one locks it green, pays 20 × combo and deals the next after a
- * beat; tapping a wrong one shakes it red and resets the combo, with
- * the item staying live for another try.
+ * The mechanic is the prototype's, minus its clock: a round is a FIXED
+ * SET of `ROUND_ITEMS` sentences drawn from a shuffled queue, each
+ * showing two or three versions of the same sentence with only one
+ * punctuated correctly. Tapping the right one locks it green, pays
+ * 20 × combo and deals the next after a beat; tapping a wrong one shakes
+ * it red and resets the combo, with the item staying live for another
+ * try. The round ends when the set is finished.
+ *
+ * The prototype ran this on a 60-second countdown. PROMPT 7b deleted it:
+ * spotting a missing comma is a reading skill, not a reflex, and the
+ * clock ended the round on exactly the learners still reading the
+ * options. Nothing on screen counts down.
  *
  * Content is the repo's standard MCQ shape ({ question: optional
  * prompt, options: the sentence versions, answer: the correct one —
@@ -18,7 +24,8 @@
  * drive it deterministically.
  */
 
-export const ROUND_SECONDS = 60
+/** Sentences in one round — the fixed set that replaced the countdown. */
+export const ROUND_ITEMS = 10
 
 /** The prototype's items — the fallback when a game doc has none. */
 export const FALLBACK_ITEMS = [
@@ -89,9 +96,10 @@ export function starsForScore(score) {
 /**
  * Map a finished round onto the shared `useGameFinish` result shape —
  * correct picks count as correct answers, wrong taps as wrong ones,
- * and the peak combo is the round's best streak.
+ * and the peak combo is the round's best streak. `timeSpent` is the
+ * learner's actual elapsed seconds — a record, never a score.
  */
-export function roundResult({ game, score, solved, misses, peakCombo }) {
+export function roundResult({ game, score, solved, misses, peakCombo, timeSpent }) {
   const correct = Math.max(0, Math.floor(Number(solved) || 0))
   const wrong = Math.max(0, Math.floor(Number(misses) || 0))
   const attempts = correct + wrong
@@ -102,6 +110,8 @@ export function roundResult({ game, score, solved, misses, peakCombo }) {
     wrong,
     accuracy: attempts ? Math.round((correct / attempts) * 100) : 0,
     bestStreak: Math.max(0, Math.floor(Number(peakCombo) || 0)),
-    timeSpent: ROUND_SECONDS,
+    // MEASURED, not the old fixed round length. Still recorded (My Progress
+    // and the weekly report read it) — it is simply never scored or ranked.
+    timeSpent: Math.max(0, Math.floor(Number(timeSpent) || 0)),
   }
 }

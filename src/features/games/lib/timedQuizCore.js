@@ -10,15 +10,49 @@
 /** Fallback question so the engine never dereferences an empty deck slot. */
 export const EMPTY_QUESTION = Object.freeze({ question: '', options: [], answer: '' })
 
+/** Questions in one round when a game doc names no other length. */
+export const DEFAULT_ROUND_QUESTIONS = 10
+
 /**
  * Resolve the per-game tunables: points-per-correct (default 10) and the
  * round duration in seconds (default 60).
+ *
+ * `duration` NO LONGER RUNS A CLOCK. PROMPT 7b deleted the countdown from
+ * every solo game; a round now ends after `resolveRoundLength` questions.
+ * The field survives for one narrow job: `roundOutcome` falls back to it
+ * for `timeSpent` when a round's start timestamp is missing, and that
+ * fallback is pinned by the games byte-compatibility replay
+ * (`scripts/replay/replayGameRound.test.js`), which reads `game.timer`
+ * directly. Removing it would move a recorded number in a document the
+ * replay diffs. Do not wire it to anything that counts.
  */
 export function resolveGameConfig(game) {
   return {
     points: Number(game?.points) || 10,
     duration: Number(game?.timer) || 60,
   }
+}
+
+/**
+ * How many questions one round is — the fixed set that replaced the clock.
+ *
+ * Capped by the pool so a round never recycles the deck back over words the
+ * learner just answered: a "set" the learner can see the end of is the whole
+ * point of the replacement. A game doc may name its own length via
+ * `roundQuestions`; `timer` is deliberately NOT read here (see above).
+ */
+export function resolveRoundLength(game, pool) {
+  const authored = Math.floor(Number(game?.roundQuestions) || 0)
+  const wanted = authored > 0 ? authored : DEFAULT_ROUND_QUESTIONS
+  const available = Array.isArray(pool) ? pool.length : 0
+  return Math.max(1, available ? Math.min(wanted, available) : wanted)
+}
+
+/** Round progress as a 0–100 percentage for the progress bar. */
+export function roundProgressPct(answered, total) {
+  const steps = Math.max(1, Math.floor(Number(total) || 0))
+  const at = Math.min(steps, Math.max(0, Math.floor(Number(answered) || 0)))
+  return Math.round((at / steps) * 100)
 }
 
 /** The question at `pos`, or the safe empty question when out of range. */
@@ -96,20 +130,11 @@ export function shouldCelebrate(score, accuracy) {
 
 /**
  * Seconds spent in the round; falls back to the full duration when the
- * start timestamp was never captured.
+ * start timestamp was never captured. RECORDED ONLY — nothing scores or
+ * ranks on it (PROMPT 7b), and no clock is derived from it.
  */
 export function timeSpentSeconds(startedAt, now, duration) {
   return startedAt ? Math.round((now - startedAt) / 1000) : duration
-}
-
-/** Remaining time as a 0–100 percentage for the timer bar. */
-export function timerPct(timeLeft, duration) {
-  return Math.max(0, Math.round((timeLeft / duration) * 100))
-}
-
-/** The timer bar turns urgent in the final 10 seconds. */
-export function isTimerDanger(timeLeft) {
-  return timeLeft <= 10
 }
 
 /** Star rating from accuracy: 90+ → 5, 70+ → 4, 50+ → 3, otherwise 2. */

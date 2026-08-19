@@ -14,7 +14,7 @@ import {
   currentLevel,
   fillTiles,
   judgeSelection,
-  levelTimeMax,
+  LEVEL_TARGETS,
   matchGain,
   newTarget,
   nodeStates,
@@ -52,13 +52,12 @@ assert(TOTAL_LEVELS === 8, 'the path has eight levels')
 assert(NODE_POS.length === TOTAL_LEVELS, 'one node position per level')
 
 /* ── Timer + board configuration per level ─────────────────────── */
-assert(levelTimeMax(1) === 53, 'level 1 runs 53 seconds')
-assert(levelTimeMax(8) === 39, 'level 8 runs 39 seconds')
-assert(levelTimeMax(99) === 39, 'level clamps to the path top')
-assert(levelTimeMax(-5) === 53, 'nonsense levels clamp to level 1')
+// A level is a fixed set of targets at EVERY level — difficulty climbs
+// through tileMax and targetTileCount, never by shortening a clock.
+assert(LEVEL_TARGETS === 8, 'a level is eight targets')
 // The 35s floor is unreachable inside the 8-level path but declared —
 // prove the formula respects it rather than trusting the clamp.
-assert(levelTimeMax(TOTAL_LEVELS) >= 35, 'the floor holds at the top level')
+assert(TOTAL_LEVELS === 8, 'the path is eight levels')
 assert(tileMax(1) === 12 && tileMax(8) === 19, 'tile range widens with level')
 
 /* ── Board fill ────────────────────────────────────────────────── */
@@ -156,12 +155,14 @@ assert(starsForScore(80) === 2 && starsForScore(20) === 1, 'star thresholds matc
 /* ── useGameFinish result mapping ──────────────────────────────── */
 {
   const game = { id: 'math_number_target_g4' }
-  const result = roundResult({ game, score: 180, matches: 6, busts: 2, peakCombo: 4, timeMax: 47 })
+  const result = roundResult({ game, score: 180, matches: 6, busts: 2, peakCombo: 4, timeSpent: 47 })
   assert(result.game === game, 'the game doc rides through untouched')
   assert(result.score === 180 && result.correct === 6 && result.wrong === 2, 'matches/busts map to correct/wrong')
   assert(result.accuracy === 75, 'accuracy is matches over attempts')
-  assert(result.bestStreak === 4 && result.timeSpent === 47, 'peak combo and round length carry over')
-  const idle = roundResult({ game, score: 0, matches: 0, busts: 0, peakCombo: 1, timeMax: 53 })
+  assert(result.bestStreak === 4, 'peak combo carries over')
+  // MEASURED, where this used to be the level's countdown length.
+  assert(result.timeSpent === 47, 'the measured elapsed seconds carry over')
+  const idle = roundResult({ game, score: 0, matches: 0, busts: 0, peakCombo: 1, timeSpent: 53 })
   assert(idle.accuracy === 0, 'an idle round is 0% accuracy, not NaN')
 }
 

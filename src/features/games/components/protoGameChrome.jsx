@@ -1,11 +1,20 @@
 /**
  * protoGameChrome — the pieces every rebuilt prototype-v3 game engine
  * shares (learner redesign step 4): the indigo head's top row (✕ /
- * timebar / score), the stars-and-cards win screen with confetti, the
- * one-at-a-time badge celebration pop, and the save-note line that
+ * progress bar / score), the stars-and-cards win screen with confetti,
+ * the one-at-a-time badge celebration pop, and the save-note line that
  * reports the kept backend's outcome (signed-out, failed save, daily
  * streak). Extracted from NumberTargetGame when Word Builder became the
  * second engine to need all four.
+ *
+ * The top row's bar used to be a COUNTDOWN — every solo engine ran a
+ * 60-ish-second clock and the round ended when it hit zero. It doesn't
+ * any more (PROMPT 7b): speed is not the skill these games teach, and a
+ * clock filters out the slower readers who need the practice most. The
+ * bar now fills as the learner works through a fixed set, so the same
+ * shape carries the same "how far in am I" reading without punishing
+ * anyone for thinking. `role="timer"` went with the clock; a progress
+ * bar is a `progressbar`.
  *
  * Styles live in ../gamesProto.css; each engine imports its own copy of
  * that stylesheet and renders inside its own `.lhx` root.
@@ -14,13 +23,27 @@ import { useEffect, useMemo, useState } from 'react'
 
 const CONFETTI_BITS = ['🎉', '⭐', '✨', '🎊', '🧡', '💜']
 
-/** The nt-top row: exit control, countdown timebar, live score. */
-export function GameTopBar({ onExit, time, timeMax, score }) {
+/**
+ * The nt-top row: exit control, round-progress bar, live score.
+ *
+ * `done` / `total` are ITEMS of the round's fixed set — pairs matched,
+ * words spelt, sentences picked, targets hit. Never seconds.
+ */
+export function GameTopBar({ onExit, done, total, score }) {
+  const steps = Math.max(1, Math.floor(Number(total) || 0))
+  const at = Math.min(steps, Math.max(0, Math.floor(Number(done) || 0)))
   return (
     <div className="lhx-nt-top">
       <button type="button" className="lhx-nt-x" aria-label="Leave the round" onClick={onExit}>✕</button>
-      <div className="lhx-nt-timebar" role="timer" aria-label={`${time} seconds left`}>
-        <i style={{ width: `${Math.max(0, (time / timeMax) * 100)}%` }} />
+      <div
+        className="lhx-nt-progressbar"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={steps}
+        aria-valuenow={at}
+        aria-label={`${at} of ${steps} done`}
+      >
+        <i style={{ width: `${(at / steps) * 100}%` }} />
       </div>
       <div className="lhx-nt-score">⭐ {score}</div>
     </div>

@@ -9,7 +9,7 @@
  */
 import {
   FALLBACK_ITEMS,
-  ROUND_SECONDS,
+  ROUND_ITEMS,
   dealOptions,
   itemQueue,
   pickGain,
@@ -77,15 +77,19 @@ function mulberry32(seed) {
 assert(pickGain(1) === 20 && pickGain(3) === 60, 'a correct pick pays 20 × combo')
 assert(pickGain(0) === 20, 'combo floors at ×1')
 assert(starsForScore(140) === 3 && starsForScore(60) === 2 && starsForScore(59) === 1, 'star thresholds match the prototype word games')
-assert(ROUND_SECONDS === 60, 'the round is the prototype 60 seconds')
+assert(ROUND_ITEMS === 10, 'a round is ten sentences — the fixed set that replaced the clock')
 
 /* ── useGameFinish result mapping ──────────────────────────────── */
 {
   const game = { id: 'english_punctuation_g7' }
-  const result = roundResult({ game, score: 180, solved: 7, misses: 3, peakCombo: 4 })
+  const result = roundResult({ game, score: 180, solved: 7, misses: 3, peakCombo: 4, timeSpent: 96 })
   assert(result.game === game, 'the game doc rides through untouched')
   assert(result.correct === 7 && result.wrong === 3 && result.accuracy === 70, 'picks map to correct/wrong/accuracy')
-  assert(result.bestStreak === 4 && result.timeSpent === 60, 'peak combo and round length carry over')
+  assert(result.bestStreak === 4, 'peak combo carries over')
+  // MEASURED, never the old fixed 60 — a round takes as long as it takes.
+  assert(result.timeSpent === 96, 'the measured elapsed seconds carry over')
+  assert(roundResult({ game, score: 0, solved: 0, misses: 0, peakCombo: 1 }).timeSpent === 0,
+    'an unmeasured round records 0 seconds rather than inventing a round length')
   const idle = roundResult({ game, score: 0, solved: 0, misses: 0, peakCombo: 1 })
   assert(idle.accuracy === 0, 'an idle round is 0% accuracy, not NaN')
 }

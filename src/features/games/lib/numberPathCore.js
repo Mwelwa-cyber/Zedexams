@@ -7,8 +7,15 @@
  * of 3–5 tiles already on the board (so every round is solvable), tap
  * tiles to build the sum — hit the target for 20 × combo points and the
  * matched tiles are replaced, bust past it and the selection clears and
- * the combo resets. One 45-ish-second round per level, on an 8-level
- * path that tightens the timer and widens the tile range as it climbs.
+ * the combo resets. A round is `LEVEL_TARGETS` targets hit, on an 8-level
+ * path that widens the tile range and the target's span as it climbs.
+ *
+ * The prototype ran each level on a 55-minus-2-per-level countdown, and
+ * that was how difficulty climbed. PROMPT 7b deleted it: a maths game
+ * that gets harder by giving you LESS TIME to think tests arithmetic
+ * speed, which is not what the CBC teaches or examines. Difficulty now
+ * climbs the honest way — `tileMax` and `targetTileCount` already did
+ * this and are what remains — and a level ends when the work is done.
  *
  * No React, no imports, no Date/randomness of its own — every function
  * that draws numbers takes an `rng` (defaulting to Math.random) so the
@@ -20,6 +27,9 @@
 export const TOTAL_LEVELS = 8
 export const GRID_SIZE = 16
 
+/** Targets to hit in one level — the fixed set that replaced the countdown. */
+export const LEVEL_TARGETS = 8
+
 /** Node coordinates on the level path — prototype NODE_POS, in a
  * 0–100 × 0–760 space (x is a percentage, y maps via PATH_VIEW_HEIGHT). */
 export const NODE_POS = [
@@ -29,11 +39,6 @@ export const NODE_POS = [
 export const PATH_VIEW_HEIGHT = 760
 
 const clampLevel = (level) => Math.min(TOTAL_LEVELS, Math.max(1, Math.floor(Number(level) || 1)))
-
-/** Round length in seconds — tighter as levels climb (prototype: 55 − 2·level, floor 35). */
-export function levelTimeMax(level) {
-  return Math.max(35, 55 - clampLevel(level) * 2)
-}
 
 /** Largest tile value at a level (prototype ntFill: 3..11+level). */
 export function tileMax(level) {
@@ -167,9 +172,10 @@ export function nodeStates(progress) {
 /**
  * Map a finished round onto the shared `useGameFinish` result shape —
  * matches count as correct answers, busts as wrong ones, and the peak
- * combo is the round's best streak.
+ * combo is the round's best streak. `timeSpent` is the learner's actual
+ * elapsed seconds — a record, never a score.
  */
-export function roundResult({ game, score, matches, busts, peakCombo, timeMax }) {
+export function roundResult({ game, score, matches, busts, peakCombo, timeSpent }) {
   const correct = Math.max(0, Math.floor(Number(matches) || 0))
   const wrong = Math.max(0, Math.floor(Number(busts) || 0))
   const attempts = correct + wrong
@@ -180,6 +186,8 @@ export function roundResult({ game, score, matches, busts, peakCombo, timeMax })
     wrong,
     accuracy: attempts ? Math.round((correct / attempts) * 100) : 0,
     bestStreak: Math.max(0, Math.floor(Number(peakCombo) || 0)),
-    timeSpent: Math.max(0, Math.floor(Number(timeMax) || 0)),
+    // MEASURED elapsed seconds, where this used to be the level's countdown
+    // length. Still recorded (My Progress reads it); never scored or ranked.
+    timeSpent: Math.max(0, Math.floor(Number(timeSpent) || 0)),
   }
 }

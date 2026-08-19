@@ -8,7 +8,7 @@
  */
 import {
   FALLBACK_WORDS,
-  ROUND_SECONDS,
+  ROUND_WORDS,
   guessFrom,
   pickListenMode,
   playableWords,
@@ -87,7 +87,7 @@ assert(solveGain(1) === 20 && solveGain(4) === 80, 'a solve pays 20 × combo')
 assert(solveGain(0) === 20, 'combo floors at ×1')
 assert(starsForWordScore(140) === 3 && starsForWordScore(200) === 3, '140+ earns three stars')
 assert(starsForWordScore(60) === 2 && starsForWordScore(20) === 1, 'word-game star thresholds match the prototype')
-assert(ROUND_SECONDS === 60, 'the round is the prototype 60 seconds')
+assert(ROUND_WORDS === 8, 'a round is eight words — the fixed set that replaced the clock')
 
 /* ── Listen mode ───────────────────────────────────────────────── */
 {
@@ -98,11 +98,17 @@ assert(ROUND_SECONDS === 60, 'the round is the prototype 60 seconds')
 /* ── useGameFinish result mapping ──────────────────────────────── */
 {
   const game = { id: 'english_word_builder_g3' }
-  const result = roundResult({ game, score: 160, solved: 5, misses: 3, peakCombo: 4 })
+  const result = roundResult({ game, score: 160, solved: 5, misses: 3, peakCombo: 4, timeSpent: 132 })
   assert(result.game === game, 'the game doc rides through untouched')
   assert(result.score === 160 && result.correct === 5 && result.wrong === 3, 'solved/misses map to correct/wrong')
   assert(result.accuracy === 63, 'accuracy is solves over attempts, rounded')
-  assert(result.bestStreak === 4 && result.timeSpent === 60, 'peak combo and round length carry over')
+  assert(result.bestStreak === 4, 'peak combo carries over')
+  // MEASURED, never the old fixed 60. Spelling is the engine where this
+  // matters most: a careful speller's round is simply longer, and nothing
+  // about the result should read as though that cost them.
+  assert(result.timeSpent === 132, 'the measured elapsed seconds carry over')
+  assert(roundResult({ game, score: 0, solved: 0, misses: 0, peakCombo: 1 }).timeSpent === 0,
+    'an unmeasured round records 0 seconds rather than inventing a round length')
   const idle = roundResult({ game, score: 0, solved: 0, misses: 0, peakCombo: 1 })
   assert(idle.accuracy === 0, 'an idle round is 0% accuracy, not NaN')
 }

@@ -3,11 +3,17 @@
  * Match" tap-pair game (learner redesign step 4, the third rebuilt
  * mechanic; it replaces the card-flip Memory Match).
  *
- * The mechanic is the prototype's: one 60-second round over boards of
- * up to four pairs — words down the left, their meanings shuffled down
- * the right. Tap a word, tap a meaning: right pays 20 × combo and locks
- * the pair green, wrong shakes both red and resets the combo. Clearing
- * a board deals the next from a recycling shuffled pool.
+ * The mechanic is the prototype's, minus its clock: a round is a FIXED
+ * SET of `ROUND_BOARDS` boards of up to four pairs — words down the left,
+ * their meanings shuffled down the right. Tap a word, tap a meaning:
+ * right pays 20 × combo and locks the pair green, wrong shakes both red
+ * and resets the combo. Clearing a board deals the next from a recycling
+ * shuffled pool; clearing the last one ends the round.
+ *
+ * The prototype ran this on a 60-second countdown. PROMPT 7b deleted it:
+ * matching a word to its meaning is not a speed skill, and the clock
+ * ended the round for the learners who were reading carefully. The round
+ * now ends when the work is done, and nothing on screen counts down.
  *
  * Content comes from the game doc's `questions` array, which for
  * memory_match games was ALREADY pair data ({ question: left side,
@@ -17,8 +23,15 @@
  * scripts/test-meaning-match.mjs can drive it deterministically.
  */
 
-export const ROUND_SECONDS = 60
+/** Boards in one round — the fixed set that replaced the countdown. */
+export const ROUND_BOARDS = 4
 export const BOARD_PAIRS = 4
+
+/** Pairs in a full round, for the progress bar's denominator. */
+export function roundPairs(pairCount = BOARD_PAIRS) {
+  const perBoard = Math.max(1, Math.min(BOARD_PAIRS, Math.floor(Number(pairCount) || BOARD_PAIRS)))
+  return ROUND_BOARDS * perBoard
+}
 
 /** The prototype's pair list — the fallback when a game doc has none. */
 export const FALLBACK_PAIRS = [
@@ -106,9 +119,10 @@ export function starsForScore(score) {
 /**
  * Map a finished round onto the shared `useGameFinish` result shape —
  * matched pairs count as correct answers, wrong taps as wrong ones,
- * and the peak combo is the round's best streak.
+ * and the peak combo is the round's best streak. `timeSpent` is the
+ * learner's actual elapsed seconds — a record, never a score.
  */
-export function roundResult({ game, score, solved, misses, peakCombo }) {
+export function roundResult({ game, score, solved, misses, peakCombo, timeSpent }) {
   const correct = Math.max(0, Math.floor(Number(solved) || 0))
   const wrong = Math.max(0, Math.floor(Number(misses) || 0))
   const attempts = correct + wrong
@@ -119,6 +133,8 @@ export function roundResult({ game, score, solved, misses, peakCombo }) {
     wrong,
     accuracy: attempts ? Math.round((correct / attempts) * 100) : 0,
     bestStreak: Math.max(0, Math.floor(Number(peakCombo) || 0)),
-    timeSpent: ROUND_SECONDS,
+    // MEASURED, not the old fixed round length. Still recorded (My Progress
+    // and the weekly report read it) — it is simply never scored or ranked.
+    timeSpent: Math.max(0, Math.floor(Number(timeSpent) || 0)),
   }
 }
