@@ -179,9 +179,30 @@ stale-deploy dynamic-import failures.
    against project `examsprepzambia`, so no learner screen can be reached
    locally either.
 
-`identitytoolkit.googleapis.com` and `firestore.googleapis.com` **are** reachable
-and `localhost` bypasses the proxy, so supplying the six public `VITE_FIREBASE_*`
-values unblocks a full local run. `npm install` has already been completed here.
+3. **App Check enforcement blocks sign-in.** With the real `VITE_FIREBASE_*`
+   config supplied and the dev server running, `signInWithPassword` against
+   project `examsprepzambia` returns **`401 — "Firebase App Check token is
+   invalid."`** App Check is enforced on Auth, so no client signs in without an
+   attestation token.
+4. **The browser cannot obtain one, and cannot reach Firebase at all.** Real
+   attestation needs reCAPTCHA Enterprise, whose hosts (`www.gstatic.com`,
+   `www.google.com`) the egress policy denies. Separately, **every
+   `*.googleapis.com` host resets in Chromium** (`net::ERR_CONNECTION_RESET`)
+   while `curl` reaches those same hosts and `github.com` loads fine in that
+   same browser — a gateway behaviour specific to browser TLS against Google's
+   API hosts. Isolated after installing the proxy CA into the NSS store, which
+   fixed general browser TLS but not this.
+
+Correcting the earlier note here: supplying the `VITE_FIREBASE_*` values does
+**not** on its own unblock a local run. They were supplied; blockers 3 and 4 are
+what remain. Unblocking needs both:
+
+- a debug App Check token registered in Firebase Console → App Check → Apps →
+  Manage debug tokens. `src/firebase/config.js:325-329` already sets
+  `FIREBASE_APPCHECK_DEBUG_TOKEN = true` under `import.meta.env.DEV`, but `:324`
+  returns early unless `VITE_FIREBASE_APPCHECK_RECAPTCHA_KEY` is also set; and
+- browser-reachable `*.googleapis.com`, which is an egress-policy change rather
+  than anything this repo controls.
 
 Consequently **not yet audited**: all 11 viewports and continuous resize; the
 brand-new / guardian-unapproved / heavy / loading / error / offline states; dark
