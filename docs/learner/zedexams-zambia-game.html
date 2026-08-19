@@ -357,19 +357,82 @@ border:2px solid transparent;font:inherit;text-align:left;cursor:pointer}
    "createdNote": null
   }
  },
+ "adjacency": {
+  "_readme": "Which provinces share a boundary. Journey mode walks it and odd-one-out questions it, so a wrong edge here is a wrong lesson rather than a wrong pixel. Derived from the traced outlines and re-checked against them by test:zambia-game, which measures how much boundary each declared pair actually shares and fails on a pair the trace cannot support.",
+  "note": "Two facts worth knowing before editing. CENTRAL TOUCHES EIGHT of the other nine — every province except Northern — which is why it is the one province a journey can nearly always route through. And COPPERBELT AND LUAPULA DO NOT TOUCH: the Congo Pedicle, the thumb of DRC land, sits between them, which is why the road from the Copperbelt to Mansa either crosses another country or goes the long way round through Central. Both are real, both surprise people, and both fall out of the map rather than having to be asserted.",
+  "unit": "Province codes, symmetric — if a is in b, b is in a.",
+  "edges": {
+   "nw": [
+    "cb",
+    "ce",
+    "we"
+   ],
+   "cb": [
+    "nw",
+    "ce"
+   ],
+   "ce": [
+    "nw",
+    "cb",
+    "lp",
+    "mu",
+    "ea",
+    "lu",
+    "so",
+    "we"
+   ],
+   "lu": [
+    "ce",
+    "ea",
+    "so"
+   ],
+   "so": [
+    "ce",
+    "lu",
+    "we"
+   ],
+   "we": [
+    "nw",
+    "ce",
+    "so"
+   ],
+   "no": [
+    "lp",
+    "mu"
+   ],
+   "mu": [
+    "no",
+    "lp",
+    "ce",
+    "ea"
+   ],
+   "ea": [
+    "mu",
+    "ce",
+    "lu"
+   ],
+   "lp": [
+    "no",
+    "mu",
+    "ce"
+   ]
+  }
+ },
  "source": "Traced from a reference province map supplied by the ZedExams team, Aug 2026. NOT YET VERIFIED against ZamStats / the Survey Department — see dataset.verification."
 }</script>
 <script type="application/json" id="mirror-facts">{
  "_readme": "Every fact the Know Zambia game teaches (docs/learner/zedexams-zambia-game.html). Province OUTLINES live in zambia_provinces.json; nothing here repeats them. This file is the review sheet: a Zambian teacher signs off levels 2, 3, 5 and 6 by filling in dataset.verification, not by reading the HTML.",
  "dataset": {
   "id": "zambia_facts",
-  "version": 1,
+  "version": 2,
   "dated": "2026-08-19",
   "verification": {
    "status": "UNVERIFIED",
    "blocking": true,
    "requiredBeforeRelease": [
-    "A Zambian teacher checks every entry in capitals, districts, heritage and ceremonies — the four the prompt names.",
+    "A Zambian teacher checks every entry in capitals, districts, heritage and ceremonies — the four the original prompt names.",
+    "The same teacher checks the three classes added for the map modes: which countries each province borders (provinces[].borders), the province sequence of each journey, and the Kazungula question raised in provinceBorders.unverified.",
+    "Journey distances are rounded road distances and are printed to learners. Confirm them, or drop them — a number on screen is a claim.",
     "District names and counts change. Re-check the districts list against the current ZamStats district register and re-date it.",
     "Record who checked, against what, and on what date, in the three fields below."
    ],
@@ -395,6 +458,12 @@ border:2px solid transparent;font:inherit;text-align:left;cursor:pointer}
     "what": "General reference works, checked 2026-08-19",
     "used": "capitals, ceremonies, parks, rivers, lakes, symbols",
     "status": "cross-checked at authoring time; still needs the teacher pass"
+   },
+   {
+    "id": "roads",
+    "what": "Zambian trunk road network — the Great North Road, the Great East Road, the M9",
+    "used": "journey routes, road names, approximate distances",
+    "status": "TO BE CONFIRMED — routes are correct in their province sequence; the distances are rounded and have not been read off a road register"
    }
   ],
   "districtCount": {
@@ -406,43 +475,78 @@ border:2px solid transparent;font:inherit;text-align:left;cursor:pointer}
  "provinces": {
   "lu": {
    "fact": "The smallest province by area, and the one with the most people. Lusaka city is both the provincial capital and the capital of Zambia.",
-   "hint": "Lusaka is the small one in the middle-south, around the capital city."
+   "hint": "Lusaka is the small one in the middle-south, around the capital city.",
+   "borders": [
+    "zw",
+    "mz"
+   ]
   },
   "cb": {
    "fact": "Zambia's old mining heartland — Ndola, Kitwe, Chingola, Mufulira. The provincial capital is Ndola.",
-   "hint": "Copperbelt is up north on the DRC border, above the middle of the country."
+   "hint": "Copperbelt is up north on the DRC border, above the middle of the country.",
+   "borders": [
+    "cd"
+   ]
   },
   "we": {
    "fact": "Barotseland — the Zambezi floodplain, the Lozi kingdom and the Kuomboka. The provincial capital is Mongu.",
-   "hint": "Western is the big one in the south-west, along the Zambezi floodplain."
+   "hint": "Western is the big one in the south-west, along the Zambezi floodplain.",
+   "borders": [
+    "ao",
+    "na"
+   ]
   },
   "so": {
    "fact": "Tonga country, the Zambezi, Lake Kariba and Mosi-oa-Tunya. The provincial capital is Choma — it moved there from Livingstone in 2011.",
-   "hint": "Southern runs along the Zambezi in the far south, below Lusaka and east of Western — Livingstone sits at its bottom corner."
+   "hint": "Southern runs along the Zambezi in the far south, below Lusaka and east of Western — Livingstone sits at its bottom corner.",
+   "borders": [
+    "zw",
+    "bw"
+   ]
   },
   "no": {
    "fact": "Reaches Lake Tanganyika at Mpulungu. The provincial capital is Kasama, and Kalambo Falls is on its border with Tanzania.",
-   "hint": "Northern is at the very top of the map, above the Copperbelt, reaching Lake Tanganyika."
+   "hint": "Northern is at the very top of the map, above the Copperbelt, reaching Lake Tanganyika.",
+   "borders": [
+    "cd",
+    "tz"
+   ]
   },
   "ce": {
    "fact": "The middle of the country, and the road and rail line through it. The provincial capital is Kabwe, where the Broken Hill skull was found.",
-   "hint": "Central is in the middle, between the Copperbelt and Lusaka."
+   "hint": "Central is in the middle, between the Copperbelt and Lusaka.",
+   "borders": []
   },
   "ea": {
    "fact": "Borders Malawi and Mozambique, and holds the Luangwa valley. The provincial capital is Chipata.",
-   "hint": "Eastern is the far right of the map, east of Lusaka and next to Malawi."
+   "hint": "Eastern is the far right of the map, east of Lusaka and next to Malawi.",
+   "borders": [
+    "mw",
+    "mz"
+   ]
   },
   "lp": {
    "fact": "A narrow province along the Luapula river and Lake Mweru, both of which are the border with the DRC. The provincial capital is Mansa.",
-   "hint": "Luapula is the narrow one in the north, west of Northern, along Lake Mweru."
+   "hint": "Luapula is the narrow one in the north, west of Northern, along Lake Mweru.",
+   "borders": [
+    "cd"
+   ]
   },
   "mu": {
    "fact": "Created in 2011 from districts of Northern Province, plus Chama from Eastern. The provincial capital is Chinsali, and Shiwa Ng'andu is here.",
-   "hint": "Muchinga is the long strip in the north-east, between Northern and Eastern."
+   "hint": "Muchinga is the long strip in the north-east, between Northern and Eastern.",
+   "borders": [
+    "tz",
+    "mw"
+   ]
   },
   "nw": {
    "fact": "The newer copper mines — Kansanshi at Solwezi and Kalumbila — and the source of the Zambezi. The provincial capital is Solwezi.",
-   "hint": "North-Western is the top-left corner, west of the Copperbelt."
+   "hint": "North-Western is the top-left corner, west of the Copperbelt.",
+   "borders": [
+    "ao",
+    "cd"
+   ]
   }
  },
  "capitals": [
@@ -1401,7 +1505,152 @@ border:2px solid transparent;font:inherit;text-align:left;cursor:pointer}
    "answer": "Stand and Sing of Zambia, Proud and Free",
    "why": "The words are Zambia's own; the tune is Enoch Sontonga's \"Nkosi Sikelel' iAfrika\", which several African countries share."
   }
- ]
+ ],
+ "provinceBorders": {
+  "_readme": "Which countries each province touches, in provinces[code].borders. Odd-one-out is built from this rather than from a hand-written list of answers, so a set whose three provinces do not actually share the property fails test:zambia-game instead of quietly teaching the wrong thing.",
+  "note": "Central is the only province that touches no other country. Four provinces meet the DRC — North-Western, Copperbelt, Luapula and Northern — which is more than most people expect, and is why an odd-one-out set about the DRC has to leave one of the four out rather than being asked as \"which three\".",
+  "unverified": "ONE BOUNDARY IS GENUINELY UNSETTLED HERE and a teacher should rule on it: at Kazungula, Zambia, Zimbabwe, Botswana and Namibia meet at very nearly a single point. Southern Province is recorded as touching Zimbabwe and Botswana, and Namibia is recorded against Western Province alone. Whether Southern also faces Namibia across the Zambezi east of Sesheke depends on exactly where the Western/Southern boundary meets the river, which a hand trace cannot settle. Nothing the game asks turns on it."
+ },
+ "journeys": [
+  {
+   "id": "liv-kas",
+   "from": "Livingstone",
+   "to": "Kasama",
+   "road": "The Great North Road",
+   "approxKm": 1300,
+   "provinces": [
+    "so",
+    "lu",
+    "ce",
+    "mu",
+    "no"
+   ],
+   "legs": {
+    "so": "Livingstone is in Southern Province, at Mosi-oa-Tunya. The road runs north-east through Choma, the provincial capital.",
+    "lu": "It reaches Lusaka. Nearly every long journey in Zambia passes through it.",
+    "ce": "Then Central — up through Kabwe, Kapiri Mposhi and Serenje.",
+    "mu": "Into Muchinga at Mpika. All of this was Northern Province until 2011.",
+    "no": "And Kasama, the provincial capital of Northern."
+   },
+   "endNote": "Five provinces and about 1,300 km — the better part of two days on a bus. Zambia is a great deal bigger than it looks on a phone."
+  },
+  {
+   "id": "lsk-mon",
+   "from": "Lusaka",
+   "to": "Mongu",
+   "road": "The M9, the Lusaka–Mongu road",
+   "approxKm": 600,
+   "provinces": [
+    "lu",
+    "ce",
+    "we"
+   ],
+   "legs": {
+    "lu": "The M9 leaves Lusaka heading west.",
+    "ce": "It crosses the bottom of Central, past Mumbwa.",
+    "we": "Then Western, through Kaoma to Mongu above the Barotse floodplain — where the Kuomboka ends."
+   },
+   "endNote": "Three provinces and about 600 km, almost due west. The shortest of these journeys still crosses a third of the country."
+  },
+  {
+   "id": "chi-sol",
+   "from": "Chipata",
+   "to": "Solwezi",
+   "road": "The Great East Road, then the Great North Road",
+   "approxKm": 1050,
+   "provinces": [
+    "ea",
+    "lu",
+    "ce",
+    "cb",
+    "nw"
+   ],
+   "legs": {
+    "ea": "Chipata is a short drive from the Malawi border. The Great East Road runs west through Katete and Petauke.",
+    "lu": "It crosses the Luangwa bridge into Lusaka Province, and on to the city.",
+    "ce": "North through Central — Kabwe, then Kapiri Mposhi, where the road forks.",
+    "cb": "Into the Copperbelt at Ndola, its provincial capital.",
+    "nw": "And west to Solwezi, in North-Western, next to the newer copper mines."
+   },
+   "endNote": "Five provinces and about 1,050 km, corner to corner. Chipata is far closer to Lilongwe, in another country, than it is to Solwezi in its own."
+  },
+  {
+   "id": "ndo-liv",
+   "from": "Ndola",
+   "to": "Livingstone",
+   "road": "The Great North Road, then the T1",
+   "approxKm": 800,
+   "provinces": [
+    "cb",
+    "ce",
+    "lu",
+    "so"
+   ],
+   "legs": {
+    "cb": "Ndola is the Copperbelt’s provincial capital — not Kitwe, though Kitwe is the bigger town.",
+    "ce": "South through Central, past Kapiri Mposhi and Kabwe.",
+    "lu": "Through Lusaka.",
+    "so": "And down Southern Province through Choma to Livingstone."
+   },
+   "endNote": "Four provinces and about 800 km — copper at one end, the Falls at the other, and the same road for most of it."
+  }
+ ],
+ "journeysNote": "Distances are road distances rounded to the nearest 50 km, for a sense of scale rather than for planning a trip. The province sequences are what the game marks right or wrong, and every consecutive pair is checked against the adjacency graph in zambia_provinces.json.",
+ "oddOneOut": [
+  {
+   "id": "drc",
+   "rule": "borders:cd",
+   "set": [
+    "lp",
+    "cb",
+    "nw",
+    "so"
+   ],
+   "odd": "so",
+   "q": "Three of these provinces share a border with the <b>DR Congo</b>. Tap the one that does not.",
+   "why": "Luapula, Copperbelt and North-Western all run along the DRC border across the north. Southern is at the other end of the country, on the Zambezi opposite Zimbabwe. Northern borders the DRC as well — four provinces in all."
+  },
+  {
+   "id": "landlocked",
+   "rule": "borders:any",
+   "set": [
+    "we",
+    "so",
+    "ce",
+    "ea"
+   ],
+   "odd": "ce",
+   "q": "Three of these provinces touch <b>another country</b>. Tap the one that touches none.",
+   "why": "Western meets Angola and Namibia, Southern meets Zimbabwe and Botswana, Eastern meets Malawi and Mozambique. Central touches no other country at all — it is the one province wrapped entirely by the rest of Zambia."
+  },
+  {
+   "id": "east",
+   "rule": "borders:tz|mw",
+   "set": [
+    "no",
+    "mu",
+    "ea",
+    "lp"
+   ],
+   "odd": "lp",
+   "q": "Three of these provinces touch <b>Tanzania or Malawi</b>, out to the north-east and east. Tap the one that does not.",
+   "why": "Northern and Muchinga meet Tanzania, and Muchinga and Eastern meet Malawi. Luapula’s foreign neighbour is the DRC, which wraps right round it on the other side of the country."
+  },
+  {
+   "id": "central",
+   "rule": "touches:ce",
+   "set": [
+    "cb",
+    "lu",
+    "no",
+    "we"
+   ],
+   "odd": "no",
+   "q": "Three of these provinces share a border with <b>Central Province</b>. Tap the one that does not.",
+   "why": "Central touches eight of the other nine provinces — everything except Northern. Copperbelt, Lusaka and Western all border it. Northern is the one province in Zambia that Central does not reach."
+  }
+ ],
+ "oddOneOutNote": "Each set names a rule the data can be asked, not an answer typed in by hand: borders:X (the province touches country X), borders:any, borders:a|b, touches:X (the province shares a boundary with province X). test:zambia-game evaluates every rule and fails if the three are not really three, or the odd one is not really odd."
 }</script>
 
 <script>
@@ -1548,9 +1797,16 @@ function countQuestions(l){var n=0;l.steps.forEach(function(s){n+=(s.t==='place'
 
 /* ---------- map ---------- */
 function esc(s){return String(s).replace(/&(?!\w+;)/g,'&amp;').replace(/</g,'&lt;');}
+/* Size from the INSCRIBED RADIUS at the label anchor, not the bounding box.
+   Deriving it from the box is the same mistake as using a box centre for a
+   position: North-Western's box is nearly half the country wide while the room
+   around its anchor is not, so box-derived sizing printed its name straight
+   through Copperbelt's — visible at the end of level 1, where all ten are
+   labelled at once. The anchor is the pole of inaccessibility, so its distance
+   to the boundary IS the radius of the largest circle that fits there. */
 function labelSize(k){
-  var b=G[k].bbox,n=nameOf(k).length;
-  return Math.max(1.9,Math.min(3.1,(b.w*0.86)/(n*0.55)));
+  var n=nameOf(k).length;
+  return Math.max(1.9,Math.min(3.1,(G[k].inscribed*2*0.95)/(n*0.55)));
 }
 function svgMap(o){
   o=o||{};
@@ -1646,7 +1902,13 @@ function fitHalos(){
     for(j=0;j<hs.length;j++){
       var minPx=parseFloat(hs[j].getAttribute('data-min'))*scale;
       var r=minPx>=TOUCH_MIN?0:(TOUCH_MIN/2)/scale;
-      hs[j].setAttribute('r',r.toFixed(2));
+      /* Round the radius UP, not to nearest. At 320px the ideal radius is
+         8.270677 user units and toFixed(2) gives 8.27 — a 43.996px target,
+         which fails the 44px rule this line exists to keep, and turns the
+         page's own acceptance row red at the narrowest width it supports.
+         Two hundredths of a unit too big costs nothing; a hair too small
+         costs the guarantee. */
+      hs[j].setAttribute('r',r?(Math.ceil(r*100)/100).toFixed(2):'0');
       measured.push({id:hs[j].getAttribute('data-hit'),px:Math.max(minPx,r*2*scale)});
     }
   }
@@ -2028,7 +2290,8 @@ function notes(){
   '<div class="note"><h3>A wrong placement teaches direction</h3>Every province, river, lake, site and neighbour carries a positional hint written relative to something else — "west of the Copperbelt", "below Lusaka", "at the very top, reaching Lake Tanganyika". A wrong tap names what was tapped, then gives the hint for what was being placed. Nothing is taken away and the name goes back in the bank. After three misses on a question the answer is shown rather than left as a wall.</div>'+
   '<div class="note"><h3>Colour is never the signal</h3>Correct is a ✓ and a filled shape; wrong is a ✗ and a diagonal hatch; already-placed is grey and carries its name. The palette is Okabe-Ito, and its green and orange sit at almost the same grey — which is the point of <b>Drop the colour</b> in the strip: with colour removed the map still reads, because the glyphs and the words were carrying it all along.</div>'+
   '<div class="note"><h3>Drawn from coordinates, not by eye</h3>The dataset carries a projection, so every town, heritage site, park and river in the game is plotted from its real longitude and latitude rather than nudged into position. It also makes the trace checkable: the panel projects five known points and reports where the pins disagree with the outline, in km. That disagreement <i>is</i> the accuracy statement — about '+D.positionalAccuracyKm+' km.</div>'+
-  '<div class="note"><h3>Still to build</h3><b>Odd one out</b> — three districts from one province, one from another. <b>Journey mode</b> — "travel from Livingstone to Kasama, name each province you cross". <b>Photo round</b> — a picture of Mosi-oa-Tunya or Shiwa Ng’andu, place it. <b>Ceremony calendar</b> — which month, which people, which province (the months are already in the dataset; two of them are asked). Districts on the map, once boundaries are sourced.</div>';
+  '<div class="note"><h3>Three of these are now built next door</h3><b>Journey mode</b>, <b>odd one out</b> and the <b>ceremony calendar</b> are prototyped in <code>zedexams-zambia-map-modes.html</code>, off the same two datasets — journey walks the new <code>adjacency</code> graph in <code>zambia_provinces.json</code>, and odd one out is derived from the new per-province <code>borders</code> list rather than authored. That page also carries a <b>neighbours</b> mode that duplicates level 8 here; the two should not both ship.</div>'+
+  '<div class="note"><h3>Still to build</h3><b>Photo round</b> — a picture of Mosi-oa-Tunya or Shiwa Ng’andu, place it. Districts on the map, once boundaries are sourced.</div>';
 }
 
 /* ---------- wiring ---------- */
@@ -2088,7 +2351,7 @@ function fillRig(){
 loadData().then(function(){
   PKEYS.forEach(function(k){
     var pts=parsePath(PROV.provinces[k].d);
-    G[k]={pts:pts,bbox:bbox(pts),area:areaOf(pts)};
+    G[k]={pts:pts,bbox:bbox(pts),area:areaOf(pts),inscribed:distToPoly(PROV.provinces[k].c,pts)};
   });
   LEVELS=buildLevels();load();fillRig();notes();wireDrag();
   startLevel(0);

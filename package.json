@@ -176,7 +176,6 @@
     "sync:assessment-bands": "node scripts/sync-assessment-bands.mjs",
     "sync:paper-terminology": "node scripts/sync-paper-terminology.mjs",
     "sync:zambia-game": "node scripts/sync-zambia-game-mirror.mjs",
-    "sync:zambia-physical": "node scripts/sync-zambia-physical-mirror.mjs",
     "coverage:curriculum": "node scripts/curriculum-coverage-report.mjs",
     "seed:assessment-bands": "node scripts/seed-assessment-bands.mjs",
     "test:syllabus-tree": "node scripts/test-syllabus-topic-tree.mjs",

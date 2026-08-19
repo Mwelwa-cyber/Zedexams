@@ -2,9 +2,10 @@
  * test:zambia-game — the Know Zambia prototype's data, checked where a browser
  * cannot check it.
  *
- * docs/learner/zedexams-zambia-game.html renders entirely from two datasets and
- * runs its own acceptance rules on screen. Three classes of failure survive
- * that, and all three are silent:
+ * Two prototypes render entirely from the same two datasets and run their own
+ * acceptance rules on screen — zedexams-zambia-game.html (the levels) and
+ * zedexams-zambia-map-modes.html (the five map modes). Four classes of failure
+ * survive that, and all four are silent:
  *
  *   1. THE INLINE MIRROR DRIFTS. The HTML carries a copy of both datasets so it
  *      still renders when opened from the filesystem (the browser blocks the
@@ -23,6 +24,15 @@
  *      in the dataset. If either the trace or the projection is replaced
  *      without the other, pins keep rendering — in the wrong province.
  *
+ *   4. A LESSON GOES WRONG WHILE THE GAME KEEPS WORKING. Journey mode marks a
+ *      province sequence right or wrong, and odd-one-out asks which of four
+ *      does not share a property. Both play perfectly against bad data: a route
+ *      through two provinces that do not touch is still tappable in order, and
+ *      a set whose "odd" province is not actually odd still lights four
+ *      provinces and accepts a tap. Nothing on screen can tell, so the routes
+ *      are checked against the adjacency graph and the odd-one-out rules are
+ *      evaluated against the border data here.
+ *
  * Geometry here is deliberately re-implemented rather than imported: the point
  * is to check the shipped data with something other than the code that draws it.
  */
@@ -31,8 +41,25 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 const DIR = path.join(process.cwd(), 'docs', 'learner')
-const HTML_PATH = path.join(DIR, 'zedexams-zambia-game.html')
+/* The one list of prototypes carrying inline mirrors. It must stay in step with
+   PAGES in scripts/sync-zambia-game-mirror.mjs — a page in the sync and not
+   here is a mirror nothing checks; a page here and not in the sync is a mirror
+   nothing writes. The first test below compares the two lists.
+
+   The physical-features prototype is here for the mirrors it shares, not for
+   its own content: it carries copies of these same two datasets, so an edit to
+   either has to reach it too. What it teaches on top of them is checked by
+   test:zambia-physical. */
+const PAGES = [
+  'zedexams-zambia-game.html',
+  'zedexams-zambia-map-modes.html',
+  'zedexams-zambia-physical.html',
+]
+const HTML_PATH = path.join(DIR, PAGES[0])
 const html = fs.readFileSync(HTML_PATH, 'utf8')
+const modesHtml = fs.readFileSync(path.join(DIR, 'zedexams-zambia-map-modes.html'), 'utf8')
+const pageSource = Object.fromEntries(PAGES.map((p) => [p, fs.readFileSync(path.join(DIR, p), 'utf8')]))
+const syncScript = fs.readFileSync(path.join(process.cwd(), 'scripts', 'sync-zambia-game-mirror.mjs'), 'utf8')
 const provinces = JSON.parse(fs.readFileSync(path.join(DIR, 'zambia_provinces.json'), 'utf8'))
 const facts = JSON.parse(fs.readFileSync(path.join(DIR, 'zambia_facts.json'), 'utf8'))
 
@@ -74,26 +101,79 @@ function whichProvince(pt) {
   for (const k of KEYS) if (inside(pt, parsePath(provinces.provinces[k].d))) return k
   return null
 }
-function mirrorOf(id) {
-  const m = html.match(new RegExp(`<script type="application/json" id="${id}">([\\s\\S]*?)</script>`))
+function mirrorOf(id, source = html) {
+  const m = source.match(new RegExp(`<script type="application/json" id="${id}">([\\s\\S]*?)</script>`))
   assert.ok(m, `no <script id="${id}"> mirror block in the prototype`)
   return m[1]
+}
+function borders(k) {
+  const b = facts.provinces[k].borders
+  assert.ok(Array.isArray(b), `${k} has no borders list`)
+  return b
+}
+function touches(a, b) {
+  return (provinces.adjacency.edges[a] || []).includes(b)
+}
+/* How much boundary two provinces really share, counted as outline points of
+   one lying on the other. Re-implemented rather than imported, for the same
+   reason the rest of the geometry here is. */
+function sharedBoundary(a, b) {
+  const eps = 0.6
+  const A = parsePath(provinces.provinces[a].d)
+  const B = parsePath(provinces.provinces[b].d)
+  const near = (p, pts) => {
+    let d = Infinity
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      const [ax, ay] = pts[j]
+      const [bx, by] = pts[i]
+      const dx = bx - ax
+      const dy = by - ay
+      const l = dx * dx + dy * dy
+      const t = l ? Math.max(0, Math.min(1, ((p[0] - ax) * dx + (p[1] - ay) * dy) / l)) : 0
+      d = Math.min(d, Math.hypot(ax + t * dx - p[0], ay + t * dy - p[1]))
+    }
+    return d < eps
+  }
+  return A.filter((p) => near(p, B)).length + B.filter((p) => near(p, A)).length
+}
+/* The rule vocabulary the odd-one-out sets are written in. Evaluating it here
+   is the whole point: the sets declare a question, never an answer. */
+function ruleHolds(k, rule) {
+  if (rule === 'borders:any') return borders(k).length > 0
+  if (rule.startsWith('borders:')) return rule.slice(8).split('|').some((c) => borders(k).includes(c))
+  if (rule.startsWith('touches:')) return touches(k, rule.slice(8))
+  throw new Error(`unknown rule "${rule}" — the vocabulary is borders:X, borders:any, borders:a|b, touches:X`)
 }
 
 console.log('zambia-game')
 
-test('the inline mirrors match the datasets byte for byte', () => {
+test('every prototype that carries a mirror is one the sync script writes', () => {
+  for (const page of PAGES) {
+    assert.ok(
+      syncScript.includes(`'${page}'`),
+      `${page} carries inline mirrors but is not in PAGES in scripts/sync-zambia-game-mirror.mjs, so nothing ever rewrites them`,
+    )
+  }
+  const inSync = [...syncScript.matchAll(/'(zedexams-[a-z0-9-]+\.html)'/g)].map((m) => m[1])
+  for (const page of new Set(inSync)) {
+    assert.ok(page in pageSource, `${page} is synced but not checked here`)
+  }
+})
+
+test('the inline mirrors match the datasets byte for byte, in every prototype', () => {
   const fix = 'run `npm run sync:zambia-game` and commit the result'
-  assert.equal(
-    mirrorOf('mirror-provinces'),
-    fs.readFileSync(path.join(DIR, 'zambia_provinces.json'), 'utf8').trim(),
-    `zambia_provinces.json and the inline mirror disagree — ${fix}`,
-  )
-  assert.equal(
-    mirrorOf('mirror-facts'),
-    fs.readFileSync(path.join(DIR, 'zambia_facts.json'), 'utf8').trim(),
-    `zambia_facts.json and the inline mirror disagree — ${fix}`,
-  )
+  for (const page of PAGES) {
+    assert.equal(
+      mirrorOf('mirror-provinces', pageSource[page]),
+      fs.readFileSync(path.join(DIR, 'zambia_provinces.json'), 'utf8').trim(),
+      `zambia_provinces.json and the inline mirror in ${page} disagree — ${fix}`,
+    )
+    assert.equal(
+      mirrorOf('mirror-facts', pageSource[page]),
+      fs.readFileSync(path.join(DIR, 'zambia_facts.json'), 'utf8').trim(),
+      `zambia_facts.json and the inline mirror in ${page} disagree — ${fix}`,
+    )
+  }
 })
 
 test('ten provinces, each parsing to a closed shape holding its own label anchor', () => {
@@ -249,11 +329,183 @@ test('both datasets say out loud that they have not been verified', () => {
   }
 })
 
-test('the prototype reads the datasets rather than a copy pasted into the code', () => {
-  assert.match(html, /fetch\(/, 'the page must fetch the datasets when it is served')
-  assert.ok(!/const\s+P\s*=\s*\{\s*nw:/.test(html), 'province paths must not be pasted into the script — they belong in the dataset')
-  assert.match(html, /zambia_provinces\.json/)
-  assert.match(html, /zambia_facts\.json/)
+test('every prototype reads the datasets rather than a copy pasted into the code', () => {
+  for (const page of PAGES) {
+    const src = pageSource[page]
+    assert.match(src, /fetch\(/, `${page} must fetch the datasets when it is served`)
+    assert.match(src, /zambia_provinces\.json/)
+    assert.match(src, /zambia_facts\.json/)
+    /* The failure this catches is a real one: the first draft of the map-modes
+       page pasted all ten province paths into a `const P = {nw: {d: "M…"}}`
+       literal. It renders identically and drifts the moment the trace changes. */
+    const scriptOnly = src.split('<script type="application/json"')[0] + src.split('</script>').pop()
+    assert.ok(
+      !/(?:const|var|let)\s+\w+\s*=\s*\{\s*nw\s*:\s*\{[^}]*\bd\s*:\s*["']M/.test(scriptOnly),
+      `${page}: province paths are pasted into the script — they belong in the dataset`,
+    )
+  }
+})
+
+/* ---------------------------------------------------------------------------
+   The map modes (docs/learner/zedexams-zambia-map-modes.html). Everything below
+   guards a lesson rather than a pixel: each of these can be wrong while the
+   game still plays perfectly.
+   ------------------------------------------------------------------------- */
+
+test('the adjacency graph is symmetric and complete', () => {
+  const edges = provinces.adjacency.edges
+  assert.deepEqual(Object.keys(edges).sort(), [...KEYS].sort(), 'every province needs an entry, even a short one')
+  for (const [a, list] of Object.entries(edges)) {
+    assert.ok(list.length > 0, `${a} borders nothing, which is true of no province in Zambia`)
+    for (const b of list) {
+      assert.ok(KEYS.includes(b), `${a} claims to border "${b}", which is not a province`)
+      assert.notEqual(a, b, `${a} borders itself`)
+      assert.ok(edges[b].includes(a), `${a} borders ${b} but ${b} does not border ${a} — adjacency is symmetric`)
+    }
+    assert.equal(new Set(list).size, list.length, `${a} lists a neighbour twice`)
+  }
+})
+
+test('every declared border is one the traced outlines actually share', () => {
+  const edges = provinces.adjacency.edges
+  const thin = []
+  for (const [a, list] of Object.entries(edges)) {
+    for (const b of list) {
+      if (a >= b) continue
+      const shared = sharedBoundary(a, b)
+      if (shared === 0) {
+        thin.push(`${a}–${b} share NO boundary in the trace`)
+      } else if (shared < 3) {
+        thin.push(`${a}–${b} share only ${shared} outline points`)
+      }
+    }
+  }
+  assert.deepEqual(thin, [], `declared neighbours the trace cannot support: ${thin.join(', ')}`)
+})
+
+test('Copperbelt and Luapula are not neighbours — the Congo Pedicle is between them', () => {
+  /* This is the adjacency fact most likely to be "fixed" by someone who knows
+     the two provinces are both in the north and assumes they must touch. They
+     do not: the DRC's Pedicle reaches down between them, which is why the road
+     from the Copperbelt to Mansa either crosses another country or goes the
+     long way round through Central. */
+  assert.ok(!touches('cb', 'lp'), 'Copperbelt and Luapula do not share a border')
+  assert.ok(!touches('lp', 'cb'))
+  assert.ok(sharedBoundary('cb', 'lp') < 3, 'and the trace agrees — they share no meaningful boundary')
+  assert.match(provinces.adjacency.note, /Pedicle/i, 'the dataset must say why, or someone will add the edge back')
+})
+
+test('Central borders eight of the nine, and Northern is the one it misses', () => {
+  /* Two odd-one-out sets and three of the four journeys route through Central.
+     If this changes, those questions change meaning without changing text. */
+  const ce = provinces.adjacency.edges.ce
+  assert.equal(ce.length, 8, `Central borders ${ce.length} provinces, not 8`)
+  assert.ok(!ce.includes('no'), 'Northern is the one province Central does not reach')
+  assert.ok(!touches('ce', 'ce'))
+})
+
+test('every province records which countries it borders, using real country codes', () => {
+  const codes = facts.neighbours.map((n) => n.code)
+  for (const k of KEYS) {
+    const list = borders(k)
+    for (const c of list) {
+      assert.ok(codes.includes(c), `${k} claims to border "${c}", which is not one of the eight neighbours`)
+    }
+    assert.equal(new Set(list).size, list.length, `${k} lists a country twice`)
+  }
+  assert.deepEqual(borders('ce'), [], 'Central is the only province touching no other country — and it must say so with an empty list, not a missing field')
+  const landlocked = KEYS.filter((k) => borders(k).length === 0)
+  assert.deepEqual(landlocked, ['ce'], `provinces recorded as touching no country: ${landlocked.join(', ')}`)
+  const drc = KEYS.filter((k) => borders(k).includes('cd')).sort()
+  assert.deepEqual(drc, ['cb', 'lp', 'no', 'nw'], 'four provinces meet the DRC — an odd-one-out set about it has to leave one of the four out')
+  /* Every neighbour must be reachable from some province, or the two datasets
+     disagree about whether a country touches Zambia at all. */
+  for (const n of facts.neighbours) {
+    assert.ok(KEYS.some((k) => borders(k).includes(n.code)), `${n.name} borders Zambia but no province records it`)
+  }
+})
+
+test('every journey is a road that exists on the map', () => {
+  assert.ok(facts.journeys.length >= 4, 'the brief asks for more routes than the one')
+  const ids = new Set()
+  for (const r of facts.journeys) {
+    assert.ok(!ids.has(r.id), `duplicate journey id ${r.id}`)
+    ids.add(r.id)
+    assert.ok(r.from && r.to && r.road, `${r.id} must name where it starts, ends and the road it takes`)
+    assert.ok(r.provinces.length >= 3, `${r.id} crosses ${r.provinces.length} provinces — too short to teach adjacency`)
+    assert.equal(new Set(r.provinces).size, r.provinces.length, `${r.id} passes through the same province twice`)
+    for (const k of r.provinces) {
+      assert.ok(KEYS.includes(k), `${r.id} routes through "${k}", which is not a province`)
+      assert.ok(r.legs[k], `${r.id} has nothing to say when the learner reaches ${k} — a correct tap must teach too`)
+    }
+    /* The check that matters. A route through two provinces that do not touch
+       plays exactly like a correct one. */
+    for (let i = 0; i < r.provinces.length - 1; i += 1) {
+      const [a, b] = [r.provinces[i], r.provinces[i + 1]]
+      assert.ok(touches(a, b), `${r.id}: ${a} → ${b} is not a border you can cross — the route is not a road`)
+    }
+    assert.ok(typeof r.approxKm === 'number' && r.approxKm > 0, `${r.id} prints a distance to learners, so it must have one`)
+    assert.ok(r.endNote, `${r.id} must say something about the whole journey when it is finished`)
+  }
+})
+
+test("the Livingstone → Kasama route is the one the brief names, in order", () => {
+  const r = facts.journeys.find((j) => j.from === 'Livingstone' && j.to === 'Kasama')
+  assert.ok(r, 'the Great North Road journey is the strongest of the modes and must be present')
+  assert.deepEqual(r.provinces, ['so', 'lu', 'ce', 'mu', 'no'])
+  assert.ok(r.approxKm >= 1200 && r.approxKm <= 1400, `about 1,300 km, not ${r.approxKm}`)
+})
+
+test('every odd-one-out set is right by the rule it declares, not by its answer', () => {
+  assert.ok(facts.oddOneOut.length >= 2)
+  const ids = new Set()
+  for (const o of facts.oddOneOut) {
+    assert.ok(!ids.has(o.id), `duplicate odd-one-out id ${o.id}`)
+    ids.add(o.id)
+    assert.equal(o.set.length, 4, `${o.id} lights ${o.set.length} provinces — the question is one of four`)
+    assert.equal(new Set(o.set).size, 4, `${o.id} lights the same province twice`)
+    for (const k of o.set) assert.ok(KEYS.includes(k), `${o.id} lights "${k}", which is not a province`)
+    assert.ok(o.set.includes(o.odd), `${o.id}: the odd one out is not one of the four lit`)
+    assert.ok(o.q && o.why, `${o.id} must ask a question and explain the answer`)
+
+    const hold = o.set.filter((k) => ruleHolds(k, o.rule))
+    const dont = o.set.filter((k) => !ruleHolds(k, o.rule))
+    assert.equal(hold.length, 3, `${o.id} (${o.rule}): ${hold.length} of the four satisfy the rule, not 3 — "three of these" is a claim about the data`)
+    assert.deepEqual(dont, [o.odd], `${o.id} (${o.rule}): the province that does not satisfy the rule is ${dont.join(', ') || 'none'}, but ${o.odd} is declared odd`)
+  }
+})
+
+test('the map modes page ignores taps on the provinces it dimmed', () => {
+  /* The acceptance criterion is that a dimmed province cannot be tapped. It is
+     kept by leaving them out of the markup — no data-hit, no tabindex, no touch
+     halo — rather than by filtering in the handler, so a Tab key and a screen
+     reader agree with the picture. Both halves are asserted because the second
+     is the one a refactor drops. */
+  assert.match(modesHtml, /o\.tappable\.indexOf\(k\)\s*>=\s*0/, 'the province renderer must take a tappable whitelist')
+  assert.match(modesHtml, /tappable:\s*it\.set/, 'odd-one-out must pass its four lit provinces as that whitelist')
+  assert.match(
+    modesHtml,
+    /PKEYS\.filter\(function\(k\)\{return !o\.tappable\|\|o\.tappable\.indexOf\(k\)>=0;\}\)/,
+    'the touch halos must honour the same whitelist, or a dimmed province stays tappable through its halo',
+  )
+  assert.match(modesHtml, /if\(it\.set\.indexOf\(k\)<0\)return;/, 'and the handler refuses one anyway')
+})
+
+test('the map modes page has no clock in it', () => {
+  /* "No timer" is a rule for every mode in both prototypes. setTimeout is the
+     easy way to reintroduce one, and a flash that hides feedback after 600ms is
+     a timer whatever it is called. */
+  const script = modesHtml.split('<script>').pop()
+  for (const banned of ['setInterval(', 'setTimeout(', 'requestAnimationFrame(', 'Date.now(']) {
+    assert.ok(!script.includes(banned), `${banned} appears in the map modes page — no mode may be timed, and nothing may take feedback away on its own`)
+  }
+})
+
+test('the map modes page reaches the modes through one menu', () => {
+  for (const id of ['capital', 'journey', 'odd', 'neighbours', 'ceremony']) {
+    assert.ok(modesHtml.includes(`id:'${id}'`), `mode ${id} is missing`)
+  }
+  assert.match(modesHtml, /function renderMenu\(\)/, 'the five modes must be reachable from one menu')
 })
 
 if (failures > 0) {

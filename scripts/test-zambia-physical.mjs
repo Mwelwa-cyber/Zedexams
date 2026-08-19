@@ -2,15 +2,21 @@
  * test:zambia-physical — the physical-features prototype's data, checked where
  * a browser cannot check it.
  *
+ * The two datasets this page SHARES with Know Zambia are written and checked by
+ * the pair that already owns them — `npm run sync:zambia-game` writes every
+ * prototype's mirrors from the one PAGES list, and test:zambia-game compares
+ * them. This file owns what is new: zambia_physical.json, and the ways it can
+ * contradict the data it sits on top of.
+ *
  * docs/learner/zedexams-zambia-physical.html renders entirely from three
  * datasets and runs its own acceptance rules on screen. Four classes of
  * failure survive that, and all four are silent:
  *
- *   1. THE INLINE MIRRORS DRIFT. The HTML carries a copy of all three datasets
+ *   1. THE INLINE MIRROR DRIFTS. The HTML carries a copy of all three datasets
  *      so it still renders when opened from the filesystem (the browser blocks
- *      the fetch on file://). Edit a dataset, forget
- *      `npm run sync:zambia-physical`, and every reviewer who double-clicks the
- *      file reviews yesterday's answers. Nothing looks broken.
+ *      the fetch on file://). Edit a dataset, forget `npm run sync:zambia-game`,
+ *      and every reviewer who double-clicks the file reviews yesterday's
+ *      answers. Nothing looks broken.
  *
  *   2. THE TWO GAMES START THE SAME RIVER IN DIFFERENT PROVINCES. Know Zambia
  *      teaches that the Kafue rises on the Copperbelt. If this game's course
@@ -120,7 +126,7 @@ function riverOf(id) {
 console.log('zambia-physical')
 
 test('the three inline mirrors match the datasets byte for byte', () => {
-  const fix = 'run `npm run sync:zambia-physical` and commit the result'
+  const fix = 'run `npm run sync:zambia-game` and commit the result'
   for (const [id, file] of [
     ['mirror-provinces', 'zambia_provinces.json'],
     ['mirror-facts', 'zambia_facts.json'],
@@ -182,6 +188,21 @@ test('each river course is a real sequence of provinces, every step explained', 
     }
     assert.ok(c.end, `${c.name}: no closing fact for finishing the river`)
   }
+})
+
+test('each river step lands in a province the last one touches', () => {
+  const edges = (provinces.adjacency || {}).edges
+  assert.ok(edges, 'zambia_provinces.json carries no adjacency graph to check against')
+  const bad = []
+  for (const c of phys.riverCourses) {
+    for (let i = 1; i < c.route.length; i++) {
+      const [a, b] = [c.route[i - 1], c.route[i]]
+      if (!(edges[a] || []).includes(b)) bad.push(`${c.name}: ${a} → ${b}`)
+    }
+  }
+  assert.deepEqual(bad, [],
+    `these provinces do not share a boundary, so no river can run straight from one to the other: ${bad.join(', ')}. ` +
+      'The waypoint check cannot always catch this on its own — a schematic line can cut a corner the route never claims.')
 })
 
 test('each taught course agrees with the river line drawn under it', () => {
