@@ -96,15 +96,20 @@ ok("Google voices still price by tier", near(ttsCostUsd("en-GB-Studio-B", 3000),
 ok("Google's default provider argument is unchanged",
   ttsCostUsd("en-GB-Neural2-A", 1_000_000) === ttsCostUsd("en-GB-Neural2-A", 1_000_000, "google"));
 
-// ── 2. The admin catalogue matches what the endpoint will actually serve ───
+// ── 2. ONE voice source — the mirror this block used to police is GONE ────
+// The endpoint no longer carries its own ALLOWED_VOICES Set: it resolves the
+// allow-list through ttsVoiceConfig (settings/ttsVoices, falling back to
+// ttsAdminCore's GOOGLE_VOICES). A hard-coded list reappearing in tts.js is
+// the quiet way the fork returns — someone patches the file the endpoint
+// reads and the admin panel never hears about it.
 {
   const src = require("node:fs").readFileSync(require.resolve("./tts.js"), "utf8");
-  const block = src.match(/const ALLOWED_VOICES = new Set\(\[([\s\S]*?)\]\)/);
-  assert.ok(block, "could not find ALLOWED_VOICES in tts.js");
-  const endpointVoices = [...block[1].matchAll(/'([^']+)'/g)].map((m) => m[1]).sort();
-  const adminVoices = GOOGLE_VOICES.map((v) => v.id).sort();
-  ok("the admin catalogue lists exactly the voices the endpoint accepts",
-    JSON.stringify(endpointVoices) === JSON.stringify(adminVoices));
+  ok("tts.js carries no hard-coded voice list (single source: config → GOOGLE_VOICES)",
+    !/ALLOWED_VOICES/.test(src) && !src.includes("en-GB-Neural2-A"));
+  ok("tts.js resolves voices through the shared config module",
+    src.includes("getEffectiveVoices") && src.includes("./ttsVoiceConfig"));
+  ok("tts.js synthesises through the shared provider branch, not its own",
+    src.includes("synthesizeVoice") && !/synthesizeSpeech/.test(src));
 }
 {
   const cat = googleCatalogue();

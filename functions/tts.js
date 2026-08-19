@@ -7,42 +7,24 @@ const { guardHttpRateLimit } = require('./rateLimit');
 const { softVerifyAppCheckHttp } = require('./appCheckHttp');
 const { enforceJsonRequest } = require('./httpRequestGuard');
 
-/**
- * The Text-to-Speech SDK and its client are built on FIRST SYNTHESIS, not at
- * module load.
- *
- * functions/index.js requires every module in the codebase, so a top-level
- * `require('@google-cloud/text-to-speech')` here was paid by all 196 exports —
- * 37.5 MiB of RSS and ~180 ms of cold start on a Lenco webhook, a Firestore
- * trigger, a quiz generation, everything — for a package exactly one HTTP
- * endpoint calls. Constructing the client at module scope compounded it: that
- * opens the gRPC/auth stack on load too.
- *
- * The client is cached across invocations, so a warm instance still reuses one
- * client exactly as before; only the FIRST synthesis on an instance pays the
- * load, and that request was already making a network round trip to Google.
- */
-let _client = null;
-function ttsClient() {
-  if (!_client) {
-    const textToSpeech = require('@google-cloud/text-to-speech');
-    _client = new textToSpeech.TextToSpeechClient();
-  }
-  return _client;
-}
-
 const MAX_CHARS = 3000;
-const ALLOWED_VOICES = new Set([
-  'en-GB-Neural2-A', 'en-GB-Neural2-B',
-  'en-US-Neural2-F', 'en-US-Neural2-J',
-  'en-ZA-Standard-A', 'en-ZA-Standard-B',
-  'en-GB-Standard-A',
-  'en-GB-Studio-B', 'en-GB-Studio-C',
-]);
 
-function languageCodeFor(voice) {
-  return voice.split('-').slice(0, 2).join('-');
-}
+// The allow-list is CONFIG now, not code. `settings/ttsVoices` (written from
+// /admin/voice) decides which voices this endpoint will synthesise; with no
+// config it resolves to the built-in Google defaults in ttsAdminCore's
+// GOOGLE_VOICES. The list is a FINANCIAL control — an open endpoint at Studio
+// or ElevenLabs rates is a money printer for whoever finds it — so resolution
+// fails toward the safe defaults, never toward "allow anything"
+// (functions/ttsVoiceConfig.js, cached 60s off the request path).
+//
+// ELEVENLABS_API_KEY is bound here because an offered ElevenLabs voice makes
+// THIS endpoint the caller. Safe to bind only because the secret already
+// holds a value in Secret Manager — a defineSecret bound to a valueless
+// secret hard-fails every functions deploy (the RECRAFT_API_KEY trap). The
+// binding is unconditional; a flag read at deploy analysis time is always
+// undefined and silently binds nothing (#1983/#1991).
+const {defineSecret} = require('firebase-functions/params');
+const elevenLabsApiKey = defineSecret('ELEVENLABS_API_KEY');
 
 async function verifyIdToken(req) {
   const token = (req.get('authorization') || '').replace(/^Bearer\s+/i, '');
@@ -56,6 +38,7 @@ exports.apiTextToSpeech = onRequest(
     region:         'us-central1',
     memory:         '256MiB',
     timeoutSeconds: 30,
+    secrets:        [elevenLabsApiKey],
   },
   async (req, res) => {
     // Browser CORS via the shared origin allow-list (functions/cors.js).
@@ -98,13 +81,23 @@ exports.apiTextToSpeech = onRequest(
       return res.status(403).json({ error: 'App Check verification failed.' });
     }
 
-    const { text, voice = 'en-GB-Neural2-A', rate = 1.0, pitch = 0 } = req.body || {};
+    const { text, voice = '', rate = 1.0, pitch = 0 } = req.body || {};
 
     if (!text || typeof text !== 'string' || !text.trim())
       return res.status(400).json({ error: 'Missing or empty text' });
     if (text.length > MAX_CHARS)
       return res.status(400).json({ error: `Text too long (max ${MAX_CHARS} chars)` });
-    if (!ALLOWED_VOICES.has(voice))
+    // Resolves id → {id, provider} against the offered list, refusing what
+    // is not on it. The entry's provider drives synthesis routing below.
+    // A request naming NO voice gets the first offered one — the default is
+    // a property of the LIST, not a hard-coded id, so an admin narrowing the
+    // list can never strand voice-less requests on a voice they removed.
+    const {getEffectiveVoices} = require('./ttsVoiceConfig');
+    const offeredVoices = await getEffectiveVoices();
+    const voiceEntry = voice
+      ? offeredVoices.find((v) => v.id === voice) || null
+      : offeredVoices[0] || null;
+    if (!voiceEntry)
       return res.status(400).json({ error: `Voice '${voice}' not allowed` });
 
     // Per-user + per-IP burst cap (fail-open). Studio TTS is the priciest
@@ -159,7 +152,15 @@ exports.apiTextToSpeech = onRequest(
     const {ttsCacheKey} = require('./ttsCacheCore');
     const {readCachedAudio, writeCachedAudio} = require('./ttsCache');
     const {recordAiTtsUsage} = require('./aiCostTracking');
-    const cacheKey = ttsCacheKey({text, voice, rate, pitch, provider: 'google'});
+    const {synthesizeVoice, normalizedProsody} = require('./ttsSynthesis');
+    // Prosody is normalised PER PROVIDER before keying: ElevenLabs ignores
+    // rate/pitch, so keying them would buy byte-identical audio once per
+    // playback speed (see ttsSynthesis.normalizedProsody).
+    const prosody = normalizedProsody(voiceEntry.provider, {rate, pitch});
+    const cacheKey = ttsCacheKey({
+      text, voice: voiceEntry.id, rate: prosody.rate, pitch: prosody.pitch,
+      provider: voiceEntry.provider,
+    });
 
     const cached = await readCachedAudio(cacheKey);
     if (cached) {
@@ -167,10 +168,11 @@ exports.apiTextToSpeech = onRequest(
       // price what the cache saved instead of the saving being a claim.
       await recordAiTtsUsage({
         uid:        decoded.uid,
-        voice,
+        voice:      voiceEntry.id,
         characters: text.length,
         tool:       'tts-cache-hit',
         cached:     true,
+        provider:   voiceEntry.provider,
       });
       res.set('Content-Type', 'audio/mpeg');
       res.set('Cache-Control', 'public, max-age=3600');
@@ -179,15 +181,17 @@ exports.apiTextToSpeech = onRequest(
     }
 
     try {
-      const [response] = await ttsClient().synthesizeSpeech({
-        input: { text },
-        voice: { languageCode: languageCodeFor(voice), name: voice },
-        audioConfig: {
-          audioEncoding: 'MP3',
-          speakingRate:  Math.min(Math.max(Number(rate)  || 1, 0.5),  1.5),
-          pitch:         Math.min(Math.max(Number(pitch) || 0, -10),   10),
-        },
-      });
+      // One provider branch for every caller (ttsSynthesis.js). On failure it
+      // reports rather than falling back to the other provider — a learner
+      // promised one voice must not silently hear another, and a Google body
+      // under an ElevenLabs cache key would poison the shared cache. The
+      // browser client already degrades to the device voice on any non-OK.
+      const synth = await synthesizeVoice({text, entry: voiceEntry, rate, pitch});
+      if (!synth.ok) {
+        console.error('[tts] synthesis failed', voiceEntry.provider, synth.error);
+        return res.status(502).json({ error: 'Voice is temporarily unavailable.' });
+      }
+      const response = {audioContent: synth.audio};
       // Record the spend BEFORE the response goes out. Google TTS bills per
       // character and this endpoint recorded nothing at all, so /admin/ai-costs
       // and the Treasury month-to-date ceiling were both blind to it: at the
@@ -196,9 +200,10 @@ exports.apiTextToSpeech = onRequest(
       // fail the request, since recordAiTtsUsage swallows its own errors.
       await recordAiTtsUsage({
         uid:        decoded.uid,
-        voice,
+        voice:      voiceEntry.id,
         characters: text.length,
         tool:       'tts',
+        provider:   voiceEntry.provider,
       });
 
       // Store for the next listener. Awaited for the same reason as the usage
@@ -208,7 +213,7 @@ exports.apiTextToSpeech = onRequest(
       // already spent seconds at Google, and is repaid by everyone after them.
       // writeCachedAudio never throws; a failed store is a future miss.
       await writeCachedAudio(cacheKey, response.audioContent, {
-        voice, characters: text.length, provider: 'google',
+        voice: voiceEntry.id, characters: text.length, provider: voiceEntry.provider,
       });
 
       res.set('Content-Type', 'audio/mpeg');

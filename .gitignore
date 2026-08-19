@@ -286,3 +286,6 @@ preview-shots/
 # than the resurrection bug they exist to clean up. Written mode 0600; delete
 # them once the cleanup is confirmed.
 resurrected-profiles-backup-*.json
+
+# Screenshots from npm run smoke:games-hub (local artefact)
+tmp-games-hub-shots/
