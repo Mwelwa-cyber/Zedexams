@@ -127,6 +127,27 @@ ok('a device with no session hint is never touched', shouldPreserveStoredSession
 // a check that succeeded while the SDK still gave up (an empty `users` array
 // is `auth/internal-error`), and one we never observed at all.
 ok('an ok verdict still preserves', shouldPreserveStoredSession({ ...base, verdict: OK }) === true)
-ok('an unobserved verdict still preserves', shouldPreserveStoredSession({ ...base, verdict: null }) === true)
+// ── No verification, no rescue ────────────────────────────────────────────
+// This used to preserve, and that was the bug. `PersistenceUserManager.create`
+// clears the session key out of every persistence it did not select, on every
+// cold start, BEFORE `initializeCurrentUser()` — so before any verification
+// request exists. Preserving there made `wasSessionPreserved()` true on every
+// hinted boot whether or not anything had failed, and kept the stale blobs the
+// SDK clears precisely to stop "users getting stuck with a previous account
+// after signing out and refreshing the tab" (its own comment).
+ok('an unobserved verdict is NOT a rescue', shouldPreserveStoredSession({
+  ...base, verdict: null,
+}) === false)
+ok('an undefined verdict is NOT a rescue', shouldPreserveStoredSession({
+  ...base, verdict: undefined,
+}) === false)
+ok('a missing verdict field is NOT a rescue', shouldPreserveStoredSession({
+  armed: true, isSessionKey: true, hasHint: true,
+}) === false)
+// A genuine failure always leaves a verdict behind — even a rejected fetch is
+// recorded as INFRASTRUCTURAL — so requiring one loses no real rescue.
+ok('an infrastructural verdict still preserves', shouldPreserveStoredSession({
+  ...base, verdict: INFRASTRUCTURAL,
+}) === true)
 
 console.log(`\n  ${passed} assertions passed`)
