@@ -170,10 +170,44 @@ export function shouldPreserveStoredSession({ armed, isSessionKey, hasHint, verd
   if (!armed) return false
   if (!isSessionKey) return false
   if (!hasHint) return false
-  // The one case where the removal is right. Note that `null` (we never saw
-  // the exchange) and `OK` (the call succeeded and the SDK still gave up —
-  // an empty `users` array, i.e. `auth/internal-error`) both fall through to
-  // "keep": neither is the server rejecting this credential.
+  // NO VERIFICATION, NO RESCUE. `null` means no verification request was
+  // observed, and a removal that follows no verification request is not the
+  // boot check giving up — it is the SDK doing routine housekeeping.
+  //
+  // `PersistenceUserManager.create` (@firebase/auth 1.13.4) ends by clearing
+  // the session key out of every persistence it did NOT select:
+  //
+  //   // Attempt to clear the key in other persistences but ignore errors.
+  //   // This helps prevent issues such as users getting stuck with a previous
+  //   // account after signing out and refreshing the tab.
+  //   await Promise.all(persistenceHierarchy.map(async (persistence) => {
+  //     if (persistence !== selectedPersistence) {
+  //       try { await persistence._remove(key) } catch {}
+  //     }
+  //   }))
+  //
+  // `getAuth()`'s hierarchy is [indexedDB, browserLocal, browserSession], so on
+  // EVERY cold start the SDK removes the key from the two stores it did not
+  // pick — before `initializeCurrentUser()` runs, and therefore before any
+  // verification request exists to judge. Treating `null` as "keep" refused
+  // that cleanup on every hinted boot, which cost two things:
+  //
+  //   1. `wasSessionPreserved()` was true on every cold load whether or not
+  //      anything had failed, so the signal AuthContext re-drives
+  //      initialisation on carried no information at all;
+  //   2. the stale blobs the SDK clears for a stated reason were kept — that
+  //      comment names the exact bug ("stuck with a previous account after
+  //      signing out and refreshing the tab").
+  //
+  // A genuine boot-check failure always has a verdict: `_reloadWithoutSaving`
+  // hits securetoken/accounts:lookup first, and even a rejected fetch is
+  // recorded (as INFRASTRUCTURAL) by the observer. So requiring one loses no
+  // real rescue, and where the exchange truly cannot be seen the behaviour
+  // falls back to stock Firebase — the documented worst case.
+  if (verdict === null || verdict === undefined) return false
+  // The one case where the removal is right. `OK` still falls through to
+  // "keep": a call that succeeded while the SDK gave up anyway (an empty
+  // `users` array, i.e. `auth/internal-error`) is not a rejected credential.
   if (verdict === TERMINAL) return false
   return true
 }

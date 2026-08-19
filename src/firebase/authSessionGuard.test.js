@@ -221,4 +221,89 @@ function makeFakePersistenceClass() {
   ok('and no rescue is claimed', wasSessionPreserved() === false)
 }
 
+
+/* ── The SDK's real boot sequence ─────────────────────────────────────────────
+ *
+ * The guard's job is to tell a boot-check FAILURE apart from every other reason
+ * the SDK removes the session key. The one it used to get wrong is routine and
+ * happens on every single cold start.
+ *
+ * @firebase/auth 1.13.4, PersistenceUserManager.create — the last thing it does
+ * before handing back the manager:
+ *
+ *   // Attempt to clear the key in other persistences but ignore errors. This
+ *   // helps prevent issues such as users getting stuck with a previous account
+ *   // after signing out and refreshing the tab.
+ *   await Promise.all(persistenceHierarchy.map(async (persistence) => {
+ *     if (persistence !== selectedPersistence) {
+ *       try { await persistence._remove(key) } catch {}
+ *     }
+ *   }))
+ *
+ * `getAuth()` passes [indexedDB, browserLocal, browserSession]. indexedDB wins,
+ * so the key is removed from the other two — during create(), which runs BEFORE
+ * initializeCurrentUser() and therefore before any verification request exists.
+ *
+ * Preserving there made wasSessionPreserved() true on every hinted cold load
+ * whether or not anything had failed, so the signal AuthContext re-drives
+ * initialisation on was pure noise — and the stale blobs the SDK clears for the
+ * stated reason above were kept.
+ */
+{
+  __resetAuthSessionGuardForTests()
+  store.clear()
+  localStorage.setItem(AUTH_HINT_KEY, '1')
+
+  class IndexedDb { async _remove() {} }
+  class BrowserLocal { async _remove() {} }
+  class BrowserSession { async _remove() {} }
+  guardPersistenceRemoval(IndexedDb)
+  guardPersistenceRemoval(BrowserLocal)
+
+  // Arm the boot window exactly as installAuthSessionGuard does.
+  const { installAuthSessionGuard } = await import('./authSessionGuard.js')
+  installAuthSessionGuard({ persistences: [IndexedDb, BrowserLocal], fetchTarget: null })
+
+  const KEY = 'firebase:authUser:AIzaSyFAKE:[DEFAULT]'
+  await new BrowserLocal()._remove(KEY)
+  await new BrowserSession()._remove(KEY)
+
+  ok('create()\'s cross-persistence cleanup is not read as a rescue',
+    wasSessionPreserved() === false)
+  ok('no verification request means no verdict', getBootVerdict() === null)
+
+  // …and the genuine failure, on the same boot, still IS a rescue: the SDK
+  // verifies the user, the server answers with something that is not a verdict
+  // on the credential, and the removal that follows is the one worth refusing.
+  recordVerificationExchange(
+    'https://securetoken.googleapis.com/v1/token?key=AIzaSyFAKE',
+    { status: 429, body: { error: { message: 'TOO_MANY_ATTEMPTS_TRY_LATER : retry' } } },
+  )
+  await new IndexedDb()._remove(KEY)
+  ok('a removal after a failed verification IS a rescue', wasSessionPreserved() === true)
+
+  const outcome = disarmAuthSessionGuard()
+  ok('the rescue reports the verdict it acted on', outcome.verdict === INFRASTRUCTURAL)
+  ok('the rescue is reported once', outcome.preserved === true)
+}
+
+{
+  // The security property, restated end to end: a credential the server
+  // actually rejected is released even though everything else lines up.
+  __resetAuthSessionGuardForTests()
+  store.clear()
+  localStorage.setItem(AUTH_HINT_KEY, '1')
+  class IndexedDb { async _remove() {} }
+  guardPersistenceRemoval(IndexedDb)
+  const { installAuthSessionGuard } = await import('./authSessionGuard.js')
+  installAuthSessionGuard({ persistences: [IndexedDb], fetchTarget: null })
+  recordVerificationExchange(
+    'https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=AIzaSyFAKE',
+    { status: 400, body: { error: { message: 'TOKEN_EXPIRED' } } },
+  )
+  await new IndexedDb()._remove('firebase:authUser:AIzaSyFAKE:[DEFAULT]')
+  ok('a revoked credential is still released', wasSessionPreserved() === false)
+  disarmAuthSessionGuard()
+}
+
 console.log(`\n  ${passed} assertions passed`)

@@ -371,6 +371,12 @@ export function reportAuthInitFailure({ action, viaFastPath, documentHidden, hid
           'auth.had_session_hint': true,
           'auth.recovery_action': action,
           'auth.detected_via': viaFastPath ? 'rejection' : 'watchdog',
+          // A TAG, not just a context field. `contexts.authInit.errorCode` is
+          // not indexed for search, so the one datum that says WHY a boot check
+          // failed could not be queried, grouped or even read back from an
+          // event — which is what stalled the last round of triage on this
+          // exact issue. Tags are indexed; this one is the discriminator.
+          'auth.error_code': errorCode ?? 'none',
         },
         contexts: {
           authInit: {
