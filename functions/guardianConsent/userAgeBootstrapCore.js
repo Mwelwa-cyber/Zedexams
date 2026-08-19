@@ -114,4 +114,33 @@ function readContact(guardian) {
   return typeof guardian.contact === "string" ? guardian.contact.trim().slice(0, 254) : "";
 }
 
-module.exports = {resolveAgeBootstrap, isPendingGuardianRecord};
+/**
+ * Does this account still need its date of birth stamped?
+ *
+ * The age screen's answer is meant to be the FIRST answer and the only one —
+ * a learner who discovers that a different birthday unlocks more will give a
+ * different birthday, and the gate is worthless. `dob` is already pinned
+ * against client updates in firestore.rules, but "pinned" and "recorded" are
+ * different claims: without a timestamp there is nothing to show WHEN the
+ * answer was given, which is what a support request, a guardian dispute or a
+ * Play review actually asks for.
+ *
+ * It is stamped here, server-side, rather than sent by the client, for the
+ * ordinary reason: a client-supplied timestamp is a client-chosen one.
+ *
+ * Returns false once a stamp exists, so a re-run (a retry, a replayed event)
+ * cannot move the recorded moment forward. The value itself is written by the
+ * caller, which is the half that needs a Firestore sentinel.
+ *
+ * @param {object} user  The users/{uid} document.
+ * @return {boolean}
+ */
+function needsDobStamp(user) {
+  if (!user || typeof user !== "object") return false;
+  const role = typeof user.role === "string" ? user.role.trim() : "";
+  if (role !== "learner") return false;
+  if (typeof user.dob !== "string" || !user.dob.trim()) return false;
+  return user.dobRecordedAt === undefined || user.dobRecordedAt === null;
+}
+
+module.exports = {resolveAgeBootstrap, isPendingGuardianRecord, needsDobStamp};

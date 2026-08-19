@@ -67,7 +67,6 @@
     "test:img-size-attributes": "node scripts/test-img-size-attributes.mjs",
     "test:settings-section": "node scripts/test-settings-section.mjs",
     "test:parent-redirects": "node scripts/test-parent-redirects.mjs",
-
     "test:quiz-image-upload": "node src/utils/quizImageUpload.test.js",
     "test:math-notation-reach": "node src/editor/mathNotationReach.test.js",
     "test:quiz-result-payload": "node src/utils/quizResultPayload.test.js",
@@ -808,6 +807,7 @@
     "test:shared-consent-neutral": "node functions/shared/consent/neutrality.test.js",
     "test:consent-guard": "node functions/consentGuard.test.js",
     "test:signup-flow": "node scripts/test-signup-flow.mjs",
+    "test:age-answer": "node scripts/test-age-answer.mjs",
     "test:user-age-bootstrap": "node functions/guardianConsent/userAgeBootstrap.test.js",
     "test:learner-safety": "node functions/learnerSafety/learnerSafetyCore.test.js",
     "test:android-manifest": "node scripts/test-android-manifest.mjs",

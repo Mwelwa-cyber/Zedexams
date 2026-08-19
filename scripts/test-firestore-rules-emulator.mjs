@@ -714,6 +714,60 @@ async function main() {
     await assertFails(updateDoc(doc(learnerA, 'users', LEARNER_A), {
       guardian: { consentStatus: 'granted' },
     }))
+    // Nor the evidence around it. A learner who could relabel a date derived
+    // from a grade as one they typed, or move the moment it was recorded,
+    // could launder a second guess into looking like a first answer — and
+    // those two fields are read by exactly the conversations (support, a
+    // guardian dispute) that turn on which it was.
+    await assertFails(updateDoc(doc(learnerA, 'users', LEARNER_A), { dobSource: 'typed' }))
+    await assertFails(updateDoc(doc(learnerA, 'users', LEARNER_A), { dobRecordedAt: new Date() }))
+    // And the decoy: an editable second birthday on the same document.
+    await assertFails(updateDoc(doc(learnerA, 'users', LEARNER_A), { dateOfBirth: '1990-01-01' }))
+  })
+
+  await test('a learner may declare HOW their date of birth was arrived at', async () => {
+    // A child who genuinely does not know their birthday gives a year or a
+    // grade instead of being stopped at the door. The estimate that produces
+    // is weaker evidence than a typed date, so it is recorded as such.
+    for (const dobSource of ['typed', 'year_only', 'grade']) {
+      const newUid = `dobsource_${dobSource}_signup`
+      const newCtx = testEnv.authenticatedContext(newUid, unverifiedToken(newUid)).firestore()
+      await assertSucceeds(setDoc(doc(newCtx, 'users', newUid), {
+        role: 'learner', dob: '2015-06-03', isMinor: true, dobSource, ...SIGNUP_DEFAULTS,
+      }))
+    }
+  })
+
+  await test('the provenance is a fixed vocabulary, not a free-text field', async () => {
+    // A field nobody can query is a field nobody can act on.
+    const newUid = 'bogus_dobsource_signup'
+    const newCtx = testEnv.authenticatedContext(newUid, unverifiedToken(newUid)).firestore()
+    for (const dobSource of ['guessed', '', 7, true]) {
+      await assertFails(setDoc(doc(newCtx, 'users', newUid), {
+        role: 'learner', dob: '2015-06-03', isMinor: true, dobSource, ...SIGNUP_DEFAULTS,
+      }))
+    }
+  })
+
+  await test('a signup cannot stamp when its own age answer was recorded', async () => {
+    // The server stamps it (learnerAgeOnUserCreated). A client-chosen
+    // timestamp is not evidence of anything.
+    const newUid = 'self_stamping_signup'
+    const newCtx = testEnv.authenticatedContext(newUid, unverifiedToken(newUid)).firestore()
+    await assertFails(setDoc(doc(newCtx, 'users', newUid), {
+      role: 'learner', dob: '2015-06-03', isMinor: true,
+      dobRecordedAt: new Date('2020-01-01'), ...SIGNUP_DEFAULTS,
+    }))
+  })
+
+  await test('a teacher or parent may not send a date provenance either', async () => {
+    for (const role of ['teacher', 'parent']) {
+      const newUid = `dobsource_carrying_${role}_signup`
+      const newCtx = testEnv.authenticatedContext(newUid, unverifiedToken(newUid)).firestore()
+      await assertFails(setDoc(doc(newCtx, 'users', newUid), {
+        role, dobSource: 'typed', ageConfirmed18Plus: true, ...SIGNUP_DEFAULTS,
+      }))
+    }
   })
 
   await test('self-create cannot mint role:admin', async () => {

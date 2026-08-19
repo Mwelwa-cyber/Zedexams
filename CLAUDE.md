@@ -289,6 +289,52 @@ Tests: `test:guardian-link`, `test:guardian-link-lifecycle`,
 `GuardianLinkPanel.spec.jsx` and the deny-both-directions arms in
 `test-firestore-rules-emulator.mjs`.
 
+### The age screen is three numeric boxes and an echo (2026-08-19)
+
+`/register?step=age` (`features/auth/components/AgeGateStep.jsx`) is the neutral
+age screen Play's Families policy requires, and it is the ONLY thing the
+guardian-consent gate reads from — `users.dob`, no parallel flag. Four things
+about it are decisions, not styling:
+
+- **The date is typed, not picked.** Three `inputMode="numeric"` fields that
+  auto-advance (and backspace back), replacing three `<select>`s that were
+  three modal pickers on Android and a year list a child born in 2014 had to
+  scroll a long way down.
+- **The age is echoed back and Continue stays disabled until it is.** "That
+  makes you 12 years old — 14 March 2014, is that right?" A child who types
+  2004 for 2014 fixes it themselves; that single typo is exactly how a
+  twelve-year-old lands in an adult account with no guardian.
+- **Implausible is a TYPO, refused identically at both ends.** Under 4 and over
+  100 both read "that would make you N years old — check the year". The
+  symmetry is the neutrality claim: a gentler refusal at one end is a hint
+  about which end is welcome. Within the window every real date proceeds —
+  there is still no minimum age. Bounds live in `src/utils/ageAnswerCore.js`
+  (pure, `test:age-answer`), which `signupFlowCore.checkAgeAnswer` reads.
+- **"I'm not sure of my birthday" is never a dead end.** Year-only,
+  derive-from-grade, or hand the device to a grown-up. Every ESTIMATE is
+  clamped below `GUARDIAN_CONSENT_AGE` when it lands within a year of it
+  (`clampEstimateBelowConsentAge`) — a grade tells you an age to ±2 years, so
+  an estimate of 18 read as an adult is a coin toss with a child's account on
+  it. The clamp moves the DATE, never a flag beside it, so the server's
+  re-derivation sees the same thing the client did. A TYPED date is never
+  clamped: the learner confirmed an echoed age, and recording a different one
+  would make that confirmation a lie.
+
+**The first answer is the answer, and there is only one of it.** `dob`,
+`isMinor`, the new `dobSource` (`typed`/`year_only`/`grade`, pinned to that
+vocabulary in the rules) and the server-stamped `dobRecordedAt` are all on the
+`users` self-update blocklist — a learner cannot edit their date of birth,
+relabel a grade-derived one as typed, or move when it was recorded. So is
+`dateOfBirth`: learner settings used to carry an editable "Date of birth
+(optional)" field writing a SECOND birthday onto the same document that the age
+gate never read, so a child who corrected it changed nothing and believed
+otherwise. That control is now a read-only display of `dob`.
+
+Mockup + the three places it is deliberately not what shipped:
+[`docs/learner/README.md`](docs/learner/README.md). Tests: `test:age-answer`,
+`test:signup-flow`, `test:rules-text`, `test:rules-emulator`, plus
+`AgeGateStep.spec.jsx` and `Register.spec.jsx`.
+
 ### The learner app rolls out one grade at a time (2026-08-18)
 
 The learner side is open to **Grade 7 only**. Grades 4–6 exist everywhere else
