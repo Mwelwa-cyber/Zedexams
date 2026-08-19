@@ -5,6 +5,22 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-08-18
+
+### Changed
+
+- Learner side: give the Firestore layer a boundary, and de-duplicate the exam clock (#2474)
+- Note reader: stop Revise emptying a section, and keep the diagram (#2473)
+- Record the two private-repo consequences CLAUDE.md still misses (#2472)
+- Notes Studio: preview reader notes through the learner's own renderer (#2471)
+- Notes: one content source, two views (Learn / Revise) (#2470)
+- Match the games hub to the learner mockup (#2469)
+- Remove passkey (WebAuthn) sign-in feature (#2468)
+
+### Internal
+
+- Bump the observability group across 1 directory with 2 updates (#2447)
+
 ## 2026-08-17
 
 ### Fixed

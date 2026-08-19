@@ -34,6 +34,8 @@ vi.mock('../firebase/config', () => ({
   auth: { currentUser: null },
   db: {},
   googleProvider: {},
+  // Every sign-in path awaits this before minting a session.
+  authPersistenceReady: Promise.resolve(),
 }))
 
 vi.mock('firebase/auth', () => ({
@@ -397,10 +399,10 @@ describe('AuthProvider profile-snapshot auth-error recovery', () => {
    rollout bucket for the whole attempt. */
 
 function SettleProbe() {
-  const { loading, authSettled, currentUser } = useAuth()
+  const { loading, authSettled, authReady, currentUser } = useAuth()
   return (
     <span data-testid="settle">
-      {JSON.stringify({ loading, authSettled, uid: currentUser?.uid ?? null })}
+      {JSON.stringify({ loading, authSettled, authReady, uid: currentUser?.uid ?? null })}
     </span>
   )
 }
@@ -417,7 +419,7 @@ describe('AuthProvider authSettled', () => {
 
   it('starts false — nothing has been heard yet', () => {
     render(<AuthProvider><SettleProbe /></AuthProvider>)
-    expect(readSettle()).toEqual({ loading: true, authSettled: false, uid: null })
+    expect(readSettle()).toEqual({ loading: true, authSettled: false, authReady: false, uid: null })
   })
 
   it('the WATCHDOG clears loading without settling auth', () => {
@@ -447,7 +449,7 @@ describe('AuthProvider authSettled', () => {
   it('a signed-OUT answer settles it too — "nobody" is an answer', () => {
     render(<AuthProvider><SettleProbe /></AuthProvider>)
     act(() => { h.onAuthCb.current(null) })
-    expect(readSettle()).toEqual({ loading: false, authSettled: true, uid: null })
+    expect(readSettle()).toEqual({ loading: false, authSettled: true, authReady: true, uid: null })
   })
 
   it('a late auth event after the watchdog still settles it', () => {
@@ -539,6 +541,10 @@ describe('AuthProvider restoration watchdog — hinted device recovery', () => {
 
   beforeEach(() => {
     h.onAuthCb.current = null
+    // These spies live at module scope, so without an explicit reset a test
+    // asserting on call COUNTS inherits every call the previous ones made.
+    h.reportAuthInitFailure.mockClear()
+    h.setAuthStateTag.mockClear()
     window.localStorage.clear()
     window.sessionStorage.clear()
     visibility = 'visible'
@@ -566,19 +572,26 @@ describe('AuthProvider restoration watchdog — hinted device recovery', () => {
     window.sessionStorage.clear()
   })
 
-  const runWatchdog = () => {
+  // 31s for the watchdog itself, then the full 1s + 3s + 8s retry ladder before
+  // any terminal verdict is reachable. `advanceTimersByTimeAsync` rather than
+  // the sync form because each rung awaits a probe, and a sync advance would
+  // step the clock past timers that had not been scheduled yet — the ladder
+  // would appear to stall at rung one.
+  const WATCHDOG_MS = 31_000
+  const LADDER_MS = 1_000 + 3_000 + 8_000
+  const runWatchdog = async ({ ms = WATCHDOG_MS + LADDER_MS + 1_000 } = {}) => {
     vi.useFakeTimers()
     try {
       render(<AuthProvider><SettleProbe /></AuthProvider>)
-      act(() => { vi.advanceTimersByTime(31_000) })
+      await act(async () => { await vi.advanceTimersByTimeAsync(ms) })
     } finally {
       vi.useRealTimers()
     }
   }
 
-  it('reloads instead of presenting the user as signed out', () => {
+  it('reloads instead of presenting the user as signed out', async () => {
     window.localStorage.setItem('auth:hasSession', '1')
-    runWatchdog()
+    await runWatchdog()
     expect(reload).toHaveBeenCalledTimes(1)
     // Critically it must NOT have revealed: loading:false + uid:null is exactly
     // what ProtectedRoute turns into a redirect to /login.
@@ -586,18 +599,18 @@ describe('AuthProvider restoration watchdog — hinted device recovery', () => {
     expect(readSettle().authSettled).toBe(false)
   })
 
-  it('spends the reload only once — a second failure reveals instead of looping', () => {
+  it('spends the reload only once — a second failure reveals instead of looping', async () => {
     window.localStorage.setItem('auth:hasSession', '1')
     window.sessionStorage.setItem('auth:initRecoveryAttempted', '1')
-    runWatchdog()
+    await runWatchdog()
     expect(reload).not.toHaveBeenCalled()
     expect(readSettle().loading).toBe(false)
   })
 
-  it('defers the reload while the tab is hidden, then recovers on return', () => {
+  it('defers the reload while the tab is hidden, then recovers on return', async () => {
     window.localStorage.setItem('auth:hasSession', '1')
     visibility = 'hidden'
-    runWatchdog()
+    await runWatchdog()
     // Reloading a hidden tab re-runs init in the very conditions that break it.
     expect(reload).not.toHaveBeenCalled()
     expect(readSettle().loading).toBe(true)
@@ -607,8 +620,55 @@ describe('AuthProvider restoration watchdog — hinted device recovery', () => {
     expect(reload).toHaveBeenCalledTimes(1)
   })
 
-  it('never reloads a device with no session — nothing to rescue', () => {
-    runWatchdog()
+  // ── The backoff ladder ─────────────────────────────────────────────────
+  it('retries three times before it will call the session wedged', async () => {
+    window.localStorage.setItem('auth:hasSession', '1')
+    // Stop inside the final 8s rung: all three retries have been scheduled and
+    // reported, and NOTHING has been concluded — the loader still holds, the
+    // session is untouched, and no reload has been spent.
+    await runWatchdog({ ms: 31_000 + 1_000 + 3_000 })
+    expect(reload).not.toHaveBeenCalled()
+    expect(h.signOut).not.toHaveBeenCalled()
+    expect(readSettle().loading).toBe(true)
+    expect(readSettle().authReady).toBe(false)
+    const actions = h.reportAuthInitFailure.mock.calls.map(([arg]) => arg.action)
+    expect(actions).toEqual(['retry', 'retry', 'retry'])
+    // The ladder climbs 1s → 3s → 8s, so the third rung is reported at 34s and
+    // does not resolve until 42s. Until then there is no verdict to file.
+    expect(h.setAuthStateTag).not.toHaveBeenCalledWith('wedged')
+  })
+
+  it('keeps the stored session hint across every retry', async () => {
+    window.localStorage.setItem('auth:hasSession', '1')
+    await runWatchdog({ ms: 31_000 + 1_000 })
+    // The hint is what tells the NEXT load there is a session worth waiting
+    // for. Dropping it mid-ladder would turn a recoverable failure into a
+    // silent logout on the following visit.
+    expect(window.localStorage.getItem('auth:hasSession')).toBe('1')
+    expect(h.signOut).not.toHaveBeenCalled()
+  })
+
+  it('reports wedged only after the whole ladder has failed', async () => {
+    window.localStorage.setItem('auth:hasSession', '1')
+    await runWatchdog()
+    expect(h.setAuthStateTag).toHaveBeenCalledWith('wedged')
+    const actions = h.reportAuthInitFailure.mock.calls.map(([arg]) => arg.action)
+    expect(actions.slice(0, 3)).toEqual(['retry', 'retry', 'retry'])
+    // The terminal verdict comes last, and exactly once.
+    expect(actions.filter((a) => a === 'reload')).toHaveLength(1)
+    expect(actions).toHaveLength(4)
+  })
+
+  it('never runs the ladder for a device with no session', async () => {
+    // A signed-out visitor has nothing to rescue; 12s of retries in front of
+    // the public pages would be a regression, not a fix.
+    await runWatchdog()
+    expect(h.reportAuthInitFailure).not.toHaveBeenCalled()
+    expect(readSettle().loading).toBe(false)
+  })
+
+  it('never reloads a device with no session — nothing to rescue', async () => {
+    await runWatchdog()
     expect(reload).not.toHaveBeenCalled()
     expect(readSettle().loading).toBe(false)
   })

@@ -176,3 +176,48 @@ export function resolveSetupSubjects(picked, gradeSubjectIds) {
   const kept = picked.filter((id) => all.includes(id))
   return kept.length > 0 ? kept : all
 }
+
+/* ─────────────────────────────────────────────────────────────────
+ * Staged grade rollout
+ * ───────────────────────────────────────────────────────────────── */
+
+/** The three things that can be true of a learner's grade. */
+export const GRADE_ACCESS = Object.freeze({
+  /** The grade is open — the learner side serves it today. */
+  OK: 'ok',
+  /** A real catalogue grade that has not opened yet. Waitlist screen. */
+  WAITLIST: 'waitlist',
+  /** No grade, or nothing the catalogue recognises. The setup wizard's job. */
+  UNKNOWN: 'unknown',
+})
+
+/**
+ * May this learner use the learner app?
+ *
+ * Three-way rather than two, and the third value is the whole point. Narrowing
+ * the wizard's grade list on its own would make an existing Grade 5 learner
+ * fail `needsSetup` and get marched back through onboarding, where the only
+ * button on offer relabels them Grade 7. That is a silent data change to a
+ * child's profile, made by a rollout decision they never saw — so a grade that
+ * exists but has not opened is its own answer, and it keeps the stored grade.
+ *
+ * UNKNOWN is returned rather than WAITLIST for a missing grade because the two
+ * want opposite screens: a learner with no grade needs the wizard, and showing
+ * them "your grade is coming soon" would be both false and a dead end. It is
+ * also what keeps admins and parents — who legitimately have no grade of their
+ * own — out of the waitlist when they open a learner screen.
+ *
+ * Pure: the caller passes both catalogues, for the same reason
+ * `normalizeGrade` takes `allowed` — which grades are live is config, and this
+ * is a rule.
+ *
+ * @param {object|null} profile      the learner's user profile
+ * @param {number[]} liveGrades      grades open to learners today
+ * @param {number[]} catalogueGrades every grade the product knows about
+ */
+export function resolveLearnerGradeAccess(profile, liveGrades, catalogueGrades) {
+  if (!profile || typeof profile !== 'object') return GRADE_ACCESS.UNKNOWN
+  if (normalizeGrade(profile.grade, liveGrades) !== null) return GRADE_ACCESS.OK
+  if (normalizeGrade(profile.grade, catalogueGrades) !== null) return GRADE_ACCESS.WAITLIST
+  return GRADE_ACCESS.UNKNOWN
+}

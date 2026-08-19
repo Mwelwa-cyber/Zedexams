@@ -287,7 +287,7 @@ describe('Login — Google sign-in surfaces the real failure, not a password err
 describe('Login — refresh/session-restoration behaviour', () => {
   it('shows the restoring-session loader (not the form) while auth resolves on a device with a session hint', () => {
     hasAuthSessionHint.mockReturnValue(true)
-    setAuth({ loading: true, currentUser: null })
+    setAuth({ authReady: false, currentUser: null })
 
     renderLogin()
 
@@ -297,16 +297,60 @@ describe('Login — refresh/session-restoration behaviour', () => {
 
   it('shows the form immediately for a genuinely signed-out visitor (no hint), even while auth resolves', () => {
     hasAuthSessionHint.mockReturnValue(false)
-    setAuth({ loading: true, currentUser: null })
+    setAuth({ authReady: false, currentUser: null })
 
     renderLogin()
 
     expect(screen.getByLabelText(/email address/i)).toBeInTheDocument()
   })
 
-  it('redirects an already-authenticated user off the login page to their role landing', async () => {
+  it('redirects once auth is ready even though the watchdog already dropped loading', async () => {
+    // The incident, from Login's side. The old effect gated on `loading`, which
+    // the restoration watchdog drops on a timer without knowing who the user
+    // is — so an authenticated learner bounced here by a guard sat on the
+    // sign-in form with a perfectly good session. `authReady` is the gate now.
     setAuth({
       loading: false,
+      authReady: true,
+      currentUser: { uid: 'uid-1' },
+      userProfile: { id: 'uid-1', role: 'learner' },
+    })
+
+    renderLogin()
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/dashboard', { replace: true }))
+    // …and the form must never have flashed underneath it.
+    expect(screen.queryByLabelText(/email address/i)).not.toBeInTheDocument()
+  })
+
+  it('never shows the sign-in form to a user who is already authenticated', () => {
+    setAuth({
+      authReady: true,
+      currentUser: { uid: 'uid-1' },
+      userProfile: null,
+    })
+
+    renderLogin()
+
+    expect(screen.queryByLabelText(/email address/i)).not.toBeInTheDocument()
+  })
+
+  it('holds rather than deciding while auth is unresolved on a hinted device', () => {
+    hasAuthSessionHint.mockReturnValue(true)
+    setAuth({ loading: false, authReady: false, currentUser: null })
+
+    renderLogin()
+
+    // `loading` is already false here — the watchdog gave up — and that must
+    // not be enough to show the form to someone who never signed out.
+    expect(screen.getByText(/restoring your session/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/email address/i)).not.toBeInTheDocument()
+    expect(mockNavigate).not.toHaveBeenCalled()
+  })
+
+  it('redirects an already-authenticated user off the login page to their role landing', async () => {
+    setAuth({
+      authReady: true,
       currentUser: { uid: 'uid-1' },
       userProfile: { id: 'uid-1', role: 'teacher' },
     })
@@ -318,7 +362,7 @@ describe('Login — refresh/session-restoration behaviour', () => {
 
   it('returns the user to the protected page they were bounced from (location.state.from)', async () => {
     setAuth({
-      loading: false,
+      authReady: true,
       currentUser: { uid: 'uid-1' },
       userProfile: { id: 'uid-1', role: 'teacher' },
     })
@@ -341,7 +385,7 @@ describe('Login — refresh/session-restoration behaviour', () => {
     // route's "Teacher accounts stay in the teacher portal" card. The
     // destination is now checked against the role first.
     setAuth({
-      loading: false,
+      authReady: true,
       currentUser: { uid: 'uid-1' },
       userProfile: { id: 'uid-1', role: 'teacher' },
     })

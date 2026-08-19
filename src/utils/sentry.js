@@ -334,29 +334,42 @@ export function setAuthStateTag(state) {
  * Only called for hinted devices. A slow cold start on a signed-out visitor is
  * ordinary and must not page anyone.
  */
-export function reportAuthInitFailure({ action, viaFastPath, documentHidden, hidDuringInit, recoveryAttempted }) {
+export function reportAuthInitFailure({ action, viaFastPath, documentHidden, hidDuringInit, recoveryAttempted, attempt, errorCode }) {
   // No Sentry loaded means no DSN configured, so there is nothing to be blind
   // about — dropping the report is correct rather than a lost signal.
   if (!sentryModule) return
   try {
-    sentryModule.captureMessage('Auth initialisation never completed', {
-      level: 'error',
-      tags: {
-        'auth.init_failure': true,
-        'auth.had_session_hint': true,
-        'auth.recovery_action': action,
-        'auth.detected_via': viaFastPath ? 'rejection' : 'watchdog',
-      },
-      contexts: {
-        authInit: {
-          action,
-          detectedVia: viaFastPath ? 'unhandled-rejection' : 'watchdog-timeout',
-          documentHidden,
-          hidDuringInit,
-          recoveryAttempted,
+    // A retry is not a failure yet — it is the system doing its job, and
+    // filing it at `error` would page someone for every flaky mobile link.
+    // It is still reported: without it the ladder is invisible, and the only
+    // events in triage would be the ones where it did not work.
+    const isRetry = action === 'retry'
+    sentryModule.captureMessage(
+      isRetry ? 'Auth initialisation retrying' : 'Auth initialisation never completed',
+      {
+        level: isRetry ? 'warning' : 'error',
+        tags: {
+          'auth.init_failure': !isRetry,
+          'auth.had_session_hint': true,
+          'auth.recovery_action': action,
+          'auth.detected_via': viaFastPath ? 'rejection' : 'watchdog',
+        },
+        contexts: {
+          authInit: {
+            action,
+            detectedVia: viaFastPath ? 'unhandled-rejection' : 'watchdog-timeout',
+            documentHidden,
+            hidDuringInit,
+            recoveryAttempted,
+            // Which rung of the backoff ladder this is, and what the token
+            // reload actually said — the two things that separate "the link
+            // dropped" from "the credential is dead" in triage.
+            attempt: attempt ?? null,
+            errorCode: errorCode ?? null,
+          },
         },
       },
-    })
+    )
   } catch (err) {
     console.warn('[sentry] auth-init failure report failed:', err)
   }

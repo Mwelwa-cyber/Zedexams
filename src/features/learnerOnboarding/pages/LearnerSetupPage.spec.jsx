@@ -20,6 +20,11 @@ vi.mock('../../../contexts/AuthContext', () => ({
 }))
 
 import LearnerSetupPage from './LearnerSetupPage'
+import { GRADES, LEARNER_GRADES } from '../../../config/curriculum'
+
+// The grade this spec drives the wizard with: whichever one is open first.
+// Hard-coding a grade here is how the spec broke when the rollout narrowed.
+const OPEN_GRADE = LEARNER_GRADES[0]
 
 function mount() {
   return render(
@@ -48,14 +53,22 @@ describe('LearnerSetupPage', () => {
     expect(cont()).toBeEnabled()
   })
 
-  it('offers only the grades the learner catalogue actually serves', () => {
+  it('offers exactly the grades that are OPEN, not the whole catalogue', () => {
     mount()
-    for (const g of [4, 5, 6, 7]) {
+    // Driven by the rollout list rather than a literal, so opening a grade is
+    // a one-line config change and not a test edit — the assertion that has to
+    // keep holding is "offered === open", whatever open currently means.
+    for (const g of LEARNER_GRADES) {
       expect(screen.getByRole('button', { name: `Grade ${g}` })).toBeInTheDocument()
     }
-    // The mockup's grid draws 8 and 9 too, but ALL_GRADES marks them
-    // `active: false` — there is no content behind them, so offering one
-    // lands a child on an empty app.
+    // A catalogue grade that has not opened yet is NOT offered. This is the
+    // point of the staged rollout: Grade 4 content has to be AUTHORABLE before
+    // the grade opens (so `GRADES` still lists it and the studios still offer
+    // it), but a child tapping it here would land on an empty app.
+    for (const g of GRADES.filter((x) => !LEARNER_GRADES.includes(x))) {
+      expect(screen.queryByRole('button', { name: `Grade ${g}` })).toBeNull()
+    }
+    // The mockup's grid draws 8 and 9 too; neither is in the catalogue at all.
     expect(screen.queryByRole('button', { name: 'Grade 8' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Grade 9' })).toBeNull()
   })
@@ -90,7 +103,7 @@ describe('LearnerSetupPage', () => {
 
   it('walks all four screens and writes once, then lands Home', async () => {
     mount()
-    fireEvent.click(screen.getByRole('button', { name: 'Grade 4' }))
+    fireEvent.click(screen.getByRole('button', { name: `Grade ${OPEN_GRADE}` }))
     fireEvent.click(cont())
     fireEvent.click(screen.getByRole('button', { name: /English/ }))
     fireEvent.click(cont())
@@ -101,7 +114,7 @@ describe('LearnerSetupPage', () => {
 
     await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1))
     const patch = mockUpdate.mock.calls[0][0]
-    expect(patch.grade).toBe('4')
+    expect(patch.grade).toBe(String(OPEN_GRADE))
     expect(patch.learnerSubjects).toEqual(['english'])
     expect(patch.notificationPrefs.categories.learning).toBe(true)
     expect(patch.notificationPrefs.channels.push).toBe(true)

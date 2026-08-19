@@ -33,6 +33,7 @@ function setAuth(overrides = {}) {
     currentUser: { uid: 'u1', email: 'amina@example.zm', emailVerified: false },
     userProfile: { id: 'u1', role: 'learner' },
     loading: false,
+    authReady: true,
     emailVerified: false,
     refreshEmailVerification: mockRefresh,
     resendVerificationEmail: mockResend,

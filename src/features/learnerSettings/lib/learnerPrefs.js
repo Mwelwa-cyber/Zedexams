@@ -30,6 +30,10 @@ const str = (v, allowed, fallback) =>
 
 /* ── Section memory (last opened) ─────────────────────────────────────────── */
 
+// `config/curriculum` is plain data with no imports of its own, so this stays
+// loadable under plain `node` for lib/learnerPrefs.test.js.
+import { LEARNER_GRADES } from '../../../config/curriculum.js'
+
 export const SECTION_MEMORY_KEY = 'zedexams:learnerSettings:lastSection:v1'
 
 export function readLastSection() {
@@ -52,7 +56,16 @@ export function writeLastSection(id) {
 
 /* ── Profile ──────────────────────────────────────────────────────────────── */
 
-export const GRADE_NUMBERS = Object.freeze([4, 5, 6, 7])
+/**
+ * The grades the learner settings selects offer.
+ *
+ * Re-exported from the rollout list rather than restated: a learner may only
+ * move themselves into a grade that is actually open, and a second hard-coded
+ * [4, 5, 6, 7] here is how the settings page kept offering a closed grade after
+ * the wizard stopped. Named `GRADE_NUMBERS` still because that is what the two
+ * panels import.
+ */
+export const GRADE_NUMBERS = LEARNER_GRADES
 
 export const GENDER_OPTIONS = Object.freeze([
   { value: '', label: 'Prefer not to say' },
