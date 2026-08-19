@@ -1,3 +1,5 @@
+import { hasLearnerPortalAccess } from '../engines/payment-engine/subscriptionConfig.js'
+
 export function getRoleLandingPath(profileOrFlags, fallback = '/dashboard') {
   const role = typeof profileOrFlags === 'string'
     ? profileOrFlags
@@ -13,12 +15,12 @@ export function getRoleLandingPath(profileOrFlags, fallback = '/dashboard') {
 /**
  * First path segment of every route App.jsx wraps in <LearnerOnlyRoute>.
  *
- * A teacher account cannot open any of these — the two portals are separate,
- * so LearnerOnlyRoute renders "Teacher accounts stay in the teacher portal"
- * instead of the page. That card is the right answer when a teacher types or
- * bookmarks a learner URL; it is the WRONG answer when the app itself sent
- * them there, which is what this list exists to prevent (see
- * resolvePostAuthPath).
+ * A teacher account cannot open any of these, and nor can any other account
+ * without learner-portal access — the portals are separate, so LearnerOnlyRoute
+ * renders a refusal card instead of the page. That card is the right answer
+ * when somebody types or bookmarks a learner URL; it is the WRONG answer when
+ * the app itself sent them there, which is what this list exists to prevent
+ * (see resolvePostAuthPath).
  *
  * Kept as first segments rather than full patterns because that is what a
  * stashed `from` location gives us, and it degrades safely: a new learner
@@ -91,22 +93,43 @@ function isSafeInAppPath(path) {
  *
  * So the destination is checked against the role before it is used. A `from`
  * the account cannot open is discarded for the role's own landing page — no
- * card, no bounce, no loop. Discarding is deliberately narrow: only teachers,
- * and only for learner-only paths, both of which are decidable from the
- * profile alone. Parents reach the learner portal on plan state this function
- * cannot see, so their `from` is left alone and the route guard decides.
+ * card, no bounce, no loop.
+ *
+ * The check mirrors LearnerOnlyRoute rather than approximating it, and does so
+ * by calling the same predicate the guard's `canAccessLearnerPortal` flag is
+ * derived from. That is the whole point: an approximation that is stricter
+ * strands somebody on their landing page when the page they asked for would
+ * have opened, and one that is looser signs them in and drops them on a
+ * refusal card — which is the reported bug. A parent with no learner-portal
+ * access followed a learner `/notes/:id` link, and the stash sent them there
+ * the moment they signed in, every time.
+ *
+ * Admins and learners are never redirected: the guard lets both through on
+ * role alone, before plan state is consulted at all.
  */
 export function resolvePostAuthPath(profileOrFlags, fromPath, fallback = '/dashboard') {
   const landing = getRoleLandingPath(profileOrFlags, fallback)
   if (!isSafeInAppPath(fromPath)) return landing
 
-  const role = typeof profileOrFlags === 'string' ? profileOrFlags : profileOrFlags?.role
-  const isAdmin = profileOrFlags?.isAdmin || role === 'admin' || role === 'superAdmin'
-  const isTeacher = profileOrFlags?.isTeacher || role === 'teacher'
+  if (!isLearnerOnlyPath(fromPath)) return fromPath
+  return blockedFromLearnerPortal(profileOrFlags) ? landing : fromPath
+}
 
-  // Admins pass through the learner portal by design, so only a non-admin
-  // teacher is turned away.
-  if (isTeacher && !isAdmin && isLearnerOnlyPath(fromPath)) return landing
+/**
+ * Would LearnerOnlyRoute turn this account away from a learner route?
+ *
+ * Kept beside `resolvePostAuthPath` because it exists only to answer that
+ * question the same way the guard does — role first (admins and learners are
+ * through before anything else is read), then teachers refused outright, then
+ * everyone else on the plan predicate the guard's own flag comes from.
+ */
+function blockedFromLearnerPortal(profileOrFlags) {
+  const profile = typeof profileOrFlags === 'string' ? { role: profileOrFlags } : profileOrFlags
+  const role = profile?.role
+  const isAdmin = profile?.isAdmin || role === 'admin' || role === 'superAdmin'
+  const isLearner = profile?.isLearner || role === 'learner'
 
-  return fromPath
+  if (isAdmin || isLearner) return false
+  if (profile?.isTeacher || role === 'teacher') return true
+  return !hasLearnerPortalAccess(profile)
 }

@@ -36,6 +36,7 @@ function setAuth(overrides = {}) {
     isAdmin: false,
     isLearner: false,
     isTeacher: false,
+    isParent: false,
     canAccessLearnerPortal: false,
     ...overrides,
   })
@@ -120,5 +121,42 @@ describe('LearnerOnlyRoute', () => {
     setAuth({ userProfile: { role: 'parent' }, canAccessLearnerPortal: true })
     renderGuard()
     expect(screen.getByText(CHILD)).toBeInTheDocument()
+  })
+
+  // ── The blocked account is told the truth about ITSELF ─────────────
+  // The card was written for a teacher and shown to everyone the guard turns
+  // away, so a parent opening a learner link was told their account was a
+  // teacher's — and handed a button to a portal it cannot open.
+  it('tells a blocked parent about the family portal, not the teacher portal', () => {
+    setAuth({ userProfile: { role: 'parent' }, isParent: true })
+    renderGuard()
+
+    expect(screen.queryByText(CHILD)).not.toBeInTheDocument()
+    expect(screen.queryByText(/teacher accounts stay in the teacher portal/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /back to family portal/i })).toBeInTheDocument()
+  })
+
+  it('sends a blocked parent to the family portal — the place the button names', () => {
+    setAuth({ userProfile: { role: 'parent' }, isParent: true })
+    renderGuard()
+
+    screen.getByRole('button', { name: /back to family portal/i }).click()
+
+    // Previously this navigated to /teacher, where ProtectedRoute read the
+    // real role and moved them to /family: the destination was right by
+    // accident and the label was wrong on purpose.
+    expect(mockNavigate).toHaveBeenCalledWith('/family')
+    expect(mockNavigate).toHaveBeenCalledTimes(1)
+  })
+
+  it('gives a role it does not recognise a way out that is not a learner route', () => {
+    setAuth({ userProfile: { role: 'nonsense' } })
+    renderGuard()
+
+    expect(screen.queryByText(CHILD)).not.toBeInTheDocument()
+    screen.getByRole('button', { name: /back to home/i }).click()
+    // Not /dashboard — that is a learner route, and the button would land
+    // straight back on this card.
+    expect(mockNavigate).toHaveBeenCalledWith('/')
   })
 })
