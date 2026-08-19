@@ -13,11 +13,18 @@
  *   3. Game cards of differing heights — two wrapping chips made one card
  *      ~40px taller than its neighbours, so the list stepped.
  *
- * Run: npm run test:games-hub-layout   (needs a production build first —
- * it serves dist/ through vite preview, exactly as the mobile smoke does)
+ * Run: npm run smoke:games-hub   (part of `npm run smoke`, which builds
+ * first; it serves dist/ through vite preview exactly as the mobile smoke
+ * does)
  *
- * NOT in test:all: it needs a build and a real Chromium, like `npm run
- * smoke`. Run it after `npm run build` (or `npm run smoke:build`).
+ * NAMED `smoke:`, NOT `test:`, and that is load-bearing rather than
+ * cosmetic. scripts/run-all-tests.mjs auto-discovers EVERY `test:*` script
+ * whose command starts with `node` and runs it as part of `test:all` — a
+ * suite that never builds. Registered as `test:games-hub-layout`, this file
+ * was picked up there and failed the required Tests job on `dist/ is
+ * missing`, despite a comment in this very header claiming it was excluded.
+ * A comment is not a mechanism; the namespace is. `smoke:mobile` and
+ * `smoke:dashboard` are the same shape for the same reason.
  */
 import { preview } from 'vite'
 import puppeteer from 'puppeteer'
