@@ -203,6 +203,14 @@ jobs:
           path: .vitest-reports/
           retention-days: 1
           if-no-files-found: error
+          # upload-artifact v4+ EXCLUDES dot-prefixed paths by default (the
+          # post-CVE guard against globbing .env/.git into an artifact), and
+          # `.vitest-reports` is vitest's fixed blob directory — without this
+          # the shard's own log says "blob report written" and the upload
+          # still finds nothing. The path above names exactly one directory,
+          # so the broad-glob risk the default protects against does not
+          # apply here.
+          include-hidden-files: true
 
   unit:
     # The gate that carries the REQUIRED check name. Branch protection knows
