@@ -22,6 +22,22 @@
  * prefetcher could destroy a child's account before their parent ever read
  * the email.
  *
+ * ── Approving requires saying who you are ───────────────────────────────
+ *
+ * The approve form carries a required "I am this child's parent or guardian"
+ * checkbox, and the server refuses an approve POST without it — `required` in
+ * the markup is a convenience for the person, not the enforcement, because a
+ * POST does not have to come from this page. It is what makes the
+ * hand-the-phone-over route honest: that path skips the message but lands on
+ * this same page, so the adult standing next to the child answers exactly the
+ * question the adult reading an email answers, and the consent record either
+ * route writes says the same thing.
+ *
+ * Decline carries no such box on purpose. The person who did NOT expect this
+ * message is precisely the one who may not be a guardian, and making them
+ * claim to be one before they can say "this wasn't me" would turn the safety
+ * route into the harder of the two.
+ *
  * Pure module — string building only, no I/O.
  */
 
@@ -70,6 +86,10 @@ const STYLE = `
   form{display:inline}
   button{font:inherit;font-weight:700;border:none;border-radius:8px;
          padding:14px 20px;cursor:pointer;width:100%;margin-top:10px}
+  .confirm{display:flex;gap:10px;align-items:flex-start;background:#f8fafc;
+           border:1px solid var(--border);border-radius:8px;padding:12px;
+           margin:18px 0 4px;font-weight:600;cursor:pointer}
+  .confirm input{width:20px;height:20px;margin:2px 0 0;flex:0 0 auto;cursor:pointer}
   .approve{background:var(--brand);color:#fff}
   .approve:hover{background:var(--brand-dark)}
   .decline{background:#fff;color:var(--danger);border:1px solid var(--danger)}
@@ -116,6 +136,10 @@ function renderDecisionPage({childName, token, actionUrl}) {
   <form method="POST" action="${esc(actionUrl)}">
     <input type="hidden" name="token" value="${esc(token)}">
     <input type="hidden" name="decision" value="approve">
+    <label class="confirm" for="confirm-guardian">
+      <input type="checkbox" id="confirm-guardian" name="confirm" value="yes" required>
+      <span>I am ${name}'s parent or guardian, and I agree to this account.</span>
+    </label>
     <button type="submit" class="approve">Yes, approve this account</button>
   </form>
   <form method="POST" action="${esc(actionUrl)}">
@@ -183,6 +207,14 @@ const OUTCOME_PAGES = {
   <p>This request has already been answered — there is nothing more to do.</p>
   <p class="muted">If you did not answer it yourself, contact us at
      <a href="mailto:${SUPPORT_EMAIL}">${esc(SUPPORT_EMAIL)}</a> straight away.</p>
+</div>`),
+  unconfirmed: () => page("One more tick", `
+<div class="card">
+  <h1>Please confirm you are the parent or guardian</h1>
+  <p>We did not receive the tick that says you are this learner's parent or
+     guardian, so nothing has been approved.</p>
+  <p>Open the link again, tick the box, and press <strong>Yes, approve this
+     account</strong>.</p>
 </div>`),
   error: () => page("Something went wrong", `
 <div class="card bad">

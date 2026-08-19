@@ -19,7 +19,9 @@ const assert = require("node:assert");
 const {
   mintToken, tokenDocId, isWellFormedToken, expiryFrom, buildConsentLinks, TOKEN_TTL_DAYS,
 } = require("./consentTokens");
-const {buildConsentEmail, buildConsentWhatsAppText, safeName} = require("./consentMessages");
+const {
+  buildConsentEmail, buildConsentWhatsAppText, buildConsentPreview, safeName, PREVIEW_LINK,
+} = require("./consentMessages");
 const {
   esc, renderDecisionPage, renderApprovedPage, renderDeclinedPage, renderOutcomePage,
 } = require("./consentPages");
@@ -118,6 +120,45 @@ async function test(name, fn) {
     assert.ok(t.length < 700, "should stay readable in WhatsApp");
   });
 
+  await test("every link in the WhatsApp message ends its line", () => {
+    // WhatsApp linkifies up to the next whitespace. These lines were joined
+    // with "" until WhatsApp became the default channel, which glued
+    // `Not expected...` onto the end of the approve URL and produced a link
+    // whose token was several words long — dead on arrival, and invisible to
+    // a test that only asks whether the message CONTAINS the approve URL.
+    const links = buildConsentLinks("https://zedexams.com/consent", mintToken());
+    const text = buildConsentWhatsAppText({childName: "Chanda", ...links});
+    for (const url of [links.approveUrl, links.declineUrl]) {
+      const at = text.indexOf(url);
+      assert.ok(at >= 0, "link missing");
+      const after = text.slice(at + url.length, at + url.length + 1);
+      assert.ok(after === "" || after === "\n", `"${after}" must not extend the link`);
+    }
+  });
+
+  await test("the child's preview IS the message the guardian will receive", () => {
+    // A preview assembled by a second function is a preview that can drift,
+    // and the point of showing it is that a mistyped digit is otherwise
+    // invisible to everyone. So it is the same builder, with the token
+    // elided — a placeholder rather than a real link, because minting one
+    // for a message nobody has agreed to send yet mints a live credential.
+    const wa = buildConsentPreview({channel: "whatsapp", childName: "Lydia"});
+    assert.strictEqual(wa.body, buildConsentWhatsAppText({
+      childName: "Lydia", approveUrl: PREVIEW_LINK, declineUrl: PREVIEW_LINK,
+    }));
+    const email = buildConsentPreview({channel: "email", childName: "Lydia"});
+    const real = buildConsentEmail({
+      childName: "Lydia", approveUrl: PREVIEW_LINK, declineUrl: PREVIEW_LINK, expiryDays: 7,
+    });
+    assert.strictEqual(email.subject, real.subject);
+    assert.strictEqual(email.body, real.text);
+    for (const preview of [wa, email]) {
+      assert.ok(!/token=/.test(preview.body), "a preview must never carry a live token");
+      assert.ok(/remove the account|did not expect/i.test(preview.body),
+          "the child must see that the grown-up can say no");
+    }
+  });
+
   await test("a missing child name degrades to a neutral phrase", () => {
     assert.strictEqual(safeName(""), "your child");
     assert.strictEqual(safeName(null), "your child");
@@ -165,12 +206,27 @@ async function test(name, fn) {
     assert.ok(/delete-account/.test(html));
   });
 
+  await test("approving requires saying you are the guardian; declining does not", () => {
+    // The tick is what makes the hand-the-phone-over route honest: it skips
+    // the message, not the question. Decline carries no box on purpose —
+    // the person who did NOT expect this message is exactly the one who may
+    // not be a guardian, and making them claim to be one before they can say
+    // "this wasn't me" would turn the safety route into the harder of the two.
+    const html = renderDecisionPage({childName: "Chanda", token: "t", actionUrl: "/consent"});
+    const forms = html.split("<form").slice(1);
+    const approve = forms.find((f) => /value="approve"/.test(f));
+    const decline = forms.find((f) => /value="decline"/.test(f));
+    assert.ok(/name="confirm"[^>]*value="yes"/.test(approve), "approve needs the confirmation");
+    assert.ok(/required/.test(approve), "and the browser should ask for it too");
+    assert.ok(!/name="confirm"/.test(decline), "decline must stay the easier route");
+  });
+
   await test("every outcome page tells the guardian what to do next", () => {
     // "Invalid link" alone is a dead end for someone trying to do the right
     // thing. Each failure names the next step.
-    for (const kind of ["invalid", "expired", "used", "error"]) {
+    for (const kind of ["invalid", "expired", "used", "unconfirmed", "error"]) {
       const html = renderOutcomePage(kind);
-      assert.ok(/Resend|contact us|support@zedexams\.com|try the link again/i.test(html),
+      assert.ok(/Resend|contact us|support@zedexams\.com|try the link again|tick the box/i.test(html),
           `${kind} page gives the guardian no next step`);
     }
   });
@@ -321,6 +377,62 @@ async function test(name, fn) {
         fakeReq({method: "POST", body: {token: "a".repeat(64), decision: "maybe"}}), res, deps(db));
     assert.strictEqual(res.statusCode, 400);
     assert.strictEqual(db.__state.writes.length, 0);
+  });
+
+  await test("an approve POST without the guardian confirmation decides nothing", async () => {
+    // `required` on the checkbox is a courtesy to the person reading the
+    // page; a POST does not have to come from our page. Refusing here is the
+    // enforcement, and it fails CLOSED — nothing is written.
+    const db = fakeDb({record: live()});
+    const res = fakeRes();
+    await handleConsent(
+        fakeReq({method: "POST", body: {token: "a".repeat(64), decision: "approve"}}),
+        res, deps(db));
+    assert.strictEqual(res.statusCode, 400);
+    assert.strictEqual(db.__state.writes.length, 0);
+    assert.ok(/parent or guardian/i.test(res.body));
+  });
+
+  await test("declining still needs no confirmation", async () => {
+    const db = fakeDb({record: live()});
+    const res = fakeRes();
+    await handleConsent(
+        fakeReq({method: "POST", body: {token: "a".repeat(64), decision: "decline"}}),
+        res, deps(db));
+    assert.strictEqual(res.statusCode, 200);
+    const userWrite = db.__state.writes.find((w) => w.ref === "user");
+    assert.strictEqual(userWrite.data.guardian.consentStatus, "denied");
+  });
+
+  await test("an approve POST with the confirmation grants consent", async () => {
+    const db = fakeDb({record: live()});
+    const res = fakeRes();
+    await handleConsent(
+        fakeReq({method: "POST", body: {token: "a".repeat(64), decision: "approve", confirm: "yes"}}),
+        res, deps(db));
+    assert.strictEqual(res.statusCode, 200);
+    const userWrite = db.__state.writes.find((w) => w.ref === "user");
+    assert.strictEqual(userWrite.data.guardian.consentStatus, "granted");
+  });
+
+  await test("handing the phone over writes the same record as the emailed link", async () => {
+    // The whole promise of the same-device route: it skips the message, not
+    // the audit trail. One field differs, and it differs on purpose — a
+    // record that could not tell the two apart would be less useful, not
+    // more trustworthy.
+    const linked = fakeDb({record: {...live(), channel: "email", clickIp: "1.2.3.4", clickUserAgent: "UA"}});
+    const here = fakeDb({record: {...live(), channel: "same_device", clickIp: "1.2.3.4", clickUserAgent: "UA"}});
+    await applyDecision(linked, {id: "hash", __kind: "request"}, "approve");
+    await applyDecision(here, {id: "hash", __kind: "request"}, "approve");
+
+    const a = linked.__state.writes.find((w) => w.ref === "user").data.guardian;
+    const b = here.__state.writes.find((w) => w.ref === "user").data.guardian;
+    assert.deepStrictEqual(Object.keys(a).sort(), Object.keys(b).sort());
+    assert.deepStrictEqual(Object.keys(a.evidence).sort(), Object.keys(b.evidence).sort());
+    assert.strictEqual(a.consentStatus, b.consentStatus);
+    assert.strictEqual(b.evidence.tokenId, a.evidence.tokenId);
+    assert.strictEqual(a.evidence.via, "link");
+    assert.strictEqual(b.evidence.via, "same_device");
   });
 
   await test("pages carrying a token are not cached and leak no referrer", async () => {
