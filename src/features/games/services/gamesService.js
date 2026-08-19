@@ -21,9 +21,10 @@
 
 import {
   collection, doc, getDoc, getDocs, query, where, orderBy, limit as fsLimit,
-  addDoc, serverTimestamp, setDoc, Timestamp, onSnapshot,
+  addDoc, serverTimestamp, Timestamp, onSnapshot, runTransaction,
 } from 'firebase/firestore'
 import { db, auth } from '../../../firebase/config'
+import { resetDeletedGameCache } from '../../../utils/gameTombstones'
 import { describeFirestoreReadError, withFirestoreReadTimeout } from '../../../utils/firestoreTimeout'
 import { levelUpInfo } from '../../../utils/gameProgress'
 import { buildGameScorePayload } from '../../../utils/gameScorePayload.js'
@@ -343,28 +344,217 @@ export async function readRoundOutcome({ score, baseline }) {
 }
 
 /* ─────────────────────────────────────────────────────────────────
- *  Games — admin writes (used by seed importer)
+ *  Games — admin writes (the /admin/games-seed importer)
+ *
+ *  Four functions, and between them they are the ONLY writers to the
+ *  `games` collection. There is deliberately no bare "upsert a game"
+ *  export any more: the one that existed wrote unconditionally, which is
+ *  how a bulk import came to silently re-activate a game an admin had
+ *  deactivated on purpose. Every write below states what it does about a
+ *  document that already exists.
+ *
+ *  Authorization is `firestore.rules` (`games`: create/update/delete if
+ *  isAdmin(); `gameTombstones` likewise), not these functions and not the
+ *  <AdminRoute> around the page — both of those are the client asking
+ *  nicely. Behaviourally pinned in scripts/test-firestore-rules-emulator.mjs.
  * ───────────────────────────────────────────────────────────────── */
 
 /**
- * Upsert a single game document (admin-only per Firestore rules).
- * Used by the /admin/games-seed button to populate the collection.
+ * Every `games` document, INCLUDING inactive ones, as a summary map keyed
+ * by id — the admin importer's view of the live collection.
+ *
+ * Distinct from `listGames()` in two ways that both matter here: it does
+ * not filter on `active` (an admin has to see and manage what learners
+ * cannot), and it THROWS rather than returning `[]` on a read failure.
+ * `listGames` fails soft because a learner with no games is better than a
+ * learner with an error; an importer that reports a failed read as "the
+ * collection is empty" would invite an admin to import 47 games over the
+ * top of 47 live ones.
+ *
+ * Only admins can read inactive docs (see the `games` rule), so a
+ * non-admin calling this gets a permission error, which is the correct
+ * answer rather than a partial list.
+ *
+ * @returns {Promise<Record<string, {id,title,subject,grade,type,active,updatedAt}>>}
  */
-export async function upsertGame(gameId, payload) {
+export async function listAllGamesForAdmin() {
+  const snap = await getDocs(collection(db, 'games'))
+  const map = {}
+  snap.docs.forEach((d) => {
+    const data = d.data() || {}
+    map[d.id] = {
+      id: d.id,
+      title: data.title || d.id,
+      subject: data.subject || '',
+      grade: data.grade ?? null,
+      type: data.type || '',
+      active: data.active !== false,
+      updatedAt: data.updatedAt || null,
+    }
+  })
+  return map
+}
+
+/**
+ * Import ONE seed game, idempotently.
+ *
+ * The read and the write are in a transaction, so "does it already exist?"
+ * is answered against Firestore at write time rather than against whatever
+ * the admin's screen was showing. Two admins clicking Import at once, a
+ * double-click, a stale tab and a refresh mid-run all converge on one
+ * document: the id is `games/{seed.id}`, so a repeat is a no-op rather
+ * than a duplicate record. There is no path here that can create a second
+ * copy of a game.
+ *
+ * An existing document is LEFT ALONE (`outcome: 'skipped'`) rather than
+ * merged over. A live doc may carry admin edits, and — more sharply — an
+ * inactive one is inactive because somebody decided it should be. Silently
+ * re-activating it as a side effect of a bulk import is exactly the
+ * surprise this screen is meant to stop. Re-importing over an existing
+ * game is available deliberately via `force`.
+ *
+ * @param {object} seedGame  an entry from GAMES_SEED
+ * @param {object} [options]
+ * @param {boolean} [options.force]  overwrite an existing document
+ * @returns {Promise<{id, outcome: 'ok'|'skipped'|'failed', reason?, error?}>}
+ */
+export async function importSeedGame(seedGame, { force = false } = {}) {
+  if (!seedGame?.id) return { id: seedGame?.id || null, outcome: 'failed', reason: 'no_id' }
+  const ref = doc(db, 'games', seedGame.id)
+  const tombstoneRef = doc(db, 'gameTombstones', seedGame.id)
+  try {
+    const result = await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref)
+      if (snap.exists() && !force) return { outcome: 'skipped', reason: 'already_exists' }
+      const { id: _id, ...payload } = seedGame
+      tx.set(ref, {
+        ...payload,
+        active: payload.active !== false,
+        createdAt: snap.exists() ? (snap.data()?.createdAt || serverTimestamp()) : serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        createdBy: auth.currentUser?.uid || null,
+      }, { merge: true })
+      // Importing a game is the admin retracting an earlier deletion, so
+      // the tombstone goes with it — otherwise the learner-side seed
+      // suppression would keep hiding a game that is live again.
+      tx.delete(tombstoneRef)
+      return { outcome: 'ok', reason: snap.exists() ? 'overwritten' : 'created' }
+    })
+    resetDeletedGameCache()
+    return { id: seedGame.id, ...result }
+  } catch (err) {
+    console.error('importSeedGame failed', seedGame.id, err)
+    return { id: seedGame.id, outcome: 'failed', reason: err?.code || 'write_failed', error: err?.message }
+  }
+}
+
+/**
+ * Flip a game's visibility to learners without deleting anything.
+ *
+ * Deactivate is the reversible half of the pair: the document stays, every
+ * learner-facing read filters on `active == true`, and the rules stop a
+ * non-admin reading an inactive doc at all. Delete is the other half.
+ *
+ * @returns {Promise<{id, outcome: 'ok'|'skipped'|'failed', reason?}>}
+ */
+export async function setGameActive(gameId, active) {
+  if (!gameId) return { id: null, outcome: 'failed', reason: 'no_id' }
   const ref = doc(db, 'games', gameId)
-  const now = serverTimestamp()
-  await setDoc(
-    ref,
-    {
-      ...payload,
-      active: payload.active !== false,
-      createdAt: payload.createdAt || now,
-      updatedAt: now,
-      createdBy: auth.currentUser?.uid || null,
-    },
-    { merge: true },
-  )
-  return { ok: true, id: gameId }
+  try {
+    const result = await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref)
+      if (!snap.exists()) return { outcome: 'skipped', reason: 'already_missing' }
+      if ((snap.data()?.active !== false) === !!active) {
+        return { outcome: 'skipped', reason: 'already_in_state' }
+      }
+      tx.update(ref, { active: !!active, updatedAt: serverTimestamp() })
+      return { outcome: 'ok' }
+    })
+    return { id: gameId, ...result }
+  } catch (err) {
+    console.error('setGameActive failed', gameId, err)
+    return { id: gameId, outcome: 'failed', reason: err?.code || 'write_failed', error: err?.message }
+  }
+}
+
+/**
+ * Permanently delete ONE game.
+ *
+ * Admin-only, and the enforcement is the `games` rule
+ * (`allow delete: if isAdmin()`), not this function and not the
+ * `<AdminRoute>` around the page — both of those are the client asking
+ * nicely. A non-admin calling this directly from a console gets
+ * `permission-denied` from Firestore.
+ *
+ * What it touches is `DELETION_PLAN` in `lib/gamesSeedAdminCore.js`, which
+ * is the reviewable version of these three writes:
+ *
+ *   1. delete `games/{id}`            — the record; questions are an array
+ *                                       on it, so there is no subcollection
+ *   2. delete `leaderboards/{id}`     — a derived rollup of `scores`
+ *   3. create `gameTombstones/{id}`   — the decision, plus enough of the
+ *                                       game to keep historical rows
+ *                                       readable, plus what suppresses the
+ *                                       bundled seed fallback
+ *
+ * `scores`, `badges`, `learner_profiles`, `dailyStreaks` and `matches` are
+ * deliberately untouched — see DELETION_PLAN.preserves.
+ *
+ * Steps 1 and 3 are one transaction: a deleted game with no tombstone
+ * would come straight back as a seed card, and a tombstone with no
+ * deletion would hide a live game. Step 2 is a best-effort follow-up,
+ * because a leaderboard rollup that outlives its game is stale data an
+ * admin can live with, while a failure there must not leave the game
+ * half-deleted.
+ *
+ * @returns {Promise<{id, outcome: 'ok'|'skipped'|'failed', reason?, error?}>}
+ */
+export async function deleteGameForever(gameId, { title, type, grade, subject } = {}) {
+  if (!gameId) return { id: null, outcome: 'failed', reason: 'no_id' }
+  const gameRef = doc(db, 'games', gameId)
+  const tombstoneRef = doc(db, 'gameTombstones', gameId)
+  try {
+    const result = await runTransaction(db, async (tx) => {
+      const snap = await tx.get(gameRef)
+      if (!snap.exists()) {
+        // Another admin got here first, or the row was stale. That is the
+        // state the caller asked for, so it is not an error — but it is
+        // reported separately from a deletion this run performed.
+        return { outcome: 'skipped', reason: 'already_missing' }
+      }
+      const data = snap.data() || {}
+      tx.delete(gameRef)
+      tx.set(tombstoneRef, {
+        gameId,
+        // Read from the document rather than from the caller's row: the
+        // screen may be stale, and this is the copy history will be read
+        // through.
+        gameTitle: String(data.title || title || gameId).slice(0, 200),
+        gameType: String(data.type || type || '').slice(0, 64),
+        grade: data.grade ?? grade ?? null,
+        subject: String(data.subject || subject || '').slice(0, 64),
+        deletedAt: serverTimestamp(),
+        deletedBy: auth.currentUser?.uid || null,
+      })
+      return { outcome: 'ok' }
+    })
+
+    if (result.outcome === 'ok') {
+      // Derived rollup; its absence is invisible and its presence after
+      // the game is gone is merely stale, so this never fails the delete.
+      try {
+        const { deleteDoc } = await import('firebase/firestore')
+        await deleteDoc(doc(db, 'leaderboards', gameId))
+      } catch (err) {
+        console.warn('deleteGameForever: leaderboard rollup not removed', gameId, err?.code || err?.message)
+      }
+    }
+    resetDeletedGameCache()
+    return { id: gameId, ...result }
+  } catch (err) {
+    console.error('deleteGameForever failed', gameId, err)
+    return { id: gameId, outcome: 'failed', reason: err?.code || 'delete_failed', error: err?.message }
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────────

@@ -52,6 +52,14 @@ vi.mock('../../../utils/dailyChallengeService', () => ({
 vi.mock('../../../utils/gameBadgesService', () => ({
   getMyGameBadges: mocks.getMyGameBadges,
 }))
+// The deletion list the seed fallback is filtered by. Mocked for the same
+// reason as the services above — the real module reaches Firestore — and
+// empty here, so the fallback behaviour these tests assert is unchanged.
+vi.mock('../../../utils/gameTombstones', () => ({
+  loadDeletedGameIds: () => Promise.resolve(new Set()),
+  resetDeletedGameCache: () => {},
+  isDeletedGame: () => false,
+}))
 vi.mock('../../../shared/components/learnerTours', () => ({
   GamesHubTour: () => null,
 }))

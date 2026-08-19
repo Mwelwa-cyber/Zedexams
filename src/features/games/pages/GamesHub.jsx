@@ -74,6 +74,7 @@ import {
   getFallbackGames,
   mechanicName,
 } from '../../../data/gamesSeed'
+import { loadDeletedGameIds } from '../../../utils/gameTombstones'
 import { getTodaysChallenge, getMyStreak } from '../../../utils/dailyChallengeService'
 import { getMyGameBadges } from '../../../utils/gameBadgesService'
 import { SUBJECTS, getMyHistory, listGames } from '../services/gamesService'
@@ -114,6 +115,8 @@ export default function GamesHub() {
     history: [],
     badgesById: {},
     streak: { streak: 0, longestStreak: 0, signedIn: false },
+    // Permanently deleted game ids; null until the first load resolves.
+    deletedIds: null,
   })
 
   // ONE answer to "which grade is this learner in", read by both hero
@@ -140,6 +143,13 @@ export default function GamesHub() {
         getMyHistory(40),
         getMyGameBadges(),
         getMyStreak(),
+        // Games an admin permanently deleted. The seed fallback below ships
+        // in the bundle, so without this list a deleted game keeps its card
+        // on the hub — deleting the Firestore doc removes it from the LIVE
+        // list only. Fail-open by construction (an unreadable list is an
+        // empty set), because the fallback exists for exactly the outage
+        // that would make this read fail.
+        loadDeletedGameIds(),
       ])
       if (cancelled) return
 
@@ -148,13 +158,15 @@ export default function GamesHub() {
       // here so the hub never advertises a game that opens on a
       // retirement card (the seed fallback already filters itself).
       const liveGames = value(0, []).filter((g) => !RETIRED_GAME_TYPES.has(g?.type))
+      const deletedIds = value(5, null)
       setState((prev) => ({
         ...prev,
         loading: false,
+        deletedIds,
         // The seed fallback is grade-scoped too. An unscoped one would put
         // every grade's packs back in the pool the catalogue picks from,
         // which is the door the cross-grade fallback came through.
-        games: liveGames.length ? liveGames : getFallbackGames({ grade }),
+        games: liveGames.length ? liveGames : getFallbackGames({ grade, exclude: deletedIds }),
         challenge: value(1, null),
         history: value(2, []),
         badgesById: value(3, { byId: {} })?.byId || {},
@@ -188,9 +200,11 @@ export default function GamesHub() {
   const catalogue = useMemo(() => buildCatalogue({
     mechanics: CATALOGUE_MECHANICS,
     games: state.games,
-    seeded: getFallbackGames({ grade }),
+    // The seeded pool fills a mechanic's row when Firestore has no pack for
+    // this grade, so it is the second place a deleted game could come back.
+    seeded: getFallbackGames({ grade, exclude: state.deletedIds }),
     grade,
-  }), [state.games, grade])
+  }), [state.games, state.deletedIds, grade])
 
   const challengeGame = state.challenge?.game || null
   const streakDays = Number(state.streak?.streak) || 0

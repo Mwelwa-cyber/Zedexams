@@ -2022,6 +2022,40 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // ── gameTombstones (a game an admin permanently deleted) ──
+    //
+    // Written by the Games Seed Importer when an admin deletes a game, in
+    // the SAME transaction that deletes `games/{gameId}`. Two jobs:
+    //
+    //   1. The bundled seed catalogue (src/data/gamesSeed.js) ships in every
+    //      client bundle, and the games hub, the play route and the daily
+    //      challenge all fall back to it. A tombstone is what stops a
+    //      deleted game reappearing as a bundled card or staying playable
+    //      through an old /games/play/:id link.
+    //   2. It keeps gameTitle/gameType/grade/subject, so a `scores` row —
+    //      which carries only gameId/grade/subject, a field set pinned by
+    //      gameScorePayload.js and validated above — stays readable after
+    //      the game document is gone.
+    //
+    // Read is public for the same reason `games` read is public: /games is
+    // a signed-out route, and a suppression list over content that already
+    // ships in the bundle leaks nothing. Writes are admin-only, exactly
+    // like the `games` writes they accompany — a non-admin who could write
+    // here could hide any game from every learner.
+    match /gameTombstones/{gameId} {
+      allow read:   if true;
+      allow create, update: if isAdmin()
+        && incoming().gameId == gameId
+        && incoming().gameTitle is string && incoming().gameTitle.size() <= 200
+        && (!('gameType' in incoming()) || (incoming().gameType is string && incoming().gameType.size() <= 64))
+        && (!('subject' in incoming()) || (incoming().subject is string && incoming().subject.size() <= 64))
+        && incoming().deletedAt == request.time
+        && incoming().deletedBy == request.auth.uid;
+      // Deleting a tombstone un-hides the seed entry, which is what
+      // re-importing the game does — so it is the same admin-only act.
+      allow delete: if isAdmin();
+    }
+
     // ── scores (student-submitted play results) ───────────────
     // Read: public (powers leaderboards — only name + score leak out).
     // Create: signed-in players only; can only write their own userId.

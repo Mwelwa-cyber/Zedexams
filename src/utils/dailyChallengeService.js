@@ -25,6 +25,7 @@ import {
 } from 'firebase/firestore'
 import { db, auth } from '../firebase/config'
 import { GAMES_SEED, RETIRED_GAME_TYPES } from '../data/gamesSeed'
+import { loadDeletedGameIds } from './gameTombstones'
 import {
   describeFirestoreReadError,
   isFirestoreReadTimeout,
@@ -145,7 +146,15 @@ export async function getTodaysChallenge({ grade = null } = {}) {
   // as the daily challenge — and the grade scope, which the seed has to
   // honour for the same reason the query does.
   if (!available.length) {
-    available = GAMES_SEED.filter((g) => g.active !== false && matchesGrade(g, grade))
+    // A game an admin permanently deleted must not come back as the daily
+    // pick through the bundled seed — the seed ships in the app bundle, so
+    // deleting `games/{id}` does not remove it from this array. Fail-open:
+    // an unreadable tombstone list is an empty set, because this fallback
+    // exists for the outage that would make that read fail.
+    const deletedIds = await loadDeletedGameIds()
+    available = GAMES_SEED.filter((g) => (
+      g.active !== false && matchesGrade(g, grade) && !deletedIds.has(g.id)
+    ))
   }
 
   // A retired mechanic must never be the daily pick — a live doc can still

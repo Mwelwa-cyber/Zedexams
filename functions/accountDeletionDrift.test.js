@@ -161,6 +161,17 @@ const RETAINED = new Map([
   ["daily_challenges", "featured game per day; admin-authored"],
   ["examTimetables", "published ECZ exam timetables; admin-authored"],
   ["games", "admin-curated games; public-read"],
+  ["gameTombstones",
+    "One doc per game an admin permanently deleted, written by the Games " +
+    "Seed Importer. Catalogue state, not user data: it names the GAME " +
+    "(id, title, type, grade, subject) and the only uid on it is the " +
+    "admin who performed the deletion — an operator action, in the same " +
+    "class as `deletedBy` on any moderation record. RETAINED because it " +
+    "is load-bearing for every learner: the bundled seed catalogue ships " +
+    "in the client, so this list is what stops a deleted game reappearing " +
+    "on the games hub and staying playable through a direct link. Purging " +
+    "it when that admin closes their account would silently restore every " +
+    "game they had ever deleted"],
   ["leaderboards", "aggregated top-N per game; not keyed by uid"],
   ["lessonPlanTemplates", "anonymised shared templates; server-maintained"],
   ["noteInsights", "AI summary cache keyed by noteId; about a note, not a user"],

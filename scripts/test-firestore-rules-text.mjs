@@ -1145,6 +1145,43 @@ test('accountPurgeJobs is server-only in both directions', () => {
   )
 })
 
+test('games writes stay admin-only, deletion included', () => {
+  const start = rules.indexOf('match /games/{gameId}')
+  assert(start >= 0, 'games match block not found')
+  const body = rules.slice(start, start + 400)
+  // Permanent deletion from the Games Seed Importer is a client write, so
+  // THIS is the server-side authorization for it — not the <AdminRoute>
+  // around the page and not the service function, both of which are the
+  // client asking nicely. Weakening it would let any signed-in learner
+  // delete the games catalogue.
+  assert(
+    /allow create, update, delete:\s*if isAdmin\(\);/.test(body),
+    'games create/update/delete must require isAdmin()',
+  )
+})
+
+test('gameTombstones is public-read, admin-write', () => {
+  const start = rules.indexOf('match /gameTombstones/{gameId}')
+  assert(start >= 0, 'gameTombstones match block not found')
+  const body = rules.slice(start, start + 900)
+  // Read is public because /games is a signed-out route and this is a
+  // suppression list over content that already ships in every client
+  // bundle — it leaks nothing that is not already there.
+  assert(/allow read:\s*if true;/.test(body), 'gameTombstones must be publicly readable')
+  // Writes are the other half of a deletion. A non-admin who could write
+  // here could hide any game from every learner.
+  assert(/allow create, update: if isAdmin\(\)/.test(body), 'gameTombstones writes must require isAdmin()')
+  assert(/allow delete: if isAdmin\(\);/.test(body), 'gameTombstones delete must require isAdmin()')
+  assert(
+    body.includes('incoming().gameId == gameId'),
+    'a tombstone must name the game it is a tombstone for',
+  )
+  assert(
+    body.includes('incoming().deletedBy == request.auth.uid'),
+    'deletedBy must be the caller, not a client-chosen uid',
+  )
+})
+
 // ── Report ──────────────────────────────────────────────────────
 
 console.log('')
