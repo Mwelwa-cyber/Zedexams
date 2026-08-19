@@ -709,23 +709,6 @@
       "classification": "mechanical",
       "batch": null
     },
-    "confirmGuardianLink": {
-      "kind": "delegated",
-      "inline": false,
-      "options": {
-        "secrets": "[emailSmtpUser, emailSmtpPassword]",
-        "region": "\"us-central1\"",
-        "timeoutSeconds": "30",
-        "memory": "\"256MiB\""
-      },
-      "optionsFrom": "./guardianLink",
-      "optionsUnresolved": null,
-      "target": "guardianLink.confirmGuardianLink",
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "secrets-bound",
-      "batch": null
-    },
     "contentAutoPublish": {
       "kind": "delegated",
       "inline": false,
@@ -2593,6 +2576,22 @@
       "classification": "mechanical",
       "batch": null
     },
+    "respondToFamilyLink": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "./familyPortal",
+      "optionsUnresolved": null,
+      "target": "respondToFamilyLink",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
     "restoreSyllabusRow": {
       "kind": "delegated",
       "inline": false,
@@ -2888,6 +2887,21 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
+      "batch": null
+    },
+    "setGuardianConsent": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
       "batch": null
     },
     "setGuardianControl": {

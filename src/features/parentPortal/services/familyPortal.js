@@ -25,8 +25,8 @@ const fns = getFunctions(app, 'us-central1')
 const createFamilyInviteCodeCallable = httpsCallable(fns, 'createFamilyInviteCode')
 const revokeFamilyInviteCodeCallable = httpsCallable(fns, 'revokeFamilyInviteCode')
 const redeemFamilyInviteCodeCallable = httpsCallable(fns, 'redeemFamilyInviteCode')
+const respondToFamilyLinkCallable = httpsCallable(fns, 'respondToFamilyLink')
 const getChildProgressCallable = httpsCallable(fns, 'getChildProgress')
-const confirmGuardianLinkCallable = httpsCallable(fns, 'confirmGuardianLink')
 const requestGuardianUnlinkCallable = httpsCallable(fns, 'requestGuardianUnlink')
 const reportGuardianLinkCallable = httpsCallable(fns, 'reportGuardianLink')
 const withdrawGuardianConsentCallable = httpsCallable(fns, 'withdrawGuardianConsent')
@@ -80,10 +80,36 @@ export async function listMyFamilyCodes(learnerUid, { limit = 5 } = {}) {
 
 // ── Parent side ─────────────────────────────────────────────────────────────
 
-/** Parent redeems a learner's family code, creating the link. Returns the child. */
+/**
+ * Parent redeems a learner's family code.
+ *
+ * This no longer creates a working link. It burns the code and creates a
+ * PENDING one; the child is asked "is this your grown-up?" and has to say
+ * yes before the parent can see anything. The returned `status` says
+ * which happened — `'pending'` for a new link, `'active'` only when the
+ * parent was already a confirmed guardian and simply re-entered a code.
+ * Callers must not report success as "linked".
+ */
 export async function redeemFamilyInviteCode(code) {
   const result = await redeemFamilyInviteCodeCallable({ code })
-  capture('family_child_linked', {})
+  capture('family_child_link_requested', { status: result.data?.status || 'pending' })
+  return result.data
+}
+
+/**
+ * The child answers a pending guardian request: 'accept' | 'decline'.
+ *
+ * Accepting also writes the guardian consent record, so this is not only a
+ * status flip — see functions/familyPortal.js respondToFamilyLink.
+ *
+ * THE ONLY confirm path. The Guardian panel calls this one too; a second
+ * callable of our own was removed, because two paths flipping the same
+ * link — each writing a different field — is how they come to disagree
+ * about whether a child said yes. Note it takes the LINK ID.
+ */
+export async function respondToFamilyLink(linkId, decision) {
+  const result = await respondToFamilyLinkCallable({ linkId, decision })
+  capture('family_link_response', { decision })
   return result.data
 }
 
@@ -128,19 +154,7 @@ export async function getChildProgress(childUid) {
 // Firestore rules now deny every client write to `parentLinks`, delete
 // included, so there is no third route.
 
-/**
- * The child answers "<Name> wants to be your guardian. Is this your
- * grown-up?". `decision` is 'confirm' or 'reject'.
- *
- * Until this resolves, the link grants nothing at all — functions/parentApp's
- * `authorise` refuses every read of a child's data through an unconfirmed
- * link, so this is a real gate rather than a screen.
- */
-export async function confirmGuardianLink(parentUid, decision) {
-  const result = await confirmGuardianLinkCallable({ parentUid, decision })
-  capture('guardian_link_decision', { decision })
-  return result.data
-}
+
 
 /** The child asks for a guardian to be removed. Files a request; removes nobody. */
 export async function requestGuardianUnlink(parentUid, reason = '') {

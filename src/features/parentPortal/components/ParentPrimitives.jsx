@@ -60,7 +60,7 @@ export function ParentHeader({ children }) {
   const hasUnread = unreadCount > 0
   return (
     <div className="pax-top">
-      <img src="/zedexams-logo.webp" alt="ZedExams" height="28" />
+      <img className="pax-brand" src="/zedexams-logo.webp" alt="ZedExams" />
       <span className="pax-role-pill">Parent</span>
       <span style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
         {children}
@@ -89,12 +89,28 @@ export function ListSkeleton({ rows = 3, height = 76 }) {
   )
 }
 
-/** An empty state that says what would fill it, never just "nothing here". */
-export function Empty({ icon = '🌱', children }) {
+/**
+ * An empty state that says what would fill it, never just "nothing here"
+ * — and, where there is a next step, offers it as a button.
+ *
+ * The copy alone was not enough. "Ask your child for their family code
+ * from Settings → Guardian, or invite them from the Children tab" tells
+ * a parent exactly what to do and then makes them find the Children tab
+ * themselves; the empty state is precisely the screen where somebody has
+ * nothing to work with and the least patience for a hunt. `action` is
+ * optional because some empties genuinely have no next step, and a
+ * button that goes nowhere useful is worse than no button.
+ */
+export function Empty({ icon = '🌱', action = null, children }) {
   return (
     <div className="lhx-empty">
       <div className="lhx-empty-icon" aria-hidden="true">{icon}</div>
       <p>{children}</p>
+      {action?.to && action?.label && (
+        <Link className="lhx-btn lhx-btn-primary lhx-btn-sm pax-empty-cta" to={action.to}>
+          {action.label}
+        </Link>
+      )}
     </div>
   )
 }

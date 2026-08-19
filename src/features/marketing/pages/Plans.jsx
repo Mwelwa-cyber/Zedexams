@@ -351,7 +351,7 @@ function SectionTag({ children }) {
 }
 
 export default function Plans() {
-  const { currentUser, isTeacher, userProfile } = useAuth()
+  const { currentUser, isTeacher, isParent, userProfile } = useAuth()
   const navigate = useNavigate()
   const [billing, setBilling] = useState('monthly')
   const [showUpgrade, setShowUpgrade] = useState(null) // 'pro' | 'max' | null
@@ -403,23 +403,46 @@ export default function Plans() {
    * minor never sees the rung this fires from. That is worth stating because
    * an earlier version of this comment claimed the opposite: that the CTA
    * could hand a minor to /my-subscription and let "the age-aware flow there"
-   * decide. There is no such flow. `MySubscriptionPage` opens `UpgradeModal`
-   * with no age check at all, so it shows prices to whoever opens it — a real
-   * gap, reachable today by direct navigation and by the payment
-   * notifications that link there, and NOT something this page can close.
-   * Do not reintroduce a minor-facing path to it on the strength of that
-   * assumption.
+   * decide.
+   *
+   * When #2486 wrote that, there was no such flow — `MySubscriptionPage`
+   * opened `UpgradeModal` with no age check, so it showed prices to whoever
+   * opened it. THIS branch closes that: `MySubscriptionRoute` now sends a
+   * learner who is not positively an adult to /ask-a-grown-up before the page
+   * renders (see its `mayShowPrice` guard). The gate above is still the one
+   * that matters here — a page that never constructs a price is a stronger
+   * guarantee than a page that redirects away from one — and the rule stands
+   * either way: do not route a minor at a checkout on the assumption that
+   * something downstream will catch it.
    *
    * Still deliberately not the UpgradeModal the teacher cards open: the
    * learner's own subscription surface is where a learner manages a plan, and
    * a second checkout entry point on a marketing page is a second thing to
    * keep age-correct. Anonymous visitors register first, which is where an
    * age is captured at all.
+   *
+   * A PARENT takes a different door. /my-subscription is written for the
+   * account that HOLDS the plan and a guardian never is — their money credits
+   * the child (`beneficiaryUid`) — so they go to /family/plan, the checkout
+   * that knows which child it is for. Without this they would be bounced by
+   * ParentRouteGuard to /family/account/billing: their receipts, not a plan
+   * picker.
    */
   function handleLearnerCta() {
+    if (isParent) {
+      navigate('/family/plan')
+      return
+    }
     navigate(currentUser ? '/my-subscription' : '/register?intent=upgrade&tier=learner')
   }
 
+  // NOTE: this branch arrived with a second age gate here — a
+  // `mayShowPrice` check redirecting to /ask-a-grown-up. It is deleted
+  // rather than kept alongside `isMinorLearner` above, which lands the same
+  // decision for every input and lands it EARLIER, before anything priced is
+  // constructed. Two gates for one rule is how they drift: the day somebody
+  // narrows one, the other keeps the page looking correct in review while
+  // the guarantee has already moved.
   const upgradePlanIds = showUpgrade
     ? [`${showUpgrade}_monthly`, `${showUpgrade}_yearly`]
     : []
@@ -431,7 +454,7 @@ export default function Plans() {
     <>
       <SeoHelmet
         title="Pricing — Free, Pro and Max plans"
-        description="ZedExams Pro and Max plans for Zambian teachers and learners. Pay with Airtel Money or MTN MoMo, confirm on WhatsApp."
+        description="ZedExams plans for Zambian teachers (Pro and Max) and for learners and families. Pay with Airtel Money or MTN MoMo, confirm on WhatsApp."
         path="/pricing"
       />
       <div className="marketing-page min-h-screen theme-bg theme-text font-body">

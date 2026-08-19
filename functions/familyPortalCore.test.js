@@ -8,9 +8,10 @@ const {
   FAMILY_CODE_ALPHABET,
   FAMILY_CODE_LENGTH,
   FAMILY_CODE_TTL_HOURS,
-  FAMILY_CODE_TTL_DAYS,
-  ONE_HOUR_MS,
-  describeCodeForLearner,
+  LINK_STATUS,
+  activeLinks,
+  isCodeSpent,
+  isLinkActive,
   normalizeFamilyCode,
   isValidFamilyCode,
   randomFamilyCode,
@@ -65,68 +66,14 @@ test("randomFamilyCode wraps bytes larger than the alphabet via modulo", () => {
   assert.strictEqual(randomFamilyCode(bytes), FAMILY_CODE_ALPHABET[0].repeat(FAMILY_CODE_LENGTH));
 });
 
-test("familyCodeStatus classifies invalid / revoked / used / expired / ok", () => {
+test("familyCodeStatus classifies invalid / revoked / expired / ok", () => {
   const now = 1_000_000;
   assert.strictEqual(familyCodeStatus(null, now), "invalid");
   assert.strictEqual(familyCodeStatus({ revokedAt: 123 }, now), "revoked");
-  assert.strictEqual(familyCodeStatus({ usedAt: 123, expiresAtMs: now + 1 }, now), "used");
   assert.strictEqual(familyCodeStatus({ expiresAtMs: now - 1 }, now), "expired");
   assert.strictEqual(familyCodeStatus({ expiresAtMs: now + 1 }, now), "ok");
-});
-
-test("a code with NO readable expiry is expired, not a permanent credential", () => {
-  // This used to read as "ok (never-expiring)". A doc with no expiry is what
-  // a corrupt or hand-edited record looks like, and reading it as valid makes
-  // it a standing grant over a child's account — the one failure here that
-  // would never announce itself.
-  const now = 1_000_000;
-  assert.strictEqual(familyCodeStatus({}, now), "expired");
-  assert.strictEqual(familyCodeStatus({ expiresAt: "not a date" }, now), "expired");
-  assert.strictEqual(familyCodeStatus({ expiresAtMs: NaN }, now), "expired");
-});
-
-test("a code burns on use even while it is still inside its window", () => {
-  const now = 1_000_000;
-  assert.strictEqual(familyCodeStatus({ usedAt: 5, expiresAtMs: now + 999_999 }, now), "used");
-});
-
-test("used outranks expired, so a parent is told the truth about which", () => {
-  // "Expired" would send them back to the child for a replacement they do
-  // not need — somebody already redeemed it.
-  const now = 1_000_000;
-  assert.strictEqual(familyCodeStatus({ usedAt: 5, expiresAtMs: now - 1 }, now), "used");
-});
-
-test("revoked outranks used — the child's own act is the reason they are owed", () => {
-  const now = 1_000_000;
-  assert.strictEqual(familyCodeStatus({ revokedAt: 1, usedAt: 2 }, now), "revoked");
-});
-
-test("the 48-hour TTL is what the module actually declares", () => {
-  assert.strictEqual(FAMILY_CODE_TTL_HOURS, 48);
-  assert.strictEqual(FAMILY_CODE_TTL_DAYS, 2);
-});
-
-test("describeCodeForLearner counts down in hours while the code is live", () => {
-  const now = 1_000_000;
-  const live = describeCodeForLearner({ expiresAtMs: now + 5 * ONE_HOUR_MS }, now);
-  assert.strictEqual(live.live, true);
-  assert.strictEqual(live.status, "ok");
-  assert.match(live.message, /5 hours/);
-
-  const soon = describeCodeForLearner({ expiresAtMs: now + 60_000 }, now);
-  assert.match(soon.message, /less than an hour/i);
-});
-
-test("describeCodeForLearner and the redeem path agree on what is dead", () => {
-  // A code the panel shows as live but the callable refuses is how a child
-  // reads a dead code down a phone line to a parent.
-  const now = 1_000_000;
-  for (const doc of [{}, { usedAt: 1 }, { revokedAt: 1 }, { expiresAtMs: now - 1 }]) {
-    const shown = describeCodeForLearner(doc, now);
-    const wouldRedeem = familyCodeStatus(doc, now) === "ok";
-    assert.strictEqual(shown.live, wouldRedeem);
-  }
+  // no expiry set → treated as ok (never-expiring)
+  assert.strictEqual(familyCodeStatus({}, now), "ok");
 });
 
 test("familyCodeStatus reads a Firestore-style Timestamp expiresAt", () => {
@@ -148,7 +95,6 @@ test("revoked takes precedence over expiry", () => {
 test("familyCodeStatusMessage gives a friendly line per non-ok status", () => {
   assert.match(familyCodeStatusMessage("revoked"), /turned off/i);
   assert.match(familyCodeStatusMessage("expired"), /expired/i);
-  assert.match(familyCodeStatusMessage("used"), /already been used/i);
   assert.match(familyCodeStatusMessage("invalid"), /not valid/i);
   assert.strictEqual(familyCodeStatusMessage("ok"), "");
 });
@@ -157,6 +103,67 @@ test("parentLinkId is deterministic and idempotent-friendly", () => {
   assert.strictEqual(parentLinkId("parentA", "childB"), "parentA_childB");
   // order matters — parent first, child second
   assert.notStrictEqual(parentLinkId("a", "b"), parentLinkId("b", "a"));
+});
+
+
+test("a family code is single-use — redeeming BURNS it", () => {
+  // Before this it survived redemption and only kept a tally, so one code
+  // shared once was a standing key until it expired sixty days later.
+  assert.strictEqual(isCodeSpent({}), false);
+  assert.strictEqual(isCodeSpent({redeemedCount: 3}), false, "a tally is not a burn");
+  assert.strictEqual(isCodeSpent({redeemedAt: 1700000000000}), true);
+  assert.strictEqual(isCodeSpent(null), false);
+
+  // And the STATUS says "spent" rather than "revoked", even though
+  // burning sets both — "turned off by the learner" would send a parent
+  // to ask their child why they had cut them off.
+  assert.strictEqual(
+      familyCodeStatus({redeemedAt: 1, revokedAt: 1, expiresAtMs: 9e15}, 1000),
+      "spent",
+  );
+  assert.ok(/already been used/i.test(familyCodeStatusMessage("spent")));
+});
+
+test("the code's life is measured in hours, not months", () => {
+  // 60 days was a standing credential granting full visibility of a
+  // child's activity. 48 hours covers "give it to my mum when she gets
+  // home" and expires before the screenshot does.
+  assert.strictEqual(FAMILY_CODE_TTL_HOURS, 48);
+  assert.ok(FAMILY_CODE_TTL_HOURS <= 48, "a family code must not outlive two days");
+});
+
+test("a link authorises nothing until the child confirms", () => {
+  assert.strictEqual(isLinkActive({status: LINK_STATUS.PENDING}), false);
+  assert.strictEqual(isLinkActive({status: LINK_STATUS.DECLINED}), false);
+  assert.strictEqual(isLinkActive({status: LINK_STATUS.ACTIVE}), true);
+  // Anything outside the vocabulary is not evidence of confirmation.
+  assert.strictEqual(isLinkActive({status: "whatever"}), false);
+  assert.strictEqual(isLinkActive(null), false);
+  assert.strictEqual(isLinkActive("nope"), false);
+});
+
+test("links written before the confirmation step stay active", () => {
+  // The ONE grandfathered case, and deliberately not fail-closed: those
+  // links were made by a parent redeeming a code the child handed them,
+  // and reading "absent" as "unconfirmed" would have cut off every real
+  // family on the deploy — then asked each of them to re-consent to a
+  // decision they made months ago, which teaches people to click yes.
+  assert.strictEqual(isLinkActive({}), true);
+  assert.strictEqual(isLinkActive({status: undefined}), true);
+  assert.strictEqual(isLinkActive({status: null}), true);
+});
+
+test("activeLinks filters, and survives rubbish", () => {
+  const links = [
+    {id: "a", status: LINK_STATUS.ACTIVE},
+    {id: "b", status: LINK_STATUS.PENDING},
+    {id: "c"},
+    {id: "d", status: LINK_STATUS.DECLINED},
+    null,
+  ];
+  assert.deepStrictEqual(activeLinks(links).map((l) => l.id), ["a", "c"]);
+  assert.deepStrictEqual(activeLinks(null), []);
+  assert.deepStrictEqual(activeLinks(undefined), []);
 });
 
 console.log(`\n${passed} assertions passed.`);

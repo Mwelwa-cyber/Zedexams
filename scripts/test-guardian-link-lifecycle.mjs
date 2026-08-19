@@ -16,9 +16,7 @@ import { createRequire } from 'node:module'
 const require = createRequire(import.meta.url)
 const {
   buildConfirmationPrompt,
-  buildLinkDecisionEmail,
   buildUnlinkRequestEmail,
-  decideChildConfirmation,
   decideUnlinkRequest,
   decideWithdrawal,
 } = require('../functions/guardianLink/guardianLinkDecisions.js')
@@ -53,80 +51,11 @@ const link = (parentUid, state, learnerUid = 'kid') => ({
   consent: { state, method: 'family_code' },
 })
 
-console.log('\ndecideChildConfirmation — the child answers')
-
-test('confirming a pending link approves it', () => {
-  const v = decideChildConfirmation({
-    link: link('mum', LINK_CONSENT.PENDING), learnerUid: 'kid', decision: 'confirm', deps,
-  })
-  assert.equal(v.ok, true)
-  assert.equal(v.action, 'approve')
-})
-
-test('rejecting DELETES rather than marking withdrawn', () => {
-  // "Withdrawn" is the record of an adult who WAS a guardian and stopped.
-  // Somebody the child says was never their grown-up was never a guardian,
-  // and leaving a row behind would show them in the child's list forever
-  // as somebody they have to keep explaining.
-  const v = decideChildConfirmation({
-    link: link('stranger', LINK_CONSENT.PENDING), learnerUid: 'kid', decision: 'reject', deps,
-  })
-  assert.equal(v.ok, true)
-  assert.equal(v.action, 'delete')
-})
-
-test('a child cannot answer for somebody else', () => {
-  const v = decideChildConfirmation({
-    link: link('mum', LINK_CONSENT.PENDING, 'another-kid'),
-    learnerUid: 'kid',
-    decision: 'confirm',
-    deps,
-  })
-  assert.equal(v.ok, false)
-  assert.equal(v.reason, 'not-yours')
-})
-
-test('"not yours" and "not found" read identically to the caller', () => {
-  // Distinguishing them turns this callable into an oracle for "does a
-  // link exist between these two accounts".
-  const missing = decideChildConfirmation({
-    link: null, learnerUid: 'kid', decision: 'confirm', deps,
-  })
-  const notMine = decideChildConfirmation({
-    link: link('mum', LINK_CONSENT.PENDING, 'other'), learnerUid: 'kid', decision: 'confirm', deps,
-  })
-  assert.equal(missing.message, notMine.message)
-  assert.notEqual(missing.reason, notMine.reason, 'the SERVER still gets to tell them apart')
-})
-
-test('re-confirming an approved link is a no-op, not an error', () => {
-  // A child double-tapping on a slow connection has done nothing wrong,
-  // and an error there teaches them the button is broken.
-  const v = decideChildConfirmation({
-    link: link('mum', LINK_CONSENT.APPROVED), learnerUid: 'kid', decision: 'confirm', deps,
-  })
-  assert.equal(v.ok, false)
-  assert.equal(v.reason, 'already-approved')
-})
-
-test('a child cannot un-withdraw a guardian who walked away', () => {
-  // It sounds harmless until you notice it also restores that adult's
-  // VISIBILITY over the child, without the adult being asked.
-  const v = decideChildConfirmation({
-    link: link('ex', LINK_CONSENT.WITHDRAWN), learnerUid: 'kid', decision: 'confirm', deps,
-  })
-  assert.equal(v.ok, false)
-  assert.equal(v.reason, 'withdrawn')
-})
-
-test('only confirm and reject are decisions', () => {
-  for (const bad of ['approve', 'yes', '', null, 'DELETE']) {
-    const v = decideChildConfirmation({
-      link: link('mum', LINK_CONSENT.PENDING), learnerUid: 'kid', decision: bad, deps,
-    })
-    assert.equal(v.ok, false, `${JSON.stringify(bad)} must not be a decision`)
-  }
-})
+// NOTE: the child's accept/decline moved to `respondToFamilyLink`
+// (functions/familyPortal.js), which owns the `status` flag. The
+// decision function that used to be tested here went with the duplicate
+// callable it served. What remains below is everything `status` cannot
+// express — withdrawal, and the child's ASK to be unlinked.
 
 console.log('\ndecideWithdrawal — the guardian leaves')
 
@@ -236,18 +165,18 @@ test('you cannot ask to remove a guardian you do not have', () => {
   assert.equal(v.reason, 'not-linked')
 })
 
-test('THE ASYMMETRY: a child may reject, and may not unlink', () => {
+test('THE ASYMMETRY: a child may decline, and may not unlink', () => {
   // Stated once, as a test, because it is the rule most likely to be
   // "simplified" later by somebody who reads the two paths as duplicates.
-  const reject = decideChildConfirmation({
-    link: link('x', LINK_CONSENT.PENDING), learnerUid: 'kid', decision: 'reject', deps,
-  })
+  // Before confirmation the child decides alone — that half now lives in
+  // respondToFamilyLink('decline'). After confirmation they do not, and
+  // that half is here.
   const unlink = decideUnlinkRequest({
     links: [link('x', LINK_CONSENT.APPROVED)],
     learnerUid: 'kid', guardianUid: 'x', openRequests: [], deps,
   })
-  assert.equal(reject.action, 'delete', 'before confirmation the child decides alone')
-  assert.equal(unlink.action, 'request', 'after confirmation they do not')
+  assert.equal(unlink.action, 'request', 'after confirmation a child cannot unlink alone')
+  assert.notEqual(unlink.action, 'delete')
 })
 
 console.log('\ncopy')
@@ -264,20 +193,6 @@ test('an unnamed adult produces a question the child can still act on', () => {
   assert.doesNotMatch(prompt, /undefined|null/)
 })
 
-test('the decision emails say what happened and what is possible next', () => {
-  const yes = buildLinkDecisionEmail({ childName: 'Chanda', confirmed: true })
-  assert.match(yes.subject, /Chanda/)
-  // Newline-tolerant: the body is hard-wrapped, so a phrase can straddle
-  // a line break. Matching the wrapped form would pin the wrapping.
-  assert.match(yes.text.replace(/\s+/g, ' '), /cannot see their password/i)
-  assert.match(yes.text.replace(/\s+/g, ' '), /They can see that you are linked/i)
-
-  const no = buildLinkDecisionEmail({ childName: 'Chanda', confirmed: false })
-  const flat = no.text.replace(/\s+/g, ' ')
-  assert.match(flat, /nothing has been shared/i)
-  assert.match(flat, /fresh family code/i)
-})
-
 test('the unlink email is explicit that NOBODY has been removed', () => {
   const mail = buildUnlinkRequestEmail({ childName: 'Chanda' })
   assert.match(mail.text.replace(/\s+/g, ' '), /NOT removed anyone/)
@@ -285,11 +200,7 @@ test('the unlink email is explicit that NOBODY has been removed', () => {
 })
 
 test('every email survives a missing child name', () => {
-  for (const mail of [
-    buildLinkDecisionEmail({ confirmed: true }),
-    buildLinkDecisionEmail({ confirmed: false }),
-    buildUnlinkRequestEmail({}),
-  ]) {
+  for (const mail of [buildUnlinkRequestEmail({})]) {
     assert.doesNotMatch(mail.subject + mail.text, /undefined|null/)
   }
 })

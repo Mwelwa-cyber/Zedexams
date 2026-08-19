@@ -17,74 +17,14 @@
  * file synchronous and therefore trivially testable.
  */
 
-/* ── The child's confirmation ──────────────────────────────────────── */
-
-/**
- * May this learner act on this link, and what does their answer mean?
+/* ── The child's confirmation is NOT here ──────────────────────────
  *
- * @param {object} args
- * @param {object|null} args.link       the stored parentLinks doc
- * @param {string} args.learnerUid      the caller
- * @param {'confirm'|'reject'} args.decision
- * @param {object} args.deps            { normalizeLink, LINK_CONSENT }
- * @returns {{ok: boolean, reason?: string, message?: string,
- *             action?: 'approve'|'delete', wasState?: string}}
- *
- * ── Three refusals, and why each one is separate ───────────────────
- *
- * A link that does not exist, a link about somebody else, and a link
- * already decided are three different situations, and only the middle
- * one is an attack. They are nonetheless given the SAME outward message
- * for the first two, because distinguishing them turns this callable
- * into an oracle for "does a link exist between these two accounts".
- *
- * Re-confirming an already-approved link is a no-op rather than an
- * error: a child double-tapping on a slow connection has done nothing
- * wrong, and an error there teaches them the button is broken.
+ * `respondToFamilyLink` (functions/familyPortal.js) owns accept/decline
+ * and the `status` flag it writes. A second decision function for the
+ * same event lived here and was removed with the callable that used it:
+ * two paths deciding whether a child had said yes is how they come to
+ * disagree.
  */
-function decideChildConfirmation({link, learnerUid, decision, deps}) {
-  const {normalizeLink, LINK_CONSENT} = deps;
-
-  if (decision !== "confirm" && decision !== "reject") {
-    return {ok: false, reason: "bad-decision", message: "Choose yes or no."};
-  }
-  if (!link) {
-    return {ok: false, reason: "not-found", message: "That guardian request is no longer there."};
-  }
-
-  const l = normalizeLink(link);
-  if (!l.learnerUid || l.learnerUid !== learnerUid) {
-    // Same words as not-found, on purpose. See the docblock.
-    return {ok: false, reason: "not-yours", message: "That guardian request is no longer there."};
-  }
-
-  if (decision === "reject") {
-    // A rejection DELETES the link rather than marking it withdrawn.
-    // "Withdrawn" is the record of an adult who was a guardian and
-    // stopped being one; a person the child says was never their
-    // grown-up was never a guardian, and leaving a row behind would
-    // show them in the child's list forever as somebody they had to
-    // explain.
-    return {ok: true, action: "delete", wasState: l.state};
-  }
-
-  if (l.state === LINK_CONSENT.APPROVED) {
-    return {ok: false, reason: "already-approved", message: "This grown-up is already linked."};
-  }
-  if (l.state === LINK_CONSENT.WITHDRAWN) {
-    // The adult walked away. A child un-withdrawing on their own would
-    // let them restore supervision the adult ended — which sounds
-    // harmless until you notice it also restores that adult's VISIBILITY
-    // over the child, without the adult being asked.
-    return {
-      ok: false,
-      reason: "withdrawn",
-      message: "This grown-up ended the link. Ask them to link again.",
-    };
-  }
-
-  return {ok: true, action: "approve", wasState: l.state};
-}
 
 /* ── The guardian withdrawing ──────────────────────────────────────── */
 
@@ -198,39 +138,6 @@ function buildConfirmationPrompt({guardianName} = {}) {
     "Someone wants to be your guardian. Do you know who this is?";
 }
 
-/** The email a guardian gets when a child confirms — or does not. */
-function buildLinkDecisionEmail({childName, confirmed} = {}) {
-  const child = String(childName || "").trim() || "The learner";
-  if (confirmed) {
-    return {
-      subject: `${child} confirmed you as their guardian on ZedExams`,
-      text: [
-        `${child} has confirmed you as their guardian on ZedExams.`,
-        "",
-        "You can now see how they are doing — their subjects, their streak and",
-        "their weekly report — and set what they may use. You cannot see their",
-        "password, and you cannot read their answers to individual questions.",
-        "",
-        "They can see that you are linked, and what you can see, on their own",
-        "Guardian screen. That is deliberate: a child who is being looked after",
-        "should know it.",
-        "",
-        "Sign in at https://zedexams.com/family",
-      ].join("\n"),
-    };
-  }
-  return {
-    subject: "That ZedExams family code was not confirmed",
-    text: [
-      "The learner did not confirm you as their guardian, so nothing has been",
-      "shared with you and the link has been removed.",
-      "",
-      "If you believe this is a mistake, ask them to send you a fresh family",
-      "code from Settings › Guardian on their own device.",
-    ].join("\n"),
-  };
-}
-
 /** The email a child's guardians get when the child asks to be unlinked. */
 function buildUnlinkRequestEmail({childName} = {}) {
   const child = String(childName || "").trim() || "A learner you look after";
@@ -254,9 +161,7 @@ function buildUnlinkRequestEmail({childName} = {}) {
 
 module.exports = {
   buildConfirmationPrompt,
-  buildLinkDecisionEmail,
   buildUnlinkRequestEmail,
-  decideChildConfirmation,
   decideUnlinkRequest,
   decideWithdrawal,
 };

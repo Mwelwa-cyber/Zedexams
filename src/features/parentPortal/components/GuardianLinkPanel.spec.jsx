@@ -12,13 +12,11 @@ import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const listMyLinkedParents = vi.fn()
-const confirmGuardianLink = vi.fn()
 const reportGuardianLink = vi.fn()
 const requestGuardianUnlink = vi.fn()
 
 vi.mock('../services/familyPortal', () => ({
   listMyLinkedParents: (...a) => listMyLinkedParents(...a),
-  confirmGuardianLink: (...a) => confirmGuardianLink(...a),
   reportGuardianLink: (...a) => reportGuardianLink(...a),
   requestGuardianUnlink: (...a) => requestGuardianUnlink(...a),
 }))
@@ -40,6 +38,7 @@ const approved = {
   parentUid: 'mum',
   learnerUid: 'kid',
   parentDisplayName: 'Mrs Banda',
+  status: 'active',
   consent: { state: 'approved', method: 'family_code' },
   permissions: { askZed: false, dailyMinutes: 45 },
 }
@@ -49,12 +48,11 @@ const pending = {
   parentUid: 'stranger',
   learnerUid: 'kid',
   parentDisplayName: 'Mr Phiri',
-  consent: { state: 'pending', method: 'family_code' },
+  status: 'pending',
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
-  confirmGuardianLink.mockResolvedValue({ ok: true })
   reportGuardianLink.mockResolvedValue({ ok: true, removed: true, message: 'We have removed them.' })
   requestGuardianUnlink.mockResolvedValue({ ok: true, filed: true, message: 'Nobody has been removed yet.' })
 })
@@ -92,23 +90,11 @@ describe('GuardianLinkPanel', () => {
     expect(link).toHaveAttribute('href', 'tel:116')
   })
 
-  it('asks the child to confirm a pending link, naming who is asking', async () => {
-    listMyLinkedParents.mockResolvedValue([pending])
-    render(<GuardianLinkPanel />)
-    expect(await screen.findByText(/Mr Phiri wants to be your guardian/i)).toBeInTheDocument()
-    expect(screen.getByText(/cannot see anything about you until you say yes/i)).toBeInTheDocument()
-  })
 
-  it('sends the child’s yes and no to the confirm callable', async () => {
-    listMyLinkedParents.mockResolvedValue([pending])
-    render(<GuardianLinkPanel />)
-    await userEvent.click(await screen.findByRole('button', { name: /Yes, this is my grown-up/i }))
-    await waitFor(() => expect(confirmGuardianLink).toHaveBeenCalledWith('stranger', 'confirm'))
 
-    listMyLinkedParents.mockResolvedValue([pending])
-    await userEvent.click(await screen.findByRole('button', { name: /No, I do not know them/i }))
-    await waitFor(() => expect(confirmGuardianLink).toHaveBeenCalledWith('stranger', 'reject'))
-  })
+
+
+
 
   it('offers "this isn’t my grown-up" on a confirmed link and never silently does nothing', async () => {
     listMyLinkedParents.mockResolvedValue([approved])
@@ -128,6 +114,15 @@ describe('GuardianLinkPanel', () => {
     expect(await screen.findByText(/Nobody has been removed yet/i)).toBeInTheDocument()
   })
 
+  it('leaves the pending ask to FamilyCodePanel and never renders it twice', async () => {
+    // Both panels sit on the same settings screen. The accept/decline
+    // question belongs to the family-code flow that wrote `status`.
+    listMyLinkedParents.mockResolvedValue([pending])
+    render(<GuardianLinkPanel />)
+    expect(await screen.findByText(/Nobody is linked to your account yet/i)).toBeInTheDocument()
+    expect(screen.queryByText(/wants to be your guardian/i)).not.toBeInTheDocument()
+  })
+
   it('does not ask a child to confirm a guardian who has been there for months', async () => {
     // A legacy link states no consent. Showing it as pending would read as
     // a new stranger appearing, for every child on the fleet, on the deploy
@@ -142,7 +137,7 @@ describe('GuardianLinkPanel', () => {
 
   it('tells the child a withdrawn guardian can no longer see anything', async () => {
     listMyLinkedParents.mockResolvedValue([
-      { ...approved, consent: { state: 'withdrawn', method: 'family_code' } },
+      { ...approved, status: 'active', consent: { state: 'withdrawn', method: 'family_code' } },
     ])
     render(<GuardianLinkPanel />)
     expect(await screen.findByText(/no longer see anything about you/i)).toBeInTheDocument()

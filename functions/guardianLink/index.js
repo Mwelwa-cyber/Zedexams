@@ -7,10 +7,6 @@
  * family code, guardianConsent/ for the emailed approval). What happens
  * to it AFTERWARDS is here, because both doors share it:
  *
- *   confirmGuardianLink({parentUid, decision})   [learner]
- *     The child's confirmation. A link created by either door starts
- *     `pending` and grants NOTHING until this. 'reject' deletes it.
- *
  *   requestGuardianUnlink({parentUid, reason})   [learner]
  *     Raises a request. Never removes anyone — see below.
  *
@@ -55,9 +51,7 @@ const admin = require("firebase-admin");
 const {assertVerifiedAuth} = require("../authGuard");
 const {assertCallableRateLimit} = require("../rateLimit");
 const {
-  buildLinkDecisionEmail,
   buildUnlinkRequestEmail,
-  decideChildConfirmation,
   decideUnlinkRequest,
   decideWithdrawal,
 } = require("./guardianLinkDecisions");
@@ -154,107 +148,21 @@ async function notify(to, mail, context) {
   }
 }
 
-/* ── confirmGuardianLink ───────────────────────────────────────────── */
-
-/**
- * The child answers "<Name> wants to be your guardian. Is this your
- * grown-up?".
+/* ── The child's confirmation lives in familyPortal.js ─────────────
  *
- * Until this runs, the link exists but is `pending`, which every read
- * path treats as no access at all. That is the design's answer to a
- * family code reaching the wrong adult: the only person who knows
- * whether the adult is the right one is asked, on their own device,
- * before anything is shared.
+ * `respondToFamilyLink` (functions/familyPortal.js) owns accept/decline.
+ * This module used to carry a second confirm callable of its own, which
+ * was a duplicate of it — two code paths flipping the same link, each
+ * writing a different field, is how the two would eventually disagree
+ * about whether a child had said yes.
+ *
+ * The division that survives: `status` is the CONFIRMATION flag and
+ * theirs writes it; `consent` is what records withdrawal, which `status`
+ * cannot express, and only withdrawGuardianConsent below writes it. A
+ * link accepted through their flow carries `status: 'active'` and no
+ * consent object at all, which guardianLinkCore.linkIsApproved reads as
+ * approved — so nothing here needs to run for a normal confirmation.
  */
-const confirmGuardianLink = onCall({
-  secrets: [emailSmtpUser, emailSmtpPassword],
-  region: REGION,
-  timeoutSeconds: 30,
-  memory: "256MiB",
-}, async (request) => {
-  const uid = await assertVerifiedAuth(request, "Sign in required.");
-  // A child confirming is a rare, deliberate act. The limit is here to
-  // stop a script walking parent uids looking for one that answers
-  // differently, not to police a real family.
-  await assertCallableRateLimit(request, {action: "guardianLinkConfirm", userPerMin: 10, ipPerMin: 30});
-
-  const db = admin.firestore();
-  const core = await loadCore();
-  const parentUid = String(request.data?.parentUid || "").trim();
-  const decision = String(request.data?.decision || "");
-
-  if (!parentUid) throw new HttpsError("invalid-argument", "Which grown-up?");
-
-  const ref = db.collection(LINKS).doc(core.linkId(parentUid, uid));
-  const snap = await ref.get();
-  const link = snap.exists ? {id: snap.id, ...(snap.data() || {})} : null;
-
-  const verdict = decideChildConfirmation({
-    link,
-    learnerUid: uid,
-    decision,
-    deps: {normalizeLink: core.normalizeLink, LINK_CONSENT: core.LINK_CONSENT},
-  });
-
-  if (!verdict.ok) {
-    if (verdict.reason === "already-approved") {
-      return {ok: true, changed: false, state: core.LINK_CONSENT.APPROVED, childline: CHILDLINE};
-    }
-    throw new HttpsError(
-        verdict.reason === "bad-decision" ? "invalid-argument" : "failed-precondition",
-        verdict.message,
-        {reason: verdict.reason},
-    );
-  }
-
-  const learnerSnap = await db.collection("users").doc(uid).get();
-  const learner = learnerSnap.exists ? (learnerSnap.data() || {}) : {};
-  const childName = learner.firstName || learner.displayName || null;
-  const guardianEmail = String(link?.parentEmail || "").trim();
-
-  if (verdict.action === "delete") {
-    await ref.delete();
-    await audit(db, {
-      event: "link_rejected_by_child",
-      learnerUid: uid,
-      parentUid,
-      fromState: verdict.wasState,
-      toState: null,
-      by: uid,
-      actor: "learner",
-    });
-    await notify(guardianEmail, buildLinkDecisionEmail({childName, confirmed: false}), "reject");
-    return {ok: true, changed: true, state: null, childline: CHILDLINE};
-  }
-
-  await ref.set({
-    consent: {
-      state: core.LINK_CONSENT.APPROVED,
-      // `method` is whatever the door that created the link recorded; it
-      // is deliberately not overwritten here. The child confirming is
-      // not a THIRD way of linking, it is the second half of the one
-      // that was already under way, and rewriting the method would erase
-      // the evidence of which door this family actually came through.
-      grantedAt: admin.firestore.FieldValue.serverTimestamp(),
-      withdrawnAt: null,
-      confirmedByLearner: true,
-    },
-  }, {merge: true});
-
-  await audit(db, {
-    event: "link_confirmed_by_child",
-    learnerUid: uid,
-    parentUid,
-    fromState: verdict.wasState,
-    toState: core.LINK_CONSENT.APPROVED,
-    by: uid,
-    actor: "learner",
-  });
-
-  await notify(guardianEmail, buildLinkDecisionEmail({childName, confirmed: true}), "confirm");
-
-  return {ok: true, changed: true, state: core.LINK_CONSENT.APPROVED, childline: CHILDLINE};
-});
 
 /* ── withdrawGuardianConsent ───────────────────────────────────────── */
 
@@ -575,7 +483,6 @@ const reportGuardianLink = onCall({
 
 module.exports = {
   CHILDLINE,
-  confirmGuardianLink,
   reportGuardianLink,
   requestGuardianUnlink,
   setLinkPermission,

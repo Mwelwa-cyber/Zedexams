@@ -143,6 +143,11 @@ async function writeApprovedLink(db, {guardian, learnerUid, learner, emailKey, e
     parentEmailKey: emailKey,
     ...(role ? {role} : {}),
     createdVia: "email_consent",
+    // Active on creation, in BOTH fields. Door A needs no child
+    // confirmation — the child NAMED this address and the adult proved
+    // they read that inbox — so the link is born confirmed, and says so
+    // in the field the family-code flow reads.
+    status: "active",
     consent: {
       state: core.LINK_CONSENT.APPROVED,
       method: core.LINK_METHOD.EMAIL_LINK,

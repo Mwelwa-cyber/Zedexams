@@ -22,6 +22,7 @@ export {
   LINK_CONSENT,
   LINK_METHOD,
   LINK_PERMISSION_KEYS,
+  LINK_STATUS,
   NO_PERMISSIONS,
   describeConsentState,
   describeLinkMethod,
@@ -31,8 +32,10 @@ export {
   isPermitted,
   linkId,
   linkIsApproved,
+  linkStatusIsActive,
   normalizeLink,
   readLinkPermissions,
+  readLinkState,
   resolveLinkConsent,
   resolveLinkPermissions,
 } from '../../functions/shared/guardian/guardianLinkCore.js'

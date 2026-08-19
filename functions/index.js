@@ -315,6 +315,7 @@ const {
   createFamilyInviteCode,
   revokeFamilyInviteCode,
   redeemFamilyInviteCode,
+  respondToFamilyLink,
   getChildProgress,
 } = require("./familyPortal");
 // Audit A3 PR 2 — weekly digest cron (Sunday 09:00 Africa/Lusaka).
@@ -2086,6 +2087,10 @@ exports.getProgressShare = getProgressShare;
 exports.createFamilyInviteCode = createFamilyInviteCode;
 exports.revokeFamilyInviteCode = revokeFamilyInviteCode;
 exports.redeemFamilyInviteCode = redeemFamilyInviteCode;
+// The child's answer to "is this your grown-up?". Redeeming a code now
+// creates a PENDING link and this is what makes it real — see the header
+// of functions/familyPortal.js.
+exports.respondToFamilyLink = respondToFamilyLink;
 exports.getChildProgress = getChildProgress;
 
 // A3 PR 2 — weekly digest cron. Sunday 09:00 Africa/Lusaka. Fans out
@@ -2394,12 +2399,10 @@ exports.setGuardianControl = require('./guardianControls').setGuardianControl;
 //
 // These five own what happens to a link after it exists:
 //
-//   confirmGuardianLink     the CHILD's confirmation. A link created by
-//                           the family-code door starts `pending` and
-//                           grants nothing until this runs, which is the
-//                           real defence against a code reaching the
-//                           wrong adult — the only person who knows is
-//                           asked, on their own device.
+//   (the child's accept/decline is respondToFamilyLink, in
+//    functions/familyPortal.js — `status` is the confirmation flag and
+//    that flow owns it. What lives here is everything `status` cannot
+//    express.)
 //   requestGuardianUnlink   the child asks to be unlinked. Files a
 //                           request; removes nobody. See the module
 //                           docblock for why this one is not immediate,
@@ -2421,7 +2424,6 @@ exports.setGuardianControl = require('./guardianControls').setGuardianControl;
 // hold and "who approved what, when" cannot be reconstructed from a
 // mutable document after the fact.
 const guardianLink = require('./guardianLink');
-exports.confirmGuardianLink = guardianLink.confirmGuardianLink;
 exports.requestGuardianUnlink = guardianLink.requestGuardianUnlink;
 exports.reportGuardianLink = guardianLink.reportGuardianLink;
 exports.withdrawGuardianConsent = guardianLink.withdrawGuardianConsent;
@@ -2507,6 +2509,14 @@ exports.acceptCoGuardianInvite = onCall({
 exports.removeCoGuardian = onCall({
   region: "us-central1", timeoutSeconds: 30,
 }, parentApp.removeCoGuardian);
+
+// Guardian consent, granted or withdrawn from the parent app. Owner-only
+// server-side; withdrawing writes the same denied/suspended/scheduled-for-
+// deletion record the emailed "this wasn't me" link writes, through the one
+// shared builder in guardianConsent/consentRecord.js.
+exports.setGuardianConsent = onCall({
+  region: "us-central1", timeoutSeconds: 30,
+}, parentApp.setGuardianConsent);
 
 // The guardian pay link. UNAUTHENTICATED by design: the guardian who
 // receives requestGuardianUnlock's email may have no ZedExams account, and a

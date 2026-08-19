@@ -8,10 +8,24 @@
  * younger child with a name and a PIN" — is NOT offered here, because
  * offering a button that cannot finish is worse than not offering it.
  * See the note in the card.
+ *
+ * ── Typing a code no longer links a child ───────────────────────────
+ *
+ * It sends a request. The child is asked "is this your grown-up?" and has
+ * to say yes; until they do the link authorises nothing at all, so this
+ * screen must not report success as "linked" — a parent told they are
+ * connected and then shown an empty dashboard concludes the app is
+ * broken, and the honest sentence ("waiting for them to confirm on their
+ * phone") is also the one that tells them what to do next.
+ *
+ * Pending requests are read straight from `parentLinks` rather than from
+ * `listGuardianChildren`, because that callable deliberately returns only
+ * confirmed children — see functions/parentApp/index.js.
  */
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { useAuth } from '../../../contexts/AuthContext'
 import useGuardianChildren from '../hooks/useGuardianChildren'
-import { redeemFamilyInviteCode } from '../services/familyPortal'
+import { listMyChildren, redeemFamilyInviteCode } from '../services/familyPortal'
 import { reportClientError } from '../../../utils/clientErrorReporting'
 import { sortChildren } from '../lib/parentAppView'
 import ChildCard from '../components/ChildCard'
@@ -19,11 +33,27 @@ import { Empty, ErrorRetry, ListSkeleton, ParentHeader } from '../components/Par
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 
 export default function ParentChildren() {
+  const { currentUser } = useAuth()
   const { loading, error, children, reload } = useGuardianChildren()
   const [code, setCode] = useState('')
   const [linking, setLinking] = useState(false)
   const [linkError, setLinkError] = useState('')
-  const [linked, setLinked] = useState('')
+  const [requested, setRequested] = useState('')
+  const [pending, setPending] = useState([])
+
+  const loadPending = useCallback(async () => {
+    if (!currentUser?.uid) return
+    try {
+      const links = await listMyChildren(currentUser.uid)
+      setPending(links.filter((l) => l.status === 'pending'))
+    } catch (err) {
+      // A failed read here costs the "waiting to confirm" list and
+      // nothing else, so it must not take the page down with it.
+      reportClientError(err, 'parentApp.listPendingLinks')
+    }
+  }, [currentUser?.uid])
+
+  useEffect(() => { loadPending() }, [loadPending])
 
   async function submit(e) {
     e.preventDefault()
@@ -31,12 +61,17 @@ export default function ParentChildren() {
     if (!trimmed || linking) return
     setLinking(true)
     setLinkError('')
-    setLinked('')
+    setRequested('')
     try {
-      const child = await redeemFamilyInviteCode(trimmed)
-      setLinked(child.learnerDisplayName || 'your child')
+      const result = await redeemFamilyInviteCode(trimmed)
+      const name = result.learnerDisplayName || 'your child'
+      // 'active' only when this parent was ALREADY a confirmed guardian
+      // and simply re-entered a code — everything else waits on the child.
+      setRequested(result.status === 'active' ?
+        `${name} is linked ✓` :
+        `Sent. ${name} needs to say yes on their own device — you will see them here once they do.`)
       setCode('')
-      await reload()
+      await Promise.all([reload(), loadPending()])
     } catch (err) {
       reportClientError(err, 'parentApp.redeemFamilyInviteCode')
       setLinkError(err?.message || 'Could not link that code. Please check it and try again.')
@@ -68,12 +103,34 @@ export default function ParentChildren() {
         ordered.map((child, i) => <ChildCard key={child.childUid} child={child} index={i} />)
       )}
 
+      {pending.length > 0 && (
+        <>
+          <h2 className="lhx-set-head">Waiting to be confirmed</h2>
+          <div className="lhx-set-group">
+            {pending.map((link) => (
+              <div className="lhx-set-row" key={link.id}>
+                <span className="lhx-set-ic" aria-hidden="true">⏳</span>
+                <span className="lhx-set-txt">
+                  <span className="lhx-set-title" style={{ display: 'block' }}>
+                    {link.learnerDisplayName || 'Your child'}
+                  </span>
+                  <span className="lhx-set-desc" style={{ display: 'block' }}>
+                    They need to say yes in their own app, under Settings → Guardian.
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
       <h2 className="lhx-set-head">Add a child</h2>
       <form className="lhx-card" style={{ padding: 15 }} onSubmit={submit}>
         <label className="lhx-set-title" htmlFor="pax-code">Their family code</label>
         <p className="lhx-set-desc" style={{ marginBottom: 10 }}>
           Your child finds this in their app under Settings → Guardian. It is
-          eight characters and expires after 60 days.
+          eight characters, works once, and lasts 2 days. They will be asked to
+          confirm it is you before you can see anything.
         </p>
         <input
           id="pax-code"
@@ -90,7 +147,7 @@ export default function ParentChildren() {
           {linking ? 'Linking…' : 'Link this child'}
         </button>
         {linkError && <p className="lhx-error-text" role="alert">{linkError}</p>}
-        {linked && <p className="pax-note" role="status">Linked {linked} ✓</p>}
+        {requested && <p className="pax-note" role="status">{requested}</p>}
       </form>
 
       <p className="pax-note">

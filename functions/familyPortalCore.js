@@ -6,54 +6,52 @@
  * account redeems it to create a `parentLinks/{parentUid}_{learnerUid}` doc —
  * the authorising link the portal reads through. Codes are separate from the
  * anonymous `progressShares` link tokens (that flow stays as-is).
- *
- * ── What a family code is, and what it therefore has to be ───────────────
- *
- * Typing one gives an adult standing visibility over a child's progress and
- * the power to set what that child may use. That is a CREDENTIAL, and it was
- * being treated as an onboarding convenience: eight characters, valid sixty
- * days, reusable without limit, and linking the moment it was typed. A code
- * read aloud in a classroom, screenshotted, or handed to the wrong adult was
- * a two-month standing grant that the child was never asked about.
- *
- * Four changes, each closing one of those:
- *
- *   1. SINGLE-USE. The code burns on the redeem that creates a link, so a
- *      code that has been seen by more people than intended is spent rather
- *      than standing. `redeemedCount` stays, as history.
- *   2. SHORT-LIVED. 48 hours, not 60 days — long enough that a parent in
- *      another town can act on it the next evening, short enough that a code
- *      on a whiteboard is worthless by the weekend. Regenerable by the child
- *      on demand, which is what makes the short window affordable.
- *   3. THE CHILD CONFIRMS. Redeeming creates a link in `pending`, and the
- *      child is asked "<Name> wants to be your guardian — is this your
- *      grown-up?". Nothing is visible to the adult until they say yes. This
- *      is the real defence against a code reaching the wrong person, because
- *      it is the only step that involves the one human who knows the answer.
- *   4. RATE-LIMITED, per account and per IP, so codes cannot be ground out.
- *
- * The alphabet is unchanged: codes are still read aloud and written down, and
- * making them longer or case-sensitive would trade a real usability cost for
- * an imaginary security gain — 30^8 is 6.5×10^11, which was never the weak
- * part of this.
  */
 
 // No 0/O/1/I/L — codes get read aloud / written down during onboarding.
 const FAMILY_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const FAMILY_CODE_LENGTH = 8;
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const ONE_HOUR_MS = 60 * 60 * 1000;
 
 /**
- * How long a code lives. 48 hours — the top of the 24–48h range, because a
- * Zambian parent may be in another town and a code that dies overnight would
- * push families onto the "just regenerate it again" treadmill, which is how a
- * short expiry turns into a long one in practice.
+ * How long a family code stays redeemable.
+ *
+ * It was 60 DAYS. That is a standing credential, and what it grants is not
+ * small: full visibility of a child's activity plus control over their
+ * permissions. Eight characters from a 30-letter alphabet is ~48 bits, so
+ * guessing is not the threat — the threat is the code itself outliving the
+ * moment it was for. A child reads it out to a parent at a kitchen table;
+ * two months later the screenshot is still on somebody's phone, the note
+ * is still in a school exercise book, and the WhatsApp message is still in
+ * a group chat.
+ *
+ * 48 hours covers "give it to my mum when she gets home" and expires
+ * before the artefacts do. Regenerating is one tap and costs nothing, and
+ * the code is now single-use anyway (see BURN below), so a longer window
+ * buys the child nothing it does not already have.
  */
 const FAMILY_CODE_TTL_HOURS = 48;
-const ONE_HOUR_MS = 60 * 60 * 1000;
-const ONE_DAY_MS = 24 * ONE_HOUR_MS;
 
-/** Retained for callers that still compute in days; 48h expressed as days. */
-const FAMILY_CODE_TTL_DAYS = FAMILY_CODE_TTL_HOURS / 24;
+/**
+ * A link's lifecycle.
+ *
+ * Redeeming a code no longer creates an ACTIVE link. It creates a PENDING
+ * one, and the child has to say yes. The reason is that redeeming was the
+ * whole check: anyone holding eight characters became a guardian with full
+ * visibility, and the child — the person the data is about — found out by
+ * noticing a new name in their settings, if they looked. Consent that the
+ * subject is not asked for is not consent.
+ *
+ * `declined` is kept rather than deleted so a second attempt with the same
+ * code cannot quietly succeed where the first was refused, and so a child
+ * who declines has a record of having done so.
+ */
+const LINK_STATUS = Object.freeze({
+  PENDING: "pending",
+  ACTIVE: "active",
+  DECLINED: "declined",
+});
 
 /**
  * Canonicalise a user-typed code: uppercase, strip anything that isn't an
@@ -78,8 +76,7 @@ function isValidFamilyCode(code) {
  * Generate a random code from an injected `randomBytes(n) => Uint8Array|Buffer`
  * (node:crypto in prod, a stub in tests). Uniform over the alphabet via modulo;
  * the alphabet length (30) divides evenly enough that the tiny bias is
- * irrelevant for a code that is single-use, 48-hour, rate-limited and confirmed
- * by the child before it grants anything.
+ * irrelevant for a non-secret onboarding code.
  */
 function randomFamilyCode(randomBytes) {
   const bytes = randomBytes(FAMILY_CODE_LENGTH);
@@ -90,55 +87,31 @@ function randomFamilyCode(randomBytes) {
   return code;
 }
 
-/** Millis from a Firestore Timestamp, a Date, an ISO string or a number. */
-function readMillis(value) {
-  if (value == null) return null;
-  if (typeof value === "number") return Number.isFinite(value) ? value : null;
-  if (typeof value.toMillis === "function") {
-    const ms = value.toMillis();
-    return Number.isFinite(ms) ? ms : null;
-  }
-  if (typeof value.toDate === "function") {
-    const d = value.toDate();
-    return d instanceof Date && !Number.isNaN(d.getTime()) ? d.getTime() : null;
-  }
-  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.getTime();
-  const parsed = Date.parse(String(value));
-  return Number.isNaN(parsed) ? null : parsed;
-}
-
 /**
- * Classify a code doc: 'invalid' | 'revoked' | 'used' | 'expired' | 'ok'.
- *
- * Order matters and is not arbitrary. `revoked` is checked first because it
- * is the child's own act and they are owed the truthful reason; `used` before
- * `expired` because a spent code is spent whatever the clock says, and telling
- * a parent "expired" about a code somebody already redeemed would send them
- * back to the child for a replacement they do not need.
- *
- * A code with no readable expiry is `expired`, not `ok`. This is the one
- * place a fail-open would be silent: an unreadable timestamp is exactly what a
- * corrupt or hand-edited document looks like, and reading it as "no expiry"
- * would make it a permanent credential.
- *
+ * Classify a code doc: 'invalid' (missing) | 'revoked' | 'expired' | 'ok'.
  * Accepts either a Firestore Timestamp (`expiresAt.toMillis()`) or a plain
  * `expiresAtMs` number so it works in both prod and node tests.
  */
 function familyCodeStatus(codeDoc, nowMs) {
   if (!codeDoc) return "invalid";
+  // Single-use, and checked BEFORE revoked/expired: burning a code sets
+  // both `redeemedAt` and `revokedAt`, and "already used" is the honest
+  // sentence for the second attempt. "Turned off by the learner" would
+  // send a parent to ask their child why they had cut them off.
+  if (isCodeSpent(codeDoc)) return "spent";
   if (codeDoc.revokedAt) return "revoked";
-  if (codeDoc.usedAt) return "used";
-  const expMs = readMillis(codeDoc.expiresAt) ?? readMillis(codeDoc.expiresAtMs);
-  if (expMs == null) return "expired";
-  if (expMs < nowMs) return "expired";
+  const expMs = codeDoc.expiresAt && typeof codeDoc.expiresAt.toMillis === "function"
+      ? codeDoc.expiresAt.toMillis()
+      : codeDoc.expiresAtMs;
+  if (typeof expMs === "number" && expMs < nowMs) return "expired";
   return "ok";
 }
 
 /** Human-readable reason for a non-ok status, for the redeem error message. */
 function familyCodeStatusMessage(status) {
   switch (status) {
+    case "spent": return "This family code has already been used. Ask the learner for a new one.";
     case "revoked": return "This family code has been turned off by the learner.";
-    case "used": return "This family code has already been used. Ask the learner for a new one.";
     case "expired": return "This family code has expired. Ask the learner for a new one.";
     case "invalid": return "That family code is not valid. Check it and try again.";
     default: return "";
@@ -146,55 +119,71 @@ function familyCodeStatusMessage(status) {
 }
 
 /**
- * Whether a code the learner is looking at is still worth showing as live,
- * and the sentence to show beside it. The learner's panel needs the same
- * classification the redeem path uses — a code shown as active that the
- * callable would refuse is how a child ends up reading a dead code down a
- * phone line.
- */
-function describeCodeForLearner(codeDoc, nowMs) {
-  const status = familyCodeStatus(codeDoc, nowMs);
-  if (status === "ok") {
-    const expMs = readMillis(codeDoc.expiresAt) ?? readMillis(codeDoc.expiresAtMs);
-    const hoursLeft = Math.max(0, Math.ceil((expMs - nowMs) / ONE_HOUR_MS));
-    return {
-      status,
-      live: true,
-      message: hoursLeft <= 1
-        ? "Expires in less than an hour"
-        : `Expires in ${hoursLeft} hours`,
-    };
-  }
-  return {
-    status,
-    live: false,
-    message: status === "used"
-      ? "Used — make a new one if you need to link another grown-up"
-      : familyCodeStatusMessage(status),
-  };
-}
-
-/**
- * Deterministic link doc id so redeeming twice is idempotent
+ * Deterministic link doc id so redeeming the same code twice is idempotent
  * (one parent ↔ one child = one link, no duplicates).
  */
 function parentLinkId(parentUid, learnerUid) {
   return `${parentUid}_${learnerUid}`;
 }
 
+/**
+ * Does this link authorise anything yet?
+ *
+ * ── The one grandfathered case, and why ─────────────────────────────
+ *
+ * Links created before the confirmation step carry NO `status` field, and
+ * they are treated as active. That is a deliberate exception to this
+ * file's fail-closed habit. Those links were made by a parent redeeming a
+ * code the child handed them, the child could already see and remove the
+ * parent, and the parent has been reading reports for weeks. Reading
+ * "absent" as "unconfirmed" would, on the deploy, cut off every real
+ * family using the product and present each of them with a consent
+ * request for a decision they made months ago — which teaches people to
+ * click yes on consent prompts, the opposite of the point.
+ *
+ * Everything WRITTEN from now on carries an explicit status, so the
+ * exception shrinks on its own and never applies to a new link.
+ */
+function isLinkActive(link) {
+  if (!link || typeof link !== "object") return false;
+  if (link.status === undefined || link.status === null) return true;
+  return link.status === LINK_STATUS.ACTIVE;
+}
+
+/** Links a parent may act on. Pending and declined ones authorise nothing. */
+function activeLinks(links) {
+  return (Array.isArray(links) ? links : []).filter(isLinkActive);
+}
+
+/**
+ * A code may be redeemed once. `redeemedCount` is the tally that existed
+ * before and stays for the learner's own visibility; `redeemedAt` is what
+ * BURNS it.
+ *
+ * Checked separately from `familyCodeStatus` so the message can say what
+ * actually happened — "already used" is a different thing for a child to
+ * hear than "expired", and the second sends them looking for a clock
+ * problem.
+ */
+function isCodeSpent(codeDoc) {
+  if (!codeDoc || typeof codeDoc !== "object") return false;
+  return codeDoc.redeemedAt != null;
+}
+
 module.exports = {
   FAMILY_CODE_ALPHABET,
   FAMILY_CODE_LENGTH,
   FAMILY_CODE_TTL_HOURS,
-  FAMILY_CODE_TTL_DAYS,
-  ONE_HOUR_MS,
+  LINK_STATUS,
   ONE_DAY_MS,
+  ONE_HOUR_MS,
+  activeLinks,
+  isCodeSpent,
+  isLinkActive,
   normalizeFamilyCode,
   isValidFamilyCode,
   randomFamilyCode,
-  readMillis,
   familyCodeStatus,
   familyCodeStatusMessage,
-  describeCodeForLearner,
   parentLinkId,
 };

@@ -16,6 +16,7 @@ import { reportClientError } from '../../../utils/clientErrorReporting'
 import { firstNameOf, greetingFor, sortChildren } from '../lib/parentAppView'
 import ApprovalFeed from '../components/ApprovalFeed'
 import ChildCard from '../components/ChildCard'
+import FamilyPreview from '../components/FamilyPreview'
 import { Empty, ErrorRetry, ListSkeleton, ParentHeader } from '../components/ParentPrimitives'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 
@@ -71,15 +72,19 @@ export default function ParentHome() {
       ) : error ? (
         <ErrorRetry message={error} onRetry={reload} />
       ) : ordered.length === 0 ? (
-        <Empty icon="👪">
+        <Empty icon="👪" action={{ label: 'Add a child', to: '/family/children' }}>
           No children linked yet. Ask your child for their family code from
-          Settings → Guardian, or invite them from the Children tab.
+          Settings → Guardian, or add them from the Children tab.
         </Empty>
       ) : (
         ordered.map((child, i) => (
           <ChildCard key={child.childUid} child={child} index={i} />
         ))
       )}
+
+      {/* Nothing linked: say what the screen will hold rather than
+          leaving most of a tall page blank. See FamilyPreview. */}
+      {!loading && !error && ordered.length === 0 && <FamilyPreview />}
 
       {ordered.length > 0 && (
         <>

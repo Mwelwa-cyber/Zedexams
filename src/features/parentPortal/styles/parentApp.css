@@ -28,6 +28,43 @@
   margin-bottom: 16px;
 }
 
+/*
+ * The brand mark, sized in CSS rather than by the <img> element's own
+ * `height` attribute.
+ *
+ * That attribute is a PRESENTATIONAL HINT, and Tailwind's preflight
+ * (`@tailwind base` in index.css) declares `img { height: auto }` at
+ * author level — which outranks every presentational hint. So a bare
+ * `<img height="28">` inside this app rendered at the file's intrinsic
+ * 312x384: a logo taller than a phone's first screen, sitting on top of
+ * the greeting, and — because `.pax-role-pill` sets `white-space:
+ * nowrap` beside it in a non-wrapping flex row — the reason the whole
+ * parent app scrolled sideways on a 390px phone and clipped "Parent" to
+ * "Paren…". Every other logo in the app is sized by a real rule
+ * (`.lhx-logo img`, `.lhx-nav-brand img`); this one was the exception.
+ * `scripts/test-img-size-attributes.mjs` now fails the build on the
+ * next one.
+ *
+ * `flex-shrink: 0` keeps it from being squeezed by the pill beside it;
+ * `min-width: 0` on the row's flexible side is what absorbs the
+ * pressure instead.
+ */
+.pax-brand {
+  height: 30px;
+  width: auto;
+  flex-shrink: 0;
+}
+
+/*
+ * Desktop carries the brand in the sidebar (`.lhx-nav-brand`), so the
+ * top-bar copy is redundant there and only steals height from the
+ * content column. Below the sidebar breakpoint there is no sidebar, so
+ * this is the only place the brand appears and it stays.
+ */
+@media (min-width: 1000px) {
+  .pax-brand { display: none; }
+}
+
 .pax-role-pill {
   background: var(--lhx-green-soft);
   color: var(--lhx-green-dark);
@@ -537,6 +574,107 @@
   font-weight: 800;
   margin-top: 10px;
   line-height: 1.5;
+}
+
+/* ── Empty states ─────────────────────────────────────────────────── */
+/*
+ * `.lhx-empty` is a centred text block, so the button needs to be laid
+ * out as its own line rather than inheriting the paragraph's flow — an
+ * inline-flex button inside centred text sits on the text baseline and
+ * reads as a link that happened to be styled.
+ */
+.pax-empty-cta {
+  display: inline-flex;
+  margin-top: 14px;
+}
+
+/* ── The plan strip ───────────────────────────────────────────────── */
+/*
+ * Lives INSIDE `.lhx-page`, which is the whole point: the app-level
+ * subscription strip it replaces rendered above the router and full
+ * bleed, and at >=1000px the family navigation is a fixed left sidebar
+ * painted straight over it ("free p|lan"). Anything in the page column
+ * inherits the sidebar offset from `.lhx` and cannot be overlapped.
+ *
+ * The CTA is its own non-shrinking flex item and the message is what
+ * gives way, so a narrow phone loses words rather than losing the
+ * action — the old strip truncated the whole row and left only the ✕.
+ */
+
+.pax-planbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--lhx-amber-wash);
+  border: 1.5px solid var(--lhx-amber-line);
+  border-radius: var(--lhx-radius-sm);
+  padding: 9px 10px;
+}
+
+.pax-planbar-main {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 1;
+  min-width: 0;
+  color: var(--lhx-amber-ink);
+}
+
+.pax-planbar-tag {
+  flex-shrink: 0;
+  background: var(--lhx-amber-row);
+  border-radius: 99px;
+  padding: 3px 9px;
+  font-size: 10.5px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+/* The sentence is the only thing allowed to run out of room. */
+.pax-planbar-msg {
+  min-width: 0;
+  flex: 1;
+  font-size: 12.5px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pax-planbar-cta {
+  flex-shrink: 0;
+  background: var(--lhx-amber-row);
+  border-radius: 99px;
+  padding: 3px 10px;
+  font-size: 11.5px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.pax-planbar-x {
+  flex-shrink: 0;
+  color: var(--lhx-amber-ink);
+  opacity: 0.65;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+  padding: 6px;
+  min-height: 32px;
+  min-width: 32px;
+}
+
+.pax-planbar-x:hover { opacity: 1; }
+
+/* Which sentence. Narrow phones get the short one — not a clipped
+   version of the long one, which is what cost the banner its link. */
+.pax-planbar-msg-full { display: none; }
+.pax-planbar-msg-short { display: block; }
+
+@media (min-width: 480px) {
+  .pax-planbar-msg-full { display: block; }
+  .pax-planbar-msg-short { display: none; }
 }
 
 /* ── Night mode component cases ───────────────────────────────────── */

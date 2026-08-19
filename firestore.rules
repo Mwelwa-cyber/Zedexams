@@ -2714,6 +2714,17 @@ service cloud.firestore {
     // learnerUid == uid). Either side may delete the link. No client
     // create/update: the callable owns the doc shape + the authorising check,
     // so a tampered client can't forge a link to a child it has no code for.
+    //
+    // A link now carries a `status` — redeeming a code creates a PENDING one
+    // and the CHILD has to confirm it (respondToFamilyLink). These rules
+    // deliberately do NOT try to express that: a rule can say who may read a
+    // row, not which rows authorise anything, and the read side has to keep
+    // returning pending rows anyway — the learner needs to see the request in
+    // order to answer it, and the parent needs to see that they are waiting.
+    // So `isLinkActive` (functions/familyPortalCore.js) is enforced on every
+    // SERVER path that acts on a link, and a client reading its own pending
+    // row is reading a row that grants nothing. `update` staying `false` is
+    // what makes that safe: a client cannot flip its own status to active.
     match /parentLinks/{linkId} {
       allow get, list: if isVerified() && (
         resource.data.parentUid == request.auth.uid ||

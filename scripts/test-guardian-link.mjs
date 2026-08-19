@@ -15,9 +15,14 @@
 //   • the legacy account-level `granted` still approves, and says so
 
 import assert from 'node:assert/strict'
+import { createRequire } from 'node:module'
 import {
   BOOLEAN_PERMISSION_KEYS,
   LINK_CONSENT,
+  LINK_STATUS,
+  linkIsApproved,
+  linkStatusIsActive,
+  readLinkState,
   LINK_METHOD,
   describeConsentState,
   describeLinkMethod,
@@ -101,6 +106,98 @@ test('dailyMinutes accepts only a finite non-negative number, floored', () => {
   assert.equal(readLinkPermissions({permissions: {dailyMinutes: -5}}).dailyMinutes, null)
   assert.equal(readLinkPermissions({permissions: {dailyMinutes: 'lots'}}).dailyMinutes, null)
   assert.equal(readLinkPermissions({permissions: {dailyMinutes: Infinity}}).dailyMinutes, null)
+})
+
+console.log('\ntwo flags, one question — status (theirs) + consent (ours)')
+
+// `status` is owned by functions/familyPortalCore.js: a redeemed family
+// code writes 'pending', the child's confirmation flips it to 'active'.
+// `consent.state` is ours and carries withdrawal, which status cannot
+// express. A link authorises something only if BOTH agree.
+
+test('THE HOLE: an unconfirmed link must not be waved through by our grace', () => {
+  // The regression this test exists for. A link written by the family-code
+  // flow carries status:'pending' and NO consent object. Reading consent
+  // alone, that silence falls into the migration grace and returns
+  // APPROVED — handing a stranger who typed a code the child's progress
+  // before the child was ever asked. The grace is for silence, and
+  // status:'pending' is a recorded answer in the other field.
+  const theirPending = { parentUid: 'stranger', learnerUid: 'kid', status: 'pending' }
+  assert.equal(linkIsApproved(theirPending), false)
+  assert.equal(resolveLinkConsent([theirPending]).approved, false)
+  assert.equal(resolveLinkPermissions([
+    { ...theirPending, permissions: { askZed: false } },
+  ]).askZed, null, 'an unconfirmed link must not set rules either')
+})
+
+test('a declined link authorises nothing', () => {
+  assert.equal(linkIsApproved({ parentUid: 'x', learnerUid: 'k', status: 'declined' }), false)
+})
+
+test('an ACTIVE link with no consent object still works', () => {
+  // Every link the live family-code flow writes on confirmation.
+  assert.equal(linkIsApproved({ parentUid: 'x', learnerUid: 'k', status: 'active' }), true)
+})
+
+test('a link silent in BOTH fields is the grandfathered case', () => {
+  assert.equal(linkIsApproved({ parentUid: 'x', learnerUid: 'k' }), true)
+  assert.equal(linkIsApproved({ parentUid: 'x', learnerUid: 'k' }, { enforceMigration: true }), false)
+})
+
+test('withdrawal beats an active status — the thing status cannot say', () => {
+  const withdrawn = {
+    parentUid: 'ex', learnerUid: 'k',
+    status: 'active',
+    consent: { state: 'withdrawn' },
+  }
+  assert.equal(linkIsApproved(withdrawn), false)
+  assert.equal(readLinkState(withdrawn), LINK_CONSENT.WITHDRAWN)
+})
+
+test('readLinkState never reports a withdrawn guardian as waiting on the child', () => {
+  assert.equal(
+    readLinkState({ parentUid: 'ex', learnerUid: 'k', status: 'pending', consent: { state: 'withdrawn' } }),
+    LINK_CONSENT.WITHDRAWN,
+  )
+})
+
+test('an unconfirmed link is tallied as pending, not as legacy', () => {
+  // Otherwise the child's screen says nothing is happening while a
+  // stranger's redeemed code sits waiting for them.
+  const r = resolveLinkConsent([{ parentUid: 'x', learnerUid: 'k', status: 'pending' }])
+  assert.equal(r.pending, 1)
+  assert.equal(r.legacy, 0)
+})
+
+test('our copy of isLinkActive matches familyPortalCore, case for case', () => {
+  // linkStatusIsActive is a deliberate duplicate: this package is shared
+  // with the browser and may not import CommonJS server code. A duplicate
+  // that drifts is worse than an import, so it is pinned here against the
+  // real thing.
+  const require_ = createRequire(import.meta.url)
+  const { isLinkActive } = require_('../functions/familyPortalCore.js')
+  const cases = [
+    { status: 'active' }, { status: 'pending' }, { status: 'declined' },
+    { status: null }, { status: undefined }, {}, { status: 'nonsense' },
+    null, undefined,
+  ]
+  for (const c of cases) {
+    assert.equal(
+      linkStatusIsActive(c), isLinkActive(c),
+      `disagreed on ${JSON.stringify(c)}`,
+    )
+  }
+})
+
+test('the status vocabulary matches the one familyPortalCore writes', () => {
+  const require_ = createRequire(import.meta.url)
+  const theirs = require_('../functions/familyPortalCore.js')
+  if (theirs.LINK_STATUS) {
+    assert.deepEqual(
+      Object.values(LINK_STATUS).sort(),
+      Object.values(theirs.LINK_STATUS).sort(),
+    )
+  }
 })
 
 console.log('\nresolveLinkConsent — one yes is enough')

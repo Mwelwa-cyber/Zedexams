@@ -189,38 +189,105 @@ export function readLinkPermissions(doc) {
   }
 }
 
-/* ── The links that predate this file ───────────────────────────── */
+/* ── Two flags, one question ─────────────────────────────────────── */
+
+/**
+ * `status` is the CONFIRMATION flag and it is not ours.
+ *
+ * functions/familyPortalCore.js owns it: a redeemed family code writes
+ * `status: 'pending'`, the child's confirmation flips it to `'active'`,
+ * and declining writes `'declined'`. That flow is live and this module
+ * does not second-guess it.
+ *
+ * `consent.state` is OURS, and it answers what `status` cannot: WHICH
+ * adult decided, WHEN, and — the one that matters — whether an approved
+ * guardian later WITHDREW. `status` has no withdrawn value, and adding
+ * one would have meant rewriting the confirmation flow to carry a
+ * distinction it was never asked to make.
+ *
+ * ── Why both are read, and in this order ────────────────────────────
+ *
+ * A link authorises something only if BOTH agree. That is fail-closed on
+ * purpose, and it is not merely tidy — reading only `consent.state`
+ * reintroduces a real hole. A link written by the family-code flow
+ * carries `status: 'pending'` and NO `consent` object at all, so a
+ * consent-only reading falls into the migration grace below and returns
+ * APPROVED for a stranger the child has not confirmed. That is precisely
+ * the case the confirmation step exists to refuse, so the two graces are
+ * kept from composing into a grant.
+ *
+ * The rule that resolves it is the one already written for `consent`:
+ * THE GRACE IS FOR SILENCE, NOT FOR A RECORDED ANSWER. `status:
+ * 'pending'` is a recorded answer. It just happens to be recorded in the
+ * other field.
+ */
+
+/** The `status` values familyPortalCore writes. Anything else is not active. */
+export const LINK_STATUS = Object.freeze({
+  ACTIVE: 'active',
+  PENDING: 'pending',
+  DECLINED: 'declined',
+})
+
+/**
+ * Has the CHILD confirmed this link? Mirrors familyPortalCore.isLinkActive,
+ * including its grandfathering of links written before `status` existed.
+ *
+ * Deliberately duplicated rather than imported: this package may not
+ * import from functions/ (it is shared with the browser, and
+ * familyPortalCore is CommonJS server code). `test:guardian-link` pins
+ * the two against each other so the copy cannot drift.
+ */
+export function linkStatusIsActive(link) {
+  const src = link && typeof link === 'object' ? link : null
+  if (!src) return false
+  if (src.status === undefined || src.status === null) return true
+  return src.status === LINK_STATUS.ACTIVE
+}
+
+/**
+ * The one state a caller should render or branch on: this link's own
+ * answer, folding both flags.
+ *
+ * Returns a LINK_CONSENT value. `withdrawn` outranks everything, because
+ * an adult who ended the relationship is not "pending" and must never be
+ * shown as waiting on the child.
+ */
+export function readLinkState(link) {
+  const l = normalizeLink(link)
+  if (l.hasConsentRecord && l.state === LINK_CONSENT.WITHDRAWN) return LINK_CONSENT.WITHDRAWN
+  if (!linkStatusIsActive(link)) return LINK_CONSENT.PENDING
+  if (l.hasConsentRecord) return l.state
+  return LINK_CONSENT.APPROVED
+}
 
 /**
  * THE MIGRATION EXCEPTION, stated rather than hidden.
  *
- * Every `parentLinks` document written before consent moved onto links
- * has no `consent` object at all. `normalizeLink` reads those as
- * `pending`, which is the correct STRICT reading and is the wrong
- * PRODUCT answer on the deploy that ships this: every parent already
- * using the portal would open it to "you are not linked to this child",
- * and every child of theirs whose approval lives only on the account
- * record would drop into limited mode. Nobody could fix it — the code
- * that made the link is spent, and the child would have to mint a new
- * one for a parent who is already there.
+ * A link written before consent moved onto links has no `consent` object
+ * — and, if it predates the confirmation step too, no `status` either.
+ * The strict reading makes both pending, which is correct in the abstract
+ * and wrong as a product answer on the deploy that ships it: every parent
+ * already using the portal opens it to "you are not linked to this
+ * child". Nobody can fix that — the code that made the link is spent.
  *
- * So a link with NO consent record of its own is treated as approved
- * while `enforceMigration` is false, exactly as guardianConsentCore
- * treats an account with no guardian record at all. The flag is the
- * honest form of this: the permissive state is temporary, visible, and
- * switched off deliberately once `npm run backfill:link-consent` has
- * stamped the fleet, rather than forgotten.
+ * So a link SILENT in both fields is treated as approved while
+ * `enforceMigration` is false. The flag is the honest form of this: the
+ * permissive state is temporary, visible, and switched off deliberately
+ * once `npm run backfill:link-consent` has stamped the fleet.
  *
- * A link that DOES state a consent — including one that states
- * `pending` — is never covered by this. The grace is for silence, not
- * for a recorded answer.
+ * A link that speaks in EITHER field is never covered.
  */
 export function linkIsApproved(link, opts = {}) {
   const {enforceMigration = false} = opts
   const l = normalizeLink(link)
+
+  // The child has not confirmed (or has declined). Nothing else matters.
+  if (!linkStatusIsActive(link)) return false
+
   if (l.state === LINK_CONSENT.APPROVED) return true
-  if (!l.hasConsentRecord && !enforceMigration) return true
-  return false
+  if (l.hasConsentRecord) return false      // pending or withdrawn: a recorded answer
+  return !enforceMigration                   // silent: the grace, or not
 }
 
 /* ── The two derivations ────────────────────────────────────────── */
@@ -274,9 +341,14 @@ export function resolveLinkConsent(links, opts = {}) {
   // waiting on anybody, and reporting it as pending would put "waiting
   // for your grown-up" on the screen of a child whose grown-up is
   // already there.
-  const pending = rows.filter((l) => l.state === LINK_CONSENT.PENDING && l.hasConsentRecord).length
-  const withdrawn = rows.filter((l) => l.state === LINK_CONSENT.WITHDRAWN).length
-  const legacy = rows.filter((l) => !l.hasConsentRecord).length
+  // Tallied from the FOLDED state, so an unconfirmed link counts as
+  // pending even though its silence in `consent` would otherwise read as
+  // legacy — which is what puts "waiting for your grown-up" on the
+  // child's screen for a code somebody just redeemed.
+  const folded = raw.map(readLinkState)
+  const pending = folded.filter((st) => st === LINK_CONSENT.PENDING).length
+  const withdrawn = folded.filter((st) => st === LINK_CONSENT.WITHDRAWN).length
+  const legacy = raw.filter((l) => !normalizeLink(l).hasConsentRecord && linkStatusIsActive(l)).length
 
   if (approvedBy.length > 0) {
     return {

@@ -33,15 +33,14 @@ import {
   describeLinkMethod,
   normalizeLink,
   readLinkPermissions,
+  readLinkState,
 } from '../../../utils/guardianLink'
 import {
-  confirmGuardianLink,
   listMyLinkedParents,
   reportGuardianLink,
   requestGuardianUnlink,
 } from '../services/familyPortal'
 import { reportClientError } from '../../../utils/clientErrorReporting'
-import Button from '../../../shared/components/Button'
 
 const CHILDLINE = '116'
 
@@ -91,17 +90,15 @@ export default function GuardianLinkPanel() {
 
   useEffect(() => { load() }, [load])
 
-  const { pending, active } = useMemo(() => {
-    const rows = links.map((raw) => ({ raw, link: normalizeLink(raw) }))
-    return {
-      // A link that states `pending` is somebody waiting on an answer. A
-      // legacy link states nothing and is NOT shown as pending — it
-      // describes a guardian who has been here for months, and asking the
-      // child to confirm them would read as a new stranger appearing.
-      pending: rows.filter((r) => r.link.hasConsentRecord && r.link.state === LINK_CONSENT.PENDING),
-      active: rows.filter((r) => !(r.link.hasConsentRecord && r.link.state === LINK_CONSENT.PENDING)),
-    }
-  }, [links])
+  // Every link except the ones still waiting on this child's answer —
+  // those are FamilyCodePanel's to ask about, and showing them here too
+  // would put the same question on the screen twice.
+  const active = useMemo(
+    () => links
+      .map((raw) => ({ raw, link: normalizeLink(raw), state: readLinkState(raw) }))
+      .filter((r) => r.state !== LINK_CONSENT.PENDING),
+    [links],
+  )
 
   async function run(key, fn, fallback) {
     if (busy) return
@@ -144,47 +141,14 @@ export default function GuardianLinkPanel() {
         <p className="mt-3 text-xs theme-text-muted">Loading…</p>
       ) : (
         <>
-          {/* ── Somebody is asking ──────────────────────────────────── */}
-          {pending.map(({ raw, link }) => (
-            <div
-              key={raw.id}
-              className="mt-3 rounded-xl border-2 border-amber-400 bg-amber-50 p-3 dark:bg-amber-950/30"
-            >
-              <p className="text-sm font-black theme-text">
-                {guardianName(raw)} wants to be your guardian.
-              </p>
-              <p className="mt-0.5 text-xs theme-text-muted">
-                Is this your grown-up? They cannot see anything about you until
-                you say yes.
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <Button
-                  variant="primary"
-                  size="sm"
-                  disabled={Boolean(busy)}
-                  onClick={() => run(
-                    `confirm:${raw.id}`,
-                    () => confirmGuardianLink(link.parentUid, 'confirm'),
-                    'Could not save your answer. Please try again.',
-                  )}
-                >
-                  Yes, this is my grown-up
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={Boolean(busy)}
-                  onClick={() => run(
-                    `reject:${raw.id}`,
-                    () => confirmGuardianLink(link.parentUid, 'reject'),
-                    'Could not save your answer. Please try again.',
-                  )}
-                >
-                  No, I do not know them
-                </Button>
-              </div>
-            </div>
-          ))}
+          {/* The pending "X wants to be your guardian" ask, and its
+              accept/decline buttons, deliberately do NOT live here — they
+              are in FamilyCodePanel, which owns the family-code flow and
+              the `status` flag it writes. Both panels sit on this same
+              settings screen, so rendering the ask twice would have the
+              child answering the same question in two places. What is
+              here is the half that flow has no opinion about: who ended
+              up linked, exactly what they can see, and how to get help. */}
 
           {/* ── Who is linked ───────────────────────────────────────── */}
           {active.length === 0 ? (
@@ -193,15 +157,15 @@ export default function GuardianLinkPanel() {
             </p>
           ) : (
             <ul className="mt-3 space-y-2">
-              {active.map(({ raw, link }) => {
+              {active.map(({ raw, link, state }) => {
                 const controls = statedControls(raw)
-                const withdrawn = link.state === LINK_CONSENT.WITHDRAWN
+                const withdrawn = state === LINK_CONSENT.WITHDRAWN
                 return (
                   <li key={raw.id} className="rounded-xl theme-bg-subtle px-3 py-3">
                     <div className="flex flex-wrap items-baseline gap-x-2">
                       <span className="text-sm font-black theme-text">{guardianName(raw)}</span>
                       <span className="text-[11px] font-bold uppercase tracking-wider theme-text-muted">
-                        {withdrawn ? describeConsentState(link.state) : describeLinkMethod(link.method)}
+                        {withdrawn ? describeConsentState(state) : describeLinkMethod(link.method)}
                       </span>
                     </div>
 
