@@ -178,9 +178,12 @@ function makeFakePersistenceClass() {
   // The response object must come back untouched — the SDK parses it next.
   ok('the response is passed through unchanged', res.status === 429)
   ok('the request reached the real fetch', calls.length === 1 && calls[0] === LOOKUP)
-  // The body read is fire-and-forget, so let the microtasks drain.
-  await new Promise((resolve) => setTimeout(resolve, 0))
-  ok('the observer recorded the verdict', getBootVerdict() === INFRASTRUCTURAL)
+  // NO DRAIN. The classification is awaited before the response is handed
+  // back, so by the time the SDK's own `await fetch(...)` resolves the verdict
+  // is already recorded. It used to be fire-and-forget, and the SDK's error
+  // path could reach `_remove` first — a null verdict, which
+  // shouldPreserveStoredSession refuses to rescue.
+  ok('the verdict is recorded before the response resolves', getBootVerdict() === INFRASTRUCTURAL)
 
   // An unrelated request must not move the verdict.
   recordVerificationExchange('https://zedexams.com/api/ai/chat', { status: 500 })
@@ -189,6 +192,36 @@ function makeFakePersistenceClass() {
   // Disarming puts the browser's own fetch back.
   disarmAuthSessionGuard()
   ok('disarming restores fetch', target.fetch === original)
+}
+
+// ── The removal that follows the response is judged, not raced ───────────
+// The live failure: App Check enforcement answers the boot check with
+//   401 {"error":{"code":401,"message":"Firebase App Check token is invalid."}}
+// and the SDK deletes the persisted user. That 401 carries no recognised
+// terminal server code, so it classifies as INFRASTRUCTURAL and the session
+// must survive — but only if the verdict exists by the time `_remove` runs.
+{
+  __resetAuthSessionGuardForTests()
+  store.set(AUTH_HINT_KEY, '1')
+  const { FakePersistence, removed } = makeFakePersistenceClass()
+  const { installAuthSessionGuard } = await import('./authSessionGuard.js')
+
+  const target = {
+    fetch: async () => ({
+      status: 401,
+      clone: () => ({ json: async () => ({ error: { message: 'Firebase App Check token is invalid.' } }) }),
+    }),
+  }
+  installAuthSessionGuard({ persistences: [FakePersistence], fetchTarget: target })
+
+  await target.fetch(LOOKUP, { method: 'POST' })
+  // Exactly what the SDK does next, with no tick in between.
+  await new FakePersistence()._remove(SESSION_KEY)
+
+  ok('an App Check 401 is infrastructural, not terminal', getBootVerdict() === INFRASTRUCTURAL)
+  ok('the stored session is not deleted', removed.length === 0)
+  ok('and the rescue is reported', disarmAuthSessionGuard().preserved === true)
+  store.clear()
 }
 
 // ── The observer never clobbers a later wrapper ──────────────────────────

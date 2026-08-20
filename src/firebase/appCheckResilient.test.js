@@ -20,6 +20,8 @@ import {
   attestationDegraded,
   readAttestationState,
   resetAttestationState,
+  setAttestationArmed,
+  setAttestationExpected,
 } from './appCheckResilient.js'
 
 let passed = 0
@@ -134,6 +136,9 @@ async function run() {
   console.log('\nappCheckResilient — a HEALTHY provider records nothing')
   {
     resetAttestationState()
+    // App Check initialised on this page — otherwise the pre-init rule below
+    // reports degraded regardless of the placeholder history.
+    setAttestationArmed(true)
     const seen = []
     const good = { token: 'real-token', expireTimeMillis: Date.now() + 60_000 }
     const res = await resilientGetToken(async () => good, { onPlaceholder: (r) => seen.push(r) })
@@ -146,6 +151,7 @@ async function run() {
   console.log('\nappCheckResilient — attestationDegraded is a WINDOW, not a latch')
   {
     resetAttestationState()
+    setAttestationArmed(true)
     ok('clean state is not degraded', attestationDegraded() === false)
     const clock = 1_000_000
     await resilientGetToken(() => { throw new Error('boom') }, { now: () => clock })
@@ -154,6 +160,41 @@ async function run() {
       attestationDegraded(APPCHECK_PLACEHOLDER_TTL_MS, () => clock + APPCHECK_PLACEHOLDER_TTL_MS) === true)
     ok('recovered once the placeholder has expired',
       attestationDegraded(APPCHECK_PLACEHOLDER_TTL_MS, () => clock + APPCHECK_PLACEHOLDER_TTL_MS + 1) === false)
+  }
+
+  console.log('\nappCheckResilient — BEFORE App Check initialises, attestation is degraded')
+  {
+    // The regression this locks: App Check init is deferred off the cold-start
+    // path, so the SDK's own boot check (accounts:lookup) can go out with no
+    // X-Firebase-AppCheck header at all. An enforced Identity Platform answers
+    // 401 "Firebase App Check token is invalid." — indistinguishable, to every
+    // policy downstream, from a rejected credential. Reporting "not degraded"
+    // in that window is what let a live session be signed out on every reload.
+    resetAttestationState()
+    setAttestationExpected(true)
+    ok('a build that expects attestation is degraded before init',
+      attestationDegraded() === true)
+    ok('readAttestationState exposes both flags',
+      readAttestationState().attestationExpected === true
+      && readAttestationState().attestationArmed === false)
+    setAttestationArmed(true)
+    ok('the arrival of a provider clears it', attestationDegraded() === false)
+    // Expected but never delivered — an unregistered native plugin, a
+    // reCAPTCHA render that threw. Nothing on that page is attested, and
+    // saying so is both honest and the safe direction.
+    setAttestationArmed(false)
+    ok('expected-but-missing stays degraded for the life of the page',
+      attestationDegraded() === true)
+    // A build that never intended to attest is NOT degraded. On a project
+    // without enforcement it works fine, and a terminal auth code there must
+    // still be allowed to end the session.
+    setAttestationExpected(false)
+    ok('a build with no provider configured is not degraded',
+      attestationDegraded() === false)
+    resetAttestationState()
+    ok('reset clears both flags',
+      readAttestationState().attestationExpected === false
+      && readAttestationState().attestationArmed === false)
   }
 
   console.log('\nappCheckResilient — a telemetry sink must never break the token path')

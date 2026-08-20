@@ -270,3 +270,63 @@ describe('App Check reCAPTCHA container cleanup + recovery (firebase/config.js)'
     expect(healed.token).toBe('real-token')
   })
 })
+
+/**
+ * The cold-load logout, locked down.
+ *
+ * App Check enforcement is ON for Firebase Authentication. `getAuth()` starts
+ * the SDK's boot check (`identitytoolkit…/v1/accounts:lookup`) as soon as
+ * config.js finishes evaluating, and on the idle path that request went out
+ * with no X-Firebase-AppCheck header — earning
+ * `401 "Firebase App Check token is invalid."`, which the SDK reads as an
+ * unverifiable persisted user and deletes from IndexedDB before
+ * `onAuthStateChanged` fires once. Every reload is a cold load, so every
+ * reload signed the user out.
+ *
+ * What is asserted here is the contract, not the microtask ordering (which
+ * mocks cannot observe): a device that holds a session must NOT defer App
+ * Check init, and a device with no session must still defer it, because the
+ * reCAPTCHA script on the LCP path is what the deferral exists to avoid.
+ */
+describe('App Check init is not deferred for a device holding a session', () => {
+  let idleCallbacks
+
+  beforeEach(() => {
+    vi.resetModules()
+    initializeAppCheck.mockClear()
+    stubFirebaseEnv()
+    idleCallbacks = []
+    window.requestIdleCallback = (cb) => { idleCallbacks.push(cb); return 1 }
+    localStorage.clear()
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    delete window.requestIdleCallback
+    localStorage.clear()
+  })
+
+  it('runs init at module load when the session hint is present', async () => {
+    localStorage.setItem('auth:hasSession', '1')
+
+    await import('./config.js')
+
+    expect(initializeAppCheck).toHaveBeenCalledTimes(1)
+    // Nothing was queued: the attestation provider exists before anything can
+    // await it, rather than one to two seconds later.
+    expect(idleCallbacks).toHaveLength(0)
+  })
+
+  it('still defers init for a visitor with no session', async () => {
+    await import('./config.js')
+
+    // Deferred, exactly as before — a signed-out visitor on the marketing page
+    // makes no session-verification request, so there is nothing to protect
+    // and no reason to put reCAPTCHA on their LCP path.
+    expect(initializeAppCheck).not.toHaveBeenCalled()
+    expect(idleCallbacks).toHaveLength(1)
+
+    await idleCallbacks[0]()
+    expect(initializeAppCheck).toHaveBeenCalledTimes(1)
+  })
+})

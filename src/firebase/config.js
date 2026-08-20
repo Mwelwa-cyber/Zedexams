@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import { initializeAppCheck, ReCaptchaEnterpriseProvider, CustomProvider, getToken } from 'firebase/app-check'
-import { resilientGetToken, APPCHECK_PLACEHOLDER_TOKEN } from './appCheckResilient'
+import { resilientGetToken, APPCHECK_PLACEHOLDER_TOKEN, setAttestationArmed, setAttestationExpected } from './appCheckResilient'
 import { capture } from '../utils/analytics'
 import { resolveWriteAttestation, WRITE_BLOCKED_MESSAGE } from './appCheckWriteGate'
 import {
@@ -21,6 +21,7 @@ import { isNativePlatform } from '../utils/runtime'
 import { resolveAuthDomain } from './authDomain'
 import { hardenAuthPersistenceLifecycle } from './authPersistenceLifecycle'
 import { installAuthSessionGuard } from './authSessionGuard'
+import { hasAuthSessionHint } from './authSessionHint'
 import { envValue } from './envValue'
 
 // Every value goes through envValue(), which trims. A trailing newline in
@@ -258,6 +259,16 @@ let appCheckReadySettled = false
 function markAppCheckReady() {
   if (appCheckReadySettled) return
   appCheckReadySettled = true
+  // Tell appCheckResilient whether this page ever got a real attestation
+  // provider. Until this runs, `attestationDegraded()` answers TRUE for a
+  // build that declared it expects attestation (see setAttestationExpected
+  // below): before init there is no App Check token at all, and the enforced
+  // backends answer an unattested request with the same 401 they give a
+  // placeholder. A build that expected a provider and never got one (a native
+  // plugin that isn't registered, a reCAPTCHA render that threw) stays
+  // degraded for the life of the page, which is the honest answer: nothing on
+  // it is attested.
+  setAttestationArmed(Boolean(jsAppCheck || nativeAppCheck))
   try { appCheckReadyResolve(getAppCheckClientState()) } catch { appCheckReadyResolve({ initialized: false }) }
 }
 
@@ -588,12 +599,47 @@ function scheduleAppCheckInit() {
   // (initAppCheck never rejects — every failure is caught internally).
   const run = () => Promise.resolve(initAppCheck()).finally(markAppCheckReady)
   if (typeof window === 'undefined') { run(); return }
+  // ── A DEVICE THAT HOLDS A SESSION CANNOT AFFORD THE DEFERRAL ────────────
+  //
+  // App Check enforcement is ON for Firebase Authentication, and `getAuth()`
+  // above starts the SDK's boot check the moment this module finishes
+  // evaluating: `_reloadWithoutSaving` posts to
+  // identitytoolkit.googleapis.com/v1/accounts:lookup. On the idle path that
+  // request goes out with NO X-Firebase-AppCheck header, and an enforced
+  // Identity Platform answers
+  //
+  //   401 {"error":{"code":401,"message":"Firebase App Check token is invalid."}}
+  //
+  // which the SDK reads as "this persisted user could not be verified" and
+  // deletes the record from IndexedDB before `onAuthStateChanged` has fired
+  // once. Every reload is a cold load, so every reload signed the user out.
+  //
+  // Running init SYNCHRONOUSLY here is enough to fix the order, and the reason
+  // is worth stating: `getAuth()` is synchronous but its initialisation is
+  // not — every step of it resumes in a microtask, which cannot run until this
+  // module's synchronous evaluation completes. `initAppCheck()`'s own web path
+  // reaches `initializeAppCheck(app, …)` before its first `await`, so the
+  // app-check-internal component is registered before the SDK builds the boot
+  // request's headers.
+  //
+  // Only for a device that HAS a session. The reCAPTCHA Enterprise script is
+  // what the deferral exists to keep off the LCP path, and a signed-out
+  // visitor on the marketing page makes no session-verification request at
+  // all — nothing to protect, so nothing to pay for. A returning user usually
+  // has a valid App Check token already cached in IndexedDB, so for them this
+  // is a cache read rather than a reCAPTCHA round-trip.
+  if (hasAuthSessionHint()) { run(); return }
   if (typeof window.requestIdleCallback === 'function') {
     window.requestIdleCallback(() => run(), { timeout: 2500 })
   } else {
     setTimeout(() => run(), 1000)
   }
 }
+// Declared BEFORE init runs, so the window between module load and the first
+// token is recognisable as "attestation missing" rather than "attestation
+// fine". Native attests through Play Integrity; the web build attests only
+// when a reCAPTCHA site key shipped.
+setAttestationExpected(isNativePlatform() || Boolean(APPCHECK_RECAPTCHA_KEY))
 scheduleAppCheckInit()
 
 // Firebase Cloud Messaging — initialised only when Firebase's own
