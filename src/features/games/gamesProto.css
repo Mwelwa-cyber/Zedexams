@@ -803,9 +803,23 @@
   cursor: pointer; transition: fill .18s;
 }
 .lhx-kz-prov:hover { fill: #c3cdea; }
-.lhx-kz-prov.is-placed { fill: #009e73; }
+/* `is-placed`/`is-wrong` are the place mode's original names; `is-ok`/`is-no`
+   are what ZambiaMap emits for every mode. Both are kept so neither the
+   engine nor anything reading these class names has to change in step. */
+.lhx-kz-prov.is-placed,
+.lhx-kz-prov.is-ok { fill: #009e73; }
 .lhx-kz-prov.is-anchor { fill: #a8b3d6; }
-.lhx-kz-prov.is-wrong  { fill: url(#lhx-kz-hatch); }
+.lhx-kz-prov.is-wrong,
+.lhx-kz-prov.is-no { fill: url(#lhx-kz-hatch); }
+/* Journey: a province already crossed. Blue rather than green because it is
+   not an answer, it is a place you have been — and it carries its crossing
+   NUMBER, which is what makes the route readable with the colour gone. */
+.lhx-kz-prov.is-step { fill: #0072b2; }
+/* Odd one out lights four and dims six. The dimmed six carry no click target
+   in the markup at all; this only makes that visible. */
+.lhx-kz-prov.is-live { fill: #8fa8e8; }
+.lhx-kz-prov.is-live:hover { fill: #7d99e2; }
+.lhx-kz-prov.is-dim { fill: #eef1fa; cursor: default; }
 .lhx-kz-prov:focus-visible { outline: none; stroke: #5b5bd6; stroke-width: 1.4; }
 
 .lhx-kz-label {
@@ -818,7 +832,64 @@
   fill: #fff; paint-order: stroke; stroke: rgba(0, 0, 0, .25); stroke-width: .9;
 }
 .lhx-kz-mark.is-wrong { fill: #8f3f00; stroke: #fff; }
+.lhx-kz-mark.is-step { fill: #fff; stroke: rgba(0, 0, 0, .3); }
 .lhx-kz-halo { fill: transparent; cursor: pointer; }
+
+/* The eight neighbour boxes, drawn outside the outline. Dashed while empty so
+   they read as a place to put something rather than as more country. */
+.lhx-kz-zone {
+  fill: #fff; stroke: #b9c0da; stroke-width: .7; stroke-dasharray: 2.4 2;
+  cursor: pointer;
+}
+.lhx-kz-zone.is-ok { fill: #009e73; stroke: #009e73; }
+.lhx-kz-zone.is-no { fill: url(#lhx-kz-hatch); stroke: #d55e00; }
+.lhx-kz-zone:focus-visible { outline: none; stroke: #5b5bd6; stroke-width: 1.6; }
+.lhx-kz-zlab {
+  font-size: 3.1px; font-weight: 800; fill: #6b7392; text-anchor: middle;
+  pointer-events: none;
+}
+.lhx-kz-zlab.is-on { fill: #fff; }
+
+/* The capital pin, plotted from real longitude and latitude. */
+.lhx-kz-pin circle { fill: #f4592c; stroke: #fff; stroke-width: .6; }
+.lhx-kz-pin text {
+  font-size: 3.1px; font-weight: 900; fill: var(--lhx-ink); text-anchor: middle;
+  paint-order: stroke; stroke: #fff; stroke-width: 1.1;
+}
+
+/* The question under the map. */
+.lhx-kz-ask {
+  background: #fff; border-radius: 18px; padding: 13px;
+  margin: 10px 12px 0; font-size: 15px; font-weight: 800; line-height: 1.45;
+}
+.lhx-kz-ask b { color: #5b5bd6; }
+.lhx-kz-ask-sub {
+  display: block; margin-top: 6px; font-size: 12px; font-weight: 700;
+  color: var(--lhx-muted, #6b7392);
+}
+
+/* Journey: the strip of provinces, filling in as the road is travelled. */
+.lhx-kz-route { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
+.lhx-kz-rs {
+  display: flex; gap: 5px; align-items: center;
+  background: #eef0fb; border-radius: 9px; padding: 6px 9px;
+  font-size: 11.5px; font-weight: 800; color: var(--lhx-muted, #6b7392);
+}
+.lhx-kz-rs.is-on { background: #0072b2; color: #fff; }
+.lhx-kz-rs-n { opacity: .7; font-size: 10px; }
+
+/* Ceremonies: two of the three questions are off the map on purpose. */
+.lhx-kz-opts { display: grid; gap: 8px; margin: 10px 12px 0; }
+.lhx-kz-opt {
+  display: flex; gap: 9px; align-items: center; width: 100%;
+  min-height: 48px; padding: 13px; border-radius: 14px;
+  border: 2.5px solid #e6e8f5; background: #fff;
+  font: inherit; font-size: 15px; font-weight: 800; color: var(--lhx-ink);
+  text-align: left; cursor: pointer; touch-action: manipulation;
+}
+.lhx-kz-opt.is-ok { border-color: #009e73; background: #e7f5f0; color: #04674c; }
+.lhx-kz-opt.is-no { border-color: #d55e00; background: #fdeee4; color: #8f3f00; }
+.lhx-kz-opt-g { width: 22px; flex: 0 0 auto; font-size: 15px; }
 
 .lhx-kz-names {
   display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
