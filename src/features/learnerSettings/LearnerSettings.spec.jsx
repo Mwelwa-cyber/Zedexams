@@ -39,7 +39,6 @@ vi.mock('../../contexts/AuthContext', () => ({
 }))
 vi.mock('../../shared/components/SeoHelmet', () => ({ default: () => null }))
 vi.mock('../../shared/components/PageLoader', () => ({ default: () => <div>loading</div> }))
-vi.mock('./components/AiFab', () => ({ default: () => <div data-testid="ai-fab" /> }))
 
 // Stub the overview cards so the shell spec only exercises the shell. Each stub
 // exposes a button that calls onOpen(id) to drill into the detail panel.
@@ -54,7 +53,6 @@ vi.mock('./components/DashboardCards', () => {
     NotificationsCard: mk('notifications'),
     AppearanceCard: mk('appearance'),
     AccessibilityCard: mk('accessibility'),
-    AiCard: mk('ai'),
     PremiumCard: mk('premium'),
     SecurityPrivacyCard: mk('security'),
     HelpCard: mk('help'),
@@ -68,7 +66,6 @@ vi.mock('./panels/ProgressPanel', () => ({ default: ({ section }) => <div data-t
 vi.mock('./panels/NotificationsPanel', () => ({ default: ({ section }) => <div data-testid={`panel-${section.id}`}>{section.label}</div> }))
 vi.mock('./panels/PersonalisationPanel', () => ({ default: ({ section }) => <div data-testid={`panel-${section.id}`}>{section.label}</div> }))
 vi.mock('./panels/AccessibilityPanel', () => ({ default: ({ section }) => <div data-testid={`panel-${section.id}`}>{section.label}</div> }))
-vi.mock('./panels/AiPanel', () => ({ default: ({ section }) => <div data-testid={`panel-${section.id}`}>{section.label}</div> }))
 vi.mock('./panels/PremiumPanel', () => ({ default: ({ section }) => <div data-testid={`panel-${section.id}`}>{section.label}</div> }))
 vi.mock('./panels/PrivacySecurityPanel', () => ({ default: ({ section }) => <div data-testid={`panel-${section.id}`}>{section.label}</div> }))
 vi.mock('./panels/HelpPanel', () => ({ default: ({ section }) => <div data-testid={`panel-${section.id}`}>{section.label}</div> }))

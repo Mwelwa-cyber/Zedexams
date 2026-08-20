@@ -58,7 +58,7 @@ function resolveAgeBootstrap(user, deps) {
   // repairing a profile that went missing for someone who has been using the
   // app for months. Both are the `unknown` consent status — the migration
   // state, which resolveLearnerAccess treats permissively on purpose, because
-  // restricting them means taking Ask Zed and classes away from the existing
+  // restricting them means taking the leaderboard away from the existing
   // learner base with no guardian ever having been asked. Deriving "no date,
   // therefore a child, therefore limited" here would do exactly that, to
   // every recovered profile, silently.

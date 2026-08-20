@@ -159,33 +159,33 @@ describe('GuardianZonePage', () => {
   it('a control writes through the callable, and reports the confirmation', async () => {
     renderZone()
     passGate()
-    const ask = screen.getByRole('switch', { name: 'Ask Zed helper' })
+    const ask = screen.getByRole('switch', { name: 'Live challenges' })
     // No guardian decision yet reads as ON — nothing is restricted.
     expect(ask.getAttribute('aria-checked')).toBe('true')
     fireEvent.click(ask)
-    expect(setGuardianControl).toHaveBeenCalledWith('askZed', false)
+    expect(setGuardianControl).toHaveBeenCalledWith('challenges', false)
     await waitFor(() => {
       expect(screen.getByText('Saved. We have emailed you a confirmation.')).toBeInTheDocument()
     })
-    expect(screen.getByRole('switch', { name: 'Ask Zed helper' }).getAttribute('aria-checked')).toBe('false')
+    expect(screen.getByRole('switch', { name: 'Live challenges' }).getAttribute('aria-checked')).toBe('false')
   })
 
   it('a failed write puts the switch back rather than leaving a false promise', async () => {
     setGuardianControl.mockRejectedValueOnce(new Error('We could not save that just now.'))
     renderZone()
     passGate()
-    fireEvent.click(screen.getByRole('switch', { name: 'Ask Zed helper' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'Live challenges' }))
     await waitFor(() => {
       expect(screen.getByText('We could not save that just now.')).toBeInTheDocument()
     })
-    expect(screen.getByRole('switch', { name: 'Ask Zed helper' }).getAttribute('aria-checked')).toBe('true')
+    expect(screen.getByRole('switch', { name: 'Live challenges' }).getAttribute('aria-checked')).toBe('true')
   })
 
   it("renders a guardian's stored OFF as off", () => {
-    mockProfile = { ...mockProfile, guardianControls: { askZed: false } }
+    mockProfile = { ...mockProfile, guardianControls: { challenges: false } }
     renderZone()
     passGate()
-    expect(screen.getByRole('switch', { name: 'Ask Zed helper' }).getAttribute('aria-checked')).toBe('false')
+    expect(screen.getByRole('switch', { name: 'Live challenges' }).getAttribute('aria-checked')).toBe('false')
   })
 
   it('tells the parent what the control actually guarantees', () => {

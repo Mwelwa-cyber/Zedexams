@@ -3,7 +3,7 @@
  * that talk, share, or spend.
  *
  * Two failure directions, both bad and neither symmetric:
- *   • Too open — a child reaches Ask Zed or a leaderboard with no guardian
+ *   • Too open — a child reaches a leaderboard with no guardian
  *     approval. That is the Families-policy violation and the DPA breach.
  *   • Too closed — the entire existing learner base is locked out by a
  *     deploy. That is a live outage for real users who did nothing wrong.

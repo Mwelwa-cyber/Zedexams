@@ -103,16 +103,6 @@ describe('LearnerSettingsPage (prototype-v6)', () => {
     expect(patch.categories.learning).toBe(true)
   })
 
-  it('Ask Zed writes the flag the launcher reads', () => {
-    renderSettings()
-    fireEvent.click(screen.getByLabelText('Ask Zed'))
-    expect(updateProfileFields).toHaveBeenCalledWith(
-      expect.objectContaining({
-        learnerSettings: expect.objectContaining({ zedAi: expect.objectContaining({ enabled: false }) }),
-      }),
-    )
-  })
-
   it('the daily goal cycles through the real options', () => {
     renderSettings()
     const row = screen.getByText('Daily goal').closest('button')

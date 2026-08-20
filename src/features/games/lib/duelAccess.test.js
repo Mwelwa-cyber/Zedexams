@@ -50,9 +50,9 @@ test("a guardian's ON allows it explicitly", () => {
   assert.equal(duelAllowed(USER, { ...LEARNER, guardianControls: { challenges: true } }), true)
 })
 
-test('switching Ask Zed off does NOT block the race', () => {
+test('an unrelated guardian control does NOT block the race', () => {
   // Two independent controls. Taking one must not take the other.
-  assert.equal(duelAllowed(USER, { ...LEARNER, guardianControls: { askZed: false } }), true)
+  assert.equal(duelAllowed(USER, { ...LEARNER, guardianControls: { somethingElse: false } }), true)
 })
 
 test('a non-boolean stored value is no decision, never a restriction', () => {

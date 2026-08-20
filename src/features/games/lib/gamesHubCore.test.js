@@ -17,6 +17,7 @@ import {
   isRecentlyAdded,
   resolveLearnerGrade,
   unavailableRowCopy,
+  zedRaceRow,
 } from './gamesHubCore.js'
 import { LEARNER_GRADES } from '../../../config/curriculum.js'
 
@@ -329,6 +330,36 @@ for (const subject of ['Mathematics', 'English', 'Science', 'Social Studies']) {
   assert.ok(!soon.meta.includes(subject), `the placeholder invented a subject: ${soon.meta}`)
 }
 
+/* ── zedRaceRow ───────────────────────────────────── */
+
+// The row exists because #2496's own justification for deleting the Race
+// Zed! hero — "/games/duel is untouched and still reachable" — stopped
+// being true: nothing linked to it afterwards, so a fully built screen was
+// reachable only by typing the URL while the one card carrying Zed's name
+// opened the daily challenge instead.
+const zed = zedRaceRow({ challengesAllowed: true })
+assert.equal(zed.title, 'Race Zed', 'the row wears the destination\u2019s own title')
+
+// The ONE fact that separates this row from the live race card above it.
+// A learner choosing between two races needs to know which opponent is a
+// robot BEFORE they tap, not on the screen after.
+assert.match(zed.sub, /robot/i, 'the row says who the opponent is')
+assert.match(zed.sub, /not a learner/i, 'and says who it is not')
+
+// Guardian controls refuse it, using the SAME predicate the route reads,
+// so the hub can never offer a race /games/duel then answers with
+// "challenges are switched off for this account".
+assert.equal(zedRaceRow({ challengesAllowed: false }), null)
+// Fail closed on a caller that says nothing: an unanswered permission
+// question is not permission.
+assert.equal(zedRaceRow(), null)
+assert.equal(zedRaceRow({}), null)
+
+// It must NOT re-describe itself as the live race. "Race a learner" is the
+// card above; two rows both promising a human opponent is the collision
+// this row was shaped to avoid.
+assert.ok(!/race a learner/i.test(`${zed.title} ${zed.sub}`))
+
 /* ── Copy is written for an 11-year-old ────────────────────────────── */
 
 // "same questions, server keeps score" is engineering reassurance written
@@ -340,6 +371,7 @@ const everyString = [
   gameStatusPill({ best: 10 }).label,
   gameStatusPill({}).label,
   ...Object.values(unavailableRowCopy(7)),
+  ...Object.values(zedRaceRow({ challengesAllowed: true })),
 ].filter((v) => typeof v === 'string')
 for (const line of everyString) {
   assert.ok(
@@ -350,5 +382,5 @@ for (const line of everyString) {
 
 console.log(
   '✓ games hub core — grade resolution, catalogue scoping, meta lines, status pills, '
-  + `hero copy (rollout grade ${rollout})`,
+  + `hero copy, the Race Zed row (rollout grade ${rollout})`,
 )

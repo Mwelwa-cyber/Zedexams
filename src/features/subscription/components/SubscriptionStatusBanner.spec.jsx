@@ -7,7 +7,7 @@
  * not shrink below its content width (status pill + full message). The row
  * pushed the dismiss ✕ past the viewport edge, widening the document —
  * which made every learner page horizontally scrollable AND dragged the
- * right-anchored fixed elements (Ask Zed launcher, bottom nav) off-screen
+ * right-anchored fixed elements (the bottom nav) off-screen
  * on Android Chrome. jsdom can't measure layout, so the tests pin the two
  * CSS facts that make the row shrinkable: `min-w-0` on the flex-1 button
  * and `truncate` on the message span.

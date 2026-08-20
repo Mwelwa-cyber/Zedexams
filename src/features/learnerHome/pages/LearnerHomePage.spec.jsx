@@ -72,9 +72,11 @@ const baseData = {
     ],
     locks: { mathematics: { status: 'submitted' } },
   },
+  // The shape `useLearnerDashboard` produces: the whole `summariseSubjectProgress`
+  // verdict, so the row's words and its number are made from one object.
   subjects: [
-    { id: 'science', label: 'Integrated Science', topicCount: 5, percent: 57, started: true, hasMaterial: true },
-    { id: 'mathematics', label: 'Mathematics', topicCount: 6, percent: 82, started: true, hasMaterial: true },
+    { id: 'science', label: 'Integrated Science', topicCount: 5, total: 5, done: 3, percent: 57, state: 'in-progress', started: true, measurable: true, withMaterial: 5, hasMaterial: true },
+    { id: 'mathematics', label: 'Mathematics', topicCount: 6, total: 6, done: 5, percent: 82, state: 'in-progress', started: true, measurable: true, withMaterial: 6, hasMaterial: true },
   ],
   streak: 3,
   xp: 120,
@@ -177,9 +179,9 @@ describe('LearnerHomePage', () => {
     mockDashboard.data = {
       ...baseData,
       subjects: [
-        { id: 'english', label: 'English', topicCount: 6, percent: 0, hasMaterial: false },
-        { id: 'mathematics', label: 'Mathematics', topicCount: 13, percent: 40, hasMaterial: true },
-        { id: 'science', label: 'Integrated Science', topicCount: 5, percent: 0, hasMaterial: false },
+        { id: 'english', label: 'English', topicCount: 6, total: 6, done: 0, percent: null, state: 'no-material', started: false },
+        { id: 'mathematics', label: 'Mathematics', topicCount: 13, total: 13, done: 5, percent: 40, state: 'in-progress', started: true, measurable: true },
+        { id: 'science', label: 'Integrated Science', topicCount: 5, total: 5, done: 0, percent: null, state: 'no-material', started: false },
       ],
     }
     renderHome()
@@ -253,8 +255,8 @@ describe('LearnerHomePage', () => {
     mockDashboard.data = {
       ...baseData,
       subjects: [
-        { id: 'english', label: 'English', topicCount: 7, percent: 0, started: false },
-        { id: 'science', label: 'Integrated Science', topicCount: 3, percent: 82, started: true },
+        { id: 'english', label: 'English', topicCount: 7, total: 7, done: 0, percent: 0, state: 'not-started', started: false, measurable: true },
+        { id: 'science', label: 'Integrated Science', topicCount: 3, total: 3, done: 2, percent: 82, state: 'in-progress', started: true, measurable: true },
       ],
     }
     renderHome()
@@ -262,9 +264,64 @@ describe('LearnerHomePage', () => {
     const englishRow = within(section).getByText('English').closest('button')
     expect(within(englishRow).queryByText('0%')).toBeNull()
     expect(englishRow.querySelector('[role="progressbar"]')).toBeNull()
+    expect(within(englishRow).getByText(/Not started/)).toBeInTheDocument()
     // The started one is unaffected.
     const sciRow = within(section).getByText('Integrated Science').closest('button')
     expect(within(sciRow).getByText('82%')).toBeInTheDocument()
+  })
+
+  it('a subject with nothing published shows no percentage and says why', () => {
+    // The reported bug: Home Economics read 100% with nothing published in it
+    // and nothing opened, because six unrecognised free-text topic labels were
+    // clamped to the catalogue size. A subject nobody has built yet is not a
+    // subject the learner has finished, and it is not one they are 0% through
+    // either — the row says which.
+    mockDashboard.data = {
+      ...baseData,
+      subjects: [
+        { id: 'home-economics', label: 'Home Economics', topicCount: 6, total: 6, done: 0, percent: null, state: 'no-material', started: false, measurable: false },
+      ],
+    }
+    renderHome()
+    const section = screen.getByRole('heading', { name: 'My subjects' }).closest('section')
+    const row = within(section).getByText('Home Economics').closest('button')
+    expect(within(row).getByText(/Material coming soon/)).toBeInTheDocument()
+    expect(within(row).queryByText('100%')).toBeNull()
+    expect(within(row).queryByText('0%')).toBeNull()
+    expect(row.querySelector('[role="progressbar"]')).toBeNull()
+  })
+
+  it('the row states the fraction its percentage is made of', () => {
+    // A percentage nobody can check is a percentage nobody should trust: the
+    // count beside the subject name is the denominator, not a different list.
+    mockDashboard.data = {
+      ...baseData,
+      subjects: [
+        { id: 'english', label: 'English', topicCount: 7, total: 7, done: 2, percent: 29, state: 'in-progress', started: true, measurable: true },
+      ],
+    }
+    renderHome()
+    const row = within(screen.getByRole('heading', { name: 'My subjects' }).closest('section'))
+      .getByText('English').closest('button')
+    expect(within(row).getByText(/2 of 7 topics done/)).toBeInTheDocument()
+    expect(within(row).getByText('29%')).toBeInTheDocument()
+  })
+
+  it('an unreadable catalogue claims nothing either way', () => {
+    // A failed read is not an empty catalogue, and must not be rendered as
+    // one — nor as 0%. The row falls back to the topic count alone.
+    mockDashboard.data = {
+      ...baseData,
+      subjects: [
+        { id: 'science', label: 'Integrated Science', topicCount: 3, total: 3, done: 0, percent: null, state: 'unknown', started: false, measurable: false },
+      ],
+    }
+    renderHome()
+    const row = within(screen.getByRole('heading', { name: 'My subjects' }).closest('section'))
+      .getByText('Integrated Science').closest('button')
+    expect(within(row).getByText('Term 2 · 3 topics')).toBeInTheDocument()
+    expect(within(row).queryByText(/coming soon/i)).toBeNull()
+    expect(row.querySelector('[role="progressbar"]')).toBeNull()
   })
 
   it('shows the countdown card naming the next paper when a timetable is published', () => {

@@ -35,7 +35,7 @@
  * index re-exports, and `App.jsx` mounts `MaintenanceBanner` **eagerly, above
  * the router, on the public landing page** — so reaching these two through
  * `adminSettings` would put the admin control center in the main bundle for
- * every anonymous visitor. That is the cost `features/zedChat` measured and
+ * every anonymous visitor. That is the cost the (since removed) `features/zedChat` measured and
  * `features/announcements` records for its own page.
  *
  * The pairing is real and unmet; the bundle is the reason. If `adminSettings`

@@ -14,7 +14,6 @@ import {
   Bell,
   SwatchIcon,
   Eye,
-  Sparkles,
   TrophyIcon,
   ShieldCheck,
   Info,
@@ -68,14 +67,6 @@ export const LEARNER_SETTINGS_SECTIONS = [
     icon: Eye,
     tone: 'green',
     keywords: ['text size', 'larger text', 'contrast', 'dyslexia', 'screen reader', 'reduce motion', 'voice', 'read aloud', 'colour blind', 'color blind', 'keyboard'],
-  },
-  {
-    id: 'ai',
-    label: 'AI Learning Assistant',
-    desc: 'Smart learning personalization',
-    icon: Sparkles,
-    tone: 'purple',
-    keywords: ['ai', 'zed', 'assistant', 'learning goal', 'weak topics', 'daily challenge', 'weekly challenge', 'revision plan', 'timetable', 'homework helper', 'chat tutor', 'voice', 'personality'],
   },
   {
     id: 'premium',

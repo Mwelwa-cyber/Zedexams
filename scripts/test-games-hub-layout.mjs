@@ -8,8 +8,8 @@
  * jsdom test can make, because jsdom has no layout engine:
  *
  *   1. Nothing renders under the fixed chrome. Scrolled to the bottom, no
- *      element of the page intersects the tab bar's rect or the Ask Zed
- *      pill's. This is the live bug: the nav was translucent and the page
+ *      element of the page intersects the tab bar's rect. This is the live
+ *      bug: the nav was translucent and the page
  *      reserved 24px under a 76px bar, so "Your games", the Leaderboard
  *      link and the first game card rendered THROUGH it.
  *   2. No horizontal overflow: documentElement.scrollWidth === clientWidth.
@@ -202,7 +202,7 @@ async function buildBundle() {
   // A bundle that emitted no learner stylesheet would paint an unstyled
   // page, and an unstyled page has no fixed chrome to collide with — every
   // assertion below would pass while measuring nothing.
-  if (!css.includes('.lhx-nav') || !css.includes('.lhx-game') || !css.includes('.lhx-zed-fab')) {
+  if (!css.includes('.lhx-nav') || !css.includes('.lhx-game')) {
     throw new Error('the bundled CSS is missing the learner chrome — the harness would measure an unstyled page')
   }
   return { js, css }
@@ -240,9 +240,7 @@ function measure() {
     a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
 
   const nav = document.querySelector('.lhx-nav')
-  const fab = document.querySelector('.lhx-zed-fab')
   const navBox = nav ? rect(nav) : null
-  const fabBox = fab ? rect(fab) : null
 
   /**
    * Every element of the PAGE that actually PAINTS something.
@@ -271,7 +269,7 @@ function measure() {
   }
 
   const pageEls = [...document.querySelectorAll('.lhx-page *')].filter((el) => {
-    if (el.closest('.lhx-nav') || el.closest('.lhx-zed-fab')) return false
+    if (el.closest('.lhx-nav')) return false
     const cs = getComputedStyle(el)
     if (cs.visibility === 'hidden' || cs.display === 'none' || Number(cs.opacity) === 0) return false
     const r = el.getBoundingClientRect()
@@ -281,11 +279,10 @@ function measure() {
 
   const describe = (el) => `${el.tagName.toLowerCase()}.${[...el.classList].join('.')}: "${(el.textContent || '').trim().slice(0, 40)}"`
 
-  const under = { nav: [], fab: [] }
+  const under = { nav: [] }
   for (const el of pageEls) {
     const r = rect(el)
     if (navBox && overlaps(r, navBox)) under.nav.push(describe(el))
-    if (fabBox && overlaps(r, fabBox)) under.fab.push(describe(el))
   }
 
   const oneLiners = [
@@ -310,7 +307,6 @@ function measure() {
     scrollY: window.scrollY,
     maxScroll: document.documentElement.scrollHeight - window.innerHeight,
     navBox,
-    fabBox,
     navBackground: navStyle?.backgroundColor || null,
     navBackdrop: navStyle?.backdropFilter || navStyle?.webkitBackdropFilter || 'none',
     navBorderTop: navStyle?.borderTopWidth || '0px',
@@ -356,7 +352,7 @@ try {
     writeFileSync(join(OUT, `games-hub-${theme.id}.html`), html)
     for (const vp of VIEWPORTS) {
       const p = await browser.newPage()
-      // Serve `/images/...` off disk. Zed's face is an <img src="/images/…">
+      // Serve `/images/...` off disk. The mascot art is an <img src="/images/…">
       // — a real request the app answers from `public/`. Left unhandled it
       // renders as an empty box, which changes nothing measured here but
       // makes every screenshot a picture of a page with a hole in it.
@@ -427,7 +423,7 @@ try {
       await p.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
       await new Promise((r) => setTimeout(r, 120))
       await p.evaluate(() => {
-        for (const [sel, cls] of [['.lhx-nav', 'lhx-nav-hidden'], ['.lhx-zed-fab', 'is-hidden']]) {
+        for (const [sel, cls] of [['.lhx-nav', 'lhx-nav-hidden']]) {
           const el = document.querySelector(sel)
           if (!el) continue
           el.classList.remove(cls)
@@ -469,10 +465,6 @@ try {
       check(
         bottom.under.nav.length === 0,
         `${where}: ${bottom.under.nav.length} element(s) render under the tab bar:\n      ${bottom.under.nav.slice(0, 6).join('\n      ')}`,
-      )
-      check(
-        bottom.under.fab.length === 0,
-        `${where}: ${bottom.under.fab.length} element(s) render under the Ask Zed pill:\n      ${bottom.under.fab.slice(0, 6).join('\n      ')}`,
       )
 
       // 2. No horizontal overflow.
@@ -567,7 +559,7 @@ try {
       await p.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
       await new Promise((r) => setTimeout(r, 120))
       await p.evaluate(() => {
-        for (const [sel, cls] of [['.lhx-nav', 'lhx-nav-hidden'], ['.lhx-zed-fab', 'is-hidden']]) {
+        for (const [sel, cls] of [['.lhx-nav', 'lhx-nav-hidden']]) {
           document.querySelector(sel)?.classList.remove(cls)
         }
         window.scrollTo(0, document.documentElement.scrollHeight)

@@ -1,5 +1,5 @@
 /**
- * Zed — friendly robot mascot for ZedExams ("Ask Zed").
+ * Zed — friendly robot mascot for ZedExams.
  *
  * Props:
  *   size    — pixel width/height of the SVG (default 100)
@@ -124,7 +124,7 @@ export default function ProfessorPako({ size = 100, mood = 'normal', animate = t
         <rect x="46" y="130" width="14" height="10" rx="3.5" fill="#1F2937" />
         <rect x="68" y="130" width="14" height="10" rx="3.5" fill="#1F2937" />
 
-        {/* ── SPEECH BUBBLE (signature "Ask Zed" cue) ──────── */}
+        {/* ── SPEECH BUBBLE ────────────────────────────────── */}
         <ellipse cx="118" cy="26" rx="14" ry="11" fill="#FAFAFA" stroke="#1F2937" strokeWidth="2" />
         <path
           d="M108 32 L100 40 L112 35Z"

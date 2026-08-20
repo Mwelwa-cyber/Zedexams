@@ -30,7 +30,6 @@ assert.equal(resolveParentRedirect('/subscription'), '/family/account/billing')
 assert.equal(resolveParentRedirect('/profile'), '/family/account')
 assert.equal(resolveParentRedirect('/dashboard'), '/family')
 assert.equal(resolveParentRedirect('/notifications'), '/family/notifications')
-assert.equal(resolveParentRedirect('/ask-zed'), '/family')
 assert.equal(resolveParentRedirect('/ask-a-grown-up'), '/family/plan')
 
 // ── Everything else renders as-is ────────────────────────────────────

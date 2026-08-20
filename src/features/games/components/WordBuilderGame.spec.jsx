@@ -16,7 +16,7 @@
  * every word deterministically shows its clue.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, act } from '@testing-library/react'
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 vi.mock('../../../contexts/AuthContext', () => ({
@@ -176,5 +176,48 @@ describe('WordBuilderGame', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+/**
+ * The word pack (features/games/lib/spellingPack.js).
+ *
+ * The engine shipped playing the ten words on its game document. A document
+ * naming a pack draws from the 879-word Grade 7 bank instead — and the two
+ * things worth pinning are that it WAITS for the pack (a stage composed from
+ * ten words and then swapped for the bank would space the learner's missed
+ * words against the wrong set) and that a pack which never arrives falls back
+ * to the document rather than leaving a child with an empty round.
+ */
+describe('WordBuilderGame — word packs', () => {
+  it('a game with no pack starts immediately, with no waiting line', () => {
+    renderGame()
+    expect(screen.queryByText(/Getting your words ready/)).toBeNull()
+    expect(screen.getByText('SPELL THE WORD')).toBeInTheDocument()
+  })
+
+  it('a game that names a pack plays the bank, not its own ten', async () => {
+    render(
+      <MemoryRouter>
+        <WordBuilderGame game={{ ...GAME, wordPack: 'grade7-spelling' }} />
+      </MemoryRouter>,
+    )
+    // The bank arrives from a local dynamic import, so the round starts once
+    // it resolves rather than on the document's words.
+    await waitFor(() => expect(screen.getByText('SPELL THE WORD')).toBeInTheDocument())
+    const letters = [...document.querySelectorAll('.lhx-wb-tile')].map((t) => t.textContent).join('')
+    expect(letters.length).toBeGreaterThan(1)
+    // Every bank clue is a sentence with a gap; the seeded ten are emoji clues.
+    expect(document.querySelector('.lhx-wb-clue').textContent).toMatch(/___|Tap what you hear/)
+  })
+
+  it('an unknown pack falls back to the game\'s own words', async () => {
+    render(
+      <MemoryRouter>
+        <WordBuilderGame game={{ ...GAME, wordPack: 'not-a-real-pack' }} />
+      </MemoryRouter>,
+    )
+    await waitFor(() => expect(screen.getByText('SPELL THE WORD')).toBeInTheDocument())
+    expect(screen.queryByText(/Getting your words ready/)).toBeNull()
   })
 })

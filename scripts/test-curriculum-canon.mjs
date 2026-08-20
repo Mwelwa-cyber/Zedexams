@@ -109,7 +109,9 @@ const UNSCANNED_UNTIL_NOW = new Set([
   // 8): its rewrite deleted the local SUBJECT_STYLES map along with the
   // legacy reader — the ledger shrank the intended way.
   'src/features/notes/components/NoteCard.jsx',
-  'src/features/learnerSettings/lib/learnerPrefs.js',
+  // learnerPrefs left this ledger when the Ask Zed assistant was removed: its
+  // local IMPROVE_SUBJECT_OPTIONS list existed only for the AI-assistant
+  // personalisation panel, and went with it. The ledger shrank the intended way.
   'src/features/classTimetable/lib/timetableCoverage.js',
   // Arrived with the image-pipeline admin move. Its subject keys predate that
   // migration — verified against the file at its `src/utils/` path, where the

@@ -202,7 +202,8 @@ async function test(name, fn) {
 
   await test("the decision page states what is restricted until approval", () => {
     const html = renderDecisionPage({childName: "Chanda", token: "a".repeat(64), actionUrl: "https://z.test/consent"});
-    assert.ok(/AI study assistant/i.test(html));
+    assert.ok(/leaderboard/i.test(html), "the page must name what approval unlocks");
+    assert.ok(/purchase/i.test(html), "…and that buying is restricted until then");
     assert.ok(/delete-account/.test(html));
   });
 

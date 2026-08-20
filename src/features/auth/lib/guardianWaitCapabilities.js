@@ -41,7 +41,6 @@ export const AVAILABLE_NOW = Object.freeze([
 // capability with no entry here is not shown at all, which is how PURCHASE
 // stays off the list without a special case in the renderer.
 const LOCKED_LABELS = Object.freeze({
-  [CAPABILITY.AI_CHAT]: 'Ask Zed, your study helper',
   [CAPABILITY.LEADERBOARD]: 'The weekly leaderboard',
   [CAPABILITY.SOCIAL]: 'Playing against friends',
 })

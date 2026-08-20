@@ -17,7 +17,6 @@ import {
   buildRecentActivity,
   activityKey,
   relativeTime,
-  computeSubjectCompletion,
   buildRecommendations,
   extractWeakTopics,
   getExamCountdownState,
@@ -28,6 +27,8 @@ import {
   countThisWeek,
   timestampMillis,
 } from '../src/features/learnerHome/lib/learnerHomeCore.js'
+// Namespace import so a retired export can be asserted absent by name.
+import * as core from '../src/features/learnerHome/lib/learnerHomeCore.js'
 
 let passed = 0
 function test(name, fn) {
@@ -235,19 +236,14 @@ test('relativeTime buckets', () => {
 })
 
 // ── Subject completion weighting ────────────────────────────────────
-test('subject completion weights notes + quiz coverage, not scores', () => {
-  assert.equal(computeSubjectCompletion({ notesRead: 5, notesTotal: 10, topicsAttempted: 5, topicsTotal: 10 }), 50)
-  assert.equal(computeSubjectCompletion({ notesRead: 10, notesTotal: 10, topicsAttempted: 10, topicsTotal: 10, examsDone: 1, examsExpected: 1 }), 100)
-})
-
-test('subject completion renormalises when a component has no data', () => {
-  // Only quiz coverage available → it carries full weight.
-  assert.equal(computeSubjectCompletion({ topicsAttempted: 3, topicsTotal: 4 }), 75)
-  assert.equal(computeSubjectCompletion({}), 0)
-})
-
-test('subject completion clamps over-complete components', () => {
-  assert.equal(computeSubjectCompletion({ notesRead: 20, notesTotal: 10 }), 100)
+test('the clamped completion formula is gone, and stays gone', () => {
+  // `computeSubjectCompletion` folded notes read with `Math.min(distinct
+  // topicScores keys, catalogue topics)`, which reported a subject finished on
+  // six unrecognised free-text labels — the Home Economics 100% with nothing
+  // published in it. Subject progress has one implementation now
+  // (`lib/subjectProgressCore.js`, covered by `npm run test:subject-progress`)
+  // and a second one reappearing here is the fork this asserts against.
+  assert.equal(core.computeSubjectCompletion, undefined)
 })
 
 // ── Weak topics + recommendations ───────────────────────────────────

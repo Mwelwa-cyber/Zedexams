@@ -16,6 +16,7 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 import LearnerIcon, { subjectIconName } from '../components/LearnerIcon'
 import { ProgressBar, EmptyState, SectionSkeleton } from '../components/LearnerPrimitives'
+import { subjectRowMeta } from '../lib/subjectProgressCore'
 import { capture } from '../../../utils/analytics'
 
 // ── Explore (prototype .big-grid / .big-tile) ───────────────────────
@@ -62,14 +63,24 @@ export function ExploreGrid() {
 const SUBJECT_TINTS = ['lhx-tint-green', 'lhx-tint-blue', 'lhx-tint-pink', 'lhx-tint-orange', 'lhx-tint-purple']
 const SUBJECT_TONES = ['var(--lhx-green)', 'var(--lhx-blue)', 'var(--lhx-pink)', 'var(--lhx-orange)', 'var(--lhx-purple)']
 
+/**
+ * Is there a percentage to show?
+ *
+ * Only when the term was actually measured AND the learner has done something
+ * in it. `percent == null` is the core saying it declined to measure — nothing
+ * published, or a catalogue read that failed — and rendering that as 0% is the
+ * bug this row is here to stop repeating.
+ */
+const showPercent = (s) => Boolean(s && s.started) && s.percent != null
+
 export function MySubjectsSection({ subjects, activeTerm, loading }) {
   const navigate = useNavigate()
   // Every subject the grade is taught, always. This used to render only
   // the subjects that already had material — so a learner whose school had
   // one published note saw ONE subject card where the mockup shows seven,
   // and the list silently changed shape as content landed. A subject with
-  // nothing published yet is still a subject the child takes; it shows at
-  // 0% and says so when opened.
+  // nothing published yet is still a subject the child takes; it says so on
+  // the row rather than being hidden or given a number.
 
   return (
     <section className="lhx-section" aria-labelledby="lhx-subjects-title">
@@ -101,18 +112,25 @@ export function MySubjectsSection({ subjects, activeTerm, loading }) {
               </span>
               <span className="lhx-subject-main">
                 <span className="lhx-subject-name">{s.label}</span>
+                {/* One line, and it states which of four things is true:
+                    nothing published yet, nothing started, how far through,
+                    or — when the catalogue could not be read — the topic
+                    count alone and no claim at all. `subjectRowMeta` writes
+                    it from the same verdict the bar is drawn from, so the
+                    words and the number cannot disagree. */}
                 <span className="lhx-subject-meta" style={{ display: 'block' }}>
-                  {[activeTerm ? `Term ${activeTerm}` : null, s.topicCount ? `${s.topicCount} topics` : null].filter(Boolean).join(' · ')}
+                  {subjectRowMeta({ term: activeTerm, summary: s })}
                 </span>
-                {/* A subject nobody has opened has no progress to report, so
-                    it reports none. "0%" beside an empty bar is not a
-                    measurement — it is five subjects' worth of zeroes the
-                    learner has to read past to find the one they started. */}
-                {s.started && (
+                {/* A bar is drawn only where there is a measurement behind it.
+                    "0%" beside an empty bar is not a measurement — it is five
+                    subjects' worth of zeroes the learner has to read past to
+                    find the one they started — and a bar over material that
+                    does not exist is worse: it is a claim. */}
+                {showPercent(s) && (
                   <ProgressBar percent={s.percent} tone={SUBJECT_TONES[i % SUBJECT_TONES.length]} label={`${s.label}: ${s.percent}% complete`} />
                 )}
               </span>
-              {s.started && (
+              {showPercent(s) && (
                 <span className="lhx-subject-pct" style={{ color: SUBJECT_TONES[i % SUBJECT_TONES.length] }}>{s.percent}%</span>
               )}
               <ChevronRight size={18} className="lhx-chevron" aria-hidden="true" />

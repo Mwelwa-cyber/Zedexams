@@ -94,8 +94,8 @@ test('a garbage document does not throw and yields nothing usable', () => {
 console.log('\nreadLinkPermissions — three-valued, and null is not false')
 
 test('an absent or non-boolean permission is null, never false', () => {
-  const p = readLinkPermissions({permissions: {askZed: 'yes', challenges: 1, leaderboard: null}})
-  assert.equal(p.askZed, null, 'a string must not become a restriction nobody set')
+  const p = readLinkPermissions({permissions: {challenges: 'yes', leaderboard: null}})
+  assert.equal(p.challenges, null, 'a string must not become a restriction nobody set')
   assert.equal(p.challenges, null)
   assert.equal(p.leaderboard, null)
 })
@@ -126,8 +126,8 @@ test('THE HOLE: an unconfirmed link must not be waved through by our grace', () 
   assert.equal(linkIsApproved(theirPending), false)
   assert.equal(resolveLinkConsent([theirPending]).approved, false)
   assert.equal(resolveLinkPermissions([
-    { ...theirPending, permissions: { askZed: false } },
-  ]).askZed, null, 'an unconfirmed link must not set rules either')
+    { ...theirPending, permissions: { challenges: false } },
+  ]).challenges, null, 'an unconfirmed link must not set rules either')
 })
 
 test('a declined link authorises nothing', () => {
@@ -289,25 +289,25 @@ console.log('\nresolveLinkPermissions — most restrictive wins')
 
 test('one guardian saying no beats another saying yes', () => {
   const p = resolveLinkPermissions([
-    link('mum', LINK_CONSENT.APPROVED, {askZed: true}),
-    link('dad', LINK_CONSENT.APPROVED, {askZed: false}),
+    link('mum', LINK_CONSENT.APPROVED, {challenges: true}),
+    link('dad', LINK_CONSENT.APPROVED, {challenges: false}),
   ])
-  assert.equal(p.askZed, false)
+  assert.equal(p.challenges, false)
 })
 
 test('order does not change the answer', () => {
-  const yes = link('mum', LINK_CONSENT.APPROVED, {askZed: true})
-  const no = link('dad', LINK_CONSENT.APPROVED, {askZed: false})
-  assert.equal(resolveLinkPermissions([yes, no]).askZed, false)
-  assert.equal(resolveLinkPermissions([no, yes]).askZed, false)
+  const yes = link('mum', LINK_CONSENT.APPROVED, {challenges: true})
+  const no = link('dad', LINK_CONSENT.APPROVED, {challenges: false})
+  assert.equal(resolveLinkPermissions([yes, no]).challenges, false)
+  assert.equal(resolveLinkPermissions([no, yes]).challenges, false)
 })
 
 test('yes beats "has not looked" — null is not a restriction', () => {
   const p = resolveLinkPermissions([
-    link('mum', LINK_CONSENT.APPROVED, {askZed: true}),
+    link('mum', LINK_CONSENT.APPROVED, {challenges: true}),
     link('dad', LINK_CONSENT.APPROVED, {}),
   ])
-  assert.equal(p.askZed, true)
+  assert.equal(p.challenges, true)
 })
 
 test('nobody having looked resolves to null, not false', () => {
@@ -321,24 +321,24 @@ test('a PENDING guardian sets no rules', () => {
   // to restrict them — otherwise typing a code is a way to switch off a
   // stranger's Ask Zed.
   const p = resolveLinkPermissions([
-    link('mum', LINK_CONSENT.APPROVED, {askZed: true}),
-    link('stranger', LINK_CONSENT.PENDING, {askZed: false}),
+    link('mum', LINK_CONSENT.APPROVED, {challenges: true}),
+    link('stranger', LINK_CONSENT.PENDING, {challenges: false}),
   ])
-  assert.equal(p.askZed, true)
+  assert.equal(p.challenges, true)
 })
 
 test('a WITHDRAWN guardian sets no rules', () => {
   const p = resolveLinkPermissions([
-    link('ex', LINK_CONSENT.WITHDRAWN, {askZed: false, dailyMinutes: 5}),
-    link('mum', LINK_CONSENT.APPROVED, {askZed: true}),
+    link('ex', LINK_CONSENT.WITHDRAWN, {challenges: false, dailyMinutes: 5}),
+    link('mum', LINK_CONSENT.APPROVED, {challenges: true}),
   ])
-  assert.equal(p.askZed, true, "an ex-guardian's rules must not outlive their access")
+  assert.equal(p.challenges, true, "an ex-guardian's rules must not outlive their access")
   assert.equal(p.dailyMinutes, null)
 })
 
 test('no approved links means no permissions resolve at all', () => {
-  const p = resolveLinkPermissions([link('mum', LINK_CONSENT.PENDING, {askZed: false})])
-  assert.equal(p.askZed, null)
+  const p = resolveLinkPermissions([link('mum', LINK_CONSENT.PENDING, {challenges: false})])
+  assert.equal(p.challenges, null)
 })
 
 test('the smallest daily limit wins', () => {
@@ -368,13 +368,13 @@ test('a limit of zero survives — it is a real answer, not a falsy blank', () =
 console.log('\nisPermitted — the guardian and the child both get a veto')
 
 test("a guardian's no wins over the child's yes", () => {
-  const links = [link('mum', LINK_CONSENT.APPROVED, {askZed: false})]
-  assert.equal(isPermitted(links, 'askZed', true), false)
+  const links = [link('mum', LINK_CONSENT.APPROVED, {challenges: false})]
+  assert.equal(isPermitted(links, 'challenges', true), false)
 })
 
 test("a guardian's yes does not override a child who switched it off", () => {
-  const links = [link('mum', LINK_CONSENT.APPROVED, {askZed: true})]
-  assert.equal(isPermitted(links, 'askZed', false), false, 'permitting is not requiring')
+  const links = [link('mum', LINK_CONSENT.APPROVED, {challenges: true})]
+  assert.equal(isPermitted(links, 'challenges', false), false, 'permitting is not requiring')
 })
 
 test('dailyMinutes is refused by name rather than answered as a boolean', () => {
