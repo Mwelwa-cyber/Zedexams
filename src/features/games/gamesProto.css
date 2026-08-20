@@ -1031,3 +1031,11 @@
 .lhx-wb-coach-mastery { margin: 9px 0 0; font-size: 12px; font-weight: 800; color: #9a6412; }
 
 @media (prefers-reduced-motion: reduce) { .lhx-wb-chunk:active { transform: none; } }
+
+/* Shown for the moment a named word pack is being fetched (spellingPack.js).
+   Deliberately a plain line rather than a spinner: it is normally gone before
+   a spinner would finish one turn, and a spinner promises a longer wait. */
+.lhx-wb-packing {
+  text-align: center; padding: 48px 20px; font-weight: 800;
+  color: var(--lhx-muted);
+}
