@@ -2203,7 +2203,16 @@ service cloud.firestore {
         && mayAppearOnLeaderboard()
         && incoming().userId == request.auth.uid
         && incoming().gameId is string
+        // BOUNDED, not merely numeric. `score is number` alone accepted
+        // `score: 50000`, which on the old board — a ranking of raw score
+        // rows — bought the top place outright. 1000 is ~4x the largest
+        // legitimate round (10 questions x ~25 points at the top of the
+        // range) and must stay equal to MAX_ROUND_POINTS in
+        // functions/gamesLeaderboard/gamesLeaderboardCore.js, which clamps
+        // the same value on the way into the weekly board.
         && incoming().score is number
+        && incoming().score >= 0
+        && incoming().score <= 1000
         && incoming().grade is number
         && incoming().subject is string
         && incoming().playedAt == request.time;
@@ -2211,9 +2220,45 @@ service cloud.firestore {
     }
 
     // ── leaderboards (aggregated top-N per game; Cloud Function writes) ─
+    // NOT the weekly boards. `leaderboards/{grade}/weeks/…` is a
+    // SUBCOLLECTION and does not inherit from this block (Firestore rules do
+    // not cascade without a {document=**} wildcard) — it has its own rule
+    // further up, and so does the games weekly board below.
     match /leaderboards/{gameId} {
       allow read:  if true;
       allow write: if isAdmin();  // Cloud Functions also bypass via admin SDK
+    }
+
+    // ── the GAMES weekly board ─────────────────────────────────────────
+    //   gamesLeaderboards/{grade}/weeks/{weekId}/entries/{uid}
+    //
+    // One entry per learner per grade per ISO week, incremented by the
+    // `gameScoreOnCreate` trigger. Reads are signed-in-only rather than
+    // public, which is a deliberate narrowing of what `scores` allows: a
+    // board row names a CHILD, and a ranking of a whole grade's children by
+    // name should not be readable by an anonymous visitor with a URL. The
+    // page it feeds is a learner page and needs a grade to render anyway.
+    //
+    // Writes are server-only, in BOTH directions. That is the whole
+    // difference between this and the board it replaced: `scores` is written
+    // straight from the client, so the old board was a ranking of numbers
+    // the client chose. Here the client writes a round and the server
+    // decides what it is worth, whether the learner's guardian has approved
+    // a public row, which grade they belong to, and what name is safe to
+    // print.
+    //
+    // The `entries` subcollection name and the `uid` field are load-bearing:
+    // accountDeletion.js purges rows by COLLECTION GROUP `entries` on `uid`,
+    // so a deleted learner leaves this board without a second list to keep
+    // in step. Renaming either orphans a child's name here permanently.
+    match /gamesLeaderboards/{grade}/weeks/{weekId}/entries/{entryUid} {
+      allow read: if isVerified();
+      allow write: if false;
+    }
+    // The grade and week documents themselves hold nothing — the path is
+    // the data. Stated rather than left silent so the deny is a decision.
+    match /gamesLeaderboards/{grade} {
+      allow read, write: if false;
     }
 
     // ── gamification data-integrity backstops ─────────────────

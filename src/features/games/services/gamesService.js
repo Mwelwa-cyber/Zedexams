@@ -5,6 +5,9 @@
  *   games             — curated game documents (public read, admin write)
  *   scores            — one row per completed game (signed-in users only)
  *   leaderboards/{id} — top-N rollup per game (written by Cloud Function)
+ *   gamesLeaderboards/{grade}/weeks/{weekId}/entries/{uid}
+ *                     — the weekly board (server-written; read through
+ *                       services/gamesLeaderboardService.js, never here)
  *   badges/{uid}      — earned badges per user
  *   daily_challenges  — one featured game per calendar day
  *
@@ -21,7 +24,7 @@
 
 import {
   collection, doc, getDoc, getDocs, query, where, orderBy, limit as fsLimit,
-  addDoc, serverTimestamp, Timestamp, onSnapshot, runTransaction,
+  addDoc, serverTimestamp, runTransaction,
 } from 'firebase/firestore'
 import { db, auth } from '../../../firebase/config'
 import { resetDeletedGameCache } from '../../../utils/gameTombstones'
@@ -590,66 +593,25 @@ export async function deleteGameForever(gameId, { title, type, grade, subject } 
 }
 
 /* ─────────────────────────────────────────────────────────────────
- *  Live Global Leaderboard — real-time subscription via onSnapshot
+ *  The live global leaderboard used to live here.
  *
- *  Used by /games/leaderboard. Three time windows: 'today' | 'week' | 'all'.
- *  Returns top-N scores across all games, ordered by score descending.
+ *  `subscribeToGlobalLeaderboard` opened an onSnapshot over the WHOLE
+ *  `scores` collection ordered by score, and /games/leaderboard ranked the
+ *  rows it returned. Rows, not learners: a learner who played four rounds
+ *  took four places. It had no grade scope, its "week" window was a rolling
+ *  seven days (`Date.now() - 7 days`) rather than a week with a boundary,
+ *  and its error path called back with `{rows: [], error}` — so a failed
+ *  read and "nobody has played" were the same value.
+ *
+ *  It is replaced by `services/gamesLeaderboardService.js`, which reads a
+ *  server-maintained weekly rollup scoped to one grade and one ISO week.
+ *  `startOfTodayUTC`/`startOfWeekAgo` went with it: the board's calendar is
+ *  now Africa/Lusaka (`shared/utils/lusakaWeek.js`), because that is the
+ *  clock the server files points against.
+ *
+ *  `getLeaderboard(gameId)` above is a DIFFERENT surface and stays — it is
+ *  the per-game top-10 strip inside TimedQuizGame's done screen.
  * ───────────────────────────────────────────────────────────────── */
-
-export function subscribeToGlobalLeaderboard({ window: win = 'all', max = 25 }, onUpdate) {
-  let q
-  if (win === 'today') {
-    const start = startOfTodayUTC()
-    q = query(
-      collection(db, 'scores'),
-      where('playedAt', '>=', start),
-      orderBy('playedAt', 'desc'),
-      orderBy('score', 'desc'),
-      fsLimit(max),
-    )
-  } else if (win === 'week') {
-    const start = startOfWeekAgo()
-    q = query(
-      collection(db, 'scores'),
-      where('playedAt', '>=', start),
-      orderBy('playedAt', 'desc'),
-      orderBy('score', 'desc'),
-      fsLimit(max),
-    )
-  } else {
-    q = query(
-      collection(db, 'scores'),
-      orderBy('score', 'desc'),
-      fsLimit(max),
-    )
-  }
-
-  const unsub = onSnapshot(
-    q,
-    (snap) => {
-      const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-      // For windowed queries we ordered by playedAt first to satisfy the
-      // index — re-sort by score on the client to get top scores at top.
-      if (win !== 'all') rows.sort((a, b) => (b.score || 0) - (a.score || 0))
-      onUpdate({ rows, error: null })
-    },
-    (err) => {
-      console.warn('global leaderboard subscription error', err)
-      onUpdate({ rows: [], error: err?.code || err?.message || 'subscription_failed' })
-    },
-  )
-  return unsub
-}
-
-function startOfTodayUTC() {
-  const now = new Date()
-  const start = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
-  return Timestamp.fromMillis(start)
-}
-
-function startOfWeekAgo() {
-  return Timestamp.fromMillis(Date.now() - 7 * 24 * 60 * 60 * 1000)
-}
 
 /* ─────────────────────────────────────────────────────────────────
  *  Pure helpers (no Firestore) — used by games that want to render

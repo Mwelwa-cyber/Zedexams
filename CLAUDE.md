@@ -157,7 +157,7 @@ src/
     diagrams/                   — diagram rendering + the leader-line label layer for question/passage figures
     (papers/ MIGRATED 2026-08-13 → src/features/papers/ — see below)
     parent/                     — Parent portal pages
-  features/games — the games surface (`/games`): hub, subject selector, game list, play surface, global leaderboard, and the eight game engines. Migrated out of `src/components/games/` on 2026-08-14 by an explicit **owner ruling releasing it from the Assessment Engine freeze** — the third such ruling. (It released ONE surface; the freeze itself was closed by the sixth ruling on 2026-08-14, which released everything still on the list. The rollout flags are STILL at 0 — that ruling replaced the condition rather than meeting it.) `TimedQuizGame` is the engine's LAST cutover; its `useAssessmentEngineFlag('game')` wiring and both its specs (`.engine.spec` / `.legacy.spec`) moved unchanged and are load-bearing. The front door exports two names only — `GameBadgeCard` and `getSubjectMascot`. **`GameStickerStyles` and `Confetti` are NOT in the feature**: they went to `src/shared/components/`, because exporting them from the front door cost +75 kB of static edges each on GradeHub, SubjectDrillDown and ExamResultsPage (the door also exports `GameBadgeCard`, which reaches `utils/gamesService` → Firebase). `gameBadgesService.js`, `gameProgress.js`, `gameScorePayload.js` and `gamesIntelligence.js` stay in `src/utils/` — each has a consumer outside the feature. **`gamesService.js` no longer does**: it moved to `features/games/services/` on 2026-08-14 with `GamesSeedAdmin` (→ `pages/`), which was the one thing pinning it, so §14.2 is now SATISFIED and the feature has a `services/` directory. Its one remaining outside consumer, `hooks/useLearnerSearch`, reads `listGames` through the front door — measured at +28 bytes on that chunk with no new edge, since it already reached `gamesService` directly. Only `gameSounds.js` travelled, into `lib/`. `QuizList` reached the sticker stylesheet through a one-line re-export shim at the old path while `components/quiz/` was still frozen; the quiz migration hours later moved QuizList, so the shim retired and `src/components/games/` is gone
+  features/games — the games surface (`/games`): hub, subject selector, game list, play surface, the weekly leaderboard (`/games/leaderboard` — see below; it replaced a "global leaderboard" that ranked raw `scores` ROWS), and the eight game engines. Migrated out of `src/components/games/` on 2026-08-14 by an explicit **owner ruling releasing it from the Assessment Engine freeze** — the third such ruling. (It released ONE surface; the freeze itself was closed by the sixth ruling on 2026-08-14, which released everything still on the list. The rollout flags are STILL at 0 — that ruling replaced the condition rather than meeting it.) `TimedQuizGame` is the engine's LAST cutover; its `useAssessmentEngineFlag('game')` wiring and both its specs (`.engine.spec` / `.legacy.spec`) moved unchanged and are load-bearing. The front door exports two names only — `GameBadgeCard` and `getSubjectMascot`. **`GameStickerStyles` and `Confetti` are NOT in the feature**: they went to `src/shared/components/`, because exporting them from the front door cost +75 kB of static edges each on GradeHub, SubjectDrillDown and ExamResultsPage (the door also exports `GameBadgeCard`, which reaches `utils/gamesService` → Firebase). `gameBadgesService.js`, `gameProgress.js`, `gameScorePayload.js` and `gamesIntelligence.js` stay in `src/utils/` — each has a consumer outside the feature. **`gamesService.js` no longer does**: it moved to `features/games/services/` on 2026-08-14 with `GamesSeedAdmin` (→ `pages/`), which was the one thing pinning it, so §14.2 is now SATISFIED and the feature has a `services/` directory. Its one remaining outside consumer, `hooks/useLearnerSearch`, reads `listGames` through the front door — measured at +28 bytes on that chunk with no new edge, since it already reached `gamesService` directly. Only `gameSounds.js` travelled, into `lib/`. `QuizList` reached the sticker stylesheet through a one-line re-export shim at the old path while `components/quiz/` was still frozen; the quiz migration hours later moved QuizList, so the shim retired and `src/components/games/` is gone
   features/quiz — the learner-facing quiz RUNTIME (`/quizzes`, `/quiz/:quizId`, `/results/:resultId`): QuizList, QuizRunnerV2, QuizResultsV2, QuizTip. Migrated out of `src/components/quiz/` on 2026-08-14 by an explicit **owner ruling releasing that directory from the Assessment Engine freeze** — the fourth such ruling. **It released the directory, not everything the directory serves:** `admin/CreateQuizV2` was its own freeze entry and pinned 38 modules of quiz AUTHORING; the fifth ruling released it hours later and they became `features/quizEditor`. The split was measured first — the runner's closure is 12 modules, the editor's 29, and they share exactly two (`ExtraQuestionImages`, `ZoomableImage`), both of which went to `src/shared/components/` on consumer count. **Empty front door** — all three screens are route-mounted lazily and nothing else imports them. `QuizRunnerV2` carries the Phase 3 `useAssessmentEngineFlag('quiz')` branch and ALL THREE specs travelled with it, including `.characterisation.spec.jsx`, the recorded byte-compatibility baseline. The reading-assist cluster (PassageViewer, ReadingSettings*, TextToSpeechButton, ThemePreview) + QuizReviewScreen also went to `src/shared/components/` — three areas draw each of them; `DailyExamRunner` reached six through one-line shims at the old paths while it was frozen; those shims were deleted on 2026-08-14 when it migrated to `features/dailyExams/` and now imports `shared/components/` directly
   features/quizEditor — the quiz AUTHORING surface: EditQuizV2 (`/quiz/:quizId/edit`) and **CreateQuizV2** (`/admin/create-quiz`), 20 editor components, and the pure answer-key/bulk-ops/crop/review modules. Migrated 2026-08-14 on the **fifth owner ruling**, which released `admin/CreateQuizV2` — the reason being that it is a PAGE of this feature (create-a-quiz beside edit-a-quiz, rendering the same QuizSectionsEditor / QuizEditorPreviewPanel / QuizValidationChecklist), not a consumer of it. Front door exports two names, `ImageCropModal` + `QuizVerifyModal`, both for `features/assessmentStudio`. `ImportReviewBadge` went to `features/adminContent` instead — its only consumer is ManageContent. **`importRichText` + `importFormatTokens` went to `src/shared/utils/`**, forced: `src/engines/export-engine/` reaches importRichText through `utils/toolNotationRender`, and an engine may not import a feature. `utils/paperPageProvider.js` and `utils/quizReimportDiff.js` came IN (EditQuizV2 was their only consumer); `paperFigureAttach.js` stayed, pinned by the frozen PastPaperStudio
   features/papers — the past-paper archive (`/papers`): hub, reader, timed practice, the public paper-quiz runner, learner history. Migrated out of `src/components/papers/` on 2026-08-13 by an explicit **owner ruling releasing it from the Assessment Engine freeze** — at the time, the rollout flags were still at 0 and the rest of that freeze still stood. (It has since been closed outright by the sixth ruling of 2026-08-14. The flags are STILL at 0 — that ruling replaced the condition rather than meeting it, so nothing here should be read as the Phase 3 ramp having happened.) `PublicQuizRunner` is the engine's designated FIRST flag flip, so its `useAssessmentEngineFlag('pastPaperQuiz')` wiring and its zero-write property (`test:paper-quiz-zero-write`) are load-bearing. The front door exports only `PaperTitle`/`PaperSourceBadge`; the PDF viewers (`PdfJsViewer`, `PdfScrollViewer`, + their chrome) are NOT papers' — they went to `src/shared/components/`, because `PdfScrollViewer`'s only consumer is the exam-timetable page. `src/utils/pastPapers.js` and `pastPaperQuizStatus.js` deliberately stayed behind: at the time their other consumers were frozen. They STILL do not travel now that the freeze is closed, and the reason is now a measurement rather than a deferral — `features/papers` and `features/adminPastPapers` are two features, and a module both read belongs below both
@@ -270,6 +270,14 @@ mirrors the fold onto `users/{uid}.guardian.effective`, which
 `mayAppearOnLeaderboard()` reads by path. **It is a cache**: nothing that can
 read the live links reads it instead, so a stale mirror costs at most a
 leaderboard row.
+
+That statement is about the `scores` WRITE, and still is: a finished game
+round is a client `addDoc` and the rule is the only thing in its path. The
+games weekly BOARD derived from those rows is a different matter — it is
+written by `gameScoreOnCreate`, which re-asks `consentGuard` server-side and
+fails closed. So an unapproved learner's round is refused twice, in two
+places, for two different reasons; neither is redundant, because the mirror
+cannot run a query and the trigger cannot stop a row being written.
 
 **The child is told, and the child can act.** Settings › Guardian
 (`GuardianLinkPanel`) names every linked adult, states what they can and cannot
@@ -605,6 +613,96 @@ by clients.
 Tests: `test:daily-quiz-core`, `test:daily-quiz-view`, `test:daily-quiz-week`,
 `test:daily-quiz-scoring`, `test:admin-daily-quiz`, `test:learner-grades`,
 `test:rules-text`, `test:rules-emulator`, plus `DailyQuizPage.spec.jsx`.
+
+### The games leaderboard is weekly, per grade, and server-written (2026-08-20)
+
+`/games/leaderboard` used to be `GlobalLeaderboard`: an `onSnapshot` over the
+WHOLE `scores` collection ordered by score, top 25, rendered one row per
+result. Four things followed from that, and all four were visible on the live
+board:
+
+- **It ranked ROUNDS, not learners.** `scores` is append-only, one document
+  per completed game, so a learner who played four rounds occupied four
+  places. The screenshot that prompted this redesign had one name in
+  positions 2, 4, 6 and 10.
+- **No grade scope.** A Grade 7 learner was ranked against every learner on
+  ZedExams — while the Daily Challenge beside it said "everyone gets the same
+  challenge today", which is a per-grade fact.
+- **No week.** The default tab was all-time and the "This Week" tab was
+  `Date.now() - 7 days` — a rolling window, not a week, so it could not say
+  when it resets and nothing ever did.
+- **It printed `scores.displayName` verbatim**, which is whatever the client
+  sent. The live board carried a row reading "Elisha C at zedexams.com".
+
+**The replacement is a server-maintained rollup**:
+`gamesLeaderboards/{grade}/weeks/{weekId}/entries/{uid}`, one entry per
+learner per grade per ISO week, incremented by `gameScoreOnCreate`
+(`functions/gamesLeaderboard/`, a trigger on `scores/{scoreId}`, pinned to
+africa-south1 like every Firestore trigger). Six decisions worth knowing:
+
+- **A trigger, not a callable.** `saveScore` is a client `addDoc` and every
+  one of the eight engines funnels its finished round through it. Putting a
+  callable in that path would mean touching all eight and would insert a cold
+  start between finishing a round and saving it at all. The cost is that the
+  board is EVENTUALLY consistent with `scores`, which the page is built for:
+  it subscribes to its own entry document, so a learner who beats the trigger
+  to the page watches the number correct itself rather than needing a refresh.
+- **The grade is the LEARNER's, read from `users/{uid}`.** NOT `scores.grade`,
+  which is the grade of the GAME (`buildGameScorePayload` writes
+  `Number(game.grade)`) and is client-written with only `is number` to stop
+  it. Filing by it would put a Grade 7 learner revising with a Grade 5 game on
+  the Grade 5 board, and would make choosing a game a way of choosing a board.
+- **Points are bounded twice, at the same number.** `firestore.rules` now
+  refuses a `scores.score` outside `0…1000` and `MAX_ROUND_POINTS` clamps to
+  the same 1000 on the way in. `score is number` alone accepted `score: 50000`
+  — which, on a board that ranked raw score rows, bought first place outright.
+  `test:games-leaderboard-mirror` fails if the two numbers drift apart.
+- **The name is re-derived server-side, from the profile, every round.**
+  `publicLearnerName` gives "Chanda Mwale" → "Chanda M." and strips email
+  addresses in all three shapes they arrive in (`x@y.tld`, the spelled-out
+  `x at y.tld`, a bare `y.tld`) plus uid-shaped runs. The client's
+  `stripUnsafeName` only ever REJECTS — never formats — so it cannot become a
+  second implementation of the policy and drift from it.
+- **`learnerSettings.privacy.profileVisibility === 'private'` is finally
+  honoured.** Settings › Privacy has always labelled it "Hidden from
+  leaderboards" and, until this rollup, NOTHING in the repo read it. A learner
+  who chose it now gets no board entry. Their score, history, badges and level
+  are untouched — as with a guardian refusal, what is lost is a public row.
+- **Ranking is COMPETITION ranking on points (1, 2, 2, 4)**, with order inside
+  a tie fixed by `points desc → plays asc → lastPlayedAt asc → uid asc`. The
+  rank number and the order are deliberately different things: a learner below
+  the fetched page has their rank resolved by a `getCountFromServer` of
+  entries with strictly more points, and `1 + count(points > mine)` IS
+  competition ranking, so the pinned card and the list agree by construction.
+  An ordinal position would have disagreed with it the moment two learners
+  tied, and only then.
+
+**Reset and history need no cron.** A new week is a new document path, so
+Monday's board starts empty without anything being cleared, and
+"👑 Last week: …" is a read of last week's path rather than an archive that
+could fail to be written. `daysUntilWeekReset` and `weekIdFor`
+(`src/shared/utils/lusakaWeek.js`, shared with `features/dailyQuiz`) are both
+on the **Africa/Lusaka** clock, so the countdown a learner reads and the
+boundary the server files points against are the same boundary — pinned day
+by day across six years by `test:games-leaderboard-mirror`.
+
+**Deletion is covered by the `entries` name.** `accountDeletion.js` purges by
+COLLECTION GROUP `entries` on field `uid`, which already reached the Daily
+Quiz's board; naming this subcollection `entries` rather than `rows` is what
+lets one list cover both. Renaming either half leaves a child's name on a
+public board after their account is destroyed.
+
+**The page moved shells.** It renders inside `LearnerLayout` with `/games` and
+`/games/daily` now, in the `.lhx` design system; it used to mount the legacy
+`GamesShell` chrome, which is why it looked like a different application from
+the Daily Challenge screen that links to it. `GamesShell` stays — `PlayGame`
+uses it.
+
+Tests: `test:games-leaderboard` (view logic), `test:games-leaderboard-core`
+(rollup decisions), `test:games-leaderboard-mirror` (week + name + bound
+parity), `test:games-leaderboard-flow` (a real round's payload → the trigger →
+the ranked board, against a fake Firestore), plus `GamesLeaderboard.spec.jsx`
+and the `gamesLeaderboards` arms in `test-firestore-rules-emulator.mjs`.
 
 ### The Ask Zed chat assistant was removed (2026-08-20)
 
