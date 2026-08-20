@@ -34,6 +34,7 @@ const {
   runwayFor,
   runwayLevel,
   normalizeSubject,
+  optionForClient,
 } = require("./dailyQuizCore");
 
 const QUIZZES = "dailyQuizzes";
@@ -271,7 +272,7 @@ async function loadLearnerQuestions(db, questionIds) {
       topic: raw.topic || "",
       type: question.type || "mcq",
       text: clean.text || clean.question || "",
-      options: Array.isArray(clean.options) ? clean.options.map(String) : [],
+      options: Array.isArray(clean.options) ? clean.options.map(optionForClient) : [],
       marks: Number(question.marks) > 0 ? Number(question.marks) : 1,
     });
   }
@@ -294,7 +295,7 @@ async function loadAnswerKey(db, questionIds) {
       correctAnswer: parsed.question.correctAnswer,
       explanation: parsed.question.explanation || "",
       options: Array.isArray(parsed.question.options)
-        ? parsed.question.options.map(String)
+        ? parsed.question.options.map(optionForClient)
         : [],
     });
   }

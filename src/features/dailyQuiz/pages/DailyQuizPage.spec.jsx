@@ -30,6 +30,22 @@ const QUESTIONS = [
   { id: 'q2', subject: 'English', text: 'Choose the conjunction', options: ['because', 'but'] },
 ]
 
+/** The stored shape of a question authored in the rich editor. */
+const tiptapDoc = (text) => JSON.stringify({
+  type: 'doc',
+  content: [{ type: 'paragraph', attrs: { textAlign: null }, content: [{ type: 'text', text }] }],
+})
+
+/**
+ * Nothing on the screen may be a raw storage shape. `[object Object]` is the
+ * same leak arriving by the other route — an option flattened with `String()`
+ * before it ever left the server.
+ */
+function expectNoRawRichText(container) {
+  expect(container.textContent).not.toMatch(/"type"\s*:\s*"doc"/)
+  expect(container.textContent).not.toContain('[object Object]')
+}
+
 function renderPage() {
   return render(
     <MemoryRouter initialEntries={['/daily']}>
@@ -209,6 +225,98 @@ describe('DailyQuizPage', () => {
     fireEvent.click(await screen.findByText('32'))
     expect(await screen.findByText('This question was removed')).toBeInTheDocument()
     expect(screen.getByText(/Everyone gets the points/)).toBeInTheDocument()
+  })
+
+  // ── stored rich text ───────────────────────────────────────────────
+  //
+  // A bank row's stem, options and explanation are stored in whatever shape
+  // the editor that authored them produced. A question written in the rich
+  // editor is a *stringified* Tiptap doc, and rendering that value directly
+  // put its literal JSON on a Grade 7 learner's screen:
+  //
+  //   {"content":[{"type":"paragraph","attrs":{"textAlign":null},"content":
+  //    [{"type":"text","text":"Add (base eight): 454₈ + 224₈ ="}]}],"type":"doc"}
+  //
+  // The assertion that matters is the NEGATIVE one — a positive text match
+  // would still pass with the JSON sitting beside it.
+
+  it('renders a stored Tiptap stem, option and explanation as text, never as JSON', async () => {
+    mocks.getTodaysQuiz.mockResolvedValue(ranked({
+      questions: [{
+        id: 'q1',
+        subject: 'Mathematics',
+        text: tiptapDoc('Add (base eight): 454₈ + 224₈ ='),
+        options: [tiptapDoc('700₈'), '644₈'],
+      }],
+    }))
+    mocks.answerDailyQuizQuestion.mockResolvedValue({
+      questionId: 'q1', correct: false, correctAnswer: 0,
+      explanation: tiptapDoc('4+4=10₈ (0 carry 1); 5+2+1=10₈ (0 carry 1).'),
+      finalised: false, answeredCount: 1, total: 1,
+    })
+
+    const { container } = renderPage()
+    fireEvent.click(await screen.findByText('Start today’s quiz'))
+    await waitFor(() => {
+      expect(container.textContent).toContain('Add (base eight): 454₈ + 224₈ =')
+    })
+
+    fireEvent.click(screen.getByText('700₈'))
+    // Asserted on the container's text rather than on a found node:
+    // RichContent paints plain text first and replaces its own element once
+    // the renderer has loaded, so a node captured by `findByText` can be
+    // detached by the time `toBeInTheDocument` looks at it.
+    await waitFor(() => expect(container.textContent).toMatch(/4\+4=10₈/))
+    expectNoRawRichText(container)
+  })
+
+  it('the review screen shows the stored explanation and answer as text', async () => {
+    mocks.getTodaysQuiz.mockResolvedValue(ranked({
+      questions: [{
+        id: 'q1',
+        subject: 'Mathematics',
+        text: tiptapDoc('Add (base eight): 454₈ + 224₈ ='),
+        options: [tiptapDoc('700₈'), '644₈'],
+      }],
+      alreadyPlayed: true,
+      result: {
+        correct: 0, credited: 0, total: 1, points: 0, allCorrect: false, ranked: true,
+        perQuestion: [{
+          questionId: 'q1',
+          subject: 'Mathematics',
+          correct: false,
+          correctAnswer: 0,
+          explanation: tiptapDoc('4+4=10₈ (0 carry 1); 5+2+1=10₈ (0 carry 1).'),
+        }],
+      },
+    }))
+
+    const { container } = renderPage()
+    expect(await screen.findByText('0 out of 1')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(container.textContent).toContain('Add (base eight): 454₈ + 224₈ =')
+      // The answer is resolved through the question's options, so it comes
+      // from the same stored doc the option did.
+      expect(container.textContent).toContain('Answer: 700₈')
+      expect(container.textContent).toMatch(/4\+4=10₈/)
+    })
+    expectNoRawRichText(container)
+  })
+
+  it('an explanation that is an EMPTY doc does not displace the standby line', async () => {
+    // `Boolean(explanation)` is not "is there an explanation": an empty doc is
+    // a truthy forty-character string that renders to nothing, which would
+    // leave the feedback card with a heading and a blank under it.
+    mocks.answerDailyQuizQuestion.mockResolvedValue({
+      questionId: 'q1', correct: true, correctAnswer: 0,
+      explanation: JSON.stringify({ type: 'doc', content: [] }),
+      finalised: false, answeredCount: 1, total: 2,
+    })
+    const { container } = renderPage()
+    fireEvent.click(await screen.findByText('Start today’s quiz'))
+    fireEvent.click(await screen.findByText('32'))
+    expect(await screen.findByText('Nicely done.')).toBeInTheDocument()
+    expectNoRawRichText(container)
   })
 
   it('never renders a countdown', async () => {
