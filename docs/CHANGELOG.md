@@ -41,7 +41,7 @@ Per-PR detail for 2026-08-12 → 2026-08-19 is in the dated entries below;
 
 - **The learner app was rebuilt to the redesign** — Home, Subject, Notes
   (Learn / Revise), Papers, Profile, Settings, Guardian Zone, the first-run
-  setup wizard, the weekly leaderboard, Ask Zed and Help & Support. Screens
+  setup wizard, the weekly leaderboard and Help & Support. Screens
   the redesign does not have were removed rather than left adrift.
   (#2409, #2414, #2416, #2418, #2431, #2432, #2434, #2440, #2451, #2462,
   #2463, #2470, #2471, #2520, #2540)
@@ -53,6 +53,18 @@ Per-PR detail for 2026-08-12 → 2026-08-19 is in the dated entries below;
   and a dark one imposes nothing. (#2541, #2524, #2535, #2433, #2536)
 - Passkey (WebAuthn) sign-in removed; Google and email/password sign-in are
   untouched. (#2468)
+
+### Removed
+
+- **Ask Zed, the learner chat assistant.** The floating pill mounted
+  globally and hid itself with a blocklist of routes, so it appeared on any
+  screen nobody had added to that list — including the ones a learner passes
+  through straight after creating an account. The decision was to remove the
+  assistant rather than extend the blocklist. Gone with it: `/ask-zed`, the
+  note reader's "Stuck? Ask Zed about this" pill, the AI Learning Assistant
+  settings section, the `aiChat` callable and the `apiAiChat` SSE endpoint.
+  Testers who used it will notice it is absent — that is intended, not a
+  regression. (#2543)
 
 ### Fixed
 
