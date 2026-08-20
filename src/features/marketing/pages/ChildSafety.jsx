@@ -134,12 +134,10 @@ export default function ChildSafety() {
             one learner to contact another privately.
           </li>
           <li>
-            <strong>Our AI assistant is built for children.</strong> It is restricted
-            to schoolwork, never asks for personal information, never claims to be a
-            person or to keep secrets, and refuses to discuss sexual or romantic
-            topics. If a learner says something suggesting they are being hurt or want
-            to hurt themselves, it stops and points them to a trusted adult and to
-            Childline Zambia.
+            <strong>There is no chatbot a child can talk to.</strong> ZedExams removed
+            its learner-facing AI assistant. The AI features that remain are teacher
+            tools and automatic marking — neither is a conversation a child can enter,
+            and neither takes free-form messages from a learner.
           </li>
           <li>
             <strong>Learner data is minimised.</strong> We never record a learner's

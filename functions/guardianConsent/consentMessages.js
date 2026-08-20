@@ -44,7 +44,6 @@ const LEARNER_DATA_SUMMARY = Object.freeze([
   "their first name and the grade they are in",
   "their school name",
   "quiz and exam results, and study progress",
-  "messages they send to our Ask Zed study assistant",
 ]);
 
 function safeName(value) {
@@ -74,7 +73,7 @@ function buildConsentEmail({childName, approveUrl, declineUrl, expiryDays}) {
     "we need a parent or guardian to approve the account before they can use it fully.",
     "",
     "Until you approve it, they can only read lessons and past papers. They cannot",
-    "use our AI study assistant, join a class, appear on a leaderboard, or buy anything.",
+    "appear on a leaderboard or buy anything.",
     "",
     "TO APPROVE:",
     approveUrl,

@@ -18,7 +18,7 @@
 //
 // A child can have more than one guardian — the prototype's "family
 // sharing". Both see everything and both can act on the child's day to
-// day (approve a request, turn Ask Zed off). What only ONE of them can
+// day (approve a request, turn live challenges off). What only ONE of them can
 // do is the two irreversible things: move money, and destroy the
 // account. That is the whole distinction, and it is drawn there because
 // those are the two actions a co-guardian cannot undo for the person

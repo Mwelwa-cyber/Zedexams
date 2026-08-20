@@ -260,8 +260,8 @@ export function resolveLearnerAccess(user, opts = {}) {
     // THE MIGRATION EXCEPTION, stated rather than hidden.
     //
     // Every learner account created before this flow shipped has no guardian
-    // record. Restricting them on day one would take Ask Zed, classes and
-    // leaderboards away from the entire existing user base in a single deploy
+    // record. Restricting them on day one would take leaderboards and
+    // challenges away from the entire existing user base in a single deploy
     // — before a single guardian has been asked, and with no way for a
     // learner to fix it except to wait on an email their parent may never
     // receive. So the default is to let them through while the migration

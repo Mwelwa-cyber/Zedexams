@@ -171,7 +171,7 @@ async function notify(to, mail, context) {
  *
  * The child does NOT lose their learning: lessons and past papers are
  * ungated on every plan and stay that way. What they lose is the part
- * consent was covering — Ask Zed, the leaderboard, purchases — and only
+ * consent was covering — the leaderboard, purchases — and only
  * if no OTHER guardian's approval is still standing.
  *
  * The link is marked `withdrawn` rather than deleted. It is the record
@@ -280,7 +280,7 @@ const setLinkPermission = onCall({
   const mine = links.find((l) => l.parentUid === uid);
   // An unapproved link grants nothing, including the power to restrict.
   // Otherwise typing a family code would let a stranger switch off a
-  // child's Ask Zed before anyone confirmed they were a guardian at all.
+  // child's live challenges before anyone confirmed they were a guardian.
   if (!mine || !core.linkIsApproved(mine)) {
     throw new HttpsError("permission-denied", "You are not linked to this child.");
   }

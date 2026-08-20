@@ -3,8 +3,8 @@
  *
  * Bundled by `scripts/test-games-hub-layout.mjs` and injected into a page.
  * It mounts the REAL `GamesHub` inside the REAL `LearnerShell` (so the real
- * tab bar is on screen) with the REAL `ZedChatLauncher` markup, under the
- * REAL stylesheets. Nothing here paraphrases the page:
+ * tab bar is on screen), under the REAL stylesheets. Nothing here
+ * paraphrases the page:
  *
  *   • The layout rules being measured live entirely in CSS, and this
  *     imports the shipped files rather than a copy of them.
@@ -26,30 +26,8 @@
 import { createRoot } from 'react-dom/client'
 import { MemoryRouter } from 'react-router-dom'
 import '../../src/shared/styles/learnerTheme.css'
-import '../../src/features/zedChat/askZed.css'
 import LearnerShell from '../../src/features/learnerHome/components/LearnerShell.jsx'
 import GamesHub from '../../src/features/games/pages/GamesHub.jsx'
-
-/**
- * The Ask Zed pill, inlined rather than imported.
- *
- * `ZedChatLauncher` is a wall of authorisation (`shouldHideFabForRole`,
- * guardian controls, the route allow-list) around ONE element, and every
- * one of those gates reaches the auth context. Stubbing the gates to make
- * the element appear would be stubbing the component under measurement.
- * What the harness needs from it is its BOX — class, size and docking
- * offset — all of which come from `.lhx-zed-fab` in askZed.css, which is
- * the shipped file imported above. `test-games-hub-layout.mjs` asserts
- * this markup still matches the component's.
- */
-function AskZedPill() {
-  return (
-    <button type="button" className="lhx-zed-fab" aria-label="Ask Zed, your study helper">
-      <img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="" aria-hidden="true" />
-      <span>Ask&nbsp;Zed</span>
-    </button>
-  )
-}
 
 const root = document.getElementById('root')
 createRoot(root).render(
@@ -57,7 +35,6 @@ createRoot(root).render(
     <LearnerShell>
       <GamesHub />
     </LearnerShell>
-    <AskZedPill />
   </MemoryRouter>,
   {
     onUncaughtError: (error) => {

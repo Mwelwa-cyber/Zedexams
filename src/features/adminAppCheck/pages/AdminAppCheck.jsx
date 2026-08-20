@@ -324,10 +324,10 @@ export default function AdminAppCheck() {
             <p className="theme-text-muted text-[11px] mt-3 max-w-prose">
               Callables fold &ldquo;no token&rdquo; and &ldquo;bad token&rdquo;
               into <span className="font-mono">missing</span> (the runtime can&apos;t
-              distinguish them at the telemetry layer). No HTTP path reports
-              <span className="font-mono"> invalid</span> separately any more —
-              <span className="font-mono"> apiAiChat</span> was the only one that
-              soft-verified, and it went with the Ask Zed assistant.
+              distinguish them at the telemetry layer); the HTTP paths that
+              soft-verify — <span className="font-mono">apiTextToSpeech</span> and
+              the lesson-plan / worksheet streams — report
+              <span className="font-mono"> invalid</span> separately.
               Native clients show as unattested until Play Integrity is
               registered in Firebase Console (docs/B3-PLAY-INTEGRITY-SETUP.md)
               and users update to a build with the App Check bridge.

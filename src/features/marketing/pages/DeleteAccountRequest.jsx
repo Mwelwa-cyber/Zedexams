@@ -174,7 +174,7 @@ export default function DeleteAccountRequest() {
                 />
                 <label htmlFor="confirmed" className="text-sm theme-text-muted leading-relaxed">
                   I understand this permanently deletes the account, learning progress,
-                  created content, class memberships and subscription records. Limited
+                  created content and subscription records. Limited
                   records may be kept where the law requires (for example payment records),
                   no longer linked to me.
                 </label>

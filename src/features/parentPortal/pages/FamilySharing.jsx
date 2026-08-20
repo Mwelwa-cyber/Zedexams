@@ -25,7 +25,7 @@ import SeoHelmet from '../../../shared/components/SeoHelmet'
 const CAN_DO = [
   { yes: true, text: "See every child's progress and reports" },
   { yes: true, text: 'Approve unlock and friend requests' },
-  { yes: true, text: 'Change what a child can do — live challenges, study time' },
+  { yes: true, text: 'Change what a child can do — live challenges' },
   { yes: false, text: 'Manage billing or delete the account (owner only)' },
 ]
 

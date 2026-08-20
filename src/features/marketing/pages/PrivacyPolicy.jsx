@@ -171,15 +171,14 @@ export default function PrivacyPolicy() {
           portal shows a learner's progress.
         </li>
         <li>
-          Our AI assistant is restricted to schoolwork for learners: it never asks for
-          personal information, never claims to be a person or to keep secrets, and
-          declines romantic, sexual or self-harm topics. If a learner writes something
-          suggesting they are being hurt or want to hurt themselves, it stops and points
-          them to a trusted adult and to Childline Zambia (116).
+          Learners cannot converse with an AI on ZedExams. The AI features that remain
+          are teacher tools and automatic marking, which act on schoolwork rather than
+          on a conversation.
         </li>
         <li>
-          Every AI response carries a <strong>Report</strong> control, and reports about a
-          child&apos;s safety are reviewed the same day. See our{' '}
+          A learner can report a concern from <strong>Settings → Help &amp; support →
+          Report a problem</strong>, and reports about a child&apos;s safety are reviewed
+          the same day. See our{' '}
           <Link className="underline theme-accent-text" to="/child-safety">child safety standards</Link>.
         </li>
       </UL>
@@ -265,7 +264,7 @@ export default function PrivacyPolicy() {
       </UL>
       <P>
         Deleting your account removes your profile (name, email, phone), quiz and exam results
-        and history, saved and generated content, class memberships, notifications, referral
+        and history, saved and generated content, notifications, referral
         records, and subscription records. If you opted in to analytics, we also delete your
         PostHog profile and its associated events. We may retain a limited amount of data
         where the law or our accounting obligations require it (for example, payment/invoice
