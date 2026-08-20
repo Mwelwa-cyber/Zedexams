@@ -254,6 +254,37 @@ function normalizeCandidate(row) {
 }
 
 /**
+ * An option, in the shape the client's rich-text renderer can read.
+ *
+ * A bank row stores an option as whatever the editor that authored it
+ * produced: a plain string, legacy HTML, or a Tiptap doc — that doc either
+ * already stringified or still a live object. The projection used to call
+ * `String()` on it, which flattens the last of those to the literal
+ * "[object Object]": the same raw-shape leak as a stringified doc reaching a
+ * learner's screen, except destroyed on the way OUT, where no renderer on the
+ * other side can recover it.
+ *
+ * A string of any kind passes through untouched — a stringified doc included,
+ * because the client parses that back. Only an object is re-serialised.
+ *
+ * @param {unknown} option
+ * @returns {string}
+ */
+function optionForClient(option) {
+  if (option === null || option === undefined) return "";
+  if (typeof option === "object") {
+    try {
+      return JSON.stringify(option);
+    } catch {
+      // A cyclic option is not renderable in any shape. Empty is honest;
+      // "[object Object]" is not.
+      return "";
+    }
+  }
+  return String(option);
+}
+
+/**
  * The subjects filling today's five slots.
  *
  * Maths and English take a slot each every day. The other three rotate
@@ -513,6 +544,7 @@ module.exports = {
   normalizeSubject,
   normalizeDifficulty,
   normalizeCandidate,
+  optionForClient,
   hashString,
   seedFor,
   seedHex,

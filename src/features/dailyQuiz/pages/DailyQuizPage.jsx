@@ -28,6 +28,15 @@ import { useNavigate } from 'react-router-dom'
 import { getTodaysQuiz, answerDailyQuizQuestion } from '../services/dailyQuizService'
 import { buildPips, buildResultSummary, canPlay } from '../lib/dailyQuizCore'
 import { optionLabel } from '../../../utils/mcqChoices'
+// The bank stores a question's stem, its options and its explanation in
+// whatever shape the editor that authored it produced: a plain string, legacy
+// HTML, or a *stringified* Tiptap doc. RichContent renders all three (and
+// hydrates KaTeX); getRichPlainText reads the same three as text. Rendering the
+// stored value directly is how `{"type":"doc",...}` reached a learner's screen.
+//
+// Which of the two a surface gets is decided by whether it is TAPPED — see the
+// option list below.
+import RichContent, { getRichPlainText } from '../../../editor/RichContent'
 import { capture } from '../../../utils/analytics'
 import '../dailyQuiz.css'
 
@@ -183,7 +192,9 @@ export default function DailyQuizPage() {
           <span className="dq-subject">{q.subject}</span>
           <span className="dq-qnum">Question {index + 1} of {questions.length}</span>
         </div>
-        <div className="dq-stem">{q.text}</div>
+        <div className="dq-stem">
+          <RichContent value={q.text} fallback={<span />} />
+        </div>
 
         <div className="dq-opts" role="group" aria-label={`Question ${index + 1} options`}>
           {q.options.map((opt, i) => (
@@ -195,7 +206,15 @@ export default function DailyQuizPage() {
               onClick={() => choose(q, i)}
             >
               <span className="dq-opt-letter">{optionLabel(i)}</span>
-              <span>{opt}</span>
+              {/* An option is FLATTENED rather than rendered, and that is about
+                  the tap and not about the text. RichContent paints plain text
+                  first and replaces its own element once the renderer has
+                  loaded — a swap that is invisible on a page but not under a
+                  finger, because the node being tapped is gone by the time the
+                  tap lands. A stem can afford that; a button cannot. What is
+                  given up is a stacked fraction inside a four-option list; the
+                  extractor still reads maths leaves as "1/32". */}
+              <span className="dq-opt-text">{getRichPlainText(opt)}</span>
             </button>
           ))}
         </div>
@@ -209,9 +228,9 @@ export default function DailyQuizPage() {
             </div>
             {feedback.voided
               ? 'Everyone gets the points for it.'
-              : feedback.explanation || (
-                feedback.correct ? 'Nicely done.' : 'Have another look at this one later.'
-              )}
+              : hasRichText(feedback.explanation)
+                ? <RichContent value={feedback.explanation} fallback={<span />} />
+                : feedback.correct ? 'Nicely done.' : 'Have another look at this one later.'}
           </div>
         )}
         {feedback?.practice && (
@@ -239,6 +258,18 @@ export default function DailyQuizPage() {
       {busy && <p style={{ textAlign: 'center', fontSize: 13, color: 'var(--lhx-muted)' }}>Marking…</p>}
     </div>
   )
+}
+
+/**
+ * Does this stored value carry anything a learner would actually read?
+ *
+ * `Boolean(explanation)` is not that question. A bank row can hold an EMPTY
+ * Tiptap doc — `{"type":"doc","content":[]}` — which is a truthy forty-character
+ * string that renders to nothing, so using truthiness as the test puts a blank
+ * where the encouraging line meant to stand in for it should be.
+ */
+function hasRichText(value) {
+  return getRichPlainText(value).trim().length > 0
 }
 
 /**
@@ -334,6 +365,9 @@ function ResultView({ summary, result, questions, navigate }) {
         <div className="dq-kicker">Your answers</div>
         {(result.perQuestion || []).map((row, i) => {
           const q = byId.get(row.questionId)
+          // A bare index with no question left to resolve it against is not an
+          // answer — `hasRichText` reads a number as nothing, so the line is
+          // dropped rather than printed as "Answer: 1".
           const correctText = q && Number.isInteger(row.correctAnswer)
             ? q.options?.[row.correctAnswer]
             : row.correctAnswer
@@ -350,15 +384,21 @@ function ResultView({ summary, result, questions, navigate }) {
                   </div>
                 ) : (
                   <>
-                    <div style={{ fontSize: 13 }}>{q?.text}</div>
-                    {!row.correct && correctText != null && (
+                    <div style={{ fontSize: 13 }}>
+                      <RichContent value={q?.text} fallback={<span />} />
+                    </div>
+                    {!row.correct && hasRichText(correctText) && (
                       <div style={{ fontSize: 12.8, marginTop: 2 }}>
-                        Answer: <b>{String(correctText)}</b>
+                        {/* The bold sits on RichContent's own element rather than
+                            wrapping it: a rendered rich value is a <div>, and a
+                            block inside <b> is invalid nesting that breaks the
+                            line onto two. */}
+                        Answer: <RichContent value={correctText} className="dq-answer" fallback={<span />} />
                       </div>
                     )}
-                    {row.explanation && (
+                    {hasRichText(row.explanation) && (
                       <div style={{ fontSize: 12.5, color: 'var(--lhx-muted)', marginTop: 2 }}>
-                        {row.explanation}
+                        <RichContent value={row.explanation} fallback={<span />} />
                       </div>
                     )}
                   </>

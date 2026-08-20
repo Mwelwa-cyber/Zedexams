@@ -26,6 +26,13 @@ import { useCallback, useEffect, useState } from 'react'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import app from '../../../firebase/config'
 import { describeSwapState, formatRelaxed, runStatusChip } from '../lib/adminDailyQuizCore'
+// A bank stem may be a plain string, legacy HTML, or a *stringified* Tiptap doc.
+// These are one-line previews in a dense list, so they are flattened to text
+// rather than rendered — but flattened by the one extractor that knows all
+// three shapes. Rendering the stored value directly printed the raw
+// `{"type":"doc",...}` here, on the very screen an admin uses to decide whether
+// a question is fit to serve.
+import { getRichPlainText } from '../../../editor/richPlainText'
 import '../adminDailyQuiz.css'
 
 const fns = getFunctions(app, 'us-central1')
@@ -232,7 +239,7 @@ function FunnelTab({ grades, date }) {
                 <b>{i + 1}.</b>
                 <div>
                   <span className="adq-subject">{q.subject}</span>{' '}
-                  <span>{q.text}</span>
+                  <span>{getRichPlainText(q.text)}</span>
                 </div>
               </div>
             ))}
@@ -268,7 +275,8 @@ function PreviewTab({ data, onVoid, busy }) {
             <div key={q.id} className="adq-item">
               <b>{i + 1}.</b>
               <div>
-                <span className="adq-subject">{q.subject}</span> <span>{q.text}</span>
+                <span className="adq-subject">{q.subject}</span>{' '}
+                <span>{getRichPlainText(q.text)}</span>
               </div>
             </div>
           ))}
@@ -292,7 +300,7 @@ function PreviewTab({ data, onVoid, busy }) {
               const voided = (row.voidedQuestionIds || []).includes(q.id)
               return (
                 <div key={q.id} className="adq-item">
-                  <div style={{ flex: 1 }}>{q.text}</div>
+                  <div style={{ flex: 1 }}>{getRichPlainText(q.text)}</div>
                   <button
                     type="button"
                     className="adq-btn adq-btn-ghost adq-btn-sm"

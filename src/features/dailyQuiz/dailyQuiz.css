@@ -84,6 +84,9 @@
   background: var(--lhx-bg, #edeffd);
   color: var(--lhx-muted, #8a8fb5);
 }
+/* `min-width: 0` is what lets a long option wrap instead of forcing the flex
+   row wider than the card — a flex item's default min-width is its content. */
+.dq-opt-text { flex: 1 1 auto; min-width: 0; }
 .dq-opt.is-correct { border-color: var(--lhx-ok, #1faa6c); background: var(--lhx-ok-soft, #eaf7f0); }
 .dq-opt.is-correct .dq-opt-letter { background: var(--lhx-ok, #1faa6c); color: #fff; }
 .dq-opt.is-wrong { border-color: var(--lhx-danger, #d93a3a); background: var(--lhx-danger-soft, #fdeceb); }
@@ -179,6 +182,10 @@
   line-height: 1.45;
 }
 .dq-review-row:last-child { border-bottom: none; }
+/* "Answer: 700₈" is one sentence, so the answer stays inline even when the
+   stored value renders as a paragraph. */
+.dq-answer { display: inline; font-weight: 800; }
+.dq-answer p { display: inline; margin: 0; }
 .dq-kicker {
   font-size: 10.5px;
   font-weight: 800;

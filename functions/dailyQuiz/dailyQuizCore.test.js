@@ -30,6 +30,7 @@ const {
   canEditQuiz,
   runwayFor,
   runwayLevel,
+  optionForClient,
 } = require("./dailyQuizCore");
 
 let passed = 0;
@@ -404,6 +405,40 @@ it("runway below 30 days is critical", () => {
   assert.strictEqual(runwayLevel(29), "critical");
   assert.strictEqual(runwayLevel(30), "warn");
   assert.strictEqual(runwayLevel(103), "ok");
+});
+
+// ── the shape an option travels in ───────────────────────────────────
+
+it("an option that is a Tiptap doc OBJECT is serialised, never String()d", () => {
+  // `String({type:"doc",...})` is "[object Object]" — a raw-shape leak that,
+  // unlike a stringified doc reaching the screen, is destroyed on the way out
+  // where the client's renderer cannot recover it.
+  const doc = {type: "doc", content: [
+    {type: "paragraph", content: [{type: "text", text: "700"}]},
+  ]};
+  const out = optionForClient(doc);
+  assert.ok(!out.includes("[object Object]"), out);
+  assert.deepStrictEqual(JSON.parse(out), doc, "the client must be able to parse it back");
+});
+
+it("a string option passes through untouched, stringified doc included", () => {
+  assert.strictEqual(optionForClient("700"), "700");
+  const stringified = '{"type":"doc","content":[]}';
+  assert.strictEqual(optionForClient(stringified), stringified);
+  assert.strictEqual(optionForClient("<b>700</b>"), "<b>700</b>");
+});
+
+it("an absent option is empty, and a number is its digits", () => {
+  assert.strictEqual(optionForClient(null), "");
+  assert.strictEqual(optionForClient(undefined), "");
+  assert.strictEqual(optionForClient(0), "0", "a zero option is not an absent one");
+  assert.strictEqual(optionForClient(false), "false");
+});
+
+it("a cyclic option is empty rather than \"[object Object]\"", () => {
+  const cyclic = {type: "doc"};
+  cyclic.self = cyclic;
+  assert.strictEqual(optionForClient(cyclic), "");
 });
 
 console.log(`✓ dailyQuizCore — ${passed} assertions passed`);
