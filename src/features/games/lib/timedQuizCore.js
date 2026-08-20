@@ -146,3 +146,40 @@ export function ratingStars(accuracy) {
 export function optionLetter(i) {
   return String.fromCharCode(65 + i)
 }
+
+/**
+ * Seeded display order for a question's options: a permutation of
+ * [0..count-1], deterministic per seed.
+ *
+ * The seed banks store the correct answer as the FIRST option on most
+ * questions, so a runner that renders options in stored order teaches
+ * learners to tap A without reading. The card renders in this order and
+ * translates a tap back to the stored index, so scoring, `markAttempt`
+ * and the recorded round stay in canonical index space — display order
+ * is a render concern and never reaches a write.
+ *
+ * Dependency-free and node-testable. The draws come from mulberry32
+ * (the same PRNG functions/duel uses), NOT gamesService's LCG with a
+ * `% (i + 1)` draw: an LCG's low bits are near-deterministic across
+ * successive states, so that shuffle reaches only 12 of the 24
+ * four-option permutations and still leaves slot A favoured (~33%) —
+ * a smaller copy of the exact bias this function exists to remove.
+ * The distribution is pinned by test:timed-quiz.
+ */
+export function optionDisplayOrder(count, seed) {
+  const n = Math.max(0, Math.floor(Number(count) || 0))
+  const order = Array.from({ length: n }, (_, i) => i)
+  let s = (Number(seed) || 0) >>> 0
+  const rand = () => {
+    s = (s + 0x6d2b79f5) >>> 0
+    let t = s
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+  for (let i = n - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1))
+    ;[order[i], order[j]] = [order[j], order[i]]
+  }
+  return order
+}

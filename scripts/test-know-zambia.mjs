@@ -321,6 +321,22 @@ test('a ceremony is one map question and two off it', () => {
   }
 })
 
+test('ceremony options are dealt — the answer is not pinned to the top row', () => {
+  // The dataset lists the correct people/month FIRST on every ceremony
+  // (8 of 8 at the time this was written), so serving stored order let a
+  // learner tap the top option without reading. The rng is injected so
+  // the deal is deterministic under test.
+  const rng = (() => { let s = 42; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296 } })()
+  const steps = ceremonySteps(ZAMBIA_FACTS, rng).filter((s) => s.kind !== 'ceremonyWhere')
+  for (const step of steps) {
+    assert.ok(step.options.includes(step.answer), `${step.name}: the deal must keep the answer among the options`)
+  }
+  assert.ok(
+    steps.some((step) => step.options[0] !== step.answer),
+    'across eight dealt steps at least one answer leaves the top row (deterministic seed)'
+  )
+})
+
 test('a name is sized by the room at its anchor, not by its bounding box', () => {
   /* Sizing from the box is the box-CENTRE mistake one step along, and it
      printed "North-Western" straight through "Copperbelt" when both were

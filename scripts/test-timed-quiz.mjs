@@ -13,6 +13,7 @@ import {
   correctGain,
   correctIndexFor,
   DEFAULT_ROUND_QUESTIONS,
+  optionDisplayOrder,
   optionLetter,
   questionAt,
   ratingStars,
@@ -246,6 +247,46 @@ assert(optionLetter(3) === 'D', 'index 3 → D')
   score = applyPenalty(score, wrongPenalty(points))
   assert(score === 29, 'a wrong answer then costs 2')
   assert(streakBonus(streak + 1) === 0, 'the streak restarts cold after a miss')
+}
+
+// ── optionDisplayOrder — the anti-"always tap A" deal ─────────────────
+{
+  // A permutation: every index exactly once, whatever the seed.
+  for (const s of [0, 1, 7, 12345, 2 ** 31]) {
+    const order = optionDisplayOrder(4, s)
+    assert(order.slice().sort().join(',') === '0,1,2,3', `seed ${s} yields a permutation of 0..3`)
+  }
+  // Deterministic per seed — a re-render mid-question must not re-deal.
+  assert(
+    optionDisplayOrder(4, 42).join(',') === optionDisplayOrder(4, 42).join(','),
+    'same seed, same order'
+  )
+  // It deals FAIRLY. The first cut used gamesService's LCG with a
+  // `% (i + 1)` draw, whose low bits are near-deterministic across
+  // successive states: only 12 of the 24 four-option permutations were
+  // reachable and stored option 0 (where the seed banks put the correct
+  // answer) still landed on slot A 33% of the time — a smaller copy of
+  // the bias the deal exists to remove. Pin the distribution, not just
+  // "it moves": every permutation reachable, and the answer's display
+  // slot within a few points of the fair 25% over 8000 seeds.
+  const perms = new Set()
+  const slotCounts = [0, 0, 0, 0]
+  const SEEDS = 8000
+  for (let s = 0; s < SEEDS; s++) {
+    const order = optionDisplayOrder(4, s)
+    perms.add(order.join(''))
+    slotCounts[order.indexOf(0)] += 1
+  }
+  assert(perms.size === 24, `all 24 permutations reachable (saw ${perms.size})`)
+  for (const [slot, count] of slotCounts.entries()) {
+    const pct = (count / SEEDS) * 100
+    assert(pct > 20 && pct < 30, `stored option 0 lands on slot ${slot} near 25% (saw ${pct.toFixed(1)}%)`)
+  }
+  // Degenerate inputs stay safe.
+  assert(optionDisplayOrder(0, 9).length === 0, 'zero options → empty order')
+  assert(optionDisplayOrder(1, 9).join(',') === '0', 'one option → [0]')
+  assert(optionDisplayOrder(-3, 9).length === 0, 'negative count → empty order')
+  passed += 1
 }
 
 console.log(`timed-quiz core: ${passed} assertions passed ✓`)
