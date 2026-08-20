@@ -24,7 +24,13 @@
 import assert from 'node:assert/strict'
 
 import { LEARNER_GRADES } from '../src/config/curriculum.js'
-import { CATALOGUE_MECHANICS, GAMES_SEED, PLAYABLE_GAME_TYPES, RETIRED_GAME_TYPES } from '../src/data/gamesSeed.js'
+import {
+  CATALOGUE_MECHANICS,
+  GAMES_SEED,
+  PLAYABLE_GAME_TYPES,
+  RETIRED_GAME_TYPES,
+  isDemoGame,
+} from '../src/data/gamesSeed.js'
 import { ZAMBIA_PROVINCES_GEO } from '../src/data/zambiaGeography.js'
 
 let failures = 0
@@ -87,6 +93,20 @@ for (const grade of LEARNER_GRADES) {
         `${pack.id} is type "${pack.type}", which no engine plays — its card would open on nothing`,
       )
     }
+  })
+
+  test(`grade ${grade} has something a learner can play WITHOUT paying`, () => {
+    // PlayGame locks a game with `!isDemoGame(game) && !canAccessFullContent`.
+    // Until 2026-08-20 every free game in the seed was Grade 1-4 — grades no
+    // learner can reach — so a Grade 7 learner with no subscription opened the
+    // hub and found ten games and ten padlocks. Nothing could see it: every
+    // test asks whether the lock WORKS, and the lock worked.
+    const free = packs.filter(isDemoGame)
+    assert.ok(
+      free.length > 0,
+      `every game at grade ${grade} is locked to a paying learner. `
+      + 'Add at least one id to DEFAULT_DEMO_GAME_IDS in src/data/gamesSeed.js.',
+    )
   })
 
   test(`grade ${grade} has a timed quiz for the daily challenge to land on`, () => {
@@ -154,6 +174,27 @@ for (const grade of LEARNER_GRADES) {
     }
   })
 }
+
+test('the seed carries the open grades and nothing else', () => {
+  // A pack for a grade no learner can reach is dead weight in every bundle
+  // the app ships, and it is invisible: the hub filters by grade, so a
+  // hundred unreachable packs and none look exactly the same on screen.
+  const grades = [...new Set(GAMES_SEED.map((g) => Number(g.grade)))].sort((a, b) => a - b)
+  const open = [...LEARNER_GRADES].map(Number).sort((a, b) => a - b)
+  assert.deepEqual(
+    grades, open,
+    `the seed holds grades [${grades}] but only [${open}] are open to learners. `
+    + 'Either open the grade (LEARNER_GRADES + DAILY_EXAM_GRADES) or take its packs out.',
+  )
+})
+
+test('no seed pack is of a mechanic whose engine was retired', () => {
+  // RETIRED_GAME_TYPES stays — a live Firestore doc written before the 2026-08
+  // redesign can still carry one, and PlayGame shows it a retirement card. But
+  // the bundled seed must not ship one: it would be a card that cannot open.
+  const retired = GAMES_SEED.filter((g) => RETIRED_GAME_TYPES.has(g.type)).map((g) => g.id)
+  assert.deepEqual(retired, [], `retired mechanics still in the seed: ${retired.join(', ')}`)
+})
 
 if (failures > 0) {
   console.error(`\nlearner-grade-games — ${failures} failed`)
