@@ -140,8 +140,8 @@ export default function StudentDashboard() {
       {/* Guardian consent / migration prompt. Renders nothing for an approved
           or adult account, so it costs a signed-in teacher or an approved
           learner one null return. It sits ABOVE the hero because a learner in
-          limited mode needs to know why Ask Zed is refusing before they
-          conclude the app is broken. */}
+          limited mode needs to know why the leaderboard is refusing before
+          they conclude the app is broken. */}
       <GuardianConsentBanner />
 
       {showUpgrade && (

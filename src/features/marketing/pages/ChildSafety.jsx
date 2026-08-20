@@ -29,9 +29,9 @@ function UL({ children }) {
  * declaration. This is that page.
  *
  * It is written to be true rather than impressive. Every control it claims is
- * one that exists in the codebase: the guardian consent flow, the deterministic
- * distress handling in Ask Zed, the report button on every AI response, and
- * the analytics minimisation for learner accounts. A standards page that
+ * one that exists in the codebase: the guardian consent flow, the in-app
+ * reporting path in Settings → Help & support, and the analytics minimisation
+ * for learner accounts. A standards page that
  * promises moderation nobody performs is worse than none, because it is the
  * document a regulator will read back to you.
  */
@@ -68,9 +68,9 @@ export default function ChildSafety() {
         <H2 id="reporting">2. How to report a concern</H2>
         <UL>
           <li>
-            <strong>In the app</strong> — every response from our Ask Zed study
-            assistant carries a <strong>Report</strong> control. Tap it, choose a
-            reason, and a person reviews it. A child does not need to explain why.
+            <strong>In the app</strong> — open <strong>Settings → Help &amp;
+            support</strong> and tap <strong>Report a problem</strong>. Choose a
+            reason and a person reviews it. A child does not need to explain why.
           </li>
           <li>
             <strong>By email</strong> — write to{' '}
@@ -108,15 +108,13 @@ export default function ChildSafety() {
             <strong>A parent or guardian must approve a learner account.</strong> When
             someone under 18 signs up we ask for a parent or guardian's contact and
             send them a link. Until they approve, the account can only read lessons
-            and past papers — it cannot use the AI assistant, join a class, appear on
-            a leaderboard, or buy anything.
+            and past papers — it cannot appear on a leaderboard or buy anything.
           </li>
           <li>
             <strong>A guardian sees what a child is working on, not what they
             typed.</strong> A linked parent or guardian sees subject progress, a
             streak, a weekly report and the topics their child finds hard. They do
-            not see the child's password, and they do not see Ask Zed
-            conversations word for word. If a learner says something suggesting
+            not see the child's password. If a learner says something suggesting
             they are being hurt, that message is not forwarded to a guardian — it
             is answered with the helpline below and reviewed by a person, because
             the adult a child is disclosing may be the adult who is linked.

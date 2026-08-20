@@ -231,8 +231,7 @@ export default function DeleteAccountRequest() {
           <h2 className="font-display font-black text-lg mb-2">What gets deleted</h2>
           <p className="theme-text-muted leading-relaxed">
             Your profile (name, email, role, grade, school), quiz and exam results, created
-            content, class memberships, Ask Zed conversation history, uploaded verification
-            documents, subscription records, and — if you opted in to analytics — your
+            content, uploaded verification documents, subscription records, and — if you opted in to analytics — your
             analytics profile and its events. See{' '}
             <Link className="underline theme-accent-text font-bold" to="/privacy">
               our Privacy Policy

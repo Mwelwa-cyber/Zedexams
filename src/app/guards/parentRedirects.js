@@ -39,7 +39,6 @@ export const PARENT_ROUTE_REDIRECTS = Object.freeze([
   ['/profile', '/family/account'],
   ['/dashboard', '/family'],
   ['/notifications', '/family/notifications'],
-  ['/ask-zed', '/family'],
   // The child's "ask a grown-up" screen. A guardian who lands here is
   // the person being asked, so the useful destination is the plan page
   // — and the ask itself would be refused for them server-side anyway.

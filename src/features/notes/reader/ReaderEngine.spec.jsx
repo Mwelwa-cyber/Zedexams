@@ -30,7 +30,7 @@ describe('ReaderEngine', () => {
     renderEngine()
     expect(screen.getByRole('heading', { level: 1 }).textContent).toContain('Conjunctions')
     expect(screen.getByText(CONJUNCTIONS_NOTE.kicker)).toBeInTheDocument()
-    expect(screen.getByText(/min read · 3 sections · with Zed/)).toBeInTheDocument()
+    expect(screen.getByText(/min read · 3 sections/)).toBeInTheDocument()
   })
 
   it('Learn mode paces the note: sections reveal behind Continue', () => {

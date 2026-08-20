@@ -15,7 +15,6 @@
 //   Exam reminders      → notificationPrefs.categories.assessments
 //   App news            → notificationPrefs.categories.announcements
 //   Quiet hours         → notificationPrefs.quietHours.enabled
-//   Ask Zed             → learnerSettings.zedAi.enabled (hides the helper)
 //   Daily goal          → learningPrefs.dailyGoal
 //
 // Two rows the mockup draws are NOT here, because the product has no
@@ -38,7 +37,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { useTheme, DEFAULT_THEME } from '../../../contexts/ThemeContext'
 import { normalizeNotificationPrefs } from '../../../engines/notification-engine/notificationPrefs'
 import {
-  normalizeLearningPrefs, normalizeZedAiPrefs, DAILY_GOAL_OPTIONS,
+  normalizeLearningPrefs, DAILY_GOAL_OPTIONS,
 } from '../lib/learnerPrefs'
 import { resolveLearnerAccess } from '../../../utils/guardianConsent'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
@@ -133,7 +132,6 @@ export default function LearnerSettingsPage() {
 
   const notif = useMemo(() => normalizeNotificationPrefs(merged?.notificationPrefs), [merged])
   const learning = useMemo(() => normalizeLearningPrefs(merged?.learningPrefs), [merged])
-  const zed = useMemo(() => normalizeZedAiPrefs(merged?.learnerSettings?.zedAi), [merged])
   const guardianGranted = useMemo(
     () => resolveLearnerAccess(userProfile).reason === 'guardian-approved',
     [userProfile],
@@ -231,13 +229,6 @@ export default function LearnerSettingsPage() {
 
       <div className="lhx-set-head" id="set-learning">Learning</div>
       <div className="lhx-set-group">
-        <ToggleRow
-          icon="🤖" title="Ask Zed" desc="Your study helper (online only)"
-          checked={zed.enabled}
-          onChange={(on) => save({
-            learnerSettings: { ...(merged?.learnerSettings || {}), zedAi: { ...zed, enabled: on } },
-          })}
-        />
         <LinkRow icon="🎯" title="Daily goal" value={goalLabel} onClick={cycleGoal} />
       </div>
 

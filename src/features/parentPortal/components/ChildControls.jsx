@@ -84,8 +84,7 @@ export default function ChildControls({ childUid, controls, canEdit, disabled, o
       <p className="pax-note" role={notice ? 'alert' : undefined}>
         {notice || (
           'Turning something off is applied on our servers, so it holds even if ' +
-          'the app is reinstalled. Ask Zed is re-checked every time your child ' +
-          'asks it something; live challenges are removed from their app.'
+          'the app is reinstalled. Live challenges are removed from their app.'
         )}
       </p>
     </>

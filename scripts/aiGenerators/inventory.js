@@ -440,15 +440,15 @@ export const INVENTORY = Object.freeze([
     class: CLASSES.composite,
     tier: null,
     state: 'unmigrated',
-    entryPoint: 'apiAiChat',
-    clientSurface: 'Zed learner chat (SSE)',
-    produces: 'chat reply',
+    entryPoint: 'apiWhatsAppWebhook',
+    clientSurface: 'Bonga, the inbound WhatsApp reply agent',
+    produces: 'WhatsApp reply',
     incompleteResultSaveable: true,
-    note: 'Split out of functions/index.js by Phase 5 batch 3. The SSE half of '
-      + 'Zed; an onRequest surface rather than a callable, so it was in neither '
-      + 'batch 1 nor batch 2 and carries no tier. The body moved verbatim, so '
-      + 'its migration state is unchanged by the move — what changed is that it '
-      + 'is now visible to a reviewer as its own file.',
+    note: 'Split out of functions/index.js by Phase 5 batch 3. This file also '
+      + 'held apiAiChat, the SSE half of the Zed learner chat, until that '
+      + 'assistant was removed; the model call recorded here is now Bonga\'s. '
+      + 'An onRequest surface rather than a callable, so it carries no tier — '
+      + 'and its caller is Meta\'s webhook, not a waiting user.',
   },
   {
     file: 'functions/quizAiHandlers.js',
@@ -465,19 +465,6 @@ export const INVENTORY = Object.freeze([
       + 'verbatim, so the migration state is unchanged by that move — what '
       + 'changed is that these eight are now visible to a reviewer as their own '
       + 'file, which the composite record above said was the prerequisite.',
-  },
-  {
-    file: 'functions/chatHandlers.js',
-    class: CLASSES.composite,
-    tier: null,
-    state: 'unmigrated',
-    entryPoint: 'aiChat',
-    clientSurface: 'Zed learner chat',
-    produces: 'chat reply',
-    incompleteResultSaveable: true,
-    note: 'Split out of functions/index.js by Phase 5 batch 2. The callable '
-      + 'half of Zed; the SSE half (apiAiChat) moved to httpSurfaceHandlers.js '
-      + 'in batch 3, which is why both files appear in this inventory.',
   },
 
   // ── Agents: autonomous, no waiting user ───────────────────────────────

@@ -25,7 +25,7 @@ vi.mock('../services/parentApp', () => ({
 
 import ChildControls from './ChildControls'
 
-const askZed = () => screen.getByRole('switch', { name: /ask zed/i })
+const challenges = () => screen.getByRole('switch', { name: /live challenges/i })
 
 describe('ChildControls', () => {
   beforeEach(() => {
@@ -35,47 +35,47 @@ describe('ChildControls', () => {
 
   it('an undecided control renders as on — absent is not off', () => {
     render(<ChildControls childUid="kid-1" controls={{}} canEdit />)
-    expect(askZed()).toHaveAttribute('aria-checked', 'true')
+    expect(challenges()).toHaveAttribute('aria-checked', 'true')
   })
 
   it('a guardian’s off is shown as off', () => {
-    render(<ChildControls childUid="kid-1" controls={{ askZed: false }} canEdit />)
-    expect(askZed()).toHaveAttribute('aria-checked', 'false')
+    render(<ChildControls childUid="kid-1" controls={{ challenges: false }} canEdit />)
+    expect(challenges()).toHaveAttribute('aria-checked', 'false')
   })
 
   it('turning one off writes through the callable for THAT child', async () => {
     const onChanged = vi.fn()
-    render(<ChildControls childUid="kid-1" controls={{ askZed: true }} canEdit onChanged={onChanged} />)
-    fireEvent.click(askZed())
+    render(<ChildControls childUid="kid-1" controls={{ challenges: true }} canEdit onChanged={onChanged} />)
+    fireEvent.click(challenges())
     await waitFor(() =>
-      expect(setChildGuardianControl).toHaveBeenCalledWith('kid-1', 'askZed', false))
+      expect(setChildGuardianControl).toHaveBeenCalledWith('kid-1', 'challenges', false))
     await waitFor(() => expect(onChanged).toHaveBeenCalled())
   })
 
   it('a rejected write puts the switch back and says nothing changed', async () => {
     setChildGuardianControl.mockRejectedValue(new Error('Only the account owner can do that.'))
-    render(<ChildControls childUid="kid-1" controls={{ askZed: true }} canEdit />)
+    render(<ChildControls childUid="kid-1" controls={{ challenges: true }} canEdit />)
 
-    fireEvent.click(askZed())
+    fireEvent.click(challenges())
     // Optimistic first…
-    expect(askZed()).toHaveAttribute('aria-checked', 'false')
+    expect(challenges()).toHaveAttribute('aria-checked', 'false')
     // …then reconciled with the server, which is the account's real state.
-    await waitFor(() => expect(askZed()).toHaveAttribute('aria-checked', 'true'))
+    await waitFor(() => expect(challenges()).toHaveAttribute('aria-checked', 'true'))
     expect(await screen.findByRole('alert')).toHaveTextContent(/Nothing has changed/)
   })
 
   it('a guardian without the capability cannot move the switch', () => {
-    render(<ChildControls childUid="kid-1" controls={{ askZed: true }} canEdit={false} />)
-    expect(askZed()).toBeDisabled()
+    render(<ChildControls childUid="kid-1" controls={{ challenges: true }} canEdit={false} />)
+    expect(challenges()).toBeDisabled()
   })
 
   it('is disabled offline — the write is server-side', () => {
-    render(<ChildControls childUid="kid-1" controls={{ askZed: true }} canEdit disabled />)
-    expect(askZed()).toBeDisabled()
+    render(<ChildControls childUid="kid-1" controls={{ challenges: true }} canEdit disabled />)
+    expect(challenges()).toBeDisabled()
   })
 
   it('says where an OFF actually bites rather than implying more', () => {
     render(<ChildControls childUid="kid-1" controls={{}} canEdit />)
-    expect(screen.getByText(/re-checked every time your child asks it something/i)).toBeInTheDocument()
+    expect(screen.getByText(/removed from their app/i)).toBeInTheDocument()
   })
 })

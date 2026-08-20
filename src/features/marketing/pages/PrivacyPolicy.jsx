@@ -92,12 +92,6 @@ export default function PrivacyPolicy() {
           confirmation as a yes/no answer rather than as a date.
         </li>
         <li>
-          <strong>Ask Zed conversations</strong> — the messages you send to our AI study
-          assistant, so it can answer follow-ups and so we can debug abuse. Contact details
-          (phone numbers, email addresses, links) are removed before a learner&apos;s message
-          is written to our logs.
-        </li>
-        <li>
           <strong>Device & technical data</strong> — basic browser / device information,
           IP address (for abuse prevention), and crash and error reports describing what
           went wrong so we can fix bugs.
@@ -150,8 +144,7 @@ export default function PrivacyPolicy() {
         When someone under 18 signs up, we ask for a parent or guardian&apos;s contact
         details and send them a link to approve the account. Until they approve it, the
         account runs in a limited mode: the learner can read lessons and past papers, but
-        cannot use the Ask Zed assistant, join a class, appear on a leaderboard, or buy
-        anything. The guardian&apos;s link also lets them refuse and have the account
+        cannot appear on a leaderboard or buy anything. The guardian&apos;s link also lets them refuse and have the account
         removed.
       </P>
       <P>
@@ -207,7 +200,8 @@ export default function PrivacyPolicy() {
           Storage, Cloud Functions, and Hosting. Data is stored in Google data centres.
         </li>
         <li>
-          <strong>AI providers</strong> — when you use Ask Zed or teacher AI generators,
+          <strong>AI providers</strong> — when you use an AI feature (the teacher
+          generators, answer explanations, or short-answer marking),
           your prompts are sent to the AI model provider (currently Anthropic Claude and/or
           Google Gemini) so they can generate a response. They process the prompts as a
           processor only and do not use them to train their models for other customers.
@@ -239,7 +233,7 @@ export default function PrivacyPolicy() {
       <UL>
         <li>Account data is kept while your account is active.</li>
         <li>Quiz/exam attempts and progress are kept while your account is active so you can see your history.</li>
-        <li>Ask Zed and AI generation logs are kept for a limited period for debugging and abuse prevention.</li>
+        <li>AI generation logs are kept for a limited period for debugging and abuse prevention.</li>
         <li>If you opted in to analytics, events are retained by PostHog according to our project settings, and any session replay is automatically deleted after 30 days.</li>
         <li>If you delete your account, we delete or anonymise your personal data within a reasonable period, unless we are required to keep something for legal or accounting reasons.</li>
       </UL>
