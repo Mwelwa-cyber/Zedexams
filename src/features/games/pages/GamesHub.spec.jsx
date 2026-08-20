@@ -94,7 +94,7 @@ beforeEach(() => {
   // switched off, signed out). Without this a later test inherits whichever
   // learner ran last — the seed-fallback test would look for grade-4 games
   // as a signed-out visitor, who resolves to the rollout grade instead.
-  mocks.auth = { currentUser: { uid: 'learner-1' }, userProfile: { grade: 4 } }
+  mocks.auth = { currentUser: { uid: 'learner-1' }, userProfile: { grade: 7 } }
   mocks.listGames.mockResolvedValue(GAMES)
   mocks.getMyHistory.mockResolvedValue([
     { gameId: 'g-words', score: 80 },
@@ -158,7 +158,7 @@ describe('GamesHub', () => {
   })
 
   it('a grade with no challenge today gets the empty state, never another grade\'s', async () => {
-    mocks.getTodaysChallenge.mockResolvedValue({ game: null, source: 'none', dateId: '2026-08-19', grade: 4 })
+    mocks.getTodaysChallenge.mockResolvedValue({ game: null, source: 'none', dateId: '2026-08-19', grade: 7 })
     renderHub()
     expect(await screen.findByText('No challenge today')).toBeInTheDocument()
     // Not a link: a card that says there is nothing to play must not open
@@ -171,7 +171,7 @@ describe('GamesHub', () => {
 
   it('the grade on the pills is the LEARNER\'s, not the returned game\'s', async () => {
     // The exact shape of the live bug: a Grade 3 game came back for a
-    // Grade 4 learner. The pill must still read the learner.
+    // Grade 7 learner. The pill must still read the learner.
     mocks.getTodaysChallenge.mockResolvedValue({
       game: { id: 'g-wrong', title: 'Someone else\'s quiz', type: 'timed_quiz', grade: 3 },
       source: 'rotation',
@@ -241,7 +241,7 @@ describe('GamesHub', () => {
     expect(screen.getByText('Body Systems & Energy')).toBeInTheDocument()
     // Two live packs replace their seed twins, and every other Grade 7 pack
     // lists behind them. The old ceiling was four rows, whatever the number.
-    expect(document.querySelectorAll('a.lhx-game')).toHaveLength(11)
+    expect(document.querySelectorAll('a.lhx-game')).toHaveLength(16)
 
     // …but a Grade 6 quiz is still not a Grade 7 learner's game. Widening
     // WHAT lists must not widen WHICH GRADE lists.
@@ -308,8 +308,13 @@ describe('GamesHub', () => {
     // map_place, then the timed_quiz packs alphabetically — so the order is a
     // property of the data rather than of which pool answered first.
     expect(names.slice(4, -1)).toEqual([
-      'Fraction Ladder', 'Know Zambia', 'Body Systems & Energy', 'Grammar & Meaning',
-      'Integer Battle', 'Ratio & Percentage', 'Zambia: Land & Government',
+      // fraction_ladder, then the six map_place modes by title, then the
+      // timed_quiz packs by title.
+      'Fraction Ladder',
+      'Know Zambia', 'Zambia: Journey', 'Zambia: Odd one out', 'Zambia: Our neighbours',
+      'Zambia: Where’s the capital?', 'Zambia: Where’s the ceremony?',
+      'Body Systems & Energy', 'Grammar & Meaning', 'Integer Battle',
+      'Ratio & Percentage', 'Zambia: Land & Government',
     ])
   })
 
@@ -355,7 +360,7 @@ describe('GamesHub', () => {
     // "challenges are switched off for this account".
     mocks.auth = {
       currentUser: { uid: 'learner-1' },
-      userProfile: { grade: 4, role: 'learner', guardianControls: { challenges: false } },
+      userProfile: { grade: 7, role: 'learner', guardianControls: { challenges: false } },
     }
     renderHub()
     await screen.findByText('Number Target: Master')
@@ -383,7 +388,7 @@ describe('GamesHub', () => {
     mocks.getMyStreak.mockRejectedValue(new Error('offline'))
     mocks.getMyGameBadges.mockRejectedValue(new Error('offline'))
     renderHub()
-    // Seed games render (the learner is grade 4, the seed has grade-4 games).
+    // Seed games render (the learner is grade 7, and the seed is Grade 7).
     const cards = await screen.findAllByRole('link', { name: /Best|Play/ })
     expect(cards.length).toBeGreaterThan(0)
   })
