@@ -1485,6 +1485,25 @@ const SOCIAL_CIVICS_G7 = {
   ],
 }
 
+const KNOW_ZAMBIA_G7 = {
+  id: 'social_know_zambia_g7',
+  title: 'Know Zambia',
+  subject: 'social studies',
+  grade: 7,
+  type: 'map_place',
+  difficulty: 'medium',
+  description: 'Tap a province name, then tap where it goes. Three first, then five, then all ten.',
+  timer: 0,
+  points: 15,
+  active: true,
+  cbc_topic: 'Zambia',
+  // The engine reads the outlines, the label anchors and the positional
+  // hints from src/data/zambiaGeography.js (generated from the datasets in
+  // docs/learner), so this pack carries no questions. `waves` is optional —
+  // omitting it plays the default three, then five, then all ten.
+  questions: [],
+}
+
 export const GAMES_SEED = [
   // ── Lower primary (G1-G3) ──
   COUNTING_G1,
@@ -1544,6 +1563,7 @@ export const GAMES_SEED = [
   ENGLISH_GRAMMAR_G7,
   SCIENCE_SYSTEMS_G7,
   SOCIAL_CIVICS_G7,
+  KNOW_ZAMBIA_G7,
 
   // ── Outside primary CBC scope — kept in seed so admin can flip active=true if needed ──
   INTEGERS_G7,
@@ -1646,5 +1666,16 @@ export function mechanicName(game) {
   return CATALOGUE_MECHANICS.find((m) => m.type === game?.type)?.name || game?.title || 'Game'
 }
 
-/** Everything a learner may PLAY (catalogue + the daily-quiz engine). */
-export const PLAYABLE_GAME_TYPES = new Set([...CATALOGUE_GAME_TYPES, 'timed_quiz'])
+/**
+ * Everything a learner may PLAY: the catalogue mechanics, the daily-quiz
+ * engine, and `map_place` — the Know Zambia map game.
+ *
+ * map_place is deliberately NOT a catalogue mechanic. A mechanic gets a row at
+ * every grade whether it has a pack there or not — that is what makes a gap
+ * visible for the four the mockup names — and a fifth would print "Know
+ * Zambia · Coming soon for Grade 4" on every grade that has no map pack.
+ * Listed here instead, it appears as its own titled row wherever a pack for
+ * that grade exists and is simply absent everywhere else, which is how the
+ * timed_quiz packs already behave.
+ */
+export const PLAYABLE_GAME_TYPES = new Set([...CATALOGUE_GAME_TYPES, 'timed_quiz', 'map_place'])

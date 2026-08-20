@@ -508,6 +508,27 @@ test('the map modes page reaches the modes through one menu', () => {
   assert.match(modesHtml, /function renderMenu\(\)/, 'the five modes must be reachable from one menu')
 })
 
+test('the app\'s generated copy matches the datasets', () => {
+  // src/data/zambiaGeography.js is what the Know Zambia GAME ENGINE reads —
+  // src/ may not import from docs/, so the datasets are generated into the
+  // app rather than copied by hand. A stale copy is the quiet failure: the
+  // prototype and the shipped game would teach different geography, and both
+  // would look fine.
+  const generated = fs.readFileSync(path.join(process.cwd(), 'src', 'data', 'zambiaGeography.js'), 'utf8')
+  const fix = 'run `npm run sync:zambia-game` and commit the result'
+  assert.match(generated, /GENERATED — do not edit/, 'the generated module lost its provenance header')
+  for (const [name, exported] of [
+    ['zambia_provinces.json', 'ZAMBIA_PROVINCES_GEO'],
+    ['zambia_facts.json', 'ZAMBIA_FACTS'],
+    ['zambia_physical.json', 'ZAMBIA_PHYSICAL'],
+  ]) {
+    const source = JSON.parse(fs.readFileSync(path.join(DIR, name), 'utf8'))
+    const block = generated.match(new RegExp(`export const ${exported} = Object\\.freeze\\(([\\s\\S]*?)\\)\\n`))
+    assert.ok(block, `${exported} is missing from the generated module — ${fix}`)
+    assert.deepEqual(JSON.parse(block[1]), source, `${name} and its generated copy disagree — ${fix}`)
+  }
+})
+
 if (failures > 0) {
   console.error(`\nzambia-game — ${failures} failed`)
   process.exit(1)

@@ -24,7 +24,8 @@
 import assert from 'node:assert/strict'
 
 import { LEARNER_GRADES } from '../src/config/curriculum.js'
-import { CATALOGUE_MECHANICS, GAMES_SEED, RETIRED_GAME_TYPES } from '../src/data/gamesSeed.js'
+import { CATALOGUE_MECHANICS, GAMES_SEED, PLAYABLE_GAME_TYPES, RETIRED_GAME_TYPES } from '../src/data/gamesSeed.js'
+import { ZAMBIA_PROVINCES_GEO } from '../src/data/zambiaGeography.js'
 
 let failures = 0
 function test(name, fn) {
@@ -74,6 +75,20 @@ for (const grade of LEARNER_GRADES) {
     )
   })
 
+  test(`grade ${grade} can reach every engine that has a pack for it`, () => {
+    // Not every playable type is a catalogue mechanic — `map_place` (Know
+    // Zambia) lists as its own row instead, precisely so it does not print
+    // "coming soon" on a grade with no map pack. So this checks the other
+    // direction: a pack whose type has no engine would render a card that
+    // opens on the "not wired yet" screen.
+    for (const pack of packs) {
+      assert.ok(
+        PLAYABLE_GAME_TYPES.has(pack.type),
+        `${pack.id} is type "${pack.type}", which no engine plays — its card would open on nothing`,
+      )
+    }
+  })
+
   test(`grade ${grade} has a timed quiz for the daily challenge to land on`, () => {
     assert.ok(
       packs.some((p) => p.type === 'timed_quiz'),
@@ -83,10 +98,22 @@ for (const grade of LEARNER_GRADES) {
 
   test(`every grade ${grade} pack carries the content its engine reads`, () => {
     for (const pack of packs) {
-      // number_target generates its own tiles from the level (numberPathCore),
-      // so it is the one mechanic that legitimately ships no questions.
+      // Two mechanics legitimately ship no questions, because their content
+      // is not per-pack: number_target generates its tiles from the level
+      // (numberPathCore), and map_place reads the province outlines, label
+      // anchors and hints from the bundled dataset. Both are still checked —
+      // against the thing they DO read, so "no questions" can never be the
+      // way a pack with no content at all slips through.
       if (pack.type === 'number_target') {
         assert.ok(Number(pack.rounds) > 0, `${pack.id}: number_target needs a rounds count`)
+        continue
+      }
+      if (pack.type === 'map_place') {
+        const provinces = Object.keys(ZAMBIA_PROVINCES_GEO.provinces || {})
+        assert.equal(
+          provinces.length, 10,
+          `${pack.id}: the map engine reads src/data/zambiaGeography.js, which holds ${provinces.length} provinces, not 10`,
+        )
         continue
       }
       assert.ok(
