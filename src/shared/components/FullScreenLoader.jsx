@@ -1,9 +1,20 @@
 // Branded full-screen loader for the auth-resolution window (cold start +
-// sign-in). It deliberately mirrors the inline boot skeleton in index.html
-// (same beige canvas, brand ring loader, wordmark, and progress bar) so the
-// hand-off from the pre-React skeleton to React is seamless — no flash of a
-// blank white page while Firebase restores the session, the Firestore profile
-// round-trips, and the first route chunk downloads.
+// sign-in). It mirrors the inline boot skeleton in index.html (brand ring
+// loader, wordmark, progress bar) so the hand-off from the pre-React skeleton
+// to React is seamless — no flash of a blank white page while Firebase
+// restores the session, the Firestore profile round-trips, and the first route
+// chunk downloads.
+//
+// EVERY COLOUR HERE FOLLOWS THE SURFACE IT SITS ON. The canvas is
+// `var(--zt-surface)`, so the ink and the two tracks must be tokens from the
+// same family — a hard-coded value beside a themed background is only correct
+// for whichever theme it was picked in. The wordmark was literal `#1A1F2E`
+// against a Midnight canvas of `#1A222E`: 1.03:1, so "Zed" was invisible and a
+// returning dark-theme visitor saw a lone orange "Exams". Each token carries
+// the old literal as its fallback, so a context without --zt-* renders exactly
+// as it did before. The index.html skeleton is still hard-coded light and is
+// NOT theme-aware — the beige-to-dark step at hand-off is a separate,
+// pre-existing issue in the pre-paint boot path.
 //
 // The animation is the "new" brand loader introduced by
 // SessionRestorationScreen's LoaderRing: a soft orange glow, a faint track
@@ -64,7 +75,7 @@ export default function FullScreenLoader({ label }) {
       </div>
       <div
         aria-hidden="true"
-        style={{ fontSize: '1.6rem', fontWeight: 800, letterSpacing: '-0.02em', color: '#1A1F2E' }}
+        style={{ fontSize: '1.6rem', fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--zt-text, #1A1F2E)' }}
       >
         Zed<span style={{ color: '#C5613F' }}>Exams</span>
       </div>
@@ -81,7 +92,7 @@ export default function FullScreenLoader({ label }) {
         .zed-boot-loader { position: relative; width: 140px; height: 140px; display: grid; place-items: center; }
         .zed-boot-glow { position: absolute; inset: -18%; border-radius: 50%; background: radial-gradient(circle, rgba(197, 97, 63, 0.22) 0%, rgba(197, 97, 63, 0) 68%); filter: blur(6px); animation: zed-boot-glow 3.2s ease-in-out infinite; }
         .zed-boot-ring { position: absolute; inset: 0; width: 100%; height: 100%; }
-        .zed-boot-track { fill: none; stroke: #EBD9C2; stroke-width: 5; opacity: 0.5; }
+        .zed-boot-track { fill: none; stroke: var(--zt-line, #EBD9C2); stroke-width: 5; opacity: 0.5; }
         .zed-boot-arc { transform-origin: 50% 50%; animation: zed-boot-spin 1.6s linear infinite; }
         .zed-boot-arc--orange { animation-duration: 2.4s; animation-direction: reverse; }
         .zed-boot-stroke { fill: none; stroke-width: 5; stroke-linecap: round; stroke-dasharray: 135 320; }
@@ -90,7 +101,7 @@ export default function FullScreenLoader({ label }) {
         .zed-boot-dot--blue { fill: #2563EB; }
         .zed-boot-dot--orange { fill: #C5613F; }
         .zed-boot-badge { position: relative; z-index: 1; width: 64px; height: 64px; border-radius: 16px; object-fit: cover; box-shadow: 0 6px 16px rgba(26, 31, 46, 0.28); user-select: none; -webkit-user-drag: none; }
-        .zed-boot-bar { position: relative; width: min(78vw, 320px); height: 4px; border-radius: 999px; background: #EBD9C2; overflow: hidden; }
+        .zed-boot-bar { position: relative; width: min(78vw, 320px); height: 4px; border-radius: 999px; background: var(--zt-line, #EBD9C2); overflow: hidden; }
         .zed-boot-bar-fill { position: absolute; top: 0; left: 0; height: 100%; width: 40%; border-radius: 999px; background: linear-gradient(90deg, #2563EB, #C5613F); animation: zed-boot-bar 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
         @media (max-width: 767px) { .zed-boot-loader { width: 112px; height: 112px; } }
         @keyframes zed-boot-spin { to { transform: rotate(360deg); } }

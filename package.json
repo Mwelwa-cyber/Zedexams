@@ -923,7 +923,8 @@
     "test:deletion-decision-context": "node functions/deletionFlow/decisionContextCore.test.js",
     "test:deletion-state-mirror": "node scripts/test-deletion-state-mirror.mjs",
     "test:deletion-neutrality": "node functions/deletionFlow/neutrality.test.js",
-    "test:spelling-bank": "node scripts/test-spelling-bank.mjs"
+    "test:spelling-bank": "node scripts/test-spelling-bank.mjs",
+    "test:loader-theme-tokens": "node scripts/test-loader-theme-tokens.mjs"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",
