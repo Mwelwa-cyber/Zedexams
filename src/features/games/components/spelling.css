@@ -1,0 +1,613 @@
+/*
+ * spelling.css — the spelling system's screens, in the scoped `.lhx` learner
+ * design system. Builds on the tokens in shared/styles/learnerTheme.css.
+ *
+ * FOUR RULES RUN THROUGH EVERY BLOCK BELOW.
+ *
+ * TOKENS ONLY. Every colour is a `--lhx-*`, so Night mode is the token flip
+ * and not a second set of rules to keep in step. The mock-ups' own palette
+ * (indigo #5b5bd6, coral #ff7a4d, gold #f5b820, green #1faa6c) maps onto the
+ * tokens that already exist for exactly those roles.
+ *
+ * TOUCH TARGETS ARE 44px MINIMUM, and the letter tiles are 48–56px because
+ * they are the primary interaction and the hands using them are a child's.
+ * Nothing shrinks below 44 at any width — the tile ROW wraps instead, which
+ * is why every tile strip is a wrapping flex row and never a fixed grid.
+ *
+ * IT FITS AT 320px. The narrowest phone in real use is the constraint, not
+ * the fallback: sizes are clamped between a 320px value and a comfortable
+ * one, so nothing is a desktop layout scaled down. `overflow-wrap` is set on
+ * every long-word surface — a fourteen-letter word in a 320px slot row wraps
+ * to two lines rather than pushing the page sideways.
+ *
+ * ANIMATION REINFORCES, NEVER BLOCKS. Every transition is under 500ms, none
+ * gates an interaction, and all of them are off under `prefers-reduced-motion`.
+ */
+
+/* ══ shared chrome ═══════════════════════════════════════════════════ */
+
+.lhx .lhx-sp-map-head,
+.lhx .lhx-sp-round-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px; min-height: 56px;
+}
+
+/* 44px, not 40. These are the two smallest controls on the whole surface and
+   they are the ones a child reaches for when they want to LEAVE — a back
+   button under the touch floor is the one that gets mis-tapped into the
+   thing beside it. `test-spelling-responsive.mjs` measures it. */
+.lhx .lhx-sp-back,
+.lhx .lhx-sp-coach-close {
+  flex: 0 0 auto; width: 44px; height: 44px; border-radius: 12px;
+  background: var(--lhx-card); border: 1px solid var(--lhx-line);
+  color: var(--lhx-indigo-text); font-size: 20px; font-weight: 900;
+  display: grid; place-items: center; cursor: pointer;
+}
+
+.lhx .lhx-sp-map-title { flex: 1; margin: 0; font-size: 20px; font-weight: 900; color: var(--lhx-ink); }
+
+.lhx .lhx-sp-starchip {
+  flex: 0 0 auto; padding: 6px 12px; border-radius: 999px;
+  background: var(--lhx-amber-wash); color: var(--lhx-amber-ink);
+  font-size: 13px; font-weight: 800; white-space: nowrap;
+}
+
+.lhx .lhx-sp-loading,
+.lhx .lhx-sp-empty,
+.lhx .lhx-sp-offline {
+  margin: 20px 16px; padding: 14px; border-radius: 14px;
+  background: var(--lhx-indigo-soft); color: var(--lhx-indigo-text);
+  font-size: 13.5px; font-weight: 700; line-height: 1.55; text-align: center;
+}
+
+.lhx .lhx-sp-cta {
+  display: block; width: calc(100% - 32px); margin: 14px 16px 0;
+  min-height: 52px; padding: 15px; border: none; border-radius: 15px;
+  background: linear-gradient(180deg, var(--lhx-coral1), var(--lhx-coral2));
+  color: var(--lhx-on-brand); font: inherit; font-size: 16px; font-weight: 800;
+  box-shadow: 0 3px 0 var(--lhx-coral-shadow); cursor: pointer;
+}
+.lhx .lhx-sp-cta:active { transform: translateY(2px); box-shadow: none; }
+
+.lhx .lhx-sp-ghost {
+  min-height: 44px; padding: 12px 16px; border-radius: 14px;
+  background: var(--lhx-card); border: 1.5px solid var(--lhx-line);
+  color: var(--lhx-indigo-text); font: inherit; font-size: 14.5px; font-weight: 800;
+  cursor: pointer;
+}
+.lhx .lhx-sp-ghost:disabled { opacity: .45; cursor: default; }
+.lhx .lhx-sp-wide { display: block; width: calc(100% - 32px); margin: 9px 16px 0; }
+
+/* Focus is always visible, and on the token colour rather than the UA
+   default, which is invisible on the coral buttons. */
+.lhx .lhx-sp-map :focus-visible,
+.lhx .lhx-sp-round :focus-visible,
+.lhx .lhx-sp-coach :focus-visible,
+.lhx .lhx-sp-results :focus-visible,
+.lhx .lhx-sp-tricky :focus-visible,
+.lhx .lhx-sp-sheet :focus-visible {
+  outline: 3px solid var(--lhx-indigo-text); outline-offset: 2px;
+}
+
+/* ══ the stage map ═══════════════════════════════════════════════════ */
+
+.lhx .lhx-sp-path { padding: 0 0 40px; }
+
+.lhx .lhx-sp-chapter { padding: 4px 0 10px; }
+.lhx .lhx-sp-chapter.is-locked { opacity: .55; }
+
+.lhx .lhx-sp-chapter-head {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  padding: 14px 18px 10px; background: none; border: none; font: inherit;
+}
+.lhx .lhx-sp-chapter-n {
+  display: block; font-size: 11px; font-weight: 800; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--lhx-muted);
+}
+.lhx .lhx-sp-chapter-t {
+  display: block; margin-top: 2px; font-size: 19px; font-weight: 900; color: var(--lhx-ink);
+}
+.lhx .lhx-sp-chapter-d {
+  display: block; margin-top: 3px; font-size: 12.5px; line-height: 1.5; color: var(--lhx-muted);
+}
+.lhx .lhx-sp-chapter-bar {
+  display: block; height: 7px; margin-top: 10px; border-radius: 99px;
+  background: var(--lhx-line); overflow: hidden;
+}
+.lhx .lhx-sp-chapter-bar i {
+  display: block; height: 100%; border-radius: 99px; background: var(--lhx-green);
+  transition: width .35s ease;
+}
+
+.lhx .lhx-sp-nodes { list-style: none; margin: 0; padding: 10px 0 6px; }
+
+/* The zig-zag is the path. It is a MARGIN offset rather than absolute
+   positioning so it survives a chapter of any length and never overlaps
+   the node below it at a narrow width. */
+.lhx .lhx-sp-node {
+  position: relative; width: 80px; margin: 0 auto 18px; text-align: center;
+}
+.lhx .lhx-sp-node.is-left { margin-left: max(16px, 18vw); margin-right: auto; }
+.lhx .lhx-sp-node.is-right { margin-right: max(16px, 18vw); margin-left: auto; }
+
+/* The dotted joiner between two nodes. Decorative only. */
+.lhx .lhx-sp-node + .lhx-sp-node::before {
+  content: ''; position: absolute; left: 50%; top: -18px;
+  width: 0; height: 18px; border-left: 3px dotted var(--lhx-line);
+  transform: translateX(-50%);
+}
+
+.lhx .lhx-sp-circ {
+  width: 62px; height: 62px; border-radius: 50%; border: none;
+  display: grid; place-items: center; margin: 0 auto;
+  font: inherit; font-size: 19px; font-weight: 900; cursor: pointer;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, .13);
+}
+.lhx .lhx-sp-circ.is-done { background: var(--lhx-green); color: var(--lhx-on-brand); }
+.lhx .lhx-sp-circ.is-current {
+  background: linear-gradient(180deg, var(--lhx-coral1), var(--lhx-coral2));
+  color: var(--lhx-on-brand); transform: scale(1.12);
+  box-shadow: 0 5px 0 var(--lhx-coral-shadow), 0 0 0 7px var(--lhx-coral-soft);
+}
+.lhx .lhx-sp-circ.is-locked { background: var(--lhx-line); color: var(--lhx-faint); cursor: default; }
+.lhx .lhx-sp-circ.is-special {
+  background: linear-gradient(180deg, var(--lhx-yellow), #dc9c05);
+  color: var(--lhx-on-brand); font-size: 26px;
+}
+.lhx .lhx-sp-circ:not(:disabled):active { transform: translateY(2px) scale(1); box-shadow: none; }
+
+.lhx .lhx-sp-stars { display: block; margin-top: 5px; font-size: 13px; letter-spacing: 1px; color: var(--lhx-yellow); }
+.lhx .lhx-sp-stars .is-off { color: var(--lhx-line); }
+.lhx .lhx-sp-node-lab {
+  display: block; margin-top: 2px; font-size: 10.5px; font-weight: 800; color: var(--lhx-muted);
+}
+
+/* ══ the stage intro sheet ═══════════════════════════════════════════ */
+
+.lhx .lhx-sp-sheet-wrap { position: fixed; inset: 0; z-index: 60; display: flex; align-items: flex-end; }
+.lhx .lhx-sp-scrim { position: absolute; inset: 0; border: none; padding: 0; background: rgba(20, 22, 46, .45); cursor: pointer; }
+.lhx .lhx-sp-sheet {
+  position: relative; width: 100%; max-width: 560px; margin: 0 auto;
+  max-height: 88vh; overflow-y: auto;
+  padding: 16px 0 max(22px, env(safe-area-inset-bottom));
+  background: var(--lhx-card); border-radius: 26px 26px 0 0;
+  box-shadow: 0 -8px 30px rgba(40, 44, 90, .2);
+  animation: lhx-sp-rise .28s ease;
+}
+@keyframes lhx-sp-rise { from { transform: translateY(24px); opacity: .4; } to { transform: none; opacity: 1; } }
+
+.lhx .lhx-sp-grab { display: block; width: 44px; height: 5px; margin: 0 auto 15px; border-radius: 99px; background: var(--lhx-line); }
+.lhx .lhx-sp-sheet-title { margin: 0 16px; font-size: 21px; font-weight: 900; color: var(--lhx-ink); }
+.lhx .lhx-sp-sheet-sub { margin: 3px 16px 0; font-size: 13px; color: var(--lhx-muted); }
+
+.lhx .lhx-sp-sheet-stats { display: flex; gap: 9px; margin: 15px 16px; }
+.lhx .lhx-sp-sheet-stats > div {
+  flex: 1; padding: 11px 6px; border-radius: 13px; text-align: center; background: var(--lhx-bg);
+}
+.lhx .lhx-sp-sheet-stats b { display: block; font-size: 18px; font-weight: 900; color: var(--lhx-ink); }
+.lhx .lhx-sp-sheet-stats span { display: block; font-size: 10.5px; font-weight: 700; color: var(--lhx-muted); }
+
+.lhx .lhx-sp-sheet-tricky {
+  margin: 0 16px 14px; padding: 12px; border-radius: 14px;
+  background: var(--lhx-amber-wash); border: 1px solid var(--lhx-amber-line);
+  font-size: 12.5px; line-height: 1.55; color: var(--lhx-amber-ink);
+}
+.lhx .lhx-sp-sheet-tricky b { display: block; margin-bottom: 3px; }
+
+/* ══ the round ═══════════════════════════════════════════════════════ */
+
+.lhx .lhx-sp-dots { display: flex; gap: 5px; flex: 1; }
+.lhx .lhx-sp-dot { height: 6px; flex: 1; border-radius: 99px; background: var(--lhx-line); }
+.lhx .lhx-sp-dot.is-done { background: var(--lhx-green); }
+.lhx .lhx-sp-dot.is-now { background: var(--lhx-indigo2); }
+.lhx .lhx-sp-streak { font-size: 13px; font-weight: 800; color: var(--lhx-coral-text); white-space: nowrap; }
+
+.lhx .lhx-sp-stagelab {
+  margin: 0 16px 10px; font-size: 11.5px; font-weight: 800;
+  letter-spacing: .06em; text-transform: uppercase; color: var(--lhx-muted);
+}
+
+.lhx .lhx-sp-hero {
+  margin: 0 16px 14px; padding: 18px 16px; border-radius: 18px;
+  background: var(--lhx-card); text-align: center;
+}
+.lhx .lhx-sp-kicker {
+  margin: 0 0 12px; font-size: 11px; font-weight: 800;
+  letter-spacing: .09em; text-transform: uppercase; color: var(--lhx-muted);
+}
+.lhx .lhx-sp-again { color: var(--lhx-coral-text); }
+
+.lhx .lhx-sp-hear {
+  min-height: 52px; padding: 15px 24px; border: none; border-radius: 16px;
+  background: var(--lhx-indigo2); color: var(--lhx-on-brand);
+  font: inherit; font-size: 16px; font-weight: 800; cursor: pointer;
+}
+.lhx .lhx-sp-hear:active { transform: scale(.97); }
+.lhx .lhx-sp-nospeech { margin: 0; font-size: 14px; font-weight: 800; color: var(--lhx-ink); }
+
+.lhx .lhx-sp-sentence {
+  margin: 14px 0 0; font-size: 14px; line-height: 1.55; color: var(--lhx-muted);
+  overflow-wrap: anywhere;
+}
+.lhx .lhx-sp-gap {
+  display: inline-block; padding: 1px 8px; border-radius: 6px;
+  background: var(--lhx-indigo-soft); color: var(--lhx-indigo-text); letter-spacing: 2px;
+}
+
+/* The slot row and the tile row both WRAP. A fourteen-letter word at 320px
+   takes two lines rather than a horizontal scrollbar, and nothing is ever
+   pushed off the edge where it cannot be tapped. */
+.lhx .lhx-sp-slots {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;
+  margin: 4px 12px; min-height: 52px;
+}
+.lhx .lhx-sp-slot {
+  width: clamp(30px, 8.5vw, 40px); height: 48px; border-radius: 11px;
+  display: grid; place-items: center;
+  background: var(--lhx-card); border: 2px dashed var(--lhx-line);
+  font-size: clamp(17px, 5vw, 22px); font-weight: 900; color: var(--lhx-ink);
+}
+.lhx .lhx-sp-slot.is-filled { border-style: solid; border-color: var(--lhx-indigo2); background: var(--lhx-indigo-soft); }
+.lhx .lhx-sp-slot.is-ok { border-style: solid; border-color: var(--lhx-green); background: var(--lhx-green-soft); color: var(--lhx-green-dark); }
+.lhx .lhx-sp-slot.is-no {
+  border-style: solid; border-color: var(--lhx-red); background: var(--lhx-red-wash); color: var(--lhx-red-ink);
+  animation: lhx-sp-shake .3s;
+}
+@keyframes lhx-sp-shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+
+.lhx .lhx-sp-tiles {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;
+  margin: 16px 12px 6px;
+}
+.lhx .lhx-sp-tile {
+  width: clamp(44px, 12vw, 54px); height: clamp(48px, 13vw, 58px);
+  border-radius: 12px; background: var(--lhx-card); border: 2px solid var(--lhx-line);
+  font: inherit; font-size: clamp(19px, 5.5vw, 23px); font-weight: 900; color: var(--lhx-ink);
+  box-shadow: 0 3px 0 var(--lhx-line); cursor: pointer;
+}
+.lhx .lhx-sp-tile:active { transform: translateY(3px); box-shadow: none; }
+/* `visibility` rather than `display`, so removing a tile never reflows the
+   row under the learner's finger and shifts the next tile they were aiming at. */
+.lhx .lhx-sp-tile.is-used { visibility: hidden; }
+
+.lhx .lhx-sp-controls { display: flex; gap: 9px; margin: 14px 16px 0; }
+.lhx .lhx-sp-controls .lhx-sp-ghost { flex: 1; }
+
+.lhx .lhx-sp-check {
+  display: block; width: calc(100% - 32px); margin: 10px 16px 0;
+  min-height: 52px; padding: 15px; border: none; border-radius: 15px;
+  background: linear-gradient(180deg, var(--lhx-coral1), var(--lhx-coral2));
+  color: var(--lhx-on-brand); font: inherit; font-size: 16px; font-weight: 800;
+  box-shadow: 0 3px 0 var(--lhx-coral-shadow); cursor: pointer;
+}
+.lhx .lhx-sp-check:disabled {
+  background: var(--lhx-line); color: var(--lhx-faint); box-shadow: none; cursor: default;
+}
+
+.lhx .lhx-sp-feedback { margin: 0 16px; }
+.lhx .lhx-sp-fb { margin-top: 14px; padding: 14px; border-radius: 15px; font-size: 14px; line-height: 1.6; }
+.lhx .lhx-sp-fb.is-ok { background: var(--lhx-green-wash); border: 1px solid var(--lhx-green-soft); color: var(--lhx-green-dark); }
+.lhx .lhx-sp-fb.is-no { background: var(--lhx-red-wash); border: 1px solid var(--lhx-red-line); color: var(--lhx-red-ink); }
+.lhx .lhx-sp-fb-title { margin: 0 0 5px; font-size: 15.5px; font-weight: 900; }
+.lhx .lhx-sp-fb-you { margin: 0; font-size: 13px; }
+.lhx .lhx-sp-fb-word {
+  margin: 7px 0; font-size: clamp(19px, 6vw, 24px); font-weight: 900;
+  letter-spacing: 2px; color: var(--lhx-ink); overflow-wrap: anywhere;
+}
+.lhx .lhx-sp-fb-mark { color: var(--lhx-red); text-decoration: underline; text-decoration-thickness: 3px; }
+.lhx .lhx-sp-fb-where, .lhx .lhx-sp-fb-sentence { margin: 4px 0 0; font-size: 12.5px; font-weight: 700; color: var(--lhx-muted); }
+.lhx .lhx-sp-fb-note { margin: 10px 0 0; font-size: 12px; font-weight: 700; color: var(--lhx-muted); }
+.lhx .lhx-sp-fb-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 12px; }
+.lhx .lhx-sp-fb-actions > * { flex: 1 1 140px; }
+.lhx .lhx-sp-fix {
+  min-height: 44px; padding: 12px; border: none; border-radius: 14px;
+  background: linear-gradient(180deg, var(--lhx-coral1), var(--lhx-coral2));
+  color: var(--lhx-on-brand); font: inherit; font-size: 14.5px; font-weight: 800; cursor: pointer;
+}
+
+/* ══ the coach ═══════════════════════════════════════════════════════ */
+
+.lhx .lhx-sp-coach-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; min-height: 56px; }
+.lhx .lhx-sp-coach-title { flex: 1; margin: 0; font-size: 18px; font-weight: 900; color: var(--lhx-ink); }
+.lhx .lhx-sp-coach-body { padding-bottom: 30px; }
+
+.lhx .lhx-sp-coach-miss {
+  margin: 0 16px 13px; padding: 14px; border-radius: 18px;
+  background: var(--lhx-red-wash); border: 1px solid var(--lhx-red-line);
+  color: var(--lhx-red-ink); font-size: 13px; overflow-wrap: anywhere;
+}
+.lhx .lhx-sp-coach-miss b { font-size: 17px; letter-spacing: 1px; }
+
+.lhx .lhx-sp-coach-card { margin: 0 16px 13px; padding: 16px; border-radius: 18px; background: var(--lhx-card); }
+.lhx .lhx-sp-coach-kicker {
+  margin: 0 0 6px; font-size: 11px; font-weight: 800;
+  letter-spacing: .09em; text-transform: uppercase; color: var(--lhx-muted);
+}
+.lhx .lhx-sp-coach-blurb { margin: 0 0 12px; font-size: 13px; line-height: 1.55; color: var(--lhx-muted); }
+.lhx .lhx-sp-coach-hint { margin: 10px 0 0; text-align: center; font-size: 12px; color: var(--lhx-muted); }
+.lhx .lhx-sp-coach-prompt { margin: 8px 0 0; text-align: center; font-size: 14.5px; font-weight: 800; color: var(--lhx-muted); }
+.lhx .lhx-sp-coach-prompt b { color: var(--lhx-indigo-text); }
+
+.lhx .lhx-sp-chunks { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 12px 0 4px; }
+.lhx .lhx-sp-chunk {
+  position: relative; min-height: 52px; padding: 13px 15px; border-radius: 14px;
+  background: var(--lhx-indigo-soft); border: 2px solid var(--lhx-line);
+  color: var(--lhx-indigo-text); font: inherit;
+  font-size: clamp(18px, 5.5vw, 23px); font-weight: 900; letter-spacing: 1px; cursor: pointer;
+}
+.lhx .lhx-sp-chunk-n {
+  position: absolute; top: -9px; left: 50%; transform: translateX(-50%);
+  padding: 0 5px; border-radius: 99px; background: var(--lhx-card);
+  font-size: 10px; font-weight: 800; letter-spacing: 0; color: var(--lhx-muted);
+}
+/* The trap is marked by colour AND an underline — colour alone would be the
+   whole signal for a learner who cannot see the difference. */
+.lhx .lhx-sp-chunk.is-trap {
+  background: var(--lhx-amber-wash); border-color: #e0b463; color: var(--lhx-amber-ink);
+  text-decoration: underline; text-decoration-thickness: 3px;
+}
+.lhx .lhx-sp-chunk:active { transform: scale(.96); }
+
+.lhx .lhx-sp-hook {
+  margin-top: 13px; padding: 13px 14px; border-radius: 15px;
+  background: var(--lhx-yellow); color: #4a3200; font-weight: 800; line-height: 1.55;
+}
+.lhx .lhx-sp-hook-line { margin: 0; font-size: 14px; }
+.lhx .lhx-sp-hook-line u, .lhx .lhx-sp-hook-note u {
+  text-decoration: none; padding: 0 4px; border-radius: 5px; background: rgba(255, 255, 255, .45);
+}
+.lhx .lhx-sp-hook-note { margin: 3px 0 0; font-size: 12px; font-weight: 700; opacity: .92; }
+
+.lhx .lhx-sp-why { margin-top: 12px; padding: 12px 13px; border-radius: 14px; background: var(--lhx-indigo-soft); }
+.lhx .lhx-sp-why-title { margin: 0 0 2px; font-size: 12.5px; font-weight: 800; color: var(--lhx-indigo-text); }
+.lhx .lhx-sp-why-body { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--lhx-indigo-text); }
+
+.lhx .lhx-sp-rebuild { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 14px 0 6px; min-height: 52px; }
+.lhx .lhx-sp-rslot {
+  min-width: 46px; height: 50px; padding: 0 10px; border-radius: 12px;
+  display: grid; place-items: center;
+  background: var(--lhx-bg); border: 2px dashed var(--lhx-line);
+  font-size: clamp(16px, 5vw, 20px); font-weight: 900; color: var(--lhx-ink);
+}
+.lhx .lhx-sp-rslot.is-filled {
+  border-style: solid; border-color: var(--lhx-green);
+  background: var(--lhx-green-soft); color: var(--lhx-green-dark);
+}
+
+.lhx .lhx-sp-options { display: flex; flex-wrap: wrap; justify-content: center; gap: 9px; margin-top: 12px; }
+.lhx .lhx-sp-option {
+  min-height: 50px; padding: 12px 16px; border-radius: 13px;
+  background: var(--lhx-card); border: 2px solid var(--lhx-line);
+  font: inherit; font-size: clamp(16px, 5vw, 19px); font-weight: 900; color: var(--lhx-ink);
+  box-shadow: 0 3px 0 var(--lhx-line); cursor: pointer;
+}
+.lhx .lhx-sp-option:active { transform: translateY(3px); box-shadow: none; }
+/* A placed option DIMS rather than disappearing: the learner can still see
+   the shape of what they have built and what is left. */
+.lhx .lhx-sp-option.is-used { opacity: .28; cursor: default; box-shadow: none; }
+.lhx .lhx-sp-option.is-shake {
+  border-color: var(--lhx-red); background: var(--lhx-red-wash); color: var(--lhx-red-ink);
+  animation: lhx-sp-shake .35s;
+}
+
+.lhx .lhx-sp-coach-done { padding: 20px 16px 6px; text-align: center; }
+.lhx .lhx-sp-tick {
+  width: 62px; height: 62px; margin: 0 auto; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--lhx-green-soft); color: var(--lhx-green); font-size: 29px;
+}
+.lhx .lhx-sp-built {
+  margin: 10px 0 6px; font-size: clamp(22px, 7vw, 30px); font-weight: 900;
+  letter-spacing: 2px; color: var(--lhx-ink); overflow-wrap: anywhere;
+}
+.lhx .lhx-sp-built-title { margin: 0; font-size: 19px; font-weight: 900; color: var(--lhx-ink); }
+.lhx .lhx-sp-built-note { margin: 6px 0 12px; font-size: 13px; line-height: 1.55; color: var(--lhx-muted); }
+.lhx .lhx-sp-hear-small {
+  min-height: 44px; padding: 11px 18px; border-radius: 13px;
+  background: var(--lhx-indigo-soft); border: none;
+  color: var(--lhx-indigo-text); font: inherit; font-size: 14px; font-weight: 800; cursor: pointer;
+}
+
+.lhx .lhx-sp-transfer { margin: 16px 16px 0; padding: 14px; border-radius: 16px; background: var(--lhx-indigo-soft); }
+.lhx .lhx-sp-transfer-title { margin: 0 0 9px; font-size: 13px; font-weight: 900; color: var(--lhx-indigo-text); }
+.lhx .lhx-sp-transfer-words { display: flex; flex-wrap: wrap; gap: 8px; }
+.lhx .lhx-sp-transfer-word {
+  min-height: 44px; padding: 11px 14px; border-radius: 12px;
+  background: var(--lhx-card); border: 1.5px solid var(--lhx-line);
+  font: inherit; font-size: 15px; font-weight: 800; color: var(--lhx-ink); cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.lhx .lhx-sp-transfer-note { margin: 10px 0 0; font-size: 12px; line-height: 1.55; color: var(--lhx-indigo-text); }
+
+/* ══ results and tricky words ════════════════════════════════════════ */
+
+.lhx .lhx-sp-win { padding: 16px 16px 4px; text-align: center; }
+.lhx .lhx-sp-bigstars { margin: 0; font-size: 38px; letter-spacing: 4px; color: var(--lhx-yellow); }
+.lhx .lhx-sp-bigstars .is-off { color: var(--lhx-line); }
+.lhx .lhx-sp-win-title { margin: 6px 0 0; font-size: 21px; font-weight: 900; color: var(--lhx-ink); }
+.lhx .lhx-sp-win-sub { margin: 3px 0 0; font-size: 12.5px; color: var(--lhx-muted); }
+.lhx .lhx-sp-win-improved { margin: 8px 0 0; font-size: 13px; font-weight: 800; color: var(--lhx-green-dark); }
+.lhx .lhx-sp-win-kept { margin: 8px 0 0; font-size: 12.5px; font-weight: 700; color: var(--lhx-muted); }
+
+.lhx .lhx-sp-list { margin: 12px 16px; padding: 14px; border-radius: 18px; background: var(--lhx-card); }
+.lhx .lhx-sp-list h2 { margin: 0 0 8px; font-size: 13.5px; font-weight: 900; color: var(--lhx-ink); }
+.lhx .lhx-sp-list-row {
+  display: flex; align-items: center; gap: 9px; margin: 0;
+  padding: 8px 0; border-bottom: 1px solid var(--lhx-line);
+  font-size: 14.5px; font-weight: 800; color: var(--lhx-ink); overflow-wrap: anywhere;
+}
+.lhx .lhx-sp-list-row:last-of-type { border-bottom: none; }
+.lhx .lhx-sp-list-row em {
+  margin-left: auto; font-style: normal; font-size: 11.5px; font-weight: 800;
+  color: var(--lhx-muted); white-space: nowrap;
+}
+.lhx .lhx-sp-list-more { margin: 6px 0 0; font-size: 12.5px; font-weight: 700; color: var(--lhx-muted); }
+
+.lhx .lhx-sp-next-note {
+  margin: 12px 16px; padding: 13px; border-radius: 14px;
+  background: var(--lhx-indigo-soft); color: var(--lhx-indigo-text);
+  font-size: 12.5px; line-height: 1.55;
+}
+.lhx .lhx-sp-next-note b { display: block; margin-bottom: 3px; }
+.lhx .lhx-sp-savenote { margin: 10px 16px; font-size: 12.5px; font-weight: 700; color: var(--lhx-muted); text-align: center; }
+
+.lhx .lhx-sp-tricky-hero { padding: 10px 16px 4px; text-align: center; }
+.lhx .lhx-sp-tricky-badge {
+  display: grid; place-items: center; width: 76px; height: 76px; margin: 0 auto 12px;
+  border-radius: 50%; background: linear-gradient(180deg, var(--lhx-yellow), #dc9c05);
+  color: var(--lhx-on-brand); font-size: 33px; box-shadow: 0 5px 0 #b98104;
+}
+.lhx .lhx-sp-tricky-hero h2 { margin: 0; font-size: 21px; font-weight: 900; color: var(--lhx-ink); }
+.lhx .lhx-sp-tricky-hero p { margin: 6px 0 0; font-size: 13px; line-height: 1.55; color: var(--lhx-muted); }
+
+/* ══ wider screens ═══════════════════════════════════════════════════ */
+
+/* A tablet and a laptop get a wider, centred column — never a phone layout
+   stretched to 1400px, and never a desktop layout squeezed onto a phone. */
+@media (min-width: 700px) {
+  .lhx .lhx-sp-map, .lhx .lhx-sp-round, .lhx .lhx-sp-coach,
+  .lhx .lhx-sp-results, .lhx .lhx-sp-tricky {
+    max-width: 620px; margin: 0 auto;
+  }
+  .lhx .lhx-sp-node.is-left { margin-left: 30%; }
+  .lhx .lhx-sp-node.is-right { margin-right: 30%; }
+  .lhx .lhx-sp-tile { width: 56px; height: 60px; font-size: 24px; }
+}
+
+/* ══ reduced motion ══════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .lhx .lhx-sp-sheet,
+  .lhx .lhx-sp-slot.is-no,
+  .lhx .lhx-sp-option.is-shake { animation: none; }
+  .lhx .lhx-sp-chapter-bar i { transition: none; }
+  .lhx .lhx-sp-tile:active,
+  .lhx .lhx-sp-option:active,
+  .lhx .lhx-sp-chunk:active,
+  .lhx .lhx-sp-cta:active,
+  .lhx .lhx-sp-circ:not(:disabled):active { transform: none; }
+}
+
+/* ══ the admin screen ════════════════════════════════════════════════ */
+/*
+ * /admin/spelling. It renders in the `.lhx` system rather than the admin
+ * shell's, deliberately: the point of this screen is judging what a CHILD
+ * will see, and a coach panel previewed in admin chrome is a different
+ * object from the one that reaches them. The one concession is density —
+ * an admin is reviewing hundreds of rows, so the list is compact.
+ */
+
+.lhx .lhx-sp-admin { max-width: 940px; margin: 0 auto; padding-bottom: 60px; }
+.lhx .lhx-sp-admin-lede {
+  margin: 0 16px 14px; padding: 12px 14px; border-radius: 14px;
+  background: var(--lhx-indigo-soft); color: var(--lhx-indigo-text);
+  font-size: 13px; line-height: 1.6;
+}
+
+.lhx .lhx-sp-admin-bar {
+  display: flex; flex-wrap: wrap; gap: 9px; align-items: flex-end; margin: 0 16px 12px;
+}
+.lhx .lhx-sp-admin-bar label { display: grid; gap: 4px; font-size: 11.5px; font-weight: 800; color: var(--lhx-muted); }
+.lhx .lhx-sp-admin-bar select,
+.lhx .lhx-sp-admin-bar input {
+  min-height: 44px; padding: 10px 12px; border-radius: 12px;
+  border: 1.5px solid var(--lhx-line); background: var(--lhx-card);
+  color: var(--lhx-ink); font: inherit; font-size: 14px;
+}
+.lhx .lhx-sp-admin-bar input[type='search'] { flex: 1 1 180px; }
+
+.lhx .lhx-sp-admin-btn {
+  min-height: 44px; padding: 11px 15px; border-radius: 12px;
+  background: var(--lhx-indigo2); border: none; color: var(--lhx-on-brand);
+  font: inherit; font-size: 14px; font-weight: 800; cursor: pointer;
+}
+.lhx .lhx-sp-admin-btn:disabled { opacity: .5; cursor: default; }
+
+.lhx .lhx-sp-admin-filters { display: flex; flex-wrap: wrap; gap: 7px; margin: 0 16px 12px; }
+.lhx .lhx-sp-admin-tab {
+  min-height: 40px; padding: 9px 13px; border-radius: 999px;
+  background: var(--lhx-card); border: 1.5px solid var(--lhx-line);
+  color: var(--lhx-muted); font: inherit; font-size: 13px; font-weight: 800; cursor: pointer;
+}
+.lhx .lhx-sp-admin-tab.is-on { background: var(--lhx-indigo2); border-color: var(--lhx-indigo2); color: var(--lhx-on-brand); }
+
+.lhx .lhx-sp-admin-error {
+  margin: 0 16px 12px; padding: 12px 14px; border-radius: 14px;
+  background: var(--lhx-red-wash); border: 1px solid var(--lhx-red-line);
+  color: var(--lhx-red-ink); font-size: 13px; font-weight: 700;
+}
+.lhx .lhx-sp-admin-report {
+  margin: 0 16px 12px; padding: 12px 14px; border-radius: 14px;
+  background: var(--lhx-green-wash); border: 1px solid var(--lhx-green-soft);
+  color: var(--lhx-green-dark); font-size: 13px; line-height: 1.6;
+}
+.lhx .lhx-sp-admin-report p { margin: 0 0 4px; }
+.lhx .lhx-sp-admin-reject { color: var(--lhx-red-ink); font-size: 12px; }
+
+.lhx .lhx-sp-admin-list { list-style: none; margin: 0; padding: 0 16px; }
+.lhx .lhx-sp-admin-row {
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start;
+  padding: 12px; margin-bottom: 9px; border-radius: 14px;
+  background: var(--lhx-card); border: 1px solid var(--lhx-line);
+}
+.lhx .lhx-sp-admin-main { flex: 1 1 260px; min-width: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.lhx .lhx-sp-admin-main b { font-size: 15.5px; font-weight: 900; color: var(--lhx-ink); }
+.lhx .lhx-sp-admin-meta,
+.lhx .lhx-sp-admin-sentence {
+  flex: 1 0 100%; font-size: 12px; color: var(--lhx-muted); overflow-wrap: anywhere;
+}
+.lhx .lhx-sp-admin-problem { flex: 1 0 100%; font-size: 12px; font-weight: 700; color: var(--lhx-red-ink); }
+
+.lhx .lhx-sp-admin-pill {
+  padding: 3px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: .04em;
+  background: var(--lhx-line); color: var(--lhx-muted);
+}
+.lhx .lhx-sp-admin-pill.is-approved { background: var(--lhx-green-soft); color: var(--lhx-green-dark); }
+.lhx .lhx-sp-admin-pill.is-pending { background: var(--lhx-amber-wash); color: var(--lhx-amber-ink); }
+.lhx .lhx-sp-admin-pill.is-rejected,
+.lhx .lhx-sp-admin-pill.is-bad { background: var(--lhx-red-wash); color: var(--lhx-red-ink); }
+.lhx .lhx-sp-admin-pill.is-live { background: var(--lhx-indigo-soft); color: var(--lhx-indigo-text); }
+
+.lhx .lhx-sp-admin-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.lhx .lhx-sp-admin-actions button {
+  min-height: 40px; padding: 9px 12px; border-radius: 11px;
+  background: var(--lhx-bg); border: 1px solid var(--lhx-line);
+  color: var(--lhx-ink); font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer;
+}
+.lhx .lhx-sp-admin-actions button:disabled { opacity: .45; cursor: default; }
+.lhx .lhx-sp-admin-actions button.is-danger { color: var(--lhx-red-ink); border-color: var(--lhx-red-line); }
+
+/* ── the editor sheet ── */
+
+.lhx .lhx-sp-editor { max-width: 640px; }
+.lhx .lhx-sp-form { display: grid; gap: 12px; padding: 16px; }
+.lhx .lhx-sp-form label { display: grid; gap: 5px; font-size: 12.5px; font-weight: 800; color: var(--lhx-muted); }
+.lhx .lhx-sp-form input,
+.lhx .lhx-sp-form select,
+.lhx .lhx-sp-form textarea {
+  min-height: 44px; padding: 11px 12px; border-radius: 12px;
+  border: 1.5px solid var(--lhx-line); background: var(--lhx-card);
+  color: var(--lhx-ink); font: inherit; font-size: 14.5px; font-weight: 600;
+}
+.lhx .lhx-sp-form textarea { min-height: 66px; resize: vertical; }
+.lhx .lhx-sp-form-row { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+.lhx .lhx-sp-form-block {
+  margin: 0; padding: 12px; border-radius: 14px;
+  border: 1.5px solid var(--lhx-line); display: grid; gap: 11px;
+}
+.lhx .lhx-sp-form-block legend { padding: 0 6px; font-size: 12.5px; font-weight: 900; color: var(--lhx-ink); }
+.lhx .lhx-sp-form-hint { margin: -4px 0 0; font-size: 12.5px; color: var(--lhx-muted); }
+.lhx .lhx-sp-form-check { margin: 0; font-size: 13px; font-weight: 800; }
+.lhx .lhx-sp-form-check.is-ok { color: var(--lhx-green-dark); }
+.lhx .lhx-sp-form-check.is-bad { color: var(--lhx-red-ink); }
+.lhx .lhx-sp-form-problems {
+  margin: 0 16px; padding: 12px 14px; border-radius: 14px;
+  background: var(--lhx-red-wash); border: 1px solid var(--lhx-red-line);
+  color: var(--lhx-red-ink); font-size: 12.5px; line-height: 1.6;
+}
+.lhx .lhx-sp-form-problems p { margin: 0 0 3px; }
+.lhx .lhx-sp-form-preview {
+  margin: 12px 16px; padding: 12px 14px; border-radius: 14px;
+  background: var(--lhx-bg); font-size: 13px; color: var(--lhx-ink);
+}

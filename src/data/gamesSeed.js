@@ -169,7 +169,12 @@ const NUMBER_TARGET_G7 = {
 
 const WORD_BUILDER_G7 = {
   id: 'english_word_builder_g7',
-  title: 'Word Builder',
+  // "Spelling", not "Word Builder": what this card opens is the spelling
+  // LADDER — chapters, stages, a personal tricky-words node — and the round is
+  // one stage of it. The `type` stays `word_builder` because that is what the
+  // registry, the seed importer, the tombstones, the daily challenge and the
+  // duel pool all key off; renaming it would fork the catalogue.
+  title: 'Spelling',
   subject: 'english',
   grade: 7,
   type: 'word_builder',
@@ -179,7 +184,7 @@ const WORD_BUILDER_G7 = {
   // pack that fails to load. See features/games/lib/spellingPack.js.
   wordPack: 'grade7-spelling',
   difficulty: 'hard',
-  description: 'Tap the letters to spell the word in the clue — Grade 7 subject vocabulary.',
+  description: 'Hear the word, build it letter by letter, and climb the chapters — no timer, no lives.',
   timer: 0,
   points: 15,
   active: true,
@@ -683,7 +688,9 @@ export const RETIRED_GAME_TYPES = new Set([
  */
 export const CATALOGUE_MECHANICS = [
   { type: 'number_target', name: 'Number Path' },
-  { type: 'word_builder',  name: 'Word Builder' },
+  // The card a learner taps to reach the spelling ladder. The TYPE is the
+  // registry key and does not move; the NAME is what a child reads.
+  { type: 'word_builder',  name: 'Spelling' },
   { type: 'memory_match',  name: 'Meaning Match' },
   { type: 'punctuation',   name: 'Punctuation Pro' },
 ]

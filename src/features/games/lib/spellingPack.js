@@ -27,6 +27,26 @@
 /** Packs a game document may name. A document naming anything else gets its own questions. */
 export const WORD_PACKS = Object.freeze(['grade7-spelling'])
 
+/**
+ * The pack id for a grade.
+ *
+ * NAMED BY GRADE, not hard-coded to one, so opening Grade 6 is a bank file
+ * plus an entry in `WORD_PACKS` rather than a change to the engine. It returns
+ * an id whether or not this build has that pack — `isKnownPack` is the thing
+ * that answers whether it can be loaded, and the caller falls back to the
+ * game document's own questions when it cannot.
+ */
+export function packForGrade(grade) {
+  const n = Number(grade)
+  return Number.isInteger(n) && n > 0 ? `grade${n}-spelling` : ''
+}
+
+/** The grade a pack serves, or null for an id that names no grade. */
+export function gradeForPack(packId) {
+  const match = /^grade(\d+)-spelling$/.exec(String(packId || ''))
+  return match ? Number(match[1]) : null
+}
+
 /** Is this a pack this build knows how to load? */
 export function isKnownPack(packId) {
   return WORD_PACKS.includes(String(packId || ''))
@@ -67,9 +87,57 @@ export function toPackQuestions(bank = [], coach = {}) {
         question.strategy = cut.strategy
         question.trap = Number.isInteger(cut.trap) ? cut.trap : null
         question.why = cut.why || ''
+        // The HOOK and the TRANSFER words used to be dropped here, which meant
+        // the two most valuable fields the content carries — the memory hook
+        // and the two or three words the same cut solves — were authored,
+        // tested, and then never shown to anybody. The coach's third phase
+        // exists to turn one word into a rule and it needs these to do it.
+        question.hook = cut.hook || ''
+        question.hookNote = cut.hookNote || ''
+        question.related = Array.isArray(cut.transfer || cut.relatedWords)
+          ? (cut.transfer || cut.relatedWords).map((w) => String(w).toUpperCase())
+          : []
       }
       return question
     })
+}
+
+/**
+ * Fold approved Firestore words into the bundled bank.
+ *
+ * A MERGE, NOT A REPLACEMENT, and deliberately so. The bundled bank is 879
+ * hand-authored, reviewed Grade 7 words that cost no read and work offline —
+ * an admin adding twelve words must not replace it with twelve. A Firestore
+ * record for a word the bank already has WINS, because it is the edited
+ * version and the reason somebody edited it was that the bundled one was
+ * wrong.
+ *
+ * Pure, so the node test can drive it without Firestore.
+ */
+export function mergeIntoPack(packRows = [], approvedWords = []) {
+  if (!approvedWords.length) return packRows
+  const byWord = new Map(packRows.map((row) => [String(row.answer || '').toUpperCase(), row]))
+  for (const record of approvedWords) {
+    const answer = String(record.word || '').toUpperCase()
+    if (!answer) continue
+    const row = {
+      question: record.contextSentence || '',
+      options: [],
+      answer,
+      band: record.band || null,
+    }
+    if (Array.isArray(record.chunks) && record.chunks.length) {
+      row.chunks = record.chunks.map((chunk) => String(chunk).toUpperCase())
+      row.strategy = record.strategy
+      row.trap = Number.isInteger(record.trap) ? record.trap : null
+      row.why = record.why || ''
+      row.hook = record.hook || ''
+      row.hookNote = record.hookNote || ''
+      row.related = (record.relatedWords || []).map((w) => String(w).toUpperCase())
+    }
+    byWord.set(answer, row)
+  }
+  return [...byWord.values()]
 }
 
 /**
@@ -77,15 +145,27 @@ export function toPackQuestions(bank = [], coach = {}) {
  * the caller reads as "use the document's own questions" — a spelling game
  * whose pack fails to arrive still plays on its seeded ten rather than
  * showing a child an error.
+ *
+ * `fetchApproved` is injected so this stays testable under plain node and so
+ * the Firestore client is never pulled into the bundle of a build that has no
+ * spelling game on screen. A FAILED fetch is an empty list and the bundled
+ * bank stands — the learner never sees an error and never sees a short bank.
  */
-export async function loadWordPack(packId) {
+export async function loadWordPack(packId, { fetchApproved = null } = {}) {
   if (!isKnownPack(packId)) return []
   try {
     const [bank, coach] = await Promise.all([
       import('../../../data/spellingBank.js'),
       import('../../../data/spellingCoach.js'),
     ])
-    return toPackQuestions(bank.SPELLING_BANK, coach.SPELLING_COACH)
+    const rows = toPackQuestions(bank.SPELLING_BANK, coach.SPELLING_COACH)
+    if (!fetchApproved) return rows
+    try {
+      const approved = await fetchApproved(gradeForPack(packId) ?? bank.SPELLING_GRADE)
+      return mergeIntoPack(rows, Array.isArray(approved) ? approved : [])
+    } catch {
+      return rows
+    }
   } catch (err) {
     console.warn('word pack failed to load', packId, err?.message)
     return []

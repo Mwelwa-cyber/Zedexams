@@ -311,7 +311,7 @@ function GameEngine({ game }) {
         </span>
         <h2 className="font-display mt-5 text-2xl font-bold text-slate-900">This game has retired</h2>
         <p className="mt-3 text-base leading-7 text-slate-600">
-          {game.title} took a bow when the new games arrived. Try Number Path, Word Builder, Meaning Match or Punctuation Pro — same points, badges and leaderboard.
+          {game.title} took a bow when the new games arrived. Try Number Path, Spelling, Meaning Match or Punctuation Pro — same points, badges and leaderboard.
         </p>
         <Link
           to="/games"

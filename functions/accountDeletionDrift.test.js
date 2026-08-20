@@ -57,6 +57,13 @@ function parseTopLevelCollections(src) {
 // consciously classified, so it does not fail the guard, but it is flagged for
 // an owner decision.
 const RETAINED = new Map([
+  ["spellingWords",
+    "Reviewed spelling CONTENT for a grade — the word, its context sentence, " +
+    "where to cut it and why people get it wrong. Curriculum material an " +
+    "admin authored and approved, shared by every learner in the grade; the " +
+    "only uid it can hold is the ADMIN who wrote or reviewed it, which is an " +
+    "operator action. The learner's side of spelling is `spellingProgress`, " +
+    "which IS purged"],
   ["dailyQuizzes",
     "The day's five question IDs for a GRADE — grade, date, question ids, " +
     "seed and which selection rules bent. No uid, no name, nothing about any " +

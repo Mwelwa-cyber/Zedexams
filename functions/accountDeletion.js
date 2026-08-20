@@ -49,6 +49,9 @@ const UID_DOC_COLLECTIONS = [
   "learner_profiles",
   "learnerStats",
   "studyPlanProgress",
+  // The learner's spelling ladder: stars per stage and the per-word pool that
+  // records which words they keep getting wrong. Doc id is the uid.
+  "spellingProgress",
   // Legacy: the passkey feature was removed 2026-08-17, but credential docs
   // written while it was live still exist and must be purged with the account.
   "passkeyUserHandles", // opaque WebAuthn user handle (server-only)
