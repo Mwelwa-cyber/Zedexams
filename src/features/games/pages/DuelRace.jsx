@@ -26,6 +26,7 @@ import { duelAllowed } from '../lib/duelAccess'
 import { useGameFinish } from '../hooks/useGameFinish'
 import { listGames, reportGameStart } from '../services/gamesService'
 import { getFallbackGames } from '../../../data/gamesSeed'
+import { loadDeletedGameIds } from '../../../utils/gameTombstones'
 import { playCorrect, playWrong, playWin, primeSounds } from '../lib/gameSounds'
 import { BadgePop, buildSaveNote } from './../components/protoGameChrome'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
@@ -278,8 +279,13 @@ export default function DuelRace() {
     async function load() {
       let games = []
       try { games = await listGames() } catch { /* seed below */ }
+      // A game an admin permanently deleted must not supply the duel's
+      // question bank either. The bundled seed ships in the app, so the
+      // fallback below is the third place a deleted game could come back
+      // — the hub and the play route already exclude it.
+      const deletedIds = await loadDeletedGameIds()
       if (cancelled) return
-      const pool = games.length ? games : getFallbackGames()
+      const pool = games.length ? games : getFallbackGames({ exclude: deletedIds })
       const drawn = pickDuelSource(pool, { grade })
       if (!drawn) { setScreen('empty'); return }
       setSource(drawn)

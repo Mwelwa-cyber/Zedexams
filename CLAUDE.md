@@ -413,19 +413,34 @@ and reaches no Firestore call at all — and **Delete selected**; the old
 button was labelled just "Clear", which reads as "clear the games" on a
 screen that can now delete.
 
+- **A deleted game LEAVES the list.** It moves to the `Deleted` tab, where
+  it can be restored. The first version left it in place reading "Not
+  imported" — true of the seed entry, and a straight contradiction of what
+  the admin had just done: they deleted a game and the screen went on
+  listing it. `filterRows` hides `STATUS.DELETED` from every view except
+  its own tab; `buildRows` still returns it, because dropping it from the
+  data would make restoring impossible.
 - **The seed is never touched.** It is a file in the bundle, so a deleted
-  game goes back to "Not imported" and can be imported again. That is a
-  property of where the two catalogues live, not a promise the code makes.
-- **Statuses are Live / Inactive / Not imported / Unknown**, and the fourth
-  is load-bearing: a FAILED collection read must not render 47 games as "Not
-  imported", which would put an import over 47 live ones one click away. The
-  screen offers no action while the live state is unknown.
+  game can always be imported again — from the Deleted tab, under the name
+  `Restore` rather than `Import`, because undoing a deletion is not the
+  same act as adding something new. That reversibility is a property of
+  where the two catalogues live, not a promise the code makes.
+- **Statuses are Live / Inactive / Not imported / Deleted / Unknown**, and
+  two of them are load-bearing. A FAILED collection read must not render 47
+  games as "Not imported", which would put an import over 47 live ones one
+  click away — hence `Unknown`, under which the screen offers no action at
+  all. And `Deleted` exists because "an admin removed this" and "nobody has
+  imported it yet" are different facts that the screen has to treat
+  differently; the status is resolved from `gameTombstones`, with a live
+  document always outranking a stale tombstone.
 - **`gameTombstones/{gameId}` is why deletion is visible to learners.**
-  Three learner surfaces fall back to the bundled seed — the hub's catalogue
+  Four learner surfaces fall back to the bundled seed — the hub's catalogue
   rows (`buildCatalogue`), `PlayGame` (by id, which is what made a deleted
-  game still launchable through an old direct link) and the daily-challenge
-  rotation — so deleting `games/{id}` alone removes the game from the LIVE
-  list and from nothing else. The tombstone is written in the same
+  game still launchable through an old direct link), the daily-challenge
+  rotation and the duel's question bank (`DuelRace`) — so deleting
+  `games/{id}` alone removes the game from the LIVE list and from nothing
+  else. Every one of them passes `exclude`; a new seed-fallback caller must
+  too. The tombstone is written in the same
   transaction as the delete, read once per page load
   (`src/utils/gameTombstones.js`), and **fails OPEN**: an unreadable list
   leaves the fallback unfiltered, because the fallback exists for exactly

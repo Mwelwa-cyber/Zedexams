@@ -19,6 +19,7 @@ import { MemoryRouter } from 'react-router-dom'
 
 const mocks = vi.hoisted(() => ({
   listAllGamesForAdmin: vi.fn(),
+  listGameTombstonesForAdmin: vi.fn(),
   importSeedGame: vi.fn(),
   deleteGameForever: vi.fn(),
   setGameActive: vi.fn(),
@@ -36,6 +37,7 @@ const mocks = vi.hoisted(() => ({
 // cannot initialise in jsdom.
 vi.mock('../services/gamesService', () => ({
   listAllGamesForAdmin: mocks.listAllGamesForAdmin,
+  listGameTombstonesForAdmin: mocks.listGameTombstonesForAdmin,
   importSeedGame: mocks.importSeedGame,
   deleteGameForever: mocks.deleteGameForever,
   setGameActive: mocks.setGameActive,
@@ -64,6 +66,7 @@ beforeEach(() => {
     math_a_g4: { id: 'math_a_g4', title: 'Fraction Match', active: true, grade: 4, subject: 'mathematics', type: 'timed_quiz' },
     eng_b_g4: { id: 'eng_b_g4', title: 'Punctuation Pro', active: false, grade: 4, subject: 'english', type: 'punctuation' },
   })
+  mocks.listGameTombstonesForAdmin.mockResolvedValue({})
   mocks.importSeedGame.mockResolvedValue({ outcome: 'ok' })
   mocks.deleteGameForever.mockResolvedValue({ outcome: 'ok' })
   mocks.setGameActive.mockResolvedValue({ outcome: 'ok' })
@@ -319,6 +322,88 @@ describe('permanent deletion', () => {
     // The dialog states what deletion does NOT touch, because that is the
     // question an admin is actually weighing.
     expect(within(dialog).getByText(/Learner scores, badges and history are kept/)).toBeInTheDocument()
+  })
+})
+
+describe('a deleted game leaves the list', () => {
+  // The bug this whole block exists for: an admin deleted a game, went
+  // back to the list, and found it still there reading "Not imported".
+  // True of the seed entry, and a straight contradiction of what they had
+  // just done.
+  beforeEach(() => {
+    mocks.listAllGamesForAdmin.mockResolvedValue({
+      math_a_g4: { id: 'math_a_g4', title: 'Fraction Match', active: true, grade: 4, subject: 'mathematics', type: 'timed_quiz' },
+    })
+    mocks.listGameTombstonesForAdmin.mockResolvedValue({
+      eng_b_g4: { gameId: 'eng_b_g4', gameTitle: 'Punctuation Pro', gameType: 'punctuation', grade: 4, subject: 'english' },
+    })
+  })
+
+  it('is gone from the default list', async () => {
+    renderPage()
+    await ready()
+    expect(screen.queryByLabelText('Punctuation Pro')).not.toBeInTheDocument()
+    // and it is not being counted as part of the catalogue any more
+    expect(screen.getByTestId('selection-count')).toHaveTextContent('0 of 5 games selected')
+    expect(screen.getByText(/1 deleted/)).toBeInTheDocument()
+  })
+
+  it('is not offered for import, by button or by Select missing', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await ready()
+
+    await user.click(screen.getByRole('button', { name: 'Select missing' }))
+    // Four never-imported games; the deleted one is not among them.
+    expect(screen.queryByLabelText('Punctuation Pro')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /Import selected/ }))
+    await waitFor(() => expect(mocks.importSeedGame).toHaveBeenCalled())
+    const importedIds = mocks.importSeedGame.mock.calls.map(([g]) => g.id)
+    expect(importedIds).not.toContain('eng_b_g4')
+  })
+
+  it('is findable and restorable on the Deleted tab', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await ready()
+
+    await user.click(screen.getByRole('button', { name: 'Deleted' }))
+    const row = screen.getByLabelText('Punctuation Pro')
+    expect(row).toBeInTheDocument()
+    expect(within(row.closest('li')).getByText('Deleted')).toBeInTheDocument()
+
+    // Restore is the same write as import, under the name of what it does.
+    await user.click(screen.getByRole('button', { name: 'Actions for Punctuation Pro' }))
+    expect(screen.queryByRole('menuitem', { name: /Delete permanently/ })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('menuitem', { name: /Restore this game/ }))
+    await waitFor(() => expect(mocks.importSeedGame).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'eng_b_g4' }),
+    ))
+  })
+
+  it('restores in bulk from the Deleted tab', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await ready()
+
+    await user.click(screen.getByRole('button', { name: 'Deleted' }))
+    await user.click(screen.getByLabelText('Punctuation Pro'))
+    await user.click(screen.getByRole('button', { name: /Restore selected \(1\)/ }))
+    await waitFor(() => expect(mocks.importSeedGame).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'eng_b_g4' }),
+    ))
+  })
+
+  it('a live document outranks a stale tombstone', async () => {
+    // Re-importing clears the tombstone in the same transaction, but if
+    // that read were stale the games collection is the honest answer —
+    // otherwise a restored game reads Deleted while learners can play it.
+    mocks.listGameTombstonesForAdmin.mockResolvedValue({
+      math_a_g4: { gameId: 'math_a_g4', gameTitle: 'Fraction Match' },
+    })
+    renderPage()
+    await ready()
+    expect(within(row('Fraction Match')).getByText('Live')).toBeInTheDocument()
   })
 })
 
