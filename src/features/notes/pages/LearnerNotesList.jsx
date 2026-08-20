@@ -10,8 +10,10 @@
 // subject by subject as the pipeline publishes them. Rows open the
 // reader in REVISE mode (the hub is for quick revision; the full Learn
 // pace lives one tap away inside the reader). The Conjunctions demo —
-// the prototype's working note — anchors the English section until real
-// English notes replace it.
+// the prototype's working note — anchors the English section ONLY while
+// no real English reader note exists; the moment one is published the
+// demo leaves the list (both are "Conjunctions", so listing them
+// together reads as a duplicate note).
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../../../shared/styles/learnerTheme.css'
@@ -48,8 +50,10 @@ const subjectLabel = (subject) =>
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ')
 
-/** The prototype's working note — a fixture, listed until real English
- * reader notes exist so the hub always demonstrates the experience. */
+/** The prototype's working note — a fixture, listed ONLY until real
+ * English reader notes exist so the hub always demonstrates the
+ * experience. Never listed beside a real note: the pipeline's first
+ * English note IS Conjunctions, so both showing reads as a duplicate. */
 const DEMO_ROW = {
   id: '__reader-demo__',
   icon: '🔗',
@@ -116,7 +120,7 @@ export function LearnerNotesList() {
     }
     const english = bySubject.get('english') || []
     bySubject.delete('english')
-    const out = [{ key: 'english', label: 'English', rows: [...english, DEMO_ROW] }]
+    const out = [{ key: 'english', label: 'English', rows: english.length > 0 ? english : [DEMO_ROW] }]
     for (const s of subjects) {
       const key = String(s.id).toLowerCase()
       if (key === 'english') continue
@@ -174,8 +178,13 @@ export function LearnerNotesList() {
     await refreshDownloads()
   }
 
+  // Fragment root, like every learner page: `.lhx-page` is a flex column
+  // with the design system's 20px gap, and only DIRECT children receive
+  // it. A wrapper div here collapsed the whole hub into one unspaced
+  // stack — most visibly gluing the last subject's note row onto the
+  // "Download all notes for offline" button below it.
   return (
-    <div>
+    <>
       <SeoHelmet title="Notes" path="/notes" noIndex />
       <div className="lhx-back-row">
         <button type="button" className="lhx-back-btn" aria-label="Back to Home" onClick={() => navigate('/dashboard')}>‹</button>
@@ -211,7 +220,7 @@ export function LearnerNotesList() {
           )}
 
           {visibleSections.map((section) => (
-            <section key={section.key} aria-label={section.label}>
+            <section key={section.key} className="lhx-section" aria-label={section.label}>
               <div className="lhx-section-head">
                 <h2 className="lhx-section-title">{section.label}</h2>
               </div>
@@ -277,6 +286,6 @@ export function LearnerNotesList() {
           )}
         </>
       )}
-    </div>
+    </>
   )
 }
