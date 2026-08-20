@@ -21,21 +21,26 @@ import { isNativePlatform } from '../utils/runtime'
 import { resolveAuthDomain } from './authDomain'
 import { hardenAuthPersistenceLifecycle } from './authPersistenceLifecycle'
 import { installAuthSessionGuard } from './authSessionGuard'
+import { envValue } from './envValue'
 
+// Every value goes through envValue(), which trims. A trailing newline in
+// VITE_FIREBASE_API_KEY once orphaned every session signed in during that
+// build's lifetime — Auth keys its persisted session by the API key, so those
+// records were written under a key no later build looks up. See envValue.js.
 const firebaseConfig = {
-  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
+  apiKey:            envValue(import.meta.env.VITE_FIREBASE_API_KEY),
   // On the production custom domain the page's own hostname serves the
   // /__/auth/* helpers, so the Google popup shows "zedexams.com" instead of
   // the env's firebaseapp.com domain — see authDomain.js for the rules.
   authDomain:        resolveAuthDomain(
-    import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    envValue(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN),
     typeof window !== 'undefined' ? window.location.hostname : ''
   ),
-  projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId:             import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId:     import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+  projectId:         envValue(import.meta.env.VITE_FIREBASE_PROJECT_ID),
+  storageBucket:     envValue(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET),
+  messagingSenderId: envValue(import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID),
+  appId:             envValue(import.meta.env.VITE_FIREBASE_APP_ID),
+  measurementId:     envValue(import.meta.env.VITE_FIREBASE_MEASUREMENT_ID),
 }
 
 // Fail loudly and specifically when the build shipped without a usable
@@ -198,7 +203,9 @@ export const authPersistenceReady = applyAuthPersistence()
 // must be registered in Firebase Console → App Check → Apps → manage
 // debug tokens. Without that, the dev server can't mint legitimate
 // attestation tokens.
-const APPCHECK_RECAPTCHA_KEY = import.meta.env.VITE_FIREBASE_APPCHECK_RECAPTCHA_KEY
+// Trimmed like the rest: a whitespace-bearing site key fails attestation, and
+// a failed attestation is precisely what the placeholder path papers over.
+const APPCHECK_RECAPTCHA_KEY = envValue(import.meta.env.VITE_FIREBASE_APPCHECK_RECAPTCHA_KEY)
 
 // Report a placeholder App Check token to product analytics.
 //
