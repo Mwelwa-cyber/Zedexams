@@ -31,9 +31,21 @@ import {
 } from '../components/gamesUi'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 
-// Game types whose engine is the prototype-v3 rebuild (learner redesign
-// step 4) — these render full-screen in the learner design system.
-const PROTO_ENGINES = new Set(['number_target', 'word_builder', 'memory_match', 'punctuation'])
+// Game types whose engine brings its own full-screen `.lhx` chrome (exit
+// control, head bar, win screen) — these render bare, in the learner design
+// system, without the legacy GamesShell nav or the zx-card hero. The first
+// four are the prototype-v3 rebuild (learner redesign step 4); map_place and
+// fraction_ladder shipped later with identical chrome but were left mounting
+// INSIDE the legacy shell, which stacked two clashing headers (amber/serif
+// shell over the purple `.lhx` game) on every map and fraction round.
+const PROTO_ENGINES = new Set([
+  'number_target',
+  'word_builder',
+  'memory_match',
+  'punctuation',
+  'map_place',
+  'fraction_ladder',
+])
 
 const SUBJECT_TILE_BG = {
   mathematics: 'bg-orange-100',

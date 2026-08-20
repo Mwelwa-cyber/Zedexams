@@ -168,7 +168,7 @@ export default function PunctuationProGame({ game }) {
   }
 
   return (
-    <div className="lhx">
+    <div className="lhx lhx-bare">
       <div className="lhx-page">
         {screen === 'play' && (
           <PlayScreen

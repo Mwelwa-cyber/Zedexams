@@ -271,7 +271,7 @@ export default function KnowZambiaGame({ game }) {
   const copy = winCopy(mode, outcome)
 
   return (
-    <div className="lhx">
+    <div className="lhx lhx-bare">
       <div className="lhx-page">
         {screen === 'play' && (
           <ModeScreen game={game} geo={GEO} onExit={() => navigate('/games')} onEnd={endRound} />
