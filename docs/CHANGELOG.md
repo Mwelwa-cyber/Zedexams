@@ -5,6 +5,26 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-08-20
+
+### Added
+
+- Replace the global leaderboard with a weekly, grade-scoped board (#2560)
+- One connected spelling system — ladder, coach, tricky words, admin (#2558)
+
+### Fixed
+
+- Deal answer options fresh, and unswap the intestine labels (#2557)
+- Drop the Conjunctions demo beside a real note, unglue the hub's spacing (#2555)
+- Stop App Check enforcement signing users out on every cold load (#2553)
+- Refuse a password that starts or ends with a space (#2550)
+
+### Changed
+
+- Fractions: a learning path, not a quiz — pictures, stages, working, mastery (#2559)
+- Fix capitals map game giving away the answer, and the doubled play-page chrome (#2556)
+- Remove @capacitor/status-bar to clear the Play Android 15 edge-to-edge warning (#2554)
+
 ## 2026-08-20 — Android closed testing (v1.3.1)
 
 Features bundled into the Android closed-testing App Bundle since v1.3.0.
