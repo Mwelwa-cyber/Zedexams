@@ -540,7 +540,7 @@ test('every refusal names what the learner CAN do (§8: never a dead end)', () =
     const copy = EXAM_ACCESS_COPY[reason]
     assert.ok(copy && copy.title && copy.body, `${reason} has copy`)
   })
-  assert.match(EXAM_ACCESS_COPY[EXAM_ACCESS.NEEDS_FULL_PAPER].body, /Practice/)
+  assert.match(EXAM_ACCESS_COPY[EXAM_ACCESS.NEEDS_FULL_PAPER].body, /Practis|Practic/)
   assert.match(EXAM_ACCESS_COPY[EXAM_ACCESS.SIGNED_OUT].body, /Practice works right now/)
 })
 

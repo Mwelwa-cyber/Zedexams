@@ -74,7 +74,7 @@ export const EXAM_ACCESS_COPY = Object.freeze({
   },
   [EXAM_ACCESS.NEEDS_FULL_PAPER]: {
     title: 'Exam mode needs the whole paper',
-    body: 'An exam is only a real rehearsal if you sit all of it. Practice the free section now — your marks, your answers and your weakest part are free either way.',
+    body: 'An exam is only a real rehearsal if you sit all of it. Practise the free section now — your marks, your answers and your weakest part are free either way.',
     action: null,
     actionHref: null,
   },

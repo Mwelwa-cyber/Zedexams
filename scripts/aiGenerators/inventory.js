@@ -236,6 +236,27 @@ export const INVENTORY = Object.freeze([
     produces: 'A saved rubric',
     incompleteResultSaveable: true,
   }),
+  g('functions/paperQuiz/explanationFns.js', {
+    clientModule: 'src/features/adminPastPapers/pages/ExplanationReview.jsx',
+    clientLockKey: null,
+    tier: 2,
+    state: 'unmigrated',
+    entryPoint: 'draftPaperExplanations (callable)',
+    clientSurface: '/admin/papers/:paperId/explanations — ExplanationReview.jsx',
+    produces: "Draft coaching prose on a past-paper quiz's questions",
+    incompleteResultSaveable: true,
+    note: 'The duplicate-call risk this phase exists to remove is unusually '
+      + 'bounded here, which is why it sits below the teacher-facing '
+      + 'generators rather than beside them. A second press with redraft:false '
+      + 'finds every question already in ai_draft and SKIPS it, so the common '
+      + 'double-click costs one Firestore read rather than sixty model calls; '
+      + 'the drafter is also rate-limited (gen:paper_explanations) and '
+      + 'staff-only. What is NOT covered is redraft:true pressed twice, which '
+      + 'would genuinely re-bill the paper — an idempotency key would fix that '
+      + 'and is the reason this is unmigrated rather than out-of-scope. It '
+      + 'writes per question as it goes, so a run that dies half way leaves '
+      + 'the drafts it finished, which is the behaviour a reviewer wants.',
+  }),
   g('functions/teacherTools/generateSchemeOfWork.js', {
     clientModule: 'src/features/schemeOfWork/pages/SchemeOfWorkGenerator.jsx',
     clientLockKey: 'scheme-studio:generate',

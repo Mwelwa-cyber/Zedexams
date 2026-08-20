@@ -32,6 +32,7 @@ const {assertVerifiedAuth} = require("../authGuard");
 const {getUserRole, isStaffRole, getAnthropicApiKey} = require("../aiService");
 const {callClaude} = require("../teacherTools/anthropicClient");
 const {resolveCbcContext} = require("../teacherTools/cbcKnowledge");
+const {assertGeneratorRateLimit} = require("../teacherTools/generatorRateLimit");
 const core = require("./explanationCore");
 const {
   PROMPT_VERSION, SYSTEM_PROMPT, EXPLANATION_TOOL_SCHEMA, buildUserPrompt, plain,
@@ -91,6 +92,14 @@ function markingSchemeFor(paper, question) {
 
 exports.draftPaperExplanationsHandler = async (request) => {
   const uid = await assertStaff(request);
+  // Rate-limited like every other provider-backed endpoint, staff-only or not.
+  // One press of "Draft the missing ones" is up to sixty Anthropic calls, so
+  // an impatient double-click is a hundred and twenty — and being staff is a
+  // statement about authorisation, not about how fast a person should be able
+  // to spend the AI budget. `test:ai-provider-inventory` fails on any
+  // provider-backed endpoint that carries no limiter, which is how this was
+  // caught rather than discovered on a bill.
+  await assertGeneratorRateLimit(request, "paper_explanations");
   const paperId = String(request.data?.paperId || "");
   const only = Array.isArray(request.data?.questionIds)
     ? new Set(request.data.questionIds.map(String))

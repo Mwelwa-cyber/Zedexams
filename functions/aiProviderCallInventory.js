@@ -28,6 +28,9 @@ const LIMITED = [
   {name: "generateNotes", file: "teacherTools/generateNotes.js", check: 'assertGeneratorRateLimit(request, "notes")'},
   {name: "generateVisualNotes", file: "teacherTools/generateSlideNotes.js", check: 'assertGeneratorRateLimit(request, "slide_notes")'},
   {name: "generateHomework", file: "teacherTools/generateHomework.js", check: 'assertGeneratorRateLimit(request, "homework")'},
+  // §6's past-paper explanation drafter. Staff-only, and limited anyway: one
+  // press is up to sixty Anthropic calls.
+  {name: "draftPaperExplanations", file: "paperQuiz/explanationFns.js", check: 'assertGeneratorRateLimit(request, "paper_explanations")'},
   {name: "generateLessonActivities", file: "teacherTools/generateLessonActivities.js", check: 'assertGeneratorRateLimit(request, "lesson_activities")'},
   {name: "generateAssessment", file: "teacherTools/generateAssessment.js", check: 'assertGeneratorRateLimit(request, "assessment")'},
   {name: "generateSbaTask", file: "teacherTools/generateSbaTask.js", check: 'assertGeneratorRateLimit(request, "sba_task")'},

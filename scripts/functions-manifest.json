@@ -2,6 +2,21 @@
   "_comment": "Phase 5 frozen-surface manifest. Regenerate with scripts/generate-functions-manifest.mjs; classification and batch are hand-owned and survive regeneration. Guarded by test:functions-manifest.",
   "generatedFrom": "functions/index.js + firebase.json",
   "exports": {
+    "abandonAttempt": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": 1
+    },
     "acceptCoGuardianInvite": {
       "kind": "onCall",
       "inline": false,
@@ -685,6 +700,21 @@
       "classification": "mechanical",
       "batch": null
     },
+    "bulkApproveExplanations": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": 1
+    },
     "bulkGrantDemoTrials": {
       "kind": "onCall",
       "inline": false,
@@ -1034,6 +1064,22 @@
       "rewriteRegion": null,
       "classification": "secrets-bound",
       "batch": null
+    },
+    "draftPaperExplanations": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "540",
+        "secrets": "[anthropicApiKey]"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": 2
     },
     "duelQueueOnCreate": {
       "kind": "factory",
@@ -2310,6 +2356,21 @@
       "classification": "mechanical",
       "batch": null
     },
+    "paperExplanationQueue": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": 1
+    },
     "parseSyllabusUpload": {
       "kind": "delegated",
       "inline": false,
@@ -2342,6 +2403,21 @@
       "rewriteRegion": null,
       "classification": "mechanical",
       "batch": null
+    },
+    "patchAttempt": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": 1
     },
     "planAssessment": {
       "kind": "factory",
@@ -2830,6 +2906,21 @@
       "classification": "secrets-bound",
       "batch": null
     },
+    "reviewPaperExplanation": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": 1
+    },
     "reviseLessonSection": {
       "kind": "factory",
       "inline": false,
@@ -2977,6 +3068,21 @@
       "rewriteRegion": null,
       "classification": "mechanical",
       "batch": null
+    },
+    "savePracticeProgress": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": 1
     },
     "sendActivationConfirmation": {
       "kind": "onCall",
@@ -3187,6 +3293,21 @@
       "classification": "mechanical",
       "batch": 1
     },
+    "startAttempt": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": 1
+    },
     "storageBackupCheck": {
       "kind": "delegated",
       "inline": false,
@@ -3291,6 +3412,21 @@
       "rewriteRegion": null,
       "classification": "secrets-bound",
       "batch": null
+    },
+    "submitAttempt": {
+      "kind": "onCall",
+      "inline": true,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": 1
     },
     "submitDailyExam": {
       "kind": "delegated",
