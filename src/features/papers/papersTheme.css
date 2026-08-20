@@ -116,3 +116,47 @@
   color: #fff;
   box-shadow: 0 4px 0 #e04f22;
 }
+
+/* ── Horizontal chip row: say that it scrolls ──────────────────────
+ * The quick-filter row overflows its container on a phone, and did it
+ * silently: the last chip was clipped mid-word against the right edge
+ * with no fade, no arrow and no scrollbar (`no-scrollbar` hides that
+ * too), so it read as a layout bug rather than as "there is more this
+ * way" — LEARNER_UI_AUDIT L-22.
+ *
+ * `mask-image` rather than a gradient overlay, for two reasons: the row
+ * sits on --bg in light and Night and an overlay would need a colour in
+ * each, and a mask cannot intercept a tap the way a positioned element
+ * can. The `scroll-timeline`-free approach means the fade is always on
+ * when the row overflows and — because a non-overflowing row simply has
+ * nothing under the fade — invisible when it does not. */
+.papers-chiprow {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
+  scroll-padding-inline: 16px;
+  scroll-snap-type: x proximity;
+}
+.papers-chiprow > * { scroll-snap-align: start; }
+
+/* A pointer that can hover is a mouse, and a mouse gets a real scrollbar
+   from the OS on hover; the mask would sit on top of it. */
+@media (hover: hover) and (pointer: fine) {
+  .papers-chiprow {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+}
+
+/* ── Inside the learner shell ──────────────────────────────────────
+ * The Papers TAB renders this page inside `.lhx-page`, which already
+ * supplies the column's side gutter — and this page brings its own
+ * `px-4`, so nested they gave /papers a narrower text column than every
+ * other learner screen. The page keeps ITS gutter (the chip row's
+ * `-mx-4 px-4` bleed is measured against it) and cancels the shell's.
+ *
+ * `min-height: 100vh` goes too: inside a column that is already the page,
+ * it forces a scroll the content does not need. */
+.lhx-page > .papers-proto {
+  margin-inline: calc(var(--lhx-page-pad, 0px) * -1);
+  min-height: 0;
+}

@@ -974,7 +974,7 @@ export default function QuizRunnerV2() {
       <div className="theme-bg flex min-h-screen items-center justify-center">
         <SeoHelmet title="Saving quiz" path={`/quiz/${quizId}`} noIndex />
         <div className="text-center">
-          <div className="mb-3 text-5xl animate-spin">⏳</div>
+          <div className="mb-3 flex justify-center"><span className="zx-spin" style={{ width: 32, height: 32, borderWidth: 3 }} aria-hidden="true" /></div>
           <p className="theme-accent-text text-xl font-black">Saving results...</p>
         </div>
       </div>
@@ -1905,7 +1905,7 @@ export default function QuizRunnerV2() {
                       />
                     )}
                     <div className={`flex items-center gap-2 ${isEssay ? 'self-end' : ''}`}>
-                      {checking && <div className="h-5 w-5 animate-spin rounded-full border-2 border-orange-500 border-t-transparent" />}
+                      {checking && <span className="zx-spin theme-accent-text" style={{ width: 20, height: 20 }} aria-hidden="true" />}
                       {checked && mode === 'practice' && <span className="text-xl">{aiResult.correct ? '✅' : '❌'}</span>}
                     </div>
                   </div>

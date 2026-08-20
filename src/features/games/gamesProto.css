@@ -131,10 +131,19 @@
   font-size: 16.5px; font-weight: 900; line-height: 1.15; letter-spacing: -0.015em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* Two lines, not one clipped one. "🔥 Play today to start a streak" is 14px
+   too wide for a 390px phone and was arriving as "🔥 Play today to start a
+   st…" — the call to action cut off mid-word (LEARNER_UI_AUDIT L-21). The
+   TITLE above keeps its single-line ellipsis, because a game's name can be
+   arbitrarily long and this hero has a fixed height to hold; the subtitle
+   is ours and is never more than a phrase. */
 .lhx-gh-hero-sub {
-  display: block;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   font-size: 12.5px; font-weight: 600; opacity: 0.9; margin-top: 2px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  overflow: hidden;
 }
 .lhx-gh-hero-btn {
   flex: none; position: relative; z-index: 1;

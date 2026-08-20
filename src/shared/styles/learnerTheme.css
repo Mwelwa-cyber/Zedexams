@@ -56,6 +56,12 @@
      `.lhx .lhx-track` override that used to be needed at the foot of
      this file. */
   --lhx-track: #eef0fc;
+  /* The page column's side gutter. A token because one learner surface —
+     the papers hub, which is also a public page and brings its own
+     `px-4` — has to CANCEL it rather than sit inside two gutters at once
+     (see `.lhx-page > .papers-proto` in papersTheme.css). Cancelling a
+     number written at the rule would mean two places to change. */
+  --lhx-page-pad: 18px;
 
   --lhx-indigo1: #7180f2;
   --lhx-indigo2: #5158d0;
@@ -280,7 +286,7 @@
 .lhx-page {
   max-width: 480px;
   margin: 0 auto;
-  padding: 12px 18px calc(var(--lhx-nav-h) + 62px + env(safe-area-inset-bottom, 0px));
+  padding: 12px var(--lhx-page-pad) calc(var(--lhx-nav-h) + 62px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: 20px;

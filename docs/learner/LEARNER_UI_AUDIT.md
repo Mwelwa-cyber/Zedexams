@@ -4,6 +4,12 @@
 >
 > Audit only. No feature code was written in this run, and no one-line crash
 > fix was needed (§F.5: nothing stopped a route rendering).
+>
+> **Findings have been worked since. §4 carries two dated status blocks —
+> read those before acting on any row in the table, and note that one row
+> (L-24) is corrected there rather than closed.** The route inventory in §2
+> is also stale in two places: `/papers` and `/notes/:id` no longer carry
+> their own chrome.
 
 Scope: the learner surface only — `/dashboard`, `/subjects/*`, `/notes*`,
 `/papers*`, `/games*`, `/quizzes`, `/quiz/*`, `/exams*`, `/results/*`,
@@ -222,6 +228,61 @@ retirement rather than restyling. That is a decision for the gate, not for me.
 > route to those five screens, and `/notes/:id` was the busiest page
 > carrying it. That is why L-09 was the whole of the problem rather than
 > one instance of it.
+
+
+
+> **Status, 2026-08-20 (second pass).** Nine more findings are closed, and
+> one is corrected rather than closed.
+>
+> **Closed: L-03, L-04, L-10, L-11, L-12, L-14, L-16, L-19, L-21, L-22,
+> L-25, L-26**, plus the learner-facing half of L-17.
+>
+> - **L-10 · L-11 · L-12 · L-26 (the palette).** The root cause under most
+>   of them was one token doing two jobs with two different floors, not a
+>   colour chosen too light: `--lhx-orange` was a bar FILL and the 13px
+>   percentage beside it; `--lhx-green` was a fill, an ink, AND the ground
+>   under white button text. So the fix is mostly splitting — `SUBJECT_INKS`
+>   beside `SUBJECT_TONES`, `--lhx-green-btn` beside `--lhx-green`,
+>   `--lhx-nav-label` for the tab bar. `papersTheme.css` had drifted the
+>   same way and is brought along; the two are now asserted equal where
+>   they overlap. **This closes L-18 too, in a stronger form than it asked
+>   for:** `test:learner-contrast` measures ratios rather than grepping for
+>   hexes, so it cannot be satisfied by a hex that is merely *declared*.
+> - **L-03 · L-04 · L-25.** `shared/constants/learnerTabs.js` is the one
+>   declaration; `/papers` mounts inside `LearnerLayout`. `test:learner-tabs`
+>   guards all three of the ways that can rot.
+> - **L-14.** `resolveArchiveGrade` — `?grade=` outranks all, then the
+>   learner's own grade if the archive holds it; the toggle turns on
+>   `isLearner`, not "is signed in".
+> - **L-16.** The heroes already led by the time this ran (the audit
+>   predates that change), but Level + Achievements still sat between them
+>   and the games. `progressBlockMode` now decides: full blocks above for a
+>   learner with progress, one line below for one without.
+> - **L-19 · L-21 · L-22.** 44px targets and the banner lifted clear of the
+>   tab bar; the games hero subtitle wraps instead of clipping; the papers
+>   chip row fades at its scrolling edge.
+>
+> **Corrected: L-24.** The finding says `PremiumPanel` "renders four prices"
+> and calls it a §D risk. It does not. `PremiumPanel.jsx:84` gates on
+> `!userProfile || !mayShowPrice(userProfile)` and renders the
+> "Ask a grown-up" hand-off; the four prices are reachable only by an adult
+> whose profile positively says `isMinor === false`, which is the intended
+> behaviour and is what `PremiumPanel.spec.jsx` pins. It IS dead code — no
+> route produces `forceSection='premium'` — but deleting a correctly
+> guarded, tested screen buys no safety, so it is left in place and the
+> risk framing is withdrawn.
+>
+> **Still open: L-05, L-06, L-07, L-13, L-15, L-23**, and L-17 outside the
+> learner surface. The largest by far is **L-06** — the quiz runner and
+> quiz list are still the retired cream/orange system, and they are the
+> destination the whole funnel points at.
+>
+> **One gap this pass did NOT close, and it is worth naming rather than
+> leaving to be rediscovered:** white button labels on the brand coral and
+> indigo GRADIENTS measure 2.2–3.5:1. That is the app's primary call to
+> action. It is not in `test:learner-contrast` because repainting the
+> locked prototype's identity colours is an owner's decision, not a fix to
+> make inside a test — the test says so in its own header.
 
 
 | ID | Route | Width | Severity | What breaks (one line) | Evidence (file:line or screenshot) | Suspected source file | Already covered by | Proposed fix (≤2 lines) |

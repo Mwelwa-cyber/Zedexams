@@ -772,7 +772,12 @@ export default function PastPapersHub() {
         </div>
 
         {/* Quick filters */}
-        <div className="mt-3 -mx-4 px-4 flex gap-2 overflow-x-auto no-scrollbar pb-1">
+        {/* The row scrolls sideways and showed nothing to say so — the
+            fourth chip was simply cut mid-word at the right edge, which is
+            indistinguishable from a rendering bug (LEARNER_UI_AUDIT L-22).
+            `papers-chiprow` fades the trailing edge, and drops the fade the
+            moment the row fits so a full row has no phantom gradient. */}
+        <div className="papers-chiprow mt-3 -mx-4 px-4 flex gap-2 overflow-x-auto no-scrollbar pb-1">
           {QUICK_FILTERS.map((f) => {
             const active = quickFilter === f.id && !searching
             return (

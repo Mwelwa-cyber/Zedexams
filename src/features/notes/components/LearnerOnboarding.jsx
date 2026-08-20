@@ -8,7 +8,7 @@
 // Inactive grades (7-12) are visible but disabled — they signal the roadmap.
 
 import { useState } from 'react'
-import { GraduationCap, Lock, Loader2, BookOpen } from '../../../shared/components/icons'
+import { GraduationCap, Lock, BookOpen } from '../../../shared/components/icons'
 import { useAuth } from '../../../contexts/AuthContext'
 import { ALL_GRADES, BAND_LABELS } from '../../../config/curriculum'
 import { friendlyMessage } from '../../../utils/friendlyErrors'
@@ -92,7 +92,7 @@ export function LearnerOnboarding({ user, onDone }) {
           style={{ backgroundColor: '#0F1B2D' }}
         >
           {busy ? (
-            <><Loader2 size={15} className="animate-spin" /> Saving…</>
+            <><span className="zx-spin" aria-hidden="true" /> Saving…</>
           ) : (
             <>Continue to my notes</>
           )}
