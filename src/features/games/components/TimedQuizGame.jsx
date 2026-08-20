@@ -108,6 +108,14 @@ export default function TimedQuizGame({ game }) {
   // authority for "has this question been answered"; `picked` remains the
   // authority for what the card DRAWS, which is a render concern.
   const pickedRef = useRef(null)
+  // The same synchronous-authority idea, for ending the round. `finish()` opens
+  // with `setPhase('done')`, which reads like a re-entry guard and is not one —
+  // it lands on the next render, so a second "End" tap inside the same frame
+  // (the button is still mounted) re-enters and reaches a SECOND `saveScore`.
+  // `saveScore` is an `addDoc`, so that is two score rows for one round.
+  // Cleared per ROUND in `start()`, because "Play again" re-enters without
+  // remounting.
+  const finishingRef = useRef(false)
 
   // ── Assessment Engine cutover (docs/phase3-plan.md §10.1 step 8) ───────────
   //
@@ -308,6 +316,7 @@ export default function TimedQuizGame({ game }) {
     // Per ROUND, not per mount: "Play again" re-enters start() without
     // remounting, and saveScore() fires once per finished round.
     reportGameStart(game)
+    finishingRef.current = false
     setSeed((s) => s + 1)
     setPhase('playing')
     setDeck(shuffle(pool, Date.now()))
@@ -365,6 +374,8 @@ export default function TimedQuizGame({ game }) {
   }
 
   async function finish(endedBy = 'set_complete') {
+    if (finishingRef.current) return
+    finishingRef.current = true
     setPhase('done')
     // Closed through the shared function, so a live round and a replayed one
     // reach the four writes by the same road (see timedQuizRound.js).

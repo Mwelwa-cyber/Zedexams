@@ -15,6 +15,21 @@
  * fifteen has no mobile money account. Showing them K50 is an offer made to
  * someone who cannot accept it; routing to the guardian is the only version of
  * this transaction that can complete. The child sells, the guardian pays.
+ *
+ * ── The sheet is guardian-routed, so it carries a way round the guardian ──
+ *
+ * Every other guardian-routed flow in this app does: the consent and unlink
+ * callables all return Childline Zambia 116, and Settings › Guardian renders
+ * it as a live `tel:`. This one is the commercial flow and it carried nothing,
+ * which left a child whose guardian is unreachable — or who does not want to
+ * ask that particular adult — with a screen whose only action needs them.
+ *
+ * What it carries is SUPPORT, not Childline, and that is a deliberate
+ * distinction rather than a smaller version of the same thing. A purchase a
+ * child cannot get approved is an inconvenience, not a safety event; putting a
+ * child-protection helpline on a paywall spends its meaning on the wrong
+ * problem and makes it easier to ignore where it matters. Childline stays
+ * where a disclosure is plausible.
  */
 
 import { useState } from 'react'
@@ -25,6 +40,11 @@ import {
   requestGuardianUnlock,
 } from '../../../services/entitlements/guardianRequest'
 import { resolveGateCopy } from '../../../services/entitlements'
+
+// Local, like GuardianNoContactHelp's copy of it. A `mailto:` is inert and
+// imports nothing — which matters here, because the guarantee at the top of
+// this file is that no module in this component's scope knows a price.
+const SUPPORT_EMAIL = 'support@zedexams.com'
 
 const OUTCOME_COPY = {
   [GUARDIAN_REQUEST.SENT]: {
@@ -125,6 +145,17 @@ export default function GuardianAskSheet({ gate, context = {}, onClose }) {
       >
         Not now
       </button>
+
+      {/* The way round the guardian. Present on every outcome, including a
+          successful send, because the case it exists for is a child who
+          cannot ask the adult this sheet routes to. */}
+      <p className="mt-2 text-center text-[11px] leading-relaxed theme-text-muted">
+        Cannot ask a guardian right now?{' '}
+        <a className="font-bold underline" href={`mailto:${SUPPORT_EMAIL}`}>
+          Email {SUPPORT_EMAIL}
+        </a>{' '}
+        and a person will help.
+      </p>
 
       <p className="mt-2 text-center text-[10px] leading-relaxed theme-text-muted opacity-80">
         No prices are shown to learners under 18.

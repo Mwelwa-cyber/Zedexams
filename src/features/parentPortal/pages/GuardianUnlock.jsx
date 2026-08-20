@@ -30,6 +30,11 @@ const REASONS = {
   expired: 'This link has expired. Ask your child to send a new one from their app.',
   'already-paid': 'This has already been paid for — everything is unlocked.',
   withdrawn: 'This request is no longer open.',
+  // The server caps this endpoint per source IP (it is unauthenticated, and
+  // every call with a token-shaped string costs two Firestore reads). It
+  // answers with a reason rather than an error so a guardian who has just
+  // opened their email sees a sentence and a retry, not a failure page.
+  'rate-limited': 'We are busy right now. Give it a minute and open the link again.',
 }
 
 export default function GuardianUnlock() {

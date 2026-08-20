@@ -25,6 +25,12 @@
  * in prose — the default landing for an unrecognised role is `/dashboard`,
  * which IS learner-only, so the loop is one careless `getRoleLandingPath`
  * away rather than hypothetical.
+ *
+ * It was not hypothetical. `actionPath: '/'` satisfied that rule and looped
+ * anyway, because '/' renders nothing of its own: RootRedirect resolves it BY
+ * ROLE, and for a role nobody recognises that resolution is /dashboard. So the
+ * test now walks the button AND the redirect the button lands on, and every
+ * destination has to be somewhere the account can actually stay.
  */
 
 /**
@@ -61,8 +67,19 @@ export const LEARNER_PORTAL_DENIALS = Object.freeze({
     // Deliberately NOT the role landing page: the fallback for a role this
     // app does not recognise is /dashboard, which is a learner route — the
     // button would land straight back on this card.
-    actionLabel: 'Back to home',
-    actionPath: '/',
+    // NOT '/'. That was the first answer here, on the reasoning that '/' is
+    // not a learner-only path — true, and not sufficient, because '/' does not
+    // RENDER anything: RootRedirect resolves it through getRoleLandingPath,
+    // whose fallback for an unrecognised role is /dashboard, which is
+    // learner-only, which is this card. The loop was one hop further out than
+    // the check that was guarding against it.
+    //
+    // '/profile' terminates: it is ProtectedRoute-only, it re-resolves nothing
+    // by role, and ParentRouteGuard already moves a guardian from it to their
+    // own equivalent. An account whose role this app does not recognise can
+    // always open it.
+    actionLabel: 'Go to your account',
+    actionPath: '/profile',
   }),
 })
 

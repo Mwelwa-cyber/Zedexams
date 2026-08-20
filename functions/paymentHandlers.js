@@ -45,6 +45,16 @@ exports.buildPaymentHandlers = (deps) => {
     resendInvoiceEmail: async (request) => {
       const uid = await assertVerifiedAuth(request, "Sign in required.");
 
+      // An invoice is a ZMW amount and a plan name, so the same population
+      // refused checkout is refused a copy of one. Ownership is a different
+      // question from age and answers only half of this: the invoice IS the
+      // learner's own, and that is exactly why the ownership check passes.
+      //
+      // No-ops for teachers, parents, admins and adult learners — they all
+      // resolve to the full capability set — so the admin branch below still
+      // reaches every invoice.
+      await assertLearnerCapability(uid, CAPABILITY_PURCHASE);
+
       const invoiceId = String(request.data?.invoiceId || "").trim();
       if (!invoiceId) throw new HttpsError("invalid-argument", "invoiceId is required.");
 
@@ -85,6 +95,18 @@ exports.buildPaymentHandlers = (deps) => {
 
     getUpgradeQuote: async (request) => {
       const uid = await assertVerifiedAuth(request, "Please sign in first.");
+
+      // A QUOTE IS A PRICE. `initiateLencoPayment` below refuses an
+      // unapproved under-18 learner because purchase is a gated capability;
+      // the callable that says what the purchase COSTS was left open, so a
+      // child's token could ask for the kwacha figure directly even after
+      // the screens stopped showing it. Play's Families policy and the
+      // published /child-safety page are about the price reaching the child,
+      // not about which component renders it — so the gate belongs on both.
+      //
+      // Before the plan lookup, so a refused call costs nothing.
+      await assertLearnerCapability(uid, CAPABILITY_PURCHASE);
+
       const {getPlan} = require("./plans");
       const planId = cleanString(request.data?.planId, 60);
       const plan = getPlan(planId);

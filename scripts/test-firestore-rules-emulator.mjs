@@ -84,6 +84,11 @@ const SUSPENDED_TEACHER = 'suspended_teacher'
 // accepts users.role == 'superAdmin') and a family-portal parent account.
 const SUPER_ADMIN = 'super_admin_user'
 const PARENT_USER = 'parent_user'
+// Billing-visibility fixtures. Two learners who differ in exactly one field —
+// `isMinor` — so a failure here can only be about age, never about ownership,
+// verification or plan. See the /invoices + /payments section.
+const MINOR_LEARNER = 'minor_learner'
+const ADULT_LEARNER = 'adult_learner'
 
 // Every rule beyond the signup surface now requires the email_verified token
 // claim (firestore.rules isVerified()), so authed contexts must mint it —
@@ -146,6 +151,34 @@ async function main() {
     const db = ctx.firestore()
     await setDoc(doc(db, 'users', LEARNER_A), { role: 'learner', grade: '5' })
     await setDoc(doc(db, 'users', LEARNER_B), { role: 'learner', grade: '5' })
+    // A child and an adult who own IDENTICAL billing records. `isMinor` is the
+    // only field that differs, which is what makes the paired assertions below
+    // a test of the age gate rather than of anything else.
+    await setDoc(doc(db, 'users', MINOR_LEARNER), {
+      role: 'learner', grade: '7', dob: '2014-03-14', isMinor: true,
+    })
+    await setDoc(doc(db, 'users', ADULT_LEARNER), {
+      role: 'learner', grade: '7', dob: '2004-03-14', isMinor: false,
+    })
+    for (const [uid, ref] of [[MINOR_LEARNER, 'pay_minor'], [ADULT_LEARNER, 'pay_adult']]) {
+      await setDoc(doc(db, 'payments', ref), {
+        userId: uid, amount: 150, currency: 'ZMW', planId: 'max_monthly',
+        status: 'completed', provider: 'lenco', phoneNumber: '0977740465',
+      })
+      await setDoc(doc(db, 'invoices', ref), {
+        paymentId: ref, userId: uid, number: 'ZE-20260819-000001',
+        planId: 'max_monthly', planName: 'Max', amount: 150, currency: 'ZMW',
+        provider: 'lenco', storagePath: `invoices/${uid}/${ref}.pdf`,
+      })
+    }
+    // A guardian who paid FOR the child: the payer's uid is what lands in
+    // userId, the child's in beneficiaryUid. Pinned because it is the reason
+    // the gate does not need a beneficiary clause.
+    await setDoc(doc(db, 'invoices', 'pay_guardian'), {
+      paymentId: 'pay_guardian', userId: PARENT_USER, beneficiaryUid: MINOR_LEARNER,
+      number: 'ZE-20260819-000002', planId: 'max_monthly', planName: 'Max',
+      amount: 150, currency: 'ZMW', provider: 'lenco',
+    })
     await setDoc(doc(db, 'users', TEACHER_A), { role: 'teacher' })
     await setDoc(doc(db, 'users', TEACHER_B), { role: 'teacher' })
     await setDoc(doc(db, 'users', ADMIN), { role: 'admin' })
@@ -1324,8 +1357,14 @@ async function main() {
   // ── payments/{paymentId} — revenue integrity ─────────────────
   section('payments/{paymentId} — owner-read, admin-only write')
 
-  await test('owner can read their own payment', async () => {
-    await assertSucceeds(getDoc(doc(learnerA, 'payments', 'pay_learner_a')))
+  await test('an ADULT owner can read their own payment', async () => {
+    // This used to read `learnerA`, and asserted that ownership alone was
+    // enough. That premise is what served a child a kwacha figure, so it is
+    // gone: ownership is now necessary and not sufficient. LEARNER_A carries
+    // no `isMinor` and is therefore refused — pinned deliberately in the
+    // billing-visibility section near the end of this file.
+    const adult = testEnv.authenticatedContext(ADULT_LEARNER, verifiedToken(ADULT_LEARNER)).firestore()
+    await assertSucceeds(getDoc(doc(adult, 'payments', 'pay_adult')))
   })
 
   await test('another learner cannot read someone else’s payment', async () => {
@@ -2231,8 +2270,10 @@ async function main() {
   // ── invoices/{invoiceId} — owner+admin read, server-only writes ──
   section('invoices — owner/admin read, no client writes')
 
-  await test('owner can read their own invoice', async () => {
-    await assertSucceeds(getDoc(doc(learnerA, 'invoices', 'inv_learner_a')))
+  await test('an ADULT owner can read their own invoice', async () => {
+    // See the payments twin above: ownership is necessary, not sufficient.
+    const adult = testEnv.authenticatedContext(ADULT_LEARNER, verifiedToken(ADULT_LEARNER)).firestore()
+    await assertSucceeds(getDoc(doc(adult, 'invoices', 'pay_adult')))
   })
 
   await test('another learner CANNOT read someone else’s invoice', async () => {
@@ -3965,6 +4006,100 @@ async function main() {
       { uid: LEARNER_A, points: 500 },
     ))
   })
+
+  section('invoices + payments — a price never reaches a child, ownership notwithstanding')
+
+  await test('a minor cannot read their own payment or invoice', async () => {
+    // The shipped symptom: a learner account rendering a "Max" plan, kwacha
+    // amounts and payment history. The screens were fixed; the rules that fed
+    // them were not, and both collections are read STRAIGHT from the client
+    // with no callable in the path — so this rule is the only place the
+    // question can be asked.
+    //
+    // Ownership passes here. That is the point: the invoice IS the child's
+    // own, which is exactly why an ownership-only rule served it.
+    const db = testEnv.authenticatedContext(MINOR_LEARNER, verifiedToken(MINOR_LEARNER)).firestore()
+    await assertFails(getDoc(doc(db, 'payments', 'pay_minor')))
+    await assertFails(getDoc(doc(db, 'invoices', 'pay_minor')))
+  })
+
+  await test('an adult learner reads their own payment and invoice', async () => {
+    // Identical documents, identical ownership. The ONLY difference between
+    // this account and the one above is `isMinor`, so a regression that broke
+    // billing for everybody could not pass both of these.
+    const db = testEnv.authenticatedContext(ADULT_LEARNER, verifiedToken(ADULT_LEARNER)).firestore()
+    await assertSucceeds(getDoc(doc(db, 'payments', 'pay_adult')))
+    await assertSucceeds(getDoc(doc(db, 'invoices', 'pay_adult')))
+  })
+
+  await test('age does not replace ownership', async () => {
+    // An adult still cannot read somebody else's receipt. The gate is an
+    // addition; if it had been written as a substitution this would pass.
+    const db = testEnv.authenticatedContext(ADULT_LEARNER, verifiedToken(ADULT_LEARNER)).firestore()
+    await assertFails(getDoc(doc(db, 'payments', 'pay_minor')))
+    await assertFails(getDoc(doc(db, 'invoices', 'pay_minor')))
+  })
+
+  await test('a learner with no isMinor field is treated as a child', async () => {
+    // Fail closed. LEARNER_A predates the age screen and carries no `isMinor`,
+    // which is the shape of every account created before it shipped. Not
+    // knowing must resolve to the survivable mistake.
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'invoices', 'pay_legacy'), {
+        paymentId: 'pay_legacy', userId: LEARNER_A, planName: 'Max',
+        amount: 150, currency: 'ZMW', provider: 'lenco',
+      })
+    })
+    const db = testEnv.authenticatedContext(LEARNER_A, verifiedToken(LEARNER_A)).firestore()
+    await assertFails(getDoc(doc(db, 'invoices', 'pay_legacy')))
+  })
+
+  await test('a guardian reads the invoice they paid, for a child', async () => {
+    // The whole guardian-pays flow rests on this: the payer's uid is in
+    // `userId` and the child's in `beneficiaryUid`, so no beneficiary clause
+    // is needed in the rule — and a gate that had blocked this would have
+    // taken every parent's receipt with it.
+    const db = testEnv.authenticatedContext(PARENT_USER, verifiedToken(PARENT_USER)).firestore()
+    await assertSucceeds(getDoc(doc(db, 'invoices', 'pay_guardian')))
+  })
+
+  await test("the child named as beneficiary still cannot read that invoice", async () => {
+    const db = testEnv.authenticatedContext(MINOR_LEARNER, verifiedToken(MINOR_LEARNER)).firestore()
+    await assertFails(getDoc(doc(db, 'invoices', 'pay_guardian')))
+  })
+
+  await test('an admin reads any payment or invoice', async () => {
+    // /admin/payments and the revenue reconcile both depend on this, and
+    // isAdmin() is evaluated FIRST so an admin never pays for the age lookup.
+    const db = testEnv.authenticatedContext(ADMIN, verifiedToken(ADMIN)).firestore()
+    await assertSucceeds(getDoc(doc(db, 'payments', 'pay_minor')))
+    await assertSucceeds(getDoc(doc(db, 'invoices', 'pay_minor')))
+  })
+
+  await test('a teacher reads their own invoice', async () => {
+    // Teachers buy plans too, and they are adults by role rather than by
+    // `isMinor` — which they do not carry. A gate that only read `isMinor`
+    // would have locked every teacher out of their own receipts.
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'invoices', 'pay_teacher'), {
+        paymentId: 'pay_teacher', userId: TEACHER_A, planName: 'Pro',
+        amount: 250, currency: 'ZMW', provider: 'lenco',
+      })
+    })
+    const db = testEnv.authenticatedContext(TEACHER_A, verifiedToken(TEACHER_A)).firestore()
+    await assertSucceeds(getDoc(doc(db, 'invoices', 'pay_teacher')))
+  })
+
+  await test('neither collection is client-writable, by anyone', async () => {
+    // Unchanged, and restated here so a future edit to these blocks cannot
+    // quietly open a write while attention is on the read.
+    const adult = testEnv.authenticatedContext(ADULT_LEARNER, verifiedToken(ADULT_LEARNER)).firestore()
+    const admin = testEnv.authenticatedContext(ADMIN, verifiedToken(ADMIN)).firestore()
+    await assertFails(setDoc(doc(adult, 'invoices', 'pay_adult'), { userId: ADULT_LEARNER, amount: 1 }))
+    await assertFails(setDoc(doc(admin, 'invoices', 'pay_adult'), { userId: ADMIN, amount: 1 }))
+    await assertFails(setDoc(doc(adult, 'payments', 'pay_adult'), { userId: ADULT_LEARNER, amount: 1 }))
+  })
+
 
   await testEnv.cleanup()
 

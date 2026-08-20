@@ -20,7 +20,8 @@ import {
   LEARNER_PORTAL_DENIALS,
   resolveLearnerPortalDenial,
 } from '../src/app/guards/learnerPortalDenial.js'
-import { isLearnerOnlyPath } from '../src/utils/navigation.js'
+import { isLearnerOnlyPath, getRoleLandingPath } from '../src/utils/navigation.js'
+import { LEARNER_ROLES, isLearnerRole } from '../src/utils/permissions.js'
 
 // ── The reported case ────────────────────────────────────────────────
 const parent = resolveLearnerPortalDenial({ role: 'parent' })
@@ -80,4 +81,71 @@ for (const denial of Object.values(LEARNER_PORTAL_DENIALS)) {
   )
 }
 
-console.log(`✓ learner-portal denial — ${Object.keys(LEARNER_PORTAL_DENIALS).length} audiences, each with a way out that does not loop`)
+// ── The loop closes ONE HOP OUT, so the check has to follow it ───────
+//
+// The rule above is necessary and was not sufficient. '/' is not a
+// learner-only segment, so the generic card passed — and then RootRedirect
+// resolved '/' through getRoleLandingPath and sent a legacy `role: 'student'`
+// account straight back to /dashboard, which renders this card again. The
+// loop was one redirect further out than the check looked.
+//
+// So: walk the button, then walk the redirect that button lands on, and
+// require that the account is not deposited back on a learner-only path it
+// cannot open.
+const REDIRECTING_PATHS = new Set(['/'])
+
+function landsOn(actionPath, profile) {
+  // Only '/' redirects by role; every other actionPath is its own destination.
+  return REDIRECTING_PATHS.has(actionPath) ? getRoleLandingPath(profile) : actionPath
+}
+
+for (const role of [...LEARNER_ROLES, 'teacher', 'parent', 'nonsense', undefined]) {
+  const profile = role === undefined ? {} : { role }
+  const denial = resolveLearnerPortalDenial(profile)
+  const destination = landsOn(denial.actionPath, profile)
+
+  // An account the app treats as a learner must never be shown this card in
+  // the first place — that is what LearnerOnlyRoute's role branch is for, and
+  // it is the disagreement that produced the loop.
+  if (isLearnerRole(role)) {
+    assert.equal(
+      getRoleLandingPath(profile),
+      '/dashboard',
+      `'${role}' must land on the learner dashboard, or the role vocabularies have drifted again`,
+    )
+    continue
+  }
+
+  assert.equal(
+    isLearnerOnlyPath(destination),
+    false,
+    `'${role}' presses "${denial.actionLabel}" → ${denial.actionPath} → ${destination}, which is learner-only — the card returns`,
+  )
+}
+
+// ── The two vocabularies agree ───────────────────────────────────────
+// The loop existed because getRoleLandingPath called 'student' a learner and
+// AuthContext's isLearner did not. Both now read LEARNER_ROLES; this fails if
+// either grows a spelling the other lacks.
+//
+// The explicit fallback is load-bearing. getRoleLandingPath's DEFAULT fallback
+// is '/dashboard', so asserting the default return value cannot tell a role
+// that was RECOGNISED as a learner from one that fell through unrecognised and
+// got the same answer by accident. That accident is precisely how the original
+// bug stayed invisible: the redirect looked right while the guard disagreed.
+// Passing a sentinel makes the two distinguishable.
+const NOT_MATCHED = '/__fell_through__'
+for (const role of LEARNER_ROLES) {
+  assert.ok(isLearnerRole(role), `${role} is in LEARNER_ROLES but isLearnerRole says no`)
+  assert.equal(
+    getRoleLandingPath({ role }, NOT_MATCHED),
+    '/dashboard',
+    `${role} is a learner role but getRoleLandingPath does not recognise it — it reached the fallback instead`,
+  )
+}
+assert.equal(isLearnerRole('teacher'), false)
+assert.equal(isLearnerRole('parent'), false)
+assert.equal(isLearnerRole('admin'), false)
+assert.equal(isLearnerRole(undefined), false)
+
+console.log(`✓ learner-portal denial — ${Object.keys(LEARNER_PORTAL_DENIALS).length} audiences, each with a way out that does not loop (checked one redirect hop out)`)

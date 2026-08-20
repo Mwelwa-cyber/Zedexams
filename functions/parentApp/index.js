@@ -40,6 +40,11 @@ const {claimForGuardian} = require("../guardianLink/convergence");
 const {aggregateProgress} = require("../parentPortalShared");
 const {activeLinks, parentLinkId} = require("../familyPortalCore");
 const {
+  enforceRateLimit,
+  standardBuckets,
+  resolveClientIp,
+} = require("../rateLimit");
+const {
   buildWeeklyReport,
   childPlanState,
   childStatus,
@@ -631,6 +636,29 @@ async function resolveGuardianPayLink(request) {
   if (!rawToken) return {valid: false, reason: "missing"};
 
   const db = admin.firestore();
+
+  // Unauthenticated by design (see the header) — and every call with a
+  // token-shaped string reaches two Firestore reads before it can reject.
+  // The 32-byte secret makes guessing infeasible, but that is a DISCLOSURE
+  // argument and says nothing about cost; the sibling unauthenticated
+  // callable, assessRecaptcha, caps itself per source IP for exactly this
+  // reason and this one did not.
+  //
+  // The cap answers with the same shape a bad token gets, rather than
+  // throwing: a guardian who has just opened a link from their email should
+  // never see an error page because somebody else hammered the endpoint, and
+  // "we could not resolve this link" is already a state the landing page
+  // renders. A limiter that is itself unwell must not block a real guardian,
+  // so it fails open.
+  try {
+    const ip = request.rawRequest ? resolveClientIp(request.rawRequest) : "unknown";
+    const rl = await enforceRateLimit(
+        db,
+        standardBuckets({action: "guardian-pay-link", ip, ipPerMin: 30}),
+    );
+    if (!rl.allowed) return {valid: false, reason: "rate-limited"};
+  } catch (_rlErr) { /* fail open — a limiter fault must not close a real link */ }
+
   const requestId = require("node:crypto")
       .createHash("sha256").update(rawToken).digest("hex");
 
