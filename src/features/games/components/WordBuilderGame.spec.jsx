@@ -10,9 +10,9 @@
  * no clock ever ends a round, a half-built word is never cut off, and the
  * score/badge/streak plumbing behind a finished stage is the shared one.
  *
- * jsdom has no `speechSynthesis`, so the Hear it button is absent throughout
- * and the context sentence is the whole clue — which is itself worth pinning,
- * because a device without speech must still be able to play.
+ * `spellingSpeech` is mocked: it reaches /api/tts and a Storage object, and
+ * neither exists here. What these tests pin is WHICH audio the round asks for
+ * — a pre-generated file when the word has one — not that a sound came out.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react'
@@ -43,6 +43,13 @@ vi.mock('../lib/gameSounds', () => ({
 }))
 vi.mock('../../../utils/analytics', () => ({ capture: vi.fn() }))
 vi.mock('../services/spellingContentService', () => ({ listApprovedWords: vi.fn(async () => []) }))
+vi.mock('../lib/spellingSpeech', () => ({
+  speakWord: vi.fn(async () => {}),
+  speakChunk: vi.fn(async () => {}),
+  stopSpeech: vi.fn(),
+  // `window.Audio` exists in jsdom, so this is what the real module reports.
+  speechAvailable: () => true,
+}))
 
 /**
  * The progress SERVICE is mocked; the progress LOGIC is not. The store below
@@ -64,6 +71,7 @@ import WordBuilderGame from './WordBuilderGame'
 import { reportGameStart, saveScore } from '../services/gamesService'
 import { saveSpellingProgress } from '../services/spellingProgressService'
 import { capture } from '../../../utils/analytics'
+import { speakWord } from '../lib/spellingSpeech'
 
 /**
  * Sixteen words in one band — two stages of eight, so the ladder has a
@@ -229,9 +237,42 @@ describe('Spelling — the round', () => {
     expect(word).toBeTruthy()
     expect(sentence.textContent).not.toContain(word)
     expect(slots()).toHaveLength(word.length)
-    // jsdom has no speech, so the fallback line stands in for the Hear button.
-    expect(screen.queryByRole('button', { name: /Hear it/ })).toBeNull()
-    expect(screen.getByText(/Read the sentence and spell/)).toBeInTheDocument()
+    // The Hear it button is offered wherever AUDIO can play — which is
+    // everywhere, since the cloud voice and a stored file both go through an
+    // <audio> element. It used to be gated on `speechSynthesis`, so a device
+    // without a speech engine was shown no button at all despite both of
+    // those working perfectly.
+    expect(screen.getByRole('button', { name: /Hear it/ })).toBeInTheDocument()
+  })
+
+  it('asks for the PRE-GENERATED file when the word has one', async () => {
+    const voiced = {
+      ...GAME,
+      questions: GAME.questions.map((q) => ({ ...q, audio: `https://cdn.test/${q.answer}.mp3` })),
+    }
+    await startFirstStage(voiced)
+    const word = askedWord()
+    // The word is spoken shortly AFTER it appears, not on the same tick.
+    await act(async () => { await new Promise((r) => setTimeout(r, 400)) })
+    // A stored file costs the learner nothing. Falling through to /api/tts
+    // would spend one of their 60 daily AI calls on a word an admin has
+    // already paid to voice.
+    expect(speakWord).toHaveBeenCalledWith(word, { audioUrl: `https://cdn.test/${word}.mp3` })
+  })
+
+  it('asks for the live voice when the word has no stored file', async () => {
+    await startFirstStage()
+    const word = askedWord()
+    await act(async () => { await new Promise((r) => setTimeout(r, 400)) })
+    expect(speakWord).toHaveBeenCalledWith(word, { audioUrl: '' })
+  })
+
+  it('re-hearing a word does not re-ask for a different source', async () => {
+    await startFirstStage()
+    const word = askedWord()
+    speakWord.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: /Hear it/ }))
+    expect(speakWord).toHaveBeenCalledWith(word, { audioUrl: '' })
   })
 
   it('offers decoy tiles that are never letters the word needs', async () => {

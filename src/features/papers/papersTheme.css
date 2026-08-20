@@ -17,7 +17,12 @@
   --card: #ffffff;
   --card-hover: #f5f6ff;
   --text: #2b2d51;
-  --text-muted: #8a8fb5;
+  /* Same value, same reason, as `--lhx-muted` in
+     shared/styles/learnerTheme.css — this stylesheet is the learner
+     palette expressed through the Tailwind theme variables, so the two
+     have to agree or /papers and /notes disagree about what "quiet" is.
+     The prototype's #8a8fb5 measured 3.15:1 on a card. */
+  --text-muted: #5f6592;
   --border: #e4e7fb;
 
   /* The prototype's coral (#ff5c39) reads 3.07:1 under white small text,
@@ -28,7 +33,11 @@
      Start Quiz), which carry large bold labels. */
   --accent: #c94418;
   --accent-bg: #fff0e8;
-  --accent-fg: #e8622f;
+  /* The accent as INK — a link, a "Paper available" label, the breadcrumb.
+     #e8622f is 3.38:1 on a card and 3.04:1 on its own --accent-bg chip,
+     which is the surface it is most often drawn on. Twin of
+     `--lhx-coral-soft-text`. */
+  --accent-fg: #b8441f;
   --accent-text: #ffffff;
 
   --input-bg: #ffffff;
@@ -40,9 +49,14 @@
   --shadow-xl: 0 20px 50px rgba(43, 45, 81, 0.3);
   --hero-gradient: linear-gradient(135deg, #7180f2 0%, #5158d0 100%);
 
-  --success: #2ec06a; --success-bg: #e0f8ea; --success-fg: #1f9451;
-  --warning: #e8622f; --warning-bg: #fff8e6; --warning-fg: #8a6a1e;
-  --danger: #ef5a5f;  --danger-bg: #fdeaea;  --danger-fg: #cf3d42;
+  /* Each family is a bright SOLID (the chip's dot or edge — a graphical
+     object) and an INK (the words). Only the inks moved: every one of
+     them was between 3.4:1 and 4.4:1 on the surfaces a status message is
+     actually drawn on. They match learnerTheme.css's --lhx-green-dark /
+     --lhx-amber-ink / --lhx-red-ink exactly. */
+  --success: #2ec06a; --success-bg: #e0f8ea; --success-fg: #0e7a3e;
+  --warning: #e8622f; --warning-bg: #fff8e6; --warning-fg: #8a5610;
+  --danger: #ef5a5f;  --danger-bg: #fdeaea;  --danger-fg: #b8353b;
   --info: #5158d0;    --info-bg: #eef1ff;    --info-fg: #5158d0;
 
   font-family: 'Nunito', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -101,4 +115,48 @@
   background: linear-gradient(135deg, #ff9057, #ff5c39);
   color: #fff;
   box-shadow: 0 4px 0 #e04f22;
+}
+
+/* ── Horizontal chip row: say that it scrolls ──────────────────────
+ * The quick-filter row overflows its container on a phone, and did it
+ * silently: the last chip was clipped mid-word against the right edge
+ * with no fade, no arrow and no scrollbar (`no-scrollbar` hides that
+ * too), so it read as a layout bug rather than as "there is more this
+ * way" — LEARNER_UI_AUDIT L-22.
+ *
+ * `mask-image` rather than a gradient overlay, for two reasons: the row
+ * sits on --bg in light and Night and an overlay would need a colour in
+ * each, and a mask cannot intercept a tap the way a positioned element
+ * can. The `scroll-timeline`-free approach means the fade is always on
+ * when the row overflows and — because a non-overflowing row simply has
+ * nothing under the fade — invisible when it does not. */
+.papers-chiprow {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
+  scroll-padding-inline: 16px;
+  scroll-snap-type: x proximity;
+}
+.papers-chiprow > * { scroll-snap-align: start; }
+
+/* A pointer that can hover is a mouse, and a mouse gets a real scrollbar
+   from the OS on hover; the mask would sit on top of it. */
+@media (hover: hover) and (pointer: fine) {
+  .papers-chiprow {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+}
+
+/* ── Inside the learner shell ──────────────────────────────────────
+ * The Papers TAB renders this page inside `.lhx-page`, which already
+ * supplies the column's side gutter — and this page brings its own
+ * `px-4`, so nested they gave /papers a narrower text column than every
+ * other learner screen. The page keeps ITS gutter (the chip row's
+ * `-mx-4 px-4` bleed is measured against it) and cancels the shell's.
+ *
+ * `min-height: 100vh` goes too: inside a column that is already the page,
+ * it forces a scroll the content does not need. */
+.lhx-page > .papers-proto {
+  margin-inline: calc(var(--lhx-page-pad, 0px) * -1);
+  min-height: 0;
 }

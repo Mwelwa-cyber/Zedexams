@@ -178,7 +178,7 @@
 }
 .lhx-lbl-actions { display: flex; gap: 10px; margin-top: 14px; }
 .lhx-lbl-actions button { flex: 1; border: none; border-radius: 14px; font-family: inherit; font-weight: 900; font-size: 14px; padding: 12px; cursor: pointer; }
-.lhx-lbl-check { background: var(--lhx-green); color: #fff; box-shadow: 0 4px 0 #1f9451; }
+.lhx-lbl-check { background: var(--lhx-green-btn); color: #fff; box-shadow: 0 4px 0 #0a5c2f; }
 .lhx-lbl-reset { background: var(--lhx-indigo-soft); color: var(--lhx-indigo2); }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-lbl-reset { background: #2a2d4a; color: #aab2f0; }
 .lhx-lbl-score { text-align: center; font-weight: 900; font-size: 14px; margin-top: 10px; }
@@ -262,7 +262,7 @@
 }
 .lhx-flow-num {
   width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
-  background: var(--lhx-green); color: #fff;
+  background: var(--lhx-green-btn); color: #fff;
   display: flex; align-items: center; justify-content: center;
   font-size: 13px; font-weight: 900;
 }

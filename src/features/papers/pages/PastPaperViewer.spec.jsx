@@ -186,14 +186,23 @@ describe('PastPaperViewer — mobile scrolling / touch behaviour', () => {
     })
   }
 
-  it('renders page images with pan-y touch-action (vertical swipe stays scrollable, never frozen)', async () => {
+  it('renders page images with pan-x pan-y touch-action (a swipe on the paper always scrolls, never freezes)', async () => {
     vi.mocked(resolvePaperUrl).mockResolvedValue('https://cdn.test/page-1.jpg')
     mockGetPaper.mockResolvedValue(imagePaper())
     renderViewer()
     const img = await screen.findByAltText(/Question paper page 1 of 1/)
-    // pan-y keeps single-finger vertical scroll; never `none` (would freeze it).
-    expect(img.style.touchAction).toBe('pan-y pinch-zoom')
+    // pan-y keeps single-finger vertical scroll down the stack; pan-x lets a
+    // swipe that starts ON the page pan a zoomed page across its own strip.
+    expect(img.style.touchAction).toBe('pan-x pan-y')
+    // Never `none` — that is what would freeze the scroll, and it is the whole
+    // reason this assertion exists.
     expect(img.style.touchAction).not.toBe('none')
+    // `pinch-zoom` used to be listed here. It is gone deliberately: the stack
+    // implements pinch itself (usePinchZoom), because the Capacitor Android
+    // WebView ships with the browser's own pinch switched off, so the keyword
+    // bought a learner on the phone nothing while still letting a browser that
+    // DOES honour it fight our handler for the same two fingers.
+    expect(img.style.touchAction).not.toContain('pinch-zoom')
     // A long-press must not start an image drag that swallows the scroll.
     expect(img.style.userSelect).toBe('none')
   })

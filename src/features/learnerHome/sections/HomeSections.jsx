@@ -61,7 +61,22 @@ export function ExploreGrid() {
 // ── My Subjects ─────────────────────────────────────────────────────
 
 const SUBJECT_TINTS = ['lhx-tint-green', 'lhx-tint-blue', 'lhx-tint-pink', 'lhx-tint-orange', 'lhx-tint-purple']
+
+/**
+ * Two arrays, because the subject hue does two jobs with two different
+ * legibility floors, and one array was serving both.
+ *
+ * TONES fill the progress bar — a graphical object, judged against the
+ * track it sits in. INKS are the percentage printed beside it at 13px —
+ * text, judged against the white card, where the bright hues measure
+ * 2.4:1 (green) and 2.8:1 (orange). The `*-deep` tokens already existed
+ * for exactly this and had no consumer; this is it.
+ *
+ * They stay parallel: index `i` must name the same hue in both, or a
+ * row's bar and its number stop being the same colour.
+ */
 const SUBJECT_TONES = ['var(--lhx-green)', 'var(--lhx-blue)', 'var(--lhx-pink)', 'var(--lhx-orange)', 'var(--lhx-purple)']
+const SUBJECT_INKS = ['var(--lhx-green-deep)', 'var(--lhx-blue-deep)', 'var(--lhx-pink-deep)', 'var(--lhx-orange-deep)', 'var(--lhx-purple-deep)']
 
 /**
  * Is there a percentage to show?
@@ -131,7 +146,7 @@ export function MySubjectsSection({ subjects, activeTerm, loading }) {
                 )}
               </span>
               {showPercent(s) && (
-                <span className="lhx-subject-pct" style={{ color: SUBJECT_TONES[i % SUBJECT_TONES.length] }}>{s.percent}%</span>
+                <span className="lhx-subject-pct" style={{ color: SUBJECT_INKS[i % SUBJECT_INKS.length] }}>{s.percent}%</span>
               )}
               <ChevronRight size={18} className="lhx-chevron" aria-hidden="true" />
             </button>

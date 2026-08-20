@@ -545,6 +545,23 @@ service firebase.storage {
     }
 
     // Block all other paths
+    // ── spelling-audio: pre-generated pronunciation ──────────────────
+    //
+    // PUBLIC READ, and that leaks nothing new: /games is a signed-out route,
+    // so the learner playing a word may have no account — and the words
+    // themselves already ship in every client bundle
+    // (src/data/spellingBank.js, 879 of them). The audio is a second copy of
+    // something already public.
+    //
+    // SERVER-ONLY WRITE. The objects are written by generateSpellingAudio
+    // with the admin SDK, which bypasses rules entirely, so there is no
+    // client write to allow — and denying it outright means a compromised
+    // admin session still cannot replace what a child hears.
+    match /spelling-audio/{gradeFolder}/{fileName} {
+      allow read:  if true;
+      allow write: if false;
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

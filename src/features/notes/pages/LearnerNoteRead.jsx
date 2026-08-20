@@ -12,7 +12,6 @@
 
 import { useCallback, useMemo, useState } from 'react'
 import { useNavigate, useParams, Navigate, useSearchParams } from 'react-router-dom'
-import { Loader2 } from '../../../shared/components/icons'
 
 import '../../../shared/styles/learnerTheme.css'
 import { useOfflineNote } from '../hooks/useOfflineNote'
@@ -24,6 +23,7 @@ import { coerceStudyBlocks } from '../lib/studySchema'
 import { SaveOfflineButton } from '../components/SaveOfflineButton'
 import { readLearnStep, writeLearnStep } from '../lib/learnStep'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
+import TopLine from '../../../shared/components/TopLine'
 
 function HubShell({ title, children }) {
   const navigate = useNavigate()
@@ -84,10 +84,35 @@ export function LearnerNoteRead() {
   )
 
   if (loading) {
+    // A skeleton of the note rather than a 20px spinner in the middle of a
+    // blank screen. This is the screen the whole funnel exists to reach,
+    // and on a slow Zambian connection its loading state is a real part of
+    // reading a note — a shape that becomes the note reads as the page
+    // arriving; a lone spinner reads as a wait of unknown length.
+    // `aria-busy` + the status line are what a screen reader gets, since
+    // the bars themselves are decorative.
     return (
-      <div className="lhx" style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
+      <div className="lhx" style={{ minHeight: '100vh' }} aria-busy="true">
         <SeoHelmet title="Note" noIndex />
-        <Loader2 size={20} className="animate-spin" />
+        <TopLine fixed label="Loading note" />
+        {/* `paddingBottom: 0` overrides the column's tab-bar clearance —
+            the reader mounts bare (no nav to clear), so the default would
+            add 138px of empty scroll under a loading state. */}
+        <div className="lhx-page" style={{ paddingTop: 18, paddingBottom: 0 }}>
+          <div className="lhx-card" style={{ padding: 20 }}>
+            <span className="sr-only" role="status">Loading note…</span>
+            {/* Kicker, title, then body — the note's own shape. */}
+            <div className="lhx-skel" style={{ height: 11, width: '28%', marginBottom: 14 }} aria-hidden="true" />
+            <div className="lhx-skel" style={{ height: 24, width: '75%', marginBottom: 20 }} aria-hidden="true" />
+            {/* Written out rather than imported: `SectionSkeleton` lives
+                in features/learnerHome, and features/notes reaching into
+                a sibling feature is the edge `test:import-boundaries`
+                records as debt. Seven bars is a paragraph's worth. */}
+            {[100, 96, 99, 92, 97, 88, 55].map((w, i) => (
+              <div key={i} className="lhx-skel" style={{ height: 13, width: `${w}%`, marginBottom: 10 }} aria-hidden="true" />
+            ))}
+          </div>
+        </div>
       </div>
     )
   }

@@ -2387,6 +2387,24 @@ exports.previewTtsVoice = onCall(
     require('./ttsAdmin').previewTtsVoiceHandler,
 );
 
+// Pre-generate spelling pronunciation, once per word, through the SAME voice
+// routing /api/tts uses. Admin-only, and deliberately not on a learner's
+// meter: it exists so a learner never spends one of their 60 daily AI calls
+// hearing a word — see functions/spelling/spellingAudioCore.js for why the
+// live endpoint cannot serve this surface. Binds its own defineSecret
+// instance for the key (duplicates of one name are the accepted pattern).
+const elevenLabsApiKeySpelling = defineSecret("ELEVENLABS_API_KEY");
+exports.generateSpellingAudio = onCall(
+    {
+      region: "us-central1",
+      memory: "512MiB",
+      // Up to MAX_BATCH provider round trips, serialised.
+      timeoutSeconds: 300,
+      secrets: [elevenLabsApiKeySpelling],
+    },
+    require('./spelling/generateSpellingAudio').generateSpellingAudioHandler,
+);
+
 // Website visitor tracker — unauthenticated beacon the SPA POSTs on each
 // route change. Records page-view docs + daily rollups for /admin/visitors.
 // See functions/visitorTracking.js (privacy posture + Firestore shape).
