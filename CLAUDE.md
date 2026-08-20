@@ -610,6 +610,35 @@ where the cloud voice would have worked perfectly. Run it from
 **`/admin/spelling` → "Voice N unvoiced"**; `test:spelling-audio` covers the
 path, batching and URL rules.
 
+**The ladder is climbed BEFORE the word is asked for**, and that is a separate
+decision from which tier answers. Every tier used to begin its work at the
+instant the word was due: tier 1 handed a remote URL to a fresh `Audio`
+element, so the first play of each word was a cold Storage round trip, and
+tier 2 minted an ID token, minted an App Check token, crossed to us-central1
+and waited on synthesis. On a Zambian phone that is seconds — and Spelling
+Ride made it indefensible, because a word is announced as its first letter-row
+spawns and that row reaches the rider about a second later: a two-second fetch
+meant the learner answered the first letter of a word they had not yet heard.
+`warmWord` / `warmWords` resolve the same ladder into a buffered `<audio>`
+element ahead of time and `speakWord` finds it waiting. **Which tier answers
+did not change; only when the waiting happens.** Two rules keep it honest, and
+they are why it does not simply warm everything: a **pre-generated file is free
+to warm** (no quota, no rate limit, no cost) so a caller may pull a whole
+town's on spec — `cloud: false`, the default — while a **cloud word is warmed
+only when it is certain to be spoken**, because it costs one of the learner's
+sixty. That certainty is the whole permission slip, and it holds in four
+places: the stage's first word during the intro sheet, the next word in the
+queue while the current one is being solved (every word in a stage is spoken on
+arrival), the ride's `spawning` challenge (already chosen, not yet presented),
+and the coach's chunks on open (the rebuild is not finished until every one has
+been tapped and every tap speaks it). A warm that fails is never an error — the
+word climbs the ladder at play time exactly as it used to. Two smaller fixes
+ride along: a pre-generated clip is keyed by its URL and **not by rate**, since
+a static object plays at the speed it was voiced at, so presenting a word at
+0.85 and correcting it at 0.75 no longer downloads the same file twice; and
+`speakWord` carries a play token, so a call still partway down the ladder when
+the learner leaves cannot resume and speak over the next screen.
+
 Tests: `test:spelling-system` (188 checks — ladder, coach, content rules,
 record), **`test:spelling-ride`** (38 checks — measured pacing, the three-lane
 invariant, distractor plausibility, both legs of the repetition, the road's
@@ -617,7 +646,10 @@ perspective, the accent order, the cohort report), `test:spelling-audio`,
 `test:spelling-stages`, `test:spelling-bank`, `test:spelling-pack`,
 `test:word-builder`, `test:rules-text`, `test:storage-rules-text`,
 `test:rules-emulator`, plus `WordBuilderGame.spec.jsx`,
-`SpellingRideGame.spec.jsx` and `SpellingAdmin.spec.jsx`. **`npm run
+`SpellingRideGame.spec.jsx`, `SpellingAdmin.spec.jsx` and
+`spellingSpeech.spec.js` (the ladder and the warming rules — it is the only
+thing that EXECUTES `spellingSpeech.js`, since the node guards cannot load a
+module that reaches Firebase and every component spec mocks it wholesale). **`npm run
 smoke:spelling`** measures the six screens at seven widths (320→1280) in real
 Chromium — overflow, clipping, hidden tiles and 44px touch targets, none of
 which jsdom can see. It is NOT a `test:*` script (it needs a browser) and it

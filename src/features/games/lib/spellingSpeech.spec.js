@@ -16,13 +16,16 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// The ladder itself is somebody else's test. Stubbed so tier 1 and tier 2
-// always miss and the device leg is what runs.
-vi.mock('../../../utils/tts', () => ({
+// The cloud endpoint is stubbed rather than the ladder: the device-leg tests
+// below want tier 1 and tier 2 to miss, and the warming tests want to count
+// exactly how many synthesis calls a stage costs a learner. Hoisted so each
+// test can say which.
+const tts = vi.hoisted(() => ({
   fetchSpeechUrl: vi.fn(async () => ''),
   speak: vi.fn(async () => {}),
   stopSpeaking: vi.fn(),
 }))
+vi.mock('../../../utils/tts', () => tts)
 
 const spoken = []
 let cancelled = 0
@@ -40,6 +43,48 @@ function stubDevice({ voices = ['en-US', 'en-ZA', 'en-GB'] } = {}) {
     cancel: () => { cancelled += 1 },
     onvoiceschanged: null,
   }
+}
+
+/**
+ * An `<audio>` element that behaves, so the clip cache can be observed.
+ *
+ * jsdom's own `HTMLMediaElement` never loads and never plays, so a real one
+ * would make every assertion below a test of jsdom's refusals. This one
+ * records what was asked of it. It plays INSTANTANEOUSLY — `ended` is true
+ * the moment `play()` returns — which keeps `whenAudioSettles` deterministic
+ * rather than leaving the correction test waiting out its eight-second cap.
+ */
+const audios = []
+function stubAudio({ playFails = false } = {}) {
+  audios.length = 0
+  class FakeAudio {
+    constructor() {
+      this.preload = ''
+      this.readyState = 0
+      this.currentTime = 0
+      this.ended = false
+      this.paused = true
+      this.plays = 0
+      this.loads = 0
+      this.handlers = {}
+      audios.push(this)
+    }
+    set src(value) { this.source = value; this.readyState = value ? 4 : 0 }
+    get src() { return this.source || '' }
+    removeAttribute() { this.source = '' }
+    load() { this.loads += 1 }
+    play() {
+      this.plays += 1
+      this.paused = false
+      if (playFails) return Promise.reject(new Error('refused'))
+      this.ended = true
+      return Promise.resolve()
+    }
+    pause() { this.paused = true }
+    addEventListener(name, fn) { (this.handlers[name] = this.handlers[name] || []).push(fn) }
+    removeEventListener() {}
+  }
+  window.Audio = FakeAudio
 }
 
 /** A fresh module per test — `chosen`/`primed` are module state by design. */
@@ -105,5 +150,135 @@ describe('spellingSpeech — the device leg', () => {
     expect(speech.speakSentence('A ___ sentence.')).toBe(false)
     expect(() => speech.primeSpeech()).not.toThrow()
     expect(() => speech.stopSpeech()).not.toThrow()
+  })
+})
+
+/**
+ * WARMING — the fix for a voice that arrived after the learner had guessed.
+ *
+ * These tests are about WHEN the work happens and WHAT IT COSTS, which are the
+ * two things the warming rules trade against each other. A learner gets sixty
+ * AI calls a day across the whole product, so "fetch everything early" is not
+ * available: a pre-generated file may be warmed on spec because it is free,
+ * and a synthesis call may be warmed only for a word that is certain to be
+ * spoken. Every assertion below pins one half of that.
+ */
+describe('spellingSpeech — warming the ladder before the word is asked for', () => {
+  const FILE = 'https://storage.example.com/spelling-audio/g7/necessary.mp3'
+
+  beforeEach(() => {
+    stubDevice()
+    stubAudio()
+    tts.fetchSpeechUrl.mockReset()
+    tts.fetchSpeechUrl.mockResolvedValue('blob:synthesised')
+    tts.speak.mockReset()
+    tts.stopSpeaking.mockReset()
+  })
+
+  it('prepares a pre-generated file without playing it, and without the cloud', async () => {
+    const speech = await loadSpeech()
+    expect(await speech.warmWord('NECESSARY', { audioUrl: FILE })).toBe(true)
+    expect(audios).toHaveLength(1)
+    expect(audios[0].src).toBe(FILE)
+    // `preload = 'auto'` IS the fix — without it the element does nothing at
+    // all until `play()`, which is where the whole wait used to live.
+    expect(audios[0].preload).toBe('auto')
+    expect(audios[0].plays).toBe(0)
+    expect(tts.fetchSpeechUrl).not.toHaveBeenCalled()
+  })
+
+  it('plays a warmed word from the element already holding it', async () => {
+    const speech = await loadSpeech()
+    await speech.warmWord('NECESSARY', { audioUrl: FILE })
+    await speech.speakWord('NECESSARY', { audioUrl: FILE })
+    // One element, so one download: the play did not start a second fetch of
+    // the file the warm had already pulled.
+    expect(audios).toHaveLength(1)
+    expect(audios[0].plays).toBe(1)
+  })
+
+  it('never spends a synthesis call warming on spec, and does spend one on a certainty', async () => {
+    const speech = await loadSpeech()
+    // No pre-generated file, `cloud` left at its default: this is the warm a
+    // caller does for a whole town, and it must cost the learner nothing.
+    expect(await speech.warmWord('SEPARATE')).toBe(false)
+    expect(tts.fetchSpeechUrl).not.toHaveBeenCalled()
+    // The same word once it is certain to be spoken.
+    expect(await speech.warmWord('SEPARATE', { cloud: true })).toBe(true)
+    expect(tts.fetchSpeechUrl).toHaveBeenCalledTimes(1)
+  })
+
+  it('warms a list without letting the free files reach the cloud', async () => {
+    const speech = await loadSpeech()
+    await speech.warmWords([
+      { word: 'NECESSARY', audio: FILE },
+      { word: 'SEPARATE' },
+      'BECAUSE',
+    ])
+    expect(audios).toHaveLength(1)
+    expect(tts.fetchSpeechUrl).not.toHaveBeenCalled()
+  })
+
+  it('a warm and the word spoken behind it share one request', async () => {
+    const speech = await loadSpeech()
+    const warming = speech.warmWord('SEPARATE', { cloud: true })
+    const saying = speech.speakWord('SEPARATE')
+    await Promise.all([warming, saying])
+    // The round warms a word and speaks it 350ms later. Without the in-flight
+    // map that is two calls off a learner's sixty for one word.
+    expect(tts.fetchSpeechUrl).toHaveBeenCalledTimes(1)
+  })
+
+  it('holds a cloud word for the session, so hearing it again costs nothing', async () => {
+    const speech = await loadSpeech()
+    await speech.speakWord('SEPARATE')
+    await speech.speakWord('SEPARATE')
+    expect(tts.fetchSpeechUrl).toHaveBeenCalledTimes(1)
+  })
+
+  it('the correction replays the presented file rather than re-fetching it at another rate', async () => {
+    const speech = await loadSpeech()
+    await speech.speakWord('NECESSARY', { audioUrl: FILE })             // presenting, 0.85
+    await speech.speakWordThenLetters('NECESSARY', { audioUrl: FILE })  // correcting, 0.75
+    // A static object plays at the speed it was voiced at, so keying it by
+    // rate bought the same file twice — once per rate — and made the
+    // correction wait on a download it already had.
+    expect(audios).toHaveLength(1)
+    expect(audios[0].plays).toBe(2)
+    expect(tts.fetchSpeechUrl).not.toHaveBeenCalled()
+  })
+
+  it('still climbs the whole ladder when a prepared file will not play', async () => {
+    stubAudio({ playFails: true })
+    const speech = await loadSpeech()
+    await speech.speakWord('NECESSARY', { audioUrl: FILE })
+    // Tier 1 refused, tier 2 fetched and refused, tier 3 read it.
+    expect(tts.fetchSpeechUrl).toHaveBeenCalledTimes(1)
+    expect(tts.speak).toHaveBeenCalledTimes(1)
+    // A file that would not play is not left in the cache to be offered again.
+    stubAudio()
+    await speech.speakWord('NECESSARY', { audioUrl: FILE })
+    expect(audios[0].plays).toBe(1)
+  })
+
+  it('abandons a ladder mid-climb when the learner leaves the screen', async () => {
+    const speech = await loadSpeech()
+    const saying = speech.speakWord('SEPARATE')
+    speech.stopSpeech()
+    await saying
+    // Neither a call spent nor a word spoken over whatever came next.
+    expect(tts.fetchSpeechUrl).not.toHaveBeenCalled()
+    expect(tts.speak).not.toHaveBeenCalled()
+    expect(audios.every((audio) => audio.plays === 0)).toBe(true)
+  })
+
+  it('reports no audio at all rather than throwing on a device without <audio>', async () => {
+    // Not restored here — `beforeEach` re-stubs it, and putting the assignment
+    // after the awaits is the shape lint flags as a race.
+    delete window.Audio
+    const speech = await loadSpeech()
+    expect(speech.speechAvailable()).toBe(false)
+    expect(await speech.warmWord('NECESSARY', { audioUrl: FILE })).toBe(false)
+    await expect(speech.speakWord('NECESSARY', { audioUrl: FILE })).resolves.toBeUndefined()
   })
 })

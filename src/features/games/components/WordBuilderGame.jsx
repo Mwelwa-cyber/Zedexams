@@ -59,7 +59,7 @@ import {
 } from '../lib/spellingMapCore'
 import { stageSummary, STAGE_WORDS } from '../lib/spellingStagesCore'
 import { playableWords, roundResult, wordQueue } from '../lib/wordBuilderCore'
-import { stopSpeech } from '../lib/spellingSpeech'
+import { stopSpeech, warmWord, warmWords } from '../lib/spellingSpeech'
 import SpellingStageMap, { StageIntroSheet } from './SpellingStageMap'
 import SpellingRound from './SpellingRound'
 import SpellingResults from './SpellingResults'
@@ -203,6 +203,22 @@ export default function WordBuilderGame({ game }) {
       : null
     setPending({ stage, ...composed, resume })
     setScreen('intro')
+
+    // The intro sheet is the only quiet moment a stage gets, so the audio is
+    // fetched over it rather than after the first word is already on screen.
+    //
+    // The FIRST word is warmed whatever tier answers for it (`cloud: true`) —
+    // it is the one the round speaks the instant it mounts, and it is the word
+    // whose lateness the learner actually notices. The rest are warmed only if
+    // an admin has already voiced them: a pre-generated file costs nothing to
+    // fetch, while synthesising eight words a learner might never reach would
+    // spend a quarter of their daily allowance on a stage they could still
+    // back out of.
+    const words = composed.words || []
+    const first = words[0]
+    const rest = () => warmWords(words.slice(1), { cloud: false })
+    if (first) warmWord(first.word, { audioUrl: first.audio, cloud: true }).then(rest).catch(() => {})
+    else rest()
   }
 
   const beginStage = ({ stage, words, chapter, fromResume = null }) => {

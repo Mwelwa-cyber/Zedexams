@@ -25,6 +25,36 @@
  * admin has not voiced yet, and the coach's chunks — nonsense fragments like
  * "sep" that appear only after a miss, and are not worth pre-generating.
  *
+ * ── WARMING: why the ladder is climbed BEFORE the word is asked for ───────
+ * The ladder was correct and it was late. Every tier began its work at the
+ * instant the word was needed and not a moment sooner: tier 1 handed a remote
+ * URL to a fresh `Audio` element, so the first play of every word was a cold
+ * Storage round trip; tier 2 minted an ID token, minted an App Check token,
+ * crossed to us-central1, waited on synthesis and only then had bytes. On a
+ * Zambian mobile connection that is seconds — and the learner is looking at
+ * the tiles, or watching a row of letters already coming down the road, the
+ * whole time. Spelling Ride made it indefensible: a word announced two
+ * seconds late is announced after its first letter has been answered.
+ *
+ * So the clip is prepared AHEAD of the moment it is played. `warmWord` /
+ * `warmWords` resolve the same ladder into a buffered `<audio>` element and
+ * park it in `clips`; `speakWord` finds it there and plays on the next tick.
+ * Nothing about WHICH tier answers changed — only when the waiting happens.
+ *
+ * Two rules keep warming honest, and they are the reason it does not simply
+ * warm everything:
+ *
+ *   • A PRE-GENERATED file is free to warm — no quota, no rate limit, no cost
+ *     — so a caller may warm a whole town's worth on spec (`cloud: false`).
+ *   • A CLOUD word costs the learner one of their sixty daily calls, so it is
+ *     warmed only when it is certain to be spoken: the word the round is
+ *     about to present, the next word in the queue (every word in a stage is
+ *     spoken on arrival), the chunk the coach is about to have tapped. Warming
+ *     a maybe would be spending a learner's allowance on a guess.
+ *
+ * A warm that fails is not an error and is never reported as one: the word
+ * simply climbs the ladder at play time exactly as it used to.
+ *
  * ── The in-session cache is a RATE control, not a cost one ────────────────
  * The server already caches synthesis, so a repeat is cheap for us. It is not
  * free for the LEARNER: a cache hit still spends one of their 60. So a word
@@ -69,28 +99,51 @@ import { fetchSpeechUrl, speak as cloudSpeak, stopSpeaking } from '../../../util
 import { resolveVoice } from './spellingVoiceCore'
 
 /**
- * Word → object URL for audio already fetched this session.
+ * Key → a clip that can play NOW: a buffered `<audio>` element, plus the
+ * object URL behind it when tier 2 made one.
  *
- * Bounded: a learner who plays for an hour would otherwise hold an object URL
- * per distinct word for as long as the tab lives. The oldest entry is revoked
- * when the cap is passed, so the memory is returned rather than merely
- * forgotten — an un-revoked object URL is a leak the GC cannot collect.
+ * Bounded, and the bound has to RELEASE rather than merely forget. An
+ * un-revoked object URL is a leak the GC cannot collect, and an `<audio>`
+ * element still holding a decoded buffer is memory on a phone that has little
+ * of it — so eviction pauses the element, drops its source and revokes the
+ * URL. The clip currently playing is never the victim.
  */
-const played = new Map()
-const MAX_CACHED = 64
+const clips = new Map()
 
-function remember(key, url) {
-  played.set(key, url)
-  while (played.size > MAX_CACHED) {
-    const oldest = played.keys().next().value
-    const stale = played.get(oldest)
-    played.delete(oldest)
-    try { URL.revokeObjectURL(stale) } catch { /* already gone */ }
-  }
-}
+/**
+ * Key → the in-flight promise preparing that clip.
+ *
+ * This is what stops a warm and the play that follows it from making the same
+ * request twice — the round warms a word and speaks it 350ms later, and
+ * without this the second call would spend a second cloud request on audio
+ * already on its way.
+ */
+const pending = new Map()
+
+/**
+ * A stage is eight words, a nine-town ride up to thirty-six, and the coach
+ * adds a handful of chunks. This holds a full ride with room to spare while
+ * staying small enough that a cheap phone never notices.
+ */
+const MAX_CLIPS = 48
+
+/** How long a warm waits for buffering before giving up on the wait. */
+const WARM_TIMEOUT_MS = 12000
 
 /** Everything currently making noise, so `stopSpeech` can silence all of it. */
 let currentAudio = null
+
+/**
+ * Bumped by every new utterance and by `stopSpeech`.
+ *
+ * `speakWord` climbs a ladder with awaits in it, so a call can still be
+ * partway down when the learner moves on. Without a token, a play that lost a
+ * race (its element paused by the next word) reads as "that tier failed" and
+ * falls through to the next one — which is a second voice talking over the
+ * first, and after `stopSpeech` it is a word spoken on a screen the learner
+ * has already left.
+ */
+let playToken = 0
 
 /**
  * Is any playback possible at all?
@@ -165,12 +218,17 @@ export function primeSpeech() {
   } catch { /* speech is a bonus, never a blocker */ }
 }
 
-/** Stop whatever is being said, by any tier. */
-export function stopSpeech() {
+/**
+ * Silence everything, without touching the play token.
+ *
+ * Split out of `stopSpeech` because starting a clip has to stop the previous
+ * one, and it must not invalidate the very call that is starting.
+ */
+function silence() {
   try {
     if (currentAudio) {
       currentAudio.pause()
-      currentAudio.currentTime = 0
+      try { currentAudio.currentTime = 0 } catch { /* not seekable */ }
       currentAudio = null
     }
   } catch { /* nothing to stop */ }
@@ -183,22 +241,218 @@ export function stopSpeech() {
   try { if (deviceSpeechAvailable()) window.speechSynthesis.cancel() } catch { /* nothing to stop */ }
 }
 
-/** Play a URL directly. Resolves false when it could not, never throws. */
-async function playUrl(url) {
-  if (typeof window === 'undefined' || typeof window.Audio !== 'function') return false
+/** Stop whatever is being said, by any tier, and abandon any ladder mid-climb. */
+export function stopSpeech() {
+  playToken += 1
+  silence()
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Preparing a clip
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/**
+ * A pre-generated file is keyed by its URL and NOT by rate, because the rate
+ * does nothing to it: a static object plays at the speed it was voiced at,
+ * and `playClip` never touches `playbackRate`. Keying it by rate is how the
+ * ride ended up fetching the same file twice — once at 0.85 to present the
+ * word and again at 0.75 to correct it.
+ */
+function fileKey(url) { return `file:${url}` }
+
+/** A synthesised clip IS rate-specific: Google honours the rate server-side. */
+function ttsKey(text, rate) { return `tts:${String(text).toLowerCase()}|${rate}` }
+
+function makeClip(key, src, objectUrl = '') {
+  const audio = new window.Audio()
+  // The whole point: start fetching and decoding now rather than at play.
+  audio.preload = 'auto'
+  // Deliberately NOT `crossOrigin` — an <audio> element needs no CORS headers
+  // to PLAY a file, and asking for them would make every pre-generated word
+  // depend on the bucket's cors.json being current. Reading the BYTES is what
+  // needs CORS, and nothing here does.
+  audio.src = src
+  try { audio.load() } catch { /* jsdom, and browsers that autoload anyway */ }
+  return { key, audio, objectUrl }
+}
+
+function release(clip) {
+  if (!clip) return
+  try { clip.audio.pause() } catch { /* already stopped */ }
   try {
-    stopSpeech()
-    const audio = new window.Audio(url)
+    clip.audio.removeAttribute('src')
+    clip.audio.load()
+  } catch { /* nothing to drop */ }
+  if (clip.objectUrl) {
+    try { URL.revokeObjectURL(clip.objectUrl) } catch { /* already gone */ }
+  }
+}
+
+function keep(clip) {
+  clips.set(clip.key, clip)
+  while (clips.size > MAX_CLIPS) {
+    let victim = null
+    for (const [key, held] of clips) {
+      // Never evict what is playing — the element would go silent mid-word.
+      if (held.audio !== currentAudio) { victim = key; break }
+    }
+    if (victim === null) break
+    release(clips.get(victim))
+    clips.delete(victim)
+  }
+  return clip
+}
+
+/** Stop offering a clip that would not play — a 404, a decode failure. */
+function drop(clip) {
+  if (!clip) return
+  if (clips.get(clip.key) === clip) clips.delete(clip.key)
+  release(clip)
+}
+
+/**
+ * A clip for this word, preparing it if there is not one already.
+ *
+ * `cloud: false` means "do not spend one of the learner's sixty calls". It
+ * still returns a pre-generated file and anything already prepared — it just
+ * never STARTS a synthesis request. That is the flag a caller warming a whole
+ * town on spec passes.
+ *
+ * Resolves null rather than throwing, always: the caller's next tier is the
+ * answer to a failure here.
+ */
+function clipFor(text, { audioUrl = '', rate = 0.85, cloud = true } = {}) {
+  if (!speechAvailable()) return Promise.resolve(null)
+  const file = isPlayableAudioUrl(audioUrl) ? audioUrl : ''
+  const key = file ? fileKey(file) : ttsKey(text, rate)
+
+  const held = clips.get(key)
+  if (held) return Promise.resolve(held)
+  const inFlight = pending.get(key)
+  if (inFlight) return inFlight
+
+  if (!file && !cloud) return Promise.resolve(null)
+
+  const work = (async () => {
+    if (file) return keep(makeClip(key, file))
+    // LOWERCASED, always: several voices spell an all-caps string out letter
+    // by letter, which would read the answer aloud to a learner being asked to
+    // produce it. The tiles are uppercase; what is spoken must not be.
+    const url = await fetchSpeechUrl(String(text).toLowerCase(), { rate })
+    if (!url) return null
+    return keep(makeClip(key, url, url))
+  })()
+    .catch(() => null)
+    .finally(() => { pending.delete(key) })
+
+  pending.set(key, work)
+  return work
+}
+
+/**
+ * Wait until a clip can play through without stalling.
+ *
+ * `readyState >= HAVE_FUTURE_DATA` is the honest answer to "would this start
+ * now", and the timeout is there because a stalled element fires neither
+ * `canplaythrough` nor `error` — a warm that never settles would hold the
+ * caller's sequential queue forever.
+ */
+function whenBuffered(clip, maxMs = WARM_TIMEOUT_MS) {
+  const audio = clip?.audio
+  if (!audio) return Promise.resolve(false)
+  if (audio.readyState >= 3) return Promise.resolve(true)
+  return new Promise((resolve) => {
+    let done = false
+    const finish = (ok) => {
+      if (done) return
+      done = true
+      clearTimeout(timer)
+      for (const name of ['canplaythrough', 'canplay', 'loadeddata', 'error']) {
+        try { audio.removeEventListener(name, handlers[name]) } catch { /* gone */ }
+      }
+      resolve(ok)
+    }
+    const handlers = {
+      canplaythrough: () => finish(true),
+      canplay:        () => finish(true),
+      loadeddata:     () => finish(true),
+      error:          () => finish(false),
+    }
+    const timer = setTimeout(() => finish(false), maxMs)
+    try {
+      for (const name of Object.keys(handlers)) audio.addEventListener(name, handlers[name])
+    } catch { finish(false) }
+  })
+}
+
+/** Play a prepared clip. Resolves false when it could not, never throws. */
+async function playClip(clip) {
+  if (!clip?.audio) return false
+  try {
+    silence()
+    const audio = clip.audio
+    try { audio.currentTime = 0 } catch { /* not seekable until metadata lands */ }
     currentAudio = audio
     await audio.play()
     return true
   } catch {
-    // Autoplay refusal, a 404 on a moved object, a decode failure. The caller
-    // falls through to the next tier rather than the learner getting silence.
-    currentAudio = null
+    // Autoplay refusal, a 404 on a moved object, a decode failure, or a play
+    // that was paused by the next word before it began. The caller decides.
+    if (currentAudio === clip.audio) currentAudio = null
     return false
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Warming
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Prepare one word so the next `speakWord` for it plays immediately.
+ *
+ * Resolves true when there is a buffered clip waiting. Resolves false for
+ * every other outcome — no audio on this device, nothing to fetch, a refused
+ * request, a stalled download — and none of those is an error: the word still
+ * climbs the ladder when it is asked for.
+ *
+ * `cloud` defaults to false, which is the SAFE default for a caller warming
+ * on spec. Pass true only for a word that is certain to be spoken.
+ */
+export async function warmWord(word, { audioUrl = '', rate = 0.85, cloud = false } = {}) {
+  const text = String(word || '').trim()
+  if (!text) return false
+  try {
+    const clip = await clipFor(text, { audioUrl, rate, cloud })
+    if (!clip) return false
+    return await whenBuffered(clip)
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Warm a list, one at a time.
+ *
+ * SEQUENTIAL on purpose. These learners are on narrow connections, and eight
+ * parallel downloads would compete with the word playing right now — which is
+ * the exact latency this whole mechanism exists to remove. Warming is
+ * background work and is allowed to take its time.
+ *
+ * Accepts plain words or the `{ word, audio }` records the banks already carry.
+ */
+export async function warmWords(items = [], { rate = 0.85, cloud = false, limit = 12 } = {}) {
+  const list = Array.isArray(items) ? items.slice(0, Math.max(0, limit)) : []
+  for (const entry of list) {
+    const word = typeof entry === 'string' ? entry : entry?.word
+    const audioUrl = typeof entry === 'string' ? '' : (entry?.audio || entry?.audioUrl || '')
+    if (!word) continue
+    await warmWord(word, { audioUrl, rate, cloud })
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Speaking
+ * ══════════════════════════════════════════════════════════════════════ */
 
 /**
  * Say a word.
@@ -208,36 +462,41 @@ async function playUrl(url) {
  * written by the pipeline but is editable by an admin, and "it came from our
  * own database" is not a reason to hand an arbitrary string to a media
  * element.
+ *
+ * A warmed word is already in `clips` and plays on the next tick. A cold one
+ * takes the same three tiers it always did — and, importantly, is NOT made to
+ * wait for full buffering first: `playClip` starts it as soon as the element
+ * has a source and lets the browser stream, which is exactly what the old
+ * `new Audio(url).play()` did.
  */
 export async function speakWord(word, { audioUrl = '', rate = 0.85 } = {}) {
   const text = String(word || '').trim()
   if (!text) return
+  const token = ++playToken
 
-  // Tier 1 — the pre-generated file.
-  if (isPlayableAudioUrl(audioUrl) && await playUrl(audioUrl)) return
+  // Tier 1 — the pre-generated file, and anything a warm has already
+  // prepared. Neither costs the learner a call.
+  const ready = await clipFor(text, { audioUrl, rate, cloud: false })
+  if (token !== playToken) return
+  if (ready) {
+    if (await playClip(ready)) return
+    if (token !== playToken) return
+    drop(ready)
+  }
 
-  // Tier 1b — anything already fetched this session, including through tier 2.
-  const key = cacheKey(text, rate)
-  const held = played.get(key)
-  if (held && await playUrl(held)) return
-
-  // Tier 2 — the cloud voice, fetched ONCE and held. LOWERCASED, always:
-  // several voices spell an all-caps string out letter by letter, which would
-  // read the answer aloud to a learner being asked to produce it. The tiles
-  // are uppercase; what is spoken must not be.
-  const spoken = text.toLowerCase()
-  try {
-    const url = await fetchSpeechUrl(spoken, { rate })
-    if (url) {
-      remember(key, url)
-      if (await playUrl(url)) return
-    }
-  } catch { /* fall through to the browser voice */ }
+  // Tier 2 — the cloud voice, fetched ONCE and held for the session.
+  const fetched = await clipFor(text, { rate, cloud: true })
+  if (token !== playToken) return
+  if (fetched) {
+    if (await playClip(fetched)) return
+    if (token !== playToken) return
+    drop(fetched)
+  }
 
   // Tier 3 — the browser voice. `speak()` reaches it through its own fallback
   // when the fetch returns nothing, which is also the signed-out path.
   try {
-    await cloudSpeak(spoken, { rate })
+    await cloudSpeak(text.toLowerCase(), { rate })
   } catch { /* speech is a bonus, never a blocker */ }
 }
 
@@ -245,7 +504,9 @@ export async function speakWord(word, { audioUrl = '', rate = 0.85 } = {}) {
  * Say one chunk of a word — "sep", "a", "rate".
  *
  * Never pre-generated: a chunk is a fragment, it only appears after a miss on
- * one of the 79 authored cuts, and it is not worth an object each.
+ * one of the 79 authored cuts, and it is not worth an object each. The coach
+ * warms them when it opens instead, which costs nothing extra — the rebuild
+ * phase has the learner tap every one.
  *
  * The `rate` is passed through and MAY DO NOTHING. Google honours it;
  * ElevenLabs has no rate input and the server normalises it out of the cache
@@ -253,14 +514,16 @@ export async function speakWord(word, { audioUrl = '', rate = 0.85 } = {}) {
  * reader would otherwise reasonably assume a chunk plays slower than a word
  * on every voice, and on the ElevenLabs voice it does not.
  */
+export const CHUNK_RATE = 0.7
+
 export async function speakChunk(chunk) {
-  return speakWord(chunk, { rate: 0.7 })
+  return speakWord(chunk, { rate: CHUNK_RATE })
 }
 
 /**
  * Wait for whatever `speakWord` started to actually FINISH.
  *
- * `playUrl` resolves when playback STARTS — `audio.play()`'s promise settles
+ * `playClip` resolves when playback STARTS — `audio.play()`'s promise settles
  * on the first frame, not the last — so awaiting `speakWord` and then speaking
  * again lands the second utterance on top of the first. That is not
  * theoretical: it is the word and its own spelling talking over each other,
@@ -349,10 +612,6 @@ export function speakSentence(sentence, { gap = '___' } = {}) {
   const text = String(sentence || '').split(gap).join(' blank ').replace(/\s+/g, ' ').trim()
   if (!text) return false
   return speakWithDevice(text, { rate: 0.85 })
-}
-
-function cacheKey(text, rate) {
-  return `${String(text).toLowerCase()}|${rate}`
 }
 
 /**

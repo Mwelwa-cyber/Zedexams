@@ -11,7 +11,11 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
-vi.mock('../lib/spellingSpeech', () => ({ speakWord: vi.fn(), speakChunk: vi.fn(), stopSpeech: vi.fn(), speechAvailable: () => false }))
+vi.mock('../lib/spellingSpeech', () => ({
+  speakWord: vi.fn(), speakChunk: vi.fn(), stopSpeech: vi.fn(), speechAvailable: () => false,
+  // The admin preview renders the real coach, which warms its chunks on open.
+  warmWord: vi.fn(async () => true), warmWords: vi.fn(async () => {}), CHUNK_RATE: 0.7,
+}))
 
 const saved = []
 const approvals = []
