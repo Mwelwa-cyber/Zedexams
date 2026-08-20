@@ -87,6 +87,7 @@ const LearnerHomePage = lazy(() => import('../features/learnerHome/pages/Learner
 const LearnerSubjectPage = lazy(() => import('../features/learnerHome/pages/LearnerSubjectPage'))
 const LearnerNotificationsPage = lazy(() => import('../features/notifications/pages/LearnerNotificationsPage'))
 const LearnerProfilePage = lazy(() => import('../features/learnerHome/pages/LearnerProfilePage'))
+const LearnerSchoolCalendarPage = lazy(() => import('../features/learnerHome/pages/LearnerSchoolCalendarPage'))
 // First-run setup (grade → subjects → Meet Zed → reminders). Mounted bare:
 // the mockup hides the nav here, because setup is not somewhere you tab away
 // from half-done.
@@ -741,6 +742,15 @@ export default function App() {
             <Route path="/dashboard"         element={<ProtectedRoute><LearnerOnlyRoute><LearnerSetupGate><LearnerHomePage /></LearnerSetupGate></LearnerOnlyRoute></ProtectedRoute>} />
             <Route path="/dashboard-preview" element={<ProtectedRoute><LearnerOnlyRoute><LearnerHomePage /></LearnerOnlyRoute></ProtectedRoute>} />
             <Route path="/subjects/:subjectId" element={<ProtectedRoute><LearnerOnlyRoute><LearnerSubjectPage /></LearnerOnlyRoute></ProtectedRoute>} />
+            {/* The school calendar as a learner reads it — term dates, which
+                term is running, the holidays, when school opens again. It is
+                the learner's OWN screen over the shared MoE calendar data
+                (src/utils/learnerCalendar.js → moeCalendar.js); the teacher's
+                planning calendar at /teacher/calendar is a different page and
+                neither side can reach the other. Reached from the Grade · Term
+                chip on Home. NOT /calendar — that path is a redirect to the
+                exam timetable and old bookmarks still mean the exams by it. */}
+            <Route path="/school-calendar" element={<ProtectedRoute><LearnerOnlyRoute><LearnerSchoolCalendarPage /></LearnerOnlyRoute></ProtectedRoute>} />
             {/* Interactive exam timetable — the prototype's timetable screen
                 (Home chip + Papers row tap through here). The PDF twin stays
                 below, outside the shell. */}

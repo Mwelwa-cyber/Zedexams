@@ -647,6 +647,72 @@ consent records keep their meaning.
 If a future feature needs teachers and learners connected, it is a new design
 decision — do not restore this one.
 
+### The school calendar is shared DATA, not a shared surface (2026-08-20)
+
+Learners and teachers both read the national MoE calendar, and that is not a
+crack in the separation above. The calendar is a published Ministry fact, not
+teacher data: `src/utils/moeCalendar.js` sits one layer BELOW both features,
+and two features reading one module beneath them is the allowed direction of
+the layering (`app → features → engines/curriculum → shared/services/config`).
+`test:import-boundaries` is what makes that checkable rather than asserted —
+it records every cross-feature import in `src/`, and this work added none.
+
+**Two resolvers over one calendar, because the two sides ask different
+questions.** `calendarResolver.js` is the teacher seam and answers *is school
+in session, and what should I plan for* — between terms it points at the term
+about to OPEN. `learnerCalendar.js` is the learner seam and answers *what have
+I been taught* — between terms it names the term that just CLOSED, because the
+holiday is when a learner most wants last term's topics. Neither is a fork of
+the other; they read the same `moeCalendar.js` and disagree on purpose.
+
+**And within the learner seam, one reading feeds two answers.** The failure
+this was written for is the two drifting apart: a learner opening the app on
+20 August 2026 — three weeks into a month-long holiday — was told "Grade 7 ·
+Term 1", which is not true on any day after 10 April. #2520 fixed the CONTENT
+half (`getMostRecentTerm` → the `holidayTerm` rung in `resolveActiveTerm`, so
+subjects scope to Term 2's work). What stayed wrong was the DISPLAY half: a
+bare "Term 2" printed through a holiday is still only half the fact. So
+`resolveLearnerCalendar()` returns both — `recent`, which the term chain
+consumes, and `chipLabel` / `shortLabel` / `statusLine`, which the screens
+print — from ONE read. Deriving them separately is how a header ends up
+claiming a term the calendar disagrees with.
+
+- **`chipLabel` is the full form** — "Term 2 · Week 5", "Holiday · Term 3 in 18
+  days" — for the places where the term IS the message: Home's Grade · Term
+  chip and the calendar screen. **`shortLabel` is the compact twin** — "Term
+  2", "Term 2 · holiday" — for lines already carrying a grade and a school
+  name (profile, My Progress, Study Plan, the guardian chip). Same two facts,
+  less room; the week goes, "the school is shut" never does.
+- **The chip is a BUTTON and opens `/school-calendar`.** A term printed with
+  nowhere to check it is exactly how the wrong one sat on Home unnoticed.
+  `LearnerSchoolCalendarPage` is the learner's OWN screen in the `.lhx` system:
+  term dates, which term is running, the holidays between them, when school
+  opens again — and one line saying why subjects still show last term's work.
+  It deliberately does NOT carry working days, resident days or the ECE
+  mid-term window; those are administrative facts that belong to the teacher's
+  `/teacher/calendar`, which is a different page and stays where it is.
+- **NOT at `/calendar`** — that path is a redirect to the exam timetable and
+  old bookmarks still mean the exams by it. A learner-only route also needs its
+  first segment in `LEARNER_ONLY_SEGMENTS` (`src/utils/navigation.js`), or
+  `test:learner-only-routes` fails: a teacher redirected onto it would meet
+  "Teacher accounts stay in the teacher portal".
+- **Content-scope labels stay bare, and that is not an oversight.** "My
+  subjects · Term 2" states the term the percentages are MEASURED over, and the
+  subject page's back-line names the tab you are on. Prefixing either with
+  "Holiday" would label the wrong thing.
+- **Where the calendar cannot answer, nothing is invented.** Past 2030 the
+  status is `out_of_range` and the labels fall back to the term the app is
+  actually scoped to. `whenPhrase` never renders a negative countdown.
+
+Tests: `test:learner-calendar` (the reported date is asserted directly — every
+day of the 2026 Term 2→3 break resolves as a holiday), `test:learner-home`,
+`test:learner-only-routes`, `test:import-boundaries`, plus
+`LearnerSchoolCalendarPage.spec.jsx` and the chip arms in
+`LearnerHomePage.spec.jsx` / `LearnerProfilePage.spec.jsx`. Those two specs
+FREEZE THE CLOCK rather than mocking the calendar, and the distinction is the
+point: the bug was the real calendar not being consulted, so a stub agreeing
+with the expectation proves nothing.
+
 ### One gating service — `src/services/entitlements/`
 
 Every lock, quota, chip and unlock sheet reads from here, and nothing else may

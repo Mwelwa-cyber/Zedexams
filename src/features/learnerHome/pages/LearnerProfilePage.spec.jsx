@@ -5,7 +5,7 @@
  * the XP bar maths, the earned-then-locked badge shelf, the this-week
  * tiles, and the settings/sign-out actions.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 
@@ -42,13 +42,14 @@ vi.mock('../../../utils/gameBadgesService', () => ({
   }),
 }))
 
-// The page reads `getMostRecentTerm`, not `getActiveTerm`: the latter
-// reports nothing between terms, which is what used to label every
-// learner "Term 1" through the holidays.
-vi.mock('../../../utils/moeCalendar', () => ({
-  getActiveTerm: () => ({ term: { number: 2 } }),
-  getMostRecentTerm: () => ({ term: { number: 2 }, phase: 'in-term' }),
-}))
+// The calendar is NOT mocked. It used to be — a two-export stub of
+// `moeCalendar` that returned `{ number: 2, phase: 'in-term' }` on every
+// date — and a stub cannot fail the way the real thing did: the bug was the
+// real calendar not being consulted at all, so a fake one agreeing with the
+// expectation proved nothing. The clock is frozen instead, and the two dates
+// below are the two states a learner is ever in.
+const IN_TERM = new Date('2026-05-25T09:00:00')  // Term 2, week 3
+const HOLIDAY = new Date('2026-08-20T09:00:00')  // between Term 2 and Term 3
 
 import LearnerProfilePage from './LearnerProfilePage'
 import { GAME_BADGES } from '../../../data/gameBadges'
@@ -67,6 +68,8 @@ function renderProfile() {
 }
 
 beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  vi.setSystemTime(IN_TERM)
   logout.mockClear()
   mockProfile = {
     role: 'learner',
@@ -77,6 +80,10 @@ beforeEach(() => {
   }
 })
 
+afterEach(() => {
+  vi.useRealTimers()
+})
+
 describe('LearnerProfilePage (prototype-v6)', () => {
   it('renders the hero from real profile data, with the guardian chip when approved', async () => {
     renderProfile()
@@ -84,6 +91,16 @@ describe('LearnerProfilePage (prototype-v6)', () => {
     expect(screen.getByText('Grade 7 · Term 2 · Kabulonga Primary')).toBeInTheDocument()
     expect(screen.getByText('✅ Guardian verified')).toBeInTheDocument()
     await waitFor(() => expect(screen.getByText('2')).toBeInTheDocument()) // badge count
+  })
+
+  it('says the school is closed during a holiday instead of naming a term flatly', () => {
+    // The reported bug, at this altitude: on 20 August the line read
+    // "Grade 7 · Term 1". Term 2 is the work the learner is revising and the
+    // holiday is why school is shut — the line has to carry both.
+    vi.setSystemTime(HOLIDAY)
+    renderProfile()
+    expect(screen.getByText('Grade 7 · Term 2 · holiday · Kabulonga Primary')).toBeInTheDocument()
+    expect(screen.queryByText(/Term 1/)).not.toBeInTheDocument()
   })
 
   it('never claims guardian verification it does not have', () => {

@@ -44,6 +44,7 @@ import LearnerIcon, { subjectIconName } from '../components/LearnerIcon'
 import { ProgressBar, SectionSkeleton } from '../components/LearnerPrimitives'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 import { capture } from '../../../utils/analytics'
+import { termLabelShort } from '../../../utils/learnerCalendar'
 
 const CHILDLINE = '116'
 
@@ -178,7 +179,7 @@ function GuardianDashboard({ onExit }) {
           <div>
             <p className="lhx-gz-cname">{childName}</p>
             <p className="lhx-gz-csub">
-              {[userProfile?.grade ? `Grade ${userProfile.grade}` : null, activeTerm ? `Term ${activeTerm}` : null, 'verified']
+              {[userProfile?.grade ? `Grade ${userProfile.grade}` : null, termLabelShort(data?.calendar, activeTerm) || null, 'verified']
                 .filter(Boolean).join(' · ')}
             </p>
           </div>

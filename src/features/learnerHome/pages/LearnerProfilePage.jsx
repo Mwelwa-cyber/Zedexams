@@ -25,8 +25,9 @@ import useWeeklySummary from '../hooks/useWeeklySummary'
 import { getMyGameBadges } from '../../../utils/gameBadgesService'
 import { GAME_BADGES } from '../../../data/gameBadges'
 import { resolveLearnerAccess } from '../../../utils/guardianConsent'
-import { getMostRecentTerm } from '../../../utils/moeCalendar'
-import { resolveActiveTerm, calendarTermInputs, firstNameOf } from '../lib/learnerHomeCore'
+import { resolveLearnerCalendar, termLabelShort } from '../../../utils/learnerCalendar'
+import { resolveActiveTerm, calendarTermInputs, normalizeTerm, firstNameOf } from '../lib/learnerHomeCore'
+import { readJson, preferredTermKey } from '../lib/learnerLocal'
 import CharacterAvatar from '../../../shared/components/CharacterAvatar'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 import LearnerShell from '../components/LearnerShell'
@@ -63,16 +64,21 @@ export default function LearnerProfilePage() {
     [userProfile],
   )
 
-  // The Grade · Term line. `getMostRecentTerm` so a holiday names the term
-  // that just closed rather than showing every learner Term 1.
+  // The Grade · Term line, from the same reading Home uses — including
+  // `savedTerm`, which this page used to leave out, so a learner whose
+  // stored preference was in play saw one term on Home and another here.
+  const calendar = useMemo(() => resolveLearnerCalendar(), [])
   const activeTerm = useMemo(
-    () => resolveActiveTerm(calendarTermInputs(getMostRecentTerm())).term,
-    [],
+    () => resolveActiveTerm({
+      ...calendarTermInputs(calendar.recent),
+      savedTerm: normalizeTerm(readJson(preferredTermKey(uid))),
+    }).term,
+    [calendar, uid],
   )
 
   const subLine = [
     userProfile?.grade ? `Grade ${userProfile.grade}` : null,
-    activeTerm ? `Term ${activeTerm}` : null,
+    termLabelShort(calendar, activeTerm) || null,
     userProfile?.school || null,
   ].filter(Boolean).join(' · ')
 

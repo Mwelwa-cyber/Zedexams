@@ -100,6 +100,26 @@ test('the term note does not say "keep going" while the school is shut', () => {
   assert.equal(termNoteFor({}), '')
 })
 
+test('the term about to open says when, once the calendar has told us', () => {
+  // The indefinite copy stays for a caller with no calendar reading; the
+  // phrase is built by the page from `resolveLearnerCalendar()`, so this
+  // module still knows nothing about dates.
+  assert.equal(
+    termNoteFor({ term: 3, activeTerm: 2, source: 'holiday', opensIn: { termNumber: 3, phrase: 'in 18 days' } }),
+    'Term 3 opens in 18 days — you can read ahead.',
+  )
+  // A reading about a DIFFERENT term must not be borrowed for this one.
+  assert.equal(
+    termNoteFor({ term: 3, activeTerm: 1, source: 'calendar', opensIn: { termNumber: 2, phrase: 'in 4 days' } }),
+    'Term 3 starts later — but you can read ahead.',
+  )
+  // An empty phrase is not an answer.
+  assert.equal(
+    termNoteFor({ term: 3, activeTerm: 2, source: 'holiday', opensIn: { termNumber: 3, phrase: '' } }),
+    'Term 3 starts later — but you can read ahead.',
+  )
+})
+
 // ── What a topic row opens ──────────────────────────────────────────
 test('a topic with no published note has no destination at all', () => {
   assert.deepEqual(

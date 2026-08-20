@@ -34,7 +34,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { useLearnerFirestore } from '../../../hooks/useLearnerFirestore'
 import useExamTimetables from '../../../hooks/useExamTimetables'
 import { getTodaysExamsBySubject, checkTodaysLocks } from '../../../utils/examService'
-import { getMostRecentTerm } from '../../../utils/moeCalendar'
+import { resolveLearnerCalendar } from '../../../utils/learnerCalendar'
 import { SUBJECTS, SUBJECT_MAP, getTopics, getGradeSubjects, normalizeSubject } from '../../../config/curriculum'
 import { getTermPlan, planTopicsForTerm } from '../../../config/gradeTermPlan'
 import {
@@ -129,13 +129,17 @@ export default function useLearnerDashboard({ extras = false } = {}) {
       const slideLessons = materials.filter((m) => !m.noteFormat && Array.isArray(m.slides) && m.slides.length > 0)
       const stats = statsSnap && statsSnap.exists() ? statsSnap.data() : null
 
-      // ── Active term (school → calendar → holiday → saved → 1) ──
-      // `getMostRecentTerm`, not `getActiveTerm`: the latter reports nothing
-      // between terms, which used to drop this straight past a stale saved
-      // value onto the Term 1 default for a month a year.
+      // ── The school calendar, read ONCE ─────────────────────────
+      // Two answers come out of this one reading and they are different
+      // between terms: `activeTerm` is which term's MATERIAL to show (the
+      // one that just closed — that is what the learner was taught), and
+      // `calendar` is what the screens SAY (that school is closed and when
+      // it opens). Deriving them separately is how the header ends up
+      // claiming a term the calendar disagrees with.
+      const calendar = resolveLearnerCalendar()
       const activeTerm = resolveActiveTerm({
         schoolTerm: null, // no school-level term config exists yet
-        ...calendarTermInputs(getMostRecentTerm()),
+        ...calendarTermInputs(calendar.recent),
         savedTerm,
       })
 
@@ -292,6 +296,7 @@ export default function useLearnerDashboard({ extras = false } = {}) {
         error: null,
         data: {
           activeTerm,
+          calendar,
           learningResume,
           recentActivity,
           weakTopics,

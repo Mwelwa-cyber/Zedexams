@@ -22,6 +22,7 @@ import {
 } from '../../learnerHome'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 import { capture } from '../../../utils/analytics'
+import { termLabelShort } from '../../../utils/learnerCalendar'
 import { listSessions } from '../../../utils/examTimetableLogic'
 import { buildStudyPlan, focusReason, daysUntil, toMillis } from '../lib/progressCore'
 
@@ -99,7 +100,7 @@ export default function StudyPlanPage() {
         <button type="button" className="lhx-back-btn" aria-label="Back to My Progress" onClick={() => navigate('/progress')}>‹</button>
         <div>
           <div className="lhx-back-title">Study Plan</div>
-          {data?.activeTerm?.term && <div className="lhx-back-sub">Term {data.activeTerm.term}</div>}
+          {data?.activeTerm?.term && <div className="lhx-back-sub">{termLabelShort(data.calendar, data.activeTerm.term)}</div>}
         </div>
       </div>
 

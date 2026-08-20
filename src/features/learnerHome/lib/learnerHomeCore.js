@@ -84,11 +84,22 @@ export function calendarTermInputs(recent) {
  * "same term" branch would otherwise read "This term — keep going!" while
  * the school is shut, which is the same wrong answer the term fallback
  * used to give, only in words.
+ *
+ * `opensIn` is the calendar's next-term reading — `{ termNumber, phrase }`,
+ * e.g. `{ termNumber: 3, phrase: 'in 18 days' }` — and it upgrades exactly
+ * one branch: the term that is about to START says WHEN instead of the
+ * indefinite "starts later". The argument is a pre-built phrase rather than
+ * a date so this module stays free of the calendar; the page reads the
+ * calendar once and hands the answer down.
  */
-export function termNoteFor({ term, activeTerm, source } = {}) {
+export function termNoteFor({ term, activeTerm, source, opensIn } = {}) {
   if (!Number.isInteger(term) || !Number.isInteger(activeTerm)) return ''
   if (term < activeTerm) return `Term ${term} is finished — revise any topic, any time.`
-  if (term > activeTerm) return `Term ${term} starts later — but you can read ahead.`
+  if (term > activeTerm) {
+    return opensIn && opensIn.termNumber === term && opensIn.phrase
+      ? `Term ${term} opens ${opensIn.phrase} — you can read ahead.`
+      : `Term ${term} starts later — but you can read ahead.`
+  }
   if (source === 'holiday') return `Term ${term} is finished — the holiday is a good time to revise it.`
   return 'This term — keep going!'
 }
