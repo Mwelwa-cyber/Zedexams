@@ -12,6 +12,18 @@
  * runs a `javascript:` URL out of an `<img src>`, which is why these five
  * sites were reported as XSS but are not one.
  *
+ * READ THAT AS MOTIVATION, NOT AS A GUARANTEE THIS FUNCTION GIVES. It gates the
+ * SCHEME, and every `https://` host passes — so the beacon above still renders.
+ * Closing that means an ORIGIN allow-list (the Storage bucket, the emulator,
+ * same-origin), and it is deliberately not attempted here: this repo does not
+ * yet establish whether an import or a hand-typed URL may legitimately carry a
+ * third-party host, and a guard that silently stops loading real teachers'
+ * figures is worse than the beacon. What this function does buy is narrow and
+ * real — no `javascript:`/`vbscript:`/`data:text/html`, no protocol-relative
+ * `//host`, and no value carrying the characters that break out of an
+ * attribute — which is defence in depth for the day one of these renders into
+ * markup rather than through React.
+ *
  * What passes:
  *   https://…  http://…   the uploaded Storage URL, and the emulator's
  *                         http://127.0.0.1:9199/… during local development
