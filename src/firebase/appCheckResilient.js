@@ -85,32 +85,91 @@ export const PLACEHOLDER_REASONS = Object.freeze({
 let lastPlaceholderAt = 0
 let lastPlaceholderReason = null
 let placeholderCount = 0
+// Does this build expect attestation at all, and has it arrived yet?
+//
+// Two flags rather than one, because "no token yet" and "no token ever" are
+// only alarming when a provider was supposed to exist. config.js declares the
+// expectation at module load (a reCAPTCHA site key is configured, or this is
+// the native build) and reports the outcome when init settles. A build with no
+// provider configured is not degraded — it is unattested by design, and on a
+// project without enforcement that is a working configuration whose terminal
+// auth errors must still be allowed to end a session.
+let attestationExpected = false
+let attestationArmed = false
 
 /** Reset the recorded state. Tests only. */
 export function resetAttestationState() {
   lastPlaceholderAt = 0
   lastPlaceholderReason = null
   placeholderCount = 0
+  attestationExpected = false
+  attestationArmed = false
+}
+
+/**
+ * Declare that this build is supposed to attest its requests.
+ *
+ * Called by config.js at module load — BEFORE App Check init runs — so the
+ * window between load and the first token is recognisable. Without it that
+ * window reads as healthy, and the 401 an enforced backend returns for an
+ * unattested request reads as a dead credential.
+ *
+ * @param {boolean} expected
+ */
+export function setAttestationExpected(expected) {
+  attestationExpected = Boolean(expected)
+}
+
+/**
+ * Record whether attestation actually arrived.
+ *
+ * Called once, by config.js, when App Check init settles: `true` when a
+ * provider was created, `false` when none was (an unregistered native plugin,
+ * a reCAPTCHA render that threw). With `setAttestationExpected`, `false` keeps
+ * attestation reported as degraded for the life of the page — the honest
+ * answer, since nothing on it is attested, and the safe one, since every
+ * policy reading `attestationDegraded()` uses it to AVOID ending a session.
+ *
+ * @param {boolean} armed
+ */
+export function setAttestationArmed(armed) {
+  attestationArmed = Boolean(armed)
 }
 
 /** Current attestation health, for diagnostics and telemetry. */
 export function readAttestationState() {
-  return { lastPlaceholderAt, lastPlaceholderReason, placeholderCount }
+  return { lastPlaceholderAt, lastPlaceholderReason, placeholderCount, attestationExpected, attestationArmed }
 }
 
 /**
- * Did attestation fail within the last `withinMs`?
+ * Is attestation currently unable to satisfy an enforced backend?
  *
- * The window defaults to the placeholder's own TTL: while a placeholder is
- * still the token the SDK is sending, every enforced backend is rejecting us,
- * so any auth or data failure in that window is explained by attestation and
- * must not be read as a dead credential.
+ * True in two cases: this build expects attestation and has not got it yet (no
+ * token exists), or a placeholder was issued within the last `withinMs`. The window defaults to the
+ * placeholder's own TTL: while a placeholder is still the token the SDK is
+ * sending, every enforced backend is rejecting us, so any auth or data failure
+ * in that window is explained by attestation and must not be read as a dead
+ * credential. The pre-init case has identical consequences and identical
+ * server responses, so it answers the same way.
  *
  * @param {number} [withinMs]
  * @param {() => number} [now]
  * @returns {boolean}
  */
 export function attestationDegraded(withinMs = APPCHECK_PLACEHOLDER_TTL_MS, now = Date.now) {
+  // MISSING ATTESTATION COUNTS AS DEGRADED, but only where it was expected.
+  // App Check init is deferred off the cold-start path, so on every cold load
+  // there is a window in which requests carry no App Check header at all. An
+  // enforced backend answers those with the same 401 it gives a placeholder,
+  // so a failure in that window says nothing about the credential — which is
+  // the entire question this predicate exists to answer. Reporting `false`
+  // there read a pre-init 401 as a dead session, which is how a live account
+  // was signed out on every reload.
+  //
+  // Gated on `attestationExpected` so a build with no provider configured is
+  // unaffected: on a project without enforcement that build works, and its
+  // terminal auth errors must still be allowed to end a session.
+  if (attestationExpected && !attestationArmed) return true
   if (!lastPlaceholderAt) return false
   return now() - lastPlaceholderAt <= withinMs
 }

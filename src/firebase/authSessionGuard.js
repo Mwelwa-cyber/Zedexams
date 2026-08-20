@@ -191,8 +191,12 @@ export function preservedSessionKey() {
  * Read a verification response and record its verdict.
  *
  * Always reads a CLONE: a body can be consumed once, and the SDK needs the
- * original untouched. Never throws and is never awaited — an unreadable body
- * simply falls back to classifying on the status alone.
+ * original untouched. Never throws — an unreadable body simply falls back to
+ * classifying on the status alone.
+ *
+ * AWAITED by the observer before the response is handed back. It used to be
+ * fire-and-forget, which left the classification racing the SDK's own error
+ * path to `_remove`; see the call site for why losing that race was silent.
  *
  * @param {string} url
  * @param {Response} response
@@ -228,10 +232,21 @@ export function installVerificationObserver(fetchTarget) {
     if (!armed || !isSessionVerificationUrl(url)) return result
 
     return Promise.resolve(result).then(
-      (response) => {
-        // Fire-and-forget: the response is handed back unchanged and unawaited,
-        // so nothing the observation does can delay or break the SDK's own read.
-        void observeResponse(url, response)
+      async (response) => {
+        // AWAITED, not fire-and-forget, and that is the whole correctness of
+        // this guard. `observeResponse` reads a CLONE of the body, which is
+        // asynchronous; handing the response back first let the SDK's own
+        // error path reach `_remove` while the classification was still
+        // pending. `shouldPreserveStoredSession` refuses a rescue on a null
+        // verdict ("no verification, no rescue"), so losing that race meant
+        // the session was deleted silently — no console line, no
+        // `preserved` flag, no telemetry, which is exactly how the
+        // App Check 401 on accounts:lookup went unattributed.
+        //
+        // The cost is one JSON parse of a small body, on two URLs, during the
+        // boot window only. `observeResponse` catches its own errors, so this
+        // can neither reject nor delay the response by more than that parse.
+        await observeResponse(url, response)
         return response
       },
       (err) => {

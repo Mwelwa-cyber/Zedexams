@@ -1643,6 +1643,40 @@ loader into a clean logout. The decision to clear is this section.
   at `warning` with `auth.session_rescued`, so it never merges into PYTHON-N
   ("Auth initialisation never completed"), which is a different failure.
 
+**The cause turned out to be our own App Check deferral, and two things now
+answer it.** App Check enforcement is ON for Firebase Authentication, and
+`scheduleAppCheckInit` put init on `requestIdleCallback` — so the boot check
+`getAuth()` starts went out with **no `X-Firebase-AppCheck` header at all** and
+earned `401 "Firebase App Check token is invalid."`. That 401 is not a verdict
+on the credential, but the SDK reads it as one. Every reload is a cold load, so
+every reload signed the user out.
+
+- **A device holding a session does not defer App Check init.** `config.js`
+  runs it synchronously when `hasAuthSessionHint()` is true. That works because
+  `getAuth()` is synchronous but its initialisation resumes in microtasks, which
+  cannot run until the module body finishes — and `initAppCheck()`'s **web path
+  reaches `initializeAppCheck(app, …)` before its first `await`**, so the
+  provider is registered before the boot request's headers are built. Adding an
+  `await` above that call re-opens the bug silently. A signed-out visitor still
+  defers: they make no verification request, so there is nothing to protect and
+  no reason to put reCAPTCHA on their LCP path. The native path *does* await a
+  dynamic import, which is why the second defence below is not optional.
+- **`attestationDegraded()` counts MISSING attestation, not just a placeholder**
+  (`setAttestationExpected` / `setAttestationArmed`). Before init there is no
+  token, and an enforced backend answers that with the same 401 it gives a
+  placeholder — so reporting "not degraded" there read a pre-init 401 as a dead
+  session. Gated on a provider having been *expected* (a reCAPTCHA key shipped,
+  or this is the native build) so a build with none configured is unaffected and
+  its terminal auth errors still end a session. Both readers
+  (`authRecoveryPolicy.shouldExpireSession`, `AuthContext`) use it only to AVOID
+  ending a session, so widening it can only fail safe.
+- **The observer AWAITS its classification** before handing the response back.
+  It read the body on a `clone()` fire-and-forget, which raced the SDK's own
+  error path to `_remove`; `shouldPreserveStoredSession` refuses a rescue on a
+  null verdict, so losing that race deleted the session with no console line, no
+  `preserved` flag and no telemetry. The cost is one JSON parse of a small body,
+  on two URLs, during the boot window only.
+
 ### Passkey (WebAuthn) sign-in — REMOVED 2026-08-17
 
 The passkey feature was removed in full on owner instruction: the login button, the Passkeys section in all three role security panels, the client service (`src/services/passkeyService.js` + `passkeyRegionCore.js`), the eleven callables (seven `us-central1` + four `africa-south1` twins), `functions/passkeys/`, the `@simplewebauthn/*` packages, the admin feature-flag toggle, and `docs/PASSKEYS.md`. Google + email/password sign-in are untouched. Three deliberate leftovers: (1) the four Firestore collections (`passkeyCredentials`, `webauthnChallenges`, `passkeyUserHandles`, `passkeyAuditLog`) keep their **deny-all match blocks** in `firestore.rules` so legacy data written while the feature was live stays server-only — do not open or delete those blocks while data remains; (2) `accountDeletion.js` still purges those collections so legacy credentials leave with their account; (3) the out-of-band GCP TTL policy on `webauthnChallenges.expiresAt` can be deleted at any time (challenges lived 5 minutes). Re-adding passkeys is a new design decision, not a revert.
@@ -1654,6 +1688,8 @@ VitePWA `generateSW` with `registerType: 'autoUpdate'` — the new SW activates 
 ### App Check
 
 Web uses reCAPTCHA Enterprise (via `ReCaptchaEnterpriseProvider`, silent unless score is low; migrated from reCAPTCHA v3). Android uses Play Integrity via `@capacitor-firebase/app-check`, looked up at runtime through `Capacitor.Plugins.FirebaseAppCheck` rather than `await import(...)` so the web build stays package-agnostic. Without `VITE_FIREBASE_APPCHECK_RECAPTCHA_KEY` (the reCAPTCHA Enterprise App Check key, distinct from the Android action-scoring key) the web init silently no-ops — fine for lint-only builds, dangerous for a real deploy.
+
+**Init is deferred off the cold-start path for a signed-out visitor ONLY.** A device carrying the `auth:hasSession` hint initialises synchronously at module load, because App Check is enforced on Auth and the SDK's boot check would otherwise go out unattested and sign the user out — see "The SDK deletes a working session at boot" above before making that deferral unconditional again.
 
 ### Capacitor wrapper caveats
 
