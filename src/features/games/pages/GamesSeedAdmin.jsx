@@ -5,6 +5,7 @@ import {
   deleteGameForever,
   importSeedGame,
   listAllGamesForAdmin,
+  listGameTombstonesForAdmin,
   setGameActive,
 } from '../services/gamesService'
 import {
@@ -15,6 +16,7 @@ import {
   deleteConfirmCopy,
   describeSummary,
   filterRows,
+  isRestorableRow,
   needsTypedConfirmation,
   partitionSelection,
   selectMissingIds,
@@ -43,10 +45,18 @@ import ConfirmDialog from '../../../shared/components/ConfirmDialog'
  * deletes.
  *
  * **Delete selected** permanently removes Firestore records, behind a
- * confirmation (and, past five games, a typed DELETE). It never touches
- * the seed: a deleted seed game goes back to "Not imported" and can be
- * imported again, because the seed is a file in the bundle and nothing at
- * runtime can change it.
+ * confirmation (and, past five games, a typed DELETE). A deleted game
+ * DISAPPEARS from this list and moves to the Deleted tab.
+ *
+ * That last part was not the first design and the first design was wrong.
+ * A deleted game used to stay in the list reading "Not imported", on the
+ * reasoning that the list is the seed catalogue and the seed entry really
+ * does still exist. True, and beside the point: an admin who deletes a
+ * game and still finds it sitting in the list has been told by the screen
+ * that the deletion did not take. Deleted means gone from the list you
+ * look at. It is still RESTORABLE — the seed is a file in the bundle and
+ * nothing at runtime can change it — but you go to the Deleted tab to do
+ * that, deliberately, rather than tripping over it every time you scroll.
  *
  * Nothing is selected by default and no action runs without an explicit
  * selection, so there is no path here that acts on the whole catalogue.
@@ -60,6 +70,7 @@ const STATUS_PILL = {
   [STATUS.LIVE]: 'bg-emerald-100 text-emerald-800',
   [STATUS.INACTIVE]: 'bg-amber-100 text-amber-900',
   [STATUS.NOT_IMPORTED]: 'bg-sky-100 text-sky-800',
+  [STATUS.DELETED]: 'bg-rose-100 text-rose-800',
   [STATUS.UNKNOWN]: 'bg-slate-100 text-slate-600',
 }
 
@@ -68,12 +79,16 @@ const STATUS_FILTERS = [
   { value: STATUS.LIVE, label: STATUS_LABEL[STATUS.LIVE] },
   { value: STATUS.INACTIVE, label: STATUS_LABEL[STATUS.INACTIVE] },
   { value: STATUS.NOT_IMPORTED, label: STATUS_LABEL[STATUS.NOT_IMPORTED] },
+  // Last, and separated by its own count: the Deleted tab is where a
+  // deletion goes, not a state the main list mixes in.
+  { value: STATUS.DELETED, label: STATUS_LABEL[STATUS.DELETED] },
 ]
 
 const BTN = 'px-3 py-2 rounded-xl font-bold text-sm border theme-border theme-text hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed'
 
 export default function GamesSeedAdmin() {
   const [existing, setExisting] = useState(null)   // id -> live doc summary | null while loading/failed
+  const [tombstones, setTombstones] = useState(null) // id -> deletion record | null
   const [loadError, setLoadError] = useState(null)
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(() => new Set())
@@ -96,8 +111,16 @@ export default function GamesSeedAdmin() {
   const refresh = useCallback(async () => {
     setLoading(true)
     try {
-      const map = await listAllGamesForAdmin()
+      // Both reads, together. A row's status is a function of the pair —
+      // no live doc AND a tombstone is "Deleted", no live doc and no
+      // tombstone is "Not imported" — so loading one without the other
+      // would render deleted games as importable again.
+      const [map, stones] = await Promise.all([
+        listAllGamesForAdmin(),
+        listGameTombstonesForAdmin(),
+      ])
       setExisting(map)
+      setTombstones(stones)
       setLoadError(null)
       return map
     } catch (err) {
@@ -105,6 +128,7 @@ export default function GamesSeedAdmin() {
       // Deliberately left as null rather than {}: an empty map would render
       // 47 games as "Not imported" and invite an import over 47 live ones.
       setExisting(null)
+      setTombstones(null)
       setLoadError(err?.message || 'Could not read the live games collection.')
       return null
     } finally {
@@ -114,7 +138,25 @@ export default function GamesSeedAdmin() {
 
   useEffect(() => { refresh() }, [refresh])
 
-  const rows = useMemo(() => buildRows({ seed: GAMES_SEED, existing }), [existing])
+  const deletedIds = useMemo(
+    () => new Set(Object.keys(tombstones || {})),
+    [tombstones],
+  )
+  const rows = useMemo(
+    () => buildRows({ seed: GAMES_SEED, existing, deletedIds }),
+    [existing, deletedIds],
+  )
+  // Everything the list can reach WITHOUT opening the Deleted tab. The
+  // header count is drawn from this, so "0 of 45" stops counting games
+  // that are no longer part of the catalogue an admin manages.
+  const activeRows = useMemo(
+    () => rows.filter((r) => r.status !== STATUS.DELETED),
+    [rows],
+  )
+  const deletedRows = useMemo(
+    () => rows.filter((r) => r.status === STATUS.DELETED),
+    [rows],
+  )
 
   const grades = useMemo(
     () => [...new Set(rows.map((r) => r.grade).filter((g) => g != null))].sort((a, b) => a - b),
@@ -144,6 +186,7 @@ export default function GamesSeedAdmin() {
   const running = busy !== null
   const importable = partition.importable
   const deletable = partition.deletable
+  const restorable = partition.restorable
 
   /* ── selection ─────────────────────────────────────────────────── */
 
@@ -183,12 +226,20 @@ export default function GamesSeedAdmin() {
 
   /* ── import ────────────────────────────────────────────────────── */
 
-  async function runImport() {
-    if (!importable.length || running) return
+  /**
+   * Import every row in `target` (the selected not-imported games by
+   * default; the Restore button passes the deleted ones instead).
+   *
+   * Call it as `runImport()`, never as a bare `onClick={runImport}` — a
+   * handler reference is invoked with the click EVENT, which would arrive
+   * here as `target` and silently skip the default. The spec catches it.
+   */
+  async function runImport(target = importable) {
+    if (!target.length || running) return
     setBusy('import')
     setResult(null)
     const out = []
-    for (const row of importable) {
+    for (const row of target) {
       // The transaction inside importSeedGame re-checks Firestore, so a
       // row that went live in another tab since this page loaded comes
       // back 'skipped' rather than being written over.
@@ -200,6 +251,20 @@ export default function GamesSeedAdmin() {
     setSelected(new Set())
     setBusy(null)
     setResult({ kind: 'import', rows: out, summary: summariseResults(out) })
+  }
+
+  /**
+   * Import (or restore) ONE game from its row menu. The service clears the
+   * tombstone in the same transaction, so a restored game comes back on
+   * the main list and leaves the Deleted tab in one write.
+   */
+  async function importOne(row) {
+    if (running) return
+    setBusy(`row:${row.id}`)
+    const r = await importSeedGame(row.seed)
+    await refresh()
+    setBusy(null)
+    setResult({ kind: 'import', rows: [{ ...r, title: row.title }], summary: summariseResults([r]) })
   }
 
   /* ── delete ────────────────────────────────────────────────────── */
@@ -262,8 +327,10 @@ export default function GamesSeedAdmin() {
       <p className="theme-text-muted text-sm mb-6">
         The curated seed catalogue (in the app bundle) beside the live <code>games</code>{' '}
         collection in Firestore. Importing copies a seed game to{' '}
-        <code>games/&lt;id&gt;</code>; deleting removes the Firestore record only — the
-        seed entry stays and can be imported again.
+        <code>games/&lt;id&gt;</code>. Deleting removes the Firestore record and takes the
+        game off this list — it moves to <strong>Deleted</strong>, where it can be
+        restored, because the seed entry itself ships in the app and cannot be erased
+        at runtime.
       </p>
 
       {loadError && (
@@ -280,12 +347,15 @@ export default function GamesSeedAdmin() {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <p className="font-black text-lg" data-testid="selection-count">
-              {selected.size} of {rows.length} games selected
+              {selected.size} of {activeRows.length} games selected
             </p>
             <p className="text-sm theme-text-muted">
-              {visible.length === rows.length
-                ? `${rows.length} in the catalogue`
-                : `Showing ${visible.length} of ${rows.length}`}
+              {visible.length === activeRows.length
+                ? `${activeRows.length} in the catalogue`
+                : `Showing ${visible.length} of ${activeRows.length}`}
+              {deletedRows.length > 0 && (
+                <> · {deletedRows.length} deleted</>
+              )}
               {partition.hidden.length > 0 && (
                 <span className="text-amber-700 font-bold">
                   {' '}· {partition.hidden.length} selected {partition.hidden.length === 1 ? 'game is' : 'games are'} hidden by the filters
@@ -308,7 +378,7 @@ export default function GamesSeedAdmin() {
             <button
               type="button"
               disabled={running || importable.length === 0}
-              onClick={runImport}
+              onClick={() => runImport()}
               title={importable.length === 0 ? 'Select a game that is not imported yet' : undefined}
               className="px-4 py-2 rounded-xl font-black text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -326,6 +396,20 @@ export default function GamesSeedAdmin() {
             >
               {busy === 'delete' ? 'Deleting…' : `Delete selected${deletable.length ? ` (${deletable.length})` : ''}`}
             </button>
+            {/* Only on the Deleted tab, where it is the one thing you came
+                to do. It is the same write as Import; the label is what
+                differs, because undoing a deletion is not the same act as
+                adding something new. */}
+            {restorable.length > 0 && (
+              <button
+                type="button"
+                disabled={running}
+                onClick={() => runImport(restorable)}
+                className="px-4 py-2 rounded-xl font-black text-sky-800 border-2 border-sky-300 bg-white hover:bg-sky-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {busy === 'import' ? 'Restoring…' : `Restore selected (${restorable.length})`}
+              </button>
+            )}
           </div>
         </div>
 
@@ -412,7 +496,11 @@ export default function GamesSeedAdmin() {
         </div>
         {loading && <p className="px-5 py-6 text-sm theme-text-muted">Loading the live collection…</p>}
         {!loading && visible.length === 0 && (
-          <p className="px-5 py-6 text-sm theme-text-muted">No games match these filters.</p>
+          <p className="px-5 py-6 text-sm theme-text-muted">
+            {statusFilter === STATUS.DELETED
+              ? 'Nothing has been deleted. Games you delete land here, and can be restored from here.'
+              : 'No games match these filters.'}
+          </p>
         )}
         <ul className="divide-y theme-border">
           {!loading && visible.map((row) => {
@@ -461,13 +549,15 @@ export default function GamesSeedAdmin() {
                     },
                     row.status === STATUS.NOT_IMPORTED && row.inSeed && {
                       label: 'Import this game',
-                      onSelect: async () => {
-                        setBusy(`row:${row.id}`)
-                        const r = await importSeedGame(row.seed)
-                        await refresh()
-                        setBusy(null)
-                        setResult({ kind: 'import', rows: [{ ...r, title: row.title }], summary: summariseResults([r]) })
-                      },
+                      onSelect: () => importOne(row),
+                    },
+                    // Restoring is the same write as importing — the seed
+                    // entry never went anywhere — but it is a different
+                    // act, so it gets a different word.
+                    isRestorableRow(row) && {
+                      label: 'Restore this game',
+                      hint: 'Imports it again and clears the deletion',
+                      onSelect: () => importOne(row),
                     },
                     (row.status === STATUS.LIVE || row.status === STATUS.INACTIVE) && {
                       label: 'Delete permanently',

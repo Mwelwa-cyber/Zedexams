@@ -30,11 +30,26 @@
  * see.
  */
 
-/** The four states a row can be in. `unknown` is a read failure, not a state. */
+/**
+ * The states a row can be in. `unknown` is a read failure, not a state.
+ *
+ * `deleted` is a game an admin permanently removed. It is deliberately a
+ * STATUS rather than the absence of one, because "deleted" and "never
+ * imported" are different facts about a seed entry and the screen has to
+ * treat them differently: a never-imported game is offered for import in
+ * the main list, and a deleted one is HIDDEN from that list entirely.
+ *
+ * The first version of this screen collapsed the two — a deleted game went
+ * back to reading "Not imported" and stayed in the list. The reasoning was
+ * that the list is the seed catalogue and the seed entry really does still
+ * exist, which is true and beside the point: an admin who deletes a game
+ * and then sees it still listed has been told the deletion did not take.
+ */
 export const STATUS = Object.freeze({
   LIVE: 'live',
   INACTIVE: 'inactive',
   NOT_IMPORTED: 'not_imported',
+  DELETED: 'deleted',
   UNKNOWN: 'unknown',
 })
 
@@ -42,6 +57,7 @@ export const STATUS_LABEL = Object.freeze({
   [STATUS.LIVE]: 'Live',
   [STATUS.INACTIVE]: 'Inactive',
   [STATUS.NOT_IMPORTED]: 'Not imported',
+  [STATUS.DELETED]: 'Deleted',
   [STATUS.UNKNOWN]: 'Unknown',
 })
 
@@ -49,6 +65,7 @@ export const STATUS_HINT = Object.freeze({
   [STATUS.LIVE]: 'In Firestore and available to learners',
   [STATUS.INACTIVE]: 'In Firestore but hidden from learners',
   [STATUS.NOT_IMPORTED]: 'In the seed catalogue only — no Firestore record',
+  [STATUS.DELETED]: 'Deleted by an admin — hidden from learners and from this list',
   [STATUS.UNKNOWN]: 'The live games collection could not be read',
 })
 
@@ -61,14 +78,18 @@ export const STATUS_HINT = Object.freeze({
  * failed read as "Not imported" would invite an admin to import 47 games
  * over the top of 47 live ones.
  */
-export function resolveStatus({ inSeed = false, doc = null, existing = undefined } = {}) {
+export function resolveStatus({ inSeed = false, doc = null, existing = undefined, deleted = false } = {}) {
   if (existing === null || existing === undefined) {
     // Nothing loaded — unless this row IS a live doc handed to us directly.
     if (doc) return doc.active === false ? STATUS.INACTIVE : STATUS.LIVE
     return inSeed ? STATUS.UNKNOWN : STATUS.UNKNOWN
   }
-  if (!doc) return STATUS.NOT_IMPORTED
-  return doc.active === false ? STATUS.INACTIVE : STATUS.LIVE
+  if (doc) return doc.active === false ? STATUS.INACTIVE : STATUS.LIVE
+  // No live document. A tombstone is what separates "an admin deleted this"
+  // from "nobody has imported it yet". The live doc is checked FIRST so a
+  // re-imported game reads Live even if its tombstone read is stale.
+  if (deleted) return STATUS.DELETED
+  return STATUS.NOT_IMPORTED
 }
 
 /** Is this row a Firestore record (so: deletable / deactivatable)? */
@@ -79,6 +100,19 @@ export function isFirestoreRow(row) {
 /** Is this row importable (in the seed, not in Firestore)? */
 export function isImportableRow(row) {
   return !!row?.inSeed && row?.status === STATUS.NOT_IMPORTED
+}
+
+/**
+ * Is this row a deleted game that can be brought back?
+ *
+ * Restoring is the same write as importing — the seed entry never went
+ * anywhere — but it is a different ACT, and the screen names it
+ * differently: "Import" adds something new, "Restore" undoes a deletion.
+ * A deleted game that is no longer in the seed cannot be restored from
+ * here at all, because there is nothing left to restore it from.
+ */
+export function isRestorableRow(row) {
+  return !!row?.inSeed && row?.status === STATUS.DELETED
 }
 
 /**
@@ -93,10 +127,13 @@ export function isImportableRow(row) {
  * @param {Array}    options.seed      GAMES_SEED
  * @param {object|null} options.existing  id -> live doc summary, or null while
  *                                        loading / after a failed read
+ * @param {Set<string>|null} options.deletedIds  ids with a `gameTombstones`
+ *                                        record — games an admin deleted
  * @returns {Array<{id,title,subject,grade,type,inSeed,inFirestore,status,doc}>}
  */
-export function buildRows({ seed = [], existing = undefined } = {}) {
+export function buildRows({ seed = [], existing = undefined, deletedIds = null } = {}) {
   const live = existing || {}
+  const deleted = deletedIds || new Set()
   const seenSeedIds = new Set()
 
   const seedRows = seed.map((game) => {
@@ -110,7 +147,7 @@ export function buildRows({ seed = [], existing = undefined } = {}) {
       type: game.type || '',
       inSeed: true,
       inFirestore: !!doc,
-      status: resolveStatus({ inSeed: true, doc, existing }),
+      status: resolveStatus({ inSeed: true, doc, existing, deleted: deleted.has(game.id) }),
       doc,
       seed: game,
     }
@@ -157,11 +194,21 @@ export function matchesSearch(row, term) {
 /**
  * Apply the toolbar filters. Every filter is AND-ed; an omitted filter
  * (`'all'`, empty string, null) is not a filter.
+ *
+ * ── `all` does not mean "including deleted" ─────────────────────────────
+ *
+ * A deleted game is hidden from every view except the Deleted one. That is
+ * the whole point of deleting it: an admin who removes a game and still
+ * finds it in the list has been told, by the screen, that the deletion did
+ * not happen. It is not dropped from the DATA — `buildRows` still returns
+ * it, the count still knows about it, and the Deleted tab still shows it
+ * so it can be restored — it is dropped from the list you look at.
  */
 export function filterRows(rows = [], {
   status = 'all', search = '', grade = 'all', subject = 'all', type = 'all',
 } = {}) {
   return rows.filter((row) => {
+    if (row.status === STATUS.DELETED && status !== STATUS.DELETED) return false
     if (status !== 'all' && row.status !== status) return false
     if (grade !== 'all' && String(row.grade) !== String(grade)) return false
     if (subject !== 'all' && norm(row.subject) !== norm(subject)) return false
@@ -185,6 +232,7 @@ export function partitionSelection({ rows = [], visibleRows = null, selectedIds 
 
   const importable = []
   const deletable = []
+  const restorable = []
   const unknown = []
   const hidden = []
 
@@ -194,12 +242,14 @@ export function partitionSelection({ rows = [], visibleRows = null, selectedIds 
     if (visibleIds && !visibleIds.has(id)) hidden.push(row)
     if (isImportableRow(row)) importable.push(row)
     else if (isFirestoreRow(row)) deletable.push(row)
+    else if (isRestorableRow(row)) restorable.push(row)
     else unknown.push(id)
   }
 
   return {
     importable,
     deletable,
+    restorable,
     unknown,
     hidden,
     total: selected.size,

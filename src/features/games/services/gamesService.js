@@ -396,6 +396,38 @@ export async function listAllGamesForAdmin() {
 }
 
 /**
+ * Every game an admin has permanently deleted — the `gameTombstones`
+ * collection, read fresh.
+ *
+ * Distinct from `loadDeletedGameIds()` in `utils/gameTombstones.js`, which
+ * is the LEARNER-side read: cached for the page's lifetime and fail-open
+ * (an unreadable list filters nothing, because the seed fallback exists
+ * for exactly the outage that would break that read). Neither property is
+ * right here. The importer must show what Firestore says right now, and a
+ * failed read must not quietly render every deleted game as importable
+ * again — so this one is uncached and it THROWS.
+ *
+ * @returns {Promise<Record<string, {gameId,gameTitle,gameType,grade,subject,deletedAt,deletedBy}>>}
+ */
+export async function listGameTombstonesForAdmin() {
+  const snap = await getDocs(collection(db, 'gameTombstones'))
+  const map = {}
+  snap.docs.forEach((d) => {
+    const data = d.data() || {}
+    map[d.id] = {
+      gameId: d.id,
+      gameTitle: data.gameTitle || d.id,
+      gameType: data.gameType || '',
+      grade: data.grade ?? null,
+      subject: data.subject || '',
+      deletedAt: data.deletedAt || null,
+      deletedBy: data.deletedBy || null,
+    }
+  })
+  return map
+}
+
+/**
  * Import ONE seed game, idempotently.
  *
  * The read and the write are in a transaction, so "does it already exist?"
