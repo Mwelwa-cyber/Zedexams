@@ -57,9 +57,35 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     # Fail-fast: one full deploy plus a single quick retry of any functions that
-    # report a transient failure. A clean deploy finishes well under 10 minutes;
-    # a failing one surfaces in a few minutes rather than tying up a runner.
-    timeout-minutes: 20
+    # report a transient failure.
+    #
+    # This cap is DERIVED, not guessed, and `npm run test:deploy-timeouts`
+    # fails the build if it stops covering the work below it:
+    #
+    #   ~5min  lint + test:all + both npm ci, before the deploy starts
+    #   20min  attempt 1, the full deploy   (FIREBASE_ATTEMPT_TIMEOUT_MINUTES)
+    #    1min  the backoff between attempts
+    #   20min  attempt 2 — WORST CASE. A retry narrowed to the failed functions
+    #          only needs FIREBASE_RETRY_TIMEOUT_MINUTES (8), but a retry after
+    #          a non-function failure (a 503 uploading rules, say) is still the
+    #          full target and needs the full budget.
+    #   ~2min  the Storage-rules read-back and job teardown
+    #   = 48 required; set to 52 so the budget is not sitting exactly on its
+    #        own line — which is precisely the state that failed below.
+    #
+    # It was 20, and that was NOT enough for even ONE attempt: the pre-deploy
+    # steps take a measured ~4min, leaving 16 for a full deploy of ~190
+    # functions that measurably takes 15m29s. The last green run (#783,
+    # 2026-08-20) finished with 23 SECONDS to spare; the very next one (#784,
+    # the spelling merge) went 40s over and GitHub killed the job. A killed
+    # job reports `cancelled`, deploy-hosting.yml correctly refuses to ship a
+    # frontend over functions that may not have landed, and production stays
+    # on the previous commit. Nothing in the deploy was wrong — the budget was.
+    #
+    # Raising this cascades into deploy-hosting.yml, which WAITS for this run:
+    # its FIREBASE_DEPLOY_TIMEOUT_SECONDS and its own job cap both have to grow
+    # with it. That is exactly the inequality test:deploy-timeouts enforces.
+    timeout-minutes: 52
 
     # Explicit minimum permissions — some org settings restrict actions
     # unless this is stated explicitly.
@@ -189,6 +215,12 @@ jobs:
           # Un-coloured, deterministic output so the failure-line parser below
           # never has to step around ANSI escape codes.
           NO_COLOR: "1"
+          # Each ATTEMPT gets its own clock, so an over-running deploy fails
+          # with a diagnosis instead of the job being killed under it. The job
+          # cap above is derived from these two numbers plus the work around
+          # them; test:deploy-timeouts holds them together.
+          FIREBASE_ATTEMPT_TIMEOUT_MINUTES: "20"
+          FIREBASE_RETRY_TIMEOUT_MINUTES: "8"
         run: |
           set -uo pipefail
 
@@ -229,20 +261,60 @@ jobs:
           all_out=""       # accumulated across attempts — a first-attempt
                            # scheduler-trigger failure must survive the retry's
                            # "no changes detected" masking (see the fatal check).
+          # The log is STREAMED through tee, not captured into `out=$(...)`.
+          # Command substitution buffers the whole deploy and only prints it
+          # once the command returns — so when run #784 hit the job cap, all
+          # 16 minutes of output died with the process and the log read:
+          #
+          #     ::group::Firebase deploy attempt 1/2
+          #     ##[error]The operation was canceled.
+          #
+          # Nothing about what was slow, which functions had landed, or whether
+          # it was progressing at all. A deploy that cannot be watched cannot be
+          # diagnosed, and a timeout is precisely when you need the tail.
+          # tee gives the classifier the same bytes it had before while the
+          # operator sees them live.
+          logdir="${RUNNER_TEMP}/firebase-deploy-logs"
+          mkdir -p "${logdir}"
+
           while : ; do
             attempt=$((attempt + 1))
-            echo "::group::Firebase deploy attempt ${attempt}/${max} (--only ${only})"
+            # Attempt 1 deploys everything. A retry NARROWED to the failed
+            # functions needs far less wall clock; a retry that is still the
+            # full target (a non-function failure — see below) needs the full
+            # budget, or it fails on its own clock and reports a timeout for
+            # whatever transient error actually caused the retry.
+            case "${only}" in
+              functions:*) attempt_minutes="${FIREBASE_RETRY_TIMEOUT_MINUTES}" ;;
+              *)           attempt_minutes="${FIREBASE_ATTEMPT_TIMEOUT_MINUTES}" ;;
+            esac
+
+            echo "::group::Firebase deploy attempt ${attempt}/${max} (--only ${only}, cap ${attempt_minutes}min)"
+            logfile="${logdir}/attempt-${attempt}.log"
             set +e
-            out=$(npx firebase-tools@latest deploy \
+            # --kill-after gives firebase-tools 30s to exit on TERM before KILL.
+            timeout --kill-after=30s "${attempt_minutes}m" \
+              npx firebase-tools@latest deploy \
               --only "${only}" \
               --non-interactive \
               --project examsprepzambia \
-              --force 2>&1)
-            code=$?
+              --force 2>&1 | tee "${logfile}"
+            code=${PIPESTATUS[0]}
             set -e
-            echo "${out}"
             echo "::endgroup::"
+            out=$(cat "${logfile}")
             all_out=$(printf '%s\n%s' "${all_out}" "${out}")
+
+            # 124 is `timeout` reporting it killed the command (137 if it had to
+            # escalate to KILL). This is NOT the transient per-function 409 the
+            # retry below exists for, and retrying a full deploy that just ran
+            # out of clock only submits more operations and ties up the runner
+            # — the same dead end #1439/#1445/#1446 already proved. Stop here
+            # and say so, with the log above intact.
+            if [ "${code}" -eq 124 ] || [ "${code}" -eq 137 ]; then
+              echo "::error::Firebase deploy attempt ${attempt} exceeded its ${attempt_minutes}-minute cap and was stopped. The streamed log above is the deploy up to that point — read its last lines to see what it was waiting on. If a clean deploy has simply grown past this budget, raise FIREBASE_ATTEMPT_TIMEOUT_MINUTES and the job's timeout-minutes together (test:deploy-timeouts enforces the relationship). If it is stuck, clear the GCP-side backlog: cancel pending Cloud Functions operations and check the operations quota."
+              exit 1
+            fi
 
             # Functions still unresolved after THIS attempt — a function that
             # failed and then succeeded within the attempt is already done, and
@@ -257,6 +329,16 @@ jobs:
             # Narrow the retry to ONLY the functions still unresolved. (If the
             # failure wasn't function-specific — e.g. a firestore.rules error —
             # failed is empty, so we retry the original target as-is.)
+            #
+            # That full-target retry EARNS ITS KEEP and must not be dropped: on
+            # 2026-08-20 run #785 hit
+            #   Error: Request to .../rulesets had HTTP Error: 503
+            # uploading firestore.rules, and the retry released the rules
+            # cleanly. A non-function failure is not automatically a
+            # deterministic one — 503s, 429s and dropped connections all land
+            # here — so it gets a real second go, at the FULL attempt cap
+            # rather than the narrowed one, or it would fail on its own clock
+            # and report a timeout for what was really a transient 503.
             if [ -n "${failed}" ]; then
               only=$(printf '%s\n' "${failed}" | sed 's/^/functions:/' | paste -sd, -)
             fi
@@ -292,6 +374,18 @@ jobs:
               echo "::error::The FIREBASE_TOKEN may have been revoked by a Google account security event (password change, suspicious sign-in, etc.). Fix options:"
               echo "::error::  1. (Preferred) Add a FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON secret — a service-account key is not tied to a personal account and cannot be revoked this way. See DEPLOY.md."
               echo "::error::  2. (Legacy) Rotate the token: npx firebase-tools@latest login:ci → update the FIREBASE_TOKEN secret at Settings > Secrets and variables > Actions."
+            # A Cloud Run capacity/quota refusal is a FUNCTION failure, but
+            # firebase-tools reports it in a shape the per-function classifier
+            # does not recognise ("Could not create or update Cloud Run service
+            # X, ... Quota exceeded ..." rather than the "Functions deploy had
+            # errors with the following functions:" block). Without this branch
+            # the verdict is "no function left unresolved" and the message below
+            # sends the operator to firestore.rules — which is what happened on
+            # run #785, where the real cause was the project's Cloud Run CPU
+            # quota in us-central1. Name it, because nothing else in the log
+            # will and it is not fixable from this repository.
+            elif printf '%s\n' "${out}" | grep -qi "Quota exceeded for total allowable CPU\|Could not create or update Cloud Run service"; then
+              echo "::error::Firebase deploy failed because Cloud Run refused to create or update one or more function services — see the 'Could not create or update Cloud Run service' line(s) above for which. This is a PROJECT-level capacity limit, not a fault in this repository and not something a retry fixes: raise the Cloud Run CPU quota for examsprepzambia in us-central1 (IAM & Admin → Quotas → 'Total CPU allocation' / Cloud Run Admin API), or free capacity by deleting unused Cloud Run revisions/services, then re-run this workflow from the Actions tab."
             else
               echo "::error::Firebase deploy exited ${code} with no unresolved per-function failure — likely a firestore.rules / indexes / storage or CLI error. See the log above."
             fi
