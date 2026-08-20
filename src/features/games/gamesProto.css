@@ -852,3 +852,84 @@
   .lhx-kz-prov { transition: none; }
   .lhx-kz-name:active { transform: none; }
 }
+
+/* ── Fraction Ladder (fraction_ladder) ───────────────────────────────── */
+.lhx-nt-title { font-weight: 900; font-size: 16px; color: #fff; }
+
+.lhx-fl-ladder { padding: 10px 12px 24px; }
+.lhx-fl-group {
+  font-size: 11px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--lhx-muted, #6b7392); margin: 14px 2px 8px;
+}
+.lhx-fl-level {
+  width: 100%; display: flex; gap: 11px; align-items: flex-start; text-align: left;
+  background: #fff; border: 2px solid transparent; border-radius: 16px; padding: 12px;
+  margin-bottom: 8px; font: inherit; cursor: pointer; min-height: 48px;
+}
+.lhx-fl-level.is-locked { opacity: .62; cursor: default; }
+.lhx-fl-level.is-open { border-color: #ffd9c7; }
+.lhx-fl-badge {
+  width: 38px; height: 38px; flex: 0 0 auto; border-radius: 12px; display: grid; place-items: center;
+  font-weight: 900; font-size: 15px; color: #fff;
+}
+.lhx-fl-badge.is-done { background: #009e73; }
+.lhx-fl-badge.is-open { background: linear-gradient(180deg, #ff7a4d, #f4592c); }
+.lhx-fl-badge.is-locked { background: #cfd4e8; color: #8f97b5; }
+.lhx-fl-text { display: flex; flex-direction: column; gap: 2px; }
+.lhx-fl-text b { font-size: 14px; font-weight: 900; color: var(--lhx-ink); }
+.lhx-fl-text small { font-size: 12px; color: var(--lhx-muted, #6b7392); line-height: 1.45; }
+.lhx-fl-why { font-size: 11.5px; font-style: normal; font-weight: 800; color: #8f3f00; margin-top: 3px; }
+
+.lhx-fl-q {
+  background: #fff; border-radius: 18px; margin: 12px 12px 0; padding: 16px;
+  font-size: 16px; font-weight: 800; line-height: 1.5; color: var(--lhx-ink);
+}
+
+.lhx-fl-answer {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin: 16px 12px 4px; min-height: 92px;
+  background: #fff; border: 2.5px solid #e6e8f5; border-radius: 16px;
+}
+.lhx-fl-answer.is-ok { border-color: #009e73; background: #e7f5f0; }
+.lhx-fl-answer.is-no { border-color: #d55e00; background: #fdeee4; }
+.lhx-fl-stack { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.lhx-fl-box {
+  min-width: 52px; height: 40px; border: none; background: #eef0fb; border-radius: 10px;
+  font: inherit; font-size: 24px; font-weight: 900; color: var(--lhx-ink); cursor: pointer;
+}
+.lhx-fl-box.is-focus { background: #ececfb; box-shadow: inset 0 0 0 2.5px #5b5bd6; }
+.lhx-fl-box.is-whole { min-width: 40px; height: 84px; font-size: 26px; }
+.lhx-fl-bar { display: block; width: 56px; height: 3px; background: var(--lhx-ink); border-radius: 2px; }
+.lhx-fl-dec {
+  width: 160px; height: 52px; border: none; background: #eef0fb; border-radius: 12px; text-align: center;
+  font: inherit; font-size: 26px; font-weight: 900; color: var(--lhx-ink);
+}
+
+.lhx-fl-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px; }
+.lhx-fl-key {
+  background: #fff; border: none; border-radius: 13px; padding: 14px 0; min-height: 48px;
+  font: inherit; font-size: 22px; font-weight: 800; color: var(--lhx-ink);
+  box-shadow: 0 2px 0 #ccd2e6; cursor: pointer;
+}
+.lhx-fl-key:active { transform: translateY(2px); box-shadow: none; }
+.lhx-fl-key.is-fn { background: #e7eaf6; color: var(--lhx-muted, #6b7392); font-size: 16px; }
+.lhx-fl-check {
+  width: calc(100% - 24px); margin: 0 12px; min-height: 48px; padding: 14px; border: none;
+  border-radius: 14px; font: inherit; font-size: 15.5px; font-weight: 800; color: #fff;
+  background: linear-gradient(180deg, #ff7a4d, #f4592c); cursor: pointer;
+}
+.lhx-fl-check:disabled { background: #dfe2f0; color: #9aa1bd; cursor: default; }
+
+.lhx-fl-feedback { margin: 12px; min-height: 60px; }
+.lhx-fl-fb { border-radius: 14px; padding: 12px; font-size: 13.5px; line-height: 1.6; }
+.lhx-fl-fb.is-ok { background: #e7f5f0; border: 1px solid #bfe4d8; color: #04674c; }
+.lhx-fl-fb.is-no { background: #fdeee4; border: 1px solid #f6d3ba; color: #8f3f00; }
+.lhx-fl-fb-title { font-weight: 900; font-size: 14.5px; margin-bottom: 3px; display: flex; gap: 6px; }
+
+/* The one fraction renderer — em-sized so it scales with its sentence. */
+.lhx-fr { display: inline-flex; align-items: center; gap: .2em; vertical-align: middle; }
+.lhx-fr-stack { display: inline-flex; flex-direction: column; align-items: center; line-height: 1.05; font-size: .86em; }
+.lhx-fr-n { padding: 0 .34em .04em; }
+.lhx-fr-d { padding: .05em .34em 0; border-top: .11em solid currentColor; }
+
+@media (prefers-reduced-motion: reduce) { .lhx-fl-key:active { transform: none; } }
