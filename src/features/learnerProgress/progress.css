@@ -103,6 +103,6 @@
   display: flex; align-items: center; justify-content: center;
   font-size: 13px; font-weight: 900;
 }
-.lhx-sp-check.is-done .lhx-sp-box { background: var(--lhx-green); border-color: var(--lhx-green); }
+.lhx-sp-check.is-done .lhx-sp-box { background: var(--lhx-green-btn); border-color: var(--lhx-green-btn); }
 .lhx-sp-lbl { font-size: 13.5px; font-weight: 800; color: var(--lhx-ink); }
 .lhx-sp-check.is-done .lhx-sp-lbl { color: var(--lhx-muted); text-decoration: line-through; }

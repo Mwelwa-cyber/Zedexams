@@ -128,6 +128,23 @@ body {
   to { transform: rotate(360deg); }
 }
 
+/**
+ * The same rotation, for a glyph that IS the spinner.
+ *
+ * `.zx-spin` draws its own ring out of a border, so it can only be put on
+ * an empty element. A `<ArrowPath />` icon, or any SVG whose shape already
+ * says "turning", has to spin as itself — and the only class available for
+ * that was Tailwind's `animate-spin`, which runs at 1s against this
+ * system's 0.9s. Two spinners a tenth of a second out of step, side by
+ * side, is the exact thing this stylesheet was written to end
+ * (docs/learner/LEARNER_UI_AUDIT.md L-17).
+ *
+ * Use `.zx-spin` for a bare ring; use this when the icon is the spinner.
+ */
+.zx-rotating {
+  animation: zx-rotate 0.9s linear infinite;
+}
+
 /* Dots for waits under about a second (save, toggle, refresh a count). A
  * rotating ring for a 400ms save reads as effort the app is not expending. */
 .zx-dots {
@@ -173,6 +190,7 @@ body {
   .zx-topline::after,
   .zx-sk::after,
   .zx-spin,
+  .zx-rotating,
   .zx-dots i,
   .zx-breathe {
     animation: none;

@@ -61,6 +61,10 @@ export function playableWords(questions) {
       // difficulty band — so `wordsForStage` has to be able to filter to one
       // without going back to the bank for a second lookup.
       band: q?.band || null,
+      // The pre-generated pronunciation, when the word has one. Travels with
+      // the item so the round plays a static file rather than spending one of
+      // the learner's daily AI calls on a word an admin already voiced.
+      audio: q?.audio || '',
       // The pack entry travels with the word so the "break it up" coach can
       // find its chunks after a miss without looking the word up again.
       source: q || null,

@@ -264,7 +264,14 @@ export default function SpellingRideGame({ game }) {
   const say = useCallback((challenge) => {
     if (!voiceRef.current || !challenge) return false
     if (challenge.kind === 'choice') return speakSentence(challenge.prompt)
-    return Boolean(speakWord(challenge.word)) || true
+    // `speakWord` is async (the pre-generated → cloud → browser ladder), so it
+    // cannot report success in time to decide whether Dictation must also SHOW
+    // the word. `speechAvailable()` is the honest synchronous answer to the
+    // question actually being asked — can this device play audio at all — and
+    // the ladder's own three tiers cover everything below that.
+    if (!speechAvailable()) return false
+    speakWord(challenge.word, { audioUrl: challenge.audio })
+    return true
   }, [])
 
   /**
@@ -386,8 +393,9 @@ export default function SpellingRideGame({ game }) {
         // The correction is the lesson, so it is SAID as well as shown: the
         // whole word and then its letters, slowly.
         if (voiceRef.current) {
-          if (event.spellOut) speakWordThenLetters(event.spoken)
-          else speakWord(event.spoken)
+          const audioUrl = event.challenge?.audio || ''
+          if (event.spellOut) speakWordThenLetters(event.spoken, { audioUrl })
+          else speakWord(event.spoken, { audioUrl })
         }
         changed = true
       } else if (event.type === 'wordDone') {
@@ -580,7 +588,7 @@ export default function SpellingRideGame({ game }) {
     primeSpeech()
     if (!voiceRef.current) setVoiceOn(true)
     if (ride.active.kind === 'choice') speakSentence(ride.active.prompt)
-    else speakWord(ride.active.word)
+    else speakWord(ride.active.word, { audioUrl: ride.active.audio })
   }, [])
 
   const downloadCsv = useCallback(() => {

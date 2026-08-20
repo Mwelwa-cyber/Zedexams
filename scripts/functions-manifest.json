@@ -1430,6 +1430,23 @@
       "classification": "secrets-bound",
       "batch": null
     },
+    "generateSpellingAudio": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "memory": "\"512MiB\"",
+        "timeoutSeconds": "300",
+        "secrets": "[elevenLabsApiKeySpelling]"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": null
+    },
     "generateStudyPlan": {
       "kind": "factory",
       "inline": false,

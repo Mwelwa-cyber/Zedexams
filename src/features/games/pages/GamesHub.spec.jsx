@@ -400,4 +400,56 @@ describe('GamesHub', () => {
     const cards = await screen.findAllByRole('link', { name: /Best|Play/ })
     expect(cards.length).toBeGreaterThan(0)
   })
+  /**
+   * The first screen a new learner meets. It used to open, for everyone,
+   * with a Level strip over an empty meter and an Achievements shelf over
+   * ten padlocks — more than half of a 390×844 phone spent telling a
+   * child they had nothing, above the games (LEARNER_UI_AUDIT L-16).
+   *
+   * `progressBlockMode` is unit-tested next door; what these assert is
+   * that the hub is actually WIRED to it, in both directions, which the
+   * pure test cannot see.
+   */
+  describe('a learner with no progress yet', () => {
+    beforeEach(() => {
+      mocks.getMyHistory.mockResolvedValue([])
+      mocks.getMyGameBadges.mockResolvedValue({ byId: {} })
+    })
+
+    it('leads with the games instead of two empty blocks', async () => {
+      renderHub()
+      const games = await screen.findByRole('heading', { name: 'Your games' })
+      expect(screen.queryByRole('heading', { name: 'Achievements' })).toBeNull()
+      expect(games).toBeInTheDocument()
+      // The level strip goes with it — an empty meter is the same claim.
+      expect(screen.queryByText(/^Level \d/)).toBeNull()
+    })
+
+    it('offers one line naming what to aim at, not a count of nothing', async () => {
+      renderHub()
+      const row = await screen.findByText(/first sticker/i)
+      expect(row).toBeInTheDocument()
+      // The padlock shelf is what this replaced; it must not also render.
+      expect(screen.queryByText(`0 of ${GAME_BADGES.length} \u203a`)).toBeNull()
+    })
+  })
+
+  describe('a learner who has earned something', () => {
+    it('puts the level and the stickers back above the games', async () => {
+      // The default fixture already has history and one badge.
+      renderHub()
+      expect(await screen.findByRole('heading', { name: 'Achievements' })).toBeInTheDocument()
+      expect(screen.getByText(/^Level \d/)).toBeInTheDocument()
+
+      // ...and above, not merely present. compareDocumentPosition is the
+      // only ordering signal jsdom has, since it does layout nothing.
+      const achievements = screen.getByRole('heading', { name: 'Achievements' })
+      const games = screen.getByRole('heading', { name: 'Your games' })
+      const achievementsComesFirst = Boolean(
+        achievements.compareDocumentPosition(games) & Node.DOCUMENT_POSITION_FOLLOWING,
+      )
+      expect(achievementsComesFirst).toBe(true)
+    })
+  })
+
 })

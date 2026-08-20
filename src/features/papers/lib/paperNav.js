@@ -133,3 +133,41 @@ export function filterPapers(papers, {
   else sorted.sort((a, b) => (b.year || 0) - (a.year || 0))
   return sorted
 }
+
+/**
+ * Which grade should the archive open on, and may the visitor switch?
+ *
+ * The hub used to answer the first question with the literal `'7'` and
+ * the second with an unconditional yes — so a learner's own profile was
+ * never consulted, and a child was offered a grade picker on a child
+ * surface (`docs/learner/README.md` Ground rules; LEARNER_UI_AUDIT L-14).
+ *
+ * The four inputs are separate on purpose:
+ *
+ *   - `urlGrade` outranks everything. `?grade=12` is a deep link someone
+ *     followed or shared, and honouring it costs nothing: a learner who
+ *     lands on one is looking at a specific paper, not browsing.
+ *   - `profileGrade` is the learner's own, and only when it is a grade
+ *     this archive HAS. ECZ retired Grade 9, so the archive is 7 and 12;
+ *     a Grade 5 learner has no papers here and gets the default rather
+ *     than an empty screen insisting it is their grade.
+ *   - `isLearner` alone decides the toggle. Not "is signed in" — a
+ *     teacher and a parent legitimately browse both grades, and a
+ *     signed-out visitor is most of this page's traffic and has no
+ *     profile to read.
+ *
+ * Returns the grade as the same string token `PAPER_GRADES` holds, so
+ * callers never have to think about `7` vs `'7'`.
+ */
+export function resolveArchiveGrade({
+  urlGrade, profileGrade, isLearner, grades, fallback = '7',
+} = {}) {
+  const known = (Array.isArray(grades) ? grades : []).map(String)
+  const has = (g) => g != null && known.includes(String(g))
+
+  let grade = fallback
+  if (has(urlGrade)) grade = String(urlGrade)
+  else if (isLearner && has(profileGrade)) grade = String(profileGrade)
+
+  return { grade, showGradeToggle: !isLearner }
+}

@@ -18,6 +18,7 @@ import {
   viewPath,
   isSpecimen,
   filterPapers,
+  resolveArchiveGrade,
 } from '../src/features/papers/lib/paperNav.js'
 
 let passed = 0
@@ -169,5 +170,50 @@ eq(
   'ecz',
   '"Official only" still narrows to ECZ — that filter is a CHOICE, not a gate',
 )
+
+// ── resolveArchiveGrade ─────────────────────────────────────────────
+//
+// Which grade the archive opens on, and whether a grade switch belongs
+// on the screen at all. Before this the answers were the literal '7' and
+// an unconditional yes, so a learner's own profile was never read and a
+// child was offered grade browsing on a child surface (L-14).
+
+const G = ['7', '12']
+
+// A visitor with no account: the archive's default, and the toggle —
+// they are most of this page's traffic and have no profile to read.
+eq(resolveArchiveGrade({ grades: G }).grade, '7', 'signed out opens on the default grade')
+eq(resolveArchiveGrade({ grades: G }).showGradeToggle, true, 'signed out keeps the grade toggle')
+
+// A learner: their own grade, and no toggle.
+const g7 = resolveArchiveGrade({ profileGrade: 7, isLearner: true, grades: G })
+eq(g7.grade, '7', "a Grade 7 learner opens on their own grade")
+eq(g7.showGradeToggle, false, 'a learner is not offered grade browsing')
+// Numeric or string, the caller should not have to care.
+eq(resolveArchiveGrade({ profileGrade: '12', isLearner: true, grades: G }).grade, '12', "a learner's grade is read whichever type it arrives as")
+
+// A grade this archive does not hold falls back rather than opening an
+// empty screen that insists it is the learner's grade. (ECZ retired
+// Grade 9; the archive is 7 and 12.)
+eq(resolveArchiveGrade({ profileGrade: 5, isLearner: true, grades: G }).grade, '7', 'a grade with no papers here falls back to the default')
+eq(resolveArchiveGrade({ profileGrade: 9, isLearner: true, grades: G }).grade, '7', 'a retired grade falls back to the default')
+eq(resolveArchiveGrade({ profileGrade: null, isLearner: true, grades: G }).grade, '7', 'a learner with no grade yet falls back to the default')
+
+// A deep link outranks the profile: a shared ?grade=12 link is someone
+// going to a specific paper, not browsing.
+eq(resolveArchiveGrade({ urlGrade: '12', profileGrade: 7, isLearner: true, grades: G }).grade, '12', '?grade= outranks the profile')
+// ...but a nonsense one does not silently become the URL's word.
+eq(resolveArchiveGrade({ urlGrade: '9', profileGrade: 7, isLearner: true, grades: G }).grade, '7', 'an unknown ?grade= is ignored, not trusted')
+eq(resolveArchiveGrade({ urlGrade: 'nonsense', grades: G }).grade, '7', 'a junk ?grade= is ignored')
+
+// Teachers and parents are signed in and legitimately browse both grades,
+// so the rule is `isLearner`, never "is signed in".
+eq(resolveArchiveGrade({ isLearner: false, profileGrade: 7, grades: G }).showGradeToggle, true, 'a teacher or parent keeps the toggle')
+eq(resolveArchiveGrade({ isLearner: false, profileGrade: 7, grades: G }).grade, '7', 'a non-learner is not scoped to a profile grade')
+
+// Called with nothing at all — the shape the hub sees on its very first
+// render, before the profile has loaded.
+eq(resolveArchiveGrade().grade, '7', 'no arguments still yields a grade')
+eq(resolveArchiveGrade().showGradeToggle, true, 'no arguments still yields a toggle decision')
 
 console.log(`\n✓ past-paper-nav: ${passed} assertions passed`)

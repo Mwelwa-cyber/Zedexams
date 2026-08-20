@@ -88,6 +88,8 @@ import {
   gameMetaLine,
   gameStatusPill,
   isRecentlyAdded,
+  progressBlockMode,
+  progressStarterRow,
   resolveLearnerGrade,
   unavailableRowCopy,
   zedRaceRow,
@@ -211,6 +213,15 @@ export default function GamesHub() {
   const progress = levelInfo(totalPoints)
   const earnedIds = new Set(Object.keys(state.badgesById || {}))
   const earnedCount = GAME_BADGES.filter((b) => earnedIds.has(b.id)).length
+
+  // Whether the Level strip and the Achievements shelf lead this page or
+  // collapse to one line under it. See progressBlockMode.
+  const progressMode = progressBlockMode({
+    signedIn: !!currentUser,
+    earnedCount,
+    totalPoints,
+  })
+  const starterRow = progressStarterRow({ signedIn: !!currentUser, badgeCount: GAME_BADGES.length })
 
   // Best saved score per game, from the same history rows the XP uses.
   const bestByGame = useMemo(() => {
@@ -340,46 +351,55 @@ export default function GamesHub() {
         </Link>
       )}
 
-      {/* Level strip. */}
-      <div className="lhx-lvl">
-        <div className="lhx-lvl-top">
-          <div className="lhx-lvl-badge" aria-hidden="true">{progress.rank?.emoji || '🎓'}</div>
-          <div className="lhx-lvl-name">
-            <b>Level {progress.level}</b>
-            <span>{progress.rank?.title || 'Learner'}</span>
+      {/* Level + Achievements, ABOVE the games — but only for a learner
+          who has something in them. See progressBlockMode: for everyone
+          else these two blocks say nothing except that the learner has
+          nothing, and they said it across more than half of the first
+          screen (LEARNER_UI_AUDIT L-16). */}
+      {progressMode === 'full' && (
+        <>
+        {/* Level strip. */}
+        <div className="lhx-lvl">
+          <div className="lhx-lvl-top">
+            <div className="lhx-lvl-badge" aria-hidden="true">{progress.rank?.emoji || '🎓'}</div>
+            <div className="lhx-lvl-name">
+              <b>Level {progress.level}</b>
+              <span>{progress.rank?.title || 'Learner'}</span>
+            </div>
+            <div className="lhx-lvl-xp">
+              {currentUser ? `${progress.pointsToNext} XP to Level ${progress.level + 1}` : 'Sign in to earn XP'}
+            </div>
           </div>
-          <div className="lhx-lvl-xp">
-            {currentUser ? `${progress.pointsToNext} XP to Level ${progress.level + 1}` : 'Sign in to earn XP'}
+          <div className="lhx-lvl-track"><i style={{ width: `${progress.progress}%` }} /></div>
+        </div>
+
+        {/* Achievements. */}
+        <section>
+          <div className="lhx-gh-sect">
+            <h2 className="lhx-gh-sect-title">Achievements</h2>
+            {/* The count doubles as the door to the Sticker Collection. */}
+            <Link to="/games/stickers" className="lhx-gh-sect-link">{earnedCount} of {GAME_BADGES.length} ›</Link>
           </div>
-        </div>
-        <div className="lhx-lvl-track"><i style={{ width: `${progress.progress}%` }} /></div>
-      </div>
-
-      {/* Achievements. */}
-      <section>
-        <div className="lhx-gh-sect">
-          <h2 className="lhx-gh-sect-title">Achievements</h2>
-          {/* The count doubles as the door to the Sticker Collection. */}
-          <Link to="/games/stickers" className="lhx-gh-sect-link">{earnedCount} of {GAME_BADGES.length} ›</Link>
-        </div>
-        <div className="lhx-badge-shelf">
-          {GAME_BADGES.map((badge) => {
-            const earned = earnedIds.has(badge.id)
-            return (
-              <div
-                key={badge.id}
-                className={`lhx-badge ${earned ? 'is-earned' : 'is-locked'}`}
-                title={earned ? badge.description : badge.hint}
-              >
-                <div className="lhx-badge-ic" aria-hidden="true">{earned ? badge.icon : '🔒'}</div>
-                <div className="lhx-badge-nm">{badge.name}</div>
-              </div>
-            )
-          })}
-        </div>
-      </section>
-
-      {/* Your games. */}
+          <div className="lhx-badge-shelf">
+            {GAME_BADGES.map((badge) => {
+              const earned = earnedIds.has(badge.id)
+              return (
+                <div
+                  key={badge.id}
+                  className={`lhx-badge ${earned ? 'is-earned' : 'is-locked'}`}
+                  title={earned ? badge.description : badge.hint}
+                >
+                  <div className="lhx-badge-ic" aria-hidden="true">{earned ? badge.icon : '🔒'}</div>
+                  <div className="lhx-badge-nm">{badge.name}</div>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+        </>
+      )}
+      {/* Your games — first for a learner with no progress yet, because a
+          playable game is the one thing this page can offer them. */}
       <section>
         <div className="lhx-gh-sect">
           <h2 className="lhx-gh-sect-title">Your games</h2>
@@ -435,6 +455,22 @@ export default function GamesHub() {
           </div>
         )}
       </section>
+
+      {/* The compact twin of the two blocks above: one row, below the
+          games, that names the next thing to aim at rather than
+          inventorying what the learner has not got. It reuses the
+          practice-race row's shape, which is already the hub's "one
+          tappable line" pattern. */}
+      {progressMode === 'compact' && (
+        <Link to={currentUser ? '/games/stickers' : '/login'} className="lhx-gh-practice">
+          <span className="lhx-gh-practice-ic" aria-hidden="true">{starterRow.icon}</span>
+          <span className="lhx-gh-practice-body">
+            <b>{starterRow.title}</b>
+            <span>{starterRow.sub}</span>
+          </span>
+          <span className="lhx-gh-practice-chev" aria-hidden="true">&rsaquo;</span>
+        </Link>
+      )}
     </div>
   )
 }

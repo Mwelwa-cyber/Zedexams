@@ -15,6 +15,8 @@ import {
   gameMetaLine,
   gameStatusPill,
   isRecentlyAdded,
+  progressBlockMode,
+  progressStarterRow,
   resolveLearnerGrade,
   unavailableRowCopy,
   zedRaceRow,
@@ -380,7 +382,44 @@ for (const line of everyString) {
   )
 }
 
+// ── progressBlockMode / progressStarterRow ──────────────────────────
+//
+// Whether the Level strip and the Achievements shelf lead the page or
+// collapse to one line under it. The hub used to open the same way for
+// everyone, so a first-time learner's screen was more than half taken up
+// by two blocks saying they had nothing yet (LEARNER_UI_AUDIT L-16).
+
+// A learner with nothing gets the games first.
+assert.equal(progressBlockMode({ signedIn: true }), 'compact')
+assert.equal(progressBlockMode({ signedIn: true, earnedCount: 0, totalPoints: 0 }), 'compact')
+
+// Either signal is enough — points come from every run, badges are
+// milestones, and a learner can hold one without the other.
+assert.equal(progressBlockMode({ signedIn: true, earnedCount: 1 }), 'full')
+assert.equal(progressBlockMode({ signedIn: true, totalPoints: 30 }), 'full')
+assert.equal(progressBlockMode({ signedIn: true, earnedCount: 3, totalPoints: 900 }), 'full')
+
+// A signed-out visitor has no progress to show, and their level meter can
+// only say "sign in" — which is an ask, not a reward.
+assert.equal(progressBlockMode({ signedIn: false }), 'compact')
+assert.equal(progressBlockMode({ signedIn: false, earnedCount: 4, totalPoints: 900 }), 'compact')
+
+// Called with nothing at all — the shape the hub has on its first render.
+assert.equal(progressBlockMode(), 'compact')
+
+// The starter row says what to DO. A differently-worded inventory of the
+// learner's zeroes would be the same failure this replaced, so the row
+// must never open with a count.
+for (const signedIn of [true, false]) {
+  const row = progressStarterRow({ signedIn, badgeCount: 10 })
+  assert.ok(row.title && row.sub, 'the starter row needs both lines')
+  assert.ok(!/^0\b/.test(row.title), `the starter row leads with a zero: "${row.title}"`)
+  assert.ok(!/\b0 of\b/.test(row.title), `the starter row inventories nothing: "${row.title}"`)
+}
+assert.match(progressStarterRow({ signedIn: true, badgeCount: 10 }).title, /first sticker/)
+assert.match(progressStarterRow({ signedIn: false }).title, /Sign in/)
+
 console.log(
   '✓ games hub core — grade resolution, catalogue scoping, meta lines, status pills, '
-  + `hero copy, the Race Zed row (rollout grade ${rollout})`,
+  + `hero copy, the Race Zed row, progress-block mode (rollout grade ${rollout})`,
 )

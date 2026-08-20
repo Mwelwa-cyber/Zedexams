@@ -277,6 +277,12 @@ export function buildWordChallenge(item, { mode = 'spell', rng = Math.random } =
     word,
     band: item?.band || null,
     clue: String(item?.clue || ''),
+    // The pre-generated pronunciation, when an admin has voiced this word.
+    // Threaded onto the challenge so the ride plays the free static file
+    // rather than spending one of the learner's 60 daily AI calls per word —
+    // a nine-town ride is up to 36 words, which without this would exhaust
+    // the allowance in a single sitting. Same field the ladder's round reads.
+    audio: String(item?.audio || ''),
     prompt: '',
     wordy: false,
     steps: word.split('').map((letter) => buildLetterStep(letter, word, rng)),

@@ -67,7 +67,10 @@ import {
   servableSentence,
   validateSentence,
 } from '../src/features/games/lib/spellingSentenceCore.js'
-import { VOICE_PREFERENCE, resolveVoice } from '../src/features/games/lib/spellingSpeech.js'
+// The PURE core, not `spellingSpeech.js` — that module reaches Firebase
+// through `utils/tts` (the ElevenLabs ladder, #2564) and cannot be loaded
+// under plain node. The accent order is the half worth testing anyway.
+import { VOICE_PREFERENCE, resolveVoice } from '../src/features/games/lib/spellingVoiceCore.js'
 import {
   emptyProgress,
   mergeProgress,
