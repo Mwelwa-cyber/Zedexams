@@ -132,7 +132,7 @@ box-shadow:0 -8px 30px rgba(40,44,90,.18);max-height:88%;overflow-y:auto}
   <div class="note"><h3>Mastery is three rights in three <i>separate</i> sessions</h3>Three in one sitting is short-term memory. The stage-complete screen shows the countdown per word, and only the third separate session removes a word from the pool. The pool is the same data My Progress, the study plan and the guardian's weekly report read — there is no second tracker.</div>
   <div class="note"><h3>Stars are accuracy only, never speed</h3>3★ = all 8 right first time, 2★ = 6–7, 1★ = finished. Hinted words don't count as first-time correct. Cleared stages stay open and replayable, and <b>a replay can raise the star count but never lower it</b> — try replaying a 3★ stage badly.</div>
   <div class="note warn"><h3>Never block a learner</h3>Clearing a stage unlocks the next, but after <b>two</b> unsuccessful attempts the stage offers a shorter practice round on just those words and then lets them through. No lives, no energy meter, no wait-to-continue, no paid retries, no "buy more turns". Borrow the map, the stars and the pull to the next stage from games like Candy Crush — leave every monetisation mechanic out. A child must never be stopped from practising.</div>
-  <div class="note"><h3>Content is the real constraint, not the code</h3>At 8 words a stage, ~100 stages per grade band needs roughly <b>800 approved words per grade</b>, each with a difficulty band, a context sentence and audio. The dark panel on the map screen reports what actually exists per grade <i>before</i> the map is built, so the gap is visible rather than discovered at stage 30. Stage composition is a pure function of (bank, pool, stage number), so stages are generated rather than hand-authored.</div>
+  <div class="note"><h3>Content was the real constraint — the bank now exists</h3>At 8 words a stage, ~100 stages needs roughly <b>800 approved words</b>, each with a difficulty band and a context sentence. That bank has been written: <b>879 Grade 7 words</b> across these nine bands live in <code>src/data/spellingBank.js</code>, with <code>npm run test:spelling-bank</code> enforcing no duplicates, no sentence that contains its own answer, and British spelling throughout. <b>Grade 7 only</b>, because that is the only grade the learner app is open to. Stage composition stays a pure function of (bank, pool, stage number), so stages are generated rather than hand-authored.</div>
   <div class="note"><h3>Offline</h3>A whole chapter downloads as a unit — words, sentences and audio — and progress syncs when the learner is back online.</div>
 </div>
 </div>
@@ -250,13 +250,28 @@ function starsFor(firstTimeCorrect){ return firstTimeCorrect >= STAGE_WORDS ? 3 
    acted on. */
 const STAGES_TARGET = CHAPTERS.length * STAGES_PER_CHAPTER;
 const WORDS_NEEDED  = STAGES_TARGET * NEW_PER_STAGE;
+
+// ONE GRADE. The learner side of the app is open to Grade 7 and nothing else
+// (`LEARNER_GRADES` in src/config/curriculum.js), so a per-grade table would
+// be reporting a gap in grades that have no learners to disappoint. When
+// another grade opens, add it here and to the bank in the same change.
+const LEARNER_GRADES = [7];
+
+// The real bank now exists: src/data/spellingBank.js holds 879 approved
+// Grade 7 words across the nine bands, checked by `npm run test:spelling-bank`
+// (no duplicates, no sentence containing its own answer, British spelling
+// throughout). This prototype keeps its own small BANK because it has to run
+// as a single file with no build step — REAL_BANK_WORDS is the figure from the
+// repo, quoted so this panel reports the truth rather than its own sample.
+const REAL_BANK_WORDS = 879;
+
 function inventory(){
-  const rows = [];
-  for(const g of [4,5,6,7,8,9]){
-    const have = BANK.filter(b => b.g === g).length;
-    rows.push({ g, have, need: WORDS_NEEDED, stages: Math.floor(have / NEW_PER_STAGE) });
-  }
-  return rows;
+  return LEARNER_GRADES.map((g) => ({
+    g,
+    have: REAL_BANK_WORDS,
+    need: WORDS_NEEDED,
+    stages: Math.floor(REAL_BANK_WORDS / NEW_PER_STAGE),
+  }));
 }
 
 /* ══ PER-LEARNER STATE ═════════════════════════════════════════════════════ */
@@ -514,10 +529,11 @@ $('seed').onclick   = () => {
   persist(); screen = { name:'map' }; render();
 };
 
-const short = inventory().filter(r => r.have < r.need).length;
+const inv = inventory();
+const short = inv.filter(r => r.have < r.need).length;
 $('gap').textContent = short
-  ? `content gap: ${short} of 6 grades short of ${WORDS_NEEDED} words`
-  : `content gap: none — every grade has ${WORDS_NEEDED}+ words`;
+  ? `content gap: ${short} of ${inv.length} grade(s) short of ${WORDS_NEEDED} words`
+  : `bank ready: ${REAL_BANK_WORDS} Grade 7 words, ${Math.floor(REAL_BANK_WORDS / NEW_PER_STAGE)} stages`;
 
 render();
 </script>
