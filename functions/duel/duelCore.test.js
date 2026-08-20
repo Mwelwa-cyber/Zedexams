@@ -6,6 +6,7 @@
 const assert = require("node:assert");
 const {
   QUEUE_TTL_MS,
+  correctIndexOf,
   pickOpponent,
   drawQuestions,
   gradeSubmission,
@@ -104,6 +105,54 @@ test("a non-player, a resubmission, and an expired match are all refused", () =>
   const late = settleMatch(match, "b", 10, NOW + 11 * 60 * 1000);
   assert.strictEqual(late.reason, "match_expired");
   assert.strictEqual(settleMatch({ ...match, state: "done" }, "b", 10, NOW).reason, "match_done");
+});
+
+test("options are dealt per match — the answer is not pinned to slot A", () => {
+  // The banks list the correct answer first; a match that served stored
+  // order let either player win by always tapping the top option.
+  const bank = Array.from({ length: 12 }, (_, i) => ({
+    id: `q${i}`,
+    question: `Q${i}`,
+    options: ["right", "wrong1", "wrong2", "wrong3"],
+    answer: "right",
+  }));
+  const drawn = drawQuestions(bank, "match-deal", 5);
+  // Grading still finds every answer where it moved to…
+  for (const q of drawn) {
+    assert.strictEqual(q.options[correctIndexOf(q)], "right");
+  }
+  // …and across five 4-option deals, at least one moved off slot A
+  // (all-first survives a fair deal with probability 4^-5 ≈ 0.1%; the
+  // seed is fixed, so this is deterministic, not flaky).
+  assert.ok(drawn.some((q) => correctIndexOf(q) !== 0), "every deal left the answer at A");
+  // Both players get the SAME deal — determinism covers option order too.
+  const again = drawQuestions(bank, "match-deal", 5);
+  assert.deepStrictEqual(drawn.map((q) => q.options), again.map((q) => q.options));
+});
+
+test("an integer answer is normalised to its option's TEXT through the deal", () => {
+  // Normalised to text, never remapped to the dealt index: the live
+  // client's verdict paint (DuelLive via the client correctIndexFor)
+  // reads every answer as option text, so a dealt integer index over
+  // numeric-text options would grade right server-side and paint the
+  // wrong option on screen. Text resolves identically on both sides.
+  const bank = [
+    { id: "q0", options: ["alpha", "beta", "gamma", "delta"], answer: 2 }, // gamma
+    { id: "q1", options: ["0", "1", "2", "3"], answer: 1 },                // the trap case
+  ];
+  const drawn = drawQuestions(bank, "match-int", 5);
+  for (const q of drawn) {
+    const original = bank.find((b) => b.id === q.id);
+    const wantText = String(original.options[original.answer]);
+    assert.strictEqual(typeof q.answer, "string");
+    assert.strictEqual(q.answer, wantText);
+    // Server grading and text-matching clients agree on the same option.
+    assert.strictEqual(String(q.options[correctIndexOf(q)]), wantText);
+    assert.strictEqual(
+      q.options.findIndex((o) => String(o) === String(q.answer)),
+      correctIndexOf(q),
+    );
+  }
 });
 
 console.log(`\n${passed} duel core tests passed.`);

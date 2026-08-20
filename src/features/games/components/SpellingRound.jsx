@@ -37,7 +37,7 @@ import { coachFor, coachOutcome } from '../lib/spellingCoachCore'
 import { recordCorrect, recordMiss } from '../lib/spellingStagesCore'
 import { guessFrom, tilesWithDecoys } from '../lib/wordBuilderCore'
 import { fillGap } from '../lib/spellingContentCore'
-import { playCorrect, playWrong } from '../lib/gameSounds'
+import { isMuted, playCorrect, playWrong, toggleMute } from '../lib/gameSounds'
 import BreakItUpCoach from './BreakItUpCoach'
 import { speakWord, speechAvailable } from '../lib/spellingSpeech'
 
@@ -88,6 +88,15 @@ export default function SpellingRound({
   const [streak, setStreak] = useState(0)
   const [bestStreak, setBestStreak] = useState(0)
   const [heard, setHeard] = useState(false)
+  /**
+   * The mute toggle lives in THIS header for the same reason it lives in
+   * `GameTopBar` (#2556): this engine mounts bare, without GamesShell, so the
+   * shell's nav — which holds the only other mute control — is not on the
+   * page. Without it a learner could not silence a round mid-way, and the one
+   * preference governs haptics too. This round draws its own header rather
+   * than GameTopBar's, so it has to carry the control itself.
+   */
+  const [muted, setMuted] = useState(() => isMuted())
 
   const firstTryRef = useRef(initialFirstTry)
   const missedRef = useRef([...initialMissed])
@@ -296,6 +305,14 @@ export default function SpellingRound({
             <span key={i} className={`lhx-sp-dot ${i < doneCount ? 'is-done' : i === doneCount ? 'is-now' : ''}`} />
           ))}
         </div>
+        <button
+          type="button"
+          className="lhx-sp-mute"
+          aria-label={muted ? 'Unmute game sounds' : 'Mute game sounds'}
+          onClick={() => setMuted(toggleMute())}
+        >
+          <span aria-hidden="true">{muted ? '🔇' : '🔊'}</span>
+        </button>
         <span className="lhx-sp-streak" aria-label={`Streak ${streak}`}>🔥 {streak}</span>
       </header>
 

@@ -303,7 +303,7 @@ export default function NumberTargetGame({ game }) {
   }
 
   return (
-    <div className="lhx">
+    <div className="lhx lhx-bare">
       <div className="lhx-page">
         {screen === 'path' && (
           <PathScreen

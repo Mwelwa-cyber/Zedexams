@@ -361,15 +361,19 @@ export default function WordBuilderGame({ game }) {
 
   /* ── screens ─────────────────────────────────────────────────────── */
   if (screen === 'loading') {
+    // `lhx-bare` here as well as on the main return: this engine is
+    // bare-mounted by PlayGame, and without it the desktop sidebar gutter
+    // learnerTheme.css reserves shoves the waiting line 250px right of centre
+    // with nothing in the gap (#2556).
     return (
-      <div className="lhx"><div className="lhx-page">
+      <div className="lhx lhx-bare"><div className="lhx-page">
         <p className="lhx-sp-loading">Getting your words ready…</p>
       </div></div>
     )
   }
 
   return (
-    <div className="lhx">
+    <div className="lhx lhx-bare">
       <div className="lhx-page">
         {screen === 'map' && (
           <SpellingStageMap

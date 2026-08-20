@@ -20,18 +20,25 @@
  * that stylesheet and renders inside its own `.lhx` root.
  */
 import { useEffect, useMemo, useState } from 'react'
+import { isMuted, toggleMute } from '../lib/gameSounds'
 
 const CONFETTI_BITS = ['🎉', '⭐', '✨', '🎊', '🧡', '💜']
 
 /**
- * The nt-top row: exit control, round-progress bar, live score.
+ * The nt-top row: exit control, round-progress bar, mute, live score.
  *
  * `done` / `total` are ITEMS of the round's fixed set — pairs matched,
  * words spelt, sentences picked, targets hit. Never seconds.
+ *
+ * The mute control lives HERE because the engines that render this row
+ * mount bare, without GamesShell — and the shell's nav used to hold the
+ * only mute toggle, so a full-screen game could not be silenced (or its
+ * haptics stopped; the one preference governs both) mid-round.
  */
 export function GameTopBar({ onExit, done, total, score }) {
   const steps = Math.max(1, Math.floor(Number(total) || 0))
   const at = Math.min(steps, Math.max(0, Math.floor(Number(done) || 0)))
+  const [muted, setMuted] = useState(() => isMuted())
   return (
     <div className="lhx-nt-top">
       <button type="button" className="lhx-nt-x" aria-label="Leave the round" onClick={onExit}>✕</button>
@@ -45,6 +52,14 @@ export function GameTopBar({ onExit, done, total, score }) {
       >
         <i style={{ width: `${(at / steps) * 100}%` }} />
       </div>
+      <button
+        type="button"
+        className="lhx-nt-x lhx-nt-mute"
+        aria-label={muted ? 'Unmute game sounds' : 'Mute game sounds'}
+        onClick={() => setMuted(toggleMute())}
+      >
+        <span aria-hidden="true">{muted ? '🔇' : '🔊'}</span>
+      </button>
       <div className="lhx-nt-score">⭐ {score}</div>
     </div>
   )

@@ -34,6 +34,7 @@ import {
   accuracyPct,
   advanceDeck,
   correctIndexFor,
+  optionDisplayOrder,
   optionLetter,
   questionAt,
   ratingStars,
@@ -81,6 +82,10 @@ export default function TimedQuizGame({ game }) {
 
   const [phase, setPhase] = useState('ready') // ready | playing | done
   const [seed, setSeed] = useState(0)
+  // Salts the per-question option display order (optionDisplayOrder), so the
+  // same question shows its options in a different order each round while a
+  // re-render mid-question keeps them still.
+  const [roundSalt, setRoundSalt] = useState(() => Date.now())
   const [deck, setDeck] = useState(() => shuffle(pool, Date.now()))
   const [pos, setPos] = useState(0)
   const [questionNo, setQuestionNo] = useState(0) // total questions seen in this round
@@ -318,6 +323,7 @@ export default function TimedQuizGame({ game }) {
     reportGameStart(game)
     finishingRef.current = false
     setSeed((s) => s + 1)
+    setRoundSalt(Date.now())
     setPhase('playing')
     setDeck(shuffle(pool, Date.now()))
     setPos(0)
@@ -475,6 +481,21 @@ export default function TimedQuizGame({ game }) {
   const engineQuestion = engineActive ? roundAssessment.questions[poolIndex] : null
   const correctIdx = correctIndexFor(q)
   const pct = roundProgressPct(questionNo, roundLength)
+  // The order the card DRAWS the options in — deterministic within a question
+  // (salt + questionNo), fresh across rounds. Every index that leaves the card
+  // (pick, verdict paint) is translated back to the stored option index, so
+  // scoring and the recorded round never see display order.
+  const displayOrder = optionDisplayOrder((q.options || []).length, roundSalt + questionNo * 7919)
+  // The engine path renders the canonical question through ChoiceQuestion,
+  // which speaks its own index space — hand it a view permuted the same way,
+  // with `answer`/`correctIndex` mapped into display space and taps mapped out.
+  const engineDisplayQuestion = engineQuestion
+    ? {
+      ...engineQuestion,
+      options: displayOrder.map((oi) => engineQuestion.options[oi]),
+      correctIndex: displayOrder.indexOf(engineQuestion.correctIndex),
+    }
+    : null
 
   return (
     <div className="space-y-5">
@@ -504,23 +525,23 @@ export default function TimedQuizGame({ game }) {
           // this is the resolved side of it.
           <div key={`engine-${seed}-${questionNo}`}>
             <ChoiceQuestion
-              question={engineQuestion}
-              answer={picked}
+              question={engineDisplayQuestion}
+              answer={picked === null ? null : displayOrder.indexOf(picked)}
               revealed={picked !== null}
-              onAnswer={(optionIndex) => pick(optionIndex)}
+              onAnswer={(displayIndex) => pick(displayOrder[displayIndex])}
             />
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" key={`${seed}-${questionNo}`}>
-            {q.options.map((opt, i) => (
+            {displayOrder.map((optIdx, i) => (
               <Choice
                 key={`${seed}-${questionNo}-${i}`}
-                label={opt}
+                label={q.options[optIdx]}
                 letter={optionLetter(i)}
                 picked={picked}
-                isPicked={picked === i}
-                isAnswer={correctIdx === i}
-                onClick={() => pick(i)}
+                isPicked={picked === optIdx}
+                isAnswer={correctIdx === optIdx}
+                onClick={() => pick(optIdx)}
               />
             ))}
           </div>

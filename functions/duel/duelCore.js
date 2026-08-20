@@ -49,16 +49,20 @@ function pickOpponent(waiting, incoming, nowMs) {
  *
  * Both players MUST get the same questions in the same order — that is
  * the fairness the VS screen promises — so the draw is seeded by the
- * match id, not Math.random().
+ * match id, not Math.random(). Each drawn question's OPTIONS are dealt
+ * in a fresh (seeded) order too: the banks mostly list the correct
+ * answer first, so serving stored order would let either player win by
+ * always tapping the top option. The match doc stores the dealt order
+ * and `gradeSubmission` grades against that same stored copy, so both
+ * players see — and are graded on — one identical deal.
  *
  * @param {Array<object>} bank   the game's question objects
  * @param {string} seed          the match id
  * @param {number} count
- * @return {Array<object>} the drawn questions (references, not copies)
+ * @return {Array<object>} the drawn questions (copies, options dealt)
  */
 function drawQuestions(bank, seed, count = 5) {
   const list = Array.isArray(bank) ? bank.filter(Boolean) : [];
-  if (list.length <= count) return list.slice();
   // Small deterministic PRNG (mulberry32) seeded from the match id.
   let h = 1779033703;
   for (let i = 0; i < seed.length; i++) {
@@ -71,12 +75,43 @@ function drawQuestions(bank, seed, count = 5) {
     h = (h ^= h >>> 16) >>> 0;
     return h / 4294967296;
   };
-  const pool = list.slice();
-  const drawn = [];
-  while (drawn.length < count && pool.length) {
-    drawn.push(pool.splice(Math.floor(rand() * pool.length), 1)[0]);
+  let drawn;
+  if (list.length <= count) {
+    drawn = list.slice();
+  } else {
+    const pool = list.slice();
+    drawn = [];
+    while (drawn.length < count && pool.length) {
+      drawn.push(pool.splice(Math.floor(rand() * pool.length), 1)[0]);
+    }
   }
-  return drawn;
+  return drawn.map((q) => shuffleQuestionOptions(q, rand));
+}
+
+/**
+ * A copy of `q` with its options dealt in a fresh order. A STRING
+ * `answer` needs no remapping (`correctIndexOf` matches it by text
+ * wherever the option moved). An integer `answer` is an index into the
+ * OLD order, so it is normalised to the TEXT of the option it named —
+ * not remapped to the new index — because the live client's verdict
+ * paint (`DuelLive` via the client `correctIndexFor`) interprets every
+ * answer as option text: a dealt integer index over numeric-text
+ * options would grade right on the server and paint wrong on screen.
+ * Text resolves identically on both sides. A question with no options
+ * array is returned untouched.
+ */
+function shuffleQuestionOptions(q, rand) {
+  if (!Array.isArray(q?.options) || q.options.length < 2) return q;
+  const order = q.options.map((_, i) => i);
+  for (let i = order.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rand() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  const out = { ...q, options: order.map((i) => q.options[i]) };
+  if (Number.isInteger(q.answer) && q.answer >= 0 && q.answer < q.options.length) {
+    out.answer = String(q.options[q.answer]);
+  }
+  return out;
 }
 
 /**

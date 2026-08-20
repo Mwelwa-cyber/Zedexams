@@ -194,13 +194,18 @@ export function CapitalScreen({ game, geo, onExit, onEnd }) {
   return (
     <>
       <ModeHead onExit={onExit} round={round} goal={`WHICH PROVINCE IS ${String(step.town).toUpperCase()} THE CAPITAL OF?`} />
+      {/* The pin is the ANSWER, not the question: plotted from the town's real
+          coordinates it sits inside the province being asked for, so drawing
+          it up front turned every step into "tap the dot". It drops only once
+          the answer is settled — the reveal that shows where the town really
+          is, on the right and the wrong path alike. */}
       <ZambiaMap
         geo={geo}
         provinces={PROVINCES}
         viewBox={VIEW_MAIN}
         projection={PROJECTION}
         state={marks}
-        pin={{ lon: step.lon, lat: step.lat, label: step.town }}
+        pin={settled ? { lon: step.lon, lat: step.lat, label: step.town } : null}
         onTapProvince={settled ? null : tap}
       />
       <div className="lhx-kz-ask">

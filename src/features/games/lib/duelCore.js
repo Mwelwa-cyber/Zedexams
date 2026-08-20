@@ -68,11 +68,27 @@ export function playableQuestions(questions) {
 }
 
 /**
+ * A copy of `q` with its options in a fresh order and `correctIndex`
+ * following the answer to its new position. The game banks mostly list
+ * the correct answer first, so racing on stored order would let a
+ * learner beat Zed by tapping the top option without reading.
+ */
+export function shuffleQuestionOptions(q, rng = defaultRng) {
+  const order = shuffled(q.options.map((_, i) => i), rng)
+  return {
+    ...q,
+    options: order.map((i) => q.options[i]),
+    correctIndex: order.indexOf(q.correctIndex),
+  }
+}
+
+/**
  * Pick the race's source: the timed_quiz game (learner's grade when one
  * matches, else anywhere) with enough playable questions, plus the five
- * questions drawn from it, options left in place. Null when no game can
- * field a race — the caller shows "no race today" rather than inventing
- * content.
+ * questions drawn from it, each with its options dealt in a fresh order
+ * (`shuffleQuestionOptions` — the banks list the answer first). Null when
+ * no game can field a race — the caller shows "no race today" rather than
+ * inventing content.
  */
 export function pickDuelSource(games, { grade = null, rng = defaultRng } = {}) {
   const quizzes = (games || []).filter((g) => g?.type === 'timed_quiz' && playableQuestions(g.questions).length >= DUEL_QUESTIONS)
@@ -80,7 +96,9 @@ export function pickDuelSource(games, { grade = null, rng = defaultRng } = {}) {
   const inGrade = quizzes.filter((g) => Number(g.grade) === Number(grade))
   const pool = inGrade.length ? inGrade : quizzes
   const game = pool[Math.floor(rng() * pool.length)]
-  const questions = shuffled(playableQuestions(game.questions), rng).slice(0, DUEL_QUESTIONS)
+  const questions = shuffled(playableQuestions(game.questions), rng)
+    .slice(0, DUEL_QUESTIONS)
+    .map((q) => shuffleQuestionOptions(q, rng))
   return { game, questions }
 }
 

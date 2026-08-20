@@ -464,17 +464,43 @@ export function neighbourSteps(facts) {
  * followed by two plain option questions — whose ceremony, and when — so the
  * mode places the ceremony in a culture and a season and not only on a map.
  */
-export function ceremonySteps(facts) {
+export function ceremonySteps(facts, rng = defaultRng) {
   const out = []
   for (const c of facts?.ceremonies || []) {
     if (!PROVINCE_CODES.includes(c?.province)) continue
     out.push({ kind: 'ceremonyWhere', name: c.name, answer: c.province, fact: c.fact || '', hint: c.hint || '' })
+    // The dataset lists the correct people/month FIRST on every ceremony, so
+    // dealing the options in stored order would let a learner tap the top row
+    // without reading. Dealt fresh per round; the answer travels by TEXT
+    // (`pickOption` compares strings), so no index needs remapping.
     if (Array.isArray(c.peopleOptions) && c.peopleOptions.includes(c.people)) {
-      out.push({ kind: 'ceremonyWho', name: c.name, answer: c.people, options: c.peopleOptions, why: c.fact || '' })
+      out.push({ kind: 'ceremonyWho', name: c.name, answer: c.people, options: shuffledOptions(c.peopleOptions, rng), why: c.fact || '' })
     }
     if (Array.isArray(c.monthOptions) && c.monthOptions.includes(c.month)) {
-      out.push({ kind: 'ceremonyWhen', name: c.name, answer: c.month, options: c.monthOptions, why: c.monthWhy || '' })
+      out.push({ kind: 'ceremonyWhen', name: c.name, answer: c.month, options: shuffledOptions(c.monthOptions, rng), why: c.monthWhy || '' })
     }
+  }
+  return out
+}
+
+/**
+ * Crypto-backed uniform [0, 1) — same rationale as duelCore's: outcomes
+ * are not secrets, but CodeQL rightly refuses `Math.random` for a draw
+ * that shapes a scored round, and `crypto.getRandomValues` exists in
+ * every runtime this code sees. Tests inject a seeded rng.
+ */
+function defaultRng() {
+  const buf = new Uint32Array(1)
+  globalThis.crypto.getRandomValues(buf)
+  return buf[0] / 4294967296
+}
+
+/** Fisher–Yates copy, used to deal a step's options in a fresh order. */
+export function shuffledOptions(options, rng = defaultRng) {
+  const out = options.slice()
+  for (let i = out.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rng() * (i + 1))
+    ;[out[i], out[j]] = [out[j], out[i]]
   }
   return out
 }
@@ -484,10 +510,12 @@ export function ceremonySteps(facts) {
 /**
  * The steps a pack's round plays, in order.
  *
- * Order is the dataset's own throughout. Shuffling would make a round harder
- * to reproduce from a bug report for no teaching gain, and the tricky-pool
- * replay below already stops a round being the same twice for a learner who
- * missed something.
+ * STEP order is the dataset's own throughout. Shuffling it would make a round
+ * harder to reproduce from a bug report for no teaching gain, and the
+ * tricky-pool replay below already stops a round being the same twice for a
+ * learner who missed something. The OPTIONS within a ceremony step are the one
+ * exception (see ceremonySteps): the dataset lists the answer first, and a
+ * stable answer position is a leak, not reproducibility.
  */
 export function stepsFor({ game, facts, geo }) {
   switch (modeOf(game)) {

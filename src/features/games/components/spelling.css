@@ -202,6 +202,14 @@
 .lhx .lhx-sp-dot.is-now { background: var(--lhx-indigo2); }
 .lhx .lhx-sp-streak { font-size: 13px; font-weight: 800; color: var(--lhx-coral-text); white-space: nowrap; }
 
+/* The mute toggle. Same 44px floor as the back button — it is a control a
+   child reaches for in a hurry, usually because someone walked in. */
+.lhx .lhx-sp-mute {
+  flex: 0 0 auto; width: 44px; height: 44px; border-radius: 12px;
+  background: var(--lhx-card); border: 1px solid var(--lhx-line);
+  font-size: 17px; display: grid; place-items: center; cursor: pointer;
+}
+
 .lhx .lhx-sp-stagelab {
   margin: 0 16px 10px; font-size: 11.5px; font-weight: 800;
   letter-spacing: .06em; text-transform: uppercase; color: var(--lhx-muted);

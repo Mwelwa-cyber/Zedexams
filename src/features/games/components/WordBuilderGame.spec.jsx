@@ -39,6 +39,7 @@ vi.mock('../../../utils/dailyChallengeService', () => ({
 }))
 vi.mock('../lib/gameSounds', () => ({
   playCorrect: vi.fn(), playWrong: vi.fn(), playWin: vi.fn(), primeSounds: vi.fn(),
+  isMuted: vi.fn(() => false), toggleMute: vi.fn(() => true),
 }))
 vi.mock('../../../utils/analytics', () => ({ capture: vi.fn() }))
 vi.mock('../services/spellingContentService', () => ({ listApprovedWords: vi.fn(async () => []) }))
@@ -264,6 +265,18 @@ describe('Spelling — the round', () => {
     expect(slots().every((s) => !s.textContent)).toBe(true)
     // Still nothing judged, and no miss recorded.
     expect(document.querySelector('.lhx-sp-fb')).toBeNull()
+  })
+
+  it('carries its own mute control — this engine mounts bare', async () => {
+    await startFirstStage()
+    // The shell's nav is not on the page for a bare-mounted engine, and this
+    // round draws its own header instead of GameTopBar's — so without a
+    // control here a learner could not silence a round mid-way (#2556).
+    const mute = screen.getByRole('button', { name: /Mute game sounds/ })
+    expect(mute).toBeInTheDocument()
+    fireEvent.click(mute)
+    const { toggleMute } = await import('../lib/gameSounds')
+    expect(toggleMute).toHaveBeenCalled()
   })
 
   it('Check is disabled until every slot is filled', async () => {

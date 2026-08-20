@@ -36,6 +36,8 @@ vi.mock('../lib/gameSounds', () => ({
   playWrong: vi.fn(),
   playWin: vi.fn(),
   primeSounds: vi.fn(),
+  isMuted: vi.fn(() => false),
+  toggleMute: vi.fn(() => true),
 }))
 
 import PunctuationProGame from './PunctuationProGame'

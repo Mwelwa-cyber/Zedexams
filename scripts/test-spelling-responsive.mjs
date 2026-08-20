@@ -139,6 +139,11 @@ const COACH = coachFor({
  * component starts a speech timer and reads `window`. The markup below is
  * copied from its render output for the WORST case: a long word, a full slot
  * row, decoy tiles and an open wrong-answer panel.
+ *
+ * BEING A COPY, IT HAS TO BE KEPT IN STEP. A control added to the real header
+ * and not to this one is a control this file never measures — which is how a
+ * new button ships under the touch floor. The `assert` in the patch that adds
+ * the mute button is the reminder; if you change that header, change this.
  */
 function roundMarkup(word) {
   const letters = [...word, 'K', 'M', 'Z']
@@ -147,6 +152,7 @@ function roundMarkup(word) {
     <header class="lhx-sp-round-head">
       <button type="button" class="lhx-sp-back">‹</button>
       <div class="lhx-sp-dots">${'<span class="lhx-sp-dot is-done"></span>'.repeat(8)}</div>
+      <button type="button" class="lhx-sp-mute"><span>🔊</span></button>
       <span class="lhx-sp-streak">🔥 4</span>
     </header>
     <p class="lhx-sp-stagelab">Stage 24 · Double trouble</p>
