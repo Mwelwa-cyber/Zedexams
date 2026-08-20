@@ -2467,6 +2467,38 @@ exports.savePracticeProgress = onCall(
     (request) => require("./paperQuiz/paperQuizFns").savePracticeProgressHandler(request),
 );
 
+// ── §6: authoring the past-paper explanations ────────────────────────
+//
+// "The explanations are the whole feature. Coverage is the constraint, not
+// the UI." The AI drafts `why` / `distractors` / `example` FROM THE PAPER'S
+// MARKING SCHEME and the syllabus material for that grade — never from
+// general knowledge — and lands them as `explanationStatus: 'ai_draft'`,
+// which the learner-facing gate refuses to show. A human approves in the
+// Past Paper Studio's review queue; `approved` is the only state a learner
+// ever reads prose in, and only these handlers can write it.
+//
+// The drafter refuses itself when the material does not support an
+// explanation, or when working the question through makes it doubt the
+// answer key. A refused question stays unexplained and shows its answer
+// alone, which is the correct outcome rather than a defect.
+// Staff only. See functions/paperQuiz/explanation*.js.
+exports.draftPaperExplanations = onCall(
+    {region: "us-central1", timeoutSeconds: 540, secrets: [anthropicApiKey]},
+    (request) => require("./paperQuiz/explanationFns").draftPaperExplanationsHandler(request),
+);
+exports.reviewPaperExplanation = onCall(
+    {region: "us-central1", timeoutSeconds: 30},
+    (request) => require("./paperQuiz/explanationFns").reviewPaperExplanationHandler(request),
+);
+exports.bulkApproveExplanations = onCall(
+    {region: "us-central1", timeoutSeconds: 60},
+    (request) => require("./paperQuiz/explanationFns").bulkApproveExplanationsHandler(request),
+);
+exports.paperExplanationQueue = onCall(
+    {region: "us-central1", timeoutSeconds: 60},
+    (request) => require("./paperQuiz/explanationFns").paperExplanationQueueHandler(request),
+);
+
 // ── Account deletion: the child asks, the guardian decides ───────────
 //
 // Deleting a child's account is a state machine, not a button, and the reason

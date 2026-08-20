@@ -187,6 +187,12 @@ function architectureClaims(archSrc) {
  * so it must not drift behind reality in either direction.
  */
 const COVERED = [
+  // Past-paper quiz (spec §4). All three are server-written and owner-read;
+  // the emulator suite pins both directions, admins included — the write rules
+  // are `if false` and that is the integrity model, not a simplification.
+  'paperQuizAttempts',
+  'practiceProgress',
+  'learnerTopicStats',
   // The Daily Quiz's four server-only collections plus its weekly board.
   // Real emulator coverage rather than an acknowledgement because the
   // `dailyQuizzes` deny is what makes "getTodaysQuiz is the one read path" a

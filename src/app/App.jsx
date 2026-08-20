@@ -184,6 +184,7 @@ const PaperQuizPage = lazy(() => import('../features/papers/quiz/pages/PaperQuiz
 const MyPapersHistory = lazy(() => import('../features/papers/pages/MyPapersHistory'))
 const AdminPastPapers = lazy(() => import('../features/adminPastPapers/pages/AdminPastPapers'))
 const PastPaperStudio = lazy(() => import('../features/adminPastPapers/pages/PastPaperStudio'))
+const ExplanationReview = lazy(() => import('../features/adminPastPapers/pages/ExplanationReview'))
 const StatusPage = lazy(() => import('../features/marketing/pages/StatusPage'))
 // Audit C5 — SEO blog. Markdown-driven, posts ship in the bundle.
 const BlogIndex = lazy(() => import('../features/blog/pages/BlogIndex'))
@@ -953,6 +954,11 @@ export default function App() {
           <Route path="/admin/papers"                   element={<AdminRoute><AdminPastPapers /></AdminRoute>} />
           <Route path="/admin/papers/new"               element={<AdminRoute><PastPaperStudio /></AdminRoute>} />
           <Route path="/admin/papers/:paperId/edit"     element={<AdminRoute><PastPaperStudio /></AdminRoute>} />
+          {/* §6's review queue. Its own screen rather than a panel in the
+              Studio's Quiz step: a reviewer reads sixty rows in one sitting
+              and approves at the speed of the worst one, which wants the
+              whole screen and somewhere to keep its place. */}
+          <Route path="/admin/papers/:paperId/explanations" element={<AdminRoute><ExplanationReview /></AdminRoute>} />
           <Route path="/admin/games-seed"               element={<AdminRoute><GamesSeedAdmin /></AdminRoute>} />
           {/* The Daily Quiz Generator console — tonight's run, the funnel,
               tomorrow's preview, bank health and the event log. */}
