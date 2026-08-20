@@ -90,6 +90,17 @@ export function NotificationProvider({ children }) {
   const olderCursorRef = useRef(null) // last QueryDocumentSnapshot loaded so far
   const unreadTimerRef = useRef(null)
 
+  // Mirrors `uid` for the deferred reads below, which can outlive the account
+  // they were scheduled for. Assigned during RENDER rather than in an effect:
+  // an effect runs after the async callback may already have resumed, and a
+  // guard that compares against a stale value is not a guard.
+  //
+  // Zambian households commonly share one handset between siblings, so "the
+  // account changed while a read was in flight" is an ordinary Tuesday here,
+  // not an edge case.
+  const uidRef = useRef(uid)
+  uidRef.current = uid
+
   // Live subscription to the newest page.
   useEffect(() => {
     if (!uid) {
@@ -136,15 +147,26 @@ export function NotificationProvider({ children }) {
   const refreshUnread = useCallback(() => {
     if (!uid) return
     if (unreadTimerRef.current) clearTimeout(unreadTimerRef.current)
+    // The account this count is FOR. clearTimeout on the effect's cleanup only
+    // helps while the timer is still pending; once it has fired, the callback
+    // is in flight holding this uid in its closure, and nothing recalls it. So
+    // the uid is checked twice — before the query is issued, and again after
+    // it resolves — and both checks matter for different reasons: the first
+    // stops a departed account's query being sent at all, the second stops its
+    // answer being written into the session that replaced it.
+    const scheduledFor = uid
     unreadTimerRef.current = setTimeout(async () => {
+      if (uidRef.current !== scheduledFor) return
       try {
         const snap = await getCountFromServer(
-          query(collection(db, 'notifications', uid, 'feed'), where('read', '==', false)),
+          query(collection(db, 'notifications', scheduledFor, 'feed'), where('read', '==', false)),
         )
+        if (uidRef.current !== scheduledFor) return
         setUnreadCount(snap.data().count)
       } catch (err) {
         // Aggregation can fail offline / before the index warms — fall back to
         // counting what we have loaded.
+        if (uidRef.current !== scheduledFor) return
         setUnreadCount((prev) => {
           const loaded = dedupeById([...livePage, ...olderPages]).filter((n) => !n.read).length
           return loaded || prev
@@ -184,21 +206,28 @@ export function NotificationProvider({ children }) {
     if (!uid || !hasMore) return
     const cursor = olderCursorRef.current || liveCursorRef.current
     if (!cursor) return
+    // Same rule as refreshUnread, and the stakes are higher here: this resolves
+    // with notification BODIES rather than a count, so a page that lands after
+    // an account switch would render one child's notifications inside another
+    // child's session.
+    const scheduledFor = uid
     try {
       const snap = await getDocs(
         query(
-          collection(db, 'notifications', uid, 'feed'),
+          collection(db, 'notifications', scheduledFor, 'feed'),
           orderBy('createdAt', 'desc'),
           startAfter(cursor),
           limit(PAGE_SIZE),
         ),
       )
+      if (uidRef.current !== scheduledFor) return
       setOlderPages((prev) =>
         dedupeById([...prev, ...snap.docs.map((d) => ({ id: d.id, ...d.data() }))]),
       )
       const newCursor = snap.docs[snap.docs.length - 1]
-      // loadMore is serialised by the hasMore guard + single trigger, so this
-      // ref assignment after the await is safe.
+      // loadMore is serialised by the hasMore guard + single trigger, and the
+      // account check above has already returned if this page belongs to a
+      // departed session.
       // eslint-disable-next-line require-atomic-updates
       if (newCursor) olderCursorRef.current = newCursor
       setHasMore(snap.size === PAGE_SIZE)

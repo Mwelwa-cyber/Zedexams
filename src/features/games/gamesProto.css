@@ -783,3 +783,72 @@
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-node.is-locked { background: #2a2d4a; box-shadow: 0 5px 0 #1d1f36; color: #565b85; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-start-bubble { background: #232640; color: #ff8a5c; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-start-bubble::after { background: #232640; }
+
+/* ── Know Zambia (map_place) ─────────────────────────────────────────────
+ *
+ * Correct / wrong / already-placed are told apart by GLYPH and PATTERN
+ * first — a ✓, a ✗, a diagonal hatch, and the province's own name. The
+ * colours agree with the glyph rather than carrying the message: the
+ * palette is Okabe-Ito, whose green and orange sit at nearly the same
+ * grey, which is exactly why the glyph is not optional.
+ */
+.lhx-kz-map {
+  background: #fff; border-radius: 18px; padding: 8px;
+  margin: 10px 12px 0;
+}
+.lhx-kz-svg { width: 100%; display: block; touch-action: manipulation; overflow: visible; }
+
+.lhx-kz-prov {
+  fill: #d7dff2; stroke: #fff; stroke-width: .5;
+  cursor: pointer; transition: fill .18s;
+}
+.lhx-kz-prov:hover { fill: #c3cdea; }
+.lhx-kz-prov.is-placed { fill: #009e73; }
+.lhx-kz-prov.is-anchor { fill: #a8b3d6; }
+.lhx-kz-prov.is-wrong  { fill: url(#lhx-kz-hatch); }
+.lhx-kz-prov:focus-visible { outline: none; stroke: #5b5bd6; stroke-width: 1.4; }
+
+.lhx-kz-label {
+  font-weight: 900; fill: #fff; text-anchor: middle; pointer-events: none;
+  paint-order: stroke; stroke: rgba(0, 0, 0, .18); stroke-width: .35;
+}
+.lhx-kz-label.is-anchor { fill: #333a58; stroke: rgba(255, 255, 255, .7); }
+.lhx-kz-mark {
+  font-size: 4.2px; font-weight: 900; text-anchor: middle; pointer-events: none;
+  fill: #fff; paint-order: stroke; stroke: rgba(0, 0, 0, .25); stroke-width: .9;
+}
+.lhx-kz-mark.is-wrong { fill: #8f3f00; stroke: #fff; }
+.lhx-kz-halo { fill: transparent; cursor: pointer; }
+
+.lhx-kz-names {
+  display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+  margin: 12px 12px 0;
+}
+.lhx-kz-name {
+  min-height: 44px; padding: 10px 13px; border-radius: 13px;
+  border: 2px solid #e6e8f5; background: #fff; box-shadow: 0 2px 0 #ccd2e6;
+  font: inherit; font-size: 14px; font-weight: 800; color: var(--lhx-ink);
+  cursor: pointer; touch-action: manipulation;
+}
+.lhx-kz-name:active { transform: translateY(2px); box-shadow: none; }
+.lhx-kz-name.is-sel {
+  border-color: #5b5bd6; background: #ececfb; color: #5b5bd6;
+  box-shadow: 0 0 0 3px rgba(91, 91, 214, .16);
+}
+.lhx-kz-name.is-done {
+  opacity: .45; background: #e7f5f0; border-color: #bfe4d8; color: #04674c;
+  box-shadow: none; cursor: default;
+}
+
+.lhx-kz-feedback { margin: 12px 12px 20px; min-height: 62px; }
+.lhx-kz-fb { border-radius: 14px; padding: 12px; font-size: 13.5px; line-height: 1.6; }
+.lhx-kz-fb.is-ok  { background: #e7f5f0; border: 1px solid #bfe4d8; color: #04674c; }
+.lhx-kz-fb.is-no  { background: #fdeee4; border: 1px solid #f6d3ba; color: #8f3f00; }
+.lhx-kz-fb.is-say { background: #eef0fb; border: 1px solid #e6e8f5; color: #4b5270; }
+.lhx-kz-fb-title { font-weight: 900; font-size: 14.5px; margin-bottom: 3px; display: flex; gap: 6px; }
+.lhx-kz-anchor-note { font-size: 12px; font-weight: 700; color: var(--lhx-muted, #6b7392); text-align: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lhx-kz-prov { transition: none; }
+  .lhx-kz-name:active { transform: none; }
+}

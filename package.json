@@ -195,6 +195,7 @@
     "test:draft-restore": "node src/hooks/draft/restoreLessonPlan.test.js",
     "test:draft-descriptors": "node src/hooks/draft/descriptors/handBuilt.test.js",
     "test:learner-grades": "node scripts/test-learner-grades.mjs",
+    "test:learner-grade-games": "node scripts/test-learner-grade-games.mjs",
     "test:daily-quiz-core": "node functions/dailyQuiz/dailyQuizCore.test.js",
     "test:daily-quiz-view": "node src/features/dailyQuiz/lib/dailyQuizCore.test.js",
     "test:daily-quiz-week": "node scripts/test-daily-quiz-week.mjs",
@@ -236,6 +237,7 @@
     "test:lesson-activities": "node functions/teacherTools/lessonActivitiesSchema.test.js",
     "test:zambian-facts": "node functions/teacherTools/zambianFacts.test.js",
     "test:zambia-game": "node scripts/test-zambia-game.mjs",
+    "test:know-zambia": "node scripts/test-know-zambia.mjs",
     "test:zambia-physical": "node scripts/test-zambia-physical.mjs",
     "test:fill-blanks": "node scripts/test-fill-blanks.mjs",
     "test:diagram-label": "node scripts/test-diagram-label-grading.mjs",
@@ -881,6 +883,7 @@
     "test:library-ece": "node src/utils/libraryEceClassification.test.js",
     "test:admin-links": "node scripts/test-admin-links.mjs",
     "test:admin-nav-search": "node src/features/adminShell/lib/adminNavSearch.test.js",
+    "test:admin-surface-tokens": "node src/features/adminShell/adminSurfaceTokens.test.js",
     "test:studio-grades": "node src/features/lessonPlanStudio/lib/studioGrades.test.js",
     "test:lesson-plan-term": "node src/features/lessonPlanStudio/lib/lessonPlanTermFiling.test.js",
     "test:planned-term-source": "node src/features/lessonPlanStudio/lib/plannedTermSource.test.js",
@@ -917,6 +920,7 @@
     "test:deletion-decision-context": "node functions/deletionFlow/decisionContextCore.test.js",
     "test:deletion-state-mirror": "node scripts/test-deletion-state-mirror.mjs",
     "test:deletion-neutrality": "node functions/deletionFlow/neutrality.test.js",
+    "test:spelling-bank": "node scripts/test-spelling-bank.mjs",
     "test:loader-theme-tokens": "node scripts/test-loader-theme-tokens.mjs"
   },
   "lint-staged": {
