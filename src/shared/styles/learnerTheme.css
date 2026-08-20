@@ -31,9 +31,32 @@
   --lhx-bg: #edeffd;
   --lhx-card: #ffffff;
   --lhx-ink: #2b2d51;
-  --lhx-muted: #8a8fb5;
-  --lhx-faint: #a9aed6;
+  /* ── The two grey tiers, and why they are not interchangeable ──
+     `--lhx-muted` is TEXT — subtitles, "3 of 8 topics done", every
+     topic sub-list, 137 uses. It has to clear 4.5:1 on BOTH surfaces a
+     learner reads it on, the white card and the indigo page. The
+     prototype's #8a8fb5 measured 3.15:1 and 2.75:1, which is invisible
+     rather than quiet on a cheap screen in a bright classroom.
+     `--lhx-faint` is NOT text. It is dots, chevrons, empty-state
+     glyphs and the search caret — graphical objects, so the 3:1 floor
+     of WCAG 1.4.11 rather than 4.5:1. Every place it was drawing real
+     words (the calendar footnote, the notes placeholder, the
+     leaderboard's own empty line) now reads --lhx-muted instead. Do
+     not put words back on --lhx-faint; put them on --lhx-muted. */
+  --lhx-muted: #5f6592;
+  --lhx-faint: #7c81ad;
   --lhx-line: #e4e7fb;
+  /* The unfilled part of a progress bar. Was a bare #eef0fc at the rule,
+     which is the one hex the Night block could not reach — see the
+     `.lhx .lhx-track` override that used to be needed at the foot of
+     this file. */
+  --lhx-track: #eef0fc;
+  /* The page column's side gutter. A token because one learner surface —
+     the papers hub, which is also a public page and brings its own
+     `px-4` — has to CANCEL it rather than sit inside two gutters at once
+     (see `.lhx-page > .papers-proto` in papersTheme.css). Cancelling a
+     number written at the rule would mean two places to change. */
+  --lhx-page-pad: 18px;
 
   --lhx-indigo1: #7180f2;
   --lhx-indigo2: #5158d0;
@@ -41,21 +64,37 @@
   --lhx-coral1: #ff9057;
   --lhx-coral2: #ff5c39;
   --lhx-coral-shadow: #e04f22;
-  --lhx-coral-text: #ff6b3d;
+  /* Coral as INK, which is a different colour from coral as a FILL.
+     The bright #ff6b3d is 2.83:1 on a card — fine for the 4px active-tab
+     indicator and the gradient buttons (both still use --lhx-coral1/2),
+     unreadable as the 11-13px labels that were drawn in it. The brand
+     coral is not lost: it is above this line, on the fills. */
+  --lhx-coral-text: #c0400f;
   --lhx-yellow: #ffc542;
   /* Ink on a brand fill (indigo / coral gradients, the hero buttons).
      Named rather than written as `#fff` at each call site so the one
      place it would ever change is one place. It does NOT flip in Night
      mode: a coral card is coral in both looks, so its text stays white. */
   --lhx-on-brand: #ffffff;
+  /* Green does three jobs and needs two values, exactly as red does
+     (see --lhx-red-ink / --lhx-red-btn below — same reasoning, and this
+     is that pattern applied to the family that was missing it).
+       --lhx-green      the bright HUE: bar fills, rings, borders, ticks
+                        drawn AS a glyph. Never put words on it — white
+                        text measures 2.37:1 against it.
+       --lhx-green-dark the INK: "+3 correct", a percentage on a card.
+       --lhx-green-btn  the GROUND under white text: the go button, the
+                        back-online toast, the correct-answer letter,
+                        the completed-step tick. 5.42:1 with white. */
   --lhx-green: #2ec06a;
-  --lhx-green-dark: #1f9451;
+  --lhx-green-dark: #0e7a3e;
+  --lhx-green-btn: #0e7a3e;
   --lhx-red: #ef5a5f;
 
   /* Soft washes (chip/tile backgrounds) straight from the prototype. */
   --lhx-indigo-soft: #eef1ff;
-  --lhx-indigo-text: #5f66d8;
-  --lhx-link: #7a83ea;
+  --lhx-indigo-text: #4f56bd;
+  --lhx-link: #5a61c9;
   --lhx-green-soft: #e0f8ea;
   --lhx-green-wash: #f0faf4;
   /* Red washes — the destructive family's backgrounds. Added for the
@@ -74,7 +113,7 @@
   --lhx-red-ink: #b8353b;
   --lhx-red-btn: #b8353b;
   --lhx-coral-soft: #fff0e8;
-  --lhx-coral-soft-text: #e8622f;
+  --lhx-coral-soft-text: #b8441f;
 
   /* Amber — the "something needs you" family. Introduced for the parent
      app's approval card (docs/learner/zedexams-parent-prototype.html),
@@ -83,7 +122,7 @@
      so both surfaces flip together in Night mode. */
   --lhx-amber-wash: #fff2d6;
   --lhx-amber-line: #ffd488;
-  --lhx-amber-ink: #a86a12;
+  --lhx-amber-ink: #8a5610;
   --lhx-amber-row: rgba(255, 255, 255, 0.7);
 
   /* Compatibility aliases — section components reference the old five
@@ -99,8 +138,13 @@
   --lhx-blue-deep: #1f66c2;
   --lhx-blue-soft: #d9e9ff;
   --lhx-blue-wash: #ecf5ff;
-  --lhx-orange: var(--lhx-coral-text);
-  --lhx-orange-deep: var(--lhx-coral-shadow);
+  /* `--lhx-orange` is the subject palette's fourth HUE — a progress-bar
+     fill and an icon tint. It used to alias --lhx-coral-text, which is
+     why deepening that token for legibility would have dulled one
+     subject in five. The two jobs are now two values: the bright hue
+     here, the readable ink in --lhx-orange-deep below. */
+  --lhx-orange: #ff6b3d;
+  --lhx-orange-deep: var(--lhx-coral-text);
   --lhx-orange-soft: #ffe1d3;
   --lhx-orange-wash: var(--lhx-coral-soft);
   --lhx-pink: #d4548a;
@@ -115,11 +159,48 @@
   --lhx-shadow: 0 8px 24px rgba(90, 100, 200, 0.12);
   --lhx-shadow-sm: 0 4px 12px rgba(90, 100, 200, 0.12);
   --lhx-shadow-float: 0 12px 26px rgba(81, 88, 208, 0.35);
-  --lhx-glass: rgba(233, 239, 253, 0.68);
-  /* Retired with the nav going opaque (see `.lhx-nav`); kept as a token
-     only so a surface that wants frosted chrome over content it is
-     ALLOWED to cover has one. Nothing reads it today. */
-  --lhx-glass-nav: rgba(255, 255, 255, 0.72);
+
+  /* ── Glass chrome ─────────────────────────────────────────────────
+   * The topbar and the phone tab bar are frosted glass: a heavily
+   * blurred, saturated backdrop under a HIGH-opacity tint. The two
+   * halves of that sentence are one decision, not a style and a
+   * compromise. The tab bar was opaque before this because at 72%
+   * white with an 18px blur a learner could read a section heading
+   * THROUGH the navigation — so the tint is now thick enough (0.90 on
+   * the bar, 0.88 on the topbar) that nothing behind it is legible,
+   * while 10–12% of a saturated, blurred backdrop is still plainly
+   * visible as colour moving under the glass while the page scrolls.
+   * Legible-through is the failure; visible-through is the point.
+   *
+   * `-solid` is not a nicety: a browser without `backdrop-filter` gets
+   * NO blur, so the same translucent tint would show sharp, readable
+   * content through the chrome — exactly the bug that made the bar
+   * opaque. Every glass rule below is written opaque first and only
+   * turns translucent inside `@supports`, so the unsupported path can
+   * never be the leaky one. `prefers-reduced-transparency` opts back
+   * out through the same door. */
+  --lhx-glass: rgba(247, 248, 255, 0.88);
+  --lhx-glass-solid: #f4f6fe;
+  --lhx-glass-nav: rgba(255, 255, 255, 0.9);
+  --lhx-glass-nav-solid: #ffffff;
+  /* The lit top edge and the hairline that separate glass from page —
+     what reads as "a pane sitting above the content" rather than "the
+     page went pale here". */
+  --lhx-glass-edge: rgba(255, 255, 255, 0.9);
+  --lhx-glass-hairline: rgba(104, 114, 190, 0.22);
+  /* 26px rather than the topbar's old 16px. A backdrop blur samples less
+     of the page at the element's own EDGE, so the first line of a card
+     arriving under the bar is the one that survives — a wider radius is
+     what turns it from a word into a smudge. */
+  --lhx-glass-blur: blur(26px) saturate(180%);
+  /* Tab-bar ink. It was `--lhx-faint` (#a9aed6), which is 2.16:1 on the
+     bar — the labels the learner reported as too faint to read — and
+     the active coral (#ff6b3d) was 2.83:1. Both are AA now against the
+     composited glass: 5.35:1 and 4.56:1 (the active one measured over
+     its own coral wash, which is the darker of its two grounds). */
+  --lhx-nav-ink: #5f6796;
+  --lhx-nav-ink-active: #c14210;
+  --lhx-nav-active-wash: rgba(255, 92, 57, 0.1);
   /* --lhx-nav-h is declared on :root (see the block above this rule) and
      inherited here. It is NOT redeclared: a custom property that reads
      itself is a cycle, which makes it invalid at computed-value time and
@@ -145,11 +226,28 @@
   --lhx-card: #232640;
   --lhx-ink: #e9ebff;
   --lhx-muted: #9aa0c8;
-  --lhx-faint: #565b85;
+  /* Same two tiers, same division of labour as the light look — see the
+     comment on the day tokens. Night's faint was #565b85, which is
+     2.27:1 on the card: a chevron nobody can find. */
+  --lhx-faint: #7f85b0;
   --lhx-line: #32365a;
+  --lhx-track: #2a2d4a;
+  /* Night keeps the BRIGHT coral as ink. On a dark card #ff6b3d is
+     5.22:1 — the deepened day value would be 2.7:1 here, so the two
+     looks genuinely want different colours rather than one compromise.
+     Same reasoning as --lhx-red-ink / --lhx-red-btn further down. */
+  --lhx-coral-text: #ff6b3d;
+  --lhx-link: #949bf2;
 
   --lhx-indigo-soft: #2a2d4a;
   --lhx-indigo-text: #aab2f0;
+  /* The two subject INKS whose day values are dark by design and so
+     cannot carry over. Without these, a Grade 7 learner reading Home in
+     Night saw the Purple and Orange subject percentages at 2.3:1 and
+     3.7:1 — the exact failure mode a dark palette has and a light one
+     does not. */
+  --lhx-purple-deep: #aab2f0;
+  --lhx-orange-deep: #ff9a6b;
   --lhx-purple-wash: #20223c;
   --lhx-green-soft: #173327;
   --lhx-green-wash: #1d3328;
@@ -178,8 +276,18 @@
 
   --lhx-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
   --lhx-shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.3);
-  --lhx-glass: rgba(23, 25, 41, 0.68);
-  --lhx-glass-nav: rgba(23, 25, 41, 0.72);
+  --lhx-glass: rgba(24, 26, 44, 0.86);
+  --lhx-glass-solid: #1b1d31;
+  --lhx-glass-nav: rgba(31, 34, 56, 0.88);
+  --lhx-glass-nav-solid: #202339;
+  /* On a dark pane the lit edge is a faint white sheen, not a white
+     line, and the hairline stops being a shadow and becomes a
+     highlight — the same two jobs, inverted. */
+  --lhx-glass-edge: rgba(255, 255, 255, 0.1);
+  --lhx-glass-hairline: rgba(255, 255, 255, 0.09);
+  --lhx-nav-ink: #a9afd8;
+  --lhx-nav-ink-active: #ff9a6b;
+  --lhx-nav-active-wash: rgba(255, 92, 57, 0.16);
 }
 
 /*
@@ -219,7 +327,7 @@
 .lhx-page {
   max-width: 480px;
   margin: 0 auto;
-  padding: 12px 18px calc(var(--lhx-nav-h) + 62px + env(safe-area-inset-bottom, 0px));
+  padding: 12px var(--lhx-page-pad) calc(var(--lhx-nav-h) + 62px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -316,9 +424,9 @@
   box-shadow: 0 4px 0 var(--lhx-coral-shadow);
 }
 .lhx-btn-green {
-  background: var(--lhx-green);
+  background: var(--lhx-green-btn);
   color: #fff;
-  box-shadow: 0 4px 0 #1f9451;
+  box-shadow: 0 4px 0 #0a5c2f;
 }
 .lhx-btn-ghost { background: transparent; border: 1.5px solid currentColor; }
 .lhx-btn-soft { background: var(--lhx-indigo-soft); color: var(--lhx-indigo-text); }
@@ -346,20 +454,64 @@
 
 /* ── Topbar (prototype glass .topbar) ──────────────────────────── */
 
-.lhx-header { display: flex; flex-direction: column; gap: 12px; }
+/*
+ * `display: contents`, and it is load-bearing rather than tidy.
+ *
+ * This element is the page BANNER — it has to keep wrapping both the bar
+ * and the greeting for that to mean anything — but it was also a box, and
+ * a `position: sticky` child can only travel inside its parent's box.
+ * This one stood barely taller than the greeting, so the glass topbar
+ * came unstuck and scrolled off about seventy pixels in: the frost was
+ * over moving content for one flick of a thumb and then gone, and
+ * `useHideOnScroll`'s fold-down / return-on-scroll-up never ran at all.
+ * Dropping the box keeps the landmark and hands the bar `.lhx-page` —
+ * the whole scrolling column — to stick to.
+ *
+ * The 12px that used to separate the bar from the greeting was this
+ * rule's `gap`; it is now the page column's 20px gap less the topbar's
+ * own -8px bottom margin. Same spacing, declared next to the bar.
+ */
+.lhx-header { display: contents; }
 
+/*
+ * The topbar is a pane of glass the page passes UNDER, and the two rules
+ * below are that sentence in order: the opaque one is what every browser
+ * gets, the `@supports` one adds the frost. Written that way round on
+ * purpose — a translucent tint with no blur behind it is not glass, it is
+ * a window, and the content sliding through it is legible.
+ *
+ * The hairline and the shadow are the other half of "it should show when
+ * someone is scrolling". Before this the bar had neither, so a page
+ * scrolled beneath it simply went pale at the top with no edge to say
+ * where the chrome began — which is most of what read as faint.
+ */
 .lhx-topbar {
   position: sticky;
   top: 0;
   z-index: 45;
-  margin: -12px -18px 0;
+  /* Full-bleed across the page column's 18px gutter, and -8px at the foot
+     so the greeting sits the same 12px below the bar it did when the two
+     shared a flex container (the page column's own gap is 20px). */
+  margin: -12px -18px -8px;
   padding: calc(env(safe-area-inset-top, 0px) + 12px) 18px 12px;
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  background: var(--lhx-glass);
-  -webkit-backdrop-filter: blur(16px) saturate(170%);
-  backdrop-filter: blur(16px) saturate(170%);
+  background: var(--lhx-glass-solid);
+  border-bottom: 1px solid var(--lhx-glass-hairline);
   transition: transform 0.28s ease, opacity 0.28s ease;
   will-change: transform;
+}
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .lhx-topbar {
+    background: var(--lhx-glass);
+    -webkit-backdrop-filter: var(--lhx-glass-blur);
+    backdrop-filter: var(--lhx-glass-blur);
+    /* Inset sheen along the bottom lip, then a shadow soft enough to be
+       invisible over the flat page and to appear only once a card is
+       travelling under it. */
+    box-shadow:
+      inset 0 -1px 0 var(--lhx-glass-edge),
+      0 10px 30px -22px rgba(43, 45, 81, 0.65);
+  }
 }
 .lhx-topbar.lhx-topbar-hidden {
   transform: translateY(-115%);
@@ -464,7 +616,7 @@
 
 .lhx-track {
   height: 8px; border-radius: 999px; overflow: hidden;
-  background: #eef0fc;
+  background: var(--lhx-track);
 }
 .lhx-hero .lhx-track { background: rgba(255, 255, 255, 0.28); }
 .lhx-fill {
@@ -718,7 +870,7 @@
 .lhx-online-toast {
   position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
   z-index: 70;
-  background: var(--lhx-green);
+  background: var(--lhx-green-btn);
   color: #fff;
   font-size: 12.5px; font-weight: 800;
   padding: 10px 16px;
@@ -749,23 +901,45 @@
 /* ── Bottom navigation (prototype .navbar) ─────────────────────── */
 
 /*
- * OPAQUE, deliberately. This was `--lhx-glass-nav` (72% white + an 18px
- * backdrop blur), and a translucent bar over a page with no reserved
- * bottom padding is how a learner came to read a section heading and a
- * card THROUGH the navigation. Frosted chrome only works when nothing is
- * ever meant to be behind it; here the page scrolls under it by
- * construction. The top border replaces the blur as the edge that says
- * where the page stops.
+ * FROSTED, and the thickness is the whole argument.
+ *
+ * This bar was flat opaque, and the comment that made it so was right
+ * about the failure it fixed: at 72% white with an 18px blur a learner
+ * could read a section heading and a card THROUGH the navigation. What
+ * changed is not the appetite for risk, it is the two things that make
+ * the risk go away — the page reserves `--lhx-nav-h + 62px` of bottom
+ * padding (`.lhx-page`), so nothing ever COMES TO REST behind the bar,
+ * and the tint is now 90% rather than 72%, which is thick enough that a
+ * card travelling under it registers as colour and motion and never as
+ * words. Frosted glass earns its place exactly here: over content that
+ * is passing, never over content that is parked.
+ *
+ * Opaque first, glass inside `@supports`, for the reason recorded on the
+ * tokens — without a real backdrop blur the same translucency is a
+ * window, and the old bug walks straight back in.
  */
 .lhx-nav {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 40;
-  background: var(--lhx-card);
-  border-top: 1px solid var(--lhx-line);
+  background: var(--lhx-glass-nav-solid);
+  border-top: 1px solid var(--lhx-glass-hairline);
   border-radius: 26px 26px 0 0;
   box-shadow: 0 -8px 30px rgba(90, 100, 200, 0.15);
   padding-bottom: env(safe-area-inset-bottom, 0px);
   transition: transform 0.28s ease, opacity 0.28s ease;
   will-change: transform;
+}
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .lhx-nav {
+    background: var(--lhx-glass-nav);
+    -webkit-backdrop-filter: var(--lhx-glass-blur);
+    backdrop-filter: var(--lhx-glass-blur);
+    /* The lit lip along the top of the pane, then the bar's own lift off
+       the page. Two shadows in one declaration because a second
+       `box-shadow` would replace this one, not add to it. */
+    box-shadow:
+      inset 0 1px 0 var(--lhx-glass-edge),
+      0 -10px 34px -6px rgba(90, 100, 200, 0.22);
+  }
 }
 .lhx-nav.lhx-nav-hidden {
   transform: translateY(130%);
@@ -777,18 +951,42 @@
 }
 .lhx-nav-brand { display: none; }
 .lhx-nav-inner { display: flex; justify-content: space-around; max-width: 480px; margin: 0 auto; height: var(--lhx-nav-h); padding: 12px 6px; }
+/*
+ * Ink, not decoration. `--lhx-faint` put these four labels at 2.16:1 on
+ * the bar and the active one at 2.83:1 — legible as shapes, not as
+ * words, which is what "too faint" was describing. `--lhx-nav-ink` /
+ * `--lhx-nav-ink-active` are AA against the composited glass and are
+ * declared once, so the Night pane gets the same guarantee.
+ */
 .lhx-nav-item {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-  font-size: 10.5px; font-weight: 800; color: var(--lhx-faint);
+  /* 11px with letter-spacing, up from the 10.5px this shipped at — both
+     sides of this merge raised it off that floor independently (audit
+     L-26 asked for 11–12px). #2561's pairing wins because it is measured
+     against the COMPOSITED GLASS the bar is now painted on, which the
+     card-measured token it replaced could not have accounted for. */
+  font-size: 11px; font-weight: 800; letter-spacing: 0.01em; color: var(--lhx-nav-ink);
   min-height: 44px; width: 64px; position: relative;
+  border-radius: 16px;
+  transition: color 0.18s var(--lhx-ease), background-color 0.18s var(--lhx-ease);
 }
 .lhx-nav-item svg { flex-shrink: 0; }
-.lhx-nav-item.is-active { color: var(--lhx-coral-text); }
+/* The active tab is a coral chip under coral ink — the wash is what
+   makes the state visible at a glance before the label is read, and it
+   is the darker of the two grounds the ink has to survive, so it is the
+   one `--lhx-nav-ink-active` is measured against (4.56:1). The 4px
+   indicator below keeps the bright gradient: an indicator is not text. */
+.lhx-nav-item.is-active { color: var(--lhx-nav-ink-active); background-color: var(--lhx-nav-active-wash); }
 .lhx-nav-item.is-active::before {
-  content: ''; position: absolute; top: -12px; width: 26px; height: 4px; border-radius: 999px;
+  content: ''; position: absolute; top: -12px; width: 28px; height: 4px; border-radius: 999px;
   background: linear-gradient(90deg, var(--lhx-coral1), var(--lhx-coral2));
+  box-shadow: 0 2px 10px rgba(255, 92, 57, 0.55);
 }
 .lhx-nav-item:active { transform: scale(0.94); }
+@media (hover: hover) {
+  .lhx-nav-item:hover { color: var(--lhx-ink); }
+  .lhx-nav-item.is-active:hover { color: var(--lhx-nav-ink-active); }
+}
 
 /* Desktop (≥1000px): bottom nav → fixed left sidebar (prototype). */
 @media (min-width: 1000px) {
@@ -820,8 +1018,46 @@
     width: 100%; padding: 13px 16px; border-radius: 14px;
     font-size: 15.5px;
   }
-  .lhx-nav-item.is-active { background: var(--lhx-indigo-soft); }
+  .lhx-nav-item.is-active { background-color: var(--lhx-indigo-soft); }
   .lhx-nav-item.is-active::before { display: none; }
+}
+/*
+ * Reduced transparency — a real OS setting on iOS, Android and Windows,
+ * and the one place a learner has already said they do not want this.
+ * Both panes go back to their solid tint; nothing else about them moves.
+ * It sits ABOVE the desktop rule below so the sidebar, which is opaque at
+ * that width anyway, keeps its own card colour rather than the bar's.
+ */
+@media (prefers-reduced-transparency: reduce) {
+  .lhx-nav {
+    background: var(--lhx-glass-nav-solid);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: 0 -8px 30px rgba(90, 100, 200, 0.15);
+  }
+  .lhx-topbar {
+    background: var(--lhx-glass-solid);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: none;
+  }
+}
+
+/*
+ * Desktop pays for glass and gets nothing back: the page column is
+ * pushed clear by `padding-left: var(--lhx-sidebar-w)`, so the sidebar
+ * has the flat page behind it and never anything moving. Cancelling the
+ * blur here keeps the one compositor-expensive layer on the surface that
+ * actually reads as glass. Written after the `@supports` block so it
+ * wins; the rule has to sit outside the width query's sibling above it
+ * because `@supports` and `@media` do not nest by specificity.
+ */
+@media (min-width: 1000px) {
+  .lhx-nav {
+    background: var(--lhx-card);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
 
 /* ── Profile sheet ─────────────────────────────────────────────── */
@@ -1349,8 +1585,6 @@ button.lhx-tt-altpill { cursor: pointer; }
 
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-logo,
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-nav-brand { color: #aab2f0; }
-:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-track { background: #2a2d4a; }
-:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-hero .lhx-track { background: rgba(255, 255, 255, 0.28); }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-pill { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx :is(.lhx-terms, .lhx-seg) { background: #2a2d4a; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-term-tab[aria-selected='true'],
@@ -1909,7 +2143,7 @@ button.lhx-tt-altpill { cursor: pointer; }
 .lhx-cal-soon-name { flex: 1; min-width: 0; color: var(--lhx-ink); }
 .lhx-cal-soon-date { flex-shrink: 0; color: var(--lhx-muted); }
 
-.lhx-cal-foot { font-size: 11.5px; line-height: 1.6; font-weight: 700; color: var(--lhx-faint); }
+.lhx-cal-foot { font-size: 11.5px; line-height: 1.6; font-weight: 700; color: var(--lhx-muted); }
 
 /* The Grade · Term chip is a button now (it opens this screen), so it
    needs a tap target and an affordance the plain text never had. */

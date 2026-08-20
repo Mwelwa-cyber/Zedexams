@@ -17,7 +17,7 @@
   background: var(--lhx-card); color: var(--lhx-ink);
   box-shadow: var(--lhx-shadow);
 }
-.lhx-note-search::placeholder { color: var(--lhx-faint); }
+.lhx-note-search::placeholder { color: var(--lhx-muted); }
 
 /* ── Row affordances: learned state + per-note offline download ──── */
 
