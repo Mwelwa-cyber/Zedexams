@@ -31,9 +31,31 @@
   --lhx-bg: #edeffd;
   --lhx-card: #ffffff;
   --lhx-ink: #2b2d51;
-  --lhx-muted: #8a8fb5;
-  --lhx-faint: #a9aed6;
+  /* ── The two grey tiers, and why they are not interchangeable ──
+     `--lhx-muted` is TEXT — subtitles, "3 of 8 topics done", every
+     topic sub-list, 137 uses. It has to clear 4.5:1 on BOTH surfaces a
+     learner reads it on, the white card and the indigo page. The
+     prototype's #8a8fb5 measured 3.15:1 and 2.75:1, which is invisible
+     rather than quiet on a cheap screen in a bright classroom.
+     `--lhx-faint` is NOT text. It is dots, chevrons, empty-state
+     glyphs and the search caret — graphical objects, so the 3:1 floor
+     of WCAG 1.4.11 rather than 4.5:1. Every place it was drawing real
+     words (the calendar footnote, the notes placeholder, the
+     leaderboard's own empty line) now reads --lhx-muted instead. Do
+     not put words back on --lhx-faint; put them on --lhx-muted. */
+  --lhx-muted: #5f6592;
+  --lhx-faint: #7c81ad;
+  /* The inactive tab labels, and only those. They sit on --lhx-card
+     (the bar's own ground) at 12px, so they need the text floor — but
+     they must still recede behind the active tab, which is why this is
+     its own token rather than --lhx-muted. 4.75:1 on the card. */
+  --lhx-nav-label: #6b709c;
   --lhx-line: #e4e7fb;
+  /* The unfilled part of a progress bar. Was a bare #eef0fc at the rule,
+     which is the one hex the Night block could not reach — see the
+     `.lhx .lhx-track` override that used to be needed at the foot of
+     this file. */
+  --lhx-track: #eef0fc;
 
   --lhx-indigo1: #7180f2;
   --lhx-indigo2: #5158d0;
@@ -41,21 +63,37 @@
   --lhx-coral1: #ff9057;
   --lhx-coral2: #ff5c39;
   --lhx-coral-shadow: #e04f22;
-  --lhx-coral-text: #ff6b3d;
+  /* Coral as INK, which is a different colour from coral as a FILL.
+     The bright #ff6b3d is 2.83:1 on a card — fine for the 4px active-tab
+     indicator and the gradient buttons (both still use --lhx-coral1/2),
+     unreadable as the 11-13px labels that were drawn in it. The brand
+     coral is not lost: it is above this line, on the fills. */
+  --lhx-coral-text: #c0400f;
   --lhx-yellow: #ffc542;
   /* Ink on a brand fill (indigo / coral gradients, the hero buttons).
      Named rather than written as `#fff` at each call site so the one
      place it would ever change is one place. It does NOT flip in Night
      mode: a coral card is coral in both looks, so its text stays white. */
   --lhx-on-brand: #ffffff;
+  /* Green does three jobs and needs two values, exactly as red does
+     (see --lhx-red-ink / --lhx-red-btn below — same reasoning, and this
+     is that pattern applied to the family that was missing it).
+       --lhx-green      the bright HUE: bar fills, rings, borders, ticks
+                        drawn AS a glyph. Never put words on it — white
+                        text measures 2.37:1 against it.
+       --lhx-green-dark the INK: "+3 correct", a percentage on a card.
+       --lhx-green-btn  the GROUND under white text: the go button, the
+                        back-online toast, the correct-answer letter,
+                        the completed-step tick. 5.42:1 with white. */
   --lhx-green: #2ec06a;
-  --lhx-green-dark: #1f9451;
+  --lhx-green-dark: #0e7a3e;
+  --lhx-green-btn: #0e7a3e;
   --lhx-red: #ef5a5f;
 
   /* Soft washes (chip/tile backgrounds) straight from the prototype. */
   --lhx-indigo-soft: #eef1ff;
-  --lhx-indigo-text: #5f66d8;
-  --lhx-link: #7a83ea;
+  --lhx-indigo-text: #4f56bd;
+  --lhx-link: #5a61c9;
   --lhx-green-soft: #e0f8ea;
   --lhx-green-wash: #f0faf4;
   /* Red washes — the destructive family's backgrounds. Added for the
@@ -74,7 +112,7 @@
   --lhx-red-ink: #b8353b;
   --lhx-red-btn: #b8353b;
   --lhx-coral-soft: #fff0e8;
-  --lhx-coral-soft-text: #e8622f;
+  --lhx-coral-soft-text: #b8441f;
 
   /* Amber — the "something needs you" family. Introduced for the parent
      app's approval card (docs/learner/zedexams-parent-prototype.html),
@@ -83,7 +121,7 @@
      so both surfaces flip together in Night mode. */
   --lhx-amber-wash: #fff2d6;
   --lhx-amber-line: #ffd488;
-  --lhx-amber-ink: #a86a12;
+  --lhx-amber-ink: #8a5610;
   --lhx-amber-row: rgba(255, 255, 255, 0.7);
 
   /* Compatibility aliases — section components reference the old five
@@ -99,8 +137,13 @@
   --lhx-blue-deep: #1f66c2;
   --lhx-blue-soft: #d9e9ff;
   --lhx-blue-wash: #ecf5ff;
-  --lhx-orange: var(--lhx-coral-text);
-  --lhx-orange-deep: var(--lhx-coral-shadow);
+  /* `--lhx-orange` is the subject palette's fourth HUE — a progress-bar
+     fill and an icon tint. It used to alias --lhx-coral-text, which is
+     why deepening that token for legibility would have dulled one
+     subject in five. The two jobs are now two values: the bright hue
+     here, the readable ink in --lhx-orange-deep below. */
+  --lhx-orange: #ff6b3d;
+  --lhx-orange-deep: var(--lhx-coral-text);
   --lhx-orange-soft: #ffe1d3;
   --lhx-orange-wash: var(--lhx-coral-soft);
   --lhx-pink: #d4548a;
@@ -145,11 +188,29 @@
   --lhx-card: #232640;
   --lhx-ink: #e9ebff;
   --lhx-muted: #9aa0c8;
-  --lhx-faint: #565b85;
+  /* Same two tiers, same division of labour as the light look — see the
+     comment on the day tokens. Night's faint was #565b85, which is
+     2.27:1 on the card: a chevron nobody can find. */
+  --lhx-faint: #7f85b0;
+  --lhx-nav-label: #9096c2;
   --lhx-line: #32365a;
+  --lhx-track: #2a2d4a;
+  /* Night keeps the BRIGHT coral as ink. On a dark card #ff6b3d is
+     5.22:1 — the deepened day value would be 2.7:1 here, so the two
+     looks genuinely want different colours rather than one compromise.
+     Same reasoning as --lhx-red-ink / --lhx-red-btn further down. */
+  --lhx-coral-text: #ff6b3d;
+  --lhx-link: #949bf2;
 
   --lhx-indigo-soft: #2a2d4a;
   --lhx-indigo-text: #aab2f0;
+  /* The two subject INKS whose day values are dark by design and so
+     cannot carry over. Without these, a Grade 7 learner reading Home in
+     Night saw the Purple and Orange subject percentages at 2.3:1 and
+     3.7:1 — the exact failure mode a dark palette has and a light one
+     does not. */
+  --lhx-purple-deep: #aab2f0;
+  --lhx-orange-deep: #ff9a6b;
   --lhx-purple-wash: #20223c;
   --lhx-green-soft: #173327;
   --lhx-green-wash: #1d3328;
@@ -316,9 +377,9 @@
   box-shadow: 0 4px 0 var(--lhx-coral-shadow);
 }
 .lhx-btn-green {
-  background: var(--lhx-green);
+  background: var(--lhx-green-btn);
   color: #fff;
-  box-shadow: 0 4px 0 #1f9451;
+  box-shadow: 0 4px 0 #0a5c2f;
 }
 .lhx-btn-ghost { background: transparent; border: 1.5px solid currentColor; }
 .lhx-btn-soft { background: var(--lhx-indigo-soft); color: var(--lhx-indigo-text); }
@@ -464,7 +525,7 @@
 
 .lhx-track {
   height: 8px; border-radius: 999px; overflow: hidden;
-  background: #eef0fc;
+  background: var(--lhx-track);
 }
 .lhx-hero .lhx-track { background: rgba(255, 255, 255, 0.28); }
 .lhx-fill {
@@ -718,7 +779,7 @@
 .lhx-online-toast {
   position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
   z-index: 70;
-  background: var(--lhx-green);
+  background: var(--lhx-green-btn);
   color: #fff;
   font-size: 12.5px; font-weight: 800;
   padding: 10px 16px;
@@ -779,10 +840,15 @@
 .lhx-nav-inner { display: flex; justify-content: space-around; max-width: 480px; margin: 0 auto; height: var(--lhx-nav-h); padding: 12px 6px; }
 .lhx-nav-item {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-  font-size: 10.5px; font-weight: 800; color: var(--lhx-faint);
+  /* 12px, not the 10.5px this shipped at. The rest of the system's floor
+     is 12px and this is the app's most-used control; the 44px target box
+     already had the room, so the smaller size bought nothing. */
+  font-size: 12px; font-weight: 800; color: var(--lhx-nav-label);
   min-height: 44px; width: 64px; position: relative;
 }
 .lhx-nav-item svg { flex-shrink: 0; }
+/* The label takes the readable coral; the 4px indicator below keeps the
+   bright gradient, because an indicator is not text. */
 .lhx-nav-item.is-active { color: var(--lhx-coral-text); }
 .lhx-nav-item.is-active::before {
   content: ''; position: absolute; top: -12px; width: 26px; height: 4px; border-radius: 999px;
@@ -1349,8 +1415,6 @@ button.lhx-tt-altpill { cursor: pointer; }
 
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-logo,
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-nav-brand { color: #aab2f0; }
-:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-track { background: #2a2d4a; }
-:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-hero .lhx-track { background: rgba(255, 255, 255, 0.28); }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-pill { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx :is(.lhx-terms, .lhx-seg) { background: #2a2d4a; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-term-tab[aria-selected='true'],
@@ -1909,7 +1973,7 @@ button.lhx-tt-altpill { cursor: pointer; }
 .lhx-cal-soon-name { flex: 1; min-width: 0; color: var(--lhx-ink); }
 .lhx-cal-soon-date { flex-shrink: 0; color: var(--lhx-muted); }
 
-.lhx-cal-foot { font-size: 11.5px; line-height: 1.6; font-weight: 700; color: var(--lhx-faint); }
+.lhx-cal-foot { font-size: 11.5px; line-height: 1.6; font-weight: 700; color: var(--lhx-muted); }
 
 /* The Grade · Term chip is a button now (it opens this screen), so it
    needs a tap target and an affordance the plain text never had. */

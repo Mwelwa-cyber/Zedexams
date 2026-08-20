@@ -51,6 +51,7 @@ import {
   deriveYears,
   filterPapers,
   isSpecimen,
+  resolveArchiveGrade,
   subjectsForYear,
   viewPath,
 } from '../lib/paperNav'
@@ -67,16 +68,12 @@ import { PAPER_BOOKMARKS_KEY, RECENT_PAPERS_KEY } from '../lib/paperStorageKeys'
 import {
   ArrowRight,
   BookmarkSquareIcon,
-  BookOpen,
   CalendarDays,
   Check,
   ChevronLeft,
   ChevronRight,
   Clock,
-  FileText,
-  Gamepad2,
   GraduationCap,
-  Home,
   PencilLine,
   Search,
   SlidersHorizontal,
@@ -489,43 +486,6 @@ function TimetableRow({ grade }) {
   )
 }
 
-// ── Floating glassmorphism bottom navigation ────────────────────────
-function BottomNav() {
-  // Matches the learner-shell bottom-nav IA (Home · Papers · Notes ·
-  // Games — the 2026-08 redesign). Profile lives behind the header
-  // avatar on the learner shell.
-  const items = [
-    { to: '/dashboard', label: 'Home', Icon: Home },
-    { to: '/papers', label: 'Papers', Icon: FileText, active: true },
-    { to: '/notes', label: 'Notes', Icon: BookOpen },
-    { to: '/games', label: 'Games', Icon: Gamepad2 },
-  ]
-  return (
-    <nav
-      className="fixed bottom-3 left-3 right-3 z-40 mx-auto max-w-md safe-area-bottom"
-      aria-label="Primary navigation"
-    >
-      <div className="flex items-center justify-around rounded-full border border-white/40 bg-white/70 px-2 py-1.5 shadow-elev-lg backdrop-blur-xl dark:bg-white/10 dark:border-white/10">
-        {items.map(({ to, label, Icon, active }) => (
-          <Link
-            key={to}
-            to={to}
-            aria-current={active ? 'page' : undefined}
-            className={`flex flex-col items-center gap-0.5 rounded-2xl px-3 py-1.5 transition active:scale-95 ${
-              active ? 'theme-accent-text' : 'theme-text-muted hover:theme-text'
-            }`}
-          >
-            <span className={`grid place-items-center h-7 w-9 rounded-full transition ${active ? 'bg-[var(--accent-bg)]' : ''}`}>
-              <Icon size={20} strokeWidth={active ? 2.6 : 2} />
-            </span>
-            <span className={`text-[10px] ${active ? 'font-black' : 'font-bold'}`}>{label}</span>
-          </Link>
-        ))}
-      </div>
-    </nav>
-  )
-}
-
 // ── Decorative books / graduation-cap cluster (header illustration) ──
 function HeaderArt() {
   return (
@@ -543,9 +503,14 @@ function HeaderArt() {
 // ── Page ────────────────────────────────────────────────────────────
 
 export default function PastPapersHub() {
-  const { currentUser } = useAuth()
+  const { currentUser, userProfile, isLearner } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const searchRef = useRef(null)
+
+  // Did the learner arrive here by tapping the Papers TAB, or did a
+  // search engine send a stranger to this URL? The page is both, and the
+  // two want different first rows — see the header block below.
+  const reachedAsTab = isLearner
 
   const cachedOnMount = getCachedPublishedPapers()
   const [loaded, setLoaded] = useState(() =>
@@ -554,11 +519,28 @@ export default function PastPapersHub() {
   const [loading, setLoading] = useState(() => !cachedOnMount)
   const [usingSample, setUsingSample] = useState(false)
 
-  // Grade defaults to 7 (the mockup's focus); ?grade=12 deep-links G12.
-  const initialGrade = searchParams.get('grade')
-  const [grade, setGrade] = useState(
-    initialGrade && PAPER_GRADES.includes(initialGrade) ? initialGrade : '7',
-  )
+  // Which grade to open on, and whether a grade switch belongs on this
+  // screen at all — one decision, made in `resolveArchiveGrade` where it
+  // can be tested. `?grade=` still wins, for both.
+  const { grade: resolvedGrade, showGradeToggle } = resolveArchiveGrade({
+    urlGrade: searchParams.get('grade'),
+    profileGrade: userProfile?.grade,
+    isLearner,
+    grades: PAPER_GRADES,
+  })
+  const [grade, setGrade] = useState(resolvedGrade)
+
+  // The profile arrives after the first paint (AuthContext loads it), so
+  // the opening grade has to be able to change once — and exactly once,
+  // which is what keying on `resolvedGrade` gives: it stops moving as
+  // soon as the profile settles, and a learner who then taps a different
+  // year is never yanked back.
+  const appliedGrade = useRef(resolvedGrade)
+  useEffect(() => {
+    if (appliedGrade.current === resolvedGrade) return
+    appliedGrade.current = resolvedGrade
+    setGrade(resolvedGrade)
+  }, [resolvedGrade])
   const initialYear = searchParams.get('year')
   const [year, setYearState] = useState(
     initialYear && /^\d{4}$/.test(initialYear) ? Number(initialYear) : null,
@@ -688,31 +670,32 @@ export default function PastPapersHub() {
   }
 
   return (
-    <div className="papers-proto min-h-screen theme-bg theme-text pb-28">
+    <div className={`papers-proto min-h-screen theme-bg theme-text ${reachedAsTab ? '' : 'pb-28'}`}>
       <SeoHelmet
         title="ECZ Past Papers — Grade 7 & Grade 12 archive"
         description="Browse the official ECZ past-paper archive — Grade 7 and Grade 12 papers across every CBC subject. Choose a year, pick a subject, read the paper and take the linked quiz."
         path="/papers"
       />
 
-      {/* Slim top bar — brand + "My runs". */}
-      <header className="sticky top-0 z-30 theme-bg">
-        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
-          <Link to="/" className="flex items-center gap-2 min-w-0">
-            <Logo variant="icon" size="sm" className="!h-8 !w-8" />
-            <span className="rounded-full bg-[var(--accent-bg)] theme-accent-text text-[10px] font-black px-2 py-0.5 uppercase tracking-wide whitespace-nowrap">
-              ECZ Archive
-            </span>
-          </Link>
-          <Link
-            to={currentUser ? '/my-papers' : '/login'}
-            className="inline-flex items-center gap-1.5 rounded-full theme-bg-subtle theme-text text-xs font-bold px-3 py-2 active:scale-95 transition"
-          >
-            <Clock size={14} strokeWidth={2.4} className="theme-accent-text" />
-            My runs
-          </Link>
-        </div>
-      </header>
+      {/* A signed-out visitor arriving from search has no chrome around
+          this page, so the brand row is theirs and theirs only. A
+          signed-in learner reaches /papers as a TAB and already has the
+          shell's header above this — a second brand row there was the
+          "the nav changes shape between two adjacent tabs" finding
+          (LEARNER_UI_AUDIT L-03). "My runs" is not lost with it: it
+          moves into the title block below, where it applies to both. */}
+      {!reachedAsTab && (
+        <header className="sticky top-0 z-30 theme-bg">
+          <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
+            <Link to="/" className="flex items-center gap-2 min-w-0">
+              <Logo variant="icon" size="sm" className="!h-8 !w-8" />
+              <span className="rounded-full bg-[var(--accent-bg)] theme-accent-text text-[10px] font-black px-2 py-0.5 uppercase tracking-wide whitespace-nowrap">
+                ECZ Archive
+              </span>
+            </Link>
+          </div>
+        </header>
+      )}
 
       <main className="max-w-5xl mx-auto px-4">
         {/* Title block — dynamic to the selected grade + step */}
@@ -733,12 +716,27 @@ export default function PastPapersHub() {
                 ? 'Choose a subject to view past papers and take quizzes.'
                 : 'Choose a year to explore ECZ past papers and quizzes.'}
             </p>
+            <Link
+              to={currentUser ? '/my-papers' : '/login'}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full theme-bg-subtle theme-text text-xs font-bold px-3 min-h-[44px] py-2 active:scale-95 transition"
+            >
+              <Clock size={14} strokeWidth={2.4} className="theme-accent-text" />
+              My runs
+            </Link>
           </div>
           <HeaderArt />
         </div>
 
-        {/* Grade toggle */}
-        <GradeToggle grade={grade} onChange={chooseGrade} />
+        {/* Grade toggle — NOT for a signed-in learner.
+            "Content auto-filters to the learner's profile grade — no grade
+            browsing on the child UI" (docs/learner/README.md, Ground
+            rules). This surface ignored the profile entirely and opened
+            every learner on Grade 7 with a Grade 7/12 switch beside it
+            (LEARNER_UI_AUDIT L-14). It still shows for a signed-out
+            visitor, who has no profile to read and is most of this page's
+            traffic, and for a teacher or parent, who legitimately browse
+            both grades. */}
+        {showGradeToggle && <GradeToggle grade={grade} onChange={chooseGrade} />}
 
         {/* Exam-timetable row (learner redesign): the indigo strip above
             the paper list that taps through to /timetable. Renders only
@@ -908,18 +906,18 @@ export default function PastPapersHub() {
               ))}
             </div>
           </div>
-          <div>
-            <p className="text-[11px] font-black theme-text-muted uppercase tracking-widest mb-2">Grade</p>
-            <div className="flex flex-wrap gap-2">
-              {PAPER_GRADES.map((g) => (
-                <Chip key={g} active={grade === g} onClick={() => chooseGrade(g)}>Grade {g}</Chip>
-              ))}
+          {showGradeToggle && (
+            <div>
+              <p className="text-[11px] font-black theme-text-muted uppercase tracking-widest mb-2">Grade</p>
+              <div className="flex flex-wrap gap-2">
+                {PAPER_GRADES.map((g) => (
+                  <Chip key={g} active={grade === g} onClick={() => chooseGrade(g)}>Grade {g}</Chip>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </BottomSheet>
-
-      <BottomNav />
     </div>
   )
 }

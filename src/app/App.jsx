@@ -609,7 +609,22 @@ export default function App() {
           {/* Audit A2 — public ECZ past-paper archive. Hub is no-auth so
               search engines and signed-out visitors can browse; the actual
               PDF viewer at /papers/:id requires sign-in to download. */}
-          <Route path="/papers"            element={<PastPapersHub />} />
+          {/* The hub is the Papers TAB, so it renders inside the learner
+              shell and takes the shell's 4-tab bar. It used to sit outside
+              and draw a second, differently-shaped bar of its own as a
+              floating pill over the cards — the navigation changed form
+              between two adjacent tabs (LEARNER_UI_AUDIT L-03/L-04).
+              Unguarded, exactly like /games above and for the same reason:
+              the shell chrome renders nothing account-specific, and this
+              route has to stay crawlable. The page itself keeps a brand
+              row for signed-out visitors, since the shell carries no
+              header of its own.
+              The VIEWER and the two runners below stay outside: they are
+              immersive reading and answering surfaces, and drawing a tab
+              bar over one is what /notes/:id was fixed for (L-09). */}
+          <Route element={<LearnerLayout />}>
+            <Route path="/papers"          element={<PastPapersHub />} />
+          </Route>
           <Route path="/papers/:paperId"   element={<PastPaperViewer />} />
           {/* SEO-friendly slug URL (/papers/:id/grade-7-mathematics-2023).
               The viewer reads :paperId only; the static /practice + /quiz

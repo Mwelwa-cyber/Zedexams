@@ -767,7 +767,7 @@
 }
 .lhx-opt-text { flex: 1; line-height: 1.4; }
 .lhx-opt.is-correct { background: var(--lhx-green-soft); border-color: #7bd9a3; color: var(--lhx-green-dark); }
-.lhx-opt.is-correct .lhx-opt-letter { background: var(--lhx-green); color: #fff; }
+.lhx-opt.is-correct .lhx-opt-letter { background: var(--lhx-green-btn); color: #fff; }
 .lhx-opt.is-wrong { background: #fdeaea; border-color: #f4a5a8; color: var(--lhx-red); animation: lhx-wb-shake 0.3s; }
 .lhx-opt.is-wrong .lhx-opt-letter { background: var(--lhx-red); color: #fff; }
 
