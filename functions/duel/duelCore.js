@@ -91,9 +91,14 @@ function drawQuestions(bank, seed, count = 5) {
 /**
  * A copy of `q` with its options dealt in a fresh order. A STRING
  * `answer` needs no remapping (`correctIndexOf` matches it by text
- * wherever the option moved); an integer `answer` is an index into the
- * old order, so it follows its option to the new position. A question
- * with no options array is returned untouched.
+ * wherever the option moved). An integer `answer` is an index into the
+ * OLD order, so it is normalised to the TEXT of the option it named —
+ * not remapped to the new index — because the live client's verdict
+ * paint (`DuelLive` via the client `correctIndexFor`) interprets every
+ * answer as option text: a dealt integer index over numeric-text
+ * options would grade right on the server and paint wrong on screen.
+ * Text resolves identically on both sides. A question with no options
+ * array is returned untouched.
  */
 function shuffleQuestionOptions(q, rand) {
   if (!Array.isArray(q?.options) || q.options.length < 2) return q;
@@ -104,7 +109,7 @@ function shuffleQuestionOptions(q, rand) {
   }
   const out = { ...q, options: order.map((i) => q.options[i]) };
   if (Number.isInteger(q.answer) && q.answer >= 0 && q.answer < q.options.length) {
-    out.answer = order.indexOf(q.answer);
+    out.answer = String(q.options[q.answer]);
   }
   return out;
 }

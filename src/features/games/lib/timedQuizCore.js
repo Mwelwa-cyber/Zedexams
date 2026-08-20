@@ -158,16 +158,27 @@ export function optionLetter(i) {
  * and the recorded round stay in canonical index space — display order
  * is a render concern and never reaches a write.
  *
- * Same LCG as gamesService's `shuffle`, kept here so the module stays
- * dependency-free and node-testable.
+ * Dependency-free and node-testable. The draws come from mulberry32
+ * (the same PRNG functions/duel uses), NOT gamesService's LCG with a
+ * `% (i + 1)` draw: an LCG's low bits are near-deterministic across
+ * successive states, so that shuffle reaches only 12 of the 24
+ * four-option permutations and still leaves slot A favoured (~33%) —
+ * a smaller copy of the exact bias this function exists to remove.
+ * The distribution is pinned by test:timed-quiz.
  */
 export function optionDisplayOrder(count, seed) {
   const n = Math.max(0, Math.floor(Number(count) || 0))
   const order = Array.from({ length: n }, (_, i) => i)
   let s = (Number(seed) || 0) >>> 0
+  const rand = () => {
+    s = (s + 0x6d2b79f5) >>> 0
+    let t = s
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
   for (let i = n - 1; i > 0; i--) {
-    s = (s * 1664525 + 1013904223) >>> 0
-    const j = s % (i + 1)
+    const j = Math.floor(rand() * (i + 1))
     ;[order[i], order[j]] = [order[j], order[i]]
   }
   return order

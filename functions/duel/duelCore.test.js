@@ -130,15 +130,28 @@ test("options are dealt per match — the answer is not pinned to slot A", () =>
   assert.deepStrictEqual(drawn.map((q) => q.options), again.map((q) => q.options));
 });
 
-test("an integer answer follows its option through the deal", () => {
+test("an integer answer is normalised to its option's TEXT through the deal", () => {
+  // Normalised to text, never remapped to the dealt index: the live
+  // client's verdict paint (DuelLive via the client correctIndexFor)
+  // reads every answer as option text, so a dealt integer index over
+  // numeric-text options would grade right server-side and paint the
+  // wrong option on screen. Text resolves identically on both sides.
   const bank = [
     { id: "q0", options: ["alpha", "beta", "gamma", "delta"], answer: 2 }, // gamma
-    { id: "q1", options: ["one", "two", "three", "four"], answer: 0 },     // one
+    { id: "q1", options: ["0", "1", "2", "3"], answer: 1 },                // the trap case
   ];
   const drawn = drawQuestions(bank, "match-int", 5);
   for (const q of drawn) {
     const original = bank.find((b) => b.id === q.id);
-    assert.strictEqual(q.options[correctIndexOf(q)], original.options[original.answer]);
+    const wantText = String(original.options[original.answer]);
+    assert.strictEqual(typeof q.answer, "string");
+    assert.strictEqual(q.answer, wantText);
+    // Server grading and text-matching clients agree on the same option.
+    assert.strictEqual(String(q.options[correctIndexOf(q)]), wantText);
+    assert.strictEqual(
+      q.options.findIndex((o) => String(o) === String(q.answer)),
+      correctIndexOf(q),
+    );
   }
 });
 

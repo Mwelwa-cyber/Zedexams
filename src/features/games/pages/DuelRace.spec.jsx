@@ -49,8 +49,10 @@ vi.mock('../lib/gameSounds', () => ({
 import DuelRace from './DuelRace'
 import { listGames, saveScore, reportGameStart } from '../services/gamesService'
 
-// One eligible quiz: every question's first option is correct, so a test
-// can race perfectly (or miss deliberately) by position.
+// One eligible quiz. The correct answer for `Qi: i + 1 = ?` is `i + 1`,
+// derivable from the on-screen question — the race deals each question's
+// options in a fresh order (duelCore.shuffleQuestionOptions), so a test
+// races perfectly (or misses deliberately) by TEXT, never by position.
 const QUIZ = {
   id: 'math_quiz_g4',
   title: 'Quick Maths',
@@ -89,10 +91,21 @@ async function throughCountdown() {
   }
 }
 
-/** Answer the current question by option position, through the reveal beat. */
-async function answerAt(position) {
-  const options = document.querySelectorAll('.lhx-opt')
-  fireEvent.click(options[position])
+/** The CURRENT question's correct answer text, read off the screen —
+ * `Qi: i + 1 = ?` answers `i + 1`. The deal means no position is safe. */
+function currentAnswerText() {
+  const q = document.querySelector('.lhx-quiz-q').textContent
+  return String(Number(q.match(/^Q(\d+):/)[1]) + 1)
+}
+const optionButtons = () => [...document.querySelectorAll('.lhx-opt')]
+const correctOption = () =>
+  optionButtons().find((b) => b.querySelector('.lhx-opt-text').textContent === currentAnswerText())
+const aWrongOption = () =>
+  optionButtons().find((b) => b.querySelector('.lhx-opt-text').textContent !== currentAnswerText())
+
+/** Answer the current question correctly, through the reveal beat. */
+async function answerCorrectly() {
+  fireEvent.click(correctOption())
   await act(async () => { vi.advanceTimersByTime(750) })
 }
 
@@ -129,15 +142,15 @@ describe('DuelRace', () => {
       await throughCountdown()
       const strip = () => screen.getByLabelText('Race scores')
       // First correct: +20.
-      fireEvent.click(document.querySelectorAll('.lhx-opt')[0])
+      fireEvent.click(correctOption())
       expect(document.querySelector('.lhx-opt.is-correct')).not.toBeNull()
       await act(async () => { vi.advanceTimersByTime(750) })
       expect(within(strip()).getByText('20')).toBeInTheDocument()
       // Second correct: +40 → 60.
-      await answerAt(0)
+      await answerCorrectly()
       expect(within(strip()).getByText('60')).toBeInTheDocument()
       // A miss paints the pick red and the right answer green, resets combo.
-      fireEvent.click(document.querySelectorAll('.lhx-opt')[1])
+      fireEvent.click(aWrongOption())
       expect(document.querySelector('.lhx-opt.is-wrong')).not.toBeNull()
       expect(document.querySelector('.lhx-opt.is-correct')).not.toBeNull()
       await act(async () => { vi.advanceTimersByTime(750) })
@@ -153,7 +166,7 @@ describe('DuelRace', () => {
       renderDuel()
       await throughCountdown()
       // Perfect run: 20+40+60+80+100 = 300.
-      for (let i = 0; i < 5; i += 1) await answerAt(0)
+      for (let i = 0; i < 5; i += 1) await answerCorrectly()
       expect(screen.getByText(/YOU/)).toBeInTheDocument()
       const youCard = screen.getByText('YOU').closest('.lhx-win-stat')
       expect(within(youCard).getByText('300')).toBeInTheDocument()
@@ -172,14 +185,14 @@ describe('DuelRace', () => {
     try {
       renderDuel()
       await throughCountdown()
-      for (let i = 0; i < 5; i += 1) await answerAt(0)
+      for (let i = 0; i < 5; i += 1) await answerCorrectly()
       fireEvent.click(screen.getByRole('button', { name: /REMATCH/ }))
       expect(screen.getByText('🤖 ROBOT COACH')).toBeInTheDocument()
       for (let i = 0; i < 6; i += 1) {
         await act(async () => { vi.advanceTimersByTime(900) })
       }
       expect(screen.getByText(/QUESTION 1 OF 5/)).toBeInTheDocument()
-      for (let i = 0; i < 5; i += 1) await answerAt(0)
+      for (let i = 0; i < 5; i += 1) await answerCorrectly()
       expect(saveScore).toHaveBeenCalledTimes(2)
     } finally {
       vi.useRealTimers()
