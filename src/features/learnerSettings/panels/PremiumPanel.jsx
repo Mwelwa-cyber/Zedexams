@@ -14,9 +14,11 @@
 //     monthly-only Premium feature would be false twice over.
 
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useSubscription } from '../../../hooks/useSubscription'
 import { PLANS } from '../../../engines/payment-engine/subscriptionConfig'
+import { mayShowPrice } from '../../../services/entitlements/planState'
 import { UpgradeModal } from '../../subscription'
 import { Panel, Section, Note } from '../components/ui'
 
@@ -67,6 +69,34 @@ export default function PremiumPanel({ section }) {
   const openUpgrade = (planId) => {
     setUpgradePlanId(planId || null)
     setShowUpgrade(true)
+  }
+
+  // A price is never shown to a child. `mayShowPrice` fails closed — a learner
+  // is under-18 unless the profile positively says otherwise — and the
+  // `!!userProfile` prefix is load-bearing: mayShowPrice reads a MISSING
+  // profile as an anonymous visitor, which is right for a public marketing
+  // page and wrong on a learner's own settings screen. Same shape as
+  // AccountPanel.jsx.
+  //
+  // The panel is reachable from the settings nav, so it renders the hand-off
+  // rather than nothing: a blank screen a child can navigate to is its own
+  // defect, and /ask-a-grown-up is where the request actually goes.
+  if (!userProfile || !mayShowPrice(userProfile)) {
+    return (
+      <Panel section={section}>
+        <Section
+          title="Plans"
+          hint="A grown-up looks after plans and payments for your account."
+        >
+          <Note tone="accent">
+            Ask a grown-up if you need more. They can unlock everything for you.
+          </Note>
+          <Link className="lset-btn lset-btn--gold" to="/ask-a-grown-up">
+            Ask a grown-up
+          </Link>
+        </Section>
+      </Panel>
+    )
   }
 
   return (

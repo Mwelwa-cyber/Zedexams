@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { paywall } from '../../../engines/payment-engine/paywall'
 import useFocusTrap from '../../../hooks/useFocusTrap'
 import { isNativePlatform } from '../../../utils/runtime'
@@ -6,6 +7,8 @@ import { capture } from '../../../utils/analytics'
 import Icon from '../../../shared/components/Icon'
 import { ArrowRight, X } from '../../../shared/components/icons'
 import { BenefitChecklist, PlanPricingCards, TrustRow } from './PremiumUpgradeUI'
+import { useAuth } from '../../../contexts/AuthContext'
+import { mayShowPrice, resolveAgeBand } from '../../../services/entitlements/planState'
 
 const UpgradeModal = lazy(() => import('./UpgradeModal'))
 
@@ -58,12 +61,18 @@ function ProgressRing({ count, total }) {
  * Driven by the shared paywall bus (reason: 'quiz-preview-limit').
  */
 export default function QuizLimitPopup() {
+  const { userProfile } = useAuth()
+  const navigate = useNavigate()
   const [state, setState] = useState(null)
   const [showUpgrade, setShowUpgrade] = useState(false)
   const [upgradePlanId, setUpgradePlanId] = useState('monthly')
 
   useEffect(() => paywall.subscribe(setState), [])
 
+  // No price reaches a child. Fails closed, and `!!userProfile` is
+  // load-bearing — mayShowPrice reads a MISSING profile as an anonymous
+  // visitor, which is right for marketing and wrong for a learner runner.
+  const canBuy = !!userProfile && mayShowPrice(userProfile)
   const open = !!state && state.reason === REASON
   const ctx = state?.ctx || {}
   const limit = ctx.limit || 30
@@ -73,11 +82,22 @@ export default function QuizLimitPopup() {
   // into the page behind the backdrop.
   useEffect(() => {
     if (!open) return undefined
-    capture('paywall_shown', { reason: REASON, feature: 'past-paper-quiz', plan_target: 'learner' })
+    // age_band and role were absent here, which is why 24 learner accounts
+    // could be seen hitting a paywall over 90 days with no way to tell whether
+    // any of them were children. An unmeasurable compliance rule is one nobody
+    // can show is holding.
+    capture('paywall_shown', {
+      reason: REASON,
+      feature: 'past-paper-quiz',
+      plan_target: 'learner',
+      age_band: userProfile ? resolveAgeBand(userProfile) : null,
+      role: userProfile?.role || null,
+      priced: canBuy,
+    })
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = prev }
-  }, [open])
+  }, [open, canBuy, userProfile])
 
   const panelRef = useRef(null)
   useFocusTrap(panelRef, {
@@ -94,12 +114,23 @@ export default function QuizLimitPopup() {
       feature: 'past-paper-quiz',
       plan_target: 'learner',
       via: planId ? 'plan-card' : 'primary',
+      age_band: userProfile ? resolveAgeBand(userProfile) : null,
     })
+    // Defence in depth. Nothing should call this for a child — the plan cards
+    // are not rendered and the CTA routes elsewhere — but a checkout is not a
+    // thing to leave one branch away from a twelve-year-old.
+    if (!canBuy) {
+      paywall.hide()
+      navigate('/ask-a-grown-up')
+      return
+    }
     setUpgradePlanId(planId || 'monthly')
     setShowUpgrade(true)
   }
 
-  if (showUpgrade) {
+  // A child who taps through never reaches the checkout: the offer is the
+  // guardian hand-off instead, which is where the request actually goes.
+  if (showUpgrade && canBuy) {
     return (
       <Suspense fallback={null}>
         <UpgradeModal
@@ -151,13 +182,18 @@ export default function QuizLimitPopup() {
         <div className="px-5 py-4">
           <BenefitChecklist items={QUIZ_BENEFITS} className="mb-3.5" />
 
-          <PlanPricingCards
-            planIds={['weekly', 'monthly']}
-            popularPlanId="monthly"
-            selectedPlanId="monthly"
-            onSelect={openUpgrade}
-            hidePrices={native}
-          />
+          {/* A plan picker IS an offer, so a child gets none of it — not the
+              cards with prices hidden. The benefit list above stays: telling a
+              learner what Premium does is not selling it to them. */}
+          {canBuy && (
+            <PlanPricingCards
+              planIds={['weekly', 'monthly']}
+              popularPlanId="monthly"
+              selectedPlanId="monthly"
+              onSelect={openUpgrade}
+              hidePrices={native}
+            />
+          )}
 
           <div className="mt-4 flex flex-col gap-1.5">
             <button
@@ -165,7 +201,7 @@ export default function QuizLimitPopup() {
               onClick={() => openUpgrade(null)}
               className="animate-premium-glow flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2.5 text-sm font-black text-white transition-transform hover:scale-[1.02] active:scale-95"
             >
-              Continue Learning
+              {canBuy ? 'Continue Learning' : 'Ask a grown-up'}
               <Icon as={ArrowRight} size="xs" />
             </button>
             <button
