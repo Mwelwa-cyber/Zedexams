@@ -20,8 +20,18 @@
  *      names, game meta — even when the content is absurd. The harness
  *      renders a deliberately over-long game name and asserts it
  *      truncated rather than reflowed its card.
- *   5. The tab bar is opaque. A translucent bar is what made (1) look like
- *      a rendering artefact rather than a bug.
+ *   5. The tab bar hides what is behind it — as a solid, or as THICK
+ *      frosted glass. This rule used to say "opaque", full stop, because
+ *      a thin translucent bar is what made (1) look like a rendering
+ *      artefact rather than a bug. The bar is glass again (the learner
+ *      asked for it, and `.lhx-page` now reserves the bar's height plus
+ *      62px so nothing comes to REST behind it), so what is actually
+ *      being protected — you cannot read the page through the
+ *      navigation — is what is measured: a translucent bar has to carry
+ *      both a tint at or above 0.85 and a backdrop blur of 20px or more.
+ *      Either one alone is the old bug. A solid bar still passes and
+ *      needs no blur, which is the `@supports`-less path in
+ *      learnerTheme.css.
  *
  * Run at 390×844 and 1440×900, in light and Night mode: four states, the
  * same four the acceptance asks for. Screenshots land in
@@ -227,6 +237,29 @@ function page({ js, css, fontCss, theme }) {
 <script>window.__gamesHubFixture=${JSON.stringify(FIXTURE)}</script>
 <script>${js}</script>
 </body></html>`
+}
+
+/* ── Rule 5's thresholds and readers ─────────────────────────────────── */
+
+// A translucent tab bar has to be BOTH thick and blurred; see rule 5 in
+// the header. The floors are the shipped values less a little room:
+// learnerTheme.css tints the bar 0.9 (0.88 in Night) and blurs 26px.
+const MIN_GLASS_ALPHA = 0.85
+const MIN_GLASS_BLUR_PX = 20
+
+/** `rgb(…)` → 1, `rgba(…, a)` → a, anything unparseable → null. */
+function readNavAlpha(background) {
+  const m = /^rgba?\(([^)]+)\)$/.exec(background || '')
+  if (!m) return null
+  const parts = m[1].split(',').map((n) => parseFloat(n))
+  if (parts.length < 3 || parts.some((n) => Number.isNaN(n))) return null
+  return parts.length < 4 ? 1 : parts[3]
+}
+
+/** The blur radius out of a computed `backdrop-filter`, in px; 0 if none. */
+function readNavBlur(backdrop) {
+  const m = /blur\(([\d.]+)px\)/.exec(backdrop || '')
+  return m ? parseFloat(m[1]) : 0
 }
 
 /* ── The assertions, run IN the page ─────────────────────────────────── */
@@ -517,15 +550,23 @@ try {
         check(anyTruncated, `${where}: the deliberately over-long game name did not truncate — the harness is not exercising the rule it claims to`)
       }
 
-      // 5. The tab bar is opaque.
+      // 5. The tab bar hides what is behind it: solid, or thick glass.
+      const navAlpha = readNavAlpha(bottom.navBackground)
+      const navBlur = readNavBlur(bottom.navBackdrop)
       check(
-        /^rgb\(\d+, \d+, \d+\)$/.test(bottom.navBackground || ''),
-        `${where}: the tab bar is not opaque — background ${bottom.navBackground}`,
+        navAlpha !== null,
+        `${where}: could not read the tab bar's background — ${bottom.navBackground}`,
       )
-      check(
-        bottom.navBackdrop === 'none',
-        `${where}: the tab bar still carries a backdrop filter (${bottom.navBackdrop}) — content behind it is meant to be impossible, not blurred`,
-      )
+      if (navAlpha !== null && navAlpha < 1) {
+        check(
+          navAlpha >= MIN_GLASS_ALPHA,
+          `${where}: the tab bar's glass is too thin — tint ${navAlpha}, needs ${MIN_GLASS_ALPHA} or more before the page stops being readable through it (${bottom.navBackground})`,
+        )
+        check(
+          navBlur >= MIN_GLASS_BLUR_PX,
+          `${where}: the tab bar is translucent with ${navBlur ? `only a ${navBlur}px` : 'no'} backdrop blur (${bottom.navBackdrop}) — translucency without a real blur is a window, and the page reads straight through it`,
+        )
+      }
 
       // 6. The pass's other promises, measured while we are here.
       check(bottom.progressBars === 0, `${where}: ${bottom.progressBars} per-game progress bar(s) survive`)

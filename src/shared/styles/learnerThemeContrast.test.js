@@ -208,7 +208,14 @@ function resolveToken(palette, name, seen = new Set()) {
 const INK = [
   ['--lhx-ink', ['--lhx-card', '--lhx-bg'], 'body copy'],
   ['--lhx-muted', ['--lhx-card', '--lhx-bg'], 'secondary copy — subtitles, "3 of 8 topics done"'],
-  ['--lhx-nav-label', ['--lhx-card'], 'inactive tab-bar labels (the bar is drawn on --lhx-card)'],
+  // The tab bar's two inks. The bar is FROSTED GLASS (#2561), so neither
+  // is drawn on --lhx-card: the ground is `--lhx-glass-nav-solid`, the
+  // opaque fallback the bar paints where backdrop-filter is unavailable
+  // and the darker of the two cases. The active label additionally sits
+  // on its own coral chip, which is darker again — so it is measured
+  // against that wash, composited over the glass.
+  ['--lhx-nav-ink', ['--lhx-glass-nav-solid'], 'inactive tab-bar labels'],
+  ['--lhx-nav-ink-active', ['--lhx-glass-nav-solid', '--lhx-nav-active-wash'], 'the active tab-bar label'],
   ['--lhx-coral-text', ['--lhx-card', '--lhx-bg'], 'the active tab label and the small coral labels'],
   ['--lhx-link', ['--lhx-card', '--lhx-bg'], '"See all" and the reader hints'],
   ['--lhx-indigo-text', ['--lhx-card', '--lhx-bg', '--lhx-indigo-soft'], 'soft-button and chip labels'],
@@ -289,7 +296,10 @@ function check(look, palette, fg, on, threshold, what, cardToken) {
 
 for (const [look, palette] of [['lhx light', DAY], ['lhx Night', NIGHT]]) {
   for (const [token, surfaces, what] of INK) {
-    for (const on of surfaces) check(look, palette, token, on, BODY, what, '--lhx-card')
+    // A nav wash is painted on the BAR, not on a card — compositing it
+    // over the wrong ground would measure a colour never drawn.
+    const ground = token.startsWith('--lhx-nav-') ? '--lhx-glass-nav-solid' : '--lhx-card'
+    for (const on of surfaces) check(look, palette, token, on, BODY, what, ground)
   }
   for (const [token, surfaces, what] of GLYPH) {
     for (const on of surfaces) check(look, palette, token, on, LARGE, what, '--lhx-card')

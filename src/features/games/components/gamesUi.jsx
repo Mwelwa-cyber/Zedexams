@@ -267,25 +267,6 @@ export function buildSubjectProgress(subjectSlug, games, history, gradeValue = n
   return { totalGames, plays, progress }
 }
 
-export function GamesSectionHeading({ eyebrow, title, description, action = null }) {
-  return (
-    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div className="max-w-2xl">
-        {eyebrow && <span className="zx-eyebrow mb-2">{eyebrow}</span>}
-        <h2 className="font-display mt-1 text-[26px] font-bold tracking-tight text-slate-900 sm:text-3xl lg:text-4xl">
-          {title}
-        </h2>
-        {description && (
-          <p className="mt-2 text-sm leading-6 text-slate-600 sm:text-base">
-            {description}
-          </p>
-        )}
-      </div>
-      {action}
-    </div>
-  )
-}
-
 const SUBJECT_TILE_BG = {
   mathematics: 'bg-orange-100',
   english:     'bg-blue-100',

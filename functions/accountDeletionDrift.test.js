@@ -57,6 +57,13 @@ function parseTopLevelCollections(src) {
 // consciously classified, so it does not fail the guard, but it is flagged for
 // an owner decision.
 const RETAINED = new Map([
+  ["spellingWords",
+    "Reviewed spelling CONTENT for a grade — the word, its context sentence, " +
+    "where to cut it and why people get it wrong. Curriculum material an " +
+    "admin authored and approved, shared by every learner in the grade; the " +
+    "only uid it can hold is the ADMIN who wrote or reviewed it, which is an " +
+    "operator action. The learner's side of spelling is `spellingProgress`, " +
+    "which IS purged"],
   ["dailyQuizzes",
     "The day's five question IDs for a GRADE — grade, date, question ids, " +
     "seed and which selection rules bent. No uid, no name, nothing about any " +
@@ -195,6 +202,16 @@ const RETAINED = new Map([
     "purged: see COLLECTION_GROUP_COLLECTIONS in accountDeletion.js, which " +
     "exists because a top-level classification says nothing about a " +
     "subcollection"],
+  ["gamesLeaderboards",
+    "The TOP-LEVEL doc holds nothing at all — the games weekly board's data " +
+    "IS the path, `{grade}/weeks/{weekId}/entries/{uid}`. That `entries` " +
+    "subcollection carries a uid and a public display name and IS purged, " +
+    "by the same COLLECTION_GROUP_COLLECTIONS entry that reaches the Daily " +
+    "Quiz's board: both use the collection-group name `entries` on field " +
+    "`uid`, which is why the subcollection was named that deliberately " +
+    "rather than `rows` or `learners`. A learner deleting their account " +
+    "takes their games board rows with them and needs no second list to " +
+    "keep in step"],
   ["lessonPlanTemplates", "anonymised shared templates; server-maintained"],
   ["noteInsights", "AI summary cache keyed by noteId; about a note, not a user"],
   ["noteSmart", "AI highlight layer keyed by noteId; about a note, not a user"],

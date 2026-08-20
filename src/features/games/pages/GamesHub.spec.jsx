@@ -205,7 +205,7 @@ describe('GamesHub', () => {
     // A mechanic with exactly ONE pack is still named for the MECHANIC,
     // never for the content pack behind it — that part of the mockup is
     // unchanged.
-    const words = (await screen.findByText('Word Builder')).closest('a')
+    const words = (await screen.findByText('Spelling')).closest('a')
     expect(words).toHaveAttribute('href', '/games/play/g-words')
     expect(within(words).getByText('Best 120')).toBeInTheDocument()
     expect(within(words).getByText('English · Spelling')).toBeInTheDocument()
@@ -293,7 +293,7 @@ describe('GamesHub', () => {
     renderHub()
 
     // The mechanic is there, backed by the learner's OWN grade…
-    const row = (await screen.findByText('Word Builder')).closest('a')
+    const row = (await screen.findByText('Spelling')).closest('a')
     expect(row).toHaveAttribute('href', '/games/play/english_word_builder_g7')
     // …and the Grade 6 pack is nowhere, by link or by name.
     expect(document.querySelector('a[href="/games/play/g-wb-g6"]')).toBeNull()
@@ -302,7 +302,10 @@ describe('GamesHub', () => {
     // The four mechanics lead in the mockup's order, whatever else lists
     // behind them; Map Quest closes the list.
     const names = [...document.querySelectorAll('.lhx-game b')].map((el) => el.textContent)
-    expect(names.slice(0, 4)).toEqual(['Number Path', 'Word Builder', 'Meaning Match', 'Punctuation Pro'])
+    // 'Spelling' rather than 'Word Builder': the card opens the spelling
+    // ladder, and the mechanic NAME is what a child reads. The `type` behind
+    // it is still `word_builder` — the registry key did not move.
+    expect(names.slice(0, 4)).toEqual(['Number Path', 'Spelling', 'Meaning Match', 'Punctuation Pro'])
     expect(names.at(-1)).toBe('Map Quest')
     // The tail is ordered by TYPE and then by title — fraction_ladder, then
     // map_place, then the timed_quiz packs alphabetically — so the order is a
