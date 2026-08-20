@@ -79,3 +79,45 @@ if (changed) {
 } else {
   console.log('sync-zambia-game-mirror: mirrors already match the datasets')
 }
+
+/* ── the app's copy ──────────────────────────────────────────────────────
+ *
+ * The Know Zambia game engine (src/features/games/) needs the same datasets,
+ * and `src/` may not read from `docs/` — the import boundaries forbid it and
+ * Vite would not bundle it anyway. So the app's copy is GENERATED rather than
+ * copied by hand: docs/learner stays the one place a reviewer or a Zambian
+ * teacher edits, and this module is output.
+ *
+ * Written as a .js module rather than .json so the provenance header travels
+ * with it. A bare JSON copy sitting in src/ is indistinguishable from a second
+ * source of truth, which is the thing this script exists to prevent.
+ */
+const APP_FILE = path.join(process.cwd(), 'src', 'data', 'zambiaGeography.js')
+const dataset = (file) => JSON.parse(readFileSync(path.join(DIR, file), 'utf8'))
+
+const generated = `/**
+ * GENERATED — do not edit. Run \`npm run sync:zambia-game\` instead.
+ *
+ * Source of truth: docs/learner/zambia_provinces.json, zambia_facts.json and
+ * zambia_physical.json — what a reviewer reads and what a Zambian teacher
+ * signs off in. \`npm run test:zambia-game\` fails when this file and those
+ * three disagree, and names the sync as the fix.
+ *
+ * Every dataset carries a \`verification\` block, and at the time of writing
+ * each says UNVERIFIED. Read it before putting anything from here in front of
+ * a learner as fact.
+ */
+
+export const ZAMBIA_PROVINCES_GEO = Object.freeze(${JSON.stringify(dataset('zambia_provinces.json'), null, 2)})
+
+export const ZAMBIA_FACTS = Object.freeze(${JSON.stringify(dataset('zambia_facts.json'), null, 2)})
+
+export const ZAMBIA_PHYSICAL = Object.freeze(${JSON.stringify(dataset('zambia_physical.json'), null, 2)})
+`
+
+let previous = null
+try { previous = readFileSync(APP_FILE, 'utf8') } catch { /* first run */ }
+if (previous !== generated) {
+  writeFileSync(APP_FILE, generated)
+  console.log('sync-zambia-game-mirror: regenerated src/data/zambiaGeography.js')
+}

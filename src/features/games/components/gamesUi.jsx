@@ -127,6 +127,7 @@ export const GAME_TYPE_THEMES = {
   sentence_scramble: { label: 'Scramble', icon: QueueListIcon },
   market_challenge: { label: 'Market', icon: BanknotesIcon },
   punctuation: { label: 'Punctuation', icon: CheckBadgeIcon },
+  map_place: { label: 'Map', icon: MapIcon },
 }
 
 const DEFAULT_TYPE_THEME = { label: 'Game', icon: PuzzlePieceIcon }

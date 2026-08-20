@@ -21,6 +21,7 @@ import MeaningMatchGame from '../components/MeaningMatchGame'
 import PunctuationProGame from '../components/PunctuationProGame'
 import WordBuilderGame from '../components/WordBuilderGame'
 import NumberTargetGame from '../components/NumberTargetGame'
+import KnowZambiaGame from '../components/KnowZambiaGame'
 import { RETIRED_GAME_TYPES } from '../../../data/gamesSeed'
 import {
   getGameAccessMeta,
@@ -294,6 +295,7 @@ function GameEngine({ game }) {
   if (game.type === 'punctuation') return <PunctuationProGame game={game} />
   if (game.type === 'word_builder') return <WordBuilderGame game={game} />
   if (game.type === 'number_target') return <NumberTargetGame game={game} />
+  if (game.type === 'map_place') return <KnowZambiaGame game={game} />
 
   // The 2026-08 redesign retired the legacy mechanics (learner redesign
   // step 4). A live Firestore doc of a retired type can still be reached
