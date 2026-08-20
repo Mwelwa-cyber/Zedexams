@@ -60,11 +60,20 @@ const shapeFor = (name) => document.querySelector(`path[aria-label^="${name} Pro
 beforeEach(() => { vi.clearAllMocks() })
 
 describe('Know Zambia — where’s the capital?', () => {
-  it('plots the town from real coordinates and asks for its province', () => {
+  it('asks for the province WITHOUT plotting the town first — the pin is the reveal', () => {
     draw('capital')
     expect(screen.getByText(/THE CAPITAL OF\?$/i)).toBeInTheDocument()
-    expect(document.querySelectorAll('.lhx-kz-pin circle')).toHaveLength(1)
+    // No pin while the question is open: plotted from real coordinates it
+    // sits inside the answer province, so drawing it up front was "tap the
+    // dot" rather than a question.
+    expect(document.querySelectorAll('.lhx-kz-pin circle')).toHaveLength(0)
     expect(document.querySelectorAll('path.lhx-kz-prov[role="button"]')).toHaveLength(10)
+
+    // Kabwe is the first capital in the dataset, and it is in Central.
+    fireEvent.click(province('Central'))
+    // Settled: now the pin drops, showing where the town really is.
+    expect(document.querySelectorAll('.lhx-kz-pin circle')).toHaveLength(1)
+    expect(screen.getByText(/Central — correct/)).toBeInTheDocument()
   })
 
   it('names what was tapped and gives the hint, rather than only marking it wrong', () => {
@@ -74,6 +83,8 @@ describe('Know Zambia — where’s the capital?', () => {
     expect(screen.getByText(/It is Central/)).toBeInTheDocument()
     expect(screen.getByText(/You tapped Lusaka/)).toBeInTheDocument()
     expect(screen.getByText(/on the road between Lusaka and the Copperbelt/)).toBeInTheDocument()
+    // The wrong path gets the same reveal — the pin shows where Kabwe is.
+    expect(document.querySelectorAll('.lhx-kz-pin circle')).toHaveLength(1)
   })
 })
 
