@@ -145,6 +145,17 @@ now STREAMED through `tee` rather than captured in `out=$(...)`, because a
 buffered log dies with the process and #784's 16 minutes of output were lost at
 exactly the moment they were needed.
 
+**Not every red deploy is ours.** Run #785 failed on `Quota exceeded for total
+allowable CPU per project per region` — the project's **Cloud Run CPU quota in
+us-central1**, which no repository change fixes; it needs a quota increase or
+freed capacity, then a `workflow_dispatch` re-run. firebase-tools reports that
+in a shape the per-function classifier does not match, so the verdict read "no
+function left unresolved" and the step blamed `firestore.rules`; the step now
+recognises it and says so. The same run also shows why the full-target retry
+stays: its first attempt hit a transient `HTTP Error: 503` uploading rules and
+the retry released them cleanly — a non-function failure is not automatically a
+deterministic one.
+
 ### Off-limits
 
 - `firebase deploy --only hosting` (any flavor) — production hosting goes through CI only. Also enforced via `permissions.deny` in [`.claude/settings.json`](.claude/settings.json).

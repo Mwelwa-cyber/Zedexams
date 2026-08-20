@@ -65,10 +65,12 @@ jobs:
     #   ~5min  lint + test:all + both npm ci, before the deploy starts
     #   20min  attempt 1, the full deploy   (FIREBASE_ATTEMPT_TIMEOUT_MINUTES)
     #    1min  the backoff between attempts
-    #    8min  attempt 2, narrowed to the failed functions
-    #                                       (FIREBASE_RETRY_TIMEOUT_MINUTES)
+    #   20min  attempt 2 — WORST CASE. A retry narrowed to the failed functions
+    #          only needs FIREBASE_RETRY_TIMEOUT_MINUTES (8), but a retry after
+    #          a non-function failure (a 503 uploading rules, say) is still the
+    #          full target and needs the full budget.
     #   ~2min  the Storage-rules read-back and job teardown
-    #   = 36 required; set to 40 so the budget is not sitting exactly on its
+    #   = 48 required; set to 52 so the budget is not sitting exactly on its
     #        own line — which is precisely the state that failed below.
     #
     # It was 20, and that was NOT enough for even ONE attempt: the pre-deploy
@@ -83,7 +85,7 @@ jobs:
     # Raising this cascades into deploy-hosting.yml, which WAITS for this run:
     # its FIREBASE_DEPLOY_TIMEOUT_SECONDS and its own job cap both have to grow
     # with it. That is exactly the inequality test:deploy-timeouts enforces.
-    timeout-minutes: 40
+    timeout-minutes: 52
 
     # Explicit minimum permissions — some org settings restrict actions
     # unless this is stated explicitly.
@@ -277,13 +279,15 @@ jobs:
 
           while : ; do
             attempt=$((attempt + 1))
-            # Attempt 1 deploys everything; any retry is narrowed to the
-            # functions still unresolved, so it needs far less wall clock.
-            if [ "${attempt}" -eq 1 ]; then
-              attempt_minutes="${FIREBASE_ATTEMPT_TIMEOUT_MINUTES}"
-            else
-              attempt_minutes="${FIREBASE_RETRY_TIMEOUT_MINUTES}"
-            fi
+            # Attempt 1 deploys everything. A retry NARROWED to the failed
+            # functions needs far less wall clock; a retry that is still the
+            # full target (a non-function failure — see below) needs the full
+            # budget, or it fails on its own clock and reports a timeout for
+            # whatever transient error actually caused the retry.
+            case "${only}" in
+              functions:*) attempt_minutes="${FIREBASE_RETRY_TIMEOUT_MINUTES}" ;;
+              *)           attempt_minutes="${FIREBASE_ATTEMPT_TIMEOUT_MINUTES}" ;;
+            esac
 
             echo "::group::Firebase deploy attempt ${attempt}/${max} (--only ${only}, cap ${attempt_minutes}min)"
             logfile="${logdir}/attempt-${attempt}.log"
@@ -322,24 +326,22 @@ jobs:
               break
             fi
 
-            # A failure with no per-function marker is not what the retry is
-            # for. The retry exists for the transient Cloud Functions 409
-            # ("unable to queue the operation"), which is per-function and
-            # which the classifier can name. When it can name nothing, the
-            # failure is a firestore.rules / indexes / storage / CLI error —
-            # deterministic, and a second full deploy fails the same way ~16
-            # minutes later. This used to retry the original target as-is;
-            # that only mattered once per-attempt clocks existed, because the
-            # retry would then blow its own (much smaller) cap and report a
-            # timeout for what was really a rules error. Fail with the real
-            # reason instead; workflow_dispatch re-runs it in one click if the
-            # cause was genuinely transient.
-            if [ -z "${failed}" ]; then
-              break
+            # Narrow the retry to ONLY the functions still unresolved. (If the
+            # failure wasn't function-specific — e.g. a firestore.rules error —
+            # failed is empty, so we retry the original target as-is.)
+            #
+            # That full-target retry EARNS ITS KEEP and must not be dropped: on
+            # 2026-08-20 run #785 hit
+            #   Error: Request to .../rulesets had HTTP Error: 503
+            # uploading firestore.rules, and the retry released the rules
+            # cleanly. A non-function failure is not automatically a
+            # deterministic one — 503s, 429s and dropped connections all land
+            # here — so it gets a real second go, at the FULL attempt cap
+            # rather than the narrowed one, or it would fail on its own clock
+            # and report a timeout for what was really a transient 503.
+            if [ -n "${failed}" ]; then
+              only=$(printf '%s\n' "${failed}" | sed 's/^/functions:/' | paste -sd, -)
             fi
-
-            # Narrow the retry to ONLY the functions still unresolved.
-            only=$(printf '%s\n' "${failed}" | sed 's/^/functions:/' | paste -sd, -)
             echo "Deploy reported unresolved failure(s); retrying [--only ${only}] in 30s…"
             sleep 30
           done
@@ -372,6 +374,18 @@ jobs:
               echo "::error::The FIREBASE_TOKEN may have been revoked by a Google account security event (password change, suspicious sign-in, etc.). Fix options:"
               echo "::error::  1. (Preferred) Add a FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON secret — a service-account key is not tied to a personal account and cannot be revoked this way. See DEPLOY.md."
               echo "::error::  2. (Legacy) Rotate the token: npx firebase-tools@latest login:ci → update the FIREBASE_TOKEN secret at Settings > Secrets and variables > Actions."
+            # A Cloud Run capacity/quota refusal is a FUNCTION failure, but
+            # firebase-tools reports it in a shape the per-function classifier
+            # does not recognise ("Could not create or update Cloud Run service
+            # X, ... Quota exceeded ..." rather than the "Functions deploy had
+            # errors with the following functions:" block). Without this branch
+            # the verdict is "no function left unresolved" and the message below
+            # sends the operator to firestore.rules — which is what happened on
+            # run #785, where the real cause was the project's Cloud Run CPU
+            # quota in us-central1. Name it, because nothing else in the log
+            # will and it is not fixable from this repository.
+            elif printf '%s\n' "${out}" | grep -qi "Quota exceeded for total allowable CPU\|Could not create or update Cloud Run service"; then
+              echo "::error::Firebase deploy failed because Cloud Run refused to create or update one or more function services — see the 'Could not create or update Cloud Run service' line(s) above for which. This is a PROJECT-level capacity limit, not a fault in this repository and not something a retry fixes: raise the Cloud Run CPU quota for examsprepzambia in us-central1 (IAM & Admin → Quotas → 'Total CPU allocation' / Cloud Run Admin API), or free capacity by deleting unused Cloud Run revisions/services, then re-run this workflow from the Actions tab."
             else
               echo "::error::Firebase deploy exited ${code} with no unresolved per-function failure — likely a firestore.rules / indexes / storage or CLI error. See the log above."
             fi

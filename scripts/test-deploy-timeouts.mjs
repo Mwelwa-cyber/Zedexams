@@ -89,11 +89,18 @@ const FIREBASE_PRE_DEPLOY_MIN = 5
 const FIREBASE_POST_DEPLOY_MIN = 2
 const RETRY_BACKOFF_MIN = 1 // the `sleep 30` between attempts, rounded up
 
+// Attempt 2's budget is whichever retry it turns out to be. A retry NARROWED
+// to the failed functions gets the smaller cap; a retry after a non-function
+// failure is still the full target and gets the full one. Budget for the worst
+// case — run #785 took exactly that path, retrying everything after a 503
+// uploading firestore.rules, and the retry is what released them.
+const worstCaseRetryMin = Math.max(firebaseAttemptMin, firebaseRetryMin)
+
 const requiredFirebaseJobMin =
   FIREBASE_PRE_DEPLOY_MIN +
   firebaseAttemptMin +
   RETRY_BACKOFF_MIN +
-  firebaseRetryMin +
+  worstCaseRetryMin +
   FIREBASE_POST_DEPLOY_MIN
 
 assert.ok(
@@ -101,7 +108,7 @@ assert.ok(
   `deploy-firebase job cap is ${firebaseJobMin}min but the work inside it can ` +
     `take ${requiredFirebaseJobMin}min (${FIREBASE_PRE_DEPLOY_MIN}min lint/test/install + ` +
     `${firebaseAttemptMin}min attempt 1 + ${RETRY_BACKOFF_MIN}min backoff + ` +
-    `${firebaseRetryMin}min retry + ${FIREBASE_POST_DEPLOY_MIN}min read-back/teardown) ` +
+    `${worstCaseRetryMin}min worst-case retry + ${FIREBASE_POST_DEPLOY_MIN}min read-back/teardown) ` +
     `— the job is killed mid-deploy, which reports as 'cancelled' and silently ` +
     `leaves production on the previous commit.`,
 )
@@ -171,6 +178,6 @@ console.log(
   `wait ${Math.ceil(waitSec / 60)}min + ${OWN_WORK_MIN}min own work; ` +
   `wait ≥ functions cap ${firebaseJobMin}min + ${QUEUE_MARGIN_MIN}min queueing; ` +
   `functions cap ${firebaseJobMin}min ≥ ${requiredFirebaseJobMin}min of work ` +
-  `inside it (attempt ${firebaseAttemptMin}min + retry ${firebaseRetryMin}min ` +
+  `inside it (attempt ${firebaseAttemptMin}min + worst-case retry ${worstCaseRetryMin}min ` +
   `+ ${FIREBASE_PRE_DEPLOY_MIN + RETRY_BACKOFF_MIN + FIREBASE_POST_DEPLOY_MIN}min around them).`,
 )
