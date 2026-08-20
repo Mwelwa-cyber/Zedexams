@@ -2,7 +2,33 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> **Binding standards:** every AI session must follow [`AI_DEVELOPMENT_GUIDE.md`](./AI_DEVELOPMENT_GUIDE.md) — Definition of Done, coding standards, schema rules, and test rules. Read it before making changes; it is enforced in CI by `npm run test:ai-dev-guide`.
+> **Binding standards:** every AI session must follow [`AI_DEVELOPMENT_GUIDE.md`](./AI_DEVELOPMENT_GUIDE.md) — Definition of Ready, Definition of Done, coding standards, schema rules, and test rules. Read it before making changes; it is enforced in CI by `npm run test:ai-dev-guide`.
+
+## Check before you build
+
+**Read the source of truth for every fact a change depends on, before writing the line that depends on it.** Not recalled from earlier in the session, not inferred from a filename, not taken from this file — CLAUDE.md is a long snapshot and the repo moves under it. When the doc and the code disagree the code is right, and the doc is a bug to fix in the same PR.
+
+**The failure this prevents** is the expensive one: code written against a remembered signature, a guessed import path or a field name that sounded right, which fails at lint/build/test time and gets corrected in front of the operator. *"Actually I was wrong — that takes an object, not two arguments"* is never a discovery, it is a lookup that was skipped. The same wrong assumption costs seconds when `grep` catches it, a deploy slot when CI catches it, and the operator's trust when they catch it. Building first and correcting afterwards is not faster; it moves the cost onto the person who has to read the correction.
+
+### Five checks, before the first edit
+
+1. **Read what you are calling.** The signature, the return shape, and one existing call site — `grep -rn "export .*<name>" src/ functions/`. Import paths are the most common miss, because directories here have MOVED, repeatedly and recently: `src/schemas/` → `src/shared/schemas/`, `src/components/admin/` → `features/admin*`, `src/components/quiz/` → three separate destinations, `src/components/teacher/` → three more. An import that resolves from memory fails at build.
+2. **Search for it before you write it.** `src/utils/` alone holds hundreds of modules, beside `shared/`, `engines/` and `curriculum/`. A second copy of something that already exists is worse than nothing built: it passes its own tests, drifts from the original, and the fork surfaces later as a bug. Check too whether the file you are about to edit is one of the re-export SHIMS onto `functions/shared/assessment` — adding a rule to one forks the export gate, and `test:shim-guard` fails the build for it.
+3. **Read the guards that already pin the area.** `grep -rl "<module>" scripts/ src/ functions/ --include="*test*" --include="*spec*"`. There are hundreds of `test:*` scripts and many are text-level guards asserting a *shape* rather than a behaviour. A guard that already asserts what you are about to change is a decision someone recorded; find out what it was before touching either side. Meeting it as a red CI run means reconstructing that reasoning under time pressure.
+4. **Reproduce before you fix.** A failure you have not seen is a failure you are guessing at, and a guess repairs the symptom. Get the error, the stack and the `file:line`, then fix the cause. If it cannot be reproduced locally, say so explicitly and name what the fix rests on instead.
+5. **Check the mirror and the layer.** Some constants only move in pairs — `src/config/curriculum.js` ↔ `functions/teacherTools/cbcKnowledge.js`, `playBillingCatalog.js` ↔ `PLAY_PRODUCT_TO_PLAN`, `LEARNER_GRADES` ↔ `DAILY_QUIZ_GRADES`, `src/config/agents.js` ↔ `ORG.md` — and editing one half is a bug that ships green. Layering is one-way (`app → features → engines/curriculum → shared/services/config`); an import crossing it upward fails `test:import-boundaries`, which resolves every path including the dynamic `import()` calls ESLint cannot see.
+
+### Scope the checking to the change
+
+This is not a licence to spend twenty tool calls on a typo. The checks cover what the change TOUCHES, not the repo. A copy edit needs the file read. A new Firestore field needs the rules, the readers, the writers and the index. A change to an export rule needs `functions/shared/assessment` read properly, because the browser and the server both import it and a rule added on one side is a fork by definition.
+
+The cheap habit that prevents most of this: **read the whole file you are editing**, not the twenty lines around the edit.
+
+### Say what you assumed, and stop at the second correction
+
+- **Anything you could not verify is an assumption, and it gets stated out loud** — in the plan, the PR description, or the reply. *"I assumed `attemptCount` is nullable because three of five call sites default it"* is useful to the reader. Silence reads as verification, which is exactly what makes the later correction land as a reversal.
+- **Two corrections on the same change means the model is wrong, not the line.** Stop editing and re-read the actual source — the file, the schema, the rules, the test — before the next attempt. A third patch layered on a guess is how a one-line fix becomes a PR that has to be unpicked.
+- **Never report a step as run that was not run.** "Should work", "this fixes it" and "verified" are three different claims — use the one that is true. §1 of the guide governs the *after*; this section governs the *before*.
 
 ## Binding architecture
 

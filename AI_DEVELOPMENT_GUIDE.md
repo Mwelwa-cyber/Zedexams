@@ -10,6 +10,42 @@ sections, and stays referenced from `CLAUDE.md`).
 
 ---
 
+## 0. Definition of Ready
+
+A change is **not ready to start** because the request is understood. It is ready when the
+facts it depends on have been *read* rather than recalled:
+
+1. **Every symbol you will call has been read at its definition** — signature, return shape,
+   one live call site (`grep -rn "export .*<name>" src/ functions/`). Import paths especially:
+   directories here have moved (`src/schemas/` → `src/shared/schemas/`,
+   `src/components/{admin,quiz,teacher}/` → feature folders), so a path that resolves from
+   memory fails at build.
+2. **You searched for the thing before writing it.** A duplicate passes its own tests, drifts
+   from the original, and surfaces later as a bug. Check whether the file is one of the
+   re-export shims onto `functions/shared/assessment` before adding a rule to it — that forks
+   the export gate, and `test:shim-guard` fails the build for it.
+3. **The guards already pinning that area have been read** — `grep -rl "<module>" scripts/
+   src/ functions/ --include="*test*" --include="*spec*"`. Many are text-level guards asserting
+   a shape. One that already asserts what you are about to change is a recorded decision; find
+   out what it was rather than discovering it from red CI.
+4. **A bug has been reproduced before it is fixed.** Error, stack, `file:line`. An unreproduced
+   failure is a guess and a guess repairs the symptom. If it cannot be reproduced locally, say
+   so explicitly and name what the fix rests on instead.
+5. **Mirrors and layering checked** — the constant pairs in §3.4, and the one-way layering
+   (`app → features → engines/curriculum → shared/services/config`) enforced by
+   `test:import-boundaries`, which resolves dynamic `import()` too.
+
+Scope these to what the change **touches**, not to the repo: a copy edit needs the file read; a
+new Firestore field needs the rules, the readers, the writers and the index. The cheap habit
+that prevents most rework is reading the whole file you are editing, not the lines around the
+edit.
+
+**Assumptions are stated, never carried silently.** Anything you could not verify goes in the
+plan, the PR description, or the reply — silence reads as verification, which is what makes a
+later correction land as a reversal. **Two corrections on the same change mean the mental model
+is wrong, not the line:** stop editing, re-read the source, then continue. A third patch on top
+of a guess is how a one-line fix becomes a PR that has to be unpicked.
+
 ## 1. Definition of Done
 
 A change is **not done** when it compiles. It is done when all of these hold:
