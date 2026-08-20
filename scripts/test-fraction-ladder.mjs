@@ -23,6 +23,7 @@ import {
   simplify,
   starsForScore,
 } from '../src/features/games/lib/fractionLadderCore.js'
+import { markResponse, parseWrittenAnswer } from '../src/features/games/lib/fractionQuestionCore.js'
 
 let failures = 0
 function test(name, fn) {
@@ -205,39 +206,91 @@ test('scoring matches the other mechanics', () => {
 
 /* ── the shipped content ───────────────────────────────────────────── */
 
-test('every shipped answer key marks CORRECT against its own value', () => {
-  // The answer key and the machine value are two fields, so they can disagree,
-  // and a disagreement is invisible: the question renders, the learner types
-  // the printed answer, and is told they are wrong. Nothing else checks this.
+/**
+ * The response a pack CLAIMS is right, built from its own answer key, in
+ * whatever shape that question type takes. This is what turns "the key and the
+ * machine value are two fields that can disagree" into a build failure — the
+ * disagreement is otherwise invisible: the question renders, the learner
+ * writes the printed answer, and is told they are wrong.
+ */
+function selfAnswer(question) {
+  switch (question.type) {
+    case 'choice':
+    case 'compare':
+      return question.answer
+    case 'order':
+      return question.answer
+    case 'shade':
+    case 'select':
+      return Array.from({ length: Number(question.want) }, (_, i) => i)
+    case 'write':
+    default: {
+      if (question.form === 'decimal') return { mode: 'decimal', decimal: String(question.answer) }
+      if (question.form === 'whole') return { mode: 'whole', whole: String(question.answer) }
+      const parsed = parseWrittenAnswer(question.answer)
+      const mixed = /^(\d+)\s+(\d+)\s*\/\s*(\d+)$/.exec(String(question.answer).trim())
+      if (mixed) return { mode: 'fraction', whole: mixed[1], num: mixed[2], den: mixed[3] }
+      return parsed
+        ? { mode: 'fraction', whole: '', num: String(parsed.n), den: String(parsed.d) }
+        : { mode: 'fraction', whole: '', num: '', den: '' }
+    }
+  }
+}
+
+/** The response a learner would have given to trigger one predicted mistake. */
+function wrongAnswer(question, key) {
+  switch (question.type) {
+    case 'choice':
+    case 'compare':
+      return key
+    case 'order':
+      return String(key).split('>')
+    case 'shade':
+    case 'select':
+      return Array.from({ length: Number(key) }, (_, i) => i)
+    case 'write':
+    default: {
+      if (question.form === 'decimal') return { mode: 'decimal', decimal: String(key) }
+      if (question.form === 'whole') return { mode: 'whole', whole: String(key) }
+      const mixed = /^(\d+)\s+(\d+)\s*\/\s*(\d+)$/.exec(String(key).trim())
+      if (mixed) return { mode: 'fraction', whole: mixed[1], num: mixed[2], den: mixed[3] }
+      const [num, den] = String(key).split('/')
+      return { mode: 'fraction', whole: '', num, den }
+    }
+  }
+}
+
+test('every shipped answer key marks CORRECT against its own question', () => {
   for (const pack of GAMES_SEED.filter((g) => g.type === 'fraction_ladder')) {
     for (const question of pack.questions) {
-      const entry = question.form === 'decimal'
-        ? { mode: 'decimal', decimal: question.answer }
-        : { mode: 'fraction', num: String(question.answer).split('/')[0], den: String(question.answer).split('/')[1] }
-      const marked = markFractionAnswer(entry, question)
+      const marked = markResponse(question, selfAnswer(question))
       assert.equal(
         marked.correct, true,
-        `${pack.id} / "${question.question}": its own printed answer ${question.answer} marks as "${marked.headline}" — ${marked.why || ''}`,
+        `${pack.id} / ${question.id}: its own printed answer ${JSON.stringify(question.answer)} marks as "${marked.headline}" — ${marked.body || ''}`,
       )
     }
   }
 })
 
-test('every shipped question belongs to a real level, and every trap is reachable', () => {
+test('every shipped question belongs to a real level, and every predicted mistake is reachable', () => {
   const known = new Set(FRACTION_LEVELS.map((l) => l.id))
   for (const pack of GAMES_SEED.filter((g) => g.type === 'fraction_ladder')) {
     for (const question of pack.questions) {
-      assert.ok(known.has(question.level), `${pack.id}: "${question.question}" is filed under level "${question.level}"`)
-      assert.ok(question.value?.d, `${pack.id}: "${question.question}" has no value for the marker to compare against`)
-      for (const wrong of Object.keys(question.traps || {})) {
-        // A trap keyed to the RIGHT answer would never fire, and would mean a
-        // learner who is correct was expected to be wrong.
-        const entry = question.form === 'decimal'
-          ? { mode: 'decimal', decimal: wrong }
-          : { mode: 'fraction', num: wrong.split('/')[0], den: wrong.split('/')[1] }
+      assert.ok(known.has(question.level), `${pack.id}: ${question.id} is filed under level "${question.level}"`)
+      if (!question.type || question.type === 'write') {
+        assert.ok(question.value?.d, `${pack.id}: ${question.id} has no value for the marker to compare against`)
+      }
+      // A predicted mistake keyed to the RIGHT answer would never fire, and
+      // would mean a learner who is correct was expected to be wrong.
+      const keys = [
+        ...Object.keys(question.traps || {}),
+        ...(question.misconceptions || []).map((m) => String(m.answer)),
+      ]
+      for (const wrong of new Set(keys)) {
+        const bare = { ...question, traps: undefined, misconceptions: undefined }
         assert.equal(
-          markFractionAnswer(entry, { ...question, traps: undefined }).correct, false,
-          `${pack.id}: the trap "${wrong}" on "${question.question}" is a CORRECT answer — it can never fire`,
+          markResponse(bare, wrongAnswer(question, wrong)).correct, false,
+          `${pack.id}: the predicted mistake "${wrong}" on ${question.id} is a CORRECT answer — it can never fire`,
         )
       }
     }

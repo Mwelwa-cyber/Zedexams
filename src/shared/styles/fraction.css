@@ -1,0 +1,52 @@
+/**
+ * The one fraction stylesheet, beside the one fraction renderer.
+ *
+ * It lives in `shared/styles` rather than a feature's stylesheet because the
+ * component it dresses is read by the games, and is meant to be read by notes,
+ * quizzes and worked solutions next. A fraction that is stacked in one surface
+ * and slashed in another is the drift `<Frac>` exists to prevent, and a
+ * feature-local stylesheet is how that drift gets in — the second consumer
+ * imports the component, does not get the CSS, and writes its own.
+ *
+ * Everything is in `em`, so a fraction sizes itself from whatever text it sits
+ * in: a stem, a step of working, a 32px feedback line. Nothing here sets a
+ * font-size of its own.
+ */
+
+.zx-frac {
+  display: inline-flex;
+  align-items: center;
+  gap: .2em;
+  vertical-align: middle;
+  font-variant-numeric: tabular-nums;
+}
+
+.zx-frac-w {
+  font-weight: 900;
+}
+
+.zx-frac-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.05;
+  font-size: .86em;
+}
+
+.zx-frac-n { padding: 0 .34em .04em; }
+
+/* The bar is a border on the denominator so it inherits the text colour and
+ * scales with the type — a separate element would need its own width. */
+.zx-frac-d {
+  padding: .05em .34em 0;
+  border-top: .11em solid currentColor;
+}
+
+/* A fraction inside a running sentence sits slightly low without this, because
+ * the stack is two lines tall and the baseline is the middle of it. */
+.zx-frac-inline { position: relative; top: -.08em; }
+
+/* Bigger, for the feedback line where the symbol is being INTRODUCED — level 1
+ * shows the written form only after a correct answer, and it wants to be the
+ * thing on the screen when it does. */
+.zx-frac-lg { font-size: 1.9em; font-weight: 900; }

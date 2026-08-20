@@ -452,6 +452,36 @@ export async function listGameTombstonesForAdmin() {
  */
 export async function importSeedGame(seedGame, { force = false } = {}) {
   if (!seedGame?.id) return { id: seedGame?.id || null, outcome: 'failed', reason: 'no_id' }
+
+  // A FRACTION PACK IS CHECKED BEFORE IT IS PUBLISHED.
+  //
+  // Every other game type fails visibly when its content is wrong — a missing
+  // option renders as a missing option. A fraction pack does not: a circle
+  // drawn in five wedges under the caption "three quarters" renders perfectly,
+  // and a lowest-terms question whose own answer is not in lowest terms marks
+  // the learner wrong for writing what the key says. Nothing downstream
+  // notices either, so the import is the last place to catch them.
+  //
+  // `test:fraction-content` runs the same rules on the bundled seed, so the
+  // shipped pack can never reach this. This is for a pack edited live, or a
+  // future one imported from elsewhere.
+  if (seedGame.type === 'fraction_ladder') {
+    const [{ validateFractionPack, describePackErrors }, { FRACTION_LEVELS }] = await Promise.all([
+      import('../lib/fractionQuestionCore'),
+      import('../lib/fractionLadderCore'),
+    ])
+    const check = validateFractionPack(seedGame, { knownLevels: FRACTION_LEVELS.map((l) => l.id) })
+    if (!check.ok) {
+      console.error('importSeedGame refused a malformed fraction pack', seedGame.id, check.errors)
+      return {
+        id: seedGame.id,
+        outcome: 'failed',
+        reason: `invalid_fraction_content (${check.counts.errors})`,
+        error: describePackErrors(check),
+      }
+    }
+  }
+
   const ref = doc(db, 'games', seedGame.id)
   const tombstoneRef = doc(db, 'gameTombstones', seedGame.id)
   try {
