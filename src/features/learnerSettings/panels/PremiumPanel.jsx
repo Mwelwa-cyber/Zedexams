@@ -35,12 +35,12 @@ const LADDER_PLAN_IDS = ['day_pass', 'weekly', 'monthly', 'term_pass']
 
 // What the card promises. Each row maps to something the app actually gates:
 // past-paper access beyond the free set, timed exam mode + auto-marking of
-// papers beyond the free set, offline downloads, and the daily Ask Zed quota.
+// papers beyond the free set, offline downloads, and the quiz library.
 const CARD_FEATURES = [
   'All past papers — every year, no limits',
   'Timed exam mode + full marking & review',
   'Save papers & notes for offline',
-  'More Ask Zed help every day',
+  'The whole quiz and lesson library',
 ]
 
 // What Premium unlocks (the full list, below the card).

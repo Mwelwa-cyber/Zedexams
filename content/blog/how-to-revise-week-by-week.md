@@ -63,9 +63,9 @@ distinction.
   miss alone. Group study turns into hangouts.
 - **Print one mock paper.** Tactile pen-on-paper at least once
   matters — exam day is paper.
-- **Use Pako 🦉 when you're stuck.** "Ask Zed" on any quiz explains
-  the answer in plain words. It's not cheating — it's a teacher who
-  doesn't get tired at 11pm.
+- **Use "Explain this answer" when you're stuck.** On any quiz result
+  it explains the answer in plain words. It's not cheating — it's a
+  teacher who doesn't get tired at 11pm.
 
 Steady wins. Stick to 90 minutes a week, follow the schedule, and the
 exam is just one more session that happens to have a date.

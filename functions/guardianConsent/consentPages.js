@@ -125,7 +125,7 @@ function renderDecisionPage({childName, token, actionUrl}) {
      platform for the CBC curriculum. Because they are under 18, we need a parent
      or guardian to approve it.</p>
   <p class="muted">Until you approve, they can only read lessons and past papers —
-     no AI study assistant, no classes, no leaderboards, and no purchases.</p>
+     no leaderboards and no purchases.</p>
 
   <h2>What we store about ${name}</h2>
   <ul>${LEARNER_DATA_SUMMARY.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>

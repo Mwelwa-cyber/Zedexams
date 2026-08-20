@@ -28,10 +28,9 @@ import {
   readLastSection,
   writeLastSection,
 } from './lib/learnerPrefs'
-import AiFab from './components/AiFab'
 import {
   MyAccountCard, LearningCard, ProgressCard, NotificationsCard, AppearanceCard,
-  AccessibilityCard, AiCard, PremiumCard, SecurityPrivacyCard, HelpCard,
+  AccessibilityCard, PremiumCard, SecurityPrivacyCard, HelpCard,
 } from './components/DashboardCards'
 import './learnerSettings.css'
 
@@ -42,7 +41,6 @@ const PANELS = {
   notifications: lazy(() => import('./panels/NotificationsPanel')),
   appearance: lazy(() => import('./panels/PersonalisationPanel')),
   accessibility: lazy(() => import('./panels/AccessibilityPanel')),
-  ai: lazy(() => import('./panels/AiPanel')),
   premium: lazy(() => import('./panels/PremiumPanel')),
   security: lazy(() => import('./panels/PrivacySecurityPanel')),
   help: lazy(() => import('./panels/HelpPanel')),
@@ -56,7 +54,6 @@ const GRID = [
   { id: 'learning', Card: LearningCard, span: 6 },
   { id: 'notifications', Card: NotificationsCard, span: 6 },
   { id: 'progress', Card: ProgressCard, span: 12 },
-  { id: 'ai', Card: AiCard, span: 3 },
   { id: 'appearance', Card: AppearanceCard, span: 3 },
   { id: 'accessibility', Card: AccessibilityCard, span: 3 },
   { id: 'premium', Card: PremiumCard, span: 3 },
@@ -107,7 +104,6 @@ function NavItem({ section, active, onClick }) {
       <span className="lset-snav__text">
         <span className="lset-snav__row">
           <span className="lset-snav__label">{section.label}</span>
-          {section.id === 'ai' && <span className="lset-snav__pill">AI</span>}
         </span>
         <span className="lset-snav__desc">{section.desc}</span>
       </span>
@@ -330,7 +326,6 @@ function LearnerSettingsInner({ bare = false, forceSection = null }) {
       </div>
 
       <SaveBar />
-      <AiFab />
 
       {toast && <div className={`lset-toast lset-toast--${toast.kind}`} role="status">{toast.message}</div>}
     </div>

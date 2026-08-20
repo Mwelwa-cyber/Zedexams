@@ -36,7 +36,7 @@ The cheap habit that prevents most of this: **read the whole file you are editin
 
 ## Repo at a glance
 
-ZedExams is a CBC-aligned learning platform for Zambian learners, teachers, and admins, live at zedexams.com. It is a Vite/React 19 SPA backed by Firebase (Auth, Firestore, Storage, Cloud Functions v2 on Node 22). AI runs server-side via Anthropic Claude (Sonnet 4.5 default — `claude-sonnet-4-5`, overridable per-runtime with `ANTHROPIC_MODEL` — for generators; Haiku 4.5 `claude-haiku-4-5-20251001` for quiz verification), OpenAI for Zed chat + short-answer marking, and Firebase AI Logic / Gemini for client-side helpers. **Image generation** (question/passage diagrams, note pictures, visual notes) runs on OpenAI gpt-image-1 (with a Gemini path via `geminiImageClient.js`) — see `generateDiagram` / `generateNotePictures` / `generateVisualNotes`. The Recraft and Kie providers were decommissioned (2026-06 / 2026-07); their style selectors (`recraft` line-art, `kie` colour illustration) now render through gpt-image-1. Payments run through Lenco (MTN, Airtel, and Zamtel mobile money plus cards, in ZMW) on the web, and through **Google Play Billing** (in-app subscriptions) on the Android build — see `functions/googlePlayBilling.js` + `verifyGooglePlayPurchase`. A Capacitor wrapper produces Android builds.
+ZedExams is a CBC-aligned learning platform for Zambian learners, teachers, and admins, live at zedexams.com. It is a Vite/React 19 SPA backed by Firebase (Auth, Firestore, Storage, Cloud Functions v2 on Node 22). AI runs server-side via Anthropic Claude (Sonnet 4.5 default — `claude-sonnet-4-5`, overridable per-runtime with `ANTHROPIC_MODEL` — for generators; Haiku 4.5 `claude-haiku-4-5-20251001` for quiz verification), OpenAI for short-answer marking, and Firebase AI Logic / Gemini for client-side helpers. **Image generation** (question/passage diagrams, note pictures, visual notes) runs on OpenAI gpt-image-1 (with a Gemini path via `geminiImageClient.js`) — see `generateDiagram` / `generateNotePictures` / `generateVisualNotes`. The Recraft and Kie providers were decommissioned (2026-06 / 2026-07); their style selectors (`recraft` line-art, `kie` colour illustration) now render through gpt-image-1. Payments run through Lenco (MTN, Airtel, and Zamtel mobile money plus cards, in ZMW) on the web, and through **Google Play Billing** (in-app subscriptions) on the Android build — see `functions/googlePlayBilling.js` + `verifyGooglePlayPurchase`. A Capacitor wrapper produces Android builds.
 
 The Firebase project id is `examsprepzambia` (see `.firebaserc`).
 
@@ -146,7 +146,6 @@ src/
   components/
     (admin/ MIGRATED — the directory is gone as of 2026-08-14. Its 26 files became the `features/admin*` features one slice at a time from 2026-08-12; the last three — AdminPastPapers, PastPaperStudio, pastPaperReport — were held back only by the freeze and became `src/features/adminPastPapers/` when the sixth ruling closed it. **PastPaperStudio's Quiz step is still optional** — a paper can publish with `quizStatus: 'pending'`; every read of that state goes through `src/utils/pastPaperQuizStatus.js`, the status is DERIVED (`quizStatus ?? (quizId ? 'attached' : 'pending')`) so papers predating the field still resolve, and it fail-closes: `'attached'` with no `quizId` reads as pending rather than rendering a Start Quiz button that leads nowhere. `functions/pastPapersIndexHelpers.js` carries a CommonJS mirror, kept honest by `test:past-papers-index`)
   features/adminShell — `AdminLayout` is the ONE shell for every `/admin/*` route: sidebar (desktop), drawer (mobile), the ⌘K command palette, the pending-count badges. **One nav registry**: `lib/adminNav.js` holds `ADMIN_NAV_SECTIONS` (the seven grouped sections), `ADMIN_SWITCH_ITEMS` (Teacher/Learner view) and `ADMIN_ACTION_ITEMS` (Sign out, which carries a `command` string the shell resolves rather than a route, so the registry never imports the auth context). It lived inline in `AdminLayout.jsx` until 2026-08-16, which cost two things: the desktop and mobile "Quick switch" links were written out twice and free to drift, and the palette was handed the nav sections ALONE — so ⌘K could reach "AI costs" but not "Sign out" or either view switch, which sat in their own hard-coded block. `ADMIN_PALETTE_SECTIONS` is what the palette gets. **`scripts/test-admin-links.mjs` (`test:admin-links`) is the admin twin of `test:dashboard-v2-links`** — it text-parses seventeen `features/admin*` directories and fails CI if any hard-coded target has no matching `<Route>` (40 targets at introduction, 0 broken). It reads two shapes, because anchoring to a quote is not enough: literal attributes/properties (`to:`, `to=`, `href=`, `route:`) AND expression forms (`navigate(...)`, `to={...}`), where every route-like literal inside the argument text is pulled out — `navigate(id ? `/admin/agents/jobs/${id}` : '/admin/agents/jobs')` matched NEITHER branch under the literal-only pattern, so retargeting a real admin flow at a dead route left the guard green. Dynamic targets (`/admin/users/${uid}`) are unresolvable from source, so they are excluded AND PRINTED: a guard that skips work silently reads exactly like one that found nothing wrong. Keep destinations as plain string literals so the parser can see them. **Palette ranking is pure and node-tested** — `lib/adminNavSearch.js` (`test:admin-nav-search`) matches AND across whitespace tokens over label + section + `keywords` + path, so "costs ai" and "ai costs" are equivalent and an admin can type what a page is FOR ("billing", "refund", "audit") rather than its label; results rank exact-label ▸ label-prefix ▸ label-word ▸ label-substring ▸ keyword-only, ties keeping registry order so the list only ever narrows as you type. Behaviour that needs a DOM (action dispatch, badge pills, focus restore on close, `aria-activedescendant`) is in `CommandPalette.spec.jsx`. Badge counts are five Firestore aggregate queries on a 60s timer that **only runs while the document is visible** and refreshes on becoming visible — before that a backgrounded `/admin` tab billed ~14,400 count queries over a weekend nobody looked at.
-    ai/                         — ZedChatLauncher + ZedChatPage (learner study assistant; SSE streamed from apiAiChat)
     auth/                       — Login, Register, AuthAction (password reset)
     dashboard/                  — StudentDashboard, GradeHub, MyResults, Badges, Profile
     (exams/ MIGRATED 2026-08-14 → src/features/dailyExams/ — the directory is gone. DailyExamRunner was the last named entry on the §14 freeze list; the sixth owner ruling closed that list. The move retired the six re-export shims the quiz migration had left for it, on the condition those shims wrote for themselves)
@@ -170,7 +169,7 @@ src/
   config/curriculum.js          — SUBJECTS / GRADES; single source of truth for CBC dropdowns
 
 functions/                      — Cloud Functions v2, Node 22, codebase=default. Separate package.json.
-  index.js                      — every function export lives here (~191 exports): aiChat, generateQuiz, verifyQuiz, checkShortAnswer, apiAiChat SSE, apiGenerateLessonPlan / Worksheet SSE, the generate* teacher tools (Assessment/SbaTask/Homework/Notes/Flashcards/SchemeOfWork/Rubric/Diagram/NotePictures/VisualNotes/SlideNotes; the generateExamPaper callable was retired 2026-07 — every assessment type, test AND examination, now generates through the one generateAssessment (the merged Assessment Paper Studio; `assessmentType` is one of the 7 canonical values in `functions/teacherTools/assessmentFormats.js`'s `ASSESSMENT_TYPES`, reaching the backend exactly as the teacher picked it — `examination`/`final_exam` are real recognised types, never collapsed to `mock_exam`), and the library still renders legacy `tool:'exam_paper'` docs via `src/utils/aiPaperToSections.js`; `planAssessment` derives the same paper plan with NO model call so the teacher confirms it before generating, and `regenerateAssessmentQuestion` rewrites ONE question against its plan slot), scanned-quiz + note OCR (structureScannedQuiz, ocrNotePages), parent portal + weeklyParentDigest, newsletter (subscribeToNewsletter), invoices, referrals, syllabus versioning (parseSyllabusUpload, activateSyllabusVersion, rollbackSyllabusVersion), Lenco (lencoWebhook + payment recovery) + Google Play Billing (verifyGooglePlayPurchase), Central Question Bank (questionReviewOnWrite=Qix, importPastPaperQuestions, classifyQuestionGrades, reviseQuestion), agentJobsOnCreate/Approved, storageCleanup triggers, and the scheduled crons (nightlyQaSmoke, hourlyMonitor, hourlyAgentSupervisor=Marshal, hourlyRevenueReconcile, supportTriage, contentAutoPublish, weeklyProductSignal, weeklyRetentionScan, deliverDawnBriefings, weeklyCbcAlignmentAudit, buildDailyQuizzes, daily/weekly learner reminders, dailyFxRefresh, aiCostDailySummary, reclaimAiBudgetReservations, rebuildPastPapersIndexCron)
+  index.js                      — every function export lives here (~189 exports): generateQuiz, verifyQuiz, checkShortAnswer, apiGenerateLessonPlan / Worksheet SSE, the generate* teacher tools (Assessment/SbaTask/Homework/Notes/Flashcards/SchemeOfWork/Rubric/Diagram/NotePictures/VisualNotes/SlideNotes; the generateExamPaper callable was retired 2026-07 — every assessment type, test AND examination, now generates through the one generateAssessment (the merged Assessment Paper Studio; `assessmentType` is one of the 7 canonical values in `functions/teacherTools/assessmentFormats.js`'s `ASSESSMENT_TYPES`, reaching the backend exactly as the teacher picked it — `examination`/`final_exam` are real recognised types, never collapsed to `mock_exam`), and the library still renders legacy `tool:'exam_paper'` docs via `src/utils/aiPaperToSections.js`; `planAssessment` derives the same paper plan with NO model call so the teacher confirms it before generating, and `regenerateAssessmentQuestion` rewrites ONE question against its plan slot), scanned-quiz + note OCR (structureScannedQuiz, ocrNotePages), parent portal + weeklyParentDigest, newsletter (subscribeToNewsletter), invoices, referrals, syllabus versioning (parseSyllabusUpload, activateSyllabusVersion, rollbackSyllabusVersion), Lenco (lencoWebhook + payment recovery) + Google Play Billing (verifyGooglePlayPurchase), Central Question Bank (questionReviewOnWrite=Qix, importPastPaperQuestions, classifyQuestionGrades, reviseQuestion), agentJobsOnCreate/Approved, storageCleanup triggers, and the scheduled crons (nightlyQaSmoke, hourlyMonitor, hourlyAgentSupervisor=Marshal, hourlyRevenueReconcile, supportTriage, contentAutoPublish, weeklyProductSignal, weeklyRetentionScan, deliverDawnBriefings, weeklyCbcAlignmentAudit, buildDailyQuizzes, daily/weekly learner reminders, dailyFxRefresh, aiCostDailySummary, reclaimAiBudgetReservations, rebuildPastPapersIndexCron)
   aiService.js                  — Anthropic client (streaming + non-streaming + prompt-caching), assertDailyLimit, role helpers, parsers
   anthropicFetch.js             — low-level fetch around Anthropic API
   geminiClient.js + geminiImageClient.js — Gemini REST client (structureImportedQuiz) + Gemini image generation
@@ -261,7 +260,7 @@ existed has consent recorded only there.
 links on every gated call and folds two independent stores: `users.
 guardianControls` (set inside the child's session behind a friction gate) and
 `parentLinks.permissions` (set by a verified guardian from their own account).
-A restriction from either refuses. `aiChat`, `social` and `purchase` are gated
+A restriction from either refuses. `purchase` is gated
 in Cloud Functions; **`leaderboard` is the exception and needed a mirror** —
 scores are written straight from the client with no function in the path, and a
 Firestore rule can `get()` one document but cannot run a query, so "does this
@@ -277,11 +276,11 @@ leaderboard row.
 see (`GUARDIAN_VISIBILITY` — one declaration shared with `/child-safety` and
 the guardian's confirmation email), shows the permissions each has set, and
 carries Childline Zambia 116 as a real `tel:` link. **Settled decision: a
-guardian sees Ask Zed TOPICS, never transcripts** — `learnerSafetyCore`
-intercepts distress before the model and answers with the helpline, and
-forwarding a flagged transcript would send a child's disclosure to the adult
-who may be its subject. A safety flag routes to Childline and human review,
-never automatically to a guardian.
+guardian sees TOPICS, never a child's own words** — recorded for the Ask Zed
+assistant (removed 2026-08-20) and kept because it governs any future surface
+a child types into: forwarding a flagged message would send a child's
+disclosure to the adult who may be its subject. A safety flag routes to
+Childline and human review, never automatically to a guardian.
 
 **Removal is asymmetric, and that is the point.**
 
@@ -607,6 +606,49 @@ Tests: `test:daily-quiz-core`, `test:daily-quiz-view`, `test:daily-quiz-week`,
 `test:daily-quiz-scoring`, `test:admin-daily-quiz`, `test:learner-grades`,
 `test:rules-text`, `test:rules-emulator`, plus `DailyQuizPage.spec.jsx`.
 
+### The Ask Zed chat assistant was removed (2026-08-20)
+
+The learner-facing AI study chat is gone in full: `/ask-zed`, the floating
+"Ask Zed" pill that mounted on every signed-in screen, the inline "Stuck? Ask
+Zed about this" pill in the note reader, the AI Learning Assistant settings
+section (`AiPanel` + `ZedAiPanel` + `AiFab`) and its `learnerSettings.zedAi` /
+`learnerSettings.aiAssistant` prefs, the `aiChat` callable, the `apiAiChat` SSE
+endpoint and its `/api/ai/chat` hosting rewrite, `functions/chatHandlers.js`,
+and `sendAIChat` / `sendAIChatStream` in `src/utils/aiAssistant.js`.
+
+**What deliberately stayed, and why each:**
+
+- **`src/utils/aiAssistant.js` itself.** Fifteen modules import it — quiz
+  import, note import, the quiz editor, the Assessment Studio, answer
+  explanations. Only the two chat exports were Zed's.
+- **The Zed MASCOT.** The character carries Race Zed, the games hub, GradeHub
+  art, the setup wizard, the notes reader tip boxes, notifications and the
+  marketing hero. It is not the chatbot and was explicitly kept.
+- **`CAPABILITY.AI_CHAT` in the consent taxonomy.** It now gates NOTHING —
+  same treatment `SOCIAL` got when learner classes went — so consent records
+  already stored against it keep their meaning, and a future conversational
+  surface has to claim an existing capability rather than invent a sixth.
+- **`learnerSafety/` and `contentModeration.js`.** Generic screening with no
+  caller today; kept for the next surface a learner types into.
+
+**What went with it and is worth knowing.** The guardian `askZed` CONTROL and
+the `askZed` LINK PERMISSION were removed — a switch that governs nothing must
+not be drawn — which leaves **no control claiming `enforcement: 'server'`**;
+the test that keeps that claim honest is now vacuous by design rather than
+deleted. The one in-app child-safety reporting path was the Report control on
+each AI response, so `/child-safety` now points at Settings → Help & support →
+"Report a problem" (`ContactDialog` → `contactMessages`), which is a real
+surface. `softVerifyAppCheckHttp` has no callers left, so no HTTP path reports
+an `invalid` App Check token separately any more.
+
+**Stored data was not migrated.** `learnerSettings.zedAi`,
+`learnerSettings.aiAssistant`, `guardianControls.askZed` and
+`parentLinks.permissions.askZed` remain on existing documents and are simply
+never read. Chat transcripts never existed server-side — the chat kept history
+in `sessionStorage` for the tab.
+
+Re-adding a chat assistant is a new design decision, not a revert.
+
 ### There is no learner↔teacher link (removed 2026-08)
 
 Learners and teachers have **no connecting surface**. A teacher cannot reach a
@@ -702,7 +744,6 @@ each surface (`ContextualUnlockSheet`, `MomentOfWinModal`, `FreeSetResults`,
 ### Three AI surfaces, each on a different model
 
 - **Generators (lesson plan, worksheet, flashcards, scheme of work, rubric, notes, homework, assessment, quiz)** — Cloud Functions in `functions/teacherTools/*`. Each tool is a pair of `<tool>Prompt.js` + `<tool>Schema.js` plus a `generate<Tool>.js` runner. They all share `aiService.callAnthropic` (Sonnet 4.5 by default; override per-runtime with `ANTHROPIC_MODEL`). Two-layer caching: Anthropic prompt caching for the system prompt + CBC-context caching via `teacherTools/cbcKnowledge.js`'s `resolveCbcContext()`. Per-user daily caps live in `usageMeter.js` and write to `aiUsage/{uid}_{day}` / `usageMeters/`. Super-admins bypass the meter (see PR #512).
-- **Zed chat (learner study assistant)** — OpenAI (`gpt-4o-mini` by default; override Zed-only with `ZED_CHAT_MODEL`, which falls back to the shared `OPENAI_MODEL`) via `aiService.callOpenAI` / `callOpenAIStream`. SSE-streamed via `apiAiChat` (HTTP) and `aiChat` (callable). The hosting rewrite `/api/ai/chat` → `apiAiChat` is how the SPA reaches it without CORS. Spend lands on the same `/admin/ai-costs` rollup (priced via the `gpt-*` rows in `aiCostTracking.js`).
 - **Quiz verification (Vex)** — synchronous callable `verifyQuiz` using Anthropic Haiku 4.5, layered on top of deterministic structural checks (empty/duplicate/out-of-range options). Vex is intentionally **not** routed through `agentJobs` because authors expect Grammarly-style instant feedback. Returns `{ verdict, overallScore, scores, summary, blockers[], warnings[] }` directly to the caller — no Firestore writes.
 - **Short-answer marking** — OpenAI (GPT) via `checkShortAnswer` callable, in `functions/openaiClient.js`.
 - **Image generation** — `generateDiagram` accepts three style selectors (`recraft` line-art / `openai` photoreal / `kie` full-colour) per `ALLOWED_PROVIDERS`, but all of them render on OpenAI gpt-image-1: the Recraft and Kie backends were decommissioned (`RECRAFT_ENABLED=false`; the Kie client + `KIE_API_KEY` secret were removed), so only `OPENAI_API_KEY` is bound. `geminiImageClient.js` is a separate Gemini path. Outputs flow through `visualSafety` before landing in Storage + the picture bank. Surfaces: `generateNotePictures`, `generateVisualNotes`, plus admin VisualStudio/PictureBank.
@@ -1472,7 +1513,7 @@ prefixes and deletes whatever landed. Three things worth knowing:
 
 ### Hosting + Functions wiring
 
-`firebase.json` rewrites `/api/*` straight to specific `onRequest` Cloud Functions in `us-central1`. This is how SSE endpoints (Zed chat, lesson plan stream, worksheet stream) avoid CORS — the browser hits same-origin `/api/...`, Hosting proxies to the function. New API endpoints need both the function export in `functions/index.js` AND a rewrite entry here.
+`firebase.json` rewrites `/api/*` straight to specific `onRequest` Cloud Functions in `us-central1`. This is how SSE endpoints (lesson plan stream, worksheet stream) avoid CORS — the browser hits same-origin `/api/...`, Hosting proxies to the function. New API endpoints need both the function export in `functions/index.js` AND a rewrite entry here.
 
 ### Firestore offline + multi-tab
 
@@ -1567,7 +1608,7 @@ Quiz/attempt/result Zod schemas live in `src/shared/schemas/` (moved there from 
 - **Router is fully lazy.** Adding a new route in `App.jsx` means `lazy(() => import('...'))` + a `<Suspense fallback={<PageLoader />}>` if it's a new top-level branch. Don't import page components eagerly.
 - **`<NavLink>` / `Navigate` use `getRoleLandingPath`** (`src/utils/navigation.js`) to send each role to the right landing page after auth.
 - **The saved reading theme applies on every route, public pages included** (the old `PUBLIC_THEME_PATHS` pin was removed 2026-08 — it reset Midnight readers to the light brand default on /login, /papers, /pricing, …). Only the two internal review previews stay pinned (`isBrandPinnedPath` in `App.jsx`). Public/marketing surfaces must therefore stay Midnight-capable; `npm run contrast:routes` gates the key routes at WCAG AA in both dark themes.
-- **An unchosen workspace theme FOLLOWS the reading palette; it never outranks it.** The two palette systems are bridged one way — `html[data-theme='night'] body` in `index.css` restates every reading token in dark, and that selector beats `body.theme-<id>`, so whatever `data-theme` says wins. Both used to seed themselves from `prefers-color-scheme` independently, which meant that on any browser with neither key written and a dark OS (a second browser, Incognito, a fresh profile) the workspace attribute came up `night` for **learners too** — and a learner's only theme control writes the READING theme, so the Night toggle flipped the body class while the bridge kept overriding it: the page stayed dark with the toggle reading "day". The rule that closes it (`src/contexts/readingThemeCore.js`): while no workspace theme has been *chosen*, the workspace seed follows the resolved reading palette, which itself falls back to the OS. `teacherThemeStore.syncSeededTeacherTheme` re-seeds on every reading-theme change and no-ops the moment a workspace theme is actually chosen — a teacher who picked Night keeps Night, which is what the bridge is for. The seed is never written to `localStorage`, so it keeps following rather than freezing. Tests: `test:reading-theme-core`, `test:teacher-theme-mirror`, `themeSeedLink.spec.jsx`.
+- **A light reading palette VETOES the workspace dark seed — and a dark one imposes nothing.** The two palette systems are bridged one way: `html[data-theme='night'] body` in `index.css` restates every reading token in dark, and that selector beats `body.theme-<id>`, so whatever `data-theme` says wins. Both used to seed themselves from `prefers-color-scheme` independently, which meant that on any browser with neither key written and a dark OS (a second browser, Incognito, a fresh profile) the workspace attribute came up `night` for **learners too** — and a learner's only theme control writes the READING theme, so the Night toggle flipped the body class while the bridge kept overriding it: the page stayed dark with the toggle reading "day". **The rule is deliberately not symmetric, and #2524 → #2535 is why.** The first fix made an unchosen workspace theme *follow* the reading palette in both directions; that shipped, and because `<ReadingThemeSync>` syncs the reading palette to the ACCOUNT, anyone whose profile had ever recorded Midnight got a dark workspace on every browser whatever their OS said — teachers included. So `readingThemeCore.seededWorkspaceDarkness` can only ever turn a dark seed OFF: a light reading palette forces the workspace seed light; a dark one leaves the OS to decide exactly as it always did. A reading palette is a statement about the page a learner reads on, not a request to repaint the teacher workspace. `teacherThemeStore.syncSeededTeacherTheme` applies it on every reading-theme change and no-ops the moment a workspace theme is actually chosen — a teacher who picked Night keeps Night, which is what the bridge is for. The seed is never written to `localStorage`, so it keeps following rather than freezing. `boot.js` mirrors the same expression pre-paint. Tests: `test:reading-theme-core`, `test:teacher-theme-mirror`, `themeSeedLink.spec.jsx`.
 - **CBC topic + grade lists are in `src/config/curriculum.js`** for the client. The server-side authoritative KB is `functions/teacherTools/cbcKnowledge.js` / `cbcTopics.js`. They have to stay in sync.
 - **Two curricula, and a picker must not mix them.** CBC and the 2013 ("previous"/OBC) syllabus are both live. Topic options are scoped strictly by curriculum AND grade (`src/components/teacher/syllabusTopicOptions.js` + `src/utils/syllabus2013Topics.js`, #1974) — a leak shows a teacher topics from a syllabus they aren't teaching. The two frameworks also *name their levels differently*, so grade labels come from `src/components/teacher/frameworkLevelLabels.js` (#1976) rather than being formatted at each call site. `normalizeCurriculum` accepts every spelling already in the repo (`cbc`/`obc`/`previous`/`2023`/`2013`) so no caller needs to know which its neighbour uses.
 - **Don't accrete one-off report docs.** Audit reports, debug runbooks, feasibility writeups, and launch/polish plans rot fast — by 2026-05 most root `*.md` reports were ~90% stale (cleaned up in #702). So: (1) don't commit a standalone report/plan `*.md` to the repo root unless asked — put findings in the conversation or the PR description; (2) any status/plan/audit doc that *is* committed gets a `> Snapshot as of YYYY-MM-DD — verify before acting` header from the start; (3) `BUG_REPORT.md` is the single curated "what's broken now" doc — prune resolved items there rather than spawning new snapshots; (4) when a branch merges, remove its worktree (`git worktree remove`) — merged worktrees linger and pile up.

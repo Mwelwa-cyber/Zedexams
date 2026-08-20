@@ -13,7 +13,7 @@
  * This is presentation, plus one real bug:
  *
  *  1. NOTHING RENDERS UNDER THE FIXED CHROME. The bottom nav is opaque and
- *     the scroll body reserves nav + Ask Zed + safe-area at its foot (both
+ *     the scroll body reserves nav + safe-area at its foot (both
  *     in learnerTheme.css, both global — the bug was general to the learner
  *     surface, not local to this page). "Your games", the Leaderboard link
  *     and the first game card used to render THROUGH the nav.
@@ -60,6 +60,19 @@
  *     pack at the learner's grade gets a row, the four mechanics still
  *     leading in the mockup's order. See `buildCatalogue`.
  *
+ * ── 2026-08-20: the door back to Race Zed ──────────────────────────────
+ *
+ * `/games/duel` had no entry point left anywhere in the app. #2496 removed
+ * its hero card for a reason that still holds — two coral race heroes made
+ * the live learner-vs-learner one read as the bot's variant — but it did so
+ * on the strength of "/games/duel is untouched and still reachable", and
+ * nothing linked to it afterwards. At the same time the one card that DID
+ * carry Zed's name opened the daily challenge, so a learner who tapped
+ * "Play with Zed" landed somewhere else and reported the button as broken.
+ * #2525 fixed the name; this restores the destination, one rank down as a
+ * row rather than a hero, so the live race keeps the only race hero. See
+ * `zedRaceRow` for who sees the row and what it is careful not to claim.
+ *
  * Data flow is otherwise unchanged: listGames + today's challenge + history
  * + badges + streak, all through Promise.allSettled so one Firestore
  * failure never freezes the hub, with the seed catalogue as the fallback.
@@ -77,6 +90,7 @@ import {
   isRecentlyAdded,
   resolveLearnerGrade,
   unavailableRowCopy,
+  zedRaceRow,
 } from '../lib/gamesHubCore'
 import { GAME_BADGES } from '../../../data/gameBadges'
 import {
@@ -238,6 +252,10 @@ export default function GamesHub() {
     streakDays,
     gameTitle: challengeGame?.title,
   })
+  // The practice race, one rank below the live card rather than beside it.
+  // `zedRaceRow` owns why it is a row, why it is not also gated on being
+  // signed in, and why it does not try to predict a fieldable race.
+  const zedRace = zedRaceRow({ challengesAllowed })
 
   return (
     <div className="lhx-gh">
@@ -302,6 +320,24 @@ export default function GamesHub() {
           sub="5 quick questions"
           action="Play"
         />
+      )}
+
+      {/* Race Zed — the practice race, subordinate to the live card by
+          design. It is a ROW because two coral heroes made the real
+          opponent look like a variant of the bot (#2496); it is here at
+          all because that removal's own promise ("/games/duel is still
+          reachable") stopped being true the moment nothing linked to it.
+          Gated on challengesAllowed ALONE — a signed-out visitor gets no
+          live card, so this is their only race. See zedRaceRow. */}
+      {zedRace && (
+        <Link to="/games/duel" className="lhx-gh-practice">
+          <span className="lhx-gh-practice-ic" aria-hidden="true">🤖</span>
+          <span className="lhx-gh-practice-body">
+            <b>{zedRace.title}</b>
+            <span>{zedRace.sub}</span>
+          </span>
+          <span className="lhx-gh-practice-chev" aria-hidden="true">›</span>
+        </Link>
       )}
 
       {/* Level strip. */}

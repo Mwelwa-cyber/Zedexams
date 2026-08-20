@@ -1,12 +1,9 @@
 import { getFunctions, httpsCallable } from 'firebase/functions'
-import app, { auth, getAppCheckToken } from '../firebase/config'
-import { apiUrl, isNativePlatform } from './runtime'
-import { newRequestId } from './requestId'
+import app from '../firebase/config'
 import { toFriendlyError } from './friendlyErrors'
 
 const functions = getFunctions(app, 'us-central1')
 
-const aiChatCallable = httpsCallable(functions, 'aiChat')
 const explainAnswerCallable = httpsCallable(functions, 'explainAnswer')
 const generateQuizCallable = httpsCallable(functions, 'generateQuizQuestions')
 const structureImportedQuizCallable = httpsCallable(functions, 'structureImportedQuiz')
@@ -20,12 +17,6 @@ const editQuizQuestionCallable = httpsCallable(functions, 'editQuizQuestion')
 // Function timeoutSeconds — so the server's own error surfaces rather than
 // the client giving up first. Claude Sonnet can easily take 15–25s on a
 // cold start with a long CBC system prompt and ~1000-token output.
-const AI_CHAT_TIMEOUT_MS = 35000       // server: 30s
-// Watchdog for the streaming read loop: if the SSE connection goes quiet for
-// this long (no token, no [DONE], no close — common on flaky mobile / Android
-// WebView where a dropped connection just hangs), abort and surface an error
-// instead of leaving Zed's chat input disabled forever on "thinking…".
-const AI_CHAT_STREAM_STALL_MS = 30000
 const AI_EXPLAIN_TIMEOUT_MS = 35000    // server: 30s
 const AI_QUIZ_TIMEOUT_MS = 50000       // server: 45s
 const AI_IMPORT_TIMEOUT_MS = 370000    // server: 360s (Gemini → Claude pipeline over a full past paper)
@@ -56,7 +47,7 @@ function messageFromError(error) {
     return 'This AI tool is only available for teachers and admins.'
   }
   if (code.includes('unauthenticated')) {
-    return 'Please sign in before using Zed.'
+    return 'Please sign in before using the AI tools.'
   }
   // Real infrastructure failures (Firebase/HTTP codes, offline, 5xx) get calm
   // mapped copy instead of a raw technical string. We deliberately pass NO
@@ -68,7 +59,7 @@ function messageFromError(error) {
   if (friendly.category !== 'unknown') {
     return friendly.message
   }
-  return error?.message || 'Zed is unavailable right now. Please try again.'
+  return error?.message || 'The AI service is unavailable right now. Please try again.'
 }
 
 function isHardAIError(error) {
@@ -261,221 +252,6 @@ function makeLocalQuizQuestions(payload) {
   })
 }
 
-/**
- * Streaming version of sendAIChat. Connects to the SSE endpoint and calls
- * onToken(text) for each text chunk as it arrives. Calls onDone(fullText)
- * when the stream completes, or onError(err) on failure.
- *
- * Falls back to the buffered callable path in DEV so the dev server works
- * without needing a running Cloud Functions emulator.
- */
-export function sendAIChatStream({
-  message,
-  context,
-  history = [],
-  systemPrompt,
-  onToken,
-  onDone,
-  onError,
-}) {
-  const payload = { message, context, history }
-  if (systemPrompt) payload.systemPrompt = systemPrompt
-
-  let cancelled = false
-  // Hoisted so the returned cancel() can abort an in-flight fetch — otherwise
-  // a cancel while reader.read() is blocked wouldn't take effect until the
-  // next chunk (which may never come on a stalled connection).
-  let activeController = null
-
-  async function run() {
-    let token
-    try {
-      token = await auth.currentUser?.getIdToken()
-      if (!token) throw new Error('Please sign in before using Zed.')
-    } catch (err) {
-      onError?.(new Error(messageFromError(err)))
-      return
-    }
-
-    // DEV + Capacitor wrapper: callable doesn't stream so we get the full
-    // reply and pass it through onToken in one shot, then onDone. On Android
-    // WebView the SSE ReadableStream is unreliable (some versions buffer
-    // until the connection closes, which kills "live typing"), so the
-    // wrapper takes the same path as DEV — no streaming, but Zed actually
-    // replies.
-    if (import.meta.env.DEV || isNativePlatform()) {
-      try {
-        const response = await withTimeout(
-          aiChatCallable(payload),
-          AI_CHAT_TIMEOUT_MS,
-          'Zed is taking too long to reply. Please try again in a moment.',
-        )
-        const reply = String(response.data?.reply || '').trim()
-        if (!cancelled) {
-          onToken?.(reply)
-          onDone?.(reply)
-        }
-        return
-      } catch (err) {
-        if (!cancelled) onError?.(new Error(messageFromError(err)))
-        return
-      }
-    }
-
-    let fullText = ''
-    // AbortController lets the stall watchdog (and the caller's cancel) tear
-    // the connection down even while it's blocked inside reader.read().
-    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null
-    activeController = controller
-    let stalled = false
-    let stallTimer = null
-    const armStallTimer = () => {
-      if (!controller) return
-      if (stallTimer) clearTimeout(stallTimer)
-      stallTimer = setTimeout(() => {
-        stalled = true
-        controller.abort()
-      }, AI_CHAT_STREAM_STALL_MS)
-    }
-    try {
-      const appCheckToken = await getAppCheckToken()
-      const response = await withTimeout(
-        fetch(apiUrl('/api/ai/chat'), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-request-id': newRequestId(),
-            Authorization: `Bearer ${token}`,
-            ...(appCheckToken ? { 'X-Firebase-AppCheck': appCheckToken } : {}),
-          },
-          body: JSON.stringify(payload),
-          signal: controller?.signal,
-        }),
-        AI_CHAT_TIMEOUT_MS,
-        'Zed is taking too long to reply. Please try again in a moment.',
-      )
-
-      if (!response.ok || !response.body) {
-        const data = await response.json().catch(() => ({}))
-        throw new Error(data.error || 'Zed is unavailable right now. Please try again.')
-      }
-
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-
-      armStallTimer()
-      while (true) {
-        const { done, value } = await reader.read()
-        // Each chunk (or close) is a sign of life — reset the watchdog.
-        armStallTimer()
-        if (done || cancelled) break
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() ?? ''
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          const raw = line.slice(6).trim()
-          if (raw === '[DONE]') {
-            if (!cancelled) onDone?.(fullText)
-            return
-          }
-          if (raw.startsWith('[ERROR]')) {
-            try {
-              const { error } = JSON.parse(raw.slice(7).trim())
-              throw new Error(error || 'Zed is unavailable right now.')
-            } catch (parseErr) {
-              throw new Error('Zed is unavailable right now. Please try again.')
-            }
-          }
-          try {
-            const { text } = JSON.parse(raw)
-            if (typeof text === 'string') {
-              fullText += text
-              if (!cancelled) onToken?.(text)
-            }
-          } catch {
-            // ignore malformed SSE lines
-          }
-        }
-      }
-
-      // Stream ended without [DONE] — treat accumulated text as complete.
-      if (!cancelled) onDone?.(fullText)
-    } catch (err) {
-      if (cancelled) return
-      // A stall-triggered abort surfaces as an AbortError — translate it into
-      // a friendly timeout message rather than the raw "aborted" string. All
-      // other failures go through messageFromError so a raw network error
-      // (e.g. "Failed to fetch") is mapped to calm copy, not echoed verbatim.
-      const message = stalled
-        ? 'Zed lost connection mid-reply. Please try again.'
-        : messageFromError(err)
-      onError?.(new Error(message))
-    } finally {
-      if (stallTimer) clearTimeout(stallTimer)
-    }
-  }
-
-  run()
-
-  // Return a cancel function so the component can stop the stream on unmount.
-  return () => {
-    cancelled = true
-    try { activeController?.abort() } catch { /* already settled */ }
-  }
-}
-
-export async function sendAIChat({
-  message,
-  context,
-  history = [],
-  systemPrompt,
-}) {
-  const payload = { message, context, history }
-  if (systemPrompt) payload.systemPrompt = systemPrompt
-
-  try {
-    const token = await auth.currentUser?.getIdToken()
-    if (!token) throw new Error('Please sign in before using Zed.')
-    const appCheckToken = await getAppCheckToken()
-
-    const response = await withTimeout(
-      fetch(apiUrl('/api/ai/chat'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-request-id': newRequestId(),
-          Authorization: `Bearer ${token}`,
-          ...(appCheckToken ? { 'X-Firebase-AppCheck': appCheckToken } : {}),
-        },
-        body: JSON.stringify(payload),
-      }),
-      AI_CHAT_TIMEOUT_MS,
-      'Zed is taking too long to reply. Please try again in a moment.',
-    )
-    const data = await response.json().catch(() => ({}))
-    if (!response.ok) {
-      throw new Error(data.error || 'Zed is unavailable right now. Please try again.')
-    }
-    return String(data.reply || '').trim()
-  } catch (error) {
-    if (import.meta.env.DEV && !error?.message?.includes('sign in')) {
-      try {
-        const response = await withTimeout(
-          aiChatCallable(payload),
-          AI_CHAT_TIMEOUT_MS,
-          'Zed is taking too long to reply. Please try again in a moment.',
-        )
-        return String(response.data?.reply || '').trim()
-      } catch (fallbackError) {
-        throw new Error(messageFromError(fallbackError))
-      }
-    }
-    throw new Error(messageFromError(error))
-  }
-}
-
 export async function explainQuizAnswer(payload) {
   try {
     const response = await withTimeout(
@@ -493,7 +269,7 @@ export async function explainQuizAnswer(payload) {
 // from the CBC knowledge-base resolver (e.g. "topic not verified — nearest
 // topics for this grade+subject: X, Y, Z") or null when the topic matched
 // a verified KB entry. The UI can surface the warning so teachers know
-// when Zed fell back to general CBC knowledge.
+// when the generator fell back to general CBC knowledge.
 //
 // Local-fallback path (network/timeout/soft errors) always returns
 // warning: null because we can't surface a KB miss from the client.
@@ -502,7 +278,7 @@ export async function generateAIQuizQuestions(payload) {
     const response = await withTimeout(
       generateQuizCallable(payload),
       AI_QUIZ_TIMEOUT_MS,
-      'Zed is taking too long, so a quick editable draft was created.',
+      'The generator is taking too long, so a quick editable draft was created.',
     )
     const questions = Array.isArray(response.data?.questions) ? response.data.questions : []
     const warning = typeof response.data?.warning === 'string' ? response.data.warning : null

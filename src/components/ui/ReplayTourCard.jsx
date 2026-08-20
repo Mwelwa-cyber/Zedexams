@@ -37,7 +37,7 @@ const LEARNER_TOURS = [
   {
     id: 'quizzes',
     title: 'Quizzes tour',
-    description: 'How filters, daily attempts, and "Ask Zed" work.',
+    description: 'How filters and daily attempts work.',
     storageKey: 'zedexams:quizzes-onboarded',
     path: '/quizzes',
     icon: '✏️',

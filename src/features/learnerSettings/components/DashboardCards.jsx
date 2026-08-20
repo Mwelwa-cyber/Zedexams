@@ -168,7 +168,8 @@ export function ProgressCard({ onOpen }) {
         <StatTile icon={TrophyIcon} value={derived.strongCount} label="Strong Topics" tone="#22c55e" />
       </div>
       <div className="lset-actions">
-        <Btn onClick={() => navigate('/my-stats')}>📊 View Detailed Analytics</Btn>
+        {/* /my-stats was retired (2026-08-20) — /progress carries it. */}
+        <Btn onClick={() => navigate('/progress')}>📊 View Detailed Analytics</Btn>
         <Btn variant="ghost" onClick={() => onOpen('progress')}>⬇ Download Progress Report</Btn>
       </div>
     </SectionCard>
@@ -292,34 +293,6 @@ export function AccessibilityCard({ onOpen }) {
       <div className="lset-toggle">
         <div className="lset-toggle__text"><p className="lset-toggle__title">Voice answers</p></div>
         <span className="lset-soon">Coming soon</span>
-      </div>
-    </SectionCard>
-  )
-}
-
-/* ── 7. AI Learning Assistant ─────────────────────────────────── */
-const AI_LINKS = [
-  { emoji: '🎯', label: 'My Learning Goal', to: 'open' },
-  { emoji: '📚', label: 'Subjects I Want to Improve', to: 'open' },
-  { emoji: '🧠', label: "Let AI Choose Today's Practice", to: 'open' },
-  { emoji: '🔥', label: 'Daily Challenge', to: '/daily' },
-  { emoji: '📈', label: 'Focus on My Weak Topics', to: 'open' },
-  { emoji: '🏆', label: 'Weekly Challenge', to: '/games/leaderboard' },
-]
-export function AiCard({ onOpen }) {
-  const navigate = useNavigate()
-  return (
-    <SectionCard id="sec-ai" tone="purple" icon={Sparkles} title="AI Learning Assistant" subtitle="Smart learning personalization">
-      <div className="lset-ailist">
-        {AI_LINKS.map((a) => (
-          <button key={a.label} type="button" className="lset-airow" onClick={() => (a.to === 'open' ? onOpen('ai') : navigate(a.to))}>
-            <span className="lset-airow__emoji" aria-hidden="true">{a.emoji}</span>
-            <span className="lset-airow__label">{a.label}</span>
-          </button>
-        ))}
-      </div>
-      <div style={{ marginTop: 14 }}>
-        <Btn full onClick={() => navigate('/ask-zed')}>Open AI Assistant →</Btn>
       </div>
     </SectionCard>
   )

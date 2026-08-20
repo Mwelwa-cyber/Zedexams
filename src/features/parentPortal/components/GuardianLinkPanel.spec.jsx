@@ -40,7 +40,7 @@ const approved = {
   parentDisplayName: 'Mrs Banda',
   status: 'active',
   consent: { state: 'approved', method: 'family_code' },
-  permissions: { askZed: false, dailyMinutes: 45 },
+  permissions: { challenges: false, dailyMinutes: 45 },
 }
 
 const pending = {
@@ -77,7 +77,7 @@ describe('GuardianLinkPanel', () => {
   it('shows the permissions a guardian has actually set, in the child’s words', async () => {
     listMyLinkedParents.mockResolvedValue([approved])
     render(<GuardianLinkPanel />)
-    expect(await screen.findByText(/Whether you can use Ask Zed/i)).toBeInTheDocument()
+    expect(await screen.findByText(/Whether you can play live challenges/i)).toBeInTheDocument()
     expect(screen.getByText(/45 minutes a day/i)).toBeInTheDocument()
   })
 

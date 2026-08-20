@@ -137,6 +137,56 @@
 .lhx-gh-hero-race .lhx-gh-hero-btn { background: var(--lhx-card); color: var(--lhx-coral-soft-text); box-shadow: 0 3px 0 rgba(0, 0, 0, 0.12); }
 .lhx-gh-hero:active { transform: scale(0.99); }
 
+/* ── Hub: the practice race row ───────────────────────────
+ * Race Zed (`/games/duel`), one rank below the live race it belongs to.
+ *
+ * NOT a `.lhx-gh-hero` skin, and that is the whole rule this row lives
+ * under: a third coral gradient beside the live card is exactly what
+ * #2496 removed, because two heroes of one colour read as a single
+ * feature in two flavours and the real-opponent race came off as the
+ * practice one's variant. So this is card-and-line like `.lhx-lvl` and
+ * `.lhx-game` — plainly a smaller thing — and the only coral on it is
+ * the icon tile, which ties it to the card above without putting text on
+ * a tinted ground.
+ *
+ * There is deliberately NO negative margin pulling it under that card.
+ * A tuck says "I belong to the thing above me", which is true beside the
+ * live race and false for a signed-out visitor — they get no live card,
+ * so this row meets them directly under the daily challenge instead.
+ *
+ * `--lhx-ink` and `--lhx-muted` on `--lhx-card` are the pairings
+ * `.lhx-game` already ships in both themes, so there is no new colour
+ * combination here to re-check in Night mode.
+ * ───────────────────────────────────────────────────────── */
+.lhx-gh-practice {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: var(--lhx-card); border: 1px solid var(--lhx-line);
+  width: 100%; text-align: left;
+}
+.lhx-gh-practice-ic {
+  flex: none; width: 34px; height: 34px; border-radius: 11px;
+  background: var(--lhx-coral-soft);
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+}
+.lhx-gh-practice-body { flex: 1; min-width: 0; display: block; }
+/* One line each, ellipsed — rule 4 of the layout harness: a long string
+   truncates, it never reflows the row. */
+.lhx-gh-practice-body b {
+  display: block; font-size: 14px; font-weight: 900; letter-spacing: -0.01em; color: var(--lhx-ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lhx-gh-practice-body span {
+  display: block; font-size: 11.5px; font-weight: 700; color: var(--lhx-muted); margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lhx-gh-practice-chev {
+  flex: none; color: var(--lhx-faint);
+  font-size: 19px; font-weight: 900; line-height: 1; margin-left: -2px;
+}
+.lhx-gh-practice:active { transform: scale(0.99); }
+
 /* ── Hub: level strip ──────────────────────────────────────────── */
 
 /* 78px, not the 150px billboard it replaced: "224 XP to Level 7" sits
@@ -803,9 +853,23 @@
   cursor: pointer; transition: fill .18s;
 }
 .lhx-kz-prov:hover { fill: #c3cdea; }
-.lhx-kz-prov.is-placed { fill: #009e73; }
+/* `is-placed`/`is-wrong` are the place mode's original names; `is-ok`/`is-no`
+   are what ZambiaMap emits for every mode. Both are kept so neither the
+   engine nor anything reading these class names has to change in step. */
+.lhx-kz-prov.is-placed,
+.lhx-kz-prov.is-ok { fill: #009e73; }
 .lhx-kz-prov.is-anchor { fill: #a8b3d6; }
-.lhx-kz-prov.is-wrong  { fill: url(#lhx-kz-hatch); }
+.lhx-kz-prov.is-wrong,
+.lhx-kz-prov.is-no { fill: url(#lhx-kz-hatch); }
+/* Journey: a province already crossed. Blue rather than green because it is
+   not an answer, it is a place you have been — and it carries its crossing
+   NUMBER, which is what makes the route readable with the colour gone. */
+.lhx-kz-prov.is-step { fill: #0072b2; }
+/* Odd one out lights four and dims six. The dimmed six carry no click target
+   in the markup at all; this only makes that visible. */
+.lhx-kz-prov.is-live { fill: #8fa8e8; }
+.lhx-kz-prov.is-live:hover { fill: #7d99e2; }
+.lhx-kz-prov.is-dim { fill: #eef1fa; cursor: default; }
 .lhx-kz-prov:focus-visible { outline: none; stroke: #5b5bd6; stroke-width: 1.4; }
 
 .lhx-kz-label {
@@ -818,7 +882,64 @@
   fill: #fff; paint-order: stroke; stroke: rgba(0, 0, 0, .25); stroke-width: .9;
 }
 .lhx-kz-mark.is-wrong { fill: #8f3f00; stroke: #fff; }
+.lhx-kz-mark.is-step { fill: #fff; stroke: rgba(0, 0, 0, .3); }
 .lhx-kz-halo { fill: transparent; cursor: pointer; }
+
+/* The eight neighbour boxes, drawn outside the outline. Dashed while empty so
+   they read as a place to put something rather than as more country. */
+.lhx-kz-zone {
+  fill: #fff; stroke: #b9c0da; stroke-width: .7; stroke-dasharray: 2.4 2;
+  cursor: pointer;
+}
+.lhx-kz-zone.is-ok { fill: #009e73; stroke: #009e73; }
+.lhx-kz-zone.is-no { fill: url(#lhx-kz-hatch); stroke: #d55e00; }
+.lhx-kz-zone:focus-visible { outline: none; stroke: #5b5bd6; stroke-width: 1.6; }
+.lhx-kz-zlab {
+  font-size: 3.1px; font-weight: 800; fill: #6b7392; text-anchor: middle;
+  pointer-events: none;
+}
+.lhx-kz-zlab.is-on { fill: #fff; }
+
+/* The capital pin, plotted from real longitude and latitude. */
+.lhx-kz-pin circle { fill: #f4592c; stroke: #fff; stroke-width: .6; }
+.lhx-kz-pin text {
+  font-size: 3.1px; font-weight: 900; fill: var(--lhx-ink); text-anchor: middle;
+  paint-order: stroke; stroke: #fff; stroke-width: 1.1;
+}
+
+/* The question under the map. */
+.lhx-kz-ask {
+  background: #fff; border-radius: 18px; padding: 13px;
+  margin: 10px 12px 0; font-size: 15px; font-weight: 800; line-height: 1.45;
+}
+.lhx-kz-ask b { color: #5b5bd6; }
+.lhx-kz-ask-sub {
+  display: block; margin-top: 6px; font-size: 12px; font-weight: 700;
+  color: var(--lhx-muted, #6b7392);
+}
+
+/* Journey: the strip of provinces, filling in as the road is travelled. */
+.lhx-kz-route { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
+.lhx-kz-rs {
+  display: flex; gap: 5px; align-items: center;
+  background: #eef0fb; border-radius: 9px; padding: 6px 9px;
+  font-size: 11.5px; font-weight: 800; color: var(--lhx-muted, #6b7392);
+}
+.lhx-kz-rs.is-on { background: #0072b2; color: #fff; }
+.lhx-kz-rs-n { opacity: .7; font-size: 10px; }
+
+/* Ceremonies: two of the three questions are off the map on purpose. */
+.lhx-kz-opts { display: grid; gap: 8px; margin: 10px 12px 0; }
+.lhx-kz-opt {
+  display: flex; gap: 9px; align-items: center; width: 100%;
+  min-height: 48px; padding: 13px; border-radius: 14px;
+  border: 2.5px solid #e6e8f5; background: #fff;
+  font: inherit; font-size: 15px; font-weight: 800; color: var(--lhx-ink);
+  text-align: left; cursor: pointer; touch-action: manipulation;
+}
+.lhx-kz-opt.is-ok { border-color: #009e73; background: #e7f5f0; color: #04674c; }
+.lhx-kz-opt.is-no { border-color: #d55e00; background: #fdeee4; color: #8f3f00; }
+.lhx-kz-opt-g { width: 22px; flex: 0 0 auto; font-size: 15px; }
 
 .lhx-kz-names {
   display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
@@ -960,3 +1081,11 @@
 .lhx-wb-coach-mastery { margin: 9px 0 0; font-size: 12px; font-weight: 800; color: #9a6412; }
 
 @media (prefers-reduced-motion: reduce) { .lhx-wb-chunk:active { transform: none; } }
+
+/* Shown for the moment a named word pack is being fetched (spellingPack.js).
+   Deliberately a plain line rather than a spinner: it is normally gone before
+   a spinner would finish one turn, and a spinner promises a longer wait. */
+.lhx-wb-packing {
+  text-align: center; padding: 48px 20px; font-weight: 800;
+  color: var(--lhx-muted);
+}

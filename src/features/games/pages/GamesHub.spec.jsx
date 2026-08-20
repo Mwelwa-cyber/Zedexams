@@ -89,6 +89,12 @@ function renderHub() {
 beforeEach(() => {
   vi.clearAllMocks()
   window.localStorage.clear()
+  // Restored explicitly: `vi.clearAllMocks()` resets the vi.fn()s above but
+  // not this plain object, and the race tests below reassign it (challenges
+  // switched off, signed out). Without this a later test inherits whichever
+  // learner ran last — the seed-fallback test would look for grade-4 games
+  // as a signed-out visitor, who resolves to the rollout grade instead.
+  mocks.auth = { currentUser: { uid: 'learner-1' }, userProfile: { grade: 4 } }
   mocks.listGames.mockResolvedValue(GAMES)
   mocks.getMyHistory.mockResolvedValue([
     { gameId: 'g-words', score: 80 },
@@ -313,7 +319,7 @@ describe('GamesHub', () => {
     expect(mocks.listGames).toHaveBeenCalledWith({ grade: 7 })
   })
 
-  it('offers ONE race card — the live one — and no Race Zed! bot card', async () => {
+  it('offers ONE race HERO — the live one — with Race Zed a rank below it', async () => {
     renderHub()
     const live = (await screen.findByText('Race a learner')).closest('a')
     expect(live).toHaveAttribute('href', '/games/duel/live')
@@ -322,9 +328,52 @@ describe('GamesHub', () => {
     // for an adult reviewer, and it pushed the card to three lines.
     expect(within(live).getByText('5 quick questions')).toBeInTheDocument()
     expect(screen.queryByText(/server keeps score/)).toBeNull()
-    expect(screen.queryByText('Race Zed!')).toBeNull()
+
+    // #2496 deleted the "CHALLENGE MODE · Race Zed!" HERO because two
+    // coral heroes made the real-opponent race read as the bot's variant.
+    // That half stands: still exactly one race hero on the page.
     expect(screen.queryByText('CHALLENGE MODE')).toBeNull()
+    expect(document.querySelectorAll('.lhx-gh-hero-race')).toHaveLength(1)
+
+    // What did NOT stand is the sentence that made the deletion safe —
+    // "/games/duel is untouched and still reachable". Nothing linked to it
+    // afterwards, so a fully built screen was reachable only by typing the
+    // URL, while the one card still naming Zed opened the daily challenge.
+    // The door is back, one rank down: a row, never a hero.
+    const zed = document.querySelector('a[href="/games/duel"]')
+    expect(zed).not.toBeNull()
+    expect(zed.className).not.toMatch(/lhx-gh-hero/)
+    expect(within(zed).getByText('Race Zed')).toBeInTheDocument()
+    // And it says which opponent is the robot BEFORE the tap — that is
+    // what earns it a place under a card promising a real learner.
+    expect(within(zed).getByText(/robot/i)).toBeInTheDocument()
+  })
+
+  it('a guardian who switched challenges off gets neither race', async () => {
+    // The row reads duelAllowed — the same predicate /games/duel reads —
+    // so the hub can never offer a race the page then refuses with
+    // "challenges are switched off for this account".
+    mocks.auth = {
+      currentUser: { uid: 'learner-1' },
+      userProfile: { grade: 4, role: 'learner', guardianControls: { challenges: false } },
+    }
+    renderHub()
+    await screen.findByText('Number Target: Master')
     expect(document.querySelector('a[href="/games/duel"]')).toBeNull()
+    expect(screen.queryByText('Race a learner')).toBeNull()
+  })
+
+  it('a signed-out visitor keeps Race Zed — it is the only race they can play', async () => {
+    // The live card is signed-in only: its queue is written as the
+    // learner's own doc. duelAllowed deliberately keeps the bot race for a
+    // visitor (/games is public and the duel writes nothing for them), so
+    // gating this row beside the live card would leave a visitor looking
+    // at a games hub with no race on it at all.
+    mocks.auth = { currentUser: null, userProfile: null }
+    renderHub()
+    await screen.findByText('Race Zed')
+    expect(document.querySelector('a[href="/games/duel"]')).not.toBeNull()
+    expect(screen.queryByText('Race a learner')).toBeNull()
   })
 
   it('a Firestore failure falls back to the seed catalogue instead of an empty hub', async () => {

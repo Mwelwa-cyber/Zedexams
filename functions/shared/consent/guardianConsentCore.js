@@ -69,8 +69,11 @@ export const CAPABILITY = Object.freeze({
   // Never gated — a child browsing a syllabus is what the app is for, and
   // withholding it while a parent finds their email helps nobody.
   BROWSE: 'browse',
-  // Ask Zed. Gated: it is an AI surface a child can converse with, and it is
-  // the thing a Families reviewer will test first.
+  // Conversational AI. Gates NOTHING today: the Ask Zed study assistant was
+  // its only consumer and was removed. Kept in the taxonomy — as SOCIAL was
+  // when learner classes went — so consent records already stored against it
+  // keep their meaning, and so a future conversational surface has to claim
+  // an existing capability rather than invent a sixth.
   AI_CHAT: 'aiChat',
   // Joining a class or live quiz room — surfaces where a learner's name
   // becomes visible to other people.
@@ -257,8 +260,8 @@ export function resolveLearnerAccess(user, opts = {}) {
     // THE MIGRATION EXCEPTION, stated rather than hidden.
     //
     // Every learner account created before this flow shipped has no guardian
-    // record. Restricting them on day one would take Ask Zed, classes and
-    // leaderboards away from the entire existing user base in a single deploy
+    // record. Restricting them on day one would take leaderboards and
+    // challenges away from the entire existing user base in a single deploy
     // — before a single guardian has been asked, and with no way for a
     // learner to fix it except to wait on an email their parent may never
     // receive. So the default is to let them through while the migration

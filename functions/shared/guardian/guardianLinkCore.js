@@ -81,7 +81,7 @@ const KNOWN_METHODS = Object.freeze(Object.values(LINK_METHOD))
 /**
  * The permissions a guardian sets over a linked child.
  *
- * `askZed`, `challenges` and `leaderboard` are three-valued booleans —
+ * `challenges` and `leaderboard` are three-valued booleans —
  * `true` (allowed), `false` (turned off), `null` (no guardian has
  * expressed a view). Only `false` is a restriction, for the reason
  * guardianControlsCore gives: collapsing null onto a default would make
@@ -92,7 +92,6 @@ const KNOWN_METHODS = Object.freeze(Object.values(LINK_METHOD))
  * `dailyMinutes` is a number or null, where null is "no limit set".
  */
 export const LINK_PERMISSION_KEYS = Object.freeze([
-  'askZed',
   'challenges',
   'leaderboard',
   'dailyMinutes',
@@ -105,14 +104,12 @@ export const LINK_PERMISSION_KEYS = Object.freeze([
  * call site and eventually forgetting to.
  */
 export const BOOLEAN_PERMISSION_KEYS = Object.freeze([
-  'askZed',
   'challenges',
   'leaderboard',
 ])
 
 /** A link nobody has expressed any view through. */
 export const NO_PERMISSIONS = Object.freeze({
-  askZed: null,
   challenges: null,
   leaderboard: null,
   dailyMinutes: null,
@@ -182,7 +179,6 @@ export function readLinkPermissions(doc) {
     : {}
   const minutes = Number(src.dailyMinutes)
   return {
-    askZed: typeof src.askZed === 'boolean' ? src.askZed : null,
     challenges: typeof src.challenges === 'boolean' ? src.challenges : null,
     leaderboard: typeof src.leaderboard === 'boolean' ? src.leaderboard : null,
     dailyMinutes: Number.isFinite(minutes) && minutes >= 0 ? Math.floor(minutes) : null,
@@ -315,7 +311,7 @@ export function linkIsApproved(link, opts = {}) {
  * approved link. Every learner who went through the email consent flow
  * before this module existed has their guardian's decision recorded ONLY
  * there. Ignoring it would put the entire approved learner base into
- * limited mode on one deploy — losing Ask Zed and the leaderboard for
+ * limited mode on one deploy — losing the leaderboard and challenges for
  * children whose parents already said yes, with no action available to
  * them but to ask their parent to do it again.
  *
@@ -399,8 +395,8 @@ export function resolveLinkConsent(links, opts = {}) {
  * governs the child. MOST RESTRICTIVE WINS.
  *
  * @param {Array<object>} links  every parentLinks doc naming this learner
- * @returns {{askZed: boolean|null, challenges: boolean|null,
- *            leaderboard: boolean|null, dailyMinutes: number|null}}
+ * @returns {{challenges: boolean|null, leaderboard: boolean|null,
+ *            dailyMinutes: number|null}}
  *
  * For the three booleans: one `false` anywhere wins. Otherwise `true` if
  * any approved guardian said yes, else `null` (nobody has decided). Note
@@ -423,7 +419,7 @@ export function resolveLinkPermissions(links, opts = {}) {
     .map(normalizeLink)
     .filter((l) => l.parentUid)
 
-  const out = {askZed: null, challenges: null, leaderboard: null, dailyMinutes: null}
+  const out = {challenges: null, leaderboard: null, dailyMinutes: null}
   if (approved.length === 0) return out
 
   for (const key of BOOLEAN_PERMISSION_KEYS) {
@@ -521,7 +517,11 @@ export function describeLinkMethod(method) {
 /* ── What a guardian can see, in the child's own words ──────────────── */
 
 /**
- * ── SETTLED DECISION: a guardian sees Ask Zed TOPICS, never transcripts ──
+ * ── SETTLED DECISION: a guardian sees TOPICS, never a child's own words ──
+ *
+ * Written for the Ask Zed assistant, which has since been removed. It is
+ * kept because the reasoning governs any future surface a child types into,
+ * and because the copy below still promises it.
  *
  * The three options considered were (a) topics only, (b) topics plus
  * transcripts released when a distress or safety classifier fires, and
@@ -584,7 +584,7 @@ export const GUARDIAN_VISIBILITY = Object.freeze({
   ]),
   cannot: Object.freeze([
     'Your password',
-    'What you type to Ask Zed, word for word',
+    'Anything you type into the app, word for word',
     'Anything you do outside ZedExams',
   ]),
 })
@@ -598,7 +598,6 @@ export const GUARDIAN_VISIBILITY = Object.freeze({
  * was never told it existed.
  */
 export const GUARDIAN_CONTROL_COPY = Object.freeze({
-  askZed: 'Whether you can use Ask Zed',
   challenges: 'Whether you can play live challenges',
   leaderboard: 'Whether your name shows on the leaderboard',
   dailyMinutes: 'How long you can study each day',

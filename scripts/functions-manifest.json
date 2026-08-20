@@ -290,23 +290,6 @@
       "classification": "mechanical",
       "batch": null
     },
-    "aiChat": {
-      "kind": "onCall",
-      "inline": false,
-      "options": {
-        "secrets": "[openaiApiKey]",
-        "region": "\"us-central1\"",
-        "timeoutSeconds": "30",
-        "enforceAppCheck": "shouldEnforceAppCheck(\"aiChat\")"
-      },
-      "optionsFrom": "index.js",
-      "optionsUnresolved": null,
-      "target": null,
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "secrets-bound",
-      "batch": null
-    },
     "aiCostDailySummary": {
       "kind": "delegated",
       "inline": false,
@@ -387,22 +370,6 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
-      "batch": null
-    },
-    "apiAiChat": {
-      "kind": "onRequest",
-      "inline": false,
-      "options": {
-        "secrets": "[openaiApiKey]",
-        "region": "\"us-central1\"",
-        "timeoutSeconds": "60"
-      },
-      "optionsFrom": "index.js",
-      "optionsUnresolved": null,
-      "target": null,
-      "rewritePath": "/api/ai/chat",
-      "rewriteRegion": "us-central1",
-      "classification": "audit-surface",
       "batch": null
     },
     "apiAssessmentDownload": {

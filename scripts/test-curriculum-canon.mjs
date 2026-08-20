@@ -109,7 +109,9 @@ const UNSCANNED_UNTIL_NOW = new Set([
   // 8): its rewrite deleted the local SUBJECT_STYLES map along with the
   // legacy reader — the ledger shrank the intended way.
   'src/features/notes/components/NoteCard.jsx',
-  'src/features/learnerSettings/lib/learnerPrefs.js',
+  // learnerPrefs left this ledger when the Ask Zed assistant was removed: its
+  // local IMPROVE_SUBJECT_OPTIONS list existed only for the AI-assistant
+  // personalisation panel, and went with it. The ledger shrank the intended way.
   'src/features/classTimetable/lib/timetableCoverage.js',
   // Arrived with the image-pipeline admin move. Its subject keys predate that
   // migration — verified against the file at its `src/utils/` path, where the
@@ -123,19 +125,11 @@ const UNSCANNED_UNTIL_NOW = new Set([
   // file against `src/components/papers/PastPapersHub.jsx` at its old path
   // shows only import lines changed.
   'src/features/papers/pages/PastPapersHub.jsx',
-  // Arrived with the learner-dashboard move. Both are LEARNER surfaces, not
-  // teacher studios, and neither holds a picker's option list: the subject
-  // names appear in display mappings (icon and label lookups keyed by the
-  // subject a result already carries). Verified to predate the migration
-  // rather than assumed —
-  //   git show <base>:src/components/dashboard/MyResults.jsx
-  //     → 'Integrated Science', 'Social Studies'
-  //   git show <base>:src/components/dashboard/StudentDashboard.jsx
-  //     → 'English', 'Integrated Science', 'Science', 'Social Studies'
-  // The same values are present at the old path, so the move brought them
-  // into scan scope; it did not introduce them.
-  'src/features/learnerDashboard/pages/MyResults.jsx',
-  'src/features/learnerDashboard/pages/StudentDashboard.jsx',
+  // (MyResults.jsx and StudentDashboard.jsx were here until 2026-08-20.
+  // Both were pre-redesign learner pages, retired to redirects when the
+  // new IA replaced them — /my-results and /my-stats now land on
+  // /progress. The files are gone, so their subject-name display mappings
+  // are gone with them and the ledger no longer needs to excuse them.)
   // Arrived with the admin migration (Wave 4 slices 5–6, 2026-08-14). All four
   // are ADMIN surfaces, and `SCAN_DIRS` was then `src/components/teacher` +
   // `src/features` — `src/components/admin/` was never scanned, so the move

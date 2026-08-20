@@ -43,6 +43,13 @@ const ROOT = resolve(__dirname, '..')
 const DIST = join(ROOT, 'dist')
 const NAV_TIMEOUT_MS = 30_000
 const MIN_ROOT_TEXT = 40
+// Backstop for "we measured something, but not the page we asked for" — an
+// error boundary, a chunk that failed to load, or a loading state with no
+// .zed-boot-loader marker. Reporting `✓ /papers — 2 pairs` as a pass is a
+// silent false green on a required check, so too few pairs FAILS instead.
+// Floor chosen from the observed spread: the thinnest real route is /papers
+// at 23 pairs, while the auth loader yields 10.
+const MIN_MEASURED_PAIRS = 15
 
 /* ── Pass 1: live public routes under the saved Midnight theme ─────────── */
 
@@ -178,6 +185,20 @@ const LEARNER_SETTINGS = `
     </div>
   </div>`
 
+// The auth-resolution loader (<FullScreenLoader />). It is a RISK SURFACE the
+// live walk cannot reach deterministically — it shows only while Firebase
+// restores the session, so whether a walk lands on it is a race. That race is
+// how its wordmark was caught rendering at 1.03:1 in a dark theme, and the
+// settle fix above deliberately stops the walk landing there again. So the
+// coverage has to be explicit here, or fixing the flake would silently retire
+// the only check that ever looked at this surface. `night` is the mode that
+// makes --zt-* dark, which is the failing condition.
+const AUTH_LOADER = `
+  <div style="background:var(--zt-surface);padding:20px;display:flex;flex-direction:column;align-items:center;gap:20px" data-s>
+    <div style="font-size:1.6rem;font-weight:800;letter-spacing:-0.02em;color:var(--zt-text, #1A1F2E)">Zed<span style="color:#C5613F">Exams</span></div>
+    <div style="font-size:0.9rem;color:var(--info-fg);font-weight:600">Welcome back…</div>
+  </div>`
+
 const FIXTURES = [
   { route: '/teacher', mode: 'night', html: STUDIO(TOP_BAR) },
   { route: '/teacher/lesson-plans/new', mode: 'night', html: STUDIO(LESSON_STUDIO) },
@@ -190,6 +211,7 @@ const FIXTURES = [
   { route: '/teacher/attendance', mode: 'night', html: STUDIO(ATTENDANCE_GRID) },
   { route: '/teacher/curriculum', mode: 'night', html: STUDIO(CURRICULUM_PAGE) },
   { route: '/teacher/calendar', mode: 'night', html: STUDIO(CALENDAR) },
+  { route: '(auth loader)', mode: 'night', html: AUTH_LOADER },
   { route: '/settings', mode: 'midnight', html: LEARNER_SETTINGS },
   { route: '/settings/appearance', mode: 'midnight', html: LEARNER_SETTINGS },
 ]
@@ -246,7 +268,16 @@ async function main() {
         await page.waitForFunction(
           (min) => {
             const root = document.getElementById('root')
-            return !!root && (root.innerText || '').trim().length >= min
+            if (!root) return false
+            // A character count alone does NOT mean the route has settled: the
+            // pre-React skeleton and <FullScreenLoader /> both render a
+            // wordmark plus a screen-reader "Loading ZedExams…", which clears
+            // MIN_ROOT_TEXT on their own. `/` is <RootRedirect />, so on a cold
+            // runner the walk measured the LOADER and reported it as the
+            // homepage (10 text pairs against the 175 a settled `/` yields).
+            // Both loading screens carry .zed-boot-loader — wait for it to go.
+            if (root.querySelector('.zed-boot-loader')) return false
+            return (root.innerText || '').trim().length >= min
           },
           { timeout: NAV_TIMEOUT_MS },
           MIN_ROOT_TEXT,
@@ -259,6 +290,13 @@ async function main() {
           failures.push(`${route} [midnight]: body lost the saved theme (classes: "${bodyTheme}")`)
         }
         const result = await page.evaluate(MEASURE)
+        if (result.pairs.length < MIN_MEASURED_PAIRS) {
+          failures.push(
+            `${route} [midnight]: only ${result.pairs.length} text pairs measured `
+            + `(expected >= ${MIN_MEASURED_PAIRS}) — the route did not settle, so this `
+            + `is an unmeasured route rather than a passing one`,
+          )
+        }
         report(route, 'midnight', result, failures)
       } catch (err) {
         failures.push(`${route} [midnight]: ${err?.message || err}`)

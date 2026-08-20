@@ -44,6 +44,10 @@ t('every control declares where its OFF is enforced', () => {
 })
 
 t("a control claiming server enforcement is actually read by consentGuard", () => {
+  // Vacuous while no control claims 'server' — the Ask Zed control was the
+  // only one, and it went with the assistant. Kept, not deleted: the moment a
+  // control claims server enforcement again, this is what keeps the claim
+  // honest. The loop below simply has nothing to iterate today.
   // The claim this file exists to keep honest. `enforcement: 'server'` is
   // what lets the product tell a parent that a modified client cannot
   // ignore their decision — so a control that says it and is never read at
@@ -60,7 +64,7 @@ t("a control claiming server enforcement is actually read by consentGuard", () =
 })
 
 t('isGuardianControl accepts declared keys and nothing else', () => {
-  assert.equal(isGuardianControl('askZed'), true)
+  assert.equal(isGuardianControl('challenges'), true)
   assert.equal(isGuardianControl('deleteEverything'), false)
   assert.equal(isGuardianControl(undefined), false)
 })
@@ -77,26 +81,26 @@ t('an account with no guardianControls has no decisions, not false ones', () => 
 t('a non-boolean stored value is no decision, never a restriction', () => {
   // An older client, a botched migration, a hand-edited document: none
   // of those are a parent saying no.
-  const controls = readGuardianControls({ guardianControls: { askZed: 'false' } })
-  assert.equal(controls.askZed, null)
-  assert.equal(isAllowed({ guardianControls: { askZed: 'false' } }, 'askZed'), true)
+  const controls = readGuardianControls({ guardianControls: { challenges: 'false' } })
+  assert.equal(controls.challenges, null)
+  assert.equal(isAllowed({ guardianControls: { challenges: 'false' } }, 'challenges'), true)
 })
 
 t('booleans round-trip', () => {
-  assert.equal(readGuardianControls({ guardianControls: { askZed: false } }).askZed, false)
-  assert.equal(readGuardianControls({ guardianControls: { askZed: true } }).askZed, true)
+  assert.equal(readGuardianControls({ guardianControls: { challenges: false } }).challenges, false)
+  assert.equal(readGuardianControls({ guardianControls: { challenges: true } }).challenges, true)
 })
 
 t("the guardian's OFF beats the child's ON", () => {
-  const user = { guardianControls: { askZed: false } }
-  assert.equal(isAllowed(user, 'askZed', true), false)
+  const user = { guardianControls: { challenges: false } }
+  assert.equal(isAllowed(user, 'challenges', true), false)
 })
 
 t("the guardian's ON does not override a child who turned it off", () => {
   // Permitting is not requiring.
-  const user = { guardianControls: { askZed: true } }
-  assert.equal(isAllowed(user, 'askZed', false), false)
-  assert.equal(isAllowed(user, 'askZed', true), true)
+  const user = { guardianControls: { challenges: true } }
+  assert.equal(isAllowed(user, 'challenges', false), false)
+  assert.equal(isAllowed(user, 'challenges', true), true)
 })
 
 t('an unknown control is never treated as restricted', () => {
@@ -106,8 +110,8 @@ t('an unknown control is never treated as restricted', () => {
 })
 
 t('a change description reads as a sentence, and unknown keys describe nothing', () => {
-  assert.equal(describeControlChange('askZed', false), 'Ask Zed helper was turned off')
-  assert.equal(describeControlChange('askZed', true), 'Ask Zed helper was turned on')
+  assert.equal(describeControlChange('challenges', false), 'Live challenges was turned off')
+  assert.equal(describeControlChange('challenges', true), 'Live challenges was turned on')
   assert.equal(describeControlChange('nope', true), null)
 })
 
@@ -175,7 +179,7 @@ const approved = (extra = {}) => ({
 })
 
 t('a control change on an approved account is allowed', () => {
-  const d = decisions.decideControlChange({key: 'askZed', value: false, user: approved(), deps})
+  const d = decisions.decideControlChange({key: 'challenges', value: false, user: approved(), deps})
   assert.equal(d.ok, true)
   assert.equal(d.from, null)
 })
@@ -184,7 +188,7 @@ t('a value that is not a boolean is refused, never coerced', () => {
   // The three-valued shape only means anything if nothing but a real
   // boolean can be stored.
   for (const value of ['false', 0, 1, null, undefined, {}, []]) {
-    const d = decisions.decideControlChange({key: 'askZed', value, user: approved(), deps})
+    const d = decisions.decideControlChange({key: 'challenges', value, user: approved(), deps})
     assert.equal(d.ok, false, `should refuse ${JSON.stringify(value)}`)
     assert.equal(d.reason, 'not-a-boolean')
   }
@@ -205,7 +209,7 @@ t('an account with no approved guardian cannot set a control', () => {
     {role: 'learner', isMinor: true, guardian: {consentStatus: 'pending'}},
     {role: 'learner', isMinor: true, guardian: {consentStatus: 'denied'}},
   ]) {
-    const d = decisions.decideControlChange({key: 'askZed', value: false, user, deps})
+    const d = decisions.decideControlChange({key: 'challenges', value: false, user, deps})
     assert.equal(d.ok, false)
     assert.equal(d.reason, 'no-guardian')
   }
@@ -213,16 +217,16 @@ t('an account with no approved guardian cannot set a control', () => {
 
 t('setting a control to the value it already has writes nothing', () => {
   // Otherwise a re-render mails the guardian.
-  const user = approved({guardianControls: {askZed: false}})
-  const d = decisions.decideControlChange({key: 'askZed', value: false, user, deps})
+  const user = approved({guardianControls: {challenges: false}})
+  const d = decisions.decideControlChange({key: 'challenges', value: false, user, deps})
   assert.equal(d.ok, false)
   assert.equal(d.reason, 'unchanged')
   assert.equal(d.from, false)
 })
 
 t('a real change reports what it changed from', () => {
-  const user = approved({guardianControls: {askZed: false}})
-  const d = decisions.decideControlChange({key: 'askZed', value: true, user, deps})
+  const user = approved({guardianControls: {challenges: false}})
+  const d = decisions.decideControlChange({key: 'challenges', value: true, user, deps})
   assert.equal(d.ok, true)
   assert.equal(d.from, false)
 })
@@ -230,10 +234,10 @@ t('a real change reports what it changed from', () => {
 t('the guardian notice says what changed, on whose account, and what to do', () => {
   const mail = decisions.buildControlNoticeEmail({
     childName: 'Milton Phiri',
-    description: controls.describeControlChange('askZed', false),
+    description: controls.describeControlChange('challenges', false),
   })
   assert.match(mail.subject, /Milton Phiri/)
-  assert.match(mail.text, /Ask Zed helper was turned off/)
+  assert.match(mail.text, /Live challenges was turned off/)
   assert.match(mail.text, /If it was not you/)
   // The message must not overpromise: the zone runs on the child's phone.
   assert.match(mail.text, /a determined child can reach it/)

@@ -7,7 +7,7 @@
 // gives: what this module decides is whether a child may reach an AI, and
 // a rule that lives only in the browser is not a rule. The server reads it
 // in consentGuard.assertLearnerCapability (so BOTH the aiChat callable and
-// the apiAiChat SSE endpoint are covered by one check) and the client
+// an SSE endpoint are covered by one check) and the client
 // reaches it through src/utils/guardianControls.js.
 //
 // Plain ESM: no React, no DOM, no Firebase. Tested under plain node by
@@ -29,9 +29,8 @@
 //
 // What "enforced" means here, precisely, and it is NOT the same for every
 // control — see the `enforcement` field below. A 'server' control is read
-// SERVER-SIDE at the point of use (apiAiChat refuses a chat turn when
-// askZed is false), so turning it off is not a UI courtesy a modified
-// client can ignore. A 'client' control removes the surface and refuses
+// SERVER-SIDE at the point of use, so turning it off is not a UI courtesy a
+// modified client can ignore. A 'client' control removes the surface and refuses
 // the route, and nothing re-checks behind that; it is reserved for solo
 // activities, where what a guardian is expressing is a preference about
 // time rather than a safety boundary. Recording the difference as data is
@@ -65,13 +64,6 @@
  *              in CLAUDE.md.
  */
 export const GUARDIAN_CONTROLS = Object.freeze([
-  {
-    key: 'askZed',
-    label: 'Ask Zed helper',
-    hint: 'AI study answers (online only)',
-    icon: '🤖',
-    enforcement: 'server',
-  },
   {
     key: 'challenges',
     label: 'Live challenges',

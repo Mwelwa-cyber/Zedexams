@@ -10,7 +10,7 @@
  *
  * ── `blogPosts.js` travelled, and its Vite glob is the reason to check ──
  *
- * The two pages were its only consumers (`zedChat`'s `chatMarkdown` mentions
+ * The two pages were its only consumers (the removed Zed chat's `chatMarkdown` mentioned
  * it in a COMMENT — a shared `marked.setOptions` note — which a `grep -l`
  * reports identically to an import; the difference is the whole finding).
  *

@@ -61,9 +61,7 @@ function loadLinkCore() {
  * so adding a control is one line here plus one in the shared core, and a
  * capability can never be silently governed by a control nobody declared.
  */
-const CAPABILITY_CONTROL = Object.freeze({
-  aiChat: "askZed",
-});
+const CAPABILITY_CONTROL = Object.freeze({});
 
 /**
  * Which LINK permission governs which capability.
@@ -86,7 +84,6 @@ const CAPABILITY_CONTROL = Object.freeze({
  * from one made by an adult who proved who they were.
  */
 const CAPABILITY_PERMISSION = Object.freeze({
-  aiChat: "askZed",
   leaderboard: "leaderboard",
   social: "challenges",
 });

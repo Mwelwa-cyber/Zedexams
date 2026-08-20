@@ -1,5 +1,9 @@
 import { useSyncExternalStore } from 'react'
-import { isDarkReadingThemeId, seededDarkness } from './readingThemeCore'
+import {
+  prefersDarkColorScheme,
+  seededDarkness,
+  seededWorkspaceDarkness,
+} from './readingThemeCore'
 import {
   DEFAULT_TEACHER_THEME,
   TEACHER_THEME_STORAGE_KEY,
@@ -193,16 +197,23 @@ export function hydrateTeacherTheme(id) {
  * light palette the learner had just chosen. That is the bug: the toggle said
  * day, the page stayed dark, and no learner-facing control could clear it.
  *
- * Two things it deliberately does NOT do:
+ * Three things it deliberately does NOT do:
  *   • It never touches a CHOSEN workspace theme. A teacher who picked Night
  *     keeps Night whatever they read in — that is what the bridge is for.
+ *   • It never DARKENS a workspace the OS did not already ask to be dark. A
+ *     Midnight reading palette is a statement about the page a learner reads
+ *     on, not a request to repaint the teacher workspace; treating it as one
+ *     turned every browser dark for anyone whose account had recorded
+ *     Midnight, teachers included (#2535). See readingThemeCore.js.
  *   • It never writes localStorage. The seed stays unanswered, so it keeps
- *     following the reading theme rather than freezing on the first value it
- *     happened to see.
+ *     following rather than freezing on the first value it happened to see.
  */
 export function syncSeededTeacherTheme(readingTheme) {
   if (hasStoredTeacherTheme()) return getTeacherThemeSnapshot()
-  const next = seedFor(isDarkReadingThemeId(readingTheme))
+  const next = seedFor(seededWorkspaceDarkness({
+    readingTheme,
+    osDark: prefersDarkColorScheme(),
+  }))
   const changed = next !== getTeacherThemeSnapshot()
   current = next
   applyTeacherThemeAttribute(next)

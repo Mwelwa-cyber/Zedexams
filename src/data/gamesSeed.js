@@ -173,6 +173,11 @@ const WORD_BUILDER_G7 = {
   subject: 'english',
   grade: 7,
   type: 'word_builder',
+  // The whole Grade 7 spelling bank, fetched on demand rather than carried
+  // here: 879 words would otherwise sit in the bundle of every learner who
+  // opens the games hub. The ten questions below stay as the fallback for a
+  // pack that fails to load. See features/games/lib/spellingPack.js.
+  wordPack: 'grade7-spelling',
   difficulty: 'hard',
   description: 'Tap the letters to spell the word in the clue — Grade 7 subject vocabulary.',
   timer: 0,
@@ -473,6 +478,102 @@ const FRACTION_LADDER_G7 = {
   ],
 }
 
+/*
+ * Five more modes of the same map engine (`type: 'map_place'`, `mode:`).
+ *
+ * One pack per mode rather than one pack with a menu inside it: the games hub
+ * IS the menu here, and a pack is what gives a mode its own titled row, its
+ * own description and its own place in the daily rotation. A menu nested
+ * inside one pack would put a screen between the learner and the game and
+ * hide four of the five from the hub entirely.
+ *
+ * None of them carries questions. Every province outline, capital, border,
+ * route and ceremony is read from src/data/zambiaGeography.js, which is
+ * generated from the datasets in docs/learner — the ones a Zambian teacher
+ * signs off in. Facts in a pack here would be a second copy to keep in step.
+ */
+
+const KNOW_ZAMBIA_CAPITALS_G7 = {
+  id: 'social_know_zambia_capitals_g7',
+  title: 'Zambia: Where’s the capital?',
+  subject: 'social studies',
+  grade: 7,
+  type: 'map_place',
+  mode: 'capital',
+  difficulty: 'medium',
+  description: 'A town appears on the map. Tap the province it is the capital of.',
+  timer: 0,
+  points: 15,
+  active: true,
+  cbc_topic: 'Zambia',
+  questions: [],
+}
+
+const KNOW_ZAMBIA_JOURNEY_G7 = {
+  id: 'social_know_zambia_journey_g7',
+  title: 'Zambia: Journey',
+  subject: 'social studies',
+  grade: 7,
+  type: 'map_place',
+  mode: 'journey',
+  difficulty: 'hard',
+  description: 'Travel Livingstone to Kasama and three more roads. Tap every province you cross, in order.',
+  timer: 0,
+  points: 20,
+  active: true,
+  cbc_topic: 'Zambia',
+  // Omitting `routeId` plays all four routes in the dataset, one after another.
+  questions: [],
+}
+
+const KNOW_ZAMBIA_ODD_G7 = {
+  id: 'social_know_zambia_odd_g7',
+  title: 'Zambia: Odd one out',
+  subject: 'social studies',
+  grade: 7,
+  type: 'map_place',
+  mode: 'odd',
+  difficulty: 'hard',
+  description: 'Four provinces are lit and six are dimmed. Three share something. One does not.',
+  timer: 0,
+  points: 20,
+  active: true,
+  cbc_topic: 'Zambia',
+  questions: [],
+}
+
+const KNOW_ZAMBIA_NEIGHBOURS_G7 = {
+  id: 'social_know_zambia_neighbours_g7',
+  title: 'Zambia: Our neighbours',
+  subject: 'social studies',
+  grade: 7,
+  type: 'map_place',
+  mode: 'neighbours',
+  difficulty: 'medium',
+  description: 'Eight countries touch Zambia. Tap a name, then tap the box it belongs in.',
+  timer: 0,
+  points: 15,
+  active: true,
+  cbc_topic: 'Zambia',
+  questions: [],
+}
+
+const KNOW_ZAMBIA_CEREMONY_G7 = {
+  id: 'social_know_zambia_ceremony_g7',
+  title: 'Zambia: Where’s the ceremony?',
+  subject: 'social studies',
+  grade: 7,
+  type: 'map_place',
+  mode: 'ceremony',
+  difficulty: 'medium',
+  description: 'Kuomboka, N’cwala, Mutomboko, Likumbi Lya Mize — where each is held, whose it is and when.',
+  timer: 0,
+  points: 15,
+  active: true,
+  cbc_topic: 'Zambia',
+  questions: [],
+}
+
 export const GAMES_SEED = [
   // GRADE 7 ONLY. The app is open to Grade 7 alone (LEARNER_GRADES), and on
   // 2026-08-20 the other 44 entries were removed: grades 1-3 and 8-9 were
@@ -492,6 +593,11 @@ export const GAMES_SEED = [
   SCIENCE_SYSTEMS_G7,
   SOCIAL_CIVICS_G7,
   KNOW_ZAMBIA_G7,
+  KNOW_ZAMBIA_CAPITALS_G7,
+  KNOW_ZAMBIA_JOURNEY_G7,
+  KNOW_ZAMBIA_ODD_G7,
+  KNOW_ZAMBIA_NEIGHBOURS_G7,
+  KNOW_ZAMBIA_CEREMONY_G7,
   FRACTION_LADDER_G7,
   INTEGERS_G7,
 ].map(applyGameAccessDefaults)

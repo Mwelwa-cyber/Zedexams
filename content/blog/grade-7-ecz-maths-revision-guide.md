@@ -45,9 +45,9 @@ Each topic above maps directly to a quiz on **/quizzes** — open the
 Grade 7 list, filter by Mathematics, and the topic chips at the top
 let you pick "Fractions" or "Measurements" without scrolling.
 
-If a question stumps you, tap **Ask Zed** — Zed walks you through the
-working step-by-step in the same way a teacher would, and you can
-ask follow-ups in your own words.
+If a question stumps you, tap **Explain this answer** on your results
+— it walks you through the working step-by-step in the same way a
+teacher would.
 
 ## A week-1 plan you can copy
 
