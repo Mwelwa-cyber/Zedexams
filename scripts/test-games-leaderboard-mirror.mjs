@@ -140,6 +140,44 @@ test('the client still refuses what the server would never have published', () =
   assert.equal(stripUnsafeName('Elisha C at zedexams.com'), 'Learner')
 })
 
+test('nothing the plain-node suite loads reaches firebase-functions', () => {
+  // The failure this catches ran green locally and red in CI, which is the
+  // worst way to find it: the `Tests (importer + sanitize + schema)` job
+  // installs the ROOT dependencies only. `firebase-admin` resolves from
+  // there — which is why `dailyQuizService` loads at all — and
+  // `firebase-functions` does not.
+  //
+  // Both suites already prove it by LOADING (a stray require fails them
+  // outright on a clean checkout), but only on a machine without
+  // `functions/node_modules`, and a developer who has run `npm install` in
+  // `functions/` has no such machine. This asserts the shape instead, so the
+  // rule is checkable everywhere: `rollup.js` holds every decision and every
+  // write, `index.js` holds the trigger registration and nothing else.
+  const { readFileSync } = require('node:fs')
+  const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8')
+
+  const rollup = read('../functions/gamesLeaderboard/rollup.js')
+  assert.ok(
+    !/require\(\s*["']firebase-functions/.test(rollup),
+    'rollup.js must not require firebase-functions — move it to index.js',
+  )
+  // consentGuard pulls firebase-functions in for HttpsError, so it may only
+  // be reached from inside a function body, never at module load.
+  const topLevel = rollup.split(/\nfunction |\nasync function /)[0]
+  assert.ok(
+    !/require\(\s*["']\.\.\/consentGuard/.test(topLevel),
+    'consentGuard must be required lazily, inside mayRank',
+  )
+  // And the wrapper stays a wrapper: if a decision migrates back into it,
+  // the flow test can no longer reach that decision.
+  const index = read('../functions/gamesLeaderboard/index.js')
+  const code = index.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+  assert.ok(
+    !/FieldValue|resolveBoardEligibility|publicLearnerName|roundPoints/.test(code),
+    'index.js must stay the trigger registration — decisions belong in rollup.js',
+  )
+})
+
 test('the rules bound and the rollup clamp are the same number', () => {
   // A rule that allows 1000 and a clamp at 500 would silently shave real
   // rounds; a clamp at 5000 with a rule at 1000 would leave the gap the

@@ -33,7 +33,12 @@ import {
 } from '../src/features/games/lib/gamesLeaderboardCore.js'
 
 const require = createRequire(import.meta.url)
-const { handleScoreCreated, COLLECTION } = require('../functions/gamesLeaderboard/index.js')
+// rollup.js, NOT index.js. index.js requires `firebase-functions` to build
+// the trigger, and the CI job that runs this installs the ROOT dependencies
+// only — `firebase-admin` resolves from there, `firebase-functions` does
+// not. Requiring the wrapper here failed CI with MODULE_NOT_FOUND while
+// passing locally on a machine that happened to have functions/ installed.
+const { handleScoreCreated, COLLECTION } = require('../functions/gamesLeaderboard/rollup.js')
 
 let failures = 0
 async function test(name, fn) {
