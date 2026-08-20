@@ -203,6 +203,16 @@ const COVERED = [
   // every scored attempt, and the read/write split carries the guardian
   // consent gate, so it is worth proving rather than assuming.
   'leaderboards',
+  // The GAMES weekly board. Emulator-covered rather than acknowledged
+  // because the whole difference between it and the `scores` rows that feed
+  // it is that a client cannot write it: the points, the grade, the
+  // guardian check and the printed name are all the server's. A client
+  // write anywhere in this subtree would return the board to being a
+  // ranking of numbers a client chose, which is what it replaced. The read
+  // is narrowed to signed-in — narrower than `scores` — because a row names
+  // a child and a whole grade of them ranked by name is not something an
+  // anonymous visitor with a URL gets to read.
+  'gamesLeaderboards',
   // The guardian↔learner link's server-only collections. Covered by the
   // deny-both-directions tests in test-firestore-rules-emulator.mjs — worth
   // real emulator coverage rather than an acknowledgement because

@@ -1833,6 +1833,14 @@ const {createDuelQueueOnCreate, createSubmitDuelAnswers} = require("./duel");
 exports.duelQueueOnCreate = createDuelQueueOnCreate();
 exports.submitDuelAnswers = createSubmitDuelAnswers();
 
+// The GAMES weekly leaderboard (/games/leaderboard). One entry per learner
+// per grade per ISO week, incremented by a trigger on `scores` — the board a
+// client can read but never write. The page it feeds replaced a board that
+// ranked raw `scores` ROWS, so a learner who played four rounds took four
+// places on it. africa-south1 like every Firestore trigger.
+const {createGameScoreOnCreate} = require("./gamesLeaderboard");
+exports.gameScoreOnCreate = createGameScoreOnCreate();
+
 // Central Question Bank — admin-only grade classifier for the one-click
 // "Import existing questions" backfill (/admin/import-questions). Given a batch
 // of questions whose syllabus topic didn't map to one grade, returns the CBC

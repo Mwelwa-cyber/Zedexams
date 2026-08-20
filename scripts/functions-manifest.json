@@ -1169,6 +1169,21 @@
       "classification": "secrets-bound",
       "batch": null
     },
+    "gameScoreOnCreate": {
+      "kind": "factory",
+      "inline": false,
+      "options": {
+        "document": "\"scores/{scoreId}\"",
+        "region": "\"africa-south1\""
+      },
+      "optionsFrom": "./gamesLeaderboard (factory createGameScoreOnCreate)",
+      "optionsUnresolved": null,
+      "target": "createGameScoreOnCreate()",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
     "generateAssessment": {
       "kind": "factory",
       "inline": false,

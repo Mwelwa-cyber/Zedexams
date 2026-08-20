@@ -4,6 +4,10 @@
  * Home it also renders the "Hi, {name}! 👋" greeting with the
  * Grade · Term chip.
  *
+ * The bar is frosted glass that STAYS while the page scrolls under it
+ * (see the sticky note on the markup below) — so the blur has moving
+ * content to work on, which is the only thing that makes glass glass.
+ *
  * The exam countdown is no longer a chip here: prototype v7 puts it
  * back as the coral card directly under this greeting
  * (ExamCountdownCard), which can name the next paper as well as count
@@ -87,6 +91,21 @@ export default function LearnerHeader({ activeTerm, calendar = null, showGreetin
   const gradeChip = gradeTermChip(userProfile?.grade, calendar, activeTerm)
 
   return (
+    /*
+      This <header> is the page banner and it stays exactly where it was —
+      wrapping the bar AND the greeting, which is what makes "the greeting
+      is in the header" true for a screen reader and for the spec that
+      asserts it. What changed is that `.lhx-header` is now
+      `display: contents` (learnerTheme.css), so the element generates no
+      BOX: a sticky child can only travel inside its parent's box, and this
+      one's box was barely taller than the greeting, so the bar came
+      unstuck and scrolled away about seventy pixels in. With the box gone
+      the bar sticks to `.lhx-page` and has the whole page to ride over —
+      which is the difference between frosted chrome and a pale strip that
+      leaves before any content reaches it. `useHideOnScroll` above has
+      always described a bar that folds on the way down and returns on the
+      first scroll up; neither could happen to a bar already off screen.
+    */
     <header className="lhx-header">
       <div className={`lhx-topbar ${topbarHidden ? 'lhx-topbar-hidden' : ''}`}>
         <Link to="/dashboard" className="lhx-logo" aria-label="ZedExams home">

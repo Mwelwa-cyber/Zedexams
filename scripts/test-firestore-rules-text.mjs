@@ -726,6 +726,38 @@ test('leaderboard writes are gated on guardian consent', () => {
   )
 })
 
+test('a game score is bounded, not merely numeric', () => {
+  // `score is number` alone accepted `score: 50000`. The bound must stay
+  // equal to MAX_ROUND_POINTS in the rollup core, which clamps the same
+  // value on the way into the weekly board — a rule and a clamp that
+  // disagree leave the gap open in one of the two directions.
+  const start = rules.indexOf('match /scores/{scoreId}')
+  const block = rules.slice(start, rules.indexOf('match /', start + 10))
+  assert(block.includes('incoming().score >= 0'), 'scores.score must have a lower bound')
+  assert(block.includes('incoming().score <= 1000'), 'scores.score must have an upper bound')
+})
+
+test('the games weekly board is server-written and signed-in-read', () => {
+  // The whole point of the rollup: a client writes a ROUND and the server
+  // decides what it is worth, which grade it lands on, and what name is
+  // safe to print. A client write here would undo all four.
+  const start = rules.indexOf('match /gamesLeaderboards/{grade}/weeks/{weekId}/entries/{entryUid}')
+  assert(start >= 0, 'games weekly board block not found')
+  const block = rules.slice(start, rules.indexOf('}', rules.indexOf('allow write', start)))
+  assert(block.includes('allow read: if isVerified()'), 'board reads must require a verified account')
+  assert(block.includes('allow write: if false'), 'board writes must be server-only')
+})
+
+test('the games board rows stay reachable by the account-deletion purge', () => {
+  // accountDeletion.js purges by COLLECTION GROUP `entries` on field `uid`.
+  // Renaming either half of that leaves a child's name on a public board
+  // after their account is destroyed, and nothing else would notice.
+  assert(
+    rules.includes('/weeks/{weekId}/entries/{entryUid}'),
+    'the board path must keep the `entries` subcollection name the purge queries',
+  )
+})
+
 // ── email-verification enforcement ─────────────────────────────
 
 console.log('\nemail-verification enforcement')
