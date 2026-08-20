@@ -220,7 +220,7 @@ export default function VerifyEmail() {
             disabled={busy}
             className="text-[var(--accent)] font-semibold hover:underline bg-transparent shadow-none p-0 min-h-0 disabled:opacity-50"
           >
-            Use a different email
+            Start again with a different email
           </button>
           <span aria-hidden="true" className="text-[#ddd]">|</span>
           <button
@@ -232,6 +232,18 @@ export default function VerifyEmail() {
             Sign out
           </button>
         </div>
+
+        {/* Say what the link does. It reads as "change the address on this
+            account"; it actually signs out and registers a NEW one, because an
+            unverified account cannot prove it owns the old address (see
+            handleChangeEmail). Without this sentence the first account is
+            abandoned silently — and for an under-18 signup that leaves a minor
+            record with an undeliverable address and no guardian attached to
+            it. */}
+        <p className="mt-3 text-center text-[11.5px] leading-snug text-[#6E7280]">
+          Starting again makes a new account. This one stays unverified and
+          unused.
+        </p>
       </div>
     </div>
   )
