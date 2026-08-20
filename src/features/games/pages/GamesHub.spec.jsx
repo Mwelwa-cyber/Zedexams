@@ -25,7 +25,7 @@ const mocks = vi.hoisted(() => ({
   getTodaysChallenge: vi.fn(),
   getMyStreak: vi.fn(),
   getMyGameBadges: vi.fn(),
-  auth: { currentUser: { uid: 'learner-1' }, userProfile: { grade: 4 } },
+  auth: { currentUser: { uid: 'learner-1' }, userProfile: { grade: 7 } },
 }))
 
 vi.mock('../../../contexts/AuthContext', () => ({
@@ -73,8 +73,8 @@ import { GAME_BADGES } from '../../../data/gameBadges'
 // Deliberately titled with CONTENT names, the way real docs are: the hub
 // must name each card for its mechanic, not for the pack behind it.
 const GAMES = [
-  { id: 'g-path', title: 'Number Target: Master', type: 'number_target', grade: 4, subject: 'mathematics', points: 15 },
-  { id: 'g-words', title: 'Spell the Animal', type: 'word_builder', grade: 4, subject: 'english', cbc_topic: 'Spelling', points: 15 },
+  { id: 'g-path', title: 'Number Target: Master', type: 'number_target', grade: 7, subject: 'mathematics', points: 15 },
+  { id: 'g-words', title: 'Spell the Animal', type: 'word_builder', grade: 7, subject: 'english', cbc_topic: 'Spelling', points: 15 },
   { id: 'g-other-grade', title: 'G6 Quiz', type: 'timed_quiz', grade: 6, subject: 'science', points: 15 },
 ]
 
@@ -94,7 +94,7 @@ beforeEach(() => {
   // switched off, signed out). Without this a later test inherits whichever
   // learner ran last — the seed-fallback test would look for grade-4 games
   // as a signed-out visitor, who resolves to the rollout grade instead.
-  mocks.auth = { currentUser: { uid: 'learner-1' }, userProfile: { grade: 4 } }
+  mocks.auth = { currentUser: { uid: 'learner-1' }, userProfile: { grade: 7 } }
   mocks.listGames.mockResolvedValue(GAMES)
   mocks.getMyHistory.mockResolvedValue([
     { gameId: 'g-words', score: 80 },
@@ -126,7 +126,7 @@ describe('GamesHub', () => {
 
   it('a challenge doc with no title keeps its Play instead of inventing a name', async () => {
     mocks.getTodaysChallenge.mockResolvedValue({
-      game: { id: 'g-untitled', type: 'memory_match', grade: 4 },
+      game: { id: 'g-untitled', type: 'memory_match', grade: 7 },
       source: 'rotation',
       dateId: '2026-08-19',
     })
@@ -144,21 +144,21 @@ describe('GamesHub', () => {
     // over the whole collection and the hero labelled whatever it landed
     // on — "TODAY'S QUIZ · GRADE 3" above a challenge card saying
     // "Grade 7", for one learner, on one screen.
-    expect(mocks.getTodaysChallenge).toHaveBeenCalledWith({ grade: 4 })
+    expect(mocks.getTodaysChallenge).toHaveBeenCalledWith({ grade: 7 })
 
     // One function feeds both pills, so they cannot disagree. Asserting
     // BOTH (rather than one) is what makes a second grade source fail
     // here instead of in production.
     const quiz = screen.getByText('Number Target: Master').closest('a')
     const race = screen.getByText('Race a learner').closest('a')
-    expect(within(quiz).getByText('Grade 4')).toBeInTheDocument()
-    expect(within(race).getByText('Grade 4')).toBeInTheDocument()
+    expect(within(quiz).getByText('Grade 7')).toBeInTheDocument()
+    expect(within(race).getByText('Grade 7')).toBeInTheDocument()
     // …and never the grade of the game the rotation happened to return,
     // which for GAMES[0] is also 4 — so the fixture below proves it.
   })
 
   it('a grade with no challenge today gets the empty state, never another grade\'s', async () => {
-    mocks.getTodaysChallenge.mockResolvedValue({ game: null, source: 'none', dateId: '2026-08-19', grade: 4 })
+    mocks.getTodaysChallenge.mockResolvedValue({ game: null, source: 'none', dateId: '2026-08-19', grade: 7 })
     renderHub()
     expect(await screen.findByText('No challenge today')).toBeInTheDocument()
     // Not a link: a card that says there is nothing to play must not open
@@ -171,7 +171,7 @@ describe('GamesHub', () => {
 
   it('the grade on the pills is the LEARNER\'s, not the returned game\'s', async () => {
     // The exact shape of the live bug: a Grade 3 game came back for a
-    // Grade 4 learner. The pill must still read the learner.
+    // Grade 7 learner. The pill must still read the learner.
     mocks.getTodaysChallenge.mockResolvedValue({
       game: { id: 'g-wrong', title: 'Someone else\'s quiz', type: 'timed_quiz', grade: 3 },
       source: 'rotation',
@@ -179,7 +179,7 @@ describe('GamesHub', () => {
     })
     renderHub()
     const quiz = (await screen.findByText('Someone else\'s quiz')).closest('a')
-    expect(within(quiz).getByText('Grade 4')).toBeInTheDocument()
+    expect(within(quiz).getByText('Grade 7')).toBeInTheDocument()
     expect(within(quiz).queryByText('Grade 3')).toBeNull()
     expect(screen.queryByText(/GRADE 3/i)).toBeNull()
   })
@@ -235,15 +235,15 @@ describe('GamesHub', () => {
     // one per mechanic — so the `timed_quiz` packs were unreachable by
     // browsing however many of them existed, while learner search listed
     // them happily. They have an engine, so they list.
-    const spelling = screen.getByText('Spell It Right').closest('a')
-    expect(spelling).toHaveAttribute('href', '/games/play/english_spell_it_right_g4')
-    expect(screen.getByText('Speed Tables Challenge')).toBeInTheDocument()
-    expect(screen.getByText('Plant Parts')).toBeInTheDocument()
-    // Two live packs + two seed-backed mechanics + five seed timed_quiz
-    // packs for Grade 4. The old ceiling was four, whatever the number.
-    expect(document.querySelectorAll('a.lhx-game')).toHaveLength(9)
+    const grammar = screen.getByText('Grammar & Meaning').closest('a')
+    expect(grammar).toHaveAttribute('href', '/games/play/english_grammar_g7')
+    expect(screen.getByText('Ratio & Percentage')).toBeInTheDocument()
+    expect(screen.getByText('Body Systems & Energy')).toBeInTheDocument()
+    // Two live packs replace their seed twins, and every other Grade 7 pack
+    // lists behind them. The old ceiling was four rows, whatever the number.
+    expect(document.querySelectorAll('a.lhx-game')).toHaveLength(16)
 
-    // …but a Grade 6 quiz is still not a Grade 4 learner's game. Widening
+    // …but a Grade 6 quiz is still not a Grade 7 learner's game. Widening
     // WHAT lists must not widen WHICH GRADE lists.
     expect(screen.queryByText('G6 Quiz')).toBeNull()
     // …grade browsing is gone…
@@ -259,43 +259,44 @@ describe('GamesHub', () => {
     // grade already has. `.find()` returned the first one and the new pack
     // was invisible — adding a game did nothing a learner could see.
     mocks.listGames.mockResolvedValue([
-      { id: 'mm-words-g4', title: 'Word Meanings', type: 'memory_match', grade: 4, subject: 'english' },
-      { id: 'mm-capitals-g4', title: 'African Capitals', type: 'memory_match', grade: 4, subject: 'social' },
+      { id: 'mm-words-g7', title: 'Word Meanings', type: 'memory_match', grade: 7, subject: 'english' },
+      { id: 'mm-capitals-g7', title: 'African Capitals', type: 'memory_match', grade: 7, subject: 'social' },
     ])
     renderHub()
 
     const capitals = (await screen.findByText('African Capitals')).closest('a')
-    expect(capitals).toHaveAttribute('href', '/games/play/mm-capitals-g4')
+    expect(capitals).toHaveAttribute('href', '/games/play/mm-capitals-g7')
     const meanings = screen.getByText('Word Meanings').closest('a')
-    expect(meanings).toHaveAttribute('href', '/games/play/mm-words-g4')
+    expect(meanings).toHaveAttribute('href', '/games/play/mm-words-g7')
 
     // Two rows both reading "Meaning Match" would identify neither, so
     // once a mechanic owns more than one row each speaks for its own pack.
     expect(screen.queryByText('Meaning Match')).toBeNull()
-    // And the live packs answer for their type — the bundled Grade 4
-    // Meaning Match is a fallback for an EMPTY type, not a fifth row.
-    expect(document.querySelector('a[href="/games/play/english_meaning_match_g4"]')).toBeNull()
+    // And the live packs answer for their type — the bundled Grade 7
+    // Meaning Match is a fallback for an EMPTY type, not a third row.
+    expect(document.querySelector('a[href="/games/play/english_meaning_match_g7"]')).toBeNull()
   })
 
-  it('never shows another grade\'s pack — the mechanic waits instead', async () => {
-    // The exact live shape of the bug. `word_builder` is the probe on
-    // purpose: the bundled seed has no Grade 4 pack for it (only Grade 3),
-    // so this measures the real fallback against the real seed rather than
-    // against a fixture built to have a hole in it.
+  it('never shows another grade\'s pack, whatever its mechanic', async () => {
+    // The exact live shape of the bug: a live pack of a mechanic the learner's
+    // grade also has, but belonging to a grade they are not in.
+    //
+    // This used to also assert the "mechanic waits" row, using word_builder as
+    // the probe because the seed had no Grade 4 pack for it. Grade 7 now has a
+    // pack for every mechanic — test:learner-grade-games fails if it ever does
+    // not — so that hole cannot be produced from the real seed any more, and
+    // building a fixture with a hole in it would test the fixture. The rule
+    // itself is proven on buildCatalogue in gamesHubCore.test.js.
     mocks.listGames.mockResolvedValue([
       { id: 'g-wb-g6', title: 'Spell the Planet', type: 'word_builder', grade: 6, subject: 'english', cbc_topic: 'Spelling' },
     ])
     renderHub()
 
-    const row = (await screen.findByText('Word Builder')).closest('.lhx-game')
-    // The row is still there — a mechanic that vanishes is indistinguishable
-    // from one that never existed, and nobody fills a gap they cannot see.
-    expect(row).toBeInTheDocument()
-    // …but it does not open, and it carries none of that pack's identity.
-    expect(row.tagName).not.toBe('A')
+    // The mechanic is there, backed by the learner's OWN grade…
+    const row = (await screen.findByText('Word Builder')).closest('a')
+    expect(row).toHaveAttribute('href', '/games/play/english_word_builder_g7')
+    // …and the Grade 6 pack is nowhere, by link or by name.
     expect(document.querySelector('a[href="/games/play/g-wb-g6"]')).toBeNull()
-    expect(within(row).getByText('Coming soon for Grade 4')).toBeInTheDocument()
-    expect(within(row).getByText('Soon')).toBeInTheDocument()
     expect(screen.queryByText('Spell the Planet')).toBeNull()
 
     // The four mechanics lead in the mockup's order, whatever else lists
@@ -303,17 +304,24 @@ describe('GamesHub', () => {
     const names = [...document.querySelectorAll('.lhx-game b')].map((el) => el.textContent)
     expect(names.slice(0, 4)).toEqual(['Number Path', 'Word Builder', 'Meaning Match', 'Punctuation Pro'])
     expect(names.at(-1)).toBe('Map Quest')
-    // Sorted by title within the tail, so the order is a property of the
-    // data rather than of which pool answered first.
+    // The tail is ordered by TYPE and then by title — fraction_ladder, then
+    // map_place, then the timed_quiz packs alphabetically — so the order is a
+    // property of the data rather than of which pool answered first.
     expect(names.slice(4, -1)).toEqual([
-      'Fraction Match', 'Plant Parts', 'Speed Tables Challenge', 'Spell It Right', 'Zambia Basics',
+      // fraction_ladder, then the six map_place modes by title, then the
+      // timed_quiz packs by title.
+      'Fraction Ladder',
+      'Know Zambia', 'Zambia: Journey', 'Zambia: Odd one out', 'Zambia: Our neighbours',
+      'Zambia: Where’s the capital?', 'Zambia: Where’s the ceremony?',
+      'Body Systems & Energy', 'Grammar & Meaning', 'Integer Battle',
+      'Ratio & Percentage', 'Zambia: Land & Government',
     ])
   })
 
   it('asks the games list for the learner\'s grade too, not just the daily', async () => {
     renderHub()
     await screen.findByText('Number Target: Master')
-    expect(mocks.listGames).toHaveBeenCalledWith({ grade: 4 })
+    expect(mocks.listGames).toHaveBeenCalledWith({ grade: 7 })
   })
 
   it('offers ONE race HERO — the live one — with Race Zed a rank below it', async () => {
@@ -352,7 +360,7 @@ describe('GamesHub', () => {
     // "challenges are switched off for this account".
     mocks.auth = {
       currentUser: { uid: 'learner-1' },
-      userProfile: { grade: 4, role: 'learner', guardianControls: { challenges: false } },
+      userProfile: { grade: 7, role: 'learner', guardianControls: { challenges: false } },
     }
     renderHub()
     await screen.findByText('Number Target: Master')
@@ -380,7 +388,7 @@ describe('GamesHub', () => {
     mocks.getMyStreak.mockRejectedValue(new Error('offline'))
     mocks.getMyGameBadges.mockRejectedValue(new Error('offline'))
     renderHub()
-    // Seed games render (the learner is grade 4, the seed has grade-4 games).
+    // Seed games render (the learner is grade 7, and the seed is Grade 7).
     const cards = await screen.findAllByRole('link', { name: /Best|Play/ })
     expect(cards.length).toBeGreaterThan(0)
   })
