@@ -34,9 +34,15 @@
  *
  * ── What this front door exports, and what it deliberately does not ─────
  *
- * Two names, because two are what the rest of `src/` consumes today:
+ * Two names. `getSubjectMascot` is what the rest of `src/` consumes today;
+ * `GameBadgeCard`'s outside consumer was `learnerDashboard/BadgesPage`,
+ * retired on 2026-08-20 when /my-badges folded into /profile's own badge
+ * shelf. The export stays because `games/BadgeToast` still draws the card
+ * (from `./gamesUi`, not through this door) and re-opening a front door
+ * costs more than leaving one ajar — but nothing outside the feature
+ * reaches for it now:
  *
- *   • `GameBadgeCard`    — `learnerDashboard/BadgesPage`
+ *   • `GameBadgeCard`    — no outside consumer since 2026-08-20
  *   • `getSubjectMascot` — `features/dailyExams/DailyExamsHub`
  *
  * Every name added here lands in the bundle of every consumer that imports
@@ -121,7 +127,8 @@
  *     was moved into this feature and moved back for that reason: a util the
  *     legacy tree still imports would have turned one recorded debt line into
  *     a new one, and this list only shrinks.
- *   • `gameBadgesService.js` — also read by `learnerDashboard/BadgesPage`.
+ *   • `gameBadgesService.js` — read by `learnerHome/LearnerProfilePage`,
+ *     which is where the badge shelf lives since /my-badges was retired.
  *   • `gameProgress.js` — also read by `utils/gamesService.js`.
  *   • `gameScorePayload.js` — read by `utils/gamesService.js` and the replay
  *     harness; no file in this feature imports it at all.
