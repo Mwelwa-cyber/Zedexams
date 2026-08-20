@@ -116,6 +116,32 @@ describe('speak() — the request that reaches /api/tts', () => {
     stopSpeaking()
   })
 
+  // The admin picks the learner voice in /admin/voice; the server resolves it
+  // from settings/ttsVoices and uses its first offered voice when the request
+  // names none. A client that names a voice of its own is refused with 400 the
+  // moment the admin offers a different set — and the browser fallback in the
+  // catch makes that refusal SOUND like success, which is how the picker came
+  // to be inaudible on every learner surface. So: no voice on the wire.
+  it('names no voice, leaving the choice to the admin-configured server', async () => {
+    signIn('learner-token')
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      blob: async () => new Blob([new Uint8Array([1, 2, 3])], { type: 'audio/mpeg' }),
+    }))
+    globalThis.fetch = fetchMock
+    globalThis.URL.createObjectURL = vi.fn(() => 'blob:tts')
+    globalThis.URL.revokeObjectURL = vi.fn()
+    vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+
+    speak('Photosynthesis')
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled())
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(body.text).toBe('Photosynthesis')
+    expect('voice' in body).toBe(false)
+    stopSpeaking()
+  })
+
   it('does not call /api/tts at all when signed out', async () => {
     const fetchMock = vi.fn()
     globalThis.fetch = fetchMock

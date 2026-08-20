@@ -15,8 +15,10 @@ import { ttsAuthHeaders } from '../utils/ttsAuth'
 const TTS_ENDPOINT = '/api/tts'
 const LS_VOICE_KEY = 'examprep:zedVoiceURI'
 
-// Curated voices our /api/tts Firebase Function will accept.
-// First item is the default. Names are user-facing.
+// Language hints for the BROWSER fallback voice, and the list a learner voice
+// picker would render. This does NOT decide the cloud voice — /api/tts owns
+// that, from the admin's selection in /admin/voice — so an id here going stale
+// costs a fallback accent, never a failed request.
 const CLOUD_VOICES = [
   { voiceURI: 'en-GB-Neural2-A',  name: 'British Female (Neural)',   lang: 'en-GB' },
   { voiceURI: 'en-GB-Neural2-B',  name: 'British Male (Neural)',     lang: 'en-GB' },
@@ -166,10 +168,16 @@ export function useSpeech() {
       const res = await fetch(apiUrl(TTS_ENDPOINT), {
         method:  'POST',
         headers,
+        // NO `voice` field, deliberately. Which voice a learner hears is the
+        // ADMIN's choice, resolved server-side from settings/ttsVoices; the
+        // server uses its first offered voice when the request names none.
+        // Sending a hard-coded Google id here pinned every learner to a voice
+        // the admin may no longer offer — /api/tts answers 400 for an unoffered
+        // id, and the catch below turns that into the browser voice, so the
+        // admin's selection was inaudible while still sounding like it worked.
         body: JSON.stringify({
-          text:  text.slice(0, 3000), // backend cap
-          voice: readLatestVoiceURI() || voice?.voiceURI || 'en-GB-Neural2-A',
-          rate:  0.98,                 // gentle teacher pacing
+          text: text.slice(0, 3000), // backend cap
+          rate: 0.98,                // gentle teacher pacing
         }),
       })
       if (!res.ok) throw new Error(`Cloud TTS ${res.status}`)
@@ -196,7 +204,7 @@ export function useSpeech() {
       console.warn('[useSpeech] Cloud TTS failed, falling back to browser:', err?.message || err)
       speakBrowserFallback(text, id)
     }
-  }, [supported, voice, cleanupAudio, speakBrowserFallback])
+  }, [supported, cleanupAudio, speakBrowserFallback])
 
   // Cancel any speech on unmount
   useEffect(() => {
@@ -359,15 +367,4 @@ function chunkBySentence(text, maxLen = 200) {
   }
   if (current.trim()) chunks.push(current.trim())
   return chunks
-}
-function readLatestVoiceURI() {
-  if (typeof localStorage === 'undefined') return null
-  try {
-    const saved = localStorage.getItem(LS_VOICE_KEY)
-    if (!saved) return null
-    const match = CLOUD_VOICES.find(v => v.voiceURI === saved)
-    return match ? match.voiceURI : null
-  } catch {
-    return null
-  }
 }

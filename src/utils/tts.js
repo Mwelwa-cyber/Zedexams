@@ -26,7 +26,11 @@ export async function speak(rawText, options = {}) {
   const text = stripMarkdown(rawText);
   if (!text) return;
   stopSpeaking();
-  const { voice = 'en-GB-Neural2-A', rate = 1.0, pitch = 0 } = options;
+  // `voice` is deliberately un-defaulted: /api/tts resolves the learner's voice
+  // from the admin's selection (settings/ttsVoices) when the request names
+  // none. A hard-coded Google id here would 400 the moment an admin offers a
+  // different set, and the catch below would hide that behind the browser voice.
+  const { voice = '', rate = 1.0, pitch = 0 } = options;
 
   // No usable ID token → /api/tts would answer 401, so skip the round trip and
   // read with the browser voice. Routine when signed out (the public paper-quiz
@@ -38,7 +42,7 @@ export async function speak(rawText, options = {}) {
     const res = await fetch(apiUrl(TTS_ENDPOINT), {
       method:  'POST',
       headers,
-      body:    JSON.stringify({ text, voice, rate, pitch }),
+      body:    JSON.stringify({ text, ...(voice ? { voice } : {}), rate, pitch }),
     });
     if (!res.ok) throw new Error(`Cloud TTS ${res.status}`);
     const blob = await res.blob();

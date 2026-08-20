@@ -225,6 +225,12 @@ export default function ReadingSettingsSheet({ open, onClose, prefs, setPref, re
                     checked={prefs.largerAnswerLetters}
                     onChange={(v) => setPref('largerAnswerLetters', v)}
                   />
+                  <Toggle
+                    label="Read aloud"
+                    hint="Show a speaker button on questions, passages and answers."
+                    checked={prefs.readAloud}
+                    onChange={(v) => setPref('readAloud', v)}
+                  />
                 </>
               )}
 
