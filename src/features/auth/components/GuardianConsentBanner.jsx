@@ -148,7 +148,7 @@ export default function GuardianConsentBanner() {
         </strong>{' '}
         {needsGuardian
           ? 'Add their email or WhatsApp number and we will send them a link.'
-          : 'You can keep reading lessons and past papers. Ask Zed, classes and leaderboards unlock once they approve.'}
+          : 'You can keep reading lessons and past papers. The leaderboard unlocks once they approve.'}
       </p>
 
       {needsGuardian && !adding && (

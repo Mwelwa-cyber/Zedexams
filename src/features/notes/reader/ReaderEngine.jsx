@@ -24,7 +24,6 @@
  * while reading), so mount it full-screen — not inside LearnerLayout.
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import '../../../shared/styles/learnerTheme.css'
 import './reader.css'
 import {
@@ -76,9 +75,6 @@ export default function ReaderEngine({
   onBack,
   backLabel = 'Back to Notes',
   footer = null,
-  // Topic label for the "Stuck? Ask Zed about this" pill (prototype-v5's
-  // ask-zed-inline). Defaults to the note title; pass null to hide.
-  askTopic = note?.title || null,
   // Furthest Learn-mode section the learner has reached on this device
   // (lib/learnStep.js). Revise's "Learn this properly" resumes here.
   resumeStep = 0,
@@ -87,7 +83,6 @@ export default function ReaderEngine({
   // URL honest and stop writing reading progress in Revise.
   onModeChange = null,
 }) {
-  const navigate = useNavigate()
   const [mode, setMode] = useState(initialMode === 'revise' ? 'revise' : 'learn')
   const [shown, setShown] = useState(initialMode === 'revise' ? 0 : resumeStep)
   const [word, setWord] = useState(null) // glossary entry in the sheet
@@ -170,7 +165,7 @@ export default function ReaderEngine({
           {note.kicker && <div className="lhx-note-kicker">{note.kicker}</div>}
           <h1 className="lhx-note-title">{note.title}</h1>
           <p className="lhx-note-meta">
-            {meta.minutes} min read · {meta.sections} {meta.sections === 1 ? 'section' : 'sections'} · with Zed
+            {meta.minutes} min read · {meta.sections} {meta.sections === 1 ? 'section' : 'sections'}
           </p>
           <div className="lhx-seg lhx-note-mode" role="tablist" aria-label="Reading mode">
             <button type="button" role="tab" aria-selected={mode === 'learn'} className="lhx-seg-btn" onClick={() => switchMode('learn')}>
@@ -189,18 +184,6 @@ export default function ReaderEngine({
             <button type="button" className="lhx-btn lhx-btn-block lhx-learn-properly" onClick={() => switchMode('learn')}>
               ▶ Learn this properly
             </button>
-          )}
-          {askTopic && (
-            <div>
-              <button
-                type="button"
-                className="lhx-ask-zed-inline"
-                onClick={() => navigate(`/ask-zed?topic=${encodeURIComponent(askTopic)}`)}
-              >
-                <img src={ZED_ART} alt="" aria-hidden="true" />
-                Stuck? Ask Zed about this
-              </button>
-            </div>
           )}
         </div>
 

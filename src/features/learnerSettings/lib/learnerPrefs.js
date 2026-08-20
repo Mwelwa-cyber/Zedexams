@@ -19,7 +19,6 @@
 //   learningPrefs                            → extended below
 //   learnerSettings.security                 → recovery email/phone, 2FA intent
 //   learnerSettings.personalisation          → card style, accent, nav, layout
-//   learnerSettings.zedAi                    → Zed assistant voice/personality
 //   learnerSettings.privacy                  → sharing, visibility, recs
 // Accessibility lives in localStorage (src/utils/accessibility.js).
 //
@@ -209,10 +208,6 @@ export function normalizeLearningPrefs(input) {
   return {
     // Original three (kept for backwards compatibility with the old page).
     soundEffects: bool(p.soundEffects, dflt(true)),
-    // The learner's own Ask Zed switch (prototype-v7 Settings → Learning).
-    // A guardian's `guardianControls.askZed === false` overrides it; see
-    // features/learnerHome/lib/guardianControlsCore.js.
-    askZed: bool(p.askZed, dflt(true)),
     showHints: bool(p.showHints, dflt(true)),
     autoplayLessons: bool(p.autoplayLessons, dflt(false)),
     // Extended set.
@@ -271,102 +266,6 @@ export function normalizePersonalisation(input) {
     dashboardLayout: str(p.dashboardLayout, ['comfortable', 'compact'], 'comfortable'),
     background: str(p.background, ['none', 'aurora', 'mesh', 'grid'], 'none'),
     darkMode: bool(p.darkMode, dflt(false)),
-  }
-}
-
-/* ── Zed AI assistant ─────────────────────────────────────────────────────── */
-
-export const ZED_VOICE_OPTIONS = Object.freeze([
-  { value: 'warm', label: 'Warm' },
-  { value: 'bright', label: 'Bright' },
-  { value: 'calm', label: 'Calm' },
-  { value: 'off', label: 'No voice' },
-])
-
-export const ZED_PERSONALITY_OPTIONS = Object.freeze([
-  { value: 'friendly', label: 'Friendly', hint: 'Encouraging study buddy' },
-  { value: 'coach', label: 'Coach', hint: 'Direct and motivating' },
-  { value: 'tutor', label: 'Tutor', hint: 'Patient and thorough' },
-])
-
-export const ZED_STYLE_OPTIONS = Object.freeze([
-  { value: 'concise', label: 'Concise' },
-  { value: 'balanced', label: 'Balanced' },
-  { value: 'detailed', label: 'Detailed' },
-])
-
-export const ZED_SPEED_OPTIONS = Object.freeze([
-  { value: 'slow', label: 'Slow' },
-  { value: 'normal', label: 'Normal' },
-  { value: 'fast', label: 'Fast' },
-])
-
-export function normalizeZedAiPrefs(input) {
-  const p = input && typeof input === 'object' ? input : {}
-  return {
-    // Whether the Ask Zed entry points appear at all (the Settings
-    // "Ask Zed" switch). Default on — turning the helper off is a
-    // deliberate choice, not the starting state.
-    enabled: bool(p.enabled, dflt(true)),
-    voice: str(p.voice, ['warm', 'bright', 'calm', 'off'], 'warm'),
-    personality: str(p.personality, ['friendly', 'coach', 'tutor'], 'friendly'),
-    avatar: str(p.avatar, null, 'spark'),
-    conversationStyle: str(p.conversationStyle, ['concise', 'balanced', 'detailed'], 'balanced'),
-    speakingSpeed: str(p.speakingSpeed, ['slow', 'normal', 'fast'], 'normal'),
-    language: str(p.language, LANGUAGE_OPTIONS.map((o) => o.value), 'en'),
-    rememberContext: bool(p.rememberContext, dflt(true)),
-  }
-}
-
-export const ZED_AVATARS = Object.freeze([
-  { id: 'spark', label: 'Spark', emoji: '✨' },
-  { id: 'owl', label: 'Owl', emoji: '🦉' },
-  { id: 'robot', label: 'Robot', emoji: '🤖' },
-  { id: 'star', label: 'Star', emoji: '⭐' },
-  { id: 'rocket', label: 'Rocket', emoji: '🚀' },
-  { id: 'brain', label: 'Brain', emoji: '🧠' },
-])
-
-/* ── AI Learning Assistant (personalisation the assistant learns from) ─────── */
-//
-// These prefs steer how the AI tailors practice — they persist under
-// learnerSettings.aiAssistant and are read by the AI card + detail panel. They
-// are declarations of intent (a learning goal, subjects to improve, whether to
-// let AI pick practice / focus weak topics); the generators that consume them
-// are entry-point cards, so nothing here fabricates a result.
-
-export const AI_GOAL_OPTIONS = Object.freeze([
-  { value: 'pass_exams', label: 'Pass my exams', emoji: '🎯' },
-  { value: 'top_marks', label: 'Get top marks', emoji: '🏆' },
-  { value: 'keep_streak', label: 'Study every day', emoji: '🔥' },
-  { value: 'catch_up', label: 'Catch up on weak areas', emoji: '📈' },
-  { value: 'stay_ahead', label: 'Stay ahead of class', emoji: '🚀' },
-])
-
-// Core CBC subjects a learner may want to prioritise. Kept as a static list so
-// this module stays pure + unit-testable (no curriculum import).
-export const IMPROVE_SUBJECT_OPTIONS = Object.freeze([
-  { value: 'mathematics', label: 'Mathematics' },
-  { value: 'english', label: 'English' },
-  { value: 'science', label: 'Science' },
-  { value: 'social_studies', label: 'Social Studies' },
-  { value: 'ict', label: 'ICT' },
-  { value: 'creative_technology', label: 'Creative & Technology' },
-  { value: 'zambian_languages', label: 'Zambian Languages' },
-])
-
-const IMPROVE_SUBJECT_VALUES = IMPROVE_SUBJECT_OPTIONS.map((o) => o.value)
-
-export function normalizeAiAssistantPrefs(input) {
-  const p = input && typeof input === 'object' ? input : {}
-  const subjects = Array.isArray(p.improveSubjects)
-    ? p.improveSubjects.filter((s) => IMPROVE_SUBJECT_VALUES.includes(s))
-    : []
-  return {
-    learningGoal: str(p.learningGoal, AI_GOAL_OPTIONS.map((o) => o.value), 'pass_exams'),
-    improveSubjects: Array.from(new Set(subjects)),
-    autoPickPractice: bool(p.autoPickPractice, dflt(true)),
-    focusWeakTopics: bool(p.focusWeakTopics, dflt(true)),
   }
 }
 
@@ -490,8 +389,6 @@ export function normalizeLearnerSettings(input) {
   return {
     security: normalizeSecurityPrefs(p.security),
     personalisation: normalizePersonalisation(p.personalisation),
-    zedAi: normalizeZedAiPrefs(p.zedAi),
-    aiAssistant: normalizeAiAssistantPrefs(p.aiAssistant),
     privacy: normalizePrivacy_(p.privacy),
   }
 }

@@ -72,7 +72,7 @@ function buildCoGuardianInviteEmail({inviterName, childName, acceptUrl, expiresI
     `Accepting means you can:`,
     `  • see ${child}'s progress and weekly reports`,
     `  • approve requests they send (unlocks, friends)`,
-    `  • change what they can use — Ask Zed, challenges, daily limits`,
+    `  • change what they can use — live challenges`,
     ``,
     `It does NOT give you billing or the ability to delete the account —`,
     `those stay with ${inviter}, who set the account up.`,

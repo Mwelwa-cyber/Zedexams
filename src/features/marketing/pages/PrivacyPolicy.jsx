@@ -92,12 +92,6 @@ export default function PrivacyPolicy() {
           confirmation as a yes/no answer rather than as a date.
         </li>
         <li>
-          <strong>Ask Zed conversations</strong> — the messages you send to our AI study
-          assistant, so it can answer follow-ups and so we can debug abuse. Contact details
-          (phone numbers, email addresses, links) are removed before a learner&apos;s message
-          is written to our logs.
-        </li>
-        <li>
           <strong>Device & technical data</strong> — basic browser / device information,
           IP address (for abuse prevention), and crash and error reports describing what
           went wrong so we can fix bugs.
@@ -150,8 +144,7 @@ export default function PrivacyPolicy() {
         When someone under 18 signs up, we ask for a parent or guardian&apos;s contact
         details and send them a link to approve the account. Until they approve it, the
         account runs in a limited mode: the learner can read lessons and past papers, but
-        cannot use the Ask Zed assistant, join a class, appear on a leaderboard, or buy
-        anything. The guardian&apos;s link also lets them refuse and have the account
+        cannot appear on a leaderboard or buy anything. The guardian&apos;s link also lets them refuse and have the account
         removed.
       </P>
       <P>
@@ -178,15 +171,14 @@ export default function PrivacyPolicy() {
           portal shows a learner's progress.
         </li>
         <li>
-          Our AI assistant is restricted to schoolwork for learners: it never asks for
-          personal information, never claims to be a person or to keep secrets, and
-          declines romantic, sexual or self-harm topics. If a learner writes something
-          suggesting they are being hurt or want to hurt themselves, it stops and points
-          them to a trusted adult and to Childline Zambia (116).
+          Learners cannot converse with an AI on ZedExams. The AI features that remain
+          are teacher tools and automatic marking, which act on schoolwork rather than
+          on a conversation.
         </li>
         <li>
-          Every AI response carries a <strong>Report</strong> control, and reports about a
-          child&apos;s safety are reviewed the same day. See our{' '}
+          A learner can report a concern from <strong>Settings → Help &amp; support →
+          Report a problem</strong>, and reports about a child&apos;s safety are reviewed
+          the same day. See our{' '}
           <Link className="underline theme-accent-text" to="/child-safety">child safety standards</Link>.
         </li>
       </UL>
@@ -207,7 +199,8 @@ export default function PrivacyPolicy() {
           Storage, Cloud Functions, and Hosting. Data is stored in Google data centres.
         </li>
         <li>
-          <strong>AI providers</strong> — when you use Ask Zed or teacher AI generators,
+          <strong>AI providers</strong> — when you use an AI feature (the teacher
+          generators, answer explanations, or short-answer marking),
           your prompts are sent to the AI model provider (currently Anthropic Claude and/or
           Google Gemini) so they can generate a response. They process the prompts as a
           processor only and do not use them to train their models for other customers.
@@ -239,7 +232,7 @@ export default function PrivacyPolicy() {
       <UL>
         <li>Account data is kept while your account is active.</li>
         <li>Quiz/exam attempts and progress are kept while your account is active so you can see your history.</li>
-        <li>Ask Zed and AI generation logs are kept for a limited period for debugging and abuse prevention.</li>
+        <li>AI generation logs are kept for a limited period for debugging and abuse prevention.</li>
         <li>If you opted in to analytics, events are retained by PostHog according to our project settings, and any session replay is automatically deleted after 30 days.</li>
         <li>If you delete your account, we delete or anonymise your personal data within a reasonable period, unless we are required to keep something for legal or accounting reasons.</li>
       </UL>
@@ -271,7 +264,7 @@ export default function PrivacyPolicy() {
       </UL>
       <P>
         Deleting your account removes your profile (name, email, phone), quiz and exam results
-        and history, saved and generated content, class memberships, notifications, referral
+        and history, saved and generated content, notifications, referral
         records, and subscription records. If you opted in to analytics, we also delete your
         PostHog profile and its associated events. We may retain a limited amount of data
         where the law or our accounting obligations require it (for example, payment/invoice

@@ -13,7 +13,7 @@
  * This is presentation, plus one real bug:
  *
  *  1. NOTHING RENDERS UNDER THE FIXED CHROME. The bottom nav is opaque and
- *     the scroll body reserves nav + Ask Zed + safe-area at its foot (both
+ *     the scroll body reserves nav + safe-area at its foot (both
  *     in learnerTheme.css, both global — the bug was general to the learner
  *     surface, not local to this page). "Your games", the Leaderboard link
  *     and the first game card used to render THROUGH the nav.

@@ -66,6 +66,6 @@ gives you the schedule to hang it on.
 ## When a question stumps you
 
 Don't sit stuck for twenty minutes. Attempt it, mark it, then tap
-**Ask Zed** on ZedExams — Zed walks through the working step-by-step
-the way a teacher would, and you can ask follow-up questions in your
-own words until the method clicks.
+**Explain this answer** on your ZedExams results screen — it walks
+through the working step-by-step the way a teacher would, so the
+method clicks rather than just the correction.

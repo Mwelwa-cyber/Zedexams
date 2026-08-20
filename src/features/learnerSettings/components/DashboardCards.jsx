@@ -298,34 +298,6 @@ export function AccessibilityCard({ onOpen }) {
   )
 }
 
-/* ── 7. AI Learning Assistant ─────────────────────────────────── */
-const AI_LINKS = [
-  { emoji: '🎯', label: 'My Learning Goal', to: 'open' },
-  { emoji: '📚', label: 'Subjects I Want to Improve', to: 'open' },
-  { emoji: '🧠', label: "Let AI Choose Today's Practice", to: 'open' },
-  { emoji: '🔥', label: 'Daily Challenge', to: '/daily' },
-  { emoji: '📈', label: 'Focus on My Weak Topics', to: 'open' },
-  { emoji: '🏆', label: 'Weekly Challenge', to: '/games/leaderboard' },
-]
-export function AiCard({ onOpen }) {
-  const navigate = useNavigate()
-  return (
-    <SectionCard id="sec-ai" tone="purple" icon={Sparkles} title="AI Learning Assistant" subtitle="Smart learning personalization">
-      <div className="lset-ailist">
-        {AI_LINKS.map((a) => (
-          <button key={a.label} type="button" className="lset-airow" onClick={() => (a.to === 'open' ? onOpen('ai') : navigate(a.to))}>
-            <span className="lset-airow__emoji" aria-hidden="true">{a.emoji}</span>
-            <span className="lset-airow__label">{a.label}</span>
-          </button>
-        ))}
-      </div>
-      <div style={{ marginTop: 14 }}>
-        <Btn full onClick={() => navigate('/ask-zed')}>Open AI Assistant →</Btn>
-      </div>
-    </SectionCard>
-  )
-}
-
 /* ── 8. Premium ───────────────────────────────────────────────── */
 const PREMIUM_BENEFITS = [
   'Unlimited quizzes', 'Unlimited past papers', 'AI Tutor',

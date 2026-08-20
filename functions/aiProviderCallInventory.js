@@ -36,7 +36,6 @@ const LIMITED = [
   {name: "generateNotePictures", file: "teacherTools/generateNotePictures.js", check: 'assertGeneratorRateLimit(request, "note_pictures")'},
 
   // ── other callables (assertCallableRateLimit, action:<name>) ─────────────
-  {name: "aiChat", file: "chatHandlers.js", check: 'action: "aiChat"'},
   {name: "generateNoteInsights", file: "noteAiHandlers.js", check: 'action: "generateNoteInsights"'},
   {name: "generateNoteSmart", file: "noteAiHandlers.js", check: 'action: "generateNoteSmart"'},
   {name: "verifyQuiz", file: "quizAiHandlers.js", check: 'action: "verifyQuiz"'},
@@ -79,7 +78,6 @@ const LIMITED = [
   {name: "getPlatformHealth", file: "agents/platformHealth.js", check: 'action: "getPlatformHealth"'},
 
   // ── HTTP endpoints (assert/guardHttpRateLimit) ───────────────────────────
-  {name: "apiAiChat", file: "httpSurfaceHandlers.js", check: 'action: "aiChat"'},
   {name: "apiGenerateLessonPlan", file: "index.js", check: 'action: `stream_${tool}`'},
   {name: "apiGenerateWorksheet", file: "index.js", check: 'action: `stream_${tool}`'},
   {name: "apiTextToSpeech", file: "tts.js", check: "action: 'tts'"},

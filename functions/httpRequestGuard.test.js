@@ -92,7 +92,6 @@ console.log("\nWHERE IT IS APPLIED");
 
 for (const [file, label] of [
   ["tts.js", "apiTextToSpeech"],
-  ["httpSurfaceHandlers.js", "apiAiChat"],
   ["accountDeletionRequests.js", "apiRequestAccountDeletion"],
 ]) {
   const src = read(file);

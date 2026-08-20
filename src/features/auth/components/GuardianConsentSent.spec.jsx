@@ -61,7 +61,7 @@ describe('GuardianConsentSent', () => {
     expect(screen.getByText(/you can use these now/i)).toBeInTheDocument()
     expect(screen.getByText(/past papers/i)).toBeInTheDocument()
     expect(screen.getByText(/switch on after they say yes/i)).toBeInTheDocument()
-    expect(screen.getByText(/ask zed/i)).toBeInTheDocument()
+    expect(screen.getByText(/the weekly leaderboard/i)).toBeInTheDocument()
   })
 
   it('lists exactly the capabilities the server still refuses', () => {
