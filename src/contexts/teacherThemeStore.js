@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { isDarkReadingThemeId, seededDarkness } from './readingThemeCore'
 import {
   DEFAULT_TEACHER_THEME,
   TEACHER_THEME_STORAGE_KEY,
@@ -68,6 +69,29 @@ export function registerTeacherThemePersister(fn) {
   return () => { if (persister === fn) persister = null }
 }
 
+/**
+ * Whether a workspace theme has actually been CHOSEN on this device — as
+ * opposed to seeded. The distinction is the whole of the seeding rule below:
+ * a chosen theme is an answer and outranks everything, a seed is only what we
+ * show someone who has not answered.
+ *
+ * The retired dashboard key counts only when it says 'dark', matching
+ * readInitial: 'light' was that toggle's default state, not a decision.
+ */
+export function hasStoredTeacherTheme() {
+  try {
+    if (isTeacherThemeId(localStorage.getItem(TEACHER_THEME_STORAGE_KEY))) return true
+    return localStorage.getItem(LEGACY_DASHBOARD_KEY) === 'dark'
+  } catch {
+    return false
+  }
+}
+
+/** The workspace theme a device with no stored choice should be shown. */
+function seedFor(dark) {
+  return dark ? 'night' : DEFAULT_TEACHER_THEME
+}
+
 function readInitial() {
   try {
     const saved = localStorage.getItem(TEACHER_THEME_STORAGE_KEY)
@@ -77,10 +101,17 @@ function readInitial() {
     // Only consulted when the new key is unset, so it never overrides a
     // deliberate choice.
     if (localStorage.getItem(LEGACY_DASHBOARD_KEY) === 'dark') return 'night'
-    // No stored choice: seed from the OS colour scheme, mirroring boot.js's
-    // pre-paint guard (and ThemeContext's learner seeding). NOT persisted —
-    // an absent key keeps following the OS until the teacher picks a theme.
-    if (window.matchMedia?.('(prefers-color-scheme: dark)')?.matches) return 'night'
+    // No stored choice: FOLLOW THE READING PALETTE, which itself falls back
+    // to the OS colour scheme (readingThemeCore.seededDarkness). Mirrored by
+    // boot.js's pre-paint guard.
+    //
+    // It used to read prefers-color-scheme directly, and that is the bug
+    // readingThemeCore.js documents: `html[data-theme='night'] body` outranks
+    // `body.theme-<id>`, so an OS-seeded 'night' here overrode a learner who
+    // had explicitly chosen a light palette — on every browser where neither
+    // key had been written yet. NOT persisted either way: an absent key keeps
+    // following the reading theme until someone picks a workspace theme.
+    return seedFor(seededDarkness())
   } catch { /* storage unavailable — fall through to the default */ }
   return DEFAULT_TEACHER_THEME
 }
@@ -148,6 +179,35 @@ export function writeTeacherTheme(id) {
  */
 export function hydrateTeacherTheme(id) {
   return applyAndStore(id)
+}
+
+/**
+ * Re-seed the workspace theme from the learner's reading palette.
+ *
+ * Called by <ThemeProvider> whenever the reading theme changes, which is the
+ * half of the rule readInitial cannot cover on its own: readInitial answers
+ * once, at first read, and the reading theme goes on changing after it — the
+ * learner's Night toggle, the reading-theme picker, and hydration from the
+ * signed-in profile all move it. Without this, toggling to day left
+ * `data-theme='night'` standing and the index.css bridge kept overriding the
+ * light palette the learner had just chosen. That is the bug: the toggle said
+ * day, the page stayed dark, and no learner-facing control could clear it.
+ *
+ * Two things it deliberately does NOT do:
+ *   • It never touches a CHOSEN workspace theme. A teacher who picked Night
+ *     keeps Night whatever they read in — that is what the bridge is for.
+ *   • It never writes localStorage. The seed stays unanswered, so it keeps
+ *     following the reading theme rather than freezing on the first value it
+ *     happened to see.
+ */
+export function syncSeededTeacherTheme(readingTheme) {
+  if (hasStoredTeacherTheme()) return getTeacherThemeSnapshot()
+  const next = seedFor(isDarkReadingThemeId(readingTheme))
+  const changed = next !== getTeacherThemeSnapshot()
+  current = next
+  applyTeacherThemeAttribute(next)
+  if (changed) listeners.forEach((fn) => fn())
+  return next
 }
 
 /** Subscribe a component to the active teacher theme. */
