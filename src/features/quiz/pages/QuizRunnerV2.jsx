@@ -55,6 +55,7 @@ import { diagramLabelLayout, gradeDiagramLabels } from '../../../utils/diagramLa
 import { gradeMatching } from '../../../utils/matchingGrading'
 import { gradeSequence } from '../../../utils/sequenceGrading'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
+import '../quizTheme.css'
 import ErrorState from '../../../shared/components/ErrorState'
 import { friendlyTemplate, toFriendlyError } from '../../../utils/friendlyErrors'
 
@@ -180,19 +181,19 @@ function PreQuizCard({ quiz, canExam, onStart }) {
   const mascot = getQuizSubjectMascot(quiz.subject)
 
   return (
-    <div className="theme-bg theme-text min-h-screen px-3 py-8 sm:px-4 sm:py-10">
+    <div className="quiz-proto theme-bg theme-text min-h-screen px-3 py-8 sm:px-4 sm:py-10">
       <div className="zx-card-shared mx-auto max-w-md overflow-hidden">
-        <div className="border-b-2 border-slate-900 bg-orange-50 px-4 py-4 sm:px-6 sm:py-5">
+        <div className="quiz-card-head px-4 py-4 sm:px-6 sm:py-5">
           <div className="mb-2 flex items-center gap-3">
-            <span aria-hidden="true" className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-[14px] border-2 border-slate-900 bg-orange-100 text-2xl">
+            <span aria-hidden="true" className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-[14px] border-2 theme-border theme-accent-bg text-2xl">
               {mascot.emoji}
             </span>
             <div className="min-w-0 flex-1">
               <span className="zx-eyebrow-shared">{mascot.name}</span>
-              <p className="truncate text-xs font-semibold text-slate-700">{quiz.subject} · Grade {quiz.grade} · Term {quiz.term}</p>
+              <p className="truncate text-xs font-semibold theme-text-muted">{quiz.subject} · Grade {quiz.grade} · Term {quiz.term}</p>
             </div>
           </div>
-          <h1 className="text-lg font-black leading-tight text-slate-900 sm:text-xl">{quiz.title}</h1>
+          <h1 className="text-lg font-black leading-tight theme-text sm:text-xl">{quiz.title}</h1>
         </div>
         <div className="p-4 sm:p-6">
           <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-3">
@@ -201,15 +202,15 @@ function PreQuizCard({ quiz, canExam, onStart }) {
               ['⏱️', quiz.duration ?? '—', 'Minutes'],
               ['⭐', quiz.totalMarks ?? '—', 'Marks'],
             ].map(([icon, value, label]) => (
-              <div key={label} className="rounded-[14px] border-2 border-slate-900 bg-orange-50 px-1 py-3 text-center shadow-[0_2px_0_#0F1B2D]">
+              <div key={label} className="rounded-[14px] border-2 theme-border theme-accent-bg px-1 py-3 text-center quiz-card-shadow">
                 <div className="mb-1 text-xl sm:text-2xl">{icon}</div>
-                <div className="text-base font-black text-slate-900 sm:text-lg">{value}</div>
-                <div className="text-[10px] font-bold uppercase tracking-wide text-slate-600">{label}</div>
+                <div className="text-base font-black theme-text sm:text-lg">{value}</div>
+                <div className="text-[10px] font-bold uppercase tracking-wide theme-text-muted">{label}</div>
               </div>
             ))}
           </div>
 
-          <p className="mb-3 text-center text-xs font-black uppercase tracking-[0.18em] text-slate-600">Choose Mode</p>
+          <p className="mb-3 text-center text-xs font-black uppercase tracking-[0.18em] theme-text-muted">Choose Mode</p>
           <div className="mb-6 grid grid-cols-2 gap-3">
             {[
               { id: 'practice', icon: '🌱', label: 'Practice', sub: 'See answers live', locked: false },
@@ -221,14 +222,14 @@ function PreQuizCard({ quiz, canExam, onStart }) {
                   key={item.id}
                   type="button"
                   onClick={() => !item.locked && setMode(item.id)}
-                  className={`relative rounded-[14px] border-2 border-slate-900 p-4 text-left shadow-[0_2px_0_#0F1B2D] transition-all ${
-                    active ? 'bg-orange-500 text-white' : 'bg-white text-slate-900'
+                  className={`relative rounded-[14px] border-2 theme-border p-4 text-left quiz-card-shadow transition-all ${
+                    active ? 'theme-accent-fill theme-on-accent' : 'theme-card theme-text'
                   } ${item.locked ? 'opacity-55' : ''}`}
                 >
                   {item.locked && <span className="absolute right-3 top-3 text-xs">🔒</span>}
                   <div className="mb-1 text-2xl">{item.icon}</div>
                   <div className="text-sm font-black">{item.label}</div>
-                  <div className={`mt-0.5 text-xs ${active ? 'text-white/85' : 'text-slate-600'}`}>{item.sub}</div>
+                  <div className={`mt-0.5 text-xs ${active ? 'theme-on-accent opacity-85' : 'theme-text-muted'}`}>{item.sub}</div>
                 </button>
               )
             })}
@@ -918,7 +919,7 @@ export default function QuizRunnerV2() {
 
   if (loading) {
     return (
-      <div className="theme-bg flex min-h-screen items-center justify-center">
+      <div className="quiz-proto theme-bg flex min-h-screen items-center justify-center">
         <SeoHelmet title="Quiz" path={`/quiz/${quizId}`} noIndex />
         <div className="text-center">
           <div className="mb-3 text-5xl animate-bounce">📝</div>
@@ -930,7 +931,7 @@ export default function QuizRunnerV2() {
 
   if (error) {
     return (
-      <div className="theme-bg flex min-h-screen items-center justify-center px-4">
+      <div className="quiz-proto theme-bg flex min-h-screen items-center justify-center px-4">
         <SeoHelmet title="Quiz" path={`/quiz/${quizId}`} noIndex />
         <ErrorState
           friendly={error}
@@ -951,7 +952,7 @@ export default function QuizRunnerV2() {
     // quiz is actually present.
     if (!quiz) {
       return (
-        <div className="theme-bg flex min-h-screen items-center justify-center">
+        <div className="quiz-proto theme-bg flex min-h-screen items-center justify-center">
           <SeoHelmet title="Quiz" path={`/quiz/${quizId}`} noIndex />
           <div className="text-center">
             <div className="mb-3 text-5xl animate-bounce">📝</div>
@@ -971,7 +972,7 @@ export default function QuizRunnerV2() {
 
   if (submitting) {
     return (
-      <div className="theme-bg flex min-h-screen items-center justify-center">
+      <div className="quiz-proto theme-bg flex min-h-screen items-center justify-center">
         <SeoHelmet title="Saving quiz" path={`/quiz/${quizId}`} noIndex />
         <div className="text-center">
           <div className="mb-3 flex justify-center"><span className="zx-spin" style={{ width: 32, height: 32, borderWidth: 3 }} aria-hidden="true" /></div>
@@ -987,7 +988,7 @@ export default function QuizRunnerV2() {
   // way out. Show a recoverable empty state instead.
   if (!activeSection) {
     return (
-      <div className="theme-bg flex min-h-screen items-center justify-center px-4">
+      <div className="quiz-proto theme-bg flex min-h-screen items-center justify-center px-4">
         <SeoHelmet title={quiz?.title || 'Quiz'} path={`/quiz/${quizId}`} noIndex />
         <div className="zx-card-shared p-8 text-center">
           <div className="mb-3 text-4xl">📭</div>
@@ -1018,7 +1019,7 @@ export default function QuizRunnerV2() {
     const typed = shortText[question.id] ?? ''
 
     return (
-      <div key={question.id} className="zx-card-shared space-y-4 p-4 text-slate-900 sm:p-5">
+      <div key={question.id} className="zx-card-shared space-y-4 p-4 theme-text sm:p-5">
         <div className="flex items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <span className="zx-pill-dark">Q{question.questionNumber}</span>
@@ -1032,8 +1033,8 @@ export default function QuizRunnerV2() {
           <button
             type="button"
             onClick={() => setFlagged(current => ({ ...current, [question.id]: !current[question.id] }))}
-            className={`grid h-9 w-9 place-items-center rounded-full border-2 border-slate-900 shadow-[0_2px_0_#0F1B2D] transition-colors ${
-              flagged[question.id] ? 'bg-amber-300 text-slate-900' : 'bg-white text-slate-400'
+            className={`grid h-9 w-9 place-items-center rounded-full border-2 theme-border quiz-card-shadow transition-colors ${
+              flagged[question.id] ? 'quiz-flagged theme-text' : 'theme-card theme-text-muted'
             }`}
             title={flagged[question.id] ? 'Remove bookmark' : 'Bookmark this question'}
             aria-label={flagged[question.id] ? 'Remove bookmark from this question' : 'Bookmark this question'}
@@ -1065,7 +1066,7 @@ export default function QuizRunnerV2() {
             ? { kind: 'none' }
             : resolveQuestionFigure(question)
           const imageBlock = figure.kind === 'diagram' ? (
-            <div className="overflow-hidden rounded-2xl border-2 border-slate-900 bg-slate-50 p-3">
+            <div className="overflow-hidden rounded-2xl border-2 theme-border theme-bg-subtle p-3">
               <DiagramSvg
                 libraryKey={figure.libraryKey}
                 params={figure.params}
@@ -1074,7 +1075,7 @@ export default function QuizRunnerV2() {
               />
             </div>
           ) : figure.kind === 'image' ? (
-            <div className="overflow-hidden rounded-2xl border-2 border-slate-900 bg-slate-50 p-3">
+            <div className="overflow-hidden rounded-2xl border-2 theme-border theme-bg-subtle p-3">
               <ZoomableImage
                 src={figure.imageUrl}
                 alt="Question illustration"
@@ -1087,7 +1088,7 @@ export default function QuizRunnerV2() {
           const textBlock = (
             <div>
               {question.sharedInstruction && (
-                <div className="mb-3 rounded-2xl border-2 border-slate-900 bg-orange-50 px-3 py-2 leading-relaxed text-slate-900">
+                <div className="mb-3 rounded-2xl border-2 theme-border theme-accent-bg px-3 py-2 leading-relaxed theme-text">
                   {/* Regular weight by default; only intentionally-bold/underlined/
                       highlighted words (rendered as marks) stand out. */}
                   <RichContent value={question.sharedInstruction} className="text-sm leading-relaxed" />
@@ -1108,7 +1109,7 @@ export default function QuizRunnerV2() {
                 // routes into diagramText for flattened-table data (Q4's
                 // oranges table renders as separate rows instead of
                 // collapsing every \n into a single space).
-                <p className="mt-2 whitespace-pre-line rounded-xl bg-slate-100 px-3 py-2 text-xs leading-relaxed text-slate-700">{question.diagramText}</p>
+                <p className="mt-2 whitespace-pre-line rounded-xl theme-bg-subtle px-3 py-2 text-xs leading-relaxed theme-text-muted">{question.diagramText}</p>
               )}
             </div>
           )
@@ -1164,14 +1165,14 @@ export default function QuizRunnerV2() {
           }
           return (
           <div className="space-y-3">
-            <div className={`overflow-hidden rounded-2xl border-2 bg-white shadow-[0_2px_0_#0F1B2D] ${hotspotChecked && mode === 'practice'
-              ? hotspotResult.correct ? 'border-emerald-600' : 'border-orange-500'
-              : 'border-slate-900'}`}>
-              <div className="border-b-2 border-slate-900 bg-orange-50 px-4 py-2 text-sm font-bold text-slate-900">👆 Tap the correct spot</div>
+            <div className={`overflow-hidden rounded-2xl border-2 theme-card quiz-card-shadow ${hotspotChecked && mode === 'practice'
+              ? hotspotResult.correct ? 'quiz-state-correct' : 'quiz-state-wrong'
+              : 'theme-border'}`}>
+              <div className="quiz-card-head px-4 py-2 text-sm font-bold">👆 Tap the correct spot</div>
               <div className="p-3">
                 {question.imageUrl ? (
                   <div
-                    className={`relative w-full overflow-hidden rounded-xl border-2 border-slate-200 ${hotspotChecked ? 'cursor-default' : 'cursor-crosshair'}`}
+                    className={`relative w-full overflow-hidden rounded-xl border-2 theme-border ${hotspotChecked ? 'cursor-default' : 'cursor-crosshair'}`}
                     onPointerDown={event => {
                       if (hotspotChecked) return
                       const rect = event.currentTarget.getBoundingClientRect()
@@ -1193,7 +1194,7 @@ export default function QuizRunnerV2() {
                     {hasTap && (
                       <span
                         aria-hidden="true"
-                        className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-orange-500 shadow"
+                        className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white theme-accent-fill shadow"
                         style={{ left: `${tap.x * 100}%`, top: `${tap.y * 100}%` }}
                       />
                     )}
@@ -1202,7 +1203,7 @@ export default function QuizRunnerV2() {
                     {hotspotChecked && mode === 'practice' && question.correctRegion && Number.isFinite(question.correctRegion.x) && (
                       <span
                         aria-hidden="true"
-                        className="pointer-events-none absolute rounded-full border-2 border-emerald-500 bg-emerald-500/20"
+                        className="pointer-events-none absolute rounded-full border-2 quiz-state-correct bg-emerald-500/20"
                         style={{
                           left: `${(question.correctRegion.x - question.correctRegion.radius) * 100}%`,
                           top: `${(question.correctRegion.y - question.correctRegion.radius) * 100}%`,
@@ -1213,7 +1214,7 @@ export default function QuizRunnerV2() {
                     )}
                   </div>
                 ) : (
-                  <p className="text-sm font-bold text-orange-600">This hotspot question is missing its image.</p>
+                  <p className="text-sm font-bold quiz-ink-wrong">This hotspot question is missing its image.</p>
                 )}
               </div>
             </div>
@@ -1230,11 +1231,11 @@ export default function QuizRunnerV2() {
             )}
 
             {hotspotChecked && mode === 'practice' && (
-              <div className={`rounded-2xl border-2 p-4 ${hotspotResult.correct ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'}`}>
-                <p className={`text-sm font-bold ${hotspotResult.correct ? 'text-green-900' : 'text-orange-900'}`}>
+              <div className={`rounded-2xl border-2 p-4 ${hotspotResult.correct ? 'quiz-verdict-correct' : 'quiz-verdict-wrong'}`}>
+                <p className={`text-sm font-bold ${hotspotResult.correct ? 'quiz-ink-correct' : 'quiz-ink-wrong'}`}>
                   {hotspotResult.correct ? '✅ Correct!' : '❌ Not quite.'}
                 </p>
-                <p className={`mt-1 text-sm ${hotspotResult.correct ? 'text-green-700' : 'text-orange-700'}`}>{hotspotResult.feedback}</p>
+                <p className={`mt-1 text-sm ${hotspotResult.correct ? 'quiz-ink-correct' : 'quiz-ink-wrong'}`}>{hotspotResult.feedback}</p>
               </div>
             )}
           </div>
@@ -1290,13 +1291,13 @@ export default function QuizRunnerV2() {
 
           return (
             <div className="space-y-4">
-              <div className={`overflow-hidden rounded-2xl border-2 bg-white shadow-[0_2px_0_#0F1B2D] ${dlChecked && mode === 'practice'
-                ? dlResult.correct ? 'border-emerald-600' : 'border-orange-500'
-                : 'border-slate-900'}`}>
-                <div className="border-b-2 border-slate-900 bg-orange-50 px-4 py-2 text-sm font-bold text-slate-900">🏷️ Name each numbered part</div>
+              <div className={`overflow-hidden rounded-2xl border-2 theme-card quiz-card-shadow ${dlChecked && mode === 'practice'
+                ? dlResult.correct ? 'quiz-state-correct' : 'quiz-state-wrong'
+                : 'theme-border'}`}>
+                <div className="quiz-card-head px-4 py-2 text-sm font-bold">🏷️ Name each numbered part</div>
                 <div className="p-3">
                   {question.imageUrl ? (
-                    <div className="relative w-full overflow-hidden rounded-xl border-2 border-slate-200">
+                    <div className="relative w-full overflow-hidden rounded-xl border-2 theme-border">
                       <img
                         src={question.imageUrl}
                         alt="Label the parts of this diagram"
@@ -1309,7 +1310,7 @@ export default function QuizRunnerV2() {
                         <span
                           key={label.number}
                           aria-hidden="true"
-                          className="pointer-events-none absolute grid h-6 w-6 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-white bg-orange-500 text-xs font-black text-white shadow"
+                          className="pointer-events-none absolute grid h-6 w-6 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-white theme-accent-fill text-xs font-black theme-on-accent shadow"
                           style={{ left: `${label.x * 100}%`, top: `${label.y * 100}%` }}
                         >
                           {label.number}
@@ -1317,7 +1318,7 @@ export default function QuizRunnerV2() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm font-bold text-orange-600">This diagram-label question is missing its image.</p>
+                    <p className="text-sm font-bold quiz-ink-wrong">This diagram-label question is missing its image.</p>
                   )}
                 </div>
               </div>
@@ -1330,7 +1331,7 @@ export default function QuizRunnerV2() {
                   const expected = label.text.split(/\s*[/|]\s*/)[0]
                   return (
                     <div key={label.number} className="flex items-center gap-3">
-                      <span className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full border-2 border-slate-900 bg-orange-50 text-sm font-black text-slate-900">{label.number}</span>
+                      <span className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full border-2 theme-border theme-accent-bg text-sm font-black theme-text">{label.number}</span>
                       <input
                         type="text"
                         value={response[label.index] ?? ''}
@@ -1338,14 +1339,14 @@ export default function QuizRunnerV2() {
                         disabled={dlChecked && mode === 'practice'}
                         aria-label={`Name of part ${label.number}`}
                         placeholder="Type the name of this part…"
-                        className={`flex-1 rounded-xl border-2 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none ${
-                          labelCorrect === true ? 'border-emerald-600 text-emerald-700'
-                            : labelCorrect === false ? 'border-orange-500 text-orange-700'
-                              : 'border-slate-400 focus:border-[var(--accent)]'
+                        className={`flex-1 rounded-xl border-2 theme-card px-3 py-2 text-sm font-semibold theme-text outline-none ${
+                          labelCorrect === true ? 'quiz-state-correct quiz-ink-correct'
+                            : labelCorrect === false ? 'quiz-state-wrong quiz-ink-wrong'
+                              : 'theme-border focus:border-[var(--accent)]'
                         }`}
                       />
                       {dlChecked && mode === 'practice' && labelCorrect === false && (
-                        <span className="flex-shrink-0 text-xs font-bold text-emerald-700" title="Correct answer">{expected}</span>
+                        <span className="flex-shrink-0 text-xs font-bold quiz-ink-correct" title="Correct answer">{expected}</span>
                       )}
                     </div>
                   )
@@ -1364,8 +1365,8 @@ export default function QuizRunnerV2() {
               )}
 
               {dlChecked && mode === 'practice' && (
-                <div className={`rounded-2xl border-2 p-4 ${dlResult.correct ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'}`}>
-                  <p className={`text-sm font-bold ${dlResult.correct ? 'text-green-900' : 'text-orange-900'}`}>{dlResult.feedback}</p>
+                <div className={`rounded-2xl border-2 p-4 ${dlResult.correct ? 'quiz-verdict-correct' : 'quiz-verdict-wrong'}`}>
+                  <p className={`text-sm font-bold ${dlResult.correct ? 'quiz-ink-correct' : 'quiz-ink-wrong'}`}>{dlResult.feedback}</p>
                 </div>
               )}
             </div>
@@ -1418,11 +1419,11 @@ export default function QuizRunnerV2() {
           return (
             <div className="space-y-4">
               {wordBank.length > 0 && (
-                <div className="rounded-2xl border-2 border-slate-900 bg-white p-3">
-                  <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-500">Word bank</p>
+                <div className="rounded-2xl border-2 theme-border theme-card p-3">
+                  <p className="mb-2 text-xs font-black uppercase tracking-wide theme-text-muted">Word bank</p>
                   <div className="flex flex-wrap gap-2">
                     {wordBank.map((word, i) => (
-                      <span key={`${i}:${word}`} className="rounded-full border-2 border-slate-300 bg-slate-50 px-3 py-1 text-sm font-bold text-slate-800">{word}</span>
+                      <span key={`${i}:${word}`} className="rounded-full border-2 theme-border theme-bg-subtle px-3 py-1 text-sm font-bold theme-text">{word}</span>
                     ))}
                   </div>
                 </div>
@@ -1430,7 +1431,7 @@ export default function QuizRunnerV2() {
 
               <div className="space-y-3">
                 {layout.map(statement => (
-                  <div key={statement.index} className="flex flex-wrap items-center gap-x-1 gap-y-2 text-base leading-relaxed text-slate-900">
+                  <div key={statement.index} className="flex flex-wrap items-center gap-x-1 gap-y-2 text-base leading-relaxed theme-text">
                     <strong className="mr-1">{statement.label}.</strong>
                     {statement.segments.map((segment, segIndex) => {
                       const flatIndex = statement.startFlatIndex + segIndex
@@ -1453,10 +1454,10 @@ export default function QuizRunnerV2() {
                               onChange={event => setBlank(flatIndex, event.target.value)}
                               disabled={fbChecked && mode === 'practice'}
                               aria-label={`Blank ${flatIndex + 1}`}
-                              className={`mx-1 w-28 border-b-2 bg-transparent px-1 pb-0.5 text-center text-sm font-semibold text-slate-900 outline-none ${
-                                blankCorrect === true ? 'border-emerald-600 text-emerald-700'
-                                  : blankCorrect === false ? 'border-orange-500 text-orange-700'
-                                    : 'border-slate-400 focus:border-[var(--accent)]'
+                              className={`mx-1 w-28 border-b-2 bg-transparent px-1 pb-0.5 text-center text-sm font-semibold theme-text outline-none ${
+                                blankCorrect === true ? 'quiz-state-correct quiz-ink-correct'
+                                  : blankCorrect === false ? 'quiz-state-wrong quiz-ink-wrong'
+                                    : 'theme-border focus:border-[var(--accent)]'
                               }`}
                             />
                           )}
@@ -1479,8 +1480,8 @@ export default function QuizRunnerV2() {
               )}
 
               {fbChecked && mode === 'practice' && (
-                <div className={`rounded-2xl border-2 p-4 ${fbResult.correct ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'}`}>
-                  <p className={`text-sm font-bold ${fbResult.correct ? 'text-green-900' : 'text-orange-900'}`}>{fbResult.feedback}</p>
+                <div className={`rounded-2xl border-2 p-4 ${fbResult.correct ? 'quiz-verdict-correct' : 'quiz-verdict-wrong'}`}>
+                  <p className={`text-sm font-bold ${fbResult.correct ? 'quiz-ink-correct' : 'quiz-ink-wrong'}`}>{fbResult.feedback}</p>
                 </div>
               )}
             </div>
@@ -1543,24 +1544,24 @@ export default function QuizRunnerV2() {
                   const rowCorrect = mChecked ? mResult.perRow?.[rowIndex] : null
                   const selected = Number.isInteger(response[rowIndex]) && response[rowIndex] >= 0 ? response[rowIndex] : ''
                   return (
-                    <div key={rowIndex} className="flex flex-wrap items-center gap-2 rounded-2xl border-2 border-slate-900 bg-white p-3 shadow-[0_2px_0_#0F1B2D]">
+                    <div key={rowIndex} className="flex flex-wrap items-center gap-2 rounded-2xl border-2 theme-border theme-card p-3 quiz-card-shadow">
                       {/* A prompt may be rich (a fraction to match); RichContent
                           draws it, and a plain string renders as before. */}
-                      <span className="min-w-[7rem] flex-1 text-sm font-bold text-slate-900">
+                      <span className="min-w-[7rem] flex-1 text-sm font-bold theme-text">
                         {typeof prompt === 'string' && !/<[a-z!/]/i.test(prompt)
                           ? prompt
                           : <RichContent value={prompt} fallback={<span>{getRichPlainText(prompt)}</span>} />}
                       </span>
-                      <span aria-hidden="true" className="font-black text-slate-400">→</span>
+                      <span aria-hidden="true" className="font-black theme-text-muted">→</span>
                       <select
                         value={selected}
                         onChange={event => setMatch(rowIndex, event.target.value)}
                         disabled={mChecked && mode === 'practice'}
                         aria-label={`Match for ${typeof prompt === 'string' && prompt ? prompt : `prompt ${rowIndex + 1}`}`}
-                        className={`min-w-[9rem] rounded-xl border-2 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none ${
-                          rowCorrect === true ? 'border-emerald-600 text-emerald-700'
-                            : rowCorrect === false ? 'border-orange-500 text-orange-700'
-                              : 'border-slate-400 focus:border-[var(--accent)]'
+                        className={`min-w-[9rem] rounded-xl border-2 theme-card px-3 py-2 text-sm font-semibold theme-text outline-none ${
+                          rowCorrect === true ? 'quiz-state-correct quiz-ink-correct'
+                            : rowCorrect === false ? 'quiz-state-wrong quiz-ink-wrong'
+                              : 'theme-border focus:border-[var(--accent)]'
                         }`}
                       >
                         <option value="">— choose —</option>
@@ -1593,8 +1594,8 @@ export default function QuizRunnerV2() {
               )}
 
               {mChecked && mode === 'practice' && (
-                <div className={`rounded-2xl border-2 p-4 ${mResult.correct ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'}`}>
-                  <p className={`text-sm font-bold ${mResult.correct ? 'text-green-900' : 'text-orange-900'}`}>{mResult.feedback}</p>
+                <div className={`rounded-2xl border-2 p-4 ${mResult.correct ? 'quiz-verdict-correct' : 'quiz-verdict-wrong'}`}>
+                  <p className={`text-sm font-bold ${mResult.correct ? 'quiz-ink-correct' : 'quiz-ink-wrong'}`}>{mResult.feedback}</p>
                 </div>
               )}
             </div>
@@ -1662,17 +1663,17 @@ export default function QuizRunnerV2() {
                   return (
                     <li
                       key={itemIndex}
-                      className={`flex items-center gap-3 rounded-2xl border-2 bg-white p-3 shadow-[0_2px_0_#0F1B2D] ${
-                        itemCorrect === true ? 'border-emerald-600'
-                          : itemCorrect === false ? 'border-orange-500'
-                            : 'border-slate-900'
+                      className={`flex items-center gap-3 rounded-2xl border-2 theme-card p-3 quiz-card-shadow ${
+                        itemCorrect === true ? 'quiz-state-correct'
+                          : itemCorrect === false ? 'quiz-state-wrong'
+                            : 'theme-border'
                       }`}
                     >
-                      <span className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full border-2 border-slate-900 bg-orange-50 text-sm font-black text-slate-900">{position + 1}</span>
+                      <span className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full border-2 theme-border theme-accent-bg text-sm font-black theme-text">{position + 1}</span>
                       {/* A rich sequence item used to render as an EMPTY string —
                           the learner ordered blanks. Rich values render; plain
                           strings take exactly the old path. */}
-                      <span className="flex-1 text-sm font-bold text-slate-900">
+                      <span className="flex-1 text-sm font-bold theme-text">
                         {typeof items[itemIndex] === 'string' && !/<[a-z!/]/i.test(String(items[itemIndex]))
                           ? items[itemIndex]
                           : <RichContent value={items[itemIndex]} fallback={<span>{getRichPlainText(items[itemIndex])}</span>} />}
@@ -1683,7 +1684,7 @@ export default function QuizRunnerV2() {
                           onClick={() => moveItem(position, -1)}
                           disabled={position === 0 || (sChecked && mode === 'practice')}
                           aria-label={`Move "${typeof items[itemIndex] === 'string' ? items[itemIndex] : `item ${position + 1}`}" up`}
-                          className="grid h-7 w-7 place-items-center rounded-lg border-2 border-slate-900 bg-white text-xs font-black text-slate-900 disabled:opacity-30"
+                          className="grid h-7 w-7 place-items-center rounded-lg border-2 theme-border theme-card text-xs font-black theme-text disabled:opacity-30"
                         >
                           ▲
                         </button>
@@ -1692,7 +1693,7 @@ export default function QuizRunnerV2() {
                           onClick={() => moveItem(position, 1)}
                           disabled={position === order.length - 1 || (sChecked && mode === 'practice')}
                           aria-label={`Move "${typeof items[itemIndex] === 'string' ? items[itemIndex] : `item ${position + 1}`}" down`}
-                          className="grid h-7 w-7 place-items-center rounded-lg border-2 border-slate-900 bg-white text-xs font-black text-slate-900 disabled:opacity-30"
+                          className="grid h-7 w-7 place-items-center rounded-lg border-2 theme-border theme-card text-xs font-black theme-text disabled:opacity-30"
                         >
                           ▼
                         </button>
@@ -1713,8 +1714,8 @@ export default function QuizRunnerV2() {
               )}
 
               {sChecked && mode === 'practice' && (
-                <div className={`rounded-2xl border-2 p-4 ${sResult.correct ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'}`}>
-                  <p className={`text-sm font-bold ${sResult.correct ? 'text-green-900' : 'text-orange-900'}`}>{sResult.feedback}</p>
+                <div className={`rounded-2xl border-2 p-4 ${sResult.correct ? 'quiz-verdict-correct' : 'quiz-verdict-wrong'}`}>
+                  <p className={`text-sm font-bold ${sResult.correct ? 'quiz-ink-correct' : 'quiz-ink-wrong'}`}>{sResult.feedback}</p>
                 </div>
               )}
             </div>
@@ -1756,10 +1757,10 @@ export default function QuizRunnerV2() {
           }
           return (
           <div className="space-y-3">
-            <div className={`overflow-hidden rounded-2xl border-2 bg-white shadow-[0_2px_0_#0F1B2D] ${numericChecked && mode === 'practice'
-              ? numericResult.correct ? 'border-emerald-600' : 'border-orange-500'
-              : 'border-slate-900'}`}>
-              <div className="border-b-2 border-slate-900 bg-orange-50 px-4 py-2 text-sm font-bold text-slate-900">🔢 Numeric answer</div>
+            <div className={`overflow-hidden rounded-2xl border-2 theme-card quiz-card-shadow ${numericChecked && mode === 'practice'
+              ? numericResult.correct ? 'quiz-state-correct' : 'quiz-state-wrong'
+              : 'theme-border'}`}>
+              <div className="quiz-card-head px-4 py-2 text-sm font-bold">🔢 Numeric answer</div>
               <div className="flex items-center gap-2 p-3">
                 <input
                   type="number"
@@ -1792,7 +1793,7 @@ export default function QuizRunnerV2() {
                   }}
                   placeholder="Type a number…"
                   aria-label="Numeric answer"
-                  className="flex-1 bg-transparent text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400"
+                  className="flex-1 bg-transparent text-base font-semibold theme-text outline-none placeholder:theme-text-muted"
                 />
                 {numericChecked && mode === 'practice' && <span className="text-xl">{numericResult.correct ? '✅' : '❌'}</span>}
               </div>
@@ -1810,21 +1811,21 @@ export default function QuizRunnerV2() {
             )}
 
             {numericChecked && mode === 'practice' && (
-              <div className={`rounded-2xl border-2 p-4 ${numericResult.correct ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'}`}>
-                <p className={`text-sm font-bold ${numericResult.correct ? 'text-green-900' : 'text-orange-900'}`}>
+              <div className={`rounded-2xl border-2 p-4 ${numericResult.correct ? 'quiz-verdict-correct' : 'quiz-verdict-wrong'}`}>
+                <p className={`text-sm font-bold ${numericResult.correct ? 'quiz-ink-correct' : 'quiz-ink-wrong'}`}>
                   {numericResult.correct ? '✅ Correct!' : '❌ Not quite.'}
                 </p>
-                <p className={`mt-1 text-sm ${numericResult.correct ? 'text-green-700' : 'text-orange-700'}`}>{numericResult.feedback}</p>
+                <p className={`mt-1 text-sm ${numericResult.correct ? 'quiz-ink-correct' : 'quiz-ink-wrong'}`}>{numericResult.feedback}</p>
               </div>
             )}
           </div>
           )
         })() : isTextAnswerType(question.type) ? (
           <div className="space-y-3">
-            <div className={`overflow-hidden rounded-2xl border-2 bg-white shadow-[0_2px_0_#0F1B2D] ${checked && mode === 'practice'
-              ? aiResult.correct ? 'border-emerald-600' : 'border-orange-500'
-              : 'border-slate-900'}`}>
-              <div className="border-b-2 border-slate-900 bg-orange-50 px-4 py-2 text-sm font-bold text-slate-900">🤖 AI-checked answer</div>
+            <div className={`overflow-hidden rounded-2xl border-2 theme-card quiz-card-shadow ${checked && mode === 'practice'
+              ? aiResult.correct ? 'quiz-state-correct' : 'quiz-state-wrong'
+              : 'theme-border'}`}>
+              <div className="quiz-card-head px-4 py-2 text-sm font-bold">🤖 AI-checked answer</div>
               {(() => {
                 // Essay answers are long-form, so they get a multi-line
                 // textarea (Enter inserts a newline rather than submitting);
@@ -1888,7 +1889,7 @@ export default function QuizRunnerV2() {
                         rows={6}
                         placeholder="Write your answer here…"
                         aria-label="Your answer"
-                        className="w-full resize-y bg-transparent text-base font-semibold leading-relaxed text-slate-900 outline-none placeholder:text-slate-400"
+                        className="w-full resize-y bg-transparent text-base font-semibold leading-relaxed theme-text outline-none placeholder:theme-text-muted"
                       />
                     ) : (
                       <input
@@ -1901,7 +1902,7 @@ export default function QuizRunnerV2() {
                         disabled={checking}
                         placeholder="Type your answer here..."
                         aria-label="Your answer"
-                        className="flex-1 bg-transparent text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400"
+                        className="flex-1 bg-transparent text-base font-semibold theme-text outline-none placeholder:theme-text-muted"
                       />
                     )}
                     <div className={`flex items-center gap-2 ${isEssay ? 'self-end' : ''}`}>
@@ -1926,16 +1927,16 @@ export default function QuizRunnerV2() {
 
             {checked && mode === 'practice' && (
               <>
-                <div className={`rounded-2xl border-2 p-4 ${aiResult.correct ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'}`}>
+                <div className={`rounded-2xl border-2 p-4 ${aiResult.correct ? 'quiz-verdict-correct' : 'quiz-verdict-wrong'}`}>
                   {aiResult.correct ? (
                     <>
-                      <p className="text-lg font-black text-green-700">🌟 Correct! Well done!</p>
-                      <p className="mt-1 text-sm text-green-700">{aiResult.feedback}</p>
+                      <p className="text-lg font-black quiz-ink-correct">🌟 Correct! Well done!</p>
+                      <p className="mt-1 text-sm quiz-ink-correct">{aiResult.feedback}</p>
                     </>
                   ) : (
                     <>
-                      <p className="text-lg font-black text-orange-700">💡 Not quite!</p>
-                      <p className="mt-1 text-sm text-orange-700">{aiResult.feedback}</p>
+                      <p className="text-lg font-black quiz-ink-wrong">💡 Not quite!</p>
+                      <p className="mt-1 text-sm quiz-ink-wrong">{aiResult.feedback}</p>
                       {question.correctAnswer && <p className="theme-text-muted mt-1.5 text-xs">Expected: <strong>{question.correctAnswer}</strong></p>}
                     </>
                   )}
@@ -1960,13 +1961,13 @@ export default function QuizRunnerV2() {
           // this only fires for malformed data (e.g. an MCQ that lost its
           // options). Show a clear notice instead of crashing on .map of an
           // empty array or rendering a blank, unanswerable option grid.
-          <div className="rounded-2xl border-2 border-dashed border-orange-300 bg-orange-50 p-4 text-sm font-bold text-orange-700">
+          <div className="rounded-2xl border-2 border-dashed quiz-state-wrong theme-accent-bg p-4 text-sm font-bold quiz-ink-wrong">
             ⚠️ This question can’t be displayed right now. Please let your teacher know so they can fix it.
           </div>
         ) : (
           <div className="space-y-4">
             {readAloud.enabled && (
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
+              <div className="flex items-center gap-2 text-xs font-bold theme-text-muted">
                 <span>Answer options</span>
                 <TextToSpeechButton
                   id={`opts:${question.id}`}
@@ -2035,14 +2036,14 @@ export default function QuizRunnerV2() {
                   onDismiss={() => setPakoTip(current => ({ ...current, visible: false }))}
                 />
                 <div className={`rounded-2xl border-2 p-4 ${
-                  userAnswer === question.correctAnswer ? 'border-green-200 bg-green-50'
+                  userAnswer === question.correctAnswer ? 'quiz-verdict-correct'
                     : userAnswer === undefined ? 'theme-border theme-bg-subtle'
-                    : 'border-orange-200 bg-orange-50'
+                    : 'quiz-verdict-wrong'
                 }`}>
                   {userAnswer === question.correctAnswer ? (
                     <>
-                      <p className="text-lg font-black text-green-700">🌟 Excellent! Well done!</p>
-                      <p className="mt-1 text-sm text-green-700">The answer is <strong><RichContent value={question.options[question.correctAnswer]} className="rich-option" fallback={<span />} /></strong></p>
+                      <p className="text-lg font-black quiz-ink-correct">🌟 Excellent! Well done!</p>
+                      <p className="mt-1 text-sm quiz-ink-correct">The answer is <strong><RichContent value={question.options[question.correctAnswer]} className="rich-option" fallback={<span />} /></strong></p>
                     </>
                   ) : userAnswer === undefined ? (
                     <>
@@ -2051,8 +2052,8 @@ export default function QuizRunnerV2() {
                     </>
                   ) : (
                     <>
-                      <p className="text-lg font-black text-orange-700">💡 Not quite — you can do it!</p>
-                      <p className="mt-1 text-sm text-orange-700">Correct answer: <strong><RichContent value={question.options[question.correctAnswer]} className="rich-option" fallback={<span />} /></strong></p>
+                      <p className="text-lg font-black quiz-ink-wrong">💡 Not quite — you can do it!</p>
+                      <p className="mt-1 text-sm quiz-ink-wrong">Correct answer: <strong><RichContent value={question.options[question.correctAnswer]} className="rich-option" fallback={<span />} /></strong></p>
                     </>
                   )}
                 </div>
@@ -2089,7 +2090,7 @@ export default function QuizRunnerV2() {
 
   return (
     <div
-      className={`${themeClass} theme-bg theme-text min-h-screen`}
+      className={`quiz-proto ${themeClass} theme-bg theme-text min-h-screen`}
       style={quizDisplayStyle}
       {...quizDisplayAttrs}
     >
@@ -2104,10 +2105,10 @@ export default function QuizRunnerV2() {
       />
       {actionError && (
         <div className="fixed inset-x-4 top-4 z-[60] mx-auto max-w-md animate-slide-up">
-          <div className="zx-card-shared flex items-start gap-3 bg-amber-50 px-4 py-3 text-slate-900">
+          <div className="zx-card-shared flex items-start gap-3 bg-amber-50 px-4 py-3 theme-text">
             <span className="mt-0.5 text-lg">⚠️</span>
             <p className="flex-1 text-sm font-bold leading-snug">{actionError}</p>
-            <button type="button" onClick={() => setActionError('')} className="min-h-0 bg-transparent p-0 text-lg text-slate-700 shadow-none">×</button>
+            <button type="button" onClick={() => setActionError('')} className="min-h-0 bg-transparent p-0 text-lg theme-text-muted shadow-none">×</button>
           </div>
         </div>
       )}
@@ -2117,12 +2118,12 @@ export default function QuizRunnerV2() {
           {feedbackType === 'correct' ? (
             <div className="flex flex-col items-center animate-pop">
               <div className="text-8xl">⭐</div>
-              <div className="mt-2 rounded-2xl bg-green-500 px-7 py-2.5 text-xl font-black text-white shadow-xl">Correct! 🎉</div>
+              <div className="quiz-toast-correct mt-2 rounded-2xl px-7 py-2.5 text-xl font-black shadow-xl">Correct! 🎉</div>
             </div>
           ) : (
             <div className="flex flex-col items-center animate-pop">
               <div className="text-7xl">💪</div>
-              <div className="mt-2 rounded-2xl bg-orange-400 px-6 py-2.5 text-lg font-black text-white shadow-xl">Keep going!</div>
+              <div className="quiz-toast-wrong mt-2 rounded-2xl px-6 py-2.5 text-lg font-black shadow-xl">Keep going!</div>
             </div>
           )}
         </div>
@@ -2150,13 +2151,13 @@ export default function QuizRunnerV2() {
       <div className="zx-hero-strip sticky top-0 z-30">
         <div className="mx-auto max-w-5xl px-3 py-3 sm:px-4">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <span aria-hidden="true" className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-[14px] border-2 border-slate-900 bg-orange-100 text-xl">
+            <span aria-hidden="true" className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-[14px] border-2 theme-border theme-accent-bg text-xl">
               {mascot.emoji}
             </span>
             <div className="min-w-0 flex-1">
               <span className="zx-eyebrow-shared">{mascot.name}</span>
-              <p className="truncate text-[11px] font-semibold text-slate-600">{quiz.subject} · Grade {quiz.grade}</p>
-              <p className="truncate text-sm font-black leading-tight text-slate-900">{quiz.title}</p>
+              <p className="truncate text-[11px] font-semibold theme-text-muted">{quiz.subject} · Grade {quiz.grade}</p>
+              <p className="truncate text-sm font-black leading-tight theme-text">{quiz.title}</p>
             </div>
             <div className="flex items-center gap-2">
               {difficultyState === 'active' && (
@@ -2196,10 +2197,10 @@ export default function QuizRunnerV2() {
               <ReadingSettingsButton onClick={() => setShowReadingSettings(true)} />
             </div>
           </div>
-          <div className="h-3 overflow-hidden rounded-full border-2 border-slate-900 bg-white">
-            <div className="h-full rounded-full bg-orange-500 transition-all duration-500" style={{ width: `${progress}%` }} />
+          <div className="h-3 overflow-hidden rounded-full border-2 theme-border theme-card">
+            <div className="h-full rounded-full theme-accent-fill transition-all duration-500" style={{ width: `${progress}%` }} />
           </div>
-          <div className="mt-1 flex justify-between text-[11px] font-bold text-slate-600">
+          <div className="mt-1 flex justify-between text-[11px] font-bold theme-text-muted">
             <span>{answered} answered</span>
             <span>{questions.length - answered} left</span>
           </div>
@@ -2243,7 +2244,7 @@ export default function QuizRunnerV2() {
         <div className="mx-auto max-w-3xl px-3 py-3 sm:px-4">
           <div className="mb-2 flex items-center justify-between px-1">
             <span className="zx-pill-dark zx-pill-light">Section {activeSectionIndex + 1} / {sections.length}</span>
-            <span className="text-xs font-bold text-slate-700">{answered}/{questions.length} answered</span>
+            <span className="text-xs font-bold theme-text-muted">{answered}/{questions.length} answered</span>
           </div>
           {sections.length <= 20 ? (
             <div className="mb-3 flex gap-1.5">
@@ -2257,7 +2258,7 @@ export default function QuizRunnerV2() {
                     type="button"
                     onClick={() => setActiveSectionIndex(index)}
                     title={`Section ${index + 1}${complete ? ' ✓' : ''}${flaggedSection ? ' 🚩' : ''}`}
-                    className="min-h-0 flex-1 rounded-full border-2 border-slate-900 transition-all"
+                    className="min-h-0 flex-1 rounded-full border-2 theme-border transition-all"
                     style={{
                       height: 10,
                       background: current ? '#D97757' : flaggedSection ? '#FBBF24' : complete ? '#10B981' : '#fff',
@@ -2268,8 +2269,8 @@ export default function QuizRunnerV2() {
               })}
             </div>
           ) : (
-            <div className="mb-3 h-3 overflow-hidden rounded-full border-2 border-slate-900 bg-white">
-              <div className="h-full rounded-full bg-orange-500 transition-all duration-300" style={{ width: `${sections.length ? Math.round(((activeSectionIndex + 1) / sections.length) * 100) : 0}%` }} />
+            <div className="mb-3 h-3 overflow-hidden rounded-full border-2 theme-border theme-card">
+              <div className="h-full rounded-full theme-accent-fill transition-all duration-300" style={{ width: `${sections.length ? Math.round(((activeSectionIndex + 1) / sections.length) * 100) : 0}%` }} />
             </div>
           )}
 

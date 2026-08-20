@@ -76,6 +76,17 @@ const css = readFileSync(resolve(root, 'src/shared/styles/learnerTheme.css'), 'u
  */
 const papersCss = readFileSync(resolve(root, 'src/features/papers/papersTheme.css'), 'utf8')
 
+/**
+ * And a third: `quizTheme.css`, the same palette again for the quiz
+ * surfaces (`docs/learner/LEARNER_UI_AUDIT.md` L-06). Three declarations
+ * of one palette is two more than anyone wants; what makes it tolerable
+ * is that the extras exist for a structural reason — those pages are
+ * Tailwind utilities reading `--card`, not `.lhx` classes — and that the
+ * SHARED block at the foot of this file fails if any two of them
+ * disagree about a surface.
+ */
+const quizCss = readFileSync(resolve(root, 'src/features/quiz/quizTheme.css'), 'utf8')
+
 /** Body text. */
 const BODY = 4.5
 /** Large text (≥18.66px bold / ≥24px) and graphical objects — WCAG 1.4.11. */
@@ -161,6 +172,12 @@ const DAY = readBlock(css, /^\.lhx \{/m, 'the `.lhx` palette')
 const NIGHT = {
   ...DAY,
   ...readBlock(css, /:is\(body\.theme-midnight, html\[data-theme='night'\] body\) \.lhx \{/, 'the Night override'),
+}
+
+const QUIZ_DAY = readBlock(quizCss, /^\.quiz-proto \{/m, 'the `.quiz-proto` palette')
+const QUIZ_NIGHT = {
+  ...QUIZ_DAY,
+  ...readBlock(quizCss, /:is\(body\.theme-midnight, html\[data-theme='night'\] body\) \.quiz-proto \{/, 'the quiz Night override'),
 }
 
 const PAPERS_DAY = readBlock(papersCss, /^\.papers-proto \{/m, 'the `.papers-proto` palette')
@@ -289,7 +306,10 @@ for (const [look, palette] of [['lhx light', DAY], ['lhx Night', NIGHT]]) {
   }
 }
 
-for (const [look, palette] of [['papers light', PAPERS_DAY], ['papers Night', PAPERS_NIGHT]]) {
+for (const [look, palette] of [
+  ['papers light', PAPERS_DAY], ['papers Night', PAPERS_NIGHT],
+  ['quiz light', QUIZ_DAY], ['quiz Night', QUIZ_NIGHT],
+]) {
   for (const [token, surfaces, what] of PAPERS_INK) {
     for (const on of surfaces) check(look, palette, token, on, BODY, what, '--card')
   }
@@ -322,6 +342,8 @@ assert.ok(Object.keys(DAY).length > 40, 'the lhx light palette parsed as near-em
 assert.notEqual(DAY['--lhx-bg'], NIGHT['--lhx-bg'], 'lhx Night parsed as identical to light — the override stopped matching')
 assert.ok(Object.keys(PAPERS_DAY).length > 20, 'the papers palette parsed as near-empty — the selector stopped matching')
 assert.notEqual(PAPERS_DAY['--bg'], PAPERS_NIGHT['--bg'], 'papers Night parsed as identical to light — the override stopped matching')
+assert.ok(Object.keys(QUIZ_DAY).length > 20, 'the quiz palette parsed as near-empty — the selector stopped matching')
+assert.notEqual(QUIZ_DAY['--bg'], QUIZ_NIGHT['--bg'], 'quiz Night parsed as identical to light — the override stopped matching')
 
 /**
  * The two declarations of the same palette must agree where they overlap.
@@ -333,14 +355,19 @@ const SHARED = [
   ['--lhx-bg', '--bg'], ['--lhx-card', '--card'], ['--lhx-ink', '--text'],
   ['--lhx-muted', '--text-muted'], ['--lhx-line', '--border'],
 ]
-for (const [look, lhx, papers] of [['light', DAY, PAPERS_DAY], ['Night', NIGHT, PAPERS_NIGHT]]) {
+for (const [look, lhx, other, name] of [
+  ['light', DAY, PAPERS_DAY, 'papersTheme.css'],
+  ['Night', NIGHT, PAPERS_NIGHT, 'papersTheme.css'],
+  ['light', DAY, QUIZ_DAY, 'quizTheme.css'],
+  ['Night', NIGHT, QUIZ_NIGHT, 'quizTheme.css'],
+]) {
   for (const [a, b] of SHARED) {
     assert.equal(
-      resolveToken(papers, b).toLowerCase(),
+      resolveToken(other, b).toLowerCase(),
       resolveToken(lhx, a).toLowerCase(),
-      `${look}: papersTheme.css ${b} and learnerTheme.css ${a} are the same surface and disagree`,
+      `${look}: ${name} ${b} and learnerTheme.css ${a} are the same surface and disagree`,
     )
   }
 }
 
-console.log(`learner theme contrast: ${checked} pairs across 2 stylesheets × 2 looks — all pass`)
+console.log(`learner theme contrast: ${checked} pairs across 3 stylesheets × 2 looks — all pass`)

@@ -1,0 +1,184 @@
+/**
+ * quiz-proto — the learner-redesign look for the quiz surfaces, and the
+ * twin of `features/papers/papersTheme.css`.
+ *
+ * Same approach, same values, and for the same reason: these pages are
+ * built out of Tailwind utilities that read the generic `--bg` / `--card`
+ * / `--text` variables, not out of `.lhx` classes, so the way to bring
+ * them onto the learner palette is to declare that palette through the
+ * variables those utilities already read. Nothing structural moves.
+ *
+ * ## What was actually wrong
+ *
+ * `docs/learner/LEARNER_UI_AUDIT.md` L-06 records the quiz library and
+ * the quiz runner as "still the retired cream/orange neo-brutalist
+ * system, with the colours written into class strings" — the funnel's
+ * destination looking like a different app from the tab it was reached
+ * through. Measured, it is more particular than that:
+ *
+ *   - `QuizResultsV2` was already 49 `theme-*` utilities deep, and
+ *     `QuizRunnerV2`'s own root and error states were too. So the pages
+ *     were ALREADY following the reading palette in the large.
+ *   - The clash came from hardcoded classes layered on top of that —
+ *     `bg-orange-50` headers, `border-slate-900` edges, and the hard
+ *     `shadow-[0_2px_0_#0F1B2D]` offset — which followed nothing.
+ *   - `QuizList` was the outlier: zero `theme-*` utilities, entirely
+ *     hardcoded.
+ *
+ * ## The semantic collision this fixes, which is not a colour choice
+ *
+ * Orange was doing two incompatible jobs in the runner. It was the
+ * ACCENT — every neutral card header is `bg-orange-50`, every eyebrow
+ * `text-orange-700` — and it was also WRONG: an incorrect answer drew
+ * `border-orange-500`, and "❌ Not quite" printed in `text-orange-700`,
+ * the same value as a neutral label two lines above it.
+ *
+ * So a learner's mistake was marked in the page's own furniture colour.
+ * The state classes below separate them: coral stays the accent, red
+ * means wrong, green means right, and each is a named class rather than
+ * a hue spelled out at 30 call sites.
+ */
+
+.quiz-proto {
+  --bg: #edeffd;
+  --bg-subtle: #eef1ff;
+  --card: #ffffff;
+  --card-hover: #f5f6ff;
+  --text: #2b2d51;
+  --text-muted: #5f6592;
+  --border: #e4e7fb;
+
+  /* Deepened from the prototype coral for the same reason papersTheme.css
+     deepens it: the flat fill carries white text, and #ff5c39 reads
+     3.07:1 under it. The bright coral survives on the gradients. */
+  --accent: #c94418;
+  --accent-bg: #fff0e8;
+  --accent-fg: #b8441f;
+  --accent-text: #ffffff;
+
+  --input-bg: #ffffff;
+  --input-border: #e4e7fb;
+
+  --shadow-sm: 0 4px 12px rgba(90, 100, 200, 0.12);
+  --shadow-md: 0 8px 24px rgba(90, 100, 200, 0.12);
+  --shadow-lg: 0 12px 26px rgba(81, 88, 208, 0.25);
+  --shadow-xl: 0 20px 50px rgba(43, 45, 81, 0.3);
+
+  --success: #2ec06a; --success-bg: #e0f8ea; --success-fg: #0e7a3e;
+  --warning: #e8622f; --warning-bg: #fff8e6; --warning-fg: #8a5610;
+  --danger: #ef5a5f;  --danger-bg: #fdeaea;  --danger-fg: #b8353b;
+  --info: #5158d0;    --info-bg: #eef1ff;    --info-fg: #5158d0;
+
+  font-family: 'Nunito', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+.quiz-proto :is(h1, h2, h3, h4, .font-display) { font-family: inherit; }
+
+/* Night — same triggers as the learner shell and the papers surfaces. */
+:is(body.theme-midnight, html[data-theme='night'] body) .quiz-proto {
+  --bg: #171929;
+  --bg-subtle: #2a2d4a;
+  --card: #232640;
+  --card-hover: #2a2d4a;
+  --text: #e9ebff;
+  --text-muted: #9aa0c8;
+  --border: #32365a;
+
+  --accent-bg: rgba(255, 154, 107, 0.16);
+  --accent-fg: #ff9a6b;
+
+  --input-bg: #232640;
+  --input-border: #32365a;
+
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 26px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 20px 50px rgba(0, 0, 0, 0.5);
+
+  --success-bg: #173327; --success-fg: #7bd9a3;
+  --warning-bg: #332c18; --warning-fg: #e6c473;
+  --danger-bg: rgba(239, 90, 95, 0.16); --danger-fg: #f4a5a8;
+  --info-bg: #2a2d4a; --info-fg: #aab2f0;
+}
+
+/* ── The card ─────────────────────────────────────────────────────
+ * `.zx-card-shared` is the neo-brutalist card — white ground, 2px
+ * #0F1B2D edge, hard 2px offset shadow — declared in index.css and
+ * shared with `PassageViewer` and `ThemePreview`. It is overridden HERE,
+ * inside the scope, rather than changed at its declaration: the other
+ * two consumers are not part of this surface and re-toning them is not
+ * this change's business.
+ *
+ * The 22px radius and the pressable translate are kept. What goes is the
+ * near-black edge and the hard offset, which are what made these pages
+ * read as a different design system from the card two taps away. */
+.quiz-proto .zx-card-shared {
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+.quiz-proto .zx-card-shared.is-pressable:active {
+  transform: translateY(1px);
+  box-shadow: none;
+}
+
+/* ── Answer state ─────────────────────────────────────────────────
+ * One class per meaning, so a state is named at the call site rather
+ * than spelled as a hue. `border-color` only — the card's own ground and
+ * radius come from `.zx-card-shared` or from the element's utilities.
+ *
+ * The 2px weight is kept for exactly these three: after answering, the
+ * border IS the verdict, so it is the one place on the page where the
+ * edge is carrying meaning rather than drawing a box. */
+.quiz-proto .quiz-state-neutral { border-color: var(--border); }
+.quiz-proto .quiz-state-correct { border-color: var(--success-fg); }
+.quiz-proto .quiz-state-wrong   { border-color: var(--danger-fg); }
+
+/* The wash + ink pairs a verdict panel is drawn in. */
+.quiz-proto .quiz-verdict-correct { background: var(--success-bg); color: var(--success-fg); }
+.quiz-proto .quiz-verdict-wrong   { background: var(--danger-bg);  color: var(--danger-fg); }
+
+/* ── The card's header strip ──────────────────────────────────────
+ * Was `border-b-2 border-slate-900 bg-orange-50` at every question type —
+ * a near-black rule under a warm wash. It is the accent chip's tint now,
+ * with the card's own hairline. */
+.quiz-proto .quiz-card-head {
+  background: var(--accent-bg);
+  color: var(--accent-fg);
+  border-bottom: 1px solid var(--border);
+}
+
+/* The ink of a verdict line, where the panel behind it is not the one
+   carrying the state (a `<p>` inside a neutral card). Same two meanings
+   as the verdict panels above. */
+.quiz-proto .quiz-ink-correct { color: var(--success-fg); }
+.quiz-proto .quiz-ink-wrong   { color: var(--danger-fg); }
+
+/* The hard 2px offset the question cards were drawn with, as a class
+   rather than an arbitrary-value utility repeated at eight call sites.
+   It follows the palette now, so it exists in Night instead of being a
+   near-black smear under a dark card. */
+.quiz-proto .quiz-card-shadow { box-shadow: var(--shadow-sm); }
+
+/* ── The two celebration toasts ───────────────────────────────────
+ * "Correct! 🎉" and "Keep going!" — the banner that flashes over the
+ * page after an answer. They were `bg-green-500` and `bg-orange-400`
+ * under white text, which measure 2.28:1 and 2.26:1: the one moment the
+ * app speaks directly to the child, printed in the least readable ink on
+ * the screen.
+ *
+ * Fixed values rather than `--success-fg` / `--danger-fg`, and that is
+ * the point of them existing at all: those tokens are INKS and go LIGHT
+ * in Night (`#7bd9a3`), which is right for words on a dark card and
+ * wrong for a ground carrying white text. A filled banner needs a dark
+ * ground in both looks — the same reason `--lhx-green-btn` is separate
+ * from `--lhx-green-dark` in learnerTheme.css. */
+.quiz-proto .quiz-toast-correct { background: #0e7a3e; color: #fff; }
+.quiz-proto .quiz-toast-wrong   { background: #b8441f; color: #fff; }
+
+/* A question the learner flagged to come back to. Its own class because
+   "flagged" is neither the accent nor a verdict — it is a bookmark, and
+   it was `bg-amber-300`, which inverts in no look. */
+.quiz-proto .quiz-flagged { background: var(--warning-bg); color: var(--warning-fg); }

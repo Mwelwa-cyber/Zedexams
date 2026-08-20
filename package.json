@@ -820,6 +820,7 @@
     "test:reading-theme-contrast": "node src/contexts/readingThemeContrast.test.js",
     "test:learner-contrast": "node src/shared/styles/learnerThemeContrast.test.js",
     "test:learner-tabs": "node scripts/test-learner-tabs.mjs",
+    "test:quiz-surface-theme": "node scripts/test-quiz-surface-theme.mjs",
     "test:games-dark-surface": "node src/features/games/gamesDarkSurface.test.js",
     "test:games-hub-core": "node src/features/games/lib/gamesHubCore.test.js",
     "test:games-seed-admin": "node src/features/games/lib/gamesSeedAdminCore.test.js",

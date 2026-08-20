@@ -272,7 +272,52 @@ retirement rather than restyling. That is a decision for the gate, not for me.
 > guarded, tested screen buys no safety, so it is left in place and the
 > risk framing is withdrawn.
 >
-> **Still open: L-05, L-06, L-07, L-13, L-15, L-23**, and L-17 outside the
+> **L-06 is worked, and its diagnosis was wrong in a way worth recording.**
+> The row reads "still the retired cream/orange neo-brutalist system, with
+> the colours written into class strings". Measured, that is not what a
+> learner meets:
+>
+> - `QuizResultsV2` was already 49 `theme-*` utilities deep and
+>   `QuizRunnerV2`'s own root and error states were too — the pages
+>   followed the reading palette in the large.
+> - The cream/orange the row names is `.quiz-theme-mathematics`, one of
+>   **seven per-subject mascot palettes** (Maths Fox / Story Owl / Science
+>   Turtle / …) that the runner applies as `quiz-theme-${mascot.slug}`.
+>   That is a designed feature, not retired styling — and the audit could
+>   not have seen which, because the runner is auth-gated and this row was
+>   derived from source.
+>
+> **And the feature is dead in production.** Because the class is built
+> from a variable, Tailwind's content scanner never sees the literal and
+> tree-shakes all seven palettes out of the bundle: none of them appears
+> in any file under `dist/assets/`, and loading the built CSS in Chromium
+> against a `.quiz-theme-mathematics` root resolves `--bg` to the reading
+> theme's value rather than the palette's `#fcf7f3`. There is no
+> `safelist` in `tailwind.config.js`. **This is an owner's decision and
+> is deliberately left open** — reviving it colours every quiz by subject,
+> deleting it discards the idea. `test:quiz-surface-theme` asserts only
+> that the two halves live or die together, so the repo cannot stay in
+> today's state of a className selecting nothing.
+>
+> **What WAS broken, reproduced in Chromium against the real built CSS:**
+> the runner's question cards were drawn in hardcoded literals layered on
+> a root that did follow the theme. `bg-white` and `text-slate-900` invert
+> in Night (index.css remaps them, scoped to `.force-light-theme` and
+> `.zx-card-shared`); **`bg-orange-50` was in neither list**, so every
+> question card's header strip rendered near-white ink on cream — **1.03:1**
+> — for every Midnight learner. Fixed by putting the surface on
+> `.quiz-proto` and giving those literals classes that read the palette.
+> Also fixed on the way: the score ring's three hexes (amber at **1.56:1**
+> against its own track), the two celebration toasts (**2.26:1** white on
+> `bg-orange-400`), and orange meaning both "accent" and "wrong".
+>
+> **`QuizList` is deliberately NOT migrated.** It renders inside
+> `.force-light-theme`, whose Midnight remap does cover its vocabulary,
+> and `gamesDarkSurface.test.js` requires that container to stay. It is a
+> palette difference from the rest of the learner side, not a defect —
+> moving it means converting its literals first, then changing that guard.
+>
+> **Still open: L-05, L-07, L-13, L-15, L-23**, and L-17 outside the
 > learner surface. The largest by far is **L-06** — the quiz runner and
 > quiz list are still the retired cream/orange system, and they are the
 > destination the whole funnel points at.
