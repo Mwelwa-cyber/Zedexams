@@ -6,7 +6,6 @@ import {
   FileText,
   Files,
   PencilLine,
-  BarChart3,
   GraduationCap,
   Settings,
   ShieldCheck,
@@ -56,13 +55,11 @@ export default function Navbar() {
     { to: '/lessons',    label: 'Lessons',  icon: BookOpen },
     { to: '/quizzes',    label: 'Quizzes',  icon: PencilLine },
     { to: '/daily',      label: 'Exams',    icon: TrophyIcon },
-    { to: '/my-results', label: 'Results',  icon: BarChart3 },
   ]
   const staffLinks = [
     { to: '/notes',      label: 'Notes',    icon: FileText },
     { to: '/lessons',    label: 'Lessons',  icon: BookOpen },
     { to: '/quizzes',    label: 'Practise', icon: PencilLine },
-    { to: '/my-results', label: 'Results',  icon: BarChart3 },
   ]
   const navLinks = (!isAdmin && !isTeacher) ? learnerLinks : staffLinks
 

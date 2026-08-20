@@ -25,6 +25,7 @@ try {
 }
 
 const requiredSections = [
+  'Definition of Ready',
   'Definition of Done',
   'Coding standards',
   'Schema rules',
@@ -43,6 +44,9 @@ const loadBearing = [
   'Never edit `test:all`',      // run-all-tests.mjs auto-discovery
   'africa-south1',              // Firestore trigger region pinning
   'firestore:indexes',          // indexes deploy before querying code
+  'rather than recalled',       // §0: read the source, don't build on memory
+  'reproduced before it is fixed', // §0: no fixing a failure you haven't seen
+  'Assumptions are stated',     // §0: an unverified fact is never carried silently
 ];
 for (const phrase of loadBearing) {
   assert(guide.includes(phrase), `AI_DEVELOPMENT_GUIDE.md lost the load-bearing rule mentioning "${phrase}"`);

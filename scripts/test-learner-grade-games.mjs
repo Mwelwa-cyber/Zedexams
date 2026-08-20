@@ -108,6 +108,16 @@ for (const grade of LEARNER_GRADES) {
         assert.ok(Number(pack.rounds) > 0, `${pack.id}: number_target needs a rounds count`)
         continue
       }
+      if (pack.type === 'fraction_ladder') {
+        // Its questions are the ladder's, checked in full by
+        // test:fraction-ladder — including that every printed answer key
+        // actually marks correct. Here we only insist it has a ladder at all.
+        assert.ok(
+          pack.questions.length >= 9,
+          `${pack.id}: ${pack.questions.length} questions across nine levels is not a ladder`,
+        )
+        continue
+      }
       if (pack.type === 'map_place') {
         const provinces = Object.keys(ZAMBIA_PROVINCES_GEO.provinces || {})
         assert.equal(

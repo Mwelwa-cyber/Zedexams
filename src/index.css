@@ -3812,6 +3812,65 @@ body {
     --warning:         #A3422E; --warning-bg: #F8EADF; --warning-fg: #83372C;
     --danger:          #B91C1C; --danger-bg:  #FEE2E2; --danger-fg:  #7F1414;
     --info:            #0E5E70; --info-bg:    #E3EEF0; --info-fg:    #053541;
+
+    /*
+     * THE WORKSPACE TOKENS ARE PINNED HERE TOO, AND THAT IS THE WHOLE POINT.
+     *
+     * The admin shell reads BOTH token sets on the same pixels. The block
+     * above pins the reading palette, and the shell's own chrome — the
+     * sidebar fill, the brand strip, and every heading and paragraph on
+     * AdminDashboard / AdminSetupBanner / AdminSettings — is written in
+     * `var(--zt-text)` / `var(--zt-text-muted)` / `var(--zt-card)` /
+     * `var(--zt-surface)` instead. Those kept following `data-theme` on
+     * <html>, so the two sets pointed in opposite directions the moment the
+     * workspace theme was Night:
+     *
+     *   • --zt-text #EDE7DC (near-white) on this skin's --card #FFFFFF
+     *     — every dashboard heading and card title at 1.23:1
+     *   • --zt-text-muted #94A0AF on the same white card — 2.66:1
+     *   • this skin's --text #0F1B2D on --zt-card #232D3B (the sidebar fill)
+     *     — the signed-in admin's name and email at 1.24:1
+     *   • --text-muted #4A5A6E on that same fill — every nav label at 1.97:1
+     *
+     * And nobody had to CHOOSE Night to land there. boot.js and
+     * teacherThemeStore seed the workspace theme from the reading palette,
+     * which falls back to `prefers-color-scheme` — so any admin on a
+     * dark-mode OS whose browser has no saved theme got the broken page on
+     * first load, with no control anywhere in /admin to undo it.
+     *
+     * The admin skin is deliberately NOT themeable (fixed cream parchment,
+     * navy borders, orange stickers — half of it is literals in the JSX), so
+     * the fix is to pin, not to follow. `.studio-theme` solves the same
+     * collision the other way: it maps the reading tokens ONTO --zt-*, so
+     * both sets agree. Either direction works; disagreeing does not.
+     *
+     * EVERY --zt-* token is listed, including the ones no admin surface reads
+     * today. A partial palette is the failure `.force-light-theme` documents
+     * further up this file: it looks correct on every visible surface right
+     * up until one component reaches for the token that was left out.
+     * `test:admin-surface-tokens` fails if a new --zt-* token is added to the
+     * theme blocks without being pinned here.
+     */
+    --zt-surface:       #F5EFE1;
+    --zt-card:          #FFFFFF;
+    --zt-card-border:   #0F1B2D;
+    --zt-line:          #0F1B2D;
+    --zt-text:          #0F1B2D;
+    --zt-text-muted:    #4A5A6E;
+    --zt-accent:        #B95C3A;
+    --zt-accent-deep:   #A3422E;
+    --zt-accent-text:   #A3422E;
+    --zt-on-accent:     #FFFFFF;
+    /* The sidebar/hero chrome tokens stay dark in every workspace theme (the
+       teacher contrast test asserts that), so they stay dark here — matched
+       to this skin's own navy rather than to Terracotta's blue. Nothing in
+       /admin reads them today: AdminLayout paints its sidebar --zt-card. */
+    --zt-sidebar-bg:    #0F1B2D;
+    --zt-sidebar-text:  rgba(255, 255, 255, 0.80);
+    --zt-sidebar-muted: rgba(255, 255, 255, 0.55);
+    --zt-banner-bg:     #FBF3DC;
+    --zt-banner-border: #EAD9A8;
+    --zt-banner-text:   #6B5B33;
   }
   .admin-game-theme,
   .admin-game-theme h1,

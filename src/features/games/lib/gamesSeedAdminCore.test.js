@@ -23,6 +23,7 @@ import {
   filterRows,
   isFirestoreRow,
   isImportableRow,
+  isRestorableRow,
   matchesSearch,
   needsTypedConfirmation,
   partitionSelection,
@@ -104,6 +105,78 @@ assert.equal(STATUS_LABEL[STATUS.NOT_IMPORTED], 'Not imported')
   assert.ok(rows.every((r) => r.status === STATUS.UNKNOWN))
   assert.equal(selectMissingIds(rows).length, 0, 'nothing is importable while the live state is unknown')
   assert.equal(rows.filter(isFirestoreRow).length, 0, 'and nothing is deletable')
+}
+
+/* ── a DELETED game leaves the list ────────────────────────────────── */
+
+{
+  // The complaint this answers, in one test: an admin deleted a game and
+  // still found it sitting in the list. It read "Not imported", which is
+  // true of the seed entry and useless to the person who just deleted it.
+  const rows = buildRows({
+    seed: SEED,
+    existing: { math_a_g4: { active: true } },
+    deletedIds: new Set(['eng_b_g4']),
+  })
+
+  const deleted = rows.find((r) => r.id === 'eng_b_g4')
+  assert.equal(deleted.status, STATUS.DELETED)
+  assert.equal(STATUS_LABEL[STATUS.DELETED], 'Deleted')
+
+  // Gone from every view except the Deleted one — including 'all', which
+  // means "all the games you manage", not "everything that ever existed".
+  for (const status of ['all', STATUS.LIVE, STATUS.INACTIVE, STATUS.NOT_IMPORTED]) {
+    assert.ok(
+      !filterRows(rows, { status }).some((r) => r.id === 'eng_b_g4'),
+      `a deleted game must not appear under ${status}`,
+    )
+  }
+  assert.deepEqual(
+    filterRows(rows, { status: STATUS.DELETED }).map((r) => r.id),
+    ['eng_b_g4'],
+    'and it must be findable on the Deleted tab, or deleting would be a black hole',
+  )
+
+  // Still in the DATA. Hiding it from the list is a rendering decision;
+  // dropping it from buildRows would make restoring it impossible.
+  assert.equal(rows.length, SEED.length)
+
+  // It is not importable — "Select missing" and "Import selected" must not
+  // silently resurrect something an admin deleted on purpose.
+  assert.equal(isImportableRow(deleted), false)
+  assert.ok(!selectMissingIds(rows).includes('eng_b_g4'))
+  // It is not deletable either: there is nothing left to delete.
+  assert.equal(isFirestoreRow(deleted), false)
+  // It IS restorable, deliberately and by a differently-named action.
+  assert.equal(isRestorableRow(deleted), true)
+  assert.equal(isRestorableRow(rows.find((r) => r.id === 'sci_c_g5')), false, 'never-imported is not "restore"')
+
+  const p = partitionSelection({ rows, selectedIds: ['eng_b_g4', 'sci_c_g5'] })
+  assert.deepEqual(p.restorable.map((r) => r.id), ['eng_b_g4'])
+  assert.deepEqual(p.importable.map((r) => r.id), ['sci_c_g5'])
+  assert.equal(p.unknown.length, 0, 'a deleted row is classified, not left unexplained')
+}
+
+// A LIVE document wins over a stale tombstone. Re-importing clears the
+// tombstone in the same transaction, but if that read were ever stale the
+// honest answer is what the games collection says right now — otherwise a
+// restored game would keep reading Deleted while learners could play it.
+{
+  const rows = buildRows({
+    seed: SEED,
+    existing: { math_a_g4: { active: true }, eng_b_g4: { active: false } },
+    deletedIds: new Set(['math_a_g4', 'eng_b_g4']),
+  })
+  assert.equal(rows.find((r) => r.id === 'math_a_g4').status, STATUS.LIVE)
+  assert.equal(rows.find((r) => r.id === 'eng_b_g4').status, STATUS.INACTIVE)
+}
+
+// No tombstone list at all (an older page, or a failed read handled
+// upstream) behaves exactly as before: nothing is deleted.
+{
+  const rows = buildRows({ seed: SEED, existing: {} })
+  assert.ok(rows.every((r) => r.status === STATUS.NOT_IMPORTED))
+  assert.equal(filterRows(rows, { status: 'all' }).length, SEED.length)
 }
 
 /* ── Select missing ────────────────────────────────────────────────── */

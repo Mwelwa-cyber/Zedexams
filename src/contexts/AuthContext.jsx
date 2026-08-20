@@ -1052,7 +1052,29 @@ export function AuthProvider({ children }) {
         },
         async (e) => {
           if (disposedRef.current) return
-          console.error('profile subscription:', e)
+          // Say WHY, when we know. `permission-denied` on this read is the most
+          // misleading line in the whole console: firestore.rules allows a
+          // learner to read their own profile on isAuthed() && isOwner() with
+          // no guardian, approval or verification predicate, so it never means
+          // "this learner lacks permission". It means the request did not
+          // arrive authenticated — and the usual reason is App Check, which
+          // fails OPEN with a placeholder token the enforced backends reject.
+          //
+          // Left as console.error deliberately. It is tempting to read this as
+          // expected limited-mode noise and quieten it; that reading is wrong,
+          // and quietening it would hide the one symptom that points at
+          // attestation.
+          const degraded = attestationDegraded()
+          if (degraded && (e?.code === 'permission-denied' || e?.code === 'unauthenticated')) {
+            console.error(
+              'profile subscription:', e,
+              '\n[auth] App Check attestation was degraded when this failed — the request'
+              + ' almost certainly carried a placeholder token the backend rejected.'
+              + ' This is NOT a rules/limited-mode denial. See appCheckResilient.js.',
+            )
+          } else {
+            console.error('profile subscription:', e)
+          }
           // Stale-token recovery: a tab idle for hours can wake with an
           // expired ID token, which Firestore surfaces as permission-denied
           // / unauthenticated even though the account is fine. Try ONE forced

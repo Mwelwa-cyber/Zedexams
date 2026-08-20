@@ -128,6 +128,7 @@ export const GAME_TYPE_THEMES = {
   market_challenge: { label: 'Market', icon: BanknotesIcon },
   punctuation: { label: 'Punctuation', icon: CheckBadgeIcon },
   map_place: { label: 'Map', icon: MapIcon },
+  fraction_ladder: { label: 'Fractions', icon: CalculatorIcon },
 }
 
 const DEFAULT_TYPE_THEME = { label: 'Game', icon: PuzzlePieceIcon }
