@@ -36,6 +36,7 @@ import { reportGameStart } from '../services/gamesService'
 import { playCorrect, playWrong, playWin, primeSounds } from '../lib/gameSounds'
 import { BadgePop, GameTopBar, WinScreen, buildSaveNote } from './protoGameChrome'
 import { readJson, writeJson } from '../../../shared/utils/safeStorage'
+import { isKnownPack, loadWordPack } from '../lib/spellingPack'
 import { coachFor, tapChunk } from '../lib/spellingCoachCore'
 import {
   composeStage,
@@ -76,7 +77,7 @@ function speak(text) {
 
 const progressKey = (gameId) => `zedexams:spelling:${gameId || 'default'}`
 
-function PlayScreen({ game, onExit, onEnd, progress, onProgress }) {
+function PlayScreen({ game, questions, onExit, onEnd, progress, onProgress }) {
   // The word queue lives in a ref — it recycles mid-render without renders.
   const queueRef = useRef([])
   // The coach shown after a miss, and the chunks rebuilt so far.
@@ -107,8 +108,8 @@ function PlayScreen({ game, onExit, onEnd, progress, onProgress }) {
    * without a pool did before this.
    */
   const buildQueue = () => {
-    const items = playableWords(game?.questions)
-    if (!items.length) return wordQueue(game?.questions)
+    const items = playableWords(questions)
+    if (!items.length) return wordQueue(questions)
     const stage = composeStage({
       items,
       pool: progress.pool,
@@ -116,7 +117,7 @@ function PlayScreen({ game, onExit, onEnd, progress, onProgress }) {
       salt: game?.id || 'default',
       size: ROUND_WORDS,
     })
-    return stage.words.length ? stage.words : wordQueue(game?.questions)
+    return stage.words.length ? stage.words : wordQueue(questions)
   }
 
   const nextWord = () => {
@@ -336,6 +337,30 @@ export default function WordBuilderGame({ game }) {
   }))
   const { saveResult, newBadges, streakResult, finish } = useGameFinish()
 
+  // The word pack. A game document may name one (`wordPack: 'grade7-spelling'`)
+  // instead of carrying hundreds of words itself — see lib/spellingPack.js for
+  // why the bank is fetched rather than bundled. `null` means "still loading";
+  // an empty result means the pack failed and the document's own questions
+  // stand, so a spelling game always has something to play.
+  // Starts at [] for a game with no pack, so the great majority of games
+  // never render the waiting line at all — only a game that actually has a
+  // pack to fetch waits for one.
+  const [packQuestions, setPackQuestions] = useState(() => (isKnownPack(game?.wordPack) ? null : []))
+  const packId = game?.wordPack
+  useEffect(() => {
+    if (!isKnownPack(packId)) { setPackQuestions([]); return undefined }
+    let cancelled = false
+    loadWordPack(packId)
+      .then((rows) => { if (!cancelled) setPackQuestions(rows) })
+      // loadWordPack swallows its own failures, but a throw in the setter
+      // above would otherwise leave the round waiting for ever.
+      .catch(() => { if (!cancelled) setPackQuestions([]) })
+    return () => { cancelled = true }
+  }, [packId])
+
+  // The pack wins when it has words; otherwise the document's own.
+  const questions = packQuestions?.length ? packQuestions : game?.questions
+
   const updateProgress = (fn) => {
     setProgress((current) => {
       const next = typeof fn === 'function' ? fn(current) : fn
@@ -365,9 +390,18 @@ export default function WordBuilderGame({ game }) {
   return (
     <div className="lhx">
       <div className="lhx-page">
-        {screen === 'play' && (
+        {/* The round waits for a NAMED pack rather than starting on the
+            document's ten and switching mid-stage: the stage the learner is
+            handed has to be composed from the whole bank, or the spacing that
+            decides which words come back is computed against the wrong set.
+            A local dynamic import resolves in milliseconds. */}
+        {screen === 'play' && packQuestions === null && (
+          <p className="lhx-wb-packing">Getting your words ready…</p>
+        )}
+        {screen === 'play' && packQuestions !== null && (
           <PlayScreen
             game={game}
+            questions={questions}
             progress={progress}
             onProgress={updateProgress}
             onExit={() => navigate('/games')}

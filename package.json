@@ -924,7 +924,8 @@
     "test:deletion-state-mirror": "node scripts/test-deletion-state-mirror.mjs",
     "test:deletion-neutrality": "node functions/deletionFlow/neutrality.test.js",
     "test:spelling-bank": "node scripts/test-spelling-bank.mjs",
-    "test:loader-theme-tokens": "node scripts/test-loader-theme-tokens.mjs"
+    "test:loader-theme-tokens": "node scripts/test-loader-theme-tokens.mjs",
+    "test:spelling-pack": "node scripts/test-spelling-pack.mjs"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",
