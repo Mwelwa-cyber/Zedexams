@@ -57,9 +57,33 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     # Fail-fast: one full deploy plus a single quick retry of any functions that
-    # report a transient failure. A clean deploy finishes well under 10 minutes;
-    # a failing one surfaces in a few minutes rather than tying up a runner.
-    timeout-minutes: 20
+    # report a transient failure.
+    #
+    # This cap is DERIVED, not guessed, and `npm run test:deploy-timeouts`
+    # fails the build if it stops covering the work below it:
+    #
+    #   ~5min  lint + test:all + both npm ci, before the deploy starts
+    #   20min  attempt 1, the full deploy   (FIREBASE_ATTEMPT_TIMEOUT_MINUTES)
+    #    1min  the backoff between attempts
+    #    8min  attempt 2, narrowed to the failed functions
+    #                                       (FIREBASE_RETRY_TIMEOUT_MINUTES)
+    #   ~2min  the Storage-rules read-back and job teardown
+    #   = 36 required; set to 40 so the budget is not sitting exactly on its
+    #        own line — which is precisely the state that failed below.
+    #
+    # It was 20, and that was NOT enough for even ONE attempt: the pre-deploy
+    # steps take a measured ~4min, leaving 16 for a full deploy of ~190
+    # functions that measurably takes 15m29s. The last green run (#783,
+    # 2026-08-20) finished with 23 SECONDS to spare; the very next one (#784,
+    # the spelling merge) went 40s over and GitHub killed the job. A killed
+    # job reports `cancelled`, deploy-hosting.yml correctly refuses to ship a
+    # frontend over functions that may not have landed, and production stays
+    # on the previous commit. Nothing in the deploy was wrong — the budget was.
+    #
+    # Raising this cascades into deploy-hosting.yml, which WAITS for this run:
+    # its FIREBASE_DEPLOY_TIMEOUT_SECONDS and its own job cap both have to grow
+    # with it. That is exactly the inequality test:deploy-timeouts enforces.
+    timeout-minutes: 40
 
     # Explicit minimum permissions — some org settings restrict actions
     # unless this is stated explicitly.
@@ -189,6 +213,12 @@ jobs:
           # Un-coloured, deterministic output so the failure-line parser below
           # never has to step around ANSI escape codes.
           NO_COLOR: "1"
+          # Each ATTEMPT gets its own clock, so an over-running deploy fails
+          # with a diagnosis instead of the job being killed under it. The job
+          # cap above is derived from these two numbers plus the work around
+          # them; test:deploy-timeouts holds them together.
+          FIREBASE_ATTEMPT_TIMEOUT_MINUTES: "20"
+          FIREBASE_RETRY_TIMEOUT_MINUTES: "8"
         run: |
           set -uo pipefail
 
@@ -229,20 +259,58 @@ jobs:
           all_out=""       # accumulated across attempts — a first-attempt
                            # scheduler-trigger failure must survive the retry's
                            # "no changes detected" masking (see the fatal check).
+          # The log is STREAMED through tee, not captured into `out=$(...)`.
+          # Command substitution buffers the whole deploy and only prints it
+          # once the command returns — so when run #784 hit the job cap, all
+          # 16 minutes of output died with the process and the log read:
+          #
+          #     ::group::Firebase deploy attempt 1/2
+          #     ##[error]The operation was canceled.
+          #
+          # Nothing about what was slow, which functions had landed, or whether
+          # it was progressing at all. A deploy that cannot be watched cannot be
+          # diagnosed, and a timeout is precisely when you need the tail.
+          # tee gives the classifier the same bytes it had before while the
+          # operator sees them live.
+          logdir="${RUNNER_TEMP}/firebase-deploy-logs"
+          mkdir -p "${logdir}"
+
           while : ; do
             attempt=$((attempt + 1))
-            echo "::group::Firebase deploy attempt ${attempt}/${max} (--only ${only})"
+            # Attempt 1 deploys everything; any retry is narrowed to the
+            # functions still unresolved, so it needs far less wall clock.
+            if [ "${attempt}" -eq 1 ]; then
+              attempt_minutes="${FIREBASE_ATTEMPT_TIMEOUT_MINUTES}"
+            else
+              attempt_minutes="${FIREBASE_RETRY_TIMEOUT_MINUTES}"
+            fi
+
+            echo "::group::Firebase deploy attempt ${attempt}/${max} (--only ${only}, cap ${attempt_minutes}min)"
+            logfile="${logdir}/attempt-${attempt}.log"
             set +e
-            out=$(npx firebase-tools@latest deploy \
+            # --kill-after gives firebase-tools 30s to exit on TERM before KILL.
+            timeout --kill-after=30s "${attempt_minutes}m" \
+              npx firebase-tools@latest deploy \
               --only "${only}" \
               --non-interactive \
               --project examsprepzambia \
-              --force 2>&1)
-            code=$?
+              --force 2>&1 | tee "${logfile}"
+            code=${PIPESTATUS[0]}
             set -e
-            echo "${out}"
             echo "::endgroup::"
+            out=$(cat "${logfile}")
             all_out=$(printf '%s\n%s' "${all_out}" "${out}")
+
+            # 124 is `timeout` reporting it killed the command (137 if it had to
+            # escalate to KILL). This is NOT the transient per-function 409 the
+            # retry below exists for, and retrying a full deploy that just ran
+            # out of clock only submits more operations and ties up the runner
+            # — the same dead end #1439/#1445/#1446 already proved. Stop here
+            # and say so, with the log above intact.
+            if [ "${code}" -eq 124 ] || [ "${code}" -eq 137 ]; then
+              echo "::error::Firebase deploy attempt ${attempt} exceeded its ${attempt_minutes}-minute cap and was stopped. The streamed log above is the deploy up to that point — read its last lines to see what it was waiting on. If a clean deploy has simply grown past this budget, raise FIREBASE_ATTEMPT_TIMEOUT_MINUTES and the job's timeout-minutes together (test:deploy-timeouts enforces the relationship). If it is stuck, clear the GCP-side backlog: cancel pending Cloud Functions operations and check the operations quota."
+              exit 1
+            fi
 
             # Functions still unresolved after THIS attempt — a function that
             # failed and then succeeded within the attempt is already done, and
@@ -254,12 +322,24 @@ jobs:
               break
             fi
 
-            # Narrow the retry to ONLY the functions still unresolved. (If the
-            # failure wasn't function-specific — e.g. a firestore.rules error —
-            # failed is empty, so we retry the original target as-is.)
-            if [ -n "${failed}" ]; then
-              only=$(printf '%s\n' "${failed}" | sed 's/^/functions:/' | paste -sd, -)
+            # A failure with no per-function marker is not what the retry is
+            # for. The retry exists for the transient Cloud Functions 409
+            # ("unable to queue the operation"), which is per-function and
+            # which the classifier can name. When it can name nothing, the
+            # failure is a firestore.rules / indexes / storage / CLI error —
+            # deterministic, and a second full deploy fails the same way ~16
+            # minutes later. This used to retry the original target as-is;
+            # that only mattered once per-attempt clocks existed, because the
+            # retry would then blow its own (much smaller) cap and report a
+            # timeout for what was really a rules error. Fail with the real
+            # reason instead; workflow_dispatch re-runs it in one click if the
+            # cause was genuinely transient.
+            if [ -z "${failed}" ]; then
+              break
             fi
+
+            # Narrow the retry to ONLY the functions still unresolved.
+            only=$(printf '%s\n' "${failed}" | sed 's/^/functions:/' | paste -sd, -)
             echo "Deploy reported unresolved failure(s); retrying [--only ${only}] in 30s…"
             sleep 30
           done

@@ -121,6 +121,30 @@ ZedExams ships via GitHub Actions. As of 2026-05-14 the project owner delegated 
 4. Self-merge with `gh pr merge <num> --auto --squash --delete-branch -R Mwelwa-cyber/Zedexams`. The `--auto` flag queues the merge to fire the moment the required `Lint` + `Tests (importer + sanitize + schema)` status checks from [`ci.yml`](.github/workflows/ci.yml) turn green. GitHub will refuse the merge until they pass; `enforce_admins` is on so nothing bypasses this. **Do not wait for a human to merge.**
 5. The push to `main` triggers [`deploy-hosting.yml`](.github/workflows/deploy-hosting.yml) (re-runs lint + `test:all` before the Firebase Hosting deploy) and, if relevant paths changed, [`deploy-firebase.yml`](.github/workflows/deploy-firebase.yml) (Firestore rules + indexes, Storage rules, Cloud Functions).
 
+### A `cancelled` deploy run is a TIMEOUT, and production is silently stale
+
+GitHub reports a job killed by `timeout-minutes` as **`cancelled`**, not
+`failure` — so a deploy that ran out of clock looks like one somebody stopped on
+purpose. `deploy-hosting.yml` then correctly refuses to ship a frontend over
+Cloud Functions that may not have landed, and **main stays undeployed with
+nothing in the UI saying so**. Check the job's start and end times against its
+cap before reading `cancelled` as "someone cancelled it".
+
+The budgets are DERIVED and machine-checked — `scripts/test-deploy-timeouts.mjs`
+(`test:deploy-timeouts`) holds three inequalities: each deploy attempt fits
+inside `deploy-firebase.yml`'s job cap along with the ~5min of lint/test/install
+around it; `deploy-hosting.yml`'s `FIREBASE_DEPLOY_TIMEOUT_SECONDS` outlasts that
+cap plus queueing; and hosting's own job cap outlasts its wait. **Raising one
+means raising all three**, which is exactly what the test is there to force.
+
+The two failures behind it: on 2026-07-27 hosting was cancelled mid-wait and
+shipped an API newer than its client, and on 2026-08-20 the functions cap
+(20min) was smaller than the functions deploy (15m29s + ~4min of pre-work) — run
+#783 passed with 23 seconds to spare and run #784 was killed. The deploy log is
+now STREAMED through `tee` rather than captured in `out=$(...)`, because a
+buffered log dies with the process and #784's 16 minutes of output were lost at
+exactly the moment they were needed.
+
 ### Off-limits
 
 - `firebase deploy --only hosting` (any flavor) — production hosting goes through CI only. Also enforced via `permissions.deny` in [`.claude/settings.json`](.claude/settings.json).

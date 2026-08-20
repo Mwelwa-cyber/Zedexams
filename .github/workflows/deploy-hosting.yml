@@ -54,13 +54,17 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     # Must outlast the Deploy Firebase run this job WAITS for, not just its own
-    # work. Budget: ~4min lint+test+build+prerender, then up to 25min waiting on
-    # deploy-firebase (its own cap is 20min plus queueing), then ~4min to deploy
+    # work. Budget: ~4min lint+test+build+prerender, then up to 45min waiting on
+    # deploy-firebase (its own cap is 40min plus queueing), then ~4min to deploy
     # Hosting. At 15 minutes the job was cancelled mid-wait whenever a functions
     # deploy ran long — which ships the API without the client that matches it,
     # the one skew direction that breaks users. scripts/test-deploy-timeouts.mjs
     # fails if this stops covering the wait window below.
-    timeout-minutes: 40
+    #
+    # Most of this budget is spent WAITING, not working. That is the point: the
+    # waiter has to outlast the waitee or it abandons a deploy that was going to
+    # succeed, and Actions minutes are unmetered on a public repo.
+    timeout-minutes: 56
 
     permissions:
       contents: read
@@ -261,10 +265,12 @@ jobs:
         if: steps.firebase_changes.outputs.required == 'true'
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          # 25min: deploy-firebase's job cap is 20min and it can sit queued for
+          # 45min: deploy-firebase's job cap is 40min and it can sit queued for
           # a few more, so a shorter window here abandons a functions deploy
-          # that was still going to succeed.
-          FIREBASE_DEPLOY_TIMEOUT_SECONDS: "1500"
+          # that was still going to succeed. Grew with that cap (was 25min
+          # against a 20min cap) — the two move together, and
+          # scripts/test-deploy-timeouts.mjs fails if they drift apart.
+          FIREBASE_DEPLOY_TIMEOUT_SECONDS: "2700"
           FIREBASE_DEPLOY_POLL_SECONDS: "20"
         run: |
           python - <<'PY'
