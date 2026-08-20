@@ -13,11 +13,13 @@
  * Usage:
  *   const errors = validateFields(
  *     { email, password, subject },
- *     { email: ['required', 'email'], password: ['required', { min: 8 }], subject: ['required'] },
+ *     { email: ['required', 'email'], password: ['required', 'passwordPolicy'], subject: ['required'] },
  *     { subject: 'subject' },           // label overrides → "Please select a subject."
  *   )
  *   if (hasErrors(errors)) { setErrors(errors); focusFirstError(errors); return }
  */
+
+import { passwordIssue } from './passwordPolicy.js'
 
 // Map a field name to the friendly noun used in its message. Anything not
 // listed falls back to a humanised version of the field name.
@@ -116,6 +118,14 @@ export function validateRule(value, rule, field, labels = {}) {
       return rule.pattern.test(String(value))
         ? ''
         : rule.message || `Please enter a valid ${label}.`
+    }
+    case 'passwordPolicy': {
+      // Delegates to src/utils/passwordPolicy.js, which owns the minimum
+      // length AND the whitespace rules, so every surface that sets a
+      // password enforces one policy. Use this INSTEAD of { min: N } on a
+      // password field; a bare `min` accepts a space-padded password that
+      // its owner can then never type back in.
+      return passwordIssue(value)
     }
     default:
       return ''

@@ -419,6 +419,37 @@ describe('Register — friendly field validation', () => {
     expect(mockRegister).not.toHaveBeenCalled()
   })
 
+  it('refuses a password that ends in a space, and never calls register', async () => {
+    // The reported bug. Firebase Auth stores the password byte-for-byte, so
+    // 'pass123 ' and 'pass123' are two different credentials: accepting the
+    // padded one mints an account whose owner can never type their way back
+    // in, and the sign-in screen cannot diagnose it. See
+    // src/utils/passwordPolicy.js.
+    await renderRegister()
+    fillValidLearner()
+    fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: 'pass123 ' } })
+    fireEvent.change(screen.getByLabelText(/confirm password/i), { target: { value: 'pass123 ' } })
+    fireEvent.click(screen.getByRole('button', { name: /create free account/i }))
+
+    await waitFor(() =>
+      expect(screen.getByText('Your password cannot start or end with a space.')).toBeInTheDocument(),
+    )
+    expect(mockRegister).not.toHaveBeenCalled()
+  })
+
+  it('accepts a passphrase with an interior space', async () => {
+    // Deliberately NOT refused: a passphrase is the strongest thing a learner
+    // will actually remember, so only the edges are policed.
+    await renderRegister()
+    fillValidLearner()
+    fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: 'my dog rex' } })
+    fireEvent.change(screen.getByLabelText(/confirm password/i), { target: { value: 'my dog rex' } })
+    fireEvent.click(screen.getByRole('button', { name: /create free account/i }))
+
+    await waitFor(() => expect(mockRegister).toHaveBeenCalled())
+    expect(mockRegister.mock.calls[0][1]).toBe('my dog rex')
+  })
+
   it('clears a field error once the user starts fixing it', async () => {
     await renderRegister()
     fireEvent.click(screen.getByRole('button', { name: /create free account/i }))

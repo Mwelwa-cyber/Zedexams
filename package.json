@@ -325,6 +325,7 @@
     "test:route-404-severity": "node scripts/test-route-not-found-severity.mjs",
     "test:friendly-errors": "node src/utils/friendlyErrors.test.js",
     "test:form-validation": "node src/utils/formValidation.test.js",
+    "test:password-policy": "node src/utils/passwordPolicy.test.js",
     "test:statusbar": "node scripts/test-statusbar-brightness.mjs",
     "test:lesson-memory": "node scripts/test-lesson-memory.mjs",
     "test:dashboard-intel": "node src/utils/teacherDashboardIntel.test.js",

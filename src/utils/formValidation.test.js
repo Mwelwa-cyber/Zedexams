@@ -45,10 +45,31 @@ eq('password too short', validateRule('abc', { min: 8 }, 'password'), 'Password 
 eq('password long enough', validateRule('abcdefgh', { min: 8 }, 'password'), '')
 eq('generic min', validateRule('ab', { min: 5 }, 'name'), 'Your name must be at least 5 characters.')
 
+console.log('\nformValidation — passwordPolicy rule (delegates to passwordPolicy.js)')
+eq('trailing space refused', validateRule('Zambia2026 ', 'passwordPolicy', 'password'), 'Your password cannot start or end with a space.')
+eq('leading space refused', validateRule(' Zambia2026', 'passwordPolicy', 'password'), 'Your password cannot start or end with a space.')
+eq('interior space allowed — a passphrase is not a defect', validateRule('my dog rex', 'passwordPolicy', 'password'), '')
+eq('short password still reports the minimum', validateRule('abc', 'passwordPolicy', 'password'), 'Password must contain at least 6 characters.')
+eq('a good password passes', validateRule('abcdef', 'passwordPolicy', 'password'), '')
+
 console.log('\nformValidation — match + pattern')
 eq('mismatch', validateRule('a', { match: 'confirmPassword', value: 'b' }, 'confirmPassword'), 'Your password confirmation does not match.')
 eq('match ok', validateRule('a', { match: 'confirmPassword', value: 'a' }, 'confirmPassword'), '')
 eq('pattern custom message', validateRule('12', { pattern: /^\d{4}$/, message: 'Enter a 4-digit PIN.' }, 'pin'), 'Enter a 4-digit PIN.')
+
+{
+  // The schema Register.jsx actually uses. A space-padded password must fail
+  // the form, not reach createUserWithEmailAndPassword.
+  const errors = validateFields(
+    { email: 'a@b.co', password: 'Zambia2026 ' },
+    { email: ['required', 'email'], password: ['required', 'passwordPolicy'] },
+  )
+  eq('padded password blocks the form', errors.password, 'Your password cannot start or end with a space.')
+  ok('a clean password leaves no error', !validateFields(
+    { email: 'a@b.co', password: 'Zambia2026' },
+    { email: ['required', 'email'], password: ['required', 'passwordPolicy'] },
+  ).password)
+}
 
 console.log('\nformValidation — validateFields keeps order + first failure per field')
 {

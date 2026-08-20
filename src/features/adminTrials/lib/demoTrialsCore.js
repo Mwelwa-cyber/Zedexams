@@ -14,6 +14,8 @@
  * ceiling, and the day clamp below.
  */
 
+import { passwordIssue } from '../../../utils/passwordPolicy.js'
+
 /** The plans a demo trial may be granted on. */
 export const PLAN_OPTIONS = [
   { id: 'weekly', label: 'Weekly (7 days)' },
@@ -96,8 +98,15 @@ export function validateBatch({ namesBlob, password, days }) {
   if (entries.length > MAX_BATCH) {
     return { error: `❌ Max ${MAX_BATCH} accounts per batch — split the list.` }
   }
-  if (password && password.length < 6) {
-    return { error: '❌ Shared password must be at least 6 characters.' }
+  // A blank shared password randomises one per account; a supplied one is
+  // typed into every account in the batch, so the same policy every other
+  // password-setting surface uses applies here too. Edge whitespace matters
+  // MORE here, not less: an operator who pastes a padded password mints a
+  // whole cohort of accounts nobody can sign into, and the credentials CSV
+  // they hand out will not show them the space.
+  if (password) {
+    const policyIssue = passwordIssue(password)
+    if (policyIssue) return { error: `❌ Shared password — ${policyIssue}` }
   }
   const daysNum = Math.max(MIN_DAYS, Math.min(MAX_DAYS, Number(days) || DEFAULT_DAYS))
   return { entries, daysNum }
