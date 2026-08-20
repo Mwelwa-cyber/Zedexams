@@ -80,6 +80,29 @@ const QUIZ = (id, grade, n = 6) => ({
   assert(pickDuelSource([{ id: 'x', type: 'timed_quiz', grade: 4, questions: [] }]) === null, 'no fieldable quiz → null, never invented content')
 }
 
+/* ── Option dealing — the answer is not pinned to slot A ───────── */
+{
+  // The banks list the correct answer first (gamesSeed.js: 54 of 78
+  // questions), so a race that served stored order was winnable by
+  // always tapping the top option without reading.
+  const answerFirst = {
+    id: 'af', grade: 4, type: 'timed_quiz',
+    questions: Array.from({ length: 8 }, (_, i) => ({
+      question: `Q${i}`,
+      options: [`right-${i}`, `wrong-${i}a`, `wrong-${i}b`, `wrong-${i}c`],
+      answer: `right-${i}`,
+    })),
+  }
+  const src = pickDuelSource([answerFirst], { grade: 4, rng: mulberry32(7) })
+  for (const q of src.questions) {
+    assert(q.options[q.correctIndex].startsWith('right-'), 'correctIndex follows the answer through the deal')
+    const i = Number(q.question.slice(1))
+    const original = answerFirst.questions[i].options
+    assert(q.options.slice().sort().join('|') === original.slice().sort().join('|'), 'the deal is a permutation — no option gained or lost')
+  }
+  assert(src.questions.some((q) => q.correctIndex !== 0), 'across five 4-option deals the answer leaves slot A (deterministic seed)')
+}
+
 /* ── Zed's plan + timeline ─────────────────────────────────────── */
 {
   const plan = zedPlan(DUEL_QUESTIONS, mulberry32(3))

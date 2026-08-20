@@ -146,3 +146,29 @@ export function ratingStars(accuracy) {
 export function optionLetter(i) {
   return String.fromCharCode(65 + i)
 }
+
+/**
+ * Seeded display order for a question's options: a permutation of
+ * [0..count-1], deterministic per seed.
+ *
+ * The seed banks store the correct answer as the FIRST option on most
+ * questions, so a runner that renders options in stored order teaches
+ * learners to tap A without reading. The card renders in this order and
+ * translates a tap back to the stored index, so scoring, `markAttempt`
+ * and the recorded round stay in canonical index space — display order
+ * is a render concern and never reaches a write.
+ *
+ * Same LCG as gamesService's `shuffle`, kept here so the module stays
+ * dependency-free and node-testable.
+ */
+export function optionDisplayOrder(count, seed) {
+  const n = Math.max(0, Math.floor(Number(count) || 0))
+  const order = Array.from({ length: n }, (_, i) => i)
+  let s = (Number(seed) || 0) >>> 0
+  for (let i = n - 1; i > 0; i--) {
+    s = (s * 1664525 + 1013904223) >>> 0
+    const j = s % (i + 1)
+    ;[order[i], order[j]] = [order[j], order[i]]
+  }
+  return order
+}

@@ -69,6 +69,15 @@ vi.mock('./Leaderboard', () => ({ default: () => null }))
 // refuses to initialise in jsdom without a config. It draws the end-of-round
 // coaching note and has nothing to do with the card or the verdict.
 vi.mock('./SmartFeedback', () => ({ default: () => null }))
+// These recorded cases click options by POSITION, against the fixture's
+// stored order. The option deal (optionDisplayOrder — the answer must not
+// always render at A) is its own behaviour with its own spec,
+// TimedQuizGame.optionOrder.spec.jsx; here it is pinned to identity so the
+// recorded picks keep naming the options they were recorded against.
+vi.mock('../lib/timedQuizCore', async (importOriginal) => ({
+  ...(await importOriginal()),
+  optionDisplayOrder: (count) => Array.from({ length: count }, (_, i) => i),
+}))
 
 import TimedQuizGame from './TimedQuizGame'
 import { capture } from '../../../utils/analytics'

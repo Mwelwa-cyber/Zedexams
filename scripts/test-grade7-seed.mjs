@@ -101,5 +101,22 @@ test('all referenced diagrams exist in public/notes/', () => {
   }
 })
 
+test('digestive label diagram: Small intestine is the LEFT slot, Large the RIGHT', () => {
+  // The committed diagram (g7-sci-1-1-label.jpg) draws its left-column leader
+  // line into the coiled central mass (the small intestine) and its right-column
+  // line onto the framing colon (the large intestine). The seed once had the two
+  // slots swapped, so a learner who labelled the diagram correctly was marked
+  // wrong on both — this pins slot side to label so that cannot come back.
+  const blocks = bundle.notes.flatMap((n) => n.blocks)
+  const ld = blocks.find((b) => b.type === 'labeldiagram' && b.url === '/notes/g7-sci-1-1-label.jpg')
+  assert(ld, 'digestive labeldiagram block missing')
+  const byLabel = Object.fromEntries(ld.items.map((it) => [it.label, it]))
+  const small = byLabel['Small intestine']
+  const large = byLabel['Large intestine']
+  assert(small && large, 'intestine slots missing')
+  assert(small.x < 0.5, `Small intestine slot must sit in the left column (x=${small?.x})`)
+  assert(large.x > 0.5, `Large intestine slot must sit in the right column (x=${large?.x})`)
+})
+
 console.log(`\n─── ${pass + fail} tests · ${pass} passed · ${fail} failed ───`)
 if (fail > 0) { for (const f of failures) console.error(`\n✖ ${f.name}\n  ${f.e.stack || f.e.message}`); process.exit(1) }

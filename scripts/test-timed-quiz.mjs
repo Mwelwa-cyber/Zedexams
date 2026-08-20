@@ -13,6 +13,7 @@ import {
   correctGain,
   correctIndexFor,
   DEFAULT_ROUND_QUESTIONS,
+  optionDisplayOrder,
   optionLetter,
   questionAt,
   ratingStars,
@@ -246,6 +247,32 @@ assert(optionLetter(3) === 'D', 'index 3 → D')
   score = applyPenalty(score, wrongPenalty(points))
   assert(score === 29, 'a wrong answer then costs 2')
   assert(streakBonus(streak + 1) === 0, 'the streak restarts cold after a miss')
+}
+
+// ── optionDisplayOrder — the anti-"always tap A" deal ─────────────────
+{
+  // A permutation: every index exactly once, whatever the seed.
+  for (const s of [0, 1, 7, 12345, 2 ** 31]) {
+    const order = optionDisplayOrder(4, s)
+    assert(order.slice().sort().join(',') === '0,1,2,3', `seed ${s} yields a permutation of 0..3`)
+  }
+  // Deterministic per seed — a re-render mid-question must not re-deal.
+  assert(
+    optionDisplayOrder(4, 42).join(',') === optionDisplayOrder(4, 42).join(','),
+    'same seed, same order'
+  )
+  // It actually deals: over 40 seeds the stored first option (where the
+  // seed banks put the correct answer) must leave slot A sometimes and
+  // land on every slot at least once — a "shuffle" that fixes position 0
+  // is the exact bug this exists to prevent.
+  const landedAt = new Set()
+  for (let s = 1; s <= 40; s++) landedAt.add(optionDisplayOrder(4, s).indexOf(0))
+  assert(landedAt.size === 4, `stored option 0 reaches every display slot (saw ${[...landedAt].join(',')})`)
+  // Degenerate inputs stay safe.
+  assert(optionDisplayOrder(0, 9).length === 0, 'zero options → empty order')
+  assert(optionDisplayOrder(1, 9).join(',') === '0', 'one option → [0]')
+  assert(optionDisplayOrder(-3, 9).length === 0, 'negative count → empty order')
+  passed += 1
 }
 
 console.log(`timed-quiz core: ${passed} assertions passed ✓`)

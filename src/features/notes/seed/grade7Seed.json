@@ -423,14 +423,14 @@
               "y": 0.591
             },
             {
-              "key": "large",
-              "label": "Large intestine",
+              "key": "small",
+              "label": "Small intestine",
               "x": 0.131,
               "y": 0.726
             },
             {
-              "key": "small",
-              "label": "Small intestine",
+              "key": "large",
+              "label": "Large intestine",
               "x": 0.841,
               "y": 0.733
             },
