@@ -246,7 +246,13 @@ export const SUBJECT_TINTS = [
 
 /** Distinct-subject → tint colour map for a model. Activities use none. */
 export function subjectTintMap(model) {
-  const map = {}
+  // Null-prototype for the same reason the grid maps above are: the keys are
+  // subject labels off a saved timetable. A subject named '__proto__' had its
+  // tint SILENTLY DROPPED (the assignment hit the prototype setter, so the
+  // subject rendered untinted), and one named 'constructor' made every reader's
+  // `tints[label]` return the Object constructor -- which the Word exporter
+  // then calls `.replace('#','')` on, throwing mid-export.
+  const map = Object.create(null)
   model.subjects.forEach((label, i) => { map[label] = SUBJECT_TINTS[i % SUBJECT_TINTS.length] })
   return map
 }

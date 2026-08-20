@@ -444,7 +444,13 @@ export function subjectLabel(key, grade) {
   const k = String(key || '').trim()
   if (!k) return ''
   if (k === MATHS_SCIENCE_SUBJECT_KEY) return mathsScienceLabelForGrade(grade)
-  return SUBJECT_LABELS[k] || k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+  // `declares`, not `SUBJECT_LABELS[k] ||`: a subject key of 'constructor'
+  // returned the Object CONSTRUCTOR from this lookup, so a paper header and
+  // every subject dropdown got a function where they print a string.
+  // '__proto__' returned Object.prototype. React renders neither. (CodeQL #77
+  // family — same defect, a lookup the first pass did not reach.)
+  if (declares(SUBJECT_LABELS, k)) return SUBJECT_LABELS[k]
+  return k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
 // Fallback subject list when the syllabus can't be loaded for a grade — keeps
@@ -519,7 +525,7 @@ export function toKbSubjectKey(subject) {
   // Already a canonical-looking key (lowercase + underscores, no spaces).
   if (/^[a-z][a-z_]*$/.test(s)) {
     const k = s.replace(/^_+|_+$/g, '')
-    return SUBJECT_FIXES[k] || k
+    return declares(SUBJECT_FIXES, k) ? SUBJECT_FIXES[k] : k
   }
   // Display labels may carry a parenthetical qualifier purely for the
   // teacher's benefit — "Zambian Language (Cinyanja etc.)", "Numeracy
@@ -530,5 +536,7 @@ export function toKbSubjectKey(subject) {
   const norm = normalizeSubject(bare)
   const key = String(norm || bare)
     .toLowerCase().trim().replace(/[^a-z]+/g, '_').replace(/^_+|_+$/g, '')
-  return SUBJECT_FIXES[key] || key
+  // Same guard as above. This value becomes a KB lookup key and reaches
+  // Firestore paths, so a function here does not stay a rendering problem.
+  return declares(SUBJECT_FIXES, key) ? SUBJECT_FIXES[key] : key
 }

@@ -49,7 +49,11 @@ export default function useRecentStudios() {
   }, [read])
 
   const record = useCallback((id) => {
-    if (!id || !STUDIO_BY_ID[id]) return
+    // hasOwnProperty, not `STUDIO_BY_ID[id]`: this is the same allowlist
+    // sanitizeIds guards on the way OUT of storage, and it was the way IN.
+    // 'constructor', 'toString' and '__proto__' all passed the bare lookup,
+    // so a bad id could be written to localStorage in the first place.
+    if (!id || !Object.prototype.hasOwnProperty.call(STUDIO_BY_ID, id)) return
     setState((prev) => {
       const ids = pushRecent(prev.ids, id, CAP)
       const at = { ...prev.at, [id]: Date.now() }
