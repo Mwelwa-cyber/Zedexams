@@ -21,6 +21,18 @@
 
 import { normalizeBloomLevel } from './assessmentBloom.js'
 
+/**
+ * Does `map` DECLARE `key`, rather than inherit it from Object.prototype?
+ *
+ * Every lookup in this module is keyed by teacher-authored text — a topic, a
+ * difficulty tag — so a bare `map[key]` is not a membership test: it answers
+ * truthily for 'constructor', 'toString' and '__proto__' on any object
+ * literal, and hands back a function where the caller wants a string.
+ */
+function has(map, key) {
+  return Object.prototype.hasOwnProperty.call(map, key)
+}
+
 /** The blueprint's difficulty tiers, in ascending demand. */
 export const DIFFICULTY_TIERS = ['recall', 'understanding', 'analysis', 'challenge']
 
@@ -43,7 +55,12 @@ export function questionTier(question) {
   const raw = String(question?.difficulty || '').trim().toLowerCase()
   if (!raw) return ''
   if (DIFFICULTY_TIERS.includes(raw)) return raw
-  return STUDIO_DIFFICULTY_TO_TIER[raw] || ''
+  // hasOwnProperty, not `STUDIO_DIFFICULTY_TO_TIER[raw] ||`: a question tagged
+  // difficulty 'constructor' resolved to the Object constructor, so this
+  // returned a FUNCTION where its contract says a tier string or ''. tally()
+  // then used that function as a key, and the difficulty drift table grew a
+  // row labelled "function Object() { [native code] }". (CodeQL #85.)
+  return has(STUDIO_DIFFICULTY_TO_TIER, raw) ? STUDIO_DIFFICULTY_TO_TIER[raw] : ''
 }
 
 /** Every planned item, flattened out of the blueprint's sections. */
@@ -52,9 +69,20 @@ export function blueprintItems(blueprint) {
   return sections.flatMap((s) => (Array.isArray(s.items) ? s.items : []))
 }
 
-/** Count occurrences of `key(x)` across a list, skipping empty keys. */
+/**
+ * Count occurrences of `key(x)` across a list, skipping empty keys.
+ *
+ * A null-prototype accumulator, because the keys are teacher-authored topic
+ * and skill labels and a plain `{}` mis-handles two of them: a topic literally
+ * named `__proto__` was DROPPED from the count (the write sets the prototype
+ * instead of a property, so the label vanished from the drift report), and one
+ * named `constructor` came back as the string
+ * "function Object() { [native code] }1" where the caller expects a number,
+ * which then sorts and subtracts as garbage. `Object.create(null)` inherits
+ * nothing, so every label is just a key. (CodeQL #85.)
+ */
 function tally(list, key) {
-  const out = {}
+  const out = Object.create(null)
   for (const entry of list) {
     const k = key(entry)
     if (!k) continue
@@ -76,7 +104,11 @@ function driftRows(planned, actual, labels = {}) {
       const got = actual[key] || 0
       return {
         key,
-        label: labels[key] || key,
+        // hasOwnProperty for the same reason the accumulator is null-prototype:
+        // `labels` is a plain literal (and defaults to one), so a teacher topic
+        // named 'constructor' took the Object constructor as its LABEL — a
+        // function handed to React, and to a `.localeCompare` in the sort below.
+        label: has(labels, key) ? labels[key] : key,
         planned: want,
         actual: got,
         delta: got - want,

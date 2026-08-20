@@ -28,7 +28,11 @@ export default function useRecentStudios() {
       const parsed = JSON.parse(raw)
       if (Array.isArray(parsed)) return { ids: sanitizeIds(parsed, STUDIO_BY_ID), at: {} }
       const ids = sanitizeIds(parsed?.ids || [], STUDIO_BY_ID)
-      const at = {}
+      // Null-prototype: the keys come straight out of this device's
+      // localStorage, and a plain `{}` would let 'constructor' or '__proto__'
+      // land somewhere other than as an own key. sanitizeIds now refuses both
+      // as well; this is the second lock. (CodeQL #86.)
+      const at = Object.create(null)
       for (const id of ids) {
         if (typeof parsed?.at?.[id] === 'number') at[id] = parsed.at[id]
       }
@@ -45,7 +49,11 @@ export default function useRecentStudios() {
   }, [read])
 
   const record = useCallback((id) => {
-    if (!id || !STUDIO_BY_ID[id]) return
+    // hasOwnProperty, not `STUDIO_BY_ID[id]`: this is the same allowlist
+    // sanitizeIds guards on the way OUT of storage, and it was the way IN.
+    // 'constructor', 'toString' and '__proto__' all passed the bare lookup,
+    // so a bad id could be written to localStorage in the first place.
+    if (!id || !Object.prototype.hasOwnProperty.call(STUDIO_BY_ID, id)) return
     setState((prev) => {
       const ids = pushRecent(prev.ids, id, CAP)
       const at = { ...prev.at, [id]: Date.now() }

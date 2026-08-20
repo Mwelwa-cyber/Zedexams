@@ -78,6 +78,19 @@ for (const k of FALLBACK_SUBJECT_KEYS) {
   ok(subjectLabel(k).length > 0, `fallback subject ${k} has a label`)
 }
 
+// An unrecognised subject key must be title-cased like any other, INCLUDING
+// the three that every object literal inherits. `SUBJECT_LABELS[k] ||` handed
+// back the Object constructor for 'constructor' and Object.prototype for
+// '__proto__' — a function and an object, where a paper header prints a
+// string and React renders neither. Same for the key form, which additionally
+// reaches KB lookups and Firestore paths.
+for (const k of ['constructor', '__proto__', 'toString', 'valueOf', 'hasOwnProperty']) {
+  ok(typeof subjectLabel(k) === 'string', `subjectLabel(${k}) is a string`)
+  ok(typeof toKbSubjectKey(k) === 'string', `toKbSubjectKey(${k}) is a string`)
+}
+eq(subjectLabel('constructor'), 'Constructor', "'constructor' title-cases like any unknown key")
+eq(toKbSubjectKey('constructor'), 'constructor', "'constructor' is not the Object constructor")
+
 // ── Grades ───────────────────────────────────────────────────────────────
 // Early Childhood is exactly Nursery then Reception, one per published age
 // band. 'Baby Class' / 'Middle Class' are legacy spellings: still resolvable so

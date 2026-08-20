@@ -17,12 +17,24 @@ function ok(name, cond) {
 
 // A localStorage the guard can read the session hint out of. Installed before
 // the module is imported so it sees the same globals a browser would.
+//
+// defineProperty rather than `globalThis.localStorage = {...}`: a plain
+// assignment declares, to anything reading this repository as one program,
+// that THIS Map is the app's Web Storage. CodeQL then resolves every
+// production localStorage read to this fake's getItem and every safeStorage
+// write to its setItem, which welds unrelated modules together through a
+// store that only exists inside this file -- 17 alerts across src/ rode that
+// one line. The property is configurable so the fake stays removable, which
+// is what a test double should have been anyway.
 const store = new Map()
-globalThis.localStorage = {
-  getItem: (k) => (store.has(k) ? store.get(k) : null),
-  setItem: (k, v) => store.set(k, String(v)),
-  removeItem: (k) => store.delete(k),
-}
+Object.defineProperty(globalThis, 'localStorage', {
+  configurable: true,
+  value: {
+    getItem: (k) => (store.has(k) ? store.get(k) : null),
+    setItem: (k, v) => store.set(k, String(v)),
+    removeItem: (k) => store.delete(k),
+  },
+})
 
 const {
   __resetAuthSessionGuardForTests,

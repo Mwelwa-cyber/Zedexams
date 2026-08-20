@@ -231,4 +231,48 @@ test('an empty paper says so rather than reporting drift on nothing', () => {
   assert.match(r.summary, /the paper is empty/i)
 })
 
+/* ── Inherited keys are data, not lookups ───────────────────────────────── */
+
+test('a difficulty tag named for an Object.prototype member yields a tier string', () => {
+  // `STUDIO_DIFFICULTY_TO_TIER[raw] ||` resolved 'constructor' to the Object
+  // constructor, so questionTier returned a FUNCTION where its contract says a
+  // tier or ''. tally() then keyed on it and the difficulty table grew a row
+  // labelled "function Object() { [native code] }".
+  for (const tag of ['constructor', '__proto__', 'toString', 'valueOf']) {
+    assert.equal(typeof questionTier({ difficulty: tag }), 'string', tag)
+    assert.equal(questionTier({ difficulty: tag }), '', `${tag} is not a tier`)
+  }
+  // The real tags still map.
+  assert.equal(questionTier({ difficulty: 'easy' }), 'recall')
+  assert.equal(questionTier({ difficulty: 'analysis' }), 'analysis')
+})
+
+test('a topic named for an Object.prototype member is counted and labelled as itself', () => {
+  // Two failures rode the same line. tally() into `{}` DROPPED a '__proto__'
+  // topic and turned a 'constructor' count into a concatenated string; and
+  // driftRows' `labels[key] ||` took the Object constructor as the row LABEL,
+  // handing React a function and the sort a value with no .localeCompare.
+  const blueprint = {
+    version: 'blueprint.v1',
+    sections: [{ items: [
+      { topic: 'constructor', marks: 2 },
+      { topic: '__proto__', marks: 2 },
+      { topic: 'toString', marks: 2 },
+      { topic: 'Fractions', marks: 2 },
+    ] }],
+  }
+  const r = compareToBlueprint({ blueprint, questions: [{ topic: 'Fractions', marks: 2 }] })
+  const byKey = new Map(r.topics.map((row) => [row.key, row]))
+  for (const topic of ['constructor', '__proto__', 'toString', 'Fractions']) {
+    const row = byKey.get(topic)
+    assert.ok(row, `${topic} appears in the drift report`)
+    assert.equal(typeof row.label, 'string', `${topic} label is a string`)
+    assert.equal(row.label, topic, `${topic} is labelled as itself`)
+    assert.equal(typeof row.planned, 'number', `${topic} planned is a number`)
+    assert.equal(typeof row.delta, 'number', `${topic} delta is a number`)
+  }
+  assert.equal(byKey.get('constructor').planned, 1, 'counted once, not concatenated')
+  assert.equal(byKey.get('__proto__').planned, 1, 'not swallowed by the prototype')
+})
+
 console.log(`✓ blueprint drift — ${passed} tests passed`)

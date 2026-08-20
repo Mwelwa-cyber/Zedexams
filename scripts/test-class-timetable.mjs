@@ -58,7 +58,7 @@ import {
   CURRICULA,
 } from '../src/utils/curriculumFramework.js'
 import { BLOCK_TYPES, makeBlock, segmentsOf, fitsInOneSegment } from '../src/shared/utils/timetableBlocks.js'
-import { buildTimetableGridModel, cellState, dayRowForSlot } from '../src/shared/utils/timetableGridModel.js'
+import { buildTimetableGridModel, cellState, dayRowForSlot, subjectTintMap } from '../src/shared/utils/timetableGridModel.js'
 import { buildClassTimetableWorkbookFiles } from '../src/engines/export-engine/classTimetableToXlsx.js'
 import { buildPrintableHtml } from '../src/engines/export-engine/classTimetableToPdf.js'
 
@@ -950,6 +950,26 @@ test('the XLSX workbook carries both sheets, merges, frozen panes and the detail
   // Days-as-rows variant renders too.
   const rowsFiles = buildClassTimetableWorkbookFiles(sampleArtifact('days-as-rows'))
   assert(rowsFiles['xl/worksheets/sheet1.xml'].includes('DAY'), 'days-as-rows sheet renders')
+})
+
+test('subjectTintMap survives a subject named for an Object.prototype member', () => {
+  // The keys are subject labels off a saved timetable. Into a plain `{}`, a
+  // subject named '__proto__' had its tint SILENTLY DROPPED (the assignment
+  // hit the prototype setter), and 'constructor' made every reader's
+  // `tints[label]` return the Object constructor — which the Word exporter
+  // calls `.replace('#','')` on, throwing mid-export.
+  const subjects = ['__proto__', 'constructor', 'toString', 'Mathematics']
+  const tints = subjectTintMap({ subjects })
+  for (const label of subjects) {
+    assert(typeof tints[label] === 'string', `${label} tint is not a string: ${typeof tints[label]}`)
+    assert(/^#[0-9a-f]{6}$/i.test(tints[label]), `${label} tint is not a colour: ${tints[label]}`)
+    // What the Word exporter does with it, on the value itself.
+    assert(typeof tints[label].replace('#', '') === 'string', `${label} tint is not replaceable`)
+  }
+  assert(
+    Object.keys(tints).join(',') === subjects.join(','),
+    `every subject must be an own key, got ${JSON.stringify(Object.keys(tints))}`,
+  )
 })
 
 console.log('')

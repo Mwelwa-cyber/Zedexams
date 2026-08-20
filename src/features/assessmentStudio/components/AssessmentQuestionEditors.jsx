@@ -7,6 +7,7 @@
 
 import { useRef } from 'react'
 import { clampInt } from '../../../utils/inputs.js'
+import { safeImageSrc } from '../../../shared/utils/safeImageSrc.js'
 import { countBlanks, statementLabel, BLANK_TOKEN } from '../../../utils/fillBlanks.js'
 import { subPartLabel, sumSubPartMarks, emptySubPart, normalizeSubParts } from '../../../utils/questionParts.js'
 import DiagramSvg from '../../../curriculum/diagrams/DiagramSvg'
@@ -116,7 +117,7 @@ function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSe
         </div>
       ) : media?.imageUrl ? (
         <div style={{ position: 'relative', width: 44, height: 44, borderRadius: 4, overflow: 'hidden', flexShrink: 0 }}>
-          <img src={media.imageUrl} alt={media.alt || ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <img src={safeImageSrc(media.imageUrl)} alt={media.alt || ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           {onRemoveOptionImage && (
             <button
               type="button"
