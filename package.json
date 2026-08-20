@@ -943,7 +943,6 @@
     "@capacitor/filesystem": "^8.1.2",
     "@capacitor/keyboard": "^8.0.5",
     "@capacitor/share": "^8.0.1",
-    "@capacitor/status-bar": "^8.0.3",
     "@capgo/native-purchases": "^8.6.5",
     "@heroicons/react": "^2.2.0",
     "@sentry/react": "^10.70.0",

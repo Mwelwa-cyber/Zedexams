@@ -9,11 +9,13 @@
         <item name="colorAccent">@color/colorAccent</item>
     </style>
 
-    <!-- Edge-to-edge is enabled (Android 15/16); the system-bar background and
-         insets are handled by @capawesome/capacitor-android-edge-to-edge-support
-         + the Capacitor StatusBar plugin from JS, so no deprecated
-         statusBarColor / navigationBarColor / windowOptOutEdgeToEdgeEnforcement
-         attributes are set here. -->
+    <!-- Edge-to-edge is enabled (Android 15/16): MainActivity calls
+         EdgeToEdge.enable(), @capacitor-community/safe-area bridges the bar
+         insets into CSS env(safe-area-inset-*), and status-bar icon style is
+         driven from JS through @capacitor/core's built-in SystemBars plugin.
+         Deliberately NO statusBarColor / navigationBarColor /
+         windowOptOutEdgeToEdgeEnforcement attributes here — they are the
+         deprecated Android 15 edge-to-edge parameters Play Console flags. -->
     <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>

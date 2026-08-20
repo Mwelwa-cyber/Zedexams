@@ -16,7 +16,7 @@ Hand-written native classes (`android/app/src/main/java/com/zedexams/android/`):
 
 ## Capacitor plugins (package.json)
 
-`@capacitor/core|android|app|keyboard|status-bar|share|filesystem` ^8, `@capacitor-community/safe-area` ^8, `@capacitor-firebase/app-check|authentication|messaging` ^8.3, `@capgo/native-purchases` ^8.6 (Play Billing — used via JS import, not in the config plugin list).
+`@capacitor/core|android|app|keyboard|share|filesystem` ^8, `@capacitor-community/safe-area` ^8, `@capacitor-firebase/app-check|authentication|messaging` ^8.3, `@capgo/native-purchases` ^8.6 (Play Billing — used via JS import, not in the config plugin list). `@capacitor/status-bar` was removed 2026-08: its Android class carries the `Window` APIs Android 15 deprecated for edge-to-edge (Play Console flags their mere presence in the DEX); status-bar icon styling now goes through `@capacitor/core`'s built-in SystemBars plugin (`src/utils/statusBarManager.js`).
 
 ## Native flow wiring (src)
 

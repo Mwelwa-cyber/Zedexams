@@ -1,4 +1,4 @@
-import { StatusBar, Style } from '@capacitor/status-bar'
+import { SystemBars, SystemBarsStyle, SystemBarType } from '@capacitor/core'
 import { isNativePlatform } from './runtime'
 import {
   parseCssColor,
@@ -154,16 +154,23 @@ function commit(iconsDark) {
 }
 
 // Set ONLY the status-bar icon appearance and never a background. We use
-// @capacitor/status-bar's setStyle (which just flips
-// WindowInsetsController.setAppearanceLightStatusBars) rather than
-// @capacitor-community/safe-area's setSystemBarsStyle, because that one *also*
-// paints the window decor view solid white/black — which shows through the
-// transparent (edge-to-edge) status bar and kills the transparency. SafeArea
-// stays responsible only for bridging the bar insets into env(safe-area-*).
-// Style.Light = dark icons (for a light page); Style.Dark = light icons.
+// @capacitor/core's built-in SystemBars plugin (which just flips
+// WindowInsetsControllerCompat.setAppearanceLightStatusBars) rather than
+// the legacy @capacitor/status-bar plugin: that plugin's Android class calls
+// the Window APIs Android 15 deprecated for edge-to-edge
+// (setStatusBarColor / getStatusBarColor / setSystemUiVisibility /
+// FLAG_TRANSLUCENT_STATUS), and their mere presence in the DEX is what
+// trips the Play Console "deprecated APIs for edge-to-edge" warning — so it
+// must stay out of the build entirely. Nor do we use
+// @capacitor-community/safe-area's setSystemBarsStyle, because that one
+// *also* paints the window decor view solid white/black — which shows
+// through the transparent (edge-to-edge) status bar and kills the
+// transparency. SafeArea stays responsible only for bridging the bar insets
+// into env(safe-area-*). Scoped to the top StatusBar so the gesture bar is
+// left alone. Light = dark icons (for a light page); Dark = light icons.
 function setIconStyle(iconsDark) {
-  const style = iconsDark ? Style.Light : Style.Dark
-  StatusBar.setStyle({ style }).catch(() => {})
+  const style = iconsDark ? SystemBarsStyle.Light : SystemBarsStyle.Dark
+  SystemBars.setStyle({ style, bar: SystemBarType.StatusBar }).catch(() => {})
 }
 
 /**
