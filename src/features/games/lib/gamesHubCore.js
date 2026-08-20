@@ -283,18 +283,52 @@ export function unavailableRowCopy(grade) {
 /**
  * The daily hero's copy. Three states, and the third is the point.
  *
- * When the grade-scoped query finds no quiz for today, the card SAYS so and
- * offers no Play. It must never fall back to another grade's quiz — that is
- * the bug this whole module exists for — and a hero that silently disappears
- * reads as a broken page rather than as an empty day.
+ * When the grade-scoped query finds no challenge for today, the card SAYS
+ * so and offers no Play. It must never fall back to another grade's
+ * challenge — that is the bug this whole module exists for — and a hero
+ * that silently disappears reads as a broken page rather than as an empty
+ * day.
+ *
+ * ── The card names what it opens ─────────────────────────────────────
+ *
+ * It used to read "Today's quiz · Play with Zed", and both halves were
+ * wrong about the thing behind them:
+ *
+ * - It is not a QUIZ. `/games/daily` is the Daily CHALLENGE — one rotating
+ *   game, which today may be Meaning Match and tomorrow Number Target.
+ *   "Today's quiz" is a different live feature: Home's card opens `/daily`,
+ *   the five-question ranked Daily Quiz. Two front doors carrying one name
+ *   and opening different screens is a name collision, not a synonym.
+ * - It is not played WITH Zed. Zed HOSTS the challenge; the learner plays
+ *   it alone. The surface where a learner actually races Zed is
+ *   `/games/duel`, which the hub deliberately no longer offers (#2496
+ *   left one race card, the live learner-vs-learner one). So the only card
+ *   promising Zed as an opponent was the one that never had him.
+ *
+ * So the hero names the actual game, under the destination's own word —
+ * the same rule DailyIntro already holds itself to, for the same reason:
+ * a learner who taps a title must land on a screen they recognise. The
+ * title is the game's, the eyebrow is "Today's challenge", and
+ * `/games/daily` says "Today's Challenge" at the top with that game's name
+ * under it.
+ *
+ * @param {object}  opts
+ * @param {boolean} opts.hasChallenge  did the grade-scoped lookup find one
+ * @param {number}  opts.streakDays    the learner's current streak
+ * @param {string}  opts.gameTitle     the challenge game's own name
  */
-export function dailyHeroCopy({ hasQuiz, streakDays = 0 } = {}) {
-  if (!hasQuiz) {
-    return { title: 'No quiz today', sub: 'Come back tomorrow for a new one', action: null }
+export function dailyHeroCopy({ hasChallenge, streakDays = 0, gameTitle = '' } = {}) {
+  const eyebrow = 'Today’s challenge'
+  if (!hasChallenge) {
+    return { eyebrow, title: 'No challenge today', sub: 'Come back tomorrow for a new one', action: null }
   }
   const days = Number(streakDays) || 0
   return {
-    title: 'Play with Zed',
+    eyebrow,
+    // A challenge whose doc carries no title is still a real challenge, so
+    // the card keeps its Play and borrows the wording of the button it
+    // leads to. Never a placeholder that reads like a name ("Game").
+    title: String(gameTitle || '').trim() || 'Play today’s challenge',
     sub: days > 0 ? `🔥 Keep your ${days}-day streak` : '🔥 Play today to start a streak',
     action: 'Play',
   }
