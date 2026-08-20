@@ -840,6 +840,21 @@ exports.buildPaymentHandlers = (deps) => {
             "Shared password must be 6–128 characters.",
         );
       }
+      // Mirrors the whitespace half of src/utils/passwordPolicy.js, which the
+      // admin panel applies before calling. Kept here as well because this is
+      // the one path where the SERVER sets a real account's password: a padded
+      // shared password mints a whole cohort of Auth users whose owners can
+      // never type their way in, and the credentials CSV does not show the
+      // space. An interior space is fine here too — only the edges and
+      // whitespace that cannot be seen are refused.
+      if (sharedPassword &&
+          /^\s|\s$|[^\S ]|[\u200b-\u200d\u2060]/.test(sharedPassword)) {
+        throw new HttpsError(
+            "invalid-argument",
+            "Shared password cannot start or end with a space, or contain " +
+            "tabs or other invisible characters.",
+        );
+      }
 
       // Normalise each entry to { name, email }. Names that fail to slugify
       // or that produce a duplicate email abort the entire batch BEFORE any

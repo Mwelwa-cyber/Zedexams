@@ -7,6 +7,7 @@ import {
 import { useAuth } from '../../../contexts/AuthContext'
 import { deleteMyAccount, pickReauthMethod } from '../../../utils/accountService'
 import { canSubmitDeletion, deletionErrorMessage } from '../../../utils/accountReauth'
+import { MIN_PASSWORD_LENGTH, passwordIssue } from '../../../utils/passwordPolicy'
 import SettingsDetailShell from '../components/SettingsDetailShell'
 import FieldRow from '../components/fields/FieldRow'
 import Icon from '../../../shared/components/Icon'
@@ -34,7 +35,7 @@ function friendlyPasswordError(err) {
     case 'auth/invalid-credential':
       return 'Your current password is incorrect.'
     case 'auth/weak-password':
-      return 'The new password is too weak — use at least 6 characters.'
+      return `The new password is too weak — use at least ${MIN_PASSWORD_LENGTH} characters.`
     case 'auth/too-many-requests':
       return 'Too many attempts — please wait a few minutes and try again.'
     case 'auth/requires-recent-login':
@@ -59,8 +60,11 @@ function ChangePasswordCard() {
   const submit = async (e) => {
     e.preventDefault()
     if (busy) return
-    if (next.length < 6) {
-      setStatus({ ok: false, message: 'New password must be at least 6 characters.' })
+    // Length AND the whitespace rules, from the one policy every
+    // password-setting surface shares (src/utils/passwordPolicy.js).
+    const policyIssue = passwordIssue(next)
+    if (policyIssue) {
+      setStatus({ ok: false, message: policyIssue })
       return
     }
     if (next !== confirm) {
@@ -121,7 +125,7 @@ function ChangePasswordCard() {
               autoComplete="new-password"
               value={next}
               onChange={(e) => setNext(e.target.value)}
-              minLength={6}
+              minLength={MIN_PASSWORD_LENGTH}
               required
             />
           </FieldRow>
@@ -133,7 +137,7 @@ function ChangePasswordCard() {
               autoComplete="new-password"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
-              minLength={6}
+              minLength={MIN_PASSWORD_LENGTH}
               required
             />
           </FieldRow>

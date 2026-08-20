@@ -11,6 +11,7 @@ import { auth, db } from '../../../firebase/config'
 import Logo from '../../../shared/components/Logo'
 import Button from '../../../shared/components/Button'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
+import { MIN_PASSWORD_LENGTH, passwordIssue } from '../../../utils/passwordPolicy'
 
 const INPUT_CLASS =
   'w-full h-[46px] rounded-[10px] border-[1.5px] border-[#2A2A3C] bg-white ' +
@@ -116,8 +117,12 @@ export default function AuthAction() {
     e.preventDefault()
     setError('')
 
-    if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters.')
+    // One policy for every surface that sets a password — length AND the
+    // whitespace rules. See src/utils/passwordPolicy.js: a reset that lands a
+    // space-padded password is the same lockout as a signup that does.
+    const policyIssue = passwordIssue(newPassword)
+    if (policyIssue) {
+      setError(policyIssue)
       return
     }
     if (newPassword !== confirmPassword) {
@@ -192,9 +197,9 @@ export default function AuthAction() {
                   value={newPassword}
                   onChange={e => setNewPassword(e.target.value)}
                   required
-                  minLength={6}
+                  minLength={MIN_PASSWORD_LENGTH}
                   autoComplete="new-password"
-                  placeholder="At least 6 characters"
+                  placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
                   className={INPUT_CLASS}
                 />
               </div>
@@ -209,7 +214,7 @@ export default function AuthAction() {
                   value={confirmPassword}
                   onChange={e => setConfirmPassword(e.target.value)}
                   required
-                  minLength={6}
+                  minLength={MIN_PASSWORD_LENGTH}
                   autoComplete="new-password"
                   placeholder="Re-type your new password"
                   className={INPUT_CLASS}

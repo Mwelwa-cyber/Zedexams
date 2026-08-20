@@ -6,6 +6,7 @@ import { captureReferralFromUrl } from '../../../utils/referrals'
 import { friendlyAuthMessage } from '../../../utils/friendlyErrors'
 import { assessAction, shouldBlock } from '../../../utils/recaptcha'
 import { validateFields, hasErrors, focusFirstError } from '../../../utils/formValidation'
+import { MIN_PASSWORD_LENGTH } from '../../../utils/passwordPolicy'
 import { requiresGuardianConsent } from '../../../utils/guardianConsent'
 import { DOB_SOURCE, isKnownDobSource } from '../../../utils/ageAnswerCore'
 import Logo from '../../../shared/components/Logo'
@@ -46,7 +47,11 @@ const TEACHER_SUBJECTS = [...CANONICAL_SUBJECTS.map((s) => subjectName(s.id)), '
 const STRENGTH_COLORS = ['#E05C4E', '#E8872A', '#F0C040', '#1E9E6B']
 const STRENGTH_MSGS   = ['Too short', 'Weak — add numbers', 'Almost there…', 'Strong ✓']
 
-function passwordScore(v) {
+function passwordScore(value) {
+  // Scored on the trimmed value: edge whitespace is refused on submit (see
+  // src/utils/passwordPolicy.js), so crediting it here would draw a full
+  // "Strong" bar for a password the form is about to reject.
+  const v = String(value ?? '').trim()
   let sc = 0
   if (v.length >= 6) sc++
   if (v.length >= 8) sc++
@@ -191,7 +196,7 @@ export default function Register() {
 
   const score = useMemo(() => passwordScore(form.password), [form.password])
   const strengthHint =
-    form.password.length === 0 ? 'Enter at least 6 characters' :
+    form.password.length === 0 ? `Enter at least ${MIN_PASSWORD_LENGTH} characters` :
     STRENGTH_MSGS[Math.max(0, score - 1)]
 
   function set(field) {
@@ -251,7 +256,7 @@ export default function Register() {
     return {
       displayName: ['required'],
       email: ['required', 'email'],
-      password: ['required', { min: 6 }],
+      password: ['required', 'passwordPolicy'],
       confirm: [{ match: 'password', value: form.password, message: 'Passwords do not match.' }],
       // Parents have no school/grade of their own; they link to a child later.
       ...(isParent ? {} : { school: ['required'] }),
@@ -672,7 +677,7 @@ export default function Register() {
                 value={form.password}
                 onChange={set('password')}
                 required
-                placeholder="Min 6 characters"
+                placeholder={`Min ${MIN_PASSWORD_LENGTH} characters`}
                 autoComplete="new-password"
                 aria-invalid={fieldErrors.password ? 'true' : undefined}
                 aria-describedby={fieldErrors.password ? 'password-error' : undefined}
