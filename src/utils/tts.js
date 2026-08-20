@@ -22,6 +22,44 @@ function stripMarkdown(text = '') {
     .trim();
 }
 
+/**
+ * Fetch synthesised audio and return an object URL the CALLER owns.
+ *
+ * Split out of `speak()` so a caller that plays the same short text over and
+ * over can hold the result instead of re-requesting it. That is not a cost
+ * optimisation — /api/tts already caches server-side — it is a QUOTA one: a
+ * cache hit still spends one of a learner's 60 daily AI calls, deliberately
+ * (see the note in functions/tts.js), so the only way to make a replay free
+ * for the learner is not to make the request. The spelling round is the
+ * caller this exists for.
+ *
+ * Returns null when there is no usable session or the endpoint refused —
+ * both of which mean "use the browser voice", never "fail".
+ *
+ * OWNERSHIP: the returned URL is NOT revoked here. Whoever asks for it is
+ * responsible for `URL.revokeObjectURL` when they are finished with it;
+ * `speak()` below revokes its own.
+ */
+export async function fetchSpeechUrl(rawText, options = {}) {
+  const text = stripMarkdown(rawText);
+  if (!text) return null;
+  const { voice = '', rate = 1.0, pitch = 0 } = options;
+  const headers = await ttsAuthHeaders();
+  if (!headers) return null;
+  try {
+    const res = await fetch(apiUrl(TTS_ENDPOINT), {
+      method:  'POST',
+      headers,
+      body:    JSON.stringify({ text, ...(voice ? { voice } : {}), rate, pitch }),
+    });
+    if (!res.ok) throw new Error(`Cloud TTS ${res.status}`);
+    return URL.createObjectURL(await res.blob());
+  } catch (err) {
+    console.warn('[tts] cloud failed', err?.message);
+    return null;
+  }
+}
+
 export async function speak(rawText, options = {}) {
   const text = stripMarkdown(rawText);
   if (!text) return;
@@ -30,35 +68,22 @@ export async function speak(rawText, options = {}) {
   // from the admin's selection (settings/ttsVoices) when the request names
   // none. A hard-coded Google id here would 400 the moment an admin offers a
   // different set, and the catch below would hide that behind the browser voice.
-  const { voice = '', rate = 1.0, pitch = 0 } = options;
+  const { rate = 1.0 } = options;
 
-  // No usable ID token → /api/tts would answer 401, so skip the round trip and
-  // read with the browser voice. Routine when signed out (the public paper-quiz
-  // runner is reachable that way), hence no warning.
-  const headers = await ttsAuthHeaders();
-  if (!headers) return speakBrowser(text, { rate });
+  // No usable ID token, or the endpoint refused → read with the browser voice.
+  // Routine when signed out (the public paper-quiz runner is reachable that
+  // way), hence no warning of its own here.
+  const url = await fetchSpeechUrl(rawText, options);
+  if (!url) return speakBrowser(text, { rate });
 
-  try {
-    const res = await fetch(apiUrl(TTS_ENDPOINT), {
-      method:  'POST',
-      headers,
-      body:    JSON.stringify({ text, ...(voice ? { voice } : {}), rate, pitch }),
-    });
-    if (!res.ok) throw new Error(`Cloud TTS ${res.status}`);
-    const blob = await res.blob();
-    const url  = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    currentAudio = audio;
-    currentUrl   = url;
-    return new Promise((resolve, reject) => {
-      audio.onended = () => { cleanup(audio); resolve(); };
-      audio.onerror = (e) => { cleanup(audio); reject(e); };
-      audio.play().catch(reject);
-    });
-  } catch (err) {
-    console.warn('[tts] cloud failed, falling back to browser', err?.message);
-    return speakBrowser(text, { rate });
-  }
+  const audio = new Audio(url);
+  currentAudio = audio;
+  currentUrl   = url;
+  return new Promise((resolve, reject) => {
+    audio.onended = () => { cleanup(audio); resolve(); };
+    audio.onerror = (e) => { cleanup(audio); reject(e); };
+    audio.play().catch(reject);
+  });
 }
 
 export function stopSpeaking() {

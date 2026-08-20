@@ -24,7 +24,8 @@ import {
   collection, doc, getDoc, getDocs, setDoc, deleteDoc,
   query, where, orderBy, limit as fsLimit, serverTimestamp, writeBatch,
 } from 'firebase/firestore'
-import { db, auth } from '../../../firebase/config'
+import { getFunctions, httpsCallable } from 'firebase/functions'
+import app, { db, auth } from '../../../firebase/config'
 import { withFirestoreReadTimeout } from '../../../utils/firestoreTimeout'
 import {
   LEARNER_STATUS,
@@ -180,6 +181,32 @@ export async function setWordActive(id, active) {
 /** Delete for good. Deactivating is almost always what is actually wanted. */
 export async function deleteWord(id) {
   await deleteDoc(doc(db, COLLECTION, id))
+}
+
+/* ── pronunciation ─────────────────────────────────────────────────── */
+
+/**
+ * Voice a batch of words through the server.
+ *
+ * The synthesis, the ElevenLabs key and the Storage write all live in the
+ * callable — none of them can be here, because a provider key in a bundle is
+ * a public key. This function's whole job is to hand over ids and read back
+ * what happened.
+ *
+ * Batched at the SERVER's limit rather than a number chosen here, so the two
+ * cannot drift: the reply reports `maxBatch` and `overflow`, and the caller
+ * pages until nothing is left.
+ */
+export async function generateAudioForWords(words, { force = false, voice = '' } = {}) {
+  const call = httpsCallable(getFunctions(app, 'us-central1'), 'generateSpellingAudio')
+  const res = await call({
+    // Only what the server needs. It re-reads everything else from the record
+    // it is about to stamp.
+    words: (words || []).map((w) => ({ id: w.id, word: w.word, grade: w.grade })),
+    force,
+    ...(voice ? { voice } : {}),
+  })
+  return res?.data || null
 }
 
 /* ── bulk import ───────────────────────────────────────────────────── */

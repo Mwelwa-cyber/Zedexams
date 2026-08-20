@@ -78,6 +78,16 @@ mkdirSync(join(ROOT, 'node_modules', '.cache'), { recursive: true })
 const workDir = mkdtempSync(join(ROOT, 'node_modules', '.cache', 'spelling-responsive-'))
 const entry = join(workDir, 'entry.jsx')
 const bundle = join(workDir, 'bundle.mjs')
+
+// The silent stand-in the bundle gets in place of the real speech module.
+const speechStub = join(workDir, 'speech-stub.js')
+writeFileSync(speechStub, `
+export function speechAvailable() { return true }
+export function stopSpeech() {}
+export async function speakWord() {}
+export async function speakChunk() {}
+export function isPlayableAudioUrl() { return true }
+`)
 writeFileSync(entry, `
 export { default as SpellingStageMap, StageIntroSheet } from ${JSON.stringify(join(ROOT, 'src/features/games/components/SpellingStageMap.jsx'))}
 export { default as BreakItUpCoach } from ${JSON.stringify(join(ROOT, 'src/features/games/components/BreakItUpCoach.jsx'))}
@@ -96,7 +106,21 @@ await esbuild.build({
   jsx: 'automatic',
   loader: { '.js': 'jsx', '.jsx': 'jsx', '.css': 'empty' },
   external: ['react', 'react-dom', 'react/jsx-runtime'],
-  logLevel: 'silent',
+  // Audio is STUBBED, not bundled. `spellingSpeech` reaches /api/tts through
+  // utils/tts → firebase/config, which drags the whole Firebase client (and
+  // grpc, and `import.meta.env`) into a harness whose entire job is measuring
+  // boxes. Sound has no layout, so the stub costs this file nothing and keeps
+  // what it renders to the thing it is testing.
+  //
+  // A resolve PLUGIN rather than esbuild's `alias`, which only accepts
+  // package-style names and rejects an absolute path outright.
+  plugins: [{
+    name: 'stub-speech',
+    setup(build) {
+      build.onResolve({filter: /spellingSpeech(\.js)?$/}, () => ({path: speechStub}))
+    },
+  }],
+  logLevel: 'warning',
 })
 
 const {

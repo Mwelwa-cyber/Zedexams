@@ -939,7 +939,8 @@
     "test:loader-theme-tokens": "node scripts/test-loader-theme-tokens.mjs",
     "test:spelling-pack": "node scripts/test-spelling-pack.mjs",
     "test:spelling-system": "node scripts/test-spelling-system.mjs",
-    "smoke:spelling": "node scripts/test-spelling-responsive.mjs"
+    "smoke:spelling": "node scripts/test-spelling-responsive.mjs",
+    "test:spelling-audio": "node functions/spelling/spellingAudioCore.test.js"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",

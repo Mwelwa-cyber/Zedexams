@@ -40,6 +40,7 @@ import {
 } from '../lib/spellingContentCore'
 import {
   deleteWord,
+  generateAudioForWords,
   importWords,
   listWordsForAdmin,
   saveWord,
@@ -79,6 +80,7 @@ export default function SpellingAdmin() {
   const [busy, setBusy] = useState('')
   const [confirm, setConfirm] = useState(null)
   const [importReport, setImportReport] = useState(null)
+  const [voiceReport, setVoiceReport] = useState(null)
 
   const bands = useMemo(() => new Set(bandTable.map((band) => band.id)), [bandTable])
 
@@ -163,6 +165,41 @@ export default function SpellingAdmin() {
     setImportReport(report)
   })
 
+  /**
+   * Voice everything not yet voiced, a server-sized page at a time.
+   *
+   * Pages until the server stops reporting an overflow, so an admin presses
+   * once for a bank of any size. Stops on the first page that voices nothing
+   * AND skips nothing — otherwise a persistent provider failure would loop.
+   */
+  const voiceAll = () => run('voice', async () => {
+    const pending = rows.filter((row) => !row.audio)
+    if (!pending.length) { setVoiceReport({ voiced: 0, failed: [], skipped: 0, done: true }); return }
+
+    let voiced = 0
+    let skipped = 0
+    const failed = []
+    let remaining = pending
+    // A hard ceiling on pages as well as the loop's own exit: a bank of 879
+    // is ~36 pages, so 60 is generous and still bounded.
+    for (let page = 0; page < 60 && remaining.length; page += 1) {
+      const size = voiceReport?.maxBatch || 25
+      const batch = remaining.slice(0, size)
+      // Serial on purpose: each page is a batch of provider round trips,
+      // and firing them together would trip the callable's own rate limit.
+      const report = await generateAudioForWords(batch)
+      if (!report) break
+      voiced += report.voiced?.length || 0
+      skipped += report.skipped?.length || 0
+      if (report.failed?.length) failed.push(...report.failed)
+      setVoiceReport({ voiced, skipped, failed, running: true, maxBatch: report.maxBatch })
+      const handled = (report.voiced?.length || 0) + (report.skipped?.length || 0) + (report.failed?.length || 0)
+      if (!handled) break
+      remaining = remaining.slice(batch.length)
+    }
+    setVoiceReport({ voiced, skipped, failed, done: true })
+  })
+
   const openNew = () => setEditing({ ...EMPTY, grade, band: bandTable[0]?.id || '' })
 
   return (
@@ -198,6 +235,9 @@ export default function SpellingAdmin() {
           <button type="button" className="lhx-sp-admin-btn" onClick={importBank} disabled={busy === 'import'}>
             {busy === 'import' ? 'Importing…' : 'Import the bundled bank'}
           </button>
+          <button type="button" className="lhx-sp-admin-btn" onClick={voiceAll} disabled={busy !== ''}>
+            {busy === 'voice' ? 'Voicing…' : `Voice ${rows.filter((r) => !r.audio).length} unvoiced`}
+          </button>
         </div>
 
         <div className="lhx-sp-admin-filters" role="tablist">
@@ -232,6 +272,25 @@ export default function SpellingAdmin() {
             ))}
             {importReport.rejected.length > 8 && <p>…and {importReport.rejected.length - 8} more refused</p>}
             <button type="button" className="lhx-sp-admin-btn" onClick={() => setImportReport(null)}>Dismiss</button>
+          </div>
+        )}
+
+        {voiceReport && (
+          <div className="lhx-sp-admin-report" role="status">
+            <p>
+              <b>{voiceReport.voiced} voiced</b>
+              {voiceReport.skipped > 0 && <> · {voiceReport.skipped} already had audio</>}
+              {voiceReport.failed?.length > 0 && <> · <b>{voiceReport.failed.length} failed</b></>}
+              {voiceReport.running && <> — still going…</>}
+            </p>
+            {/* Failures are NAMED. A pronunciation that silently never
+                generated is a word that plays in the wrong voice forever. */}
+            {(voiceReport.failed || []).slice(0, 6).map((row) => (
+              <p key={row.word} className="lhx-sp-admin-reject">{row.word}: {row.error}</p>
+            ))}
+            {voiceReport.done && (
+              <button type="button" className="lhx-sp-admin-btn" onClick={() => setVoiceReport(null)}>Dismiss</button>
+            )}
           </div>
         )}
 
@@ -272,7 +331,13 @@ export default function SpellingAdmin() {
                   )}
                 </div>
                 <div className="lhx-sp-admin-actions">
-                  <button type="button" onClick={() => speakWord(row.word, { audioUrl: row.audio })}>🔊</button>
+                  <button
+                    type="button"
+                    title={row.audio ? 'Play the stored pronunciation' : 'No stored audio yet — this previews the live voice'}
+                    onClick={() => speakWord(row.word, { audioUrl: row.audio })}
+                  >
+                    {row.audio ? '🔊' : '🔈'}
+                  </button>
                   <button type="button" onClick={() => setPreview(row)}>Preview</button>
                   <button type="button" onClick={() => setEditing(row)}>Edit</button>
                   {row.status !== 'approved' && (
