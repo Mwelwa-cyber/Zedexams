@@ -195,6 +195,7 @@
     "test:draft-restore": "node src/hooks/draft/restoreLessonPlan.test.js",
     "test:draft-descriptors": "node src/hooks/draft/descriptors/handBuilt.test.js",
     "test:learner-grades": "node scripts/test-learner-grades.mjs",
+    "test:learner-grade-games": "node scripts/test-learner-grade-games.mjs",
     "test:daily-quiz-core": "node functions/dailyQuiz/dailyQuizCore.test.js",
     "test:daily-quiz-view": "node src/features/dailyQuiz/lib/dailyQuizCore.test.js",
     "test:daily-quiz-week": "node scripts/test-daily-quiz-week.mjs",
