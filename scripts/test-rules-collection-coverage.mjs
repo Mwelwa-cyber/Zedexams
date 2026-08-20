@@ -243,6 +243,12 @@ const COVERED = [
   // could write there could hide any game from every learner, because the
   // learner-side bundled-seed fallback is filtered by that list.
   'games', 'gameTombstones',
+  // The spelling system's two collections. `spellingProgress` is a derived
+  // personal record whose pool names the words a child keeps getting wrong,
+  // and `spellingWords` is the rule that makes "unreviewed content never
+  // reaches a learner" structural rather than a property of whatever query
+  // the client happened to send — both worth behavioural coverage.
+  'spellingProgress', 'spellingWords',
 ]
 
 /**

@@ -1182,6 +1182,56 @@ test('gameTombstones is public-read, admin-write', () => {
   )
 })
 
+test('spellingProgress is owner-only and bounded', () => {
+  const start = rules.indexOf('match /spellingProgress/{userId}')
+  assert(start >= 0, 'spellingProgress match block not found')
+  const body = rules.slice(start, start + 400)
+  // The pool is the list of words a named child keeps getting wrong. It is a
+  // derived personal record, never leaderboard data, so it must never become
+  // readable the way `scores` is.
+  assert(
+    /allow read:\s*if isVerified\(\) && \(isOwner\(userId\) \|\| isAdmin\(\)\);/.test(body),
+    'spellingProgress reads must be owner-or-admin',
+  )
+  assert(
+    /allow create, update: if isVerified\(\) && isOwner\(userId\) && validSpellingProgressFields\(userId\);/.test(body),
+    'spellingProgress writes must be owner-gated and field-validated',
+  )
+
+  const vStart = rules.indexOf('function validSpellingProgressFields(userId)')
+  assert(vStart >= 0, 'validSpellingProgressFields not found')
+  const validator = rules.slice(vStart, vStart + 1600)
+  assert(validator.includes('incoming().uid == request.auth.uid'), 'the record must be pinned to the caller')
+  // The document is read WHOLE on every visit to the map. The client trims
+  // the pool (`trimPool`), but a client cap is an optimisation and this is
+  // the limit — without it one learner's record grows until the read fails.
+  assert(/incoming\(\).pool is map && incoming\(\).pool.size\(\) <= \d+/.test(validator),
+    'the word pool must carry a size ceiling in the rule, not only in the client')
+  assert(/incoming\(\).stars is map/.test(validator), 'stars must be a bounded map')
+  assert(validator.includes('incoming().updatedAt == request.time'),
+    'the write must carry the server clock, not a client-chosen one')
+})
+
+test('spellingWords serves learners approved content only', () => {
+  const start = rules.indexOf('match /spellingWords/{wordId}')
+  assert(start >= 0, 'spellingWords match block not found')
+  const body = rules.slice(start, start + 900)
+  // Both conditions on both read verbs. A query that drops either one is
+  // REFUSED rather than quietly returning drafts — which is what makes
+  // "unreviewed content never reaches a child" a property of the rule
+  // rather than of whatever query the client happened to send.
+  for (const verb of ['get', 'list']) {
+    const at = body.indexOf(`allow ${verb}:`)
+    assert(at >= 0, `spellingWords must declare allow ${verb}`)
+    const clause = body.slice(at, body.indexOf(';', at))
+    assert(clause.includes("status == 'approved'"), `allow ${verb} must require an approved status`)
+    assert(clause.includes('active == true'), `allow ${verb} must require an active record`)
+  }
+  // Approval is a human act with an audit trail. Nothing generated may
+  // approve itself, so every write is admin.
+  assert(/allow write:\s*if isAdmin\(\);/.test(body), 'spellingWords writes must require isAdmin()')
+})
+
 // ── Report ──────────────────────────────────────────────────────
 
 console.log('')

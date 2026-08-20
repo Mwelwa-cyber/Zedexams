@@ -72,7 +72,7 @@ export function shuffleWith(list, rng) {
 
 /** `{ correct, sessions: [id], misses, dueAt }` per word. */
 export function emptyEntry() {
-  return { correct: 0, sessions: [], misses: 0, dueAt: 0 }
+  return { correct: 0, sessions: [], misses: 0, dueAt: 0, attempts: 0, lastAt: 0, lastMissAt: 0 }
 }
 
 export function entryFor(pool, word) {
@@ -97,25 +97,35 @@ export function scheduleReturn(entry, stage) {
  * A right answer. Counted only ONCE per session — three rights in one sitting
  * is not mastery, and this is the line that says so.
  */
-export function recordCorrect(pool, word, { session, stage = 0 } = {}) {
+export function recordCorrect(pool, word, { session, stage = 0, at = 0 } = {}) {
   const entry = entryFor(pool, word)
   if (entry.sessions.includes(session)) return { ...pool, [word]: entry }
   const next = scheduleReturn({
     ...entry,
     correct: (entry.correct || 0) + 1,
-    sessions: [...entry.sessions, session],
+    attempts: (entry.attempts || 0) + 1,
+    // The session ids are a DUPLICATE GUARD, not a history: all they ever
+    // answer is "has this session already counted". Keeping every id would
+    // grow one learner's pool without bound in a document that is read whole
+    // on every stage, so only the last few are kept — never fewer than the
+    // number mastery needs, or a word could be mastered twice in a sitting.
+    sessions: [...entry.sessions, session].slice(-MASTERY_SESSIONS),
+    lastAt: Number(at) || entry.lastAt || 0,
   }, stage)
   return { ...pool, [word]: next }
 }
 
 /** A miss. The count goes back to zero; the miss history does not. */
-export function recordMiss(pool, word, { stage = 0 } = {}) {
+export function recordMiss(pool, word, { stage = 0, at = 0 } = {}) {
   const entry = entryFor(pool, word)
   const next = scheduleReturn({
     ...entry,
     correct: 0,
     sessions: [],
     misses: (entry.misses || 0) + 1,
+    attempts: (entry.attempts || 0) + 1,
+    lastAt: Number(at) || entry.lastAt || 0,
+    lastMissAt: Number(at) || entry.lastMissAt || 0,
   }, stage)
   return { ...pool, [word]: next }
 }
@@ -187,4 +197,80 @@ export function starsForStage(firstTimeCorrect, size = STAGE_WORDS) {
   if (firstTimeCorrect >= size) return 3
   if (firstTimeCorrect >= Math.ceil(size * 0.75)) return 2
   return 1
+}
+
+/* ── the tricky-word record ────────────────────────────────────────── */
+
+/**
+ * One learner's tricky word, in the shape the Tricky Words screen and the
+ * weekly report both read. Every field the spec asks for is derived from the
+ * pool entry rather than stored twice.
+ *
+ * `firstTryAccuracy` is over ATTEMPTS, not sessions: a learner who has met a
+ * word four times and got it right once is 25%, which is the number that says
+ * whether the word is actually coming.
+ */
+export function trickyRecord(pool, word) {
+  const entry = entryFor(pool, word)
+  const attempts = Math.max(entry.attempts || 0, (entry.misses || 0) + (entry.correct || 0))
+  const correct = Math.max(0, attempts - (entry.misses || 0))
+  return {
+    word,
+    attempts,
+    misses: entry.misses || 0,
+    correct,
+    firstTryAccuracy: attempts ? Math.round((correct / attempts) * 100) : 0,
+    lastAttemptedAt: entry.lastAt || 0,
+    lastMissedAt: entry.lastMissAt || 0,
+    consecutiveSessions: entry.correct || 0,
+    sessionsToMastery: sessionsToMastery(entry),
+    mastered: isMastered(entry),
+    dueAt: entry.dueAt || 0,
+  }
+}
+
+/** Every tricky word as a full record, worst first. */
+export function trickyRecords(pool = {}) {
+  return trickyWords(pool).map((word) => trickyRecord(pool, word))
+}
+
+/* ── the end of a stage ────────────────────────────────────────────── */
+
+/**
+ * What the results screen shows: stars, first-try accuracy, and the three
+ * lists a learner actually cares about.
+ *
+ * Computed by DIFFING the pool before and after the stage rather than by
+ * accumulating flags during play. A word can be answered more than once in a
+ * round (a missed word comes back), and a running tally of "newly mastered"
+ * double-counts the moment it does; the diff cannot, because a word either
+ * crossed the line or it did not.
+ */
+export function stageSummary({ before = {}, after = {}, words = [], firstTryCorrect = 0, size = STAGE_WORDS } = {}) {
+  const played = [...new Set(words.map((item) => item.word || item))]
+
+  const mastered = played.filter(
+    (word) => !isMastered(entryFor(before, word)) && isMastered(entryFor(after, word)),
+  )
+  // "Added to your tricky words" means it was not on the list before this
+  // stage — a word that was already tricky and was missed again is not NEW,
+  // and listing it as such would tell the learner they had gone backwards.
+  const wasTricky = new Set(trickyWords(before))
+  const addedTricky = trickyWords(after).filter((word) => played.includes(word) && !wasTricky.has(word))
+
+  const returning = played
+    .filter((word) => !isMastered(entryFor(after, word)))
+    .map((word) => ({ word, dueAt: entryFor(after, word).dueAt || 0 }))
+    .sort((a, b) => a.dueAt - b.dueAt)
+
+  const total = played.length || size
+  return {
+    stars: starsForStage(firstTryCorrect, total),
+    firstTryCorrect,
+    words: total,
+    accuracy: total ? Math.round((firstTryCorrect / total) * 100) : 0,
+    mastered,
+    addedTricky,
+    returning,
+  }
 }

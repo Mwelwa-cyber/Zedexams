@@ -2237,6 +2237,25 @@ service cloud.firestore {
         && (!('lastPlayedDate' in incoming()) || (incoming().lastPlayedDate is string && incoming().lastPlayedDate.size() <= 10))
         && (!('lastGameId' in incoming()) || (incoming().lastGameId is string && incoming().lastGameId.size() <= 128));
     }
+    function validSpellingProgressFields(userId) {
+      return incoming().keys().hasOnly([
+          'uid', 'stars', 'pool', 'stagesPlayed', 'settledRuns',
+          'resume', 'totalStars', 'updatedAt',
+        ])
+        && incoming().uid == request.auth.uid
+        && incoming().uid == userId
+        && incoming().stars is map && incoming().stars.size() <= 400
+        // The pool ceiling. `MAX_POOL_WORDS` in spellingProgressCore is 400
+        // and this is the same number with slack for a client that has not
+        // updated yet — the client trims, this refuses.
+        && incoming().pool is map && incoming().pool.size() <= 500
+        && incoming().stagesPlayed is int && incoming().stagesPlayed >= 0 && incoming().stagesPlayed <= 100000
+        && incoming().settledRuns is list && incoming().settledRuns.size() <= 20
+        && incoming().totalStars is int && incoming().totalStars >= 0 && incoming().totalStars <= 100000
+        && (incoming().resume == null || incoming().resume is map)
+        && incoming().updatedAt == request.time;
+    }
+
     function validLearnerStatsFields() {
       return (!('userId' in incoming()) || (incoming().userId is string && incoming().userId.size() <= 200))
         && (!('xp' in incoming()) || (incoming().xp is int && incoming().xp >= 0 && incoming().xp <= 100000000))
@@ -2357,6 +2376,48 @@ service cloud.firestore {
       allow read:           if isVerified() && (isOwner(userId) || isAdmin());
       allow create, update: if isVerified() && isOwner(userId) && validStudyPlanProgressFields(userId);
       allow delete:         if isAdmin();
+    }
+
+    // ── spellingProgress (per-learner spelling ladder + word mastery) ──
+    //
+    // One doc per learner: the stars they hold per stage, the per-word pool
+    // that decides mastery and spacing, and a half-finished stage so leaving
+    // mid-round resumes rather than restarting.
+    //
+    // Owner-only, like every other derived personal record on this page. It
+    // is NOT leaderboard data and must not become readable: the pool is a
+    // list of the words a named child keeps getting wrong.
+    //
+    // The pool is capped in the rule as well as in the client (`trimPool`),
+    // because the client cap is an optimisation and this is the limit. A
+    // document read whole on every visit to the map cannot be allowed to grow
+    // without a ceiling somebody enforces.
+    match /spellingProgress/{userId} {
+      allow read:           if isVerified() && (isOwner(userId) || isAdmin());
+      allow create, update: if isVerified() && isOwner(userId) && validSpellingProgressFields(userId);
+      allow delete:         if isAdmin();
+    }
+
+    // ── spellingWords (the reviewed spelling content) ─────────────────
+    //
+    // A learner may read APPROVED, ACTIVE words and nothing else. The two
+    // conditions are both required on a `list`, so a query that drops either
+    // one is refused rather than quietly returning drafts — which is what
+    // makes "unreviewed content never reaches a child" a property of the
+    // rule and not of the query the client happened to send.
+    //
+    // Writes are admin-only. Approval is a human act with an audit trail
+    // (`reviewedBy` / `reviewedAt`), and there is no path by which a
+    // generated word approves itself.
+    match /spellingWords/{wordId} {
+      allow get:    if resource.data.status == 'approved'
+                    && resource.data.active == true
+                    || isAdmin();
+      allow list:   if isAdmin()
+                    || (request.query.limit <= 2000
+                        && resource.data.status == 'approved'
+                        && resource.data.active == true);
+      allow write:  if isAdmin();
     }
 
     // ── learnerStats (gamification: XP, levels, streaks, personal bests) ──

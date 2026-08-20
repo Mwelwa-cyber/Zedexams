@@ -427,6 +427,103 @@ membership belongs in the one test that compares it against something.
 `AiTeam.jsx`, `Register.jsx`, `PrivacyPolicy.jsx`) with it. The tests are driven
 off the config, so none of them need editing.
 
+### Spelling is one connected system, not three games (2026-08-20)
+
+The `word_builder` game is **Spelling**, and tapping its card opens a LADDER
+rather than a round:
+
+```
+map → stage intro → round → (miss → Break It Up coach) → results → next stage
+```
+
+One learner record carries all of it — `spellingProgress/{uid}` — so the map's
+stars, the words a stage is composed from, the tricky list, the coach's "this
+comes back later" promise and the mastery a results screen reports are all
+reads of the same document. That is what stops the three screens being three
+games sharing a colour scheme.
+
+**The `type` stays `word_builder`.** The registry, the seed importer, the
+tombstones, the daily challenge and the duel question pool all key off it, and
+a second mechanic beside it would fork the catalogue into two rows for one
+game. Only the NAME a child reads changed (`CATALOGUE_MECHANICS`).
+
+- **Progress is the SERVER's; the device is a mirror.** It was `localStorage`
+  alone (`zedexams:spelling:*`), which does not survive a new browser and does
+  not follow a child to the family tablet. `loadSpellingProgress` reads the
+  device copy first (so the map paints instantly) and then MERGES the server's
+  — `mergeProgress` takes the **better** of the two per stage and per word,
+  never the newer. Last-write-wins would throw away the phone the work was
+  actually done on. Writes are coalesced: every answer to the device, the
+  server on stage settle and on leaving mid-stage.
+- **A stage pays out once per run.** `applyStageResult` is keyed by a `runId`
+  and returns the record BY IDENTITY for an id it has already settled, so a
+  double tap, a resumed stage finishing twice or a retried write cannot award
+  the same stage twice. Stars are a max (`recordStageStars`), so a worse replay
+  is a no-op — "nothing is lost by replaying" has to be true or a child learns
+  not to practise.
+- **A chapter is a difficulty band, never a topic.** The nine bands in
+  `src/data/spellingBank.js` group 879 Grade 7 words by WHAT MAKES THEM HARD —
+  silent letters, double letters, -ie/-ei, suffix rules — and their declared
+  order IS the ladder. `wordsForStage` filters the draw to the stage's own
+  band, or the chapter heading is describing a stage it did not compose.
+  `chapterTableFor` is the fallback for a game document carrying its own words
+  with an unknown band or none: an empty map has no way in.
+- **The tricky node is personal and positional.** It appears at 10+ unmastered
+  missed words, sits immediately before the stage the learner is on, and earns
+  **no stars and no stage advance** — it is practice, not progress, so clearing
+  it must not skip a rung.
+- **The coach is three phases and the middle one teaches.** Show the cut (trap
+  marked, why people miss it, a hook only when the content authored one AND its
+  note) → **rebuild the word from SHUFFLED chunks** (`rebuildOptions`; in order
+  it would be a left-to-right tap, not a reconstruction) → transfer words the
+  same cut solves. A wrong tap is REFUSED, never punished: nothing is removed
+  and the option stays on screen. It is OFFERED after a miss, never forced, and
+  the word returns later with none of it whichever door the learner took.
+  **A word with no authored cut gets no coach** — never a guessed syllable break.
+- **Mastery is three rights in three separate SESSIONS**, first-try only. Five
+  rights in one sitting is short-term memory, and `recordCorrect` refuses a
+  second count from the same session id.
+- **Stars are accuracy, never speed.** There is no countdown, no lives, no
+  game-over and no energy meter, and there must not be: a clock punishes
+  exactly the slower speller the game exists for. **Nothing is judged until
+  Check** — the old engine auto-checked on the last letter, so a learner who
+  spotted their own mistake had already been marked wrong. Undo, Clear and
+  re-hearing the word are not answers.
+- **Decoys never duplicate a letter the word needs** (`decoysFor`), or the word
+  becomes unspellable. A pleasant side effect: `SEPERATE` is literally
+  untappable under `SEPARATE`'s tiles.
+
+**Content is reviewed, not generated into place.** `spellingWords/{id}` holds
+the model (`word`, `grade`, `band`, `contextSentence`, `chunks`, `trap`,
+`strategy`, `hook`, `hookNote`, `why`, `relatedWords`, `audio`, `status`,
+`approved`, `active`), managed at **`/admin/spelling`**. Every rule lives once
+in `spellingContentCore.js` — the admin form, `test:spelling-bank` and the pack
+loader all run it, because a form with its own copy is the copy nobody runs in
+CI. `chunks.join('') === word`, one `___` gap, a sentence that never prints its
+own answer, British forms only. **Approval is a human act**: generated content
+lands `pending`, editing an approved word sends it back, and
+`servableToLearner` fails closed — an `approved: true` record that fails a
+machine check is still refused. The rule enforces the same thing (`allow get`
+AND `allow list` both require `status == 'approved' && active == true`), so a
+query that drops either condition is refused rather than quietly returning
+drafts. The bundled 879-word bank stays the **approved baseline** and the
+offline fallback; `mergeIntoPack` folds Firestore words over it rather than
+replacing it.
+
+**Grades.** `packForGrade(n)` → `grade{n}-spelling`; opening a grade is a bank
+file plus a `WORD_PACKS` entry, not an engine change. A document's own
+`wordPack` wins; a document with its own questions keeps them (deriving the
+pack from the grade unconditionally silently ignored authored words).
+
+Tests: `test:spelling-system` (188 checks — ladder, coach, content rules,
+record), `test:spelling-stages`, `test:spelling-bank`, `test:spelling-pack`,
+`test:word-builder`, `test:rules-text`, `test:rules-emulator`, plus
+`WordBuilderGame.spec.jsx` and `SpellingAdmin.spec.jsx`. **`npm run
+smoke:spelling`** measures the six screens at seven widths (320→1280) in real
+Chromium — overflow, clipping, hidden tiles and 44px touch targets, none of
+which jsdom can see. It is NOT a `test:*` script (it needs a browser) and it
+caught a 40px back button on its first run.
+
 ### Deleting a game is a Firestore act, not a catalogue edit (2026-08-19)
 
 `/admin/games-seed` compares the curated SEED (`src/data/gamesSeed.js`, a
