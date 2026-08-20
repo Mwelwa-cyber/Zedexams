@@ -238,6 +238,8 @@
     "test:zambian-facts": "node functions/teacherTools/zambianFacts.test.js",
     "test:zambia-game": "node scripts/test-zambia-game.mjs",
     "test:know-zambia": "node scripts/test-know-zambia.mjs",
+    "test:fraction-ladder": "node scripts/test-fraction-ladder.mjs",
+    "test:spelling-stages": "node scripts/test-spelling-stages.mjs",
     "test:zambia-physical": "node scripts/test-zambia-physical.mjs",
     "test:fill-blanks": "node scripts/test-fill-blanks.mjs",
     "test:diagram-label": "node scripts/test-diagram-label-grading.mjs",
