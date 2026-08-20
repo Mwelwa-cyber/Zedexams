@@ -2426,6 +2426,47 @@ exports.requestGuardianUnlock = require('./guardianUnlock').requestGuardianUnloc
 // See functions/guardianControls/ and functions/shared/guardian/.
 exports.setGuardianControl = require('./guardianControls').setGuardianControl;
 
+// ── The past-paper quiz: exam mode's server rules (§5) ───────────────
+//
+// `startAttempt` returns the paper's questions with every answer-key shape
+// and every coaching field STRIPPED for an exam, so the app cannot show an
+// answer early; `submitAttempt` marks server-side and returns the full marked
+// paper. The client never marks an exam, never owns the clock (the countdown
+// on screen is cosmetic — the remaining time is recomputed from the server's
+// `expiresAt` on every read) and never writes a score.
+//
+// `patchAttempt` is what makes §1's "only one thing ends an exam early" true:
+// answers persist AS THEY ARE GIVEN rather than being batched in memory until
+// submit, because memory is exactly what a reload destroys. A refresh, a
+// crash, a battery death or a rotate all arrive back at `startAttempt` and
+// RESUME; `abandonAttempt` — the exit sheet's "Leave, don't count this" — is
+// the only thing that ends one.
+//
+// The marking rules and the answer key live in functions/shared/paperQuiz/,
+// imported unchanged by the browser too, because practice marks client-side
+// and exam marks here and the two must agree about which option was right.
+// See functions/paperQuiz/ and docs/learner/past-paper-quiz.md.
+exports.startAttempt = onCall(
+    {region: "us-central1", timeoutSeconds: 60},
+    (request) => require("./paperQuiz/paperQuizFns").startAttemptHandler(request),
+);
+exports.patchAttempt = onCall(
+    {region: "us-central1", timeoutSeconds: 30},
+    (request) => require("./paperQuiz/paperQuizFns").patchAttemptHandler(request),
+);
+exports.submitAttempt = onCall(
+    {region: "us-central1", timeoutSeconds: 60},
+    (request) => require("./paperQuiz/paperQuizFns").submitAttemptHandler(request),
+);
+exports.abandonAttempt = onCall(
+    {region: "us-central1", timeoutSeconds: 30},
+    (request) => require("./paperQuiz/paperQuizFns").abandonAttemptHandler(request),
+);
+exports.savePracticeProgress = onCall(
+    {region: "us-central1", timeoutSeconds: 30},
+    (request) => require("./paperQuiz/paperQuizFns").savePracticeProgressHandler(request),
+);
+
 // ── Account deletion: the child asks, the guardian decides ───────────
 //
 // Deleting a child's account is a state machine, not a button, and the reason

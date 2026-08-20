@@ -932,7 +932,10 @@
     "test:deletion-neutrality": "node functions/deletionFlow/neutrality.test.js",
     "test:spelling-bank": "node scripts/test-spelling-bank.mjs",
     "test:loader-theme-tokens": "node scripts/test-loader-theme-tokens.mjs",
-    "test:spelling-pack": "node scripts/test-spelling-pack.mjs"
+    "test:spelling-pack": "node scripts/test-spelling-pack.mjs",
+    "test:paper-quiz-core": "node scripts/test-paper-quiz-core.mjs",
+    "test:paper-quiz-server": "node functions/paperQuiz/paperQuizCore.test.js",
+    "test:shared-paper-quiz-neutral": "node functions/shared/paperQuiz/neutrality.test.js"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",
