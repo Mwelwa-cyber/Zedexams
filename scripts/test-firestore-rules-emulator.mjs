@@ -3799,6 +3799,80 @@ async function main() {
     }))
   })
 
+  await test('an absurd score is refused — the bound is a rule, not a convention', async () => {
+    // `score is number` alone accepted this, and the board that ranked raw
+    // score ROWS put whoever wrote it at number one. The weekly rollup
+    // clamps to the same 1000 on the way in; this is the other half.
+    await assertFails(addDoc(collection(learnerA, 'scores'), {
+      userId: LEARNER_A, gameId: 'game-1', grade: 4, subject: 'mathematics',
+      score: 50000, playedAt: serverTimestamp(),
+    }))
+    await assertFails(addDoc(collection(learnerA, 'scores'), {
+      userId: LEARNER_A, gameId: 'game-1', grade: 4, subject: 'mathematics',
+      score: -10, playedAt: serverTimestamp(),
+    }))
+    // The boundary itself is legitimate, so the bound cannot be "any large
+    // number fails" by accident.
+    await assertSucceeds(addDoc(collection(learnerA, 'scores'), {
+      userId: LEARNER_A, gameId: 'game-1', grade: 4, subject: 'mathematics',
+      score: 1000, playedAt: serverTimestamp(),
+    }))
+  })
+
+  // ── the GAMES weekly board ───────────────────────────────────
+  //
+  // The one property that makes this board different from the `scores` rows
+  // above: a learner cannot write it. Every decision on it — the points, the
+  // grade, the guardian check, the printed name — is the server's, so a
+  // successful client write anywhere in this subtree would return the board
+  // to being a ranking of numbers a client chose.
+
+  section('gamesLeaderboards — server-written, signed-in read')
+
+  await test('a verified learner can read a board entry but never write one', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), 'gamesLeaderboards', '4', 'weeks', '2026-W34', 'entries', LEARNER_A),
+        { uid: LEARNER_A, grade: 4, weekId: '2026-W34', displayName: 'Chanda M.', points: 96, plays: 3 },
+      )
+    })
+    await assertSucceeds(getDoc(
+      doc(learnerA, 'gamesLeaderboards', '4', 'weeks', '2026-W34', 'entries', LEARNER_A),
+    ))
+    // Not even their own row, and not even with a plausible value.
+    await assertFails(setDoc(
+      doc(learnerA, 'gamesLeaderboards', '4', 'weeks', '2026-W34', 'entries', LEARNER_A),
+      { points: 9999 }, { merge: true },
+    ))
+    await assertFails(deleteDoc(
+      doc(learnerA, 'gamesLeaderboards', '4', 'weeks', '2026-W34', 'entries', LEARNER_A),
+    ))
+  })
+
+  await test('a learner cannot invent a row for themselves on any grade board', async () => {
+    await assertFails(setDoc(
+      doc(learnerA, 'gamesLeaderboards', '7', 'weeks', '2026-W34', 'entries', LEARNER_A),
+      { uid: LEARNER_A, grade: 7, points: 5000 },
+    ))
+  })
+
+  await test('an admin cannot write the board either — it has exactly one writer', async () => {
+    // Deliberate, and different from `leaderboards/{gameId}` above: this
+    // board is derived, and an admin-authored row would be a number with no
+    // rounds behind it.
+    await assertFails(setDoc(
+      doc(admin, 'gamesLeaderboards', '4', 'weeks', '2026-W34', 'entries', LEARNER_A),
+      { points: 1 }, { merge: true },
+    ))
+  })
+
+  await test('a signed-out visitor cannot read the board — these rows name children', async () => {
+    const guest = testEnv.unauthenticatedContext().firestore()
+    await assertFails(getDoc(
+      doc(guest, 'gamesLeaderboards', '4', 'weeks', '2026-W34', 'entries', LEARNER_A),
+    ))
+  })
+
   await test('nobody but an admin can edit or delete a saved score', async () => {
     let scoreId
     await testEnv.withSecurityRulesDisabled(async (ctx) => {

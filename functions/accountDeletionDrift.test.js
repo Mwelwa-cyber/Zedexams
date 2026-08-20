@@ -202,6 +202,16 @@ const RETAINED = new Map([
     "purged: see COLLECTION_GROUP_COLLECTIONS in accountDeletion.js, which " +
     "exists because a top-level classification says nothing about a " +
     "subcollection"],
+  ["gamesLeaderboards",
+    "The TOP-LEVEL doc holds nothing at all — the games weekly board's data " +
+    "IS the path, `{grade}/weeks/{weekId}/entries/{uid}`. That `entries` " +
+    "subcollection carries a uid and a public display name and IS purged, " +
+    "by the same COLLECTION_GROUP_COLLECTIONS entry that reaches the Daily " +
+    "Quiz's board: both use the collection-group name `entries` on field " +
+    "`uid`, which is why the subcollection was named that deliberately " +
+    "rather than `rows` or `learners`. A learner deleting their account " +
+    "takes their games board rows with them and needs no second list to " +
+    "keep in step"],
   ["lessonPlanTemplates", "anonymised shared templates; server-maintained"],
   ["noteInsights", "AI summary cache keyed by noteId; about a note, not a user"],
   ["noteSmart", "AI highlight layer keyed by noteId; about a note, not a user"],

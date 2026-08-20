@@ -1,0 +1,452 @@
+/*
+ * gamesLeaderboard.css — the weekly board at /games/leaderboard.
+ *
+ * Scoped `.lhx-lb-*` inside the learner design system, so it inherits the
+ * same tokens (learnerTheme.css) as Home, the Daily Challenge and the games
+ * hub and flips to Night with them rather than carrying a second palette.
+ * Every colour below is a `--lhx-*` except the three medal metals and the
+ * seven avatar tones, which are declared here because nothing else in the
+ * product needs gold, silver and bronze.
+ *
+ * It replaces the Tailwind `zx-card` / `zx-sticker-btn` board, which was the
+ * OLD games chrome (`GamesShell`) and looked like a different application
+ * from the Daily Challenge that links to it.
+ *
+ * ── The two layout rules ─────────────────────────────────────────────────
+ *
+ * MOBILE FIRST, THEN WIDER — NOT WIDE. The reference is a phone, and the
+ * failure to avoid on a desktop is going back to the full-width statistics
+ * table this replaces. So the board is a centred column that stops growing
+ * (`--lhx-lb-max`), and the space a large screen has spare goes into the
+ * podium and the type rather than into stretching every row across a
+ * monitor.
+ *
+ * ONE ROW, THREE THINGS. Rank → learner → points. The accuracy pills,
+ * streak badges and "97d ago" chips the old rows carried are gone: the
+ * header already tells the learner their own rank, points and streak, and a
+ * list you cannot scan is not a leaderboard.
+ */
+
+.lhx-lb {
+  --lhx-lb-max: 560px;
+  --lhx-lb-gold: #ffc542;
+  --lhx-lb-gold-deep: #e9a91d;
+  --lhx-lb-silver: #cbd0e6;
+  --lhx-lb-bronze: #f0a878;
+
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: var(--lhx-lb-max);
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ── The gradient header ──────────────────────────────────────────── */
+
+.lhx-lb-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 26px;
+  padding: 18px 18px 16px;
+  color: var(--lhx-on-brand);
+  background: linear-gradient(140deg, var(--lhx-indigo1), var(--lhx-indigo2));
+  box-shadow: var(--lhx-shadow-float);
+}
+
+/* The soft disc in the top-right of the reference. Decorative, so it is a
+   pseudo-element rather than an element a screen reader has to skip. */
+.lhx-lb-hero::before {
+  content: "";
+  position: absolute;
+  right: -46px;
+  top: -52px;
+  width: 168px;
+  height: 168px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.13);
+}
+
+.lhx-lb-hero-top {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lhx-lb-hero-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+
+.lhx-lb-hero-sub {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  font-weight: 800;
+  opacity: 0.92;
+}
+
+/* Three stat cards. `minmax(0, 1fr)` and not `1fr`: a four-digit points
+   total must shrink its own card, never push the row wider than the hero
+   — which on a 320px phone is the difference between a tidy row and a
+   horizontal scrollbar on the whole page. */
+.lhx-lb-stats {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 14px;
+}
+
+.lhx-lb-stat {
+  background: rgba(255, 255, 255, 0.17);
+  border-radius: 16px;
+  padding: 10px 6px;
+  text-align: center;
+  min-width: 0;
+}
+
+.lhx-lb-stat-v {
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lhx-lb-stat-l {
+  margin-top: 3px;
+  font-size: 9.5px;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  opacity: 0.88;
+}
+
+/* ── Reset pill + last week's winner ──────────────────────────────── */
+
+/* Two cards that WRAP rather than squeeze. Below ~380px "👑 Last week:
+   Chanda M." cannot share a line with the reset pill without truncating a
+   learner's name to two letters, so it takes its own line instead. */
+.lhx-lb-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+/* The reset pill is CONTENT-SIZED and the winner card takes the rest.
+   An even 46/46 split wrapped "Resets Monday · 4 days" onto two lines at
+   390px — measured, not guessed — which is a fixed string that always fits
+   on one, beside a learner's name which is the thing that should truncate.
+   Below ~330px the winner card's 140px basis drops it to its own line
+   rather than shortening a name to two letters. */
+.lhx-lb-meta-reset { flex: 0 1 auto; white-space: nowrap; }
+.lhx-lb-meta-winner { flex: 1 1 140px; }
+
+.lhx-lb-meta-card {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--lhx-card);
+  border-radius: 14px;
+  padding: 10px 12px;
+  box-shadow: var(--lhx-shadow-sm);
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--lhx-muted);
+}
+
+.lhx-lb-meta-card b {
+  color: var(--lhx-ink);
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lhx-lb-meta-em { font-size: 14px; flex: none; }
+
+/* ── Podium ───────────────────────────────────────────────────────── */
+
+/* `align-items: end` is what makes it a podium: the blocks are different
+   HEIGHTS and their bases line up, so first place is taller rather than
+   merely gold — the rank survives a monochrome screen and a colour-blind
+   reader, which is the accessibility half of the same decision. */
+/* An <ol> — three ranked people in an order that matters — so the list
+   defaults are zeroed explicitly. Flex happens to suppress the markers
+   today; a stylesheet should not depend on that to avoid printing "1. 2. 3."
+   down the middle of a podium. */
+.lhx-lb-podium {
+  list-style: none;
+  margin: 0;
+  padding: 6px 0 0;
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  gap: 8px;
+}
+
+.lhx-lb-pod {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 150px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.lhx-lb-pod-name {
+  margin-top: 7px;
+  font-size: 12.5px;
+  font-weight: 900;
+  color: var(--lhx-ink);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lhx-lb-pod-pts {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--lhx-muted);
+}
+
+.lhx-lb-pod-block {
+  width: 100%;
+  margin-top: 8px;
+  border-radius: 14px 14px 6px 6px;
+  display: grid;
+  place-items: center;
+  font-size: 19px;
+}
+
+/* The three metals, and the three heights. A two- or one-person podium
+   simply renders fewer blocks — the tallest is still the tallest. */
+.lhx-lb-pod-1 .lhx-lb-pod-block { height: 74px; background: linear-gradient(180deg, var(--lhx-lb-gold), var(--lhx-lb-gold-deep)); }
+.lhx-lb-pod-2 .lhx-lb-pod-block { height: 54px; background: var(--lhx-lb-silver); }
+.lhx-lb-pod-3 .lhx-lb-pod-block { height: 44px; background: var(--lhx-lb-bronze); }
+
+/* First place is bigger, not just gilded. */
+.lhx-lb-pod-1 .lhx-lb-avatar { width: 62px; height: 62px; font-size: 24px; }
+.lhx-lb-pod-1 .lhx-lb-pod-name { font-size: 13.5px; }
+
+/* The viewer standing on the podium keeps the coral ring they have
+   everywhere else on the page — finding yourself must not depend on
+   having read the podium first. */
+.lhx-lb-pod.is-viewer .lhx-lb-avatar {
+  box-shadow: 0 0 0 3px var(--lhx-card), 0 0 0 6px var(--lhx-coral2);
+}
+
+/* ── Avatars ──────────────────────────────────────────────────────── */
+
+.lhx-lb-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 17px;
+  font-weight: 900;
+  color: #fff;
+  flex: none;
+  user-select: none;
+}
+
+/* Seven tones, chosen by a hash of the uid so two learners showing the
+   same fallback name are still distinguishable. Fixed hexes rather than
+   tokens: these are identity colours, and a learner's circle changing
+   colour with the theme would read as a different person. Each is dark
+   enough for white text at 4.5:1. */
+.lhx-lb-avatar-pink   { background: #e2557f; }
+.lhx-lb-avatar-amber  { background: #c8811a; }
+.lhx-lb-avatar-sky    { background: #2f7fe0; }
+.lhx-lb-avatar-green  { background: #1f9451; }
+.lhx-lb-avatar-violet { background: #7b57d8; }
+.lhx-lb-avatar-coral  { background: #d9552b; }
+.lhx-lb-avatar-teal   { background: #12857f; }
+
+/* ── "Everyone else" ──────────────────────────────────────────────── */
+
+.lhx-lb-h2 {
+  margin: 4px 0 -2px;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  color: var(--lhx-ink);
+}
+
+.lhx-lb-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lhx-lb-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  background: var(--lhx-card);
+  border-radius: 16px;
+  padding: 9px 14px 9px 11px;
+  box-shadow: var(--lhx-shadow-sm);
+  min-height: 58px;
+}
+
+.lhx-lb-rank {
+  flex: none;
+  min-width: 22px;
+  font-size: 13.5px;
+  font-weight: 900;
+  color: var(--lhx-muted);
+  text-align: center;
+}
+
+.lhx-lb-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13.5px;
+  font-weight: 900;
+  color: var(--lhx-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lhx-lb-pts {
+  flex: none;
+  font-size: 13.5px;
+  font-weight: 900;
+  color: var(--lhx-indigo-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The current learner — the coral treatment from the reference. It is a
+   filled row rather than a tint because the learner should find it by
+   glancing at the shape of the list, not by reading it. */
+.lhx-lb-row.is-viewer {
+  background: linear-gradient(135deg, var(--lhx-coral1), var(--lhx-coral2));
+  box-shadow: 0 6px 18px rgba(255, 92, 57, 0.34);
+}
+.lhx-lb-row.is-viewer .lhx-lb-rank,
+.lhx-lb-row.is-viewer .lhx-lb-name,
+.lhx-lb-row.is-viewer .lhx-lb-pts { color: #fff; }
+.lhx-lb-row.is-viewer .lhx-lb-avatar { background: rgba(255, 255, 255, 0.28); }
+
+/* ── The pinned "your position" card ──────────────────────────────── */
+
+/* IN FLOW, not sticky and not fixed. The first version was
+   `position: sticky; bottom: 8px`, which is what "pinned" sounds like it
+   should mean — and screenshotting it at 390px showed the result: as the
+   last element in the column it has nothing below it to be pushed past, so
+   it simply floats over rows 7 to 9 for the whole scroll. A summary card
+   that hides three of the rows it is summarising is worse than no card.
+
+   The reference puts it exactly here too — after the encouragement text, at
+   the end of the column — and that is enough: the learner reaches it by
+   scrolling to the bottom, which is where a thumb already is. */
+.lhx-lb-pinned {
+  margin-top: 2px;
+}
+
+.lhx-lb-pinned .lhx-lb-row { min-height: 60px; }
+
+.lhx-lb-note {
+  margin: 6px 0 0;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.55;
+  color: var(--lhx-indigo-text);
+}
+
+/* ── Empty / error ────────────────────────────────────────────────── */
+
+.lhx-lb-panel {
+  background: var(--lhx-card);
+  border-radius: 20px;
+  padding: 26px 20px;
+  text-align: center;
+  box-shadow: var(--lhx-shadow);
+}
+
+.lhx-lb-panel-em { font-size: 38px; line-height: 1; }
+.lhx-lb-panel h2 { margin: 10px 0 0; font-size: 16.5px; font-weight: 900; color: var(--lhx-ink); }
+.lhx-lb-panel p { margin: 7px 0 0; font-size: 13px; font-weight: 700; line-height: 1.55; color: var(--lhx-muted); }
+.lhx-lb-panel .lhx-btn { margin-top: 15px; }
+
+/* ── Loading skeleton ─────────────────────────────────────────────── */
+
+/* Sized to the real thing — same 58px rows, same 26px hero radius — so the
+   board does not jump when the data lands. A skeleton that is the wrong
+   height is a layout shift with extra steps. */
+.lhx-lb-skel { background: var(--lhx-line); border-radius: 16px; }
+.lhx-lb-skel-hero { height: 168px; border-radius: 26px; }
+.lhx-lb-skel-meta { height: 40px; border-radius: 14px; flex: 1 1 46%; }
+.lhx-lb-skel-pod { height: 120px; flex: 1 1 0; max-width: 150px; border-radius: 14px; }
+.lhx-lb-skel-pod-1 { height: 152px; }
+.lhx-lb-skel-row { height: 58px; }
+
+.lhx-lb-skel { animation: lhx-lb-pulse 1.5s ease-in-out infinite; }
+@keyframes lhx-lb-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+/* ── Motion ───────────────────────────────────────────────────────── */
+
+/* One entrance, staggered by row, and nothing that repeats. A ranking that
+   keeps moving is a ranking you cannot read — the old board's mascot bobbed
+   on a 4s loop next to the name it was cheering. */
+.lhx-lb-pod, .lhx-lb-row { animation: lhx-lb-rise 0.34s ease-out both; }
+@keyframes lhx-lb-rise {
+  from { opacity: 0; transform: translateY(9px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lhx-lb-pod,
+  .lhx-lb-row,
+  .lhx-lb-skel { animation: none !important; }
+}
+
+/* ── Wider screens ────────────────────────────────────────────────── */
+
+/* The column grows to 640px and stops. Beyond that the extra width goes
+   into the podium and the type — a leaderboard row stretched across a
+   1920px monitor puts the name and the points a foot apart, which is the
+   desktop table this design replaces. */
+@media (min-width: 700px) {
+  .lhx-lb { --lhx-lb-max: 640px; gap: 16px; }
+  .lhx-lb-hero { padding: 22px 24px 20px; }
+  .lhx-lb-hero-title { font-size: 23px; }
+  .lhx-lb-stat-v { font-size: 24px; }
+  .lhx-lb-podium { gap: 14px; padding-top: 10px; }
+  .lhx-lb-pod { max-width: 180px; }
+  .lhx-lb-pod-1 .lhx-lb-pod-block { height: 92px; }
+  .lhx-lb-pod-2 .lhx-lb-pod-block { height: 66px; }
+  .lhx-lb-pod-3 .lhx-lb-pod-block { height: 54px; }
+  .lhx-lb-row { min-height: 62px; padding: 10px 18px 10px 13px; }
+  .lhx-lb-name, .lhx-lb-pts, .lhx-lb-rank { font-size: 14.5px; }
+}
+
+/* Below ~360px the three stat cards are the tightest thing on the page.
+   Shrinking the type keeps three across rather than wrapping one onto its
+   own line, which would leave a lopsided 2+1 grid. */
+@media (max-width: 359px) {
+  .lhx-lb-hero { padding: 15px 14px 14px; }
+  .lhx-lb-stat { padding: 9px 3px; }
+  .lhx-lb-stat-v { font-size: 17px; }
+  .lhx-lb-stat-l { font-size: 8.5px; letter-spacing: 0.05em; }
+  .lhx-lb-row { gap: 8px; padding: 8px 11px 8px 9px; }
+  .lhx-lb-avatar { width: 38px; height: 38px; font-size: 15px; }
+}

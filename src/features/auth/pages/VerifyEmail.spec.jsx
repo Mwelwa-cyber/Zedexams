@@ -148,7 +148,11 @@ describe('VerifyEmail — actions', () => {
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: /start again with a different email/i }))
     await waitFor(() => expect(mockLogout).toHaveBeenCalled())
-    expect(screen.getByTestId('register-page')).toBeInTheDocument()
+    // findBy, not getBy: the redirect renders AFTER logout resolves, so a
+    // synchronous assertion here is a race that only loses under load — it
+    // failed once in a full parallel run and passed on every re-run and in
+    // isolation, which is the worst shape a flake can have.
+    expect(await screen.findByTestId('register-page')).toBeInTheDocument()
   })
 
   it('"Sign out" signs out and goes to /login', async () => {
@@ -156,7 +160,11 @@ describe('VerifyEmail — actions', () => {
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: /^sign out$/i }))
     await waitFor(() => expect(mockLogout).toHaveBeenCalled())
-    expect(screen.getByTestId('login-page')).toBeInTheDocument()
+    // findBy, not getBy: the redirect renders AFTER logout resolves, so a
+    // synchronous assertion here is a race that only loses under load — it
+    // failed once in a full parallel run and passed on every re-run and in
+    // isolation, which is the worst shape a flake can have.
+    expect(await screen.findByTestId('login-page')).toBeInTheDocument()
   })
 
   it('auto-polls verification on mount (zero-click cross-tab flow)', async () => {
