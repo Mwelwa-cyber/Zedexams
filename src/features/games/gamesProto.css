@@ -137,6 +137,56 @@
 .lhx-gh-hero-race .lhx-gh-hero-btn { background: var(--lhx-card); color: var(--lhx-coral-soft-text); box-shadow: 0 3px 0 rgba(0, 0, 0, 0.12); }
 .lhx-gh-hero:active { transform: scale(0.99); }
 
+/* ── Hub: the practice race row ───────────────────────────
+ * Race Zed (`/games/duel`), one rank below the live race it belongs to.
+ *
+ * NOT a `.lhx-gh-hero` skin, and that is the whole rule this row lives
+ * under: a third coral gradient beside the live card is exactly what
+ * #2496 removed, because two heroes of one colour read as a single
+ * feature in two flavours and the real-opponent race came off as the
+ * practice one's variant. So this is card-and-line like `.lhx-lvl` and
+ * `.lhx-game` — plainly a smaller thing — and the only coral on it is
+ * the icon tile, which ties it to the card above without putting text on
+ * a tinted ground.
+ *
+ * There is deliberately NO negative margin pulling it under that card.
+ * A tuck says "I belong to the thing above me", which is true beside the
+ * live race and false for a signed-out visitor — they get no live card,
+ * so this row meets them directly under the daily challenge instead.
+ *
+ * `--lhx-ink` and `--lhx-muted` on `--lhx-card` are the pairings
+ * `.lhx-game` already ships in both themes, so there is no new colour
+ * combination here to re-check in Night mode.
+ * ───────────────────────────────────────────────────────── */
+.lhx-gh-practice {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: var(--lhx-card); border: 1px solid var(--lhx-line);
+  width: 100%; text-align: left;
+}
+.lhx-gh-practice-ic {
+  flex: none; width: 34px; height: 34px; border-radius: 11px;
+  background: var(--lhx-coral-soft);
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+}
+.lhx-gh-practice-body { flex: 1; min-width: 0; display: block; }
+/* One line each, ellipsed — rule 4 of the layout harness: a long string
+   truncates, it never reflows the row. */
+.lhx-gh-practice-body b {
+  display: block; font-size: 14px; font-weight: 900; letter-spacing: -0.01em; color: var(--lhx-ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lhx-gh-practice-body span {
+  display: block; font-size: 11.5px; font-weight: 700; color: var(--lhx-muted); margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lhx-gh-practice-chev {
+  flex: none; color: var(--lhx-faint);
+  font-size: 19px; font-weight: 900; line-height: 1; margin-left: -2px;
+}
+.lhx-gh-practice:active { transform: scale(0.99); }
+
 /* ── Hub: level strip ──────────────────────────────────────────── */
 
 /* 78px, not the 150px billboard it replaced: "224 XP to Level 7" sits
