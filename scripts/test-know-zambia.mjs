@@ -357,9 +357,38 @@ test('the emphasis in a question is parsed, never injected', () => {
   assert.deepEqual(richSegments('<img src=x onerror=alert(1)>hello'), [{ text: 'hello', bold: false }])
   assert.deepEqual(richSegments(''), [])
   assert.deepEqual(richSegments(null), [])
+
+  /* An UNCLOSED tag is the case a single-pass regex strip gets wrong, and the
+     one CodeQL flagged: `replace(/<[^>]*>/g, '')` only removes a tag that has
+     its ">", so "a <script alert(1)" matches nothing and passes through whole.
+     The scanner drops from the "<" onwards instead, and gives a property
+     stronger than "no <script>" — no segment can contain "<" at all. */
+  for (const nasty of [
+    'a <script alert(1)',
+    '<script',
+    '<b>hi</b> <script',
+    '<scr<script>ipt>alert(1)',
+    '<<b>b>bold?',
+    '<b onclick=alert(1)>x</b>',
+    '<b>unclosed',
+    'text with an unclosed <tag that never ends',
+    '<',
+  ]) {
+    for (const seg of richSegments(nasty)) {
+      assert.ok(!seg.text.includes('<'), `"${nasty}" left a "<" in "${seg.text}"`)
+      assert.ok(!/<\s*script/i.test(seg.text), `"${nasty}" left a script tag behind`)
+    }
+  }
+  assert.deepEqual(richSegments('<b onclick=alert(1)>x</b>'), [{ text: 'x', bold: false }],
+    'a <b> carrying an attribute is not the tag we support, so it is dropped rather than trusted')
+
   for (const set of ZAMBIA_FACTS.oddOneOut || []) {
-    assert.ok(richSegments(set.q).some((seg) => seg.bold), `${set.id}: the question emphasises nothing`)
-    assert.equal(richSegments(set.q).map((s) => s.text).join(''), set.q.replace(/<[^>]*>/g, ''))
+    const segments = richSegments(set.q)
+    assert.ok(segments.some((seg) => seg.bold), `${set.id}: the question emphasises nothing`)
+    for (const seg of segments) {
+      assert.ok(!seg.text.includes('<'), `${set.id}: a "<" reached text the learner is shown`)
+      assert.ok(set.q.includes(seg.text), `${set.id}: "${seg.text}" is not text from the question`)
+    }
   }
 })
 

@@ -515,26 +515,55 @@ export function replayQueue(missed) {
  * The odd-one-out questions are written with <b> around the thing being asked
  * about ("share a border with the <b>DR Congo</b>"), which is worth keeping —
  * it is the word the whole question turns on. Rendering it with
- * dangerouslySetInnerHTML would mean a content file could inject markup into
- * the learner app, so the tags are parsed here into segments a component maps
- * over instead. Anything that is not <b>/</b> is dropped rather than rendered,
- * so a stray tag shows as nothing rather than as itself.
+ * dangerouslySetInnerHTML would mean a content file could put markup into the
+ * learner app, so the tags are parsed here into segments a component maps over
+ * as ordinary text children instead.
+ *
+ * SCANNED, NOT STRIPPED WITH A REGEX. The first version removed tags with
+ * `replace(/<[^>]*>/g, '')`, which CodeQL was right to flag. That pattern only
+ * removes a tag that is CLOSED: "a <script alert(1)" has no ">" anywhere, so
+ * nothing matches and the whole thing passes through untouched — which is
+ * precisely what the alert said, that the result "may still contain <script".
+ * Nothing downstream could have been injected, because React escapes text
+ * children and that is the actual guarantee, but a function that removes
+ * markup should not be defeated by leaving a bracket off.
+ *
+ * The scanner gives a property the regex could not: `<` is only ever consumed
+ * as the start of a tag and never appended to a segment, so NO OUTPUT SEGMENT
+ * CAN CONTAIN "<" AT ALL, whatever the input. A tag that is not <b> or
+ * <strong> is dropped with its brackets; an unclosed "<" drops the rest of
+ * the string rather than leaving a fragment behind. A lone ">" is kept — it is
+ * an ordinary character in "3 > 2", and it cannot begin an element.
  */
 export function richSegments(text) {
   const source = String(text || '')
   const out = []
-  const re = /<b>([\s\S]*?)<\/b>/gi
-  let last = 0
-  let match
-  while ((match = re.exec(source))) {
-    if (match.index > last) out.push({ text: strip(source.slice(last, match.index)), bold: false })
-    out.push({ text: strip(match[1]), bold: true })
-    last = match.index + match[0].length
+  let buffer = ''
+  let bold = false
+  let i = 0
+  const flush = () => {
+    if (buffer) out.push({ text: buffer, bold })
+    buffer = ''
   }
-  if (last < source.length) out.push({ text: strip(source.slice(last)), bold: false })
+  while (i < source.length) {
+    if (source[i] !== '<') {
+      buffer += source[i]
+      i += 1
+      continue
+    }
+    const close = source.indexOf('>', i)
+    if (close < 0) break // an unclosed tag: drop it and everything after it
+    const tag = source.slice(i + 1, close).trim().toLowerCase()
+    if (tag === 'b' || tag === 'strong') {
+      flush()
+      bold = true
+    } else if (tag === '/b' || tag === '/strong') {
+      flush()
+      bold = false
+    }
+    // anything else is dropped whole, brackets included
+    i = close + 1
+  }
+  flush()
   return out.filter((seg) => seg.text.length > 0)
-}
-
-function strip(value) {
-  return String(value).replace(/<[^>]*>/g, '')
 }
