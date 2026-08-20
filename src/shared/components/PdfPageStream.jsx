@@ -47,20 +47,44 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { loadPdfjs } from '../../utils/pdfjsLoader'
 import { friendlyMessage } from '../../utils/friendlyErrors'
+import usePinchZoom from '../hooks/usePinchZoom'
+import { stepZoom, FIT_ZOOM, MAX_ZOOM, MIN_ZOOM } from '../utils/pinchZoomCore'
 import GlassPageNavigation from './GlassPageNavigation'
 import PageThumbnailSheet from './PageThumbnailSheet'
+import ZoomControl from './ZoomControl'
 import {
   Download,
   Maximize2,
   MoreHorizontal,
   Printer,
   RotateCw,
-  ZoomIn,
-  ZoomOut,
 } from './icons'
 
-const ZOOM_LEVELS = [0.6, 0.75, 0.9, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
-const DEFAULT_ZOOM_INDEX = 3 // 1.0 = fit the column width
+/**
+ * How long the zoom must hold still before the pages are re-rasterised.
+ *
+ * The zoom is continuous now (a pinch, not a list of stops), and PDF.js
+ * rasterising is the most expensive thing this component does — re-running it
+ * on every frame of a gesture would cancel and restart a render per frame and
+ * stall the low-end Android devices this viewer is written for. So the box
+ * width follows the fingers immediately (the existing bitmap stretches, going
+ * momentarily soft) and the crisp redraw lands once the gesture settles.
+ */
+const RERENDER_SETTLE_MS = 200
+
+/**
+ * Ceiling on the bitmap behind one page, in device pixels.
+ *
+ * Two reasons, and the second is a correctness one. Memory: a page canvas is
+ * 4 bytes a pixel, and up to five are live at once, so an uncapped 4× zoom on
+ * a phone is ~58 MB a page — the low-end devices this stack is virtualised for
+ * would drop the tab. Correctness: browsers cap canvas AREA and fail SILENTLY
+ * past it (a blank canvas, no error), iOS Safari at ~16.7 megapixels, and a 4×
+ * zoom on a tablet-width column sails past that. Above the cap the existing
+ * bitmap is upscaled instead, which is still far sharper than the fit-width
+ * page the learner started from.
+ */
+const MAX_CANVAS_PIXELS = 8_000_000
 
 /** Pages either side of the active page that hold a live canvas. */
 const RENDER_RADIUS = 1
@@ -104,7 +128,15 @@ export default function PdfPageStream({
   const rootRef = useRef(null)
   const menuRef = useRef(null)
   const pageElRefs = useRef(new Map())
+  const stripRefs = useRef(new Map())
   const canvasRefs = useRef(new Map())
+  // How far across a zoomed page the reader has panned, 0–1. Each page has its
+  // own horizontal scroller (a horizontally scrollable STACK would compute
+  // overflow-y to `auto` and reintroduce the nested vertical scrollbar this
+  // viewer exists to avoid), so without this a learner reading the right-hand
+  // column of a zoomed paper would be thrown back to the left margin on every
+  // page turn.
+  const panRatioRef = useRef(0)
   const renderTasksRef = useRef(new Map())
   const renderedKeyRef = useRef(new Map()) // pageNumber -> scaleKey it was drawn at
   const thumbCacheRef = useRef(new Map())
@@ -114,7 +146,9 @@ export default function PdfPageStream({
   const [baseSize, setBaseSize] = useState(null)   // page 1, unrotated
   const [pageSizes, setPageSizes] = useState([])   // per page, index 0 = page 1
   const [columnWidth, setColumnWidth] = useState(0)
-  const [zoomIndex, setZoomIndex] = useState(DEFAULT_ZOOM_INDEX)
+  // Continuous, because a pinch is: the discrete index this replaced could
+  // only ever land on a stop, so a gesture had to snap and felt broken.
+  const [zoom, setZoom] = useState(FIT_ZOOM)
   const [rotation, setRotation] = useState(0)
   const [activePage, setActivePage] = useState(1)
   const [renderedPages, setRenderedPages] = useState(() => new Set())
@@ -127,9 +161,10 @@ export default function PdfPageStream({
   const [thumbsOpen, setThumbsOpen] = useState(false)
 
   const pageCount = pdf?.numPages ?? 0
-  const contentWidth = columnWidth ? Math.max(220, columnWidth) * ZOOM_LEVELS[zoomIndex] : 0
-  const contentWidthRef = useRef(0)
-  contentWidthRef.current = contentWidth
+  // What the page BOX is drawn at — follows the gesture frame by frame.
+  const contentWidth = columnWidth ? Math.max(220, columnWidth) * zoom : 0
+  // What the page is RASTERISED at — the settled width (see RERENDER_SETTLE_MS).
+  const [renderWidth, setRenderWidth] = useState(0)
 
   // ---------------------------------------------------------------- load
 
@@ -277,7 +312,14 @@ export default function PdfPageStream({
       const page = await doc.getPage(pageNumber)
       const unit = page.getViewport({ scale: 1, rotation })
       const scale = width / unit.width
-      const viewport = page.getViewport({ scale: scale * dpr, rotation })
+      // Trade device pixels away rather than the zoom itself: the page still
+      // gets as wide as the reader asked for, the bitmap behind it just stops
+      // growing. See MAX_CANVAS_PIXELS.
+      const wanted = (unit.width * scale * dpr) * (unit.height * scale * dpr)
+      const density = wanted > MAX_CANVAS_PIXELS
+        ? dpr * Math.sqrt(MAX_CANVAS_PIXELS / wanted)
+        : dpr
+      const viewport = page.getViewport({ scale: scale * density, rotation })
       canvas.width = viewport.width
       canvas.height = viewport.height
       canvas.style.width = '100%'
@@ -315,13 +357,27 @@ export default function PdfPageStream({
     }
   }, [rotation])
 
-  // Reconcile the render window whenever the active page, the column
-  // width, the zoom or the rotation changes. Frees first, then draws, so
-  // peak memory during a re-zoom stays bounded.
+  // Let the box width settle before re-rasterising. The FIRST width is taken
+  // immediately — a debounce there would just delay the first paint of the
+  // paper by 200ms for no gain.
   useEffect(() => {
-    if (!pdf || !contentWidth) return undefined
+    if (!contentWidth) return undefined
+    if (!renderWidth) {
+      setRenderWidth(contentWidth)
+      return undefined
+    }
+    if (Math.round(renderWidth) === Math.round(contentWidth)) return undefined
+    const timer = setTimeout(() => setRenderWidth(contentWidth), RERENDER_SETTLE_MS)
+    return () => clearTimeout(timer)
+  }, [contentWidth, renderWidth])
+
+  // Reconcile the render window whenever the active page, the settled width,
+  // the zoom or the rotation changes. Frees first, then draws, so peak memory
+  // during a re-zoom stays bounded.
+  useEffect(() => {
+    if (!pdf || !renderWidth) return undefined
     let cancelled = false
-    const scaleKey = `${Math.round(contentWidth)}:${rotation}`
+    const scaleKey = `${Math.round(renderWidth)}:${rotation}`
     const dpr = Math.min(window.devicePixelRatio || 1, 2)
 
     Array.from(renderedKeyRef.current.keys()).forEach((pageNumber) => {
@@ -341,14 +397,14 @@ export default function PdfPageStream({
       for (const pageNumber of queue) {
         if (cancelled) return
         if (renderedKeyRef.current.get(pageNumber) === scaleKey) continue
-        await renderPage(pdf, pageNumber, scaleKey, contentWidth, dpr)
+        await renderPage(pdf, pageNumber, scaleKey, renderWidth, dpr)
       }
     })()
 
     return () => {
       cancelled = true
     }
-  }, [pdf, activePage, contentWidth, rotation, renderNonce, renderPage, releasePage])
+  }, [pdf, activePage, renderWidth, rotation, renderNonce, renderPage, releasePage])
 
   // ------------------------------------------------------ active page
 
@@ -451,7 +507,40 @@ export default function PdfPageStream({
   }, [menuOpen])
 
   const rotate = useCallback(() => setRotation((r) => (r + 90) % 360), [])
-  const fitWidth = useCallback(() => setZoomIndex(DEFAULT_ZOOM_INDEX), [])
+
+  const rememberPan = useCallback((event) => {
+    const el = event.currentTarget
+    const travel = el.scrollWidth - el.clientWidth
+    if (travel > 0) panRatioRef.current = Math.min(1, Math.max(0, el.scrollLeft / travel))
+  }, [])
+
+  // Carry that pan onto the page being scrolled into view — but only if it is
+  // still at the left margin. A strip the reader (or the zoom's own focal
+  // correction) has already positioned is left exactly where it is.
+  useEffect(() => {
+    const ratio = panRatioRef.current
+    if (ratio <= 0) return
+    const el = stripRefs.current.get(activePage)
+    if (!el || el.scrollLeft > 0) return
+    const travel = el.scrollWidth - el.clientWidth
+    if (travel > 0) el.scrollLeft = travel * ratio
+  }, [activePage, renderWidth])
+
+  // Pinch, double-tap and ctrl+wheel, on the stack itself. See usePinchZoom
+  // for why the app owns this gesture rather than leaving it to the browser:
+  // the Capacitor Android WebView has built-in zoom off, so a learner on the
+  // phone had no way at all to enlarge a dense exam page.
+  const { requestZoom } = usePinchZoom(rootRef, {
+    zoom,
+    onZoomChange: setZoom,
+    min: MIN_ZOOM,
+    max: MAX_ZOOM,
+  })
+  // The buttons go through the same path as the gesture so a tap on + holds
+  // the reader's place instead of scrolling them somewhere else.
+  const zoomIn = useCallback(() => requestZoom(stepZoom(zoom, 1)), [requestZoom, zoom])
+  const zoomOut = useCallback(() => requestZoom(stepZoom(zoom, -1)), [requestZoom, zoom])
+  const fitWidth = useCallback(() => requestZoom(FIT_ZOOM), [requestZoom])
   const handlePrint = useCallback(() => {
     // Native browser viewers print multi-page PDFs reliably; open the
     // source in a new tab where the reader can Ctrl/⌘-P the full paper.
@@ -540,31 +629,11 @@ export default function PdfPageStream({
               aria-label="Viewer options"
               className="absolute right-0 top-12 z-30 w-56 theme-card border theme-border rounded-2xl shadow-elev-lg p-2 space-y-1"
             >
-              <div className="flex items-center justify-between gap-1 px-1">
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => setZoomIndex((z) => Math.max(0, z - 1))}
-                  disabled={zoomIndex === 0}
-                  aria-label="Zoom out"
-                  className="inline-flex items-center justify-center w-11 h-11 rounded-xl theme-bg-subtle theme-text hover:theme-card disabled:opacity-40"
-                >
-                  <ZoomOut size={18} strokeWidth={2.2} />
-                </button>
-                <span className="text-sm font-black theme-text tabular-nums">
-                  {Math.round(ZOOM_LEVELS[zoomIndex] * 100)}%
-                </span>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => setZoomIndex((z) => Math.min(ZOOM_LEVELS.length - 1, z + 1))}
-                  disabled={zoomIndex === ZOOM_LEVELS.length - 1}
-                  aria-label="Zoom in"
-                  className="inline-flex items-center justify-center w-11 h-11 rounded-xl theme-bg-subtle theme-text hover:theme-card disabled:opacity-40"
-                >
-                  <ZoomIn size={18} strokeWidth={2.2} />
-                </button>
-              </div>
+              {/* Zoom itself is NOT in here any more. It was the only way to
+                  enlarge a paper and it was two taps deep in an overflow menu,
+                  which is how a learner ends up reading 8pt exam text at phone
+                  size. It is now a pinch, a double-tap, and the always-visible
+                  ZoomControl pill. Fit width stays: it is the way back. */}
               <button
                 type="button"
                 role="menuitem"
@@ -598,13 +667,17 @@ export default function PdfPageStream({
 
       {/* The page stack. Normal document flow — the document (or the
           fullscreen reader's surface) owns vertical scrolling, so there is
-          exactly one scrollbar, as on image papers. `pan-y pinch-zoom`
-          keeps a swipe that starts on the paper scrolling the page while
-          still allowing pinch-to-zoom. */}
+          exactly one scrollbar, as on image papers.
+          `pan-y` keeps a one-finger swipe that starts on the paper scrolling
+          the page. `pinch-zoom` is deliberately NOT listed: this component
+          implements the pinch itself (usePinchZoom), so leaving it in would
+          hand the same two fingers to the browser's visual-viewport zoom as
+          well — two zooms fighting over one gesture, and on the Android build
+          the browser's half does not exist at all. */}
       <div
         ref={rootRef}
         className="w-full flex flex-col gap-5 relative"
-        style={{ touchAction: 'pan-y pinch-zoom', overscrollBehaviorY: 'auto' }}
+        style={{ touchAction: 'pan-y', overscrollBehaviorY: 'auto' }}
       >
         {loading && (
           <div className="w-full max-w-md mx-auto py-4" aria-hidden="true">
@@ -681,12 +754,23 @@ export default function PdfPageStream({
               </p>
               {/* Per-page horizontal strip: a zoomed page pans inside its own
                   row, so the wide content never forces a second vertical
-                  scrollbar onto the stack. */}
+                  scrollbar onto the stack. `pinch-zoom` is off here for the
+                  same reason it is off on the stack — the component owns the
+                  gesture. */}
               <div
+                ref={(el) => {
+                  if (el) stripRefs.current.set(pageNumber, el)
+                  else stripRefs.current.delete(pageNumber)
+                }}
+                onScroll={rememberPan}
                 className="w-full overflow-x-auto"
-                style={{ touchAction: 'pan-x pan-y pinch-zoom' }}
+                style={{ touchAction: 'pan-x pan-y' }}
               >
                 <div
+                  // The element a zoom is anchored on: usePinchZoom measures
+                  // this box before and after, and scrolls by the difference
+                  // so the question under the reader's fingers stays there.
+                  data-zoom-anchor=""
                   className="relative mx-auto bg-white rounded-radius-md overflow-hidden shadow-elev-sm"
                   style={{ width: boxWidth, aspectRatio: aspectFor(pageNumber) }}
                 >
@@ -730,6 +814,19 @@ export default function PdfPageStream({
           )
         })}
       </div>
+
+      {!error && !loading && pageCount > 0 && (
+        <ZoomControl
+          zoom={zoom}
+          onZoomIn={zoomIn}
+          onZoomOut={zoomOut}
+          onFit={fitWidth}
+          // Clear the glass page dock when it is on screen.
+          bottomPx={showDock ? 86 : 16}
+          zIndexClass={overlay ? 'z-[70]' : 'z-40'}
+          label="Zoom the paper"
+        />
+      )}
 
       {showDock && !error && (
         <GlassPageNavigation

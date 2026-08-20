@@ -20,7 +20,7 @@
  * point — the layout contract is what is under test, not PDF.js.
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 beforeAll(() => {
   if (!globalThis.ResizeObserver) {
@@ -98,9 +98,16 @@ describe('PdfPageStream', () => {
     // is exactly the failure the old viewer had to be patched for.
     expect(stack.className).not.toMatch(/overflow-y-auto|overflow-auto/)
     expect(stack.style.overflowY).toBe('')
-    // pan-y is essential: pinch-zoom alone blocks single-finger scrolling.
+    // pan-y is essential: without it a single-finger swipe on the paper stops
+    // scrolling the page.
     expect(stack.style.touchAction).toContain('pan-y')
-    expect(stack.style.touchAction).toContain('pinch-zoom')
+    // …and `pinch-zoom` must NOT be listed. It was, until the component took
+    // the gesture over itself: the Capacitor Android WebView has the browser's
+    // pinch switched off (`setBuiltInZoomControls` defaults to false), so the
+    // keyword did nothing at all for the learners who most needed to enlarge a
+    // paper — while on a browser that does honour it, the browser and
+    // usePinchZoom would both claim the same two fingers.
+    expect(stack.style.touchAction).not.toContain('pinch-zoom')
   })
 
   it('keeps a zoomed page panning inside its own row', async () => {
@@ -113,7 +120,43 @@ describe('PdfPageStream', () => {
     const strip = document.querySelector('[data-page-number="1"] .overflow-x-auto')
     expect(strip).toBeTruthy()
     expect(strip.style.touchAction).toContain('pan-y')
+    // pan-x is what lets a zoomed page be dragged sideways with one finger.
+    expect(strip.style.touchAction).toContain('pan-x')
     expect(stackEl().className).not.toMatch(/overflow-x-auto/)
+  })
+
+  it('zooms the whole stack, and offers a visible control as well as the gesture', async () => {
+    render(<PdfPageStream url="https://example.test/paper.pdf" title="Paper" />)
+    await waitFor(() => expect(document.querySelector('[data-page-number="1"]')).toBeTruthy())
+
+    // The pill is the answer to "I could not find any way to make it bigger":
+    // pinch is the gesture people reach for, but it is invisible.
+    const zoomIn = screen.getByLabelText('Zoom in')
+    expect(zoomIn).toBeInTheDocument()
+    expect(screen.getByLabelText('Zoom out')).toBeInTheDocument()
+    // At fit-to-width there is nothing to reset to, so no Fit button.
+    expect(screen.queryByLabelText('Fit the page to the screen')).toBeNull()
+    expect(screen.getByText('100%')).toBeInTheDocument()
+
+    fireEvent.click(zoomIn)
+    await waitFor(() => expect(screen.getByText('125%')).toBeInTheDocument())
+    // Once off fit-to-width there is always a way back — a learner who zoomed
+    // by accident must never be stranded.
+    expect(screen.getByLabelText('Fit the page to the screen')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText('Fit the page to the screen'))
+    await waitFor(() => expect(screen.getByText('100%')).toBeInTheDocument())
+  })
+
+  it('anchors every page box on the zoom, so zooming enlarges the paper rather than one page', async () => {
+    render(<PdfPageStream url="https://example.test/paper.pdf" title="Paper" />)
+    await waitFor(() => expect(document.querySelector('[data-page-number="1"]')).toBeTruthy())
+
+    // Every page carries the anchor hook the gesture measures against; a zoom
+    // that only moved the page under the fingers would leave the rest of the
+    // paper at the old size.
+    expect(document.querySelectorAll('article[data-page-number] [data-zoom-anchor]'))
+      .toHaveLength(PAGE_COUNT)
   })
 
   it('rasterises only a bounded window of pages', async () => {

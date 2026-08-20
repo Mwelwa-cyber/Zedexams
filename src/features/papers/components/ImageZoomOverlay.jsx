@@ -56,8 +56,17 @@ export default function ImageZoomOverlay({ src, alt, onClose }) {
 
   // Live gesture bookkeeping kept in refs so the pointer maths reads the
   // freshest values without re-subscribing handlers on every frame.
-  const transformRef = useRef(transform)
-  transformRef.current = transform
+  //
+  // `transformRef` is written BEFORE the state, not mirrored from it during
+  // render, and that ordering is the whole point. `pointermove` is a
+  // continuous-priority event, so React does not flush it synchronously:
+  // several moves can arrive within one commit, and a ref assigned during
+  // render is a frame behind for all but the first. The pinch reads its
+  // current scale from here on every move, so the stale read made each frame
+  // recompute from an out-of-date base and throw the earlier frames away — a
+  // pinch that barely responds, worst exactly where it matters, on a slow
+  // Android phone that is already dropping frames.
+  const transformRef = useRef({ scale: 1, x: 0, y: 0 })
   const pointersRef = useRef(new Map())
   const pinchRef = useRef(null)      // { dist, midX, midY }
   const panRef = useRef(null)        // { x, y } last single-pointer position
@@ -75,18 +84,24 @@ export default function ImageZoomOverlay({ src, alt, onClose }) {
     return () => { document.body.style.overflow = previousOverflow }
   }, [])
 
+  // The one writer: the ref is the live truth the gesture reads back, the
+  // state is what renders. Nothing else may call setTransform.
+  const applyTransform = useCallback((next) => {
+    transformRef.current = next
+    setTransform(next)
+  }, [])
+
   // Apply a new scale anchored on a point in surface coordinates, keeping
   // the content under (anchorX, anchorY) visually fixed.
   const zoomTo = useCallback((nextScale, anchorX, anchorY) => {
-    setTransform((prev) => {
-      const scale = clamp(nextScale, MIN_SCALE, MAX_SCALE)
-      const ratio = scale / prev.scale
-      let x = anchorX - ratio * (anchorX - prev.x)
-      let y = anchorY - ratio * (anchorY - prev.y)
-      if (scale <= MIN_SCALE) { x = 0; y = 0 }
-      return { scale, x, y }
-    })
-  }, [])
+    const prev = transformRef.current
+    const scale = clamp(nextScale, MIN_SCALE, MAX_SCALE)
+    const ratio = scale / prev.scale
+    let x = anchorX - ratio * (anchorX - prev.x)
+    let y = anchorY - ratio * (anchorY - prev.y)
+    if (scale <= MIN_SCALE) { x = 0; y = 0 }
+    applyTransform({ scale, x, y })
+  }, [applyTransform])
 
   const centreAnchor = useCallback(() => {
     const rect = surfaceRef.current?.getBoundingClientRect()
@@ -98,7 +113,7 @@ export default function ImageZoomOverlay({ src, alt, onClose }) {
     zoomTo(transformRef.current.scale * factor, x, y)
   }, [centreAnchor, zoomTo])
 
-  const reset = useCallback(() => setTransform({ scale: 1, x: 0, y: 0 }), [])
+  const reset = useCallback(() => applyTransform({ scale: 1, x: 0, y: 0 }), [applyTransform])
 
   // --- Pointer gesture handling -------------------------------------------
 
@@ -148,7 +163,7 @@ export default function ImageZoomOverlay({ src, alt, onClose }) {
         // so two-finger drag scrolls the zoomed page at the same time.
         const x = midX - ratio * (prev.midX - cur.x)
         const y = midY - ratio * (prev.midY - cur.y)
-        setTransform({ scale: nextScale, x, y })
+        applyTransform({ scale: nextScale, x, y })
       }
       pinchRef.current = { dist, midX, midY }
       movedRef.current = true
@@ -161,9 +176,10 @@ export default function ImageZoomOverlay({ src, alt, onClose }) {
       const dy = p.y - panRef.current.y
       if (Math.abs(dx) > 2 || Math.abs(dy) > 2) movedRef.current = true
       panRef.current = p
-      setTransform((prev) => ({ ...prev, x: prev.x + dx, y: prev.y + dy }))
+      const prev = transformRef.current
+      applyTransform({ ...prev, x: prev.x + dx, y: prev.y + dy })
     }
-  }, [localPoint])
+  }, [applyTransform, localPoint])
 
   const onPointerUp = useCallback((event) => {
     pointersRef.current.delete(event.pointerId)
