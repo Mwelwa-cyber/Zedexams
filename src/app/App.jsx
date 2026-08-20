@@ -78,11 +78,10 @@ const Login = lazy(() => import('../features/auth/pages/Login'))
 const Register = lazy(() => import('../features/auth/pages/Register'))
 const AuthAction = lazy(() => import('../features/auth/pages/AuthAction'))
 const VerifyEmail = lazy(() => import('../features/auth/pages/VerifyEmail'))
-const StudentDashboard = lazy(() => import('../features/learnerDashboard/pages/StudentDashboard'))
-const GradeHub = lazy(() => import('../features/learnerDashboard/pages/GradeHub'))
-// New learner home experience (2026-07 rebuild): mobile-first dashboard +
-// Learn / Practice hubs + term-organised subject pages. GradeHub stays
-// reachable at /dashboard/classic as the transition fallback.
+// The learner home experience (2026-07 rebuild): mobile-first dashboard +
+// term-organised subject pages. The pre-redesign GradeHub it replaced was
+// kept at /dashboard/classic as a transition fallback until 2026-08-20,
+// when the transition finished and the fallback was retired.
 const LearnerLayout = lazy(() => import('../features/learnerHome/components/LearnerLayout'))
 const LearnerHomePage = lazy(() => import('../features/learnerHome/pages/LearnerHomePage'))
 const LearnerSubjectPage = lazy(() => import('../features/learnerHome/pages/LearnerSubjectPage'))
@@ -115,7 +114,6 @@ function ProfileRoute() {
 // the learner's own weak topics and deep-links into real practice.
 const MyProgressPage = lazy(() => import('../features/learnerProgress/pages/MyProgressPage'))
 const StudyPlanPage = lazy(() => import('../features/learnerProgress/pages/StudyPlanPage'))
-const LearnerCalendar = lazy(() => import('../features/learnerDashboard/pages/LearnerCalendar'))
 // Exam timetable hub: /timetable is the interactive per-grade exam schedule
 // (Firestore-driven with a bundled fallback); /timetable/pdf keeps the inline
 // viewer for the official ECZ PDF because Android/Capacitor WebViews silently
@@ -146,8 +144,6 @@ const LearnerNoteRead   = lazy(() => import('../features/notes/pages/LearnerNote
 // Reader-engine preview (learner redesign step 3) — fixture data only.
 const NoteReaderPreview = lazy(() => import('../features/notes/pages/ReaderPreview'))
 const LearnerGate       = lazy(() => import('../features/notes/components/LearnerGate').then(m => ({ default: m.LearnerGate })))
-const MyResults = lazy(() => import('../features/learnerDashboard/pages/MyResults'))
-const BadgesPage = lazy(() => import('../features/learnerDashboard/pages/BadgesPage'))
 const OfflineLibraryPage = lazy(() => import('../offline/OfflineLibraryPage.jsx'))
 const ZedExamsSettings = lazy(() => import('../features/accountSettings/pages/zedexams-settings'))
 const TeacherSettings = lazy(() => import('../features/teacherSettings/TeacherSettings'))
@@ -736,7 +732,7 @@ export default function App() {
               (4-tab nav + page column) is a LAYOUT route so it never
               remounts between tab changes; auth guards stay on each child
               route's own line because the route-guard scripts parse them
-              per line. GradeHub stays at /dashboard/classic. */}
+              per line. */}
           {/* First-run setup, outside the shell — the mockup hides the nav so
               a half-finished setup has nowhere to tab away to. It is also
               outside LearnerSetupGate, which is what it redirects TO. */}
@@ -764,7 +760,17 @@ export default function App() {
             <Route path="/daily/leaderboard" element={<ProtectedRoute><LearnerOnlyRoute><DailyQuizLeaderboard /></LearnerOnlyRoute></ProtectedRoute>} />
             <Route path="/exams/leaderboard" element={<Navigate to="/daily/leaderboard" replace />} />
           </Route>
-          <Route path="/dashboard/classic" element={<ProtectedRoute><LearnerOnlyRoute><GradeHub /></LearnerOnlyRoute></ProtectedRoute>} />
+          {/* The five retired learner screens (2026-08-20). Each was a
+              pre-redesign page the new IA replaced, and none of them was
+              reachable from a live learner surface any more — the legacy
+              Navbar's own menu was the only route in, and that came off
+              /notes/:id in the pass before this one. They stay as
+              redirects because the URLs are in bookmarks, in sent
+              notifications and in learners' history; a 404 would tell a
+              child their results had been deleted, which is not what
+              happened. Where a redirect loses something, it is named
+              below rather than implied. */}
+          <Route path="/dashboard/classic" element={<Navigate to="/dashboard" replace />} />
           <Route path="/practice/daily-exams" element={<Navigate to="/daily" replace />} />
           {/* Learn + Practice retired (redesign step 5, locked scope): the
               4-tab IA carries their destinations — subjects on Home,
@@ -781,8 +787,12 @@ export default function App() {
           <Route path="/learner/games" element={<Navigate to="/games" replace />} />
           <Route path="/learner/profile" element={<Navigate to="/profile" replace />} />
           {/* Legacy stats page (kept for admin/teacher reference) */}
-          <Route path="/my-stats"          element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><StudentDashboard /></LearnerOnlyRoute></ProtectedRoute>} />
-          <Route path="/calendar"          element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerCalendar /></LearnerOnlyRoute></ProtectedRoute>} />
+          {/* /my-stats → /progress. The new page carries exam readiness,
+              the week, subject mastery and weak topics; the retired one's
+              per-subject analytics charts are NOT carried over. */}
+          <Route path="/my-stats"          element={<Navigate to="/progress" replace />} />
+          {/* /calendar → /timetable, the interactive exam schedule. */}
+          <Route path="/calendar"          element={<Navigate to="/timetable" replace />} />
           {/* The official ECZ PDF stays readable in-app at /timetable/pdf
               (Android WebViews drop external PDF links); the interactive
               /timetable lives in the LearnerLayout group above. */}
@@ -846,8 +856,15 @@ export default function App() {
               published lesson becomes unreachable. */}
           <Route path="/lessons"                element={<Navigate to="/notes" replace />} />
           <Route path="/lessons/:lessonId"      element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerGate><LessonPlayer /></LearnerGate></LearnerOnlyRoute></ProtectedRoute>} />
-          <Route path="/my-results"        element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><MyResults /></LearnerOnlyRoute></ProtectedRoute>} />
-          <Route path="/my-badges"         element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><BadgesPage /></LearnerOnlyRoute></ProtectedRoute>} />
+          {/* /my-results → /progress. The per-attempt results LIST is the
+              one thing genuinely lost here: /progress reports mastery and
+              weak topics, not "every quiz I have taken". An individual
+              result is still reachable at /results/:resultId, which is
+              where every notification and share link points. */}
+          <Route path="/my-results"        element={<Navigate to="/progress" replace />} />
+          {/* /my-badges → /profile, which already renders the full badge
+              shelf (GAME_BADGES + getMyGameBadges), earned and locked. */}
+          <Route path="/my-badges"         element={<Navigate to="/profile" replace />} />
           {/* Role-branched (step 10): learners get the prototype-v6 "My
               Profile" in the learner shell; other roles keep the shared
               ProfilePage. Branch lives in ProfileRoute. */}

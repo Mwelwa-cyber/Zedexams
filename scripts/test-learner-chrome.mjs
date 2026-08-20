@@ -54,14 +54,10 @@ const app = readFileSync(resolve(root, 'src/app/App.jsx'), 'utf8')
  * `LearnerLayout`, or brings its own chrome the way the note reader does.
  */
 const STILL_ON_LEGACY_CHROME = new Set([
-  '/my-stats',           // superseded by /progress
-  '/calendar',           // superseded by /timetable
   '/quizzes',            // no replacement yet — needs the cream/orange re-skin
   '/results/:resultId',  // ditto, same quiz surface
   '/search',             // no replacement yet
   '/lessons/:lessonId',  // no back control of its own; needs a real migration
-  '/my-results',         // superseded by /progress, minus the per-attempt list
-  '/my-badges',          // superseded by /profile's Achievements shelf
   '/offline',            // not learner-only — teachers and admins reach it too
 ])
 
@@ -108,8 +104,8 @@ assert.deepEqual(
 // Named rather than left to rule 1, because this is the route the whole
 // Home → subject → note funnel ends on, and it is the door the retired IA
 // was still being reached through. A regression here is not one route
-// among nine; it re-opens the pre-redesign app to every learner who reads
-// a note.
+// among several; it re-opens the pre-redesign chrome to every learner who
+// reads a note.
 assert.ok(allRoutes.has('/notes/:id'), 'the note reader route disappeared')
 assert.ok(
   !mountsNavbar.has('/notes/:id'),
@@ -128,5 +124,6 @@ assert.ok(/<Route\s+path="([^"]+)"/.test(probe) && /<Navbar\s*\/>/.test(probe),
 
 console.log(
   `learner-chrome: ok — ${mountsNavbar.size} learner route(s) still on the legacy chrome`
-  + ` (was 10 before /notes/:id came off), /notes/:id is clean.`,
+  + ` (10 → 9 when /notes/:id came off, 9 → 5 when the four superseded`
+  + ` pages were retired), /notes/:id is clean.`,
 )
