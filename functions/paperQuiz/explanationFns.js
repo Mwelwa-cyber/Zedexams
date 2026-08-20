@@ -34,8 +34,9 @@ const {callClaude} = require("../teacherTools/anthropicClient");
 const {resolveCbcContext} = require("../teacherTools/cbcKnowledge");
 const {assertGeneratorRateLimit} = require("../teacherTools/generatorRateLimit");
 const core = require("./explanationCore");
+const {projectQuestion, markingSchemeFor} = core;
 const {
-  PROMPT_VERSION, SYSTEM_PROMPT, EXPLANATION_TOOL_SCHEMA, buildUserPrompt, plain,
+  PROMPT_VERSION, SYSTEM_PROMPT, EXPLANATION_TOOL_SCHEMA, buildUserPrompt,
 } = require("./explanationPrompt");
 
 // Haiku, not Sonnet, and the reason is the shape of the work rather than the
@@ -46,6 +47,24 @@ const EXPLANATION_MODEL = process.env.PAPER_EXPLANATION_MODEL || "claude-haiku-4
 
 /** A whole 60-question paper in one call, bounded. */
 const MAX_PER_CALL = 60;
+
+/**
+ * The shared answer key. ESM, so it is imported INSIDE the async handler —
+ * Cloud Functions is CommonJS and a top-level require of an ESM module throws.
+ *
+ * Imported rather than reimplemented because this module used to carry its own
+ * copy of the four-shapes resolver, which is precisely the fork the shared
+ * package exists to prevent: the drafter deciding a different option was
+ * correct from the one the learner's runner paints green would explain the
+ * wrong answer, convincingly, to a child.
+ */
+async function sharedModules() {
+  const [answerKey, text] = await Promise.all([
+    import("../shared/paperQuiz/answerKey.js"),
+    import("../shared/text/richPlainText.js"),
+  ]);
+  return {answerKey, toPlainText: text.toPlainText};
+}
 
 function db() {
   return admin.firestore();
@@ -70,22 +89,6 @@ async function loadPaperQuiz(paperId) {
       .collection("quizzes").doc(paper.quizId)
       .collection("questions").orderBy("order", "asc").get();
   return {paper, quizId: paper.quizId, questions: qs.docs.map((d) => ({id: d.id, ...d.data()}))};
-}
-
-/**
- * The marking-scheme text for one question, if the paper carries one.
- *
- * Read from the paper's own `markingScheme` map keyed by question number, then
- * from the question's stored `markSchemeText`. Returns '' rather than throwing
- * when there is neither — the prompt handles that case explicitly by refusing
- * more readily, which is better than this layer deciding a paper cannot be
- * drafted at all.
- */
-function markingSchemeFor(paper, question) {
-  const byNumber = paper?.markingScheme && typeof paper.markingScheme === "object"
-    ? paper.markingScheme[String(question.n ?? question.order ?? "")]
-    : null;
-  return plain(byNumber || question.markSchemeText || question.markingScheme || "");
 }
 
 // ── draftPaperExplanations ───────────────────────────────────────────────
@@ -123,6 +126,7 @@ exports.draftPaperExplanationsHandler = async (request) => {
     return {drafted: 0, refused: 0, failed: 0, results: [], coverage: coverageOf(questions)};
   }
 
+  const {answerKey, toPlainText} = await sharedModules();
   const apiKey = getAnthropicApiKey();
   const cbcContext = await resolveCbcContext({
     grade: paper.grade ? `G${paper.grade}` : "",
@@ -139,7 +143,7 @@ exports.draftPaperExplanationsHandler = async (request) => {
   // Cloud Function is a rate-limit wall and a bill spike, and the reviewer is
   // going to read them one at a time anyway.
   for (const question of targets) {
-    const correctIndex = resolveCorrectIndex(question);
+    const correctIndex = answerKey.correctIndexOf(question);
     if (correctIndex == null) {
       failed += 1;
       results.push({questionId: question.id, outcome: "no_key", problems: ["this question has no answer key"]});
@@ -153,9 +157,9 @@ exports.draftPaperExplanationsHandler = async (request) => {
         messages: [{
           role: "user",
           content: buildUserPrompt({
-            question: {...question, correctIndex},
+            question: {...projectQuestion(question, toPlainText), correctIndex},
             paper,
-            markingScheme: markingSchemeFor(paper, question),
+            markingScheme: markingSchemeFor(paper, question, toPlainText),
           }),
         }],
         // Tool mode forces an object response, so "the model returned prose"
@@ -197,26 +201,6 @@ exports.draftPaperExplanationsHandler = async (request) => {
   const after = await reloadQuestions(quizId);
   return {drafted, refused, failed, results, coverage: coverageOf(after)};
 };
-
-/** The four stored answer shapes, resolved server-side. */
-function resolveCorrectIndex(question) {
-  if (Number.isInteger(question.correctAnswerIndex)) return question.correctAnswerIndex;
-  if (Number.isInteger(question.correctIndex)) return question.correctIndex;
-  if (Number.isInteger(question.correctAnswer)) return question.correctAnswer;
-  const options = Array.isArray(question.options) ? question.options : [];
-  const flagged = options.findIndex((o) => o && typeof o === "object" && o.isCorrect);
-  if (flagged >= 0) return flagged;
-  if (typeof question.correctAnswer === "string") {
-    const raw = question.correctAnswer.trim();
-    const textHit = options.findIndex((o) => plain(o).toLowerCase() === raw.toLowerCase());
-    if (textHit >= 0) return textHit;
-    if (/^[A-Ha-h]$/.test(raw)) {
-      const i = raw.toUpperCase().charCodeAt(0) - 65;
-      if (i < options.length) return i;
-    }
-  }
-  return null;
-}
 
 async function reloadQuestions(quizId) {
   const qs = await db().collection("quizzes").doc(quizId).collection("questions").get();
@@ -320,21 +304,23 @@ exports.bulkApproveExplanationsHandler = async (request) => {
  */
 exports.paperExplanationQueueHandler = async (request) => {
   await assertStaff(request);
+  const {answerKey, toPlainText} = await sharedModules();
   const {paper, quizId, questions} = await loadPaperQuiz(String(request.data?.paperId || ""));
   return {
     paperId: paper.id,
     quizId,
     coverage: coverageOf(questions),
     questions: questions.map((q) => {
-      const correctIndex = resolveCorrectIndex(q);
+      const correctIndex = answerKey.correctIndexOf(q);
+      const projected = projectQuestion(q, toPlainText);
       return {
         id: q.id,
         n: q.n ?? null,
         order: q.order ?? 0,
         section: q.section || "",
         topic: q.topic || "",
-        stem: plain(q.text).slice(0, 400),
-        options: (Array.isArray(q.options) ? q.options : []).map(plain),
+        stem: projected.text.slice(0, 400),
+        options: projected.options,
         correctIndex,
         explanationStatus: q.explanationStatus || core.EXPLANATION_STATUS.MISSING,
         why: q.why || "",
@@ -347,6 +333,4 @@ exports.paperExplanationQueueHandler = async (request) => {
 };
 
 module.exports.MAX_PER_CALL = MAX_PER_CALL;
-module.exports.resolveCorrectIndex = resolveCorrectIndex;
 module.exports.coverageOf = coverageOf;
-module.exports.markingSchemeFor = markingSchemeFor;

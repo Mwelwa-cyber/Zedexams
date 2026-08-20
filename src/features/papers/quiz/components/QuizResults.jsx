@@ -27,6 +27,7 @@ import { BAND_LABEL, barTone, chosenText, filterRows, reviewFilters, verdictBand
 import { formatDuration } from '../lib/examClock'
 import { correctText, resolveCoaching } from '../lib/coaching'
 import { optionLabel } from '../lib/answerKey'
+import { toPlainText } from '../../../../editor/richPlainText'
 import { isExam } from '../lib/quizModes'
 import ProgressRing from './ProgressRing'
 import ZedReaction from './ZedReaction'
@@ -39,7 +40,15 @@ function AnswerRow({ row, question, onOpenNote, onOpenGame }) {
     [question, row.selectedIndex, row.correctIndex],
   )
   const badge = row.correct ? 'is-ok' : row.blank ? 'is-skip' : 'is-no'
-  const stem = (question?.text || '').replace(/<[^>]+>/g, '').trim()
+  // The ONE projection, not a hand-rolled tag strip. `question.text` is
+  // Tiptap JSON, a STRINGIFIED Tiptap doc, legacy HTML or a plain string
+  // depending on when it was authored — a regex that only removes tags leaves
+  // the stringified-doc case as raw JSON on screen, which is precisely the
+  // "answer options showing raw JSON" bug `richPlainText` exists to prevent.
+  // (CodeQL also flagged the regex as incomplete sanitisation. It was not an
+  // injection here — React escapes a text child — but the fix for the real
+  // defect removes the flagged line as a side effect.)
+  const stem = toPlainText(question?.textJSON ?? question?.text ?? '')
 
   return (
     <div className={`pq-ans-row ${open ? 'is-open' : ''}`}>

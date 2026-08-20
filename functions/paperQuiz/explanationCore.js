@@ -203,8 +203,43 @@ function selectBulkApprovable({questions, requestedIds}) {
       .map((q) => String(q.id));
 }
 
+/**
+ * The marking-scheme text for one question, if the paper carries one.
+ *
+ * Read from the paper's own `markingScheme` map keyed by question number, then
+ * from the question's stored `markSchemeText`. Returns '' rather than throwing
+ * when there is neither — the prompt handles that case explicitly by refusing
+ * more readily, which is better than this layer deciding a paper cannot be
+ * drafted at all.
+ */
+function markingSchemeFor(paper, question, toPlainText) {
+  const byNumber = paper?.markingScheme && typeof paper.markingScheme === "object"
+    ? paper.markingScheme[String(question.n ?? question.order ?? "")]
+    : null;
+  return toPlainText(byNumber || question.markSchemeText || question.markingScheme || "");
+}
+
+/**
+ * A question, projected to plain text for the prompt and for the studio queue.
+ *
+ * One projection through the SHARED extractor rather than a local regex: the
+ * stem may be Tiptap JSON, a stringified Tiptap doc, legacy HTML or a plain
+ * string, and only that extractor reads all four. A tag-stripping regex sent
+ * the stringified-doc case to the model as raw JSON.
+ */
+function projectQuestion(question, toPlainText) {
+  return {
+    ...question,
+    text: toPlainText(question.textJSON ?? question.text ?? ""),
+    options: (Array.isArray(question.options) ? question.options : [])
+        .map((o) => toPlainText(o && typeof o === "object" ? (o.textJSON ?? o.text ?? "") : o)),
+  };
+}
+
 module.exports = {
   EXPLANATION_STATUS,
+  projectQuestion,
+  markingSchemeFor,
   REVIEW_ACTION,
   WHY_MAX_WORDS,
   DISTRACTOR_MAX_WORDS,

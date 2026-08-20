@@ -22,6 +22,7 @@ const assert = require("node:assert/strict");
 
 const core = require("./explanationCore");
 const {buildUserPrompt, SYSTEM_PROMPT, EXPLANATION_TOOL_SCHEMA} = require("./explanationPrompt");
+const {projectQuestion, markingSchemeFor} = core;
 
 let passed = 0;
 function test(name, fn) {
@@ -203,6 +204,7 @@ test("the prompt carries §6's writing rules, including the Zambian one", () => 
 
 test("the user turn states the key as GIVEN and lists the options as letters", () => {
   const prompt = buildUserPrompt({
+    // Pre-projected, which is the contract: the caller projects, this builds.
     question: {n: 3, text: "I ..... my homework yesterday.", options: ["do", "did"], correctIndex: 1, topic: "Tenses"},
     paper: {title: "Grade 7 English", subject: "english", grade: 7, year: 2026},
     markingScheme: "B — did. Past simple.",
@@ -232,5 +234,76 @@ test("the tool schema requires the refusal flag", () => {
   assert.equal(EXPLANATION_TOOL_SCHEMA.additionalProperties, false);
 });
 
-if (process.exitCode) console.error("\n✗ paper explanations FAILED");
-else console.log(`\n${passed} assertions passed\n`);
+console.log("\nprojection — what actually reaches the model");
+
+const asyncTests = [];
+function testAsync(name, fn) { asyncTests.push([name, fn]); }
+
+testAsync("a STRINGIFIED Tiptap question reaches the model as words, not JSON", async () => {
+  // The defect CodeQL's alert led to. A tag-stripping regex leaves a
+  // stringified Tiptap doc as raw JSON with the tags taken out, so the model
+  // was asked to explain `{"type":"doc","content":[...]}` — and the studio's
+  // review queue showed an admin the same blob.
+  const {toPlainText} = await import("../shared/text/richPlainText.js");
+  const doc = JSON.stringify({
+    type: "doc",
+    content: [{type: "paragraph", content: [{type: "text", text: "I ..... my homework yesterday."}]}],
+  });
+  const projected = projectQuestion({text: doc, options: ["do", "did"]}, toPlainText);
+  assert.equal(projected.text, "I ..... my homework yesterday.");
+  assert.doesNotMatch(projected.text, /"type"\s*:\s*"doc"/, "no raw JSON reaches the prompt");
+});
+
+testAsync("legacy HTML is stripped — getRichPlainText alone returns it verbatim", async () => {
+  // The regression the first attempt at this fix introduced: the Tiptap
+  // extractor passes a non-JSON string through unchanged, so an HTML question
+  // arrived with its tags on.
+  const {toPlainText} = await import("../shared/text/richPlainText.js");
+  const projected = projectQuestion({text: "<p>Two <b>plus</b> two</p>", options: ["<i>four</i>"]}, toPlainText);
+  assert.equal(projected.text, "Two plus two");
+  assert.deepEqual(projected.options, ["four"]);
+});
+
+testAsync("MATHS survives — a strip that eats `3 < 5 > 2` corrupts the question", async () => {
+  // These are Zambian past papers. `/<[^>]+>/` matches "< 5 >" and deletes the
+  // middle of the question; requiring a letter after `<` is what saves it.
+  const {toPlainText} = await import("../shared/text/richPlainText.js");
+  assert.equal(
+      projectQuestion({text: "Which is true: 3 < 5 > 2 ?", options: []}, toPlainText).text,
+      "Which is true: 3 < 5 > 2 ?",
+  );
+});
+
+testAsync("the tag strip reaches a FIXED POINT", async () => {
+  // One pass turns `<<b>b>` into `<b>` — the tag survives the strip that was
+  // supposed to remove it (CodeQL: incomplete multi-character sanitization).
+  const {stripHtmlTags, toPlainText} = await import("../shared/text/richPlainText.js");
+  assert.doesNotMatch(stripHtmlTags("<<b>b>bold<<i>i>"), /<\/?[a-zA-Z][^<>]*>/);
+  assert.doesNotMatch(toPlainText("<<script>script>alert(1)<</script>/script>"), /<\/?[a-zA-Z][^<>]*>/);
+});
+
+testAsync("the marking scheme still arrives — it is the drafter's only source", async () => {
+  // An earlier version of this fix passed a STRING to a function that reads
+  // `.textJSON`/`.text` off a question object, so every marking scheme
+  // resolved to "" and the drafter silently lost its source material.
+  const {toPlainText} = await import("../shared/text/richPlainText.js");
+  assert.equal(markingSchemeFor({}, {markSchemeText: "<p>B — did. Past simple.</p>"}, toPlainText),
+      "B — did. Past simple.");
+  assert.equal(markingSchemeFor({markingScheme: {3: "<b>B</b> — did."}}, {n: 3}, toPlainText), "B — did.");
+  assert.equal(markingSchemeFor({}, {}, toPlainText), "", "absent stays empty, so the prompt refuses more readily");
+});
+
+(async () => {
+  for (const [name, fn] of asyncTests) {
+    try {
+      await fn();
+      passed += 1;
+      console.log(`  ✓ ${name}`);
+    } catch (err) {
+      console.error(`  ✗ ${name}\n    ${err.message}`);
+      process.exitCode = 1;
+    }
+  }
+  if (process.exitCode) console.error("\n✗ paper explanations FAILED");
+  else console.log(`\n${passed} assertions passed\n`);
+})();

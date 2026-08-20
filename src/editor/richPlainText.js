@@ -18,4 +18,6 @@ export {
   unwrapNestedTiptapDoc,
   extractPlainText,
   getRichPlainText,
+  stripHtmlTags,
+  toPlainText,
 } from '../../functions/shared/text/richPlainText.js'

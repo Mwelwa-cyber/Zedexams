@@ -67,8 +67,11 @@ WHERE YOUR FACTS COME FROM
  * re-run the other 59 to redraft it.
  */
 function buildUserPrompt({question, paper, markingScheme}) {
+  // `question.text` and `question.options` arrive ALREADY PROJECTED to plain
+  // text by the caller — see `tidy` below for why this module does no markup
+  // handling of its own.
   const options = (Array.isArray(question.options) ? question.options : [])
-      .map((opt, i) => `  ${String.fromCharCode(65 + i)}. ${plain(opt)}`)
+      .map((opt, i) => `  ${String.fromCharCode(65 + i)}. ${tidy(opt)}`)
       .join("\n");
   const answerLetter = String.fromCharCode(65 + (question.correctIndex ?? 0));
 
@@ -78,7 +81,7 @@ function buildUserPrompt({question, paper, markingScheme}) {
     question.section ? `SECTION: ${question.section}` : "",
     question.topic ? `TOPIC: ${question.topic}` : "",
     "",
-    `QUESTION ${question.n || ""}: ${plain(question.text)}`,
+    `QUESTION ${question.n || ""}: ${tidy(question.text)}`,
     options ? `\nOPTIONS:\n${options}` : "",
     `\nTHE CORRECT ANSWER IS ${answerLetter}. This is the paper's own key. Treat it as given.`,
   ];
@@ -114,11 +117,22 @@ function buildUserPrompt({question, paper, markingScheme}) {
   return parts.filter(Boolean).join("\n");
 }
 
-/** Strip markup and collapse whitespace for the prompt. */
-function plain(value) {
-  if (value == null) return "";
-  const raw = typeof value === "string" ? value : (value.text || JSON.stringify(value));
-  return String(raw).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+/**
+ * Collapse whitespace on an ALREADY-PROJECTED string.
+ *
+ * This module deliberately owns no markup handling. It used to strip tags with
+ * a regex and `JSON.stringify` anything that was not a string — which meant a
+ * question stored as a Tiptap doc reached the model as raw JSON, and a
+ * question stored as a STRINGIFIED Tiptap doc reached it as raw JSON with the
+ * tags removed. Either way the model was asked to explain a blob of markup.
+ *
+ * The caller projects with `functions/shared/paperQuiz/answerKey.js` — the
+ * same extractor the browser's runner uses — and hands the result here. One
+ * projection, so the prompt, the studio's review queue and the learner's
+ * screen cannot disagree about what the question says.
+ */
+function tidy(value) {
+  return String(value == null ? "" : value).replace(/\s+/g, " ").trim();
 }
 
 /** The tool schema. Forcing a tool call removes "the model returned prose". */
@@ -142,4 +156,4 @@ const EXPLANATION_TOOL_SCHEMA = {
   additionalProperties: false,
 };
 
-module.exports = {PROMPT_VERSION, SYSTEM_PROMPT, EXPLANATION_TOOL_SCHEMA, buildUserPrompt, plain};
+module.exports = {PROMPT_VERSION, SYSTEM_PROMPT, EXPLANATION_TOOL_SCHEMA, buildUserPrompt, tidy};

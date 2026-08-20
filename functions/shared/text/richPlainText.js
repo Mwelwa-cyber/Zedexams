@@ -95,3 +95,55 @@ export function extractPlainText(value) {
 export function getRichPlainText(value) {
   return extractPlainText(value)
 }
+
+/**
+ * Remove HTML tags from an already-projected string.
+ *
+ * ⚠️ Two things this must not do, and a naive `/<[^>]+>/g` does both.
+ *
+ * 1. **It must not eat mathematics.** These are Zambian past papers: `3 < 5 >
+ *    2` is ordinary content, and a pattern that accepts any character after
+ *    `<` matches `< 5 >` and deletes the middle of the question. So a tag has
+ *    to START WITH A LETTER (or `/`), which is what HTML requires anyway.
+ * 2. **It must reach a fixed point.** One pass turns `<<b>b>` into `<b>` — the
+ *    tag survives the strip that was supposed to remove it. That is what
+ *    CodeQL calls incomplete multi-character sanitisation, and it is a real
+ *    defect even where the sink is not HTML: the strip simply does not do what
+ *    its name says. Looping until the string stops changing is the fix; each
+ *    pass strictly shortens, so it terminates.
+ *
+ * This is NOT an HTML sanitiser and must never be used as one — nothing here
+ * makes a string safe to hand to `innerHTML`. It produces readable plain text
+ * for places that cannot render markup: an LLM prompt, a one-line row label.
+ */
+export function stripHtmlTags(value) {
+  let out = String(value ?? '')
+  let previous
+  do {
+    previous = out
+    out = out.replace(/<\/?[a-zA-Z][^<>]*>/g, ' ')
+  } while (out !== previous)
+  return out
+}
+
+/** The handful of entities that actually turn up in this corpus. */
+const ENTITIES = {
+  '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"',
+  '&#39;': "'", '&apos;': "'", '&nbsp;': ' ',
+}
+
+/**
+ * Any stored rich-text value → readable plain text.
+ *
+ * The ONE projection for surfaces that cannot render markup. Handles all four
+ * shapes this corpus stores — Tiptap JSON, a STRINGIFIED Tiptap doc, legacy
+ * HTML, and a plain string — because `getRichPlainText` alone returns a
+ * non-JSON string verbatim, so an HTML question reaches the caller with its
+ * tags still on.
+ */
+export function toPlainText(value) {
+  const projected = getRichPlainText(value)
+  const stripped = stripHtmlTags(projected)
+  const decoded = stripped.replace(/&(amp|lt|gt|quot|#39|apos|nbsp);/g, (m) => ENTITIES[m] ?? m)
+  return decoded.replace(/\s+/g, ' ').trim()
+}
