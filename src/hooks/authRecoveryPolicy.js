@@ -41,6 +41,9 @@ export const TRANSIENT_AUTH_ERRORS = new Set([
  *
  * @param {string} code   Firebase error code (e.g. 'auth/id-token-expired').
  * @param {boolean} online navigator.onLine at the time of failure.
+ * @param {object} [ctx]
+ * @param {boolean} [ctx.attestationDegraded] True when App Check issued a
+ *   placeholder token recently — see below.
  * @returns {boolean} true → expire the session and redirect to login.
  *
  * Returns false for:
@@ -52,8 +55,18 @@ export const TRANSIENT_AUTH_ERRORS = new Set([
  *     `startsWith('auth/')` catch-all here was signing users out on them
  *     ("logged out on refresh/resume"). Unknown ≠ dead: default to keeping
  *     the session and let the next resume/online event retry.
+ *   • DEGRADED ATTESTATION, whatever the code says. When App Check cannot mint
+ *     a real token, `appCheckResilient` fails open with a placeholder its own
+ *     comment describes as something "the enforced backends reject". App Check
+ *     is enforced on Auth for this project, so during that window a forced
+ *     token refresh fails for a reason that has nothing to do with the
+ *     credential — and the account is perfectly alive. This is checked FIRST,
+ *     and deliberately outranks the terminal allowlist: the codes an enforced
+ *     backend's 401 maps to are not contractual, so classifying on the code
+ *     alone is guesswork. Knowing attestation just failed is not.
  */
-export function shouldExpireSession(code, online) {
+export function shouldExpireSession(code, online, { attestationDegraded = false } = {}) {
+  if (attestationDegraded) return false
   if (!code) return false
   if (code === 'auth/network-request-failed') return false
   if (online === false) return false

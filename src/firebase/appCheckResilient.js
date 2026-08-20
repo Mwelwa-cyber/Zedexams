@@ -62,6 +62,59 @@ export function makePlaceholderToken(now = Date.now) {
   }
 }
 
+// ── Attestation health ───────────────────────────────────────────────────────
+//
+// Every failure below is swallowed by design — resilientGetToken never rejects.
+// That is correct for the caller and terrible for observability: a reCAPTCHA
+// that fails for 30% of learners looks identical, from every log and dashboard
+// we have, to one that never fails at all. Sentry showed ONE reCAPTCHA timeout
+// in 90 days while this path was silently issuing placeholders, because a
+// swallowed failure is not an error anyone can see.
+//
+// So each placeholder records WHY, and leaves a timestamp other layers can ask
+// about. The state lives here rather than in a sibling module because this is
+// the only place that knows a placeholder was issued.
+
+/** Why a placeholder was issued instead of a real token. */
+export const PLACEHOLDER_REASONS = Object.freeze({
+  TIMEOUT: 'timeout',   // reCAPTCHA did not answer within timeoutMs
+  THREW: 'threw',       // the provider crashed
+  EMPTY: 'empty',       // it resolved, with no token
+})
+
+let lastPlaceholderAt = 0
+let lastPlaceholderReason = null
+let placeholderCount = 0
+
+/** Reset the recorded state. Tests only. */
+export function resetAttestationState() {
+  lastPlaceholderAt = 0
+  lastPlaceholderReason = null
+  placeholderCount = 0
+}
+
+/** Current attestation health, for diagnostics and telemetry. */
+export function readAttestationState() {
+  return { lastPlaceholderAt, lastPlaceholderReason, placeholderCount }
+}
+
+/**
+ * Did attestation fail within the last `withinMs`?
+ *
+ * The window defaults to the placeholder's own TTL: while a placeholder is
+ * still the token the SDK is sending, every enforced backend is rejecting us,
+ * so any auth or data failure in that window is explained by attestation and
+ * must not be read as a dead credential.
+ *
+ * @param {number} [withinMs]
+ * @param {() => number} [now]
+ * @returns {boolean}
+ */
+export function attestationDegraded(withinMs = APPCHECK_PLACEHOLDER_TTL_MS, now = Date.now) {
+  if (!lastPlaceholderAt) return false
+  return now() - lastPlaceholderAt <= withinMs
+}
+
 /**
  * Run `innerGetToken` (the real reCAPTCHA provider's getToken) but never let it
  * block: if it throws, resolves empty, or takes longer than `timeoutMs`, resolve
@@ -77,6 +130,9 @@ export function makePlaceholderToken(now = Date.now) {
  * @param {() => number} [opts.now]
  * @param {(fn:Function, ms:number)=>any} [opts.setTimer]
  * @param {(handle:any)=>void} [opts.clearTimer]
+ * @param {(reason:string)=>void} [opts.onPlaceholder] Called when a placeholder is
+ *   issued, with a PLACEHOLDER_REASONS value. Injected rather than imported so
+ *   this module stays framework-free and node-testable.
  * @returns {Promise<{token:string, expireTimeMillis:number}>}
  */
 export async function resilientGetToken(innerGetToken, {
@@ -84,19 +140,34 @@ export async function resilientGetToken(innerGetToken, {
   now = Date.now,
   setTimer = setTimeout,
   clearTimer = clearTimeout,
+  onPlaceholder = null,
 } = {}) {
   const placeholder = makePlaceholderToken(now)
+  // Recorded at most once per call: a timeout that loses the race to a late
+  // real token must not leave the state saying attestation was degraded.
+  let recorded = false
+  const issue = (reason) => {
+    if (recorded) return placeholder
+    recorded = true
+    lastPlaceholderAt = now()
+    lastPlaceholderReason = reason
+    placeholderCount += 1
+    // Never let a telemetry sink break the token path — that would reintroduce
+    // exactly the stall this module exists to prevent.
+    if (onPlaceholder) { try { onPlaceholder(reason) } catch { /* best effort */ } }
+    return placeholder
+  }
   let timer
   const timeout = new Promise((resolve) => {
-    timer = setTimer(() => resolve(placeholder), timeoutMs)
+    timer = setTimer(() => resolve(issue(PLACEHOLDER_REASONS.TIMEOUT)), timeoutMs)
   })
   try {
     // `Promise.resolve().then(innerGetToken)` so a synchronous throw inside the
     // provider is turned into a rejection we can catch (not an uncaught throw).
     const real = Promise.resolve()
       .then(innerGetToken)
-      .then((res) => (res && res.token ? res : placeholder))
-      .catch(() => placeholder)
+      .then((res) => (res && res.token ? res : issue(PLACEHOLDER_REASONS.EMPTY)))
+      .catch(() => issue(PLACEHOLDER_REASONS.THREW))
     return await Promise.race([real, timeout])
   } finally {
     clearTimer(timer)

@@ -31,6 +31,7 @@ import { clearAllSearchCaches } from '../utils/cache/searchCache.js'
 import { isAccountDeletionInFlight, onAccountDeletionStart } from '../utils/accountDeletionState'
 import { useAuthRecovery } from '../hooks/useAuthRecovery'
 import { shouldExpireSession, REFRESH_THROTTLE_MS } from '../hooks/authRecoveryPolicy'
+import { attestationDegraded } from '../firebase/appCheckResilient'
 import {
   decideAuthInitRecovery,
   readRecoveryAttempted,
@@ -1072,7 +1073,12 @@ export function AuthProvider({ children }) {
                 // failure fall through to a recoverable 'unreadable' state and
                 // let the recovery hook retry on the next resume/online event.
                 const online = typeof navigator !== 'undefined' ? navigator.onLine : true
-                if (shouldExpireSession(refreshErr?.code, online)) {
+                // App Check enforcement on Auth means a placeholder token fails
+                // this refresh for a reason that is not the credential. See
+                // shouldExpireSession.
+                if (shouldExpireSession(refreshErr?.code, online, {
+                  attestationDegraded: attestationDegraded(),
+                })) {
                   expireSession(`snapshot-${e.code}:${refreshErr?.code || 'unknown'}`)
                   return
                 }

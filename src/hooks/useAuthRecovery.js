@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { REFRESH_THROTTLE_MS, shouldExpireSession } from './authRecoveryPolicy'
+import { attestationDegraded } from '../firebase/appCheckResilient'
 
 /**
  * Re-validates the Firebase session whenever the tab/app comes back to life.
@@ -54,7 +55,11 @@ export function useAuthRecovery({
           online: typeof navigator !== 'undefined' ? navigator.onLine : 'n/a',
         })
         const online = typeof navigator !== 'undefined' ? navigator.onLine : true
-        if (shouldExpireSession(code, online)) {
+        // A placeholder App Check token fails this refresh for a reason that
+        // is not the credential. See shouldExpireSession.
+        if (shouldExpireSession(code, online, {
+          attestationDegraded: attestationDegraded(),
+        })) {
           cbRef.current.onSessionExpired?.(code || 'token-refresh-failed')
         }
       }

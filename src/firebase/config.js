@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app'
 import { initializeAppCheck, ReCaptchaEnterpriseProvider, CustomProvider, getToken } from 'firebase/app-check'
 import { resilientGetToken, APPCHECK_PLACEHOLDER_TOKEN } from './appCheckResilient'
+import { capture } from '../utils/analytics'
 import { resolveWriteAttestation, WRITE_BLOCKED_MESSAGE } from './appCheckWriteGate'
 import {
   getAuth,
@@ -199,6 +200,21 @@ export const authPersistenceReady = applyAuthPersistence()
 // attestation tokens.
 const APPCHECK_RECAPTCHA_KEY = import.meta.env.VITE_FIREBASE_APPCHECK_RECAPTCHA_KEY
 
+// Report a placeholder App Check token to product analytics.
+//
+// Until this existed the fail-open path was unmeasurable BY CONSTRUCTION:
+// resilientGetToken never rejects, so a reCAPTCHA failing for a third of
+// learners produced exactly the same telemetry as one that never failed —
+// Sentry showed a single reCAPTCHA timeout in 90 days while placeholders were
+// being issued. `capture` no-ops without analytics consent and swallows its own
+// errors, so this can neither leak nor break the token path.
+//
+// `surface` distinguishes the web reCAPTCHA path from the native Play Integrity
+// bridge; they fail for entirely different reasons.
+function reportPlaceholder(surface) {
+  return (reason) => capture('appcheck_placeholder_issued', { surface, reason })
+}
+
 // Captured App Check handles so getAppCheckToken() can mint a token for the
 // raw-fetch HTTP/SSE endpoints. Firebase callables attach an App Check token
 // automatically; a plain fetch() does not, so those endpoints need the header
@@ -306,7 +322,7 @@ async function initAppCheck() {
             // makes the SDK re-request sooner, which is safe.
             expireTimeMillis: res.expireTimeMillis || Date.now() + 60_000,
           }
-        }),
+        }, { onPlaceholder: reportPlaceholder('play-integrity') }),
       })
       jsAppCheck = initializeAppCheck(app, {
         provider,
@@ -382,7 +398,9 @@ async function initAppCheck() {
           removeStaleRecaptchaContainers()
           try { recaptcha.initialize(app) } catch { /* redundant init is harmless */ }
         }
-        const res = await resilientGetToken(() => recaptcha.getToken())
+        const res = await resilientGetToken(() => recaptcha.getToken(), {
+          onPlaceholder: reportPlaceholder('recaptcha-enterprise'),
+        })
         if (res.token !== APPCHECK_PLACEHOLDER_TOKEN) {
           consecutivePlaceholders = 0
           return res
