@@ -17,6 +17,7 @@ import {
   isDarkReadingThemeId,
   prefersDarkColorScheme,
   seededDarkness,
+  seededWorkspaceDarkness,
 } from './readingThemeCore.js'
 
 /* ── the darkness question ─────────────────────────────────────────────── */
@@ -67,19 +68,29 @@ function withEnv({ saved, osDark, throws = false }, run) {
 assert.equal(withEnv({ osDark: true }, seededDarkness), true)
 assert.equal(withEnv({ osDark: false }, seededDarkness), false)
 
-// THE REGRESSION. A saved light palette on a dark-OS machine must read light.
-// When this answered `true`, the workspace theme came up 'night', the index.css
-// bridge overrode every reading token, and the learner's Night toggle — which
-// writes this very key — could not turn the page light again.
+// THE ORIGINAL BUG. A saved light palette on a dark-OS machine must read
+// light. When this answered `true`, the workspace theme came up 'night', the
+// index.css bridge overrode every reading token, and the learner's Night
+// toggle — which writes this very key — could not turn the page light again.
 assert.equal(withEnv({ saved: 'oatmeal', osDark: true }, seededDarkness), false)
 assert.equal(withEnv({ saved: 'sky', osDark: true }, seededDarkness), false)
-// …and the mirror image: a saved Midnight on a light-OS machine reads dark, so
-// the two systems agree about what dark means rather than half-agreeing.
-assert.equal(withEnv({ saved: 'midnight', osDark: false }, seededDarkness), true)
-assert.equal(withEnv({ saved: 'dark', osDark: false }, seededDarkness), true)
+
+// THE REGRESSION THE FIRST FIX SHIPPED (#2524 → #2535), and the reason this
+// rule is NOT symmetric. A saved Midnight on a LIGHT-OS machine must NOT
+// darken the workspace: a reading palette is a statement about the page a
+// learner reads on, not a request to repaint the teacher workspace. When this
+// answered `true`, `data-theme` went to 'night' and the bridge repainted the
+// entire app — and since <ReadingThemeSync> pushes the reading palette to the
+// account, it reached every browser the user signed in from, teachers too.
+assert.equal(withEnv({ saved: 'midnight', osDark: false }, seededDarkness), false)
+assert.equal(withEnv({ saved: 'dark', osDark: false }, seededDarkness), false)
+// On a dark OS the same saved palette is dark — but because the OS said so,
+// which is exactly what it did before either fix.
+assert.equal(withEnv({ saved: 'midnight', osDark: true }, seededDarkness), true)
+assert.equal(withEnv({ saved: 'dark', osDark: true }, seededDarkness), true)
 
 // A saved value we do not recognise is still an answer of sorts — it
-// normalises to the light default — so it must not fall through to the OS.
+// normalises to the light default — so it vetoes the OS like any light one.
 assert.equal(withEnv({ saved: 'neon', osDark: true }, seededDarkness), false)
 
 // Storage unavailable (Safari private mode, a locked-down profile) falls
@@ -90,4 +101,41 @@ assert.equal(withEnv({ osDark: false, throws: true }, seededDarkness), false)
 // No window at all (SSR/prerender) is light, never a crash.
 assert.equal(prefersDarkColorScheme(), false)
 
-console.log('✓ reading theme core — a saved palette outranks the OS in the workspace seed')
+/* ── the rule as a pure function, both directions ──────────────────────── */
+
+// The property that matters, stated once: this can turn an OS-dark seed OFF
+// and can NEVER turn one ON. Anything that makes the second column read true
+// where osDark is false is the #2535 regression coming back.
+const cases = [
+  // readingTheme,  osDark,  expected
+  ['oatmeal',       true,    false],  // a light choice vetoes a dark OS
+  ['sky',           true,    false],
+  ['solar',         true,    false],
+  ['oatmeal',       false,   false],
+  ['midnight',      true,    true],   // dark choice + dark OS → dark
+  ['midnight',      false,   false],  // dark choice, light OS → the OS wins
+  ['dark',          false,   false],  // …legacy alias included
+  [null,            true,    true],   // no choice → the OS alone
+  [null,            false,   false],
+  [undefined,       true,    true],
+  ['',              true,    true],   // empty string is "no choice", not light
+]
+for (const [readingTheme, osDark, expected] of cases) {
+  assert.equal(
+    seededWorkspaceDarkness({ readingTheme, osDark }),
+    expected,
+    `seededWorkspaceDarkness(${JSON.stringify(readingTheme)}, osDark=${osDark}) should be ${expected}`,
+  )
+}
+// Stated as a property rather than only as a table, so a future edit that
+// adds a new "and also go dark when…" branch fails here as well.
+for (const readingTheme of [null, undefined, '', 'oatmeal', 'sky', 'solar', 'midnight', 'dark', 'neon']) {
+  assert.equal(
+    seededWorkspaceDarkness({ readingTheme, osDark: false }),
+    false,
+    `nothing may seed a dark workspace when the OS asks for light (${JSON.stringify(readingTheme)})`,
+  )
+}
+assert.equal(seededWorkspaceDarkness(), false, 'no arguments must not throw')
+
+console.log('✓ reading theme core — a light palette vetoes the OS seed, and nothing imposes a dark one')

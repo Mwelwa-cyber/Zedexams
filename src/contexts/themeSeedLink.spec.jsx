@@ -108,6 +108,16 @@ describe('a fresh browser on a dark-mode machine', () => {
     expect(workspaceTheme()).toBe('night')
   })
 
+  it('the workspace follows the OS, so Midnight here is the OS answer', () => {
+    // Same end state as the case above, but the reason matters: on a dark OS
+    // 'night' is what the seed said before any of this existed. The next
+    // describe block is the one that proves the reading palette is not what
+    // put it there.
+    localStorage.setItem(READING_KEY, 'midnight')
+    render(<ThemeProvider><Probe /></ThemeProvider>)
+    expect(workspaceTheme()).toBe('night')
+  })
+
   it('never writes the workspace key — the seed stays an unanswered question', () => {
     render(<ThemeProvider><Probe /></ThemeProvider>)
     act(() => api.setTheme('oatmeal'))
@@ -127,6 +137,55 @@ describe('a device that saved a light palette in another session', () => {
     setOsDark(true)
     localStorage.setItem(READING_KEY, 'oatmeal')
     render(<ThemeProvider><Probe /></ThemeProvider>)
+    expect(workspaceTheme()).toBe('terracotta')
+  })
+})
+
+/*
+ * THE REGRESSION THE FIRST FIX SHIPPED (#2524 → #2535).
+ *
+ * Making the seed follow the reading palette in BOTH directions looked
+ * tidier and broke production: a Midnight reading palette turned the
+ * workspace dark on a light-OS machine, where it had always stayed light.
+ * <ReadingThemeSync> syncs the reading palette to the ACCOUNT, so one learner
+ * or teacher who had ever tapped Night carried a dark workspace to every
+ * browser they signed in from.
+ *
+ * A reading palette is a statement about the page a learner reads on. It is
+ * not a request to repaint the teacher workspace.
+ */
+describe('a dark reading palette on a light-mode machine', () => {
+  beforeEach(() => setOsDark(false))
+
+  it('leaves an unchosen workspace theme light', () => {
+    localStorage.setItem(READING_KEY, 'midnight')
+    render(<ThemeProvider><Probe /></ThemeProvider>)
+
+    expect(api.theme).toBe('midnight')          // the learner reads in Midnight…
+    expect(workspaceTheme()).toBe('terracotta') // …and the workspace stays light
+  })
+
+  it('leaves it light when the learner toggles Night on mid-session', () => {
+    render(<ThemeProvider><Probe /></ThemeProvider>)
+    act(() => api.setTheme('midnight'))
+
+    expect(workspaceTheme()).toBe('terracotta')
+  })
+
+  it('leaves it light when Midnight arrives from the signed-in profile', () => {
+    // The exact production path: the account remembers Midnight and
+    // <ReadingThemeSync> hydrates it on a machine whose OS is light.
+    render(<ThemeProvider><Probe /></ThemeProvider>)
+    act(() => api.hydrateTheme('midnight'))
+
+    expect(workspaceTheme()).toBe('terracotta')
+  })
+
+  it('honours the legacy "dark" alias the same way', () => {
+    localStorage.setItem(READING_KEY, 'dark')
+    render(<ThemeProvider><Probe /></ThemeProvider>)
+
+    expect(api.theme).toBe('midnight')
     expect(workspaceTheme()).toBe('terracotta')
   })
 })
