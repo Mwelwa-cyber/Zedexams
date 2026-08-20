@@ -7,7 +7,7 @@
 // option at all and the label "Save offline" only ever did a file download.
 
 import { useEffect, useState } from 'react'
-import { Download, Check, Loader2, Trash2 } from '../../../shared/components/icons'
+import { Download, Check, Trash2 } from '../../../shared/components/icons'
 import { downloadForOffline, unpin } from '../../../offline/contentCache.js'
 import { getContent } from '../../../offline/offlineStore.js'
 import { fetchNoteForCache } from '../hooks/useOfflineNote'
@@ -70,7 +70,7 @@ export function SaveOfflineButton({ note }) {
         className="notes-chip notes-chip-shadow inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white text-[#0F1B2D] text-sm font-semibold hover:-translate-y-px transition disabled:opacity-60"
         title="Saved on this device for offline reading — tap to remove"
       >
-        {busy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} className="text-emerald-600" />}
+        {busy ? <span className="zx-spin" aria-hidden="true" /> : <Check size={14} className="text-emerald-600" />}
         Saved offline
         <Trash2 size={13} className="opacity-60" />
       </button>
@@ -85,7 +85,7 @@ export function SaveOfflineButton({ note }) {
       className="notes-chip notes-chip-shadow inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white text-[#0F1B2D] text-sm font-semibold hover:-translate-y-px transition disabled:opacity-60"
       title="Keep this note on your device to read without internet"
     >
-      {busy ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+      {busy ? <span className="zx-spin" aria-hidden="true" /> : <Download size={14} />}
       Save for offline
     </button>
   )

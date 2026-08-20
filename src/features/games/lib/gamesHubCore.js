@@ -401,3 +401,62 @@ export function zedRaceRow({ challengesAllowed = false } = {}) {
     sub: 'Practice race — Zed is our robot, not a learner',
   }
 }
+
+/**
+ * Does this learner's progress deserve two blocks, or one line?
+ *
+ * The hub used to open the same way for everyone: a Level strip reading
+ * "Level 1 · Rookie" over an empty meter, then an Achievements shelf
+ * reading "0 of 10" over ten padlocks — and only then the games. On a
+ * 390×844 phone that put more than half the first screen above the thing
+ * the page is for (`docs/learner/LEARNER_UI_AUDIT.md` L-16). For a child
+ * arriving for the first time it is worse than merely tall: two blocks
+ * whose entire content is a statement that they have nothing.
+ *
+ * A learner who HAS earned something is in the opposite position — the
+ * level and the stickers are the reward, and they should be prominent.
+ * So the screen answers a question about the learner rather than
+ * rendering one layout for both.
+ *
+ *   'full'    the two blocks, above the games — there is progress to show
+ *   'compact' one row that names the next thing to aim at, below the
+ *             games — there is not, so lead with something playable
+ *
+ * A signed-out visitor always gets 'compact': they have no progress at
+ * all, and their level meter can only ever say "Sign in to earn XP",
+ * which is an ask, not a reward, and does not belong above the games.
+ *
+ * @param {object}  opts
+ * @param {boolean} opts.signedIn
+ * @param {number}  opts.earnedCount  badges this learner has earned
+ * @param {number}  opts.totalPoints  lifetime XP across saved runs
+ * @returns {'full'|'compact'}
+ */
+export function progressBlockMode({ signedIn = false, earnedCount = 0, totalPoints = 0 } = {}) {
+  if (!signedIn) return 'compact'
+  // EITHER signal is enough. A learner can hold XP before their first
+  // badge (badges are milestones, points are every run), and the reverse
+  // is possible too if a badge is ever awarded for something unscored —
+  // requiring both would hide real progress from the learner who has it.
+  if (Number(earnedCount) > 0) return 'full'
+  if (Number(totalPoints) > 0) return 'full'
+  return 'compact'
+}
+
+/**
+ * The one line that replaces the two blocks in 'compact' mode.
+ *
+ * It says what to DO, not what is missing — "Play a game to earn your
+ * first sticker" rather than "0 of 10 · Level 1". A first-run screen
+ * that inventories the learner's zeroes is the failure being fixed; a
+ * differently-worded inventory would be the same failure.
+ */
+export function progressStarterRow({ signedIn = false, badgeCount = 0 } = {}) {
+  return {
+    icon: '🏅',
+    title: signedIn ? 'Play a game to earn your first sticker' : 'Sign in to keep your scores',
+    sub: signedIn
+      ? `${badgeCount} stickers to collect`
+      : 'Your XP, stickers and levels are saved to your account',
+  }
+}

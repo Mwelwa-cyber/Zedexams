@@ -140,7 +140,7 @@
 
 /* The tick keeps its box at all times so selecting a subject cannot
    reflow the chip row under the learner's finger. */
-.lhx-ob-check { color: var(--lhx-green); font-weight: 900; opacity: 0; }
+.lhx-ob-check { color: var(--lhx-green-btn); font-weight: 900; opacity: 0; }
 .lhx-ob-subject[aria-pressed='true'] .lhx-ob-check { opacity: 1; }
 
 /* ── Buttons ───────────────────────────────────────────────────── */

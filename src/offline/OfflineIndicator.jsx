@@ -23,7 +23,7 @@ const TONE_CLASSES = {
 
 function ToneIcon({ status, STATUS }) {
   if (status === STATUS.SYNCING || status === STATUS.UPDATING) {
-    return <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+    return <ArrowPathIcon className="h-3.5 w-3.5 zx-rotating" aria-hidden="true" />
   }
   if (status === STATUS.SAVED_OFFLINE) {
     return <CheckCircleIcon className="h-3.5 w-3.5" aria-hidden="true" />

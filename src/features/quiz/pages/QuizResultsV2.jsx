@@ -19,6 +19,7 @@ import Button from '../../../shared/components/Button'
 import Icon from '../../../shared/components/Icon'
 import Skeleton from '../../../shared/components/Skeleton'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
+import '../quizTheme.css'
 
 // A learner "passes" at 50% — the same threshold that plays the success
 // chime — so the visual celebration and the audio stay in sync.
@@ -64,7 +65,15 @@ function ScoreCircle({ percentage }) {
   const radius = 54
   const circumference = 2 * Math.PI * radius
   const offset = circumference - (percentage / 100) * circumference
-  const color = percentage >= 70 ? '#16a34a' : percentage >= 50 ? '#eab308' : '#dc2626'
+  // The palette's own semantic INKS, not the bright solids beside them.
+  // The ring is a graphical object drawn inside `var(--border)`, so WCAG
+  // 1.4.11's 3:1 applies against that track — and the three hexes this
+  // replaces measured 2.69, 1.56 and 3.94 against it, the amber band
+  // being all but invisible. The inks clear it in both looks (4.4–5.0
+  // light, 6.0–6.9 Night) and follow the theme rather than ignoring it.
+  const color = percentage >= 70 ? 'var(--success-fg)'
+    : percentage >= 50 ? 'var(--warning-fg)'
+      : 'var(--danger-fg)'
 
   return (
     <div className="animate-score-draw relative mx-auto h-36 w-36">
@@ -167,7 +176,7 @@ export default function QuizResultsV2() {
 
   if (loading) {
     return (
-      <div className="theme-bg min-h-screen px-4 py-10 pb-28 md:pb-10">
+      <div className="quiz-proto theme-bg min-h-screen px-4 py-10 pb-28 md:pb-10">
         <SeoHelmet title="Quiz results" path={`/results/${resultId}`} noIndex />
         <div className="mx-auto max-w-xl space-y-4">
           <div className="theme-card theme-border rounded-3xl border p-6 text-center shadow-elev-md">
@@ -190,7 +199,7 @@ export default function QuizResultsV2() {
 
   if (!result) {
     return (
-      <div className="theme-bg flex min-h-screen items-center justify-center p-4">
+      <div className="quiz-proto theme-bg flex min-h-screen items-center justify-center p-4">
         <SeoHelmet title="Result not found" path={`/results/${resultId}`} noIndex />
         <div className="theme-text text-center">
           <div className="mb-3 text-5xl" aria-hidden="true">😕</div>
