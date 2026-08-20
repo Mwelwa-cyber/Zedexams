@@ -64,6 +64,13 @@ const RETAINED = new Map([
     "only uid it can hold is the ADMIN who wrote or reviewed it, which is an " +
     "operator action. The learner's side of spelling is `spellingProgress`, " +
     "which IS purged"],
+  ["spellingSentences",
+    "Spelling Ride's Word Choice sentences — a gap-fill sentence and the two " +
+    "lookalikes a learner chooses between. The same kind of record as " +
+    "`spellingWords` and retained for the same reason: reviewed curriculum " +
+    "material shared by every learner in the grade, whose only uid is the " +
+    "ADMIN who wrote or approved it. A learner's answers to these live in " +
+    "`spellingProgress`, which IS purged"],
   ["dailyQuizzes",
     "The day's five question IDs for a GRADE — grade, date, question ids, " +
     "seed and which selection rules bent. No uid, no name, nothing about any " +

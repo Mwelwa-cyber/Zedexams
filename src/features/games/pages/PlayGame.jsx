@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { LockClosedIcon, PuzzlePieceIcon, SparklesIcon } from '@heroicons/react/24/solid'
 import {
@@ -20,6 +20,33 @@ import TimedQuizGame from '../components/TimedQuizGame'
 import MeaningMatchGame from '../components/MeaningMatchGame'
 import PunctuationProGame from '../components/PunctuationProGame'
 import WordBuilderGame from '../components/WordBuilderGame'
+/**
+ * SPELLING RIDE IS THE ONE LAZY ENGINE, and the number is why.
+ *
+ * Every other engine is imported statically here, so all of them land in this
+ * page's chunk — which is the chunk a learner downloads to play ANY game. The
+ * ride brings a canvas renderer, a road-perspective module and a ride state
+ * machine that nothing else uses, and a child opening a maths quiz on a
+ * metered connection should not be paying to download a bicycle.
+ *
+ * MEASURED, across three `vite build --mode smoke` runs:
+ *
+ *   • without the game at all      PlayGame 221.57 kB (gzip 67.59)
+ *   • with it imported statically  PlayGame 269.36 kB (gzip 83.99)  — +47.8 kB
+ *   • with it lazy (this)          PlayGame 209.32 kB (gzip 63.71)
+ *                                  + SpellingRideGame 48.28 kB, on demand
+ *
+ * The lazy PlayGame chunk comes out 12 kB BELOW the no-game baseline, because
+ * splitting the ride out let Rollup regroup modules the two spelling engines
+ * share. Verified rather than assumed: the emitted PlayGame chunk names
+ * `SpellingRideGame` only inside Vite's `__vite__mapDeps` preload table, so
+ * the edge is dynamic — a maths game does not fetch it.
+ *
+ * The other six stay static: this is not a policy change, it is one engine
+ * whose cost was measured and found to be worth a boundary. Making the rest
+ * lazy is a separate piece of work with its own measurements.
+ */
+const SpellingRideGame = lazy(() => import('../components/SpellingRideGame'))
 import NumberTargetGame from '../components/NumberTargetGame'
 import KnowZambiaGame from '../components/KnowZambiaGame'
 import FractionLadderGame from '../components/FractionLadderGame'
@@ -41,6 +68,7 @@ import SeoHelmet from '../../../shared/components/SeoHelmet'
 const PROTO_ENGINES = new Set([
   'number_target',
   'word_builder',
+  'spelling_ride',
   'memory_match',
   'punctuation',
   'map_place',
@@ -307,6 +335,15 @@ function GameEngine({ game }) {
   if (game.type === 'memory_match') return <MeaningMatchGame game={game} />
   if (game.type === 'punctuation') return <PunctuationProGame game={game} />
   if (game.type === 'word_builder') return <WordBuilderGame game={game} />
+  if (game.type === 'spelling_ride') {
+    return (
+      // Its OWN boundary, not the route's. The route's Suspense would blank
+      // the whole page to a full-screen loader while one chunk arrives.
+      <Suspense fallback={<div className="lhx lhx-bare"><div className="lhx-page"><p className="lhx-sp-loading">Getting the road ready…</p></div></div>}>
+        <SpellingRideGame game={game} />
+      </Suspense>
+    )
+  }
   if (game.type === 'number_target') return <NumberTargetGame game={game} />
   if (game.type === 'map_place') return <KnowZambiaGame game={game} />
   if (game.type === 'fraction_ladder') return <FractionLadderGame game={game} />

@@ -320,6 +320,7 @@ const DailyIntro = lazy(() => import('../features/games/pages/DailyIntro'))
 // Admin — games seed importer
 const GamesSeedAdmin = lazy(() => import('../features/games/pages/GamesSeedAdmin'))
 const SpellingAdmin = lazy(() => import('../features/games/pages/SpellingAdmin'))
+const SpellingRideAdmin = lazy(() => import('../features/games/pages/SpellingRideAdmin'))
 const AdminDailyQuizPage = lazy(() => import('../features/adminDailyQuiz/pages/AdminDailyQuizPage'))
 
 // Quiz editor (shared by admin + teacher)
@@ -984,6 +985,7 @@ export default function App() {
           <Route path="/admin/papers/:paperId/explanations" element={<AdminRoute><ExplanationReview /></AdminRoute>} />
           <Route path="/admin/games-seed"               element={<AdminRoute><GamesSeedAdmin /></AdminRoute>} />
           <Route path="/admin/spelling"                 element={<AdminRoute><SpellingAdmin /></AdminRoute>} />
+          <Route path="/admin/spelling-ride"            element={<AdminRoute><SpellingRideAdmin /></AdminRoute>} />
           {/* The Daily Quiz Generator console — tonight's run, the funnel,
               tomorrow's preview, bank health and the event log. */}
           <Route path="/admin/daily-quiz"               element={<AdminRoute><AdminDailyQuizPage /></AdminRoute>} />

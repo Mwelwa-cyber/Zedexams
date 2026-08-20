@@ -241,7 +241,8 @@ describe('GamesHub', () => {
     expect(screen.getByText('Body Systems & Energy')).toBeInTheDocument()
     // Two live packs replace their seed twins, and every other Grade 7 pack
     // lists behind them. The old ceiling was four rows, whatever the number.
-    expect(document.querySelectorAll('a.lhx-game')).toHaveLength(16)
+    // 17 since Spelling Ride joined the catalogue as a fifth mechanic.
+    expect(document.querySelectorAll('a.lhx-game')).toHaveLength(17)
 
     // …but a Grade 6 quiz is still not a Grade 7 learner's game. Widening
     // WHAT lists must not widen WHICH GRADE lists.
@@ -299,18 +300,22 @@ describe('GamesHub', () => {
     expect(document.querySelector('a[href="/games/play/g-wb-g6"]')).toBeNull()
     expect(screen.queryByText('Spell the Planet')).toBeNull()
 
-    // The four mechanics lead in the mockup's order, whatever else lists
+    // The named mechanics lead in the registry's order, whatever else lists
     // behind them; Map Quest closes the list.
     const names = [...document.querySelectorAll('.lhx-game b')].map((el) => el.textContent)
     // 'Spelling' rather than 'Word Builder': the card opens the spelling
     // ladder, and the mechanic NAME is what a child reads. The `type` behind
     // it is still `word_builder` — the registry key did not move.
-    expect(names.slice(0, 4)).toEqual(['Number Path', 'Spelling', 'Meaning Match', 'Punctuation Pro'])
+    //
+    // 'Spelling Ride' sits beside it rather than replacing it: the ladder and
+    // the ride are two mechanics over ONE word bank and one learner record,
+    // so listing only one would hide the other.
+    expect(names.slice(0, 5)).toEqual(['Number Path', 'Spelling', 'Spelling Ride', 'Meaning Match', 'Punctuation Pro'])
     expect(names.at(-1)).toBe('Map Quest')
     // The tail is ordered by TYPE and then by title — fraction_ladder, then
     // map_place, then the timed_quiz packs alphabetically — so the order is a
     // property of the data rather than of which pool answered first.
-    expect(names.slice(4, -1)).toEqual([
+    expect(names.slice(5, -1)).toEqual([
       // fraction_ladder, then the six map_place modes by title, then the
       // timed_quiz packs by title.
       'Fraction Ladder',

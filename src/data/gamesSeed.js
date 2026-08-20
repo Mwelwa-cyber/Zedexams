@@ -484,6 +484,37 @@ const KNOW_ZAMBIA_CEREMONY_G7 = {
   questions: [],
 }
 
+/**
+ * Spelling Ride — the three-lane road.
+ *
+ * A SECOND spelling card, beside `word_builder`, and deliberately so: the
+ * ladder and the ride are two mechanics over ONE curriculum. The ladder is
+ * untimed, tile-by-tile and chaptered; the ride is a moving road where a row
+ * of letters blocks all three lanes and the learner must commit. They share
+ * `wordPack: 'grade7-spelling'` and they share the learner's
+ * `spellingProgress` record, so a word missed on one comes back on the other.
+ *
+ * The pack is fetched on demand for the same reason it is on the ladder: 879
+ * words in the bundle would sit in the path of a child opening a maths game.
+ * There are no `questions` here at all — a document with its own questions
+ * keeps them, and this one has nothing to say that the bank does not.
+ */
+const SPELLING_RIDE_G7 = {
+  id: 'english_spelling_ride_g7',
+  title: 'Spelling Ride',
+  subject: 'english',
+  grade: 7,
+  type: 'spelling_ride',
+  wordPack: 'grade7-spelling',
+  difficulty: 'medium',
+  description: 'Ride the T1 from Lusaka to Livingstone. Steer into the letter that comes next — every row blocks all three lanes.',
+  timer: 0,
+  points: 15,
+  active: true,
+  cbc_topic: 'Spelling',
+  questions: [],
+}
+
 export const GAMES_SEED = [
   // GRADE 7 ONLY. The app is open to Grade 7 alone (LEARNER_GRADES), and on
   // 2026-08-20 the other 44 entries were removed: grades 1-3 and 8-9 were
@@ -498,6 +529,7 @@ export const GAMES_SEED = [
   MEANING_MATCH_G7,
   NUMBER_TARGET_G7,
   WORD_BUILDER_G7,
+  SPELLING_RIDE_G7,
   RATIO_PERCENT_G7,
   ENGLISH_GRAMMAR_G7,
   SCIENCE_SYSTEMS_G7,
@@ -596,6 +628,10 @@ export const CATALOGUE_MECHANICS = [
   // The card a learner taps to reach the spelling ladder. The TYPE is the
   // registry key and does not move; the NAME is what a child reads.
   { type: 'word_builder',  name: 'Spelling' },
+  // Spelling's second mechanic, and its own card: the ladder and the ride ask
+  // for the same words in two ways, so listing one would hide the other. The
+  // NAME is what a child reads and the TYPE is the registry key.
+  { type: 'spelling_ride', name: 'Spelling Ride' },
   { type: 'memory_match',  name: 'Meaning Match' },
   { type: 'punctuation',   name: 'Punctuation Pro' },
 ]

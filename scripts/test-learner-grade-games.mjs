@@ -32,6 +32,10 @@ import {
   isDemoGame,
 } from '../src/data/gamesSeed.js'
 import { ZAMBIA_PROVINCES_GEO } from '../src/data/zambiaGeography.js'
+import { SPELLING_BANK } from '../src/data/spellingBank.js'
+import { SPELLING_CHOICE_BANK } from '../src/data/spellingChoiceBank.js'
+import { isKnownPack } from '../src/features/games/lib/spellingPack.js'
+import { CHOICE_WORDS_PER_RIDE } from '../src/features/games/lib/spellingRideCore.js'
 
 let failures = 0
 function test(name, fn) {
@@ -135,6 +139,28 @@ for (const grade of LEARNER_GRADES) {
         assert.ok(
           pack.questions.length >= 9,
           `${pack.id}: ${pack.questions.length} questions across nine levels is not a ladder`,
+        )
+        continue
+      }
+      // Spelling Ride's content is the WORD PACK, not the document — 879
+      // reviewed Grade 7 words fetched on demand, because putting them on the
+      // seed would put a spelling bank in the bundle of a child opening a
+      // maths game. So it is checked against what it actually reads, the same
+      // way number_target and map_place are: a pack this build can load, with
+      // enough words behind it, and enough Word Choice sentences for a full
+      // ride of that mode.
+      if (pack.type === 'spelling_ride') {
+        assert.ok(
+          isKnownPack(pack.wordPack),
+          `${pack.id}: names word pack "${pack.wordPack}", which this build cannot load`,
+        )
+        assert.ok(
+          SPELLING_BANK.length >= 100,
+          `${pack.id}: the bundled bank holds ${SPELLING_BANK.length} words — a nine-town ride would repeat`,
+        )
+        assert.ok(
+          SPELLING_CHOICE_BANK.length >= CHOICE_WORDS_PER_RIDE,
+          `${pack.id}: ${SPELLING_CHOICE_BANK.length} Word Choice sentences cannot fill a ${CHOICE_WORDS_PER_RIDE}-sentence ride`,
         )
         continue
       }

@@ -2284,7 +2284,7 @@ service cloud.firestore {
     }
     function validSpellingProgressFields(userId) {
       return incoming().keys().hasOnly([
-          'uid', 'stars', 'pool', 'stagesPlayed', 'settledRuns',
+          'uid', 'stars', 'pool', 'rideBests', 'stagesPlayed', 'settledRuns',
           'resume', 'totalStars', 'updatedAt',
         ])
         && incoming().uid == request.auth.uid
@@ -2294,6 +2294,10 @@ service cloud.firestore {
         // and this is the same number with slack for a client that has not
         // updated yet — the client trims, this refuses.
         && incoming().pool is map && incoming().pool.size() <= 500
+        // Spelling Ride's high scores: three modes by three difficulties, so
+        // nine keys. The ceiling is slack over that and nothing more — this is
+        // a fixed-size map, not a growing one.
+        && (!('rideBests' in incoming()) || (incoming().rideBests is map && incoming().rideBests.size() <= 20))
         && incoming().stagesPlayed is int && incoming().stagesPlayed >= 0 && incoming().stagesPlayed <= 100000
         && incoming().settledRuns is list && incoming().settledRuns.size() <= 20
         && incoming().totalStars is int && incoming().totalStars >= 0 && incoming().totalStars <= 100000
@@ -2460,6 +2464,33 @@ service cloud.firestore {
                     || isAdmin();
       allow list:   if isAdmin()
                     || (request.query.limit <= 2000
+                        && resource.data.status == 'approved'
+                        && resource.data.active == true);
+      allow write:  if isAdmin();
+    }
+
+    // ── spellingSentences (the reviewed Word Choice sentences) ────────
+    //
+    // Spelling Ride's Word Choice mode: a gap-fill sentence and the two
+    // lookalikes a learner has to choose between. Content, not learner data.
+    //
+    // THE RULE IS spellingWords' RULE, DELIBERATELY IDENTICAL. Both conditions
+    // are required on a `list` as well as a `get`, so a query that drops
+    // either one is refused rather than quietly returning drafts — which is
+    // what makes "unreviewed content never reaches a child" a property of the
+    // rule rather than of the query the client happened to send. Approval is
+    // an admin act with an audit trail, and no path here promotes a record on
+    // its own.
+    //
+    // The bundled `spellingChoiceBank.js` is what a learner plays when this
+    // read fails, so a refusal here costs the admin's edits and never the
+    // game.
+    match /spellingSentences/{sentenceId} {
+      allow get:    if resource.data.status == 'approved'
+                    && resource.data.active == true
+                    || isAdmin();
+      allow list:   if isAdmin()
+                    || (request.query.limit <= 500
                         && resource.data.status == 'approved'
                         && resource.data.active == true);
       allow write:  if isAdmin();

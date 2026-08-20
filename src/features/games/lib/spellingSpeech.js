@@ -31,11 +31,42 @@
  * fetched through tier 2 is held for the session, and "Hear it again" costs
  * nothing at all rather than costing a call that happens to be cheap.
  *
+ * ── TWO LEGS DELIBERATELY STAY ON THE DEVICE VOICE ────────────────────────
+ * Spelling Ride added a spoken CORRECTION ("necessary… n, e, c, e, s, s, a,
+ * r, y") and a gap-fill SENTENCE read, and neither goes up the ladder. That
+ * is the same quota arithmetic that put tier 1 there in the first place:
+ *
+ *   • The correction fires on every wrong letter. A learner having a bad ride
+ *     triggers it a dozen times in three minutes, and it is a letter-by-letter
+ *     drill — the one piece of content where a flat, evenly-spaced robotic
+ *     read is arguably BETTER than a natural one.
+ *   • A Word Choice run reads about twelve sentences. Through tier 2 that is a
+ *     fifth of a learner's daily allowance for one round, and the sentence is
+ *     already on screen to be read.
+ *
+ * The WORD itself — the thing actually being learned, and the only thing a
+ * Dictation learner is given — goes up the full ladder and gets the good
+ * voice. That split is the whole point; do not "tidy" these two onto
+ * `speakWord`.
+ *
+ * ── The accent order, which governs tier 3 ────────────────────────────────
+ * A BRITISH-FORMS ENGLISH, ALWAYS. ECZ marks British spelling, and a US voice
+ * says "zee" for the letter Z and reads "practise" as "practice". Within that
+ * rule the accent is ordered: en-ZA first, then en-GB, then the other African
+ * and Commonwealth Englishes, and only then en-US. A Zambian learner has heard
+ * a South African accent all their life and a Midwestern one on television;
+ * the first is easier to spell along with. This used to be `lang = 'en-GB'`
+ * and no voice choice at all, which left the pick to the device — and a device
+ * with one US voice installed ignored the tag entirely. `resolveVoice` makes
+ * it a decision rather than a hint, and a device with no English voice at all
+ * still falls through to whatever it has rather than going silent.
+ *
  * Nothing here throws and nothing blocks. A round must play when audio does
  * not.
  */
 
 import { fetchSpeechUrl, speak as cloudSpeak, stopSpeaking } from '../../../utils/tts'
+import { resolveVoice } from './spellingVoiceCore'
 
 /**
  * Word → object URL for audio already fetched this session.
@@ -75,6 +106,65 @@ export function speechAvailable() {
   return typeof window !== 'undefined' && typeof window.Audio === 'function'
 }
 
+/**
+ * Is the BROWSER voice usable — tier 3, and the only thing the correction and
+ * the sentence read have. Separate from `speechAvailable` because they answer
+ * different questions: this one can be false on a device where the ladder
+ * still plays every word perfectly.
+ */
+export function deviceSpeechAvailable() {
+  return typeof window !== 'undefined'
+    && 'speechSynthesis' in window
+    && typeof window.SpeechSynthesisUtterance === 'function'
+}
+
+/**
+ * The accent order and the picker live in `spellingVoiceCore.js`, which has no
+ * imports at all — this module reaches Firebase through `utils/tts`, so the one
+ * piece of it a plain-`node` guard can read had to sit outside it. Re-exported
+ * here so every existing importer keeps one place to ask.
+ */
+export { VOICE_PREFERENCE, resolveVoice } from './spellingVoiceCore'
+
+/** The chosen voice, resolved once and re-resolved when the device list lands. */
+let chosen = null
+let primed = false
+
+function deviceVoices() {
+  try {
+    return deviceSpeechAvailable() ? (window.speechSynthesis.getVoices() || []) : []
+  } catch { return [] }
+}
+
+/** The voice to speak with, re-resolved until the device has published a list. */
+export function currentVoice() {
+  if (chosen) return chosen
+  chosen = resolveVoice(deviceVoices())
+  return chosen
+}
+
+/**
+ * Wake speech up inside a real user tap.
+ *
+ * iOS and several Android WebViews refuse to speak at all unless the first
+ * utterance was started from a genuine user gesture, and the failure is
+ * silent — the game looks like it has no voice. Called from the tap that
+ * chooses a mode, which is the last gesture before a word is spoken.
+ */
+export function primeSpeech() {
+  if (primed || !deviceSpeechAvailable()) return
+  primed = true
+  try {
+    chosen = resolveVoice(deviceVoices())
+    const warmUp = new window.SpeechSynthesisUtterance(' ')
+    warmUp.volume = 0
+    window.speechSynthesis.speak(warmUp)
+    // The list often arrives AFTER the first call on Chrome and Android, so
+    // the pick is redone once it does rather than being frozen as null.
+    window.speechSynthesis.onvoiceschanged = () => { chosen = resolveVoice(deviceVoices()) }
+  } catch { /* speech is a bonus, never a blocker */ }
+}
+
 /** Stop whatever is being said, by any tier. */
 export function stopSpeech() {
   try {
@@ -86,6 +176,11 @@ export function stopSpeech() {
   } catch { /* nothing to stop */ }
   // Covers both the cloud <Audio> element and the browser voice.
   try { stopSpeaking() } catch { /* nothing to stop */ }
+  // And the browser voice this file speaks with directly — the correction and
+  // the sentence read do not go through `utils/tts`, so `stopSpeaking()` does
+  // not know about them. Leaving this out is how a learner who taps Exit
+  // mid-correction keeps hearing the word spelled at them on the next screen.
+  try { if (deviceSpeechAvailable()) window.speechSynthesis.cancel() } catch { /* nothing to stop */ }
 }
 
 /** Play a URL directly. Resolves false when it could not, never throws. */
@@ -160,6 +255,100 @@ export async function speakWord(word, { audioUrl = '', rate = 0.85 } = {}) {
  */
 export async function speakChunk(chunk) {
   return speakWord(chunk, { rate: 0.7 })
+}
+
+/**
+ * Wait for whatever `speakWord` started to actually FINISH.
+ *
+ * `playUrl` resolves when playback STARTS — `audio.play()`'s promise settles
+ * on the first frame, not the last — so awaiting `speakWord` and then speaking
+ * again lands the second utterance on top of the first. That is not
+ * theoretical: it is the word and its own spelling talking over each other,
+ * which is precisely the correction a missed letter is owed.
+ *
+ * Capped, because a stalled element that never fires `ended` must not leave
+ * the correction unspoken forever.
+ */
+function whenAudioSettles(maxMs = 8000) {
+  const audio = currentAudio
+  if (!audio || audio.ended) return Promise.resolve()
+  return new Promise((resolve) => {
+    let done = false
+    const finish = () => {
+      if (done) return
+      done = true
+      clearTimeout(timer)
+      try {
+        audio.removeEventListener('ended', finish)
+        audio.removeEventListener('error', finish)
+      } catch { /* element already gone */ }
+      resolve()
+    }
+    const timer = setTimeout(finish, maxMs)
+    try {
+      audio.addEventListener('ended', finish)
+      audio.addEventListener('error', finish)
+    } catch { finish() }
+  })
+}
+
+/**
+ * The browser voice, with the accent order applied.
+ *
+ * `queue: true` does NOT cancel what is already speaking, which is what lets
+ * the letters land behind the word on the tier-3 path instead of cutting it
+ * off mid-syllable.
+ */
+function speakWithDevice(text, { rate = 0.8, queue = false } = {}) {
+  try {
+    if (!deviceSpeechAvailable()) return false
+    const utterance = new window.SpeechSynthesisUtterance(String(text).toLowerCase())
+    const voice = currentVoice()
+    if (voice) utterance.voice = voice
+    // The tag is set whether or not a voice was found: a device that gave us
+    // no list may still honour it.
+    utterance.lang = voice?.lang || 'en-GB'
+    utterance.rate = rate
+    if (!queue) window.speechSynthesis.cancel()
+    window.speechSynthesis.speak(utterance)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Say a word and then SPELL IT OUT — "necessary… n, e, c, e, s, s, a, r, y".
+ *
+ * This is the correction after a wrong letter, and it is the lesson: a learner
+ * who has just chosen the wrong letter needs to hear the right one in place,
+ * slowly, more than they need to see a red tile.
+ *
+ * The WORD goes up the full ladder (it is the content); the LETTERS are the
+ * device voice, queued behind it — see the quota note in the header. The
+ * letters are a second utterance rather than a suffix on the first, because a
+ * comma-separated string spoken at word rate runs the spelling past a child in
+ * a second.
+ */
+export async function speakWordThenLetters(word, { audioUrl = '' } = {}) {
+  const text = String(word || '').trim()
+  if (!text) return false
+  await speakWord(text, { audioUrl, rate: 0.75 })
+  await whenAudioSettles()
+  return speakWithDevice(text.split('').join(', '), { rate: 0.55, queue: true })
+}
+
+/**
+ * Read a gap-fill sentence with "blank" at the gap.
+ *
+ * IT MUST NOT READ THE ANSWER. The sentence arrives with its gap still in it
+ * and the gap is replaced here, so there is no path where the answer is spoken
+ * — which there would be if the caller passed the filled-in sentence.
+ */
+export function speakSentence(sentence, { gap = '___' } = {}) {
+  const text = String(sentence || '').split(gap).join(' blank ').replace(/\s+/g, ' ').trim()
+  if (!text) return false
+  return speakWithDevice(text, { rate: 0.85 })
 }
 
 function cacheKey(text, rate) {

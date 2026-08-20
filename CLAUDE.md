@@ -86,6 +86,7 @@ npm run test:paper-pagination     # measured Print/PDF page flow (pure core)
 npm run test:paper-health         # the one Save/Export verdict
 npm run test:paper-golden         # renders reference papers to a real .docx and asserts on document.xml
 npm run test:visual-verdict       # the required visual-regression gate's pass/fail logic
+npm run test:spelling-ride        # Spelling Ride: MEASURED row pacing, the three-lane rule, repetition
 
 # Mobile smoke (release-safety) — NOT in test:all (needs a build + a real
 # Chromium). Builds with the fake public Firebase config in .env.smoke, then
@@ -472,6 +473,30 @@ off the config, so none of them need editing.
 
 ### Spelling is one connected system, not three games (2026-08-20)
 
+**Two mechanics, one curriculum (2026-08-20).** `word_builder` is the LADDER
+and `spelling_ride` is **Spelling Ride** — a three-lane road where rows of
+letters come at the learner and each row blocks all three lanes, so there is
+always a choice and no way to win by dodging. They are two cards on the hub and
+they are not two systems: they share `wordPack: 'grade7-spelling'` (so a word
+fixed in `/admin/spelling` is fixed in both) and they share
+`spellingProgress/{uid}` (so a word missed on the road comes back on the ladder
+and vice versa). Everything below about mastery, spacing, the pool and the
+content rules therefore governs BOTH. What is the ride's own is in
+`lib/spellingRideCore.js` — read the four notes there before changing pacing,
+distractors or the route — and one rule is worth repeating here because it was
+a real bug: **row spacing is TIME, never pixels** (`speed × secondsPerRow`), and
+`test:spelling-ride` proves it by MEASURING the minimum gap over a full
+nine-town autoplay rather than re-deriving the formula. The formula was right
+and the measured minimum was 0.017s, because the blank road between two words
+consumed no time. Word Choice (homophones and confusables) is the ride's third
+mode and the one thing it does NOT take from the bank: its sentences are
+`src/data/spellingChoiceBank.js`, overlaid by the `spellingSentences`
+collection and edited at **`/admin/spelling-ride`**, which also carries the
+cohort report ("19 of 34 still miss NECESSARY", no learner named). That report
+is an ADMIN screen and not the teacher one it looks like — there is no
+learner↔teacher link in this product, so a teacher has no set of learners to
+aggregate and could not read `spellingProgress` if they had.
+
 The `word_builder` game is **Spelling**, and tapping its card opens a LADDER
 rather than a round:
 
@@ -487,8 +512,10 @@ games sharing a colour scheme.
 
 **The `type` stays `word_builder`.** The registry, the seed importer, the
 tombstones, the daily challenge and the duel question pool all key off it, and
-a second mechanic beside it would fork the catalogue into two rows for one
-game. Only the NAME a child reads changed (`CATALOGUE_MECHANICS`).
+renaming it would fork the catalogue. Only the NAME a child reads changed
+(`CATALOGUE_MECHANICS`). Spelling Ride is a genuinely different mechanic over
+the same words, so it IS its own `type` and its own row — two cards for two
+games, which is not the same thing as two rows for one.
 
 - **Progress is the SERVER's; the device is a mirror.** It was `localStorage`
   alone (`zedexams:spelling:*`), which does not survive a new browser and does
@@ -584,10 +611,13 @@ where the cloud voice would have worked perfectly. Run it from
 path, batching and URL rules.
 
 Tests: `test:spelling-system` (188 checks — ladder, coach, content rules,
-record), `test:spelling-audio`, `test:spelling-stages`, `test:spelling-bank`,
-`test:spelling-pack`, `test:word-builder`, `test:rules-text`,
-`test:storage-rules-text`, `test:rules-emulator`, plus
-`WordBuilderGame.spec.jsx` and `SpellingAdmin.spec.jsx`. **`npm run
+record), **`test:spelling-ride`** (38 checks — measured pacing, the three-lane
+invariant, distractor plausibility, both legs of the repetition, the road's
+perspective, the accent order, the cohort report), `test:spelling-audio`,
+`test:spelling-stages`, `test:spelling-bank`, `test:spelling-pack`,
+`test:word-builder`, `test:rules-text`, `test:storage-rules-text`,
+`test:rules-emulator`, plus `WordBuilderGame.spec.jsx`,
+`SpellingRideGame.spec.jsx` and `SpellingAdmin.spec.jsx`. **`npm run
 smoke:spelling`** measures the six screens at seven widths (320→1280) in real
 Chromium — overflow, clipping, hidden tiles and 44px touch targets, none of
 which jsdom can see. It is NOT a `test:*` script (it needs a browser) and it
