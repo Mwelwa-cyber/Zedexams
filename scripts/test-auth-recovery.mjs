@@ -40,6 +40,33 @@ assert(shouldExpireSession('auth/invalid-action-code', true) === false, 'unliste
 assert(shouldExpireSession('auth/timeout', true) === false, 'auth/timeout → no expire')
 assert(shouldExpireSession('auth/quota-exceeded', true) === false, 'auth/quota-exceeded → no expire')
 
+// ── Degraded App Check attestation outranks the terminal allowlist ───────────
+//
+// App Check is ENFORCED on Auth for this project: a request carrying the
+// fail-open placeholder token is answered 401 "Firebase App Check token is
+// invalid." A forced token refresh therefore fails for a reason that has
+// nothing to do with the credential, and the account is alive. Signing the user
+// out there is the cold-load logout (F1).
+//
+// This is checked BEFORE the code, deliberately. The code an enforced backend's
+// 401 maps to is not contractual — the SDK may surface it as internal-error, as
+// invalid-credential, or as something unmapped — so classifying on the code is
+// guesswork. Knowing attestation just failed is not.
+for (const code of TERMINAL_AUTH_ERRORS) {
+  assert(
+    shouldExpireSession(code, true, { attestationDegraded: true }) === false,
+    `terminal code ${code} does NOT expire while attestation is degraded`,
+  )
+}
+assert(
+  shouldExpireSession('auth/user-disabled', true, { attestationDegraded: false }) === true,
+  'and a terminal code still expires once attestation is healthy',
+)
+assert(
+  shouldExpireSession('auth/user-disabled', true) === true,
+  'omitting the context keeps the old behaviour (back-compatible default)',
+)
+
 // — Newly-listed terminal codes: a bad refresh token IS a dead session ——
 assert(shouldExpireSession('auth/invalid-refresh-token', true) === true, 'invalid-refresh-token online → expire')
 assert(shouldExpireSession('auth/invalid-credential', true) === true, 'invalid-credential online → expire')

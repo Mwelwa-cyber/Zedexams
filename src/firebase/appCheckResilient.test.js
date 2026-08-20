@@ -15,6 +15,11 @@ import {
   makePlaceholderToken,
   APPCHECK_PLACEHOLDER_TOKEN,
   APPCHECK_TOKEN_TIMEOUT_MS,
+  APPCHECK_PLACEHOLDER_TTL_MS,
+  PLACEHOLDER_REASONS,
+  attestationDegraded,
+  readAttestationState,
+  resetAttestationState,
 } from './appCheckResilient.js'
 
 let passed = 0
@@ -90,6 +95,75 @@ async function run() {
     const p = makePlaceholderToken(() => 0)
     ok('token is the named placeholder', p.token === APPCHECK_PLACEHOLDER_TOKEN)
     ok('default timeout constant is sane (< Firestore 10s watchdog)', APPCHECK_TOKEN_TIMEOUT_MS < 10_000)
+  }
+
+  // ── Attestation health ───────────────────────────────────────────────────────
+  //
+  // The point of these: a swallowed failure that nothing records is invisible,
+  // and an invisible failure is what let F1 (the cold-load logout) run unmeasured.
+
+  console.log('\nappCheckResilient — a placeholder records WHY, and is observable')
+
+  for (const [label, provider, expected] of [
+    ['a throwing provider', () => { throw new Error('reCAPTCHA crashed') }, PLACEHOLDER_REASONS.THREW],
+    ['an empty result', async () => ({ token: '' }), PLACEHOLDER_REASONS.EMPTY],
+  ]) {
+    resetAttestationState()
+    const seen = []
+    const res = await resilientGetToken(provider, { onPlaceholder: (r) => seen.push(r) })
+    ok(`${label} → placeholder`, res.token === APPCHECK_PLACEHOLDER_TOKEN)
+    ok(`${label} → reason "${expected}"`, readAttestationState().lastPlaceholderReason === expected)
+    ok(`${label} → onPlaceholder called once`, seen.length === 1 && seen[0] === expected)
+  }
+
+  {
+    resetAttestationState()
+    const seen = []
+    const t = fakeTimer()
+    const pending = resilientGetToken(() => new Promise(() => {}), {
+      setTimer: t.setTimer,
+      clearTimer: t.clearTimer,
+      onPlaceholder: (r) => seen.push(r),
+    })
+    t.fire()
+    await pending
+    ok('a hang records reason "timeout"', readAttestationState().lastPlaceholderReason === PLACEHOLDER_REASONS.TIMEOUT)
+    ok('and reports it exactly once', seen.length === 1)
+  }
+
+  console.log('\nappCheckResilient — a HEALTHY provider records nothing')
+  {
+    resetAttestationState()
+    const seen = []
+    const good = { token: 'real-token', expireTimeMillis: Date.now() + 60_000 }
+    const res = await resilientGetToken(async () => good, { onPlaceholder: (r) => seen.push(r) })
+    ok('the real token passes through', res.token === 'real-token')
+    ok('no placeholder recorded', readAttestationState().placeholderCount === 0)
+    ok('onPlaceholder never fired', seen.length === 0)
+    ok('attestation is not degraded', attestationDegraded() === false)
+  }
+
+  console.log('\nappCheckResilient — attestationDegraded is a WINDOW, not a latch')
+  {
+    resetAttestationState()
+    ok('clean state is not degraded', attestationDegraded() === false)
+    const clock = 1_000_000
+    await resilientGetToken(() => { throw new Error('boom') }, { now: () => clock })
+    ok('degraded immediately after a placeholder', attestationDegraded(APPCHECK_PLACEHOLDER_TTL_MS, () => clock) === true)
+    ok('still degraded at the TTL boundary',
+      attestationDegraded(APPCHECK_PLACEHOLDER_TTL_MS, () => clock + APPCHECK_PLACEHOLDER_TTL_MS) === true)
+    ok('recovered once the placeholder has expired',
+      attestationDegraded(APPCHECK_PLACEHOLDER_TTL_MS, () => clock + APPCHECK_PLACEHOLDER_TTL_MS + 1) === false)
+  }
+
+  console.log('\nappCheckResilient — a telemetry sink must never break the token path')
+  {
+    resetAttestationState()
+    const res = await resilientGetToken(() => { throw new Error('boom') }, {
+      onPlaceholder: () => { throw new Error('sentry is down') },
+    })
+    ok('a throwing sink still yields the placeholder', res.token === APPCHECK_PLACEHOLDER_TOKEN)
+    ok('and the state is still recorded', readAttestationState().placeholderCount === 1)
   }
 
   console.log(`\n✓ appCheckResilient: ${passed} assertions passed`)

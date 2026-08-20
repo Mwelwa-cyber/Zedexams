@@ -131,16 +131,29 @@ Items 2, 4, 6, 7, 8 require runtime access and are unconfirmed — see Gaps.
 ## Compliance: purchase surfaces reaching learners
 
 `zedexams.com/child-safety` promises an unapproved under-18 learner gets no
-purchases. `src/services/entitlements/useUnlockFlow.js` is the **only** code path
-that honours this — it routes `under18` to `GuardianAskSheet` with no pricing
-import. Every other purchase surface bypasses it:
+purchases.
+
+**A correct, shared gate for this already exists.** `mayShowPrice(profile)`
+(`services/entitlements/planState.js:120-123`) returns true only when
+`resolveAgeBand` positively says ADULT, and fails closed — an unknown profile
+reads as under-18. It is applied in five places: `AccountPanel.jsx:91,112`,
+`MySubscriptionRoute.jsx:33` (redirects rather than rendering a price list),
+`SubscriptionReminderCard.jsx:31`, `SubscriptionStatusBanner.jsx:57` and
+`Plans.jsx`. `useUnlockFlow.js` separately routes `under18` to
+`GuardianAskSheet`.
+
+So this is **not** a missing capability. It is three purchase surfaces that do
+not call the gate their neighbours call:
 
 | Surface | Age check | Evidence |
 |---|---|---|
-| `learnerSettings/panels/PremiumPanel.jsx` | **none** | imports `PLANS` from the checkout catalogue at `:20` and `UpgradeModal` at `:21`; renders prices directly. The only `isMinor` read anywhere in `learnerSettings/` is in `ProfilePanel.jsx:63` and concerns a date-of-birth field. |
+| `learnerSettings/panels/PremiumPanel.jsx` | **none** | imports `PLANS` from the checkout catalogue at `:20` and `UpgradeModal` at `:21`; renders prices directly. No `mayShowPrice` import. |
 | `learnerSettings/components/DashboardCards.jsx` → `PremiumCard` | **none** | `:16` imports `UpgradeModal`; `:332-355` renders plan + benefits + upgrade. |
 | `learnerSettings/sections.js` | **none** | registers the `premium` section unconditionally (`:78-85`). |
-| `subscription/components/QuizLimitPopup.jsx` | **none** | `:76` emits `paywall_shown` with a hard-coded `plan_target: 'learner'` and **no `age_band`**. Mounted at `App.jsx:969`. |
+| `subscription/components/QuizLimitPopup.jsx` | **none** | `:76` emits `paywall_shown` with a hard-coded `plan_target: 'learner'` and **no `age_band`**. Mounted at `App.jsx:969`. No `mayShowPrice` import. |
+
+Each of the three is a one-line fix — call `mayShowPrice(userProfile)` the way
+`AccountPanel.jsx:91` already does — rather than new gating logic.
 
 `paywall_shown` carries `age_band` and `role` from `useUnlockFlow` and
 `MomentOfWinModal` only. Segmented over 90 days:
