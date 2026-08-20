@@ -74,6 +74,14 @@ Per-PR detail for 2026-08-12 → 2026-08-19 is in the dated entries below;
   — which read to the learner as a spurious sign-out. The session is now
   kept unless the server actually says the credential is dead. (#2500,
   #2480, #2510, #2523, #2522)
+- **Every Grade 7 game was locked.** `PlayGame` gates on the demo-game list,
+  and every id in it was a Grade 1–4 game — grades the app is not open to. A
+  Grade 7 learner without a subscription opened the hub to ten games and ten
+  padlocks. Four are free now, one per subject: Number Path, Punctuation Pro,
+  Body Systems & Energy, Know Zambia. Every test around this asked whether
+  the lock worked, and the lock worked, so nothing could catch it;
+  `test:learner-grade-games` now fails if an open grade has no free game.
+  The games seed is Grade 7 only, 55 packs down to 11. (#2549)
 - The guardian checkout read the payment poll result wrong, so every payment
   reported failure. (#2507)
 - Storage uploads were down product-wide for five days after an
