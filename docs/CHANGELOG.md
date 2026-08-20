@@ -5,6 +5,92 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-08-20 — Android closed testing (v1.3.1)
+
+Features bundled into the Android closed-testing App Bundle since v1.3.0.
+Short tester-facing blurb lives in `distribution/whatsnew/whatsnew-en-US`.
+Per-PR detail for 2026-08-12 → 2026-08-19 is in the dated entries below;
+2026-08-20's work is rolled up here because it has not been dated yet.
+
+### Added
+
+- **The Daily Quiz replaces the daily-exam rotation.** Five questions per
+  grade per day, the same five for everyone so the leaderboard compares like
+  with like, marked one question at a time by the server with a reason. The
+  pick is seeded, so the nightly cron and a lazy self-heal cannot disagree;
+  a thin question bank degrades to a labelled practice set rather than to
+  "no quiz today". (#2519, #2429, #2496, #2501, #2529)
+- **Family portal.** A guardian and a learner are joined by one link record
+  carrying its own consent, permissions and audit trail — approval is a
+  disjunction and restriction a conjunction, so one adult can approve and
+  another can restrict. Includes the parent notifications inbox, the learner
+  family-code panel and the guardian payment path. (#2481, #2482, #2487,
+  #2455, #2458, #2499)
+- **New games, on a rebuilt hub**: Know Zambia (geography + heritage, five
+  map modes), Race Zed (live head-to-head), Fraction Ladder, and spelling
+  practice backed by an 879-word Grade 7 bank. (#2508, #2509, #2511, #2531,
+  #2538, #2539, #2534, #2544, #2545, #2465, #2466)
+- **A neutral age screen at sign-up** — three numeric fields, the age echoed
+  back for confirmation before Continue enables, and a route for a child who
+  does not know their birthday. (#2492)
+- **Tiered gating replaces the launch paywall.** No gate interrupts work in
+  progress, feedback on work already done is never charged for, and an
+  under-18 learner is never shown a price. (#2411, #2486, #2528)
+
+### Changed
+
+- **The learner app was rebuilt to the redesign** — Home, Subject, Notes
+  (Learn / Revise), Papers, Profile, Settings, Guardian Zone, the first-run
+  setup wizard, the weekly leaderboard, Ask Zed and Help & Support. Screens
+  the redesign does not have were removed rather than left adrift.
+  (#2409, #2414, #2416, #2418, #2431, #2432, #2434, #2440, #2451, #2462,
+  #2463, #2470, #2471, #2520, #2540)
+- **Grade 7 only, deliberately.** Grades 4–6 are authored everywhere else in
+  the product but are not offered to learners until they have content. An
+  existing learner in a paused grade sees a waitlist screen and keeps their
+  stored grade rather than being silently relabelled. (#2502)
+- Real dark mode: a light reading palette vetoes the dark workspace seed,
+  and a dark one imposes nothing. (#2541, #2524, #2535, #2433, #2536)
+- Passkey (WebAuthn) sign-in removed; Google and email/password sign-in are
+  untouched. (#2468)
+
+### Fixed
+
+- **A working session is no longer deleted on cold load.** Firebase Auth
+  cleared the persisted user whenever its boot check failed for a transient
+  reason — a project-wide rate limit, a 5xx, a failed App Check attestation
+  — which read to the learner as a spurious sign-out. The session is now
+  kept unless the server actually says the credential is dead. (#2500,
+  #2480, #2510, #2523, #2522)
+- The guardian checkout read the payment poll result wrong, so every payment
+  reported failure. (#2507)
+- Storage uploads were down product-wide for five days after an
+  account-deletion gate put an unconditional cross-service read on every
+  Storage rule evaluation. (#2399)
+- Cloud text-to-speech works, is priced, and is no longer paid for twice;
+  the admin's chosen voice reaches learners. (#2490, #2494, #2505, #2527)
+- Subject progress is measured rather than inferred, and a term stays
+  correct through a school holiday. (#2546, #2520)
+- A notifications read in flight can no longer resolve into the account that
+  replaced it. (#2530)
+
+### Performance
+
+- Cloud Functions cold start cut by 69%, and the eager frontend payload
+  trimmed. (#2404)
+- AuthContext actions and value memoised; the Vitest job sharded three ways.
+  (#2407, #2503)
+
+### Security
+
+- All 61 open CodeQL alerts resolved, then the 17 and the 8 that followed —
+  each with the defect family behind it. (#2318, #2526, #2513)
+- Self-targeted role and status changes refused on the server. (#2406, #2403)
+- Every processed webhook delivery is ledgered, so a redelivery cannot be
+  paid twice. (#2378)
+- Account deletion: the child asks, the guardian decides, and nobody is
+  trapped. (#2498)
+
 ## 2026-08-19
 
 ### Added
@@ -494,6 +580,14 @@ _Dependencies: 23 automated bumps (#2288, #2287, #2285, #2282, #2272, #2270, #22
   refuse to create a learner document with no date of birth — without that, a
   crafted signup produced a learner whose consent status read as `unknown`,
   the permissive migration state, and therefore full capabilities.
+
+## 2026-08-01 — Android closed testing (v1.3.0)
+
+Shipped to the closed (alpha) track on 2026-08-01. No per-PR entry was
+recorded at the time: Ledger was a silent no-op until it was fixed in
+2026-08, so the 2026-07-08 → 2026-08-12 window has no dated entries to roll
+up. Recorded here so the release line reads 1.2.8 → 1.3.0 → 1.3.1 rather
+than skipping a version that testers actually received.
 
 ## 2026-07-08 — Android closed testing (v1.2.8)
 
