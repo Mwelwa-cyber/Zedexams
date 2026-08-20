@@ -165,29 +165,36 @@ async function refused(fn) {
 
   await test("a guardian's link permission refuses even an approved learner", async () => {
     __resetFlagCache();
-    const err = await refused(() => assertLearnerCapability("u1", "aiChat", {db: fakeDb({
+    const err = await refused(() => assertLearnerCapability("u1", "social", {db: fakeDb({
       user: learner({consentStatus: "granted"}),
-      links: [link("mum", "approved", {askZed: false})],
+      links: [link("mum", "approved", {challenges: false})],
     })}));
-    assert.ok(err, "a guardian who turned Ask Zed off must be obeyed server-side");
+    assert.ok(err, "a guardian who turned challenges off must be obeyed server-side");
     assert.strictEqual(err.details.reason, "guardian-control-off");
-    assert.strictEqual(err.details.control, "askZed");
+    assert.strictEqual(err.details.control, "challenges");
+    // The child is told who decided and what still works — a refusal that
+    // does not say what to do next is how a nine-year-old concludes the app
+    // is broken. (These assertions moved here from the guardian-CONTROL test
+    // below when Ask Zed was removed: both paths build the same message, and
+    // this is now the only one with a live mapping to exercise it.)
+    assert.match(err.message, /parent or guardian/i);
+    assert.match(err.message, /still works/i);
   });
 
   await test("one guardian's NO beats the other's YES", async () => {
     __resetFlagCache();
-    const err = await refused(() => assertLearnerCapability("u1", "aiChat", {db: fakeDb({
+    const err = await refused(() => assertLearnerCapability("u1", "social", {db: fakeDb({
       user: learner({consentStatus: "granted"}),
-      links: [link("mum", "approved", {askZed: true}), link("dad", "approved", {askZed: false})],
+      links: [link("mum", "approved", {challenges: true}), link("dad", "approved", {challenges: false})],
     })}));
     assert.ok(err, "most restrictive wins, and it is enforced here not just rendered");
   });
 
   await test("a permission on an UNAPPROVED link restricts nobody", async () => {
     __resetFlagCache();
-    await assertLearnerCapability("u1", "aiChat", {db: fakeDb({
+    await assertLearnerCapability("u1", "social", {db: fakeDb({
       user: learner({consentStatus: "granted"}),
-      links: [link("stranger", "pending", {askZed: false})],
+      links: [link("stranger", "pending", {challenges: false})],
     })});
   });
 
@@ -197,7 +204,7 @@ async function refused(fn) {
       user: learner({consentStatus: "granted"}),
       links: [link("mum", "approved", {leaderboard: false})],
     })}));
-    assert.ok(board, "leaderboard must be gated, not only Ask Zed");
+    assert.ok(board, "leaderboard must be gated too, not only challenges");
 
     const social = await refused(() => assertLearnerCapability("u1", "social", {db: fakeDb({
       user: learner({consentStatus: "granted"}),
@@ -210,12 +217,12 @@ async function refused(fn) {
     __resetFlagCache();
     await assertLearnerCapability("u1", "leaderboard", {db: fakeDb({
       user: learner({consentStatus: "granted"}),
-      links: [link("mum", "approved", {askZed: false})],
+      links: [link("mum", "approved", {challenges: false})],
     })});
   });
 
   // ── Refusals ───────────────────────────────────────────────────────────
-  await test("a pending learner is refused the AI assistant", async () => {
+  await test("a pending learner is refused a gated capability", async () => {
     __resetFlagCache();
     const err = await refused(() => assertLearnerCapability(
         "u1", "aiChat", {db: fakeDb({user: learner({consentStatus: "pending"})})}));
@@ -250,39 +257,33 @@ async function refused(fn) {
 
   // ── Guardian controls (the Guardian Zone's switches) ───────────────────
   //
-  // These live HERE, on the shared gate, rather than at each call site: the
-  // SPA reaches Zed through the apiAiChat SSE endpoint, so a check that only
-  // covered the callable would leave the real door open — the same lesson
-  // apiAiChat's own comment records about the consent gate.
-  await test("a guardian who turned Ask Zed off refuses an APPROVED learner", async () => {
-    __resetFlagCache();
-    const err = await refused(() => assertLearnerCapability(
-        "u1", "aiChat", {db: fakeDb({user: learner(
-            {consentStatus: "granted"}, {guardianControls: {askZed: false}})})}));
-    assert.ok(err, "expected a refusal");
-    assert.strictEqual(err.code, "permission-denied");
-    assert.strictEqual(err.details.reason, "guardian-control-off");
-    assert.strictEqual(err.details.control, "askZed");
-    // The child is told who decided and what still works — a refusal that
-    // does not say what to do next is how a nine-year-old concludes the app
-    // is broken.
-    assert.match(err.message, /parent or guardian/i);
-    assert.match(err.message, /still works/i);
-  });
-
-  await test("the control gates ONLY its capability", async () => {
-    __resetFlagCache();
-    // Turning Ask Zed off must not stop a child reading a past paper.
-    const access = await assertLearnerCapability(
-        "u1", "browse", {db: fakeDb({user: learner(
-            {consentStatus: "granted"}, {guardianControls: {askZed: false}})})});
-    assert.strictEqual(access.limited, false);
+  // CAPABILITY_CONTROL is EMPTY today, and that is a real state rather than a
+  // gap: `askZed` was the only capability a Guardian-Zone switch gated
+  // server-side, and it went with the Ask Zed assistant. The one remaining
+  // control, `challenges`, declares `enforcement: 'client'` and is therefore
+  // deliberately not mapped here — wiring it would make the product claim
+  // more than the registry does.
+  //
+  // So these tests assert the CURRENT truth (a stored control restricts
+  // nothing) rather than being deleted. The fold they used to cover is still
+  // exercised through the LINK-PERMISSION path above, which shares the same
+  // refusal builder; and the moment a capability is mapped here again, the
+  // first test below fails and asks for its coverage back.
+  await test("no capability is gated by a Guardian Zone control today", async () => {
+    for (const cap of ["aiChat", "social", "leaderboard", "browse"]) {
+      __resetFlagCache();
+      const access = await assertLearnerCapability(
+          "u1", cap, {db: fakeDb({user: learner(
+              {consentStatus: "granted"}, {guardianControls: {challenges: false, askZed: false}})})});
+      assert.strictEqual(access.limited, false,
+          `${cap} is control-gated again — move its coverage back into this block`);
+    }
   });
 
   await test("an absent or non-boolean control is not a restriction", async () => {
     // No guardian has expressed a view. Treating that as OFF would lock a
     // feature nobody chose to lock.
-    for (const controls of [undefined, {}, {askZed: null}, {askZed: "false"}, {askZed: 0}]) {
+    for (const controls of [undefined, {}, {challenges: null}, {challenges: "false"}, {challenges: 0}]) {
       __resetFlagCache();
       const access = await assertLearnerCapability(
           "u1", "aiChat", {db: fakeDb({user: learner(

@@ -124,7 +124,7 @@ const AUDIENCES = [
     tag: 'Grade 7',
     bullets: [
       'Daily CBC exams and curriculum-mapped quizzes',
-      'Lessons, games, and Ask Zed AI study help',
+      'Lessons, games, and study notes',
       'Badges, streaks, and friendly leaderboards',
       'Personalise it — themes, language and data-saver, right on your dashboard',
     ],
@@ -150,8 +150,8 @@ const PRICING = [
     priceNative: 'Free demo',
     note: `or K${LEARNER_MONTHLY}/month for full access`,
     noteNative: 'Upgrade anytime — priced in Google Play',
-    bullets: ['Daily exams & the full quiz library', 'All games & leaderboards', 'Unlimited Ask Zed study help'],
-    upgradeIncludes: `Full access unlocks every daily exam, the whole quiz & lesson library, all games and unlimited Ask Zed. The Grade 7 ECZ exam pack is also available at K${GRADE7_MONTHLY}/month or K${GRADE7_TERMLY} a term.`,
+    bullets: ['Daily exams & the full quiz library', 'All games & leaderboards', 'Every lesson and study note'],
+    upgradeIncludes: `Full access unlocks every daily exam, the whole quiz & lesson library and all games. The Grade 7 ECZ exam pack is also available at K${GRADE7_MONTHLY}/month or K${GRADE7_TERMLY} a term.`,
     cta: { label: 'Create account', to: '/register' },
     primary: true,
   },
@@ -174,7 +174,7 @@ const FAQ = [
   },
   {
     q: 'What does upgrading unlock?',
-    a: 'Full access to all daily exams, every quiz and lesson, all curriculum games and leaderboards, plus unlimited Ask Zed AI study help across subjects.',
+    a: 'Full access to all daily exams, every quiz and lesson, and all curriculum games and leaderboards.',
   },
   {
     q: 'How much does it cost?',

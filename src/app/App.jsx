@@ -27,7 +27,6 @@ import OfflineBanner from '../shared/components/OfflineBanner'
 import { OfflineIndicator } from '../offline'
 import UpdatePrompt from '../shared/components/UpdatePrompt'
 import CookieConsentBanner from '../components/ui/CookieConsentBanner'
-import { ZedChatLauncher } from '../features/zedChat'
 import ErrorBoundary from '../shared/components/ErrorBoundary'
 import ScrollToTop from '../shared/components/ScrollToTop'
 import VisitorTracker from '../components/ui/VisitorTracker'
@@ -185,7 +184,6 @@ const PublicQuizRunner = lazy(() => import('../features/papers/pages/PublicQuizR
 const MyPapersHistory = lazy(() => import('../features/papers/pages/MyPapersHistory'))
 const AdminPastPapers = lazy(() => import('../features/adminPastPapers/pages/AdminPastPapers'))
 const PastPaperStudio = lazy(() => import('../features/adminPastPapers/pages/PastPaperStudio'))
-const ZedChatPage = lazy(() => import('../features/zedChat/pages/ZedChatPage'))
 const StatusPage = lazy(() => import('../features/marketing/pages/StatusPage'))
 // Audit C5 — SEO blog. Markdown-driven, posts ship in the bundle.
 const BlogIndex = lazy(() => import('../features/blog/pages/BlogIndex'))
@@ -532,10 +530,6 @@ export default function App() {
           when a new SW version is waiting to take over. Self-hides on
           Capacitor + when no update is pending. */}
       <UpdatePrompt />
-      {/* Zed AI study chat launcher (audit A6) — floating bubble
-          bottom-right that opens a slide-over chat. Self-hides on
-          marketing/auth/admin routes and during quiz / exam runs. */}
-      <ZedChatLauncher />
       {/* Cookie consent (audit D2) — first-visit banner, decline-by-
           default. Self-hides once a decision is recorded. */}
       <CookieConsentBanner />
@@ -910,10 +904,6 @@ export default function App() {
               Teacher Settings detail panels; SettingsPage renders the right
               chrome per role and TeacherSettings routes the subpath. */}
           <Route path="/settings/*"        element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-          {/* Audit A6 — full-page Zed AI study chat. Auth-gated; the
-              floating launcher in App handles the in-context entry
-              point but a direct /ask-zed URL is useful for shares. */}
-          <Route path="/ask-zed"           element={<ProtectedRoute><ZedChatPage /></ProtectedRoute>} />
 
           {/* Mandatory admin MFA enrolment. Admin-only (ProtectedRoute), but
               deliberately NOT wrapped in AdminMfaGate/AdminLayout so a

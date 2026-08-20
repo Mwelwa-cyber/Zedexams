@@ -94,12 +94,16 @@ export function calendarTermInputs(recent) {
  */
 export function termNoteFor({ term, activeTerm, source, opensIn } = {}) {
   if (!Number.isInteger(term) || !Number.isInteger(activeTerm)) return ''
-  if (term < activeTerm) return `Term ${term} is finished — revise any topic, any time.`
-  if (term > activeTerm) {
-    return opensIn && opensIn.termNumber === term && opensIn.phrase
-      ? `Term ${term} opens ${opensIn.phrase} — you can read ahead.`
-      : `Term ${term} starts later — but you can read ahead.`
+  // The calendar's answer OUTRANKS the numeric comparison, and the January
+  // rollover is why. In the holiday after Third Term the resolved term is 3,
+  // so `1 < 3` used to declare Term 1 "finished" on 5 January — six days
+  // before it opens. Term numbers only order within a year; the next term
+  // does not, so where the calendar has named one, it wins.
+  if (opensIn && opensIn.termNumber === term && opensIn.phrase) {
+    return `Term ${term} opens ${opensIn.phrase} — you can read ahead.`
   }
+  if (term < activeTerm) return `Term ${term} is finished — revise any topic, any time.`
+  if (term > activeTerm) return `Term ${term} starts later — but you can read ahead.`
   if (source === 'holiday') return `Term ${term} is finished — the holiday is a good time to revise it.`
   return 'This term — keep going!'
 }
@@ -230,26 +234,17 @@ export function relativeTime(ts, now) {
   return new Date(t).toLocaleDateString()
 }
 
-// ── Subject progress (weighted completion, spec §14) ────────────────
+// ── Subject progress ────────────────────────────────────────────────
 //
-// Completion ≠ scores. Weighted model over what we can actually
-// measure today:
-//   notes read           45%  (noteProgress completed / published notes)
-//   topic quiz coverage  45%  (topics with ≥1 completed quiz / topics)
-//   daily-exam taken     10%  (any daily exam completed this term)
-// Components with no denominator are excluded and the weights are
-// renormalised, so a subject with no notes yet isn't stuck at 45% max.
-
-export function computeSubjectCompletion({ notesRead, notesTotal, topicsAttempted, topicsTotal, examsDone, examsExpected } = {}) {
-  const parts = []
-  if (Number(notesTotal) > 0) parts.push({ w: 0.45, v: Math.min(1, Number(notesRead || 0) / Number(notesTotal)) })
-  if (Number(topicsTotal) > 0) parts.push({ w: 0.45, v: Math.min(1, Number(topicsAttempted || 0) / Number(topicsTotal)) })
-  if (Number(examsExpected) > 0) parts.push({ w: 0.10, v: Math.min(1, Number(examsDone || 0) / Number(examsExpected)) })
-  const totalW = parts.reduce((s, p) => s + p.w, 0)
-  if (totalW <= 0) return 0
-  const score = parts.reduce((s, p) => s + p.w * p.v, 0) / totalW
-  return Math.round(score * 100)
-}
+// `computeSubjectCompletion` used to live here: a weighted fold of notes read,
+// distinct `topicScores` KEYS clamped to the catalogue size, and a daily-exam
+// term no caller ever passed. It is gone, not deprecated — the clamp turned
+// unrecognised free-text topic labels into completed topics (one quiz with six
+// differently-tagged questions finished a six-topic subject), and a second
+// formula left standing beside the replacement is how the fork comes back.
+//
+// Subject progress now has ONE implementation, `lib/subjectProgressCore.js`,
+// which both the home row and the subject screen call with the same inputs.
 
 // ── Recommendations (spec §15) ──────────────────────────────────────
 //

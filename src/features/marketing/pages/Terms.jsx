@@ -76,7 +76,7 @@ export default function Terms() {
       <H2>5. AI-generated content</H2>
       <P>
         ZedExams uses third-party AI models (e.g. Anthropic Claude, Google Gemini) to power
-        Ask Zed and teacher generators. AI output can be inaccurate, biased, or out of date.
+        the teacher generators, answer explanations and marking. AI output can be inaccurate, biased, or out of date.
         Always review AI-generated lesson plans, worksheets, and answers before using them
         in a classroom or relying on them for important decisions. ZedExams is not
         responsible for harm caused by uncritical use of AI output.

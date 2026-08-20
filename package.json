@@ -14,6 +14,7 @@
     "test:importer": "node src/services/quizImport/documentQuizParserCore.test.js && node src/services/quizImport/documentQuizTableBlocks.test.js && node src/services/quizImport/documentQuizParagraphRuns.test.js",
     "test:learner-home": "node scripts/test-learner-home-core.mjs",
     "test:learner-calendar": "node scripts/test-learner-calendar.mjs",
+    "test:subject-progress": "node scripts/test-subject-progress.mjs",
     "test:learner-chrome": "node scripts/test-learner-chrome.mjs",
     "test:scanned-import": "node functions/scannedQuizImport.test.js && node functions/scannedQuizReask.test.js && node src/services/quizImport/scannedQuizImporter.test.js && node src/services/quizImport/scannedQuizImporter.math.test.js",
     "test:quiz-grading-status": "node scripts/test-quiz-grading-status.mjs",
@@ -891,7 +892,6 @@
     "test:studio-grades": "node src/features/lessonPlanStudio/lib/studioGrades.test.js",
     "test:lesson-plan-term": "node src/features/lessonPlanStudio/lib/lessonPlanTermFiling.test.js",
     "test:planned-term-source": "node src/features/lessonPlanStudio/lib/plannedTermSource.test.js",
-    "test:ask-zed-core": "node scripts/test-ask-zed-core.mjs",
     "test:guardian-controls": "node scripts/test-guardian-controls.mjs",
     "test:duel-access": "node src/features/games/lib/duelAccess.test.js",
     "test:grade-subjects": "node scripts/test-grade-subjects.mjs",
@@ -925,7 +925,8 @@
     "test:deletion-state-mirror": "node scripts/test-deletion-state-mirror.mjs",
     "test:deletion-neutrality": "node functions/deletionFlow/neutrality.test.js",
     "test:spelling-bank": "node scripts/test-spelling-bank.mjs",
-    "test:loader-theme-tokens": "node scripts/test-loader-theme-tokens.mjs"
+    "test:loader-theme-tokens": "node scripts/test-loader-theme-tokens.mjs",
+    "test:spelling-pack": "node scripts/test-spelling-pack.mjs"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",

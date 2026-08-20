@@ -12,6 +12,8 @@
  * Run: npm run test:learner-calendar
  */
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import {
   resolveLearnerCalendar,
   termLabel,
@@ -108,6 +110,22 @@ test('past the end of the calendar the status is out_of_range, not a stale term'
   assert.equal(v.chipLabel, '', 'an unusable reading renders nothing rather than a guess')
 })
 
+test('the last December we hold is a holiday, not an unusable calendar', () => {
+  // Third Term 2030 closes on 6 December and there is no 2031 to open. That
+  // is not the same as knowing nothing: the year's shape is still on the
+  // screen, Christmas included, so it is an ordinary holiday whose next
+  // opening we cannot name. Reporting 'out_of_range' here put "Calendar
+  // unavailable" above a fully populated 2030 calendar.
+  const v = resolveLearnerCalendar(d('2030-12-20'))
+  assert.equal(v.status, 'ok')
+  assert.equal(v.phase, 'holiday')
+  assert.equal(v.termNumber, 3, 'the term that closed is still nameable')
+  assert.equal(v.nextTerm, null, 'and the one after it is honestly unknown')
+  assert.equal(v.chipLabel, 'Holiday')
+  assert.equal(v.shortLabel, 'Term 3 · holiday')
+  assert.equal(v.statusLine, 'School is closed.')
+})
+
 test('an invalid date falls back to today rather than throwing', () => {
   const v = resolveLearnerCalendar(new Date('not a date'))
   assert.ok(v && typeof v.status === 'string')
@@ -160,13 +178,11 @@ test('a year is three terms with the breaks between them derived, not declared',
   assert.equal(model.exists, true)
   assert.equal(model.terms.length, 3)
 
-  // Three within-year gaps: T1→T2, T2→T3, and T3→next January.
   const breaks = model.rows.filter((r) => r.kind === 'break')
-  assert.equal(breaks.length, 3)
-
-  const [t1t2, t2t3] = breaks
-  assert.equal(t1t2.start, '2026-04-11', 'the day after Term 1 closes')
-  assert.equal(t2t3.start, '2026-08-08')
+  const t1t2 = breaks.find((b) => b.start === '2026-04-11')
+  const t2t3 = breaks.find((b) => b.start === '2026-08-08')
+  assert.ok(t1t2, 'the day after Term 1 closes')
+  assert.ok(t2t3)
   assert.equal(t2t3.end, '2026-09-06', 'the day before Term 3 opens')
   assert.equal(t2t3.days, 30)
   // The year prints once, on the end date — the phone line has no room for it
@@ -177,9 +193,29 @@ test('a year is three terms with the breaks between them derived, not declared',
   assert.equal(t1t2.isNow, false)
 })
 
+test('the rows TILE the year — every day falls in exactly one of them', () => {
+  // This is what lets a holiday be placed by its date. A gap in the tiling
+  // would silently drop whatever public holiday fell in it.
+  for (const year of learnerCalendarYears()) {
+    const { rows } = buildLearnerCalendarYear(year, d('2026-08-20'))
+    const spans = rows.map((r) => (r.kind === 'term' ? [r.open, r.close] : [r.start, r.end]))
+    assert.ok(spans[0][0] <= `${year}-01-01`, `${year}: the year starts covered`)
+    assert.ok(spans[spans.length - 1][1] >= `${year}-12-31`, `${year}: the year ends covered`)
+    for (let i = 1; i < spans.length; i += 1) {
+      const prevEnd = new Date(`${spans[i - 1][1]}T00:00:00`)
+      const thisStart = new Date(`${spans[i][0]}T00:00:00`)
+      const gapDays = Math.round((thisStart - prevEnd) / 86400000)
+      assert.equal(gapDays, 1, `${year}: row ${i} starts the day after row ${i - 1} ends`)
+    }
+  }
+})
+
 test('rows read down the year in order, and the December holiday is not lost', () => {
   const model = buildLearnerCalendarYear(2026, d('2026-08-20'))
-  assert.deepEqual(model.rows.map((r) => r.kind), ['term', 'break', 'term', 'break', 'term', 'break'])
+  assert.deepEqual(
+    model.rows.map((r) => r.kind),
+    ['break', 'term', 'break', 'term', 'break', 'term', 'break'],
+  )
   // The last break crosses into the next year — the longest holiday of the
   // lot, and the one a learner is looking at the calendar in December for.
   const december = model.rows[model.rows.length - 1]
@@ -191,9 +227,57 @@ test('rows read down the year in order, and the December holiday is not lost', (
   assert.equal(resolveLearnerCalendar(d('2026-12-20')).phase, 'holiday')
 })
 
-test('the last year we hold has no December break to point at', () => {
+test('the last year we hold still runs out to 31 December', () => {
+  // There is no 2031 term to point at, so the trailing run ends with the year
+  // rather than being dropped — Christmas 2030 lives in it.
   const model = buildLearnerCalendarYear(2030, d('2026-08-20'))
-  assert.deepEqual(model.rows.map((r) => r.kind), ['term', 'break', 'term', 'break', 'term'])
+  const trailing = model.rows[model.rows.length - 1]
+  assert.equal(trailing.kind, 'break')
+  assert.equal(trailing.start, '2030-12-07')
+  assert.equal(trailing.end, '2030-12-31')
+  assert.deepEqual(trailing.holidays.map((h) => h.name), ['Christmas Day'])
+})
+
+test('a public holiday sits under the row its DATE falls in, not the term that files it', () => {
+  // MOE_CALENDAR files Kenneth Kaunda Day (28 Apr) and Labour Day (1 May)
+  // under First Term, which closed on 10 April, and Christmas under Third
+  // Term, which closed on 4 December. Rendering the record's grouping put
+  // them inside the term card, above the break they actually fall in.
+  const model = buildLearnerCalendarYear(2026, d('2026-08-20'))
+  const term1 = model.terms[0]
+  assert.deepEqual(
+    term1.holidays.map((h) => h.name),
+    ['Women\'s Day', 'Youth Day', 'Good Friday', 'Holy Saturday', 'Easter Monday'],
+    'only the holidays that fall while Term 1 is open',
+  )
+  const aprilBreak = model.rows.find((r) => r.start === '2026-04-11')
+  assert.deepEqual(aprilBreak.holidays.map((h) => h.name), ['Kenneth Kaunda Day', 'Labour Day'])
+
+  const december = model.rows[model.rows.length - 1]
+  assert.deepEqual(december.holidays.map((h) => h.name), ['Christmas Day'])
+
+  // New Year's Day falls before Term 1 opens; the run in from 1 January is
+  // what keeps it on the screen at all.
+  const january = model.rows[0]
+  assert.equal(january.kind, 'break')
+  assert.deepEqual(january.holidays.map((h) => h.name), ['New Year\'s Day'])
+})
+
+test('no holiday is ever orphaned or filed under a row that does not contain it', () => {
+  for (const year of learnerCalendarYears()) {
+    const model = buildLearnerCalendarYear(year, d('2026-08-20'))
+    const placed = model.rows.flatMap((r) => r.holidays.map((h) => h.date))
+    for (const h of model.holidays) {
+      assert.ok(placed.includes(h.date), `${year}: ${h.name} ${h.date} was dropped`)
+    }
+    for (const r of model.rows) {
+      const from = r.kind === 'term' ? r.open : r.start
+      const to = r.kind === 'term' ? r.close : r.end
+      for (const h of r.holidays) {
+        assert.ok(h.date >= from && h.date <= to, `${year}: ${h.name} is outside ${r.id}`)
+      }
+    }
+  }
 })
 
 test('only the running term reports progress', () => {
@@ -249,6 +333,29 @@ test('upcoming holidays are future-only, deduped and ordered', () => {
   assert.deepEqual(away, [...away].sort((a, b) => a - b))
   assert.equal(new Set(soon.map((h) => h.date)).size, soon.length)
   assert.ok(soon[0].whenPhrase)
+})
+
+test('countdowns are civil days, so a DST timezone cannot round them up', () => {
+  // The one thing here that cannot be checked in-process: TZ is read when the
+  // first Date is constructed, so the comparison runs in a child.
+  //
+  // Zambia keeps CAT all year, so this never fires at home — but the countdown
+  // belongs to the DEVICE clock, and a learner abroad reads the same screen.
+  // 1 Nov 2026 is a US fallback day: the millisecond delta to 4 December is 33
+  // days and one hour, which `Math.ceil` used to round to 34.
+  const mod = fileURLToPath(new URL('../src/utils/learnerCalendar.js', import.meta.url))
+  const probe = `
+    const { resolveLearnerCalendar } = await import(${JSON.stringify(mod)})
+    const v = resolveLearnerCalendar(new Date('2026-11-01T09:00:00'))
+    process.stdout.write(String(v.daysUntilClose))
+  `
+  const read = (tz) => execFileSync(process.execPath, ['--input-type=module', '-e', probe], {
+    env: { ...process.env, TZ: tz },
+    encoding: 'utf8',
+  })
+  assert.equal(read('Africa/Lusaka'), '33')
+  assert.equal(read('America/New_York'), '33', 'a DST fallback must not add a day to the countdown')
+  assert.equal(read('Pacific/Auckland'), '33', 'nor may a spring-forward take one off')
 })
 
 test('the same date always resolves the same way', () => {

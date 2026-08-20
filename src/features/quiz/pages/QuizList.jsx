@@ -29,6 +29,7 @@ import { QuizzesHubTour } from '../../../shared/components/learnerTours'
 import { gradesForFeature, gradeNumberOf } from '../../../config/canonicalEducation'
 import { PAPER_SUBJECTS } from '../../../config/curriculum'
 import { resolveLearnerCalendar } from '../../../utils/learnerCalendar'
+import useDayKey, { dayKeyDate } from '../../../hooks/useDayKey'
 
 // ── Config ────────────────────────────────────────────────────────────────
 // A filter on the canonical ladder — see FEATURE_GRADE_RESTRICTIONS.
@@ -289,10 +290,11 @@ export default function QuizList() {
   // Which term the school year is in right now (the term that just closed
   // while school is shut — that is the work a learner is revising). Read once;
   // it only changes at a term boundary.
+  const termDayKey = useDayKey()
   const currentTermId = useMemo(() => {
-    const n = resolveLearnerCalendar().recent?.term?.number
+    const n = resolveLearnerCalendar(dayKeyDate(termDayKey)).recent?.term?.number
     return n ? String(n) : ''
-  }, [])
+  }, [termDayKey])
   const [search, setSearch]             = useState('')
   const [expandedSubject, setExpanded]  = useState(null)
   // Seed from cache (if this grade/term was viewed before) so a return visit

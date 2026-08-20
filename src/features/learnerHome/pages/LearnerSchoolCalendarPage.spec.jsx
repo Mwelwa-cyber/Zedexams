@@ -71,9 +71,37 @@ describe('LearnerSchoolCalendarPage', () => {
     // The December holiday crosses into the next year and is still listed.
     expect(screen.getByText('Holiday after Third Term')).toBeInTheDocument()
     expect(screen.getByText('5 Dec 2026 – 10 Jan 2027 · 37 days')).toBeInTheDocument()
+    // And the run in from 1 January, which is what keeps New Year's Day on
+    // the screen at all.
+    expect(screen.getByText('Holiday before First Term')).toBeInTheDocument()
     // The break we are actually in says so, and it is the only one that does.
     expect(screen.getByText('8 Aug – 6 Sept 2026 · 30 days')).toBeInTheDocument()
     expect(container.querySelectorAll('.lhx-cal-break.is-now')).toHaveLength(1)
+  })
+
+  it('lists each public holiday under the row its date falls in', () => {
+    vi.setSystemTime(HOLIDAY)
+    const { container } = renderPage()
+
+    const rowFor = (name) => [...container.querySelectorAll('.lhx-cal-term, .lhx-cal-break')]
+      .find((el) => [...el.querySelectorAll('.lhx-cal-hol-name')].some((n) => n.textContent === name))
+
+    // Christmas is filed under Third Term in the calendar data but falls three
+    // weeks after it closes. Rendering the data's grouping put it inside the
+    // term card, above the break it actually falls in.
+    const christmas = rowFor('Christmas Day')
+    expect(christmas).toHaveClass('lhx-cal-break')
+    expect(within(christmas).getByText('Holiday after Third Term')).toBeInTheDocument()
+
+    // Same for Kenneth Kaunda Day and Labour Day, filed under First Term.
+    const kaunda = rowFor('Kenneth Kaunda Day')
+    expect(kaunda).toHaveClass('lhx-cal-break')
+    expect(within(kaunda).getByText('Holiday after First Term')).toBeInTheDocument()
+
+    // Term 1's card keeps only the holidays that fall while it is open.
+    const term1 = container.querySelector('.lhx-cal-term')
+    expect([...term1.querySelectorAll('.lhx-cal-hol-name')].map((n) => n.textContent))
+      .toEqual(['Women\'s Day', 'Youth Day', 'Good Friday', 'Holy Saturday', 'Easter Monday'])
   })
 
   it('marks which term is running and never draws progress on one that is not', () => {

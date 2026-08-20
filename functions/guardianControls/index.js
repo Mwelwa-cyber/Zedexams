@@ -12,10 +12,11 @@
  *   1. The control cannot be written from the client at all. The field is
  *      on the users self-update blocklist in firestore.rules, so this
  *      callable (admin SDK) is the only path.
- *   2. Turning a control off is ENFORCED server-side, at
- *      consentGuard.assertLearnerCapability — the single gate both the
- *      aiChat callable and the apiAiChat SSE endpoint pass through. A
- *      modified client cannot ignore it.
+ *   2. A control that declares `enforcement: 'server'` is enforced at
+ *      consentGuard.assertLearnerCapability, the single gate every gated
+ *      surface passes through, so a modified client cannot ignore it. No
+ *      control claims that today — Ask Zed was the only one and went with
+ *      the assistant; `challenges` is client-enforced and says so.
  *   3. A change can never happen SILENTLY. Every change appends to
  *      `guardianControlAudit` (server-only, append-only) and emails the
  *      guardian on the consent record.

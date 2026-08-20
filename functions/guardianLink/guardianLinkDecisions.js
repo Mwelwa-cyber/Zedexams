@@ -41,8 +41,8 @@
  *
  * The interesting output is `childStillApproved`. Withdrawal by one of
  * two guardians must NOT drop the child into limited mode — the other
- * adult's approval is still standing, and taking Ask Zed away from a
- * child because their father closed his account would be a bug the
+ * adult's approval is still standing, and taking the leaderboard away from
+ * a child because their father closed his account would be a bug the
  * family would experience as a punishment.
  */
 function decideWithdrawal({links, guardianUid, deps}) {

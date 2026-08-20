@@ -636,7 +636,6 @@ const batch2HandlerDeps = {
 const quizAiHandlers = require("./quizAiHandlers").buildQuizAiHandlers(batch2HandlerDeps);
 const noteAiHandlers = require("./noteAiHandlers").buildNoteAiHandlers(batch2HandlerDeps);
 const visualAiHandlers = require("./visualAiHandlers").buildVisualAiHandlers(batch2HandlerDeps);
-const chatHandlers = require("./chatHandlers").buildChatHandlers(batch2HandlerDeps);
 const messagingHandlers = require("./messagingHandlers").buildMessagingHandlers(batch2HandlerDeps);
 const agentOpsHandlers = require("./agentOpsHandlers").buildAgentOpsHandlers(batch2HandlerDeps);
 const scheduledOpsHandlers = require("./scheduledOpsHandlers").buildScheduledOpsHandlers(batch2HandlerDeps);
@@ -1078,25 +1077,6 @@ exports.sendPasswordResetEmail = onCall(
   messagingHandlers.sendPasswordResetEmail,
 );;
 
-// Zed chat model. Tune Zed independently of the shared OPENAI_MODEL default:
-// set ZED_CHAT_MODEL (e.g. "gpt-4o") to upgrade just the study assistant
-// without touching any other OpenAI call. When unset, callOpenAI/
-// callOpenAIStream fall back to OPENAI_MODEL, then "gpt-4o-mini".
-
-// Zed study assistant — runs on OpenAI (gpt-4o-mini by default; override with
-// ZED_CHAT_MODEL). buildAnthropicChat returns a provider-neutral
-// {systemPrompt, messages[]} shape that callOpenAI folds into the OpenAI
-// system role.
-exports.aiChat = onCall(
-  {
-    secrets: [openaiApiKey],
-    region: "us-central1",
-    timeoutSeconds: 30,
-    enforceAppCheck: shouldEnforceAppCheck("aiChat"),
-  },
-  chatHandlers.aiChat,
-);;
-
 exports.generateStudyPlan = createGenerateStudyPlan(anthropicApiKey, {
   enforceAppCheck: shouldEnforceAppCheck("generateStudyPlan"),
   recordAppCheckCallable,
@@ -1174,12 +1154,6 @@ exports.runDawnBriefing = onCall(
 },
   agentOpsHandlers.runDawnBriefing,
 );;
-
-// Zed chat SSE transport — OpenAI-backed (see aiChat above for the model note).
-exports.apiAiChat = onRequest(
-  {secrets: [openaiApiKey], region: "us-central1", timeoutSeconds: 60},
-  httpSurfaceHandlers.apiAiChat,
-);
 
 // ── Daily Quiz ──────────────────────────────────────────────────────
 //

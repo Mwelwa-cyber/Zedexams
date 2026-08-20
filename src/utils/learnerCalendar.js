@@ -44,7 +44,6 @@ import {
   getCurrentForecastWeek,
   getTotalTeachingWeeks,
   getCalendarYears,
-  daysUntil,
   fmtDate,
 } from './moeCalendar.js'
 
@@ -72,6 +71,32 @@ function toISO(date) {
   const m = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
+}
+
+/**
+ * Whole CALENDAR days between two dates — counted as civil days, not as
+ * elapsed milliseconds.
+ *
+ * `moeCalendar.daysUntil` divides a millisecond difference by 86,400,000, and
+ * two local midnights either side of a daylight-saving change are not a whole
+ * number of those apart. On a device set to a DST timezone that rounds a
+ * countdown UP by one: from 1 Nov 2026 in America/New_York the old maths said
+ * Third Term closes in 34 days when the answer is 33. Zambia keeps CAT all
+ * year, so this never fires at home — but the countdown belongs to the device
+ * clock, not to the school, and a learner abroad reads the same screen.
+ *
+ * Comparing UTC ordinals of the local Y/M/D removes the offset from both
+ * sides, so only the date parts are ever subtracted.
+ */
+function civilDaysBetween(from, to) {
+  const a = Date.UTC(from.getFullYear(), from.getMonth(), from.getDate())
+  const b = Date.UTC(to.getFullYear(), to.getMonth(), to.getDate())
+  return Math.round((b - a) / 86400000)
+}
+
+/** Civil days from `from` to an ISO date string. Negative when it has passed. */
+function daysToISO(iso, from) {
+  return civilDaysBetween(from, parseISO(iso))
 }
 
 function addDaysISO(iso, n) {
@@ -151,9 +176,17 @@ export function resolveLearnerCalendar(date) {
   const next = getNextTerm(today)
 
   if (!active && !next && !recent) return unresolved('no_term_data', today)
-  // Past the end of the calendar: a term closed years ago and none follows.
-  // Naming that term as "current" would be the same lie in a different month.
-  if (!active && !next) return unresolved('calendar_exhausted', today)
+  // No term running and none to come. Two different situations, and collapsing
+  // them was wrong: INSIDE the last year we hold, the year's shape is still
+  // known — Third Term closed on 6 December 2030 and Christmas is still on the
+  // calendar — so this is an ordinary holiday whose next opening we cannot
+  // name. Only a date PAST that year is genuinely beyond the data, and it is
+  // the only one that reports 'out_of_range'; naming a term that closed years
+  // ago as current would be the same lie in a different month.
+  const years = getCalendarYears()
+  const lastCoveredYear = years.length ? years[years.length - 1] : null
+  const beyondData = lastCoveredYear == null || today.getFullYear() > lastCoveredYear
+  if (!active && !next && beyondData) return unresolved('calendar_exhausted', today)
 
   const nextTerm = next
     ? {
@@ -164,7 +197,7 @@ export function resolveLearnerCalendar(date) {
         open: next.term.open,
         openLabel: fmtDate(next.term.open, 'full'),
         openShort: fmtDate(next.term.open, 'short'),
-        daysUntilOpen: daysUntil(next.term.open, today),
+        daysUntilOpen: daysToISO(next.term.open, today),
       }
     : null
 
@@ -172,7 +205,7 @@ export function resolveLearnerCalendar(date) {
     const forecast = getCurrentForecastWeek(today)
     const totalWeeks = getTotalTeachingWeeks(active.term)
     const weekNumber = forecast ? forecast.weekNumber : null
-    const daysUntilClose = daysUntil(active.term.close, today)
+    const daysUntilClose = daysToISO(active.term.close, today)
     return {
       status: 'ok',
       reason: null,
@@ -304,16 +337,18 @@ export function defaultCalendarYear(date) {
 }
 
 /**
- * The one holiday gap between two terms, as a learner sees it: the day after
- * one closes to the day before the next opens. Returns null when the terms do
- * not actually leave a gap.
+ * One holiday gap, as a learner sees it: the day after school closes to the
+ * day before it opens again. Returns null when there is no gap to describe.
+ *
+ * `prevTerm` or `nextTermRow` may be absent at the edges of the data — the run
+ * up to the first term we hold, and the run out from the last one — so the
+ * caller passes explicit `start`/`end` bounds for those. A gap with a term on
+ * neither side would be the whole year and is refused.
  */
-function breakBetween(prevTerm, nextTermRow, today) {
-  if (!prevTerm || !nextTermRow) return null
-  const start = addDaysISO(prevTerm.close, 1)
-  const end = addDaysISO(nextTermRow.open, -1)
+function gapRow({ prevTerm, nextTermRow, start, end, today, idHint }) {
+  if (!prevTerm && !nextTermRow) return null
   if (parseISO(start) > parseISO(end)) return null
-  const days = daysUntil(end, parseISO(start)) + 1
+  const days = civilDaysBetween(parseISO(start), parseISO(end)) + 1
   const isNow = today >= parseISO(start) && today <= parseISO(end)
   // A break inside one year prints its year once, on the end date. The full
   // form wrapped onto a second line on a phone and pushed the "Now" badge
@@ -321,8 +356,8 @@ function breakBetween(prevTerm, nextTermRow, today) {
   const sameYear = start.slice(0, 4) === end.slice(0, 4)
   return {
     kind: 'break',
-    id: `${prevTerm.id}-break`,
-    label: `Holiday after ${prevTerm.name}`,
+    id: `${idHint}-break`,
+    label: prevTerm ? `Holiday after ${prevTerm.name}` : `Holiday before ${nextTermRow.name}`,
     start,
     end,
     startLabel: fmtDate(start, sameYear ? 'day' : 'short'),
@@ -330,17 +365,45 @@ function breakBetween(prevTerm, nextTermRow, today) {
     days,
     daysPhrase: dayCountPhrase(days),
     isNow,
-    daysUntilOver: isNow ? daysUntil(nextTermRow.open, today) : null,
+    daysUntilOver: isNow && nextTermRow ? daysToISO(nextTermRow.open, today) : null,
+    holidays: [],
+  }
+}
+
+/** The display shape for one public holiday on the calendar screen. */
+function holidayRow(h, today) {
+  return {
+    ...h,
+    label: fmtDate(h.date, 'short'),
+    dayLabel: fmtDate(h.date, 'day'),
+    daysAway: daysToISO(h.date, today),
+    isToday: h.date === toISO(today),
+    isPast: parseISO(h.date) < today,
   }
 }
 
 /**
- * The calendar screen's model for one year: each term with its status, dates,
- * week progress and holidays, interleaved with the breaks between them.
+ * The calendar screen's model for one year: each term with its status, dates
+ * and week progress, interleaved with the holiday breaks between them, and
+ * every public holiday sitting under the row whose dates actually contain it.
  *
- * Progress is only ever reported for the term that is actually running.
- * A past term is 100% by definition and an upcoming one is 0%, so drawing a bar
- * on either is decoration that reads like a measurement.
+ * Two things here are corrections rather than choices:
+ *
+ *  • **The rows TILE the year.** Term, break, term, break, term, plus the runs
+ *    at either end — the December holiday crossing into January, and the run
+ *    in from 1 January where we hold no previous year. Every day of the year
+ *    falls in exactly one row, which is what lets a holiday be placed by its
+ *    date rather than by which term's record happens to carry it.
+ *  • **A holiday is placed by its DATE.** `MOE_CALENDAR` files each one under a
+ *    term, and several of them fall outside that term: 2026's First Term record
+ *    carries Kenneth Kaunda Day (28 Apr) and Labour Day (1 May), which land 18
+ *    and 21 days after it closed, and Third Term carries Christmas. Rendering
+ *    the record's grouping put those inside the term card, ABOVE the break row
+ *    they actually fall in — a calendar out of chronological order.
+ *
+ * Progress is only ever reported for the term that is actually running. A past
+ * term is 100% by definition and an upcoming one is 0%, so drawing a bar on
+ * either is decoration that reads like a measurement.
  */
 export function buildLearnerCalendarYear(year, date) {
   const today = midnight(date)
@@ -367,8 +430,8 @@ export function buildLearnerCalendarYear(year, date) {
       totalWeeks,
       weekNumber,
       percent: status === 'active' && weekNumber ? Math.min(100, Math.round((weekNumber / totalWeeks) * 100)) : null,
-      daysUntilOpen: status === 'upcoming' ? daysUntil(t.open, today) : null,
-      daysUntilClose: status === 'active' ? daysUntil(t.close, today) : null,
+      daysUntilOpen: status === 'upcoming' ? daysToISO(t.open, today) : null,
+      daysUntilClose: status === 'active' ? daysToISO(t.close, today) : null,
       midBreak: t.eceMidStart && t.eceMidEnd
         ? {
             start: t.eceMidStart,
@@ -376,37 +439,74 @@ export function buildLearnerCalendarYear(year, date) {
             label: `${fmtDate(t.eceMidStart, 'day')} – ${fmtDate(t.eceMidEnd, 'day')}`,
           }
         : null,
-      holidays: (t.holidays || []).map((h) => ({
-        ...h,
-        label: fmtDate(h.date, 'short'),
-        dayLabel: fmtDate(h.date, 'day'),
-        daysAway: daysUntil(h.date, today),
-        isToday: h.date === toISO(today),
-        isPast: parseISO(h.date) < today,
-      })),
+      holidays: [],
     }
   })
 
-  // Terms and the holidays between them, in the order a learner reads down the
-  // year. The break rows are DERIVED from the term dates rather than declared,
-  // so a calendar edit can never leave a break describing the wrong gap.
+  const first = terms[0]
+  const last = terms[terms.length - 1]
+  const prevYearLast = MOE_CALENDAR[year - 1]?.terms?.slice(-1)[0] ?? null
+  const nextYearFirst = MOE_CALENDAR[year + 1]?.terms?.[0] ?? null
+
   const rows = []
+  // The run in to the first term. When we hold the previous year it is that
+  // year's December break, shown again at the head of this one — it is the
+  // same holiday and a learner reading January wants to see when it ends.
+  const leading = gapRow({
+    prevTerm: prevYearLast,
+    nextTermRow: first,
+    start: prevYearLast ? addDaysISO(prevYearLast.close, 1) : `${year}-01-01`,
+    end: addDaysISO(first.open, -1),
+    today,
+    idHint: prevYearLast ? prevYearLast.id : `${year}-start`,
+  })
+  if (leading) rows.push(leading)
+
   termRows.forEach((row, i) => {
     rows.push(row)
-    const gap = breakBetween(terms[i], terms[i + 1], today)
+    const next = terms[i + 1]
+    if (!next) return
+    const gap = gapRow({
+      prevTerm: terms[i],
+      nextTermRow: next,
+      start: addDaysISO(terms[i].close, 1),
+      end: addDaysISO(next.open, -1),
+      today,
+      idHint: terms[i].id,
+    })
     if (gap) rows.push(gap)
   })
-  // The December holiday crosses the year boundary, and it is the longest one
-  // of the lot. Stopping the list at Third Term's close would leave a learner
-  // looking at the calendar in December with nothing after it.
-  const nextYearFirst = MOE_CALENDAR[year + 1]?.terms?.[0]
-  const december = breakBetween(terms[terms.length - 1], nextYearFirst, today)
-  if (december) rows.push(december)
 
-  const holidays = termRows
-    .flatMap((t) => t.holidays)
+  // The run out from the last term — the December holiday, the longest of the
+  // lot. Stopping at Third Term's close would leave a learner looking at the
+  // calendar in December with nothing after it, and would strand Christmas.
+  const trailing = gapRow({
+    prevTerm: last,
+    nextTermRow: nextYearFirst,
+    start: addDaysISO(last.close, 1),
+    end: nextYearFirst ? addDaysISO(nextYearFirst.open, -1) : `${year}-12-31`,
+    today,
+    idHint: last.id,
+  })
+  if (trailing) rows.push(trailing)
+
+  // Place every holiday by date. Terms and breaks tile the year, so a holiday
+  // inside `year` lands in exactly one row; one carried on a term record but
+  // dated in a neighbouring year (none today) simply finds no row here.
+  const holidays = terms
+    .flatMap((t) => t.holidays || [])
     .filter((h, i, all) => all.findIndex((x) => x.date === h.date) === i)
     .sort((a, b) => (a.date < b.date ? -1 : 1))
+    .map((h) => holidayRow(h, today))
+
+  for (const h of holidays) {
+    const row = rows.find((r) => {
+      const from = r.kind === 'term' ? r.open : r.start
+      const to = r.kind === 'term' ? r.close : r.end
+      return h.date >= from && h.date <= to
+    })
+    if (row) row.holidays.push(h)
+  }
 
   return { year, exists: true, terms: termRows, rows, holidays }
 }
@@ -422,7 +522,7 @@ export function upcomingLearnerHolidays(date, { withinDays = 60, limit = 4 } = {
   for (const year of getCalendarYears()) {
     for (const term of MOE_CALENDAR[year].terms) {
       for (const h of term.holidays || []) {
-        const away = daysUntil(h.date, today)
+        const away = daysToISO(h.date, today)
         if (away < 0 || away > withinDays) continue
         if (out.some((x) => x.date === h.date)) continue
         out.push({

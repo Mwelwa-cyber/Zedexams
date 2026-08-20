@@ -53,8 +53,8 @@ learners who go back to the text every single time.
 
 Each of these maps to a quiz on the Quizzes hub — open the Grade 7
 list, filter by English, and pick the topic chip. If an answer
-surprises you, tap **Ask Zed** and ask why; the explanation sticks
-better than the correction alone.
+surprises you, tap **Explain this answer** on your results; the
+explanation sticks better than the correction alone.
 
 ## Composition: the checklist beats inspiration
 

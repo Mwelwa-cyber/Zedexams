@@ -29,12 +29,6 @@ const QUIZZES_STEPS = [
     body: 'Free accounts can take a few quizzes a day. Premium unlocks unlimited attempts and the full library across every grade and subject.',
     icon: '📊',
   },
-  {
-    id: 'ask-zed',
-    title: 'Stuck? Ask Zed',
-    body: 'When you finish a quiz, tap "Explain this answer" on any question you got wrong. Zed walks you through the working step-by-step in plain words.',
-    icon: '🦉',
-  },
 ]
 
 const LESSONS_STEPS = [

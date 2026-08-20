@@ -22,11 +22,12 @@
  * mid-term break — those are administrative facts a child has no use for, and
  * the screen is shorter for leaving them on the teacher's side.
  */
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../../../shared/styles/learnerTheme.css'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 import LearnerIcon from '../components/LearnerIcon'
+import useDayKey, { dayKeyDate } from '../../../hooks/useDayKey'
 import { capture } from '../../../utils/analytics'
 import {
   resolveLearnerCalendar,
@@ -41,6 +42,21 @@ const STATUS_BADGE = {
   active: { label: 'Now', cls: 'is-now' },
   past: { label: 'Done', cls: 'is-done' },
   upcoming: { label: 'Coming', cls: 'is-coming' },
+}
+
+/** The public holidays inside one row — a term's, or a break's. */
+function HolidayList({ holidays }) {
+  if (!holidays || holidays.length === 0) return null
+  return (
+    <ul className="lhx-cal-hols">
+      {holidays.map((h) => (
+        <li key={h.date} className={h.isPast ? 'is-past' : ''}>
+          <span className="lhx-cal-hol-date">{h.dayLabel}</span>
+          <span className="lhx-cal-hol-name">{h.name}</span>
+        </li>
+      ))}
+    </ul>
+  )
 }
 
 function TermCard({ term }) {
@@ -72,16 +88,7 @@ function TermCard({ term }) {
         <p className="lhx-cal-term-note">Opens {whenPhrase(term.daysUntilOpen)}.</p>
       )}
 
-      {term.holidays.length > 0 && (
-        <ul className="lhx-cal-hols">
-          {term.holidays.map((h) => (
-            <li key={h.date} className={h.isPast ? 'is-past' : ''}>
-              <span className="lhx-cal-hol-date">{h.dayLabel}</span>
-              <span className="lhx-cal-hol-name">{h.name}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <HolidayList holidays={term.holidays} />
     </article>
   )
 }
@@ -89,14 +96,21 @@ function TermCard({ term }) {
 function BreakRow({ row }) {
   return (
     <div className={`lhx-cal-break ${row.isNow ? 'is-now' : ''}`}>
-      <span className="lhx-cal-break-icon" aria-hidden="true">🏖️</span>
-      <div className="lhx-cal-break-txt">
-        <span className="lhx-cal-break-title">{row.label}</span>
-        <span className="lhx-cal-break-sub">
-          {row.startLabel} – {row.endLabel} · {row.daysPhrase}
-        </span>
+      <div className="lhx-cal-break-head">
+        <span className="lhx-cal-break-icon" aria-hidden="true">🏖️</span>
+        <div className="lhx-cal-break-txt">
+          <span className="lhx-cal-break-title">{row.label}</span>
+          <span className="lhx-cal-break-sub">
+            {row.startLabel} – {row.endLabel} · {row.daysPhrase}
+          </span>
+        </div>
+        {row.isNow && <span className="lhx-cal-badge is-now">Now</span>}
       </div>
-      {row.isNow && <span className="lhx-cal-badge is-now">Now</span>}
+      {/* Several public holidays fall in a break rather than in a term —
+          Christmas, Labour Day, Kenneth Kaunda Day. They are listed where they
+          fall; filtering them out of the term cards without showing them here
+          would have removed Christmas from the calendar altogether. */}
+      <HolidayList holidays={row.holidays} />
     </div>
   )
 }
@@ -104,15 +118,17 @@ function BreakRow({ row }) {
 export default function LearnerSchoolCalendarPage() {
   const navigate = useNavigate()
 
-  // One reading of the calendar for the whole screen. `[]` because the answer
-  // only changes at midnight, and a page that re-derived it on every render
-  // would still not repaint on the day rolling over — remounting does.
-  const view = useMemo(() => resolveLearnerCalendar(), [])
-  const soon = useMemo(() => upcomingLearnerHolidays(), [])
+  // One reading of the calendar for the whole screen, re-taken when the local
+  // date changes. Keying on `dayKey` rather than `[]` is what stops a phone
+  // left open overnight still saying "Term 3 opens tomorrow" on the morning it
+  // opened — every number on this screen is a whole-day count.
+  const dayKey = useDayKey()
+  const view = useMemo(() => resolveLearnerCalendar(dayKeyDate(dayKey)), [dayKey])
+  const soon = useMemo(() => upcomingLearnerHolidays(dayKeyDate(dayKey)), [dayKey])
 
-  const thisYear = useMemo(() => defaultCalendarYear(), [])
+  const thisYear = useMemo(() => defaultCalendarYear(dayKeyDate(dayKey)), [dayKey])
   const [year, setYear] = useState(thisYear)
-  const model = useMemo(() => buildLearnerCalendarYear(year), [year])
+  const model = useMemo(() => buildLearnerCalendarYear(year, dayKeyDate(dayKey)), [year, dayKey])
 
   // Two years is enough of a switcher: the one we are in and the one next.
   // The calendar holds five, and a learner scrolling to 2030 is browsing, not
@@ -122,6 +138,15 @@ export default function LearnerSchoolCalendarPage() {
     () => learnerCalendarYears().filter((y) => thisYear != null && y >= thisYear && y <= thisYear + 1),
     [thisYear],
   )
+
+  // A New Year's Eve rollover moves the window; carry the selection with it
+  // unless the learner has tabbed away from the current year themselves.
+  const rolledFrom = useRef(thisYear)
+  useEffect(() => {
+    if (thisYear === rolledFrom.current) return
+    setYear((y) => (y === rolledFrom.current ? thisYear : y))
+    rolledFrom.current = thisYear
+  }, [thisYear])
 
   const open = view.status === 'ok' && view.isSchoolOpen
   const heroTitle = view.status !== 'ok'

@@ -167,7 +167,6 @@ const PROTECTED_ROUTES = [
   ['/dashboard', 'ProtectedRoute'],
   ['/my-papers', 'ProtectedRoute'],
   ['/profile', 'ProtectedRoute'],
-  ['/ask-zed', 'ProtectedRoute'],
   // The Daily Quiz. `/exams` is no longer listed because it is now a plain
   // <Navigate> redirect into /daily and so carries no guard of its own —
   // which is not a leak, because the destination is gated: an unauthenticated

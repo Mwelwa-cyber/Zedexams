@@ -322,25 +322,6 @@ const OPERATIONS = [
     failureBehaviour: "clamp to valid marks; fail-safe on parse error",
     idempotent: false,
   },
-  {
-    operation: "ai_chat",
-    label: "Zed chat (learner study assistant)",
-    frontendTrigger: "ZedChatPage",
-    cloudFunction: "apiAiChat / aiChat",
-    provider: "openai",
-    modelEnv: "ZED_CHAT_MODEL",
-    defaultModel: "gpt-4o-mini",
-    promptVersion: "zed-chat-v1",
-    schemaVersion: "chat-stream-1",
-    validatorVersion: "chat-validator-1",
-    responseType: "chat",
-    framework: "n/a",
-    destination: "(streamed; not persisted as curriculum)",
-    draftFirst: false,
-    usageChargePoint: "after-stream",
-    failureBehaviour: "streamed prose; safety-prompted",
-    idempotent: false,
-  },
 ];
 
 const BY_OPERATION = new Map(OPERATIONS.map((op) => [op.operation, op]));

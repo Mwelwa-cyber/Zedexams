@@ -333,3 +333,71 @@ export function dailyHeroCopy({ hasChallenge, streakDays = 0, gameTitle = '' } =
     action: 'Play',
   }
 }
+
+/**
+ * The Race Zed row — the hub's door into `/games/duel`.
+ *
+ * ── Why this is a ROW and not a third hero card ────────────────────────
+ *
+ * A "CHALLENGE MODE · Race Zed!" hero card stood here until 2026-08-18,
+ * and #2496 removed it for a reason that still holds: stacked under the
+ * live learner-vs-learner race, two coral heroes read as one feature in
+ * two flavours, and the real-opponent one — the harder thing to build and
+ * the better thing to play — looked like the variant of the practice one.
+ *
+ * What did NOT hold is the sentence that made removing it safe:
+ * "/games/duel is untouched and STILL REACHABLE; only the hub entry point
+ * is gone." Nothing linked to it afterwards. A fully built screen — the VS
+ * countdown, the five-question race, Zed's precomputed timeline, the
+ * result and the rematch — was reachable only by typing the URL, and the
+ * one card that still carried Zed's name opened the daily challenge
+ * instead. That pair is what a learner reported as "the Play with Zed
+ * button takes me somewhere else": both halves of the promise had been
+ * true at different times, and by then neither was.
+ *
+ * So the door comes back one rank DOWN. A hero card competes with the
+ * card above it; a row under it is read as belonging to it, which is what
+ * it is — the practice mode of the same five-question race.
+ *
+ * ── It names the opponent, before the tap ──────────────────────────────
+ *
+ * "Race Zed" is the destination's own title, under the rule
+ * `dailyHeroCopy` records: a learner who taps a name must land on a
+ * screen wearing it. The sub carries the single fact that separates this
+ * row from the card above it — Zed is our robot. `DuelRace` already tags
+ * him ROBOT COACH on its own screen so a scripted bot is never mistaken
+ * for a real child, and a learner choosing between two races needs that
+ * before they choose, not after.
+ *
+ * ── Who sees it ────────────────────────────────────────────────────────
+ *
+ * `challengesAllowed` is `duelAllowed` — the one predicate the route
+ * itself reads — so the row cannot offer a race the page then refuses
+ * with "challenges are switched off for this account".
+ *
+ * It is deliberately NOT also gated on being signed in, which is what the
+ * live card above it genuinely needs (that queue is written as the
+ * learner's own doc). `duelAllowed` keeps the race for a signed-out
+ * visitor on purpose — /games is public and the duel writes nothing for
+ * them — so for a visitor this row is the ONLY race on the page, and
+ * hiding it beside the live card would remove the one thing they can
+ * actually play.
+ *
+ * It also does not try to predict whether a race can be FIELDED. The
+ * route draws from an unscoped `listGames()` and falls back across
+ * grades, while the hub holds a grade-scoped pool; answering here would
+ * answer a different question from a different pool, and would hide the
+ * row on races that work. `DuelRace` owns that check and already says
+ * "No race can start right now" when its own draw comes up empty.
+ *
+ * @param {object}  opts
+ * @param {boolean} opts.challengesAllowed  duelAllowed(currentUser, userProfile)
+ * @returns {{title: string, sub: string}|null} null when the row must not render
+ */
+export function zedRaceRow({ challengesAllowed = false } = {}) {
+  if (!challengesAllowed) return null
+  return {
+    title: 'Race Zed',
+    sub: 'Practice race — Zed is our robot, not a learner',
+  }
+}

@@ -21,6 +21,7 @@ import { useNavigate } from 'react-router-dom'
 import '../../../shared/styles/learnerTheme.css'
 import { useAuth } from '../../../contexts/AuthContext'
 import useLearnerStats from '../../../hooks/useLearnerStats'
+import useDayKey, { dayKeyDate } from '../../../hooks/useDayKey'
 import useWeeklySummary from '../hooks/useWeeklySummary'
 import { getMyGameBadges } from '../../../utils/gameBadgesService'
 import { GAME_BADGES } from '../../../data/gameBadges'
@@ -67,7 +68,8 @@ export default function LearnerProfilePage() {
   // The Grade · Term line, from the same reading Home uses — including
   // `savedTerm`, which this page used to leave out, so a learner whose
   // stored preference was in play saw one term on Home and another here.
-  const calendar = useMemo(() => resolveLearnerCalendar(), [])
+  const dayKey = useDayKey()
+  const calendar = useMemo(() => resolveLearnerCalendar(dayKeyDate(dayKey)), [dayKey])
   const activeTerm = useMemo(
     () => resolveActiveTerm({
       ...calendarTermInputs(calendar.recent),

@@ -24,12 +24,13 @@ const mockAuth = {
 vi.mock('../../../contexts/AuthContext', () => ({ useAuth: () => mockAuth }))
 
 let mockQuizzes = []
+let mockResults = []
 // The page reads through the scoped learner hook (its own module, so the
 // authoring + admin data modules stay out of this route's chunk).
 vi.mock('../../../hooks/useLearnerFirestore', () => ({
   useLearnerFirestore: () => ({
     getQuizzes: vi.fn(async () => mockQuizzes),
-    getUserResults: vi.fn(async () => []),
+    getUserResults: vi.fn(async () => mockResults),
   }),
 }))
 
@@ -67,6 +68,7 @@ function renderSubject(path = '/subjects/science') {
 
 beforeEach(() => {
   mockQuizzes = []
+  mockResults = []
   mockMaterials = []
   window.localStorage.clear()
 })
@@ -284,5 +286,87 @@ describe('LearnerSubjectPage', () => {
     expect(term3).not.toEqual(term1)
     // Consecutive slices: nothing is taught twice.
     expect(term1.filter((t) => term3.includes(t))).toEqual([])
+  })
+
+  // ── Progress ──────────────────────────────────────────────────────
+  //
+  // The screen and the Home row are one measurement now
+  // (`lib/subjectProgressCore`, `npm run test:subject-progress`). These pin
+  // what that measurement is allowed to SAY.
+
+  it('reports how many of THIS term\u2019s topics are done, not the year\u2019s', async () => {
+    // Grade 7 Science Term 1 is three planned rows plus the unplaced ones.
+    // The old page divided by the five all-year catalogue topics.
+    mockQuizzes = [
+      { id: 'q1', subject: 'science', grade: '7', topic: 'The Digestive System' },
+      { id: 'q2', subject: 'science', grade: '7', topic: 'Fruits & Seeds as Food' },
+    ]
+    mockResults = [
+      { id: 'r1', quizId: 'q1', subject: 'Integrated Science', percentage: 95, topicScores: {} },
+    ]
+    renderSubject('/subjects/science?term=1')
+    await waitFor(() => expect(screen.getByText('The Digestive System')).toBeInTheDocument())
+    const rowCount = document.querySelectorAll('.lhx-topic-row').length
+    // Not the five all-year catalogue topics the old page divided by.
+    expect(rowCount).not.toBe(5)
+    expect(screen.getByText(new RegExp(`1 of ${rowCount} topics done`))).toBeInTheDocument()
+  })
+
+  it('a term with nothing published says so instead of reporting zero', async () => {
+    // "Nobody has built this yet" and "you have not started it" are different
+    // facts that render identically as an empty bar.
+    renderSubject('/subjects/science?term=1')
+    await waitFor(() => expect(screen.getByText('The Digestive System')).toBeInTheDocument())
+    expect(screen.getByText(/Material coming soon/)).toBeInTheDocument()
+    expect(screen.queryByText(/topics done/)).toBeNull()
+  })
+
+  it('a quiz passed on a topic finishes it; a failed one does not', async () => {
+    mockQuizzes = [
+      { id: 'q-dig', subject: 'science', grade: '7', topic: 'The Digestive System' },
+      { id: 'q-dis', subject: 'science', grade: '7', topic: 'Diseases \u2014 Viruses & Bacteria' },
+    ]
+    mockResults = [
+      { id: 'r1', quizId: 'q-dig', subject: 'Integrated Science', percentage: 90, topicScores: {} },
+      { id: 'r2', quizId: 'q-dis', subject: 'Integrated Science', percentage: 20, topicScores: {} },
+    ]
+    renderSubject('/subjects/science?term=1')
+    await waitFor(() => expect(screen.getByText('The Digestive System')).toBeInTheDocument())
+    expect(screen.getByText(/1 of \d+ topics done/)).toBeInTheDocument()
+
+    const passed = screen.getByText('The Digestive System').closest('.lhx-topic-row')
+    expect(within(passed).getByText('Best score 90%')).toBeInTheDocument()
+    const failed = screen.getByText('Diseases \u2014 Viruses & Bacteria').closest('.lhx-topic-row')
+    expect(within(failed).getByText(/Best score 20% \u2014 60% finishes this topic/)).toBeInTheDocument()
+  })
+
+  it('an unrecognised topic label credits nothing', async () => {
+    // `computeQuizScore` files every untagged question under 'General'. It
+    // used to count as a covered topic, clamped up to the catalogue size.
+    mockQuizzes = [{ id: 'q1', subject: 'science', grade: '7', topic: 'The Digestive System' }]
+    mockResults = [{
+      id: 'r1', quizId: 'q-unknown', subject: 'Integrated Science', percentage: 100,
+      topicScores: {
+        General: { correct: 9, total: 9 },
+        Whatever: { correct: 9, total: 9 },
+        Misc: { correct: 9, total: 9 },
+        Another: { correct: 9, total: 9 },
+        Untagged: { correct: 9, total: 9 },
+        Spare: { correct: 9, total: 9 },
+      },
+    }]
+    renderSubject('/subjects/science?term=1')
+    await waitFor(() => expect(screen.getByText('The Digestive System')).toBeInTheDocument())
+    // Six unrecognised labels used to clamp to full coverage. They reach no
+    // row, so the term is exactly as untouched as it was.
+    expect(screen.getByText(/Not started/)).toBeInTheDocument()
+    expect(screen.queryByText(/topics done/)).toBeNull()
+    expect(screen.queryByRole('progressbar')).toBeNull()
+  })
+
+  it('draws the term bar only once something has been started', async () => {
+    renderSubject('/subjects/science?term=1')
+    await waitFor(() => expect(screen.getByText('The Digestive System')).toBeInTheDocument())
+    expect(screen.queryByRole('progressbar')).toBeNull()
   })
 })

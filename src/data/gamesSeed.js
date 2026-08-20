@@ -1356,6 +1356,11 @@ const WORD_BUILDER_G7 = {
   subject: 'english',
   grade: 7,
   type: 'word_builder',
+  // The whole Grade 7 spelling bank, fetched on demand rather than carried
+  // here: 879 words would otherwise sit in the bundle of every learner who
+  // opens the games hub. The ten questions below stay as the fallback for a
+  // pack that fails to load. See features/games/lib/spellingPack.js.
+  wordPack: 'grade7-spelling',
   difficulty: 'hard',
   description: 'Tap the letters to spell the word in the clue — Grade 7 subject vocabulary.',
   timer: 0,

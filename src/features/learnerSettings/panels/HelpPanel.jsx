@@ -38,11 +38,11 @@ export const FAQS = [
   },
   {
     q: 'Is ZedExams safe for children?',
-    a: 'Yes. There is no chatting between learners anywhere on ZedExams, and guardians stay in charge of Premium. Zed, the study helper, only helps with schoolwork.',
+    a: 'Yes. There is no chatting anywhere on ZedExams — not between learners, and not with a bot — and guardians stay in charge of Premium.',
   },
   {
     q: 'Does it work when my connection drops?',
-    a: 'Pages and notes you’ve already opened keep working, and anything you finish is saved and syncs when you’re back online. Ask Zed and payments need the internet.',
+    a: 'Pages and notes you’ve already opened keep working, and anything you finish is saved and syncs when you’re back online. Payments need the internet.',
   },
   {
     q: 'Why do I only see my grade?',

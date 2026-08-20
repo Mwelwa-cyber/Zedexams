@@ -1884,12 +1884,19 @@ button.lhx-tt-altpill { cursor: pointer; }
 .lhx-cal-hol-name { color: var(--lhx-ink); min-width: 0; }
 
 .lhx-cal-break {
-  display: flex; align-items: center; gap: 11px;
   background: var(--lhx-amber-wash);
   border: 1.5px solid var(--lhx-amber-line);
   border-radius: var(--lhx-radius-md);
   padding: 12px 14px;
 }
+.lhx-cal-break-head { display: flex; align-items: center; gap: 11px; }
+/* A break's own holidays: same list as a term's, on the amber ground. */
+.lhx-cal-break .lhx-cal-hols { border-top-color: var(--lhx-amber-line); }
+.lhx-cal-break .lhx-cal-hol-date { color: var(--lhx-amber-ink); }
+.lhx-cal-break .lhx-cal-hol-name { color: var(--lhx-amber-ink); }
+/* No past/future step-down inside a break, deliberately: the amber family has
+   one readable ink and no second one to step to, and the same rule as above
+   applies — an opacity would take it under AA. The date is on the row. */
 .lhx-cal-break.is-now { box-shadow: var(--lhx-shadow-sm); }
 .lhx-cal-break-icon { font-size: 21px; flex-shrink: 0; }
 .lhx-cal-break-txt { flex: 1; min-width: 0; }
