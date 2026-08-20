@@ -1362,22 +1362,48 @@ const WORD_BUILDER_G7 = {
   points: 15,
   active: true,
   cbc_topic: 'Spelling',
+  // `chunks` drives the "break it up" coach shown after a miss, and `trap` is
+  // the index of the bit that catches people. Where to cut a word is a
+  // TEACHING decision — a wrong break teaches a child the wrong word — so the
+  // cuts are authored here and test:spelling-stages checks only the thing a
+  // machine can check: that the chunks rebuild the word. A word with no chunks
+  // gets no coach rather than a guessed split.
   // Words are capped at ten letters: the slot row wraps below that on a
   // 360px screen, which is legible, but a longer word wraps twice and the
   // clue scrolls off. Every word here is one a Grade 7 learner meets in
   // Science, Social Studies or Mathematics — spelling practice that is
   // also revision.
   questions: [
-    { question: '🌍 The layer of gases that surrounds the Earth.',        options: [], answer: 'ATMOSPHERE' },
-    { question: '🗳️ A system where the people choose their leaders.',     options: [], answer: 'DEMOCRACY' },
-    { question: '🌡️ The imaginary line around the middle of the Earth.',  options: [], answer: 'EQUATOR' },
-    { question: '⛏️ Copper and cobalt are both examples of these.',       options: [], answer: 'MINERALS' },
-    { question: '🏭 Harmful waste in the air, water or soil.',            options: [], answer: 'POLLUTION' },
-    { question: '🥗 Getting the right food for a healthy body.',          options: [], answer: 'NUTRITION' },
-    { question: '☀️ The usual weather of a place over many years.',       options: [], answer: 'CLIMATE' },
-    { question: '🌾 The season when crops are gathered in.',              options: [], answer: 'HARVEST' },
-    { question: '💵 The Kwacha is Zambia’s ___.',                     options: [], answer: 'CURRENCY' },
-    { question: '🏞️ A smaller river that flows into a bigger one.',       options: [], answer: 'TRIBUTARY' },
+    { question: '🌍 The layer of gases that surrounds the Earth.',        options: [], answer: 'ATMOSPHERE',
+      chunks: ['AT', 'MOS', 'PHERE'], strategy: 'syllables', trap: 2,
+      why: '“PH” says F — like in “phone”.' },
+    { question: '🗳️ A system where the people choose their leaders.',     options: [], answer: 'DEMOCRACY',
+      chunks: ['DE', 'MOC', 'RA', 'CY'], strategy: 'syllables', trap: 3,
+      why: 'It ends in CY, not SY.' },
+    { question: '🌡️ The imaginary line around the middle of the Earth.',  options: [], answer: 'EQUATOR',
+      chunks: ['EQU', 'A', 'TOR'], strategy: 'root+affix', trap: 0,
+      why: 'Same start as “equal” — both mean the same on each side.' },
+    { question: '⛏️ Copper and cobalt are both examples of these.',       options: [], answer: 'MINERALS',
+      chunks: ['MINE', 'RAL', 'S'], strategy: 'root+affix', trap: 0,
+      why: 'It starts with the word MINE, where they come from.' },
+    { question: '🏭 Harmful waste in the air, water or soil.',            options: [], answer: 'POLLUTION',
+      chunks: ['POLL', 'U', 'TION'], strategy: 'root+affix', trap: 2,
+      why: 'TION says “shun” — like nation and station.' },
+    { question: '🥗 Getting the right food for a healthy body.',          options: [], answer: 'NUTRITION',
+      chunks: ['NUT', 'RI', 'TION'], strategy: 'family', trap: 2,
+      why: 'The same TION family as pollution and station.' },
+    { question: '☀️ The usual weather of a place over many years.',       options: [], answer: 'CLIMATE',
+      chunks: ['CLI', 'MATE'], strategy: 'sound-out', trap: null,
+      why: 'Nothing irregular — it ends in the word MATE.' },
+    { question: '🌾 The season when crops are gathered in.',              options: [], answer: 'HARVEST',
+      chunks: ['HAR', 'VEST'], strategy: 'sound-out', trap: null,
+      why: 'Two clear parts, and VEST is a word you know.' },
+    { question: '💵 The Kwacha is Zambia’s ___.',                     options: [], answer: 'CURRENCY',
+      chunks: ['CUR', 'REN', 'CY'], strategy: 'syllables', trap: 0,
+      why: 'Double R in the middle of the first part.' },
+    { question: '🏞️ A smaller river that flows into a bigger one.',       options: [], answer: 'TRIBUTARY',
+      chunks: ['TRIB', 'U', 'TAR', 'Y'], strategy: 'syllables', trap: 2,
+      why: 'TAR, not TER — it pays a “tribute” to the big river.' },
   ],
 }
 

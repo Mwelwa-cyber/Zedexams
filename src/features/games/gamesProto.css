@@ -933,3 +933,30 @@
 .lhx-fr-d { padding: .05em .34em 0; border-top: .11em solid currentColor; }
 
 @media (prefers-reduced-motion: reduce) { .lhx-fl-key:active { transform: none; } }
+
+/* ── The "break it up" coach, shown after a miss ─────────────────────── */
+.lhx-wb-coach-slot { margin: 14px 12px 20px; }
+.lhx-wb-coach {
+  background: #fff5e6; border: 1px solid #f2dcb4; border-radius: 16px; padding: 13px;
+}
+.lhx-wb-coach-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.lhx-wb-coach-head b { font-size: 14.5px; font-weight: 900; color: #7a4d09; }
+.lhx-wb-coach-head span { font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: #9a6412; }
+.lhx-wb-coach-blurb { margin: 5px 0 10px; font-size: 12.5px; line-height: 1.55; color: #7a5a26; }
+.lhx-wb-chunks { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; }
+.lhx-wb-chunk {
+  min-height: 44px; padding: 10px 14px; border-radius: 12px; border: 2px solid #efd9ac;
+  background: #fff; font: inherit; font-size: 17px; font-weight: 900; letter-spacing: .04em;
+  color: var(--lhx-ink); cursor: pointer; box-shadow: 0 2px 0 #e6d3ab;
+}
+.lhx-wb-chunk:active { transform: translateY(2px); box-shadow: none; }
+.lhx-wb-chunk.is-placed { background: #ffedcb; color: #7a4d09; }
+/* The tricky bit is marked by an underline as well as a colour — on a
+   photocopied worksheet or to a colour-blind reader, the colour is not there. */
+.lhx-wb-chunk.is-trap { border-color: #d98c0a; text-decoration: underline; text-decoration-thickness: 3px; }
+.lhx-wb-coach-done { margin: 11px 0 0; text-align: center; font-size: 14px; color: #7a4d09; }
+.lhx-wb-coach-done b { font-size: 18px; font-weight: 900; letter-spacing: .06em; }
+.lhx-wb-coach-why { margin: 9px 0 0; font-size: 12.5px; line-height: 1.55; color: #7a5a26; }
+.lhx-wb-coach-mastery { margin: 9px 0 0; font-size: 12px; font-weight: 800; color: #9a6412; }
+
+@media (prefers-reduced-motion: reduce) { .lhx-wb-chunk:active { transform: none; } }
