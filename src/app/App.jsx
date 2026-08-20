@@ -812,7 +812,29 @@ export default function App() {
           <Route path="/search"            element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerSearch /></LearnerOnlyRoute></ProtectedRoute>} />
           {/* Notes (standalone reading material) — canonical /notes routes. */}
           <Route path="/notes/reader-preview" element={<ProtectedRoute><LearnerOnlyRoute><NoteReaderPreview /></LearnerOnlyRoute></ProtectedRoute>} />
-          <Route path="/notes/:id"         element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerGate><LearnerNoteRead /></LearnerGate></LearnerOnlyRoute></ProtectedRoute>} />
+          {/* NO <Navbar />, and not the learner shell either — the reader
+              brings its own chrome for every state it can be in, and both of
+              the alternatives are wrong here.
+
+              The legacy Navbar was the real cost. It mounted OUTSIDE this
+              page, so the old cream header sat on top of all four states —
+              including the full-screen ReaderEngine, which is deliberately
+              immersive. Worse, its menu is an eight-item list of the retired
+              IA (Lessons / Quizzes / Exams / Results), and this route is the
+              busiest one that carried it: a learner reaching a note — the
+              destination the whole Home → subject → note funnel exists for —
+              was handed the door back into every pre-redesign screen. That
+              menu is how those screens were still being seen at all; nothing
+              else on the live learner side links to them.
+
+              LearnerLayout would be the other mistake: it would draw the
+              4-tab bar over a reading surface the prototype keeps clear.
+              ReaderEngine carries its own back control (ReaderEngine.jsx),
+              and the loading / not-found / retired-format states each bring
+              their own `.lhx` page with a back row to /notes — so nothing
+              here needs chrome from the route. `test:learner-chrome` fails
+              if the Navbar comes back. */}
+          <Route path="/notes/:id"         element={<ProtectedRoute><LearnerOnlyRoute><LearnerGate><LearnerNoteRead /></LearnerGate></LearnerOnlyRoute></ProtectedRoute>} />
 
           {/* Lessons (interactive slide-based lessons) — canonical /lessons routes.
               LearnerNoteRead handles the bookmark-back-compat case: if a learner
