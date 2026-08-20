@@ -14,6 +14,7 @@ import { useSettingsSave } from './SaveContext'
 import Icon from '../../../shared/components/Icon'
 import CharacterAvatar from '../../../shared/components/CharacterAvatar'
 import { UpgradeModal } from '../../subscription'
+import { mayShowPrice } from '../../../services/entitlements/planState'
 import { SkeletonCard } from '../../../shared/components/Skeleton'
 import {
   SectionCard, StatTile, Segmented, LinkRow, Toggle, Select, Btn,
@@ -333,6 +334,7 @@ export function PremiumCard({ onOpen }) {
   const { userProfile } = useAuth()
   const { tierLabel, isPremium } = useSubscription()
   const [showUpgrade, setShowUpgrade] = useState(false)
+  const canBuy = !!userProfile && mayShowPrice(userProfile)
   return (
     <section id="sec-premium" className="lset-scard lset-premium">
       <header className="lset-scard__head">
@@ -352,11 +354,18 @@ export function PremiumCard({ onOpen }) {
         </ul>
       </div>
       <div className="lset-scard__foot">
-        {isPremium
-          ? <button type="button" className="lset-btn lset-btn--full lset-btn--gold" onClick={() => onOpen('premium')}>Manage plan</button>
-          : <button type="button" className="lset-btn lset-btn--full lset-btn--gold" onClick={() => setShowUpgrade(true)}>👑 Upgrade Now</button>}
+        {/* No purchase CTA on a child's screen. `mayShowPrice` fails closed and
+            the `!!userProfile` prefix is load-bearing — it reads a MISSING
+            profile as an anonymous visitor, right for marketing, wrong here.
+            The card still names the current plan above, which is a fact about
+            the account rather than an offer. Same shape as AccountPanel.jsx. */}
+        {!canBuy
+          ? <button type="button" className="lset-btn lset-btn--full" onClick={() => onOpen('premium')}>See plans</button>
+          : isPremium
+            ? <button type="button" className="lset-btn lset-btn--full lset-btn--gold" onClick={() => onOpen('premium')}>Manage plan</button>
+            : <button type="button" className="lset-btn lset-btn--full lset-btn--gold" onClick={() => setShowUpgrade(true)}>👑 Upgrade Now</button>}
       </div>
-      {showUpgrade && (
+      {canBuy && showUpgrade && (
         <UpgradeModal portal="learner" defaultPlanId={userProfile?.subscriptionPlan || 'monthly'} onClose={() => setShowUpgrade(false)} />
       )}
     </section>

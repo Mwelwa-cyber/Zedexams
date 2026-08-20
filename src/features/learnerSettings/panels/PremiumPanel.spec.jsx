@@ -7,10 +7,16 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 
 vi.mock('../../../firebase/config', () => ({ default: {}, auth: {}, db: {} }))
+// `isMinor: false` is what makes this fixture an ADULT, and it has to be
+// explicit: resolveAgeBand fails closed, so a learner profile that says
+// nothing about age is a child and sees no price at all. The under-18 case is
+// its own describe block at the bottom.
+let mockProfile
 vi.mock('../../../contexts/AuthContext', () => ({
-  useAuth: () => ({ userProfile: { role: 'learner' }, currentUser: { uid: 'u1' } }),
+  useAuth: () => ({ userProfile: mockProfile, currentUser: { uid: 'u1' } }),
 }))
 
 let mockSub
@@ -32,6 +38,7 @@ import PremiumPanel from './PremiumPanel'
 const section = { id: 'premium', label: 'Premium' }
 
 beforeEach(() => {
+    mockProfile = { role: 'learner', isMinor: false }
   mockSub = { tierLabel: 'Free', isPremium: false }
   lastModalProps = null
 })
@@ -82,5 +89,33 @@ describe('PremiumPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Weekly' }))
     fireEvent.click(screen.getByRole('button', { name: /Get Premium/ }))
     expect(lastModalProps.defaultPlanId).toBe('weekly')
+  })
+
+  // The reason this panel changed. zedexams.com/child-safety promises an
+  // unapproved under-18 learner no purchases, and mayShowPrice is the shared,
+  // fail-closed predicate five other surfaces already use.
+  describe('under-18 learners', () => {
+    for (const [label, profile] of [
+      ['a learner known to be a minor', { role: 'learner', isMinor: true }],
+      ['a learner whose age is unknown (fails closed)', { role: 'learner' }],
+      ['no profile at all', null],
+    ]) {
+      it(`shows no price and no checkout to ${label}`, () => {
+        mockProfile = profile
+        render(<MemoryRouter><PremiumPanel section={{ id: 'premium', label: 'Premium' }} /></MemoryRouter>)
+
+        // No currency anywhere on the panel.
+        expect(document.body.textContent).not.toMatch(/K\s?\d/)
+        expect(screen.queryByText(/Go Premium/i)).toBeNull()
+        expect(screen.queryByTestId('upgrade-modal')).toBeNull()
+      })
+    }
+
+    it('offers the guardian hand-off instead of a dead screen', () => {
+      mockProfile = { role: 'learner', isMinor: true }
+      render(<MemoryRouter><PremiumPanel section={{ id: 'premium', label: 'Premium' }} /></MemoryRouter>)
+      const ask = screen.getByRole('link', { name: /grown-up/i })
+      expect(ask.getAttribute('href')).toBe('/ask-a-grown-up')
+    })
   })
 })
