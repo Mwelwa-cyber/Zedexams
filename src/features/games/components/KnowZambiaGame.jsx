@@ -44,12 +44,14 @@ import { reportGameStart } from '../services/gamesService'
 import { playCorrect, playWrong, playWin, primeSounds } from '../lib/gameSounds'
 import { BadgePop, GameTopBar, WinScreen, buildSaveNote } from './protoGameChrome'
 import { ZAMBIA_FACTS, ZAMBIA_PROVINCES_GEO } from '../../../data/zambiaGeography'
+import ZambiaMap from './ZambiaMap'
+import { MODE_SCREENS } from './KnowZambiaModes'
 import {
   anchorsBefore,
   buildGeometry,
   factFor,
-  haloRadius,
   hintFor,
+  modeOf,
   placeGain,
   placementsIn,
   roundResult,
@@ -59,15 +61,11 @@ import {
 
 const GEO = buildGeometry(ZAMBIA_PROVINCES_GEO.provinces)
 const VIEW_BOX = ZAMBIA_PROVINCES_GEO.viewBox || '0 0 100 81.5'
-const VIEW_WIDTH = Number(VIEW_BOX.split(/\s+/)[2]) || 100
 
-/** Label size that fits the province it sits in, clamped either side. */
-function labelSize(code) {
-  const shape = GEO[code]
-  if (!shape) return 2.4
-  const chars = Math.max(1, shape.name.length)
-  return Math.max(1.9, Math.min(3.1, (shape.bbox.w * 0.86) / (chars * 0.55)))
-}
+/* This mode says "placed" where the question modes say "correct" — an anchor
+   from an earlier wave is placed too, so both read the same to a screen
+   reader, which is what they are. */
+const PLACE_WORDS = { ok: ', placed', anchor: ', placed', no: ', wrong' }
 
 /* ── Play screen ───────────────────────────────────────────────── */
 
@@ -81,27 +79,11 @@ function PlayScreen({ game, onExit, onEnd }) {
   const [wrong, setWrong] = useState(null)     // the code flashing ✗
   const [score, setScore] = useState(0)
   const [feedback, setFeedback] = useState(null)
-  const [scale, setScale] = useState(0)        // renderedPx / viewBox units
-
-  const svgRef = useRef(null)
   const round = useRef({ combo: 1, peakCombo: 1, solved: 0, misses: 0 })
   const startedAtRef = useRef(Date.now())
   const timeouts = useRef([])
   const later = (fn, ms) => { timeouts.current.push(setTimeout(fn, ms)) }
   useEffect(() => () => timeouts.current.forEach(clearTimeout), [])
-
-  // The halo radius depends on the width the map is ACTUALLY rendered at, so
-  // it is measured rather than assumed — and re-measured when the window
-  // changes, which is what a rotated phone does.
-  useEffect(() => {
-    const measure = () => {
-      const width = svgRef.current?.getBoundingClientRect().width || 0
-      if (width) setScale(width / VIEW_WIDTH)
-    }
-    measure()
-    window.addEventListener('resize', measure)
-    return () => window.removeEventListener('resize', measure)
-  }, [])
 
   const wave = waves[waveIndex] || []
   const remaining = wave.filter((code) => !(code in placed))
@@ -166,11 +148,14 @@ function PlayScreen({ game, onExit, onEnd }) {
     }
   }
 
-  // Smallest-last, so a small province's halo is on top of a big neighbour's.
-  const haloOrder = useMemo(
-    () => Object.values(GEO).slice().sort((a, b) => b.area - a.area),
-    [],
-  )
+  /* An anchor is a province placed in an EARLIER wave: it keeps its name on
+     the map without its ✓, because it is what the next hint points at. */
+  const mapState = useMemo(() => {
+    const out = {}
+    for (const code of Object.keys(placed)) out[code] = placed[code] === waveIndex ? 'ok' : 'anchor'
+    if (wrong) out[wrong] = 'no'
+    return out
+  }, [placed, waveIndex, wrong])
 
   return (
     <>
@@ -186,91 +171,14 @@ function PlayScreen({ game, onExit, onEnd }) {
         </div>
       </div>
 
-      <div className="lhx-kz-map">
-        <svg
-          ref={svgRef}
-          className="lhx-kz-svg"
-          viewBox={VIEW_BOX}
-          role="group"
-          aria-label="Map of Zambia and its ten provinces"
-        >
-          <defs>
-            <pattern id="lhx-kz-hatch" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-              <rect width="3" height="3" fill="#fbe3d2" />
-              <rect width="1.4" height="3" fill="#d55e00" />
-            </pattern>
-          </defs>
-
-          {Object.values(GEO).map((shape) => {
-            const isPlaced = shape.code in placed
-            const isAnchor = isPlaced && placed[shape.code] !== waveIndex
-            const state = wrong === shape.code ? 'is-wrong' : isAnchor ? 'is-anchor' : isPlaced ? 'is-placed' : ''
-            const stateWord = wrong === shape.code ? ', wrong' : isPlaced ? ', placed' : ''
-            return (
-              <path
-                key={shape.code}
-                className={`lhx-kz-prov ${state}`}
-                d={ZAMBIA_PROVINCES_GEO.provinces[shape.code].d}
-                role="button"
-                tabIndex={0}
-                aria-label={`${shape.name} Province${stateWord}`}
-                onClick={() => tapProvince(shape.code)}
-                onKeyDown={(event) => {
-                  if (event.key !== 'Enter' && event.key !== ' ') return
-                  event.preventDefault()
-                  tapProvince(shape.code)
-                }}
-              >
-                <title>{shape.name} Province</title>
-              </path>
-            )
-          })}
-
-          {Object.values(GEO).filter((shape) => shape.code in placed).map((shape) => {
-            const size = labelSize(shape.code)
-            const isAnchor = placed[shape.code] !== waveIndex
-            return (
-              <g key={`label-${shape.code}`} aria-hidden="true">
-                <text
-                  className={`lhx-kz-label ${isAnchor ? 'is-anchor' : ''}`}
-                  x={shape.anchor[0]}
-                  y={shape.anchor[1]}
-                  style={{ fontSize: `${size.toFixed(2)}px` }}
-                >
-                  {shape.name}
-                </text>
-                {!isAnchor && (
-                  <text className="lhx-kz-mark" x={shape.anchor[0]} y={shape.anchor[1] - size - 1.2}>✓</text>
-                )}
-              </g>
-            )
-          })}
-
-          {wrong && (
-            <text className="lhx-kz-mark is-wrong" aria-hidden="true" x={GEO[wrong].anchor[0]} y={GEO[wrong].anchor[1]}>✗</text>
-          )}
-
-          {/* Touch halos — 0 radius until the map has been measured, and 0 for
-              any province already big enough to tap. */}
-          <g className="lhx-kz-halos">
-            {haloOrder.map((shape) => {
-              const radius = haloRadius(Math.min(shape.bbox.w, shape.bbox.h), scale)
-              if (!radius) return null
-              return (
-                <circle
-                  key={`halo-${shape.code}`}
-                  className="lhx-kz-halo"
-                  cx={shape.anchor[0]}
-                  cy={shape.anchor[1]}
-                  r={radius}
-                  aria-hidden="true"
-                  onClick={() => tapProvince(shape.code)}
-                />
-              )
-            })}
-          </g>
-        </svg>
-      </div>
+      <ZambiaMap
+        geo={GEO}
+        provinces={ZAMBIA_PROVINCES_GEO.provinces}
+        viewBox={VIEW_BOX}
+        state={mapState}
+        stateWords={PLACE_WORDS}
+        onTapProvince={tapProvince}
+      />
 
       <div className="lhx-kz-names">
         {wave.map((code) => {
@@ -312,12 +220,40 @@ function PlayScreen({ game, onExit, onEnd }) {
 
 /* ── The engine ────────────────────────────────────────────────── */
 
+/**
+ * What the win screen says, per mode. A round that named ceremonies and one
+ * that drove to Kasama should not both report "you placed N of the ten
+ * provinces" — that sentence was true of exactly one mode.
+ */
+function winCopy(mode, outcome) {
+  switch (mode) {
+    case 'capital':
+      return { title: 'You know the capitals!', sub: `${outcome.solved} provincial capitals placed on the map.` }
+    case 'journey':
+      return { title: 'You made the journey!', sub: `${outcome.solved} provinces crossed, in order, without a shortcut.` }
+    case 'odd':
+      return { title: 'You spotted the odd ones!', sub: `${outcome.solved} of them found by what the provinces have in common.` }
+    case 'neighbours':
+      return { title: 'You know the neighbours!', sub: `${outcome.solved} of the eight countries that touch Zambia.` }
+    case 'ceremony':
+      return { title: 'You know the ceremonies!', sub: `${outcome.solved} answers about where they are held, whose they are and when.` }
+    default:
+      return { title: 'You know Zambia!', sub: `You placed ${outcome.solved} of the ten provinces.` }
+  }
+}
+
 export default function KnowZambiaGame({ game }) {
   const navigate = useNavigate()
   const { currentUser } = useAuth()
   const [screen, setScreen] = useState('play')
   const [outcome, setOutcome] = useState({ score: 0, solved: 0 })
   const { saveResult, newBadges, streakResult, finish } = useGameFinish()
+
+  /* One engine, six modes. The pack names which; a pack that names none plays
+     the original place-the-province round, which is what the pack that
+     shipped first does. */
+  const mode = modeOf(game)
+  const ModeScreen = MODE_SCREENS[mode] || PlayScreen
 
   useEffect(() => {
     primeSounds()
@@ -332,17 +268,19 @@ export default function KnowZambiaGame({ game }) {
     finish(roundResult({ game, ...result }))
   }
 
+  const copy = winCopy(mode, outcome)
+
   return (
     <div className="lhx">
       <div className="lhx-page">
         {screen === 'play' && (
-          <PlayScreen game={game} onExit={() => navigate('/games')} onEnd={endRound} />
+          <ModeScreen game={game} geo={GEO} onExit={() => navigate('/games')} onEnd={endRound} />
         )}
         {screen === 'win' && (
           <WinScreen
             stars={starsForScore(outcome.score)}
-            title="You know Zambia!"
-            sub={`You placed ${outcome.solved} of the ten provinces.`}
+            title={copy.title}
+            sub={copy.sub}
             score={outcome.score}
             saveNote={buildSaveNote({ signedIn: !!currentUser, saveResult, streakResult })}
             onContinue={() => navigate('/games')}
