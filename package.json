@@ -338,6 +338,7 @@
     "test:dashboard-intel": "node src/utils/teacherDashboardIntel.test.js",
     "test:dashboard-v2": "node src/features/dashboardV2/lib/dashboardV2Core.test.js",
     "test:delayed-flag": "node src/shared/utils/delayedFlagCore.test.js",
+    "test:pinch-zoom": "node src/shared/utils/pinchZoomCore.test.js",
     "test:loading-tempo": "node scripts/test-loading-tempo.mjs",
     "test:dashboard-v2-data": "node src/shared/utils/dashboardV2Data.test.js",
     "test:safe-image-src": "node src/shared/utils/safeImageSrc.test.js",

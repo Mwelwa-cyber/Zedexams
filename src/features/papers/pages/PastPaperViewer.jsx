@@ -954,6 +954,9 @@ export default function PastPaperViewer() {
                   onLoad={handleImageLoad}
                   onError={handleImageError}
                   onRetry={handleRetryPage}
+                  /* Inside the reader overlay (z-60) — lifts the zoom pill
+                     above it, exactly as PdfPageStream's `overlay` does. */
+                  overlay
                 />
               </div>
             )}
