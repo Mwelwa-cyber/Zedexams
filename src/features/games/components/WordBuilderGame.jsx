@@ -1,421 +1,463 @@
 /**
- * WordBuilderGame — the prototype-v3 spelling sprint for
- * `type: 'word_builder'` games (learner redesign step 4, the second
- * rebuilt mechanic).
+ * Spelling — the connected system, not three games.
  *
- * A fixed set of `ROUND_WORDS` words under the indigo game head: the
- * clue (or, when text-to-speech is available, sometimes just "🎧 tap
- * what you hear" with the word spoken aloud), the underline slots, the
- * word's own letters shuffled into tap tiles, and ⌫ Delete. A full set
- * of slots auto-checks — correct turns them green, pays 20 × combo and
- * advances to the next word; wrong shakes red, resets the combo and
- * clears for another try, with the word staying live. The last word
- * lands on the shared win screen (140/60 star thresholds).
+ *   map → stage intro → round → (miss → coach) → results → next stage
  *
- * There is no countdown (PROMPT 7b), and of the five engines this is
- * the one it mattered most for: spelling is accuracy, never speed, so a
- * clock here punished the slower speller the game exists to help. The
- * head's bar fills with progress through the set instead of draining,
- * and a word the learner is mid-way through building can never be cut
- * off — nothing ends the round except finishing it.
+ * One learner record carries all of it: `spellingProgress/{uid}`, mirrored to
+ * this device. The map's stars, the words a stage is composed from, the tricky
+ * list, the coach's "this one comes back later" promise and the mastery a
+ * results screen reports are all reads of that one record, which is what stops
+ * the three screens being three games that happen to share a colour scheme.
  *
- * The backend contract is UNCHANGED (locked scope): the finished round
- * flows through useGameFinish → saveScore / badges / daily streak with
- * reportGameStart keeping the funnel, and the words still come from the
- * game doc's `questions` ({ question: clue, answer: word }) — only the
- * mechanic and the skin are the prototype's. PlayGame mounts it bare;
- * ✕ leaves to /games like the prototype's wbExit.
+ * WHY THIS FILE IS STILL `word_builder`. The game registry, the seed importer,
+ * the tombstones, the daily challenge and the duel question pool all key off
+ * the game document's `type`, and Spelling is that document
+ * (`english_word_builder_g7`, `wordPack: 'grade7-spelling'`). Registering a
+ * second mechanic beside it would fork the catalogue and mean two rows for one
+ * game. What changed is what a tap on that card OPENS: the ladder, rather than
+ * a round of eight words with nothing above it.
+ *
+ * THE ROUND IS NO LONGER THE ENTRY POINT, and that is the substantive change
+ * to this file. It used to mount straight into a round and write its progress
+ * to `localStorage`. Progress is now the server's, the round is one node of a
+ * ladder, and the stage a learner is handed is composed from their own history.
+ *
+ * WHAT IS DELIBERATELY UNCHANGED: the score/XP/badge/streak path. A finished
+ * stage still flows through `useGameFinish` → `saveScore` → badges → daily
+ * streak, with `reportGameStart` keeping the funnel, because that plumbing is
+ * shared with every other game and spelling has no reason to have its own.
  */
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../../../shared/styles/learnerTheme.css'
 import '../gamesProto.css'
+import './spelling.css'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useGameFinish } from '../hooks/useGameFinish'
 import { reportGameStart } from '../services/gamesService'
-import { playCorrect, playWrong, playWin, primeSounds } from '../lib/gameSounds'
-import { BadgePop, GameTopBar, WinScreen, buildSaveNote } from './protoGameChrome'
-import { readJson, writeJson } from '../../../shared/utils/safeStorage'
-import { isKnownPack, loadWordPack } from '../lib/spellingPack'
-import { coachFor, tapChunk } from '../lib/spellingCoachCore'
+import { playWin, primeSounds } from '../lib/gameSounds'
+import { BadgePop, buildSaveNote } from './protoGameChrome'
+import { capture } from '../../../utils/analytics'
+import { resolveLearnerGrade } from '../lib/gamesHubCore'
+import { isKnownPack, loadWordPack, packForGrade } from '../lib/spellingPack'
+import { listApprovedWords } from '../services/spellingContentService'
+import { loadSpellingProgress, saveSpellingProgress } from '../services/spellingProgressService'
 import {
-  composeStage,
-  entryFor,
-  recordCorrect,
-  recordMiss,
-  sessionsToMastery,
-} from '../lib/spellingStagesCore'
+  applyStageResult,
+  normaliseProgress,
+  resumeIsLive,
+} from '../lib/spellingProgressCore'
 import {
-  ROUND_WORDS,
-  playableWords,
-  guessFrom,
-  pickListenMode,
-  roundResult,
-  solveGain,
-  starsForWordScore,
-  tilesFor,
-  wordQueue,
-} from '../lib/wordBuilderCore'
+  buildStageMap,
+  chapterForStage,
+  chapterTableFor,
+  recordStageStars,
+  starsFor,
+  wordsForStage,
+  wordsForTrickyStage,
+  TRICKY_STAGE,
+} from '../lib/spellingMapCore'
+import { stageSummary, STAGE_WORDS } from '../lib/spellingStagesCore'
+import { playableWords, roundResult, wordQueue } from '../lib/wordBuilderCore'
+import { stopSpeech } from '../lib/spellingSpeech'
+import SpellingStageMap, { StageIntroSheet } from './SpellingStageMap'
+import SpellingRound from './SpellingRound'
+import SpellingResults from './SpellingResults'
+import TrickyWordsPanel from './TrickyWordsPanel'
 
-function ttsOn() {
-  return typeof window !== 'undefined' && 'speechSynthesis' in window
-}
-
-/** Say the word aloud — best effort, silently skipped where unsupported. */
-function speak(text) {
+/** A run id for one attempt at one stage. The duplicate-award key. */
+function mintRunId() {
   try {
-    if (!ttsOn()) return
-    const u = new SpeechSynthesisUtterance(String(text).toLowerCase())
-    u.lang = 'en-GB'
-    u.rate = 0.8
-    window.speechSynthesis.cancel()
-    window.speechSynthesis.speak(u)
-  } catch { /* speech is a bonus, never a blocker */ }
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
+  } catch { /* fall through */ }
+  return `run-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
 }
-
-/* ── Play screen ───────────────────────────────────────────────── */
-
-const progressKey = (gameId) => `zedexams:spelling:${gameId || 'default'}`
-
-function PlayScreen({ game, questions, onExit, onEnd, progress, onProgress }) {
-  // The word queue lives in a ref — it recycles mid-render without renders.
-  const queueRef = useRef([])
-  // The coach shown after a miss, and the chunks rebuilt so far.
-  const [coach, setCoach] = useState(null)
-  const [rebuilt, setRebuilt] = useState([])
-  // One session per mount. Mastery counts SESSIONS, not right answers, so
-  // this id is what stops three rights in one sitting mastering a word.
-  const sessionRef = useRef(`s${Date.now()}`)
-  const firstTryRef = useRef(true)
-  const [item, setItem] = useState(null)          // { word, clue }
-  const [listen, setListen] = useState(false)
-  const [tiles, setTiles] = useState([])
-  const [placed, setPlaced] = useState([])
-  const [verdict, setVerdict] = useState(null)    // null | 'ok' | 'no'
-  const [score, setScore] = useState(0)
-
-  const round = useRef({ combo: 1, peakCombo: 1, solved: 0, misses: 0 })
-  const startedAtRef = useRef(Date.now())
-  const timeouts = useRef([])
-  const later = (fn, ms) => { timeouts.current.push(setTimeout(fn, ms)) }
-  useEffect(() => () => timeouts.current.forEach(clearTimeout), [])
-
-  /**
-   * The stage's words: the ones due back from this device's pool first, then
-   * fresh ones — and never an unmastered word arriving as a "new" one, which
-   * is what would make the spacing quietly not happen. A pack that yields
-   * nothing falls back to the plain shuffled queue, which is what every game
-   * without a pool did before this.
-   */
-  const buildQueue = () => {
-    const items = playableWords(questions)
-    if (!items.length) return wordQueue(questions)
-    const stage = composeStage({
-      items,
-      pool: progress.pool,
-      stage: progress.stage,
-      salt: game?.id || 'default',
-      size: ROUND_WORDS,
-    })
-    return stage.words.length ? stage.words : wordQueue(questions)
-  }
-
-  const nextWord = () => {
-    if (!queueRef.current.length) queueRef.current = buildQueue()
-    const it = queueRef.current.shift()
-    setCoach(null)
-    setRebuilt([])
-    firstTryRef.current = true
-    const listenNow = pickListenMode(ttsOn() && Boolean(it.word))
-    setItem(it)
-    setListen(listenNow)
-    setTiles(tilesFor(it.word))
-    setPlaced([])
-    setVerdict(null)
-    if (listenNow) later(() => speak(it.word), 300)
-  }
-
-  // First word on mount.
-  useEffect(() => {
-    queueRef.current = buildQueue()
-    nextWord()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  // Ending the round. `endedRef` is claimed SYNCHRONOUSLY so the last word
-  // of the set can only finish the round once, however many taps land
-  // inside one React batch.
-  const endedRef = useRef(false)
-  const onEndRef = useRef(onEnd)
-  useEffect(() => { onEndRef.current = onEnd }, [onEnd])
-  const endRound = (finalScore) => {
-    if (endedRef.current) return
-    endedRef.current = true
-    onEndRef.current({
-      score: finalScore,
-      solved: round.current.solved,
-      misses: round.current.misses,
-      peakCombo: round.current.peakCombo,
-      timeSpent: Math.round((Date.now() - startedAtRef.current) / 1000),
-    })
-  }
-
-  const check = (nextPlaced, nextTiles) => {
-    const guess = guessFrom(nextPlaced, nextTiles)
-    if (guess === item.word) {
-      const comboNow = round.current.combo
-      const gained = solveGain(comboNow)
-      round.current.solved += 1
-      round.current.peakCombo = Math.max(round.current.peakCombo, comboNow)
-      round.current.combo = comboNow + 1
-      playCorrect()
-      setScore((s) => s + gained)
-      setVerdict('ok')
-      // Mastery is three rights in three SEPARATE sessions, and only a
-      // first-try right counts: a word spelled correctly on the third attempt
-      // in the same breath is not a word the learner knows.
-      if (firstTryRef.current) {
-        onProgress((current) => ({
-          ...current,
-          pool: recordCorrect(current.pool, item.word, { session: sessionRef.current, stage: current.stage }),
-        }))
-      }
-      // The score is read here, synchronously — `setScore` above is async and
-      // the end-of-round callback must not close over a stale value.
-      if (round.current.solved >= ROUND_WORDS) later(() => endRound(score + gained), 650)
-      else later(nextWord, 650)
-    } else {
-      round.current.misses += 1
-      round.current.combo = 1
-      playWrong()
-      setVerdict('no')
-      firstTryRef.current = false
-      onProgress((current) => ({
-        ...current,
-        pool: recordMiss(current.pool, item.word, { stage: current.stage }),
-      }))
-      // The coach is the help AFTER a miss — it appears only for a word the
-      // pack has actually broken up, never on a guessed split.
-      setCoach(coachFor(item.source))
-      setRebuilt([])
-      later(() => {
-        setPlaced([])
-        setTiles((ts) => ts.map((t) => ({ ...t, used: false })))
-        setVerdict(null)
-      }, 600)
-    }
-  }
-
-  const place = (index) => {
-    if (endedRef.current || verdict === 'ok' || !item) return
-    if (tiles[index].used || placed.length >= item.word.length) return
-    const nextTiles = tiles.map((t, i) => (i === index ? { ...t, used: true } : t))
-    const nextPlaced = [...placed, index]
-    setTiles(nextTiles)
-    setPlaced(nextPlaced)
-    setVerdict(null)
-    if (nextPlaced.length === item.word.length) check(nextPlaced, nextTiles)
-  }
-
-  const backspace = () => {
-    if (endedRef.current || verdict === 'ok' || !placed.length) return
-    const index = placed[placed.length - 1]
-    setPlaced(placed.slice(0, -1))
-    setTiles(tiles.map((t, i) => (i === index ? { ...t, used: false } : t)))
-    setVerdict(null)
-  }
-
-  if (!item) return null
-
-  return (
-    <>
-      <div className="lhx-nt-head">
-        <GameTopBar onExit={onExit} done={round.current.solved} total={ROUND_WORDS} score={score} />
-        <div className="lhx-nt-goal">
-          <div className="lhx-nt-goal-lab">SPELL THE WORD</div>
-          <div className="lhx-wb-clue">{listen ? '🎧 Tap what you hear, then spell it' : item.clue || 'Spell it!'}</div>
-        </div>
-        <div className="lhx-nt-best">
-          Word {Math.min(ROUND_WORDS, round.current.solved + 1)} of {ROUND_WORDS} · combo ×{round.current.combo}
-        </div>
-      </div>
-
-      {ttsOn() && (
-        <div style={{ textAlign: 'center', marginTop: 14 }}>
-          <button type="button" className="lhx-wb-speak" onClick={() => speak(item.word)}>
-            🔊 Hear the word
-          </button>
-        </div>
-      )}
-
-      <div className="lhx-wb-slots" aria-label={`${item.word.length} letters`}>
-        {Array.from({ length: item.word.length }, (_, i) => (
-          <div key={i} className={`lhx-wb-slot ${verdict === 'ok' ? 'is-ok' : verdict === 'no' ? 'is-no' : ''}`}>
-            {placed[i] !== undefined ? tiles[placed[i]].letter : ''}
-          </div>
-        ))}
-      </div>
-
-      <div className="lhx-wb-tiles">
-        {tiles.map((t, i) => (
-          <button
-            key={i}
-            type="button"
-            className={`lhx-wb-tile ${t.used ? 'is-used' : ''}`}
-            aria-label={t.used ? `${t.letter}, placed` : t.letter}
-            disabled={t.used}
-            onClick={() => place(i)}
-          >
-            {t.letter}
-          </button>
-        ))}
-      </div>
-
-      <div style={{ textAlign: 'center' }}>
-        <button type="button" className="lhx-wb-del" onClick={backspace}>⌫ Delete</button>
-      </div>
-
-      <div className="lhx-wb-coach-slot" aria-live="polite">
-        {coach && (
-          <div className="lhx-wb-coach">
-            <div className="lhx-wb-coach-head">
-              <b>Break it up</b>
-              <span>{coach.label}</span>
-            </div>
-            <p className="lhx-wb-coach-blurb">{coach.blurb}</p>
-            <div className="lhx-wb-chunks">
-              {coach.chunks.map((chunk, index) => (
-                <button
-                  key={`${chunk}-${index}`}
-                  type="button"
-                  className={`lhx-wb-chunk ${rebuilt.includes(index) ? 'is-placed' : ''} ${coach.trap === index ? 'is-trap' : ''}`}
-                  aria-label={coach.trap === index ? `${chunk}, the tricky bit` : chunk}
-                  onClick={() => {
-                    // Out of order is refused, not punished: the coach is help
-                    // after a miss, not a second test.
-                    const next = tapChunk(rebuilt, index, coach.chunks.length)
-                    if (next.accepted) setRebuilt(next.placed)
-                  }}
-                >
-                  {chunk}
-                </button>
-              ))}
-            </div>
-            {rebuilt.length >= coach.chunks.length && (
-              <p className="lhx-wb-coach-done">
-                <b>{coach.word}</b> — now spell it.
-              </p>
-            )}
-            {coach.why && <p className="lhx-wb-coach-why">{coach.why}</p>}
-            {sessionsToMastery(entryFor(progress.pool, item.word)) > 0 && (
-              <p className="lhx-wb-coach-mastery">
-                {sessionsToMastery(entryFor(progress.pool, item.word))} more
-                {sessionsToMastery(entryFor(progress.pool, item.word)) === 1 ? ' session' : ' sessions'} to master this one.
-              </p>
-            )}
-          </div>
-        )}
-      </div>
-    </>
-  )
-}
-
-/* ── The engine ────────────────────────────────────────────────── */
 
 export default function WordBuilderGame({ game }) {
   const navigate = useNavigate()
-  const { currentUser } = useAuth()
-  const [screen, setScreen] = useState('play')
-  const [outcome, setOutcome] = useState({ score: 0, solved: 0 })
-  // Spelling progress is per DEVICE: mastery counts sessions, and there is no
-  // server-side per-word model to hang it on. Score, XP and badges stay the
-  // server-backed truth through useGameFinish.
-  const [progress, setProgress] = useState(() => ({
-    stage: 0,
-    pool: {},
-    ...(readJson(progressKey(game?.id), null) || {}),
-  }))
-  const { saveResult, newBadges, streakResult, finish } = useGameFinish()
+  const { currentUser, userProfile } = useAuth()
+  const grade = Number(game?.grade) || resolveLearnerGrade(userProfile)
 
-  // The word pack. A game document may name one (`wordPack: 'grade7-spelling'`)
-  // instead of carrying hundreds of words itself — see lib/spellingPack.js for
-  // why the bank is fetched rather than bundled. `null` means "still loading";
-  // an empty result means the pack failed and the document's own questions
-  // stand, so a spelling game always has something to play.
-  // Starts at [] for a game with no pack, so the great majority of games
-  // never render the waiting line at all — only a game that actually has a
-  // pack to fetch waits for one.
-  const [packQuestions, setPackQuestions] = useState(() => (isKnownPack(game?.wordPack) ? null : []))
-  const packId = game?.wordPack
+  const [screen, setScreen] = useState('loading')   // loading|map|intro|round|results|tricky
+  const [progress, setProgress] = useState(() => normaliseProgress(null))
+  const [synced, setSynced] = useState(true)
+  const [questions, setQuestions] = useState(null)
+  const [bandTable, setBandTable] = useState([])
+  const [pending, setPending] = useState(null)      // the stage being introduced
+  const [active, setActive] = useState(null)        // the stage being played
+  const [results, setResults] = useState(null)
+
+  const { saveResult, newBadges, streakResult, finish } = useGameFinish()
+  const poolRef = useRef({})
+
+  /* ── content ─────────────────────────────────────────────────────── */
+  /**
+   * Which words this game plays.
+   *
+   * The document's OWN `wordPack` wins outright. Failing that, a document that
+   * carries no questions of its own falls back to its grade's pack, which is
+   * what opens a new grade without editing every game document.
+   *
+   * A document that HAS its own questions keeps them, and that ordering is the
+   * point: deriving the pack from the grade unconditionally would silently
+   * ignore words an admin had deliberately authored on the document, and the
+   * only symptom would be a learner being served different words from the ones
+   * on the screen the admin was looking at.
+   */
+  const packId = game?.wordPack || (game?.questions?.length ? '' : packForGrade(grade))
+
   useEffect(() => {
-    if (!isKnownPack(packId)) { setPackQuestions([]); return undefined }
     let cancelled = false
-    loadWordPack(packId)
-      .then((rows) => { if (!cancelled) setPackQuestions(rows) })
-      // loadWordPack swallows its own failures, but a throw in the setter
-      // above would otherwise leave the round waiting for ever.
-      .catch(() => { if (!cancelled) setPackQuestions([]) })
+    async function load() {
+      // The band table is the declared difficulty ladder and is imported
+      // dynamically alongside the bank, so a learner opening a maths game
+      // never downloads a spelling chapter list.
+      const rows = isKnownPack(packId)
+        ? await loadWordPack(packId, { fetchApproved: listApprovedWords })
+        : []
+      let bands = []
+      if (isKnownPack(packId)) {
+        try {
+          const bank = await import('../../../data/spellingBank.js')
+          bands = bank.SPELLING_BANDS
+        } catch { bands = [] }
+      }
+      if (cancelled) return
+      setQuestions(rows.length ? rows : (game?.questions || []))
+      setBandTable(bands)
+    }
+    load().catch(() => { if (!cancelled) { setQuestions(game?.questions || []); setBandTable([]) } })
     return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [packId])
 
-  // The pack wins when it has words; otherwise the document's own.
-  const questions = packQuestions?.length ? packQuestions : game?.questions
+  /* ── the learner's record ────────────────────────────────────────── */
+  useEffect(() => {
+    let cancelled = false
+    loadSpellingProgress(game?.id).then(({ progress: loaded, synced: ok }) => {
+      if (cancelled) return
+      setProgress(loaded)
+      poolRef.current = loaded.pool
+      setSynced(ok)
+    }).catch(() => { if (!cancelled) setSynced(false) })
+    return () => { cancelled = true }
+    // The signed-in user is a dependency: a learner who signs in mid-session
+    // has to have their device record merged into their account record, and
+    // that merge happens on the next load rather than being deferred.
+  }, [game?.id, currentUser?.uid])
 
-  const updateProgress = (fn) => {
-    setProgress((current) => {
-      const next = typeof fn === 'function' ? fn(current) : fn
-      writeJson(progressKey(game?.id), next)
-      return next
-    })
-  }
-
-  // The round starts the moment the engine mounts (prototype behaviour).
   useEffect(() => {
     primeSounds()
     reportGameStart(game)
+    return () => stopSpeech()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const endRound = (result) => {
-    setOutcome(result)
+  const items = useMemo(() => playableWords(questions || []), [questions])
+  const { bands, counts } = useMemo(() => chapterTableFor(items, bandTable), [items, bandTable])
+
+  const map = useMemo(
+    () => buildStageMap({ bands, counts, stars: progress.stars, pool: progress.pool }),
+    [bands, counts, progress.stars, progress.pool],
+  )
+
+  useEffect(() => {
+    if (screen === 'loading' && questions !== null) setScreen('map')
+  }, [screen, questions])
+
+  const emit = useCallback((event, props = {}) => {
+    // Learning events, not UI taps — and never the answer. A client analytics
+    // payload carrying the correct spelling of every word served would be an
+    // answer key anyone can read in the network tab.
+    capture(`spelling_${event}`, { gameId: game?.id || null, grade, ...props })
+  }, [game?.id, grade])
+
+  /* ── opening a stage ─────────────────────────────────────────────── */
+  const composeFor = useCallback((stage) => {
+    if (stage === TRICKY_STAGE) {
+      return { ...wordsForTrickyStage({ items, pool: progress.pool }), chapter: null }
+    }
+    const chapter = chapterForStage(map.chapters, stage)
+    const composed = wordsForStage({
+      items,
+      pool: progress.pool,
+      stage,
+      band: chapter?.id || null,
+      salt: game?.id || 'spelling',
+      size: STAGE_WORDS,
+    })
+    // A pack too small to compose anything at all still plays — the plain
+    // shuffled queue is what every game without a ladder did before this, and
+    // a learner meeting an empty screen is worse than one meeting a repeat.
+    if (!composed.words.length) {
+      return { ...composed, words: wordQueue(questions).slice(0, STAGE_WORDS), chapter }
+    }
+    return { ...composed, chapter }
+  }, [items, progress.pool, map.chapters, game?.id, questions])
+
+  const openStage = (stage) => {
+    const composed = composeFor(stage)
+    const resume = resumeIsLive(progress.resume, { now: Date.now() })
+      && String(progress.resume.stage) === String(stage)
+      ? progress.resume
+      : null
+    setPending({ stage, ...composed, resume })
+    setScreen('intro')
+  }
+
+  const beginStage = ({ stage, words, chapter, fromResume = null }) => {
+    const runId = fromResume?.runId || mintRunId()
+    const session = fromResume?.session || `s${Date.now()}`
+    poolRef.current = progress.pool
+    setActive({
+      stage,
+      chapter,
+      band: chapter?.id || null,
+      words: fromResume
+        // A resume replays the SAME word list, looked up from the pack by
+        // word. Recomposing would hand the learner a different stage and call
+        // it a resume, because the pool has moved on since they left.
+        ? fromResume.words.map((w) => items.find((it) => it.word === w)).filter(Boolean)
+        : words,
+      runId,
+      session,
+      startIndex: fromResume?.index || 0,
+      firstTryCorrect: fromResume?.firstTryCorrect || 0,
+      missedWords: fromResume?.missedWords || [],
+      poolBefore: fromResume?.poolBefore && Object.keys(fromResume.poolBefore).length
+        ? fromResume.poolBefore
+        : progress.pool,
+    })
+    setScreen('round')
+    emit(stage === TRICKY_STAGE ? 'tricky_stage_started' : 'stage_started', {
+      stage, band: chapter?.id || null, replay: starsFor(progress.stars, stage) > 0,
+    })
+  }
+
+  /**
+   * Answer-by-answer pool changes are held in a REF and written to the device
+   * only. Twenty Firestore writes per stage per learner is what writing each
+   * answer would cost; the server is written when the stage settles and when
+   * the learner leaves part-way, which are the two moments the record has to
+   * survive.
+   */
+  const onPoolChange = useCallback((updater) => {
+    poolRef.current = typeof updater === 'function' ? updater(poolRef.current) : updater
+  }, [])
+
+  const onPosition = useCallback(({ index, firstTryCorrect, missedWords }) => {
+    if (!active) return
+    setProgress((current) => {
+      const next = {
+        ...current,
+        pool: poolRef.current,
+        resume: {
+          stage: active.stage,
+          band: active.band,
+          runId: active.runId,
+          session: active.session,
+          words: active.words.map((w) => w.word),
+          index,
+          firstTryCorrect,
+          missedWords,
+          poolBefore: active.poolBefore,
+          startedAtMs: Date.now(),
+        },
+      }
+      // Device only — the resume is what a refresh reads back, and it is
+      // rewritten on every word.
+      // Fire and forget: the device copy is already written inside
+      // `saveSpellingProgress`, so a failed server sync loses nothing and must
+      // not interrupt the round.
+      saveSpellingProgress(game?.id, next).then(setSynced).catch(() => setSynced(false))
+      return next
+    })
+  }, [active, game?.id])
+
+  /* ── finishing a stage ───────────────────────────────────────────── */
+  const finishStage = (outcome) => {
+    const summary = stageSummary({
+      before: active.poolBefore,
+      after: poolRef.current,
+      words: active.words,
+      firstTryCorrect: outcome.firstTryCorrect,
+      size: active.words.length,
+    })
+    const previousStars = starsFor(progress.stars, active.stage)
+
+    setProgress((current) => {
+      const next = applyStageResult(current, {
+        stage: active.stage,
+        stars: summary.stars,
+        pool: poolRef.current,
+        runId: active.runId,
+      })
+      // `applyStageResult` returns the record BY IDENTITY when the run is
+      // already settled, so a stage that somehow finishes twice writes nothing
+      // and awards nothing the second time.
+      if (next !== current) saveSpellingProgress(game?.id, next).then(setSynced).catch(() => setSynced(false))
+      return next
+    })
+
+    setResults({ stage: active.stage, chapter: active.chapter, summary, previousStars, bestStreak: outcome.bestStreak })
     playWin()
-    setScreen('win')
-    // The stage advances on finishing, which is what the word spacing counts
-    // in: a word missed at stage 4 is due back at stage 6.
-    updateProgress((current) => ({ ...current, stage: (current.stage || 0) + 1 }))
-    // The shared end-of-round plumbing: score save, badges, daily streak.
-    finish(roundResult({ game, ...result }))
+    setScreen('results')
+
+    emit(active.stage === TRICKY_STAGE ? 'tricky_stage_completed' : 'stage_completed', {
+      stage: active.stage,
+      band: active.band,
+      stars: summary.stars,
+      firstTryCorrect: outcome.firstTryCorrect,
+      words: active.words.length,
+      mastered: summary.mastered.length,
+      addedTricky: summary.addedTricky.length,
+      replay: previousStars > 0,
+    })
+    if (summary.mastered.length) emit('tricky_word_mastered', { count: summary.mastered.length })
+    if (summary.addedTricky.length) emit('tricky_word_added', { count: summary.addedTricky.length })
+
+    // A chapter completes when the stage just cleared was its last AND every
+    // stage in it now holds a star. Derived from the record rather than
+    // counted as we go: a learner can clear a chapter's stages out of order
+    // by replaying, and a running tally would miss that or double-count it.
+    if (active.chapter && Number(active.stage) === active.chapter.lastStage) {
+      const stars = recordStageStars(progress.stars, active.stage, summary.stars)
+      const complete = Array.from(
+        { length: active.chapter.stageCount },
+        (_, i) => active.chapter.firstStage + i,
+      ).every((stage) => starsFor(stars, stage) > 0)
+      if (complete) {
+        emit('chapter_completed', { chapter: active.chapter.id, index: active.chapter.index })
+      }
+    }
+
+    // The shared end-of-round plumbing — score, XP, badges, daily streak. One
+    // stage is one round, exactly as every other game reports one.
+    finish(roundResult({
+      game,
+      score: summary.firstTryCorrect * 20,
+      solved: outcome.solved,
+      misses: outcome.missedWords.length,
+      peakCombo: outcome.bestStreak,
+      timeSpent: outcome.timeSpent,
+    }))
+  }
+
+  /**
+   * Leaving mid-stage. The resume has already been written on every word, so
+   * this only has to put the pool changes somewhere durable and go back — a
+   * learner who leaves after answering four words keeps those four answers.
+   */
+  const leaveRound = () => {
+    setProgress((current) => {
+      const next = { ...current, pool: poolRef.current }
+      saveSpellingProgress(game?.id, next).then(setSynced).catch(() => setSynced(false))
+      return next
+    })
+    stopSpeech()
+    setActive(null)
+    setScreen('map')
+  }
+
+  /* ── screens ─────────────────────────────────────────────────────── */
+  if (screen === 'loading') {
+    // `lhx-bare` here as well as on the main return: this engine is
+    // bare-mounted by PlayGame, and without it the desktop sidebar gutter
+    // learnerTheme.css reserves shoves the waiting line 250px right of centre
+    // with nothing in the gap (#2556).
+    return (
+      <div className="lhx lhx-bare"><div className="lhx-page">
+        <p className="lhx-sp-loading">Getting your words ready…</p>
+      </div></div>
+    )
   }
 
   return (
     <div className="lhx lhx-bare">
       <div className="lhx-page">
-        {/* The round waits for a NAMED pack rather than starting on the
-            document's ten and switching mid-stage: the stage the learner is
-            handed has to be composed from the whole bank, or the spacing that
-            decides which words come back is computed against the wrong set.
-            A local dynamic import resolves in milliseconds. */}
-        {screen === 'play' && packQuestions === null && (
-          <p className="lhx-wb-packing">Getting your words ready…</p>
-        )}
-        {screen === 'play' && packQuestions !== null && (
-          <PlayScreen
-            game={game}
-            questions={questions}
-            progress={progress}
-            onProgress={updateProgress}
+        {screen === 'map' && (
+          <SpellingStageMap
+            map={map}
+            grade={grade}
+            synced={synced}
             onExit={() => navigate('/games')}
-            onEnd={endRound}
+            onPickStage={(stage) => openStage(stage)}
+            onPickTricky={() => setScreen('tricky')}
           />
         )}
-        {screen === 'win' && (
-          <WinScreen
-            stars={starsForWordScore(outcome.score)}
-            title="Word Builder done!"
-            sub={`You spelt ${outcome.solved} ${outcome.solved === 1 ? 'word' : 'words'} correctly! Great spelling.`}
-            score={outcome.score}
+
+        {screen === 'tricky' && (
+          <TrickyWordsPanel
+            pool={progress.pool}
+            onTakeOn={() => { setScreen('map'); openStage(TRICKY_STAGE) }}
+            onBack={() => setScreen('map')}
+          />
+        )}
+
+        {screen === 'intro' && pending && (
+          <>
+            <SpellingStageMap
+              map={map}
+              grade={grade}
+              synced={synced}
+              onExit={() => navigate('/games')}
+              onPickStage={() => {}}
+              onPickTricky={() => {}}
+            />
+            <StageIntroSheet
+              stage={pending.stage}
+              chapter={pending.chapter}
+              words={pending.words}
+              fromPool={pending.fromPool}
+              resume={pending.resume}
+              onClose={() => { setPending(null); setScreen('map') }}
+              onStart={() => beginStage(pending)}
+              onResume={pending.resume ? () => beginStage({ ...pending, fromResume: pending.resume }) : null}
+              onReplayPrevious={
+                Number(pending.stage) > 1 && starsFor(progress.stars, Number(pending.stage) - 1) > 0
+                  ? () => openStage(Number(pending.stage) - 1)
+                  : null
+              }
+            />
+          </>
+        )}
+
+        {screen === 'round' && active && (
+          <SpellingRound
+            key={active.runId}
+            words={active.words}
+            stage={active.stage}
+            band={active.band}
+            chapterTitle={active.chapter?.title || ''}
+            grade={grade}
+            session={active.session}
+            startIndex={active.startIndex}
+            initialFirstTry={active.firstTryCorrect}
+            initialMissed={active.missedWords}
+            onPoolChange={onPoolChange}
+            onPosition={onPosition}
+            onExit={leaveRound}
+            onFinish={finishStage}
+            onEvent={emit}
+          />
+        )}
+
+        {screen === 'results' && results && (
+          <SpellingResults
+            stage={results.stage}
+            summary={results.summary}
+            bestStreak={results.bestStreak}
+            previousStars={results.previousStars}
+            hasNextStage={Number(results.stage) < map.lastStage}
             saveNote={buildSaveNote({ signedIn: !!currentUser, saveResult, streakResult })}
-            onContinue={() => navigate('/games')}
+            onMap={() => { setResults(null); setActive(null); setScreen('map') }}
+            onNext={() => { setResults(null); setActive(null); openStage(Number(results.stage) + 1) }}
+            onReplay={() => {
+              emit('stage_replayed', { stage: results.stage })
+              setResults(null)
+              setActive(null)
+              openStage(results.stage)
+            }}
           />
         )}
       </div>

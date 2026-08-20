@@ -313,12 +313,13 @@ const GamesHub = lazy(() => import('../features/games/pages/GamesHub'))
 const PlayGame = lazy(() => import('../features/games/pages/PlayGame'))
 const DuelRace = lazy(() => import('../features/games/pages/DuelRace'))
 const DuelLive = lazy(() => import('../features/games/pages/DuelLive'))
-const GlobalLeaderboard = lazy(() => import('../features/games/pages/GlobalLeaderboard'))
+const GamesLeaderboard = lazy(() => import('../features/games/pages/GamesLeaderboard'))
 const StickerCollection = lazy(() => import('../features/games/pages/StickerCollection'))
 const DailyIntro = lazy(() => import('../features/games/pages/DailyIntro'))
 
 // Admin — games seed importer
 const GamesSeedAdmin = lazy(() => import('../features/games/pages/GamesSeedAdmin'))
+const SpellingAdmin = lazy(() => import('../features/games/pages/SpellingAdmin'))
 const AdminDailyQuizPage = lazy(() => import('../features/adminDailyQuiz/pages/AdminDailyQuizPage'))
 
 // Quiz editor (shared by admin + teacher)
@@ -716,8 +717,15 @@ export default function App() {
             <Route path="/games"                       element={<GamesHub />} />
             <Route path="/games/stickers"              element={<StickerCollection />} />
             <Route path="/games/daily"                 element={<DailyIntro />} />
+            {/* The weekly, grade-scoped board. INSIDE the learner shell, with
+                /games and /games/daily — the board it replaced mounted the
+                legacy GamesShell chrome and looked like a different app from
+                the Daily Challenge screen that links to it. Public like its
+                siblings: the page itself renders a sign-in panel rather than
+                a guard, because a signed-out visitor has no grade and there
+                is no board to show them. */}
+            <Route path="/games/leaderboard"           element={<GamesLeaderboard />} />
           </Route>
-          <Route path="/games/leaderboard"             element={<GlobalLeaderboard />} />
           {/* Grade/subject browsing retired (step 8) — the hub IS the
               catalogue now, one card per mechanic like the mockup. */}
           <Route path="/games/g/:grade"                element={<Navigate to="/games" replace />} />
@@ -960,6 +968,7 @@ export default function App() {
               whole screen and somewhere to keep its place. */}
           <Route path="/admin/papers/:paperId/explanations" element={<AdminRoute><ExplanationReview /></AdminRoute>} />
           <Route path="/admin/games-seed"               element={<AdminRoute><GamesSeedAdmin /></AdminRoute>} />
+          <Route path="/admin/spelling"                 element={<AdminRoute><SpellingAdmin /></AdminRoute>} />
           {/* The Daily Quiz Generator console — tonight's run, the funnel,
               tomorrow's preview, bank health and the event log. */}
           <Route path="/admin/daily-quiz"               element={<AdminRoute><AdminDailyQuizPage /></AdminRoute>} />

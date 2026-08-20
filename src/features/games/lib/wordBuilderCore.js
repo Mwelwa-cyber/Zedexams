@@ -57,6 +57,10 @@ export function playableWords(questions) {
     .map((q) => ({
       word: String(q?.answer || '').toUpperCase().trim(),
       clue: String(q?.question || '').trim(),
+      // The BAND travels too. A stage belongs to a chapter, and a chapter is a
+      // difficulty band — so `wordsForStage` has to be able to filter to one
+      // without going back to the bank for a second lookup.
+      band: q?.band || null,
       // The pack entry travels with the word so the "break it up" coach can
       // find its chunks after a miss without looking the word up again.
       source: q || null,
@@ -73,6 +77,54 @@ export function wordQueue(questions, rng = Math.random) {
 /** The word's own letters as shuffled tap tiles (prototype: no decoys). */
 export function tilesFor(word, rng = Math.random) {
   return shuffled(String(word).split(''), rng).map((letter) => ({ letter, used: false }))
+}
+
+/**
+ * Plausible decoy letters — letters a speller might reach for and that are
+ * NOT in the word.
+ *
+ * Drawn from the letters English spelling mistakes are actually made of
+ * (vowels first, then the common consonants), never at random from the
+ * alphabet: a decoy `Q` beside `NEIGHBOUR` is not a temptation, it is a
+ * letter the child can rule out on sight, which makes the exercise easier
+ * rather than harder.
+ *
+ * A decoy is never a letter the word already needs — that would make the
+ * exercise IMPOSSIBLE, because the learner would place a duplicate into a
+ * slot the checker expects to be empty and could never finish. This is the
+ * property `test:word-builder` pins.
+ */
+export const DECOY_POOL = 'aeiouystrncldpmbhgfk'.toUpperCase().split('')
+
+/** How many decoys a word of this length earns. Short words get none. */
+export function decoyCountFor(wordLength) {
+  const n = Number(wordLength) || 0
+  if (n <= 4) return 0
+  if (n <= 6) return 1
+  if (n <= 9) return 2
+  return 3
+}
+
+/** The decoy letters for a word — never one the word itself uses. */
+export function decoysFor(word, rng = Math.random, count = null) {
+  const letters = new Set(String(word).toUpperCase().split(''))
+  const wanted = count == null ? decoyCountFor(String(word).length) : Math.max(0, count)
+  if (!wanted) return []
+  return shuffled(DECOY_POOL.filter((letter) => !letters.has(letter)), rng).slice(0, wanted)
+}
+
+/**
+ * The tap tiles for a word: its own letters plus plausible decoys, shuffled
+ * together so a decoy cannot be spotted by position.
+ *
+ * Each tile records whether it is a decoy — not to render differently (that
+ * would give the game away) but so a tap on one can be told apart from a
+ * spelling decision when the round is scored.
+ */
+export function tilesWithDecoys(word, rng = Math.random, decoyCount = null) {
+  const own = String(word).toUpperCase().split('').map((letter) => ({ letter, decoy: false }))
+  const fake = decoysFor(word, rng, decoyCount).map((letter) => ({ letter, decoy: true }))
+  return shuffled([...own, ...fake], rng).map((tile) => ({ ...tile, used: false }))
 }
 
 /** The guess read off the placed tile indices. */

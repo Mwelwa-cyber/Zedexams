@@ -49,6 +49,9 @@ const UID_DOC_COLLECTIONS = [
   "learner_profiles",
   "learnerStats",
   "studyPlanProgress",
+  // The learner's spelling ladder: stars per stage and the per-word pool that
+  // records which words they keep getting wrong. Doc id is the uid.
+  "spellingProgress",
   // Legacy: the passkey feature was removed 2026-08-17, but credential docs
   // written while it was live still exist and must be purged with the account.
   "passkeyUserHandles", // opaque WebAuthn user handle (server-only)
@@ -182,9 +185,14 @@ const FIELD_QUERY_COLLECTIONS = [
 // group. Listed separately because a `db.collection(name)` query cannot see
 // these at all — the top-level name does not exist.
 const COLLECTION_GROUP_COLLECTIONS = [
-  // The Daily Quiz's weekly board:
-  // leaderboards/{grade}/weeks/{weekId}/entries/{uid}. The row carries the
-  // learner's DISPLAY NAME and their score, so it is their data and it goes.
+  // BOTH weekly boards:
+  //   leaderboards/{grade}/weeks/{weekId}/entries/{uid}       (Daily Quiz)
+  //   gamesLeaderboards/{grade}/weeks/{weekId}/entries/{uid}  (Games)
+  // Each row carries the learner's DISPLAY NAME and their score, so it is
+  // their data and it goes. One entry covers both because both name the
+  // subcollection `entries` and key it on `uid` — that naming is deliberate
+  // on the games side precisely so a second board did not need a second
+  // list here, which is the kind of list that gets forgotten.
   //
   // The `leaderboards` top-level doc stays — it is the games board's
   // aggregated top-N and holds no uid. That is why this needs its own list:

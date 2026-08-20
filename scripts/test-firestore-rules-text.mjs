@@ -726,6 +726,38 @@ test('leaderboard writes are gated on guardian consent', () => {
   )
 })
 
+test('a game score is bounded, not merely numeric', () => {
+  // `score is number` alone accepted `score: 50000`. The bound must stay
+  // equal to MAX_ROUND_POINTS in the rollup core, which clamps the same
+  // value on the way into the weekly board — a rule and a clamp that
+  // disagree leave the gap open in one of the two directions.
+  const start = rules.indexOf('match /scores/{scoreId}')
+  const block = rules.slice(start, rules.indexOf('match /', start + 10))
+  assert(block.includes('incoming().score >= 0'), 'scores.score must have a lower bound')
+  assert(block.includes('incoming().score <= 1000'), 'scores.score must have an upper bound')
+})
+
+test('the games weekly board is server-written and signed-in-read', () => {
+  // The whole point of the rollup: a client writes a ROUND and the server
+  // decides what it is worth, which grade it lands on, and what name is
+  // safe to print. A client write here would undo all four.
+  const start = rules.indexOf('match /gamesLeaderboards/{grade}/weeks/{weekId}/entries/{entryUid}')
+  assert(start >= 0, 'games weekly board block not found')
+  const block = rules.slice(start, rules.indexOf('}', rules.indexOf('allow write', start)))
+  assert(block.includes('allow read: if isVerified()'), 'board reads must require a verified account')
+  assert(block.includes('allow write: if false'), 'board writes must be server-only')
+})
+
+test('the games board rows stay reachable by the account-deletion purge', () => {
+  // accountDeletion.js purges by COLLECTION GROUP `entries` on field `uid`.
+  // Renaming either half of that leaves a child's name on a public board
+  // after their account is destroyed, and nothing else would notice.
+  assert(
+    rules.includes('/weeks/{weekId}/entries/{entryUid}'),
+    'the board path must keep the `entries` subcollection name the purge queries',
+  )
+})
+
 // ── email-verification enforcement ─────────────────────────────
 
 console.log('\nemail-verification enforcement')
@@ -1180,6 +1212,56 @@ test('gameTombstones is public-read, admin-write', () => {
     body.includes('incoming().deletedBy == request.auth.uid'),
     'deletedBy must be the caller, not a client-chosen uid',
   )
+})
+
+test('spellingProgress is owner-only and bounded', () => {
+  const start = rules.indexOf('match /spellingProgress/{userId}')
+  assert(start >= 0, 'spellingProgress match block not found')
+  const body = rules.slice(start, start + 400)
+  // The pool is the list of words a named child keeps getting wrong. It is a
+  // derived personal record, never leaderboard data, so it must never become
+  // readable the way `scores` is.
+  assert(
+    /allow read:\s*if isVerified\(\) && \(isOwner\(userId\) \|\| isAdmin\(\)\);/.test(body),
+    'spellingProgress reads must be owner-or-admin',
+  )
+  assert(
+    /allow create, update: if isVerified\(\) && isOwner\(userId\) && validSpellingProgressFields\(userId\);/.test(body),
+    'spellingProgress writes must be owner-gated and field-validated',
+  )
+
+  const vStart = rules.indexOf('function validSpellingProgressFields(userId)')
+  assert(vStart >= 0, 'validSpellingProgressFields not found')
+  const validator = rules.slice(vStart, vStart + 1600)
+  assert(validator.includes('incoming().uid == request.auth.uid'), 'the record must be pinned to the caller')
+  // The document is read WHOLE on every visit to the map. The client trims
+  // the pool (`trimPool`), but a client cap is an optimisation and this is
+  // the limit — without it one learner's record grows until the read fails.
+  assert(/incoming\(\).pool is map && incoming\(\).pool.size\(\) <= \d+/.test(validator),
+    'the word pool must carry a size ceiling in the rule, not only in the client')
+  assert(/incoming\(\).stars is map/.test(validator), 'stars must be a bounded map')
+  assert(validator.includes('incoming().updatedAt == request.time'),
+    'the write must carry the server clock, not a client-chosen one')
+})
+
+test('spellingWords serves learners approved content only', () => {
+  const start = rules.indexOf('match /spellingWords/{wordId}')
+  assert(start >= 0, 'spellingWords match block not found')
+  const body = rules.slice(start, start + 900)
+  // Both conditions on both read verbs. A query that drops either one is
+  // REFUSED rather than quietly returning drafts — which is what makes
+  // "unreviewed content never reaches a child" a property of the rule
+  // rather than of whatever query the client happened to send.
+  for (const verb of ['get', 'list']) {
+    const at = body.indexOf(`allow ${verb}:`)
+    assert(at >= 0, `spellingWords must declare allow ${verb}`)
+    const clause = body.slice(at, body.indexOf(';', at))
+    assert(clause.includes("status == 'approved'"), `allow ${verb} must require an approved status`)
+    assert(clause.includes('active == true'), `allow ${verb} must require an active record`)
+  }
+  // Approval is a human act with an audit trail. Nothing generated may
+  // approve itself, so every write is admin.
+  assert(/allow write:\s*if isAdmin\(\);/.test(body), 'spellingWords writes must require isAdmin()')
 })
 
 // ── Report ──────────────────────────────────────────────────────

@@ -176,25 +176,23 @@ export function rankEntries(entries, viewerUid) {
 }
 
 /**
- * ISO week id, `YYYY-Www`.
+ * ISO week id, `YYYY-Www` — re-exported, not re-implemented.
  *
- * A CLIENT MIRROR of `weekIdFor` in functions/dailyQuiz/dailyQuizService.js,
- * and it has to stay one: the board a learner opens must be the board the
- * server wrote their points into. `test:daily-quiz-week` compares the two
- * across several years of dates rather than trusting that two copies of the
- * same three lines agree — they are exactly the kind of thing that disagrees
+ * It used to be three lines copied here from
+ * `functions/dailyQuiz/dailyQuizService.js`. A SECOND weekly board (the games
+ * board) then needed the same rule, and two copies inside `src/` is one more
+ * than the constraint requires: the ESM/CommonJS split is between `src/` and
+ * `functions/`, not between two features. The one client copy now lives in
+ * `src/shared/utils/lusakaWeek.js`, which both features read.
+ *
+ * `test:daily-quiz-week` still compares this export against the server's,
+ * unchanged — it walks several years day by day, because ISO weeks disagree
  * only in the last week of December.
  *
- * It lives here rather than in the service because the service imports
- * Firebase, which a plain-node mirror test cannot load.
+ * One behaviour moved with it, and it is a fix: a `Date` is now resolved
+ * through the LUSAKA calendar day rather than the UTC one. The server writes
+ * points against `lusakaDayString()`, so between 00:00 and 01:59 Lusaka on a
+ * Monday the old UTC reading put the client on the week that had just ended —
+ * an empty board on a morning the learner had played.
  */
-export function weekIdFor(date = new Date()) {
-  const key = typeof date === 'string' ? date : date.toISOString().slice(0, 10)
-  const [y, m, d] = key.split('-').map(Number)
-  const dt = new Date(Date.UTC(y, m - 1, d))
-  const day = dt.getUTCDay() || 7
-  dt.setUTCDate(dt.getUTCDate() + 4 - day)
-  const yearStart = new Date(Date.UTC(dt.getUTCFullYear(), 0, 1))
-  const week = Math.ceil(((dt - yearStart) / 86400000 + 1) / 7)
-  return `${dt.getUTCFullYear()}-W${String(week).padStart(2, '0')}`
-}
+export { weekIdFor } from '../../../shared/utils/lusakaWeek.js'

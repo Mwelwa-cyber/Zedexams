@@ -3817,6 +3817,80 @@ async function main() {
     }))
   })
 
+  await test('an absurd score is refused — the bound is a rule, not a convention', async () => {
+    // `score is number` alone accepted this, and the board that ranked raw
+    // score ROWS put whoever wrote it at number one. The weekly rollup
+    // clamps to the same 1000 on the way in; this is the other half.
+    await assertFails(addDoc(collection(learnerA, 'scores'), {
+      userId: LEARNER_A, gameId: 'game-1', grade: 4, subject: 'mathematics',
+      score: 50000, playedAt: serverTimestamp(),
+    }))
+    await assertFails(addDoc(collection(learnerA, 'scores'), {
+      userId: LEARNER_A, gameId: 'game-1', grade: 4, subject: 'mathematics',
+      score: -10, playedAt: serverTimestamp(),
+    }))
+    // The boundary itself is legitimate, so the bound cannot be "any large
+    // number fails" by accident.
+    await assertSucceeds(addDoc(collection(learnerA, 'scores'), {
+      userId: LEARNER_A, gameId: 'game-1', grade: 4, subject: 'mathematics',
+      score: 1000, playedAt: serverTimestamp(),
+    }))
+  })
+
+  // ── the GAMES weekly board ───────────────────────────────────
+  //
+  // The one property that makes this board different from the `scores` rows
+  // above: a learner cannot write it. Every decision on it — the points, the
+  // grade, the guardian check, the printed name — is the server's, so a
+  // successful client write anywhere in this subtree would return the board
+  // to being a ranking of numbers a client chose.
+
+  section('gamesLeaderboards — server-written, signed-in read')
+
+  await test('a verified learner can read a board entry but never write one', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), 'gamesLeaderboards', '4', 'weeks', '2026-W34', 'entries', LEARNER_A),
+        { uid: LEARNER_A, grade: 4, weekId: '2026-W34', displayName: 'Chanda M.', points: 96, plays: 3 },
+      )
+    })
+    await assertSucceeds(getDoc(
+      doc(learnerA, 'gamesLeaderboards', '4', 'weeks', '2026-W34', 'entries', LEARNER_A),
+    ))
+    // Not even their own row, and not even with a plausible value.
+    await assertFails(setDoc(
+      doc(learnerA, 'gamesLeaderboards', '4', 'weeks', '2026-W34', 'entries', LEARNER_A),
+      { points: 9999 }, { merge: true },
+    ))
+    await assertFails(deleteDoc(
+      doc(learnerA, 'gamesLeaderboards', '4', 'weeks', '2026-W34', 'entries', LEARNER_A),
+    ))
+  })
+
+  await test('a learner cannot invent a row for themselves on any grade board', async () => {
+    await assertFails(setDoc(
+      doc(learnerA, 'gamesLeaderboards', '7', 'weeks', '2026-W34', 'entries', LEARNER_A),
+      { uid: LEARNER_A, grade: 7, points: 5000 },
+    ))
+  })
+
+  await test('an admin cannot write the board either — it has exactly one writer', async () => {
+    // Deliberate, and different from `leaderboards/{gameId}` above: this
+    // board is derived, and an admin-authored row would be a number with no
+    // rounds behind it.
+    await assertFails(setDoc(
+      doc(admin, 'gamesLeaderboards', '4', 'weeks', '2026-W34', 'entries', LEARNER_A),
+      { points: 1 }, { merge: true },
+    ))
+  })
+
+  await test('a signed-out visitor cannot read the board — these rows name children', async () => {
+    const guest = testEnv.unauthenticatedContext().firestore()
+    await assertFails(getDoc(
+      doc(guest, 'gamesLeaderboards', '4', 'weeks', '2026-W34', 'entries', LEARNER_A),
+    ))
+  })
+
   await test('nobody but an admin can edit or delete a saved score', async () => {
     let scoreId
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
@@ -3903,6 +3977,117 @@ async function main() {
     // re-importing the game, which is exactly when the importer does it.
     await assertFails(deleteDoc(doc(learnerA, 'gameTombstones', 'game_tombstoned')))
     await assertSucceeds(deleteDoc(doc(admin, 'gameTombstones', 'game_tombstoned')))
+  })
+
+  // ── spellingProgress: the learner's spelling ladder + word mastery ──
+  //
+  // A derived personal record, and the pool is the list of words a NAMED
+  // child keeps getting wrong. It must never become readable the way `scores`
+  // is, and the write must be bounded — the whole document is read on every
+  // visit to the map, so an unbounded pool is a read that eventually fails.
+
+  const spellingRecord = (uid, extra = {}) => ({
+    uid,
+    stars: { 1: 3, 2: 2 },
+    pool: { SEPARATE: { correct: 1, sessions: ['s1'], misses: 2, dueAt: 4 } },
+    stagesPlayed: 2,
+    settledRuns: ['run-a'],
+    resume: null,
+    totalStars: 5,
+    updatedAt: serverTimestamp(),
+    ...extra,
+  })
+
+  await test('a learner owns their spelling record, and nobody else may read it', async () => {
+    await assertSucceeds(setDoc(doc(learnerA, 'spellingProgress', LEARNER_A), spellingRecord(LEARNER_A)))
+    await assertSucceeds(getDoc(doc(learnerA, 'spellingProgress', LEARNER_A)))
+    // Another learner cannot read which words this child keeps missing.
+    await assertFails(getDoc(doc(learnerB, 'spellingProgress', LEARNER_A)))
+    await assertFails(getDoc(doc(teacherA, 'spellingProgress', LEARNER_A)))
+    await assertFails(getDoc(doc(guest, 'spellingProgress', LEARNER_A)))
+    // Admin may read for support, and is the only one who may delete.
+    await assertSucceeds(getDoc(doc(admin, 'spellingProgress', LEARNER_A)))
+    await assertFails(deleteDoc(doc(learnerA, 'spellingProgress', LEARNER_A)))
+    await assertSucceeds(deleteDoc(doc(admin, 'spellingProgress', LEARNER_A)))
+  })
+
+  await test('a learner cannot write another learner\'s spelling record', async () => {
+    await assertFails(setDoc(doc(learnerB, 'spellingProgress', LEARNER_A), spellingRecord(LEARNER_A)))
+    // Nor by naming themselves in someone else's document.
+    await assertFails(setDoc(doc(learnerB, 'spellingProgress', LEARNER_A), spellingRecord(LEARNER_B)))
+    // Nor by claiming a uid that is not theirs in their own.
+    await assertFails(setDoc(doc(learnerB, 'spellingProgress', LEARNER_B), spellingRecord(LEARNER_A)))
+  })
+
+  await test('the spelling record is bounded and cannot carry a client clock', async () => {
+    // The pool ceiling is the rule's, not the client's: `trimPool` is an
+    // optimisation and this is the limit. Without it one learner's record
+    // grows until the read that paints the map fails.
+    const huge = {}
+    for (let i = 0; i < 600; i += 1) huge[`WORD${i}`] = { correct: 0, sessions: [], misses: 1, dueAt: 0 }
+    await assertFails(setDoc(doc(learnerA, 'spellingProgress', LEARNER_A), spellingRecord(LEARNER_A, { pool: huge })))
+
+    // A client-chosen timestamp is refused — the server stamps the write.
+    await assertFails(setDoc(doc(learnerA, 'spellingProgress', LEARNER_A),
+      spellingRecord(LEARNER_A, { updatedAt: new Date('2020-01-01') })))
+
+    // And a field the shape does not declare cannot be smuggled in.
+    await assertFails(setDoc(doc(learnerA, 'spellingProgress', LEARNER_A),
+      spellingRecord(LEARNER_A, { role: 'admin' })))
+  })
+
+  await test('an unverified learner cannot write a spelling record', async () => {
+    await assertFails(setDoc(doc(unverified, 'spellingProgress', UNVERIFIED_LEARNER),
+      spellingRecord(UNVERIFIED_LEARNER)))
+  })
+
+  // ── spellingWords: reviewed spelling content ──────────────────────
+  //
+  // The rule is what makes "unreviewed content never reaches a child" true.
+  // A learner may read an approved, active word and nothing else, so a query
+  // that drops either condition is REFUSED rather than quietly returning
+  // drafts — which is the property a client-side filter could never give.
+
+  await test('a learner may read an approved word and never a draft', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'spellingWords', 'g7_neighbour'), {
+        word: 'neighbour', grade: 7, band: 'silent', status: 'approved', active: true,
+        contextSentence: 'Our ___ helped us carry the water.',
+      })
+      await setDoc(doc(ctx.firestore(), 'spellingWords', 'g7_draft'), {
+        word: 'rehearsal', grade: 7, band: 'silent', status: 'draft', active: true,
+        contextSentence: 'The ___ went on for an hour.',
+      })
+      await setDoc(doc(ctx.firestore(), 'spellingWords', 'g7_off'), {
+        word: 'withdrawn', grade: 7, band: 'silent', status: 'approved', active: false,
+        contextSentence: 'The offer was ___.',
+      })
+    })
+
+    await assertSucceeds(getDoc(doc(learnerA, 'spellingWords', 'g7_neighbour')))
+    // A draft is refused outright — not filtered out by the client.
+    await assertFails(getDoc(doc(learnerA, 'spellingWords', 'g7_draft')))
+    // As is an approved word that has been deactivated.
+    await assertFails(getDoc(doc(learnerA, 'spellingWords', 'g7_off')))
+    // An admin sees everything, which is what the review queue needs.
+    await assertSucceeds(getDoc(doc(admin, 'spellingWords', 'g7_draft')))
+  })
+
+  await test('spelling content is admin-write only — nothing approves itself', async () => {
+    const record = {
+      word: 'smuggled', grade: 7, band: 'silent', status: 'approved', active: true,
+      contextSentence: 'A ___ box was found.',
+    }
+    await assertFails(setDoc(doc(learnerA, 'spellingWords', 'g7_smuggled'), record))
+    await assertFails(setDoc(doc(teacherA, 'spellingWords', 'g7_smuggled'), record))
+    await assertFails(setDoc(doc(guest, 'spellingWords', 'g7_smuggled'), record))
+    await assertSucceeds(setDoc(doc(admin, 'spellingWords', 'g7_smuggled'), record))
+
+    // A learner cannot promote a draft to approved either.
+    await assertFails(setDoc(doc(learnerA, 'spellingWords', 'g7_draft'),
+      { status: 'approved' }, { merge: true }))
+    await assertFails(deleteDoc(doc(learnerA, 'spellingWords', 'g7_smuggled')))
+    await assertSucceeds(deleteDoc(doc(admin, 'spellingWords', 'g7_smuggled')))
   })
 
   await test('a tombstone cannot be forged onto another id or another admin', async () => {
