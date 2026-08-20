@@ -152,6 +152,28 @@ const QUESTIONS_TOOL_SCHEMA = {
         "no explicit total is printed. Never guess — only report a number " +
         "that is actually printed on the paper.",
     },
+    // Cover/instruction-page TIME ALLOWED, verbatim — "You will be given
+    // EXACTLY 60 MINUTES", "TIME: 1 hour 30 minutes". Returned as the printed
+    // WORDS rather than a computed number on purpose: the minutes are derived
+    // from this by `parsePrintedDuration` in functions/shared/paperQuiz/
+    // examSpec.js, so the paper's clock never depends on the model doing
+    // arithmetic, and an admin can see the sentence the number came from.
+    declaredTimeAllowed: {
+      type: ["string", "null"],
+      description:
+        "The paper's printed time allowance, copied VERBATIM from the cover " +
+        "or instruction page, e.g. 'EXACTLY 60 MINUTES' or '1 hour 30 " +
+        "minutes'. Null if the paper prints no time. Never guess or convert " +
+        "— copy the words as printed.",
+    },
+    // Cover-page declared TOTAL MARKS, when printed. Prefills the Studio's
+    // Details step beside the duration; nothing downstream computes with it.
+    declaredTotalMarks: {
+      type: ["integer", "null"],
+      description:
+        "The total marks the cover states, e.g. 'Total marks: 50' → 50. " +
+        "Null if no total is printed. Never guess.",
+    },
     // Declared Part/section structure — the paper's OWN ground truth. The
     // server reconciler uses these ranges to drop phantom over-counts, repair
     // mis-read numbers, and fill stem-less spelling/punctuation items.
@@ -328,6 +350,8 @@ const SYSTEM_PROMPT = `You are digitising a Zambian ECZ examination paper. The u
 COMPLETENESS IS THE TOP PRIORITY. Capture every question on every page, in the order they appear. Do not stop early, do not summarise, do not skip a question because it has a diagram or is hard to read — transcribe what you can. A paper may have 20, 50, or 100+ questions; return all of them.
 
 SKIP THE COVER / INSTRUCTION PAGE. The front page (and any instruction page) of an exam paper carries only the heading — the exam title, candidate-information boxes (name, examination number, school), the time allowed, the total marks, and general directions such as "Answer ALL questions", "Do not open this paper until told", or "Write your answers in the spaces provided". These are NOT questions. Never turn an instruction, a heading, or a candidate-info field into a question. Begin extracting at the FIRST printed, numbered question, and number each question with the number printed beside it on the paper. HOWEVER, read that cover/instruction page for one thing: an explicit statement of the total number of questions ("There are 60 questions in this paper.", "This paper has 50 questions."). Report that exact number as the top-level declaredQuestionCount — this is the strongest ground truth for the paper's exact count, used even on a paper that prints no Part/Section structure at all. Report null when no such statement is printed; never guess a total.
+
+READ THE COVER'S TIME AND MARKS TOO. That same cover/instruction page states how long candidates are given ("You will be given EXACTLY 60 MINUTES to answer the questions.", "TIME: 1 hour 30 minutes", a bare "60 MINUTES" beside the subject code) and often the total marks. Copy the time allowance VERBATIM into the top-level declaredTimeAllowed — the printed words, not a number you worked out — and the printed total into declaredTotalMarks. These are what the learner's timed run is set to, so a guess here becomes a wrong exam clock: report null for either when the paper does not print it. Never read the question count, the subject code (e.g. "84/1"), the year or a mark total as a time.
 
 WORKED EXAMPLES ARE NEVER QUESTIONS. A Part often shows a worked "Example" (with its own answer) directly under the instruction, before the real numbered items begin. It never carries a printed question number. Do not extract it as a question at all — skip straight from the instruction to the first numbered item. If you are ever unsure whether something is the worked Example, set that item's contentRole to "example" rather than risk it being scored as a real question.
 
@@ -686,7 +710,7 @@ function buildExtractionPrompt({paper, segment, seenStems, round, progress}) {
  */
 async function extractSegment({
   apiKey, paper, segment, seenKeys, seenNumbers, accum, partsAccum,
-  declaredCounts, roleRejections,
+  declaredCounts, coverFacts, roleRejections,
 }) {
   const segmentQuestions = [];
   let rounds = 0;
@@ -740,6 +764,17 @@ async function extractSegment({
     // raw; runPastPaperImport picks the most-agreed-on value.
     if (declaredCounts && Number.isInteger(result?.parsed?.declaredQuestionCount)) {
       declaredCounts.push(result.parsed.declaredQuestionCount);
+    }
+    // The cover's OTHER two printed facts — the time allowed (verbatim) and
+    // the total marks. Same story as the count: only the segment holding the
+    // cover reports them, so they are collected raw and reduced afterwards.
+    if (coverFacts) {
+      const time = typeof result?.parsed?.declaredTimeAllowed === "string" ?
+        result.parsed.declaredTimeAllowed.trim() : "";
+      if (time) coverFacts.timeTexts.push(time.slice(0, 120));
+      if (Number.isInteger(result?.parsed?.declaredTotalMarks)) {
+        coverFacts.marks.push(result.parsed.declaredTotalMarks);
+      }
     }
 
     const rawQuestions = Array.isArray(result?.parsed?.questions) ?
@@ -1058,6 +1093,70 @@ async function assertQuizWritable(quizId, uid, isAdmin) {
   }
 }
 
+/**
+ * Reduce what the model read off the cover into the `printedSpec` the paper
+ * carries: the minutes a learner is given, the count the paper claims, the
+ * marks it is out of, and the sentence each came from.
+ *
+ * The MINUTES are parsed from the printed words by the shared resolver, not
+ * taken from the model: `parsePrintedDuration` is the same function the
+ * browser and `startAttempt` run, and it refuses a number that is not a time —
+ * so "There are 50 questions" three lines above the time sentence can never
+ * become a 50-minute exam. A time we cannot parse is still RECORDED as text;
+ * the Studio shows it and an admin types the number, which is a much better
+ * failure than a confident wrong clock.
+ */
+async function buildPrintedSpec({coverFacts, declaredQuestionCount}) {
+  const {parsePrintedDuration} = await import("../shared/paperQuiz/examSpec.js");
+  const texts = (coverFacts && coverFacts.timeTexts) || [];
+  let statedTime = "";
+  let durationMinutes = null;
+  for (const text of texts) {
+    const minutes = parsePrintedDuration(text);
+    if (minutes) {
+      statedTime = text;
+      durationMinutes = minutes;
+      break;
+    }
+    if (!statedTime) statedTime = text;
+  }
+  const marks = (coverFacts && coverFacts.marks) || [];
+  return {
+    durationMinutes,
+    statedTime,
+    questionCount: Number.isInteger(declaredQuestionCount) && declaredQuestionCount > 0 ?
+      declaredQuestionCount : null,
+    totalMarks: marks.length ? marks[0] : null,
+    engineVersion: PAST_PAPER_ENGINE_VERSION,
+  };
+}
+
+/**
+ * Stamp the printed facts on the paper. Never overwrites `durationMinutes` —
+ * that field is the admin's, and an import must not silently move a clock a
+ * human set. Best-effort: a paper that imported its questions and failed this
+ * write is not a failed import.
+ */
+async function persistPrintedSpec(paperId, printedSpec) {
+  if (!paperId || !printedSpec) return;
+  // Nothing was printed (or nothing was read) — leave whatever a previous run
+  // recorded rather than replacing it with a row of nulls.
+  if (!printedSpec.durationMinutes && !printedSpec.statedTime &&
+      !printedSpec.questionCount && printedSpec.totalMarks == null) return;
+  try {
+    await admin.firestore().doc(`pastPapers/${paperId}`).set({
+      printedSpec: {
+        ...printedSpec,
+        readAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true});
+  } catch (err) {
+    console.warn("[pastPaperImport] printedSpec write failed",
+      err && err.message);
+  }
+}
+
 async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false}) {
   // Authorise the destructive target up front — never clear/overwrite a quiz
   // the caller doesn't own, and don't spend an AI call to find out.
@@ -1088,6 +1187,11 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
   // reported per-segment — usually only the cover-carrying segment reports
   // one. Reduced to a single value below (majority vote).
   const declaredCounts = [];
+  // The cover's time allowance (verbatim) and total marks, per segment. What
+  // the reported bug was actually about: a paper printing "EXACTLY 60 MINUTES"
+  // offered a 90-minute exam, because nothing in the pipeline had ever read
+  // that sentence.
+  const coverFacts = {timeTexts: [], marks: []};
   // Worked-Example / Part-instruction / heading blocks rejected before they
   // could become a question candidate — surfaced in the report, never in the
   // quiz (learners must never see a rejected candidate).
@@ -1100,7 +1204,7 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
   for (const segment of segments) {
     const segResult = await extractSegment({
       apiKey, paper, segment, seenKeys, seenNumbers, accum, partsAccum,
-      declaredCounts, roleRejections,
+      declaredCounts, coverFacts, roleRejections,
     });
     extractionRounds += segResult.rounds;
     if (segResult.truncationHit) truncationHit = true;
@@ -1137,6 +1241,15 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
       if (c > bestCount) { bestCount = c; declaredQuestionCount = n; }
     });
   }
+
+  // ── The paper's own printed facts (the "printedSpec") ────────────
+  // Read off the cover, stamped on the paper document, and from there they
+  // become the learner's clock: `resolveExamSpec` prefers them over every
+  // approximation, and the Studio's Details step offers them for an admin to
+  // confirm. Written even when the question gate blocks below — reading the
+  // cover succeeded whatever happened to the questions.
+  const printedSpec = await buildPrintedSpec({coverFacts, declaredQuestionCount});
+  await persistPrintedSpec(paperId, printedSpec);
 
   // ── Declared-range reconciliation (printed "Questions X–Y" — or a bare
   // cover-page total on a paper with no Part headings — as ground truth) ──
@@ -1385,12 +1498,128 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
     questions,
     questionsWritten: written,
     questionsCleared: cleared,
+    // The paper's own printed facts, already stamped on the paper document —
+    // returned so the Studio can offer them for confirmation in the Details
+    // step without a second read.
+    printedSpec,
     // True when the gate blocked the write — the caller must NOT advance to the
     // editor as if the import succeeded.
     gated: !gate.ok,
     report,
     usage,
     warning: warnings.length ? warnings.join(" ") : null,
+  };
+}
+
+// The three facts a cover prints, and nothing else. A separate, tiny schema
+// from QUESTIONS_TOOL_SCHEMA because the cover read must not invite the model
+// to start extracting questions — this call writes no questions and would
+// silently pay for tokens nobody reads.
+const COVER_TOOL_SCHEMA = {
+  type: "object",
+  properties: {
+    declaredQuestionCount: QUESTIONS_TOOL_SCHEMA.properties.declaredQuestionCount,
+    declaredTimeAllowed: QUESTIONS_TOOL_SCHEMA.properties.declaredTimeAllowed,
+    declaredTotalMarks: QUESTIONS_TOOL_SCHEMA.properties.declaredTotalMarks,
+  },
+  required: [],
+};
+
+// A cover read gets its OWN system prompt, and the reason is not economy.
+// SYSTEM_PROMPT opens with "COMPLETENESS IS THE TOP PRIORITY … return EVERY
+// question" and then, in capitals, "SKIP THE COVER / INSTRUCTION PAGE" — the
+// exact page this call exists to read. Handing it to a cover read is arguing
+// with the request.
+const COVER_SYSTEM_PROMPT = "You are reading the cover page of a Zambian ECZ " +
+  "examination paper to record what it prints about itself. You are NOT " +
+  "extracting questions. Report only what is actually printed on the page, " +
+  "verbatim where asked; report null for anything the page does not state. " +
+  "Never infer, convert or estimate a value.";
+
+const COVER_PROMPT = [
+  "Read ONLY the cover / instruction page of this exam paper and report three " +
+  "printed facts. Do not extract any questions.",
+  "",
+  "1. declaredQuestionCount — the total the page states, e.g. \"There are 50 " +
+  "questions in this paper.\" → 50.",
+  "2. declaredTimeAllowed — the time allowance, copied VERBATIM, e.g. \"You " +
+  "will be given EXACTLY 60 MINUTES\" or \"TIME: 1 hour 30 minutes\". Copy " +
+  "the printed words; do not convert them to a number.",
+  "3. declaredTotalMarks — the total marks the page states, if any.",
+  "",
+  "Report null for anything the paper does not print. Never guess, and never " +
+  "read the subject code (e.g. \"84/1\"), the year, the question count or a " +
+  "mark total as a time.",
+].join("\n");
+
+/**
+ * Read a published paper's cover and record what it prints — without touching
+ * its questions.
+ *
+ * Why this exists as its own path: the archive was imported before anything
+ * read the cover, so those papers hold no `printedSpec` and fall back to an
+ * approximation of their own length. The alternative for fixing one is a full
+ * re-import, which re-extracts and REWRITES every question — a destructive,
+ * multi-minute, many-call operation to learn one sentence. This is one call
+ * over the first segment, it writes only `printedSpec`, and it cannot change a
+ * single question.
+ */
+async function runPaperCoverRead({paperId, apiKey}) {
+  const paper = await loadPaperOrThrow(paperId);
+  const source = pickSources(paper);
+  if (!source) {
+    throw new HttpsError("failed-precondition",
+      "This paper has no uploaded files to read.");
+  }
+  const {segments} = await planSegments(source);
+  const segment = segments[0];
+  if (!segment) {
+    throw new HttpsError("failed-precondition", "This paper has no readable pages.");
+  }
+
+  let result;
+  try {
+    result = await callClaude(apiKey, {
+      track: {tool: "pastPaperCoverRead"},
+      systemPrompt: COVER_SYSTEM_PROMPT,
+      messages: [{role: "user", content: [...segment.blocks, {type: "text", text: COVER_PROMPT}]}],
+      model: IMPORT_MODEL,
+      maxTokens: 400,
+      temperature: 0,
+      mode: "tool",
+      toolName: "return_cover_facts",
+      toolDescription: "Return what the paper's cover page prints.",
+      toolInputSchema: COVER_TOOL_SCHEMA,
+    });
+  } catch (err) {
+    throw new HttpsError("unavailable",
+      "Could not read this paper's cover page. Try again. " +
+      String(err && err.message || err).slice(0, 200));
+  }
+
+  const timeText = typeof result?.parsed?.declaredTimeAllowed === "string" ?
+    result.parsed.declaredTimeAllowed.trim().slice(0, 120) : "";
+  const printedSpec = await buildPrintedSpec({
+    coverFacts: {
+      timeTexts: timeText ? [timeText] : [],
+      marks: Number.isInteger(result?.parsed?.declaredTotalMarks) ?
+        [result.parsed.declaredTotalMarks] : [],
+    },
+    declaredQuestionCount: Number.isInteger(result?.parsed?.declaredQuestionCount) ?
+      result.parsed.declaredQuestionCount : null,
+  });
+  await persistPrintedSpec(paperId, printedSpec);
+
+  return {
+    printedSpec,
+    // A cover that prints nothing readable is a real outcome, not a failure —
+    // the Studio says so and the admin types the numbers.
+    found: Boolean(printedSpec.durationMinutes || printedSpec.questionCount ||
+      printedSpec.statedTime || printedSpec.totalMarks != null),
+    usage: {
+      inputTokens: Number(result?.usage?.inputTokens || 0),
+      outputTokens: Number(result?.usage?.outputTokens || 0),
+    },
   };
 }
 
@@ -1421,6 +1650,13 @@ function createImportPastPaperQuestions(anthropicApiKeySecret) {
       await assertCallableRateLimit(request, {action: "past-paper-import", userPerMin: 4});
       const apiKey = getAnthropicApiKey(anthropicApiKeySecret);
       const paperId = String(request.data && request.data.paperId || "");
+      // Cover-only: read what the paper prints about itself (time allowed,
+      // question count, marks) and write nothing else. Same authorisation and
+      // the same limiter as a full import — it is the same secret and the same
+      // provider — but no quiz is touched, so it needs no quiz id.
+      if (request.data && request.data.coverOnly === true) {
+        return runPaperCoverRead({paperId, apiKey});
+      }
       const quizId = request.data && request.data.quizId ?
         String(request.data.quizId) : null;
       return runPastPaperImport({
@@ -1431,7 +1667,8 @@ function createImportPastPaperQuestions(anthropicApiKeySecret) {
 }
 
 module.exports = {
-  createImportPastPaperQuestions, runPastPaperImport,
+  createImportPastPaperQuestions, runPastPaperImport, runPaperCoverRead,
+  buildPrintedSpec,
   // Source loaders reused by extractAssessmentFormat (same download, size-cap
   // and DOCX→text handling for sample assessment papers).
   loadPaperOrThrow, pickSources, buildMessageBlocks,

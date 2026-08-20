@@ -9,6 +9,7 @@
 import { Link } from 'react-router-dom'
 import { Check, Clock, Info, PencilLine, TrophyIcon } from '../../../../shared/components/icons'
 import { QUIZ_PENDING_COPY } from '../../../../utils/pastPaperQuizStatus'
+import { resolveExamSpec } from '../../../../utils/paperExamSpec'
 import InfoRow from './InfoRow'
 import { formatDuration, formatUpdated } from './paperFormat'
 
@@ -22,7 +23,12 @@ function PaperPanels({
   timedExamAvailable, attemptCount, bestTime, avgTime, quizTaken,
 }) {
   const questionCount = quizMeta?.questionCount || null
-  const estMinutes = paper.durationMinutes || (questionCount ? Math.max(5, Math.round(questionCount * 1)) : null)
+  // The same resolution the quiz cover and the exam clock run. This panel used
+  // to guess a minute a question on its own, so a paper could advertise "50m"
+  // here, offer a 90-minute exam one tap away, and print "60 MINUTES" on its
+  // own first page.
+  const examSpec = resolveExamSpec({ paper, questionCount })
+  const estMinutes = (questionCount || examSpec.exact) ? examSpec.durationMinutes : null
   return (
     <>
       {/* Quiz panel */}
@@ -41,7 +47,9 @@ function PaperPanels({
                 <dd className="theme-text font-black text-lg">{questionCount ?? '—'}</dd>
               </div>
               <div className="rounded-xl theme-bg-subtle py-2">
-                <dt className="text-[10px] font-bold theme-text-muted uppercase tracking-wide">Est. time</dt>
+                <dt className="text-[10px] font-bold theme-text-muted uppercase tracking-wide">
+                  {examSpec.exact ? 'Time allowed' : 'Est. time'}
+                </dt>
                 <dd className="theme-text font-black text-lg">{estMinutes ? `${estMinutes}m` : '—'}</dd>
               </div>
             </dl>
@@ -82,6 +90,8 @@ function PaperPanels({
           <InfoRow label="Paper Type" value={paper.paperNumber ? `Paper ${paper.paperNumber}` : 'National Examination'} />
           <InfoRow label="Language" value="English" />
           {totalPages ? <InfoRow label="Total Pages" value={totalPages} /> : null}
+          {examSpec.exact ? <InfoRow label="Time Allowed" value={`${examSpec.durationMinutes} minutes`} /> : null}
+          {examSpec.declaredQuestionCount ? <InfoRow label="Questions" value={examSpec.declaredQuestionCount} /> : null}
           <InfoRow label="Exam Board" value={paper.examBoard || 'ECZ'} />
           <InfoRow label="Last Updated" value={formatUpdated(paper.updatedAt)} />
         </dl>

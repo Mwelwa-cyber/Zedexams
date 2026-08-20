@@ -32,6 +32,11 @@ const SHIMS = [
   'src/utils/mcqChoices.js',
   'src/utils/paperMarksModel.js',
   'src/curriculum/diagrams/diagramCatalog.js',
+  // The past-paper quiz's shims. What these re-export decides how long a
+  // learner's exam runs: the browser prints the number on the cover and the
+  // server stamps `expiresAtMs` from the same module, so a rung added on this
+  // side alone is a clock that disagrees with the screen that sold it.
+  'src/utils/paperExamSpec.js',
   // The guardian package's shims. Same rule, higher stakes: what these
   // re-export decides whether a child's account is in limited mode, whether
   // one guardian may loosen another's restriction, and who may spend a
@@ -93,9 +98,14 @@ for (const shim of SHIMS) {
     // (a decision the SERVER has to make, fronted in src/ for a short
     // import path). Pinning one directory would have quietly excused a
     // shim in the other from ever being checked.
+    //
+    // `[A-Za-z]` rather than `[a-z]`: the package directories are camelCase
+    // (`paperQuiz`), and a lowercase-only pattern silently failed the first
+    // shim that fronted one — reported as "the rule has moved somewhere
+    // else", which is the opposite of what had happened.
     assert.match(
       code,
-      /functions\/shared\/[a-z]+\//,
+      /functions\/shared\/[A-Za-z]+\//,
       `${shim} no longer re-exports from the shared package — the rule it fronts has moved somewhere else`,
     )
   })

@@ -62,6 +62,23 @@ describe('PaperQuizCover', () => {
     expect(screen.getByText(/90 minutes on the clock/)).toBeInTheDocument()
   })
 
+  it('says "about" when the clock is not the paper\'s own number', () => {
+    // The reported bug's other half. A paper whose cover has not been read
+    // still needs a clock, but offering an approximation in the same voice as
+    // a printed "EXACTLY 60 MINUTES" is what made a 90-minute default look
+    // like a fact about the paper.
+    renderCover({ durationMin: 75, durationExact: false })
+    expect(screen.getByText(/About 75 minutes on the clock/)).toBeInTheDocument()
+    expect(screen.getByText('Minutes (about)')).toBeInTheDocument()
+  })
+
+  it('states an exact duration plainly, with no hedge', () => {
+    renderCover({ durationMin: 60, durationExact: true })
+    expect(screen.getByText('60 minutes on the clock.')).toBeInTheDocument()
+    expect(screen.getByText('Minutes')).toBeInTheDocument()
+    expect(screen.queryByText(/About 60 minutes/)).not.toBeInTheDocument()
+  })
+
   it('hides the best-score card entirely on a first attempt', () => {
     renderCover({ history: null })
     expect(screen.queryByText(/BEST SCORE/)).not.toBeInTheDocument()

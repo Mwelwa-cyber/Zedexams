@@ -20,6 +20,7 @@ import {
   countPendingQuizPapers,
   derivePaperQuizStatus,
 } from '../../../utils/pastPaperQuizStatus'
+import { resolveExamSpec } from '../../../utils/paperExamSpec'
 import { SUBJECTS } from '../../../config/curriculum'
 import {
   SOURCE_CONFIDENCE,
@@ -411,6 +412,12 @@ export default function AdminPastPapers() {
             // correctly instead of every one of them claiming to be pending.
             const quizPending = derivePaperQuizStatus(p) === QUIZ_STATUSES.PENDING
             const unlabelled = needsLabelling(p)
+            // A paper whose exam length nobody knows: learners can sit it, but
+            // the clock is an approximation (the official subject length, or an
+            // estimate from the questions) and the quiz says "about". The chip
+            // makes that a worklist the way "Quiz pending" does — a paper with
+            // no quiz has no clock to be wrong about, so it is not flagged.
+            const timeUnknown = !quizPending && !resolveExamSpec({ paper: p }).exact
             return (
               <li key={p.id} className="p-4 flex flex-wrap sm:flex-nowrap items-start gap-3">
                 <div className="flex-1 min-w-0">
@@ -461,6 +468,15 @@ export default function AdminPastPapers() {
                     <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
                       {QUIZ_PENDING_COPY.adminBadge}
                     </span>
+                  )}
+                  {timeUnknown && (
+                    <Link
+                      to={`/admin/papers/${p.id}/edit?step=details`}
+                      className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 hover:bg-sky-200"
+                      title="This paper's exam time is not known — open Details to read its cover or type the duration"
+                    >
+                      No exam time
+                    </Link>
                   )}
                   {quizPending && (
                     <Link
