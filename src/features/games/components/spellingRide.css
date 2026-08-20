@@ -1,0 +1,522 @@
+/*
+ * spellingRide.css — Spelling Ride's screens, in the scoped `.lhx` learner
+ * design system. Builds on the tokens in shared/styles/learnerTheme.css, and
+ * follows spelling.css's four rules exactly:
+ *
+ * TOKENS ONLY, so Night mode is the token flip and not a second stylesheet.
+ * The ROAD is the one exception and it is not one: the canvas paints itself,
+ * has no CSS to inherit, and is handed the theme through `setNight`.
+ *
+ * TOUCH TARGETS ARE 44px MINIMUM. The mode cards, the speed pills, the voice
+ * toggle, the exit control and the speaker are all at or above it — the
+ * speaker is 56px because it is reached for mid-ride, one-handed, while the
+ * road is moving.
+ *
+ * IT FITS AT 320px. Every size is clamped between a 320px value and a
+ * comfortable one. The word bar wraps rather than pushing the page sideways,
+ * which is what a fourteen-letter word in Dictation would otherwise do.
+ *
+ * ANIMATION REINFORCES, NEVER BLOCKS, and stops under
+ * `prefers-reduced-motion` — which the canvas honours separately, by dropping
+ * screen shake and particles rather than by stopping the road.
+ */
+
+/* ══ the stage ═══════════════════════════════════════════════════════ */
+
+/* The canvas fills the WHOLE viewport, and the nav bar's height is
+   deliberately NOT subtracted: `/games/play/:gameId` mounts bare, outside
+   `LearnerLayout`, so there is no tab bar under it. Reserving 76px for one
+   left a white strip below the road on every phone. `dvh` so a mobile
+   browser's collapsing address bar does not reopen that strip from the other
+   end, with `vh` behind it for browsers that have no `dvh`; the safe-area
+   insets are applied to the HUD and the speaker rather than to the canvas, so
+   the road still runs edge to edge behind a notch. */
+.lhx-sr .lhx-sr-stage {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 420px;
+  overflow: hidden;
+  background: var(--lhx-ink);
+  border-radius: 0;
+  touch-action: none;
+}
+
+.lhx-sr .lhx-sr-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+/* The HUD floats over the road and must never eat a tap meant for a lane —
+   only its own controls are interactive. */
+.lhx-sr .lhx-sr-hud {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+  padding: max(10px, env(safe-area-inset-top)) 12px 0;
+}
+
+.lhx-sr .lhx-sr-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.lhx-sr .lhx-sr-x {
+  pointer-events: auto;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  border: none;
+  background: rgba(10, 12, 18, 0.62);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 900;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.lhx-sr .lhx-sr-mute { margin-left: auto; }
+
+.lhx-sr .lhx-sr-hearts { display: flex; gap: 4px; align-items: center; }
+
+.lhx-sr .lhx-sr-pip {
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+  background: var(--lhx-green);
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.22);
+  transition: background 0.2s, opacity 0.2s;
+}
+
+.lhx-sr .lhx-sr-pip.is-off { background: #4a4f58; opacity: 0.55; }
+
+.lhx-sr .lhx-sr-chip {
+  background: rgba(10, 12, 18, 0.62);
+  color: #fff;
+  border-radius: 999px;
+  padding: 6px 11px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  max-width: 34vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lhx-sr .lhx-sr-score { font-variant-numeric: tabular-nums; }
+
+/* ══ the word bar ════════════════════════════════════════════════════ */
+
+.lhx-sr .lhx-sr-wordbar {
+  margin-top: 6px;
+  background: rgba(10, 12, 18, 0.72);
+  border-radius: 16px;
+  padding: 10px 12px;
+  text-align: center;
+}
+
+.lhx-sr .lhx-sr-prompt {
+  margin: 0 0 6px;
+  color: #cfd4dc;
+  font-size: clamp(12px, 3.3vw, 14px);
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.lhx-sr .lhx-sr-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  justify-content: center;
+}
+
+/* A slot is a writing line, not a box: empty it is a rule under a space, and
+   filled it carries the learner's own letter in their own colour — green for
+   the one they got, red for the one they chose. Monospace so a nine-letter
+   word does not jitter as it fills. */
+.lhx-sr .lhx-sr-slot {
+  min-width: 20px;
+  height: 30px;
+  padding: 0 4px;
+  border-bottom: 3px solid #5a616c;
+  color: #fff;
+  font-size: clamp(17px, 5vw, 21px);
+  font-weight: 800;
+  line-height: 28px;
+  text-transform: uppercase;
+  font-family: "Courier New", ui-monospace, monospace;
+  white-space: pre;
+}
+
+.lhx-sr .lhx-sr-slot.is-ok { color: #66e39a; border-color: #66e39a; }
+.lhx-sr .lhx-sr-slot.is-bad { color: #ff7b72; border-color: #ff7b72; }
+
+/* Word Choice puts a whole word in the slot, so it drops the monospace and
+   the uppercasing — "They're" must read as itself. */
+.lhx-sr .lhx-sr-slot.is-wordy {
+  font-size: clamp(14px, 4vw, 16px);
+  line-height: 30px;
+  text-transform: none;
+  font-family: inherit;
+}
+
+.lhx-sr .lhx-sr-clue {
+  margin: 6px 0 0;
+  color: #a7aebb;
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+/* ══ the correction ══════════════════════════════════════════════════ */
+
+/* Banners are for CORRECTIONS ONLY. A right answer gets a chime and a spark
+   and nothing that covers the road — a banner every two seconds is a banner
+   nobody reads. */
+.lhx-sr .lhx-sr-flash {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 42%;
+  margin: 0 auto;
+  max-width: 420px;
+  background: rgba(12, 14, 20, 0.94);
+  border: 2px solid #2a2e38;
+  border-radius: 18px;
+  padding: 14px 16px;
+  text-align: center;
+  pointer-events: none;
+  animation: lhx-sr-pop 0.18s ease-out;
+}
+
+.lhx-sr .lhx-sr-flash.is-bad { border-color: #6b2b2b; }
+.lhx-sr .lhx-sr-flash.is-good { border-color: #23603f; }
+
+.lhx-sr .lhx-sr-flash strong {
+  display: block;
+  color: #fff;
+  font-size: clamp(18px, 5vw, 22px);
+  font-weight: 900;
+  margin-bottom: 4px;
+  overflow-wrap: anywhere;
+}
+
+.lhx-sr .lhx-sr-flash span {
+  display: block;
+  color: #cfd4dc;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.lhx-sr .lhx-sr-answer {
+  color: #66e39a;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+@keyframes lhx-sr-pop {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* 56px, and above the safe-area inset: it is reached for one-handed while the
+   road is moving, which is the worst case for a small target. */
+.lhx-sr .lhx-sr-speaker {
+  position: absolute;
+  right: 14px;
+  bottom: calc(14px + env(safe-area-inset-bottom));
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(10, 12, 18, 0.72);
+  color: #fff;
+  font-size: 22px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.lhx-sr .lhx-sr-speaker:active { transform: scale(0.94); }
+
+/* ══ the menu ════════════════════════════════════════════════════════ */
+
+.lhx-sr .lhx-sr-tagline {
+  margin: 14px 0 18px;
+  color: var(--lhx-muted);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.lhx-sr .lhx-sr-h2 {
+  margin: 0 0 10px;
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--lhx-ink);
+}
+
+.lhx-sr .lhx-sr-modes { display: grid; gap: 9px; margin-bottom: 20px; }
+
+.lhx-sr .lhx-sr-mode {
+  display: block;
+  width: 100%;
+  min-height: 64px;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 2px solid var(--lhx-line);
+  background: var(--lhx-card);
+  color: var(--lhx-ink);
+  cursor: pointer;
+}
+
+.lhx-sr .lhx-sr-mode.is-on {
+  border-color: var(--lhx-indigo2);
+  background: var(--lhx-indigo-soft);
+}
+
+.lhx-sr .lhx-sr-mode-name { font-size: 15px; font-weight: 900; }
+
+.lhx-sr .lhx-sr-best {
+  float: right;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--lhx-amber-ink);
+  background: var(--lhx-amber-wash);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.lhx-sr .lhx-sr-mode-blurb {
+  display: block;
+  margin-top: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--lhx-muted);
+}
+
+.lhx-sr .lhx-sr-diffs { display: flex; gap: 8px; margin-bottom: 18px; }
+
+.lhx-sr .lhx-sr-diff {
+  flex: 1;
+  min-height: 52px;
+  border-radius: 14px;
+  border: 2px solid var(--lhx-line);
+  background: var(--lhx-card);
+  color: var(--lhx-muted);
+  font-size: 14px;
+  font-weight: 900;
+  cursor: pointer;
+  padding: 6px 4px;
+}
+
+.lhx-sr .lhx-sr-diff small {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 600;
+  margin-top: 2px;
+  color: var(--lhx-faint);
+}
+
+.lhx-sr .lhx-sr-diff.is-on {
+  background: var(--lhx-green);
+  border-color: var(--lhx-green-dark);
+  color: var(--lhx-on-brand);
+}
+
+.lhx-sr .lhx-sr-diff.is-on small { color: rgba(255, 255, 255, 0.85); }
+
+.lhx-sr .lhx-sr-toggle {
+  display: block;
+  width: 100%;
+  min-height: 56px;
+  text-align: left;
+  padding: 11px 14px;
+  border-radius: 14px;
+  border: 2px solid var(--lhx-line);
+  background: var(--lhx-card);
+  color: var(--lhx-muted);
+  font-size: 14px;
+  font-weight: 800;
+  margin-bottom: 18px;
+  cursor: pointer;
+}
+
+.lhx-sr .lhx-sr-toggle.is-on {
+  background: var(--lhx-green-wash);
+  border-color: var(--lhx-green-soft);
+  color: var(--lhx-green-dark);
+}
+
+.lhx-sr .lhx-sr-toggle small {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 600;
+  margin-top: 3px;
+  line-height: 1.45;
+  color: var(--lhx-muted);
+}
+
+.lhx-sr .lhx-sr-go { margin-bottom: 12px; }
+
+.lhx-sr .lhx-sr-note {
+  color: var(--lhx-muted);
+  font-size: 12px;
+  line-height: 1.55;
+  margin: 10px 0;
+}
+
+/* ══ town, results and report ════════════════════════════════════════ */
+
+.lhx-sr .lhx-sr-town,
+.lhx-sr .lhx-sr-over {
+  background: var(--lhx-card);
+  border: 1px solid var(--lhx-line);
+  border-radius: 20px;
+  padding: 18px 16px;
+  margin-top: 14px;
+}
+
+.lhx-sr .lhx-sr-eyebrow {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--lhx-faint);
+}
+
+.lhx-sr .lhx-sr-town-name {
+  margin: 4px 0 2px;
+  font-size: clamp(22px, 6vw, 28px);
+  font-weight: 900;
+  color: var(--lhx-ink);
+}
+
+.lhx-sr .lhx-sr-town-set { margin: 0 0 14px; font-size: 13px; color: var(--lhx-muted); }
+
+.lhx-sr .lhx-sr-route { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 16px; }
+
+.lhx-sr .lhx-sr-stop {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--lhx-indigo-soft);
+  color: var(--lhx-muted);
+}
+
+.lhx-sr .lhx-sr-stop.is-done { background: var(--lhx-green); color: var(--lhx-on-brand); }
+.lhx-sr .lhx-sr-stop.is-now { background: var(--lhx-coral2); color: var(--lhx-on-brand); }
+
+.lhx-sr .lhx-sr-stats { margin: 0 0 16px; }
+
+.lhx-sr .lhx-sr-stats > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--lhx-line);
+}
+
+.lhx-sr .lhx-sr-stats dt { font-size: 13.5px; color: var(--lhx-muted); }
+.lhx-sr .lhx-sr-stats dd {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--lhx-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.lhx-sr .lhx-sr-stars { font-size: 26px; letter-spacing: 2px; text-align: center; }
+
+.lhx-sr .lhx-sr-over-title {
+  margin: 8px 0 4px;
+  text-align: center;
+  font-size: clamp(20px, 5.5vw, 25px);
+  font-weight: 900;
+  color: var(--lhx-ink);
+}
+
+.lhx-sr .lhx-sr-over-sub {
+  margin: 0 0 16px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--lhx-muted);
+}
+
+.lhx-sr .lhx-sr-ghost {
+  background: var(--lhx-indigo-soft);
+  color: var(--lhx-indigo-text);
+  margin-top: 9px;
+}
+
+.lhx-sr .lhx-sr-misses { list-style: none; margin: 0 0 14px; padding: 0; }
+
+.lhx-sr .lhx-sr-misses li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  background: var(--lhx-card);
+  border: 1px solid var(--lhx-line);
+  border-radius: 12px;
+  margin-bottom: 6px;
+}
+
+.lhx-sr .lhx-sr-miss-word {
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: var(--lhx-ink);
+  overflow-wrap: anywhere;
+}
+
+.lhx-sr .lhx-sr-miss-count {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--lhx-red-ink);
+  white-space: nowrap;
+}
+
+.lhx-sr .lhx-sr-clean {
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--lhx-green-wash);
+  color: var(--lhx-green-dark);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+/* Desktop: the road is a portrait game and stays one. Stretching a 390px
+   design across 1440px would put the three lanes a hand's width apart. */
+@media (min-width: 720px) {
+  .lhx-sr .lhx-sr-stage {
+    max-width: 520px;
+    margin: 0 auto;
+    border-radius: 20px;
+    height: calc(100vh - 24px);
+    height: calc(100dvh - 24px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lhx-sr .lhx-sr-flash { animation: none; }
+  .lhx-sr .lhx-sr-pip { transition: none; }
+  .lhx-sr .lhx-sr-speaker:active { transform: none; }
+}

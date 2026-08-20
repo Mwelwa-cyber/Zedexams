@@ -3949,6 +3949,19 @@ async function main() {
       spellingRecord(UNVERIFIED_LEARNER)))
   })
 
+  await test('a learner may bank a Spelling Ride high score, but not an unbounded map', async () => {
+    await assertSucceeds(setDoc(doc(learnerA, 'spellingProgress', LEARNER_A),
+      spellingRecord(LEARNER_A, { rideBests: { 'spell:medium': 1240, 'dictation:hard': 880 } })))
+
+    // The map is three modes by three difficulties and nothing else. A record
+    // that has grown a key per ride is a document that eventually fails to
+    // read, which is the same failure the pool ceiling exists to prevent.
+    const bloated = {}
+    for (let i = 0; i < 40; i += 1) bloated[`mode${i}:hard`] = i
+    await assertFails(setDoc(doc(learnerA, 'spellingProgress', LEARNER_A),
+      spellingRecord(LEARNER_A, { rideBests: bloated })))
+  })
+
   // ── spellingWords: reviewed spelling content ──────────────────────
   //
   // The rule is what makes "unreviewed content never reaches a child" true.
@@ -3996,6 +4009,50 @@ async function main() {
       { status: 'approved' }, { merge: true }))
     await assertFails(deleteDoc(doc(learnerA, 'spellingWords', 'g7_smuggled')))
     await assertSucceeds(deleteDoc(doc(admin, 'spellingWords', 'g7_smuggled')))
+  })
+
+  // ── spellingSentences: Spelling Ride's Word Choice content ────────
+  //
+  // The same collection shape and the same guarantee as spellingWords, on a
+  // different kind of item. It gets its own arms rather than being assumed to
+  // inherit them, because "the rules look identical" is exactly the claim a
+  // behavioural test is for.
+
+  await test('a learner may read an approved Word Choice sentence and never a draft', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'spellingSentences', 'quiet-teacher'), {
+        id: 'quiet-teacher', text: 'Be ___ while the teacher is speaking.',
+        answer: 'quiet', distractors: ['quite', 'quit'],
+        status: 'approved', approved: true, active: true,
+      })
+      await setDoc(doc(ctx.firestore(), 'spellingSentences', 'pending-one'), {
+        id: 'pending-one', text: 'She ___ the bus.', answer: 'caught',
+        distractors: ['catched', 'cought'], status: 'pending', approved: false, active: true,
+      })
+      await setDoc(doc(ctx.firestore(), 'spellingSentences', 'retired-one'), {
+        id: 'retired-one', text: 'A ___ answer.', answer: 'stationary',
+        distractors: ['stationery', 'stationry'], status: 'approved', approved: true, active: false,
+      })
+    })
+
+    await assertSucceeds(getDoc(doc(learnerA, 'spellingSentences', 'quiet-teacher')))
+    await assertFails(getDoc(doc(learnerA, 'spellingSentences', 'pending-one')))
+    await assertFails(getDoc(doc(learnerA, 'spellingSentences', 'retired-one')))
+    await assertSucceeds(getDoc(doc(admin, 'spellingSentences', 'pending-one')))
+  })
+
+  await test('Word Choice sentences are admin-write only', async () => {
+    const record = {
+      id: 'forged', text: 'The ___ was open.', answer: 'gate',
+      distractors: ['gait', 'gaet'], status: 'approved', approved: true, active: true,
+    }
+    await assertFails(setDoc(doc(learnerA, 'spellingSentences', 'forged'), record))
+    await assertFails(setDoc(doc(teacherA, 'spellingSentences', 'forged'), record))
+    await assertFails(setDoc(doc(guest, 'spellingSentences', 'forged'), record))
+    await assertSucceeds(setDoc(doc(admin, 'spellingSentences', 'forged'), record))
+    await assertFails(setDoc(doc(learnerA, 'spellingSentences', 'pending-one'),
+      { status: 'approved', approved: true }, { merge: true }))
+    await assertSucceeds(deleteDoc(doc(admin, 'spellingSentences', 'forged')))
   })
 
   await test('a tombstone cannot be forged onto another id or another admin', async () => {

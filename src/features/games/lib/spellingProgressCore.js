@@ -52,11 +52,47 @@ export function emptyProgress() {
   return {
     stars: {},
     pool: {},
+    // Spelling Ride's high scores, keyed `<mode>:<difficulty>`.
+    //
+    // THEY LIVE HERE RATHER THAN IN `localStorage` for the same reason the
+    // pool does: a best score kept on one device is not the learner's record,
+    // it is that phone's. And they merge by MAX like the stars rather than by
+    // recency, so signing in on a second device cannot lower a score the
+    // learner really achieved.
+    rideBests: {},
     stagesPlayed: 0,
     settledRuns: [],
     resume: null,
     updatedAtMs: 0,
   }
+}
+
+/** Spelling Ride's high-score keys: three modes by three difficulties. */
+export const MAX_RIDE_BESTS = 20
+
+/** The key one high score is filed under. */
+export function rideBestKey(mode, difficulty) {
+  return `${String(mode || '').trim()}:${String(difficulty || '').trim()}`
+}
+
+/** Read one, defaulting to zero rather than undefined so a screen can print it. */
+export function rideBest(progress, mode, difficulty) {
+  return Math.max(0, Math.floor(Number(progress?.rideBests?.[rideBestKey(mode, difficulty)]) || 0))
+}
+
+/**
+ * Bank a ride's score if it beats what is stored.
+ *
+ * Returns the record BY IDENTITY when it does not, so a run that fails to beat
+ * a best writes nothing — the same "no-op returns the same reference" rule
+ * `applyStageResult` follows for an already-settled stage.
+ */
+export function recordRideBest(progress, { mode, difficulty, score } = {}) {
+  const key = rideBestKey(mode, difficulty)
+  const value = Math.max(0, Math.floor(Number(score) || 0))
+  const current = Math.max(0, Math.floor(Number(progress?.rideBests?.[key]) || 0))
+  if (!key.replace(':', '') || value <= current) return progress
+  return { ...progress, rideBests: { ...(progress?.rideBests || {}), [key]: value } }
 }
 
 /** Coerce anything (a Firestore doc, a localStorage blob, undefined) into shape. */
@@ -77,9 +113,16 @@ export function normaliseProgress(raw) {
       sessions: Array.isArray(value.sessions) ? value.sessions.map(String) : [],
     }
   }
+  const rideBests = {}
+  for (const [key, value] of Object.entries(raw.rideBests || {})) {
+    const n = Math.max(0, Math.floor(Number(value) || 0))
+    if (n > 0 && /^[a-z]+:[a-z]+$/.test(String(key))) rideBests[String(key)] = n
+  }
+
   return {
     stars,
     pool,
+    rideBests,
     stagesPlayed: Math.max(0, Math.floor(Number(raw.stagesPlayed) || 0)),
     settledRuns: Array.isArray(raw.settledRuns) ? raw.settledRuns.map(String).slice(-MAX_SETTLED_RUNS) : [],
     resume: normaliseResume(raw.resume),
@@ -176,10 +219,18 @@ export function mergeProgress(a, b) {
     pool[word] = word in pool ? betterEntry(pool[word], entry) : entry
   }
 
+  // Highest wins, per key. Two devices with two honest bests keep the better
+  // one, which is the same rule the stars follow and for the same reason.
+  const rideBests = { ...left.rideBests }
+  for (const [key, value] of Object.entries(right.rideBests)) {
+    rideBests[key] = Math.max(rideBests[key] || 0, value)
+  }
+
   const newer = right.updatedAtMs >= left.updatedAtMs ? right : left
   return {
     stars,
     pool,
+    rideBests,
     stagesPlayed: Math.max(left.stagesPlayed, right.stagesPlayed),
     settledRuns: [...new Set([...left.settledRuns, ...right.settledRuns])].slice(-MAX_SETTLED_RUNS),
     // A resume is a position in ONE sitting, so it cannot be merged — the
@@ -269,6 +320,7 @@ export function serialiseProgress(progress, { uid, max = MAX_POOL_WORDS } = {}) 
     uid: String(uid || ''),
     stars: record.stars,
     pool,
+    rideBests: record.rideBests,
     stagesPlayed: record.stagesPlayed,
     settledRuns: record.settledRuns,
     resume: record.resume,

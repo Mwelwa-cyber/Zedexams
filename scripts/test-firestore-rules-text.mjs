@@ -1232,6 +1232,24 @@ test('spellingWords serves learners approved content only', () => {
   assert(/allow write:\s*if isAdmin\(\);/.test(body), 'spellingWords writes must require isAdmin()')
 })
 
+test('spellingSentences serves learners approved content only', () => {
+  const start = rules.indexOf('match /spellingSentences/{sentenceId}')
+  assert(start >= 0, 'spellingSentences match block not found')
+  const body = rules.slice(start, start + 900)
+  // Word Choice content, held to spellingWords' rule exactly. The two
+  // collections are the same kind of thing — reviewed material a child reads
+  // — so a difference between their rules would be a difference nobody
+  // decided on.
+  for (const verb of ['get', 'list']) {
+    const at = body.indexOf(`allow ${verb}:`)
+    assert(at >= 0, `spellingSentences must declare allow ${verb}`)
+    const clause = body.slice(at, body.indexOf(';', at))
+    assert(clause.includes("status == 'approved'"), `allow ${verb} must require an approved status`)
+    assert(clause.includes('active == true'), `allow ${verb} must require an active record`)
+  }
+  assert(/allow write:\s*if isAdmin\(\);/.test(body), 'spellingSentences writes must require isAdmin()')
+})
+
 // ── Report ──────────────────────────────────────────────────────
 
 console.log('')

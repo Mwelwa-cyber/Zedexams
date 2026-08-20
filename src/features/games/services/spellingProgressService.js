@@ -22,12 +22,15 @@
  * free and it is what a refresh reads back); the server is written when a
  * stage settles, and on leaving a stage part-way so the resume survives.
  *
- * NOTHING HERE THROWS AT ITS CALLER. A spelling round must not be interrupted
- * because a write failed — the device copy has already succeeded, so the work
- * is not lost, and the next successful sync carries it up.
+ * NOTHING ON THE LEARNER'S PATH THROWS AT ITS CALLER. A spelling round must
+ * not be interrupted because a write failed — the device copy has already
+ * succeeded, so the work is not lost, and the next successful sync carries it
+ * up. `readSpellingCohortPools` is the one function here that DOES throw, and
+ * it is not on that path: it is the admin cohort read, where reporting a
+ * failure as an empty result would read as "nobody is struggling".
  */
 
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, limit as fsLimit, query, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db, auth } from '../../../firebase/config'
 import { readJson, writeJson } from '../../../shared/utils/safeStorage'
 import { withFirestoreReadTimeout } from '../../../utils/firestoreTimeout'
@@ -128,4 +131,31 @@ export async function saveSpellingProgress(gameId, progress) {
   } catch {
     return false
   }
+}
+
+/**
+ * Every learner's spelling pool, for the admin cohort view.
+ *
+ * ADMIN ONLY, AND THE RULE IS WHAT SAYS SO — `spellingProgress` is
+ * `isOwner(userId) || isAdmin()` on read, so this query is simply refused for
+ * anybody else and the `<AdminRoute>` around the page is the client asking
+ * nicely. Nothing here checks a role, because a check here would be the
+ * weakest of the two and would read as the one doing the work.
+ *
+ * ONLY THE POOLS COME BACK. The uid is deliberately dropped at this boundary
+ * rather than in the screen: the cohort answers "which words is this grade
+ * failing", and a function that returned names would make it one refactor away
+ * from being a list of children who cannot spell. See `spellingCohortCore`.
+ *
+ * A FAILED READ THROWS. This one is not a learner-facing path where an empty
+ * list can stand in for a failure — an admin looking at an empty cohort table
+ * would read it as "nobody is struggling", which is the opposite of what an
+ * unreadable collection means.
+ */
+export async function readSpellingCohortPools({ max = 500 } = {}) {
+  const snap = await withFirestoreReadTimeout(
+    getDocs(query(collection(db, COLLECTION), fsLimit(max))),
+    'spelling cohort',
+  )
+  return snap.docs.map((d) => normaliseProgress(d.data()).pool)
 }

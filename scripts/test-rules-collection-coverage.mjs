@@ -243,12 +243,15 @@ const COVERED = [
   // could write there could hide any game from every learner, because the
   // learner-side bundled-seed fallback is filtered by that list.
   'games', 'gameTombstones',
-  // The spelling system's two collections. `spellingProgress` is a derived
+  // The spelling system's three collections. `spellingProgress` is a derived
   // personal record whose pool names the words a child keeps getting wrong,
-  // and `spellingWords` is the rule that makes "unreviewed content never
-  // reaches a learner" structural rather than a property of whatever query
-  // the client happened to send — both worth behavioural coverage.
-  'spellingProgress', 'spellingWords',
+  // and `spellingWords` / `spellingSentences` are the rules that make
+  // "unreviewed content never reaches a learner" structural rather than a
+  // property of whatever query the client happened to send — all three worth
+  // behavioural coverage. The two content collections carry the SAME rule on
+  // purpose, and each has its own arms rather than inheriting the other's:
+  // "the rules look identical" is exactly the claim a behavioural test is for.
+  'spellingProgress', 'spellingWords', 'spellingSentences',
 ]
 
 /**

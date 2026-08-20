@@ -934,6 +934,7 @@
     "test:loader-theme-tokens": "node scripts/test-loader-theme-tokens.mjs",
     "test:spelling-pack": "node scripts/test-spelling-pack.mjs",
     "test:spelling-system": "node scripts/test-spelling-system.mjs",
+    "test:spelling-ride": "node scripts/test-spelling-ride.mjs",
     "smoke:spelling": "node scripts/test-spelling-responsive.mjs"
   },
   "lint-staged": {
