@@ -102,9 +102,10 @@
  * (2026-08-14). Both pass §14.6 outright — the first imports NOTHING, the
  * second imports React — and both are drawn by surfaces outside games:
  *
- *   • `GameStickerStyles` — `features/quiz/QuizList`, `learnerDashboard/GradeHub`
- *     and `games/GamesShell` (also `learnerDashboard/SubjectDrillDown` until
- *     the practise course map was retired).
+ *   • `GameStickerStyles` — `features/quiz/QuizList` and `games/GamesShell`
+ *     (also `learnerDashboard/SubjectDrillDown` until the practise course
+ *     map was retired, and `learnerDashboard/GradeHub` until the classic
+ *     dashboard was retired on 2026-08-20).
  *     (QuizList reached it through a freeze shim at
  *     `components/games/GameStickerStyles.jsx` for a few hours; the quiz
  *     migration moved QuizList and the shim was deleted.)

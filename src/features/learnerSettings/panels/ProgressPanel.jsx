@@ -121,10 +121,16 @@ export default function ProgressPanel({ section, pushToast }) {
         <Note tone="accent">💡 Take your first quiz to start building your progress picture.</Note>
       )}
 
+      {/* /my-stats and /my-badges were retired (2026-08-20); their content
+          lives on /progress and /profile. This panel is not currently
+          mounted by any learner route — LearnerSettingsRoute renders the
+          settings screens `bare`, and the card grid this belongs to is not
+          in the learner mockup — so these were dead buttons at dead routes.
+          The one action with something behind it stays. */}
       <div className="lset-actions">
-        <Btn onClick={() => navigate('/my-stats')}>📊 View full analytics</Btn>
+        <Btn onClick={() => navigate('/progress')}>📊 View full analytics</Btn>
         <Btn variant="ghost" onClick={() => downloadMyData(currentUser, userProfile, pushToast)}>⬇ Download progress report</Btn>
-        <Btn variant="ghost" onClick={() => navigate('/my-badges')}>🏅 My badges</Btn>
+        <Btn variant="ghost" onClick={() => navigate('/profile')}>🏅 My badges</Btn>
       </div>
     </Panel>
   )

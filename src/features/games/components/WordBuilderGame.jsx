@@ -35,8 +35,18 @@ import { useGameFinish } from '../hooks/useGameFinish'
 import { reportGameStart } from '../services/gamesService'
 import { playCorrect, playWrong, playWin, primeSounds } from '../lib/gameSounds'
 import { BadgePop, GameTopBar, WinScreen, buildSaveNote } from './protoGameChrome'
+import { readJson, writeJson } from '../../../shared/utils/safeStorage'
+import { coachFor, tapChunk } from '../lib/spellingCoachCore'
+import {
+  composeStage,
+  entryFor,
+  recordCorrect,
+  recordMiss,
+  sessionsToMastery,
+} from '../lib/spellingStagesCore'
 import {
   ROUND_WORDS,
+  playableWords,
   guessFrom,
   pickListenMode,
   roundResult,
@@ -64,9 +74,18 @@ function speak(text) {
 
 /* ── Play screen ───────────────────────────────────────────────── */
 
-function PlayScreen({ game, onExit, onEnd }) {
-  // The word queue lives in a ref — it recycles mid-round without renders.
+const progressKey = (gameId) => `zedexams:spelling:${gameId || 'default'}`
+
+function PlayScreen({ game, onExit, onEnd, progress, onProgress }) {
+  // The word queue lives in a ref — it recycles mid-render without renders.
   const queueRef = useRef([])
+  // The coach shown after a miss, and the chunks rebuilt so far.
+  const [coach, setCoach] = useState(null)
+  const [rebuilt, setRebuilt] = useState([])
+  // One session per mount. Mastery counts SESSIONS, not right answers, so
+  // this id is what stops three rights in one sitting mastering a word.
+  const sessionRef = useRef(`s${Date.now()}`)
+  const firstTryRef = useRef(true)
   const [item, setItem] = useState(null)          // { word, clue }
   const [listen, setListen] = useState(false)
   const [tiles, setTiles] = useState([])
@@ -80,9 +99,32 @@ function PlayScreen({ game, onExit, onEnd }) {
   const later = (fn, ms) => { timeouts.current.push(setTimeout(fn, ms)) }
   useEffect(() => () => timeouts.current.forEach(clearTimeout), [])
 
+  /**
+   * The stage's words: the ones due back from this device's pool first, then
+   * fresh ones — and never an unmastered word arriving as a "new" one, which
+   * is what would make the spacing quietly not happen. A pack that yields
+   * nothing falls back to the plain shuffled queue, which is what every game
+   * without a pool did before this.
+   */
+  const buildQueue = () => {
+    const items = playableWords(game?.questions)
+    if (!items.length) return wordQueue(game?.questions)
+    const stage = composeStage({
+      items,
+      pool: progress.pool,
+      stage: progress.stage,
+      salt: game?.id || 'default',
+      size: ROUND_WORDS,
+    })
+    return stage.words.length ? stage.words : wordQueue(game?.questions)
+  }
+
   const nextWord = () => {
-    if (!queueRef.current.length) queueRef.current = wordQueue(game?.questions)
+    if (!queueRef.current.length) queueRef.current = buildQueue()
     const it = queueRef.current.shift()
+    setCoach(null)
+    setRebuilt([])
+    firstTryRef.current = true
     const listenNow = pickListenMode(ttsOn() && Boolean(it.word))
     setItem(it)
     setListen(listenNow)
@@ -94,7 +136,7 @@ function PlayScreen({ game, onExit, onEnd }) {
 
   // First word on mount.
   useEffect(() => {
-    queueRef.current = wordQueue(game?.questions)
+    queueRef.current = buildQueue()
     nextWord()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -128,6 +170,15 @@ function PlayScreen({ game, onExit, onEnd }) {
       playCorrect()
       setScore((s) => s + gained)
       setVerdict('ok')
+      // Mastery is three rights in three SEPARATE sessions, and only a
+      // first-try right counts: a word spelled correctly on the third attempt
+      // in the same breath is not a word the learner knows.
+      if (firstTryRef.current) {
+        onProgress((current) => ({
+          ...current,
+          pool: recordCorrect(current.pool, item.word, { session: sessionRef.current, stage: current.stage }),
+        }))
+      }
       // The score is read here, synchronously — `setScore` above is async and
       // the end-of-round callback must not close over a stale value.
       if (round.current.solved >= ROUND_WORDS) later(() => endRound(score + gained), 650)
@@ -137,6 +188,15 @@ function PlayScreen({ game, onExit, onEnd }) {
       round.current.combo = 1
       playWrong()
       setVerdict('no')
+      firstTryRef.current = false
+      onProgress((current) => ({
+        ...current,
+        pool: recordMiss(current.pool, item.word, { stage: current.stage }),
+      }))
+      // The coach is the help AFTER a miss — it appears only for a word the
+      // pack has actually broken up, never on a guessed split.
+      setCoach(coachFor(item.source))
+      setRebuilt([])
       later(() => {
         setPlaced([])
         setTiles((ts) => ts.map((t) => ({ ...t, used: false })))
@@ -213,6 +273,48 @@ function PlayScreen({ game, onExit, onEnd }) {
       <div style={{ textAlign: 'center' }}>
         <button type="button" className="lhx-wb-del" onClick={backspace}>⌫ Delete</button>
       </div>
+
+      <div className="lhx-wb-coach-slot" aria-live="polite">
+        {coach && (
+          <div className="lhx-wb-coach">
+            <div className="lhx-wb-coach-head">
+              <b>Break it up</b>
+              <span>{coach.label}</span>
+            </div>
+            <p className="lhx-wb-coach-blurb">{coach.blurb}</p>
+            <div className="lhx-wb-chunks">
+              {coach.chunks.map((chunk, index) => (
+                <button
+                  key={`${chunk}-${index}`}
+                  type="button"
+                  className={`lhx-wb-chunk ${rebuilt.includes(index) ? 'is-placed' : ''} ${coach.trap === index ? 'is-trap' : ''}`}
+                  aria-label={coach.trap === index ? `${chunk}, the tricky bit` : chunk}
+                  onClick={() => {
+                    // Out of order is refused, not punished: the coach is help
+                    // after a miss, not a second test.
+                    const next = tapChunk(rebuilt, index, coach.chunks.length)
+                    if (next.accepted) setRebuilt(next.placed)
+                  }}
+                >
+                  {chunk}
+                </button>
+              ))}
+            </div>
+            {rebuilt.length >= coach.chunks.length && (
+              <p className="lhx-wb-coach-done">
+                <b>{coach.word}</b> — now spell it.
+              </p>
+            )}
+            {coach.why && <p className="lhx-wb-coach-why">{coach.why}</p>}
+            {sessionsToMastery(entryFor(progress.pool, item.word)) > 0 && (
+              <p className="lhx-wb-coach-mastery">
+                {sessionsToMastery(entryFor(progress.pool, item.word))} more
+                {sessionsToMastery(entryFor(progress.pool, item.word)) === 1 ? ' session' : ' sessions'} to master this one.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
     </>
   )
 }
@@ -224,7 +326,23 @@ export default function WordBuilderGame({ game }) {
   const { currentUser } = useAuth()
   const [screen, setScreen] = useState('play')
   const [outcome, setOutcome] = useState({ score: 0, solved: 0 })
+  // Spelling progress is per DEVICE: mastery counts sessions, and there is no
+  // server-side per-word model to hang it on. Score, XP and badges stay the
+  // server-backed truth through useGameFinish.
+  const [progress, setProgress] = useState(() => ({
+    stage: 0,
+    pool: {},
+    ...(readJson(progressKey(game?.id), null) || {}),
+  }))
   const { saveResult, newBadges, streakResult, finish } = useGameFinish()
+
+  const updateProgress = (fn) => {
+    setProgress((current) => {
+      const next = typeof fn === 'function' ? fn(current) : fn
+      writeJson(progressKey(game?.id), next)
+      return next
+    })
+  }
 
   // The round starts the moment the engine mounts (prototype behaviour).
   useEffect(() => {
@@ -237,6 +355,9 @@ export default function WordBuilderGame({ game }) {
     setOutcome(result)
     playWin()
     setScreen('win')
+    // The stage advances on finishing, which is what the word spacing counts
+    // in: a word missed at stage 4 is due back at stage 6.
+    updateProgress((current) => ({ ...current, stage: (current.stage || 0) + 1 }))
     // The shared end-of-round plumbing: score save, badges, daily streak.
     finish(roundResult({ game, ...result }))
   }
@@ -247,6 +368,8 @@ export default function WordBuilderGame({ game }) {
         {screen === 'play' && (
           <PlayScreen
             game={game}
+            progress={progress}
+            onProgress={updateProgress}
             onExit={() => navigate('/games')}
             onEnd={endRound}
           />

@@ -34,6 +34,7 @@
   //    fails if the two drift. Midnight also gets the `dark` class on <html>
   //    pre-paint, so native controls (color-scheme) match from the first frame.
   var resolvedReadingTheme = 'oatmeal';
+  var prefersReadingDark = false;
   try {
     var prefersDark = false;
     try {
@@ -50,10 +51,11 @@
       : (prefersDark ? 'midnight' : 'oatmeal');
     document.body.classList.add('theme-' + resolved);
     if (resolved === 'midnight') document.documentElement.classList.add('dark');
-    // Read by the workspace guard below, which seeds itself from the reading
-    // palette. Assigned here rather than read off `resolved` directly so a
-    // throw above leaves it at the light default instead of `undefined`.
+    // Both read by the workspace guard below. Assigned here rather than read
+    // off the block's own vars so a throw above leaves them at the light
+    // defaults instead of `undefined`.
     resolvedReadingTheme = resolved;
+    prefersReadingDark = prefersDark;
   } catch (e) {
     document.body.classList.add('theme-oatmeal');
   }
@@ -70,19 +72,24 @@
   //     comment. boot.js is render-blocking at the top of <body> and is
   //     preloaded in <head>, so it still runs before first paint and there is
   //     no flash of the default theme.
-  //     No saved choice → FOLLOW THE READING PALETTE resolved just above
-  //     (`resolved === 'midnight'`), which has itself already fallen back to
-  //     prefers-color-scheme when this device has saved nothing. Never
-  //     written. Mirrors teacherThemeStore.readInitial + readingThemeCore.
+  //     No saved choice → the OS colour scheme, EXCEPT that a light reading
+  //     palette vetoes it. Mirrors readingThemeCore.seededWorkspaceDarkness /
+  //     teacherThemeStore.readInitial; never written.
   //
-  //     It read prefers-color-scheme directly until 2026-08, and that is the
-  //     bug: `html[data-theme='night'] body` in index.css restates every
-  //     reading token in dark and OUTRANKS `body.theme-<id>`, so on a dark-OS
-  //     browser with no keys written — a second browser, Incognito, a fresh
-  //     profile — this seeded 'night' over a learner's chosen light palette
-  //     and no learner-facing control could clear it.
+  //     Both halves of that are load-bearing and they are not symmetric:
+  //
+  //     • The veto is the fix. `html[data-theme='night'] body` in index.css
+  //       restates every reading token in dark and OUTRANKS `body.theme-<id>`,
+  //       so seeding 'night' from the OS alone overrode a learner's chosen
+  //       light palette on any browser with no keys written — a second
+  //       browser, Incognito, a fresh profile — and no learner-facing control
+  //       could clear it.
+  //     • The OS still decides the dark case. Reading `resolved ===
+  //       'midnight'` on its own (as this did between #2524 and #2535) turned
+  //       the workspace dark for anyone whose account had recorded Midnight,
+  //       on every browser and whatever their OS said — teachers included.
   try {
-    var teacherDark = resolvedReadingTheme === 'midnight';
+    var teacherDark = resolvedReadingTheme === 'midnight' && prefersReadingDark;
     var teacherIds = ['terracotta', 'miombo', 'copperbelt', 'night'];
     var savedTeacher = localStorage.getItem('zedexams-theme');
     if (teacherIds.indexOf(savedTeacher) === -1) {

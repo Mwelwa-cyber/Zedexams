@@ -34,7 +34,6 @@ export function getRoleLandingPath(profileOrFlags, fallback = '/dashboard') {
  * longer names one.
  */
 export const LEARNER_ONLY_SEGMENTS = Object.freeze([
-  'calendar',
   // The Daily Quiz, which replaced the Daily Exam rotation.
   //
   // `exam` and `exams` are NOT listed any more, and that is the bidirectional
@@ -45,15 +44,20 @@ export const LEARNER_ONLY_SEGMENTS = Object.freeze([
   // `exam-results` stays, because it is still a live learner-only page — a
   // learner's past daily-exam attempts outlived the mechanism that produced
   // them, and the attempt link is the only way back to one.
+  //
+  // `calendar`, `my-stats`, `my-results` and `my-badges` left the list on
+  // 2026-08-20 for the same reason `exam`/`exams` did: the five
+  // pre-redesign learner pages were retired and those four paths are plain
+  // <Navigate> redirects now (→ /timetable, /progress, /progress,
+  // /profile). `dashboard` stays and covers the fifth, since
+  // /dashboard/classic redirects within a segment that is still a live
+  // learner-only page.
   'daily',
   'dashboard',
   'dashboard-preview',
   'exam-results',
   'guardian',
   'lessons',
-  'my-badges',
-  'my-results',
-  'my-stats',
   'notes',
   'notifications',
   'quiz',

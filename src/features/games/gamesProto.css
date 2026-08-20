@@ -783,3 +783,251 @@
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-node.is-locked { background: #2a2d4a; box-shadow: 0 5px 0 #1d1f36; color: #565b85; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-start-bubble { background: #232640; color: #ff8a5c; }
 :is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-start-bubble::after { background: #232640; }
+
+/* ── Know Zambia (map_place) ─────────────────────────────────────────────
+ *
+ * Correct / wrong / already-placed are told apart by GLYPH and PATTERN
+ * first — a ✓, a ✗, a diagonal hatch, and the province's own name. The
+ * colours agree with the glyph rather than carrying the message: the
+ * palette is Okabe-Ito, whose green and orange sit at nearly the same
+ * grey, which is exactly why the glyph is not optional.
+ */
+.lhx-kz-map {
+  background: #fff; border-radius: 18px; padding: 8px;
+  margin: 10px 12px 0;
+}
+.lhx-kz-svg { width: 100%; display: block; touch-action: manipulation; overflow: visible; }
+
+.lhx-kz-prov {
+  fill: #d7dff2; stroke: #fff; stroke-width: .5;
+  cursor: pointer; transition: fill .18s;
+}
+.lhx-kz-prov:hover { fill: #c3cdea; }
+/* `is-placed`/`is-wrong` are the place mode's original names; `is-ok`/`is-no`
+   are what ZambiaMap emits for every mode. Both are kept so neither the
+   engine nor anything reading these class names has to change in step. */
+.lhx-kz-prov.is-placed,
+.lhx-kz-prov.is-ok { fill: #009e73; }
+.lhx-kz-prov.is-anchor { fill: #a8b3d6; }
+.lhx-kz-prov.is-wrong,
+.lhx-kz-prov.is-no { fill: url(#lhx-kz-hatch); }
+/* Journey: a province already crossed. Blue rather than green because it is
+   not an answer, it is a place you have been — and it carries its crossing
+   NUMBER, which is what makes the route readable with the colour gone. */
+.lhx-kz-prov.is-step { fill: #0072b2; }
+/* Odd one out lights four and dims six. The dimmed six carry no click target
+   in the markup at all; this only makes that visible. */
+.lhx-kz-prov.is-live { fill: #8fa8e8; }
+.lhx-kz-prov.is-live:hover { fill: #7d99e2; }
+.lhx-kz-prov.is-dim { fill: #eef1fa; cursor: default; }
+.lhx-kz-prov:focus-visible { outline: none; stroke: #5b5bd6; stroke-width: 1.4; }
+
+.lhx-kz-label {
+  font-weight: 900; fill: #fff; text-anchor: middle; pointer-events: none;
+  paint-order: stroke; stroke: rgba(0, 0, 0, .18); stroke-width: .35;
+}
+.lhx-kz-label.is-anchor { fill: #333a58; stroke: rgba(255, 255, 255, .7); }
+.lhx-kz-mark {
+  font-size: 4.2px; font-weight: 900; text-anchor: middle; pointer-events: none;
+  fill: #fff; paint-order: stroke; stroke: rgba(0, 0, 0, .25); stroke-width: .9;
+}
+.lhx-kz-mark.is-wrong { fill: #8f3f00; stroke: #fff; }
+.lhx-kz-mark.is-step { fill: #fff; stroke: rgba(0, 0, 0, .3); }
+.lhx-kz-halo { fill: transparent; cursor: pointer; }
+
+/* The eight neighbour boxes, drawn outside the outline. Dashed while empty so
+   they read as a place to put something rather than as more country. */
+.lhx-kz-zone {
+  fill: #fff; stroke: #b9c0da; stroke-width: .7; stroke-dasharray: 2.4 2;
+  cursor: pointer;
+}
+.lhx-kz-zone.is-ok { fill: #009e73; stroke: #009e73; }
+.lhx-kz-zone.is-no { fill: url(#lhx-kz-hatch); stroke: #d55e00; }
+.lhx-kz-zone:focus-visible { outline: none; stroke: #5b5bd6; stroke-width: 1.6; }
+.lhx-kz-zlab {
+  font-size: 3.1px; font-weight: 800; fill: #6b7392; text-anchor: middle;
+  pointer-events: none;
+}
+.lhx-kz-zlab.is-on { fill: #fff; }
+
+/* The capital pin, plotted from real longitude and latitude. */
+.lhx-kz-pin circle { fill: #f4592c; stroke: #fff; stroke-width: .6; }
+.lhx-kz-pin text {
+  font-size: 3.1px; font-weight: 900; fill: var(--lhx-ink); text-anchor: middle;
+  paint-order: stroke; stroke: #fff; stroke-width: 1.1;
+}
+
+/* The question under the map. */
+.lhx-kz-ask {
+  background: #fff; border-radius: 18px; padding: 13px;
+  margin: 10px 12px 0; font-size: 15px; font-weight: 800; line-height: 1.45;
+}
+.lhx-kz-ask b { color: #5b5bd6; }
+.lhx-kz-ask-sub {
+  display: block; margin-top: 6px; font-size: 12px; font-weight: 700;
+  color: var(--lhx-muted, #6b7392);
+}
+
+/* Journey: the strip of provinces, filling in as the road is travelled. */
+.lhx-kz-route { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
+.lhx-kz-rs {
+  display: flex; gap: 5px; align-items: center;
+  background: #eef0fb; border-radius: 9px; padding: 6px 9px;
+  font-size: 11.5px; font-weight: 800; color: var(--lhx-muted, #6b7392);
+}
+.lhx-kz-rs.is-on { background: #0072b2; color: #fff; }
+.lhx-kz-rs-n { opacity: .7; font-size: 10px; }
+
+/* Ceremonies: two of the three questions are off the map on purpose. */
+.lhx-kz-opts { display: grid; gap: 8px; margin: 10px 12px 0; }
+.lhx-kz-opt {
+  display: flex; gap: 9px; align-items: center; width: 100%;
+  min-height: 48px; padding: 13px; border-radius: 14px;
+  border: 2.5px solid #e6e8f5; background: #fff;
+  font: inherit; font-size: 15px; font-weight: 800; color: var(--lhx-ink);
+  text-align: left; cursor: pointer; touch-action: manipulation;
+}
+.lhx-kz-opt.is-ok { border-color: #009e73; background: #e7f5f0; color: #04674c; }
+.lhx-kz-opt.is-no { border-color: #d55e00; background: #fdeee4; color: #8f3f00; }
+.lhx-kz-opt-g { width: 22px; flex: 0 0 auto; font-size: 15px; }
+
+.lhx-kz-names {
+  display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+  margin: 12px 12px 0;
+}
+.lhx-kz-name {
+  min-height: 44px; padding: 10px 13px; border-radius: 13px;
+  border: 2px solid #e6e8f5; background: #fff; box-shadow: 0 2px 0 #ccd2e6;
+  font: inherit; font-size: 14px; font-weight: 800; color: var(--lhx-ink);
+  cursor: pointer; touch-action: manipulation;
+}
+.lhx-kz-name:active { transform: translateY(2px); box-shadow: none; }
+.lhx-kz-name.is-sel {
+  border-color: #5b5bd6; background: #ececfb; color: #5b5bd6;
+  box-shadow: 0 0 0 3px rgba(91, 91, 214, .16);
+}
+.lhx-kz-name.is-done {
+  opacity: .45; background: #e7f5f0; border-color: #bfe4d8; color: #04674c;
+  box-shadow: none; cursor: default;
+}
+
+.lhx-kz-feedback { margin: 12px 12px 20px; min-height: 62px; }
+.lhx-kz-fb { border-radius: 14px; padding: 12px; font-size: 13.5px; line-height: 1.6; }
+.lhx-kz-fb.is-ok  { background: #e7f5f0; border: 1px solid #bfe4d8; color: #04674c; }
+.lhx-kz-fb.is-no  { background: #fdeee4; border: 1px solid #f6d3ba; color: #8f3f00; }
+.lhx-kz-fb.is-say { background: #eef0fb; border: 1px solid #e6e8f5; color: #4b5270; }
+.lhx-kz-fb-title { font-weight: 900; font-size: 14.5px; margin-bottom: 3px; display: flex; gap: 6px; }
+.lhx-kz-anchor-note { font-size: 12px; font-weight: 700; color: var(--lhx-muted, #6b7392); text-align: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lhx-kz-prov { transition: none; }
+  .lhx-kz-name:active { transform: none; }
+}
+
+/* ── Fraction Ladder (fraction_ladder) ───────────────────────────────── */
+.lhx-nt-title { font-weight: 900; font-size: 16px; color: #fff; }
+
+.lhx-fl-ladder { padding: 10px 12px 24px; }
+.lhx-fl-group {
+  font-size: 11px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--lhx-muted, #6b7392); margin: 14px 2px 8px;
+}
+.lhx-fl-level {
+  width: 100%; display: flex; gap: 11px; align-items: flex-start; text-align: left;
+  background: #fff; border: 2px solid transparent; border-radius: 16px; padding: 12px;
+  margin-bottom: 8px; font: inherit; cursor: pointer; min-height: 48px;
+}
+.lhx-fl-level.is-locked { opacity: .62; cursor: default; }
+.lhx-fl-level.is-open { border-color: #ffd9c7; }
+.lhx-fl-badge {
+  width: 38px; height: 38px; flex: 0 0 auto; border-radius: 12px; display: grid; place-items: center;
+  font-weight: 900; font-size: 15px; color: #fff;
+}
+.lhx-fl-badge.is-done { background: #009e73; }
+.lhx-fl-badge.is-open { background: linear-gradient(180deg, #ff7a4d, #f4592c); }
+.lhx-fl-badge.is-locked { background: #cfd4e8; color: #8f97b5; }
+.lhx-fl-text { display: flex; flex-direction: column; gap: 2px; }
+.lhx-fl-text b { font-size: 14px; font-weight: 900; color: var(--lhx-ink); }
+.lhx-fl-text small { font-size: 12px; color: var(--lhx-muted, #6b7392); line-height: 1.45; }
+.lhx-fl-why { font-size: 11.5px; font-style: normal; font-weight: 800; color: #8f3f00; margin-top: 3px; }
+
+.lhx-fl-q {
+  background: #fff; border-radius: 18px; margin: 12px 12px 0; padding: 16px;
+  font-size: 16px; font-weight: 800; line-height: 1.5; color: var(--lhx-ink);
+}
+
+.lhx-fl-answer {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin: 16px 12px 4px; min-height: 92px;
+  background: #fff; border: 2.5px solid #e6e8f5; border-radius: 16px;
+}
+.lhx-fl-answer.is-ok { border-color: #009e73; background: #e7f5f0; }
+.lhx-fl-answer.is-no { border-color: #d55e00; background: #fdeee4; }
+.lhx-fl-stack { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.lhx-fl-box {
+  min-width: 52px; height: 40px; border: none; background: #eef0fb; border-radius: 10px;
+  font: inherit; font-size: 24px; font-weight: 900; color: var(--lhx-ink); cursor: pointer;
+}
+.lhx-fl-box.is-focus { background: #ececfb; box-shadow: inset 0 0 0 2.5px #5b5bd6; }
+.lhx-fl-box.is-whole { min-width: 40px; height: 84px; font-size: 26px; }
+.lhx-fl-bar { display: block; width: 56px; height: 3px; background: var(--lhx-ink); border-radius: 2px; }
+.lhx-fl-dec {
+  width: 160px; height: 52px; border: none; background: #eef0fb; border-radius: 12px; text-align: center;
+  font: inherit; font-size: 26px; font-weight: 900; color: var(--lhx-ink);
+}
+
+.lhx-fl-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px; }
+.lhx-fl-key {
+  background: #fff; border: none; border-radius: 13px; padding: 14px 0; min-height: 48px;
+  font: inherit; font-size: 22px; font-weight: 800; color: var(--lhx-ink);
+  box-shadow: 0 2px 0 #ccd2e6; cursor: pointer;
+}
+.lhx-fl-key:active { transform: translateY(2px); box-shadow: none; }
+.lhx-fl-key.is-fn { background: #e7eaf6; color: var(--lhx-muted, #6b7392); font-size: 16px; }
+.lhx-fl-check {
+  width: calc(100% - 24px); margin: 0 12px; min-height: 48px; padding: 14px; border: none;
+  border-radius: 14px; font: inherit; font-size: 15.5px; font-weight: 800; color: #fff;
+  background: linear-gradient(180deg, #ff7a4d, #f4592c); cursor: pointer;
+}
+.lhx-fl-check:disabled { background: #dfe2f0; color: #9aa1bd; cursor: default; }
+
+.lhx-fl-feedback { margin: 12px; min-height: 60px; }
+.lhx-fl-fb { border-radius: 14px; padding: 12px; font-size: 13.5px; line-height: 1.6; }
+.lhx-fl-fb.is-ok { background: #e7f5f0; border: 1px solid #bfe4d8; color: #04674c; }
+.lhx-fl-fb.is-no { background: #fdeee4; border: 1px solid #f6d3ba; color: #8f3f00; }
+.lhx-fl-fb-title { font-weight: 900; font-size: 14.5px; margin-bottom: 3px; display: flex; gap: 6px; }
+
+/* The one fraction renderer — em-sized so it scales with its sentence. */
+.lhx-fr { display: inline-flex; align-items: center; gap: .2em; vertical-align: middle; }
+.lhx-fr-stack { display: inline-flex; flex-direction: column; align-items: center; line-height: 1.05; font-size: .86em; }
+.lhx-fr-n { padding: 0 .34em .04em; }
+.lhx-fr-d { padding: .05em .34em 0; border-top: .11em solid currentColor; }
+
+@media (prefers-reduced-motion: reduce) { .lhx-fl-key:active { transform: none; } }
+
+/* ── The "break it up" coach, shown after a miss ─────────────────────── */
+.lhx-wb-coach-slot { margin: 14px 12px 20px; }
+.lhx-wb-coach {
+  background: #fff5e6; border: 1px solid #f2dcb4; border-radius: 16px; padding: 13px;
+}
+.lhx-wb-coach-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.lhx-wb-coach-head b { font-size: 14.5px; font-weight: 900; color: #7a4d09; }
+.lhx-wb-coach-head span { font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: #9a6412; }
+.lhx-wb-coach-blurb { margin: 5px 0 10px; font-size: 12.5px; line-height: 1.55; color: #7a5a26; }
+.lhx-wb-chunks { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; }
+.lhx-wb-chunk {
+  min-height: 44px; padding: 10px 14px; border-radius: 12px; border: 2px solid #efd9ac;
+  background: #fff; font: inherit; font-size: 17px; font-weight: 900; letter-spacing: .04em;
+  color: var(--lhx-ink); cursor: pointer; box-shadow: 0 2px 0 #e6d3ab;
+}
+.lhx-wb-chunk:active { transform: translateY(2px); box-shadow: none; }
+.lhx-wb-chunk.is-placed { background: #ffedcb; color: #7a4d09; }
+/* The tricky bit is marked by an underline as well as a colour — on a
+   photocopied worksheet or to a colour-blind reader, the colour is not there. */
+.lhx-wb-chunk.is-trap { border-color: #d98c0a; text-decoration: underline; text-decoration-thickness: 3px; }
+.lhx-wb-coach-done { margin: 11px 0 0; text-align: center; font-size: 14px; color: #7a4d09; }
+.lhx-wb-coach-done b { font-size: 18px; font-weight: 900; letter-spacing: .06em; }
+.lhx-wb-coach-why { margin: 9px 0 0; font-size: 12.5px; line-height: 1.55; color: #7a5a26; }
+.lhx-wb-coach-mastery { margin: 9px 0 0; font-size: 12px; font-weight: 800; color: #9a6412; }
+
+@media (prefers-reduced-motion: reduce) { .lhx-wb-chunk:active { transform: none; } }

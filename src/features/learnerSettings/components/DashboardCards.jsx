@@ -168,7 +168,8 @@ export function ProgressCard({ onOpen }) {
         <StatTile icon={TrophyIcon} value={derived.strongCount} label="Strong Topics" tone="#22c55e" />
       </div>
       <div className="lset-actions">
-        <Btn onClick={() => navigate('/my-stats')}>📊 View Detailed Analytics</Btn>
+        {/* /my-stats was retired (2026-08-20) — /progress carries it. */}
+        <Btn onClick={() => navigate('/progress')}>📊 View Detailed Analytics</Btn>
         <Btn variant="ghost" onClick={() => onOpen('progress')}>⬇ Download Progress Report</Btn>
       </div>
     </SectionCard>

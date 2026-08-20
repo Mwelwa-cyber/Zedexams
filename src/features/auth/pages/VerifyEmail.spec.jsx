@@ -143,10 +143,10 @@ describe('VerifyEmail — actions', () => {
     })
   })
 
-  it('"Use a different email" signs out and goes to /register', async () => {
+  it('"Start again with a different email" signs out and goes to /register', async () => {
     setAuth()
     renderPage()
-    fireEvent.click(screen.getByRole('button', { name: /use a different email/i }))
+    fireEvent.click(screen.getByRole('button', { name: /start again with a different email/i }))
     await waitFor(() => expect(mockLogout).toHaveBeenCalled())
     expect(screen.getByTestId('register-page')).toBeInTheDocument()
   })
@@ -163,5 +163,15 @@ describe('VerifyEmail — actions', () => {
     setAuth()
     renderPage()
     await waitFor(() => expect(mockRefresh).toHaveBeenCalled())
+  })
+
+  // The label used to read "Use a different email", which promises to change
+  // the address on THIS account. It signs out and registers a new one, leaving
+  // the first abandoned — for an under-18 signup, a minor record with an
+  // undeliverable address and no guardian. The screen has to say so.
+  it('warns that starting again makes a second account', () => {
+    renderPage()
+    expect(screen.getByText(/makes a new account/i)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /^use a different email$/i })).toBeNull()
   })
 })

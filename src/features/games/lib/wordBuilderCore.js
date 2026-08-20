@@ -57,6 +57,9 @@ export function playableWords(questions) {
     .map((q) => ({
       word: String(q?.answer || '').toUpperCase().trim(),
       clue: String(q?.question || '').trim(),
+      // The pack entry travels with the word so the "break it up" coach can
+      // find its chunks after a miss without looking the word up again.
+      source: q || null,
     }))
     .filter((it) => it.word.length >= 2 && /^[A-Z]+$/.test(it.word))
 }
