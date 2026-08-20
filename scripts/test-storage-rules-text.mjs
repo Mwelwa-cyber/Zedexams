@@ -477,6 +477,24 @@ test('no path match grants read on bare isAuthed()', () => {
   )
 })
 
+test('spelling-audio is public-read and NEVER client-writable', () => {
+  const start = rules.indexOf('match /spelling-audio/')
+  assert(start >= 0, 'spelling-audio match block not found')
+  const body = rules.slice(start, start + 400)
+
+  // Public read is deliberate: /games is a signed-out route, so the learner
+  // playing a word may have no account — and the 879 words already ship in
+  // every client bundle, so the audio is a second copy of something public.
+  assert(/allow read:\s*if true;/.test(body), 'spelling-audio must be readable by a signed-out learner')
+
+  // The objects are written by generateSpellingAudio with the admin SDK,
+  // which bypasses rules entirely. There is therefore no client write to
+  // allow, and denying it outright means even a compromised admin session
+  // cannot replace what a child hears.
+  assert(/allow write:\s*if false;/.test(body), 'spelling-audio must refuse every client write')
+  assert(!/isAdmin\(\)/.test(body), 'an admin write path here would be a way to replace a pronunciation from the browser')
+})
+
 // ── Report ──────────────────────────────────────────────────────
 
 console.log('')

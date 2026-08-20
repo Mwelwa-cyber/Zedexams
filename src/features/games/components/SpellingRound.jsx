@@ -120,7 +120,7 @@ export default function SpellingRound({
     setHeard(false)
     // The word is spoken on arrival. Listening then producing is the strongest
     // form of the exercise, and the word is never on screen to copy.
-    later(() => { speakWord(item.word); setHeard(true) }, 350)
+    later(() => { speakWord(item.word, { audioUrl: item.audio }); setHeard(true) }, 350)
     if (onPosition) onPosition({ index, firstTryCorrect: firstTryRef.current, missedWords: [...missedRef.current] })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index])
@@ -328,7 +328,7 @@ export default function SpellingRound({
         </p>
 
         {canSpeak ? (
-          <button type="button" className="lhx-sp-hear" onClick={() => { speakWord(answer); setHeard(true) }}>
+          <button type="button" className="lhx-sp-hear" onClick={() => { speakWord(answer, { audioUrl: item.audio }); setHeard(true) }}>
             🔊 {heard ? 'Hear it again' : 'Hear it'}
           </button>
         ) : (

@@ -78,6 +78,11 @@ export function toPackQuestions(bank = [], coach = {}) {
         options: [],
         answer: row.word.toUpperCase(),
         band: row.band || null,
+        // The pre-generated pronunciation, when the word has one. The bundled
+        // bank carries none (it is a file in the repo, not a Firestore
+        // record); a word gets its `audio` when an admin voices it, which
+        // reaches the learner through `mergeIntoPack` below.
+        audio: row.audio || '',
       }
       // A word with no authored cut carries none. `spellingCoachCore` gives no
       // coach rather than inventing a split, which is the rule that stops a
@@ -125,6 +130,7 @@ export function mergeIntoPack(packRows = [], approvedWords = []) {
       options: [],
       answer,
       band: record.band || null,
+      audio: record.audio || '',
     }
     if (Array.isArray(record.chunks) && record.chunks.length) {
       row.chunks = record.chunks.map((chunk) => String(chunk).toUpperCase())

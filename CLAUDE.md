@@ -515,9 +515,35 @@ file plus a `WORD_PACKS` entry, not an engine change. A document's own
 `wordPack` wins; a document with its own questions keeps them (deriving the
 pack from the grade unconditionally silently ignored authored words).
 
+**Audio is PRE-GENERATED, and the arithmetic is why.** `/api/tts` allows 10
+requests a minute and `assertDailyLimit` gives a learner **60 AI calls a day
+across every surface**; one stage of eight words costs fifteen to twenty. Sent
+live, spelling would eat a learner's whole daily allowance in three stages and
+then degrade — silently — to the browser voice it was meant to replace. So
+`generateSpellingAudio` (admin-only) voices a word ONCE through the same
+`ttsVoiceConfig` → `ttsSynthesis` path `/api/tts` uses, stores it at
+`spelling-audio/g{grade}/{word}.mp3`, and stamps the URL onto
+`spellingWords.audio`. `speakWord` is then a three-tier ladder — stored file →
+live `/api/tts` → browser voice — and the first tier costs no quota, no rate
+limit and no session, so it plays for a signed-out learner too. The whole
+Grade 7 bank is ~7,000 characters to voice once. The bucket path is
+**public-read, server-only write**: the words already ship in every client
+bundle (`spellingBank.js`), so the audio leaks nothing new, and the admin SDK
+bypasses rules so there is no client write to allow. Only the WORD is voiced —
+not the context sentence (its gap has no sensible spoken form) and not the
+coach's chunks (nonsense fragments, after a miss, on 79 words). The in-session
+cache in `spellingSpeech.js` is a QUOTA control, not a cost one: the server
+already caches synthesis, but a cache hit still spends one of the learner's 60,
+so a replay must not re-request. `speechAvailable()` tests `window.Audio`, NOT
+`speechSynthesis` — gating on the latter hid the Hear it button on devices
+where the cloud voice would have worked perfectly. Run it from
+**`/admin/spelling` → "Voice N unvoiced"**; `test:spelling-audio` covers the
+path, batching and URL rules.
+
 Tests: `test:spelling-system` (188 checks — ladder, coach, content rules,
-record), `test:spelling-stages`, `test:spelling-bank`, `test:spelling-pack`,
-`test:word-builder`, `test:rules-text`, `test:rules-emulator`, plus
+record), `test:spelling-audio`, `test:spelling-stages`, `test:spelling-bank`,
+`test:spelling-pack`, `test:word-builder`, `test:rules-text`,
+`test:storage-rules-text`, `test:rules-emulator`, plus
 `WordBuilderGame.spec.jsx` and `SpellingAdmin.spec.jsx`. **`npm run
 smoke:spelling`** measures the six screens at seven widths (320→1280) in real
 Chromium — overflow, clipping, hidden tiles and 44px touch targets, none of
