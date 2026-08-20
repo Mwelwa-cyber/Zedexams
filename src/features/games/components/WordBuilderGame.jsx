@@ -388,7 +388,7 @@ export default function WordBuilderGame({ game }) {
   }
 
   return (
-    <div className="lhx">
+    <div className="lhx lhx-bare">
       <div className="lhx-page">
         {/* The round waits for a NAMED pack rather than starting on the
             document's ten and switching mid-stage: the stage the learner is

@@ -47,6 +47,8 @@ vi.mock('../lib/gameSounds', () => ({
   playWrong: vi.fn(),
   playWin: vi.fn(),
   primeSounds: vi.fn(),
+  isMuted: vi.fn(() => false),
+  toggleMute: vi.fn(() => true),
 }))
 
 import KnowZambiaGame from './KnowZambiaGame'
@@ -74,6 +76,14 @@ describe('Know Zambia — where’s the capital?', () => {
     // Settled: now the pin drops, showing where the town really is.
     expect(document.querySelectorAll('.lhx-kz-pin circle')).toHaveLength(1)
     expect(screen.getByText(/Central — correct/)).toBeInTheDocument()
+  })
+
+  it('mounts bare with its own mute control — the shell that carried one is gone', () => {
+    draw('capital')
+    // The engine renders full-screen, outside GamesShell, so the shared
+    // top bar has to carry the mute (which also governs haptics).
+    expect(document.querySelector('.lhx.lhx-bare')).not.toBeNull()
+    expect(screen.getByRole('button', { name: /mute game sounds/i })).toBeInTheDocument()
   })
 
   it('names what was tapped and gives the hint, rather than only marking it wrong', () => {

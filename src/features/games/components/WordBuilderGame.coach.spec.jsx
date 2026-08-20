@@ -34,6 +34,8 @@ vi.mock('../../../utils/dailyChallengeService', () => ({
 }))
 vi.mock('../lib/gameSounds', () => ({
   playCorrect: vi.fn(), playWrong: vi.fn(), playWin: vi.fn(), primeSounds: vi.fn(),
+  isMuted: vi.fn(() => false),
+  toggleMute: vi.fn(() => true),
 }))
 
 import WordBuilderGame from './WordBuilderGame'

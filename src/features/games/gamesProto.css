@@ -35,6 +35,16 @@
   clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
 
+/* Bare-mounted game engines (PROTO_ENGINES in PlayGame) render their own
+   full-screen chrome OUTSIDE the learner shell — no .lhx-nav exists on the
+   page. learnerTheme.css reserves a desktop gutter for that sidebar
+   (padding-left: var(--lhx-sidebar-w) on every .lhx root at ≥1000px), which
+   on these routes shoved the whole game 250px right of centre with nothing
+   in the gap. */
+@media (min-width: 1000px) {
+  .lhx.lhx-bare { padding-left: 0; }
+}
+
 /* The hub's own vertical rhythm. `.lhx-page` is a 20px-gap flex column
    for every learner surface; the hub is denser than that by design (the
    whole point of the pass was recovering vertical space), so it opts into
@@ -504,6 +514,9 @@
   font-size: 18px; font-weight: 900;
   display: inline-flex; align-items: center; justify-content: center;
 }
+/* The mute control shares the ✕'s square; the glyph is an emoji, so it
+   sizes a step down to sit level with the ✕. */
+.lhx-nt-mute { font-size: 15px; }
 /* Round progress, not a countdown — it FILLS as the fixed set is worked
    through (PROMPT 7b removed every solo-game clock). Starts empty, so the
    0%-width rule replaces the countdown bar's 100%. */
