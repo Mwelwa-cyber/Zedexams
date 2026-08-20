@@ -3379,6 +3379,28 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "paperQuizAttempts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "learnerId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "paperId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startedAtMs",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [

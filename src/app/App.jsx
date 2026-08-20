@@ -180,7 +180,7 @@ const ChildSafety = lazy(() => import('../features/marketing/pages/ChildSafety')
 const PastPapersHub = lazy(() => import('../features/papers/pages/PastPapersHub'))
 const PastPaperViewer = lazy(() => import('../features/papers/pages/PastPaperViewer'))
 const PastPaperPractice = lazy(() => import('../features/papers/pages/PastPaperPractice'))
-const PublicQuizRunner = lazy(() => import('../features/papers/pages/PublicQuizRunner'))
+const PaperQuizPage = lazy(() => import('../features/papers/quiz/pages/PaperQuizPage'))
 const MyPapersHistory = lazy(() => import('../features/papers/pages/MyPapersHistory'))
 const AdminPastPapers = lazy(() => import('../features/adminPastPapers/pages/AdminPastPapers'))
 const PastPaperStudio = lazy(() => import('../features/adminPastPapers/pages/PastPaperStudio'))
@@ -620,9 +620,14 @@ export default function App() {
           {/* Audit A2 PR 3 — timed practice runner. Auth-gated inside
               the component so the redirect carries the original target. */}
           <Route path="/papers/:paperId/practice" element={<PastPaperPractice />} />
-          {/* Past-paper quiz — public; 30-question free preview then paywall.
-              No auth required so marketing visitors can try a quiz inline. */}
-          <Route path="/papers/:paperId/quiz"     element={<PublicQuizRunner />} />
+          {/* Past-paper quiz — the cover, both modes, and the results, behind
+              ONE route. Three screens rather than three paths on purpose: a
+              route change is a back button away from ending an attempt, and
+              the back button is exactly the accident the exam is designed not
+              to punish. Public — an anonymous visitor gets practice bounded by
+              the paper's free set; exam mode needs an account and the whole
+              paper, and the cover says so rather than hiding the card. */}
+          <Route path="/papers/:paperId/quiz"     element={<PaperQuizPage />} />
           {/* Audit A2 PR 4 — learner's history of past-paper runs. */}
           <Route path="/my-papers"          element={<ProtectedRoute><MyPapersHistory /></ProtectedRoute>} />
           {/* Audit C5 — SEO blog. Public, indexable. */}
