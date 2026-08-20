@@ -76,8 +76,15 @@ export function buildSaveNote({ signedIn, saveResult, streakResult }) {
   return null
 }
 
-/** The prototype win view: confetti, stars, title/sub, XP + SCORE cards. */
-export function WinScreen({ stars, title, sub, score, saveNote = null, continueLabel = 'CONTINUE ▸', onContinue }) {
+/**
+ * The prototype win view: confetti, stars, title/sub, XP + SCORE cards.
+ *
+ * `children` render UNDER the continue button, for a second action an engine
+ * needs on this screen — the Fraction Ladder's "Practise this stage again",
+ * which has to sit beside Continue rather than replace it, because replaying a
+ * stage and moving on are both ordinary things to want.
+ */
+export function WinScreen({ stars, title, sub, score, saveNote = null, continueLabel = 'CONTINUE ▸', onContinue, children = null }) {
   const confetti = useMemo(
     () =>
       Array.from({ length: 20 }, (_, i) => ({
@@ -122,6 +129,7 @@ export function WinScreen({ stars, title, sub, score, saveNote = null, continueL
       <button type="button" className="lhx-btn lhx-btn-primary lhx-btn-block" onClick={onContinue}>
         {continueLabel}
       </button>
+      {children}
     </div>
   )
 }

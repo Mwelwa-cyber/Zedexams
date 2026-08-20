@@ -17,6 +17,9 @@
  * stable across environments and easy to reason about in URLs / logs.
  */
 
+import { FRACTION_QUESTIONS } from './fractionPack.js'
+
+
 /* ═══════════════════════════════════════════════════════════════════
  *  GRADE 7 — Zambian upper primary, and the only grade open to learners.
  *  Primary school here runs to Grade 7; it is the grade that sits the
@@ -354,18 +357,16 @@ const KNOW_ZAMBIA_G7 = {
 
 /* ═══════════════════════════════════════════════════════════════════
  *  FRACTION LADDER — the nine levels from
- *  docs/learner/zedexams-fraction-levels.html, as one Grade 7 pack.
+ *  docs/learner/zedexams-fraction-levels.html and the picture-first
+ *  first level from docs/learner/zedexams-fractions-level1.html.
  *
- *  Answers are WRITTEN, not chosen, and `fractionLadderCore.markFractionAnswer`
- *  is the single marker: 2/4 is correct for 1/2 with a simplification line,
- *  and wrong only where `form: 'lowest'` says the question is about the form.
- *  `value` is what the engine marks against; `answer` is the same thing in
- *  words, for search and for the admin list.
- *
- *  Every `traps` entry is a misconception a Zambian teacher would recognise,
- *  keyed by exactly what the learner would have written. An answer with no
- *  trap still gets a human sentence — see the core — but a trap is how a
- *  wrong answer teaches instead of just being wrong.
+ *  The QUESTIONS live in `./fractionPack.js`, not here: thirty-one
+ *  stages of content inside this file would bury the other forty-six
+ *  games, and the ladder is meant to grow a level at a time without
+ *  the catalogue being touched. The pack file carries the rules the
+ *  content itself has to keep — pictures before the symbol, no
+ *  "numerator" in level 1, a named misconception per predicted wrong
+ *  answer — and `test:fraction-content` fails the build on each.
  * ═══════════════════════════════════════════════════════════════════ */
 const FRACTION_LADDER_G7 = {
   id: 'math_fraction_ladder_g7',
@@ -379,103 +380,7 @@ const FRACTION_LADDER_G7 = {
   points: 20,
   active: true,
   cbc_topic: 'Fractions',
-  questions: [
-    /* 1 — what a fraction is */
-    { level: 'basics', question: 'A bun is cut into 4 equal pieces. Chanda eats 3 of them. What fraction of the bun did he eat?',
-      answer: '3/4', value: { n: 3, d: 4 },
-      traps: { '4/3': 'That is the pieces over the pieces eaten. The TOP is how many were taken; the bottom is how many equal pieces the whole was cut into.' } },
-    { level: 'basics', question: 'A chitenge is folded into 6 equal parts. 5 of them are printed. What fraction is printed?',
-      answer: '5/6', value: { n: 5, d: 6 },
-      traps: { '1/6': 'That is the part with no print on it. The question asks for the printed part.' } },
-    { level: 'basics', question: 'One piece is taken from a cake cut into 8 equal slices. What fraction is that?',
-      answer: '1/8', value: { n: 1, d: 8 },
-      traps: { '8/1': 'The bottom holds the number of equal pieces — 8 — and the top holds how many were taken.' } },
-
-    /* 2 — equal fractions & simplifying */
-    { level: 'equal', question: 'Write 6/8 in its lowest terms.',
-      answer: '3/4', value: { n: 3, d: 4 }, form: 'lowest' },
-    { level: 'equal', question: 'Write 10/25 in its lowest terms.',
-      answer: '2/5', value: { n: 2, d: 5 }, form: 'lowest',
-      traps: { '5/12': 'Both numbers are divided by the SAME number. 10 and 25 both divide by 5.' } },
-    { level: 'equal', question: 'Write 12/18 in its lowest terms.',
-      answer: '2/3', value: { n: 2, d: 3 }, form: 'lowest',
-      traps: { '6/9': 'Closer — but 6 and 9 both still divide by 3, so it can go one step further.' } },
-
-    /* 3 — which one is bigger */
-    { level: 'compare', question: 'Which is bigger — 2/3 or 3/5? Write the bigger one.',
-      answer: '2/3', value: { n: 2, d: 3 },
-      traps: { '3/5': 'Give them the same bottom to compare: 2/3 is 10/15 and 3/5 is 9/15.' } },
-    { level: 'compare', question: 'Which is smaller — 5/8 or 3/4? Write the smaller one.',
-      answer: '5/8', value: { n: 5, d: 8 },
-      traps: { '3/4': '3/4 is 6/8, and 6 eighths is more than 5 eighths.' } },
-    { level: 'compare', question: 'Which is bigger — 7/10 or 2/3? Write the bigger one.',
-      answer: '7/10', value: { n: 7, d: 10 },
-      traps: { '2/3': 'A bigger bottom does not mean a bigger fraction. 7/10 is 21/30 and 2/3 is 20/30.' } },
-
-    /* 4 — adding */
-    { level: 'add', question: '1/2 + 1/4',
-      answer: '3/4', value: { n: 3, d: 4 },
-      traps: { '2/6': 'The bottoms were added too. The bottom says how BIG the pieces are — make them the same size first (1/2 is 2/4), then add only the tops.' } },
-    { level: 'add', question: '2/5 + 1/5',
-      answer: '3/5', value: { n: 3, d: 5 },
-      traps: { '3/10': 'The bottoms were already the same size, so they stay 5. Only the tops are added.' } },
-    { level: 'add', question: '1/3 + 1/6 — give your answer in its lowest terms.',
-      answer: '1/2', value: { n: 1, d: 2 }, form: 'lowest',
-      traps: { '2/9': 'Tops and bottoms were both added. Change 1/3 into 2/6 first, then add the tops.' } },
-
-    /* 5 — taking away */
-    { level: 'sub', question: '3/4 − 1/4 — give your answer in its lowest terms.',
-      answer: '1/2', value: { n: 1, d: 2 }, form: 'lowest' },
-    { level: 'sub', question: '1 − 1/3',
-      answer: '2/3', value: { n: 2, d: 3 },
-      traps: { '1/3': 'That is the part taken away. The question asks what is LEFT — the whole is 3/3.' } },
-    { level: 'sub', question: '5/6 − 1/3 — give your answer in its lowest terms.',
-      answer: '1/2', value: { n: 1, d: 2 }, form: 'lowest',
-      traps: { '4/3': 'The bottoms were subtracted too. Change 1/3 into 2/6 first, then take the tops away.' } },
-
-    /* 6 — multiplying */
-    { level: 'mult', question: '2/3 × 3/4 — give your answer in its lowest terms.',
-      answer: '1/2', value: { n: 1, d: 2 }, form: 'lowest',
-      traps: { '5/7': 'Multiplying is not adding. Tops times tops, bottoms times bottoms: 2×3 over 3×4.' } },
-    { level: 'mult', question: '1/2 × 4/5 — give your answer in its lowest terms.',
-      answer: '2/5', value: { n: 2, d: 5 }, form: 'lowest' },
-    { level: 'mult', question: '3/4 of 2/5',
-      answer: '3/10', value: { n: 3, d: 10 },
-      traps: { '5/9': '“Of” means times, not plus. Tops times tops, bottoms times bottoms.' } },
-
-    /* 7 — dividing */
-    { level: 'div', question: '2/3 ÷ 4/5 — give your answer in its lowest terms.',
-      answer: '5/6', value: { n: 5, d: 6 }, form: 'lowest',
-      traps: { '8/15': 'That is 2/3 × 4/5. Turn the SECOND fraction upside down first: 2/3 × 5/4.' } },
-    { level: 'div', question: '3/4 ÷ 1/2',
-      answer: '3/2', value: { n: 3, d: 2 },
-      traps: { '3/8': 'That is 3/4 × 1/2. Turn 1/2 upside down and multiply: 3/4 × 2/1.' } },
-    { level: 'div', question: '1/3 ÷ 2/5 — give your answer in its lowest terms.',
-      answer: '5/6', value: { n: 5, d: 6 }, form: 'lowest',
-      traps: { '2/15': 'That is 1/3 × 2/5. The second fraction is turned upside down before you multiply.' } },
-
-    /* 8 — fractions, decimals & percentages */
-    { level: 'fdp', question: 'Write 0.75 as a fraction in its lowest terms.',
-      answer: '3/4', value: { n: 3, d: 4 }, form: 'lowest',
-      traps: { '75/100': 'Right amount — and 75 and 100 both divide by 25, so it goes further.' } },
-    { level: 'fdp', question: 'Write 45% as a fraction in its lowest terms.',
-      answer: '9/20', value: { n: 9, d: 20 }, form: 'lowest',
-      traps: { '45/100': 'Right amount — both numbers still divide by 5.' } },
-    { level: 'fdp', question: 'Write 3/8 as a decimal.',
-      answer: '0.375', value: { n: 3, d: 8 }, form: 'decimal', tolerance: 0.001,
-      traps: { '0.38': 'Very close. 3 ÷ 8 is exactly 0.375 — no rounding needed here.' } },
-
-    /* 9 — fractions in real life */
-    { level: 'real', question: 'A trader had 3/4 of a bag of mealie meal and sold 1/2 of the bag. What fraction of a bag is left?',
-      answer: '1/4', value: { n: 1, d: 4 }, form: 'lowest',
-      traps: { '3/8': 'She sold half A BAG, not half of what she had. Take 1/2 away from 3/4.' } },
-    { level: 'real', question: 'Mutinta spent 2/5 of her K200 on books. What fraction of her money was left?',
-      answer: '3/5', value: { n: 3, d: 5 },
-      traps: { '2/5': 'That is the part she spent. The whole is 5/5, so what is left is 5/5 − 2/5.' } },
-    { level: 'real', question: 'A journey takes 3/4 of an hour. Half of it has been travelled. What fraction of an hour is that?',
-      answer: '3/8', value: { n: 3, d: 8 },
-      traps: { '1/2': 'Half OF three quarters, not a half of an hour. 1/2 × 3/4.' } },
-  ],
+  questions: FRACTION_QUESTIONS,
 }
 
 /*

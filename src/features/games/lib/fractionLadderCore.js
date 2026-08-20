@@ -29,64 +29,49 @@
  * No React, no DOM.
  */
 
-/* ── arithmetic ────────────────────────────────────────────────────── */
+import {
+  fracWords,
+  improperOf,
+  isLowest,
+  mixedWords,
+  pluralUnit,
+  simplify,
+} from '../../../shared/utils/fractionMath.js'
 
-export function gcd(a, b) {
-  let x = Math.abs(a)
-  let y = Math.abs(b)
-  while (y) { const t = x % y; x = y; y = t }
-  return x || 1
-}
-export function simplify(n, d) { const g = gcd(n, d); return [n / g, d / g] }
-export function improperOf(whole, n, d) { return [whole * d + n, d] }
-export function isLowest(n, d) { return gcd(n, d) === 1 }
+/* ── arithmetic and words ──────────────────────────────────────────── */
 
-/* ── the words, which are the accessible name for every fraction ───── */
-
-const ONES = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
-  'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen']
-const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety']
-const UNIT = {
-  2: 'half', 3: 'third', 4: 'quarter', 5: 'fifth', 6: 'sixth', 7: 'seventh', 8: 'eighth', 9: 'ninth',
-  10: 'tenth', 11: 'eleventh', 12: 'twelfth', 16: 'sixteenth', 20: 'twentieth', 25: 'twenty-fifth',
-  50: 'fiftieth', 100: 'hundredth', 1000: 'thousandth',
-}
-
-export function numWord(n) {
-  const value = Math.abs(Math.trunc(n))
-  if (value < 20) return ONES[value]
-  if (value < 100) {
-    const tens = TENS[Math.floor(value / 10)]
-    const rest = value % 10
-    return rest ? `${tens}-${ONES[rest]}` : tens
-  }
-  if (value === 100) return 'one hundred'
-  return String(value)
-}
-export function unitWord(d) { return UNIT[d] || `${numWord(d)}th` }
-export function pluralUnit(d) { const u = unitWord(d); return u === 'half' ? 'halves' : `${u}s` }
-
-/** "three quarters" — the string a screen reader gets instead of "3 4". */
-export function fracWords(n, d) {
-  if (d === 1) return numWord(n)
-  return n === 1 ? `one ${unitWord(d)}` : `${numWord(n)} ${pluralUnit(d)}`
-}
-export function mixedWords(whole, n, d) {
-  if (!whole) return fracWords(n, d)
-  if (!n) return numWord(whole)
-  return `${numWord(whole)} and ${fracWords(n, d)}`
-}
+/**
+ * These moved down to `shared/utils/fractionMath.js` when the canonical
+ * `<Frac>` renderer was extracted to `shared/components` — a shared component
+ * may not import a feature, and the renderer's accessible name IS `fracWords`.
+ * They are re-exported here so every existing caller, and the node test that
+ * imports them from this path, still reads the same functions. One definition,
+ * two doors.
+ */
+export {
+  gcd,
+  simplify,
+  improperOf,
+  isLowest,
+  mixedOf,
+  sameValue,
+  numWord,
+  unitWord,
+  pluralUnit,
+  fracWords,
+  mixedWords,
+} from '../../../shared/utils/fractionMath.js'
 
 /* ── marking ───────────────────────────────────────────────────────── */
 
 /**
  * Mark one written answer.
  *
- * `entry` is what the learner typed: `{ mode: 'fraction', whole, num, den }`
- * or `{ mode: 'decimal', decimal }`.
+ * `entry` is what the learner typed: `{ mode: 'fraction', whole, num, den }`,
+ * `{ mode: 'decimal', decimal }` or `{ mode: 'whole', whole }`.
  * `question` is `{ value: {n, d}, form?, allowDecimal?, tolerance?, traps? }`
- * where `form` is 'lowest' | 'mixed' | 'improper' when the question is ABOUT
- * the form, and absent when it is not.
+ * where `form` is 'lowest' | 'mixed' | 'improper' | 'decimal' | 'whole' |
+ * 'denominator' when the question is ABOUT the form, and absent when it is not.
  *
  * Returns `{ correct, reason, headline, why?, note?, spoken? }`. `note` is the
  * teaching line on a CORRECT answer — the place where "and it simplifies to
@@ -95,6 +80,37 @@ export function mixedWords(whole, n, d) {
 export function markFractionAnswer(entry = {}, question = {}) {
   const want = question.value || { n: 0, d: 1 }
   const wantValue = want.n / want.d
+
+  // A WHOLE-NUMBER ANSWER. "Three quarters of 240 learners" has the answer 180,
+  // and a learner asked for that through a two-box fraction pad would have to
+  // write 180 over 1 — which is a notation lesson nobody asked for, in the
+  // middle of a question about learners. The pad shows one box, and the value
+  // is still a fraction underneath (180/1), so nothing else in the engine has
+  // to know this case exists.
+  if (question.form === 'whole') {
+    if (entry.mode !== 'whole') {
+      return {
+        correct: false,
+        reason: 'form-whole',
+        headline: 'This one wants a plain number',
+        why: 'Write the amount as an ordinary number — this answer is not a fraction.',
+      }
+    }
+    const value = Number.parseInt(entry.whole, 10)
+    if (!Number.isFinite(value)) return { correct: false, reason: 'blank', headline: 'Nothing entered', why: '' }
+    if (value * want.d === want.n) {
+      return { correct: true, reason: 'ok-whole', headline: "That's right", note: null, spoken: String(value) }
+    }
+    return { correct: false, reason: 'value', headline: 'Not quite', why: trapFor(question, entry) }
+  }
+  if (entry.mode === 'whole') {
+    return {
+      correct: false,
+      reason: 'form-fraction',
+      headline: 'This one wants a fraction',
+      why: `Write it as a fraction — a top number, a line, and a bottom number.`,
+    }
+  }
 
   if (entry.mode !== 'decimal' && question.form === 'decimal') {
     // The mirror of the rule below. A question about the three forms has to be
@@ -188,6 +204,19 @@ export function markFractionAnswer(entry = {}, question = {}) {
       why: 'This question asks for an improper fraction — everything over the bottom, no whole number in front.',
     }
   }
+  // "One half is the same as how many sixths?" — the whole question is which
+  // bottom number to land on, so an equivalent fraction with a different one is
+  // the right amount and the wrong answer. This is the only place the value
+  // rule is narrowed, and it is narrowed by the question naming the bottom it
+  // wants, never by default.
+  if (question.form === 'denominator' && Number(question.requireDenominator) !== d) {
+    return {
+      correct: false,
+      reason: 'form-denominator',
+      headline: 'Right amount, wrong pieces',
+      why: `That is the same amount, but this question asks for it in ${pluralUnit(Number(question.requireDenominator))}. Multiply the top and the bottom by the same number until the bottom is ${question.requireDenominator}.`,
+    }
+  }
 
   let note = null
   if (!simplest) {
@@ -206,6 +235,7 @@ export function trapFor(question, entry = {}) {
   const traps = question?.traps
   if (!traps) return ''
   if (entry.mode === 'decimal') return traps[String(entry.decimal)] || ''
+  if (entry.mode === 'whole') return traps[String(entry.whole)] || ''
   const whole = Number.parseInt(entry.whole || '0', 10) || 0
   const key = `${whole ? `${whole} ` : ''}${entry.num}/${entry.den}`
   return traps[key] || ''
