@@ -43,19 +43,15 @@ import { collection, getDocs, limit as fsLimit, query, where } from 'firebase/fi
 import { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useLearnerFirestore } from '../../../hooks/useLearnerFirestore'
-import { SUBJECT_MAP, getTopics, getSubtopics, normalizeSubject } from '../../../config/curriculum'
-import {
-  getTermPlan, planTopicsForTerm, strandLabel, strandTone, unplacedCatalogueTopics,
-  bestTitleMatch,
-} from '../../../config/gradeTermPlan'
-import { deriveTermPlan } from '../../../config/termDivision'
+import { SUBJECT_MAP, normalizeSubject } from '../../../config/curriculum'
 import { getMostRecentTerm } from '../../../utils/moeCalendar'
 import LearnerIcon, { subjectIconName } from '../components/LearnerIcon'
-import { EmptyState, ErrorState, SectionSkeleton } from '../components/LearnerPrimitives'
+import { EmptyState, ErrorState, ProgressBar, SectionSkeleton } from '../components/LearnerPrimitives'
 import {
   resolveActiveTerm, calendarTermInputs, normalizeTerm, deriveTopicTerms,
-  topicsForTerm, termNoteFor, topicOpenTarget,
+  termNoteFor, topicOpenTarget,
 } from '../lib/learnerHomeCore'
+import { computeSubjectProgress, subjectRowMeta, TOPIC_PASS_MARK } from '../lib/subjectProgressCore'
 import { readJson, writeJson, preferredTermKey } from '../lib/learnerLocal'
 import { capture } from '../../../utils/analytics'
 
@@ -130,142 +126,45 @@ export default function LearnerSubjectPage() {
     const subjectNotes = materials.filter((m) => m.noteFormat && subjectMatches(m.subject, subjectId, subjectLabel))
     const subjectLessons = materials.filter((m) => !m.noteFormat && Array.isArray(m.slides) && m.slides.length > 0 && subjectMatches(m.subject, subjectId, subjectLabel))
     const subjectQuizzes = quizzes.filter((q) => subjectMatches(q.subject, subjectId, subjectLabel))
-
-    const catalogueTopics = getTopics(subjectId, Number(grade)) || []
-    const topicTerms = deriveTopicTerms(subjectQuizzes)
-
-    // A published plan is the authority when there is one. Its rows already
-    // carry the term, so the quiz-tag derivation is not consulted at all —
-    // two sources disagreeing about which term a topic is in is worse than
-    // either source alone. With no published plan, the catalogue is divided
-    // across the three terms; that is a suggestion, so it never overrides the
-    // owner's own allocation and the screen says which one it is showing.
-    const authored = getTermPlan(subjectId, Number(grade))
-    const plan = authored
-      || deriveTermPlan(catalogueTopics, (t) => getSubtopics(subjectId, Number(grade), t))
-    const planRows = plan ? planTopicsForTerm(plan, term) : []
-    // Catalogue content an AUTHORED plan does not place. Shown on EVERY tab
-    // rather than dropped: it is real syllabus material, and hiding it to make
-    // the tabs tidy removes curriculum from a child's screen. A derived plan
-    // divides the whole catalogue, so it has nothing unplaced by construction
-    // — running the loose matcher over it could only invent a false report.
-    const unplaced = authored
-      ? unplacedCatalogueTopics(authored, catalogueTopics.flatMap(
-          (t) => (getSubtopics(subjectId, Number(grade), t) || [t]),
-        ))
-      : []
-
-    const rows = plan
-      ? [
-          ...planRows.map((r) => ({
-            // A derived row carries no icon and may carry no parent topic to
-            // name, so both fall back rather than rendering an empty tile or a
-            // blank pill; an authored row is unchanged.
-            name: r.title, icon: r.icon || null, planned: true, note: r.note || null,
-            strand: r.strand ? strandLabel(r.strand) : null,
-            tone: r.tone || strandTone(r.strand),
-          })),
-          ...unplaced.map((name) => ({ name, icon: null, strand: null, tone: null, planned: false, note: null })),
-        ]
-      : topicsForTerm(catalogueTopics, topicTerms, term).map(
-          (name) => ({ name, icon: null, strand: null, tone: null, planned: false }),
-        )
-
-    const hasTermData = Boolean(plan)
-      || topicTerms.size > 0
-      || subjectNotes.some((n) => normalizeTerm(n.term) != null)
-
     const termNotes = subjectNotes.filter((n) => {
       const t = normalizeTerm(n.term)
       return t == null || t === term
     })
-    const completedQuizIds = new Set(results.map((r) => r.quizId).filter(Boolean))
-    const readNoteIds = new Set(noteProgress.filter((np) => np.status === 'completed').map((np) => np.noteId))
+    const subjectResults = results.filter((r) => subjectMatches(r.subject, subjectId, subjectLabel))
 
-    const topics = rows.map((row, i) => {
-      const { name } = row
-      const topicQuizzes = subjectQuizzes.filter((q) => q.topic === name)
-      const doneQuizzes = topicQuizzes.filter((q) => completedQuizIds.has(q.id))
-      const percent = topicQuizzes.length
-        ? Math.round((doneQuizzes.length / topicQuizzes.length) * 100)
-        : 0
-      // The note this topic opens: an explicit topic tag first, then a
-      // title match. No match means no note yet — the row says so.
-      // Sub-topics are the row's second line, but only for an UNPLANNED row:
-      // a planned row already IS the sub-topic, so listing its children
-      // under it would repeat the syllabus at two levels on one line.
-      const subtopics = row.planned ? [] : (getSubtopics(subjectId, Number(grade), name) || [])
-      const lower = String(name).toLowerCase()
-      // An exact topic tag wins; then an exact title contains; then the
-      // shared fuzzy match, which is what actually connects the term
-      // plan's wording to the published note's ("Electric Circuits" →
-      // "5.2 Electric Current and Circuits"). Notes are searched within
-      // the term first, then across the subject — a note filed under a
-      // different term is still the note for this topic.
-      const findIn = (pool) => {
-        // The plan names its note, so that is looked up first and exactly.
-        if (row.note) {
-          const named = pool.find((n) => String(n.title || '').trim() === row.note)
-          if (named) return named
-        }
-        return pool.find((n) => String(n.topic || '').toLowerCase() === lower)
-          || pool.find((n) => String(n.title || '').toLowerCase().includes(lower))
-          || bestTitleMatch(pool, name, (n) => n.topic || n.title)
-          || null
-      }
-      // Term first, then the whole subject: a note filed under a different
-      // term is still this topic's note, and refusing it would say "coming
-      // soon" about something already published.
-      const noteTarget = findIn(termNotes) || findIn(subjectNotes) || null
-      const noteRead = noteTarget ? readNoteIds.has(noteTarget.id) : false
-      return {
-        // Not the name: a sub-topic name is only unique WITHIN its topic, and
-        // Grade 7 Mathematics has "Multiplication" under both Fractions and
-        // Decimals. Two siblings sharing a React key leaves rows from the
-        // previous term standing when the learner switches tab.
-        key: `${i}:${row.strand || ''}:${name}`,
-        name,
-        icon: row.icon,
-        strand: row.strand,
-        tone: row.tone,
-        planned: row.planned,
-        subtopics,
-        position: i + 1,
-        quizCount: topicQuizzes.length,
-        percent,
-        hasQuiz: topicQuizzes.length > 0,
-        noteTarget,
-        noteRead,
-        // ✓ done when its note is read (or every quiz is), ▶ current for
-        // the first topic still open, ○ otherwise — set in a second pass.
-        status: (noteRead || percent >= 100) ? 'completed' : (doneQuizzes.length > 0 ? 'in-progress' : 'available'),
-      }
+    // The rows, their statuses and the term verdict all come from
+    // `subjectProgressCore` — the same function the home row calls with the
+    // same inputs. Two formulas over one question is how the row and the
+    // screen came to print different numbers about the same term.
+    const { topics, summary, planSource, hasPlan, unplacedCount } = computeSubjectProgress({
+      subjectId,
+      grade,
+      term,
+      subjectNotes,
+      termNotes,
+      subjectQuizzes,
+      results: subjectResults,
+      noteProgress,
     })
+
+    const hasTermData = hasPlan
+      || deriveTopicTerms(subjectQuizzes).size > 0
+      || subjectNotes.some((n) => normalizeTerm(n.term) != null)
 
     // The mockup marks exactly one topic as "current": the first one not
-    // finished. Everything after it is plain to-do.
+    // finished. A DISPLAY flag, never a status — the earlier pass overwrote
+    // `status` to do this, which erased the evidence the counts are made of.
     const currentIdx = topics.findIndex((t) => t.status !== 'completed')
-    if (currentIdx >= 0) topics[currentIdx].status = 'in-progress'
-    topics.forEach((t, i) => {
-      if (t.status === 'in-progress' && i !== currentIdx) t.status = 'available'
-    })
-    const doneCount = topics.filter((t) => t.status === 'completed').length
-
-    const readTermNotes = termNotes.filter((n) => readNoteIds.has(n.id)).length
-    const overall = topics.length || termNotes.length
-      ? Math.round(
-          ((topics.reduce((s, t) => s + t.percent, 0) / Math.max(1, topics.length * 100)) * 0.5
-            + (termNotes.length ? readTermNotes / termNotes.length : 0) * 0.5) * 100,
-        )
-      : 0
+    const rows = topics.map((t, i) => ({ ...t, current: i === currentIdx }))
 
     const revisionQuizzes = subjectQuizzes.filter((q) => normalizeTerm(q.term) === term && !q.topic)
 
     return {
-      subjectNotes, subjectLessons, subjectQuizzes, topics, termNotes,
-      hasTermData, overall, revisionQuizzes, doneCount,
-      hasPlan: Boolean(plan), planSource: authored ? 'authored' : (plan ? 'derived' : null),
-      unplacedCount: unplaced.length,
+      subjectNotes, subjectLessons, subjectQuizzes, topics: rows, termNotes,
+      hasTermData, summary, revisionQuizzes,
+      doneCount: summary.done,
+      hasPlan, planSource,
+      unplacedCount,
       lessonCount: subjectLessons.length,
     }
   }, [state, subjectId, subjectLabel, grade, term])
@@ -302,7 +201,7 @@ export default function LearnerSubjectPage() {
             {[
               grade ? `Grade ${grade}` : null,
               `Term ${term}`,
-              state.loading ? null : `${model.doneCount} of ${model.topics.length} topics done`,
+              state.loading ? null : subjectRowMeta({ summary: model.summary }),
             ].filter(Boolean).join(' · ')}
           </div>
         </div>
@@ -330,6 +229,20 @@ export default function LearnerSubjectPage() {
       ) : (
         <>
           <p className="lhx-back-sub" style={{ textAlign: 'center', marginTop: -6 }}>{termNote}</p>
+
+          {/* The row on Home and this screen are one measurement, so this is
+              the number the learner just tapped — not a second opinion. It is
+              drawn only once there is something to draw: a bar at 0% and a bar
+              over material that does not exist read identically, and the line
+              above already says which case this is. */}
+          {model.summary.measurable && model.summary.started && (
+            <div className="lhx-card" style={{ padding: '12px 14px' }}>
+              <ProgressBar
+                percent={model.summary.percent}
+                label={`${subjectLabel} Term ${term}: ${model.summary.percent}% complete`}
+              />
+            </div>
+          )}
 
           {/* Three identical tabs with no explanation reads as a broken
               switcher. Say which case this is instead. */}
@@ -367,10 +280,18 @@ export default function LearnerSubjectPage() {
                 {model.topics.map((topic) => {
                   const target = topicOpenTarget(topic)
                   const openable = Boolean(target)
+                  // Started and current are both ▶, and they are different
+                  // facts: one is evidence, one is the mockup's "you are
+                  // here". The accessible name says which, so the two are not
+                  // collapsed for a screen reader the way they are visually.
                   const st = topic.status === 'completed'
                     ? { cls: 'lhx-st-done', mark: '✓', label: 'done' }
-                    : topic.status === 'in-progress'
-                      ? { cls: 'lhx-st-now', mark: '▶', label: 'current topic' }
+                    : (topic.status === 'in-progress' || topic.current)
+                      ? {
+                          cls: 'lhx-st-now',
+                          mark: '▶',
+                          label: topic.status === 'in-progress' ? 'started' : 'current topic',
+                        }
                       : { cls: 'lhx-st-todo', mark: '○', label: 'not started' }
                   // A row with nothing to open is not a button. It was one,
                   // marked `aria-disabled` and wired to a handler that
@@ -411,6 +332,17 @@ export default function LearnerSubjectPage() {
                           <span className="lhx-topic-sub" style={{ display: 'block' }}>
                             {topic.subtopics.slice(0, 3).join(' · ')}
                             {topic.subtopics.length > 3 ? ` · +${topic.subtopics.length - 3} more` : ''}
+                          </span>
+                        )}
+                        {/* The mark behind the status. A topic sitting at
+                            "started" with a 40% beside it explains itself; the
+                            pill alone leaves the learner guessing what would
+                            finish it. */}
+                        {topic.bestScore != null && (
+                          <span className="lhx-topic-sub" style={{ display: 'block' }}>
+                            {topic.status === 'completed'
+                              ? `Best score ${topic.bestScore}%`
+                              : `Best score ${topic.bestScore}% — ${TOPIC_PASS_MARK}% finishes this topic`}
                           </span>
                         )}
                         {!openable && (
