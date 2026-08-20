@@ -115,8 +115,16 @@ assert.ok(
   'public/boot.js must seed the teacher theme from the resolved reading palette when nothing is saved',
 )
 assert.ok(
-  boot.includes(`var teacherDark = resolvedReadingTheme === 'midnight';`),
-  'public/boot.js teacher seed no longer derives from the reading palette it just resolved',
+  boot.includes(`var teacherDark = resolvedReadingTheme === 'midnight' && prefersReadingDark;`),
+  'public/boot.js teacher seed no longer mirrors seededWorkspaceDarkness — it must be the OS '
+    + 'answer VETOED by a light reading palette, never the reading palette on its own',
+)
+// The `&& prefersReadingDark` half is what stops #2535 coming back: without
+// it, an account that recorded Midnight painted the workspace dark on every
+// browser whatever the OS said, teachers included.
+assert.ok(
+  boot.includes('prefersReadingDark = prefersDark;'),
+  'public/boot.js no longer publishes the OS answer to the workspace guard',
 )
 assert.ok(
   !/teacherPrefersDark/.test(boot),
@@ -132,7 +140,16 @@ assert.ok(
 const store = readFileSync(resolve(root, 'src/contexts/teacherThemeStore.js'), 'utf8')
 assert.ok(
   store.includes('return seedFor(seededDarkness())'),
-  'teacherThemeStore.readInitial no longer mirrors the boot.js seed (the resolved reading palette)',
+  'teacherThemeStore.readInitial no longer mirrors the boot.js seed',
+)
+// The live re-seed must run the SAME pure decision as readInitial and boot.js.
+// It read the reading palette alone between #2524 and #2535, which is how a
+// dark reading theme came to repaint the teacher workspace.
+assert.ok(
+  store.includes('seededWorkspaceDarkness({')
+    && store.includes('osDark: prefersDarkColorScheme(),'),
+  'teacherThemeStore.syncSeededTeacherTheme no longer runs seededWorkspaceDarkness with the OS '
+    + 'answer — a reading palette alone must never seed a dark workspace',
 )
 // Reading the OS directly here is the regression, not a refactor of it: it is
 // what let an unchosen workspace theme outrank a chosen reading palette.

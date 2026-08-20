@@ -20,10 +20,30 @@
  * the READING theme, the only theme control a learner has) could not undo it.
  * The page stayed dark with the toggle reading "day".
  *
- * The rule that closes it: an OS seed is not a choice, and must never outrank
- * one. So while no workspace theme has been chosen, the workspace theme
- * FOLLOWS the reading palette — which itself falls back to the OS. One
- * decision about darkness, taken once, in `isDarkReadingThemeId`.
+ * THE RULE, AND THE HALF OF IT THAT IS NOT SYMMETRIC
+ *
+ * An OS seed is not a choice, and must never outrank one. So an explicitly
+ * chosen LIGHT reading palette CLEARS an unchosen 'night' — that is the fix,
+ * and it is all of the fix.
+ *
+ * The mirror move does NOT follow, and shipping it was a regression (#2524 →
+ * #2535). Making the seed follow the reading palette in BOTH directions meant
+ * a learner or teacher reading in Midnight on a light-OS machine had their
+ * whole workspace turned dark, where before it stayed light — and because
+ * <ReadingThemeSync> syncs the reading palette to the account, that reached
+ * every browser they signed in from, teachers included.
+ *
+ * So the rule is one-directional:
+ *
+ *   reading palette is LIGHT  → the workspace seed is light, whatever the OS
+ *                               says (nothing may override a choice)
+ *   reading palette is DARK   → the OS decides, exactly as it always did
+ *                               (a reading choice is not a workspace opinion)
+ *
+ * A dark reading palette is a statement about the page a learner reads on. It
+ * is not a request to repaint the teacher workspace, and treating it as one
+ * is the same category of mistake as the OS seed overriding a choice: acting
+ * on something the user did not say.
  */
 
 /** localStorage key holding the learner's chosen reading palette. */
@@ -65,18 +85,30 @@ export function prefersDarkColorScheme() {
 }
 
 /**
- * Is the page dark RIGHT NOW, as far as a seed is concerned — the saved
- * reading choice if this device has one, otherwise the OS.
+ * Should an UNCHOSEN workspace theme be dark? The one-directional rule above,
+ * as a pure function of the two inputs.
  *
- * A stored value of any kind answers the question on its own: it is either a
- * dark palette or a light one, and either way the learner has spoken, so the
- * OS is not consulted. Only a device with no stored reading theme at all
- * falls through to `prefers-color-scheme`.
+ * `readingTheme` is the reading palette in force (a raw stored value or a
+ * normalised id — both are accepted), or null/undefined when this device has
+ * never saved one.
+ *
+ *   a LIGHT reading palette vetoes the OS      → false
+ *   anything else (dark, or nothing saved)     → whatever the OS asks for
+ *
+ * Note the asymmetry is deliberate and is the whole point: this function can
+ * turn an OS-dark seed OFF, and can never turn a seed ON that the OS did not
+ * already ask for.
  */
+export function seededWorkspaceDarkness({ readingTheme, osDark } = {}) {
+  if (readingTheme && !isDarkReadingThemeId(readingTheme)) return false
+  return Boolean(osDark)
+}
+
+/** The same decision, reading this device's storage and the live OS setting. */
 export function seededDarkness() {
+  let saved = null
   try {
-    const saved = localStorage.getItem(READING_THEME_STORAGE_KEY)
-    if (saved) return isDarkReadingThemeId(saved)
-  } catch { /* storage unavailable — fall through to the OS */ }
-  return prefersDarkColorScheme()
+    saved = localStorage.getItem(READING_THEME_STORAGE_KEY)
+  } catch { /* storage unavailable — the OS alone decides */ }
+  return seededWorkspaceDarkness({ readingTheme: saved, osDark: prefersDarkColorScheme() })
 }
