@@ -2452,6 +2452,79 @@ exports.requestGuardianUnlock = require('./guardianUnlock').requestGuardianUnloc
 // See functions/guardianControls/ and functions/shared/guardian/.
 exports.setGuardianControl = require('./guardianControls').setGuardianControl;
 
+// ── The past-paper quiz: exam mode's server rules (§5) ───────────────
+//
+// `startAttempt` returns the paper's questions with every answer-key shape
+// and every coaching field STRIPPED for an exam, so the app cannot show an
+// answer early; `submitAttempt` marks server-side and returns the full marked
+// paper. The client never marks an exam, never owns the clock (the countdown
+// on screen is cosmetic — the remaining time is recomputed from the server's
+// `expiresAt` on every read) and never writes a score.
+//
+// `patchAttempt` is what makes §1's "only one thing ends an exam early" true:
+// answers persist AS THEY ARE GIVEN rather than being batched in memory until
+// submit, because memory is exactly what a reload destroys. A refresh, a
+// crash, a battery death or a rotate all arrive back at `startAttempt` and
+// RESUME; `abandonAttempt` — the exit sheet's "Leave, don't count this" — is
+// the only thing that ends one.
+//
+// The marking rules and the answer key live in functions/shared/paperQuiz/,
+// imported unchanged by the browser too, because practice marks client-side
+// and exam marks here and the two must agree about which option was right.
+// See functions/paperQuiz/ and docs/learner/past-paper-quiz.md.
+exports.startAttempt = onCall(
+    {region: "us-central1", timeoutSeconds: 60},
+    (request) => require("./paperQuiz/paperQuizFns").startAttemptHandler(request),
+);
+exports.patchAttempt = onCall(
+    {region: "us-central1", timeoutSeconds: 30},
+    (request) => require("./paperQuiz/paperQuizFns").patchAttemptHandler(request),
+);
+exports.submitAttempt = onCall(
+    {region: "us-central1", timeoutSeconds: 60},
+    (request) => require("./paperQuiz/paperQuizFns").submitAttemptHandler(request),
+);
+exports.abandonAttempt = onCall(
+    {region: "us-central1", timeoutSeconds: 30},
+    (request) => require("./paperQuiz/paperQuizFns").abandonAttemptHandler(request),
+);
+exports.savePracticeProgress = onCall(
+    {region: "us-central1", timeoutSeconds: 30},
+    (request) => require("./paperQuiz/paperQuizFns").savePracticeProgressHandler(request),
+);
+
+// ── §6: authoring the past-paper explanations ────────────────────────
+//
+// "The explanations are the whole feature. Coverage is the constraint, not
+// the UI." The AI drafts `why` / `distractors` / `example` FROM THE PAPER'S
+// MARKING SCHEME and the syllabus material for that grade — never from
+// general knowledge — and lands them as `explanationStatus: 'ai_draft'`,
+// which the learner-facing gate refuses to show. A human approves in the
+// Past Paper Studio's review queue; `approved` is the only state a learner
+// ever reads prose in, and only these handlers can write it.
+//
+// The drafter refuses itself when the material does not support an
+// explanation, or when working the question through makes it doubt the
+// answer key. A refused question stays unexplained and shows its answer
+// alone, which is the correct outcome rather than a defect.
+// Staff only. See functions/paperQuiz/explanation*.js.
+exports.draftPaperExplanations = onCall(
+    {region: "us-central1", timeoutSeconds: 540, secrets: [anthropicApiKey]},
+    (request) => require("./paperQuiz/explanationFns").draftPaperExplanationsHandler(request),
+);
+exports.reviewPaperExplanation = onCall(
+    {region: "us-central1", timeoutSeconds: 30},
+    (request) => require("./paperQuiz/explanationFns").reviewPaperExplanationHandler(request),
+);
+exports.bulkApproveExplanations = onCall(
+    {region: "us-central1", timeoutSeconds: 60},
+    (request) => require("./paperQuiz/explanationFns").bulkApproveExplanationsHandler(request),
+);
+exports.paperExplanationQueue = onCall(
+    {region: "us-central1", timeoutSeconds: 60},
+    (request) => require("./paperQuiz/explanationFns").paperExplanationQueueHandler(request),
+);
+
 // ── Account deletion: the child asks, the guardian decides ───────────
 //
 // Deleting a child's account is a state machine, not a button, and the reason

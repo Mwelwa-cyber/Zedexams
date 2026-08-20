@@ -1,32 +1,37 @@
 /**
- * The past-paper canary persists NOTHING — held by a test, not a premise.
+ * The past-paper quiz route writes to Firestore ONLY through a callable.
  *
- * docs/phase3-plan.md §7.3: "any Firestore write at all from the past-paper
- * route" is an unconditional rollback trigger, and §7.2 calls a single written
- * document a P1. That rule is only cheap to enforce if the write cannot be
- * introduced quietly — so this guard fails the build when either side of the
- * canary grows a path to one:
+ * ── What this guard used to be, and why it changed ──────────────────────
  *
- *   1. `PublicQuizRunner.jsx` may not import ANY firebase module or the
- *      engine's `persist/`. Its reads go through `utils/` loaders; the day it
- *      needs a write is the day the canary stops being the canary, and that is
- *      a plan change, not a diff.
- *   2. The engine front door (`engines/assessment-engine/index.js`) may not
- *      re-export `persist/`, and nothing reachable from it may import
- *      firebase. The canary imports the front door, so what the front door
- *      exports is what the canary can reach.
+ * It pinned `PublicQuizRunner.jsx` as the Assessment Engine's Phase-3 canary:
+ * that file could not import a Firebase module AT ALL, so a defect there could
+ * not corrupt persisted data and a rollback was one toggle. The header said
+ * lifting it would be "a plan change, not a diff".
  *
- *      This rule was written expecting the QUIZ cutover to lift it — persist
- *      would reach the front door with the first route that writes. The
- *      cutover landed and did the opposite, deliberately: `QuizRunnerV2`
- *      imports `assessment-engine/persist` as an AREA, exactly as it imports
- *      `assessment-engine/render` for the choice card and for the same stated
- *      reason (an area index is not a barrel). Exporting persist from the
- *      front door would have made the canary's zero-write property depend on
- *      nobody importing a particular NAME from a door it already imports,
- *      where today it depends on the write being unreachable at all. §7.3
- *      calls one write from that route a P1, so the structural version is the
- *      one worth keeping. The rule is therefore permanent, not provisional.
+ * That plan change was made deliberately, on an explicit decision, when the
+ * past-paper quiz gained EXAM MODE. An exam needs a server-anchored attempt —
+ * a clock the client owns is not a clock, and a score the candidate computes
+ * is not a score (spec §5). So the canary route no longer exists;
+ * `PaperQuizPage` replaced it and the engine's ramp will need a different
+ * first flip. (Its flags were still at 0, so nothing had ramped.)
+ *
+ * ── What survives, and it is the stronger half ──────────────────────────
+ *
+ * The route still performs NO DIRECT FIRESTORE WRITE. Every write —
+ * the attempt, the answers, the score, the practice cursor, topic mastery —
+ * goes through a callable running with the admin SDK, and `firestore.rules`
+ * denies client writes to all three collections outright, for admins too. So
+ * the property is no longer "this file cannot reach Firebase" (it must: it
+ * reads the learner's own history) but "no Firestore WRITE API is reachable
+ * from this route", which is what the rules already enforce and what this
+ * guard makes cheap to keep true.
+ *
+ * That matters most for the ANONYMOUS practice path, which is the one this
+ * route still serves on a public, crawled URL with no uid to write under.
+ *
+ * The build-stamp checks at the bottom of this file are unrelated to any of
+ * that — they pin `VITE_BUILD_SHA` on every workflow step that builds the web
+ * bundle — and are untouched.
  *
  * Run: node scripts/test-paper-quiz-zero-write.mjs  (test:paper-quiz-zero-write)
  */
@@ -36,8 +41,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const RUNNER = 'src/features/papers/pages/PublicQuizRunner.jsx'
-const FRONT_DOOR = 'src/engines/assessment-engine/index.js'
+const ROUTE = 'src/features/papers/quiz/pages/PaperQuizPage.jsx'
 
 let passed = 0
 function test(name, fn) {
@@ -92,54 +96,19 @@ function reachableFrom(entry, skip = new Set()) {
   return seen
 }
 
-console.log('the past-paper canary writes nothing')
-
-test('the runner imports no firebase module and no persist/', () => {
-  const specs = importsOf(readFileSync(path.join(ROOT, RUNNER), 'utf8'))
-  const offenders = specs.filter((s) => /(^|\/)firebase(\/|$)|assessment-engine\/persist/.test(s))
-  assert.deepEqual(offenders, [],
-    `the canary route must not reach a write path:\n    ${offenders.join('\n    ')}`)
-})
-
-test('the engine front door does not export persist/', () => {
-  const source = readFileSync(path.join(ROOT, FRONT_DOOR), 'utf8')
-  const persistExports = importsOf(source).filter((s) => /\/persist\//.test(s))
-  assert.deepEqual(persistExports, [],
-    'persist/ is reached as an area by the routes that write (QuizRunnerV2), never through the front '
-    + 'door the zero-write canary imports — see this file\'s header for why that stayed true at the quiz cutover')
-})
-
-test('nothing reachable from the canary\'s engine imports touches firebase', () => {
-  // The engine constraint (§14.2: engines sit below services) applied to the
-  // graph the canary actually pulls in — BOTH doors it imports through: the
-  // node-safe front door AND the render area (which is .jsx and therefore
-  // deliberately not on the front door). RichContent and friends come along
-  // via render/ — they render, they must not write.
-  const reached = new Set([
-    ...reachableFrom(FRONT_DOOR),
-    ...reachableFrom('src/engines/assessment-engine/render/index.js'),
-  ])
-  assert.ok(reached.size > 10, `the walk found only ${reached.size} files — the resolver has gone blind, which must fail rather than pass by inspecting nothing`)
-  const offenders = []
-  for (const file of reached) {
-    const specs = importsOf(readFileSync(path.join(ROOT, file), 'utf8'))
-    for (const spec of specs) {
-      if (/^firebase(\/|$)|^@firebase\/|src\/firebase\//.test(spec) || /(^|\.\.?\/)+firebase\/config/.test(spec)) {
-        offenders.push(`${file} → ${spec}`)
-      }
-    }
-  }
-  assert.deepEqual(offenders, [],
-    `the engine graph reached firebase:\n    ${offenders.join('\n    ')}`)
-})
+console.log('the past-paper quiz route writes only through a callable')
 
 test('no Firestore WRITE API is importable anywhere in the route\'s own graph', () => {
-  // Codex P2 on #2149 (r3733259619): the walk above covers the ENGINE graph,
-  // and the runner check reads only its direct specifiers — so a write added
-  // to an existing helper (pastPaperQuiz.js is the natural place) stayed
-  // invisible to a guard advertised as enforcing zero writes. This walks the
-  // runner's whole relative-import graph and refuses the write APIs by NAME,
-  // because the loaders legitimately read.
+  // Walks the route's WHOLE relative-import graph and refuses the write APIs
+  // by NAME, because the loaders legitimately read and the history card
+  // legitimately queries. A direct-specifier check on the page alone would
+  // miss a write added to a helper — `pastPaperQuiz.js` is the natural place
+  // — which is the shape of the bypass this walk was built for (Codex P2 on
+  // #2149, r3733259619).
+  //
+  // `httpsCallable` is not on the list and must not be: a callable is how
+  // every legitimate write on this route happens, and the thing being refused
+  // is a write the RULES would refuse too.
   //
   // The allowlist names modules that carried writes BEFORE the canary, for
   // jobs that are not this route's: an entry here needs a reason, and a new
@@ -152,14 +121,19 @@ test('no Firestore WRITE API is importable anywhere in the route\'s own graph', 
   // reviewed diff of this list, with a reason.
   const PREEXISTING_WRITERS = new Map([
     ['src/contexts/AuthContext.jsx', 'the app session (profile bootstrap, FCM, referrals); mounted on every route, not a canary path'],
-    // pastPapers.js is deliberately NOT here any more: the route now imports
-    // its one read from pastPaperLookup.js, which the walk covers in full —
-    // a write inside the loader the route actually calls fails this test
-    // (Codex P2 on #2151, r3733319248).
+    // pastPapers.js is deliberately NOT here: the route imports its one read
+    // from pastPaperLookup.js, which the walk covers in full — a write inside
+    // the loader the route actually calls fails this test (Codex P2 on #2151,
+    // r3733319248).
   ])
   const WRITE_APIS = /\b(addDoc|setDoc|updateDoc|deleteDoc|writeBatch|runTransaction)\b/
   const offenders = []
-  for (const file of reachableFrom(RUNNER, new Set(PREEXISTING_WRITERS.keys()))) {
+  const reached = reachableFrom(ROUTE, new Set(PREEXISTING_WRITERS.keys()))
+  // A resolver that has gone blind reports zero offenders, which reads
+  // exactly like a clean route. Fail rather than pass by inspecting nothing.
+  assert.ok(reached.size > 20,
+    `the walk found only ${reached.size} files from ${ROUTE} — the resolver has gone blind`)
+  for (const file of reached) {
     const source = readFileSync(path.join(ROOT, file), 'utf8')
     for (const m of source.matchAll(/import\s+([^'"]+?)\s+from\s+['"][^'"]*firestore[^'"]*['"]/g)) {
       const hit = m[1].match(WRITE_APIS)
@@ -167,24 +141,14 @@ test('no Firestore WRITE API is importable anywhere in the route\'s own graph', 
     }
   }
   assert.deepEqual(offenders, [],
-    `a Firestore write API is importable from the past-paper route — §7.3 calls one write a P1:\n    ${offenders.join('\n    ')}`)
+    `a Firestore write API is importable from the past-paper quiz route — every write here\n`
+    + `belongs in a callable, and firestore.rules denies client writes to these collections:\n    ${offenders.join('\n    ')}`)
   // The allowlist must describe reality: an entry for a module that no longer
   // carries a write (or is no longer reached) is stale cover for a future one.
   for (const [file, reason] of PREEXISTING_WRITERS) {
     assert.ok(reason.length > 10, `${file} needs a real reason`)
     assert.match(readFileSync(path.join(ROOT, file), 'utf8'), WRITE_APIS,
       `${file} is allowlisted but carries no write API — remove the stale entry`)
-  }
-})
-
-test('the §7.2 observability event is wired, with the fields the dashboard reads', () => {
-  // Observability must be emitting BEFORE the flip (§5.1(8)). The event name
-  // and fields are pinned here so a rename cannot silently orphan the PostHog
-  // query watching the ramp.
-  const source = readFileSync(path.join(ROOT, RUNNER), 'utf8')
-  assert.match(source, /capture\('assessment_engine_path'/, 'the runner emits assessment_engine_path')
-  for (const field of ['runner:', 'engine:', 'flagSource:', 'build:']) {
-    assert.match(source, new RegExp(field), `the event carries ${field.replace(':', '')}`)
   }
 })
 
@@ -382,4 +346,4 @@ test('the four bypasses from #2163\'s definitive sweep are each pinned', () => {
   ]), 1, 'a |2- block scalar build is flagged')
 })
 
-console.log(`\npaper-quiz zero-write: ${passed} passed`)
+console.log(`\npaper-quiz callable-only writes: ${passed} passed`)

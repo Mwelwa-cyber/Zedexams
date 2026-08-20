@@ -171,6 +171,24 @@ async function main() {
         provider: 'lenco', storagePath: `invoices/${uid}/${ref}.pdf`,
       })
     }
+    // ── Past-paper quiz (spec §4) ────────────────────────────────
+    // One attempt, one practice cursor and one topic-mastery row per learner,
+    // seeded through the admin path because that is the ONLY way any of them
+    // is ever written: every client write to all three is denied by rule.
+    await setDoc(doc(db, 'paperQuizAttempts', 'pqa_a'), {
+      learnerId: LEARNER_A, paperId: 'paper_1', quizId: 'quiz_1', mode: 'exam',
+      status: 'submitted', startedAtMs: 1, expiresAtMs: 2, submittedAtMs: 3,
+      answers: { q1: 1 }, flags: [], timeUsedSec: 60,
+      score: { right: 1, total: 2, percent: 50 }, bySection: [], weakTopics: [],
+    })
+    await setDoc(doc(db, 'practiceProgress', `${LEARNER_A}_paper_1`), {
+      learnerId: LEARNER_A, paperId: 'paper_1', lastQuestionN: 3, answered: { q1: 1 },
+    })
+    await setDoc(doc(db, 'learnerTopicStats', `${LEARNER_A}_eng.tense`), {
+      learnerId: LEARNER_A, topicId: 'eng.tense', topic: 'Past simple tense',
+      section: 'Grammar', subject: 'english', grade: 7, seen: 14, wrong: 5,
+    })
+
     // A guardian who paid FOR the child: the payer's uid is what lands in
     // userId, the child's in beneficiaryUid. Pinned because it is the reason
     // the gate does not need a beneficiary clause.
@@ -4285,6 +4303,89 @@ async function main() {
     await assertFails(setDoc(doc(adult, 'payments', 'pay_adult'), { userId: ADULT_LEARNER, amount: 1 }))
   })
 
+
+  // ── Past-paper quiz: attempts, practice cursor, topic mastery ──
+  //
+  // All three are SERVER-WRITTEN (spec §5) and OWNER-READ. The write rules are
+  // `if false` in both directions and for admins too, which is the whole
+  // integrity model: a client that could write here could set its own
+  // `expiresAtMs`, flip its own `status` to submitted, or write its own
+  // `score` — and an exam whose result the candidate can author is not an
+  // exam. Pinned behaviourally rather than by text because "allow write: if
+  // false" is exactly the line a later diff relaxes to `isAdmin()` while it is
+  // fixing something adjacent.
+  section('past-paper quiz (paperQuizAttempts / practiceProgress / learnerTopicStats)')
+
+  await test('a learner reads their OWN attempt, cursor and topic stats', async () => {
+    await assertSucceeds(getDoc(doc(learnerA, 'paperQuizAttempts', 'pqa_a')))
+    await assertSucceeds(getDoc(doc(learnerA, 'practiceProgress', `${LEARNER_A}_paper_1`)))
+    await assertSucceeds(getDoc(doc(learnerA, 'learnerTopicStats', `${LEARNER_A}_eng.tense`)))
+  })
+
+  await test("another learner cannot read any of them", async () => {
+    // A submitted attempt carries `answers` for a paper every other learner
+    // can still sit, so a cross-learner read IS the answer key. Unlike
+    // exam_attempts there is deliberately no submitted-is-public arm, because
+    // nothing needs one: there is no past-paper leaderboard.
+    await assertFails(getDoc(doc(learnerB, 'paperQuizAttempts', 'pqa_a')))
+    await assertFails(getDoc(doc(learnerB, 'practiceProgress', `${LEARNER_A}_paper_1`)))
+    // A record of what one child finds hard is not another child's business.
+    await assertFails(getDoc(doc(learnerB, 'learnerTopicStats', `${LEARNER_A}_eng.tense`)))
+  })
+
+  await test('an anonymous visitor cannot read any of them', async () => {
+    await assertFails(getDoc(doc(guest, 'paperQuizAttempts', 'pqa_a')))
+    await assertFails(getDoc(doc(guest, 'practiceProgress', `${LEARNER_A}_paper_1`)))
+    await assertFails(getDoc(doc(guest, 'learnerTopicStats', `${LEARNER_A}_eng.tense`)))
+  })
+
+  await test('an admin reads them (support and moderation)', async () => {
+    await assertSucceeds(getDoc(doc(admin, 'paperQuizAttempts', 'pqa_a')))
+    await assertSucceeds(getDoc(doc(admin, 'learnerTopicStats', `${LEARNER_A}_eng.tense`)))
+  })
+
+  await test('a learner cannot CREATE an attempt — not even their own', async () => {
+    // The whole point: minting `{status:'submitted', score:{percent:100}}` is
+    // one addDoc away if this ever opens.
+    await assertFails(setDoc(doc(learnerA, 'paperQuizAttempts', 'pqa_forged'), {
+      learnerId: LEARNER_A, paperId: 'paper_1', mode: 'exam', status: 'submitted',
+      score: { right: 60, total: 60, percent: 100 },
+    }))
+  })
+
+  await test('a learner cannot rewrite their own score, clock or status', async () => {
+    await assertFails(updateDoc(doc(learnerA, 'paperQuizAttempts', 'pqa_a'), {
+      score: { right: 60, total: 60, percent: 100 },
+    }))
+    // Extending your own exam by an hour.
+    await assertFails(updateDoc(doc(learnerA, 'paperQuizAttempts', 'pqa_a'), { expiresAtMs: 9e14 }))
+    await assertFails(updateDoc(doc(learnerA, 'paperQuizAttempts', 'pqa_a'), { status: 'in_progress' }))
+    await assertFails(deleteDoc(doc(learnerA, 'paperQuizAttempts', 'pqa_a')))
+  })
+
+  await test('an ADMIN cannot write an attempt either', async () => {
+    // Denying admins removes the residual vector where a compromised admin
+    // token PATCHes a learner's score. Every legitimate write is admin-SDK,
+    // which bypasses rules entirely, so nothing needs this.
+    await assertFails(updateDoc(doc(admin, 'paperQuizAttempts', 'pqa_a'), { status: 'abandoned' }))
+    await assertFails(setDoc(doc(admin, 'paperQuizAttempts', 'pqa_admin'), { learnerId: LEARNER_A }))
+    await assertFails(deleteDoc(doc(admin, 'paperQuizAttempts', 'pqa_a')))
+  })
+
+  await test('nobody writes the practice cursor or topic mastery from a client', async () => {
+    // `wrong/seen` is a score by another name — a learner who could write it
+    // could author the mastery picture their guardian sees.
+    await assertFails(setDoc(doc(learnerA, 'practiceProgress', `${LEARNER_A}_paper_1`), {
+      learnerId: LEARNER_A, paperId: 'paper_1', lastQuestionN: 60, answered: {},
+    }))
+    await assertFails(updateDoc(doc(learnerA, 'learnerTopicStats', `${LEARNER_A}_eng.tense`), { wrong: 0 }))
+    await assertFails(setDoc(doc(learnerA, 'learnerTopicStats', `${LEARNER_A}_eng.new`), {
+      learnerId: LEARNER_A, topicId: 'eng.new', seen: 1, wrong: 0,
+    }))
+    await assertFails(setDoc(doc(admin, 'practiceProgress', `${LEARNER_A}_paper_2`), {
+      learnerId: LEARNER_A, paperId: 'paper_2',
+    }))
+  })
 
   await testEnv.cleanup()
 

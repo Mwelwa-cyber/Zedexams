@@ -55,11 +55,19 @@ export {
 //     say. The expectation was that the quiz cutover, being the first route
 //     that writes, would export it here. That cutover landed and imports
 //     `assessment-engine/persist` as an area instead, for the reason the
-//     canary makes concrete: `PublicQuizRunner` imports THIS file and must
-//     persist nothing, so anything exported here is something the zero-write
-//     route can reach. Keeping persist off the front door leaves that property
-//     structural — the write is unreachable — rather than making it depend on
-//     nobody importing one name. `test:paper-quiz-zero-write` enforces it.
+//     canary made concrete: a route that must persist nothing can reach
+//     anything exported here, so keeping persist off the front door made that
+//     property structural — the write is unreachable — rather than dependent
+//     on nobody importing one name.
+//
+//     The canary itself is GONE: `PublicQuizRunner` was retired in the
+//     past-paper quiz redesign, because exam mode needs a server-anchored
+//     attempt and a route that persists nothing cannot have one. The engine's
+//     ramp needs a new first flip. The rule here is kept anyway, on its own
+//     merits — a door that exports a write path is a door every future
+//     read-only consumer has to be careful about — and `test:paper-quiz-zero-
+//     write` now pins the weaker, still-true property that the quiz route
+//     writes only through a callable.
 //   • the RENDER COMPONENTS — they are .jsx, and this front door must load
 //     under plain node, which is what lets the contract be tested at all. A
 //     consumer imports the render AREA (`…/assessment-engine/render`) directly,

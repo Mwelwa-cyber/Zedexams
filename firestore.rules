@@ -3351,6 +3351,85 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ── paperQuizAttempts (the past-paper quiz — spec §4.2) ──────────
+    //
+    // A learner sitting a past paper as an EXAM. Distinct from `paperAttempts`
+    // above, which is the timed PDF-reading practice and records only elapsed
+    // seconds — this one holds answers, a server-marked score, a section
+    // breakdown and weak topics.
+    //
+    //   paperQuizAttempts/{attemptId} {
+    //     learnerId, paperId, quizId, mode ('exam'|'practice'),
+    //     status ('in_progress'|'submitted'|'expired'|'abandoned'),
+    //     startedAtMs, expiresAtMs, submittedAtMs, durationMinutes,
+    //     answers {questionId: optionIndex}, flags [questionId],
+    //     timeUsedSec, score {right,total,percent}, bySection[], weakTopics[],
+    //     strictForward, unverifiedTiming, clientVersion
+    //   }
+    //
+    // EVERY client write is denied, in both directions and for admins too.
+    // Not a simplification — it is the whole integrity model: §5 puts the
+    // clock, the marking and the score on the server (startAttempt /
+    // patchAttempt / submitAttempt / abandonAttempt, admin SDK, which bypasses
+    // these rules). A client that could write here could set its own
+    // `expiresAtMs`, flip its own `status` to submitted, or write its own
+    // `score` — and an exam whose result the candidate can author is not an
+    // exam. Denying admins too removes the residual vector where a
+    // compromised admin token PATCHes a learner's score.
+    //
+    // Reads are OWNER ONLY, and unlike exam_attempts there is no
+    // submitted-is-public arm. A submitted attempt on a past paper carries
+    // `answers` for a paper every other learner can still sit, so a
+    // cross-learner read is the answer key. Nothing needs one: there is no
+    // past-paper leaderboard.
+    match /paperQuizAttempts/{attemptId} {
+      allow read: if isVerified()
+        && (resource.data.learnerId == request.auth.uid || isAdmin());
+      allow create, update, delete: if false;
+    }
+
+    // ── practiceProgress (the past-paper quiz — spec §4.2) ───────────
+    //
+    // Practice's resume cursor: `{learnerId, paperId, lastQuestionN,
+    // answered:{questionId: optionIndex}, updatedAt}`, one document per
+    // learner per paper (`{uid}_{paperId}`).
+    //
+    // It records WHICH questions were answered and never WHETHER they were
+    // right — §1 says practice is not recorded, and the way that promise
+    // breaks is a resume document that accumulates enough to be reported on
+    // later. Written by savePracticeProgress (admin SDK) so the same
+    // no-client-write rule as the attempts holds; read by its owner so a
+    // second device picks up where the first left off.
+    match /practiceProgress/{progressId} {
+      allow read: if isVerified()
+        && (resource.data.learnerId == request.auth.uid || isAdmin());
+      allow create, update, delete: if false;
+    }
+
+    // ── learnerTopicStats (topic mastery — spec §4.3) ────────────────
+    //
+    //   learnerTopicStats/{uid}_{topicId} {
+    //     learnerId, topicId, topic, section, subject, grade,
+    //     seen, wrong, lastSeenAt, lastWrongAt
+    //   }
+    //
+    // Incremented by BOTH modes with FieldValue.increment from
+    // submitAttempt. This is what makes the app intelligent ACROSS papers
+    // rather than clever inside one: "spelling is your weakest part" on the
+    // paper cover, the ranked "what to work on next", and the fix-up set all
+    // read from here.
+    //
+    // Server-written for the same reason as the attempts — `wrong/seen` is a
+    // score by another name, and a learner who could write it could author
+    // the mastery picture their guardian sees. Owner-read: it is a record of
+    // what one child finds hard, which is not another child's business and
+    // not something to expose behind a collection-group query.
+    match /learnerTopicStats/{statId} {
+      allow read: if isVerified()
+        && (resource.data.learnerId == request.auth.uid || isAdmin());
+      allow create, update, delete: if false;
+    }
+
     // ── pastPapers (audit A2 — ECZ past-paper archive) ──────────────
     // Public read for published papers (the archive is a marketing /
     // SEO draw — anonymous visitors browse the list, sign in to

@@ -180,10 +180,11 @@ const ChildSafety = lazy(() => import('../features/marketing/pages/ChildSafety')
 const PastPapersHub = lazy(() => import('../features/papers/pages/PastPapersHub'))
 const PastPaperViewer = lazy(() => import('../features/papers/pages/PastPaperViewer'))
 const PastPaperPractice = lazy(() => import('../features/papers/pages/PastPaperPractice'))
-const PublicQuizRunner = lazy(() => import('../features/papers/pages/PublicQuizRunner'))
+const PaperQuizPage = lazy(() => import('../features/papers/quiz/pages/PaperQuizPage'))
 const MyPapersHistory = lazy(() => import('../features/papers/pages/MyPapersHistory'))
 const AdminPastPapers = lazy(() => import('../features/adminPastPapers/pages/AdminPastPapers'))
 const PastPaperStudio = lazy(() => import('../features/adminPastPapers/pages/PastPaperStudio'))
+const ExplanationReview = lazy(() => import('../features/adminPastPapers/pages/ExplanationReview'))
 const StatusPage = lazy(() => import('../features/marketing/pages/StatusPage'))
 // Audit C5 — SEO blog. Markdown-driven, posts ship in the bundle.
 const BlogIndex = lazy(() => import('../features/blog/pages/BlogIndex'))
@@ -636,9 +637,14 @@ export default function App() {
           {/* Audit A2 PR 3 — timed practice runner. Auth-gated inside
               the component so the redirect carries the original target. */}
           <Route path="/papers/:paperId/practice" element={<PastPaperPractice />} />
-          {/* Past-paper quiz — public; 30-question free preview then paywall.
-              No auth required so marketing visitors can try a quiz inline. */}
-          <Route path="/papers/:paperId/quiz"     element={<PublicQuizRunner />} />
+          {/* Past-paper quiz — the cover, both modes, and the results, behind
+              ONE route. Three screens rather than three paths on purpose: a
+              route change is a back button away from ending an attempt, and
+              the back button is exactly the accident the exam is designed not
+              to punish. Public — an anonymous visitor gets practice bounded by
+              the paper's free set; exam mode needs an account and the whole
+              paper, and the cover says so rather than hiding the card. */}
+          <Route path="/papers/:paperId/quiz"     element={<PaperQuizPage />} />
           {/* Audit A2 PR 4 — learner's history of past-paper runs. */}
           <Route path="/my-papers"          element={<ProtectedRoute><MyPapersHistory /></ProtectedRoute>} />
           {/* Audit C5 — SEO blog. Public, indexable. */}
@@ -971,6 +977,11 @@ export default function App() {
           <Route path="/admin/papers"                   element={<AdminRoute><AdminPastPapers /></AdminRoute>} />
           <Route path="/admin/papers/new"               element={<AdminRoute><PastPaperStudio /></AdminRoute>} />
           <Route path="/admin/papers/:paperId/edit"     element={<AdminRoute><PastPaperStudio /></AdminRoute>} />
+          {/* §6's review queue. Its own screen rather than a panel in the
+              Studio's Quiz step: a reviewer reads sixty rows in one sitting
+              and approves at the speed of the worst one, which wants the
+              whole screen and somewhere to keep its place. */}
+          <Route path="/admin/papers/:paperId/explanations" element={<AdminRoute><ExplanationReview /></AdminRoute>} />
           <Route path="/admin/games-seed"               element={<AdminRoute><GamesSeedAdmin /></AdminRoute>} />
           <Route path="/admin/spelling"                 element={<AdminRoute><SpellingAdmin /></AdminRoute>} />
           {/* The Daily Quiz Generator console — tonight's run, the funnel,

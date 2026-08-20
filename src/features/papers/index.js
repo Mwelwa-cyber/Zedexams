@@ -32,8 +32,12 @@
  * `components/papers/` is named by path in §13's freeze clause — first in the
  * list — and the freeze lifts when the Phase 3 rollout flags reach 100%. They
  * had not: every `featureFlags.assessmentEngine.*` switch defaults off and
- * `rolloutPercent` defaults to 0, and `PublicQuizRunner` still carries both
- * runners behind `useAssessmentEngineFlag('pastPaperQuiz')`.
+ * `rolloutPercent` defaults to 0, and at the time `PublicQuizRunner` still
+ * carried both runners behind `useAssessmentEngineFlag('pastPaperQuiz')`.
+ * (That runner has since been retired by the past-paper quiz redesign — see
+ * `quiz/pages/PaperQuizPage.jsx`. The flags are still at 0, so the engine's
+ * designated first flip needs a new home; nothing here should be read as the
+ * Phase 3 ramp having happened.)
  *
  * The owner lifted the freeze for this area on 2026-08-13, the same way the
  * lesson-plan studio was unblocked the day before. Recorded here as well as in

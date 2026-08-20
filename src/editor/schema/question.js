@@ -191,6 +191,55 @@ export const questionSchema = z
     validationStatus: z.enum(VALIDATION_STATUSES).default('ok'),
     order: z.number().int().min(0).max(10000),
 
+    // ── Past-paper quiz coaching (spec §4.1) ──
+    //
+    // What practice mode says AFTER a learner has answered: why the right
+    // answer is right, why the option THEY picked is wrong, and something to
+    // remember it by. Every field is optional, so every question written
+    // before this existed stays valid under `.strict()` — and this schema is
+    // strict, which is why they have to be declared here at all: a teacher
+    // opening a coached question in the quiz editor would otherwise fail to
+    // save it, on a field they never touched and cannot see.
+    //
+    // `explanationStatus` is the gate the whole feature turns on. Only
+    // 'approved' lets prose reach a child (functions/shared/paperQuiz/
+    // explanationGate.js), and the enum lives THERE rather than being
+    // duplicated here as a z.enum: the gate reads any unrecognised value as
+    // `missing` and shows the answer alone, so the browser, the server and
+    // this schema cannot disagree about what counts as approved. Defaulted to
+    // 'missing' rather than left undefined so an unexplained question says so
+    // rather than being silent about it.
+    //
+    // Field-level bounds are HERE and not in firestore.rules on purpose. See
+    // the ⚠️ EXPRESSION BUDGET note above `validQuestionFields` — a previous
+    // version of that function validated ~35 fields and every scanned
+    // past-paper import started failing to save with an opaque permissions
+    // error once a real question crossed the 1000-expression cap.
+    explanationStatus: z.enum(['missing', 'ai_draft', 'approved']).default('missing'),
+    // ≤ 40 words (§6). The character cap is the backstop; the word limit is
+    // the drafter's and the reviewer's job.
+    why: z.string().max(2000).default(''),
+    // Keyed by option LETTER — {A: '…', C: '…'} — which is what an author
+    // writes and what the marking scheme uses. The panel converts from the
+    // index it holds, so "why C is wrong" is scoped to the option the learner
+    // actually picked rather than to a generic wrong one.
+    distractors: z.record(z.string().max(2), z.string().max(1500)).default({}),
+    // A worked line or a memory hook ("one collar, two sleeves"), never a rule
+    // restated.
+    example: z.string().max(2000).default(''),
+    // The stable id topic mastery is keyed on (§4.3). Falls back to `topic`
+    // when absent, so a paper authored before this existed still contributes.
+    topicId: z.string().max(120).default(''),
+    // Where to send a learner who wants more: the note for this topic, and a
+    // game that covers it. Curriculum LINKS rather than generated prose, which
+    // is why the explanation gate does not strip them.
+    noteRef: z.string().max(200).default(''),
+    gameSlug: z.string().max(80).default(''),
+    // Who approved the prose, and when. Written only by the studio's review
+    // queue (server-side); the editor never sets them.
+    approvedBy: z.string().max(128).default(''),
+    approvedAt: z.any().nullable().default(null),
+
     // ── Rich-text: HTML (legacy, kept for read-path compat) ──
     sharedInstruction: z.string().max(100000).default(''),
     text: z.string().max(100000).default(''),

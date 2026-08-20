@@ -1644,6 +1644,19 @@ function QuizStep({
           >
             {importing ? 'Importing… reading every page' : '✨ Import with AI'}
           </button>
+          {/* §6 — the explanations. Its own screen: reviewing sixty drafts is
+              not a wizard step, and the drafter only has anything to work with
+              once the questions exist. Nothing here BLOCKS publishing — an
+              unexplained question shows its answer, which is what every
+              question did before this pipeline existed. */}
+          {quizCount > 0 && (
+            <Link
+              to={`/admin/papers/${paperId}/explanations`}
+              className="theme-card border-2 theme-border rounded-full px-4 py-2 text-sm font-black theme-text hover:theme-bg-subtle"
+            >
+              Explanations →
+            </Link>
+          )}
           {quizCount > 0 && (
             <a
               href={`/papers/${paperId}/quiz`}

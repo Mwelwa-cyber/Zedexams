@@ -82,6 +82,15 @@ const FIELD_QUERY_COLLECTIONS = [
   {collection: "payments", field: "userId"},
   {collection: "invoices", field: "userId"},
   {collection: "paperAttempts", field: "userId"},
+  // The past-paper quiz (spec §4). Three collections, all keyed `learnerId`:
+  // the attempts hold a child's answers and marked score, the practice cursor
+  // holds where they got to, and the topic stats hold what they find hard.
+  // All three are server-written, so nothing else deletes them — an account
+  // purge that skipped them would leave a deleted child's weak-topic profile
+  // behind indefinitely.
+  {collection: "paperQuizAttempts", field: "learnerId"},
+  {collection: "practiceProgress", field: "learnerId"},
+  {collection: "learnerTopicStats", field: "learnerId"},
   {collection: "subscriptionEvents", field: "uid"},
   {collection: "feedback", field: "uid"},
   {collection: "noteProgress", field: "uid"},
