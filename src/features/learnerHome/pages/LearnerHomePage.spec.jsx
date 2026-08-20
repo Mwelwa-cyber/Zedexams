@@ -55,6 +55,7 @@ vi.mock('../hooks/useLearnerDashboard', () => ({
 }))
 
 import LearnerHomePage from './LearnerHomePage'
+import { resolveLearnerCalendar } from '../../../utils/learnerCalendar'
 import LearnerLayout from '../components/LearnerLayout'
 import { PSLE_2026 } from '../../../config/examTimetable2026'
 
@@ -98,6 +99,7 @@ function renderHome() {
         <Route path="/timetable" element={<div>TIMETABLE ROUTE</div>} />
         <Route path="/daily" element={<div>DAILY ROUTE</div>} />
         <Route path="/daily/leaderboard" element={<div>LEADERBOARD ROUTE</div>} />
+        <Route path="/school-calendar" element={<div>SCHOOL CALENDAR ROUTE</div>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -410,5 +412,52 @@ describe('LearnerHomePage', () => {
     renderHome()
     expect(screen.getByText(/couldn’t load your dashboard/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument()
+  })
+})
+
+describe('the Grade · Term chip', () => {
+  // The chip is the doorway to the School Calendar, and the one place on
+  // Home that states where the school year has actually got to. The bug it
+  // was built for: on 20 August 2026 — three weeks into a month-long
+  // holiday — it read "Grade 7 · Term 1".
+  const HOLIDAY = new Date('2026-08-20T09:00:00')
+
+  it('states the holiday and the countdown, not a bare term', () => {
+    mockDashboard = {
+      loading: false, error: null, timetables: { loading: false, timetables: [] }, refresh: vi.fn(),
+      data: {
+        ...baseData,
+        activeTerm: { term: 2, source: 'holiday' },
+        calendar: resolveLearnerCalendar(HOLIDAY),
+      },
+    }
+    renderHome()
+    const chip = screen.getByRole('button', { name: /open the school calendar/i })
+    expect(chip).toHaveTextContent('Grade 7')
+    expect(chip).toHaveTextContent('Holiday · Term 3 in 18 days')
+    expect(chip).not.toHaveTextContent('Term 1')
+  })
+
+  it('opens the School Calendar when tapped', () => {
+    mockDashboard = {
+      loading: false, error: null, timetables: { loading: false, timetables: [] }, refresh: vi.fn(),
+      data: { ...baseData, calendar: resolveLearnerCalendar(HOLIDAY) },
+    }
+    renderHome()
+    fireEvent.click(screen.getByRole('button', { name: /open the school calendar/i }))
+    expect(screen.getByText('SCHOOL CALENDAR ROUTE')).toBeInTheDocument()
+  })
+
+  it('falls back to the term the app is scoped to when the calendar cannot answer', () => {
+    // A date past the end of the calendar data. The chip must not empty out
+    // to a bare grade — the app is still scoped to a term and can say which.
+    mockDashboard = {
+      loading: false, error: null, timetables: { loading: false, timetables: [] }, refresh: vi.fn(),
+      data: { ...baseData, calendar: resolveLearnerCalendar(new Date('2031-03-01T09:00:00')) },
+    }
+    renderHome()
+    const chip = screen.getByRole('button', { name: /open the school calendar/i })
+    expect(chip).toHaveTextContent('Grade 7')
+    expect(chip).toHaveTextContent('Term 2')
   })
 })

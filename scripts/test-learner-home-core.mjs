@@ -101,6 +101,47 @@ test('the term note does not say "keep going" while the school is shut', () => {
   assert.equal(termNoteFor({}), '')
 })
 
+test('the term about to open says when, once the calendar has told us', () => {
+  // The indefinite copy stays for a caller with no calendar reading; the
+  // phrase is built by the page from `resolveLearnerCalendar()`, so this
+  // module still knows nothing about dates.
+  assert.equal(
+    termNoteFor({ term: 3, activeTerm: 2, source: 'holiday', opensIn: { termNumber: 3, phrase: 'in 18 days' } }),
+    'Term 3 opens in 18 days — you can read ahead.',
+  )
+  // A reading about a DIFFERENT term must not be borrowed for this one.
+  assert.equal(
+    termNoteFor({ term: 3, activeTerm: 1, source: 'calendar', opensIn: { termNumber: 2, phrase: 'in 4 days' } }),
+    'Term 3 starts later — but you can read ahead.',
+  )
+  // An empty phrase is not an answer.
+  assert.equal(
+    termNoteFor({ term: 3, activeTerm: 2, source: 'holiday', opensIn: { termNumber: 3, phrase: '' } }),
+    'Term 3 starts later — but you can read ahead.',
+  )
+})
+
+test('the January rollover: Term 1 is opening, not finished', () => {
+  // In the holiday after Third Term the resolved term is 3 and the next term
+  // is Term 1 of the following year. Term numbers only order WITHIN a year, so
+  // the plain `1 < 3` comparison declared Term 1 finished on 5 January — six
+  // days before it opened. Where the calendar has named the next term, it
+  // outranks the arithmetic.
+  assert.equal(
+    termNoteFor({ term: 1, activeTerm: 3, source: 'holiday', opensIn: { termNumber: 1, phrase: 'in 6 days' } }),
+    'Term 1 opens in 6 days — you can read ahead.',
+  )
+  // The other tabs in that same holiday are unaffected.
+  assert.equal(
+    termNoteFor({ term: 2, activeTerm: 3, source: 'holiday', opensIn: { termNumber: 1, phrase: 'in 6 days' } }),
+    'Term 2 is finished — revise any topic, any time.',
+  )
+  assert.equal(
+    termNoteFor({ term: 3, activeTerm: 3, source: 'holiday', opensIn: { termNumber: 1, phrase: 'in 6 days' } }),
+    'Term 3 is finished — the holiday is a good time to revise it.',
+  )
+})
+
 // ── What a topic row opens ──────────────────────────────────────────
 test('a topic with no published note has no destination at all', () => {
   assert.deepEqual(

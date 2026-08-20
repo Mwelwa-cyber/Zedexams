@@ -44,7 +44,8 @@ import { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useLearnerFirestore } from '../../../hooks/useLearnerFirestore'
 import { SUBJECT_MAP, normalizeSubject } from '../../../config/curriculum'
-import { getMostRecentTerm } from '../../../utils/moeCalendar'
+import { resolveLearnerCalendar, whenPhrase } from '../../../utils/learnerCalendar'
+import useDayKey, { dayKeyDate } from '../../../hooks/useDayKey'
 import LearnerIcon, { subjectIconName } from '../components/LearnerIcon'
 import { EmptyState, ErrorState, ProgressBar, SectionSkeleton } from '../components/LearnerPrimitives'
 import {
@@ -108,12 +109,19 @@ export default function LearnerSubjectPage() {
   }, [uid, grade, subjectId])
 
   // Active term: URL ?term wins (deep link), else calendar/saved default.
-  // `getMostRecentTerm` rather than `getActiveTerm` so a holiday resolves to
-  // the term that just closed instead of falling through to Term 1.
-  const defaultTerm = useMemo(() => resolveActiveTerm({
-    ...calendarTermInputs(getMostRecentTerm()),
+  //
+  // ONE resolution for the page. There used to be two — this one, and a
+  // second further down feeding the note under the tabs that did NOT pass
+  // `savedTerm` — so on the one date they can disagree (a calendar with no
+  // answer plus a stored preference) the page told the learner their tab was
+  // finished while showing them a different tab's default.
+  const dayKey = useDayKey()
+  const calendar = useMemo(() => resolveLearnerCalendar(dayKeyDate(dayKey)), [dayKey])
+  const active = useMemo(() => resolveActiveTerm({
+    ...calendarTermInputs(calendar.recent),
     savedTerm: normalizeTerm(readJson(preferredTermKey(uid))),
-  }).term, [uid])
+  }), [uid, calendar])
+  const defaultTerm = active.term
   const urlTerm = normalizeTerm(params.get('term'))
   const term = urlTerm || defaultTerm
   const selectTerm = (t) => {
@@ -188,8 +196,16 @@ export default function LearnerSubjectPage() {
     navigate(target.path)
   }
 
-  const active = resolveActiveTerm(calendarTermInputs(getMostRecentTerm()))
-  const termNote = termNoteFor({ term, activeTerm: active.term, source: active.source })
+  const termNote = termNoteFor({
+    term,
+    activeTerm: active.term,
+    source: active.source,
+    // "Term 3 opens in 18 days" beats "Term 3 starts later" on every day of
+    // the holiday, and the calendar already knows which day it is.
+    opensIn: calendar.status === 'ok' && calendar.nextTerm
+      ? { termNumber: calendar.nextTerm.termNumber, phrase: whenPhrase(calendar.nextTerm.daysUntilOpen) }
+      : null,
+  })
 
   return (
     <>
@@ -200,6 +216,10 @@ export default function LearnerSubjectPage() {
           <div className="lhx-back-sub">
             {[
               grade ? `Grade ${grade}` : null,
+              // The tab the learner is ON, always — this line names the
+              // content below it. The calendar's own reading (holiday and
+              // all) is on the chip that opens the School Calendar, and
+              // repeating it here would label the wrong thing.
               `Term ${term}`,
               state.loading ? null : subjectRowMeta({ summary: model.summary }),
             ].filter(Boolean).join(' · ')}

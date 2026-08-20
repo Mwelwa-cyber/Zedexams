@@ -28,6 +28,8 @@ import GameStickerStyles from '../../../shared/components/GameStickerStyles'
 import { QuizzesHubTour } from '../../../shared/components/learnerTours'
 import { gradesForFeature, gradeNumberOf } from '../../../config/canonicalEducation'
 import { PAPER_SUBJECTS } from '../../../config/curriculum'
+import { resolveLearnerCalendar } from '../../../utils/learnerCalendar'
+import useDayKey, { dayKeyDate } from '../../../hooks/useDayKey'
 
 // ── Config ────────────────────────────────────────────────────────────────
 // A filter on the canonical ladder — see FEATURE_GRADE_RESTRICTIONS.
@@ -285,6 +287,14 @@ export default function QuizList() {
   )
   const [gradeF, setGradeF]             = useState(() => resolveDefaultGrade(profileGrade))
   const [termF, setTermF]               = useState('')
+  // Which term the school year is in right now (the term that just closed
+  // while school is shut — that is the work a learner is revising). Read once;
+  // it only changes at a term boundary.
+  const termDayKey = useDayKey()
+  const currentTermId = useMemo(() => {
+    const n = resolveLearnerCalendar(dayKeyDate(termDayKey)).recent?.term?.number
+    return n ? String(n) : ''
+  }, [termDayKey])
   const [search, setSearch]             = useState('')
   const [expandedSubject, setExpanded]  = useState(null)
   // Seed from cache (if this grade/term was viewed before) so a return visit
@@ -560,7 +570,15 @@ export default function QuizList() {
             <span className="zx-eyebrow">Filter by term</span>
           </div>
           <div className="flex flex-wrap gap-2">
-            {[{ id: '', label: 'All terms' }, ...TERMS.map(t => ({ id: t, label: `Term ${t}` }))].map(opt => {
+            {[{ id: '', label: 'All terms' }, ...TERMS.map(t => ({
+              id: t,
+              // The calendar says which term the school year is actually in;
+              // marking it is the whole intelligence this filter needs. The
+              // DEFAULT stays "All terms" on purpose — seeding the filter to
+              // the current term would hide the rest of the catalogue from a
+              // learner who came here to revise, which is most of them.
+              label: t === currentTermId ? `Term ${t} · now` : `Term ${t}`,
+            }))].map(opt => {
               const active = termF === opt.id
               return (
                 <button

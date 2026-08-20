@@ -9,6 +9,12 @@
  * (ExamCountdownCard), which can name the next paper as well as count
  * the days.
  *
+ * The Grade · Term chip is a BUTTON: it states where the school year has
+ * actually got to (the calendar's answer, holiday included) and opens the
+ * School Calendar. It is the "small thing" the calendar hangs off — a term
+ * printed with nowhere to check it is exactly how "Term 1" sat on this
+ * screen through an August holiday without anyone being able to see why.
+ *
  * Since prototype-v6 (step 10) the bell and the avatar NAVIGATE — to the
  * full-screen /notifications centre and to /profile — instead of opening
  * overlays; the old account sheet is gone with them. The multi-theme
@@ -26,6 +32,7 @@ import PlanChip from '../../../shared/components/PlanChip'
 import CharacterAvatar from '../../../shared/components/CharacterAvatar'
 import LearnerIcon from './LearnerIcon'
 import { firstNameOf } from '../lib/learnerHomeCore'
+import { gradeTermChip } from '../../../utils/learnerCalendar'
 
 const LAST_LIGHT_KEY = 'lhx:last-light-theme'
 
@@ -61,7 +68,7 @@ function NightToggle() {
   )
 }
 
-export default function LearnerHeader({ activeTerm, showGreeting = true, streak = null }) {
+export default function LearnerHeader({ activeTerm, calendar = null, showGreeting = true, streak = null }) {
   const { userProfile } = useAuth()
   const navigate = useNavigate()
   // The app-wide notification feed — one listener in NotificationProvider,
@@ -74,10 +81,10 @@ export default function LearnerHeader({ activeTerm, showGreeting = true, streak 
 
   const firstName = firstNameOf(userProfile?.displayName)
   const showStreak = Number.isFinite(Number(streak)) && Number(streak) > 0
-  const gradeChip = [
-    userProfile?.grade ? `🎓 Grade ${userProfile.grade}` : null,
-    activeTerm ? `Term ${activeTerm}` : null,
-  ].filter(Boolean).join('  ·  ')
+  // The calendar answers when it can; `activeTerm` — the term the app is
+  // actually scoped to — is the fallback for the dates the calendar has no
+  // data for, so the chip never empties out to a bare grade.
+  const gradeChip = gradeTermChip(userProfile?.grade, calendar, activeTerm)
 
   return (
     <header className="lhx-header">
@@ -132,7 +139,15 @@ export default function LearnerHeader({ activeTerm, showGreeting = true, streak 
           </h1>
           {gradeChip && (
             <div className="lhx-header-meta lhx-chip-row">
-              <span className="lhx-chip">{gradeChip}</span>
+              <button
+                type="button"
+                className="lhx-term-chip"
+                onClick={() => { capture('school_calendar_opened', { from: 'home_chip' }); navigate('/school-calendar') }}
+                aria-label={`${gradeChip.replace(/🎓\s*/, '')} — open the school calendar`}
+              >
+                <span className="lhx-term-chip-text">{gradeChip}</span>
+                <span className="lhx-term-chip-caret" aria-hidden="true">›</span>
+              </button>
             </div>
           )}
         </div>

@@ -30,7 +30,10 @@ export default function LearnerHomePage() {
 
   return (
     <>
-      <LearnerHeader activeTerm={activeTerm} streak={data?.streak ?? null} />
+      {/* The chip states the calendar's answer and opens the School
+          Calendar; `activeTerm` rides along as the fallback for dates the
+          calendar holds no data for. */}
+      <LearnerHeader activeTerm={activeTerm} calendar={data?.calendar ?? null} streak={data?.streak ?? null} />
       {error ? (
         <div className="lhx-card">
           <ErrorState onRetry={refresh}>

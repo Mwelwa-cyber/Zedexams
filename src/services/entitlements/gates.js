@@ -127,7 +127,11 @@ export const FEATURE_GATES = {
   NOTES_OTHER_TERMS: {
     tier: TIER.CONTEXTUAL,
     icon: '📚',
-    title: 'Open Term 1 and Term 2 notes',
+    // Term-NEUTRAL on purpose: the old copy named Term 1 and Term 2, which is
+    // only true for a learner sitting in Term 3. Which terms are locked
+    // depends on the date, and a gate registry is not where the calendar is
+    // read — so the copy names the relationship instead of the numbers.
+    title: 'Open the other terms’ notes',
     body: 'Your current term stays free. Unlock the rest of the year to revise everything at once.',
   },
 

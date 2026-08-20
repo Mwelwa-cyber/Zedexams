@@ -21,6 +21,7 @@ import {
   EmptyState, ErrorState, SectionSkeleton,
 } from '../../learnerHome'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
+import { termLabelShort } from '../../../utils/learnerCalendar'
 import { examReadiness, weeklyActivity } from '../lib/progressCore'
 
 export default function MyProgressPage() {
@@ -42,7 +43,7 @@ export default function MyProgressPage() {
         <div>
           <div className="lhx-back-title">My Progress</div>
           {data?.activeTerm?.term && (
-            <div className="lhx-back-sub">Term {data.activeTerm.term}</div>
+            <div className="lhx-back-sub">{termLabelShort(data.calendar, data.activeTerm.term)}</div>
           )}
         </div>
       </div>

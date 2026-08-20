@@ -45,8 +45,9 @@ import { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useLearnerFirestore } from '../../../hooks/useLearnerFirestore'
 import useExamTimetables from '../../../hooks/useExamTimetables'
+import useDayKey, { dayKeyDate } from '../../../hooks/useDayKey'
 import { getTodaysExamsBySubject, checkTodaysLocks } from '../../../utils/examService'
-import { getMostRecentTerm } from '../../../utils/moeCalendar'
+import { resolveLearnerCalendar } from '../../../utils/learnerCalendar'
 import { SUBJECTS, SUBJECT_MAP, getGradeSubjects, normalizeSubject } from '../../../config/curriculum'
 import {
   resolveActiveTerm, calendarTermInputs, normalizeTerm, pickLearningResume,
@@ -85,6 +86,11 @@ export default function useLearnerDashboard({ extras = false } = {}) {
   const [state, setState] = useState({ loading: true, error: null, data: null })
   const [reloadNonce, setReloadNonce] = useState(0)
   const refresh = useCallback(() => setReloadNonce((n) => n + 1), [])
+
+  // Changes once, at local midnight. It is an effect dependency below so a
+  // session left open across a term boundary re-reads the calendar instead of
+  // holding yesterday's phase on the Home chip.
+  const dayKey = useDayKey()
 
   // Learner-chosen preferred term (advisory; calendar wins when active).
   const [savedTerm, setSavedTerm] = useState(() => normalizeTerm(readJson(preferredTermKey(uid))))
@@ -152,13 +158,17 @@ export default function useLearnerDashboard({ extras = false } = {}) {
       const materialsKnown = materialsSnap != null || gradeQuizzes != null
       const stats = statsSnap && statsSnap.exists() ? statsSnap.data() : null
 
-      // ── Active term (school → calendar → holiday → saved → 1) ──
-      // `getMostRecentTerm`, not `getActiveTerm`: the latter reports nothing
-      // between terms, which used to drop this straight past a stale saved
-      // value onto the Term 1 default for a month a year.
+      // ── The school calendar, read ONCE ─────────────────────────
+      // Two answers come out of this one reading and they are different
+      // between terms: `activeTerm` is which term's MATERIAL to show (the
+      // one that just closed — that is what the learner was taught), and
+      // `calendar` is what the screens SAY (that school is closed and when
+      // it opens). Deriving them separately is how the header ends up
+      // claiming a term the calendar disagrees with.
+      const calendar = resolveLearnerCalendar(dayKeyDate(dayKey))
       const activeTerm = resolveActiveTerm({
         schoolTerm: null, // no school-level term config exists yet
-        ...calendarTermInputs(getMostRecentTerm()),
+        ...calendarTermInputs(calendar.recent),
         savedTerm,
       })
 
@@ -314,6 +324,7 @@ export default function useLearnerDashboard({ extras = false } = {}) {
         error: null,
         data: {
           activeTerm,
+          calendar,
           learningResume,
           recentActivity,
           weakTopics,
@@ -333,7 +344,7 @@ export default function useLearnerDashboard({ extras = false } = {}) {
     })
     return () => { stale = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uid, grade, savedTerm, reloadNonce, extras])
+  }, [uid, grade, savedTerm, reloadNonce, extras, dayKey])
 
   return useMemo(() => ({
     ...state,

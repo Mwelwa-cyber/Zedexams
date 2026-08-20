@@ -64,6 +64,10 @@ export const LEARNER_ONLY_SEGMENTS = Object.freeze([
   'quizzes',
   'results',
   'progress',
+  // The learner's School Calendar (/school-calendar). Distinct from
+  // 'calendar', which left this list when the pre-redesign page became a
+  // redirect to /timetable.
+  'school-calendar',
   'search',
   'setup',
   'study-plan',

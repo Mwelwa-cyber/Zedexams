@@ -1782,3 +1782,147 @@ button.lhx-tt-altpill { cursor: pointer; }
   border: 1.5px solid var(--lhx-line); border-radius: 999px;
   padding: 7px 13px; font-size: 12px; font-weight: 900; min-height: 40px;
 }
+
+/* ── School Calendar (/school-calendar) ─────────────────────────────
+   The learner's read of the MoE calendar. Every colour is a token, so
+   Night comes for free through the block at the top of this file — the
+   teacher's calendar page keeps its own navy/gold system and none of it
+   is referenced here. */
+
+.lhx-cal-now {
+  border-radius: var(--lhx-radius-lg);
+  padding: 18px;
+  color: var(--lhx-on-brand);
+  box-shadow: var(--lhx-shadow);
+}
+/* Open reads indigo (the app's "in progress" colour), closed reads coral
+   (the same family the countdown card uses). A holiday is not a warning,
+   so neither is red. */
+.lhx-cal-now.is-open { background: linear-gradient(135deg, var(--lhx-indigo1), var(--lhx-indigo2)); }
+.lhx-cal-now.is-closed { background: linear-gradient(135deg, var(--lhx-coral1), var(--lhx-coral2)); }
+.lhx-cal-now-kicker {
+  display: block; font-size: 11px; font-weight: 900;
+  text-transform: uppercase; letter-spacing: 0.12em; opacity: 0.9;
+}
+.lhx-cal-now-title { font-size: 20px; font-weight: 900; line-height: 1.25; margin-top: 6px; }
+.lhx-cal-now-sub { font-size: 13px; font-weight: 700; opacity: 0.9; margin-top: 4px; }
+.lhx-cal-now-why {
+  font-size: 12.5px; font-weight: 700; line-height: 1.5;
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.lhx-cal-years { display: flex; gap: 8px; }
+.lhx-cal-year {
+  min-height: 44px; padding: 0 16px; border-radius: 999px;
+  font-size: 13px; font-weight: 900;
+  background: var(--lhx-card); color: var(--lhx-muted);
+  border: 1.5px solid var(--lhx-line);
+}
+.lhx-cal-year.is-on {
+  background: var(--lhx-indigo-soft); color: var(--lhx-indigo-text);
+  border-color: var(--lhx-indigo-text);
+}
+
+.lhx-cal-rows { display: flex; flex-direction: column; gap: 12px; }
+
+.lhx-cal-term {
+  background: var(--lhx-card);
+  border-radius: var(--lhx-radius-lg);
+  box-shadow: var(--lhx-shadow-sm);
+  padding: 15px;
+  border: 1.5px solid transparent;
+}
+.lhx-cal-term.is-active { border-color: var(--lhx-indigo-text); }
+/* A finished term carries a "Done" badge and nothing else. It is NOT dimmed
+   with opacity, and that is a contrast decision rather than a taste one:
+   this system already sets 12–13px labels in --lhx-muted, which sits near
+   the AA floor on a card, and multiplying it by an opacity puts it under.
+   A learner revising through the holiday is looking at exactly the term
+   that just finished, so it is the last thing to make hard to read. */
+
+.lhx-cal-term-head { display: flex; align-items: center; gap: 11px; }
+.lhx-cal-term-no {
+  width: 42px; height: 42px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 13px; font-weight: 900; font-size: 14px;
+  background: var(--lhx-indigo-soft); color: var(--lhx-indigo-text);
+}
+.lhx-cal-term-id { flex: 1; min-width: 0; }
+.lhx-cal-term-name { display: block; font-weight: 900; font-size: 15px; color: var(--lhx-ink); }
+.lhx-cal-term-dates { display: block; font-size: 12px; font-weight: 700; color: var(--lhx-muted); margin-top: 2px; }
+.lhx-cal-term-note { font-size: 12.5px; font-weight: 700; color: var(--lhx-muted); margin-top: 10px; }
+
+.lhx-cal-badge {
+  flex-shrink: 0; border-radius: 999px; padding: 4px 10px;
+  font-size: 10.5px; font-weight: 900; letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.lhx-cal-badge.is-now { background: var(--lhx-green-soft); color: var(--lhx-green-dark); }
+.lhx-cal-badge.is-done { background: var(--lhx-indigo-soft); color: var(--lhx-indigo-text); }
+.lhx-cal-badge.is-coming { background: var(--lhx-amber-wash); color: var(--lhx-amber-ink); }
+
+.lhx-cal-week { margin-top: 12px; }
+.lhx-cal-week-line {
+  display: flex; justify-content: space-between; gap: 10px;
+  font-size: 12px; font-weight: 800; color: var(--lhx-muted); margin-bottom: 6px;
+}
+.lhx-cal-week-track { height: 8px; border-radius: 99px; background: var(--lhx-line); overflow: hidden; }
+.lhx-cal-week-fill { height: 100%; border-radius: 99px; background: var(--lhx-indigo2); }
+
+.lhx-cal-hols {
+  list-style: none; margin: 12px 0 0; padding: 12px 0 0;
+  border-top: 1px solid var(--lhx-line);
+  display: flex; flex-direction: column; gap: 7px;
+}
+.lhx-cal-hols li { display: flex; align-items: baseline; gap: 10px; font-size: 12.5px; font-weight: 700; }
+/* Same rule as above: past holidays step DOWN A COLOUR, not through an
+   opacity that lands them below AA. */
+.lhx-cal-hols li.is-past .lhx-cal-hol-date,
+.lhx-cal-hols li.is-past .lhx-cal-hol-name { color: var(--lhx-muted); }
+.lhx-cal-hol-date { flex-shrink: 0; width: 62px; color: var(--lhx-indigo-text); font-weight: 900; }
+.lhx-cal-hol-name { color: var(--lhx-ink); min-width: 0; }
+
+.lhx-cal-break {
+  background: var(--lhx-amber-wash);
+  border: 1.5px solid var(--lhx-amber-line);
+  border-radius: var(--lhx-radius-md);
+  padding: 12px 14px;
+}
+.lhx-cal-break-head { display: flex; align-items: center; gap: 11px; }
+/* A break's own holidays: same list as a term's, on the amber ground. */
+.lhx-cal-break .lhx-cal-hols { border-top-color: var(--lhx-amber-line); }
+.lhx-cal-break .lhx-cal-hol-date { color: var(--lhx-amber-ink); }
+.lhx-cal-break .lhx-cal-hol-name { color: var(--lhx-amber-ink); }
+/* No past/future step-down inside a break, deliberately: the amber family has
+   one readable ink and no second one to step to, and the same rule as above
+   applies — an opacity would take it under AA. The date is on the row. */
+.lhx-cal-break.is-now { box-shadow: var(--lhx-shadow-sm); }
+.lhx-cal-break-icon { font-size: 21px; flex-shrink: 0; }
+.lhx-cal-break-txt { flex: 1; min-width: 0; }
+.lhx-cal-break-title { display: block; font-weight: 900; font-size: 13.5px; color: var(--lhx-amber-ink); }
+.lhx-cal-break-sub { display: block; font-size: 12px; font-weight: 700; color: var(--lhx-amber-ink); opacity: 0.85; }
+
+.lhx-cal-soon { display: flex; flex-direction: column; gap: 10px; }
+.lhx-cal-soon-row { display: flex; align-items: baseline; gap: 10px; font-size: 12.5px; font-weight: 700; }
+.lhx-cal-soon-when { flex-shrink: 0; width: 82px; font-weight: 900; color: var(--lhx-indigo-text); }
+.lhx-cal-soon-name { flex: 1; min-width: 0; color: var(--lhx-ink); }
+.lhx-cal-soon-date { flex-shrink: 0; color: var(--lhx-muted); }
+
+.lhx-cal-foot { font-size: 11.5px; line-height: 1.6; font-weight: 700; color: var(--lhx-faint); }
+
+/* The Grade · Term chip is a button now (it opens this screen), so it
+   needs a tap target and an affordance the plain text never had. */
+.lhx-term-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  min-height: 44px; padding: 0 13px 0 12px;
+  border-radius: 999px;
+  background: var(--lhx-card);
+  border: 1.5px solid var(--lhx-line);
+  box-shadow: var(--lhx-shadow-sm);
+  font-size: 12.5px; font-weight: 800; color: var(--lhx-ink);
+  max-width: 100%;
+}
+.lhx-term-chip-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lhx-term-chip-caret { flex-shrink: 0; color: var(--lhx-faint); }
+.lhx-term-chip:active { transform: scale(0.97); }
