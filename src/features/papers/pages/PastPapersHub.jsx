@@ -38,6 +38,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
+import { canOpenLearnerRoutes } from '../../../utils/navigation'
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
 import useExamTimetables from '../../../hooks/useExamTimetables'
 import { getNextPaperSession } from '../../../utils/examTimetableLogic'
@@ -444,16 +445,30 @@ function GradeToggle({ grade, onChange }) {
  * bundled fallback); the row hides for grades with no published
  * timetable and once the last paper has been sat. Ticks once a minute —
  * only the day count shows here.
+ *
+ * It also hides for an account that cannot OPEN /timetable. This hub is
+ * public and a teacher browses it, but `/timetable` (and its PDF twin)
+ * are <LearnerOnlyRoute> pages — so this card was a full-width gradient
+ * button that answered a teacher with "Teacher accounts stay in the
+ * teacher portal". Unlike the shell's Home tab, there is no teacher
+ * equivalent to retarget it at: the teacher's own planning calendar at
+ * /teacher/calendar is a different page about a different thing. So the
+ * card is dropped rather than repointed — it is supplementary content
+ * beside the paper list, not the way out of the page.
  */
 function TimetableRow({ grade }) {
+  const { userProfile } = useAuth()
   const { active } = useExamTimetables(grade)
+  // A signed-out visitor keeps the card: they have no account to refuse,
+  // and signing in returns them to the timetable they asked for.
+  const openable = !userProfile || canOpenLearnerRoutes(userProfile)
   const [nowMs, setNowMs] = useState(() => Date.now())
   useEffect(() => {
     const id = setInterval(() => setNowMs(Date.now()), 60000)
     return () => clearInterval(id)
   }, [])
   const next = active ? getNextPaperSession(active, nowMs) : null
-  if (!active || !next) return null
+  if (!active || !next || !openable) return null
 
   const days = Math.floor(Math.max(0, Date.parse(next.start) - nowMs) / 86400000)
   const when = days > 0 ? `${days} ${days === 1 ? 'day' : 'days'} to go` : 'Exams this week'
