@@ -5,9 +5,6 @@ import { saveBlobNative } from './nativeDownload.js'
 import { saveViaStampedUrl } from './stampedDownload.js'
 import { reportClientError } from './clientErrorReporting.js'
 
-// Mocked so we can assert which share failures get reported: a blocked share
-// (NotAllowedError/SecurityError — expired gesture / WebView) is benign noise
-// and must NOT be reported; a genuinely unexpected error still is.
 vi.mock('./clientErrorReporting.js', () => ({ reportClientError: vi.fn() }))
 
 // Force the dynamic `file-saver` import to throw so the tests exercise saveBlob's
@@ -22,29 +19,31 @@ vi.mock('./runtime.js', () => ({
   isMobileBrowser: vi.fn(() => false),
 }))
 
-// The native filesystem+share save is covered by nativeDownload.spec.js; here we
-// mock it to drive saveBlob's native success vs. fallback branches.
+// The native save is covered by nativeDownload.spec.js; here we mock it to drive
+// saveBlob's native success vs. fallback branches.
 vi.mock('./nativeDownload.js', () => ({ saveBlobNative: vi.fn() }))
 
-// The Storage-stamped universal fallback is covered by stampedDownload.spec.js;
-// here we mock it to drive saveBlob's "Web Share unavailable" branch. Default:
-// it declines (returns false) so the legacy anchor fallback still runs.
+// The Storage-stamped download is covered by stampedDownload.spec.js; here we
+// mock it to drive the mobile-browser branches. Default: it declines (returns
+// false) so the local blob-URL fallback runs.
 vi.mock('./stampedDownload.js', () => ({ saveViaStampedUrl: vi.fn(() => false) }))
 
 /**
  * The regressions these cover:
  *
- * 1. MOBILE BROWSERS (Android Chrome / iOS Safari) must save via the Web Share
- *    API, handing the OS a `File` whose `.name` is the real filename. An
- *    <a download> click on a blob: URL does NOT keep the name there — Android
- *    saves it under the blob's UUID ("acc6d3a8-….docx"). The key assertion is
- *    therefore on the File handed to navigator.share, NOT on an anchor's
- *    `download` attribute (which the browser ignores on mobile anyway).
- * 2. DESKTOP BROWSERS honour `download`, so they stay on file-saver / the
- *    blob:-URL anchor with the filename preserved.
- * 3. THE NATIVE CAPACITOR SHELL writes the full bytes to disk + shares them.
- * 4. Every route falls back gracefully and never dumps a misnamed copy after the
- *    user cancels a share sheet.
+ * 1. DOWNLOAD NEVER OPENS A SHARE SHEET. Both mobile routes used to hand the
+ *    file to the OS share sheet — `navigator.share` in the browser, the
+ *    Capacitor share plugin in the app — so tapping "Download" on a lesson plan
+ *    offered a grid of WhatsApp contacts and saved nothing to the phone. The
+ *    load-bearing assertions below are therefore that navigator.share is NOT
+ *    called on a mobile browser, however available it looks.
+ * 2. MOBILE BROWSERS save through the Storage-stamped URL first: the download
+ *    manager reads the real name from Content-Disposition, so the file lands in
+ *    Downloads correctly named even on browsers that ignore `<a download>`.
+ * 3. DESKTOP BROWSERS honour `download`, so they stay on file-saver / the
+ *    blob:-URL anchor with the filename preserved, and never pay for an upload.
+ * 4. THE NATIVE CAPACITOR SHELL writes into the phone's public Downloads folder.
+ * 5. Every route falls back gracefully rather than losing the file.
  */
 
 function stubAnchor() {
@@ -68,10 +67,7 @@ function stubObjectUrl() {
   vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL })
 }
 
-/**
- * Install navigator.share + navigator.canShare. `shareImpl` lets a test resolve
- * (saved), reject with AbortError (user cancelled), or reject with a real error.
- */
+/** Install navigator.share + navigator.canShare so a test can prove they go unused. */
 function stubWebShare({ canShare = true, shareImpl } = {}) {
   const share = vi.fn(shareImpl || (() => Promise.resolve()))
   Object.defineProperty(window.navigator, 'share', { value: share, configurable: true })
@@ -103,51 +99,35 @@ describe('saveBlob', () => {
     clearWebShare()
   })
 
-  // ── Mobile browsers: Web Share API with the real filename ──────────────────
+  // ── Mobile browsers: a download, never a share sheet ───────────────────────
 
-  it('shares a mobile-browser download as a File carrying the real filename', async () => {
-    // THE regression: Android Chrome saved blob: downloads under a random UUID
-    // ("acc6d3a8-….docx"). The fix hands the OS a File whose .name is the human
-    // name, so "Save to Files"/Drive/Word keep it. We assert exactly that File.
+  it('saves a mobile-browser download through the stamped URL, never the share sheet', async () => {
+    // THE regression. navigator.share is fully available here and must still go
+    // untouched: a share sheet is not a download, and picking WhatsApp is not
+    // "saving to the phone".
     vi.mocked(isMobileBrowser).mockReturnValue(true)
+    vi.mocked(saveViaStampedUrl).mockResolvedValue(true)
     const share = stubWebShare()
-    const a = stubAnchor()
-
-    await saveBlob(
-      new Blob(['hello'], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }),
-      'Grade 1 Mathematics Lesson Plan.docx',
-    )
-
-    expect(share).toHaveBeenCalledOnce()
-    const arg = share.mock.calls[0][0]
-    expect(Array.isArray(arg.files)).toBe(true)
-    expect(arg.files[0]).toBeInstanceOf(File)
-    // The contract that actually matters: the OS receives the real name.
-    expect(arg.files[0].name).toBe('Grade 1 Mathematics Lesson Plan.docx')
-    // And we must NOT also trigger the UUID-prone anchor download.
-    expect(a.click).not.toHaveBeenCalled()
-  })
-
-  it('does NOT fall back to an anchor download when the user cancels the share sheet', async () => {
-    // Dismissing the sheet is a deliberate "no". Re-downloading via the anchor
-    // would drop a misnamed UUID copy into Downloads — the very bug we fixed.
-    vi.mocked(isMobileBrowser).mockReturnValue(true)
-    const abort = Object.assign(new Error('cancelled'), { name: 'AbortError' })
-    const share = stubWebShare({ shareImpl: () => Promise.reject(abort) })
     const a = stubAnchor()
     stubObjectUrl()
 
-    await saveBlob(new Blob(['x']), 'Grade 4 Science Notes.docx')
+    const blob = new Blob(['hello'], {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    })
+    await saveBlob(blob, 'Grade 1 Mathematics Lesson Plan.docx')
 
-    expect(share).toHaveBeenCalledOnce()
+    expect(share).not.toHaveBeenCalled()
+    expect(saveViaStampedUrl).toHaveBeenCalledWith(blob, 'Grade 1 Mathematics Lesson Plan.docx')
+    // The stamped route triggers its own download, so nothing else should fire.
     expect(a.click).not.toHaveBeenCalled()
   })
 
-  it('falls back to the blob:-URL download when the mobile browser cannot share files', async () => {
-    // Older mobile browsers without Web Share Level 2: canShare({files}) is
-    // false. We must still save the file rather than do nothing.
+  it('falls back to the local blob:-URL save when the stamped route declines', async () => {
+    // Signed out, upload failed or offline. A file in Downloads under an
+    // imperfect name still beats a share sheet or no file at all.
     vi.mocked(isMobileBrowser).mockReturnValue(true)
-    const share = stubWebShare({ canShare: false })
+    vi.mocked(saveViaStampedUrl).mockResolvedValue(false)
+    const share = stubWebShare()
     const a = stubAnchor()
     stubObjectUrl()
 
@@ -159,83 +139,31 @@ describe('saveBlob', () => {
     expect(a.click).toHaveBeenCalledOnce()
   })
 
-  it('falls back to the blob:-URL download when a real share error occurs', async () => {
+  it('still saves when the stamped route throws outright', async () => {
     vi.mocked(isMobileBrowser).mockReturnValue(true)
-    const share = stubWebShare({ shareImpl: () => Promise.reject(new Error('NotAllowedError')) })
+    vi.mocked(saveViaStampedUrl).mockRejectedValue(new Error('boom'))
     const a = stubAnchor()
     stubObjectUrl()
 
     await saveBlob(new Blob(['x']), 'Grade 4 Science Notes.docx')
 
-    expect(share).toHaveBeenCalledOnce()
-    // Web Share failed → we try the stamped fallback (which declined here) before
-    // the anchor. The anchor still saves the file so nothing is lost.
-    expect(saveViaStampedUrl).toHaveBeenCalledOnce()
     expect(a.click).toHaveBeenCalledOnce()
     expect(a.download).toBe('Grade 4 Science Notes.docx')
   })
 
-  it('does NOT report a blocked share (NotAllowedError) but still saves via fallback', async () => {
-    // Expired user-gesture (the export is built async) or a WebView that bans
-    // file sharing → NotAllowedError "Permission denied". The user still gets
-    // the file via the fallback, so it is benign noise, not an app bug.
-    vi.mocked(isMobileBrowser).mockReturnValue(true)
-    const share = stubWebShare({
-      shareImpl: () => Promise.reject(Object.assign(new Error('Permission denied'), { name: 'NotAllowedError' })),
-    })
-    const a = stubAnchor()
-    stubObjectUrl()
+  // ── Desktop browsers: blob: URL, name honoured, no upload ─────────────────
 
-    await saveBlob(new Blob(['x']), 'Grade 4 Science Notes.docx')
-
-    expect(share).toHaveBeenCalledOnce()
-    expect(reportClientError).not.toHaveBeenCalled()
-    expect(a.click).toHaveBeenCalledOnce()
-    expect(a.download).toBe('Grade 4 Science Notes.docx')
-  })
-
-  it('DOES report a genuinely unexpected share error', async () => {
-    vi.mocked(isMobileBrowser).mockReturnValue(true)
-    stubWebShare({
-      shareImpl: () => Promise.reject(Object.assign(new Error('boom'), { name: 'TypeError' })),
-    })
-    stubAnchor()
-    stubObjectUrl()
-
-    await saveBlob(new Blob(['x']), 'Grade 4 Science Notes.docx')
-
-    expect(reportClientError).toHaveBeenCalledOnce()
-  })
-
-  it('uses the Storage-stamped fallback when the mobile browser has no Web Share', async () => {
-    // DuckDuckGo / WebViews: no navigator.share. The stamped path navigates to a
-    // real download URL with the correct name — no UUID, and a failure surfaces
-    // rather than silently dropping the download.
-    vi.mocked(isMobileBrowser).mockReturnValue(true)
-    vi.mocked(saveViaStampedUrl).mockResolvedValue(true)
-    const a = stubAnchor()
-    stubObjectUrl()
-
-    const blob = new Blob(['x'])
-    await saveBlob(blob, 'Grade 4 Science Notes.docx')
-
-    expect(saveViaStampedUrl).toHaveBeenCalledWith(blob, 'Grade 4 Science Notes.docx')
-    expect(a.click).not.toHaveBeenCalled()
-  })
-
-  // ── Desktop browsers: blob: URL, name honoured ─────────────────────────────
-
-  it('keeps the filename on the desktop blob-URL fallback (no share sheet)', async () => {
-    // Desktop browsers honour the download attribute, so we deliberately do NOT
-    // route them through the share sheet (worse UX than a direct download).
+  it('keeps the filename on the desktop blob-URL fallback (no share sheet, no upload)', async () => {
     vi.mocked(isMobileBrowser).mockReturnValue(false)
-    const share = stubWebShare() // available, but must be ignored on desktop
+    const share = stubWebShare() // available, but must be ignored
     const a = stubAnchor()
     stubObjectUrl()
 
     await saveBlob(new Blob(['x']), 'Worksheet (Answer Key).docx')
 
     expect(share).not.toHaveBeenCalled()
+    // Desktop honours `download`, so it must never pay for the stamped upload.
+    expect(saveViaStampedUrl).not.toHaveBeenCalled()
     expect(a.download).toBe('Worksheet (Answer Key).docx')
     expect(a.href).toBe('blob:fake-url')
   })
@@ -250,9 +178,20 @@ describe('saveBlob', () => {
     expect(a.download).toBe('download')
   })
 
+  it('reports a junk filename without blocking the save', async () => {
+    vi.mocked(isMobileBrowser).mockReturnValue(false)
+    const a = stubAnchor()
+    stubObjectUrl()
+
+    await saveBlob(new Blob(['x']), 'acc6d3a8-4f1e-4a51-9b2e-2f6c1d0e7a55.docx')
+
+    expect(reportClientError).toHaveBeenCalled()
+    expect(a.click).toHaveBeenCalledOnce()
+  })
+
   // ── Native Capacitor shell ────────────────────────────────────────────────
 
-  it('uses the native filesystem save in the Capacitor shell (no data: URL)', async () => {
+  it('saves to the phone in the Capacitor shell (no data: URL)', async () => {
     vi.mocked(isNativePlatform).mockReturnValue(true)
     vi.mocked(saveBlobNative).mockResolvedValue(true)
     const a = stubAnchor()
@@ -264,7 +203,7 @@ describe('saveBlob', () => {
     expect(a.click).not.toHaveBeenCalled()
   })
 
-  it('falls back to a data: URL when the native save fails', async () => {
+  it('falls back to a data: URL when every native route fails', async () => {
     vi.mocked(isNativePlatform).mockReturnValue(true)
     vi.mocked(saveBlobNative).mockRejectedValue(new Error('plugin not available'))
     const a = stubAnchor()
