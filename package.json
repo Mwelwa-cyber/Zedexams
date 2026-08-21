@@ -474,6 +474,7 @@
     "test:ai-error-reasons": "node functions/aiErrorReasons.test.js",
     "test:rate-limit-error": "node functions/rateLimit.test.js",
     "test:ai-provider-inventory": "node functions/aiProviderCallInventory.test.js",
+    "test:retired-models": "node scripts/test-retired-anthropic-models.mjs",
     "test:ai-endpoint-discovery": "node functions/aiEndpointDiscovery.test.js",
     "test:restore-firestore": "node scripts/test-restore-firestore.mjs",
     "test:assessment-docx": "node src/utils/assessmentToDocx.test.js",
