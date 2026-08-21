@@ -214,6 +214,81 @@ describe('GuardianCheckout', () => {
     fireEvent.click(screen.getByRole('button', { name: /pay k50/i }))
     expect(await screen.findByRole('alert')).toHaveTextContent(/account owner/i)
   })
+
+  /* ── Choosing a network ──────────────────────────────────────────── */
+
+  it('offers the three networks as one radio group, each named in full', () => {
+    // The tile shows a short label under a coloured mark; the accessible
+    // name has to stay the full product name, or a screen reader is left
+    // with "Zamtel" for a control whose job is to say "Zamtel Kwacha".
+    renderCheckout()
+    const group = screen.getByRole('radiogroup', { name: /network/i })
+    expect(group).toBeInTheDocument()
+    for (const name of ['MTN MoMo', 'Airtel Money', 'Zamtel Kwacha']) {
+      expect(screen.getByRole('radio', { name })).toBeInTheDocument()
+    }
+  })
+
+  it('never asks for the network — it states the one it resolved', () => {
+    // Lenco detects the operator from the ZICTA prefix, so a "choose your
+    // network" step asks for something the number already supplies. What
+    // was missing was the other half: the detection was applied silently,
+    // so a parent had no way to know which network was about to be
+    // charged.
+    renderCheckout()
+    typeNumber()
+    // By text rather than by role: the secured-by-Lenco note at the foot
+    // of the form is also a live region, so `getByRole('status')` matches
+    // two nodes here.
+    expect(screen.getByText(/Charging/)).toHaveTextContent(/Airtel Money/)
+    expect(screen.getByRole('radio', { name: 'Airtel Money' }))
+      .toHaveAttribute('aria-checked', 'true')
+    expect(document.body.textContent).not.toMatch(/choose your network/i)
+  })
+
+  it('the number field comes before the networks', () => {
+    // Order follows from the detection: the number is what a parent
+    // supplies, the network is what we work out from it.
+    const { container } = renderCheckout()
+    const field = container.querySelector('#pax-phone')
+    const group = screen.getByRole('radiogroup', { name: /network/i })
+    expect(field.compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBeTruthy()
+  })
+
+  it('says so plainly when the prefix resolves to nothing', () => {
+    // `pay()` refuses without an operator, so an unrecognised prefix has
+    // to send the parent to the tiles rather than to a button that fails.
+    renderCheckout()
+    fireEvent.change(screen.getByLabelText(/mobile money number/i), {
+      target: { value: '0123456789' },
+    })
+    expect(screen.getByText(/could not tell which network/i)).toBeInTheDocument()
+  })
+
+  it('an explicit tap outranks the number, and stops explaining itself', () => {
+    renderCheckout()
+    typeNumber()
+    fireEvent.click(screen.getByRole('radio', { name: 'MTN MoMo' }))
+    expect(screen.getByRole('radio', { name: 'MTN MoMo' }))
+      .toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('radio', { name: 'Airtel Money' }))
+      .toHaveAttribute('aria-checked', 'false')
+    // The line still states what will be charged — it is now the
+    // parent's own answer rather than ours, and either way it is the
+    // sentence that says where the money goes.
+    expect(screen.getByText(/Charging/)).toHaveTextContent(/MTN MoMo/)
+  })
+
+  it('a network mark is decoration — never a second copy of the name', () => {
+    // The mark repeats the brand the label already carries, so it must
+    // stay out of the accessibility tree: "MTN MTN MoMo" is worse than
+    // the label on its own.
+    const { container } = renderCheckout()
+    const marks = container.querySelectorAll('svg.zx-momo-mark')
+    expect(marks.length).toBe(3)
+    for (const mark of marks) expect(mark).toHaveAttribute('aria-hidden', 'true')
+  })
 })
 
 describe('pollLencoStatus contract', () => {

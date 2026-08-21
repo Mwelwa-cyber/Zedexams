@@ -80,16 +80,22 @@ afterEach(() => {
 describe('/family/plan — web (Lenco rail)', () => {
   beforeEach(() => { isNativePlatform.mockReturnValue(false) })
 
+  // Anchored on the network picker rather than on a heading string. The
+  // Lenco rail is the only one that asks which network to charge, so the
+  // radiogroup identifies the rail; the heading above it is copy, and
+  // pinning copy here made this spec fail when that copy was clarified.
+  const mobileMoneyForm = () => screen.findByRole('radiogroup', { name: /network/i })
+
   it('shows our ZMW prices and the mobile-money form', async () => {
     const { container } = renderPlan()
-    expect(await screen.findByText('Pay with mobile money')).toBeInTheDocument()
+    expect(await mobileMoneyForm()).toBeInTheDocument()
     expect(container.textContent).toMatch(/K50/)
   })
 
   it('does not load Google Play products', async () => {
     const { fetchPlayProducts } = await import('../../../utils/playBilling')
     renderPlan()
-    await screen.findByText('Pay with mobile money')
+    await mobileMoneyForm()
     expect(fetchPlayProducts).not.toHaveBeenCalled()
   })
 })

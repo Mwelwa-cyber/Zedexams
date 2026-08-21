@@ -37,11 +37,23 @@ import {
 } from '../../../utils/lenco'
 import { reportClientError } from '../../../utils/clientErrorReporting'
 import { capture } from '../../../utils/analytics'
+import MobileMoneyMark from '../../../shared/components/MobileMoneyMark'
 
 // Zamtel is offered by the server but the prototype shows two; all three
 // are listed because refusing a network somebody actually uses is worse
 // than one extra button.
 const METHODS = OPERATORS
+
+// The short name under each mark. `OPERATORS[].label` is the full
+// product name ("Zamtel Kwacha"), which at a third of a 360px screen
+// wraps to two lines and pushes the three tiles out of alignment — the
+// mark above it already carries the brand, so the tile only needs the
+// word that distinguishes the three.
+const SHORT_LABEL = {
+  mtn: 'MTN',
+  airtel: 'Airtel',
+  zamtel: 'Zamtel',
+}
 
 // The only wording that may claim nothing was taken. Reserved for Lenco
 // saying 'failed' and nothing else.
@@ -254,30 +266,34 @@ export default function GuardianCheckout({
     )
   }
 
+  const chosen = METHODS.find((m) => m.id === resolvedOperator) || null
+  const typed = phone.trim().length > 0
+
+  // What the strip below the field says. Three states, and the ORDER of
+  // the screen follows from them: the network is not a question we ask,
+  // it is an answer we already have. Lenco resolves it from the ZICTA
+  // prefix (`detectOperator`), so a "Choose your network" step above the
+  // number field asked for something the number itself was about to
+  // supply — and made a solved step look like a required one.
+  //
+  // The tiles stay, because the detection can fail: a prefix this build
+  // does not know leaves `resolvedOperator` empty, and `pay()` refuses
+  // without one. They are the way to CORRECT it, not the way to set it.
+  const networkNote =
+    chosen ? null :
+      typed ? 'We could not tell which network that number is on — tap it below.' :
+        'We take MTN, Airtel and Zamtel.'
+
   return (
     <form onSubmit={pay}>
-      <h2 className="lhx-set-head">Pay with mobile money</h2>
-      <div className="pax-pay-methods">
-        {METHODS.map((m) => (
-          <button
-            type="button"
-            key={m.id}
-            className={`pax-pay ${resolvedOperator === m.id ? 'is-selected' : ''}`}
-            aria-pressed={resolvedOperator === m.id}
-            onClick={() => { setOperator(m.id); setOperatorTouched(true) }}
-          >
-            {m.label}
-          </button>
-        ))}
-      </div>
-
+      <h2 className="lhx-set-head">Your mobile money number</h2>
       <label className="sr-only" htmlFor="pax-phone">Mobile money number</label>
       <input
         id="pax-phone"
         className="pax-field"
         inputMode="numeric"
         autoComplete="tel"
-        placeholder="Mobile money number (e.g. 0977 740 465)"
+        placeholder="e.g. 0977 740 465"
         value={phone}
         onChange={(e) => {
           setPhone(e.target.value)
@@ -287,6 +303,41 @@ export default function GuardianCheckout({
           if (stage === 'error') { setStage('idle'); setMessage('') }
         }}
       />
+
+      {/* The network we resolved, stated rather than asked for. It was
+          being applied silently before, so a parent had no way to know
+          which network was about to be charged. */}
+      {chosen && (
+        <p className="pax-pay-detected" role="status">
+          Charging <b>{chosen.label}</b> — tap another below if that is not right.
+        </p>
+      )}
+      {networkNote && (
+        <p className="pax-pay-detected" role="status">{networkNote}</p>
+      )}
+
+      <div className="pax-pay-methods" role="radiogroup" aria-label="Mobile money network">
+        {METHODS.map((m) => {
+          const selected = resolvedOperator === m.id
+          return (
+            <button
+              type="button"
+              key={m.id}
+              role="radio"
+              aria-checked={selected}
+              /* The full product name, for a screen reader and for the
+                 tooltip — the tile itself shows the short one. */
+              aria-label={m.label}
+              title={m.label}
+              className={`pax-pay ${selected ? 'is-selected' : ''}`}
+              onClick={() => { setOperator(m.id); setOperatorTouched(true) }}
+            >
+              <MobileMoneyMark operator={m.id} />
+              <span className="pax-pay-name">{SHORT_LABEL[m.id] || m.label}</span>
+            </button>
+          )
+        })}
+      </div>
 
       <button
         type="submit"

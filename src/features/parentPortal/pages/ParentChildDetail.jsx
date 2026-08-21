@@ -17,6 +17,7 @@ import { getGuardianChildDetail } from '../services/parentApp'
 import { reportClientError } from '../../../utils/clientErrorReporting'
 import { can } from '../../../utils/guardianRoles'
 import { firstNameOf } from '../lib/parentAppView'
+import { describeChildPlan } from '../lib/childPlanView'
 import ActivityTimeline from '../components/ActivityTimeline'
 import ChildControls from '../components/ChildControls'
 import { Avatar, BackRow, ErrorRetry, ListSkeleton } from '../components/ParentPrimitives'
@@ -44,6 +45,7 @@ export default function ParentChildDetail() {
   const name = firstNameOf(data?.displayName) || 'Your child'
   const subjects = (data?.subjectBreakdown || []).filter((s) => Number.isFinite(Number(s.percent ?? s.averageScore)))
   const weak = data?.summary?.weakTopics || []
+  const plan = data ? describeChildPlan(data) : null
 
   return (
     <>
@@ -79,6 +81,35 @@ export default function ParentChildDetail() {
               </div>
             </div>
           </section>
+
+          {/* The plan, on the screen a guardian lands on from the pill
+              they just tapped. It reads the same facts the card does, so
+              the two cannot disagree; without it, tapping "Free plan"
+              led to a page that never mentioned a plan again. */}
+          {plan && (
+            <>
+              <h2 className="lhx-set-head">Plan</h2>
+              <div className="lhx-set-group">
+                <div className="pax-planrow">
+                  <span className="pax-planrow-main">
+                    <span className={`pax-planrow-head pax-planrow-head-${plan.tone}`}>
+                      {plan.headline}
+                    </span>
+                    <span className="pax-planrow-detail">{plan.detail}</span>
+                  </span>
+                  <span className="pax-planrow-cta">
+                    <Link
+                      className={`lhx-btn lhx-btn-sm ${plan.paid ? 'lhx-btn-soft' : 'lhx-btn-primary'}`}
+                      to={plan.to}
+                      aria-label={`${plan.cta} — ${name}`}
+                    >
+                      {plan.cta}
+                    </Link>
+                  </span>
+                </div>
+              </div>
+            </>
+          )}
 
           <h2 className="lhx-set-head">Subject progress</h2>
           <div className="lhx-set-group lhx-gz-pad">

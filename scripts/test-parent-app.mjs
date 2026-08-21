@@ -18,6 +18,7 @@ const core = require('../functions/parentApp/parentAppCore.js')
 const {
   ONE_DAY_MS,
   buildWeeklyReport,
+  childPlanState,
   childStatus,
   dayKey,
   dayLabel,
@@ -316,6 +317,68 @@ t('a missing child name degrades to words', () => {
   const mail = buildReportEmail({ report, quizzes: 1 })
   assert.match(mail.subject, /your child's week/)
   assert.doesNotMatch(mail.text, /undefined/)
+})
+
+/* ── Is the child paid for? ────────────────────────────────────────── */
+//
+// The bug these pin: a guardian bought a day pass, the money left their
+// account, and no screen in the family app said anything had happened.
+// The display half of that is fixed in the family app; this half is the
+// server's answer to "is this child covered", which every one of those
+// screens now renders and which nothing tested.
+//
+// `expiresAt` matters as much as the boolean, because it is what the
+// dashboard turns into "Ends tomorrow" — and a wrong date on a day pass
+// is a parent told their purchase has already lapsed.
+
+t('a live expiry is premium, and reports when it ends', () => {
+  const now = Date.UTC(2026, 7, 21, 9, 0)
+  const state = childPlanState({
+    subscriptionExpiry: now + 20 * ONE_DAY_MS,
+    subscriptionPlan: 'monthly',
+  }, now)
+  assert.equal(state.premium, true)
+  assert.equal(state.expiresAt, now + 20 * ONE_DAY_MS)
+})
+
+t('a day pass bought an hour ago reads as paid', () => {
+  // The reported case. `durationDays: 1` leaves hours on the clock, and a
+  // window this short is exactly where an off-by-a-comparison shows up as
+  // "I paid and nothing happened".
+  const now = Date.UTC(2026, 7, 21, 9, 0)
+  const state = childPlanState({
+    subscriptionExpiry: now + 23 * 3600_000,
+    subscriptionPlan: 'day_pass',
+  }, now)
+  assert.equal(state.premium, true)
+})
+
+t('an expired plan is not premium, whatever the flags say', () => {
+  const now = Date.UTC(2026, 7, 21, 9, 0)
+  const state = childPlanState({
+    // The flags outlive the period by design — nothing runs at the stroke
+    // of expiry — so a stale `true` must lose to the date.
+    isPremium: true,
+    subscriptionStatus: 'active',
+    subscriptionExpiry: now - ONE_DAY_MS,
+  }, now);
+  assert.equal(state.premium, false)
+})
+
+t('no information is not evidence of payment', () => {
+  const now = Date.UTC(2026, 7, 21, 9, 0)
+  assert.equal(childPlanState({}, now).premium, false)
+  assert.equal(childPlanState(null, now).premium, false)
+  assert.equal(childPlanState(undefined, now).premium, false)
+})
+
+t('an active flag with no expiry recorded still counts', () => {
+  // The shape of every account activated before all the flags were
+  // written. A live plan with a missing date must not read as free.
+  const now = Date.UTC(2026, 7, 21, 9, 0)
+  const state = childPlanState({subscriptionStatus: 'active'}, now)
+  assert.equal(state.premium, true)
+  assert.equal(state.expiresAt, null)
 })
 
 console.log(`parent app core — ${passed} total assertions passed`)

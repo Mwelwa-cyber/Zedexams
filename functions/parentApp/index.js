@@ -375,6 +375,7 @@ async function getGuardianChildDetail(request) {
   ]);
 
   const stats = statsSnap && statsSnap.exists ? (statsSnap.data() || {}) : {};
+  const planState = childPlanState(child, Date.now());
   const roles = resolveGuardianRoles(links);
 
   return {
@@ -385,6 +386,16 @@ async function getGuardianChildDetail(request) {
     capabilities: capabilitiesOf(role),
     streak: Number(stats.currentStreak) || 0,
     xp: Number(stats.xp) || 0,
+    // The same four fields the overview card reads, under the same
+    // names, so a guardian who taps through from a "Free plan" pill
+    // lands on a screen that agrees with it. Same shape as
+    // listGuardianChildren deliberately: one payload contract for one
+    // question is what stops the dashboard and the child page
+    // disagreeing about whether somebody has paid.
+    premium: planState.premium,
+    premiumExpiresAt: planState.expiresAt,
+    subscriptionProvider: child.subscriptionProvider || null,
+    subscriptionPlan: child.subscriptionPlan || null,
     controls: readGuardianControls(child),
     summary: progress.summary,
     subjectBreakdown: progress.subjectBreakdown,

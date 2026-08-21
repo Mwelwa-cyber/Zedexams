@@ -29,23 +29,38 @@
  * guardian who has decided not to buy today should not be asked again on
  * every tab change, and a decision that outlived the session would mean
  * the offer disappears for good after one ✕.
+ *
+ * ── Not on the dashboard ────────────────────────────────────────────
+ *
+ * /family itself now carries `FamilyPlanSection`, which states each
+ * child's plan permanently and cannot be dismissed. This strip is the
+ * OFFER and that section is the STATUS, and on the one screen that has
+ * both they say nearly the same words twice — with the strip's version
+ * being the one a guardian can make disappear. So it steps aside there
+ * and keeps serving the other three tabs, where nothing else mentions a
+ * plan at all.
+ *
+ * Matched on the exact path, not a prefix: /family/children and
+ * /family/reports have no plan section and still want the offer.
  */
 
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import useGuardianChildren from '../hooks/useGuardianChildren'
 import { familyPlanBannerCopy, resolveFamilyPlanBanner } from '../lib/familyPlanBanner'
 
 const SESSION_DISMISS_KEY = 'zedexams.familyPlanBanner.dismissed'
 
 export default function FamilyPlanBanner() {
+  const { pathname } = useLocation()
   const { loading, error, children } = useGuardianChildren()
   const [dismissed, setDismissed] = useState(() => {
     try { return sessionStorage.getItem(SESSION_DISMISS_KEY) === '1' } catch { return false }
   })
 
+  const onDashboard = pathname === '/family' || pathname === '/family/'
   const verdict = resolveFamilyPlanBanner({ loading, error, children })
-  if (!verdict.show || dismissed) return null
+  if (!verdict.show || dismissed || onDashboard) return null
 
   const copy = familyPlanBannerCopy(verdict.unpaid)
 
