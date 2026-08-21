@@ -252,6 +252,50 @@ async function main() {
     root: ROOT,
     preview: { port: 0, strictPort: false, host: '127.0.0.1' },
   })
+/**
+ * Wait until the page's measurable text stops growing.
+ *
+ * Two consecutive equal readings, ~150ms apart, mean React has stopped
+ * committing — which is the fact the old fixed delay was guessing at. The
+ * loop also exits early once the count is comfortably past the minimum,
+ * because a page with plenty of measured text has plainly settled and
+ * there is no reason to spend another poll on it.
+ *
+ * Bounded by SETTLE_DEADLINE_MS. Returning on the deadline is deliberate:
+ * the CALLER decides pass or fail from the final measurement, so a page
+ * that never settles still fails on MIN_MEASURED_PAIRS rather than
+ * throwing here with a different message.
+ */
+const SETTLE_POLL_MS = 150
+const SETTLE_DEADLINE_MS = 6_000
+async function settleByMeasurement(page) {
+  const started = Date.now()
+  let previous = -1
+  let stableFor = 0
+  while (Date.now() - started < SETTLE_DEADLINE_MS) {
+    await new Promise((r) => setTimeout(r, SETTLE_POLL_MS))
+    let count = 0
+    try {
+      count = (await page.evaluate(MEASURE)).pairs.length
+    } catch {
+      // A navigation mid-evaluate (a route that redirects) invalidates the
+      // context. Treat it as "not settled yet" and let the next poll read
+      // the page we landed on.
+      previous = -1
+      continue
+    }
+    if (count === previous) {
+      stableFor += 1
+      // Two agreeing reads, or a page already well past the bar.
+      if (stableFor >= 1 && count >= MIN_MEASURED_PAIRS) return
+      if (stableFor >= 2) return
+    } else {
+      stableFor = 0
+    }
+    previous = count
+  }
+}
+
   const base = server.resolvedUrls.local[0].replace(/\/$/, '')
   console.log(`[route-contrast] live pass (Midnight) at ${base}`)
   try {
@@ -282,7 +326,24 @@ async function main() {
           { timeout: NAV_TIMEOUT_MS },
           MIN_ROOT_TEXT,
         )
-        await new Promise((r) => setTimeout(r, 400))
+        // Settle by MEASUREMENT, not by clock.
+        //
+        // The wait above clears the two full-screen loaders, but it is not
+        // the whole story: a lazily-loaded route's Suspense fallback is
+        // <PageLoader />, which draws a 2px line and carries neither
+        // `.zed-boot-loader` nor enough text to matter — and `/` is
+        // <RootRedirect />, which reaches <Marketing /> only after auth
+        // resolves, so the chunk fetch starts LATE. A fixed 400ms covers
+        // that on a warm machine and not on a cold CI runner, where this
+        // measured 8 pairs of a half-painted page against the 175 a settled
+        // `/` yields — reported, correctly but unhelpfully, as "did not
+        // settle".
+        //
+        // So poll the real measurement until it stops growing. This cannot
+        // mask a genuinely under-rendering route: MIN_MEASURED_PAIRS below
+        // is unchanged and still fails, and the deadline is bounded — a
+        // route that never fills in simply fails a little later.
+        await settleByMeasurement(page)
         // The saved theme must actually be showing — this is the regression
         // where navigation reset the body class to the default palette.
         const bodyTheme = await page.evaluate(() => document.body.className)

@@ -80,6 +80,62 @@ Android SDK, so R8 only actually runs there.
 
 ---
 
+## Downloads go to the phone, not to a share sheet
+
+Tapping **Download** on a lesson plan or weekly focus used to open the system
+share sheet — a grid of WhatsApp contacts, Bluetooth and Huawei Share — and
+leave nothing in the phone's storage. The only copy written was in app-private
+cache, somewhere the teacher could not reach and the OS deletes at will.
+Sharing is a different intention from saving, and the button says download.
+
+`android/app/src/main/java/com/zedexams/android/DownloadsPlugin.java` is the
+app-local Capacitor plugin that fixes it. It writes the full bytes into the
+phone's **public Downloads folder**, where Files, Word and every other app can
+see the document under its real name.
+
+- **Why a custom plugin.** `@capacitor/filesystem`'s own definitions say
+  `Directory.Documents` / `Directory.ExternalStorage` are unreachable on
+  Android 10 without legacy storage, and that on Android 11+ an app sees only
+  files it created. Under scoped storage **MediaStore is the only supported way
+  into the shared Downloads collection**, and that plugin does not expose it.
+- **Two write paths, split at Android 10 (API 29).** API 29+ inserts into
+  `MediaStore.Downloads` — no permission at all, because an app may always
+  contribute to a shared collection. API 24-28 (minSdk is 24) writes to the
+  legacy public directory, which needs `WRITE_EXTERNAL_STORAGE` at runtime plus
+  a `MediaScannerConnection.scanFile` poke, or the saved file stays invisible to
+  Files until the next scan.
+- **The manifest permission is capped at `maxSdkVersion="28"`, and the cap is
+  the point.** An uncapped `WRITE_EXTERNAL_STORAGE` would ask every modern
+  device for broad storage access the app never uses — the kind of over-request
+  Play flags on a Families-policy listing.
+- **The insert is `IS_PENDING` until the last byte lands.** A failure part-way
+  through can then never leave a truncated `.docx` sitting in Downloads looking
+  like a finished file; the pending row is deleted instead.
+- **R8 needs no new keep rule.** `@capacitor/android`'s consumer rules already
+  carry `-keep public class * extends com.getcapacitor.Plugin { *; }`, which
+  covers the private `@PermissionCallback` method R8 would otherwise strip as
+  uncalled (it is invoked reflectively, by the name string passed to
+  `requestPermissionForAlias`). Verify this before adding a plugin that is *not*
+  a public `Plugin` subclass.
+- **The fallback is the old behaviour, deliberately.** `Capacitor.Plugins
+  .ZedDownloads` is absent from any APK built before this landed, and the plugin
+  rejects when a pre-Android-10 user denies the storage permission. In both
+  cases `src/utils/nativeDownload.js` falls back to cache + share, so the worst
+  case of the change is yesterday's behaviour rather than a teacher who cannot
+  get the document out of the app at all.
+
+**Adding the Java file is not enough.** The plugin only reaches a device after
+`npx cap sync android` and a fresh build (`npm run android:apk:debug`), and no
+required CI check compiles the Android project — dispatch
+`android-debug-apk.yml` to verify a change here.
+
+Web and mobile-web downloads are the other half of the same fix and live in
+`src/utils/saveBlob.js`; `npm run test:android-downloads` pins both sides
+together (plugin declared, registered, permission scoped, and the JS calling the
+name the plugin actually publishes).
+
+---
+
 ## Crash + ANR reporting (Firebase Crashlytics)
 
 Added 2026-08-16. **Sentry does not cover this and cannot be made to.**

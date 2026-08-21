@@ -229,10 +229,12 @@ describe('GuardianCheckout', () => {
     }
   })
 
-  it('says out loud which network the number resolved to', () => {
-    // It has always auto-detected from the prefix. It never said so, so a
-    // parent who tapped nothing had no way to know a network had been
-    // chosen for them — or which one was about to be charged.
+  it('never asks for the network — it states the one it resolved', () => {
+    // Lenco detects the operator from the ZICTA prefix, so a "choose your
+    // network" step asks for something the number already supplies. What
+    // was missing was the other half: the detection was applied silently,
+    // so a parent had no way to know which network was about to be
+    // charged.
     renderCheckout()
     typeNumber()
     // By text rather than by role: the secured-by-Lenco note at the foot
@@ -241,6 +243,27 @@ describe('GuardianCheckout', () => {
     expect(screen.getByText(/Charging/)).toHaveTextContent(/Airtel Money/)
     expect(screen.getByRole('radio', { name: 'Airtel Money' }))
       .toHaveAttribute('aria-checked', 'true')
+    expect(document.body.textContent).not.toMatch(/choose your network/i)
+  })
+
+  it('the number field comes before the networks', () => {
+    // Order follows from the detection: the number is what a parent
+    // supplies, the network is what we work out from it.
+    const { container } = renderCheckout()
+    const field = container.querySelector('#pax-phone')
+    const group = screen.getByRole('radiogroup', { name: /network/i })
+    expect(field.compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBeTruthy()
+  })
+
+  it('says so plainly when the prefix resolves to nothing', () => {
+    // `pay()` refuses without an operator, so an unrecognised prefix has
+    // to send the parent to the tiles rather than to a button that fails.
+    renderCheckout()
+    fireEvent.change(screen.getByLabelText(/mobile money number/i), {
+      target: { value: '0123456789' },
+    })
+    expect(screen.getByText(/could not tell which network/i)).toBeInTheDocument()
   })
 
   it('an explicit tap outranks the number, and stops explaining itself', () => {
@@ -251,9 +274,10 @@ describe('GuardianCheckout', () => {
       .toHaveAttribute('aria-checked', 'true')
     expect(screen.getByRole('radio', { name: 'Airtel Money' }))
       .toHaveAttribute('aria-checked', 'false')
-    // The detected-network line is about a choice we made for the parent.
-    // Once they have made their own it would be describing nothing.
-    expect(screen.queryByText(/Charging/)).not.toBeInTheDocument()
+    // The line still states what will be charged — it is now the
+    // parent's own answer rather than ours, and either way it is the
+    // sentence that says where the money goes.
+    expect(screen.getByText(/Charging/)).toHaveTextContent(/MTN MoMo/)
   })
 
   it('a network mark is decoration — never a second copy of the name', () => {

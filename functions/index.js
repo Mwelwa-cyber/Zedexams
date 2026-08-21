@@ -1,6 +1,7 @@
 const functions = require("firebase-functions/v1");
 const {onCall, onRequest, HttpsError} = require("firebase-functions/v2/https");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
+const {onMessagePublished} = require("firebase-functions/v2/pubsub");
 const {defineSecret} = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const crypto = require("node:crypto");
@@ -2324,6 +2325,57 @@ exports.verifyGooglePlayPurchase = onCall({
   memory: "256MiB",
   enforceAppCheck: shouldEnforceAppCheck("verifyGooglePlayPurchase"),
 }, paymentHandlers.verifyGooglePlayPurchase);
+
+/**
+ * Google Play Real-time Developer Notifications.
+ *
+ * Play publishes to a Pub/Sub topic in this project on every subscription
+ * event — renewal, cancellation, grace period, on hold, revocation — and
+ * on every refund. `PLAY_RTDN_TOPIC` names it; it must match the topic
+ * entered in Play Console ▸ Monetisation setup ▸ Real-time developer
+ * notifications, and the Play service account needs Pub/Sub Publisher on
+ * it. Send a test notification from that same screen to prove the wiring:
+ * a `testNotification` is parsed, logged and ignored by design.
+ *
+ * WHY THIS EXISTS: without it the only thing that advances a Play
+ * subscription is the Android client's restore-on-open. A parent who buys
+ * a plan for their child and does not reopen the app keeps being charged
+ * by Google while `subscriptionExpiry` sits at last month's date — the
+ * family loses access mid-term, having paid. See googlePlayRtdnCore.js.
+ *
+ * REGION: us-central1, with the rest of the non-Firestore-triggered
+ * surface and with `verifyGooglePlayPurchase`, whose code path this
+ * reuses wholesale. The Firestore-trigger rule (africa-south1) is about
+ * Eventarc hops on Firestore events and does not apply to a Pub/Sub
+ * trigger; moving it later is a region-registry change, not a rewrite.
+ *
+ * The handler NEVER throws for a message it cannot act on — Pub/Sub
+ * redelivers on failure, and a message that fails identically every time
+ * would build a backlog in front of the renewals behind it.
+ */
+exports.googlePlayRtdn = onMessagePublished({
+  topic: process.env.PLAY_RTDN_TOPIC || "play-rtdn",
+  region: "us-central1",
+  secrets: opsAlertSecrets([googlePlaySaJson, emailSmtpUser, emailSmtpPassword]),
+  timeoutSeconds: 120,
+  memory: "256MiB",
+  retry: false,
+}, async (event) => {
+  const {handleRtdnMessage} = require("./googlePlayRtdn");
+  const {PLAY_PACKAGE} = require("./googlePlayBilling");
+  try {
+    await handleRtdnMessage({
+      message: event?.data?.message,
+      expectedPackage: PLAY_PACKAGE,
+    });
+  } catch (err) {
+    // Reaching here means the Play API itself failed mid-apply. Log loudly
+    // and swallow: `retry: false` already means Pub/Sub will not redeliver,
+    // and the client's restore-on-open plus the next notification are both
+    // still able to converge the account.
+    console.error("[googlePlayRtdn] handler failed", err);
+  }
+});
 
 // Throttle the Lenco-webhook ops alert so a retry storm (Lenco re-delivers a
 // failing event repeatedly) can't flood the admin inbox. Per-instance — a cold

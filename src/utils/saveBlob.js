@@ -3,33 +3,48 @@
  *
  * Shared by every studio export so the behaviour is identical everywhere.
  *
- * TWO ROUTES — and why the split matters
- * ──────────────────────────────────────
- * 1. REAL BROWSERS (desktop AND mobile: Android Chrome, iOS Safari, …) use a
- *    `blob:` URL via `file-saver`. A blob URL references the full in-memory
- *    Blob, so the browser streams every byte — the file is never truncated —
- *    and modern browsers honour the `download` filename.
+ * THE RULE: DOWNLOAD SAVES A FILE. IT NEVER OPENS A SHARE SHEET.
+ * ─────────────────────────────────────────────────────────────
+ * Both mobile routes used to hand the file to the OS share sheet — the browser
+ * one through `navigator.share`, the native one through @capacitor/share. A
+ * teacher tapping "Download" on a lesson plan therefore got a grid of WhatsApp
+ * contacts, Bluetooth and Huawei Share, and no file anywhere on the phone
+ * unless they picked a target and understood they were picking a target. That
+ * is a share, and it is not what the button says.
  *
- * 2. THE NATIVE CAPACITOR SHELL (the installed Android app) uses a `data:` URL.
- *    Its WebView has no browser download manager, so a `blob:` URL anchor click
- *    does nothing at all there; encoding the bytes inline in a `data:` URL is
- *    the only thing that triggers a save.
+ * Sharing is a fine thing to offer; it is a different intention from saving,
+ * and it must be a different button. Nothing in this module opens a share sheet
+ * as the FIRST answer to a download any more.
  *
- * WHY WE NO LONGER USE `data:` URLS IN MOBILE BROWSERS
- * ───────────────────────────────────────────────────
- * An earlier version routed *all* Android + iOS browsers through the `data:`
- * URL trick to dodge a UUID-naming quirk. That backfired badly: Android
- * Chrome's download manager TRUNCATES large `data:` URL downloads, so a
- * multi-hundred-KB .docx arrived as a half-written ZIP — Word then reported
- * "found unreadable content" and recovery produced an empty document. It also
- * still named those downloads after a random id. So `data:` URLs gave the worst
- * of both worlds in real browsers; they are now reserved for the native shell,
- * where there is no alternative.
+ * FOUR ROUTES, and what each is for
+ * ─────────────────────────────────
+ * 1. NATIVE CAPACITOR SHELL → the app-local `ZedDownloads` plugin writes the
+ *    full bytes into the phone's public Downloads folder via MediaStore. See
+ *    nativeDownload.js; it keeps the old cache+share route as its own internal
+ *    fallback for an APK built before the plugin existed.
  *
- * NOTE: the native shell's `data:` route shares the same truncation risk for
- * very large files. A proper native fix (write to disk via a Capacitor
- * filesystem plugin, then open) is tracked separately; it needs the native
- * project + on-device testing.
+ * 2. MOBILE BROWSERS → the Storage-stamped URL (stampedDownload.js). The bytes
+ *    go to a short-lived object whose `Content-Disposition` carries the real
+ *    filename, and the browser's own download manager fetches it — so the file
+ *    lands in Downloads, correctly named, on every mobile browser including the
+ *    ones that honour neither `<a download>` nor Web Share.
+ *
+ *    It costs an upload and a re-download, which is real on a Zambian mobile
+ *    connection. It is first anyway, because it is the only client route that
+ *    gets BOTH the destination and the name right, and a document saved as
+ *    "acc6d3a8-4f1e-….docx" is a document a teacher cannot find again.
+ *
+ * 3. BLOB-URL ANCHOR → the fallback under (2) (signed out, upload failed,
+ *    offline) and the normal desktop path. Desktop browsers honour the
+ *    `download` name; some mobile browsers replace it with the blob's internal
+ *    UUID, which is why it is not first on mobile. The file still reaches the
+ *    Downloads folder either way, so a wrong name beats no save.
+ *
+ * 4. DATA-URL ANCHOR → last resort inside the native shell only, where the
+ *    WebView has no download manager at all. It risks truncating large files
+ *    (Android's download manager cuts long data: URLs, which is how a .docx
+ *    once arrived as a half-written ZIP and Word reported "unreadable
+ *    content"), so nothing reaches it until every other route has failed.
  */
 
 import { inspectFilename } from './downloadGuard.js'
@@ -46,57 +61,6 @@ function anchorDownload(href, filename) {
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
-}
-
-/**
- * Save `blob` as `filename` through the Web Share API (Web Share Level 2).
- *
- * This is the ONLY browser mechanism that preserves a real filename on a mobile
- * browser. An `<a download>` click on a `blob:` URL does not: Android Chrome
- * names the saved file after the blob's internal UUID ("acc6d3a8-….docx") and
- * iOS Safari ignores the `download` name entirely. We hand the OS a `File`
- * object whose `.name` IS the human filename, so "Save to Files" / Drive / Word
- * all keep "Grade 1 Mathematics Lesson Plan.docx".
- *
- * @returns {Promise<boolean>} true when the file was handed off (shared) OR the
- *   user deliberately dismissed the share sheet — in both cases the caller must
- *   NOT fall through to the anchor route (which would dump a UUID-named copy
- *   into Downloads). false means "couldn't even try" → caller should fall back.
- */
-async function trySaveViaShare(blob, filename) {
-  if (typeof navigator === 'undefined' || typeof navigator.share !== 'function') return false
-  if (typeof File !== 'function') return false
-
-  let file
-  try {
-    file = new File([blob], filename, { type: blob.type || 'application/octet-stream' })
-  } catch {
-    return false
-  }
-
-  // If the platform can tell us it can't share this file, don't try — fall back.
-  if (typeof navigator.canShare === 'function' && !navigator.canShare({ files: [file] })) {
-    return false
-  }
-
-  try {
-    await navigator.share({ files: [file], title: filename })
-    return true
-  } catch (err) {
-    // AbortError = the user closed the share sheet on purpose. Treat as handled
-    // so we don't immediately re-trigger a UUID-named anchor download.
-    if (err && err.name === 'AbortError') return true
-    // NotAllowedError / SecurityError = the browser blocked the share — almost
-    // always an expired user-gesture (the export is built async, so the tap's
-    // transient activation has lapsed by the time we call share) or a WebView
-    // that disallows file sharing. The caller falls back to a normal download,
-    // so the user still gets the file; this is environmental, not an app bug,
-    // so we DON'T report it (it was the top "Permission denied" noise source).
-    if (err && (err.name === 'NotAllowedError' || err.name === 'SecurityError')) return false
-    // Any other, genuinely unexpected failure → report and fall back.
-    reportClientError(err, 'share_save_fallback')
-    return false
-  }
 }
 
 function blobToDataUrl(blob) {
@@ -125,18 +89,17 @@ export async function saveBlob(blob, filename) {
     // The guard must never break a download.
   }
 
-  // Native Capacitor shell: its WebView has no download manager. Write the full
-  // bytes to disk via @capacitor/filesystem and share them — this never
-  // truncates, unlike the data: URL route below.
+  // Native Capacitor shell: save into the phone's public Downloads folder.
+  // saveBlobNative degrades internally (Downloads plugin → cache+share), so
+  // reaching the catch here means every native route failed.
   if (isNativePlatform()) {
     try {
       await saveBlobNative(blob, name)
       return
     } catch (err) {
-      // Native filesystem/share unavailable (e.g. plugins not yet synced into
-      // the APK). Fall back to the legacy data: URL anchor — the only other
-      // thing that triggers a save in a WebView. It risks truncating very large
-      // files, but a possibly-truncated save still beats no save at all.
+      // The WebView has no download manager, so the data: URL anchor is the only
+      // thing left that triggers a save at all. It risks truncating very large
+      // files, but a possibly-truncated save still beats no save.
       reportClientError(err, 'native_save_fallback')
       if (typeof FileReader !== 'undefined' && typeof document !== 'undefined') {
         try {
@@ -150,32 +113,24 @@ export async function saveBlob(blob, filename) {
     }
   }
 
-  // Mobile browsers (Android Chrome, iOS Safari): an <a download> on a blob:
-  // URL loses the filename here — Android saves it under the blob's UUID
-  // ("acc6d3a8-….docx") and iOS ignores the name. The Web Share API is the only
-  // free/local path that keeps the real name, so try it first.
+  // Mobile browsers: stamp the real filename onto a temp Storage object and let
+  // the browser's own download manager read it from Content-Disposition. This
+  // navigates to a real, working download URL, so the file lands in Downloads
+  // under its real name — and a failure surfaces instead of silently dropping
+  // the download. Declines (returns false) when signed out or the upload fails,
+  // and we fall through to the local blob-URL save below.
   if (isMobileBrowser()) {
-    try {
-      if (await trySaveViaShare(blob, name)) return
-    } catch {
-      // trySaveViaShare is already defensive; never let it break a download.
-    }
-    // No Web Share (DuckDuckGo, in-app WebViews, older Android): stamp the real
-    // filename onto a temp Storage object and let the download manager read it
-    // from Content-Disposition. This navigates to a real, working download URL —
-    // so unlike a fire-and-forget form POST, a failure surfaces instead of
-    // silently dropping the download with no fallback.
     try {
       const { saveViaStampedUrl } = await import('./stampedDownload.js')
       if (await saveViaStampedUrl(blob, name)) return
     } catch {
-      // fall through to file-saver
+      // stampedDownload is already defensive; never let it break a download.
     }
   }
 
-  // Desktop browsers (and the last-resort fallback): file-saver streams the full
-  // blob via a blob: URL — never truncated — and desktop browsers honour the
-  // download filename.
+  // Desktop browsers, and the fallback for everything above: file-saver streams
+  // the full blob via a blob: URL — never truncated — and desktop browsers
+  // honour the download filename.
   try {
     const { saveAs } = await import('file-saver')
     saveAs(blob, name)

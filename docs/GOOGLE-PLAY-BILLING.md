@@ -96,6 +96,24 @@ purchase token can't be claimed by another account:
 
    Product/base-plan IDs must match the catalog files exactly — activate each
    product after saving.
+
+3b. **Create the 2 one-time products** (Monetise ▸ In-app products), for the
+   guardian passes. These are NOT subscriptions: they never renew, Play shows
+   no manage screen for them, and the app says so.
+
+   | Product ID | Type | Mirrors web plan |
+   |---|---|---|
+   | `learner_premium_day_pass` | One-time (managed) | day_pass (K5/1d) |
+   | `learner_premium_term_pass` | One-time (managed) | term_pass (K120/120d) |
+
+   **Price parity is the rule, and Play's ZMW tiers are where it breaks.**
+   Play prices in fixed tiers, so a kwacha figure may not be selectable
+   exactly. Pick the NEAREST tier and record any product where Android and
+   web would quote different numbers — a parent comparing the two must not
+   find a discrepancy nobody decided on. The K5 day pass is the one most
+   likely to have no exact tier: check it first, and if it cannot land on
+   K5, raise it before launch rather than shipping two prices for one
+   product.
 4. **Licence testers** — Play Console ▸ Settings ▸ Licence testing: add tester
    Gmail accounts (test purchases are free, renew on an accelerated clock).
 5. **Closed-testing device pass** (cannot be verified without a device):
@@ -196,11 +214,101 @@ plus vitest specs `PlayUpgradePanel.spec.jsx`, `UpgradeModal.native.spec.jsx`,
 and the native blocks in `PaywallHost.spec.jsx` / `MySubscriptionPage.spec.jsx`
 (web-regression locks included).
 
+The parent rail adds `test:google-play-guardian` (beneficiary + one-time
+passes + the cross-rail refusal), `test:google-play-rtdn`,
+`test:guardian-billing-auth`, `test:cross-rail`,
+`test:shared-billing-neutral` and `test:play-steering-copy`, plus
+`ParentPlayCheckout.spec.jsx`, `ParentPlanStatus.spec.jsx` and
+`ParentPlan.rails.spec.jsx` — the last of which asserts over the WHOLE
+rendered page that no ZMW literal and no mobile-money copy reaches the
+Android build.
+
+## Real-time Developer Notifications (owner runbook)
+
+Without this, the ONLY thing that advances a Play subscription is the
+Android client's restore-on-open. That is survivable for a learner who
+opens the app most days and wrong for a **parent**, who buys a plan for
+their child and may not open the app again for a month: Google keeps
+charging them while `subscriptionExpiry` sits at last month's date, and
+the family loses access having paid.
+
+1. **Create the Pub/Sub topic** in the Firebase project:
+   ```bash
+   gcloud pubsub topics create play-rtdn --project examsprepzambia
+   ```
+   Use a different name only if you also set `PLAY_RTDN_TOPIC` on the
+   functions deploy — the export reads it (`functions/index.js`).
+2. **Grant Google Play permission to publish to it.** Play publishes as
+   `google-play-developer-notifications@system.gserviceaccount.com`:
+   ```bash
+   gcloud pubsub topics add-iam-policy-binding play-rtdn \
+     --member=serviceAccount:google-play-developer-notifications@system.gserviceaccount.com \
+     --role=roles/pubsub.publisher --project examsprepzambia
+   ```
+   Play Console refuses the topic if this binding is missing.
+3. **Point Play at it** — Play Console ▸ Monetise ▸ Monetisation setup ▸
+   Real-time developer notifications ▸ full topic name
+   `projects/examsprepzambia/topics/play-rtdn`.
+4. **Send a test notification** from that same screen. A `testNotification`
+   is parsed, logged and ignored **by design** — seeing
+   `[googlePlayRtdn] ignored (test-notification)` in Cloud Logging is the
+   pass condition, and it proves topic → IAM → function end to end.
+5. **Enable voided purchases** on the same screen so refunds and
+   chargebacks arrive. Without it a refunded family keeps their access.
+
+What each notification does:
+
+| Notification | Effect |
+|---|---|
+| RENEWED / RECOVERED / RESTARTED | re-verified against Google; `expiresAt` advances, no access gap |
+| CANCELED | `autoRenewing` off; access holds to `expiresAt` |
+| ON_HOLD / PAUSED / EXPIRED / REVOKED | re-verified; access lapses at Google's date |
+| One-time PURCHASED | pass granted (used when the client's own call is interrupted) |
+| Voided purchase | access **removed** from the accounts that payment granted, payment stamped `refunded` |
+| Test / price change / deferred | ignored — nothing about the current entitlement changed |
+
+Two properties worth keeping if this is ever rewritten: the notification
+is a **doorbell, not the truth** (every actionable one re-asks the Play
+Developer API, which is what makes an out-of-order Pub/Sub redelivery
+harmless), and the handler **never throws** for a message it merely
+cannot act on (a permanently-failing message would be redelivered forever
+and build a backlog in front of the renewals behind it).
+
+## The parent rail (web = Lenco, Android = Play)
+
+A guardian buys for a linked child on `/family/plan`. Which rail takes the
+payment is the `isNativePlatform()` seam, the same one `UpgradeModal`
+uses; everything else about the purchase is identical, including that the
+money credits the CHILD (`beneficiaryUid`) and cascades to every other
+approved-linked learner.
+
+- **Authorisation is one module, both rails.**
+  `functions/guardianBillingAuth.js` reads `parentLinks` server-side and is
+  called by `initiateLencoPayment` AND `verifyGooglePlayPurchase`. A
+  co-guardian may not pay; only the owner can.
+- **The obfuscated account id binds the PARENT, not the child.** Google
+  records the buyer. Binding the child would make every guardian purchase
+  look like a cross-account replay.
+- **A restore names no child.** It enumerates whatever the Google account
+  owns and cannot know who each purchase was for, so an interrupted
+  purchase that is later restored credits the payer — the child is still
+  unlocked, through the cascade.
+- **Cross-rail guard.** `functions/shared/billing/crossRailCore.js` is
+  shared with the browser: it hides the Buy button and refuses the grant.
+  On Play the refusal happens *after* Google has taken the money, so the
+  purchase is deliberately left UNACKNOWLEDGED — Google auto-refunds it
+  after three days. A refused grant logs `DOUBLE PURCHASE … refund owed`
+  with the order id; that line is the only record a manual refund is due.
+- **Cancel is branched by source.** Play buyers get "Manage in Google
+  Play" and no in-app cancel (a Play subscription can only be cancelled in
+  Play). Web buyers keep the in-app control. A one-time pass gets neither.
+
 ## Known v1 limits / follow-ups
 
-- **No RTDN webhook yet** — renewals/cancellations/refunds land on the next
-  app open (restore-on-open), not in real time. Follow-up: Pub/Sub
-  Real-time Developer Notifications → the same verify path.
+- ~~No RTDN webhook yet~~ — **done.** `googlePlayRtdn` (Pub/Sub, us-central1)
+  applies renewals, cancellations, grace period, on-hold, revocation and
+  refunds in real time. See "Real-time Developer Notifications" below; it
+  needs a Play Console step before it does anything.
 - **No K25 top-up on Android** — it's a Lenco one-off; top-up CTAs route to
   the Play subscription upgrade. Follow-up: a consumable Play product.
 - **No native Pro→Max plan change/proration** — an actively subscribed user

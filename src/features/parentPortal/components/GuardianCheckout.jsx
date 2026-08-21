@@ -266,17 +266,56 @@ export default function GuardianCheckout({
     )
   }
 
-  const autoDetected = !operatorTouched && Boolean(detectOperator(phone))
   const chosen = METHODS.find((m) => m.id === resolvedOperator) || null
+  const typed = phone.trim().length > 0
+
+  // What the strip below the field says. Three states, and the ORDER of
+  // the screen follows from them: the network is not a question we ask,
+  // it is an answer we already have. Lenco resolves it from the ZICTA
+  // prefix (`detectOperator`), so a "Choose your network" step above the
+  // number field asked for something the number itself was about to
+  // supply — and made a solved step look like a required one.
+  //
+  // The tiles stay, because the detection can fail: a prefix this build
+  // does not know leaves `resolvedOperator` empty, and `pay()` refuses
+  // without one. They are the way to CORRECT it, not the way to set it.
+  const networkNote =
+    chosen ? null :
+      typed ? 'We could not tell which network that number is on — tap it below.' :
+        'We take MTN, Airtel and Zamtel.'
 
   return (
     <form onSubmit={pay}>
-      {/* A numbered pair of steps rather than one undifferentiated block.
-          The picker and the phone field used to sit under a single "Pay
-          with mobile money" heading with nothing saying that the first
-          was a choice and the second was an entry — at phone width that
-          reads as three bold words above a text box. */}
-      <h2 className="lhx-set-head">1 · Choose your network</h2>
+      <h2 className="lhx-set-head">Your mobile money number</h2>
+      <label className="sr-only" htmlFor="pax-phone">Mobile money number</label>
+      <input
+        id="pax-phone"
+        className="pax-field"
+        inputMode="numeric"
+        autoComplete="tel"
+        placeholder="e.g. 0977 740 465"
+        value={phone}
+        onChange={(e) => {
+          setPhone(e.target.value)
+          // Clear the MESSAGE too. Dropping only the stage left the
+          // refusal sitting under the button while the field it named was
+          // being corrected.
+          if (stage === 'error') { setStage('idle'); setMessage('') }
+        }}
+      />
+
+      {/* The network we resolved, stated rather than asked for. It was
+          being applied silently before, so a parent had no way to know
+          which network was about to be charged. */}
+      {chosen && (
+        <p className="pax-pay-detected" role="status">
+          Charging <b>{chosen.label}</b> — tap another below if that is not right.
+        </p>
+      )}
+      {networkNote && (
+        <p className="pax-pay-detected" role="status">{networkNote}</p>
+      )}
+
       <div className="pax-pay-methods" role="radiogroup" aria-label="Mobile money network">
         {METHODS.map((m) => {
           const selected = resolvedOperator === m.id
@@ -299,42 +338,6 @@ export default function GuardianCheckout({
           )
         })}
       </div>
-
-      <h2 className="lhx-set-head">2 · Your mobile money number</h2>
-      <label className="sr-only" htmlFor="pax-phone">Mobile money number</label>
-      <input
-        id="pax-phone"
-        className="pax-field"
-        inputMode="numeric"
-        autoComplete="tel"
-        placeholder="e.g. 0977 740 465"
-        value={phone}
-        onChange={(e) => {
-          setPhone(e.target.value)
-          // Clear the MESSAGE too. Dropping only the stage left the
-          // refusal sitting under the button while the field it named was
-          // being corrected.
-          if (stage === 'error') { setStage('idle'); setMessage('') }
-        }}
-      />
-
-      {/* The network is picked from the number's prefix as it is typed,
-          and always has been — silently, so a parent who never tapped a
-          tile had no way to know which network was about to be charged,
-          or that anything had been decided at all. Saying it is the
-          difference between a highlighted tile that looks like a stray
-          tap and one that looks like an answer. */}
-      {autoDetected && chosen && (
-        <p className="pax-pay-detected" role="status">
-          {/* No indefinite article, deliberately: the sentence has to
-              read correctly in front of all three names, and "a Airtel
-              Money number" / "an MTN MoMo number" cannot both come out
-              of one template. Naming the action rather than the noun
-              also says the more useful thing — what is about to
-              happen. */}
-          Charging <b>{chosen.label}</b> — tap another network above if that is not right.
-        </p>
-      )}
 
       <button
         type="submit"

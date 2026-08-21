@@ -15,7 +15,7 @@
 
 const crypto = require("node:crypto");
 
-// Google Play subscription productId → functions/plans.js planId.
+// Google Play SUBSCRIPTION productId → functions/plans.js planId.
 const PLAY_PRODUCT_TO_PLAN = {
   learner_premium_weekly: "weekly",
   learner_premium_monthly: "monthly",
@@ -25,8 +25,36 @@ const PLAY_PRODUCT_TO_PLAN = {
   teacher_max_yearly: "max_yearly",
 };
 
+// Google Play ONE-TIME (in-app) productId → planId. The two learner passes.
+//
+// Separate from the map above because Play verifies the two product types
+// through different Developer API endpoints (subscriptionsv2 vs products),
+// and because a pass must never be described to a buyer as renewing. Asking
+// subscriptionsv2 about a one-time token returns 404, which this codebase
+// reads as "token doesn't exist" — so a merged map would turn every pass
+// purchase into a silent non-grant that Google auto-refunds after 3 days.
+const PLAY_INAPP_PRODUCT_TO_PLAN = {
+  learner_premium_day_pass: "day_pass",
+  learner_premium_term_pass: "term_pass",
+};
+
+const PLAY_PRODUCT_TYPE = {SUBS: "subs", INAPP: "inapp"};
+
+/** The planId for any Play product, of either type. */
 function planIdForPlayProduct(productId) {
-  return PLAY_PRODUCT_TO_PLAN[productId] || null;
+  return PLAY_PRODUCT_TO_PLAN[productId] ||
+    PLAY_INAPP_PRODUCT_TO_PLAN[productId] || null;
+}
+
+/**
+ * Which Play product type a productId is, or null when we do not sell it.
+ * The verifier branches on this to choose its endpoint — see the note on
+ * PLAY_INAPP_PRODUCT_TO_PLAN for what a wrong branch costs.
+ */
+function playProductType(productId) {
+  if (PLAY_PRODUCT_TO_PLAN[productId]) return PLAY_PRODUCT_TYPE.SUBS;
+  if (PLAY_INAPP_PRODUCT_TO_PLAN[productId]) return PLAY_PRODUCT_TYPE.INAPP;
+  return null;
 }
 
 // Google Play's ObfuscatedAccountId (and Apple's appAccountToken) are capped
@@ -134,6 +162,70 @@ function parseSubscriptionV2(body) {
   };
 }
 
+const PRODUCT_PURCHASE_STATE = {PURCHASED: 0, CANCELLED: 1, PENDING: 2};
+
+/**
+ * Extract what activation needs from a purchases.products.get response
+ * (the ONE-TIME product endpoint). Returns null for a body with no
+ * productId — the same "we cannot read this" signal parseSubscriptionV2
+ * gives, so both branches of the verifier fail the same way.
+ *
+ * Two shapes of account id are read because Play puts it in a different
+ * place here than on subscriptionsv2: products v3 returns a top-level
+ * `obfuscatedExternalAccountId`, subscriptions nest it under
+ * `externalAccountIdentifiers`. Reading only one would silently downgrade
+ * every pass purchase to "absent" and quietly disable the binding check
+ * for exactly the products a guardian buys.
+ */
+function parseProductPurchase(body) {
+  if (!body || typeof body !== "object") return null;
+  const productId = body.productId ? String(body.productId) : "";
+  if (!productId) return null;
+  const ext = body.externalAccountIdentifiers || {};
+  const obfuscatedAccountId =
+    (body.obfuscatedExternalAccountId ? String(body.obfuscatedExternalAccountId) : "") ||
+    (ext.obfuscatedExternalAccountId ? String(ext.obfuscatedExternalAccountId) : "");
+  const purchaseTimeMs = Number(body.purchaseTimeMillis);
+  return {
+    productId,
+    // 0 Purchased · 1 Cancelled · 2 Pending. Absent is treated as Pending
+    // rather than Purchased — an unreadable state must not grant.
+    purchaseState: Number.isFinite(Number(body.purchaseState)) ?
+      Number(body.purchaseState) : PRODUCT_PURCHASE_STATE.PENDING,
+    acknowledged: Number(body.acknowledgementState) === 1,
+    orderId: body.orderId ? String(body.orderId) : null,
+    purchaseTimeMs: Number.isFinite(purchaseTimeMs) ? purchaseTimeMs : 0,
+    obfuscatedAccountId,
+  };
+}
+
+/**
+ * What a verified ONE-TIME purchase means. Far simpler than the
+ * subscription brain above, and deliberately so: a pass has no renewal, no
+ * grace period and no on-hold, so there are only two outcomes.
+ *
+ * There is NO "expire" action here, and that is not an omission. A pass
+ * runs out by its own expiry date on the user document; the only thing
+ * that can end one early is a refund, which arrives as a voidedPurchases
+ * notification and is handled there. Giving this function an expire branch
+ * would mean a routine re-verification of a long-spent pass could lapse a
+ * plan the buyer had since renewed by other means.
+ *
+ * @returns {{action: "activate"|"noop", reason?: string}}
+ */
+function decideProductGrant({purchaseState} = {}) {
+  if (purchaseState === PRODUCT_PURCHASE_STATE.PURCHASED) return {action: "activate"};
+  if (purchaseState === PRODUCT_PURCHASE_STATE.CANCELLED) {
+    return {action: "noop", reason: "purchase-cancelled"};
+  }
+  // PENDING, or a state this build does not recognise. Both mean "do not
+  // grant", and neither is a cancellation — reporting an unreadable state
+  // as cancelled would put a wrong, confident reason in the logs somebody
+  // reads when a buyer says their pass never arrived. A slow payment
+  // method settles later and arrives as a notification.
+  return {action: "noop", reason: "purchase-pending"};
+}
+
 // States where the buyer is entitled right now. CANCELED means auto-renew
 // was switched off but the paid period still runs — access stays until
 // expiryTime passes (matching Play policy and buyer expectation).
@@ -185,12 +277,18 @@ function decideEntitlementUpdate({state, expiryTimeMs, nowMs, user, purchaseToke
 
 module.exports = {
   PLAY_PRODUCT_TO_PLAN,
+  PLAY_INAPP_PRODUCT_TO_PLAN,
+  PLAY_PRODUCT_TYPE,
   planIdForPlayProduct,
+  playProductType,
   obfuscatedAccountIdForUid,
   evaluateAccountBinding,
   OBFUSCATED_ACCOUNT_ID_MAX,
   derivePaymentId,
   parseSubscriptionV2,
+  parseProductPurchase,
+  PRODUCT_PURCHASE_STATE,
+  decideProductGrant,
   ACTIVE_STATES,
   decideEntitlementUpdate,
 };

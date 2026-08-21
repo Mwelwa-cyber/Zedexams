@@ -708,15 +708,17 @@
   line-height: 1;
 }
 
-/* What the number's prefix resolved to. Never an error tone: it is a
-   statement about what will happen, and the tiles above it are how a
-   parent changes it. */
+/* What the number's prefix resolved to. Never an error tone, even when
+   nothing resolved: it is a statement about what will happen, and the
+   tiles below it are how a parent corrects it. Sits between the field
+   and the tiles, so the negative top margin closes the field's own
+   bottom gap rather than adding to it. */
 .pax-pay-detected {
   font-size: 11.5px;
   font-weight: 700;
   color: var(--lhx-muted);
   line-height: 1.5;
-  margin: -4px 0 12px;
+  margin: -4px 0 10px;
 }
 
 .pax-pay-detected b { color: var(--lhx-ink); font-weight: 900; }

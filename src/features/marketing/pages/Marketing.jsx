@@ -178,7 +178,7 @@ const FAQ = [
   },
   {
     q: 'How much does it cost?',
-    a: `Learners start with a free demo, then K${LEARNER_WEEKLY}/week or K${LEARNER_MONTHLY}/month for full access to every daily exam, quiz, lesson and game (the Grade 7 ECZ exam pack is K${GRADE7_MONTHLY}/month or K${GRADE7_TERMLY} a term). Teachers get the AI toolset free — 2 generations a day — with Pro at K${PRO_MONTHLY}/month for 10 a day and Max at K${MAX_MONTHLY}/month for heavy users. Pay with Airtel Money, MTN MoMo or card right inside the app — your account unlocks instantly.`,
+    a: `Learners start with a free demo, then K${LEARNER_WEEKLY}/week or K${LEARNER_MONTHLY}/month for full access to every daily exam, quiz, lesson and game (the Grade 7 ECZ exam pack is K${GRADE7_MONTHLY}/month or K${GRADE7_TERMLY} a term). Teachers get the AI toolset free — 2 generations a day — with Pro at K${PRO_MONTHLY}/month for 10 a day and Max at K${MAX_MONTHLY}/month for heavy users. Pay with Airtel Money, MTN MoMo or card on the ZedExams website and your account unlocks instantly. In the Android app, payment goes through Google Play.`,
   },
   {
     q: 'Is ZedExams safe for children?',

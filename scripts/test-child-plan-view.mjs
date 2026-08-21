@@ -16,6 +16,7 @@ import {
   ENDING_SOON_DAYS,
   daysUntil,
   describeChildPlan,
+  planLabelFor,
   planRouteFor,
   summariseFamilyPlan,
 } from '../src/features/parentPortal/lib/childPlanView.js'
@@ -27,14 +28,20 @@ const NOW = Date.UTC(2026, 7, 21, 9, 0)
 const DAY = 86_400_000
 const HOUR = 3_600_000
 
-const paid = (over) => ({ childUid: 'kid-1', plan: { premium: true, ...over } })
+/**
+ * A child row as `listGuardianChildren` actually sends it — four flat
+ * fields, not a nested object. Building the fixture from the real
+ * payload shape is the point: a test that invents its own shape passes
+ * while the screen reads undefined.
+ */
+const paid = (over) => ({ childUid: 'kid-1', premium: true, ...over })
 
 /* ── Every child gets a pill ───────────────────────────────────────── */
 
 t('a plan always has something to draw', () => {
   // The bug was a state that rendered as nothing. Nothing must be
   // unreachable, including for junk input.
-  for (const child of [undefined, null, {}, { plan: null }, { plan: {} }, paid({})]) {
+  for (const child of [undefined, null, {}, { premium: false }, { premium: true }, paid({})]) {
     const view = describeChildPlan(child, NOW)
     assert.ok(view && typeof view.pill === 'string' && view.pill.length > 0)
     assert.ok(typeof view.headline === 'string' && view.headline.length > 0)
@@ -47,7 +54,7 @@ t('a plan always has something to draw', () => {
 
 t('a day pass bought this morning says so, and says when it ends', () => {
   const view = describeChildPlan(
-    paid({ planLabel: 'Day pass', expiresAt: NOW + 20 * HOUR, source: 'direct' }),
+    paid({ subscriptionPlan: 'day_pass', premiumExpiresAt: NOW + 20 * HOUR, subscriptionProvider: 'lenco' }),
     NOW,
   )
   assert.equal(view.paid, true)
@@ -60,54 +67,63 @@ t('a day pass bought this morning says so, and says when it ends', () => {
 })
 
 t('a month in hand is stated calmly; three days is a warning', () => {
-  const calm = describeChildPlan(paid({ planLabel: 'Monthly', expiresAt: NOW + 25 * DAY }), NOW)
+  const calm = describeChildPlan(paid({ subscriptionPlan: 'monthly', premiumExpiresAt: NOW + 25 * DAY }), NOW)
   assert.equal(calm.tone, 'ok')
   assert.equal(calm.endingSoon, false)
-  assert.equal(calm.cta, 'See plans')
+  assert.equal(calm.cta, 'See plan')
 
   const soon = describeChildPlan(
-    paid({ planLabel: 'Weekly', expiresAt: NOW + ENDING_SOON_DAYS * DAY }),
+    paid({ subscriptionPlan: 'weekly', premiumExpiresAt: NOW + ENDING_SOON_DAYS * DAY }),
     NOW,
   )
   assert.equal(soon.tone, 'warn')
   assert.equal(soon.endingSoon, true)
-  assert.equal(soon.cta, 'Renew')
+  assert.equal(soon.cta, 'See plan')
 })
 
 t('the pill names the plan and never the countdown', () => {
   // It sits beside a child's name in a list, where "2 days left" reads as
   // a fact about the child rather than about what was bought for them.
-  const view = describeChildPlan(paid({ planLabel: 'Term Pass', expiresAt: NOW + 2 * DAY }), NOW)
+  const view = describeChildPlan(paid({ subscriptionPlan: 'term_pass', premiumExpiresAt: NOW + 2 * DAY }), NOW)
   assert.equal(view.pill, 'Term Pass')
   assert.doesNotMatch(view.pill, /day|left|ends/i)
 })
 
 t('a plan that came from the guardian’s own subscription says so', () => {
   const view = describeChildPlan(
-    paid({ planLabel: 'Monthly', expiresAt: NOW + 10 * DAY, source: 'guardian_cascade' }),
+    paid({ subscriptionPlan: 'monthly', premiumExpiresAt: NOW + 10 * DAY, subscriptionProvider: 'guardian_cascade' }),
     NOW,
   )
-  assert.match(view.detail, /your own plan/)
+  assert.match(view.detail, /another child/)
 })
 
 t('a paid plan with no recorded date is still reported as on', () => {
   // The shape of an account activated before the dates were all written.
   // Thin, but true — and far better than telling a paying guardian they
   // are on the free plan.
-  const view = describeChildPlan(paid({ planLabel: 'Weekly', expiresAt: null }), NOW)
+  const view = describeChildPlan(paid({ subscriptionPlan: 'weekly', premiumExpiresAt: null }), NOW)
   assert.equal(view.paid, true)
   assert.equal(view.tone, 'ok')
   assert.equal(view.daysLeft, null)
   assert.doesNotMatch(view.detail, /undefined|NaN|Invalid/)
 })
 
-t('a response from before `plan` existed still reads as paid', () => {
-  // `premium` is the boolean the shell has always been sent. A client
-  // holding a cached older response must degrade to "Premium", never to
-  // "Free plan".
+t('a paid child with no plan id recorded is still not called free', () => {
+  // `premium` is the boolean the callable has always sent; the other
+  // three are newer. A row carrying only the boolean must degrade to
+  // "Premium" — thin, but true — never to "Free plan".
   const view = describeChildPlan({ childUid: 'k', premium: true }, NOW)
   assert.equal(view.paid, true)
   assert.equal(view.pill, 'Premium')
+})
+
+t('plan names come from subscriptionConfig, never from a raw id', () => {
+  // No label table of its own — a mirror nobody guards is one that
+  // drifts. And a parent must never be shown `grade7_termly`.
+  assert.equal(planLabelFor('day_pass'), 'Day pass')
+  assert.equal(planLabelFor('monthly'), 'Monthly')
+  assert.equal(planLabelFor('some_future_bundle'), 'Premium')
+  assert.equal(planLabelFor(undefined), 'Premium')
 })
 
 /* ── Free ──────────────────────────────────────────────────────────── */
@@ -148,7 +164,7 @@ t('nobody linked means nothing to say', () => {
 
 t('all-paid still renders — that is the case that was invisible', () => {
   const view = summariseFamilyPlan(
-    [paid({ planLabel: 'Monthly', expiresAt: NOW + 20 * DAY })],
+    [paid({ subscriptionPlan: 'monthly', premiumExpiresAt: NOW + 20 * DAY })],
     NOW,
   )
   assert.equal(view.show, true)
@@ -159,7 +175,7 @@ t('all-paid still renders — that is the case that was invisible', () => {
 
 t('a mixed family is counted, never called “some”', () => {
   const view = summariseFamilyPlan([
-    paid({ planLabel: 'Monthly', expiresAt: NOW + 20 * DAY }),
+    paid({ subscriptionPlan: 'monthly', premiumExpiresAt: NOW + 20 * DAY }),
     { childUid: 'kid-2' },
   ], NOW)
   assert.equal(view.lead, '1 of 2 unlocked.')
@@ -171,7 +187,7 @@ t('a mixed family is counted, never called “some”', () => {
 
 t('a family whose only plan is about to end is told that, not “covered”', () => {
   const view = summariseFamilyPlan(
-    [paid({ planLabel: 'Day pass', expiresAt: NOW + 6 * HOUR })],
+    [paid({ subscriptionPlan: 'day_pass', premiumExpiresAt: NOW + 6 * HOUR })],
     NOW,
   )
   assert.equal(view.endingSoonCount, 1)

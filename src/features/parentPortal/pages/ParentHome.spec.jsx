@@ -150,13 +150,9 @@ describe('ParentHome', () => {
       children: [{
         ...onTrack,
         premium: true,
-        plan: {
-          premium: true,
-          planId: 'day_pass',
-          planLabel: 'Day pass',
-          expiresAt: Date.now() + 20 * 3600_000,
-          source: 'direct',
-        },
+        subscriptionPlan: 'day_pass',
+        premiumExpiresAt: Date.now() + 20 * 3600_000,
+        subscriptionProvider: 'lenco',
       }],
       reload: vi.fn(),
     }
@@ -182,7 +178,7 @@ describe('ParentHome', () => {
       loading: false,
       error: null,
       children: [
-        { ...onTrack, premium: true, plan: { premium: true, planLabel: 'Monthly', expiresAt: Date.now() + 20 * DAY } },
+        { ...onTrack, premium: true, subscriptionPlan: 'monthly', premiumExpiresAt: Date.now() + 20 * DAY },
         stopped,
       ],
       reload: vi.fn(),

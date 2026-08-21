@@ -8,7 +8,7 @@ import {
   classifyPurchaseError,
   fetchPlayProducts,
   openPlaySubscriptionManagement,
-  purchasePlaySubscription,
+  purchasePlayProduct,
   restorePlayPurchases,
   verifyPlayPurchases,
 } from '../../../utils/playBilling'
@@ -181,7 +181,7 @@ export default function PlayUpgradePanel({ onClose, portal, planIds, defaultPlan
     setPhase('purchasing')
     capture('play_purchase_initiated', { planId: selectedPlanId })
     try {
-      const purchase = await purchasePlaySubscription(selectedPlanId, currentUser?.uid)
+      const purchase = await purchasePlayProduct(selectedPlanId, currentUser?.uid)
       purchaseRef.current = purchase
       await runVerify('purchase')
     } catch (err) {

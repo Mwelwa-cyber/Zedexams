@@ -34,7 +34,7 @@ const FAQ = [
   },
   {
     q: 'Can I pay with Mobile Money?',
-    a: "Yes — Airtel Money, MTN MoMo and cards all work, right inside the app. Choose your plan, pay securely through our checkout, and your account unlocks instantly — no sending money to a number, no waiting. There's no auto-renewal either: you only pay for the period you choose.",
+    a: "Yes — Airtel Money, MTN MoMo and cards all work on the ZedExams website. Choose your plan, pay securely through our checkout, and your account unlocks instantly — no sending money to a number, no waiting. There's no auto-renewal either: you only pay for the period you choose. In the Android app, payment goes through Google Play instead.",
   },
   {
     q: 'Can I cancel anytime?',
