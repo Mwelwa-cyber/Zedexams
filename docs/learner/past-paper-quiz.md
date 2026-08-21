@@ -1,6 +1,6 @@
 # The past-paper quiz
 
-> Snapshot as of 2026-08-20 — verify before acting.
+> Snapshot as of 2026-08-21 — verify before acting.
 
 The learner-facing past-paper quiz: a cover, two modes, and one results
 screen. Route: `/papers/:paperId/quiz`.
@@ -137,6 +137,79 @@ Three deliberate deviations, each with a reason:
    learn these fields anyway), and the status enum is additionally pinned by
    the shared gate, which reads anything unrecognised as `missing`.
 
+## The button reset outranked the design (fixed 2026-08-21)
+
+`paperQuiz.css` opened with `.pq button { background: none; border: 0 }`. That
+selector scores one class + one type, which outranks every single-class
+component rule in the file — and almost every surface on these screens is a
+`<button>`. So `.pq-cta`, `.pq-mode`, `.pq-opt`, `.pq-icon-btn`,
+`.pq-flag-btn`, `.pq-nav-btn` and `.pq-cell` never painted the backgrounds and
+borders they declare, and nothing reported it, because a declaration losing the
+cascade is not an error.
+
+On the ECZ Grade 7 English paper that meant: **"Start the exam" rendered
+transparent with dark text**, under a coral glow cast by a fill that was never
+painted; **the four answer options rendered as bare text rows** with no card
+and no outline, so choosing one changed a background sitting behind a border of
+zero width; "Flag" lost its pill; and the Strict-order row rendered flat beside
+"Safe from reloads", which is the identical markup on a `<div>` and therefore
+kept its card. Only the two-class rules survived, which is why the result read
+as an inconsistent design rather than as breakage — `.pq-nav-btn.is-primary`
+was indigo while `.pq-nav-btn` beside it was transparent, and the start button
+was indigo in practice mode (`.pq-cta.is-secondary`) and transparent in exam
+mode.
+
+The reset is now `:where(.pq) :where(button)`, which is the form
+`shared/styles/learnerTheme.css` has always used for `.lhx` — the design system
+this file's header says it deliberately matches. A zero-specificity author rule
+still beats the user-agent stylesheet, so the reset loses nothing.
+`npm run test:css-reset-specificity` pins both systems.
+
+Two smaller things went with it: `.pq-mode-h` and `.pq-mode-p` are `<span>`s
+that never declared `display: block`, so the mode card read
+"**Exam**Just like the real thing."; and the Paper cell printed
+`paper.source` raw, so an ECZ paper was labelled **`ecz`** — it goes through
+`paperSourceLabel` now, the registry the hub badge and the viewer already read.
+
+## The cover is two columns on a desktop, and the runner is a sheet
+
+Both screens were drawn for a phone and stayed phone-shaped at every width.
+
+**The cover** ran one narrow column down the middle of the window, so a learner
+on a laptop scrolled past a screenful of empty page to reach the button that
+starts the exam, and the two mode cards — the one decision this screen exists
+to ask for — sat below the fold. At `min-width: 1040px` it is a two-track grid
+(`.pq-cover-grid`): left is what the paper **is** (title, the notepad's facts,
+the best score so far), right is what the learner has to **decide** (mode,
+settings, start). The DOM order is unchanged, so the reading order, the tab
+order and the phone layout are exactly what they were, and the loading and
+error states — which reuse `.pq-cover-inner` — do not carry the grid class and
+are untouched.
+
+Two mechanics worth keeping: the illustration moved inside `.pq-cover-inner`,
+so its `right` offset is a plain distance from a column edge instead of a
+`calc(50% - 380px)` tied by hand to a max-width it cannot see; and the column
+is centred vertically by `margin: auto`, never by `justify-content: center`,
+because an auto margin resolves to zero when there is no free space and
+`.pq-cover` is `overflow: hidden` — centring a cover taller than the window
+would clip its head with no way to scroll back to it.
+
+**The runner** is `position: fixed; inset: 0`, so its chrome is nailed to the
+viewport's own corners: on a tall window four options sat at the top and the
+Next button sat hundreds of pixels below the last of them, with nothing in
+between. `.pq-runner` is now the backdrop and `.pq-runner-sheet` is the page of
+the paper inside it — on a phone the sheet simply fills the backdrop, so
+nothing there changed. At `min-width: 1000px` **and `min-height: 1000px`** the
+backdrop takes the cover's lavender and the sheet is bounded
+(`min(100%, 880px) × min(100%, 980px)`), rounded and shadowed. The height
+condition is why a short laptop is untouched: it has no void to fix, and
+framing it would only take 48px of reading room away.
+
+The sheet keeps a **fixed** height rather than hugging its content. A sheet
+that hugged would move the header and the Next button on every question, and
+across sixty questions of wildly different lengths a learner's thumb has to
+find the same button in the same place.
+
 ## What this replaced, and what that cost
 
 `PublicQuizRunner` was the Assessment Engine's Phase-3 **canary**: a route that
@@ -183,3 +256,4 @@ still in `ai_draft`.
 | no Firestore write is reachable from the route | `npm run test:paper-quiz-zero-write` |
 | the rules, behaviourally | `npm run test:rules-emulator` |
 | the screens | `npx vitest run src/features/papers/quiz` |
+| the reset cannot outrank the design again | `npm run test:css-reset-specificity` |

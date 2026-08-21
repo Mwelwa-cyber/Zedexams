@@ -18,7 +18,7 @@
 export default function CoverArt({ className = 'pq-art' }) {
   return (
     <div className={className}>
-      <svg viewBox="0 0 240 210" width="100%" height="auto" aria-hidden="true" focusable="false">
+      <svg viewBox="0 0 240 210" width="100%" aria-hidden="true" focusable="false">
         <defs>
           <linearGradient id="pq-art-a" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0" stopColor="#6d4fe0" /><stop offset="1" stopColor="#4b33c4" />
