@@ -139,3 +139,99 @@ for (const readingTheme of [null, undefined, '', 'oatmeal', 'sky', 'solar', 'mid
 assert.equal(seededWorkspaceDarkness(), false, 'no arguments must not throw')
 
 console.log('✓ reading theme core — a light palette vetoes the OS seed, and nothing imposes a dark one')
+
+/* ── the theme MODE ────────────────────────────────────────────────────
+ *
+ * The bug this closes, stated once: the reading theme had two storage
+ * states — a saved palette, or nothing — and "nothing" meant "ask the
+ * operating system". So "always light" was only expressible as a key, and
+ * any context without that key (a second browser, Incognito, a cleared
+ * profile, the signed-out site before auth resolves) asked the OS instead.
+ * The seed is never written, so it asked again on every cold start. That is
+ * "dark mode is back": nothing re-imposed it, it was never recorded as off.
+ */
+import {
+  DARK_READING_THEME_ID,
+  DEFAULT_READING_THEME_MODE,
+  READING_THEME_MODES,
+  inferReadingThemeMode,
+  isReadingThemeMode,
+  resolveLightReadingTheme,
+  resolveReadingTheme,
+} from './readingThemeCore.js'
+
+assert.deepEqual([...READING_THEME_MODES], ['light', 'dark', 'system'])
+assert.equal(DEFAULT_READING_THEME_MODE, 'system')
+assert.equal(DARK_READING_THEME_ID, 'midnight')
+assert.equal(isReadingThemeMode('light'), true)
+for (const junk of [undefined, null, '', 'auto', 'Light', 0, {}]) {
+  assert.equal(isReadingThemeMode(junk), false, `${JSON.stringify(junk)} is not a mode`)
+}
+
+/* THE PROPERTY THAT IS THE WHOLE FIX: an explicit answer outranks the OS,
+ * in BOTH directions, and only 'system' consults it at all. */
+for (const osDark of [true, false]) {
+  assert.equal(
+    resolveReadingTheme({ mode: 'light', light: 'oatmeal', osDark }),
+    'oatmeal',
+    `an explicit light answer must survive osDark=${osDark}`,
+  )
+  assert.equal(
+    resolveReadingTheme({ mode: 'dark', light: 'oatmeal', osDark }),
+    'midnight',
+    `an explicit dark answer must survive osDark=${osDark}`,
+  )
+}
+assert.equal(resolveReadingTheme({ mode: 'system', light: 'oatmeal', osDark: true }), 'midnight')
+assert.equal(resolveReadingTheme({ mode: 'system', light: 'oatmeal', osDark: false }), 'oatmeal')
+// 'light' means the palette that was chosen, not the brand default.
+assert.equal(resolveReadingTheme({ mode: 'light', light: 'sky', osDark: true }), 'sky')
+assert.equal(resolveReadingTheme({ mode: 'system', light: 'solar', osDark: false }), 'solar')
+
+/* THE MIGRATION. Every device that already saved a palette gets its mode
+ * inferred from it. Reading those as 'system' would throw away the very
+ * choice this change exists to make durable — and would put every one of
+ * them straight back on the OS, which is the bug. */
+assert.equal(inferReadingThemeMode('oatmeal'), 'light')
+assert.equal(inferReadingThemeMode('sky'), 'light')
+assert.equal(inferReadingThemeMode('solar'), 'light')
+assert.equal(inferReadingThemeMode('midnight'), 'dark')
+assert.equal(inferReadingThemeMode('dark'), 'dark', 'the legacy alias is a dark answer')
+// Nothing saved is genuinely unanswered and must stay on the OS: a
+// first-time visitor on a dark device is still met in dark.
+for (const empty of [null, undefined, '']) {
+  assert.equal(inferReadingThemeMode(empty), 'system', `${JSON.stringify(empty)} is not an answer`)
+}
+
+/* Which light palette an answer means. The middle rung carries an existing
+ * reader across: someone on Sky has `examprep:theme = 'sky'` and no
+ * light-palette key, and must not be quietly moved to Oatmeal. */
+const isKnownLight = (id) => ['oatmeal', 'sky', 'solar'].includes(id)
+assert.equal(
+  resolveLightReadingTheme({ storedLight: 'sky', activeTheme: 'midnight', fallback: 'oatmeal', isKnownLight }),
+  'sky',
+)
+assert.equal(
+  resolveLightReadingTheme({ storedLight: null, activeTheme: 'solar', fallback: 'oatmeal', isKnownLight }),
+  'solar',
+  'a reader already on a light palette keeps it',
+)
+assert.equal(
+  resolveLightReadingTheme({ storedLight: null, activeTheme: 'midnight', fallback: 'oatmeal', isKnownLight }),
+  'oatmeal',
+  'a reader in the dark with no remembered light palette gets the brand default',
+)
+// A dark id can never be the LIGHT palette, whichever rung offers it —
+// otherwise "switch to light" would resolve to midnight and do nothing.
+assert.equal(
+  resolveLightReadingTheme({ storedLight: 'midnight', activeTheme: 'midnight', fallback: 'oatmeal', isKnownLight }),
+  'oatmeal',
+)
+assert.equal(
+  resolveLightReadingTheme({ storedLight: 'neon', activeTheme: 'lavender', fallback: 'oatmeal', isKnownLight }),
+  'oatmeal',
+  'an id the vocabulary does not know is not a light palette',
+)
+assert.equal(resolveLightReadingTheme({ fallback: 'oatmeal' }), 'oatmeal')
+
+console.log('✓ reading theme mode — an explicit answer outranks the OS, and a saved palette migrates to one')

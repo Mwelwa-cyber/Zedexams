@@ -26,13 +26,21 @@
   //    palette at all. ThemeContext rewrites the stored key once React
   //    mounts; this only has to survive the first frame, so it maps and does
   //    not write.
-  //    No saved choice → seed from the OS colour scheme (prefers-color-scheme),
-  //    midnight when dark, the brand default otherwise. The seed is never
-  //    WRITTEN — an absent key means "not answered", so the site keeps
-  //    following the OS until the visitor picks a theme. ThemeContext's
-  //    resolveInitialTheme mirrors this exactly; test:reading-theme-mirror
-  //    fails if the two drift. Midnight also gets the `dark` class on <html>
-  //    pre-paint, so native controls (color-scheme) match from the first frame.
+  //    The palette is DERIVED from a stored MODE (light / dark / system) and
+  //    the chosen light palette. 'system' seeds from the OS colour scheme —
+  //    midnight when dark — and is what a visitor who has never answered is
+  //    in. An explicit light or dark answer outranks the OS.
+  //
+  //    That third state is the fix for "dark mode keeps coming back": with
+  //    only "a saved palette" or "nothing", the ONLY way to say "always
+  //    light" was a key that any fresh context lacked — a second browser,
+  //    Incognito, a cleared profile, the signed-out site before auth
+  //    resolves — so the OS answered instead, on every cold start, forever.
+  //    The seed is still never WRITTEN; what is written now is the ANSWER.
+  //    ThemeContext.readStoredThemeState mirrors this exactly;
+  //    test:reading-theme-mirror fails if the two drift. Midnight also gets
+  //    the `dark` class on <html> pre-paint, so native controls
+  //    (color-scheme) match from the first frame.
   var resolvedReadingTheme = 'oatmeal';
   var prefersReadingDark = false;
   try {
@@ -44,11 +52,35 @@
     var legacy = { light: 'sky', warm: 'oatmeal', dark: 'midnight' };
     var retired = { lavender: 'sky', vivid: 'solar' };
     var ids = ['oatmeal', 'sky', 'solar', 'midnight'];
-    var saved = localStorage.getItem('examprep:theme');
-    saved = legacy[saved] || retired[saved] || saved;
-    var resolved = ids.indexOf(saved) !== -1
-      ? saved
-      : (prefersDark ? 'midnight' : 'oatmeal');
+    var norm = function (v) {
+      v = legacy[v] || retired[v] || v;
+      return ids.indexOf(v) !== -1 ? v : null;
+    };
+    var saved = norm(localStorage.getItem('examprep:theme'));
+
+    // THE MODE. An explicit light/dark answer outranks the OS; 'system' asks
+    // it. A device with no mode stored has one INFERRED from its saved
+    // palette, which is the migration that carries an existing choice across
+    // (readingThemeCore.inferReadingThemeMode). Nothing saved at all is
+    // genuinely unanswered and follows the OS, exactly as it always has.
+    var modes = ['light', 'dark', 'system'];
+    var mode = localStorage.getItem('examprep:themeMode');
+    if (modes.indexOf(mode) === -1) {
+      mode = saved ? (saved === 'midnight' ? 'dark' : 'light') : 'system';
+    }
+
+    // WHICH light palette the answer means. The `lhx:last-light-theme` key is
+    // the retired per-device copy the learner surfaces each kept; read once so
+    // a device already remembering Sky keeps Sky.
+    var isLight = function (v) { return v && v !== 'midnight' ? v : null; };
+    var light = isLight(norm(localStorage.getItem('examprep:lightTheme')))
+      || isLight(norm(localStorage.getItem('lhx:last-light-theme')))
+      || isLight(saved)
+      || 'oatmeal';
+
+    var resolved = mode === 'dark'
+      ? 'midnight'
+      : (mode === 'light' ? light : (prefersDark ? 'midnight' : light));
     document.body.classList.add('theme-' + resolved);
     if (resolved === 'midnight') document.documentElement.classList.add('dark');
     // Both read by the workspace guard below. Assigned here rather than read

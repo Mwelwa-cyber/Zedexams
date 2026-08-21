@@ -34,7 +34,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import '../../../shared/styles/learnerTheme.css'
 import { useAuth } from '../../../contexts/AuthContext'
-import { useTheme, DEFAULT_THEME } from '../../../contexts/ThemeContext'
+import { useTheme } from '../../../contexts/ThemeContext'
 import { normalizeNotificationPrefs } from '../../../engines/notification-engine/notificationPrefs'
 import {
   normalizeLearningPrefs, DAILY_GOAL_OPTIONS,
@@ -42,7 +42,6 @@ import {
 import { resolveLearnerAccess } from '../../../utils/guardianConsent'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 
-const LAST_LIGHT_KEY = 'lhx:last-light-theme'
 const CHILDLINE = 'Childline Zambia · 116'
 
 // The learner design system already has one switch — a role="switch"
@@ -123,7 +122,7 @@ const SECTION_ANCHORS = {
 export default function LearnerSettingsPage() {
   const navigate = useNavigate()
   const { userProfile, updateProfileFields } = useAuth()
-  const { theme, setTheme } = useTheme()
+  const { theme, setThemeMode } = useTheme()
 
   // Optimistic local mirror: the switch moves at once and the write
   // follows, so a slow round-trip never looks like a dead control.
@@ -152,16 +151,10 @@ export default function LearnerSettingsPage() {
     })
   }
 
-  const setNight = (on) => {
-    if (on) {
-      try { window.localStorage.setItem(LAST_LIGHT_KEY, theme) } catch { /* private mode */ }
-      setTheme('midnight')
-      return
-    }
-    let last = null
-    try { last = window.localStorage.getItem(LAST_LIGHT_KEY) } catch { /* private mode */ }
-    setTheme(last && last !== 'midnight' ? last : DEFAULT_THEME)
-  }
+  // Writes a MODE, not a palette — see the note on LearnerHeader's NightToggle.
+  // Turning Night off is "I want light", which has to outrank the device's
+  // colour scheme in every context, not only the one holding this key.
+  const setNight = (on) => setThemeMode(on ? 'dark' : 'light')
 
   const setNotif = (patch) => save({ notificationPrefs: { ...notif, ...patch } })
   const setCategory = (key, on) => setNotif({ categories: { ...notif.categories, [key]: on } })

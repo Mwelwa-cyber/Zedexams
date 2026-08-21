@@ -122,27 +122,84 @@ assert.ok(
   "public/boot.js must read the 'examprep:theme' key",
 )
 
-// No saved (or unrecognised) id seeds from the OS colour scheme: midnight
-// when the OS asks for dark, the brand default otherwise. Asserted as the
-// exact expression so the seeding and the fallback cannot be separated —
-// a boot.js that only falls back to the default silently un-seeds every
-// dark-OS first visit that ThemeContext would seed after hydration, which
-// paints light then flips dark.
-assert.ok(
-  boot.includes(
-    `ids.indexOf(saved) !== -1\n      ? saved\n      : (prefersDark ? 'midnight' : '${DEFAULT_THEME}');`,
-  ),
-  `public/boot.js must seed midnight on a dark OS and fall back to '${DEFAULT_THEME}' otherwise`,
-)
+/* ── 3b. The MODE, mirrored ────────────────────────────────────────────
+ *
+ * This block used to pin the two-state seeding as an exact string:
+ *   ids.indexOf(saved) !== -1 ? saved : (prefersDark ? 'midnight' : …)
+ * i.e. "a saved palette, otherwise ask the OS". That was the whole bug. With
+ * only those two states the ONLY way to say "always light" was a key that
+ * every fresh context lacks — a second browser, Incognito, a cleared profile,
+ * the signed-out site before auth resolves — so the OS answered instead, and
+ * because the seed is deliberately never written it answered again on every
+ * cold start. Measured on the built app: three consecutive reloads on a
+ * dark-OS browser, all three midnight, `examprep:theme` still null.
+ *
+ * What is pinned now is the three-state resolution, on both sides. */
+
 assert.ok(
   boot.includes("window.matchMedia('(prefers-color-scheme: dark)').matches"),
-  'public/boot.js no longer reads prefers-color-scheme for the reading-theme seed',
+  'public/boot.js no longer reads prefers-color-scheme for the system mode',
 )
-// ThemeContext's resolveInitialTheme must agree, or boot paints one thing
-// and hydration another.
+
+// The mode vocabulary and the default must agree across all three readers.
+const coreSrc = readFileSync(resolve(root, 'src/contexts/readingThemeCore.js'), 'utf8')
+const coreModes = coreSrc.match(/export const READING_THEME_MODES = Object\.freeze\(\[([^\]]*)\]/)
+assert.ok(coreModes, 'readingThemeCore.js no longer declares READING_THEME_MODES')
+const MODES = coreModes[1].split(',').map((m) => m.trim().replace(/^'|'$/g, '')).filter(Boolean)
+assert.deepEqual(MODES, ['light', 'dark', 'system'], 'the mode vocabulary has changed')
+
+const bootModes = boot.match(/var modes = \[([^\]]+)\]/)
+assert.ok(bootModes, 'public/boot.js no longer declares the theme-mode list')
+assert.deepEqual(
+  bootModes[1].split(',').map((m) => m.trim().replace(/^'|'$/g, '')),
+  MODES,
+  'public/boot.js theme modes have drifted from readingThemeCore.js',
+)
+
 assert.ok(
-  ctx.includes(`prefersDarkColorScheme() ? 'midnight' : DEFAULT_THEME`),
-  'ThemeContext.resolveInitialTheme no longer mirrors the boot.js prefers-color-scheme seeding',
+  boot.includes("localStorage.getItem('examprep:themeMode')"),
+  "public/boot.js must read the 'examprep:themeMode' key — without it the "
+    + 'pre-paint frame ignores an explicit answer and paints the OS colour scheme',
+)
+assert.ok(
+  boot.includes("localStorage.getItem('examprep:lightTheme')"),
+  "public/boot.js must read the 'examprep:lightTheme' key, or a reader who "
+    + 'chose Sky is returned to the brand default on every load',
+)
+
+// The resolution itself, on both sides. An explicit answer outranks the OS;
+// only 'system' consults it. If either side loses that, boot paints one thing
+// and hydration another — the flash this whole mirror exists to prevent.
+assert.ok(
+  boot.includes(
+    "var resolved = mode === 'dark'\n      ? 'midnight'\n      : (mode === 'light' ? light : (prefersDark ? 'midnight' : light));",
+  ),
+  'public/boot.js no longer resolves the palette from the mode — an explicit '
+    + "light or dark answer must outrank prefers-color-scheme, and only 'system' may consult it",
+)
+assert.ok(
+  /if \(mode === 'dark'\) return DARK_READING_THEME_ID/.test(coreSrc)
+    && /if \(mode === 'light'\) return light/.test(coreSrc)
+    && /return osDark \? DARK_READING_THEME_ID : light/.test(coreSrc),
+  'readingThemeCore.resolveReadingTheme no longer mirrors the boot.js resolution',
+)
+assert.ok(
+  ctx.includes('resolveReadingTheme({ mode, light, osDark: prefersDarkColorScheme() })'),
+  'ThemeContext no longer resolves the initial palette through resolveReadingTheme',
+)
+
+// The MIGRATION. A device that saved a palette before modes existed must have
+// its mode inferred from it, on both sides — reading those devices as
+// 'system' would throw away the very choice this change exists to make
+// durable, and would put every one of them back on the OS.
+assert.ok(
+  boot.includes("mode = saved ? (saved === 'midnight' ? 'dark' : 'light') : 'system';"),
+  'public/boot.js no longer infers a mode from an already-saved palette — every '
+    + 'device that chose a palette before modes existed would fall back to the OS',
+)
+assert.ok(
+  /return isDarkReadingThemeId\(savedTheme\) \? 'dark' : 'light'/.test(coreSrc),
+  'readingThemeCore.inferReadingThemeMode no longer mirrors the boot.js migration',
 )
 // Midnight must also flip <html class="dark"> pre-paint, because
 // `color-scheme` (native form controls, scrollbars) keys off it.
@@ -154,14 +211,17 @@ assert.ok(
   boot.includes(`document.body.classList.add('theme-${DEFAULT_THEME}')`),
   `public/boot.js must fall back to '${DEFAULT_THEME}' when localStorage throws`,
 )
-// The seed must never be WRITTEN: an absent key means "not answered", which
-// is what keeps the site following the OS until the visitor picks a theme.
-// boot.js has no setItem at all for this key; ThemeContext writes it only
-// inside setTheme.
-assert.ok(
-  !boot.includes("localStorage.setItem('examprep:theme'"),
-  'public/boot.js must never write the reading-theme key — the OS seed is not a saved choice',
-)
+// boot.js reads and never writes. That division is what keeps the pre-paint
+// guard honest: a visitor who has not answered is still unanswered after the
+// first frame, so 'system' keeps following the device rather than freezing on
+// whatever the OS happened to say the first time they loaded the page.
+// ThemeContext is the only writer, and only for a real choice.
+for (const key of ['examprep:theme', 'examprep:themeMode', 'examprep:lightTheme']) {
+  assert.ok(
+    !boot.includes(`localStorage.setItem('${key}'`),
+    `public/boot.js must never write '${key}' — resolving a palette pre-paint is not a choice`,
+  )
+}
 
 console.log(
   `✓ reading theme mirror — ${THEME_IDS.length} themes and ${Object.keys(RETIRED).length} retirements match across ThemeContext, index.css and boot.js`,

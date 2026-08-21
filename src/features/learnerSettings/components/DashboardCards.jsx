@@ -9,7 +9,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useSubscription } from '../../../hooks/useSubscription'
-import { useTheme, DEFAULT_THEME } from '../../../contexts/ThemeContext'
+import { useTheme } from '../../../contexts/ThemeContext'
 import { useSettingsSave } from './SaveContext'
 import Icon from '../../../shared/components/Icon'
 import CharacterAvatar from '../../../shared/components/CharacterAvatar'
@@ -214,20 +214,29 @@ const FONT_SEG = [{ value: 'small', label: 'A−' }, { value: 'medium', label: '
 export function AppearanceCard({ onOpen }) {
   const { userProfile } = useAuth()
   const { commit } = useSettingsSave()
-  const { theme, setTheme } = useTheme()
+  const { theme, themeMode, setThemeMode } = useTheme()
   const a11y = useA11y()
   const ps = normalizePersonalisation(userProfile?.learnerSettings?.personalisation)
 
   const isDark = theme === 'midnight'
+  /*
+   * Three real modes, not two-plus-a-button.
+   *
+   * This control has always offered Light / Dark / System, and "System" was
+   * neither: it read prefers-color-scheme ONCE and wrote a concrete palette,
+   * so on a dark-mode device tapping System was indistinguishable from
+   * tapping Dark — and `value` was `isDark ? 'dark' : 'light'`, so it could
+   * not even render as selected afterwards. It is now a stored answer that
+   * follows the device live.
+   */
   const setMode = (mode) => {
-    let dark = isDark
-    if (mode === 'light') dark = false
-    else if (mode === 'dark') dark = true
-    else if (mode === 'system') {
-      try { dark = window.matchMedia?.('(prefers-color-scheme: dark)').matches || false } catch { dark = false }
-    }
-    setTheme(dark ? 'midnight' : DEFAULT_THEME)
-    commit({ 'learnerSettings.personalisation': { ...ps, darkMode: dark } })
+    setThemeMode(mode)
+    commit({
+      'learnerSettings.personalisation': {
+        ...ps,
+        darkMode: mode === 'dark' || (mode === 'system' && isDark),
+      },
+    })
   }
   const setAccent = (accent) => commit({ 'learnerSettings.personalisation': { ...ps, accent } })
   const setA11yField = (patch) => { const next = updateA11y(patch); commit({ 'learnerSettings.accessibility': next }) }
@@ -242,7 +251,7 @@ export function AppearanceCard({ onOpen }) {
         <Segmented
           label="Theme"
           options={[{ value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }, { value: 'system', label: 'System' }]}
-          value={isDark ? 'dark' : 'light'}
+          value={themeMode}
           onChange={setMode}
         />
         <div>

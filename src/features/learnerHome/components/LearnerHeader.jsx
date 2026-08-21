@@ -29,7 +29,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useNotifications } from '../../../contexts/NotificationContext'
-import { useTheme, DEFAULT_THEME } from '../../../contexts/ThemeContext'
+import { useTheme } from '../../../contexts/ThemeContext'
 import useHideOnScroll from '../../../hooks/useHideOnScroll'
 import { capture } from '../../../utils/analytics'
 import PlanChip from '../../../shared/components/PlanChip'
@@ -38,27 +38,27 @@ import LearnerIcon from './LearnerIcon'
 import { firstNameOf } from '../lib/learnerHomeCore'
 import { gradeTermChip } from '../../../utils/learnerCalendar'
 
-const LAST_LIGHT_KEY = 'lhx:last-light-theme'
-
 /**
  * Night toggle — the prototype's 🌙/☀️ pill. Rides on the existing theme
  * system (midnight IS night), so the choice persists exactly the way a
- * theme choice always has. The previously chosen light theme is
- * remembered so surfaces that still vary by light theme return to it.
+ * theme choice always has.
+ *
+ * It writes a MODE, not a palette. Tapping the sun used to write the light
+ * palette and nothing else, which recorded which palette but never that the
+ * learner had asked for light — so any browser without that key asked the
+ * operating system instead. Remembering WHICH light palette is now the theme
+ * layer's job (readingThemeCore.resolveLightReadingTheme), which is why the
+ * per-device `lhx:last-light-theme` copy this file used to keep is gone; the
+ * provider still reads it once, for devices that already have one.
  */
 function NightToggle() {
-  const { theme, setTheme } = useTheme()
+  const { theme, setThemeMode } = useTheme()
+  // What the pill REPORTS is the palette actually on screen, not the mode:
+  // in 'system' mode on a dark device the page is dark, and a pill reading
+  // "day" over a dark page is the very bug this area keeps producing. What
+  // the pill WRITES is a mode, so tapping it is an answer.
   const night = theme === 'midnight'
-  const toggle = () => {
-    if (night) {
-      let last = null
-      try { last = window.localStorage.getItem(LAST_LIGHT_KEY) } catch { /* private mode */ }
-      setTheme(last && last !== 'midnight' ? last : DEFAULT_THEME)
-    } else {
-      try { window.localStorage.setItem(LAST_LIGHT_KEY, theme) } catch { /* private mode */ }
-      setTheme('midnight')
-    }
-  }
+  const toggle = () => setThemeMode(night ? 'light' : 'dark')
   return (
     <button
       type="button"
