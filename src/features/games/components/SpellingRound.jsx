@@ -39,7 +39,7 @@ import { guessFrom, tilesWithDecoys } from '../lib/wordBuilderCore'
 import { fillGap } from '../lib/spellingContentCore'
 import { isMuted, playCorrect, playWrong, toggleMute } from '../lib/gameSounds'
 import BreakItUpCoach from './BreakItUpCoach'
-import { speakWord, speechAvailable } from '../lib/spellingSpeech'
+import { speakWord, speechAvailable, warmWord } from '../lib/spellingSpeech'
 
 /** How many words later a missed word comes back inside the same stage. */
 export const REQUEUE_GAP = 2
@@ -120,6 +120,23 @@ export default function SpellingRound({
     setHeard(false)
     // The word is spoken on arrival. Listening then producing is the strongest
     // form of the exercise, and the word is never on screen to copy.
+    //
+    // FETCHING starts here and SPEAKING starts on the beat below, because they
+    // are not the same act. A pre-generated word is a Storage round trip and a
+    // cloud word is a synthesis call, and until this line neither began until
+    // the instant the word was due — so on a narrow connection the learner was
+    // already looking at the tiles, and often already guessing, when the voice
+    // finally arrived. Warming buys the whole beat plus however long the
+    // previous word took to solve.
+    //
+    // The NEXT word is warmed behind it, and that spends nothing extra: every
+    // word in a stage is spoken when it arrives, so the call was always going
+    // to be made. It is chained rather than fired alongside so a background
+    // download never competes with the word being listened to.
+    warmWord(item.word, { audioUrl: item.audio, cloud: true }).then(() => {
+      const upcoming = queueRef.current[index + 1]
+      if (upcoming) warmWord(upcoming.word, { audioUrl: upcoming.audio, cloud: true })
+    }).catch(() => { /* a warm that fails just means the word waits, as before */ })
     later(() => { speakWord(item.word, { audioUrl: item.audio }); setHeard(true) }, 350)
     if (onPosition) onPosition({ index, firstTryCorrect: firstTryRef.current, missedWords: [...missedRef.current] })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -286,6 +303,7 @@ export default function SpellingRound({
       <BreakItUpCoach
         coach={coach}
         attempt={guess}
+        audioUrl={item?.audio || ''}
         onDone={() => closeCoach('completed')}
         onSkip={() => closeCoach('skipped')}
       />

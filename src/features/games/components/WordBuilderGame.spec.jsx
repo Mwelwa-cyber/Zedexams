@@ -49,6 +49,12 @@ vi.mock('../lib/spellingSpeech', () => ({
   stopSpeech: vi.fn(),
   // `window.Audio` exists in jsdom, so this is what the real module reports.
   speechAvailable: () => true,
+  // The warming pair resolve rather than returning undefined: the stage
+  // opener and the coach both chain a second warm off the first, and a double
+  // that returns nothing would throw on `.then`.
+  warmWord: vi.fn(async () => true),
+  warmWords: vi.fn(async () => {}),
+  CHUNK_RATE: 0.7,
 }))
 
 /**

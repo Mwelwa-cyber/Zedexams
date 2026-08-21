@@ -84,6 +84,7 @@ import {
   steer,
   townAt,
   troubleWords,
+  wordsForTown,
 } from '../lib/spellingRideCore'
 import { createRideRenderer } from '../lib/spellingRideRender'
 import { laneFromX } from '../lib/spellingRideRoad'
@@ -94,6 +95,8 @@ import {
   speakWordThenLetters,
   speechAvailable,
   stopSpeech,
+  warmWord,
+  warmWords,
 } from '../lib/spellingSpeech'
 import { readJson, writeJson } from '../../../shared/utils/safeStorage'
 
@@ -176,6 +179,8 @@ export default function SpellingRideGame({ game }) {
   const reducedRef = useRef(false)
   const flashTimerRef = useRef(0)
   const revealTimerRef = useRef(0)
+  /** The word the ride is about to reach, once it has been warmed. */
+  const warmedRef = useRef('')
 
   const [hud, setHud] = useState({
     hearts: MAX_HEARTS, score: 0, streak: 0, town: 0, wordsDone: 0, revealing: false,
@@ -261,6 +266,40 @@ export default function SpellingRideGame({ game }) {
   }, [game?.id, grade])
 
   /* ── speaking ────────────────────────────────────────────────────── */
+
+  /**
+   * Fetch a town's words before the road reaches them.
+   *
+   * The ride is the surface where a late voice is not an annoyance but a
+   * broken exercise: a word is announced as its first letter-row spawns, and
+   * that row reaches the rider about a second later. A word that took two
+   * seconds to fetch was therefore announced AFTER the learner had already
+   * answered its first letter — they were being asked to spell something they
+   * had not yet heard.
+   *
+   * `cloud: false` is the whole reason this can warm a town on spec: it fetches
+   * only words an admin has already voiced, which are static objects that cost
+   * nothing to pull. The four words a town actually serves are drawn at random
+   * from this pool, so warming the pool is how the draw is covered without
+   * knowing the draw. Words with no pre-generated file are left to the
+   * lookahead in `frame`, which only spends a synthesis call on the one word
+   * that is certain to be asked next.
+   */
+  const warmTown = useCallback((townIndex, carried = []) => {
+    if (!voiceRef.current) return
+    const pool = wordsForTown(items || [], townIndex)
+    warmWords([...carried, ...pool], { cloud: false })
+  }, [items])
+
+  // Choosing a mode and a difficulty takes a few seconds, and those seconds are
+  // free bandwidth. The first town's pre-generated words are pulled over them,
+  // so the ride's opening word — the one with no previous word to hide its
+  // latency behind — is already on the device when the road starts moving.
+  useEffect(() => {
+    if (screen !== 'menu' || !items?.length) return
+    warmTown(0)
+  }, [screen, items, warmTown])
+
   const say = useCallback((challenge) => {
     if (!voiceRef.current || !challenge) return false
     if (challenge.kind === 'choice') return speakSentence(challenge.prompt)
@@ -443,6 +482,18 @@ export default function SpellingRideGame({ game }) {
       // safe to iterate in place.
       const events = advance(ride, dt)
       if (events.length) drainEvents(ride, events)
+
+      // `ride.spawning` is the challenge whose rows are being laid down — the
+      // NEXT word, known while the current one is still being answered. It is
+      // certain to be presented, so this is the one place the ride is allowed
+      // to spend a synthesis call ahead of time. Guarded by the word itself
+      // rather than a timer: a string compare per frame is nothing, and the
+      // warm behind it is deduplicated anyway.
+      const ahead = ride.spawning
+      if (voiceRef.current && ahead && ahead.kind !== 'choice' && ahead.word && ahead.word !== warmedRef.current) {
+        warmedRef.current = ahead.word
+        warmWord(ahead.word, { audioUrl: ahead.audio, cloud: true })
+      }
     }
 
     // The bike slides between lanes rather than snapping, and pedals while it
@@ -551,22 +602,31 @@ export default function SpellingRideGame({ game }) {
       resolveAt: rendererRef.current?.geometry?.resolveY
         || ((wrapRef.current?.getBoundingClientRect()?.height || 780) * 0.8 - 10),
     })
+    // The carried-forward words are the ride's actual opening — the learner's
+    // own unfinished business is drawn before the town's pool — so they are
+    // what gets warmed first.
+    warmedRef.current = ''
+    warmTown(0, rideRef.current.carried)
+
     setHud({ hearts: MAX_HEARTS, score: 0, streak: 0, town: 0, wordsDone: 0, revealing: false })
     setScreen('ride')
     emit('started', { mode, difficulty, grade })
     // The first challenge is already queued as an event by `createRide`; the
     // first frame delivers it. Announcing it here as well would say it twice.
-  }, [choiceItems, difficulty, emit, grade, items, mode, progress.pool, progress.stagesPlayed, reset])
+  }, [choiceItems, difficulty, emit, grade, items, mode, progress.pool, progress.stagesPlayed, reset, warmTown])
 
   const keepRiding = useCallback(() => {
     const ride = rideRef.current
     if (!ride) return
     setTownCard(null)
     departTown(ride)
+    // The town card is the next quiet moment the ride gets; the new town's
+    // words are pulled over it, exactly as the menu covers the first.
+    warmTown(ride.townIndex)
     setScreen('ride')
     // Same as `startRide`: the new leg's first challenge is on the queue and
     // the next frame delivers it.
-  }, [])
+  }, [warmTown])
 
   const endRide = useCallback(() => {
     const ride = rideRef.current

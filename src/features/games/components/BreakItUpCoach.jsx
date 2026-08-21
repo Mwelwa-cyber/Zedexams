@@ -25,10 +25,10 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { rebuildOptions, tapChunk } from '../lib/spellingCoachCore'
-import { speakChunk, speakWord } from '../lib/spellingSpeech'
+import { CHUNK_RATE, speakChunk, speakWord, warmWord, warmWords } from '../lib/spellingSpeech'
 import { renderInlineMarkup } from '../lib/spellingContentCore'
 
-export default function BreakItUpCoach({ coach, attempt = '', onDone, onSkip }) {
+export default function BreakItUpCoach({ coach, attempt = '', audioUrl = '', onDone, onSkip }) {
   const [phase, setPhase] = useState('cut')      // 'cut' | 'rebuild' | 'transfer'
   const [placed, setPlaced] = useState([])
   const [shake, setShake] = useState(-1)
@@ -41,6 +41,31 @@ export default function BreakItUpCoach({ coach, attempt = '', onDone, onSkip }) 
    * they tapped one.
    */
   const options = useMemo(() => rebuildOptions(coach.chunks), [coach])
+
+  /**
+   * Pull the audio while the learner is reading the cut.
+   *
+   * This spends nothing extra, and both halves have their own reason. The
+   * WORD is already in the session cache — the round warmed it and spoke it
+   * moments ago, and this panel only opens on a deliberate tap after that — so
+   * it is a hit, and asking for it here is what makes the transfer screen's
+   * "Hear the whole word" instant. The CHUNKS are the real fetch, and they are
+   * a certainty rather than a guess: the rebuild phase is not finished until
+   * every one has been tapped and every tap speaks its chunk, so warming only
+   * moves the wait off the tap — where it read as an unresponsive button, on a
+   * screen that has just told a child they got the word wrong.
+   *
+   * Chunks are never pre-generated (they are fragments of the 79 authored
+   * cuts), so this is the one warm that always reaches the cloud, and it must
+   * ask at the rate `speakChunk` speaks at or it would prepare audio under a
+   * key nothing plays from.
+   */
+  useEffect(() => {
+    if (!coach?.chunks?.length) return
+    warmWord(coach.word, { audioUrl, cloud: true })
+      .then(() => warmWords(coach.chunks, { rate: CHUNK_RATE, cloud: true }))
+      .catch(() => { /* the tap still climbs the ladder, exactly as before */ })
+  }, [coach, audioUrl])
 
   if (!coach) return null
 
@@ -190,7 +215,7 @@ export default function BreakItUpCoach({ coach, attempt = '', onDone, onSkip }) 
             <p className="lhx-sp-built-note">
               <b>{coach.word}</b> goes on your tricky words. It comes back on its own — no help next time.
             </p>
-            <button type="button" className="lhx-sp-hear-small" onClick={() => speakWord(coach.word)}>
+            <button type="button" className="lhx-sp-hear-small" onClick={() => speakWord(coach.word, { audioUrl })}>
               🔊 Hear the whole word
             </button>
           </div>

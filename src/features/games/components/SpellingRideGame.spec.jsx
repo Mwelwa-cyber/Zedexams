@@ -53,6 +53,11 @@ const speech = vi.hoisted(() => ({
   primeSpeech: vi.fn(),
   stopSpeech: vi.fn(),
   speechAvailable: vi.fn(() => true),
+  // Warming is the ride's latency fix, not its behaviour: the doubles resolve
+  // so the `.then()` chains that follow them run, and the ride is asserted on
+  // what it SAYS, which is `speakWord`'s business either way.
+  warmWord: vi.fn(async () => true),
+  warmWords: vi.fn(async () => {}),
 }))
 vi.mock('../lib/spellingSpeech', () => speech)
 
