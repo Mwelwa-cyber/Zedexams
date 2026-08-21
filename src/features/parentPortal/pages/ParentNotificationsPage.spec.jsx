@@ -98,7 +98,7 @@ function renderPage() {
         <Route path="/family/child/:childUid" element={<div>CHILD ROUTE</div>} />
         <Route path="/family/account/alerts" element={<div>PARENT ALERTS</div>} />
         {/* The learner settings screen, stubbed so the test can prove the
-            footer does NOT point there. ParentRouteGuard would redirect a
+            footer does NOT point there. PortalRouteGuard would redirect a
             guardian away from it, but a link that names the wrong screen —
             and calls it "Settings → Notifications" — is still the wrong
             link. */}

@@ -16,6 +16,17 @@ import MySubscriptionPage from './MySubscriptionPage'
  * actions written by subscriptionActivation and reminderCrons, upgrade
  * banners, past emails. So the old path stays and forwards teachers only,
  * which keeps every one of those links resolving to the in-shell page.
+ *
+ * NOTE on who actually decides. `PortalRouteGuard` sits above the route
+ * table and carries the same teacher rule (`TEACHER_ROUTE_REDIRECTS` in
+ * `src/utils/portalRedirects.js`), so it answers first and this component's
+ * teacher branch does not run in the app. It is kept rather than deleted
+ * because the two are not the same statement: the table says "a teacher
+ * never renders a learner screen" as a property of the ROUTE, and the line
+ * below is this page's own contract with its callers — it is what makes
+ * `MySubscriptionRoute` correct when rendered directly, which is how every
+ * one of its tests renders it. If the two ever disagree, the table wins,
+ * and `test:portal-redirects` pins its half.
  */
 export default function MySubscriptionRoute() {
   const { isAdmin, isTeacher, userProfile } = useAuth()

@@ -69,7 +69,7 @@
     "test:sanitize": "node scripts/test-rich-text-sanitize.mjs",
     "test:img-size-attributes": "node scripts/test-img-size-attributes.mjs",
     "test:settings-section": "node scripts/test-settings-section.mjs",
-    "test:parent-redirects": "node scripts/test-parent-redirects.mjs",
+    "test:portal-redirects": "node scripts/test-portal-redirects.mjs",
     "test:quiz-image-upload": "node src/utils/quizImageUpload.test.js",
     "test:math-notation-reach": "node src/editor/mathNotationReach.test.js",
     "test:quiz-result-payload": "node src/utils/quizResultPayload.test.js",

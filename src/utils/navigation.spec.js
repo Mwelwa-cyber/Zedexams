@@ -102,6 +102,40 @@ describe('resolvePostAuthPath', () => {
     expect(resolvePostAuthPath(teacher, '/dashboard')).toBe('/teacher')
   })
 
+  it('discards a SHARED page the teacher portal does not own', () => {
+    // The reported bug: "every time I log in to the teacher's portal, it
+    // brings me to this page" — /profile, under the learner Navbar (Notes,
+    // Lessons, Practise), on a page whose own back link read "Back to
+    // Teacher". ProtectedRoute stashes the page you asked for and Login
+    // honours the stash; /profile is NOT in LEARNER_ONLY_SEGMENTS (an admin
+    // and a learner both render it), so the learner-only correction above
+    // never fired and the teacher was returned there on every sign-in.
+    expect(resolvePostAuthPath(teacher, '/profile')).toBe('/teacher')
+    expect(resolvePostAuthPath(teacher, '/profile?tab=badges')).toBe('/teacher')
+    expect(resolvePostAuthPath(teacher, '/my-badges')).toBe('/teacher')
+    expect(resolvePostAuthPath(teacher, '/my-subscription')).toBe('/teacher')
+    expect(resolvePostAuthPath(teacher, '/ask-a-grown-up')).toBe('/teacher')
+  })
+
+  it('discards rather than maps — sign-in opens the dashboard, not the equivalent page', () => {
+    // PortalRouteGuard sends a teacher from /profile to /settings/profile
+    // mid-session, because there they asked for that page. Sign-in is the one
+    // moment when the account's own home is what was asked for, so the stash
+    // is dropped rather than translated.
+    expect(resolvePostAuthPath(teacher, '/profile')).not.toBe('/settings/profile')
+  })
+
+  it('leaves a teacher on the shared surfaces their portal does own', () => {
+    // /settings is role-branched into TeacherSettings inside TeacherLayout,
+    // and /offline renders in the teacher shell too — both are the teacher's
+    // own pages, so a stash pointing at either is honoured.
+    expect(resolvePostAuthPath(teacher, '/settings/profile')).toBe('/settings/profile')
+    expect(resolvePostAuthPath(teacher, '/settings')).toBe('/settings')
+    expect(resolvePostAuthPath(teacher, '/offline')).toBe('/offline')
+    // The past-paper archive is deliberately open to teachers.
+    expect(resolvePostAuthPath(teacher, '/papers/g7-science')).toBe('/papers/g7-science')
+  })
+
   it('still returns a teacher to the teacher page they were bounced from', () => {
     expect(resolvePostAuthPath(teacher, '/teacher/assessment-papers/abc/edit?step=quiz'))
       .toBe('/teacher/assessment-papers/abc/edit?step=quiz')
@@ -112,12 +146,20 @@ describe('resolvePostAuthPath', () => {
     expect(resolvePostAuthPath(learner, '/notes/abc')).toBe('/notes/abc')
     expect(resolvePostAuthPath(learner, '/quiz/123')).toBe('/quiz/123')
     expect(resolvePostAuthPath(learner, null)).toBe('/dashboard')
+    // /profile IS the learner's own page — the cross-portal check must not
+    // widen into "shared pages are nobody's".
+    expect(resolvePostAuthPath(learner, '/profile')).toBe('/profile')
   })
 
   it('leaves admin behaviour unchanged — admins pass through the learner portal', () => {
     expect(resolvePostAuthPath({ role: 'admin' }, '/notes/abc')).toBe('/notes/abc')
     // A teacher-flagged admin is an admin first, exactly as getRoleLandingPath reads it.
     expect(resolvePostAuthPath({ isAdmin: true, isTeacher: true }, '/notes/abc')).toBe('/notes/abc')
+    // …including on the shared surfaces the teacher table names. AuthContext
+    // sets isTeacher true for super-admins, so a check that asked about
+    // teachers first would move every admin into the teacher shell.
+    expect(resolvePostAuthPath({ role: 'admin' }, '/profile')).toBe('/profile')
+    expect(resolvePostAuthPath({ isAdmin: true, isTeacher: true }, '/profile')).toBe('/profile')
   })
 
   it('discards a learner destination for a parent who cannot open the learner portal', () => {

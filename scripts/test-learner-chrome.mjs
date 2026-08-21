@@ -37,6 +37,27 @@
  *    number stop meaning anything, which is how a ratchet quietly stops
  *    being one.
  *
+ * ## One hop, because the chrome can hide behind a role branch
+ *
+ * The parser used to read the `<Route>` LINE and nothing else, so a route
+ * whose element is a locally-declared wrapper — `<ProfileRoute />`,
+ * `<SettingsPage />`, `<OfflineRoute />` — was invisible to it whatever
+ * that wrapper rendered. Three routes sat in that blind spot, and the
+ * ratchet reported a clean number over all of them.
+ *
+ * It surfaced the day `/offline` grew a teacher arm: the Navbar moved one
+ * line inward, the route stopped matching, and rule 2 correctly refused
+ * to call a listed route finished. The fix is the one
+ * `test:navbar-audience` already records for redirects — resolve the hop
+ * rather than classify the literal.
+ *
+ * A wrapper that returns something ELSE for a learner before it reaches
+ * the Navbar (`ProfileRoute` hands them `LearnerProfilePage`;
+ * `SettingsPage` hands them `LearnerShell`) does not put the retired IA
+ * in front of a learner, and is reported as branched rather than counted.
+ * That distinction is printed, never silent: a guard that quietly covers
+ * less than it claims reads exactly like one that found nothing wrong.
+ *
  * Run: npm run test:learner-chrome
  */
 import assert from 'node:assert/strict'
@@ -58,8 +79,50 @@ const STILL_ON_LEGACY_CHROME = new Set([
   '/results/:resultId',  // ditto, same quiz surface
   '/search',             // no replacement yet
   '/lessons/:lessonId',  // no back control of its own; needs a real migration
-  '/offline',            // not learner-only — teachers and admins reach it too
+  // Reached through <OfflineRoute />, which gives a TEACHER the teacher shell
+  // (that arm is done) and everyone else the legacy Navbar. Still listed
+  // because a learner still gets it — the entry is the learner work left.
+  '/offline',
 ])
+
+/* ── Resolve one hop: local route wrappers ───────────────────────────── */
+
+/**
+ * `function Name() { … }` declared in App.jsx, as Name → body.
+ *
+ * Brace-counted from the opening `{` rather than regex-terminated, because
+ * every one of these bodies contains JSX with braces in it and a lazy match
+ * would stop at the first `}` of an attribute.
+ */
+function localComponents(source) {
+  const bodies = new Map()
+  const re = /\nfunction ([A-Z][A-Za-z0-9]*)\s*\([^)]*\)\s*\{/g
+  let m
+  while ((m = re.exec(source)) !== null) {
+    let depth = 0
+    let i = re.lastIndex - 1
+    const start = i
+    for (; i < source.length; i += 1) {
+      if (source[i] === '{') depth += 1
+      else if (source[i] === '}') {
+        depth -= 1
+        if (depth === 0) break
+      }
+    }
+    bodies.set(m[1], source.slice(start, i + 1))
+  }
+  return bodies
+}
+
+const COMPONENTS = localComponents(app)
+assert.ok(
+  COMPONENTS.has('ProfileRoute') && COMPONENTS.has('SettingsPage'),
+  'the local-component parser found neither ProfileRoute nor SettingsPage — it has drifted, '
+  + 'and a parser that matches nothing reports a clean tree for a broken one',
+)
+
+/** A wrapper that hands a learner a different chrome before reaching Navbar. */
+const LEARNER_ARM = /if\s*\((?:isLearnerRole\(|role === 'learner')/
 
 /* ── Parse the route table ────────────────────────────────────────────── */
 
@@ -67,14 +130,29 @@ const STILL_ON_LEGACY_CHROME = new Set([
 // guard in this repo relies on (and why routes are kept to a line each).
 const mountsNavbar = new Set()
 const allRoutes = new Set()
+const branched = []
 for (const line of app.split('\n')) {
   const path = line.match(/<Route\s+path="([^"]+)"/)?.[1]
   if (!path) continue
   allRoutes.add(path)
-  if (/<Navbar\s*\/>/.test(line)) mountsNavbar.add(path)
+  if (/<Navbar\s*\/>/.test(line)) { mountsNavbar.add(path); continue }
+  // One hop into a locally-declared wrapper element on the same line.
+  for (const name of line.matchAll(/<([A-Z][A-Za-z0-9]*)\s*\/>/g)) {
+    const body = COMPONENTS.get(name[1])
+    if (!body || !/<Navbar\s*\/>/.test(body)) continue
+    if (LEARNER_ARM.test(body)) { branched.push(`${path} (${name[1]})`); continue }
+    mountsNavbar.add(path)
+  }
 }
 
 assert.ok(allRoutes.size > 50, `expected to parse the route table, found ${allRoutes.size} routes`)
+if (branched.length) {
+  console.log(
+    '  note: role-branched wrappers reach <Navbar /> but hand a learner another chrome first,'
+    + ' so they are not counted as learner legacy chrome:',
+  )
+  for (const entry of branched) console.log(`    ${entry}`)
+}
 
 /* ── 1. Nothing unlisted may mount the legacy chrome ──────────────────── */
 
@@ -121,6 +199,26 @@ assert.ok(
 const probe = '          <Route path="/probe" element={<ProtectedRoute><Navbar /><X /></ProtectedRoute>} />'
 assert.ok(/<Route\s+path="([^"]+)"/.test(probe) && /<Navbar\s*\/>/.test(probe),
   'the Navbar detection no longer matches a route line that mounts it')
+
+// …and that the hop works, which is the half the line-only parser missed.
+// `/offline` is the live case: its route line names <OfflineRoute /> and
+// carries no <Navbar /> of its own, so a parser that stopped at the line
+// would report it clean while a learner still gets the retired header.
+assert.ok(
+  !/<Navbar\s*\/>/.test(app.split('\n').find((l) => l.includes('<Route path="/offline"'))),
+  'fixture drift: /offline mounts <Navbar /> on its own line again, so it no longer '
+  + 'exercises the one-hop resolution',
+)
+assert.ok(
+  mountsNavbar.has('/offline'),
+  'the one-hop resolution stopped seeing <Navbar /> inside OfflineRoute',
+)
+// And that the learner-arm exclusion is real rather than vacuous: both of
+// these DO reach <Navbar />, for an admin, and must not be counted.
+assert.ok(
+  /<Navbar\s*\/>/.test(COMPONENTS.get('ProfileRoute')) && !mountsNavbar.has('/profile'),
+  'ProfileRoute reaches <Navbar /> but hands a learner LearnerProfilePage first',
+)
 
 console.log(
   `learner-chrome: ok — ${mountsNavbar.size} learner route(s) still on the legacy chrome`

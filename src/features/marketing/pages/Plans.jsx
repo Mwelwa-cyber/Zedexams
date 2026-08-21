@@ -425,7 +425,7 @@ export default function Plans() {
    * account that HOLDS the plan and a guardian never is — their money credits
    * the child (`beneficiaryUid`) — so they go to /family/plan, the checkout
    * that knows which child it is for. Without this they would be bounced by
-   * ParentRouteGuard to /family/account/billing: their receipts, not a plan
+   * PortalRouteGuard to /family/account/billing: their receipts, not a plan
    * picker.
    */
   function handleLearnerCta() {

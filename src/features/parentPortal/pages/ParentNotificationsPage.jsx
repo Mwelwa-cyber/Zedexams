@@ -169,7 +169,7 @@ export default function ParentNotificationsPage() {
           style={{ textAlign: 'center', marginTop: 16, lineHeight: 1.5 }}
         >
           Choose which of these you get in{' '}
-          {/* The parent's OWN alert settings, not /settings. ParentRouteGuard
+          {/* The parent's OWN alert settings, not /settings. PortalRouteGuard
               already redirects a guardian off the learner settings screen, so
               this was no longer a leak — but it was still a link that named
               the wrong destination and described it with the wrong words
