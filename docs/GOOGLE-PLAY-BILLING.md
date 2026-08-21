@@ -225,6 +225,21 @@ Android build.
 
 ## Real-time Developer Notifications (owner runbook)
 
+> **STATUS: the handler is written and tested; the EXPORT is held back.**
+> `functions/index.js` does not currently export `googlePlayRtdn`, because
+> `onMessagePublished` needs its topic to exist and `firebase deploy`
+> fails the WHOLE functions deploy when it cannot create one —
+> `Unexpected error creating Pub/Sub topic`. That took `main` out of
+> deployment on 2026-08-21 (run 32460825117, both attempts) until the
+> export was removed: hosting correctly refuses to ship over functions
+> that may not have landed, so a single un-creatable topic stops
+> everything. **Do step 1 and 2 below FIRST, then restore the export**
+> (the commented block in `functions/index.js` says exactly how) and
+> regenerate the manifest. Until then the Android rail still works —
+> purchases verify through the client's own `verifyGooglePlayPurchase`
+> call and renewals land on the next app open — it is only the real-time
+> half that is off.
+
 Without this, the ONLY thing that advances a Play subscription is the
 Android client's restore-on-open. That is survivable for a learner who
 opens the app most days and wrong for a **parent**, who buys a plan for
@@ -246,6 +261,14 @@ the family loses access having paid.
      --role=roles/pubsub.publisher --project examsprepzambia
    ```
    Play Console refuses the topic if this binding is missing.
+
+   The DEPLOY service account also needs to attach the trigger to the
+   topic — `roles/pubsub.admin` (or at minimum `pubsub.topics.get` +
+   `pubsub.subscriptions.create`) on the project. Creating the topic by
+   hand is not sufficient on its own if the deployer cannot read it, and
+   the failure looks identical from the deploy log. If the Pub/Sub API
+   has never been used on this project, enable it too:
+   `gcloud services enable pubsub.googleapis.com --project examsprepzambia`.
 3. **Point Play at it** — Play Console ▸ Monetise ▸ Monetisation setup ▸
    Real-time developer notifications ▸ full topic name
    `projects/examsprepzambia/topics/play-rtdn`.
@@ -305,10 +328,13 @@ approved-linked learner.
 
 ## Known v1 limits / follow-ups
 
-- ~~No RTDN webhook yet~~ — **done.** `googlePlayRtdn` (Pub/Sub, us-central1)
-  applies renewals, cancellations, grace period, on-hold, revocation and
-  refunds in real time. See "Real-time Developer Notifications" below; it
-  needs a Play Console step before it does anything.
+- **RTDN is written but NOT DEPLOYED.** `googlePlayRtdn` (Pub/Sub,
+  us-central1) applies renewals, cancellations, grace period, on-hold,
+  revocation and refunds — and its export is held back until the
+  `play-rtdn` topic exists, because a missing topic fails the entire
+  functions deploy. See the status note under "Real-time Developer
+  Notifications". Until it is restored, renewals still land on the next
+  app open (restore-on-open), which is the pre-existing behaviour.
 - **No K25 top-up on Android** — it's a Lenco one-off; top-up CTAs route to
   the Play subscription upgrade. Follow-up: a consumable Play product.
 - **No native Pro→Max plan change/proration** — an actively subscribed user
