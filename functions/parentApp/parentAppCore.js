@@ -177,7 +177,37 @@ function describeStatus(status) {
 /* ── Is this child already paid for? ───────────────────────────────── */
 
 /**
- * Whether a child's account currently holds a paid plan.
+ * The plans a guardian can buy for a child, by id, with the words the
+ * family app prints for each.
+ *
+ * It is deliberately a LABEL table and not a second copy of
+ * `functions/plans.js`: the price and the duration are that file's, and
+ * duplicating either here would be a mirror nobody guards. All this
+ * answers is "what does a parent call the thing they bought", which is
+ * the one fact the family app needs and the payment record does not
+ * carry in readable form.
+ */
+const PLAN_LABELS = {
+  day_pass: "Day pass",
+  weekly: "Weekly",
+  monthly: "Monthly",
+  term_pass: "Term Pass",
+  exam_pass: "Exam Pass",
+  grade7_monthly: "Grade 7 ECZ Pack",
+  grade7_termly: "Grade 7 ECZ Pack",
+  grade12_monthly: "Grade 12 ECZ Pack",
+  full_platform_termly: "Full Platform",
+  single_subject_monthly: "Single Subject",
+};
+
+/** The plan's name for a parent, or a neutral word for an id we don't know. */
+function planLabel(planId) {
+  const id = typeof planId === "string" ? planId : "";
+  return PLAN_LABELS[id] || "Premium";
+}
+
+/**
+ * Whether a child's account currently holds a paid plan, and what plan.
  *
  * The parent app sells to the guardian, so every offer it makes — the
  * plan banner in the shell, the Unlock rows — has to know which children
@@ -191,15 +221,47 @@ function describeStatus(status) {
  * therefore reported as not premium however the flags read; a plan with a
  * live expiry counts even if a flag is missing, which is the shape of
  * every account activated before the flags were all written.
+ *
+ * ── Why this returns more than a boolean ───────────────────────────
+ *
+ * It used to return `{premium, expiresAt}` and only `premium` was sent,
+ * which made a paid child and a free one render identically on the
+ * family dashboard: a guardian who had just bought a day pass had no
+ * screen anywhere that said so. A plan is three facts to the person who
+ * paid for it — that it is on, what it is, and when it ends — and a
+ * caller cannot reconstruct the second and third from a boolean.
+ *
+ * `source` distinguishes a plan bought FOR this child (`beneficiary` /
+ * the direct purchase path) from one that reached them because a
+ * guardian's own subscription cascaded onto every linked learner
+ * (`guardian_cascade`, written by guardianEntitlement.js). The family app
+ * prints the difference, because "you paid for this" and "this came with
+ * your own plan" are different sentences to the adult reading them.
  */
 function childPlanState(user, now) {
   const nowMs = Number.isFinite(now) ? now : Date.now();
   const u = user && typeof user === "object" ? user : {};
   const expiresAt = toMillis(u.subscriptionExpiry);
+  const planId = typeof u.subscriptionPlan === "string" && u.subscriptionPlan ?
+    u.subscriptionPlan :
+    null;
+  const provider = typeof u.subscriptionProvider === "string" ?
+    u.subscriptionProvider :
+    null;
+  const source = provider === "guardian_cascade" ? "guardian_cascade" : "direct";
 
-  if (expiresAt != null) {
-    return {premium: expiresAt > nowMs, expiresAt};
-  }
+  const shape = (premium) => ({
+    premium,
+    expiresAt,
+    // A plan id is only meaningful while the plan is live. Reporting the
+    // id of an expired one would let a screen print "Day pass" beside
+    // "Free plan", which reads as a contradiction rather than as history.
+    planId: premium ? planId : null,
+    planLabel: premium ? planLabel(planId) : null,
+    source: premium ? source : null,
+  });
+
+  if (expiresAt != null) return shape(expiresAt > nowMs);
 
   // No expiry recorded at all. Only an explicit active marker counts —
   // "no information" must not read as "paid".
@@ -208,7 +270,7 @@ function childPlanState(user, now) {
     u.premium === true ||
     u.subscriptionStatus === "active" ||
     u.paymentStatus === "active";
-  return {premium: flagged, expiresAt: null};
+  return shape(flagged);
 }
 
 /* ── The approval feed ─────────────────────────────────────────────── */
@@ -399,6 +461,7 @@ module.exports = {
   NUDGE_AFTER_DAYS,
   ONE_DAY_MS,
   QUIET_AFTER_DAYS,
+  PLAN_LABELS,
   buildWeeklyReport,
   childPlanState,
   childStatus,
@@ -407,6 +470,7 @@ module.exports = {
   dayLabel,
   describeStatus,
   groupActivityByDay,
+  planLabel,
   shapeApprovalFeed,
   toMillis,
 };

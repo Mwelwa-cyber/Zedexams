@@ -25,6 +25,27 @@ export function StatusPill({ status }) {
   return <span className={`pax-status pax-status-${tone}`}>{label}</span>
 }
 
+/**
+ * The Free plan / Premium chip.
+ *
+ * Rendered for EVERY child, paid or not. A chip that only appears when
+ * there is something to sell is the arrangement that made a paid day
+ * pass invisible — the parent app had no surface anywhere that said a
+ * plan was on, so "paid" and "free" both drew as nothing.
+ *
+ * The words come from `describeChildPlan`; this only draws them. `tone`
+ * is a class suffix rather than a colour so Night mode keeps working.
+ */
+export function PlanPill({ plan }) {
+  if (!plan) return null
+  return (
+    <span className={`pax-plan-chip pax-plan-chip-${plan.tone}`}>
+      <span aria-hidden="true">{plan.paid ? '\u2713' : '\u2726'}</span>
+      {plan.pill}
+    </span>
+  )
+}
+
 /** A back row with a title, used by every screen below the four tabs. */
 export function BackRow({ title, subtitle, to, onBack }) {
   const navigate = useNavigate()

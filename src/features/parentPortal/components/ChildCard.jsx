@@ -7,10 +7,19 @@
  * is real (subject completion) and is rendered on the child's own
  * screen where it can be broken down, and the time is not measured at
  * all, so it does not appear. See functions/parentApp/parentAppCore.js.
+ *
+ * The PLAN is the one thing here that is not a progress figure and is
+ * drawn anyway. It was missing entirely: a child a guardian had paid for
+ * and a child they had not looked identical on this card, which is how a
+ * bought day pass ended up with no screen in the whole family app that
+ * acknowledged it. It sits on its own line under the meta rather than
+ * inside it, because the meta line is already at its width on a 360px
+ * phone and the plan is the half a parent is looking for.
  */
 import { useNavigate } from 'react-router-dom'
-import { Avatar, StatusPill } from './ParentPrimitives'
+import { Avatar, PlanPill, StatusPill } from './ParentPrimitives'
 import { firstNameOf } from '../lib/parentAppView'
+import { describeChildPlan } from '../lib/childPlanView'
 
 function lastSeen(ms) {
   if (!Number.isFinite(ms) || ms <= 0) return 'not started yet'
@@ -25,6 +34,7 @@ function lastSeen(ms) {
 export default function ChildCard({ child, index = 0 }) {
   const navigate = useNavigate()
   const name = firstNameOf(child.displayName) || 'Your child'
+  const plan = describeChildPlan(child)
 
   const meta = [
     child.grade ? `Grade ${child.grade}` : null,
@@ -42,6 +52,9 @@ export default function ChildCard({ child, index = 0 }) {
       <span className="pax-kid-main">
         <span className="pax-kid-name">{name}</span>
         <span className="pax-kid-meta">{meta}</span>
+        <span className="pax-kid-tags">
+          <PlanPill plan={plan} />
+        </span>
       </span>
       <StatusPill status={child.status} />
     </button>

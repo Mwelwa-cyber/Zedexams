@@ -920,6 +920,7 @@
     "test:parent-app": "node scripts/test-parent-app.mjs",
     "test:co-guardian": "node scripts/test-co-guardian.mjs",
     "test:parent-app-view": "node scripts/test-parent-app-view.mjs",
+    "test:child-plan-view": "node scripts/test-child-plan-view.mjs",
     "test:guardian-billing": "node scripts/test-guardian-billing.mjs",
     "test:guardian-link": "node scripts/test-guardian-link.mjs",
     "test:shared-guardian-neutral": "node functions/shared/guardian/neutrality.test.js",

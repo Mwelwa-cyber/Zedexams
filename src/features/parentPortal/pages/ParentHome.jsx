@@ -5,6 +5,12 @@
  * Children are ordered by who needs attention first (see sortChildren) —
  * a parent opening the app should not have to read past the child who is
  * fine to find the one who is not.
+ *
+ * It also carries the family's PLAN, which it did not until a guardian
+ * paid for a day pass and found no screen in /family that mentioned it.
+ * See FamilyPlanSection for why that section is never dismissible and
+ * why the route to the price list is on the dashboard rather than three
+ * taps into Account.
  */
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -17,6 +23,7 @@ import { reportClientError } from '../../../utils/clientErrorReporting'
 import { firstNameOf, greetingFor, sortChildren } from '../lib/parentAppView'
 import ApprovalFeed from '../components/ApprovalFeed'
 import ChildCard from '../components/ChildCard'
+import FamilyPlanSection from '../components/FamilyPlanSection'
 import FamilyPreview from '../components/FamilyPreview'
 import { Empty, ErrorRetry, ListSkeleton, ParentHeader } from '../components/ParentPrimitives'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
@@ -97,6 +104,16 @@ export default function ParentHome() {
       {/* Nothing linked: say what the screen will hold rather than
           leaving most of a tall page blank. See FamilyPreview. */}
       {!loading && !error && ordered.length === 0 && <FamilyPreview />}
+
+      {/* Where a guardian finds out what they are paying for, and where
+          they go to pay. Before this the answer to both was Account →
+          Payments → Plans, three taps deep in settings, and the dashboard
+          drew a child on a bought day pass exactly like a child on
+          nothing. It renders whether or not anything is owed — see
+          FamilyPlanSection. */}
+      {!loading && !error && ordered.length > 0 && (
+        <FamilyPlanSection childList={ordered} />
+      )}
 
       {ordered.length > 0 && (
         <>

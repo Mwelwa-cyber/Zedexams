@@ -37,11 +37,23 @@ import {
 } from '../../../utils/lenco'
 import { reportClientError } from '../../../utils/clientErrorReporting'
 import { capture } from '../../../utils/analytics'
+import MobileMoneyMark from '../../../shared/components/MobileMoneyMark'
 
 // Zamtel is offered by the server but the prototype shows two; all three
 // are listed because refusing a network somebody actually uses is worse
 // than one extra button.
 const METHODS = OPERATORS
+
+// The short name under each mark. `OPERATORS[].label` is the full
+// product name ("Zamtel Kwacha"), which at a third of a 360px screen
+// wraps to two lines and pushes the three tiles out of alignment — the
+// mark above it already carries the brand, so the tile only needs the
+// word that distinguishes the three.
+const SHORT_LABEL = {
+  mtn: 'MTN',
+  airtel: 'Airtel',
+  zamtel: 'Zamtel',
+}
 
 // The only wording that may claim nothing was taken. Reserved for Lenco
 // saying 'failed' and nothing else.
@@ -254,30 +266,48 @@ export default function GuardianCheckout({
     )
   }
 
+  const autoDetected = !operatorTouched && Boolean(detectOperator(phone))
+  const chosen = METHODS.find((m) => m.id === resolvedOperator) || null
+
   return (
     <form onSubmit={pay}>
-      <h2 className="lhx-set-head">Pay with mobile money</h2>
-      <div className="pax-pay-methods">
-        {METHODS.map((m) => (
-          <button
-            type="button"
-            key={m.id}
-            className={`pax-pay ${resolvedOperator === m.id ? 'is-selected' : ''}`}
-            aria-pressed={resolvedOperator === m.id}
-            onClick={() => { setOperator(m.id); setOperatorTouched(true) }}
-          >
-            {m.label}
-          </button>
-        ))}
+      {/* A numbered pair of steps rather than one undifferentiated block.
+          The picker and the phone field used to sit under a single "Pay
+          with mobile money" heading with nothing saying that the first
+          was a choice and the second was an entry — at phone width that
+          reads as three bold words above a text box. */}
+      <h2 className="lhx-set-head">1 · Choose your network</h2>
+      <div className="pax-pay-methods" role="radiogroup" aria-label="Mobile money network">
+        {METHODS.map((m) => {
+          const selected = resolvedOperator === m.id
+          return (
+            <button
+              type="button"
+              key={m.id}
+              role="radio"
+              aria-checked={selected}
+              /* The full product name, for a screen reader and for the
+                 tooltip — the tile itself shows the short one. */
+              aria-label={m.label}
+              title={m.label}
+              className={`pax-pay ${selected ? 'is-selected' : ''}`}
+              onClick={() => { setOperator(m.id); setOperatorTouched(true) }}
+            >
+              <MobileMoneyMark operator={m.id} />
+              <span className="pax-pay-name">{SHORT_LABEL[m.id] || m.label}</span>
+            </button>
+          )
+        })}
       </div>
 
+      <h2 className="lhx-set-head">2 · Your mobile money number</h2>
       <label className="sr-only" htmlFor="pax-phone">Mobile money number</label>
       <input
         id="pax-phone"
         className="pax-field"
         inputMode="numeric"
         autoComplete="tel"
-        placeholder="Mobile money number (e.g. 0977 740 465)"
+        placeholder="e.g. 0977 740 465"
         value={phone}
         onChange={(e) => {
           setPhone(e.target.value)
@@ -287,6 +317,24 @@ export default function GuardianCheckout({
           if (stage === 'error') { setStage('idle'); setMessage('') }
         }}
       />
+
+      {/* The network is picked from the number's prefix as it is typed,
+          and always has been — silently, so a parent who never tapped a
+          tile had no way to know which network was about to be charged,
+          or that anything had been decided at all. Saying it is the
+          difference between a highlighted tile that looks like a stray
+          tap and one that looks like an answer. */}
+      {autoDetected && chosen && (
+        <p className="pax-pay-detected" role="status">
+          {/* No indefinite article, deliberately: the sentence has to
+              read correctly in front of all three names, and "a Airtel
+              Money number" / "an MTN MoMo number" cannot both come out
+              of one template. Naming the action rather than the noun
+              also says the more useful thing — what is about to
+              happen. */}
+          Charging <b>{chosen.label}</b> — tap another network above if that is not right.
+        </p>
+      )}
 
       <button
         type="submit"

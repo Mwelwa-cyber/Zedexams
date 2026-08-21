@@ -214,6 +214,57 @@ describe('GuardianCheckout', () => {
     fireEvent.click(screen.getByRole('button', { name: /pay k50/i }))
     expect(await screen.findByRole('alert')).toHaveTextContent(/account owner/i)
   })
+
+  /* ── Choosing a network ──────────────────────────────────────────── */
+
+  it('offers the three networks as one radio group, each named in full', () => {
+    // The tile shows a short label under a coloured mark; the accessible
+    // name has to stay the full product name, or a screen reader is left
+    // with "Zamtel" for a control whose job is to say "Zamtel Kwacha".
+    renderCheckout()
+    const group = screen.getByRole('radiogroup', { name: /network/i })
+    expect(group).toBeInTheDocument()
+    for (const name of ['MTN MoMo', 'Airtel Money', 'Zamtel Kwacha']) {
+      expect(screen.getByRole('radio', { name })).toBeInTheDocument()
+    }
+  })
+
+  it('says out loud which network the number resolved to', () => {
+    // It has always auto-detected from the prefix. It never said so, so a
+    // parent who tapped nothing had no way to know a network had been
+    // chosen for them — or which one was about to be charged.
+    renderCheckout()
+    typeNumber()
+    // By text rather than by role: the secured-by-Lenco note at the foot
+    // of the form is also a live region, so `getByRole('status')` matches
+    // two nodes here.
+    expect(screen.getByText(/Charging/)).toHaveTextContent(/Airtel Money/)
+    expect(screen.getByRole('radio', { name: 'Airtel Money' }))
+      .toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('an explicit tap outranks the number, and stops explaining itself', () => {
+    renderCheckout()
+    typeNumber()
+    fireEvent.click(screen.getByRole('radio', { name: 'MTN MoMo' }))
+    expect(screen.getByRole('radio', { name: 'MTN MoMo' }))
+      .toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('radio', { name: 'Airtel Money' }))
+      .toHaveAttribute('aria-checked', 'false')
+    // The detected-network line is about a choice we made for the parent.
+    // Once they have made their own it would be describing nothing.
+    expect(screen.queryByText(/Charging/)).not.toBeInTheDocument()
+  })
+
+  it('a network mark is decoration — never a second copy of the name', () => {
+    // The mark repeats the brand the label already carries, so it must
+    // stay out of the accessibility tree: "MTN MTN MoMo" is worse than
+    // the label on its own.
+    const { container } = renderCheckout()
+    const marks = container.querySelectorAll('svg.zx-momo-mark')
+    expect(marks.length).toBe(3)
+    for (const mark of marks) expect(mark).toHaveAttribute('aria-hidden', 'true')
+  })
 })
 
 describe('pollLencoStatus contract', () => {

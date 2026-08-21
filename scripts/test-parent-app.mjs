@@ -18,6 +18,7 @@ const core = require('../functions/parentApp/parentAppCore.js')
 const {
   ONE_DAY_MS,
   buildWeeklyReport,
+  childPlanState,
   childStatus,
   dayKey,
   dayLabel,
@@ -316,6 +317,97 @@ t('a missing child name degrades to words', () => {
   const mail = buildReportEmail({ report, quizzes: 1 })
   assert.match(mail.subject, /your child's week/)
   assert.doesNotMatch(mail.text, /undefined/)
+})
+
+/* ── Is the child paid for, and with what? ─────────────────────────── */
+//
+// The bug these pin: a guardian bought a day pass, the money left their
+// account, and no screen in the family app said anything had happened —
+// because the server sent one boolean and a paid child rendered exactly
+// like a free one. Both halves are covered: the boolean must stay right
+// (an offer to someone who already paid is worse than no offer), and the
+// three facts a screen needs to SAY so must come back with it.
+
+t('a live expiry is premium, and carries the plan a parent recognises', () => {
+  const now = Date.UTC(2026, 7, 21, 9, 0)
+  const state = childPlanState({
+    subscriptionExpiry: now + 20 * ONE_DAY_MS,
+    subscriptionPlan: 'monthly',
+    subscriptionProvider: 'lenco',
+  }, now)
+  assert.equal(state.premium, true)
+  assert.equal(state.planId, 'monthly')
+  assert.equal(state.planLabel, 'Monthly')
+  assert.equal(state.source, 'direct')
+  assert.equal(state.expiresAt, now + 20 * ONE_DAY_MS)
+})
+
+t('a day pass bought an hour ago reads as paid', () => {
+  // The reported case. `durationDays: 1` leaves hours on the clock, and a
+  // window this short is exactly where an off-by-a-comparison shows up as
+  // "I paid and nothing happened".
+  const now = Date.UTC(2026, 7, 21, 9, 0)
+  const state = childPlanState({
+    subscriptionExpiry: now + 23 * 3600_000,
+    subscriptionPlan: 'day_pass',
+    subscriptionProvider: 'lenco',
+  }, now)
+  assert.equal(state.premium, true)
+  assert.equal(state.planLabel, 'Day pass')
+})
+
+t('an expired plan is not premium, and does not name itself', () => {
+  const now = Date.UTC(2026, 7, 21, 9, 0)
+  const state = childPlanState({
+    // The flags outlive the period by design — nothing runs at the stroke
+    // of expiry — so a stale `true` must lose to the date.
+    isPremium: true,
+    subscriptionStatus: 'active',
+    subscriptionExpiry: now - ONE_DAY_MS,
+    subscriptionPlan: 'day_pass',
+  }, now)
+  assert.equal(state.premium, false)
+  // Naming an expired plan would print "Day pass" beside "Free plan".
+  assert.equal(state.planId, null)
+  assert.equal(state.planLabel, null)
+  assert.equal(state.source, null)
+})
+
+t('a cascaded plan is distinguishable from one bought for the child', () => {
+  const now = Date.UTC(2026, 7, 21, 9, 0)
+  const state = childPlanState({
+    subscriptionExpiry: now + ONE_DAY_MS,
+    subscriptionPlan: 'monthly',
+    subscriptionProvider: 'guardian_cascade',
+  }, now)
+  assert.equal(state.source, 'guardian_cascade')
+})
+
+t('no information is not evidence of payment', () => {
+  const now = Date.UTC(2026, 7, 21, 9, 0)
+  assert.equal(childPlanState({}, now).premium, false)
+  assert.equal(childPlanState(null, now).premium, false)
+  assert.equal(childPlanState(undefined, now).premium, false)
+})
+
+t('an active flag with no expiry recorded still counts', () => {
+  // The shape of every account activated before all the flags were
+  // written. A live plan with a missing date must not read as free.
+  const now = Date.UTC(2026, 7, 21, 9, 0)
+  const state = childPlanState({subscriptionStatus: 'active', subscriptionPlan: 'weekly'}, now)
+  assert.equal(state.premium, true)
+  assert.equal(state.expiresAt, null)
+  assert.equal(state.planLabel, 'Weekly')
+})
+
+t('a plan id this build does not know is still called something', () => {
+  const now = Date.UTC(2026, 7, 21, 9, 0)
+  const state = childPlanState({
+    subscriptionExpiry: now + ONE_DAY_MS,
+    subscriptionPlan: 'some_future_bundle',
+  }, now)
+  // Never the raw id: a parent should not be shown "some_future_bundle".
+  assert.equal(state.planLabel, 'Premium')
 })
 
 console.log(`parent app core — ${passed} total assertions passed`)

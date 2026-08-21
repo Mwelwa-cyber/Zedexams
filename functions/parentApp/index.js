@@ -294,6 +294,7 @@ async function listGuardianChildren(request) {
     const role = roleFor(links, uid);
     const child = childSnap.exists ? (childSnap.data() || {}) : {};
     const lastActiveAt = lastActiveFrom(activity);
+    const planState = childPlanState(child, Date.now());
 
     return {
       childUid,
@@ -305,10 +306,24 @@ async function listGuardianChildren(request) {
       guardianCount: links.length,
       status: childStatus({lastActiveAt, now: Date.now()}),
       lastActiveAt,
-      // Whether this child is already covered. The parent app's plan
-      // banner and every Unlock row read it, because an offer made to a
-      // guardian who paid last week is worse than no offer at all.
-      premium: childPlanState(child, Date.now()).premium,
+      // Whether this child is already covered, and with what. The parent
+      // app's plan banner and every Unlock row read `premium`, because an
+      // offer made to a guardian who paid last week is worse than no offer
+      // at all — and the dashboard reads `plan` so a guardian who HAS paid
+      // finds a screen that says so. Both come from one call: the boolean
+      // is kept beside the object rather than derived from it at every
+      // reader, because the two are read by different code (the chrome
+      // asks "is anyone unpaid", the card asks "what is this child on")
+      // and a screen resolving the question its own way is how the two
+      // drift.
+      premium: planState.premium,
+      plan: {
+        premium: planState.premium,
+        planId: planState.planId,
+        planLabel: planState.planLabel,
+        expiresAt: planState.expiresAt,
+        source: planState.source,
+      },
       // The consent record, so /family/account/consent can show what
       // this guardian has approved without a second round trip — and so
       // the promise on /child-safety ("you can see, change and withdraw
@@ -358,6 +373,7 @@ async function getGuardianChildDetail(request) {
   ]);
 
   const stats = statsSnap && statsSnap.exists ? (statsSnap.data() || {}) : {};
+  const planState = childPlanState(child, Date.now());
   const roles = resolveGuardianRoles(links);
 
   return {
@@ -368,6 +384,17 @@ async function getGuardianChildDetail(request) {
     capabilities: capabilitiesOf(role),
     streak: Number(stats.currentStreak) || 0,
     xp: Number(stats.xp) || 0,
+    // The same plan facts the overview card shows, so a guardian who
+    // taps through from a "Free plan" pill lands on a screen that agrees
+    // with it. Resolved here rather than passed down from the list,
+    // because this callable is also reached directly by a bookmark.
+    plan: {
+      premium: planState.premium,
+      planId: planState.planId,
+      planLabel: planState.planLabel,
+      expiresAt: planState.expiresAt,
+      source: planState.source,
+    },
     controls: readGuardianControls(child),
     summary: progress.summary,
     subjectBreakdown: progress.subjectBreakdown,

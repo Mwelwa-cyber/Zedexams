@@ -187,12 +187,32 @@
 .pax-kid:active { transform: scale(0.99); }
 
 .pax-kid-main { flex: 1; min-width: 0; }
-.pax-kid-name { font-weight: 900; font-size: 15.5px; }
+
+/*
+ * BLOCK, not inline. These are <span>s inside a <button> (a button may
+ * not contain a <div>), and an inline span puts the name and the meta
+ * line on ONE line with no space between them — "LydiaGrade 7 · last on
+ * 4 days ago" — while its vertical margins are silently dropped, because
+ * vertical margins do not apply to inline boxes. The same two-line row
+ * pattern appears in `.pax-rep-*` below and had the same defect.
+ */
+.pax-kid-name { display: block; font-weight: 900; font-size: 15.5px; }
 .pax-kid-meta {
+  display: block;
   font-size: 12px;
   color: var(--lhx-muted);
   font-weight: 700;
-  margin: 2px 0 7px;
+  margin: 2px 0 0;
+}
+
+/* The plan chip's row under the name. Wraps rather than truncating: a
+   plan that does not fit is the one thing on this card a parent came
+   to read. */
+.pax-kid-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 7px;
 }
 
 .pax-status {
@@ -207,6 +227,92 @@
 .pax-status-ok { background: var(--lhx-green-soft); color: var(--lhx-green-dark); }
 .pax-status-warn { background: var(--lhx-amber-wash); color: var(--lhx-amber-ink); }
 .pax-status-idle { background: var(--lhx-indigo-soft); color: var(--lhx-indigo-text); }
+
+/* ── The plan section ─────────────────────────────────────────────── */
+/*
+ * Two facts a guardian could not previously find anywhere in /family:
+ * whether a child is paid for, and where to pay. Both live here, on the
+ * dashboard, permanently — the amber strip in the shell is an OFFER and
+ * is allowed to be dismissed, and a fact that can be dismissed is how a
+ * paid day pass came to be invisible.
+ *
+ * The chip is deliberately the same shape as `.pax-status`: a parent
+ * reads one row and gets two pills that answer two questions, and making
+ * them different shapes would imply one outranks the other.
+ */
+.pax-plan-chip {
+  font-size: 10.5px;
+  font-weight: 900;
+  padding: 4px 9px;
+  border-radius: 99px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.pax-plan-chip-ok { background: var(--lhx-green-soft); color: var(--lhx-green-dark); }
+.pax-plan-chip-warn { background: var(--lhx-amber-wash); color: var(--lhx-amber-ink); }
+.pax-plan-chip-idle { background: var(--lhx-indigo-soft); color: var(--lhx-indigo-text); }
+
+.pax-planrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 15px;
+  border-bottom: 1px solid var(--lhx-line);
+}
+
+.pax-planrow:last-child { border-bottom: none; }
+
+.pax-planrow-main { flex: 1; min-width: 0; }
+
+.pax-planrow-name {
+  display: block;
+  font-weight: 900;
+  font-size: 13.5px;
+}
+
+.pax-planrow-head {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 800;
+  margin-top: 2px;
+}
+
+.pax-planrow-head-ok { color: var(--lhx-green-dark); }
+.pax-planrow-head-warn { color: var(--lhx-amber-ink); }
+.pax-planrow-head-idle { color: var(--lhx-muted); }
+
+.pax-planrow-detail {
+  display: block;
+  font-size: 11.5px;
+  color: var(--lhx-muted);
+  font-weight: 700;
+  margin-top: 2px;
+  line-height: 1.45;
+}
+
+/* Never shrinks. The whole point of the row is the thing you can tap. */
+.pax-planrow-cta { flex-shrink: 0; }
+
+.pax-plan-lead {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--lhx-muted);
+  padding: 12px 15px 0;
+}
+
+/*
+ * Below 380px the CTA and a long plan line stop fitting side by side, so
+ * the button drops to its own full-width line rather than squeezing the
+ * sentence that explains why it is there.
+ */
+@media (max-width: 380px) {
+  .pax-planrow { flex-wrap: wrap; }
+  .pax-planrow-cta { width: 100%; }
+  .pax-planrow-cta > * { width: 100%; }
+}
 
 /* ── Child detail hero ────────────────────────────────────────────── */
 
@@ -404,8 +510,10 @@
 }
 
 .pax-rep-main { flex: 1; min-width: 0; }
-.pax-rep-title { font-weight: 900; font-size: 14px; }
+/* display: block for the same reason as `.pax-kid-name` above. */
+.pax-rep-title { display: block; font-weight: 900; font-size: 14px; }
 .pax-rep-sub {
+  display: block;
   font-size: 11.5px;
   color: var(--lhx-muted);
   font-weight: 700;
@@ -500,6 +608,10 @@
 }
 
 .pax-plan-price { font-size: 34px; font-weight: 900; line-height: 1; }
+
+/* "Via Google Play" is four times as long as "K50" and must not run off
+   the card. It is the same line, at the size the words fit. */
+.pax-plan-price-native { font-size: 24px; }
 .pax-plan-per { font-size: 12px; font-weight: 800; opacity: 0.9; margin-bottom: 12px; }
 
 .pax-plan-feature {
@@ -532,14 +644,30 @@
 .pax-pass b { display: block; font-size: 16px; font-weight: 900; }
 .pax-pass small { font-size: 11px; color: var(--lhx-muted); font-weight: 800; }
 
-.pax-pay-methods { display: flex; gap: 10px; margin-bottom: 12px; }
+/*
+ * The mobile-money picker.
+ *
+ * A GRID rather than a flex row, so the three tiles are exactly equal
+ * whatever their labels say. `flex: 1` on three items with different
+ * text lengths gives three different widths as soon as one word wraps,
+ * which is what made "MTN MoMo / Airtel Money / Zamtel Kwacha" read as
+ * three unrelated buttons instead of one choice of three.
+ */
+.pax-pay-methods {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
 
+/* The one place this class is reused for something other than a network
+   (ParentPlan's "who is this for?" child picker) has no mark inside it,
+   so the mark's own rules below simply do not apply there. */
 .pax-pay {
-  flex: 1;
   background: var(--lhx-card);
   border: 2px solid transparent;
   border-radius: var(--lhx-radius-sm);
-  padding: 12px;
+  padding: 10px 8px;
   text-align: center;
   font-weight: 900;
   font-size: 13px;
@@ -547,9 +675,57 @@
   box-shadow: var(--lhx-shadow);
   font-family: inherit;
   color: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  /* 44px is the floor the rest of the product holds touch targets to;
+     a tile with a mark in it is taller than that anyway, and this keeps
+     the child-picker reuse above the line too. */
+  min-height: 44px;
 }
 
 .pax-pay.is-selected { border-color: var(--lhx-indigo2); background: var(--lhx-indigo-soft); }
+
+/*
+ * The brand mark. A fixed aspect box, sized in the tile rather than in
+ * the SVG, so the three marks are identical rectangles however long the
+ * word inside one of them is.
+ */
+.zx-momo-mark {
+  display: block;
+  width: 100%;
+  max-width: 74px;
+  height: auto;
+  aspect-ratio: 96 / 56;
+  border-radius: 9px;
+}
+
+.pax-pay-name {
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+/* What the number's prefix resolved to. Never an error tone: it is a
+   statement about what will happen, and the tiles above it are how a
+   parent changes it. */
+.pax-pay-detected {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--lhx-muted);
+  line-height: 1.5;
+  margin: -4px 0 12px;
+}
+
+.pax-pay-detected b { color: var(--lhx-ink); font-weight: 900; }
+
+@media (max-width: 340px) {
+  /* Two up, then one — three marks plus their labels stop being legible
+     below this and a wrapped grid beats three squeezed columns. */
+  .pax-pay-methods { grid-template-columns: repeat(2, 1fr); }
+}
 
 .pax-field {
   width: 100%;
