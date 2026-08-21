@@ -27,6 +27,17 @@
  *      learner-tab route may be written as a literal inside either
  *      renderer.
  *
+ *   4. **The bar offers a tab the app would refuse.** `/papers` and
+ *      `/games` are public routes that mount the learner shell, so this
+ *      bar is drawn for teachers and guardians as well as learners — and
+ *      Home (`/dashboard`) and Notes (`/notes`) are `LearnerOnlyRoute`
+ *      pages. Until 2026-08-21 a teacher who tapped Home on the past-paper
+ *      archive was answered with "Teacher accounts stay in the teacher
+ *      portal", inside the very shell whose bar had just sent them there.
+ *      `resolveLearnerTabs` closes it; the two checks below are that each
+ *      tab's `learnerOnly` flag still agrees with the route table, and
+ *      that the resolver still acts on it.
+ *
  * Also pins `activeLearnerTab`, because a nav that cannot say which tab it
  * is on is what the Papers copy did (`active: true`, hardcoded, forever).
  *
@@ -36,7 +47,8 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { LEARNER_TABS, activeLearnerTab } from '../src/shared/constants/learnerTabs.js'
+import { LEARNER_TABS, activeLearnerTab, resolveLearnerTabs } from '../src/shared/constants/learnerTabs.js'
+import { isLearnerOnlyPath, canOpenLearnerRoutes, getRoleLandingPath } from '../src/utils/navigation.js'
 import { makeRouteMatcher } from './lib/declaredRoutes.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -56,6 +68,10 @@ for (const tab of LEARNER_TABS) {
     assert.ok(tab[key].length > 0, `tab ${tab.id} has an empty ${key}`)
   }
   assert.equal(typeof tab.end, 'boolean', `tab ${tab.id} must state whether its match is exact`)
+  assert.equal(
+    typeof tab.learnerOnly, 'boolean',
+    `tab ${tab.id} must state whether LearnerOnlyRoute refuses it to a non-learner`,
+  )
   assert.ok(tab.to.startsWith('/'), `tab ${tab.id} must be an absolute path`)
   assert.ok(Object.isFrozen(tab), `tab ${tab.id} is mutable — a shared registry a consumer can edit is not one`)
 }
@@ -96,8 +112,10 @@ for (const file of RENDERERS) {
   const src = read(file)
   assert.match(
     src,
-    /LEARNER_TABS/,
-    `${file} no longer reads LEARNER_TABS — that is the fork this registry exists to prevent`,
+    /resolveLearnerTabs\(/,
+    `${file} no longer resolves its tabs through the registry — that is the fork this `
+    + 'registry exists to prevent, and going back to the raw array would also drop the '
+    + 'audience check that keeps a teacher off /dashboard',
   )
   for (const tab of LEARNER_TABS) {
     // A route written as a string literal in a renderer is a second copy of
@@ -142,4 +160,88 @@ assert.equal(activeLearnerTab('/papers-archive'), null)
 assert.equal(activeLearnerTab(''), null)
 assert.equal(activeLearnerTab(undefined), null)
 
-console.log(`learner tabs: ${LEARNER_TABS.length} tabs — routes resolve, labels translate, both bars read the registry`)
+/* ── 5. `learnerOnly` agrees with the route table ─────────────────────── */
+
+// The flag is written down in `src/shared` because that layer may not import
+// `src/utils/navigation.js` (which reaches an engine). A copied fact needs a
+// guard or it is just a comment: this is it, and it runs in both directions.
+for (const tab of LEARNER_TABS) {
+  assert.equal(
+    tab.learnerOnly,
+    isLearnerOnlyPath(tab.to),
+    `tab ${tab.id} says learnerOnly: ${tab.learnerOnly}, but LEARNER_ONLY_SEGMENTS `
+    + `says ${isLearnerOnlyPath(tab.to)} about ${tab.to}. `
+    + (tab.learnerOnly
+      ? 'A tab flagged learner-only that is not gets hidden from a teacher for no reason.'
+      : 'A tab that IS gated and is not flagged is offered to a teacher and then refused — '
+        + 'the bug this flag exists to prevent.'),
+  )
+}
+
+/* ── 6. The resolver acts on it ───────────────────────────────────────── */
+
+// A learner, an admin and a signed-out visitor all see the bar unchanged.
+// `resolveLearnerTabs` returns the registry itself in that case, so this is
+// identity rather than deep equality — a copy would mean a branch was taken.
+assert.equal(resolveLearnerTabs(), LEARNER_TABS, 'the default audience is the full bar')
+assert.equal(
+  resolveLearnerTabs({ learnerRoutesOpen: true, homePath: '/admin' }),
+  LEARNER_TABS,
+  'an account that CAN open learner routes keeps /dashboard as Home — an admin previewing '
+  + 'the learner app must not be ejected to /admin by the Home tab',
+)
+
+// …and every role the guard refuses gets a bar it can actually use.
+for (const profile of [
+  { role: 'teacher' },
+  { role: 'parent' },
+  { role: 'something-this-app-does-not-know' },
+]) {
+  assert.equal(canOpenLearnerRoutes(profile), false, `${profile.role} should be refused learner routes`)
+  const homePath = getRoleLandingPath(profile)
+  const tabs = resolveLearnerTabs({ learnerRoutesOpen: false, homePath })
+
+  const home = tabs.find((t) => t.id === 'home')
+  assert.ok(home, 'Home is retargeted, never dropped — a shell with no header and no bar strands the account')
+  assert.equal(home.to, homePath, `Home must lead ${profile.role} to ${homePath}`)
+  assert.equal(home.label, 'Home', 'the retargeted tab is still Home — it is the same idea, a reachable one')
+
+  for (const tab of tabs) {
+    assert.ok(
+      tab.id === 'home' || !isLearnerOnlyPath(tab.to),
+      `the bar offers ${profile.role} ${tab.to}, which LearnerOnlyRoute refuses`,
+    )
+  }
+  // The public half survives: dropping Papers and Games would leave a teacher
+  // on /papers with a bar that cannot reach the page they are looking at.
+  assert.deepEqual(
+    tabs.map((t) => t.id),
+    ['home', 'papers', 'games'],
+    'a refused account keeps Home (retargeted) plus the two public tabs, in IA order',
+  )
+}
+
+// The registry itself is never mutated by a resolution — both bars call this
+// on every render, and a shared frozen array that a caller could edit is the
+// thing `Object.freeze` is there to stop.
+assert.deepEqual(
+  LEARNER_TABS.map((t) => t.to),
+  ['/dashboard', '/papers', '/notes', '/games'],
+  'resolveLearnerTabs must not write through to the registry',
+)
+
+// The guard can fail: flagging Notes as public is the exact regression, and
+// it must be visible here rather than on a teacher's phone.
+{
+  const mislabelled = { id: 'notes', to: '/notes', learnerOnly: false }
+  assert.notEqual(
+    mislabelled.learnerOnly,
+    isLearnerOnlyPath(mislabelled.to),
+    'Mutation check: a learner-only tab flagged public must be detectable',
+  )
+}
+
+console.log(
+  `learner tabs: ${LEARNER_TABS.length} tabs — routes resolve, labels translate, both bars read `
+  + 'the registry, and no bar offers a tab its account would be refused',
+)

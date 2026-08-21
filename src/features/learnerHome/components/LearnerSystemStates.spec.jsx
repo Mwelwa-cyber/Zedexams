@@ -12,6 +12,13 @@ import { render, screen, fireEvent, act } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 
 vi.mock('../../../firebase/config', () => ({ default: {}, auth: {}, db: {} }))
+// The shell reads the profile for one thing only — telling the tab bar who it
+// is drawing for, so a teacher on the public /papers route is not offered a
+// Home tab that refuses them. A signed-out visitor is the neutral case for
+// every assertion in this file, and gets the full four tabs.
+vi.mock('../../../contexts/AuthContext', () => ({
+  useAuth: () => ({ currentUser: null, userProfile: null }),
+}))
 vi.mock('../../../utils/clientErrorReporting', () => ({ reportClientError: vi.fn() }))
 vi.mock('../../../utils/swRecovery', () => ({
   isChunkLoadError: () => false,
