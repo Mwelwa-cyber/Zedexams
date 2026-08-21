@@ -33,6 +33,14 @@ const BUILDERS = [
   // which is why this list is checked against the tree rather than assumed:
   //   grep -rE '=[[:space:]]*on[A-Z][A-Za-z]*[[:space:]]*\(' functions --include=*.js
   'onObjectFinalized',
+  // Pub/Sub triggers. `googlePlayRtdn` is the only one today — Google Play's
+  // Real-time Developer Notifications, which carry every renewal, refund and
+  // revocation on the Android billing rail. It arrived recorded as a bare
+  // `factory` with UNRESOLVED options, which is the failure this list's own
+  // comment describes: the follower reached the right call and did not
+  // recognise what it found, so its region, secrets and timeout sat outside
+  // the guard entirely.
+  'onMessagePublished',
 ]
 
 /**

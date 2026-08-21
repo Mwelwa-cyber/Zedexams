@@ -28,7 +28,14 @@
 import { NativePurchases, PURCHASE_TYPE } from '@capgo/native-purchases'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import app from '../firebase/config'
-import { PLAY_SUBS, playProductForPlan, planIdForPlayProduct, obfuscatedAccountIdForUid } from './playBillingCatalog'
+import {
+  PLAY_SUBS,
+  PLAY_PRODUCT_TYPE,
+  playProductForPlan,
+  planIdForPlayProduct,
+  planRenewsOnPlay,
+  obfuscatedAccountIdForUid,
+} from './playBillingCatalog'
 import {
   diffPlayCatalog,
   describePlayCatalogShortfall,
@@ -80,17 +87,37 @@ export async function fetchPlayProducts(planIds) {
     throw new Error('Google Play billing is not available on this device')
   }
 
-  const { products } = await NativePurchases.getProducts({
-    productIdentifiers: wanted.map((w) => w.productId),
-    productType: PURCHASE_TYPE.SUBS,
-  })
-
+  // Play answers for ONE product type per query, so a mixed list (the
+  // parent checkout offers subscriptions and passes side by side) needs
+  // two. They run SEQUENTIALLY on purpose: the plugin's own docs warn
+  // that the native billing client races on concurrent product queries,
+  // which surfaces as products missing at random rather than as an error.
   const byProductId = new Map()
-  for (const p of products || []) {
-    // Android subs: planIdentifier carries the product id; identifier is
-    // the base plan. Fall back to identifier for other platforms.
-    const productId = p.planIdentifier || p.productIdentifier || p.identifier
-    if (productId && !byProductId.has(productId)) byProductId.set(productId, p)
+  for (const productType of [PURCHASE_TYPE.SUBS, PURCHASE_TYPE.INAPP]) {
+    const ids = wanted
+      .filter((w) => (w.type === PLAY_PRODUCT_TYPE.INAPP) === (productType === PURCHASE_TYPE.INAPP))
+      .map((w) => w.productId)
+    if (!ids.length) continue
+    let products = []
+    try {
+      ;({ products } = await NativePurchases.getProducts({
+        productIdentifiers: ids,
+        productType,
+      }))
+    } catch (err) {
+      // One type failing must not blank the other. The shortfall is
+      // reported below either way, so a half-answer still lets a buyer
+      // buy what Play DID return rather than seeing an empty panel.
+      console.error(`[playBilling] getProducts(${productType}) failed`, err)
+      continue
+    }
+    for (const p of products || []) {
+      // Android subs: planIdentifier carries the product id; identifier is
+      // the base plan. A one-time product has no base plan, so it comes
+      // back on productIdentifier/identifier. Fall back across all three.
+      const productId = p.planIdentifier || p.productIdentifier || p.identifier
+      if (productId && !byProductId.has(productId)) byProductId.set(productId, p)
+    }
   }
 
   // Report the shortfall BEFORE building the result, so a throw while mapping
@@ -105,9 +132,15 @@ export async function fetchPlayProducts(planIds) {
     out.push({
       planId: w.planId,
       productId: w.productId,
+      // Play's own localized price. NEVER substitute a ZMW literal here —
+      // the store is authoritative on what the buyer is charged, and
+      // quoting our own figure beside Play's is both a policy problem and
+      // a way to promise a price we do not set.
       priceString: p.priceString || '',
       price: p.price ?? null,
       title: p.title || '',
+      type: w.type,
+      renews: planRenewsOnPlay(w.planId),
     })
   }
   return out
@@ -123,23 +156,36 @@ export async function fetchPlayProducts(planIds) {
  * re-derives and verifies it (issue #1596). On @capgo/native-purchases,
  * `appAccountToken` maps to Play's ObfuscatedAccountId on Android.
  */
-export async function purchasePlaySubscription(planId, uid) {
+export async function purchasePlayProduct(planId, uid) {
   const entry = playProductForPlan(planId)
   if (!entry) throw new Error(`No Google Play product mapped for plan "${planId}"`)
+  const isOneTime = entry.type === PLAY_PRODUCT_TYPE.INAPP
   const appAccountToken = obfuscatedAccountIdForUid(uid)
   const transaction = await NativePurchases.purchaseProduct({
     productIdentifier: entry.productId,
-    planIdentifier: entry.basePlanId,
-    productType: PURCHASE_TYPE.SUBS,
+    // A one-time product has no base plan; sending an empty one is not the
+    // same as sending none.
+    ...(entry.basePlanId ? { planIdentifier: entry.basePlanId } : {}),
+    productType: isOneTime ? PURCHASE_TYPE.INAPP : PURCHASE_TYPE.SUBS,
     // Bind the purchase to this account (empty → omitted, so legacy callers
     // and unusable uids fall back to the server's first-writer guard).
+    // On a guardian purchase this is the PARENT's uid — they are the buyer,
+    // and the child they are buying for travels separately as a verified
+    // beneficiary. Binding the child here would make every guardian
+    // purchase look like a cross-account replay to the server.
     ...(appAccountToken ? { appAccountToken } : {}),
+    // Never consume a pass. Consuming makes it re-purchasable and discards
+    // the record a restore-on-open needs to prove the grant already
+    // happened; we acknowledge instead.
+    ...(isOneTime ? { isConsumable: false } : {}),
     // Acknowledge server-side after verification (see module header).
     autoAcknowledgePurchases: false,
   })
   const purchaseToken = transaction?.purchaseToken || transaction?.transactionId || ''
   if (!purchaseToken) throw new Error('Purchase completed but no purchase token was returned')
   return {
+    // The server needs this to choose its verification endpoint, so fall
+    // back to the mapped id rather than sending an empty string.
     productId: transaction?.productIdentifier || entry.productId,
     purchaseToken,
   }
@@ -167,9 +213,12 @@ export function classifyPurchaseError(err) {
  * @returns {Promise<Array<{productId, purchaseToken}>>}
  */
 export async function restorePlayPurchases() {
-  const { purchases } = await NativePurchases.getPurchases({
-    productType: PURCHASE_TYPE.SUBS,
-  })
+  // No productType filter → Play returns subscriptions AND one-time
+  // products. Filtering to subs (as this did before passes existed) would
+  // leave an interrupted day/term pass permanently unverified, and an
+  // unacknowledged purchase is auto-refunded after three days — so the
+  // buyer would lose both the pass and the money with nothing logged.
+  const { purchases } = await NativePurchases.getPurchases()
   const seen = new Set()
   const out = []
   for (const t of purchases || []) {
@@ -183,10 +232,22 @@ export async function restorePlayPurchases() {
 
 /**
  * Send purchase token(s) to the backend for verification + grant.
+ *
+ * `beneficiaryUid` names the linked child a guardian is buying for. It is
+ * a REQUEST, not a grant: the server re-authorises the pair against its
+ * own read of parentLinks before it credits anybody
+ * (functions/guardianBillingAuth.js). A restore sends none — it enumerates
+ * whatever the Google account owns and has no idea who any of it was for.
+ *
  * @returns {Promise<{results: Array, verifiedAt: string}>}
  */
-export async function verifyPlayPurchases({ purchases, source }) {
-  const res = await verifyCallable({ purchases, source })
+export async function verifyPlayPurchases({ purchases, source, beneficiaryUid, guardianRequestId }) {
+  const res = await verifyCallable({
+    purchases,
+    source,
+    ...(beneficiaryUid ? { beneficiaryUid } : {}),
+    ...(guardianRequestId ? { guardianRequestId } : {}),
+  })
   return res.data
 }
 
@@ -209,4 +270,4 @@ export async function openPlaySubscriptionManagement(productId) {
   window.open(url, '_blank')
 }
 
-export { PLAY_SUBS, planIdForPlayProduct }
+export { PLAY_SUBS, planIdForPlayProduct, planRenewsOnPlay }

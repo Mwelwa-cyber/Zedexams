@@ -184,61 +184,56 @@ exports.buildPaymentHandlers = (deps) => {
 
       // ── Is this a guardian buying for a child? ────────────────────────
       //
-      // Authorised HERE, from the server's own read of parentLinks, before
+      // Authorised from the server's own read of parentLinks, before
       // anything is written or charged. The client sends a uid and nothing
       // more; a client that could name any beneficiary could credit a
-      // stranger's account. See functions/guardianBillingCore.js.
-      const {
-        decideGuardianPayment,
-        guardianPaymentFields,
-        normalizeBeneficiary,
-      } = require("./guardianBillingCore");
-      const beneficiaryUid = normalizeBeneficiary(request.data?.beneficiaryUid, uid);
+      // stranger's account.
+      //
+      // The lookup lives in guardianBillingAuth so the Google Play rail
+      // asks the same question of the same data — see that module's
+      // docblock for why a second copy here would be the dangerous kind
+      // of fork.
+      const {guardianPaymentFields} = require("./guardianBillingCore");
+      const {authoriseGuardianPurchase} = require("./guardianBillingAuth");
 
-      let beneficiary = null;
-      let guardianRequestId = null;
-      if (beneficiaryUid) {
-        const [{roleFor, can}, linkSnap] = await Promise.all([
-          import("./shared/guardian/guardianRolesCore.js"),
-          db.collection("parentLinks").where("learnerUid", "==", beneficiaryUid).get(),
-        ]);
-        const links = linkSnap.docs.map((d) => d.data() || {});
-        const verdict = decideGuardianPayment({
-          beneficiaryUid,
-          role: roleFor(links, uid),
-          can,
+      const guardianAuth = await authoriseGuardianPurchase({
+        db,
+        payerUid: uid,
+        beneficiaryUid: request.data?.beneficiaryUid,
+        guardianRequestId: request.data?.guardianRequestId,
+        logLabel: "initiateLencoPayment",
+      });
+      if (!guardianAuth.ok) {
+        throw new HttpsError(guardianAuth.code, guardianAuth.message, {reason: guardianAuth.reason});
+      }
+      const {beneficiaryUid, beneficiary, guardianRequestId} = guardianAuth;
+
+      // ── Already paying on the other rail? ─────────────────────────────
+      //
+      // Neither rail can see the other's charge, so a parent who paid on
+      // Android and then opens the website would otherwise be shown a Buy
+      // button and pay twice — every month, because a Play subscription
+      // renews itself. The browser hides the button using this same
+      // module; this is the half that actually refuses.
+      {
+        const {RAIL, decideCrossRail, crossRailMessage} =
+          await import("./shared/billing/crossRailCore.js");
+        const payerSnap = await db.collection("users").doc(uid).get();
+        const verdict = decideCrossRail({
+          rail: RAIL.LENCO,
+          accounts: [
+            {who: "payer", user: payerSnap.exists ? payerSnap.data() : null},
+            ...(beneficiary ? [{who: "child", user: beneficiary}] : []),
+          ],
         });
         if (!verdict.allowed) {
-          throw new HttpsError("permission-denied", verdict.message, {reason: verdict.reason});
-        }
-        const beneficiarySnap = await db.collection("users").doc(beneficiaryUid).get();
-        if (!beneficiarySnap.exists) {
-          throw new HttpsError("not-found", "That child's account could not be found.");
-        }
-        beneficiary = beneficiarySnap.data() || {};
-
-        // Which request, if any, this payment settles. The id arrives from a
-        // URL in an email, and settling it flips a record and tells a child
-        // their guardian unlocked what they asked for — so it is honoured
-        // only when the STORED request names this same child and is still
-        // outstanding. A mismatch is dropped silently rather than refused:
-        // the payment itself is legitimate and must not be blocked by a
-        // stale link.
-        const requestedId = cleanString(request.data?.guardianRequestId, 128);
-        if (requestedId) {
-          const {decideRequestSettlement} = require("./guardianBillingCore");
-          const reqSnap = await db.collection("guardianRequests").doc(requestedId).get();
-          const verdict = decideRequestSettlement({
-            request: reqSnap.exists ? reqSnap.data() : null,
-            beneficiaryUid,
+          console.warn("[initiateLencoPayment] refused — active on the other rail", {
+            uid, who: verdict.who, existingRail: verdict.existing?.rail,
           });
-          if (verdict.settle) {
-            guardianRequestId = requestedId;
-          } else {
-            console.warn("[initiateLencoPayment] guardian request not settled", {
-              requestedId, reason: verdict.reason,
-            });
-          }
+          throw new HttpsError("failed-precondition", crossRailMessage(verdict), {
+            reason: verdict.reason,
+            existingRail: verdict.existing?.rail || null,
+          });
         }
       }
 
@@ -597,6 +592,33 @@ exports.buildPaymentHandlers = (deps) => {
       }
       const source = request.data?.source === "restore" ? "restore" : "purchase";
 
+      // ── Is this a guardian buying for a child? ────────────────────────
+      //
+      // The Android parent checkout sends the child it is buying for, the
+      // same way the web one does. Authorised HERE against the server's own
+      // read of parentLinks, through the SAME module the Lenco initiate
+      // uses — a second copy of "who may spend a parent's money" is the one
+      // fork whose halves keep working on different rules until a family
+      // disputes a charge.
+      //
+      // A RESTORE sends no beneficiary: it enumerates whatever the Google
+      // account owns and has no idea who any of it was for. That means a
+      // purchase whose verification was interrupted and later restored
+      // credits the PAYER rather than the named child — the child is still
+      // unlocked, via the guardian cascade, so the failure costs the
+      // receipt's "for Mutinta" line and nothing else.
+      const {authoriseGuardianPurchase} = require("./guardianBillingAuth");
+      const guardianAuth = await authoriseGuardianPurchase({
+        db: admin.firestore(),
+        payerUid: uid,
+        beneficiaryUid: request.data?.beneficiaryUid,
+        guardianRequestId: request.data?.guardianRequestId,
+        logLabel: "verifyGooglePlayPurchase",
+      });
+      if (!guardianAuth.ok) {
+        throw new HttpsError(guardianAuth.code, guardianAuth.message, {reason: guardianAuth.reason});
+      }
+
       const play = require("./googlePlayBilling");
       let accessToken;
       try {
@@ -614,8 +636,14 @@ exports.buildPaymentHandlers = (deps) => {
           const r = await play.verifyAndApplyPurchase({
             uid,
             purchaseToken: p.purchaseToken,
+            // Chooses the Play endpoint (subscription vs one-time pass).
+            // Every fact used to grant still comes from Google's response.
+            productId: p.productId,
             accessToken,
             emailSecrets: lencoEmailSecrets(),
+            beneficiaryUid: guardianAuth.beneficiaryUid,
+            beneficiaryName: guardianAuth.beneficiary?.displayName || null,
+            guardianRequestId: guardianAuth.guardianRequestId,
           });
           results.push(r);
         } catch (err) {

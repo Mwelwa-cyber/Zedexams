@@ -45,6 +45,12 @@ const SHIMS = [
   'src/utils/guardianLink.js',
   'src/utils/guardianRoles.js',
   'src/utils/guardianControls.js',
+  // The billing package's shim. What it re-exports decides whether a parent
+  // who is already paying on one rail is offered a second checkout on the
+  // other. A rule that grew here would be a rule the server never sees —
+  // and the server is the half that has to refuse, because by the time a
+  // Play purchase reaches us Google has already taken the money.
+  'src/utils/crossRail.js',
 ]
 
 let passed = 0

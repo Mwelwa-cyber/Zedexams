@@ -19,15 +19,32 @@
  *
  * A guardian purchase is never an upgrade, so the price shown is always
  * the plan's full price; there is no prorated quote to refresh.
+ *
+ * ── Two rails, one screen ───────────────────────────────────────────
+ *
+ * On the web a guardian pays through Lenco. On Android they pay through
+ * Google Play, because Play policy requires digital subscriptions sold
+ * inside the app to go through Play Billing. The seam is the same
+ * `isNativePlatform()` one `UpgradeModal` uses.
+ *
+ * What the branch replaces is deliberately MORE than the pay button: the
+ * plan cards below print `K{priceZMW}` from our own config, and on
+ * Android the only price a buyer may be shown is Play's own localized
+ * one. So the whole price-and-checkout block swaps for
+ * `ParentPlayCheckout`, which renders its cards from what Play returns.
+ * Choosing WHICH CHILD is rail-independent and stays here.
  */
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { PLANS as CHECKOUT_PLANS } from '../../../engines/payment-engine/subscriptionConfig'
 import { useNetworkStatus } from '../../../hooks/useNetworkStatus'
+import { isNativePlatform } from '../../../utils/runtime'
 import useGuardianChildren from '../hooks/useGuardianChildren'
 import { can } from '../../../utils/guardianRoles'
 import { firstNameOf } from '../lib/parentAppView'
 import GuardianCheckout from '../components/GuardianCheckout'
+import ParentPlayCheckout from '../components/ParentPlayCheckout'
+import ParentPlanStatus from '../components/ParentPlanStatus'
 import { BackRow, Empty, ListSkeleton } from '../components/ParentPrimitives'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 
@@ -38,6 +55,7 @@ const HEADLINE = ['weekly', 'monthly']
 export default function ParentPlan() {
   const [params] = useSearchParams()
   const online = useNetworkStatus()
+  const native = isNativePlatform()
   const { loading, children } = useGuardianChildren()
 
   const requestedChild = params.get('child')
@@ -99,6 +117,22 @@ export default function ParentPlan() {
             </>
           )}
 
+          {/* Already covered → what they have, not another way to buy it.
+              The two rails cannot see each other's charges, so a Buy
+              button here is how a parent pays twice — see
+              functions/shared/billing/crossRailCore.js, which the server
+              uses to refuse the same purchase. */}
+          {child.premium ? (
+            <ParentPlanStatus child={child} />
+          ) : native ? (
+            <ParentPlayCheckout
+              childUid={child.childUid}
+              childName={childName}
+              guardianRequestId={guardianRequestId}
+              disabled={online === false}
+            />
+          ) : (
+          <>
           <div className="pax-cycle" role="tablist" aria-label="Billing period">
             {HEADLINE.map((id) => (
               <button
@@ -157,10 +191,13 @@ export default function ParentPlan() {
               disabled={online === false}
             />
           )}
+          </>
+          )}
 
           <p className="pax-note">
-            One plan covers one child. Paying here unlocks {childName}'s account —
-            not yours — and the receipt comes to you.
+            Paying here unlocks {childName}'s account — not yours — and the
+            receipt comes to you. Any other children linked to you are
+            unlocked at the same time.
           </p>
         </>
       )}
