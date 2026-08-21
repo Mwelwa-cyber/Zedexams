@@ -75,9 +75,11 @@ export const LEARNER_PORTAL_DENIALS = Object.freeze({
     // the check that was guarding against it.
     //
     // '/profile' terminates: it is ProtectedRoute-only, it re-resolves nothing
-    // by role, and ParentRouteGuard already moves a guardian from it to their
-    // own equivalent. An account whose role this app does not recognise can
-    // always open it.
+    // by role, and PortalRouteGuard already moves a guardian — and, since the
+    // teacher table was added, a teacher — from it to their own equivalent.
+    // Neither of those is this audience, which is precisely a role the app does
+    // not recognise: no table covers it, so nothing moves it off, and it can
+    // always open the page.
     actionLabel: 'Go to your account',
     actionPath: '/profile',
   }),

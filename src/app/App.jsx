@@ -9,7 +9,7 @@ import { PlatformSettingsProvider } from '../contexts/PlatformSettingsContext'
 import { MaintenanceBanner, AndroidUpdateBanner } from '../features/platformNotices'
 import { AnnouncementBanner } from '../features/announcements'
 import { SubscriptionStatusBanner } from '../features/subscription'
-import ParentRouteGuard from './guards/ParentRouteGuard'
+import PortalRouteGuard from './guards/PortalRouteGuard'
 import ProtectedRoute from './guards/ProtectedRoute'
 import { TEACHER_ROUTES, FlaggedStudioRoute } from './routes/teacherRoutes'
 import AdminMfaGate from './guards/AdminMfaGate'
@@ -100,6 +100,18 @@ const ProfilePage = lazy(() => import('../features/learnerDashboard/pages/Profil
  * keeps the shared ProfilePage under the classic Navbar. The branch
  * lives here because App.jsx is the one file licensed to lazy-mount
  * feature pages directly (test:import-boundaries' route-table rule).
+ *
+ * A TEACHER never reaches the `else` here: PortalRouteGuard sends them to
+ * `/settings/profile`, their own profile panel inside the teacher shell,
+ * before this component renders. That is on purpose and it is not
+ * belt-and-braces — this branch had no teacher arm at all, so a teacher
+ * got the LEARNER header (Notes, Lessons, Practise) over a page whose own
+ * back link read "Back to Teacher", and a stashed `/profile` returned them
+ * to it on every sign-in. The redirect lives in the guard rather than here
+ * because the same hole is reachable through `/my-badges`, `/subscription`
+ * and any link somebody adds next; see utils/portalRedirects.
+ *
+ * So what is left below is the ADMIN (and any unrecognised role) arm.
  */
 function ProfileRoute() {
   const { userProfile } = useAuth()
@@ -441,6 +453,29 @@ function SettingsPage() {
   )
 }
 
+// Role-branched CHROME, not a role-branched page. The Offline Library is a
+// genuinely shared surface — it holds a teacher's downloaded worksheets and
+// lesson notes exactly as it holds a learner's quizzes — so a teacher is not
+// redirected off it (it is deliberately absent from TEACHER_ROUTE_REDIRECTS).
+// What was wrong was the header: the route rendered the legacy learner
+// `Navbar`, which is how /offline became the second of only two places a
+// teacher met Notes / Lessons / Practise. It gets the teacher shell instead,
+// the same treatment /settings already had.
+//
+// isAdmin is checked FIRST for the reason SettingsPage states: isTeacher
+// includes super-admins (AuthContext), and admins stay on the admin chrome.
+function OfflineRoute() {
+  const { isAdmin, isTeacher } = useAuth()
+  if (!isAdmin && isTeacher) {
+    return (
+      <TeacherLayout>
+        <OfflineLibraryPage />
+      </TeacherLayout>
+    )
+  }
+  return <><Navbar /><OfflineLibraryPage /></>
+}
+
 // Every /admin/* route is admin-only AND now MFA-mandatory: ProtectedRoute
 // enforces the admin role + verification, AdminMfaGate then forces enrolment
 // before the AdminLayout (and any admin page) can render. The MFA setup page
@@ -567,12 +602,15 @@ export default function App() {
       <div id="main" tabIndex={-1}>
         <Suspense fallback={<PageLoader />}>
           <RouteErrorBoundary>
-          {/* A parent session never renders a learner screen. Mounted here,
+          {/* A session never renders another portal's screen. Mounted here,
               above the table, because the failure it closes is a shape of
               link rather than one link: anything landing a guardian on
               /settings or /my-subscription produced the learner shell and
-              the heading "Signed in as Learner". See guards/parentRedirects. */}
-          <ParentRouteGuard>
+              the heading "Signed in as Learner", and anything landing a
+              TEACHER on /profile produced the learner Navbar over a page
+              whose own back link read "Back to Teacher".
+              See utils/portalRedirects. */}
+          <PortalRouteGuard>
           <Routes>
           <Route path="/" element={<RootRedirect />} />
           {/* /welcome and /plans were legacy aliases that served the same
@@ -913,7 +951,7 @@ export default function App() {
           <Route path="/guardian"          element={<ProtectedRoute><LearnerOnlyRoute><GuardianZonePage /></LearnerOnlyRoute></ProtectedRoute>} />
           {/* Offline Library + Storage settings (offline-first). Downloaded
               content, device-storage breakdown, and cache/sync controls. */}
-          <Route path="/offline"           element={<ProtectedRoute><Navbar /><OfflineLibraryPage /></ProtectedRoute>} />
+          <Route path="/offline"           element={<ProtectedRoute><OfflineRoute /></ProtectedRoute>} />
           {/* My Subscription — shared learner/teacher plan, benefits, payment
               status, and upgrade/renew. Audience-aware copy inside.
               Teachers are redirected into the teacher area (see
@@ -1049,7 +1087,7 @@ export default function App() {
 
           <Route path="*" element={<NotFound />} />
         </Routes>
-        </ParentRouteGuard>
+        </PortalRouteGuard>
         </RouteErrorBoundary>
         {/* Paywall — listens for paywall.show(reason, ctx) from anywhere */}
           <PaywallHost />

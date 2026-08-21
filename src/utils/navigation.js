@@ -1,5 +1,6 @@
 import { hasLearnerPortalAccess } from '../engines/payment-engine/subscriptionConfig.js'
 import { isLearnerRole } from './permissions.js'
+import { crossesPortals } from './portalRedirects.js'
 
 export function getRoleLandingPath(profileOrFlags, fallback = '/dashboard') {
   const role = typeof profileOrFlags === 'string'
@@ -127,13 +128,36 @@ function isSafeInAppPath(path) {
  *
  * Admins and learners are never redirected: the guard lets both through on
  * role alone, before plan state is consulted at all.
+ *
+ * A refusal is not the only way a stash can be wrong, and the second way is
+ * what the /profile report turned out to be. A SHARED surface that
+ * PortalRouteGuard moves the account off — `/profile` for a teacher, whose own
+ * profile is `/settings/profile` — passes the learner-only check (an admin and
+ * a learner both render `/profile`) and is still the wrong place to sign
+ * somebody in. Both classes are discarded for the landing page; see the body.
  */
 export function resolvePostAuthPath(profileOrFlags, fromPath, fallback = '/dashboard') {
   const landing = getRoleLandingPath(profileOrFlags, fallback)
   if (!isSafeInAppPath(fromPath)) return landing
 
-  if (!isLearnerOnlyPath(fromPath)) return fromPath
-  return canOpenLearnerRoutes(profileOrFlags) ? fromPath : landing
+  // Refused outright by LearnerOnlyRoute — the original case above.
+  if (isLearnerOnlyPath(fromPath) && !canOpenLearnerRoutes(profileOrFlags)) return landing
+
+  // Not refused, but not this account's either: a shared surface that
+  // PortalRouteGuard moves them off the moment it renders. `/profile` is the
+  // one that was reported — it is not in LEARNER_ONLY_SEGMENTS (an admin and
+  // a learner both render it), so the check above let it through, and a
+  // teacher with it stashed was returned to the learner Navbar on every
+  // single sign-in.
+  //
+  // DISCARDED for the landing page, not mapped to the guard's destination,
+  // and the difference is the whole answer to the report. Mapping would sign
+  // a teacher in and open their Settings > Profile panel; sign-in is the one
+  // moment when the account's own home is what was asked for. Mid-session the
+  // guard still maps, because there the account asked for that page.
+  if (crossesPortals(profileOrFlags, fromPath)) return landing
+
+  return fromPath
 }
 
 /**

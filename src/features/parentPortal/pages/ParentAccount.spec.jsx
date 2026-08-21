@@ -8,7 +8,7 @@
  * email preferences got the learner top nav, a character-avatar picker
  * built for children, and the heading "Signed in as Learner."
  *
- * `ParentRouteGuard` now redirects a parent off those routes whatever put
+ * `PortalRouteGuard` now redirects a parent off those routes whatever put
  * them there, but a guard is a net, not a design: a row that has to be
  * caught by it is still a row pointing the wrong way. So this asserts the
  * destinations directly.
