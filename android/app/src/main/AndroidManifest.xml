@@ -66,6 +66,19 @@
          reviewers can see it in the source manifest. -->
     <uses-permission android:name="com.android.vending.BILLING" />
 
+    <!-- Saving a generated lesson plan / paper into the phone's public Downloads
+         folder (DownloadsPlugin). CAPPED AT API 28 ON PURPOSE, and the cap is the
+         whole point of the declaration: from Android 10 (API 29) an app may
+         contribute to the shared Downloads collection through MediaStore with no
+         permission at all, so an uncapped WRITE_EXTERNAL_STORAGE would ask
+         millions of modern devices for broad storage access this app never uses
+         — the kind of over-request Play flags on a Families-policy listing.
+         minSdk is 24, so the 24-28 devices still in use in Zambian schools do
+         need it for the legacy public-directory write. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
     <!-- Advertising ID: REMOVED AT MERGE TIME, deliberately.
 
          Play's Families policy prohibits transmitting the Android Advertising

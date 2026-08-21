@@ -853,6 +853,7 @@
     "test:user-age-bootstrap": "node functions/guardianConsent/userAgeBootstrap.test.js",
     "test:learner-safety": "node functions/learnerSafety/learnerSafetyCore.test.js",
     "test:android-manifest": "node scripts/test-android-manifest.mjs",
+    "test:android-downloads": "node scripts/test-android-downloads.mjs",
     "audit:colors": "node scripts/audit-hardcoded-colors.mjs",
     "audit:dark": "node scripts/audit-dark-surfaces.mjs",
     "audit:inline": "node scripts/audit-inline-theme-literals.mjs",

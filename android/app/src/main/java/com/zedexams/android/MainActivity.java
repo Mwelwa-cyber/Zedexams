@@ -32,8 +32,11 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         // Register app-local Capacitor plugins BEFORE super.onCreate() so the
         // Bridge picks them up when it initialises. Exposes the reCAPTCHA
-        // Enterprise token minter to the WebView (see RecaptchaPlugin).
+        // Enterprise token minter to the WebView (see RecaptchaPlugin) and the
+        // public-Downloads writer that makes "Download" save a file instead of
+        // opening a share sheet (see DownloadsPlugin).
         registerPlugin(RecaptchaPlugin.class);
+        registerPlugin(DownloadsPlugin.class);
 
         SplashScreen splashScreen = SplashScreen.installSplashScreen(this);
         splashScreen.setKeepOnScreenCondition(() -> keepSplashOnScreen);
