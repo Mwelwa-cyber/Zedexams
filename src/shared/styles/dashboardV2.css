@@ -166,6 +166,23 @@
   background: transparent;
 }
 
+/* Frosted desktop top bar (TeacherTopBar). The tint lives here rather than
+   in an inline style because an inline `color-mix()` has no fallback: React
+   assigns one value to `element.style.background`, and a WebView that can't
+   parse it simply drops it, leaving the bar transparent with the page
+   scrolling under it. As a declaration the cascade carries a fallback (see
+   scripts/lib/colorMixFallback.mjs).
+   Translucent on purpose — the bar is `backdrop-blur`, so the frost needs
+   something to show through — and derived from --zt-surface rather than a
+   literal, which pinned the tint cream and was the wrong colour on Night.
+   NOT scoped under .tdv2: TeacherTopBar renders inside <main>, which is a
+   SIBLING of the .tdv2 shell column, so a descendant selector matches
+   nothing. The --zt-* tokens are :root-level, so no scope is needed. */
+.tdv2-topbar {
+  background: color-mix(in srgb, var(--zt-surface) 92%, transparent);
+  border-bottom: 1px solid var(--zt-line);
+}
+
 /* Bare scope: a .tdv2 root that only carries the design-system variables
    for overlay/fixed children (mobile chrome, logout dialog) without the
    dashboard's grid, background or min-height. Zero-size in flow. */
