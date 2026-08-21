@@ -104,8 +104,23 @@ const releaseBlock = (() => {
   assert(btIdx >= 0, 'buildTypes {} block not found in build.gradle')
   const relIdx = gradle.indexOf('release {', btIdx)
   assert(relIdx >= 0, 'release {} build type not found under buildTypes in build.gradle')
-  // Grab a generous slice; the block is short.
-  return gradle.slice(relIdx, relIdx + 900)
+  // Brace-match to the block's real end rather than slicing a fixed number
+  // of characters. This used to take `relIdx + 900`, which silently depended
+  // on the block staying short: when the native-symbols `ndk {}` block was
+  // added the release body reached 888 characters, twelve short of the
+  // window, and the next comment line would have pushed proguardFiles and
+  // signingConfig out of view — three assertions passing on a block they
+  // could no longer see. A guard that stops looking at what it claims to
+  // check is worse than no guard.
+  let depth = 0
+  for (let i = gradle.indexOf('{', relIdx); i < gradle.length; i++) {
+    if (gradle[i] === '{') depth++
+    else if (gradle[i] === '}') {
+      depth--
+      if (depth === 0) return gradle.slice(relIdx, i + 1)
+    }
+  }
+  assert(false, 'release {} block in build.gradle is unbalanced — cannot parse')
 })()
 
 test('release minifyEnabled true', () => {
@@ -123,6 +138,18 @@ test('release shrinkResources true', () => {
   assert(
     /shrinkResources\s+true/.test(releaseBlock),
     'release build must set shrinkResources true to drop unreferenced res/ entries'
+  )
+})
+
+test('release ships native debug symbols to Play', () => {
+  // Without this the bundle carries .so files with no symbols file: Play
+  // warns on every release, and native crash + ANR traces arrive as bare
+  // addresses. The symbols go to BUNDLE-METADATA, not to devices, so there
+  // is no app-size argument for dropping it — only an upload-size one.
+  assert(
+    /debugSymbolLevel\s+'(FULL|SYMBOL_TABLE)'/.test(releaseBlock),
+    "release must set ndk.debugSymbolLevel ('FULL' or 'SYMBOL_TABLE') so " +
+      'Play can symbolicate native crashes and ANRs'
   )
 })
 
