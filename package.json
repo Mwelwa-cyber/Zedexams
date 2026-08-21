@@ -949,6 +949,7 @@
     "test:learner-settings-routes": "node src/features/learnerSettings/lib/settingsRoutes.test.js",
     "test:deletion-request-core": "node functions/deletionFlow/deletionRequestCore.test.js",
     "test:deletion-sweeps": "node functions/deletionFlow/deletionSweeps.test.js",
+    "test:index-member-calls": "node scripts/test-index-member-calls.mjs",
     "test:deletion-decision-context": "node functions/deletionFlow/decisionContextCore.test.js",
     "test:deletion-state-mirror": "node scripts/test-deletion-state-mirror.mjs",
     "test:deletion-neutrality": "node functions/deletionFlow/neutrality.test.js",

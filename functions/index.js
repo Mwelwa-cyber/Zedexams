@@ -2678,7 +2678,7 @@ exports.deletionExecutionSweep = onSchedule(
     secrets: deletionFlow.DELETION_FLOW_SECRETS,
   },
   async () => {
-    const summary = await deletionFlow.runScheduledDeletionExecution();
+    const summary = await deletionFlow.runDeletionExecutionSweep();
     console.log('[deletionExecutionSweep]', JSON.stringify(summary));
   },
 );
