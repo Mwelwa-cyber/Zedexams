@@ -521,6 +521,14 @@ export function createRideRenderer(canvas) {
   }
 
   return {
+    // THE CANVAS THIS RENDERER IS BOUND TO. Exposed so a caller can ask
+    // whether the node it is about to draw into is still the one this
+    // closure captured — `ctx` was taken from `canvas` at creation and can
+    // never be repointed. See the rebind in `SpellingRideGame.sizeCanvas`:
+    // the stage unmounts between rides, so the second ride gets a NEW
+    // element, and a renderer held over from the first paints into the old
+    // detached one. Nothing throws; the road is simply never drawn.
+    canvas,
     resize,
     setNight,
     draw,

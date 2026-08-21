@@ -655,6 +655,27 @@ Chromium — overflow, clipping, hidden tiles and 44px touch targets, none of
 which jsdom can see. It is NOT a `test:*` script (it needs a browser) and it
 caught a 40px back button on its first run.
 
+**A canvas renderer is bound to ONE element, and the ride remounts.** The
+first shipped version of Spelling Ride cached its renderer in a ref with
+`if (!rendererRef.current)`, and the stage — canvas included — unmounts when a
+ride ends. So "Ride again" mounted a NEW canvas while the renderer went on
+sizing and painting the old detached one: **the first ride drew, and every
+ride after it in the same page load was a blank road under a fully live HUD**,
+with nothing in the console. `createRideRenderer` captures the element and its
+2D context in a closure and a context cannot be repointed, so the rule is
+`rendererRef.current?.canvas !== canvas → rebuild`, never "is it missing". The
+give-away when it recurs is the canvas's own size: **300×150**, the browser's
+default for an element nothing ever sized. Relatedly, the frame loop now
+RESCHEDULES on a transient miss instead of returning — one skipped tick used
+to end the animation permanently, which looks identical from the outside.
+
+**`npm run smoke:spelling-ride`** is what catches both, and it rides TWICE on
+purpose: it reads the canvas back with `getImageData` and fails on a flat
+fill, at four viewports, before and after a "Ride again". Every check that
+existed passed while this was broken, because all of them looked at the first
+ride or at DOM nodes — a canvas has no 2D context in jsdom at all. It is NOT a
+`test:*` script (it needs a browser).
+
 ### Deleting a game is a Firestore act, not a catalogue edit (2026-08-19)
 
 `/admin/games-seed` compares the curated SEED (`src/data/gamesSeed.js`, a

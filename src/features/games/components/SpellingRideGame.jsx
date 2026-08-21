@@ -470,7 +470,16 @@ export default function SpellingRideGame({ game }) {
   const frame = useCallback((now) => {
     const ride = rideRef.current
     const renderer = rendererRef.current
-    if (!ride || !renderer) return
+    // SKIP THIS FRAME, NEVER THE LOOP. This used to `return` outright, so any
+    // moment where the ride or the renderer was not yet in place ended the
+    // animation for good — one missing tick and the road never moved again,
+    // with a fully live HUD on top of it. Rescheduling costs a no-op frame
+    // and removes a whole class of unreportable failure: whatever the loop
+    // was waiting for, the next frame gets to see it.
+    if (!ride || !renderer) {
+      rafRef.current = requestAnimationFrame(frame)
+      return
+    }
     const dt = Math.min(0.05, (now - lastTimeRef.current) / 1000)
     lastTimeRef.current = now
 
@@ -520,7 +529,20 @@ export default function SpellingRideGame({ game }) {
     const rect = wrap.getBoundingClientRect()
     const width = Math.max(240, Math.round(rect.width))
     const height = Math.max(360, Math.round(rect.height))
-    if (!rendererRef.current) rendererRef.current = createRideRenderer(canvas)
+    // REBIND WHEN THE NODE CHANGES, not just when the renderer is missing.
+    //
+    // The stage — and the canvas inside it — unmounts when a ride ends and
+    // remounts when the next one starts, so "Ride again" hands us a NEW
+    // element. `createRideRenderer` captures `canvas` and its 2D context in a
+    // closure, and a context cannot be repointed: a renderer kept from the
+    // previous ride sizes and paints the OLD, detached node forever. That is
+    // exactly what shipped — the first ride drew, every ride after it in the
+    // same page load was a blank stage under a live HUD, with no error
+    // anywhere. The give-away is the canvas's own size: 300×150, the
+    // browser's default, because `resize` was reaching a different element.
+    if (rendererRef.current?.canvas !== canvas) {
+      rendererRef.current = createRideRenderer(canvas)
+    }
     rendererRef.current.resize(width, height, window.devicePixelRatio || 1)
     rendererRef.current.setNight(isNightTheme())
     // The rider's line moves with the viewport, so a ride already running is
