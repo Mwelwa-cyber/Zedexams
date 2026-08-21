@@ -94,6 +94,29 @@ android {
             // app-level rules in proguard-rules.pro.
             minifyEnabled true
             shrinkResources true
+
+            // Native debug symbols, shipped to Play INSIDE the bundle.
+            //
+            // Play Console warns on every release whose bundle carries .so
+            // files with no symbols file, and without it native crash and ANR
+            // traces arrive as bare addresses — unreadable exactly where they
+            // matter, since Crashlytics is here for the two failure classes
+            // Sentry cannot see (see variables.gradle).
+            //
+            // This costs users nothing: AGP puts the symbols in the bundle's
+            // BUNDLE-METADATA, which Play keeps for symbolication and never
+            // delivers to a device. Only the upload grows.
+            //
+            // Scope is bounded and worth knowing: this project builds NO
+            // native code of its own — no externalNativeBuild, no jniLibs —
+            // so every .so comes from a prebuilt dependency AAR (reCAPTCHA
+            // Enterprise, Play Integrity, Firebase). AGP extracts whatever
+            // those ship; a stripped .so yields little. FULL rather than
+            // SYMBOL_TABLE because the difference is line numbers on top of
+            // function names, and neither reaches the device.
+            ndk {
+                debugSymbolLevel 'FULL'
+            }
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             if (releaseSigningReady) {
                 signingConfig signingConfigs.release
