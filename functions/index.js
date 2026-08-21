@@ -1,7 +1,9 @@
 const functions = require("firebase-functions/v1");
 const {onCall, onRequest, HttpsError} = require("firebase-functions/v2/https");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
-const {onMessagePublished} = require("firebase-functions/v2/pubsub");
+// NOTE: onMessagePublished is intentionally NOT imported — the only Pub/Sub
+// trigger (googlePlayRtdn) is held back until its topic exists. See the
+// block further down for why, and how to restore it.
 const {defineSecret} = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const crypto = require("node:crypto");
@@ -2327,55 +2329,79 @@ exports.verifyGooglePlayPurchase = onCall({
 }, paymentHandlers.verifyGooglePlayPurchase);
 
 /**
- * Google Play Real-time Developer Notifications.
+ * Google Play Real-time Developer Notifications — HELD BACK, deliberately.
  *
- * Play publishes to a Pub/Sub topic in this project on every subscription
- * event — renewal, cancellation, grace period, on hold, revocation — and
- * on every refund. `PLAY_RTDN_TOPIC` names it; it must match the topic
- * entered in Play Console ▸ Monetisation setup ▸ Real-time developer
- * notifications, and the Play service account needs Pub/Sub Publisher on
- * it. Send a test notification from that same screen to prove the wiring:
- * a `testNotification` is parsed, logged and ignored by design.
+ * The handler is written, tested (`npm run test:google-play-rtdn`, 44
+ * checks) and ready: functions/googlePlayRtdn.js applies renewals,
+ * cancellations, grace period, on-hold, revocation and refunds, and
+ * functions/googlePlayRtdnCore.js owns the parsing and the decisions.
+ * What is missing is the ONE thing this repo cannot create for itself.
  *
- * WHY THIS EXISTS: without it the only thing that advances a Play
- * subscription is the Android client's restore-on-open. A parent who buys
- * a plan for their child and does not reopen the app keeps being charged
- * by Google while `subscriptionExpiry` sits at last month's date — the
- * family loses access mid-term, having paid. See googlePlayRtdnCore.js.
+ * ── Why the export is not here ──────────────────────────────────────
  *
- * REGION: us-central1, with the rest of the non-Firestore-triggered
- * surface and with `verifyGooglePlayPurchase`, whose code path this
- * reuses wholesale. The Firestore-trigger rule (africa-south1) is about
- * Eventarc hops on Firestore events and does not apply to a Pub/Sub
- * trigger; moving it later is a region-registry change, not a rewrite.
+ * `onMessagePublished` needs its Pub/Sub topic to exist. When it does
+ * not, `firebase deploy` tries to create it, fails —
  *
- * The handler NEVER throws for a message it cannot act on — Pub/Sub
- * redelivers on failure, and a message that fails identically every time
- * would build a backlog in front of the renewals behind it.
+ *     Unexpected error creating Pub/Sub topic
+ *     Functions deploy had errors with the following functions:
+ *         googlePlayRtdn(us-central1)
+ *
+ * — and takes the WHOLE functions deploy down with it. Not just this
+ * function: the run exits non-zero, `deploy-hosting.yml` reads that
+ * failure and correctly refuses to ship a frontend over functions that
+ * may not have landed, and `main` stops deploying entirely. That is what
+ * happened on 2026-08-21 (run 32460825117, both attempts), and it would
+ * have happened again on every merge until the topic existed.
+ *
+ * A `process.env` flag cannot gate this. `firebase deploy` discovers a
+ * function by running THIS FILE in a subprocess handed only
+ * FIREBASE_CONFIG + GCLOUD_PROJECT (firebase-tools prepare.js →
+ * discoverBuild), so a flag read at module load is always undefined at
+ * deploy time — the same trap documented for OPS_ALERT_WEBHOOK_BOUND
+ * above, where a gated secret was silently never bound. A flag here
+ * would mean the export never deploys even once the topic is there,
+ * while looking as though it might. So the export is absent and says so.
+ *
+ * ── Restoring it: create the topic FIRST, then uncomment ────────────
+ *
+ *   gcloud pubsub topics create play-rtdn --project examsprepzambia
+ *   gcloud pubsub topics add-iam-policy-binding play-rtdn \
+ *     --member=serviceAccount:google-play-developer-notifications@system.gserviceaccount.com \
+ *     --role=roles/pubsub.publisher --project examsprepzambia
+ *
+ * (plus `gcloud services enable pubsub.googleapis.com` if the API is off,
+ * and the deploy service account needs roles/pubsub.admin to attach the
+ * trigger). Then restore the block below, regenerate the manifest with
+ * `node scripts/generate-functions-manifest.mjs`, and point Play Console
+ * ▸ Monetisation setup ▸ Real-time developer notifications at
+ * `projects/examsprepzambia/topics/play-rtdn`. Full runbook:
+ * docs/GOOGLE-PLAY-BILLING.md.
+ *
+ * UNTIL THEN the Android rail still works — a purchase is verified by the
+ * client's own `verifyGooglePlayPurchase` call, and renewals land on the
+ * next app open via restore-on-open. What is missing is only the
+ * real-time half, which is exactly what the owner steps above turn on.
+ *
+ * exports.googlePlayRtdn = onMessagePublished({
+ *   topic: process.env.PLAY_RTDN_TOPIC || "play-rtdn",
+ *   region: "us-central1",
+ *   secrets: opsAlertSecrets([googlePlaySaJson, emailSmtpUser, emailSmtpPassword]),
+ *   timeoutSeconds: 120,
+ *   memory: "256MiB",
+ *   retry: false,
+ * }, async (event) => {
+ *   const {handleRtdnMessage} = require("./googlePlayRtdn");
+ *   const {PLAY_PACKAGE} = require("./googlePlayBilling");
+ *   try {
+ *     await handleRtdnMessage({
+ *       message: event?.data?.message,
+ *       expectedPackage: PLAY_PACKAGE,
+ *     });
+ *   } catch (err) {
+ *     console.error("[googlePlayRtdn] handler failed", err);
+ *   }
+ * });
  */
-exports.googlePlayRtdn = onMessagePublished({
-  topic: process.env.PLAY_RTDN_TOPIC || "play-rtdn",
-  region: "us-central1",
-  secrets: opsAlertSecrets([googlePlaySaJson, emailSmtpUser, emailSmtpPassword]),
-  timeoutSeconds: 120,
-  memory: "256MiB",
-  retry: false,
-}, async (event) => {
-  const {handleRtdnMessage} = require("./googlePlayRtdn");
-  const {PLAY_PACKAGE} = require("./googlePlayBilling");
-  try {
-    await handleRtdnMessage({
-      message: event?.data?.message,
-      expectedPackage: PLAY_PACKAGE,
-    });
-  } catch (err) {
-    // Reaching here means the Play API itself failed mid-apply. Log loudly
-    // and swallow: `retry: false` already means Pub/Sub will not redeliver,
-    // and the client's restore-on-open plus the next notification are both
-    // still able to converge the account.
-    console.error("[googlePlayRtdn] handler failed", err);
-  }
-});
 
 // Throttle the Lenco-webhook ops alert so a retry storm (Lenco re-delivers a
 // failing event repeatedly) can't flood the admin inbox. Per-instance — a cold
