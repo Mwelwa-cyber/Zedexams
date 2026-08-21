@@ -7,6 +7,7 @@ import {
 } from '@heroicons/react/24/solid'
 import { isMuted, toggleMute } from '../lib/gameSounds'
 import { useAuth } from '../../../contexts/AuthContext'
+import { canOpenLearnerRoutes, getRoleLandingPath } from '../../../utils/navigation'
 import { NAV_ICON_MAP } from './gamesUi'
 import GameStickerStyles from '../../../shared/components/GameStickerStyles'
 import MobileBottomNav from '../../../shared/components/MobileBottomNav'
@@ -21,6 +22,14 @@ export default function GamesShell({ crumbs = [], children, maxW = 'max-w-6xl' }
   const { currentUser, userProfile, isAdmin, isTeacher } = useAuth()
   const firstName = userProfile?.displayName?.split(' ')[0] ?? null
   const isLearner = Boolean(currentUser) && !isAdmin && !isTeacher
+  // The header's home button was gated on being SIGNED IN and pointed at
+  // /dashboard, which <LearnerOnlyRoute> refuses to a teacher — so on /games
+  // (a public route) a signed-in teacher got a button carrying their own first
+  // name that answered "Teacher accounts stay in the teacher portal". Same rule
+  // as the learner tab bar: an account that can open /dashboard keeps it, so an
+  // admin stays in the learner preview they deliberately opened; one that
+  // cannot is sent to its own landing page instead.
+  const homePath = canOpenLearnerRoutes(userProfile) ? '/dashboard' : getRoleLandingPath(userProfile)
   const TrophyIcon = NAV_ICON_MAP.leaderboard
   const HomeIcon = NAV_ICON_MAP.dashboard
   const GamesIcon = NAV_ICON_MAP.games
@@ -52,7 +61,7 @@ export default function GamesShell({ crumbs = [], children, maxW = 'max-w-6xl' }
               <MuteToggle />
               {currentUser ? (
                 <Link
-                  to="/dashboard"
+                  to={homePath}
                   className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-black text-white shadow-[0_18px_40px_-24px_rgba(15,23,42,0.75)] transition hover:-translate-y-0.5 hover:bg-slate-800 active:scale-[0.98]"
                 >
                   <HomeIcon className="h-4 w-4 text-amber-300" />
