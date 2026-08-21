@@ -27,8 +27,12 @@ const admin = require("firebase-admin");
 const {getPlan} = require("./plans");
 const {
   planIdForPlayProduct,
+  playProductType,
+  PLAY_PRODUCT_TYPE,
   derivePaymentId,
   parseSubscriptionV2,
+  parseProductPurchase,
+  decideProductGrant,
   decideEntitlementUpdate,
   evaluateAccountBinding,
 } = require("./googlePlayBillingCore");
@@ -263,6 +267,61 @@ async function probePlayConfig({saJson, fetchImpl = fetch, getToken = getAccessT
   }
 }
 
+/**
+ * GET purchases.products for a ONE-TIME purchase token.
+ *
+ * Same 404/400 → null and 401/403 → PlayConfigError contract as
+ * fetchSubscriptionV2, deliberately: the caller branches on product TYPE,
+ * not on which failure shape came back, so the two endpoints have to fail
+ * identically or every error path needs writing twice.
+ *
+ * Unlike the subscription endpoint this one NEEDS the productId in the
+ * URL — which is why the client sends it alongside the token and why an
+ * unmapped productId is refused before we get here.
+ */
+async function fetchProductPurchase({accessToken, productId, purchaseToken, fetchImpl = fetch}) {
+  const url = `${API_BASE}/${PLAY_PACKAGE}/purchases/products/` +
+    `${encodeURIComponent(productId)}/tokens/${encodeURIComponent(purchaseToken)}`;
+  const res = await fetchImpl(url, {
+    headers: {Authorization: `Bearer ${accessToken}`},
+  });
+  if (res.status === 404 || res.status === 400) return null;
+  if (res.status === 401 || res.status === 403) {
+    const detail = await readPlayErrorDetail(res);
+    throw new PlayConfigError(
+        `Play API rejected our credentials (${res.status})${detail}`, "play-api-rejected");
+  }
+  if (!res.ok) {
+    throw new Error(`Play API error ${res.status}`);
+  }
+  return await res.json();
+}
+
+/**
+ * Acknowledge a ONE-TIME purchase. Same three-day stake as a subscription:
+ * the app buys with autoAcknowledgePurchases:false, so money is only kept
+ * once we have verified and granted, and a purchase we never managed to
+ * verify is auto-refunded rather than silently kept.
+ *
+ * NOT consume(). Consuming marks a product re-purchasable and throws away
+ * the record we use to recognise the token again; a day pass is bought
+ * once and its token has to stay queryable so a restore-on-open can prove
+ * the grant it already made.
+ */
+async function acknowledgeProduct({accessToken, productId, purchaseToken, fetchImpl = fetch}) {
+  const url = `${API_BASE}/${PLAY_PACKAGE}/purchases/products/` +
+    `${encodeURIComponent(productId)}/tokens/${encodeURIComponent(purchaseToken)}:acknowledge`;
+  const res = await fetchImpl(url, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: "{}",
+  });
+  if (!res.ok) throw new Error(`acknowledge failed (${res.status})`);
+}
+
 function toMillis(value) {
   if (!value) return 0;
   if (typeof value.toMillis === "function") return value.toMillis();
@@ -313,28 +372,55 @@ async function recordAccountBinding({firestore, kind, enforce, dateMs}) {
 
 /**
  * Verify one purchase token for one signed-in user and apply the result.
+ *
+ * Handles BOTH Play product types. Which one is decided by the productId
+ * the client sends alongside the token: a one-time pass is read from
+ * purchases.products, a subscription from purchases.subscriptionsv2.
+ * Sending no productId (or a subscription one) takes the subscription
+ * path, which is what every pre-existing caller does.
+ *
+ * ── A guardian may buy for a child here, exactly as on the web ──────
+ *
+ * `beneficiaryUid` credits the purchase to a linked child instead of the
+ * payer, matching the Lenco rail (see functions/guardianBillingCore.js).
+ * It MUST already have been authorised by
+ * guardianBillingAuth.authoriseGuardianPurchase — this function trusts
+ * it, because it has no way to re-derive who a caller's children are and
+ * a second, different check is how the two rails drift apart. The caller
+ * that does authorise it is paymentHandlers.verifyGooglePlayPurchase.
+ *
+ * The obfuscated account id still binds to the PAYER's uid, not the
+ * child's: it is Google's record of which device account bought this, and
+ * the buyer is the parent. Binding it to the beneficiary would make every
+ * guardian purchase look like a cross-account replay.
+ *
  * Injectable deps (all optional): db, activate, fetchSubscription,
- * acknowledge, nowMs — production wiring passes accessToken/emailSecrets
- * and uses the real implementations.
+ * fetchProduct, acknowledge, acknowledgeOneTime, nowMs.
  *
  * @returns {Promise<{status: string, productId?: string, planId?: string,
  *   expiryTime?: string|null, activated?: boolean, alreadyActive?: boolean,
  *   reason?: string}>} status ∈ active | expired | noop | not_found |
- *   wrong_user | unknown_product.
+ *   wrong_user | unknown_product | account_mismatch.
  */
 async function verifyAndApplyPurchase({
   uid,
   purchaseToken,
+  productId: declaredProductId = "",
   accessToken = null,
   emailSecrets = {},
   db = null,
   activate = null,
   fetchSubscription = null,
+  fetchProduct = null,
   acknowledge = null,
+  acknowledgeOneTime = null,
   fetchImpl = fetch,
   nowMs = Date.now(),
   enforceAccountBinding = enforceAccountBindingFromEnv(),
   recordBinding = null,
+  beneficiaryUid = null,
+  beneficiaryName = null,
+  guardianRequestId = null,
 }) {
   if (!uid || !purchaseToken) return {status: "not_found"};
 
@@ -343,12 +429,44 @@ async function verifyAndApplyPurchase({
     require("./subscriptionActivation").activateSubscriptionFromPayment;
   const fetchSub = fetchSubscription ||
     ((args) => fetchSubscriptionV2({accessToken, fetchImpl, ...args}));
+  const fetchProd = fetchProduct ||
+    ((args) => fetchProductPurchase({accessToken, fetchImpl, ...args}));
   const ackImpl = acknowledge ||
     ((args) => acknowledgeSubscription({accessToken, fetchImpl, ...args}));
+  const ackProductImpl = acknowledgeOneTime ||
+    ((args) => acknowledgeProduct({accessToken, fetchImpl, ...args}));
 
-  const body = await fetchSub({purchaseToken});
-  const parsed = parseSubscriptionV2(body);
-  if (!parsed) return {status: "not_found"};
+  // Which endpoint answers for this token. The client's productId only
+  // CHOOSES the endpoint — every fact used below still comes out of
+  // Google's response, so a client naming the wrong product gets a 404
+  // (→ not_found) rather than a grant it did not pay for.
+  const isOneTime =
+    playProductType(String(declaredProductId || "")) === PLAY_PRODUCT_TYPE.INAPP;
+
+  let parsed;
+  if (isOneTime) {
+    const body = await fetchProd({productId: declaredProductId, purchaseToken});
+    const product = parseProductPurchase(body);
+    if (!product) return {status: "not_found"};
+    parsed = {
+      productId: product.productId,
+      // A pass has no store-owned renewal date. Left at 0 so nothing
+      // downstream writes a `grantExpiryAt` and the plan's own
+      // durationDays does the arithmetic — which is what makes a pass
+      // bought during an active month EXTEND it rather than truncate it.
+      expiryTimeMs: 0,
+      purchaseTimeMs: product.purchaseTimeMs,
+      acknowledged: product.acknowledged,
+      orderId: product.orderId,
+      obfuscatedAccountId: product.obfuscatedAccountId,
+      purchaseState: product.purchaseState,
+    };
+  } else {
+    const body = await fetchSub({purchaseToken});
+    const sub = parseSubscriptionV2(body);
+    if (!sub) return {status: "not_found"};
+    parsed = {...sub, purchaseTimeMs: 0};
+  }
 
   const planId = planIdForPlayProduct(parsed.productId);
   const plan = planId ? getPlan(planId) : null;
@@ -358,10 +476,11 @@ async function verifyAndApplyPurchase({
     return {status: "unknown_product", productId: parsed.productId};
   }
 
-  // Account binding (issue #1596): the buyer's client stamps its ZedExams uid
-  // as the obfuscated account id at purchase time; Google echoes it back here.
-  // Observe by default, reject a present-but-mismatched id only under enforce.
-  // Absent ids (legacy / pre-update clients) always fall through.
+  // Account binding (issue #1596): the buyer's client stamps its ZedExams
+  // uid as the obfuscated account id at purchase time; Google echoes it
+  // back here. Observe by default, reject a present-but-mismatched id only
+  // under enforce. Absent ids (legacy / pre-update clients) always fall
+  // through. The uid compared is the PAYER's — see the docblock.
   const binding = evaluateAccountBinding({
     obfuscatedAccountId: parsed.obfuscatedAccountId,
     uid,
@@ -381,24 +500,93 @@ async function verifyAndApplyPurchase({
   if (!userSnap.exists) return {status: "noop", reason: "no-user"};
   const user = userSnap.data() || {};
 
-  const decision = decideEntitlementUpdate({
-    state: parsed.state,
-    expiryTimeMs: parsed.expiryTimeMs,
-    nowMs,
-    user: {
-      subscriptionProvider: user.subscriptionProvider,
-      googlePlayPurchaseToken: user.googlePlayPurchaseToken,
-      subscriptionExpiryMs: toMillis(user.subscriptionExpiry),
-    },
-    purchaseToken,
-  });
+  const decision = isOneTime ?
+    decideProductGrant({purchaseState: parsed.purchaseState}) :
+    decideEntitlementUpdate({
+      state: parsed.state,
+      expiryTimeMs: parsed.expiryTimeMs,
+      nowMs,
+      user: {
+        subscriptionProvider: user.subscriptionProvider,
+        googlePlayPurchaseToken: user.googlePlayPurchaseToken,
+        subscriptionExpiryMs: toMillis(user.subscriptionExpiry),
+      },
+      purchaseToken,
+    });
 
   const expiryIso = parsed.expiryTimeMs ?
     new Date(parsed.expiryTimeMs).toISOString() : null;
 
   if (decision.action === "activate") {
-    const paymentId = derivePaymentId(purchaseToken, parsed.expiryTimeMs);
+    // ── Already paying on the other rail? ───────────────────────────
+    //
+    // Checked HERE rather than above because the question is only ever
+    // about a GRANT. A verification that resolves to noop or expire is
+    // not a purchase — there is nothing to refuse and nothing to refund —
+    // and refusing those would turn a routine re-check of an old token
+    // into a false double-purchase report.
+    //
+    // By the time we reach a grant Google has ALREADY taken the money, so
+    // this cannot prevent the charge, only the entitlement. That is still
+    // right: refusing the write leaves the purchase unacknowledged, and an
+    // unacknowledged Play purchase is auto-refunded after three days. The
+    // parent gets their money back without anyone having to notice.
+    //
+    // Logged as an error rather than a warning because those three days
+    // are a deadline: if the automatic refund does not happen it has to
+    // happen by hand, and this line is the only record that it is owed.
+    const {RAIL, decideCrossRail} = await import("./shared/billing/crossRailCore.js");
+    const accounts = [{who: "payer", user}];
+    if (beneficiaryUid) {
+      try {
+        const childSnap = await firestore.collection("users").doc(beneficiaryUid).get();
+        if (childSnap.exists) accounts.push({who: "child", user: childSnap.data()});
+      } catch (err) {
+        // A failed read must not block a legitimate purchase; the payer's
+        // own document is where a web subscription lives anyway.
+        console.warn("[googlePlayBilling] beneficiary read failed", err?.message || err);
+      }
+    }
+    const crossRail = decideCrossRail({rail: RAIL.PLAY, accounts, nowMs});
+    if (!crossRail.allowed) {
+      console.error(
+          "[googlePlayBilling] DOUBLE PURCHASE — Play grant refused, refund owed",
+          {
+            uid,
+            who: crossRail.who,
+            existingRail: crossRail.existing?.rail,
+            existingExpiresAt: new Date(crossRail.existing?.expiresAtMs || 0).toISOString(),
+            productId: parsed.productId,
+            // Deliberately NOT the purchase token — it is a bearer
+            // credential and logs are read widely. The order id is what a
+            // refund is issued against in Play Console.
+            orderId: parsed.orderId,
+          },
+      );
+      return {
+        status: "cross_rail_conflict",
+        productId: parsed.productId,
+        planId,
+        reason: crossRail.reason,
+        existingRail: crossRail.existing?.rail || null,
+      };
+    }
+
+    // Keyed on (token, period). For a subscription the period is the
+    // expiry, so each renewal is a fresh doc through the one idempotent
+    // activation chokepoint. A pass never renews, so its purchase time —
+    // constant for the life of the token — plays the same role and makes
+    // re-verification a no-op on the existing status guard.
+    const periodKey = isOneTime ? parsed.purchaseTimeMs : parsed.expiryTimeMs;
+    const paymentId = derivePaymentId(purchaseToken, periodKey);
     const payRef = firestore.collection("payments").doc(paymentId);
+
+    const {guardianPaymentFields} = require("./guardianBillingCore");
+    const guardianFields = guardianPaymentFields({
+      beneficiaryUid,
+      beneficiaryName,
+      guardianRequestId,
+    });
 
     // Create the pending payment doc exactly once; if another account
     // already owns this token+period, refuse (cross-account replay guard).
@@ -414,6 +602,9 @@ async function verifyAndApplyPurchase({
         return; // same user: fall through to (re-)activation — self-heals strands
       }
       tx.set(payRef, {
+        // The PAYER. `beneficiaryUid` (below, when present) is who the
+        // grant CREDITS — subscriptionActivation resolves the pair through
+        // guardianBillingCore.creditedUid, the same as on the web rail.
         userId: uid,
         displayName: user.displayName || "",
         email: user.email || "",
@@ -431,8 +622,15 @@ async function verifyAndApplyPurchase({
         googlePlayProductId: parsed.productId,
         googlePlayPurchaseToken: purchaseToken,
         googlePlayOrderId: parsed.orderId || null,
-        googlePlayState: parsed.state,
-        grantExpiryAt: admin.firestore.Timestamp.fromMillis(parsed.expiryTimeMs),
+        googlePlayState: isOneTime ? `PRODUCT_STATE_${parsed.purchaseState}` : parsed.state,
+        googlePlayProductType: isOneTime ? "inapp" : "subs",
+        // Subscriptions only. Google owns a subscription's renewal date, so
+        // activation pins to it; a pass has none and must fall through to
+        // the plan's durationDays instead.
+        ...(isOneTime ? {} : {
+          grantExpiryAt: admin.firestore.Timestamp.fromMillis(parsed.expiryTimeMs),
+        }),
+        ...guardianFields,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
     });
@@ -443,13 +641,14 @@ async function verifyAndApplyPurchase({
 
     const result = await activateImpl({
       paymentId,
-      lencoStatus: parsed.state,
+      lencoStatus: isOneTime ? "successful" : parsed.state,
       emailSecrets,
     });
 
     if (!parsed.acknowledged) {
       try {
-        await ackImpl({productId: parsed.productId, purchaseToken});
+        const ack = isOneTime ? ackProductImpl : ackImpl;
+        await ack({productId: parsed.productId, purchaseToken});
       } catch (err) {
         // Non-fatal: acknowledgementState stays pending server-side, so the
         // next verify/restore retries within Google's 3-day window.
@@ -501,7 +700,9 @@ module.exports = {
   parseServiceAccountJson,
   getAccessToken,
   fetchSubscriptionV2,
+  fetchProductPurchase,
   acknowledgeSubscription,
+  acknowledgeProduct,
   verifyAndApplyPurchase,
   probePlayConfig,
   describeSaIdentity,

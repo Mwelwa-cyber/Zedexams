@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import PlayUpgradePanel from './PlayUpgradePanel'
 import {
   fetchPlayProducts,
-  purchasePlaySubscription,
+  purchasePlayProduct,
   verifyPlayPurchases,
   restorePlayPurchases,
   openPlaySubscriptionManagement,
@@ -15,7 +15,7 @@ import {
 // mirrors the real message buckets (see playBilling.js).
 vi.mock('../../../utils/playBilling', () => ({
   fetchPlayProducts: vi.fn(),
-  purchasePlaySubscription: vi.fn(),
+  purchasePlayProduct: vi.fn(),
   verifyPlayPurchases: vi.fn(),
   restorePlayPurchases: vi.fn(),
   openPlaySubscriptionManagement: vi.fn(),
@@ -88,7 +88,7 @@ describe('PlayUpgradePanel', () => {
 
   it('purchase → verify → success', async () => {
     const user = userEvent.setup()
-    purchasePlaySubscription.mockResolvedValue({
+    purchasePlayProduct.mockResolvedValue({
       productId: 'learner_premium_monthly',
       purchaseToken: 'tok-1',
     })
@@ -99,7 +99,7 @@ describe('PlayUpgradePanel', () => {
     await user.click(await screen.findByRole('button', { name: /Subscribe with Google Play/i }))
     expect(await screen.findByText(/Subscription active/i)).toBeInTheDocument()
     // uid is threaded through so it's stamped as the obfuscated account id.
-    expect(purchasePlaySubscription).toHaveBeenCalledWith('monthly', 'u1')
+    expect(purchasePlayProduct).toHaveBeenCalledWith('monthly', 'u1')
     expect(verifyPlayPurchases).toHaveBeenCalledWith({
       purchases: [{ productId: 'learner_premium_monthly', purchaseToken: 'tok-1' }],
       source: 'purchase',
@@ -108,7 +108,7 @@ describe('PlayUpgradePanel', () => {
 
   it('a not-completed purchase returns to the plans with a calm notice, not an error screen', async () => {
     const user = userEvent.setup()
-    purchasePlaySubscription.mockRejectedValue(new Error('Purchase is not purchased'))
+    purchasePlayProduct.mockRejectedValue(new Error('Purchase is not purchased'))
     renderPanel()
     await user.click(await screen.findByRole('button', { name: /Subscribe with Google Play/i }))
     expect(await screen.findByText(/you have not been charged/i)).toBeInTheDocument()
@@ -119,7 +119,7 @@ describe('PlayUpgradePanel', () => {
 
   it('verify failure retries with the SAME token — never re-purchases', async () => {
     const user = userEvent.setup()
-    purchasePlaySubscription.mockResolvedValue({
+    purchasePlayProduct.mockResolvedValue({
       productId: 'learner_premium_monthly',
       purchaseToken: 'tok-once',
     })
@@ -132,14 +132,14 @@ describe('PlayUpgradePanel', () => {
     expect(screen.getByText(/won’t be charged again/i)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /Retry verification/i }))
     expect(await screen.findByText(/Subscription active/i)).toBeInTheDocument()
-    expect(purchasePlaySubscription).toHaveBeenCalledTimes(1)
+    expect(purchasePlayProduct).toHaveBeenCalledTimes(1)
     expect(verifyPlayPurchases).toHaveBeenCalledTimes(2)
     expect(verifyPlayPurchases.mock.calls[1][0].purchases[0].purchaseToken).toBe('tok-once')
   })
 
   it('a server CONFIG error is honest — "on our side" copy, reason captured, retry kept', async () => {
     const user = userEvent.setup()
-    purchasePlaySubscription.mockResolvedValue({
+    purchasePlayProduct.mockResolvedValue({
       productId: 'learner_premium_monthly',
       purchaseToken: 'tok-cfg',
     })

@@ -309,6 +309,23 @@ async function listGuardianChildren(request) {
       // banner and every Unlock row read it, because an offer made to a
       // guardian who paid last week is worse than no offer at all.
       premium: childPlanState(child, Date.now()).premium,
+      // ── Where this child's plan is billed, and until when ──────────
+      //
+      // A guardian can now pay two ways — mobile money on the web,
+      // Google Play on Android — and the two cannot see each other. The
+      // family screens need the rail to decide two things they get wrong
+      // without it: whether to offer a Buy button at all (offering one to
+      // somebody already paying on the other rail is how a parent ends up
+      // charged twice, every month, because Play renews itself), and
+      // which manage control to show (a Play subscription can ONLY be
+      // cancelled in Play, so an in-app cancel button there is both a
+      // policy violation and a refund dispute waiting to happen).
+      //
+      // Neither field is sensitive: it is the parent's own payment for
+      // their own child, and knowing where they pay is the point.
+      premiumExpiresAt: childPlanState(child, Date.now()).expiresAt,
+      subscriptionProvider: child.subscriptionProvider || null,
+      subscriptionPlan: child.subscriptionPlan || null,
       // The consent record, so /family/account/consent can show what
       // this guardian has approved without a second round trip — and so
       // the promise on /child-safety ("you can see, change and withdraw
