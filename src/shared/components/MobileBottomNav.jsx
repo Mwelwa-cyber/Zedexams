@@ -3,18 +3,30 @@ import { useTranslation } from 'react-i18next'
 import { FileText, Files, Gamepad2, Home } from './icons'
 import Icon from './Icon'
 import useHideOnScroll from '../../hooks/useHideOnScroll'
-import { LEARNER_TABS } from '../constants/learnerTabs.js'
+import { resolveLearnerTabs } from '../constants/learnerTabs.js'
 
 // This bar is the side door on the pages still carrying the legacy
 // `Navbar` chrome, so its destinations must match the learner shell's or
 // the retired IA comes back through it. They no longer CAN differ: both
-// bars read `LEARNER_TABS`, and this file only decides how a tab looks in
-// the older Tailwind system. See that module's header for why the two
-// renderings are still separate.
+// bars resolve their tabs through `resolveLearnerTabs`, and this file only
+// decides how a tab looks in the older Tailwind system. See that module's
+// header for why the two renderings are still separate.
+//
+// WHO the bar is for is the caller's to say, not this file's: `src/shared`
+// is the bottom layer and may not read the auth context. `Navbar` already
+// holds the profile, so it answers `homePath` / `learnerRoutesOpen` — see
+// `resolveLearnerTabs` for what a "no" changes and why it is not simply
+// hiding the bar.
 const TAB_ICONS = { home: Home, papers: Files, notes: FileText, games: Gamepad2 }
 
-export default function MobileBottomNav({ mode = 'fixed', className = '' }) {
+export default function MobileBottomNav({
+  mode = 'fixed',
+  className = '',
+  homePath,
+  learnerRoutesOpen,
+}) {
   const { t } = useTranslation()
+  const tabs = resolveLearnerTabs({ homePath, learnerRoutesOpen })
   // Auto-hide only applies to the floating (fixed) bar; a `static` inline bar
   // scrolls with the page and shouldn't slide away.
   const hidden = useHideOnScroll()
@@ -28,7 +40,7 @@ export default function MobileBottomNav({ mode = 'fixed', className = '' }) {
   return (
     <nav className={`${positionClass} ${autoHide} ${className}`} aria-label="Primary mobile navigation">
       <div className="flex">
-        {LEARNER_TABS.map(tab => (
+        {tabs.map(tab => (
           <NavLink
             key={tab.to}
             to={tab.to}

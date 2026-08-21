@@ -18,7 +18,7 @@ import {
 } from '../../shared/components/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import { useSubscription } from '../../hooks/useSubscription'
-import { getRoleLandingPath } from '../../utils/navigation'
+import { canOpenLearnerRoutes, getRoleLandingPath } from '../../utils/navigation'
 import Logo from '../../shared/components/Logo'
 import Icon from '../../shared/components/Icon'
 import CharacterAvatar from '../../shared/components/CharacterAvatar'
@@ -56,12 +56,31 @@ export default function Navbar() {
     { to: '/quizzes',    label: 'Quizzes',  icon: PencilLine },
     { to: '/daily',      label: 'Exams',    icon: TrophyIcon },
   ]
-  const staffLinks = [
+  // Admins may open the learner surfaces — LearnerOnlyRoute lets them
+  // through on role alone — so this stays their menu.
+  const adminLinks = [
     { to: '/notes',      label: 'Notes',    icon: FileText },
     { to: '/lessons',    label: 'Lessons',  icon: BookOpen },
     { to: '/quizzes',    label: 'Practise', icon: PencilLine },
   ]
-  const navLinks = (!isAdmin && !isTeacher) ? learnerLinks : staffLinks
+  // A TEACHER may open none of those. `/notes` and `/quizzes` are
+  // <LearnerOnlyRoute> pages and `/lessons` is a <Navigate> to `/notes`, so
+  // all three ended at "Teacher accounts stay in the teacher portal" — this
+  // menu had a 100% failure rate for the role it was written for, and the
+  // redirect is why reading the list was not enough to notice. `/papers` is
+  // public and is the one thing here a teacher actually wanted; the portal
+  // itself is the separate "Teacher" link below, so repeating it here would
+  // just be the same destination twice.
+  const teacherLinks = [
+    { to: '/papers',     label: 'Papers',   icon: Files },
+  ]
+  const navLinks = isAdmin ? adminLinks : (isTeacher ? teacherLinks : learnerLinks)
+  // Whether the four-tab learner bar below may offer its learner-only tabs to
+  // this account, answered by the predicate LearnerOnlyRoute is built on. The
+  // desktop `/search` link a few lines down has hidden itself from staff for
+  // the same reason since long before this; the bottom bar simply never got
+  // the same treatment, and on a phone it is the whole navigation.
+  const learnerRoutesOpen = !userProfile || canOpenLearnerRoutes(userProfile)
 
   async function handleLogout() {
     await logout()
@@ -305,7 +324,7 @@ export default function Navbar() {
         </div>
       )}
     </nav>
-    <MobileBottomNav />
+    <MobileBottomNav learnerRoutesOpen={learnerRoutesOpen} homePath={homePath} />
     </>
   )
 }

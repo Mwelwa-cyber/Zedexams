@@ -15,8 +15,10 @@
 // Run: node scripts/test-learner-only-routes.mjs
 import assert from 'node:assert/strict'
 import { learnerOnlyRoutePaths } from './lib/declaredRoutes.mjs'
+import { LEARNER_ROLES } from '../src/utils/permissions.js'
 import {
   LEARNER_ONLY_SEGMENTS,
+  canOpenLearnerRoutes,
   isLearnerOnlyPath,
   resolvePostAuthPath,
 } from '../src/utils/navigation.js'
@@ -73,6 +75,34 @@ for (const path of declared) {
     `A teacher bounced from ${concrete} must land on /teacher, not that route`,
   )
 }
+
+// ── canOpenLearnerRoutes mirrors the guard, for every learner spelling ──
+//
+// LearnerOnlyRoute reads AuthContext's `isLearner`, which is `isLearnerRole` —
+// so 'student', the legacy spelling, is a learner to the guard. This predicate
+// spelled the check out by hand as `role === 'learner'` and was therefore
+// STRICTER than the thing it claims to mirror: a free 'student' account fell
+// past the role branch to the premium check and came back "blocked".
+//
+// That was invisible while the only caller redirected (a learner's landing page
+// is /dashboard whichever branch answers), and stopped being invisible the
+// moment the learner tab bar asked the same question — it took Home and Notes
+// off a legacy learner's own navigation. So both spellings are pinned here, on
+// a FREE profile, because the plan check is exactly what a role miss falls into.
+for (const role of LEARNER_ROLES) {
+  assert.equal(
+    canOpenLearnerRoutes({ role }),
+    true,
+    `canOpenLearnerRoutes says a free '${role}' account cannot open a learner route, `
+    + 'but LearnerOnlyRoute lets it straight through on role alone. A navigation surface '
+    + 'reading this predicate would hide a learner\'s own tabs from them.',
+  )
+}
+assert.equal(canOpenLearnerRoutes({ role: 'teacher' }), false)
+assert.equal(canOpenLearnerRoutes({ role: 'admin' }), true)
+assert.equal(canOpenLearnerRoutes({ role: 'superAdmin' }), true)
+// A guardian with no learner-portal plan is refused; one with premium is not.
+assert.equal(canOpenLearnerRoutes({ role: 'parent' }), false)
 
 // The guard can fail: a segment removed from the list is caught.
 {

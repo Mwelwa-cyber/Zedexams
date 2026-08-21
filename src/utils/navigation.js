@@ -133,24 +133,47 @@ export function resolvePostAuthPath(profileOrFlags, fromPath, fallback = '/dashb
   if (!isSafeInAppPath(fromPath)) return landing
 
   if (!isLearnerOnlyPath(fromPath)) return fromPath
-  return blockedFromLearnerPortal(profileOrFlags) ? landing : fromPath
+  return canOpenLearnerRoutes(profileOrFlags) ? fromPath : landing
 }
 
 /**
- * Would LearnerOnlyRoute turn this account away from a learner route?
+ * Would LearnerOnlyRoute LET this account onto a learner route?
  *
  * Kept beside `resolvePostAuthPath` because it exists only to answer that
  * question the same way the guard does — role first (admins and learners are
  * through before anything else is read), then teachers refused outright, then
  * everyone else on the plan predicate the guard's own flag comes from.
+ *
+ * Exported because redirecting is only half of it. `resolvePostAuthPath` stops
+ * the app SENDING a teacher to a learner route after sign-in; it says nothing
+ * about the app OFFERING one. The learner tab bar did exactly that — Home
+ * pointed at /dashboard for every account that rendered it, including the
+ * teachers and guardians who meet the bar on the two public routes that mount
+ * the learner shell (/papers, /games) — so a teacher who tapped Home to get
+ * home was answered with "Teacher accounts stay in the teacher portal",
+ * drawn inside the very shell whose bar had just sent them there.
+ *
+ * The rule this file already stated for redirects governs offers too: the
+ * refusal card is the right answer when somebody types or bookmarks a learner
+ * URL, and the wrong one when the app itself pointed them at it. So a
+ * navigation surface asks this before it draws a learner destination, and the
+ * guard and the bar cannot disagree because there is one predicate.
  */
-function blockedFromLearnerPortal(profileOrFlags) {
+export function canOpenLearnerRoutes(profileOrFlags) {
   const profile = typeof profileOrFlags === 'string' ? { role: profileOrFlags } : profileOrFlags
   const role = profile?.role
   const isAdmin = profile?.isAdmin || role === 'admin' || role === 'superAdmin'
-  const isLearner = profile?.isLearner || role === 'learner'
+  // `isLearnerRole`, not `role === 'learner'`, for the reason getRoleLandingPath
+  // states above it: AuthContext derives its own `isLearner` flag from that set,
+  // so the legacy 'student' spelling is a learner to the GUARD. Spelling it out
+  // by hand here made this predicate stricter than the guard it mirrors, and a
+  // free legacy learner then fell through to the plan check and came back
+  // false — invisible while the only caller was `resolvePostAuthPath` (which
+  // lands them on /dashboard either way), and immediately visible the moment a
+  // tab bar asked: it took Home and Notes off a learner's own navigation.
+  const isLearner = profile?.isLearner || isLearnerRole(role)
 
-  if (isAdmin || isLearner) return false
-  if (profile?.isTeacher || role === 'teacher') return true
-  return !hasLearnerPortalAccess(profile)
+  if (isAdmin || isLearner) return true
+  if (profile?.isTeacher || role === 'teacher') return false
+  return hasLearnerPortalAccess(profile)
 }

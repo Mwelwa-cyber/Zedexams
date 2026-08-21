@@ -14,7 +14,10 @@ vi.mock('../../../firebase/config', () => ({ default: {}, auth: {}, db: {} }))
 
 const mockAuth = {
   currentUser: { uid: 'learner-1', emailVerified: true },
-  userProfile: { id: 'learner-1', displayName: 'Lydia Mwansa', grade: '7', avatarCharacter: null },
+  // The role is load-bearing, not decoration: the shell reads it to decide
+  // which tabs this account may be offered, and a profile with no role is not
+  // one LearnerOnlyRoute would have let onto this page in the first place.
+  userProfile: { id: 'learner-1', role: 'learner', displayName: 'Lydia Mwansa', grade: '7', avatarCharacter: null },
   logout: vi.fn(),
   isAdmin: false,
   isTeacher: false,
