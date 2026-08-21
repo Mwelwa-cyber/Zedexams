@@ -779,6 +779,7 @@
     "preview": "vite preview",
     "smoke:build": "vite build --mode smoke",
     "smoke:mobile": "node scripts/test-mobile-smoke.mjs",
+    "smoke:native-shell": "node scripts/test-native-shell-smoke.mjs",
     "smoke:dashboard": "node scripts/test-dashboard-responsive.mjs",
     "smoke:explore": "node scripts/test-learner-explore-row.mjs",
     "smoke:games-hub": "node scripts/test-games-hub-layout.mjs",

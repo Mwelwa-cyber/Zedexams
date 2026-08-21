@@ -33,11 +33,11 @@
  * token is absent or unrecognised with
  *   401 {"error":{"code":401,"message":"Firebase App Check token is invalid."}}
  * — so the placeholder below is REJECTED there rather than logged, and because
- * the SDK caches it for the full TTL a single stall would refuse every upload
- * for a minute. Storage READS are unaffected (a download URL carrying a valid
- * download token serves without App Check being consulted). Storage WRITES must
- * therefore go through the gate in appCheckWriteGate.js — do not spend a
- * placeholder on one.
+ * the SDK caches it for the full TTL (APPCHECK_PLACEHOLDER_TTL_MS) a single
+ * stall would refuse every upload until it expires. Storage READS are
+ * unaffected (a download URL carrying a valid download token serves without App
+ * Check being consulted). Storage WRITES must therefore go through the gate in
+ * appCheckWriteGate.js — do not spend a placeholder on one.
  */
 
 // How long to wait for a real reCAPTCHA token before proceeding without one.
@@ -45,9 +45,36 @@
 // is never the thing that trips it.
 export const APPCHECK_TOKEN_TIMEOUT_MS = 5000
 
-// Placeholder lifetime. Short so the SDK re-requests a *real* token soon after
-// reCAPTCHA recovers, restoring proper attestation for the enforced products.
-export const APPCHECK_PLACEHOLDER_TTL_MS = 60_000
+// The App Check SDK's own refresh scheduler, which every TTL we hand it has to
+// satisfy. After a successful mint it schedules the next one at
+//
+//   max(0,  min( issuedAt + 0.5 × TTL + 5min ,  expireTime − 5min )  − now )
+//
+// (@firebase/app-check, the `initTokenRefresher` callback). Both terms are
+// built around a FIVE-MINUTE buffer, so a token that does not outlive that
+// buffer resolves to a delay of exactly ZERO: the SDK re-enters the provider
+// immediately, gets another short token, and schedules zero again.
+export const APPCHECK_SDK_REFRESH_BUFFER_MS = 5 * 60_000
+
+// Placeholder lifetime. It must CLEAR the SDK's refresh buffer, and the margin
+// by which it clears it IS the retry cadence: the `expireTime − 5min` term is
+// the smaller of the two for any TTL under 20 minutes, so the SDK asks for a
+// real token again `TTL − 5min` after a placeholder is issued. Six minutes
+// therefore buys the one-minute retry this file has always described, and the
+// placeholder still expires long before anything could mistake it for
+// attestation.
+//
+// It was 60_000, which is zero by that formula, and the cost was not
+// theoretical. Whenever the provider FAILS FAST — Play Integrity unavailable or
+// out of quota, reCAPTCHA throwing on render — the placeholder came straight
+// back, so the SDK re-entered the provider about 1,300 times a second and never
+// stopped. Measured in the Android shell (scripts/test-native-shell-smoke.mjs):
+// ~12,000 provider calls in six seconds on a single page load, against 1 with a
+// healthy token. On Android every one of those is a JSON round-trip across the
+// Capacitor bridge, so the fail-open path built to keep a degraded device
+// WORKING was pegging a core and draining the battery of exactly the devices it
+// was protecting.
+export const APPCHECK_PLACEHOLDER_TTL_MS = 6 * 60_000
 
 // Deliberately not a real token — the Monitoring-only backends log it like a
 // missing token; the enforced backends reject it (already the case when

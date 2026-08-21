@@ -16,6 +16,7 @@ import {
   APPCHECK_PLACEHOLDER_TOKEN,
   APPCHECK_TOKEN_TIMEOUT_MS,
   APPCHECK_PLACEHOLDER_TTL_MS,
+  APPCHECK_SDK_REFRESH_BUFFER_MS,
   PLACEHOLDER_REASONS,
   attestationDegraded,
   readAttestationState,
@@ -89,7 +90,8 @@ async function run() {
     t.fire() // trip the injected timeout
     const res = await p
     ok('hang → placeholder token (never stalls)', res.token === APPCHECK_PLACEHOLDER_TOKEN)
-    ok('placeholder expiry uses the injected clock', res.expireTimeMillis === 1_000 + 60_000)
+    ok('placeholder expiry uses the injected clock',
+      res.expireTimeMillis === 1_000 + APPCHECK_PLACEHOLDER_TTL_MS)
   }
 
   console.log('\nappCheckResilient — makePlaceholderToken shape')
@@ -205,6 +207,33 @@ async function run() {
     })
     ok('a throwing sink still yields the placeholder', res.token === APPCHECK_PLACEHOLDER_TOKEN)
     ok('and the state is still recorded', readAttestationState().placeholderCount === 1)
+  }
+
+  // ── The placeholder must not drive the SDK's refresher at zero delay ──────
+  //
+  // @firebase/app-check schedules its next mint at
+  //   max(0, min(issuedAt + 0.5×TTL + 5min, expireTime − 5min) − now)
+  // so a token that does not outlive the five-minute buffer schedules ZERO and
+  // the SDK re-enters the provider immediately, forever. That is a CPU spin on
+  // web and a spin across the Capacitor bridge on Android. This reproduces the
+  // SDK's arithmetic rather than trusting the constant to look big enough.
+  console.log('\nappCheckResilient — the placeholder TTL clears the SDK refresh buffer')
+  {
+    const issuedAt = 1_700_000_000_000
+    const { expireTimeMillis } = makePlaceholderToken(() => issuedAt)
+    const nextRefreshAt = Math.min(
+      issuedAt + (expireTimeMillis - issuedAt) * 0.5 + APPCHECK_SDK_REFRESH_BUFFER_MS,
+      expireTimeMillis - APPCHECK_SDK_REFRESH_BUFFER_MS,
+    )
+    const delayMs = Math.max(0, nextRefreshAt - issuedAt)
+    ok('TTL outlives the SDK refresh buffer',
+      APPCHECK_PLACEHOLDER_TTL_MS > APPCHECK_SDK_REFRESH_BUFFER_MS)
+    ok('so the next refresh is scheduled with a real delay, not 0', delayMs > 0)
+    // The margin over the buffer IS the retry cadence; keep it inside a
+    // sane band so a placeholder neither spins nor strands a recovered device.
+    ok('and that delay is the documented ~1 minute',
+      delayMs === APPCHECK_PLACEHOLDER_TTL_MS - APPCHECK_SDK_REFRESH_BUFFER_MS)
+    ok('which is between 30s and 5min', delayMs >= 30_000 && delayMs <= 5 * 60_000)
   }
 
   console.log(`\n✓ appCheckResilient: ${passed} assertions passed`)
