@@ -5,6 +5,83 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-08-21 — Android closed testing (v1.4.0)
+
+Features bundled into the Android closed-testing App Bundle since v1.3.1 —
+32 pull requests. Short tester-facing blurb lives in
+`distribution/whatsnew/whatsnew-en-US`. Per-PR detail for 2026-08-20 is in
+the dated entry below; 2026-08-21's work is rolled up here because Ledger
+has not dated it yet.
+
+### Added
+
+- **Spelling Ride** — a three-lane road game over the existing spelling
+  bank (#2565), with the road restored on a second ride (#2573).
+- **One connected spelling system** — ladder, coach, tricky words and admin
+  (#2558) — now speaking with pre-generated ElevenLabs pronunciation drawn
+  off the learner's quota (#2564), fetched before the word is due rather
+  than at the moment it is asked for (#2570).
+- **Fractions became a learning path, not a quiz** — pictures, stages,
+  working and mastery (#2559).
+- **The past-paper quiz runs on the paper's own clock** (#2571), with exam
+  mode, practice coaching and an explanation pipeline behind it (#2566).
+- **A Google Play rail for the parent checkout** (#2577), beside a parent
+  portal that states what a child's plan actually is and makes paying
+  legible (#2580).
+- **A weekly, grade-scoped leaderboard**, replacing the global all-time
+  board (#2560).
+
+### Fixed — the Android build
+
+The cluster a closed tester meets first, and the reason this release
+matters more on the phone than on the web:
+
+- **App Check enforcement signed users out on every cold load** (#2553) —
+  the second cold-load sign-out fixed in two releases, and a different
+  cause from v1.3.1's.
+- The App Check placeholder spun the Capacitor bridge (#2572).
+- `color-mix()` had no fallback, so the teacher dock and drawer never
+  painted (#2574).
+- Download opened a share sheet instead of saving to the phone (#2576).
+- Pinch-to-zoom on past papers works on the Android build (#2563).
+- `@capacitor/status-bar` removed, clearing the Play Android 15
+  edge-to-edge warning (#2554).
+
+### Fixed — navigation and roles
+
+- A teacher signs in to the teacher dashboard and never renders a learner
+  screen (#2579).
+- The learner tab bar no longer sends a teacher to a page that refuses
+  them (#2575).
+- The last two doors into the learner portal are closed (#2578).
+
+### Fixed — theme and legibility
+
+- "Light" is an answer the operating system cannot overrule (#2581).
+- Teachers have back the control over the palette that paints their site
+  (#2569).
+- Learner legibility, one navigation, and a quiz header nobody could read
+  in Night (#2562).
+- Frosted glass thick enough to read over (#2561).
+
+### Fixed — content, games and auth
+
+- Answer options are dealt fresh, and the intestine labels are unswapped
+  (#2557).
+- The capitals map game no longer gives away its own answer, and the
+  doubled play-page chrome is gone (#2556).
+- The Conjunctions demo sits beside a real note, and the notes hub's
+  spacing is unglued (#2555).
+- A password may not start or end with a space (#2550).
+- Past-paper quiz: the cascade is restored, two facts corrected, and the
+  reader reflowed for desktop (#2583).
+
+### Internal
+
+- The functions deploy has a budget it can finish in, and no longer loses
+  its log (#2567).
+- `googlePlayRtdn` is held back until its Pub/Sub topic exists (#2582).
+
 ## 2026-08-20
 
 ### Added

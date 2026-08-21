@@ -1,10 +1,9 @@
 What's new in this closed test:
-• The learner app, rebuilt — Home, Notes, Games, Papers
-• Daily Quiz: five new questions a day, marked as you go
-• New games: Know Zambia, Race Zed, Fraction Ladder, spelling
-• Four games are free now — no subscription needed
-• Family portal — link a parent and learner, set limits
-• Ask Zed removed — it appeared where it shouldn't
-• Fixed: a sign-out on reload; dark mode now stays dark
+• Fixed: the app no longer signs you out when you open it
+• Android: downloads save to your phone, and papers pinch-to-zoom
+• New: Spelling Ride, and a Fractions path that teaches step by step
+• Past papers: real exam timing, with explanations after practice
+• A weekly leaderboard for your grade, replacing the all-time one
+• Parents can pay through Google Play
 
 Thanks for testing! Send feedback from inside the app.
