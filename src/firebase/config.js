@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import { initializeAppCheck, ReCaptchaEnterpriseProvider, CustomProvider, getToken } from 'firebase/app-check'
-import { resilientGetToken, APPCHECK_PLACEHOLDER_TOKEN, setAttestationArmed, setAttestationExpected } from './appCheckResilient'
+import { resilientGetToken, APPCHECK_PLACEHOLDER_TOKEN, APPCHECK_PLACEHOLDER_TTL_MS, setAttestationArmed, setAttestationExpected } from './appCheckResilient'
 import { capture } from '../utils/analytics'
 import { resolveWriteAttestation, WRITE_BLOCKED_MESSAGE } from './appCheckWriteGate'
 import {
@@ -336,9 +336,15 @@ async function initAppCheck() {
           if (!res || !res.token) return null
           return {
             token: res.token,
-            // Some plugin platforms omit expireTimeMillis; a short TTL just
-            // makes the SDK re-request sooner, which is safe.
-            expireTimeMillis: res.expireTimeMillis || Date.now() + 60_000,
+            // @capacitor-firebase/app-check documents expireTimeMillis as
+            // Android/iOS-only, so this fallback should not fire on a phone —
+            // but if it ever does, the TTL must still outlive the SDK's
+            // five-minute refresh buffer. A shorter one does NOT merely "make
+            // the SDK re-request sooner", which is what this comment used to
+            // claim: it schedules the next refresh at zero delay, and the SDK
+            // then re-enters this provider in a tight loop across the Capacitor
+            // bridge. See APPCHECK_PLACEHOLDER_TTL_MS.
+            expireTimeMillis: res.expireTimeMillis || Date.now() + APPCHECK_PLACEHOLDER_TTL_MS,
           }
         }, { onPlaceholder: reportPlaceholder('play-integrity') }),
       })
@@ -424,7 +430,7 @@ async function initAppCheck() {
           return res
         }
         consecutivePlaceholders += 1
-        // Two consecutive placeholder cycles (~2 min at the 60s placeholder
+        // Two consecutive placeholder cycles (~2 min at the placeholder
         // TTL) a minute or more after init is a stuck widget, not a slow first
         // script load — re-initialize so the session regains real attestation.
         if (

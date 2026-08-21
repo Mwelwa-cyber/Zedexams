@@ -19,10 +19,14 @@
  * so an upload carrying the placeholder is doomed before it leaves. Two
  * consequences make that worse than a one-off failure:
  *
- *   1. The placeholder is CACHED for its full TTL (60s). The Firebase SDK
- *      reuses it for every subsequent request until it expires, so a single
- *      5s reCAPTCHA stall locks out every upload for a minute — even if
- *      reCAPTCHA recovered immediately.
+ *   1. The placeholder is CACHED for its full TTL (APPCHECK_PLACEHOLDER_TTL_MS,
+ *      six minutes — long enough to clear the App Check SDK's five-minute
+ *      refresh buffer, below which the SDK re-mints in a tight loop). The
+ *      Firebase SDK reuses it for every subsequent request until it expires,
+ *      so a single 5s reCAPTCHA stall would lock out every upload for the rest
+ *      of that window — even if reCAPTCHA recovered immediately. Which is
+ *      precisely why the gate below spends a FORCED refresh rather than
+ *      waiting the cache out.
  *   2. The rejection surfaces as `storage/unauthorized`, indistinguishable
  *      from a Security Rules denial or an oversized file, so the upload
  *      screens report the wrong cause to the teacher.
