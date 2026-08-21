@@ -48,7 +48,11 @@ export const QUIZ_EVENTS = Object.freeze(Object.values(QUIZ_EVENT))
  */
 export const QUIZ_EVENT_PROPS = Object.freeze({
   [QUIZ_EVENT.MODE_SELECTED]: ['mode', 'paperId'],
-  [QUIZ_EVENT.EXAM_STARTED]: ['paperId', 'questions', 'durationMin', 'strictForward'],
+  // `durationSource` is how many exams are running on an APPROXIMATION rather
+  // than on the paper's own printed time — i.e. how much of the archive still
+  // needs its cover read (functions/shared/paperQuiz/examSpec.js). It names a
+  // rung, never a learner.
+  [QUIZ_EVENT.EXAM_STARTED]: ['paperId', 'questions', 'durationMin', 'durationSource', 'strictForward'],
   [QUIZ_EVENT.EXAM_ABANDONED]: ['paperId', 'answered', 'secondsIn'],
   [QUIZ_EVENT.EXAM_SUBMITTED]: ['paperId', 'percent', 'blanks', 'timeUsedSec'],
   [QUIZ_EVENT.EXAM_TIMEUP]: ['paperId', 'answered'],

@@ -38,8 +38,8 @@ function testAsync(name, fn) {
   asyncTests.push([name, fn]);
 }
 
-// ── identity + duration ──────────────────────────────────────────────────
-console.log("\nidentity and duration");
+// ── identity ─────────────────────────────────────────────────────────────
+console.log("\nidentity");
 
 test("ids are derived, not random", () => {
   assert.equal(core.attemptDocId({uid: "u", paperId: "p", startedAtMs: 12}), "u_p_12");
@@ -47,22 +47,9 @@ test("ids are derived, not random", () => {
   assert.equal(core.topicStatId("u", "eng.tense"), "u_eng.tense");
 });
 
-test("a paper with no duration gets the default, not zero", () => {
-  // An exam that expires the instant it starts is a paper the learner cannot
-  // sit and a support ticket nobody can reproduce.
-  assert.equal(core.resolveDurationMinutes({}), core.DEFAULT_DURATION_MIN);
-  assert.equal(core.resolveDurationMinutes({durationMinutes: 0}), core.DEFAULT_DURATION_MIN);
-  assert.equal(core.resolveDurationMinutes({durationMinutes: null}), core.DEFAULT_DURATION_MIN);
-  assert.equal(core.resolveDurationMinutes({durationMinutes: "nonsense"}), core.DEFAULT_DURATION_MIN);
-});
-
-test("a typo cannot mint a fifteen-hour attempt", () => {
-  assert.equal(core.resolveDurationMinutes({durationMinutes: 900}), core.MAX_DURATION_MIN);
-  assert.equal(core.resolveDurationMinutes({durationMinutes: 1}), core.MIN_DURATION_MIN);
-  assert.equal(core.resolveDurationMinutes({durationMinutes: 90}), 90);
-  // Both spellings the corpus uses.
-  assert.equal(core.resolveDurationMinutes({durationMin: 45}), 45);
-});
+// The duration ladder itself moved to functions/shared/paperQuiz/examSpec.js
+// (the browser has to resolve the identical number for the cover) and is
+// covered by examSpec.test.js — `test:paper-exam-spec`.
 
 // ── §1: only one thing ends an exam early ────────────────────────────────
 console.log("\nresume (§1 — only one thing ends an exam early)");

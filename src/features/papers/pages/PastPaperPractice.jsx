@@ -43,6 +43,7 @@ import {
   startPaperAttempt,
   submitPaperAttempt,
 } from '../../../utils/pastPapers'
+import { resolveExamSpec } from '../../../utils/paperExamSpec'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 import Logo from '../../../shared/components/Logo'
 import Skeleton from '../../../shared/components/Skeleton'
@@ -50,8 +51,6 @@ import Skeleton from '../../../shared/components/Skeleton'
 // Timed practice reads the paper the same way the viewer does: one
 // continuous vertical stack, whatever the file format.
 const PdfPageStream = lazy(() => import('../../../shared/components/PdfPageStream'))
-
-const FALLBACK_DURATION_MINUTES = 60
 
 function fmtClock(totalSeconds) {
   const s = Math.max(0, Math.floor(totalSeconds))
@@ -164,7 +163,7 @@ export default function PastPaperPractice() {
         const id = await startPaperAttempt({
           uid: currentUser.uid,
           paper,
-          durationMinutes: paper.durationMinutes ?? FALLBACK_DURATION_MINUTES,
+          durationMinutes: resolveExamSpec({ paper }).durationMinutes,
         })
         if (cancelled) return
         setAttemptId(id)
@@ -204,7 +203,12 @@ export default function PastPaperPractice() {
 
   const previewSource = useMemo(() => pickPreviewSource(paper), [paper])
 
-  const durationMinutes = paper?.durationMinutes ?? FALLBACK_DURATION_MINUTES
+  // "That paper's own official duration", per this file's own promise at the
+  // top — resolved by the module the quiz cover and the exam clock share, not
+  // by a private 60-minute fallback that made the promise false for every
+  // paper whose duration nobody had typed in.
+  const examSpec = useMemo(() => resolveExamSpec({ paper }), [paper])
+  const durationMinutes = examSpec.durationMinutes
   const elapsedSeconds = startedAtMs ? Math.floor((now - startedAtMs) / 1000) : 0
   const totalSeconds = durationMinutes * 60
   const remainingSeconds = Math.max(0, totalSeconds - elapsedSeconds)
@@ -307,7 +311,7 @@ export default function PastPaperPractice() {
             {fmtClock(elapsedSeconds)}
           </p>
           <p className="theme-text-muted text-xs">
-            {durationMinutes} min target · {Math.round((elapsedSeconds / 60) * 10) / 10} min taken
+            {examSpec.exact ? '' : 'about '}{durationMinutes} min target · {Math.round((elapsedSeconds / 60) * 10) / 10} min taken
           </p>
           <div className="mt-6 flex flex-col gap-2">
             {paper.markSchemePath && (
@@ -354,7 +358,7 @@ export default function PastPaperPractice() {
         <div className="flex-1 min-w-0">
           <p className="theme-text font-black text-sm truncate">{paper.title}</p>
           <p className="theme-text-muted text-[11px]">
-            Grade {paper.grade} · {paper.year} · {durationMinutes} min target
+            Grade {paper.grade} · {paper.year} · {examSpec.exact ? '' : 'about '}{durationMinutes} min target
           </p>
         </div>
         {/* Calm, and hideable. The low-time state is amber rather than a

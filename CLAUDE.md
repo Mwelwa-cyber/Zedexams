@@ -1125,6 +1125,75 @@ Tests: `test:entitlements`, `test:guardian-unlock`, plus the Vitest specs beside
 each surface (`ContextualUnlockSheet`, `MomentOfWinModal`, `FreeSetResults`,
 `FreeSetMeter`, `paperAttemptDraft`, `PublicQuizRunner.freeset`).
 
+### A past paper's clock is the paper's own (2026-08-20)
+
+The cover of every ECZ paper states what it is — *"There are 50 questions in
+this EXPRESSIVE ARTS PAPER. You will be given EXACTLY 60 MINUTES"* — and until
+now nothing in the product read that sentence. The quiz offered **90 minutes**,
+because `PaperQuizPage` defaulted to 90 when `paper.durationMinutes` was empty,
+and it is empty on almost every paper in the archive: the Studio's Duration
+field is optional and a batch upload skips it.
+
+**Four surfaces, four different answers, one paper.** The quiz cover said 90,
+`paperQuizCore` (the SERVER, which stamps `expiresAtMs`) defaulted to 90 in its
+own copy of the rule, the reader's "Est. time" panel guessed one minute per
+question (50m), and timed practice fell back to 60 — on a paper printing 60.
+
+**One resolver now, shared with the server.**
+`functions/shared/paperQuiz/examSpec.js` (ESM, imported by the browser through
+`features/papers/quiz/lib/examSpec.js` and by the Cloud Function with the same
+`await import(...)` the marking package uses). The ladder, strongest first:
+
+| Rung | Source | `exact` |
+|---|---|---|
+| `recorded` | `paper.durationMinutes` — an admin typed it | ✅ |
+| `printed` | `paper.printedSpec.durationMinutes` — read off the cover at import | ✅ |
+| `official` | the ECZ length for that grade + subject | ❌ |
+| `estimated` | from the questions the paper actually holds, by type | ❌ |
+| `default` | 90, only when there is nothing to read at all | ❌ |
+
+- **`exact: false` must reach the learner as the word "about".** The cover says
+  *"About 75 minutes on the clock"* and labels the stat *"Minutes (about)"*. A
+  guess in the same voice as a printed fact is the bug; nicer wording of the
+  same guess would be the bug again.
+- **`quizzes/{id}.duration` is deliberately NOT a rung.** It is the quiz
+  editor's generic length dropdown and it **defaults to 30**, so every
+  past-paper quiz an admin has opened and saved carries it. Reading it would
+  put a 30-minute clock on a 60-minute paper.
+- **`OFFICIAL_PAPER_MINUTES` is a mirror of `PSLE_2026`** (`src/config/
+  examTimetable2026.js`), duplicated because a Cloud Function cannot reach
+  `src/`, and kept honest by `test:paper-exam-spec-mirror` in both directions.
+  It is `exact: false` on purpose: it is *this* year's length and ECZ has
+  changed paper lengths between years — the 2026 timetable gives Expressive
+  Arts 75 minutes where the 2025 paper prints 60.
+- **The estimate rounds UP to five minutes**, and settles the float before
+  rounding: fifty questions at 1.2 sum to 60.00000000000001, which quietly
+  ceils a clean hour into 65.
+
+**Reading the cover is what makes the top rungs reachable.** The importer's
+tool schema now carries `declaredTimeAllowed` (**verbatim** — the minutes are
+parsed by the shared `parsePrintedDuration`, never computed by the model) and
+`declaredTotalMarks` beside the existing `declaredQuestionCount`, and
+`pastPapers/{id}.printedSpec` records `{durationMinutes, statedTime,
+questionCount, totalMarks, engineVersion, readAt}`. Two properties matter: the
+parser **refuses a number that is not a time** (the count sentence sits three
+lines above the time sentence on every ECZ cover), and `persistPrintedSpec`
+**never writes `durationMinutes`** — that field is the admin's, and an import
+must not silently move a clock a human set.
+
+**For the archive imported before any of this existed**, the Studio's Details
+step has *"Read the paper's cover"* — the same callable with
+`coverOnly: true`, which runs ONE model call over the first segment, writes only
+`printedSpec`, and cannot change a single question. A full re-import would read
+the same sentence, but it re-extracts and rewrites every question to get there.
+The card shows the verbatim sentence beside the number, so a wrong read is
+visible as a wrong read.
+
+Tests: `test:paper-exam-spec`, `test:paper-exam-spec-mirror`,
+`test:shared-paper-quiz-neutral`, `test:paper-quiz-server`,
+`test:paper-quiz-zero-write`, plus the `durationExact` arms in
+`PaperQuizCover.spec.jsx`.
+
 ### Three AI surfaces, each on a different model
 
 - **Generators (lesson plan, worksheet, flashcards, scheme of work, rubric, notes, homework, assessment, quiz)** — Cloud Functions in `functions/teacherTools/*`. Each tool is a pair of `<tool>Prompt.js` + `<tool>Schema.js` plus a `generate<Tool>.js` runner. They all share `aiService.callAnthropic` (Sonnet 4.5 by default; override per-runtime with `ANTHROPIC_MODEL`). Two-layer caching: Anthropic prompt caching for the system prompt + CBC-context caching via `teacherTools/cbcKnowledge.js`'s `resolveCbcContext()`. Per-user daily caps live in `usageMeter.js` and write to `aiUsage/{uid}_{day}` / `usageMeters/`. Super-admins bypass the meter (see PR #512).

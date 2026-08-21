@@ -3473,6 +3473,7 @@ service cloud.firestore {
     //   pdfPath (Storage path), pdfFilename, pdfSize (bytes),
     //   markSchemePath, markSchemeFilename (optional, separate PDF),
     //   description (optional), durationMinutes, totalMarks (optional),
+    //   printedSpec (server-written: what the cover page prints),
     //   status ('draft'|'published'|'archived'),
     //   quizId (optional link to quizzes/{id}),
     //   quizStatus ('pending'|'attached'), pendingQuizId (optional),
@@ -3515,6 +3516,13 @@ service cloud.firestore {
         && (!('markSchemeFilename' in incoming()) || incoming().markSchemeFilename == null || (incoming().markSchemeFilename is string && incoming().markSchemeFilename.size() <= 200))
         && (!('description' in incoming()) || incoming().description == null || (incoming().description is string && incoming().description.size() <= 1000))
         && (!('durationMinutes' in incoming()) || incoming().durationMinutes == null || (incoming().durationMinutes is int && incoming().durationMinutes >= 5 && incoming().durationMinutes <= 480))
+        // What the paper's own cover prints about itself — time allowed,
+        // question count, marks — read by the importer and stamped with the
+        // admin SDK (so this arm only ever governs a client write). Shape
+        // only: the learner's exam clock prefers `durationMinutes` above,
+        // and `functions/shared/paperQuiz/examSpec.js` clamps whatever it
+        // finds here before any attempt is minted.
+        && (!('printedSpec' in incoming()) || incoming().printedSpec == null || (incoming().printedSpec is map && incoming().printedSpec.size() <= 10))
         && (!('totalMarks' in incoming()) || incoming().totalMarks == null || (incoming().totalMarks is int && incoming().totalMarks >= 0 && incoming().totalMarks <= 1000))
         && (!('status' in incoming()) || _validPaperStatus(incoming().status))
         // Scanned papers come in as a series of images instead of a

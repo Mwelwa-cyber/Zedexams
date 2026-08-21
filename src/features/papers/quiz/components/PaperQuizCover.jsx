@@ -46,7 +46,7 @@ function TornEdge() {
   )
 }
 
-function ModeCard({ mode, selected, disabled, lockCopy, durationMin, onSelect }) {
+function ModeCard({ mode, selected, disabled, lockCopy, durationMin, durationExact, onSelect }) {
   const copy = MODE_COPY[mode]
   const isExam = mode === QUIZ_MODE.EXAM
   const Icon = isExam ? IconClock : IconBolt
@@ -68,7 +68,10 @@ function ModeCard({ mode, selected, disabled, lockCopy, durationMin, onSelect })
             {copy.tagline}
             <br />
             {isExam
-              ? <b>{`${durationMin} minutes on the clock.`}</b>
+              /* "About" whenever the number is not the paper's own. It is one
+                 word, and it is the difference between telling a learner what
+                 this paper is and guessing at it in the same voice. */
+              ? <b>{durationExact ? `${durationMin} minutes on the clock.` : `About ${durationMin} minutes on the clock.`}</b>
               : copy.detail}
           </span>
         </span>
@@ -111,6 +114,11 @@ export default function PaperQuizCover({
   paper,
   totalQuestions,
   durationMin,
+  // Whether `durationMin` is the paper's own printed time (or an admin's entry
+  // of it) rather than a resolved approximation — see functions/shared/
+  // paperQuiz/examSpec.js. Defaults true so a caller that knows nothing about
+  // provenance is not made to hedge.
+  durationExact = true,
   subjectLabel,
   history,
   examAccess,
@@ -209,7 +217,7 @@ export default function PaperQuizCover({
             </div>
             <div className="pq-np-stat">
               <span className="pq-ic"><IconClock size={26} /></span>
-              <span><b>{durationMin}</b><span>Minutes</span></span>
+              <span><b>{durationMin}</b><span>{durationExact ? 'Minutes' : 'Minutes (about)'}</span></span>
             </div>
           </div>
         </div>
@@ -256,6 +264,7 @@ export default function PaperQuizCover({
             disabled={m === QUIZ_MODE.EXAM && examLocked}
             lockCopy={m === QUIZ_MODE.EXAM ? lockCopy : null}
             durationMin={durationMin}
+            durationExact={durationExact}
             onSelect={onModeChange}
           />
         ))}

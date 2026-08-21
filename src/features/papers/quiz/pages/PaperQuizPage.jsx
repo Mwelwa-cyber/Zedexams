@@ -52,6 +52,7 @@ import { useQuizReadAloud } from '../../../../hooks/useQuizReadAloud'
 import { PAPER_BOOKMARKS_KEY } from '../../lib/paperStorageKeys'
 
 import { QUIZ_MODE, isExam } from '../lib/quizModes'
+import { resolveExamSpec } from '../../../../utils/paperExamSpec'
 import { QUIZ_EVENT, buildEventProps } from '../lib/quizAnalytics'
 import { resolveExamAccess } from '../lib/examAccess'
 import { clockOffset } from '../lib/examClock'
@@ -175,7 +176,16 @@ export default function PaperQuizPage() {
     [uid, unlocked, freeSet, total],
   )
   const subjectMeta = paper && PAPER_SUBJECTS.find((s) => s.id === paper.subject)
-  const durationMin = Number(paper?.durationMinutes) > 0 ? Number(paper.durationMinutes) : 90
+
+  // What the paper itself says it is — the length and the count — resolved by
+  // the module the SERVER stamps `expiresAtMs` with. The cover used to default
+  // to 90 minutes on its own, so a paper printing "EXACTLY 60 MINUTES" offered
+  // a 90-minute exam and nothing in the product disagreed with it.
+  const examSpec = useMemo(
+    () => resolveExamSpec({ paper, questions: catalogueQuestions }),
+    [paper, catalogueQuestions],
+  )
+  const durationMin = examSpec.durationMinutes
 
   // The mode choice is announced once per selection, not once per render.
   useEffect(() => {
@@ -202,11 +212,12 @@ export default function PaperQuizPage() {
         paperId,
         questions: total,
         durationMin,
+        durationSource: examSpec.durationSource,
         strictForward,
         resumed: started.resumed,
       }),
     )
-  }, [attempt, mode, strictForward, catalogueQuestions, freeSet, unlocked, paperId, total, durationMin])
+  }, [attempt, mode, strictForward, catalogueQuestions, freeSet, unlocked, paperId, total, durationMin, examSpec.durationSource])
 
   const handleChoose = useCallback((question, index) => {
     const correct = isExam(mode)
@@ -376,6 +387,7 @@ export default function PaperQuizPage() {
         paper={paper}
         totalQuestions={total}
         durationMin={durationMin}
+        durationExact={examSpec.exact}
         subjectLabel={subjectMeta?.label}
         history={history}
         examAccess={examAccess}

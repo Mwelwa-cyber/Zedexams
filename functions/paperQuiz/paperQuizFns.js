@@ -45,11 +45,12 @@ const TOPIC_STATS = "learnerTopicStats";
 
 /** The shared rules. ESM, so imported inside the async handler (never top-level). */
 async function shared() {
-  const [marking, gate] = await Promise.all([
+  const [marking, gate, spec] = await Promise.all([
     import("../shared/paperQuiz/marking.js"),
     import("../shared/paperQuiz/explanationGate.js"),
+    import("../shared/paperQuiz/examSpec.js"),
   ]);
-  return {marking, gate};
+  return {marking, gate, spec};
 }
 
 function db() {
@@ -148,7 +149,7 @@ function hasEntitlement(profile) {
  */
 exports.startAttemptHandler = async (request) => {
   const uid = await assertVerifiedAuth(request);
-  const {marking, gate} = await shared();
+  const {marking, gate, spec} = await shared();
   const paperId = String(request.data?.paperId || "");
   const mode = request.data?.mode === "practice" ? "practice" : "exam";
   const strictForward = request.data?.strictForward === true;
@@ -157,6 +158,11 @@ exports.startAttemptHandler = async (request) => {
   const paper = await loadPaper(paperId);
   const {quizId, questions} = await loadQuestions(paper);
   await assertMayStart(uid, paper, mode, questions.length);
+
+  // The paper's own length — the SAME resolution the cover ran in the browser
+  // (functions/shared/paperQuiz/examSpec.js), so the clock this call stamps is
+  // the number the learner was shown before they tapped Start.
+  const examSpec = spec.resolveExamSpec({paper, questions});
 
   const nowMs = Date.now();
   const store = db();
@@ -197,7 +203,7 @@ exports.startAttemptHandler = async (request) => {
       quizId,
       mode,
       nowMs,
-      durationMinutes: core.resolveDurationMinutes(paper),
+      durationMinutes: examSpec.durationMinutes,
       questionCount: questions.length,
       strictForward,
       // §5.5 — the client tells us it started offline; nothing else about the
@@ -229,7 +235,11 @@ exports.startAttemptHandler = async (request) => {
       grade: paper.grade ?? null,
       year: paper.year ?? null,
       source: paper.source || "",
-      durationMinutes: core.resolveDurationMinutes(paper),
+      durationMinutes: examSpec.durationMinutes,
+      // How that number was arrived at, so a resumed runner can say "About"
+      // exactly where the cover did rather than promising an estimate is fact.
+      durationSource: examSpec.durationSource,
+      durationExact: examSpec.exact,
       sections: Array.isArray(paper.sections) ? paper.sections : [],
     },
     questions: payload,

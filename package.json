@@ -948,6 +948,8 @@
     "test:paper-quiz-core": "node scripts/test-paper-quiz-core.mjs",
     "test:paper-quiz-server": "node functions/paperQuiz/paperQuizCore.test.js",
     "test:shared-paper-quiz-neutral": "node functions/shared/paperQuiz/neutrality.test.js",
+    "test:paper-exam-spec": "node functions/shared/paperQuiz/examSpec.test.js",
+    "test:paper-exam-spec-mirror": "node scripts/test-paper-exam-spec-mirror.mjs",
     "test:paper-explanations": "node functions/paperQuiz/explanationCore.test.js"
   },
   "lint-staged": {

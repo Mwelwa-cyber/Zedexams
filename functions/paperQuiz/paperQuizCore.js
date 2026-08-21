@@ -45,24 +45,16 @@ const TERMINAL_STATUSES = Object.freeze([
 ]);
 
 /**
- * How long an exam runs. The paper's own `durationMinutes`, because §1's whole
- * claim for exam mode is "just like the real thing".
+ * How long an exam runs is NOT decided here.
  *
- * Clamped, and both ends matter. A paper with no duration recorded gets the
- * ECZ default rather than zero — an exam that expires the instant it starts is
- * a paper the learner cannot sit and a support ticket nobody can reproduce.
- * The upper clamp stops a typo ("900") from minting an attempt that stays
- * `in_progress` for fifteen hours and blocks every restart in the meantime.
+ * It is `resolveExamSpec` in `functions/shared/paperQuiz/examSpec.js`, which
+ * the browser imports too — the cover a learner reads before tapping Start and
+ * the `expiresAtMs` this handler stamps have to be the same number, and while
+ * this module held its own copy of the rule they were only the same by
+ * coincidence (both defaulted to 90). `paperQuizFns.js` loads the shared
+ * module with the same `await import(...)` it already uses for marking and
+ * passes the answer into `buildAttempt` below.
  */
-const DEFAULT_DURATION_MIN = 90;
-const MIN_DURATION_MIN = 5;
-const MAX_DURATION_MIN = 300;
-
-function resolveDurationMinutes(paper) {
-  const raw = Number(paper?.durationMinutes ?? paper?.durationMin);
-  if (!Number.isFinite(raw) || raw <= 0) return DEFAULT_DURATION_MIN;
-  return Math.min(MAX_DURATION_MIN, Math.max(MIN_DURATION_MIN, Math.round(raw)));
-}
 
 /**
  * What to do when `startAttempt` is called and an attempt already exists.
@@ -257,13 +249,9 @@ function buildAbandon(attempt, nowMs) {
 module.exports = {
   ATTEMPT_STATUS,
   TERMINAL_STATUSES,
-  DEFAULT_DURATION_MIN,
-  MIN_DURATION_MIN,
-  MAX_DURATION_MIN,
   attemptDocId,
   practiceProgressId,
   topicStatId,
-  resolveDurationMinutes,
   decideStart,
   buildAttempt,
   attemptSummary,

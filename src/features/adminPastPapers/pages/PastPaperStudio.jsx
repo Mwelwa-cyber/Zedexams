@@ -337,6 +337,12 @@ export default function PastPaperStudio() {
     durationMinutes: '',
     totalMarks: '',
   })
+  // What the paper prints about ITSELF — time allowed, question count, marks —
+  // read off its cover by the importer and stamped on the document. The
+  // Details step offers it rather than applying it: a machine read the page,
+  // and the admin is the one who confirms what a learner's clock is set to.
+  const [printedSpec, setPrintedSpec] = useState(null)
+  const [readingCover, setReadingCover] = useState(false)
   // The paper already occupying this paper's key, if any. Looked up as the
   // identity fields change so the warning is visible while the admin is still
   // in the step, not sprung on them at Publish.
@@ -428,6 +434,7 @@ export default function PastPaperStudio() {
             durationMinutes: row.durationMinutes ? String(row.durationMinutes) : '',
             totalMarks: row.totalMarks ? String(row.totalMarks) : '',
           })
+          setPrintedSpec(row.printedSpec || null)
           setAssets(Array.isArray(row.assets) ? row.assets : [])
           // Legacy single-PDF papers carry their source here instead of in
           // `assets`, and both readers prefer it over the array. The removal
@@ -767,6 +774,63 @@ export default function PastPaperStudio() {
     if (quizId) navigate(`/admin/quizzes/${quizId}/edit`)
   }
 
+  /**
+   * Record what a cover read found, and fill in the Details fields it answers
+   * — but only the EMPTY ones. An admin who typed 60 while the model read 90
+   * keeps their 60 and sees both, because the resolver ranks the typed value
+   * above the printed one and silently overwriting it here would make that
+   * ordering a lie.
+   */
+  function applyPrintedSpec(spec) {
+    if (!spec) return
+    setPrintedSpec(spec)
+    setDetails((prev) => ({
+      ...prev,
+      durationMinutes: prev.durationMinutes || (spec.durationMinutes ? String(spec.durationMinutes) : ''),
+      totalMarks: prev.totalMarks || (spec.totalMarks != null ? String(spec.totalMarks) : ''),
+    }))
+  }
+
+  /**
+   * Read the paper's cover without touching its questions.
+   *
+   * This is how an archive imported before anything read covers gets its real
+   * exam length: one call, one page, and the only thing it writes is
+   * `printedSpec`. Re-importing would do the same read, but it would also
+   * re-extract and rewrite every question to get there.
+   */
+  async function readPaperCover() {
+    if (!paperId || readingCover) return
+    if (!assets.length) {
+      setError('Upload the paper first — there is no cover page to read yet.')
+      return
+    }
+    setError('')
+    setInfo('')
+    setReadingCover(true)
+    try {
+      const res = await importPastPaperQuestionsCallable({ paperId, coverOnly: true })
+      const spec = res?.data?.printedSpec || null
+      applyPrintedSpec(spec)
+      if (!res?.data?.found) {
+        setInfo('This paper\'s cover does not print a time, a question count or a mark total. Type what it should be below.')
+        return
+      }
+      const said = []
+      if (spec?.durationMinutes) said.push(`${spec.durationMinutes} minutes`)
+      if (spec?.questionCount) said.push(`${spec.questionCount} questions`)
+      if (spec?.totalMarks != null) said.push(`${spec.totalMarks} marks`)
+      setInfo(said.length
+        ? `The paper says: ${said.join(' · ')}. Check the Details fields below, then save.`
+        : `The paper's cover reads "${spec?.statedTime || ''}" — we could not read a number from it, so type the duration below.`)
+    } catch (err) {
+      console.error('[PastPaperStudio] cover read failed', err)
+      setError(err?.message || 'Could not read the paper\'s cover.')
+    } finally {
+      setReadingCover(false)
+    }
+  }
+
   async function importQuestionsWithAi() {
     if (!paperId || importing) return
     if (!assets.length) {
@@ -803,6 +867,7 @@ export default function PastPaperStudio() {
         return
       }
       setQuizCount(written)
+      applyPrintedSpec(res?.data?.printedSpec)
       const parts = [`Imported ${written} question${written === 1 ? '' : 's'} into the quiz.`]
       if (res?.data?.warning) parts.push(res.data.warning)
 
@@ -1093,6 +1158,10 @@ export default function PastPaperStudio() {
           setDetail={setDetail}
           duplicate={duplicate}
           checkingDuplicate={checkingDuplicate}
+          printedSpec={printedSpec}
+          hasAssets={assets.length > 0}
+          readingCover={readingCover}
+          onReadCover={readPaperCover}
         />
       )}
       {step === 3 && (
@@ -1476,7 +1545,10 @@ function FieldRow({ label, hint, children }) {
  * still see the name they are creating, without being able to author a name
  * that disagrees with the fields under it.
  */
-function DetailsStep({ details, setDetail, duplicate, checkingDuplicate }) {
+function DetailsStep({
+  details, setDetail, duplicate, checkingDuplicate,
+  printedSpec, hasAssets, readingCover, onReadCover,
+}) {
   const previewTitle = derivedPaperTitle({
     grade: details.grade,
     subject: details.subject,
@@ -1498,6 +1570,83 @@ function DetailsStep({ details, setDetail, duplicate, checkingDuplicate }) {
           Composed from the fields below and regenerated on every save. Learners
           see the source badge and the paper number, not this string.
         </p>
+      </div>
+
+      {/* What the paper says about ITSELF.
+          The reported bug in one card: a paper printing "There are 50
+          questions … EXACTLY 60 MINUTES" offered learners a 90-minute exam,
+          because Duration was an optional field nobody filled and the quiz
+          defaulted. The cover is read at import now, and this is where an
+          admin confirms it — or reads it on demand for a paper imported
+          before anything read covers. */}
+      <div className="theme-card border theme-border rounded-radius-md p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[11px] font-black theme-text-muted uppercase tracking-widest">
+            What the paper says
+          </p>
+          <button
+            type="button"
+            onClick={onReadCover}
+            disabled={readingCover || !hasAssets}
+            className="rounded-full border theme-border px-3 py-1.5 text-xs font-black theme-text hover:theme-bg-subtle disabled:opacity-50"
+          >
+            {readingCover ? 'Reading the cover…' : (printedSpec ? 'Read the cover again' : 'Read the paper\'s cover')}
+          </button>
+        </div>
+        {printedSpec ? (
+          <>
+            <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-xl theme-bg-subtle py-2">
+                <dt className="text-[10px] font-bold theme-text-muted uppercase tracking-wide">Time allowed</dt>
+                <dd className="theme-text font-black text-base">
+                  {printedSpec.durationMinutes ? `${printedSpec.durationMinutes} min` : '—'}
+                </dd>
+              </div>
+              <div className="rounded-xl theme-bg-subtle py-2">
+                <dt className="text-[10px] font-bold theme-text-muted uppercase tracking-wide">Questions</dt>
+                <dd className="theme-text font-black text-base">{printedSpec.questionCount || '—'}</dd>
+              </div>
+              <div className="rounded-xl theme-bg-subtle py-2">
+                <dt className="text-[10px] font-bold theme-text-muted uppercase tracking-wide">Marks</dt>
+                <dd className="theme-text font-black text-base">
+                  {printedSpec.totalMarks != null ? printedSpec.totalMarks : '—'}
+                </dd>
+              </div>
+            </dl>
+            {/* The sentence the number came from, verbatim — so a wrong read is
+                visible as a wrong read rather than as an unexplained number. */}
+            {printedSpec.statedTime ? (
+              <p className="theme-text-muted text-xs mt-2">
+                Printed on the paper: “{printedSpec.statedTime}”
+              </p>
+            ) : null}
+            {printedSpec.durationMinutes
+              && String(printedSpec.durationMinutes) !== String(details.durationMinutes) ? (
+                <p className="text-xs mt-2 flex flex-wrap items-center gap-2">
+                  <span className="theme-text-muted">
+                    {details.durationMinutes
+                      ? `Duration below says ${details.durationMinutes} min — yours wins over the paper's.`
+                      : 'Duration below is empty, so learners get an estimate.'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setDetail('durationMinutes', String(printedSpec.durationMinutes))}
+                    className="rounded-full theme-accent-fill theme-on-accent px-3 py-1 font-black"
+                  >
+                    Use {printedSpec.durationMinutes} min
+                  </button>
+                </p>
+              ) : null}
+          </>
+        ) : (
+          <p className="theme-text-muted text-xs mt-2">
+            Nothing read from this paper yet. Reading the cover fills in the time
+            allowed, the question count and the marks — it reads one page and
+            never touches the questions. Until then, a learner's exam clock is
+            the official length for the subject, or an estimate from the
+            questions, and the quiz says “about”.
+          </p>
+        )}
       </div>
 
       <div className="grid sm:grid-cols-3 gap-4">
@@ -1591,8 +1740,8 @@ function DetailsStep({ details, setDetail, duplicate, checkingDuplicate }) {
       )}
 
       <div className="grid sm:grid-cols-3 gap-4">
-        <FieldRow label="Duration (min)" hint="optional">
-          <input type="number" min="5" max="480" value={details.durationMinutes} onChange={(e) => setDetail('durationMinutes', e.target.value)} className={inputCls()} placeholder="120" />
+        <FieldRow label="Duration (min)" hint="the learner's exam clock">
+          <input type="number" min="5" max="480" value={details.durationMinutes} onChange={(e) => setDetail('durationMinutes', e.target.value)} className={inputCls()} placeholder="60" />
         </FieldRow>
         <FieldRow label="Total marks" hint="optional">
           <input type="number" min="0" max="1000" value={details.totalMarks} onChange={(e) => setDetail('totalMarks', e.target.value)} className={inputCls()} placeholder="100" />
