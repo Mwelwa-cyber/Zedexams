@@ -52,16 +52,13 @@ export default function TeacherTopBar() {
     return () => document.removeEventListener('keydown', onKey)
   }, [])
 
-  // color-mix rather than the token straight: the bar is `backdrop-blur`, so it
-  // has to stay translucent for the frost to show — but the literal this
-  // replaces pinned that tint cream, which is the wrong colour on Night.
+  // The frosted tint is `.tdv2-topbar` in dashboardV2.css, not an inline
+  // style: it is a `color-mix()`, and an inline one has no fallback — a
+  // WebView that cannot parse the value drops it and the bar goes
+  // transparent. Declared in CSS, the cascade carries a fallback.
   return (
     <div
-      className="lg:sticky lg:top-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2.5 mb-4 hidden lg:flex items-center justify-end gap-2 backdrop-blur"
-      style={{
-        background: 'color-mix(in srgb, var(--zt-surface) 92%, transparent)',
-        borderBottom: '1px solid var(--zt-line)',
-      }}
+      className="tdv2-topbar lg:sticky lg:top-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2.5 mb-4 hidden lg:flex items-center justify-end gap-2 backdrop-blur"
     >
       {/* Tier 0 — the ambient plan chip. Beside the bell, never blocking,
           never animating. It makes the limit legible before it is hit. */}

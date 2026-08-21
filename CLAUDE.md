@@ -2084,6 +2084,43 @@ Web uses reCAPTCHA Enterprise (via `ReCaptchaEnterpriseProvider`, silent unless 
 - Web reCAPTCHA App Check provider doesn't work in WebView; the Play Integrity provider must be configured before enforcement is turned on for Firebase AI Logic / Functions.
 - `src/main.jsx` skips `registerSW()` on native — the bundled `capacitor://` origin makes the SW dead weight and `file://` blocks it.
 
+### `color-mix()` is never the only thing painting a surface (2026-08-21)
+
+`color-mix()` landed in Chrome/WebView **111**. `minSdkVersion` is 24 and the
+budget Android handsets this product is FOR often sit below that, so the
+function is genuinely absent on real devices — and there is no polyfill,
+because this is CSS parsing, not a missing API. The reported symptom was the
+teacher bottom dock rendering as **white icons on a white page** and the mobile
+nav drawer opening as floating white text over the dashboard.
+
+**Two different failure modes, and the second is why this is a build step.** A
+normal property (`background: color-mix(…)`) is invalid at parse time, so the
+declaration is dropped and the surface goes transparent. A **custom property**
+(`--sidebar-teal: color-mix(…)`) is NOT dropped — custom properties accept any
+token stream — so the unusable value is stored and poisons every consumer: the
+drawer's `linear-gradient(…, var(--sidebar-teal))` went invalid at
+computed-value time even though it never mentions `color-mix()` itself. One
+poisoned token takes out surfaces nowhere near it.
+
+`scripts/lib/colorMixFallback.mjs` is a PostCSS plugin (wired **last** in
+`postcss.config.js`, after Tailwind) that gives every `color-mix()` a fallback:
+the **dominant operand**, since the result is always nearer the heavier side —
+`var(--zt-sidebar-bg) 88%, #000` → `var(--zt-sidebar-bg)`. When the colour is
+the MINOR side of a `transparent` mix the fallback is `transparent`, which is
+already what such a declaration resolves to on an old engine, so the plugin can
+only turn a dropped declaration into a working one, never the reverse. Static
+mixes are computed exactly. Custom properties are inverted instead of prefixed
+— the definition becomes the fallback and the real value moves behind
+`@supports (color: color-mix(…))` — because a preceding declaration would just
+be overwritten in the token stream.
+
+**Write `color-mix()` freely in CSS; never in a JSX `style` object.** PostCSS
+cannot see an inline style, so an inline mix has no fallback at all — React
+assigns one value and an engine that cannot parse it drops it. Put the
+declaration in a stylesheet (this is why `.tdv2-topbar` exists rather than an
+inline style on TeacherTopBar). `test:color-mix-fallback` fails on a new inline
+use, on a token left defined only as a mix, and if the plugin is unwired.
+
 ### Schemas
 
 Quiz/attempt/result Zod schemas live in `src/shared/schemas/` (moved there from `src/schemas/` on 2026-08-16 — the root directory is gone). There's also a parallel server-side schema at `scripts/test-quiz-attempt-schemas.mjs` for the migration tooling. The teacher-tool generators each have their own JSON schema in `functions/teacherTools/<tool>Schema.js` — they describe the LLM output shape, not Firestore docs.
