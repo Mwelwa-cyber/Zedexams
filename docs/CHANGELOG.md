@@ -5,6 +5,13 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-08-21
+
+### Changed
+
+- Guard against retired Anthropic model IDs (Haiku 3.5 retirement) (#2586)
+- Ship native debug symbols to Play, so a crash trace has names in it (#2585)
+
 ## 2026-08-21 — Android closed testing (v1.4.0)
 
 Features bundled into the Android closed-testing App Bundle since v1.3.1 —
