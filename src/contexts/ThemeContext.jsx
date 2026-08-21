@@ -9,12 +9,23 @@ import {
   writeTeacherTheme,
 } from './teacherThemeStore'
 import {
+  DEFAULT_READING_THEME_MODE,
+  LEGACY_LAST_LIGHT_KEY,
+  READING_LIGHT_THEME_STORAGE_KEY,
+  READING_THEME_MODES,
+  READING_THEME_MODE_STORAGE_KEY,
   READING_THEME_STORAGE_KEY,
+  inferReadingThemeMode,
   isDarkReadingThemeId,
+  isReadingThemeMode,
   prefersDarkColorScheme,
+  resolveLightReadingTheme,
+  resolveReadingTheme,
 } from './readingThemeCore'
 
 const LS_KEY = READING_THEME_STORAGE_KEY
+const MODE_KEY = READING_THEME_MODE_STORAGE_KEY
+const LIGHT_KEY = READING_LIGHT_THEME_STORAGE_KEY
 
 /**
  * The reading themes — the palettes a learner reads ON (note reader, quiz
@@ -65,6 +76,16 @@ export function normalizeThemeId(id) {
   return THEME_IDS.includes(next) ? next : DEFAULT_THEME
 }
 
+/** A stored id that is a real, current, LIGHT palette. */
+function knownLightThemeId(id) {
+  const next = knownThemeId(id)
+  return next && !isDarkReadingThemeId(next) ? next : null
+}
+
+function readKey(key) {
+  try { return localStorage.getItem(key) } catch { return null }
+}
+
 /** Firestore path on the user profile: users/{uid}.preferences.readingTheme */
 export const READING_THEME_PROFILE_FIELD = 'preferences.readingTheme'
 
@@ -96,12 +117,25 @@ export function knownThemeId(id) {
  * dark-OS machine who has never picked anything is exactly who that seed is
  * for.
  */
-export function resolveReadingThemeConflict({ profileTheme, localTheme } = {}) {
+export function resolveReadingThemeConflict({
+  profileTheme, profileMode, profileLight, localTheme,
+} = {}) {
   const fromProfile = knownThemeId(profileTheme)
-  if (fromProfile) return { theme: fromProfile, source: 'profile' }
+  // The MODE alone is enough to make the profile the answer. A profile that
+  // recorded 'system' carries no palette worth echoing, and reading it as
+  // "not answered" would leave the account unable to express the one mode
+  // whose whole point is that it is a decision rather than a default.
+  if (fromProfile || isReadingThemeMode(profileMode)) {
+    return {
+      theme: fromProfile,
+      mode: isReadingThemeMode(profileMode) ? profileMode : inferReadingThemeMode(fromProfile),
+      light: knownThemeId(profileLight) || null,
+      source: 'profile',
+    }
+  }
   const fromLocal = knownThemeId(localTheme)
-  if (fromLocal) return { theme: fromLocal, source: 'local' }
-  return { theme: DEFAULT_THEME, source: 'default' }
+  if (fromLocal) return { theme: fromLocal, mode: inferReadingThemeMode(fromLocal), light: null, source: 'local' }
+  return { theme: DEFAULT_THEME, mode: DEFAULT_READING_THEME_MODE, light: null, source: 'default' }
 }
 
 /**
@@ -111,9 +145,18 @@ export function resolveReadingThemeConflict({ profileTheme, localTheme } = {}) {
  * holding a legacy alias ('dark') is rewritten to the current id once rather
  * than re-mapped on every read forever.
  */
-export function shouldPersistReadingTheme({ nextTheme, profileTheme } = {}) {
+export function shouldPersistReadingTheme({
+  nextTheme, nextMode, nextLight, profileTheme, profileMode, profileLight,
+} = {}) {
   const next = knownThemeId(nextTheme)
-  return Boolean(next) && next !== profileTheme
+  if (!next) return false
+  // Any of the three drifting is worth one merge write. The mode is the field
+  // that actually has to reach the account — it is what stops another browser
+  // asking the operating system instead — so a profile holding the right
+  // palette and no mode must still be written.
+  return next !== profileTheme
+    || (isReadingThemeMode(nextMode) && nextMode !== profileMode)
+    || (Boolean(knownThemeId(nextLight)) && nextLight !== profileLight)
 }
 
 /**
@@ -128,10 +171,22 @@ export function shouldPersistReadingTheme({ nextTheme, profileTheme } = {}) {
  * profile may be backfilled from this device.
  */
 export function readStoredThemeChoice() {
-  try {
-    return knownThemeId(localStorage.getItem(LS_KEY))
-  } catch {
-    return null
+  const palette = knownThemeId(readKey(LS_KEY))
+  const mode = readKey(MODE_KEY)
+  if (!palette && !isReadingThemeMode(mode)) return null
+  return {
+    theme: palette,
+    mode: isReadingThemeMode(mode) ? mode : inferReadingThemeMode(palette),
+    // Resolved rather than read straight out of storage: a device that
+    // predates the light-palette key still has an answer — its active palette
+    // — and backfilling `null` onto the account would send every other
+    // browser back to the brand default.
+    light: resolveLightReadingTheme({
+      storedLight: knownLightThemeId(readKey(LIGHT_KEY)) || knownLightThemeId(readKey(LEGACY_LAST_LIGHT_KEY)),
+      activeTheme: palette,
+      fallback: DEFAULT_THEME,
+      isKnownLight: (id) => Boolean(knownLightThemeId(id)),
+    }),
   }
 }
 
@@ -213,36 +268,44 @@ export function applyThemeToBody(id) {
 export { prefersDarkColorScheme }
 
 /**
- * Resolve the initial theme for a brand-new visitor.
- * - If they've saved a choice → use that.
- * - No saved choice + the OS asks for dark → Midnight.
- * - Otherwise → Warm Oatmeal (the brand default — a light, warm palette).
+ * Everything this device has stored about the reading theme, normalised.
  *
- * The `prefers-color-scheme` seed is deliberately NOT written to
- * localStorage: an absent key means "not answered", and keeping it absent is
- * what lets the site keep following the OS setting until the visitor picks a
- * theme themselves (setTheme is the only writer). Historically the OS
- * preference was ignored because not every surface was dark-ready; the
- * public/marketing/auth surfaces are Midnight-capable now, and boot.js seeds
- * the same way pre-paint so there is no light flash before React mounts.
+ * `mode` is the answer; `light` is which light palette that answer means;
+ * `theme` is the palette to paint. A device with no mode stored has its mode
+ * INFERRED from its saved palette (readingThemeCore.inferReadingThemeMode) —
+ * that inference is the migration, and it is what carries an existing choice
+ * across rather than resetting everyone to "follow the OS".
  */
-function resolveInitialTheme() {
-  try {
-    const saved = localStorage.getItem(LS_KEY)
-    if (saved) {
-      const next = normalizeThemeId(saved)
-      // Rewrite a stale id (a retired theme, or a legacy alias) so the
-      // fallback never has to fire again on this device. Without this the
-      // mapping is re-derived on every load, and any code reading the key
-      // directly — boot.js's pre-paint guard included — keeps seeing an id
-      // that no longer has a palette behind it.
-      if (next !== saved) {
-        try { localStorage.setItem(LS_KEY, next) } catch { /* read-only storage */ }
-      }
-      return next
-    }
-  } catch { /* localStorage unavailable — fall through */ }
-  return prefersDarkColorScheme() ? 'midnight' : DEFAULT_THEME
+function readStoredThemeState() {
+  const savedRaw = readKey(LS_KEY)
+  const saved = savedRaw ? normalizeThemeId(savedRaw) : null
+  // Rewrite a stale id (a retired theme, or a legacy alias) so the fallback
+  // never has to fire again on this device. Without this the mapping is
+  // re-derived on every load, and any code reading the key directly —
+  // boot.js's pre-paint guard included — keeps seeing an id that no longer
+  // has a palette behind it.
+  if (savedRaw && saved !== savedRaw) {
+    try { localStorage.setItem(LS_KEY, saved) } catch { /* read-only storage */ }
+  }
+
+  const storedMode = readKey(MODE_KEY)
+  const mode = isReadingThemeMode(storedMode) ? storedMode : inferReadingThemeMode(saved)
+
+  const light = resolveLightReadingTheme({
+    // The two `lhx:last-light-theme` copies the learner header and the
+    // learner settings screen each kept are read once, here, so a device
+    // that already remembers Sky keeps Sky.
+    storedLight: knownLightThemeId(readKey(LIGHT_KEY)) || knownLightThemeId(readKey(LEGACY_LAST_LIGHT_KEY)),
+    activeTheme: saved,
+    fallback: DEFAULT_THEME,
+    isKnownLight: (id) => Boolean(knownLightThemeId(id)),
+  })
+
+  return {
+    mode,
+    light,
+    theme: resolveReadingTheme({ mode, light, osDark: prefersDarkColorScheme() }),
+  }
 }
 
 /* ── Teacher workspace theme ───────────────────────────────────────────
@@ -271,10 +334,41 @@ export function useTheme() {
 }
 
 export function ThemeProvider({ children }) {
-  const [theme, setThemeState] = useState(resolveInitialTheme)
+  // One object rather than three states: the palette is DERIVED from the mode
+  // and the light choice, so holding them apart is how they drift.
+  const [state, setState] = useState(readStoredThemeState)
+  const { theme, mode: themeMode, light: lightTheme } = state
   // Lives in a module store, not in this provider — see teacherThemeStore.js
   // for why (the dashboard's own dark toggle reads the same value).
   const teacherTheme = useTeacherThemeValue()
+
+  /*
+   * In 'system' mode, FOLLOW the OS — do not merely sample it once at boot.
+   *
+   * The old resolver read prefers-color-scheme during module init and never
+   * again, so a laptop that switches to dark at sunset stayed light until the
+   * next reload. That is the one thing "system" is for. The listener is only
+   * attached in system mode, so an explicit light/dark answer costs nothing
+   * and can never be moved by the OS.
+   */
+  useEffect(() => {
+    if (themeMode !== 'system') return undefined
+    let mq
+    try { mq = window.matchMedia?.('(prefers-color-scheme: dark)') } catch { return undefined }
+    if (!mq) return undefined
+    const onChange = () => setState((prev) => (
+      prev.mode !== 'system' ? prev : { ...prev, theme: resolveReadingTheme({
+        mode: 'system', light: prev.light, osDark: prefersDarkColorScheme(),
+      }) }
+    ))
+    // Safari < 14 has no addEventListener on MediaQueryList.
+    if (mq.addEventListener) mq.addEventListener('change', onChange)
+    else if (mq.addListener) mq.addListener(onChange)
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener('change', onChange)
+      else if (mq.removeListener) mq.removeListener(onChange)
+    }
+  }, [themeMode])
 
   /**
    * A deliberate choice by the learner: apply, save to this device, and sync
@@ -288,12 +382,58 @@ export function ThemeProvider({ children }) {
    * cross-browser sync and nothing else. It must never be awaited here, or a
    * slow network would stall the palette change.
    */
+  /*
+   * Write the answer to this device. The palette key keeps its meaning (the
+   * ACTIVE palette — boot.js and every other reader still key off it); the
+   * mode and light keys are what make the answer survive a context where the
+   * palette key is absent.
+   */
+  const commit = useCallback((mode, light) => {
+    const next = resolveReadingTheme({ mode, light, osDark: prefersDarkColorScheme() })
+    setState({ mode, light, theme: next })
+    try {
+      localStorage.setItem(LS_KEY, next)
+      localStorage.setItem(MODE_KEY, mode)
+      localStorage.setItem(LIGHT_KEY, light)
+    } catch { /* private mode — the choice still applies this session */ }
+    return next
+  }, [])
+
+  /**
+   * Picking a PALETTE. Choosing Midnight is choosing dark; choosing any other
+   * palette is choosing light AND choosing which light.
+   *
+   * Every existing caller — the reading-theme picker, the learner header's
+   * Night toggle, the settings panels, the theme selector — keeps working
+   * unchanged and now records a durable answer rather than a value that the
+   * OS could out-vote in the next fresh context.
+   *
+   * The Firestore call is fire-and-forget by design: the choice is already
+   * applied and already saved locally, so a rejected or offline write costs
+   * cross-browser sync and nothing else. It must never be awaited here, or a
+   * slow network would stall the palette change.
+   */
   function setTheme(id) {
     const next = normalizeThemeId(id)
-    setThemeState(next)
-    try { localStorage.setItem(LS_KEY, next) } catch { }
-    readingThemePersister?.(next)
+    const dark = isDarkReadingThemeId(next)
+    const mode = dark ? 'dark' : 'light'
+    const light = dark ? lightTheme : next
+    commit(mode, light)
+    readingThemePersister?.({ theme: next, mode, light })
   }
+
+  /**
+   * Picking a MODE directly — Light / Dark / System.
+   *
+   * 'system' is a real, stored answer too: it is the difference between "I
+   * have not chosen" and "I have chosen to follow my device", and only the
+   * second one survives being carried to another browser through the account.
+   */
+  const setThemeMode = useCallback((next) => {
+    if (!READING_THEME_MODES.includes(next)) return
+    const applied = commit(next, lightTheme)
+    readingThemePersister?.({ theme: applied, mode: next, light: lightTheme })
+  }, [commit, lightTheme])
 
   /**
    * Apply a value that CAME FROM the profile. Identical to setTheme except
@@ -305,12 +445,38 @@ export function ThemeProvider({ children }) {
    * theme would be re-applied a frame late on every single load of this
    * browser instead of once.
    */
-  const hydrateTheme = useCallback((id) => {
-    const next = knownThemeId(id)
-    if (!next) return
-    setThemeState(next)
-    try { localStorage.setItem(LS_KEY, next) } catch { }
-  }, [])
+  const hydrateTheme = useCallback((incoming) => {
+    // Accepts a bare palette id as well as the full answer. A profile that
+    // predates the mode carries only a palette, and so do the callers that
+    // drive this directly; both must keep working, and a bare palette is a
+    // complete answer once its mode is inferred (inferReadingThemeMode).
+    const { theme: id, mode, light } = typeof incoming === 'string'
+      ? { theme: incoming }
+      : (incoming || {})
+    const palette = knownThemeId(id)
+    const nextMode = isReadingThemeMode(mode) ? mode : inferReadingThemeMode(palette)
+    // A profile that carries neither is "not answered" and must leave this
+    // device alone — see resolveReadingThemeConflict.
+    if (!palette && !isReadingThemeMode(mode)) return
+    const nextLight = resolveLightReadingTheme({
+      storedLight: knownLightThemeId(light),
+      activeTheme: palette,
+      fallback: lightTheme,
+      isKnownLight: (v) => Boolean(knownLightThemeId(v)),
+    })
+    const applied = resolveReadingTheme({
+      mode: nextMode, light: nextLight, osDark: prefersDarkColorScheme(),
+    })
+    setState({ mode: nextMode, light: nextLight, theme: applied })
+    // Writing the device keys is the half that fixes the flash: boot.js paints
+    // pre-paint from them, so without this the account answer is re-applied a
+    // frame late on every single load of this browser instead of once.
+    try {
+      localStorage.setItem(LS_KEY, applied)
+      localStorage.setItem(MODE_KEY, nextMode)
+      localStorage.setItem(LIGHT_KEY, nextLight)
+    } catch { /* read-only storage */ }
+  }, [lightTheme])
 
   /*
    * Persisting the teacher theme to Firestore has to happen OUTSIDE this
@@ -387,6 +553,7 @@ export function ThemeProvider({ children }) {
   return (
     <ThemeContext.Provider value={{
       theme, setTheme, themes: THEMES,
+      themeMode, setThemeMode, lightTheme, themeModes: READING_THEME_MODES,
       hydrateTheme, registerReadingThemePersister,
       teacherTheme, setTeacherTheme, teacherThemes: TEACHER_THEMES,
       hydrateTeacherTheme, registerTeacherThemePersister,

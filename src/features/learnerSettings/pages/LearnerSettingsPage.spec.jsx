@@ -17,10 +17,10 @@ vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({ currentUser: { uid: 'u1' }, userProfile: mockProfile, updateProfileFields }),
 }))
 
-const setTheme = vi.fn()
+const setThemeMode = vi.fn()
 let mockTheme
 vi.mock('../../../contexts/ThemeContext', () => ({
-  useTheme: () => ({ theme: mockTheme, setTheme }),
+  useTheme: () => ({ theme: mockTheme, setThemeMode }),
   DEFAULT_THEME: 'oatmeal',
 }))
 
@@ -40,7 +40,7 @@ function renderSettings() {
 
 beforeEach(() => {
   updateProfileFields.mockClear()
-  setTheme.mockClear()
+  setThemeMode.mockClear()
   mockTheme = 'oatmeal'
   mockProfile = {
     role: 'learner',
@@ -67,16 +67,24 @@ describe('LearnerSettingsPage (prototype-v6)', () => {
     expect(screen.queryByText(/challenge invites/i)).toBeNull()
   })
 
+  /*
+   * The switch READS the palette actually painted and WRITES a mode.
+   *
+   * Writing a palette was the bug: turning Night off recorded WHICH light
+   * palette but never that light had been asked for, so any browser without
+   * that key asked the operating system instead — and, the seed never being
+   * written, asked it again on every cold start. A mode is an answer.
+   */
   it('Night mode drives the real theme both ways', () => {
     renderSettings()
     fireEvent.click(screen.getByLabelText('Night mode'))
-    expect(setTheme).toHaveBeenCalledWith('midnight')
+    expect(setThemeMode).toHaveBeenCalledWith('dark')
 
-    setTheme.mockClear()
+    setThemeMode.mockClear()
     mockTheme = 'midnight'
     renderSettings()
     fireEvent.click(screen.getAllByLabelText('Night mode')[1])
-    expect(setTheme).toHaveBeenCalledWith('oatmeal')
+    expect(setThemeMode).toHaveBeenCalledWith('light')
   })
 
   it('notification switches write the real notificationPrefs shape', () => {

@@ -43,6 +43,16 @@ export default function ReadingThemeSync() {
 
   const uid = currentUser?.uid || null
   const profileTheme = userProfile?.preferences?.readingTheme
+  /*
+   * The MODE is the field that actually closes the "it came back" loop.
+   * `readingTheme` alone records WHICH palette; it cannot record that the
+   * choice was deliberate, so a browser that had never seen this account
+   * asked the operating system instead — and, the seed never being written,
+   * asked it again on every cold start. `readingThemeMode` is the answer;
+   * `readingLightTheme` is which light palette that answer means.
+   */
+  const profileMode = userProfile?.preferences?.readingThemeMode
+  const profileLight = userProfile?.preferences?.readingLightTheme
   // Distinguishing "no profile loaded yet" from "profile loaded, no theme on
   // it" is load-bearing for the backfill below — writing this device's value
   // during the loading window would overwrite an account theme we simply had
@@ -60,13 +70,27 @@ export default function ReadingThemeSync() {
    * in-memory object. The profile snapshot listener brings the real value
    * back anyway.
    */
-  const persist = useCallback(async (nextTheme, currentProfileTheme) => {
+  const persist = useCallback(async (next, current) => {
     if (!uid) return
-    if (!shouldPersistReadingTheme({ nextTheme, profileTheme: currentProfileTheme })) return
+    const { theme: nextTheme, mode: nextMode, light: nextLight } = next || {}
+    if (!shouldPersistReadingTheme({
+      nextTheme,
+      nextMode,
+      nextLight,
+      profileTheme: current?.theme,
+      profileMode: current?.mode,
+      profileLight: current?.light,
+    })) return
     try {
       await setDoc(
         doc(db, 'users', uid),
-        { preferences: { readingTheme: nextTheme } },
+        {
+          preferences: {
+            readingTheme: nextTheme,
+            readingThemeMode: nextMode,
+            readingLightTheme: nextLight,
+          },
+        },
         { merge: true },
       )
     } catch {
@@ -79,10 +103,10 @@ export default function ReadingThemeSync() {
   // Register the writer that setTheme calls on every deliberate choice.
   useEffect(() => {
     if (!uid) return undefined
-    return registerReadingThemePersister((nextTheme) => {
-      persist(nextTheme, profileTheme)
+    return registerReadingThemePersister((next) => {
+      persist(next, { theme: profileTheme, mode: profileMode, light: profileLight })
     })
-  }, [uid, profileTheme, persist, registerReadingThemePersister])
+  }, [uid, profileTheme, profileMode, profileLight, persist, registerReadingThemePersister])
 
   /*
    * Profile wins over a stale local value — but ONCE, at sign-in.
@@ -111,14 +135,19 @@ export default function ReadingThemeSync() {
       return
     }
     if (hydratedForUid.current === uid) return
-    const { theme: resolved, source } = resolveReadingThemeConflict({
+    const { theme: resolved, mode, light, source } = resolveReadingThemeConflict({
       profileTheme,
+      profileMode,
+      profileLight,
       localTheme: theme,
     })
 
     if (source === 'profile') {
       hydratedForUid.current = uid
-      if (resolved !== theme) hydrateTheme(resolved)
+      // Applied even when the palette matches: the account may be carrying a
+      // MODE this device has not recorded, and adopting it is the whole point
+      // — it is what stops this browser asking the OS on the next cold start.
+      hydrateTheme({ theme: resolved, mode, light })
       return
     }
 
@@ -152,8 +181,8 @@ export default function ReadingThemeSync() {
     const stored = readStoredThemeChoice()
     if (!stored) return
     backfilledForUid.current = uid
-    persist(stored, profileTheme)
-  }, [uid, profileTheme, profileLoaded, theme, hydrateTheme, persist])
+    persist(stored, { theme: profileTheme, mode: profileMode, light: profileLight })
+  }, [uid, profileTheme, profileMode, profileLight, profileLoaded, theme, hydrateTheme, persist])
 
   return null
 }

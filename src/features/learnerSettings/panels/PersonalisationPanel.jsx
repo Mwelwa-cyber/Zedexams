@@ -5,7 +5,7 @@
 
 import { useAuth } from '../../../contexts/AuthContext'
 import { useSettingsSave } from '../components/SaveContext'
-import { useTheme, DEFAULT_THEME } from '../../../contexts/ThemeContext'
+import { useTheme } from '../../../contexts/ThemeContext'
 import { Panel, Section, Toggle, OptionCards, Note } from '../components/ui'
 import ReadingThemeSwatches from '../components/ReadingThemeSwatches'
 import {
@@ -20,7 +20,7 @@ import {
 export default function PersonalisationPanel({ section }) {
   const { userProfile } = useAuth()
   const { commit } = useSettingsSave()
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme, setThemeMode } = useTheme()
 
   const ps = normalizePersonalisation(userProfile?.learnerSettings?.personalisation)
 
@@ -29,8 +29,9 @@ export default function PersonalisationPanel({ section }) {
     commit({ 'learnerSettings.personalisation': { ...ps, [key]: value } })
 
   const isDark = theme === 'midnight'
+  // A MODE, not a palette — see the note on LearnerHeader's NightToggle.
   const onDarkMode = (value) => {
-    setTheme(value ? 'midnight' : DEFAULT_THEME)
+    setThemeMode(value ? 'dark' : 'light')
     set('darkMode', value)
   }
 

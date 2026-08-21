@@ -42,7 +42,7 @@ import { ReadingThemeSwatches } from '../../learnerSettings'
 // of the pages it repaints. A control you can see the effect of is not the
 // same problem as a control that appears to do nothing.
 export default function AppearancePanel() {
-  const { teacherTheme, setTeacherTheme, teacherThemes, theme, setTheme } = useTheme()
+  const { teacherTheme, setTeacherTheme, teacherThemes, theme, setTheme, themeMode, setThemeMode } = useTheme()
   const [a11y, setA11y] = useState(loadAccessibilityPrefs)
 
   const setPref = (key) => (value) => {
@@ -74,6 +74,26 @@ export default function AppearancePanel() {
     setTheme(next)
   }
 
+  /*
+   * Light / Dark / Match my device.
+   *
+   * This is the control that actually answers "stop going dark on me". The
+   * palette swatches below say WHICH light palette; this says whether the
+   * operating system gets a vote at all. Before it existed the only two
+   * storable states were "a saved palette" and "nothing", and "nothing" meant
+   * the OS decided — on every cold start of every context that lacked the
+   * key, which is why the answer never seemed to stick.
+   */
+  const chooseThemeMode = (next) => {
+    if (next === themeMode) return
+    capture('reading_theme_mode_selected', {
+      mode: next,
+      previous_mode: themeMode,
+      surface: 'teacher_settings',
+    })
+    setThemeMode(next)
+  }
+
   return (
     <SettingsDetailShell rowId="appearance">
       <section className="tset-section">
@@ -96,11 +116,25 @@ export default function AppearancePanel() {
         <p className="tset-section__hint">
           Colours the pages outside your workspace — the ZedExams site,
           sign-in, past papers, your subscription, and the note reader and quiz
-          runner. Saved to your account, so it follows you to any device you
-          sign in on. This settings screen uses your workspace theme above, so
-          it will not change colour here — each swatch shows its own page
-          colour and ink instead.
+          runner. <strong>Light</strong> and <strong>Dark</strong> stay put
+          whatever your phone or computer is set to; <strong>Match my
+          device</strong> follows it. Saved to your account, so it follows you
+          to any device you sign in on. This settings screen uses your
+          workspace theme above, so it will not change colour here — each
+          swatch shows its own page colour and ink instead.
         </p>
+        <div style={{ paddingBottom: 14 }}>
+          <OptionCards
+            label="Reading theme mode"
+            value={themeMode}
+            onChange={chooseThemeMode}
+            options={[
+              { value: 'light', title: 'Light' },
+              { value: 'dark', title: 'Dark' },
+              { value: 'system', title: 'Match my device' },
+            ]}
+          />
+        </div>
         <ReadingThemeSwatches value={theme} onChange={chooseReadingTheme} />
       </section>
 

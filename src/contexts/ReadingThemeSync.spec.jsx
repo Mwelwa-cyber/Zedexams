@@ -128,7 +128,16 @@ describe('ReadingThemeSync', () => {
     await waitFor(() => expect(setDoc).toHaveBeenCalledTimes(1))
     const [ref, payload, options] = setDoc.mock.calls[0]
     expect(ref.path).toBe('users/u1')
-    expect(payload).toEqual({ preferences: { readingTheme: 'midnight' } })
+    // The MODE is the field that closes the loop: `readingTheme` alone records
+    // WHICH palette, never that the choice was deliberate, so a browser that
+    // had not seen this account asked the operating system instead.
+    expect(payload).toEqual({
+      preferences: {
+        readingTheme: 'midnight',
+        readingThemeMode: 'dark',
+        readingLightTheme: 'oatmeal',
+      },
+    })
     // Merge, or this write erases every sibling field on the profile —
     // including preferences.theme, the teacher workspace palette.
     expect(options).toEqual({ merge: true })
@@ -145,7 +154,13 @@ describe('ReadingThemeSync', () => {
     mount()
 
     await waitFor(() => expect(setDoc).toHaveBeenCalledTimes(1))
-    expect(setDoc.mock.calls[0][1]).toEqual({ preferences: { readingTheme: 'oatmeal' } })
+    expect(setDoc.mock.calls[0][1]).toEqual({
+      preferences: {
+        readingTheme: 'oatmeal',
+        readingThemeMode: 'light',
+        readingLightTheme: 'oatmeal',
+      },
+    })
     // Nothing was applied — the device already had it.
     expect(ctx.theme).toBe('oatmeal')
   })
