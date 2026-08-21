@@ -206,124 +206,136 @@ export default function QuizRunner({
   return (
     <div className="pq" style={{ '--pq-fs': FONT_STEPS[fontStep] }}>
       <div className="pq-runner">
-        <div className="pq-runner-top">
-          <button type="button" className="pq-icon-btn is-ghost" onClick={handleExit} aria-label={exam ? 'Leave the exam' : 'Leave practice'}>
-            <IconBack size={20} />
-          </button>
-          {exam && attempt?.expiresAtMs ? (
-            <ExamClock
-              expiresAtMs={attempt.expiresAtMs}
-              offsetMs={clockOffsetMs}
-              onExpire={() => onSubmit({ reason: 'timeup' })}
-            />
-          ) : (
-            <div className="pq-mode-pill is-practice">Practice</div>
-          )}
-          <div style={{ flex: 1 }} />
-          <button
-            type="button"
-            className="pq-icon-btn is-ghost"
-            onClick={() => setFontStep((s) => (s + 1) % FONT_STEPS.length)}
-            aria-label="Change the text size"
-          >
-            <IconAa size={19} />
-          </button>
-          {exam && (
-            <button type="button" className="pq-icon-btn is-ghost" onClick={() => setSheet('grid')} aria-label="Review all questions">
-              <IconGrid size={19} />
+        {/* The sheet. On a phone it is the whole screen and this wrapper
+            costs nothing; on a large screen it is a bounded page of the
+            paper, centred on the backdrop. `.pq-runner` is `position:
+            fixed; inset: 0`, so without it the chrome is nailed to the
+            viewport's own corners: on a tall window four options sat at
+            the top and Next sat five hundred pixels below the last of
+            them, with nothing in between. The sheet keeps a FIXED height
+            rather than hugging its content, because the header and the
+            Next button have to stay where the learner last tapped them
+            across sixty questions of wildly different lengths. */}
+        <div className="pq-runner-sheet">
+          <div className="pq-runner-top">
+            <button type="button" className="pq-icon-btn is-ghost" onClick={handleExit} aria-label={exam ? 'Leave the exam' : 'Leave practice'}>
+              <IconBack size={20} />
             </button>
-          )}
-        </div>
-
-        <div className="pq-progress-track">
-          <div className="pq-progress-fill" style={{ width: `${pct}%` }} />
-        </div>
-
-        {showResumed && (
-          <div className="pq-resume-banner" role="status">
-            <IconClock size={16} />
-            {exam ? 'Welcome back — your exam is still running.' : 'Welcome back — carrying on where you left off.'}
-          </div>
-        )}
-
-        <div className="pq-qmeta">
-          <span>{`Question ${currentIndex + 1} of ${total}`}</span>
-          {question?.section ? <><span aria-hidden="true">·</span><span className="pq-part">{question.section}</span></> : null}
-          {exam && question && (
+            {exam && attempt?.expiresAtMs ? (
+              <ExamClock
+                expiresAtMs={attempt.expiresAtMs}
+                offsetMs={clockOffsetMs}
+                onExpire={() => onSubmit({ reason: 'timeup' })}
+              />
+            ) : (
+              <div className="pq-mode-pill is-practice">Practice</div>
+            )}
+            <div style={{ flex: 1 }} />
             <button
               type="button"
-              className="pq-flag-btn"
-              aria-pressed={flags[question.id] === true}
-              onClick={() => onToggleFlag(question.id)}
+              className="pq-icon-btn is-ghost"
+              onClick={() => setFontStep((s) => (s + 1) % FONT_STEPS.length)}
+              aria-label="Change the text size"
             >
-              <IconFlag size={13} />
-              {flags[question.id] ? 'Flagged' : 'Flag'}
+              <IconAa size={19} />
             </button>
-          )}
-        </div>
+            {exam && (
+              <button type="button" className="pq-icon-btn is-ghost" onClick={() => setSheet('grid')} aria-label="Review all questions">
+                <IconGrid size={19} />
+              </button>
+            )}
+          </div>
 
-        <div className="pq-qscroll" ref={scrollRef}>
-          <QuestionCard
-            question={question}
-            index={currentIndex}
-            chosen={chosen}
-            revealed={isRevealed}
-            correctIndex={correctIndex}
-            onChoose={handleChoose}
-            shakingIndex={shakingIndex}
-            readAloud={readAloud}
-          />
-          {coaching && (
-            <div className="pq-qwrap">
-              <CoachingPanel
-                coaching={coaching}
-                seed={currentIndex}
-                noteHref={coaching.noteRef ? `/notes?topic=${encodeURIComponent(coaching.noteRef)}` : ''}
-                gameHref={coaching.gameSlug ? `/games/${encodeURIComponent(coaching.gameSlug)}` : ''}
-                gameLabel={coaching.gameSlug ? coaching.gameSlug.replace(/-/g, ' ') : ''}
-              />
+          <div className="pq-progress-track">
+            <div className="pq-progress-fill" style={{ width: `${pct}%` }} />
+          </div>
+
+          {showResumed && (
+            <div className="pq-resume-banner" role="status">
+              <IconClock size={16} />
+              {exam ? 'Welcome back — your exam is still running.' : 'Welcome back — carrying on where you left off.'}
             </div>
           )}
-        </div>
 
-        <div className="pq-runner-foot">
-          <div className="pq-foot-inner">
-            {exam ? (
-              <>
-                {prevIndex({ currentIndex, strictForward }) != null && (
-                  <button type="button" className="pq-nav-btn" onClick={() => goTo(currentIndex - 1)}>
-                    <IconPrev size={18} />
-                    Back
-                  </button>
-                )}
-                {last ? (
-                  <button type="button" className="pq-nav-btn is-finish" onClick={() => setSheet('submit')}>
-                    Finish and submit
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="pq-nav-btn is-primary"
-                    onClick={() => goTo(nextIndex({ currentIndex, total, strictForward }))}
-                  >
-                    Next
-                    <IconNext size={18} />
-                  </button>
-                )}
-              </>
-            ) : isRevealed ? (
+          <div className="pq-qmeta">
+            <span>{`Question ${currentIndex + 1} of ${total}`}</span>
+            {question?.section ? <><span aria-hidden="true">·</span><span className="pq-part">{question.section}</span></> : null}
+            {exam && question && (
               <button
                 type="button"
-                className={`pq-nav-btn ${last ? 'is-finish' : 'is-primary'}`}
-                onClick={() => (last ? onSubmit({ reason: 'completed' }) : goTo(currentIndex + 1))}
-                disabled={submitting}
+                className="pq-flag-btn"
+                aria-pressed={flags[question.id] === true}
+                onClick={() => onToggleFlag(question.id)}
               >
-                {last ? (submitting ? 'Marking…' : 'See how you did') : 'Continue'}
-                <IconNext size={18} />
+                <IconFlag size={13} />
+                {flags[question.id] ? 'Flagged' : 'Flag'}
               </button>
-            ) : (
-              <div className="pq-hint-foot">Tap the answer you think is right</div>
             )}
+          </div>
+
+          <div className="pq-qscroll" ref={scrollRef}>
+            <QuestionCard
+              question={question}
+              index={currentIndex}
+              chosen={chosen}
+              revealed={isRevealed}
+              correctIndex={correctIndex}
+              onChoose={handleChoose}
+              shakingIndex={shakingIndex}
+              readAloud={readAloud}
+            />
+            {coaching && (
+              <div className="pq-qwrap">
+                <CoachingPanel
+                  coaching={coaching}
+                  seed={currentIndex}
+                  noteHref={coaching.noteRef ? `/notes?topic=${encodeURIComponent(coaching.noteRef)}` : ''}
+                  gameHref={coaching.gameSlug ? `/games/${encodeURIComponent(coaching.gameSlug)}` : ''}
+                  gameLabel={coaching.gameSlug ? coaching.gameSlug.replace(/-/g, ' ') : ''}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="pq-runner-foot">
+            <div className="pq-foot-inner">
+              {exam ? (
+                <>
+                  {prevIndex({ currentIndex, strictForward }) != null && (
+                    <button type="button" className="pq-nav-btn" onClick={() => goTo(currentIndex - 1)}>
+                      <IconPrev size={18} />
+                      Back
+                    </button>
+                  )}
+                  {last ? (
+                    <button type="button" className="pq-nav-btn is-finish" onClick={() => setSheet('submit')}>
+                      Finish and submit
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="pq-nav-btn is-primary"
+                      onClick={() => goTo(nextIndex({ currentIndex, total, strictForward }))}
+                    >
+                      Next
+                      <IconNext size={18} />
+                    </button>
+                  )}
+                </>
+              ) : isRevealed ? (
+                <button
+                  type="button"
+                  className={`pq-nav-btn ${last ? 'is-finish' : 'is-primary'}`}
+                  onClick={() => (last ? onSubmit({ reason: 'completed' }) : goTo(currentIndex + 1))}
+                  disabled={submitting}
+                >
+                  {last ? (submitting ? 'Marking…' : 'See how you did') : 'Continue'}
+                  <IconNext size={18} />
+                </button>
+              ) : (
+                <div className="pq-hint-foot">Tap the answer you think is right</div>
+              )}
+            </div>
           </div>
         </div>
       </div>

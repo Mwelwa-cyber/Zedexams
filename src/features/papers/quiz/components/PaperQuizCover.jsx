@@ -20,6 +20,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
+import { paperSourceLabel } from '../../../../config/paperSources'
 import {
   MODE_COPY, MODE_FEATURES, QUIZ_MODE, QUIZ_MODES,
 } from '../lib/quizModes'
@@ -145,7 +146,17 @@ export default function PaperQuizCover({
     { icon: IconBookOpen, label: 'Subject', value: subjectLabel || paper?.subject || '—' },
     { icon: IconCap, label: 'Grade', value: paper?.grade ? `Grade ${paper.grade}` : '—' },
     { icon: IconCalendar, label: 'Year', value: paper?.year ? String(paper.year) : '—' },
-    { icon: IconDoc, label: 'Paper', value: paper?.sourceLabel || paper?.source || 'Past paper' },
+    {
+      icon: IconDoc,
+      label: 'Paper',
+      // `paper.source` is a slug (`ecz`, `school_mock`), so printing it raw put
+      // a lowercase "ecz" in a cell whose three neighbours are all properly
+      // written facts. `paperSourceLabel` is the registry every other papers
+      // surface already reads — the hub badge, the viewer, the nav search —
+      // and it answers null for a source it does not know, which is what the
+      // final fallback is for.
+      value: paper?.sourceLabel || paperSourceLabel(paper?.source) || 'Past paper',
+    },
   ]), [paper, subjectLabel])
 
   return (
@@ -153,8 +164,16 @@ export default function PaperQuizCover({
       className="pq-cover"
       style={{ '--pq-fs': FONT_STEPS[fontStep] }}
     >
-      <CoverArt />
-      <div className="pq-cover-inner">
+      <div className="pq-cover-inner pq-cover-grid">
+        {/* The illustration is absolutely positioned, so its containing block
+            decides what "the right-hand side" means. Anchored to `.pq-cover`
+            it meant the right-hand side of the VIEWPORT, which had to be
+            walked back to the column with a `calc(50% - 380px)` tied by hand
+            to the column's own max-width — and which had no way at all to name
+            the right-hand side of a COLUMN in the two-track desktop layout.
+            Inside `.pq-cover-inner` the offsets are plain distances again. */}
+        <CoverArt />
+
         {/* 1 · Header */}
         <div className="pq-nav">
           <button type="button" className="pq-icon-btn" onClick={onBack} aria-label="Back to the paper">
@@ -182,170 +201,179 @@ export default function PaperQuizCover({
           </button>
         </div>
 
-        {/* 2 · Title block */}
-        <div className="pq-head">
-          <p className="pq-eyebrow">Past-paper quiz</p>
-          <div className="pq-eyebrow-rule" />
-          <h1 className="pq-title">
-            {paper?.grade ? `Grade ${paper.grade}` : ''} {subjectLabel || paper?.subject || ''}
-            {paper?.sourceLabel ? <span className="pq-title-2">{paper.sourceLabel}</span> : null}
-          </h1>
-          <p className="pq-tagline">Test your knowledge. Build your confidence.</p>
-        </div>
-
-        {/* 3 · Notepad meta card. The paper's facts as a torn spiral-bound
-            page, replacing a row of undifferentiated chips that gave a year
-            the same weight as a subject. */}
-        <div className="pq-notepad">
-          <div className="pq-holes" aria-hidden="true">
-            {Array.from({ length: 10 }, (_, i) => <i key={i} />)}
+        {/* Columns A and B are ONE column on a phone — they carry no layout of
+            their own until `.pq-cover-grid` places them side by side. They
+            exist so that the desktop can put what the paper IS beside what the
+            learner has to DECIDE, rather than running a phone's worth of
+            scroll down the middle of a 1300px window. */}
+        <div className="pq-col-a">
+          {/* 2 · Title block */}
+          <div className="pq-head">
+            <p className="pq-eyebrow">Past-paper quiz</p>
+            <div className="pq-eyebrow-rule" />
+            <h1 className="pq-title">
+              {paper?.grade ? `Grade ${paper.grade}` : ''} {subjectLabel || paper?.subject || ''}
+              {paper?.sourceLabel ? <span className="pq-title-2">{paper.sourceLabel}</span> : null}
+            </h1>
+            <p className="pq-tagline">Test your knowledge. Build your confidence.</p>
           </div>
-          <div className="pq-np-grid">
-            {facts.map(({ icon: Icon, label, value }) => (
-              <div className="pq-np-cell" key={label}>
-                <span className="pq-ic"><Icon size={22} /></span>
-                <span className="pq-lab">{label}</span>
-                <span className="pq-val">{value}</span>
+
+          {/* 3 · Notepad meta card. The paper's facts as a torn spiral-bound
+              page, replacing a row of undifferentiated chips that gave a year
+              the same weight as a subject. */}
+          <div className="pq-notepad">
+            <div className="pq-holes" aria-hidden="true">
+              {Array.from({ length: 10 }, (_, i) => <i key={i} />)}
+            </div>
+            <div className="pq-np-grid">
+              {facts.map(({ icon: Icon, label, value }) => (
+                <div className="pq-np-cell" key={label}>
+                  <span className="pq-ic"><Icon size={22} /></span>
+                  <span className="pq-lab">{label}</span>
+                  <span className="pq-val">{value}</span>
+                </div>
+              ))}
+            </div>
+            <div className="pq-np-rule" />
+            <div className="pq-np-row2">
+              <div className="pq-np-stat">
+                <span className="pq-ic"><IconQuestion size={26} /></span>
+                <span><b>{totalQuestions}</b><span>Questions</span></span>
               </div>
-            ))}
-          </div>
-          <div className="pq-np-rule" />
-          <div className="pq-np-row2">
-            <div className="pq-np-stat">
-              <span className="pq-ic"><IconQuestion size={26} /></span>
-              <span><b>{totalQuestions}</b><span>Questions</span></span>
-            </div>
-            <div className="pq-np-stat">
-              <span className="pq-ic"><IconClock size={26} /></span>
-              <span><b>{durationMin}</b><span>{durationExact ? 'Minutes' : 'Minutes (about)'}</span></span>
+              <div className="pq-np-stat">
+                <span className="pq-ic"><IconClock size={26} /></span>
+                <span><b>{durationMin}</b><span>{durationExact ? 'Minutes' : 'Minutes (about)'}</span></span>
+              </div>
             </div>
           </div>
-        </div>
-        <TornEdge />
+          <TornEdge />
 
-        {/* 4 · Best score. Hidden entirely on a first attempt — a ring at 0/60
-            above the words "best score" is a discouraging thing to put in
-            front of a child who has not started. */}
-        {history && (
-          <button type="button" className="pq-best" onClick={onOpenHistory}>
-            <ProgressRing
-              value={history.best.right}
-              max={history.best.total}
-              size={84}
-              label="BEST SCORE"
-              idKey="cover"
-            />
-            <span className="pq-best-text">
-              <p>
-                {`You've practised this paper `}
-                <b>{history.attempts === 1 ? 'once' : history.attempts === 2 ? 'twice' : `${history.attempts} times`}</b>
-                {'. Your best so far is '}
-                <b>{`${history.best.right}/${history.best.total}`}</b>
-                .
-              </p>
-              {history.weakestPart && (
-                <span className="pq-weak-pill">
-                  <IconTarget size={15} />
-                  {`${history.weakestPart} is your weakest part.`}
-                </span>
-              )}
-            </span>
-            <span className="pq-chev"><IconNext size={20} /></span>
-          </button>
-        )}
-
-        {/* 5 · Mode cards */}
-        <div className="pq-divider">How do you want to do it?</div>
-        {QUIZ_MODES.map((m) => (
-          <ModeCard
-            key={m}
-            mode={m}
-            selected={mode === m}
-            disabled={m === QUIZ_MODE.EXAM && examLocked}
-            lockCopy={m === QUIZ_MODE.EXAM ? lockCopy : null}
-            durationMin={durationMin}
-            durationExact={durationExact}
-            onSelect={onModeChange}
-          />
-        ))}
-        {examLocked && lockCopy?.action && (
-          <p className="pq-fineprint">
-            <Link to={lockCopy.actionHref} className="pq-chip">{lockCopy.action}</Link>
-          </p>
-        )}
-
-        {/* 6 · Tip bar */}
-        <div className="pq-tip">
-          <span className="pq-ic"><IconBulb size={20} /></span>
-          <p>
-            <b>Tip:</b>
-            {' Try Exam mode first to experience the real test. Use Practice to build confidence and improve.'}
-          </p>
-          <span className="pq-tip-hand" aria-hidden="true">
-            Small steps. Big progress!
-            <u />
-          </span>
-        </div>
-
-        {/* 7 · Exam settings */}
-        {mode === QUIZ_MODE.EXAM && !examLocked && (
-          <>
-            <p className="pq-section-label">Exam settings</p>
-            <button
-              type="button"
-              className="pq-opt-row"
-              role="switch"
-              aria-checked={strictForward}
-              onClick={() => onStrictForwardChange(!strictForward)}
-            >
-              <span className="pq-t">
-                <b>Strict order</b>
-                <span>Move forward only — you cannot return to a question once you leave it.</span>
+          {/* 4 · Best score. Hidden entirely on a first attempt — a ring at 0/60
+              above the words "best score" is a discouraging thing to put in
+              front of a child who has not started. */}
+          {history && (
+            <button type="button" className="pq-best" onClick={onOpenHistory}>
+              <ProgressRing
+                value={history.best.right}
+                max={history.best.total}
+                size={84}
+                label="BEST SCORE"
+                idKey="cover"
+              />
+              <span className="pq-best-text">
+                <p>
+                  {`You've practised this paper `}
+                  <b>{history.attempts === 1 ? 'once' : history.attempts === 2 ? 'twice' : `${history.attempts} times`}</b>
+                  {'. Your best so far is '}
+                  <b>{`${history.best.right}/${history.best.total}`}</b>
+                  .
+                </p>
+                {history.weakestPart && (
+                  <span className="pq-weak-pill">
+                    <IconTarget size={15} />
+                    {`${history.weakestPart} is your weakest part.`}
+                  </span>
+                )}
               </span>
-              <span className="pq-switch" aria-checked={strictForward} aria-hidden="true" />
+              <span className="pq-chev"><IconNext size={20} /></span>
             </button>
-            {/* The reassurance panel. §1b.7 — a child about to give up ninety
-                minutes needs to be told, before they start, that a refresh
-                will not take it away. */}
-            <div className="pq-opt-row">
-              <span className="pq-ic" style={{ color: 'var(--pq-indigo)' }}><IconShield size={20} /></span>
-              <span className="pq-t">
-                <b>Safe from reloads</b>
-                <span>
-                  If your phone refreshes or the app restarts, you come straight back to your exam
-                  with the time you had left.
-                </span>
-              </span>
-            </div>
-          </>
-        )}
+          )}
+        </div>
 
-        {/* 8 · Start */}
-        <div className="pq-stack" />
-        <button
-          type="button"
-          className={`pq-cta ${mode === QUIZ_MODE.EXAM ? '' : 'is-secondary'}`}
-          onClick={onStart}
-          disabled={starting || (mode === QUIZ_MODE.EXAM && examLocked)}
-        >
-          {starting
-            ? 'Getting your paper…'
-            : mode === QUIZ_MODE.EXAM ? 'Start the exam' : 'Start practising'}
-          {!starting && <IconNext size={18} />}
-        </button>
+        <div className="pq-col-b">
+          {/* 5 · Mode cards */}
+          <div className="pq-divider">How do you want to do it?</div>
+          {QUIZ_MODES.map((m) => (
+            <ModeCard
+              key={m}
+              mode={m}
+              selected={mode === m}
+              disabled={m === QUIZ_MODE.EXAM && examLocked}
+              lockCopy={m === QUIZ_MODE.EXAM ? lockCopy : null}
+              durationMin={durationMin}
+              durationExact={durationExact}
+              onSelect={onModeChange}
+            />
+          ))}
+          {examLocked && lockCopy?.action && (
+            <p className="pq-fineprint">
+              <Link to={lockCopy.actionHref} className="pq-chip">{lockCopy.action}</Link>
+            </p>
+          )}
 
-        {startError && (
-          <div className="pq-warn is-danger" style={{ marginTop: 12 }}>
-            <IconRefresh size={19} />
-            <p>{startError}</p>
+          {/* 6 · Tip bar */}
+          <div className="pq-tip">
+            <span className="pq-ic"><IconBulb size={20} /></span>
+            <p>
+              <b>Tip:</b>
+              {' Try Exam mode first to experience the real test. Use Practice to build confidence and improve.'}
+            </p>
+            <span className="pq-tip-hand" aria-hidden="true">
+              Small steps. Big progress!
+              <u />
+            </span>
           </div>
-        )}
 
-        <p className="pq-fineprint">
-          {mode === QUIZ_MODE.EXAM
-            ? 'Once you start, the clock runs until you finish or time is up. Leaving early means this attempt is not counted.'
-            : 'No clock. Your place is saved as you go, and every answer is explained.'}
-        </p>
+          {/* 7 · Exam settings */}
+          {mode === QUIZ_MODE.EXAM && !examLocked && (
+            <>
+              <p className="pq-section-label">Exam settings</p>
+              <button
+                type="button"
+                className="pq-opt-row"
+                role="switch"
+                aria-checked={strictForward}
+                onClick={() => onStrictForwardChange(!strictForward)}
+              >
+                <span className="pq-t">
+                  <b>Strict order</b>
+                  <span>Move forward only — you cannot return to a question once you leave it.</span>
+                </span>
+                <span className="pq-switch" aria-checked={strictForward} aria-hidden="true" />
+              </button>
+              {/* The reassurance panel. §1b.7 — a child about to give up ninety
+                  minutes needs to be told, before they start, that a refresh
+                  will not take it away. */}
+              <div className="pq-opt-row">
+                <span className="pq-ic" style={{ color: 'var(--pq-indigo)' }}><IconShield size={20} /></span>
+                <span className="pq-t">
+                  <b>Safe from reloads</b>
+                  <span>
+                    If your phone refreshes or the app restarts, you come straight back to your exam
+                    with the time you had left.
+                  </span>
+                </span>
+              </div>
+            </>
+          )}
+
+          {/* 8 · Start */}
+          <div className="pq-stack" />
+          <button
+            type="button"
+            className={`pq-cta ${mode === QUIZ_MODE.EXAM ? '' : 'is-secondary'}`}
+            onClick={onStart}
+            disabled={starting || (mode === QUIZ_MODE.EXAM && examLocked)}
+          >
+            {starting
+              ? 'Getting your paper…'
+              : mode === QUIZ_MODE.EXAM ? 'Start the exam' : 'Start practising'}
+            {!starting && <IconNext size={18} />}
+          </button>
+
+          {startError && (
+            <div className="pq-warn is-danger" style={{ marginTop: 12 }}>
+              <IconRefresh size={19} />
+              <p>{startError}</p>
+            </div>
+          )}
+
+          <p className="pq-fineprint">
+            {mode === QUIZ_MODE.EXAM
+              ? 'Once you start, the clock runs until you finish or time is up. Leaving early means this attempt is not counted.'
+              : 'No clock. Your place is saved as you go, and every answer is explained.'}
+          </p>
+        </div>
       </div>
     </div>
   )

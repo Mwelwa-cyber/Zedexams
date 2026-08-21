@@ -386,6 +386,7 @@
     "test:prerender-retry": "node scripts/test-prerender-retry.mjs",
     "test:codeql-scope": "node scripts/test-codeql-scope.mjs",
     "test:color-mix-fallback": "node scripts/test-color-mix-fallback.mjs",
+    "test:css-reset-specificity": "node scripts/test-css-reset-specificity.mjs",
     "test:secret-hygiene": "node scripts/test-secret-hygiene.mjs",
     "test:env-whitespace": "node scripts/test-env-whitespace.mjs",
     "test:grant-superadmin-config": "node scripts/test-grant-superadmin-config.mjs",
