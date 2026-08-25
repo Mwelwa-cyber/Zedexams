@@ -1006,7 +1006,7 @@
     "dompurify": "^3.4.13",
     "fflate": "^0.8.2",
     "file-saver": "^2.0.5",
-    "firebase": "^12.17.1",
+    "firebase": "^12.18.0",
     "html2canvas": "^1.4.1",
     "i18next": "^26.3.6",
     "i18next-browser-languagedetector": "^8.2.1",
@@ -1029,7 +1029,7 @@
   "devDependencies": {
     "@capacitor/cli": "^8.5.0",
     "@eslint/js": "^9.39.4",
-    "@firebase/rules-unit-testing": "^5.0.1",
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@sentry/vite-plugin": "^5.4.0",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",
