@@ -96,6 +96,18 @@ export default function PastPaperViewer() {
   usePaperResumeSync({ paperId, paper, uid: currentUser?.uid || null })
   const [paperUrl, setPaperUrl] = useState(null)
   const [paperUrlLoading, setPaperUrlLoading] = useState(false)
+  // Distinct from `downloadError` (the explicit Download-button action):
+  // this is the PREVIEW's own resolve, and a failure here must not leave
+  // the reader stuck on "Preparing your paper…" forever with no way out.
+  // `getDownloadURL()` is a Storage SDK call — App Check enforcement is on
+  // for Cloud Storage, so it can 401 on the same deferred-attestation race
+  // the doc-level read above just got a gate for. attestedStorage.js
+  // deliberately leaves ordinary reads unwrapped because a failure there
+  // usually degrades one decorative image; the primary paper preview is
+  // the one read on this page where that trade doesn't hold, so it gets
+  // its own bounded readiness wait and its own retry.
+  const [paperUrlError, setPaperUrlError] = useState(false)
+  const [paperUrlAttempt, setPaperUrlAttempt] = useState(0)
   const [downloadError, setDownloadError] = useState('')
   const [downloadFallbackUrl, setDownloadFallbackUrl] = useState('')
   const [downloading, setDownloading] = useState(false)
@@ -187,16 +199,27 @@ export default function PastPaperViewer() {
     }
     let cancelled = false
     setPaperUrlLoading(true)
+    setPaperUrlError(false)
     setDownloadError('')
-    resolvePaperUrl(previewSource.path)
-      .then((url) => { if (!cancelled) setPaperUrl(url) })
-      .catch((err) => {
+    ;(async () => {
+      try {
+        // Same deferred-App-Check race as the doc read, on Storage instead
+        // of Firestore this time: getDownloadURL() needs a genuine token
+        // under Storage enforcement, and this is the primary content of
+        // the page — worth the same bounded wait rather than eating a 401
+        // on the first attempt.
+        await whenAppCheckReady()
+        const url = await resolvePaperUrl(previewSource.path)
+        if (!cancelled) setPaperUrl(url)
+      } catch (err) {
         console.warn('[PastPaperViewer] pdf URL failed', err)
-        if (!cancelled) setDownloadError('Could not load this paper. Try refreshing.')
-      })
-      .finally(() => { if (!cancelled) setPaperUrlLoading(false) })
+        if (!cancelled) setPaperUrlError(true)
+      } finally {
+        if (!cancelled) setPaperUrlLoading(false)
+      }
+    })()
     return () => { cancelled = true }
-  }, [paper, currentUser, previewSource?.kind, previewSource?.path])
+  }, [paper, currentUser, previewSource?.kind, previewSource?.path, paperUrlAttempt])
 
   useEffect(() => {
     if (!paper || !currentUser || previewSource?.kind !== 'images') {
@@ -830,7 +853,20 @@ export default function PastPaperViewer() {
                 )}
 
                 {previewSource?.kind === 'pdf' && (
-                  paperUrlLoading || !paperUrl ? (
+                  paperUrlError ? (
+                    <div className="theme-card border theme-border rounded-radius-md h-[70vh] flex flex-col items-center justify-center gap-3 text-center px-4">
+                      <div className="text-4xl">⚠️</div>
+                      <p className="theme-text font-black text-base">Couldn't load this paper</p>
+                      <p className="theme-text-muted text-sm max-w-sm">Check your connection and try again.</p>
+                      <button
+                        type="button"
+                        onClick={() => setPaperUrlAttempt((n) => n + 1)}
+                        className="theme-accent-fill theme-on-accent rounded-full px-5 py-2.5 text-sm font-black hover:opacity-90"
+                      >
+                        Try again
+                      </button>
+                    </div>
+                  ) : paperUrlLoading || !paperUrl ? (
                     <div className="theme-card border theme-border rounded-radius-md h-[70vh] flex flex-col items-center justify-center gap-3 theme-text-muted text-sm">
                       <Skeleton className="w-40 h-56 rounded-radius-md" />
                       <span className="font-bold">Preparing your paper…</span>
@@ -977,7 +1013,18 @@ export default function PastPaperViewer() {
             onStartQuiz={quizAvailable ? () => { closeReader(); navigate(`/papers/${paperId}/quiz`) } : null}
           >
             {previewSource.kind === 'pdf' && (
-              paperUrl ? (
+              paperUrlError ? (
+                <div className="flex flex-col items-center gap-3 py-12 text-center px-4">
+                  <p className="theme-text-muted text-sm">Couldn't load this paper. Check your connection and try again.</p>
+                  <button
+                    type="button"
+                    onClick={() => setPaperUrlAttempt((n) => n + 1)}
+                    className="theme-accent-fill theme-on-accent rounded-full px-4 py-2 text-xs font-black hover:opacity-90"
+                  >
+                    Try again
+                  </button>
+                </div>
+              ) : paperUrl ? (
                 // Same flow container the image stack uses below: the
                 // reader overlay owns the scrolling, the stream just flows.
                 <div className="mx-auto max-w-[1100px] w-full px-1 sm:px-3 py-4">

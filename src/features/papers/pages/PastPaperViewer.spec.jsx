@@ -123,6 +123,39 @@ describe('PastPaperViewer — load states', () => {
   })
 })
 
+describe('PastPaperViewer — PDF preview resolve failure', () => {
+  // The doc-level read can succeed (paper metadata, title, panels all
+  // render) while the SEPARATE getDownloadURL() call for the PDF preview
+  // fails — a real production case: Storage App Check enforcement can
+  // reject that call on the same deferred-attestation race as the doc
+  // read, and before this fix the preview area got stuck forever on
+  // "Preparing your paper…" with no way out.
+  function pdfPaper(overrides = {}) {
+    return publishedPaper({ pdfPath: 'papers/paper-1/paper.pdf', ...overrides })
+  }
+
+  it('shows a retriable message instead of an endless "Preparing your paper…"', async () => {
+    mockGetPaper.mockResolvedValue(pdfPaper())
+    vi.mocked(resolvePaperUrl).mockRejectedValue(new Error('storage/unauthorized'))
+    renderViewer()
+    expect(await findHeader()).toBeInTheDocument()
+    expect(await screen.findByText("Couldn't load this paper")).toBeInTheDocument()
+    expect(screen.queryByText('Preparing your paper…')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+  })
+
+  it('retries the resolve when "Try again" is pressed and recovers', async () => {
+    mockGetPaper.mockResolvedValue(pdfPaper())
+    vi.mocked(resolvePaperUrl).mockRejectedValueOnce(new Error('storage/unauthorized'))
+    vi.mocked(resolvePaperUrl).mockResolvedValueOnce('https://cdn.test/paper.pdf')
+    renderViewer()
+    const retry = await screen.findByRole('button', { name: 'Try again' })
+    retry.click()
+    expect(await screen.findByRole('button', { name: /Download paper/ })).toBeInTheDocument()
+    expect(screen.queryByText("Couldn't load this paper")).not.toBeInTheDocument()
+  })
+})
+
 describe('PastPaperViewer — publish/visibility gate', () => {
   it('hides an unpublished paper from a non-admin (not-found, no leak)', async () => {
     mockGetPaper.mockResolvedValue(publishedPaper({ status: 'draft' }))
