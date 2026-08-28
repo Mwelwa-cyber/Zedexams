@@ -336,6 +336,8 @@ export default function PaperQuizPage() {
           resumed={attempt.resumed}
           readAloud={readAloud}
           submitting={attempt.submitting}
+          freeSet={freeSet}
+          unlocked={unlocked}
           onChoose={handleChoose}
           onNavigate={attempt.goTo}
           onToggleFlag={attempt.toggleFlag}
@@ -366,6 +368,8 @@ export default function PaperQuizPage() {
           flagCount={Object.keys(attempt.flags).length}
           reason={attempt.finishReason}
           unverifiedTiming={attempt.record?.unverifiedTiming}
+          freeSet={freeSet}
+          unlocked={unlocked}
           onFixup={handleFixup}
           onRetry={() => { attempt.reset(); setScreen(SCREEN.COVER) }}
           onDone={() => navigate('/papers')}
