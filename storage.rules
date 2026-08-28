@@ -235,9 +235,15 @@ service firebase.storage {
     //     behind a guess, every page under `assets/` reads as free — that
     //     also frees a scanned paper's mark-scheme pages, deliberately,
     //     until a migration gives mark-scheme scans their own path.
-    function isMarkSchemeFile(fileName) {
-      return !fileName.matches('.*/assets/.*')
-        && fileName.matches('.*mark-scheme-[^/]*$');
+    //
+    // Reads `resource.name` (the object's full bucket path) rather than the
+    // `{fileName=**}` match-path capture: that capture's type has no
+    // `matches()` — calling it errors the whole read closed, PDF question
+    // papers included, which is exactly the fail-closed shape that makes a
+    // rules regression like this easy to miss without a real emulator run.
+    function isMarkSchemeFile() {
+      return !resource.name.matches('.*/assets/.*')
+        && resource.name.matches('.*mark-scheme-[^/]*$');
     }
 
     function validPaperUpload() {
@@ -322,7 +328,7 @@ service firebase.storage {
       allow read: if isVerified()
         && callerActive()
         && (
-          !isMarkSchemeFile(fileName)
+          !isMarkSchemeFile()
           || hasValidEntitlement()
           || isTeacherOrAdmin()
           || ownsPath(ownerUid)
@@ -337,7 +343,7 @@ service firebase.storage {
       allow read: if isVerified()
         && callerActive()
         && (
-          !isMarkSchemeFile(fileName)
+          !isMarkSchemeFile()
           || hasValidEntitlement()
           || isTeacherOrAdmin()
         );
