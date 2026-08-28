@@ -10,14 +10,23 @@
  *   2. how each part went — where the marks came from
  *   3. what to work on next — ranked by what it cost them
  *   4. go through the paper — every question, filterable
- *   5. what next — the fix-up set, another go, back to papers
+ *   5. what next — the fix-up set, another go, the free-set lock, back to papers
  *
  * ── The one thing that is free on every plan, permanently ────────────────
  *
- * All of it. §8: "feedback on work already done is never charged for."
- * Marking, wrong answers and weak-topic advice for questions the learner has
- * ANSWERED cost nothing on any plan, so there is no entitlement check anywhere
- * in this file and none belongs here.
+ * All of it, up to this point. §8: "feedback on work already done is never
+ * charged for." Marking, wrong answers and weak-topic advice for questions
+ * the learner has ANSWERED cost nothing on any plan, so there is no
+ * entitlement check anywhere ABOVE this line.
+ *
+ * ── The one thing that is not ─────────────────────────────────────────────
+ *
+ * `PaperContinueLock` — rendered last, inline, only when a free-plan practice
+ * run stopped short of the whole paper (§3.5/§8: nothing renders AT the
+ * free-set boundary, so this is the first the learner hears of it, and it is
+ * a card on a page they navigated to rather than anything that interrupted
+ * them). It is never shown for an exam attempt, which by rule already
+ * required the whole paper to start.
  */
 
 import { useMemo, useState } from 'react'
@@ -29,6 +38,7 @@ import { correctText, resolveCoaching } from '../lib/coaching'
 import { optionLabel } from '../lib/answerKey'
 import { toPlainText } from '../../../../editor/richPlainText'
 import { isExam } from '../lib/quizModes'
+import PaperContinueLock from '../../components/PaperContinueLock'
 import ProgressRing from './ProgressRing'
 import ZedReaction from './ZedReaction'
 import { IconBolt, IconBook, IconChevronDown, IconPlay } from './QuizIcons'
@@ -119,6 +129,8 @@ export default function QuizResults({
   flagCount,
   reason,
   unverifiedTiming,
+  freeSet,
+  unlocked = false,
   onFixup,
   onRetry,
   onDone,
@@ -127,6 +139,7 @@ export default function QuizResults({
 }) {
   const [filter, setFilter] = useState('wrong')
   const exam = isExam(mode)
+  const showContinueLock = !exam && !unlocked && Number(freeSet?.remaining) > 0
   const band = verdictBand(marked.percent)
   const questionById = useMemo(() => {
     const m = new Map()
@@ -261,9 +274,18 @@ export default function QuizResults({
               ))}
           </div>
 
+          {showContinueLock && (
+            <PaperContinueLock
+              paperId={paper?.id}
+              remaining={freeSet.remaining}
+              lockedTopics={freeSet.lockedSectionTitles}
+              paperYear={paper?.year ? String(paper.year) : ''}
+            />
+          )}
+
           <div style={{ height: 16 }} />
           <button type="button" className="pq-cta is-secondary" onClick={onRetry}>
-            Try the whole paper again
+            {showContinueLock ? 'Try this free section again' : 'Try the whole paper again'}
           </button>
           <div className="pq-stack" />
           <button type="button" className="pq-cta is-quiet" onClick={onDone}>

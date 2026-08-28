@@ -28,6 +28,7 @@ import { formatClock, remainingSeconds, timerTone } from '../lib/examClock'
 import { buildGrid, gridSummary, isLastQuestion, nextIndex, prevIndex, submitSheetLines } from '../lib/reviewGrid'
 import { resolveCoaching, shouldCelebrateStreak } from '../lib/coaching'
 import { correctIndexOf } from '../lib/answerKey'
+import FreeSetMeter from '../../components/FreeSetMeter'
 import QuestionCard from './QuestionCard'
 import CoachingPanel from './CoachingPanel'
 import { Confetti, StreakPop } from './Celebration'
@@ -95,6 +96,8 @@ export default function QuizRunner({
   resumed,
   readAloud,
   submitting,
+  freeSet,
+  unlocked = false,
   onChoose,
   onNavigate,
   onToggleFlag,
@@ -249,6 +252,9 @@ export default function QuizRunner({
           <div className="pq-progress-track">
             <div className="pq-progress-fill" style={{ width: `${pct}%` }} />
           </div>
+          {!exam && (
+            <FreeSetMeter questionNumber={currentIndex + 1} freeSet={freeSet} unlocked={unlocked} />
+          )}
 
           {showResumed && (
             <div className="pq-resume-banner" role="status">
