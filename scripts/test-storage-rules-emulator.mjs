@@ -213,6 +213,19 @@ async function main() {
     await uploadBytes(ref(st, `papers/${TEACHER_A}/seed.pdf`), PDF_BYTES, {
       contentType: 'application/pdf',
     })
+    // A single-file mark scheme, named the way uploadPaperPdf names one
+    // (`{paperId}/mark-scheme-{filename}`) — the fixture the P0 entitlement
+    // gate now applies to specifically, once the question paper itself is
+    // free. See isMarkSchemeFile() in storage.rules.
+    await uploadBytes(ref(st, `papers/${TEACHER_A}/p1/mark-scheme-seed.pdf`), PDF_BYTES, {
+      contentType: 'application/pdf',
+    })
+    // A scanned paper's page, named the way uploadPaperAsset names one
+    // (`{paperId}/assets/{idx}-{filename}`) — no role in the path, so it
+    // reads as free for everyone, mark-scheme scans included.
+    await uploadBytes(ref(st, `papers/${TEACHER_A}/p1/assets/0-seed.jpg`), PNG_BYTES, {
+      contentType: 'image/jpeg',
+    })
     await uploadBytes(ref(st, 'syllabi/seed-syllabus.pdf'), PDF_BYTES, {
       contentType: 'application/pdf',
     })
@@ -268,24 +281,36 @@ async function main() {
   // ── /papers/{ownerUid}/ — per-teacher past papers ─────────────
   section('papers/{ownerUid}/ — per-teacher past papers')
 
-  await test('free learner CANNOT read premium past-paper PDFs (P0 entitlement gate)', async () => {
-    await assertFails(getBytes(ref(learnerAStorage, `papers/${TEACHER_A}/seed.pdf`)))
+  await test('free learner CAN read the question paper itself (2026-08-28: no longer premium-gated)', async () => {
+    await assertSucceeds(getBytes(ref(learnerAStorage, `papers/${TEACHER_A}/seed.pdf`)))
   })
 
-  await test('entitled learner CAN read past-paper PDFs', async () => {
-    await assertSucceeds(getBytes(ref(premiumLearnerStorage, `papers/${TEACHER_A}/seed.pdf`)))
+  await test('free learner CANNOT read the mark scheme / answer key (P0 entitlement gate)', async () => {
+    await assertFails(getBytes(ref(learnerAStorage, `papers/${TEACHER_A}/p1/mark-scheme-seed.pdf`)))
   })
 
-  await test('teacher content manager CAN read past-paper PDFs', async () => {
-    await assertSucceeds(getBytes(ref(teacherAStorage, `papers/${TEACHER_A}/seed.pdf`)))
+  await test('free learner CAN read a scanned paper\'s page (no role in the storage path)', async () => {
+    await assertSucceeds(getBytes(ref(learnerAStorage, `papers/${TEACHER_A}/p1/assets/0-seed.jpg`)))
   })
 
-  await test('admin CAN read past-paper PDFs', async () => {
-    await assertSucceeds(getBytes(ref(adminStorage, `papers/${TEACHER_A}/seed.pdf`)))
+  await test('entitled learner CAN read the mark scheme / answer key', async () => {
+    await assertSucceeds(getBytes(ref(premiumLearnerStorage, `papers/${TEACHER_A}/p1/mark-scheme-seed.pdf`)))
   })
 
-  await test('suspended (but premium) learner CANNOT read past-paper PDFs (P0 suspension gate)', async () => {
+  await test('teacher content manager CAN read the mark scheme / answer key', async () => {
+    await assertSucceeds(getBytes(ref(teacherAStorage, `papers/${TEACHER_A}/p1/mark-scheme-seed.pdf`)))
+  })
+
+  await test('admin CAN read the mark scheme / answer key', async () => {
+    await assertSucceeds(getBytes(ref(adminStorage, `papers/${TEACHER_A}/p1/mark-scheme-seed.pdf`)))
+  })
+
+  await test('suspended (but premium) learner CANNOT read the question paper (P0 suspension gate)', async () => {
     await assertFails(getBytes(ref(suspendedLearnerStorage, `papers/${TEACHER_A}/seed.pdf`)))
+  })
+
+  await test('suspended (but premium) learner CANNOT read the mark scheme (P0 suspension gate)', async () => {
+    await assertFails(getBytes(ref(suspendedLearnerStorage, `papers/${TEACHER_A}/p1/mark-scheme-seed.pdf`)))
   })
 
   await test('guest CANNOT read papers (auth-gated)', async () => {

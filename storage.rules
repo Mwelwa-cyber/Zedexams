@@ -179,10 +179,14 @@ service firebase.storage {
     }
 
     // ── premium learner-content entitlement (P0) ─────────────────
-    // Mirrors hasPremiumAccess() in src/utils/subscriptionConfig.js so premium
-    // past-paper PDFs + mark schemes require a valid learner subscription.
-    // Admins/superAdmins always pass; teacher/admin content managers pass via
-    // the papers read rule's isTeacherOrAdmin() arm.
+    // Mirrors hasPremiumAccess() in src/utils/subscriptionConfig.js.
+    //
+    // 2026-08-28: past-paper PDFs/scans are no longer gated by this at all —
+    // reading the paper itself is free for any verified, active learner (see
+    // the papers read rules below). What this still guards is the MARK SCHEME
+    // / answer key on a single-file paper (isMarkSchemeFile()), which stays a
+    // paid learner artefact. Admins/superAdmins always pass; teacher/admin
+    // content managers pass via the papers read rule's isTeacherOrAdmin() arm.
     function hasValidEntitlement() {
       return isVerified()
         && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
@@ -208,6 +212,38 @@ service firebase.storage {
 
     function ownsPath(ownerUid) {
       return isVerified() && request.auth.uid == ownerUid && callerActive();
+    }
+
+    // ── question paper vs mark scheme, from the STORAGE PATH alone ──
+    // (2026-08-28, unpaid-learners-past-papers). Reading a past paper's
+    // question paper is now free for everybody signed in and in good
+    // standing; only the mark scheme / answer key still needs
+    // hasValidEntitlement(). Storage rules cannot ask "is this file's role
+    // mark-scheme" without a firestore.get() on the paper doc on every single
+    // read of every page — and CLAUDE.md's own incident history (#2258: a
+    // cross-service read wired into a shared predicate took Storage down for
+    // five days, invisible to the emulator) is exactly why that is not worth
+    // it here. So this is a path-only check instead:
+    //
+    //   - a single-file upload (uploadPaperPdf, src/utils/pastPapers.js)
+    //     is named `{paperId}/{kind}-{filename}` with kind 'paper' or
+    //     'mark-scheme' — the terminal segment says which it is.
+    //   - a SCANNED paper's pages (uploadPaperAsset) are named
+    //     `{paperId}/assets/{idx}-{filename}` with no kind in the path at
+    //     all, so a mark-scheme scan is indistinguishable here from a
+    //     question-paper scan. Rather than lock a scanned paper's questions
+    //     behind a guess, every page under `assets/` reads as free — that
+    //     also frees a scanned paper's mark-scheme pages, deliberately,
+    //     until a migration gives mark-scheme scans their own path.
+    //
+    // Reads `resource.name` (the object's full bucket path) rather than the
+    // `{fileName=**}` match-path capture: that capture's type has no
+    // `matches()` — calling it errors the whole read closed, PDF question
+    // papers included, which is exactly the fail-closed shape that makes a
+    // rules regression like this easy to miss without a real emulator run.
+    function isMarkSchemeFile() {
+      return !resource.name.matches('.*/assets/.*')
+        && resource.name.matches('.*mark-scheme-[^/]*$');
     }
 
     function validPaperUpload() {
@@ -286,14 +322,17 @@ service firebase.storage {
     // Past papers: learners can read, teachers/admins can only write under
     // their own user folder. One-level legacy writes are admin-only.
     match /papers/{ownerUid}/{fileName=**} {
-      // Premium gate (P0): past-paper PDFs + mark schemes (answer keys) are a
-      // paid learner artefact. Free/expired/suspended learners must not read
-      // them. Entitled learners, the uploading owner, and any teacher/admin
-      // content manager keep access. callerActive() blocks a suspended user
-      // even if they still hold premium.
+      // 2026-08-28: the question paper is free for any verified, active
+      // learner. Only the mark scheme (isMarkSchemeFile()) still needs
+      // hasValidEntitlement() — see that function's comment above.
       allow read: if isVerified()
         && callerActive()
-        && (hasValidEntitlement() || isTeacherOrAdmin() || ownsPath(ownerUid));
+        && (
+          !isMarkSchemeFile()
+          || hasValidEntitlement()
+          || isTeacherOrAdmin()
+          || ownsPath(ownerUid)
+        );
       allow create, update: if ownsPath(ownerUid)
         && isTeacherOrAdmin()
         && validPaperUpload();
@@ -303,7 +342,11 @@ service firebase.storage {
     match /papers/{fileName} {
       allow read: if isVerified()
         && callerActive()
-        && (hasValidEntitlement() || isTeacherOrAdmin());
+        && (
+          !isMarkSchemeFile()
+          || hasValidEntitlement()
+          || isTeacherOrAdmin()
+        );
       allow create, update: if isAdmin() && validPaperUpload();
       allow delete: if isAdmin();
     }
