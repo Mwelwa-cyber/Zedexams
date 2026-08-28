@@ -24,6 +24,7 @@ vi.mock('../../../firebase/config', () => ({
   db: {},
   googleProvider: {},
   whenAppCheckReady: vi.fn(() => Promise.resolve({ initialized: true })),
+  assertAuthAttested: vi.fn(() => Promise.resolve({ ok: true, reason: 'attested' })),
 }))
 vi.mock('../../../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
 vi.mock('../../../utils/referrals', () => ({ captureReferralFromUrl: () => null }))

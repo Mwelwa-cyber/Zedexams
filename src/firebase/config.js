@@ -545,6 +545,80 @@ export async function assertStorageWriteAttested() {
 }
 
 /**
+ * What the user is told when a sign-in/sign-up can't get a genuine App Check
+ * token. About the DEVICE CHECK, not about credentials — the copy above this
+ * would otherwise show "Login failed. Please try again.", which reads as a
+ * wrong password when the request never had a chance to succeed.
+ */
+export const AUTH_ATTESTATION_BLOCKED_MESSAGE =
+  "We couldn't verify this device just now. Please check your connection and try again in a moment."
+
+/**
+ * Gate an Auth call (sign-in, sign-up, Google) on GENUINE attestation — the
+ * same defence Storage writes already have above.
+ *
+ * App Check enforcement is ON for Firebase Authentication (2026-08). A
+ * request carrying the fail-open placeholder from appCheckResilient.js (a
+ * reCAPTCHA timeout, a crashed render, an empty result) is REJECTED by an
+ * enforced Identity Toolkit endpoint exactly like it is by Storage:
+ *   401 {"error":{"code":401,"message":"Firebase App Check token is invalid."}}
+ * — and because the SDK caches that placeholder for its whole 6-minute TTL
+ * (APPCHECK_PLACEHOLDER_TTL_MS), ONE reCAPTCHA hiccup locks sign-in out of
+ * the whole page for six minutes. Unlike Storage, nothing in the sign-in
+ * path checked for this before now, so every one of those six minutes showed
+ * the generic, unmapped "Login failed. Please try again." — indistinguishable
+ * from a wrong password. Confirmed live: Firebase Console → App Check → APIs
+ * shows Authentication at a sustained ~60% verified / 40% unverified while
+ * Storage sits at 100% and Firestore at 95% — Auth is uniquely exposed
+ * because it alone had no gate.
+ *
+ * Spends the same ONE forced refresh the Storage gate does before giving up,
+ * so a momentary reCAPTCHA stall recovers immediately instead of waiting out
+ * the whole placeholder TTL. Fails OPEN when App Check never initialised in
+ * this build at all (`configured: false`) — same reasoning as the Storage
+ * gate: blocking there breaks local dev/emulator use for no benefit, since an
+ * unenforced backend accepts the request and an enforced one rejects it with
+ * its own error either way. Never throws. See assertAuthAttested() for the
+ * throwing form the sign-in/sign-up paths actually call.
+ *
+ * @returns {Promise<{ok: boolean, reason: string}>}
+ */
+export async function ensureAuthAttestation() {
+  await whenAppCheckReady()
+  return resolveWriteAttestation({
+    configured: Boolean(jsAppCheck || nativeAppCheck),
+    placeholderToken: APPCHECK_PLACEHOLDER_TOKEN,
+    mintToken: async (forceRefresh) => {
+      if (isNativePlatform()) {
+        if (!nativeAppCheck) return ''
+        const res = await nativeAppCheck.getToken({ forceRefresh: Boolean(forceRefresh) })
+        return (res && res.token) || ''
+      }
+      if (!jsAppCheck) return ''
+      const res = await getToken(jsAppCheck, Boolean(forceRefresh))
+      return (res && res.token) || ''
+    },
+  })
+}
+
+/**
+ * ensureAuthAttestation() in throwing form, for Login.jsx / Register.jsx.
+ * The thrown code ('appcheck/unattested') is mapped in
+ * src/utils/friendlyErrors.js so it reaches friendlyAuthMessage()'s normal
+ * code → copy lookup rather than falling through to the generic fallback.
+ *
+ * @throws {Error & {code: 'appcheck/unattested', reason: string}}
+ */
+export async function assertAuthAttested() {
+  const verdict = await ensureAuthAttestation()
+  if (verdict.ok) return verdict
+  const err = new Error(AUTH_ATTESTATION_BLOCKED_MESSAGE)
+  err.code = 'appcheck/unattested'
+  err.reason = verdict.reason
+  throw err
+}
+
+/**
  * Client-side App Check state for the /admin/app-check "this device"
  * self-test. Answers, from inside the deployed bundle, the questions the
  * server-side counters can't: did this build ship with a reCAPTCHA site key

@@ -4,7 +4,7 @@ import { fetchSignInMethodsForEmail, signOut } from 'firebase/auth'
 import { Mail, Eye, EyeOff } from 'lucide-react'
 import { ArrowLeft } from '../../../shared/components/icons'
 import { useAuth, SESSION_EXPIRED_KEY, hasAuthSessionHint } from '../../../contexts/AuthContext'
-import { auth, whenAppCheckReady } from '../../../firebase/config'
+import { auth, assertAuthAttested } from '../../../firebase/config'
 import { resolvePostAuthPath } from '../../../utils/navigation'
 import { isWithinVerificationGrace, needsEmailVerification as userNeedsVerification } from '../../../utils/verification'
 import { friendlyAuthMessage } from '../../../utils/friendlyErrors'
@@ -193,17 +193,18 @@ export default function Login() {
     setError('')
     setLoading(true)
     try {
-      // App Check init is deliberately deferred off the cold-start path for a
-      // signed-out visitor (see scheduleAppCheckInit in firebase/config.js) —
-      // and everyone submitting THIS form is signed out by definition. Without
-      // this, a fast submit (autofilled credentials, a quick retype) can reach
-      // Firebase's enforced Identity Toolkit endpoint before the first App
-      // Check token has minted, which comes back as a 401 with no recognised
-      // error code — the generic "Login failed. Please try again." fallback.
-      // whenAppCheckReady() never rejects and gives up after a bounded
-      // timeout, so a misconfigured/unreachable reCAPTCHA still lets sign-in
-      // proceed rather than hanging the button.
-      await whenAppCheckReady()
+      // App Check enforcement is ON for Firebase Authentication, and a
+      // request carrying only the fail-open placeholder token (a reCAPTCHA
+      // timeout, a crashed render — see appCheckResilient.js) is REJECTED,
+      // then re-sent unattested for the SDK's whole 6-minute placeholder
+      // cache. Without this gate that showed as the generic, unmapped
+      // "Login failed. Please try again." for up to six minutes at a time —
+      // confirmed live via Firebase Console → App Check → APIs (Auth at a
+      // sustained ~40% unverified while Storage/Firestore were healthy).
+      // assertAuthAttested() spends one forced token refresh to recover from
+      // a momentary stall before giving up, and never hangs the button — see
+      // firebase/config.js for the full account.
+      await assertAuthAttested()
       // reCAPTCHA Enterprise bot check (native Android only — no-op on web,
       // which is covered by App Check). Fail-open: only a definitive 'block'
       // verdict stops sign-in; a null token or any assessment error proceeds.
@@ -233,11 +234,10 @@ export default function Login() {
     setError('')
     setGoogleLoading(true)
     try {
-      // Same deferred-App-Check race as handleSubmit above — a fast click on
-      // "Continue with Google" right after the page loads can outrun the
-      // first token mint and hit the enforced signInWithPopup/signInWithIdp
-      // endpoint unattested, surfacing as "Google sign-in failed."
-      await whenAppCheckReady()
+      // Same App Check attestation gate as handleSubmit above — see there and
+      // firebase/config.js for the full account of why this is load-bearing,
+      // not just a cold-start nicety.
+      await assertAuthAttested()
       const cred = await loginWithGoogle()
       await completePostLogin(cred)
     } catch (err) {

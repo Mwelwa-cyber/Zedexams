@@ -344,6 +344,13 @@ const AUTH_MESSAGES_SHARED = {
     'An account already exists with this email. Sign in with the original method.',
   'auth/email-already-in-use': 'This email is already registered. Try logging in.',
   'auth/weak-password': 'Password must be at least 6 characters.',
+  // Thrown by src/firebase/config.js's assertAuthAttested() when App Check
+  // enforcement is on for Authentication and only the fail-open placeholder
+  // token (appCheckResilient.js) is available after one forced refresh —
+  // e.g. reCAPTCHA Enterprise timed out or crashed. About the device check,
+  // not the credentials, so it must never collapse into the generic
+  // "Login failed" fallback that reads as a wrong password.
+  'appcheck/unattested': "We couldn't verify this device just now. Please check your connection and try again in a moment.",
 }
 
 /**
