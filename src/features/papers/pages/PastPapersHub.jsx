@@ -38,6 +38,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
+import { whenAppCheckReady } from '../../../firebase/config'
 import { canOpenLearnerRoutes } from '../../../utils/navigation'
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
 import useExamTimetables from '../../../hooks/useExamTimetables'
@@ -595,7 +596,16 @@ export default function PastPapersHub() {
     let cancelled = false
     const hadCache = Boolean(getCachedPublishedPapers())
     if (!hadCache) setLoading(true)
-    loadPublishedPapers()
+    // Same race the two sibling fixes (#2598, #2599) closed for the single-
+    // paper viewer: on a cold native (Android) load, App Check init is
+    // deferred off the boot path (scheduleAppCheckInit) so the very first
+    // Firestore read can fire before Play Integrity attestation has
+    // resolved and come back permission-denied. Without this gate that
+    // denial reads as "the archive is empty" and the hub silently renders
+    // SAMPLE_PAPERS — fake ids that then 404 as "Paper not found" the
+    // moment a learner taps one. Never rejects, bounded 3s timeout.
+    whenAppCheckReady()
+      .then(() => loadPublishedPapers())
       .then((rows) => {
         if (cancelled) return
         const visible = rows.filter((p) => PAPER_GRADES.includes(String(p.grade)))
