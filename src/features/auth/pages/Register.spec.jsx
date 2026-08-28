@@ -18,7 +18,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
-vi.mock('../../../firebase/config', () => ({ default: {}, auth: {}, db: {}, googleProvider: {} }))
+vi.mock('../../../firebase/config', () => ({
+  default: {},
+  auth: {},
+  db: {},
+  googleProvider: {},
+  whenAppCheckReady: vi.fn(() => Promise.resolve({ initialized: true })),
+}))
 vi.mock('../../../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
 vi.mock('../../../utils/referrals', () => ({ captureReferralFromUrl: () => null }))
 // The age gate calls the retry-cooldown endpoint before routing, and the

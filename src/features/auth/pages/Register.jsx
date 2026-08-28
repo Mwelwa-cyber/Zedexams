@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
+import { whenAppCheckReady } from '../../../firebase/config'
 import { getRoleLandingPath } from '../../../utils/navigation'
 import { captureReferralFromUrl } from '../../../utils/referrals'
 import { friendlyAuthMessage } from '../../../utils/friendlyErrors'
@@ -287,6 +288,14 @@ export default function Register() {
     if (blockedByAdultConfirmation()) return
     setGoogleLoading(true)
     try {
+      // App Check init is deliberately deferred off the cold-start path for a
+      // signed-out visitor (scheduleAppCheckInit in firebase/config.js) —
+      // everyone on this form is signed out by definition. A fast click can
+      // outrun the first token mint and hit the enforced signInWithPopup
+      // endpoint unattested, which comes back as an unmapped 401 and shows as
+      // the generic "Google sign-in failed." fallback. Never rejects/hangs —
+      // bounded timeout, so an unreachable reCAPTCHA still lets sign-up proceed.
+      await whenAppCheckReady()
       const cred = await loginWithGoogle({
         role: form.role,
         // Onboarding answers, applied ONLY when this Google sign-in mints a
@@ -343,6 +352,11 @@ export default function Register() {
 
     setError(''); setLoading(true)
     try {
+      // Same deferred-App-Check race as handleGoogleSignUp above — everyone
+      // submitting this form is signed out, so a fast submit can outrun the
+      // first App Check token mint and hit the enforced createUserWithEmail
+      // endpoint unattested, surfacing as an unmapped, generic auth error.
+      await whenAppCheckReady()
       // reCAPTCHA Enterprise bot check (native Android only — no-op on web,
       // which is covered by App Check). Fail-open: only a definitive 'block'
       // verdict stops sign-up; a null token or any assessment error proceeds.

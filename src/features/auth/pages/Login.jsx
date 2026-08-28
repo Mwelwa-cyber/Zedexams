@@ -4,7 +4,7 @@ import { fetchSignInMethodsForEmail, signOut } from 'firebase/auth'
 import { Mail, Eye, EyeOff } from 'lucide-react'
 import { ArrowLeft } from '../../../shared/components/icons'
 import { useAuth, SESSION_EXPIRED_KEY, hasAuthSessionHint } from '../../../contexts/AuthContext'
-import { auth } from '../../../firebase/config'
+import { auth, whenAppCheckReady } from '../../../firebase/config'
 import { resolvePostAuthPath } from '../../../utils/navigation'
 import { isWithinVerificationGrace, needsEmailVerification as userNeedsVerification } from '../../../utils/verification'
 import { friendlyAuthMessage } from '../../../utils/friendlyErrors'
@@ -193,6 +193,17 @@ export default function Login() {
     setError('')
     setLoading(true)
     try {
+      // App Check init is deliberately deferred off the cold-start path for a
+      // signed-out visitor (see scheduleAppCheckInit in firebase/config.js) —
+      // and everyone submitting THIS form is signed out by definition. Without
+      // this, a fast submit (autofilled credentials, a quick retype) can reach
+      // Firebase's enforced Identity Toolkit endpoint before the first App
+      // Check token has minted, which comes back as a 401 with no recognised
+      // error code — the generic "Login failed. Please try again." fallback.
+      // whenAppCheckReady() never rejects and gives up after a bounded
+      // timeout, so a misconfigured/unreachable reCAPTCHA still lets sign-in
+      // proceed rather than hanging the button.
+      await whenAppCheckReady()
       // reCAPTCHA Enterprise bot check (native Android only — no-op on web,
       // which is covered by App Check). Fail-open: only a definitive 'block'
       // verdict stops sign-in; a null token or any assessment error proceeds.
@@ -222,6 +233,11 @@ export default function Login() {
     setError('')
     setGoogleLoading(true)
     try {
+      // Same deferred-App-Check race as handleSubmit above — a fast click on
+      // "Continue with Google" right after the page loads can outrun the
+      // first token mint and hit the enforced signInWithPopup/signInWithIdp
+      // endpoint unattested, surfacing as "Google sign-in failed."
+      await whenAppCheckReady()
       const cred = await loginWithGoogle()
       await completePostLogin(cred)
     } catch (err) {

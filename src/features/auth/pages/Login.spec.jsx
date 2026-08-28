@@ -22,6 +22,7 @@ vi.mock('../../../firebase/config', () => ({
   auth: {},
   db: {},
   googleProvider: {},
+  whenAppCheckReady: vi.fn(() => Promise.resolve({ initialized: true })),
 }))
 vi.mock('firebase/auth', () => ({
   fetchSignInMethodsForEmail: vi.fn(),
