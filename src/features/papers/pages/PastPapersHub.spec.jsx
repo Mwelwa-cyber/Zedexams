@@ -18,7 +18,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
-vi.mock('../../../firebase/config', () => ({ default: {}, auth: {}, db: {} }))
+vi.mock('../../../firebase/config', () => ({
+  default: {},
+  auth: {},
+  db: {},
+  whenAppCheckReady: () => Promise.resolve(),
+}))
 
 const mockAuth = { currentUser: null, userProfile: null }
 vi.mock('../../../contexts/AuthContext', () => ({ useAuth: () => mockAuth }))

@@ -35,6 +35,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { useAuth } from '../../../../contexts/AuthContext'
+import { whenAppCheckReady } from '../../../../firebase/config'
 import { hasPremiumAccess } from '../../../../engines/payment-engine/subscriptionConfig'
 import { getPaperById } from '../../../../utils/pastPaperLookup'
 import { LEARNER_QUIZ_PENDING_TEXT, paperQuizIsAttached } from '../../../../utils/pastPaperQuizStatus'
@@ -112,6 +113,13 @@ export default function PaperQuizPage() {
 
     ;(async () => {
       try {
+        // Same cold-native-load race the hub and viewer gate against: on
+        // Android, App Check init is deferred off the boot path, so a read
+        // that fires immediately can race ahead of Play Integrity
+        // attestation and come back permission-denied — which used to read
+        // as "Paper not found." rather than a retriable load failure.
+        // Never rejects, bounded 3s timeout.
+        await whenAppCheckReady()
         const p = await getPaperById(paperId)
         if (cancelled) return
         if (!p) { setError('Paper not found.'); return }
