@@ -30,7 +30,10 @@ if (!globalThis.IntersectionObserver) {
   }
 }
 
-vi.mock('../../../firebase/config', () => ({ default: {}, auth: {}, db: {}, storage: {} }))
+vi.mock('../../../firebase/config', () => ({
+  default: {}, auth: {}, db: {}, storage: {},
+  whenAppCheckReady: vi.fn().mockResolvedValue({ initialized: true }),
+}))
 
 const mockGetPaper = vi.fn()
 vi.mock('../../../utils/pastPapers', () => ({
@@ -95,6 +98,28 @@ describe('PastPaperViewer — load states', () => {
     mockGetPaper.mockResolvedValue(null)
     renderViewer()
     expect(await screen.findByText('Paper not found')).toBeInTheDocument()
+  })
+
+  // A failed READ (permission-denied from an App Check race, offline, a
+  // Firestore blip) is not the same fact as the paper genuinely not
+  // existing, and must not be reported with the same "moved or unpublished"
+  // copy — see PastPaperViewer.jsx's load effect for the full account.
+  it('shows a distinct, retriable message when the read itself fails', async () => {
+    mockGetPaper.mockRejectedValue(new Error('permission-denied'))
+    renderViewer()
+    expect(await screen.findByText("Couldn't load this paper")).toBeInTheDocument()
+    expect(screen.queryByText('Paper not found')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+  })
+
+  it('retries the read when "Try again" is pressed', async () => {
+    mockGetPaper.mockRejectedValueOnce(new Error('permission-denied'))
+    mockGetPaper.mockResolvedValueOnce(publishedPaper())
+    renderViewer()
+    const retry = await screen.findByRole('button', { name: 'Try again' })
+    retry.click()
+    expect(await findHeader()).toBeInTheDocument()
+    expect(mockGetPaper).toHaveBeenCalledTimes(2)
   })
 })
 

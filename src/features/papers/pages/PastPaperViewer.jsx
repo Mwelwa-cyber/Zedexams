@@ -13,6 +13,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useDataSaver } from '../../../contexts/DataSaverContext'
+import { whenAppCheckReady } from '../../../firebase/config'
 import {
   getPaper,
   getLinkedQuizMeta,
@@ -79,7 +80,17 @@ export default function PastPaperViewer() {
   const navigate = useNavigate()
   const [paper, setPaper] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [errored, setErrored] = useState(false)
+  // Kept apart on purpose. `notFound` means the read succeeded and the
+  // paper genuinely doesn't exist (or isn't published) — the archive is the
+  // right next step. `loadError` means the READ itself failed (permission-
+  // denied, offline, a network blip) — the paper may be perfectly fine and
+  // the honest next step is to retry, not to tell a learner it was "moved
+  // or unpublished" when nobody knows that. PaperQuizPage already keeps
+  // these apart for the same paperId lookup; this page used to collapse
+  // both into one `errored` flag and show the not-found copy for either.
+  const [notFound, setNotFound] = useState(false)
+  const [loadError, setLoadError] = useState(false)
+  const [loadAttempt, setLoadAttempt] = useState(0)
   // Dashboard "Continue Reading" resume: local mirror + debounced
   // cross-device sync (writes only on leave, never per scroll).
   usePaperResumeSync({ paperId, paper, uid: currentUser?.uid || null })
@@ -96,26 +107,39 @@ export default function PastPaperViewer() {
   useEffect(() => {
     let cancelled = false
     setLoading(true)
+    setNotFound(false)
+    setLoadError(false)
     const load = async () => {
       try {
+        // A signed-out visitor's App Check attestation is deliberately
+        // deferred off the cold-start path (scheduleAppCheckInit in
+        // firebase/config.js) so reCAPTCHA doesn't sit on the LCP path —
+        // and opening a shared paper link straight from WhatsApp/search is
+        // exactly a cold, signed-out load. whenAppCheckReady() never
+        // rejects and gives up after a bounded timeout, so this costs at
+        // most a beat; without it the very first Firestore read here can
+        // race ahead of the first real token and come back
+        // permission-denied, which — before this fix — showed as the same
+        // "moved or unpublished" message as a paper that never existed.
+        await whenAppCheckReady()
         const row = await getPaper(paperId)
         if (cancelled) return
         if (!row || (row.status !== 'published' && !isAdmin)) {
-          setErrored(true)
+          setNotFound(true)
           return
         }
         setPaper(row)
         try { await recordPaperEvent(paperId, 'view') } catch { /* view telemetry is best-effort */ }
       } catch (err) {
         console.warn('[PastPaperViewer] load failed', err)
-        if (!cancelled) setErrored(true)
+        if (!cancelled) setLoadError(true)
       } finally {
         if (!cancelled) setLoading(false)
       }
     }
     load().catch(() => {})
     return () => { cancelled = true }
-  }, [paperId, isAdmin])
+  }, [paperId, isAdmin, loadAttempt])
 
   const { previewSource, markSchemeSource } = useMemo(() => {
     const paperAssets = Array.isArray(paper?.assets)
@@ -469,7 +493,35 @@ export default function PastPaperViewer() {
     )
   }
 
-  if (errored || !paper) {
+  if (loadError) {
+    return (
+      <div className="min-h-screen theme-bg flex flex-col items-center justify-center px-4 text-center">
+        <div className="text-5xl mb-3">⚠️</div>
+        <h1 className="theme-text font-black text-xl">Couldn't load this paper</h1>
+        <p className="theme-text-muted text-sm mt-2 max-w-sm">
+          Check your connection and try again.
+        </p>
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => setLoadAttempt((n) => n + 1)}
+            className="theme-accent-fill theme-on-accent rounded-full px-5 py-2.5 text-sm font-black hover:opacity-90"
+          >
+            Try again
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/papers')}
+            className="theme-card border theme-border rounded-full px-5 py-2.5 text-sm font-black hover:theme-bg-subtle"
+          >
+            Back to archive
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (notFound || !paper) {
     return (
       <div className="min-h-screen theme-bg flex flex-col items-center justify-center px-4 text-center">
         <div className="text-5xl mb-3">📄</div>
