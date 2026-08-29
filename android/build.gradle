@@ -17,7 +17,12 @@ buildscript {
         // MODULE dependency blocks (app/build.gradle), which are evaluated
         // later; see firebaseCrashlyticsVersion there for the SDK half of
         // Crashlytics. Guarded by scripts/test-android-buildscript-versions.mjs.
-        classpath 'com.android.tools.build:gradle:8.13.2'
+        // AGP 9.0.1 — see android/gradle.properties for the two AGP-9
+        // compatibility flags this upgrade required (android.newDsl,
+        // android.r8.strictFullModeForKeepRules) and android/AGENTS.md for
+        // the paired Gradle wrapper version (9.1.0, AGP 9.0's declared
+        // minimum/default pairing).
+        classpath 'com.android.tools.build:gradle:9.0.1'
         classpath 'com.google.gms:google-services:4.4.4'
         // Crashlytics Gradle plugin — uploads the R8 mapping file so release
         // crash reports symbolicate. Release builds run minifyEnabled +

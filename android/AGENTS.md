@@ -56,7 +56,10 @@ Requires ALL four env vars, or unsigned APK is produced (Play Store rejects). Pr
 If building release without full config, build succeeds but warns "produce unsigned APK."
 
 **Gradle Wrapper**:
-- Gradle 8.13, Android Gradle Plugin 8.13.2
+- Gradle 9.1.0, Android Gradle Plugin 9.0.1 (see `android/gradle.properties` for the
+  `android.newDsl` / `android.r8.strictFullModeForKeepRules` compatibility flags this
+  upgrade needed, and `android.enableR8.fullMode=false` — still off, independent of the
+  AGP version — for why R8 stays in compatibility mode)
 - Always use `./gradlew` (or `gradlew.bat` on Windows) to ensure CI/local consistency
 - JVM args: `-Xmx1536m` (gradle.properties); allows parallel builds if needed
 
@@ -199,9 +202,9 @@ JavaScript Promise.resolve(result)
 ## Development Environment Setup
 
 **Prerequisites**:
-- Android SDK (API level 35)
-- Gradle 8.13 (via wrapper)
-- Java 21 (set in `app/capacitor.build.gradle`)
+- Android SDK (API level 36)
+- Gradle 9.1.0 (via wrapper)
+- Java 17+ (AGP 9.0's minimum; CI and `app/capacitor.build.gradle` both use 21)
 - Node 18+ (for `npx capacitor`)
 
 **Emulator Debugging**:
