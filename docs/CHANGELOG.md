@@ -5,6 +5,19 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-08-30
+
+### Changed
+
+- Android: upgrade to AGP 9.0.1 + enable optimized resource shrinking (#2603)
+- Past-paper archive: gate the hub list load on App Check readiness (#2601)
+- Let unpaid learners read past papers; keep the mark scheme + quiz paid (#2600)
+- Past-paper PDF preview: gate + retry the Storage read, not just the doc read (#2599)
+- Past-paper viewer: don't call a failed read "Paper not found" (#2598)
+- Wire the free-set continuation lock into the live past-paper results screen (#2597)
+- Gate Auth calls on genuine App Check attestation, not just readiness (#2596)
+- Fix generic sign-in failures from a deferred-App-Check race (#2595)
+
 ## 2026-08-25
 
 _Dependencies: 3 automated bumps (#2591, #2590, #2589)._
