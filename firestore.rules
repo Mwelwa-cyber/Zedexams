@@ -646,6 +646,7 @@ service cloud.firestore {
         && incoming().get('subscriptionProvider', null) == null
         && incoming().get('subscriptionPaymentId', null) == null
         && incoming().get('subscriptionPhoneNumber', null) == null
+        && incoming().get('subscriptionGrantedByGuardian', null) == null
         // Google Play billing linkage + teacher studio tier — server-only
         // (Cloud Functions admin SDK / admin grant flows). The teacherPlan*
         // pins close a gap where a crafted signup setDoc could mint pro/max
@@ -776,6 +777,14 @@ service cloud.firestore {
           'premiumActivatedAt', 'subscriptionPlan', 'subscriptionExpiry', 'subscriptionActivatedBy',
           'subscriptionActivatedAt', 'subscriptionProvider', 'subscriptionPaymentId',
           'subscriptionPhoneNumber',
+          // Which guardian (if any) is credited with paying for this
+          // account's current plan — written only by subscriptionActivation.js
+          // and guardianEntitlement.js (admin SDK). Both expiry-reminder paths
+          // (reminderCrons.js, messagingHandlers.js) trust it to decide who to
+          // remind at renewal; a self-writable field here would let a real
+          // paying subscriber redirect their own reminder to an arbitrary uid
+          // of their choosing.
+          'subscriptionGrantedByGuardian',
           // Google Play billing linkage — written only by the
           // verifyGooglePlayPurchase Cloud Function (admin SDK).
           'googlePlayPurchaseToken', 'googlePlayProductId',

@@ -188,9 +188,13 @@ async function cascadeGuardianEntitlement(db, {
         // Who paid, so a learner asking "why am I premium?" — and support
         // answering it — has something to read. A cascaded grant that
         // looked identical to a self-purchase would be indistinguishable
-        // from one at exactly the moment a family disputes it.
+        // from one at exactly the moment a family disputes it. Also read by
+        // both expiry-reminder paths (reminderCrons.js, messagingHandlers.js)
+        // to redirect the renewal nudge to the guardian instead of a child
+        // who cannot pay — see subscriptionExpiryReminderCore.js.
         subscriptionGrantedByGuardian: guardianUid,
         expiryReminderSentAt: null,
+        notifyExpiryReminderAt: null,
         // Deliberately NOT teacherPlan — see the module docblock.
       }, {merge: true});
 

@@ -513,6 +513,7 @@
     "test:ai-prompt-policy": "node functions/aiPromptPolicy.test.js",
     "test:pdf-extractor": "node functions/pdfTextExtractor.test.js",
     "test:ai-service": "node functions/aiService.test.js",
+    "test:subscription-expiry-reminder": "node functions/notifications/subscriptionExpiryReminderCore.test.js",
     "test:ops-alert": "node functions/opsAlert.test.js",
     "test:ops-alert-recipients": "node functions/opsAlertRecipients.test.js",
     "test:admin-bootstrap": "node functions/security/adminBootstrapCore.test.js",
