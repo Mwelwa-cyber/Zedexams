@@ -211,6 +211,7 @@ exports.buildMessagingHandlers = (deps) => {
       sendWhatsAppDigest,
       isConfigured,
     } = require("./metaWhatsApp");
+    const {guardianUidFor} = require("./notifications/subscriptionExpiryReminderCore");
     if (!isConfigured()) {
       return {
         status: "skipped",
@@ -256,7 +257,27 @@ exports.buildMessagingHandlers = (deps) => {
         continue;
       }
 
-      const rawPhone = user.subscriptionPhoneNumber || user.phoneNumber || "";
+      // PAY-001, Limit 2 (BUG_REPORT.md): a guardian-funded child has no way
+      // to pay. Route the WhatsApp nudge to the guardian's OWN phone rather
+      // than the child's — which, for a cascaded sibling, may not even
+      // exist (`subscriptionPhoneNumber` is only ever set on the account a
+      // payment directly credited; see subscriptionExpiryReminderCore.js).
+      const guardianUid = guardianUidFor(user, userDoc.id);
+      let rawPhone = user.subscriptionPhoneNumber || user.phoneNumber || "";
+      let recipientName = user.displayName;
+      if (guardianUid) {
+        const guardianSnap = await db.collection("users").doc(guardianUid).get();
+        const guardian = guardianSnap.exists ? (guardianSnap.data() || {}) : null;
+        const guardianPhone = guardian?.phoneNumber || guardian?.subscriptionPhoneNumber || "";
+        if (!guardianPhone) {
+          results.push({uid: userDoc.id, status: "skipped", reason: "guardian-no-phone", guardianUid});
+          skipped += 1;
+          continue;
+        }
+        rawPhone = guardianPhone;
+        recipientName = guardian?.displayName;
+      }
+
       const to = rawPhone ? normalizeToWhatsApp(rawPhone) : null;
       if (!to) {
         results.push({uid: userDoc.id, status: "skipped", reason: "no-phone"});
@@ -265,18 +286,28 @@ exports.buildMessagingHandlers = (deps) => {
       }
 
       const planId = user.subscriptionPlan || "";
-      const planName = planId ? planId.replace(/_/g, " ") : "your ZedExams pack";
+      // No leading article — `subjectName` below already supplies whichever
+      // possessive fits ("Your" / "Milton's"), and stacking a second one
+      // here (the old fallback was "your ZedExams pack") read as "Milton's
+      // your ZedExams pack".
+      const planName = planId ? planId.replace(/_/g, " ") : "ZedExams pack";
       const expiryStr = expiry.toLocaleDateString("en-ZM", {
         day: "2-digit", month: "short", year: "numeric",
       });
       const isLapsed = expiry < now;
-      const firstName = String(user.displayName || "").trim().split(" ")[0] || "there";
+      const firstName = String(recipientName || "").trim().split(" ")[0] || "there";
+      // "your" → "their" once the message is about a linked child rather
+      // than the reader's own plan.
+      const possessive = guardianUid ? "their" : "your";
+      const subjectName = guardianUid ?
+        `${String(user.displayName || "").trim().split(" ")[0] || "your child"}'s` :
+        "Your";
       const body = isLapsed
-        ? `Hi ${firstName}! Your ${planName} on ZedExams expired ${expiryStr}. ` +
-          `Top up via Mobile Money to keep your access. Reply with a screenshot ` +
+        ? `Hi ${firstName}! ${subjectName} ${planName} on ZedExams expired ${expiryStr}. ` +
+          `Top up via Mobile Money to keep ${possessive} access. Reply with a screenshot ` +
           `when you've paid and we'll reactivate within 30 minutes. — ZedExams`
-        : `Hi ${firstName}! Your ${planName} on ZedExams expires ${expiryStr}. ` +
-          `Top up via Mobile Money to renew before then so you don't lose access. ` +
+        : `Hi ${firstName}! ${subjectName} ${planName} on ZedExams expires ${expiryStr}. ` +
+          `Top up via Mobile Money to renew before then so ${guardianUid ? "they don't" : "you don't"} lose access. ` +
           `Reply with a screenshot when paid. — ZedExams`;
 
       try {
@@ -286,6 +317,7 @@ exports.buildMessagingHandlers = (deps) => {
           results.push({
             uid: userDoc.id, status: "sent",
             messageId: sendResult.messageId, expiry: expiry.toISOString(),
+            guardianUid: guardianUid || null,
           });
           // Stamp the cooldown ONLY on success so a failure doesn't burn
           // the next eligible retry.

@@ -278,6 +278,11 @@ async function run() {
     ok("the child's subscription links the parent's payment", kid.subscriptionPaymentId === ref);
     ok("the PARENT did not gain premium", mum.premium !== true && mum.plan === "free");
     ok("the parent has no subscription expiry", !mum.subscriptionExpiry);
+    // PAY-001, Limit 2: the child's record names who to remind at renewal,
+    // so the expiry-reminder cron can redirect the nudge to the parent
+    // instead of a child with no way to pay it.
+    ok("the child's plan records who is credited with paying for it",
+        kid.subscriptionGrantedByGuardian === parent);
 
     const expiry = kid.subscriptionExpiry.toDate().getTime();
     ok("the child's expiry ≈ now + 30 days",

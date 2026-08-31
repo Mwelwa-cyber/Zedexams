@@ -22,6 +22,7 @@
 const admin = require("firebase-admin");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {createNotification} = require("./createNotification");
+const {resolveExpiryReminderTarget} = require("./subscriptionExpiryReminderCore");
 
 const BASE_OPTS = {
   timeZone: "Africa/Lusaka",
@@ -135,19 +136,31 @@ const subscriptionExpiryReminders = onSchedule(
             Math.max(1, Math.ceil((expiry.getTime() - now.getTime()) / 86400000)) :
             3;
 
+          // A guardian-funded child (PAY-001, Limit 2): redirect the
+          // reminder to whoever actually pays, rather than nudging the
+          // child to "Renew now" with no way to. See
+          // subscriptionExpiryReminderCore.js for the full rationale.
+          const target = resolveExpiryReminderTarget({uid: docSnap.id, data, days, dateKey: dateKey(0)});
+
           try {
             const res = await createNotification({
-              uid: docSnap.id,
-              category: "payments",
-              type: "subscription_expiry",
-              title: "Your subscription is expiring soon",
-              body: `Your plan ends in ${days} day${days === 1 ? "" : "s"}. Renew to keep full access.`,
+              uid: target.recipientUid,
+              category: target.category,
+              type: target.type,
+              title: target.title,
+              body: target.body,
               priority: "high",
               icon: "credit-card",
-              action: {label: "Renew now", url: "/my-subscription"},
-              dedupeKey: `expiry-${dateKey(0)}`,
+              action: target.action,
+              dedupeKey: target.dedupeKey,
               source: "subscription-expiry-reminder",
-              userData: data,
+              // Only the child's own reminder can reuse the already-fetched
+              // doc as its notification-prefs/fcmTokens source. A guardian-
+              // routed reminder must read the GUARDIAN's own prefs and
+              // tokens, not the child's — passing `data` here would push the
+              // notification to the child's device under the guardian's
+              // stated preferences.
+              ...(target.guardianRouted ? {} : {userData: data}),
             });
             if (res.written) {
               summary.written += 1;

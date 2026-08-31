@@ -36,6 +36,7 @@ const snapFor = (col, id) => {
 };
 const makeRef = (col, id) => ({__col: col, __id: id, id, get: async () => snapFor(col, id)});
 
+const DELETE_FIELD = Symbol("deleteField");
 const db = {
   collection: (col) => ({
     doc: (id) => makeRef(col, id),
@@ -50,6 +51,8 @@ const db = {
         for (const [field, val] of Object.entries(data)) {
           if (val && typeof val === "object" && "__inc" in val) {
             base[field] = Number(base[field] || 0) + val.__inc;
+          } else if (val === DELETE_FIELD) {
+            delete base[field];
           } else {
             base[field] = val;
           }
@@ -62,7 +65,11 @@ const db = {
 };
 
 const firestoreFn = () => db;
-firestoreFn.FieldValue = {serverTimestamp: () => SERVER_TS, increment: (n) => ({__inc: n})};
+firestoreFn.FieldValue = {
+  serverTimestamp: () => SERVER_TS,
+  increment: (n) => ({__inc: n}),
+  delete: () => DELETE_FIELD,
+};
 firestoreFn.Timestamp = {fromDate: (d) => ({toDate: () => d, _date: d})};
 const adminStub = {firestore: firestoreFn};
 

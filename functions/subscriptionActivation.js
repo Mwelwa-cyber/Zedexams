@@ -173,8 +173,9 @@ async function activateSubscriptionFromPayment({
     // That is deliberate: the alternative — crediting some fields to one
     // account and some to the other — is the failure that would be
     // invisible until a renewal.
-    const {creditedUid} = require("./guardianBillingCore");
+    const {creditedUid, isGuardianPayment} = require("./guardianBillingCore");
     const grantUid = creditedUid(pay);
+    const guardianPayment = isGuardianPayment(pay);
     if (!grantUid) {
       throw new Error(`payment ${paymentId} names no account to credit`);
     }
@@ -285,6 +286,17 @@ async function activateSubscriptionFromPayment({
       // Reset the reminder cooldown so the next near-expiry window can
       // send a renewal nudge.
       expiryReminderSentAt: null,
+      notifyExpiryReminderAt: null,
+      // Who to remind at renewal (PAY-001, Limit 2 — BUG_REPORT.md). A
+      // guardian-funded child cannot pay, so both expiry-reminder paths
+      // (functions/notifications/reminderCrons.js,
+      // functions/messagingHandlers.js) read this field to redirect the
+      // nudge to the guardian instead. Set on every activation, not just a
+      // guardian one, so a later SELF-purchase correctly clears a stale
+      // guardian stamp from a previous grant rather than leaving the next
+      // renewal reminder pointed at an adult who no longer pays for it.
+      subscriptionGrantedByGuardian: guardianPayment ?
+        pay.userId : admin.firestore.FieldValue.delete(),
     };
     if (pay.phoneNumber) {
       userUpdate.subscriptionPhoneNumber = pay.phoneNumber;
