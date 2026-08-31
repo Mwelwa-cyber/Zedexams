@@ -79,6 +79,38 @@ export async function resolvePictureUrl(pic) {
   }
 }
 
+// A search/list can come back with FETCH_LIMIT (500) rows, and every one
+// missing a cached `.url` (a staged/legacy row that predates activation
+// pinning one) used to fire its own concurrent getDownloadURL() round trip
+// — up to hundreds of simultaneous Storage requests the moment the admin
+// bank or the teacher's picture picker rendered. Real contention on the
+// budget Android handsets this product targets, and on the modal picker it
+// re-fired on every debounced keystroke/subject change.
+const WARM_CONCURRENCY = 6
+
+/**
+ * Resolve download URLs for every picture missing one, capped at
+ * WARM_CONCURRENCY in flight at a time. Calls onResolved(id, url) as each
+ * one lands (never for a null resolution); never throws. Fire-and-forget —
+ * callers don't await this, they just want the tiles to fill in.
+ */
+export async function warmPictureUrls(pictures, onResolved) {
+  const pending = (pictures || []).filter((p) => p?.id && !p.url)
+  if (pending.length === 0) return
+  let cursor = 0
+  async function worker() {
+    while (cursor < pending.length) {
+      const pic = pending[cursor]
+      cursor += 1
+      const url = await resolvePictureUrl(pic)
+      if (url) onResolved(pic.id, url)
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(WARM_CONCURRENCY, pending.length) }, worker),
+  )
+}
+
 /**
  * Teacher search: active pictures matching a term (against name +
  * keywords), optionally narrowed by subject. Firestore has no full-text

@@ -13,7 +13,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { TEACHER_SUBJECTS } from '../../../utils/teacherTools'
-import { searchActivePictures, resolvePictureUrl } from '../../../utils/pictureBankService'
+import { searchActivePictures, warmPictureUrls } from '../../../utils/pictureBankService'
 import { generateDiagram } from '../../../utils/generateDiagram'
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
 import { createSequenceGuard } from '../../../utils/requestControl'
@@ -65,12 +65,13 @@ export default function PictureBankPicker({ subject = '', onSelect, onClose }) {
       setResults(rows)
       setBankError(error || '')
       setIsSearching(false)
-      for (const p of rows) {
-        if (p.url) continue
-        resolvePictureUrl(p)
-          .then((u) => { if (u) setUrls((m) => (m[p.id] ? m : { ...m, [p.id]: u })) })
-          .catch(() => {})
-      }
+      // Capped concurrency — a broad/empty search can come back with
+      // hundreds of rows, and this used to open one Storage request per
+      // row, per keystroke (debounced) or subject change.
+      warmPictureUrls(rows, (id, u) => {
+        if (cancelled || !sequenceRef.current.isCurrent(requestNumber)) return
+        setUrls((m) => (m[id] ? m : { ...m, [id]: u }))
+      })
     }
     runSearch()
 
@@ -239,7 +240,7 @@ export default function PictureBankPicker({ subject = '', onSelect, onClose }) {
                         title={p.name}
                       >
                         {url ? (
-                          <img src={url} alt={p.name}
+                          <img src={url} alt={p.name} loading="lazy" decoding="async"
                             style={{ width: '100%', height: 90, objectFit: 'contain', background: 'var(--zt-surface)', borderRadius: 8 }} />
                         ) : (
                           <div style={{ width: '100%', height: 90, background: '#f1ede1', borderRadius: 8 }} />
