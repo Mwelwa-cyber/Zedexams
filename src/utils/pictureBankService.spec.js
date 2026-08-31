@@ -41,7 +41,7 @@ vi.mock('../firebase/config', () => ({
 }))
 vi.mock('./generateDiagram', () => ({ generateDiagram: vi.fn() }))
 
-const { uploadBankPicture, uploadStagedBankPicture } = await import('./pictureBankService')
+const { uploadBankPicture, uploadStagedBankPicture, warmPictureUrls } = await import('./pictureBankService')
 
 // Real PNG magic bytes; a "<script>" payload for the renamed-file threat.
 const PNG_BYTES = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x00]
@@ -107,5 +107,57 @@ describe('pictureBankService upload validation', () => {
       uploadBankPicture(fakeFile({ type: 'image/png', name: 'cell.png' }), meta),
     ).resolves.toBe('pic123')
     expect(uploadBytes).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('warmPictureUrls', () => {
+  beforeEach(() => {
+    getDownloadURL.mockClear()
+    getDownloadURL.mockImplementation(async () => 'https://example.test/x.png')
+  })
+
+  it('resolves every picture missing a cached url and reports each by id', async () => {
+    const pictures = [
+      { id: 'a', storagePath: 'p/a.png' },
+      { id: 'b', storagePath: 'p/b.png' },
+      { id: 'c', url: 'https://already-cached.example/c.png' }, // no Storage round trip
+    ]
+    const resolved = {}
+    await warmPictureUrls(pictures, (id, url) => { resolved[id] = url })
+
+    expect(resolved).toEqual({
+      a: 'https://example.test/x.png',
+      b: 'https://example.test/x.png',
+    })
+    // Only the two rows missing `.url` should ever touch Storage.
+    expect(getDownloadURL).toHaveBeenCalledTimes(2)
+  })
+
+  it('never opens more than a handful of Storage requests at once', async () => {
+    // Regression for the un-capped version: a bank of 500 rows used to fire
+    // one getDownloadURL() per row simultaneously.
+    const pictures = Array.from({ length: 40 }, (_, i) => ({ id: `p${i}`, storagePath: `p/${i}.png` }))
+    let inFlight = 0
+    let maxInFlight = 0
+    getDownloadURL.mockImplementation(async () => {
+      inFlight += 1
+      maxInFlight = Math.max(maxInFlight, inFlight)
+      await Promise.resolve()
+      inFlight -= 1
+      return 'https://example.test/x.png'
+    })
+
+    const resolved = []
+    await warmPictureUrls(pictures, (id) => resolved.push(id))
+
+    expect(resolved).toHaveLength(40)
+    expect(maxInFlight).toBeLessThanOrEqual(6)
+  })
+
+  it('is a no-op with no pending pictures', async () => {
+    const onResolved = vi.fn()
+    await warmPictureUrls([{ id: 'a', url: 'https://already.example/a.png' }], onResolved)
+    expect(onResolved).not.toHaveBeenCalled()
+    expect(getDownloadURL).not.toHaveBeenCalled()
   })
 })

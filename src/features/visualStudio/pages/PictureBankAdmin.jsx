@@ -13,7 +13,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { TEACHER_SUBJECTS } from '../../../utils/teacherTools'
 import {
   listBankPictures, activateBankPicture, deleteBankPicture,
-  uploadBankPicture, generateBankPicture, resolvePictureUrl,
+  uploadBankPicture, generateBankPicture, warmPictureUrls,
   bulkUploadStagedPictures, nameStagedPictures,
 } from '../../../utils/pictureBankService'
 import { STARTER_PACK } from '../lib/pictureBankStarterPack'
@@ -51,13 +51,10 @@ export default function PictureBankAdmin() {
     const rows = await listBankPictures({})
     setPictures(rows)
     setLoading(false)
-    // Resolve preview URLs lazily, best effort.
-    for (const p of rows) {
-      if (p.url) continue
-      resolvePictureUrl(p).then((u) => {
-        if (u) setUrls((m) => (m[p.id] ? m : { ...m, [p.id]: u }))
-      }).catch(() => {})
-    }
+    // Resolve preview URLs best effort, capped concurrency (up to 500 rows
+    // can come back — see warmPictureUrls for why this isn't one request
+    // per row).
+    warmPictureUrls(rows, (id, u) => setUrls((m) => (m[id] ? m : { ...m, [id]: u })))
   }, [])
 
   useEffect(() => { load() }, [load])
@@ -270,7 +267,7 @@ export default function PictureBankAdmin() {
                 {active.map((p) => (
                   <div key={p.id} className="border border-gray-200 rounded-xl p-2 bg-white">
                     {urlFor(p) ? (
-                      <img src={urlFor(p)} alt={p.name}
+                      <img src={urlFor(p)} alt={p.name} loading="lazy" decoding="async"
                         className="w-full h-28 object-contain bg-gray-50 rounded-lg" />
                     ) : (
                       <div className="w-full h-28 bg-gray-100 rounded-lg" />
@@ -340,7 +337,7 @@ function StagedCard({ pic, url, onActivate, onDiscard, onAutoName, naming }) {
   return (
     <div className="border-2 border-dashed border-amber-300 rounded-xl p-3 bg-amber-50/40">
       {url ? (
-        <img src={url} alt="" className="w-full h-36 object-contain bg-white rounded-lg" />
+        <img src={url} alt="" loading="lazy" decoding="async" className="w-full h-36 object-contain bg-white rounded-lg" />
       ) : (
         <div className="w-full h-36 bg-gray-100 rounded-lg" />
       )}
