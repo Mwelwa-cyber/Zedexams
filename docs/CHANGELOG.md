@@ -5,6 +5,14 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-09-01
+
+### Changed
+
+- Route guardian-funded expiry reminders to the guardian, not the child (#2614)
+
+_Dependencies: 7 automated bumps (#2612, #2611, #2610, #2609, #2608, #2607, #2606)._
+
 ## 2026-08-30
 
 ### Changed
