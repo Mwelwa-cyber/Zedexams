@@ -102,9 +102,18 @@ const PLAN_LIMITS = {
   },
 };
 
+// The free teacher trial (§ "teacher trial period") grants the Pro tier for
+// TEACHER_TRIAL_DAYS — an alias of the same object, never a duplicated copy,
+// so the two tiers cannot drift apart the way two hand-typed literals would.
+// The alias means every `PLAN_LIMITS[plan][tool]` / `DAILY_LIMITS[plan]`
+// lookup already elsewhere in this file (assertAndIncrement, isMaxOnlyTool's
+// `plan !== "max"` check) treats a trial exactly like Pro with no extra code.
+PLAN_LIMITS.trial = PLAN_LIMITS.pro;
+
 // Human labels for quota error messages ("…on the Pro plan this month").
 const PLAN_LABELS = {
   free: "Free",
+  trial: "Trial",
   pro: "Pro",
   max: "Max",
 };
@@ -118,6 +127,12 @@ const DAILY_LIMITS = {
   pro: 10,
   max: 30,
 };
+DAILY_LIMITS.trial = DAILY_LIMITS.pro;
+
+// Length of the free teacher trial granted on signup (functions/teacherTrial/).
+// Canonical value — the client mirror (src/engines/payment-engine/teacherPlans.js)
+// and the grant trigger both read this one number.
+const TEACHER_TRIAL_DAYS = 7;
 
 // Tools that count as a "generation" for the daily cap. Micro actions
 // (per-question answer suggestions / revisions) and sub-counters
@@ -165,9 +180,12 @@ const LEGACY_PLAN_ALIASES = {
 };
 
 /**
- * Maps a raw users.teacherPlan value to a canonical plan id ("free" | "pro"
- * | "max"), or null when the value is unknown/absent. Callers treat null as
- * "free".
+ * Maps a raw users.teacherPlan value to a canonical plan id ("free" | "trial"
+ * | "pro" | "max"), or null when the value is unknown/absent. Callers treat
+ * null as "free". "trial" is returned as-is here — resolving whether a trial
+ * is still ACTIVE (teacherTrialEndsAt in the future) is the caller's job,
+ * exactly like "pro"/"max" callers separately check teacherPlanExpiresAt.
+ * See resolveTeacherPlan() (client) / getUserPlanContext() (server).
  */
 function normalizeTeacherPlan(raw) {
   if (typeof raw !== "string") return null;
@@ -203,6 +221,7 @@ module.exports = {
   DAILY_COUNTED_TOOLS,
   MAX_ONLY_TOOLS,
   LEGACY_PLAN_ALIASES,
+  TEACHER_TRIAL_DAYS,
   normalizeTeacherPlan,
   isDailyCountedTool,
   isMaxOnlyTool,

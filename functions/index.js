@@ -1,6 +1,7 @@
 const functions = require("firebase-functions/v1");
 const {onCall, onRequest, HttpsError} = require("firebase-functions/v2/https");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
+const {onDocumentCreated} = require("firebase-functions/v2/firestore");
 // NOTE: onMessagePublished is intentionally NOT imported — the only Pub/Sub
 // trigger (googlePlayRtdn) is held back until its topic exists. See the
 // block further down for why, and how to restore it.
@@ -2845,6 +2846,34 @@ exports.weeklyGuardianReport = onSchedule({
 // africa-south1 with the (default) database.
 exports.learnerAgeOnUserCreated =
   require('./guardianConsent/onUserCreated').learnerAgeOnUserCreated;
+
+// Grants the free 7-day teacher trial once, on the creation of a `teacher`
+// role user doc — same onCreate pattern as learnerAgeOnUserCreated above
+// (and the reason the two live in separate files under functions/teacherTrial/
+// rather than one growing "onUserCreated" is that they answer unrelated
+// questions, age vs. plan). Only the handler body is extracted (Phase 5 /
+// test:functions-manifest — the builder + its options stay here so a region,
+// timeout or secrets change is never invisible to that guard); pinned to
+// africa-south1, like every Firestore trigger, so Eventarc takes no
+// cross-region hop on every teacher who signs up.
+exports.teacherTrialOnUserCreated = onDocumentCreated(
+  {document: "users/{uid}", region: "africa-south1", timeoutSeconds: 30},
+  require('./teacherTrial/onUserCreated').teacherTrialOnUserCreatedHandler,
+);
+
+// Daily reminder email before a teacher's free trial ends. us-central1, like
+// every scheduled function (Cloud Scheduler has no African region) — reuses
+// the emailSmtpUser/emailSmtpPassword secrets already declared above rather
+// than a second, separately-bound pair.
+exports.teacherTrialExpiryReminder = onSchedule({
+  schedule: "0 8 * * *",
+  timeZone: "Africa/Lusaka",
+  region: "us-central1",
+  timeoutSeconds: 300,
+  memory: "256MiB",
+  secrets: [emailSmtpUser, emailSmtpPassword],
+}, require('./teacherTrial/expiryReminder')
+    .buildTeacherTrialExpiryReminderHandler({emailSmtpUser, emailSmtpPassword}));
 
 // Server-generated library downloads: regenerate a saved document on the server
 // and stream it from zedexams.com with the correct filename — no upload, no

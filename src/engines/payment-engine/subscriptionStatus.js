@@ -116,24 +116,29 @@ function resolveLearnerState(profile, now) {
 
 // ── Teacher state ───────────────────────────────────────────────────────────
 function resolveTeacherState(profile, now) {
-  // resolveTeacherPlan already returns 'max' for super-admins and falls back
-  // to 'free' for an expired teacherPlanExpiresAt.
-  const livePlan = resolveTeacherPlan(profile, now) // 'free' | 'pro' | 'max'
+  // resolveTeacherPlan already returns 'max' for super-admins, 'trial' for an
+  // active free trial (teacherTrialEndsAt in the future), and falls back to
+  // 'free' once either a trial or a paid teacherPlanExpiresAt has passed.
+  const livePlan = resolveTeacherPlan(profile, now) // 'free' | 'trial' | 'pro' | 'max'
   const teacherExpiry = toDateValue(profile?.teacherPlanExpiresAt)
-
-  const trialExpiry = toDateValue(profile?.teacherTrialEndsAt ?? profile?.trialEndsAt)
-  const onTrial =
-    profile?.teacherPlan === 'trial' ||
-    (!!trialExpiry && trialExpiry > now)
+  const trialExpiry = toDateValue(profile?.teacherTrialEndsAt)
 
   if (livePlan === 'pro' || livePlan === 'max') {
     return { status: SUB_STATUS.PRO, planType: livePlan, expiry: teacherExpiry }
   }
-  if (onTrial) {
+  // Deriving "on trial" from livePlan (rather than the raw teacherPlan field,
+  // as this used to) is what lets a LAPSED trial fall through to FREE below
+  // instead of reporting TRIAL forever with an expiry stuck in the past —
+  // teacherPlan stays the literal string 'trial' after it ends (nothing ever
+  // clears it), only teacherTrialEndsAt says whether it is still live.
+  if (livePlan === 'trial') {
     return { status: SUB_STATUS.TRIAL, planType: 'trial', expiry: trialExpiry }
   }
-  // Free now — was it ever a paid teacher plan that lapsed?
-  const normalized = normalizeTeacherPlan(profile?.teacherPlan) // 'pro'|'max'|null
+  // Free now — was it ever a paid teacher plan that lapsed? (normalizeTeacherPlan
+  // returns 'trial' for a lapsed trial too, which deliberately does not match
+  // either arm here — a trial ending is not a subscription lapsing, so it must
+  // resolve to FREE's "Unlock the toolkit" copy, never EXPIRED's "Renew Pro".)
+  const normalized = normalizeTeacherPlan(profile?.teacherPlan) // 'pro'|'max'|'trial'|null
   const lapsed = (normalized === 'pro' || normalized === 'max') &&
     !!teacherExpiry && teacherExpiry <= now
   if (lapsed) {
