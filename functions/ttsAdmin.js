@@ -58,7 +58,15 @@ const elevenLabsApiKey = defineSecret("ELEVENLABS_API_KEY");
 exports.getTtsControlRoom = onCall(
   {
     region: "us-central1",
-    memory: "256MiB",
+    // 256MiB (the floor — see docs/architecture/13-cloud-functions-register.md's
+    // measured 148MiB module-load cost) was getting OOM-killed here: unlike
+    // previewTtsVoice/setTtsOfferedVoices, this handler fires TWO concurrent
+    // ElevenLabs reads (getSubscription + listVoices, the latter returning the
+    // whole voice catalogue) on top of that base, then assembles them with the
+    // Google catalogue and the offered-voices config into one reply. 512MiB
+    // matches the other admin/external-API callables with comparable per-request
+    // work (generateSpellingAudio, familyPortal, parentPortal, platformMetrics).
+    memory: "512MiB",
     timeoutSeconds: 30,
     secrets: [elevenLabsApiKey],
   },
