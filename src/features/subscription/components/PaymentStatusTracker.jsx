@@ -6,14 +6,18 @@ import Icon from '../../../shared/components/Icon'
 // checkout, shown from the moment a mobile-money prompt is sent until the
 // payment reaches a terminal state:
 //
-//   waiting   → "Check your phone": the prompt is live; approve with the
-//               mobile-money PIN. Shows the reference, network and amount.
-//   verifying → after "I have approved" (or while we re-check): progress
-//               timeline + "do not close this window".
-//   timedOut  → the poll window elapsed with no confirmation: the payment
-//               may still be processing, so the ONLY safe actions are
-//               re-checking the existing transaction or contacting support —
-//               never starting a new payment.
+//   waiting     → "Check your phone": the prompt is live; approve with the
+//                 mobile-money PIN. Shows the reference, network and amount.
+//   payOffline  → Lenco reported status 'pay-offline' — this network never
+//                 pushes an automatic prompt for the collection, so there is
+//                 nothing to "check your phone" for. Says so, and shows
+//                 Lenco's own completion instructions when it sent any.
+//   verifying   → after "I have approved" (or while we re-check): progress
+//                 timeline + "do not close this window".
+//   timedOut    → the poll window elapsed with no confirmation: the payment
+//                 may still be processing, so the ONLY safe actions are
+//                 re-checking the existing transaction or contacting support —
+//                 never starting a new payment.
 //
 // Verification is automatic throughout (the parent polls the status
 // callable; the signed webhook remains authoritative) — "I have approved"
@@ -87,6 +91,12 @@ export default function PaymentStatusTracker({
   reference,
   operatorLabel,
   amountZMW,
+  // Some networks never push an automatic PIN prompt for a collection —
+  // Lenco reports that as 'pay-offline'. When true, the buyer has to
+  // complete the payment themselves, so the waiting screen must say that
+  // rather than tell them to wait for a prompt that is never coming.
+  payOffline,
+  instructions,
   onApproved,
   onCheckStatus,
   onCancelPayment,
@@ -164,6 +174,56 @@ export default function PaymentStatusTracker({
         >
           Cancel payment
         </button>
+      </div>
+    )
+  }
+
+  // ── Waiting, but this network never pushes an automatic prompt ──
+  // (Lenco status 'pay-offline'). Telling the buyer to "check your phone"
+  // here is actively wrong — nothing is coming — so this is a different
+  // screen, not a copy tweak on the waiting one.
+  if (payOffline && stage !== 'verifying') {
+    return (
+      <div className="text-center py-2">
+        <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 text-2xl" aria-hidden="true">
+          📶
+        </div>
+        <h3 className="text-xl font-black text-gray-800">Complete the payment on your phone</h3>
+        <p className="text-sm text-gray-600 mt-1">
+          {phoneDisplay} will not receive an automatic PIN prompt for this payment.
+        </p>
+        <p className="text-sm text-gray-600 mt-1 mb-4">
+          {instructions ||
+            'Open your mobile money app, or dial your network’s mobile money menu, and approve a payment using the reference below.'}
+        </p>
+        <DetailsCard
+          reference={reference}
+          operatorLabel={operatorLabel}
+          amountZMW={amountZMW}
+          statusLabel="Waiting for you to pay"
+        />
+        <p className="mt-3 text-xs text-gray-500">
+          We confirm automatically once your network reports the payment — you don&apos;t have to press anything here.
+        </p>
+        <div className="mt-3 space-y-2">
+          <button
+            type="button"
+            onClick={onApproved}
+            className="w-full rounded-xl bg-orange-500 px-4 py-3 text-sm font-bold text-white hover:bg-orange-600"
+          >
+            I have paid
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirmCancel(true)}
+            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 hover:border-gray-400"
+          >
+            Cancel payment
+          </button>
+        </div>
+        <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-gray-400">
+          <Icon as={Lock} size="xs" /> Secure payments by Lenco
+        </p>
       </div>
     )
   }

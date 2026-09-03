@@ -48,6 +48,43 @@ describe('PaymentStatusTracker — waiting (check your phone)', () => {
   })
 })
 
+describe('PaymentStatusTracker — pay-offline (no automatic prompt for this network)', () => {
+  it('says the phone will not receive a prompt, and shows Lenco\'s own instructions', () => {
+    renderTracker({ payOffline: true, instructions: 'Dial *115# and choose Pay Bill, then enter merchant code 4521.' })
+    expect(screen.getByText('Complete the payment on your phone')).toBeInTheDocument()
+    expect(screen.getByText(/will not receive an automatic PIN prompt/)).toBeInTheDocument()
+    expect(screen.getByText(/Dial \*115# and choose Pay Bill/)).toBeInTheDocument()
+    expect(screen.getByText('Waiting for you to pay', { selector: 'dd' })).toBeInTheDocument()
+    // The misleading "Check your phone" / "prompt has been sent" copy must
+    // not appear alongside this — nothing was sent.
+    expect(screen.queryByText('Check your phone')).toBeNull()
+    expect(screen.queryByText(/A payment prompt has been sent/)).toBeNull()
+  })
+
+  it('falls back to generic self-service instructions when Lenco sent none', () => {
+    renderTracker({ payOffline: true, instructions: '' })
+    expect(screen.getByText(/dial your network.s mobile money menu/i)).toBeInTheDocument()
+  })
+
+  it('"I have paid" advances the visual stage, same as the pushed-prompt flow', () => {
+    const h = renderTracker({ payOffline: true })
+    fireEvent.click(screen.getByRole('button', { name: 'I have paid' }))
+    expect(h.onApproved).toHaveBeenCalledTimes(1)
+  })
+
+  it('defers to the verifying screen once approved, even though payOffline is still true', () => {
+    renderTracker({ payOffline: true, stage: 'verifying' })
+    expect(screen.getByText('Verifying your payment')).toBeInTheDocument()
+    expect(screen.queryByText('Complete the payment on your phone')).toBeNull()
+  })
+
+  it('defers to the timeout screen once the poll window elapses', () => {
+    renderTracker({ payOffline: true, timedOut: true })
+    expect(screen.getByText(/still waiting for confirmation/i)).toBeInTheDocument()
+    expect(screen.queryByText('Complete the payment on your phone')).toBeNull()
+  })
+})
+
 describe('PaymentStatusTracker — verifying', () => {
   it('shows the progress timeline and the do-not-close warning', () => {
     renderTracker({ stage: 'verifying' })
