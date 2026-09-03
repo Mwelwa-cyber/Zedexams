@@ -4,7 +4,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { resolveTeacherPlan, PLAN_LABELS } from '../../../engines/payment-engine/teacherPlans'
 import { capture } from '../../../utils/analytics'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
-import { UsageReminderBanner } from '../../subscription'
+import { UsageReminderBanner, TeacherTrialOfferCard } from '../../subscription'
 import StudioUnavailableNotice from '../components/StudioUnavailableNotice'
 import { resolveGreeting } from '../lib/dashboardV2Core'
 import useTeacherDashboardData from '../hooks/useTeacherDashboardData'
@@ -64,6 +64,10 @@ export default function TeacherDashboardLive() {
           <>
             {/* Why a studio the teacher just tried to open sent them here. */}
             <StudioUnavailableNotice />
+            {/* The existing-teacher trial offer (or, once claimed, the
+                active-trial status) — dismissible here; still reachable from
+                My Subscription even after "Maybe Later". */}
+            <TeacherTrialOfferCard className="mb-4" />
             <UsageReminderBanner />
           </>
         )}

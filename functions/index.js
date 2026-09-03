@@ -2875,6 +2875,17 @@ exports.teacherTrialExpiryReminder = onSchedule({
 }, require('./teacherTrial/expiryReminder')
     .buildTeacherTrialExpiryReminderHandler({emailSmtpUser, emailSmtpPassword}));
 
+// The OPTIONAL existing-teacher trial offer — "Start Free Trial" on the
+// dashboard card (functions/teacherTrial/existingTeacherOffer.js). Grants
+// the exact same trial as teacherTrialOnUserCreated above, on demand rather
+// than on signup, for accounts that never received one. The whole onCall
+// (including its options) is defined in the module, same shape as
+// requestGuardianUnlock below — no Firestore trigger involved, so it sits
+// outside the Phase 5 manifest's builder-stays-in-index.js rule for
+// onDocumentCreated/onSchedule.
+exports.activateExistingTeacherTrialOffer =
+  require('./teacherTrial/existingTeacherOffer').activateExistingTeacherTrialOffer;
+
 // Server-generated library downloads: regenerate a saved document on the server
 // and stream it from zedexams.com with the correct filename — no upload, no
 // Firebase Storage, works on every browser. See functions/libraryDownload.js.

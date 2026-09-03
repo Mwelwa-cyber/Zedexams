@@ -70,6 +70,21 @@
       "classification": "secrets-bound",
       "batch": null
     },
+    "activateExistingTeacherTrialOffer": {
+      "kind": "delegated",
+      "inline": false,
+      "options": {
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "./teacherTrial/existingTeacherOffer",
+      "optionsUnresolved": null,
+      "target": "require('./teacherTrial/existingTeacherOffer').activateExistingTeacherTrialOffer",
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
     "activateSyllabusVersion": {
       "kind": "delegated",
       "inline": false,

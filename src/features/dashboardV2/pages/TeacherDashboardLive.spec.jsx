@@ -18,7 +18,7 @@ vi.mock('../../../contexts/NotificationContext', () => ({
   useNotifications: () => ({ unreadCount: 2, open: false, setOpen: () => {} }),
 }))
 // Pulls useTeacherUsage → firebase; plan reminders have their own tests.
-vi.mock('../../subscription', () => ({ UsageReminderBanner: () => null }))
+vi.mock('../../subscription', () => ({ UsageReminderBanner: () => null, TeacherTrialOfferCard: () => null }))
 
 const logout = vi.fn().mockResolvedValue()
 // The mobile hero's plan badge is resolved from users.teacherPlan via the

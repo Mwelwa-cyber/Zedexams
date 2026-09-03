@@ -16,6 +16,11 @@ const {
   isTrialReminderDue,
   daysRemaining,
   buildTrialReminderEmail,
+  EXISTING_TEACHER_OFFER_SOURCE,
+  TEACHER_TRIAL_OFFER_STATUS,
+  resolveExistingTeacherTrialEligibility,
+  resolveExistingTeacherTrialActivation,
+  resolveTeacherTrialOfferBackfillDecision,
 } = require("./teacherTrialCore");
 
 let passed = 0;
@@ -142,6 +147,155 @@ test("the email HTML escapes the display name (never raw markup from a user-chos
     now: NOW,
   });
   assert.ok(!email.html.includes("<script>"));
+});
+
+// ── resolveExistingTeacherTrialEligibility ─────────────────────────────
+console.log("\nresolveExistingTeacherTrialEligibility");
+
+test("a free-plan teacher who never had a trial or paid plan is eligible", () => {
+  assert.deepStrictEqual(
+      resolveExistingTeacherTrialEligibility({role: "teacher"}, NOW),
+      {eligible: true},
+  );
+  assert.deepStrictEqual(
+      resolveExistingTeacherTrialEligibility({role: "teacher", teacherPlan: "free"}, NOW),
+      {eligible: true},
+  );
+});
+
+test("learners, parents and admins are never eligible", () => {
+  assert.strictEqual(resolveExistingTeacherTrialEligibility({role: "learner"}, NOW).eligible, false);
+  assert.strictEqual(resolveExistingTeacherTrialEligibility({role: "parent"}, NOW).eligible, false);
+  assert.strictEqual(resolveExistingTeacherTrialEligibility({role: "admin"}, NOW).eligible, false);
+});
+
+test("a teacher who already had ANY trial (signup or this offer) is ineligible", () => {
+  const withStartedAt = {role: "teacher", teacherPlan: "free", teacherTrialStartedAt: {toDate: () => new Date(NOW.getTime() - MS_PER_DAY)}};
+  const res = resolveExistingTeacherTrialEligibility(withStartedAt, NOW);
+  assert.strictEqual(res.eligible, false);
+  assert.strictEqual(res.reason, "trial-already-used");
+});
+
+test("a teacher with a LIVE trial (teacherPlan still 'trial') is ineligible", () => {
+  const res = resolveExistingTeacherTrialEligibility({role: "teacher", teacherPlan: "trial"}, NOW);
+  assert.strictEqual(res.eligible, false);
+  assert.strictEqual(res.reason, "trial-already-used");
+});
+
+test("a teacher who has ever paid (teacherPlanActivatedAt set) is ineligible, even if lapsed to free", () => {
+  const lapsedPaid = {
+    role: "teacher",
+    teacherPlan: "free",
+    teacherPlanActivatedAt: {toDate: () => new Date(NOW.getTime() - 90 * MS_PER_DAY)},
+  };
+  const res = resolveExistingTeacherTrialEligibility(lapsedPaid, NOW);
+  assert.strictEqual(res.eligible, false);
+  assert.strictEqual(res.reason, "previously-paid");
+});
+
+test("a teacher on an active paid plan is ineligible", () => {
+  const activePaid = {
+    role: "teacher",
+    teacherPlan: "pro",
+    teacherPlanExpiresAt: {toDate: () => new Date(NOW.getTime() + 10 * MS_PER_DAY)},
+  };
+  const res = resolveExistingTeacherTrialEligibility(activePaid, NOW);
+  assert.strictEqual(res.eligible, false);
+  assert.strictEqual(res.reason, "active-paid-plan");
+});
+
+test("malformed input never throws", () => {
+  assert.strictEqual(resolveExistingTeacherTrialEligibility(null, NOW).eligible, false);
+  assert.strictEqual(resolveExistingTeacherTrialEligibility(undefined, NOW).eligible, false);
+});
+
+// ── resolveExistingTeacherTrialActivation ──────────────────────────────
+console.log("\nresolveExistingTeacherTrialActivation");
+
+test("grants an eligible teacher a trial ending TEACHER_TRIAL_DAYS out", () => {
+  const res = resolveExistingTeacherTrialActivation({role: "teacher"}, NOW);
+  assert.strictEqual(res.outcome, "granted");
+  assert.strictEqual(res.teacherTrialEndsAtMs, NOW.getTime() + TEACHER_TRIAL_DAYS * MS_PER_DAY);
+  assert.strictEqual(res.preserveOfferedAt, null);
+});
+
+test("preserves a prior offer's offeredAt rather than restamping it", () => {
+  const offeredAt = {toDate: () => new Date(NOW.getTime() - 5 * MS_PER_DAY)};
+  const res = resolveExistingTeacherTrialActivation({
+    role: "teacher",
+    teacherTrialOffer: {status: TEACHER_TRIAL_OFFER_STATUS.AVAILABLE, offeredAt, source: EXISTING_TEACHER_OFFER_SOURCE},
+  }, NOW);
+  assert.strictEqual(res.outcome, "granted");
+  assert.strictEqual(res.preserveOfferedAt, offeredAt);
+});
+
+test("an ineligible teacher is refused, never silently granted", () => {
+  const res = resolveExistingTeacherTrialActivation({role: "learner"}, NOW);
+  assert.strictEqual(res.outcome, "ineligible");
+  assert.strictEqual(res.reason, "not-a-teacher");
+});
+
+test("idempotent: a doc already granted by THIS offer returns 'already-active' with the same expiry, never re-deciding", () => {
+  const endsAt = {toMillis: () => NOW.getTime() + 3 * MS_PER_DAY};
+  const alreadyGranted = {
+    role: "teacher",
+    teacherPlan: "trial",
+    teacherTrialEndsAt: endsAt,
+    teacherTrialStartedAt: {toDate: () => new Date(NOW.getTime() - 4 * MS_PER_DAY)},
+    teacherTrialOffer: {status: TEACHER_TRIAL_OFFER_STATUS.ACTIVE, source: EXISTING_TEACHER_OFFER_SOURCE},
+  };
+  const res = resolveExistingTeacherTrialActivation(alreadyGranted, NOW);
+  assert.strictEqual(res.outcome, "already-active");
+  assert.strictEqual(res.teacherTrialEndsAtMs, NOW.getTime() + 3 * MS_PER_DAY);
+});
+
+test("repeated calls on the SAME starting doc always agree (concurrency safety at the decision level)", () => {
+  const fresh = {role: "teacher"};
+  const first = resolveExistingTeacherTrialActivation(fresh, NOW);
+  const second = resolveExistingTeacherTrialActivation(fresh, NOW);
+  assert.strictEqual(first.outcome, "granted");
+  assert.strictEqual(second.outcome, "granted");
+  assert.strictEqual(first.teacherTrialEndsAtMs, second.teacherTrialEndsAtMs);
+});
+
+// ── resolveTeacherTrialOfferBackfillDecision ───────────────────────────
+console.log("\nresolveTeacherTrialOfferBackfillDecision");
+
+test("an eligible existing teacher is marked eligible", () => {
+  assert.deepStrictEqual(
+      resolveTeacherTrialOfferBackfillDecision({role: "teacher"}, NOW),
+      {decision: "eligible"},
+  );
+});
+
+test("a teacher already carrying a teacherTrialOffer is skipped, never re-marked", () => {
+  const res = resolveTeacherTrialOfferBackfillDecision({
+    role: "teacher",
+    teacherTrialOffer: {status: TEACHER_TRIAL_OFFER_STATUS.ACTIVE},
+  }, NOW);
+  assert.deepStrictEqual(res, {decision: "skip", reason: "already-marked"});
+});
+
+test("a non-teacher is skipped", () => {
+  assert.strictEqual(resolveTeacherTrialOfferBackfillDecision({role: "learner"}, NOW).decision, "skip");
+});
+
+test("a teacher who already used a trial is marked ineligible, not skipped", () => {
+  const res = resolveTeacherTrialOfferBackfillDecision({
+    role: "teacher",
+    teacherTrialStartedAt: {toDate: () => new Date(NOW.getTime() - MS_PER_DAY)},
+  }, NOW);
+  assert.strictEqual(res.decision, "ineligible");
+  assert.strictEqual(res.reason, "trial-already-used");
+});
+
+test("an unrecognised teacherPlan value is reported ambiguous, never silently eligible", () => {
+  const res = resolveTeacherTrialOfferBackfillDecision({role: "teacher", teacherPlan: "some-legacy-garbage"}, NOW);
+  assert.strictEqual(res.decision, "ambiguous");
+});
+
+test("malformed input never throws", () => {
+  assert.strictEqual(resolveTeacherTrialOfferBackfillDecision(null, NOW).decision, "skip");
 });
 
 console.log(`\nteacherTrialCore: ${passed} tests passed`);

@@ -665,6 +665,14 @@ service cloud.firestore {
         && incoming().get('teacherTrialEndsAt', null) == null
         && incoming().get('teacherTrialStartedAt', null) == null
         && incoming().get('teacherTrialReminderSentAt', null) == null
+        // The existing-teacher trial OFFER (functions/teacherTrial/
+        // existingTeacherOffer.js) — an audit/display object written only by
+        // the backfill script (eligibility mark) and the
+        // activateExistingTeacherTrialOffer callable (claim), both admin
+        // SDK. Same reasoning as the teacherTrialEndsAt trio above: a signup
+        // setDoc must not be able to mint itself an 'available'/'active'
+        // offer record.
+        && incoming().get('teacherTrialOffer', null) == null
         // Audit (fresh pass) — the self-update blocklist below was solid
         // but the create rule never pinned these, so a signup setDoc could
         // mint a paid learner-portal grant or free referral credit by
@@ -809,6 +817,14 @@ service cloud.firestore {
           // teacherTrialReminderSentAt are blocked alongside it on the same
           // principle even though neither gates access on its own.
           'teacherTrialEndsAt', 'teacherTrialStartedAt', 'teacherTrialReminderSentAt',
+          // The existing-teacher trial offer record — written ONLY by the
+          // backfill script (eligibility mark) and
+          // activateExistingTeacherTrialOffer (claim), both admin SDK. A
+          // self-writable teacherTrialOffer would let a teacher mint their
+          // own 'active' offer and, via the same trust usageMeter.js already
+          // places in teacherPlan/teacherTrialEndsAt, grant themselves Pro
+          // quotas without touching either of those fields directly.
+          'teacherTrialOffer',
           // Paid generation top-up credits (K25 each). Granted ONLY by the
           // Lenco activation path (admin SDK); usageMeter.js spends one to
           // bypass the plan/daily cap. Client is read-only. Without this
