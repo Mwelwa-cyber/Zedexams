@@ -95,6 +95,12 @@ export const PLAN_LIMITS = {
   },
 }
 
+// The free teacher trial (see functions/teacherTrial/) grants the Pro tier for
+// TEACHER_TRIAL_DAYS — an alias of the same object, never a duplicated copy,
+// mirroring the server's PLAN_LIMITS.trial = PLAN_LIMITS.pro exactly (the
+// deep-equal check in scripts/test-teacher-plan-resolution.mjs pins it).
+PLAN_LIMITS.trial = PLAN_LIMITS.pro
+
 // Free-preview shaping enforced server-side inside the generators — mirror
 // of functions/teacherTools/teacherPlans.js FREE_PREVIEW_LIMITS (guarded by
 // scripts/test-teacher-plan-resolution.mjs). The studios read this to
@@ -112,6 +118,7 @@ export const FREE_PREVIEW_LIMITS = {
 // Human labels shown on the dashboard chip / "Current plan" stat.
 export const PLAN_LABELS = {
   free: 'Free',
+  trial: 'Trial',
   pro: 'Pro',
   max: 'Max',
 }
@@ -122,6 +129,13 @@ export const DAILY_LIMITS = {
   pro: 10,
   max: 30,
 }
+DAILY_LIMITS.trial = DAILY_LIMITS.pro
+
+// Length of the free teacher trial granted on signup. Canonical value lives
+// server-side (functions/teacherTools/teacherPlans.js TEACHER_TRIAL_DAYS);
+// mirrored here so UI copy ("Your 7-day trial ends in…") never hand-types
+// the number. Guarded by scripts/test-teacher-plan-resolution.mjs.
+export const TEACHER_TRIAL_DAYS = 7
 
 // Studios that stay Max-anchored: locked below Max to a single Pro taster,
 // so the next attempt routes to the "Upgrade to Max" paywall. Only Exam
@@ -141,9 +155,12 @@ const LEGACY_PLAN_ALIASES = {
 }
 
 /**
- * Maps a raw users.teacherPlan value to a canonical plan id ('free' | 'pro' |
- * 'max'), or null when the value is unknown/absent. Callers treat null as
- * 'free'. Mirror of functions/teacherTools/teacherPlans.js normalizeTeacherPlan.
+ * Maps a raw users.teacherPlan value to a canonical plan id ('free' | 'trial'
+ * | 'pro' | 'max'), or null when the value is unknown/absent. Callers treat
+ * null as 'free'. Mirror of functions/teacherTools/teacherPlans.js
+ * normalizeTeacherPlan. 'trial' is returned as-is — resolveTeacherPlan below
+ * is where its own expiry (teacherTrialEndsAt) is checked, exactly like
+ * 'pro'/'max' check teacherPlanExpiresAt separately.
  */
 export function normalizeTeacherPlan(raw) {
   if (typeof raw !== 'string') return null
@@ -170,10 +187,17 @@ function toDateValue(value) {
 }
 
 /**
- * Resolves the teacher's LIVE studio plan id ('free' | 'pro' | 'max') from
- * their profile — the same entitlement the server's usageMeter.getUserPlanContext
- * gates on. Super admins always resolve to the top tier; an expired
- * teacherPlanExpiresAt falls back to free.
+ * Resolves the teacher's LIVE studio plan id ('free' | 'trial' | 'pro' |
+ * 'max') from their profile — the same entitlement the server's
+ * usageMeter.getUserPlanContext gates on. Super admins always resolve to the
+ * top tier; an expired teacherPlanExpiresAt (pro/max) or teacherTrialEndsAt
+ * (trial) falls back to free.
+ *
+ * A trial is its OWN branch rather than being folded into the pro/max one:
+ * it has its own expiry field (teacherTrialEndsAt, stamped once by the grant
+ * trigger — see functions/teacherTrial/) so it can never be confused with a
+ * teacherPlanExpiresAt a real payment set, which is what lets the
+ * subscription-status resolver tell "trial ended" apart from "Pro lapsed".
  *
  * `now` is injectable so callers with their own clock (e.g. the
  * subscription-status resolver's test harness) get deterministic results
@@ -185,6 +209,11 @@ function toDateValue(value) {
 export function resolveTeacherPlan(userProfile, now = new Date()) {
   if (isSuperAdmin(userProfile)) return 'max'
   const plan = normalizeTeacherPlan(userProfile?.teacherPlan)
+  if (plan === 'trial') {
+    const trialExpiry = toDateValue(userProfile?.teacherTrialEndsAt)
+    if (trialExpiry && trialExpiry > now) return 'trial'
+    return 'free'
+  }
   if (plan === 'pro' || plan === 'max') {
     const exp = toDateValue(userProfile?.teacherPlanExpiresAt)
     if (exp && exp < now) return 'free'

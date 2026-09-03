@@ -268,6 +268,7 @@
     "test:paper-templates": "node src/features/assessmentStudio/lib/paperTemplates.test.js",
     "test:sub-status": "node scripts/test-subscription-status.mjs",
     "test:teacher-plan": "node scripts/test-teacher-plan-resolution.mjs",
+    "test:teacher-trial": "node functions/teacherTrial/teacherTrialCore.test.js",
     "test:image-enhance": "node scripts/test-image-enhance.mjs",
     "test:schemas-domain": "node scripts/test-quiz-attempt-schemas.mjs",
     "test:sba-config": "node scripts/test-sba-config.mjs",

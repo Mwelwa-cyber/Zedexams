@@ -118,6 +118,27 @@ test('teacher whose Pro plan lapsed is Expired', () => {
   assert(r.shouldRemind, 'lapsed teacher should be reminded')
 })
 
+test('teacher mid free-trial is Trial, Pro benefits, no reminders', () => {
+  const r = resolve({
+    role: 'teacher', teacherPlan: 'trial', teacherTrialEndsAt: future(3),
+  }, AUDIENCE.TEACHER)
+  assert(r.status === SUB_STATUS.TRIAL, `expected trial, got ${r.status}`)
+  assert(r.planLabel === 'Trial', `label ${r.planLabel}`)
+  assert(!r.shouldRemind, 'trialing teacher must NOT be reminded')
+})
+
+test('a lapsed trial is Free (never Expired) and IS reminded with upgrade copy', () => {
+  // teacherPlan stays the literal string 'trial' forever — nothing clears it
+  // once the trial ends — so this must come from the live plan resolution,
+  // not the raw field, or it would report Trial forever past its expiry.
+  const r = resolve({
+    role: 'teacher', teacherPlan: 'trial', teacherTrialEndsAt: past(1),
+  }, AUDIENCE.TEACHER)
+  assert(r.status === SUB_STATUS.FREE, `expected free, got ${r.status}`)
+  assert(r.shouldRemind, 'lapsed-trial teacher should be reminded')
+  assert(r.planLabel === 'Free', `label ${r.planLabel}`)
+})
+
 test('teacher benefits mention lesson plans, never past papers', () => {
   const r = resolve({ role: 'teacher' }, AUDIENCE.TEACHER)
   const joined = r.benefits.join(' ').toLowerCase()

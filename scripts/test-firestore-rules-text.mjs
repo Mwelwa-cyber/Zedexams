@@ -172,6 +172,10 @@ test('user self-update blocks all subscription fields', () => {
     // be a straight paid-features escalation).
     'googlePlayPurchaseToken', 'googlePlayProductId',
     'teacherPlan', 'teacherPlanExpiresAt',
+    // The free teacher trial (functions/teacherTrial/) — self-writable
+    // teacherTrialEndsAt would let a teacher extend their own trial
+    // indefinitely; usageMeter.js trusts it exactly like teacherPlanExpiresAt.
+    'teacherTrialEndsAt', 'teacherTrialStartedAt', 'teacherTrialReminderSentAt',
     // Paid generation top-up credits. usageMeter.js spends one to bypass
     // the plan/daily cap, so self-writable = unlimited paid AI generations
     // (paywall + denial-of-wallet). Client is read-only.
@@ -224,6 +228,7 @@ test('user create pins paid-portal / referral / lifecycle fields', () => {
     'cancelAtPeriodEnd', 'status', 'deletedAt',
     'googlePlayPurchaseToken', 'googlePlayProductId',
     'teacherPlan', 'teacherPlanExpiresAt', 'teacherPlanActivatedAt',
+    'teacherTrialEndsAt', 'teacherTrialStartedAt', 'teacherTrialReminderSentAt',
   ]
   for (const f of MUST_PIN) {
     assert(

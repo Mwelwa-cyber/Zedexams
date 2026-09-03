@@ -69,6 +69,20 @@ async function getUserPlanContext(uid) {
   // Accepts canonical ids (pro/max) and the pre-2026-06 legacy ids
   // (individual/school) still present on older users docs.
   const plan = normalizeTeacherPlan(data.teacherPlan);
+
+  // The free teacher trial (functions/teacherTrial/) — its own branch, own
+  // expiry field, deliberately not folded into the pro/max check below: a
+  // trial's teacherTrialEndsAt must never be confused with a
+  // teacherPlanExpiresAt a real payment set (see teacherPlans.js comment on
+  // PLAN_LIMITS.trial for why the tier itself is a plain alias of pro).
+  if (plan === "trial") {
+    const exp = data.teacherTrialEndsAt;
+    if (exp && typeof exp.toDate === "function" && exp.toDate() > new Date()) {
+      return {plan: "trial", isSuperAdmin: false};
+    }
+    return {plan: "free", isSuperAdmin: false};
+  }
+
   if (plan === "pro" || plan === "max") {
     // honour expiry if present
     const exp = data.teacherPlanExpiresAt;

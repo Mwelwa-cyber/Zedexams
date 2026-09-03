@@ -112,6 +112,38 @@ describe('resolveSubscriptionStatus — teacher audience', () => {
     expect(s.status).toBe(SUB_STATUS.EXPIRED)
     expect(s.shouldRemind).toBe(true)
   })
+
+  it('a teacher mid-trial is Trial, NOT reminded, and gets the Pro benefits list', () => {
+    const s = at(
+      { role: 'teacher', teacherPlan: 'trial', teacherTrialEndsAt: future },
+      AUDIENCE.TEACHER,
+    )
+    expect(s.status).toBe(SUB_STATUS.TRIAL)
+    expect(s.isTrial).toBe(true)
+    expect(s.planLabel).toBe('Trial')
+    expect(s.shouldRemind).toBe(false)
+    expect(s.daysLeft).toBeGreaterThan(0)
+  })
+
+  it('a lapsed trial is Free (never Expired) and IS reminded, with upgrade — not renew — copy', () => {
+    // The bug this pins: teacherPlan stays the literal string 'trial' forever
+    // (nothing clears it once the trial ends), so "on trial" must be derived
+    // from the live plan resolution, not the raw field, or this would report
+    // TRIAL forever with an expiry stuck in the past.
+    const s = at(
+      { role: 'teacher', teacherPlan: 'trial', teacherTrialEndsAt: past },
+      AUDIENCE.TEACHER,
+    )
+    expect(s.status).toBe(SUB_STATUS.FREE)
+    expect(s.isFree).toBe(true)
+    expect(s.shouldRemind).toBe(true)
+    expect(s.planLabel).toBe('Free')
+  })
+
+  it('a trial with no teacherTrialEndsAt stamped at all is Free, not stuck Trial', () => {
+    const s = at({ role: 'teacher', teacherPlan: 'trial' }, AUDIENCE.TEACHER)
+    expect(s.status).toBe(SUB_STATUS.FREE)
+  })
 })
 
 describe('reminderCopy', () => {

@@ -17,6 +17,7 @@ const {
   DAILY_COUNTED_TOOLS,
   MAX_ONLY_TOOLS,
   LEGACY_PLAN_ALIASES,
+  TEACHER_TRIAL_DAYS,
   normalizeTeacherPlan,
   isDailyCountedTool,
   isMaxOnlyTool,
@@ -33,7 +34,12 @@ console.log("teacherPlans");
 
 // ── plan ids ─────────────────────────────────────────────────────────
 test("catalogue carries exactly the canonical plan ids", () => {
-  assert.deepStrictEqual(Object.keys(PLAN_LIMITS).sort(), ["free", "max", "pro"]);
+  assert.deepStrictEqual(Object.keys(PLAN_LIMITS).sort(), ["free", "max", "pro", "trial"]);
+});
+
+test("the free teacher trial is a plain alias of pro, never a diverging copy", () => {
+  assert.strictEqual(PLAN_LIMITS.trial, PLAN_LIMITS.pro);
+  assert.strictEqual(DAILY_LIMITS.trial, DAILY_LIMITS.pro);
 });
 
 test("legacy ids are NOT plan keys (they are aliases only)", () => {
@@ -53,6 +59,7 @@ test("canonical ids pass through unchanged", () => {
   assert.strictEqual(normalizeTeacherPlan("free"), "free");
   assert.strictEqual(normalizeTeacherPlan("pro"), "pro");
   assert.strictEqual(normalizeTeacherPlan("max"), "max");
+  assert.strictEqual(normalizeTeacherPlan("trial"), "trial");
 });
 
 test("legacy individual maps to pro", () => {
@@ -195,7 +202,7 @@ test("FREE_PREVIEW_LIMITS pins the preview shape", () => {
 
 // ── daily caps (marketing: "Daily cap of 2/10/30 generations") ───────
 test("daily limits cover exactly the canonical plans", () => {
-  assert.deepStrictEqual(Object.keys(DAILY_LIMITS).sort(), ["free", "max", "pro"]);
+  assert.deepStrictEqual(Object.keys(DAILY_LIMITS).sort(), ["free", "max", "pro", "trial"]);
 });
 
 test("daily limits match the published marketing numbers", () => {
@@ -246,6 +253,11 @@ test("exempt micro tools really do exceed the daily cap monthly", () => {
         `${tool} monthly allowance no longer dwarfs the daily cap — re-check exemption`,
     );
   }
+});
+
+test("TEACHER_TRIAL_DAYS is a sane positive integer", () => {
+  assert.ok(Number.isInteger(TEACHER_TRIAL_DAYS));
+  assert.ok(TEACHER_TRIAL_DAYS > 0 && TEACHER_TRIAL_DAYS <= 30);
 });
 
 console.log(`\nteacherPlans: ${passed} tests passed`);

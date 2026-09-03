@@ -3609,6 +3609,41 @@
       "classification": "secrets-bound",
       "batch": null
     },
+    "teacherTrialExpiryReminder": {
+      "kind": "onSchedule",
+      "inline": false,
+      "options": {
+        "schedule": "\"0 8 * * *\"",
+        "timeZone": "\"Africa/Lusaka\"",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "300",
+        "memory": "\"256MiB\"",
+        "secrets": "[emailSmtpUser, emailSmtpPassword]"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": null
+    },
+    "teacherTrialOnUserCreated": {
+      "kind": "onDocumentCreated",
+      "inline": false,
+      "options": {
+        "document": "\"users/{uid}\"",
+        "region": "\"africa-south1\"",
+        "timeoutSeconds": "30"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "mechanical",
+      "batch": null
+    },
     "tmpDownloadReaper": {
       "kind": "delegated",
       "inline": false,

@@ -656,6 +656,15 @@ service cloud.firestore {
         && incoming().get('teacherPlan', null) == null
         && incoming().get('teacherPlanExpiresAt', null) == null
         && incoming().get('teacherPlanActivatedAt', null) == null
+        // The free teacher trial (functions/teacherTrial/) is granted ONLY by
+        // the teacherTrialOnUserCreated trigger, immediately after this write
+        // lands, using the admin SDK. Pinned here for the same reason as the
+        // teacherPlan* fields above: without this a crafted signup setDoc
+        // could mint its own trial (or backdate teacherTrialEndsAt to grant
+        // itself months of Pro-tier quota) in the very first write.
+        && incoming().get('teacherTrialEndsAt', null) == null
+        && incoming().get('teacherTrialStartedAt', null) == null
+        && incoming().get('teacherTrialReminderSentAt', null) == null
         // Audit (fresh pass) — the self-update blocklist below was solid
         // but the create rule never pinned these, so a signup setDoc could
         // mint a paid learner-portal grant or free referral credit by
@@ -792,6 +801,14 @@ service cloud.firestore {
           // flows pass the isAdmin() branch below, so this blocklist entry
           // breaks no legitimate writer; usageMeter.js trusts these fields).
           'teacherPlan', 'teacherPlanExpiresAt', 'teacherPlanActivatedAt',
+          // The free teacher trial — written only by teacherTrialOnUserCreated
+          // (grant) and teacherTrialExpiryReminder (the sent-at stamp), both
+          // admin SDK. A self-writable teacherTrialEndsAt would let a teacher
+          // extend their own trial indefinitely (usageMeter.js trusts it
+          // exactly like teacherPlanExpiresAt above); teacherTrialStartedAt /
+          // teacherTrialReminderSentAt are blocked alongside it on the same
+          // principle even though neither gates access on its own.
+          'teacherTrialEndsAt', 'teacherTrialStartedAt', 'teacherTrialReminderSentAt',
           // Paid generation top-up credits (K25 each). Granted ONLY by the
           // Lenco activation path (admin SDK); usageMeter.js spends one to
           // bypass the plan/daily cap. Client is read-only. Without this

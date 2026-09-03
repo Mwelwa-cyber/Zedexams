@@ -23,6 +23,7 @@ const {
   DAILY_LIMITS,
   FREE_PREVIEW_LIMITS,
   PLAN_CATALOG_VERSION,
+  TEACHER_TRIAL_DAYS,
 } = await import('../src/engines/payment-engine/teacherPlans.js')
 
 // Server-side catalogue the client mirror must stay in sync with.
@@ -90,6 +91,35 @@ test('super admins resolve to max regardless of teacherPlan / expiry', () => {
   assert.equal(resolveTeacherPlan({ role: 'admin' }), 'max')
   assert.equal(resolveTeacherPlan({ role: 'superAdmin', teacherPlan: 'free' }), 'max')
   assert.equal(resolveTeacherPlan({ role: 'admin', teacherPlanExpiresAt: past }), 'max')
+})
+
+// ── the free teacher trial ────────────────────────────────────────────────
+test('an active trial resolves to trial (Pro-tier limits)', () => {
+  const future = new Date(Date.now() + 24 * 60 * 60 * 1000)
+  assert.equal(resolveTeacherPlan({ teacherPlan: 'trial', teacherTrialEndsAt: future }), 'trial')
+})
+
+test('a lapsed trial falls back to free — never to pro/max', () => {
+  const past = new Date(Date.now() - 24 * 60 * 60 * 1000)
+  assert.equal(resolveTeacherPlan({ teacherPlan: 'trial', teacherTrialEndsAt: past }), 'free')
+  // Firestore Timestamp-like shape.
+  assert.equal(
+    resolveTeacherPlan({ teacherPlan: 'trial', teacherTrialEndsAt: { toDate: () => past } }),
+    'free',
+  )
+})
+
+test('a trial with no teacherTrialEndsAt stamped at all is free, not indefinitely trial', () => {
+  assert.equal(resolveTeacherPlan({ teacherPlan: 'trial' }), 'free')
+})
+
+test('PLAN_LIMITS.trial is a plain alias of PLAN_LIMITS.pro (never a diverging copy)', () => {
+  assert.equal(PLAN_LIMITS.trial, PLAN_LIMITS.pro)
+  assert.equal(server.PLAN_LIMITS.trial, server.PLAN_LIMITS.pro)
+})
+
+test('TEACHER_TRIAL_DAYS matches the server', () => {
+  assert.equal(TEACHER_TRIAL_DAYS, server.TEACHER_TRIAL_DAYS)
 })
 
 // ── normalizeTeacherPlan parity with the server ───────────────────────────
