@@ -17,6 +17,9 @@ vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }))
 vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
 vi.mock('../components/UpgradeModal', () => ({ default: () => null }))
 vi.mock('../../../utils/runtime', () => ({ isNativePlatform: vi.fn(() => false) }))
+// Own spec (TeacherTrialOfferCard.spec.jsx); stubbed here so this file never
+// touches its Functions-SDK-importing service module (no Firebase/network).
+vi.mock('../components/TeacherTrialOfferCard', () => ({ default: () => null }))
 
 import { useSubscriptionReminder } from '../../../hooks/useSubscriptionReminder'
 import { useAuth } from '../../../contexts/AuthContext'

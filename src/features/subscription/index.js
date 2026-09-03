@@ -52,6 +52,7 @@ export { default as UsageReminderBanner } from './components/UsageReminderBanner
 export { default as UpgradeModal } from './components/UpgradeModal'
 export { default as RenewalBanner } from './components/RenewalBanner'
 export { default as SubscriptionReminderCard } from './components/SubscriptionReminderCard'
+export { default as TeacherTrialOfferCard } from './components/TeacherTrialOfferCard'
 export { default as PremiumGate, UpgradeBanner, AttemptCounter } from './components/PremiumGate'
 
 // ── Where the tiered gating surfaces are, and why none is here ──────────

@@ -5,6 +5,7 @@ import { useSubscriptionReminder } from '../../../hooks/useSubscriptionReminder'
 import { upgradePortal, SUB_STATUS } from '../../../engines/payment-engine/subscriptionStatus'
 import { isNativePlatform } from '../../../utils/runtime'
 import UpgradeModal from '../components/UpgradeModal'
+import TeacherTrialOfferCard from '../components/TeacherTrialOfferCard'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
 import Button from '../../../shared/components/Button'
 import Icon from '../../../shared/components/Icon'
@@ -114,6 +115,14 @@ export default function MySubscriptionPage({ inShell = false }) {
               : 'Your ZedExams Pro plan for learning.'}
           </p>
         </header>
+
+        {/* Existing-teacher trial offer — only ever renders when the offer
+            is genuinely available (server-decided) and never duplicates the
+            "Current plan: Trial" card below once claimed. Always visible
+            here regardless of a "Maybe Later" on the dashboard. */}
+        {audience === 'teacher' && (
+          <TeacherTrialOfferCard dismissible={false} hideActive />
+        )}
 
         {/* Current plan card */}
         <section className="zx-card rounded-3xl border theme-border theme-card p-5 shadow-sm">
