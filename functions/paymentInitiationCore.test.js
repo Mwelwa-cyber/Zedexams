@@ -18,6 +18,8 @@ const {
   REUSE_WINDOW_MS,
   decideLockedInitiation,
   quoteMismatch,
+  reuseInitiationMessage,
+  statusLookupMessage,
 } = require("./paymentInitiationCore");
 
 let passed = 0;
@@ -143,5 +145,52 @@ ok("garbage expected amount → check skipped", quoteMismatch("abc", 57) === fal
   ok("stale Pro-era quote vs Max account → mismatch caught",
       quoteMismatch(beforeMidnight.amountZMW, alreadyMax.isUpgrade ? alreadyMax.amountZMW : 149) === true);
 }
+
+// ── reuseInitiationMessage ─────────────────────────────────────────────────
+// A duplicate initiation (double-tap, second tab, reopened checkout) must
+// never tell a pay-offline buyer to "approve the prompt" — nothing was
+// pushed to approve.
+ok("pay-offline reuse surfaces the real persisted instructions",
+    reuseInitiationMessage("pay-offline", "Dial *115# and choose Pay Bill.") === "Dial *115# and choose Pay Bill.");
+ok("pay-offline reuse with no persisted message → null, not a fabricated one",
+    reuseInitiationMessage("pay-offline", null) === null);
+ok("an ordinary pending reuse keeps the generic prompt-approval line",
+    reuseInitiationMessage("pending", "Dial *115# and choose Pay Bill.")
+      === "Your payment request is already in progress — approve the prompt on your phone.");
+ok("otp-required reuse also keeps the generic line (a prompt path, not offline)",
+    reuseInitiationMessage("otp-required", null)
+      === "Your payment request is already in progress — approve the prompt on your phone.");
+
+// ── statusLookupMessage ─────────────────────────────────────────────────────
+// The regression this guards: `initiateLencoPayment` persists a message
+// alongside EVERY status write, including a generic one for plain "pending".
+// A later status lookup that transitions to pay-offline with no fresh
+// message of its own must not resurface that unrelated earlier text as if
+// it were pay-offline completion instructions.
+ok("a fresh message always wins, whatever the persisted state",
+    statusLookupMessage({
+      freshMessage: "Dial *115# and choose Pay Bill.", currentStatus: "pay-offline",
+      persistedStatus: "pending", persistedMessage: "Collection initiated.",
+    }) === "Dial *115# and choose Pay Bill.");
+ok("no fresh message, and the persisted status was NOT pay-offline → null (the regression)",
+    statusLookupMessage({
+      freshMessage: null, currentStatus: "pay-offline",
+      persistedStatus: "pending", persistedMessage: "Collection initiated.",
+    }) === null);
+ok("no fresh message, but the persisted status WAS already pay-offline → reuse it",
+    statusLookupMessage({
+      freshMessage: null, currentStatus: "pay-offline",
+      persistedStatus: "pay-offline", persistedMessage: "Dial *115# and choose Pay Bill.",
+    }) === "Dial *115# and choose Pay Bill.");
+ok("current status isn't pay-offline → null regardless of what's persisted",
+    statusLookupMessage({
+      freshMessage: null, currentStatus: "pending",
+      persistedStatus: "pay-offline", persistedMessage: "Dial *115# and choose Pay Bill.",
+    }) === null);
+ok("persisted pay-offline with no message on file → null, not a crash",
+    statusLookupMessage({
+      freshMessage: null, currentStatus: "pay-offline",
+      persistedStatus: "pay-offline", persistedMessage: null,
+    }) === null);
 
 console.log(`\n✓ paymentInitiationCore: ${passed} assertions passed`);

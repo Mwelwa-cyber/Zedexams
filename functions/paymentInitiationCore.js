@@ -124,8 +124,50 @@ function quoteMismatch(expectedAmountZMW, actualAmountZMW) {
   return Math.round(expected) !== Math.round(Number(actualAmountZMW));
 }
 
+// Lenco collection status meaning the network never pushes an automatic PIN
+// prompt for this collection — the buyer has to complete it themselves.
+// Mirrors functions/lencoService.js's STATUS.PAY_OFFLINE.
+const PAY_OFFLINE_STATUS = "pay-offline";
+
+/**
+ * The message to report alongside a REUSED pending payment — a duplicate
+ * initiation (double-tap, second tab, reopened checkout) resuming the same
+ * attempt rather than starting a new one. A pay-offline collection never had
+ * a prompt pushed, so the generic "approve the prompt on your phone" line
+ * would be exactly the false instruction the pay-offline screen exists to
+ * stop showing; use the real persisted instructions (or none, so the
+ * client's self-service fallback renders) instead.
+ */
+function reuseInitiationMessage(existingStatus, persistedMessage) {
+  if (existingStatus === PAY_OFFLINE_STATUS) return persistedMessage || null;
+  return "Your payment request is already in progress — approve the prompt on your phone.";
+}
+
+/**
+ * The message to report for a status LOOKUP — a fresh poll response, or a
+ * transient-failure fallback to the last known state.
+ *
+ * `persistedMessage` is stamped alongside every status write (initiate
+ * included, whatever the status), so it does not necessarily describe
+ * pay-offline completion at all. A fresh message always wins; failing that,
+ * the persisted one is trusted only when the persisted STATUS was itself
+ * already pay-offline — otherwise a stale, unrelated message (e.g. a
+ * generic "collection initiated") could resurface as if it were real
+ * completion instructions once Lenco stops repeating them on later polls.
+ */
+function statusLookupMessage({freshMessage, currentStatus, persistedStatus, persistedMessage}) {
+  if (freshMessage) return freshMessage;
+  if (currentStatus === PAY_OFFLINE_STATUS && persistedStatus === PAY_OFFLINE_STATUS) {
+    return persistedMessage || null;
+  }
+  return null;
+}
+
 module.exports = {
   REUSE_WINDOW_MS,
+  PAY_OFFLINE_STATUS,
   decideLockedInitiation,
   quoteMismatch,
+  reuseInitiationMessage,
+  statusLookupMessage,
 };
