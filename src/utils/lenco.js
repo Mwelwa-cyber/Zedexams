@@ -31,6 +31,13 @@ export const OPERATORS = [
 
 export const TERMINAL_STATUSES = ['successful', 'failed']
 
+// Mirror of functions/lencoService.js's STATUS.PAY_OFFLINE — a non-terminal
+// collection status meaning the network never pushes an automatic PIN
+// prompt for this payment; the buyer must complete it themselves (dial their
+// mobile-money menu / open the app), so the checkout must say that rather
+// than keep telling them to wait for a prompt that is not coming.
+export const PAY_OFFLINE_STATUS = 'pay-offline'
+
 function nationalDigits(phone) {
   let d = String(phone || '').replace(/[^\d]/g, '')
   if (d.startsWith('260')) d = d.slice(3)
@@ -117,12 +124,16 @@ export async function pollLencoStatus(paymentId, { intervalMs = 3000, maxAttempt
   for (let i = 0; i < maxAttempts; i += 1) {
     if (signal?.aborted) return 'pending'
     let status = 'pending'
+    let message = null
     try {
-      ({ status } = await getLencoPaymentStatus(paymentId))
+      ;({ status, message = null } = await getLencoPaymentStatus(paymentId))
     } catch {
       status = 'pending'
     }
-    if (onTick) onTick(status, i)
+    // Third arg carries anything beyond the status itself (currently just
+    // the provider's own instructions for a pay-offline collection) — kept
+    // optional so existing two-arg onTick callers are unaffected.
+    if (onTick) onTick(status, i, { message })
     if (TERMINAL_STATUSES.includes(status)) return status
     await new Promise((resolve) => setTimeout(resolve, intervalMs))
   }

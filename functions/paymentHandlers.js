@@ -392,9 +392,11 @@ exports.buildPaymentHandlers = (deps) => {
 
         const data = resp?.data || {};
         const lencoStatus = String(data.status || "pending");
+        const lencoMessage = data.message || resp?.message || null;
         await payRef.update({
           lencoStatus,
           lencoCollectionId: data.id || null,
+          ...(lencoMessage ? {lencoMessage} : {}),
           ...(phoneNumber ? {phoneNumber} : {}),
           ...(operator ? {operator} : {}),
         });
@@ -418,7 +420,7 @@ exports.buildPaymentHandlers = (deps) => {
           status: lencoStatus,
           requiresOtp: lencoStatus === "otp-required",
           amountZMW: amount,
-          message: data.message || resp?.message || null,
+          message: lencoMessage,
           authorization: null,
         };
       } catch (err) {
@@ -515,15 +517,17 @@ exports.buildPaymentHandlers = (deps) => {
       try {
         resp = await lenco.getCollectionStatus({apiKey, reference: paymentId});
       } catch (err) {
-        // Transient lookup failure — report the last known status so the
-        // client keeps polling rather than erroring out.
+        // Transient lookup failure — report the last known status (and any
+        // instructions already on file) so the client keeps polling rather
+        // than erroring out, without losing a pay-offline message it had.
         console.warn("[getLencoPaymentStatus] lookup failed", err?.message);
-        return {status: pay.lencoStatus || "pending"};
+        return {status: pay.lencoStatus || "pending", message: pay.lencoMessage || null};
       }
 
       const data = resp?.data || {};
       const lencoStatus = String(data.status || pay.lencoStatus || "pending");
-      await payRef.update({lencoStatus}).catch(() => {});
+      const lencoMessage = data.message || pay.lencoMessage || null;
+      await payRef.update({lencoStatus, ...(lencoMessage ? {lencoMessage} : {})}).catch(() => {});
 
       if (lencoStatus === "successful") {
         const {activateSubscriptionFromPayment} = require("./subscriptionActivation");
@@ -535,7 +539,7 @@ exports.buildPaymentHandlers = (deps) => {
         const {markPaymentFailed} = require("./subscriptionActivation");
         await markPaymentFailed({paymentId, lencoStatus, reason: data.reasonForFailure || ""}).catch(() => {});
       }
-      return {status: lencoStatus, requiresOtp: lencoStatus === "otp-required"};
+      return {status: lencoStatus, requiresOtp: lencoStatus === "otp-required", message: lencoMessage};
     },
 
     recoverMyPendingPayments: async (request) => {

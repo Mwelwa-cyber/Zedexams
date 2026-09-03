@@ -59,6 +59,7 @@ vi.mock('../../../utils/lenco', () => {
   return {
     OPERATORS,
     TERMINAL_STATUSES: ['successful', 'failed'],
+    PAY_OFFLINE_STATUS: 'pay-offline',
     detectOperator,
     looksLikeZambianPhone: (p) => nat(p) !== '',
     resolveOperator: ({ phone, operator, operatorTouched } = {}) =>
@@ -229,6 +230,39 @@ describe('Lenco checkout step', () => {
     fireEvent.click(screen.getByRole('button', { name: 'I have approved' }))
     expect(screen.getByText('Verifying your payment')).toBeInTheDocument()
     expect(screen.getByText(/do not close this window/i)).toBeInTheDocument()
+  })
+
+  it('shows the pay-offline screen (not "Check your phone") when the network never pushes a prompt', async () => {
+    initiateLencoPayment.mockResolvedValue({
+      paymentId: 'p1',
+      status: 'pay-offline',
+      message: 'Dial *115# and choose Pay Bill, then enter merchant code 4521.',
+    })
+    pollLencoStatus.mockImplementation(() => new Promise(() => {})) // still pending
+    openCheckout()
+    await waitFor(() => expect(screen.getByText(/until 12 August 2026/)).toBeInTheDocument())
+    fireEvent.change(phoneInput(), { target: { value: '0977740465' } })
+    fireEvent.click(payButton())
+    await waitFor(() => expect(screen.getByText('Complete the payment on your phone')).toBeInTheDocument())
+    expect(screen.getByText(/Dial \*115# and choose Pay Bill/)).toBeInTheDocument()
+    expect(screen.queryByText('Check your phone')).toBeNull()
+  })
+
+  it('picks up a pay-offline status reported later, from the poll', async () => {
+    initiateLencoPayment.mockResolvedValue({ paymentId: 'p1', status: 'pending' })
+    let tick
+    pollLencoStatus.mockImplementation((_ref, { onTick }) => {
+      tick = onTick
+      return new Promise(() => {})
+    })
+    openCheckout()
+    await waitFor(() => expect(screen.getByText(/until 12 August 2026/)).toBeInTheDocument())
+    fireEvent.change(phoneInput(), { target: { value: '0977740465' } })
+    fireEvent.click(payButton())
+    await waitFor(() => expect(screen.getByText('Check your phone')).toBeInTheDocument())
+    tick('pay-offline', 1, { message: 'Open the Airtel Money app and approve the pending request.' })
+    await waitFor(() => expect(screen.getByText('Complete the payment on your phone')).toBeInTheDocument())
+    expect(screen.getByText(/Open the Airtel Money app/)).toBeInTheDocument()
   })
 
   it('times out into "still waiting" and re-checks the SAME transaction only', async () => {

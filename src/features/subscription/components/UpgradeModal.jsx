@@ -12,6 +12,7 @@ import { capture } from '../../../utils/analytics'
 import { friendlyMessage } from '../../../utils/friendlyErrors'
 import {
   OPERATORS,
+  PAY_OFFLINE_STATUS,
   getUpgradeQuote,
   initiateLencoPayment,
   looksLikeZambianPhone,
@@ -146,6 +147,13 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
   // + webhook confirm regardless of which stage is on screen.
   const [approvalStage, setApprovalStage] = useState('waiting')
   const [checkingStatus, setCheckingStatus] = useState(false)
+  // Some networks/operators never push an automatic PIN prompt for a
+  // collection — Lenco reports that as status 'pay-offline' (at initiation
+  // or later, from a poll). When it does, the buyer must complete the
+  // payment themselves, so the pending screen must say that instead of
+  // "check your phone" for a prompt that will never arrive.
+  const [payOffline, setPayOffline] = useState(false)
+  const [payInstructions, setPayInstructions] = useState('')
   // "View receipt" on the success screen: idle | loading | missing (the PDF
   // is generated asynchronously after activation, so it may not exist yet).
   const [receiptState, setReceiptState] = useState('idle')
@@ -258,13 +266,22 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
     return false
   }
 
+  function notePayOffline(status, message) {
+    if (status !== PAY_OFFLINE_STATUS) return
+    setPayOffline(true)
+    if (message) setPayInstructions(message)
+  }
+
   async function beginPolling(ref, { maxAttempts = 40 } = {}) {
     setPayState('processing')
     setTimedOut(false)
     const final = await pollLencoStatus(ref, {
       maxAttempts,
       signal: pollAbortRef.current,
-      onTick: (status) => { if (status === 'successful' || status === 'failed') resolveTerminal(status) },
+      onTick: (status, _i, meta) => {
+        if (status === 'successful' || status === 'failed') resolveTerminal(status)
+        else notePayOffline(status, meta?.message)
+      },
     })
     if (pollAbortRef.current.aborted) return
     if (!resolveTerminal(final)) {
@@ -341,6 +358,8 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
     if (!detectedOperator) { setError('Please choose your mobile money operator.'); return }
     setError('')
     setQuoteNotice('')
+    setPayOffline(false)
+    setPayInstructions('')
 
     setPayState('starting')
     capture('lenco_payment_initiated', { planId: selectedPlanId, method })
@@ -358,6 +377,7 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
 
       const res = await initiateLencoPayment(payload)
       setPaymentId(res.paymentId)
+      notePayOffline(res.status, res.message)
 
       if (resolveTerminal(res.status)) return
       if (res.requiresOtp || res.status === 'otp-required') {
@@ -413,6 +433,8 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
     setTimedOut(false)
     setApprovalStage('waiting')
     setCheckingStatus(false)
+    setPayOffline(false)
+    setPayInstructions('')
   }
 
   return (
@@ -757,6 +779,8 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
                   reference={paymentId}
                   operatorLabel={OPERATORS.find((op) => op.id === detectedOperator)?.label || ''}
                   amountZMW={effectivePrice}
+                  payOffline={payOffline}
+                  instructions={payInstructions}
                   onApproved={() => setApprovalStage('verifying')}
                   onCheckStatus={handleCheckStatus}
                   onCancelPayment={handleCancelPending}
