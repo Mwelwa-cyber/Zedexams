@@ -261,7 +261,8 @@ exports.buildPaymentHandlers = (deps) => {
       // must refresh its quote and re-confirm with the buyer. Legacy clients
       // that send nothing skip the check (the server amount is charged either
       // way; this only protects the display promise).
-      const {decideLockedInitiation, quoteMismatch} = require("./paymentInitiationCore");
+      const {decideLockedInitiation, quoteMismatch, reuseInitiationMessage, statusLookupMessage} =
+        require("./paymentInitiationCore");
       if (quoteMismatch(request.data?.expectedAmountZMW, amount)) {
         const renewal = projectRenewalDate(user, planId);
         throw new HttpsError(
@@ -372,6 +373,7 @@ exports.buildPaymentHandlers = (deps) => {
       if (outcome.action === "reuse-pending") {
         const existing = outcome.payment.data;
         const existingStatus = String(existing.lencoStatus || "pending");
+        const reuseMessage = reuseInitiationMessage(existingStatus, existing.lencoMessage);
         return {
           paymentId: outcome.payment.id,
           reference: outcome.payment.id,
@@ -379,7 +381,7 @@ exports.buildPaymentHandlers = (deps) => {
           requiresOtp: existingStatus === "otp-required",
           amountZMW: Number(existing.amountZMW) || amount,
           reused: true,
-          message: "Your payment request is already in progress — approve the prompt on your phone.",
+          message: reuseMessage,
           authorization: null,
         };
       }
@@ -517,16 +519,25 @@ exports.buildPaymentHandlers = (deps) => {
       try {
         resp = await lenco.getCollectionStatus({apiKey, reference: paymentId});
       } catch (err) {
-        // Transient lookup failure — report the last known status (and any
-        // instructions already on file) so the client keeps polling rather
-        // than erroring out, without losing a pay-offline message it had.
+        // Transient lookup failure — report the last known status so the
+        // client keeps polling rather than erroring out.
         console.warn("[getLencoPaymentStatus] lookup failed", err?.message);
-        return {status: pay.lencoStatus || "pending", message: pay.lencoMessage || null};
+        const lastStatus = pay.lencoStatus || "pending";
+        return {
+          status: lastStatus,
+          message: statusLookupMessage({
+            freshMessage: null, currentStatus: lastStatus,
+            persistedStatus: pay.lencoStatus, persistedMessage: pay.lencoMessage,
+          }),
+        };
       }
 
       const data = resp?.data || {};
       const lencoStatus = String(data.status || pay.lencoStatus || "pending");
-      const lencoMessage = data.message || pay.lencoMessage || null;
+      const lencoMessage = statusLookupMessage({
+        freshMessage: data.message, currentStatus: lencoStatus,
+        persistedStatus: pay.lencoStatus, persistedMessage: pay.lencoMessage,
+      });
       await payRef.update({lencoStatus, ...(lencoMessage ? {lencoMessage} : {})}).catch(() => {});
 
       if (lencoStatus === "successful") {
