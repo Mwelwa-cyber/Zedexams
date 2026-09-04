@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
 import { TeacherLayout } from '../../teacherShell'
 import TeacherDashboardV2 from '../pages/TeacherDashboardV2'
+import MobileDashboardContent from './MobileDashboardView'
 import { TOUR_STORAGE_KEY } from '../lib/onboardingTourCore'
 
 // Every teacher navigation surface now asks studioAvailability which studios
@@ -285,5 +286,26 @@ describe('MobileDashboardView (via preview page)', () => {
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
     // Still on the dashboard — no logout happened without confirmation
     expect(screen.getByRole('heading', { level: 1, name: /Mahenga/ })).toBeInTheDocument()
+  })
+
+  it('holiday hero row wraps instead of ellipsising, so the reopen date is never cut off', () => {
+    // Between terms `hero.term` is null and `hero.nextTermOpens` carries the
+    // reopen date — "School holiday · next term opens 9 September 2026" runs
+    // well past what the term row's ellipsis rule leaves room for on a
+    // phone. It must render on the dedicated wrapping class rather than
+    // reusing .tdv2m-hero-term's single-line truncation (dashboardV2.css).
+    render(
+      <MemoryRouter>
+        <MobileDashboardContent
+          greeting={{ label: 'Good morning', name: 'Mahenga' }}
+          hero={{ schoolName: 'Jemareen Academy', term: null, nextTermOpens: '9 September 2026' }}
+          recommendations={[]}
+          checklist={[]}
+        />
+      </MemoryRouter>,
+    )
+    const row = screen.getByText(/School holiday · next term opens 9 September 2026/).closest('p')
+    expect(row).toHaveClass('tdv2m-hero-holiday')
+    expect(row).toHaveClass('tdv2m-hero-term')
   })
 })
