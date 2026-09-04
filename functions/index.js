@@ -2,7 +2,9 @@ const functions = require("firebase-functions/v1");
 const {onCall, onRequest, HttpsError} = require("firebase-functions/v2/https");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {onDocumentCreated} = require("firebase-functions/v2/firestore");
-const {onMessagePublished} = require("firebase-functions/v2/pubsub");
+// NOTE: onMessagePublished is intentionally NOT imported — the only Pub/Sub
+// trigger (googlePlayRtdn) is held back until its topic exists in production.
+// See the block further down for why, and how to restore it.
 const {defineSecret} = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const crypto = require("node:crypto");
@@ -2328,19 +2330,17 @@ exports.verifyGooglePlayPurchase = onCall({
 }, paymentHandlers.verifyGooglePlayPurchase);
 
 /**
- * Google Play Real-time Developer Notifications.
+ * Google Play Real-time Developer Notifications — HELD BACK, deliberately.
  *
- * functions/googlePlayRtdn.js applies renewals, cancellations, grace
- * period, on-hold, revocation and refunds; functions/googlePlayRtdnCore.js
- * owns the parsing and the decisions. Tested: `npm run test:google-play-rtdn`
- * (44 checks). Full runbook, including what each notification type does and
- * the two properties worth keeping if this is ever rewritten (a notification
- * is a doorbell, not the truth; the handler never throws for a message it
- * merely cannot act on): docs/GOOGLE-PLAY-BILLING.md.
+ * The handler is written, tested (`npm run test:google-play-rtdn`, 44
+ * checks) and ready: functions/googlePlayRtdn.js applies renewals,
+ * cancellations, grace period, on-hold, revocation and refunds, and
+ * functions/googlePlayRtdnCore.js owns the parsing and the decisions.
+ * What is missing is the ONE thing this repo cannot create for itself.
  *
- * ── This export REQUIRES the `play-rtdn` Pub/Sub topic to already exist ──
+ * ── Why the export is not here ──────────────────────────────────────
  *
- * `onMessagePublished` needs its topic to exist at deploy time. When it does
+ * `onMessagePublished` needs its Pub/Sub topic to exist. When it does
  * not, `firebase deploy` tries to create it, fails —
  *
  *     Unexpected error creating Pub/Sub topic
@@ -2348,13 +2348,23 @@ exports.verifyGooglePlayPurchase = onCall({
  *         googlePlayRtdn(us-central1)
  *
  * — and takes the WHOLE functions deploy down with it. Not just this
- * function: the run exits non-zero, `deploy-hosting.yml` reads that failure
- * and correctly refuses to ship a frontend over functions that may not have
- * landed, and `main` stops deploying entirely. That happened on 2026-08-21
- * (run 32460825117, both attempts), which is why this export was held back
- * until now. **Before this lands on `main`, confirm the topic + IAM binding
- * already exist** (they are a one-time `gcloud` step, outside this repo, and
- * not something a deploy or a CI job can create for itself):
+ * function: the run exits non-zero, `deploy-hosting.yml` reads that
+ * failure and correctly refuses to ship a frontend over functions that
+ * may not have landed, and `main` stops deploying entirely. That is what
+ * happened on 2026-08-21 (run 32460825117, both attempts) — and again on
+ * 2026-09-04 (run 33912046760) when the export briefly landed on `main`
+ * before the topic existed, restored by this revert.
+ *
+ * A `process.env` flag cannot gate this. `firebase deploy` discovers a
+ * function by running THIS FILE in a subprocess handed only
+ * FIREBASE_CONFIG + GCLOUD_PROJECT (firebase-tools prepare.js →
+ * discoverBuild), so a flag read at module load is always undefined at
+ * deploy time — the same trap documented for OPS_ALERT_WEBHOOK_BOUND
+ * above, where a gated secret was silently never bound. A flag here
+ * would mean the export never deploys even once the topic is there,
+ * while looking as though it might. So the export is absent and says so.
+ *
+ * ── Restoring it: create the topic FIRST, then uncomment ────────────
  *
  *   gcloud pubsub topics create play-rtdn --project examsprepzambia
  *   gcloud pubsub topics add-iam-policy-binding play-rtdn \
@@ -2363,39 +2373,37 @@ exports.verifyGooglePlayPurchase = onCall({
  *
  * (plus `gcloud services enable pubsub.googleapis.com` if the API is off,
  * and the deploy service account needs roles/pubsub.admin to attach the
- * trigger). Then point Play Console ▸ Monetise ▸ Monetisation setup ▸
- * Real-time developer notifications at
- * `projects/examsprepzambia/topics/play-rtdn`, send a test notification from
- * that screen (`[googlePlayRtdn] ignored (test-notification)` in Cloud
- * Logging is the pass condition), and enable voided purchases on the same
- * screen so refunds/chargebacks arrive too. Full steps: docs/GOOGLE-PLAY-BILLING.md.
+ * trigger). Then restore the block below, regenerate the manifest with
+ * `node scripts/generate-functions-manifest.mjs`, and point Play Console
+ * ▸ Monetisation setup ▸ Real-time developer notifications at
+ * `projects/examsprepzambia/topics/play-rtdn`. Full runbook:
+ * docs/GOOGLE-PLAY-BILLING.md.
  *
- * UNTIL the topic exists in production, this export must stay OUT of
- * whatever gets deployed — the Android rail keeps working without it: a
- * purchase is verified by the client's own `verifyGooglePlayPurchase` call,
- * and renewals land on the next app open via restore-on-open. Re-comment
- * this block (and drop the `onMessagePublished` import above) rather than
- * deploying it ahead of the topic.
+ * UNTIL THEN the Android rail still works — a purchase is verified by the
+ * client's own `verifyGooglePlayPurchase` call, and renewals land on the
+ * next app open via restore-on-open. What is missing is only the
+ * real-time half, which is exactly what the owner steps above turn on.
+ *
+ * exports.googlePlayRtdn = onMessagePublished({
+ *   topic: process.env.PLAY_RTDN_TOPIC || "play-rtdn",
+ *   region: "us-central1",
+ *   secrets: opsAlertSecrets([googlePlaySaJson, emailSmtpUser, emailSmtpPassword]),
+ *   timeoutSeconds: 120,
+ *   memory: "256MiB",
+ *   retry: false,
+ * }, async (event) => {
+ *   const {handleRtdnMessage} = require("./googlePlayRtdn");
+ *   const {PLAY_PACKAGE} = require("./googlePlayBilling");
+ *   try {
+ *     await handleRtdnMessage({
+ *       message: event?.data?.message,
+ *       expectedPackage: PLAY_PACKAGE,
+ *     });
+ *   } catch (err) {
+ *     console.error("[googlePlayRtdn] handler failed", err);
+ *   }
+ * });
  */
-exports.googlePlayRtdn = onMessagePublished({
-  topic: process.env.PLAY_RTDN_TOPIC || "play-rtdn",
-  region: "us-central1",
-  secrets: opsAlertSecrets([googlePlaySaJson, emailSmtpUser, emailSmtpPassword]),
-  timeoutSeconds: 120,
-  memory: "256MiB",
-  retry: false,
-}, async (event) => {
-  const {handleRtdnMessage} = require("./googlePlayRtdn");
-  const {PLAY_PACKAGE} = require("./googlePlayBilling");
-  try {
-    await handleRtdnMessage({
-      message: event?.data?.message,
-      expectedPackage: PLAY_PACKAGE,
-    });
-  } catch (err) {
-    console.error("[googlePlayRtdn] handler failed", err);
-  }
-});
 
 // Throttle the Lenco-webhook ops alert so a retry storm (Lenco re-delivers a
 // failing event repeatedly) can't flood the admin inbox. Per-instance — a cold
