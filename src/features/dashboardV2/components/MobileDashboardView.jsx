@@ -89,7 +89,10 @@ function MobileHeroCard({ greeting, hero }) {
                 ) : null}
               </>
             ) : hero?.nextTermOpens ? (
-              <p className="tdv2m-hero-row tdv2m-hero-term">
+              // Longer than "Term N · Week W of T" and the one fact this row
+              // exists to show — see .tdv2m-hero-holiday in dashboardV2.css
+              // for why it wraps instead of sharing the term row's ellipsis.
+              <p className="tdv2m-hero-row tdv2m-hero-term tdv2m-hero-holiday">
                 <CalendarCheck size={17} strokeWidth={1.9} aria-hidden="true" />
                 <span>School holiday · next term opens {hero.nextTermOpens}</span>
               </p>

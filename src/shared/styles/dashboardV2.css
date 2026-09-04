@@ -2905,6 +2905,28 @@ a.tdv2-check-row:hover {
   white-space: nowrap;
 }
 
+/* The holiday row ("School holiday · next term opens 9 September 2026") runs
+   longer than "Term N · Week W of T" — the row it reuses .tdv2m-hero-term's
+   type from — and the reopen date is the one fact a teacher opens this card
+   to check during a break. Ellipsising it (the default above) truncated the
+   date itself on every phone width the inset is narrow on. Let it wrap
+   instead: the icon moves to the top of the row rather than its vertical
+   centre, so it stays level with the first line instead of drifting toward
+   the middle of the now-taller, three-line text block. */
+.tdv2m-hero-holiday {
+  align-items: flex-start;
+}
+
+.tdv2m-hero-holiday svg {
+  margin-top: 1px;
+}
+
+.tdv2m-hero-holiday span {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
 .tdv2m-hero-school {
   font-size: 15px;
   font-weight: 650;
