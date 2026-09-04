@@ -14,7 +14,7 @@ import {
 } from 'firebase/auth'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp, onSnapshot } from 'firebase/firestore'
-import app, { auth, db, googleProvider, authPersistenceReady } from '../firebase/config'
+import app, { auth, db, googleProvider, authPersistenceReady, ensureAuthAttestation } from '../firebase/config'
 import { isNativePlatform } from '../utils/runtime'
 import { retryOnNetworkError } from '../utils/authRetry'
 import { ROLES, hasPremiumAccess, hasLearnerPortalAccess } from '../engines/payment-engine/subscriptionConfig'
@@ -597,7 +597,48 @@ export function AuthProvider({ children }) {
         return profile
       }
     } catch (e) {
-      console.error('fetchUserProfile:', e)
+      // Stale-token / App-Check-placeholder recovery. The profile onSnapshot
+      // listener below already retries this exact failure once (forced ID
+      // token refresh + re-subscribe) — but this one-shot read has no
+      // listener behind it: it's what Login/Register call the instant a
+      // fresh sign-in resolves, and what "Repair My Account"
+      // (MissingProfileRecovery) calls when a learner/teacher taps the
+      // button. Login/Register already gate the SIGN-IN call itself on
+      // genuine App Check attestation (assertAuthAttested in
+      // firebase/config.js — "Auth is uniquely exposed because it alone had
+      // no gate"), but nothing closed the identical gap one step later, on
+      // the profile read that follows: a placeholder token minted before
+      // attestation settles, or an ID token that went stale while the tab
+      // sat idle, made this read fail exactly once — and retrying with the
+      // SAME unattested/stale credentials just reproduced the same failure
+      // on every subsequent login, which is the "Account Repair Needed on
+      // every login" report this fixes. One bounded retry, after actually
+      // fixing what could be stale, closes it.
+      if (e?.code === 'permission-denied' || e?.code === 'unauthenticated') {
+        try {
+          await Promise.all([
+            // Never rejects; resolves once a real token is in hand or App
+            // Check genuinely cannot produce one (unconfigured build, dead
+            // reCAPTCHA) — see ensureAuthAttestation's own doc comment.
+            ensureAuthAttestation(),
+            auth.currentUser?.uid === uid ? auth.currentUser.getIdToken(true) : Promise.resolve(),
+          ])
+          const retrySnap = await getDoc(doc(db, 'users', uid))
+          if (retrySnap.exists()) {
+            const profile = toUserProfile(uid, retrySnap.data())
+            if (updateState) {
+              setUserProfile(profile)
+              setProfileIssue(null)
+            }
+            return profile
+          }
+          return null
+        } catch (retryErr) {
+          console.error('fetchUserProfile (retry after attestation/token refresh):', retryErr)
+        }
+      } else {
+        console.error('fetchUserProfile:', e)
+      }
       if (updateState) setProfileIssue('unreadable')
     }
     return null
