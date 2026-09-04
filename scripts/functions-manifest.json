@@ -1794,6 +1794,25 @@
       "classification": "payment-webhook",
       "batch": null
     },
+    "googlePlayRtdn": {
+      "kind": "onMessagePublished",
+      "inline": true,
+      "options": {
+        "topic": "process.env.PLAY_RTDN_TOPIC || \"play-rtdn\"",
+        "region": "\"us-central1\"",
+        "secrets": "opsAlertSecrets([googlePlaySaJson, emailSmtpUser, emailSmtpPassword])",
+        "timeoutSeconds": "120",
+        "memory": "\"256MiB\"",
+        "retry": "false"
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "payment-webhook",
+      "batch": 3
+    },
     "hourlyAgentSupervisor": {
       "kind": "delegated",
       "inline": false,
