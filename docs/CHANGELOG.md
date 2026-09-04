@@ -5,6 +5,19 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-09-03
+
+### Fixed
+
+- Never surface a stale message as pay-offline instructions (#2622)
+- Tell the buyer when Lenco won't push a PIN prompt (#2621)
+
+### Changed
+
+- Add existing-teacher Pro trial offer (#2620)
+- Fix OOM kill in getTtsControlRoom: raise memory to 512MiB (#2619)
+- Grant new teachers a free 7-day Pro trial (#2618)
+
 ## 2026-09-02
 
 ### Changed
