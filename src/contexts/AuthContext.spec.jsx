@@ -30,6 +30,10 @@ const h = vi.hoisted(() => ({
   // The boot-session guard's verdict. Default: nothing was rescued, which is
   // every existing test in this file.
   disarmGuard: vi.fn(() => ({ preserved: false, verdict: null })),
+  // App Check attestation gate fetchUserProfile spends on a permission-denied
+  // retry. Default: already attested, which is every existing test in this
+  // file — only the dedicated recovery describe block below overrides it.
+  ensureAuthAttestation: vi.fn(() => Promise.resolve({ ok: true, reason: 'attested' })),
 }))
 
 // The guard itself is unit-tested under plain node
@@ -46,6 +50,7 @@ vi.mock('../firebase/config', () => ({
   googleProvider: {},
   // Every sign-in path awaits this before minting a session.
   authPersistenceReady: Promise.resolve(),
+  ensureAuthAttestation: (...a) => h.ensureAuthAttestation(...a),
 }))
 
 vi.mock('firebase/auth', () => ({
@@ -412,6 +417,85 @@ describe('AuthProvider profile-snapshot auth-error recovery', () => {
     })
     // No auth/* code to classify → default to keeping the session.
     expect(h.signOut).not.toHaveBeenCalled()
+  })
+})
+
+// Regression: "Account Repair Needed" on every login. Login/Register call
+// ensureUserProfile → fetchUserProfile the instant a sign-in resolves, and
+// MissingProfileRecovery's "Repair My Account" button calls the same path —
+// none of them go through the onSnapshot listener above, so none of them got
+// its stale-token retry. A profile read that raced App Check's deferred init
+// (a placeholder token) or carried a stale ID token failed once and stayed
+// failed on every subsequent visit, because retrying re-sent the exact same
+// unattested/stale credentials. fetchUserProfile now spends one retry after
+// actually fixing what could be stale, mirroring the listener's own recovery.
+describe('AuthProvider fetchUserProfile — attestation/token retry on permission-denied', () => {
+  beforeEach(() => {
+    h.onAuthCb.current = null
+    h.ensureAuthAttestation.mockClear()
+    h.ensureAuthAttestation.mockImplementation(() => Promise.resolve({ ok: true, reason: 'attested' }))
+  })
+
+  function FetchProbe({ onReady }) {
+    const a = useAuth()
+    onReady(a)
+    return <span data-testid="issue">{JSON.stringify(a.profileIssue)}</span>
+  }
+
+  it('recovers a permission-denied read after ensuring attestation and refreshing the token', async () => {
+    const { getDoc } = await import('firebase/firestore')
+    const { auth } = await import('../firebase/config')
+    getDoc
+      .mockRejectedValueOnce({ code: 'permission-denied' })
+      .mockResolvedValueOnce({ exists: () => true, data: () => ({ role: 'teacher' }) })
+    const user = { uid: 'u1', getIdToken: vi.fn(() => Promise.resolve('fresh-token')) }
+    auth.currentUser = user
+
+    let ctx
+    render(<AuthProvider><FetchProbe onReady={(a) => { ctx = a }} /></AuthProvider>)
+
+    let profile
+    await act(async () => { profile = await ctx.fetchUserProfile('u1') })
+
+    expect(h.ensureAuthAttestation).toHaveBeenCalledTimes(1)
+    expect(user.getIdToken).toHaveBeenCalledWith(true)
+    expect(profile).toEqual({ id: 'u1', role: 'teacher' })
+    // Recovered — must NOT be left on the Account Repair screen.
+    expect(screen.getByTestId('issue').textContent).toBe('null')
+
+    auth.currentUser = null
+  })
+
+  it('still reports unreadable when the retry also fails — no false "fixed"', async () => {
+    const { getDoc } = await import('firebase/firestore')
+    getDoc
+      .mockRejectedValueOnce({ code: 'unauthenticated' })
+      .mockRejectedValueOnce({ code: 'unauthenticated' })
+
+    let ctx
+    render(<AuthProvider><FetchProbe onReady={(a) => { ctx = a }} /></AuthProvider>)
+
+    let profile
+    await act(async () => { profile = await ctx.fetchUserProfile('u1') })
+
+    expect(h.ensureAuthAttestation).toHaveBeenCalledTimes(1)
+    expect(profile).toBe(null)
+    expect(screen.getByTestId('issue').textContent).toBe('"unreadable"')
+  })
+
+  it('does not spend the attestation retry on an error unrelated to auth/App Check', async () => {
+    const { getDoc } = await import('firebase/firestore')
+    getDoc.mockRejectedValueOnce({ code: 'unavailable' })
+
+    let ctx
+    render(<AuthProvider><FetchProbe onReady={(a) => { ctx = a }} /></AuthProvider>)
+
+    let profile
+    await act(async () => { profile = await ctx.fetchUserProfile('u1') })
+
+    expect(h.ensureAuthAttestation).not.toHaveBeenCalled()
+    expect(profile).toBe(null)
+    expect(screen.getByTestId('issue').textContent).toBe('"unreadable"')
   })
 })
 
