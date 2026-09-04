@@ -225,17 +225,20 @@ Android build.
 
 ## Real-time Developer Notifications (owner runbook)
 
-> **STATUS: the handler is written and tested; the EXPORT is held back.**
-> `functions/index.js` does not currently export `googlePlayRtdn`, because
-> `onMessagePublished` needs its topic to exist and `firebase deploy`
-> fails the WHOLE functions deploy when it cannot create one —
-> `Unexpected error creating Pub/Sub topic`. That took `main` out of
-> deployment on 2026-08-21 (run 32460825117, both attempts) until the
-> export was removed: hosting correctly refuses to ship over functions
-> that may not have landed, so a single un-creatable topic stops
-> everything. **Do step 1 and 2 below FIRST, then restore the export**
-> (the commented block in `functions/index.js` says exactly how) and
-> regenerate the manifest. Until then the Android rail still works —
+> **STATUS: the export is restored on `main`, but it must not deploy
+> ahead of its Pub/Sub topic.** `functions/index.js` exports
+> `googlePlayRtdn`, and `onMessagePublished` needs its topic to exist at
+> deploy time — `firebase deploy` fails the WHOLE functions deploy when
+> it cannot create one (`Unexpected error creating Pub/Sub topic`). That
+> took `main` out of deployment on 2026-08-21 (run 32460825117, both
+> attempts) until the export was removed: hosting correctly refuses to
+> ship over functions that may not have landed, so a single un-creatable
+> topic stops everything. **Do steps 1 and 2 below BEFORE this export
+> reaches a `firebase deploy`** — if the topic isn't there yet, re-comment
+> the block in `functions/index.js` (and drop the `onMessagePublished`
+> import above it) rather than deploying ahead of it, and regenerate the
+> manifest either way (`node scripts/generate-functions-manifest.mjs`).
+> Until the topic exists in production, the Android rail still works —
 > purchases verify through the client's own `verifyGooglePlayPurchase`
 > call and renewals land on the next app open — it is only the real-time
 > half that is off.
@@ -328,13 +331,15 @@ approved-linked learner.
 
 ## Known v1 limits / follow-ups
 
-- **RTDN is written but NOT DEPLOYED.** `googlePlayRtdn` (Pub/Sub,
-  us-central1) applies renewals, cancellations, grace period, on-hold,
-  revocation and refunds — and its export is held back until the
-  `play-rtdn` topic exists, because a missing topic fails the entire
-  functions deploy. See the status note under "Real-time Developer
-  Notifications". Until it is restored, renewals still land on the next
-  app open (restore-on-open), which is the pre-existing behaviour.
+- **RTDN is exported on `main` but NOT YET LIVE in production.**
+  `googlePlayRtdn` (Pub/Sub, us-central1) applies renewals,
+  cancellations, grace period, on-hold, revocation and refunds. The code
+  is restored; what remains is the one-time, out-of-repo `gcloud` +
+  Play Console setup in steps 1-3 above, which nothing in CI can do for
+  itself. See the status note under "Real-time Developer Notifications"
+  before this export reaches a real deploy. Until the topic exists,
+  renewals still land on the next app open (restore-on-open), which is
+  the pre-existing behaviour.
 - **No K25 top-up on Android** — it's a Lenco one-off; top-up CTAs route to
   the Play subscription upgrade. Follow-up: a consumable Play product.
 - **No native Pro→Max plan change/proration** — an actively subscribed user
