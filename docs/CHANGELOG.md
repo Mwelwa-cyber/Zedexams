@@ -5,6 +5,21 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-09-05
+
+### Added
+
+- Restore the googlePlayRtdn export (gated on infra) (#2626)
+
+### Fixed
+
+- Make dependency-audit resilient to npm's audit-endpoint retirement (#2627)
+
+### Changed
+
+- Re-hold the googlePlayRtdn export — topic doesn't exist yet (#2628)
+- Fix teacher dashboard mobile hero: holiday reopen-date was cut off (#2625)
+
 ## 2026-09-03
 
 ### Fixed
