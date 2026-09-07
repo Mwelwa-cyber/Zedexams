@@ -2,26 +2,36 @@ ext {
     minSdkVersion = 24
     compileSdkVersion = 36
     targetSdkVersion = 36
-    // androidx.activity, androidx.appcompat and androidx.core are pinned to
-    // their current latest stable releases (1.13.0 / 1.8.0 / 1.19.0 as of
-    // 2026-08). This matters more than routine hygiene for this trio
-    // specifically: EdgeToEdge.enable(this) in MainActivity is implemented
-    // INSIDE androidx.activity, and Play Console's "deprecated APIs for
-    // edge-to-edge" pre-launch warning (setStatusBarColor/
-    // setNavigationBarColor/LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES,
-    // traced to obfuscated androidx.activity.* classes rather than any class
-    // in this app) comes from that library's own pre-API-30 compat shim, not
-    // from application code — see the AGENTS.md note on this. Google has not
-    // yet shipped an androidx.activity release that removes those calls
+    // androidx.activity, androidx.appcompat and androidx.core were bumped to
+    // 1.13.0 / 1.8.0 / 1.19.0 on 2026-08-29 (#2604) to chase a future
+    // upstream fix for Play Console's "deprecated APIs for edge-to-edge"
+    // pre-launch warning (setStatusBarColor/setNavigationBarColor/
+    // LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES, traced to obfuscated
+    // androidx.activity.* classes rather than any class in this app — see
+    // the AGENTS.md note on this). That bump was never actually compiled:
+    // no required CI check builds the Android project, and it landed after
+    // the AGP 9.0.1 upgrade (#2603) had already been verified through three
+    // real, CI-dispatched builds — all on the OLD trio below. The first real
+    // release build after both changes (the v1.5.0 production cut,
+    // 2026-09-07) failed `:app:checkReleaseAarMetadata`:
+    // androidx.core:core(-ktx):1.19.0's own AAR metadata requires AGP 9.1.0+
+    // and compileSdk 37, neither of which this project is on.
+    //
+    // Reverted to the trio AGP 9.0.1's three CI-verified builds actually
+    // used. This is a straight revert, not a downgrade below anything ever
+    // shipped: v1.4.0 (the last release actually published) built on these
+    // same versions. The edge-to-edge warning is informational only — it was
+    // already present (and accepted) on v1.4.0 — and Google has not yet
+    // shipped an androidx.activity release that removes those calls anyway
     // (tracked upstream: https://github.com/flutter/flutter/issues/183349,
-    // https://github.com/dotnet/maui/issues/26788), so staying on the latest
-    // activity release is the only thing an app can do about it short of
-    // raising minSdkVersion past the API level that still needs the scrim —
-    // a product tradeoff, not a code fix, and not made here.
-    androidxActivityVersion = '1.13.0'
-    androidxAppCompatVersion = '1.8.0'
+    // https://github.com/dotnet/maui/issues/26788), so the 2026-08-29 bump
+    // bought nothing but an untested dependency graph. Re-attempting it
+    // means bumping AGP to 9.1.0+ and compileSdk/targetSdk to 37 together,
+    // verified by an actual dispatched build — not a version bump alone.
+    androidxActivityVersion = '1.11.0'
+    androidxAppCompatVersion = '1.7.1'
     androidxCoordinatorLayoutVersion = '1.3.0'
-    androidxCoreVersion = '1.19.0'
+    androidxCoreVersion = '1.17.0'
     androidxFragmentVersion = '1.8.9'
     coreSplashScreenVersion = '1.2.0'
     androidxWebkitVersion = '1.14.0'
