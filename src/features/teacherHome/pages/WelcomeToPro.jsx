@@ -135,7 +135,7 @@ export default function WelcomeToPro() {
             <div className="zwp-unlock">
               <div className="zwp-unlock-icon" aria-hidden="true">🦁</div>
               <div className="zwp-unlock-text">
-                <strong>Schemes of Work · 2/term</strong>
+                <strong>Schemes of Work · 6/month</strong>
                 <span>Plan your whole term in a single printable doc.</span>
                 <span className="zwp-unlock-badge">New</span>
               </div>

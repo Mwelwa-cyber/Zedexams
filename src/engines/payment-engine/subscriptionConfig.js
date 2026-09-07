@@ -226,7 +226,7 @@ export const PLANS = {
     features: [
       '40 lesson plans / month',
       '25 worksheets & teacher notes',
-      '2 schemes of work / month',
+      '6 schemes of work / month',
       '1 free assessment + exam paper to try',
       'Daily cap of 10 generations',
       'DOCX + PDF export',

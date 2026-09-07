@@ -219,7 +219,7 @@ const PLANS = [
       <><strong>40</strong> lesson plans / month</>,
       <><strong>30</strong> homework activities</>,
       <><strong>25</strong> teacher notes</>,
-      <><strong>2</strong> schemes of work / month</>,
+      <><strong>6</strong> schemes of work / month</>,
       <><strong>1</strong> free assessment + exam paper to try</>,
       <>Daily cap of <strong>10</strong> generations</>,
       'DOCX + PDF export',
@@ -599,7 +599,7 @@ export default function Plans() {
                   <Row label="Lesson plans" cells={['2', '40', 'Unlimited']} />
                   <Row label="Homework" cells={['4', '30', 'Unlimited']} />
                   <Row label="Teacher notes" cells={['Sample', '25', 'Unlimited']} />
-                  <Row label="Schemes of work" cells={['Sample', '2', 'Unlimited']} />
+                  <Row label="Schemes of work" cells={['Sample', '6', 'Unlimited']} />
 
                   <tr><td colSpan={4} className="px-5 py-2.5 bg-[color:var(--bg-subtle)] text-xs font-black uppercase tracking-wider theme-accent-text">Max studios</td></tr>
                   <Row label="Assessment studio" cells={['Sample', '1 to try', 'Unlimited']} />
