@@ -127,7 +127,7 @@ test("pro limits match the published marketing numbers", () => {
   assert.strictEqual(PLAN_LIMITS.pro.worksheet, 25); // "25 worksheets & teacher notes"
   assert.strictEqual(PLAN_LIMITS.pro.notes, 25);
   assert.strictEqual(PLAN_LIMITS.pro.quiz, 8); // formative quiz studio
-  assert.strictEqual(PLAN_LIMITS.pro.scheme_of_work, 2); // "2 schemes of work / term"
+  assert.strictEqual(PLAN_LIMITS.pro.scheme_of_work, 6); // "6 schemes of work / month"
 });
 
 // ── Max-anchored studios (exam paper only) ───────────────────────────

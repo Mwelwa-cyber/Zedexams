@@ -61,7 +61,7 @@ const PLAN_LIMITS = {
     flashcards: 200,
     quiz: 8,
     rubric: 8,
-    scheme_of_work: 2,
+    scheme_of_work: 6,
     notes: 25,
     homework: 30,
     // Exercise + homework generated together from the Lesson Plan Studio.

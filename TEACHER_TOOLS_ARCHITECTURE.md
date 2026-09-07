@@ -646,7 +646,7 @@ which still normalises the pre-2026-06 legacy ids `individual` → `pro`, `schoo
 | flashcards      | 0    | 200              | 200                        |
 | quiz            | 0    | 8                | 200 (fair-use)             |
 | rubric          | 0    | 8                | 200 (fair-use)             |
-| scheme_of_work  | 0    | 2                | 200 (fair-use)             |
+| scheme_of_work  | 0    | 6                | 200 (fair-use)             |
 
 On Free only the Lesson Plan studio is usable; every other generator studio
 is locked (limit 0) and shown as a read-only sample until the teacher
