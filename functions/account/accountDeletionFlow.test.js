@@ -194,7 +194,7 @@ test("a purge that VERIFIED but reported errors does not close the job", async (
   assert.equal(job.status, "pending",
     "closed on a verified-but-failed purge, the leftover personal data is unreachable: " +
     "the sweeper only queries pending jobs, so nothing would ever retry it");
-  assert.equal(job.attempts, 1, "the failure is counted so the alert threshold can see it");
+  assert.equal(job.failedAttempts, 1, "the failure is counted so the alert threshold can see it");
 });
 
 test("a clean verified purge still closes the job", async () => {
@@ -396,7 +396,7 @@ test("the tombstone carries a hashed address and no raw email", async () => {
 test("re-opening a job keeps the failure count the alert threshold reads", async () => {
   const calls = [];
   const db = fakeDb(calls, {
-    seed: {[PURGE_JOBS_COLLECTION]: {u1: {uid: "u1", status: "pending", attempts: 2}}},
+    seed: {[PURGE_JOBS_COLLECTION]: {u1: {uid: "u1", status: "pending", failedAttempts: 2}}},
   });
   await runAccountDeletion({
     uid: "u1",
@@ -406,9 +406,9 @@ test("re-opening a job keeps the failure count the alert threshold reads", async
     purge: async () => { throw new Error("still broken"); },
   }).catch(() => {});
   assert.strictEqual(
-    db.store[PURGE_JOBS_COLLECTION].u1.attempts,
+    db.store[PURGE_JOBS_COLLECTION].u1.failedAttempts,
     3,
-    "re-opening must not reset attempts to zero",
+    "re-opening must not reset failedAttempts to zero",
   );
 });
 
@@ -486,7 +486,7 @@ test("a purge that throws leaves the job pending and does not report success", a
 
   const job = db.store[PURGE_JOBS_COLLECTION].u1;
   assert.strictEqual(job.status, "pending", "a failed purge must leave the job pending");
-  assert.strictEqual(job.attempts, 1);
+  assert.strictEqual(job.failedAttempts, 1);
   assert.match(job.lastError, /firestore exploded/);
 });
 
@@ -583,7 +583,7 @@ test("any other getUser error stays `internal`, so the two cases are distinguish
 test("a pending tombstone refuses the repair before Auth is even asked", async () => {
   const calls = [];
   const db = fakeDb(calls, {
-    seed: {[PURGE_JOBS_COLLECTION]: {u1: {uid: "u1", status: "pending", attempts: 1}}},
+    seed: {[PURGE_JOBS_COLLECTION]: {u1: {uid: "u1", status: "pending", failedAttempts: 1}}},
   });
   await assert.rejects(
     runProfileBootstrap({uid: "u1", db, auth: fakeAuth(calls), buildProfile}),

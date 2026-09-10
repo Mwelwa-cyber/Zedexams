@@ -126,9 +126,13 @@ async function runAccountPurgeSweep(deps = {}) {
 
   for (const job of due) {
     const uid = job.id;
-    // Attempts already recorded, plus the one about to happen — so the alert
+    // Failures already recorded, plus the one about to happen — so the alert
     // fires on the run that reaches the threshold, not the run after it.
-    const attempts = Number(job.data.attempts || 0) + 1;
+    // `job.data.attempts` is the pre-rename field name (PURGE-002,
+    // BUG_REPORT.md) — a job's tombstone may still carry it if it was opened
+    // before `failedAttempts` existed, and falling back to it keeps that
+    // job's count instead of silently resetting it to zero.
+    const attempts = Number(job.data.failedAttempts ?? job.data.attempts ?? 0) + 1;
     let failure = null;
 
     try {

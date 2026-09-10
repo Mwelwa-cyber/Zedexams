@@ -162,7 +162,7 @@ function isAbandonedBeforeDeletion(job, {now = Date.now(), staleAfterMs = STALE_
  * because nothing destructive has happened yet.
  *
  * `merge: true` so a second deletion attempt for the same uid — or the
- * sweeper's own bookkeeping — does not wipe `attempts`.
+ * sweeper's own bookkeeping — does not wipe `failedAttempts`.
  *
  * @param {object} db                Admin Firestore.
  * @param {string} uid
@@ -183,15 +183,23 @@ async function openPurgeJob(db, uid, {FieldValue, email, now = Date.now()} = {})
     // increment(0), not 0: initialises a new job at zero while leaving an
     // existing failure count alone. Re-opening a job must not quietly reset
     // the count the sweeper's alert threshold reads.
-    attempts: FieldValue.increment(0),
+    //
+    // Named `failedAttempts`, not `attempts`: this counter is only ever
+    // incremented by `recordPurgeFailure` (below) and stays 0 for a job that
+    // succeeds on its first run — it counts failures, not tries. It used to
+    // be `attempts`, which read as "how many times has this run" and was
+    // wrong on the happy path (PURGE-002, BUG_REPORT.md). Readers that may
+    // still see a job written before this rename should fall back to the old
+    // field name rather than lose its count — see accountPurgeSweeper.js.
+    failedAttempts: FieldValue.increment(0),
     // When the surviving ID token can no longer have been used (see
     // RESWEEP_DELAY_MS). A plain epoch-millis number rather than a Timestamp:
     // this module deliberately injects only `FieldValue` so it unit-tests
     // under the root install alone, and `toMillis()` already reads numbers.
     //
-    // Both fields are RESET on a re-open, unlike `attempts`. They are not
-    // bookkeeping about past runs — they describe the token window of the
-    // attempt now starting, and a second attempt mints its own.
+    // Both fields are RESET on a re-open, unlike `failedAttempts`. They are
+    // not bookkeeping about past runs — they describe the token window of
+    // the attempt now starting, and a second attempt mints its own.
     resweepAfter: now + RESWEEP_DELAY_MS,
     resweepDone: false,
   }, {merge: true});
@@ -444,7 +452,7 @@ async function recordPurgeFailure(db, uid, {FieldValue, error} = {}) {
   try {
     await db.collection(PURGE_JOBS_COLLECTION).doc(uid).set({
       status: "pending",
-      attempts: FieldValue.increment(1),
+      failedAttempts: FieldValue.increment(1),
       lastFailedAt: FieldValue.serverTimestamp(),
       lastError: String((error && error.message) || error || "unknown").slice(0, 500),
     }, {merge: true});

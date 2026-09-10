@@ -78,7 +78,7 @@ test("openPurgeJob arms the re-sweep 75 minutes out (60 min token + 15 min slack
 });
 
 test("a re-open re-arms the window rather than inheriting the old one", async () => {
-  // Unlike `attempts` (increment(0), so a re-open never resets the failure
+  // Unlike `failedAttempts` (increment(0), so a re-open never resets the failure
   // count), these two describe the token window of the attempt now starting.
   // A second attempt mints a second token window and must wait out its own.
   let written = null;
@@ -89,7 +89,7 @@ test("a re-open re-arms the window rather than inheriting the old one", async ()
   });
   assert.strictEqual(written.resweepAfter, NOW + 5_000_000 + RESWEEP_DELAY_MS);
   assert.strictEqual(written.resweepDone, false);
-  assert.deepStrictEqual(written.attempts, {__op: "increment", by: 0});
+  assert.deepStrictEqual(written.failedAttempts, {__op: "increment", by: 0});
 });
 
 test("a job is due only once the window has passed", () => {

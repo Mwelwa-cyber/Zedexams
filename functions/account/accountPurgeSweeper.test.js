@@ -129,7 +129,7 @@ const staleAt = () => new Date(Date.now() - STALE_AFTER_MS - 1000).toISOString()
 const noAuth = {deleteUser: async () => {}};
 
 test("a stale job is retried, verified and closed", async () => {
-  const db = fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", attempts: 1, createdAt: staleAt()}});
+  const db = fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", failedAttempts: 1, createdAt: staleAt()}});
   const purged = [];
   const out = await runAccountPurgeSweep({
     db,
@@ -145,7 +145,7 @@ test("a stale job is retried, verified and closed", async () => {
 });
 
 test("a job younger than the window is left alone", async () => {
-  const db = fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", attempts: 0, createdAt: new Date().toISOString()}});
+  const db = fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", failedAttempts: 0, createdAt: new Date().toISOString()}});
   const out = await runAccountPurgeSweep({
     db,
     auth: noAuth,
@@ -158,7 +158,7 @@ test("a job younger than the window is left alone", async () => {
 });
 
 test("an unverified purge is NOT closed, and counts as a failure", async () => {
-  const db = fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", attempts: 0, createdAt: staleAt()}});
+  const db = fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", failedAttempts: 0, createdAt: staleAt()}});
   const out = await runAccountPurgeSweep({
     db,
     auth: noAuth,
@@ -170,12 +170,34 @@ test("an unverified purge is NOT closed, and counts as a failure", async () => {
   assert.strictEqual(out.completed, 0);
   const job = db.store[PURGE_JOBS_COLLECTION].u1;
   assert.strictEqual(job.status, "pending");
-  assert.strictEqual(job.attempts, 1);
+  assert.strictEqual(job.failedAttempts, 1);
+});
+
+// `failedAttempts` replaced the misleadingly-named `attempts` field (PURGE-002,
+// BUG_REPORT.md — it only ever counted failures, never tries, so a job that
+// succeeded on its first run read as "0 attempts"). A tombstone opened before
+// the rename can still carry only the old field name; the sweeper must read
+// its count rather than treat it as a fresh job with none.
+test("a job written under the pre-rename `attempts` field keeps its failure count", async () => {
+  const alerts = [];
+  const db = fakeDb({
+    u1: {uid: "u1", status: "pending", phase: "irreversible", attempts: ALERT_AFTER_ATTEMPTS - 1, createdAt: staleAt()},
+  });
+  const out = await runAccountPurgeSweep({
+    db,
+    auth: noAuth,
+    FieldValue,
+    purge: async () => { throw new Error("still broken"); },
+    alert: async (a) => { alerts.push(a); },
+  });
+  assert.strictEqual(out.failed, 1);
+  assert.strictEqual(alerts.length, 1,
+    "the legacy count must carry through to the threshold check, not reset to 0");
 });
 
 test("the sweeper deletes a surviving Auth user before the data, like the handler", async () => {
   const order = [];
-  const db = fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", attempts: 0, createdAt: staleAt()}});
+  const db = fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", failedAttempts: 0, createdAt: staleAt()}});
   await runAccountPurgeSweep({
     db,
     auth: {deleteUser: async (uid) => { order.push(`deleteUser:${uid}`); }},
@@ -187,7 +209,7 @@ test("the sweeper deletes a surviving Auth user before the data, like the handle
 });
 
 test("an already-deleted Auth user does not stop the sweep", async () => {
-  const db = fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", attempts: 0, createdAt: staleAt()}});
+  const db = fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", failedAttempts: 0, createdAt: staleAt()}});
   const err = new Error("gone");
   err.code = "auth/user-not-found";
   const out = await runAccountPurgeSweep({
@@ -205,7 +227,7 @@ test("a job that never reached the point of no return is NOT adopted, however ol
   const db = fakeDb({
     // Pending, ancient, and no phase marker: a run that died between opening
     // the tombstone and deleting the Auth user. The account was never deleted.
-    u1: {uid: "u1", status: "pending", attempts: 0, createdAt: staleAt()},
+    u1: {uid: "u1", status: "pending", failedAttempts: 0, createdAt: staleAt()},
   });
   const out = await runAccountPurgeSweep({
     db,
@@ -222,7 +244,7 @@ test("a job that never reached the point of no return is NOT adopted, however ol
 
 test("a purge that VERIFIED but reported errors is not closed by the sweeper either", async () => {
   const db = fakeDb({
-    u1: {uid: "u1", status: "pending", phase: "irreversible", attempts: 0, createdAt: staleAt()},
+    u1: {uid: "u1", status: "pending", phase: "irreversible", failedAttempts: 0, createdAt: staleAt()},
   });
   const out = await runAccountPurgeSweep({
     db,
@@ -239,8 +261,8 @@ test("a purge that VERIFIED but reported errors is not closed by the sweeper eit
 test("alerts only once a job has failed ALERT_AFTER_ATTEMPTS times", async () => {
   const alerts = [];
   const alert = async (a) => { alerts.push(a); };
-  const run = (attempts) => runAccountPurgeSweep({
-    db: fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", attempts, createdAt: staleAt()}}),
+  const run = (failedAttempts) => runAccountPurgeSweep({
+    db: fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", failedAttempts, createdAt: staleAt()}}),
     auth: noAuth,
     FieldValue,
     purge: async () => { throw new Error("still broken"); },
@@ -258,7 +280,7 @@ test("alerts only once a job has failed ALERT_AFTER_ATTEMPTS times", async () =>
 });
 
 test("an alert that fails does not lose the failure bookkeeping", async () => {
-  const db = fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", attempts: 5, createdAt: staleAt()}});
+  const db = fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", failedAttempts: 5, createdAt: staleAt()}});
   const out = await runAccountPurgeSweep({
     db,
     auth: noAuth,
@@ -268,7 +290,7 @@ test("an alert that fails does not lose the failure bookkeeping", async () => {
   });
   assert.strictEqual(out.failed, 1);
   assert.strictEqual(out.alerted, 0);
-  assert.strictEqual(db.store[PURGE_JOBS_COLLECTION].u1.attempts, 6);
+  assert.strictEqual(db.store[PURGE_JOBS_COLLECTION].u1.failedAttempts, 6);
 });
 
 // ── Post-purge cleanup parity ────────────────────────────────────────────
@@ -279,7 +301,7 @@ test("an alert that fails does not lose the failure bookkeeping", async () => {
 
 test("a recovered deletion runs the same post-purge cleanup as the handler", async () => {
   const db = fakeDb({u1: {
-    uid: "u1", status: "pending", phase: "irreversible", attempts: 0,
+    uid: "u1", status: "pending", phase: "irreversible", failedAttempts: 0,
     createdAt: staleAt(), emailHash: hashEmail("person@example.com"),
   }});
   const seen = [];
@@ -304,7 +326,7 @@ test("a recovered deletion runs the same post-purge cleanup as the handler", asy
 test("cleanup never runs for a purge that did not verify", async () => {
   // Cleaning up after a purge that left data behind would drain the support
   // queue for a deletion that has not happened.
-  const db = fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", attempts: 0, createdAt: staleAt()}});
+  const db = fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", failedAttempts: 0, createdAt: staleAt()}});
   let ran = 0;
   await runAccountPurgeSweep({
     db,
@@ -321,7 +343,7 @@ test("a cleanup that throws degrades the run, it does not fail the job", async (
   // The purge has already verified — the data is gone. Marking the job failed
   // here would leave a finished deletion pending, re-swept daily for ever, and
   // eventually paging someone about data that no longer exists.
-  const db = fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", attempts: 0, createdAt: staleAt()}});
+  const db = fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", failedAttempts: 0, createdAt: staleAt()}});
   const out = await runAccountPurgeSweep({
     db,
     auth: noAuth,
@@ -337,7 +359,7 @@ test("a cleanup that throws degrades the run, it does not fail the job", async (
 });
 
 test("an unreachable analytics profile is counted, not swallowed", async () => {
-  const db = fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", attempts: 0, createdAt: staleAt()}});
+  const db = fakeDb({u1: {uid: "u1", status: "pending", phase: "irreversible", failedAttempts: 0, createdAt: staleAt()}});
   const out = await runAccountPurgeSweep({
     db,
     auth: noAuth,
