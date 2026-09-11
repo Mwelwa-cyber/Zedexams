@@ -5,6 +5,19 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-09-11
+
+### Fixed
+
+- Rename attempts -> failedAttempts (PURGE-002) (#2645)
+- Don't let a local npm install widen the lockfile diff (#2640)
+- Raise Pro's Scheme of Work cap above Free's (#2638)
+
+### Changed
+
+- Revert androidx.activity/appcompat/core to the AGP-9.0.1-verified trio (#2641)
+- Cut v1.5.0 for the first Google Play production release (#2639)
+
 ## 2026-09-05
 
 ### Added
