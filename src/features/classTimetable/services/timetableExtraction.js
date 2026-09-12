@@ -306,6 +306,43 @@ function instruction(grade, candidates) {
   ].filter(Boolean).join('\n')
 }
 
+/* ── Error classification (pure, node-testable) ──────────────────── */
+
+/** Generic "we couldn't read your file" message — reserved for failures that
+ * are actually about the upload (bad JSON back from the model, a safety/
+ * content block, or anything unrecognised). */
+const UNREADABLE_MESSAGE = 'Could not read the timetable. Try a clearer photo, or upload a PDF / Excel version.'
+
+/**
+ * Turn a `generateJSON` failure into a message the teacher can act on.
+ *
+ * Firebase AI Logic (`firebase/ai`) throws an `AIError` (see `@firebase/ai`'s
+ * `AIErrorCode`) whose `code` is the UNPREFIXED code string (`'fetch-error'`,
+ * not `'ai/fetch-error'` — the SDK passes the bare code to `FirebaseError`
+ * and then reassigns `this.code` to it directly) and whose
+ * `customErrorData.status` carries the raw HTTP status when the failure came
+ * back as a non-OK response. A 429 (quota) or a 5xx/`api-not-enabled`
+ * (backend outage or mis-config) is not a fact about the teacher's photo —
+ * telling them to retake it sends them chasing a problem that isn't theirs.
+ * Only a genuinely unreadable reply (bad JSON, a blocked/empty response, or
+ * anything this function doesn't recognise) gets the "try a clearer photo"
+ * message.
+ */
+export function describeExtractionFailure(err) {
+  if (err?.code === 'timeout') {
+    return 'Reading the timetable took too long. Try a clearer photo or a smaller file.'
+  }
+  const status = err?.customErrorData?.status
+  if (status === 429) {
+    return "The AI reader is busy right now. Wait a minute and try again — this isn't a problem with your file."
+  }
+  const transportCodes = new Set(['fetch-error', 'api-not-enabled', 'error'])
+  if ((typeof status === 'number' && status >= 500) || transportCodes.has(err?.code)) {
+    return "Couldn't reach the AI reading service. Check your connection and try again in a moment — this isn't a problem with your file."
+  }
+  return UNREADABLE_MESSAGE
+}
+
 /* ── Public extractor (browser) ───────────────────────────────── */
 
 const EXTRACT_TIMEOUT_MS = 60000
@@ -350,8 +387,7 @@ export async function extractTimetableFromFile(file, opts = {}) {
   try {
     raw = await generateJSON(prompt, { timeoutMs: EXTRACT_TIMEOUT_MS })
   } catch (err) {
-    if (err?.code === 'timeout') throw new Error('Reading the timetable took too long. Try a clearer photo or a smaller file.')
-    throw new Error('Could not read the timetable. Try a clearer photo, or upload a PDF / Excel version.')
+    throw new Error(describeExtractionFailure(err))
   }
 
   const result = normalizeExtracted(raw, { candidates, daysFallback: opts.days })

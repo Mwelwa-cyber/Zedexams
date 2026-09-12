@@ -14,6 +14,7 @@ import {
   snapSubjectLabel,
   normalizeExtracted,
   fileKind,
+  describeExtractionFailure,
 } from '../src/features/classTimetable/services/timetableExtraction.js'
 
 let pass = 0
@@ -144,6 +145,41 @@ test('consecutive repeats are flagged as candidate doubles; separated repeats ar
     'the Monday English pair is the candidate')
   // The slots themselves stay as two separate cells — the teacher confirms the join.
   assert(r.slots.p1.Monday === 'English Language' && r.slots.p2.Monday === 'English Language', 'cells stay singles')
+})
+
+/* ── error message classification ────────────────────────────── */
+
+test('describeExtractionFailure: timeout keeps its own message', () => {
+  const msg = describeExtractionFailure({ code: 'timeout' })
+  assert(/took too long/.test(msg), `expected a timeout message, got: ${msg}`)
+})
+
+test('describeExtractionFailure: a 429 blames the AI service, not the file', () => {
+  const msg = describeExtractionFailure({ code: 'fetch-error', customErrorData: { status: 429 } })
+  assert(/busy/.test(msg), `expected a busy/quota message, got: ${msg}`)
+  assert(!/photo|file/i.test(msg) || /isn't a problem with your file/.test(msg),
+    `must not blame the upload: ${msg}`)
+})
+
+test('describeExtractionFailure: a 5xx status is a service outage, not a file problem', () => {
+  const msg = describeExtractionFailure({ code: 'fetch-error', customErrorData: { status: 503 } })
+  assert(/isn't a problem with your file/.test(msg), `expected a transport message, got: ${msg}`)
+})
+
+test('describeExtractionFailure: api-not-enabled and a bare network error are transport failures', () => {
+  const notEnabled = describeExtractionFailure({ code: 'api-not-enabled' })
+  const network = describeExtractionFailure({ code: 'error' })
+  assert(/isn't a problem with your file/.test(notEnabled), `api-not-enabled: ${notEnabled}`)
+  assert(/isn't a problem with your file/.test(network), `bare network error: ${network}`)
+})
+
+test('describeExtractionFailure: an unrecognised/content failure keeps the original file-facing message', () => {
+  const badJson = describeExtractionFailure(new SyntaxError('Unexpected token < in JSON'))
+  const blocked = describeExtractionFailure({ code: 'response-error' })
+  const unknown = describeExtractionFailure(undefined)
+  assert(/Try a clearer photo/.test(badJson), `bad JSON should read as unreadable: ${badJson}`)
+  assert(/Try a clearer photo/.test(blocked), `blocked response should read as unreadable: ${blocked}`)
+  assert(/Try a clearer photo/.test(unknown), `unknown error should read as unreadable: ${unknown}`)
 })
 
 console.log('')
