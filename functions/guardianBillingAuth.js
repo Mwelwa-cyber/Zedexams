@@ -33,15 +33,35 @@
  * to catch its own control flow. `code` is a callable error code so the
  * throwing caller can pass it straight through.
  *
- * ── The request id is dropped, never refused ────────────────────────
+ * ── A valid request id is dropped when it fails, never refused ──────
  *
- * `guardianRequestId` reaches the server from a URL in an email. A
- * mismatch means the link is stale or names another child; the PAYMENT is
- * still legitimate and must not be blocked by it. So a rejected request id
- * comes back as `guardianRequestId: null` with a warning logged, and the
- * purchase proceeds — the child simply is not told "your guardian
- * unlocked what you asked for", which is the honest outcome when we
- * cannot prove they asked.
+ * `guardianRequestId` reaches the server from a URL in an email or WhatsApp
+ * message. A mismatch means the link is stale or names another child; if
+ * the PAYER is separately authorised (an owning parentLinks role), that
+ * payment is still legitimate and must not be blocked by it. So a rejected
+ * request id comes back as `guardianRequestId: null` with a warning logged
+ * rather than refusing the purchase — the child simply is not told "your
+ * guardian unlocked what you asked for", which is the honest outcome when
+ * we cannot prove they asked.
+ *
+ * ── …but a valid one is ALSO enough, on its own ─────────────────────
+ *
+ * This is the flip side, and it is what makes the signed pay link
+ * (functions/guardianUnlock, GuardianUnlock.jsx) actually deliver on its
+ * "does not require the guardian to have an account" promise: before this,
+ * that was only true up to the point of PAYING — a guardian still needed a
+ * full registration and a confirmed family-code link to get past
+ * `decideGuardianPayment`'s `not-linked` refusal, which is exactly the
+ * two-account friction the link exists to remove. A `guardianRequests`
+ * record that is still `status: "sent"`, unexpired, and names this exact
+ * beneficiary is authorisation on its own — no `parentLinks` row needed.
+ * The trust model is possession of the 32-byte single-use token (hashed at
+ * rest — see guardianUnlockCore.js), the same boundary
+ * `startSameDeviceConsent`'s hand-off already relies on, not the payer's
+ * identity. So a co-guardian who was handed this exact link can complete
+ * this exact payment even though `manageBilling` would refuse them on the
+ * ordinary parentLinks path — they have shown the same thing an owner
+ * forwarding the link would have.
  */
 
 const {
@@ -84,24 +104,40 @@ async function authoriseGuardianPurchase({
     return {ok: true, beneficiaryUid: null, beneficiary: null, guardianRequestId: null};
   }
 
-  const [{roleFor, can}, linkSnap] = await Promise.all([
+  const requestedId = typeof rawRequestId === "string" ?
+    rawRequestId.trim().slice(0, MAX_REQUEST_ID) : "";
+
+  const [{roleFor, can}, linkSnap, reqSnap] = await Promise.all([
     import("./shared/guardian/guardianRolesCore.js"),
     db.collection(LINKS).where("learnerUid", "==", beneficiaryUid).get(),
+    requestedId ? db.collection(REQUESTS).doc(requestedId).get() : null,
   ]);
   const links = linkSnap.docs.map((d) => d.data() || {});
 
-  const verdict = decideGuardianPayment({
+  const settlement = decideRequestSettlement({
+    request: reqSnap && reqSnap.exists ? reqSnap.data() : null,
     beneficiaryUid,
-    role: roleFor(links, payerUid),
-    can,
   });
-  if (!verdict.allowed) {
-    return {
-      ok: false,
-      code: "permission-denied",
-      message: verdict.message,
-      reason: verdict.reason,
-    };
+
+  // A still-open, unexpired request naming THIS beneficiary is
+  // authorisation on its own — see rule 4 in the module docblock. It is
+  // checked before the parentLinks lookup because it is meant to succeed
+  // for a payer who holds none: that is the entire point of the signed pay
+  // link.
+  if (!settlement.settle) {
+    const verdict = decideGuardianPayment({
+      beneficiaryUid,
+      role: roleFor(links, payerUid),
+      can,
+    });
+    if (!verdict.allowed) {
+      return {
+        ok: false,
+        code: "permission-denied",
+        message: verdict.message,
+        reason: verdict.reason,
+      };
+    }
   }
 
   const beneficiarySnap = await db.collection("users").doc(beneficiaryUid).get();
@@ -114,30 +150,21 @@ async function authoriseGuardianPurchase({
     };
   }
 
-  let guardianRequestId = null;
-  const requestedId = typeof rawRequestId === "string" ?
-    rawRequestId.trim().slice(0, MAX_REQUEST_ID) : "";
-  if (requestedId) {
-    const reqSnap = await db.collection(REQUESTS).doc(requestedId).get();
-    const settlement = decideRequestSettlement({
-      request: reqSnap.exists ? reqSnap.data() : null,
-      beneficiaryUid,
+  if (requestedId && !settlement.settle) {
+    // Present but not usable as authorisation — dropped, not refused, per
+    // the module docblock. The payer already cleared decideGuardianPayment
+    // above (a link that fails to settle can never be the ONLY reason a
+    // purchase is allowed), so this is bookkeeping, not a gate.
+    console.warn(`[${logLabel}] guardian request not settled`, {
+      requestedId, reason: settlement.reason,
     });
-    if (settlement.settle) {
-      guardianRequestId = requestedId;
-    } else {
-      // Dropped, not refused — see the module docblock.
-      console.warn(`[${logLabel}] guardian request not settled`, {
-        requestedId, reason: settlement.reason,
-      });
-    }
   }
 
   return {
     ok: true,
     beneficiaryUid,
     beneficiary: beneficiarySnap.data() || {},
-    guardianRequestId,
+    guardianRequestId: settlement.settle ? requestedId : null,
   };
 }
 

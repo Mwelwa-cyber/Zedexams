@@ -44,6 +44,29 @@
 const SETTLEABLE_REQUEST_STATUSES = Object.freeze(["sent"]);
 
 /**
+ * Millisecond value of a Firestore Timestamp, a Date, an ISO string or a
+ * number. Returns `null` for anything unreadable, so an unparseable
+ * `expiresAt` is treated as "cannot prove this is still open" rather than
+ * as the beginning of time (which would sort as never-expired) or as now
+ * (which would sort as always-expired) — see decideRequestSettlement.
+ */
+function toMillis(value) {
+  if (value == null) return null;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value.toMillis === "function") {
+    const ms = value.toMillis();
+    return Number.isFinite(ms) ? ms : null;
+  }
+  if (typeof value.toDate === "function") {
+    const d = value.toDate();
+    return d instanceof Date && !Number.isNaN(d.getTime()) ? d.getTime() : null;
+  }
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.getTime();
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.getTime();
+}
+
+/**
  * Canonicalise the beneficiary a client asked to pay for.
  *
  * Returns `null` — meaning "an ordinary payment, credit the payer" — for
@@ -123,21 +146,36 @@ function isGuardianPayment(pay) {
  * @param {object} args
  * @param {object|null} args.request  the stored guardianRequests doc
  * @param {string|null} args.beneficiaryUid  who the payment credits
+ * @param {Date} [args.now]
  * @returns {{settle: boolean, reason?: string}}
  *
  * The check that matters is `request.uid === beneficiaryUid`. The id
- * arrives from a URL in an email, and settling flips a record and sends a
- * child a message saying their guardian unlocked it — so a request that
- * names a different child must not be settled by this payment, however
- * genuine both halves are separately.
+ * arrives from a URL in an email or WhatsApp message, and settling flips a
+ * record and sends a child a message saying their guardian unlocked it —
+ * so a request that names a different child must not be settled by this
+ * payment, however genuine both halves are separately.
+ *
+ * The EXPIRY check matters for a different reason since this result can
+ * now authorise a payment on its own (see guardianBillingAuth.js's rule 4):
+ * a token that has outlived its `PAY_LINK_TTL_DAYS` must stop being able to
+ * pay just because nobody got around to marking it "paid". Mirrors the same
+ * `expiresAt` reading `resolveGuardianPayLink` (functions/parentApp) does
+ * for the same field on the same collection — a missing expiry is read the
+ * same way in both places (never-expires), because both read it off the
+ * SAME record and disagreeing about it would let a link that resolves as
+ * open refuse to pay, or the reverse.
  */
-function decideRequestSettlement({request, beneficiaryUid} = {}) {
+function decideRequestSettlement({request, beneficiaryUid, now = new Date()} = {}) {
   if (!request) return {settle: false, reason: "not-found"};
   if (!beneficiaryUid) return {settle: false, reason: "no-beneficiary"};
   if (request.uid !== beneficiaryUid) return {settle: false, reason: "different-child"};
   if (request.status === "paid") return {settle: false, reason: "already-paid"};
   if (!SETTLEABLE_REQUEST_STATUSES.includes(request.status)) {
     return {settle: false, reason: "not-outstanding"};
+  }
+  const expiresAtMs = toMillis(request.expiresAt);
+  if (expiresAtMs != null && expiresAtMs <= now.getTime()) {
+    return {settle: false, reason: "expired"};
   }
   return {settle: true};
 }
