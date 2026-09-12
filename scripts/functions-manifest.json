@@ -2821,7 +2821,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
-        "secrets": "[emailSmtpUser, emailSmtpPassword]",
+        "secrets": "[emailSmtpUser, emailSmtpPassword, ...WHATSAPP_SECRETS]",
         "region": "\"us-central1\"",
         "timeoutSeconds": "30"
       },
