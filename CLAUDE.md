@@ -1123,7 +1123,24 @@ Two rules override everything else in this area:
   (`functions/guardianUnlock/`), rate-limited to one per learner per 72 hours
   **server-side** (`users.guardianUnlock` is on the rules blocklist). Message
   order is fixed by `functions/shared/guardian/guardianMessageCore.js`:
-  evidence → the ask → exam countdown → price. Never price first.
+  evidence → the ask → exam countdown → price. Never price first. Delivery is
+  email OR an approved WhatsApp template (`META_WHATSAPP_UNLOCK_TEMPLATE_NAME`,
+  see `.env.example`) — WhatsApp needs a template because the guardian has not
+  messaged us first, so free-form text would be outside Meta's 24-hour
+  customer-service window.
+- **Paying the ask does not require the guardian to have a `parentLinks` row —
+  or, since 2026-09, an account created for the purpose at all.** The signed
+  pay link (`/guardian-unlock?t=…`) always resolved with no account (the token
+  is unauthenticated-readable); `guardianBillingAuth.authoriseGuardianPurchase`'s
+  rule 4 now lets that same still-open, unexpired token authorise the PAYMENT
+  too, so a guardian only needs ANY signed-in, verified ZedExams account — not
+  specifically `role: 'parent'`, and not a confirmed family-code link — to
+  complete it directly on that page. The old two-step path (register as a
+  parent, wait for the child to confirm a family code, THEN pay from
+  `/family/plan`) still exists for the fuller parent-portal experience and is
+  what a guardian without the link falls back to. The trust boundary is
+  possession of the 32-byte single-use token, not payer identity — the same
+  boundary `startSameDeviceConsent`'s hand-off already relies on.
 - **The in-paper free set never walls the learner.** `PublicQuizRunner` ends the
   RUN at the free-set boundary and goes to the results screen; the offer is an
   inline `PaperContinueLock` below the free score, free review and free weak

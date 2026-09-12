@@ -55,6 +55,7 @@ import {
   buildGuardianMessage,
   priceComesLast,
   requestClause,
+  toWhatsAppVariables,
 } from '../functions/shared/guardian/guardianMessageCore.js'
 import { PLANS, availablePlans, cheapestPlan, planSaving, savingLabel } from '../src/config/plans.js'
 import { PLANS as CHECKOUT_PLANS } from '../src/engines/payment-engine/subscriptionConfig.js'
@@ -537,6 +538,29 @@ test('the request clause interpolates, and never leaks a template placeholder', 
   const noCount = requestClause({ feature: 'PAPER_CONTINUE' })
   assert.ok(!/[{}]/.test(noCount), noCount)
   assert.ok(!/undefined|NaN|null/.test(noCount), noCount)
+})
+
+test('the WhatsApp split keeps price last and carries the link', () => {
+  // A WhatsApp template's placeholders are fixed at approval time, so the
+  // message has to arrive pre-split rather than as one blob the way email
+  // gets it. This is what functions/metaWhatsApp.js's
+  // META_WHATSAPP_UNLOCK_TEMPLATE_NAME must be registered to accept.
+  const msg = buildGuardianMessage(FULL_PAYLOAD)
+  const { updateText, offerLine } = toWhatsAppVariables(msg)
+  assert.ok(updateText.includes('14 out of 20'))
+  // The price line never leaks into the first variable — a template that
+  // put the price ahead of the evidence would be exactly the "invoice from
+  // a stranger" problem this whole module exists to avoid.
+  assert.ok(!updateText.includes('K120'))
+  assert.ok(offerLine.includes('K120'))
+  assert.ok(offerLine.includes(FULL_PAYLOAD.payUrl))
+})
+
+test('the WhatsApp split degrades sanely with nothing to say', () => {
+  const bare = buildGuardianMessage({ learnerName: 'Elena', feature: 'PAPER_OFFLINE' })
+  const { updateText, offerLine } = toWhatsAppVariables(bare)
+  assert.ok(updateText.length > 0)
+  assert.equal(offerLine, '')
 })
 
 test('the first name is used, and an unknown gate still produces a sane ask', () => {

@@ -167,4 +167,42 @@ t('a missing request, or a payment with no beneficiary, settles nothing', () => 
   assert.equal(decideRequestSettlement({}).settle, false)
 })
 
+t('a request past its expiresAt no longer settles — see guardianBillingAuth rule 4', () => {
+  // This result now authorises a PAYMENT on its own with no parentLinks row
+  // at all, so a token that has outlived PAY_LINK_TTL_DAYS must stop being
+  // usable — regardless of `status`, which nothing ever flips back once a
+  // link is minted.
+  const now = new Date('2026-08-20T00:00:00Z')
+  const past = new Date('2026-08-19T23:59:59Z')
+  const future = new Date('2026-08-21T00:00:00Z')
+  const expired = decideRequestSettlement({
+    request: { uid: 'kid', status: 'sent', expiresAt: past }, beneficiaryUid: 'kid', now,
+  })
+  assert.equal(expired.settle, false)
+  assert.equal(expired.reason, 'expired')
+
+  const stillOpen = decideRequestSettlement({
+    request: { uid: 'kid', status: 'sent', expiresAt: future }, beneficiaryUid: 'kid', now,
+  })
+  assert.equal(stillOpen.settle, true)
+
+  // A Firestore Timestamp, not a Date — the shape it actually arrives in.
+  const asTimestamp = decideRequestSettlement({
+    request: { uid: 'kid', status: 'sent', expiresAt: { toMillis: () => past.getTime() } },
+    beneficiaryUid: 'kid',
+    now,
+  })
+  assert.equal(asTimestamp.settle, false)
+})
+
+t('a request with no expiresAt at all never expires', () => {
+  // Reads the same way resolveGuardianPayLink (functions/parentApp) reads a
+  // missing expiry on the same field of the same collection — the two must
+  // agree, or a link that resolves as open could refuse to pay.
+  assert.equal(
+    decideRequestSettlement({ request: { uid: 'kid', status: 'sent' }, beneficiaryUid: 'kid' }).settle,
+    true,
+  )
+})
+
 console.log(`guardian billing — ${passed} total assertions passed`)

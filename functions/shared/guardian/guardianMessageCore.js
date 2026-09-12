@@ -174,6 +174,36 @@ export function buildGuardianMessage(payload = {}) {
 }
 
 /**
+ * The same message, split for WhatsApp's two-variable template.
+ *
+ * A WhatsApp template's placeholders are fixed at Meta approval time — there
+ * is no single blob a template can hold the way an email body can — so the
+ * message has to arrive pre-split into the pieces the approved template was
+ * registered with. Two variables, not the email's one string: everything up
+ * to and including the exam countdown, then the price line WITH its link.
+ * The ordering rule this whole module exists to enforce does not change for
+ * this channel — evidence still comes before price, it is just carried in a
+ * separate placeholder instead of a later line of the same string.
+ *
+ * @param {{blocks: object[], cta: {label: string, url: string}|null}} message
+ *   the return value of buildGuardianMessage
+ * @returns {{updateText: string, offerLine: string}}
+ */
+export function toWhatsAppVariables(message) {
+  const blocks = message?.blocks || []
+  const updateText = blocks
+    .filter((b) => b.id !== 'price')
+    .map((b) => b.text)
+    .join('\n\n')
+  const priceBlock = blocks.find((b) => b.id === 'price')
+  const url = message?.cta?.url || ''
+  const offerLine = priceBlock
+    ? `${priceBlock.text}${url ? `: ${url}` : ''}`
+    : url
+  return { updateText, offerLine }
+}
+
+/**
  * The invariant, as a predicate a test can call: no price block may appear
  * before the evidence or request blocks.
  */

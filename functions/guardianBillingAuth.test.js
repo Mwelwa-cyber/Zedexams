@@ -186,6 +186,67 @@ async function main() {
         r.ok === true && r.guardianRequestId === null);
   }
 
+  // ── A valid token authorises on its own — no link at all ────────────
+  // The whole point of the signed pay link (guardianBillingAuth rule 4): a
+  // payer with NO parentLinks row for this child at all must still be able
+  // to pay when they hold a still-open, unexpired request naming the child.
+  const FUTURE = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const PAST = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const STRANGER = "stranger-1";
+  {
+    const db = fakeDb({
+      links: [], users: {[CHILD]: childUser},
+      requests: {"req-token": {uid: CHILD, status: "sent", expiresAt: FUTURE}},
+    });
+    const r = await authoriseGuardianPurchase({
+      db, payerUid: STRANGER, beneficiaryUid: CHILD, guardianRequestId: "req-token",
+    });
+    ok("a valid unexpired token authorises payment with no link at all",
+        r.ok === true && r.beneficiaryUid === CHILD && r.guardianRequestId === "req-token");
+  }
+  {
+    // An expired token is not authorisation, exactly like a naming mismatch
+    // or an already-paid one — it falls back to the ordinary link check,
+    // which still refuses a payer with nothing on file.
+    const db = fakeDb({
+      links: [], users: {[CHILD]: childUser},
+      requests: {"req-expired": {uid: CHILD, status: "sent", expiresAt: PAST}},
+    });
+    const r = await authoriseGuardianPurchase({
+      db, payerUid: STRANGER, beneficiaryUid: CHILD, guardianRequestId: "req-expired",
+    });
+    ok("an expired token does not bypass the link check",
+        r.ok === false && r.reason === "not-linked");
+  }
+  {
+    // A co-guardian may not pay on the ordinary parentLinks path (see the
+    // "co-guardian → refused as not-owner" case above) — but holding the
+    // actual signed link is a different, sufficient kind of proof.
+    const db = fakeDb({
+      links: [ownerLink, coGuardianLink], users: {[CHILD]: childUser},
+      requests: {"req-co": {uid: CHILD, status: "sent", expiresAt: FUTURE}},
+    });
+    const r = await authoriseGuardianPurchase({
+      db, payerUid: "parent-2", beneficiaryUid: CHILD, guardianRequestId: "req-co",
+    });
+    ok("a co-guardian holding the valid link may pay, unlike on the ordinary path",
+        r.ok === true && r.guardianRequestId === "req-co");
+  }
+  {
+    // The owner's OWN payment is unaffected by a token that fails to
+    // settle — the existing "dropped, never refused" behaviour must still
+    // hold once a token can also grant on its own.
+    const db = fakeDb({
+      links: [ownerLink], users: {[CHILD]: childUser},
+      requests: {"req-stale": {uid: CHILD, status: "sent", expiresAt: PAST}},
+    });
+    const r = await authoriseGuardianPurchase({
+      db, payerUid: PARENT, beneficiaryUid: CHILD, guardianRequestId: "req-stale",
+    });
+    ok("an expired token is still dropped rather than refused for a linked owner",
+        r.ok === true && r.guardianRequestId === null);
+  }
+
   console.log(`\n${passed} passed`);
 
 }
