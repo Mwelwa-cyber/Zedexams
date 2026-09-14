@@ -1038,7 +1038,7 @@
     "@sentry/vite-plugin": "^5.4.0",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
-    "@testing-library/user-event": "^14.6.6",
+    "@testing-library/user-event": "^14.6.7",
     "@vitejs/plugin-react": "^6.1.1",
     "@vitest/coverage-v8": "^4.1.11",
     "autoprefixer": "^10.5.4",
