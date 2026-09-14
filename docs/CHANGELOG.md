@@ -5,6 +5,12 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-09-14
+
+### Internal
+
+- Ledger paused 2026-09-06 → 2026-09-14: PR #2648 landed as a real merge commit ("Merge pull request #2648...") instead of a squash merge, which the trunk guard (scripts/test-release-notes-core.mjs) correctly flagged, since a merge commit inside the walked window would corrupt a --first-parent changelog walk. This entry is a manual boundary marker so Ledger's window moves past that commit; automated daily entries resume from here. Repo setting "Allow merge commits" has been disabled so this can't recur.
+
 ## 2026-09-05
 
 ### Added
