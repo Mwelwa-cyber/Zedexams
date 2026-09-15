@@ -5,6 +5,10 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-09-15
+
+_Dependencies: 1 automated bump (#2654)._
+
 ## 2026-09-14
 
 ### Internal
