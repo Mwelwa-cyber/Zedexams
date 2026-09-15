@@ -43,6 +43,11 @@ const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {defineSecret} = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const crypto = require("crypto");
+const {
+  WHATSAPP_SECRETS,
+  normalizeToWhatsApp,
+  sendWhatsAppUnlockRequest,
+} = require("../metaWhatsApp");
 
 const {
   MAX_NOTIFIED_PARENTS,
@@ -181,7 +186,11 @@ async function notifyLinkedParents({db, learnerUid, learnerName, clause}) {
 }
 
 exports.requestGuardianUnlock = onCall(
-    {secrets: [emailSmtpUser, emailSmtpPassword], region: "us-central1", timeoutSeconds: 30},
+    {
+      secrets: [emailSmtpUser, emailSmtpPassword, ...WHATSAPP_SECRETS],
+      region: "us-central1",
+      timeoutSeconds: 30,
+    },
     async (request) => {
       if (!request.auth?.uid) {
         throw new HttpsError("unauthenticated", "Please sign in first.");
@@ -216,7 +225,7 @@ exports.requestGuardianUnlock = onCall(
       // reached with `await import` INSIDE the handler — never a top-level
       // require. Same rule as functions/shared/assessment and
       // functions/shared/consent.
-      const {buildGuardianMessage, requestClause} =
+      const {buildGuardianMessage, requestClause, toWhatsAppVariables} =
         await import("../shared/guardian/guardianMessageCore.js");
       const {daysToExam} = require("./examCountdown");
 
@@ -276,12 +285,33 @@ exports.requestGuardianUnlock = onCall(
           text: message.text,
         });
       } else {
-        // WhatsApp outbound is limited to a 24-hour customer-service window a
-        // guardian who has never messaged us is not in (see metaWhatsApp.js).
-        // Email is the delivery channel; the WhatsApp contact is recorded so a
-        // future template-message path can use it without another migration.
-        console.warn("[guardianUnlock] whatsapp contact — no outbound window, not sent", {uid});
-        return {outcome: OUTCOME.NO_GUARDIAN};
+        // WhatsApp: an approved TEMPLATE message, which — unlike free text —
+        // may be sent outside the 24-hour customer-service window a guardian
+        // who has never messaged us is not in. Same mechanism the weekly
+        // parent digest already uses (see metaWhatsApp.js's
+        // META_WHATSAPP_UNLOCK_TEMPLATE_NAME docs for the exact template
+        // shape it must be registered with, and why it is a SEPARATE
+        // template from the digest's rather than a reuse of it).
+        const toWhatsApp = normalizeToWhatsApp(contact.contact);
+        if (!toWhatsApp) {
+          console.warn("[guardianUnlock] whatsapp contact does not normalise", {uid});
+          return {outcome: OUTCOME.FAILED};
+        }
+        const {updateText, offerLine} = toWhatsAppVariables(message);
+        const sent = await sendWhatsAppUnlockRequest({
+          to: toWhatsApp,
+          contentVariables: {1: updateText, 2: offerLine},
+          fallbackBody: message.text,
+        });
+        if (sent.status !== "sent") {
+          // Soft-fail, same posture as the rest of this module: neither "the
+          // template is not yet approved" nor "Meta's API had a bad moment"
+          // is "there is no guardian on file", so this must not be reported
+          // as NO_GUARDIAN — that copy tells the learner to add a contact
+          // that already exists.
+          console.warn("[guardianUnlock] whatsapp send did not succeed", {uid, ...sent});
+          return {outcome: OUTCOME.FAILED};
+        }
       }
 
       // Mirror to the learner's bell so the request survives the sheet closing.
