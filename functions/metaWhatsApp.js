@@ -50,6 +50,33 @@
  *                                    or the Functions Console — no
  *                                    redeploy needed when you flip it.
  *
+ *   META_WHATSAPP_UNLOCK_TEMPLATE_NAME  A second, separately-approved
+ *                                    template for "ask your guardian to
+ *                                    unlock this" (functions/guardianUnlock).
+ *                                    A different message needs a different
+ *                                    approved template — Meta reviews the
+ *                                    fixed text around each placeholder, so
+ *                                    the digest's template cannot be reused
+ *                                    for a different message. Exactly two
+ *                                    body variables, in this order:
+ *                                    1=the evidence + what the child asked
+ *                                    for (may be several sentences),
+ *                                    2=the offer and pay link together
+ *                                    ("Unlock — K120 for the term:
+ *                                    https://zedexams.com/guardian-unlock?t=…").
+ *                                    Two rather than the digest's three
+ *                                    because there is no learner-name slot —
+ *                                    the name is already inside variable 1 —
+ *                                    and the price must stay LAST, after the
+ *                                    evidence, exactly as the emailed version
+ *                                    of this same message does (see
+ *                                    functions/shared/guardian/guardianMessageCore.js).
+ *                                    Until this is set and approved, a
+ *                                    WhatsApp-only guardian gets no unlock
+ *                                    request at all — see requestGuardianUnlock's
+ *                                    WhatsApp branch, which soft-fails the
+ *                                    same way this whole module does.
+ *
  * Test mode (no business verification needed):
  *   - In Meta's API Setup page, the "Test phone number" mode lets
  *     you send to up to 5 verified recipient numbers (you add them
@@ -122,6 +149,10 @@ function readTemplateName() {
   return String(process.env.META_WHATSAPP_TEMPLATE_NAME || "").trim();
 }
 
+function readUnlockTemplateName() {
+  return String(process.env.META_WHATSAPP_UNLOCK_TEMPLATE_NAME || "").trim();
+}
+
 function isConfigured() {
   return Boolean(
       readSecret(metaWhatsAppToken) &&
@@ -185,9 +216,43 @@ function normalizeToWhatsApp(rawPhone, {defaultCountryCode = "260"} = {}) {
  * here).
  */
 async function sendWhatsAppDigest({to, body, contentVariables}) {
+  return sendViaTemplateOrText({
+    to, templateName: readTemplateName(), contentVariables, fallbackBody: body,
+  });
+}
+
+/**
+ * Send "ask your guardian to unlock this" over WhatsApp. Same mechanism as
+ * `sendWhatsAppDigest` — an approved template when one is configured, so the
+ * message can reach a guardian outside the 24-hour customer-service window,
+ * which is the normal case here: the child is asking on their own initiative,
+ * not replying to something the guardian just sent. Reads its OWN template
+ * name (`META_WHATSAPP_UNLOCK_TEMPLATE_NAME`) — see the header of this file
+ * for why it cannot share the digest's.
+ *
+ * @param {Object} args
+ * @param {string} args.to                  Already normalised E.164 digits.
+ * @param {Object} [args.contentVariables]  {1: evidence+ask, 2: offer+link} —
+ *   see the header doc for the exact two-variable shape the template must be
+ *   registered with.
+ * @param {string} [args.fallbackBody]  Free-form text, used only on the
+ *   test-phone / 24h-window path (no template configured).
+ * @returns {Promise<{status: 'sent'|'skipped'|'failed', ...}>}
+ */
+async function sendWhatsAppUnlockRequest({to, contentVariables, fallbackBody}) {
+  return sendViaTemplateOrText({
+    to, templateName: readUnlockTemplateName(), contentVariables, fallbackBody,
+  });
+}
+
+/**
+ * The shared HTTP + template/text-branch logic behind both outbound senders
+ * above. Pulled out so a second message type (the guardian unlock request)
+ * did not have to fork the whole Graph API call to get its own template name.
+ */
+async function sendViaTemplateOrText({to, templateName, contentVariables, fallbackBody: body}) {
   const token = readSecret(metaWhatsAppToken);
   const phoneNumberId = readSecret(metaWhatsAppPhoneNumberId);
-  const templateName = readTemplateName();
 
   if (!token || !phoneNumberId) {
     return {status: "skipped", reason: "meta-not-configured"};
@@ -427,6 +492,7 @@ module.exports = {
   isConfigured,
   normalizeToWhatsApp,
   sendWhatsAppDigest,
+  sendWhatsAppUnlockRequest,
   sendWhatsAppText,
   buildWhatsAppDigestBody,
   verifyWebhookSubscription,
