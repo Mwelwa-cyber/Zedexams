@@ -5,6 +5,14 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-09-20
+
+### Changed
+
+- Let a guardian pay via the signed pay link without a linked parent account (#2649)
+
+_Dependencies: 2 automated bumps (#2635, #2654)._
+
 ## 2026-09-14
 
 ### Internal
