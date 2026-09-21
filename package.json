@@ -1019,7 +1019,7 @@
     "jszip": "^3.10.1",
     "katex": "^0.18.7",
     "lucide-react": "^1.31.0",
-    "marked": "^18.0.12",
+    "marked": "^18.0.13",
     "pdfjs-dist": "^6.2.108",
     "posthog-js": "^1.422.5",
     "qrcode": "^1.5.4",
