@@ -5,6 +5,16 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-09-23
+
+### Changed
+
+- Fix the Lenco payment-status poll and two importer callables throwing ReferenceError (#2667)
+- Move notifications, guardian, storage-cleanup and 14 more backend areas to firebase-admin modular imports (#2666)
+- Let a guardian pay via the signed pay link without a linked parent account (#2649)
+
+_Dependencies: 3 automated bumps (#2651, #2635, #2654)._
+
 ## 2026-09-14
 
 ### Internal
