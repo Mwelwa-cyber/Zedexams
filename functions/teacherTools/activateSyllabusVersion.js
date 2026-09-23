@@ -40,7 +40,7 @@
  * Returns: { ok, version, previousVersion, promoted, lessonsWritten, cacheBust }.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
 const {assertAdminSecondFactor} = require("../security/requireAdminMfa");
@@ -200,7 +200,7 @@ exports.activateSyllabusVersion = onCall(
       request.data && typeof request.data.expectedPreviousVersion === "string" ?
         request.data.expectedPreviousVersion : null;
 
-    const db = admin.firestore();
+    const db = getFirestore();
     const draftsCol = db
       .collection("cbcKnowledgeBase")
       .doc(version)
@@ -257,7 +257,7 @@ exports.activateSyllabusVersion = onCall(
     };
 
     const writer = makeBatchWriter(db);
-    const now = admin.firestore.FieldValue.serverTimestamp();
+    const now = FieldValue.serverTimestamp();
     let promoted = 0;
     let lessonsWritten = 0;
 
@@ -310,7 +310,7 @@ exports.activateSyllabusVersion = onCall(
     await metaRef.set({
       version,
       usePrivateCurriculum: false,
-      cacheBust: admin.firestore.FieldValue.increment(1),
+      cacheBust: FieldValue.increment(1),
       previousVersion,
       activatedBy: uid,
       activatedAt: now,

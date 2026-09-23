@@ -19,7 +19,7 @@
  * lessonPlanTemplateBank.js so it can be unit-tested under plain node.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onDocumentWritten} = require("firebase-functions/v2/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
@@ -69,7 +69,7 @@ function contentSignature(plan) {
 
 async function isPaused() {
   try {
-    const snap = await admin.firestore().doc("agentControl/templateBank").get();
+    const snap = await getFirestore().doc("agentControl/templateBank").get();
     return snap.exists && snap.data() && snap.data().paused === true;
   } catch (err) {
     return false; // fail-open: a missing breaker never blocks the bank
@@ -178,9 +178,9 @@ async function processGeneration(genId, gen, apiKey) {
   if (!meetsQualityFloor(deterministic)) return;
   if (!coords.subject || !coords.topic) return;
 
-  const db = admin.firestore();
+  const db = getFirestore();
   const dedupeKey = templateDedupeKey(coords);
-  const FieldValue = admin.firestore.FieldValue;
+  const FieldValue = FieldValue;
   const curriculumVersion = await getActiveKbVersion().catch(() => "");
 
   const existingSnap = await db.collection(TEMPLATES_COLLECTION)
@@ -320,9 +320,9 @@ function createRecordTemplateInteraction() {
     const action = data.action === "rate" ? "rate" : "use";
     if (!templateId) throw new HttpsError("invalid-argument", "templateId is required.");
 
-    const db = admin.firestore();
+    const db = getFirestore();
     const ref = db.collection(TEMPLATES_COLLECTION).doc(templateId);
-    const FieldValue = admin.firestore.FieldValue;
+    const FieldValue = FieldValue;
 
     if (action === "use") {
       await ref.update({usageCount: FieldValue.increment(1)})

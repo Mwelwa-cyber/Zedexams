@@ -15,7 +15,7 @@
  * than lesson plans and don't benefit from Sonnet's deeper reasoning.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
 const {assertGeneratorRateLimit} = require("./generatorRateLimit");
@@ -237,7 +237,7 @@ function validateInputs(inputs) {
 async function buildResumedWorksheetResponse(operation) {
   const genId = operation.resultDocumentId;
   const genSnap = genId ?
-    await admin.firestore().collection("aiGenerations").doc(genId).get() : null;
+    await getFirestore().collection("aiGenerations").doc(genId).get() : null;
   const genData = genSnap && genSnap.exists ? genSnap.data() : null;
   return {
     generationId: genId,
@@ -314,7 +314,7 @@ async function runWorksheet({uid, rawInputs, apiKey, onProgress, idempotencyKey}
   // that used to sit here is deleted rather than bypassed: a reservation that
   // settles onto an auto-id document cannot be resumed, because the retry
   // carries the key but has no way back to what the first attempt wrote.
-  const genRef = admin.firestore().collection("aiGenerations").doc(idempotencyKey);
+  const genRef = getFirestore().collection("aiGenerations").doc(idempotencyKey);
   const reservePromise = genRef.set({
     ownerUid: uid,
     tool: "worksheet",
@@ -329,7 +329,7 @@ async function runWorksheet({uid, rawInputs, apiKey, onProgress, idempotencyKey}
     costUsdCents: 0,
     status: "generating",
     errorMessage: null,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
     completedAt: null,
     teacherEdited: false,
     exportedFormats: [],
@@ -433,7 +433,7 @@ async function runWorksheet({uid, rawInputs, apiKey, onProgress, idempotencyKey}
       errorMessage: `Schema errors: ${validation.errors.join("; ")}`,
       output: worksheet,
       outputText: String(raw || "").slice(0, 20000),
-      completedAt: admin.firestore.FieldValue.serverTimestamp(),
+      completedAt: FieldValue.serverTimestamp(),
       tokensIn: Number(usageInfo.inputTokens || 0),
       tokensOut: Number(usageInfo.outputTokens || 0),
       modelUsed,
@@ -472,7 +472,7 @@ async function runWorksheet({uid, rawInputs, apiKey, onProgress, idempotencyKey}
     tokensOut,
     costUsdCents,
     modelUsed,
-    completedAt: admin.firestore.FieldValue.serverTimestamp(),
+    completedAt: FieldValue.serverTimestamp(),
   }, {merge: true});
   try {
     await completeAiOperation({idempotencyKey, resultDocumentId: genRef.id, usageCharged: 1});

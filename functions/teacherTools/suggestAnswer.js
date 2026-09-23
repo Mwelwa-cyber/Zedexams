@@ -27,7 +27,7 @@
  * question.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertCallableRateLimit} = require("../rateLimit");
 const {assertVerifiedAuth} = require("../authGuard");
@@ -518,7 +518,7 @@ async function callGeminiForAnswer({inputs, geminiKey, directive}) {
 async function buildResumedSuggestResponse(uid, operation) {
   const genId = operation.resultDocumentId;
   const snap = genId ?
-    await admin.firestore().collection("aiGenerations").doc(genId).get() : null;
+    await getFirestore().collection("aiGenerations").doc(genId).get() : null;
   const out = snap && snap.exists ? (snap.data().output || {}) : {};
   return {uid, ...out, resumed: true};
 }
@@ -550,7 +550,7 @@ async function runSuggestAnswer({uid, inputs, apiKey, geminiKey, idempotencyKey}
 
   const usage = await assertAndIncrement(uid, "suggest_answer");
 
-  const genRef = admin.firestore().collection("aiGenerations").doc(idempotencyKey);
+  const genRef = getFirestore().collection("aiGenerations").doc(idempotencyKey);
   await genRef.set({
     ownerUid: uid,
     tool: "suggest_answer",
@@ -562,7 +562,7 @@ async function runSuggestAnswer({uid, inputs, apiKey, geminiKey, idempotencyKey}
     modelUsed: SUGGEST_MODEL,
     status: "generating",
     errorMessage: null,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
     completedAt: null,
     visibility: "private",
   }).catch((err) => console.warn("[suggestAnswer] reserve doc failed", err));
@@ -639,7 +639,7 @@ async function runSuggestAnswer({uid, inputs, apiKey, geminiKey, idempotencyKey}
   await genRef.set({
     status: "complete",
     output,
-    completedAt: admin.firestore.FieldValue.serverTimestamp(),
+    completedAt: FieldValue.serverTimestamp(),
   }, {merge: true}).catch(() => {});
   try {
     await completeAiOperation({idempotencyKey, resultDocumentId: genRef.id, usageCharged: 1});

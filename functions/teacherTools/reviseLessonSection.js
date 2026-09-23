@@ -25,7 +25,7 @@
  * quota because a teacher polishing a plan will revise several sections.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertCallableRateLimit} = require("../rateLimit");
 const {assertVerifiedAuth} = require("../authGuard");
@@ -70,7 +70,7 @@ function sectionSource(inputs) {
 async function buildResumedSectionResponse(operation) {
   const genId = operation.resultDocumentId;
   const snap = genId ?
-    await admin.firestore().collection("aiGenerations").doc(genId).get() : null;
+    await getFirestore().collection("aiGenerations").doc(genId).get() : null;
   const out = snap && snap.exists ? (snap.data().output || {}) : {};
   return {...out, resumed: true};
 }
@@ -98,7 +98,7 @@ async function runReviseLessonSection({uid, inputs, apiKey, idempotencyKey}) {
 
   const usage = await assertAndIncrement(uid, "revise_lesson_section");
 
-  const genRef = admin.firestore().collection("aiGenerations").doc(idempotencyKey);
+  const genRef = getFirestore().collection("aiGenerations").doc(idempotencyKey);
   await genRef.set({
     ownerUid: uid,
     tool: "revise_lesson_section",
@@ -110,7 +110,7 @@ async function runReviseLessonSection({uid, inputs, apiKey, idempotencyKey}) {
     modelUsed: REVISE_MODEL,
     status: "generating",
     errorMessage: null,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
     completedAt: null,
     visibility: "private",
   }).catch((err) => console.warn("[reviseLessonSection] reserve doc failed", err));
@@ -176,7 +176,7 @@ async function runReviseLessonSection({uid, inputs, apiKey, idempotencyKey}) {
   await genRef.set({
     status: "complete",
     output,
-    completedAt: admin.firestore.FieldValue.serverTimestamp(),
+    completedAt: FieldValue.serverTimestamp(),
   }, {merge: true}).catch(() => {});
   try {
     await completeAiOperation({idempotencyKey, resultDocumentId: genRef.id, usageCharged: 1});

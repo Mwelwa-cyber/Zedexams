@@ -24,6 +24,7 @@ import { dirname, join } from "node:path";
 import Module from "node:module";
 
 const require = createRequire(import.meta.url);
+const {modularAdminModules} = require("../functions/testFixtures/modularAdminStub.js");
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const KB = join(ROOT, "functions/teacherTools/cbcKnowledge.js");
@@ -85,6 +86,7 @@ console.error = (...args) => {
 const origLoad = Module._load;
 Module._load = function (request, parent, ...rest) {
   if (request === "firebase-admin") return fakeAdmin;
+  if (request.startsWith("firebase-admin/")) return modularAdminModules(fakeAdmin)[request];
   return origLoad.call(this, request, parent, ...rest);
 };
 const kb = require(KB);

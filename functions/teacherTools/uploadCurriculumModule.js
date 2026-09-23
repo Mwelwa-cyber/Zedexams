@@ -39,7 +39,8 @@
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertCallableRateLimit} = require("../rateLimit");
 const {assertVerifiedAuth} = require("../authGuard");
-const admin = require("firebase-admin");
+const {FieldValue, FieldPath, getFirestore} = require("firebase-admin/firestore");
+const {getStorage} = require("firebase-admin/storage");
 
 const {
   chunkText,
@@ -144,7 +145,7 @@ function createUploadCurriculumModule(openaiApiKeySecret) {
           "Unsupported file type — only .pdf, .docx, .xlsx are accepted.");
     }
 
-    const bucket = admin.storage().bucket();
+    const bucket = getStorage().bucket();
     const file = bucket.file(storagePath);
 
     let metadata;
@@ -214,8 +215,8 @@ function createUploadCurriculumModule(openaiApiKeySecret) {
       filename, grade, subject, term, topic, documentType, tags: allTags,
     });
 
-    const db = admin.firestore();
-    const now = admin.firestore.FieldValue.serverTimestamp();
+    const db = getFirestore();
+    const now = FieldValue.serverTimestamp();
 
     // Batched commit. Firestore batches max 500 ops; chunkDocs is capped
     // at MAX_CHUNKS (200) plus 2 extra docs (curriculum + uploads
@@ -292,7 +293,7 @@ function createDeleteCurriculumUpload() {
     if (!/^[a-f0-9]{8,64}$/i.test(idRaw)) {
       throw new HttpsError("invalid-argument", "Bad id.");
     }
-    const db = admin.firestore();
+    const db = getFirestore();
     const uploadRef = db.collection("curriculumUploads").doc(idRaw);
     const snap = await uploadRef.get();
     if (!snap.exists) {
@@ -310,8 +311,8 @@ function createDeleteCurriculumUpload() {
     // ￿ is the last code-point Firestore uses for string ordering.
     const endId = `${curriculumDocId_}_￿`;
     const chunksSnap = await db.collection("rag_chunks")
-        .where(admin.firestore.FieldPath.documentId(), ">=", startId)
-        .where(admin.firestore.FieldPath.documentId(), "<", endId)
+        .where(FieldPath.documentId(), ">=", startId)
+        .where(FieldPath.documentId(), "<", endId)
         .limit(500)
         .get();
 
@@ -323,7 +324,7 @@ function createDeleteCurriculumUpload() {
 
     if (storagePath) {
       try {
-        await admin.storage().bucket().file(storagePath).delete({
+        await getStorage().bucket().file(storagePath).delete({
           ignoreNotFound: true,
         });
       } catch (err) {

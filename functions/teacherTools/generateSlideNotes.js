@@ -21,7 +21,7 @@
  * paid once at generation time, gated to admins.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
 const {assertGeneratorRateLimit} = require("./generatorRateLimit");
@@ -256,7 +256,7 @@ async function runSlideNotes({uid, rawInputs, apiKey, openaiKey}) {
 
   const usage = await assertAndIncrement(uid, "slide_notes");
 
-  const genRef = admin.firestore().collection("aiGenerations").doc();
+  const genRef = getFirestore().collection("aiGenerations").doc();
   await genRef.set({
     ownerUid: uid,
     tool: "slide_notes",
@@ -272,7 +272,7 @@ async function runSlideNotes({uid, rawInputs, apiKey, openaiKey}) {
     imageCount: 0,
     status: "generating",
     errorMessage: null,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
     completedAt: null,
     teacherEdited: false,
     exportedFormats: [],
@@ -330,7 +330,7 @@ async function runSlideNotes({uid, rawInputs, apiKey, openaiKey}) {
       errorMessage: `Schema errors: ${(validation.errors || []).join("; ")}`,
       output: deck || null,
       outputText: String(raw || "").slice(0, 20000),
-      completedAt: admin.firestore.FieldValue.serverTimestamp(),
+      completedAt: FieldValue.serverTimestamp(),
       tokensIn,
       tokensOut,
       costUsdCents: textCostCents,
@@ -395,7 +395,7 @@ async function runSlideNotes({uid, rawInputs, apiKey, openaiKey}) {
     costUsdCents: textCostCents + imageCostCents,
     imageCount: imageStats.generated,
     modelUsed,
-    completedAt: admin.firestore.FieldValue.serverTimestamp(),
+    completedAt: FieldValue.serverTimestamp(),
   });
 
   return {

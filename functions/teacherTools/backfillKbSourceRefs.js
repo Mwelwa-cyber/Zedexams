@@ -32,7 +32,7 @@
  *     by grade/subject or run twice.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
 
@@ -101,7 +101,7 @@ exports.backfillKbSourceRefs = onCall(
       const subjectFilter = typeof data.subject === "string" && data.subject ?
         normalizeSubject(data.subject) : null;
 
-      const db = admin.firestore();
+      const db = getFirestore();
       const kbVersion = await getActiveKbVersion();
       const idx = await loadSyllabusIndex(db);
 
@@ -162,7 +162,7 @@ exports.backfillKbSourceRefs = onCall(
           batch.set(lessonDoc.ref, {
             sourceDocId: pick.id,
             sourceStoragePath: pick.storagePath || null,
-            verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+            verifiedAt: FieldValue.serverTimestamp(),
             verifiedBy: "admin-backfill",
           }, {merge: true});
           inBatch += 1;

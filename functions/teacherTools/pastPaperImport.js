@@ -28,7 +28,8 @@
  * Output: { questions, questionsWritten, questionsCleared, report, warning? }.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
+const {getStorage} = require("firebase-admin/storage");
 // mammoth is required lazily inside extractDocxText() — see the note there.
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
@@ -387,7 +388,7 @@ async function loadPaperOrThrow(paperId) {
   if (!paperId || typeof paperId !== "string") {
     throw new HttpsError("invalid-argument", "paperId is required.");
   }
-  const snap = await admin.firestore().doc(`pastPapers/${paperId}`).get();
+  const snap = await getFirestore().doc(`pastPapers/${paperId}`).get();
   if (!snap.exists) {
     throw new HttpsError("not-found", "Past paper not found.");
   }
@@ -428,7 +429,7 @@ function pickSources(paper) {
 }
 
 async function downloadAsset(path) {
-  const [buf] = await admin.storage().bucket().file(path).download();
+  const [buf] = await getStorage().bucket().file(path).download();
   return buf;
 }
 
@@ -922,13 +923,13 @@ async function recoverNumberGaps({apiKey, paper, segments, accum, seenKeys, seen
  * rather than a count.
  */
 async function pruneQuestionsNotIn(quizId, keepIds) {
-  const ref = admin.firestore().collection(`quizzes/${quizId}/questions`);
+  const ref = getFirestore().collection(`quizzes/${quizId}/questions`);
   const snap = await ref.get();
   if (snap.empty) return 0;
   const stale = snap.docs.filter((d) => !keepIds.has(d.id));
   for (let i = 0; i < stale.length; i += 400) {
     const chunk = stale.slice(i, i + 400);
-    const batch = admin.firestore().batch();
+    const batch = getFirestore().batch();
     chunk.forEach((d) => batch.delete(d.ref));
     await batch.commit();
   }
@@ -966,7 +967,7 @@ function toQuestionDoc(q, order) {
     // Per-card structural verdict from the shared engine, shown as a status
     // chip in the Quiz Editor (ok | warning | error).
     validationStatus: computeValidationStatus(q),
-    importedAt: admin.firestore.FieldValue.serverTimestamp(),
+    importedAt: FieldValue.serverTimestamp(),
     importSource: "past_paper_ai",
   };
   if (q.sourceNumber != null) {
@@ -1044,10 +1045,10 @@ async function writeQuestionsToQuiz(quizId, questions, provenance = {}) {
   if (!questions.length) return 0;
   for (let i = 0; i < questions.length; i += 400) {
     const chunk = questions.slice(i, i + 400);
-    const batch = admin.firestore().batch();
+    const batch = getFirestore().batch();
     chunk.forEach((q, offset) => {
       const id = questionDocId(i + offset);
-      const ref = admin.firestore().doc(`quizzes/${quizId}/questions/${id}`);
+      const ref = getFirestore().doc(`quizzes/${quizId}/questions/${id}`);
       batch.set(ref, {...toQuestionDoc(q, i + offset), ...provenance}, {merge: false});
     });
     await batch.commit();
@@ -1083,7 +1084,7 @@ function paperProvenanceFields(paper) {
  * quiz nor burns an AI generation.
  */
 async function assertQuizWritable(quizId, uid, isAdmin) {
-  const snap = await admin.firestore().doc(`quizzes/${quizId}`).get();
+  const snap = await getFirestore().doc(`quizzes/${quizId}`).get();
   if (!snap.exists) {
     throw new HttpsError("not-found", "Target quiz not found.");
   }
@@ -1144,12 +1145,12 @@ async function persistPrintedSpec(paperId, printedSpec) {
   if (!printedSpec.durationMinutes && !printedSpec.statedTime &&
       !printedSpec.questionCount && printedSpec.totalMarks == null) return;
   try {
-    await admin.firestore().doc(`pastPapers/${paperId}`).set({
+    await getFirestore().doc(`pastPapers/${paperId}`).set({
       printedSpec: {
         ...printedSpec,
-        readAt: admin.firestore.FieldValue.serverTimestamp(),
+        readAt: FieldValue.serverTimestamp(),
       },
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     }, {merge: true});
   } catch (err) {
     console.warn("[pastPaperImport] printedSpec write failed",
@@ -1344,7 +1345,7 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
     const keepIds = new Set(questions.map((_q, i) => questionDocId(i)));
     cleared = await pruneQuestionsNotIn(quizId, keepIds);
     try {
-      await admin.firestore().doc(`quizzes/${quizId}`).set({
+      await getFirestore().doc(`quizzes/${quizId}`).set({
         questionCount: written,
         // The quiz inherits the paper's provenance too, so a surface holding
         // only the quiz can tell an ECZ practice run from a mock one.
@@ -1353,7 +1354,7 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
         // re-run clears any stale passages from a previous import.
         passages: passagesForQuiz,
         passageCount: passagesForQuiz.length,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       }, {merge: true});
     } catch (err) {
       console.warn("[pastPaperImport] quiz count sync failed",
@@ -1422,7 +1423,7 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
 
   // Log to aiGenerations for cost tracking + audit trail.
   try {
-    await admin.firestore().collection("aiGenerations").add({
+    await getFirestore().collection("aiGenerations").add({
       kind: "past_paper_import",
       paperId,
       quizId: quizId || null,
@@ -1441,7 +1442,7 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
       tablesCaptured,
       confidence: report.confidence,
       gated: !gate.ok,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
     });
   } catch (err) {
     console.warn("[pastPaperImport] usage log failed", err && err.message);

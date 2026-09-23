@@ -15,7 +15,7 @@ const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
 const {assertCallableRateLimit} = require("../rateLimit");
 const {defineSecret} = require("firebase-functions/params");
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 
 const {getUserRole, isAdminRole} = require("../aiService");
 const {anthropicFetch} = require("../anthropicFetch");
@@ -117,7 +117,7 @@ async function pingAnthropic(anthropicApiKeySecret) {
 }
 
 async function readAgentControl() {
-  const db = admin.firestore();
+  const db = getFirestore();
   const out = {};
   await Promise.all(AGENT_IDS.map(async (id) => {
     const snap = await db.doc(`agentControl/${id}`).get().catch(() => null);
@@ -157,7 +157,7 @@ async function summariseKb() {
 }
 
 async function summariseRecentJobs() {
-  const db = admin.firestore();
+  const db = getFirestore();
   const snap = await db.collection("agentJobs")
     .orderBy("createdAt", "desc")
     .limit(50)
@@ -224,7 +224,7 @@ function createInitializeAgentPipeline() {
     enforceAppCheck: shouldEnforceAppCheck("initializeAgentPipeline"),
   }, async (request) => {
     const uid = await requireAdmin(request);
-    const db = admin.firestore();
+    const db = getFirestore();
     const created = [];
     const skipped = [];
     await Promise.all(AGENT_IDS.map(async (id) => {
@@ -237,9 +237,9 @@ function createInitializeAgentPipeline() {
       await ref.set({
         paused: false,
         createdBy: uid,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
         updatedBy: uid,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
         initializedByHealthPanel: true,
       });
       created.push(id);
@@ -256,7 +256,7 @@ function createRunSampleAgentJob() {
     enforceAppCheck: shouldEnforceAppCheck("runSampleAgentJob"),
   }, async (request) => {
     const uid = await requireAdmin(request);
-    const db = admin.firestore();
+    const db = getFirestore();
     const ref = db.collection("agentJobs").doc();
     await ref.set({
       agentId: "aria",
@@ -264,8 +264,8 @@ function createRunSampleAgentJob() {
       status: "queued",
       input: SAMPLE_BRIEF,
       createdBy: uid,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
       origin: "platformHealthPanel",
     });
     return {ok: true, jobId: ref.id};

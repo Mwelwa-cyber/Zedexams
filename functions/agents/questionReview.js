@@ -26,7 +26,7 @@
  * ./questionReviewCore so it tests under plain `node`.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onDocumentWritten} = require("firebase-functions/v2/firestore");
 const {classifyDuplicate, recommendationToStatus} = require("./questionDedupCore");
 const {classifyEmbeddingDuplicate} = require("./questionEmbeddingCore");
@@ -59,7 +59,7 @@ const TRIGGER_OPTS = {
 
 /** The Firestore server-timestamp sentinel, as the Core builders expect it. */
 function serverTimestamp() {
-  return admin.firestore.FieldValue.serverTimestamp();
+  return FieldValue.serverTimestamp();
 }
 
 /* --------------------------- dedup candidate read --------------------------- */
@@ -179,7 +179,7 @@ async function flagDuplicate(db, jobRef, dup, extra = {}) {
   await jobRef.set(buildDuplicateUpdate(dup, extra, serverTimestamp), {merge: true});
   try {
     await db.collection("questionBank").doc(dup.duplicateOf).set({
-      usageCount: admin.firestore.FieldValue.increment(1),
+      usageCount: FieldValue.increment(1),
       updatedAt: serverTimestamp(),
     }, {merge: true});
   } catch (err) {
@@ -227,7 +227,7 @@ function createQuestionReviewOnWrite(anthropicApiKeySecret, openaiApiKeySecret) 
       // (deletions and already-reviewed docs are skipped).
       if (!shouldReviewQuestion(after)) return;
 
-      const db = admin.firestore();
+      const db = getFirestore();
       const control = await qixControl(db);
       if (control.paused) return; // breaker tripped — leave pending
 

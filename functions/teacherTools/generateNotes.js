@@ -22,7 +22,7 @@
  * applicable) `inputs.lessonPlanId` linking back to the source plan.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
 const {assertGeneratorRateLimit} = require("./generatorRateLimit");
@@ -196,7 +196,7 @@ function validateInputs(inputs) {
 
 async function loadLessonPlan(uid, lessonPlanId) {
   if (!lessonPlanId) return null;
-  const snap = await admin.firestore()
+  const snap = await getFirestore()
     .collection("aiGenerations").doc(lessonPlanId).get();
   if (!snap.exists) {
     throw new HttpsError("not-found", "That lesson plan no longer exists.");
@@ -247,7 +247,7 @@ async function loadLessonPlan(uid, lessonPlanId) {
 async function buildResumedNotesResponse(operation) {
   const genId = operation.resultDocumentId;
   const genSnap = genId ?
-    await admin.firestore().collection("aiGenerations").doc(genId).get() : null;
+    await getFirestore().collection("aiGenerations").doc(genId).get() : null;
   const genData = genSnap && genSnap.exists ? genSnap.data() : null;
   return {
     generationId: genId,
@@ -276,7 +276,7 @@ async function buildResumedNotesResponse(operation) {
  */
 async function runLearnerNotes({uid, inputs, apiKey, idempotencyKey, sourcePlan}) {
   const usage = await assertAndIncrement(uid, "notes");
-  const genRef = admin.firestore().collection("aiGenerations").doc(idempotencyKey);
+  const genRef = getFirestore().collection("aiGenerations").doc(idempotencyKey);
 
   await genRef.set({
     ownerUid: uid,
@@ -291,7 +291,7 @@ async function runLearnerNotes({uid, inputs, apiKey, idempotencyKey, sourcePlan}
     costUsdCents: 0,
     status: "generating",
     errorMessage: null,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
     completedAt: null,
     teacherEdited: false,
     exportedFormats: [],
@@ -377,7 +377,7 @@ async function runLearnerNotes({uid, inputs, apiKey, idempotencyKey, sourcePlan}
     costUsdCents,
     modelUsed: result.modelUsed,
     promptVersion: result.promptVersion,
-    completedAt: admin.firestore.FieldValue.serverTimestamp(),
+    completedAt: FieldValue.serverTimestamp(),
   });
 
   try {
@@ -464,7 +464,7 @@ async function runNotes({uid, rawInputs, apiKey, idempotencyKey}) {
   // the resumed-completed path reads it straight back by id. The auto-id branch
   // that used to sit here is deleted rather than bypassed: a reservation that
   // settles onto an auto-id document cannot be resumed.
-  const genRef = admin.firestore().collection("aiGenerations").doc(idempotencyKey);
+  const genRef = getFirestore().collection("aiGenerations").doc(idempotencyKey);
   await genRef.set({
     ownerUid: uid,
     tool: "notes",
@@ -479,7 +479,7 @@ async function runNotes({uid, rawInputs, apiKey, idempotencyKey}) {
     costUsdCents: 0,
     status: "generating",
     errorMessage: null,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
     completedAt: null,
     teacherEdited: false,
     exportedFormats: [],
@@ -568,7 +568,7 @@ async function runNotes({uid, rawInputs, apiKey, idempotencyKey}) {
       errorMessage: `Schema errors: ${validation.errors.join("; ")}`,
       output: notes,
       outputText: String(raw || "").slice(0, 20000),
-      completedAt: admin.firestore.FieldValue.serverTimestamp(),
+      completedAt: FieldValue.serverTimestamp(),
       tokensIn,
       tokensOut,
       costUsdCents,
@@ -603,7 +603,7 @@ async function runNotes({uid, rawInputs, apiKey, idempotencyKey}) {
     tokensOut,
     costUsdCents,
     modelUsed,
-    completedAt: admin.firestore.FieldValue.serverTimestamp(),
+    completedAt: FieldValue.serverTimestamp(),
   });
   try {
     await completeAiOperation({idempotencyKey, resultDocumentId: genRef.id, usageCharged: 1});

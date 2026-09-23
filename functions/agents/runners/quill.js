@@ -19,7 +19,7 @@
  * the other against the source repo.
  */
 
-const admin = require("firebase-admin");
+const {Timestamp, getFirestore} = require("firebase-admin/firestore");
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -41,7 +41,7 @@ async function countByStatus(db) {
 }
 
 async function findStuckJobs(db, now) {
-  const cutoff = admin.firestore.Timestamp.fromDate(new Date(now - TWO_HOURS_MS));
+  const cutoff = Timestamp.fromDate(new Date(now - TWO_HOURS_MS));
   const snap = await db.collection("agentJobs")
     .where("status", "==", "running")
     .where("createdAt", "<", cutoff)
@@ -61,7 +61,7 @@ async function findStuckJobs(db, now) {
 }
 
 async function findRecentFailures(db, now) {
-  const cutoff = admin.firestore.Timestamp.fromDate(new Date(now - ONE_DAY_MS));
+  const cutoff = Timestamp.fromDate(new Date(now - ONE_DAY_MS));
   const snap = await db.collection("agentJobs")
     .where("status", "==", "failed")
     .where("createdAt", ">=", cutoff)
@@ -81,7 +81,7 @@ async function findRecentFailures(db, now) {
 }
 
 async function countRecentGenerations(db, now) {
-  const cutoff = admin.firestore.Timestamp.fromDate(new Date(now - ONE_DAY_MS));
+  const cutoff = Timestamp.fromDate(new Date(now - ONE_DAY_MS));
   const snap = await db.collection("aiGenerations")
     .where("createdAt", ">=", cutoff)
     .select()
@@ -111,7 +111,7 @@ async function kbHealthCheck(db) {
 
 // db/now are injectable for plain-node tests (sibling-runner pattern);
 // production callers pass nothing and get the live Firestore + clock.
-async function runQuill({db = admin.firestore(), now = Date.now()} = {}) {
+async function runQuill({db = getFirestore(), now = Date.now()} = {}) {
   const [statusCounts, stuck, failures, recentGenerations, kb] = await Promise.all([
     countByStatus(db),
     findStuckJobs(db, now),

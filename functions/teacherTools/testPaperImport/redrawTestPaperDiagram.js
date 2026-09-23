@@ -156,7 +156,7 @@ async function runRedrawTestPaperDiagram(args, deps = {}) {
 function createRedrawTestPaperDiagram(openaiApiKeySecret) {
   const {onCall, HttpsError} = require("firebase-functions/v2/https");
   const {assertVerifiedAuth} = require("../../authGuard");
-  const admin = require("firebase-admin");
+  const {FieldValue, getFirestore} = require("firebase-admin/firestore");
   const {getUserRole, isStaffRole} = require("../../aiService");
   const {assertAndIncrement} = require("../usageMeter");
   const {runGenerateDiagram} = require("../generateDiagram");
@@ -200,7 +200,7 @@ function createRedrawTestPaperDiagram(openaiApiKeySecret) {
         const generates = handling === "redraw" || handling === "replace";
         if (generates) await assertAndIncrement(uid, "diagram");
 
-        const db = admin.firestore();
+        const db = getFirestore();
 
         const deps = {
           // Reuse-first: read a bounded set of ACTIVE library pictures, prefer
@@ -234,8 +234,8 @@ function createRedrawTestPaperDiagram(openaiApiKeySecret) {
             const docRef = await db.collection("pictureBank").add({
               ...metadata,
               createdBy: uid,
-              createdAt: admin.firestore.FieldValue.serverTimestamp(),
-              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+              createdAt: FieldValue.serverTimestamp(),
+              updatedAt: FieldValue.serverTimestamp(),
             });
             return {id: docRef.id};
           },

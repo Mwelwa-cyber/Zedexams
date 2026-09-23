@@ -11,7 +11,7 @@
  * any profile that has the same ID as a built-in.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
 
@@ -32,13 +32,13 @@ exports.importBuiltInAssessmentFormats = onCall(
       throw new HttpsError("permission-denied", "Admin only.");
     }
 
-    const db = admin.firestore();
+    const db = getFirestore();
     // Always write to the runtime-active version so admins importing the
     // seeds see them appear in whichever syllabus is currently active.
     const kbVersion = await getActiveKbVersion();
     const col = db.collection("cbcKnowledgeBase").doc(kbVersion)
       .collection("assessmentFormats");
-    const now = admin.firestore.FieldValue.serverTimestamp();
+    const now = FieldValue.serverTimestamp();
 
     let written = 0;
     let skipped = 0;

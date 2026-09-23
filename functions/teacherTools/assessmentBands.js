@@ -20,7 +20,7 @@
  * Firestore changes what the model is told without a deploy.
  */
 
-const admin = require("firebase-admin");
+const {getFirestore} = require("firebase-admin/firestore");
 const core = require("./assessmentBandsCore");
 
 const {
@@ -43,7 +43,7 @@ async function loadAssessmentBands() {
   const bands = {};
   let fromStore = 0;
   try {
-    const snap = await admin.firestore().collection("assessmentBands").get();
+    const snap = await getFirestore().collection("assessmentBands").get();
     snap.forEach((doc) => {
       const data = Object.assign({}, doc.data(), {id: doc.id});
       const problems = validateBand(data);

@@ -20,7 +20,7 @@
  * allowance to fix one question would make the feature not worth using.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertCallableRateLimit} = require("../rateLimit");
 const {assertVerifiedAuth} = require("../authGuard");
@@ -54,7 +54,7 @@ const REGENERATE_MODEL =
 async function buildResumedQuestionResponse(operation) {
   const genId = operation.resultDocumentId;
   const genSnap = genId ?
-    await admin.firestore().collection("aiGenerations").doc(genId).get() : null;
+    await getFirestore().collection("aiGenerations").doc(genId).get() : null;
   const out = genSnap && genSnap.exists ? (genSnap.data().output || {}) : {};
   return {
     question: out.question || null,
@@ -136,7 +136,7 @@ async function runRegenerateQuestion({uid, rawInputs, apiKey, idempotencyKey}) {
   // still persisted here so a duplicate/retried request resumes the exact same
   // question instead of paying for a second rewrite. Private, never attached to
   // a library — purely the idempotency result of record.
-  const genRef = admin.firestore().collection("aiGenerations").doc(idempotencyKey);
+  const genRef = getFirestore().collection("aiGenerations").doc(idempotencyKey);
   await genRef.set({
     ownerUid: uid,
     tool: "regenerate_question",
@@ -145,7 +145,7 @@ async function runRegenerateQuestion({uid, rawInputs, apiKey, idempotencyKey}) {
     modelUsed: REGENERATE_MODEL,
     status: "generating",
     errorMessage: null,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
     completedAt: null,
     visibility: "private",
   }).catch((err) => {
@@ -231,7 +231,7 @@ async function runRegenerateQuestion({uid, rawInputs, apiKey, idempotencyKey}) {
   await genRef.set({
     status: "complete",
     output: {question: extracted.question, slot, modelUsed},
-    completedAt: admin.firestore.FieldValue.serverTimestamp(),
+    completedAt: FieldValue.serverTimestamp(),
   }, {merge: true}).catch(() => {});
   try {
     await completeAiOperation({idempotencyKey, resultDocumentId: genRef.id, usageCharged: 1});

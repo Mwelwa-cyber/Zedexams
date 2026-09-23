@@ -12,7 +12,7 @@
  * pre-existing monthly check.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
 const {HttpsError} = require("firebase-functions/v2/https");
 // Plan ids, per-tool monthly limits, daily caps and legacy-id normalisation
 // live in the dependency-free catalogue so the repo-root test suite covers them.
@@ -55,7 +55,7 @@ function isSuperAdminRole(role) {
 }
 
 async function getUserPlanContext(uid) {
-  const snap = await admin.firestore().doc(`users/${uid}`).get();
+  const snap = await getFirestore().doc(`users/${uid}`).get();
   const data = snap.exists ? (snap.data() || {}) : {};
 
   // Super admins always get the highest tier so they can exercise every
@@ -118,10 +118,10 @@ async function assertAndIncrement(uid, tool) {
   // monthly allowances far above the daily cap and don't count against it.
   const countsDaily = isDailyCountedTool(tool);
 
-  const meterRef = admin.firestore().doc(`usageMeters/${uid}/periods/${period}`);
-  const userRef = admin.firestore().doc(`users/${uid}`);
+  const meterRef = getFirestore().doc(`usageMeters/${uid}/periods/${period}`);
+  const userRef = getFirestore().doc(`users/${uid}`);
 
-  const result = await admin.firestore().runTransaction(async (tx) => {
+  const result = await getFirestore().runTransaction(async (tx) => {
     // Both reads must happen before any write (Firestore tx rule). The user
     // doc is read transactionally so a top-up credit is consumed atomically —
     // two racing generations can't spend the same credit twice.
@@ -150,8 +150,8 @@ async function assertAndIncrement(uid, tool) {
     // its cap; the bonus lives only as the spent credit).
     if ((monthlyBlocked || dailyBlocked) && credits > 0 && !isSuperAdmin) {
       tx.update(userRef, {
-        generationCredits: admin.firestore.FieldValue.increment(-1),
-        generationCreditsUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        generationCredits: FieldValue.increment(-1),
+        generationCreditsUpdatedAt: FieldValue.serverTimestamp(),
       });
       return {used, limit, plan, period, usedCredit: true, creditsRemaining: credits - 1};
     }
@@ -191,12 +191,12 @@ async function assertAndIncrement(uid, tool) {
 
     const next = {
       uid,
-      periodStart: admin.firestore.Timestamp.fromDate(start),
-      periodEnd: admin.firestore.Timestamp.fromDate(end),
+      periodStart: Timestamp.fromDate(start),
+      periodEnd: Timestamp.fromDate(end),
       plan,
       counters: {...counters, [tool]: used + 1},
       limits: PLAN_LIMITS[plan],
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     };
     if (countsDaily) {
       // Omitted for micro tools — {merge:true} preserves the existing value.
@@ -267,7 +267,7 @@ async function refundGeneration(uid, usageResult, tool) {
   if (usageResult.plan === "max" && usageResult.used !== undefined) {
     // Detect super-admin by checking the user doc directly (same as meter does).
     try {
-      const snap = await admin.firestore().doc(`users/${uid}`).get();
+      const snap = await getFirestore().doc(`users/${uid}`).get();
       if (snap.exists && isSuperAdminRole(snap.data()?.role)) return;
     } catch (_) {
       // If we can't read the doc, proceed with normal refund logic.
@@ -277,9 +277,9 @@ async function refundGeneration(uid, usageResult, tool) {
   if (usageResult.usedCredit) {
     // A purchased K25 credit was spent. Return it atomically.
     try {
-      await admin.firestore().doc(`users/${uid}`).update({
-        generationCredits: admin.firestore.FieldValue.increment(1),
-        generationCreditsUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      await getFirestore().doc(`users/${uid}`).update({
+        generationCredits: FieldValue.increment(1),
+        generationCreditsUpdatedAt: FieldValue.serverTimestamp(),
       });
     } catch (err) {
       console.error("[usageMeter] refundGeneration: credit refund failed", {uid, tool, err});
@@ -287,17 +287,17 @@ async function refundGeneration(uid, usageResult, tool) {
   } else if (usageResult.period && usageResult.plan) {
     // A free/pro/max plan counter was incremented. Roll it back.
     const period = usageResult.period;
-    const meterRef = admin.firestore().doc(`usageMeters/${uid}/periods/${period}`);
+    const meterRef = getFirestore().doc(`usageMeters/${uid}/periods/${period}`);
     try {
-      await admin.firestore().runTransaction(async (tx) => {
+      await getFirestore().runTransaction(async (tx) => {
         const snap = await tx.get(meterRef);
         if (!snap.exists) return; // meter doc gone — nothing to roll back
         const counters = (snap.data() || {}).counters || {};
         const current = Number(counters[tool] || 0);
         if (current <= 0) return; // already at 0, don't go negative
         tx.update(meterRef, {
-          [`counters.${tool}`]: admin.firestore.FieldValue.increment(-1),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          [`counters.${tool}`]: FieldValue.increment(-1),
+          updatedAt: FieldValue.serverTimestamp(),
         });
         // Also roll back the daily counter if this tool counts daily and
         // the stored date still matches today (don't touch a different day).
@@ -305,7 +305,7 @@ async function refundGeneration(uid, usageResult, tool) {
           const daily = (snap.data() || {}).daily || {};
           if (daily.date === yyyymmdd() && Number(daily.count || 0) > 0) {
             tx.update(meterRef, {
-              "daily.count": admin.firestore.FieldValue.increment(-1),
+              "daily.count": FieldValue.increment(-1),
             });
           }
         }

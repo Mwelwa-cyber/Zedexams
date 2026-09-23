@@ -11,7 +11,7 @@
  * before when the Master Bank is empty).
  */
 
-const admin = require("firebase-admin");
+const {getFirestore} = require("firebase-admin/firestore");
 const {
   normalizeGrade, normalizeSubject, editorQuestionToQuiz, editorQuestionToAssessment,
   withNotationMarkup,
@@ -67,7 +67,7 @@ async function scanMasterBank({grade, subject, topic, mapFn}) {
 
   let snap;
   try {
-    snap = await admin.firestore()
+    snap = await getFirestore()
       .collection("questionBank")
       .where("masterEligible", "==", true)
       .limit(MASTER_SCAN_LIMIT)

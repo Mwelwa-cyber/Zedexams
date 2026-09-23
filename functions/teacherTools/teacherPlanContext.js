@@ -21,7 +21,7 @@
  * generation.
  */
 
-const admin = require("firebase-admin");
+const {getFirestore} = require("firebase-admin/firestore");
 
 const MAX_DOCS = 300;
 const MAX_BLOCK_CHARS = 6000;
@@ -302,7 +302,7 @@ async function resolveTeacherPlanContext({
   };
 
   try {
-    const db = admin.firestore();
+    const db = getFirestore();
     const snap = await db.collection("aiGenerations")
         .where("ownerUid", "==", ownerUid)
         .orderBy("createdAt", "desc")
