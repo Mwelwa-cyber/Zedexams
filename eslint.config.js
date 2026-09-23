@@ -309,6 +309,23 @@ export default [
     },
   },
 
+  // Cloud Functions: an undefined identifier is a RUNTIME ReferenceError, and
+  // most handlers have no test that reaches every branch. `no-undef` was off
+  // here until 2026-09, and three live callables shipped one each — the Lenco
+  // payment-status poll (#2622 imported a helper inside a sibling handler) and
+  // two paper-import callables (a require pasted inside another function's
+  // try block). All three passed lint and CI. The .mjs CLI scripts need the
+  // Node globals declared for the same rule.
+  {
+    files: ['functions/**/*.js', 'functions/**/*.mjs'],
+    languageOptions: {
+      globals: { ...globals.node },
+    },
+    rules: {
+      'no-undef': 'error',
+    },
+  },
+
   // Vitest specs (`*.spec.{js,jsx}`, jsdom). Separate from the `*.test.js`
   // node scripts above — these run under `npm run test:unit`. Register the
   // injected test globals (vitest.config.js sets `globals: true`) so specs
