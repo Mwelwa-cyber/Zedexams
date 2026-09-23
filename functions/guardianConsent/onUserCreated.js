@@ -21,7 +21,7 @@
  */
 
 const {onDocumentCreated} = require("firebase-functions/v2/firestore");
-const admin = require("firebase-admin");
+const {FieldValue} = require("firebase-admin/firestore");
 
 const {resolveAgeBootstrap, needsDobStamp} = require("./userAgeBootstrapCore");
 
@@ -49,7 +49,7 @@ exports.learnerAgeOnUserCreated = onDocumentCreated(
         // half of "the first answer is the answer" — the evidence of when it
         // was given, written by the server so it cannot be chosen.
         if (needsDobStamp(user)) {
-          patch.dobRecordedAt = admin.firestore.FieldValue.serverTimestamp();
+          patch.dobRecordedAt = FieldValue.serverTimestamp();
         }
 
         if (!Object.keys(patch).length) return;

@@ -26,7 +26,7 @@
  * data one revision earlier. Fail closed.
  */
 
-const admin = require("firebase-admin");
+const {getFirestore} = require("firebase-admin/firestore");
 const {HttpsError} = require("firebase-functions/v2/https");
 
 /** Where a resolved artefact came from. Callers that persist a decision — a
@@ -95,7 +95,7 @@ async function resolveLessonPlanArtifact({uid, lessonPlanId}) {
   const id = String(lessonPlanId || "").trim();
   if (!id) throw new HttpsError("invalid-argument", "A lesson plan id is required.");
 
-  const db = admin.firestore();
+  const db = getFirestore();
 
   const itemSnap = await db.collection("teacherLibraryItems").doc(id).get();
   if (itemSnap.exists) {
@@ -156,7 +156,7 @@ async function readPinnedArtifact({uid, artifactId, artifactSource}) {
     throw new HttpsError("invalid-argument", `Unknown artifact source: ${artifactSource}`);
   }
 
-  const snap = await admin.firestore().collection(collection).doc(String(artifactId)).get();
+  const snap = await getFirestore().collection(collection).doc(String(artifactId)).get();
   if (!snap.exists) {
     // The pinned document is gone. An error is the honest answer; the other
     // source holds different content, and the teacher asked for this one.

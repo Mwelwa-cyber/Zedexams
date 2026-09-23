@@ -113,7 +113,7 @@ test("index.js is allowed what the cores are not — it is the wiring", () => {
   // secrets and SHOULD reach the SDK; it is simply never on a test's path.
   const src = readFileSync(join(HERE, "index.js"), "utf8");
   assert.match(
-    src, /require\(\s*["']firebase-admin["']\)/,
+    src, /require\(\s*["']firebase-admin(?:\/[a-z-]+)?["']\)/,
     "index.js is the wiring layer and is expected to use the admin SDK",
   );
 });

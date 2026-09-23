@@ -42,9 +42,12 @@ const createNotificationStub = async (opts) => {
   return { written: true, id: `n${calls.length}`, pushed: false, deduped: false };
 };
 
+const {modularAdminModules} = require("../testFixtures/modularAdminStub");
+const MODULAR_ADMIN = modularAdminModules(adminStub);
 const origLoad = Module._load;
 Module._load = function (request, ...rest) {
   if (request === "firebase-admin") return adminStub;
+  if (MODULAR_ADMIN[request]) return MODULAR_ADMIN[request];
   if (request === "./createNotification") {
     return { createNotification: createNotificationStub };
   }

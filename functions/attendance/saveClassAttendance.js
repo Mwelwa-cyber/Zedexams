@@ -12,7 +12,7 @@
  * structured { code, ... } details payload the client can render.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { assertVerifiedAuth } = require("../authGuard");
 const { validateAttendanceMutation, ERROR_CODES } = require("./attendanceServerCore");
@@ -43,7 +43,7 @@ const saveClassAttendance = onCall({
     throw new HttpsError("invalid-argument", ERROR_CODES.INVALID_ARGUMENT, { code: ERROR_CODES.INVALID_ARGUMENT, field: "date" });
   }
 
-  const db = admin.firestore();
+  const db = getFirestore();
   const classRef = db.collection("classRegisters").doc(classId);
   const dayRef = classRef.collection("attendance").doc(payload.date);
 
@@ -84,7 +84,7 @@ const saveClassAttendance = onCall({
       throw err;
     }
 
-    const now = admin.firestore.FieldValue.serverTimestamp();
+    const now = FieldValue.serverTimestamp();
     const records = {};
     for (const [learnerId, record] of Object.entries(verdict.mergedRecords)) {
       const prior = existingDay && existingDay.records ? existingDay.records[learnerId] : null;

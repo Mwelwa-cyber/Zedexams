@@ -42,7 +42,7 @@
  */
 
 const {onDocumentWritten} = require("firebase-functions/v2/firestore");
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 
 let corePromise = null;
 function loadCore() {
@@ -87,7 +87,7 @@ async function refreshLearnerEffectiveState(db, learnerUid) {
     pending: consent.pending,
     withdrawn: consent.withdrawn,
     permissions,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   };
 
   await db.collection("users").doc(learnerUid).set({
@@ -118,7 +118,7 @@ const onParentLinkWritten = onDocumentWritten({
 
   for (const learnerUid of learnerUids) {
     try {
-      await refreshLearnerEffectiveState(admin.firestore(), learnerUid);
+      await refreshLearnerEffectiveState(getFirestore(), learnerUid);
     } catch (err) {
       // Logged loudly rather than rethrown. A retry storm on this trigger
       // would re-run the fold for every link in a family on every attempt,

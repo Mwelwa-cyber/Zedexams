@@ -102,9 +102,12 @@ function onCall(_opts, handler) {
   return handler;
 }
 
+const {modularAdminModules} = require("../testFixtures/modularAdminStub");
+const MODULAR_ADMIN = modularAdminModules({firestore: firestoreFn});
 const origLoad = Module._load;
 Module._load = function (request, ...rest) {
   if (request === "firebase-admin") return {firestore: firestoreFn};
+  if (MODULAR_ADMIN[request]) return MODULAR_ADMIN[request];
   if (request === "firebase-functions/v2/https") return {onCall, HttpsError};
   if (request === "../authGuard") {
     return {

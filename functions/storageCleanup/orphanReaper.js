@@ -29,7 +29,8 @@
  * /admin surface can show what was reaped without scraping logs.
  */
 
-const admin = require("firebase-admin");
+const {Timestamp, getFirestore} = require("firebase-admin/firestore");
+const {getStorage} = require("firebase-admin/storage");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 
 const {
@@ -129,8 +130,8 @@ const orphanStorageReaper = onSchedule(
     memory: "512MiB",
   },
   async () => {
-    const bucket = admin.storage().bucket();
-    const db = admin.firestore();
+    const bucket = getStorage().bucket();
+    const db = getFirestore();
     const startedAt = Date.now();
     const report = {
       deletedUserPrefixes: [],
@@ -150,8 +151,8 @@ const orphanStorageReaper = onSchedule(
     const dateKey = new Date(startedAt).toISOString().slice(0, 10);
     try {
       await db.collection("storageOrphanReports").doc(dateKey).set({
-        startedAt: admin.firestore.Timestamp.fromMillis(startedAt),
-        finishedAt: admin.firestore.Timestamp.fromMillis(finishedAt),
+        startedAt: Timestamp.fromMillis(startedAt),
+        finishedAt: Timestamp.fromMillis(finishedAt),
         durationMs: finishedAt - startedAt,
         deletedUserPrefixCount: report.deletedUserPrefixes.length,
         deletedBatchPrefixCount: report.deletedBatchPrefixes.length,

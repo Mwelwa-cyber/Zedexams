@@ -19,7 +19,7 @@
  */
 
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
-const admin = require("firebase-admin");
+const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
 
 const {
   EXISTING_TEACHER_OFFER_SOURCE,
@@ -52,7 +52,7 @@ exports.activateExistingTeacherTrialOffer = onCall(
       const {assertVerifiedAuth} = require("../authGuard");
       const uid = await assertVerifiedAuth(request, "Please sign in first.");
 
-      const db = admin.firestore();
+      const db = getFirestore();
       const userRef = db.collection("users").doc(uid);
 
       const decision = await db.runTransaction(async (tx) => {
@@ -67,19 +67,19 @@ exports.activateExistingTeacherTrialOffer = onCall(
           return result;
         }
 
-        const endsAt = admin.firestore.Timestamp.fromMillis(result.teacherTrialEndsAtMs);
-        const offeredAt = result.preserveOfferedAt || admin.firestore.FieldValue.serverTimestamp();
+        const endsAt = Timestamp.fromMillis(result.teacherTrialEndsAtMs);
+        const offeredAt = result.preserveOfferedAt || FieldValue.serverTimestamp();
 
         tx.update(userRef, {
           teacherPlan: "trial",
           teacherTrialEndsAt: endsAt,
-          teacherTrialStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+          teacherTrialStartedAt: FieldValue.serverTimestamp(),
           teacherTrialOffer: {
             status: TEACHER_TRIAL_OFFER_STATUS.ACTIVE,
             offeredAt,
-            startedAt: admin.firestore.FieldValue.serverTimestamp(),
+            startedAt: FieldValue.serverTimestamp(),
             expiresAt: endsAt,
-            redeemedAt: admin.firestore.FieldValue.serverTimestamp(),
+            redeemedAt: FieldValue.serverTimestamp(),
             source: EXISTING_TEACHER_OFFER_SOURCE,
           },
         });

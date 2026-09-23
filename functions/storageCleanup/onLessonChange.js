@@ -15,7 +15,7 @@
  *                       3. file note replaced    → old storagePath dies
  */
 
-const admin = require("firebase-admin");
+const {getStorage} = require("firebase-admin/storage");
 const {onDocumentDeleted, onDocumentUpdated} =
   require("firebase-functions/v2/firestore");
 
@@ -39,7 +39,7 @@ const COMMON_OPTS = {
 
 async function purgeLessonAssets(lessonData) {
   if (!lessonData) return;
-  const bucket = admin.storage().bucket();
+  const bucket = getStorage().bucket();
 
   for (const prefix of collectLessonPrefixes(lessonData)) {
     await deleteByPrefix(bucket, prefix);
@@ -65,7 +65,7 @@ const onLessonUpdated = onDocumentUpdated(COMMON_OPTS, async (event) => {
     const before = event.data && event.data.before && event.data.before.data();
     const after = event.data && event.data.after && event.data.after.data();
     if (!before || !after) return;
-    const bucket = admin.storage().bucket();
+    const bucket = getStorage().bucket();
 
     // (1) assetBatchId rotated — clear the old batch folders wholesale.
     const oldBatch = before.assetBatchId;

@@ -24,7 +24,7 @@
  * stores questions that way to sidestep Firestore's no-nested-arrays limit).
  */
 
-const admin = require("firebase-admin");
+const {FieldValue} = require("firebase-admin/firestore");
 const {lusakaDayString, lusakaNowParts} = require("../lusakaTime");
 const {
   DAILY_QUIZ_QUESTION_COUNT,
@@ -98,7 +98,7 @@ async function logEvent(db, entry) {
   try {
     await db.collection(EVENTS).add({
       ...entry,
-      at: admin.firestore.FieldValue.serverTimestamp(),
+      at: FieldValue.serverTimestamp(),
     });
   } catch (err) {
     console.warn("[dailyQuiz] event log write failed:", err?.message || err);
@@ -190,7 +190,7 @@ async function ensureDailyQuiz(db, {grade, date, createdBy, actorUid = null}) {
     tx.create(ref, {
       ...payload,
       poolSize: pool.length,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
     });
     created = true;
     return {id: ref.id, ...payload, poolSize: pool.length};
@@ -431,7 +431,7 @@ async function claimRunwayAlert(db, {grade, date, runwayDays}) {
       period,
       runwayDays,
       firstAlertedOn: String(date),
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
     });
     return true;
   } catch {
@@ -456,10 +456,10 @@ async function bumpLeaderboard(db, {grade, uid, date, points, elapsedMs, display
     grade: String(grade),
     weekId,
     displayName: displayName || null,
-    points: admin.firestore.FieldValue.increment(Number(points) || 0),
-    daysPlayed: admin.firestore.FieldValue.increment(1),
-    totalElapsedMs: admin.firestore.FieldValue.increment(Number(elapsedMs) || 0),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    points: FieldValue.increment(Number(points) || 0),
+    daysPlayed: FieldValue.increment(1),
+    totalElapsedMs: FieldValue.increment(Number(elapsedMs) || 0),
+    updatedAt: FieldValue.serverTimestamp(),
   }, {merge: true});
   return weekId;
 }

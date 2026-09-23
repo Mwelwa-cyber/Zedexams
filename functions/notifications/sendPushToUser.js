@@ -33,7 +33,8 @@ function isPrunableToken(code) {
  * @param {Map<string,string[]>} tokensToRemoveByUid
  */
 async function pruneDeadTokensByUid(db, tokensToRemoveByUid) {
-  const admin = require("firebase-admin");
+  const {FieldValue} = require("firebase-admin/firestore");
+  const {getMessaging} = require("firebase-admin/messaging");
   let pruned = 0;
   for (const [uid, deadTokens] of tokensToRemoveByUid.entries()) {
     if (!deadTokens || deadTokens.length === 0) continue;
@@ -42,7 +43,7 @@ async function pruneDeadTokensByUid(db, tokensToRemoveByUid) {
         .collection("users")
         .doc(uid)
         .update({
-          fcmTokens: admin.firestore.FieldValue.arrayRemove(...deadTokens),
+          fcmTokens: FieldValue.arrayRemove(...deadTokens),
         });
       pruned += deadTokens.length;
     } catch (err) {
@@ -58,7 +59,7 @@ async function pruneDeadTokensByUid(db, tokensToRemoveByUid) {
  * devices) so a single multicast call is fine.
  *
  * @param {object} args
- * @param {object} args.messaging admin.messaging() instance
+ * @param {object} args.messaging getMessaging() instance
  * @param {object} args.db firestore() instance
  * @param {string} args.uid
  * @param {string[]} args.tokens

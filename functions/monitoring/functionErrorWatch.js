@@ -47,7 +47,7 @@
 // actually query Cloud Logging, so requiring it at load would put it on the cold
 // start of every instance — and cold-start cost is precisely what this incident
 // was about.
-const admin = require("firebase-admin");
+const {getFirestore} = require("firebase-admin/firestore");
 
 const {sendOpsAlert} = require("../opsAlert");
 const {decideAlerts, buildAlertMessage} = require("./functionErrorWatchCore");
@@ -172,7 +172,7 @@ async function fetchErrorEntries({projectId, sinceIso, auth, fetchImpl = fetch, 
  * @return {Promise<object>} A summary for the caller/logs.
  */
 async function runFunctionErrorWatch(deps = {}) {
-  const db = deps.db ?? admin.firestore();
+  const db = deps.db ?? getFirestore();
   const now = deps.now ?? Date.now();
   const alertFn = deps.sendOpsAlert ?? sendOpsAlert;
   const projectId = deps.projectId ?? process.env.GCLOUD_PROJECT ?? "";

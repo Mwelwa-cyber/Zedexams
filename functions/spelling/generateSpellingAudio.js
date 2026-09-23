@@ -31,7 +31,8 @@
 "use strict";
 
 const {HttpsError} = require("firebase-functions/v2/https");
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
+const {getStorage} = require("firebase-admin/storage");
 const {assertVerifiedAuth} = require("./../authGuard");
 const {assertCallableRateLimit} = require("./../rateLimit");
 const {getUserRole, isAdminRole} = require("./../aiService");
@@ -89,7 +90,7 @@ exports.generateSpellingAudioHandler = async (request) => {
       throw new HttpsError("failed-precondition", "No voice is offered. Choose one in /admin/voice first.");
     }
 
-    const bucket = admin.storage().bucket();
+    const bucket = getStorage().bucket();
 
     // What already exists, so a re-run does not re-buy it. Checked per path
     // rather than by listing the prefix: a bank of 879 objects is a long list
@@ -120,7 +121,7 @@ exports.generateSpellingAudioHandler = async (request) => {
 
     const voiced = [];
     const failed = [];
-    const db = admin.firestore();
+    const db = getFirestore();
 
     for (const item of todo) {
       let result;
@@ -170,7 +171,7 @@ exports.generateSpellingAudioHandler = async (request) => {
             audio: url,
             audioVoice: entry.id,
             audioProvider: entry.provider,
-            audioAt: admin.firestore.FieldValue.serverTimestamp(),
+            audioAt: FieldValue.serverTimestamp(),
           }, {merge: true});
         } catch (err) {
           // The object IS stored — the spend happened and is not lost. Report

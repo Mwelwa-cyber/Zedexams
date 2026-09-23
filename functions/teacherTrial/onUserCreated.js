@@ -24,7 +24,7 @@
  * degrades to "no trial", never to an unintended one.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, Timestamp} = require("firebase-admin/firestore");
 
 const {resolveTeacherTrialGrant} = require("./teacherTrialCore");
 
@@ -40,8 +40,8 @@ async function teacherTrialOnUserCreatedHandler(event) {
 
     await snap.ref.set({
       teacherPlan: grant.teacherPlan,
-      teacherTrialEndsAt: admin.firestore.Timestamp.fromMillis(grant.teacherTrialEndsAtMs),
-      teacherTrialStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+      teacherTrialEndsAt: Timestamp.fromMillis(grant.teacherTrialEndsAtMs),
+      teacherTrialStartedAt: FieldValue.serverTimestamp(),
     }, {merge: true});
   } catch (err) {
     console.error("[teacherTrialOnUserCreated] failed:", err);

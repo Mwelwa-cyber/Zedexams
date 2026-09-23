@@ -116,6 +116,9 @@ const STUBS = {
   },
 };
 
+const {modularAdminModules} = require("../testFixtures/modularAdminStub");
+Object.assign(STUBS, modularAdminModules(STUBS["firebase-admin"]));
+
 /* ── load exportService with those stubs in place ──────────────────────── */
 
 const HERE = __dirname;

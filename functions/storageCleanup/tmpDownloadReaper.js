@@ -12,7 +12,7 @@
  * require) so it can be unit-tested with only the root deps installed.
  */
 
-const admin = require("firebase-admin");
+const {getStorage} = require("firebase-admin/storage");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {reapTmpDownloads} = require("./tmpDownloadReaperCore");
 
@@ -25,7 +25,7 @@ const tmpDownloadReaper = onSchedule(
     memory: "256MiB",
   },
   async () => {
-    const bucket = admin.storage().bucket();
+    const bucket = getStorage().bucket();
     try {
       const deleted = await reapTmpDownloads(bucket, Date.now());
       console.log(`[tmpDownloadReaper] deleted ${deleted} stale temp downloads`);

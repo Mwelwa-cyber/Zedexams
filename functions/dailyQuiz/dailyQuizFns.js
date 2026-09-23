@@ -19,7 +19,7 @@
  */
 
 const {HttpsError} = require("firebase-functions/v2/https");
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {assertVerifiedAuth} = require("../authGuard");
 const {getUserRole, isAdminRole} = require("../aiService");
 const {resolveCallerAccess} = require("../consentGuard");
@@ -83,7 +83,7 @@ async function mayRank(db, uid) {
 
 exports.getTodaysQuizHandler = async (request) => {
   const uid = await assertVerifiedAuth(request);
-  const db = admin.firestore();
+  const db = getFirestore();
   const date = svc.today();
   const {grade} = await resolveLearnerGrade(db, uid);
 
@@ -199,7 +199,7 @@ function publicResult(attempt) {
  */
 exports.answerDailyQuizQuestionHandler = async (request) => {
   const uid = await assertVerifiedAuth(request);
-  const db = admin.firestore();
+  const db = getFirestore();
   const date = svc.today();
   const {grade, user} = await resolveLearnerGrade(db, uid);
 
@@ -275,13 +275,13 @@ exports.answerDailyQuizQuestionHandler = async (request) => {
       total: questionIds.length,
       perQuestion: rows,
       status: answeredAll ? "submitted" : "in_progress",
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     };
 
     if (!answeredAll) {
       tx.set(attemptRef, {
         ...base,
-        startedAt: existing?.startedAt || admin.firestore.FieldValue.serverTimestamp(),
+        startedAt: existing?.startedAt || FieldValue.serverTimestamp(),
       }, {merge: true});
       return {row, attempt: {...base}, replayed: false, finalised: false};
     }
@@ -299,7 +299,7 @@ exports.answerDailyQuizQuestionHandler = async (request) => {
       points: score.points,
       allCorrect: score.allCorrect,
       elapsedMs,
-      submittedAt: admin.firestore.FieldValue.serverTimestamp(),
+      submittedAt: FieldValue.serverTimestamp(),
     };
     tx.set(attemptRef, finalAttempt, {merge: true});
     return {row, attempt: finalAttempt, replayed: false, finalised: true, score};
@@ -360,7 +360,7 @@ exports.answerDailyQuizQuestionHandler = async (request) => {
  * the same five anyway.
  */
 exports.buildDailyQuizzesHandler = async () => {
-  const db = admin.firestore();
+  const db = getFirestore();
   const date = svc.today();
   const results = await runBuildForAllGrades(db, date, "cron");
   await alertOnThinRunway(db, date);
@@ -459,7 +459,7 @@ async function assertStaff(request) {
  */
 exports.adminDailyQuizOverviewHandler = async (request) => {
   await assertStaff(request);
-  const db = admin.firestore();
+  const db = getFirestore();
   const date = String(request.data?.date || svc.today());
   const tomorrow = svc.shiftDate(date, 1);
 
@@ -534,7 +534,7 @@ async function loadEvents(db, limit) {
  */
 exports.adminDailyQuizFunnelHandler = async (request) => {
   await assertStaff(request);
-  const db = admin.firestore();
+  const db = getFirestore();
   const grade = String(request.data?.grade || DAILY_QUIZ_GRADES[0]);
   const date = String(request.data?.date || svc.today());
 
@@ -567,7 +567,7 @@ exports.adminDailyQuizFunnelHandler = async (request) => {
 /** Run the build now, for every grade. Same code path as the cron. */
 exports.adminRunDailyQuizNowHandler = async (request) => {
   const uid = await assertStaff(request);
-  const db = admin.firestore();
+  const db = getFirestore();
   const date = String(request.data?.date || svc.today());
   const results = await runBuildForAllGrades(db, date, "admin", uid);
   await svc.logEvent(db, {type: "admin_run", date, actorUid: uid, results});
@@ -583,7 +583,7 @@ exports.adminRunDailyQuizNowHandler = async (request) => {
  */
 exports.adminSwapDailyQuizQuestionHandler = async (request) => {
   const uid = await assertStaff(request);
-  const db = admin.firestore();
+  const db = getFirestore();
   const grade = String(request.data?.grade || "");
   const date = String(request.data?.date || "");
   const slot = Number(request.data?.slot);
@@ -621,7 +621,7 @@ exports.adminSwapDailyQuizQuestionHandler = async (request) => {
       questionIds: ids,
       createdBy: "admin",
       lastEditedBy: uid,
-      lastEditedAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastEditedAt: FieldValue.serverTimestamp(),
     });
     return {previous, replacementId, questionIds: ids};
   });
@@ -653,7 +653,7 @@ function swapRefusal(reason) {
  */
 exports.adminVoidDailyQuizQuestionHandler = async (request) => {
   const uid = await assertStaff(request);
-  const db = admin.firestore();
+  const db = getFirestore();
   const grade = String(request.data?.grade || "");
   const date = String(request.data?.date || "");
   const questionId = String(request.data?.questionId || "");
@@ -670,9 +670,9 @@ exports.adminVoidDailyQuizQuestionHandler = async (request) => {
   }
 
   await ref.update({
-    voidedQuestionIds: admin.firestore.FieldValue.arrayUnion(questionId),
+    voidedQuestionIds: FieldValue.arrayUnion(questionId),
     lastEditedBy: uid,
-    lastEditedAt: admin.firestore.FieldValue.serverTimestamp(),
+    lastEditedAt: FieldValue.serverTimestamp(),
   });
 
   // Re-credit everyone who already played. Batched, and bounded by the
@@ -706,7 +706,7 @@ exports.adminVoidDailyQuizQuestionHandler = async (request) => {
         await db.collection(svc.LEADERBOARDS).doc(grade)
             .collection("weeks").doc(svc.weekIdFor(date))
             .collection("entries").doc(String(data.uid))
-            .update({daysPlayed: admin.firestore.FieldValue.increment(-1)});
+            .update({daysPlayed: FieldValue.increment(-1)});
       } catch (err) {
         console.error("[dailyQuiz] re-credit board write failed:", err?.message || err);
       }

@@ -19,7 +19,7 @@
  * suppresses repeats inside 24h) AND a cooldown stamp written only on success.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {createNotification} = require("./createNotification");
 const {resolveExpiryReminderTarget} = require("./subscriptionExpiryReminderCore");
@@ -40,7 +40,7 @@ function dateKey(offsetDays = 0) {
 const dailyPracticeReminders = onSchedule(
     {...BASE_OPTS, schedule: "every day 16:30", timeoutSeconds: 540},
     async () => {
-      const db = admin.firestore();
+      const db = getFirestore();
       const today = dateKey(0);
       const yesterday = dateKey(-1);
       const summary = {dateKey: today, candidates: 0, written: 0};
@@ -96,7 +96,7 @@ const COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000;
 const subscriptionExpiryReminders = onSchedule(
     {...BASE_OPTS, schedule: "every day 08:00", timeoutSeconds: 540},
     async () => {
-      const db = admin.firestore();
+      const db = getFirestore();
       const now = new Date();
       const cutoff = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
       const summary = {candidates: 0, written: 0};
@@ -109,8 +109,8 @@ const subscriptionExpiryReminders = onSchedule(
       for (let round = 0; round < 40; round++) {
         let q = db
             .collection("users")
-            .where("subscriptionExpiry", ">", admin.firestore.Timestamp.fromDate(now))
-            .where("subscriptionExpiry", "<=", admin.firestore.Timestamp.fromDate(cutoff))
+            .where("subscriptionExpiry", ">", Timestamp.fromDate(now))
+            .where("subscriptionExpiry", "<=", Timestamp.fromDate(cutoff))
             .orderBy("subscriptionExpiry")
             .limit(PAGE);
         if (last) q = q.startAfter(last);
@@ -166,7 +166,7 @@ const subscriptionExpiryReminders = onSchedule(
               summary.written += 1;
               await docSnap.ref
                   .update({
-                    notifyExpiryReminderAt: admin.firestore.FieldValue.serverTimestamp(),
+                    notifyExpiryReminderAt: FieldValue.serverTimestamp(),
                   })
                   .catch(() => {});
             }
@@ -190,8 +190,8 @@ const subscriptionExpiryReminders = onSchedule(
 const archiveOldNotifications = onSchedule(
     {...BASE_OPTS, schedule: "every day 03:30", timeoutSeconds: 540},
     async () => {
-      const db = admin.firestore();
-      const now = admin.firestore.Timestamp.now();
+      const db = getFirestore();
+      const now = Timestamp.now();
       let deleted = 0;
       try {
         // collectionGroup over every user's feed; the single-field expiresAt
@@ -225,7 +225,7 @@ function isLearnerRole(role) {
 const weeklyRevisionReminder = onSchedule(
     {...BASE_OPTS, schedule: "every sunday 17:00", timeoutSeconds: 540},
     async () => {
-      const db = admin.firestore();
+      const db = getFirestore();
       const weekKey = dateKey(0);
       // Only learners active in the last 6 days. The cohorts are disjoint by
       // design: 0–6 days quiet → this weekly revision nudge, 7–13 days →
@@ -290,7 +290,7 @@ const WINBACK_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 const inactiveLearnerReminder = onSchedule(
     {...BASE_OPTS, schedule: "every day 10:00", timeoutSeconds: 540},
     async () => {
-      const db = admin.firestore();
+      const db = getFirestore();
       const now = Date.now();
       const from = dateKey(-13);
       const to = dateKey(-7);
@@ -334,7 +334,7 @@ const inactiveLearnerReminder = onSchedule(
               written += 1;
               await docSnap.ref
                   .update({
-                    notifyWinbackAt: admin.firestore.FieldValue.serverTimestamp(),
+                    notifyWinbackAt: FieldValue.serverTimestamp(),
                   })
                   .catch(() => {});
             }
