@@ -8,6 +8,7 @@
     "build": "vite build",
     "prerender": "node scripts/prerender.mjs",
     "sitemap": "node scripts/generateSitemap.mjs",
+    "test:firebase-admin-modular": "node scripts/test-firebase-admin-modular.mjs",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "test:coverage": "vitest run --coverage",

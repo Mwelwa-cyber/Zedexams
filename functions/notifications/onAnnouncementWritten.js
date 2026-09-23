@@ -15,7 +15,7 @@
  * document id and role-filtered in memory so no extra composite index is needed.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onDocumentWritten} = require("firebase-functions/v2/firestore");
 const {createNotification} = require("./createNotification");
 
@@ -59,14 +59,14 @@ const onAnnouncementWritten = onDocumentWritten(
       if (after.active !== true) return; // only fan out live announcements
       if (after.notificationsFannedOut === true) return; // already done
 
-      const db = admin.firestore();
+      const db = getFirestore();
 
       // Claim the announcement first so the self-triggered onWritten and any
       // retry can't double-deliver. If we can't claim it, bail.
       try {
         await event.data.after.ref.update({
           notificationsFannedOut: true,
-          notificationsFannedOutAt: admin.firestore.FieldValue.serverTimestamp(),
+          notificationsFannedOutAt: FieldValue.serverTimestamp(),
         });
       } catch (err) {
         console.warn(`[notifications] announcement ${annId} claim failed`, err);

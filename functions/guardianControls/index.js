@@ -29,7 +29,7 @@
  */
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {defineSecret} = require("firebase-functions/params");
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 
 const {decideControlChange, buildControlNoticeEmail} = require("./guardianControlsDecisions");
 
@@ -91,7 +91,7 @@ exports.setGuardianControl = onCall(
       const key = String(request.data?.key || "");
       const value = request.data?.value;
 
-      const db = admin.firestore();
+      const db = getFirestore();
       const cores = await loadCores();
       const snap = await db.doc(`users/${uid}`).get();
       const user = snap.exists ? snap.data() : null;
@@ -110,7 +110,7 @@ exports.setGuardianControl = onCall(
         );
       }
 
-      const now = admin.firestore.FieldValue.serverTimestamp();
+      const now = FieldValue.serverTimestamp();
       await db.doc(`users/${uid}`).set({
         guardianControls: {[key]: value, updatedAt: now},
       }, {merge: true});

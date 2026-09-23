@@ -33,7 +33,7 @@
  * the same sentence that refuses the call here.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
 const {HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
 const {claimForGuardian} = require("../guardianLink/convergence");
@@ -254,7 +254,7 @@ function lastActiveFrom(items) {
  */
 async function listGuardianChildren(request) {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
-  const db = admin.firestore();
+  const db = getFirestore();
   const {roleFor, capabilitiesOf} = await loadRoles();
   const core = await loadLinkCore();
 
@@ -361,7 +361,7 @@ async function listGuardianChildren(request) {
 
 async function getGuardianChildDetail(request) {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
-  const db = admin.firestore();
+  const db = getFirestore();
   const childUid = String(request.data?.childUid || "").trim();
 
   const {role, links, child} = await authorise(db, uid, childUid, "viewProgress");
@@ -419,7 +419,7 @@ async function getGuardianChildDetail(request) {
 
 async function getGuardianChildActivity(request) {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
-  const db = admin.firestore();
+  const db = getFirestore();
   const childUid = String(request.data?.childUid || "").trim();
   const days = Math.min(Math.max(Number(request.data?.days) || ACTIVITY_WINDOW_DAYS, 1), 30);
 
@@ -450,7 +450,7 @@ async function getGuardianChildActivity(request) {
  */
 async function setChildGuardianControl(request) {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
-  const db = admin.firestore();
+  const db = getFirestore();
   const childUid = String(request.data?.childUid || "").trim();
   const key = String(request.data?.key || "");
   const value = request.data?.value;
@@ -468,7 +468,7 @@ async function setChildGuardianControl(request) {
   const from = readGuardianControls(child)[key];
   if (from === value) return {ok: true, changed: false};
 
-  const now = admin.firestore.FieldValue.serverTimestamp();
+  const now = FieldValue.serverTimestamp();
   await db.doc(`users/${childUid}`).set({
     guardianControls: {[key]: value, updatedAt: now},
   }, {merge: true});
@@ -496,7 +496,7 @@ async function setChildGuardianControl(request) {
 
 async function listGuardianApprovals(request) {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
-  const db = admin.firestore();
+  const db = getFirestore();
 
   // Active links only — a guardian whose link the child has not confirmed
   // must not be handed that child's unlock requests to approve.
@@ -562,7 +562,7 @@ async function listGuardianApprovals(request) {
  */
 async function declineGuardianApproval(request) {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
-  const db = admin.firestore();
+  const db = getFirestore();
   const requestId = String(request.data?.requestId || "").trim();
   if (!requestId) throw new HttpsError("invalid-argument", "requestId is required.");
 
@@ -576,7 +576,7 @@ async function declineGuardianApproval(request) {
   if (record.status === "paid") return {ok: true, already: true};
   await ref.set({
     status: "declined",
-    declinedAt: admin.firestore.FieldValue.serverTimestamp(),
+    declinedAt: FieldValue.serverTimestamp(),
     declinedBy: uid,
   }, {merge: true});
 
@@ -605,7 +605,7 @@ async function declineGuardianApproval(request) {
 
 async function getGuardianWeeklyReport(request) {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
-  const db = admin.firestore();
+  const db = getFirestore();
   const childUid = String(request.data?.childUid || "").trim();
 
   const {child} = await authorise(db, uid, childUid, "viewProgress");
@@ -663,7 +663,7 @@ async function resolveGuardianPayLink(request) {
   const rawToken = String(request.data?.token || "").trim();
   if (!rawToken) return {valid: false, reason: "missing"};
 
-  const db = admin.firestore();
+  const db = getFirestore();
 
   // Unauthenticated by design (see the header) — and every call with a
   // token-shaped string reaches two Firestore reads before it can reject.
@@ -754,7 +754,7 @@ async function sendMail({to, subject, text}) {
  */
 async function inviteCoGuardian(request) {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
-  const db = admin.firestore();
+  const db = getFirestore();
   const childUid = String(request.data?.childUid || "").trim();
   const email = normalizeEmail(request.data?.email);
 
@@ -776,7 +776,7 @@ async function inviteCoGuardian(request) {
   // as the consent tokens in guardianConsent/consentTokens.js.
   const rawToken = randomInviteToken(require("node:crypto").randomBytes);
   const inviteId = hashInviteToken(rawToken);
-  const expiresAt = admin.firestore.Timestamp.fromMillis(
+  const expiresAt = Timestamp.fromMillis(
       Date.now() + CO_GUARDIAN_INVITE_TTL_DAYS * 24 * 60 * 60 * 1000,
   );
 
@@ -786,7 +786,7 @@ async function inviteCoGuardian(request) {
     email,
     role: "co_guardian",
     status: "pending",
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
     expiresAt,
   });
 
@@ -815,7 +815,7 @@ async function inviteCoGuardian(request) {
  */
 async function acceptCoGuardianInvite(request) {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
-  const db = admin.firestore();
+  const db = getFirestore();
   const rawToken = String(request.data?.token || "").trim();
   if (!rawToken) throw new HttpsError("invalid-argument", "This invite link is incomplete.");
 
@@ -857,7 +857,7 @@ async function acceptCoGuardianInvite(request) {
 
     tx.set(ref, {
       status: "accepted",
-      acceptedAt: admin.firestore.FieldValue.serverTimestamp(),
+      acceptedAt: FieldValue.serverTimestamp(),
       acceptedBy: uid,
     }, {merge: true});
 
@@ -872,7 +872,7 @@ async function acceptCoGuardianInvite(request) {
         role: roleForNewLink([{parentUid: invite.invitedBy}]),
         createdVia: "invite",
         invitedBy: invite.invitedBy,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
       });
     }
 
@@ -887,7 +887,7 @@ async function acceptCoGuardianInvite(request) {
 /** Owner removes a co-guardian (or revokes an invite that is still pending). */
 async function removeCoGuardian(request) {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
-  const db = admin.firestore();
+  const db = getFirestore();
   const childUid = String(request.data?.childUid || "").trim();
   const parentUid = String(request.data?.parentUid || "").trim();
   const inviteId = String(request.data?.inviteId || "").trim();
@@ -898,7 +898,7 @@ async function removeCoGuardian(request) {
     const ref = db.collection(INVITES).doc(inviteId);
     const snap = await ref.get();
     if (snap.exists && (snap.data() || {}).learnerUid === childUid) {
-      await ref.set({status: "revoked", revokedAt: admin.firestore.FieldValue.serverTimestamp()}, {merge: true});
+      await ref.set({status: "revoked", revokedAt: FieldValue.serverTimestamp()}, {merge: true});
     }
     return {ok: true};
   }
@@ -971,7 +971,7 @@ function consentSummary(child) {
  */
 async function setGuardianConsent(request) {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
-  const db = admin.firestore();
+  const db = getFirestore();
   const childUid = String(request.data?.childUid || "").trim();
   const decision = String(request.data?.decision || "").trim();
 
@@ -983,7 +983,7 @@ async function setGuardianConsent(request) {
 
   const parentSnap = await db.collection("users").doc(uid).get();
   const parent = parentSnap.exists ? (parentSnap.data() || {}) : {};
-  const now = admin.firestore.FieldValue.serverTimestamp();
+  const now = FieldValue.serverTimestamp();
   const evidence = {
     via: "parent_app",
     guardianUid: uid,

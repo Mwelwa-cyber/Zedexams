@@ -45,7 +45,8 @@
  * exists to prevent.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
+const {getAuth} = require("firebase-admin/auth");
 const crypto = require("crypto");
 const {HttpsError} = require("firebase-functions/v2/https");
 const {defineSecret} = require("firebase-functions/params");
@@ -95,7 +96,7 @@ const REQUESTS = "accountDeletionRequests";
 const AUDIT = "accountDeletionAudit";
 const LINKS = "parentLinks";
 
-const db = () => admin.firestore();
+const db = () => getFirestore();
 const nowMs = () => Date.now();
 
 /* ── Reading ─────────────────────────────────────────────────────────── */
@@ -145,7 +146,7 @@ async function commitTransition({requestId, request, patch, actor, actorUid, rea
   const batch = db().batch();
   batch.set(db().collection(REQUESTS).doc(requestId), {
     ...patch,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   }, {merge: true});
 
   // Mirror the state onto the learner's profile.
@@ -189,15 +190,15 @@ async function commitTransition({requestId, request, patch, actor, actorUid, rea
       reason,
       now: nowMs(),
     }),
-    at: admin.firestore.FieldValue.serverTimestamp(),
+    at: FieldValue.serverTimestamp(),
   });
   await batch.commit();
 
   if (terminal && request?.learnerId) {
     try {
       await db().collection("users").doc(request.learnerId).update({
-        deletionRequestState: admin.firestore.FieldValue.delete(),
-        deletionRequestId: admin.firestore.FieldValue.delete(),
+        deletionRequestState: FieldValue.delete(),
+        deletionRequestId: FieldValue.delete(),
       });
     } catch {
       // The account is gone, which is the whole point of `completed`. Nothing
@@ -340,13 +341,13 @@ async function requestAccountDeletion(request) {
     learnerId: uid,
     learnerDisplayName: profile?.displayName || null,
     requestedBy: core.REQUESTED_BY.LEARNER,
-    requestedAt: admin.firestore.FieldValue.serverTimestamp(),
+    requestedAt: FieldValue.serverTimestamp(),
     state: opened.state,
     guardianUid: opened.guardianUid,
     escalatedAt: opened.escalatedAt,
     scheduledDeleteAt: opened.scheduledDeleteAt,
     openReason: opened.reason,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   };
   await ref.set(doc);
   // The same mirror, on the way in. Best-effort: a failed mirror costs the
@@ -364,7 +365,7 @@ async function requestAccountDeletion(request) {
       requestId: ref.id, learnerId: uid, from: null, to: opened.state,
       actor: "learner", actorUid: uid, reason: opened.reason, now: nowMs(),
     }),
-    at: admin.firestore.FieldValue.serverTimestamp(),
+    at: FieldValue.serverTimestamp(),
   });
 
   if (opened.state === core.STATE.PENDING_GUARDIAN) {
@@ -594,7 +595,7 @@ async function reportWrongGuardian(request) {
     reportedGuardianUid: guardian?.parentUid || null,
     reportedLinkId: guardian?.id || null,
     message: note || "A learner reported that the guardian linked to their account is not their grown-up.",
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
     status: "new",
   });
 
@@ -602,7 +603,7 @@ async function reportWrongGuardian(request) {
     // A flag, not a severance. And explicitly NOT a notification to them.
     await db().collection(LINKS).doc(guardian.id).set({
       flaggedForReview: true,
-      flaggedAt: admin.firestore.FieldValue.serverTimestamp(),
+      flaggedAt: FieldValue.serverTimestamp(),
       flaggedReason: "learner_reported_wrong_guardian",
     }, {merge: true});
   }
@@ -630,7 +631,7 @@ async function runDeletionRequestSweep() {
     now: nowMs(),
     commitTransition,
     notifyLearner,
-    serverTimestamp: admin.firestore.FieldValue.serverTimestamp(),
+    serverTimestamp: FieldValue.serverTimestamp(),
   });
 }
 
@@ -648,15 +649,15 @@ async function runDeletionExecutionSweep() {
     db: db(),
     now: nowMs(),
     commitTransition,
-    serverTimestamp: admin.firestore.FieldValue.serverTimestamp(),
+    serverTimestamp: FieldValue.serverTimestamp(),
     purge: async (learnerId) => {
       const profile = await readProfile(learnerId);
       return runAccountDeletion({
         uid: learnerId,
         email: profile?.email || null,
         db: db(),
-        auth: admin.auth(),
-        FieldValue: admin.firestore.FieldValue,
+        auth: getAuth(),
+        FieldValue: FieldValue,
         purge: purgeUserData,
       });
     },

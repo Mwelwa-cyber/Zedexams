@@ -41,7 +41,7 @@
 
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {defineSecret} = require("firebase-functions/params");
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const crypto = require("crypto");
 const {
   WHATSAPP_SECRETS,
@@ -196,7 +196,7 @@ exports.requestGuardianUnlock = onCall(
         throw new HttpsError("unauthenticated", "Please sign in first.");
       }
       const uid = request.auth.uid;
-      const db = admin.firestore();
+      const db = getFirestore();
 
       const feature = String(request.data?.feature || "").trim();
       if (!REQUESTABLE_GATES.includes(feature)) {
@@ -264,7 +264,7 @@ exports.requestGuardianUnlock = onCall(
         planId: plan.checkoutPlanId,
         priceZMW: plan.price,
         status: "sent",
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
         expiresAt,
         used: false,
       });
@@ -274,7 +274,7 @@ exports.requestGuardianUnlock = onCall(
       // alternative is a retry loop that can put four messages in a parent's
       // inbox because our SMTP was flaky.
       await db.doc(`users/${uid}`).set(
-          {guardianUnlock: {lastRequestAt: admin.firestore.FieldValue.serverTimestamp()}},
+          {guardianUnlock: {lastRequestAt: FieldValue.serverTimestamp()}},
           {merge: true},
       );
 
@@ -362,7 +362,7 @@ exports.requestGuardianUnlock = onCall(
  * @param {string} opts.requestId  the hashed token / doc id
  * @param {object} [opts.db]
  */
-async function settleGuardianRequest({requestId, db = admin.firestore()} = {}) {
+async function settleGuardianRequest({requestId, db = getFirestore()} = {}) {
   if (!requestId) return {ok: false, reason: "no-request-id"};
   try {
     const ref = db.collection(REQUESTS).doc(String(requestId));
@@ -374,7 +374,7 @@ async function settleGuardianRequest({requestId, db = admin.firestore()} = {}) {
     await ref.set({
       status: "paid",
       used: true,
-      paidAt: admin.firestore.FieldValue.serverTimestamp(),
+      paidAt: FieldValue.serverTimestamp(),
     }, {merge: true});
 
     try {

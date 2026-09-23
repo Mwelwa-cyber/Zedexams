@@ -46,7 +46,7 @@
 
 const {onCall, onRequest, HttpsError} = require("firebase-functions/v2/https");
 const {defineSecret} = require("firebase-functions/params");
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const crypto = require("crypto");
 // nodemailer is required lazily at its use site — see invoiceGenerator.js.
 
@@ -288,7 +288,7 @@ exports.sendGuardianConsent = onCall(
         throw new HttpsError("unauthenticated", "Please sign in first.");
       }
       const uid = request.auth.uid;
-      const db = admin.firestore();
+      const db = getFirestore();
       const core = await loadContactCore();
       const now = Date.now();
 
@@ -335,7 +335,7 @@ exports.sendGuardianConsent = onCall(
           // convergence to attach this approval to. The child can still name
           // a contact later, from the dashboard banner.
           contactEmailKey: null,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          createdAt: FieldValue.serverTimestamp(),
           expiresAt: expiryFrom(),
           used: false,
         });
@@ -344,7 +344,7 @@ exports.sendGuardianConsent = onCall(
         await db.doc(`users/${uid}`).set({
           guardian: {
             consentStatus: "pending",
-            requestedAt: admin.firestore.FieldValue.serverTimestamp(),
+            requestedAt: FieldValue.serverTimestamp(),
           },
         }, {merge: true});
 
@@ -455,7 +455,7 @@ exports.sendGuardianConsent = onCall(
         // does not close it — the two canonicalisations answer different
         // questions and are free to diverge.
         contactEmailKey,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
         expiresAt: expiryFrom(),
         used: false,
       });
@@ -470,8 +470,8 @@ exports.sendGuardianConsent = onCall(
           // `method` is what every existing reader of this document looks at.
           method: contact.channel,
           consentStatus: "pending",
-          requestedAt: admin.firestore.FieldValue.serverTimestamp(),
-          lastSentAt: admin.firestore.FieldValue.serverTimestamp(),
+          requestedAt: FieldValue.serverTimestamp(),
+          lastSentAt: FieldValue.serverTimestamp(),
           sendCount: decision.nextSendCount,
           sendTotal: decision.nextSendTotal,
         },
@@ -525,7 +525,7 @@ async function applyDecision(db, docRef, decision) {
     const userSnap = await tx.get(userRef);
     if (!userSnap.exists) return {outcome: "invalid"};
 
-    const now = admin.firestore.FieldValue.serverTimestamp();
+    const now = FieldValue.serverTimestamp();
     // The record's SHAPE lives in consentRecord.js, shared with the
     // family-code and parent-app routes to the same decision — three
     // places writing "approved" three ways is how one of them ends up
@@ -582,7 +582,7 @@ async function applyDecision(db, docRef, decision) {
 }
 
 async function handleConsent(req, res, deps = {}) {
-  const db = deps.db || admin.firestore();
+  const db = deps.db || getFirestore();
   const cors = deps.applyCors || applyCors;
   const rateLimitFn = deps.enforceRateLimit || enforceRateLimit;
   const send = (status, html) => {
@@ -628,7 +628,7 @@ async function handleConsent(req, res, deps = {}) {
       await docRef.update({
         clickIp: ip || "",
         clickUserAgent: String(req.get("user-agent") || "").slice(0, 300),
-        viewedAt: admin.firestore.FieldValue.serverTimestamp(),
+        viewedAt: FieldValue.serverTimestamp(),
       }).catch(() => {});
 
       const userSnap = await db.doc(`users/${record.uid}`).get();
@@ -717,7 +717,7 @@ exports.recordAgeGateAttempt = onCall(
       if (raw.length < 8 || raw.length > 200) {
         throw new HttpsError("invalid-argument", "A device identifier is required.");
       }
-      const db = admin.firestore();
+      const db = getFirestore();
       const ip = resolveClientIp(request.rawRequest || {});
 
       // Unauthenticated write endpoint — cap it per IP.
@@ -738,7 +738,7 @@ exports.recordAgeGateAttempt = onCall(
         return {blocked: true, retryAfterMs: RESEND_COOLDOWN_MS - (now - at.getTime())};
       }
       await ref.set({
-        at: admin.firestore.FieldValue.serverTimestamp(),
+        at: FieldValue.serverTimestamp(),
         // TTL field so these expire on their own — nothing here is worth
         // keeping once the cooldown has elapsed.
         expiresAt: new Date(now + RESEND_COOLDOWN_MS),

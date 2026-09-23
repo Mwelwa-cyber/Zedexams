@@ -34,7 +34,7 @@
  */
 
 const {HttpsError} = require("firebase-functions/v2/https");
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 
 const {assertVerifiedAuth} = require("../authGuard");
 const core = require("./paperQuizCore");
@@ -54,7 +54,7 @@ async function shared() {
 }
 
 function db() {
-  return admin.firestore();
+  return getFirestore();
 }
 
 /** The paper, or a refusal a learner can read. */
@@ -214,7 +214,7 @@ exports.startAttemptHandler = async (request) => {
     });
     await store.collection(ATTEMPTS).doc(attemptId).set({
       ...attempt,
-      startedAt: admin.firestore.FieldValue.serverTimestamp(),
+      startedAt: FieldValue.serverTimestamp(),
     });
   }
 
@@ -256,7 +256,7 @@ async function finalizeStale(attempt, nowMs, action) {
     await db().collection(ATTEMPTS).doc(attempt.attemptId).update({
       status,
       submittedAtMs: nowMs,
-      submittedAt: admin.firestore.FieldValue.serverTimestamp(),
+      submittedAt: FieldValue.serverTimestamp(),
       timeUsedSec: core.timeUsedSeconds(attempt, nowMs),
     });
   } catch (err) {
@@ -300,13 +300,13 @@ exports.patchAttemptHandler = async (request) => {
   const questionIds = questions.map((q) => q.id);
 
   const answers = core.sanitizeAnswerPatch(request.data?.answers, {questionIds});
-  const update = {updatedAt: admin.firestore.FieldValue.serverTimestamp()};
+  const update = {updatedAt: FieldValue.serverTimestamp()};
   Object.keys(answers).forEach((qid) => {
     // Dot-path writes, so two patches for different questions cannot clobber
     // each other — which is what a whole-map write would do the moment the
     // debounce fires twice from two components.
     update[`answers.${qid}`] = answers[qid] === null
-      ? admin.firestore.FieldValue.delete()
+      ? FieldValue.delete()
       : answers[qid];
   });
   if (Array.isArray(request.data?.flags)) {
@@ -368,7 +368,7 @@ exports.submitAttemptHandler = async (request) => {
     status: attempt.mode === "exam" ? status : core.ATTEMPT_STATUS.SUBMITTED,
     answers,
     submittedAtMs: nowMs,
-    submittedAt: admin.firestore.FieldValue.serverTimestamp(),
+    submittedAt: FieldValue.serverTimestamp(),
     timeUsedSec: core.timeUsedSeconds(attempt, nowMs),
     score: {right: marked.right, total: marked.total, percent: marked.percent},
     bySection: marked.bySection,
@@ -428,7 +428,7 @@ async function applyTopicStats(uid, rows, {subject, grade, marking}) {
   if (updates.length === 0) return;
   try {
     const batch = db().batch();
-    const now = admin.firestore.FieldValue.serverTimestamp();
+    const now = FieldValue.serverTimestamp();
     updates.slice(0, 400).forEach((u) => {
       const ref = db().collection(TOPIC_STATS).doc(core.topicStatId(uid, u.topicId));
       batch.set(ref, {
@@ -438,8 +438,8 @@ async function applyTopicStats(uid, rows, {subject, grade, marking}) {
         section: u.section,
         subject: u.subject,
         grade: u.grade,
-        seen: admin.firestore.FieldValue.increment(u.seen),
-        wrong: admin.firestore.FieldValue.increment(u.wrong),
+        seen: FieldValue.increment(u.seen),
+        wrong: FieldValue.increment(u.wrong),
         lastSeenAt: now,
         ...(u.wrong > 0 ? {lastWrongAt: now} : {}),
       }, {merge: true});
@@ -478,7 +478,7 @@ exports.abandonAttemptHandler = async (request) => {
   const nowMs = Date.now();
   await ref.update({
     ...core.buildAbandon(attempt, nowMs),
-    submittedAt: admin.firestore.FieldValue.serverTimestamp(),
+    submittedAt: FieldValue.serverTimestamp(),
   });
   return {status: core.ATTEMPT_STATUS.ABANDONED};
 };
@@ -505,7 +505,7 @@ exports.savePracticeProgressHandler = async (request) => {
     paperId,
     lastQuestionN: Number.isFinite(n) && n > 0 ? Math.min(Math.floor(n), questions.length) : 0,
     answered,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   }, {merge: true});
   return {saved: true};
 };

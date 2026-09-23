@@ -31,7 +31,9 @@
 
 const {onCall, onRequest, HttpsError} = require("firebase-functions/v2/https");
 const {onDocumentDeleted} = require("firebase-functions/v2/firestore");
-const admin = require("firebase-admin");
+const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
+const {getAuth} = require("firebase-admin/auth");
+const {getStorage} = require("firebase-admin/storage");
 
 const {assertVerifiedAuth, assertDecodedVerified} = require("../authGuard");
 const {getUserRole} = require("../aiService");
@@ -81,7 +83,7 @@ async function loadQuestions(db, assessmentId) {
 async function renderExport(assessment, questions, typeCfg) {
   const model = buildServerPaperModel(assessment, questions, typeCfg.mode);
   const images = model.imageRefs.length
-    ? await fetchImages(model.imageRefs.map((r) => r.url), admin)
+    ? await fetchImages(model.imageRefs.map((r) => r.url), getStorage())
     : {};
   const attribution = false; // server exports are the owner's own paper.
   if (typeCfg.format === "pdf") {
@@ -105,8 +107,8 @@ async function mintTicket(db, {uid, assessmentId, exportType, storagePath, filen
     storagePath,
     filename,
     contentType,
-    createdAt: admin.firestore.Timestamp.fromMillis(now),
-    expiresAt: admin.firestore.Timestamp.fromMillis(now + TICKET_TTL_MS),
+    createdAt: Timestamp.fromMillis(now),
+    expiresAt: Timestamp.fromMillis(now + TICKET_TTL_MS),
   });
   return ref.id;
 }
@@ -170,7 +172,7 @@ async function ensureExport({db, bucket, uid, assessment, questions, typeCfg}) {
     }
     const leaseEntry = core.buildLeaseEntry(curEntry, sourceHash, uid, nowMs());
     tx.set(stateRef, {ownerUid: teacherUid, [typeCfg.kind]: leaseEntry,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp()}, {merge: true});
+      updatedAt: FieldValue.serverTimestamp()}, {merge: true});
     return {claimed: true, leaseEntry};
   });
 
@@ -266,7 +268,7 @@ async function authorizeAndLoad(request, {needQuestions = true} = {}) {
   const data = request.data || {};
   const assessmentId = String(data.assessmentId || "");
   if (!assessmentId) throw new HttpsError("invalid-argument", "Missing assessmentId.");
-  const db = admin.firestore();
+  const db = getFirestore();
   const assessment = await loadAssessment(db, assessmentId);
   const role = await getUserRole(uid);
   const authz = core.authorizeAssessmentAccess({assessment, uid, isAdmin: isAdminRole(role)});
@@ -292,7 +294,7 @@ const requestAssessmentExport = onCall(
     // none was started. Nothing the caller sent is consulted; the verdict comes
     // from the paper Firestore holds.
     await assertExportable(assessment, questions);
-    const bucket = admin.storage().bucket();
+    const bucket = getStorage().bucket();
     return ensureExport({db, bucket, uid, assessment, questions, typeCfg});
   },
 );
@@ -340,7 +342,7 @@ const prewarmAssessmentExports = onCall(
     // cache by a later request that the gate never gets to see.
     const readiness = await assessExportReadiness(assessment, questions);
     if (readiness.blocked) return {ok: true, warmed: [], blocked: readiness.reason};
-    const bucket = admin.storage().bucket();
+    const bucket = getStorage().bucket();
     const warmed = [];
     for (const key of core.PREWARM_EXPORT_TYPES) {
       const typeCfg = core.resolveExportType(key);
@@ -417,8 +419,8 @@ const apiAssessmentDownload = onRequest(
     const typeCfg = core.resolveExportType(parsed.exportType);
     if (!typeCfg) { res.status(400).send("Unknown export type."); return; }
 
-    const db = admin.firestore();
-    const bucket = admin.storage().bucket();
+    const db = getFirestore();
+    const bucket = getStorage().bucket();
     const ticketId = String((req.query && req.query.t) || "");
 
     try {
@@ -450,7 +452,7 @@ const apiAssessmentDownload = onRequest(
       if (!idToken) { res.status(401).send("Sign in to download this file."); return; }
       let decoded;
       try {
-        decoded = await admin.auth().verifyIdToken(idToken);
+        decoded = await getAuth().verifyIdToken(idToken);
         await assertDecodedVerified(decoded);
       } catch { res.status(401).send("Your session has expired. Please sign in again."); return; }
 
@@ -486,10 +488,10 @@ const reapAssessmentExportsOnDelete = onDocumentDeleted(
     const assessmentId = event.params.assessmentId;
     const before = event.data?.data() || {};
     const teacherUid = before.createdBy;
-    const db = admin.firestore();
+    const db = getFirestore();
     try {
       if (teacherUid) {
-        const bucket = admin.storage().bucket();
+        const bucket = getStorage().bucket();
         const prefix = core.buildAssessmentPrefix(teacherUid, assessmentId);
         const [files] = await bucket.getFiles({prefix});
         await Promise.all(files.map((f) => f.delete().catch(() => {})));

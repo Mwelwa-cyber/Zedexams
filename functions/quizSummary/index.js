@@ -20,7 +20,7 @@
  * operator-controlled and instantly reversible.
  */
 
-const admin = require("firebase-admin");
+const {getFirestore} = require("firebase-admin/firestore");
 const {onDocumentWritten} = require("firebase-functions/v2/firestore");
 
 // buildQuizSummary lives in a dependency-free module so it can be unit-tested
@@ -40,7 +40,7 @@ const onQuizWritten = onDocumentWritten(
   {document: "quizzes/{quizId}", ...COMMON_OPTS},
   async (event) => {
     const quizId = event.params.quizId;
-    const summaryRef = admin.firestore()
+    const summaryRef = getFirestore()
       .collection("quizSummaries").doc(quizId);
     try {
       const after = event.data && event.data.after && event.data.after.exists ?

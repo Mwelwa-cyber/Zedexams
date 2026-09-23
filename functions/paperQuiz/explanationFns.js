@@ -25,7 +25,7 @@
  * question, which is the correct outcome and not a defect.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {HttpsError} = require("firebase-functions/v2/https");
 
 const {assertVerifiedAuth} = require("../authGuard");
@@ -67,7 +67,7 @@ async function sharedModules() {
 }
 
 function db() {
-  return admin.firestore();
+  return getFirestore();
 }
 
 async function assertStaff(request) {
@@ -186,7 +186,7 @@ exports.draftPaperExplanationsHandler = async (request) => {
       await db().collection("quizzes").doc(quizId).collection("questions").doc(question.id).set({
         ...verdict.draft,
         explanationPromptVersion: PROMPT_VERSION,
-        explanationDraftedAt: admin.firestore.FieldValue.serverTimestamp(),
+        explanationDraftedAt: FieldValue.serverTimestamp(),
         explanationDraftedBy: uid,
       }, {merge: true});
       drafted += 1;
@@ -250,7 +250,7 @@ exports.reviewPaperExplanationHandler = async (request) => {
     action,
     edited: request.data?.edited,
     reviewerUid: uid,
-    now: admin.firestore.FieldValue.serverTimestamp(),
+    now: FieldValue.serverTimestamp(),
   });
   await ref.set(write, {merge: true});
   return {questionId, status: write.explanationStatus};
@@ -280,7 +280,7 @@ exports.bulkApproveExplanationsHandler = async (request) => {
   if (approvable.length === 0) return {approved: 0, skipped: requestedIds.length};
 
   const batch = db().batch();
-  const now = admin.firestore.FieldValue.serverTimestamp();
+  const now = FieldValue.serverTimestamp();
   approvable.slice(0, 400).forEach((id) => {
     batch.set(
         db().collection("quizzes").doc(quizId).collection("questions").doc(id),

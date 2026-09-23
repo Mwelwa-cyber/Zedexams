@@ -41,11 +41,11 @@ function parseFirebaseStorageUrl(url) {
 }
 
 /** Read one image → Buffer, or null on any failure (never throws). */
-async function fetchOne(url, admin) {
+async function fetchOne(url, storage) {
   try {
     const gs = parseFirebaseStorageUrl(url);
-    if (gs && admin) {
-      const file = admin.storage().bucket(gs.bucket).file(gs.path);
+    if (gs && storage) {
+      const file = storage.bucket(gs.bucket).file(gs.path);
       const [buf] = await file.download();
       if (buf && buf.length && buf.length <= MAX_IMAGE_BYTES) return buf;
       return null;
@@ -71,10 +71,10 @@ async function fetchOne(url, admin) {
 /**
  * Fetch all distinct image URLs with bounded concurrency.
  * @param {string[]} urls
- * @param {object} admin firebase-admin (optional; used for bucket reads)
+ * @param {object} storage firebase-admin Storage, i.e. getStorage() (optional; used for bucket reads)
  * @returns {Promise<Object<string,{buffer:Buffer}>>}
  */
-async function fetchImages(urls, admin) {
+async function fetchImages(urls, storage) {
   const distinct = [...new Set((urls || []).filter(Boolean))];
   const out = {};
   let cursor = 0;
@@ -83,7 +83,7 @@ async function fetchImages(urls, admin) {
       const idx = cursor;
       cursor += 1;
       const url = distinct[idx];
-      const buf = await fetchOne(url, admin);
+      const buf = await fetchOne(url, storage);
       if (buf) out[url] = {buffer: buf};
     }
   }

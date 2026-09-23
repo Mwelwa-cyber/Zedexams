@@ -12,7 +12,7 @@
  *                    Catches image swaps and diagram regenerations.
  */
 
-const admin = require("firebase-admin");
+const {getStorage} = require("firebase-admin/storage");
 const {onDocumentDeleted, onDocumentUpdated} =
   require("firebase-functions/v2/firestore");
 
@@ -61,7 +61,7 @@ function makeDeletedTrigger(documentPath) {
       try {
         const data = event.data && event.data.data();
         if (!data) return;
-        const bucket = admin.storage().bucket();
+        const bucket = getStorage().bucket();
         const paths = collectQuestionImagePaths(data, bucket.name);
         if (paths.length === 0) return;
         // Don't delete a blob a sibling question still references. If the
@@ -90,7 +90,7 @@ function makeUpdatedTrigger(documentPath) {
           event.data.before.data();
         const after = event.data && event.data.after && event.data.after.data();
         if (!before || !after) return;
-        const bucket = admin.storage().bucket();
+        const bucket = getStorage().bucket();
         const newPaths = new Set(
           collectQuestionImagePaths(after, bucket.name),
         );

@@ -58,8 +58,8 @@ function sanitizeAction(action) {
  * @param {boolean} [opts.sendPush=true]
  * @param {string} [opts.source='system']
  * @param {number} [opts.expiresInDays=90]
- * @param {object} [opts.db]             firestore() (defaults to admin.firestore())
- * @param {object} [opts.messaging]      messaging() (defaults to admin.messaging())
+ * @param {object} [opts.db]             firestore() (defaults to getFirestore())
+ * @param {object} [opts.messaging]      messaging() (defaults to getMessaging())
  * @param {object} [opts.userData]       pre-fetched users/{uid} data — pass it
  *                                        to skip the read (e.g. fan-out loops
  *                                        that already hold the user doc).
@@ -67,7 +67,8 @@ function sanitizeAction(action) {
  * @returns {Promise<{written:boolean, id?:string, pushed:boolean, deduped:boolean, reason?:string}>}
  */
 async function createNotification(opts = {}) {
-  const admin = require("firebase-admin");
+  const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
+  const {getMessaging} = require("firebase-admin/messaging");
   const {
     uid,
     category,
@@ -81,8 +82,8 @@ async function createNotification(opts = {}) {
     sendPush = true,
     source = "system",
     expiresInDays = DEFAULT_EXPIRY_DAYS,
-    db = admin.firestore(),
-    messaging = admin.messaging(),
+    db = getFirestore(),
+    messaging = getMessaging(),
     userData: prefetchedUserData = null,
     now = new Date(),
   } = opts;
@@ -122,7 +123,7 @@ async function createNotification(opts = {}) {
   // Dedupe: skip if an identical-key notification landed in the last 24h.
   if (dedupeKey) {
     try {
-      const cutoff = admin.firestore.Timestamp.fromMillis(
+      const cutoff = Timestamp.fromMillis(
           now.getTime() - DEDUPE_WINDOW_MS,
       );
       const dup = await itemsRef
@@ -156,8 +157,8 @@ async function createNotification(opts = {}) {
     readAt: null,
     dedupeKey: dedupeKey ? clampString(dedupeKey, 200) : null,
     source: clampString(source, 60) || "system",
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    expiresAt: admin.firestore.Timestamp.fromMillis(
+    createdAt: FieldValue.serverTimestamp(),
+    expiresAt: Timestamp.fromMillis(
         now.getTime() + expiresInDays * 24 * 60 * 60 * 1000,
     ),
   };

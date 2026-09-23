@@ -43,7 +43,8 @@
  * write.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue} = require("firebase-admin/firestore");
+const {getAuth} = require("firebase-admin/auth");
 
 const LINKS = "parentLinks";
 const CLAIMS = "guardianLinkClaims";
@@ -67,7 +68,7 @@ function claimId(emailKey, learnerUid) {
 
 async function audit(db, entry) {
   try {
-    await db.collection(AUDIT).add({...entry, at: admin.firestore.FieldValue.serverTimestamp()});
+    await db.collection(AUDIT).add({...entry, at: FieldValue.serverTimestamp()});
   } catch (err) {
     console.error("[convergence] AUDIT WRITE FAILED", entry?.event, err?.message || err);
   }
@@ -90,7 +91,7 @@ async function findGuardianAccount(db, emailKey) {
   if (!emailKey) return null;
   let authUser = null;
   try {
-    authUser = await admin.auth().getUserByEmail(emailKey);
+    authUser = await getAuth().getUserByEmail(emailKey);
   } catch (err) {
     if (err?.code !== "auth/user-not-found") {
       // A lookup that FAILED is not a lookup that found nothing. Leaving
@@ -132,7 +133,7 @@ async function writeApprovedLink(db, {guardian, learnerUid, learner, emailKey, e
   const prior = siblings.find((l) => l.id === id);
   const role = prior ? (prior.role || null) : roleForNewLink(siblings);
 
-  const now = admin.firestore.FieldValue.serverTimestamp();
+  const now = FieldValue.serverTimestamp();
   await db.collection(LINKS).doc(id).set({
     parentUid: guardian.uid,
     learnerUid,
@@ -200,7 +201,7 @@ async function attachOnApproval(db, {learnerUid, guardianEmail, evidence} = {}) 
         method: core.LINK_METHOD.EMAIL_LINK,
         ...(evidence ? {evidence} : {}),
         status: "open",
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
       }, {merge: true});
       await audit(db, {
         event: "link_claim_recorded",
@@ -248,7 +249,7 @@ async function claimForGuardian(db, guardianUid) {
 
   let authUser = null;
   try {
-    authUser = await admin.auth().getUser(guardianUid);
+    authUser = await getAuth().getUser(guardianUid);
   } catch (err) {
     console.warn("[convergence] claim sweep: auth read failed", err?.message || err);
     return {claimed: 0, children: []};
@@ -283,7 +284,7 @@ async function claimForGuardian(db, guardianUid) {
       if (!learnerSnap.exists) {
         // The child's account is gone. Close the claim rather than
         // retrying it on every visit forever.
-        await doc.ref.update({status: "stale", closedAt: admin.firestore.FieldValue.serverTimestamp()});
+        await doc.ref.update({status: "stale", closedAt: FieldValue.serverTimestamp()});
         continue;
       }
       await writeApprovedLink(db, {
@@ -296,7 +297,7 @@ async function claimForGuardian(db, guardianUid) {
       await doc.ref.update({
         status: "redeemed",
         redeemedBy: guardianUid,
-        redeemedAt: admin.firestore.FieldValue.serverTimestamp(),
+        redeemedAt: FieldValue.serverTimestamp(),
       });
       await audit(db, {
         event: "link_claim_redeemed",

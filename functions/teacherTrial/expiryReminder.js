@@ -26,7 +26,7 @@
  * query this narrow.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 // nodemailer is required lazily at its use site — see invoiceGenerator.js.
 
 const {isTrialReminderDue, buildTrialReminderEmail} = require("./teacherTrialCore");
@@ -58,7 +58,7 @@ function getTransporter(senderEmail, senderPassword) {
  */
 async function runTeacherTrialExpiryReminder({senderEmail, senderPassword, now = new Date()}) {
   const summary = {checked: 0, sent: 0, skipped: 0, failed: 0};
-  const db = admin.firestore();
+  const db = getFirestore();
 
   const snap = await db.collection("users")
       .where("teacherPlan", "==", "trial")
@@ -120,7 +120,7 @@ async function runTeacherTrialExpiryReminder({senderEmail, senderPassword, now =
       // run, not silently marked done (mirrors sendExpiryReminders' cooldown
       // stamp in messagingHandlers.js).
       await doc.ref.set({
-        teacherTrialReminderSentAt: admin.firestore.FieldValue.serverTimestamp(),
+        teacherTrialReminderSentAt: FieldValue.serverTimestamp(),
       }, {merge: true});
       summary.sent += 1;
     } catch (err) {

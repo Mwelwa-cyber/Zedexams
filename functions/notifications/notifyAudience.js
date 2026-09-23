@@ -119,8 +119,8 @@ async function resolveAdminUids(db) {
  * so it is force-written in-app (admins can still gate push).
  */
 async function notifyAdmins(kind, data = {}, opts = {}) {
-  const admin = require("firebase-admin");
-  const db = opts.db || admin.firestore();
+  const {getFirestore} = require("firebase-admin/firestore");
+  const db = opts.db || getFirestore();
   const uids = await resolveAdminUids(db);
   if (uids.length === 0) return { delivered: 0 };
   const payload = buildAdminNotification(kind, data);

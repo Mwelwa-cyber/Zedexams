@@ -25,7 +25,7 @@
  *   • the injected message is tagged as a drill, so nobody reads the resulting
  *     page as a live incident.
  */
-const admin = require("firebase-admin");
+const {getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 
 const {assertVerifiedAuth} = require("../authGuard");
@@ -59,7 +59,7 @@ function createSendTestFunctionErrorAlert(secrets = []) {
   }, async (request) => {
     const uid = await assertVerifiedAuth(request, "Sign in required.");
 
-    const db = admin.firestore();
+    const db = getFirestore();
     const userSnap = await db.collection("users").doc(uid).get();
     const role = userSnap.exists ? (userSnap.data()?.role || "") : "";
     if (!isAdminRole(role)) {

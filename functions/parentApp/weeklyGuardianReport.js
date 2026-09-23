@@ -25,7 +25,7 @@
  *      one run inside the timeout rather than half-finishing silently.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {aggregateProgress} = require("../parentPortalShared");
 const {buildReportEmail, buildWeeklyReport, toMillis} = require("./parentAppCore");
 
@@ -138,7 +138,7 @@ async function reportForLink(db, link, now = Date.now()) {
 const {isLinkActive} = require("../familyPortalCore");
 
 async function runWeeklyGuardianReport() {
-  const db = admin.firestore();
+  const db = getFirestore();
   const now = Date.now();
 
   const snap = await db.collection("parentLinks").limit(MAX_LINKS_PER_RUN).get();
@@ -160,7 +160,7 @@ async function runWeeklyGuardianReport() {
       if (result.sent) {
         sent += 1;
         await doc.ref.set({
-          lastGuardianReportAt: admin.firestore.FieldValue.serverTimestamp(),
+          lastGuardianReportAt: FieldValue.serverTimestamp(),
         }, {merge: true});
       } else {
         skipped += 1;

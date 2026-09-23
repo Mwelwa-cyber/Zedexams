@@ -13,7 +13,7 @@
  * for onCreate so we match that pattern.
  */
 
-const admin = require("firebase-admin");
+const {getStorage} = require("firebase-admin/storage");
 const functions = require("firebase-functions/v1");
 
 const {collectUserPrefixes, deleteByPrefix} = require("./helpers");
@@ -26,7 +26,7 @@ const onUserDeleted = functions
     const uid = user && user.uid;
     if (!uid) return null;
 
-    const bucket = admin.storage().bucket();
+    const bucket = getStorage().bucket();
     for (const prefix of collectUserPrefixes(uid)) {
       try {
         await deleteByPrefix(bucket, prefix);

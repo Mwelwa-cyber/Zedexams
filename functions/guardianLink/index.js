@@ -46,7 +46,7 @@
 
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {defineSecret} = require("firebase-functions/params");
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 
 const {assertVerifiedAuth} = require("../authGuard");
 const {assertCallableRateLimit} = require("../rateLimit");
@@ -102,7 +102,7 @@ async function audit(db, entry) {
   try {
     await db.collection(AUDIT).add({
       ...entry,
-      at: admin.firestore.FieldValue.serverTimestamp(),
+      at: FieldValue.serverTimestamp(),
     });
   } catch (err) {
     console.error("[guardianLink] AUDIT WRITE FAILED", entry?.event, err?.message || err);
@@ -185,7 +185,7 @@ const withdrawGuardianConsent = onCall({
   memory: "256MiB",
 }, async (request) => {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
-  const db = admin.firestore();
+  const db = getFirestore();
   const core = await loadCore();
   const childUid = String(request.data?.childUid || "").trim();
   if (!childUid) throw new HttpsError("invalid-argument", "childUid is required.");
@@ -212,7 +212,7 @@ const withdrawGuardianConsent = onCall({
   await db.collection(LINKS).doc(core.linkId(uid, childUid)).set({
     consent: {
       state: core.LINK_CONSENT.WITHDRAWN,
-      withdrawnAt: admin.firestore.FieldValue.serverTimestamp(),
+      withdrawnAt: FieldValue.serverTimestamp(),
     },
   }, {merge: true});
 
@@ -255,7 +255,7 @@ const setLinkPermission = onCall({
   memory: "256MiB",
 }, async (request) => {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
-  const db = admin.firestore();
+  const db = getFirestore();
   const core = await loadCore();
   const {roleFor, can} = await loadRoles();
 
@@ -294,7 +294,7 @@ const setLinkPermission = onCall({
   if (from === next) return {ok: true, changed: false};
 
   await db.collection(LINKS).doc(core.linkId(uid, childUid)).set({
-    permissions: {[key]: next, updatedAt: admin.firestore.FieldValue.serverTimestamp()},
+    permissions: {[key]: next, updatedAt: FieldValue.serverTimestamp()},
   }, {merge: true});
 
   await audit(db, {
@@ -337,7 +337,7 @@ const requestGuardianUnlink = onCall({
   const uid = await assertVerifiedAuth(request, "Sign in required.");
   await assertCallableRateLimit(request, {action: "guardianUnlinkAsk", userPerMin: 5, ipPerMin: 20});
 
-  const db = admin.firestore();
+  const db = getFirestore();
   const core = await loadCore();
   const parentUid = String(request.data?.parentUid || "").trim();
   const reason = String(request.data?.reason || "").slice(0, 1000);
@@ -379,7 +379,7 @@ const requestGuardianUnlink = onCall({
     parentUid,
     reason,
     status: "open",
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
   });
 
   await audit(db, {
@@ -426,7 +426,7 @@ const reportGuardianLink = onCall({
   const uid = await assertVerifiedAuth(request, "Sign in required.");
   await assertCallableRateLimit(request, {action: "guardianLinkReport", userPerMin: 5, ipPerMin: 20});
 
-  const db = admin.firestore();
+  const db = getFirestore();
   const core = await loadCore();
   const parentUid = String(request.data?.parentUid || "").trim();
   const reason = String(request.data?.reason || "").slice(0, 1000);
@@ -451,7 +451,7 @@ const reportGuardianLink = onCall({
   } else {
     await ref.set({
       flagged: {
-        at: admin.firestore.FieldValue.serverTimestamp(),
+        at: FieldValue.serverTimestamp(),
         by: uid,
         reason,
         status: "open",

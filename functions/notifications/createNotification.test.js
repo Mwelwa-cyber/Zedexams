@@ -146,9 +146,12 @@ firestoreFn.FieldValue = {
 firestoreFn.Timestamp = { fromMillis: (ms) => makeTimestamp(ms) };
 const adminStub = { firestore: firestoreFn, messaging: () => messaging };
 
+const {modularAdminModules} = require("../testFixtures/modularAdminStub");
+const MODULAR_ADMIN = modularAdminModules(adminStub);
 const origLoad = Module._load;
 Module._load = function (request, ...rest) {
   if (request === "firebase-admin") return adminStub;
+  if (MODULAR_ADMIN[request]) return MODULAR_ADMIN[request];
   return origLoad.call(this, request, ...rest);
 };
 
