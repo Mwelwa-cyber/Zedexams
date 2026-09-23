@@ -514,6 +514,7 @@ exports.buildPaymentHandlers = (deps) => {
       const apiKey = lencoApiKeyValue();
       if (!apiKey) throw new HttpsError("failed-precondition", "Payments are not configured.");
 
+      const {statusLookupMessage} = require("./paymentInitiationCore");
       const lenco = require("./paymentProvider").getPaymentProvider();
       let resp;
       try {
