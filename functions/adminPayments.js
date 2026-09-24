@@ -70,7 +70,7 @@ function finalizeActivationFields(fields) {
  * confirmPayment() in useFirestore.js.
  */
 exports.adminConfirmPayment = onCall(
-    {region: "us-central1", timeoutSeconds: 30},
+    {maxInstances: 2, region: "us-central1", timeoutSeconds: 30},
     async (request) => {
       const actor = await assertCallerIsAdmin(request);
       const {paymentId} = request.data || {};
@@ -135,7 +135,7 @@ exports.adminConfirmPayment = onCall(
  * in useFirestore.js.
  */
 exports.adminRejectPayment = onCall(
-    {region: "us-central1", timeoutSeconds: 30},
+    {maxInstances: 2, region: "us-central1", timeoutSeconds: 30},
     async (request) => {
       const actor = await assertCallerIsAdmin(request);
       const {paymentId, reason = ""} = request.data || {};
@@ -180,7 +180,7 @@ exports.adminRejectPayment = onCall(
  * lifetime/comp path.
  */
 exports.adminGrantPremium = onCall(
-    {region: "us-central1", timeoutSeconds: 30},
+    {maxInstances: 2, region: "us-central1", timeoutSeconds: 30},
     async (request) => {
       const actor = await assertCallerIsAdmin(request);
       const {uid, planId, durationDays} = request.data || {};
@@ -231,7 +231,7 @@ exports.adminGrantPremium = onCall(
  * revokePremium() in useFirestore.js.
  */
 exports.adminRevokePremium = onCall(
-    {region: "us-central1", timeoutSeconds: 30},
+    {maxInstances: 2, region: "us-central1", timeoutSeconds: 30},
     async (request) => {
       const actor = await assertCallerIsAdmin(request);
       const {uid} = request.data || {};

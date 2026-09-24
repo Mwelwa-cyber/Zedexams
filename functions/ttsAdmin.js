@@ -57,6 +57,7 @@ const elevenLabsApiKey = defineSecret("ELEVENLABS_API_KEY");
 
 exports.getTtsControlRoom = onCall(
   {
+    maxInstances: 2,
     region: "us-central1",
     // 256MiB (the floor — see docs/architecture/13-cloud-functions-register.md's
     // measured 148MiB module-load cost) was getting OOM-killed here: unlike

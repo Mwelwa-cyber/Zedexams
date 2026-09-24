@@ -38,7 +38,7 @@ function dateKey(offsetDays = 0) {
 
 // ── Daily practice (in-app) ────────────────────────────────────────────────
 const dailyPracticeReminders = onSchedule(
-    {...BASE_OPTS, schedule: "every day 16:30", timeoutSeconds: 540},
+    {...BASE_OPTS, maxInstances: 1, schedule: "every day 16:30", timeoutSeconds: 540},
     async () => {
       const db = getFirestore();
       const today = dateKey(0);
@@ -94,7 +94,7 @@ const dailyPracticeReminders = onSchedule(
 const COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000;
 
 const subscriptionExpiryReminders = onSchedule(
-    {...BASE_OPTS, schedule: "every day 08:00", timeoutSeconds: 540},
+    {...BASE_OPTS, maxInstances: 1, schedule: "every day 08:00", timeoutSeconds: 540},
     async () => {
       const db = getFirestore();
       const now = new Date();
@@ -188,7 +188,7 @@ const subscriptionExpiryReminders = onSchedule(
 
 // ── Archival (90-day cleanup backstop for the TTL policy) ───────────────────
 const archiveOldNotifications = onSchedule(
-    {...BASE_OPTS, schedule: "every day 03:30", timeoutSeconds: 540},
+    {...BASE_OPTS, maxInstances: 1, schedule: "every day 03:30", timeoutSeconds: 540},
     async () => {
       const db = getFirestore();
       const now = Timestamp.now();
@@ -223,7 +223,7 @@ function isLearnerRole(role) {
 }
 
 const weeklyRevisionReminder = onSchedule(
-    {...BASE_OPTS, schedule: "every sunday 17:00", timeoutSeconds: 540},
+    {...BASE_OPTS, maxInstances: 1, schedule: "every sunday 17:00", timeoutSeconds: 540},
     async () => {
       const db = getFirestore();
       const weekKey = dateKey(0);
@@ -288,7 +288,7 @@ const weeklyRevisionReminder = onSchedule(
 const WINBACK_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 
 const inactiveLearnerReminder = onSchedule(
-    {...BASE_OPTS, schedule: "every day 10:00", timeoutSeconds: 540},
+    {...BASE_OPTS, maxInstances: 1, schedule: "every day 10:00", timeoutSeconds: 540},
     async () => {
       const db = getFirestore();
       const now = Date.now();

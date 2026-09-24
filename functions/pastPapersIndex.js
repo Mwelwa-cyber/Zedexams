@@ -105,6 +105,7 @@ const pastPapersIndexOnWrite = onDocumentWritten(TRIGGER_OPTS, async (event) => 
 // other scheduled crons (a scheduled job reads Firestore cross-region
 // fine via the admin SDK).
 const CRON_OPTS = {
+  maxInstances: 1,
   schedule: "every 6 hours",
   region: "us-central1",
   timeoutSeconds: 120,

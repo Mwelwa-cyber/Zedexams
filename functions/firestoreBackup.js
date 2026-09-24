@@ -290,6 +290,7 @@ async function runFirestoreExport({
 // repo's region convention (only Firestore *triggers* pin to africa-south1);
 // the export operation itself runs server-side next to the database.
 const BACKUP_OPTS = {
+  maxInstances: 1,
   schedule: "every day 01:30",
   timeZone: "Africa/Lusaka",
   region: "us-central1",
@@ -375,6 +376,7 @@ async function getExportOperation(operationName) {
 // 03:30 Lusaka — ~2h after the 01:30 export, enough for a normal export to
 // finish, so the summary flips started → completed unattended.
 const backupCompletionCheck = onSchedule({
+  maxInstances: 1,
   schedule: "every day 03:30",
   timeZone: "Africa/Lusaka",
   region: "us-central1",

@@ -125,6 +125,7 @@ async function runRateLimitHealthCheck({
 
 // Hourly canary. us-central1 per the repo region convention for scheduled fns.
 const rateLimitHealthCheck = onSchedule({
+  maxInstances: 1,
   schedule: "every 60 minutes",
   region: "us-central1",
   timeoutSeconds: 60,

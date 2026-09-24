@@ -72,6 +72,7 @@ async function mintAndPersistCode(db, uid) {
 }
 
 const backfillReferralCodes = onCall({
+  maxInstances: 2,
   region: REGION,
   timeoutSeconds: 60,
   memory: "256MiB",

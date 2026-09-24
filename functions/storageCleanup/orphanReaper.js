@@ -123,6 +123,7 @@ async function sweepOrphanLessonBatches(bucket, db, report) {
 
 const orphanStorageReaper = onSchedule(
   {
+    maxInstances: 1,
     schedule: "0 3 * * *",
     timeZone: "Africa/Lusaka",
     region: "us-central1",

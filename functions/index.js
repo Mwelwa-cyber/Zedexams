@@ -957,6 +957,7 @@ exports.deleteMyAccount = onCall(
 // has no African region).
 exports.accountPurgeSweep = onSchedule(
   {
+    maxInstances: 1,
     schedule: "every 24 hours",
     timeZone: "Etc/UTC",
     region: "us-central1",
@@ -989,6 +990,7 @@ exports.accountPurgeSweep = onSchedule(
 // functions (Cloud Scheduler has no African region).
 exports.accountPurgeResweep = onSchedule(
   {
+    maxInstances: 1,
     schedule: "every 15 minutes",
     timeZone: "Etc/UTC",
     region: "us-central1",
@@ -1189,7 +1191,7 @@ exports.answerDailyQuizQuestion = onCall(
 // 00:05 Lusaka. Nine small documents a night at most — but it reads the whole
 // approved bank per grade, so it gets a generous timeout.
 exports.buildDailyQuizzes = onSchedule(
-    {schedule: "5 0 * * *", timeZone: "Africa/Lusaka", region: "us-central1", timeoutSeconds: 300},
+    {maxInstances: 1, schedule: "5 0 * * *", timeZone: "Africa/Lusaka", region: "us-central1", timeoutSeconds: 300},
     dailyQuizFns.buildDailyQuizzesHandler,
 );
 exports.adminDailyQuizOverview = onCall(
@@ -2177,6 +2179,7 @@ exports.sendTestOpsAlert = require("./opsAlertTest").createSendTestOpsAlert(
 // frozen-surface guard reads these options directly from index.js.
 exports.functionErrorWatch = onSchedule(
   {
+  maxInstances: 1,
   schedule: "every 5 minutes",
   region: "us-central1",
   timeoutSeconds: 120,
@@ -2665,6 +2668,7 @@ exports.reportWrongGuardian = onCall(DELETION_CALL_OPTS, deletionFlow.reportWron
 // runs a day costs four Firestore queries and makes the number honest.
 exports.deletionRequestSweep = onSchedule(
   {
+    maxInstances: 1,
     schedule: 'every 6 hours',
     timeZone: 'Etc/UTC',
     region: 'us-central1',
@@ -2683,6 +2687,7 @@ exports.deletionRequestSweep = onSchedule(
 // existing, which is the survivable mistake. Being early is not.
 exports.deletionExecutionSweep = onSchedule(
   {
+    maxInstances: 1,
     schedule: 'every 24 hours',
     timeZone: 'Etc/UTC',
     region: 'us-central1',
@@ -2846,6 +2851,7 @@ exports.resolveGuardianPayLink = onCall({
 // a different account of the same week — and a quiet week is not emailed at
 // all. See functions/parentApp/weeklyGuardianReport.js.
 exports.weeklyGuardianReport = onSchedule({
+  maxInstances: 1,
   schedule: "every sunday 09:00",
   timeZone: "Africa/Lusaka",
   secrets: [emailSmtpUser, emailSmtpPassword],
@@ -2878,6 +2884,7 @@ exports.teacherTrialOnUserCreated = onDocumentCreated(
 // the emailSmtpUser/emailSmtpPassword secrets already declared above rather
 // than a second, separately-bound pair.
 exports.teacherTrialExpiryReminder = onSchedule({
+  maxInstances: 1,
   schedule: "0 8 * * *",
   timeZone: "Africa/Lusaka",
   region: "us-central1",

@@ -27,7 +27,7 @@ const {
 const { writeSecurityAudit, SECURITY_EVENTS, requestMetaFrom } = require("./securityAudit");
 const { writeAuditLog } = require("../auditLog");
 
-exports.resetAdminMfa = onCall({ region: "us-central1", timeoutSeconds: 30 }, async (request) => {
+exports.resetAdminMfa = onCall({ maxInstances: 2, region: "us-central1", timeoutSeconds: 30 }, async (request) => {
   // 1. Caller must be a super admin with an MFA-verified session.
   const actor = await requireAdminMfa(request, { requireSuperAdmin: true });
   const token = request.auth.token;

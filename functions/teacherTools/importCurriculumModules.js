@@ -41,7 +41,7 @@ function buildTopicId(grade, subject, topic) {
 }
 
 exports.importCurriculumModules = onCall(
-    {timeoutSeconds: 120, memory: "256MiB"},
+    {maxInstances: 2, timeoutSeconds: 120, memory: "256MiB"},
     async (request) => {
       const uid = await assertVerifiedAuth(request, "Please sign in.");
       const role = await getUserRole(uid);

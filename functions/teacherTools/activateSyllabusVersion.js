@@ -177,7 +177,7 @@ async function expandTopicLessons({topicId, topicData, topicsCol, writer, now}) 
 }
 
 exports.activateSyllabusVersion = onCall(
-  {region: "us-central1", timeoutSeconds: 540, memory: "512MiB"},
+  {maxInstances: 2, region: "us-central1", timeoutSeconds: 540, memory: "512MiB"},
   async (request) => {
     const uid = await assertVerifiedAuth(request, "Please sign in.");
     const role = await getUserRole(uid);

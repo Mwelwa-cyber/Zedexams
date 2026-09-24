@@ -30,6 +30,7 @@ const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore"
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 
 const STATS_OPTS = {
+  maxInstances: 1,
   schedule: "every 30 minutes",
   region: "us-central1",
   timeoutSeconds: 120,

@@ -283,6 +283,7 @@ async function rollUpDay(db, dayKey) {
  */
 const rollUpPlatformMetrics = onSchedule(
     {
+      maxInstances: 1,
       schedule: "30 0 * * *",
       timeZone: "Africa/Lusaka",
       region: "us-central1",

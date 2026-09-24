@@ -122,7 +122,7 @@ async function readEnforcementSummary(db, {month}) {
 }
 
 const getAiBudgetEnforcement = onCall(
-    {region: "us-central1", timeoutSeconds: 30},
+    {maxInstances: 2, region: "us-central1", timeoutSeconds: 30},
     async (request) => {
       await assertCallerIsAdmin(request);
       const db = getFirestore();

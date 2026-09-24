@@ -123,6 +123,7 @@ function getAdminEmails(fallbackSender) {
 }
 
 const NIGHTLY_QA_OPTS = {
+  maxInstances: 1,
   schedule: "every day 02:00",
   timeZone: "Africa/Lusaka",
   region: "us-central1",
@@ -158,6 +159,7 @@ const nightlyQaSmoke = onSchedule(NIGHTLY_QA_OPTS, async () => {
 // trend signal without burning through budget. KB-only check, no LLM
 // call, so this is essentially free.
 const WEEKLY_AUDIT_OPTS = {
+  maxInstances: 1,
   schedule: "every sunday 03:00",
   timeZone: "Africa/Lusaka",
   region: "us-central1",
@@ -200,6 +202,7 @@ const weeklyCbcAlignmentAudit = onSchedule(WEEKLY_AUDIT_OPTS, async () => {
 // Vigil — hourly health sweep. Runs the deterministic checks for free; only
 // spends Anthropic tokens (Haiku) to suggest fixes when something fails.
 const HOURLY_MONITOR_OPTS = {
+  maxInstances: 1,
   schedule: "every 1 hours",
   timeZone: "Africa/Lusaka",
   region: "us-central1",
@@ -293,6 +296,7 @@ const hourlyMonitor = onSchedule(HOURLY_MONITOR_OPTS, async () => {
 // idempotent activation path (no double-grant possible). Hourly keeps a
 // paid-but-stuck buyer waiting at most ~1 hour instead of indefinitely.
 const HOURLY_RECONCILE_OPTS = {
+  maxInstances: 1,
   schedule: "every 1 hours",
   timeZone: "Africa/Lusaka",
   region: "us-central1",
@@ -345,6 +349,7 @@ const hourlyRevenueReconcile = onSchedule(HOURLY_RECONCILE_OPTS, async () => {
 // it only touches items it hasn't processed yet (echoProcessedAt guards it), so
 // most runs after the first do little or nothing.
 const SUPPORT_TRIAGE_OPTS = {
+  maxInstances: 1,
   schedule: "every 2 hours",
   timeZone: "Africa/Lusaka",
   region: "us-central1",
@@ -409,6 +414,7 @@ const supportTriage = onSchedule(SUPPORT_TRIAGE_OPTS, async () => {
 // clear the strict Cala+Reva bar. Writes a rollup only when it actually
 // publishes something (or errors) — quiet otherwise.
 const CONTENT_GATE_OPTS = {
+  maxInstances: 1,
   schedule: "every 30 minutes",
   timeZone: "Africa/Lusaka",
   region: "us-central1",
@@ -458,6 +464,7 @@ const contentAutoPublish = onSchedule(CONTENT_GATE_OPTS, async () => {
 // the last two weeks of quiz/exam attempts into a ranked build backlog. Pure
 // arithmetic over bounded reads — no LLM, no secrets, ~free.
 const PRODUCT_SIGNAL_OPTS = {
+  maxInstances: 1,
   schedule: "every monday 06:00",
   timeZone: "Africa/Lusaka",
   region: "us-central1",
@@ -493,6 +500,7 @@ const weeklyProductSignal = onSchedule(PRODUCT_SIGNAL_OPTS, async () => {
 // lapsed-but-recoverable learners. Read-only; bounded date-range query over
 // learnerStats. No LLM, no secrets, ~free.
 const RETENTION_SCAN_OPTS = {
+  maxInstances: 1,
   schedule: "every monday 07:00",
   timeZone: "Africa/Lusaka",
   region: "us-central1",
@@ -533,6 +541,7 @@ const weeklyRetentionScan = onSchedule(RETENTION_SCAN_OPTS, async () => {
 // returns after a single bounded query. A run that hangs past DAWN_STALE_MS is
 // marked 'timeout' so it can't be polled forever.
 const DAWN_DELIVERY_OPTS = {
+  maxInstances: 1,
   schedule: "every 5 minutes",
   timeZone: "Africa/Lusaka",
   region: "us-central1",
@@ -668,6 +677,7 @@ const deliverDawnBriefings = onSchedule(DAWN_DELIVERY_OPTS, async () => {
 // no secrets — a handful of indexed reads. Writes an agentJobs rollup
 // (awaiting_approval when something is wrong) the /admin/company HQ surfaces.
 const SUPERVISOR_OPTS = {
+  maxInstances: 1,
   schedule: "every 1 hours",
   timeZone: "Africa/Lusaka",
   region: "us-central1",
@@ -706,6 +716,7 @@ const hourlyAgentSupervisor = onSchedule(SUPERVISOR_OPTS, async () => {
 // rollup — the settings/fxRate doc (with source + fetchedAt + lastError) is the
 // record. Cheap: one HTTP GET + one write per day.
 const FX_REFRESH_OPTS = {
+  maxInstances: 1,
   schedule: "every day 05:00",
   timeZone: "Africa/Lusaka",
   region: "us-central1",

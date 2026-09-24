@@ -217,6 +217,7 @@ async function maybeSendBudgetAlert() {
 }
 
 const aiCostDailySummary = onSchedule({
+  maxInstances: 1,
   schedule: "every day 02:00",
   timeZone: "Africa/Lusaka",
   region: REGION,
