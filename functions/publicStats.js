@@ -26,7 +26,7 @@
  * the source collections directly.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 
 const STATS_OPTS = {
@@ -39,8 +39,8 @@ const STATS_OPTS = {
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 const updatePublicStats = onSchedule(STATS_OPTS, async () => {
-  const db = admin.firestore();
-  const sevenDaysAgo = admin.firestore.Timestamp.fromMillis(Date.now() - SEVEN_DAYS_MS);
+  const db = getFirestore();
+  const sevenDaysAgo = Timestamp.fromMillis(Date.now() - SEVEN_DAYS_MS);
 
   // Run all four counts in parallel — independent reads, fastest wall
   // time for the cron. Aggregate count() is a single read per ~1000
@@ -65,7 +65,7 @@ const updatePublicStats = onSchedule(STATS_OPTS, async () => {
     gamesPlayedThisWeek: gamesPlayedSnap?.data().count || 0,
     quizzesTakenAllTime: resultsSnap?.data().count || 0,
     quizzesAvailable:    publishedQuizzesSnap?.data().count || 0,
-    updatedAt:          admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt:          FieldValue.serverTimestamp(),
   };
 
   await db.collection("publicStats").doc("global").set(stats, {merge: true});

@@ -58,7 +58,7 @@ function build(payment) {
   const handlers = buildPaymentHandlers({
     CAPABILITY_PURCHASE: "purchase",
     HttpsError: FakeHttpsError,
-    admin: {firestore: () => db},
+    getFirestore: () => db,
     assertAdminSecondFactor: async () => {},
     assertLearnerCapability: async () => {},
     assertVerifiedAuth: async (request) => request.auth.uid,

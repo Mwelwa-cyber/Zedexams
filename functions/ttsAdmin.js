@@ -162,10 +162,10 @@ exports.setTtsOfferedVoicesHandler = async (request) => {
     const {normalizeOfferedList} = require("./ttsVoiceConfigCore");
     const {offered, dropped} = normalizeOfferedList(request.data?.voices);
 
-    const admin = require("firebase-admin");
-    await admin.firestore().doc("settings/ttsVoices").set({
+    const {FieldValue, getFirestore} = require("firebase-admin/firestore");
+    await getFirestore().doc("settings/ttsVoices").set({
       offered,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
       updatedBy: request.auth.uid,
     });
 

@@ -57,7 +57,7 @@
  * quotas — which the usage meter reads by name and would honour.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, Timestamp} = require("firebase-admin/firestore");
 
 const LINKS = "parentLinks";
 const MAX_CASCADE = 20;
@@ -158,7 +158,7 @@ async function cascadeGuardianEntitlement(db, {
 
   if (learnerUids.length === 0) return out;
 
-  const expiryTs = admin.firestore.Timestamp.fromMillis(expiryMs);
+  const expiryTs = Timestamp.fromMillis(expiryMs);
 
   for (const learnerUid of learnerUids) {
     try {
@@ -182,7 +182,7 @@ async function cascadeGuardianEntitlement(db, {
         subscriptionStatus: "active",
         subscriptionPlan: planId,
         subscriptionExpiry: expiryTs,
-        subscriptionActivatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        subscriptionActivatedAt: FieldValue.serverTimestamp(),
         subscriptionProvider: "guardian_cascade",
         subscriptionPaymentId: paymentId || null,
         // Who paid, so a learner asking "why am I premium?" — and support

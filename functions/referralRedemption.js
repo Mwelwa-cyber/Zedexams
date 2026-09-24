@@ -39,7 +39,7 @@
  *     they paid for.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
 
 const REFERRAL_BONUS_DAYS = 30;
 
@@ -64,7 +64,7 @@ function toDate(value) {
 async function redeemReferralCredit({userId, paymentId = null, planId = null}) {
   if (!userId) return {status: "skipped", reason: "no-user-id"};
 
-  const db = admin.firestore();
+  const db = getFirestore();
   const refereeRef = db.collection("users").doc(userId);
 
   try {
@@ -125,13 +125,13 @@ async function redeemReferralCredit({userId, paymentId = null, planId = null}) {
 
       tx.update(refereeRef, {
         referralCreditRedeemed: true,
-        subscriptionExpiry: admin.firestore.Timestamp.fromDate(newExpiry),
+        subscriptionExpiry: Timestamp.fromDate(newExpiry),
       });
 
       // 2. Increment referrer counters.
       tx.update(referrerRef, {
-        referralCount: admin.firestore.FieldValue.increment(1),
-        referralCredits: admin.firestore.FieldValue.increment(1),
+        referralCount: FieldValue.increment(1),
+        referralCredits: FieldValue.increment(1),
       });
 
       // 3. Write the audit row. Doc id auto-generated; both sides
@@ -145,8 +145,8 @@ async function redeemReferralCredit({userId, paymentId = null, planId = null}) {
         refereePaymentId: paymentId,
         refereePlanId: planId,
         bonusDays: REFERRAL_BONUS_DAYS,
-        newRefereeExpiry: admin.firestore.Timestamp.fromDate(newExpiry),
-        redeemedAt: admin.firestore.FieldValue.serverTimestamp(),
+        newRefereeExpiry: Timestamp.fromDate(newExpiry),
+        redeemedAt: FieldValue.serverTimestamp(),
       });
 
       return {status: "redeemed", referrerUid, refereeUid: userId};
@@ -187,7 +187,7 @@ async function redeemReferralCredit({userId, paymentId = null, planId = null}) {
 async function consumeReferralCredits({userId, paymentId = null, planId = null}) {
   if (!userId) return {status: "skipped", reason: "no-user-id"};
 
-  const db = admin.firestore();
+  const db = getFirestore();
   const userRef = db.collection("users").doc(userId);
 
   try {
@@ -214,7 +214,7 @@ async function consumeReferralCredits({userId, paymentId = null, planId = null})
 
       tx.update(userRef, {
         referralCredits: 0,
-        subscriptionExpiry: admin.firestore.Timestamp.fromDate(newExpiry),
+        subscriptionExpiry: Timestamp.fromDate(newExpiry),
       });
 
       // Write audit row. Differentiated from PR 2's signup-redemption
@@ -227,8 +227,8 @@ async function consumeReferralCredits({userId, paymentId = null, planId = null})
         bonusDays,
         paymentId,
         planId,
-        newExpiry: admin.firestore.Timestamp.fromDate(newExpiry),
-        consumedAt: admin.firestore.FieldValue.serverTimestamp(),
+        newExpiry: Timestamp.fromDate(newExpiry),
+        consumedAt: FieldValue.serverTimestamp(),
       });
 
       return {status: "consumed", creditsApplied: credits, bonusDays};

@@ -17,6 +17,7 @@
 
 const assert = require("node:assert");
 const Module = require("node:module");
+const {modularAdminModules} = require("./testFixtures/modularAdminStub");
 
 let passed = 0;
 function ok(name, cond) {
@@ -93,6 +94,7 @@ const referralRedemptionStub = {
 const origLoad = Module._load;
 Module._load = function (request, ...rest) {
   if (request === "firebase-admin") return adminStub;
+  if (request.startsWith("firebase-admin/")) return modularAdminModules(adminStub)[request];
   if (request === "./invoiceGenerator") return invoiceGeneratorStub;
   if (request === "./referralRedemption") return referralRedemptionStub;
   return origLoad.call(this, request, ...rest);

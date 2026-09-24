@@ -26,7 +26,7 @@
  * `cancel: false` reactivates. Idempotent.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("./authGuard");
 
@@ -41,7 +41,7 @@ const setSubscriptionCancellation = onCall({
     ? request.data.reason.slice(0, 500)
     : null;
 
-  const db = admin.firestore();
+  const db = getFirestore();
   const userRef = db.collection("users").doc(uid);
 
   // Read first so we can return the resulting state to the caller and
@@ -67,13 +67,13 @@ const setSubscriptionCancellation = onCall({
 
   const update = {
     cancelAtPeriodEnd: cancel,
-    cancelAtPeriodEndUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    cancelAtPeriodEndUpdatedAt: FieldValue.serverTimestamp(),
   };
   if (cancel) {
     update.cancelAtPeriodEndReason = reason;
   } else {
     // Reactivation clears the reason so a re-cancel later starts clean.
-    update.cancelAtPeriodEndReason = admin.firestore.FieldValue.delete();
+    update.cancelAtPeriodEndReason = FieldValue.delete();
   }
   await userRef.update(update);
 
@@ -84,7 +84,7 @@ const setSubscriptionCancellation = onCall({
     kind: cancel ? "cancel-scheduled" : "reactivated",
     reason: cancel ? reason : null,
     subscriptionExpiry: data.subscriptionExpiry || null,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
   }).catch((err) => {
     // Audit-log failures shouldn't break the user-visible action.
     console.warn("[subscriptionLifecycle] audit-log write failed", err);

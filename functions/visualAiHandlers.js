@@ -21,7 +21,9 @@ exports.buildVisualAiHandlers = (deps) => {
     HttpsError,
     MAX_CLASS_LIST_PAGES,
     MAX_PICTURES_PER_CALL,
-    admin,
+    FieldValue,
+    getFirestore,
+    getStorage,
     anthropicApiKey,
     assertCallableRateLimit,
     assertDailyLimit,
@@ -86,8 +88,8 @@ exports.buildVisualAiHandlers = (deps) => {
         );
       }
 
-      const db = admin.firestore();
-      const bucket = admin.storage().bucket();
+      const db = getFirestore();
+      const bucket = getStorage().bucket();
 
       // Load docs + download bytes. Best-effort per picture: a missing blob or
       // an oversized file is skipped with a warning rather than failing the run.
@@ -145,8 +147,8 @@ exports.buildVisualAiHandlers = (deps) => {
             aiSuggestedName: r.name,
             aiSuggestedKeywords: r.keywords,
             aiSuggestedSubject: r.subject,
-            aiNamedAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            aiNamedAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
           });
           named += 1;
         } catch (err) {

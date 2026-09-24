@@ -12,7 +12,7 @@
 // tokens so the new claims take effect on the user's next token refresh rather
 // than up to an hour later.
 
-const admin = require("firebase-admin");
+const {getAuth} = require("firebase-admin/auth");
 
 // Produce the next custom-claim bag for `role`, preserving any unrelated claims
 // (e.g. platformAdmin) already on the account. Clears stale admin flags first so
@@ -39,9 +39,9 @@ function buildRoleClaims(existingClaims, role) {
 // them back. Returns the claim bag that was written. Does NOT revoke tokens —
 // the caller decides (role changes and MFA resets both should).
 async function syncUserRoleClaims(uid, role) {
-  const user = await admin.auth().getUser(uid);
+  const user = await getAuth().getUser(uid);
   const next = buildRoleClaims(user.customClaims, role);
-  await admin.auth().setCustomUserClaims(uid, next);
+  await getAuth().setCustomUserClaims(uid, next);
   return next;
 }
 

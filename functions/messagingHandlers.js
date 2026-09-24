@@ -19,7 +19,10 @@
 exports.buildMessagingHandlers = (deps) => {
   const {
     HttpsError,
-    admin,
+    FieldValue,
+    Timestamp,
+    getAuth,
+    getFirestore,
     assertVerifiedAuth,
     buildPasswordResetEmailHtml,
     buildPasswordResetEmailText,
@@ -52,7 +55,7 @@ exports.buildMessagingHandlers = (deps) => {
           "If an account exists for that email, a password reset link has been sent.",
       };
 
-      const db = admin.firestore();
+      const db = getFirestore();
       const ip = String(request.rawRequest?.ip || "unknown").slice(0, 64);
       const day = passwordResetDayKey();
       // Both the charge below and the refund in the catch read their document
@@ -73,7 +76,7 @@ exports.buildMessagingHandlers = (deps) => {
       let stage = "lookup";
       try {
         try {
-          await admin.auth().getUserByEmail(email);
+          await getAuth().getUserByEmail(email);
         } catch (lookupError) {
           if (lookupError.code === "auth/user-not-found") {
             // No account: do not send, do not reveal. Uniform reply.
@@ -87,7 +90,7 @@ exports.buildMessagingHandlers = (deps) => {
         const senderDomain = senderEmail.split("@")[1] || "zedexams.com";
         const continueUrl = resolvePasswordResetContinueUrl(request.data?.continueUrl);
         const actionCodeSettings = {url: continueUrl};
-        const resetLink = await admin.auth().generatePasswordResetLink(email, actionCodeSettings);
+        const resetLink = await getAuth().generatePasswordResetLink(email, actionCodeSettings);
 
         stage = "smtp";
         // Lazy require rather than an injected dep: this factory is called at
@@ -165,7 +168,7 @@ exports.buildMessagingHandlers = (deps) => {
     sendActivationConfirmation: async (request) => {
     const uid = await assertVerifiedAuth(request, "Sign in required.");
 
-    const db = admin.firestore();
+    const db = getFirestore();
     const callerSnap = await db.collection("users").doc(uid).get();
     const role = callerSnap.exists ? (callerSnap.data()?.role || "") : "";
     if (role !== "admin" && role !== "superAdmin") {
@@ -199,7 +202,7 @@ exports.buildMessagingHandlers = (deps) => {
     sendExpiryReminders: async (request) => {
     const uid = await assertVerifiedAuth(request, "Sign in required.");
 
-    const db = admin.firestore();
+    const db = getFirestore();
     const callerSnap = await db.collection("users").doc(uid).get();
     const role = callerSnap.exists ? (callerSnap.data()?.role || "") : "";
     if (role !== "admin" && role !== "superAdmin") {
@@ -234,7 +237,7 @@ exports.buildMessagingHandlers = (deps) => {
     // shrinks the result set; this avoids needing a composite index.
     const snap = await db.collection("users")
       .where("premium", "==", true)
-      .where("subscriptionExpiry", "<=", admin.firestore.Timestamp.fromDate(futureCutoff))
+      .where("subscriptionExpiry", "<=", Timestamp.fromDate(futureCutoff))
       .limit(200)
       .get();
 
@@ -322,7 +325,7 @@ exports.buildMessagingHandlers = (deps) => {
           // Stamp the cooldown ONLY on success so a failure doesn't burn
           // the next eligible retry.
           await userDoc.ref.update({
-            expiryReminderSentAt: admin.firestore.FieldValue.serverTimestamp(),
+            expiryReminderSentAt: FieldValue.serverTimestamp(),
           });
         } else {
           failed += 1;

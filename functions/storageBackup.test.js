@@ -17,6 +17,7 @@
 
 const assert = require("node:assert");
 const Module = require("node:module");
+const {modularAdminModules} = require("./testFixtures/modularAdminStub");
 
 // storageBackup.js loads firebase-functions + firebase-admin at import; stub
 // them so the test runs under a root-only install (matches firestoreBackup.test).
@@ -38,6 +39,7 @@ Module._load = function (request, ...rest) {
     return {defineSecret: (name) => ({name})};
   }
   if (request === "firebase-admin") return adminStub;
+  if (request.startsWith("firebase-admin/")) return modularAdminModules(adminStub)[request];
   if (request === "./opsAlert") {
     return {sendOpsAlert: async () => ({sent: false})};
   }

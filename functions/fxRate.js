@@ -16,7 +16,7 @@
  *     when the doc is missing, stale (> 8 days), or insane.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue} = require("firebase-admin/firestore");
 const {parseFxApiResponse} = require("./treasury");
 
 // Free, no-key USD rates (includes ZMW). Returns { result:'success', rates:{…} }.
@@ -53,7 +53,7 @@ async function refreshFxRate({db, fetchImpl = fetch, now = Date.now()} = {}) {
     try {
       await ref.set({
         lastError: error || "unknown",
-        lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastErrorAt: FieldValue.serverTimestamp(),
       }, {merge: true});
     } catch (err) {
       // even the error write failed — nothing more we can safely do
@@ -67,8 +67,8 @@ async function refreshFxRate({db, fetchImpl = fetch, now = Date.now()} = {}) {
       zmwPerUsd: rate,
       source: FX_SOURCE_NAME,
       fetchedAtMs: now,
-      fetchedAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      fetchedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
       lastError: null,
     }, {merge: true});
   } catch (err) {

@@ -18,7 +18,7 @@
  * ADMIN_EMAILS process env var — no new infra.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {defineSecret} = require("firebase-functions/params");
 // nodemailer is required lazily in getTransporter() — see the note there.
@@ -224,7 +224,7 @@ const aiCostDailySummary = onSchedule({
   memory: "256MiB",
   secrets: [emailSmtpUser, emailSmtpPassword],
 }, async () => {
-  const db = admin.firestore();
+  const db = getFirestore();
   const start = Date.now();
   const yesterday = dateKey(-1);
 
@@ -298,7 +298,7 @@ const aiCostDailySummary = onSchedule({
     input: {runType: "ai-cost-daily-summary", date: yesterday},
     output: {summary},
     createdBy: "system",
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
     runMs: Date.now() - start,
   }).catch((err) => console.warn("[aiCostDailySummary] rollup write failed", err));
 

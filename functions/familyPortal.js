@@ -56,7 +56,7 @@
  * row it cannot act on.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("./authGuard");
 const {aggregateProgress} = require("./parentPortalShared");
@@ -99,7 +99,7 @@ const createFamilyInviteCode = onCall({
 }, async (request) => {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
 
-  const db = admin.firestore();
+  const db = getFirestore();
 
   // Rotate: retire the learner's existing active codes so only the newest
   // one is live (a rotated code can't be redeemed by someone who screenshotted
@@ -111,7 +111,7 @@ const createFamilyInviteCode = onCall({
         .get();
     const batch = db.batch();
     prior.docs.forEach((d) => batch.update(d.ref, {
-      revokedAt: admin.firestore.FieldValue.serverTimestamp(),
+      revokedAt: FieldValue.serverTimestamp(),
     }));
     if (!prior.empty) await batch.commit();
   } catch (err) {
@@ -119,14 +119,14 @@ const createFamilyInviteCode = onCall({
   }
 
   const code = await mintUniqueCode(db);
-  const expiresAt = admin.firestore.Timestamp.fromMillis(
+  const expiresAt = Timestamp.fromMillis(
       Date.now() + FAMILY_CODE_TTL_HOURS * ONE_HOUR_MS,
   );
   await db.collection("familyInviteCodes").doc(code).set({
     code,
     learnerUid: uid,
     createdBy: uid,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
     expiresAt,
     revokedAt: null,
     // Single use. Set on redemption; `familyCodeStatus` reads it first.
@@ -149,14 +149,14 @@ const revokeFamilyInviteCode = onCall({
     throw new HttpsError("invalid-argument", "A valid family code is required.");
   }
 
-  const db = admin.firestore();
+  const db = getFirestore();
   const ref = db.collection("familyInviteCodes").doc(code);
   const snap = await ref.get();
   if (!snap.exists) throw new HttpsError("not-found", "Family code not found.");
   if ((snap.data() || {}).learnerUid !== uid) {
     throw new HttpsError("permission-denied", "You can only turn off your own family code.");
   }
-  await ref.update({revokedAt: admin.firestore.FieldValue.serverTimestamp()});
+  await ref.update({revokedAt: FieldValue.serverTimestamp()});
   return {ok: true};
 });
 
@@ -186,7 +186,7 @@ const redeemFamilyInviteCode = onCall({
     throw new HttpsError("invalid-argument", familyCodeStatusMessage("invalid"));
   }
 
-  const db = admin.firestore();
+  const db = getFirestore();
 
   // Only parent accounts may link a child — otherwise a learner could redeem
   // another learner's code and read their results. Fail closed.
@@ -273,8 +273,8 @@ const redeemFamilyInviteCode = onCall({
     createdVia: "code",
     code,
     status: staysActive ? LINK_STATUS.ACTIVE : LINK_STATUS.PENDING,
-    ...(staysActive ? {} : {requestedAt: admin.firestore.FieldValue.serverTimestamp()}),
-    ...(priorLink ? {} : {createdAt: admin.firestore.FieldValue.serverTimestamp()}),
+    ...(staysActive ? {} : {requestedAt: FieldValue.serverTimestamp()}),
+    ...(priorLink ? {} : {createdAt: FieldValue.serverTimestamp()}),
   }, {merge: true});
 
   // BURN the code. `redeemedAt` is what makes it single-use — before this
@@ -285,11 +285,11 @@ const redeemFamilyInviteCode = onCall({
   // silently failed to burn the code is exactly the state this change
   // exists to make impossible.
   await db.collection("familyInviteCodes").doc(code).update({
-    redeemedAt: admin.firestore.FieldValue.serverTimestamp(),
-    revokedAt: admin.firestore.FieldValue.serverTimestamp(),
+    redeemedAt: FieldValue.serverTimestamp(),
+    revokedAt: FieldValue.serverTimestamp(),
     redeemedBy: uid,
-    redeemedCount: admin.firestore.FieldValue.increment(1),
-    lastRedeemedAt: admin.firestore.FieldValue.serverTimestamp(),
+    redeemedCount: FieldValue.increment(1),
+    lastRedeemedAt: FieldValue.serverTimestamp(),
   });
 
   // Tell the child somebody is asking. In-app rather than only in
@@ -367,7 +367,7 @@ const respondToFamilyLink = onCall({
     throw new HttpsError("invalid-argument", "decision must be 'accept' or 'decline'.");
   }
 
-  const db = admin.firestore();
+  const db = getFirestore();
   const ref = db.collection("parentLinks").doc(linkId);
 
   // The status flip runs in a transaction that re-reads `status`, so two
@@ -386,7 +386,7 @@ const respondToFamilyLink = onCall({
       return {already: true, status: link.status || LINK_STATUS.ACTIVE, link};
     }
 
-    const now = admin.firestore.FieldValue.serverTimestamp();
+    const now = FieldValue.serverTimestamp();
     if (decision === "decline") {
       tx.update(ref, {status: LINK_STATUS.DECLINED, declinedAt: now});
       return {already: false, status: LINK_STATUS.DECLINED, link};
@@ -398,7 +398,7 @@ const respondToFamilyLink = onCall({
   if (outcome.status === LINK_STATUS.ACTIVE && !outcome.already) {
     // One guardian identity, one audit trail — see the docblock.
     await db.collection("users").doc(uid).set(grantedRecord({
-      now: admin.firestore.FieldValue.serverTimestamp(),
+      now: FieldValue.serverTimestamp(),
       evidence: {
         via: "code",
         guardianUid: outcome.link.parentUid || "",
@@ -421,7 +421,7 @@ const getChildProgress = onCall({
   const childUid = String(request.data?.childUid || "").trim();
   if (!childUid) throw new HttpsError("invalid-argument", "childUid is required.");
 
-  const db = admin.firestore();
+  const db = getFirestore();
   // Authorise: the parent must have an ACTIVE link to this child. This is
   // the gate — without one the parent can't read the child's profile or
   // results. A PENDING link (the child has not confirmed) authorises

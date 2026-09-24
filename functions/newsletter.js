@@ -37,7 +37,7 @@
  *     → "Export" or via gcloud firestore export.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 
 const REGION = "us-central1";
@@ -103,7 +103,7 @@ const subscribeToNewsletter = onCall({
   let source = String(request.data?.source || "unknown").trim().slice(0, MAX_SOURCE_LEN);
   if (!ALLOWED_SOURCES.has(source)) source = "unknown";
 
-  const db = admin.firestore();
+  const db = getFirestore();
   const ip = String(request.rawRequest?.ip || "unknown").slice(0, 64);
 
   // Per-IP daily cap (best-effort — IPv6 + corporate NATs share IPs,
@@ -125,8 +125,8 @@ const subscribeToNewsletter = onCall({
     rlRef.set({
       ip,
       day: todayKey(),
-      count: admin.firestore.FieldValue.increment(1),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      count: FieldValue.increment(1),
+      updatedAt: FieldValue.serverTimestamp(),
     }, {merge: true}).catch((err) => {
       console.warn("[subscribeToNewsletter] rate-limit write failed", err);
     });
@@ -138,7 +138,7 @@ const subscribeToNewsletter = onCall({
   if (existing.exists) {
     // Touch lastSeenAt so we know the email is still in active use.
     ref.update({
-      lastSeenAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastSeenAt: FieldValue.serverTimestamp(),
       lastSeenSource: source,
     }).catch((err) => {
       console.warn("[subscribeToNewsletter] lastSeenAt update failed", err);
@@ -150,8 +150,8 @@ const subscribeToNewsletter = onCall({
     email,
     source,
     ip,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    lastSeenAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
+    lastSeenAt: FieldValue.serverTimestamp(),
     confirmed: false,    // reserve for future double-opt-in
     unsubscribedAt: null,
   });

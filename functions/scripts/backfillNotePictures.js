@@ -22,7 +22,8 @@
  * interrupted run can simply be restarted.
  */
 
-const admin = require("firebase-admin");
+const {initializeApp, getApps} = require("firebase-admin/app");
+const {getFirestore} = require("firebase-admin/firestore");
 const {runGenerateNotePictures} = require("../teacherTools/generateNotePictures");
 
 const DRY = process.argv.includes("--dry");
@@ -34,8 +35,8 @@ const LIMIT = limitArg ? Number.parseInt(limitArg.split("=")[1], 10) : Infinity;
 const COST_PER_IMAGE_USD = 0.04;
 
 async function main() {
-  if (!admin.apps.length) admin.initializeApp();
-  const db = admin.firestore();
+  if (!getApps().length) initializeApp();
+  const db = getFirestore();
 
   const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "";
   const openaiKey = process.env.OPENAI_API_KEY || "";

@@ -21,7 +21,7 @@
 
 "use strict";
 
-const admin = require("firebase-admin");
+const {getStorage} = require("firebase-admin/storage");
 const {ttsCachePath} = require("./ttsCacheCore");
 
 // A cached recording of a 3000-character body is ~0.5 MB; anything far larger
@@ -39,7 +39,7 @@ async function readCachedAudio(key) {
   const path = ttsCachePath(key);
   if (!path) return null;
   try {
-    const file = admin.storage().bucket().file(path);
+    const file = getStorage().bucket().file(path);
     const [buf] = await file.download();
     if (!buf || !buf.length || buf.length > MAX_CACHED_BYTES) return null;
     return buf;
@@ -71,7 +71,7 @@ async function writeCachedAudio(key, audio, {voice, characters, provider} = {}) 
   const path = ttsCachePath(key);
   if (!path || !audio || !audio.length) return false;
   try {
-    await admin.storage().bucket().file(path).save(audio, {
+    await getStorage().bucket().file(path).save(audio, {
       contentType: "audio/mpeg",
       metadata: {
         cacheControl: "public, max-age=31536000, immutable",

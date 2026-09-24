@@ -85,10 +85,11 @@ function selectStaleJobs(jobs, {now = Date.now(), staleAfterMs = STALE_AFTER_MS,
  * @return {Promise<{scanned:number, swept:number, completed:number, failed:number, alerted:number, cleanupDegraded:number}>}
  */
 async function runAccountPurgeSweep(deps = {}) {
-  const admin = deps.db && deps.auth && deps.FieldValue ? null : require("firebase-admin");
-  const db = deps.db || admin.firestore();
-  const auth = deps.auth || admin.auth();
-  const FieldValue = deps.FieldValue || admin.firestore.FieldValue;
+  // The SDK is required only for what a caller did not inject, so a test
+  // that supplies all three never loads it.
+  const db = deps.db || require("firebase-admin/firestore").getFirestore();
+  const auth = deps.auth || require("firebase-admin/auth").getAuth();
+  const FieldValue = deps.FieldValue || require("firebase-admin/firestore").FieldValue;
   const purge = deps.purge || require("../accountDeletion").purgeUserData;
   const cleanup = deps.cleanup ||
     require("./accountPostPurgeCleanup").runPostPurgeCleanup;

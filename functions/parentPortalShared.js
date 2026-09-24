@@ -7,7 +7,7 @@
  * to unit-test independently.
  */
 
-const admin = require("firebase-admin");
+const {Timestamp} = require("firebase-admin/firestore");
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_RECENT_RESULTS = 12;
@@ -23,7 +23,7 @@ const MAX_RECENT_RESULTS = 12;
  */
 async function aggregateProgress(db, learnerUid, {windowDays = 30} = {}) {
   const now = Date.now();
-  const sinceTs = admin.firestore.Timestamp.fromMillis(now - windowDays * ONE_DAY_MS);
+  const sinceTs = Timestamp.fromMillis(now - windowDays * ONE_DAY_MS);
 
   let resultsSnap;
   try {

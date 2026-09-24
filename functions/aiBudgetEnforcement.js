@@ -24,8 +24,7 @@
  */
 
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
-const admin = require("firebase-admin");
-const {AggregateField} = require("firebase-admin/firestore");
+const {AggregateField, getFirestore} = require("firebase-admin/firestore");
 const {requireAdminMfa} = require("./security/requireAdminMfa");
 const {getBudgetStatus, monthKeyUtc} = require("./aiCostTracking");
 const {getReservedTotalUsd} = require("./aiBudgetReservation");
@@ -126,7 +125,7 @@ const getAiBudgetEnforcement = onCall(
     {region: "us-central1", timeoutSeconds: 30},
     async (request) => {
       await assertCallerIsAdmin(request);
-      const db = admin.firestore();
+      const db = getFirestore();
       const month = monthKeyUtc();
       const [budget, summary, reservedNowUsd] = await Promise.all([
         getBudgetStatus(),

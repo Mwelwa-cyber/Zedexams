@@ -19,7 +19,8 @@
  * dashboard surfaces this cron's stats alongside the others.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
+const {getMessaging} = require("firebase-admin/messaging");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {isPrunableToken, pruneDeadTokensByUid} = require("./notifications/sendPushToUser");
 const {shouldSendPush} = require("./notifications/notificationPrefsCore");
@@ -45,8 +46,8 @@ function dateKey(offsetDays = 0) {
 }
 
 const dailyStreakReminders = onSchedule(REMINDER_OPTS, async () => {
-  const db = admin.firestore();
-  const messaging = admin.messaging();
+  const db = getFirestore();
+  const messaging = getMessaging();
   const start = Date.now();
 
   const today = dateKey(0);
@@ -82,7 +83,7 @@ const dailyStreakReminders = onSchedule(REMINDER_OPTS, async () => {
       input: {runType: "daily-streak-reminder", dateKey: today},
       output: {reminder: summary},
       createdBy: "system",
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
       runMs: Date.now() - start,
     });
     return;
@@ -189,7 +190,7 @@ const dailyStreakReminders = onSchedule(REMINDER_OPTS, async () => {
     input: {runType: "daily-streak-reminder", dateKey: today},
     output: {reminder: summary},
     createdBy: "system",
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
     runMs: Date.now() - start,
   });
 });

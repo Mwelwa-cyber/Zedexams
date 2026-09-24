@@ -22,7 +22,7 @@
 // window). They are tiny and self-obsolete (a new window is a new doc); set
 // a Firestore TTL policy on the `expireAt` field to reap them.
 
-const admin = require("firebase-admin");
+const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
 const { HttpsError } = require("firebase-functions/v2/https");
 const { AI_ERROR_REASON } = require("./aiErrorReasons");
 const {
@@ -86,13 +86,13 @@ async function checkRateLimit(db, scope, { limit, windowMs = WINDOW_MS, now } = 
           {
             scope,
             window: windowStart,
-            count: admin.firestore.FieldValue.increment(1),
+            count: FieldValue.increment(1),
             // For a Firestore TTL policy on `expireAt` — two windows of slack
             // so an in-flight check never races the reaper.
-            expireAt: admin.firestore.Timestamp.fromMillis(
+            expireAt: Timestamp.fromMillis(
               windowStart + windowMs * 2,
             ),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
           },
           { merge: true },
         );
@@ -209,7 +209,7 @@ function applyRateLimitHeaders(res, result) {
 async function assertHttpRateLimit(req, res, opts) {
   const ip = resolveClientIp(req);
   const buckets = standardBuckets({ ...opts, ip });
-  const result = await enforceRateLimit(admin.firestore(), buckets);
+  const result = await enforceRateLimit(getFirestore(), buckets);
   applyRateLimitHeaders(res, result);
   if (!result.allowed) throw rateLimitError(result);
 }
@@ -220,7 +220,7 @@ async function assertHttpRateLimit(req, res, opts) {
 async function guardHttpRateLimit(req, res, opts) {
   const ip = resolveClientIp(req);
   const buckets = standardBuckets({ ...opts, ip });
-  const result = await enforceRateLimit(admin.firestore(), buckets);
+  const result = await enforceRateLimit(getFirestore(), buckets);
   applyRateLimitHeaders(res, result);
   if (!result.allowed) {
     res.status(429).json({
@@ -241,7 +241,7 @@ async function assertCallableRateLimit(request, opts) {
     ? resolveClientIp(request.rawRequest)
     : "unknown";
   const buckets = standardBuckets({ ...opts, uid, ip });
-  const result = await enforceRateLimit(admin.firestore(), buckets);
+  const result = await enforceRateLimit(getFirestore(), buckets);
   if (!result.allowed) throw rateLimitError(result);
 }
 

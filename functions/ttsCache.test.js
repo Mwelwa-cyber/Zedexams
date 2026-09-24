@@ -15,6 +15,18 @@
 
 const assert = require("node:assert");
 const admin = require("firebase-admin");
+// Production code reads the modular entry points; serve them from this same
+// (patched-per-test) object so the patches below still reach it.
+const {modularAdminModules} = require("./testFixtures/modularAdminStub");
+const MODULAR_ADMIN = modularAdminModules(admin);
+{
+  const NodeModule = require("node:module");
+  const loadBeforeModular = NodeModule._load;
+  NodeModule._load = function(request, ...rest) {
+    if (MODULAR_ADMIN[request]) return MODULAR_ADMIN[request];
+    return loadBeforeModular.call(this, request, ...rest);
+  };
+}
 
 const {
   ttsCacheKey,

@@ -30,7 +30,7 @@
  *     touching anything.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("./authGuard");
 const {isAdminRole} = require("./aiService");
@@ -64,7 +64,7 @@ async function mintAndPersistCode(db, uid) {
     if (snap.exists) continue;          // collision — try again
     await lookupRef.set({
       uid,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
     });
     return code;
   }
@@ -78,7 +78,7 @@ const backfillReferralCodes = onCall({
 }, async (request) => {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
 
-  const db = admin.firestore();
+  const db = getFirestore();
   const callerSnap = await db.collection("users").doc(uid).get();
   const role = callerSnap.exists ? (callerSnap.data()?.role || "") : "";
   if (!isAdminRole(role)) {
@@ -159,7 +159,7 @@ const backfillReferralCodes = onCall({
     input: {dryRun, maxUsersPerCall: MAX_USERS_PER_CALL},
     output: {...summary, errors: summary.errors.slice(0, 10)},
     createdBy: uid,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
   }).catch((err) => console.warn("[referralBackfill] rollup write failed", err));
 
   return summary;

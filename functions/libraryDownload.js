@@ -32,7 +32,7 @@
 const {onCall, onRequest, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("./authGuard");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
-const admin = require("firebase-admin");
+const {Timestamp, getFirestore} = require("firebase-admin/firestore");
 const {contentDispositionFor, sanitizeFilename} = require("./downloadHeaders");
 
 const TICKET_TTL_MS = 5 * 60 * 1000;
@@ -61,7 +61,7 @@ const createLibraryDownloadTicket = onCall(
       throw new HttpsError("invalid-argument", "Only docx is supported.");
     }
 
-    const db = admin.firestore();
+    const db = getFirestore();
     const snap = await db.collection("aiGenerations").doc(generationId).get();
     if (!snap.exists) {
       throw new HttpsError("not-found", "Document not found.");
@@ -84,8 +84,8 @@ const createLibraryDownloadTicket = onCall(
       format,
       filename: sanitizeFilename(data.filename, "Lesson Plan.docx"),
       attribution: Boolean(data.attribution),
-      createdAt: admin.firestore.Timestamp.fromMillis(now),
-      expiresAt: admin.firestore.Timestamp.fromMillis(now + TICKET_TTL_MS),
+      createdAt: Timestamp.fromMillis(now),
+      expiresAt: Timestamp.fromMillis(now + TICKET_TTL_MS),
     });
     return {ticket: ref.id};
   },
@@ -111,7 +111,7 @@ const apiLibraryDownload = onRequest(
     }
 
     try {
-      const db = admin.firestore();
+      const db = getFirestore();
       // Single-use (SECURITY_ENDPOINT_AUDIT §4.4). The ticket id is a bearer
       // credential in a URL, so it can leak the ways URLs leak — a referrer, a
       // shared link, a screenshot — and until now it stayed usable for the whole
@@ -215,7 +215,7 @@ async function claimDownloadTicket({db, ticketId, now}) {
 /** Delete expired download tickets so the collection stays small. */
 async function reapExpiredTickets(db, nowMs, limit = 500) {
   const snap = await db.collection("downloadTickets")
-    .where("expiresAt", "<", admin.firestore.Timestamp.fromMillis(nowMs))
+    .where("expiresAt", "<", Timestamp.fromMillis(nowMs))
     .limit(limit)
     .get();
   let deleted = 0;
@@ -237,7 +237,7 @@ const reapDownloadTickets = onSchedule(
     memory: "256MiB",
   },
   async () => {
-    const db = admin.firestore();
+    const db = getFirestore();
     try {
       const deleted = await reapExpiredTickets(db, Date.now());
       console.log(`[reapDownloadTickets] deleted ${deleted} expired tickets`);

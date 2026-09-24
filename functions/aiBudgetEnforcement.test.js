@@ -22,6 +22,7 @@
 
 const assert = require("node:assert");
 const Module = require("node:module");
+const {modularAdminModules} = require("./testFixtures/modularAdminStub");
 
 let passed = 0;
 function ok(name, cond) {
@@ -129,8 +130,14 @@ class HttpsError extends Error {
 const origLoad = Module._load;
 Module._load = function (request, ...rest) {
   if (request === "firebase-admin") return adminStub;
+  if (request.startsWith("firebase-admin/") && request !== "firebase-admin/firestore") {
+    return modularAdminModules(adminStub)[request];
+  }
   if (request === "firebase-admin/firestore") {
+    // The module now also takes getFirestore/FieldValue from here; serve those
+    // from adminStub like every other path, keeping this test's AggregateField.
     return {
+      ...modularAdminModules(adminStub)["firebase-admin/firestore"],
       AggregateField: {
         count: () => ({__agg: "count"}),
         sum: (field) => ({__agg: "sum", field}),

@@ -42,7 +42,7 @@
 const crypto = require("node:crypto");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {defineSecret} = require("firebase-functions/params");
-const admin = require("firebase-admin");
+const {getFirestore} = require("firebase-admin/firestore");
 const {
   resolveBackupBucket,
   buildExportRequest,
@@ -109,7 +109,7 @@ function logBackupEvent(fields) {
  * @returns {Promise<{status: string, outputUriPrefix?: string, error?: string}>}
  */
 async function runFirestoreExport({
-  db = admin.firestore(),
+  db = getFirestore(),
   adminClient = null,
   env = process.env,
   alert = sendOpsAlert,
@@ -383,7 +383,7 @@ const backupCompletionCheck = onSchedule({
   secrets: opsAlertSecrets([emailSmtpUser, emailSmtpPassword]),
 }, async () => {
   await runBackupCompletionCheck({
-    db: admin.firestore(),
+    db: getFirestore(),
     getOperation: getExportOperation,
     dateKeys: recentUtcDateKeys(),
   });

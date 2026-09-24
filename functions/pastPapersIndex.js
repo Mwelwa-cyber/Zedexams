@@ -30,7 +30,7 @@
  *     as the initial backfill on first deploy and corrects any drift.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onDocumentWritten} = require("firebase-functions/v2/firestore");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {lightEntry, lightSignature} = require("./pastPapersIndexHelpers");
@@ -64,7 +64,7 @@ async function rebuildPastPapersIndex(db) {
   await db.doc(INDEX_DOC).set({
     papers,
     count: papers.length,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   });
   return papers.length;
 }
@@ -93,7 +93,7 @@ const pastPapersIndexOnWrite = onDocumentWritten(TRIGGER_OPTS, async (event) => 
     const isPublished = after?.status === "published";
     if (!wasPublished && !isPublished) return;
 
-    await rebuildPastPapersIndex(admin.firestore());
+    await rebuildPastPapersIndex(getFirestore());
   } catch (err) {
     console.warn("[pastPapersIndex] onWrite rebuild failed",
       (err && err.message) || err);
@@ -113,7 +113,7 @@ const CRON_OPTS = {
 
 const rebuildPastPapersIndexCron = onSchedule(CRON_OPTS, async () => {
   try {
-    const n = await rebuildPastPapersIndex(admin.firestore());
+    const n = await rebuildPastPapersIndex(getFirestore());
     console.log(`[pastPapersIndex] cron rebuilt index with ${n} papers`);
   } catch (err) {
     console.error("[pastPapersIndex] cron rebuild failed",

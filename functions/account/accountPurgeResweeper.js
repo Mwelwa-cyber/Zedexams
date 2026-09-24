@@ -127,11 +127,11 @@ async function resweepUidStorage(uid, {bucket, collectPrefixes, deletePrefix}) {
  *   objectsDeleted:number, leaked:number, alerted:number}>}
  */
 async function runAccountPurgeResweep(deps = {}) {
-  const needsAdmin = !deps.db || !deps.bucket || !deps.FieldValue;
-  const admin = needsAdmin ? require("firebase-admin") : null;
-  const db = deps.db || admin.firestore();
-  const bucket = deps.bucket || admin.storage().bucket();
-  const FieldValue = deps.FieldValue || admin.firestore.FieldValue;
+  // The SDK is required only for what a caller did not inject, so a test
+  // that supplies all three never loads it.
+  const db = deps.db || require("firebase-admin/firestore").getFirestore();
+  const bucket = deps.bucket || require("firebase-admin/storage").getStorage().bucket();
+  const FieldValue = deps.FieldValue || require("firebase-admin/firestore").FieldValue;
   const storageHelpers = deps.collectPrefixes && deps.deletePrefix ?
     null :
     require("../storageCleanup/helpers");

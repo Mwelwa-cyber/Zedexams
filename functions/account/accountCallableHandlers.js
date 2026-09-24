@@ -18,7 +18,8 @@
  * moved: moving them would drag unrelated callers along and make this batch
  * something other than mechanical.
  */
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
+const {getAuth} = require("firebase-admin/auth");
 const {HttpsError} = require("firebase-functions/v2/https");
 
 const {createAssessment} = require("../recaptchaEnterprise");
@@ -82,8 +83,8 @@ function buildAccountCallableHandlers({cleanString, buildBootstrappedUserProfile
       return await runProfileBootstrap({
         uid,
         tokenRole: cleanString(request.auth.token?.role || "", 30),
-        db: admin.firestore(),
-        auth: admin.auth(),
+        db: getFirestore(),
+        auth: getAuth(),
         buildProfile: buildBootstrappedUserProfile,
       });
     } catch (error) {
@@ -121,9 +122,9 @@ function buildAccountCallableHandlers({cleanString, buildBootstrappedUserProfile
       ({summary} = await runAccountDeletion({
         uid,
         email: request.auth.token?.email,
-        db: admin.firestore(),
-        auth: admin.auth(),
-        FieldValue: admin.firestore.FieldValue,
+        db: getFirestore(),
+        auth: getAuth(),
+        FieldValue: FieldValue,
         purge: purgeUserData,
         // A cancellation that cannot be written is the one failure on this path
         // that leaves the guarantee unmade — page someone rather than log it.
@@ -145,7 +146,7 @@ function buildAccountCallableHandlers({cleanString, buildBootstrappedUserProfile
     // can only go by hash.
     Object.assign(summary, await runPostPurgeCleanup({
       uid,
-      db: admin.firestore(),
+      db: getFirestore(),
       email: request.auth.token?.email,
     }));
 
@@ -172,7 +173,7 @@ function buildAccountCallableHandlers({cleanString, buildBootstrappedUserProfile
     try {
       const ip = request.rawRequest ? resolveClientIp(request.rawRequest) : "unknown";
       const rl = await enforceRateLimit(
-        admin.firestore(),
+        getFirestore(),
         standardBuckets({action: "recaptcha-assess", ip, ipPerMin: 60}),
       );
       if (!rl.allowed) {

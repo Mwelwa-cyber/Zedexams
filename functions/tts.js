@@ -1,5 +1,5 @@
 const { onRequest } = require('firebase-functions/v2/https');
-const admin         = require('firebase-admin');
+const { getAuth }   = require('firebase-admin/auth');
 const { getUserRole, assertDailyLimit } = require('./aiService');
 const { assertDecodedVerified } = require('./authGuard');
 const { applyCors } = require('./cors');
@@ -29,7 +29,7 @@ const elevenLabsApiKey = defineSecret('ELEVENLABS_API_KEY');
 async function verifyIdToken(req) {
   const token = (req.get('authorization') || '').replace(/^Bearer\s+/i, '');
   if (!token) return null;
-  try { return await admin.auth().verifyIdToken(token); }
+  try { return await getAuth().verifyIdToken(token); }
   catch { return null; }
 }
 

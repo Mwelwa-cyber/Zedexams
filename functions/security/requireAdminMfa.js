@@ -22,7 +22,7 @@
 // are always blocked in both modes.
 
 const { HttpsError } = require("firebase-functions/v2/https");
-const admin = require("firebase-admin");
+const {getFirestore} = require("firebase-admin/firestore");
 const { assertVerifiedAuth, assertDecodedVerified } = require("../authGuard");
 const {
   evaluateAdminMfa,
@@ -43,7 +43,7 @@ function currentEnforcement() {
 // before claim-sync landed (AUTH-M4). Fails closed (null) on any read error.
 async function readFirestoreRole(uid) {
   try {
-    const snap = await admin.firestore().doc(`users/${uid}`).get();
+    const snap = await getFirestore().doc(`users/${uid}`).get();
     return snap.exists ? snap.data()?.role || null : null;
   } catch (err) {
     console.warn("[requireAdminMfa] role fallback read failed:", err?.message);

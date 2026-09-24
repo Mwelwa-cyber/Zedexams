@@ -13,7 +13,7 @@
 // mistakenly does, only the allow-listed keys are persisted, and `metadata` is
 // shallow-scrubbed of any obviously-sensitive key.
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 
 // Canonical event types (Phase 11). Kept as a frozen map so callers reference a
 // constant instead of a stray string literal.
@@ -95,7 +95,7 @@ async function writeSecurityAudit({
     return;
   }
   try {
-    await admin.firestore().collection("securityAuditLogs").add({
+    await getFirestore().collection("securityAuditLogs").add({
       eventType,
       actorUid,
       targetUid,
@@ -105,7 +105,7 @@ async function writeSecurityAudit({
       requestId: requestId ? String(requestId).slice(0, 200) : null,
       userAgent: userAgent ? String(userAgent).slice(0, 400) : null,
       metadata: scrubMetadata(metadata),
-      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      timestamp: FieldValue.serverTimestamp(),
     });
   } catch (err) {
     console.error("[securityAudit] write failed", { eventType, err: err?.message });

@@ -22,7 +22,7 @@
  * doc would fall into Till's Lenco lookup).
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
 
 const {getPlan} = require("./plans");
 const {
@@ -357,13 +357,13 @@ async function recordAccountBinding({firestore, kind, enforce, dateMs}) {
     // Defensive: the in-memory test stub has no set()/increment(); skip
     // rather than throw so existing verify tests stay quiet.
     if (typeof ref.set !== "function") return;
-    const inc = (n) => admin.firestore.FieldValue.increment(n);
+    const inc = (n) => FieldValue.increment(n);
     await ref.set({
       date,
       total: inc(1),
       [`${kind}`]: inc(1),
       ...(enforce && kind === "mismatch" ? {rejected: inc(1)} : {}),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     }, {merge: true});
   } catch (err) {
     console.warn("[googlePlayBilling] binding health write failed", err?.message || err);
@@ -424,7 +424,7 @@ async function verifyAndApplyPurchase({
 }) {
   if (!uid || !purchaseToken) return {status: "not_found"};
 
-  const firestore = db || admin.firestore();
+  const firestore = db || getFirestore();
   const activateImpl = activate ||
     require("./subscriptionActivation").activateSubscriptionFromPayment;
   const fetchSub = fetchSubscription ||
@@ -628,10 +628,10 @@ async function verifyAndApplyPurchase({
         // activation pins to it; a pass has none and must fall through to
         // the plan's durationDays instead.
         ...(isOneTime ? {} : {
-          grantExpiryAt: admin.firestore.Timestamp.fromMillis(parsed.expiryTimeMs),
+          grantExpiryAt: Timestamp.fromMillis(parsed.expiryTimeMs),
         }),
         ...guardianFields,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
       });
     });
     if (wrongUser) {
@@ -669,13 +669,13 @@ async function verifyAndApplyPurchase({
   if (decision.action === "expire") {
     const lapseMs = parsed.expiryTimeMs || nowMs;
     const update = {
-      subscriptionExpiry: admin.firestore.Timestamp.fromMillis(lapseMs),
-      googlePlaySyncedAt: admin.firestore.FieldValue.serverTimestamp(),
+      subscriptionExpiry: Timestamp.fromMillis(lapseMs),
+      googlePlaySyncedAt: FieldValue.serverTimestamp(),
     };
     // Keep the teacher studio gate in step (it reads its own expiry field).
     const sp = String(user.subscriptionPlan || "");
     if (sp.startsWith("pro_") || sp.startsWith("max_")) {
-      update.teacherPlanExpiresAt = admin.firestore.Timestamp.fromMillis(lapseMs);
+      update.teacherPlanExpiresAt = Timestamp.fromMillis(lapseMs);
     }
     await userRef.update(update);
     return {

@@ -21,7 +21,7 @@
  */
 
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
-const admin = require("firebase-admin");
+const {getFirestore} = require("firebase-admin/firestore");
 const {assertVerifiedAuth} = require("./authGuard");
 const {isAdminRole} = require("./aiService");
 const {sendOpsAlert} = require("./opsAlert");
@@ -46,7 +46,7 @@ function createSendTestOpsAlert(smtpSecretsFn, secrets = []) {
   }, async (request) => {
     const uid = await assertVerifiedAuth(request, "Sign in required.");
 
-    const db = admin.firestore();
+    const db = getFirestore();
     const userSnap = await db.collection("users").doc(uid).get();
     const role = userSnap.exists ? (userSnap.data()?.role || "") : "";
     if (!isAdminRole(role)) {

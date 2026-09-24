@@ -10,7 +10,7 @@
 // (rich_text HTML / study blocks / visual-slide deck). PDF ("file") notes have
 // no machine-readable text, so they're rejected with a clear message.
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const crypto = require("crypto");
 const {HttpsError} = require("firebase-functions/v2/https");
 const {callAnthropic} = require("./aiService");
@@ -157,7 +157,7 @@ function parseInsights(raw) {
  * @returns {Promise<{ summary: string, keyPoints: string[], cached: boolean }>}
  */
 async function runNoteInsights({noteId, uid, apiKey}) {
-  const db = admin.firestore();
+  const db = getFirestore();
   const snap = await db.collection(NOTES_COLLECTION).doc(noteId).get();
   if (!snap.exists) {
     throw new HttpsError("not-found", "That note could not be found.");
@@ -209,8 +209,8 @@ async function runNoteInsights({noteId, uid, apiKey}) {
     sourceHash,
     model: MODEL_HAIKU,
     generatedBy: uid,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    createdAt: cachedData?.createdAt || admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+    createdAt: cachedData?.createdAt || FieldValue.serverTimestamp(),
   }, {merge: true});
 
   return {summary, keyPoints, cached: false};

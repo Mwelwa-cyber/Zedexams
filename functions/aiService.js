@@ -1,5 +1,5 @@
 const {HttpsError} = require("firebase-functions/v2/https");
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {AI_ERROR_REASON} = require("./aiErrorReasons");
 const {UNTRUSTED_DATA_NOTICE, fenceUntrusted} = require("./promptInjectionGuard");
 const {resolveCustomSystemPrompt} = require("./aiPromptPolicy");
@@ -96,7 +96,7 @@ function getAnthropicApiKey(anthropicApiKey) {
 }
 
 async function getUserRole(uid) {
-  const snap = await admin.firestore().doc(`users/${uid}`).get();
+  const snap = await getFirestore().doc(`users/${uid}`).get();
   return snap.exists ? cleanString(snap.data()?.role, 30) : "learner";
 }
 
@@ -135,9 +135,9 @@ async function assertDailyLimit(uid, role, action) {
   // `where('__name__', '>=', since)`, so a `{uid}_{day}` doc id (letter-
   // leading) sorts after the date ids and used to surface as a bogus
   // daily row / chart axis label. Same reasoning as aiUsageMonthly.
-  const ref = admin.firestore().doc(`aiDailyLimits/${uid}_${day}`);
+  const ref = getFirestore().doc(`aiDailyLimits/${uid}_${day}`);
 
-  const newTotal = await admin.firestore().runTransaction(async (tx) => {
+  const newTotal = await getFirestore().runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     const data = snap.exists ? snap.data() : {};
     const total = Number(data.total || 0);
@@ -157,7 +157,7 @@ async function assertDailyLimit(uid, role, action) {
         ...actions,
         [action]: Number(actions[action] || 0) + 1,
       },
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     }, {merge: true});
     return total + 1;
   });
