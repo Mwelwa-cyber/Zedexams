@@ -48,20 +48,21 @@ if (!process.env.FIRESTORE_EMULATOR_HOST) {
   process.exit(1);
 }
 
-const admin = require("firebase-admin");
+const {initializeApp} = require("firebase-admin/app");
+const {getFirestore, FieldValue, Timestamp} = require("firebase-admin/firestore");
 const PROJECT_ID = process.env.GCLOUD_PROJECT || "examsprepzambia-test";
 // storageBucket lets the best-effort invoice-PDF side effect resolve a bucket;
 // when the Storage emulator is running (STORAGE_EMULATOR_HOST is set by
 // `emulators:exec --only firestore,storage`) the upload routes there — no real
 // GCS, and the invoice/receipt side effect is exercised end-to-end too.
-admin.initializeApp({projectId: PROJECT_ID, storageBucket: `${PROJECT_ID}.appspot.com`});
+initializeApp({projectId: PROJECT_ID, storageBucket: `${PROJECT_ID}.appspot.com`});
 
 const provider = require("./mockPaymentProvider");
 const {getPaymentProvider, mockAllowed} = require("./paymentProvider");
 const {activateSubscriptionFromPayment, markPaymentFailed} = require("./subscriptionActivation");
 const {processLencoWebhookEvent} = require("./lencoWebhookProcessor");
 
-const db = admin.firestore();
+const db = getFirestore();
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 let passed = 0;
@@ -90,7 +91,7 @@ async function seed({uid, ref, user = {}, payment = {}}) {
     provider: "lenco",
     status: "pending",
     lencoStatus: "pending",
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
     ...payment,
   });
 }
@@ -209,7 +210,7 @@ async function run() {
     const existingExpiry = new Date(Date.now() + 10 * DAY_MS);
     await seed({
       uid, ref,
-      user: {plan: "premium", premium: true, isPremium: true, subscriptionExpiry: admin.firestore.Timestamp.fromDate(existingExpiry)},
+      user: {plan: "premium", premium: true, isPremium: true, subscriptionExpiry: Timestamp.fromDate(existingExpiry)},
     });
     await dispatch(evt("collection.successful", {reference: ref, status: "successful", amount: 50, currency: "ZMW"}));
     const newExpiry = (await getUser(uid)).subscriptionExpiry.toDate().getTime();
