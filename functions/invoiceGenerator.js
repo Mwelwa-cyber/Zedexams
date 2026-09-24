@@ -18,7 +18,8 @@
  * PDF rendering, Storage, Firestore and SMTP effects.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
+const {getStorage} = require("firebase-admin/storage");
 const PDFDocument = require("pdfkit");
 // nodemailer is required lazily in getTransporter() — see the note there.
 const crypto = require("node:crypto");
@@ -227,7 +228,7 @@ async function emitInvoice({payment, plan, senderEmail, senderPassword}) {
   }
 
   try {
-    const db = admin.firestore();
+    const db = getFirestore();
     const userSnap = await db.collection("users").doc(payment.userId).get();
     if (!userSnap.exists) {
       console.warn("[invoiceGenerator] user doc missing, skipping invoice", payment.userId);
@@ -242,7 +243,7 @@ async function emitInvoice({payment, plan, senderEmail, senderPassword}) {
     const pdfBuffer = await buildInvoicePdf({invoice, plan, payment, user});
 
     const storagePath = invoiceStoragePath(user.uid, payment.id);
-    const bucket = admin.storage().bucket();
+    const bucket = getStorage().bucket();
     const file = bucket.file(storagePath);
     await file.save(pdfBuffer, {
       contentType: "application/pdf",
@@ -279,7 +280,7 @@ async function emitInvoice({payment, plan, senderEmail, senderPassword}) {
       storagePath,
       emailedTo: null,
       emailedAt: null,
-      issuedAt: admin.firestore.FieldValue.serverTimestamp(),
+      issuedAt: FieldValue.serverTimestamp(),
     });
 
     // Email — best-effort. If SMTP isn't configured the receipt is
@@ -309,7 +310,7 @@ async function emitInvoice({payment, plan, senderEmail, senderPassword}) {
         emailedTo = user.email;
         await invoiceRef.update({
           emailedTo,
-          emailedAt: admin.firestore.FieldValue.serverTimestamp(),
+          emailedAt: FieldValue.serverTimestamp(),
         });
       } catch (err) {
         console.warn("[invoiceGenerator] email send failed, PDF still stored", err);
@@ -340,7 +341,7 @@ async function emitInvoice({payment, plan, senderEmail, senderPassword}) {
  */
 async function resendInvoiceEmail({invoiceId, senderEmail, senderPassword, requestedByUid}) {
   if (!invoiceId) return {ok: false, reason: "Missing invoiceId"};
-  const db = admin.firestore();
+  const db = getFirestore();
   const invoiceSnap = await db.collection("invoices").doc(invoiceId).get();
   if (!invoiceSnap.exists) {
     return {ok: false, reason: "Invoice not found"};
@@ -359,7 +360,7 @@ async function resendInvoiceEmail({invoiceId, senderEmail, senderPassword, reque
   // doc's recorded amount + plan.
   let pdfBuffer = null;
   try {
-    const bucket = admin.storage().bucket();
+    const bucket = getStorage().bucket();
     const file = bucket.file(invoice.storagePath);
     const [exists] = await file.exists();
     if (exists) {
@@ -414,8 +415,8 @@ async function resendInvoiceEmail({invoiceId, senderEmail, senderPassword, reque
 
   await invoiceSnap.ref.update({
     emailedTo: user.email,
-    emailedAt: admin.firestore.FieldValue.serverTimestamp(),
-    lastResentAt: admin.firestore.FieldValue.serverTimestamp(),
+    emailedAt: FieldValue.serverTimestamp(),
+    lastResentAt: FieldValue.serverTimestamp(),
     lastResentBy: requestedByUid || null,
   }).catch((err) => console.warn("[invoiceGenerator] resend stamp failed", err));
 

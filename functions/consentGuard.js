@@ -31,7 +31,7 @@
  */
 
 const {HttpsError} = require("firebase-functions/v2/https");
-const admin = require("firebase-admin");
+const {getFirestore} = require("firebase-admin/firestore");
 
 // The shared package is ESM and Cloud Functions is CommonJS, so it is reached
 // with `await import(...)` INSIDE the async handler — never a top-level
@@ -106,7 +106,7 @@ const FLAG_TTL_MS = 60 * 1000;
  * not spontaneously lock out the existing user base. Accounts that HAVE been
  * asked are `pending`, and pending is refused regardless of this flag.
  */
-async function resolveEnforceMigration(db = admin.firestore()) {
+async function resolveEnforceMigration(db = getFirestore()) {
   const now = Date.now();
   if (now - flagCache.at < FLAG_TTL_MS) return flagCache.value;
   try {
@@ -127,7 +127,7 @@ async function resolveEnforceMigration(db = admin.firestore()) {
  *
  * @return {Promise<{access: object, user: object|null}>}
  */
-async function resolveCallerAccess(uid, db = admin.firestore()) {
+async function resolveCallerAccess(uid, db = getFirestore()) {
   const {resolveLearnerAccess, CONSENT_STATUS} = await loadCore();
   const core = await loadLinkCore();
 
@@ -227,7 +227,7 @@ function messageFor(reason) {
  *                             client can render the right banner.
  */
 async function assertLearnerCapability(uid, capability, deps = {}) {
-  const db = deps.db || admin.firestore();
+  const db = deps.db || getFirestore();
   if (!uid) {
     throw new HttpsError("unauthenticated", "Please sign in first.");
   }

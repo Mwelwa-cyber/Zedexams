@@ -126,8 +126,11 @@ console.log("\nwebhookEventLedger — claim against a fake Firestore");
   const Module = require("node:module");
   const origLoad = Module._load;
   Module._load = function (request, ...rest) {
-    if (request === "firebase-admin") {
-      return {firestore: Object.assign(() => ({}), {Timestamp: {fromMillis: (ms) => ({__ms: ms})}})};
+    if (request === "firebase-admin" || request.startsWith("firebase-admin/")) {
+      const stub = {firestore: Object.assign(() => ({}), {Timestamp: {fromMillis: (ms) => ({__ms: ms})}})};
+      if (request === "firebase-admin") return stub;
+      const {modularAdminModules} = require("./testFixtures/modularAdminStub");
+      return modularAdminModules(stub)[request];
     }
     return origLoad.call(this, request, ...rest);
   };

@@ -1,4 +1,4 @@
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {sendOpsAlert} = require("./opsAlert");
 
 /**
@@ -45,11 +45,11 @@ function buildAuditEntry({
  */
 async function writeAuditLog(fields, {db, alert = sendOpsAlert} = {}) {
   const entry = buildAuditEntry(fields); // throws on missing actorUid/action
-  const firestore = db || admin.firestore();
+  const firestore = db || getFirestore();
   try {
     const ref = await firestore.collection("adminAuditLogs").add({
       ...entry,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
     });
     return {written: true, id: ref.id};
   } catch (err) {

@@ -20,7 +20,7 @@
  * count) keeps working unchanged.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
 
 const {getPlan} = require("./plans");
 
@@ -93,7 +93,7 @@ async function activateSubscriptionFromPayment({
 }) {
   if (!paymentId) return {ok: false, reason: "no-payment-id"};
 
-  const db = admin.firestore();
+  const db = getFirestore();
   const payRef = db.collection("payments").doc(paymentId);
 
   let activated = false;
@@ -138,7 +138,7 @@ async function activateSubscriptionFromPayment({
         lencoStatus,
         amountMismatchReason: amountCheck.reason,
         collectedAmount: amountCheck.collected,
-        amountMismatchAt: admin.firestore.FieldValue.serverTimestamp(),
+        amountMismatchAt: FieldValue.serverTimestamp(),
       });
       amountMismatch = {
         paymentId,
@@ -198,12 +198,12 @@ async function activateSubscriptionFromPayment({
       tx.update(payRef, {
         status: "successful",
         lencoStatus,
-        confirmedAt: admin.firestore.FieldValue.serverTimestamp(),
+        confirmedAt: FieldValue.serverTimestamp(),
       });
       tx.update(userRef, {
-        generationCredits: admin.firestore.FieldValue.increment(credits),
-        generationCreditsUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        lastTopUpAt: admin.firestore.FieldValue.serverTimestamp(),
+        generationCredits: FieldValue.increment(credits),
+        generationCreditsUpdatedAt: FieldValue.serverTimestamp(),
+        lastTopUpAt: FieldValue.serverTimestamp(),
       });
       activated = true;
       isTopUp = true;
@@ -268,7 +268,7 @@ async function activateSubscriptionFromPayment({
     tx.update(payRef, {
       status: "successful",
       lencoStatus,
-      confirmedAt: admin.firestore.FieldValue.serverTimestamp(),
+      confirmedAt: FieldValue.serverTimestamp(),
     });
 
     const userUpdate = {
@@ -277,10 +277,10 @@ async function activateSubscriptionFromPayment({
       isPremium: true,
       paymentStatus: "active",
       subscriptionStatus: "active",
-      premiumActivatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      premiumActivatedAt: FieldValue.serverTimestamp(),
       subscriptionPlan: pay.planId,
-      subscriptionExpiry: admin.firestore.Timestamp.fromDate(expiry),
-      subscriptionActivatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      subscriptionExpiry: Timestamp.fromDate(expiry),
+      subscriptionActivatedAt: FieldValue.serverTimestamp(),
       subscriptionProvider: pay.provider || "lenco",
       subscriptionPaymentId: paymentId,
       // Reset the reminder cooldown so the next near-expiry window can
@@ -296,7 +296,7 @@ async function activateSubscriptionFromPayment({
       // guardian stamp from a previous grant rather than leaving the next
       // renewal reminder pointed at an adult who no longer pays for it.
       subscriptionGrantedByGuardian: guardianPayment ?
-        pay.userId : admin.firestore.FieldValue.delete(),
+        pay.userId : FieldValue.delete(),
     };
     if (pay.phoneNumber) {
       userUpdate.subscriptionPhoneNumber = pay.phoneNumber;
@@ -319,8 +319,8 @@ async function activateSubscriptionFromPayment({
       null;
     if (teacherTier) {
       userUpdate.teacherPlan = teacherTier;
-      userUpdate.teacherPlanExpiresAt = admin.firestore.Timestamp.fromDate(expiry);
-      userUpdate.teacherPlanActivatedAt = admin.firestore.FieldValue.serverTimestamp();
+      userUpdate.teacherPlanExpiresAt = Timestamp.fromDate(expiry);
+      userUpdate.teacherPlanActivatedAt = FieldValue.serverTimestamp();
     }
     tx.update(userRef, userUpdate);
 
@@ -490,7 +490,7 @@ async function activateSubscriptionFromPayment({
  */
 async function markPaymentFailed({paymentId, lencoStatus = "failed", reason = ""}) {
   if (!paymentId) return {ok: false, reason: "no-payment-id"};
-  const db = admin.firestore();
+  const db = getFirestore();
   const payRef = db.collection("payments").doc(paymentId);
   try {
     let notifyUserId = null;
@@ -504,7 +504,7 @@ async function markPaymentFailed({paymentId, lencoStatus = "failed", reason = ""
         status: "failed",
         lencoStatus,
         failureReason: String(reason || "").slice(0, 300),
-        failedAt: admin.firestore.FieldValue.serverTimestamp(),
+        failedAt: FieldValue.serverTimestamp(),
       });
     });
     // Notify the buyer their payment didn't go through (best-effort).

@@ -39,7 +39,7 @@
  * undercounts is worse than no metric, so the cap is reported, never hidden.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {
   ACTIVE_MARKER_TTL_DAYS,
@@ -88,8 +88,8 @@ async function scanSource(db, source, {start, end}) {
 
   const snap = await db
       .collection(source.collection)
-      .where(source.timeField, ">=", admin.firestore.Timestamp.fromDate(start))
-      .where(source.timeField, "<", admin.firestore.Timestamp.fromDate(end))
+      .where(source.timeField, ">=", Timestamp.fromDate(start))
+      .where(source.timeField, "<", Timestamp.fromDate(end))
       .select(source.uidField)
       .limit(MAX_DOCS_PER_SOURCE)
       .get();
@@ -155,8 +155,8 @@ async function cohortUids(db, dayKey) {
   const {start, end} = dayWindow(dayKey);
   const snap = await db
       .collection("users")
-      .where("createdAt", ">=", admin.firestore.Timestamp.fromDate(start))
-      .where("createdAt", "<", admin.firestore.Timestamp.fromDate(end))
+      .where("createdAt", ">=", Timestamp.fromDate(start))
+      .where("createdAt", "<", Timestamp.fromDate(end))
       .select("role")
       .get();
   return snap.docs
@@ -218,8 +218,8 @@ async function rollUpDay(db, dayKey) {
   const [activeByUid, newUsersSnap] = await Promise.all([
     resolveRoles(db, activeUids),
     db.collection("users")
-        .where("createdAt", ">=", admin.firestore.Timestamp.fromDate(window.start))
-        .where("createdAt", "<", admin.firestore.Timestamp.fromDate(window.end))
+        .where("createdAt", ">=", Timestamp.fromDate(window.start))
+        .where("createdAt", "<", Timestamp.fromDate(window.end))
         .count().get(),
   ]);
 
@@ -238,7 +238,7 @@ async function rollUpDay(db, dayKey) {
   // Markers first: WAU for tomorrow depends on today's markers existing, and a
   // half-written day is better detected by a missing summary doc than by a
   // summary doc pointing at markers that were never written.
-  const expiresAt = admin.firestore.Timestamp.fromMillis(
+  const expiresAt = Timestamp.fromMillis(
       Date.now() + ACTIVE_MARKER_TTL_DAYS * 24 * 60 * 60 * 1000,
   );
   const activeCol = db.collection("platformStats").doc(dayKey).collection("active");
@@ -263,7 +263,7 @@ async function rollUpDay(db, dayKey) {
     wau,
     scannedDocs,
     truncated,
-    computedAt: admin.firestore.FieldValue.serverTimestamp(),
+    computedAt: FieldValue.serverTimestamp(),
   };
 
   await db.collection("platformStats").doc(dayKey).set(stats, {merge: true});
@@ -290,7 +290,7 @@ const rollUpPlatformMetrics = onSchedule(
       memory: "512MiB",
     },
     async () => {
-      const db = admin.firestore();
+      const db = getFirestore();
       const yesterday = shiftDayKey(dayKeyFor(new Date()), -1);
       try {
         await rollUpDay(db, yesterday);

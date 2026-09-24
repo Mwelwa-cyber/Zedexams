@@ -19,6 +19,7 @@
 
 const assert = require("node:assert");
 const Module = require("node:module");
+const {modularAdminModules} = require("./testFixtures/modularAdminStub");
 
 let passed = 0;
 function ok(name, cond) {
@@ -72,6 +73,7 @@ const calls = {invoice: [], redeem: [], consume: []};
 const origLoad = Module._load;
 Module._load = function (request, ...rest) {
   if (request === "firebase-admin") return {firestore: firestoreFn};
+  if (request.startsWith("firebase-admin/")) return modularAdminModules({firestore: firestoreFn})[request];
   if (request === "./invoiceGenerator") {
     return {emitInvoice: async (args) => calls.invoice.push(args)};
   }

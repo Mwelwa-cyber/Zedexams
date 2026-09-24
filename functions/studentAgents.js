@@ -1,7 +1,7 @@
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("./authGuard");
 const {assertCallableRateLimit} = require("./rateLimit");
-const admin = require("firebase-admin");
+const {getFirestore} = require("firebase-admin/firestore");
 
 const {
   assertDailyLimit,
@@ -25,7 +25,7 @@ const {
 } = require("./studentAgentsCore");
 
 async function loadContext(uid) {
-  const db = admin.firestore();
+  const db = getFirestore();
   const [profileSnap, resultsSnap] = await Promise.all([
     db.collection("users").doc(uid).get(),
     db.collection("results")

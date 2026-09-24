@@ -17,7 +17,7 @@
 const crypto = require("node:crypto");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {defineSecret} = require("firebase-functions/params");
-const admin = require("firebase-admin");
+const {getFirestore} = require("firebase-admin/firestore");
 const {
   HEARTBEATS,
   HOUR_MS,
@@ -82,7 +82,7 @@ async function readHeartbeatTimestamp(db, hb, now) {
  * @returns {Promise<{verdict: string, unhealthy: string[], alerted: boolean}>}
  */
 async function runOpsHeartbeatCheck({
-  db = admin.firestore(),
+  db = getFirestore(),
   readTimestamp = readHeartbeatTimestamp,
   alert = sendOpsAlert,
   now = new Date(),

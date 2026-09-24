@@ -30,7 +30,8 @@ exports.buildHttpSurfaceHandlers = (deps) => {
     LEARNER_BLOCK_MESSAGE,
     LIMITS,
     ZED_CHAT_MODEL,
-    admin,
+    FieldValue,
+    getFirestore,
     anthropicApiKey,
     applyCors,
     assertDailyLimit,
@@ -108,7 +109,7 @@ exports.buildHttpSurfaceHandlers = (deps) => {
           return;
         }
 
-        const db = admin.firestore();
+        const db = getFirestore();
 
         // Kill-switch — if an admin paused Bonga, log the inbound but don't reply.
         let paused = false;
@@ -196,14 +197,14 @@ exports.buildHttpSurfaceHandlers = (deps) => {
               name: msg.name || conv.name || null,
               lastInboundId: msg.messageId || null,
               lastInboundText: msg.text.slice(0, 500),
-              lastInboundAt: admin.firestore.FieldValue.serverTimestamp(),
+              lastInboundAt: FieldValue.serverTimestamp(),
               lastKind: kind,
               lastReplyText: reply.slice(0, 1000),
               lastReplyStatus: sendResult.status,
               lastReplyError: sendResult.error || null,
               lastReplyUsedFallback: Boolean(usedFallback),
-              lastReplyAt: admin.firestore.FieldValue.serverTimestamp(),
-              messageCount: admin.firestore.FieldValue.increment(1),
+              lastReplyAt: FieldValue.serverTimestamp(),
+              messageCount: FieldValue.increment(1),
               history: nextHistory,
             }, {merge: true});
           } catch (err) {

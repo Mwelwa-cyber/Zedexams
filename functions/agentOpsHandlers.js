@@ -19,7 +19,8 @@
 exports.buildAgentOpsHandlers = (deps) => {
   const {
     HttpsError,
-    admin,
+    FieldValue,
+    getFirestore,
     anthropicApiKey,
     assertAdminSecondFactor,
     assertCallableRateLimit,
@@ -50,7 +51,7 @@ exports.buildAgentOpsHandlers = (deps) => {
       }
 
       const ownerUid = request.auth.uid;
-      const db = admin.firestore();
+      const db = getFirestore();
       const ref = db.collection("agentJobs").doc(jobId);
       const snap = await ref.get();
       if (!snap.exists) {
@@ -77,10 +78,10 @@ exports.buildAgentOpsHandlers = (deps) => {
       await ref.set({
         status: "running",
         agentId: "cala",
-        error: admin.firestore.FieldValue.delete(),
-        retryRequestedAt: admin.firestore.FieldValue.serverTimestamp(),
+        error: FieldValue.delete(),
+        retryRequestedAt: FieldValue.serverTimestamp(),
         retryRequestedBy: ownerUid,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       }, {merge: true});
 
       try {
@@ -106,7 +107,7 @@ exports.buildAgentOpsHandlers = (deps) => {
     // rapid sequential "Run Dawn now" taps from spraying agent runs.
     await assertCallableRateLimit(request, {action: "runDawnBriefing", userPerMin: 6});
 
-    const db = admin.firestore();
+    const db = getFirestore();
     const callerSnap = await db.collection("users").doc(uid).get();
     const role = callerSnap.exists ? (callerSnap.data()?.role || "") : "";
     if (role !== "admin" && role !== "superAdmin") {
@@ -162,7 +163,7 @@ exports.buildAgentOpsHandlers = (deps) => {
       requestedBy: uid,
       requestedByEmail: callerSnap.data()?.email || null,
       toEmail: toEmail || null,
-      startedAt: admin.firestore.FieldValue.serverTimestamp(),
+      startedAt: FieldValue.serverTimestamp(),
     });
 
     return {sessionId, status: "running", toEmail: toEmail || null};

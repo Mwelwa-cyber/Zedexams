@@ -25,7 +25,7 @@
  * forcing is infeasible.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("./authGuard");
 const {aggregateProgress, ONE_DAY_MS} = require("./parentPortalShared");
@@ -75,9 +75,9 @@ const createProgressShare = onCall({
       ? String(request.data.parentDisplayName).trim().slice(0, 80)
       : null;
 
-  const db = admin.firestore();
+  const db = getFirestore();
   const token = await mintUniqueToken(db);
-  const expiresAt = admin.firestore.Timestamp.fromMillis(
+  const expiresAt = Timestamp.fromMillis(
       Date.now() + SHARE_TTL_DAYS * ONE_DAY_MS,
   );
 
@@ -87,7 +87,7 @@ const createProgressShare = onCall({
     parentEmail,
     parentPhone,
     parentDisplayName,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
     expiresAt,
     revokedAt: null,
     lastViewedAt: null,
@@ -111,7 +111,7 @@ const revokeProgressShare = onCall({
   const token = String(request.data?.token || "").trim().toUpperCase();
   if (!token) throw new HttpsError("invalid-argument", "token is required.");
 
-  const db = admin.firestore();
+  const db = getFirestore();
   const ref = db.collection("progressShares").doc(token);
   const snap = await ref.get();
   if (!snap.exists) throw new HttpsError("not-found", "Share not found.");
@@ -120,7 +120,7 @@ const revokeProgressShare = onCall({
     throw new HttpsError("permission-denied", "You can only revoke your own share.");
   }
   await ref.update({
-    revokedAt: admin.firestore.FieldValue.serverTimestamp(),
+    revokedAt: FieldValue.serverTimestamp(),
   });
   return {ok: true};
 });
@@ -136,7 +136,7 @@ const getProgressShare = onCall({
     throw new HttpsError("invalid-argument", "A share token is required.");
   }
 
-  const db = admin.firestore();
+  const db = getFirestore();
   const ref = db.collection("progressShares").doc(token);
   const snap = await ref.get();
   if (!snap.exists) {
@@ -153,8 +153,8 @@ const getProgressShare = onCall({
   // Best-effort: bump view tally so the learner can see how often
   // their parent has checked. Doesn't block on failure.
   ref.update({
-    viewCount: admin.firestore.FieldValue.increment(1),
-    lastViewedAt: admin.firestore.FieldValue.serverTimestamp(),
+    viewCount: FieldValue.increment(1),
+    lastViewedAt: FieldValue.serverTimestamp(),
   }).catch((err) => console.warn("[parentPortal] view bump failed", err));
 
   // Learner profile — display name + grade. Admin SDK bypasses

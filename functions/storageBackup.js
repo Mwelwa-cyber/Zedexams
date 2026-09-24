@@ -49,7 +49,8 @@
 const crypto = require("node:crypto");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {defineSecret} = require("firebase-functions/params");
-const admin = require("firebase-admin");
+const {getFirestore} = require("firebase-admin/firestore");
+const {getStorage} = require("firebase-admin/storage");
 const {isProductionRuntime} = require("./firestoreBackupCore");
 const {
   resolveStorageBackupBucket,
@@ -101,7 +102,7 @@ function logStorageBackupEvent(fields) {
 async function writeStorageBackupHeartbeat({
   bucketName = undefined, now = new Date(), correlationId = crypto.randomUUID(),
 } = {}) {
-  const bucket = admin.storage().bucket(bucketName);
+  const bucket = getStorage().bucket(bucketName);
   await bucket.file(HEARTBEAT_PATH).save(buildHeartbeatBody(now, correlationId), {
     contentType: "application/json",
     resumable: false,
@@ -121,7 +122,7 @@ async function writeStorageBackupHeartbeat({
  * @returns {Promise<number|null>}
  */
 async function probeHeartbeat(bucketName) {
-  const file = admin.storage().bucket(bucketName).file(HEARTBEAT_PATH);
+  const file = getStorage().bucket(bucketName).file(HEARTBEAT_PATH);
   try {
     const [metadata] = await file.getMetadata();
     const updated = metadata && (metadata.updated || metadata.timeCreated);
@@ -147,7 +148,7 @@ async function probeHeartbeat(bucketName) {
  * @returns {Promise<{status: string, ageHours?: number|null}>}
  */
 async function runStorageBackupCheck({
-  db = admin.firestore(),
+  db = getFirestore(),
   heartbeat = probeHeartbeat,
   env = process.env,
   alert = sendOpsAlert,

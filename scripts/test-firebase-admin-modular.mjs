@@ -12,11 +12,10 @@
 //   const {getFirestore, FieldValue} = require("firebase-admin/firestore");
 //   const {getAuth} = require("firebase-admin/auth");
 //
-// LEGACY below is the shrink-only list of files still on the namespace API.
-// A file NOT on it that uses the namespace fails (no new debt); a file ON it
-// that no longer does also fails (delete the line, so the list cannot rot into
-// something that only looks like a record). The version bump to 14 is safe
-// exactly when this list is empty.
+// LEGACY below was the shrink-only list of files still on the namespace API
+// while the migration ran; it is now EMPTY, so this is a plain ban. A file
+// that uses the namespace fails; a file listed that no longer does also fails
+// (so the list cannot rot into something that only looks like a record).
 //
 // Run: npm run test:firebase-admin-modular  (auto-discovered by test:all)
 
@@ -33,72 +32,10 @@ const ROOT = join(fileURLToPath(new URL(".", import.meta.url)), "..", "functions
 export const NAMESPACE_USE =
   /\badmin\.(?:firestore|auth|storage|messaging|appCheck|database|remoteConfig|securityRules|machineLearning|projectManagement|installations|instanceId)\b/;
 
-const LEGACY = new Set([
-  "account/accountCallableHandlers.js",
-  "account/accountPurgeResweeper.js",
-  "account/accountPurgeSweeper.js",
-  "account/userRoleTrigger.js",
-  "accountDeletionRequests.js",
-  "adminPayments.js",
-  "adminUsers.js",
-  "agentOpsHandlers.js",
-  "aiBudgetEnforcement.js",
-  "aiBudgetReclaim.js",
-  "aiCostDailySummary.js",
-  "aiCostTracking.js",
-  "aiOperations.js",
-  "aiService.js",
-  "appCheckHttp.js",
-  "auditLog.js",
-  "authGuard.js",
-  "consentGuard.js",
-  "dailyExamGradingFns.js",
-  "dailyReminders.js",
-  "familyPortal.js",
-  "firestoreBackup.js",
-  "fxRate.js",
-  "googlePlayBilling.js",
-  "googlePlayRtdn.js",
-  "guardianEntitlement.js",
-  "httpSurfaceHandlers.js",
-  "index.js",
-  "invoiceGenerator.js",
-  "libraryDownload.js",
-  "messagingHandlers.js",
-  "newsletter.js",
-  "noteInsights.js",
-  "noteSmart.js",
-  "opsAlertTest.js",
-  "opsHeartbeat.js",
-  "parentPortal.js",
-  "parentPortalShared.js",
-  "pastPapersIndex.js",
-  "paymentHandlers.js",
-  "platformMetrics.js",
-  "publicStats.js",
-  "rateLimit.js",
-  "rateLimitHealth.js",
-  "referralBackfill.js",
-  "referralRedemption.js",
-  "scripts/backfillNotePictures.js",
-  "security/adminClaims.js",
-  "security/logAdminMfaEvent.js",
-  "security/requireAdminMfa.js",
-  "security/resetAdminMfa.js",
-  "security/securityAudit.js",
-  "storageBackup.js",
-  "studentAgents.js",
-  "subscriptionActivation.js",
-  "subscriptionLifecycle.js",
-  "tts.js",
-  "ttsAdmin.js",
-  "ttsCache.js",
-  "ttsVoiceConfig.js",
-  "visitorTracking.js",
-  "visualAiHandlers.js",
-  "webhookEventLedger.js",
-  "weeklyParentDigest.js",
-]);
+// Empty since 2026-09-24: every file in functions/ is on the modular API.
+// It stays a Set so the guard keeps its shape if a genuine exception is ever
+// needed — but adding one re-opens a runtime break on firebase-admin 14.
+const LEGACY = new Set([]);
 
 function walk(dir, out = []) {
   for (const name of readdirSync(dir)) {
@@ -149,4 +86,4 @@ if (stale.length) {
 }
 if (offenders.length || stale.length) process.exit(1);
 
-console.log(`test:firebase-admin-modular OK — ${LEGACY.size} file(s) left on the namespace API; v14 bump is safe at 0.`);
+console.log(`test:firebase-admin-modular OK — ${LEGACY.size} file(s) on the namespace API (must be 0 on firebase-admin 14).`);

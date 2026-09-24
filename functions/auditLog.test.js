@@ -9,16 +9,18 @@
 
 const assert = require("node:assert");
 const Module = require("node:module");
+const {modularAdminModules} = require("./testFixtures/modularAdminStub");
 
 const origLoad = Module._load;
 Module._load = function (request, ...rest) {
-  if (request === "firebase-admin") {
-    return {
+  if (request === "firebase-admin" || request.startsWith("firebase-admin/")) {
+    const stub = {
       firestore: Object.assign(
         () => { throw new Error("no default firestore in tests — inject db"); },
         {FieldValue: {serverTimestamp: () => "__ts__"}},
       ),
     };
+    return request === "firebase-admin" ? stub : modularAdminModules(stub)[request];
   }
   if (request === "./opsAlert") {
     return {sendOpsAlert: async () => ({sent: false})};

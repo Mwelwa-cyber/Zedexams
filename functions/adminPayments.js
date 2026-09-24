@@ -21,7 +21,7 @@
  */
 
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
-const admin = require("firebase-admin");
+const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
 
 const {writeAuditLog} = require("./auditLog");
 const {requireAdminMfa} = require("./security/requireAdminMfa");
@@ -49,15 +49,15 @@ async function assertCallerIsAdmin(request) {
  */
 function finalizeActivationFields(fields) {
   const out = {...fields};
-  const now = admin.firestore.FieldValue.serverTimestamp();
+  const now = FieldValue.serverTimestamp();
   out.premiumActivatedAt = now;
   out.subscriptionActivatedAt = now;
   out.subscriptionExpiry = fields.subscriptionExpiry
-    ? admin.firestore.Timestamp.fromDate(fields.subscriptionExpiry)
+    ? Timestamp.fromDate(fields.subscriptionExpiry)
     : null;
   if (fields.teacherPlan) {
     out.teacherPlanExpiresAt = fields.teacherPlanExpiresAt
-      ? admin.firestore.Timestamp.fromDate(fields.teacherPlanExpiresAt)
+      ? Timestamp.fromDate(fields.teacherPlanExpiresAt)
       : null;
     out.teacherPlanActivatedAt = now;
   }
@@ -78,7 +78,7 @@ exports.adminConfirmPayment = onCall(
         throw new HttpsError("invalid-argument", "paymentId is required.");
       }
 
-      const db = admin.firestore();
+      const db = getFirestore();
       const payRef = db.collection("payments").doc(paymentId);
       const paySnap = await payRef.get();
       if (!paySnap.exists) {
@@ -111,7 +111,7 @@ exports.adminConfirmPayment = onCall(
         mtnStatus: "MANUAL_OVERRIDE",
         reason: "",
         confirmedBy: actor.uid,
-        confirmedAt: admin.firestore.FieldValue.serverTimestamp(),
+        confirmedAt: FieldValue.serverTimestamp(),
       });
       await batch.commit();
 
@@ -143,7 +143,7 @@ exports.adminRejectPayment = onCall(
         throw new HttpsError("invalid-argument", "paymentId is required.");
       }
 
-      const db = admin.firestore();
+      const db = getFirestore();
       const payRef = db.collection("payments").doc(paymentId);
       const paySnap = await payRef.get();
       if (!paySnap.exists) {
@@ -156,7 +156,7 @@ exports.adminRejectPayment = onCall(
         mtnStatus: "MANUAL_REJECTED",
         reason: String(reason || "Rejected by admin.").slice(0, 500),
         confirmedBy: actor.uid,
-        confirmedAt: admin.firestore.FieldValue.serverTimestamp(),
+        confirmedAt: FieldValue.serverTimestamp(),
       });
 
       await writeAuditLog({
@@ -192,7 +192,7 @@ exports.adminGrantPremium = onCall(
         throw new HttpsError("invalid-argument", `Unknown plan: ${planId}`);
       }
 
-      const db = admin.firestore();
+      const db = getFirestore();
       const userRef = db.collection("users").doc(uid);
       const userSnap = await userRef.get();
       if (!userSnap.exists) {
@@ -239,7 +239,7 @@ exports.adminRevokePremium = onCall(
         throw new HttpsError("invalid-argument", "uid is required.");
       }
 
-      const db = admin.firestore();
+      const db = getFirestore();
       const userRef = db.collection("users").doc(uid);
       const userSnap = await userRef.get();
       if (!userSnap.exists) {

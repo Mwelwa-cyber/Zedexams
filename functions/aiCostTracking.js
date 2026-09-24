@@ -31,7 +31,7 @@
  * don't fabricate numbers — the call is still counted.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
 const crypto = require("node:crypto");
 const {
   getBudgetMode,
@@ -437,12 +437,12 @@ async function writeUsageRollups({
   characters = 0,
 }) {
   try {
-    const db = admin.firestore();
+    const db = getFirestore();
     const date = dateKeyUtc();
     const month = monthKeyUtc();
 
-    const inc = (n) => admin.firestore.FieldValue.increment(n);
-    const now = admin.firestore.FieldValue.serverTimestamp();
+    const inc = (n) => FieldValue.increment(n);
+    const now = FieldValue.serverTimestamp();
     // One shard id per call, reused across the day/month/tool counters.
     const shardId = pickShardId(resolveShardCount());
 
@@ -555,7 +555,7 @@ function getMonthlyBudgetUsd() {
  * so adding both never double-counts.
  */
 async function readMonthToDateCostUsd(monthKey) {
-  const monthDoc = admin.firestore().collection(MONTHLY_COLLECTION).doc(monthKey);
+  const monthDoc = getFirestore().collection(MONTHLY_COLLECTION).doc(monthKey);
   const [legacySnap, shardsSnap] = await Promise.all([
     monthDoc.get(),
     monthDoc.collection("shards").get(),
@@ -633,7 +633,7 @@ async function getResolvedZmwPerUsd() {
   const envFallback = getZmwPerUsd();
   let rate = envFallback;
   try {
-    const snap = await admin.firestore().collection("settings").doc("fxRate").get();
+    const snap = await getFirestore().collection("settings").doc("fxRate").get();
     const d = snap.exists ? (snap.data() || {}) : {};
     const fetchedAtMs = Number.isFinite(Number(d.fetchedAtMs)) ?
       Number(d.fetchedAtMs) :
@@ -667,8 +667,8 @@ async function getMonthToDateRevenueUsd() {
     return revenueCache.revenueUsd;
   }
   try {
-    const since = admin.firestore.Timestamp.fromDate(monthStartUtc());
-    const snap = await admin.firestore()
+    const since = Timestamp.fromDate(monthStartUtc());
+    const snap = await getFirestore()
         .collection("payments")
         .where("status", "in", ["confirmed", "successful"])
         .where("confirmedAt", ">=", since)
@@ -871,7 +871,7 @@ async function reserveForCall({generationId, estCostUsd, provider}) {
   if (!status || !status.enabled || !(Number(status.budgetUsd) > 0)) {
     return {allowed: true, reservation: null, generationId, mode: "disabled"};
   }
-  const res = await reservation.reserveBudget(admin.firestore(), {
+  const res = await reservation.reserveBudget(getFirestore(), {
     month: monthKeyUtc(),
     generationId,
     estCostUsd,
@@ -942,7 +942,7 @@ async function beginAiImageCall({generationId, model, quality, size, provider = 
 async function settleAiCall({reservation: handle, uid, tool, model, usage} = {}) {
   if (handle && handle.id) {
     const actualCostUsd = computeCostUsd(model, usage);
-    await reservation.settleReservation(admin.firestore(), {
+    await reservation.settleReservation(getFirestore(), {
       month: handle.month || monthKeyUtc(),
       generationId: handle.id,
       actualCostUsd,
@@ -959,7 +959,7 @@ async function settleAiCall({reservation: handle, uid, tool, model, usage} = {})
  */
 async function settleAiImageCall({reservation: handle, uid, tool, model, quality, size} = {}) {
   if (handle && handle.id) {
-    await reservation.settleReservation(admin.firestore(), {
+    await reservation.settleReservation(getFirestore(), {
       month: handle.month || monthKeyUtc(),
       generationId: handle.id,
       actualCostUsd: imageCostUsd(model, {quality, size}),
@@ -976,7 +976,7 @@ async function settleAiImageCall({reservation: handle, uid, tool, model, quality
  */
 async function releaseAiCall({reservation: handle} = {}) {
   if (handle && handle.id) {
-    await reservation.releaseReservation(admin.firestore(), {
+    await reservation.releaseReservation(getFirestore(), {
       month: handle.month || monthKeyUtc(),
       generationId: handle.id,
       now: Date.now(),

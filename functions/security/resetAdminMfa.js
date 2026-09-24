@@ -15,7 +15,8 @@
 //     an administrator before anything is removed.
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
+const {getAuth} = require("firebase-admin/auth");
 const { requireAdminMfa } = require("./requireAdminMfa");
 const { isRecentAuth } = require("./requireAdminMfaCore");
 const {
@@ -52,13 +53,13 @@ exports.resetAdminMfa = onCall({ region: "us-central1", timeoutSeconds: 30 }, as
   // 4. Resolve the target securely by UID and confirm they are an administrator.
   let targetUser;
   try {
-    targetUser = await admin.auth().getUser(targetUid);
+    targetUser = await getAuth().getUser(targetUid);
   } catch {
     throw new HttpsError("not-found", "Target user not found.");
   }
   let firestoreRole = null;
   try {
-    const snap = await admin.firestore().doc(`users/${targetUid}`).get();
+    const snap = await getFirestore().doc(`users/${targetUid}`).get();
     firestoreRole = snap.exists ? snap.data()?.role : null;
   } catch {
     /* fall through to claims-only check */
@@ -83,7 +84,7 @@ exports.resetAdminMfa = onCall({ region: "us-central1", timeoutSeconds: 30 }, as
 
   // 5. Remove all enrolled MFA factors (Admin SDK: enrolledFactors: null clears).
   try {
-    await admin.auth().updateUser(targetUid, { multiFactor: { enrolledFactors: null } });
+    await getAuth().updateUser(targetUid, { multiFactor: { enrolledFactors: null } });
   } catch (err) {
     await writeSecurityAudit({
       eventType: SECURITY_EVENTS.MFA_RESET_APPROVED,
@@ -112,7 +113,7 @@ exports.resetAdminMfa = onCall({ region: "us-central1", timeoutSeconds: 30 }, as
   //    invalidated; combined with the removed factors, the next sign-in forces
   //    a fresh first-factor login AND re-enrolment.
   try {
-    await admin.auth().revokeRefreshTokens(targetUid);
+    await getAuth().revokeRefreshTokens(targetUid);
     await writeSecurityAudit({
       eventType: SECURITY_EVENTS.ADMIN_SESSIONS_REVOKED,
       actorUid: actor.uid,
@@ -131,10 +132,10 @@ exports.resetAdminMfa = onCall({ region: "us-central1", timeoutSeconds: 30 }, as
   // 7. Mirror status for UI/reporting only — server-written, never a security
   //    control (Firebase enrolment state remains the source of truth).
   try {
-    await admin.firestore().doc(`users/${targetUid}`).set(
+    await getFirestore().doc(`users/${targetUid}`).set(
       {
         mfaEnrolled: false,
-        mfaResetAt: admin.firestore.FieldValue.serverTimestamp(),
+        mfaResetAt: FieldValue.serverTimestamp(),
         mfaResetBy: actor.uid,
       },
       { merge: true },

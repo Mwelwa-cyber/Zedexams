@@ -23,7 +23,7 @@
  * client read and write is denied by absence (`test:rules-text` pins that).
  */
 
-const admin = require("firebase-admin");
+const {Timestamp, getFirestore} = require("firebase-admin/firestore");
 const {
   DEFAULT_TTL_MS,
   buildEventKey,
@@ -36,7 +36,7 @@ const COLLECTION = "processedWebhookEvents";
  * Claim one webhook delivery.
  *
  * @param {object} args
- * @param {object} [args.db] Firestore instance; defaults to admin.firestore().
+ * @param {object} [args.db] Firestore instance; defaults to getFirestore().
  * @param {string} args.provider 'lenco' | 'whatsapp'
  * @param {Array<string>|null} args.parts Identity components, from
  *   lencoEventParts()/whatsappEventParts(). Null means the payload carried
@@ -54,7 +54,7 @@ async function claimWebhookEvent({db, provider, parts, meta = {}, ttlMs = DEFAUL
   }
 
   const key = buildEventKey({provider, parts});
-  const firestore = db || admin.firestore();
+  const firestore = db || getFirestore();
   const ref = firestore.collection(COLLECTION).doc(key);
 
   let createError = null;
@@ -66,9 +66,9 @@ async function claimWebhookEvent({db, provider, parts, meta = {}, ttlMs = DEFAUL
       tx.create(ref, {
         provider,
         ...meta,
-        receivedAt: admin.firestore.Timestamp.fromMillis(now),
+        receivedAt: Timestamp.fromMillis(now),
         // TTL policy field — configured out-of-band, like webauthnChallenges.
-        expiresAt: admin.firestore.Timestamp.fromMillis(now + ttlMs),
+        expiresAt: Timestamp.fromMillis(now + ttlMs),
       });
     });
   } catch (err) {

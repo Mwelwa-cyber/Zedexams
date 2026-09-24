@@ -11,7 +11,8 @@
 // mfaEnrolled status field.
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
+const {getAuth} = require("firebase-admin/auth");
 const { assertVerifiedAuth } = require("../authGuard");
 const { tokenIsAdmin, tokenIsSuperAdmin } = require("./requireAdminMfaCore");
 const {
@@ -31,7 +32,7 @@ async function isCallerAdmin(request) {
   if (tokenIsAdmin(token)) return true;
   // Fallback for accounts promoted before claim-sync (AUTH-M4).
   try {
-    const snap = await admin.firestore().doc(`users/${request.auth.uid}`).get();
+    const snap = await getFirestore().doc(`users/${request.auth.uid}`).get();
     const role = snap.exists ? snap.data()?.role : null;
     return role === "admin" || role === "superAdmin";
   } catch {
@@ -64,7 +65,7 @@ exports.logAdminMfaEvent = onCall({ region: "us-central1", timeoutSeconds: 15 },
   if (kind === "completed") {
     let enrolled = false;
     try {
-      const authUser = await admin.auth().getUser(uid);
+      const authUser = await getAuth().getUser(uid);
       enrolled = (authUser.multiFactor?.enrolledFactors || []).length > 0;
     } catch {
       enrolled = false;
@@ -73,8 +74,8 @@ exports.logAdminMfaEvent = onCall({ region: "us-central1", timeoutSeconds: 15 },
       throw new HttpsError("failed-precondition", "No MFA factor is enrolled on this account.");
     }
     try {
-      await admin.firestore().doc(`users/${uid}`).set(
-        { mfaEnrolled: true, mfaEnrolledAt: admin.firestore.FieldValue.serverTimestamp() },
+      await getFirestore().doc(`users/${uid}`).set(
+        { mfaEnrolled: true, mfaEnrolledAt: FieldValue.serverTimestamp() },
         { merge: true },
       );
     } catch {

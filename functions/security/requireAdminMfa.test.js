@@ -7,6 +7,7 @@
 
 const assert = require("node:assert");
 const Module = require("node:module");
+const {modularAdminModules} = require("../testFixtures/modularAdminStub");
 
 let userStore = {};
 
@@ -49,6 +50,7 @@ class HttpsError extends Error {
 const origLoad = Module._load;
 Module._load = function (request, ...rest) {
   if (request === "firebase-admin") return adminStub;
+  if (request.startsWith("firebase-admin/")) return modularAdminModules(adminStub)[request];
   if (request === "firebase-functions/v2/https") {
     return { HttpsError, onCall: (opts, handler) => handler };
   }

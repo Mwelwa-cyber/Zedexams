@@ -25,7 +25,10 @@ exports.buildPaymentHandlers = (deps) => {
   const {
     CAPABILITY_PURCHASE,
     HttpsError,
-    admin,
+    FieldValue,
+    Timestamp,
+    getAuth,
+    getFirestore,
     assertAdminSecondFactor,
     assertLearnerCapability,
     assertVerifiedAuth,
@@ -62,7 +65,7 @@ exports.buildPaymentHandlers = (deps) => {
       // invoice. (A teacher viewing /admin/payments has admin role
       // already; a parent should never reach this callable but the
       // ownership check costs us nothing extra.)
-      const db = admin.firestore();
+      const db = getFirestore();
       const callerSnap = await db.collection("users").doc(uid).get();
       const callerRole = callerSnap.exists ? (callerSnap.data() || {}).role : null;
       const isAdmin = callerRole === "admin" || callerRole === "superAdmin";
@@ -112,7 +115,7 @@ exports.buildPaymentHandlers = (deps) => {
       const plan = getPlan(planId);
       if (!plan) throw new HttpsError("invalid-argument", "Unknown plan.");
 
-      const db = admin.firestore();
+      const db = getFirestore();
       const userSnap = await db.collection("users").doc(uid).get();
       const user = userSnap.exists ? (userSnap.data() || {}) : {};
       const {quoteUpgradeForUser, projectRenewalDate} = require("./subscriptionUpgrade");
@@ -165,7 +168,7 @@ exports.buildPaymentHandlers = (deps) => {
         throw new HttpsError("failed-precondition", "Payments are not configured yet. Please try again later.");
       }
 
-      const db = admin.firestore();
+      const db = getFirestore();
       const userSnap = await db.collection("users").doc(uid).get();
       const user = userSnap.exists ? (userSnap.data() || {}) : {};
       const bearer = process.env.LENCO_FEE_BEARER === "customer" ? "customer" : "merchant";
@@ -287,7 +290,7 @@ exports.buildPaymentHandlers = (deps) => {
         // Capture the renewal date at quote time. Activation pins an upgrade to
         // THIS date (not a fresh period), so a webhook that lands after the sub has
         // lapsed can't grant a full month for the prorated price.
-        ...(quote.expiry ? {intendedExpiry: admin.firestore.Timestamp.fromDate(quote.expiry)} : {}),
+        ...(quote.expiry ? {intendedExpiry: Timestamp.fromDate(quote.expiry)} : {}),
       } : {};
 
       // Duplicate-initiation protection — ATOMIC. paymentLocks/{uid} points at
@@ -343,7 +346,7 @@ exports.buildPaymentHandlers = (deps) => {
             beneficiaryName: beneficiary?.displayName,
             guardianRequestId,
           }),
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          createdAt: FieldValue.serverTimestamp(),
         });
         tx.set(lockRef, {
           paymentId: newPayRef.id,
@@ -351,7 +354,7 @@ exports.buildPaymentHandlers = (deps) => {
           planId,
           phoneNumber,
           beneficiaryUid: beneficiaryUid || null,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          createdAt: FieldValue.serverTimestamp(),
         });
         return {action: "created"};
       });
@@ -454,7 +457,7 @@ exports.buildPaymentHandlers = (deps) => {
         throw new HttpsError("invalid-argument", "Payment reference and OTP are required.");
       }
 
-      const db = admin.firestore();
+      const db = getFirestore();
       const payRef = db.collection("payments").doc(paymentId);
       const snap = await payRef.get();
       if (!snap.exists || (snap.data() || {}).userId !== uid) {
@@ -494,7 +497,7 @@ exports.buildPaymentHandlers = (deps) => {
       const paymentId = cleanString(request.data?.paymentId, 60);
       if (!paymentId) throw new HttpsError("invalid-argument", "Payment reference is required.");
 
-      const db = admin.firestore();
+      const db = getFirestore();
       const payRef = db.collection("payments").doc(paymentId);
       const snap = await payRef.get();
       if (!snap.exists) throw new HttpsError("not-found", "Payment not found.");
@@ -565,7 +568,7 @@ exports.buildPaymentHandlers = (deps) => {
       const {reconcilePendingPayments} = require("./agents/runners/till");
 
       const summary = await reconcilePendingPayments({
-        db: admin.firestore(),
+        db: getFirestore(),
         apiKey,
         getCollectionStatus: lenco.getCollectionStatus,
         activate: activateSubscriptionFromPayment,
@@ -625,7 +628,7 @@ exports.buildPaymentHandlers = (deps) => {
       // receipt's "for Mutinta" line and nothing else.
       const {authoriseGuardianPurchase} = require("./guardianBillingAuth");
       const guardianAuth = await authoriseGuardianPurchase({
-        db: admin.firestore(),
+        db: getFirestore(),
         payerUid: uid,
         beneficiaryUid: request.data?.beneficiaryUid,
         guardianRequestId: request.data?.guardianRequestId,
@@ -721,7 +724,7 @@ exports.buildPaymentHandlers = (deps) => {
         const {lencoEventParts, PROVIDERS} = require("./webhookEventLedgerCore");
         const body = req.body || {};
         const claim = await claimWebhookEvent({
-          db: admin.firestore(),
+          db: getFirestore(),
           provider: PROVIDERS.LENCO,
           parts: lencoEventParts(body),
           meta: {
@@ -748,7 +751,7 @@ exports.buildPaymentHandlers = (deps) => {
 
         const result = await processLencoWebhookEvent({
           event: req.body || {},
-          db: admin.firestore(),
+          db: getFirestore(),
           activate: ({paymentId, lencoStatus, collectedAmount, collectedCurrency}) =>
             activateSubscriptionFromPayment({
               paymentId, lencoStatus, collectedAmount, collectedCurrency, emailSecrets,
@@ -843,7 +846,7 @@ exports.buildPaymentHandlers = (deps) => {
     bulkGrantDemoTrials: async (request) => {
       const callerUid = await assertVerifiedAuth(request, "Sign in required.");
 
-      const db = admin.firestore();
+      const db = getFirestore();
       const callerSnap = await db.collection("users").doc(callerUid).get();
       const callerRole = callerSnap.exists ? (callerSnap.data() || {}).role : null;
       if (callerRole !== "admin" && callerRole !== "superAdmin") {
@@ -961,8 +964,8 @@ exports.buildPaymentHandlers = (deps) => {
       const adminId = `admin:bulkGrantDemoTrials:${callerUid}`;
       const expiry = new Date();
       expiry.setDate(expiry.getDate() + days);
-      const expiryTs = admin.firestore.Timestamp.fromDate(expiry);
-      const ts = admin.firestore.FieldValue.serverTimestamp();
+      const expiryTs = Timestamp.fromDate(expiry);
+      const ts = FieldValue.serverTimestamp();
 
       const results = [];
       for (const row of planRows) {
@@ -970,7 +973,7 @@ exports.buildPaymentHandlers = (deps) => {
           let userRecord;
           let createdAuth = false;
           try {
-            userRecord = await admin.auth().createUser({
+            userRecord = await getAuth().createUser({
               email: row.email,
               password: row.password,
               displayName: row.name,
@@ -980,7 +983,7 @@ exports.buildPaymentHandlers = (deps) => {
             createdAuth = true;
           } catch (err) {
             if (err && err.code === "auth/email-already-exists") {
-              userRecord = await admin.auth().getUserByEmail(row.email);
+              userRecord = await getAuth().getUserByEmail(row.email);
             } else {
               throw err;
             }

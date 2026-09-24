@@ -22,6 +22,7 @@
 
 const assert = require("node:assert");
 const Module = require("node:module");
+const {modularAdminModules} = require("./testFixtures/modularAdminStub");
 const {readFileSync} = require("node:fs");
 const path = require("node:path");
 
@@ -85,6 +86,7 @@ const fakeAdmin = {
 const origLoad = Module._load;
 Module._load = function (request, ...rest) {
   if (request === "firebase-admin") return fakeAdmin;
+  if (request.startsWith("firebase-admin/")) return modularAdminModules(fakeAdmin)[request];
   if (request === "firebase-functions/v2/https") return {HttpsError: FakeHttpsError};
   return origLoad.call(this, request, ...rest);
 };

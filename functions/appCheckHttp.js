@@ -20,7 +20,8 @@
  * canaries one endpoint; APPCHECK_ENFORCE=1 enforces globally.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
+const {getAppCheck} = require("firebase-admin/app-check");
 const {HttpsError} = require("firebase-functions/v2/https");
 const {resolveAppCheckEnforcement} = require("./appCheckEnforcement");
 const {
@@ -55,13 +56,13 @@ async function recordAppCheckHealth({label, tokenPresent, verified, canDistingui
     const shardCount = resolveShardCount();
     const shardId = pickShardId(shardCount);
     const outcome = classifyOutcome({tokenPresent, verified, canDistinguishInvalid});
-    const inc = (n) => admin.firestore.FieldValue.increment(n);
+    const inc = (n) => FieldValue.increment(n);
     const update = buildHealthShardUpdate({
       label, outcome, weight: weightForSampleRate(sampleRate), inc,
     });
     update.date = date;
-    update.updatedAt = admin.firestore.FieldValue.serverTimestamp();
-    await admin.firestore()
+    update.updatedAt = FieldValue.serverTimestamp();
+    await getFirestore()
         .collection("appCheckHealth").doc(date)
         .collection("shards").doc(String(shardId))
         .set(update, {merge: true});
@@ -84,7 +85,7 @@ async function softVerifyAppCheckHttp(req, label) {
   let verified = null;
   if (token) {
     try {
-      verified = await admin.appCheck().verifyToken(token);
+      verified = await getAppCheck().verifyToken(token);
     } catch (err) {
       console.warn(`[appCheck:${label}] verifyToken failed`, err?.message || err);
     }

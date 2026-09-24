@@ -37,7 +37,7 @@
  *     naturally so a hard cap keeps a single run inside the timeout.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("./authGuard");
@@ -147,7 +147,7 @@ async function loadCandidateShares(db) {
 async function logEvent(db, payload) {
   await db.collection("parentDigestEvents").add({
     ...payload,
-    sentAt: admin.firestore.FieldValue.serverTimestamp(),
+    sentAt: FieldValue.serverTimestamp(),
   }).catch((err) => console.warn("[weeklyParentDigest] audit log failed", err));
 }
 
@@ -174,7 +174,7 @@ async function deliverEmail({db, shareDoc, share, token, stats, learnerName, lea
     // the 5-day guard for real parents.
     if (!force) {
       await shareDoc.ref.update({
-        lastWeeklyDigestSentAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastWeeklyDigestSentAt: FieldValue.serverTimestamp(),
       }).catch((err) => console.warn("[weeklyParentDigest] email stamp update failed", err));
     }
     await logEvent(db, {
@@ -251,7 +251,7 @@ async function deliverWhatsApp({db, shareDoc, share, token, stats, learnerName, 
     // don't bump the idempotency clock so Sunday's tick still fires.
     if (!force) {
       await shareDoc.ref.update({
-        lastWeeklyDigestWhatsAppSentAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastWeeklyDigestWhatsAppSentAt: FieldValue.serverTimestamp(),
       }).catch((err) => console.warn("[weeklyParentDigest] whatsapp stamp update failed", err));
     }
     await logEvent(db, {
@@ -320,7 +320,7 @@ async function runWeeklyDigest({
   force = false,
   targetTokens = null,
 } = {}) {
-  const db = admin.firestore();
+  const db = getFirestore();
   const now = Date.now();
   const senderEmail = String(emailSmtpUser.value() || "").trim();
   const senderDomain = resolveSenderDomain(senderEmail);
@@ -420,7 +420,7 @@ async function runWeeklyDigest({
     input: {runType, timezone: "Africa/Lusaka", force, targetTokens: targetTokens || null},
     output: {digest: {...summary, errors: summary.errors.slice(0, 10)}},
     createdBy,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
   }).catch((err) => console.warn("[weeklyParentDigest] rollup write failed", err));
 
   return summary;
@@ -456,7 +456,7 @@ const triggerWeeklyParentDigest = onCall({
 }, async (request) => {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
 
-  const db = admin.firestore();
+  const db = getFirestore();
   const userSnap = await db.collection("users").doc(uid).get();
   const role = userSnap.exists ? (userSnap.data()?.role || "") : "";
   if (!isAdminRole(role)) {

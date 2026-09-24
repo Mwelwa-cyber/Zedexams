@@ -18,7 +18,7 @@
 // is meaningless for an account that has none.
 
 const { HttpsError } = require("firebase-functions/v2/https");
-const admin = require("firebase-admin");
+const {getFirestore} = require("firebase-admin/firestore");
 
 function tokenNeedsVerification(token) {
   return !!token && !!token.email && token.email_verified !== true;
@@ -26,7 +26,7 @@ function tokenNeedsVerification(token) {
 
 async function isWithinGrace(uid) {
   try {
-    const snap = await admin.firestore().doc(`users/${uid}`).get();
+    const snap = await getFirestore().doc(`users/${uid}`).get();
     const until = snap.exists ? snap.data()?.verificationGraceUntil : null;
     if (!until) return false;
     const millis = typeof until.toMillis === "function" ? until.toMillis() : NaN;
@@ -69,7 +69,7 @@ function suspendedError() {
 // bound the exposure window and the next successful call re-checks.
 async function assertActiveAccount(uid) {
   try {
-    const db = admin.firestore();
+    const db = getFirestore();
     // Both in one round trip. The tombstone is checked because the status field
     // cannot cover this case: the purge DELETES users/{uid}, so once it has,
     // `snap.exists` is false, `status` is null, and this function returns

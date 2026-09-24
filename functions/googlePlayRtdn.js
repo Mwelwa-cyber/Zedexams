@@ -30,7 +30,7 @@
  * child already holds.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
 
 const {decodeRtdnMessage, parseRtdnNotification, classifyRtdn} =
   require("./googlePlayRtdnCore");
@@ -88,7 +88,7 @@ async function revokeGrantsForToken(db, {purchaseToken, nowMs = Date.now()} = {}
     return out;
   }
 
-  const lapseAt = admin.firestore.Timestamp.fromMillis(nowMs);
+  const lapseAt = Timestamp.fromMillis(nowMs);
 
   for (const payDoc of paySnap.docs) {
     const pay = payDoc.data() || {};
@@ -108,8 +108,8 @@ async function revokeGrantsForToken(db, {purchaseToken, nowMs = Date.now()} = {}
           subscriptionExpiry: lapseAt,
           subscriptionStatus: "refunded",
           paymentStatus: "refunded",
-          googlePlaySyncedAt: admin.firestore.FieldValue.serverTimestamp(),
-          subscriptionRevokedAt: admin.firestore.FieldValue.serverTimestamp(),
+          googlePlaySyncedAt: FieldValue.serverTimestamp(),
+          subscriptionRevokedAt: FieldValue.serverTimestamp(),
           subscriptionRevokedReason: "play_voided_purchase",
         };
         // The teacher studio gate reads its own expiry field, so it has to
@@ -128,7 +128,7 @@ async function revokeGrantsForToken(db, {purchaseToken, nowMs = Date.now()} = {}
     try {
       await payDoc.ref.update({
         status: "refunded",
-        refundedAt: admin.firestore.FieldValue.serverTimestamp(),
+        refundedAt: FieldValue.serverTimestamp(),
         refundSource: "play_rtdn",
       });
     } catch (err) {
@@ -182,7 +182,7 @@ async function handleRtdnMessage({
   revoke = null,
   nowMs = Date.now(),
 } = {}) {
-  const firestore = db || admin.firestore();
+  const firestore = db || getFirestore();
   const notification = parseRtdnNotification(decodeRtdnMessage(message));
   const verdict = classifyRtdn({notification, expectedPackage});
 

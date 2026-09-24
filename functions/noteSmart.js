@@ -4,10 +4,10 @@
 // noteInsights writer: read lessons/{noteId}, ask Claude for important excerpts
 // per block, write noteSmart/{noteId}. Server-only (admin SDK).
 //
-// Pattern: uses admin.firestore() per-call and admin.firestore.FieldValue —
+// Pattern: uses getFirestore() per-call and FieldValue —
 // identical to noteInsights.js — so no db/FieldValue params needed.
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {callAnthropic} = require("./aiService");
 const {buildHighlightMessages, parseHighlights, buildSummaryMessages, parseSummaries} = require("./noteSmartPrompt");
 
@@ -26,12 +26,12 @@ function contentHash(blocks) {
 
 /**
  * Read a study note, extract highlights via Claude, and write noteSmart/{noteId}.
- * Mirrors runNoteInsights — obtains Firestore internally via admin.firestore().
+ * Mirrors runNoteInsights — obtains Firestore internally via getFirestore().
  * @param {{ noteId: string, uid: string, apiKey: string }} args
  * @returns {Promise<{ highlights: Record<string,string[]>, warnings: string[] }>}
  */
 async function runGenerateNoteSmart({noteId, uid, apiKey}) {
-  const db = admin.firestore();
+  const db = getFirestore();
 
   const snap = await db.collection("lessons").doc(noteId).get();
   if (!snap.exists) {
@@ -87,7 +87,7 @@ async function runGenerateNoteSmart({noteId, uid, apiKey}) {
     warnings,
     contentHash: contentHash(blocks),
     model: SMART_MODEL || "default",
-    generatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    generatedAt: FieldValue.serverTimestamp(),
   });
 
   return {highlights, sections, warnings};

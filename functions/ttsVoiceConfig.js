@@ -16,7 +16,7 @@
 
 "use strict";
 
-const admin = require("firebase-admin");
+const {getFirestore} = require("firebase-admin/firestore");
 const {effectiveVoiceList, findOfferedVoice} = require("./ttsVoiceConfigCore");
 const {GOOGLE_VOICES} = require("./ttsAdminCore");
 
@@ -28,7 +28,7 @@ let cache = {expiresAt: 0, doc: null};
 async function readVoiceConfigDoc({now = Date.now()} = {}) {
   if (now < cache.expiresAt) return cache.doc;
   try {
-    const snap = await admin.firestore().doc("settings/ttsVoices").get();
+    const snap = await getFirestore().doc("settings/ttsVoices").get();
     cache = {expiresAt: now + CONFIG_TTL_MS, doc: snap.exists ? snap.data() : null};
   } catch (err) {
     console.warn("[ttsVoiceConfig] read failed — serving defaults", err?.message || err);

@@ -25,7 +25,7 @@
 const crypto = require("node:crypto");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {defineSecret} = require("firebase-functions/params");
-const admin = require("firebase-admin");
+const {getFirestore} = require("firebase-admin/firestore");
 const {checkRateLimit} = require("./rateLimit");
 const {classifyLimiterHealth, shouldAlertLimiterHealth} = require("./rateLimitHealthCore");
 const {sendOpsAlert} = require("./opsAlert");
@@ -63,7 +63,7 @@ function logEvent(fields) {
  * @returns {Promise<{status: string, alerted: boolean}>}
  */
 async function runRateLimitHealthCheck({
-  db = admin.firestore(),
+  db = getFirestore(),
   check = checkRateLimit,
   env = process.env,
   alert = sendOpsAlert,

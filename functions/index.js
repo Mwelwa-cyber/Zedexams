@@ -6,10 +6,13 @@ const {onDocumentCreated} = require("firebase-functions/v2/firestore");
 // trigger (googlePlayRtdn) is held back until its topic exists in production.
 // See the block further down for why, and how to restore it.
 const {defineSecret} = require("firebase-functions/params");
-const admin = require("firebase-admin");
+const {initializeApp} = require("firebase-admin/app");
+const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
+const {getAuth} = require("firebase-admin/auth");
+const {getStorage} = require("firebase-admin/storage");
 const crypto = require("node:crypto");
 
-admin.initializeApp();
+initializeApp();
 
 const {purgeUserData, evaluateDeletionAuth} = require("./accountDeletion");
 const {passwordResetRateLimitKeys} = require("./passwordResetRateLimitCore");
@@ -445,7 +448,7 @@ async function requireHttpAuth(req) {
   if (!token) {
     throw new HttpsError("unauthenticated", "Please sign in first.");
   }
-  const decoded = await admin.auth().verifyIdToken(token);
+  const decoded = await getAuth().verifyIdToken(token);
   return assertDecodedVerified(decoded);
 }
 
@@ -577,7 +580,11 @@ const batch2HandlerDeps = {
   TEACHER_MARKING_SCHEME,
   UNTRUSTED_DATA_NOTICE,
   ZED_CHAT_MODEL,
-  admin,
+  FieldValue,
+  Timestamp,
+  getAuth,
+  getFirestore,
+  getStorage,
   anthropicApiKey,
   assertAdminSecondFactor,
   assertCallableRateLimit,
@@ -665,7 +672,11 @@ const batch3HandlerDeps = {
   LEARNER_BLOCK_MESSAGE,
   LIMITS,
   ZED_CHAT_MODEL,
-  admin,
+  FieldValue,
+  Timestamp,
+  getAuth,
+  getFirestore,
+  getStorage,
   anthropicApiKey,
   applyCors,
   assertAdminSecondFactor,
@@ -714,7 +725,7 @@ exports.appCheckPing = onCall(
 );
 
 async function getUserProfileOrThrow(uid) {
-  const snap = await admin.firestore().doc(`users/${uid}`).get();
+  const snap = await getFirestore().doc(`users/${uid}`).get();
   if (!snap.exists) {
     throw new HttpsError(
       "failed-precondition",
@@ -888,7 +899,7 @@ function buildBootstrappedUserProfile({
     premiumActivatedAt: null,
     dailyAttempts: 0,
     lastAttemptDate: "",
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
   };
 }
 
@@ -1041,8 +1052,8 @@ async function passwordResetRateLimited(db, emailKey, ipKey) {
   for (const c of checks) {
     db.collection(PWRESET_RL_COLLECTION).doc(c.key).set({
       day: passwordResetDayKey(),
-      count: admin.firestore.FieldValue.increment(1),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      count: FieldValue.increment(1),
+      updatedAt: FieldValue.serverTimestamp(),
     }, {merge: true}).catch((err) => {
       console.warn("[sendPasswordResetEmail] rate-limit write failed", err);
     });
@@ -1068,8 +1079,8 @@ async function refundPasswordResetAttempt(db, keys) {
     (keys || []).filter(Boolean).map((key) =>
       db.collection(PWRESET_RL_COLLECTION).doc(key).set({
         day: passwordResetDayKey(),
-        count: admin.firestore.FieldValue.increment(-1),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        count: FieldValue.increment(-1),
+        updatedAt: FieldValue.serverTimestamp(),
       }, {merge: true}).catch((err) => {
         console.warn("[sendPasswordResetEmail] rate-limit refund failed", err);
       })),
@@ -1451,7 +1462,7 @@ function makeStreamingEndpoint({tool, runCore}) {
         if (!token) {
           throw new HttpsError("unauthenticated", "Please sign in first.");
         }
-        const decoded = await admin.auth().verifyIdToken(token);
+        const decoded = await getAuth().verifyIdToken(token);
         await assertDecodedVerified(decoded);
         uid = decoded.uid;
         // App Check observability + opt-in enforcement gate (throws

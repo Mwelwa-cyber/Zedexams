@@ -16,7 +16,7 @@
  * thing standing between `ADMIN_EMAILS` and anyone who registers the address
  * first (AUTH-L6), and it must not be lost in a move.
  */
-const admin = require("firebase-admin");
+const {getAuth} = require("firebase-admin/auth");
 
 /**
  * `resolveInitialUserRole` is INJECTED, not imported: it lives in index.js
@@ -38,7 +38,7 @@ function buildUserRoleTrigger({resolveInitialUserRole}) {
     // Mint the role claim AND the boolean admin/superAdmin claims the MFA guard
     // reads (buildRoleClaims sets admin:true only for admin/superAdmin roles).
     const {buildRoleClaims} = require("../security/adminClaims");
-    await admin.auth().setCustomUserClaims(user.uid, buildRoleClaims({}, role));
+    await getAuth().setCustomUserClaims(user.uid, buildRoleClaims({}, role));
 
     return null;
   };

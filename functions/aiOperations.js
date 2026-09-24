@@ -24,7 +24,7 @@
  * used.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {HttpsError} = require("firebase-functions/v2/https");
 const {
   isValidIdempotencyKey,
@@ -36,7 +36,7 @@ const {
 const COLLECTION = "aiOperations";
 
 function opRef(idempotencyKey) {
-  return admin.firestore().collection(COLLECTION).doc(idempotencyKey);
+  return getFirestore().collection(COLLECTION).doc(idempotencyKey);
 }
 
 // Fields a caller is never allowed to control the value of — always
@@ -101,7 +101,7 @@ async function reserveAiOperation({
   });
 
   const ref = opRef(idempotencyKey);
-  const db = admin.firestore();
+  const db = getFirestore();
 
   return db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
@@ -143,10 +143,10 @@ async function reserveAiOperation({
       case "retry": {
         const updates = {
           status: "processing",
-          retryCount: admin.firestore.FieldValue.increment(1),
+          retryCount: FieldValue.increment(1),
           errorCode: null,
-          startedAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          startedAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
         };
         tx.update(ref, updates);
         return {
@@ -172,10 +172,10 @@ async function reserveAiOperation({
           retryCount: 0,
           retryable: null,
           errorCode: null,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          startedAt: admin.firestore.FieldValue.serverTimestamp(),
+          createdAt: FieldValue.serverTimestamp(),
+          startedAt: FieldValue.serverTimestamp(),
           completedAt: null,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
         };
         tx.create(ref, record);
         return {status: "created", operation: record};
@@ -198,8 +198,8 @@ async function completeAiOperation({
     resultDocumentId,
     usageCharged,
     providerRequestId,
-    completedAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    completedAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   });
 }
 
@@ -214,7 +214,7 @@ async function failAiOperation({idempotencyKey, err, usageCharged = 0}) {
     errorMessage: classified.message,
     retryable: classified.retryable,
     usageCharged,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   });
   return classified;
 }
@@ -226,7 +226,7 @@ async function failAiOperation({idempotencyKey, err, usageCharged = 0}) {
  * is never falsely reported as stopped. */
 async function cancelAiOperation({uid, idempotencyKey}) {
   const ref = opRef(idempotencyKey);
-  return admin.firestore().runTransaction(async (tx) => {
+  return getFirestore().runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     if (!snap.exists) throw new HttpsError("not-found", "Operation not found.");
     const data = snap.data();
@@ -238,7 +238,7 @@ async function cancelAiOperation({uid, idempotencyKey}) {
     }
     const updates = {
       cancelRequested: true,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     };
     // A still-reserved/queued run (provider call not yet started) can be
     // fully cancelled; a `processing` run only gets the intent flag — we

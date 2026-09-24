@@ -33,7 +33,7 @@
  */
 
 const {onRequest} = require("firebase-functions/v2/https");
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {applyCors} = require("./cors");
 const {enforceRateLimit, standardBuckets, resolveClientIp} = require("./rateLimit");
 const {sendOpsAlert} = require("./opsAlert");
@@ -75,13 +75,13 @@ function log(level, event, fields = {}) {
  * the functions runtime).
  */
 async function handleDeletionRequest(req, res, deps = {}) {
-  const db = deps.db || admin.firestore();
+  const db = deps.db || getFirestore();
   const rateLimitFn = deps.enforceRateLimit || enforceRateLimit;
   const alert = deps.sendOpsAlert || sendOpsAlert;
   const cors = deps.applyCors || applyCors;
   const logFn = deps.log || log;
   const serverTimestamp = deps.serverTimestamp ||
-    (() => admin.firestore.FieldValue.serverTimestamp());
+    (() => FieldValue.serverTimestamp());
 
   try {
     cors(req, res);

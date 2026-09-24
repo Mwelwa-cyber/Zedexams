@@ -1,5 +1,6 @@
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
+const {getAuth} = require("firebase-admin/auth");
 const {writeAuditLog} = require("./auditLog");
 const {requireAdminMfa} = require("./security/requireAdminMfa");
 const {syncUserRoleClaims} = require("./security/adminClaims");
@@ -76,7 +77,7 @@ exports.adminSetUserStatus = onCall(
       throw new HttpsError("invalid-argument", `Invalid status: ${status}`);
     }
 
-    const userRef = admin.firestore().doc(`users/${uid}`);
+    const userRef = getFirestore().doc(`users/${uid}`);
     const beforeSnap = await userRef.get();
     if (!beforeSnap.exists) {
       throw new HttpsError("not-found", "User not found.");
@@ -85,17 +86,17 @@ exports.adminSetUserStatus = onCall(
 
     const update = {
       status,
-      suspendedAt: status === "suspended" ? admin.firestore.FieldValue.serverTimestamp() : null,
+      suspendedAt: status === "suspended" ? FieldValue.serverTimestamp() : null,
       suspendedBy: status === "suspended" ? actor.uid : null,
       suspendReason: status === "suspended" ? String(reason).slice(0, 500) : "",
-      deletedAt: status === "deleted" ? admin.firestore.FieldValue.serverTimestamp() : null,
+      deletedAt: status === "deleted" ? FieldValue.serverTimestamp() : null,
       deletedBy: status === "deleted" ? actor.uid : null,
     };
     await userRef.update(update);
 
     if (status === "suspended" || status === "deleted") {
       try {
-        await admin.auth().revokeRefreshTokens(uid);
+        await getAuth().revokeRefreshTokens(uid);
       } catch (err) {
         // Auth user may not exist (deleted from Auth but kept in Firestore).
         console.warn("[adminSetUserStatus] revokeRefreshTokens", err?.message);
@@ -140,7 +141,7 @@ exports.adminSetUserRole = onCall(
       throw new HttpsError("invalid-argument", `Invalid role: ${role}`);
     }
 
-    const userRef = admin.firestore().doc(`users/${uid}`);
+    const userRef = getFirestore().doc(`users/${uid}`);
     const beforeSnap = await userRef.get();
     if (!beforeSnap.exists) {
       throw new HttpsError("not-found", "User not found.");
@@ -158,7 +159,7 @@ exports.adminSetUserRole = onCall(
     let claimsSynced = false;
     try {
       await syncUserRoleClaims(uid, role);
-      await admin.auth().revokeRefreshTokens(uid);
+      await getAuth().revokeRefreshTokens(uid);
       claimsSynced = true;
     } catch (err) {
       // Auth user may not exist (Firestore-only record). Log; the Firestore

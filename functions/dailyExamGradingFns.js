@@ -20,7 +20,7 @@
 
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("./authGuard");
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {gradeAttempt, stripAnswerKey} = require("./grading/dailyExamGrading");
 const {getUserRole} = require("./aiService");
 
@@ -113,7 +113,7 @@ exports.getExamQuestions = onCall(
       throw new HttpsError("invalid-argument", "examId is required.");
     }
 
-    const db = admin.firestore();
+    const db = getFirestore();
     const quizSnap = await db.collection("quizzes").doc(examId).get();
     if (!quizSnap.exists) {
       throw new HttpsError("not-found", "Exam not found.");
@@ -151,7 +151,7 @@ exports.submitDailyExam = onCall(
     }
     const answers = sanitizeAnswers(request.data?.answers);
 
-    const db = admin.firestore();
+    const db = getFirestore();
     const attemptRef = db.collection("exam_attempts").doc(attemptId);
 
     const preSnap = await attemptRef.get();
@@ -231,7 +231,7 @@ exports.submitDailyExam = onCall(
 
       tx.update(attemptRef, {
         status: "submitted",
-        submittedAt: admin.firestore.FieldValue.serverTimestamp(),
+        submittedAt: FieldValue.serverTimestamp(),
         ...publicResult, // score, totalMarks, totalQuestions, percentage, timeTakenSeconds
       });
       tx.set(
@@ -242,7 +242,7 @@ exports.submitDailyExam = onCall(
           userId: uid,
           answers,
           topicBreakdown, strengths, weaknesses, performanceLevel, feedback,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
         },
         {merge: true},
       );

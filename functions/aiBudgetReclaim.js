@@ -15,7 +15,7 @@
  * already swallowed (never-throws contract) and just retry next hour.
  */
 
-const admin = require("firebase-admin");
+const {getFirestore} = require("firebase-admin/firestore");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {reclaimExpiredReservations} = require("./aiBudgetReservation");
 const {monthKeyUtc} = require("./aiCostTracking");
@@ -33,7 +33,7 @@ const reclaimAiBudgetReservations = onSchedule({
   timeoutSeconds: 120,
   memory: "256MiB",
 }, async () => {
-  const db = admin.firestore();
+  const db = getFirestore();
   for (const month of [monthKeyUtc(), previousMonthKeyUtc()]) {
     const reclaimed = await reclaimExpiredReservations(db, {month});
     if (reclaimed > 0) {

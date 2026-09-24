@@ -23,6 +23,7 @@
 
 const assert = require("node:assert");
 const Module = require("node:module");
+const {modularAdminModules} = require("./testFixtures/modularAdminStub");
 
 let passed = 0;
 function ok(name, cond) {
@@ -65,6 +66,7 @@ firestoreFn.Timestamp = {
 const origLoad = Module._load;
 Module._load = function (request, ...rest) {
   if (request === "firebase-admin") return {firestore: firestoreFn};
+  if (request.startsWith("firebase-admin/")) return modularAdminModules({firestore: firestoreFn})[request];
   return origLoad.call(this, request, ...rest);
 };
 

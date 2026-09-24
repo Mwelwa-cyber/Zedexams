@@ -64,15 +64,13 @@ function buildWithSpies({refuseFor = []} = {}) {
   const handlers = buildPaymentHandlers({
     CAPABILITY_PURCHASE: "purchase",
     HttpsError: FakeHttpsError,
-    admin: {
-      firestore: () => {
-        firestoreCalls.push(1);
-        // Reached only when the gate let the call through. Returns a document
-        // that does not exist, which every body below handles.
-        return {
-          collection: () => ({doc: () => ({get: async () => ({exists: false, data: () => ({})})})}),
-        };
-      },
+    getFirestore: () => {
+      firestoreCalls.push(1);
+      // Reached only when the gate let the call through. Returns a document
+      // that does not exist, which every body below handles.
+      return {
+        collection: () => ({doc: () => ({get: async () => ({exists: false, data: () => ({})})})}),
+      };
     },
     assertAdminSecondFactor: async () => {},
     assertLearnerCapability: async (uid, capability) => {
