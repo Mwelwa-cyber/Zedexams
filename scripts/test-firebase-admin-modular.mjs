@@ -37,15 +37,17 @@ export const NAMESPACE_USE =
 // needed — but adding one re-opens a runtime break on firebase-admin 14.
 const LEGACY = new Set([]);
 
-function walk(dir, out = []) {
+function walk(dir, keep, out = []) {
   for (const name of readdirSync(dir)) {
     if (name === "node_modules" || name.startsWith(".")) continue;
     const full = join(dir, name);
-    if (statSync(full).isDirectory()) walk(full, out);
-    else if (name.endsWith(".js") && !name.endsWith(".test.js")) out.push(full);
+    if (statSync(full).isDirectory()) walk(full, keep, out);
+    else if (keep(name)) out.push(full);
   }
   return out;
 }
+const isSource = (name) => name.endsWith(".js") && !name.endsWith(".test.js");
+const isTest = (name) => name.endsWith(".test.js");
 
 // Strip comments before matching: a JSDoc line reading "(defaults to
 // admin.firestore())" is history, not a call.
@@ -57,17 +59,41 @@ export function usesNamespace(src) {
   return NAMESPACE_USE.test(stripComments(src));
 }
 
+// A TEST file is only a problem when it drives the REAL SDK. Most tests fake
+// firebase-admin — through a Module._load hook, or by patching properties onto
+// the admin object — and calling `admin.firestore()` on their own fake is fine
+// on v14. One that requires the real package with neither, and calls the
+// namespace, breaks the moment it runs: paymentLifecycleEmulator.test.js did
+// exactly that on the v14 bump, and nothing but the (non-required) emulator
+// job saw it, because this guard skipped every *.test.js.
+export function testDrivesRealNamespace(src) {
+  const code = stripComments(src);
+  const requiresReal = /require\(\s*["']firebase-admin["']\s*\)/.test(code);
+  const fakesIt = /Module\._load\s*=|Object\.defineProperty\(\s*admin\b|\badmin\.(?:firestore|auth|storage|messaging)\s*=[^=]/.test(code);
+  return requiresReal && !fakesIt && NAMESPACE_USE.test(code);
+}
+
 // The detector must be able to fail, or an empty report proves nothing.
 assert.ok(usesNamespace("const db = admin.firestore();"), "detector misses admin.firestore()");
 assert.ok(usesNamespace("x = admin.firestore.FieldValue.serverTimestamp()"), "detector misses FieldValue static");
 assert.ok(usesNamespace("await admin.auth().getUser(uid)"), "detector misses admin.auth()");
 assert.ok(!usesNamespace("// defaults to admin.firestore()\nconst db = getFirestore();"), "detector reads comments");
 assert.ok(!usesNamespace("admin.initializeApp();"), "initializeApp survives v14 and must not be flagged");
+assert.ok(testDrivesRealNamespace('const admin = require("firebase-admin");\nconst db = admin.firestore();'),
+    "test detector misses a real-SDK namespace call");
+assert.ok(!testDrivesRealNamespace('const admin = require("firebase-admin");\nModule._load = () => {};\nadmin.firestore();'),
+    "test detector flags a test that fakes the SDK through Module._load");
+assert.ok(!testDrivesRealNamespace('const admin = require("firebase-admin");\nObject.defineProperty(admin, "firestore", {value: () => db});\nadmin.firestore();'),
+    "test detector flags a test that patches the admin object");
 
 const offenders = [];
 const stale = [];
 const seen = new Set();
-for (const file of walk(ROOT)) {
+for (const file of walk(ROOT, isTest)) {
+  const rel = relative(ROOT, file).split("\\").join("/");
+  if (testDrivesRealNamespace(readFileSync(file, "utf8"))) offenders.push(rel + "  (test file driving the REAL SDK)");
+}
+for (const file of walk(ROOT, isSource)) {
   const rel = relative(ROOT, file).split("\\").join("/");
   const hit = usesNamespace(readFileSync(file, "utf8"));
   if (hit) seen.add(rel);
