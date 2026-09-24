@@ -159,10 +159,16 @@ jobs:
     # true today. Do not add a fourth shard without re-measuring — setup cost
     # per shard is fixed and eats the gain quickly.
     #
-    # Mechanics, verified against vitest 4.1.10 before this landed:
+    # Mechanics, verified against vitest 4.1.10 before this landed and again
+    # against 5.0.1:
     #   • `--reporter=blob` writes the shard's test results AND raw coverage
     #     to .vitest-reports/blob-N-3.json; `--merge-reports` in the gate
     #     reassembles them (merged totals match a single unsharded run).
+    #   • BOTH ends name that directory explicitly (`--outputFile.blob` here,
+    #     `--merge-reports=.vitest-reports` in the gate). Vitest 5 moved the
+    #     default from `.vitest-reports/` to `.vitest/blob/`; with the default
+    #     left implicit, every shard passed and the upload found nothing. A
+    #     default is not a contract.
     #   • Thresholds are zeroed PER SHARD because each shard sees ~a third of
     #     the suite, so the config's ratchet (30/28/26/24.5) would fail every
     #     shard on partial coverage. The gate's merge step re-applies the
@@ -199,6 +205,7 @@ jobs:
         # surface as the gate's "a shard failed", one click away from why.
         run: >
           npx vitest run --coverage --reporter=blob --reporter=default
+          --outputFile.blob=.vitest-reports/blob-${{ matrix.shard }}-3.json
           --shard=${{ matrix.shard }}/3
           --coverage.thresholds.lines=0
           --coverage.thresholds.statements=0
@@ -213,7 +220,7 @@ jobs:
           if-no-files-found: error
           # upload-artifact v4+ EXCLUDES dot-prefixed paths by default (the
           # post-CVE guard against globbing .env/.git into an artifact), and
-          # `.vitest-reports` is vitest's fixed blob directory — without this
+          # `.vitest-reports` is the blob directory named above — without this
           # the shard's own log says "blob report written" and the upload
           # still finds nothing. The path above names exactly one directory,
           # so the broad-glob risk the default protects against does not
@@ -274,7 +281,7 @@ jobs:
             exit 1
           fi
       - name: Merge shard reports + enforce coverage ratchet
-        run: npx vitest run --merge-reports --coverage
+        run: npx vitest run --merge-reports=.vitest-reports --coverage
 
   build:
     # Clean build gate (release-safety layer). The pre-merge guarantee that the

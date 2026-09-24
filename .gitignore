@@ -27,6 +27,8 @@ coverage-src
 
 # Vitest blob reports (per-shard test+coverage payloads; merged in CI, never committed)
 .vitest-reports
+# Vitest 5's own cache/blob directory (CI names .vitest-reports explicitly)
+.vitest
 
 # nyc test coverage
 .nyc_output
