@@ -70,7 +70,7 @@ function sanitiseCells(cells) {
 // OR inserts a brand-new one when `mode: 'insert'`.
 
 exports.upsertSyllabusRow = onCall(
-    {region: "us-central1", timeoutSeconds: 30},
+    {maxInstances: 2, region: "us-central1", timeoutSeconds: 30},
     async (req) => {
       await requireAdmin(req);
       const data = req.data || {};
@@ -131,7 +131,7 @@ exports.upsertSyllabusRow = onCall(
 // can hide it from both the admin browser and the AI prompt resolver.
 
 exports.deleteSyllabusRow = onCall(
-    {region: "us-central1", timeoutSeconds: 30},
+    {maxInstances: 2, region: "us-central1", timeoutSeconds: 30},
     async (req) => {
       await requireAdmin(req);
       const data = req.data || {};
@@ -180,7 +180,7 @@ exports.deleteSyllabusRow = onCall(
 // JSON value. Hard-deletes the override doc.
 
 exports.restoreSyllabusRow = onCall(
-    {region: "us-central1", timeoutSeconds: 30},
+    {maxInstances: 2, region: "us-central1", timeoutSeconds: 30},
     async (req) => {
       await requireAdmin(req);
       const data = req.data || {};

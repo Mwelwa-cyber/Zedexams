@@ -47,7 +47,7 @@ const {
 } = require("./cbcKnowledge");
 
 exports.rollbackSyllabusVersion = onCall(
-  {region: "us-central1", timeoutSeconds: 60, memory: "256MiB"},
+  {maxInstances: 2, region: "us-central1", timeoutSeconds: 60, memory: "256MiB"},
   async (request) => {
     const uid = await assertVerifiedAuth(request, "Please sign in.");
     const role = await getUserRole(uid);

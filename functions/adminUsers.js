@@ -65,7 +65,7 @@ async function assertNotSelfTargeted(actor, targetUid, field, request) {
  * tokens so they're booted from every device immediately.
  */
 exports.adminSetUserStatus = onCall(
-  {region: "us-central1", timeoutSeconds: 30},
+  {maxInstances: 2, region: "us-central1", timeoutSeconds: 30},
   async (request) => {
     const actor = await assertCallerIsAdmin(request);
     const {uid, status, reason = ""} = request.data || {};
@@ -129,7 +129,7 @@ exports.adminSetUserStatus = onCall(
  * caller via the Cloud Function and records the change.
  */
 exports.adminSetUserRole = onCall(
-  {region: "us-central1", timeoutSeconds: 30},
+  {maxInstances: 2, region: "us-central1", timeoutSeconds: 30},
   async (request) => {
     const actor = await assertCallerIsAdmin(request);
     const {uid, role} = request.data || {};

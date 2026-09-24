@@ -391,6 +391,7 @@ exports.RATE_LIMIT_BUDGET_MS = RATE_LIMIT_BUDGET_MS;
 // need the africa-south1 pinning that Eventarc triggers do.
 exports.aggregateVisitorStats = onSchedule(
     {
+      maxInstances: 1,
       schedule: "every 5 minutes",
       timeZone: "Africa/Lusaka",
       region: "us-central1",

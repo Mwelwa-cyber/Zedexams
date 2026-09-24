@@ -427,6 +427,7 @@ async function runWeeklyDigest({
 }
 
 const weeklyParentDigest = onSchedule({
+  maxInstances: 1,
   schedule: "every sunday 09:00",
   timeZone: "Africa/Lusaka",
   region: REGION,
@@ -449,6 +450,7 @@ const weeklyParentDigest = onSchedule({
  * out per channel and what (if anything) failed.
  */
 const triggerWeeklyParentDigest = onCall({
+  maxInstances: 2,
   region: REGION,
   timeoutSeconds: 540,
   memory: "512MiB",

@@ -323,6 +323,7 @@ async function runStorageBackupCheck({
 // design: write → transfer → check. Moving either schedule without the other
 // breaks the chain, which is why both times are named in the comment on each.
 const storageBackupHeartbeat = onSchedule({
+  maxInstances: 1,
   schedule: "30 23 * * *",
   timeZone: "Etc/UTC",
   region: "us-central1",
@@ -348,6 +349,7 @@ const storageBackupHeartbeat = onSchedule({
 // finished. Scheduled functions stay in us-central1 per the repo region
 // convention.
 const storageBackupCheck = onSchedule({
+  maxInstances: 1,
   schedule: "every day 04:00",
   timeZone: "Africa/Lusaka",
   region: "us-central1",

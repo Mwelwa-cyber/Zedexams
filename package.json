@@ -974,7 +974,8 @@
     "test:paper-explanations": "node functions/paperQuiz/explanationCore.test.js",
     "smoke:spelling-ride": "node scripts/test-spelling-ride-canvas.mjs",
     "test:payment-status-lookup": "node functions/paymentHandlers.statusLookup.test.js",
-    "test:anthropic-request-policy": "node functions/anthropicRequestPolicy.test.js"
+    "test:anthropic-request-policy": "node functions/anthropicRequestPolicy.test.js",
+    "test:function-instance-caps": "node scripts/test-function-instance-caps.mjs"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",

@@ -18,6 +18,7 @@ const {reapTmpDownloads} = require("./tmpDownloadReaperCore");
 
 const tmpDownloadReaper = onSchedule(
   {
+    maxInstances: 1,
     schedule: "every 60 minutes",
     timeZone: "Africa/Lusaka",
     region: "us-central1",

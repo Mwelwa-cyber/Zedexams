@@ -26,6 +26,7 @@ const {isPrunableToken, pruneDeadTokensByUid} = require("./notifications/sendPus
 const {shouldSendPush} = require("./notifications/notificationPrefsCore");
 
 const REMINDER_OPTS = {
+  maxInstances: 1,
   schedule: "every day 16:00",
   timeZone: "Africa/Lusaka",
   region: "us-central1",

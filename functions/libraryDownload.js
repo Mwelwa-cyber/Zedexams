@@ -230,6 +230,7 @@ async function reapExpiredTickets(db, nowMs, limit = 500) {
 
 const reapDownloadTickets = onSchedule(
   {
+    maxInstances: 1,
     schedule: "every 6 hours",
     timeZone: "Africa/Lusaka",
     region: "us-central1",

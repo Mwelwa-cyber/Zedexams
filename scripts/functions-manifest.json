@@ -36,6 +36,7 @@
       "kind": "onSchedule",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every 15 minutes\"",
         "timeZone": "\"Etc/UTC\"",
         "region": "\"us-central1\"",
@@ -55,6 +56,7 @@
       "kind": "onSchedule",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every 24 hours\"",
         "timeZone": "\"Etc/UTC\"",
         "region": "\"us-central1\"",
@@ -89,6 +91,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "2",
         "region": "\"us-central1\"",
         "timeoutSeconds": "540",
         "memory": "\"512MiB\""
@@ -105,6 +108,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "2",
         "region": "\"us-central1\"",
         "timeoutSeconds": "30"
       },
@@ -150,6 +154,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "2",
         "region": "\"us-central1\"",
         "timeoutSeconds": "30"
       },
@@ -165,6 +170,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "2",
         "region": "\"us-central1\"",
         "timeoutSeconds": "30"
       },
@@ -180,6 +186,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "2",
         "region": "\"us-central1\"",
         "timeoutSeconds": "30"
       },
@@ -210,6 +217,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "2",
         "region": "\"us-central1\"",
         "timeoutSeconds": "30"
       },
@@ -225,6 +233,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "2",
         "region": "\"us-central1\"",
         "timeoutSeconds": "30"
       },
@@ -306,6 +315,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every 5 minutes\"",
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
@@ -324,6 +334,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every day 02:00\"",
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
@@ -589,6 +600,7 @@
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
         "memory": "\"256MiB\"",
+        "maxInstances": "1",
         "schedule": "\"every day 03:30\"",
         "timeoutSeconds": "540"
       },
@@ -637,6 +649,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "2",
         "timeoutSeconds": "540",
         "memory": "\"512MiB\""
       },
@@ -652,6 +665,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "2",
         "region": "\"us-central1\"",
         "timeoutSeconds": "60",
         "memory": "\"256MiB\""
@@ -668,6 +682,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every day 03:30\"",
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
@@ -702,6 +717,7 @@
       "kind": "onSchedule",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"5 0 * * *\"",
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
@@ -828,6 +844,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every 30 minutes\"",
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
@@ -892,6 +909,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every day 01:30\"",
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
@@ -911,6 +929,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every day 05:00\"",
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
@@ -932,6 +951,7 @@
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
         "memory": "\"256MiB\"",
+        "maxInstances": "1",
         "schedule": "\"every day 16:30\"",
         "timeoutSeconds": "540"
       },
@@ -947,6 +967,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every day 16:00\"",
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
@@ -1012,6 +1033,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "2",
         "region": "\"us-central1\"",
         "timeoutSeconds": "30"
       },
@@ -1027,6 +1049,7 @@
       "kind": "onSchedule",
       "inline": true,
       "options": {
+        "maxInstances": "1",
         "schedule": "'every 24 hours'",
         "timeZone": "'Etc/UTC'",
         "region": "'us-central1'",
@@ -1046,6 +1069,7 @@
       "kind": "onSchedule",
       "inline": true,
       "options": {
+        "maxInstances": "1",
         "schedule": "'every 6 hours'",
         "timeZone": "'Etc/UTC'",
         "region": "'us-central1'",
@@ -1065,6 +1089,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every 5 minutes\"",
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
@@ -1216,6 +1241,7 @@
       "kind": "onSchedule",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every 5 minutes\"",
         "region": "\"us-central1\"",
         "timeoutSeconds": "120",
@@ -1562,6 +1588,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "2",
         "region": "\"us-central1\"",
         "timeoutSeconds": "30"
       },
@@ -1765,6 +1792,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "2",
         "region": "\"us-central1\"",
         "memory": "\"512MiB\"",
         "timeoutSeconds": "30",
@@ -1798,6 +1826,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every 1 hours\"",
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
@@ -1816,6 +1845,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every 1 hours\"",
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
@@ -1835,6 +1865,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every 1 hours\"",
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
@@ -1854,6 +1885,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "2",
         "timeoutSeconds": "60",
         "memory": "\"256MiB\""
       },
@@ -1869,6 +1901,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "2",
         "timeoutSeconds": "60",
         "memory": "\"256MiB\""
       },
@@ -1884,6 +1917,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "2",
         "timeoutSeconds": "120",
         "memory": "\"256MiB\""
       },
@@ -1918,6 +1952,7 @@
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
         "memory": "\"256MiB\"",
+        "maxInstances": "1",
         "schedule": "\"every day 10:00\"",
         "timeoutSeconds": "540"
       },
@@ -2114,6 +2149,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every day 02:00\"",
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
@@ -2371,6 +2407,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every 6 hours\"",
         "region": "\"us-central1\"",
         "timeoutSeconds": "120",
@@ -2389,6 +2426,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"0 3 * * *\"",
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
@@ -2536,6 +2574,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every 60 minutes\"",
         "region": "\"us-central1\"",
         "timeoutSeconds": "60",
@@ -2569,6 +2608,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every 6 hours\"",
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
@@ -2587,6 +2627,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every 6 hours\"",
         "region": "\"us-central1\"",
         "timeoutSeconds": "120",
@@ -2620,6 +2661,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every 60 minutes\"",
         "timeZone": "\"Etc/UTC\"",
         "region": "\"us-central1\"",
@@ -2853,6 +2895,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "2",
         "region": "\"us-central1\"",
         "timeoutSeconds": "30"
       },
@@ -2924,6 +2967,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "2",
         "region": "\"us-central1\"",
         "timeoutSeconds": "30"
       },
@@ -3036,6 +3080,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "2",
         "region": "\"us-central1\"",
         "timeoutSeconds": "60",
         "memory": "\"256MiB\""
@@ -3052,6 +3097,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"30 0 * * *\"",
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
@@ -3359,6 +3405,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every day 04:00\"",
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
@@ -3378,6 +3425,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"30 23 * * *\"",
         "timeZone": "\"Etc/UTC\"",
         "region": "\"us-central1\"",
@@ -3545,6 +3593,7 @@
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
         "memory": "\"256MiB\"",
+        "maxInstances": "1",
         "schedule": "\"every day 08:00\"",
         "timeoutSeconds": "540"
       },
@@ -3593,6 +3642,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every 2 hours\"",
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
@@ -3628,6 +3678,7 @@
       "kind": "onSchedule",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"0 8 * * *\"",
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
@@ -3663,6 +3714,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every 60 minutes\"",
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
@@ -3681,6 +3733,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "2",
         "region": "\"us-central1\"",
         "timeoutSeconds": "540",
         "memory": "\"512MiB\"",
@@ -3698,6 +3751,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every 30 minutes\"",
         "region": "\"us-central1\"",
         "timeoutSeconds": "120",
@@ -3733,6 +3787,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "2",
         "region": "\"us-central1\"",
         "timeoutSeconds": "30"
       },
@@ -3783,6 +3838,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every sunday 03:00\"",
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
@@ -3801,6 +3857,7 @@
       "kind": "onSchedule",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every sunday 09:00\"",
         "timeZone": "\"Africa/Lusaka\"",
         "secrets": "[emailSmtpUser, emailSmtpPassword]",
@@ -3820,6 +3877,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every sunday 09:00\"",
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
@@ -3839,6 +3897,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every monday 06:00\"",
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
@@ -3857,6 +3916,7 @@
       "kind": "delegated",
       "inline": false,
       "options": {
+        "maxInstances": "1",
         "schedule": "\"every monday 07:00\"",
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
@@ -3878,6 +3938,7 @@
         "timeZone": "\"Africa/Lusaka\"",
         "region": "\"us-central1\"",
         "memory": "\"256MiB\"",
+        "maxInstances": "1",
         "schedule": "\"every sunday 17:00\"",
         "timeoutSeconds": "540"
       },

@@ -155,6 +155,7 @@ async function runOpsHeartbeatCheck({
 // daily backup within its 30h window, without over-alerting. us-central1 per
 // the repo region convention for scheduled functions.
 const opsHeartbeatCheck = onSchedule({
+  maxInstances: 1,
   schedule: "every 6 hours",
   region: "us-central1",
   timeoutSeconds: 120,

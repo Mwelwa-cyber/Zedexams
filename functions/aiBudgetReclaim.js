@@ -27,6 +27,7 @@ function previousMonthKeyUtc(now = new Date()) {
 }
 
 const reclaimAiBudgetReservations = onSchedule({
+  maxInstances: 1,
   schedule: "every 60 minutes",
   timeZone: "Etc/UTC",
   region: "us-central1",

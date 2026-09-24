@@ -86,7 +86,7 @@ function pickSyllabus(candidates, term) {
 }
 
 exports.backfillKbSourceRefs = onCall(
-    {timeoutSeconds: 540, memory: "512MiB"},
+    {maxInstances: 2, timeoutSeconds: 540, memory: "512MiB"},
     async (request) => {
       const uid = await assertVerifiedAuth(request, "Please sign in.");
       const role = await getUserRole(uid);
