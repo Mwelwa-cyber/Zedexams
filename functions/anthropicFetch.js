@@ -11,7 +11,14 @@
  * exponential backoff, honouring the `retry-after` header when Anthropic
  * sends one. Successful (2xx) responses pass through untouched so the
  * caller can stream or json().
+ *
+ * It is also the one place every Messages request passes through, so it is
+ * where a request is shaped for its model: fields a model refuses (non-default
+ * sampling on Sonnet 5 / Opus 4.7+) are dropped, and Sonnet 5's thinking
+ * default is pinned off. See anthropicRequestPolicy.js.
  */
+
+const {applyRequestPolicy} = require("./anthropicRequestPolicy");
 
 const DEFAULT_MAX_RETRIES = 4;
 const MAX_BACKOFF_MS = 8_000;
@@ -42,6 +49,24 @@ function isRetryableStatus(status) {
 }
 
 /**
+ * Drop the fields the target model refuses (see anthropicRequestPolicy.js).
+ * Only a Messages request with a JSON string body is touched; anything else,
+ * or a body the policy leaves alone, goes out as the very same object.
+ */
+function shapeRequest(url, init) {
+  if (!init || typeof init.body !== "string") return init;
+  if (!/\/v1\/messages\/?$/.test(String(url))) return init;
+  let parsed;
+  try {
+    parsed = JSON.parse(init.body);
+  } catch {
+    return init;
+  }
+  const {body, changed} = applyRequestPolicy(parsed);
+  return changed ? {...init, body: JSON.stringify(body)} : init;
+}
+
+/**
  * fetch() with retry-on-429/529/5xx. Returns a Response.
  *
  * @param {string} url
@@ -54,12 +79,13 @@ function isRetryableStatus(status) {
 async function anthropicFetch(url, init, opts = {}) {
   const maxRetries = opts.maxRetries ?? DEFAULT_MAX_RETRIES;
   const label = opts.label || "anthropic";
+  const request = shapeRequest(url, init);
   let lastNetworkErr;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     let res;
     try {
-      res = await fetch(url, init);
+      res = await fetch(url, request);
     } catch (err) {
       lastNetworkErr = err;
       if (attempt === maxRetries) throw err;
