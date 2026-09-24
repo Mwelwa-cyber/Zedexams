@@ -1014,7 +1014,7 @@
     "dompurify": "^3.4.15",
     "fflate": "^0.8.2",
     "file-saver": "^2.0.5",
-    "firebase": "^12.18.0",
+    "firebase": "^12.19.0",
     "html2canvas": "^1.4.1",
     "i18next": "^26.4.0",
     "i18next-browser-languagedetector": "^8.2.1",
