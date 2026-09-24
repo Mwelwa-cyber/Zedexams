@@ -150,7 +150,9 @@ async function main() {
         else if (entry.isFile() && name.endsWith(".js") && !name.endsWith(".test.js")) {
           const rel = path.relative(__dirname, full).split(path.sep).join("/");
           const src = fs.readFileSync(full, "utf8");
-          if (src.includes("api.anthropic.com") && src.includes("anthropic-version") &&
+          // Keyed on the version header, which only Anthropic callers send —
+          // not on the host name, which would make this a URL check.
+          if (src.includes("anthropic-version") &&
               !src.includes("anthropicFetch") && !EXEMPT.has(rel)) offenders.push(rel);
         }
       }
