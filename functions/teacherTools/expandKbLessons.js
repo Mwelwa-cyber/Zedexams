@@ -22,7 +22,7 @@
  *     Narrow by grade/subject if you have more.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
 
@@ -151,13 +151,13 @@ exports.expandKbLessons = onCall(
       const subjectFilter = typeof data.subject === "string" && data.subject ?
         normalizeSubject(data.subject) : null;
 
-      const db = admin.firestore();
+      const db = getFirestore();
       const version = (typeof data.version === "string" && data.version) ||
         await getActiveKbVersion();
 
       const topicsCol = db.collection("cbcKnowledgeBase").doc(version).collection("topics");
       const writer = makeBatchWriter(db);
-      const now = admin.firestore.FieldValue.serverTimestamp();
+      const now = FieldValue.serverTimestamp();
 
       let topicsScanned = 0;
       let lessonsWritten = 0;

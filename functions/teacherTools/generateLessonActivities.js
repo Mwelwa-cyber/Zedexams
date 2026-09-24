@@ -7,7 +7,7 @@
  * lesson plan used. Persists to `aiGenerations` with `tool: 'lesson_activities'`.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
 const {assertGeneratorRateLimit} = require("./generatorRateLimit");
@@ -192,7 +192,7 @@ async function runLessonActivities({uid, rawInputs, apiKey}) {
       assertAndIncrement(uid, "lesson_activities"),
     ]);
 
-  const genRef = admin.firestore().collection("aiGenerations").doc();
+  const genRef = getFirestore().collection("aiGenerations").doc();
   await genRef.set({
     ownerUid: uid,
     tool: "lesson_activities",
@@ -207,7 +207,7 @@ async function runLessonActivities({uid, rawInputs, apiKey}) {
     costUsdCents: 0,
     status: "generating",
     errorMessage: null,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
     completedAt: null,
     teacherEdited: false,
     exportedFormats: [],
@@ -277,7 +277,7 @@ async function runLessonActivities({uid, rawInputs, apiKey}) {
       errorMessage: `Schema errors: ${validation.errors.join("; ")}`,
       output: activities,
       outputText: String(raw || "").slice(0, 20000),
-      completedAt: admin.firestore.FieldValue.serverTimestamp(),
+      completedAt: FieldValue.serverTimestamp(),
       tokensIn,
       tokensOut,
       costUsdCents,
@@ -303,7 +303,7 @@ async function runLessonActivities({uid, rawInputs, apiKey}) {
     tokensOut,
     costUsdCents,
     modelUsed,
-    completedAt: admin.firestore.FieldValue.serverTimestamp(),
+    completedAt: FieldValue.serverTimestamp(),
   });
 
   return {

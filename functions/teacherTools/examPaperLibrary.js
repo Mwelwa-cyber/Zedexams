@@ -21,7 +21,7 @@
  * caps and DOCX→text extraction behave identically to the rest of the app.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertCallableRateLimit} = require("../rateLimit");
 const {assertVerifiedAuth} = require("../authGuard");
@@ -119,7 +119,7 @@ async function runAnalyzeExamPaper({uid, data, apiKey}) {
     normalizeAnalysis(result.parsed);
 
   const kbVersion = await getActiveKbVersion();
-  const sampleRef = admin.firestore()
+  const sampleRef = getFirestore()
     .collection("cbcKnowledgeBase").doc(kbVersion)
     .collection("examPaperSamples").doc();
   await sampleRef.set({
@@ -133,12 +133,12 @@ async function runAnalyzeExamPaper({uid, data, apiKey}) {
     sourceNote: String(sourceNote || "").slice(0, 300),
     analysisWarnings,
     uploadedBy: uid,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    analyzedAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
+    analyzedAt: FieldValue.serverTimestamp(),
   });
 
   try {
-    await admin.firestore().collection("aiGenerations").add({
+    await getFirestore().collection("aiGenerations").add({
       kind: "exam_paper_analysis",
       sampleId: sampleRef.id,
       grade: meta.grade,
@@ -149,7 +149,7 @@ async function runAnalyzeExamPaper({uid, data, apiKey}) {
       sourceKind: source.kind,
       tokensIn: Number(result.usage && result.usage.inputTokens || 0),
       tokensOut: Number(result.usage && result.usage.outputTokens || 0),
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
     });
   } catch (err) {
     console.warn("[analyzeExamPaper] usage log failed", err && err.message);
@@ -191,7 +191,7 @@ async function runSynthesizeAssessmentFormat({uid, data, apiKey}) {
   // examPaperSamples is an admin-curated collection of modest size; reading
   // it whole and filtering in memory avoids a composite index, same as the
   // topics/formats reads elsewhere in this codebase.
-  const snap = await admin.firestore()
+  const snap = await getFirestore()
     .collection("cbcKnowledgeBase").doc(kbVersion)
     .collection("examPaperSamples").get();
   const matches = snap.docs
@@ -243,7 +243,7 @@ async function runSynthesizeAssessmentFormat({uid, data, apiKey}) {
 
   const check = validateFormatProfile(built.candidate);
 
-  const draftRef = admin.firestore()
+  const draftRef = getFirestore()
     .collection("cbcKnowledgeBase").doc(kbVersion)
     .collection("assessmentFormatDrafts").doc();
   await draftRef.set({
@@ -255,11 +255,11 @@ async function runSynthesizeAssessmentFormat({uid, data, apiKey}) {
     synthesizedFromCount: samples.length,
     synthesizedFromIds: samples.map((s) => s.id),
     extractedBy: uid,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
   });
 
   try {
-    await admin.firestore().collection("aiGenerations").add({
+    await getFirestore().collection("aiGenerations").add({
       kind: "assessment_format_synthesis",
       draftId: draftRef.id,
       assessmentType,
@@ -271,7 +271,7 @@ async function runSynthesizeAssessmentFormat({uid, data, apiKey}) {
       tokensIn: Number(result.usage && result.usage.inputTokens || 0),
       tokensOut: Number(result.usage && result.usage.outputTokens || 0),
       validationErrorCount: check.errors.length,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
     });
   } catch (err) {
     console.warn("[synthesizeAssessmentFormat] usage log failed",

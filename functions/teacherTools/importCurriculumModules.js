@@ -14,7 +14,7 @@
  * topic fields (subtopics/outcomes/etc.).
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
 
@@ -63,8 +63,8 @@ exports.importCurriculumModules = onCall(
         );
       }
 
-      const db = admin.firestore();
-      const now = admin.firestore.FieldValue.serverTimestamp();
+      const db = getFirestore();
+      const now = FieldValue.serverTimestamp();
       const BATCH_SIZE = 400;
       // Always write into the runtime-active version so a bulk import lands
       // on whichever syllabus is currently in use.

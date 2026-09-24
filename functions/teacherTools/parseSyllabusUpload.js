@@ -23,7 +23,8 @@
  */
 
 const {onObjectFinalized} = require("firebase-functions/v2/storage");
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
+const {getStorage} = require("firebase-admin/storage");
 const crypto = require("node:crypto");
 
 const {normalizeGrade, normalizeSubject} = require("./cbcKnowledge");
@@ -183,7 +184,7 @@ exports.parseSyllabusUpload = onObjectFinalized(
 // --- Storage download ---------------------------------------------------
 
 async function downloadFile(bucketName, filePath) {
-  const file = admin.storage().bucket(bucketName).file(filePath);
+  const file = getStorage().bucket(bucketName).file(filePath);
   const [contents] = await file.download();
   return contents;
 }
@@ -738,8 +739,8 @@ function deriveExcerptAliases(draft) {
 // --- Firestore writes ---------------------------------------------------
 
 async function writeResultsToFirestore(result, ctx) {
-  const db = admin.firestore();
-  const ts = () => admin.firestore.FieldValue.serverTimestamp();
+  const db = getFirestore();
+  const ts = () => FieldValue.serverTimestamp();
   const now = ts();
   const BATCH_LIMIT = 450; // leave headroom under the 500-op cap
 
@@ -869,7 +870,7 @@ async function writeResultsToFirestore(result, ctx) {
 }
 
 async function writeUploadStatus(version, filename, patch) {
-  const db = admin.firestore();
+  const db = getFirestore();
   const ref = db
     .collection("cbcKnowledgeBase")
     .doc(version)
@@ -878,7 +879,7 @@ async function writeUploadStatus(version, filename, patch) {
   await ref.set({
     filename,
     ...patch,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   }, {merge: true});
 }
 

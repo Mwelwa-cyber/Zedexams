@@ -7,7 +7,7 @@
  * block for prompt construction inside Cloud Functions.
  */
 
-const admin = require("firebase-admin");
+const {getFirestore} = require("firebase-admin/firestore");
 
 const PRIVATE_CURRICULUM_VERSION = "private-cbc-rag.v1";
 const CACHE_TTL_MS = 60_000;
@@ -368,7 +368,7 @@ async function getCurriculumDocs() {
   }
 
   try {
-    const snap = await admin.firestore().collection("curriculum").get();
+    const snap = await getFirestore().collection("curriculum").get();
     const docs = new Map();
     snap.docs.forEach((doc) => docs.set(doc.id, {id: doc.id, ...doc.data()}));
     _curriculumCache = docs;
@@ -392,7 +392,7 @@ async function fetchCandidateChunks(requestMeta) {
   if (tags.length === 0) return [];
 
   try {
-    const snap = await admin.firestore()
+    const snap = await getFirestore()
       .collection("rag_chunks")
       .where("tags", "array-contains-any", tags)
       .limit(MAX_QUERY_DOCS)

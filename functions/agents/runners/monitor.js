@@ -33,7 +33,7 @@
  * test directly — see monitor.test.js.
  */
 
-const admin = require("firebase-admin");
+const {getStorage} = require("firebase-admin/storage");
 const {lusakaDayString, lusakaNowParts} = require("../../lusakaTime");
 const {optionDedupeKey} = require("./optionDedupeKey");
 
@@ -274,7 +274,7 @@ async function checkFirebase(db) {
     failures.push({check: "firebase", id: "firestore", severity: "critical", message: `Firestore read failed: ${String(err?.message || err)}.`});
   }
   try {
-    await admin.storage().bucket().getMetadata();
+    await getStorage().bucket().getMetadata();
     results.storage = "ok";
   } catch (err) {
     results.storage = "error";

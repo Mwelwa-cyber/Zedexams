@@ -29,7 +29,8 @@
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertCallableRateLimit} = require("../rateLimit");
 const {assertVerifiedAuth} = require("../authGuard");
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
+const {getStorage} = require("firebase-admin/storage");
 const {extractPdfText} = require("../pdfTextExtractor");
 
 const {
@@ -208,7 +209,7 @@ function createExtractTopicsFromPdf(anthropicApiKeySecret) {
     void isStaffRole;
 
     const filename = storagePath.split("/").pop() || "syllabus.pdf";
-    const statusRef = admin.firestore()
+    const statusRef = getFirestore()
       .collection("cbcKnowledgeBase")
       .doc(version)
       .collection("uploadStatus")
@@ -221,12 +222,12 @@ function createExtractTopicsFromPdf(anthropicApiKeySecret) {
       grade,
       subject,
       sourceStoragePath: storagePath,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     }, {merge: true});
 
     let pdfText = "";
     try {
-      const [buf] = await admin.storage().bucket()
+      const [buf] = await getStorage().bucket()
         .file(storagePath)
         .download();
       // pdf-parse v2 via the shared extractor (issue #1884). It returns a
@@ -243,7 +244,7 @@ function createExtractTopicsFromPdf(anthropicApiKeySecret) {
       await statusRef.set({
         status: "error",
         error: `PDF parse failed: ${message}`,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       }, {merge: true});
       throw new HttpsError("invalid-argument",
         `Could not read PDF: ${message}`);
@@ -253,7 +254,7 @@ function createExtractTopicsFromPdf(anthropicApiKeySecret) {
       await statusRef.set({
         status: "error",
         error: "PDF contained no extractable text (image-only scan?).",
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       }, {merge: true});
       throw new HttpsError("failed-precondition",
         "PDF has no extractable text. Try an OCR'd copy.");
@@ -289,7 +290,7 @@ function createExtractTopicsFromPdf(anthropicApiKeySecret) {
       await statusRef.set({
         status: "error",
         error: `Claude extraction failed: ${message}`,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       }, {merge: true});
       throw err instanceof HttpsError ? err :
         new HttpsError("internal", message);
@@ -302,7 +303,7 @@ function createExtractTopicsFromPdf(anthropicApiKeySecret) {
       await statusRef.set({
         status: "error",
         error: "Claude returned malformed JSON.",
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       }, {merge: true});
       throw new HttpsError("internal",
         "AI returned malformed output. Please try again.");
@@ -320,9 +321,9 @@ function createExtractTopicsFromPdf(anthropicApiKeySecret) {
       );
     }
 
-    const db = admin.firestore();
+    const db = getFirestore();
     const batch = db.batch();
-    const now = admin.firestore.FieldValue.serverTimestamp();
+    const now = FieldValue.serverTimestamp();
     const writtenIds = [];
     const skipped = [];
 

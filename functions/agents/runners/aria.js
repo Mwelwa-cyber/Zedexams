@@ -9,7 +9,7 @@
  * after admin approval.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue} = require("firebase-admin/firestore");
 
 // Maps the agentJobs `input.tool` value to {run, draftKey}. The draft key
 // tells Aria which field on the runner's return value carries the
@@ -98,7 +98,7 @@ async function runAria({
     draft: result[runner.draftKey] || null,
     warning: result.warning || null,
     kbGrounded: Boolean(result.kbGrounded),
-    ranAt: admin.firestore.FieldValue.serverTimestamp(),
+    ranAt: FieldValue.serverTimestamp(),
   };
 }
 

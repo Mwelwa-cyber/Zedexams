@@ -17,7 +17,7 @@
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
 const {getUserRole, isAdminRole} = require("../aiService");
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {invalidateKbCache, getActiveKbVersion} = require("./cbcKnowledge");
 
 const ALLOWED_CELLS = new Set([
@@ -94,7 +94,7 @@ exports.upsertSyllabusRow = onCall(
       }
 
       const version = await getActiveKbVersion();
-      const db = admin.firestore();
+      const db = getFirestore();
       const id = buildRowKey(studioSubject, sheet,
           mode === "insert" ? (cells.TOPIC || topic) : topic,
           mode === "insert" ? (cells["SUB-TOPIC"] || subtopic) : subtopic);
@@ -110,7 +110,7 @@ exports.upsertSyllabusRow = onCall(
         cells,
         inserted: mode === "insert",
         deleted: false,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
         updatedBy: req.auth.uid,
       };
 
@@ -146,7 +146,7 @@ exports.deleteSyllabusRow = onCall(
       }
 
       const version = await getActiveKbVersion();
-      const db = admin.firestore();
+      const db = getFirestore();
       const id = buildRowKey(studioSubject, sheet, topic, subtopic);
       const ref = db
           .collection("cbcKnowledgeBase")
@@ -166,7 +166,7 @@ exports.deleteSyllabusRow = onCall(
           subtopic,
           deleted: true,
           inserted: false,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
           updatedBy: req.auth.uid,
         }, {merge: true});
       }
@@ -195,7 +195,7 @@ exports.restoreSyllabusRow = onCall(
       }
 
       const version = await getActiveKbVersion();
-      const db = admin.firestore();
+      const db = getFirestore();
       const id = buildRowKey(studioSubject, sheet, topic, subtopic);
       await db
           .collection("cbcKnowledgeBase")

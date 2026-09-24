@@ -11,7 +11,7 @@
  * teacher-tool runner during Aria; Pubo just authorises its release.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 
 /**
  * @param {object} args
@@ -21,7 +21,7 @@ const admin = require("firebase-admin");
  *   override logic can run without touching Firebase.
  * @returns {Promise<object>} { publishedRefs }
  */
-async function runPubo({job, db = admin.firestore()}) {
+async function runPubo({job, db = getFirestore()}) {
   if (job.status !== "approved") {
     throw new Error(
       `Pubo refuses: job status is ${job.status}, expected "approved".`,
@@ -66,14 +66,14 @@ async function runPubo({job, db = admin.firestore()}) {
     approvedBy: job.reviewedBy || null,
     approvedJobId: job.id || null,
     publishedBy: "agent:pubo",
-    publishedAt: admin.firestore.FieldValue.serverTimestamp(),
+    publishedAt: FieldValue.serverTimestamp(),
     approvedWithOverride: overrideActive,
     overrideReason: overrideActive ? overrideReason : null,
   }, {merge: true});
 
   return {
     publishedRefs: [{collection: "aiGenerations", docId: generationId}],
-    publishedAt: admin.firestore.FieldValue.serverTimestamp(),
+    publishedAt: FieldValue.serverTimestamp(),
     approvedWithOverride: overrideActive,
   };
 }

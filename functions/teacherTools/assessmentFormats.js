@@ -556,10 +556,10 @@ async function getAllFormatProfiles() {
     // validation, rendering) loadable in the dependency-free CI test job,
     // which installs root deps only — same pattern as the budget check in
     // anthropicClient.js.
-    const admin = require("firebase-admin");
+    const {getFirestore} = require("firebase-admin/firestore");
     const {getActiveKbVersion} = require("./cbcKnowledge");
     const version = await getActiveKbVersion();
-    const snap = await admin.firestore()
+    const snap = await getFirestore()
       .collection("cbcKnowledgeBase").doc(version)
       .collection("assessmentFormats").get();
     for (const d of snap.docs) {

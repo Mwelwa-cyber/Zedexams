@@ -20,6 +20,7 @@
 
 const assert = require("node:assert");
 const Module = require("node:module");
+const {modularAdminModules} = require("../testFixtures/modularAdminStub");
 
 // ── Stub the firebase deps before the module under test loads ────────────
 class FakeHttpsError extends Error {
@@ -47,6 +48,7 @@ const adminStub = {
 const origLoad = Module._load;
 Module._load = function (request, ...rest) {
   if (request === "firebase-admin") return adminStub;
+  if (request.startsWith("firebase-admin/")) return modularAdminModules(adminStub)[request];
   if (request === "firebase-functions/v2/https") {
     return {HttpsError: FakeHttpsError, onCall: () => () => {}};
   }

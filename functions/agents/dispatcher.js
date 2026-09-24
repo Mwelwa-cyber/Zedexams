@@ -29,7 +29,7 @@
  * module keeps the Firestore/trigger/runner wiring and delegates.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onDocumentCreated, onDocumentUpdated} =
   require("firebase-functions/v2/firestore");
 
@@ -50,10 +50,10 @@ const core = require("./dispatcherCore");
 async function noteAgentFailure(agentId, err) {
   const errorMessage = core.agentErrorMessage(err);
   await recordAgentFailure({
-    db: admin.firestore(),
+    db: getFirestore(),
     agentId,
     errorMessage,
-    fieldValue: admin.firestore.FieldValue,
+    fieldValue: FieldValue,
     alert: async ({failuresInWindow}) => {
       await sendOpsAlert(
         core.breakerAlertContent({agentId, errorMessage, failuresInWindow}),
@@ -80,7 +80,7 @@ const TRIGGER_OPTS = {
 let pausedCache = {expiresAt: 0, paused: new Set()};
 
 async function refreshPausedCache() {
-  const snap = await admin.firestore()
+  const snap = await getFirestore()
     .collection("agentControl")
     .where("paused", "==", true)
     .get()
@@ -103,7 +103,7 @@ async function isAgentPaused(agentId) {
 async function setJobFields(jobRef, fields) {
   await jobRef.set({
     ...fields,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   }, {merge: true});
 }
 
@@ -113,7 +113,7 @@ async function setJobFields(jobRef, fields) {
  * step can read the previous step's output.
  */
 async function runContentChain({jobId, jobData, anthropicApiKeySecret}) {
-  const db = admin.firestore();
+  const db = getFirestore();
   const jobRef = db.collection("agentJobs").doc(jobId);
 
   // Re-read for hand-off so each runner sees fresh state.
@@ -215,7 +215,7 @@ async function runContentChain({jobId, jobData, anthropicApiKeySecret}) {
  * exists. Caller cleared error/status before calling.
  */
 async function runFromCala({jobId, anthropicApiKeySecret}) {
-  const db = admin.firestore();
+  const db = getFirestore();
   const jobRef = db.collection("agentJobs").doc(jobId);
   async function readJob() {
     const snap = await jobRef.get();
@@ -317,14 +317,14 @@ function createAgentJobsOnApproved(opsAlertSecrets = []) {
       // once so the body runs at most once per delivery. Fails open — the
       // guard prevents double work, it must never drop a real approval.
       const {claimEventOnce} = require("../idempotency");
-      const claim = await claimEventOnce(admin.firestore(), {
+      const claim = await claimEventOnce(getFirestore(), {
         scope: "agentJobsOnApproved",
         eventId: event.id,
       });
       if (!claim.claimed) return;
 
       const jobData = {id: jobId, ...after};
-      const jobRef = admin.firestore().collection("agentJobs").doc(jobId);
+      const jobRef = getFirestore().collection("agentJobs").doc(jobId);
 
       if (await isAgentPaused("pubo")) {
         await setJobFields(jobRef, core.pausedJobFields("pubo"));

@@ -19,6 +19,7 @@
 
 const assert = require("node:assert");
 const Module = require("node:module");
+const {modularAdminModules} = require("../testFixtures/modularAdminStub");
 const {isValidIdempotencyKey} = require("../aiOperationsCore");
 
 // ── Mutable mock state (closed over by the Module._load stubs) ───────────────
@@ -50,7 +51,7 @@ const HttpsError = class extends Error {
 
 const originalLoad = Module._load.bind(Module);
 Module._load = function(id, parent, isMain) {
-  if (id === "firebase-admin") {
+  if (id === "firebase-admin" || id.startsWith("firebase-admin/")) {
     const firestore = () => ({
       collection: (name) => {
         assert.strictEqual(name, "aiGenerations", "only aiGenerations is written");
@@ -70,7 +71,7 @@ Module._load = function(id, parent, isMain) {
       },
     });
     firestore.FieldValue = {serverTimestamp: () => "TS"};
-    return {firestore};
+    return id === "firebase-admin" ? {firestore} : modularAdminModules({firestore})[id];
   }
   if (id === "firebase-functions/v2/https") {
     return {onCall: (_opts, handler) => handler, HttpsError};

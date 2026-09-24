@@ -44,7 +44,7 @@
  * file owns the schedules, secrets, and Firestore/model/email I/O.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {defineSecret} = require("firebase-functions/params");
 
@@ -131,7 +131,7 @@ const NIGHTLY_QA_OPTS = {
 };
 
 const nightlyQaSmoke = onSchedule(NIGHTLY_QA_OPTS, async () => {
-  const db = admin.firestore();
+  const db = getFirestore();
   const start = Date.now();
 
   let report;
@@ -144,13 +144,13 @@ const nightlyQaSmoke = onSchedule(NIGHTLY_QA_OPTS, async () => {
       department: "qaEng",
       runType: "nightly-smoke",
       err,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
       runMs: Date.now() - start,
     }));
     return;
   }
 
-  await writeAgentRollup(db, admin.firestore.FieldValue,
+  await writeAgentRollup(db, FieldValue,
       buildQuillRollup({report, runMs: Date.now() - start}));
 });
 
@@ -166,7 +166,7 @@ const WEEKLY_AUDIT_OPTS = {
 };
 
 const weeklyCbcAlignmentAudit = onSchedule(WEEKLY_AUDIT_OPTS, async () => {
-  const db = admin.firestore();
+  const db = getFirestore();
   const start = Date.now();
 
   const snap = await db.collection("aiGenerations")
@@ -185,7 +185,7 @@ const weeklyCbcAlignmentAudit = onSchedule(WEEKLY_AUDIT_OPTS, async () => {
         cala: {sampleSize: 0, note: "No aiGenerations found to audit."},
       },
       createdBy: "system",
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
       runMs: Date.now() - start,
     });
     return;
@@ -193,7 +193,7 @@ const weeklyCbcAlignmentAudit = onSchedule(WEEKLY_AUDIT_OPTS, async () => {
 
   const summary = await auditGenerations({docs: snap.docs, runCala});
 
-  await writeAgentRollup(db, admin.firestore.FieldValue,
+  await writeAgentRollup(db, FieldValue,
       buildCalaAuditRollup({summary, runMs: Date.now() - start}));
 });
 
@@ -213,7 +213,7 @@ const HOURLY_MONITOR_OPTS = {
 };
 
 const hourlyMonitor = onSchedule(HOURLY_MONITOR_OPTS, async () => {
-  const db = admin.firestore();
+  const db = getFirestore();
   const start = Date.now();
 
   let report;
@@ -228,7 +228,7 @@ const hourlyMonitor = onSchedule(HOURLY_MONITOR_OPTS, async () => {
       department: "qaEng",
       runType: "hourly-monitor",
       err,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
       runMs: Date.now() - start,
     }));
     return;
@@ -266,7 +266,7 @@ const hourlyMonitor = onSchedule(HOURLY_MONITOR_OPTS, async () => {
     }
   }
 
-  await writeAgentRollup(db, admin.firestore.FieldValue,
+  await writeAgentRollup(db, FieldValue,
       buildVigilRollup({report, runMs: Date.now() - start}));
 
   // Publish the honest public status doc the /status page renders. Derived from
@@ -280,7 +280,7 @@ const hourlyMonitor = onSchedule(HOURLY_MONITOR_OPTS, async () => {
     const publicStatus = buildPublicStatus(report, prev, {nowMs: Date.now()});
     // Stamp with the server timestamp too so a client can cross-check freshness
     // even if the injected generatedAt is ever wrong.
-    publicStatus.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+    publicStatus.updatedAt = FieldValue.serverTimestamp();
     await statusRef.set(publicStatus, {merge: false});
   } catch (err) {
     console.error("[hourlyMonitor] publicStatus write failed", truncateErrorMessage(err, 300));
@@ -302,7 +302,7 @@ const HOURLY_RECONCILE_OPTS = {
 };
 
 const hourlyRevenueReconcile = onSchedule(HOURLY_RECONCILE_OPTS, async () => {
-  const db = admin.firestore();
+  const db = getFirestore();
   const start = Date.now();
   const apiKey = (lencoApiKey.value() || process.env.LENCO_API_KEY || "").trim();
 
@@ -329,13 +329,13 @@ const hourlyRevenueReconcile = onSchedule(HOURLY_RECONCILE_OPTS, async () => {
       department: "revenue",
       runType: "hourly-reconcile",
       err,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
       runMs: Date.now() - start,
     }));
     return;
   }
 
-  await writeAgentRollup(db, admin.firestore.FieldValue,
+  await writeAgentRollup(db, FieldValue,
       buildTillRollup({summary, runMs: Date.now() - start}));
 });
 
@@ -354,7 +354,7 @@ const SUPPORT_TRIAGE_OPTS = {
 };
 
 const supportTriage = onSchedule(SUPPORT_TRIAGE_OPTS, async () => {
-  const db = admin.firestore();
+  const db = getFirestore();
   const start = Date.now();
   const apiKey = anthropicApiKey.value() || process.env.ANTHROPIC_API_KEY || "";
 
@@ -393,13 +393,13 @@ const supportTriage = onSchedule(SUPPORT_TRIAGE_OPTS, async () => {
       department: "support",
       runType: "support-triage",
       err,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
       runMs: Date.now() - start,
     }));
     return;
   }
 
-  await writeAgentRollup(db, admin.firestore.FieldValue,
+  await writeAgentRollup(db, FieldValue,
       buildEchoRollup({summary, runMs: Date.now() - start}));
 });
 
@@ -417,7 +417,7 @@ const CONTENT_GATE_OPTS = {
 };
 
 const contentAutoPublish = onSchedule(CONTENT_GATE_OPTS, async () => {
-  const db = admin.firestore();
+  const db = getFirestore();
   const start = Date.now();
 
   let config = {};
@@ -439,7 +439,7 @@ const contentAutoPublish = onSchedule(CONTENT_GATE_OPTS, async () => {
       runType: "content-auto-publish",
       status: "done",
       err,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
       runMs: Date.now() - start,
     }));
     return;
@@ -448,7 +448,7 @@ const contentAutoPublish = onSchedule(CONTENT_GATE_OPTS, async () => {
   if (isContentGateRunNotable(summary)) {
     await db.collection("agentJobs").add(buildContentGateRollup({
       summary,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
       runMs: Date.now() - start,
     }));
   }
@@ -466,7 +466,7 @@ const PRODUCT_SIGNAL_OPTS = {
 };
 
 const weeklyProductSignal = onSchedule(PRODUCT_SIGNAL_OPTS, async () => {
-  const db = admin.firestore();
+  const db = getFirestore();
   const start = Date.now();
 
   let summary;
@@ -479,13 +479,13 @@ const weeklyProductSignal = onSchedule(PRODUCT_SIGNAL_OPTS, async () => {
       department: "content",
       runType: "weekly-product-signal",
       err,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
       runMs: Date.now() - start,
     }));
     return;
   }
 
-  await writeAgentRollup(db, admin.firestore.FieldValue,
+  await writeAgentRollup(db, FieldValue,
       buildCompassRollup({summary, runMs: Date.now() - start}));
 });
 
@@ -501,7 +501,7 @@ const RETENTION_SCAN_OPTS = {
 };
 
 const weeklyRetentionScan = onSchedule(RETENTION_SCAN_OPTS, async () => {
-  const db = admin.firestore();
+  const db = getFirestore();
   const start = Date.now();
 
   let summary;
@@ -514,13 +514,13 @@ const weeklyRetentionScan = onSchedule(RETENTION_SCAN_OPTS, async () => {
       department: "growth",
       runType: "weekly-retention-scan",
       err,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
       runMs: Date.now() - start,
     }));
     return;
   }
 
-  await writeAgentRollup(db, admin.firestore.FieldValue,
+  await writeAgentRollup(db, FieldValue,
       buildAnchorRollup({summary, runMs: Date.now() - start}));
 });
 
@@ -569,7 +569,7 @@ async function emailBriefing({to, subject, body}) {
 }
 
 const deliverDawnBriefings = onSchedule(DAWN_DELIVERY_OPTS, async () => {
-  const db = admin.firestore();
+  const db = getFirestore();
   const apiKey = (anthropicApiKey.value() || process.env.ANTHROPIC_API_KEY || "").trim();
 
   let snap;
@@ -603,7 +603,7 @@ const deliverDawnBriefings = onSchedule(DAWN_DELIVERY_OPTS, async () => {
           await doc.ref.update({
             status: "timeout",
             lastStatus: status,
-            finishedAt: admin.firestore.FieldValue.serverTimestamp(),
+            finishedAt: FieldValue.serverTimestamp(),
           });
         } else {
           await doc.ref.update({lastStatus: status});
@@ -619,7 +619,7 @@ const deliverDawnBriefings = onSchedule(DAWN_DELIVERY_OPTS, async () => {
           await doc.ref.update({
             status: "error",
             error: "Dawn finished but wrote no briefing file.",
-            finishedAt: admin.firestore.FieldValue.serverTimestamp(),
+            finishedAt: FieldValue.serverTimestamp(),
           });
         }
         continue;
@@ -645,7 +645,7 @@ const deliverDawnBriefings = onSchedule(DAWN_DELIVERY_OPTS, async () => {
         briefing,
         to,
         emailError,
-        finishedAt: admin.firestore.FieldValue.serverTimestamp(),
+        finishedAt: FieldValue.serverTimestamp(),
       }));
     } catch (err) {
       console.error(`Dawn delivery: session ${sessionId} failed`, err);
@@ -655,7 +655,7 @@ const deliverDawnBriefings = onSchedule(DAWN_DELIVERY_OPTS, async () => {
         await doc.ref.update({
           status: "error",
           error: truncateErrorMessage(err, 300),
-          finishedAt: admin.firestore.FieldValue.serverTimestamp(),
+          finishedAt: FieldValue.serverTimestamp(),
         }).catch(() => {});
       }
     }
@@ -676,7 +676,7 @@ const SUPERVISOR_OPTS = {
 };
 
 const hourlyAgentSupervisor = onSchedule(SUPERVISOR_OPTS, async () => {
-  const db = admin.firestore();
+  const db = getFirestore();
   const start = Date.now();
 
   let report;
@@ -689,13 +689,13 @@ const hourlyAgentSupervisor = onSchedule(SUPERVISOR_OPTS, async () => {
       department: "qaEng",
       runType: "hourly-supervisor",
       err,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
       runMs: Date.now() - start,
     }));
     return;
   }
 
-  await writeAgentRollup(db, admin.firestore.FieldValue,
+  await writeAgentRollup(db, FieldValue,
       buildMarshalRollup({report, runMs: Date.now() - start}));
 });
 
@@ -714,7 +714,7 @@ const FX_REFRESH_OPTS = {
 };
 
 const dailyFxRefresh = onSchedule(FX_REFRESH_OPTS, async () => {
-  const db = admin.firestore();
+  const db = getFirestore();
   const result = await refreshFxRate({db});
   if (result.ok) {
     console.log(`[fxRate] updated ZMW/USD = ${result.zmwPerUsd}`);

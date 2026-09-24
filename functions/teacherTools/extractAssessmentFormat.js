@@ -22,7 +22,8 @@
  * approves it into assessmentFormats/ from the CBC KB page.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
+const {getStorage} = require("firebase-admin/storage");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
 
@@ -97,7 +98,7 @@ async function stageDocxImages({
     return 0;
   };
   try {
-    const [buf] = await admin.storage().bucket()
+    const [buf] = await getStorage().bucket()
       .file(source.path).download();
     // Shared guard-before-decompression: inspectDocxBuffer parses only the
     // central-directory headers (no getData) and rejects a bomb / traversal /
@@ -111,8 +112,8 @@ async function stageDocxImages({
       .slice(0, MAX_IMAGES_PER_PAPER));
     if (media.length === 0) return 0;
 
-    const db = admin.firestore();
-    const bucket = admin.storage().bucket();
+    const db = getFirestore();
+    const bucket = getStorage().bucket();
     let staged = 0;
     for (let i = 0; i < media.length; i++) {
       const m = media[i];
@@ -131,8 +132,8 @@ async function stageDocxImages({
       await docRef.set({
         ...doc,
         id: docRef.id,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       });
       staged += 1;
     }
@@ -194,7 +195,7 @@ async function runExtractAssessmentFormat({uid, data, apiKey}) {
   }
 
   const kbVersion = await getActiveKbVersion();
-  const draftRef = admin.firestore()
+  const draftRef = getFirestore()
     .collection("cbcKnowledgeBase").doc(kbVersion)
     .collection("assessmentFormatDrafts").doc();
   await draftRef.set({
@@ -204,7 +205,7 @@ async function runExtractAssessmentFormat({uid, data, apiKey}) {
     sourcePaperId: paperId || null,
     sourceStoragePath: storagePath || null,
     sourceKind: source.kind,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
   });
 
   // Stage any embedded teaching figures into the picture bank for admin
@@ -221,7 +222,7 @@ async function runExtractAssessmentFormat({uid, data, apiKey}) {
 
   // Cost tracking + audit trail, same shape as the past-paper importer.
   try {
-    await admin.firestore().collection("aiGenerations").add({
+    await getFirestore().collection("aiGenerations").add({
       kind: "assessment_format_extract",
       draftId: draftRef.id,
       paperId: paperId || null,
@@ -232,7 +233,7 @@ async function runExtractAssessmentFormat({uid, data, apiKey}) {
       tokensIn: Number(result.usage && result.usage.inputTokens || 0),
       tokensOut: Number(result.usage && result.usage.outputTokens || 0),
       validationErrorCount: built.validationErrors.length,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
     });
   } catch (err) {
     console.warn("[extractAssessmentFormat] usage log failed",

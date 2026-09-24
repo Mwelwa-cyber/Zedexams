@@ -56,7 +56,8 @@
  * grant would defeat the entire reason this endpoint signs.
  */
 
-const admin = require("firebase-admin");
+const {getFirestore} = require("firebase-admin/firestore");
+const {getStorage} = require("firebase-admin/storage");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
 const {assertCallableRateLimit} = require("../rateLimit");
@@ -98,7 +99,7 @@ function createResolvePaperAssetUrl() {
       throw new HttpsError("invalid-argument", "That is not a valid paper file path.");
     }
 
-    const snap = await admin.firestore().doc(`pastPapers/${paperId}`).get();
+    const snap = await getFirestore().doc(`pastPapers/${paperId}`).get();
     if (!snap.exists) {
       throw new HttpsError("not-found", "Past paper not found.");
     }
@@ -108,7 +109,7 @@ function createResolvePaperAssetUrl() {
         "That file does not belong to this paper.");
     }
 
-    const file = admin.storage().bucket().file(path);
+    const file = getStorage().bucket().file(path);
     // Existence is checked explicitly because getSignedUrl() will happily sign
     // a URL for an object that does not exist — the caller would get a link
     // that 404s at fetch time instead of a clean "the file is missing".

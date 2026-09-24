@@ -29,7 +29,7 @@
  * right call here as it is for the schema-based generator.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertCallableRateLimit} = require("../rateLimit");
 const {assertVerifiedAuth} = require("../authGuard");
@@ -128,7 +128,7 @@ function validateInputs({systemPrompt, userPrompt}) {
 async function buildResumedStudioPlanResponse(operation) {
   const genId = operation.resultDocumentId;
   const genSnap = genId ?
-    await admin.firestore().collection("aiGenerations").doc(genId).get() : null;
+    await getFirestore().collection("aiGenerations").doc(genId).get() : null;
   const out = genSnap && genSnap.exists ? (genSnap.data().output || {}) : {};
   return {
     text: out.text || null,
@@ -308,7 +308,7 @@ async function runStudioLessonPlan({uid, systemPrompt, userPrompt, context, apiK
   // operation, so a duplicate/retry resumes THIS plan (`output.text`) rather
   // than paying for a second one. It replaces the old fire-and-forget `.add()`
   // log — same fields, plus the plan itself, at a deterministic id.
-  await admin.firestore().collection("aiGenerations").doc(idempotencyKey).set({
+  await getFirestore().collection("aiGenerations").doc(idempotencyKey).set({
     ownerUid: uid,
     tool: "lesson_plan_studio",
     status: "complete",
@@ -318,8 +318,8 @@ async function runStudioLessonPlan({uid, systemPrompt, userPrompt, context, apiK
     tokensOut: Number(response && response.usage && response.usage.outputTokens || 0),
     kbVersion: (cbcResult && cbcResult.kbVersion) || null,
     kbGrounded: Boolean(cbcResult && cbcResult.kbMatch),
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    completedAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
+    completedAt: FieldValue.serverTimestamp(),
   }).catch((err) => {
     console.warn("[studioLessonPlan] result doc write failed", err);
   });

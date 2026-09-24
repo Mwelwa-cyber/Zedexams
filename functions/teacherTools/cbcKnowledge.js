@@ -11,7 +11,7 @@
  * 60 seconds to keep Firestore costs negligible.
  */
 
-const admin = require("firebase-admin");
+const {getFirestore} = require("firebase-admin/firestore");
 const {TOPICS: SEED_TOPICS} = require("./cbcTopics");
 const {
   invalidatePrivateCurriculumCache,
@@ -162,7 +162,7 @@ async function getActiveKbState() {
     return _activeStateCache;
   }
   try {
-    const db = admin.firestore();
+    const db = getFirestore();
     const snap = await db.doc(ACTIVE_KB_DOC_PATH).get();
     let next;
     if (!snap.exists) {
@@ -211,7 +211,7 @@ async function getActiveKbVersion() {
  */
 async function fetchFirestoreTopics() {
   try {
-    const db = admin.firestore();
+    const db = getFirestore();
     const version = await getActiveKbVersion();
     const snap = await db
       .collection("cbcKnowledgeBase")
@@ -682,7 +682,7 @@ async function lookupSubtopicModule({grade, subject, topic, subtopic, term}) {
   const moduleId = buildModuleId(subtopic, t);
   if (!topicId || !moduleId) return null;
   try {
-    const db = admin.firestore();
+    const db = getFirestore();
     const version = await getActiveKbVersion();
     const doc = await db.collection("cbcKnowledgeBase").doc(version)
         .collection("topics").doc(topicId)
@@ -833,7 +833,7 @@ async function lookupTermModules({grade, subject, term}) {
   const subjectNorm = String(subject || "").toLowerCase()
       .replace(/[^a-z_]/g, "_").slice(0, 40);
   try {
-    const db = admin.firestore();
+    const db = getFirestore();
     const version = await getActiveKbVersion();
     const topicsSnap = await db.collection("cbcKnowledgeBase").doc(version)
         .collection("topics")
@@ -1012,7 +1012,7 @@ async function resolvePriorCoverage({
   const st = normKey(subtopic);
   const tm = Number(term);
   try {
-    const db = admin.firestore();
+    const db = getFirestore();
     const snap = await db.collection("aiGenerations")
         .where("ownerUid", "==", ownerUid)
         .orderBy("createdAt", "desc")

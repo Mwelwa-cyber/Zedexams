@@ -8,7 +8,7 @@
  * quiz document like the other curriculum studios.)
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
 const {assertGeneratorRateLimit} = require("./generatorRateLimit");
@@ -158,7 +158,7 @@ async function runQuiz({uid, rawInputs, apiKey}) {
     assertAndIncrement(uid, "quiz"),
   ]);
 
-  const genRef = admin.firestore().collection("aiGenerations").doc();
+  const genRef = getFirestore().collection("aiGenerations").doc();
   await genRef.set({
     ownerUid: uid,
     tool: "quiz",
@@ -173,7 +173,7 @@ async function runQuiz({uid, rawInputs, apiKey}) {
     costUsdCents: 0,
     status: "generating",
     errorMessage: null,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
     completedAt: null,
     teacherEdited: false,
     exportedFormats: [],
@@ -299,7 +299,7 @@ async function runQuiz({uid, rawInputs, apiKey}) {
       errorMessage: `Schema errors: ${validation.errors.join("; ")}`,
       output: quiz,
       outputText: String(raw || "").slice(0, 20000),
-      completedAt: admin.firestore.FieldValue.serverTimestamp(),
+      completedAt: FieldValue.serverTimestamp(),
       tokensIn,
       tokensOut,
       costUsdCents,
@@ -328,7 +328,7 @@ async function runQuiz({uid, rawInputs, apiKey}) {
     costUsdCents,
     modelUsed,
     sourcing,
-    completedAt: admin.firestore.FieldValue.serverTimestamp(),
+    completedAt: FieldValue.serverTimestamp(),
   });
 
   return {

@@ -23,7 +23,7 @@
  * question several times to land on a final wording.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertCallableRateLimit} = require("../rateLimit");
 const {assertVerifiedAuth} = require("../authGuard");
@@ -56,7 +56,7 @@ const REVISE_MODEL = process.env.REVISE_QUESTION_MODEL || "claude-haiku-4-5";
 async function buildResumedReviseResponse(uid, operation) {
   const genId = operation.resultDocumentId;
   const snap = genId ?
-    await admin.firestore().collection("aiGenerations").doc(genId).get() : null;
+    await getFirestore().collection("aiGenerations").doc(genId).get() : null;
   const out = snap && snap.exists ? (snap.data().output || {}) : {};
   return {uid, text: out.text || null, model: out.model || REVISE_MODEL, resumed: true};
 }
@@ -91,7 +91,7 @@ async function runReviseQuestion({uid, inputs, apiKey, idempotencyKey}) {
 
   // Keyed result + structured audit record (the source curriculum/subject are
   // stored so a preserved-curriculum revision is auditable after the fact).
-  const genRef = admin.firestore().collection("aiGenerations").doc(idempotencyKey);
+  const genRef = getFirestore().collection("aiGenerations").doc(idempotencyKey);
   await genRef.set({
     ownerUid: uid,
     tool: "revise_question",
@@ -103,7 +103,7 @@ async function runReviseQuestion({uid, inputs, apiKey, idempotencyKey}) {
     modelUsed: REVISE_MODEL,
     status: "generating",
     errorMessage: null,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
     completedAt: null,
     visibility: "private",
   }).catch((err) => console.warn("[reviseQuestion] reserve doc failed", err));
@@ -170,7 +170,7 @@ async function runReviseQuestion({uid, inputs, apiKey, idempotencyKey}) {
   await genRef.set({
     status: "complete",
     output: {text, model: REVISE_MODEL},
-    completedAt: admin.firestore.FieldValue.serverTimestamp(),
+    completedAt: FieldValue.serverTimestamp(),
   }, {merge: true}).catch(() => {});
   try {
     await completeAiOperation({idempotencyKey, resultDocumentId: genRef.id, usageCharged: 1});

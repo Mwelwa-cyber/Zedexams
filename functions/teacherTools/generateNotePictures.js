@@ -20,7 +20,8 @@
  */
 
 const crypto = require("crypto");
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
+const {getStorage} = require("firebase-admin/storage");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
 const {assertGeneratorRateLimit} = require("./generatorRateLimit");
@@ -46,7 +47,7 @@ function buildIllustrationPrompt(rawPrompt) {
 // but always writes to `note-pictures/{uid}/{noteId}/<timestamp>-<hex>.png`
 // so the admin can audit + clean up by note. Returns { url, sizeBytes }.
 async function uploadToStorage(uid, noteId, buffer, mimeType, sourcePrompt) {
-  const bucket = admin.storage().bucket();
+  const bucket = getStorage().bucket();
   const ext = (mimeType || "image/png").includes("jpeg") ? "jpg" : "png";
   const filename =
     `note-pictures/${uid}/${noteId}/${Date.now()}-${crypto.randomBytes(4).toString("hex")}.${ext}`;
@@ -138,7 +139,7 @@ function resolvePrompt(block) {
 }
 
 async function runGenerateNotePictures({uid, noteId, geminiKey, openaiKey}) {
-  const db = admin.firestore();
+  const db = getFirestore();
   const noteRef = db.collection("lessons").doc(noteId);
   const snap = await noteRef.get();
   if (!snap.exists) {
@@ -202,7 +203,7 @@ async function runGenerateNotePictures({uid, noteId, geminiKey, openaiKey}) {
       });
       await noteRef.update({
         blocks: updatedBlocks,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       });
       results.push({idx, status: "ok", provider, url});
     } else {

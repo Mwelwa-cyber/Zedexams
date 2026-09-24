@@ -8,7 +8,7 @@
  * assessment document like worksheet/full-lesson.)
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
 const {assertGeneratorRateLimit} = require("./generatorRateLimit");
@@ -222,7 +222,7 @@ function validateInputs(inputs) {
 async function buildResumedAssessmentResponse(operation) {
   const genId = operation.resultDocumentId;
   const genSnap = genId ?
-    await admin.firestore().collection("aiGenerations").doc(genId).get() : null;
+    await getFirestore().collection("aiGenerations").doc(genId).get() : null;
   const genData = genSnap && genSnap.exists ? genSnap.data() : null;
   return {
     generationId: genId,
@@ -322,7 +322,7 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
   // SAME logical request (reservation.status === "retrying") re-`set()`s
   // this exact doc instead of creating a sibling, and the resumed-completed
   // path above can read it straight back by id (§10).
-  const genRef = admin.firestore().collection("aiGenerations").doc(idempotencyKey);
+  const genRef = getFirestore().collection("aiGenerations").doc(idempotencyKey);
   await genRef.set({
     ownerUid: uid,
     tool: "assessment",
@@ -351,7 +351,7 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
     costUsdCents: 0,
     status: "generating",
     errorMessage: null,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
     completedAt: null,
     teacherEdited: false,
     exportedFormats: [],
@@ -768,7 +768,7 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
       curriculumIssues: curriculumGuard.issues,
       output: assessment,
       outputText: String(raw || "").slice(0, 20000),
-      completedAt: admin.firestore.FieldValue.serverTimestamp(),
+      completedAt: FieldValue.serverTimestamp(),
       tokensIn,
       tokensOut,
       costUsdCents,
@@ -823,7 +823,7 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
     // The stated intent this paper was generated against — see the flagged path.
     blueprint,
     blueprintSource,
-    completedAt: admin.firestore.FieldValue.serverTimestamp(),
+    completedAt: FieldValue.serverTimestamp(),
   });
   try {
     await completeAiOperation({idempotencyKey, resultDocumentId: genRef.id, usageCharged: 1});

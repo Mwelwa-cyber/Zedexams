@@ -11,7 +11,7 @@
  * any topic that has the same ID as a built-in.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
 
@@ -41,12 +41,12 @@ exports.importBuiltInCbcTopics = onCall(
       throw new HttpsError("permission-denied", "Admin only.");
     }
 
-    const db = admin.firestore();
+    const db = getFirestore();
     // Always write to the runtime-active version so admins importing the
     // seed topics see them appear in whichever syllabus is currently active.
     const kbVersion = await getActiveKbVersion();
     const col = db.collection("cbcKnowledgeBase").doc(kbVersion).collection("topics");
-    const now = admin.firestore.FieldValue.serverTimestamp();
+    const now = FieldValue.serverTimestamp();
 
     // Firestore batched writes max at 500 operations per batch.
     const BATCH_SIZE = 500;

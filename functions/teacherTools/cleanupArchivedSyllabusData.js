@@ -33,7 +33,7 @@
  * Returns { ok, mode, deleted: { curriculum, rag_chunks, topics } }.
  */
 
-const admin = require("firebase-admin");
+const {getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
 
@@ -135,7 +135,7 @@ exports.cleanupArchivedSyllabusData = onCall(
 // --- Audit -------------------------------------------------------------
 
 async function runAudit() {
-  const db = admin.firestore();
+  const db = getFirestore();
   const [curriculumCount, ragCount] = await Promise.all([
     countCollection(db.collection("curriculum")),
     countCollection(db.collection("rag_chunks")),
@@ -183,7 +183,7 @@ async function countCollection(col) {
 // --- Delete RAG --------------------------------------------------------
 
 async function deleteRagPath() {
-  const db = admin.firestore();
+  const db = getFirestore();
   // recursiveDelete handles paging + subcollections + 500-op batching
   // internally. firebase-admin v11+ ships it; we're on v13.
   const curriculum = await recursiveDeleteCollection(db, "curriculum");
@@ -217,7 +217,7 @@ async function recursiveDeleteCollection(db, collectionPath) {
 // --- Delete version ----------------------------------------------------
 
 async function deleteVersionTopics(version) {
-  const db = admin.firestore();
+  const db = getFirestore();
   const topicsCol = db
     .collection("cbcKnowledgeBase")
     .doc(version)

@@ -24,7 +24,8 @@
  */
 
 const crypto = require("crypto");
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
+const {getStorage} = require("firebase-admin/storage");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
 const {assertGeneratorRateLimit} = require("./generatorRateLimit");
@@ -192,7 +193,7 @@ async function downloadToStorage(uid, source, promptForMeta, generator, subdir) 
     buffer = Buffer.from(arrayBuffer);
   }
 
-  const bucket = admin.storage().bucket();
+  const bucket = getStorage().bucket();
   // Callers may scope the image into their own folder (e.g. slide-notes decks
   // write to `slide-notes-images/{uid}/{deckId}`). Defaults to the Assessment
   // Studio path so existing callers are unchanged.
@@ -290,7 +291,7 @@ async function runGenerateDiagram({uid, rawInputs, openaiKey, storageSubdir}) {
   // Log to a per-user history so teachers can see their generated diagrams
   // and we have an audit trail for cost reconciliation.
   try {
-    await admin.firestore().collection("aiGenerationLog").add({
+    await getFirestore().collection("aiGenerationLog").add({
       uid,
       tool: "diagram",
       generator: providerUsed,
@@ -302,7 +303,7 @@ async function runGenerateDiagram({uid, rawInputs, openaiKey, storageSubdir}) {
       size: openaiSizeUsed || size,
       url,
       sizeBytes,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
     });
   } catch (logErr) {
     console.warn("aiGenerationLog write failed:", logErr);

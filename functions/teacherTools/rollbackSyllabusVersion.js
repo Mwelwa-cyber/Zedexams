@@ -33,7 +33,7 @@
  * whether RAG was on or off before.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
 const {assertAdminSecondFactor} = require("../security/requireAdminMfa");
@@ -71,7 +71,7 @@ exports.rollbackSyllabusVersion = onCall(
       );
     }
 
-    const db = admin.firestore();
+    const db = getFirestore();
     const metaRef = db.doc("cbcKnowledgeBase/_meta");
     const metaSnap = await metaRef.get();
     if (!metaSnap.exists) {
@@ -100,12 +100,12 @@ exports.rollbackSyllabusVersion = onCall(
       );
     }
 
-    const now = admin.firestore.FieldValue.serverTimestamp();
+    const now = FieldValue.serverTimestamp();
     await metaRef.set({
       version: previousVersion,
       previousVersion: activeBefore.version,
       usePrivateCurriculum: true,
-      cacheBust: admin.firestore.FieldValue.increment(1),
+      cacheBust: FieldValue.increment(1),
       rolledBackBy: uid,
       rolledBackAt: now,
       updatedAt: now,

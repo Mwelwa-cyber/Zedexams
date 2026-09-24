@@ -14,7 +14,7 @@
  * Server-only in firestore.rules — nothing client-side reads or writes it.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {
   misconceptionDocId, harvestMisconceptions, mergeMisconceptions,
   buildMisconceptionDirective,
@@ -38,7 +38,7 @@ async function loadMisconceptions({framework, grade, subject, topics = []}) {
       .slice(0, MAX_TOPICS_READ);
   if (wanted.length === 0) return {};
   try {
-    const db = admin.firestore();
+    const db = getFirestore();
     const refs = wanted.map((topic) => db.collection(COLLECTION)
         .doc(misconceptionDocId({framework, grade, subject, topic})));
     const snaps = await db.getAll(...refs);
@@ -81,7 +81,7 @@ async function recordMisconceptions({framework, grade, subject, assessment}) {
   const topics = Object.keys(byTopic).slice(0, MAX_TOPICS_READ);
   if (topics.length === 0) return {topics: 0, added: 0, updated: 0};
 
-  const db = admin.firestore();
+  const db = getFirestore();
   const at = new Date().toISOString();
   let added = 0;
   let updated = 0;
@@ -105,7 +105,7 @@ async function recordMisconceptions({framework, grade, subject, assessment}) {
           subject: String(subject || "").toLowerCase(),
           topic,
           misconceptions: merged.items,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
         }, {merge: true});
         added += merged.added;
         updated += merged.updated;

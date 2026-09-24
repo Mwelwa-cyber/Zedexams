@@ -14,7 +14,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const admin = require("firebase-admin");
+const {getFirestore} = require("firebase-admin/firestore");
 
 // The studio-subject → KB-subject tables + the "form N" → grade map live in
 // kbLookupCandidates.js (a firebase-free module) so the KB grade/subject
@@ -339,7 +339,7 @@ function buildTopicId(grade, subject, topic) {
  */
 async function loadOverrides(version) {
   try {
-    const db = admin.firestore();
+    const db = getFirestore();
     const snap = await db
         .collection("cbcKnowledgeBase")
         .doc(version)

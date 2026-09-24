@@ -18,7 +18,7 @@
  * this exact request is invalidated synchronously.
  */
 
-const admin = require("firebase-admin");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
 
@@ -35,13 +35,13 @@ exports.invalidateKbCacheCallable = onCall(
       throw new HttpsError("permission-denied", "Admin only.");
     }
 
-    const db = admin.firestore();
+    const db = getFirestore();
     const ref = db.doc("cbcKnowledgeBase/_meta");
     // Increment the counter so OTHER warm containers see the change on
     // their next getActiveKbState() refresh (within ~10s).
     await ref.set({
-      cacheBust: admin.firestore.FieldValue.increment(1),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      cacheBust: FieldValue.increment(1),
+      updatedAt: FieldValue.serverTimestamp(),
     }, {merge: true});
 
     // Locally invalidate this container immediately so the response is
