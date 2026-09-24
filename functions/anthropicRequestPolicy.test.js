@@ -142,15 +142,16 @@ async function main() {
     const EXEMPT = new Set(["agents/runners/dawn.js"]);
     const offenders = [];
     const walk = (dir) => {
-      for (const name of fs.readdirSync(dir)) {
+      for (const entry of fs.readdirSync(dir, {withFileTypes: true})) {
+        const name = entry.name;
         if (name === "node_modules" || name.startsWith(".")) continue;
         const full = path.join(dir, name);
-        if (fs.statSync(full).isDirectory()) walk(full);
-        else if (name.endsWith(".js") && !name.endsWith(".test.js")) {
+        if (entry.isDirectory()) walk(full);
+        else if (entry.isFile() && name.endsWith(".js") && !name.endsWith(".test.js")) {
           const rel = path.relative(__dirname, full).split(path.sep).join("/");
           const src = fs.readFileSync(full, "utf8");
-          if (/api\.anthropic\.com/.test(src) && /anthropic-version/.test(src) &&
-              !/anthropicFetch/.test(src) && !EXEMPT.has(rel)) offenders.push(rel);
+          if (src.includes("api.anthropic.com") && src.includes("anthropic-version") &&
+              !src.includes("anthropicFetch") && !EXEMPT.has(rel)) offenders.push(rel);
         }
       }
     };
