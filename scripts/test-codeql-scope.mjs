@@ -18,7 +18,7 @@
 
 import assert from "node:assert";
 import {existsSync, readFileSync} from "node:fs";
-import yaml from "js-yaml";
+import * as yaml from "js-yaml";
 
 const WORKFLOW_PATH = ".github/workflows/codeql.yml";
 const wf = yaml.load(readFileSync(WORKFLOW_PATH, "utf8"));
