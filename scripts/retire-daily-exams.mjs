@@ -32,8 +32,9 @@
  * served and when, it is what the old rotation used for fairness, and
  * deleting history is not part of retiring a mechanism.
  */
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 import process from 'node:process'
-import admin from 'firebase-admin'
+const admin = await loadAdminSdk()
 
 const LIVE = process.argv.includes('--live')
 const EXAM_QUESTION_THRESHOLD = 50
@@ -61,8 +62,8 @@ function demotionPatch(data) {
 }
 
 async function main() {
-  if (!admin.apps.length) admin.initializeApp()
-  const db = admin.firestore()
+  if (!admin.getApps().length) admin.initializeApp()
+  const db = admin.getFirestore()
 
   // Two queries, because a half-cleared document is exactly what a crashed
   // run leaves behind and it must still be findable. A doc with

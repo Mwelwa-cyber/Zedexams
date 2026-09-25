@@ -1,5 +1,6 @@
-import admin from "firebase-admin";
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 import fs from "node:fs";
+const admin = await loadAdminSdk()
 
 const DEFAULT_PROJECT_ID =
   process.env.FIREBASE_PROJECT_ID ||
@@ -148,7 +149,7 @@ function collectPathsFromValue(value, bucket, found) {
 }
 
 async function loadReferencedPaths(bucket) {
-  const db = admin.firestore();
+  const db = admin.getFirestore();
   const referencedPaths = new Set();
 
   const [lessonSnap, quizSnap, questionSnap] = await Promise.all([
@@ -239,7 +240,7 @@ async function main() {
     storageBucket: args.bucket,
   });
 
-  const storageBucket = admin.storage().bucket(args.bucket);
+  const storageBucket = admin.getStorage().bucket(args.bucket);
 
   console.log(`Project: ${args.projectId}`);
   console.log(`Bucket: ${args.bucket}`);

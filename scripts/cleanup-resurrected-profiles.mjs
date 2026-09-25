@@ -89,13 +89,12 @@
  *   so a mistyped argument cannot delete an arbitrary live account silently.
  * - It is a one-off remediation, never a scheduled sweep.
  */
-import { createRequire } from 'node:module'
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 import { writeFileSync, chmodSync } from 'node:fs'
 import { createInterface } from 'node:readline/promises'
 import path from 'node:path'
 
-const require = createRequire(import.meta.url)
-const admin = require('firebase-admin')
+const admin = await loadAdminSdk()
 
 const args = process.argv.slice(2)
 const LIVE = args.includes('--live')
@@ -127,8 +126,8 @@ nothing without --live, and --live still asks you to type DELETE.
   process.exit(0)
 }
 
-if (!admin.apps.length) admin.initializeApp()
-const db = admin.firestore()
+if (!admin.getApps().length) admin.initializeApp()
+const db = admin.getFirestore()
 
 /** Candidates: every uid with a tombstone whose users/{uid} still exists. */
 async function findResurrected() {

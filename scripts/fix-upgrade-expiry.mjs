@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 /**
  * scripts/fix-upgrade-expiry.mjs
  *
@@ -74,14 +75,14 @@ async function main() {
 
   let admin
   try {
-    admin = (await import('firebase-admin')).default
+    admin = (await loadAdminSdk())
   } catch {
     console.error('ERROR: install firebase-admin first: `npm install --save-dev firebase-admin`')
     process.exit(1)
   }
   admin.initializeApp()
-  const db = admin.firestore()
-  const { Timestamp } = admin.firestore
+  const db = admin.getFirestore()
+  const { Timestamp } = admin
 
   // Resolve the user doc.
   let userRef
@@ -150,7 +151,7 @@ async function main() {
 
   const update = { subscriptionExpiry: Timestamp.fromDate(target) }
   if (teacherExpiry) update.teacherPlanExpiresAt = Timestamp.fromDate(target)
-  update.subscriptionExpiryCorrectedAt = admin.firestore.FieldValue.serverTimestamp()
+  update.subscriptionExpiryCorrectedAt = admin.FieldValue.serverTimestamp()
   update.subscriptionExpiryCorrectedBy = `script:fix-upgrade-expiry@${new Date().toISOString().slice(0, 10)}`
 
   await userRef.set(update, { merge: true })

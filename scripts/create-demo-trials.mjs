@@ -41,6 +41,7 @@
  *   Each user doc is tagged demo: true so it can be queried/cleaned up later.
  */
 
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
@@ -224,16 +225,16 @@ async function main() {
 
   let admin
   try {
-    admin = (await import('firebase-admin')).default
+    admin = (await loadAdminSdk())
   } catch {
     console.error('ERROR: install firebase-admin first: `npm install --save-dev firebase-admin`')
     process.exit(1)
   }
 
   admin.initializeApp()
-  const db = admin.firestore()
-  const auth = admin.auth()
-  const { FieldValue, Timestamp } = admin.firestore
+  const db = admin.getFirestore()
+  const auth = admin.getAuth()
+  const { FieldValue, Timestamp } = admin
 
   const adminId = `script:create-demo-trials@${new Date().toISOString().slice(0, 10)}`
   const results = []

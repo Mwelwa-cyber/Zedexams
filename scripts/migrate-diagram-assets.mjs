@@ -40,6 +40,7 @@
  * with no project access (same convention as cleanup-phantom-assessments).
  */
 
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 import {
   planDiagramAssetMigration, migrationDocId,
 } from '../src/features/visualStudio/lib/diagramAssetMigration.js'
@@ -60,14 +61,14 @@ const BATCH_SIZE = 400
 async function loadAdmin() {
   let admin
   try {
-    admin = await import('firebase-admin')
+    admin = await loadAdminSdk()
   } catch {
     console.error('ERROR: this script needs `npm install --save-dev firebase-admin`')
     process.exit(1)
   }
   if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) return null
-  admin.default.initializeApp()
-  return admin.default
+  admin.initializeApp()
+  return admin
 }
 
 async function readCollection(db, name) {
@@ -128,7 +129,7 @@ async function main() {
     return
   }
 
-  const db = admin.firestore()
+  const db = admin.getFirestore()
   const [pictureBank, visualAssets] = await Promise.all([
     readCollection(db, 'pictureBank'),
     readCollection(db, 'visualAssets'),
@@ -170,8 +171,8 @@ async function main() {
     batch.set(ref, {
       ...w.data,
       id: w.docId,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: admin.FieldValue.serverTimestamp(),
+      updatedAt: admin.FieldValue.serverTimestamp(),
     })
     ops += 1
     if (ops >= BATCH_SIZE) await flush()

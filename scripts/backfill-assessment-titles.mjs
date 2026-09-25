@@ -72,6 +72,7 @@
  * and runs the rules against a fixture — the seven reported papers.
  */
 
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 import {
   buildAssessmentDocumentTitle,
   isTeacherAuthoredTitle,
@@ -192,18 +193,18 @@ function creationYear(assessment) {
 async function loadAdmin() {
   let admin
   try {
-    admin = await import('firebase-admin')
+    admin = await loadAdminSdk()
   } catch {
     console.error('ERROR: this script needs `npm install --save-dev firebase-admin`')
     process.exit(1)
   }
   if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) return null
-  admin.default.initializeApp()
-  return admin.default
+  admin.initializeApp()
+  return admin
 }
 
 async function runAgainstFirestore(admin) {
-  const db = admin.firestore()
+  const db = admin.getFirestore()
   let query = db.collection('assessments')
   if (TEACHER) query = query.where('createdBy', '==', TEACHER)
   const snap = await query.get()
@@ -265,7 +266,7 @@ async function runAgainstFirestore(admin) {
       title: row.to,
       // Recorded so this never has to be inferred again.
       titleSource: 'auto',
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.FieldValue.serverTimestamp(),
     })
     ops += 1
     if (ops >= BATCH_SIZE) { await batch.commit(); batch = db.batch(); ops = 0 }

@@ -24,6 +24,7 @@
  *   --source=s   only repair rows with this `source` (e.g. quiz_studio)
  */
 
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 import {
   bankPreview, extractKeywords, questionFingerprint, questionTokens,
 } from '../src/utils/questionBankCore.js'
@@ -51,14 +52,14 @@ function arraysEqual(a, b) {
 const stats = { scanned: 0, parsed: 0, changed: 0, written: 0, skippedNoData: 0 }
 
 async function run() {
-  const admin = (await import('firebase-admin')).default
+  const admin = (await loadAdminSdk())
   if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
     console.error('ERROR: set GOOGLE_APPLICATION_CREDENTIALS to your service-account JSON path.')
     process.exit(1)
   }
-  if (!admin.apps.length) admin.initializeApp()
-  const db = admin.firestore()
-  const FieldValue = admin.firestore.FieldValue
+  if (!admin.getApps().length) admin.initializeApp()
+  const db = admin.getFirestore()
+  const FieldValue = admin.FieldValue
 
   console.log(`Mode: ${LIVE ? 'LIVE (writing)' : 'DRY-RUN (no writes)'}${ONLY_SOURCE ? `; source=${ONLY_SOURCE}` : ''}.\n`)
 

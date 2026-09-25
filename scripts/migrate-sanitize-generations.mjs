@@ -56,6 +56,7 @@
  *   node scripts/migrate-sanitize-generations.mjs --live --limit=50
  */
 
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 import { sanitizeXmlText } from '../src/utils/xmlText.js'
 
 const LIVE = process.argv.includes('--live')
@@ -137,7 +138,7 @@ export function cleanGenerationXml(raw) {
 async function runLive() {
   let admin
   try {
-    admin = await import('firebase-admin')
+    admin = await loadAdminSdk()
   } catch {
     console.error('ERROR: --live requires `npm install --save-dev firebase-admin`')
     process.exit(1)
@@ -148,8 +149,8 @@ async function runLive() {
     process.exit(1)
   }
 
-  admin.default.initializeApp()
-  const db = admin.default.firestore()
+  admin.initializeApp()
+  const db = admin.getFirestore()
 
   const totals = { inspected: 0, cleaned: 0, stringHits: 0 }
 
@@ -176,7 +177,7 @@ async function runLive() {
       collection: 'aiGenerations',
       docId: doc.id,
       original: raw,
-      at: admin.default.firestore.FieldValue.serverTimestamp(),
+      at: admin.FieldValue.serverTimestamp(),
     })
     batch.set(doc.ref, result.patch, { merge: true })
     batchOps += 2

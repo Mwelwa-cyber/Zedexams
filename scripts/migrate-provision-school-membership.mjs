@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 /**
  * scripts/migrate-provision-school-membership.mjs
  *
@@ -160,7 +161,7 @@ export function buildSchoolDoc(schoolId, now) {
 async function run() {
   let admin
   try {
-    admin = (await import('firebase-admin')).default
+    admin = (await loadAdminSdk())
   } catch {
     console.error('ERROR: this script needs firebase-admin. Run `npm install --save-dev firebase-admin`.')
     process.exit(1)
@@ -170,7 +171,7 @@ async function run() {
     process.exit(1)
   }
   admin.initializeApp()
-  const db = admin.firestore()
+  const db = admin.getFirestore()
   const now = Date.now()
 
   console.log(`\nProvision school membership — ${LIVE ? 'LIVE (writing)' : 'DRY RUN (no writes)'}\n`)

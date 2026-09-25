@@ -28,6 +28,7 @@
  * reports the projected count so you can budget before going live.
  */
 
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 import { createRequire } from 'module'
 import {
   sanitizeQuestionForBank, bankPreview, extractKeywords,
@@ -180,14 +181,14 @@ async function fingerprintExists(db, fp, seen) {
 }
 
 async function runMigration() {
-  const admin = (await import('firebase-admin')).default
+  const admin = (await loadAdminSdk())
   if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
     console.error('ERROR: set GOOGLE_APPLICATION_CREDENTIALS to your service-account JSON path.')
     process.exit(1)
   }
-  if (!admin.apps.length) admin.initializeApp()
-  const db = admin.firestore()
-  const FieldValue = admin.firestore.FieldValue
+  if (!admin.getApps().length) admin.initializeApp()
+  const db = admin.getFirestore()
+  const FieldValue = admin.FieldValue
 
   const index = await buildIndex()
   console.log(`Grade index: ${index.size} topic keys. Mode: ${LIVE ? 'LIVE (writing)' : 'DRY-RUN (no writes)'}; AI fallback: ${USE_AI ? 'on' : 'off'}.\n`)

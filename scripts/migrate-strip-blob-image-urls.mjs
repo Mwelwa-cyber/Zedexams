@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 /**
  * scripts/migrate-strip-blob-image-urls.mjs
  *
@@ -142,7 +143,7 @@ export function cleanParentDocBlobUrls(raw, summary = { passages: 0, droppedAsse
 async function runLive() {
   let admin
   try {
-    admin = await import('firebase-admin')
+    admin = await loadAdminSdk()
   } catch {
     console.error('ERROR: --live requires `npm install --save-dev firebase-admin`')
     process.exit(1)
@@ -153,8 +154,8 @@ async function runLive() {
     process.exit(1)
   }
 
-  admin.default.initializeApp()
-  const db = admin.default.firestore()
+  admin.initializeApp()
+  const db = admin.getFirestore()
 
   const totals = {
     parentDocsInspected: 0,
@@ -192,7 +193,7 @@ async function runLive() {
           collection: collectionName,
           docId: parentDoc.id,
           original: parentRaw,
-          at: admin.default.firestore.FieldValue.serverTimestamp(),
+          at: admin.FieldValue.serverTimestamp(),
         })
         batch.set(parentDoc.ref, cleanedParent)
         batchOps += 2
@@ -221,7 +222,7 @@ async function runLive() {
           docId: parentDoc.id,
           questionId: qDoc.id,
           original: qDoc.data(),
-          at: admin.default.firestore.FieldValue.serverTimestamp(),
+          at: admin.FieldValue.serverTimestamp(),
         })
         batch.set(qDoc.ref, cleanedQ)
         batchOps += 2

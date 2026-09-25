@@ -25,6 +25,7 @@
  *   node scripts/seed-exam-timetables.mjs --live --id g7-2026
  */
 
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 import { FALLBACK_TIMETABLES } from '../src/config/examTimetable2026.js'
 import { validateTimetable, listSessions } from '../src/utils/examTimetableLogic.js'
 
@@ -76,15 +77,15 @@ async function main() {
 
   let admin
   try {
-    admin = (await import('firebase-admin')).default
+    admin = (await loadAdminSdk())
   } catch {
     console.error('ERROR: install firebase-admin first: `npm install --save-dev firebase-admin`')
     process.exit(1)
   }
 
   admin.initializeApp()
-  const db = admin.firestore()
-  const { FieldValue } = admin.firestore
+  const db = admin.getFirestore()
+  const { FieldValue } = admin
 
   for (const t of timetables) {
     await db.doc(`examTimetables/${t.id}`).set({

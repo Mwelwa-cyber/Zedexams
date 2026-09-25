@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 /**
  * scripts/dedupe-quiz-questions.mjs
  *
@@ -126,7 +127,7 @@ export function totalMarksFor(entries) {
 async function runLive() {
   let admin
   try {
-    admin = await import('firebase-admin')
+    admin = await loadAdminSdk()
   } catch {
     console.error('ERROR: --live requires `npm install --save-dev firebase-admin`')
     process.exit(1)
@@ -137,8 +138,8 @@ async function runLive() {
     process.exit(1)
   }
 
-  admin.default.initializeApp()
-  const db = admin.default.firestore()
+  admin.initializeApp()
+  const db = admin.getFirestore()
 
   const totals = {
     quizzesInspected: 0,
@@ -195,7 +196,7 @@ async function runLive() {
         quizId: quizDoc.id,
         questionId: dropEntry.id,
         original: dropEntry.data,
-        at: admin.default.firestore.FieldValue.serverTimestamp(),
+        at: admin.FieldValue.serverTimestamp(),
       })
       batch.delete(ref)
       batchOps += 2
@@ -213,7 +214,7 @@ async function runLive() {
     batch.update(quizDoc.ref, {
       questionCount: keep.length,
       totalMarks: totalMarksFor(keep),
-      updatedAt: admin.default.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.FieldValue.serverTimestamp(),
     })
     batchOps += 1
 

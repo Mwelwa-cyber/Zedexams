@@ -69,6 +69,7 @@
  *   node scripts/migrate-canonical-education.mjs --report=out.json
  */
 
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 import {
   migrationSubjectId, migrationGradeCode, migrationCurriculumId,
   ambiguousSubjectOptions, getGrade, getSubject, subjectName, gradeNumberOf,
@@ -303,7 +304,7 @@ async function writeReportFile(payload) {
 async function runLive() {
   let admin
   try {
-    admin = await import('firebase-admin')
+    admin = await loadAdminSdk()
   } catch {
     console.error('ERROR: --live requires `npm install --save-dev firebase-admin`')
     process.exit(1)
@@ -313,8 +314,8 @@ async function runLive() {
     process.exit(1)
   }
 
-  admin.default.initializeApp()
-  const db = admin.default.firestore()
+  admin.initializeApp()
+  const db = admin.getFirestore()
 
   const rewrites = []
   const problems = []
@@ -344,7 +345,7 @@ async function runLive() {
         collection,
         docId: doc.id,
         original: data,
-        at: admin.default.firestore.FieldValue.serverTimestamp(),
+        at: admin.FieldValue.serverTimestamp(),
       })
       batch.set(doc.ref, plan.patch, { merge: true })
       ops += 2

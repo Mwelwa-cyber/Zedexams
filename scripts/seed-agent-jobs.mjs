@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 /**
  * scripts/seed-agent-jobs.mjs
  *
@@ -77,7 +78,7 @@ const SEED_JOBS = [
 async function main() {
   let admin
   try {
-    admin = await import('firebase-admin')
+    admin = await loadAdminSdk()
   } catch {
     console.error('ERROR: install firebase-admin first: `npm install --save-dev firebase-admin`')
     process.exit(1)
@@ -94,9 +95,9 @@ async function main() {
     process.exit(1)
   }
 
-  admin.default.initializeApp()
-  const db = admin.default.firestore()
-  const ts = admin.default.firestore.FieldValue.serverTimestamp()
+  admin.initializeApp()
+  const db = admin.getFirestore()
+  const ts = admin.FieldValue.serverTimestamp()
 
   if (CLEAR) {
     const stale = await db.collection('agentJobs').where('seed', '==', true).get()

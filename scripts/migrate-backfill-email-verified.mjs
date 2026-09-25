@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 /**
  * scripts/migrate-backfill-email-verified.mjs
  *
@@ -54,7 +55,7 @@ const DAY_MS = 24 * 60 * 60 * 1000
  * Decide the backfill writes for one account.
  *
  * @param {{uid: string, email?: string|null, emailVerified?: boolean}} authUser
- *   The Firebase Auth record (from admin.auth().listUsers()).
+ *   The Firebase Auth record (from admin.getAuth().listUsers()).
  * @param {object|null} docData The users/{uid} Firestore doc data (null if missing).
  * @param {{graceDays?: number, now?: number}} opts
  * @returns {{shouldWrite: boolean, fields: object, reasons: string[]}}
@@ -104,7 +105,7 @@ export function classifyAccount(authUser) {
 async function runLive() {
   let admin
   try {
-    admin = await import('firebase-admin')
+    admin = await loadAdminSdk()
   } catch {
     console.error('ERROR: --live requires `npm install --save-dev firebase-admin`')
     process.exit(1)
@@ -115,9 +116,9 @@ async function runLive() {
     process.exit(1)
   }
 
-  admin.default.initializeApp()
-  const db = admin.default.firestore()
-  const auth = admin.default.auth()
+  admin.initializeApp()
+  const db = admin.getFirestore()
+  const auth = admin.getAuth()
 
   const totals = {
     accountsInspected: 0,
@@ -173,7 +174,7 @@ async function runLive() {
         uid: authUser.uid,
         previousEmailVerified: docData.emailVerified ?? null,
         previousGraceUntil: docData.verificationGraceUntil ?? null,
-        at: admin.default.firestore.FieldValue.serverTimestamp(),
+        at: admin.FieldValue.serverTimestamp(),
       })
       batch.update(docRef, fields)
       batchOps += 2

@@ -748,7 +748,7 @@ function assertTtlFieldIsTimestamp() {
           `Firestore TTL reaps only TIMESTAMP fields. A numeric expiry is ` +
             `ignored: the policy shows as enabled and deletes nothing, so the ` +
             `collection grows without bound and nothing reports an error.\n` +
-            `Use admin.firestore.Timestamp.fromMillis(...) — see ` +
+            `Use Timestamp.fromMillis(...) from firebase-admin/firestore — see ` +
             `functions/webhookEventLedger.js for the shape.`
         );
       }
