@@ -17,19 +17,19 @@
   },
   "main": "index.js",
   "dependencies": {
-    "@google-cloud/text-to-speech": "^7.0.0",
+    "@google-cloud/text-to-speech": "^7.1.0",
     "@octokit/rest": "^22.0.1",
     "adm-zip": "^0.6.1",
     "cors": "^2.8.6",
     "docx": "^9.6.1",
     "exceljs": "^4.4.0",
     "firebase-admin": "^14.5.0",
-    "firebase-functions": "^7.3.2",
-    "google-auth-library": "^11.0.2",
-    "mammoth": "^1.12.1",
+    "firebase-functions": "^7.4.0",
+    "google-auth-library": "^11.1.0",
+    "mammoth": "^1.12.3",
     "nodemailer": "^10.0.10",
     "pdf-parse": "^2.4.5",
-    "pdfkit": "^0.20.1"
+    "pdfkit": "^0.20.2"
   },
   "overrides": {
     "uuid": "^11.1.1",
