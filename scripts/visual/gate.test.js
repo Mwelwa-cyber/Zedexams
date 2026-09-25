@@ -16,7 +16,7 @@
 
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import yaml from 'js-yaml'
+import * as yaml from 'js-yaml'
 import {
   GATE_MODES, RENDERER_FAMILIES, UPDATABLE_FAMILIES, REQUIRED_ARTEFACTS, FAILURE_ARTEFACTS,
   mayWriteBaseline, validateUpdateRequest, baselineWriteFilter, planBaselineUpdate,
