@@ -5,6 +5,24 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-09-24
+
+### Changed
+
+- Upgrade Vitest to 5 and pin the shard blob directory (#2677)
+- Cap maxInstances on scheduled jobs and admin-only callables (#2676)
+- Patch the last four prod dependency advisories (xmldom, adm-zip, qs, fflate) (#2674)
+- Shape Anthropic requests per model so Sonnet 5 is a settings change (#2673)
+- Bump functions/ nodemailer 9 -> 10 (clears the high-severity advisory) (#2672)
+- Firebase-admin v14 (4/4): bump functions/ to 14.5.0, drop unused firebase-functions-test (#2671)
+- Move the remaining 64 functions/ files to firebase-admin modular imports (#2670)
+- Move agents/ and teacherTools/ to firebase-admin modular imports (#2668)
+- Fix the Lenco payment-status poll and two importer callables throwing ReferenceError (#2667)
+- Move notifications, guardian, storage-cleanup and 14 more backend areas to firebase-admin modular imports (#2666)
+- Let a guardian pay via the signed pay link without a linked parent account (#2649)
+
+_Dependencies: 6 automated bumps (#2661, #2653, #2652, #2651, #2635, #2654)._
+
 ## 2026-09-14
 
 ### Internal
