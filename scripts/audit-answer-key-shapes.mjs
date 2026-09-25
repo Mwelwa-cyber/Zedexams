@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 /**
  * scripts/audit-answer-key-shapes.mjs
  *
@@ -190,14 +191,14 @@ const ARG = (name) => {
 async function loadAdmin() {
   let admin
   try {
-    admin = await import('firebase-admin')
+    admin = await loadAdminSdk()
   } catch {
     console.error('ERROR: this script needs `npm install --save-dev firebase-admin`')
     process.exit(1)
   }
   if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) return null
-  admin.default.initializeApp()
-  return admin.default
+  admin.initializeApp()
+  return admin
 }
 
 /**
@@ -223,7 +224,7 @@ async function* pagesOf(ref, cap = Infinity) {
 }
 
 async function runAgainstFirestore(admin) {
-  const db = admin.firestore()
+  const db = admin.getFirestore()
   const onlyQuiz = ARG('quiz')
   const quizCap = Number(ARG('limit')) || Infinity
   const showValues = FLAG('show-values')

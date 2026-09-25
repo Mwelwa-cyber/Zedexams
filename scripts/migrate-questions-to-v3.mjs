@@ -49,6 +49,7 @@
  *   transformation is correct before going live.
  */
 
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 import { JSDOM } from 'jsdom'
 
 // Stand up a DOM global BEFORE importing anything that touches document.
@@ -149,7 +150,7 @@ export function migrateQuestionRecord(raw, order) {
 async function runLive() {
   let admin
   try {
-    admin = await import('firebase-admin')
+    admin = await loadAdminSdk()
   } catch {
     console.error('ERROR: --live requires `npm install --save-dev firebase-admin`')
     process.exit(1)
@@ -160,8 +161,8 @@ async function runLive() {
     process.exit(1)
   }
 
-  admin.default.initializeApp()
-  const db = admin.default.firestore()
+  admin.initializeApp()
+  const db = admin.getFirestore()
 
   let migrated = 0
   let skipped = 0
@@ -200,7 +201,7 @@ async function runLive() {
           questionId: qDoc.id,
           error: String(err?.message || err),
           original: raw,
-          at: admin.default.firestore.FieldValue.serverTimestamp(),
+          at: admin.FieldValue.serverTimestamp(),
         })
         batchOps++
         console.log(`  FAIL  ${quizDoc.id}/${qDoc.id}  ${err?.message || err}`)
@@ -216,7 +217,7 @@ async function runLive() {
         quizId: quizDoc.id,
         questionId: qDoc.id,
         original: raw,
-        at: admin.default.firestore.FieldValue.serverTimestamp(),
+        at: admin.FieldValue.serverTimestamp(),
       })
       // 2. Write the migrated record over the original.
       batch.set(qDoc.ref, migratedRecord)

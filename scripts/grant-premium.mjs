@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 /**
  * scripts/grant-premium.mjs
  *
@@ -71,15 +72,15 @@ async function main() {
 
   let admin
   try {
-    admin = (await import('firebase-admin')).default
+    admin = (await loadAdminSdk())
   } catch {
     console.error('ERROR: install firebase-admin first: `npm install --save-dev firebase-admin`')
     process.exit(1)
   }
 
   admin.initializeApp()
-  const db = admin.firestore()
-  const { FieldValue, Timestamp } = admin.firestore
+  const db = admin.getFirestore()
+  const { FieldValue, Timestamp } = admin
 
   // Verify the user doc exists before touching it.
   const ref = db.doc(`users/${args.uid}`)

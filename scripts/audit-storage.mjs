@@ -33,9 +33,10 @@
  * orphan candidate.
  */
 
-import admin from "firebase-admin";
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 import process from "node:process";
 import {paperStoragePaths} from "./lib/paperStoragePaths.mjs";
+const admin = await loadAdminSdk()
 
 const argv = process.argv.slice(2);
 function flag(name) {
@@ -69,8 +70,8 @@ if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
 }
 
 admin.initializeApp({projectId: PROJECT_ID});
-const db = admin.firestore();
-const bucket = admin.storage().bucket();
+const db = admin.getFirestore();
+const bucket = admin.getStorage().bucket();
 
 const PREFIXES = [
   "lesson-files/",

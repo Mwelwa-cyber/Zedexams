@@ -53,6 +53,7 @@
  *   node scripts/migrate-normalize-subjects.mjs --live --limit=50
  */
 
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 import { normalizeSubject } from '../src/config/curriculum.js'
 
 const LIVE = process.argv.includes('--live')
@@ -91,7 +92,7 @@ export function repairSubject(raw, summary = {}) {
 async function runLive() {
   let admin
   try {
-    admin = await import('firebase-admin')
+    admin = await loadAdminSdk()
   } catch {
     console.error('ERROR: --live requires `npm install --save-dev firebase-admin`')
     process.exit(1)
@@ -102,8 +103,8 @@ async function runLive() {
     process.exit(1)
   }
 
-  admin.default.initializeApp()
-  const db = admin.default.firestore()
+  admin.initializeApp()
+  const db = admin.getFirestore()
 
   const totals = {
     docsInspected: 0,
@@ -135,7 +136,7 @@ async function runLive() {
         collection: collectionName,
         docId: doc.id,
         original: raw,
-        at: admin.default.firestore.FieldValue.serverTimestamp(),
+        at: admin.FieldValue.serverTimestamp(),
       })
       // Single-field merge — never clobber the rest of the doc.
       batch.set(doc.ref, patch, { merge: true })

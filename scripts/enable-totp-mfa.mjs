@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 /**
  * scripts/enable-totp-mfa.mjs
  *
@@ -82,14 +83,14 @@ async function main() {
 
   let admin;
   try {
-    admin = (await import("firebase-admin")).default;
+    admin = (await loadAdminSdk());
   } catch {
     console.error("ERROR: install firebase-admin first: `npm install --save-dev firebase-admin`");
     process.exit(1);
   }
 
   admin.initializeApp();
-  const auth = admin.auth();
+  const auth = admin.getAuth();
 
   const multiFactorConfig = {
     // Optional across the whole project — enforcement for administrators is

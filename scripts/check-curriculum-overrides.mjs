@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 /**
  * check-curriculum-overrides.mjs
  * ==============================
@@ -74,7 +75,7 @@ function versionArg() {
 async function main() {
   let admin
   try {
-    admin = await import('firebase-admin')
+    admin = await loadAdminSdk()
   } catch {
     console.error('ERROR: run `npm install --save-dev firebase-admin` first.')
     process.exit(1)
@@ -83,8 +84,8 @@ async function main() {
     console.error('ERROR: set GOOGLE_APPLICATION_CREDENTIALS to your service-account JSON path.')
     process.exit(1)
   }
-  admin.default.initializeApp()
-  const db = admin.default.firestore()
+  admin.initializeApp()
+  const db = admin.getFirestore()
 
   let version = versionArg()
   if (!version) {

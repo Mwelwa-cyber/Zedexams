@@ -53,6 +53,7 @@
  *   --live           Actually write. Default is dry-run.
  */
 
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -148,7 +149,7 @@ async function main() {
 
   let admin
   try {
-    admin = (await import('firebase-admin')).default
+    admin = (await loadAdminSdk())
   } catch {
     console.error('ERROR: install firebase-admin first: `npm install --save-dev firebase-admin`')
     process.exit(1)
@@ -158,9 +159,9 @@ async function main() {
   console.log(`# credential:    ${credential.kind}${credential.detail ? ` (${credential.detail})` : ''}`)
   console.log(`# project:       ${projectId} (from ${projectFrom})`)
   console.log(`# mode:          ${args.live ? 'LIVE — will write' : 'dry-run — writes nothing'}`)
-  const auth = admin.auth()
-  const db = admin.firestore()
-  const { FieldValue } = admin.firestore
+  const auth = admin.getAuth()
+  const db = admin.getFirestore()
+  const { FieldValue } = admin
 
   // ── 1. Firebase Auth user audit ───────────────────────────────────────
   let authUser

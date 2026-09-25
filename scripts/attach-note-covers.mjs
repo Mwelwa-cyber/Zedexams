@@ -36,6 +36,7 @@
  *                       examsprepzambia.appspot.com)
  */
 
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -125,15 +126,15 @@ async function main() {
       process.exit(1)
     }
     try {
-      admin = (await import('firebase-admin')).default
+      admin = (await loadAdminSdk())
     } catch {
       console.error('firebase-admin not installed. Run: npm install --save-dev firebase-admin')
       process.exit(1)
     }
     const bucketName = args.bucket || process.env.STORAGE_BUCKET || 'examsprepzambia.appspot.com'
     admin.initializeApp({ storageBucket: bucketName })
-    const db = admin.firestore()
-    bucket = admin.storage().bucket()
+    const db = admin.getFirestore()
+    bucket = admin.getStorage().bucket()
     const snap = await db.collection('lessons')
       .where('grade', '==', grade)
       .where('subject', '==', subject)
@@ -195,10 +196,10 @@ async function main() {
       })
       const url = `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket.name)}` +
         `/o/${encodeURIComponent(objectPath)}?alt=media&token=${token}`
-      await admin.firestore().collection('lessons').doc(note.id).update({
+      await admin.getFirestore().collection('lessons').doc(note.id).update({
         coverImage: url,
         coverImageStoragePath: objectPath,
-        coverImageUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        coverImageUpdatedAt: admin.FieldValue.serverTimestamp(),
       })
       wrote++
       console.log(`  wrote  ${note.title}`)

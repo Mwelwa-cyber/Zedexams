@@ -40,6 +40,7 @@
  *   node scripts/repair-published-papers-without-assets.mjs --live   # write
  *   node scripts/repair-published-papers-without-assets.mjs --json   # machine-readable
  */
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 import {
   hasReadablePaperSource,
   isPublishedWithoutReadableSource,
@@ -83,14 +84,14 @@ async function main() {
 
   let admin
   try {
-    admin = (await import('firebase-admin')).default
+    admin = (await loadAdminSdk())
   } catch {
     console.error('ERROR: install firebase-admin first: `npm install --save-dev firebase-admin`')
     process.exit(1)
   }
 
   admin.initializeApp()
-  const db = admin.firestore()
+  const db = admin.getFirestore()
 
   // Read every published paper and classify in memory. The archive is a few
   // hundred documents, and "published with no assets" is not a query Firestore
@@ -151,7 +152,7 @@ async function main() {
     try {
       await db.collection(COLLECTION).doc(p.id).update({
         status: 'draft',
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.FieldValue.serverTimestamp(),
       })
       updated += 1
       console.log(`  unpublished ${p.id}`)

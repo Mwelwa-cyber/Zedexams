@@ -37,6 +37,7 @@
  * per `tool` in the report rather than scanned three times.
  */
 
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 import { readFileSync, existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
@@ -164,9 +165,9 @@ async function loadDocs(family) {
     const all = JSON.parse(readFileSync(path.resolve(ROOT, FIXTURES), 'utf8'))
     return (all[family.id] || []).map((data, i) => ({ id: data.id || `fixture-${i}`, data, ref: null }))
   }
-  const admin = await import('firebase-admin')
-  if (!admin.default.apps.length) admin.default.initializeApp()
-  const db = admin.default.firestore()
+  const admin = await loadAdminSdk()
+  if (!admin.getApps().length) admin.initializeApp()
+  const db = admin.getFirestore()
   const snap = family.collectionGroup
     ? await db.collectionGroup(family.collectionGroup).get()
     : await db.collection(family.collection).get()

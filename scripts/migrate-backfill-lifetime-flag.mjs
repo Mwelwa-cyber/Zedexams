@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 /**
  * scripts/migrate-backfill-lifetime-flag.mjs
  *
@@ -96,7 +97,7 @@ export function decideLifetimeBackfill(user) {
 async function runLive() {
   let admin
   try {
-    admin = await import('firebase-admin')
+    admin = await loadAdminSdk()
   } catch {
     console.error('ERROR: --live requires `npm install --save-dev firebase-admin`')
     process.exit(1)
@@ -107,8 +108,8 @@ async function runLive() {
     process.exit(1)
   }
 
-  admin.default.initializeApp()
-  const db = admin.default.firestore()
+  admin.initializeApp()
+  const db = admin.getFirestore()
 
   const totals = {
     usersInspected: 0,
@@ -146,7 +147,7 @@ async function runLive() {
       previousLifetime: user.subscriptionLifetime ?? null,
       previousExpiry: user.subscriptionExpiry ?? null,
       plan: user.subscriptionPlan ?? user.plan ?? null,
-      at: admin.default.firestore.FieldValue.serverTimestamp(),
+      at: admin.FieldValue.serverTimestamp(),
     })
     batch.update(userDoc.ref, { subscriptionLifetime: true })
     batchOps += 2

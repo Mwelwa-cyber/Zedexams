@@ -1,4 +1,5 @@
-// Guards the firebase-admin namespace → modular migration in functions/.
+// Guards the firebase-admin namespace → modular migration in functions/ AND
+// the root scripts/ tree (the operations and migration scripts).
 //
 // firebase-admin 14 DELETES the namespace API: `admin.firestore()`,
 // `admin.auth()`, `admin.storage()`, `admin.messaging()`, `admin.appCheck()`
@@ -17,6 +18,14 @@
 // that uses the namespace fails; a file listed that no longer does also fails
 // (so the list cannot rot into something that only looks like a record).
 //
+// scripts/ is scanned too (2026-09, with the root firebase-admin moving to 14).
+// Those files are run by hand against production, so a namespace call there
+// fails at the worst moment and no CI job would ever have executed it. They
+// load the SDK through scripts/lib/adminSdk.mjs (sdk.getFirestore(),
+// sdk.FieldValue, sdk.getApps()). Their pattern is wider than functions/':
+// they reached the SDK as `admin.default.firestore()` through a dynamic
+// import, and used `admin.apps` / `admin.credential`, both also gone in 14.
+//
 // Run: npm run test:firebase-admin-modular  (auto-discovered by test:all)
 
 import {readFileSync, readdirSync, statSync} from "node:fs";
@@ -24,7 +33,10 @@ import {join, relative} from "node:path";
 import {fileURLToPath} from "node:url";
 import assert from "node:assert/strict";
 
-const ROOT = join(fileURLToPath(new URL(".", import.meta.url)), "..", "functions");
+const HERE = fileURLToPath(new URL(".", import.meta.url));
+const ROOT = join(HERE, "..", "functions");
+const SCRIPTS = HERE;
+const SELF = fileURLToPath(import.meta.url);
 
 // Namespace service calls and the statics that live on them. Deliberately NOT
 // `admin.initializeApp` / `admin.apps` / `admin.credential`: initializeApp
@@ -59,6 +71,15 @@ export function usesNamespace(src) {
   return NAMESPACE_USE.test(stripComments(src));
 }
 
+// Root scripts: the same services, reached directly or through `.default`,
+// plus the two app-level members 14 also removed.
+export const SCRIPT_NAMESPACE_USE =
+  /\badmin(?:\.default)?\.(?:firestore|auth|storage|messaging|appCheck|database|remoteConfig|securityRules|machineLearning|projectManagement|installations|instanceId|apps|credential)\b/;
+
+export function scriptUsesNamespace(src) {
+  return SCRIPT_NAMESPACE_USE.test(stripComments(src));
+}
+
 // A TEST file is only a problem when it drives the REAL SDK. Most tests fake
 // firebase-admin — through a Module._load hook, or by patching properties onto
 // the admin object — and calling `admin.firestore()` on their own fake is fine
@@ -86,6 +107,12 @@ assert.ok(!testDrivesRealNamespace('const admin = require("firebase-admin");\nMo
 assert.ok(!testDrivesRealNamespace('const admin = require("firebase-admin");\nObject.defineProperty(admin, "firestore", {value: () => db});\nadmin.firestore();'),
     "test detector flags a test that patches the admin object");
 
+assert.ok(scriptUsesNamespace("const db = admin.default.firestore()"), "script detector misses admin.default.firestore()");
+assert.ok(scriptUsesNamespace("if (!admin.apps.length) admin.initializeApp()"), "script detector misses admin.apps");
+assert.ok(scriptUsesNamespace("admin.initializeApp({credential: admin.credential.cert(sa)})"), "script detector misses admin.credential");
+assert.ok(!scriptUsesNamespace("const db = admin.getFirestore(); if (!admin.getApps().length) admin.initializeApp()"),
+    "script detector flags the modular calls adminSdk.mjs returns");
+
 const offenders = [];
 const stale = [];
 const seen = new Set();
@@ -102,6 +129,18 @@ for (const file of walk(ROOT, isSource)) {
 }
 for (const rel of LEGACY) if (!seen.has(rel) && !stale.includes(rel)) stale.push(rel);
 
+const scriptOffenders = [];
+let scriptsScanned = 0;
+const isScript = (name) => /\.(?:m?js|cjs)$/.test(name);
+for (const file of walk(SCRIPTS, isScript)) {
+  if (file === SELF) continue;
+  scriptsScanned++;
+  if (scriptUsesNamespace(readFileSync(file, "utf8"))) {
+    scriptOffenders.push("scripts/" + relative(SCRIPTS, file).split("\\").join("/"));
+  }
+}
+assert.ok(scriptsScanned > 100, `expected to scan the scripts/ tree, scanned ${scriptsScanned} files`);
+
 if (offenders.length) {
   console.error("New firebase-admin namespace usage (removed in v14) — use the modular import instead:");
   for (const f of offenders) console.error("  functions/" + f);
@@ -110,6 +149,10 @@ if (stale.length) {
   console.error("Migrated (or deleted) but still listed in LEGACY — delete these lines from scripts/test-firebase-admin-modular.mjs:");
   for (const f of stale) console.error("  functions/" + f);
 }
-if (offenders.length || stale.length) process.exit(1);
+if (scriptOffenders.length) {
+  console.error("firebase-admin namespace usage in scripts/ (removed in v14) — load the SDK with scripts/lib/adminSdk.mjs:");
+  for (const f of scriptOffenders) console.error("  " + f);
+}
+if (offenders.length || stale.length || scriptOffenders.length) process.exit(1);
 
-console.log(`test:firebase-admin-modular OK — ${LEGACY.size} file(s) on the namespace API (must be 0 on firebase-admin 14).`);
+console.log(`test:firebase-admin-modular OK — ${LEGACY.size} file(s) on the namespace API (must be 0 on firebase-admin 14); ${scriptsScanned} scripts/ files clean.`);

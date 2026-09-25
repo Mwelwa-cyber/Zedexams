@@ -73,6 +73,7 @@
  * them against a fixture, so the logic can be reviewed with no project access.
  */
 
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 import { planPhantomCleanup } from '../src/features/assessmentStudio/lib/phantomAssessment.js'
 import { createStandaloneSection, serializeQuizSections } from '../src/utils/quizSections.js'
 import { confirmByTyping } from './lib/confirmPrompt.mjs'
@@ -98,14 +99,14 @@ function describe(row) {
 async function loadAdmin() {
   let admin
   try {
-    admin = await import('firebase-admin')
+    admin = await loadAdminSdk()
   } catch {
     console.error('ERROR: this script needs `npm install --save-dev firebase-admin`')
     process.exit(1)
   }
   if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) return null
-  admin.default.initializeApp()
-  return admin.default
+  admin.initializeApp()
+  return admin
 }
 
 async function readCandidates(db) {
@@ -141,7 +142,7 @@ async function deletePhantoms(admin, db, rows) {
       original: row.assessment,
       questions: row.questions,
       evidence: row.evidence,
-      at: admin.firestore.FieldValue.serverTimestamp(),
+      at: admin.FieldValue.serverTimestamp(),
     })
     ops += 1
     for (const ref of row.questionRefs) {
@@ -156,7 +157,7 @@ async function deletePhantoms(admin, db, rows) {
 }
 
 async function runAgainstFirestore(admin) {
-  const db = admin.firestore()
+  const db = admin.getFirestore()
   console.log(`Scanning assessments${TEACHER ? ` for teacher ${TEACHER}` : ''}…\n`)
   const entries = await readCandidates(db)
   const { remove, keep } = planPhantomCleanup(entries)

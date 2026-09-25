@@ -88,6 +88,7 @@
  * pretends to have scanned anything.
  */
 
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 import { confirmByTyping } from './lib/confirmPrompt.mjs'
 
 /**
@@ -129,14 +130,14 @@ const LIMIT = arg('limit') ? Number(arg('limit')) : Infinity
 async function loadAdmin() {
   let admin
   try {
-    admin = await import('firebase-admin')
+    admin = await loadAdminSdk()
   } catch {
     console.error('ERROR: this script needs `npm install --save-dev firebase-admin`')
     process.exit(1)
   }
   if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) return null
-  admin.default.initializeApp()
-  return admin.default
+  admin.initializeApp()
+  return admin
 }
 
 /**
@@ -189,7 +190,7 @@ async function purgeCollection(admin, db, collection) {
         collection,
         docId: doc.id,
         original: doc.data(),
-        at: admin.firestore.FieldValue.serverTimestamp(),
+        at: admin.FieldValue.serverTimestamp(),
       })
       batch.delete(doc.ref)
       ops += 2
@@ -248,7 +249,7 @@ async function clearLinkedUids(admin, db, { dryRun }) {
     batch.set(backupRoot.doc(doc.ref.path.replace(/\//g, '__')), {
       path: doc.ref.path,
       linkedUid: doc.data().linkedUid,
-      at: admin.firestore.FieldValue.serverTimestamp(),
+      at: admin.FieldValue.serverTimestamp(),
     })
     batch.update(doc.ref, { linkedUid: null })
     ops += 2
@@ -263,7 +264,7 @@ async function clearLinkedUids(admin, db, { dryRun }) {
 }
 
 async function runAgainstFirestore(admin) {
-  const db = admin.firestore()
+  const db = admin.getFirestore()
   const collections = resolveCollections(ONLY)
   if (collections.length === 0) {
     console.error(

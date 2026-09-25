@@ -47,6 +47,7 @@
  * migrate-diagram-assets.mjs and cleanup-phantom-assessments.
  */
 
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 import { writeFileSync } from 'node:fs'
 import { planPaperSourceMigration } from '../src/utils/paperSourceMigration.js'
 import { confirmByTyping } from './lib/confirmPrompt.mjs'
@@ -65,14 +66,14 @@ const COLLECTION = 'pastPapers'
 async function loadAdmin() {
   let admin
   try {
-    admin = await import('firebase-admin')
+    admin = await loadAdminSdk()
   } catch {
     console.error('ERROR: this script needs `npm install --save-dev firebase-admin`')
     process.exit(1)
   }
   if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) return null
-  admin.default.initializeApp()
-  return admin.default
+  admin.initializeApp()
+  return admin
 }
 
 // ── Reporting ─────────────────────────────────────────────────────────
@@ -159,7 +160,7 @@ async function main() {
     return
   }
 
-  const db = admin.firestore()
+  const db = admin.getFirestore()
   const snap = await db.collection(COLLECTION).get()
   const papers = []
   const existingKeys = new Map()
@@ -205,7 +206,7 @@ async function main() {
   for (const row of plan.writes) {
     batch.update(db.collection(COLLECTION).doc(row.id), {
       ...row.after,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.FieldValue.serverTimestamp(),
     })
     ops += 1
     if (ops >= BATCH_SIZE) await flush()

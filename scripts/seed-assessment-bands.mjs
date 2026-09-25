@@ -26,6 +26,7 @@
  *   node scripts/seed-assessment-bands.mjs --live --id lower_primary
  */
 
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 import {
   ASSESSMENT_BAND_SEED, BAND_IDS, validateBand,
 } from '../src/config/assessmentBands.js'
@@ -96,15 +97,15 @@ async function main() {
 
   let admin
   try {
-    admin = (await import('firebase-admin')).default
+    admin = (await loadAdminSdk())
   } catch {
     console.error('ERROR: install firebase-admin first: `npm install --save-dev firebase-admin`')
     process.exit(1)
   }
 
   admin.initializeApp()
-  const db = admin.firestore()
-  const { FieldValue } = admin.firestore
+  const db = admin.getFirestore()
+  const { FieldValue } = admin
 
   for (const id of ids) {
     await db.doc(`assessmentBands/${id}`).set({

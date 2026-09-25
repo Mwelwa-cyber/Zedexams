@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { loadAdminSdk } from './lib/adminSdk.mjs'
 /**
  * scripts/migrate-grade6-to-grade7.mjs
  *
@@ -65,7 +66,7 @@ async function runLive() {
 
   let admin
   try {
-    admin = await import('firebase-admin')
+    admin = await loadAdminSdk()
   } catch {
     console.error('firebase-admin not installed. Run:')
     console.error('  npm install --save-dev firebase-admin')
@@ -79,8 +80,8 @@ async function runLive() {
     process.exit(1)
   }
 
-  admin.default.initializeApp()
-  const db = admin.default.firestore()
+  admin.initializeApp()
+  const db = admin.getFirestore()
 
   const totals = { migrated: 0, skipped: 0, inspected: 0 }
 
@@ -113,12 +114,12 @@ async function runLive() {
         collection: collectionName,
         docId: docSnap.id,
         original: raw,
-        at: admin.default.firestore.FieldValue.serverTimestamp(),
+        at: admin.FieldValue.serverTimestamp(),
       })
       // 2. Re-tag the original.
       batch.update(docSnap.ref, {
         grade: TO_GRADE,
-        regradedAt: admin.default.firestore.FieldValue.serverTimestamp(),
+        regradedAt: admin.FieldValue.serverTimestamp(),
         regradedFrom: FROM_GRADE,
       })
       batchOps += 2
