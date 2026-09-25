@@ -5,6 +5,12 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-09-25
+
+### Changed
+
+- Move the root scripts to firebase-admin 14 (#2681)
+
 ## 2026-09-24
 
 ### Changed
