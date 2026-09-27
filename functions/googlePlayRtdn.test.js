@@ -207,10 +207,105 @@ function fakeDb({payments = {}, users = {}} = {}) {
     ok("renewal passes the productId so the right endpoint is used",
         verifyCalls[0].productId === "learner_premium_monthly");
     ok("renewal reports the verified status", r.status === "active" && r.reason === "RENEWED");
-    // The beneficiary is NOT re-asserted: the stored payment already names
-    // the child and activation resolves it from there.
-    ok("renewal does not re-assert an unauthorised beneficiary",
-        verifyCalls[0].beneficiaryUid === undefined);
+    // A renewal is a NEW payment doc (keyed by the new expiry), so the child
+    // the token was bought for must travel with it or the renewal credits
+    // the parent. It comes from the stored payment — authorised at purchase.
+    ok("renewal carries the stored beneficiary (child keeps the grant)",
+        verifyCalls[0].beneficiaryUid === "child-1");
+  }
+
+  // ── The Play API gets a real bearer token ───────────────────────────
+  {
+    const db = fakeDb({payments: {gp_1: {userId: "u1", status: "successful",
+      googlePlayPurchaseToken: TOKEN}}});
+    const verifyCalls = [];
+    let minted = 0;
+    await handleRtdnMessage({
+      message: subNotification(SUBSCRIPTION_NOTIFICATION.ON_HOLD),
+      db,
+      expectedPackage: PKG,
+      getAccessToken: async () => { minted += 1; return "tok-123"; },
+      emailSecrets: {senderEmail: "a@b.c"},
+      verify: async (args) => { verifyCalls.push(args); return {status: "expired"}; },
+    });
+    ok("re-verify is handed a minted access token (never Bearer null)",
+        minted === 1 && verifyCalls[0].accessToken === "tok-123");
+    ok("re-verify is handed the email secrets", verifyCalls[0].emailSecrets.senderEmail === "a@b.c");
+    ok("no beneficiary on a self-purchase", verifyCalls[0].beneficiaryUid === undefined);
+
+    // A token that cannot be minted must THROW so Pub/Sub redelivers.
+    let threw = false;
+    try {
+      await handleRtdnMessage({
+        message: subNotification(SUBSCRIPTION_NOTIFICATION.RENEWED),
+        db,
+        expectedPackage: PKG,
+        getAccessToken: async () => { throw new Error("token-fetch-failed"); },
+        verify: async () => ({status: "active"}),
+      });
+    } catch { threw = true; }
+    ok("token mint failure throws (redelivered, not lost)", threw);
+
+    // And a transient verify failure too.
+    threw = false;
+    try {
+      await handleRtdnMessage({
+        message: subNotification(SUBSCRIPTION_NOTIFICATION.RENEWED),
+        db,
+        expectedPackage: PKG,
+        verify: async () => { throw new Error("Play API error 503"); },
+      });
+    } catch { threw = true; }
+    ok("transient Play failure throws (redelivered, not lost)", threw);
+  }
+
+  // ── A voided ORDER lapses only its own period ───────────────────────
+  {
+    const db = fakeDb({
+      payments: {
+        gp_march: {userId: "u1", status: "successful", googlePlayPurchaseToken: TOKEN,
+          googlePlayOrderId: "GPA.1-0"},
+        gp_april: {userId: "u1", status: "successful", googlePlayPurchaseToken: TOKEN,
+          googlePlayOrderId: "GPA.1-1"},
+      },
+      // u1 has since renewed: their current grant is April's payment.
+      users: {u1: {subscriptionPlan: "monthly", subscriptionPaymentId: "gp_april"}},
+    });
+    const out = await revokeGrantsForToken(db, {purchaseToken: TOKEN, orderId: "GPA.1-0", nowMs: 1});
+    ok("refund of an OLD period does not lapse the current grant",
+        !db.__updates.some((u) => u.collection === "users"));
+    ok("only the refunded order is stamped refunded",
+        db.__updates.filter((u) => u.collection === "payments").map((u) => u.id).join() === "gp_march");
+    ok("the skip is reported", out.skipped.includes("u1"));
+
+    const db2 = fakeDb({
+      payments: {gp_april: {userId: "u1", status: "successful", googlePlayPurchaseToken: TOKEN,
+        googlePlayOrderId: "GPA.1-1"}},
+      users: {u1: {subscriptionPlan: "monthly", subscriptionPaymentId: "gp_april"}},
+    });
+    await revokeGrantsForToken(db2, {purchaseToken: TOKEN, orderId: "GPA.1-1", nowMs: 1});
+    ok("refund of the CURRENT period lapses it",
+        db2.__updates.some((u) => u.collection === "users" && u.id === "u1"));
+
+    const db3 = fakeDb({
+      payments: {gp_april: {userId: "u1", status: "successful", googlePlayPurchaseToken: TOKEN,
+        googlePlayOrderId: "GPA.1-1"}},
+      users: {u1: {subscriptionPlan: "monthly", subscriptionPaymentId: "gp_april"}},
+    });
+    const out3 = await revokeGrantsForToken(db3, {purchaseToken: TOKEN, orderId: "GPA.9-9", nowMs: 1});
+    ok("an order we never recorded revokes nothing (flagged for review)",
+        out3.reason === "order-not-found" && db3.__updates.length === 0);
+  }
+
+  // ── A web / admin grant is never lapsed by a Play refund ────────────
+  {
+    const db = fakeDb({
+      payments: {gp_1: {userId: "u1", status: "successful", googlePlayPurchaseToken: TOKEN}},
+      users: {u1: {subscriptionPlan: "monthly", subscriptionPaymentId: "lenco_later"}},
+    });
+    await revokeGrantsForToken(db, {purchaseToken: TOKEN, nowMs: 1});
+    ok("credited account now on a Lenco grant → untouched",
+        !db.__updates.some((u) => u.collection === "users"));
   }
 
   // ── A token we have never seen ──────────────────────────────────────
@@ -296,6 +391,19 @@ function fakeDb({payments = {}, users = {}} = {}) {
       expectedPackage: PKG,
     });
     ok("garbage message → ignore, never a throw", r.action === "ignore");
+  }
+
+  // ── The voided notification's order id reaches the revoke ───────────
+  {
+    const calls = [];
+    await handleRtdnMessage({
+      message: envelope({packageName: PKG,
+        voidedPurchaseNotification: {purchaseToken: TOKEN, productType: 1, orderId: "GPA.7-2"}}),
+      db: fakeDb(),
+      expectedPackage: PKG,
+      revoke: async (args) => { calls.push(args); return {payments: 0, revoked: [], reason: null}; },
+    });
+    ok("voided orderId is passed to the revoke", calls[0].orderId === "GPA.7-2");
   }
 
   console.log(`\n${passed} passed`);

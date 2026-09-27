@@ -281,7 +281,11 @@ export default function PlayUpgradePanel({ onClose, portal, planIds, defaultPlan
               </h3>
               <p className="text-sm text-gray-600 mt-2">
                 {userProfile?.subscriptionProvider === 'google_play'
-                  ? `Your subscription renews through Google Play${formatExpiry(subStatus.expiry) ? ` — current period ends ${formatExpiry(subStatus.expiry)}` : ''}.`
+                  // false only once the buyer cancelled in Play (null = Play
+                  // has not said, which keeps the default wording).
+                  ? userProfile?.googlePlayAutoRenewing === false
+                    ? `You cancelled this in Google Play, so it won’t renew${formatExpiry(subStatus.expiry) ? ` — you keep full access until ${formatExpiry(subStatus.expiry)}` : ''}.`
+                    : `Your subscription renews through Google Play${formatExpiry(subStatus.expiry) ? ` — current period ends ${formatExpiry(subStatus.expiry)}` : ''}.`
                   : `Your current plan was purchased on zedexams.com and stays active${formatExpiry(subStatus.expiry) ? ` until ${formatExpiry(subStatus.expiry)}` : ''}. To change or renew it, visit zedexams.com in a browser.`}
               </p>
               {userProfile?.subscriptionProvider === 'google_play' && (

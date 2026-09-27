@@ -196,6 +196,15 @@ describe('PlayUpgradePanel', () => {
     expect(fetchPlayProducts).not.toHaveBeenCalled()
   })
 
+  it('a subscriber who cancelled in Play is told it will not renew', async () => {
+    mockProfile = { ...activePlayLearner(), googlePlayAutoRenewing: false }
+    renderPanel()
+    expect(await screen.findByText(/cancelled this in Google Play, so it won/i)).toBeInTheDocument()
+    expect(screen.queryByText(/renews through Google Play/i)).toBeNull()
+    // Still offered Play's own screen, where it can be restarted.
+    expect(screen.getByRole('button', { name: /Manage Google Play Subscription/i })).toBeInTheDocument()
+  })
+
   it('a web-subscribed user is pointed back to zedexams.com, with no Play manage button', async () => {
     mockProfile = { ...activePlayLearner(), subscriptionProvider: 'lenco' }
     renderPanel()

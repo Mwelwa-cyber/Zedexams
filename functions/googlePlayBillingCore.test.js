@@ -113,6 +113,17 @@ ok("offerPhase.freeTrial → freeTrial true",
 ok("offerPhase.basePrice → freeTrial false",
     parseSubscriptionV2({...activeBody, lineItems: [{...activeBody.lineItems[0],
       offerPhase: {basePrice: {}}}]}).freeTrial === false);
+ok("no autoRenewingPlan → autoRenewing null (Play did not say)", parsedActive.autoRenewing === null);
+ok("autoRenewEnabled true → autoRenewing true",
+    parseSubscriptionV2({...activeBody, lineItems: [{...activeBody.lineItems[0],
+      autoRenewingPlan: {autoRenewEnabled: true}}]}).autoRenewing === true);
+ok("autoRenewEnabled false → autoRenewing false",
+    parseSubscriptionV2({...activeBody, lineItems: [{...activeBody.lineItems[0],
+      autoRenewingPlan: {autoRenewEnabled: false}}]}).autoRenewing === false);
+ok("CANCELED state → autoRenewing false even with a stale flag",
+    parseSubscriptionV2({...activeBody, subscriptionState: "SUBSCRIPTION_STATE_CANCELED",
+      lineItems: [{...activeBody.lineItems[0], autoRenewingPlan: {autoRenewEnabled: true}}]})
+        .autoRenewing === false);
 ok("empty externalAccountIdentifiers → ''",
     parseSubscriptionV2({...activeBody, externalAccountIdentifiers: {}})
         .obfuscatedAccountId === "");

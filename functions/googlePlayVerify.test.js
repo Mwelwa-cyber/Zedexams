@@ -234,6 +234,19 @@ function reset() {
   r = await runVerify({body: trialBody});
   ok("free-trial phase → no grant", r.status === "noop" && activateCalls.length === 0);
 
+  // ── Cancellation reaches the user even when the period is unchanged ──
+  // A CANCELED re-verify derives the SAME payment id, so activation is a
+  // no-op; the auto-renew flag must still be written or the UI keeps
+  // saying "Renews on".
+  reset();
+  store["users/u1"] = {googlePlayAutoRenewing: true};
+  const cancelBody = playBody({state: "SUBSCRIPTION_STATE_CANCELED"});
+  r = await runVerify({body: cancelBody});
+  ok("cancelled but paid-through → still active", r.status === "active");
+  ok("cancelled → googlePlayAutoRenewing false on the user",
+      store["users/u1"].googlePlayAutoRenewing === false);
+  ok("result reports autoRenewing false", r.autoRenewing === false);
+
   // ── Never-downgrade: Lenco user with an expired Play token ───────────
   reset();
   const lencoUser = {

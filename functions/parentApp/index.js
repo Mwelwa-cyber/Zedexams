@@ -326,6 +326,10 @@ async function listGuardianChildren(request) {
       premiumExpiresAt: childPlanState(child, Date.now()).expiresAt,
       subscriptionProvider: child.subscriptionProvider || null,
       subscriptionPlan: child.subscriptionPlan || null,
+      // false once the buyer has cancelled in Google Play; null when Play
+      // has not said. Drives "Renews on" vs "Access until" on /family/plan.
+      googlePlayAutoRenewing: typeof child.googlePlayAutoRenewing === "boolean" ?
+        child.googlePlayAutoRenewing : null,
       // The consent record, so /family/account/consent can show what
       // this guardian has approved without a second round trip — and so
       // the promise on /child-safety ("you can see, change and withdraw
@@ -396,6 +400,8 @@ async function getGuardianChildDetail(request) {
     premiumExpiresAt: planState.expiresAt,
     subscriptionProvider: child.subscriptionProvider || null,
     subscriptionPlan: child.subscriptionPlan || null,
+    googlePlayAutoRenewing: typeof child.googlePlayAutoRenewing === "boolean" ?
+      child.googlePlayAutoRenewing : null,
     controls: readGuardianControls(child),
     summary: progress.summary,
     subjectBreakdown: progress.subjectBreakdown,

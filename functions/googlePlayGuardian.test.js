@@ -48,7 +48,24 @@ const makeRef = (col, id) => ({
   update: async (data) => { store[k(col, id)] = {...(store[k(col, id)] || {}), ...data}; },
 });
 const db = {
-  collection: (col) => ({doc: (id) => makeRef(col, id)}),
+  collection: (col) => ({
+    doc: (id) => makeRef(col, id),
+    where: (field, _op, value) => {
+      const q = {
+        limit: () => q,
+        get: async () => {
+          const docs = Object.keys(store)
+              .filter((key) => key.startsWith(`${col}/`) && store[key]?.[field] === value)
+              .map((key) => {
+                const id = key.slice(col.length + 1);
+                return {id, data: () => store[key], ref: makeRef(col, id)};
+              });
+          return {empty: docs.length === 0, docs};
+        },
+      };
+      return q;
+    },
+  }),
   runTransaction: async (fn) => fn({
     get: async (ref) => snapFor(ref.__col, ref.__id),
     set: (ref, data) => { store[k(ref.__col, ref.__id)] = {...data}; },
@@ -321,6 +338,36 @@ async function run({
   r = await run({productId: MONTHLY, sub: subBody(), beneficiaryUid: CHILD});
   ok("Play grant refused while the CHILD is live on Lenco",
       r.status === "cross_rail_conflict");
+
+  // ── A lapse reaches the CHILD the token was bought for ──────────────
+  // (RTDN / restore re-verify with the stored beneficiary.) The grant sits
+  // on the child's document, so deciding from the parent's would lapse
+  // nothing. Cascaded siblings of the same payment lapse with it; a sibling
+  // on a plan somebody else paid for does not.
+  reset();
+  store[`users/${CHILD}`] = {
+    displayName: "Mutinta Banda",
+    subscriptionProvider: "google_play",
+    googlePlayPurchaseToken: "tok-1",
+    subscriptionPaymentId: "gp_child",
+    subscriptionPlan: "monthly",
+    subscriptionExpiry: {toMillis: () => FUT},
+  };
+  store["users/sibling-1"] = {subscriptionProvider: "guardian_cascade",
+    subscriptionPaymentId: "gp_child", subscriptionExpiry: {toMillis: () => FUT}};
+  store["users/sibling-2"] = {subscriptionProvider: "lenco",
+    subscriptionPaymentId: "lenco_other", subscriptionExpiry: {toMillis: () => FUT}};
+  r = await run({productId: MONTHLY, beneficiaryUid: CHILD,
+    sub: {...subBody(), subscriptionState: "SUBSCRIPTION_STATE_ON_HOLD"}});
+  ok("on-hold guardian sub → expired", r.status === "expired");
+  ok("the CHILD's grant is lapsed to now",
+      store[`users/${CHILD}`].subscriptionExpiry._ms === NOW);
+  ok("the cascaded sibling of the same payment is lapsed",
+      store["users/sibling-1"].subscriptionExpiry._ms === NOW);
+  ok("a sibling on somebody else's plan is untouched",
+      store["users/sibling-2"].subscriptionExpiry._ms === undefined);
+  ok("the parent's own document is untouched",
+      store[`users/${PARENT}`].subscriptionExpiry === undefined);
 
   // Renewing on the rail you are already on is the ordinary case.
   reset();

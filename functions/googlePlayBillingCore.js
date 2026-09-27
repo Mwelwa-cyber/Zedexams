@@ -135,7 +135,11 @@ function parseSubscriptionV2(body) {
   let basePlanId = null;
   let expiryTimeMs = 0;
   let freeTrial = false;
+  const renewFlags = [];
   for (const item of items) {
+    if (item.autoRenewingPlan && typeof item.autoRenewingPlan === "object") {
+      renewFlags.push(item.autoRenewingPlan.autoRenewEnabled === true);
+    }
     // offerPhase names which phase of its offer a line item is in right now
     // (basePrice / introductoryPrice / freeTrial / prorationPeriod). Only a
     // free trial means nothing has been charged — see decideEntitlementUpdate.
@@ -157,12 +161,21 @@ function parseSubscriptionV2(body) {
   const ext = body.externalAccountIdentifiers || {};
   const obfuscatedAccountId = ext.obfuscatedExternalAccountId ?
     String(ext.obfuscatedExternalAccountId) : "";
+  const state = String(body.subscriptionState || "");
+  // Will Play charge again at expiryTime? CANCELED says no outright; else
+  // the line items' autoRenewingPlan says. null = Play did not say (a
+  // prepaid plan, or an older response shape) — the UI then keeps its
+  // default rather than guessing either way.
+  let autoRenewing = null;
+  if (state === "SUBSCRIPTION_STATE_CANCELED") autoRenewing = false;
+  else if (renewFlags.length) autoRenewing = renewFlags.some(Boolean);
   return {
     productId,
     basePlanId,
     expiryTimeMs,
     freeTrial,
-    state: String(body.subscriptionState || ""),
+    autoRenewing,
+    state,
     acknowledged:
       String(body.acknowledgementState || "") ===
       "ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED",
