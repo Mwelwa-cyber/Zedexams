@@ -5,6 +5,21 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-09-27
+
+### Added
+
+- Deploy googlePlayRtdn now that the play-rtdn topic exists (#2685)
+
+### Fixed
+
+- Never grant Premium for a declined or unpaid Play period (#2684)
+
+### Changed
+
+- Re-hold the googlePlayRtdn export — deploy can't create its topic (#2686)
+- Move the root scripts to firebase-admin 14 (#2681)
+
 ## 2026-09-24
 
 ### Changed
