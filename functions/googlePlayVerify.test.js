@@ -196,6 +196,44 @@ function reset() {
   ok("premium flags untouched (read-time expiry does the downgrade)",
       !("premium" in store["users/u1"]));
 
+  // ── Insufficient funds: a declined charge must never grant ──────────
+  // Play parks a declined renewal in IN_GRACE_PERIOD with a FUTURE
+  // expiryTime while it retries. That used to mint a "successful" payment
+  // and a full paid period for money Google never collected.
+  reset();
+  store["users/u1"] = {};
+  const weeklyFut = NOW + 7 * 24 * 3600 * 1000;
+  r = await runVerify({body: playBody({productId: "learner_premium_weekly",
+    state: "SUBSCRIPTION_STATE_IN_GRACE_PERIOD", expiryMs: weeklyFut})});
+  ok("grace period (declined charge) → no grant", r.status === "noop");
+  ok("grace period → zero activations", activateCalls.length === 0);
+  ok("grace period → no payment doc written",
+      !Object.keys(store).some((k) => k.startsWith("payments/")));
+  ok("grace period → purchase NOT acknowledged", ackCalls.length === 0);
+
+  // Same, for a buyer who already holds a grant from this token (e.g. one
+  // minted by the old code): lapse to NOW, never to the future grace end.
+  reset();
+  store["users/u1"] = {
+    subscriptionProvider: "google_play",
+    googlePlayPurchaseToken: TOKEN,
+    subscriptionPlan: "weekly",
+    subscriptionExpiry: firestoreFn.Timestamp.fromMillis(weeklyFut),
+  };
+  r = await runVerify({body: playBody({productId: "learner_premium_weekly",
+    state: "SUBSCRIPTION_STATE_IN_GRACE_PERIOD", expiryMs: weeklyFut})});
+  ok("grace period on a held grant → expired", r.status === "expired");
+  ok("lapse is written as now, not the future grace end",
+      store["users/u1"].subscriptionExpiry.toMillis() === NOW);
+
+  // Free-trial phase: nothing has been charged yet.
+  reset();
+  store["users/u1"] = {};
+  const trialBody = playBody({productId: "learner_premium_weekly", expiryMs: weeklyFut});
+  trialBody.lineItems[0].offerPhase = {freeTrial: {}};
+  r = await runVerify({body: trialBody});
+  ok("free-trial phase → no grant", r.status === "noop" && activateCalls.length === 0);
+
   // ── Never-downgrade: Lenco user with an expired Play token ───────────
   reset();
   const lencoUser = {

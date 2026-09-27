@@ -505,6 +505,7 @@ async function verifyAndApplyPurchase({
     decideEntitlementUpdate({
       state: parsed.state,
       expiryTimeMs: parsed.expiryTimeMs,
+      freeTrial: !!parsed.freeTrial,
       nowMs,
       user: {
         subscriptionProvider: user.subscriptionProvider,
@@ -667,7 +668,9 @@ async function verifyAndApplyPurchase({
   }
 
   if (decision.action === "expire") {
-    const lapseMs = parsed.expiryTimeMs || nowMs;
+    // Never later than now: a grace-period or free-trial sub carries a
+    // FUTURE expiryTime, and writing that would be the unpaid grant again.
+    const lapseMs = Math.min(parsed.expiryTimeMs || nowMs, nowMs);
     const update = {
       subscriptionExpiry: Timestamp.fromMillis(lapseMs),
       googlePlaySyncedAt: FieldValue.serverTimestamp(),

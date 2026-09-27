@@ -134,7 +134,15 @@ function parseSubscriptionV2(body) {
   let productId = null;
   let basePlanId = null;
   let expiryTimeMs = 0;
+  let freeTrial = false;
   for (const item of items) {
+    // offerPhase names which phase of its offer a line item is in right now
+    // (basePrice / introductoryPrice / freeTrial / prorationPeriod). Only a
+    // free trial means nothing has been charged — see decideEntitlementUpdate.
+    if (item.offerPhase && typeof item.offerPhase === "object" &&
+        Object.prototype.hasOwnProperty.call(item.offerPhase, "freeTrial")) {
+      freeTrial = true;
+    }
     if (!productId && item.productId) productId = String(item.productId);
     if (!basePlanId && item.offerDetails && item.offerDetails.basePlanId) {
       basePlanId = String(item.offerDetails.basePlanId);
@@ -153,6 +161,7 @@ function parseSubscriptionV2(body) {
     productId,
     basePlanId,
     expiryTimeMs,
+    freeTrial,
     state: String(body.subscriptionState || ""),
     acknowledged:
       String(body.acknowledgementState || "") ===
@@ -226,12 +235,20 @@ function decideProductGrant({purchaseState} = {}) {
   return {action: "noop", reason: "purchase-pending"};
 }
 
-// States where the buyer is entitled right now. CANCELED means auto-renew
-// was switched off but the paid period still runs — access stays until
-// expiryTime passes (matching Play policy and buyer expectation).
+// States where Google has been PAID for the period that is running. CANCELED
+// means auto-renew was switched off but the paid period still runs — access
+// stays until expiryTime passes (matching Play policy and buyer expectation).
+//
+// SUBSCRIPTION_STATE_IN_GRACE_PERIOD is deliberately NOT here. Grace is what
+// Play enters when a renewal charge is DECLINED (insufficient funds, expired
+// card, no airtime) and it pushes expiryTime out to the end of the grace
+// window while it retries. Treating that as entitled minted a "successful"
+// K15 payment doc, emailed a receipt and granted the full period to an
+// account Google had not collected a single ngwee from. If the retry later
+// succeeds Google moves the sub back to ACTIVE with a new expiry
+// (SUBSCRIPTION_RECOVERED), which grants through the normal path.
 const ACTIVE_STATES = [
   "SUBSCRIPTION_STATE_ACTIVE",
-  "SUBSCRIPTION_STATE_IN_GRACE_PERIOD",
   "SUBSCRIPTION_STATE_CANCELED",
 ];
 
@@ -239,11 +256,13 @@ const ACTIVE_STATES = [
  * The never-downgrade brain. Decides what a verified Play subscription
  * means for the user doc:
  *
- *  - activate: state is entitled AND the expiry is in the future.
- *  - expire:   Google says the sub has lapsed (expired / on-hold / paused /
- *              revoked) AND this user's premium is Play-managed by THIS
- *              token AND they still look active locally. Writing Google's
- *              (past) expiry lapses access at read time.
+ *  - activate: state is paid (ACTIVE / CANCELED), the line item is NOT in
+ *              a free-trial phase, AND the expiry is in the future.
+ *  - expire:   Google says the sub is not paid-up (expired / on-hold /
+ *              paused / revoked / grace period / free trial) AND this
+ *              user's premium is Play-managed by THIS token AND they still
+ *              look active locally. The caller lapses access to now (or
+ *              Google's expiry, whichever is earlier).
  *  - noop:     everything else. Crucially: a user whose subscription came
  *              from Lenco / an admin grant / a different Play token is
  *              NEVER lapsed by a stale token — web subscriptions must be
@@ -252,14 +271,15 @@ const ACTIVE_STATES = [
  * @param {Object} args
  * @param {string} args.state           subscriptionState from Play.
  * @param {number} args.expiryTimeMs    parsed expiryTime (ms epoch).
+ * @param {boolean} [args.freeTrial]    line item is in a free-trial phase.
  * @param {number} args.nowMs           clock, injectable for tests.
  * @param {Object} args.user            users/{uid} snapshot data (needs
  *   subscriptionProvider, googlePlayPurchaseToken, subscriptionExpiryMs).
  * @param {string} args.purchaseToken   token being verified.
  * @returns {{action: "activate"|"expire"|"noop", reason?: string}}
  */
-function decideEntitlementUpdate({state, expiryTimeMs, nowMs, user, purchaseToken}) {
-  const activeNow = ACTIVE_STATES.includes(state) && expiryTimeMs > nowMs;
+function decideEntitlementUpdate({state, expiryTimeMs, freeTrial = false, nowMs, user, purchaseToken}) {
+  const activeNow = ACTIVE_STATES.includes(state) && !freeTrial && expiryTimeMs > nowMs;
   if (activeNow) return {action: "activate"};
   const u = user || {};
   if (u.subscriptionProvider !== "google_play") {

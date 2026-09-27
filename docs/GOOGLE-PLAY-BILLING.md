@@ -326,6 +326,20 @@ approved-linked learner.
   Play" and no in-app cancel (a Play subscription can only be cancelled in
   Play). Web buyers keep the in-app control. A one-time pass gets neither.
 
+## Only a PAID period grants (2026-09)
+
+`decideEntitlementUpdate` grants only for `SUBSCRIPTION_STATE_ACTIVE` /
+`SUBSCRIPTION_STATE_CANCELED`, and never while a line item's `offerPhase` is
+`freeTrial`. **`SUBSCRIPTION_STATE_IN_GRACE_PERIOD` does not grant**: grace is
+what Play enters when a charge is DECLINED (insufficient funds, no airtime),
+and it pushes `expiryTime` out while it retries. Granting on it recorded a
+"successful" payment, emailed a receipt and gave a full week of Premium to an
+account Google had collected nothing from. A grant this token already made is
+lapsed to NOW (never to the future grace end). If Play's retry succeeds the
+sub returns to ACTIVE with a new expiry and grants through the normal path.
+Grace period / free trial settings in Play Console no longer give access in
+the app; setting them is harmless but buys the buyer nothing until they pay.
+
 ## Known v1 limits / follow-ups
 
 - **RTDN is written but NOT DEPLOYED.** `googlePlayRtdn` (Pub/Sub,
