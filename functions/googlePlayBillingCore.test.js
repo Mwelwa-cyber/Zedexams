@@ -106,6 +106,13 @@ const boundBody = {
 };
 ok("parses obfuscatedExternalAccountId",
     parseSubscriptionV2(boundBody).obfuscatedAccountId === "uid-abc-123");
+ok("no offerPhase → freeTrial false", parsedActive.freeTrial === false);
+ok("offerPhase.freeTrial → freeTrial true",
+    parseSubscriptionV2({...activeBody, lineItems: [{...activeBody.lineItems[0],
+      offerPhase: {freeTrial: {}}}]}).freeTrial === true);
+ok("offerPhase.basePrice → freeTrial false",
+    parseSubscriptionV2({...activeBody, lineItems: [{...activeBody.lineItems[0],
+      offerPhase: {basePrice: {}}}]}).freeTrial === false);
 ok("empty externalAccountIdentifiers → ''",
     parseSubscriptionV2({...activeBody, externalAccountIdentifiers: {}})
         .obfuscatedAccountId === "");
@@ -150,8 +157,12 @@ const playUser = (expiryMs) => ({
   subscriptionExpiryMs: expiryMs,
 });
 
-function decide(state, expiryTimeMs, user, purchaseToken = TOKEN) {
-  return decideEntitlementUpdate({state, expiryTimeMs, nowMs: NOW, user, purchaseToken});
+function lencoUserEarly() {
+  return {subscriptionProvider: "lenco", googlePlayPurchaseToken: null, subscriptionExpiryMs: FUT};
+}
+
+function decide(state, expiryTimeMs, user, purchaseToken = TOKEN, freeTrial = false) {
+  return decideEntitlementUpdate({state, expiryTimeMs, freeTrial, nowMs: NOW, user, purchaseToken});
 }
 
 ok("ACTIVE_STATES includes canceled (paid-through until expiry)",
@@ -159,8 +170,23 @@ ok("ACTIVE_STATES includes canceled (paid-through until expiry)",
 
 ok("active + future expiry → activate",
     decide("SUBSCRIPTION_STATE_ACTIVE", FUT, playUser(FUT)).action === "activate");
-ok("grace period + future expiry → activate",
-    decide("SUBSCRIPTION_STATE_IN_GRACE_PERIOD", FUT, playUser(FUT)).action === "activate");
+// Grace = a renewal charge was DECLINED (insufficient funds). Google pushes
+// expiryTime out while it retries; granting on that gave a paid week to an
+// account Google collected nothing from.
+ok("ACTIVE_STATES excludes grace period (declined charge is not a payment)",
+    !ACTIVE_STATES.includes("SUBSCRIPTION_STATE_IN_GRACE_PERIOD"));
+ok("grace period + future expiry, new buyer → NOT activate",
+    decide("SUBSCRIPTION_STATE_IN_GRACE_PERIOD", FUT, {}).action === "noop");
+ok("grace period + future expiry, Play user holding it → expire",
+    decide("SUBSCRIPTION_STATE_IN_GRACE_PERIOD", FUT, playUser(FUT)).action === "expire");
+ok("grace period vs lenco-managed user → noop (never downgrade web)",
+    decide("SUBSCRIPTION_STATE_IN_GRACE_PERIOD", FUT, lencoUserEarly()).action === "noop");
+ok("pending (awaiting payment) + future expiry → NOT activate",
+    decide("SUBSCRIPTION_STATE_PENDING", FUT, {}).action === "noop");
+ok("active but in FREE-TRIAL phase → NOT activate",
+    decide("SUBSCRIPTION_STATE_ACTIVE", FUT, {}, TOKEN, true).action === "noop");
+ok("active + base-price phase → activate",
+    decide("SUBSCRIPTION_STATE_ACTIVE", FUT, {}, TOKEN, false).action === "activate");
 ok("canceled but paid-through (future expiry) → activate",
     decide("SUBSCRIPTION_STATE_CANCELED", FUT, playUser(FUT)).action === "activate");
 ok("active state but PAST expiry → not activate",
