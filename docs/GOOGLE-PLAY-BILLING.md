@@ -225,20 +225,14 @@ Android build.
 
 ## Real-time Developer Notifications (owner runbook)
 
-> **STATUS: the handler is written and tested; the EXPORT is held back.**
-> `functions/index.js` does not currently export `googlePlayRtdn`, because
-> `onMessagePublished` needs its topic to exist and `firebase deploy`
-> fails the WHOLE functions deploy when it cannot create one —
-> `Unexpected error creating Pub/Sub topic`. That took `main` out of
-> deployment on 2026-08-21 (run 32460825117, both attempts) — and again
-> on 2026-09-04 (run 33912046760, PR #2626), when the export merged to
-> `main` before the topic actually existed and was reverted the same day.
-> **Create the topic and IAM binding FIRST (steps 1 and 2 below), verify
-> them, THEN restore the export** (the commented block in
-> `functions/index.js` says exactly how) and regenerate the manifest.
-> Until then the Android rail still works — purchases verify through the
-> client's own `verifyGooglePlayPurchase` call and renewals land on the
-> next app open — it is only the real-time half that is off.
+> **STATUS (2026-09-27): exported and deployed.** The owner created the
+> `play-rtdn` topic, the Play publisher binding and the deployer's Pub/Sub
+> rights (steps 1 and 2 below) before the export was restored. Keep that
+> order if the topic is ever recreated: `onMessagePublished` needs its
+> topic at deploy time, and a missing one fails the WHOLE functions deploy
+> (`Unexpected error creating Pub/Sub topic` — runs 32460825117 on
+> 2026-08-21 and 33912046760 on 2026-09-04). Steps 3-5 (Play Console) are
+> still the owner's to do once the function is live.
 
 Without this, the ONLY thing that advances a Play subscription is the
 Android client's restore-on-open. That is survivable for a learner who
@@ -342,13 +336,9 @@ the app; setting them is harmless but buys the buyer nothing until they pay.
 
 ## Known v1 limits / follow-ups
 
-- **RTDN is written but NOT DEPLOYED.** `googlePlayRtdn` (Pub/Sub,
-  us-central1) applies renewals, cancellations, grace period, on-hold,
-  revocation and refunds — and its export is held back until the
-  `play-rtdn` topic exists, because a missing topic fails the entire
-  functions deploy. See the status note under "Real-time Developer
-  Notifications". Until it is restored, renewals still land on the next
-  app open (restore-on-open), which is the pre-existing behaviour.
+- **RTDN goes live with the Play Console step.** `googlePlayRtdn`
+  (Pub/Sub, us-central1) is exported and deploys; notifications only
+  arrive once Play Console points at the topic (step 3 above).
 - **No K25 top-up on Android** — it's a Lenco one-off; top-up CTAs route to
   the Play subscription upgrade. Follow-up: a consumable Play product.
 - **No native Pro→Max plan change/proration** — an actively subscribed user
