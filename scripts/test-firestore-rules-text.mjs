@@ -170,7 +170,7 @@ test('user self-update blocks all subscription fields', () => {
     // Google Play billing linkage + teacher studio tier (usageMeter.js
     // grants pro/max quotas from users.teacherPlan — self-writable would
     // be a straight paid-features escalation).
-    'googlePlayPurchaseToken', 'googlePlayProductId',
+    'googlePlayPurchaseToken', 'googlePlayProductId', 'googlePlayAutoRenewing',
     'teacherPlan', 'teacherPlanExpiresAt',
     // The free teacher trial (functions/teacherTrial/) — self-writable
     // teacherTrialEndsAt would let a teacher extend their own trial
@@ -230,7 +230,7 @@ test('user create pins paid-portal / referral / lifecycle fields', () => {
     'learnerPortalActive', 'learnerPortalExpiry', 'learnerPortalPlan',
     'referralCount', 'referralCredits', 'referralCreditRedeemed',
     'cancelAtPeriodEnd', 'status', 'deletedAt',
-    'googlePlayPurchaseToken', 'googlePlayProductId',
+    'googlePlayPurchaseToken', 'googlePlayProductId', 'googlePlayAutoRenewing',
     'teacherPlan', 'teacherPlanExpiresAt', 'teacherPlanActivatedAt',
     'teacherTrialEndsAt', 'teacherTrialStartedAt', 'teacherTrialReminderSentAt',
     'teacherTrialOffer',

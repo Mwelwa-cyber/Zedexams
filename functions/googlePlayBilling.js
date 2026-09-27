@@ -660,6 +660,22 @@ async function verifyAndApplyPurchase({
       emailSecrets,
     });
 
+    // Whether Play will charge again. Written on EVERY verify, not only on a
+    // fresh grant: a CANCELED notification re-verifies the same period, so
+    // activation above is a no-op on its status guard and would otherwise
+    // leave "Renews on …" on screen for a plan the buyer has cancelled.
+    // Display-only; entitlement still runs to expiryTime either way.
+    if (!isOneTime && typeof parsed.autoRenewing === "boolean" &&
+        holder.googlePlayAutoRenewing !== parsed.autoRenewing) {
+      try {
+        await firestore.collection("users").doc(holderUid).update({
+          googlePlayAutoRenewing: parsed.autoRenewing,
+        });
+      } catch (err) {
+        console.warn("[googlePlayBilling] auto-renew state write failed", err?.message || err);
+      }
+    }
+
     if (!parsed.acknowledged) {
       try {
         const ack = isOneTime ? ackProductImpl : ackImpl;
@@ -676,6 +692,7 @@ async function verifyAndApplyPurchase({
       productId: parsed.productId,
       planId,
       expiryTime: expiryIso,
+      autoRenewing: isOneTime ? false : parsed.autoRenewing,
       activated: !!(result && result.activated),
       alreadyActive: !!(result && result.alreadyActive),
     };

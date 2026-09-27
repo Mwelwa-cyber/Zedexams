@@ -653,6 +653,7 @@ service cloud.firestore {
         // studio quotas (usageMeter.js trusts users.teacherPlan).
         && incoming().get('googlePlayPurchaseToken', null) == null
         && incoming().get('googlePlayProductId', null) == null
+        && incoming().get('googlePlayAutoRenewing', null) == null
         && incoming().get('teacherPlan', null) == null
         && incoming().get('teacherPlanExpiresAt', null) == null
         && incoming().get('teacherPlanActivatedAt', null) == null
@@ -804,7 +805,7 @@ service cloud.firestore {
           'subscriptionGrantedByGuardian',
           // Google Play billing linkage — written only by the
           // verifyGooglePlayPurchase Cloud Function (admin SDK).
-          'googlePlayPurchaseToken', 'googlePlayProductId',
+          'googlePlayPurchaseToken', 'googlePlayProductId', 'googlePlayAutoRenewing',
           // Teacher studio tier — admin/Cloud Function only (admin grant
           // flows pass the isAdmin() branch below, so this blocklist entry
           // breaks no legitimate writer; usageMeter.js trusts these fields).

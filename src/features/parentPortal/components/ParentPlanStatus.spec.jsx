@@ -60,6 +60,21 @@ describe('a Play subscriber', () => {
     expect(screen.queryByText(/cancel (your|this) plan/i)).not.toBeInTheDocument()
   })
 
+  it('once cancelled in Play, is told access runs out — never "Renews on"', () => {
+    renderStatus({ ...playChild, googlePlayAutoRenewing: false })
+    expect(screen.queryByText(/Renews on/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/Cancelled — full access until/i)).toBeInTheDocument()
+    expect(screen.getByText(/nothing more will be charged/i)).toBeInTheDocument()
+    // Still sent to Play, where the plan can be restarted.
+    expect(screen.getByRole('button', { name: /Manage in Google Play/i })).toBeInTheDocument()
+  })
+
+  it('an unknown renew state is not reported as cancelled', () => {
+    renderStatus({ ...playChild, googlePlayAutoRenewing: null })
+    expect(screen.getByText(/Renews on/i)).toBeInTheDocument()
+    expect(screen.queryByText(/Cancelled/i)).not.toBeInTheDocument()
+  })
+
   it('is told when it renews, because it does', () => {
     renderStatus(playChild)
     expect(screen.getByText(/Renews on/i)).toBeInTheDocument()

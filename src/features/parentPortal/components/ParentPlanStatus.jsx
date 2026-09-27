@@ -47,7 +47,14 @@ export default function ParentPlanStatus({ child }) {
   // payment made for a sibling — so it is described without a manage
   // control rather than being pointed at one that would not find it.
   const cascaded = child?.subscriptionProvider === 'guardian_cascade'
-  const renews = rail === RAIL.PLAY ? planRenewsOnPlay(child?.subscriptionPlan) : false
+  // A Play SUBSCRIPTION (not a pass) — the only thing with a Play manage
+  // screen, whether or not it is still set to renew.
+  const playSubscription = rail === RAIL.PLAY && planRenewsOnPlay(child?.subscriptionPlan)
+  // Cancelled in Play: it will not charge again, and the paid period still
+  // runs. `false` only — null means Play has not told us, and saying
+  // "cancelled" on a guess would alarm a parent who has not cancelled.
+  const cancelled = playSubscription && child?.googlePlayAutoRenewing === false
+  const renews = playSubscription && !cancelled
 
   return (
     <div className="lhx-card" style={{ padding: 16 }}>
@@ -56,7 +63,9 @@ export default function ParentPlanStatus({ child }) {
         {until
           ? renews
             ? `Renews on ${until}.`
-            : `Full access until ${until}.`
+            : cancelled
+              ? `Cancelled — full access until ${until}, then it will not renew.`
+              : `Full access until ${until}.`
           : 'Full access is open on their account.'}
         {cascaded && ' This came from a plan you bought for another child in the family.'}
       </p>
@@ -66,13 +75,16 @@ export default function ParentPlanStatus({ child }) {
           <p className="lhx-set-desc" style={{ marginTop: 10, lineHeight: 1.5 }}>
             {renews
               ? 'This plan is billed through Google Play.'
-              : 'This was a one-off purchase through Google Play — it does not renew, ' +
-                'and there is nothing to cancel.'}
+              : cancelled
+                ? 'You cancelled this plan in Google Play, so nothing more will be ' +
+                  'charged. You can restart it there before it ends.'
+                : 'This was a one-off purchase through Google Play — it does not renew, ' +
+                  'and there is nothing to cancel.'}
           </p>
           {/* Only a renewing subscription has a Play manage screen. Sending
               a pass buyer there lands them somewhere their purchase is not
               listed, which reads as the purchase having gone missing. */}
-          {renews && (
+          {playSubscription && (
             isNativePlatform() ? (
               <button
                 type="button"
