@@ -500,6 +500,29 @@ async function verifyAndApplyPurchase({
   if (!userSnap.exists) return {status: "noop", reason: "no-user"};
   const user = userSnap.data() || {};
 
+  // WHO HOLDS the grant this token made. For an ordinary purchase that is
+  // the payer; for a guardian purchase it is the child the payment
+  // credited, and it is the child's document that carries this token and
+  // this expiry. Deciding a lapse from the parent's document would find a
+  // different (or no) Play grant and leave the child's running.
+  let holderUid = uid;
+  let holder = user;
+  let beneficiaryDoc = null;
+  if (beneficiaryUid && beneficiaryUid !== uid) {
+    try {
+      const childSnap = await firestore.collection("users").doc(beneficiaryUid).get();
+      if (childSnap.exists) {
+        beneficiaryDoc = childSnap.data() || {};
+        holderUid = beneficiaryUid;
+        holder = beneficiaryDoc;
+      }
+    } catch (err) {
+      // A failed read must not block a legitimate purchase; the payer's
+      // own document is where a web subscription lives anyway.
+      console.warn("[googlePlayBilling] beneficiary read failed", err?.message || err);
+    }
+  }
+
   const decision = isOneTime ?
     decideProductGrant({purchaseState: parsed.purchaseState}) :
     decideEntitlementUpdate({
@@ -508,9 +531,9 @@ async function verifyAndApplyPurchase({
       freeTrial: !!parsed.freeTrial,
       nowMs,
       user: {
-        subscriptionProvider: user.subscriptionProvider,
-        googlePlayPurchaseToken: user.googlePlayPurchaseToken,
-        subscriptionExpiryMs: toMillis(user.subscriptionExpiry),
+        subscriptionProvider: holder.subscriptionProvider,
+        googlePlayPurchaseToken: holder.googlePlayPurchaseToken,
+        subscriptionExpiryMs: toMillis(holder.subscriptionExpiry),
       },
       purchaseToken,
     });
@@ -538,16 +561,7 @@ async function verifyAndApplyPurchase({
     // happen by hand, and this line is the only record that it is owed.
     const {RAIL, decideCrossRail} = await import("./shared/billing/crossRailCore.js");
     const accounts = [{who: "payer", user}];
-    if (beneficiaryUid) {
-      try {
-        const childSnap = await firestore.collection("users").doc(beneficiaryUid).get();
-        if (childSnap.exists) accounts.push({who: "child", user: childSnap.data()});
-      } catch (err) {
-        // A failed read must not block a legitimate purchase; the payer's
-        // own document is where a web subscription lives anyway.
-        console.warn("[googlePlayBilling] beneficiary read failed", err?.message || err);
-      }
-    }
+    if (beneficiaryDoc) accounts.push({who: "child", user: beneficiaryDoc});
     const crossRail = decideCrossRail({rail: RAIL.PLAY, accounts, nowMs});
     if (!crossRail.allowed) {
       console.error(
@@ -671,16 +685,42 @@ async function verifyAndApplyPurchase({
     // Never later than now: a grace-period or free-trial sub carries a
     // FUTURE expiryTime, and writing that would be the unpaid grant again.
     const lapseMs = Math.min(parsed.expiryTimeMs || nowMs, nowMs);
-    const update = {
-      subscriptionExpiry: Timestamp.fromMillis(lapseMs),
-      googlePlaySyncedAt: FieldValue.serverTimestamp(),
+    const lapseFor = (doc) => {
+      const update = {
+        subscriptionExpiry: Timestamp.fromMillis(lapseMs),
+        googlePlaySyncedAt: FieldValue.serverTimestamp(),
+      };
+      // Keep the teacher studio gate in step (it reads its own expiry field).
+      const sp = String(doc.subscriptionPlan || "");
+      if (sp.startsWith("pro_") || sp.startsWith("max_")) {
+        update.teacherPlanExpiresAt = Timestamp.fromMillis(lapseMs);
+      }
+      return update;
     };
-    // Keep the teacher studio gate in step (it reads its own expiry field).
-    const sp = String(user.subscriptionPlan || "");
-    if (sp.startsWith("pro_") || sp.startsWith("max_")) {
-      update.teacherPlanExpiresAt = Timestamp.fromMillis(lapseMs);
+    await firestore.collection("users").doc(holderUid).update(lapseFor(holder));
+
+    // Siblings the guardian cascade extended THIS grant to. Found by the
+    // holder's current payment id, so only what this token paid for is
+    // reached — a child on a plan somebody else paid for holds a different
+    // one. Best-effort: the holder's lapse above is the one that matters.
+    const currentPaymentId = holder.subscriptionPaymentId;
+    if (currentPaymentId) {
+      try {
+        const cascaded = await firestore.collection("users")
+            .where("subscriptionPaymentId", "==", currentPaymentId)
+            .limit(25)
+            .get();
+        for (const doc of cascaded.docs) {
+          if (doc.id === holderUid) continue;
+          const data = doc.data() || {};
+          if (data.subscriptionProvider !== "guardian_cascade") continue;
+          if (toMillis(data.subscriptionExpiry) <= nowMs) continue;
+          await doc.ref.update(lapseFor(data));
+        }
+      } catch (err) {
+        console.error("[googlePlayBilling] cascade lapse failed", err?.message || err);
+      }
     }
-    await userRef.update(update);
     return {
       status: "expired",
       productId: parsed.productId,

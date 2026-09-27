@@ -1831,7 +1831,7 @@
         "secrets": "opsAlertSecrets([googlePlaySaJson, emailSmtpUser, emailSmtpPassword])",
         "timeoutSeconds": "120",
         "memory": "\"256MiB\"",
-        "retry": "false"
+        "retry": "true"
       },
       "optionsFrom": "index.js",
       "optionsUnresolved": null,

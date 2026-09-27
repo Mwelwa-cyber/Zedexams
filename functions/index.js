@@ -2396,17 +2396,26 @@ exports.googlePlayRtdn = onMessagePublished({
   secrets: opsAlertSecrets([googlePlaySaJson, emailSmtpUser, emailSmtpPassword]),
   timeoutSeconds: 120,
   memory: "256MiB",
-  retry: false,
+  // A thrown error is redelivered. handleRtdnMessage never throws for a
+  // message it merely cannot act on (unparseable, wrong package, unknown
+  // token) — it throws only when Firestore, the Play API or the token mint
+  // failed, and losing a renewal or a lapse to a blip would leave the
+  // entitlement stale until the buyer next opens the app.
+  retry: true,
 }, async (event) => {
   const {handleRtdnMessage} = require("./googlePlayRtdn");
-  const {PLAY_PACKAGE} = require("./googlePlayBilling");
+  const {PLAY_PACKAGE, getAccessToken} = require("./googlePlayBilling");
+  const saJson = googlePlaySaJson.value() || process.env.GOOGLE_PLAY_SA_JSON || "";
   try {
     await handleRtdnMessage({
       message: event?.data?.message,
       expectedPackage: PLAY_PACKAGE,
+      getAccessToken: () => getAccessToken(saJson),
+      emailSecrets: lencoEmailSecrets(),
     });
   } catch (err) {
-    console.error("[googlePlayRtdn] handler failed", err);
+    console.error("[googlePlayRtdn] handler failed — will be redelivered", err);
+    throw err;
   }
 });
 

@@ -139,6 +139,7 @@ function decodeRtdnMessage(message) {
  *   packageName: string,
  *   eventTimeMs: number,
  *   productType: number|null,   // voided only: 1 subscription, 2 one-time
+ *   orderId?: string,           // voided only: the refunded order
  * }|null}
  */
 function parseRtdnNotification(decoded) {
@@ -184,6 +185,9 @@ function parseRtdnNotification(decoded) {
       notificationType: null,
       productType: Number.isFinite(Number(voided.productType)) ?
         Number(voided.productType) : null,
+      // The refunded ORDER. A renewed subscription has one payment doc per
+      // period under the same token; this is what says which one was voided.
+      orderId: voided.orderId ? String(voided.orderId) : "",
     };
   }
 

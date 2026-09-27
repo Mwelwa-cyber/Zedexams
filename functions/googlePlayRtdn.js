@@ -72,8 +72,8 @@ async function accountsGrantedBy(db, {paymentId, pay}) {
  * like one that had never paid, which is a different and less honest
  * thing to show support.
  */
-async function revokeGrantsForToken(db, {purchaseToken, nowMs = Date.now()} = {}) {
-  const out = {payments: 0, revoked: [], reason: null};
+async function revokeGrantsForToken(db, {purchaseToken, orderId = "", nowMs = Date.now()} = {}) {
+  const out = {payments: 0, revoked: [], skipped: [], reason: null};
   if (!purchaseToken) {
     out.reason = "no-token";
     return out;
@@ -88,9 +88,31 @@ async function revokeGrantsForToken(db, {purchaseToken, nowMs = Date.now()} = {}
     return out;
   }
 
+  // A renewed subscription has one payment doc PER PERIOD under the same
+  // token, and a voided notification names the ORDER that was refunded.
+  // Scoping to it is what stops a refund of March from lapsing April or
+  // stamping every historical period as refunded. With no orderId (older
+  // notifications, or a doc that never recorded one) the token-wide set is
+  // used, and the ownership check below still keeps it off later grants.
+  let docs = paySnap.docs;
+  if (orderId) {
+    docs = docs.filter((d) => {
+      const pay = d.data() || {};
+      return pay.googlePlayOrderId === orderId || pay.paymentReference === orderId;
+    });
+    if (!docs.length) {
+      // Logged as an error: money went back and we could not tell which
+      // grant it paid for, so a person has to look.
+      console.error("[googlePlayRtdn] voided order matches no payment — review by hand",
+          {orderId, candidates: paySnap.docs.length});
+      out.reason = "order-not-found";
+      return out;
+    }
+  }
+
   const lapseAt = Timestamp.fromMillis(nowMs);
 
-  for (const payDoc of paySnap.docs) {
+  for (const payDoc of docs) {
     const pay = payDoc.data() || {};
     // A payment that never completed granted nothing to take away.
     if (pay.status !== "successful") continue;
@@ -103,6 +125,14 @@ async function revokeGrantsForToken(db, {purchaseToken, nowMs = Date.now()} = {}
         const snap = await ref.get();
         if (!snap.exists) continue;
         const user = snap.data() || {};
+        // Only lapse an account whose CURRENT entitlement is this payment.
+        // One that has since renewed, or bought on the web, or been granted
+        // by an admin holds a different payment id, and a refund of this
+        // one must not take that away.
+        if (user.subscriptionPaymentId !== payDoc.id) {
+          out.skipped.push(uid);
+          continue;
+        }
 
         const update = {
           subscriptionExpiry: lapseAt,
@@ -156,6 +186,7 @@ async function ownerOfPurchaseToken(db, purchaseToken) {
   return {
     uid: pay.userId || null,
     beneficiaryUid: pay.beneficiaryUid || null,
+    beneficiaryName: pay.beneficiaryName || null,
     productId: pay.googlePlayProductId || "",
   };
 }
@@ -180,6 +211,8 @@ async function handleRtdnMessage({
   expectedPackage,
   verify = null,
   revoke = null,
+  getAccessToken = null,
+  emailSecrets = {},
   nowMs = Date.now(),
 } = {}) {
   const firestore = db || getFirestore();
@@ -194,7 +227,11 @@ async function handleRtdnMessage({
   if (verdict.action === "revoke") {
     const revokeImpl = revoke ||
       ((args) => revokeGrantsForToken(firestore, args));
-    const result = await revokeImpl({purchaseToken: notification.purchaseToken, nowMs});
+    const result = await revokeImpl({
+      purchaseToken: notification.purchaseToken,
+      orderId: notification.orderId || "",
+      nowMs,
+    });
     console.warn("[googlePlayRtdn] voided purchase applied", {
       reason: verdict.reason,
       payments: result.payments,
@@ -215,6 +252,13 @@ async function handleRtdnMessage({
   const verifyImpl = verify ||
     ((args) => require("./googlePlayBilling").verifyAndApplyPurchase(args));
 
+  // The Play Developer API needs a bearer token. Minted here, only on the
+  // path that calls it, and passed in: verifyAndApplyPurchase defaults to
+  // `null`, and "Bearer null" is a 401 on every notification. A failure to
+  // mint one THROWS — it is a config or transient fault, and the caller
+  // lets Pub/Sub redeliver rather than losing the notification.
+  const accessToken = getAccessToken ? await getAccessToken() : null;
+
   // Re-verification uses the notification's product id when it has one
   // (subscriptions and one-time both carry it) and falls back to what the
   // payment doc recorded. The id only CHOOSES the Play endpoint — every
@@ -223,9 +267,18 @@ async function handleRtdnMessage({
     uid: owner.uid,
     purchaseToken: notification.purchaseToken,
     productId: notification.productId || owner.productId || "",
-    // The stored payment already names the beneficiary for this token, and
-    // activation resolves it from there. Passing it again would re-assert
-    // a pairing nothing has re-authorised.
+    ...(accessToken ? {accessToken} : {}),
+    emailSecrets,
+    // The child this token was bought for, from the payment written when it
+    // was first verified — a pairing authorised by
+    // guardianBillingAuth at purchase time, not a new claim. Without it a
+    // renewal (a NEW payment doc, keyed by the new expiry) would credit the
+    // PARENT, and a lapse would look at the parent's document and leave the
+    // child's grant running.
+    ...(owner.beneficiaryUid ? {
+      beneficiaryUid: owner.beneficiaryUid,
+      beneficiaryName: owner.beneficiaryName,
+    } : {}),
     nowMs,
   });
 
