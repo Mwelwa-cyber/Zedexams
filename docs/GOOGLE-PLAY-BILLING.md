@@ -225,14 +225,21 @@ Android build.
 
 ## Real-time Developer Notifications (owner runbook)
 
-> **STATUS (2026-09-27): exported and deployed.** The owner created the
-> `play-rtdn` topic, the Play publisher binding and the deployer's Pub/Sub
-> rights (steps 1 and 2 below) before the export was restored. Keep that
-> order if the topic is ever recreated: `onMessagePublished` needs its
-> topic at deploy time, and a missing one fails the WHOLE functions deploy
-> (`Unexpected error creating Pub/Sub topic` — runs 32460825117 on
-> 2026-08-21 and 33912046760 on 2026-09-04). Steps 3-5 (Play Console) are
-> still the owner's to do once the function is live.
+> **STATUS (2026-09-27): the handler is written and tested; the EXPORT is
+> held back — a third time.** Deploy run 36301675506 failed with
+> `Unexpected error creating Pub/Sub topic` even AFTER the owner created
+> `play-rtdn` and the Play publisher binding, so the topic existing is not
+> sufficient. firebase-tools calls the create-topic API on every deploy of
+> this trigger and treats anything but success or 409 as fatal; the likely
+> gap is the CI deploy service account lacking Pub/Sub rights
+> (`roles/pubsub.editor` or `roles/pubsub.admin`) on `examsprepzambia`.
+> Verify that account's roles (see the comment block in `functions/index.js`
+> for the commands), THEN restore the export and regenerate the manifest.
+> A failed attempt takes the WHOLE functions deploy down (runs 32460825117,
+> 33912046760, 36301675506), and hosting refuses to ship over it.
+> Until then the Android rail still works — purchases verify through the
+> client's own `verifyGooglePlayPurchase` call and renewals land on the
+> next app open — it is only the real-time half that is off.
 
 Without this, the ONLY thing that advances a Play subscription is the
 Android client's restore-on-open. That is survivable for a learner who
@@ -336,9 +343,9 @@ the app; setting them is harmless but buys the buyer nothing until they pay.
 
 ## Known v1 limits / follow-ups
 
-- **RTDN goes live with the Play Console step.** `googlePlayRtdn`
-  (Pub/Sub, us-central1) is exported and deploys; notifications only
-  arrive once Play Console points at the topic (step 3 above).
+- **RTDN is written but NOT DEPLOYED.** `googlePlayRtdn` is held back until
+  the deploy service account can create/attach its Pub/Sub topic. See the
+  status note under "Real-time Developer Notifications".
 - **No K25 top-up on Android** — it's a Lenco one-off; top-up CTAs route to
   the Play subscription upgrade. Follow-up: a consumable Play product.
 - **No native Pro→Max plan change/proration** — an actively subscribed user

@@ -2,7 +2,9 @@ const functions = require("firebase-functions/v1");
 const {onCall, onRequest, HttpsError} = require("firebase-functions/v2/https");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {onDocumentCreated} = require("firebase-functions/v2/firestore");
-const {onMessagePublished} = require("firebase-functions/v2/pubsub");
+// NOTE: onMessagePublished is intentionally NOT imported — the only Pub/Sub
+// trigger (googlePlayRtdn) is held back until the deploy can create/attach
+// its topic. See the block further down for why, and how to restore it.
 const {defineSecret} = require("firebase-functions/params");
 const {initializeApp} = require("firebase-admin/app");
 const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
@@ -2342,82 +2344,81 @@ exports.verifyGooglePlayPurchase = onCall({
 }, paymentHandlers.verifyGooglePlayPurchase);
 
 /**
- * Google Play Real-time Developer Notifications.
+ * Google Play Real-time Developer Notifications — HELD BACK, a third time.
  *
- * functions/googlePlayRtdn.js applies renewals, cancellations, grace
- * period, on-hold, revocation and refunds; functions/googlePlayRtdnCore.js
- * owns the parsing and the decisions. Tested: `npm run test:google-play-rtdn`
- * (44 checks). Full runbook, including what each notification type does and
- * the two properties worth keeping if this is ever rewritten (a notification
- * is a doorbell, not the truth; the handler never throws for a message it
- * merely cannot act on): docs/GOOGLE-PLAY-BILLING.md.
+ * functions/googlePlayRtdn.js is written and tested (`npm run
+ * test:google-play-rtdn`): renewals, cancellations, grace period, on-hold,
+ * revocation and order-scoped refunds, with the Play token minted here,
+ * guardian beneficiaries carried through and transient failures redelivered.
+ * What is missing is not code.
  *
- * ── This export REQUIRES the `play-rtdn` Pub/Sub topic to already exist ──
+ * ── Why the export is not here ──────────────────────────────────────
  *
- * `onMessagePublished` needs its topic to exist at deploy time. When it does
- * not, `firebase deploy` tries to create it, fails —
+ * `firebase deploy` fails the WHOLE functions deploy with
  *
  *     Unexpected error creating Pub/Sub topic
  *     Functions deploy had errors with the following functions:
  *         googlePlayRtdn(us-central1)
  *
- * — and takes the WHOLE functions deploy down with it. Not just this
- * function: the run exits non-zero, `deploy-hosting.yml` reads that failure
- * and correctly refuses to ship a frontend over functions that may not have
- * landed, and `main` stops deploying entirely. That happened on 2026-08-21
- * (run 32460825117, both attempts), which is why this export was held back
- * until now. **Before this lands on `main`, confirm the topic + IAM binding
- * already exist** (they are a one-time `gcloud` step, outside this repo, and
- * not something a deploy or a CI job can create for itself):
+ * and `deploy-hosting.yml` then correctly refuses to ship, so `main` stops
+ * deploying entirely. Runs 32460825117 (2026-08-21), 33912046760
+ * (2026-09-04) and 36301675506 (2026-09-27). The third came AFTER the owner
+ * created the topic and IAM binding, so a missing topic is not the whole
+ * story: firebase-tools calls the Pub/Sub create-topic API on every deploy
+ * of this trigger (an existing topic is fine, a 409), and anything else —
+ * most likely a 403 because the DEPLOY service account (the one in
+ * FIREBASE_SERVICE_ACCOUNT / the CI credentials) lacks
+ * `pubsub.topics.create` + `pubsub.topics.get` (roles/pubsub.editor or
+ * admin) on examsprepzambia — surfaces as this same message. Check, before
+ * trying again:
  *
- *   gcloud pubsub topics create play-rtdn --project examsprepzambia
- *   gcloud pubsub topics add-iam-policy-binding play-rtdn \
- *     --member=serviceAccount:google-play-developer-notifications@system.gserviceaccount.com \
- *     --role=roles/pubsub.publisher --project examsprepzambia
+ *   gcloud pubsub topics describe play-rtdn --project examsprepzambia
+ *   gcloud projects get-iam-policy examsprepzambia \
+ *     --flatten=bindings --filter="bindings.members:<deploy SA email>"
+ *   gcloud services list --enabled --project examsprepzambia | grep pubsub
  *
- * (plus `gcloud services enable pubsub.googleapis.com` if the API is off,
- * and the deploy service account needs roles/pubsub.admin to attach the
- * trigger). Then point Play Console ▸ Monetise ▸ Monetisation setup ▸
- * Real-time developer notifications at
- * `projects/examsprepzambia/topics/play-rtdn`, send a test notification from
- * that screen (`[googlePlayRtdn] ignored (test-notification)` in Cloud
- * Logging is the pass condition), and enable voided purchases on the same
- * screen so refunds/chargebacks arrive too. Full steps: docs/GOOGLE-PLAY-BILLING.md.
+ * A `process.env` flag cannot gate this — `firebase deploy` discovers
+ * functions in a subprocess that sees only FIREBASE_CONFIG + GCLOUD_PROJECT,
+ * the trap documented for OPS_ALERT_WEBHOOK_BOUND. So the export is absent.
+ * To restore: re-add `const {onMessagePublished} =
+ * require("firebase-functions/v2/pubsub");` at the top, uncomment the block
+ * below, `node scripts/generate-functions-manifest.mjs`, and merge ONLY when
+ * the deploy SA's Pub/Sub rights are verified. Full runbook:
+ * docs/GOOGLE-PLAY-BILLING.md.
  *
- * The topic and IAM were confirmed by the owner on 2026-09-27, before
- * this export was restored. If the topic is ever deleted, re-comment this
- * block (and drop the `onMessagePublished` import) rather than deploying
- * ahead of it — the Android rail keeps working without it via the client's
- * own `verifyGooglePlayPurchase` call and restore-on-open.
+ * UNTIL THEN the Android rail still works — purchases verify through the
+ * client's own `verifyGooglePlayPurchase` call and renewals, lapses and
+ * cancellations land on the next app open via restore-on-open.
+ *
+ * exports.googlePlayRtdn = onMessagePublished({
+ *   topic: process.env.PLAY_RTDN_TOPIC || "play-rtdn",
+ *   region: "us-central1",
+ *   secrets: opsAlertSecrets([googlePlaySaJson, emailSmtpUser, emailSmtpPassword]),
+ *   timeoutSeconds: 120,
+ *   memory: "256MiB",
+ *   // A thrown error is redelivered. handleRtdnMessage never throws for a
+ *   // message it merely cannot act on (unparseable, wrong package, unknown
+ *   // token) — it throws only when Firestore, the Play API or the token mint
+ *   // failed, and losing a renewal or a lapse to a blip would leave the
+ *   // entitlement stale until the buyer next opens the app.
+ *   retry: true,
+ * }, async (event) => {
+ *   const {handleRtdnMessage} = require("./googlePlayRtdn");
+ *   const {PLAY_PACKAGE, getAccessToken} = require("./googlePlayBilling");
+ *   const saJson = googlePlaySaJson.value() || process.env.GOOGLE_PLAY_SA_JSON || "";
+ *   try {
+ *     await handleRtdnMessage({
+ *       message: event?.data?.message,
+ *       expectedPackage: PLAY_PACKAGE,
+ *       getAccessToken: () => getAccessToken(saJson),
+ *       emailSecrets: lencoEmailSecrets(),
+ *     });
+ *   } catch (err) {
+ *     console.error("[googlePlayRtdn] handler failed — will be redelivered", err);
+ *     throw err;
+ *   }
+ * });
  */
-exports.googlePlayRtdn = onMessagePublished({
-  topic: process.env.PLAY_RTDN_TOPIC || "play-rtdn",
-  region: "us-central1",
-  secrets: opsAlertSecrets([googlePlaySaJson, emailSmtpUser, emailSmtpPassword]),
-  timeoutSeconds: 120,
-  memory: "256MiB",
-  // A thrown error is redelivered. handleRtdnMessage never throws for a
-  // message it merely cannot act on (unparseable, wrong package, unknown
-  // token) — it throws only when Firestore, the Play API or the token mint
-  // failed, and losing a renewal or a lapse to a blip would leave the
-  // entitlement stale until the buyer next opens the app.
-  retry: true,
-}, async (event) => {
-  const {handleRtdnMessage} = require("./googlePlayRtdn");
-  const {PLAY_PACKAGE, getAccessToken} = require("./googlePlayBilling");
-  const saJson = googlePlaySaJson.value() || process.env.GOOGLE_PLAY_SA_JSON || "";
-  try {
-    await handleRtdnMessage({
-      message: event?.data?.message,
-      expectedPackage: PLAY_PACKAGE,
-      getAccessToken: () => getAccessToken(saJson),
-      emailSecrets: lencoEmailSecrets(),
-    });
-  } catch (err) {
-    console.error("[googlePlayRtdn] handler failed — will be redelivered", err);
-    throw err;
-  }
-});
 
 // Throttle the Lenco-webhook ops alert so a retry storm (Lenco re-delivers a
 // failing event repeatedly) can't flood the admin inbox. Per-instance — a cold
