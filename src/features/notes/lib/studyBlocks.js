@@ -13,6 +13,8 @@
 // A short unique id for blocks. Uses crypto.randomUUID when available (matches
 // the asset-batch id pattern in AdminNoteEditor), with a timestamp +
 // getRandomValues fallback so ids never come from Math.random.
+import { normalizeKeyword } from '../reader/readerCore.js'
+
 let noCryptoSeq = 0
 
 function uid() {
@@ -58,25 +60,20 @@ export const STUDY_BLOCK_LABELS = {
   practice:   '✏️ Your turn',
   sectioncheck: '🎯 Section check',
   labeldiagram: '🏷 Label the diagram',
-}
-
-export const STUDY_BLOCK_TYPES = Object.keys(STUDY_BLOCK_LABELS)
-
-// Reader-engine blocks that a note can CARRY but the editor does not yet
-// offer in the "add a block" menu, because it has no fields for them.
-// They are deliberately out of STUDY_BLOCK_LABELS — adding them there
-// would make them insertable and then uneditable — but they still need a
-// human-readable name: a block card headed `tapexplore` reads as debris
-// rather than as the tap-to-explore picture grid it is.
-export const READER_ONLY_BLOCK_LABELS = {
+  // These three used to be readable-but-not-insertable because the editor had
+  // no fields for them, which left a block card with a header and nothing to
+  // edit. The editor now has fields for every type, so they are ordinary
+  // menu entries and there is no longer a "can carry but cannot edit" class.
   tapexplore: '👆 Tap to explore',
   flow:       '➡️ Journey / flow',
   startend:   '🎯 Starts in / ends in',
 }
 
-/** Display name for any block type, insertable or not. */
+export const STUDY_BLOCK_TYPES = Object.keys(STUDY_BLOCK_LABELS)
+
+/** Display name for any block type. */
 export function studyBlockLabel(type) {
-  return STUDY_BLOCK_LABELS[type] || READER_ONLY_BLOCK_LABELS[type] || type
+  return STUDY_BLOCK_LABELS[type] || type
 }
 
 // ─── tiny text helpers ────────────────────────────────────────────────
@@ -110,6 +107,54 @@ export function linesFrom(text) {
   return (text || '').split('\n').map(x => x.trim()).filter(Boolean)
 }
 
+// ─── [[keyword]] marks ────────────────────────────────────────────────
+
+// Same expression the reader's tokenizeInline uses, so the editor and the
+// learner agree on what counts as a marked word.
+const KEYWORD_MARK_RE = /\[\[(.+?)\]\]/g
+
+function walkStrings(value, fn) {
+  if (typeof value === 'string') fn(value)
+  else if (Array.isArray(value)) value.forEach(v => walkStrings(v, fn))
+  else if (value && typeof value === 'object') Object.values(value).forEach(v => walkStrings(v, fn))
+}
+
+/**
+ * Every distinct `[[word]]` a note marks as tappable, in first-seen order.
+ * The glossary block itself is skipped — its entries are the DEFINITIONS,
+ * and a word whose meaning happens to contain another `[[mark]]` is not a
+ * second use of it.
+ */
+export function collectKeywordMarks(blocks) {
+  const seen = new Map()
+  for (const b of blocks || []) {
+    if (!b || b.type === 'glossary') continue
+    walkStrings(b, (s) => {
+      for (const m of s.matchAll(KEYWORD_MARK_RE)) {
+        const word = m[1].trim()
+        const k = normalizeKeyword(word)
+        if (word && !seen.has(k)) seen.set(k, word)
+      }
+    })
+  }
+  return [...seen.values()]
+}
+
+/**
+ * The marked words that no glossary entry defines. A `[[word]]` with no
+ * entry renders as a tappable chip that opens an empty sheet, so the editor
+ * lists these and offers to add them.
+ */
+export function missingGlossaryWords(blocks) {
+  const defined = new Set()
+  for (const b of blocks || []) {
+    if (b && b.type === 'glossary') {
+      for (const e of b.entries || []) if (e && e.word) defined.add(normalizeKeyword(e.word))
+    }
+  }
+  return collectKeywordMarks(blocks).filter(w => !defined.has(normalizeKeyword(w)))
+}
+
 // ─── block factory ────────────────────────────────────────────────────
 
 /** A fresh block of the given type with sensible placeholder content. */
@@ -138,6 +183,9 @@ export function newStudyBlock(type) {
     case 'practice':   return { id: uid(), type, q: 'A fill-in question with a …… gap.', options: [{ text: 'right', correct: true }, { text: 'wrong', correct: false }], correctNote: '✓ Correct!' }
     case 'sectioncheck': return { id: uid(), type, label: 'SECTION CHECK', q: 'A question that proves the section landed.', options: [{ text: 'right', correct: true }, { text: 'wrong', correct: false }], remediation: { explain: 'Re-teach the idea in one or two sentences.', example: 'A worked example.', retryQ: 'Try a similar one: ……', retryOptions: [{ text: 'right', correct: true }, { text: 'wrong', correct: false }], retryHint: 'A hint if the retry also misses.' } }
     case 'labeldiagram': return { id: uid(), type, url: '', alt: '', instructions: 'Drag each word onto the right box — or tap a word, then tap a box.', items: [{ key: 'a', label: 'Part A', x: 0.2, y: 0.2 }, { key: 'b', label: 'Part B', x: 0.8, y: 0.6 }] }
+    case 'tapexplore': return { id: uid(), type, prompt: 'Tap each part to find out what it does.', items: [{ key: 'part-1', name: 'Part one', url: '', role: 'What this part does.', parts: '' }, { key: 'part-2', name: 'Part two', url: '', role: 'What this part does.', parts: '' }] }
+    case 'flow':       return { id: uid(), type, steps: [{ text: 'First step', note: '' }, { text: 'Second step', note: '' }] }
+    case 'startend':   return { id: uid(), type, startLabel: 'STARTS IN', endLabel: 'ENDS IN', start: 'Where it starts', end: 'Where it ends' }
     default:           return { id: uid(), type: 'paragraph', text: '' }
   }
 }

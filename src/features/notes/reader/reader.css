@@ -352,3 +352,12 @@
 @media (prefers-reduced-motion: reduce) {
   .lhx-note-prog i, .lhx-word-sheet { transition: none; }
 }
+
+/* ── Admin live preview ────────────────────────────────────────────
+ * `.lhx` reserves a 250px left gutter at ≥1000px for the learner's
+ * sidebar and fills the viewport height. The admin preview column has no
+ * sidebar, so without this the note was squeezed into a sliver on desktop. */
+.lhx.lhx-preview {
+  padding-left: 0;
+  min-height: 0;
+}

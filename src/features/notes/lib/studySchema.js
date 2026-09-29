@@ -162,6 +162,19 @@ export const studyBlockSchema = z.discriminatedUnion(
 export const studyBlocksWriteSchema = z.array(studyBlockSchema).max(MAX_STUDY_BLOCKS)
 
 /**
+ * True when ONE block would survive `coerceStudyBlocks`. The editor uses
+ * this to flag a block that autosave is about to drop — coerceStudyBlocks
+ * discards an invalid block silently (right for the read side, where a
+ * partly-broken doc must still render), so without a warning at edit time
+ * an author's half-finished block simply vanishes on the next autosave.
+ */
+export function isValidStudyBlock(block) {
+  if (!block || typeof block !== 'object' || typeof block.type !== 'string') return false
+  const schema = blockSchemas[block.type]
+  return !!schema && schema.passthrough().safeParse(block).success
+}
+
+/**
  * Read-side normaliser. Returns a clean blocks array — never throws.
  * Unknown/invalid blocks are dropped so the reader degrades gracefully.
  */

@@ -36,7 +36,7 @@ export default function BlocksPreview({ blocks = [] }) {
   let section = 0
 
   return (
-    <div className="lhx">
+    <div className="lhx lhx-preview">
       <div className="lhx-page" style={{ padding: 0 }}>
         {list.map((block, i) => {
           if (!block) return null
