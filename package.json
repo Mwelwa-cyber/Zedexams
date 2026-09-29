@@ -725,6 +725,7 @@
     "test:permissions": "node scripts/test-permissions.mjs",
     "test:note-smart": "node functions/noteSmart.test.js",
     "test:notes-highlight": "node src/features/notes/lib/highlight.test.js",
+    "test:label-editor-core": "node src/features/notes/lib/labelEditorCore.test.js",
     "test:note-meta": "node src/features/notes/lib/noteMeta.test.js",
     "test:note-import": "node functions/noteImport.test.js",
     "test:note-import-client": "node src/features/notes/lib/noteImport.test.js",

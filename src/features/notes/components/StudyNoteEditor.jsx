@@ -11,79 +11,30 @@
 // so docs stay small — only the URL is stored.
 
 import { useRef, useState } from 'react'
-import { ImageIcon, Loader2, Trash2, ChevronUp, ChevronDown } from '../../../shared/components/icons'
-import { uploadInlineImage } from '../lib/storage'
+import { Trash2, ChevronUp, ChevronDown, Copy } from '../../../shared/components/icons'
 import {
-  STUDY_BLOCK_LABELS, STUDY_BLOCK_TYPES, studyBlockLabel, newStudyBlock, linesFrom,
+  STUDY_BLOCK_LABELS, STUDY_BLOCK_TYPES, studyBlockLabel, newStudyBlock,
 } from '../lib/studyBlocks'
+import { coerceStudyBlocks, isValidStudyBlock } from '../lib/studySchema'
 import { StudyNoteReader } from './StudyNoteReader'
 import BlocksPreview from '../reader/BlocksPreview'
 import { isReaderNote } from '../reader/readerCore'
 import { QuizPicker } from './QuizPicker'
+import ReaderBlockFields, { READER_EDITABLE_TYPES } from './ReaderBlockFields'
+import {
+  Field, AutoTextarea, ParsedTextarea, BlockIssues, ImageUploadField,
+  inputCls, linesToText, textToLines,
+} from './studyEditorParts'
 
-const inputCls    = 'w-full rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-900 focus:outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20'
-const textareaCls = inputCls + ' leading-relaxed resize-y'
-const labelCls    = 'block text-[11px] font-semibold uppercase tracking-wide text-neutral-500 mb-1'
-
-function Field({ label, hint, children }) {
-  return (
-    <div>
-      <label className={labelCls}>{label}</label>
-      {children}
-      {hint && <p className="text-[11px] text-neutral-400 mt-1">{hint}</p>}
-    </div>
-  )
-}
-
-// Shared "upload an image to Firebase Storage and store its url on the block"
-// control. Used by the 'image' block and the optional picture on a 'picture'
-// block. Uploads are disabled until the note is saved (it needs ownerUid +
-// assetBatchId to scope the Storage path).
-function ImageUploadField({ block, patch, ownerUid, assetBatchId, label = 'Picture', hint }) {
-  const fileRef = useRef(null)
-  const [uploading, setUploading] = useState(false)
-  const [err, setErr] = useState(null)
-  const canUpload = !!ownerUid && !!assetBatchId
-
-  const onPick = async (e) => {
-    const file = e.target.files?.[0]
-    e.target.value = ''
-    if (!file) return
-    setUploading(true); setErr(null)
-    try {
-      const url = await uploadInlineImage({ ownerUid, assetBatchId, file })
-      patch({ url })
-    } catch (e2) {
-      setErr(e2.message || 'Upload failed')
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  return (
-    <div className="space-y-2">
-      <Field label={label} hint={canUpload ? hint : 'Save the note first to enable image uploads.'}>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            disabled={!canUpload || uploading}
-            className="text-xs px-2.5 py-1.5 rounded-md border border-neutral-200 hover:bg-neutral-50 transition inline-flex items-center gap-1.5 text-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {uploading ? <Loader2 size={12} className="animate-spin" /> : <ImageIcon size={12} />}
-            {block.url ? 'Replace image' : 'Choose image'}
-          </button>
-          {block.url && (
-            <button type="button" onClick={() => patch({ url: '' })} className="text-xs text-red-600 hover:underline">Remove</button>
-          )}
-          {err && <span className="text-xs text-red-600 truncate" title={err}>{err}</span>}
-        </div>
-        <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={onPick} />
-      </Field>
-      {block.url && <img src={block.url} alt="" className="max-h-44 rounded-lg border border-neutral-200" />}
-    </div>
-  )
-}
+const rowsToText = (rows) => (rows || []).map(r => `${r.term} :: ${r.def || ''}`).join('\n')
+const textToRows = (text) => textToLines(text).map(l => {
+  const i = l.indexOf('::')
+  return i >= 0 ? { term: l.slice(0, i).trim(), def: l.slice(i + 2).trim() } : { term: l.trim(), def: '' }
+})
+const tableRowsToText = (rows) => (rows || []).map(r => (r.cells || []).join(' | ')).join('\n')
+const textToTableRows = (text) => textToLines(text).map(l => ({ cells: l.split('|').map(x => x.trim()) }))
+const headersToText = (h) => (h || []).join(' | ')
+const textToHeaders = (t) => t.split('|').map(x => x.trim())
 
 function ImageBlockFields({ block, patch, ownerUid, assetBatchId }) {
   return (
@@ -136,22 +87,22 @@ function QuizBlockFields({ block, patch, subject, grade }) {
   )
 }
 
-function BlockFields({ block, patch, ownerUid, assetBatchId, subject, grade }) {
+function BlockFields({ block, patch, ownerUid, assetBatchId, subject, grade, allBlocks }) {
   const t = block.type
 
-  if (['objectives', 'bullets', 'numbers', 'summary'].includes(t)) {
+  if (['objectives', 'bullets', 'numbers', 'summary', 'keypoints'].includes(t)) {
     return (
-      <Field label="One item per line">
-        <textarea className={textareaCls} rows={Math.max(3, (block.items || []).length)}
-          value={(block.items || []).join('\n')} onChange={e => patch({ items: linesFrom(e.target.value) })} />
+      <Field label="One item per line" hint="Press Enter to start a new item.">
+        <ParsedTextarea model={block.items || []} toText={linesToText} fromText={textToLines}
+          onModel={items => patch({ items })} minRows={3} />
       </Field>
     )
   }
   if (['think', 'note', 'tip'].includes(t)) {
     return (
       <Field label="One line per paragraph">
-        <textarea className={textareaCls} rows={3}
-          value={(block.lines || []).join('\n')} onChange={e => patch({ lines: linesFrom(e.target.value) })} />
+        <ParsedTextarea model={block.lines || []} toText={linesToText} fromText={textToLines}
+          onModel={lines => patch({ lines })} minRows={3} />
       </Field>
     )
   }
@@ -172,23 +123,17 @@ function BlockFields({ block, patch, ownerUid, assetBatchId, subject, grade }) {
   }
   if (t === 'paragraph' || t === 'keyidea') {
     return (
-      <Field label={t === 'keyidea' ? 'Key idea (the one main point)' : 'Text  (use **bold** and *italic*)'}>
-        <textarea className={textareaCls} rows={t === 'keyidea' ? 2 : 3}
-          value={block.text || ''} onChange={e => patch({ text: e.target.value })} />
+      <Field label={t === 'keyidea' ? 'Key idea (the one main point)' : 'Text'}
+        hint={t === 'keyidea' ? undefined : 'Use **bold**, *italic*, and [[word]] to make a word tappable (explain it in the Glossary block).'}>
+        <AutoTextarea minRows={t === 'keyidea' ? 2 : 4} value={block.text || ''} onChange={e => patch({ text: e.target.value })} />
       </Field>
     )
   }
   if (t === 'keyterms') {
-    const value = (block.rows || []).map(r => `${r.term} :: ${r.def || ''}`).join('\n')
     return (
       <Field label="One per line:  Term :: meaning" hint='Separate the term and its meaning with "::"'>
-        <textarea className={textareaCls} rows={Math.max(3, (block.rows || []).length)} value={value}
-          onChange={e => patch({
-            rows: linesFrom(e.target.value).map(l => {
-              const i = l.indexOf('::')
-              return i >= 0 ? { term: l.slice(0, i).trim(), def: l.slice(i + 2).trim() } : { term: l.trim(), def: '' }
-            }),
-          })} />
+        <ParsedTextarea model={block.rows || []} toText={rowsToText} fromText={textToRows}
+          onModel={rows => patch({ rows })} minRows={3} />
       </Field>
     )
   }
@@ -196,13 +141,12 @@ function BlockFields({ block, patch, ownerUid, assetBatchId, subject, grade }) {
     return (
       <div className="space-y-2">
         <Field label="Column headings (separate with | )">
-          <input className={inputCls} value={(block.headers || []).join(' | ')}
-            onChange={e => patch({ headers: e.target.value.split('|').map(x => x.trim()) })} />
+          <ParsedTextarea model={block.headers || []} toText={headersToText} fromText={textToHeaders}
+            onModel={headers => patch({ headers })} minRows={1} />
         </Field>
         <Field label="Rows — one per line, cells separated with |">
-          <textarea className={textareaCls} rows={Math.max(3, (block.rows || []).length)}
-            value={(block.rows || []).map(r => (r.cells || []).join(' | ')).join('\n')}
-            onChange={e => patch({ rows: linesFrom(e.target.value).map(l => ({ cells: l.split('|').map(x => x.trim()) })) })} />
+          <ParsedTextarea model={block.rows || []} toText={tableRowsToText} fromText={textToTableRows}
+            onModel={rows => patch({ rows })} minRows={3} />
         </Field>
       </div>
     )
@@ -218,8 +162,8 @@ function BlockFields({ block, patch, ownerUid, assetBatchId, subject, grade }) {
           <input className={inputCls} value={block.caption || ''} onChange={e => patch({ caption: e.target.value })} />
         </Field>
         <Field label="Description — one line each" hint="Shown only when no picture is uploaded.">
-          <textarea className={textareaCls} rows={3} value={(block.lines || []).join('\n')}
-            onChange={e => patch({ lines: linesFrom(e.target.value) })} />
+          <ParsedTextarea model={block.lines || []} toText={linesToText} fromText={textToLines}
+            onModel={lines => patch({ lines })} minRows={3} />
         </Field>
       </div>
     )
@@ -230,9 +174,9 @@ function BlockFields({ block, patch, ownerUid, assetBatchId, subject, grade }) {
   if (t === 'quickcheck') {
     return (
       <div className="space-y-2">
-        <Field label="Question"><input className={inputCls} value={block.q || ''} onChange={e => patch({ q: e.target.value })} /></Field>
+        <Field label="Question"><AutoTextarea minRows={1} value={block.q || ''} onChange={e => patch({ q: e.target.value })} /></Field>
         <Field label="Answer (hidden until the learner taps Show answer)">
-          <textarea className={textareaCls} rows={2} value={block.a || ''} onChange={e => patch({ a: e.target.value })} />
+          <AutoTextarea value={block.a || ''} onChange={e => patch({ a: e.target.value })} />
         </Field>
         <Field label="Difficulty">
           <select className={inputCls} value={block.level || ''} onChange={e => patch({ level: e.target.value })}>
@@ -248,9 +192,9 @@ function BlockFields({ block, patch, ownerUid, assetBatchId, subject, grade }) {
   if (t === 'exam') {
     return (
       <div className="space-y-2">
-        <Field label="Exam question"><input className={inputCls} value={block.q || ''} onChange={e => patch({ q: e.target.value })} /></Field>
+        <Field label="Exam question"><AutoTextarea minRows={1} value={block.q || ''} onChange={e => patch({ q: e.target.value })} /></Field>
         <Field label="Model (good) answer">
-          <textarea className={textareaCls} rows={2} value={block.a || ''} onChange={e => patch({ a: e.target.value })} />
+          <AutoTextarea value={block.a || ''} onChange={e => patch({ a: e.target.value })} />
         </Field>
       </div>
     )
@@ -258,23 +202,31 @@ function BlockFields({ block, patch, ownerUid, assetBatchId, subject, grade }) {
   if (t === 'mistake') {
     return (
       <div className="space-y-2">
-        <Field label="Wrong answer"><input className={inputCls} value={block.wrong || ''} onChange={e => patch({ wrong: e.target.value })} /></Field>
-        <Field label="Correct answer"><input className={inputCls} value={block.correct || ''} onChange={e => patch({ correct: e.target.value })} /></Field>
+        <Field label="Wrong answer"><AutoTextarea minRows={1} value={block.wrong || ''} onChange={e => patch({ wrong: e.target.value })} /></Field>
+        <Field label="Correct answer"><AutoTextarea minRows={1} value={block.correct || ''} onChange={e => patch({ correct: e.target.value })} /></Field>
       </div>
     )
   }
   if (t === 'quiz') {
     return <QuizBlockFields block={block} patch={patch} subject={subject} grade={grade} />
   }
-  return null
+  if (READER_EDITABLE_TYPES.includes(t)) {
+    return <ReaderBlockFields block={block} patch={patch} ownerUid={ownerUid} assetBatchId={assetBatchId} allBlocks={allBlocks} />
+  }
+  return <p className="text-xs text-neutral-500">This block type ("{t}") has no editor.</p>
 }
 
-function BlockCard({ block, idx, total, patch, onMove, onRemove, ownerUid, assetBatchId, subject, grade }) {
+function BlockCard({ block, idx, total, patch, onMove, onRemove, onDuplicate, ownerUid, assetBatchId, subject, grade, allBlocks }) {
+  const valid = isValidStudyBlock(block)
+  // Types with their own inline explanation of what is missing.
+  const explained = block.type === 'labeldiagram'
   return (
-    <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
+    <div className={`rounded-xl border bg-white overflow-hidden ${valid ? 'border-neutral-200' : 'border-amber-400'}`}>
       <div className="flex items-center gap-2 bg-neutral-50 px-3 py-2 border-b border-neutral-100">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-600">{studyBlockLabel(block.type)}</span>
         <span className="flex-1" />
+        <button type="button" title="Duplicate" onClick={() => onDuplicate(idx)}
+          className="w-7 h-7 inline-flex items-center justify-center rounded-md border border-neutral-200 text-neutral-500 hover:bg-white"><Copy size={13} /></button>
         <button type="button" title="Move up" disabled={idx === 0} onClick={() => onMove(idx, -1)}
           className="w-7 h-7 inline-flex items-center justify-center rounded-md border border-neutral-200 text-neutral-500 hover:bg-white disabled:opacity-30"><ChevronUp size={14} /></button>
         <button type="button" title="Move down" disabled={idx === total - 1} onClick={() => onMove(idx, 1)}
@@ -283,7 +235,10 @@ function BlockCard({ block, idx, total, patch, onMove, onRemove, ownerUid, asset
           className="w-7 h-7 inline-flex items-center justify-center rounded-md border border-neutral-200 text-neutral-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200"><Trash2 size={13} /></button>
       </div>
       <div className="p-3 space-y-2">
-        <BlockFields block={block} patch={patch} ownerUid={ownerUid} assetBatchId={assetBatchId} subject={subject} grade={grade} />
+        {!valid && !explained && (
+          <BlockIssues issues={['This block is incomplete, so it will NOT be saved yet. Fill in every field (lists need at least two items).']} />
+        )}
+        <BlockFields block={block} patch={patch} ownerUid={ownerUid} assetBatchId={assetBatchId} subject={subject} grade={grade} allBlocks={allBlocks} />
       </div>
     </div>
   )
@@ -301,7 +256,19 @@ export function StudyNoteEditor({ value, onChange, ownerUid, assetBatchId, subje
   const blocksRef = useRef(blocks)
   blocksRef.current = blocks
 
-  const patchBlock = (idx, patch) => onChange(blocksRef.current.map((b, i) => (i === idx ? { ...b, ...patch } : b)))
+  // `patch` is an object, or a function of the block's CURRENT state that
+  // returns one — list editors use the function form so two quick edits
+  // (or an upload landing mid-typing) compose instead of overwriting.
+  const patchBlock = (idx, patch) => onChange(blocksRef.current.map((b, i) => {
+    if (i !== idx) return b
+    return { ...b, ...(typeof patch === 'function' ? patch(b) : patch) }
+  }))
+  const duplicateBlock = (idx) => {
+    const cur = blocksRef.current
+    const copy = { ...structuredClone(cur[idx]), id: `b_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}` }
+    onChange([...cur.slice(0, idx + 1), copy, ...cur.slice(idx + 1)])
+  }
+  const incomplete = blocks.length - coerceStudyBlocks(blocks).length
   const addBlock   = (type) => onChange([...blocksRef.current, newStudyBlock(type)])
   const removeBlock = (idx) => onChange(blocksRef.current.filter((_, i) => i !== idx))
   const moveBlock  = (idx, dir) => {
@@ -316,7 +283,13 @@ export function StudyNoteEditor({ value, onChange, ownerUid, assetBatchId, subje
   return (
     <div className="grid lg:grid-cols-2 gap-4 items-start">
       {/* editor column */}
-      <div className="space-y-3">
+      <div className="space-y-3" style={{ colorScheme: 'light' }}>
+        {incomplete > 0 && (
+          <div role="alert" className="rounded-xl border border-amber-400 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <strong>{incomplete} block{incomplete === 1 ? ' is' : 's are'} incomplete</strong> and will not be saved until finished
+            (look for the amber border).
+          </div>
+        )}
         {blocks.length === 0 && (
           <p className="text-sm text-neutral-500 rounded-xl border border-dashed border-neutral-300 p-6 text-center">
             No blocks yet. Add one below to start your study note.
@@ -327,7 +300,8 @@ export function StudyNoteEditor({ value, onChange, ownerUid, assetBatchId, subje
             key={block.id || idx}
             block={block} idx={idx} total={blocks.length}
             patch={(p) => patchBlock(idx, p)}
-            onMove={moveBlock} onRemove={removeBlock}
+            onMove={moveBlock} onRemove={removeBlock} onDuplicate={duplicateBlock}
+            allBlocks={blocks}
             ownerUid={ownerUid} assetBatchId={assetBatchId}
             subject={subject} grade={grade}
           />
