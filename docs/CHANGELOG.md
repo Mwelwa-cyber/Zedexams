@@ -5,6 +5,24 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-10-03
+
+### Added
+
+- Make every note block and diagram editable in the admin editor (#2695)
+- Deploy googlePlayRtdn now that the play-rtdn topic exists (#2685)
+
+### Fixed
+
+- Never grant Premium for a declined or unpaid Play period (#2684)
+
+### Changed
+
+- Re-hold the googlePlayRtdn export — deploy can't create its topic (#2686)
+- Move the root scripts to firebase-admin 14 (#2681)
+
+_Dependencies: 5 automated bumps (#2692, #2691, #2690, #2689, #2688)._
+
 ## 2026-09-24
 
 ### Changed
