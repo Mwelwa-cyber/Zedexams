@@ -1045,7 +1045,7 @@
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
     "@vitejs/plugin-react": "^6.1.1",
-    "@vitest/coverage-v8": "^5.0.1",
+    "@vitest/coverage-v8": "^5.0.3",
     "autoprefixer": "^10.6.1",
     "c8": "^12.0.0",
     "esbuild": "^0.28.2",
