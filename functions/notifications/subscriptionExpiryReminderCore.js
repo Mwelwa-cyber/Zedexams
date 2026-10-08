@@ -56,6 +56,21 @@ function guardianUidFor(data, uid) {
 }
 
 /**
+ * Was this plan paid from a guardian pay link (no guardian account)?
+ *
+ * Such a payment is the CHILD's own, so `subscriptionGrantedByGuardian` is
+ * deleted and `guardianUidFor` returns null — but the phone number stored on
+ * the child (`subscriptionPhoneNumber`) is the GUARDIAN's. Read from the
+ * payment document (`guardianRequestId`, written in the transaction that
+ * creates it), so no new user field — and no rules change — is needed.
+ *
+ * @param {object|null} payment  the `payments/{subscriptionPaymentId}` data.
+ */
+function isGuardianLinkFunded(payment) {
+  return typeof payment?.guardianRequestId === "string" && payment.guardianRequestId.trim() !== "";
+}
+
+/**
  * @param {object} args
  * @param {string} args.uid        the account whose `subscriptionExpiry` is
  *                                  in the reminder window — the credited
@@ -107,4 +122,4 @@ function resolveExpiryReminderTarget({uid, data, days, dateKey} = {}) {
   };
 }
 
-module.exports = {guardianUidFor, resolveExpiryReminderTarget};
+module.exports = {guardianUidFor, isGuardianLinkFunded, resolveExpiryReminderTarget};
