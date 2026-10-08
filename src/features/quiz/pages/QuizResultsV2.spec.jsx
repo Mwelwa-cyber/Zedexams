@@ -147,3 +147,26 @@ describe('QuizResultsV2 — the Time stat', () => {
     expect(screen.getByText('0m 0s')).toBeInTheDocument()
   })
 })
+
+describe('QuizResultsV2 — send to my parent', () => {
+  const hrefText = () => decodeURIComponent(
+    screen.getByTestId('share-with-parent').getAttribute('href').split('text=')[1],
+  )
+
+  it('offers one button whose message names the score, subject and weakest topic', async () => {
+    setupResult(60, { topicScores: { Fractions: { correct: 1, total: 4 }, Decimals: { correct: 4, total: 4 } } })
+    renderResults()
+    await waitFor(() => expect(screen.getByText('Good Job!')).toBeInTheDocument())
+    expect(screen.getAllByTestId('share-with-parent')).toHaveLength(1)
+    expect(hrefText()).toBe(
+      'Hello 👋 I scored 60% in Mathematics on ZedExams today.\nI want to practise more: Fractions.\nzedexams.com',
+    )
+  })
+
+  it('is not offered while the result is still provisional', async () => {
+    setupResult(60, { gradingStatus: 'pending' })
+    renderResults()
+    await waitFor(() => expect(screen.getByText('Good Job!')).toBeInTheDocument())
+    expect(screen.queryByTestId('share-with-parent')).toBeNull()
+  })
+})

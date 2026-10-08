@@ -19,6 +19,8 @@ import Button from '../../../shared/components/Button'
 import Icon from '../../../shared/components/Icon'
 import Skeleton from '../../../shared/components/Skeleton'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
+import ShareWithParent from '../../../shared/components/ShareWithParent'
+import { buildResultMessage } from '../../../shared/utils/parentShare'
 import '../quizTheme.css'
 
 // A learner "passes" at 50% — the same threshold that plays the success
@@ -233,6 +235,14 @@ export default function QuizResultsV2() {
         pct: data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0,
       })).sort((left, right) => left.pct - right.pct)
     : []
+
+  // The lowest-scoring topic below the pass mark, named in the parent message.
+  const weakest = topics.find((t) => t.pct < 70)
+  const parentMessage = buildResultMessage({
+    subject: result.subject,
+    percentage,
+    weakTopic: weakest?.topic,
+  })
 
   // An attempt whose start was never recorded has NO duration, and saying so is
   // the whole point of writing null for it (the Assessment Engine's approved
@@ -491,19 +501,14 @@ export default function QuizResultsV2() {
         <span className="bg-success-subtle text-success inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold">
           <Icon as={Check} size="xs" /> Result saved to your history
         </span>
-        {/* WhatsApp share — opens the user's WhatsApp with a templated
-            message that links to the homepage (not the auth-protected
-            result page), so the recipient can sign up and try a quiz too.
-            wa.me deep links work on mobile + desktop WhatsApp Web. */}
-        <a
-          href={`https://wa.me/?text=${encodeURIComponent(`I just scored ${percentage}% on ${result.subject || 'a ZedExams quiz'}! 🎓 Try ZedExams for CBC exam prep: https://zedexams.com`)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => playClick()}
-          className="inline-flex items-center gap-2 rounded-full bg-green-500 hover:bg-green-600 px-4 py-2 text-sm font-bold text-white transition-colors"
-        >
-          <span aria-hidden="true">💬</span> Share on WhatsApp
-        </a>
+        {/* One button: WhatsApp opens with the result already written and the
+            learner picks their parent. Nothing is stored or sent by us. */}
+        {!isProvisional && (
+          <ShareWithParent
+            message={parentMessage}
+            onShare={() => playClick()}
+          />
+        )}
       </div>
     </div>
   )

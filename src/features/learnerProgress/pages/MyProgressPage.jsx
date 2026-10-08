@@ -21,6 +21,8 @@ import {
   EmptyState, ErrorState, SectionSkeleton,
 } from '../../learnerHome'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
+import ShareWithParent from '../../../shared/components/ShareWithParent'
+import { buildWeekMessage } from '../../../shared/utils/parentShare'
 import { termLabelShort } from '../../../utils/learnerCalendar'
 import { examReadiness, weeklyActivity } from '../lib/progressCore'
 
@@ -32,6 +34,10 @@ export default function MyProgressPage() {
   const readiness = useMemo(() => examReadiness(subjects), [subjects])
   const week = useMemo(() => weeklyActivity(data?.recentActivity || []), [data?.recentActivity])
   const weakTopics = data?.weakTopics || []
+  const parentMessage = buildWeekMessage({
+    daysPlayed: week.filter((d) => d.count > 0).length,
+    weakTopics,
+  })
   const streak = data?.streak || 0
   const doneThisWeek = week.reduce((n, d) => n + d.count, 0)
 
@@ -102,6 +108,9 @@ export default function MyProgressPage() {
                 ))}
               </ol>
               <p className="lhx-wk-cap">Quizzes, notes and papers finished each day</p>
+              <div style={{ display: 'flex', justifyContent: 'center', margin: '8px 0 4px' }}>
+                <ShareWithParent message={parentMessage} label="Send this week to my parent" />
+              </div>
             </div>
           </section>
 

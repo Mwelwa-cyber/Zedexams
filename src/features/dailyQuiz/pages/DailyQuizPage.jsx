@@ -38,6 +38,8 @@ import { optionLabel } from '../../../utils/mcqChoices'
 // option list below.
 import RichContent, { getRichPlainText } from '../../../editor/RichContent'
 import { capture } from '../../../utils/analytics'
+import ShareWithParent from '../../../shared/components/ShareWithParent'
+import { buildResultMessage } from '../../../shared/utils/parentShare'
 import '../dailyQuiz.css'
 
 export default function DailyQuizPage() {
@@ -408,6 +410,15 @@ function ResultView({ summary, result, questions, navigate }) {
           )
         })}
       </div>
+
+      {/* Only a scored set has a result worth sending; practice has none. */}
+      {summary.ranked && (
+        <ShareWithParent
+          message={buildResultMessage({ correct: result.credited, total: result.total })}
+          className="dq-btn"
+          style={{ background: '#16a34a', color: '#fff', textAlign: 'center', textDecoration: 'none' }}
+        />
+      )}
 
       {summary.ranked && (
         <button
