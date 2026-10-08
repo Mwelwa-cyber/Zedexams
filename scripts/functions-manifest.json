@@ -1822,6 +1822,57 @@
       "classification": "payment-webhook",
       "batch": null
     },
+    "guardianLinkPay": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {
+        "secrets": "[lencoApiKey, emailSmtpUser, emailSmtpPassword]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": null
+    },
+    "guardianLinkPayOtp": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {
+        "secrets": "[lencoApiKey, emailSmtpUser, emailSmtpPassword]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": null
+    },
+    "guardianLinkPayStatus": {
+      "kind": "onCall",
+      "inline": false,
+      "options": {
+        "secrets": "[lencoApiKey, emailSmtpUser, emailSmtpPassword]",
+        "region": "\"us-central1\"",
+        "timeoutSeconds": "60",
+        "memory": "\"256MiB\""
+      },
+      "optionsFrom": "index.js",
+      "optionsUnresolved": null,
+      "target": null,
+      "rewritePath": null,
+      "rewriteRegion": null,
+      "classification": "secrets-bound",
+      "batch": null
+    },
     "hourlyAgentSupervisor": {
       "kind": "delegated",
       "inline": false,

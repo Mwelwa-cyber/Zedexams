@@ -1,14 +1,14 @@
 /**
  * Behaviour tests for GuardianUnlock — /guardian-unlock?t=…
  *
- * The property that matters most here: paying no longer requires the
- * visitor to be signed in as a `parent`-role account with a confirmed
- * family-code link. Any signed-in, verified account reaches the checkout
- * directly (guardianBillingAuth's rule 4 authorises the payment from the
- * request token itself). These tests pin the four branches a visitor can
- * land in — signed out, unverified, verified, and no-plan-on-record — so a
- * regression back to the old `isParent` gate fails a test rather than
- * shipping quietly.
+ * The property that matters most: on the web the page needs NO account. A
+ * guardian who opens the link goes straight to a checkout bound to the
+ * link's own token, signed in or not — `/register` no longer offers a parent
+ * role, so any sign-in step would demand an account that cannot be made.
+ *
+ * The other property is the Android one: inside the Capacitor shell the page
+ * must never render the mobile-money checkout or name any payment method,
+ * because Play Billing is the only one allowed there.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, act } from '@testing-library/react'
@@ -30,6 +30,12 @@ vi.mock('../../../utils/runtime', () => ({ isNativePlatform: () => isNativePlatf
 const useAuthMock = vi.fn()
 vi.mock('../../../contexts/AuthContext', () => ({ useAuth: () => useAuthMock() }))
 
+const LINK_API = { marker: 'link-api' }
+const makeGuardianLinkApi = vi.fn(() => LINK_API)
+vi.mock('../services/guardianLinkPay', () => ({
+  makeGuardianLinkApi: (...a) => makeGuardianLinkApi(...a),
+}))
+
 const resolveGuardianPayLink = vi.fn()
 vi.mock('../services/parentApp', () => ({
   resolveGuardianPayLink: (...a) => resolveGuardianPayLink(...a),
@@ -45,6 +51,7 @@ vi.mock('../components/GuardianCheckout', () => ({
     return (
       <div data-testid="guardian-checkout">
         checkout for {props.childName} · {props.plan?.name} · request={props.guardianRequestId}
+        · api={props.api?.marker}
       </div>
     )
   },
@@ -80,44 +87,42 @@ describe('GuardianUnlock', () => {
     onPaidRef.current = null
   })
 
-  it('a signed-out visitor is asked to sign in — no parent-account wording', async () => {
-    useAuthMock.mockReturnValue({ currentUser: null, needsEmailVerification: false })
-    renderPage()
-    await screen.findByText(/asked you to unlock ZedExams/i)
-    expect(screen.getByRole('button', { name: /sign in or create an account/i })).toBeTruthy()
-    // The old copy specifically demanded a PARENT account; that requirement
-    // is gone, and the button must not still say so.
-    expect(screen.queryByText(/parent account/i)).toBeNull()
-    expect(screen.queryByTestId('guardian-checkout')).toBeNull()
-  })
-
-  it('a signed-in, verified account goes straight to checkout — no isParent, no family-code link required', async () => {
-    useAuthMock.mockReturnValue({ currentUser: { uid: 'u1' }, needsEmailVerification: false })
+  it('a signed-out visitor goes STRAIGHT to the checkout — no sign-in, no account wording', async () => {
+    useAuthMock.mockReturnValue({ currentUser: null })
     renderPage()
     const checkout = await screen.findByTestId('guardian-checkout')
     expect(checkout.textContent).toMatch(/Milton/)
     expect(checkout.textContent).toMatch(/Term Pass/)
     expect(checkout.textContent).toMatch(/request=req-1/)
+    expect(screen.queryByRole('button', { name: /sign in|create an account/i })).toBeNull()
+    expect(screen.queryByText(/parent account|any zedexams account/i)).toBeNull()
+    expect(screen.getByText(/do not need a ZedExams account/i)).toBeTruthy()
   })
 
-  it('a signed-in but unverified account is asked to verify before paying, not refused outright', async () => {
-    useAuthMock.mockReturnValue({ currentUser: { uid: 'u1' }, needsEmailVerification: true })
+  it('the checkout is bound to the link token, not to a signed-in user', async () => {
+    useAuthMock.mockReturnValue({ currentUser: null })
     renderPage()
-    await screen.findByText(/verify your email to pay/i)
-    expect(screen.queryByTestId('guardian-checkout')).toBeNull()
-    expect(screen.getByRole('button', { name: /verify my email/i })).toBeTruthy()
+    const checkout = await screen.findByTestId('guardian-checkout')
+    expect(makeGuardianLinkApi).toHaveBeenCalledWith('tok123')
+    expect(checkout.textContent).toMatch(/api=link-api/)
   })
 
-  it('a request with no resolvable checkout plan falls back to the fuller flow rather than a dead end', async () => {
-    useAuthMock.mockReturnValue({ currentUser: { uid: 'u1' }, needsEmailVerification: false })
+  it('a signed-in visitor sees the same page — being signed in changes nothing', async () => {
+    useAuthMock.mockReturnValue({ currentUser: { uid: 'u1' } })
+    renderPage()
+    expect((await screen.findByTestId('guardian-checkout')).textContent).toMatch(/api=link-api/)
+  })
+
+  it('a request with no resolvable checkout plan says so rather than showing a dead checkout', async () => {
+    useAuthMock.mockReturnValue({ currentUser: null })
     resolveGuardianPayLink.mockResolvedValue({ ...VALID_LINK, planId: 'not-a-real-plan' })
     renderPage()
-    await waitFor(() => expect(screen.queryByTestId('guardian-checkout')).toBeNull())
-    expect(screen.getByRole('button', { name: /choose a plan/i })).toBeTruthy()
+    await screen.findByText(/we cannot take this payment/i)
+    expect(screen.queryByTestId('guardian-checkout')).toBeNull()
   })
 
   it('reaching successful payment hides the pre-payment upsell copy', async () => {
-    useAuthMock.mockReturnValue({ currentUser: { uid: 'u1' }, needsEmailVerification: false })
+    useAuthMock.mockReturnValue({ currentUser: null })
     renderPage()
     await screen.findByTestId('guardian-checkout')
     expect(screen.getByText(/what unlocking gives them/i)).toBeTruthy()
@@ -126,10 +131,31 @@ describe('GuardianUnlock', () => {
   })
 
   it('an invalid link never renders a checkout regardless of auth state', async () => {
-    useAuthMock.mockReturnValue({ currentUser: { uid: 'u1' }, needsEmailVerification: false })
+    useAuthMock.mockReturnValue({ currentUser: { uid: 'u1' } })
     resolveGuardianPayLink.mockResolvedValue({ valid: false, reason: 'expired' })
     renderPage()
     await screen.findByText(/this link is not open/i)
     expect(screen.queryByTestId('guardian-checkout')).toBeNull()
+  })
+
+  describe('inside the Android app', () => {
+    beforeEach(() => isNativePlatform.mockReturnValue(true))
+
+    it('never renders the mobile-money checkout or names a payment method', async () => {
+      useAuthMock.mockReturnValue({ currentUser: { uid: 'u1' } })
+      const { container } = renderPage()
+      await screen.findByText(/asked you to unlock ZedExams/i)
+      expect(screen.queryByTestId('guardian-checkout')).toBeNull()
+      expect(container.textContent).not.toMatch(/mobile money|airtel|mtn|zamtel|lenco/i)
+      expect(screen.getByRole('button', { name: /choose a plan/i })).toBeTruthy()
+    })
+
+    it('a signed-out visitor is asked to sign in, because the Play rail needs an account', async () => {
+      useAuthMock.mockReturnValue({ currentUser: null })
+      renderPage()
+      await screen.findByText(/asked you to unlock ZedExams/i)
+      expect(screen.getByRole('button', { name: /^sign in$/i })).toBeTruthy()
+      expect(screen.queryByTestId('guardian-checkout')).toBeNull()
+    })
   })
 })

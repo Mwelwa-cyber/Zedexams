@@ -2273,6 +2273,37 @@ exports.getLencoPaymentStatus = onCall({
   memory: "256MiB",
 }, paymentHandlers.getLencoPaymentStatus);
 
+// The guardian pay link, with NO login. A guardian who opens the emailed /
+// WhatsApp link types their own mobile-money number and pays for the child that
+// asked; the one-time token in the URL is the only credential. Each callable is
+// a thin wrapper (functions/guardianUnlock/linkPayment.js) that proves the token
+// and then runs the SAME payment handlers as the child — there is no second
+// implementation of starting a charge. Unauthenticated by design, so the start
+// and OTP calls are rate-limited per token and per IP and fail closed.
+const linkPaymentHandlers = require("./guardianUnlock/linkPayment")
+    .buildLinkPaymentHandlers({paymentHandlers});
+
+exports.guardianLinkPay = onCall({
+  secrets: [lencoApiKey, emailSmtpUser, emailSmtpPassword],
+  region: "us-central1",
+  timeoutSeconds: 60,
+  memory: "256MiB",
+}, linkPaymentHandlers.guardianLinkPay);
+
+exports.guardianLinkPayOtp = onCall({
+  secrets: [lencoApiKey, emailSmtpUser, emailSmtpPassword],
+  region: "us-central1",
+  timeoutSeconds: 60,
+  memory: "256MiB",
+}, linkPaymentHandlers.guardianLinkPayOtp);
+
+exports.guardianLinkPayStatus = onCall({
+  secrets: [lencoApiKey, emailSmtpUser, emailSmtpPassword],
+  region: "us-central1",
+  timeoutSeconds: 60,
+  memory: "256MiB",
+}, linkPaymentHandlers.guardianLinkPayStatus);
+
 // On-demand "I paid but didn't get my credit" recovery. The live checkout
 // poll only runs while the modal is open; if the buyer approves on their
 // phone after it closes AND the webhook is delayed/dropped, the credit is

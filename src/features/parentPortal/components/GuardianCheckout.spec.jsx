@@ -79,6 +79,27 @@ describe('GuardianCheckout', () => {
     pollLencoStatus.mockResolvedValue('successful')
   })
 
+  it('drives an injected api instead of the signed-in payment calls (pay-link door)', async () => {
+    const api = {
+      initiate: vi.fn(() => Promise.resolve({ paymentId: 'pay-1', status: 'pending' })),
+      submitOtp: vi.fn(() => Promise.resolve({})),
+      fetchStatus: vi.fn(),
+    }
+    pollLencoStatus.mockResolvedValue('successful')
+    const onPaid = vi.fn()
+    renderCheckout({ api, onPaid })
+    fireEvent.change(screen.getByLabelText(/mobile money number/i), { target: { value: '0977740465' } })
+    fireEvent.click(screen.getByRole('button', { name: /pay k50/i }))
+    await waitFor(() => expect(api.initiate).toHaveBeenCalled())
+    expect(initiateLencoPayment).not.toHaveBeenCalled()
+    expect(api.initiate.mock.calls[0][0].phone).toBe('0977740465')
+    await waitFor(() => expect(pollLencoStatus).toHaveBeenCalled())
+    // The poll reads through the SAME injected door, so a token holder polls
+    // the token endpoint and never the signed-in one.
+    expect(pollLencoStatus.mock.calls[0][1].fetchStatus).toBe(api.fetchStatus)
+    await waitFor(() => expect(onPaid).toHaveBeenCalled())
+  })
+
   it('ALWAYS sends beneficiaryUid — without it the parent is credited', async () => {
     renderCheckout()
     typeNumber()

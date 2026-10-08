@@ -2,44 +2,33 @@
  * GuardianUnlock — /guardian-unlock?t=… The landing page for the link in
  * a guardian's email or WhatsApp message.
  *
- * `requestGuardianUnlock` has mailed this URL to every guardian since it
- * shipped, and until now the route did not exist: the under-18 paywall's
- * only call to action landed on "Page not found" (PAY-001, item 3).
+ * It is OUTSIDE every guard and needs NO account. The one-time token in the
+ * URL is the credential: the page first says what the request is (resolved
+ * from the token server-side — the raw token is never stored), and the parent
+ * then types their own mobile-money number and approves the prompt on their
+ * phone. The plan, the amount and the child's account are all read from the
+ * stored request by `guardianLinkPay*` (functions/guardianUnlock/
+ * linkPayment.js); this page cannot influence them.
  *
- * It is deliberately OUTSIDE the parent-app guard. The guardian holding
- * that link may have no ZedExams account at all, so the page first says
- * what the request is — resolved from the token server-side, since the
- * raw token is never stored — and only then asks them to sign in. A link
- * that demands a sign-in before it will say what it is about is a link
- * people close.
+ * Before 2026-10 this asked the guardian to sign in or register first, and
+ * `/register` no longer offers a parent role, so the link demanded an account
+ * that could not be made.
  *
- * ── Paying no longer needs a PARENT account, just an account ──────────
+ * ── Inside the Android app ─────────────────────────────────────────────
  *
- * This used to send a signed-in guardian on to `/family/plan`, which is
- * gated on `isParent` plus a CONFIRMED family-code link — the exact
- * two-step, two-account dance (register as a parent, then wait for the
- * child to say yes to a code) that a guardian arriving from a one-time pay
- * link should never have to complete. `guardianBillingAuth`'s rule 4 now
- * lets a still-open, unexpired request token authorise the payment on its
- * own, so this page can put the checkout right here: any signed-in,
- * verified ZedExams account — parent, teacher, or the guardian's own
- * learner account, whatever they already had lying around — may complete
- * it directly. `/family/plan` still exists for the fuller parent-portal
- * experience (ongoing plan management, several linked children); this is
- * the fast path for "I just want to pay for the thing my child asked for".
- *
- * The ANDROID path is untouched: Play Billing purchases happen through the
- * Play Store on the device that owns the purchasing Google account, and a
- * link opened from WhatsApp or email lands in the system browser, not
- * inside the Capacitor shell — so `isNativePlatform()` here still routes to
- * `/family/plan`, which already knows how to choose the Play rail.
+ * Play Billing is the only payment method allowed there and this build must
+ * not name or offer another, so when the page is somehow opened inside the
+ * Capacitor shell (the emailed link normally opens in the system browser) it
+ * keeps its previous behaviour and hands a signed-in user to the screen that
+ * starts the Play rail. Nothing on the native branch mentions mobile money.
  */
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import '../../../shared/styles/learnerTheme.css'
 import '../styles/parentApp.css'
 import { useAuth } from '../../../contexts/AuthContext'
 import { resolveGuardianPayLink } from '../services/parentApp'
+import { makeGuardianLinkApi } from '../services/guardianLinkPay'
 import { reportClientError } from '../../../utils/clientErrorReporting'
 import { describeFeature } from '../lib/parentAppView'
 import { ListSkeleton } from '../components/ParentPrimitives'
@@ -65,12 +54,13 @@ const REASONS = {
 export default function GuardianUnlock() {
   const [params] = useSearchParams()
   const token = params.get('t') || ''
-  const { currentUser, needsEmailVerification } = useAuth()
+  const { currentUser } = useAuth()
   const online = useNetworkStatus()
   const native = isNativePlatform()
   const navigate = useNavigate()
   const [state, setState] = useState({ loading: true, link: null, error: '' })
   const [paid, setPaid] = useState(false)
+  const linkApi = useMemo(() => makeGuardianLinkApi(token), [token])
 
   const load = useCallback(async () => {
     setState({ loading: true, link: null, error: '' })
@@ -131,9 +121,9 @@ export default function GuardianUnlock() {
             <button
               type="button"
               className="lhx-btn lhx-btn-primary lhx-btn-block"
-              onClick={() => navigate(currentUser ? '/family' : '/login')}
+              onClick={() => navigate(native ? (currentUser ? '/family' : '/login') : '/')}
             >
-              {currentUser ? 'Go to my family' : 'Sign in'}
+              {native ? (currentUser ? 'Go to my family' : 'Sign in') : 'Go to ZedExams'}
             </button>
           </div>
         ) : (
@@ -154,50 +144,36 @@ export default function GuardianUnlock() {
                 <p className="pax-plan-feature"><span aria-hidden="true">✓</span> Papers and notes saved for offline</p>
                 <p className="lhx-set-desc" style={{ marginTop: 8, lineHeight: 1.5 }}>
                   The payment unlocks <strong>{link.childFirstName}'s</strong> account,
-                  not yours, and the receipt comes to you.
+                  not yours. You do not need a ZedExams account.
                 </p>
               </div>
             )}
 
-            {!currentUser ? (
-              <>
+            {native ? (
+              // INSIDE the Android app nothing here names or offers any
+              // payment method: Play Billing is the only one allowed there.
+              // This branch is unchanged from before the web path lost its
+              // login — it still hands a signed-in user to the screen that
+              // starts the Play rail. (The emailed link normally opens in the
+              // system browser, so the web branch below is the usual one.)
+              !currentUser ? (
                 <button
                   type="button"
                   className="lhx-btn lhx-btn-primary lhx-btn-block"
                   onClick={() => navigate('/login', { state: { from: back } })}
                 >
-                  Sign in or create an account
+                  Sign in
                 </button>
-                <p className="pax-note">
-                  Any ZedExams account works — you do not need to be linked to{' '}
-                  {link.childFirstName} first. It takes a minute, and this link will
-                  still be here when you come back.
-                </p>
-              </>
-            ) : native ? (
-              // Play Billing purchases happen on the device that owns the
-              // purchasing Google account, through the Play Store UI — this
-              // page just hands off to the screen that already knows how to
-              // start that rail.
-              <button type="button" className="lhx-btn lhx-btn-primary lhx-btn-block" onClick={goToCheckout}>
-                Choose a plan
-              </button>
-            ) : needsEmailVerification ? (
-              <div className="lhx-card" style={{ padding: 16 }}>
-                <p className="lhx-set-title">Verify your email to pay</p>
-                <p className="lhx-set-desc" style={{ margin: '6px 0 14px', lineHeight: 1.5 }}>
-                  You are signed in, but this account's email address is not verified
-                  yet — that is required before a payment can go through.
-                </p>
-                <button
-                  type="button"
-                  className="lhx-btn lhx-btn-primary lhx-btn-block"
-                  onClick={() => navigate('/verify-email', { state: { from: back } })}
-                >
-                  Verify my email
+              ) : (
+                <button type="button" className="lhx-btn lhx-btn-primary lhx-btn-block" onClick={goToCheckout}>
+                  Choose a plan
                 </button>
-              </div>
+              )
             ) : plan ? (
+              // The web page needs NO account. The one-time token in the URL
+              // is the credential; the server reads the plan, the amount and
+              // the child's account from the stored request, so this only
+              // collects the parent's own mobile-money number.
               <GuardianCheckout
                 plan={plan}
                 childUid={link.childUid}
@@ -205,13 +181,17 @@ export default function GuardianUnlock() {
                 guardianRequestId={link.requestId}
                 disabled={online === false}
                 onPaid={() => setPaid(true)}
+                api={linkApi}
               />
             ) : (
-              // No resolvable checkout plan on this (likely very old) request
-              // record — fall back to the fuller flow rather than a dead end.
-              <button type="button" className="lhx-btn lhx-btn-primary lhx-btn-block" onClick={goToCheckout}>
-                Choose a plan
-              </button>
+              // A (very old) request with no resolvable plan. Better a plain
+              // sentence than a checkout that cannot charge anything.
+              <div className="lhx-card" style={{ padding: 16 }}>
+                <p className="lhx-set-title">We cannot take this payment</p>
+                <p className="lhx-set-desc" style={{ margin: '6px 0 0', lineHeight: 1.5 }}>
+                  This request is missing its plan. Ask {link.childFirstName} to send a new one from their app.
+                </p>
+              </div>
             )}
 
             {!paid && (
