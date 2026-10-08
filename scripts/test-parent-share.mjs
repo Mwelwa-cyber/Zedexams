@@ -9,7 +9,7 @@ import { buildResultMessage, buildWeekMessage, whatsappShareUrl } from '../src/s
 const a = buildResultMessage({ subject: 'Maths', correct: 8, total: 10, weakTopic: 'Fractions' })
 assert.match(a, /I scored 8 out of 10 in Maths on ZedExams today\. 🎉/)
 assert.match(a, /practise more: Fractions\./)
-assert.ok(a.endsWith('zedexams.com'))
+assert.equal(a.split('\n').at(-1), 'zedexams.com')
 
 // Percentage path, below the pass mark: no celebration, no topic line.
 const b = buildResultMessage({ subject: 'English', percentage: 45.4 })
