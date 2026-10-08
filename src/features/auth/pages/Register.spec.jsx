@@ -186,9 +186,38 @@ describe('Register — the age screen comes before every sign-up method', () => 
   })
 })
 
-// ── Teachers and parents are not asked ────────────────────────────
+// ── There is no parent sign-up ────────────────────────────────────
 
-describe('Register — teachers and parents (criterion 7)', () => {
+describe('Register — a parent does not register', () => {
+  it('offers Learner and Teacher, and no Parent card', () => {
+    mount()
+    expect(screen.getByRole('button', { name: /learner/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /teacher/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /parent/i })).toBeNull()
+  })
+
+  it('tells a parent they need no account, and what to do instead', () => {
+    mount()
+    const hint = screen.getByTestId('parent-hint')
+    expect(hint.textContent).toMatch(/are you a parent/i)
+    expect(hint.textContent).toMatch(/do not need an account/i)
+    expect(hint.textContent).toMatch(/mobile money number/i)
+  })
+
+  it('does not let ?role=parent preselect a parent account', () => {
+    // An old marketing link must land on the learner default rather than on a
+    // flow that would create a parent account.
+    mount('/register?role=parent')
+    expect(screen.queryByRole('button', { name: /parent/i })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /^continue$/i }))
+    // Learner is the default, so Continue goes to the AGE screen, not to auth.
+    expect(screen.queryByLabelText(/full name/i)).toBeNull()
+  })
+})
+
+// ── Teachers are not asked ────────────────────────────────────────
+
+describe('Register — teachers (criterion 7)', () => {
   it('asks a teacher for no date of birth at all', async () => {
     mount()
     pickRole('teacher')
@@ -197,13 +226,6 @@ describe('Register — teachers and parents (criterion 7)', () => {
     expect(screen.queryByLabelText(/^month$/i)).toBeNull()
     expect(screen.queryByLabelText(/^year$/i)).toBeNull()
     expect(screen.queryByText(/when were you born/i)).toBeNull()
-  })
-
-  it('asks a parent for no date of birth at all', async () => {
-    mount()
-    pickRole('parent')
-    await waitFor(() => expect(screen.getByLabelText(/full name/i)).toBeInTheDocument())
-    expect(screen.queryByLabelText(/^year$/i)).toBeNull()
   })
 
   it('blocks the email sign-up until the 18+ box is ticked', async () => {
@@ -222,7 +244,7 @@ describe('Register — teachers and parents (criterion 7)', () => {
     // post-Google completion step in this codebase to carry the confirmation,
     // so the same checkbox gates both methods.
     mount()
-    pickRole('parent')
+    pickRole('teacher')
     await waitFor(() => expect(screen.getByRole('button', { name: /google/i })).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: /google/i }))
     await waitFor(() =>

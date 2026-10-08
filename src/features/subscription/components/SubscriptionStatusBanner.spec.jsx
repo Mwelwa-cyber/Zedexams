@@ -12,11 +12,11 @@
  * CSS facts that make the row shrinkable: `min-w-0` on the flex-1 button
  * and `truncate` on the message span.
  *
- * It also pins the age rule: an under-18 learner is never shown a price, a
- * plan name or a route to the checkout. The default profile in these tests
- * is therefore an ADULT learner (`isMinor: false`) — `resolveAgeBand` fails
- * closed, so a bare `{ role: 'learner' }` is a child and would get the
- * ask-a-grown-up strip instead of the priced one.
+ * It also pins the age rule, which depends on the platform: in the Android
+ * build an under-18 learner is never shown a price, a plan name or a route to
+ * the checkout; on the web they are, because a parent pays. The default
+ * profile in these tests is an ADULT learner (`isMinor: false`) —
+ * `resolveAgeBand` fails closed, so a bare `{ role: 'learner' }` is a child.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
@@ -29,6 +29,12 @@ const CHILD = { id: 'learner-2', role: 'learner' }
 
 let mockAuth = { userProfile: ADULT }
 vi.mock('../../../contexts/AuthContext', () => ({ useAuth: () => mockAuth }))
+
+let mockNative = false
+vi.mock('../../../utils/runtime', async (importOriginal) => ({
+  ...(await importOriginal()),
+  isNativePlatform: () => mockNative,
+}))
 
 
 
@@ -50,6 +56,7 @@ function renderBanner(path = '/dashboard') {
 beforeEach(() => {
   sessionStorage.clear()
   mockAuth = { userProfile: ADULT }
+  mockNative = false
   mockReminder = { status: 'expired', shouldRemind: true, isExpired: true }
 })
 
@@ -84,8 +91,18 @@ describe('SubscriptionStatusBanner', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  describe('an under-18 learner', () => {
+  describe('an under-18 learner on the web — a parent pays', () => {
     beforeEach(() => { mockAuth = { userProfile: CHILD } })
+
+    it('is shown the normal strip, not the ask-a-grown-up one', () => {
+      renderBanner()
+      expect(screen.getByText('Expired Subscription')).toBeInTheDocument()
+      expect(screen.queryByText(/Ask a grown-up/i)).toBeNull()
+    })
+  })
+
+  describe('an under-18 learner in the Android build', () => {
+    beforeEach(() => { mockAuth = { userProfile: CHILD }; mockNative = true })
 
     it('is never shown a price, a plan name or the checkout', () => {
       mockReminder = { status: 'free', shouldRemind: true, isExpired: false }

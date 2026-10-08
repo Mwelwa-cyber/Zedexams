@@ -74,8 +74,11 @@ const SELECT_CLASS = INPUT_CLASS + ' appearance-none pr-8 cursor-pointer'
  *
  *   role select ─┬─ learner ─► age ─► auth ─┬─ 18+ ─► done
  *                │                          └─ <18 ─► guardian ─► done (limited)
- *                ├─ teacher ─► auth (18+ confirmation, no date of birth)
- *                └─ parent  ─► auth (18+ confirmation, no date of birth)
+ *                └─ teacher ─► auth (18+ confirmation, no date of birth)
+ *
+ * There is no parent option. A parent does not register: the learner creates
+ * the account and a parent pays with their own mobile-money number (see
+ * UpgradeModal). Existing parent accounts still sign in at /login.
  *
  * Two things changed and both are structural rather than cosmetic:
  *
@@ -87,10 +90,10 @@ const SELECT_CLASS = INPUT_CLASS + ' appearance-none pr-8 cursor-pointer'
  *    signupFlowCore.resolveStep rather than a conditional here — a deep link,
  *    a refresh and the back button all go through the same check.
  *
- * 2. TEACHERS AND PARENTS ARE NO LONGER ASKED THEIR BIRTHDAY. It fed no
- *    feature and no obligation, and a data type we collect is one we have to
- *    declare in the Privacy Policy and the Play Data safety form and defend
- *    on request. They tick a box confirming they are 18+; no date is stored.
+ * 2. TEACHERS ARE NOT ASKED THEIR BIRTHDAY. It fed no feature and no
+ *    obligation, and a data type we collect is one we have to declare in the
+ *    Privacy Policy and the Play Data safety form and defend on request. They
+ *    tick a box confirming they are 18+; no date is stored.
  *
  * The URL carries the step (?step=age) so the flow is addressable and the
  * browser's own back button works, but the URL is never trusted — whatever it
@@ -123,7 +126,7 @@ export default function Register() {
     role: searchParams.get('role') === 'teacher' ? 'teacher' : 'learner',
     province: '',
     subject: '',
-    // Teacher/parent only. Stored as the boolean attestation it is —
+    // Teacher only. Stored as the boolean attestation it is —
     // `ageConfirmed18Plus: true` — never as a date, because a checkbox is not
     // a birthday and recording it as one would put us back where we started.
     ageConfirmed18Plus: false,
@@ -151,7 +154,6 @@ export default function Register() {
   const [fieldErrors, setFieldErrors] = useState({})
 
   const isTeacher = form.role === 'teacher'
-  const isParent = form.role === 'parent'
   const isLearner = form.role === 'learner'
 
   // ── The step machine ────────────────────────────────────────────────
@@ -259,8 +261,7 @@ export default function Register() {
       email: ['required', 'email'],
       password: ['required', 'passwordPolicy'],
       confirm: [{ match: 'password', value: form.password, message: 'Passwords do not match.' }],
-      // Parents have no school/grade of their own; they link to a child later.
-      ...(isParent ? {} : { school: ['required'] }),
+      school: ['required'],
       ...(isTeacher ? { subject: ['required'], province: ['required'] } : {}),
       // A learner's grade is NOT asked here any more — it is the first step of
       // the setup wizard (`/setup`), which is where the prototype puts it and
@@ -486,7 +487,7 @@ export default function Register() {
             <div className="text-[10.5px] font-bold uppercase tracking-[1px] text-[#6E7280] text-center mb-2.5">
               I am a
             </div>
-            <div className="grid grid-cols-3 gap-2.5 mb-4">
+            <div className="grid grid-cols-2 gap-2.5 mb-4">
               <RoleCard
                 active={isLearner}
                 onClick={() => pickRole('learner')}
@@ -501,13 +502,6 @@ export default function Register() {
                 name="Teacher"
                 hint={<>Lesson plans<br />&amp; tools</>}
               />
-              <RoleCard
-                active={isParent}
-                onClick={() => pickRole('parent')}
-                emoji="👪"
-                name="Parent"
-                hint={<>Follow your<br />child's progress</>}
-              />
             </div>
 
             {/* Context strip */}
@@ -516,27 +510,35 @@ export default function Register() {
               style={
                 isTeacher
                   ? { background: '#EBF5F1', borderColor: 'rgba(28,100,70,0.2)' }
-                  : isParent
-                    ? { background: '#EEF2FF', borderColor: 'rgba(79,70,229,0.22)' }
-                    : { background: '#FFF5EC', borderColor: 'rgba(198,123,79,0.25)' }
+                  : { background: '#FFF5EC', borderColor: 'rgba(198,123,79,0.25)' }
               }
             >
-              <span className="text-[14px] flex-shrink-0" aria-hidden="true">{isParent ? '👪' : '📚'}</span>
+              <span className="text-[14px] flex-shrink-0" aria-hidden="true">📚</span>
               <span
                 className="text-[12.5px] font-medium"
-                style={{ color: isTeacher ? '#1C6446' : isParent ? '#4338CA' : '#96552F' }}
+                style={{ color: isTeacher ? '#1C6446' : '#96552F' }}
               >
                 {isTeacher
                   ? 'Access lesson plans, schemes of work & teaching tools'
-                  : isParent
-                    ? "Follow your child's quiz scores, streaks & subjects"
-                    : "You'll get access to Grade 7 quizzes & exam practice"}
+                  : "You'll get access to Grade 7 quizzes & exam practice"}
               </span>
             </div>
 
             <Button type="button" variant="primary" size="lg" fullWidth onClick={continueFromRole}>
               Continue
             </Button>
+
+            {/* A parent has no card, and a parent who followed an old link
+                needs to be told why — otherwise they pick Learner and sign
+                up as one. The answer is that they do not need an account. */}
+            <p
+              className="mt-3 rounded-[10px] bg-[#F4F1EC] px-3.5 py-2.5 text-center text-[12px] leading-relaxed text-[#5A5F6E]"
+              data-testid="parent-hint"
+            >
+              <strong className="font-bold text-[#1A1F2E]">Are you a parent?</strong>{' '}
+              You do not need an account. Your child signs up, and you pay for
+              their plan with your own mobile money number.
+            </p>
           </>
         )}
 
@@ -579,16 +581,16 @@ export default function Register() {
             question has already been answered. ───────────────────────── */}
         {step === STEP.AUTH && (
         <>
-        {/* The adult attestation for teachers and parents.
+        {/* The adult attestation for teachers.
             It sits ABOVE both methods and gates BOTH, which is a deliberate
             difference from the brief: that asked for the checkbox on the email
             form and for the Google path to carry the same confirmation in a
             post-Google completion step. No such step exists in this codebase
-            — the teacher's subject/province and the parent's child link are
-            collected later, from inside the app, not in a signup completion
-            screen — so building one to hold a checkbox would be inventing a
-            screen. Gating both methods here is simpler and strictly stronger:
-            no teacher or parent account is created without the confirmation,
+            — the teacher's subject/province is collected later, from inside
+            the app, not in a signup completion screen — so building one to
+            hold a checkbox would be inventing a screen. Gating both methods
+            here is simpler and strictly stronger: no teacher account is
+            created without the confirmation,
             by either route. It is stored as `ageConfirmed18Plus: true`, never
             as a date. */}
         {needsAdultConfirmation(form.role) && (
@@ -740,18 +742,16 @@ export default function Register() {
             )}
           </div>
 
-          {!isParent && (
-            <Field
-              label="School Name"
-              id="school"
-              value={form.school}
-              onChange={set('school')}
-              placeholder="e.g. Lusaka Academy"
-              autoComplete="organization"
-              icon="🏫"
-              error={fieldErrors.school}
-            />
-          )}
+          <Field
+            label="School Name"
+            id="school"
+            value={form.school}
+            onChange={set('school')}
+            placeholder="e.g. Lusaka Academy"
+            autoComplete="organization"
+            icon="🏫"
+            error={fieldErrors.school}
+          />
 
           {/* The learner's Grade dropdown used to sit here. It moved to the
               setup wizard's first step — see buildSchema above. */}

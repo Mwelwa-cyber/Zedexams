@@ -1117,9 +1117,28 @@ Two rules override everything else in this area:
   `ageBand` fails closed (a learner is `under18` unless `isMinor === false`), and
   **every quota must expose a `resetsAt`** — a lock that cannot say when it lifts
   renders nothing rather than rendering bare.
-- **Under-18 learners are never shown a price.** `useUnlockFlow` routes them to
-  `GuardianAskSheet`, which imports no pricing module at all — the guarantee is
-  structural, not a conditional. The ask goes to `requestGuardianUnlock`
+- **What an under-18 learner sees depends on the platform (2026-10).** On the
+  **web** they see the plan ladder and the price, and a PARENT pays: the Lenco
+  checkout asks for the parent's mobile-money number, the parent approves the
+  prompt on their own phone, and the plan lands on the learner's own account —
+  the callable payload is identical to any other payment, with no beneficiary
+  or guardian field. In the **Android build** they are shown no price and are
+  routed to the guardian ask below, because Play's Families policy governs that
+  listing. One switch decides it: `mayShowPrice(profile, {native})` in
+  `planState.js` and `resolveUnlockRoute(planState, {native})`, both of which
+  default `native` to withholding and open only on an explicit `false` — a
+  caller that omits the platform can never be the one that shows a minor a
+  price. Components call `platformMayShowPrice` (`./platformPrice`), which
+  reads the real platform. `isGuardianPayer(profile)` drives WORDING only
+  ("your parent's number"); whether a minor may actually buy is still the
+  server's call (`assertLearnerCapability(CAPABILITY_PURCHASE)` in
+  `initiateLencoPayment` and `getUpgradeQuote`), so an unapproved minor is
+  refused there whatever the screen shows. **There is no parent sign-up**:
+  `SIGNUP_ROLES` is `learner`/`teacher`, and `/register` tells a parent they
+  need no account. Existing parent accounts still sign in and the family portal
+  still exists until it is retired. In the Android build the guardian ask is
+  `GuardianAskSheet`, which imports no pricing module at all — the guarantee
+  there is structural, not a conditional. The ask goes to `requestGuardianUnlock`
   (`functions/guardianUnlock/`), rate-limited to one per learner per 72 hours
   **server-side** (`users.guardianUnlock` is on the rules blocklist). Message
   order is fixed by `functions/shared/guardian/guardianMessageCore.js`:

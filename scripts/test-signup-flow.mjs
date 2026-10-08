@@ -13,6 +13,7 @@
 import assert from 'node:assert/strict'
 import {
   AGE_ANSWER_TTL_MS,
+  SIGNUP_ROLES,
   STEP,
   checkAgeAnswer,
   isFreshAgeAnswer,
@@ -74,11 +75,22 @@ test('a learner WITH a date of birth reaches the auth screen', () => {
   )
 })
 
-test('teachers and parents go straight to auth — no age step to skip', () => {
+test('teachers go straight to auth — no age step to skip', () => {
   assert.equal(resolveStep({ requested: STEP.AUTH, role: 'teacher' }), STEP.AUTH)
-  assert.equal(resolveStep({ requested: STEP.AUTH, role: 'parent' }), STEP.AUTH)
   // And the age screen is not reachable for them even by asking for it.
   assert.equal(resolveStep({ requested: STEP.AGE, role: 'teacher' }), STEP.ROLE)
+})
+
+test('a parent cannot sign up — the flow sends the role back to the start', () => {
+  // A parent does not register: the learner creates the account and a parent
+  // pays with their own mobile-money number. Whatever route 'parent' arrives by
+  // — a stale sessionStorage flow, a hand-edited ?step=auth — it must not
+  // reach a screen that creates an account.
+  assert.equal(SIGNUP_ROLES.includes('parent'), false)
+  assert.deepEqual([...SIGNUP_ROLES], ['learner', 'teacher'])
+  for (const requested of [STEP.AUTH, STEP.AGE, STEP.GUARDIAN, undefined]) {
+    assert.equal(resolveStep({ requested, role: 'parent' }), STEP.ROLE)
+  }
 })
 
 test('a garbage or absent step never crashes into a screen', () => {

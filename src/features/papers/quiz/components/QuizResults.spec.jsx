@@ -38,6 +38,7 @@ vi.mock('../../../../services/entitlements', async (importOriginal) => {
       closeUnlock: vi.fn(),
       isUnder18: mockIsUnder18,
       route: mockIsUnder18 ? 'guardian' : 'checkout',
+      showsPrice: !mockIsUnder18,
     }),
     useEntitlements: () => ({
       planState: {

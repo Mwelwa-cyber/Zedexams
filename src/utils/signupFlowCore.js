@@ -55,8 +55,15 @@ const KNOWN_STEPS = Object.freeze(Object.values(STEP))
  */
 export const AGE_ANSWER_TTL_MS = 24 * 60 * 60 * 1000
 
-/** Roles a person can pick for themselves at sign-up. */
-export const SIGNUP_ROLES = Object.freeze(['learner', 'teacher', 'parent'])
+/**
+ * Roles a person can pick for themselves at sign-up.
+ *
+ * Not `parent`: a parent does not register. The learner creates the account
+ * and a parent pays with their own mobile-money number. `resolveStep` sends any
+ * role outside this list back to the role screen, so a stale sessionStorage
+ * flow or a hand-edited URL naming `parent` cannot reach the auth step.
+ */
+export const SIGNUP_ROLES = Object.freeze(['learner', 'teacher'])
 
 /**
  * Only learners are asked their age.

@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useSubscriptionReminder } from '../../../hooks/useSubscriptionReminder'
 import { SUB_STATUS } from '../../../engines/payment-engine/subscriptionStatus'
-import { mayShowPrice } from '../../../services/entitlements/planState'
+import { platformMayShowPrice } from '../../../services/entitlements/platformPrice'
 import { isReminderSuppressedPath } from '../lib/reminderVisibility'
 import Icon from '../../../shared/components/Icon'
 import { X } from '../../../shared/components/icons'
@@ -54,7 +54,7 @@ export default function SubscriptionStatusBanner() {
   if (dismissed) return null
   if (isReminderSuppressedPath(pathname)) return null
 
-  const showPrice = mayShowPrice(userProfile)
+  const showPrice = platformMayShowPrice(userProfile)
 
   const expired = status === SUB_STATUS.EXPIRED || isExpired
   const palette = expired

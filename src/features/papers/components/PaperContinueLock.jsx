@@ -25,11 +25,13 @@
  * imports neither. Same reasoning the subscription front door already gives
  * for keeping its six paywall hosts as lazy route mounts.
  *
- * ── No price for a child ───────────────────────────────────────────────
+ * ── Price follows the route ────────────────────────────────────────────
  *
- * The route comes from `useUnlockFlow`. Under 18 the button reads "Ask your
- * guardian to unlock" and this component renders no figure at all; the
- * cheapest-rung quote is computed only on the adult branch.
+ * The route comes from `useUnlockFlow`, and this component prices the button
+ * only when that route carries a price: adults, and under-18 learners on the
+ * web (a parent pays). Inside the Android build an under-18 reads "Ask your
+ * guardian to unlock" and this renders no figure at all; the cheapest-rung
+ * quote is computed only when the route is priced.
  */
 
 import { useEffect } from 'react'
@@ -53,7 +55,7 @@ export default function PaperContinueLock({
   onDismiss,
 }) {
   const { planState } = useEntitlements()
-  const { requestUnlock, isUnder18 } = useUnlockFlow()
+  const { requestUnlock, route, showsPrice } = useUnlockFlow()
 
   const resetsAt = planState?.resetsAt?.papersThisWeek || null
   const resetLabel = formatResetDate(resetsAt)
@@ -74,13 +76,13 @@ export default function PaperContinueLock({
     return null
   }
 
-  const cheapest = isUnder18 ? null : cheapestPlan()
+  const cheapest = showsPrice ? cheapestPlan() : null
 
   function handleUnlock() {
     capture('paper_continue_lock_tapped', {
       paper_id: paperId,
       remaining,
-      route: isUnder18 ? 'guardian' : 'checkout',
+      route,
     })
     requestUnlock('PAPER_CONTINUE', {
       screen: 'free-set-results',
@@ -117,9 +119,9 @@ export default function PaperContinueLock({
         onClick={handleUnlock}
         className="mt-3 w-full rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2.5 text-sm font-black text-white transition-transform hover:scale-[1.01] active:scale-95"
       >
-        {isUnder18
-          ? 'Ask your guardian to unlock'
-          : `Unlock — from ${formatKwacha(cheapest?.price)}`}
+        {showsPrice
+          ? `Unlock — from ${formatKwacha(cheapest?.price)}`
+          : 'Ask your guardian to unlock'}
       </button>
 
       {onDismiss && (
