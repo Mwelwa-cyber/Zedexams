@@ -16,13 +16,8 @@ const SUPPRESSED_EXACT = new Set([
 const SUPPRESSED_PREFIXES = [
   '/papers', '/share/', '/parent/', '/grade-', '/blog/',
   '/games/play', '/quiz/', '/exam/', '/exam-results', '/teacher/welcome-to-pro',
-  // The family app carries its own plan strip inside the page column
-  // (features/parentPortal/components/FamilyPlanBanner). Two reasons this
-  // one has to stay out rather than being restyled: it renders above the
-  // router and full bleed, so the fixed family sidebar at >=1000px paints
-  // over its left edge and clips the text; and it describes the SIGNED-IN
-  // account's plan, which for a guardian is never the account being
-  // unlocked — the money credits the child. See familyPlanBanner.js.
+  // The family app was retired; /family/* now redirects home. Kept in the
+  // list so the redirect frame never paints a plan strip.
   '/family',
 ]
 

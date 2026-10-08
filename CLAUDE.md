@@ -1107,6 +1107,20 @@ in `FamilyCodePanel`. Do not delete the panel, `GuardianLinkPanel` or the
 `/family` routes until the production `parentLinks` count is known (4b/4c).
 Share links already issued keep working until they expire.
 
+**4b-1 removed the family app's SCREENS (2026-10).** With production at zero or
+near-zero parent accounts and active `parentLinks`, the `/family/*` routes,
+`ParentShell`, all 17 parent pages and their components are deleted, and
+`/family/*` redirects to `/`. `features/parentPortal` now holds only what
+learners and no-login guardians still use: `GuardianUnlock` +
+`GuardianCheckout` (the pay link), `GuardianLinkPanel`, `FamilyCodePanel`,
+`ParentProgressView` (`/parent/:token`, old share links) and their services.
+**Deliberately NOT yet removed (4b-2):** the parent callables and digests in
+`functions/` (`parentApp/`, `familyPortal.js`, `weeklyParentDigest.js`), the
+`parent` role in `navigation.js` / `PortalRouteGuard` / `learnerPortalDenial`
+(a stray parent account would land on `/family`, which redirects home), and the
+`/family/*` strings in `portalRedirects.js` and `Plans.jsx`. Those touch auth
+guards and the consent/deletion flow, so they get their own PR.
+
 ### A parent hears about results because the learner sends them (2026-10)
 
 There is no parent account to read results from, so the learner sends them:
