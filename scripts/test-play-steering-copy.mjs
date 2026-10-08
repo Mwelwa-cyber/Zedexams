@@ -9,12 +9,11 @@
  *
  * ── What this proves, and what it does not ──────────────────────────
  *
- * It is a SOURCE scan, so it proves the native gates still exist and that
- * the parent checkout carries no banned words. It cannot prove that what
- * renders at runtime is clean — that is what the component specs do
- * (ParentPlayCheckout.spec.jsx, ParentPlanStatus.spec.jsx and
- * ParentPlan.rails.spec.jsx all assert over rendered text). The two
- * layers answer different questions and neither replaces the other.
+ * It is a SOURCE scan, so it proves the native gates still exist. It cannot prove
+ * that what renders at runtime is clean — that is what the component specs
+ * do (GuardianUnlock.spec.jsx asserts over the rendered native branch of the
+ * guardian page, which names no payment method). The two layers answer
+ * different questions and neither replaces the other.
  *
  * Run: node scripts/test-play-steering-copy.mjs
  */
@@ -41,8 +40,6 @@ function test(name, fn) {
 
 console.log('play steering copy')
 
-// ── The parent checkout that renders inside the Android app ──────────
-// This file has no web branch: everything in it ships to Play.
 const BANNED = [
   [/\blenco\b/i, 'names our web payment provider'],
   [/mobile money/i, 'names an alternative payment method'],
@@ -52,18 +49,6 @@ const BANNED = [
   [/zedexams\.com/i, 'points the buyer at the website'],
   [/\bK\d/, 'prints a ZMW price literal — Play sets the price on this rail'],
 ]
-
-test('the Android parent checkout carries no steering copy', () => {
-  // Comments legitimately explain WHY these words are banned, so the scan
-  // is over code and literals only.
-  const code = read('src/features/parentPortal/components/ParentPlayCheckout.jsx')
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/(^|[^:])\/\/.*$/gm, '$1')
-  for (const [pattern, why] of BANNED) {
-    const hit = code.match(pattern)
-    assert.ok(!hit, `ParentPlayCheckout.jsx contains "${hit?.[0]}" — it ${why}`)
-  }
-})
 
 // ── The marketing pages' native gates ────────────────────────────────
 // Both pages render inside the Android WebView, and both carry
