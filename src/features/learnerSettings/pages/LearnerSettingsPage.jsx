@@ -240,7 +240,7 @@ export default function LearnerSettingsPage() {
             when somebody redeems their code. */}
         <LinkRow
           icon="🛡️" title="Guardian"
-          desc={guardianGranted ? 'Verified · manages approvals' : 'Family code and who can see your progress'}
+          desc={guardianGranted ? 'Verified · manages approvals' : 'Who is linked to your account'}
           value={guardianGranted ? '✅' : null}
           onClick={() => navigate('/settings/guardian')}
         />

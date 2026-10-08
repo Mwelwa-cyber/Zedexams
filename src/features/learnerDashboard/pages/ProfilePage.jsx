@@ -22,7 +22,6 @@ import { getRoleLandingPath }  from '../../../utils/navigation'
 import { daysUntilExpiry }     from '../../../engines/payment-engine/subscriptionConfig'
 import { isSuperAdmin, isLearnerRole } from '../../../utils/permissions'
 import { UpgradeModal } from '../../subscription'
-import { ParentShareManager } from '../../parentPortal'
 import LanguageToggle          from '../../../shared/components/LanguageToggle'
 import InvoicesCard            from '../components/InvoicesCard'
 import PaymentHistoryCard      from '../components/PaymentHistoryCard'
@@ -392,10 +391,6 @@ export default function ProfilePage() {
             InvoicesCard (which only shows D3 receipts; manual grants
             don't write invoices). */}
         <PaymentHistoryCard />
-
-        {/* Audit A3 PR 1 — share-progress-with-parent. Learners only;
-            teachers/admins don't have a "parent". */}
-        {isLearner && <ParentShareManager />}
 
         {/* Audit C7 PR 1 — referral code, copy, and WhatsApp share.
             Self-hides if the user record is missing referralCode (e.g.

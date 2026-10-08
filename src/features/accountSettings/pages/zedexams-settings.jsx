@@ -17,7 +17,7 @@ import CharacterAvatar, {
 } from '../../../shared/components/CharacterAvatar';
 import SeoHelmet from '../../../shared/components/SeoHelmet';
 import LanguageToggle from '../../../shared/components/LanguageToggle';
-import { ParentShareManager } from '../../parentPortal';
+import { GuardianLinkPanel } from '../../parentPortal';
 import { isPushSupported, pushPermission, requestPushPermission } from '../../../services/notifications/fcm';
 import {
   LEGACY_TAB_PARAM,
@@ -89,7 +89,7 @@ const TABS = {
   // children. We also split profile + security into distinct sections,
   // add a Learning Preferences tab for grade/sounds/language, an
   // Accessibility tab (reduced motion, font size, high-contrast), and
-  // a Parent/Guardian tab that wraps the existing ParentShareManager.
+  // a Parent/Guardian tab that shows who is linked (GuardianLinkPanel).
   learner: [
     { id: 'profile',       label: 'Profile' },
     { id: 'security',      label: 'Password & Security' },
@@ -1309,13 +1309,12 @@ function LearnerAccessibilityPanel({ pushToast }) {
 function LearnerParentPanel() {
   return (
     <SectionCard
-      title="Parent / Guardian access"
-      description="Share a read-only progress link with a parent or guardian. They will see your scores and badges — never your password."
+      title="Parent / Guardian"
+      description="Who is linked to your account, and exactly what they can see."
     >
-      {/* ParentShareManager is the same widget that powers the link
-          on /profile, so the two surfaces stay in sync without
-          touching the underlying Firestore wiring. */}
-      <ParentShareManager />
+      {/* Read-only view of existing links. New links and share links are
+          gone: results reach a parent through the learner's WhatsApp button. */}
+      <GuardianLinkPanel />
     </SectionCard>
   );
 }

@@ -1,12 +1,17 @@
 // Parent / Guardian panel — contact details for the parent/guardian (autosaved
-// to learnerSettings.parent) plus the real invite/share flow, which is owned
-// entirely by ParentShareManager (mint link, copy, WhatsApp hand-off, revoke).
+// to learnerSettings.parent) and who is linked to the account. There is no
+// longer a way to MAKE a code here or to share a progress link:
+// a parent hears about results because the learner sends them on WhatsApp
+// (ShareWithParent), and a parent pays with their own mobile-money number.
+// FamilyCodePanel stays WITHOUT its "create a code" controls: a code already
+// out there can still be redeemed, and the pending link it leaves is answered
+// only here.
 
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useSettingsSave } from '../components/SaveContext'
 import { Panel, Section, Field, TextInput, SelectField, Note } from '../components/ui'
-import { ParentShareManager, FamilyCodePanel, GuardianLinkPanel } from '../../parentPortal'
+import { FamilyCodePanel, GuardianLinkPanel } from '../../parentPortal'
 import { normalizeParentContact, RELATIONSHIP_OPTIONS } from '../lib/learnerPrefs'
 
 // Headerless body — composed by MyAccountPanel; default keeps the Panel wrapper.
@@ -91,16 +96,8 @@ export function ParentBody() {
         <GuardianLinkPanel />
       </Section>
 
-      <Section title="Connect a parent account" hint="Give your parent a family code so they can sign in and follow your progress from their own account.">
-        <FamilyCodePanel />
-      </Section>
-
-      <Section title="Share your progress" hint="Send a read-only link so your parent can follow your results — never your password.">
-        <Note tone="accent">
-          Once connected, your parent can see: Results · Homework updates · Attendance ·
-          Progress reports · School announcements.
-        </Note>
-        <ParentShareManager />
+      <Section title="Requests from a parent" hint="If someone asks to be your guardian, you say yes or no here.">
+        <FamilyCodePanel allowNewCode={false} />
       </Section>
     </>
   )

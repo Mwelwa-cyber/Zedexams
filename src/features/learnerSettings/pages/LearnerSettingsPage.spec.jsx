@@ -129,9 +129,9 @@ describe('LearnerSettingsPage (prototype-v6)', () => {
     renderSettings()
     // No guardian record: the row says what it IS for rather than
     // reporting a state, because the thing a learner needs from it in
-    // that case is the family code, not a verdict.
+    // that case is who is linked, not a verdict.
     expect(
-      screen.getAllByText('Family code and who can see your progress').length,
+      screen.getAllByText('Who is linked to your account').length,
     ).toBeGreaterThan(0)
   })
 

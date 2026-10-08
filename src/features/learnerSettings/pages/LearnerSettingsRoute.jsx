@@ -7,7 +7,7 @@
 //   /settings/security        password, recovery, sign-in
 //   /settings/notifications   channels, categories, quiet hours
 //   /settings/learning        study setup, quizzes, reading & audio
-//   /settings/guardian        the family code, who is linked, "is this my grown-up?"
+//   /settings/guardian        who is linked, requests to answer, "is this my grown-up?"
 //   /settings/data            download a copy, privacy choices
 //   /settings/help            FAQ, contact support, Childline 116
 //   /settings/delete          deleting the account, on its own route

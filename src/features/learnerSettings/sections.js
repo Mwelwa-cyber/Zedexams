@@ -98,9 +98,9 @@ export const LEARNER_SETTINGS_SECTIONS = [
  * Sections that exist as a PANEL but not as a card on the settings
  * dashboard.
  *
- * `parent` is the Guardian screen — the family code, the linked
- * guardians, and (since codes became child-confirmed) the "is this your
- * grown-up?" answer. It is not on the dashboard because the dashboard is
+ * `parent` is the Guardian screen — the linked guardians, and (since codes
+ * became child-confirmed) the "is this your grown-up?" answer. It no longer
+ * makes family codes or share links; see ParentPanel. It is not on the dashboard because the dashboard is
  * not part of the learner mockup at all; it is reached from the Guardian
  * row on the v6 Settings screen, which is where a child is told to look.
  *
@@ -113,10 +113,10 @@ export const PANEL_ONLY_SECTIONS = [
   {
     id: 'parent',
     label: 'Guardian',
-    desc: 'Your family code and who can see your progress',
+    desc: 'Who is linked to your account',
     icon: ShieldCheck,
     tone: 'green',
-    keywords: ['guardian', 'parent', 'family code', 'link', 'grown-up', 'mum', 'dad'],
+    keywords: ['guardian', 'parent', 'link', 'grown-up', 'mum', 'dad'],
   },
 ]
 
