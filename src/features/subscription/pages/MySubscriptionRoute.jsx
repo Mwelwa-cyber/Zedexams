@@ -3,7 +3,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 // Deep import, not the barrel: `services/entitlements/index.js` re-exports
 // guardianRequest, which pulls firebase/config — a Firebase edge on a
 // four-line router that only needs one pure predicate.
-import { mayShowPrice } from '../../../services/entitlements/planState'
+import { platformMayShowPrice } from '../../../services/entitlements/platformPrice'
 import MySubscriptionPage from './MySubscriptionPage'
 
 /**
@@ -33,15 +33,16 @@ export default function MySubscriptionRoute() {
   // Admins first: isTeacher includes superAdmins (AuthContext), so checking
   // isTeacher alone would redirect every admin into the teacher shell.
   if (!isAdmin && isTeacher) return <Navigate to="/teacher/subscription" replace />
-  // A learner who is not positively an adult never reaches the plan
-  // ladder or the checkout — the commitment on /child-safety and Play's
-  // Families policy. This is the ARRIVAL guard rather than the offer
+  // Inside the Android build, a learner who is not positively an adult never
+  // reaches the plan ladder or the checkout — Play's Families policy. (On the
+  // web they do: the checkout asks for a parent's number.) This is the
+  // ARRIVAL guard rather than the offer
   // guard: the banners and cards already route the tap elsewhere, but an
   // old notification action, a bookmark or a shared link all land here,
-  // and each of those would otherwise open a price list. `mayShowPrice`
+  // and each of those would otherwise open a price list. `platformMayShowPrice`
   // treats a missing profile as an anonymous visitor, not as a child —
   // this route is behind ProtectedRoute, so there is always one.
-  if (!isAdmin && !mayShowPrice(userProfile)) {
+  if (!isAdmin && !platformMayShowPrice(userProfile)) {
     return <Navigate to="/ask-a-grown-up" replace />
   }
   return <MySubscriptionPage />

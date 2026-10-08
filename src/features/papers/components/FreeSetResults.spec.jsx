@@ -21,6 +21,10 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 
 const mockProfile = { current: { role: 'learner', isMinor: true } }
+// A minor on the WEB checks out (a parent pays); in the Android build they are
+// routed to the guardian ask. `useUnlockFlow` decides that from the platform,
+// which this spec does not run on, so it is a switch here.
+const webMinor = { current: false }
 const planStateOverride = { current: null }
 
 vi.mock('../../../contexts/AuthContext', () => ({
@@ -46,7 +50,8 @@ vi.mock('../../../services/entitlements', async (importOriginal) => {
       requestUnlock,
       closeUnlock: vi.fn(),
       isUnder18: mockProfile.current?.isMinor !== false,
-      route: mockProfile.current?.isMinor === false ? 'checkout' : 'guardian',
+      route: mockProfile.current?.isMinor === false || webMinor.current ? 'checkout' : 'guardian',
+      showsPrice: mockProfile.current?.isMinor === false || webMinor.current,
     }),
     useEntitlements: () => ({
       planState: planStateOverride.current || {
@@ -102,6 +107,7 @@ function renderResults(props = {}) {
 
 beforeEach(() => {
   mockProfile.current = { role: 'learner', isMinor: true }
+  webMinor.current = false
   planStateOverride.current = null
   capture.mockClear()
   requestUnlock.mockClear()
@@ -186,7 +192,7 @@ describe('ACCEPTANCE 15 — the lock always states its reset date', () => {
 })
 
 describe('ACCEPTANCE 10 — the lock is rendered and tappable', () => {
-  it('routes an under-18 learner to the guardian, with no price on screen', async () => {
+  it('routes an under-18 learner to the guardian in the Android build, with no price on screen', async () => {
     const user = userEvent.setup()
     renderResults()
     const cta = screen.getByRole('button', { name: /ask your guardian to unlock/i })
@@ -202,6 +208,17 @@ describe('ACCEPTANCE 10 — the lock is rendered and tappable', () => {
     }))
     expect(capture).toHaveBeenCalledWith('paper_continue_lock_tapped', {
       paper_id: 'p1', remaining: 40, route: 'guardian',
+    })
+  })
+
+  it('quotes the cheapest rung to an under-18 learner on the web — a parent pays', async () => {
+    const user = userEvent.setup()
+    webMinor.current = true
+    renderResults()
+    const cta = screen.getByRole('button', { name: /unlock — from K5/i })
+    await user.click(cta)
+    expect(capture).toHaveBeenCalledWith('paper_continue_lock_tapped', {
+      paper_id: 'p1', remaining: 40, route: 'checkout',
     })
   })
 

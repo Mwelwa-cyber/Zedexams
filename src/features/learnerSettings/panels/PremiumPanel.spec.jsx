@@ -14,6 +14,12 @@ vi.mock('../../../firebase/config', () => ({ default: {}, auth: {}, db: {} }))
 // explicit: resolveAgeBand fails closed, so a learner profile that says
 // nothing about age is a child and sees no price at all. The under-18 case is
 // its own describe block at the bottom.
+let mockNative = false
+vi.mock('../../../utils/runtime', async (importOriginal) => ({
+  ...(await importOriginal()),
+  isNativePlatform: () => mockNative,
+}))
+
 let mockProfile
 vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({ userProfile: mockProfile, currentUser: { uid: 'u1' } }),
@@ -40,6 +46,7 @@ const section = { id: 'premium', label: 'Premium' }
 beforeEach(() => {
     mockProfile = { role: 'learner', isMinor: false }
   mockSub = { tierLabel: 'Free', isPremium: false }
+  mockNative = false
   lastModalProps = null
 })
 
@@ -92,9 +99,25 @@ describe('PremiumPanel', () => {
   })
 
   // The reason this panel changed. zedexams.com/child-safety promises an
-  // unapproved under-18 learner no purchases, and mayShowPrice is the shared,
-  // fail-closed predicate five other surfaces already use.
-  describe('under-18 learners', () => {
+  // unapproved under-18 learner no purchases (enforced on the server), and
+  // platformMayShowPrice is the shared, fail-closed predicate the screens use.
+  describe('under-18 learners on the web — a parent pays', () => {
+    for (const [label, profile] of [
+      ['a learner known to be a minor', { role: 'learner', isMinor: true }],
+      ['a learner whose age is unknown (fails closed)', { role: 'learner' }],
+    ]) {
+      it(`shows the plans and the price to ${label}`, () => {
+        mockProfile = profile
+        render(<MemoryRouter><PremiumPanel section={{ id: 'premium', label: 'Premium' }} /></MemoryRouter>)
+        expect(document.body.textContent).toMatch(/K\s?\d/)
+        expect(screen.queryByRole('link', { name: /grown-up/i })).toBeNull()
+      })
+    }
+  })
+
+  describe('under-18 learners in the Android build', () => {
+    beforeEach(() => { mockNative = true })
+
     for (const [label, profile] of [
       ['a learner known to be a minor', { role: 'learner', isMinor: true }],
       ['a learner whose age is unknown (fails closed)', { role: 'learner' }],

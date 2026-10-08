@@ -6,14 +6,16 @@ import { paywall } from '../../../engines/payment-engine/paywall'
 import { capture } from '../../../utils/analytics'
 
 // `isMinor: false` is what makes this an ADULT. resolveAgeBand fails closed,
-// so a learner profile silent about age is a child and gets no plan cards and
-// no checkout — see the under-18 block at the bottom.
+// so a learner profile silent about age is a child. On the web a child sees
+// the plan cards and a parent pays; in the Android build they get no plan
+// cards and no checkout — see the under-18 blocks at the bottom.
 let mockProfile
 vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({ userProfile: mockProfile, currentUser: { uid: 'u1' } }),
 }))
 vi.mock('../../../utils/analytics', () => ({ capture: vi.fn() }))
-vi.mock('../../../utils/runtime', () => ({ isNativePlatform: vi.fn(() => false) }))
+let mockNative = false
+vi.mock('../../../utils/runtime', () => ({ isNativePlatform: () => mockNative }))
 // The upgrade checkout is a lazy import we don't exercise here.
 vi.mock('./UpgradeModal', () => ({
   default: (props) => <div data-testid="upgrade-modal" data-plan={props.defaultPlanId} />,
@@ -24,6 +26,7 @@ describe('QuizLimitPopup', () => {
     act(() => paywall.hide())
     capture.mockClear()
     mockProfile = { role: 'learner', isMinor: false }
+    mockNative = false
   })
 
   it('stays hidden until the quiz-preview-limit reason fires', () => {
@@ -65,7 +68,41 @@ describe('QuizLimitPopup', () => {
   // recorded no age_band at all, which is how 24 learner accounts could be
   // seen hitting a paywall over 90 days with no way to tell if any were
   // children.
-  describe('under-18 learners', () => {
+  describe('under-18 learners on the web — a parent pays', () => {
+    for (const [label, profile] of [
+      ['a known minor', { role: 'learner', isMinor: true }],
+      ['an unknown age (fails closed)', { role: 'learner' }],
+    ]) {
+      it(`shows the plan cards and the price to ${label}`, () => {
+        mockProfile = profile
+        render(<MemoryRouter><QuizLimitPopup /></MemoryRouter>)
+        act(() => paywall.show('quiz-preview-limit', { limit: 30 }))
+        expect(document.body.textContent).toMatch(/K\s?\d/)
+        expect(screen.queryByText(/Ask a grown-up/i)).toBeNull()
+      })
+    }
+
+    it('records age_band and priced:true on the paywall event', () => {
+      mockProfile = { role: 'learner', isMinor: true }
+      render(<MemoryRouter><QuizLimitPopup /></MemoryRouter>)
+      act(() => paywall.show('quiz-preview-limit', { limit: 30 }))
+      const shown = capture.mock.calls.find(([name]) => name === 'paywall_shown')
+      expect(shown[1].age_band).toBe('under18')
+      expect(shown[1].priced).toBe(true)
+    })
+
+    it('opens the checkout from the primary CTA', () => {
+      mockProfile = { role: 'learner', isMinor: true }
+      render(<MemoryRouter><QuizLimitPopup /></MemoryRouter>)
+      act(() => paywall.show('quiz-preview-limit', { limit: 30 }))
+      fireEvent.click(screen.getByRole('button', { name: /monthly|unlock|upgrade/i }))
+      expect(screen.getByTestId('upgrade-modal')).toBeTruthy()
+    })
+  })
+
+  describe('under-18 learners in the Android build', () => {
+    beforeEach(() => { mockNative = true })
+
     for (const [label, profile] of [
       ['a known minor', { role: 'learner', isMinor: true }],
       ['an unknown age (fails closed)', { role: 'learner' }],

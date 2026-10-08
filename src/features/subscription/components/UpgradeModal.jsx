@@ -10,6 +10,8 @@ import { PLANS } from '../../../engines/payment-engine/subscriptionConfig'
 import { getUpgradeQuoteForProfile } from '../../../engines/payment-engine/subscriptionUpgrade'
 import { capture } from '../../../utils/analytics'
 import { friendlyMessage } from '../../../utils/friendlyErrors'
+import { isGuardianPayer } from '../../../services/entitlements/planState'
+import { checkoutRefusalMessage } from '../lib/checkoutRefusal'
 import {
   OPERATORS,
   PAY_OFFLINE_STATUS,
@@ -164,7 +166,10 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
   // handlePay echoes the displayed amount back so the server refuses to
   // charge anything else (code 'quote-changed').
   const [serverQuote, setServerQuote] = useState(null)
-  const [quoteState, setQuoteState] = useState('idle') // idle|loading|ready|error
+  const [quoteState, setQuoteState] = useState('idle') // idle|loading|ready|error|refused
+  // Set when the SERVER refuses the purchase outright — an under-18 learner
+  // whose guardian has not approved the account. Its message says what to do.
+  const [refusal, setRefusal] = useState('')
   const [quoteNotice, setQuoteNotice] = useState('')
   const [quoteAttempt, setQuoteAttempt] = useState(0)
 
@@ -184,13 +189,19 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
     let cancelled = false
     setQuoteState('loading')
     setQuoteNotice('')
+    setRefusal('')
     getUpgradeQuote(selectedPlanId)
       .then((q) => {
         if (cancelled) return
         setServerQuote(q)
         setQuoteState('ready')
       })
-      .catch(() => { if (!cancelled) setQuoteState('error') })
+      .catch((err) => {
+        if (cancelled) return
+        const refused = checkoutRefusalMessage(err)
+        setRefusal(refused)
+        setQuoteState(refused ? 'refused' : 'error')
+      })
     return () => { cancelled = true }
   }, [step, selectedPlanId, quoteAttempt])
 
@@ -235,6 +246,10 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
     : null
 
   const userEmail = userProfile?.email || currentUser?.email || ''
+  // A learner under 18 pays with a PARENT's number, so the form says whose
+  // phone this is. Wording only — whether the purchase is allowed at all is
+  // the server's decision, and the same fields are sent either way.
+  const guardianPays = isGuardianPayer(userProfile)
   const phoneValid = looksLikeZambianPhone(phone)
   const detectedOperator = resolveOperator({ phone, operator, operatorTouched })
   const busy = payState === 'starting' || payState === 'processing' || payState === 'verifying'
@@ -401,7 +416,7 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
         return
       }
       setPayState('failed')
-      setError(friendlyMessage(err, 'Could not start the payment. Please try again.'))
+      setError(checkoutRefusalMessage(err) || friendlyMessage(err, 'Could not start the payment. Please try again.'))
       capture('lenco_payment_failed', { planId: selectedPlanId, method, reason: 'initiate_error' })
     }
   }
@@ -675,6 +690,11 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
                         <Icon as={Loader2} size="xs" className="animate-spin" /> Confirming price…
                       </p>
                     )}
+                    {quoteState === 'refused' && (
+                      <p className="mt-1.5 text-[12px] font-semibold text-amber-200" role="alert">
+                        {refusal}
+                      </p>
+                    )}
                     {quoteState === 'error' && (
                       <p className="mt-1.5 text-[11px] text-amber-300" role="alert">
                         We could not confirm the price.{' '}
@@ -776,6 +796,7 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
                   timedOut={timedOut}
                   checking={checkingStatus}
                   phoneDisplay={phone}
+                  guardian={guardianPays}
                   reference={paymentId}
                   operatorLabel={OPERATORS.find((op) => op.id === detectedOperator)?.label || ''}
                   amountZMW={effectivePrice}
@@ -792,7 +813,9 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
                 <div>
                   <h3 className="text-base font-black text-gray-800 mb-2">Enter the verification code</h3>
                   <p className="text-sm text-gray-600 mb-3">
-                    We sent a one-time code to your phone. Enter it to authorise the payment.
+                    {guardianPays
+                      ? 'A one-time code was sent to your parent’s phone. Ask them for it, then enter it here to authorise the payment.'
+                      : 'We sent a one-time code to your phone. Enter it to authorise the payment.'}
                   </p>
                   <input
                     type="text"
@@ -857,7 +880,7 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
                   )}
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <label htmlFor="mm-number" className="text-sm font-bold text-gray-800">
-                      Pay with your mobile money
+                      {guardianPays ? 'Pay with your parent’s mobile money' : 'Pay with your mobile money'}
                     </label>
                     <img
                       src="/images/mobile-money-networks.jpg"
@@ -870,7 +893,7 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
                   <div className="space-y-3">
                     <div>
                       <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">
-                        Mobile money number
+                        {guardianPays ? 'Parent’s mobile money number' : 'Mobile money number'}
                       </label>
                       <div className="relative">
                         <span
@@ -909,7 +932,9 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
                   </div>
 
                   <p className="mt-3 text-sm text-gray-500">
-                    You will receive a prompt on your phone to approve this payment.
+                    {guardianPays
+                      ? 'Your parent will get a prompt on their phone and approves it with their mobile-money PIN. Ask them before you tap Pay.'
+                      : 'You will receive a prompt on your phone to approve this payment.'}
                   </p>
 
                   {error && <p className="text-sm text-red-600 mt-3">{error}</p>}
@@ -919,7 +944,7 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
                     size="lg"
                     fullWidth
                     className="mt-4"
-                    disabled={busy || !phoneValid || !detectedOperator}
+                    disabled={busy || !phoneValid || !detectedOperator || quoteState === 'refused'}
                     onClick={handlePay}
                   >
                     {payState === 'starting'

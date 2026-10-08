@@ -25,9 +25,14 @@ vi.mock('../../../utils/invoices', () => ({ resolveInvoicePdfUrl: vi.fn(async ()
 
 vi.mock('../../../utils/analytics', () => ({ capture: vi.fn() }))
 vi.mock('../../../utils/runtime', () => ({ isNativePlatform: vi.fn(() => false) }))
+// A real role matters here: an unroled profile is treated as a minor (see
+// resolveAgeBand), which would put the parent-pays wording on a teacher's form.
+const mockAuth = vi.hoisted(() => ({
+  profile: { role: 'teacher', email: 'teacher@example.zm' },
+}))
 vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({
-    userProfile: { email: 'teacher@example.zm' },
+    userProfile: mockAuth.profile,
     currentUser: { uid: 'u1', email: 'teacher@example.zm' },
   }),
 }))
@@ -102,6 +107,7 @@ describe('Lenco checkout step', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     sessionStorage.clear()
+    mockAuth.profile = { role: 'teacher', email: 'teacher@example.zm' }
     getUpgradeQuote.mockResolvedValue({ ...QUOTE })
   })
 
@@ -402,5 +408,133 @@ describe('Lenco checkout step', () => {
     expect(capture).toHaveBeenCalledWith('lenco_network_detected', { planId: 'pro_monthly', operator: 'airtel' })
     const payloads = capture.mock.calls.map(([, props]) => JSON.stringify(props || {}))
     expect(payloads.some((p) => p.includes('0977'))).toBe(false)
+  })
+})
+
+describe('Lenco checkout step — an under-18 learner pays with a parent\'s number', () => {
+  const MONTHLY_QUOTE = { ...QUOTE, planId: 'monthly', amountZMW: 50, fullPriceZMW: 50 }
+
+  function openLearnerCheckout() {
+    render(
+      <UpgradeModal
+        portal="learner"
+        planIds={['weekly', 'monthly']}
+        defaultPlanId="monthly"
+        onClose={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Continue to Payment/i }))
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    sessionStorage.clear()
+    mockAuth.profile = { role: 'learner', isMinor: true, email: 'chanda@example.zm' }
+    getUpgradeQuote.mockResolvedValue({ ...MONTHLY_QUOTE })
+  })
+
+  it('says the number is the parent\'s and that the parent approves the prompt', async () => {
+    openLearnerCheckout()
+    await waitFor(() => expect(getUpgradeQuote).toHaveBeenCalledWith('monthly'))
+    expect(screen.getByText('Parent’s mobile money number')).toBeInTheDocument()
+    expect(screen.getByText('Pay with your parent’s mobile money')).toBeInTheDocument()
+    expect(screen.getByText(/Your parent will get a prompt on their phone/)).toBeInTheDocument()
+    expect(screen.queryByText('Mobile money number')).toBeNull()
+  })
+
+  it('sends the SAME payload as any other payment — the parent\'s number is just the phone', async () => {
+    // The server needs nothing new: the learner is the payer on their own
+    // account and `phone` is whichever number should receive the prompt. If
+    // this ever gains a beneficiary or guardian field, the server's
+    // authorisation path has been changed and that needs its own review.
+    initiateLencoPayment.mockResolvedValue({ paymentId: 'p1', status: 'pending' })
+    pollLencoStatus.mockImplementation(() => new Promise(() => {}))
+    openLearnerCheckout()
+    await waitFor(() => expect(screen.getByText(/until 12 August 2026/)).toBeInTheDocument())
+    fireEvent.change(phoneInput(), { target: { value: '0977740465' } })
+    fireEvent.click(screen.getByRole('button', { name: /Pay K50/ }))
+    await waitFor(() => expect(initiateLencoPayment).toHaveBeenCalledWith({
+      planId: 'monthly',
+      method: 'mobile_money',
+      phone: '0977740465',
+      operator: 'airtel',
+      expectedAmountZMW: 50,
+    }))
+  })
+
+  it('tells the learner to ask their parent, not to look at their own phone', async () => {
+    initiateLencoPayment.mockResolvedValue({ paymentId: 'p1', status: 'pending' })
+    pollLencoStatus.mockImplementation(() => new Promise(() => {}))
+    openLearnerCheckout()
+    await waitFor(() => expect(screen.getByText(/until 12 August 2026/)).toBeInTheDocument())
+    fireEvent.change(phoneInput(), { target: { value: '0977740465' } })
+    fireEvent.click(screen.getByRole('button', { name: /Pay K50/ }))
+    await waitFor(() => expect(screen.getByText('Ask your parent to check their phone')).toBeInTheDocument())
+    expect(screen.queryByText('Check your phone')).toBeNull()
+    expect(screen.getByText('0977 740 465')).toBeInTheDocument()
+  })
+
+  it('names the parent\'s phone on the pay-offline screen too', async () => {
+    initiateLencoPayment.mockResolvedValue({ paymentId: 'p1', status: 'pay-offline', message: 'Dial *115#.' })
+    pollLencoStatus.mockImplementation(() => new Promise(() => {}))
+    openLearnerCheckout()
+    await waitFor(() => expect(screen.getByText(/until 12 August 2026/)).toBeInTheDocument())
+    fireEvent.change(phoneInput(), { target: { value: '0977740465' } })
+    fireEvent.click(screen.getByRole('button', { name: /Pay K50/ }))
+    await waitFor(() => expect(screen.getByText('Your parent completes the payment on their phone')).toBeInTheDocument())
+  })
+
+  it('shows the server\'s own words when it refuses an unapproved minor, and blocks Pay', async () => {
+    // `assertLearnerCapability` refuses getUpgradeQuote for an under-18 learner
+    // whose guardian has not approved the account. The message is written for
+    // the child; "We could not confirm the price. Try again" would be a lie
+    // with a button that can never work.
+    const refusal = Object.assign(
+      new Error('Ask your parent or guardian to check their messages and approve your account.'),
+      { code: 'functions/permission-denied' },
+    )
+    getUpgradeQuote.mockRejectedValue(refusal)
+    openLearnerCheckout()
+    await waitFor(() => expect(screen.getByText(/approve your account/i)).toBeInTheDocument())
+    expect(screen.queryByText(/could not confirm the price/i)).toBeNull()
+    fireEvent.change(phoneInput(), { target: { value: '0977740465' } })
+    expect(screen.getByRole('button', { name: /Pay K\d+/ })).toBeDisabled()
+    expect(initiateLencoPayment).not.toHaveBeenCalled()
+  })
+
+  it('a quote failure that is NOT a refusal still reads as a price problem with a retry', async () => {
+    getUpgradeQuote.mockRejectedValue(Object.assign(new Error('boom'), { code: 'functions/unavailable' }))
+    openLearnerCheckout()
+    await waitFor(() => expect(screen.getByText(/could not confirm the price/i)).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: /Try again/i })).toBeInTheDocument()
+  })
+
+  it('shows the server\'s refusal if Pay itself is refused', async () => {
+    initiateLencoPayment.mockRejectedValue(Object.assign(
+      new Error('Ask your parent or guardian to check their messages and approve your account.'),
+      { code: 'functions/permission-denied' },
+    ))
+    openLearnerCheckout()
+    await waitFor(() => expect(screen.getByText(/until 12 August 2026/)).toBeInTheDocument())
+    fireEvent.change(phoneInput(), { target: { value: '0977740465' } })
+    fireEvent.click(screen.getByRole('button', { name: /Pay K50/ }))
+    await waitFor(() => expect(screen.getByText(/approve your account/i)).toBeInTheDocument())
+    expect(screen.queryByText(/don.t have permission/i)).toBeNull()
+  })
+
+  it('an adult learner is NOT told to ask a parent', async () => {
+    mockAuth.profile = { role: 'learner', isMinor: false, email: 'adult@example.zm' }
+    openLearnerCheckout()
+    await waitFor(() => expect(getUpgradeQuote).toHaveBeenCalled())
+    expect(screen.getByText('Mobile money number')).toBeInTheDocument()
+    expect(screen.queryByText(/parent/i)).toBeNull()
+  })
+
+  it('a teacher is NOT told to ask a parent', async () => {
+    mockAuth.profile = { role: 'teacher', email: 'teacher@example.zm' }
+    openCheckout()
+    await waitFor(() => expect(getUpgradeQuote).toHaveBeenCalled())
+    expect(screen.getByText('Mobile money number')).toBeInTheDocument()
+    expect(screen.queryByText(/parent/i)).toBeNull()
   })
 })

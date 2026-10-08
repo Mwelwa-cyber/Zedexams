@@ -360,7 +360,9 @@ export default function Plans() {
   const native = isNativePlatform()
 
   /**
-   * A learner we know to be (or must assume to be) under 18 sees no price.
+   * Inside the Android build, a learner we know to be (or must assume to be)
+   * under 18 sees no price. On the web they do, and a parent pays: the checkout
+   * asks for the parent's mobile-money number.
    *
    * Gated on being SIGNED IN, deliberately. `resolveAgeBand` fails closed, so
    * it reads a visitor with no profile as under-18 — correct for a locked
@@ -373,7 +375,7 @@ export default function Plans() {
    * they are unaffected without a role check here.
    */
   const isMinorLearner =
-    Boolean(currentUser) && resolveAgeBand(userProfile) === AGE_BAND.UNDER_18
+    native && Boolean(currentUser) && resolveAgeBand(userProfile) === AGE_BAND.UNDER_18
   const faqItems = native ? FAQ_NATIVE : FAQ
 
   // Before anything priced is constructed. Every hook above this line runs
@@ -399,20 +401,14 @@ export default function Plans() {
   /**
    * Where a learner rung's CTA goes.
    *
-   * Anyone reaching this is an ADULT — `isMinorLearner` returned above, so a
-   * minor never sees the rung this fires from. That is worth stating because
-   * an earlier version of this comment claimed the opposite: that the CTA
-   * could hand a minor to /my-subscription and let "the age-aware flow there"
-   * decide.
-   *
-   * When #2486 wrote that, there was no such flow — `MySubscriptionPage`
-   * opened `UpgradeModal` with no age check, so it showed prices to whoever
-   * opened it. THIS branch closes that: `MySubscriptionRoute` now sends a
-   * learner who is not positively an adult to /ask-a-grown-up before the page
-   * renders (see its `mayShowPrice` guard). The gate above is still the one
-   * that matters here — a page that never constructs a price is a stronger
-   * guarantee than a page that redirects away from one — and the rule stands
-   * either way: do not route a minor at a checkout on the assumption that
+   * On the web this is reached by adults AND by under-18 learners, whose
+   * checkout asks for a parent's number. Inside the Android build
+   * `isMinorLearner` returned above, so a minor never sees the rung this fires
+   * from; `MySubscriptionRoute` also sends them to /ask-a-grown-up before the
+   * page renders (see its `platformMayShowPrice` guard). The gate above is
+   * still the one that matters there — a page that never constructs a price is
+   * a stronger guarantee than a page that redirects away from one — and the
+   * rule stands: do not route a minor at a checkout on the assumption that
    * something downstream will catch it.
    *
    * Still deliberately not the UpgradeModal the teacher cards open: the

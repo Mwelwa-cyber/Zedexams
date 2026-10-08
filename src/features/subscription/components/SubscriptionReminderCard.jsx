@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useSubscriptionReminder } from '../../../hooks/useSubscriptionReminder'
-import { mayShowPrice } from '../../../services/entitlements/planState'
+import { platformMayShowPrice } from '../../../services/entitlements/platformPrice'
 import { reminderCopy } from '../../../engines/payment-engine/subscriptionStatus'
 import Icon from '../../../shared/components/Icon'
 import { ArrowRight } from '../../../shared/components/icons'
@@ -28,7 +28,7 @@ export default function SubscriptionReminderCard({ audience }) {
 
   if (!shouldRemind) return null
 
-  const showPrice = mayShowPrice(userProfile)
+  const showPrice = platformMayShowPrice(userProfile)
   const copy = reminderCopy(status, audience)
   const expired = copy.tone === 'expired'
   const planLabel = showPrice ? (expired ? 'Expired' : 'Free Plan') : 'Locked'

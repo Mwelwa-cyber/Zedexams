@@ -1,12 +1,15 @@
 /**
- * The two guarantees the contextual sheet exists to make.
+ * The guarantees the contextual sheet exists to make.
  *
  *   1. It opens ONLY from a tap. Mounting the host renders nothing — not on
  *      first paint, not on a route change, not on sign-in.
- *   2. An under-18 learner is never shown a price. Not "usually not", not
- *      "unless a flag is wrong": the rendered tree contains no `K<digit>` and
- *      no pay button, asserted here because the structural guarantee
- *      (GuardianAskSheet imports no pricing module) is only half of it.
+ *   2. The GUARDIAN-ASK variant — what an under-18 learner gets inside the
+ *      Android build — is never shown a price. Not "usually not", not "unless
+ *      a flag is wrong": the rendered tree contains no `K<digit>` and no pay
+ *      button, asserted here because the structural guarantee (GuardianAskSheet
+ *      imports no pricing module) is only half of it.
+ *   3. On the web an under-18 learner gets the priced sheet, worded so that a
+ *      parent is the one who pays.
  */
 
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
@@ -168,6 +171,51 @@ describe('ACCEPTANCE 2 — an under-18 learner is never shown a price', () => {
     })
     await user.click(screen.getByRole('button', { name: /send request/i }))
     expect((await screen.findByRole('status')).textContent).toMatch(/every 3 days/i)
+  })
+})
+
+describe('the priced sheet for an under-18 learner on the web', () => {
+  function openCheckoutSheet() {
+    settleBudget()
+    render(<UnlockSheetHost />)
+    act(() => {
+      unlockSheet.open({
+        gate: 'PAPER_CONTINUE',
+        route: 'checkout',
+        context: { remaining: 40, paperYear: '2025' },
+      })
+    })
+    return screen.getByRole('dialog')
+  }
+
+  it('shows the ladder and says a parent pays with their own number', () => {
+    mockProfile.current = { role: 'learner', isMinor: true }
+    const dialog = openCheckoutSheet()
+    expect(dialog.textContent).toMatch(/K120/)
+    expect(dialog.textContent).toMatch(/A parent pays for this/i)
+    expect(screen.getByRole('button', { name: /pay with a parent.s number/i })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /^pay with mtn \/ airtel$/i })).toBeNull()
+  })
+
+  it('treats an unknown age the same way — it fails towards "a parent pays"', () => {
+    mockProfile.current = { role: 'learner' }
+    const dialog = openCheckoutSheet()
+    expect(dialog.textContent).toMatch(/A parent pays for this/i)
+  })
+
+  it('hands off to the checkout when the CTA is tapped', async () => {
+    mockProfile.current = { role: 'learner', isMinor: true }
+    const user = userEvent.setup()
+    openCheckoutSheet()
+    await user.click(screen.getByRole('button', { name: /pay with a parent.s number/i }))
+    expect(await screen.findByTestId('checkout')).toBeTruthy()
+  })
+
+  it('does not tell an adult to ask a parent', () => {
+    mockProfile.current = { role: 'learner', isMinor: false }
+    const dialog = openCheckoutSheet()
+    expect(dialog.textContent).not.toMatch(/parent/i)
+    expect(screen.getByRole('button', { name: /pay with mtn \/ airtel/i })).toBeTruthy()
   })
 })
 

@@ -18,15 +18,18 @@
  * better than a wall and, more importantly, does not punish somebody whose
  * mobile money failed on a Tuesday.
  *
- * ── ageBand fails closed, and the failure is a refusal to show a price ──
+ * ── ageBand fails closed ───────────────────────────────────────────────
  *
  * A learner is `under18` unless the profile says otherwise. `isMinor === false`
  * is the only thing that makes a learner an adult, because that field is set
  * once at signup from a declared date of birth (see guardianConsentCore) and
- * its absence means we do not know. Not knowing must resolve to the guardian
- * route: showing K50 to a twelve-year-old is a Play Families violation, while
- * routing an adult through a guardian ask is an inconvenience. Those are not
- * symmetric mistakes, so the default is the survivable one.
+ * its absence means we do not know. Not knowing resolves to under-18.
+ *
+ * What under-18 MEANS differs by platform, and `mayShowPrice` is where. On the
+ * web a learner sees the price and a PARENT pays: the learner enters the
+ * parent's mobile-money number and the parent approves the prompt on their own
+ * phone. In the Android build a learner is shown no price and is routed to the
+ * guardian ask, because Play's Families policy governs that listing.
  *
  * Teachers, parents and admins are `adult` — they are the account holder by
  * definition, and there is no guardian to route to.
@@ -100,26 +103,42 @@ export function resolveAgeBand(profile) {
 /**
  * May this session be shown a price, or a route to a checkout?
  *
- * The rule on /child-safety, and Play's Families policy, is that an
- * under-18 learner never sees one. `resolveAgeBand` already answers "is
- * this an adult", and it fails closed — but it cannot be used on its own
- * here, because a profile that is ABSENT is not a child: it is a
- * signed-out visitor reading the public marketing site, and failing
- * closed on them would take the price list off /pricing for everybody who
- * has not signed in. Those are different unknowns and they take different
- * defaults, which is why this is a function and not an inline comparison.
+ * Adults: always. Under-18 learners: on the web, yes — the parent pays, so the
+ * learner has to see what they are asking for — and in the Android build, no,
+ * because Play's Families policy governs that listing and Play Billing owns
+ * the price there anyway. A `false` means "route it to the guardian ask", not
+ * "hide the offer"; see useUnlockFlow.
  *
- * So: no profile → yes (a public page for an anonymous reader). A profile
- * → only when it positively says adult.
+ * `native` has no safe default in the permissive direction, so it defaults to
+ * TRUE: a caller that forgets to say which platform it is on withholds the
+ * price from a minor rather than showing one. Components read the real value
+ * through `platformMayShowPrice` (./platformPrice) instead of passing it.
  *
- * What a `false` means in practice is NOT "hide the offer". It means
- * route it to the guardian: the child still asks, the parent still pays.
- * See useUnlockFlow — a twelve-year-old with no mobile money account
- * cannot accept an offer of K50 whether or not we show it to them.
+ * `resolveAgeBand` already answers "is this an adult", and it fails closed —
+ * but it cannot be used on its own here, because a profile that is ABSENT is
+ * not a child: it is a signed-out visitor reading the public marketing site,
+ * and failing closed on them would take the price list off /pricing for
+ * everybody who has not signed in. So: no profile → yes (a public page for an
+ * anonymous reader). A profile → adult, or an under-18 on the web.
  */
-export function mayShowPrice(profile) {
+export function mayShowPrice(profile, { native = true } = {}) {
   if (!profile) return true
-  return resolveAgeBand(profile) === AGE_BAND.ADULT
+  if (resolveAgeBand(profile) === AGE_BAND.ADULT) return true
+  // Only an explicit `false` opens it — null, 0 or "" are not "web".
+  return native === false
+}
+
+/**
+ * Is a PARENT the one who pays for this profile's purchases?
+ *
+ * Drives wording only — "your parent's number", "ask your parent for the code"
+ * — never access. What a minor may actually buy is decided on the server by
+ * the consent gate (`assertLearnerCapability`), which this does not touch.
+ * Only the web Lenco checkout renders where this is asked, so it takes no
+ * platform argument.
+ */
+export function isGuardianPayer(profile) {
+  return Boolean(profile) && resolveAgeBand(profile) === AGE_BAND.UNDER_18
 }
 
 function hasPaidFlag(profile) {

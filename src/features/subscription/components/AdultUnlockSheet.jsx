@@ -11,9 +11,12 @@
  * is computed by `savingLabel` rather than typed, so the printed figure cannot
  * contradict the printed prices beside it.
  *
- * Reached only from `useUnlockFlow`, which routes anyone who is not positively
- * an adult to `GuardianAskSheet` instead. This component never checks age
- * itself: two places deciding the same thing is how one of them ends up wrong.
+ * Reached only from `useUnlockFlow`. Which sheet a learner gets is decided
+ * there, once; this component never decides it. What it does read from the
+ * profile is the WORDING for an under-18 learner on the web, who sees the same
+ * ladder but pays with a parent's mobile-money number — the checkout it hands
+ * off to asks for that number, and this sheet says so before they get there.
+ * Whether that purchase is allowed is the server's call, not this file's.
  */
 
 import { lazy, Suspense, useState } from 'react'
@@ -26,7 +29,8 @@ import {
   getPlan,
   savingLabel,
 } from '../../../config/plans'
-import { resolveGateCopy } from '../../../services/entitlements'
+import { isGuardianPayer, resolveGateCopy } from '../../../services/entitlements'
+import { useAuth } from '../../../contexts/AuthContext'
 import { isNativePlatform } from '../../../utils/runtime'
 import { capture } from '../../../utils/analytics'
 
@@ -34,6 +38,8 @@ const UpgradeModal = lazy(() => import('./UpgradeModal'))
 
 export default function AdultUnlockSheet({ gate, context = {}, onClose }) {
   const copy = resolveGateCopy(gate, context)
+  const { userProfile } = useAuth()
+  const guardianPays = isGuardianPayer(userProfile)
   const plans = availablePlans()
   const [selectedId, setSelectedId] = useState(
     plans.some((p) => p.id === DEFAULT_HIGHLIGHT_PLAN_ID) ? DEFAULT_HIGHLIGHT_PLAN_ID : plans[0]?.id,
@@ -87,6 +93,13 @@ export default function AdultUnlockSheet({ gate, context = {}, onClose }) {
         <p className="mt-1 text-[12px] leading-relaxed theme-text-muted">{copy.body}</p>
       )}
 
+      {guardianPays && !native && (
+        <p className="mt-2 rounded-xl bg-indigo-50 px-3 py-2 text-[12px] font-semibold leading-snug text-indigo-900 dark:bg-indigo-500/15 dark:text-indigo-100">
+          A parent pays for this with their MTN, Airtel or Zamtel number. You will
+          enter it on the next screen — ask them first.
+        </p>
+      )}
+
       {!native && (
         <div className="mt-3 grid grid-cols-2 gap-2">
           {plans.map((plan) => {
@@ -131,7 +144,7 @@ export default function AdultUnlockSheet({ gate, context = {}, onClose }) {
         onClick={handlePay}
         className="mt-4 w-full rounded-xl bg-gradient-to-r from-teal-600 to-emerald-500 px-4 py-3 text-sm font-black text-white"
       >
-        {native ? 'See plans' : 'Pay with MTN / Airtel'}
+        {native ? 'See plans' : guardianPays ? 'Pay with a parent’s number' : 'Pay with MTN / Airtel'}
       </button>
 
       <button

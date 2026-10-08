@@ -2,12 +2,13 @@
  * PremiumCard — the Premium tile on the learner settings dashboard.
  *
  * This card had no spec at all while carrying a purchase CTA on a child's
- * screen. zedexams.com/child-safety promises an unapproved under-18 learner no
- * purchases, and `mayShowPrice` is the shared, fail-closed predicate five other
- * surfaces already use — this one simply did not call it.
+ * screen. `platformMayShowPrice` is the shared, fail-closed predicate the other
+ * price surfaces already use — this one simply did not call it.
  *
- * What the card may still show a child: the CURRENT PLAN. That is a fact about
- * their account, not an offer.
+ * On the web an under-18 learner sees the upgrade CTA, because a parent pays
+ * (the checkout asks for the parent's number). In the Android build they do
+ * not (Play's Families policy), and what the card may still show is the
+ * CURRENT PLAN: a fact about their account, not an offer.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
@@ -23,6 +24,12 @@ vi.mock('../../../contexts/ThemeContext', () => ({
   DEFAULT_THEME: 'default',
 }))
 vi.mock('./SaveContext', () => ({ useSettingsSave: () => ({ markDirty: vi.fn(), save: vi.fn() }) }))
+
+let mockNative = false
+vi.mock('../../../utils/runtime', async (importOriginal) => ({
+  ...(await importOriginal()),
+  isNativePlatform: () => mockNative,
+}))
 
 let mockProfile
 vi.mock('../../../contexts/AuthContext', () => ({
@@ -44,6 +51,7 @@ describe('PremiumCard', () => {
     // closed, so silence about age means child.
     mockProfile = { role: 'learner', isMinor: false }
     mockSub = { tierLabel: 'Premium', isPremium: false }
+    mockNative = false
   })
 
   it('offers the upgrade to an adult', () => {
@@ -54,9 +62,21 @@ describe('PremiumCard', () => {
   for (const [label, profile] of [
     ['a known minor', { role: 'learner', isMinor: true }],
     ['an unknown age (fails closed)', { role: 'learner' }],
+  ]) {
+    it(`offers the upgrade to ${label} on the web — a parent pays`, () => {
+      mockProfile = profile
+      render(<PremiumCard onOpen={() => {}} />)
+      expect(screen.getByText(/Upgrade Now/i)).toBeTruthy()
+    })
+  }
+
+  for (const [label, profile] of [
+    ['a known minor', { role: 'learner', isMinor: true }],
+    ['an unknown age (fails closed)', { role: 'learner' }],
     ['no profile at all', null],
   ]) {
-    it(`shows no purchase CTA to ${label}`, () => {
+    it(`shows no purchase CTA to ${label} in the Android build`, () => {
+      mockNative = true
       mockProfile = profile
       render(<PremiumCard onOpen={() => {}} />)
       expect(screen.queryByText(/Upgrade Now/i)).toBeNull()
@@ -65,6 +85,14 @@ describe('PremiumCard', () => {
       expect(screen.getByText(/Current Plan/i)).toBeTruthy()
     })
   }
+
+  it('shows no purchase CTA when there is no profile at all, on the web too', () => {
+    // An absent profile is not evidence of an adult, and on this screen it is
+    // not evidence of a learner either: there is nobody to sell to yet.
+    mockProfile = null
+    render(<PremiumCard onOpen={() => {}} />)
+    expect(screen.queryByText(/Upgrade Now/i)).toBeNull()
+  })
 
   it('still lets an adult on Premium manage their plan', () => {
     mockSub = { tierLabel: 'Premium', isPremium: true }

@@ -11,7 +11,7 @@ import { useSubscription } from '../../../hooks/useSubscription'
 import { deleteMyAccount, pickReauthMethod } from '../../../utils/accountService'
 import { canSubmitDeletion, deletionErrorMessage } from '../../../utils/accountReauth'
 import { InvoicesCard, PaymentHistoryCard } from '../../learnerDashboard'
-import { mayShowPrice } from '../../../services/entitlements/planState'
+import { platformMayShowPrice } from '../../../services/entitlements/platformPrice'
 import { Panel, Section, Btn, Note, Field, TextInput } from '../components/ui'
 
 function fmtDate(ts) {
@@ -88,7 +88,7 @@ export function AccountBody({ pushToast }) {
           <Field label="Login email" htmlFor="lset-acct-email">
             <TextInput id="lset-acct-email" value={currentUser?.email ?? ''} disabled />
           </Field>
-          {!!userProfile && mayShowPrice(userProfile) && (
+          {!!userProfile && platformMayShowPrice(userProfile) && (
             <Field label="Plan"><TextInput value={isPremium ? tierLabel : 'Free'} disabled /></Field>
           )}
           <Field label="Member since"><TextInput value={fmtDate(userProfile?.createdAt)} disabled /></Field>
@@ -103,13 +103,15 @@ export function AccountBody({ pushToast }) {
           about the router, and the router is one line away from changing. The
           decision is made where the components are, by the same predicate
           every other price surface uses, so a future route that lands a
-          twelve-year-old on this panel shows them no invoices rather than
-          reintroducing the bug that started this work.
+          twelve-year-old in the Android build on this panel shows them no
+          invoices rather than reintroducing the bug that started this work.
+          On the web an under-18 does see them: a parent pays with their own
+          number and the receipt is the learner's record of it.
 
-          `mayShowPrice` reads a missing profile as an anonymous visitor, not
+          `platformMayShowPrice` reads a missing profile as an anonymous visitor, not
           as a child. That is right for a public marketing page and wrong here,
           so the profile must positively resolve before either card renders. */}
-      {!!userProfile && mayShowPrice(userProfile) && (
+      {!!userProfile && platformMayShowPrice(userProfile) && (
         <>
           <InvoicesCard />
           <PaymentHistoryCard />

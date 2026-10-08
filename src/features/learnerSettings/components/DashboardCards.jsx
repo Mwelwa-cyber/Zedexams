@@ -14,7 +14,7 @@ import { useSettingsSave } from './SaveContext'
 import Icon from '../../../shared/components/Icon'
 import CharacterAvatar from '../../../shared/components/CharacterAvatar'
 import { UpgradeModal } from '../../subscription'
-import { mayShowPrice } from '../../../services/entitlements/planState'
+import { platformMayShowPrice } from '../../../services/entitlements/platformPrice'
 import { SkeletonCard } from '../../../shared/components/Skeleton'
 import {
   SectionCard, StatTile, Segmented, LinkRow, Toggle, Select, Btn,
@@ -316,7 +316,7 @@ export function PremiumCard({ onOpen }) {
   const { userProfile } = useAuth()
   const { tierLabel, isPremium } = useSubscription()
   const [showUpgrade, setShowUpgrade] = useState(false)
-  const canBuy = !!userProfile && mayShowPrice(userProfile)
+  const canBuy = !!userProfile && platformMayShowPrice(userProfile)
   return (
     <section id="sec-premium" className="lset-scard lset-premium">
       <header className="lset-scard__head">
@@ -336,11 +336,13 @@ export function PremiumCard({ onOpen }) {
         </ul>
       </div>
       <div className="lset-scard__foot">
-        {/* No purchase CTA on a child's screen. `mayShowPrice` fails closed and
-            the `!!userProfile` prefix is load-bearing — it reads a MISSING
-            profile as an anonymous visitor, right for marketing, wrong here.
-            The card still names the current plan above, which is a fact about
-            the account rather than an offer. Same shape as AccountPanel.jsx. */}
+        {/* No purchase CTA where the platform withholds the price — an under-18
+            in the Android build. On the web a learner sees it and a parent
+            pays. `platformMayShowPrice` fails closed and the `!!userProfile`
+            prefix is load-bearing — it reads a MISSING profile as an anonymous
+            visitor, right for marketing, wrong here. The card still names the
+            current plan above, which is a fact about the account rather than
+            an offer. Same shape as AccountPanel.jsx. */}
         {!canBuy
           ? <button type="button" className="lset-btn lset-btn--full" onClick={() => onOpen('premium')}>See plans</button>
           : isPremium

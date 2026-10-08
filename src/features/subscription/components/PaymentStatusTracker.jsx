@@ -97,6 +97,9 @@ export default function PaymentStatusTracker({
   // rather than tell them to wait for a prompt that is never coming.
   payOffline,
   instructions,
+  // The number belongs to the learner's parent, so the learner is told to ask
+  // them rather than to look at a phone that is not theirs. Wording only.
+  guardian = false,
   onApproved,
   onCheckStatus,
   onCancelPayment,
@@ -188,7 +191,9 @@ export default function PaymentStatusTracker({
         <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 text-2xl" aria-hidden="true">
           📶
         </div>
-        <h3 className="text-xl font-black text-gray-800">Complete the payment on your phone</h3>
+        <h3 className="text-xl font-black text-gray-800">
+          {guardian ? 'Your parent completes the payment on their phone' : 'Complete the payment on your phone'}
+        </h3>
         <p className="text-sm text-gray-600 mt-1">
           {phoneDisplay} will not receive an automatic PIN prompt for this payment.
         </p>
@@ -261,10 +266,16 @@ export default function PaymentStatusTracker({
       <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-2xl" aria-hidden="true">
         📲
       </div>
-      <h3 className="text-xl font-black text-gray-800">Check your phone</h3>
+      <h3 className="text-xl font-black text-gray-800">
+        {guardian ? 'Ask your parent to check their phone' : 'Check your phone'}
+      </h3>
       <p className="text-sm text-gray-600 mt-1">A payment prompt has been sent to</p>
       <p className="text-2xl font-black tracking-wide text-gray-900 mt-1">{phoneDisplay}</p>
-      <p className="text-sm text-gray-600 mt-1 mb-4">Approve it using your mobile-money PIN.</p>
+      <p className="text-sm text-gray-600 mt-1 mb-4">
+        {guardian
+          ? 'They approve it with their mobile-money PIN.'
+          : 'Approve it using your mobile-money PIN.'}
+      </p>
       <DetailsCard
         reference={reference}
         operatorLabel={operatorLabel}

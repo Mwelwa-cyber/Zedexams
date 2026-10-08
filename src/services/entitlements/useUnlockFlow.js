@@ -3,19 +3,25 @@
  *
  * Exactly two destinations, and which one is not a preference:
  *
- *   under18 → the guardian-ask sheet. No price, no plan card, no pay button.
- *   adult   → the plan ladder and Lenco checkout.
+ *   adult                → the plan ladder and Lenco checkout.
+ *   under18, on the web  → the SAME ladder and checkout. The learner picks the
+ *                          plan and enters their PARENT's mobile-money number;
+ *                          the parent approves the prompt on their own phone.
+ *   under18, in the
+ *   Android build        → the guardian-ask sheet. No price, no plan card, no
+ *                          pay button: Play's Families policy governs that
+ *                          listing, and Play Billing owns the price there.
  *
  * `resolveUnlockRoute` is a pure function of the plan state so the rule can be
  * asserted directly, and the sheet component reads the route off the request
- * rather than re-deriving it — one decision, made once. The under-18 variant
- * imports none of the pricing modules, which is the structural half of the
- * same guarantee: there is no price in that component's scope to leak.
+ * rather than re-deriving it — one decision, made once. The guardian-ask
+ * variant imports none of the pricing modules, which is the structural half of
+ * its guarantee: there is no price in that component's scope to leak.
  *
- * Why this matters beyond policy: a twelve-year-old has no mobile money
- * account. Showing them K50 is not merely a Play Families violation, it is an
- * offer made to someone who cannot accept it. The child sells; the guardian
- * pays.
+ * A twelve-year-old has no mobile money account of their own, which is why the
+ * web checkout asks for the parent's number rather than the learner's. WHETHER
+ * a minor may complete a purchase is still the server's call
+ * (`assertLearnerCapability`) — this only decides what they are shown.
  */
 
 import { useCallback, useEffect, useState } from 'react'
@@ -25,6 +31,7 @@ import { interruptionBudget } from './interruptionBudget'
 import { FEATURE_GATES, TIER } from './gates'
 import { useEntitlements } from './useEntitlements'
 import { capture } from '../../utils/analytics'
+import { isNativePlatform } from '../../utils/runtime'
 
 export const UNLOCK_ROUTE = Object.freeze({
   GUARDIAN: 'guardian',
@@ -32,19 +39,24 @@ export const UNLOCK_ROUTE = Object.freeze({
 })
 
 /**
- * The rule, as a pure function. Anything that is not positively an adult
- * routes to the guardian — see `resolveAgeBand` for why the default is the
- * survivable mistake rather than the symmetric one.
+ * The rule, as a pure function. An adult checks out. Anyone else checks out
+ * too — as a parent-paid purchase — except inside the Android build, where
+ * they are routed to the guardian ask.
+ *
+ * `native` defaults to TRUE, the withholding answer, for the same reason as
+ * `mayShowPrice`: a caller that does not say which platform it is on must not
+ * be the one that puts a price in front of a minor in the Play listing.
  */
-export function resolveUnlockRoute(planState) {
-  return planState?.ageBand === AGE_BAND.ADULT
-    ? UNLOCK_ROUTE.CHECKOUT
-    : UNLOCK_ROUTE.GUARDIAN
+export function resolveUnlockRoute(planState, { native = true } = {}) {
+  if (planState?.ageBand === AGE_BAND.ADULT) return UNLOCK_ROUTE.CHECKOUT
+  return native === false ? UNLOCK_ROUTE.CHECKOUT : UNLOCK_ROUTE.GUARDIAN
 }
 
 export function useUnlockFlow() {
   const { planState } = useEntitlements()
   const [request, setRequest] = useState(null)
+  const native = isNativePlatform()
+  const route = resolveUnlockRoute(planState, { native })
 
   useEffect(() => unlockSheet.subscribe(setRequest), [])
 
@@ -71,7 +83,6 @@ export function useUnlockFlow() {
     })
     if (!allowed) return false
 
-    const route = resolveUnlockRoute(planState)
     capture('lock_tapped', { gate: gateId, screen: context.screen || null })
     capture('paywall_shown', {
       surface: 'contextual-sheet',
@@ -84,7 +95,7 @@ export function useUnlockFlow() {
     })
     unlockSheet.open({ gate: gateId, route, context, openedAt: Date.now() })
     return true
-  }, [planState])
+  }, [planState, route])
 
   const closeUnlock = useCallback((gateId) => {
     const openedAt = request?.openedAt
@@ -101,7 +112,10 @@ export function useUnlockFlow() {
     request,
     requestUnlock,
     closeUnlock,
-    route: resolveUnlockRoute(planState),
+    route,
+    // Whether the sheet this learner reaches carries a price. NOT the same
+    // question as `isUnder18`: on the web a minor sees one too.
+    showsPrice: route === UNLOCK_ROUTE.CHECKOUT,
     isUnder18: planState?.ageBand !== AGE_BAND.ADULT,
   }
 }

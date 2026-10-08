@@ -18,7 +18,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useSubscription } from '../../../hooks/useSubscription'
 import { PLANS } from '../../../engines/payment-engine/subscriptionConfig'
-import { mayShowPrice } from '../../../services/entitlements/planState'
+import { platformMayShowPrice } from '../../../services/entitlements/platformPrice'
 import { UpgradeModal } from '../../subscription'
 import { Panel, Section, Note } from '../components/ui'
 
@@ -71,9 +71,10 @@ export default function PremiumPanel({ section }) {
     setShowUpgrade(true)
   }
 
-  // A price is never shown to a child. `mayShowPrice` fails closed — a learner
+  // The Android build never shows a price to a child; on the web a learner
+  // sees it and a parent pays. `platformMayShowPrice` fails closed — a learner
   // is under-18 unless the profile positively says otherwise — and the
-  // `!!userProfile` prefix is load-bearing: mayShowPrice reads a MISSING
+  // `!!userProfile` prefix is load-bearing: platformMayShowPrice reads a MISSING
   // profile as an anonymous visitor, which is right for a public marketing
   // page and wrong on a learner's own settings screen. Same shape as
   // AccountPanel.jsx.
@@ -81,7 +82,7 @@ export default function PremiumPanel({ section }) {
   // The panel is reachable from the settings nav, so it renders the hand-off
   // rather than nothing: a blank screen a child can navigate to is its own
   // defect, and /ask-a-grown-up is where the request actually goes.
-  if (!userProfile || !mayShowPrice(userProfile)) {
+  if (!userProfile || !platformMayShowPrice(userProfile)) {
     return (
       <Panel section={section}>
         <Section

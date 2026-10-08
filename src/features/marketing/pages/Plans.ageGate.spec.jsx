@@ -1,11 +1,13 @@
 /**
  * /pricing — the under-18 gate.
  *
- * The product rule is absolute: an under-18 learner is never shown a price or
- * a pay button. `useUnlockFlow` enforces it for in-app locks; /pricing is a
- * marketing page that held four separate sets of figures (learner rungs,
- * teacher cards, the "Or K590 / year" notes, the FAQ's K25 answer) and
- * enforced nothing.
+ * The rule depends on the platform. In the ANDROID BUILD an under-18 learner is
+ * never shown a price or a pay button (Play's Families policy). On the WEB they
+ * are shown the price, because a parent pays: the checkout asks for the
+ * parent's mobile-money number. `useUnlockFlow` applies the same split to
+ * in-app locks; /pricing is a marketing page that holds four separate sets of
+ * figures (learner rungs, teacher cards, the "Or K590 / year" notes, the FAQ's
+ * K25 answer), so the Android half is asserted on the whole rendered page.
  *
  * These assert on the RENDERED TREE rather than on which branch was taken,
  * because "no price reached the child" is the actual guarantee and a branch
@@ -23,7 +25,8 @@ vi.mock('react-router-dom', async () => ({
 
 let mockAuth = { currentUser: null, isTeacher: false, userProfile: null }
 vi.mock('../../../contexts/AuthContext', () => ({ useAuth: () => mockAuth }))
-vi.mock('../../../utils/runtime', () => ({ isNativePlatform: () => false }))
+let mockNative = false
+vi.mock('../../../utils/runtime', () => ({ isNativePlatform: () => mockNative }))
 vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
 
 import Plans from './Plans'
@@ -45,10 +48,13 @@ const signedIn = { uid: 'u1' }
 
 beforeEach(() => {
   navigate.mockClear()
+  mockNative = false
   mockAuth = { currentUser: null, isTeacher: false, userProfile: null }
 })
 
-describe('/pricing — under-18 learners see no price', () => {
+describe('/pricing — under-18 learners see no price in the Android build', () => {
+  beforeEach(() => { mockNative = true })
+
   it('shows a minor the guardian notice instead of the pricing page', () => {
     mockAuth = { currentUser: signedIn, isTeacher: false, userProfile: { role: 'learner', isMinor: true } }
     renderPage()
@@ -89,6 +95,29 @@ describe('/pricing — under-18 learners see no price', () => {
     renderPage()
     expect(screen.getByText(/Unlimited quizzes/i)).toBeInTheDocument()
     expect(screen.getByText(/Exam mode/i)).toBeInTheDocument()
+  })
+})
+
+describe('/pricing — on the web an under-18 learner sees the plans, because a parent pays', () => {
+  it('shows a minor the learner rungs and their prices, not the guardian notice', () => {
+    mockAuth = { currentUser: signedIn, isTeacher: false, userProfile: { role: 'learner', isMinor: true } }
+    renderPage()
+    expect(screen.queryByRole('heading', { name: /Ask a parent or guardian/i })).toBeNull()
+    expect(screen.getByRole('button', { name: /Get Weekly/i })).toBeInTheDocument()
+    expect(kwachaOnPage().length).toBeGreaterThan(0)
+  })
+
+  it('treats a learner whose age we do not know the same way — they are routed to a parent-paid checkout', () => {
+    mockAuth = { currentUser: signedIn, isTeacher: false, userProfile: { role: 'learner' } }
+    renderPage()
+    expect(screen.getByRole('button', { name: /Get Weekly/i })).toBeInTheDocument()
+  })
+
+  it('sends a minor\'s learner CTA to the same checkout page an adult uses', () => {
+    mockAuth = { currentUser: signedIn, isTeacher: false, userProfile: { role: 'learner', isMinor: true } }
+    renderPage()
+    screen.getByRole('button', { name: /Get Weekly/i }).click()
+    expect(navigate).toHaveBeenCalledWith('/my-subscription')
   })
 })
 

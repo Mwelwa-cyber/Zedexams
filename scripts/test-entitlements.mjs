@@ -24,6 +24,7 @@ import {
   nextWeeklyReset,
   planChipLabel,
   quotaLeft,
+  isGuardianPayer,
   mayShowPrice,
   resolveAgeBand,
   resolvePlanState,
@@ -155,14 +156,16 @@ test('ageBand fails closed — a learner is under18 unless isMinor is exactly fa
   assert.equal(resolveAgeBand({ role: 'parent' }), AGE_BAND.ADULT)
 })
 
-test('a price is shown only to a session that is positively an adult', () => {
-  // The commitment on /child-safety and Play's Families policy: an
-  // under-18 learner never sees a price or a purchase path. The banner,
-  // the dashboard card, /my-subscription and /pricing all key off this.
-  assert.equal(mayShowPrice({ role: 'learner' }), false)
-  assert.equal(mayShowPrice({ role: 'learner', isMinor: true }), false)
-  assert.equal(mayShowPrice({ role: 'learner', isMinor: null }), false)
-  assert.equal(mayShowPrice({}), false, 'a profile with no role is not evidence of an adult')
+test('in the Android build a price is shown only to a session that is positively an adult', () => {
+  // Play's Families policy governs that listing. `native` defaults to TRUE —
+  // the withholding answer — so a caller that does not say which platform it
+  // is on can never be the one that shows a minor a price.
+  for (const opts of [undefined, { native: true }]) {
+    assert.equal(mayShowPrice({ role: 'learner' }, opts), false)
+    assert.equal(mayShowPrice({ role: 'learner', isMinor: true }, opts), false)
+    assert.equal(mayShowPrice({ role: 'learner', isMinor: null }, opts), false)
+    assert.equal(mayShowPrice({}, opts), false, 'a profile with no role is not evidence of an adult')
+  }
 
   assert.equal(mayShowPrice({ role: 'learner', isMinor: false }), true)
   assert.equal(mayShowPrice({ role: 'teacher' }), true)
@@ -175,6 +178,32 @@ test('a price is shown only to a session that is positively an adult', () => {
   // /pricing for everybody who has not signed in.
   assert.equal(mayShowPrice(null), true)
   assert.equal(mayShowPrice(undefined), true)
+})
+
+test('on the web an under-18 learner sees the price, because a parent pays', () => {
+  const web = { native: false }
+  assert.equal(mayShowPrice({ role: 'learner' }, web), true)
+  assert.equal(mayShowPrice({ role: 'learner', isMinor: true }, web), true)
+  assert.equal(mayShowPrice({ role: 'learner', isMinor: null }, web), true)
+  assert.equal(mayShowPrice({ role: 'learner', isMinor: false }, web), true)
+  assert.equal(mayShowPrice(null, web), true)
+  // Only an explicit `false` opens it: anything that is not the real boolean
+  // withholds, so a sloppy caller fails closed rather than open.
+  for (const native of [undefined, null, 0, '', 'false']) {
+    assert.equal(mayShowPrice({ role: 'learner', isMinor: true }, { native }), false, String(native))
+  }
+})
+
+test('a parent is the payer for exactly the under-18 learner, never for an adult', () => {
+  // Wording only — the server's consent gate decides whether a purchase is
+  // allowed. But the wording must not tell a teacher to "ask your parent".
+  assert.equal(isGuardianPayer({ role: 'learner', isMinor: true }), true)
+  assert.equal(isGuardianPayer({ role: 'learner' }), true, 'unknown age is treated as a minor')
+  assert.equal(isGuardianPayer({ role: 'learner', isMinor: false }), false)
+  assert.equal(isGuardianPayer({ role: 'teacher' }), false)
+  assert.equal(isGuardianPayer({ role: 'parent' }), false)
+  assert.equal(isGuardianPayer(null), false, 'no profile is nobody, not a child')
+  assert.equal(isGuardianPayer(undefined), false)
 })
 
 test('every quota states a reset date, and the weekly one is the next Monday', () => {

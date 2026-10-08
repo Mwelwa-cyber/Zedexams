@@ -8,7 +8,8 @@ import Icon from '../../../shared/components/Icon'
 import { ArrowRight, X } from '../../../shared/components/icons'
 import { BenefitChecklist, PlanPricingCards, TrustRow } from './PremiumUpgradeUI'
 import { useAuth } from '../../../contexts/AuthContext'
-import { mayShowPrice, resolveAgeBand } from '../../../services/entitlements/planState'
+import { resolveAgeBand } from '../../../services/entitlements/planState'
+import { platformMayShowPrice } from '../../../services/entitlements/platformPrice'
 
 const UpgradeModal = lazy(() => import('./UpgradeModal'))
 
@@ -69,10 +70,10 @@ export default function QuizLimitPopup() {
 
   useEffect(() => paywall.subscribe(setState), [])
 
-  // No price reaches a child. Fails closed, and `!!userProfile` is
-  // load-bearing — mayShowPrice reads a MISSING profile as an anonymous
+  // No price reaches a child in the Android build; on the web a parent pays.
+  // Fails closed, and `!!userProfile` is load-bearing — platformMayShowPrice reads a MISSING profile as an anonymous
   // visitor, which is right for marketing and wrong for a learner runner.
-  const canBuy = !!userProfile && mayShowPrice(userProfile)
+  const canBuy = !!userProfile && platformMayShowPrice(userProfile)
   const open = !!state && state.reason === REASON
   const ctx = state?.ctx || {}
   const limit = ctx.limit || 30
