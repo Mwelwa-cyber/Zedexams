@@ -30,6 +30,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   OPERATORS,
   detectOperator,
+  getLencoPaymentStatus,
   initiateLencoPayment,
   looksLikeZambianPhone,
   pollLencoStatus,
@@ -67,6 +68,17 @@ const UNSETTLED =
   'We have not heard back from your network yet. If you approved the prompt ' +
   'on your phone the payment will still go through — check again in a minute.'
 
+// The three calls this component drives. The default is a SIGNED-IN payer
+// buying for a linked child. The pay-link page passes a token-bound set
+// instead (services/guardianLinkPay) because that guardian has no account;
+// the screens, the polling and every outcome message are shared, so the two
+// doors cannot drift apart in what they tell a parent about their money.
+const DEFAULT_API = {
+  initiate: initiateLencoPayment,
+  submitOtp: submitLencoOtp,
+  fetchStatus: getLencoPaymentStatus,
+}
+
 export default function GuardianCheckout({
   plan,
   childUid,
@@ -74,6 +86,7 @@ export default function GuardianCheckout({
   guardianRequestId,
   disabled,
   onPaid,
+  api = DEFAULT_API,
 }) {
   const [phone, setPhone] = useState('')
   const [operator, setOperator] = useState('')
@@ -103,6 +116,7 @@ export default function GuardianCheckout({
       // A STATUS STRING, not an object — see the header.
       const status = await pollLencoStatus(paymentId, {
         signal: controller.signal,
+        fetchStatus: api.fetchStatus,
         ...(maxAttempts ? { maxAttempts } : {}),
       })
       if (controller.signal.aborted) return
@@ -135,7 +149,7 @@ export default function GuardianCheckout({
     } finally {
       if (!controller.signal.aborted) setChecking(false)
     }
-  }, [onPaid, plan?.id])
+  }, [onPaid, plan?.id, api])
 
   async function pay(e) {
     e.preventDefault()
@@ -155,7 +169,7 @@ export default function GuardianCheckout({
     setStage('starting')
     setMessage('')
     try {
-      const res = await initiateLencoPayment({
+      const res = await api.initiate({
         planId: plan.checkoutPlanId || plan.id,
         method: 'mobile_money',
         phone,
@@ -193,7 +207,7 @@ export default function GuardianCheckout({
     setStage('waiting')
     setMessage('Checking that code…')
     try {
-      await submitLencoOtp({ paymentId: payment.paymentId, otp })
+      await api.submitOtp({ paymentId: payment.paymentId, otp })
       setMessage(`Approve the prompt on ${phone} to finish.`)
       watch(payment.paymentId)
     } catch (err) {

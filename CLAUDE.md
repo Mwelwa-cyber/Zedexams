@@ -1175,19 +1175,42 @@ Two rules override everything else in this area:
   see `.env.example`) — WhatsApp needs a template because the guardian has not
   messaged us first, so free-form text would be outside Meta's 24-hour
   customer-service window.
-- **Paying the ask does not require the guardian to have a `parentLinks` row —
-  or, since 2026-09, an account created for the purpose at all.** The signed
-  pay link (`/guardian-unlock?t=…`) always resolved with no account (the token
-  is unauthenticated-readable); `guardianBillingAuth.authoriseGuardianPurchase`'s
-  rule 4 now lets that same still-open, unexpired token authorise the PAYMENT
-  too, so a guardian only needs ANY signed-in, verified ZedExams account — not
-  specifically `role: 'parent'`, and not a confirmed family-code link — to
-  complete it directly on that page. The old two-step path (register as a
-  parent, wait for the child to confirm a family code, THEN pay from
-  `/family/plan`) still exists for the fuller parent-portal experience and is
-  what a guardian without the link falls back to. The trust boundary is
-  possession of the 32-byte single-use token, not payer identity — the same
-  boundary `startSameDeviceConsent`'s hand-off already relies on.
+- **Paying the ask needs no login at all (2026-10).** `/guardian-unlock?t=…`
+  is outside every guard: the guardian types their OWN mobile-money number and
+  approves the prompt on their phone. The one-time token in the URL is the only
+  credential (its sha256 is the `guardianRequests` doc id; the raw token is never
+  stored). Three UNAUTHENTICATED callables — `guardianLinkPay`,
+  `guardianLinkPayStatus`, `guardianLinkPayOtp`
+  (`functions/guardianUnlock/linkPayment.js`, pure rules in
+  `linkPaymentCore.js`, `test:guardian-link-pay`) — prove the token and then run
+  the EXISTING `initiateLencoPayment` / `getLencoPaymentStatus` /
+  `submitLencoOtp` as the CHILD the request names, through a synthetic request
+  built in exactly one place. **There is no second implementation of starting a
+  charge.** The payment is the child's own, made with a parent's number, so the
+  plan and amount come from the stored request (never the caller), the account is
+  the child's, and a confirmed charge also records the guardian's approval (the
+  next bullet). The client chooses only a phone number and a network. Every
+  payment is tagged `guardianRequestId` IN THE SAME TRANSACTION that creates it
+  (a server-built `request.trustedPaymentFields`, which a client cannot supply —
+  `test:payment-link-tag`), so a webhook can never activate it untagged;
+  **`subscriptionActivation` alone settles the request**, after access is
+  granted — the wrapper never infers it from the provider's "successful". The
+  stored quote is passed as `expectedAmountZMW`, so a plan repriced inside the
+  link's seven days is refused rather than overcharged. A token may follow only
+  payments started from ITS request (`paymentBelongsToRequest` — otherwise it
+  could poll any other payment the child has ever made). Starting
+  and OTP are rate-limited per token and per IP and FAIL CLOSED if the limiter is
+  down OR DEGRADED (every other limiter here fails open; this one guards a
+  message to a stranger's phone). `rateLimit.enforceRateLimit` cannot be used for
+  that: it swallows a Firestore failure and reports `{allowed: true}`, so
+  `linkPayment.js` walks `checkRateLimit` itself and reads `degraded`. **Inside the Android app the page keeps its old Play-only
+  behaviour and names no payment method** — Play Billing is the only method
+  allowed there, and `GuardianUnlock.spec` pins that. Trade-off, stated: the
+  Android parent's Google Pay route for a child lived in the parent app
+  (`/family/plan`) and goes when that app does; an Android parent pays by mobile
+  money through the emailed link, which opens in the system browser. The older
+  two-step path (register as a parent, confirm a family-code link, pay from
+  `/family/plan`) still exists for existing parent accounts until 4b.
 - **A parent's confirmed payment IS the guardian's approval (2026-10, owner
   decision).** The gate for the quote and the payment is `assertMayStartPurchase`
   (`functions/consentGuard.js`), not the strict `assertLearnerCapability(uid,

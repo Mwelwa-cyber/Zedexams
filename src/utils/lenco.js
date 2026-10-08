@@ -120,13 +120,13 @@ export async function recoverMyPendingPayments() {
  * or we give up. Mirrors Lenco's own SDK defaults (3s × 40 ≈ 2 minutes).
  * Returns the final status string ('successful' | 'failed' | 'pending').
  */
-export async function pollLencoStatus(paymentId, { intervalMs = 3000, maxAttempts = 40, onTick, signal } = {}) {
+export async function pollLencoStatus(paymentId, { intervalMs = 3000, maxAttempts = 40, onTick, signal, fetchStatus = getLencoPaymentStatus } = {}) {
   for (let i = 0; i < maxAttempts; i += 1) {
     if (signal?.aborted) return 'pending'
     let status = 'pending'
     let message = null
     try {
-      ;({ status, message = null } = await getLencoPaymentStatus(paymentId))
+      ;({ status, message = null } = await fetchStatus(paymentId))
     } catch {
       status = 'pending'
     }

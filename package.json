@@ -978,7 +978,9 @@
     "test:payment-status-lookup": "node functions/paymentHandlers.statusLookup.test.js",
     "test:anthropic-request-policy": "node functions/anthropicRequestPolicy.test.js",
     "test:function-instance-caps": "node scripts/test-function-instance-caps.mjs",
-    "test:parent-share": "node scripts/test-parent-share.mjs"
+    "test:parent-share": "node scripts/test-parent-share.mjs",
+    "test:guardian-link-pay": "node functions/guardianUnlock/linkPayment.test.js",
+    "test:payment-link-tag": "node functions/paymentHandlers.linkTag.test.js"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",

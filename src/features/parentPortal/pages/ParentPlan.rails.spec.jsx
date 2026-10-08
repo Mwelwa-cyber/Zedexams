@@ -63,6 +63,7 @@ vi.mock('../../../utils/lenco', () => ({
   looksLikeZambianPhone: () => true,
   initiateLencoPayment: vi.fn(),
   pollLencoStatus: vi.fn(),
+  getLencoPaymentStatus: vi.fn(),
   submitLencoOtp: vi.fn(),
 }))
 
