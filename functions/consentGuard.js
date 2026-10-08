@@ -293,6 +293,46 @@ async function assertLearnerCapability(uid, capability, deps = {}) {
   return access;
 }
 
+/**
+ * The reasons a purchase may still START. All three mean "a guardian has not
+ * approved this account yet", which is exactly the state a parent's payment
+ * resolves — see guardianConsent/paymentConsentCore.js. A `denied` account is
+ * deliberately absent: a guardian who deactivated the account outranks a
+ * payment.
+ */
+const PURCHASE_MAY_START = new Set(["consent-pending", "consent-expired", "migration-required"]);
+
+/**
+ * Refuse a purchase unless it may start.
+ *
+ * `assertLearnerCapability(uid, "purchase")` is right for everything that
+ * ASSUMES approval, but a payment is not one of those: it is the thing that
+ * produces the approval. Applying the strict gate to it is a deadlock — a new
+ * under-18 learner cannot pay until a guardian approves, and the guardian is
+ * the one being asked to pay. So this lets a pending, expired or migrating
+ * account reach checkout and refuses every other state, including a lookup
+ * failure (still fail-closed) and a guardian's decline.
+ *
+ * Approval itself is NOT granted here. It is recorded only when Lenco confirms
+ * the charge, post-commit, in subscriptionActivation.
+ *
+ * @param {string} uid
+ * @param {object} [deps]  {db} for tests.
+ * @return {Promise<void>}
+ * @throws {HttpsError} permission-denied / unavailable / unauthenticated
+ */
+async function assertMayStartPurchase(uid, deps = {}) {
+  try {
+    await assertLearnerCapability(uid, "purchase", deps);
+  } catch (err) {
+    const reason = err?.details?.reason;
+    if (err instanceof HttpsError && err.code === "permission-denied" && PURCHASE_MAY_START.has(reason)) {
+      return;
+    }
+    throw err;
+  }
+}
+
 // Test seam: the flag is cached per instance, so a test that flips it needs a
 // way to drop the cache. Not exported for production use.
 function __resetFlagCache() {
@@ -301,6 +341,7 @@ function __resetFlagCache() {
 
 module.exports = {
   assertLearnerCapability,
+  assertMayStartPurchase,
   resolveCallerAccess,
   resolveEnforceMigration,
   messageFor,

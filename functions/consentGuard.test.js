@@ -385,6 +385,81 @@ async function refused(fn) {
     assert.strictEqual(messageFor("something-new"), MESSAGES["consent-pending"]);
   });
 
+  // ── assertMayStartPurchase ─────────────────────────────────────────────
+  //
+  // A parent's confirmed payment is what records guardian approval, so the
+  // payment must be STARTABLE before approval exists. Everything that is not
+  // "approval simply has not happened yet" is still refused.
+  const {assertMayStartPurchase} = guard;
+
+  await test("a PENDING minor may start a purchase (the payment is what approves)", async () => {
+    __resetFlagCache();
+    await assertMayStartPurchase("u1", {db: fakeDb({user: learner({consentStatus: "pending"}, {isMinor: true})})});
+  });
+
+  await test("an EXPIRED approval link does not block a purchase from starting", async () => {
+    __resetFlagCache();
+    await assertMayStartPurchase("u1", {db: fakeDb({user: learner({consentStatus: "expired"}, {isMinor: true})})});
+  });
+
+  await test("an account still awaiting migration may start one when enforcement is on", async () => {
+    __resetFlagCache();
+    // No guardian record + enforceMigration → reason "migration-required".
+    await assertMayStartPurchase("u1", {db: fakeDb({user: learner(undefined, {isMinor: true}), flag: true})});
+  });
+
+  await test("an approved minor, an adult learner and a teacher all pass", async () => {
+    __resetFlagCache();
+    await assertMayStartPurchase("u1", {db: fakeDb({user: learner({consentStatus: "granted"}, {isMinor: true})})});
+    await assertMayStartPurchase("u1", {db: fakeDb({user: learner(undefined, {isMinor: false})})});
+    await assertMayStartPurchase("u1", {db: fakeDb({user: {role: "teacher"}})});
+  });
+
+  await test("a guardian's DECLINE still refuses a purchase — it outranks a payment", async () => {
+    __resetFlagCache();
+    const err = await refused(() => assertMayStartPurchase("u1", {
+      db: fakeDb({user: learner({consentStatus: "denied"}, {isMinor: true})}),
+    }));
+    assert.ok(err, "must refuse");
+    assert.strictEqual(err.code, "permission-denied");
+    assert.strictEqual(err.details.reason, "guardian-denied");
+  });
+
+  await test("an unreadable account is refused (fail-closed), not waved through as pending", async () => {
+    __resetFlagCache();
+    const err = await refused(() => assertMayStartPurchase("u1", {
+      db: fakeDb({user: learner({consentStatus: "pending"}, {isMinor: true}), throwOn: "users"}),
+    }));
+    assert.ok(err);
+    assert.strictEqual(err.code, "unavailable");
+    assert.strictEqual(err.details.reason, "lookup-failed");
+  });
+
+  await test("a missing profile and an unclassified role are refused", async () => {
+    __resetFlagCache();
+    const none = await refused(() => assertMayStartPurchase("u1", {db: fakeDb({user: null})}));
+    assert.ok(none && none.code === "permission-denied" && none.details.reason === "no-profile");
+    const odd = await refused(() => assertMayStartPurchase("u1", {db: fakeDb({user: {role: "student"}})}));
+    assert.ok(odd && odd.code === "permission-denied" && odd.details.reason === "unknown-role");
+  });
+
+  await test("no uid is unauthenticated, not pending", async () => {
+    const err = await refused(() => assertMayStartPurchase("", {db: fakeDb({user: null})}));
+    assert.ok(err);
+    assert.strictEqual(err.code, "unauthenticated");
+  });
+
+  await test("the strict gate is unchanged: a pending minor is still refused by it", async () => {
+    // assertMayStartPurchase must not have loosened assertLearnerCapability
+    // for anything else (leaderboard, resending invoices, …).
+    __resetFlagCache();
+    const err = await refused(() => assertLearnerCapability("u1", "purchase", {
+      db: fakeDb({user: learner({consentStatus: "pending"}, {isMinor: true})}),
+    }));
+    assert.ok(err);
+    assert.strictEqual(err.details.reason, "consent-pending");
+  });
+
   console.log(`\nconsentGuard: ${passed} passed`);
 })().catch((err) => {
   console.error(err);

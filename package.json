@@ -575,6 +575,7 @@
     "test:rate-limit": "node functions/rateLimitCore.test.js",
     "test:family-portal": "node functions/familyPortalCore.test.js",
     "test:consent-record": "node functions/guardianConsent/consentRecord.test.js",
+    "test:payment-consent": "node functions/guardianConsent/paymentConsentCore.test.js && node functions/guardianConsent/paymentConsent.test.js",
     "test:trusted-image": "node functions/agents/trustedImageHost.test.js",
     "test:appcheck-enforce": "node functions/appCheckEnforcement.test.js",
     "test:appcheck-http": "node functions/appCheckHttp.test.js",

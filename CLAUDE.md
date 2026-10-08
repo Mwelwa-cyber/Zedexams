@@ -1160,6 +1160,30 @@ Two rules override everything else in this area:
   what a guardian without the link falls back to. The trust boundary is
   possession of the 32-byte single-use token, not payer identity — the same
   boundary `startSameDeviceConsent`'s hand-off already relies on.
+- **A parent's confirmed payment IS the guardian's approval (2026-10, owner
+  decision).** The gate for the quote and the payment is `assertMayStartPurchase`
+  (`functions/consentGuard.js`), not the strict `assertLearnerCapability(uid,
+  'purchase')`: a PENDING, expired or migrating minor may START a payment —
+  requiring approval first is a deadlock, since the payment is what produces it —
+  while a declined, unreadable or unclassified account is still refused (a
+  lookup failure stays fail-closed). The strict gate remains on
+  `resendInvoiceEmail`. Approval is recorded only when Lenco confirms the charge:
+  `subscriptionActivation`, post-commit and best-effort, calls
+  `guardianConsent/paymentConsent.recordPaymentConsent` for a learner paying for
+  their OWN account, writing the same `grantedRecord` the link and family-code
+  routes write with `evidence.via: 'payment'`, the payment id, the operator and
+  the LAST FOUR digits of the number — never the number itself. The rules are
+  pure in `paymentConsentCore.js` (`test:payment-consent`): it only promotes
+  pending, expired or no-record accounts, never overrides `denied`, never lifts a
+  suspension, and is idempotent. It re-reads the user inside its own transaction,
+  so a decline that lands between activation and this step wins. **What it
+  proves, and does not:** a charge was approved on SOME mobile-money account, not
+  that the holder is the child's parent — a child entering a friend's number
+  yields the same record. That is the accepted consequence of the decision, and
+  why the evidence is a payment reference rather than a claim of identity. A
+  guardian-initiated payment (`beneficiaryUid` set) does not take this route; it
+  has its own. `/child-safety` and the Privacy Policy state this, so a change to
+  the rule changes them too.
 - **The in-paper free set never walls the learner.** `PublicQuizRunner` ends the
   RUN at the free-set boundary and goes to the results screen; the offer is an
   inline `PaperContinueLock` below the free score, free review and free weak

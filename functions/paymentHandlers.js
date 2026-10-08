@@ -31,6 +31,7 @@ exports.buildPaymentHandlers = (deps) => {
     getFirestore,
     assertAdminSecondFactor,
     assertLearnerCapability,
+    assertMayStartPurchase,
     assertVerifiedAuth,
     cleanString,
     crypto,
@@ -108,7 +109,12 @@ exports.buildPaymentHandlers = (deps) => {
       // not about which component renders it — so the gate belongs on both.
       //
       // Before the plan lookup, so a refused call costs nothing.
-      await assertLearnerCapability(uid, CAPABILITY_PURCHASE);
+      //
+      // `assertMayStartPurchase`, not the strict gate: a quote is the step
+      // BEFORE a payment, and a payment is what resolves a pending approval
+      // (see consentGuard.assertMayStartPurchase). A declined account is still
+      // refused.
+      await assertMayStartPurchase(uid);
 
       const {getPlan} = require("./plans");
       const planId = cleanString(request.data?.planId, 60);
@@ -146,7 +152,13 @@ exports.buildPaymentHandlers = (deps) => {
       //
       // It sits before the provider is even constructed: a refused call
       // should cost nothing and leave no payments document behind.
-      await assertLearnerCapability(uid, CAPABILITY_PURCHASE);
+      //
+      // A learner whose guardian has NOT YET approved may start the payment —
+      // `assertMayStartPurchase` lets pending/expired/migrating accounts
+      // through and refuses a declined or unreadable one. The approval is
+      // recorded only once Lenco confirms the charge (subscriptionActivation),
+      // so a prompt nobody approves grants nothing.
+      await assertMayStartPurchase(uid);
 
       const lenco = require("./paymentProvider").getPaymentProvider();
       const {getPlan} = require("./plans");
