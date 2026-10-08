@@ -107,8 +107,15 @@ export default function ChildSafety() {
           <li>
             <strong>A parent or guardian must approve a learner account.</strong> When
             someone under 18 signs up we ask for a parent or guardian's contact and
-            send them a link. Until they approve, the account can only read lessons
-            and past papers — it cannot appear on a leaderboard or buy anything.
+            send them a link. A parent can also approve by paying: a learner pays
+            with a parent's mobile money number, and the parent confirming that
+            payment on their own phone is recorded as the guardian's approval,
+            together with the payment reference and the last four digits of the
+            number. Until a guardian approves — by link or by payment — the account
+            can only read lessons and past papers and cannot appear on a
+            leaderboard. A learner can start a payment, but nothing is charged
+            unless the parent approves the prompt on their phone, and a payment
+            never overrides a guardian who has declined.
           </li>
           <li>
             <strong>A guardian sees what a child is working on, not what they

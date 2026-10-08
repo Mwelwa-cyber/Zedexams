@@ -75,7 +75,8 @@ firestoreFn.Timestamp = {fromDate: (d) => ({toDate: () => d, _date: d})};
 const adminStub = {firestore: firestoreFn};
 
 // ── Side-effect stubs (recorded; togglable to throw) ─────────────────────
-const calls = {invoice: [], redeem: [], consume: []};
+const calls = {invoice: [], redeem: [], consume: [], consent: []};
+let consentThrows = false;
 let sideEffectsThrow = false;
 const invoiceGeneratorStub = {
   emitInvoice: async (args) => {
@@ -91,12 +92,21 @@ const referralRedemptionStub = {
   consumeReferralCredits: async (args) => { calls.consume.push(args); },
 };
 
+const paymentConsentStub = {
+  recordPaymentConsent: async (_db, args) => {
+    calls.consent.push(args);
+    if (consentThrows) throw new Error("consent store down");
+    return {recorded: true, reason: "stub"};
+  },
+};
+
 const origLoad = Module._load;
 Module._load = function (request, ...rest) {
   if (request === "firebase-admin") return adminStub;
   if (request.startsWith("firebase-admin/")) return modularAdminModules(adminStub)[request];
   if (request === "./invoiceGenerator") return invoiceGeneratorStub;
   if (request === "./referralRedemption") return referralRedemptionStub;
+  if (request === "./guardianConsent/paymentConsent") return paymentConsentStub;
   return origLoad.call(this, request, ...rest);
 };
 
@@ -110,6 +120,8 @@ function reset() {
   calls.invoice.length = 0;
   calls.redeem.length = 0;
   calls.consume.length = 0;
+  calls.consent.length = 0;
+  consentThrows = false;
   sideEffectsThrow = false;
 }
 async function rejects(promise, re) {
@@ -387,6 +399,48 @@ async function rejects(promise, re) {
   reset();
   ok("markPaymentFailed on a missing doc resolves ok (no throw)",
       (await markPaymentFailed({paymentId: "ghost"})).ok === true);
+
+  // ── A parent's payment is recorded as the guardian's approval ─────────────
+  //
+  // Post-commit, from the confirmed-payment path only, and only for a learner
+  // paying for THEIR OWN account. The decision (never override a decline, never
+  // touch a suspension) is paymentConsentCore's and is tested there; what is
+  // pinned HERE is that activation calls it at the right moments.
+  reset();
+  store["payments/pc1"] = {
+    planId: "grade7_monthly", userId: "kid1", amountZMW: 75, currency: "ZMW",
+    phoneNumber: "260977000111", operator: "airtel",
+  };
+  store["users/kid1"] = {role: "learner", isMinor: true, guardian: {consentStatus: "pending"}};
+  await activateSubscriptionFromPayment({paymentId: "pc1"});
+  ok("a learner's own confirmed payment records guardian consent once", calls.consent.length === 1);
+  ok("the consent step is handed the credited learner, payment, number and operator",
+      calls.consent[0].learnerUid === "kid1" && calls.consent[0].paymentId === "pc1" &&
+      calls.consent[0].phoneNumber === "260977000111" && calls.consent[0].operator === "airtel");
+
+  reset();
+  store["payments/pc2"] = {
+    planId: "grade7_monthly", userId: "parent1", beneficiaryUid: "kid2", amountZMW: 75, currency: "ZMW",
+  };
+  store["users/parent1"] = {role: "parent"};
+  store["users/kid2"] = {role: "learner", isMinor: true};
+  await activateSubscriptionFromPayment({paymentId: "pc2"});
+  ok("a guardian paying FOR a child does not take this route (it has its own)", calls.consent.length === 0);
+
+  reset();
+  store["payments/pc3"] = {planId: "grade7_monthly", userId: "kid3", status: "successful"};
+  store["users/kid3"] = {role: "learner", isMinor: true};
+  await activateSubscriptionFromPayment({paymentId: "pc3"});
+  ok("a replayed (already-successful) payment records nothing", calls.consent.length === 0);
+
+  reset();
+  store["payments/pc4"] = {planId: "grade7_monthly", userId: "kid4", amountZMW: 75, currency: "ZMW"};
+  store["users/kid4"] = {role: "learner", isMinor: true};
+  consentThrows = true;
+  const guarded = await activateSubscriptionFromPayment({paymentId: "pc4"});
+  ok("a failing consent step never undoes the access that was paid for",
+      guarded.ok === true && guarded.activated === true &&
+      store["users/kid4"].premium === true && store["payments/pc4"].status === "successful");
 
   Module._load = origLoad;
   console.log(`\n${passed} passed`);

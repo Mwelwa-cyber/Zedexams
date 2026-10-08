@@ -99,4 +99,24 @@ test("only OUR suspensions may be lifted by a re-approval", () => {
   assert.strictEqual(isGuardianSuspension("nope"), false);
 });
 
+// A payment-backed approval is audited like every other route: how it arrived,
+// the transaction to look up, and the last four digits — never the number.
+test("a payment-backed approval records the payment id, last four digits and operator", () => {
+  const r = grantedRecord({
+    now: 1,
+    evidence: {via: "payment", paymentId: "pay_1", payerPhoneLast4: "0465", operator: "airtel"},
+  });
+  assert.strictEqual(r.guardian.consentStatus, "granted");
+  assert.deepStrictEqual(r.guardian.evidence, {
+    via: "payment", ip: "", userAgent: "", paymentId: "pay_1", payerPhoneLast4: "0465", operator: "airtel",
+  });
+});
+
+test("the payment fields are absent, not empty, on every other route", () => {
+  const emailed = grantedRecord({now: 1, evidence: {via: "link", tokenId: "t1"}});
+  for (const key of ["paymentId", "payerPhoneLast4", "operator"]) {
+    assert.ok(!(key in emailed.guardian.evidence), `${key} must not appear on a link approval`);
+  }
+});
+
 console.log(`\n${passed} assertions passed.`);

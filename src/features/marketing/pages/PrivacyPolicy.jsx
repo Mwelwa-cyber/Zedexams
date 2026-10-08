@@ -220,7 +220,10 @@ export default function PrivacyPolicy() {
           share the details needed to complete the transaction with the provider you choose:
           MTN MoMo, Airtel Money, Zamtel Money, Lenco (mobile money and cards), or Google
           Play Billing for purchases made through the Android app. They handle your payment
-          credentials; we never see or store them.
+          credentials; we never see or store them. A learner under 18 pays with a parent's
+          mobile money number: that number is kept on the payment record, and the last four
+          digits and the payment reference are stored as the record of the parent's approval
+          of the account.
         </li>
       </UL>
       <P>

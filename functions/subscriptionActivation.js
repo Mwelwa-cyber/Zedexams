@@ -344,6 +344,7 @@ async function activateSubscriptionFromPayment({
       currency: pay.currency || "ZMW",
       planId: pay.planId,
       phoneNumber: pay.phoneNumber || null,
+      operator: pay.operator || null,
       provider: pay.provider || "lenco",
       // The PAYER, always — the receipt is their money, their email and
       // their invoices/{uid}/ path, even when the access went to a child.
@@ -439,6 +440,32 @@ async function activateSubscriptionFromPayment({
       }
     } catch (err) {
       console.error("[subscriptionActivation] guardian cascade failed", err);
+    }
+  }
+
+  // ── A parent's payment is a parent's approval ─────────────────────────
+  //
+  // A learner under 18 pays with a PARENT's mobile-money number, and the
+  // parent approving that prompt on their own phone is recorded as the
+  // guardian's approval of the account — so a parent who cannot work the
+  // emailed link is not left holding a child who is paying but still limited.
+  //
+  // Only a learner paying for THEIR OWN account: `beneficiaryUid` is set when
+  // a guardian buys for a child through the guardian flows, and those already
+  // carry their own consent route. It runs HERE, post-commit, for the reason
+  // the cascade above does — money must have arrived — and it never overrides
+  // a guardian's decline. See guardianConsent/paymentConsentCore.js.
+  if (!isTopUp && payloadForInvoice && !payloadForInvoice.beneficiaryUid) {
+    try {
+      const {recordPaymentConsent} = require("./guardianConsent/paymentConsent");
+      await recordPaymentConsent(db, {
+        learnerUid: payloadForInvoice.userId,
+        paymentId,
+        phoneNumber: payloadForInvoice.phoneNumber,
+        operator: payloadForInvoice.operator,
+      });
+    } catch (err) {
+      console.error("[subscriptionActivation] payment consent failed", err);
     }
   }
 

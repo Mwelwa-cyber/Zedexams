@@ -1,25 +1,34 @@
 "use strict";
 
 /**
- * A price never reaches an under-18 learner's token — audit C-01 / C-02.
+ * Which callables are gated, and by which gate — audit C-01 / C-02, revised.
  *
- * `initiateLencoPayment` has refused an unapproved minor since purchase became
- * a gated capability. The two callables that hand back the same commercial
- * facts without charging anything did not: `getUpgradeQuote` returns the ZMW
- * figure for any plan id, and `resendInvoiceEmail` re-mails a receipt carrying
- * the amount and the plan name. Both were reachable by a child's token even
- * after the learner screens stopped rendering either — which is exactly the
- * distinction Play's Families policy does NOT draw, and which a reviewer tests
- * with a direct call rather than a screenshot.
+ * Purchase is a gated capability. Three callables hand back commercial facts:
+ * `getUpgradeQuote` (the ZMW figure for any plan id), `initiateLencoPayment`
+ * (charges) and `resendInvoiceEmail` (re-mails a receipt carrying the amount
+ * and the plan name). A reviewer tests the gate with a direct call, not a
+ * screenshot, so the gate is what is pinned here.
  *
- * What these tests pin, therefore, is not a rendered price but the gate:
+ * Two gates, deliberately different (2026-10):
  *
- *   1. Both callables invoke `assertLearnerCapability(uid, 'purchase')`.
+ *   - `assertMayStartPurchase` guards the quote and the payment. A learner
+ *     whose guardian has NOT YET approved the account may start one, because a
+ *     parent's confirmed payment is what records that approval; requiring the
+ *     approval first is a deadlock. A DECLINED account, an unreadable one and
+ *     a missing sign-in are still refused.
+ *   - `assertLearnerCapability(uid, 'purchase')` still guards the invoice
+ *     re-send: an invoice only exists once a payment has landed, and by then
+ *     the approval is on record, so nothing needs relaxing there.
+ *
+ * What these tests pin:
+ *
+ *   1. Each callable invokes ITS gate and not the other.
  *   2. A refusal short-circuits BEFORE any Firestore read or module require,
  *      so a refused call costs nothing and leaves nothing behind.
- *   3. Ownership is still checked afterwards — the age gate is an addition,
- *      not a replacement, so an adult reading someone else's invoice is
- *      refused for the reason it always was.
+ *   3. A pending minor reaches the body of the quote and the payment.
+ *   4. Ownership is still checked afterwards — the gate is an addition, not a
+ *      replacement, so an adult reading someone else's invoice is refused for
+ *      the reason it always was.
  *
  * The handlers take every collaborator by injection (`buildPaymentHandlers`),
  * so this needs no emulator and no firebase-functions runtime.
@@ -47,7 +56,10 @@ class FakeHttpsError extends Error {
   }
 }
 
+// A learner whose guardian has not approved yet. May START a purchase.
 const MINOR = "minor_learner";
+// A learner whose guardian declined. Refused everywhere.
+const DECLINED = "declined_learner";
 const ADULT = "adult_learner";
 
 /**
@@ -57,8 +69,9 @@ const ADULT = "adult_learner";
  * Firestore for the caller's profile and the invoice/plan, so a refusal that
  * fired too late would show up here as a non-zero count.
  */
-function buildWithSpies({refuseFor = []} = {}) {
+function buildWithSpies({refuseFor = [], declinedFor = [DECLINED]} = {}) {
   const capabilityCalls = [];
+  const startCalls = [];
   const firestoreCalls = [];
 
   const handlers = buildPaymentHandlers({
@@ -83,6 +96,18 @@ function buildWithSpies({refuseFor = []} = {}) {
         );
       }
     },
+    // The gate for the quote and the payment: pending is let through, a
+    // guardian's decline is not — the same split consentGuard makes.
+    assertMayStartPurchase: async (uid) => {
+      startCalls.push({uid});
+      if (declinedFor.includes(uid)) {
+        throw new FakeHttpsError(
+            "permission-denied",
+            "This account has been deactivated at a parent or guardian's request.",
+            {reason: "guardian-denied", capability: "purchase"},
+        );
+      }
+    },
     assertVerifiedAuth: async (request) => request.auth.uid,
     cleanString: (value, max) => String(value ?? "").trim().slice(0, max),
     crypto: require("node:crypto"),
@@ -96,7 +121,7 @@ function buildWithSpies({refuseFor = []} = {}) {
     shouldSendWebhookAlert: () => false,
   });
 
-  return {handlers, capabilityCalls, firestoreCalls};
+  return {handlers, capabilityCalls, startCalls, firestoreCalls};
 }
 
 async function rejects(fn) {
@@ -111,19 +136,60 @@ async function rejects(fn) {
 async function main() {
   console.log("\npaymentHandlers — no price reaches a child's token\n");
 
-  await test("getUpgradeQuote asks the purchase gate before anything else", async () => {
-    const {handlers, capabilityCalls, firestoreCalls} = buildWithSpies({refuseFor: [MINOR]});
+  await test("getUpgradeQuote asks the may-start gate before anything else", async () => {
+    const {handlers, capabilityCalls, startCalls, firestoreCalls} = buildWithSpies();
 
     const err = await rejects(() => handlers.getUpgradeQuote({
-      auth: {uid: MINOR},
+      auth: {uid: DECLINED},
       data: {planId: "max_monthly"},
     }));
 
     assert.strictEqual(err.code, "permission-denied");
-    assert.deepStrictEqual(capabilityCalls, [{uid: MINOR, capability: "purchase"}]);
+    assert.deepStrictEqual(startCalls, [{uid: DECLINED}]);
+    assert.deepStrictEqual(capabilityCalls, [], "the quote must not use the strict gate");
     // Property 2: refused before the plan lookup and before the profile read.
     assert.strictEqual(firestoreCalls.length, 0,
         "a refused quote must not read Firestore");
+  });
+
+  await test("a pending minor reaches the quote — a payment is what approves the account", async () => {
+    // The gate passes, so the body proceeds into the plan lookup. Reaching
+    // THAT error is the proof the may-start gate let a pending learner through.
+    const {handlers, startCalls} = buildWithSpies();
+    const err = await rejects(() => handlers.getUpgradeQuote({
+      auth: {uid: MINOR},
+      data: {planId: "not_a_real_plan"},
+    }));
+    assert.deepStrictEqual(startCalls, [{uid: MINOR}]);
+    assert.strictEqual(err.code, "invalid-argument");
+  });
+
+  await test("initiateLencoPayment asks the may-start gate and refuses a declined account", async () => {
+    const {handlers, capabilityCalls, startCalls, firestoreCalls} = buildWithSpies();
+
+    const err = await rejects(() => handlers.initiateLencoPayment({
+      auth: {uid: DECLINED},
+      data: {planId: "monthly", phone: "0977740465"},
+    }));
+
+    assert.strictEqual(err.code, "permission-denied");
+    assert.strictEqual(err.details.reason, "guardian-denied");
+    assert.deepStrictEqual(startCalls, [{uid: DECLINED}]);
+    assert.deepStrictEqual(capabilityCalls, [], "initiate must not use the strict gate");
+    assert.strictEqual(firestoreCalls.length, 0, "a refused payment must not read Firestore");
+  });
+
+  await test("a pending minor is not refused by initiateLencoPayment's gate", async () => {
+    // Past the gate the body needs the Lenco provider and API key; without them
+    // it fails for an unrelated reason. Anything OTHER than permission-denied
+    // proves the gate let the pending learner through.
+    const {handlers, startCalls} = buildWithSpies();
+    const err = await rejects(() => handlers.initiateLencoPayment({
+      auth: {uid: MINOR},
+      data: {planId: "not_a_real_plan", phone: "0977740465"},
+    }));
+    assert.deepStrictEqual(startCalls, [{uid: MINOR}]);
+    assert.notStrictEqual(err.code, "permission-denied");
   });
 
   await test("resendInvoiceEmail asks the purchase gate before reading the invoice", async () => {
@@ -141,12 +207,12 @@ async function main() {
   });
 
   await test("the refusal carries the reason the client renders a banner from", async () => {
-    const {handlers} = buildWithSpies({refuseFor: [MINOR]});
+    const {handlers} = buildWithSpies();
     const err = await rejects(() => handlers.getUpgradeQuote({
-      auth: {uid: MINOR},
+      auth: {uid: DECLINED},
       data: {planId: "max_monthly"},
     }));
-    assert.strictEqual(err.details.reason, "consent-pending");
+    assert.strictEqual(err.details.reason, "guardian-denied");
     assert.strictEqual(err.details.capability, "purchase");
   });
 
@@ -155,12 +221,12 @@ async function main() {
     // where an unknown plan id is rejected. Reaching THAT error is the proof
     // the age gate let an adult through: a `permission-denied` here would mean
     // the new assertion had caught somebody it must not.
-    const {handlers, capabilityCalls} = buildWithSpies({refuseFor: [MINOR]});
+    const {handlers, startCalls} = buildWithSpies();
     const err = await rejects(() => handlers.getUpgradeQuote({
       auth: {uid: ADULT},
       data: {planId: "not_a_real_plan"},
     }));
-    assert.deepStrictEqual(capabilityCalls, [{uid: ADULT, capability: "purchase"}]);
+    assert.deepStrictEqual(startCalls, [{uid: ADULT}]);
     assert.strictEqual(err.code, "invalid-argument");
     assert.notStrictEqual(err.code, "permission-denied");
   });

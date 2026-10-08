@@ -4,12 +4,14 @@
  * consentRecord — the shape a guardian consent decision writes, in one
  * place.
  *
- * THREE routes now reach the same decision and they must not each carry
+ * FOUR routes now reach the same decision and they must not each carry
  * their own idea of what "approved" looks like on a user document:
  *
  *   1. the emailed approval link  (guardianConsent/index.js applyDecision)
  *   2. linking by family code     (familyPortal.js, once the child accepts)
  *   3. the parent app             (parentApp setGuardianConsent)
+ *   4. a confirmed payment        (paymentConsent.js — a parent approving the
+ *                                  mobile-money prompt for their child's plan)
  *
  * `/child-safety` — the published standards page named in the Play
  * Console declaration — promises that a guardian approves the account and
@@ -47,6 +49,12 @@ function grantedRecord({now, evidence = {}} = {}) {
         ...(evidence.guardianUid ? {guardianUid: evidence.guardianUid} : {}),
         ...(evidence.guardianEmail ? {guardianEmail: evidence.guardianEmail} : {}),
         ...(evidence.code ? {code: evidence.code} : {}),
+        // A payment-backed approval (`via: "payment"`): the transaction to look
+        // up, and the last four digits of the number that approved it — never
+        // the full number, which already lives on the payment document.
+        ...(evidence.paymentId ? {paymentId: evidence.paymentId} : {}),
+        ...(evidence.payerPhoneLast4 ? {payerPhoneLast4: evidence.payerPhoneLast4} : {}),
+        ...(evidence.operator ? {operator: evidence.operator} : {}),
       },
     },
   };

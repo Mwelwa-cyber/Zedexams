@@ -54,7 +54,7 @@ const {screenLearnerMessage, redactForLogs} = require("./learnerSafety/learnerSa
 // Email-verification gate shared by callables + HTTP endpoints (see
 // authGuard.js for the exemption list).
 const {assertVerifiedAuth, assertDecodedVerified} = require("./authGuard");
-const {assertLearnerCapability} = require("./consentGuard");
+const {assertLearnerCapability, assertMayStartPurchase} = require("./consentGuard");
 // Capability names, duplicated as plain strings ONLY because the shared
 // consent package is ESM and this file is CommonJS — importing it at module
 // scope is not possible (see functions/shared/README.md). The values are
@@ -684,6 +684,7 @@ const batch3HandlerDeps = {
   assertDecodedVerified,
   assertHttpRateLimit,
   assertLearnerCapability,
+  assertMayStartPurchase,
   assertVerifiedAuth,
   buildAnthropicChat,
   callAnthropic,
