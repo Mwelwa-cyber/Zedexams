@@ -214,7 +214,7 @@ exports.buildMessagingHandlers = (deps) => {
       sendWhatsAppDigest,
       isConfigured,
     } = require("./metaWhatsApp");
-    const {guardianUidFor} = require("./notifications/subscriptionExpiryReminderCore");
+    const {guardianUidFor, isGuardianLinkFunded} = require("./notifications/subscriptionExpiryReminderCore");
     if (!isConfigured()) {
       return {
         status: "skipped",
@@ -266,8 +266,21 @@ exports.buildMessagingHandlers = (deps) => {
       // exist (`subscriptionPhoneNumber` is only ever set on the account a
       // payment directly credited; see subscriptionExpiryReminderCore.js).
       const guardianUid = guardianUidFor(user, userDoc.id);
+      // A plan paid from a guardian pay link has no guardian ACCOUNT to route
+      // to, but the number on file is the guardian's: write to it as a
+      // message about the child, not as if the child had paid.
+      let linkFunded = false;
+      if (!guardianUid && user.subscriptionPaymentId) {
+        try {
+          const paySnap = await db.collection("payments").doc(String(user.subscriptionPaymentId)).get();
+          linkFunded = paySnap.exists && isGuardianLinkFunded(paySnap.data());
+        } catch (err) {
+          console.warn("[sendExpiryReminders] payment lookup failed", err?.message || err);
+        }
+      }
+      const aboutChild = !!guardianUid || linkFunded;
       let rawPhone = user.subscriptionPhoneNumber || user.phoneNumber || "";
-      let recipientName = user.displayName;
+      let recipientName = linkFunded ? "" : user.displayName;
       if (guardianUid) {
         const guardianSnap = await db.collection("users").doc(guardianUid).get();
         const guardian = guardianSnap.exists ? (guardianSnap.data() || {}) : null;
@@ -301,8 +314,8 @@ exports.buildMessagingHandlers = (deps) => {
       const firstName = String(recipientName || "").trim().split(" ")[0] || "there";
       // "your" → "their" once the message is about a linked child rather
       // than the reader's own plan.
-      const possessive = guardianUid ? "their" : "your";
-      const subjectName = guardianUid ?
+      const possessive = aboutChild ? "their" : "your";
+      const subjectName = aboutChild ?
         `${String(user.displayName || "").trim().split(" ")[0] || "your child"}'s` :
         "Your";
       const body = isLapsed
@@ -310,7 +323,7 @@ exports.buildMessagingHandlers = (deps) => {
           `Top up via Mobile Money to keep ${possessive} access. Reply with a screenshot ` +
           `when you've paid and we'll reactivate within 30 minutes. — ZedExams`
         : `Hi ${firstName}! ${subjectName} ${planName} on ZedExams expires ${expiryStr}. ` +
-          `Top up via Mobile Money to renew before then so ${guardianUid ? "they don't" : "you don't"} lose access. ` +
+          `Top up via Mobile Money to renew before then so ${aboutChild ? "they don't" : "you don't"} lose access. ` +
           `Reply with a screenshot when paid. — ZedExams`;
 
       try {

@@ -95,4 +95,13 @@ ok(
   ok("but carry different dedupe keys", a.dedupeKey !== b.dedupeKey);
 }
 
+// ── A plan paid from a guardian pay link is recognised from its payment ─
+{
+  const {isGuardianLinkFunded} = require("./subscriptionExpiryReminderCore");
+  ok("link payment is recognised", isGuardianLinkFunded({guardianRequestId: "abc123"}) === true);
+  ok("ordinary payment is not", isGuardianLinkFunded({userId: "u1"}) === false);
+  ok("blank id is not", isGuardianLinkFunded({guardianRequestId: "  "}) === false);
+  ok("missing payment is not", isGuardianLinkFunded(null) === false);
+}
+
 console.log(`${passed} assertions passed (subscriptionExpiryReminderCore).`);
