@@ -1107,6 +1107,21 @@ in `FamilyCodePanel`. Do not delete the panel, `GuardianLinkPanel` or the
 `/family` routes until the production `parentLinks` count is known (4b/4c).
 Share links already issued keep working until they expire.
 
+### A parent hears about results because the learner sends them (2026-10)
+
+There is no parent account to read results from, so the learner sends them:
+`ShareWithParent` (`src/shared/components/`) is one button that opens WhatsApp
+with a message from `src/shared/utils/parentShare.js` already written; the
+learner picks the contact and presses Send. It is a plain `wa.me` link on the
+web and the Capacitor share sheet in the app. **No number is stored and the
+server sends nothing** — the only data in the message is what the learner is
+looking at, and it names a TOPIC, never a question or a child's own words.
+It sits on the quiz result (hidden while the result is provisional), the
+Daily Quiz result (scored sets only) and My Progress ("this week").
+`test:parent-share` + `ShareWithParent.spec.jsx`. Saving a parent's number to
+open the chat directly was considered and left out: a full number on a child's
+profile is more personal data for one saved tap.
+
 ### One gating service — `src/services/entitlements/`
 
 Every lock, quota, chip and unlock sheet reads from here, and nothing else may
