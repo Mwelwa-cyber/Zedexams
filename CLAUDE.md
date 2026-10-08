@@ -1094,6 +1094,19 @@ FREEZE THE CLOCK rather than mocking the calendar, and the distinction is the
 point: the bug was the real calendar not being consulted, so a stub agreeing
 with the expectation proves nothing.
 
+### The parent portal is being retired in stages (2026-10)
+
+**4a (this stage) removes only the ways IN**: a learner can no longer make a
+family code (`FamilyCodePanel allowNewCode={false}`) or a share link
+(`ParentShareManager` is gone from Profile, Settings and the account page). It
+deliberately leaves the existing parent app (`/family/*`) and every server
+function alone, because a guardian still has to be able to answer a deletion
+request and manage consent on links that already exist, and a code already out
+in the world can still be redeemed — the pending link it leaves is answered only
+in `FamilyCodePanel`. Do not delete the panel, `GuardianLinkPanel` or the
+`/family` routes until the production `parentLinks` count is known (4b/4c).
+Share links already issued keep working until they expire.
+
 ### One gating service — `src/services/entitlements/`
 
 Every lock, quota, chip and unlock sheet reads from here, and nothing else may

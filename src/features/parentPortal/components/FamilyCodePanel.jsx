@@ -51,7 +51,15 @@ function linkState(link) {
   return link.status
 }
 
-export default function FamilyCodePanel() {
+/**
+ * `allowNewCode={false}` is the learner Settings mount since the parent
+ * sign-up was removed: nobody can be sent a NEW code, but a code already out
+ * in the world can still be redeemed by an existing parent account, which
+ * leaves a pending link only THIS panel can answer (accept / decline). So the
+ * panel stays, minus the two controls that mint a code; an active code can
+ * still be turned off.
+ */
+export default function FamilyCodePanel({ allowNewCode = true }) {
   const { currentUser } = useAuth()
   const [activeCode, setActiveCode] = useState(null)
   const [parents, setParents] = useState([])
@@ -158,9 +166,11 @@ export default function FamilyCodePanel() {
     <section className="theme-card rounded-2xl border theme-border p-4">
       <h2 className="text-sm font-black theme-text">Family &amp; parents</h2>
       <p className="mt-0.5 text-xs theme-text-muted">
-        Share a family code so a parent or guardian can follow your progress. The
+        {allowNewCode ?
+          `Share a family code so a parent or guardian can follow your progress. The
         code works once and lasts 2 days — you can make a new one any time, and
-        nobody can see anything until you say yes.
+        nobody can see anything until you say yes.` :
+          'If someone uses an old family code to ask to be your guardian, you answer here. Nobody can see anything until you say yes.'}
       </p>
 
       {loading ? (
@@ -169,7 +179,16 @@ export default function FamilyCodePanel() {
         <>
           {/* Current code */}
           <div className="mt-3">
-            {activeCode ? (
+            {activeCode && !allowNewCode ? (
+              <div className="flex flex-wrap items-center gap-3 rounded-xl theme-bg-subtle px-3 py-3">
+                <p className="min-w-0 flex-1 text-xs font-bold theme-text">
+                  You have a family code that is still active.
+                </p>
+                <Button variant="ghost" size="sm" onClick={handleRevoke} disabled={busy}>
+                  Turn off
+                </Button>
+              </div>
+            ) : !allowNewCode ? null : activeCode ? (
               <div className="flex flex-wrap items-center gap-3 rounded-xl theme-bg-subtle px-3 py-3">
                 <div className="flex-1">
                   <p className="text-[11px] font-bold uppercase tracking-wider theme-text-muted">Your family code</p>
