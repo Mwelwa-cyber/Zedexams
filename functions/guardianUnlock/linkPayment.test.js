@@ -128,7 +128,7 @@ const open = {uid: "kid", status: "sent", planId: "term_pass", expiresAt: FUTURE
         }),
       }),
     };
-    const calls = {initiate: [], status: [], otp: [], settled: [], limited: []};
+    const calls = {initiate: [], status: [], otp: [], limited: []};
     const paymentHandlers = {
       initiateLencoPayment: async (req) => {
         calls.initiate.push(req);
@@ -144,7 +144,6 @@ const open = {uid: "kid", status: "sent", planId: "term_pass", expiresAt: FUTURE
       paymentHandlers,
       getDb: () => db,
       limit: async (_db, buckets) => { calls.limited.push(buckets); return limiter(); },
-      settleGuardianRequest: async (a) => { calls.settled.push(a.requestId); return {ok: true}; },
     });
     return {handlers, store, calls};
   }
@@ -165,9 +164,10 @@ const open = {uid: "kid", status: "sent", planId: "term_pass", expiresAt: FUTURE
     });
     assert.strictEqual(res.paymentId, "pay1");
     assert.strictEqual("authorization" in res, false);
-    // Tagged so activation settles the request and follow-ups can prove ownership.
-    assert.strictEqual(store.payments.pay1.guardianRequestId, REQUEST_ID);
-    assert.strictEqual(store.payments.pay1.startedVia, "guardian_link");
+    // The tag travels INTO the payment handler (written in the same commit that
+    // creates the payment), built from the verified request — never from data.
+    assert.deepStrictEqual(sent.trustedPaymentFields, {guardianRequestId: REQUEST_ID});
+    assert.strictEqual("trustedPaymentFields" in sent.data, false);
   });
 
   await test("pay: a bad, unknown, paid or expired token never reaches the payment handler", async () => {
@@ -198,10 +198,46 @@ const open = {uid: "kid", status: "sent", planId: "term_pass", expiresAt: FUTURE
     assert.ok(buckets.some((b) => b.scope.includes(":ip:")), "a per-IP bucket");
   });
 
-  await test("pay: a payment that is already paid settles the request", async () => {
-    const {handlers, calls} = setup({initiate: async () => ({paymentId: "pay1", status: "successful", alreadyPaid: true})});
-    await handlers.guardianLinkPay(req({token: TOKEN, phone: "0977123456"}));
-    assert.deepStrictEqual(calls.settled, [REQUEST_ID]);
+  await test("pay: the QUOTED price is enforced, so a repriced plan is refused rather than overcharged", async () => {
+    const {handlers, calls} = setup({record: {...open, priceZMW: 120}});
+    await handlers.guardianLinkPay(req({token: TOKEN, phone: "0977123456", expectedAmountZMW: 1}));
+    assert.strictEqual(calls.initiate[0].data.expectedAmountZMW, 120, "the stored quote, never the caller's number");
+    const none = setup({record: {...open, priceZMW: null}});
+    await none.handlers.guardianLinkPay(req({token: TOKEN, phone: "0977123456"}));
+    assert.strictEqual("expectedAmountZMW" in none.calls.initiate[0].data, false);
+  });
+
+  await test("pay: a degraded limiter is a refusal, not a pass (the production limiter never throws)", async () => {
+    const degraded = setup({limiter: async () => ({allowed: true, degraded: true})});
+    await rejects(degraded.handlers.guardianLinkPay(req({token: TOKEN, phone: "0977123456"})), "unavailable");
+    assert.strictEqual(degraded.calls.initiate.length, 0);
+    const otp = setup({
+      payments: {mine: {userId: "kid", guardianRequestId: REQUEST_ID}},
+      limiter: async () => ({allowed: true, degraded: true}),
+    });
+    await rejects(otp.handlers.guardianLinkPayOtp(req({token: TOKEN, paymentId: "mine", otp: "1"})), "unavailable");
+    // Watching a payment moves no money, so a degraded limiter does not stop it.
+    const status = setup({
+      payments: {mine: {userId: "kid", guardianRequestId: REQUEST_ID}},
+      limiter: async () => ({allowed: true, degraded: true}),
+    });
+    assert.strictEqual((await status.handlers.guardianLinkPayStatus(req({token: TOKEN, paymentId: "mine"}))).status, "pending");
+  });
+
+  await test("pay: a REUSED untagged payment of this child is tagged; one of another request is left alone", async () => {
+    const reuse = (existing) => setup({
+      payments: {pay1: existing},
+      initiate: async () => ({paymentId: "pay1", status: "pending", reused: true}),
+    });
+    const a = reuse({userId: "kid"});
+    await a.handlers.guardianLinkPay(req({token: TOKEN, phone: "0977123456"}));
+    assert.strictEqual(a.store.payments.pay1.guardianRequestId, REQUEST_ID);
+    const b = reuse({userId: "kid", guardianRequestId: "other"});
+    await b.handlers.guardianLinkPay(req({token: TOKEN, phone: "0977123456"}));
+    assert.strictEqual(b.store.payments.pay1.guardianRequestId, "other");
+    const c = reuse({userId: "stranger"});
+    await c.handlers.guardianLinkPay(req({token: TOKEN, phone: "0977123456"}));
+    assert.strictEqual(c.store.payments.pay1.guardianRequestId, undefined);
   });
 
   await test("status: only a payment started from THIS request can be followed", async () => {
@@ -217,18 +253,20 @@ const open = {uid: "kid", status: "sent", planId: "term_pass", expiresAt: FUTURE
     const ok = await handlers.guardianLinkPayStatus(req({token: TOKEN, paymentId: "mine"}));
     assert.strictEqual(ok.status, "pending");
     assert.strictEqual(calls.status[0].auth.uid, "kid");
-    assert.deepStrictEqual(calls.settled, []);
   });
 
-  await test("status: success settles the request, and polling still works once it is paid", async () => {
-    const {handlers, calls} = setup({
+  await test("status: polling still works once the request is paid, and this wrapper never settles it", async () => {
+    // Settlement belongs to subscriptionActivation, AFTER access is granted. A
+    // provider "successful" is not that: activation can withhold access (an
+    // amount mismatch) or fail after the provider answered.
+    const {handlers, calls, store} = setup({
       record: {...open, status: "paid"},
       payments: {mine: {userId: "kid", guardianRequestId: REQUEST_ID}},
     });
     calls.nextStatus = "successful";
     const res = await handlers.guardianLinkPayStatus(req({token: TOKEN, paymentId: "mine"}));
     assert.strictEqual(res.status, "successful");
-    assert.deepStrictEqual(calls.settled, [REQUEST_ID]);
+    assert.strictEqual(store.guardianRequests[REQUEST_ID].status, "paid", "untouched here");
   });
 
   await test("otp: same ownership rule, and the limiter fails closed", async () => {

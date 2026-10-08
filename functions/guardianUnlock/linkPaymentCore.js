@@ -108,8 +108,14 @@ function paymentBelongsToRequest({payment, childUid, requestId} = {}) {
  * `assertVerifiedAuth` runs its suspension / deletion check and nothing else.
  * Built ONLY after the token has been verified against a stored request.
  */
-function syntheticChildRequest({childUid, data, rawRequest} = {}) {
-  return {auth: {uid: childUid, token: {}}, data: data || {}, rawRequest};
+function syntheticChildRequest({childUid, data, rawRequest, trustedPaymentFields} = {}) {
+  return {
+    auth: {uid: childUid, token: {}},
+    data: data || {},
+    rawRequest,
+    // Not part of a real callable request, so a client cannot supply it.
+    ...(trustedPaymentFields ? {trustedPaymentFields} : {}),
+  };
 }
 
 /** The fields a guardian-link client may be shown from a payment result. */

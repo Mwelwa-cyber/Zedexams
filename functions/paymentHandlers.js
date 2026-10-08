@@ -140,6 +140,11 @@ exports.buildPaymentHandlers = (deps) => {
     },
 
     initiateLencoPayment: async (request) => {
+      const trustedLinkFields = (req) => {
+        const t = req && req.trustedPaymentFields;
+        const id = t && typeof t.guardianRequestId === "string" ? t.guardianRequestId.trim() : "";
+        return id ? {guardianRequestId: id, startedVia: "guardian_link"} : {};
+      };
       const uid = await assertVerifiedAuth(request, "Please sign in first.");
 
       // PURCHASE IS A GATED CAPABILITY. An unapproved under-18 learner
@@ -358,6 +363,13 @@ exports.buildPaymentHandlers = (deps) => {
             beneficiaryName: beneficiary?.displayName,
             guardianRequestId,
           }),
+          // Set ONLY by guardianUnlock/linkPayment.js, on a request object it
+          // builds itself after verifying the pay-link token. A real callable
+          // request has no such property and a client cannot add one, so this
+          // is not a field the caller can choose. Written in the SAME commit
+          // that creates the payment, so activation (webhook or poll) can never
+          // observe the payment without it.
+          ...trustedLinkFields(request),
           createdAt: FieldValue.serverTimestamp(),
         });
         tx.set(lockRef, {

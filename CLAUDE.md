@@ -1190,12 +1190,20 @@ Two rules override everything else in this area:
   plan and amount come from the stored request (never the caller), the account is
   the child's, and a confirmed charge also records the guardian's approval (the
   next bullet). The client chooses only a phone number and a network. Every
-  payment is tagged `guardianRequestId` so activation settles the request, and a
-  token may follow only payments started from ITS request (`paymentBelongsToRequest`
-  — otherwise it could poll any other payment the child has ever made). Starting
+  payment is tagged `guardianRequestId` IN THE SAME TRANSACTION that creates it
+  (a server-built `request.trustedPaymentFields`, which a client cannot supply —
+  `test:payment-link-tag`), so a webhook can never activate it untagged;
+  **`subscriptionActivation` alone settles the request**, after access is
+  granted — the wrapper never infers it from the provider's "successful". The
+  stored quote is passed as `expectedAmountZMW`, so a plan repriced inside the
+  link's seven days is refused rather than overcharged. A token may follow only
+  payments started from ITS request (`paymentBelongsToRequest` — otherwise it
+  could poll any other payment the child has ever made). Starting
   and OTP are rate-limited per token and per IP and FAIL CLOSED if the limiter is
-  down (every other limiter here fails open; this one guards a message to a
-  stranger's phone). **Inside the Android app the page keeps its old Play-only
+  down OR DEGRADED (every other limiter here fails open; this one guards a
+  message to a stranger's phone). `rateLimit.enforceRateLimit` cannot be used for
+  that: it swallows a Firestore failure and reports `{allowed: true}`, so
+  `linkPayment.js` walks `checkRateLimit` itself and reads `degraded`. **Inside the Android app the page keeps its old Play-only
   behaviour and names no payment method** — Play Billing is the only method
   allowed there, and `GuardianUnlock.spec` pins that. Trade-off, stated: the
   Android parent's Google Pay route for a child lived in the parent app

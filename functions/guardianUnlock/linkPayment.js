@@ -32,7 +32,7 @@
 
 const {HttpsError} = require("firebase-functions/v2/https");
 const {getFirestore} = require("firebase-admin/firestore");
-const {enforceRateLimit, standardBuckets, resolveClientIp} = require("../rateLimit");
+const {checkRateLimit, standardBuckets, resolveClientIp} = require("../rateLimit");
 const {
   decideLinkUse,
   hashToken,
@@ -42,6 +42,35 @@ const {
 } = require("./linkPaymentCore");
 
 const REQUESTS = "guardianRequests";
+
+/** The stored quote as a positive number, or nothing — `Number(null)` is 0, which would refuse every payment. */
+function quotedAmount(record) {
+  const raw = record && record.priceZMW;
+  if (raw === null || raw === undefined || raw === "") return {};
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? {expectedAmountZMW: n} : {};
+}
+
+/**
+ * The production limiter, minus its fail-open.
+ *
+ * `rateLimit.enforceRateLimit` swallows a Firestore failure inside
+ * `checkRateLimit` and reports `{allowed: true}` — by design for the AI/TTS
+ * surfaces it was written for, and it throws away the `degraded` flag on the
+ * way out. For an endpoint that sends a payment prompt to a phone number a
+ * stranger typed, "the limiter is broken" must mean "no", so this walks the
+ * buckets itself and surfaces `degraded`.
+ */
+async function strictLimit(db, buckets) {
+  let degraded = false;
+  for (const b of buckets) {
+    if (!b) continue;
+    const r = await checkRateLimit(db, b.scope, {limit: b.limit, windowMs: b.windowMs});
+    if (!r.allowed) return r;
+    if (r.degraded) degraded = true;
+  }
+  return {allowed: true, degraded};
+}
 
 function clientIp(request) {
   try {
@@ -54,15 +83,13 @@ function clientIp(request) {
 /**
  * @param {object} deps
  * @param {object} deps.paymentHandlers  the built payment handlers
- * @param {Function} [deps.settleGuardianRequest]
  * @param {Function} [deps.getDb]
  * @param {Function} [deps.limit]  (db, buckets) => {allowed} — injectable for tests
  */
 function buildLinkPaymentHandlers({
   paymentHandlers,
-  settleGuardianRequest = (args) => require("./index").settleGuardianRequest(args),
   getDb = getFirestore,
-  limit = enforceRateLimit,
+  limit = strictLimit,
 } = {}) {
   async function loadRequest(request, purpose) {
     const requestId = hashToken(request.data?.token);
@@ -86,6 +113,10 @@ function buildLinkPaymentHandlers({
         throw new HttpsError("unavailable", "We are busy right now. Please try again in a minute.");
       }
       return;
+    }
+    if (failClosed && result?.degraded) {
+      console.warn(`[linkPayment] ${action} limiter degraded — refusing`);
+      throw new HttpsError("unavailable", "We are busy right now. Please try again in a minute.");
     }
     if (!result?.allowed) {
       throw new HttpsError("resource-exhausted", "Too many tries. Please wait a minute and try again.", {reason: "rate-limited"});
@@ -112,6 +143,11 @@ function buildLinkPaymentHandlers({
       const res = await paymentHandlers.initiateLencoPayment(syntheticChildRequest({
         childUid,
         rawRequest: request.rawRequest,
+        // Written into the payment document in the SAME transaction that
+        // creates it (see initiateLencoPayment), so activation — which settles
+        // the request and tells the child — can never see an untagged payment,
+        // however fast the webhook lands.
+        trustedPaymentFields: {guardianRequestId: requestId},
         data: {
           // The plan is the REQUEST's, not the client's. The amount is then
           // derived from it inside the handler, as for any other payment.
@@ -119,23 +155,27 @@ function buildLinkPaymentHandlers({
           method: "mobile_money",
           phone: request.data?.phone,
           operator: request.data?.operator,
+          // The price the guardian was QUOTED. The handler refuses to charge a
+          // different amount, so a plan repriced inside the link's seven days
+          // is a "the amount has changed" answer, not a bigger charge.
+          ...quotedAmount(record),
         },
       }));
 
-      // Tie the payment to this request so activation settles it (marks the
-      // link paid and tells the child) even if the webhook lands before any
-      // poll does. Written before the client ever sees the payment id, so the
-      // follow-up calls below can prove ownership.
-      if (res?.paymentId) {
+      // A payment REUSED from an earlier attempt predates this call's tag.
+      // Tag it now, but only if it is the child's and carries no request yet.
+      if (res?.paymentId && res.reused) {
         try {
-          await getDb().collection("payments").doc(res.paymentId).update({
-            guardianRequestId: requestId, startedVia: "guardian_link",
-          });
+          const ref = getDb().collection("payments").doc(res.paymentId);
+          const snap = await ref.get();
+          const pay = snap.exists ? (snap.data() || {}) : null;
+          if (pay && pay.userId === childUid && !pay.guardianRequestId) {
+            await ref.update({guardianRequestId: requestId, startedVia: "guardian_link"});
+          }
         } catch (err) {
-          console.error("[linkPayment] could not tag payment with its request", err?.message || err);
+          console.error("[linkPayment] could not tag a reused payment", err?.message || err);
         }
       }
-      if (res?.alreadyPaid) await settleGuardianRequest({requestId});
 
       return publicPaymentResult(res);
     },
@@ -150,7 +190,10 @@ function buildLinkPaymentHandlers({
       const res = await paymentHandlers.getLencoPaymentStatus(syntheticChildRequest({
         childUid, rawRequest: request.rawRequest, data: {paymentId},
       }));
-      if (res?.status === "successful") await settleGuardianRequest({requestId});
+      // Settlement is NOT done here: `subscriptionActivation` marks the request
+      // paid and tells the child only after it has actually granted access. A
+      // provider status of "successful" is not that — activation can withhold
+      // access (an amount mismatch) or fail after the provider answered.
       return publicPaymentResult({...res, paymentId});
     },
 
@@ -164,7 +207,6 @@ function buildLinkPaymentHandlers({
       const res = await paymentHandlers.submitLencoOtp(syntheticChildRequest({
         childUid, rawRequest: request.rawRequest, data: {paymentId, otp: request.data?.otp},
       }));
-      if (res?.status === "successful") await settleGuardianRequest({requestId});
       return publicPaymentResult({...res, paymentId});
     },
   };
