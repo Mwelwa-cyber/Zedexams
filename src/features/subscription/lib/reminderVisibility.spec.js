@@ -27,6 +27,9 @@ describe('isReminderSuppressedPath', () => {
     expect(isReminderSuppressedPath('/grade-7')).toBe(true)
     expect(isReminderSuppressedPath('/blog/study-tips')).toBe(true)
     expect(isReminderSuppressedPath('/teacher/welcome-to-pro')).toBe(true)
+    expect(isReminderSuppressedPath('/for-guardians')).toBe(true)
+    expect(isReminderSuppressedPath('/for-guardians/request/abc')).toBe(true)
+    expect(isReminderSuppressedPath('/guardian-unlock')).toBe(true)
   })
 
   it('does NOT suppress the dashboards and authoring surfaces (reminders belong there)', () => {
