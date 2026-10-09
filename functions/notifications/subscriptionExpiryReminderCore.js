@@ -101,8 +101,8 @@ function resolveExpiryReminderTarget({uid, data, days, dateKey} = {}) {
       type: "guardian_subscription_expiry",
       title: "A linked child's plan is expiring soon",
       body: `${childName ? `${childName}'s` : "The"} plan ends in ${days} ${dayWord}. ` +
-        "Renew from Family Plan to keep full access.",
-      action: {label: "Manage family plan", url: "/family/plan"},
+        "Renew to keep full access.",
+      action: {label: "Open ZedExams", url: "/"},
       // Keyed on the EXPIRING account, not the recipient — a guardian with
       // two children both due the same day must get two notifications, not
       // have the second look like a repeat of the first in their own feed.

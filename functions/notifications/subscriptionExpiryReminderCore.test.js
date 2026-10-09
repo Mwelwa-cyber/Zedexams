@@ -66,7 +66,7 @@ ok(
   ok("guardian-funded addresses the GUARDIAN, not the child", t.recipientUid === "u_parent");
   ok("guardian-funded is flagged as routed", t.guardianRouted === true);
   ok("guardian-funded body names the child", t.body.startsWith("Milton Phiri's plan ends in 1 day."));
-  ok("guardian-funded action points at the family plan page", t.action.url === "/family/plan");
+  ok("guardian-funded action opens the app, not the retired family plan page", t.action.url === "/");
   // Keyed on the CHILD's uid so a guardian with two children due the same
   // day gets two distinct notifications rather than a deduped one.
   ok("guardian-funded dedupe key carries the CHILD's uid", t.dedupeKey === "expiry-2026-08-31-u_child");

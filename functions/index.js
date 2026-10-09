@@ -323,9 +323,7 @@ const {
 const {
   createFamilyInviteCode,
   revokeFamilyInviteCode,
-  redeemFamilyInviteCode,
   respondToFamilyLink,
-  getChildProgress,
 } = require("./familyPortal");
 // Audit C7 PR 1 follow-up — admin-only backfill for users who signed
 // up before referralCode minting shipped. Runnable from the Firebase
@@ -2125,12 +2123,10 @@ exports.getProgressShare = getProgressShare;
 // Family portal — authenticated parent↔child linking.
 exports.createFamilyInviteCode = createFamilyInviteCode;
 exports.revokeFamilyInviteCode = revokeFamilyInviteCode;
-exports.redeemFamilyInviteCode = redeemFamilyInviteCode;
 // The child's answer to "is this your grown-up?". Redeeming a code now
 // creates a PENDING link and this is what makes it real — see the header
 // of functions/familyPortal.js.
 exports.respondToFamilyLink = respondToFamilyLink;
-exports.getChildProgress = getChildProgress;
 
 // Admin-only "does the alarm actually ring?" check — fires one real ops alert
 // (severity info) down both channels and reports per-channel delivery. Same
