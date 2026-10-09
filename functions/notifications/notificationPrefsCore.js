@@ -30,7 +30,7 @@ const CATEGORIES = [
   // Guardian-only. The Sunday family report is the one thing this
   // product sends on a schedule to somebody who did not ask for it that
   // week, and until this category existed there was no switch behind it
-  // at all — /family/account told a parent they could turn it off in
+  // at all — the parent app told a parent they could turn it off in
   // Alerts, and Alerts had nothing to turn off. A promise in the UI with
   // no field behind it is worse than no promise: the parent believes
   // they opted out and the email keeps arriving.

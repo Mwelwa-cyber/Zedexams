@@ -276,13 +276,15 @@ existed has consent recorded only there.
   redeem one**) — not at signup, because parents verify their address afterwards
   and a claim is only redeemable once verified (`admin.auth()`, never the
   profile's `email` field, which the account itself can write).
-- **Door B (family code) creates a PENDING link and asks the child.** The code
-  is single-use (burned in the same transaction that writes the link), lives 48
-  hours, is regenerable, and is rate-limited per account and per IP. The
-  confirmation is the real defence against a code reaching the wrong adult — it
-  is the only step involving the one human who knows the answer — and it is
-  enforced server-side: `parentApp`'s `authorise` refuses **every** read of a
-  child's data through an unconfirmed link.
+- **Door B (family code) is CLOSED (2026-10).** It used to create a PENDING link
+  and ask the child; the callable that redeemed a code (`redeemFamilyInviteCode`)
+  is gone and `createFamilyInviteCode` now refuses, so no new pending link can
+  appear. What stays is the part that protects the child: a link or code made
+  before the retirement can still be turned off (`revokeFamilyInviteCode`) and a
+  pending link can still be answered by the child (`respondToFamilyLink`, in
+  `FamilyCodePanel`), and `parentApp`'s `authorise` rule that an unconfirmed
+  link authorises nothing is unchanged. Door A and the pay link are the only
+  doors that create or use a link now.
 - **Legacy links are grandfathered, explicitly and temporarily.** A link with
   no `consent` object at all reads as approved while `enforceMigration` is
   false (`linkIsApproved`), for the same reason `guardianConsentCore` grants the
@@ -1238,8 +1240,8 @@ Two rules override everything else in this area:
   `initiateLencoPayment` and `getUpgradeQuote`), so an unapproved minor is
   refused there whatever the screen shows. **There is no parent sign-up**:
   `SIGNUP_ROLES` is `learner`/`teacher`, and `/register` tells a parent they
-  need no account. Existing parent accounts still sign in and the family portal
-  still exists until it is retired. In the Android build the guardian ask is
+  need no account. A stray parent account signs in and lands on
+  `FamilyClosed`; the family portal is gone. In the Android build the guardian ask is
   `GuardianAskSheet`, which imports no pricing module at all — the guarantee
   there is structural, not a conditional. The ask goes to `requestGuardianUnlock`
   (`functions/guardianUnlock/`), rate-limited to one per learner per 72 hours
@@ -1285,7 +1287,7 @@ Two rules override everything else in this area:
   (`/family/plan`) and goes when that app does; an Android parent pays by mobile
   money through the emailed link, which opens in the system browser. The older
   two-step path (register as a parent, confirm a family-code link, pay from
-  `/family/plan`) still exists for existing parent accounts until 4b.
+  `/family/plan`) was removed with the parent app.
 - **A parent's confirmed payment IS the guardian's approval (2026-10, owner
   decision).** The gate for the quote and the payment is `assertMayStartPurchase`
   (`functions/consentGuard.js`), not the strict `assertLearnerCapability(uid,

@@ -78,11 +78,11 @@ export function needsAgeAnswer(role) {
 
 /**
  * Only adults-by-declaration are asked to confirm they are adults.
- * Teachers and parents attest with a checkbox; the learner path answers the
+ * Teachers attest with a checkbox; the learner path answers the
  * same question with a date, so asking twice would be noise.
  */
 export function needsAdultConfirmation(role) {
-  return role === 'teacher' || role === 'parent'
+  return role === 'teacher'
 }
 
 /** The steps this role actually walks through, in order. */

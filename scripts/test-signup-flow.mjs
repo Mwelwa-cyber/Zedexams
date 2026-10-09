@@ -48,7 +48,7 @@ test('a missing or unrecognised role falls towards being asked', () => {
 
 test('teachers and parents attest instead, and learners are not asked twice', () => {
   assert.equal(needsAdultConfirmation('teacher'), true)
-  assert.equal(needsAdultConfirmation('parent'), true)
+  assert.equal(needsAdultConfirmation('parent'), false)
   assert.equal(needsAdultConfirmation('learner'), false)
 })
 
