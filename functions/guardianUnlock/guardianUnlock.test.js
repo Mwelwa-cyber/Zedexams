@@ -189,7 +189,7 @@ test("a clause we could not build is omitted, never guessed at", () => {
   // The emailed message follows the same rule: an absence is an omission
   // rather than a plausible substitution.
   const n = buildParentAskNotification({learnerName: "Milton", learnerUid: "child-1"});
-  assert.equal(n.body, "Tap to see how they are doing before you decide.");
+  assert.equal(n.body, "Tap to open ZedExams.");
   assert.ok(!n.body.includes("undefined"));
 });
 
@@ -211,7 +211,7 @@ test("the tap target is the child's progress, not a checkout", () => {
   // Evidence before price is the rule the whole guardian path is built on,
   // and it does not stop applying because the ask arrived through the bell.
   const n = buildParentAskNotification({learnerName: "Milton", learnerUid: "child-1"});
-  assert.equal(n.action.url, "/family/child/child-1");
+  assert.equal(n.action.url, "/");
   assert.ok(n.action.label);
   assert.ok(!/pay|checkout|price|K\d/i.test(n.action.label + n.body + n.title));
 });

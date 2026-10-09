@@ -16,19 +16,12 @@
  *   revokeFamilyInviteCode({ code })         [learner, own code]
  *     - Sets revokedAt so the code can no longer be redeemed. Returns { ok }.
  *
- *   redeemFamilyInviteCode({ code })         [parent account]
- *     - Validates + BURNS the code, blocks self-linking, and creates a
- *       PENDING parentLinks/{parentUid}_{learnerUid}. Returns { status:
- *       'pending' } — the parent is not a guardian yet.
- *
  *   respondToFamilyLink({ linkId, decision }) [the child named on the link]
  *     - accept → the link goes active AND a guardian consent record is
  *       written; decline → it goes declined and stays inert.
  *
- *   getChildProgress({ childUid })           [parent, ACTIVE link only]
- *     - Verifies the parentLink exists and is active, then reuses
- *       aggregateProgress() to return the same rendered shape as the
- *       public getProgressShare.
+ *   (redeemFamilyInviteCode and getChildProgress were removed 2026-10 with the
+ *   parent app: no screen called them and a parent account can no longer be made.)
  *
  * ── A family code is a credential, and is now treated as one ────────
  *
@@ -59,25 +52,19 @@
 const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("./authGuard");
-const {aggregateProgress} = require("./parentPortalShared");
 const {assertCallableRateLimit} = require("./rateLimit");
 const {grantedRecord} = require("./guardianConsent/consentRecord");
 const {
   FAMILY_CODE_TTL_HOURS,
   LINK_STATUS,
   ONE_HOUR_MS,
-  isLinkActive,
   normalizeFamilyCode,
   isValidFamilyCode,
   randomFamilyCode,
   familyCodeStatus,
-  familyCodeStatusMessage,
-  parentLinkId,
 } = require("./familyPortalCore");
 
 const REGION = "us-central1";
-const STATS_WINDOW_DAYS = 30;
-const MAX_CHILDREN_PER_PARENT = 20;
 
 function randomBytes(n) {
   return require("node:crypto").randomBytes(n);
@@ -158,169 +145,6 @@ const revokeFamilyInviteCode = onCall({
   }
   await ref.update({revokedAt: FieldValue.serverTimestamp()});
   return {ok: true};
-});
-
-const redeemFamilyInviteCode = onCall({
-  region: REGION,
-  timeoutSeconds: 30,
-  memory: "256MiB",
-}, async (request) => {
-  const uid = await assertVerifiedAuth(request, "Sign in required.");
-
-  // Per account AND per IP, and far below the platform default (20/120):
-  // a person typing a code their child read out gets one or two goes, and
-  // anything walking the code space hits this in seconds. Both buckets are
-  // needed — the per-account cap alone is defeated by a farm of parent
-  // accounts, and the per-IP cap alone by one account on many networks.
-  // The limiter fails OPEN by design (see rateLimit.js); the code being
-  // single-use, short-lived and confirmed by the child is what actually
-  // bounds the damage, and this bounds the noise.
-  await assertCallableRateLimit(request, {
-    action: "redeemFamilyCode",
-    userPerMin: 5,
-    ipPerMin: 20,
-  });
-
-  const code = normalizeFamilyCode(request.data?.code);
-  if (!isValidFamilyCode(code)) {
-    throw new HttpsError("invalid-argument", familyCodeStatusMessage("invalid"));
-  }
-
-  const db = getFirestore();
-
-  // Only parent accounts may link a child — otherwise a learner could redeem
-  // another learner's code and read their results. Fail closed.
-  const redeemerSnap = await db.collection("users").doc(uid).get();
-  const redeemer = redeemerSnap.exists ? (redeemerSnap.data() || {}) : {};
-  if (redeemer.role !== "parent") {
-    throw new HttpsError(
-        "failed-precondition",
-        "Only a parent account can link a child. Create or switch to a parent account first.",
-    );
-  }
-
-  const codeSnap = await db.collection("familyInviteCodes").doc(code).get();
-  const codeDoc = codeSnap.exists ? (codeSnap.data() || {}) : null;
-  const status = familyCodeStatus(codeDoc, Date.now());
-  if (status !== "ok") {
-    throw new HttpsError("failed-precondition", familyCodeStatusMessage(status));
-  }
-
-  const learnerUid = codeDoc.learnerUid;
-  if (!learnerUid || learnerUid === uid) {
-    throw new HttpsError("failed-precondition", "This family code can't be linked to your own account.");
-  }
-
-  // Cap the number of children per parent to bound reads + abuse.
-  const existing = await db.collection("parentLinks")
-      .where("parentUid", "==", uid)
-      .get();
-  const linkId = parentLinkId(uid, learnerUid);
-  const alreadyLinked = existing.docs.some((d) => d.id === linkId);
-  if (!alreadyLinked && existing.size >= MAX_CHILDREN_PER_PARENT) {
-    throw new HttpsError("resource-exhausted", "You have reached the maximum number of linked children.");
-  }
-
-  const learnerSnap = await db.collection("users").doc(learnerUid).get();
-  const learner = learnerSnap.exists ? (learnerSnap.data() || {}) : {};
-
-  // Which role this link gets. The first guardian to link a child owns
-  // the account (billing, deletion); everyone after them is a
-  // co-guardian. Recording it at creation is what stops the derived
-  // answer in guardianRolesCore from depending on timestamps forever —
-  // and re-redeeming must NOT rewrite it, or a parent who re-entered
-  // their code would demote themselves. Hence the explicit read-back.
-  const {roleForNewLink} = await import("./shared/guardian/guardianRolesCore.js");
-  const siblings = await db.collection("parentLinks")
-      .where("learnerUid", "==", learnerUid)
-      .get();
-  const priorLink = siblings.docs.find((d) => d.id === linkId);
-  const role = priorLink ?
-    ((priorLink.data() || {}).role || null) :
-    roleForNewLink(siblings.docs.map((d) => d.data() || {}));
-
-  // A link that is ALREADY active stays active and is simply refreshed —
-  // a parent re-entering a code must not have to ask their child to
-  // confirm again. Anything else (new, pending, previously declined)
-  // becomes pending and waits for the child.
-  const priorStatus = priorLink ? (priorLink.data() || {}).status : undefined;
-  const staysActive = priorLink ? isLinkActive(priorLink.data() || {}) : false;
-
-  // Idempotent: re-redeeming the same code just refreshes the snapshot.
-  // `createdAt` is written only on FIRST creation — it used to be stamped
-  // on every redeem, which was harmless when nothing read it and is not
-  // now: for a legacy link with no stored role, guardianRolesCore derives
-  // ownership from it, so bumping it on a re-redeem could hand the owner
-  // role to whichever parent last typed the code.
-  await db.collection("parentLinks").doc(linkId).set({
-    parentUid: uid,
-    learnerUid,
-    learnerDisplayName: learner.displayName || null,
-    learnerGrade: learner.grade || null,
-    parentDisplayName: redeemer.displayName || null,
-    // The parent's own contact, recorded HERE so the child is asked about
-    // a person rather than about a uid, and so the consent record written
-    // on acceptance names ONE guardian account rather than a second
-    // half-identity beside the emailed-approval route's.
-    //
-    // It is a verified address by construction: `assertVerifiedAuth` at
-    // the top of this handler refuses an unverified caller, and it reads
-    // the AUTH token rather than the `users.emailVerified` display mirror
-    // (see authGuard.js). Re-testing the mirror here would be a weaker
-    // check wearing the look of a stronger one.
-    parentEmail: redeemer.email || null,
-    ...(role ? {role} : {}),
-    createdVia: "code",
-    code,
-    status: staysActive ? LINK_STATUS.ACTIVE : LINK_STATUS.PENDING,
-    ...(staysActive ? {} : {requestedAt: FieldValue.serverTimestamp()}),
-    ...(priorLink ? {} : {createdAt: FieldValue.serverTimestamp()}),
-  }, {merge: true});
-
-  // BURN the code. `redeemedAt` is what makes it single-use — before this
-  // the code survived redemption and only kept a tally, so one code shared
-  // once was a standing key until it expired sixty days later.
-  //
-  // Awaited, not best-effort: a redemption that created the link and
-  // silently failed to burn the code is exactly the state this change
-  // exists to make impossible.
-  await db.collection("familyInviteCodes").doc(code).update({
-    redeemedAt: FieldValue.serverTimestamp(),
-    revokedAt: FieldValue.serverTimestamp(),
-    redeemedBy: uid,
-    redeemedCount: FieldValue.increment(1),
-    lastRedeemedAt: FieldValue.serverTimestamp(),
-  });
-
-  // Tell the child somebody is asking. In-app rather than only in
-  // settings: a confirmation nobody is told about is a confirmation
-  // nobody gives, and the link stays inert until they do.
-  if (!staysActive) {
-    try {
-      const {createNotification} = require("./notifications/createNotification");
-      await createNotification({
-        uid: learnerUid,
-        category: "account",
-        type: "guardian_link_request",
-        title: "Is this your grown-up?",
-        body: `${redeemer.displayName || "Someone"} wants to be your guardian on ZedExams.`,
-        action: {label: "Check", url: "/settings?section=parent"},
-        dedupeKey: `guardian-link-${linkId}`,
-      });
-    } catch (err) {
-      // The child can still find the request in their settings, so a
-      // failed notification must not fail the redemption.
-      console.warn("[familyPortal] link-request notification failed", err);
-    }
-  }
-
-  return {
-    learnerUid,
-    learnerDisplayName: learner.displayName || "your child",
-    learnerGrade: learner.grade || null,
-    status: staysActive ? LINK_STATUS.ACTIVE : LINK_STATUS.PENDING,
-    priorStatus: priorStatus || null,
-  };
 });
 
 /**
@@ -411,47 +235,8 @@ const respondToFamilyLink = onCall({
   return {ok: true, status: outcome.status, already: outcome.already};
 });
 
-const getChildProgress = onCall({
-  region: REGION,
-  timeoutSeconds: 60,
-  memory: "512MiB",
-}, async (request) => {
-  const uid = await assertVerifiedAuth(request, "Sign in required.");
-
-  const childUid = String(request.data?.childUid || "").trim();
-  if (!childUid) throw new HttpsError("invalid-argument", "childUid is required.");
-
-  const db = getFirestore();
-  // Authorise: the parent must have an ACTIVE link to this child. This is
-  // the gate — without one the parent can't read the child's profile or
-  // results. A PENDING link (the child has not confirmed) authorises
-  // nothing, which is the whole point of the confirmation step: if a
-  // pending link could read progress, redeeming a code would still be the
-  // only check that mattered.
-  const linkSnap = await db.collection("parentLinks").doc(parentLinkId(uid, childUid)).get();
-  if (!linkSnap.exists || !isLinkActive(linkSnap.data() || {})) {
-    throw new HttpsError("permission-denied", "You are not linked to this child.");
-  }
-
-  const learnerSnap = await db.collection("users").doc(childUid).get();
-  const learner = learnerSnap.exists ? (learnerSnap.data() || {}) : {};
-  const stats = await aggregateProgress(db, childUid, {windowDays: STATS_WINDOW_DAYS});
-
-  return {
-    learnerUid: childUid,
-    learnerDisplayName: learner.displayName || "your child",
-    learnerGrade: learner.grade || null,
-    learnerSchool: learner.school || null,
-    summary: stats.summary,
-    subjectBreakdown: stats.subjectBreakdown,
-    recentResults: stats.recentResults,
-  };
-});
-
 module.exports = {
   createFamilyInviteCode,
   revokeFamilyInviteCode,
-  redeemFamilyInviteCode,
   respondToFamilyLink,
-  getChildProgress,
 };

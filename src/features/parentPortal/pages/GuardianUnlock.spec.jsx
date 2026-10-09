@@ -142,20 +142,17 @@ describe('GuardianUnlock', () => {
     beforeEach(() => isNativePlatform.mockReturnValue(true))
 
     it('never renders the mobile-money checkout or names a payment method', async () => {
-      useAuthMock.mockReturnValue({ currentUser: { uid: 'u1' } })
       const { container } = renderPage()
       await screen.findByText(/asked you to unlock ZedExams/i)
       expect(screen.queryByTestId('guardian-checkout')).toBeNull()
       expect(container.textContent).not.toMatch(/mobile money|airtel|mtn|zamtel|lenco/i)
-      expect(screen.getByRole('button', { name: /choose a plan/i })).toBeTruthy()
     })
 
-    it('a signed-out visitor is asked to sign in, because the Play rail needs an account', async () => {
-      useAuthMock.mockReturnValue({ currentUser: null })
-      renderPage()
-      await screen.findByText(/asked you to unlock ZedExams/i)
-      expect(screen.getByRole('button', { name: /^sign in$/i })).toBeTruthy()
-      expect(screen.queryByTestId('guardian-checkout')).toBeNull()
+    it('points at the browser rather than a retired family screen', async () => {
+      const { container } = renderPage()
+      await screen.findByText(/open this link in your phone's web browser/i)
+      expect(screen.queryByRole('button', { name: /choose a plan|sign in/i })).toBeNull()
+      expect(container.innerHTML).not.toMatch(/\/family/)
     })
   })
 })

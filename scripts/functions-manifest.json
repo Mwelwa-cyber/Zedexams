@@ -1586,22 +1586,6 @@
       "classification": "mechanical",
       "batch": null
     },
-    "getChildProgress": {
-      "kind": "delegated",
-      "inline": false,
-      "options": {
-        "region": "\"us-central1\"",
-        "timeoutSeconds": "60",
-        "memory": "\"512MiB\""
-      },
-      "optionsFrom": "./familyPortal",
-      "optionsUnresolved": null,
-      "target": "getChildProgress",
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
     "getDeletionRequest": {
       "kind": "onCall",
       "inline": false,
@@ -2646,22 +2630,6 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "payment-webhook",
-      "batch": null
-    },
-    "redeemFamilyInviteCode": {
-      "kind": "delegated",
-      "inline": false,
-      "options": {
-        "region": "\"us-central1\"",
-        "timeoutSeconds": "30",
-        "memory": "\"256MiB\""
-      },
-      "optionsFrom": "./familyPortal",
-      "optionsUnresolved": null,
-      "target": "redeemFamilyInviteCode",
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
       "batch": null
     },
     "redrawTestPaperDiagram": {

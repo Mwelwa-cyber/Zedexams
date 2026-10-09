@@ -26,7 +26,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import '../../../shared/styles/learnerTheme.css'
 import '../styles/parentApp.css'
-import { useAuth } from '../../../contexts/AuthContext'
 import { resolveGuardianPayLink } from '../services/parentApp'
 import { makeGuardianLinkApi } from '../services/guardianLinkPay'
 import { reportClientError } from '../../../utils/clientErrorReporting'
@@ -54,7 +53,6 @@ const REASONS = {
 export default function GuardianUnlock() {
   const [params] = useSearchParams()
   const token = params.get('t') || ''
-  const { currentUser } = useAuth()
   const online = useNetworkStatus()
   const native = isNativePlatform()
   const navigate = useNavigate()
@@ -76,19 +74,14 @@ export default function GuardianUnlock() {
   useEffect(() => { load() }, [load])
 
   const { loading, link, error } = state
-  const back = { pathname: '/guardian-unlock', search: `?t=${encodeURIComponent(token)}` }
 
   // The plan the child's request quoted, resolved from the SAME id both the
   // checkout and the server's own re-check (guardianBillingAuth) key off —
   // `link.planId` is `guardianRequests.planId`, which is a checkout plan id
   // ("term_pass"), not the ladder id it happens to share a spelling with. A
   // request minted before this field existed (or a corrupted one) falls back
-  // to the fuller `/family/plan` flow rather than rendering a broken button.
+  // to the web page's own "not open" copy rather than rendering a broken button.
   const plan = link?.valid ? CHECKOUT_PLANS[link.planId] : null
-
-  function goToCheckout() {
-    navigate(`/family/plan?child=${link.childUid}&request=${link.requestId}`)
-  }
 
   return (
     <div className="lhx pax">
@@ -121,9 +114,9 @@ export default function GuardianUnlock() {
             <button
               type="button"
               className="lhx-btn lhx-btn-primary lhx-btn-block"
-              onClick={() => navigate(native ? (currentUser ? '/family' : '/login') : '/')}
+              onClick={() => navigate('/')}
             >
-              {native ? (currentUser ? 'Go to my family' : 'Sign in') : 'Go to ZedExams'}
+              Go to ZedExams
             </button>
           </div>
         ) : (
@@ -152,23 +145,12 @@ export default function GuardianUnlock() {
             {native ? (
               // INSIDE the Android app nothing here names or offers any
               // payment method: Play Billing is the only one allowed there.
-              // This branch is unchanged from before the web path lost its
-              // login — it still hands a signed-in user to the screen that
-              // starts the Play rail. (The emailed link normally opens in the
-              // system browser, so the web branch below is the usual one.)
-              !currentUser ? (
-                <button
-                  type="button"
-                  className="lhx-btn lhx-btn-primary lhx-btn-block"
-                  onClick={() => navigate('/login', { state: { from: back } })}
-                >
-                  Sign in
-                </button>
-              ) : (
-                <button type="button" className="lhx-btn lhx-btn-primary lhx-btn-block" onClick={goToCheckout}>
-                  Choose a plan
-                </button>
-              )
+              // The family app that used to start the Play rail is gone, so
+              // this says where to go rather than linking to a screen that
+              // is not there.
+              <p className="lhx-set-desc" style={{ lineHeight: 1.5 }}>
+                Please open this link in your phone's web browser to continue.
+              </p>
             ) : plan ? (
               // The web page needs NO account. The one-time token in the URL
               // is the credential; the server reads the plan, the amount and

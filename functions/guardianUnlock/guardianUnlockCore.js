@@ -217,8 +217,8 @@ function buildParentAskNotification({learnerName, learnerUid, requestClause} = {
     category: "account",
     type: "child_unlock_request",
     title: `${name} wants Premium`,
-    body: `${detail}Tap to see how they are doing before you decide.`,
-    action: uid ? {label: "See their progress", url: `/family/child/${uid}`} : null,
+    body: `${detail}Tap to open ZedExams.`,
+    action: uid ? {label: "Open ZedExams", url: "/"} : null,
     dedupeKey: uid ? `child-unlock-request:${uid}` : null,
   };
 }
