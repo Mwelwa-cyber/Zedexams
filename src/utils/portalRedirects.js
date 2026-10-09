@@ -4,14 +4,11 @@
  *
  * ── The two failures this closes ────────────────────────────────────
  *
- * **The parent one, first.** `/family/account` → "Alerts you receive" →
- * "Email and push alerts" navigated to `/settings?section=notifications`.
- * That route renders `ZedExamsSettings`, which coerces any role outside
- * `['admin','teacher','learner']` to `learner` — so a guardian got the
- * learner top nav, a character-avatar picker built for children, and a
- * heading reading "Signed in as Learner. Manage your preferences below."
+ * (There was a parent table too, until the parent portal was retired in
+ * 2026-10: a parent account no longer has a portal of its own to be kept
+ * inside, so it is an unrecognised role here and nothing moves it.)
  *
- * **The teacher one, on the same shape.** `/profile` is role-branched for
+ * **The teacher one.** `/profile` is role-branched for
  * learners only: every other role gets the shared `ProfilePage` under the
  * legacy `Navbar`. So a teacher who opened their account page was handed
  * the LEARNER header — Notes, Lessons, Practise — over a page whose own
@@ -49,28 +46,6 @@
  * must agree about which paths belong to which portal, and `src/app/`
  * is above `src/utils/` in the layering, so the guard imports down.
  */
-
-/**
- * Learner (and shared-surface) routes a parent must never render, mapped
- * to the family screen that answers the same question.
- *
- * Prefix-matched, longest first, so `/settings/profile` follows
- * `/settings`. A route with no family equivalent maps to `/family` —
- * landing on the family home is a fair answer to "this screen is not for
- * you", where rendering a learner shell is not.
- */
-export const PARENT_ROUTE_REDIRECTS = Object.freeze([
-  ['/settings', '/family/account/alerts'],
-  ['/my-subscription', '/family/account/billing'],
-  ['/subscription', '/family/account/billing'],
-  ['/profile', '/family/account'],
-  ['/dashboard', '/family'],
-  ['/notifications', '/family/notifications'],
-  // The child's "ask a grown-up" screen. A guardian who lands here is
-  // the person being asked, so the useful destination is the plan page
-  // — and the ask itself would be refused for them server-side anyway.
-  ['/ask-a-grown-up', '/family/plan'],
-])
 
 /**
  * Shared surfaces a teacher must never render, mapped to the teacher
@@ -115,7 +90,6 @@ export const TEACHER_ROUTE_REDIRECTS = Object.freeze([
 ])
 
 const TABLES = Object.freeze({
-  parent: PARENT_ROUTE_REDIRECTS,
   teacher: TEACHER_ROUTE_REDIRECTS,
 })
 
@@ -137,7 +111,6 @@ export function portalAudience(profileOrFlags) {
   const profile = typeof profileOrFlags === 'string' ? { role: profileOrFlags } : profileOrFlags
   const role = profile?.role
   if (profile?.isAdmin || role === 'admin' || role === 'superAdmin') return null
-  if (profile?.isParent || role === 'parent') return 'parent'
   if (profile?.isTeacher || role === 'teacher') return 'teacher'
   return null
 }
@@ -169,8 +142,6 @@ export function resolvePortalRedirect(audience, pathname) {
   return path === to || path.startsWith(`${to}/`) ? null : to
 }
 
-/** @deprecated-shape convenience wrappers — one matcher, two audiences. */
-export const resolveParentRedirect = (pathname) => resolvePortalRedirect('parent', pathname)
 export const resolveTeacherRedirect = (pathname) => resolvePortalRedirect('teacher', pathname)
 
 /**

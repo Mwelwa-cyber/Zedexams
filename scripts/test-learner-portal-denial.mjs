@@ -23,17 +23,14 @@ import {
 import { isLearnerOnlyPath, getRoleLandingPath } from '../src/utils/navigation.js'
 import { LEARNER_ROLES, isLearnerRole } from '../src/utils/permissions.js'
 
-// ── The reported case ────────────────────────────────────────────────
+// ── The retired parent role ──────────────────────────────────────────
+// The parent portal is gone, so a parent account is an unrecognised role: it
+// gets the generic card, never the teacher one and never a family button.
 const parent = resolveLearnerPortalDenial({ role: 'parent' })
-assert.equal(parent.audience, 'parent')
-assert.equal(parent.actionPath, '/family')
+assert.equal(parent.audience, 'other')
 assert.doesNotMatch(parent.title, /teacher/i, 'a parent must not be called a teacher')
-assert.doesNotMatch(parent.body, /teacher/i)
-assert.doesNotMatch(parent.actionLabel, /teacher/i)
-// The button says where it goes. This is the half of the bug a reader sees
-// first: the label named the teacher portal and the navigation ended on the
-// family portal.
-assert.match(parent.actionLabel, /family/i)
+assert.doesNotMatch(parent.actionLabel, /family/i)
+assert.equal(LEARNER_PORTAL_DENIALS.parent, undefined)
 
 // ── Teachers keep the card that was written for them ─────────────────
 const teacher = resolveLearnerPortalDenial({ role: 'teacher' })
@@ -45,9 +42,9 @@ assert.match(teacher.title, /teacher accounts stay in the teacher portal/i)
 // The guard holds context flags; a test or a redirect may hold only the
 // profile or a bare role string. All three must resolve the same audience.
 assert.equal(resolveLearnerPortalDenial('teacher').audience, 'teacher')
-assert.equal(resolveLearnerPortalDenial('parent').audience, 'parent')
+assert.equal(resolveLearnerPortalDenial('parent').audience, 'other')
 assert.equal(resolveLearnerPortalDenial({ isTeacher: true }).audience, 'teacher')
-assert.equal(resolveLearnerPortalDenial({ isParent: true }).audience, 'parent')
+assert.equal(resolveLearnerPortalDenial({ isParent: true }).audience, 'other')
 
 // A super-admin carries isTeacher, and never reaches this card at all — but if
 // the guard's order ever changes, "teacher" is the safe reading of that flag.

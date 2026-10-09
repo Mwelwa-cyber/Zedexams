@@ -63,12 +63,12 @@ describe('PortalRouteGuard', () => {
     expect(screen.getByText(TEACHER_PROFILE)).toBeInTheDocument()
   })
 
-  it('never renders it for a parent either', () => {
+  it('does not move a retired parent account — no portal is left to keep it in', () => {
     setAuth({ userProfile: { role: 'parent' }, isParent: true })
     renderAt('/profile')
 
-    expect(screen.queryByText(LEARNER_PROFILE)).not.toBeInTheDocument()
-    expect(screen.getByText(FAMILY_ACCOUNT)).toBeInTheDocument()
+    expect(screen.queryByText(FAMILY_ACCOUNT)).not.toBeInTheDocument()
+    expect(screen.getByText(LEARNER_PROFILE)).toBeInTheDocument()
   })
 
   it('leaves a learner on their own profile', () => {

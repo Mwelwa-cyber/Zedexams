@@ -34,6 +34,9 @@
  */
 
 /**
+ * (A `parent` entry lived here until the parent portal was retired in
+ * 2026-10. A parent account is now an unrecognised role and gets `other`.)
+ *
  * One entry per audience. `audience` is returned alongside the copy so a
  * caller (or a test) can key on the decision rather than on the words.
  */
@@ -47,16 +50,6 @@ export const LEARNER_PORTAL_DENIALS = Object.freeze({
       + 'and exams aren’t part of it.',
     actionLabel: 'Back to Teacher Portal',
     actionPath: '/teacher',
-  }),
-  parent: Object.freeze({
-    audience: 'parent',
-    title: 'This part of ZedExams belongs to your child',
-    body:
-      'The learner dashboard, quizzes, lessons and exams are opened from your '
-      + 'child’s own account. From the family portal you can see how they are '
-      + 'getting on, read their weekly report and manage what they can use.',
-    actionLabel: 'Back to Family Portal',
-    actionPath: '/family',
   }),
   other: Object.freeze({
     audience: 'other',
@@ -75,9 +68,8 @@ export const LEARNER_PORTAL_DENIALS = Object.freeze({
     // the check that was guarding against it.
     //
     // '/profile' terminates: it is ProtectedRoute-only, it re-resolves nothing
-    // by role, and PortalRouteGuard already moves a guardian — and, since the
-    // teacher table was added, a teacher — from it to their own equivalent.
-    // Neither of those is this audience, which is precisely a role the app does
+    // by role, and PortalRouteGuard moves a teacher from it to their own
+    // equivalent. That is not this audience, which is precisely a role the app does
     // not recognise: no table covers it, so nothing moves it off, and it can
     // always open the page.
     actionLabel: 'Go to your account',
@@ -99,6 +91,5 @@ export function resolveLearnerPortalDenial(profileOrFlags) {
   // Teachers first: `isTeacher` is true for super-admins too, and an admin
   // never reaches this card — the guard let them through long before.
   if (profileOrFlags?.isTeacher || role === 'teacher') return LEARNER_PORTAL_DENIALS.teacher
-  if (profileOrFlags?.isParent || role === 'parent') return LEARNER_PORTAL_DENIALS.parent
   return LEARNER_PORTAL_DENIALS.other
 }
