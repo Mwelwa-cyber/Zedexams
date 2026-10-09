@@ -49,79 +49,37 @@
  * row it cannot act on.
  */
 
-const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("./authGuard");
 const {assertCallableRateLimit} = require("./rateLimit");
 const {grantedRecord} = require("./guardianConsent/consentRecord");
 const {
-  FAMILY_CODE_TTL_HOURS,
   LINK_STATUS,
-  ONE_HOUR_MS,
   normalizeFamilyCode,
   isValidFamilyCode,
-  randomFamilyCode,
   familyCodeStatus,
 } = require("./familyPortalCore");
 
 const REGION = "us-central1";
 
-function randomBytes(n) {
-  return require("node:crypto").randomBytes(n);
-}
-
-async function mintUniqueCode(db) {
-  for (let attempt = 0; attempt < 10; attempt += 1) {
-    const code = randomFamilyCode(randomBytes);
-    const snap = await db.collection("familyInviteCodes").doc(code).get();
-    if (!snap.exists) return code;
-  }
-  throw new HttpsError("internal", "Could not mint a unique family code. Please try again.");
-}
-
+// Retired with the parent app (2026-10): the callable that REDEEMED a code is
+// gone, so a code minted here could never be used. It refuses rather than
+// vanishing so a stale client gets a clear error instead of "function not
+// found"; `revokeFamilyInviteCode` and `respondToFamilyLink` stay, because a
+// link or code created before the retirement can still be turned off or
+// answered.
 const createFamilyInviteCode = onCall({
   region: REGION,
   timeoutSeconds: 30,
   memory: "256MiB",
 }, async (request) => {
-  const uid = await assertVerifiedAuth(request, "Sign in required.");
-
-  const db = getFirestore();
-
-  // Rotate: retire the learner's existing active codes so only the newest
-  // one is live (a rotated code can't be redeemed by someone who screenshotted
-  // an old one). Best-effort — a failure here doesn't block minting.
-  try {
-    const prior = await db.collection("familyInviteCodes")
-        .where("learnerUid", "==", uid)
-        .where("revokedAt", "==", null)
-        .get();
-    const batch = db.batch();
-    prior.docs.forEach((d) => batch.update(d.ref, {
-      revokedAt: FieldValue.serverTimestamp(),
-    }));
-    if (!prior.empty) await batch.commit();
-  } catch (err) {
-    console.warn("[familyPortal] code rotation cleanup failed", err);
-  }
-
-  const code = await mintUniqueCode(db);
-  const expiresAt = Timestamp.fromMillis(
-      Date.now() + FAMILY_CODE_TTL_HOURS * ONE_HOUR_MS,
+  await assertVerifiedAuth(request, "Sign in required.");
+  throw new HttpsError(
+      "failed-precondition",
+      "Family codes have been retired. Use the WhatsApp button on your results to tell a parent how you are doing.",
+      {reason: "retired"},
   );
-  await db.collection("familyInviteCodes").doc(code).set({
-    code,
-    learnerUid: uid,
-    createdBy: uid,
-    createdAt: FieldValue.serverTimestamp(),
-    expiresAt,
-    revokedAt: null,
-    // Single use. Set on redemption; `familyCodeStatus` reads it first.
-    redeemedAt: null,
-    redeemedCount: 0,
-  });
-
-  return {code, expiresAt: expiresAt.toMillis()};
 });
 
 const revokeFamilyInviteCode = onCall({

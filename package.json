@@ -800,7 +800,6 @@
     "smoke:dashboard": "node scripts/test-dashboard-responsive.mjs",
     "smoke:explore": "node scripts/test-learner-explore-row.mjs",
     "smoke:games-hub": "node scripts/test-games-hub-layout.mjs",
-    "layout:parent": "node scripts/test-parent-layout.mjs",
     "smoke": "npm run smoke:build && npm run smoke:mobile && npm run smoke:dashboard && npm run smoke:explore && npm run smoke:games-hub",
     "android:sync": "vite build && cap sync android",
     "android:open": "cap open android",
