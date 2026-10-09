@@ -10,10 +10,11 @@
  *
  * The three admin slices before this one all had empty indexes: their pages
  * were route-mounted and nothing else imported them. Here a second feature
- * genuinely consumes two components — `learnerSettings`' Parent panel renders
- * `ParentShareManager` and `FamilyCodePanel`, because the controls for who may
+ * genuinely consumes components — `learnerSettings`' Parent panel renders
+ * `FamilyCodePanel` and `GuardianLinkPanel`, because the controls for who may
  * see a learner's progress belong on the LEARNER's settings page, not in the
- * parent's own portal. So those two, and only those two, are exported.
+ * parent's own portal. (`ParentShareManager`, the third, was removed with the
+ * share-link flow in 2026-10.)
  *
  * Before the move that was `features/learnerSettings` reaching into
  * `components/parent/` — legal only because the target was not a feature. It
@@ -70,7 +71,6 @@
  * unchanged.**
  */
 
-export { default as ParentShareManager } from './components/ParentShareManager'
 export { default as FamilyCodePanel } from './components/FamilyCodePanel'
 // The child's own view of who is looking after them. Exported beside the
 // code panel because they are mounted together in learner settings, and
