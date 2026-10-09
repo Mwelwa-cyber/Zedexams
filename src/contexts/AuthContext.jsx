@@ -352,9 +352,9 @@ export function AuthProvider({ children }) {
   // actions in this file already follow. The three that DO close over React
   // state declare it, so none of them can capture a stale user.
   const register = useCallback(async (email, password, displayName, grade, school, role = ROLES.LEARNER, extras = {}) => {
-    // Only learner / teacher / parent are self-selectable at signup; anything
-    // else falls back to learner. Parents carry no grade and no teacher extras.
-    const signupRole = (role === ROLES.TEACHER || role === ROLES.PARENT) ? role : ROLES.LEARNER
+    // Only learner / teacher are self-selectable at signup (the parent portal
+    // is retired); anything else falls back to learner.
+    const signupRole = role === ROLES.TEACHER ? role : ROLES.LEARNER
     const isTeacherSignup = signupRole === ROLES.TEACHER
     const isLearnerSignup = signupRole === ROLES.LEARNER
     // Never mint a session before the SDK knows where to store it — see
@@ -487,7 +487,7 @@ export function AuthProvider({ children }) {
   // (Login.jsx, which only wants the credential) working unchanged — this is
   // a sign-up concern and should not ripple into sign-in.
   const loginWithGoogle = useCallback(async ({ role, onboarding } = {}) => {
-    const targetRole = (role === ROLES.TEACHER || role === ROLES.PARENT) ? role : ROLES.LEARNER
+    const targetRole = role === ROLES.TEACHER ? role : ROLES.LEARNER
     await authPersistenceReady
     const cred = isNativePlatform()
       ? await signInWithGoogleNative()
@@ -747,7 +747,6 @@ export function AuthProvider({ children }) {
   // between those two cost.
   const isLearner  = isLearnerRole(userProfile)
   const isTeacher  = userProfile?.role === ROLES.TEACHER || isSuperAdmin
-  const isParent   = userProfile?.role === ROLES.PARENT
   const isAdmin    = isSuperAdmin
   // True for admin / superAdmin only. Use this for admin-only UI (settings,
   // audit log, user suspension) so a teacher acting through the legacy
@@ -1429,7 +1428,7 @@ export function AuthProvider({ children }) {
     refreshEmailVerification, resendVerificationEmail,
     login, loginWithGoogle, register, logout, resetPassword,
     fetchUserProfile, ensureUserProfile, refreshProfile, retrySession, updateProfileFields, updateLearnerGrade,
-    isLearner, isTeacher, isParent, isAdmin, isAdminOnly, isSuperAdmin, isPremium, isPaidTeacher, canAccessFullContent, canAccessLearnerPortal,
+    isLearner, isTeacher, isAdmin, isAdminOnly, isSuperAdmin, isPremium, isPaidTeacher, canAccessFullContent, canAccessLearnerPortal,
     permissions,
     userStatus, isSuspended,
     mfaEnrolled,
@@ -1438,7 +1437,7 @@ export function AuthProvider({ children }) {
     refreshEmailVerification, resendVerificationEmail,
     login, loginWithGoogle, register, logout, resetPassword,
     fetchUserProfile, ensureUserProfile, refreshProfile, retrySession, updateProfileFields, updateLearnerGrade,
-    isLearner, isTeacher, isParent, isAdmin, isAdminOnly, isSuperAdmin, isPremium, isPaidTeacher, canAccessFullContent, canAccessLearnerPortal,
+    isLearner, isTeacher, isAdmin, isAdminOnly, isSuperAdmin, isPremium, isPaidTeacher, canAccessFullContent, canAccessLearnerPortal,
     permissions, userStatus, isSuspended, mfaEnrolled,
   ])
 

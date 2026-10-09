@@ -31,7 +31,6 @@ describe('getRoleLandingPath', () => {
   it('sends a parent to the family portal', () => {
     expect(getRoleLandingPath({ role: 'parent' })).toBe('/family')
     expect(getRoleLandingPath('parent')).toBe('/family')
-    expect(getRoleLandingPath({ isParent: true })).toBe('/family')
   })
 
   it('falls back to /dashboard by default for unknown roles', () => {

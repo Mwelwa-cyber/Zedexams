@@ -9,7 +9,7 @@ export function getRoleLandingPath(profileOrFlags, fallback = '/dashboard') {
 
   if (profileOrFlags?.isAdmin || role === 'admin' || role === 'superAdmin') return '/admin'
   if (profileOrFlags?.isTeacher || role === 'teacher') return '/teacher'
-  if (profileOrFlags?.isParent || role === 'parent') return '/family'
+  if (role === 'parent') return '/family'
   // The legacy 'student' spelling lands here too — read from the one set in
   // permissions.js, so this can never again say "learner" about a role that
   // AuthContext's isLearner calls something else.

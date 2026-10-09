@@ -32,7 +32,6 @@ function setAuth(overrides = {}) {
     userProfile: null,
     isAdmin: false,
     isTeacher: false,
-    isParent: false,
     ...overrides,
   })
 }
@@ -64,7 +63,7 @@ describe('PortalRouteGuard', () => {
   })
 
   it('does not move a retired parent account — no portal is left to keep it in', () => {
-    setAuth({ userProfile: { role: 'parent' }, isParent: true })
+    setAuth({ userProfile: { role: 'parent' } })
     renderAt('/profile')
 
     expect(screen.queryByText(FAMILY_ACCOUNT)).not.toBeInTheDocument()
