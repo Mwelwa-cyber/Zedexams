@@ -25,80 +25,34 @@
  * forcing is infeasible.
  */
 
-const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("./authGuard");
-const {aggregateProgress, ONE_DAY_MS} = require("./parentPortalShared");
+const {aggregateProgress} = require("./parentPortalShared");
 
 const REGION = "us-central1";
-const TOKEN_LENGTH = 12;
-const SHARE_TTL_DAYS = 90;
 const STATS_WINDOW_DAYS = 30;
 
-// Same alphabet as class invite codes — readable + voice-friendly,
-// though parent share tokens are link-only so this is just defensive.
-const TOKEN_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
-
-function randomToken() {
-  // crypto.randomInt draws uniformly over the alphabet (no modulo bias).
-  const {randomInt} = require("node:crypto");
-  let token = "";
-  for (let i = 0; i < TOKEN_LENGTH; i += 1) {
-    token += TOKEN_ALPHABET[randomInt(TOKEN_ALPHABET.length)];
-  }
-  return token;
-}
-
-async function mintUniqueToken(db) {
-  for (let attempt = 0; attempt < 10; attempt += 1) {
-    const token = randomToken();
-    const snap = await db.collection("progressShares").doc(token).get();
-    if (!snap.exists) return token;
-  }
-  throw new HttpsError("internal", "Could not mint a unique share token. Please try again.");
-}
-
+// RETIRED (parent portal 4c). The share-with-parent feature is gone: a learner
+// now sends results on WhatsApp (src/shared/utils/parentShare.js). 4a removed
+// the buttons but left this callable creating 90-day shares for any verified
+// learner, so an older cached client or a direct call could still mint a link
+// that outlives the date `cleanup:parent-portal:report` prints — and then
+// deleting `weeklyParentDigest` on that date would silently stop it. It now
+// refuses. The export stays so the client wrapper gets a clear error rather
+// than "function not found"; `revokeProgressShare` and `getProgressShare` are
+// untouched, so links already issued can still be revoked and viewed.
 const createProgressShare = onCall({
   region: REGION,
   timeoutSeconds: 30,
   memory: "256MiB",
 }, async (request) => {
-  const uid = await assertVerifiedAuth(request, "Sign in required.");
-
-  const parentEmail = request.data?.parentEmail
-      ? String(request.data.parentEmail).trim().toLowerCase().slice(0, 200)
-      : null;
-  const parentPhone = request.data?.parentPhone
-      ? String(request.data.parentPhone).trim().slice(0, 30)
-      : null;
-  const parentDisplayName = request.data?.parentDisplayName
-      ? String(request.data.parentDisplayName).trim().slice(0, 80)
-      : null;
-
-  const db = getFirestore();
-  const token = await mintUniqueToken(db);
-  const expiresAt = Timestamp.fromMillis(
-      Date.now() + SHARE_TTL_DAYS * ONE_DAY_MS,
+  await assertVerifiedAuth(request, "Sign in required.");
+  throw new HttpsError(
+      "failed-precondition",
+      "Parent links have been retired. Use the WhatsApp button on your results to tell a parent how you are doing.",
+      {reason: "retired"},
   );
-
-  await db.collection("progressShares").doc(token).set({
-    learnerUid: uid,
-    createdBy: uid,
-    parentEmail,
-    parentPhone,
-    parentDisplayName,
-    createdAt: FieldValue.serverTimestamp(),
-    expiresAt,
-    revokedAt: null,
-    lastViewedAt: null,
-    viewCount: 0,
-  });
-
-  return {
-    token,
-    expiresAt: expiresAt.toMillis(),
-    url: `https://zedexams.com/parent/${token}`,
-  };
 });
 
 const revokeProgressShare = onCall({

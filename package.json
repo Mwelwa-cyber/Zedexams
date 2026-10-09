@@ -561,6 +561,7 @@
     "test:template-preview": "node src/features/templateBank/lib/templatePlanPreview.test.js",
     "test:cleanup-classes": "node scripts/test-cleanup-classes.mjs",
     "test:cleanup-parent-portal": "node scripts/test-cleanup-parent-portal.mjs",
+    "test:parent-portal-retired": "node functions/parentPortalRetired.test.js",
     "test:cors": "node functions/cors.test.js",
     "test:quiz-subject-integrity": "node scripts/test-quiz-subject-integrity.mjs",
     "test:public-status": "node functions/agents/publicStatusCore.test.js",

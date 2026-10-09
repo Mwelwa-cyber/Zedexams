@@ -35,6 +35,10 @@
  *   progressShares            live vs expired vs revoked, and the LATEST expiry
  *                             among live ones — the date `weeklyParentDigest`
  *                             has nothing left to send to and can be deleted.
+ *                             That date is only final once `createProgressShare`
+ *                             refuses (it does, from the deploy of this change);
+ *                             before that deploy an old client could still mint
+ *                             a 90-day link.
  *
  * ── Two modes ─────────────────────────────────────────────────────────
  *

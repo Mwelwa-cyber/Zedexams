@@ -272,7 +272,8 @@ existed has consent recorded only there.
   address and the adult proved they read that inbox, so both halves are already
   present. If no account holds that address yet, a **claim** is left in
   `guardianLinkClaims` and swept up by `listGuardianChildren` on the parent's
-  first visit — not at signup, because parents verify their address afterwards
+  first visit (**retired 2026-10: no claim is written any more, since nothing can
+  redeem one**) — not at signup, because parents verify their address afterwards
   and a claim is only redeemable once verified (`admin.auth()`, never the
   profile's `email` field, which the account itself can write).
 - **Door B (family code) creates a PENDING link and asks the child.** The code
@@ -1154,14 +1155,19 @@ prints, read-only, the `parentLinks` by consent state, the count of `role:
 (field `state`, learner in `learnerId` — not `status`/`uid`; the test pins the
 names against the deletion flow), and `progressShares` live/expired/revoked with
 the LATEST live expiry. That last date is when `weeklyParentDigest` has nothing
-left to send and can be deleted: shares live 90 days and 4a stopped new ones
-being made, so it is at the latest early January 2027, and the report states the
-exact date from production. `:dry` adds what it would delete and `:live` deletes
+left to send and can be deleted: shares live 90 days, 4a removed the buttons and 4c made `createProgressShare`
+refuse (4a alone left the callable working, so an old client could still mint a
+link), so the date is final once that deploys — at the latest early January
+2027 — and the report states the exact date from production. `:dry` adds what it would delete and `:live` deletes
 it (typed `DELETE`, backups to `backups/removed_parent_portal`): only
 `guardianLinkClaims` and `guardianInvites`, the two collections nothing can
 finish any more. **`parentLinks`, `users` and `accountDeletionRequests` are
 never deleted by it** — links are the consent record `consentGuard` reads.
-`test:cleanup-parent-portal`.
+`test:cleanup-parent-portal`. **The purge only stays purged because its
+producers are closed:** `attachOnApproval` no longer leaves a `guardianLinkClaims`
+doc when an emailed approval has no parent account (the approval is still
+recorded on the learner; only the link to a parent account is skipped), and
+`createProgressShare` refuses. `test:parent-portal-retired` pins both.
 
 ### A parent hears about results because the learner sends them (2026-10)
 

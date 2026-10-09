@@ -169,8 +169,8 @@ async function writeApprovedLink(db, {guardian, learnerUid, learner, emailKey, e
 
 /**
  * Door A has been approved. Attach it to a guardian account if one
- * exists for that address; otherwise leave a claim for one that turns up
- * later.
+ * exists for that address; otherwise do nothing further (no claim is left:
+ * see the no-account branch).
  *
  * Never throws. Consent has ALREADY been recorded by the caller's
  * transaction at this point — the guardian has clicked approve and been
@@ -190,26 +190,14 @@ async function attachOnApproval(db, {learnerUid, guardianEmail, evidence} = {}) 
     const guardian = await findGuardianAccount(db, emailKey);
 
     if (!guardian) {
-      // No account yet. Record the claim so the parent who signs up with
-      // this address next month arrives to a dashboard that already has
-      // their child in it, rather than to an empty screen and a request
-      // for a code the child has long since forgotten about.
-      await db.collection(CLAIMS).doc(claimId(emailKey, learnerUid)).set({
-        emailKey,
-        learnerUid,
-        learnerDisplayName: learner.displayName || null,
-        method: core.LINK_METHOD.EMAIL_LINK,
-        ...(evidence ? {evidence} : {}),
-        status: "open",
-        createdAt: FieldValue.serverTimestamp(),
-      }, {merge: true});
-      await audit(db, {
-        event: "link_claim_recorded",
-        learnerUid,
-        emailKey,
-        actor: "guardian",
-      });
-      return {attached: false, claimed: true, reason: "no-account"};
+      // No account for this address, and none can be made any more: parents
+      // no longer register (parent portal 4a-4c). A claim used to be left here
+      // for the parent who signed up later, and `listGuardianChildren` — the
+      // only thing that redeemed one — is gone, so a claim would be a child's
+      // uid indexed by a guardian's email address, kept forever for nothing.
+      // The approval itself is already recorded on the learner by the caller's
+      // transaction; what is skipped is only the link to a parent account.
+      return {attached: false, claimed: false, reason: "no-account"};
     }
 
     const {linkId, existed} = await writeApprovedLink(db, {
