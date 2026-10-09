@@ -19,6 +19,10 @@ const SUPPRESSED_PREFIXES = [
   // The family app was retired; /family/* now redirects home. Kept in the
   // list so the redirect frame never paints a plan strip.
   '/family',
+  // A guardian's own screens: whatever plan the signed-in account happens to
+  // hold is not what they came to act on, and the pay link is never a place
+  // to sell them something else.
+  '/for-guardians', '/guardian-unlock',
 ]
 
 export function isReminderSuppressedPath(pathname) {
