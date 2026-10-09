@@ -36,7 +36,6 @@ function setAuth(overrides = {}) {
     isAdmin: false,
     isLearner: false,
     isTeacher: false,
-    isParent: false,
     canAccessLearnerPortal: false,
     ...overrides,
   })
@@ -127,7 +126,7 @@ describe('LearnerOnlyRoute', () => {
   // The parent portal is retired, so a blocked parent gets the generic card —
   // never the teacher wording and never a button to a family portal.
   it('gives a blocked parent the generic card, not the teacher or family one', () => {
-    setAuth({ userProfile: { role: 'parent' }, isParent: true })
+    setAuth({ userProfile: { role: 'parent' } })
     renderGuard()
 
     expect(screen.queryByText(CHILD)).not.toBeInTheDocument()

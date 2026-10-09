@@ -13,7 +13,7 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import MySubscriptionRoute from '../pages/MySubscriptionRoute'
 
-const auth = { isAdmin: false, isTeacher: false }
+const auth = { isAdmin: false, isTeacher: false, userProfile: null }
 vi.mock('../../../contexts/AuthContext', () => ({ useAuth: () => auth }))
 // The standalone page pulls the subscription/billing stack (and Firebase with
 // it); which page renders is the subject here, not what is on it.
@@ -26,6 +26,7 @@ function renderAt(path) {
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/my-subscription" element={<MySubscriptionRoute />} />
+        <Route path="/family" element={<div>Family closed page</div>} />
         <Route path="/teacher/subscription" element={<div>In-shell subscription page</div>} />
       </Routes>
     </MemoryRouter>,
@@ -54,5 +55,15 @@ describe('/my-subscription', () => {
     auth.isTeacher = true
     renderAt('/my-subscription')
     expect(screen.getByText('Standalone subscription page')).toBeInTheDocument()
+  })
+
+  it('sends a legacy parent account to the closed page, never the checkout', () => {
+    auth.isAdmin = false
+    auth.isTeacher = false
+    auth.userProfile = { role: 'parent' }
+    renderAt('/my-subscription')
+    auth.userProfile = null
+    expect(screen.getByText('Family closed page')).toBeInTheDocument()
+    expect(screen.queryByText('Standalone subscription page')).not.toBeInTheDocument()
   })
 })

@@ -1156,8 +1156,9 @@ unrecognised role, so it gets the generic denial card and nothing redirects it.
 **Deliberately kept:** `getRoleLandingPath` still sends `role: 'parent'` to
 `/family` (the `FamilyClosed` page with its sign-out button), because the
 alternative landing is `/dashboard`, where a stray parent would meet a learner
-app card. `ROLES.PARENT` / `isParent` stay in `AuthContext` and `Plans.jsx`
-until those are retired separately.
+app card. The `isParent` flag, the client-side parent signup role and the `/family/plan`
+branch in `Plans.jsx` followed; `ROLES.PARENT` stays as a constant because
+stored accounts and the rules still carry the value.
 
 **4c is a script, not a deploy (2026-10).** `npm run cleanup:parent-portal:report`
 prints, read-only, the `parentLinks` by consent state, the count of `role:

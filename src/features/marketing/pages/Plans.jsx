@@ -351,7 +351,7 @@ function SectionTag({ children }) {
 }
 
 export default function Plans() {
-  const { currentUser, isTeacher, isParent, userProfile } = useAuth()
+  const { currentUser, isTeacher, userProfile } = useAuth()
   const navigate = useNavigate()
   const [billing, setBilling] = useState('monthly')
   const [showUpgrade, setShowUpgrade] = useState(null) // 'pro' | 'max' | null
@@ -416,19 +416,8 @@ export default function Plans() {
    * a second checkout entry point on a marketing page is a second thing to
    * keep age-correct. Anonymous visitors register first, which is where an
    * age is captured at all.
-   *
-   * A PARENT takes a different door. /my-subscription is written for the
-   * account that HOLDS the plan and a guardian never is — their money credits
-   * the child (`beneficiaryUid`) — so they go to /family/plan, the checkout
-   * that knows which child it is for. Without this they would be bounced by
-   * PortalRouteGuard to /family/account/billing: their receipts, not a plan
-   * picker.
    */
   function handleLearnerCta() {
-    if (isParent) {
-      navigate('/family/plan')
-      return
-    }
     navigate(currentUser ? '/my-subscription' : '/register?intent=upgrade&tier=learner')
   }
 

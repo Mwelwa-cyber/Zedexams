@@ -33,6 +33,11 @@ export default function MySubscriptionRoute() {
   // Admins first: isTeacher includes superAdmins (AuthContext), so checking
   // isTeacher alone would redirect every admin into the teacher shell.
   if (!isAdmin && isTeacher) return <Navigate to="/teacher/subscription" replace />
+  // A legacy parent account (the portal is retired) must never reach this
+  // checkout: it sends no beneficiary, so the plan would be stamped on the
+  // PARENT's own document and charged for nothing usable. /family is the
+  // closed page, which carries the sign-out button.
+  if (!isAdmin && userProfile?.role === 'parent') return <Navigate to="/family" replace />
   // Inside the Android build, a learner who is not positively an adult never
   // reaches the plan ladder or the checkout — Play's Families policy. (On the
   // web they do: the checkout asks for a parent's number.) This is the
