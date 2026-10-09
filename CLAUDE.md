@@ -1148,6 +1148,21 @@ longer be answered in-app (`respondToDeletionRequest` still exists, its screen
 does not) — a child with no approved link is never blocked, but one WITH a link
 and an open request would wait for support.
 
+**4c is a script, not a deploy (2026-10).** `npm run cleanup:parent-portal:report`
+prints, read-only, the `parentLinks` by consent state, the count of `role:
+'parent'` accounts, every `accountDeletionRequests` still `pending_guardian`
+(field `state`, learner in `learnerId` — not `status`/`uid`; the test pins the
+names against the deletion flow), and `progressShares` live/expired/revoked with
+the LATEST live expiry. That last date is when `weeklyParentDigest` has nothing
+left to send and can be deleted: shares live 90 days and 4a stopped new ones
+being made, so it is at the latest early January 2027, and the report states the
+exact date from production. `:dry` adds what it would delete and `:live` deletes
+it (typed `DELETE`, backups to `backups/removed_parent_portal`): only
+`guardianLinkClaims` and `guardianInvites`, the two collections nothing can
+finish any more. **`parentLinks`, `users` and `accountDeletionRequests` are
+never deleted by it** — links are the consent record `consentGuard` reads.
+`test:cleanup-parent-portal`.
+
 ### A parent hears about results because the learner sends them (2026-10)
 
 There is no parent account to read results from, so the learner sends them:
