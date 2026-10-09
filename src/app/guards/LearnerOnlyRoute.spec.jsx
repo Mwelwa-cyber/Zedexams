@@ -124,29 +124,16 @@ describe('LearnerOnlyRoute', () => {
   })
 
   // ── The blocked account is told the truth about ITSELF ─────────────
-  // The card was written for a teacher and shown to everyone the guard turns
-  // away, so a parent opening a learner link was told their account was a
-  // teacher's — and handed a button to a portal it cannot open.
-  it('tells a blocked parent about the family portal, not the teacher portal', () => {
+  // The parent portal is retired, so a blocked parent gets the generic card —
+  // never the teacher wording and never a button to a family portal.
+  it('gives a blocked parent the generic card, not the teacher or family one', () => {
     setAuth({ userProfile: { role: 'parent' }, isParent: true })
     renderGuard()
 
     expect(screen.queryByText(CHILD)).not.toBeInTheDocument()
     expect(screen.queryByText(/teacher accounts stay in the teacher portal/i)).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /back to family portal/i })).toBeInTheDocument()
-  })
-
-  it('sends a blocked parent to the family portal — the place the button names', () => {
-    setAuth({ userProfile: { role: 'parent' }, isParent: true })
-    renderGuard()
-
-    screen.getByRole('button', { name: /back to family portal/i }).click()
-
-    // Previously this navigated to /teacher, where ProtectedRoute read the
-    // real role and moved them to /family: the destination was right by
-    // accident and the label was wrong on purpose.
-    expect(mockNavigate).toHaveBeenCalledWith('/family')
-    expect(mockNavigate).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('button', { name: /family portal/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /go to your account/i })).toBeInTheDocument()
   })
 
   it('gives a role it does not recognise a way out that actually terminates', () => {

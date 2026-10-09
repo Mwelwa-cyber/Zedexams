@@ -44,17 +44,17 @@ import { useAuth } from '../../contexts/AuthContext'
 import { portalAudience, resolvePortalRedirect } from '../../utils/portalRedirects'
 
 export default function PortalRouteGuard({ children }) {
-  const { userProfile, isAdmin, isTeacher, isParent } = useAuth()
+  const { userProfile, isAdmin, isTeacher } = useAuth()
   const { pathname } = useLocation()
 
   if (!userProfile) return children
 
   // Pass the context flags, not the profile alone: `isTeacher` there is the
   // resolved fact (it includes super-admins, which is exactly why `isAdmin`
-  // has to travel with it), and `isParent`/`isAdmin` likewise. Reading
+  // has to travel with it). Reading
   // `userProfile.role` on its own here would disagree with every other
   // guard in the app about who a super-admin is.
-  const audience = portalAudience({ role: userProfile.role, isAdmin, isTeacher, isParent })
+  const audience = portalAudience({ role: userProfile.role, isAdmin, isTeacher })
   if (!audience) return children
 
   const to = resolvePortalRedirect(audience, pathname)

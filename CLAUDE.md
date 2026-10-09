@@ -1149,6 +1149,16 @@ longer be answered in-app (`respondToDeletionRequest` still exists, its screen
 does not) — a child with no approved link is never blocked, but one WITH a link
 and an open request would wait for support.
 
+**The `parent` role left the guards (2026-10).** `portalAudience`, the parent
+redirect table, the parent denial card and the `isParent` reads in
+`PortalRouteGuard` / `LearnerOnlyRoute` are gone: a parent account is an
+unrecognised role, so it gets the generic denial card and nothing redirects it.
+**Deliberately kept:** `getRoleLandingPath` still sends `role: 'parent'` to
+`/family` (the `FamilyClosed` page with its sign-out button), because the
+alternative landing is `/dashboard`, where a stray parent would meet a learner
+app card. `ROLES.PARENT` / `isParent` stay in `AuthContext` and `Plans.jsx`
+until those are retired separately.
+
 **4c is a script, not a deploy (2026-10).** `npm run cleanup:parent-portal:report`
 prints, read-only, the `parentLinks` by consent state, the count of `role:
 'parent'` accounts, every `accountDeletionRequests` still `pending_guardian`

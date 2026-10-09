@@ -3,14 +3,7 @@
 //
 // A session never renders another portal's screen.
 //
-// ── Bug one (parent) ─────────────────────────────────────────────────
-// /family/account → "Email and push alerts" navigated to
-// /settings?section=notifications. That route renders ZedExamsSettings,
-// which coerces any role outside ['admin','teacher','learner'] to
-// `learner` — so a guardian got the learner top nav, a character-avatar
-// picker built for children, and the heading "Signed in as Learner."
-//
-// ── Bug two (teacher), the same shape ────────────────────────────────
+// ── The teacher one ──────────────────────────────────────────────────
 // /profile is role-branched for LEARNERS only; every other role fell
 // through to the shared ProfilePage under the legacy learner Navbar. So a
 // teacher opening their account page got a header reading Notes / Lessons
@@ -27,44 +20,16 @@
 
 import assert from 'node:assert/strict'
 import {
-  PARENT_ROUTE_REDIRECTS,
   TEACHER_ROUTE_REDIRECTS,
   PORTAL_AUDIENCES,
   crossesPortals,
   portalAudience,
-  resolveParentRedirect,
   resolvePortalRedirect,
   resolveTeacherRedirect,
 } from '../src/utils/portalRedirects.js'
 import { getRoleLandingPath, isLearnerOnlyPath, resolvePostAuthPath } from '../src/utils/navigation.js'
 
-const TABLES = { parent: PARENT_ROUTE_REDIRECTS, teacher: TEACHER_ROUTE_REDIRECTS }
-
-/* ══ Parent ══════════════════════════════════════════════════════════ */
-
-// ── The reported route, and its nested and query forms ───────────────
-assert.equal(resolveParentRedirect('/settings'), '/family/account/alerts')
-assert.equal(resolveParentRedirect('/settings?section=notifications'), '/family/account/alerts')
-assert.equal(resolveParentRedirect('/settings/profile'), '/family/account/alerts')
-
-// ── The others in the map ────────────────────────────────────────────
-assert.equal(resolveParentRedirect('/my-subscription'), '/family/account/billing')
-assert.equal(resolveParentRedirect('/subscription'), '/family/account/billing')
-assert.equal(resolveParentRedirect('/profile'), '/family/account')
-assert.equal(resolveParentRedirect('/dashboard'), '/family')
-assert.equal(resolveParentRedirect('/notifications'), '/family/notifications')
-assert.equal(resolveParentRedirect('/ask-a-grown-up'), '/family/plan')
-
-// ── Everything else renders as-is ────────────────────────────────────
-// A guard that redirected what it did not recognise would trap a parent
-// on /family for every public page — including the child-safety standards
-// document their own account screen links to.
-for (const path of [
-  '/', '/family', '/family/children', '/family/account', '/child-safety',
-  '/pricing', '/privacy', '/terms', '/login', '/papers', '/settingsomething',
-]) {
-  assert.equal(resolveParentRedirect(path), null, `${path} should render as-is for a parent`)
-}
+const TABLES = { teacher: TEACHER_ROUTE_REDIRECTS }
 
 /* ══ Teacher ═════════════════════════════════════════════════════════ */
 
@@ -130,8 +95,6 @@ for (const audience of PORTAL_AUDIENCES) {
     )
   }
 }
-assert.equal(resolveParentRedirect('/profiles'), null)
-assert.equal(resolveParentRedirect('/dashboards'), null)
 assert.equal(resolveTeacherRedirect('/profiles'), null)
 
 // ── Malformed input ──────────────────────────────────────────────────
@@ -183,9 +146,6 @@ for (const audience of PORTAL_AUDIENCES) {
 // ── Every destination is inside the audience's own portal ────────────
 // The guardian lands on the screen that answers what they were asking,
 // inside the shell that knows who they are; so does the teacher.
-for (const [, to] of PARENT_ROUTE_REDIRECTS) {
-  assert.ok(to.startsWith('/family'), `${to} must be a family route`)
-}
 for (const [, to] of TEACHER_ROUTE_REDIRECTS) {
   assert.ok(
     to.startsWith('/teacher') || to.startsWith('/settings/'),
@@ -199,8 +159,11 @@ for (const [, to] of TEACHER_ROUTE_REDIRECTS) {
 assert.equal(portalAudience({ role: 'teacher' }), 'teacher')
 assert.equal(portalAudience('teacher'), 'teacher')
 assert.equal(portalAudience({ isTeacher: true }), 'teacher')
-assert.equal(portalAudience({ role: 'parent' }), 'parent')
-assert.equal(portalAudience({ isParent: true }), 'parent')
+// The parent portal is retired: a parent account is an unrecognised role, so
+// no table covers it and nothing moves it off a route.
+assert.equal(portalAudience({ role: 'parent' }), null)
+assert.equal(portalAudience({ isParent: true }), null)
+assert.deepEqual([...PORTAL_AUDIENCES], ['teacher'])
 assert.equal(portalAudience({ role: 'learner' }), null)
 assert.equal(portalAudience({ role: 'student' }), null)
 assert.equal(portalAudience(null), null)
@@ -237,7 +200,8 @@ assert.equal(resolvePostAuthPath({ role: 'teacher' }, '/settings/profile'), '/se
 // Nobody else's behaviour moved on a path their own portal owns.
 assert.equal(resolvePostAuthPath({ role: 'learner' }, '/profile'), '/profile')
 assert.equal(resolvePostAuthPath({ role: 'admin' }, '/profile'), '/profile')
-assert.equal(resolvePostAuthPath({ role: 'parent' }, '/profile'), '/family')
+// A retired parent account is unrecognised, so /profile (a shared page) is left alone.
+assert.equal(resolvePostAuthPath({ role: 'parent' }, '/profile'), '/profile')
 
 // ── The landing itself never redirects ───────────────────────────────
 // Whatever comes back is somewhere the account can STAY: neither the
@@ -279,7 +243,6 @@ assert.equal(
 )
 
 console.log(
-  `✓ portal redirects — ${PARENT_ROUTE_REDIRECTS.length} parent / `
-  + `${TEACHER_ROUTE_REDIRECTS.length} teacher rules resolve into the account's own `
+  `✓ portal redirects — ${TEACHER_ROUTE_REDIRECTS.length} teacher rules resolve into the account's own `
   + 'portal, nothing bounces, and sign-in lands somewhere it can stay',
 )

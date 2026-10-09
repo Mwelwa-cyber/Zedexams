@@ -8,7 +8,7 @@ import LearnerGradeGate from './LearnerGradeGate'
 import { resolveLearnerPortalDenial } from './learnerPortalDenial'
 
 export default function LearnerOnlyRoute({ children }) {
-  const { userProfile, loading, authReady, isAdmin, isLearner, isTeacher, isParent, canAccessLearnerPortal } = useAuth()
+  const { userProfile, loading, authReady, isAdmin, isLearner, isTeacher, canAccessLearnerPortal } = useAuth()
   const navigate = useNavigate()
 
   // Wait for auth AND the profile before evaluating role. `authReady` first:
@@ -28,7 +28,7 @@ export default function LearnerOnlyRoute({ children }) {
   // open — see the file header there.
   if (isAdmin || isLearner) return <LearnerGradeGate>{children}</LearnerGradeGate>
 
-  // Any other role with learner-portal access (e.g. parents on a premium plan)
+  // Any other role with learner-portal access (e.g. a premium account of some other role)
   // passes through. Teachers are intentionally excluded — the two portals are
   // fully separate, so a teacher account can never access the learner side.
   if (!isTeacher && canAccessLearnerPortal) return children
@@ -38,7 +38,7 @@ export default function LearnerOnlyRoute({ children }) {
   // away, so a parent was told their account was a teacher's and given a
   // button to a portal they cannot open. `resolveLearnerPortalDenial` answers
   // both from one look at the role — see the header there.
-  const denial = resolveLearnerPortalDenial({ role: userProfile?.role, isTeacher, isParent })
+  const denial = resolveLearnerPortalDenial({ role: userProfile?.role, isTeacher })
 
   return (
     <div className="min-h-screen theme-bg flex items-center justify-center p-6 relative">
