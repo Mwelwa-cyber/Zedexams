@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
 
 const auth = { currentUser: null, logout: vi.fn() }
@@ -17,6 +17,7 @@ function mount(path) {
       <Where />
       <Routes>
         <Route path="/family/*" element={<FamilyClosed />} />
+        <Route path="/" element={<div>home</div>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -36,15 +37,20 @@ describe('FamilyClosed', () => {
     expect(screen.getByTestId('where')).toHaveTextContent('/family/children')
   })
 
-  it('offers sign out only to a signed-in visitor', () => {
+  it('gives a signed-out visitor a plain link home and no sign-out button', () => {
     mount('/family')
-    expect(screen.queryByRole('button', { name: /sign out/i })).toBeNull()
+    expect(screen.queryByRole('button')).toBeNull()
+    expect(screen.getByRole('link', { name: /go to zedexams/i })).toHaveAttribute('href', '/')
   })
 
-  it('lets a signed-in parent sign out', () => {
+  it('signs a signed-in parent out before sending them home', async () => {
+    // A plain link home would return them here: RootRedirect resolves "/" by
+    // role and sends a parent back to /family.
     auth.currentUser = { uid: 'p1' }
     mount('/family')
-    fireEvent.click(screen.getByRole('button', { name: /sign out/i }))
+    expect(screen.queryByRole('link', { name: /go to zedexams/i })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /sign out and go to zedexams/i }))
     expect(auth.logout).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent(/^\/$/))
   })
 })

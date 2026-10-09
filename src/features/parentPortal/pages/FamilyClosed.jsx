@@ -8,15 +8,23 @@
  * bounce `/family` → `/` → `/family` forever. A static page ends the chain.
  *
  * It is also never a dead end: a guardian who still holds an unpaid link in
- * their email can use it (it needs no account), and a signed-in visitor can
- * sign out.
+ * their email can use it (it needs no account), and a signed-in visitor's one
+ * button signs them out and then goes home — a plain link home would return a
+ * signed-in parent to this same page.
  */
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import Button from '../../../shared/components/Button'
 
 export default function FamilyClosed() {
   const { currentUser, logout } = useAuth()
+  const navigate = useNavigate()
+
+  // Signed in: "/" would send a parent straight back here (RootRedirect resolves
+  // it by role), so the way out is to sign out first and THEN go home.
+  async function signOutAndGoHome() {
+    try { await logout() } finally { navigate('/', { replace: true }) }
+  }
 
   return (
     <div className="min-h-screen theme-bg flex items-center justify-center p-6">
@@ -31,17 +39,17 @@ export default function FamilyClosed() {
           If you have a question about your child&rsquo;s account, write to us and we will help.
         </p>
 
-        <Link
-          to="/"
-          className="inline-flex min-h-[44px] w-full items-center justify-center rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-indigo-700"
-        >
-          Go to ZedExams
-        </Link>
-
-        {currentUser && (
-          <Button variant="ghost" size="md" fullWidth className="mt-3" onClick={() => logout()}>
-            Sign out
+        {currentUser ? (
+          <Button variant="primary" size="lg" fullWidth onClick={signOutAndGoHome}>
+            Sign out and go to ZedExams
           </Button>
+        ) : (
+          <Link
+            to="/"
+            className="inline-flex min-h-[44px] w-full items-center justify-center rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-indigo-700"
+          >
+            Go to ZedExams
+          </Link>
         )}
       </div>
     </div>
