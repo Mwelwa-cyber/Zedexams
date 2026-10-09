@@ -5,6 +5,32 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-10-09
+
+### Added
+
+- Make every note block and diagram editable in the admin editor (#2695)
+- Deploy googlePlayRtdn now that the play-rtdn topic exists (#2685)
+
+### Fixed
+
+- Never grant Premium for a declined or unpaid Play period (#2684)
+
+### Changed
+
+- Retire the family app screens (parent portal 4b-1) (#2717)
+- Word the WhatsApp expiry reminder as about the child when a guardian link paid (#2716)
+- Pay from the guardian link with no login (#2715)
+- Stop offering family codes and share links to learners (parent portal 4a) (#2714)
+- Let a learner send results to a parent on WhatsApp (PR 2) (#2713)
+- Record a parent's confirmed payment as the guardian's approval (#2710)
+- Let learners pay with a parent's number; remove parent sign-up (#2708)
+- Bump functions proxy-addr to 2.0.8 (clears critical GHSA-jqcg-44mw-7w3h) (#2709)
+- Re-hold the googlePlayRtdn export — deploy can't create its topic (#2686)
+- Move the root scripts to firebase-admin 14 (#2681)
+
+_Dependencies: 7 automated bumps (#2701, #2693, #2692, #2691, #2690, #2689, #2688)._
+
 ## 2026-09-24
 
 ### Changed
