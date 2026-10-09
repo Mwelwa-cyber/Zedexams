@@ -113,7 +113,7 @@ for (const [rel, src] of files) {
   schedules += (src.replace(/\/\*[\s\S]*?\*\//g, '').match(/\bonSchedule\(/g) || []).length
   for (const line of uncappedSchedules(src)) failures.push(`functions/${rel}:${line} — onSchedule without maxInstances`)
 }
-assert.ok(schedules >= 41, `expected at least 41 onSchedule calls, found ${schedules} — the scan has stopped seeing them`)
+assert.ok(schedules >= 40, `expected at least 40 onSchedule calls, found ${schedules} — the scan has stopped seeing them`)
 passed++
 
 for (const name of ADMIN_CAPPED) {

@@ -17,21 +17,6 @@
       "classification": "mechanical",
       "batch": 1
     },
-    "acceptCoGuardianInvite": {
-      "kind": "onCall",
-      "inline": false,
-      "options": {
-        "region": "\"us-central1\"",
-        "timeoutSeconds": "30"
-      },
-      "optionsFrom": "index.js",
-      "optionsUnresolved": null,
-      "target": null,
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
     "accountPurgeResweep": {
       "kind": "onSchedule",
       "inline": false,
@@ -982,21 +967,6 @@
       "classification": "mechanical",
       "batch": null
     },
-    "declineGuardianApproval": {
-      "kind": "onCall",
-      "inline": false,
-      "options": {
-        "region": "\"us-central1\"",
-        "timeoutSeconds": "30"
-      },
-      "optionsFrom": "index.js",
-      "optionsUnresolved": null,
-      "target": null,
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
     "deleteCurriculumUpload": {
       "kind": "factory",
       "inline": false,
@@ -1659,54 +1629,6 @@
       "classification": "mechanical",
       "batch": null
     },
-    "getGuardianChildActivity": {
-      "kind": "onCall",
-      "inline": false,
-      "options": {
-        "region": "\"us-central1\"",
-        "timeoutSeconds": "60",
-        "memory": "\"512MiB\""
-      },
-      "optionsFrom": "index.js",
-      "optionsUnresolved": null,
-      "target": null,
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
-    "getGuardianChildDetail": {
-      "kind": "onCall",
-      "inline": false,
-      "options": {
-        "region": "\"us-central1\"",
-        "timeoutSeconds": "60",
-        "memory": "\"512MiB\""
-      },
-      "optionsFrom": "index.js",
-      "optionsUnresolved": null,
-      "target": null,
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
-    "getGuardianWeeklyReport": {
-      "kind": "onCall",
-      "inline": false,
-      "options": {
-        "region": "\"us-central1\"",
-        "timeoutSeconds": "60",
-        "memory": "\"512MiB\""
-      },
-      "optionsFrom": "index.js",
-      "optionsUnresolved": null,
-      "target": null,
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
     "getLencoPaymentStatus": {
       "kind": "onCall",
       "inline": false,
@@ -2065,22 +1987,6 @@
       "classification": "mechanical",
       "batch": null
     },
-    "inviteCoGuardian": {
-      "kind": "onCall",
-      "inline": false,
-      "options": {
-        "secrets": "[emailSmtpUser, emailSmtpPassword]",
-        "region": "\"us-central1\"",
-        "timeoutSeconds": "30"
-      },
-      "optionsFrom": "index.js",
-      "optionsUnresolved": null,
-      "target": null,
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "secrets-bound",
-      "batch": null
-    },
     "learnerAgeOnUserCreated": {
       "kind": "delegated",
       "inline": false,
@@ -2130,38 +2036,6 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
-      "batch": null
-    },
-    "listGuardianApprovals": {
-      "kind": "onCall",
-      "inline": false,
-      "options": {
-        "region": "\"us-central1\"",
-        "timeoutSeconds": "60",
-        "memory": "\"512MiB\""
-      },
-      "optionsFrom": "index.js",
-      "optionsUnresolved": null,
-      "target": null,
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
-    "listGuardianChildren": {
-      "kind": "onCall",
-      "inline": false,
-      "options": {
-        "region": "\"us-central1\"",
-        "timeoutSeconds": "60",
-        "memory": "\"512MiB\""
-      },
-      "optionsFrom": "index.js",
-      "optionsUnresolved": null,
-      "target": null,
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
       "batch": null
     },
     "logAdminMfaEvent": {
@@ -2822,21 +2696,6 @@
       "classification": "secrets-bound",
       "batch": null
     },
-    "removeCoGuardian": {
-      "kind": "onCall",
-      "inline": false,
-      "options": {
-        "region": "\"us-central1\"",
-        "timeoutSeconds": "30"
-      },
-      "optionsFrom": "index.js",
-      "optionsUnresolved": null,
-      "target": null,
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
-      "batch": null
-    },
     "reportGuardianLink": {
       "kind": "delegated",
       "inline": false,
@@ -3326,37 +3185,6 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "secrets-bound",
-      "batch": null
-    },
-    "setChildGuardianControl": {
-      "kind": "onCall",
-      "inline": false,
-      "options": {
-        "secrets": "[emailSmtpUser, emailSmtpPassword]",
-        "region": "\"us-central1\"",
-        "timeoutSeconds": "30"
-      },
-      "optionsFrom": "index.js",
-      "optionsUnresolved": null,
-      "target": null,
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "secrets-bound",
-      "batch": null
-    },
-    "setGuardianConsent": {
-      "kind": "onCall",
-      "inline": false,
-      "options": {
-        "region": "\"us-central1\"",
-        "timeoutSeconds": "30"
-      },
-      "optionsFrom": "index.js",
-      "optionsUnresolved": null,
-      "target": null,
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "mechanical",
       "batch": null
     },
     "setGuardianControl": {
@@ -3902,26 +3730,6 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
-      "batch": null
-    },
-    "weeklyGuardianReport": {
-      "kind": "onSchedule",
-      "inline": false,
-      "options": {
-        "maxInstances": "1",
-        "schedule": "\"every sunday 09:00\"",
-        "timeZone": "\"Africa/Lusaka\"",
-        "secrets": "[emailSmtpUser, emailSmtpPassword]",
-        "region": "\"us-central1\"",
-        "timeoutSeconds": "540",
-        "memory": "\"512MiB\""
-      },
-      "optionsFrom": "index.js",
-      "optionsUnresolved": null,
-      "target": null,
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "secrets-bound",
       "batch": null
     },
     "weeklyParentDigest": {

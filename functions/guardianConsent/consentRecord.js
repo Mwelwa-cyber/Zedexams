@@ -9,7 +9,7 @@
  *
  *   1. the emailed approval link  (guardianConsent/index.js applyDecision)
  *   2. linking by family code     (familyPortal.js, once the child accepts)
- *   3. the parent app             (parentApp setGuardianConsent)
+ *   3. (the parent app's setGuardianConsent, retired 2026-10)
  *   4. a confirmed payment        (paymentConsent.js — a parent approving the
  *                                  mobile-money prompt for their child's plan)
  *

@@ -24,12 +24,9 @@ import { capture } from '../../../utils/analytics'
 const fns = getFunctions(app, 'us-central1')
 const createFamilyInviteCodeCallable = httpsCallable(fns, 'createFamilyInviteCode')
 const revokeFamilyInviteCodeCallable = httpsCallable(fns, 'revokeFamilyInviteCode')
-const redeemFamilyInviteCodeCallable = httpsCallable(fns, 'redeemFamilyInviteCode')
 const respondToFamilyLinkCallable = httpsCallable(fns, 'respondToFamilyLink')
-const getChildProgressCallable = httpsCallable(fns, 'getChildProgress')
 const requestGuardianUnlinkCallable = httpsCallable(fns, 'requestGuardianUnlink')
 const reportGuardianLinkCallable = httpsCallable(fns, 'reportGuardianLink')
-const withdrawGuardianConsentCallable = httpsCallable(fns, 'withdrawGuardianConsent')
 
 const LINKS = 'parentLinks'
 const CODES = 'familyInviteCodes'
@@ -81,22 +78,6 @@ export async function listMyFamilyCodes(learnerUid, { limit = 5 } = {}) {
 // ── Parent side ─────────────────────────────────────────────────────────────
 
 /**
- * Parent redeems a learner's family code.
- *
- * This no longer creates a working link. It burns the code and creates a
- * PENDING one; the child is asked "is this your grown-up?" and has to say
- * yes before the parent can see anything. The returned `status` says
- * which happened — `'pending'` for a new link, `'active'` only when the
- * parent was already a confirmed guardian and simply re-entered a code.
- * Callers must not report success as "linked".
- */
-export async function redeemFamilyInviteCode(code) {
-  const result = await redeemFamilyInviteCodeCallable({ code })
-  capture('family_child_link_requested', { status: result.data?.status || 'pending' })
-  return result.data
-}
-
-/**
  * The child answers a pending guardian request: 'accept' | 'decline'.
  *
  * Accepting also writes the guardian consent record, so this is not only a
@@ -110,27 +91,6 @@ export async function redeemFamilyInviteCode(code) {
 export async function respondToFamilyLink(linkId, decision) {
   const result = await respondToFamilyLinkCallable({ linkId, decision })
   capture('family_link_response', { decision })
-  return result.data
-}
-
-/**
- * Parent-side: my linked children. Reads parentLinks directly (rules scope it
- * to parentUid == me). Each row carries the snapshotted learnerDisplayName /
- * learnerGrade so the list renders without an extra profile read.
- */
-export async function listMyChildren(parentUid, { limit = 20 } = {}) {
-  const q = query(
-    collection(db, LINKS),
-    where('parentUid', '==', parentUid),
-    fsLimit(limit),
-  )
-  const snap = await getDocs(q)
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-}
-
-/** Parent fetches a linked child's rendered progress (KPIs, subjects, recent). */
-export async function getChildProgress(childUid) {
-  const result = await getChildProgressCallable({ childUid })
   return result.data
 }
 
@@ -170,9 +130,3 @@ export async function reportGuardianLink(parentUid, reason = '') {
   return result.data
 }
 
-/** A guardian ends their own link. The child keeps every lesson and past paper. */
-export async function withdrawGuardianConsent(childUid) {
-  const result = await withdrawGuardianConsentCallable({ childUid })
-  capture('guardian_consent_withdrawn', {})
-  return result.data
-}
