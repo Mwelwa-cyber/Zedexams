@@ -11,7 +11,6 @@ import Skeleton from '../../../shared/components/Skeleton'
 import ConfirmDialog from '../../../shared/components/ConfirmDialog'
 import EmptyState from '../../../shared/components/EmptyState'
 import SeoHelmet from '../../../shared/components/SeoHelmet'
-import ParentDigestTester from '../components/ParentDigestTester'
 import OpsAlertTester from '../components/OpsAlertTester'
 import AdminSetupBanner from '../components/AdminSetupBanner'
 import { buildAttentionItems, countLowScores, formatResultDate, scoreBand } from '../lib/adminHomeCore.js'
@@ -316,12 +315,10 @@ export default function AdminDashboard() {
             <span className="admin-game-eyebrow">Developer tools</span>
           </span>
           <span className="text-[11px] font-semibold normal-case tracking-normal" style={{ color: 'var(--zt-text-muted)' }}>
-            Seed data, digest &amp; alarm testers
+            Seed data &amp; alarm testers
           </span>
         </summary>
         <div className="px-5 pb-5 pt-1 space-y-4">
-          {/* Audit A3 PR 3 — admin-only on-demand parent digest tester. */}
-          <ParentDigestTester />
 
           {/* OBS-004 — prove the two alert channels actually reach a human. */}
           <OpsAlertTester />

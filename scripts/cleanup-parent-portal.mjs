@@ -271,9 +271,9 @@ async function printReport(db) {
     console.log(`  total ${s.total}  live ${s.live}  expired ${s.expired}  revoked ${s.revoked}`)
     if (s.latestLiveExpiryMs) {
       console.log(`  latest live expiry: ${new Date(s.latestLiveExpiryMs).toISOString().slice(0, 10)}`
-        + ' — after this date weeklyParentDigest has nothing to send and can be deleted.')
+        + ' — after this date no old share link is live (weeklyParentDigest itself was removed in 2026-10).')
     } else {
-      console.log('  no live shares — weeklyParentDigest has nothing to send and can be deleted now.')
+      console.log('  no live shares left.')
     }
   })
 }

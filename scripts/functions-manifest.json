@@ -3608,24 +3608,6 @@
       "classification": "mechanical",
       "batch": null
     },
-    "triggerWeeklyParentDigest": {
-      "kind": "delegated",
-      "inline": false,
-      "options": {
-        "maxInstances": "2",
-        "region": "\"us-central1\"",
-        "timeoutSeconds": "540",
-        "memory": "\"512MiB\"",
-        "secrets": "[emailSmtpUser, emailSmtpPassword, ...WHATSAPP_SECRETS]"
-      },
-      "optionsFrom": "./weeklyParentDigest",
-      "optionsUnresolved": null,
-      "target": "triggerWeeklyParentDigest",
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "secrets-bound",
-      "batch": null
-    },
     "updatePublicStats": {
       "kind": "delegated",
       "inline": false,
@@ -3730,26 +3712,6 @@
       "rewritePath": null,
       "rewriteRegion": null,
       "classification": "mechanical",
-      "batch": null
-    },
-    "weeklyParentDigest": {
-      "kind": "delegated",
-      "inline": false,
-      "options": {
-        "maxInstances": "1",
-        "schedule": "\"every sunday 09:00\"",
-        "timeZone": "\"Africa/Lusaka\"",
-        "region": "\"us-central1\"",
-        "timeoutSeconds": "540",
-        "memory": "\"512MiB\"",
-        "secrets": "[emailSmtpUser, emailSmtpPassword, ...WHATSAPP_SECRETS]"
-      },
-      "optionsFrom": "./weeklyParentDigest",
-      "optionsUnresolved": null,
-      "target": "weeklyParentDigest",
-      "rewritePath": null,
-      "rewriteRegion": null,
-      "classification": "secrets-bound",
       "batch": null
     },
     "weeklyProductSignal": {

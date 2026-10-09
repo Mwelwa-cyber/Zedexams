@@ -30,7 +30,7 @@ export const ADMIN_CAPPED = [
   'importBuiltInCbcTopics', 'importBuiltInAssessmentFormats', 'importCurriculumModules',
   'backfillKbSourceRefs', 'upsertSyllabusRow', 'deleteSyllabusRow', 'restoreSyllabusRow',
   'activateSyllabusVersion', 'rollbackSyllabusVersion', 'getAiBudgetEnforcement',
-  'triggerWeeklyParentDigest', 'backfillReferralCodes', 'getTtsControlRoom',
+  'backfillReferralCodes', 'getTtsControlRoom',
   'adminSetUserStatus', 'adminSetUserRole', 'resetAdminMfa',
   'adminConfirmPayment', 'adminRejectPayment', 'adminGrantPremium', 'adminRevokePremium',
 ]
@@ -113,7 +113,7 @@ for (const [rel, src] of files) {
   schedules += (src.replace(/\/\*[\s\S]*?\*\//g, '').match(/\bonSchedule\(/g) || []).length
   for (const line of uncappedSchedules(src)) failures.push(`functions/${rel}:${line} — onSchedule without maxInstances`)
 }
-assert.ok(schedules >= 40, `expected at least 40 onSchedule calls, found ${schedules} — the scan has stopped seeing them`)
+assert.ok(schedules >= 39, `expected at least 39 onSchedule calls, found ${schedules} — the scan has stopped seeing them`)
 passed++
 
 for (const name of ADMIN_CAPPED) {

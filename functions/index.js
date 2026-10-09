@@ -327,13 +327,6 @@ const {
   respondToFamilyLink,
   getChildProgress,
 } = require("./familyPortal");
-// Audit A3 PR 2 — weekly digest cron (Sunday 09:00 Africa/Lusaka).
-// Audit A3 PR 3 — admin-only manual trigger to verify Meta WhatsApp
-// wiring without waiting for the Sunday tick.
-const {
-  weeklyParentDigest,
-  triggerWeeklyParentDigest,
-} = require("./weeklyParentDigest");
 // Audit C7 PR 1 follow-up — admin-only backfill for users who signed
 // up before referralCode minting shipped. Runnable from the Firebase
 // Console "test function" panel; iterates in 500-user batches and is
@@ -2138,23 +2131,6 @@ exports.redeemFamilyInviteCode = redeemFamilyInviteCode;
 // of functions/familyPortal.js.
 exports.respondToFamilyLink = respondToFamilyLink;
 exports.getChildProgress = getChildProgress;
-
-// A3 PR 2 — weekly digest cron. Sunday 09:00 Africa/Lusaka. Fans out
-// a 7-day email summary to every progressShare with parentEmail set,
-// skips revoked / expired / already-sent-this-week, and skips empty
-// weeks (no point training parents to ignore us). Audit ledger lives
-// in parentDigestEvents/{eventId}. PR 3 also runs a parallel WhatsApp
-// channel via Meta WhatsApp Cloud API (soft-fails when META_WHATSAPP_*
-// secrets aren't set).
-exports.weeklyParentDigest = weeklyParentDigest;
-
-// A3 PR 3 — admin-only callable that runs the same digest body on
-// demand. Useful for verifying Meta WhatsApp wiring without waiting
-// for the Sunday cron. Accepts { force, targetTokens } so an admin
-// can target a specific test share and bypass the 5-day idempotency
-// stamp. Returns the summary so the caller can see exactly what
-// happened.
-exports.triggerWeeklyParentDigest = triggerWeeklyParentDigest;
 
 // Admin-only "does the alarm actually ring?" check — fires one real ops alert
 // (severity info) down both channels and reports per-channel delivery. Same

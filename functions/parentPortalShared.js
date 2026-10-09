@@ -1,10 +1,10 @@
 /**
- * Shared parent-portal helpers — aggregation logic re-used by both the
- * public getProgressShare callable (parentPortal.js) and the weekly
- * digest cron (weeklyParentDigest.js).
+ * Shared parent-portal helpers — aggregation logic re-used by the
+ * public getProgressShare callable (parentPortal.js) and familyPortal.js.
+ * (The weekly digest cron that also used it was removed in 2026-10.)
  *
- * Kept in its own module so the two consumers stay narrow and easy
- * to unit-test independently.
+ * Kept in its own module so the consumers stay narrow and easy to
+ * unit-test independently.
  */
 
 const {Timestamp} = require("firebase-admin/firestore");
