@@ -7,6 +7,19 @@ on every push to `main`. Newest entries at the top.
 
 ## 2026-10-09
 
+### Changed
+
+- Finish the parent portal cleanup: dead layout test, family-code mint, stale docs (#2729)
+- Remove the dead client half of the parent portal (#2728)
+- Keep the plan strip off the guardian screens (#2727)
+- Remove the last pointers into the retired family app (#2726)
+- Give guardians a way to act now the parent app is closed (#2725)
+- Remove weeklyParentDigest and its admin tester (#2724)
+- Remove isParent, the parent signup role and the parent plan branch (#2723)
+- Remove the parent role from the auth guards (#2722)
+
+## 2026-10-09
+
 ### Added
 
 - Make every note block and diagram editable in the admin editor (#2695)
