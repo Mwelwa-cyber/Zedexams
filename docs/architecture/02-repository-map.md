@@ -104,7 +104,7 @@ functions/
 ├── agents/                  Internal agent pipeline: dispatcher.js, cron.js, runners/ (aria/cala/reva/pubo/vex/monitor/marshal/bonga/…), questionReview.js (Qix), learnerAi/, circuitBreaker.js.
 ├── grading/                 Daily-exam grading.
 ├── classManagement.js, classAnalytics.js   Teacher classes/rosters/assignments/stats.
-├── parentPortal.js, familyPortal*.js, weeklyParentDigest.js   Parent surfaces.
+├── parentPortal.js, familyPortal*.js   Parent surfaces.
 ├── lencoService.js, lencoWebhookProcessor.js, paymentInitiationCore.js, invoiceGenerator.js, subscription*.js, plans.js   Payments/subscriptions.
 ├── googlePlayBilling*.js    Android in-app billing verification.
 ├── fxRate.js                FX refresh.

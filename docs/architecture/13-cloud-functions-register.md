@@ -133,7 +133,7 @@ require('./functions/index.js'); console.log(mb(),'MiB');
 
 ## Notifications / messaging
 
-`apiWhatsAppWebhook` (Bonga; onRequest, HMAC x-hub-signature-256, ANTHROPIC + WhatsApp secrets), `weeklyParentDigest` (cron Sun 09:00), `triggerWeeklyParentDigest` (admin), `dailyStreakReminders`/`dailyPracticeReminders`/`weeklyRevisionReminder`/`inactiveLearnerReminder`/`subscriptionExpiryReminders`/`archiveOldNotifications` (crons). Firestore triggers (africa-south1): `onLearnerStatsWritten`, `onAnnouncementWritten`, `onUserCreatedNotifyAdmins`, `onFeedbackCreatedNotifyAdmins`.
+`apiWhatsAppWebhook` (Bonga; onRequest, HMAC x-hub-signature-256, ANTHROPIC + WhatsApp secrets), (`weeklyParentDigest` and `triggerWeeklyParentDigest` were removed 2026-10), `dailyStreakReminders`/`dailyPracticeReminders`/`weeklyRevisionReminder`/`inactiveLearnerReminder`/`subscriptionExpiryReminders`/`archiveOldNotifications` (crons). Firestore triggers (africa-south1): `onLearnerStatsWritten`, `onAnnouncementWritten`, `onUserCreatedNotifyAdmins`, `onFeedbackCreatedNotifyAdmins`.
 
 ## Scheduled crons (non-agent)
 
