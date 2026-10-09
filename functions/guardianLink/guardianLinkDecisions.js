@@ -151,7 +151,7 @@ function buildUnlinkRequestEmail({childName} = {}) {
       "you can have the conversation.",
       "",
       "If you want to end the link yourself, you can do that from",
-      "https://zedexams.com/family at any time.",
+      "https://zedexams.com/for-guardians at any time.",
       "",
       "If a child is in danger, Childline Zambia is 116, free from any network,",
       "and they do not need a guardian's permission to call.",

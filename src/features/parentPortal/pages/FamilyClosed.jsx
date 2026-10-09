@@ -40,9 +40,17 @@ export default function FamilyClosed() {
         </p>
 
         {currentUser ? (
-          <Button variant="primary" size="lg" fullWidth onClick={signOutAndGoHome}>
-            Sign out and go to ZedExams
-          </Button>
+          <>
+            <Link
+              to="/for-guardians"
+              className="mb-3 inline-flex min-h-[44px] w-full items-center justify-center rounded-full border border-indigo-600 px-5 py-2.5 text-sm font-bold text-indigo-700 hover:bg-indigo-50"
+            >
+              My children &amp; consent
+            </Link>
+            <Button variant="primary" size="lg" fullWidth onClick={signOutAndGoHome}>
+              Sign out and go to ZedExams
+            </Button>
+          </>
         ) : (
           <Link
             to="/"
