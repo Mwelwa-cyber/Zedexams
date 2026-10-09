@@ -287,7 +287,7 @@ async function notifyGuardianOfRequest({guardianUid, requestId, learner}) {
       title: `${childName} asked to delete their account`,
       body: "Nothing has been deleted. They need you to agree first — tap to review.",
       priority: "high",
-      action: {label: "Review the request", url: `/family/requests/${requestId}`},
+      action: {label: "Review the request", url: `/for-guardians/request/${requestId}`},
       dedupeKey: `deletion-request-${requestId}`,
     });
   } catch (err) {
@@ -306,7 +306,7 @@ async function notifyGuardianOfRequest({guardianUid, requestId, learner}) {
       "",
       `They would have ${core.GRACE_DAYS} days to change their mind before it is permanent.`,
       "",
-      `Review the request: https://zedexams.com/family/requests/${requestId}`,
+      `Review the request: https://zedexams.com/for-guardians/request/${requestId}`,
       "",
       "You are getting this because you are their guardian on ZedExams.",
     ].join("\n"),

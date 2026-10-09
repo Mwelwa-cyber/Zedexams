@@ -259,6 +259,12 @@ const GuardianUnlock = lazy(() => import('../features/parentPortal/pages/Guardia
 // What /family/* shows now the parent app is retired. A page, not a redirect:
 // RootRedirect sends a signed-in parent back to /family, so a redirect home loops.
 const FamilyClosed = lazy(() => import('../features/parentPortal/pages/FamilyClosed'))
+// What a guardian can still do now the parent app is closed: answer a child's
+// deletion request and withdraw their own consent. Signed-in, but ANY role —
+// the page is addressed to an account, not to a portal — so it sits outside
+// LearnerOnlyRoute; the callables behind it authorise by the caller's uid.
+const GuardianHomePage = lazy(() => import('../features/parentPortal/pages/GuardianHomePage'))
+const GuardianRequestPage = lazy(() => import('../features/parentPortal/pages/GuardianRequestPage'))
 
 // Teacher section. The /teacher/* routes themselves live in
 // app/routes/teacherRoutes.jsx — declared as data so a spec can
@@ -662,6 +668,8 @@ export default function App() {
           {/* The family app was retired (parent portal retirement, step 4b).
               Old bookmarks and emailed links land on a short "closed" page. */}
           <Route path="/family/*"                 element={<FamilyClosed />} />
+          <Route path="/for-guardians"            element={<ProtectedRoute><GuardianHomePage /></ProtectedRoute>} />
+          <Route path="/for-guardians/request/:requestId" element={<ProtectedRoute><GuardianRequestPage /></ProtectedRoute>} />
 
           {/* ── Public games (no auth) ──────────────────────────── */}
           {/* Flow: /games → /games/g/:grade → /games/g/:grade/:subject → /games/play/:gameId */}
