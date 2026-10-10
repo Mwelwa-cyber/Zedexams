@@ -255,9 +255,9 @@ function propagatePreviousRows(sheet) {
   // ungenerable. Synthesise sub-topics from the specific outcomes — each
   // outcome becomes one selectable sub-topic — so the subject works.
   if (out.length && !out.some((r) => r.subtopic)) {
-    // The sheet HAS a sub-topic column but it is blank throughout (e.g. Civic
-    // Education Grades 10-12): the syllabus has no sub-topic level, so each topic
-    // stands as its own sub-topic and keeps ALL of its outcomes together —
+    // The sheet HAS a sub-topic column but it is blank throughout (a digitising
+    // gap, or a syllabus with no sub-topic level): each topic stands as its own
+    // sub-topic and keeps ALL of its outcomes together —
     // matching what a topic with a partly-blank column gets in getTopicsForSubject.
     // Sheets with no sub-topic column at all (schema E) keep the per-outcome
     // synthesis below.
@@ -461,10 +461,11 @@ export async function getTopicsForSubject(subject, grade, curriculumMode = 'cbc'
   // their insertion order (stable sort).
   const topics = Array.from(topicMap.values())
   for (const t of topics) {
-    // Some syllabi (e.g. the 2013 Civic Education Grades 10-12) carry no
-    // sub-topic level at all: the outcomes sit directly under the topic. Such a
-    // topic stands as its own sole sub-topic, so the picker is never an empty
-    // dead end. getSubtopicDetail resolves it back to the topic's own rows.
+    // A syllabus (or a digitisation of one) can leave a topic with no sub-topic
+    // rows, with the outcomes sitting directly under the topic. Such a topic
+    // stands as its own sole sub-topic, so the picker is never an empty dead
+    // end that blocks lesson generation. getSubtopicDetail resolves it back to
+    // the topic's own rows.
     t.subtopics = t.subtopics.length > 0
       ? sortByCurriculumCode(t.subtopics)
       : [t.label]

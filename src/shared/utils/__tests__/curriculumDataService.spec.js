@@ -456,9 +456,11 @@ describe('getSubtopicDetail — previous', () => {
 
 // ── Topics with no sub-topic level ────────────────────────────────────────────
 //
-// The 2013 Civic Education Grades 10-12 syllabus has no sub-topic column data:
-// outcomes sit directly under each topic. Before, such a topic had an empty
-// sub-topic dropdown and the Lesson Plan Studio refused to continue.
+// Safety net: a digitised syllabus can leave a topic with a blank SUB-TOPIC
+// cell (the 2013 Civic Education sheets did, before they were re-extracted from
+// the source PDF). Such a topic must not give the teacher an empty sub-topic
+// dropdown that blocks the Lesson Plan Studio — it stands as its own sub-topic.
+// The fixture below reproduces that damaged shape on purpose.
 
 const CIVIC_SUBJECT = 'Civic Education Syllabus (Grades 10-12, 2013)'
 
