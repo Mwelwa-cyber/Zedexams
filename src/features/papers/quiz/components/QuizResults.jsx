@@ -10,7 +10,8 @@
  *   2. how each part went — where the marks came from
  *   3. what to work on next — ranked by what it cost them
  *   4. go through the paper — every question, filterable
- *   5. what next — the fix-up set, another go, the free-set lock, back to papers
+ *   5. what next — the fix-up set, another go, back to papers
+ *   (the free-set lock, when it applies, leads the body — see below)
  *
  * ── The one thing that is free on every plan, permanently ────────────────
  *
@@ -21,7 +22,9 @@
  *
  * ── The one thing that is not ─────────────────────────────────────────────
  *
- * `PaperContinueLock` — rendered last, inline, only when a free-plan practice
+ * `PaperContinueLock` — rendered FIRST in the body (2026-10: the plans and
+ * what finishing costs sit directly under the score, not 30 rows down), inline,
+ * only when a free-plan practice
  * run stopped short of the whole paper (§3.5/§8: nothing renders AT the
  * free-set boundary, so this is the first the learner hears of it, and it is
  * a card on a page they navigated to rather than anything that interrupted
@@ -193,6 +196,15 @@ export default function QuizResults({
         </div>
 
         <div className="pq-res-body">
+          {showContinueLock && (
+            <PaperContinueLock
+              paperId={paper?.id}
+              remaining={freeSet.remaining}
+              lockedTopics={freeSet.lockedSectionTitles}
+              paperYear={paper?.year ? String(paper.year) : ''}
+            />
+          )}
+
           <div className="pq-card">
             <h3>How each part went</h3>
             <p className="pq-sub">
@@ -273,15 +285,6 @@ export default function QuizResults({
                 />
               ))}
           </div>
-
-          {showContinueLock && (
-            <PaperContinueLock
-              paperId={paper?.id}
-              remaining={freeSet.remaining}
-              lockedTopics={freeSet.lockedSectionTitles}
-              paperYear={paper?.year ? String(paper.year) : ''}
-            />
-          )}
 
           <div style={{ height: 16 }} />
           <button type="button" className="pq-cta is-secondary" onClick={onRetry}>

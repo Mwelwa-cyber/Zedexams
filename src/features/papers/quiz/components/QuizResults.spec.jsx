@@ -37,8 +37,8 @@ vi.mock('../../../../services/entitlements', async (importOriginal) => {
       requestUnlock,
       closeUnlock: vi.fn(),
       isUnder18: mockIsUnder18,
-      route: mockIsUnder18 ? 'guardian' : 'checkout',
-      showsPrice: !mockIsUnder18,
+      route: 'checkout',
+      showsPrice: true,
     }),
     useEntitlements: () => ({
       planState: {
@@ -100,18 +100,22 @@ function renderResults(props = {}) {
 }
 
 describe('the free-set lock on the live results screen', () => {
-  it('tells a free learner more questions exist and offers to ask their guardian', () => {
+  it('tells a free learner more questions exist and lays out the plans and what finishing costs', () => {
     mockIsUnder18 = true
     renderResults({ freeSet: FREE_SET, unlocked: false })
     expect(screen.getByText(/30 more questions in this paper/i)).toBeTruthy()
-    expect(screen.getByRole('button', { name: /ask your guardian to unlock/i })).toBeTruthy()
+    expect(screen.getByText(/you need to pay K15 for a week or K50 for a month/i)).toBeTruthy()
+    expect(screen.getByRole('button', { name: /weekly/i })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /monthly/i })).toBeTruthy()
     expect(screen.getByRole('button', { name: /try this free section again/i })).toBeTruthy()
   })
 
-  it('quotes a price to an adult instead of the guardian ask', () => {
-    mockIsUnder18 = false
+  it('puts the offer first in the body, above the 30-row review', () => {
     renderResults({ freeSet: FREE_SET, unlocked: false })
-    expect(screen.getByRole('button', { name: /unlock — from k/i })).toBeTruthy()
+    const lock = screen.getByText(/30 more questions in this paper/i)
+    const review = screen.getByText(/go through the paper/i)
+    // The lock precedes the review in document order.
+    expect(lock.compareDocumentPosition(review) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('shows no lock for an unlocked (paid) learner', () => {

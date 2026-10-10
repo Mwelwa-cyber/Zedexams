@@ -26,6 +26,8 @@ const mockProfile = { current: { role: 'learner', isMinor: true } }
 // which this spec does not run on, so it is a switch here.
 const webMinor = { current: false }
 const planStateOverride = { current: null }
+const nativeBuild = { current: false }
+vi.mock('../../../utils/runtime', () => ({ isNativePlatform: () => nativeBuild.current }))
 
 vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({
@@ -50,8 +52,8 @@ vi.mock('../../../services/entitlements', async (importOriginal) => {
       requestUnlock,
       closeUnlock: vi.fn(),
       isUnder18: mockProfile.current?.isMinor !== false,
-      route: mockProfile.current?.isMinor === false || webMinor.current ? 'checkout' : 'guardian',
-      showsPrice: mockProfile.current?.isMinor === false || webMinor.current,
+      route: 'checkout',
+      showsPrice: true,
     }),
     useEntitlements: () => ({
       planState: planStateOverride.current || {
@@ -108,6 +110,7 @@ function renderResults(props = {}) {
 beforeEach(() => {
   mockProfile.current = { role: 'learner', isMinor: true }
   webMinor.current = false
+  nativeBuild.current = false
   planStateOverride.current = null
   capture.mockClear()
   requestUnlock.mockClear()
@@ -192,40 +195,44 @@ describe('ACCEPTANCE 15 — the lock always states its reset date', () => {
 })
 
 describe('ACCEPTANCE 10 — the lock is rendered and tappable', () => {
-  it('routes an under-18 learner to the guardian in the Android build, with no price on screen', async () => {
-    const user = userEvent.setup()
+  it('states what finishing the paper costs, and lists Weekly and Monthly, straight away', () => {
     renderResults()
-    const cta = screen.getByRole('button', { name: /ask your guardian to unlock/i })
-    expect(cta.hasAttribute('disabled')).toBe(false)
-    expect(window.getComputedStyle(cta).pointerEvents).not.toBe('none')
-    // No figure anywhere on the results screen for a child.
-    expect(screen.getByText(/40 more questions/i).closest('section').textContent)
-      .not.toMatch(/K\s?\d/)
-
-    await user.click(cta)
-    expect(requestUnlock).toHaveBeenCalledWith('PAPER_CONTINUE', expect.objectContaining({
-      paperId: 'p1', remaining: 40,
-    }))
-    expect(capture).toHaveBeenCalledWith('paper_continue_lock_tapped', {
-      paper_id: 'p1', remaining: 40, route: 'guardian',
-    })
+    const lock = screen.getByText(/40 more questions/i).closest('section')
+    expect(lock.textContent).toMatch(/to continue and finish this paper you need to pay K15 for a week or K50 for a month/i)
+    expect(screen.getByRole('button', { name: /weekly/i })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /monthly/i })).toBeTruthy()
+    // Day, Term and Exam are not offered.
+    expect(lock.textContent).not.toMatch(/K120|K99|K5\b/)
   })
 
-  it('quotes the cheapest rung to an under-18 learner on the web — a parent pays', async () => {
+  it('opens the checkout on the plan that was tapped — a parent pays on the web', async () => {
     const user = userEvent.setup()
     webMinor.current = true
     renderResults()
-    const cta = screen.getByRole('button', { name: /unlock — from K15/i })
-    await user.click(cta)
+    await user.click(screen.getByRole('button', { name: /monthly/i }))
+    expect(requestUnlock).toHaveBeenCalledWith('PAPER_CONTINUE', expect.objectContaining({
+      paperId: 'p1', remaining: 40, planId: 'monthly',
+    }))
     expect(capture).toHaveBeenCalledWith('paper_continue_lock_tapped', {
-      paper_id: 'p1', remaining: 40, route: 'checkout',
+      paper_id: 'p1', remaining: 40, route: 'checkout', plan: 'month',
     })
   })
 
-  it('quotes the cheapest rung to an adult instead', () => {
+  it('treats an adult the same way', async () => {
+    const user = userEvent.setup()
     mockProfile.current = { role: 'learner', isMinor: false }
     renderResults()
-    expect(screen.getByRole('button', { name: /unlock — from K15/i })).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: /weekly/i }))
+    expect(requestUnlock).toHaveBeenCalledWith('PAPER_CONTINUE', expect.objectContaining({ planId: 'weekly' }))
+  })
+
+  it('prints no Kwacha figure inside the Android build — Google Play owns the price', () => {
+    nativeBuild.current = true
+    renderResults()
+    const lock = screen.getByText(/40 more questions/i).closest('section')
+    expect(lock.textContent).not.toMatch(/K\s?\d/)
+    expect(lock.textContent).toMatch(/choose a plan/i)
+    expect(screen.getByRole('button', { name: /weekly/i })).toBeTruthy()
   })
 
   it('"Not now" keeps the learner on the results screen with the review intact', async () => {

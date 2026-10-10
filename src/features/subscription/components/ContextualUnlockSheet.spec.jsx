@@ -126,6 +126,28 @@ describe('the sheet for an under-18 learner on the web', () => {
     expect(await screen.findByTestId('checkout')).toBeTruthy()
   })
 
+  it('mounts the checkout outside the sheet panel, so a transformed ancestor cannot clip it', async () => {
+    mockProfile.current = { role: 'learner', isMinor: true }
+    const user = userEvent.setup()
+    openCheckoutSheet()
+    await user.click(screen.getByRole('button', { name: /pay with a parent.s number/i }))
+    const checkout = await screen.findByTestId('checkout')
+    // `.animate-scale-in` keeps a transform on the panel, which turns it into the
+    // containing block for `position: fixed` — inside it the checkout showed as a
+    // thin clipped strip.
+    expect(checkout.closest('.animate-scale-in')).toBeNull()
+  })
+
+  it('goes straight to the checkout when the caller names the plan', async () => {
+    mockProfile.current = { role: 'learner', isMinor: false }
+    settleBudget()
+    render(<UnlockSheetHost />)
+    act(() => {
+      unlockSheet.open({ gate: 'PAPER_CONTINUE', route: 'checkout', context: { planId: 'weekly' } })
+    })
+    expect(await screen.findByTestId('checkout')).toBeTruthy()
+  })
+
   it('does not tell an adult to ask a parent', () => {
     mockProfile.current = { role: 'learner', isMinor: false }
     const dialog = openCheckoutSheet()
