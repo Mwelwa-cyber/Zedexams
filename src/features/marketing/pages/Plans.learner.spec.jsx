@@ -79,13 +79,12 @@ describe('/pricing — learner plans', () => {
 
   it('hands a signed-in ADULT learner to /my-subscription, never to an inline price modal', async () => {
     // `isMinor: false` is load-bearing, not decoration. The page now gates on
-    // resolveAgeBand, which fails closed — a signed-in learner with no stated
-    // age is treated as a minor and shown the guardian notice instead of any
-    // price. Only an adult learner reaches this CTA at all.
+    // resolveAgeBand. The guardian notice is gone; this case is kept for the
+    // adult learner, whose chosen rung (Monthly here) travels to the checkout.
     mockAuth = { currentUser: { uid: 'u1' }, isTeacher: false, userProfile: { role: 'learner', isMinor: false } }
     renderPage()
     await userEvent.click(within(learnerSection()).getByRole('button', { name: /Get Monthly/i }))
-    expect(navigate).toHaveBeenCalledWith('/my-subscription')
+    expect(navigate).toHaveBeenCalledWith('/my-subscription', { state: { planId: 'monthly' } })
     expect(screen.queryByText(/Unlock Premium Learning/i)).not.toBeInTheDocument()
   })
 

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useSubscriptionReminder } from '../../../hooks/useSubscriptionReminder'
 import { upgradePortal, SUB_STATUS } from '../../../engines/payment-engine/subscriptionStatus'
@@ -54,7 +54,10 @@ export default function MySubscriptionPage({ inShell = false }) {
   const {
     status, audience, isPro, isTrial, planType, planLabel, benefits, expiry, daysLeft,
   } = useSubscriptionReminder()
-  const [showUpgrade, setShowUpgrade] = useState(false)
+  // A plan chosen on /pricing travels in the navigation state and opens the
+  // checkout on that plan, rather than on the default one.
+  const routeState = useLocation().state
+  const [showUpgrade, setShowUpgrade] = useState(Boolean(routeState?.planId))
   const [showMaxUpgrade, setShowMaxUpgrade] = useState(false)
 
   const meta = STATUS_META[status] || STATUS_META[SUB_STATUS.FREE]
@@ -67,6 +70,7 @@ export default function MySubscriptionPage({ inShell = false }) {
   const displayEmoji = isPro && planType === 'max' ? '🦅' : meta.emoji
   const expiryLabel = formatDate(expiry)
   const portal = upgradePortal(audience)
+  const chosenPlanId = portal.planIds?.includes(routeState?.planId) ? routeState.planId : null
 
   // A teacher on Pro can step up to Max for unlimited generations + bulk export.
   // (Max users and learners — whose tiers don't ladder this way — never see it.)
@@ -259,9 +263,10 @@ export default function MySubscriptionPage({ inShell = false }) {
         <UpgradeModal
           portal={portal.portal}
           planIds={portal.planIds}
-          defaultPlanId={userProfile?.subscriptionPlan && userProfile.subscriptionPlan !== 'free'
-            ? userProfile.subscriptionPlan
-            : portal.defaultPlanId}
+          defaultPlanId={chosenPlanId
+            || (userProfile?.subscriptionPlan && userProfile.subscriptionPlan !== 'free'
+              ? userProfile.subscriptionPlan
+              : portal.defaultPlanId)}
           onClose={() => setShowUpgrade(false)}
         />
       )}

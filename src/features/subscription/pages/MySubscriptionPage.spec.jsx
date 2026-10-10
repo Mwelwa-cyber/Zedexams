@@ -13,7 +13,11 @@ import { render, screen } from '@testing-library/react'
 
 vi.mock('../../../hooks/useSubscriptionReminder', () => ({ useSubscriptionReminder: vi.fn() }))
 vi.mock('../../../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
-vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }))
+let mockRouteState = null
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => vi.fn(),
+  useLocation: () => ({ state: mockRouteState }),
+}))
 vi.mock('../../../shared/components/SeoHelmet', () => ({ default: () => null }))
 vi.mock('../components/UpgradeModal', () => ({ default: () => null }))
 vi.mock('../../../utils/runtime', () => ({ isNativePlatform: vi.fn(() => false) }))
