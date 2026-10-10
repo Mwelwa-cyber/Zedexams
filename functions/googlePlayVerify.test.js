@@ -527,7 +527,16 @@ function reset() {
 
 
   // ── Consent gate (a guardian-denied account must not be granted) ─────
-  const {HttpsError} = require("firebase-functions/v2/https");
+  // A stand-in with HttpsError's shape (code + details). The real class lives
+  // in functions/node_modules, which the root-install coverage job doesn't
+  // have, and the code under test reads only `.code` and `.details.reason`.
+  class HttpsError extends Error {
+    constructor(code, message, details) {
+      super(message);
+      this.code = code;
+      this.details = details;
+    }
+  }
   const gated = (assertMayPurchase, extra = {}) => verifyAndApplyPurchase({
     uid: "u1", purchaseToken: TOKEN, db, nowMs: NOW, assertMayPurchase,
     activate: async (args) => {
