@@ -36,7 +36,8 @@
 
 import { useEffect } from 'react'
 import { formatResetDate, useEntitlements, useUnlockFlow } from '../../../services/entitlements'
-import { cheapestPlan, formatKwacha } from '../../../config/plans'
+import { availablePlans, formatKwacha } from '../../../config/plans'
+import { isNativePlatform } from '../../../utils/runtime'
 import { capture } from '../../../utils/analytics'
 
 /**
@@ -76,21 +77,36 @@ export default function PaperContinueLock({
     return null
   }
 
-  const cheapest = showsPrice ? cheapestPlan() : null
+  // The plans are laid out on the results page itself, so the learner sees
+  // what finishing the paper costs the moment the free set ends. Inside the
+  // Android build the price belongs to Google Play's sheet, so the cards name
+  // the plan and the period and print no Kwacha figure.
+  const native = isNativePlatform()
+  const plans = showsPrice ? availablePlans() : []
 
-  function handleUnlock() {
+  function handleUnlock(plan) {
     capture('paper_continue_lock_tapped', {
       paper_id: paperId,
       remaining,
       route,
+      plan: plan?.id || null,
     })
     requestUnlock('PAPER_CONTINUE', {
       screen: 'free-set-results',
       paperId,
       remaining,
       paperYear,
+      // Opens the checkout on this plan directly; without one the sheet
+      // shows the ladder.
+      ...(plan ? { planId: plan.checkoutPlanId } : {}),
     })
   }
+
+  const priceLine = plans.length > 0 && !native
+    ? `To continue and finish this paper you need to pay ${plans
+      .map((p) => `${formatKwacha(p.price)} for ${p.period === '/week' ? 'a week' : p.period === '/month' ? 'a month' : p.period}`)
+      .join(' or ')}.`
+    : 'To continue and finish this paper, choose a plan.'
 
   return (
     <section className="mt-4 rounded-radius-md border-2 border-dashed border-indigo-200 theme-card p-4 text-left dark:border-indigo-400/30">
@@ -110,19 +126,47 @@ export default function PaperContinueLock({
         </span>
       </div>
 
-      <p className="text-[12px] leading-relaxed theme-text-muted">
+      <p className="text-[13px] font-bold leading-snug theme-text">{priceLine}</p>
+      <p className="mt-1 text-[12px] leading-relaxed theme-text-muted">
         Finish the whole {paperYear} paper and get it marked like the real exam.
       </p>
 
-      <button
-        type="button"
-        onClick={handleUnlock}
-        className="mt-3 w-full rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2.5 text-sm font-black text-white transition-transform hover:scale-[1.01] active:scale-95"
-      >
-        {showsPrice
-          ? `Unlock — from ${formatKwacha(cheapest?.price)}`
-          : 'Ask your guardian to unlock'}
-      </button>
+      {plans.length > 0 ? (
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {plans.map((plan) => (
+            <button
+              key={plan.id}
+              type="button"
+              onClick={() => handleUnlock(plan)}
+              className={`rounded-xl border-2 px-2 py-2.5 text-center shadow-none ${
+                plan.highlight
+                  ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/15'
+                  : 'theme-border theme-card'
+              }`}
+            >
+              <span className="block text-[10px] font-black uppercase tracking-wider theme-text-muted">
+                {plan.label}
+              </span>
+              {!native && (
+                <span className="block font-display text-lg font-black theme-text">
+                  {formatKwacha(plan.price)}
+                </span>
+              )}
+              <span className="block text-[10px] theme-text-muted">
+                {native ? plan.blurb || plan.period : plan.period}
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => handleUnlock(null)}
+          className="mt-3 w-full rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2.5 text-sm font-black text-white"
+        >
+          See plans
+        </button>
+      )}
 
       {onDismiss && (
         <button

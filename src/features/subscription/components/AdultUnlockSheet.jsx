@@ -20,6 +20,7 @@
  */
 
 import { lazy, Suspense, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Icon from '../../../shared/components/Icon'
 import { X } from '../../../shared/components/icons'
 import {
@@ -41,10 +42,16 @@ export default function AdultUnlockSheet({ gate, context = {}, onClose }) {
   const { userProfile } = useAuth()
   const guardianPays = isGuardianPayer(userProfile)
   const plans = availablePlans()
+  // A caller that already knows the plan (the inline cards on a paper's results
+  // screen) passes its checkout id and lands straight in the checkout.
+  const requested = context?.planId
+    ? plans.find((p) => p.checkoutPlanId === context.planId || p.id === context.planId)
+    : null
   const [selectedId, setSelectedId] = useState(
-    plans.some((p) => p.id === DEFAULT_HIGHLIGHT_PLAN_ID) ? DEFAULT_HIGHLIGHT_PLAN_ID : plans[0]?.id,
+    requested?.id
+      || (plans.some((p) => p.id === DEFAULT_HIGHLIGHT_PLAN_ID) ? DEFAULT_HIGHLIGHT_PLAN_ID : plans[0]?.id),
   )
-  const [checkingOut, setCheckingOut] = useState(false)
+  const [checkingOut, setCheckingOut] = useState(Boolean(requested))
 
   const selected = getPlan(selectedId)
   // On Android the purchase must go through Google Play Billing, which owns
@@ -59,15 +66,23 @@ export default function AdultUnlockSheet({ gate, context = {}, onClose }) {
   }
 
   if (checkingOut && selected) {
-    return (
-      <Suspense fallback={null}>
-        <UpgradeModal
-          portal="learner"
-          planIds={plans.map((p) => p.checkoutPlanId)}
-          defaultPlanId={selected.checkoutPlanId}
-          onClose={() => { setCheckingOut(false); onClose?.() }}
-        />
-      </Suspense>
+    // Rendered through a portal, above the sheet's own overlay. This sheet's
+    // panel carries `animate-scale-in`, whose `both` fill keeps a transform on
+    // it, and a transformed ancestor becomes the containing block for
+    // `position: fixed` — so the checkout, mounted inside it, was confined to
+    // the sheet's (empty) box and showed as a thin clipped strip.
+    return createPortal(
+      <div className="relative z-[9999]">
+        <Suspense fallback={null}>
+          <UpgradeModal
+            portal="learner"
+            planIds={plans.map((p) => p.checkoutPlanId)}
+            defaultPlanId={selected.checkoutPlanId}
+            onClose={() => { setCheckingOut(false); onClose?.() }}
+          />
+        </Suspense>
+      </div>,
+      document.body,
     )
   }
 

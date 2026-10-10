@@ -1307,8 +1307,12 @@ Two rules override everything else in this area:
   the rule changes them too.
 - **The in-paper free set never walls the learner.** `PublicQuizRunner` ends the
   RUN at the free-set boundary and goes to the results screen; the offer is an
-  inline `PaperContinueLock` below the free score, free review and free weak
-  topic. Answers are written to a local draft BEFORE the results render (the
+  inline `PaperContinueLock` that leads the results body (2026-10: directly under the
+  score, not below a 30-row review) and states what finishing costs — "you need to
+  pay K15 for a week or K50 for a month" — with Weekly and Monthly cards that open the
+  checkout on that plan (`context.planId`). Inside the Android build the cards name the
+  plan and print no Kwacha figure; Google Play's sheet owns the price. The free score,
+  free review and free weak topic stay reachable beneath it, never gated. Answers are written to a local draft BEFORE the results render (the
   route's zero-Firestore-write property is unchanged — see
   `features/papers/lib/paperAttemptDraft.js`). Papers declare
   `freeSet: { toQuestion, sectionId }` landing on a section boundary.
