@@ -375,9 +375,17 @@ export default function Plans() {
    * Play's purchase sheet. Anonymous visitors register first, which is where an
    * age is captured at all.
    */
-  function handleLearnerCta() {
-    navigate(currentUser ? '/my-subscription' : '/register?intent=upgrade&tier=learner')
+  function handleLearnerCta(rung) {
+    // Carry the chosen rung so the checkout opens on it, not on the default.
+    const planId = rung?.ladderId ? getPlan(rung.ladderId)?.checkoutPlanId : null
+    if (currentUser) navigate('/my-subscription', planId ? { state: { planId } } : undefined)
+    else navigate('/register?intent=upgrade&tier=learner')
   }
+
+  // A signed-in learner is not shopping for the teacher tiers, and the server
+  // applies a teacher plan to whoever buys it, so those cards are not offered
+  // to them. Signed-out visitors, teachers and admins still see them.
+  const showTeacherPlans = !currentUser || isTeacher
 
   const upgradePlanIds = showUpgrade
     ? [`${showUpgrade}_monthly`, `${showUpgrade}_yearly`]
@@ -466,20 +474,22 @@ export default function Plans() {
         </Section>
 
         {/* Plan cards */}
-        <Section className="pb-16 sm:pb-20">
-          <div className="grid gap-5 md:grid-cols-3 items-start">
-            {PLANS.map((plan) => (
-              <PlanCard
-                key={plan.key}
-                plan={plan}
-                billing={billing}
-                popular={plan.popular}
-                onCta={ctaFor(plan.key)}
-                native={native}
-              />
-            ))}
-          </div>
-        </Section>
+        {showTeacherPlans && (
+          <Section className="pb-16 sm:pb-20">
+            <div className="grid gap-5 md:grid-cols-3 items-start">
+              {PLANS.map((plan) => (
+                <PlanCard
+                  key={plan.key}
+                  plan={plan}
+                  billing={billing}
+                  popular={plan.popular}
+                  onCta={ctaFor(plan.key)}
+                  native={native}
+                />
+              ))}
+            </div>
+          </Section>
+        )}
 
         {/* Learner plans. /pricing was teacher-only, so a learner (or the
             parent paying for one) who landed here found three teacher tiers
@@ -499,7 +509,7 @@ export default function Plans() {
               <LearnerPlanCard
                 key={rung.ladderId}
                 rung={rung}
-                onCta={handleLearnerCta}
+                onCta={() => handleLearnerCta(rung)}
                 native={native}
               />
             ))}

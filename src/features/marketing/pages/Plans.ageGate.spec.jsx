@@ -78,7 +78,7 @@ describe('/pricing — inside the Android build every learner sees the same page
     mockAuth = { currentUser: signedIn, isTeacher: false, userProfile: { role: 'learner', isMinor: true } }
     renderPage()
     screen.getByRole('button', { name: /Get Weekly/i }).click()
-    expect(navigate).toHaveBeenCalledWith('/my-subscription')
+    expect(navigate).toHaveBeenCalledWith('/my-subscription', { state: { planId: 'weekly' } })
   })
 
   it('still describes what Premium gives', () => {
@@ -108,7 +108,7 @@ describe('/pricing — on the web an under-18 learner sees the plans, because a 
     mockAuth = { currentUser: signedIn, isTeacher: false, userProfile: { role: 'learner', isMinor: true } }
     renderPage()
     screen.getByRole('button', { name: /Get Weekly/i }).click()
-    expect(navigate).toHaveBeenCalledWith('/my-subscription')
+    expect(navigate).toHaveBeenCalledWith('/my-subscription', { state: { planId: 'weekly' } })
   })
 })
 
@@ -142,5 +142,35 @@ describe('/pricing — everyone else still sees prices', () => {
     expect(screen.getByRole('button', { name: /Get Weekly/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Go Pro/i })).toBeInTheDocument()
     expect(kwachaOnPage().length).toBeGreaterThan(0)
+  })
+})
+
+describe('/pricing — a signed-in learner is never offered the teacher tiers', () => {
+  it('hides Go Pro / Go Max from a learner, in the Android build and on the web', () => {
+    for (const native of [true, false]) {
+      mockNative = native
+      mockAuth = { currentUser: signedIn, isTeacher: false, userProfile: { role: 'learner', isMinor: true } }
+      const { unmount } = renderPage()
+      expect(screen.queryByRole('button', { name: /Go Pro/i })).toBeNull()
+      expect(screen.queryByRole('button', { name: /Go Max/i })).toBeNull()
+      unmount()
+    }
+  })
+
+  it('still shows them to a teacher and to a signed-out visitor', () => {
+    mockAuth = { currentUser: signedIn, isTeacher: true, userProfile: { role: 'teacher' } }
+    const { unmount } = renderPage()
+    expect(screen.getByRole('button', { name: /Go Pro/i })).toBeInTheDocument()
+    unmount()
+    mockAuth = { currentUser: null, isTeacher: false, userProfile: null }
+    renderPage()
+    expect(screen.getByRole('button', { name: /Go Pro/i })).toBeInTheDocument()
+  })
+
+  it('carries the chosen rung: Monthly goes to the checkout as monthly, not the default', () => {
+    mockAuth = { currentUser: signedIn, isTeacher: false, userProfile: { role: 'learner', isMinor: false } }
+    renderPage()
+    screen.getByRole('button', { name: /Get Monthly/i }).click()
+    expect(navigate).toHaveBeenCalledWith('/my-subscription', { state: { planId: 'monthly' } })
   })
 })
