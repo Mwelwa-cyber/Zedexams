@@ -6239,23 +6239,12 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "Knowledge",
-            "Skills": "Skills",
-            "Values": "Values"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
             "TOPIC": "10.1 CONSTITUTION",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "10.1.1 Describe types of constitution 10.1.2 Explain the main parts of the Zambian constitution. 10.1.3 Describe the process of constitution making and adoption. 10.1.4 Discuss the characteristics of a good constitution. 10.1.5 Explain the importance of a constitution to a nation.",
-            "CONTENT": "• Types of constitutions:Written and Unwritten (Flexible and Rigid Constitutions) • Parts of the Zambian constitution: Citizenship, Executive, judicature, House of Chiefs etc • Constitution making process and adoption: Review Commissions, National debate, Constituent Assembly, Parliament, Referendum, Constitutional Conference. • Characteristics of a good constitution: Clear, Stand taste of time, protects rights of citizens etc. • Importance of a",
+            "SUB-TOPIC": "10.1.1 The Zambian constitution",
+            "SPECIFIC OUTCOMES": "10.1.1.1 Describe types of constitution",
+            "CONTENT": "• Types of constitutions: Written and Unwritten (Flexible and Rigid Constitutions)",
             "Skills": "• Classification of different types of constitution • Participation in constitution making process and adoption • Analysis of a good constitution",
-            "Values": "• Appreciation of a good constitution"
+            "Values": "• Appreciation of a good constitution • Respect for rule of Law"
           }
         },
         {
@@ -6263,30 +6252,63 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "Knowledge",
-            "Skills": "Skills",
-            "Values": "Values"
+            "SPECIFIC OUTCOMES": "10.1.1.2 Explain the main parts of the Zambian constitution.",
+            "CONTENT": "• Parts of the Zambian constitution: Citizenship, Executive, judicature, House of Chiefs etc",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.1.1.3 Describe the process of constitution making and adoption.",
+            "CONTENT": "• Constitution making process and adoption: Review Commissions, National debate, Constituent Assembly, Parliament, Referendum, Constitutional Conference.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.1.1.4 Discuss the characteristics of a good constitution.",
+            "CONTENT": "• Characteristics of a good constitution: Clear, Stand taste of time, protects rights of citizens etc.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.1.1.5 Explain the importance of a constitution to a nation.",
+            "CONTENT": "• Importance of a constitution: Enhances democratic governance, promotes protection of rule of law e.t.c",
+            "Skills": "",
+            "Values": ""
           }
         },
         {
           "type": "data",
           "cells": {
             "TOPIC": "10.2 GOVERNANCE SYSTEM IN ZAMBIA",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "10.2.1 Explain governance 10.2.2 Discuss the characteristics of good and bad governance. 10.2.3 Analyse different Electoral systems. 10.2.4 Explain Zambia’s Electoral system",
-            "CONTENT": "• Governance: Ruling with or without consent. • Good governance: Respect for human rights, political tolerance, regular free and fair elections etc • Bad governance: lack of separation of powers, violation of human rights, arbitrary arrests, corrupt leadership • Electoral systems: Single Member Plurality System (SMPS) or First Past The Post (FPTP), Single Member Majoritarian System (SMMS) or Fifty plus One, • Proportional Representation System (PRS), and Mixed Member Proportionality System (MMPS) • Election characteristics in good governance: Periodic, competitive, inclusive and decisive • Zambia’s Electoral System: Single Member Plurality System (1996 Constitution) • Electoral process: Legislation, delimitation, registration of voters, verification of voters roll etc • Electoral Code of Conduct(2006) • Types of elections: - Primary, Tripartite (General) and By- elections.",
-            "Skills": "• Differentiation between good and bad governance • Analysis of different types of lections • Identification of Zambia’s electoral system.",
-            "Values": "•"
+            "SUB-TOPIC": "10.2.1 GOVERNANCE SYSTEM IN ZAMBIA",
+            "SPECIFIC OUTCOMES": "10.2.1.1 Explain governance",
+            "CONTENT": "• Governance: Ruling with or without consent.",
+            "Skills": "• Differentiation between good and bad governance • Analysis of different types of electoral systems • Identification of Zambia’s electoral system. • Participation in the electoral process",
+            "Values": "• Appreciation of good governance • Respect for rule of Law"
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "10.2.5 Describe the Local Government system in Zambia 10.2.6 Discuss the role of traditional leaders in governance",
-            "SUB-TOPIC": "• Local Governance before and after 1964 • Decentralisation Acts of1980 and1991 • Functions of Local Councils • The House of Chiefs • Resolving civil disputes. • Allocating plots under customary law. • Participating in Development Projects in their area.",
-            "SPECIFIC OUTCOMES": "• Participation in Electoral activities.",
-            "CONTENT": "",
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.2.1.2 Discuss the characteristics of good and bad governance.",
+            "CONTENT": "• Good governance: Respect for human rights, political tolerance, regular free and fair elections etc. • Bad governance: lack of separation of powers, violation of human rights, arbitrary arrests, corrupt leadership",
             "Skills": "",
             "Values": ""
           }
@@ -6296,21 +6318,54 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "Knowledge",
-            "Skills": "Skills",
-            "Values": "Values"
+            "SPECIFIC OUTCOMES": "10.2.1.3 Analyse different Electoral systems.",
+            "CONTENT": "• Electoral systems: Single Member Plurality System (SMPS) or First Past The Post (FPTP), Single Member Majoritarian System (SMMS) or Fifty plus One, • Proportional Representation System (PRS), and Mixed Member Proportionality System (MMPS) • Election characteristics in good governance: Periodic, competitive, inclusive and decisive",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.2.1.4 Explain Zambia’s Electoral system",
+            "CONTENT": "• Zambia’s Electoral System: Single Member Plurality System (1996 Constitution) • Electoral process: Legislation, delimitation, registration of voters, verification of voters roll etc. • Electoral Code of Conduct(2006) • Types of elections: - Primary, Tripartite (General) and By-elections.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "10.2.2 Local Government",
+            "SPECIFIC OUTCOMES": "10.2.2.1 Describe the Local Government system in Zambia",
+            "CONTENT": "• Local Governance before and after 1964 • Decentralisation Acts of1980 and1991 • Functions of Local Councils: Collecting levy’s, street lighting, garbage collection etc. • The House of Chiefs",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.2.2.2 Discuss the role of traditional leaders in governance",
+            "CONTENT": "• Resolving civil disputes. • Allocating plots under customary law. • Participating in Development Projects in their area.",
+            "Skills": "",
+            "Values": ""
           }
         },
         {
           "type": "data",
           "cells": {
             "TOPIC": "10.3 CITIZENSHIP",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "10.3.1 Explain citizenship. 10.3.2 State qualifications of a Zambian citizen 10.3.3 Describe qualities of a good citizen. 10.3.4 Identify factors that hinder good citizenship 10.3.5 Explain the rights and freedoms of a citizen . 10.3.6 Explain duties and responsibilities of a citizen. 10.3.7 Identify groups of people and citizens with special needs",
-            "CONTENT": "• Citizenship: A member of the community who enjoys all rights and privileges provided by a state. • Legal and moral aspects of citizenship, natural and naturalised citizenship • Qualifications: Part Two of the 1996 Amended Constitution, Articles 4, 5 and 6 • Qualities: Patriotism, respect for law, self- control, honest • Obstacles to good citizenship: Poverty, corruption, theft, selfishness, etc • Rights and freedoms of a citizen: Natural, moral and legal rights Personal: supporting ones family • Civic: Paying taxes • People with special needs: Refugees, aged, persons with disabilities, children and youth.",
-            "Skills": "• Identification of types of citizenship. • Classification of rights and freedoms of a citizen. •",
-            "Values": "• Patriotism • Responsibility • Selflessness • Empathy • Appreciation • Awareness • Integrity • Honesty"
+            "SUB-TOPIC": "10.3.1 Zambian Citizenship",
+            "SPECIFIC OUTCOMES": "10.3.1.1 Explain citizenship.",
+            "CONTENT": "• Citizenship: A member of the community who enjoys all rights and privileges provided by a state. • Legal and moral aspects of citizenship, natural and naturalised citizenship",
+            "Skills": "• Identification of types of citizenship.",
+            "Values": "• Respect for human rights • Promotion of hard work"
           }
         },
         {
@@ -6318,52 +6373,8 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "Knowledge",
-            "Skills": "Skills",
-            "Values": "Values"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "10.4 INTRODUCTION TO HUMAN RIGHTS",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "10.4.1 Describe Human Rights. 10.4.2 Discuss Characteristics of Human Rights 10.4.3 Explain categories of Human Rights 10.4.4 Identify ways in which human rights are violated 10.4.5 Discuss the significance of human rights",
-            "CONTENT": "• Human rights: Claims and freedoms of every human being. • The Charter of Mande (1222) • Universal Declaration of Human Rights (UDHR 1948) • Characteristics: Inherent, inalienable, universal, indivisible and inter- related • Categories: Civil and political rights, e.g., right to life Economic, social and cultural rights, e.g., right to food Collective rights, e.g., right to self-determination • Human rights violations: Child abuse, human trafficking, corruption, corporal punishment, gender based violence, forced marriages, arbitrary arrest • Significance of human rights: Focus on human dignity, peace and freedom respect for everyone’s life and taking up one’s responsibility.",
-            "Skills": "• Classification of human rights categories • Analysis of human rights violations",
-            "Values": "• Promotion of human rights • Respect for human rights"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "Knowledge",
-            "Skills": "Skills",
-            "Values": "Values"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "10.5 CORRUPTION",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "10.5.1 Describe corruption. 10.5.2 Discuss types of corruption 10.5.3 Explain causes of corruption. 10.5.4 Explain effects of corruption. 10.5.5 State institutions that fight against corruption in Zambia",
-            "CONTENT": "• Corruption: Bribery and abuse of authority of office • Types of corruption: Petty, grand and political (electoral) • Causes of corruption: Social, e.g., personal greedy and dishonesty weak moral values, uninspiring leadership, lack of information Economic e.g., insufficient resources and services, poor economic policies Political, e.g., vote buying • Effects of corruption: Widespread bitterness, increases crime, economic stagnation/distortion of standards, discourages investment, • . Anti-Corruption Commission (ACC),",
-            "Skills": "Classification of different types of corruption. Classification of different types of corruption. • Analysis of the causes and effects of corruption.",
-            "Values": "• Accountability of public resources • Transparency of Services in public office • Integrity in discharge of duties in public office"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "10.5.6 Identify the role of public officers, community and the youth in fighting corruption.",
-            "SUB-TOPIC": "Auditor-General’s office, Drug Enforcement Commission (money laundering unit), Zambia Police Service, media, Civil Society Organisations. • Public officers: adherence to set guidelines and regulations, reporting corruption, adherence to institutional and public service code of ethics, sensitisation. • Community: reports suspected cases of corruption, sensitisation, advocacy for stronger laws. • Youth: report cases, formation of Anti- corruption clubs, sensitisation, adherence to the rule of law. • Public interest disclosure (Whistle Blowers protection) Act No 4 of 2010",
-            "SPECIFIC OUTCOMES": "• Identification of the role of citizens in fighting corruption. • Institute blowing on corrupt activities",
-            "CONTENT": "",
+            "SPECIFIC OUTCOMES": "10.3.1.2 State qualifications of a Zambian citizen",
+            "CONTENT": "• Qualifications: Part Two of the 1996 Amended Constitution, Articles 4, 5 and 6",
             "Skills": "",
             "Values": ""
           }
@@ -6373,20 +6384,185 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "Knowledge",
-            "Skills": "Skills",
-            "Values": "Values"
+            "SPECIFIC OUTCOMES": "10.3.1.3 Describe qualities of a good citizen.",
+            "CONTENT": "• Qualities: Patriotism, respect for law, self-control, honest",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.3.1.4 Identify factors that hinder good citizenship",
+            "CONTENT": "• Obstacles to good citizenship: Poverty, corruption, theft, selfishness, etc.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.3.1.5 Explain the rights and freedoms of a citizen",
+            "CONTENT": "• Rights and freedoms of a citizen: Natural, moral and legal rights",
+            "Skills": "• Classification of rights and freedoms of a citizen",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.3.1.7 Explain duties and responsibilities of a citizen.",
+            "CONTENT": "• Personal: supporting ones family • Civic: Paying taxes",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.3.1.8 Identify groups of people and citizens with special needs",
+            "CONTENT": "• People with special needs: Refugees, aged, persons with disabilities, children and youth.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "10.4 INTRODUCTION TO HUMAN RIGHTS",
+            "SUB-TOPIC": "10.4.1 INTRODUCTION TO HUMAN RIGHTS",
+            "SPECIFIC OUTCOMES": "10.4.1.1 Describe Human Rights.",
+            "CONTENT": "• Human rights: Claims and freedoms of every human being. • The Charter of Mande (1222) • Universal Declaration of Human Rights (UDHR 1948)",
+            "Skills": "",
+            "Values": "• Promotion of human rights • Awareness of human rights • Respect for human rights"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.4.1.2 Discuss characteristics of Human Right",
+            "CONTENT": "• Characteristics: Inherent, inalienable, universal, indivisible and inter-related",
+            "Skills": "• Identification of human rights categories • Classification of human rights categories",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.4.1.3 Explain categories of Human Rights",
+            "CONTENT": "• Categories: Civil and political rights, e.g., right to life Economic, social and cultural rights, e.g., right to food Collective rights, e.g., right to self-determination",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.4.1.4 Identify ways in which human rights are violated",
+            "CONTENT": "• Human rights violations: Child abuse, human trafficking, corruption, corporal punishment, gender based violence, forced marriages, arbitrary arrest",
+            "Skills": "• Analysis of human rights violations",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.4.1.5 Discuss the significance of human rights",
+            "CONTENT": "• Significance of human rights: Focus on human dignity, peace and freedom respect for everyone’s life and taking up one’s responsibility.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "10.5 CORRUPTION",
+            "SUB-TOPIC": "10.5.1 CORRUPTION",
+            "SPECIFIC OUTCOMES": "10.5.1.1 Describe corruption.",
+            "CONTENT": "• Corruption: Bribery and abuse of authority of office",
+            "Skills": "• Classification of different types of corruption. • Classification of different types of corruption. • Analysis of the causes and effects of corruption.",
+            "Values": "• Accountability of public resources • Transparency of Services in public office • Integrity in discharge of duties in public office"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.5.1.2 Discuss types of corruption",
+            "CONTENT": "• Types of corruption: Petty, grand and political (electoral) corruption.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.5.1.3 Explain causes of corruption.",
+            "CONTENT": "• Causes of corruption: Social, e.g., personal greedy and dishonesty weak moral values, uninspiring leadership, lack of information Economic e.g., insufficient resources and services, poor economic policies Political, e.g., vote buying",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.5.1.4 Explain effects of corruption.",
+            "CONTENT": "• Effects of corruption: Widespread bitterness, increases crime, economic stagnation/distortion of standards, discourages investment etc.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.5.1.5 State institutions that fight against corruption in Zambia",
+            "CONTENT": "• Anti-Corruption Commission (ACC), Auditor-General’s office, Drug Enforcement Commission (money laundering unit), Zambia Police Service, media, Civil Society Organisations.",
+            "Skills": "• Identification of the role of citizens in fighting corruption. • Whistle blowing (reporting) on corrupt activities",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.5.1.6 Identify the role of public officers, community and the youth in fighting corruption.",
+            "CONTENT": "• Public officers: adherence to set guidelines and regulations, reporting corruption, adherence to institutional and public service code of ethics, sensitisation. • Community: reports suspected cases of corruption, sensitisation, advocacy for stronger laws. • Youth: report cases, formation of Anti-corruption clubs, sensitisation, adherence to the rule of law. • Public interest disclosure (Whistle Blowers protection) Act No 4 of 2010",
+            "Skills": "",
+            "Values": ""
           }
         },
         {
           "type": "data",
           "cells": {
             "TOPIC": "10.6 CULTURAL STUDIES",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "10.6.1 Describe Culture 10.6.2 Outline components of culture. 10.6.3 Explain characteristics of culture. 10.6.4 Discuss the importance of culture. 10.6.4 Explain types of culture. 10.6.5 Identify Zambia’s societal core values. 10.6.6 Discuss Zambia’s cultural practices.",
-            "CONTENT": "• Culture: People’s complete way of life such as values, beliefs and traditions. • Components: language, religion, technology, material etc • Characteristics: dynamic, learnt, shared , cumulative etc • Importance of culture: Article 27 of UDHR, cultural heritage, identity, economic development, shaping behaviour. • Types of culture: Folk, popular, ideal, real etc • Societal core values: Respect for elders, cooperation, hard work and obedience to authority • Cultural practices: Rights of passage,",
-            "Skills": "• Identification of components, characteristic and types of culture.",
+            "SUB-TOPIC": "10.6.1 Introduction to Cultural Studies",
+            "SPECIFIC OUTCOMES": "10.6.1.1 Describe Culture",
+            "CONTENT": "• Culture: People’s complete way of life such as values, beliefs and traditions.",
+            "Skills": "• Analysis of components, characteristic and types of culture • Identification of various cultural practices in Zambia.",
             "Values": "• Appreciation of Zambia’s culture"
           }
         },
@@ -6395,21 +6571,153 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "Knowledge",
-            "Skills": "Skills",
-            "Values": "Values"
+            "SPECIFIC OUTCOMES": "10.6.1.2 Outline components of culture.",
+            "CONTENT": "• Components: language, religion, technology, material etc.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.6.1.3 Explain characteristics of culture.",
+            "CONTENT": "• Characteristics: dynamic, learnt, shared , cumulative etc.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.6.1.4 Discuss the importance of culture.",
+            "CONTENT": "• Importance of culture: Article 27 of UDHR, cultural heritage, identity, economic development, shaping behaviour.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.6.1.5 Explain types of culture.",
+            "CONTENT": "• Types of culture: Folk, popular, ideal, real etc.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.6.1.6 Identify Zambia’s societal core values.",
+            "CONTENT": "• Societal core values: Respect for elders, cooperation, hard work and obedience to authority",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.6.1.7 Discuss Zambia’s cultural practices.",
+            "CONTENT": "• Cultural practices: Rights of passage, traditional ceremonies, traditional attires etc.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.6.1.8 Identify factors that affect the appreciation of cultural diversity in Zambia.",
+            "CONTENT": "• Obstacles to cultural diversity: Stereotyping, prejudice, enthnocentricism, cultural relativism.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.6.1.9 Describe global culture",
+            "CONTENT": "• Global culture: Sharing of cultures across countries. • Agents of global culture (cultural imperialism): technology, mixing of cultures, tourism, trade",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.6.1.10 Identify institutions that preserve cultural heritage in Zambia",
+            "CONTENT": "• Institutions of cultural heritage: C. Museums (map of Zambia), National Heritage Conservation Commission, National Arts Council, Ministry of Tourism and Art.",
+            "Skills": "",
+            "Values": ""
           }
         },
         {
           "type": "data",
           "cells": {
             "TOPIC": "10.7 SUBSTANCE ABUSE",
+            "SUB-TOPIC": "10.7.1 Drug and Substance Abuse",
+            "SPECIFIC OUTCOMES": "10.7.1.1 Describe types of substances often abused by people.",
+            "CONTENT": "• Taking something often the body does not need and for the wrong reasons. • Over the counter substances, controlled substances.",
+            "Skills": "• Classification of different types of substances often abused by people • Analysis of causes and effects of substance abuse.",
+            "Values": "• Awareness of dangerous types of substances • Promotion of integrity"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
             "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "10.7.1 Describe types of substances often abused by people. 10.7.2 Discuss substances and their effects. 10.7.2 Explain reasons for substance abuse.",
-            "CONTENT": "• Taking something often the body does not need and for the wrong reasons. • Over the counter substances, controlled substances. • Depressants, Stimulants, Hallucinogens, Narcotics (opiates), inhalants. • Effects of different substances such as: alcohol, tobacco, inhalants, cannabis,heroin and cocaine. • Peer pressure, curiosity, stress, ignorance etc. • Signs and symptoms of substance abuse • How to avoid substance abuse",
-            "Skills": "• Classification of different types of substances often abused by people",
-            "Values": "• Awareness of dangerous types of substances • promotion of integrity"
+            "SPECIFIC OUTCOMES": "10.7.1.2 Discuss substances and their effects.",
+            "CONTENT": "• Depressants, Stimulants, Hallucinogens, Narcotics (opiates), inhalants. • Effects of different substances such as: alcohol, tobacco, inhalants, cannabis, heroin and cocaine.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.7.1.3 Explain reasons for substance abuse.",
+            "CONTENT": "• Peer pressure, curiosity, stress, ignorance etc. • Signs and symptoms of substance abuse • How to avoid substance abuse • Dependence on substances.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.7.1.4 Discuss effects of substance abuse on individuals, community, national and international levels.",
+            "CONTENT": "• Diseases, crime, insanity, loss of productivity etc",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "10.7.1.5 Identify institutions involved in fighting substances abuse in Zambia.",
+            "CONTENT": "• Drug Enforcement Commission, Police Service, Pharmaceutical Regulatory Authority, etc.",
+            "Skills": "",
+            "Values": ""
           }
         }
       ]
@@ -6428,33 +6736,55 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "Knowledge",
-            "Skills": "Skills",
-            "Values": "Values"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
             "TOPIC": "11.1 THE ZAMBIAN BILL OF RIGHTS",
-            "SUB-TOPIC": "The Zambian Bill of Rights",
-            "SPECIFIC OUTCOMES": "12.1.1 Describe the Bill of Rights. 12.1.2 Elements of the Bill of Rights in the Zambian Constitution. 12.1.3 Describe ways of enforcing the Zambian Bill of Rights. 12.1.4 Discuss the role of the Institutions that promote Human Rights in Zambia.",
-            "CONTENT": "• Bill of Rights; Fundamental rights and freedoms covered in part III of the Zambian Constitution(1996) • Articles 11-32 of the Zambian Constitution(1996) • Enforcement: Courts, Judicial Review Commission, use of Human Rights Commission, Office of Investigator General. • Encourage, respect and promotion of Human Rights among other people.",
-            "Skills": "• Analysis of works of enforcing the birth of rights",
+            "SUB-TOPIC": "11.1.1 The Zambian Bill of Rights",
+            "SPECIFIC OUTCOMES": "11.1.1.1 Describe the Bill of Rights.",
+            "CONTENT": "• Bill of Rights; Fundamental rights and freedoms covered in part III of the Zambian Constitution(1996)",
+            "Skills": "• Identification of the elements of the Bill of Rights in the Zambian Constitution • Analysis of ways of enforcing the bill of rights",
             "Values": "• Respect for human rights"
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "11.2 Civil Society and Media in Governance",
-            "SUB-TOPIC": "Civil Society and governance",
-            "SPECIFIC OUTCOMES": "11.1.1 Describe Civil Society Organisations. 11.1.2 Classify Civil Society",
-            "CONTENT": "• Civil Society Organisations: Non- military and non- governmental organisations that promote good governance. • Classes of Civil Society: Civic organisations, faith-",
-            "Skills": "• Classification of Civil society organisations",
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.1.1.2 Identify Elements of the Bill of Rights in the Zambian Constitution.",
+            "CONTENT": "• Articles 11-32 of the Zambian Constitution(1996)",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.1.1.3 Describe ways of enforcing the Zambian Bill of Rights.",
+            "CONTENT": "• Enforcement: Courts, Judicial Review Commission, use of Human Rights Commission, Office of Investigator General.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.1.1.4 Discuss the role of the Institutions that promote Human Rights in Zambia.",
+            "CONTENT": "• Encourage, respect and promotion of Human Rights among other people.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "11.2 CIVIL SOCIETY AND MEDIA IN GOVERNANCE",
+            "SUB-TOPIC": "11.2.1 Civil Society and governance",
+            "SPECIFIC OUTCOMES": "11.2.1.1 Describe Civil Society Organisations.",
+            "CONTENT": "• Civil Society Organisations: Non-military and non-governmental organisations that promote good governance.",
+            "Skills": "• Classification of Civil society organisations • Lobbying and advocating for good governance",
             "Values": "Promotion of accountability and transparency in governance structures."
           }
         },
@@ -6462,20 +6792,9 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Organisations in Zambia 11.1.3 Analyse the roles of Civil Society in governance 11.1.4 Discuss forms of Citizen participation in governance",
-            "SPECIFIC OUTCOMES": "based organisations, industrial labour organisations, professional associations • Roles of Civil Society: Defending ideals of democracy, influencing public opinion, promoting transparency and accountability, advocating for effective laws • Citizen participation: Political, civil society and community activities • (Factors that hinder women participation in governance such as male dominance, poverty, cultural issues.)",
-            "CONTENT": "• Lobbying and advocating for good governance • Classification of different types of media. • Analysis of the role of the media in governance",
-            "Skills": "• Respect for media freedom",
-            "Values": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "Media and Governance",
-            "SUB-TOPIC": "11.1.5 Identify different types of media. 11.1.6 Explain the role of the media in governance 11.1.7 Analyze factors that limit media coverage",
-            "SPECIFIC OUTCOMES": "• Types of media: Print and electronic media (Private and public media) • Media role: Informing and educating, acting as a watchdog, promoting public debate, promoting transparency and accountability • (Conditions for the existence of an independent media.) • Media coverage limitation: Accessibility, Language, cost of advertising, inadequate facilities for the physically challenged",
-            "CONTENT": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.2.1.2 Classify Civil Society Organisations in Zambia",
+            "CONTENT": "• Classes of Civil Society: Civic Organisations, Faith-Based organisations, Industrial Labour Organisations, Professional Associations",
             "Skills": "",
             "Values": ""
           }
@@ -6485,20 +6804,86 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "Knowledge",
-            "Skills": "Skills",
-            "Values": "Values"
+            "SPECIFIC OUTCOMES": "11.2.1.3 Analyse the roles of Civil Society in governance",
+            "CONTENT": "• Roles of Civil Society: Defending ideals of democracy, influencing public opinion, promoting transparency and accountability, advocating for effective laws",
+            "Skills": "",
+            "Values": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "11.3 Economic and Social Development",
+            "TOPIC": "",
             "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "11.2.1 Explain economic and social development 11.2.2. Discuss basic human needs 11.2.3 Describe factors that affect production 11.2.4 Explain the importance of standards in economic and social development 11.2.5 Analyse the contributions of financial institutions to economic and social development. 11.2.6 State the role of the informal sector in national development 11.2.7 Explain the importance of positive work culture in economic and social development 11.2.8 Identify factors that hinder positive work culture",
-            "CONTENT": "• Economic and social development: Increase in productive capacity and improvement in standards of living • Basic human needs: Food, shelter and clothes • Factors:Land, labour and capital • Role of trade unions. • Enhanced trade leading to increased economic activities, incomes and high standard of living, enhanced public health and safety • Lending, money transfer services, insurance • Role of informal sector: Employment, production of goods and services • Importance of positive work culture: High productivity of goods and services • Obstacles to positive work culture: Corruption, poor conditions of service, poor leadership,",
+            "SPECIFIC OUTCOMES": "11.2.1.4 Discuss forms of Citizen participation in governance",
+            "CONTENT": "• Citizen participation: Political, civil society and community activities",
             "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.2.1.5 Discuss factors that hinder women participation in governance",
+            "CONTENT": "• Factors that hinder women participation in governance such as male dominance, poverty, cultural issues.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "11.2.2 Media and Governance",
+            "SPECIFIC OUTCOMES": "11.2.2.1 Identify different types of media.",
+            "CONTENT": "• Types of media: Print and electronic media (Private and public media)",
+            "Skills": "• Classification of different types of media. • Analysis of the role of the media in governance",
+            "Values": "• Respect for media freedom"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.2.2.2 Explain the role of the media in governance",
+            "CONTENT": "• Media role: Informing and educating, acting as a watchdog, promoting public debate, promoting transparency and accountability, etc • Conditions for the existence of an independent media.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.2.2.3 Analyse factors that limit media coverage",
+            "CONTENT": "• Media coverage limitation: Accessibility, Language, cost of advertising, inadequate facilities for the physically challenged persons.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.2.2.4 Identify factors that hinder the media from disseminating correct information",
+            "CONTENT": "• Corruption, political pressure, intimidation, non-adherence to standards and ethics, censorhip.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "11.3 ECONOMIC AND SOCIAL DEVELOPMENT",
+            "SUB-TOPIC": "11.3.1 Economic and Social Development",
+            "SPECIFIC OUTCOMES": "11.3.1.1 Explain economic and social development",
+            "CONTENT": "• Economic and social development: Increase in productive capacity and improvement in standards of living",
+            "Skills": "• Analysis of factors that affect production.",
             "Values": "• Promotion of hard work"
           }
         },
@@ -6507,30 +6892,8 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "Knowledge",
-            "Skills": "Skills",
-            "Values": "Values"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "11.4 Zambia’s Legal system",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "11.4.1 Describe Law 11.4.1 Explain Legal system 11.4.2 Discuss elements of a good legal system, 11.4.3 Describe sources of Law in Zambia 11.4.3 Explain criminal and civil cases 11.4.4 Describe the trial stages in the Zambian Legal System",
-            "CONTENT": "• Law: Set of rules that regulate human behaviour in society. • Legal system: A set standard which a society develops for itself to control the behaviours of its members towards one another. • Elements of a good legal system: Simple, comprehensive, certain flexible, accessible etc. • Sources of law: English or common Law, Legislation such as Constitution and statutory instruments, customary law, case law and international treaties. • Criminal case: any wrongful act or omission that affects society as stipulated in the penal code. • Elements of a crime and types of a crime. • Civil case: any wrongful act that affects the individual or persons involved as stipulated in the customary laws. • Trial stages:Pre-trial, trial and post-trial stages.",
-            "Skills": "• Classification of Criminal and Civil cases • Analysis of sources of Law. • Identification of that stages.",
-            "Values": "• Respect for the Law"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "11.4.6 Discuss capital punishment 11.4.7 Explain factors that hinder the administration of justice 11.4.5 Identify Legal institutions and organisations that promote justice",
-            "SUB-TOPIC": "• Capital punishment: Death penalty • Arguments for and against death penalty • Obstacles to justice administration: Corruption, political influence, non adherence to ethics, incompetence, weak laws, lack of confidence in the judicial system, undue delays, Justice institutions: Ministry of Justice, Courts of Law, Legal Resource Foundation, Law Association of Zambia, Women in Law in Southern Africa, Police etc",
-            "SPECIFIC OUTCOMES": "• Analysis of the controversy of the death penalty",
-            "CONTENT": "",
+            "SPECIFIC OUTCOMES": "11.3.1.2 Discuss basic human needs",
+            "CONTENT": "• Basic human needs: Food, shelter and clothes",
             "Skills": "",
             "Values": ""
           }
@@ -6540,21 +6903,10 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "Knowledge",
-            "Skills": "Skills",
-            "Values": "Values"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "11.5 Gender Equity and Equality",
-            "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "11.5.1 Explain gender equity and gender equality. 11.5.2 Outline the Historical background to gender equity and equality. 11.5.3 Distinguish gender roles from sex roles.",
-            "CONTENT": "• Gender: state of being male or female. • Equity: is the process of treating males fairly in order to achieve their equal status. • Equality: refers to similar opportunities of development given to males and females without any set limitations. • Historical background: United Nations Declaration on Elimination of all Forums of Discrimination against women (1967). • Convention on Elimination of all Forms of Discrimination against Women (Cedaw). • Beijing Conference on gender (1995). • Gender in Development Division (1996). • National Gender Policy (2000) etc. • Ministry of Gender(2005) • Gender roles: tasks and responsibilities which are differently assigned by society for males and females. • Sex roles:tasks determined by biological differences between males and females.",
-            "Skills": "• Conflict resolution in the family",
-            "Values": "• Awareness of general equity and equality in society."
+            "SPECIFIC OUTCOMES": "11.3.1.3 Describe factors that affect production",
+            "CONTENT": "• Factors: Land, labour and capital • Role of Trade Unions.",
+            "Skills": "",
+            "Values": ""
           }
         },
         {
@@ -6562,20 +6914,251 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "Knowledge",
-            "Skills": "Skills",
-            "Values": "Values"
+            "SPECIFIC OUTCOMES": "11.3.1.4 Explain the importance of standards in economic and social development",
+            "CONTENT": "• Enhanced trade leading to increased economic activities, incomes and high standard of living, enhanced public health and safety",
+            "Skills": "",
+            "Values": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "11.6 Culture of Peace",
+            "TOPIC": "",
             "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "11.6.1 Explain culture of peace 11.6.2 Describe methods of promoting peace 11.6.3 Identify levels of conflict 11.6.4 Analyse causes of conflict 11.6.5 Discuss effects of conflict on society 11.6.6 Describe conflict resolution strategies 11.6.7 Discuss the role of United Nations in promoting peace.",
-            "CONTENT": "• Culture of peace: Absence of conflict and war • Peace promotion: Intermarriages, tolerance, justice, forgiveness, respect etc. • Conflict levels: Individual, community, national, international • Causes of conflict: Religion, imbalance of natural resources, poverty, injustice, etc. • Effects of conflict: Death, migrations, destruction of infrastructure, etc. • Conflict resolution strategies: Counselling, negotiation, mediation, arbitration, litigation • Role of United Nations: Peacekeeping, conflict management and resolution.",
-            "Skills": "• Mediation and negotiation between conflicting parties",
+            "SPECIFIC OUTCOMES": "11.3.1.5 Analyse the contributions of financial institutions to economic and social development.",
+            "CONTENT": "• Lending, money transfer services, insurance",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.3.1.6 State the role of the informal sector in national development",
+            "CONTENT": "• Role of informal sector: Employment, production of goods and services",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.3.1.7 Explain the importance of positive work culture in economic and social development",
+            "CONTENT": "• Importance of positive work culture: High productivity of goods and services",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.3.1.8 Identify factors that hinder positive work culture",
+            "CONTENT": "• Obstacles to positive work culture: Corruption, poor conditions of service, poor leadership,",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "11.4 ZAMBIA’S LEGAL SYSTEM",
+            "SUB-TOPIC": "11.4.1 Zambia Legal System",
+            "SPECIFIC OUTCOMES": "11.4.1.1 Describe Law",
+            "CONTENT": "• Law: Set of rules that regulate human behaviour in society.",
+            "Skills": "• Classification of Criminal and Civil cases • Analysis of sources of Law. • Identification of trial stages. • Analysis of the controversy of the death penalty",
+            "Values": "• Respect for the Law"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.4.1.2 Explain Legal system",
+            "CONTENT": "• Legal system: A set standard which a society develops for itself to control the behaviours of its members towards one another.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.4.1.3 Discuss elements of a good legal system,",
+            "CONTENT": "• Elements of a good legal system: Simple, comprehensive, certain flexible, accessible etc.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.4.1.4 Describe sources of Law in Zambia",
+            "CONTENT": "• Sources of law: English or common Law, Legislation such as Constitution and statutory instruments, customary law, case law and international treaties.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.4.1.5 Explain criminal and civil cases",
+            "CONTENT": "• Criminal case: any wrongful act or omission that affects society as stipulated in the penal code. • Elements of a crime and types of a crime. • Civil case: any wrongful act that affects the individual or persons involved as stipulated in the customary laws.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "11.4.2 Processes in the Zambian Legal System",
+            "SPECIFIC OUTCOMES": "11.4.1.6 Describe the trial stages in the Zambian Legal System",
+            "CONTENT": "• Trial stages: Pre-trial, trial and post-trial stages.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.4.1.7 Discuss capital punishment",
+            "CONTENT": "• Capital punishment: Death penalty • Arguments for and against death penalty",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.4.1.8 Explain factors that hinder the administration of justice",
+            "CONTENT": "• Obstacles to justice administration: Corruption, political influence, non adherence to ethics, incompetence, weak laws, lack of confidence in the judicial system, undue delays,",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.4.1.9 Identify Legal institutions and organisations that promote justice",
+            "CONTENT": "• Justice institutions: Ministry of Justice, Courts of Law, Legal Resource Foundation, Law Association of Zambia, Women in Law in Southern Africa, Police etc",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "11.5 GENDER EQUITY AND EQUALITY",
+            "SUB-TOPIC": "11.5.1 GENDER EQUITY AND EQUALITY",
+            "SPECIFIC OUTCOMES": "11.5.1.1 Explain gender equity and gender equality",
+            "CONTENT": "• Gender: state of being male or female. • Equity: is the process of treating males fairly in order to achieve their equal status. • Equality: refers to similar opportunities of development given to males and females without any set limitations.",
+            "Skills": "• Conflict resolution strategies • Assertiveness",
+            "Values": "• Awareness of gender equity and equality in society. • Promotion of justice in society"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.5.1.2 Outline the Historical background to gender equity and equality.",
+            "CONTENT": "• Historical background: United Nations Declaration on Elimination of all Forms of Discrimination Against Women-Cedaw (1967). • Convention on Elimination of all Forms of Discrimination Against Women (CEDAW). • Beijing Conference on gender (1995). • Gender in Development Division (1996). • National Gender Policy (2000). • Ministry of Gender(2005)",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.5.1.3 Distinguish gender roles from sex roles.",
+            "CONTENT": "• Gender roles: tasks and responsibilities which are differently assigned by society for males and females. • Sex roles: tasks determined by biological differences between males and females.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.5.1.4 Explain the social construction of gender.",
+            "CONTENT": "• Gender social construction: Socialisation process based on patriarchal beliefs. • Agents of socialisation • Family, school and church.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.5.1.5 Discuss Gender issues in traditional and modern society.",
+            "CONTENT": "• Gender Issues: Land allocation, decision making, customary laws and statutory",
+            "Skills": "• Analysis of causes and effects of Gender Based violence • Analysis of the intestate succession Act of 1989",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.5.1.6 Describe Gender based violence(GBV)",
+            "CONTENT": "• GBV: Violence (physical, Psychological and structural), Sexual harassment, Rape e.t.c.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.5.1.7 Analyse the Intestate Succession Act of 1989",
+            "CONTENT": "• Intestate succession Act: Act of Parliament No. 14 of 1989. • Terms guiding distribution of deceased person’s estates and personal chattels. • Government institutions: Ministry of Gender, Courts, Zambia Police,",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.5.1.8 Describe Government Institutions and Civil Society Organisations that promote gender equity and equality.",
+            "CONTENT": "• Civil Society Organisations: • Justice for Widows and Orphans Project (JWOP) Young Women Christian Association (YWCA) etc.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "11.6 CULTURE OF PEACE",
+            "SUB-TOPIC": "11.6.1 CULTURE OF PEACE",
+            "SPECIFIC OUTCOMES": "11.6.1.1 Explain culture of peace",
+            "CONTENT": "• Culture of peace: Absence of conflict and war",
+            "Skills": "• Mediation and negotiation between conflicting parties • Classification of various conflict resolution strategies",
             "Values": "• Promotion of tolerance and justice in society. • Awareness of conflict management strategies in society."
           }
         },
@@ -6584,21 +7167,164 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "Knowledge",
-            "Skills": "Skills",
-            "Values": "Values"
+            "SPECIFIC OUTCOMES": "11.6.1.2 Describe methods of promoting peace",
+            "CONTENT": "• Peace promotion: Intermarriages, tolerance, justice, forgiveness, respect etc.",
+            "Skills": "",
+            "Values": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "11.7 Child Abuse",
-            "SUB-TOPIC": "• Child abuse Sexual harassment Teenage pregnancies",
-            "SPECIFIC OUTCOMES": "11.6.1 Describe child abuse 11.6.2 Explain different forms of child abuse 11.6.3 Discuss ways of addressing child abuse 11.6.4 Describe sexual harassment 11.6.5 Discuss ways of protection against sexual harassment and rape. 11.6.6 Explain causes of teenage pregnancies 11.6.7 Explain the effects of teenage pregnancies. 11.6.8 Identify ways of preventing teenage pregnancies",
-            "CONTENT": "• Child Abuse: Ill-treatment of a child physically or mentally • Forms: Sexual abuse, sexual harassment, child defilement, child battering, child neglect, child trafficking, child prostitution and child labour • Addressing child Abuse: Legislation, stiff punishment on offenders, community sensitisation, etc. • Sexual harassment: touching or making sexual remarks against someone’s wishes • Sexual harassment protection: Making home secure, getting help from police, etc. • Causes of teenage pregnancy: Peer pressure, economic and cultural issues, lack of sex education, etc. • Effects of teenage pregnancy: Stigmatisation, child dumping, school dropping out, etc. • Preventing teenage pregnancy: Reversing negative cultural practices, counselling, peer",
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.6.1.3 Identify levels of conflict",
+            "CONTENT": "• Conflict levels: Individual, community, national, international",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.6.1.4 Analyse causes of conflict",
+            "CONTENT": "• Causes of conflict: Religion imbalance of natural resources, poverty, injustice, quest for money through drugs and human trafficking and mineral exploration",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.6.1.5 Discuss effects of conflict on society",
+            "CONTENT": "• Effects of conflict: Death, migrations, destruction of infrastructure, etc.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.6.1.6 Describe conflict resolution strategies",
+            "CONTENT": "• Conflict resolution strategies: Counselling, negotiation, mediation, arbitration, litigation",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.6.1.7 Discuss the role of United Nations in promoting peace.",
+            "CONTENT": "• Role of United Nations: Peacekeeping, conflict management and resolution.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "11.7 CHILD ABUSE",
+            "SUB-TOPIC": "11.7.1 Child Abuse",
+            "SPECIFIC OUTCOMES": "11.7.1.1 Describe child abuse",
+            "CONTENT": "• Child abuse: Ill-treatment of a child physically or mentally",
             "Skills": "• Classification of different types of child abuse. • Analysis of causes and effects of various types of child abuse.",
             "Values": "• Respect for children’s’ rights."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.7.1.2 Explain different forms of child abuse",
+            "CONTENT": "• Forms: Sexual abuse, sexual harassment, child defilement, child battering, child neglect, child trafficking, child prostitution and child labour",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.7.1.3 Discuss ways of addressing child abuse",
+            "CONTENT": "• Addressing child Abuse: Legislation, stiff punishment on offenders, community sensitisation, etc.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "11.7.2 Child Sexual Harassment",
+            "SPECIFIC OUTCOMES": "11.7.2.1 Describe sexual harassment",
+            "CONTENT": "• Sexual harassment: touching or making sexual remarks against someone’s wishes",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.7.2.2 Discuss ways of protection against sexual harassment and rape",
+            "CONTENT": "• Sexual harassment protection: Making home secure, getting help from police, etc.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "11.7.3 Teenage Pregnancies",
+            "SPECIFIC OUTCOMES": "11.7.3.1 Explain causes of teenage pregnancies",
+            "CONTENT": "• Causes of teenage pregnancy: Peer pressure, economic and cultural issues, lack of sex education, etc.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.7.3.2 Explain the effects of teenage pregnancies.",
+            "CONTENT": "• Effects of teenage pregnancy: Stigmatisation, child dumping, school dropping out, etc.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.7.3.3 Identify ways of preventing teenage pregnancies",
+            "CONTENT": "• Preventing teenage pregnancy: Reversing negative cultural practices, counselling, peer education,",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "11.7.3.4 Discuss institutions that address social challenges",
+            "CONTENT": "• Zambia police, Young Women Christian Association, judiciary (courts), etc.",
+            "Skills": "",
+            "Values": ""
           }
         }
       ]
@@ -6607,7 +7333,7 @@
       "title": "CIVIC EDUCATION SYLLABUS  —  GRADE 12",
       "columns": [
         "TOPIC",
-        "SUB- TOPIC",
+        "SUB-TOPIC",
         "SPECIFIC OUTCOMES",
         "CONTENT",
         "Skills",
@@ -6617,21 +7343,10 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
-            "SUB- TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "Knowledge",
-            "Skills": "Skills",
-            "Values": "Values"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "12.1. International Human Rights Instruments",
-            "SUB- TOPIC": "",
-            "SPECIFIC OUTCOMES": "11.3.1 Describe the International Bill of Rights(IBR) 11.3.2 Explain the Universal Declaration of Human Rights (UDHR)",
-            "CONTENT": "• International Bill of Rights: Universal Declaration of Human rights (UDHR), International Covenant on Civil and Political Rights (ICCPR), International Covenant on Economic, Social and Cultural Rights (ICESCR), Specialised Instruments • UDHR: Charter Based International Human Rights Instrument; contains 30 articles such as right to life.",
+            "TOPIC": "12.1 INTERNATIONAL HUMAN RIGHTS INSTRUMENTS",
+            "SUB-TOPIC": "12.1.1 INTERNATIONAL HUMAN RIGHTS INSTRUMENTS",
+            "SPECIFIC OUTCOMES": "12.1.1.1 Describe the International Bill of Rights(IBR)",
+            "CONTENT": "• International Bill of Rights: Universal Declaration of Human rights (UDHR), International Covenant on Civil and Political Rights (ICCPR), International Covenant on Economic, Social and Cultural Rights (ICESCR), Specialised Instruments",
             "Skills": "• Classification of various human rights instruments",
             "Values": "• Respect for human rights"
           }
@@ -6640,21 +7355,54 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB- TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "Knowledge",
-            "Skills": "Skills",
-            "Values": "Values"
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "12.1.1.2 Explain the Universal Declaration of Human Rights (UDHR)",
+            "CONTENT": "• UDHR: Charter Based International Human Rights Instrument; contains 30 articles such as right to life.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "12.1.1.3 Describe Treaty Based Human Rights Instruments",
+            "CONTENT": "• Treaty Based Human Rights Instruments: International Covenant on Civil and Political Rights (ICCPR), with two optional protocols and International Covenant on Economic, Social and Cultural Rights (ICESCR)",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "12.1.1.4 Discuss the Specialised Human Rights Instruments",
+            "CONTENT": "• Specialised Human Rights Instruments: United Nations Convention on the Rights of the Child (UNCRC), United Nations Convention Against Corruption (UNCAC), Convention on the Elimination of All Forms of Discrimination Against Women (CEDAW), etc.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "12.1.1.5 Explain provisions of the African Charter on Human and People’s Rights (ACHPR).",
+            "CONTENT": "• Individual rights such as rights to equality and integrity of persons. • Peoples rights such as right to self determination sovereignty over the environment and its resources. New Partnership for Africa’s Development (NEPAD), African Peer Review Mechanism (APRM)",
+            "Skills": "• Identification of individual and peoples rights in ACHPR.",
+            "Values": ""
           }
         },
         {
           "type": "data",
           "cells": {
             "TOPIC": "12.2 RIGHTS OF A CHILD",
-            "SUB- TOPIC": "",
-            "SPECIFIC OUTCOMES": "12.2.1 Describe Children’s Rights. 12.2.2 Describe the four principles of the United Nations Convention on the Rights of the Child (UNCRC). 12.2.3 Discuss the provision of the UNCRC and the two optional protocols.",
-            "CONTENT": "• Children’s Rights: Rights enjoyed by persons below the age of 18. • Principles: Non- Discrimination, the Best Interests of the Child, Survival and Development and Participation. • Provisions : Child Rights and Freedoms, Name and Nationality, preservation of identity freedom of thought, conscience and religion, Freedom of association etc.",
-            "Skills": "• Analysis of children’s rights",
+            "SUB-TOPIC": "12.2.1 Rights of a Child",
+            "SPECIFIC OUTCOMES": "12.2.1.1 Describe Children’s Rights.",
+            "CONTENT": "• Children’s Rights: Rights enjoyed by persons below the age of 18.",
+            "Skills": "• Analysis of children’s rights • Identification of principles of UNCRC",
             "Values": "• Respect for children’s rights"
           }
         },
@@ -6662,20 +7410,31 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB- TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "Knowledge",
-            "Skills": "Skills",
-            "Values": "Values"
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "12.2.1.2 Describe the four principles of the United Nations Convention on the Rights of the Child (UNCRC).",
+            "CONTENT": "• Principles: Non- Discrimination, the Best Interests of the Child, Survival and Development and Participation.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "12.2.1.3 Discuss the provision of the UNCRC and the two optional protocols.",
+            "CONTENT": "• Provisions: Child Rights and Freedoms, Name and Nationality, preservation of identity freedom of thought, conscience and religion, Freedom of association etc.",
+            "Skills": "",
+            "Values": ""
           }
         },
         {
           "type": "data",
           "cells": {
             "TOPIC": "12.3 FAMILY LAW",
-            "SUB- TOPIC": "",
-            "SPECIFIC OUTCOMES": "12.3.1 Describe family and marriage. 12.3.2 Explain the elements of Family Law. 12.3.3 Describe types of marriages in Zambia. 12.3.4 Assess the effects of separation, divorce and death on the family.",
-            "CONTENT": "• Family: Group of people related by blood or marriage. • Marriage: Legal union of man and woman as husband and wife • Elements of family law: Marriage, divorce, death, property settlement, adoption of children succession etc. • Types: Statutory and customary. • Effects Separation divorce and death effects: Impact on spouse children and extended family",
+            "SUB-TOPIC": "12.3.1 Family law",
+            "SPECIFIC OUTCOMES": "12.3.1.1 Describe family and marriage.",
+            "CONTENT": "• Family: Group of people related by blood or marriage. • Marriage: Legal union of man and woman as husband and wife",
             "Skills": "• Analysis of types of marriages • Classification of various elements of family law",
             "Values": "• Promotion of harmony in a family. • Respect for human rights"
           }
@@ -6684,20 +7443,42 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB- TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "Knowledge",
-            "Skills": "Skills",
-            "Values": "Values"
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "12.3.1.2 Explain the elements of Family Law.",
+            "CONTENT": "• Elements of family law: Marriage, divorce, death, property settlement, adoption of children succession etc",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "12.3.1.3 Describe types of marriages in Zambia.",
+            "CONTENT": "• Types of marriages: Statutory and customary.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "12.3.1.4 Assess the effects of separation divorce and death on the family.",
+            "CONTENT": "• Effects Separation divorce and death effects: Impact on spouse children and extended family",
+            "Skills": "",
+            "Values": ""
           }
         },
         {
           "type": "data",
           "cells": {
             "TOPIC": "12.4 DEVELOPMENT PLANNING",
-            "SUB- TOPIC": "",
-            "SPECIFIC OUTCOMES": "12.4.1 Explain development planning. 12.4.2 Discuss types of development planning. 12.4.3 Describe methods of planning. 12.4.4 Discuss the importance of budgeting and fiscal discipline in development planning. 12.4.5 Explain the functions of micro and macro-economic financial institutions. 12.4.6 Examine indicators of development. 12.4.7 Outline Zambia’s National Development plans from Independence to present:",
-            "CONTENT": "• Development planning: Plan of set suggestions aimed at achieving set goals in future. • Types: short term plan, medium term plan and long term plan. • Methods of planning: Centralised planning and Decentralised planning. • Budgeting and fiscal discipline: Ensures strict control of public resources and compliance in taxation and public expenditure • Functions: Provision of loans, funding of large scale project infrastructures. • Indicators of development: Gross National Product, Gross Domestic Product. Human Development Index and Per Capita Income. • Zambia’s Development plans: Emergence Development Plan (EDP), National",
+            "SUB-TOPIC": "12.4.1 DEVELOPMENT PLANNING",
+            "SPECIFIC OUTCOMES": "12.4.1.1 Explain development planning.",
+            "CONTENT": "• Development planning: Plan of set suggestions aimed at achieving set goals in future.",
             "Skills": "• Prioritisation in development planning • Analysis of types of planning",
             "Values": "• Knowledge of fiscal discipline in budgeting"
           }
@@ -6706,21 +7487,76 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB- TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "Knowledge",
-            "Skills": "Skills",
-            "Values": "Values"
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "12.4.1.2 Discuss types of development planning.",
+            "CONTENT": "• Types: short term plan, medium term plan and long term plan.",
+            "Skills": "",
+            "Values": ""
           }
         },
         {
           "type": "data",
           "cells": {
-            "TOPIC": "12.5POVERTY REDUCTION IN ZAMBIA",
-            "SUB- TOPIC": "",
-            "SPECIFIC OUTCOMES": "12.5.1 Describe poverty. 12.5.2 Explain the causes of poverty. 12.5.3 Assess the effects of poverty 12.5.3 Discuss poverty alleviation strategies. 12.5.4 Evaluate poverty alleviation strategies and their implementation in Zambia",
-            "CONTENT": "• Poverty: Lack of basic needs. • Causes of poverty: Debt burden, external dependence, climatic variations, conflict, poor work culture etc. • Effects of poverty: Hunger, food insecurity, high unemployment levels, increase in crime,conflicts,corruption • Poverty alleviation strategies: Improving education and health services, increasing access to safe water and sanitation, promoting rural electrification etc. • Poverty Reduction Strategy Paper(PRSP) with focus on microeconomics,Agriculture,Tourism,Mining,Health,Edu cation.e.tc",
-            "Skills": "• Analysis causes and effects of poverty",
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "12.4.1.3 Describe methods of planning.",
+            "CONTENT": "• Methods of planning: Centralised planning and Decentralised planning.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "12.4.1.4 Discuss the importance of budgeting and fiscal discipline in development planning.",
+            "CONTENT": "• Budgeting and fiscal discipline: Ensures strict control of public resources and compliance in taxation and public expenditure",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "12.4.1.5 Explain the functions of micro and macro-economic financial institutions.",
+            "CONTENT": "• Functions: Provision of loans, funding of large scale project infrastructures.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "12.4.1.6 Examine indicators of development.",
+            "CONTENT": "• Indicators of development: Gross National Product, Gross Domestic Product. Human Development Index and Per Capita Income.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "12.4.2 ZAMBIA’S NATIONAL DEVELOPMENT PLAN",
+            "SPECIFIC OUTCOMES": "12.4.2.1 Outline Zambia’s National Development plans from Independence to present:",
+            "CONTENT": "• Zambia’s Development plans: Emergence Development Plan (EDP), National Transitional Development Plan (NTDP), First National Development Plan (FNDP), Second National Development Plan (SNDP)1972- 1976, (TNDP) 1980-1983, Fourth National Third National Development Plan Development Plan (FNDP) 1983-1989, Transitional National Development Plan (TNDP) 2000, Vision 2030, Fifth National Development Plan (FNDP) and Sixth National Development Plan (SNDP)",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "12.5 POVERTY REDUCTION IN ZAMBIA",
+            "SUB-TOPIC": "12.5.1 POVERTY REDUCTION IN ZAMBIA",
+            "SPECIFIC OUTCOMES": "12.5.1.1 Describe poverty",
+            "CONTENT": "• Poverty: Lack of basic needs such as food, shelter etc.",
+            "Skills": "• Analysis of causes and effects of poverty",
             "Values": "• Promotion of discipline and hard work."
           }
         },
@@ -6728,22 +7564,132 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB- TOPIC": "",
-            "SPECIFIC OUTCOMES": "",
-            "CONTENT": "Knowledge",
-            "Skills": "Skills",
-            "Values": "Values"
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "12.5.1.2 Explain the causes of poverty.",
+            "CONTENT": "• Causes of poverty: Debt burden, external dependence, climatic variations, conflict, poor work culture etc.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "12.5.1.3 Assess the effects of poverty",
+            "CONTENT": "• Effects of poverty: Hunger, food insecurity, high unemployment levels, increase in crime, conflicts, corruption",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "12.5.1.4 Discuss poverty alleviation strategies",
+            "CONTENT": "• Poverty alleviation strategies: Improving education and health services, increasing access to safe water and sanitation, promoting rural electrification etc.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "12.5.1.5 Evaluate poverty alleviation strategies and their implementation in Zambia",
+            "CONTENT": "• Poverty Reduction Strategy Paper(PRSP) with focus on microeconomics, Agriculture, Tourism, Mining, Health, Education.e.tc",
+            "Skills": "",
+            "Values": ""
           }
         },
         {
           "type": "data",
           "cells": {
             "TOPIC": "12.6 GLOBAL ISSUES",
-            "SUB- TOPIC": "",
-            "SPECIFIC OUTCOMES": "12.7.1 Explain globalisation and global issues. 12.7.2 Discuss Bilateral and multilateral aid. 12.7.3 Discuss International trade. 12.7.4 State the role of the World Trade Organisation(WTO) 12.7.5 Explain debt crisis and debt relief. 12.7.6 Discuss the effects of debt crisis on",
-            "CONTENT": "• Globalisation: Making wide extension or linkages to all parts of the world, • Global issues: Global warming, corruption, war, terrorism etc • Bilateral Aid: Assistance from one country to another • Multilateral Aid: assistance from international agencies formed by several countries. • Trade between different countries • Reasons for international trade • Role of WTO: Administering technical barriers to trade (TBT) and sanitary and phyto- sanitary (SPS) agreements.(Zambia member of WTO) • Debt crisis: Borrowing beyond one’s capacity to pay back. • Debt Relief; Ability to pay back debts • Unfair international",
-            "Skills": "• Analysis of causes and effects of debt Crisis",
-            "Values": "• Appreciation of co- existence"
+            "SUB-TOPIC": "12.6.1 GLOBAL ISSUES",
+            "SPECIFIC OUTCOMES": "12.6.1.1 Explain globalisation and global issues.",
+            "CONTENT": "• Globalisation: Making wide extension or linkages to all parts of the world, • Global issues: Global warming, corruption, war, terrorism etc",
+            "Skills": "• Analysis of causes and effects of debt Crisis • Analysis of the millennium development goals",
+            "Values": "• Appreciation of co-existence"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "12.6.1.2 Discuss Bilateral and multilateral aid.",
+            "CONTENT": "• Bilateral Aid: Assistance from one country to another • Multilateral Aid: assistance from international agencies formed by several countries.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "12.6.1.3 Discuss International trade.",
+            "CONTENT": "• Trade between different countries • Reasons for international trade",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "12.6.1.4 State the role of the World Trade Organisation(WTO)",
+            "CONTENT": "• Role of WTO: Administering technical barriers to trade (TBT) and sanitary and phyto-sanitary (SPS) agreements.(Zambia member of WTO)",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "12.6.1.5 Explain debt crisis and debt relief.",
+            "CONTENT": "• Debt crisis: Borrowing beyond one’s capacity to pay back. • Debt Relief; Ability to pay back debts",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "12.6.1.6 Discuss the effects of debt crisis on Zambia.",
+            "CONTENT": "• Unfair international trade, debt servicing. Spending loans on consumption etc.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "12.6.1.7 Explain Millennium Development Goals (MDGs).",
+            "CONTENT": "• Eight global development targets agreed by world leaders at UN millennium summit in 2000 to be achieved by 2015.E.g primary education for all, eradication of poverty e.tc.",
+            "Skills": "",
+            "Values": ""
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC OUTCOMES": "12.6.1.8 Analyse Zambia’s efforts towards the attainment of the Millennium Development Goals.",
+            "CONTENT": "• Introduction of Poverty Reduction Strategy paper, provision of subsidised fertilizer to subsistence farmers, introduction of free basic education from grade one to seven etc.",
+            "Skills": "",
+            "Values": ""
           }
         }
       ]
