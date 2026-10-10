@@ -1,32 +1,23 @@
-import { useState } from 'react'
-import { OPERATORS, detectOperator, looksLikeZambianPhone, resolveOperator } from '../../../utils/lenco'
+import { OPERATORS, detectOperator, looksLikeZambianPhone } from '../../../utils/lenco'
 import { Check } from '../../../shared/components/icons'
 import Icon from '../../../shared/components/Icon'
 
 /**
- * Network picker for the mobile-money checkout. The payer should never have to
- * tell us their network — we read it straight off the number they type
- * (ZICTA prefixes: MTN 096/076, Airtel 097/077, Zamtel 095/075). The manual
- * dropdown only appears as a fallback when the prefix is unknown, or when the
- * payer taps "Change" to override the detected network.
+ * Network display for the mobile-money checkout. The payer never tells us their
+ * network — it is read straight off the number they type (ZICTA prefixes:
+ * MTN 096/076, Airtel 097/077, Zamtel 095/075) by `detectOperator`, the same
+ * function the pay button's guard and the charge request use, so what is shown
+ * here is exactly what is sent.
  *
- * Controlled by the parent's checkout state so the value shown here matches
- * exactly what handlePay sends (both go through resolveOperator).
+ * There is deliberately no dropdown and no "Change": a number whose prefix maps
+ * to no supported network gets an error, not a guess, and the pay button stays
+ * disabled (`detectOperator` returns '' and the caller gates on it).
  */
-export default function NetworkField({ phone, operator, operatorTouched, onSelect }) {
-  const [manualOpen, setManualOpen] = useState(false)
-
-  const auto = detectOperator(phone)
-  const effectiveId = resolveOperator({ phone, operator, operatorTouched })
-  const effective = OPERATORS.find((op) => op.id === effectiveId)
-  const hasPhone = String(phone || '').trim().length > 0
-
-  // Show the dropdown when: the payer overrode the detection, they tapped
-  // "Change", or we have a number but couldn't recognise the network.
-  const showManual = operatorTouched || manualOpen || (hasPhone && !auto)
-  // A complete Zambian number whose prefix maps to no supported operator —
-  // tell the payer plainly instead of leaving a silent dropdown.
-  const unsupported = !operatorTouched && !manualOpen && looksLikeZambianPhone(phone) && !auto
+export default function NetworkField({ phone }) {
+  const detectedId = detectOperator(phone)
+  const detected = OPERATORS.find((op) => op.id === detectedId)
+  // A complete Zambian number whose prefix is not a supported network.
+  const unsupported = !detected && looksLikeZambianPhone(phone)
 
   return (
     <div>
@@ -34,39 +25,18 @@ export default function NetworkField({ phone, operator, operatorTouched, onSelec
         Network
       </label>
 
-      {unsupported && (
-        <p className="mb-1.5 text-xs text-amber-700" role="alert">
-          We could not detect a supported mobile-money network from this number.
-          Check the number, or choose your network below.
-        </p>
-      )}
-
-      {showManual ? (
-        <select
-          value={effectiveId}
-          onChange={(e) => onSelect(e.target.value)}
-          className="w-full border-2 border-gray-200 focus:border-[#B8860B] rounded-xl px-3 py-2.5 text-base focus:outline-none bg-white"
-        >
-          <option value="">Select your network…</option>
-          {OPERATORS.map((op) => (
-            <option key={op.id} value={op.id}>{op.label}</option>
-          ))}
-        </select>
-      ) : effective ? (
-        <div className="flex items-center justify-between gap-2 rounded-xl border-2 border-green-200 bg-green-50 px-3 py-2.5">
+      {detected ? (
+        <div className="flex items-center rounded-xl border-2 border-green-200 bg-green-50 px-3 py-2.5">
           <span className="flex items-center gap-2 font-bold text-gray-800">
             <Icon as={Check} size="xs" strokeWidth={2.6} className="text-green-600" />
-            {effective.label}
+            {detected.label}
             <span className="text-xs font-bold uppercase tracking-wide text-green-700">· detected</span>
           </span>
-          <button
-            type="button"
-            onClick={() => setManualOpen(true)}
-            className="text-xs font-bold text-gray-500 underline hover:text-gray-700 min-h-0 p-0 bg-transparent shadow-none"
-          >
-            Change
-          </button>
         </div>
+      ) : unsupported ? (
+        <p className="rounded-xl border-2 border-dashed border-amber-300 px-3 py-2.5 text-sm text-amber-700" role="alert">
+          We could not detect Airtel, MTN or Zamtel from this number. Check the number and try again.
+        </p>
       ) : (
         <div className="rounded-xl border-2 border-dashed border-gray-200 px-3 py-2.5 text-sm text-gray-400">
           We&apos;ll detect your network automatically from your number.

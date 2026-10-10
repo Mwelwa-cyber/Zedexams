@@ -36,8 +36,6 @@ export default function TopUpModal({ onClose, feature }) {
   const userEmail = userProfile?.email || currentUser?.email || ''
 
   const [phone, setPhone] = useState('')
-  const [operator, setOperator] = useState('')
-  const [operatorTouched, setOperatorTouched] = useState(false)
   const [otp, setOtp] = useState('')
   const [paymentId, setPaymentId] = useState(null)
   const [payState, setPayState] = useState('idle')
@@ -51,7 +49,7 @@ export default function TopUpModal({ onClose, feature }) {
   }, [])
 
   const phoneValid = looksLikeZambianPhone(phone)
-  const detectedOperator = resolveOperator({ phone, operator, operatorTouched })
+  const detectedOperator = resolveOperator({ phone })
   const busy = payState === 'starting' || payState === 'processing' || payState === 'verifying'
 
   function resolveTerminal(status) {
@@ -85,7 +83,7 @@ export default function TopUpModal({ onClose, feature }) {
     setError('')
     const operatorToSend = detectedOperator
     if (!phoneValid) { setError('Enter a valid Zambian mobile number, e.g. 0977 740 465.'); return }
-    if (!operatorToSend) { setError('Please choose your network.'); return }
+    if (!operatorToSend) { setError('We could not detect Airtel, MTN or Zamtel from this number. Check the number and try again.'); return }
 
     setPayState('starting')
     capture('topup_payment_initiated', { feature: feature || null })
@@ -264,12 +262,7 @@ export default function TopUpModal({ onClose, feature }) {
                   }`}
                 />
               </div>
-              <NetworkField
-                phone={phone}
-                operator={operator}
-                operatorTouched={operatorTouched}
-                onSelect={(id) => { setOperator(id); setOperatorTouched(true) }}
-              />
+              <NetworkField phone={phone} />
 
               {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
 

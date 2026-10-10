@@ -137,8 +137,6 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
   // ── Checkout state ──────────────────────────────────────────────
   const method = 'mobile_money'
   const [phone, setPhone] = useState('')
-  const [operator, setOperator] = useState('')
-  const [operatorTouched, setOperatorTouched] = useState(false)
   const [otp, setOtp] = useState('')
   const [paymentId, setPaymentId] = useState(null)
   const [payState, setPayState] = useState('idle')
@@ -251,13 +249,17 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
   // the server's decision, and the same fields are sent either way.
   const guardianPays = isGuardianPayer(userProfile)
   const phoneValid = looksLikeZambianPhone(phone)
-  const detectedOperator = resolveOperator({ phone, operator, operatorTouched })
+  const detectedOperator = resolveOperator({ phone })
   const busy = payState === 'starting' || payState === 'processing' || payState === 'verifying'
   const isYearly = plan?.billing === 'yearly'
 
   function handleContinue() {
     if (!plan) return
-    setStep('checkout')
+    // A learner under 18 pays with a parent's number, so a parent is asked to
+    // look at the purchase first. This is a prompt to involve an adult, not
+    // verification that one did: the verification is the PIN approval on the
+    // parent's own phone, which this app never sees.
+    setStep(guardianPays ? 'confirm' : 'checkout')
     capture('subscription_intent', {
       planId: selectedPlanId,
       amountZmw: effectivePrice ?? null,
@@ -370,7 +372,7 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
     // The button is disabled until these hold; belt-and-braces for keyboard
     // submission paths.
     if (!phoneValid) { setError('Enter a valid Zambian mobile number, e.g. 0977 740 465.'); return }
-    if (!detectedOperator) { setError('Please choose your mobile money operator.'); return }
+    if (!detectedOperator) { setError('We could not detect Airtel, MTN or Zamtel from this number. Check the number and try again.'); return }
     setError('')
     setQuoteNotice('')
     setPayOffline(false)
@@ -625,13 +627,81 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
           </>
         )}
 
+        {step === 'confirm' && plan && (
+          <>
+            <div className="relative shrink-0 bg-gradient-to-b from-orange-100 via-orange-50 to-white px-6 pt-4 pb-5 text-center">
+              <button
+                type="button"
+                onClick={() => setStep('plans')}
+                className="absolute top-4 left-4 inline-flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-gray-700 min-h-0 p-1 bg-transparent shadow-none"
+              >
+                <Icon as={ArrowLeft} size="xs" /> Back
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close upgrade dialog"
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 min-h-0 p-1 bg-transparent shadow-none"
+              >
+                <Icon as={X} size="md" />
+              </button>
+              <div className="mx-auto mt-2 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-400 to-orange-500 text-2xl shadow-lg shadow-orange-500/30" aria-hidden="true">
+                👋
+              </div>
+              <h2 className="mt-3 text-2xl font-black text-gray-900">Ask a parent or guardian</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Ask your parent or guardian to help you complete this payment.
+              </p>
+            </div>
+
+            <div className="px-6 pb-6 pt-4 overflow-y-auto flex-1">
+              <dl className="rounded-2xl bg-orange-50/70 border border-orange-100 px-4 py-3 text-sm">
+                <div className="flex justify-between gap-3 py-0.5">
+                  <dt className="text-gray-500">Plan</dt>
+                  <dd className="font-semibold text-gray-800">{plan.name}</dd>
+                </div>
+                <div className="flex justify-between gap-3 py-0.5">
+                  <dt className="text-gray-500">Amount</dt>
+                  <dd className="font-semibold text-gray-800">K{effectivePrice}</dd>
+                </div>
+                {plan.durationDays ? (
+                  <div className="flex justify-between gap-3 py-0.5">
+                    <dt className="text-gray-500">Access</dt>
+                    <dd className="font-semibold text-gray-800">{plan.durationDays} days</dd>
+                  </div>
+                ) : null}
+              </dl>
+
+              <ul className="mt-4 space-y-1.5 text-sm text-gray-600">
+                <li>• They pay with their own MTN, Airtel or Zamtel number.</li>
+                <li>• They approve it on their own phone with their mobile-money PIN.</li>
+                <li>• ZedExams never sees or stores the PIN.</li>
+              </ul>
+
+              <Button
+                variant="primary"
+                size="lg"
+                fullWidth
+                className="mt-5"
+                onClick={() => setStep('checkout')}
+                trailingIcon={<Icon as={ArrowRight} size="sm" />}
+              >
+                My parent or guardian is here — continue
+              </Button>
+              <p className="mt-3 text-center text-[11px] text-gray-400">
+                By continuing, the parent or guardian agrees to this purchase for this learner&apos;s account.
+              </p>
+            </div>
+          </>
+        )}
+
         {step === 'checkout' && plan && (
           <>
             {/* ── Header with wallet illustration ────────────────── */}
             <div className="relative shrink-0 bg-gradient-to-b from-orange-100 via-orange-50 to-white px-6 pt-4 pb-5 text-center">
               <button
                 type="button"
-                onClick={() => { if (!busy) { resetCheckout(); setStep('plans') } }}
+                onClick={() => { if (!busy) { resetCheckout(); setStep(guardianPays ? 'confirm' : 'plans') } }}
                 disabled={busy}
                 className="absolute top-4 left-4 inline-flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-gray-700 disabled:opacity-40 min-h-0 p-1 bg-transparent shadow-none"
               >
@@ -731,7 +801,7 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
                   </div>
                   <h3 className="text-xl font-black text-gray-800">Payment successful! 🎉</h3>
                   <p className="text-sm text-gray-700 mt-1 font-semibold">
-                    Your {plan.name} plan is now active.
+                    Your ZedExams subscription is now active — {plan.name} plan.
                   </p>
                   <p className="text-sm text-gray-600 mt-1.5">
                     Your work has been preserved — you can continue from where you stopped.
@@ -846,8 +916,8 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
                   <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-red-100 text-red-600">
                     <Icon as={X} size="lg" strokeWidth={2.4} />
                   </div>
-                  <h3 className="text-lg font-black text-gray-800">Payment was not completed</h3>
-                  <p className="text-sm text-gray-600 mt-1">{error || 'Something went wrong. Please try again.'}</p>
+                  <h3 className="text-lg font-black text-gray-800">Payment was unsuccessful</h3>
+                  <p className="text-sm text-gray-600 mt-1">{error || 'Please try again.'}</p>
                   <div className="mt-5 space-y-2">
                     <Button variant="primary" size="lg" fullWidth onClick={resetCheckout}>
                       Try again
@@ -923,12 +993,7 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
                         </p>
                       )}
                     </div>
-                    <NetworkField
-                      phone={phone}
-                      operator={operator}
-                      operatorTouched={operatorTouched}
-                      onSelect={(id) => { setOperator(id); setOperatorTouched(true) }}
-                    />
+                    <NetworkField phone={phone} />
                   </div>
 
                   <p className="mt-3 text-sm text-gray-500">

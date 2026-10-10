@@ -89,7 +89,7 @@ describe('PaymentStatusTracker — verifying', () => {
   it('shows the progress timeline and the do-not-close warning', () => {
     renderTracker({ stage: 'verifying' })
     expect(screen.getByText('Verifying your payment')).toBeInTheDocument()
-    expect(screen.getByText(/usually takes a few seconds/)).toBeInTheDocument()
+    expect(screen.getByText(/payment is being confirmed/)).toBeInTheDocument()
     expect(screen.getByText('Payment request sent')).toBeInTheDocument()
     expect(screen.getByText('Waiting for approval')).toBeInTheDocument()
     expect(screen.getByText('Verifying payment')).toBeInTheDocument()

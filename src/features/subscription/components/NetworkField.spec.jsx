@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 
 // lenco.js pulls in the Firebase callables; stub them so the real, pure
@@ -12,17 +12,7 @@ vi.mock('../../../firebase/config', () => ({ default: {} }))
 import NetworkField from './NetworkField'
 
 function setup(props = {}) {
-  const onSelect = vi.fn()
-  render(
-    <NetworkField
-      phone=""
-      operator=""
-      operatorTouched={false}
-      onSelect={onSelect}
-      {...props}
-    />,
-  )
-  return { onSelect }
+  render(<NetworkField phone="" {...props} />)
 }
 
 describe('NetworkField — automatic network detection', () => {
@@ -41,24 +31,23 @@ describe('NetworkField — automatic network detection', () => {
 
   it('auto-detects Airtel (097) and Zamtel (095)', () => {
     const { unmount } = render(
-      <NetworkField phone="0977 000 111" operator="" operatorTouched={false} onSelect={() => {}} />,
+      <NetworkField phone="0977 000 111" />,
     )
     expect(screen.getByText('Airtel Money')).toBeInTheDocument()
     unmount()
-    render(<NetworkField phone="0955 000 111" operator="" operatorTouched={false} onSelect={() => {}} />)
+    render(<NetworkField phone="0955 000 111" />)
     expect(screen.getByText('Zamtel Kwacha')).toBeInTheDocument()
   })
 
-  it('falls back to a manual dropdown when the prefix is unrecognised', () => {
+  it('shows an error, not a dropdown, when the prefix is unrecognised', () => {
     setup({ phone: '0900 000 000' })
-    expect(screen.getByRole('combobox')).toBeInTheDocument()
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+    expect(screen.getByRole('alert').textContent).toMatch(/could not detect/i)
   })
 
-  it('lets the payer override the detected network via Change', () => {
-    const { onSelect } = setup({ phone: '0966 123 456' })
-    fireEvent.click(screen.getByRole('button', { name: /change/i }))
-    const select = screen.getByRole('combobox')
-    fireEvent.change(select, { target: { value: 'airtel' } })
-    expect(onSelect).toHaveBeenCalledWith('airtel')
+  it('offers no way to override the detected network', () => {
+    setup({ phone: '0966 123 456' })
+    expect(screen.queryByRole('button', { name: /change/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
   })
 })

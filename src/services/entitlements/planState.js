@@ -103,29 +103,20 @@ export function resolveAgeBand(profile) {
 /**
  * May this session be shown a price, or a route to a checkout?
  *
- * Adults: always. Under-18 learners: on the web, yes — the parent pays, so the
- * learner has to see what they are asking for — and in the Android build, no,
- * because Play's Families policy governs that listing and Play Billing owns
- * the price there anyway. A `false` means "route it to the guardian ask", not
- * "hide the offer"; see useUnlockFlow.
+ * Always yes (2026-10). A learner under 18 used to be withheld the price in the
+ * Android build and routed to a guardian ask that mailed a Lenco link out of
+ * the app. That route is closed: on Android every learner, minor or not, reaches
+ * Google Play's own purchase sheet, which owns the price (and any Family Link
+ * purchase approval) — ZedExams prints no Kwacha figure there, see
+ * `AdultUnlockSheet` and `PlayUpgradePanel`. On the web a minor sees the price
+ * and a parent pays on the same device.
  *
- * `native` has no safe default in the permissive direction, so it defaults to
- * TRUE: a caller that forgets to say which platform it is on withholds the
- * price from a minor rather than showing one. Components read the real value
- * through `platformMayShowPrice` (./platformPrice) instead of passing it.
- *
- * `resolveAgeBand` already answers "is this an adult", and it fails closed —
- * but it cannot be used on its own here, because a profile that is ABSENT is
- * not a child: it is a signed-out visitor reading the public marketing site,
- * and failing closed on them would take the price list off /pricing for
- * everybody who has not signed in. So: no profile → yes (a public page for an
- * anonymous reader). A profile → adult, or an under-18 on the web.
+ * The `{ native }` option is accepted and ignored so existing call sites keep
+ * compiling; it no longer changes the answer.
  */
-export function mayShowPrice(profile, { native = true } = {}) {
-  if (!profile) return true
-  if (resolveAgeBand(profile) === AGE_BAND.ADULT) return true
-  // Only an explicit `false` opens it — null, 0 or "" are not "web".
-  return native === false
+// eslint-disable-next-line no-unused-vars
+export function mayShowPrice(profile, _options) {
+  return true
 }
 
 /**

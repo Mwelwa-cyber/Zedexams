@@ -42,6 +42,7 @@
 export const PLANS = [
   {
     id: 'day',
+    listed: false,
     checkoutPlanId: 'day_pass',
     price: 5,
     label: 'Day pass',
@@ -63,9 +64,11 @@ export const PLANS = [
     label: 'Monthly',
     period: '/month',
     blurb: 'Keep going',
+    highlight: true,
   },
   {
     id: 'term',
+    listed: false,
     checkoutPlanId: 'term_pass',
     price: 120,
     label: 'Term Pass',
@@ -78,6 +81,7 @@ export const PLANS = [
   },
   {
     id: 'exam',
+    listed: false,
     checkoutPlanId: 'exam_pass',
     price: 99,
     label: 'Exam Pass',
@@ -97,7 +101,7 @@ export const SIBLING_ADDON = { price: 20, period: '/month' }
  * budgeted per term, so the term-sized rung is the one that matches how the
  * payer thinks about money — and it is the rung that survives the exam.
  */
-export const DEFAULT_HIGHLIGHT_PLAN_ID = 'term'
+export const DEFAULT_HIGHLIGHT_PLAN_ID = 'month'
 
 function toDate(value) {
   if (!value) return null
@@ -114,6 +118,10 @@ function toDate(value) {
 export function availablePlans(now = new Date()) {
   const at = toDate(now) || new Date()
   return PLANS.filter((plan) => {
+    // `listed: false` hides a rung from the learner-facing ladder without
+    // removing it from the catalogue: Day, Term and Exam stay purchasable by id
+    // and in every historical record, and come back by deleting the flag.
+    if (plan.listed === false) return false
     const from = toDate(plan.availableFrom)
     const to = toDate(plan.availableTo)
     if (from && at < from) return false

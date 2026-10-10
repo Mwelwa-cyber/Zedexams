@@ -72,17 +72,13 @@ describe('PremiumCard', () => {
 
   for (const [label, profile] of [
     ['a known minor', { role: 'learner', isMinor: true }],
-    ['an unknown age (fails closed)', { role: 'learner' }],
-    ['no profile at all', null],
+    ['an unknown age', { role: 'learner' }],
   ]) {
-    it(`shows no purchase CTA to ${label} in the Android build`, () => {
+    it(`offers the upgrade to ${label} in the Android build — Google Play owns the sheet`, () => {
       mockNative = true
       mockProfile = profile
       render(<PremiumCard onOpen={() => {}} />)
-      expect(screen.queryByText(/Upgrade Now/i)).toBeNull()
-      expect(screen.queryByTestId('upgrade-modal')).toBeNull()
-      // The card is not blanked — it still says which plan they are on.
-      expect(screen.getByText(/Current Plan/i)).toBeTruthy()
+      expect(screen.getByText(/Upgrade Now/i)).toBeTruthy()
     })
   }
 

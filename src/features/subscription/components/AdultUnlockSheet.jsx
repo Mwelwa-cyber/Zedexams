@@ -144,7 +144,7 @@ export default function AdultUnlockSheet({ gate, context = {}, onClose }) {
         onClick={handlePay}
         className="mt-4 w-full rounded-xl bg-gradient-to-r from-teal-600 to-emerald-500 px-4 py-3 text-sm font-black text-white"
       >
-        {native ? 'See plans' : guardianPays ? 'Pay with a parent’s number' : 'Pay with MTN / Airtel'}
+        {native ? 'See plans' : guardianPays ? 'Pay with a parent’s number' : 'Pay with mobile money'}
       </button>
 
       <button

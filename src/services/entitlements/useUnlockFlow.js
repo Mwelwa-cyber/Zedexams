@@ -1,27 +1,18 @@
 /**
  * useUnlockFlow — where a tapped lock goes.
  *
- * Exactly two destinations, and which one is not a preference:
+ * One destination, for everyone: the plan ladder and the platform's checkout.
  *
- *   adult                → the plan ladder and Lenco checkout.
- *   under18, on the web  → the SAME ladder and checkout. The learner picks the
- *                          plan and enters their PARENT's mobile-money number;
- *                          the parent approves the prompt on their own phone.
- *   under18, in the
- *   Android build        → the guardian-ask sheet. No price, no plan card, no
- *                          pay button: Play's Families policy governs that
- *                          listing, and Play Billing owns the price there.
- *
- * `resolveUnlockRoute` is a pure function of the plan state so the rule can be
- * asserted directly, and the sheet component reads the route off the request
- * rather than re-deriving it — one decision, made once. The guardian-ask
- * variant imports none of the pricing modules, which is the structural half of
- * its guarantee: there is no price in that component's scope to leak.
+ *   web      → the Lenco modal. An under-18 learner enters their PARENT's
+ *              mobile-money number on the same device; the parent approves the
+ *              prompt on their own phone with their PIN.
+ *   Android  → Google Play's purchase sheet, which owns the price and any
+ *              Family Link purchase approval. No Lenco, no link, no guardian ask.
  *
  * A twelve-year-old has no mobile money account of their own, which is why the
  * web checkout asks for the parent's number rather than the learner's. WHETHER
  * a minor may complete a purchase is still the server's call
- * (`assertLearnerCapability`) — this only decides what they are shown.
+ * (`assertMayStartPurchase`) — this only decides what they are shown.
  */
 
 import { useCallback, useEffect, useState } from 'react'
@@ -31,32 +22,27 @@ import { interruptionBudget } from './interruptionBudget'
 import { FEATURE_GATES, TIER } from './gates'
 import { useEntitlements } from './useEntitlements'
 import { capture } from '../../utils/analytics'
-import { isNativePlatform } from '../../utils/runtime'
 
 export const UNLOCK_ROUTE = Object.freeze({
-  GUARDIAN: 'guardian',
   CHECKOUT: 'checkout',
 })
 
 /**
- * The rule, as a pure function. An adult checks out. Anyone else checks out
- * too — as a parent-paid purchase — except inside the Android build, where
- * they are routed to the guardian ask.
- *
- * `native` defaults to TRUE, the withholding answer, for the same reason as
- * `mayShowPrice`: a caller that does not say which platform it is on must not
- * be the one that puts a price in front of a minor in the Play listing.
+ * The rule, as a pure function: everyone checks out. (There used to be a second
+ * route for an under-18 learner in the Android build, a guardian ask that mailed
+ * a Lenco link; it is gone.) What "checks out" means differs by platform and is
+ * decided where the money moves, not here — the web opens the Lenco modal, the
+ * Android build opens Google Play's purchase sheet.
  */
-export function resolveUnlockRoute(planState, { native = true } = {}) {
-  if (planState?.ageBand === AGE_BAND.ADULT) return UNLOCK_ROUTE.CHECKOUT
-  return native === false ? UNLOCK_ROUTE.CHECKOUT : UNLOCK_ROUTE.GUARDIAN
+// eslint-disable-next-line no-unused-vars
+export function resolveUnlockRoute(_planState, _options) {
+  return UNLOCK_ROUTE.CHECKOUT
 }
 
 export function useUnlockFlow() {
   const { planState } = useEntitlements()
   const [request, setRequest] = useState(null)
-  const native = isNativePlatform()
-  const route = resolveUnlockRoute(planState, { native })
+  const route = resolveUnlockRoute(planState)
 
   useEffect(() => unlockSheet.subscribe(setRequest), [])
 

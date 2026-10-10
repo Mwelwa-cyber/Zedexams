@@ -7,24 +7,20 @@
  * lock the user pressed. That is the whole of the contract, and
  * `ContextualUnlockSheet.spec.jsx` asserts a bare mount renders nothing.
  *
- * The two variants are separate components rather than a branch inside one,
- * because the under-18 variant's guarantee is "no price exists in this file's
- * scope" — a guarantee a shared component with an `if` cannot make.
  */
 
 import { useEffect, useRef } from 'react'
 import useFocusTrap from '../../../hooks/useFocusTrap'
-import { UNLOCK_ROUTE } from '../../../services/entitlements'
 import AdultUnlockSheet from './AdultUnlockSheet'
-import GuardianAskSheet from './GuardianAskSheet'
 
 /**
  * @param {object} props
  * @param {string} props.gate
- * @param {'guardian'|'checkout'} props.route
+ * @param {'checkout'} props.route
  * @param {object} [props.context]
  * @param {() => void} props.onClose
  */
+// eslint-disable-next-line no-unused-vars
 export default function ContextualUnlockSheet({ gate, route, context = {}, onClose }) {
   const panelRef = useRef(null)
   useFocusTrap(panelRef, { active: true, onEscape: onClose })
@@ -37,7 +33,7 @@ export default function ContextualUnlockSheet({ gate, route, context = {}, onClo
 
   if (!gate) return null
 
-  const Variant = route === UNLOCK_ROUTE.CHECKOUT ? AdultUnlockSheet : GuardianAskSheet
+  const Variant = AdultUnlockSheet
 
   return (
     <div

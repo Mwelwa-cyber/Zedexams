@@ -170,7 +170,6 @@ const NativePlayBillingSync = lazy(() => import('../features/subscription/compon
 const LockedFeatureModal = lazy(() => import('../features/subscription/components/LockedFeatureModal'))
 const QuizLimitPopup = lazy(() => import('../features/subscription/components/QuizLimitPopup'))
 const MySubscriptionRoute = lazy(() => import('../features/subscription/pages/MySubscriptionRoute'))
-const AskGrownUpPage = lazy(() => import('../features/subscription/pages/AskGrownUpPage'))
 const UnlockSheetHost = lazy(() => import('../features/subscription/components/UnlockSheetHost'))
 const GraceRibbon = lazy(() => import('../features/subscription/components/GraceRibbon'))
 const NotFound = lazy(() => import('../components/ui/NotFound'))
@@ -872,11 +871,9 @@ export default function App() {
               notifications are already in learners' inboxes, so keep the
               alias for the ones still sitting there. */}
           <Route path="/subscription"      element={<Navigate to="/my-subscription" replace />} />
-          {/* Where an under-18 learner lands instead of a price list —
-              /my-subscription and /pricing both redirect here. It carries no
-              price and no checkout; the ask goes to the linked guardian
-              through requestGuardianUnlock. See AskGrownUpPage. */}
-          <Route path="/ask-a-grown-up"    element={<ProtectedRoute><AskGrownUpPage /></ProtectedRoute>} />
+          {/* Retired 2026-10: the guardian-ask page (a mailed Lenco link) is gone.
+              Old bookmarks and notifications land on the subscription page. */}
+          <Route path="/ask-a-grown-up"    element={<Navigate to="/my-subscription" replace />} />
           {/* Nested paths (/settings/profile, /settings/school, …) are the
               Teacher Settings detail panels; SettingsPage renders the right
               chrome per role and TeacherSettings routes the subpath. */}

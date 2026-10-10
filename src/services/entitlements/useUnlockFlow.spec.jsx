@@ -1,11 +1,9 @@
 /**
- * useUnlockFlow — where a tapped lock goes, per platform.
+ * useUnlockFlow — where a tapped lock goes.
  *
- * The rule: an adult checks out. An under-18 learner checks out too on the web
- * (the checkout asks for a parent's mobile-money number), and is routed to the
- * guardian ask only inside the Android build, where Play's Families policy
- * governs the listing. Anything that does not say which platform it is on
- * fails towards the guardian ask, never towards a price.
+ * Everyone checks out. An under-18 learner on the web enters a parent's
+ * mobile-money number; in the Android build every learner reaches Google Play's
+ * own purchase sheet. There is no guardian-ask route any more.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook } from '@testing-library/react'
@@ -30,29 +28,16 @@ beforeEach(() => {
 })
 
 describe('resolveUnlockRoute', () => {
-  it('sends an adult to the checkout on either platform', () => {
-    expect(resolveUnlockRoute(ADULT, { native: false })).toBe(UNLOCK_ROUTE.CHECKOUT)
-    expect(resolveUnlockRoute(ADULT, { native: true })).toBe(UNLOCK_ROUTE.CHECKOUT)
-  })
-
-  it('sends an under-18 learner to the checkout on the web — a parent pays', () => {
-    expect(resolveUnlockRoute(MINOR, { native: false })).toBe(UNLOCK_ROUTE.CHECKOUT)
-  })
-
-  it('sends an under-18 learner to the guardian ask in the Android build', () => {
-    expect(resolveUnlockRoute(MINOR, { native: true })).toBe(UNLOCK_ROUTE.GUARDIAN)
-  })
-
-  it('fails towards the guardian ask when the platform is not stated or not a real boolean', () => {
-    expect(resolveUnlockRoute(MINOR)).toBe(UNLOCK_ROUTE.GUARDIAN)
-    for (const native of [undefined, null, 0, '', 'false']) {
-      expect(resolveUnlockRoute(MINOR, { native })).toBe(UNLOCK_ROUTE.GUARDIAN)
+  it('sends every learner to the checkout, on either platform', () => {
+    for (const state of [ADULT, MINOR, null]) {
+      for (const opts of [undefined, { native: false }, { native: true }]) {
+        expect(resolveUnlockRoute(state, opts)).toBe(UNLOCK_ROUTE.CHECKOUT)
+      }
     }
   })
 
-  it('treats a missing plan state as an unknown age, not as an adult', () => {
-    expect(resolveUnlockRoute(null, { native: false })).toBe(UNLOCK_ROUTE.CHECKOUT)
-    expect(resolveUnlockRoute(null, { native: true })).toBe(UNLOCK_ROUTE.GUARDIAN)
+  it('has no guardian route', () => {
+    expect(UNLOCK_ROUTE.GUARDIAN).toBeUndefined()
   })
 })
 
@@ -65,11 +50,10 @@ describe('useUnlockFlow', () => {
     expect(result.current.isUnder18).toBe(true)
   })
 
-  it('an Android-build minor gets the guardian ask and no price', () => {
+  it('an Android-build minor gets the same checkout route', () => {
     mockNative = true
     const { result } = renderHook(() => useUnlockFlow())
-    expect(result.current.route).toBe(UNLOCK_ROUTE.GUARDIAN)
-    expect(result.current.showsPrice).toBe(false)
+    expect(result.current.route).toBe(UNLOCK_ROUTE.CHECKOUT)
     expect(result.current.isUnder18).toBe(true)
   })
 

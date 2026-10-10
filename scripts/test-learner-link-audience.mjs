@@ -105,7 +105,6 @@ const GATED = new Map([
   ['src/shared/components/ComingSoon.jsx', { needs: null, why: 'rendered only by LessonLibrary and QuizList, both LearnerOnlyRoute pages' }],
   ['src/components/layout/Navbar.jsx', { needs: 'canOpenLearnerRoutes', why: 'the /search link is gated (!isAdmin && !isTeacher); the menu and tab bar are covered by test:navbar-audience' }],
   ['src/features/marketing/components/GuardianPricingNotice.jsx', { needs: null, why: 'Plans renders it only `if (isMinorLearner)` — a learner, for whom /dashboard is correct' }],
-  ['src/features/subscription/pages/AskGrownUpPage.jsx', { needs: null, why: 'the under-18 guardian-unlock flow; nothing routes a teacher here, and typing the URL is the case the refusal card is FOR' }],
   ['src/features/papers/pages/PastPapersHub.jsx', { needs: 'canOpenLearnerRoutes', why: 'public hub: the exam-timetable card renders only for an account that can open /timetable' }],
 ])
 
