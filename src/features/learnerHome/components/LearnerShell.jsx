@@ -27,6 +27,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import '../../../shared/styles/learnerTheme.css'
 import LearnerBottomNav from './LearnerBottomNav'
 import { OfflineBadge } from './LearnerPrimitives'
+import PlanReminder from './PlanReminder'
 import { useNetworkStatus } from '../../../hooks/useNetworkStatus'
 import { useAuth } from '../../../contexts/AuthContext'
 import { canOpenLearnerRoutes, getRoleLandingPath } from '../../../utils/navigation'
@@ -75,6 +76,10 @@ export default function LearnerShell({ children }) {
             navigation would be worse than one that appears a moment late,
             and for almost everyone it never appears at all. */}
         <Suspense fallback={null}><DeletionPendingBanner /></Suspense>
+        {/* The plan reminder is drawn HERE, in the column, not at the app root:
+            the root strip was painted over by this shell's sidebar. It also
+            claims the slot so the root strips stand down. */}
+        <PlanReminder />
         {backOnline && (
           <div className="lhx-online-toast" role="status">
             ✅ Back online — your progress is syncing.

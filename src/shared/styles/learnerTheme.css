@@ -122,6 +122,8 @@
      so both surfaces flip together in Night mode. */
   --lhx-amber-wash: #fff2d6;
   --lhx-amber-line: #ffd488;
+  --lhx-coral-wash: #fff0e8;
+  --lhx-coral-line: #ffc4a8;
   --lhx-amber-ink: #8a5610;
   --lhx-amber-row: rgba(255, 255, 255, 0.7);
 
@@ -271,6 +273,8 @@
   --lhx-red-btn: #c9414a;
   --lhx-amber-wash: #3a3320;
   --lhx-amber-line: #5a4d2a;
+  --lhx-coral-wash: #3b2a26;
+  --lhx-coral-line: #6a4338;
   --lhx-amber-ink: #ffcf8a;
   --lhx-amber-row: rgba(0, 0, 0, 0.18);
 
@@ -2015,6 +2019,45 @@ button.lhx-tt-altpill { cursor: pointer; }
   flex-shrink: 0; background: var(--lhx-card); color: var(--lhx-indigo-text);
   border: 1.5px solid var(--lhx-line); border-radius: 999px;
   padding: 7px 13px; font-size: 12px; font-weight: 900; min-height: 40px;
+}
+
+/* The plan reminder: expired / grace / free. Drawn in the page column so the
+   sidebar and the glass top bar can never sit on top of it (see PlanReminder).
+   Expired reads coral — the app's "needs you" family, not an alarm red; grace
+   reads amber like the deletion banner; free reads indigo and is the quietest.
+   Every colour is a token, so Night needs nothing of its own. */
+.lhx-plan-reminder {
+  display: flex; align-items: center; gap: 11px;
+  border: 1.5px solid var(--lhx-line);
+  border-radius: var(--lhx-radius-md);
+  padding: 11px 8px 11px 13px;
+  background: var(--lhx-card);
+  box-shadow: var(--lhx-shadow);
+  /* The sticky top bar pulls up 12px (22px on desktop) over whatever precedes
+     it, so without this the card's foot sat under the bar's edge. */
+  margin-bottom: 14px;
+}
+.lhx-plan-reminder.is-expired { background: var(--lhx-coral-wash); border-color: var(--lhx-coral-line); }
+.lhx-plan-reminder.is-grace { background: var(--lhx-amber-wash); border-color: var(--lhx-amber-line); }
+.lhx-plan-reminder.is-free { background: var(--lhx-indigo-soft); border-color: var(--lhx-line); }
+.lhx-plan-reminder-ic { font-size: 19px; flex-shrink: 0; }
+.lhx-plan-reminder-txt { flex: 1; min-width: 0; }
+.lhx-plan-reminder-title { display: block; font-weight: 900; font-size: 13.5px; color: var(--lhx-ink); }
+.lhx-plan-reminder-sub { display: block; font-size: 11.5px; font-weight: 700; color: var(--lhx-muted); line-height: 1.35; }
+.lhx-plan-reminder-btn {
+  flex-shrink: 0;
+  background: linear-gradient(135deg, var(--lhx-coral1), var(--lhx-coral2));
+  color: #fff; border: 0; border-radius: 999px;
+  padding: 7px 15px; font-size: 12.5px; font-weight: 900; min-height: 40px;
+  box-shadow: none;
+}
+.lhx-plan-reminder.is-free .lhx-plan-reminder-btn {
+  background: var(--lhx-card); color: var(--lhx-indigo-text); border: 1.5px solid var(--lhx-line);
+}
+.lhx-plan-reminder-x {
+  flex-shrink: 0; width: 40px; min-height: 40px; padding: 0;
+  background: transparent; border: 0; box-shadow: none;
+  color: var(--lhx-muted); font-size: 22px; line-height: 1;
 }
 
 /* ── School Calendar (/school-calendar) ─────────────────────────────

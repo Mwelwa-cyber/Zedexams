@@ -44,6 +44,7 @@ vi.mock('../../../hooks/useSubscriptionReminder', () => ({
 }))
 
 import SubscriptionStatusBanner from './SubscriptionStatusBanner'
+import { claimReminderHost } from '../../../shared/utils/reminderHost'
 
 function renderBanner(path = '/dashboard') {
   return render(
@@ -109,5 +110,12 @@ describe('SubscriptionStatusBanner', () => {
       expect(screen.getByText('Expired Subscription')).toBeInTheDocument()
       expect(screen.queryByText(/Ask a grown-up/i)).toBeNull()
     })
+  })
+
+  it('stands down while a shell has claimed the reminder slot (no second copy under the sidebar)', () => {
+    const release = claimReminderHost()
+    const { container } = renderBanner()
+    expect(container).toBeEmptyDOMElement()
+    release()
   })
 })
