@@ -454,6 +454,134 @@ describe('getSubtopicDetail — previous', () => {
   })
 })
 
+// ── Topics with no sub-topic level ────────────────────────────────────────────
+//
+// The 2013 Civic Education Grades 10-12 syllabus has no sub-topic column data:
+// outcomes sit directly under each topic. Before, such a topic had an empty
+// sub-topic dropdown and the Lesson Plan Studio refused to continue.
+
+const CIVIC_SUBJECT = 'Civic Education Syllabus (Grades 10-12, 2013)'
+
+const CIVIC_FIXTURE = {
+  [CIVIC_SUBJECT]: {
+    'Grade 11': {
+      columns: ['TOPIC', 'SUB-TOPIC', 'SPECIFIC OUTCOMES', 'CONTENT', 'Skills', 'Values'],
+      rows: [
+        {
+          type: 'data',
+          cells: {
+            TOPIC: '11.5 Gender Equity and Equality',
+            'SUB-TOPIC': '',
+            'SPECIFIC OUTCOMES': '11.5.1 Explain gender equity and gender equality. 11.5.2 Outline the historical background.',
+            CONTENT: '• Gender: state of being male or female.',
+            Skills: '', Values: '',
+          },
+        },
+        {
+          // Same topic continued after a page break (blank TOPIC, blank SUB-TOPIC).
+          type: 'data',
+          cells: {
+            TOPIC: '',
+            'SUB-TOPIC': '',
+            'SPECIFIC OUTCOMES': '11.5.3 Distinguish gender roles from sex roles.',
+            CONTENT: '• Gender roles',
+            Skills: '', Values: '',
+          },
+        },
+        {
+          type: 'data',
+          cells: {
+            TOPIC: '11.6 Culture of Peace',
+            'SUB-TOPIC': '',
+            'SPECIFIC OUTCOMES': '11.6.1 Describe a culture of peace.',
+            CONTENT: '• Peace',
+            Skills: '', Values: '',
+          },
+        },
+      ],
+    },
+  },
+}
+
+describe('topics with no sub-topic level — previous', () => {
+  beforeEach(() => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(CIVIC_FIXTURE) })
+  })
+
+  it('offers the topic itself as its only sub-topic', async () => {
+    const topics = await getTopicsForSubject(CIVIC_SUBJECT, 'Grade 11', 'previous')
+    expect(topics.map((t) => t.label)).toEqual(['11.5 Gender Equity and Equality', '11.6 Culture of Peace'])
+    expect(topics[0].subtopics).toEqual(['11.5 Gender Equity and Equality'])
+    expect(topics[1].subtopics).toEqual(['11.6 Culture of Peace'])
+  })
+
+  it('resolves the topic-as-sub-topic to ALL of the topic\'s outcomes', async () => {
+    const result = await getSubtopicDetail(
+      CIVIC_SUBJECT, 'Grade 11',
+      '11.5 Gender Equity and Equality', '11.5 Gender Equity and Equality',
+      'previous',
+    )
+    expect(result).not.toBeNull()
+    expect(result.subtopic).toBe('11.5 Gender Equity and Equality')
+    expect(result.specificOutcomes).toEqual([
+      '11.5.1 Explain gender equity and gender equality.',
+      '11.5.2 Outline the historical background.',
+      '11.5.3 Distinguish gender roles from sex roles.',
+    ])
+  })
+
+  it('does not invent a match for a different sub-topic name', async () => {
+    const result = await getSubtopicDetail(
+      CIVIC_SUBJECT, 'Grade 11',
+      '11.5 Gender Equity and Equality', 'Something else',
+      'previous',
+    )
+    expect(result).toBeNull()
+  })
+
+  it('leaves topics that DO have sub-topics unchanged', async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(PREV_FIXTURE) })
+    invalidatePreviousCurriculumCache()
+    const topics = await getTopicsForSubject(
+      'Agricultural Science Syllabus (Grades 10-12, 2013)', 'Grade 10', 'previous',
+    )
+    expect(topics[1].subtopics).toEqual(['10.2.1 Types of rocks and minerals.'])
+  })
+})
+
+describe('topics with no sub-topic level — CBC', () => {
+  const CBC_FLAT = {
+    'Civic Education Syllabus (Forms 1-4)': {
+      'Form 1': {
+        columns: ['TOPIC', 'SUB-TOPIC', 'SPECIFIC COMPETENCES', 'LEARNING ACTIVITIES', 'EXPECTED STANDARD'],
+        rows: [
+          {
+            type: 'data',
+            cells: {
+              TOPIC: '1.1 Citizenship',
+              'SUB-TOPIC': '',
+              'SPECIFIC COMPETENCES': '1.1.1 Explain citizenship',
+              'LEARNING ACTIVITIES': '• Discuss rights\n• Role play',
+              'EXPECTED STANDARD': '• Explains citizenship',
+            },
+          },
+        ],
+      },
+    },
+  }
+
+  it('offers the topic as its sub-topic and resolves its competence', async () => {
+    getMergedSyllabi.mockResolvedValue(CBC_FLAT)
+    const subject = 'Civic Education Syllabus (Forms 1-4)'
+    const topics = await getTopicsForSubject(subject, 'Form 1', 'cbc')
+    expect(topics[0].subtopics).toEqual(['1.1 Citizenship'])
+    const result = await getSubtopicDetail(subject, 'Form 1', '1.1 Citizenship', '1.1 Citizenship', 'cbc')
+    expect(result.specificCompetence).toBe('1.1.1 Explain citizenship')
+    expect(result.learningActivities).toEqual(['Discuss rights', 'Role play'])
+    expect(result.expectedStandard).toBe('• Explains citizenship')
+  })
+})
+
 // ── Default curriculumMode ────────────────────────────────────────────────────
 
 describe('default curriculumMode', () => {

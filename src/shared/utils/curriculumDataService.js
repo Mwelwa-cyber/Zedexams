@@ -255,6 +255,26 @@ function propagatePreviousRows(sheet) {
   // ungenerable. Synthesise sub-topics from the specific outcomes — each
   // outcome becomes one selectable sub-topic — so the subject works.
   if (out.length && !out.some((r) => r.subtopic)) {
+    // The sheet HAS a sub-topic column but it is blank throughout (e.g. Civic
+    // Education Grades 10-12): the syllabus has no sub-topic level, so each topic
+    // stands as its own sub-topic and keeps ALL of its outcomes together —
+    // matching what a topic with a partly-blank column gets in getTopicsForSubject.
+    // Sheets with no sub-topic column at all (schema E) keep the per-outcome
+    // synthesis below.
+    if (subCol) {
+      const byTopic = new Map()
+      for (const r of out) {
+        if (!r.specificOutcomesRaw && !r.content) continue
+        const prior = byTopic.get(r.topic)
+        if (prior) {
+          prior.specificOutcomesRaw = [prior.specificOutcomesRaw, r.specificOutcomesRaw].filter(Boolean).join(' ')
+          prior.content = joinCellText(prior.content, r.content)
+        } else {
+          byTopic.set(r.topic, { ...r, subtopic: r.topic })
+        }
+      }
+      if (byTopic.size) return Array.from(byTopic.values())
+    }
     const synth = []
     for (const r of out) {
       const outcomes = splitOutcomesLenient(r.specificOutcomesRaw)
@@ -441,9 +461,23 @@ export async function getTopicsForSubject(subject, grade, curriculumMode = 'cbc'
   // their insertion order (stable sort).
   const topics = Array.from(topicMap.values())
   for (const t of topics) {
-    t.subtopics = sortByCurriculumCode(t.subtopics)
+    // Some syllabi (e.g. the 2013 Civic Education Grades 10-12) carry no
+    // sub-topic level at all: the outcomes sit directly under the topic. Such a
+    // topic stands as its own sole sub-topic, so the picker is never an empty
+    // dead end. getSubtopicDetail resolves it back to the topic's own rows.
+    t.subtopics = t.subtopics.length > 0
+      ? sortByCurriculumCode(t.subtopics)
+      : [t.label]
   }
   return sortByCurriculumCode(topics, (t) => t.label)
+}
+
+/** Bullet-prefixed learning-activity text → array of plain lines. */
+function parseLearningActivities(raw) {
+  return String(raw || '')
+    .split('\n')
+    .map((line) => line.replace(/^[•-]\s*/, '').trim())
+    .filter(Boolean)
 }
 
 /**
@@ -495,6 +529,21 @@ export async function getSubtopicDetail(subject, grade, topic, subtopic, curricu
           }
         }
       }
+      // No sub-topic level: the picker offered the topic itself (see
+      // getTopicsForSubject), so resolve it to the topic's own rows.
+      if (subtopicLower === topicLower) {
+        const own = rows.filter((row) =>
+          String(row.topic || '').trim().toLowerCase() === topicLower && !row.subtopic)
+        if (own.length > 0) {
+          return {
+            topic: own[0].topic,
+            subtopic: own[0].topic,
+            specificOutcomes: splitSpecificOutcomes(
+              own.map((row) => row.specificOutcomesRaw).filter(Boolean).join(' '),
+            ),
+          }
+        }
+      }
     } else {
       // CBC: rowsWithPropagatedTopic already maps the correct column names.
       const rows = rowsWithPropagatedTopic(sheet?.rows || [])
@@ -504,11 +553,7 @@ export async function getSubtopicDetail(subject, grade, topic, subtopic, curricu
           String(row.subtopic || '').trim().toLowerCase() === subtopicLower
         ) {
           // Parse bullet-prefixed learning activities into an array.
-          const rawActivities = String(row.learningActivities || '')
-          const learningActivities = rawActivities
-            .split('\n')
-            .map((line) => line.replace(/^[•-]\s*/, '').trim())
-            .filter(Boolean)
+          const learningActivities = parseLearningActivities(row.learningActivities)
 
           return {
             topic: row.topic,
@@ -516,6 +561,20 @@ export async function getSubtopicDetail(subject, grade, topic, subtopic, curricu
             specificCompetence: row.specificCompetence || '',
             learningActivities,
             expectedStandard: row.expectedStandard || '',
+          }
+        }
+      }
+      // Topic with no sub-topic level — see the 'previous' branch above.
+      if (subtopicLower === topicLower) {
+        const own = rows.filter((row) =>
+          String(row.topic || '').trim().toLowerCase() === topicLower && !row.subtopic)
+        if (own.length > 0) {
+          return {
+            topic: own[0].topic,
+            subtopic: own[0].topic,
+            specificCompetence: own.map((row) => row.specificCompetence).find(Boolean) || '',
+            learningActivities: own.flatMap((row) => parseLearningActivities(row.learningActivities)),
+            expectedStandard: own.map((row) => row.expectedStandard).find(Boolean) || '',
           }
         }
       }
