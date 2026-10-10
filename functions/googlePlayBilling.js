@@ -400,7 +400,8 @@ async function recordAccountBinding({firestore, kind, enforce, dateMs}) {
  * @returns {Promise<{status: string, productId?: string, planId?: string,
  *   expiryTime?: string|null, activated?: boolean, alreadyActive?: boolean,
  *   reason?: string}>} status ∈ active | expired | noop | not_found |
- *   wrong_user | unknown_product | account_mismatch.
+ *   wrong_user | unknown_product | account_mismatch | cross_rail_conflict |
+ *   consent_denied.
  */
 async function verifyAndApplyPurchase({
   uid,
@@ -418,6 +419,7 @@ async function verifyAndApplyPurchase({
   nowMs = Date.now(),
   enforceAccountBinding = enforceAccountBindingFromEnv(),
   recordBinding = null,
+  assertMayPurchase = null,
   beneficiaryUid = null,
   beneficiaryName = null,
   guardianRequestId = null,
@@ -559,6 +561,41 @@ async function verifyAndApplyPurchase({
     // Logged as an error rather than a warning because those three days
     // are a deadline: if the automatic refund does not happen it has to
     // happen by hand, and this line is the only record that it is owed.
+    // ── Has a guardian refused this account? ────────────────────────
+    //
+    // The web rail refuses a declined account BEFORE any charge
+    // (`assertMayStartPurchase` in initiateLencoPayment). Play has no such
+    // seam — the money moves in Google's sheet — so this is the server's only
+    // chance, and it is the same answer: a pending, expired or migrating
+    // learner may buy (the confirmed payment is what records approval, in
+    // subscriptionActivation), a declined, unreadable or unclassified one may
+    // not. The PAYER is checked, as on the web; a guardian buying for a child
+    // is an adult and resolves to the full capability set.
+    //
+    // Refusing leaves the purchase UNACKNOWLEDGED, so Google refunds it
+    // automatically after three days — logged as an error for the same reason
+    // as the double purchase below: those days are a deadline. A lookup
+    // failure is NOT a refusal: it rethrows, the handler reports a per-token
+    // "error", and the client's retry re-verifies the same token.
+    const mayPurchaseImpl = assertMayPurchase ||
+      ((who) => require("./consentGuard").assertMayStartPurchase(who, {db: firestore}));
+    try {
+      await mayPurchaseImpl(uid);
+    } catch (err) {
+      if (err?.code !== "permission-denied") throw err;
+      console.error(
+          "[googlePlayBilling] CONSENT DENIED — Play grant refused, refund owed",
+          {uid, reason: err?.details?.reason || null, productId: parsed.productId, orderId: parsed.orderId},
+      );
+      return {
+        status: "consent_denied",
+        productId: parsed.productId,
+        planId,
+        reason: err?.details?.reason || "consent-denied",
+        message: String(err?.message || ""),
+      };
+    }
+
     const {RAIL, decideCrossRail} = await import("./shared/billing/crossRailCore.js");
     const accounts = [{who: "payer", user}];
     if (beneficiaryDoc) accounts.push({who: "child", user: beneficiaryDoc});

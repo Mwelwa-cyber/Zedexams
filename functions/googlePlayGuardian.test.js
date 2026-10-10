@@ -157,6 +157,7 @@ async function run({
     productId,
     db,
     nowMs: NOW,
+    assertMayPurchase: async () => {},
     enforceAccountBinding,
     beneficiaryUid,
     beneficiaryName,

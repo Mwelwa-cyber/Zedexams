@@ -1244,7 +1244,16 @@ Two rules override everything else in this area:
   `/my-subscription`. The `requestGuardianUnlock` callable, `/guardian-unlock` and
   the link-pay functions remain deployed and unused from the app (audit before
   removal). Whether a minor may actually buy is still the server's call
-  (`assertMayStartPurchase`).
+  (`assertMayStartPurchase`). **Play is gated twice, because
+  Google's sheet moves the money before any server sees it (2026-10):**
+  `PlayUpgradePanel` asks `getUpgradeQuote` (which runs `assertMayStartPurchase`)
+  BEFORE opening the sheet and stops a guardian-declined account there, where
+  nothing has been charged; and `verifyAndApplyPurchase` runs the same guard on
+  the PAYER before any grant, returning `consent_denied` and leaving the
+  purchase unacknowledged so Google refunds it after three days (logged as an
+  error — that refund is owed). A consent LOOKUP failure is not a refusal: it
+  rethrows and the client's retry re-verifies. Pending/expired/migrating minors
+  may buy, exactly as on the web.
 - **Paying the ask needs no login at all (2026-10).** `/guardian-unlock?t=…`
   is outside every guard: the guardian types their OWN mobile-money number and
   approves the prompt on their phone. The one-time token in the URL is the only

@@ -97,6 +97,7 @@ async function runVerify({uid = "u1", body, token = TOKEN, activateResult} = {})
     purchaseToken: token,
     db,
     nowMs: NOW,
+    assertMayPurchase: async () => {},
     activate: async (args) => {
       activateCalls.push(args);
       // Mimic real activation: flip the payment doc successful.
@@ -285,6 +286,7 @@ function reset() {
   store["users/u1"] = {};
   r = await verifyAndApplyPurchase({
     uid: "u1", purchaseToken: TOKEN, db, nowMs: NOW,
+    assertMayPurchase: async () => {},
     activate: async (args) => {
       const key = `payments/${args.paymentId}`;
       if (store[key]) store[key] = {...store[key], status: "successful"};
@@ -302,6 +304,7 @@ function reset() {
     bindingCalls.length = 0;
     return verifyAndApplyPurchase({
       uid, purchaseToken: token, db, nowMs: NOW,
+      assertMayPurchase: async () => {},
       enforceAccountBinding: enforce,
       recordBinding: async (args) => { bindingCalls.push(args); },
       activate: async (args) => {
@@ -521,6 +524,69 @@ function reset() {
   });
   ok("probe: unparseable secret → failure message carries no identity suffix",
       probe.ok === false && !probe.message.includes("[SA in secret:"));
+
+
+  // ── Consent gate (a guardian-denied account must not be granted) ─────
+  // A stand-in with HttpsError's shape (code + details). The real class lives
+  // in functions/node_modules, which the root-install coverage job doesn't
+  // have, and the code under test reads only `.code` and `.details.reason`.
+  class HttpsError extends Error {
+    constructor(code, message, details) {
+      super(message);
+      this.code = code;
+      this.details = details;
+    }
+  }
+  const gated = (assertMayPurchase, extra = {}) => verifyAndApplyPurchase({
+    uid: "u1", purchaseToken: TOKEN, db, nowMs: NOW, assertMayPurchase,
+    activate: async (args) => {
+      activateCalls.push(args);
+      return {ok: true, activated: true};
+    },
+    fetchSubscription: async () => playBody(),
+    acknowledge: async (args) => { ackCalls.push(args); },
+    ...extra,
+  });
+
+  reset();
+  store["users/u1"] = {};
+  const consentActivationsBefore = activateCalls.length;
+  const consentAcksBefore = ackCalls.length;
+  r = await gated(async () => {
+    throw new HttpsError("permission-denied", "Your account needs a guardian.", {reason: "consent-denied"});
+  });
+  ok("guardian-denied account → consent_denied", r.status === "consent_denied");
+  ok("consent_denied carries the reason", r.reason === "consent-denied");
+  ok("consent_denied → zero activations", activateCalls.length === consentActivationsBefore);
+  ok("consent_denied → purchase left UNACKNOWLEDGED (Google auto-refunds)", ackCalls.length === consentAcksBefore);
+  ok("consent_denied → no payment doc created",
+      !Object.keys(store).some((key) => key.startsWith("payments/")));
+
+  reset();
+  store["users/u1"] = {};
+  let threw = null;
+  try {
+    await gated(async () => { throw new HttpsError("unavailable", "lookup failed", {reason: "lookup-failed"}); });
+  } catch (err) { threw = err; }
+  ok("a consent LOOKUP failure is not a refusal — it rethrows so the client retries",
+      threw && threw.code === "unavailable");
+  ok("lookup failure → nothing granted", !Object.keys(store).some((key) => key.startsWith("payments/")));
+
+  reset();
+  store["users/u1"] = {};
+  const seen = [];
+  r = await gated(async (who) => { seen.push(who); });
+  ok("an approved/adult account is granted as before", r.status === "active");
+  ok("the PAYER's uid is the one checked", seen.length === 1 && seen[0] === "u1");
+
+  // An expire/noop verification is not a purchase: the gate must not run.
+  reset();
+  store["users/u1"] = {};
+  let gateCalled = false;
+  await gated(async () => { gateCalled = true; }, {
+    fetchSubscription: async () => playBody({state: "SUBSCRIPTION_STATE_EXPIRED"}),
+  });
+  ok("a non-grant verification never consults the consent gate", gateCalled === false);
 
   console.log(`\n${passed} passed`);
 })().catch((err) => {
