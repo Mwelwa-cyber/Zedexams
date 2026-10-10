@@ -104,42 +104,10 @@ describe('SubscriptionStatusBanner', () => {
   describe('an under-18 learner in the Android build', () => {
     beforeEach(() => { mockAuth = { userProfile: CHILD }; mockNative = true })
 
-    it('is never shown a price, a plan name or the checkout', () => {
-      mockReminder = { status: 'free', shouldRemind: true, isExpired: false }
+    it('is shown the normal strip and goes to the plan page — Google Play owns the sheet', () => {
       renderBanner()
-      // No "Pro" (a teacher tier), no "Free Plan", no "Upgrade →", and no
-      // kwacha figure anywhere in the rendered strip.
-      expect(screen.queryByText(/Pro\b/)).toBeNull()
-      expect(screen.queryByText('Free Plan')).toBeNull()
-      expect(screen.queryByText(/Upgrade →/)).toBeNull()
-      expect(document.body.textContent).not.toMatch(/K\d/)
-      // Two matches by design — the message and the action label. Both
-      // must be the ask, which is what `getAllBy` asserts here.
-      expect(screen.getAllByText(/Ask a grown-up/i).length).toBeGreaterThan(0)
-    })
-
-    it('sends the tap to /ask-a-grown-up, not to the plan page', () => {
-      mockReminder = { status: 'free', shouldRemind: true, isExpired: false }
-      render(
-        <MemoryRouter initialEntries={['/dashboard']}>
-          <Routes>
-            <Route path="/dashboard" element={<SubscriptionStatusBanner />} />
-            <Route path="/my-subscription" element={<div>PRICE LIST</div>} />
-            <Route path="/ask-a-grown-up" element={<div>ASK A GROWN-UP</div>} />
-          </Routes>
-        </MemoryRouter>,
-      )
-      fireEvent.click(screen.getByText(/Ask a grown-up to unlock/i).closest('button'))
-      expect(screen.getByText('ASK A GROWN-UP')).toBeInTheDocument()
-      expect(screen.queryByText('PRICE LIST')).toBeNull()
-    })
-
-    it('says the same thing when the plan has expired', () => {
-      // The expired copy is where "Renew to restore your ZedExams Pro
-      // access" lived. A child cannot renew any more than they can buy.
-      renderBanner()
-      expect(screen.queryByText(/Renew/i)).toBeNull()
-      expect(screen.getAllByText(/Ask a grown-up/i).length).toBeGreaterThan(0)
+      expect(screen.getByText('Expired Subscription')).toBeInTheDocument()
+      expect(screen.queryByText(/Ask a grown-up/i)).toBeNull()
     })
   })
 })

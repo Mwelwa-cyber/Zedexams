@@ -76,7 +76,7 @@ export default function MySubscriptionPage({ inShell = false }) {
   const paymentStatus = hasAccess
     ? 'Active'
     : status === SUB_STATUS.EXPIRED
-      ? 'Lapsed — renew to reactivate'
+      ? 'Your subscription has expired. Renew to continue enjoying premium learning.'
       : 'No active subscription'
 
   // Both Pro and Max are offered in the modal, so keep the button tier-neutral.

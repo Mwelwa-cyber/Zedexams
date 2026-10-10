@@ -156,41 +156,18 @@ test('ageBand fails closed — a learner is under18 unless isMinor is exactly fa
   assert.equal(resolveAgeBand({ role: 'parent' }), AGE_BAND.ADULT)
 })
 
-test('in the Android build a price is shown only to a session that is positively an adult', () => {
-  // Play's Families policy governs that listing. `native` defaults to TRUE —
-  // the withholding answer — so a caller that does not say which platform it
-  // is on can never be the one that shows a minor a price.
-  for (const opts of [undefined, { native: true }]) {
-    assert.equal(mayShowPrice({ role: 'learner' }, opts), false)
-    assert.equal(mayShowPrice({ role: 'learner', isMinor: true }, opts), false)
-    assert.equal(mayShowPrice({ role: 'learner', isMinor: null }, opts), false)
-    assert.equal(mayShowPrice({}, opts), false, 'a profile with no role is not evidence of an adult')
-  }
-
-  assert.equal(mayShowPrice({ role: 'learner', isMinor: false }), true)
-  assert.equal(mayShowPrice({ role: 'teacher' }), true)
-  assert.equal(mayShowPrice({ role: 'parent' }), true)
-  assert.equal(mayShowPrice({ role: 'admin' }), true)
-
-  // The one place this does NOT fail closed, and it is deliberate: an
-  // ABSENT profile is a signed-out visitor reading the public marketing
-  // site, not a child. Failing closed there would take the price list off
-  // /pricing for everybody who has not signed in.
-  assert.equal(mayShowPrice(null), true)
-  assert.equal(mayShowPrice(undefined), true)
-})
-
-test('on the web an under-18 learner sees the price, because a parent pays', () => {
-  const web = { native: false }
-  assert.equal(mayShowPrice({ role: 'learner' }, web), true)
-  assert.equal(mayShowPrice({ role: 'learner', isMinor: true }, web), true)
-  assert.equal(mayShowPrice({ role: 'learner', isMinor: null }, web), true)
-  assert.equal(mayShowPrice({ role: 'learner', isMinor: false }, web), true)
-  assert.equal(mayShowPrice(null, web), true)
-  // Only an explicit `false` opens it: anything that is not the real boolean
-  // withholds, so a sloppy caller fails closed rather than open.
-  for (const native of [undefined, null, 0, '', 'false']) {
-    assert.equal(mayShowPrice({ role: 'learner', isMinor: true }, { native }), false, String(native))
+test('every session may be shown a price or a route to a checkout, on every platform', () => {
+  // The Android build used to withhold the price from a minor and route them to
+  // a guardian ask that mailed a Lenco link. That route is closed: on Android
+  // the learner reaches Google Play's own purchase sheet (which prints the
+  // price and runs any Family Link approval), so there is nothing to withhold.
+  for (const opts of [undefined, { native: true }, { native: false }]) {
+    assert.equal(mayShowPrice({ role: 'learner' }, opts), true)
+    assert.equal(mayShowPrice({ role: 'learner', isMinor: true }, opts), true)
+    assert.equal(mayShowPrice({ role: 'learner', isMinor: null }, opts), true)
+    assert.equal(mayShowPrice({ role: 'learner', isMinor: false }, opts), true)
+    assert.equal(mayShowPrice({ role: 'teacher' }, opts), true)
+    assert.equal(mayShowPrice(null, opts), true)
   }
 })
 
@@ -624,18 +601,24 @@ test('the saving is computed, not typed', () => {
   assert.equal(savingLabel(PLANS.find((p) => p.id === 'week')), '')
 })
 
-test('the highlighted rung is the Term Pass, not Monthly', () => {
-  const highlighted = PLANS.filter((p) => p.highlight)
+test('the highlighted rung is Monthly', () => {
+  const highlighted = PLANS.filter((p) => p.highlight && p.listed !== false)
   assert.equal(highlighted.length, 1)
-  assert.equal(highlighted[0].id, 'term')
+  assert.equal(highlighted[0].id, 'month')
 })
 
-test('the seasonal Exam Pass is offered only inside its window', () => {
+test('only Weekly and Monthly are listed; Day, Term and Exam stay in the catalogue', () => {
+  const listed = availablePlans(new Date('2026-09-15')).map((p) => p.id)
+  assert.deepEqual(listed, ['week', 'month'])
+  for (const id of ['day', 'term', 'exam']) {
+    assert.ok(PLANS.some((p) => p.id === id), `${id} must stay in PLANS`)
+  }
+})
+
+test('the seasonal Exam Pass is not listed in or out of season while it is unlisted', () => {
   const inSeason = availablePlans(new Date('2026-09-15')).map((p) => p.id)
-  assert.ok(inSeason.includes('exam'))
-  const outOfSeason = availablePlans(new Date('2026-02-15')).map((p) => p.id)
-  assert.ok(!outOfSeason.includes('exam'))
-  assert.equal(cheapestPlan(new Date('2026-02-15')).id, 'day')
+  assert.ok(!inSeason.includes('exam'))
+  assert.equal(cheapestPlan(new Date('2026-02-15')).id, 'week')
 })
 
 // ── Exam countdown ──────────────────────────────────────────────────────

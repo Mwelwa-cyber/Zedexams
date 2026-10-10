@@ -239,7 +239,7 @@ export default function PaymentStatusTracker({
       <div className="text-center py-2">
         <Icon as={Loader2} size="lg" className="mx-auto animate-spin text-orange-500" />
         <h3 className="text-lg font-black text-gray-800 mt-3">Verifying your payment</h3>
-        <p className="text-sm text-gray-600 mt-1 mb-4">This usually takes a few seconds.</p>
+        <p className="text-sm text-gray-600 mt-1 mb-4">Your payment is being confirmed. Please wait.</p>
         <ol className="mx-auto max-w-[260px] space-y-2.5 text-left mb-4">
           <TimelineStep state="done" label="Payment request sent" />
           <TimelineStep state="done" label="Waiting for approval" />
@@ -269,6 +269,7 @@ export default function PaymentStatusTracker({
       <h3 className="text-xl font-black text-gray-800">
         {guardian ? 'Ask your parent to check their phone' : 'Check your phone'}
       </h3>
+      <p className="text-sm font-semibold text-gray-700 mt-1">Waiting for payment approval. Please check your phone.</p>
       <p className="text-sm text-gray-600 mt-1">A payment prompt has been sent to</p>
       <p className="text-2xl font-black tracking-wide text-gray-900 mt-1">{phoneDisplay}</p>
       <p className="text-sm text-gray-600 mt-1 mb-4">

@@ -3,12 +3,10 @@
  *
  *   1. It opens ONLY from a tap. Mounting the host renders nothing — not on
  *      first paint, not on a route change, not on sign-in.
- *   2. The GUARDIAN-ASK variant — what an under-18 learner gets inside the
- *      Android build — is never shown a price. Not "usually not", not "unless
- *      a flag is wrong": the rendered tree contains no `K<digit>` and no pay
- *      button, asserted here because the structural guarantee (GuardianAskSheet
- *      imports no pricing module) is only half of it.
- *   3. On the web an under-18 learner gets the priced sheet, worded so that a
+ *   2. There is one sheet for everyone (the guardian-ask variant that mailed a
+ *      Lenco link out of the Android app is gone). It lists Weekly and Monthly
+ *      only; Day, Term and Exam stay in the catalogue but are not offered.
+ *   3. On the web an under-18 learner gets the same ladder, worded so that a
  *      parent is the one who pays.
  */
 
@@ -33,21 +31,12 @@ vi.mock('../../../hooks/useTeacherUsage', () => ({
 
 vi.mock('../../../utils/analytics', () => ({ capture: vi.fn() }))
 
-const sendRequest = vi.fn(async () => ({ outcome: 'sent' }))
-vi.mock('../../../services/entitlements/guardianRequest', () => ({
-  GUARDIAN_REQUEST: { SENT: 'sent', RATE_LIMITED: 'rate_limited', NO_GUARDIAN: 'no_guardian', FAILED: 'failed' },
-  requestGuardianUnlock: (...args) => sendRequest(...args),
-}))
-
 // The checkout modal reaches Firebase; the sheet only needs to be observed
 // handing off to it, so it is stubbed at the module boundary.
 vi.mock('./UpgradeModal', () => ({ default: () => <div data-testid="checkout" /> }))
 
 import { interruptionBudget, unlockSheet } from '../../../services/entitlements'
 import UnlockSheetHost from './UnlockSheetHost'
-
-/** Everything a rendered tree must not contain for an under-18 learner. */
-const PRICE_PATTERN = /K\s?\d/
 
 function settleBudget() {
   // Clear the new-account grace and the app-open quiet period so a tapped lock
@@ -61,7 +50,6 @@ function settleBudget() {
 beforeEach(() => {
   interruptionBudget.__reset()
   unlockSheet.close()
-  sendRequest.mockClear()
   mockProfile.current = { role: 'learner', isMinor: true }
 })
 
@@ -94,87 +82,13 @@ describe('ACCEPTANCE 1 + 3 — nothing opens on its own', () => {
   it('opens only once something calls unlockSheet.open', () => {
     render(<UnlockSheetHost />)
     act(() => {
-      unlockSheet.open({ gate: 'PAPER_OFFLINE', route: 'guardian', context: {} })
+      unlockSheet.open({ gate: 'PAPER_OFFLINE', route: 'checkout', context: {} })
     })
     expect(screen.getByRole('dialog')).toBeTruthy()
   })
 })
 
-describe('ACCEPTANCE 2 — an under-18 learner is never shown a price', () => {
-  it('renders no price and no pay button in the guardian variant', () => {
-    settleBudget()
-    render(<UnlockSheetHost />)
-    act(() => {
-      unlockSheet.open({
-        gate: 'PAPER_CONTINUE',
-        route: 'guardian',
-        context: { remaining: 40, paperYear: '2025' },
-      })
-    })
-
-    const dialog = screen.getByRole('dialog')
-    expect(dialog.textContent).not.toMatch(PRICE_PATTERN)
-    expect(screen.queryByRole('button', { name: /pay/i })).toBeNull()
-    expect(screen.queryByRole('button', { name: /mtn|airtel/i })).toBeNull()
-    // What it DOES offer.
-    expect(screen.getByRole('button', { name: /send request/i })).toBeTruthy()
-    expect(dialog.textContent).toMatch(/ask your guardian/i)
-  })
-
-  it('offers a way round the guardian, and it is support rather than Childline', () => {
-    // Every other guardian-routed flow carries one: the consent and unlink
-    // callables all return Childline 116. This sheet carried nothing, which
-    // left a child whose guardian is unreachable — or whom they do not want
-    // to ask — on a screen whose only action needs that adult.
-    //
-    // It is SUPPORT and deliberately not Childline: a purchase a child cannot
-    // get approved is an inconvenience, not a safety event, and putting a
-    // child-protection helpline on a paywall spends its meaning on the wrong
-    // problem. This asserts both halves, because either drifting is a bug.
-    settleBudget()
-    render(<UnlockSheetHost />)
-    act(() => {
-      unlockSheet.open({ gate: 'PAPER_CONTINUE', route: 'guardian', context: {} })
-    })
-
-    const dialog = screen.getByRole('dialog')
-    const support = screen.getByRole('link', { name: /support@zedexams\.com/i })
-    expect(support.getAttribute('href')).toBe('mailto:support@zedexams.com')
-    expect(dialog.textContent).not.toMatch(/childline/i)
-    // And it still shows no price — a mailto adds no digits, but the guarantee
-    // is worth re-asserting on the tree that now carries an extra link.
-    expect(dialog.textContent).not.toMatch(PRICE_PATTERN)
-  })
-
-  it('sends the request through the callable and reports the outcome', async () => {
-    settleBudget()
-    const user = userEvent.setup()
-    render(<UnlockSheetHost />)
-    act(() => {
-      unlockSheet.open({ gate: 'PAPER_OFFLINE', route: 'guardian', context: {} })
-    })
-
-    await user.click(screen.getByRole('button', { name: /send request/i }))
-    expect(sendRequest).toHaveBeenCalledWith(
-      expect.objectContaining({ feature: 'PAPER_OFFLINE' }),
-    )
-    expect((await screen.findByRole('status')).textContent).toMatch(/sent to your guardian/i)
-  })
-
-  it('names the 3-day rule rather than reporting an error when rate limited', async () => {
-    settleBudget()
-    sendRequest.mockResolvedValueOnce({ outcome: 'rate_limited', retryAfterMs: 1000 })
-    const user = userEvent.setup()
-    render(<UnlockSheetHost />)
-    act(() => {
-      unlockSheet.open({ gate: 'PAPER_OFFLINE', route: 'guardian', context: {} })
-    })
-    await user.click(screen.getByRole('button', { name: /send request/i }))
-    expect((await screen.findByRole('status')).textContent).toMatch(/every 3 days/i)
-  })
-})
-
-describe('the priced sheet for an under-18 learner on the web', () => {
+describe('the sheet for an under-18 learner on the web', () => {
   function openCheckoutSheet() {
     settleBudget()
     render(<UnlockSheetHost />)
@@ -188,13 +102,14 @@ describe('the priced sheet for an under-18 learner on the web', () => {
     return screen.getByRole('dialog')
   }
 
-  it('shows the ladder and says a parent pays with their own number', () => {
+  it('shows Weekly and Monthly only, and says a parent pays with their own number', () => {
     mockProfile.current = { role: 'learner', isMinor: true }
     const dialog = openCheckoutSheet()
-    expect(dialog.textContent).toMatch(/K120/)
+    expect(dialog.textContent).toMatch(/K15/)
+    expect(dialog.textContent).toMatch(/K50/)
+    expect(dialog.textContent).not.toMatch(/K120|K99|K5\b/)
     expect(dialog.textContent).toMatch(/A parent pays for this/i)
     expect(screen.getByRole('button', { name: /pay with a parent.s number/i })).toBeTruthy()
-    expect(screen.queryByRole('button', { name: /^pay with mtn \/ airtel$/i })).toBeNull()
   })
 
   it('treats an unknown age the same way — it fails towards "a parent pays"', () => {
@@ -215,12 +130,12 @@ describe('the priced sheet for an under-18 learner on the web', () => {
     mockProfile.current = { role: 'learner', isMinor: false }
     const dialog = openCheckoutSheet()
     expect(dialog.textContent).not.toMatch(/parent/i)
-    expect(screen.getByRole('button', { name: /pay with mtn \/ airtel/i })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /pay with mobile money/i })).toBeTruthy()
   })
 })
 
 describe('the adult variant', () => {
-  it('shows the ladder with the Term Pass highlighted and a Lenco CTA', () => {
+  it('highlights Monthly and offers a mobile-money CTA', () => {
     settleBudget()
     mockProfile.current = { role: 'learner', isMinor: false }
     render(<UnlockSheetHost />)
@@ -232,11 +147,10 @@ describe('the adult variant', () => {
       })
     })
     const dialog = screen.getByRole('dialog')
-    expect(dialog.textContent).toMatch(/K120/)
-    expect(dialog.textContent).toMatch(/BEST FOR EXAMS/)
-    // The saving is computed from the ladder, never typed into the component.
-    expect(dialog.textContent).toMatch(/Save K80 vs Monthly/)
-    expect(screen.getByRole('button', { name: /pay with mtn \/ airtel/i })).toBeTruthy()
+    expect(dialog.textContent).toMatch(/K15/)
+    expect(dialog.textContent).toMatch(/K50/)
+    expect(dialog.textContent).not.toMatch(/BEST FOR EXAMS|K120/)
+    expect(screen.getByRole('button', { name: /pay with mobile money/i })).toBeTruthy()
   })
 
   it('offers a real ✕ from the first frame, at the same weight as the CTA', () => {

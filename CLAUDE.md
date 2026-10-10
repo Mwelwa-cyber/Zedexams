@@ -1222,36 +1222,29 @@ Two rules override everything else in this area:
   `ageBand` fails closed (a learner is `under18` unless `isMinor === false`), and
   **every quota must expose a `resetsAt`** — a lock that cannot say when it lifts
   renders nothing rather than rendering bare.
-- **What an under-18 learner sees depends on the platform (2026-10).** On the
-  **web** they see the plan ladder and the price, and a PARENT pays: the Lenco
-  checkout asks for the parent's mobile-money number, the parent approves the
-  prompt on their own phone, and the plan lands on the learner's own account —
-  the callable payload is identical to any other payment, with no beneficiary
-  or guardian field. In the **Android build** they are shown no price and are
-  routed to the guardian ask below, because Play's Families policy governs that
-  listing. One switch decides it: `mayShowPrice(profile, {native})` in
-  `planState.js` and `resolveUnlockRoute(planState, {native})`, both of which
-  default `native` to withholding and open only on an explicit `false` — a
-  caller that omits the platform can never be the one that shows a minor a
-  price. Components call `platformMayShowPrice` (`./platformPrice`), which
-  reads the real platform. `isGuardianPayer(profile)` drives WORDING only
-  ("your parent's number"); whether a minor may actually buy is still the
-  server's call (`assertLearnerCapability(CAPABILITY_PURCHASE)` in
-  `initiateLencoPayment` and `getUpgradeQuote`), so an unapproved minor is
-  refused there whatever the screen shows. **There is no parent sign-up**:
-  `SIGNUP_ROLES` is `learner`/`teacher`, and `/register` tells a parent they
-  need no account. A stray parent account signs in and lands on
-  `FamilyClosed`; the family portal is gone. In the Android build the guardian ask is
-  `GuardianAskSheet`, which imports no pricing module at all — the guarantee
-  there is structural, not a conditional. The ask goes to `requestGuardianUnlock`
-  (`functions/guardianUnlock/`), rate-limited to one per learner per 72 hours
-  **server-side** (`users.guardianUnlock` is on the rules blocklist). Message
-  order is fixed by `functions/shared/guardian/guardianMessageCore.js`:
-  evidence → the ask → exam countdown → price. Never price first. Delivery is
-  email OR an approved WhatsApp template (`META_WHATSAPP_UNLOCK_TEMPLATE_NAME`,
-  see `.env.example`) — WhatsApp needs a template because the guardian has not
-  messaged us first, so free-form text would be outside Meta's 24-hour
-  customer-service window.
+- **An under-18 learner checks out like everyone else (2026-10).** There is one
+  unlock route. On the **web** the learner picks Weekly (K15) or Monthly (K50) —
+  the only two rungs `availablePlans()` lists; Day, Term and Exam carry
+  `listed: false` and stay in `PLANS` and every historical record — and a
+  parent-or-guardian step (`step === 'confirm'` in `UpgradeModal`) comes before
+  the payment form: plan, amount, duration, "Ask your parent or guardian to help
+  you complete this payment". It is a **prompt to involve an adult, never
+  verification that one did** — the verification is the parent approving the
+  mobile-money prompt with their PIN on their own phone, which this app never
+  sees. The parent types their own number on the learner's device; the network is
+  read from the number by `detectOperator` (MTN 096/076, Airtel 097/077, Zamtel
+  095/075) and there is **no manual network control** — an unrecognised prefix is
+  an error and Pay stays disabled. In the **Android build** every learner,
+  minor or not, reaches Google Play's own purchase sheet (`PlayUpgradePanel`),
+  which owns the price and any Family Link purchase approval; ZedExams builds no
+  approval screen of its own, sends no link, and does not name a payment method.
+  `mayShowPrice` is now always true and `resolveUnlockRoute` always returns
+  `checkout`; `GuardianAskSheet`, `AskGrownUpPage` and the client
+  `requestGuardianUnlock` wrapper are deleted and `/ask-a-grown-up` redirects to
+  `/my-subscription`. The `requestGuardianUnlock` callable, `/guardian-unlock` and
+  the link-pay functions remain deployed and unused from the app (audit before
+  removal). Whether a minor may actually buy is still the server's call
+  (`assertMayStartPurchase`).
 - **Paying the ask needs no login at all (2026-10).** `/guardian-unlock?t=…`
   is outside every guard: the guardian types their OWN mobile-money number and
   approves the prompt on their phone. The one-time token in the URL is the only

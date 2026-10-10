@@ -118,27 +118,11 @@ describe('PremiumPanel', () => {
   describe('under-18 learners in the Android build', () => {
     beforeEach(() => { mockNative = true })
 
-    for (const [label, profile] of [
-      ['a learner known to be a minor', { role: 'learner', isMinor: true }],
-      ['a learner whose age is unknown (fails closed)', { role: 'learner' }],
-      ['no profile at all', null],
-    ]) {
-      it(`shows no price and no checkout to ${label}`, () => {
-        mockProfile = profile
-        render(<MemoryRouter><PremiumPanel section={{ id: 'premium', label: 'Premium' }} /></MemoryRouter>)
-
-        // No currency anywhere on the panel.
-        expect(document.body.textContent).not.toMatch(/K\s?\d/)
-        expect(screen.queryByText(/Go Premium/i)).toBeNull()
-        expect(screen.queryByTestId('upgrade-modal')).toBeNull()
-      })
-    }
-
-    it('offers the guardian hand-off instead of a dead screen', () => {
+    it('sees the same plans as everyone — Google Play owns the purchase sheet', () => {
       mockProfile = { role: 'learner', isMinor: true }
       render(<MemoryRouter><PremiumPanel section={{ id: 'premium', label: 'Premium' }} /></MemoryRouter>)
-      const ask = screen.getByRole('link', { name: /grown-up/i })
-      expect(ask.getAttribute('href')).toBe('/ask-a-grown-up')
+      expect(screen.getByText(/Go Premium/i)).toBeTruthy()
+      expect(screen.queryByRole('link', { name: /grown-up/i })).toBeNull()
     })
   })
 })

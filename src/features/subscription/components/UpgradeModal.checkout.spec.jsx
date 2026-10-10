@@ -208,14 +208,13 @@ describe('Lenco checkout step', () => {
     await waitFor(() => expect(screen.getByText(/Payment successful!/)).toBeInTheDocument())
   })
 
-  it('flags an unsupported prefix and enables Pay only after a manual network choice', async () => {
+  it('flags an unsupported prefix, offers no manual network choice and keeps Pay disabled', async () => {
     openCheckout()
     await waitFor(() => expect(getUpgradeQuote).toHaveBeenCalled())
     fireEvent.change(phoneInput(), { target: { value: '0881234567' } })
-    expect(screen.getByText(/could not detect a supported mobile-money network/i)).toBeInTheDocument()
+    expect(screen.getByText(/could not detect Airtel, MTN or Zamtel/i)).toBeInTheDocument()
     expect(payButton()).toBeDisabled()
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'mtn' } })
-    expect(payButton()).not.toBeDisabled()
+    expect(screen.queryByRole('combobox')).toBeNull()
   })
 
   it('shows Check your phone (reference, network, amount) while the prompt is pending', async () => {
@@ -294,7 +293,7 @@ describe('Lenco checkout step', () => {
     await waitFor(() => expect(screen.getByText(/until 12 August 2026/)).toBeInTheDocument())
     fireEvent.change(phoneInput(), { target: { value: '0977740465' } })
     fireEvent.click(payButton())
-    await waitFor(() => expect(screen.getByText('Payment was not completed')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Payment was unsuccessful')).toBeInTheDocument())
     expect(screen.getByText(/provider did not confirm the payment/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Use a different number' }))
     // Back on the form with the number cleared, ready for a new attempt.
@@ -330,7 +329,7 @@ describe('Lenco checkout step', () => {
     fireEvent.change(phoneInput(), { target: { value: '0977740465' } })
     fireEvent.click(payButton())
     await waitFor(() => expect(screen.getByText(/Payment successful!/)).toBeInTheDocument())
-    expect(screen.getByText(/Pro · Monthly plan is now active/)).toBeInTheDocument()
+    expect(screen.getByText(/Your ZedExams subscription is now active — Pro · Monthly plan/)).toBeInTheDocument()
     expect(screen.getByText(/work has been preserved/)).toBeInTheDocument()
     expect(screen.getByText('K59', { selector: 'dd' })).toBeInTheDocument()
     expect(screen.getByText('12 August 2026')).toBeInTheDocument()
@@ -424,6 +423,9 @@ describe('Lenco checkout step — an under-18 learner pays with a parent\'s numb
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: /Continue to Payment/i }))
+    // An under-18 learner meets the parent step before the payment form.
+    const here = screen.queryByRole('button', { name: /parent or guardian is here/i })
+    if (here) fireEvent.click(here)
   }
 
   beforeEach(() => {
@@ -431,6 +433,20 @@ describe('Lenco checkout step — an under-18 learner pays with a parent\'s numb
     sessionStorage.clear()
     mockAuth.profile = { role: 'learner', isMinor: true, email: 'chanda@example.zm' }
     getUpgradeQuote.mockResolvedValue({ ...MONTHLY_QUOTE })
+  })
+
+  it('shows a parent step with plan, amount and duration before any payment form', async () => {
+    render(
+      <UpgradeModal portal="learner" planIds={['weekly', 'monthly']} defaultPlanId="monthly" onClose={vi.fn()} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Continue to Payment/i }))
+    expect(screen.getByText(/Ask your parent or guardian to help you complete this payment/i)).toBeInTheDocument()
+    expect(screen.getByText('K50')).toBeInTheDocument()
+    // No number field and no quote request yet: nothing can be charged from here.
+    expect(screen.queryByLabelText(/mobile money/i)).toBeNull()
+    expect(getUpgradeQuote).not.toHaveBeenCalled()
+    // A click-through is a prompt, not verification — it is never described as proof.
+    expect(screen.queryByText(/verified/i)).toBeNull()
   })
 
   it('says the number is the parent\'s and that the parent approves the prompt', async () => {

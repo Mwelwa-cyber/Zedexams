@@ -103,43 +103,14 @@ describe('QuizLimitPopup', () => {
   describe('under-18 learners in the Android build', () => {
     beforeEach(() => { mockNative = true })
 
-    for (const [label, profile] of [
-      ['a known minor', { role: 'learner', isMinor: true }],
-      ['an unknown age (fails closed)', { role: 'learner' }],
-      ['no profile at all', null],
-    ]) {
-      it(`shows no plan cards and no price to ${label}`, () => {
-        mockProfile = profile
-        render(<MemoryRouter><QuizLimitPopup /></MemoryRouter>)
-        act(() => paywall.show('quiz-preview-limit', { limit: 30 }))
-
-        // The popup still appears — the learner is told why they stopped.
-        expect(screen.getByText(/Great Job/i)).toBeTruthy()
-        // But nothing on it is an offer.
-        expect(document.body.textContent).not.toMatch(/K\s?\d/)
-        expect(screen.queryByTestId('upgrade-modal')).toBeNull()
-        expect(screen.getByText(/Ask a grown-up/i)).toBeTruthy()
-      })
-    }
-
-    it('records age_band on the paywall event so this stays measurable', () => {
+    it('are offered the same checkout as everyone — Google Play owns the sheet', () => {
       mockProfile = { role: 'learner', isMinor: true }
       render(<MemoryRouter><QuizLimitPopup /></MemoryRouter>)
       act(() => paywall.show('quiz-preview-limit', { limit: 30 }))
-
+      expect(screen.queryByText(/Ask a grown-up/i)).toBeNull()
       const shown = capture.mock.calls.find(([name]) => name === 'paywall_shown')
-      expect(shown).toBeTruthy()
       expect(shown[1].age_band).toBe('under18')
-      expect(shown[1].priced).toBe(false)
-    })
-
-    it('never opens the checkout, even if the CTA is tapped', () => {
-      mockProfile = { role: 'learner', isMinor: true }
-      render(<MemoryRouter><QuizLimitPopup /></MemoryRouter>)
-      act(() => paywall.show('quiz-preview-limit', { limit: 30 }))
-
-      fireEvent.click(screen.getByText(/Ask a grown-up/i))
-      expect(screen.queryByTestId('upgrade-modal')).toBeNull()
+      expect(shown[1].priced).toBe(true)
     })
   })
 })

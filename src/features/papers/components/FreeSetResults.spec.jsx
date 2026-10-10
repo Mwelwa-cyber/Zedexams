@@ -215,7 +215,7 @@ describe('ACCEPTANCE 10 — the lock is rendered and tappable', () => {
     const user = userEvent.setup()
     webMinor.current = true
     renderResults()
-    const cta = screen.getByRole('button', { name: /unlock — from K5/i })
+    const cta = screen.getByRole('button', { name: /unlock — from K15/i })
     await user.click(cta)
     expect(capture).toHaveBeenCalledWith('paper_continue_lock_tapped', {
       paper_id: 'p1', remaining: 40, route: 'checkout',
@@ -225,7 +225,7 @@ describe('ACCEPTANCE 10 — the lock is rendered and tappable', () => {
   it('quotes the cheapest rung to an adult instead', () => {
     mockProfile.current = { role: 'learner', isMinor: false }
     renderResults()
-    expect(screen.getByRole('button', { name: /unlock — from K5/i })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /unlock — from K15/i })).toBeTruthy()
   })
 
   it('"Not now" keeps the learner on the results screen with the review intact', async () => {
