@@ -26,6 +26,8 @@ vi.mock('../../../utils/playBilling', () => ({
     return 'unknown'
   },
 }))
+vi.mock('../../../utils/lenco', () => ({ getUpgradeQuote: vi.fn() }))
+import { getUpgradeQuote } from '../../../utils/lenco'
 vi.mock('../../../utils/analytics', () => ({ capture: vi.fn() }))
 import { capture } from '../../../utils/analytics'
 
@@ -73,6 +75,7 @@ describe('PlayUpgradePanel', () => {
     vi.clearAllMocks()
     mockProfile = freeLearner()
     fetchPlayProducts.mockResolvedValue(PRODUCTS)
+    getUpgradeQuote.mockResolvedValue({ planId: 'monthly' })
   })
 
   it('renders Google Play store prices, never the ZMW web prices', async () => {
@@ -115,6 +118,40 @@ describe('PlayUpgradePanel', () => {
     // still on the plans phase — the buy button is back
     expect(screen.getByRole('button', { name: /Subscribe with Google Play/i })).toBeInTheDocument()
     expect(verifyPlayPurchases).not.toHaveBeenCalled()
+  })
+
+  it('a guardian-declined account is stopped BEFORE Google\'s sheet opens — nothing is charged', async () => {
+    const user = userEvent.setup()
+    getUpgradeQuote.mockRejectedValue(Object.assign(new Error('Your account has been restricted by a parent or guardian.'), { code: 'functions/permission-denied' }))
+    renderPanel()
+    await user.click(await screen.findByRole('button', { name: /Subscribe with Google Play/i }))
+    expect(await screen.findByText(/restricted by a parent or guardian/i)).toBeInTheDocument()
+    expect(purchasePlayProduct).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: /Try again/i })).toBeNull()
+  })
+
+  it('a non-refusal pre-check failure (offline blip) does not block the purchase', async () => {
+    const user = userEvent.setup()
+    getUpgradeQuote.mockRejectedValue(Object.assign(new Error('network'), { code: 'functions/unavailable' }))
+    purchasePlayProduct.mockResolvedValue({ productId: 'learner_premium_monthly', purchaseToken: 'tok-1' })
+    verifyPlayPurchases.mockResolvedValue({
+      results: [{ status: 'active', planId: 'monthly', productId: 'learner_premium_monthly', expiryTime: FUTURE }],
+    })
+    renderPanel()
+    await user.click(await screen.findByRole('button', { name: /Subscribe with Google Play/i }))
+    expect(await screen.findByText(/Subscription active/i)).toBeInTheDocument()
+  })
+
+  it('a server consent_denied at verification says Google refunds it, with no retry', async () => {
+    const user = userEvent.setup()
+    purchasePlayProduct.mockResolvedValue({ productId: 'learner_premium_monthly', purchaseToken: 'tok-1' })
+    verifyPlayPurchases.mockResolvedValue({
+      results: [{ status: 'consent_denied', message: 'Your account has been restricted by a parent or guardian.', reason: 'consent-denied' }],
+    })
+    renderPanel()
+    await user.click(await screen.findByRole('button', { name: /Subscribe with Google Play/i }))
+    expect(await screen.findByText(/refunds it automatically within 3 days/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Retry verification|Try again/i })).toBeNull()
   })
 
   it('verify failure retries with the SAME token — never re-purchases', async () => {

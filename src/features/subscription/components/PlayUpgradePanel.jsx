@@ -12,7 +12,9 @@ import {
   restorePlayPurchases,
   verifyPlayPurchases,
 } from '../../../utils/playBilling'
+import { getUpgradeQuote } from '../../../utils/lenco'
 import { capture } from '../../../utils/analytics'
+import { checkoutRefusalMessage } from '../lib/checkoutRefusal'
 import Button from '../../../shared/components/Button'
 import Icon from '../../../shared/components/Icon'
 
@@ -76,7 +78,7 @@ export default function PlayUpgradePanel({ onClose, portal, planIds, defaultPlan
     defaultPlanId && nativePlanIds.includes(defaultPlanId) ? defaultPlanId : null
   )
   const [notice, setNotice] = useState('')
-  const [error, setError] = useState(null) // { kind: 'load'|'purchase'|'verify'|'wrong_user', message }
+  const [error, setError] = useState(null) // { kind: 'load'|'purchase'|'verify'|'wrong_user'|'refused', message }
 
   // The purchase we still owe the backend a verification for. Retry re-sends
   // THIS token — it never re-launches the purchase sheet.
@@ -145,6 +147,19 @@ export default function PlayUpgradePanel({ onClose, portal, planIds, defaultPlan
         setPhase('error')
         return
       }
+      // consent_denied: the account's guardian has declined, so the server
+      // refused the grant. Google has already taken the money, but the
+      // purchase was left unacknowledged and is refunded automatically — say
+      // so, and do not offer a retry that can never succeed.
+      if (result.status === 'consent_denied') {
+        setError({
+          kind: 'refused',
+          message: `${result.message || 'This account cannot make purchases right now.'} If you were charged, Google Play refunds it automatically within 3 days.`,
+        })
+        setPhase('error')
+        capture('play_purchase_refused', { planId: selectedPlanId, stage: 'verify', reason: result.reason || '' })
+        return
+      }
       setError({ kind: 'verify', message: '' })
       setPhase('error')
       capture('play_verify_failed', { planId: selectedPlanId, status: result.status || 'unknown' })
@@ -180,6 +195,23 @@ export default function PlayUpgradePanel({ onClose, portal, planIds, defaultPlan
     setError(null)
     setPhase('purchasing')
     capture('play_purchase_initiated', { planId: selectedPlanId })
+    // Ask the server BEFORE Google's sheet opens. Once the sheet is confirmed
+    // the money has moved, so an account whose guardian declined must be
+    // stopped here, where nothing has been charged. Only a refusal stops the
+    // flow: any other failure (offline, a hiccup) proceeds, because the server
+    // gates the grant again at verification and a refused purchase refunds.
+    try {
+      await getUpgradeQuote(selectedPlanId)
+    } catch (err) {
+      const refusal = checkoutRefusalMessage(err)
+      if (refusal) {
+        if (!mountedRef.current) return
+        setError({ kind: 'refused', message: refusal })
+        setPhase('error')
+        capture('play_purchase_refused', { planId: selectedPlanId, stage: 'precheck' })
+        return
+      }
+    }
     try {
       const purchase = await purchasePlayProduct(selectedPlanId, currentUser?.uid)
       purchaseRef.current = purchase
@@ -427,7 +459,9 @@ export default function PlayUpgradePanel({ onClose, portal, planIds, defaultPlan
               <h3 className="text-lg font-black text-gray-800">
                 {error?.kind === 'verify'
                   ? (error?.config ? 'Payment received — we’re on it' : 'Payment received — verification pending')
-                  : 'Something went wrong'}
+                  : error?.kind === 'refused'
+                    ? 'We can’t complete this purchase'
+                    : 'Something went wrong'}
               </h3>
               <p className="text-sm text-gray-600 mt-1">
                 {error?.kind === 'verify'
@@ -436,14 +470,14 @@ export default function PlayUpgradePanel({ onClose, portal, planIds, defaultPlan
                     : 'Google Play confirmed your payment but we couldn’t verify it with our server. Tap retry — you won’t be charged again. It also completes automatically next time you open the app.')
                   : (error?.message || 'Please try again.')}
               </p>
-              {error?.kind !== 'wrong_user' && (
+              {error?.kind !== 'wrong_user' && error?.kind !== 'refused' && (
                 <Button variant="primary" size="lg" fullWidth className="mt-5" onClick={handleErrorAction}>
                   {error?.kind === 'verify' ? 'Retry verification' : 'Try again'}
                 </Button>
               )}
               <Button
-                variant={error?.kind === 'wrong_user' ? 'primary' : 'ghost'}
-                size={error?.kind === 'wrong_user' ? 'lg' : 'sm'}
+                variant={error?.kind === 'wrong_user' || error?.kind === 'refused' ? 'primary' : 'ghost'}
+                size={error?.kind === 'wrong_user' || error?.kind === 'refused' ? 'lg' : 'sm'}
                 fullWidth
                 className="mt-3"
                 onClick={onClose}
